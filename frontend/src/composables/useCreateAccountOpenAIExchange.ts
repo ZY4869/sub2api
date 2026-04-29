@@ -5,7 +5,6 @@ import { adminAPI } from '@/api/admin'
 import { buildModelMappingObject } from '@/composables/useModelWhitelist'
 import type { Account } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
-import { getOpenAIDefaultWhitelist, shouldAutoReplaceOpenAIWhitelist } from '@/utils/openaiAccountDefaults'
 
 interface OpenAIOAuthClient {
   sessionId: Ref<string>
@@ -78,9 +77,6 @@ export function useCreateAccountOpenAIExchange(options: UseCreateAccountOpenAIEx
       )
       if (!tokenInfo) return
 
-      if (shouldAutoReplaceOpenAIWhitelist(options.allowedModels.value)) {
-        options.allowedModels.value = getOpenAIDefaultWhitelist(String(tokenInfo.plan_type || ''))
-      }
       options.applyOpenAIImageProtocolDefaults?.(String(tokenInfo.plan_type || ''))
 
       const credentials = oauthClient.buildCredentials(tokenInfo)

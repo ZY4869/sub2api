@@ -36,7 +36,7 @@ func (h *DocumentAIHandler) ListModels(c *gin.Context) {
 	if !ok {
 		return
 	}
-	models, err := h.documentAIService.ListModels(c.Request.Context())
+	models, err := h.documentAIService.ListModels(c.Request.Context(), groupID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

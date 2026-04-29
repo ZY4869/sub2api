@@ -249,6 +249,8 @@ type UsageLogFilters struct {
 	BillingType *int8
 	StartTime   *time.Time
 	EndTime     *time.Time
+	TodayStart  *time.Time
+	TodayEnd    *time.Time
 	// ExactTotal requests exact COUNT(*) for pagination. Default false for fast large-table paging.
 	ExactTotal bool
 }
@@ -258,20 +260,30 @@ type UsageStats struct {
 	AdminFreeRequests     int64   `json:"admin_free_requests"`
 	AdminFreeStandardCost float64 `json:"admin_free_standard_cost"`
 
-	TotalRequests        int64              `json:"total_requests"`
-	TotalInputTokens     int64              `json:"total_input_tokens"`
-	TotalOutputTokens    int64              `json:"total_output_tokens"`
-	TotalCacheTokens     int64              `json:"total_cache_tokens"`
-	TotalTokens          int64              `json:"total_tokens"`
-	TotalCost            float64            `json:"total_cost"`
-	TotalActualCost      float64            `json:"total_actual_cost"`
-	CostByCurrency       map[string]float64 `json:"cost_by_currency,omitempty"`
-	ActualCostByCurrency map[string]float64 `json:"actual_cost_by_currency,omitempty"`
-	TotalAccountCost     *float64           `json:"total_account_cost,omitempty"`
-	AverageDurationMs    float64            `json:"average_duration_ms"`
-	Endpoints            []EndpointStat     `json:"endpoints,omitempty"`
-	UpstreamEndpoints    []EndpointStat     `json:"upstream_endpoints,omitempty"`
-	EndpointPaths        []EndpointStat     `json:"endpoint_paths,omitempty"`
+	TotalRequests             int64              `json:"total_requests"`
+	TotalInputTokens          int64              `json:"total_input_tokens"`
+	TotalOutputTokens         int64              `json:"total_output_tokens"`
+	TotalCacheTokens          int64              `json:"total_cache_tokens"`
+	TotalTokens               int64              `json:"total_tokens"`
+	TotalCost                 float64            `json:"total_cost"`
+	TotalActualCost           float64            `json:"total_actual_cost"`
+	CostByCurrency            map[string]float64 `json:"cost_by_currency,omitempty"`
+	ActualCostByCurrency      map[string]float64 `json:"actual_cost_by_currency,omitempty"`
+	TotalAccountCost          *float64           `json:"total_account_cost,omitempty"`
+	AverageDurationMs         float64            `json:"average_duration_ms"`
+	TodayRequests             int64              `json:"today_requests"`
+	TodayInputTokens          int64              `json:"today_input_tokens"`
+	TodayOutputTokens         int64              `json:"today_output_tokens"`
+	TodayCacheTokens          int64              `json:"today_cache_tokens"`
+	TodayTokens               int64              `json:"today_tokens"`
+	TodayCost                 float64            `json:"today_cost"`
+	TodayActualCost           float64            `json:"today_actual_cost"`
+	TodayCostByCurrency       map[string]float64 `json:"today_cost_by_currency,omitempty"`
+	TodayActualCostByCurrency map[string]float64 `json:"today_actual_cost_by_currency,omitempty"`
+	TodayAverageDurationMs    float64            `json:"today_average_duration_ms"`
+	Endpoints                 []EndpointStat     `json:"endpoints,omitempty"`
+	UpstreamEndpoints         []EndpointStat     `json:"upstream_endpoints,omitempty"`
+	EndpointPaths             []EndpointStat     `json:"endpoint_paths,omitempty"`
 }
 
 // BatchUserUsageStats represents usage stats for a single user

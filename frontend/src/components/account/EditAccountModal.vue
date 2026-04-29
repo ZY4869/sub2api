@@ -680,7 +680,7 @@ const editGrokSSOToken = ref('')
 const editGrokTier = ref<GrokTier>('basic')
 const modelMappings = ref<ModelMapping[]>([])
 const actualModelLocked = ref(true)
-const modelRestrictionEnabled = ref(false)
+const modelRestrictionEnabled = ref(true)
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
 const manualModels = ref<AccountManualModel[]>([])
@@ -877,7 +877,7 @@ const supportsUnifiedModelEditor = computed(() => {
   if (!props.account) {
     return false
   }
-  if (props.account.platform === 'antigravity' || isBaiduDocumentAIAccount.value) {
+  if (props.account.platform === 'antigravity') {
     return false
   }
   if (isProtocolGatewayAccount.value || isGeminiVertexAccount.value || props.account.type === 'upstream') {
@@ -905,6 +905,9 @@ const showStandaloneModelScopeEditor = computed(() => {
     return false
   }
   if (isProtocolGatewayAccount.value || isGeminiVertexAccount.value || props.account?.type === 'upstream') {
+    return true
+  }
+  if (isBaiduDocumentAIAccount.value) {
     return true
   }
   return props.account?.type === 'oauth' || props.account?.type === 'setup-token' || props.account?.type === 'sso'
@@ -1119,8 +1122,8 @@ function applyModelRestrictionFromRecord(value: unknown) {
     .filter((row) => row.from.length > 0 && row.to.length > 0)
 
   if (entries.length === 0) {
-    modelRestrictionEnabled.value = false
-    modelRestrictionMode.value = 'whitelist'
+    modelRestrictionEnabled.value = true
+    modelRestrictionMode.value = isProtocolGatewayAccount.value ? 'mapping' : 'whitelist'
     allowedModels.value = []
     modelMappings.value = []
     if (isProtocolGatewayAccount.value) {
@@ -1518,7 +1521,10 @@ watch(
         if (newAccount.type === 'apikey' && newAccount.credentials) {
           const credentials = newAccount.credentials as Record<string, unknown>
           if (isBaiduDocumentAIPlatform(newAccount.platform)) {
-          modelRestrictionEnabled.value = false
+          const loadedFromScope = loadModelScopeFromExtra(extra)
+          if (!loadedFromScope) {
+            applyModelRestrictionFromRecord(undefined)
+          }
           baiduDocumentAIAsyncBearerToken.value = ''
           baiduDocumentAIAsyncBaseUrl.value =
             String(credentials.async_base_url || '').trim() ||
@@ -1527,10 +1533,6 @@ watch(
           baiduDocumentAIDirectApiUrlsText.value = stringifyBaiduDocumentAIDirectApiUrls(
             credentials.direct_api_urls
           )
-          modelRestrictionMode.value = 'whitelist'
-          modelMappings.value = []
-          allowedModels.value = []
-          protocolGatewayProbeModels.value = []
           resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
           resetAccountCustomErrorCodesState(customErrorCodesState)
           editBaseUrl.value = ''
@@ -1615,6 +1617,9 @@ watch(
       allowVertexBatchOverflow.value = defaultGoogleBatchArchiveState.allowVertexBatchOverflow
       acceptAIStudioBatchOverflow.value = defaultGoogleBatchArchiveState.acceptAIStudioBatchOverflow
       modelMappings.value = []
+      allowedModels.value = []
+      modelRestrictionEnabled.value = true
+      modelRestrictionMode.value = 'whitelist'
       openAIImageProtocolMode.value = 'native'
       openAIImageCompatAllowed.value = true
       geminiOAuthType.value = 'code_assist'
@@ -2256,27 +2261,23 @@ const handleSubmit = async () => {
     )
 
     updatePayload.extra = buildProbeExtra(
-      isBaiduDocumentAIPlatform(runtimePlatform)
-        ? (((updatePayload.extra as Record<string, unknown>) ||
-            (props.account.extra as Record<string, unknown>) ||
-            undefined))
-        : buildAccountModelScopeExtra(
-          ((updatePayload.extra as Record<string, unknown>) ||
-            (props.account.extra as Record<string, unknown>) ||
-            undefined),
-          {
-            platform: runtimePlatform,
-            enabled: runtimePlatform === 'antigravity'
-              ? true
-              : modelRestrictionEnabled.value &&
-                !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value),
-            mode: runtimePlatform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
-            allowedModels: allowedModels.value,
-            modelMappings: runtimePlatform === 'antigravity'
-              ? antigravityModelMappings.value
-              : modelMappings.value
-          }
-        )
+      buildAccountModelScopeExtra(
+        ((updatePayload.extra as Record<string, unknown>) ||
+          (props.account.extra as Record<string, unknown>) ||
+          undefined),
+        {
+          platform: runtimePlatform,
+          enabled: runtimePlatform === 'antigravity'
+            ? true
+            : modelRestrictionEnabled.value &&
+              !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value),
+          mode: runtimePlatform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
+          allowedModels: allowedModels.value,
+          modelMappings: runtimePlatform === 'antigravity'
+            ? antigravityModelMappings.value
+            : modelMappings.value
+        }
+      )
     )
 
     if (props.account.platform === 'grok' && props.account.type !== 'sso') {

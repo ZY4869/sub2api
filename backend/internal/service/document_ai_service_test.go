@@ -304,6 +304,131 @@ func newDocumentAIServiceForTest(
 	return NewDocumentAIService(repo, accountRepo, httpUpstream, nil, nil, settingService)
 }
 
+func TestDocumentAIServiceListModelsReturnsBuiltinsWhenNoAccounts(t *testing.T) {
+	accountRepo := &documentAIAccountRepoStub{
+		schedulableByGroup: map[int64][]Account{
+			9: {},
+		},
+	}
+	svc := newDocumentAIServiceForTest(nil, accountRepo, nil, true)
+	models, err := svc.ListModels(context.Background(), 9)
+	require.NoError(t, err)
+
+	ids := make([]string, 0, len(models))
+	for _, item := range models {
+		ids = append(ids, item.ID)
+	}
+	require.ElementsMatch(t, []string{
+		DocumentAIModelPPOCRV5Server,
+		DocumentAIModelPPStructureV3,
+		DocumentAIModelPaddleOCRVL,
+		DocumentAIModelPaddleOCRVL15,
+	}, ids)
+}
+
+func TestDocumentAIServiceListModelsFiltersByWhitelist(t *testing.T) {
+	accountRepo := &documentAIAccountRepoStub{
+		schedulableByGroup: map[int64][]Account{
+			9: {
+				{
+					ID:       33,
+					Platform: PlatformBaiduDocumentAI,
+					Type:     AccountTypeAPIKey,
+					Extra: map[string]any{
+						"model_scope_v2": (&AccountModelScopeV2{
+							PolicyMode: AccountModelPolicyModeWhitelist,
+							Entries: []AccountModelScopeEntry{
+								{DisplayModelID: DocumentAIModelPPOCRV5Server, TargetModelID: DocumentAIModelPPOCRV5Server},
+							},
+						}).ToMap(),
+					},
+				},
+			},
+		},
+	}
+	svc := newDocumentAIServiceForTest(nil, accountRepo, nil, true)
+	models, err := svc.ListModels(context.Background(), 9)
+	require.NoError(t, err)
+	require.Len(t, models, 1)
+	require.Equal(t, DocumentAIModelPPOCRV5Server, models[0].ID)
+}
+
+func TestDocumentAIServiceListModelsFiltersByMapping(t *testing.T) {
+	accountRepo := &documentAIAccountRepoStub{
+		schedulableByGroup: map[int64][]Account{
+			9: {
+				{
+					ID:       33,
+					Platform: PlatformBaiduDocumentAI,
+					Type:     AccountTypeAPIKey,
+					Extra: map[string]any{
+						"model_scope_v2": (&AccountModelScopeV2{
+							PolicyMode: AccountModelPolicyModeMapping,
+							Entries: []AccountModelScopeEntry{
+								{DisplayModelID: "friendly-doc-ocr", TargetModelID: DocumentAIModelPPOCRV5Server},
+							},
+						}).ToMap(),
+					},
+				},
+			},
+		},
+	}
+	svc := newDocumentAIServiceForTest(nil, accountRepo, nil, true)
+	models, err := svc.ListModels(context.Background(), 9)
+	require.NoError(t, err)
+	require.Len(t, models, 1)
+	require.Equal(t, "friendly-doc-ocr", models[0].ID)
+	require.Contains(t, models[0].Modes, DocumentAIJobModeAsync)
+	require.Contains(t, models[0].Modes, DocumentAIJobModeDirect)
+}
+
+func TestDocumentAIServiceListModelsReturnsUnionAcrossAccounts(t *testing.T) {
+	accountRepo := &documentAIAccountRepoStub{
+		schedulableByGroup: map[int64][]Account{
+			9: {
+				{
+					ID:       33,
+					Platform: PlatformBaiduDocumentAI,
+					Type:     AccountTypeAPIKey,
+					Extra: map[string]any{
+						"model_scope_v2": (&AccountModelScopeV2{
+							PolicyMode: AccountModelPolicyModeWhitelist,
+							Entries: []AccountModelScopeEntry{
+								{DisplayModelID: DocumentAIModelPPStructureV3, TargetModelID: DocumentAIModelPPStructureV3},
+							},
+						}).ToMap(),
+					},
+				},
+				{
+					ID:       34,
+					Platform: PlatformBaiduDocumentAI,
+					Type:     AccountTypeAPIKey,
+					Extra: map[string]any{
+						"model_scope_v2": (&AccountModelScopeV2{
+							PolicyMode: AccountModelPolicyModeWhitelist,
+							Entries: []AccountModelScopeEntry{
+								{DisplayModelID: DocumentAIModelPPOCRV5Server, TargetModelID: DocumentAIModelPPOCRV5Server},
+							},
+						}).ToMap(),
+					},
+				},
+			},
+		},
+	}
+	svc := newDocumentAIServiceForTest(nil, accountRepo, nil, true)
+	models, err := svc.ListModels(context.Background(), 9)
+	require.NoError(t, err)
+
+	ids := make([]string, 0, len(models))
+	for _, item := range models {
+		ids = append(ids, item.ID)
+	}
+	require.ElementsMatch(t, []string{
+		DocumentAIModelPPStructureV3,
+		DocumentAIModelPPOCRV5Server,
+	}, ids)
+}
+
 func TestDocumentAIServiceSubmitJobSelectsFirstCapableAccount(t *testing.T) {
 	repo := &memoryDocumentAIJobRepo{}
 	accountRepo := &documentAIAccountRepoStub{
@@ -387,6 +512,45 @@ func TestDocumentAIServiceSubmitJobSelectsFirstCapableAccount(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, stored.FileHash)
 	require.Len(t, *stored.FileHash, 64)
+}
+
+func TestDocumentAIServiceSubmitJobReturnsForbiddenWhenModelNotAllowedByScope(t *testing.T) {
+	repo := &memoryDocumentAIJobRepo{}
+	accountRepo := &documentAIAccountRepoStub{
+		schedulableByGroup: map[int64][]Account{
+			12: {
+				{
+					ID:       22,
+					Platform: PlatformBaiduDocumentAI,
+					Type:     AccountTypeAPIKey,
+					Credentials: map[string]any{
+						"async_bearer_token": "async-token",
+						"async_base_url":     DefaultBaiduDocumentAIAsyncBaseURL(),
+					},
+					Extra: map[string]any{
+						"model_scope_v2": (&AccountModelScopeV2{
+							PolicyMode: AccountModelPolicyModeWhitelist,
+							Entries: []AccountModelScopeEntry{
+								{DisplayModelID: DocumentAIModelPPOCRV5Server, TargetModelID: DocumentAIModelPPOCRV5Server},
+							},
+						}).ToMap(),
+					},
+				},
+			},
+		},
+	}
+
+	svc := newDocumentAIServiceForTest(repo, accountRepo, nil, true)
+	_, err := svc.SubmitJob(context.Background(), DocumentAISubmitJobInput{
+		APIKey:     &APIKey{ID: 8, User: &User{ID: 7}},
+		GroupID:    12,
+		Model:      DocumentAIModelPPStructureV3,
+		SourceType: DocumentAISourceTypeFile,
+		FileBytes:  []byte("pdf"),
+	})
+	require.Error(t, err)
+	require.Equal(t, int32(http.StatusForbidden), infraerrors.FromError(err).Code)
+	require.Equal(t, "document_ai_model_forbidden", infraerrors.Reason(err))
 }
 
 func TestDocumentAIServiceSubmitJobRejectsPrivateFileURL(t *testing.T) {
@@ -485,6 +649,58 @@ func TestDocumentAIServiceParseDirectSucceeds(t *testing.T) {
 	require.GreaterOrEqual(t, envelope.TableCount, 1)
 }
 
+func TestDocumentAIServiceParseDirectRoutesByScopeMapping(t *testing.T) {
+	repo := &memoryDocumentAIJobRepo{}
+	accountRepo := &documentAIAccountRepoStub{
+		schedulableByGroup: map[int64][]Account{
+			9: {
+				{
+					ID:          33,
+					Platform:    PlatformBaiduDocumentAI,
+					Type:        AccountTypeAPIKey,
+					Concurrency: 1,
+					Credentials: map[string]any{
+						"direct_token": "direct-token",
+						"direct_api_urls": map[string]any{
+							DocumentAIModelPPOCRV5Server: "https://direct.example.com/ocr",
+						},
+					},
+					Extra: map[string]any{
+						"model_scope_v2": (&AccountModelScopeV2{
+							PolicyMode: AccountModelPolicyModeMapping,
+							Entries: []AccountModelScopeEntry{
+								{DisplayModelID: "friendly-doc-ocr", TargetModelID: DocumentAIModelPPOCRV5Server},
+							},
+						}).ToMap(),
+					},
+				},
+			},
+		},
+	}
+
+	var capturedURL string
+	upstream := googleBatchHTTPUpstreamFunc(func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+		capturedURL = req.URL.String()
+		return documentAIServiceResponse(http.StatusOK, `{"result":{"text":"recognized text"}}`, nil), nil
+	})
+
+	svc := newDocumentAIServiceForTest(repo, accountRepo, upstream, true)
+	job, err := svc.ParseDirect(context.Background(), DocumentAIParseDirectInput{
+		APIKey:      &APIKey{ID: 8, User: &User{ID: 7}},
+		GroupID:     9,
+		Model:       "friendly-doc-ocr",
+		SourceType:  DocumentAISourceTypeFile,
+		FileType:    DocumentAIFileTypeImage,
+		FileName:    "page.png",
+		ContentType: "image/png",
+		FileBytes:   []byte("png"),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, "friendly-doc-ocr", job.Model)
+	require.Equal(t, "https://direct.example.com/ocr", capturedURL)
+}
+
 func TestDocumentAIServiceParseDirectFileBase64GeneratesFileHash(t *testing.T) {
 	repo := &memoryDocumentAIJobRepo{}
 	accountRepo := &documentAIAccountRepoStub{
@@ -532,6 +748,49 @@ func TestDocumentAIServiceParseDirectFileBase64GeneratesFileHash(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, stored.FileHash)
 	require.Len(t, *stored.FileHash, 64)
+}
+
+func TestDocumentAIServiceParseDirectReturnsForbiddenWhenModelNotAllowedByScope(t *testing.T) {
+	repo := &memoryDocumentAIJobRepo{}
+	accountRepo := &documentAIAccountRepoStub{
+		schedulableByGroup: map[int64][]Account{
+			9: {
+				{
+					ID:       33,
+					Platform: PlatformBaiduDocumentAI,
+					Type:     AccountTypeAPIKey,
+					Credentials: map[string]any{
+						"direct_token": "direct-token",
+						"direct_api_urls": map[string]any{
+							DocumentAIModelPPOCRV5Server: "https://direct.example.com/ocr",
+						},
+					},
+					Extra: map[string]any{
+						"model_scope_v2": (&AccountModelScopeV2{
+							PolicyMode: AccountModelPolicyModeWhitelist,
+							Entries: []AccountModelScopeEntry{
+								{DisplayModelID: DocumentAIModelPPStructureV3, TargetModelID: DocumentAIModelPPStructureV3},
+							},
+						}).ToMap(),
+					},
+				},
+			},
+		},
+	}
+
+	svc := newDocumentAIServiceForTest(repo, accountRepo, nil, true)
+	_, err := svc.ParseDirect(context.Background(), DocumentAIParseDirectInput{
+		APIKey:      &APIKey{ID: 8, User: &User{ID: 7}},
+		GroupID:     9,
+		Model:       DocumentAIModelPPOCRV5Server,
+		SourceType:  DocumentAISourceTypeFile,
+		FileType:    DocumentAIFileTypeImage,
+		ContentType: "image/png",
+		FileBytes:   []byte("png"),
+	})
+	require.Error(t, err)
+	require.Equal(t, int32(http.StatusForbidden), infraerrors.FromError(err).Code)
+	require.Equal(t, "document_ai_model_forbidden", infraerrors.Reason(err))
 }
 
 func TestDocumentAIServiceSubmitJobPersistsProviderRawJSONOnFailure(t *testing.T) {

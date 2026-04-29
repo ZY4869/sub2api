@@ -2,120 +2,7 @@
   <AppLayout>
     <TablePageLayout>
       <template #actions>
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <!-- Total Requests -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-                <Icon
-                  name="document"
-                  size="md"
-                  class="text-blue-600 dark:text-blue-400"
-                />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t("usage.totalRequests") }}
-                </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ usageStats?.total_requests?.toLocaleString() || "0" }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("usage.inSelectedRange") }}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Total Tokens -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
-                <Icon
-                  name="cube"
-                  size="md"
-                  class="text-amber-600 dark:text-amber-400"
-                />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t("usage.totalTokens") }}
-                </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ formatTokens(usageStats?.total_tokens || 0) }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("usage.in") }}:
-                  {{ formatTokens(usageStats?.total_input_tokens || 0) }} /
-                  {{ t("usage.out") }}:
-                  {{ formatTokens(usageStats?.total_output_tokens || 0) }}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Total Cost -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-green-100 p-2 dark:bg-green-900/30">
-                <Icon
-                  name="dollar"
-                  size="md"
-                  class="text-green-600 dark:text-green-400"
-                />
-              </div>
-              <div class="min-w-0 flex-1">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t("usage.totalCost") }}
-                </p>
-                <p class="text-xl font-bold text-green-600 dark:text-green-400">
-                  {{ formatCurrencyBreakdown(usageStats?.actual_cost_by_currency, usageStats?.total_actual_cost, 4) }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("usage.actualCost") }} /
-                  <span class="line-through"
-                    >{{ formatCurrencyBreakdown(usageStats?.cost_by_currency, usageStats?.total_cost, 4) }}</span
-                  >
-                  {{ t("usage.standardCost") }}
-                </p>
-                <p
-                  v-if="usageStats?.admin_free_requests"
-                  class="mt-1 text-[11px] text-emerald-500 dark:text-emerald-300"
-                >
-                  管理员免扣
-                  {{ usageStats.admin_free_requests.toLocaleString() }} 次 / ${{
-                    formatUsageAmount(usageStats.admin_free_standard_cost, 4)
-                  }}
-                  标准成本
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Average Duration -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-purple-100 p-2 dark:bg-purple-900/30">
-                <Icon
-                  name="clock"
-                  size="md"
-                  class="text-purple-600 dark:text-purple-400"
-                />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t("usage.avgDuration") }}
-                </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ formatDuration(usageStats?.average_duration_ms || 0) }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("usage.perRequest") }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <UsageStatsCards :stats="usageStats" />
       </template>
 
       <template #filters>
@@ -195,7 +82,7 @@
           :data="usageLogs"
           :loading="loading"
           :virtual-scroll="false"
-          row-key="request_id"
+          row-key="id"
         >
           <template #cell-api_key="{ row }">
             <span class="text-sm text-gray-900 dark:text-white">{{
@@ -295,7 +182,7 @@
             >
               <div
                 v-for="line in formatUsageEndpoints(row)"
-                :key="`${row.request_id}-${line.key}`"
+                :key="`${row.id}-${line.key}`"
                 class="whitespace-normal break-all"
               >
                 <span class="font-medium text-gray-500 dark:text-gray-400"
@@ -860,6 +747,7 @@ import ModelIcon from "@/components/common/ModelIcon.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import Icon from "@/components/icons/Icon.vue";
+import UsageStatsCards from "@/components/user/usage/UsageStatsCards.vue";
 import UsageRequestPreviewModal from "@/components/user/usage/UsageRequestPreviewModal.vue";
 import type { UsageLog, UsageQueryParams, UsageStatsResponse } from "@/types";
 import type { UsageFilterApiKey } from "@/api/usage";

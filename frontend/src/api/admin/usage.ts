@@ -29,6 +29,16 @@ export interface AdminUsageStatsResponse {
   admin_free_standard_cost: number
   total_account_cost?: number
   average_duration_ms: number
+  today_requests: number
+  today_input_tokens: number
+  today_output_tokens: number
+  today_cache_tokens: number
+  today_tokens: number
+  today_cost: number
+  today_actual_cost: number
+  today_cost_by_currency?: Record<string, number>
+  today_actual_cost_by_currency?: Record<string, number>
+  today_average_duration_ms: number
   endpoints?: EndpointStat[]
   upstream_endpoints?: EndpointStat[]
   endpoint_paths?: EndpointStat[]

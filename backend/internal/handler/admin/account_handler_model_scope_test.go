@@ -85,3 +85,39 @@ func TestPrepareAccountModelScopeClearsLegacyModelMappingWhenScopeRemoved(t *tes
 	require.Equal(t, "sk-test", nextCredentials["api_key"])
 	require.Equal(t, extra, nextExtra)
 }
+
+func TestPrepareAccountModelScopeTreatsEmptyStructuredScopeAsUnrestricted(t *testing.T) {
+	handler := &AccountHandler{
+		modelRegistryService: service.NewModelRegistryService(newTestSettingRepo()),
+	}
+
+	credentials := map[string]any{
+		"api_key": "sk-test",
+		"model_mapping": map[string]any{
+			"pp-ocrv5-server": "pp-ocrv5-server",
+		},
+	}
+	extra := map[string]any{
+		"model_scope_v2": map[string]any{
+			"policy_mode": "whitelist",
+			"entries":     []any{},
+		},
+		"document_ai_mode": "direct",
+	}
+
+	nextCredentials, nextExtra, err := handler.prepareAccountModelScope(
+		context.Background(),
+		service.PlatformBaiduDocumentAI,
+		service.AccountTypeAPIKey,
+		credentials,
+		extra,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, nextCredentials)
+	require.Equal(t, "sk-test", nextCredentials["api_key"])
+	_, exists := nextCredentials["model_mapping"]
+	require.False(t, exists)
+	require.Equal(t, map[string]any{
+		"document_ai_mode": "direct",
+	}, nextExtra)
+}

@@ -352,3 +352,31 @@ func TestBuildAvailableTestModels_OpenAIFreeOAuthHidesGptImage2(t *testing.T) {
 	require.Equal(t, "friendly-normal", models[0].ID)
 	require.Equal(t, "gpt-5.4", models[0].TargetModelID)
 }
+
+func TestBuildAvailableTestModels_BaiduDocumentAIScopeRestrictsVisibleModels(t *testing.T) {
+	account := &Account{
+		ID:       1001,
+		Name:     "baidu-scoped",
+		Platform: PlatformBaiduDocumentAI,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Extra: map[string]any{
+			"model_scope_v2": map[string]any{
+				"policy_mode": AccountModelPolicyModeWhitelist,
+				"entries": []any{
+					map[string]any{
+						"display_model_id": DocumentAIModelPPOCRV5Server,
+						"target_model_id":  DocumentAIModelPPOCRV5Server,
+						"provider":         PlatformBaiduDocumentAI,
+						"visibility_mode":  AccountModelVisibilityModeDirect,
+					},
+				},
+			},
+		},
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, nil)
+	require.Len(t, models, 1)
+	require.Equal(t, DocumentAIModelPPOCRV5Server, models[0].ID)
+	require.Equal(t, DocumentAIModelPPOCRV5Server, models[0].TargetModelID)
+}

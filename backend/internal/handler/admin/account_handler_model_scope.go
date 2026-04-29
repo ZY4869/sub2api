@@ -2,15 +2,11 @@ package admin
 
 import (
 	"context"
-	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 func (h *AccountHandler) prepareAccountModelScope(ctx context.Context, platform string, accountType string, credentials map[string]any, extra map[string]any) (map[string]any, map[string]any, error) {
-	if strings.TrimSpace(strings.ToLower(platform)) == service.PlatformBaiduDocumentAI {
-		return credentials, extra, nil
-	}
 	if h.modelRegistryService == nil {
 		return credentials, extra, nil
 	}
@@ -22,11 +18,14 @@ func (h *AccountHandler) prepareAccountModelScope(ctx context.Context, platform 
 	if !hasScope {
 		nextCredentials := cloneStringAnyMap(credentials)
 		if nextCredentials != nil && extra != nil {
-			if _, ok := extra["model_scope_v2"]; !ok {
-				delete(nextCredentials, "model_mapping")
-			}
+			delete(nextCredentials, "model_mapping")
 		}
-		return nextCredentials, cloneStringAnyMap(extra), nil
+		nextExtra := cloneStringAnyMap(extra)
+		delete(nextExtra, "model_scope_v2")
+		if len(nextExtra) == 0 {
+			nextExtra = nil
+		}
+		return nextCredentials, nextExtra, nil
 	}
 	if len(selectedModels) > 0 {
 		if _, err := h.modelRegistryService.EnsureModelsAvailable(ctx, selectedModels); err != nil {

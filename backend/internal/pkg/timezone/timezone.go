@@ -41,7 +41,7 @@ func Init(tz string) error {
 
 // getUTCOffset returns the current UTC offset for a location
 func getUTCOffset(loc *time.Location) string {
-	_, offset := time.Now().In(loc).Zone()
+	_, offset := currentTime().In(loc).Zone()
 	hours := offset / 3600
 	minutes := (offset % 3600) / 60
 	if minutes < 0 {
@@ -60,9 +60,9 @@ func getUTCOffset(loc *time.Location) string {
 // but provided for explicit timezone-aware code.
 func Now() time.Time {
 	if location == nil {
-		return time.Now()
+		return currentTime()
 	}
-	return time.Now().In(location)
+	return currentTime().In(location)
 }
 
 // Location returns the configured timezone location.
@@ -142,7 +142,7 @@ func NowInUserLocation(userTZ string) time.Time {
 		return Now()
 	}
 	if userLoc, err := time.LoadLocation(userTZ); err == nil {
-		return time.Now().In(userLoc)
+		return currentTime().In(userLoc)
 	}
 	return Now()
 }

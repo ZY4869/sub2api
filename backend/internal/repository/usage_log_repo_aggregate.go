@@ -1115,7 +1115,8 @@ func (r *usageLogRepository) GetGlobalStats(ctx context.Context, startTime, endT
 	stats.ActualCostByCurrency = actualCostByCurrency
 	return stats, nil
 }
-func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters UsageLogFilters) (*UsageStats, error) {
+
+func buildUsageStatsBaseFilters(filters UsageLogFilters) ([]string, []any) {
 	conditions := make([]string, 0, 9)
 	args := make([]any, 0, 9)
 	if filters.UserID > 0 {
@@ -1144,14 +1145,26 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 		conditions = append(conditions, fmt.Sprintf("billing_type = $%d", len(args)+1))
 		args = append(args, int16(*filters.BillingType))
 	}
-	if filters.StartTime != nil {
+	return conditions, args
+}
+
+func appendUsageStatsTimeRange(conditions []string, args []any, startTime, endTime *time.Time) ([]string, []any) {
+	if startTime != nil {
 		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)+1))
-		args = append(args, *filters.StartTime)
+		args = append(args, *startTime)
 	}
-	if filters.EndTime != nil {
+	if endTime != nil {
 		conditions = append(conditions, fmt.Sprintf("created_at < $%d", len(args)+1))
-		args = append(args, *filters.EndTime)
+		args = append(args, *endTime)
 	}
+	return conditions, args
+}
+
+func cloneUsageStatsFilters(conditions []string, args []any) ([]string, []any) {
+	return append([]string(nil), conditions...), append([]any(nil), args...)
+}
+
+func (r *usageLogRepository) queryUsageStatsWithConditions(ctx context.Context, conditions []string, args []any, includeAccountCost bool) (*UsageStats, *float64, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*) as total_requests,
@@ -1167,21 +1180,74 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 		FROM usage_logs
 		%s
 	`, buildWhere(conditions))
+
 	stats := &UsageStats{}
 	var totalAccountCost float64
-	if err := scanSingleRow(ctx, r.sql, query, args, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &totalAccountCost, &stats.AverageDurationMs); err != nil {
-		return nil, err
-	}
-	if filters.AccountID > 0 {
-		stats.TotalAccountCost = &totalAccountCost
+	if err := scanSingleRow(
+		ctx,
+		r.sql,
+		query,
+		args,
+		&stats.TotalRequests,
+		&stats.TotalInputTokens,
+		&stats.TotalOutputTokens,
+		&stats.TotalCacheTokens,
+		&stats.TotalCost,
+		&stats.TotalActualCost,
+		&stats.AdminFreeRequests,
+		&stats.AdminFreeStandardCost,
+		&totalAccountCost,
+		&stats.AverageDurationMs,
+	); err != nil {
+		return nil, nil, err
 	}
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+
 	costByCurrency, actualCostByCurrency, err := queryUsageCostByCurrency(ctx, r.sql, buildWhere(conditions), args)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	stats.CostByCurrency = costByCurrency
 	stats.ActualCostByCurrency = actualCostByCurrency
+
+	if !includeAccountCost {
+		return stats, nil, nil
+	}
+	return stats, &totalAccountCost, nil
+}
+
+func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters UsageLogFilters) (*UsageStats, error) {
+	baseConditions, baseArgs := buildUsageStatsBaseFilters(filters)
+	selectedConditions, selectedArgs := cloneUsageStatsFilters(baseConditions, baseArgs)
+	selectedConditions, selectedArgs = appendUsageStatsTimeRange(selectedConditions, selectedArgs, filters.StartTime, filters.EndTime)
+
+	stats, totalAccountCost, err := r.queryUsageStatsWithConditions(ctx, selectedConditions, selectedArgs, filters.AccountID > 0)
+	if err != nil {
+		return nil, err
+	}
+	if totalAccountCost != nil {
+		stats.TotalAccountCost = totalAccountCost
+	}
+
+	if filters.TodayStart != nil || filters.TodayEnd != nil {
+		todayConditions, todayArgs := cloneUsageStatsFilters(baseConditions, baseArgs)
+		todayConditions, todayArgs = appendUsageStatsTimeRange(todayConditions, todayArgs, filters.TodayStart, filters.TodayEnd)
+		todayStats, _, todayErr := r.queryUsageStatsWithConditions(ctx, todayConditions, todayArgs, false)
+		if todayErr != nil {
+			return nil, todayErr
+		}
+		stats.TodayRequests = todayStats.TotalRequests
+		stats.TodayInputTokens = todayStats.TotalInputTokens
+		stats.TodayOutputTokens = todayStats.TotalOutputTokens
+		stats.TodayCacheTokens = todayStats.TotalCacheTokens
+		stats.TodayTokens = todayStats.TotalTokens
+		stats.TodayCost = todayStats.TotalCost
+		stats.TodayActualCost = todayStats.TotalActualCost
+		stats.TodayCostByCurrency = todayStats.CostByCurrency
+		stats.TodayActualCostByCurrency = todayStats.ActualCostByCurrency
+		stats.TodayAverageDurationMs = todayStats.AverageDurationMs
+	}
+
 	return stats, nil
 }
 

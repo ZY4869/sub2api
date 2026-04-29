@@ -966,10 +966,7 @@ describe('EditAccountModal', () => {
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toBeUndefined()
-    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_scope_v2).toEqual({
-      policy_mode: 'mapping',
-      entries: []
-    })
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_scope_v2).toBeUndefined()
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_provider).toBeUndefined()
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_model_id).toBeUndefined()
   })

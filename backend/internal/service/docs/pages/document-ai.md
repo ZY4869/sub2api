@@ -24,6 +24,17 @@
 所以百度智能文档并不只有异步解析。
 如果你需要同步直出结果，请使用 `POST /document-ai/v1/models/{model}:parse`，它就是 `direct` 同步解析入口。
 
+### 账号级模型限制与映射
+
+百度智能文档账号现在也接入了统一的账号模型策略链路，和其它一级平台保持一致：
+
+- 后台创建 / 编辑账号时，模型限制以 `extra.model_scope_v2.entries[]` 为唯一事实源。
+- 如果账号配置了白名单或别名映射，`GET /document-ai/v1/models` 只会返回这些被允许的 display model ID。
+- 如果某个 display model 被映射到不同的真实 target model，对外依然只暴露 display model ID；真实 target 只用于内部路由。
+- 空选择或空的 `model_scope_v2.entries` 不表示“禁用全部模型”，而是表示“不限制”，网关会继续回退到默认百度文档模型库。
+- 当同一个 `baidu_document_ai` 分组下配置了多个可调度账号时，`GET /document-ai/v1/models` 返回这些账号允许的 display model ID **并集**。
+- 如果请求的 display model 不在该分组任何可用账号的 `model_scope_v2.entries[]` 允许范围内，接口会返回 `403 document_ai_model_forbidden`。
+
 ### 直连解析与模型模式差异
 
 `direct` 模式适合低延迟、前台直出结果的场景。它支持 `multipart file` 与 JSON `file_base64`，并且必须携带 `file_type=image|pdf`。

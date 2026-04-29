@@ -1,7 +1,7 @@
 <template>
   <div class="card overflow-hidden">
     <div class="overflow-auto">
-      <DataTable :columns="columns" :data="data" :loading="loading">
+      <DataTable :columns="columns" :data="data" :loading="loading" row-key="id">
         <template #cell-user="{ row }">
           <div class="text-sm">
             <div class="flex items-center gap-2">
@@ -177,7 +177,7 @@
           <div class="max-w-[320px] space-y-1 text-xs">
             <div
               v-for="line in formatUsageEndpoints(row)"
-              :key="`${row.request_id}-${line.key}`"
+              :key="`${row.id}-${line.key}`"
               class="break-all text-gray-700 dark:text-gray-300"
             >
               <span class="font-medium text-gray-500 dark:text-gray-400"

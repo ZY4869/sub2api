@@ -1,46 +1,6 @@
 import type { OpenAIImageProtocolMode } from '@/types'
 
-const OPENAI_LEGACY_BASE_DEFAULT_WHITELIST = ['gpt-5.2', 'gpt-5.4', 'gpt-5.4-mini'] as const
-const OPENAI_LEGACY_PRO_DEFAULT_WHITELIST = [...OPENAI_LEGACY_BASE_DEFAULT_WHITELIST, 'gpt-5.3-codex-spark'] as const
-
-const OPENAI_FREE_DEFAULT_WHITELIST = [...OPENAI_LEGACY_BASE_DEFAULT_WHITELIST] as const
-const OPENAI_PAID_DEFAULT_WHITELIST = [...OPENAI_LEGACY_BASE_DEFAULT_WHITELIST, 'gpt-5.5'] as const
-const OPENAI_PRO_DEFAULT_WHITELIST = [...OPENAI_PAID_DEFAULT_WHITELIST, 'gpt-5.3-codex-spark'] as const
 const OPENAI_IMAGE_COMPAT_ALLOWED_PLANS = new Set(['plus', 'team', 'pro', 'business', 'enterprise', 'edu'])
-
-function normalizeOpenAIWhitelist(models: readonly string[] | null | undefined): string[] {
-  if (!Array.isArray(models)) {
-    return []
-  }
-
-  const seen = new Set<string>()
-  const normalized: string[] = []
-  for (const model of models) {
-    const trimmed = String(model || '').trim()
-    if (!trimmed || seen.has(trimmed)) {
-      continue
-    }
-    seen.add(trimmed)
-    normalized.push(trimmed)
-  }
-  return normalized
-}
-
-function normalizeOpenAIWhitelistForComparison(models: readonly string[] | null | undefined): string[] {
-  return [...normalizeOpenAIWhitelist(models)].sort()
-}
-
-function isSameOpenAIWhitelist(
-  left: readonly string[] | null | undefined,
-  right: readonly string[] | null | undefined,
-): boolean {
-  const leftNormalized = normalizeOpenAIWhitelistForComparison(left)
-  const rightNormalized = normalizeOpenAIWhitelistForComparison(right)
-  if (leftNormalized.length !== rightNormalized.length) {
-    return false
-  }
-  return leftNormalized.every((value, index) => value === rightNormalized[index])
-}
 
 export function normalizeOpenAIPlanType(raw: string | null | undefined): string {
   const trimmed = String(raw || '').trim()
@@ -65,28 +25,6 @@ export function normalizeOpenAIPlanType(raw: string | null | undefined): string 
     default:
       return trimmed
   }
-}
-
-export function getOpenAIDefaultWhitelist(planType?: string | null): string[] {
-  const normalizedPlanType = normalizeOpenAIPlanType(planType)
-  if (normalizedPlanType === 'free') {
-    return [...OPENAI_FREE_DEFAULT_WHITELIST]
-  }
-  return normalizedPlanType === 'pro'
-    ? [...OPENAI_PRO_DEFAULT_WHITELIST]
-    : [...OPENAI_PAID_DEFAULT_WHITELIST]
-}
-
-export function shouldAutoReplaceOpenAIWhitelist(currentModels: string[] | null | undefined): boolean {
-  const current = normalizeOpenAIWhitelist(currentModels)
-  return (
-    current.length === 0 ||
-    isSameOpenAIWhitelist(current, OPENAI_LEGACY_BASE_DEFAULT_WHITELIST) ||
-    isSameOpenAIWhitelist(current, OPENAI_LEGACY_PRO_DEFAULT_WHITELIST) ||
-    isSameOpenAIWhitelist(current, OPENAI_FREE_DEFAULT_WHITELIST) ||
-    isSameOpenAIWhitelist(current, OPENAI_PAID_DEFAULT_WHITELIST) ||
-    isSameOpenAIWhitelist(current, OPENAI_PRO_DEFAULT_WHITELIST)
-  )
 }
 
 export function normalizeOpenAIImageProtocolMode(

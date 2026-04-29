@@ -476,6 +476,77 @@ func TestUsageLogRepositoryGetStatsWithFilters_UserAndAPIKeyUsesHalfOpenEndTime(
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetStatsWithFilters_AlsoAggregatesTodayWindow(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	todayStart := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
+	todayEnd := todayStart.Add(5 * time.Hour)
+	filters := usagestats.UsageLogFilters{
+		UserID:     42,
+		APIKeyID:   7,
+		StartTime:  &start,
+		EndTime:    &end,
+		TodayStart: &todayStart,
+		TodayEnd:   &todayEnd,
+	}
+
+	mock.ExpectQuery("FROM usage_logs\\s+WHERE user_id = \\$1 AND api_key_id = \\$2 AND created_at >= \\$3 AND created_at < \\$4").
+		WithArgs(int64(42), int64(7), start, end).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"total_requests",
+			"total_input_tokens",
+			"total_output_tokens",
+			"total_cache_tokens",
+			"total_cost",
+			"total_actual_cost",
+			"admin_free_requests",
+			"admin_free_standard_cost",
+			"total_account_cost",
+			"avg_duration_ms",
+		}).AddRow(int64(2), int64(5), int64(7), int64(3), 1.5, 1.2, int64(0), 0.0, 1.5, 25.0))
+	mock.ExpectQuery("jsonb_object_agg\\(currency, total_amount\\)").
+		WithArgs(int64(42), int64(7), start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
+			AddRow([]byte(`{"USD":1.5}`), []byte(`{"USD":1.2}`)))
+	mock.ExpectQuery("FROM usage_logs\\s+WHERE user_id = \\$1 AND api_key_id = \\$2 AND created_at >= \\$3 AND created_at < \\$4").
+		WithArgs(int64(42), int64(7), todayStart, todayEnd).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"total_requests",
+			"total_input_tokens",
+			"total_output_tokens",
+			"total_cache_tokens",
+			"total_cost",
+			"total_actual_cost",
+			"admin_free_requests",
+			"admin_free_standard_cost",
+			"total_account_cost",
+			"avg_duration_ms",
+		}).AddRow(int64(1), int64(2), int64(3), int64(4), 0.5, 0.4, int64(0), 0.0, 0.5, 50.0))
+	mock.ExpectQuery("jsonb_object_agg\\(currency, total_amount\\)").
+		WithArgs(int64(42), int64(7), todayStart, todayEnd).
+		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
+			AddRow([]byte(`{"USD":0.5,"CNY":2}`), []byte(`{"USD":0.4,"CNY":1.6}`)))
+
+	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), stats.TotalRequests)
+	require.Equal(t, int64(15), stats.TotalTokens)
+	require.Equal(t, int64(1), stats.TodayRequests)
+	require.Equal(t, int64(2), stats.TodayInputTokens)
+	require.Equal(t, int64(3), stats.TodayOutputTokens)
+	require.Equal(t, int64(4), stats.TodayCacheTokens)
+	require.Equal(t, int64(9), stats.TodayTokens)
+	require.Equal(t, 0.5, stats.TodayCost)
+	require.Equal(t, 0.4, stats.TodayActualCost)
+	require.Equal(t, 50.0, stats.TodayAverageDurationMs)
+	require.Equal(t, map[string]float64{"USD": 0.5, "CNY": 2}, stats.TodayCostByCurrency)
+	require.Equal(t, map[string]float64{"USD": 0.4, "CNY": 1.6}, stats.TodayActualCostByCurrency)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &usageLogRepository{sql: db}

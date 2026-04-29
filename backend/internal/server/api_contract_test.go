@@ -19,6 +19,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	adminhandler "github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -441,7 +442,7 @@ func TestAPIContracts(t *testing.T) {
 						TotalCost:           0.5,
 						ActualCost:          0.5,
 						DurationMs:          ptr(100),
-						CreatedAt:           deps.now,
+						CreatedAt:           deps.now.Add(-2 * time.Minute),
 					},
 					{
 						ID:           2,
@@ -454,7 +455,7 @@ func TestAPIContracts(t *testing.T) {
 						TotalCost:    0.25,
 						ActualCost:   0.25,
 						DurationMs:   ptr(300),
-						CreatedAt:    deps.now,
+						CreatedAt:    deps.now.Add(-1 * time.Minute),
 					},
 				})
 			},
@@ -472,7 +473,15 @@ func TestAPIContracts(t *testing.T) {
 					"total_tokens": 53,
 					"total_cost": 0.75,
 					"total_actual_cost": 0.75,
+					"today_requests": 2,
+					"today_input_tokens": 15,
+					"today_output_tokens": 35,
+					"today_cache_tokens": 3,
+					"today_tokens": 53,
+					"today_cost": 0.75,
+					"today_actual_cost": 0.75,
 					"average_duration_ms": 200,
+					"today_average_duration_ms": 200,
 					"admin_free_requests": 0,
 					"admin_free_standard_cost": 0
 				}
@@ -852,6 +861,9 @@ func newContractDeps(t *testing.T) *contractDeps {
 	t.Helper()
 
 	now := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
+	t.Cleanup(timezone.SetNowForTesting(func() time.Time {
+		return now
+	}))
 
 	userRepo := &stubUserRepo{
 		users: map[int64]*service.User{
@@ -2129,12 +2141,30 @@ func (r *stubUsageLogRepo) GetAccountUsageStats(ctx context.Context, accountID i
 
 func (r *stubUsageLogRepo) GetStatsWithFilters(ctx context.Context, filters usagestats.UsageLogFilters) (*usagestats.UsageStats, error) {
 	filtered := filterUsageLogs(r.userLogs[filters.UserID], filters)
-	var (
-		totalDuration int
-		durationCount int
-		stats         usagestats.UsageStats
-	)
-	for _, log := range filtered {
+	stats := buildUsageStatsFromLogs(filtered)
+	if filters.TodayStart != nil || filters.TodayEnd != nil {
+		todayFilters := filters
+		todayFilters.StartTime = filters.TodayStart
+		todayFilters.EndTime = filters.TodayEnd
+		todayLogs := filterUsageLogs(r.userLogs[filters.UserID], todayFilters)
+		todayStats := buildUsageStatsFromLogs(todayLogs)
+		stats.TodayRequests = todayStats.TotalRequests
+		stats.TodayInputTokens = todayStats.TotalInputTokens
+		stats.TodayOutputTokens = todayStats.TotalOutputTokens
+		stats.TodayCacheTokens = todayStats.TotalCacheTokens
+		stats.TodayTokens = todayStats.TotalTokens
+		stats.TodayCost = todayStats.TotalCost
+		stats.TodayActualCost = todayStats.TotalActualCost
+		stats.TodayAverageDurationMs = todayStats.AverageDurationMs
+	}
+	return stats, nil
+}
+
+func buildUsageStatsFromLogs(logs []service.UsageLog) *usagestats.UsageStats {
+	stats := &usagestats.UsageStats{}
+	totalDuration := 0
+	durationCount := 0
+	for _, log := range logs {
 		stats.TotalRequests++
 		stats.TotalInputTokens += int64(log.InputTokens)
 		stats.TotalOutputTokens += int64(log.OutputTokens)
@@ -2150,7 +2180,7 @@ func (r *stubUsageLogRepo) GetStatsWithFilters(ctx context.Context, filters usag
 	if durationCount > 0 {
 		stats.AverageDurationMs = float64(totalDuration) / float64(durationCount)
 	}
-	return &stats, nil
+	return stats
 }
 
 func filterUsageLogs(logs []service.UsageLog, filters usagestats.UsageLogFilters) []service.UsageLog {

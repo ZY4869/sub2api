@@ -1499,6 +1499,16 @@ export interface UsageStatsResponse {
   admin_free_requests: number;
   admin_free_standard_cost: number;
   average_duration_ms: number;
+  today_requests: number;
+  today_input_tokens: number;
+  today_output_tokens: number;
+  today_cache_tokens: number;
+  today_tokens: number;
+  today_cost: number;
+  today_actual_cost: number;
+  today_cost_by_currency?: Record<string, number>;
+  today_actual_cost_by_currency?: Record<string, number>;
+  today_average_duration_ms: number;
   models?: Record<string, number>;
 }
 

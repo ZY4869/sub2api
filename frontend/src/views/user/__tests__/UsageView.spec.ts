@@ -45,6 +45,13 @@ const messages: Record<string, string> = {
   "usage.serviceTierPriority": "Fast",
   "usage.serviceTierFlex": "Flex",
   "usage.serviceTierStandard": "Standard",
+  "usage.todayStats": "Today Stats",
+  "usage.todaySoFar": "From today's 00:00 to now",
+  "usage.todayRequests": "Today Requests",
+  "usage.todayTokens": "Today Tokens",
+  "usage.todayCost": "Today Cost",
+  "usage.todayAvgDuration": "Today's Avg Duration",
+  "usage.cacheTokens": "Cache",
   "usage.rate": "Rate",
   "usage.original": "Original",
   "usage.billed": "Billed",
@@ -615,6 +622,116 @@ describe("user UsageView tooltip", () => {
     expect(wrapper.findAll("tbody tr[data-row-id]")).toHaveLength(1);
     expect(wrapper.text()).toContain("visible-key");
     expect(wrapper.text()).toContain("gpt-5.4");
+  });
+
+  it("renders today stats and keeps duplicate request ids stable by using row id keys", async () => {
+    query.mockResolvedValue({
+      items: [
+        {
+          id: 101,
+          request_id: "",
+          model: "gpt-5.4",
+          status: "succeeded",
+          thinking_enabled: false,
+          reasoning_effort: null,
+          actual_cost: 0.01,
+          total_cost: 0.01,
+          input_cost: 0.004,
+          output_cost: 0.006,
+          cache_creation_cost: 0,
+          cache_read_cost: 0,
+          input_tokens: 100,
+          output_tokens: 200,
+          cache_creation_tokens: 0,
+          cache_read_tokens: 0,
+          cache_creation_5m_tokens: 0,
+          cache_creation_1h_tokens: 0,
+          image_count: 0,
+          image_size: null,
+          first_token_ms: 20,
+          duration_ms: 40,
+          created_at: "2026-03-08T00:00:00Z",
+          api_key: { name: "stable-key-a" },
+        },
+        {
+          id: 102,
+          request_id: "",
+          model: "gpt-5.4-mini",
+          status: "succeeded",
+          thinking_enabled: false,
+          reasoning_effort: null,
+          actual_cost: 0.02,
+          total_cost: 0.02,
+          input_cost: 0.01,
+          output_cost: 0.01,
+          cache_creation_cost: 0,
+          cache_read_cost: 0,
+          input_tokens: 50,
+          output_tokens: 70,
+          cache_creation_tokens: 0,
+          cache_read_tokens: 0,
+          cache_creation_5m_tokens: 0,
+          cache_creation_1h_tokens: 0,
+          image_count: 0,
+          image_size: null,
+          first_token_ms: 30,
+          duration_ms: 60,
+          created_at: "2026-03-08T01:00:00Z",
+          api_key: { name: "stable-key-b" },
+        },
+      ],
+      total: 2,
+      pages: 1,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 2,
+      total_input_tokens: 150,
+      total_output_tokens: 270,
+      total_cache_tokens: 0,
+      total_tokens: 420,
+      total_cost: 0.03,
+      total_actual_cost: 0.03,
+      average_duration_ms: 50,
+      admin_free_requests: 0,
+      admin_free_standard_cost: 0,
+      today_requests: 1,
+      today_input_tokens: 90,
+      today_output_tokens: 45,
+      today_cache_tokens: 12,
+      today_tokens: 147,
+      today_cost: 0.02,
+      today_actual_cost: 0.019,
+      today_average_duration_ms: 33,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const rows = wrapper.findAll("tbody tr[data-row-id]");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.attributes("data-row-id")).toBe("101");
+    expect(rows[1]?.attributes("data-row-id")).toBe("102");
+    expect(wrapper.text()).toContain("Today Stats");
+    expect(wrapper.text()).toContain("From today's 00:00 to now");
+    expect(wrapper.text()).toContain("Today Requests");
+    expect(wrapper.text()).toContain("Today Tokens");
   });
 
   it("retains the selected Gemini API key when date range refreshes remove it from the filter list", async () => {

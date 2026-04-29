@@ -1,55 +1,104 @@
 <template>
-  <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-    <div class="card p-4 flex items-center gap-3">
-      <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30 text-blue-600">
-        <Icon name="document" size="md" />
+  <div class="space-y-4">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div class="card flex items-center gap-3 p-4">
+        <div class="rounded-lg bg-blue-100 p-2 text-blue-600 dark:bg-blue-900/30">
+          <Icon name="document" size="md" />
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-500">{{ t('usage.totalRequests') }}</p>
+          <p class="text-xl font-bold">{{ stats?.total_requests?.toLocaleString() || '0' }}</p>
+          <p class="text-xs text-gray-400">{{ t('usage.inSelectedRange') }}</p>
+        </div>
       </div>
-      <div>
-        <p class="text-xs font-medium text-gray-500">{{ t('usage.totalRequests') }}</p>
-        <p class="text-xl font-bold">{{ stats?.total_requests?.toLocaleString() || '0' }}</p>
-        <p class="text-xs text-gray-400">{{ t('usage.inSelectedRange') }}</p>
+      <div class="card flex items-center gap-3 p-4">
+        <div class="rounded-lg bg-amber-100 p-2 text-amber-600 dark:bg-amber-900/30">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-500">{{ t('usage.totalTokens') }}</p>
+          <p class="text-xl font-bold">{{ formatTokens(stats?.total_tokens || 0) }}</p>
+          <p class="text-xs text-gray-500">
+            {{ t('usage.in') }}: {{ formatTokens(stats?.total_input_tokens || 0) }} /
+            {{ t('usage.out') }}: {{ formatTokens(stats?.total_output_tokens || 0) }}
+          </p>
+        </div>
+      </div>
+      <div class="card flex items-center gap-3 p-4">
+        <div class="rounded-lg bg-green-100 p-2 text-green-600 dark:bg-green-900/30">
+          <Icon name="dollar" size="md" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-medium text-gray-500">{{ t('usage.totalCost') }}</p>
+          <p class="text-xl font-bold text-green-600">
+            {{ formatPrimaryCost(stats) }}
+          </p>
+          <p v-if="stats?.total_account_cost != null" class="text-xs text-gray-400">
+            {{ t('usage.userBilled') }}:
+            <span class="text-gray-300">{{ formatCurrencyBreakdown(stats?.actual_cost_by_currency, stats?.total_actual_cost || 0) }}</span>
+            · {{ t('usage.standardCost') }}:
+            <span class="text-gray-300">{{ formatCurrencyBreakdown(stats?.cost_by_currency, stats?.total_cost || 0) }}</span>
+          </p>
+          <p v-else class="text-xs text-gray-400">
+            {{ t('usage.actualCost') }}:
+            <span>{{ formatCurrencyBreakdown(stats?.actual_cost_by_currency, stats?.total_actual_cost || 0) }}</span>
+            · {{ t('usage.standardCost') }}:
+            <span class="line-through">{{ formatCurrencyBreakdown(stats?.cost_by_currency, stats?.total_cost || 0) }}</span>
+          </p>
+          <p v-if="stats?.admin_free_requests" class="mt-1 text-[11px] text-emerald-500 dark:text-emerald-300">
+            管理员免扣 {{ stats.admin_free_requests.toLocaleString() }} 次 / ${{ (stats.admin_free_standard_cost || 0).toFixed(4) }} 标准成本
+          </p>
+        </div>
+      </div>
+      <div class="card flex items-center gap-3 p-4">
+        <div class="rounded-lg bg-purple-100 p-2 text-purple-600 dark:bg-purple-900/30">
+          <Icon name="clock" size="md" />
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-500">{{ t('usage.avgDuration') }}</p>
+          <p class="text-xl font-bold">{{ formatDuration(stats?.average_duration_ms || 0) }}</p>
+        </div>
       </div>
     </div>
-    <div class="card p-4 flex items-center gap-3">
-      <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30 text-amber-600"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg></div>
-      <div>
-        <p class="text-xs font-medium text-gray-500">{{ t('usage.totalTokens') }}</p>
-        <p class="text-xl font-bold">{{ formatTokens(stats?.total_tokens || 0) }}</p>
-        <p class="text-xs text-gray-500">
-          {{ t('usage.in') }}: {{ formatTokens(stats?.total_input_tokens || 0) }} /
-          {{ t('usage.out') }}: {{ formatTokens(stats?.total_output_tokens || 0) }}
-        </p>
+
+    <div class="card border border-dashed border-primary-200/80 bg-primary-50/40 p-4 dark:border-primary-500/20 dark:bg-primary-500/5">
+      <div class="mb-3">
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.usage.todayStats') }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('usage.todaySoFar') }}</p>
       </div>
-    </div>
-    <div class="card p-4 flex items-center gap-3">
-      <div class="rounded-lg bg-green-100 p-2 dark:bg-green-900/30 text-green-600">
-        <Icon name="dollar" size="md" />
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
+          <p class="text-xs font-medium text-gray-500">{{ t('admin.usage.todayRequests') }}</p>
+          <p class="mt-1 text-xl font-bold">{{ stats?.today_requests?.toLocaleString() || '0' }}</p>
+        </div>
+        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
+          <p class="text-xs font-medium text-gray-500">{{ t('admin.usage.todayTokens') }}</p>
+          <p class="mt-1 text-xl font-bold">{{ formatTokens(stats?.today_tokens || 0) }}</p>
+          <p class="text-xs text-gray-500">
+            {{ t('usage.in') }}: {{ formatTokens(stats?.today_input_tokens || 0) }} /
+            {{ t('usage.cacheTokens') }}: {{ formatTokens(stats?.today_cache_tokens || 0) }} /
+            {{ t('usage.out') }}: {{ formatTokens(stats?.today_output_tokens || 0) }}
+          </p>
+        </div>
+        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
+          <p class="text-xs font-medium text-gray-500">{{ t('admin.usage.todayCost') }}</p>
+          <p class="mt-1 text-xl font-bold text-green-600">
+            {{ formatCurrencyBreakdown(stats?.today_actual_cost_by_currency, stats?.today_actual_cost || 0) }}
+          </p>
+          <p class="text-xs text-gray-400">
+            {{ t('usage.actualCost') }}:
+            <span>{{ formatCurrencyBreakdown(stats?.today_actual_cost_by_currency, stats?.today_actual_cost || 0) }}</span>
+            · {{ t('usage.standardCost') }}:
+            <span class="line-through">{{ formatCurrencyBreakdown(stats?.today_cost_by_currency, stats?.today_cost || 0) }}</span>
+          </p>
+        </div>
+        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
+          <p class="text-xs font-medium text-gray-500">{{ t('usage.todayAvgDuration') }}</p>
+          <p class="mt-1 text-xl font-bold">{{ formatDuration(stats?.today_average_duration_ms || 0) }}</p>
+        </div>
       </div>
-      <div class="min-w-0 flex-1">
-        <p class="text-xs font-medium text-gray-500">{{ t('usage.totalCost') }}</p>
-        <p class="text-xl font-bold text-green-600">
-          {{ formatPrimaryCost(stats) }}
-        </p>
-        <p class="text-xs text-gray-400" v-if="stats?.total_account_cost != null">
-          {{ t('usage.userBilled') }}:
-          <span class="text-gray-300">{{ formatCurrencyBreakdown(stats?.actual_cost_by_currency, stats?.total_actual_cost || 0) }}</span>
-          · {{ t('usage.standardCost') }}:
-          <span class="text-gray-300">{{ formatCurrencyBreakdown(stats?.cost_by_currency, stats?.total_cost || 0) }}</span>
-        </p>
-        <p class="text-xs text-gray-400" v-else>
-          {{ t('usage.standardCost') }}:
-          <span class="line-through">{{ formatCurrencyBreakdown(stats?.cost_by_currency, stats?.total_cost || 0) }}</span>
-        </p>
-        <p v-if="stats?.admin_free_requests" class="mt-1 text-[11px] text-emerald-500 dark:text-emerald-300">
-          管理员免扣 {{ stats.admin_free_requests.toLocaleString() }} 次 / ${{ (stats.admin_free_standard_cost || 0).toFixed(4) }} 标准成本
-        </p>
-      </div>
-    </div>
-    <div class="card p-4 flex items-center gap-3">
-      <div class="rounded-lg bg-purple-100 p-2 dark:bg-purple-900/30 text-purple-600">
-        <Icon name="clock" size="md" />
-      </div>
-      <div><p class="text-xs font-medium text-gray-500">{{ t('usage.avgDuration') }}</p><p class="text-xl font-bold">{{ formatDuration(stats?.average_duration_ms || 0) }}</p></div>
     </div>
   </div>
 </template>

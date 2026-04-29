@@ -42,10 +42,11 @@ vi.mock('vue-i18n', async () => {
 })
 
 const DataTableStub = {
-  props: ['data'],
+  props: ['data', 'rowKey'],
   template: `
     <div>
-      <div v-for="row in data" :key="row.request_id">
+      <span data-testid="row-key-prop">{{ rowKey }}</span>
+      <div v-for="(row, index) in data" :key="(row && row[rowKey]) || row.request_id || index">
         <slot name="cell-status" :row="row" />
         <slot name="cell-request_protocol" :row="row" />
         <slot name="cell-cost" :row="row" />
@@ -71,6 +72,7 @@ describe('admin UsageTable tooltip', () => {
 
   it('shows service tier and billing breakdown in cost tooltip', async () => {
     const row = {
+      id: 1,
       request_id: 'req-admin-1',
       actual_cost: 0.092883,
       total_cost: 0.092883,
@@ -120,6 +122,7 @@ describe('admin UsageTable tooltip', () => {
 
   it('renders failed status rows with simulated client and error details', async () => {
     const row = {
+      id: 2,
       request_id: 'req-admin-failed',
       status: 'failed',
       simulated_client: 'codex',
@@ -167,6 +170,7 @@ describe('admin UsageTable tooltip', () => {
 
   it('renders the request protocol cell with badge text and normalized path', () => {
     const row = {
+      id: 3,
       request_id: 'req-admin-protocol',
       inbound_endpoint: '/v1/chat/completions',
       upstream_endpoint: '/v1/responses',
@@ -201,5 +205,25 @@ describe('admin UsageTable tooltip', () => {
     const text = wrapper.text()
     expect(text).toContain('OpenAI')
     expect(text).toContain('/v1/chat/completions')
+  })
+
+  it('passes the stable id row key to the shared DataTable', () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{ id: 99, request_id: '', input_tokens: 0, output_tokens: 0, actual_cost: 0, total_cost: 0 }],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    expect(wrapper.get('[data-testid="row-key-prop"]').text()).toBe('id')
   })
 })

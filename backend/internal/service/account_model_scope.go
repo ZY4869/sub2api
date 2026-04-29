@@ -87,7 +87,7 @@ func (s *ModelRegistryService) BuildModelMappingFromScopeV2(ctx context.Context,
 		return nil, nil, false, nil
 	}
 	if len(scope.Entries) == 0 {
-		return nil, nil, true, nil
+		return nil, nil, false, nil
 	}
 
 	entries, err := s.pricingEntries(ctx)

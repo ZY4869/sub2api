@@ -340,11 +340,15 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 		endTime = now
 	}
 
+	todayStart := timezone.StartOfDayInUserLocation(now, userTZ)
+
 	statsFilters := usagestats.UsageLogFilters{
-		UserID:    subject.UserID,
-		APIKeyID:  apiKeyID,
-		StartTime: &startTime,
-		EndTime:   &endTime,
+		UserID:     subject.UserID,
+		APIKeyID:   apiKeyID,
+		StartTime:  &startTime,
+		EndTime:    &endTime,
+		TodayStart: &todayStart,
+		TodayEnd:   &now,
 	}
 
 	stats, err := h.usageService.GetStatsWithFilters(c.Request.Context(), statsFilters)

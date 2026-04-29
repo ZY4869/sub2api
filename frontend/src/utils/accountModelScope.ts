@@ -40,6 +40,11 @@ export function buildAccountModelScopeExtra(
           buildScopeEntry(snapshot.models, options.platform, modelID, modelID)
         )
 
+  if (entries.length === 0) {
+    delete nextExtra.model_scope_v2
+    return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
+  }
+
   nextExtra.model_scope_v2 = {
     policy_mode: options.mode === 'mapping' ? 'mapping' : 'whitelist',
     entries

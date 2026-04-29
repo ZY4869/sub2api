@@ -431,6 +431,10 @@ const AccountProtocolGatewayOpenAIRequestFormatEditorStub = defineComponent({
 const AccountModelScopeEditorStub = defineComponent({
   name: 'AccountModelScopeEditor',
   props: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
     allowedModels: {
       type: Array,
       default: () => []
@@ -439,6 +443,7 @@ const AccountModelScopeEditorStub = defineComponent({
   emits: ['update:allowedModels', 'update:enabled'],
   template: `
     <div>
+      <span data-testid="oauth-model-scope-enabled-prop">{{ enabled }}</span>
       <span data-testid="oauth-allowed-models-prop">
         {{ Array.isArray(allowedModels) ? allowedModels.join(',') : '' }}
       </span>
@@ -797,14 +802,13 @@ describe('CreateAccountModal', () => {
     })
   })
 
-  it('prefills the openai login flow with the paid default whitelist', async () => {
+  it('keeps the openai login flow whitelist empty until models are explicitly selected', async () => {
     const wrapper = mountModal()
 
     await wrapper.get('[data-testid="select-openai"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="oauth-allowed-models-prop"]').text()).toBe(
-      'gpt-5.2,gpt-5.4,gpt-5.4-mini,gpt-5.5'
-    )
+    expect(wrapper.get('[data-testid="oauth-model-scope-enabled-prop"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="oauth-allowed-models-prop"]').text()).toBe('')
   })
 
   it('persists the protocol gateway OpenAI request format selection', async () => {
@@ -997,6 +1001,7 @@ describe('CreateAccountModal', () => {
     await wrapper.get('[data-testid="select-baidu-document-ai"]').trigger('click')
 
     expect(wrapper.find('[data-testid="baidu-document-ai-credentials-editor"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="oauth-model-scope-enabled-prop"]').text()).toBe('true')
 
     await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
 

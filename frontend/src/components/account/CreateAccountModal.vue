@@ -687,7 +687,6 @@ import {
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { buildAnthropicExtra, buildOpenAIExtra } from '@/utils/accountCreateExtras'
 import {
-  getOpenAIDefaultWhitelist,
   resolveOpenAIImageProtocolState
 } from '@/utils/openaiAccountDefaults'
 import {
@@ -838,7 +837,7 @@ const batchArchiveDownloadPriceUSD = ref(defaultGoogleBatchArchiveState.download
 const allowVertexBatchOverflow = ref(defaultGoogleBatchArchiveState.allowVertexBatchOverflow)
 const acceptAIStudioBatchOverflow = ref(defaultGoogleBatchArchiveState.acceptAIStudioBatchOverflow)
 const actualModelLocked = ref(true)
-const modelRestrictionEnabled = ref(false)
+const modelRestrictionEnabled = ref(true)
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
@@ -958,6 +957,9 @@ const showStandaloneModelScopeEditor = computed(() => {
     return false
   }
   if (form.platform === 'protocol_gateway') {
+    return true
+  }
+  if (isBaiduDocumentAISelected.value) {
     return true
   }
   if (showApiKeyModelScopeEditor.value) {
@@ -1223,10 +1225,6 @@ const resetProtocolGatewayClaudeMimicState = () => {
   claudeSessionIDMaskingEnabled.value = false
 }
 
-const applyOpenAIBaseDefaultWhitelist = () => {
-  allowedModels.value = getOpenAIDefaultWhitelist()
-}
-
 const applyOpenAIImageProtocolDefaults = (planType?: string | null, force = false) => {
   if (form.platform !== 'openai') {
     openAIImageProtocolTouched.value = false
@@ -1264,15 +1262,10 @@ watch(
   (newVal) => {
     if (newVal) {
       void ensureModelRegistryFresh()
-      if (form.platform === 'protocol_gateway') {
-        modelRestrictionMode.value = 'mapping'
-      }
-      modelRestrictionEnabled.value = false
-      if (form.platform === 'openai') {
-        applyOpenAIBaseDefaultWhitelist()
-      } else {
-        allowedModels.value = []
-      }
+      modelRestrictionMode.value = form.platform === 'protocol_gateway' ? 'mapping' : 'whitelist'
+      modelRestrictionEnabled.value = true
+      allowedModels.value = []
+      modelMappings.value = []
       protocolGatewayProbeModels.value = []
       manualModels.value = []
       resolvedUpstream.value = null
@@ -1343,8 +1336,9 @@ watch(
   (newPlatform, previousPlatform) => {
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     actualModelLocked.value = true
-    modelRestrictionEnabled.value = false
-    allowedModels.value = newPlatform === 'openai' ? getOpenAIDefaultWhitelist() : []
+    modelRestrictionEnabled.value = true
+    modelRestrictionMode.value = newPlatform === 'protocol_gateway' ? 'mapping' : 'whitelist'
+    allowedModels.value = []
     manualModels.value = []
     resolvedUpstream.value = null
     oauthDraftCredentials.value = {}

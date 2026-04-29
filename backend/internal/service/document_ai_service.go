@@ -104,11 +104,21 @@ func (s *DocumentAIService) RequireEnabled(ctx context.Context) error {
 	return nil
 }
 
-func (s *DocumentAIService) ListModels(ctx context.Context) ([]DocumentAIModelDescriptor, error) {
+func (s *DocumentAIService) ListModels(ctx context.Context, groupID int64) ([]DocumentAIModelDescriptor, error) {
 	if err := s.RequireEnabled(ctx); err != nil {
 		return nil, err
 	}
-	return BuiltinDocumentAIModels(), nil
+	if s == nil || s.accountRepo == nil {
+		return BuiltinDocumentAIModels(), nil
+	}
+	accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, groupID, PlatformBaiduDocumentAI)
+	if err != nil {
+		return nil, err
+	}
+	if len(accounts) == 0 {
+		return BuiltinDocumentAIModels(), nil
+	}
+	return documentAIUnionModelsForAccounts(accounts), nil
 }
 
 func (s *DocumentAIService) GetJob(ctx context.Context, jobID string, userID int64) (*DocumentAIJob, error) {
@@ -132,7 +142,11 @@ func (s *DocumentAIService) SubmitJob(ctx context.Context, input DocumentAISubmi
 	if err != nil {
 		return nil, err
 	}
-	account, err := s.selectAccountForGroup(ctx, normalizedInput.GroupID, documentAIAccountNeedAsync)
+	accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, normalizedInput.GroupID, PlatformBaiduDocumentAI)
+	if err != nil {
+		return nil, err
+	}
+	account, targetModelID, err := documentAISelectAccountForDisplayModel(accounts, normalizedInput.Model, DocumentAIJobModeAsync)
 	if err != nil {
 		return nil, err
 	}
@@ -144,9 +158,12 @@ func (s *DocumentAIService) SubmitJob(ctx context.Context, input DocumentAISubmi
 
 	s.logDocumentAIInfo(ctx, "submit_start", job, account,
 		zap.String("source_type", normalizedInput.SourceType),
+		zap.String("target_model", targetModelID),
 	)
 	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService)
-	result, err := client.submitAsyncJob(ctx, account, normalizedInput)
+	routeInput := normalizedInput
+	routeInput.Model = targetModelID
+	result, err := client.submitAsyncJob(ctx, account, routeInput)
 	if err != nil {
 		s.markJobFailed(ctx, "submit_failed", job, documentAIProviderResultJSONFromError(err), err)
 		return nil, err
@@ -171,6 +188,7 @@ func (s *DocumentAIService) SubmitJob(ctx context.Context, input DocumentAISubmi
 	s.logDocumentAIInfo(ctx, "submit_success", job, account,
 		zap.String("provider_request_id", result.ProviderRequestID),
 		zap.String("status", job.Status),
+		zap.String("target_model", targetModelID),
 	)
 	return job, nil
 }
@@ -186,7 +204,11 @@ func (s *DocumentAIService) ParseDirect(ctx context.Context, input DocumentAIPar
 	if err != nil {
 		return nil, err
 	}
-	account, err := s.selectAccountForGroup(ctx, normalizedInput.GroupID, documentAIAccountNeedDirect(normalizedInput.Model))
+	accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, normalizedInput.GroupID, PlatformBaiduDocumentAI)
+	if err != nil {
+		return nil, err
+	}
+	account, targetModelID, err := documentAISelectAccountForDisplayModel(accounts, normalizedInput.Model, DocumentAIJobModeDirect)
 	if err != nil {
 		return nil, err
 	}
@@ -199,9 +221,12 @@ func (s *DocumentAIService) ParseDirect(ctx context.Context, input DocumentAIPar
 	s.logDocumentAIInfo(ctx, "direct_start", job, account,
 		zap.String("source_type", normalizedInput.SourceType),
 		zap.String("file_type", normalizedInput.FileType),
+		zap.String("target_model", targetModelID),
 	)
 	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService)
-	result, err := client.parseDirect(ctx, account, normalizedInput)
+	routeInput := normalizedInput
+	routeInput.Model = targetModelID
+	result, err := client.parseDirect(ctx, account, routeInput)
 	if err != nil {
 		s.markJobFailed(ctx, "direct_failed", job, documentAIProviderResultJSONFromError(err), err)
 		return nil, err
@@ -223,6 +248,7 @@ func (s *DocumentAIService) ParseDirect(ctx context.Context, input DocumentAIPar
 	s.logDocumentAIInfo(ctx, "direct_success", job, account,
 		zap.String("provider_request_id", result.ProviderRequestID),
 		zap.String("status", job.Status),
+		zap.String("target_model", targetModelID),
 	)
 	return job, nil
 }
@@ -389,7 +415,7 @@ func (s *DocumentAIService) resolvePollingAccount(ctx context.Context, job *Docu
 }
 
 func (s *DocumentAIService) normalizeSubmitInput(input DocumentAISubmitJobInput) (DocumentAISubmitJobInput, error) {
-	input.Model = normalizeDocumentAIModelID(input.Model)
+	input.Model = strings.TrimSpace(input.Model)
 	input.SourceType = trimLower(input.SourceType)
 	if input.APIKey == nil || input.APIKey.User == nil {
 		return input, infraerrors.Forbidden("document_ai_forbidden", "document ai access requires a valid API key")
@@ -397,7 +423,7 @@ func (s *DocumentAIService) normalizeSubmitInput(input DocumentAISubmitJobInput)
 	if input.GroupID <= 0 {
 		return input, infraerrors.Forbidden("document_ai_forbidden", "This API key is not bound to any Baidu Document AI group")
 	}
-	if !DocumentAIModelSupportsAsync(input.Model) {
+	if input.Model == "" {
 		return input, infraerrors.BadRequest("document_ai_invalid_request", "unsupported document ai model")
 	}
 	switch input.SourceType {
@@ -422,7 +448,7 @@ func (s *DocumentAIService) normalizeSubmitInput(input DocumentAISubmitJobInput)
 }
 
 func (s *DocumentAIService) normalizeDirectInput(input DocumentAIParseDirectInput) (DocumentAIParseDirectInput, error) {
-	input.Model = normalizeDocumentAIModelID(input.Model)
+	input.Model = strings.TrimSpace(input.Model)
 	input.SourceType = trimLower(input.SourceType)
 	input.FileType = trimLower(input.FileType)
 	if input.APIKey == nil || input.APIKey.User == nil {
@@ -431,7 +457,7 @@ func (s *DocumentAIService) normalizeDirectInput(input DocumentAIParseDirectInpu
 	if input.GroupID <= 0 {
 		return input, infraerrors.Forbidden("document_ai_forbidden", "This API key is not bound to any Baidu Document AI group")
 	}
-	if !DocumentAIModelSupportsDirect(input.Model) {
+	if input.Model == "" {
 		return input, infraerrors.BadRequest("document_ai_invalid_request", "unsupported direct document ai model")
 	}
 	if input.FileType != DocumentAIFileTypeImage && input.FileType != DocumentAIFileTypePDF {
