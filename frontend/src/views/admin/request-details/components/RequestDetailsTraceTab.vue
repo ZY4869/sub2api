@@ -50,6 +50,7 @@ const loadingSummary = ref(false)
 const loadingDetail = ref(false)
 const loadingRaw = ref(false)
 const refreshing = ref(false)
+const cleanupLoading = ref(false)
 
 let listController: AbortController | null = null
 let summaryController: AbortController | null = null
@@ -73,6 +74,10 @@ function isCanceled(error: unknown): boolean {
   return !!error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === 'ERR_CANCELED'
 }
 
+function isNotFound(error: unknown): boolean {
+  return !!error && typeof error === 'object' && 'response' in error && (error as any)?.response?.status === 404
+}
+
 function requestFilter(): OpsRequestTraceFilter {
   return { ...filters.value }
 }
@@ -81,6 +86,14 @@ function summaryFilter(): OpsRequestTraceFilter {
   const next = { ...filters.value }
   delete next.page
   delete next.page_size
+  return next
+}
+
+function cleanupFilter(): OpsRequestTraceFilter {
+  const next = { ...filters.value }
+  delete next.page
+  delete next.page_size
+  delete next.sort
   return next
 }
 
@@ -272,6 +285,83 @@ async function handleExport(includeRaw: boolean) {
   }
 }
 
+async function refreshAfterCleanup() {
+  const selectedTraceID = selectedId.value
+  const shouldRefreshRaw = Boolean(selectedTraceID && rawDetail.value)
+
+  filters.value = { ...filters.value, page: 1 }
+  await fetchAllNow()
+
+  if (!selectedTraceID) return
+
+  try {
+    detail.value = await opsAPI.getRequestTraceDetail(selectedTraceID)
+  } catch (error: any) {
+    if (isNotFound(error)) {
+      closeDrawer()
+      return
+    }
+    appStore.showError(error?.message || t('admin.requestDetails.messages.detailFailed'))
+    return
+  }
+
+  if (!shouldRefreshRaw) return
+
+  try {
+    rawDetail.value = await opsAPI.getRequestTraceRawDetail(selectedTraceID)
+  } catch (error: any) {
+    if (isCanceled(error)) return
+    if (isNotFound(error)) {
+      rawDetail.value = null
+      return
+    }
+    appStore.showError(error?.message || t('admin.requestDetails.messages.rawFailed'))
+  }
+}
+
+async function handleCleanupFilter() {
+  if (cleanupLoading.value) return
+  const ok = window.confirm(t('admin.requestDetails.cleanup.confirmFilter'))
+  if (!ok) return
+
+  cleanupLoading.value = true
+  try {
+    const result = await opsAPI.cleanupRequestTraces({ mode: 'filter', filter: cleanupFilter() })
+    appStore.showSuccess(t('admin.requestDetails.cleanup.success', {
+      traces: result.deleted_traces || 0,
+      audits: result.deleted_audits || 0,
+    }))
+    await refreshAfterCleanup()
+  } catch (error: any) {
+    console.error('[RequestDetailsTraceTab] Failed to cleanup request traces (filter)', error)
+    appStore.showError(error?.response?.data?.detail || t('admin.requestDetails.cleanup.failed'))
+  } finally {
+    cleanupLoading.value = false
+  }
+}
+
+async function handleCleanupExpired() {
+  if (cleanupLoading.value) return
+  const ok = window.confirm(t('admin.requestDetails.cleanup.confirmExpired'))
+  if (!ok) return
+
+  cleanupLoading.value = true
+  try {
+    const result = await opsAPI.cleanupRequestTraces({ mode: 'expired' })
+    appStore.showSuccess(t('admin.requestDetails.cleanup.successExpired', {
+      traces: result.deleted_traces || 0,
+      audits: result.deleted_audits || 0,
+      cutoff: result.cutoff || '',
+    }))
+    await refreshAfterCleanup()
+  } catch (error: any) {
+    console.error('[RequestDetailsTraceTab] Failed to cleanup request traces (expired)', error)
+    appStore.showError(error?.response?.data?.detail || t('admin.requestDetails.cleanup.failed'))
+  } finally {
+    cleanupLoading.value = false
+  }
+}
+
 onUnmounted(() => {
   listController?.abort()
   summaryController?.abort()
@@ -292,9 +382,12 @@ onUnmounted(() => {
       v-model="filters"
       :loading="loadingList || loadingSummary"
       :raw-export-allowed="rawExportAllowed"
+      :cleanup-loading="cleanupLoading"
       @apply="handleApply"
       @reset="handleReset"
       @export="handleExport"
+      @cleanup-filter="handleCleanupFilter"
+      @cleanup-expired="handleCleanupExpired"
     />
 
     <RequestDetailsSummaryCards :summary="summary" :loading="loadingSummary" />

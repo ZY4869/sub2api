@@ -1,0 +1,81 @@
+export default {
+    quotaPolicy: {
+        title: "Gemini Quota & Limit Policy (Reference)",
+        note: 'Note: Gemini does not provide an official quota inquiry API. The "Daily Quota" shown here is an estimate simulated by the system based on account tiers for scheduling reference only. Please refer to official Google errors for actual limits.',
+        effectiveDate: "Official catalog effective date: {date}",
+        remainingApiUnavailable: "This view only shows official public tier, rate-limit, and Batch limits. No official API for remaining tier balance or remaining quota was found for integration.",
+        remainingApiAvailable: "This environment can display an official remaining quota API.",
+        batchSection: "Batch API dedicated limits",
+        batchSummary: "Concurrent Batch requests: {concurrent}; input file size limit: {inputSize}; file storage limit: {storage}.",
+        columns: {
+            channel: "Auth Channel",
+            account: "Account Status",
+            limits: "Limit Policy",
+            docs: "Official Docs",
+            tier: "Tier",
+            model: "Model Family",
+            qualification: "Qualification",
+            batchTokens: "Batch Enqueued Token Limit",
+        },
+        docs: {
+            codeAssist: "Code Assist Quotas",
+            aiStudio: "AI Studio Pricing",
+            vertex: "Vertex AI Quotas",
+        },
+        simulatedNote: "Simulated quota, for reference only",
+        rows: {
+            googleOne: {
+                channel: "Google One OAuth (Individuals / Code Assist for Individuals)",
+                limitsFree: "Shared pool: 1000 RPD / 60 RPM",
+                limitsPro: "Shared pool: 1500 RPD / 120 RPM",
+                limitsUltra: "Shared pool: 2000 RPD / 120 RPM",
+            },
+            gcp: {
+                channel: "GCP Code Assist OAuth (Enterprise)",
+                limitsStandard: "Shared pool: 1500 RPD / 120 RPM",
+                limitsEnterprise: "Shared pool: 2000 RPD / 120 RPM",
+            },
+            cli: {
+                channel: "Gemini CLI (Official Google Login / Code Assist)",
+                free: "Free Google Account",
+                premium: "Google One AI Premium",
+                limitsFree: "RPD ~1000; RPM ~60 (soft)",
+                limitsPremium: "RPD ~1500+; RPM ~60+ (priority queue)",
+            },
+            gcloud: {
+                channel: "GCP Code Assist (gcloud auth)",
+                account: "No Code Assist subscription",
+                limits: "RPD ~1000; RPM ~60 (preview)",
+            },
+            aiStudio: {
+                channel: "AI Studio API Key / OAuth",
+                free: "No billing (free tier)",
+                paid: "Billing enabled (pay-as-you-go)",
+                limitsFree: "RPD 50; RPM 2 (Pro) / 15 (Flash)",
+                limitsPaid: "RPD unlimited; RPM 1000 (Pro) / 2000 (Flash) (per model)",
+                limitsTier1: "Tier 1: follows the official AI Studio rate limits, commonly Pro 1000 RPM / Flash 2000 RPM.",
+                limitsTier2: "Tier 2: keeps the official paid limits with higher Batch enqueued-token capacity.",
+                limitsTier3: "Tier 3: keeps the highest official paid limits and the largest Batch queue capacity.",
+            },
+            vertex: {
+                channel: "Vertex AI / Vertex Express",
+                limits: "Metered per project, region, and model. Batch uses standard Vertex batchPredictionJobs and the effective quota follows official Vertex AI project quotas.",
+            },
+            customOAuth: {
+                channel: "Custom OAuth Client (GCP)",
+                free: "Project not billed",
+                paid: "Project billed",
+                limitsFree: "RPD 50; RPM 2 (project quota)",
+                limitsPaid: "RPD unlimited; RPM 1000+ (project quota)",
+                limitsTier2: "Tier 2: follows the higher official AI Studio paid limits and Batch ceilings.",
+                limitsTier3: "Tier 3: follows the highest official AI Studio paid limits and Batch ceilings.",
+            },
+        },
+    },
+    rateLimit: {
+        ok: "Not rate limited",
+        unlimited: "Unlimited",
+        limited: "Rate limited {time}",
+        now: "now",
+    }
+}

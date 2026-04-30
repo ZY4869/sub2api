@@ -1,0 +1,23 @@
+export default {
+    title: "GitHub Copilot Device Flow",
+    description: "Use the GitHub device flow to authorize Copilot. After starting, enter the user code on GitHub and the console will keep polling for completion.",
+    userCode: "User Code",
+    verificationUrl: "Verification URL",
+    notStarted: "Device flow has not started yet",
+    openGitHub: "Open GitHub",
+    copyCode: "Copy code",
+    copyUrl: "Copy URL",
+    pollHint: "The console checks authorization every {seconds} seconds. You can also trigger a manual status check.",
+    expiresHint: "This device-flow session will expire in about {seconds} seconds.",
+    authorizedAs: "Authorized as: {user}",
+    restart: "Restart Device Flow",
+    start: "Start Device Flow",
+    checkStatus: "Check Status Now",
+    startFailed: "Failed to start Copilot device flow",
+    pollFailed: "Failed to poll Copilot authorization status",
+    status: {
+        idle: "Idle",
+        pending: "Pending",
+        completed: "Authorized",
+    },
+}

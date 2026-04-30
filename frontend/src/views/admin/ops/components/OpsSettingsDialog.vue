@@ -502,6 +502,27 @@ async function saveAllSettings() {
               <Toggle v-model="advancedSettings.request_details_enabled" />
             </div>
 
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.ops.settings.requestDetailCleanupEnabled') }}</label>
+                <p class="mt-1 text-xs text-gray-500">
+                  {{ t('admin.ops.settings.requestDetailCleanupEnabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="advancedSettings.request_detail_cleanup_enabled" />
+            </div>
+
+            <div v-if="advancedSettings.request_detail_cleanup_enabled">
+              <label class="input-label">{{ t('admin.ops.settings.requestDetailCleanupSchedule') }}</label>
+              <input
+                v-model="advancedSettings.request_detail_cleanup_schedule"
+                type="text"
+                class="input"
+                placeholder="0 2 * * *"
+              />
+              <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.requestDetailCleanupScheduleHint') }}</p>
+            </div>
+
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
                 <label class="input-label">{{ t('admin.ops.settings.requestDetailRetentionDays') }}</label>

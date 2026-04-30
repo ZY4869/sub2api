@@ -1,0 +1,25 @@
+export default {
+    affiliate: {
+        title: "邀请返利",
+        description: "配置邀请返利开关与比例（默认关闭）。",
+        enabled: "启用邀请返利",
+        enabledHint: "开启后允许绑定返利码并累计返利（按消耗 / 入金）。",
+        transferEnabled: "允许转入余额",
+        transferEnabledHint: "独立开关：仅控制用户「转入余额」按钮/API 是否可用。",
+        ratePercent: "返利比例（%）",
+        ratePercentHint: "0-100 的整数；用于累计返利（仅在启用时生效）。",
+        rate: "返利比例（%）",
+        freezeHours: "冻结期（小时）",
+        durationDays: "有效期（天）",
+        durationDaysHint: "0 表示永久；仅限制 invitee 产生返利的窗口。",
+        perInviteeCap: "单人上限",
+        perInviteeCapHint: "0 表示不限；限制单 invitee 对 inviter 的累计返利。",
+        affCodeLength: "返利码长度",
+        onUsage: "按消耗返利",
+        onUsageHint: "每次扣费成功后按消耗金额累计返利。",
+        onTopup: "按入金返利",
+        onTopupHint: "兑换余额/管理员加余额等正向入金时累计返利。",
+        note: "提示：按消耗/按入金开关仅在「启用邀请返利」开启时生效；「允许转入余额」独立生效。",
+        rateInvalid: "返利比例必须是 0-100 的整数。",
+    }
+}

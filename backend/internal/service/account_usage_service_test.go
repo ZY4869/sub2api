@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -46,6 +47,22 @@ func (r *accountUsageCodexProbeRepo) SetModelRateLimit(_ context.Context, _ int6
 		}{scope: scope, resetAt: resetAt}
 	}
 	return nil
+}
+
+type openAICodexProbeQueueDialer struct {
+	conns     []openAIWSClientConn
+	handshake http.Header
+	dialCount int
+}
+
+func (d *openAICodexProbeQueueDialer) Dial(_ context.Context, _ string, _ http.Header, _ string) (openAIWSClientConn, int, http.Header, error) {
+	d.dialCount++
+	if len(d.conns) == 0 {
+		return nil, 0, nil, errors.New("no ws conns available")
+	}
+	conn := d.conns[0]
+	d.conns = d.conns[1:]
+	return conn, 0, cloneHeader(d.handshake), nil
 }
 
 func TestShouldRefreshOpenAICodexSnapshot(t *testing.T) {
@@ -625,5 +642,143 @@ func TestAccountUsageService_ProbeOpenAICodexSnapshot_ProKeepsPartialSuccess(t *
 	}
 	if resetAt == nil {
 		t.Fatal("expected resetAt from successful normal probe")
+	}
+}
+
+func TestAccountUsageService_ProbeOpenAICodexSnapshot_Pro_WSEventDistinguishesScopes(t *testing.T) {
+	t.Parallel()
+
+	normalConn := &openAIWSCaptureConn{
+		events: [][]byte{
+			[]byte(`{"type":"codex.rate_limits","rate_limits":{"primary":{"used_percent":4.0,"window_minutes":300,"resets_in_seconds":1800},"secondary":{"used_percent":40.0,"window_minutes":10080,"resets_in_seconds":604800}}}`),
+			[]byte(`{"type":"response.completed","response":{"id":"resp_normal_1","model":"gpt-5.3-codex","usage":{"input_tokens":1,"output_tokens":1}}}`),
+		},
+	}
+	sparkConn := &openAIWSCaptureConn{
+		events: [][]byte{
+			[]byte(`{"type":"codex.rate_limits","rate_limits":{"primary":{"used_percent":7.0,"window_minutes":300,"resets_in_seconds":1200},"secondary":{"used_percent":55.0,"window_minutes":10080,"resets_in_seconds":500000}}}`),
+			[]byte(`{"type":"response.completed","response":{"id":"resp_spark_1","model":"gpt-5.3-codex-spark","usage":{"input_tokens":1,"output_tokens":1}}}`),
+		},
+	}
+	dialer := &openAICodexProbeQueueDialer{conns: []openAIWSClientConn{normalConn, sparkConn}}
+	svc := &AccountUsageService{openAICodexWSProbeDialer: dialer}
+
+	updates, _, err := svc.probeOpenAICodexSnapshot(context.Background(), &Account{
+		ID:       9101,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "token",
+			"plan_type":    "pro",
+		},
+	})
+	if err != nil {
+		t.Fatalf("probeOpenAICodexSnapshot() error = %v", err)
+	}
+	if got := parseExtraFloat64(updates["codex_5h_used_percent"]); got != 4.0 {
+		t.Fatalf("codex_5h_used_percent = %v, want 4", got)
+	}
+	if got := parseExtraFloat64(updates[codexSpark5hUsedPercentKey]); got != 7.0 {
+		t.Fatalf("codex_spark_5h_used_percent = %v, want 7", got)
+	}
+	if got := parseExtraFloat64(updates["codex_7d_used_percent"]); got != 40.0 {
+		t.Fatalf("codex_7d_used_percent = %v, want 40", got)
+	}
+	if got := parseExtraFloat64(updates[codexSpark7dUsedPercentKey]); got != 55.0 {
+		t.Fatalf("codex_spark_7d_used_percent = %v, want 55", got)
+	}
+	if len(normalConn.writes) == 0 {
+		t.Fatal("expected ws probe to write payload for normal scope")
+	}
+	if got, _ := normalConn.writes[0]["model"].(string); got != openAICodexScopeNormal {
+		t.Fatalf("normal ws probe model = %q, want %q", got, openAICodexScopeNormal)
+	}
+	if len(sparkConn.writes) == 0 {
+		t.Fatal("expected ws probe to write payload for spark scope")
+	}
+	if got, _ := sparkConn.writes[0]["model"].(string); got != openAICodexScopeSpark {
+		t.Fatalf("spark ws probe model = %q, want %q", got, openAICodexScopeSpark)
+	}
+}
+
+func TestAccountUsageService_ProbeOpenAICodexSnapshotForModel_WSFailFallsBackToHTTPProbe(t *testing.T) {
+	t.Parallel()
+
+	dialer := &openAICodexProbeQueueDialer{}
+	httpCalls := 0
+	svc := &AccountUsageService{
+		openAICodexWSProbeDialer: dialer,
+		openAICodexScopeProbeHTTP: func(_ context.Context, _ *Account, modelID string) (map[string]any, *time.Time, error) {
+			httpCalls++
+			if modelID != openAICodexScopeNormal {
+				return nil, nil, fmt.Errorf("unexpected modelID %q", modelID)
+			}
+			now := time.Now().UTC().Truncate(time.Second)
+			resetAt := now.Add(24 * time.Hour)
+			return map[string]any{
+				"codex_usage_updated_at": now.Format(time.RFC3339),
+				"codex_5h_used_percent":  12.0,
+				"codex_5h_reset_at":      now.Add(2 * time.Hour).Format(time.RFC3339),
+				"codex_7d_used_percent":  34.0,
+				"codex_7d_reset_at":      resetAt.Format(time.RFC3339),
+			}, &resetAt, nil
+		},
+	}
+
+	updates, _, err := svc.probeOpenAICodexSnapshotForModel(context.Background(), &Account{
+		ID:       9102,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "token",
+			"plan_type":    "pro",
+		},
+	}, openAICodexScopeNormal)
+	if err != nil {
+		t.Fatalf("probeOpenAICodexSnapshotForModel() error = %v", err)
+	}
+	if httpCalls != 1 {
+		t.Fatalf("http fallback calls = %d, want 1", httpCalls)
+	}
+	if dialer.dialCount != 1 {
+		t.Fatalf("ws dial count = %d, want 1", dialer.dialCount)
+	}
+	if got := parseExtraFloat64(updates["codex_5h_used_percent"]); got != 12.0 {
+		t.Fatalf("codex_5h_used_percent = %v, want 12", got)
+	}
+}
+
+func TestMaybeWarnOpenAICodexProbeDegenerate_EmitsWarn(t *testing.T) {
+	t.Parallel()
+
+	logSink, restore := captureStructuredLog(t)
+	defer restore()
+
+	account := &Account{
+		ID:       9103,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+	}
+	updates := map[string]any{
+		"codex_5h_used_percent":        4.0,
+		"codex_7d_used_percent":        4.0,
+		codexSpark5hUsedPercentKey:     4.0,
+		codexSpark7dUsedPercentKey:     4.0,
+		"codex_5h_reset_at":            "2026-04-30T00:00:00Z",
+		"codex_7d_reset_at":            "2026-05-07T00:00:00Z",
+		codexSpark5hResetAtKey:         "2026-04-30T00:00:00Z",
+		codexSpark7dResetAtKey:         "2026-05-07T00:00:00Z",
+		"codex_usage_updated_at":       "2026-04-30T00:00:00Z",
+		codexSparkUsageUpdatedAtKey:    "2026-04-30T00:00:00Z",
+		"codex_5h_reset_after_seconds": 1,
+		"codex_7d_reset_after_seconds": 1,
+	}
+
+	maybeWarnOpenAICodexProbeDegenerate(account, updates)
+	if !logSink.ContainsMessageAtLevel("openai_codex_probe_degenerate", "warn") {
+		t.Fatal("expected degenerate warning log")
 	}
 }

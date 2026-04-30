@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/config"
 )
 
 const (
@@ -359,7 +361,7 @@ func (s *OpsService) UpdateOpsAlertRuntimeSettings(ctx context.Context, cfg *Ops
 func defaultOpsAdvancedSettings() *OpsAdvancedSettings {
 	return &OpsAdvancedSettings{
 		DataRetention: OpsDataRetentionSettings{
-			CleanupEnabled:             false,
+			CleanupEnabled:             true,
 			CleanupSchedule:            "0 2 * * *",
 			ErrorLogRetentionDays:      30,
 			MinuteMetricsRetentionDays: 30,
@@ -369,6 +371,8 @@ func defaultOpsAdvancedSettings() *OpsAdvancedSettings {
 			AggregationEnabled: false,
 		},
 		RequestDetailsEnabled:           true,
+		RequestDetailCleanupEnabled:     true,
+		RequestDetailCleanupSchedule:    "0 2 * * *",
 		RequestDetailRetentionDays:      30,
 		SuccessSampleRate:               0.1,
 		ForceCaptureSlowMs:              int(opsRequestTraceDefaultSlowMs),
@@ -391,6 +395,10 @@ func normalizeOpsAdvancedSettings(cfg *OpsAdvancedSettings) {
 	cfg.DataRetention.CleanupSchedule = strings.TrimSpace(cfg.DataRetention.CleanupSchedule)
 	if cfg.DataRetention.CleanupSchedule == "" {
 		cfg.DataRetention.CleanupSchedule = "0 2 * * *"
+	}
+	cfg.RequestDetailCleanupSchedule = strings.TrimSpace(cfg.RequestDetailCleanupSchedule)
+	if cfg.RequestDetailCleanupSchedule == "" {
+		cfg.RequestDetailCleanupSchedule = cfg.DataRetention.CleanupSchedule
 	}
 	if cfg.DataRetention.ErrorLogRetentionDays <= 0 {
 		cfg.DataRetention.ErrorLogRetentionDays = 30
@@ -454,7 +462,11 @@ func validateOpsAdvancedSettings(cfg *OpsAdvancedSettings) error {
 }
 
 func (s *OpsService) GetOpsAdvancedSettings(ctx context.Context) (*OpsAdvancedSettings, error) {
-	defaultCfg := defaultOpsAdvancedSettings()
+	var cfgSource *config.Config
+	if s != nil {
+		cfgSource = s.cfg
+	}
+	defaultCfg := defaultOpsAdvancedSettingsWithConfig(cfgSource)
 	if s == nil || s.settingRepo == nil {
 		return defaultCfg, nil
 	}
@@ -473,11 +485,12 @@ func (s *OpsService) GetOpsAdvancedSettings(ctx context.Context) (*OpsAdvancedSe
 		return nil, err
 	}
 
-	cfg := defaultOpsAdvancedSettings()
+	cfg := defaultOpsAdvancedSettingsWithConfig(cfgSource)
 	if err := json.Unmarshal([]byte(raw), cfg); err != nil {
 		return defaultCfg, nil
 	}
 
+	backfillOpsAdvancedSettingsRequestDetailCleanup(raw, cfg)
 	normalizeOpsAdvancedSettings(cfg)
 	return cfg, nil
 }

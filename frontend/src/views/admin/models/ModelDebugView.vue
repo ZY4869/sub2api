@@ -75,6 +75,11 @@ const appStore = useAppStore();
 const catalogStore = usePublicModelCatalogStore();
 const { snapshot } = storeToRefs(catalogStore);
 
+const localizedPromptDefaults = computed(() => ({
+  systemPrompt: t("admin.models.pages.debug.defaults.systemPrompt"),
+  userPrompt: t("admin.models.pages.debug.defaults.userPrompt"),
+}));
+
 const form = ref<ModelDebugEditorState>({
   keyMode: "saved",
   apiKeyID: null,
@@ -83,8 +88,8 @@ const form = ref<ModelDebugEditorState>({
   endpointKind: "responses",
   model: "",
   stream: true,
-  systemPrompt: "You are a concise diagnostic assistant.",
-  userPrompt: "Return a short confirmation message with the active model name.",
+  systemPrompt: localizedPromptDefaults.value.systemPrompt,
+  userPrompt: localizedPromptDefaults.value.userPrompt,
   temperature: "0.2",
   maxOutputTokens: "256",
   reasoningEffort: "medium",
@@ -138,7 +143,7 @@ const modelOptions = computed(() =>
 
 const mergedRequestBody = computed(() =>
   mergeModelDebugRequestBody(
-    buildBaseModelDebugRequestBody(form.value),
+    buildBaseModelDebugRequestBody(form.value, localizedPromptDefaults.value),
     form.value.advancedJSON,
   ),
 );
@@ -332,13 +337,13 @@ function pushEvent(
 function endpointLabel(endpoint: AdminModelDebugEndpointKind) {
   switch (endpoint) {
     case "chat_completions":
-      return "Chat Completions";
+      return t("admin.models.pages.debug.endpointNames.chatCompletions");
     case "generate_content":
-      return "Generate Content";
+      return t("admin.models.pages.debug.endpointNames.generateContent");
     case "messages":
-      return "Messages";
+      return t("admin.models.pages.debug.endpointNames.messages");
     default:
-      return "Responses";
+      return t("admin.models.pages.debug.endpointNames.responses");
   }
 }
 

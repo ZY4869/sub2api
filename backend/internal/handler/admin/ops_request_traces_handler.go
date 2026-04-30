@@ -14,6 +14,45 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type opsRequestTraceCleanupRequest struct {
+	Mode   string                               `json:"mode"`
+	Filter *opsRequestTraceCleanupFilterPayload `json:"filter"`
+}
+
+type opsRequestTraceCleanupFilterPayload struct {
+	TimeRange         string `json:"time_range"`
+	StartTime         string `json:"start_time"`
+	EndTime           string `json:"end_time"`
+	Status            string `json:"status"`
+	Platform          string `json:"platform"`
+	ProtocolIn        string `json:"protocol_in"`
+	ProtocolOut       string `json:"protocol_out"`
+	Channel           string `json:"channel"`
+	RoutePath         string `json:"route_path"`
+	RequestType       string `json:"request_type"`
+	FinishReason      string `json:"finish_reason"`
+	CaptureReason     string `json:"capture_reason"`
+	RequestedModel    string `json:"requested_model"`
+	UpstreamModel     string `json:"upstream_model"`
+	RequestID         string `json:"request_id"`
+	ClientRequestID   string `json:"client_request_id"`
+	UpstreamRequestID string `json:"upstream_request_id"`
+	GeminiSurface     string `json:"gemini_surface"`
+	BillingRuleID     string `json:"billing_rule_id"`
+	ProbeAction       string `json:"probe_action"`
+	Query             string `json:"q"`
+	UserID            *int64 `json:"user_id"`
+	APIKeyID          *int64 `json:"api_key_id"`
+	AccountID         *int64 `json:"account_id"`
+	GroupID           *int64 `json:"group_id"`
+	StatusCode        *int   `json:"status_code"`
+	Stream            *bool  `json:"stream"`
+	HasTools          *bool  `json:"has_tools"`
+	HasThinking       *bool  `json:"has_thinking"`
+	RawAvailable      *bool  `json:"raw_available"`
+	Sampled           *bool  `json:"sampled"`
+}
+
 func requestTraceAdminContext(c *gin.Context) context.Context {
 	ctx := c.Request.Context()
 	role, ok := middleware.GetUserRoleFromContext(c)
@@ -161,6 +200,44 @@ func (h *OpsHandler) ExportRequestTracesCSV(c *gin.Context) {
 	}
 }
 
+// POST /api/v1/admin/ops/request-details/cleanup
+func (h *OpsHandler) CleanupRequestTraces(c *gin.Context) {
+	if h.opsService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Ops service not available")
+		return
+	}
+	if err := h.opsService.RequireMonitoringEnabled(c.Request.Context()); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Error(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	var req opsRequestTraceCleanupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+
+	mode := service.OpsRequestTraceCleanupMode(strings.ToLower(strings.TrimSpace(req.Mode)))
+	filter, err := buildOpsRequestTraceFilterFromPayload(req.Filter)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	result, err := h.opsService.CleanupRequestTraces(requestTraceAdminContext(c), mode, filter, subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 func buildOpsRequestTraceFilterFromQuery(c *gin.Context) (*service.OpsRequestTraceFilter, error) {
 	page, pageSize := response.ParsePagination(c)
 	if pageSize > 200 {
@@ -287,4 +364,96 @@ func parseOptionalBool(value string) (*bool, error) {
 	default:
 		return nil, fmt.Errorf("invalid boolean value")
 	}
+}
+
+func buildOpsRequestTraceFilterFromPayload(payload *opsRequestTraceCleanupFilterPayload) (*service.OpsRequestTraceFilter, error) {
+	if payload == nil {
+		return nil, nil
+	}
+	filter := &service.OpsRequestTraceFilter{
+		Status:            strings.TrimSpace(payload.Status),
+		Platform:          strings.TrimSpace(payload.Platform),
+		ProtocolIn:        strings.TrimSpace(payload.ProtocolIn),
+		ProtocolOut:       strings.TrimSpace(payload.ProtocolOut),
+		Channel:           strings.TrimSpace(payload.Channel),
+		RoutePath:         strings.TrimSpace(payload.RoutePath),
+		RequestType:       strings.TrimSpace(payload.RequestType),
+		FinishReason:      strings.TrimSpace(payload.FinishReason),
+		CaptureReason:     strings.TrimSpace(payload.CaptureReason),
+		RequestedModel:    strings.TrimSpace(payload.RequestedModel),
+		UpstreamModel:     strings.TrimSpace(payload.UpstreamModel),
+		RequestID:         strings.TrimSpace(payload.RequestID),
+		ClientRequestID:   strings.TrimSpace(payload.ClientRequestID),
+		UpstreamRequestID: strings.TrimSpace(payload.UpstreamRequestID),
+		GeminiSurface:     strings.TrimSpace(payload.GeminiSurface),
+		BillingRuleID:     strings.TrimSpace(payload.BillingRuleID),
+		ProbeAction:       strings.TrimSpace(payload.ProbeAction),
+		Query:             strings.TrimSpace(payload.Query),
+		UserID:            payload.UserID,
+		APIKeyID:          payload.APIKeyID,
+		AccountID:         payload.AccountID,
+		GroupID:           payload.GroupID,
+		StatusCode:        payload.StatusCode,
+		Stream:            payload.Stream,
+		HasTools:          payload.HasTools,
+		HasThinking:       payload.HasThinking,
+		RawAvailable:      payload.RawAvailable,
+		Sampled:           payload.Sampled,
+	}
+
+	start, end, err := parseOpsTimeRangeValues(payload.StartTime, payload.EndTime, payload.TimeRange)
+	if err != nil {
+		return nil, err
+	}
+	if start != nil {
+		filter.StartTime = start
+	}
+	if end != nil {
+		filter.EndTime = end
+	}
+	return filter, nil
+}
+
+func parseOpsTimeRangeValues(startRaw, endRaw, timeRangeRaw string) (*time.Time, *time.Time, error) {
+	parseTS := func(raw string) (*time.Time, error) {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return nil, nil
+		}
+		if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+			return &t, nil
+		}
+		t, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			return nil, err
+		}
+		return &t, nil
+	}
+
+	start, err := parseTS(startRaw)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid start_time")
+	}
+	end, err := parseTS(endRaw)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid end_time")
+	}
+	if start != nil && end != nil && start.After(*end) {
+		return nil, nil, fmt.Errorf("invalid time range: start_time must be <= end_time")
+	}
+	if start != nil || end != nil {
+		return start, end, nil
+	}
+
+	timeRangeRaw = strings.TrimSpace(timeRangeRaw)
+	if timeRangeRaw == "" {
+		return nil, nil, nil
+	}
+	duration, ok := parseOpsDuration(timeRangeRaw)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid time_range")
+	}
+	endValue := time.Now()
+	startValue := endValue.Add(-duration)
+	return &startValue, &endValue, nil
 }

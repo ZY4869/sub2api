@@ -627,6 +627,8 @@ export interface OpsAdvancedSettings {
   data_retention: OpsDataRetentionSettings
   aggregation: OpsAggregationSettings
   request_details_enabled: boolean
+  request_detail_cleanup_enabled: boolean
+  request_detail_cleanup_schedule: string
   request_detail_retention_days: number
   success_sample_rate: number
   force_capture_slow_ms: number
@@ -748,9 +750,23 @@ export interface OpsRequestTraceAuditLog {
   id: number
   trace_id?: number | null
   operator_id: number
-  action: 'view_raw' | 'export_csv' | string
+  action: 'view_raw' | 'export_csv' | 'cleanup_filter' | 'cleanup_expired' | string
   meta_json: string
   created_at: string
+}
+
+export type OpsRequestTraceCleanupMode = 'filter' | 'expired'
+
+export interface OpsRequestTraceCleanupRequest {
+  mode: OpsRequestTraceCleanupMode
+  filter?: OpsRequestTraceFilter
+}
+
+export interface OpsRequestTraceCleanupResult {
+  mode: OpsRequestTraceCleanupMode
+  deleted_traces: number
+  deleted_audits: number
+  cutoff?: string
 }
 
 export interface OpsRequestTraceDetail extends OpsRequestTraceListItem {

@@ -16,10 +16,12 @@ import (
 )
 
 const (
-	opsCleanupJobName = "ops_cleanup"
+	opsCleanupJobName              = "ops_cleanup"
+	opsRequestDetailCleanupJobName = "ops_request_detail_cleanup"
 
-	opsCleanupLeaderLockKeyDefault = "ops:cleanup:leader"
-	opsCleanupLeaderLockTTLDefault = 30 * time.Minute
+	opsCleanupLeaderLockKeyDefault              = "ops:cleanup:leader"
+	opsRequestDetailCleanupLeaderLockKeyDefault = "ops:request-detail-cleanup:leader"
+	opsCleanupLeaderLockTTLDefault              = 30 * time.Minute
 )
 
 var opsCleanupCronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -77,18 +79,12 @@ func (s *OpsCleanupService) Start() {
 	if s.cfg != nil && !s.cfg.Ops.Enabled {
 		return
 	}
-	if s.cfg != nil && !s.cfg.Ops.Cleanup.Enabled {
-		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] not started (disabled)")
-		return
-	}
 	if s.opsRepo == nil || s.db == nil {
 		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] not started (missing deps)")
 		return
 	}
 
 	s.startOnce.Do(func() {
-		schedule := s.cleanupSchedule(context.Background())
-
 		loc := time.Local
 		if s.cfg != nil && strings.TrimSpace(s.cfg.Timezone) != "" {
 			if parsed, err := time.LoadLocation(strings.TrimSpace(s.cfg.Timezone)); err == nil && parsed != nil {
@@ -97,14 +93,35 @@ func (s *OpsCleanupService) Start() {
 		}
 
 		c := cron.New(cron.WithParser(opsCleanupCronParser), cron.WithLocation(loc))
-		_, err := c.AddFunc(schedule, func() { s.runScheduled() })
-		if err != nil {
-			logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] not started (invalid schedule=%q): %v", schedule, err)
+		jobs := make([]string, 0, 2)
+
+		if s.cleanupEnabled(context.Background()) {
+			schedule := s.cleanupSchedule(context.Background())
+			if _, err := c.AddFunc(schedule, func() { s.runScheduledJob(opsCleanupJobName, opsCleanupLeaderLockKeyDefault, s.runCleanupOnce) }); err != nil {
+				logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] general cleanup not started (invalid schedule=%q): %v", schedule, err)
+			} else {
+				jobs = append(jobs, fmt.Sprintf("%s=%s", opsCleanupJobName, schedule))
+			}
+		}
+
+		if s.requestDetailCleanupEnabled(context.Background()) {
+			schedule := s.requestDetailCleanupSchedule(context.Background())
+			if _, err := c.AddFunc(schedule, func() {
+				s.runScheduledJob(opsRequestDetailCleanupJobName, opsRequestDetailCleanupLeaderLockKeyDefault, s.runRequestDetailCleanupOnce)
+			}); err != nil {
+				logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] request detail cleanup not started (invalid schedule=%q): %v", schedule, err)
+			} else {
+				jobs = append(jobs, fmt.Sprintf("%s=%s", opsRequestDetailCleanupJobName, schedule))
+			}
+		}
+
+		if len(jobs) == 0 {
+			logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] not started (disabled)")
 			return
 		}
 		s.cron = c
 		s.cron.Start()
-		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] started (schedule=%q tz=%s)", schedule, loc.String())
+		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] started (jobs=%q tz=%s)", strings.Join(jobs, ", "), loc.String())
 	})
 }
 
@@ -124,7 +141,7 @@ func (s *OpsCleanupService) Stop() {
 	})
 }
 
-func (s *OpsCleanupService) runScheduled() {
+func (s *OpsCleanupService) runScheduledJob(jobName string, lockKey string, run func(ctx context.Context) (opsCleanupDeletedCounts, error)) {
 	if s == nil || s.db == nil || s.opsRepo == nil {
 		return
 	}
@@ -132,7 +149,7 @@ func (s *OpsCleanupService) runScheduled() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	release, ok := s.tryAcquireLeaderLock(ctx)
+	release, ok := s.tryAcquireLeaderLock(ctx, lockKey)
 	if !ok {
 		return
 	}
@@ -143,14 +160,14 @@ func (s *OpsCleanupService) runScheduled() {
 	startedAt := time.Now().UTC()
 	runAt := startedAt
 
-	counts, err := s.runCleanupOnce(ctx)
+	counts, err := run(ctx)
 	if err != nil {
-		s.recordHeartbeatError(runAt, time.Since(startedAt), err)
-		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] cleanup failed: %v", err)
+		s.recordHeartbeatError(jobName, runAt, time.Since(startedAt), err)
+		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] job=%s failed: %v", jobName, err)
 		return
 	}
-	s.recordHeartbeatSuccess(runAt, time.Since(startedAt), counts)
-	logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] cleanup complete: %s", counts)
+	s.recordHeartbeatSuccess(jobName, runAt, time.Since(startedAt), counts)
+	logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] job=%s complete: %s", jobName, counts)
 }
 
 type opsCleanupDeletedCounts struct {
@@ -227,21 +244,6 @@ func (s *OpsCleanupService) runCleanupOnce(ctx context.Context) (opsCleanupDelet
 		out.logAudits = n
 	}
 
-	if days := retention.RequestTraceRetentionDays; days > 0 {
-		cutoff := now.AddDate(0, 0, -days)
-		n, err := deleteOldRowsByID(ctx, s.db, "ops_request_traces", "created_at", cutoff, batchSize, false)
-		if err != nil {
-			return out, err
-		}
-		out.requestTraces = n
-
-		n, err = deleteOldRowsByID(ctx, s.db, "ops_request_trace_audits", "created_at", cutoff, batchSize, false)
-		if err != nil {
-			return out, err
-		}
-		out.traceAudits = n
-	}
-
 	// Minute-level metrics snapshots.
 	if days := retention.MinuteMetricsRetentionDays; days > 0 {
 		cutoff := now.AddDate(0, 0, -days)
@@ -268,6 +270,27 @@ func (s *OpsCleanupService) runCleanupOnce(ctx context.Context) (opsCleanupDelet
 		out.dailyPreagg = n
 	}
 
+	return out, nil
+}
+
+func (s *OpsCleanupService) runRequestDetailCleanupOnce(ctx context.Context) (opsCleanupDeletedCounts, error) {
+	out := opsCleanupDeletedCounts{}
+	if s == nil || s.opsRepo == nil {
+		return out, nil
+	}
+
+	days := s.requestDetailRetentionDays(ctx)
+	if days <= 0 {
+		return out, nil
+	}
+
+	cutoff := time.Now().UTC().AddDate(0, 0, -days)
+	counts, err := s.opsRepo.DeleteExpiredRequestTraces(ctx, cutoff, 5000)
+	if err != nil {
+		return out, err
+	}
+	out.requestTraces = counts.DeletedTraces
+	out.traceAudits = counts.DeletedAudits
 	return out, nil
 }
 
@@ -325,7 +348,7 @@ WHERE id IN (SELECT id FROM batch)
 	return total, nil
 }
 
-func (s *OpsCleanupService) tryAcquireLeaderLock(ctx context.Context) (func(), bool) {
+func (s *OpsCleanupService) tryAcquireLeaderLock(ctx context.Context, key string) (func(), bool) {
 	if s == nil {
 		return nil, false
 	}
@@ -334,7 +357,10 @@ func (s *OpsCleanupService) tryAcquireLeaderLock(ctx context.Context) (func(), b
 		return nil, true
 	}
 
-	key := opsCleanupLeaderLockKeyDefault
+	key = strings.TrimSpace(key)
+	if key == "" {
+		key = opsCleanupLeaderLockKeyDefault
+	}
 	ttl := opsCleanupLeaderLockTTLDefault
 
 	// Prefer Redis leader lock when available, but avoid stampeding the DB when Redis is flaky by
@@ -366,7 +392,7 @@ func (s *OpsCleanupService) tryAcquireLeaderLock(ctx context.Context) (func(), b
 	return release, true
 }
 
-func (s *OpsCleanupService) recordHeartbeatSuccess(runAt time.Time, duration time.Duration, counts opsCleanupDeletedCounts) {
+func (s *OpsCleanupService) recordHeartbeatSuccess(jobName string, runAt time.Time, duration time.Duration, counts opsCleanupDeletedCounts) {
 	if s == nil || s.opsRepo == nil {
 		return
 	}
@@ -376,7 +402,7 @@ func (s *OpsCleanupService) recordHeartbeatSuccess(runAt time.Time, duration tim
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_ = s.opsRepo.UpsertJobHeartbeat(ctx, &OpsUpsertJobHeartbeatInput{
-		JobName:        opsCleanupJobName,
+		JobName:        jobName,
 		LastRunAt:      &runAt,
 		LastSuccessAt:  &now,
 		LastDurationMs: &durMs,
@@ -384,7 +410,7 @@ func (s *OpsCleanupService) recordHeartbeatSuccess(runAt time.Time, duration tim
 	})
 }
 
-func (s *OpsCleanupService) recordHeartbeatError(runAt time.Time, duration time.Duration, err error) {
+func (s *OpsCleanupService) recordHeartbeatError(jobName string, runAt time.Time, duration time.Duration, err error) {
 	if s == nil || s.opsRepo == nil || err == nil {
 		return
 	}
@@ -394,7 +420,7 @@ func (s *OpsCleanupService) recordHeartbeatError(runAt time.Time, duration time.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_ = s.opsRepo.UpsertJobHeartbeat(ctx, &OpsUpsertJobHeartbeatInput{
-		JobName:        opsCleanupJobName,
+		JobName:        jobName,
 		LastRunAt:      &runAt,
 		LastErrorAt:    &now,
 		LastError:      &msg,

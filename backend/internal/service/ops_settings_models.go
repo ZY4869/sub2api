@@ -95,6 +95,8 @@ type OpsAdvancedSettings struct {
 	DataRetention                   OpsDataRetentionSettings `json:"data_retention"`
 	Aggregation                     OpsAggregationSettings   `json:"aggregation"`
 	RequestDetailsEnabled           bool                     `json:"request_details_enabled"`
+	RequestDetailCleanupEnabled     bool                     `json:"request_detail_cleanup_enabled"`
+	RequestDetailCleanupSchedule    string                   `json:"request_detail_cleanup_schedule"`
 	RequestDetailRetentionDays      int                      `json:"request_detail_retention_days"`
 	SuccessSampleRate               float64                  `json:"success_sample_rate"`
 	ForceCaptureSlowMs              int                      `json:"force_capture_slow_ms"`

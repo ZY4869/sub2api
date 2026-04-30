@@ -95,3 +95,43 @@ func TestGetOpsAdvancedSettings_BackfillsNewDisplayFlagsFromDefaults(t *testing.
 		t.Fatalf("DisplayAlertEvents = false, want true default backfill")
 	}
 }
+
+func TestGetOpsAdvancedSettings_BackfillsRequestDetailCleanupFromDataRetentionWhenMissing(t *testing.T) {
+	repo := newRuntimeSettingRepoStub()
+	svc := &OpsService{settingRepo: repo}
+
+	legacyCfg := map[string]any{
+		"data_retention": map[string]any{
+			"cleanup_enabled":               false,
+			"cleanup_schedule":              "15 3 * * *",
+			"error_log_retention_days":      30,
+			"minute_metrics_retention_days": 30,
+			"hourly_metrics_retention_days": 30,
+		},
+		"aggregation": map[string]any{
+			"aggregation_enabled": false,
+		},
+		"request_details_enabled": true,
+		// Intentionally omit request_detail_cleanup_enabled/schedule to emulate pre-field installs.
+	}
+	raw, err := json.Marshal(legacyCfg)
+	if err != nil {
+		t.Fatalf("marshal legacy config: %v", err)
+	}
+	repo.values[SettingKeyOpsAdvancedSettings] = string(raw)
+
+	cfg, err := svc.GetOpsAdvancedSettings(context.Background())
+	if err != nil {
+		t.Fatalf("GetOpsAdvancedSettings() error = %v", err)
+	}
+
+	if cfg.DataRetention.CleanupEnabled {
+		t.Fatalf("DataRetention.CleanupEnabled = true, want false")
+	}
+	if cfg.RequestDetailCleanupEnabled {
+		t.Fatalf("RequestDetailCleanupEnabled = true, want false inherited from data_retention.cleanup_enabled")
+	}
+	if cfg.RequestDetailCleanupSchedule != "15 3 * * *" {
+		t.Fatalf("RequestDetailCleanupSchedule = %q, want %q inherited from data_retention.cleanup_schedule", cfg.RequestDetailCleanupSchedule, "15 3 * * *")
+	}
+}

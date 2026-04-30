@@ -1,0 +1,81 @@
+export default {
+    quotaPolicy: {
+        title: "Gemini 配额与限流政策（参考）",
+        note: "注意：Gemini 官方未提供用量查询接口。此处显示的“每日配额”是由系统根据账号等级模拟计算的估算值，仅供调度参考，请以 Google 官方实际报错为准。",
+        effectiveDate: "官方目录生效日期：{date}",
+        remainingApiUnavailable: "当前只展示官方公开的 Tier、速率限制和 Batch 限制；官方资料中未提供可直接集成的“剩余额度 / 剩余 Tier 金额”查询 API。",
+        remainingApiAvailable: "当前环境支持展示官方剩余额度查询接口。",
+        batchSection: "Batch API 独立限制",
+        batchSummary: "并发 Batch 请求上限 {concurrent}；单个输入文件上限 {inputSize}；Files 存储上限 {storage}。",
+        columns: {
+            channel: "授权通道",
+            account: "账号状态",
+            limits: "限流政策",
+            docs: "官方文档",
+            tier: "Tier",
+            model: "模型族",
+            qualification: "资格要求",
+            batchTokens: "Batch 排队 Token 上限",
+        },
+        docs: {
+            codeAssist: "Code Assist 配额",
+            aiStudio: "AI Studio 定价",
+            vertex: "Vertex AI 配额",
+        },
+        simulatedNote: "本地模拟配额，仅供参考",
+        rows: {
+            googleOne: {
+                channel: "Google One OAuth（个人版 / Code Assist for Individuals）",
+                limitsFree: "共享池：1000 RPD / 60 RPM（不分模型）",
+                limitsPro: "共享池：1500 RPD / 120 RPM（不分模型）",
+                limitsUltra: "共享池：2000 RPD / 120 RPM（不分模型）",
+            },
+            gcp: {
+                channel: "GCP Code Assist OAuth（企业版）",
+                limitsStandard: "共享池：1500 RPD / 120 RPM（不分模型）",
+                limitsEnterprise: "共享池：2000 RPD / 120 RPM（不分模型）",
+            },
+            cli: {
+                channel: "Gemini CLI（官方 Google 登录 / Code Assist）",
+                free: "免费 Google 账号",
+                premium: "Google One AI Premium",
+                limitsFree: "RPD ~1000；RPM ~60（软限制）",
+                limitsPremium: "RPD ~1500+；RPM ~60+（优先队列）",
+            },
+            gcloud: {
+                channel: "GCP Code Assist（gcloud 登录）",
+                account: "未购买 Code Assist 订阅",
+                limits: "RPD ~1000；RPM ~60（预览期）",
+            },
+            aiStudio: {
+                channel: "AI Studio API Key / OAuth",
+                free: "未绑卡（免费层）",
+                paid: "已绑卡（按量付费）",
+                limitsFree: "RPD 50；RPM 2（Pro）/ 15（Flash）",
+                limitsPaid: "RPD 不限；RPM 1000（Pro）/ 2000（Flash）（按模型配额）",
+                limitsTier1: "Tier 1：按官方 AI Studio Rate Limits 执行，常见为 Pro 1000 RPM / Flash 2000 RPM。",
+                limitsTier2: "Tier 2：沿用官方付费层高配额，并提供更高的 Batch 排队额度。",
+                limitsTier3: "Tier 3：沿用官方最高级付费层配额与最大 Batch 排队额度。",
+            },
+            vertex: {
+                channel: "Vertex AI / Vertex Express",
+                limits: "按项目、地区与模型分别计量；Batch 走标准 Vertex batchPredictionJobs，具体配额以 Vertex AI 官方项目配额为准",
+            },
+            customOAuth: {
+                channel: "Custom OAuth Client（GCP）",
+                free: "项目未绑卡",
+                paid: "项目已绑卡",
+                limitsFree: "RPD 50；RPM 2（项目配额）",
+                limitsPaid: "RPD 不限；RPM 1000+（项目配额）",
+                limitsTier2: "Tier 2：沿用 AI Studio 官方付费层高配额与 Batch 上限。",
+                limitsTier3: "Tier 3：沿用 AI Studio 官方最高级付费层高配额与 Batch 上限。",
+            },
+        },
+    },
+    rateLimit: {
+        ok: "未限流",
+        unlimited: "无限流",
+        limited: "限流 {time}",
+        now: "现在",
+    }
+}

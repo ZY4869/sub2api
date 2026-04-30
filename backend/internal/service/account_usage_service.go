@@ -261,16 +261,19 @@ type ClaudeUsageFetcher interface {
 
 // AccountUsageService 账号使用量查询服务
 type AccountUsageService struct {
-	accountRepo                  AccountRepository
-	usageLogRepo                 UsageLogRepository
-	usageFetcher                 ClaudeUsageFetcher
-	geminiQuotaService           *GeminiQuotaService
-	antigravityQuotaFetcher      *AntigravityQuotaFetcher
-	cache                        *UsageCache
-	identityCache                IdentityCache
-	openAICodexProbe             func(ctx context.Context, account *Account) (map[string]any, *time.Time, error)
-	openAICodexScopeProbe        func(ctx context.Context, account *Account, modelID string) (map[string]any, *time.Time, error)
-	tlsFingerprintProfileService *TLSFingerprintProfileService
+	accountRepo                           AccountRepository
+	usageLogRepo                          UsageLogRepository
+	usageFetcher                          ClaudeUsageFetcher
+	geminiQuotaService                    *GeminiQuotaService
+	antigravityQuotaFetcher               *AntigravityQuotaFetcher
+	cache                                 *UsageCache
+	identityCache                         IdentityCache
+	openAICodexProbe                      func(ctx context.Context, account *Account) (map[string]any, *time.Time, error)
+	openAICodexScopeProbe                 func(ctx context.Context, account *Account, modelID string) (map[string]any, *time.Time, error)
+	openAICodexScopeProbeHTTP             func(ctx context.Context, account *Account, modelID string) (map[string]any, *time.Time, error)
+	openAICodexWSProbeDialer              openAIWSClientDialer
+	openAICodexWSProbeReadTimeoutOverride time.Duration
+	tlsFingerprintProfileService          *TLSFingerprintProfileService
 }
 
 // NewAccountUsageService 创建AccountUsageService实例
@@ -688,6 +691,9 @@ func (s *AccountUsageService) probeOpenAICodexSnapshot(ctx context.Context, acco
 	if !succeeded {
 		return nil, nil, joinedErr
 	}
+	if isOpenAIProPlan(account) {
+		maybeWarnOpenAICodexProbeDegenerate(account, mergedUpdates)
+	}
 	return mergedUpdates, mergedResetAt, nil
 }
 
@@ -704,12 +710,6 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 	}
 
 	probeModelID := resolveOpenAICodexProbeModelID(account, modelID)
-	payload := createOpenAITestPayload(probeModelID, true)
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, nil, fmt.Errorf("marshal openai probe payload: %w", err)
-	}
-
 	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	reqCtx = WithOpenAICodexRequestModel(reqCtx, probeModelID)
@@ -718,6 +718,61 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 		return nil, nil, fmt.Errorf("openai codex probe scope could not be resolved for model %q", probeModelID)
 	}
 	reqCtx = withOpenAICodexResolvedQuotaScope(reqCtx, scope)
+
+	if isOpenAIProPlan(account) {
+		wsUpdates, wsResetAt, wsSnapshot, wsSource, wsDiag, wsErr := s.probeOpenAICodexSnapshotForModelWS(reqCtx, account, probeModelID, scope)
+		if wsErr == nil && (len(wsUpdates) > 0 || wsResetAt != nil) {
+			util5h, util7d := extractCodexUsagePercentsFromUpdates(scope, wsUpdates)
+			primaryUsed, secondaryUsed, primaryWindow, secondaryWindow, primaryResetAfter, secondaryResetAfter := codexProbeSnapshotLogFields(wsSnapshot)
+			wsReadMessages := 0
+			wsLastEventType := ""
+			wsReadExitReason := ""
+			if wsDiag != nil {
+				wsReadMessages = wsDiag.ReadMessages
+				wsLastEventType = wsDiag.LastEventType
+				wsReadExitReason = wsDiag.ReadExitReason
+			}
+			slog.Info(
+				"openai_codex_snapshot_scope_resolved",
+				"account_id", account.ID,
+				"requested_model", probeModelID,
+				"upstream_model", probeModelID,
+				"resolved_scope", scope,
+				"snapshot_source", wsSource,
+				"probe_transport", "ws",
+				"ws_read_messages", wsReadMessages,
+				"ws_last_event_type", wsLastEventType,
+				"ws_read_exit_reason", wsReadExitReason,
+				"x_cx_primary_used_percent", primaryUsed,
+				"x_cx_secondary_used_percent", secondaryUsed,
+				"x_cx_primary_window_minutes", primaryWindow,
+				"x_cx_secondary_window_minutes", secondaryWindow,
+				"x_cx_primary_reset_after_seconds", primaryResetAfter,
+				"x_cx_secondary_reset_after_seconds", secondaryResetAfter,
+				"utilization_5h_percent", util5h,
+				"utilization_7d_percent", util7d,
+			)
+			state := s.persistOpenAICodexProbeSnapshot(reqCtx, account, wsUpdates)
+			if state != nil {
+				if state.AccountResetAt != nil {
+					return wsUpdates, state.AccountResetAt, nil
+				}
+				if state.ScopeResetAt != nil {
+					return wsUpdates, state.ScopeResetAt, nil
+				}
+			}
+			return wsUpdates, wsResetAt, nil
+		}
+	}
+
+	payload := createOpenAITestPayload(probeModelID, true)
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal openai probe payload: %w", err)
+	}
+	if s != nil && s.openAICodexScopeProbeHTTP != nil {
+		return s.openAICodexScopeProbeHTTP(reqCtx, account, modelID)
+	}
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, chatgptCodexURL, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create openai probe request: %w", err)
@@ -761,13 +816,21 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 	}
 	if len(updates) > 0 || resetAt != nil {
 		util5h, util7d := extractCodexUsagePercentsFromUpdates(scope, updates)
+		primaryUsed, secondaryUsed, primaryWindow, secondaryWindow, primaryResetAfter, secondaryResetAfter := codexProbeHeadersLogFields(resp.Header)
 		slog.Info(
 			"openai_codex_snapshot_scope_resolved",
 			"account_id", account.ID,
 			"requested_model", probeModelID,
 			"upstream_model", probeModelID,
 			"resolved_scope", scope,
-			"snapshot_source", "usage_probe",
+			"snapshot_source", "usage_probe_http_header",
+			"probe_transport", "http_sse",
+			"x_cx_primary_used_percent", primaryUsed,
+			"x_cx_secondary_used_percent", secondaryUsed,
+			"x_cx_primary_window_minutes", primaryWindow,
+			"x_cx_secondary_window_minutes", secondaryWindow,
+			"x_cx_primary_reset_after_seconds", primaryResetAfter,
+			"x_cx_secondary_reset_after_seconds", secondaryResetAfter,
 			"utilization_5h_percent", util5h,
 			"utilization_7d_percent", util7d,
 		)

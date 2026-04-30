@@ -1,0 +1,17 @@
+export default {
+    title: "百度文档智能凭据",
+    description: "配置百度文档智能异步任务访问令牌，以及可选的模型直连接口。至少填写一个访问令牌。",
+    selectedHintTitle: "已选择平台：百度智能文档",
+    selectedHintBody: "令牌输入框在下方的「百度文档智能凭据」区域；若未显示，请向下滚动或检查浏览器控制台错误。",
+    asyncBaseUrl: "异步服务地址",
+    asyncBaseUrlHint: "百度文档智能异步任务接口地址，留空时使用默认官方地址。",
+    asyncBearerToken: "异步访问令牌",
+    asyncBearerTokenHint: "用于提交异步任务、查询状态和轮询结果。",
+    directToken: "直连访问令牌",
+    directTokenHint: "可选，用于模型专属的直连解析接口。",
+    directApiUrls: "直连接口地址映射",
+    directApiUrlsHint: "填写 JSON 对象，把模型 ID 映射到官方直连接口地址。",
+    directApiUrlsPlaceholder: "{'{'}\n  \"pp-ocrv5-server\": \"https://...\",\n  \"paddleocr-vl-1.5\": \"https://...\"\n{'}'}",
+    tokenRequired: "请至少填写一个百度文档智能访问令牌",
+    directApiUrlsInvalid: "直连接口地址映射必须是合法的 JSON 对象文本",
+}

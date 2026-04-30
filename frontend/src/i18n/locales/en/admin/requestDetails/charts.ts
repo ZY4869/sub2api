@@ -1,0 +1,17 @@
+export default {
+    requests: "Requests",
+    errors: "Errors",
+    p95Latency: "P95 Latency",
+    trendTitle: "Request Volume and Latency",
+    trendDescription: "Track request count, errors, and latency changes over time.",
+    statusTitle: "Status Distribution",
+    statusDescription: "How gateway traces are distributed by final status.",
+    protocolTitle: "Protocol Pairs",
+    protocolDescription: "Inbound and outbound protocol combinations seen in this window.",
+    finishReasonTitle: "Finish Reasons",
+    finishReasonDescription: "Most common upstream finish reasons and blocking outcomes.",
+    modelTitle: "Model Distribution",
+    modelDescription: "Requested and upstream model usage concentration.",
+    capabilityTitle: "Capability Distribution",
+    capabilityDescription: "Share of traces that include streaming, tools, thinking, and raw payload capture.",
+}

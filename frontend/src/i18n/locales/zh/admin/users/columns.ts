@@ -1,0 +1,14 @@
+export default {
+    user: "用户",
+    email: "邮箱",
+    username: "用户名",
+    notes: "备注",
+    role: "角色",
+    subscriptions: "订阅分组",
+    balance: "余额",
+    usage: "用量",
+    concurrency: "并发数",
+    status: "状态",
+    created: "创建时间",
+    actions: "操作",
+}

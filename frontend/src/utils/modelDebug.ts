@@ -48,6 +48,11 @@ export interface ModelDebugOutputEvent {
   tone: "info" | "success" | "warning" | "error";
 }
 
+export interface ModelDebugPromptDefaults {
+  systemPrompt?: string;
+  userPrompt?: string;
+}
+
 export function defaultModelDebugEndpoint(
   protocol: AdminModelDebugProtocol,
 ): AdminModelDebugEndpointKind {
@@ -56,16 +61,17 @@ export function defaultModelDebugEndpoint(
 
 export function buildBaseModelDebugRequestBody(
   form: ModelDebugFormState,
+  defaults: ModelDebugPromptDefaults = {},
 ): Record<string, any> {
   switch (form.protocol) {
     case "anthropic":
-      return buildAnthropicRequestBody(form);
+      return buildAnthropicRequestBody(form, defaults);
     case "gemini":
-      return buildGeminiRequestBody(form);
+      return buildGeminiRequestBody(form, defaults);
     default:
       return form.endpointKind === "chat_completions"
-        ? buildOpenAIChatRequestBody(form)
-        : buildOpenAIResponsesRequestBody(form);
+        ? buildOpenAIChatRequestBody(form, defaults)
+        : buildOpenAIResponsesRequestBody(form, defaults);
   }
 }
 
@@ -153,8 +159,11 @@ function resolveBindings(apiKey: ApiKey): ApiKeyGroup[] {
   ];
 }
 
-function buildOpenAIResponsesRequestBody(form: ModelDebugFormState) {
-  const input = buildMessageList(form.systemPrompt, form.userPrompt);
+function buildOpenAIResponsesRequestBody(
+  form: ModelDebugFormState,
+  defaults: ModelDebugPromptDefaults,
+) {
+  const input = buildMessageList(form.systemPrompt, form.userPrompt, defaults);
   return omitEmpty({
     stream: form.stream,
     input,
@@ -166,26 +175,40 @@ function buildOpenAIResponsesRequestBody(form: ModelDebugFormState) {
   });
 }
 
-function buildOpenAIChatRequestBody(form: ModelDebugFormState) {
+function buildOpenAIChatRequestBody(
+  form: ModelDebugFormState,
+  defaults: ModelDebugPromptDefaults,
+) {
   return omitEmpty({
     stream: form.stream,
-    messages: buildMessageList(form.systemPrompt, form.userPrompt),
+    messages: buildMessageList(form.systemPrompt, form.userPrompt, defaults),
     temperature: parseOptionalNumber(form.temperature),
     max_completion_tokens: parseOptionalInteger(form.maxOutputTokens),
   });
 }
 
-function buildAnthropicRequestBody(form: ModelDebugFormState) {
+function buildAnthropicRequestBody(
+  form: ModelDebugFormState,
+  defaults: ModelDebugPromptDefaults,
+) {
   return omitEmpty({
     stream: form.stream,
     system: trimOrUndefined(form.systemPrompt),
     max_tokens: parseOptionalInteger(form.maxOutputTokens) ?? 512,
     temperature: parseOptionalNumber(form.temperature),
-    messages: [{ role: "user", content: trimOrUndefined(form.userPrompt) || "Hello from Sub2API" }],
+    messages: [
+      {
+        role: "user",
+        content: resolveUserPrompt(form.userPrompt, defaults),
+      },
+    ],
   });
 }
 
-function buildGeminiRequestBody(form: ModelDebugFormState) {
+function buildGeminiRequestBody(
+  form: ModelDebugFormState,
+  defaults: ModelDebugPromptDefaults,
+) {
   const generationConfig = omitEmpty({
     temperature: parseOptionalNumber(form.temperature),
     maxOutputTokens: parseOptionalInteger(form.maxOutputTokens),
@@ -194,7 +217,7 @@ function buildGeminiRequestBody(form: ModelDebugFormState) {
     contents: [
       {
         role: "user",
-        parts: [{ text: trimOrUndefined(form.userPrompt) || "Hello from Sub2API" }],
+        parts: [{ text: resolveUserPrompt(form.userPrompt, defaults) }],
       },
     ],
     system_instruction: trimOrUndefined(form.systemPrompt)
@@ -204,16 +227,24 @@ function buildGeminiRequestBody(form: ModelDebugFormState) {
   });
 }
 
-function buildMessageList(systemPrompt: string, userPrompt: string) {
+function buildMessageList(
+  systemPrompt: string,
+  userPrompt: string,
+  defaults: ModelDebugPromptDefaults,
+) {
   const messages: Array<{ role: string; content: string }> = [];
   if (trimOrUndefined(systemPrompt)) {
     messages.push({ role: "system", content: trimOrUndefined(systemPrompt) as string });
   }
   messages.push({
     role: "user",
-    content: trimOrUndefined(userPrompt) || "Hello from Sub2API",
+    content: resolveUserPrompt(userPrompt, defaults),
   });
   return messages;
+}
+
+function resolveUserPrompt(userPrompt: string, defaults: ModelDebugPromptDefaults) {
+  return trimOrUndefined(userPrompt) || trimOrUndefined(defaults.userPrompt) || "Hello from Sub2API";
 }
 
 function deepMerge(base: Record<string, any>, override: Record<string, any>): Record<string, any> {
@@ -238,7 +269,7 @@ function isPlainObject(value: unknown): value is Record<string, any> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function trimOrUndefined(value: string) {
+function trimOrUndefined(value?: string) {
   const trimmed = String(value || "").trim();
   return trimmed || undefined;
 }

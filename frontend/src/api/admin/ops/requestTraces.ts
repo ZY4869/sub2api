@@ -1,5 +1,7 @@
 import { apiClient } from '../../client'
 import type {
+  OpsRequestTraceCleanupRequest,
+  OpsRequestTraceCleanupResult,
   OpsRequestOptions,
   OpsRequestTraceDetail,
   OpsRequestTraceFilter,
@@ -85,4 +87,14 @@ export async function exportRequestTracesCSV(
     blob: response.data,
     filename
   }
+}
+
+export async function cleanupRequestTraces(
+  payload: OpsRequestTraceCleanupRequest,
+  options: OpsRequestOptions = {}
+): Promise<OpsRequestTraceCleanupResult> {
+  const { data } = await apiClient.post<OpsRequestTraceCleanupResult>('/admin/ops/request-details/cleanup', payload, {
+    signal: options.signal
+  })
+  return data
 }

@@ -1,0 +1,17 @@
+export default {
+    title: "Baidu Document AI Credentials",
+    description: "Configure the async PaddleOCR token and optional direct model endpoints. At least one token is required.",
+    selectedHintTitle: "Selected platform: Baidu Document AI",
+    selectedHintBody: 'Token fields are in the "Baidu Document AI Credentials" section below. If you cannot see them, scroll down or check the browser console for errors.',
+    asyncBaseUrl: "Async Base URL",
+    asyncBaseUrlHint: "Default async jobs endpoint from Baidu AI Studio PaddleOCR.",
+    asyncBearerToken: "Async Bearer Token",
+    asyncBearerTokenHint: "Used for async jobs APIs such as submit, status, and result polling.",
+    directToken: "Direct Model Token",
+    directTokenHint: "Optional token for model-specific direct parsing APIs.",
+    directApiUrls: "Direct API URLs",
+    directApiUrlsHint: "Provide a JSON object mapping model IDs to official direct API URLs.",
+    directApiUrlsPlaceholder: "{'{'}\n  \"pp-ocrv5-server\": \"https://...\",\n  \"paddleocr-vl-1.5\": \"https://...\"\n{'}'}",
+    tokenRequired: "At least one Baidu Document AI token is required",
+    directApiUrlsInvalid: "Direct API URLs must be valid JSON object text",
+}

@@ -4,22 +4,22 @@ import { mount } from '@vue/test-utils'
 import UsageStatsCards from '../UsageStatsCards.vue'
 
 const messages: Record<string, string> = {
-  'usage.totalRequests': 'Total Requests',
-  'usage.totalTokens': 'Total Tokens',
-  'usage.totalCost': 'Total Cost',
-  'usage.inSelectedRange': 'in selected range',
-  'usage.in': 'In',
-  'usage.out': 'Out',
-  'usage.avgDuration': 'Avg Duration',
-  'usage.actualCost': 'Actual',
-  'usage.standardCost': 'Standard',
-  'usage.todaySoFar': "From today's 00:00 to now",
-  'usage.todayAvgDuration': "Today's Avg Duration",
-  'usage.cacheTokens': 'Cache',
-  'admin.usage.todayStats': 'Today Stats',
-  'admin.usage.todayRequests': 'Today Requests',
-  'admin.usage.todayTokens': 'Today Tokens',
-  'admin.usage.todayCost': 'Today Cost',
+  'usage.totalRequests': '总请求数',
+  'usage.totalTokens': '总 Token',
+  'usage.totalCost': '总费用',
+  'usage.inSelectedRange': '所选范围内',
+  'usage.in': '输入',
+  'usage.out': '输出',
+  'usage.avgDuration': '平均耗时',
+  'usage.actualCost': '实际费用',
+  'usage.standardCost': '标准费用',
+  'usage.todaySoFar': '从今日 00:00 到当前',
+  'usage.todayAvgDuration': '今日平均耗时',
+  'usage.cacheTokens': '缓存',
+  'admin.usage.todayStats': '今日统计',
+  'admin.usage.todayRequests': '今日请求',
+  'admin.usage.todayTokens': '今日 Token',
+  'admin.usage.todayCost': '今日费用',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -65,11 +65,11 @@ describe('admin UsageStatsCards', () => {
     })
 
     const text = wrapper.text()
-    expect(text).toContain('Today Stats')
-    expect(text).toContain("From today's 00:00 to now")
-    expect(text).toContain('Today Requests')
-    expect(text).toContain('Today Tokens')
-    expect(text).toContain('Today Cost')
-    expect(text).toContain("Today's Avg Duration")
+    expect(text).toContain('今日统计')
+    expect(text).toContain('从今日 00:00 到当前')
+    expect(text).toContain('今日请求')
+    expect(text).toContain('今日 Token')
+    expect(text).toContain('今日费用')
+    expect(text).toContain('今日平均耗时')
   })
 })

@@ -17,6 +17,8 @@ type opsRepoMock struct {
 	GetRequestTraceSummaryFn      func(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceSummary, error)
 	InsertRequestTraceAuditFn     func(ctx context.Context, input *OpsInsertRequestTraceAuditInput) error
 	ListRequestTraceAuditsFn      func(ctx context.Context, traceID int64) ([]*OpsRequestTraceAuditLog, error)
+	DeleteRequestTracesFn         func(ctx context.Context, filter *OpsRequestTraceFilter) (OpsRequestTraceDeleteCounts, error)
+	DeleteExpiredRequestTracesFn  func(ctx context.Context, cutoff time.Time, batchSize int) (OpsRequestTraceDeleteCounts, error)
 	BatchInsertSystemLogsFn       func(ctx context.Context, inputs []*OpsInsertSystemLogInput) (int64, error)
 	ListSystemLogsFn              func(ctx context.Context, filter *OpsSystemLogFilter) (*OpsSystemLogList, error)
 	DeleteSystemLogsFn            func(ctx context.Context, filter *OpsSystemLogCleanupFilter) (int64, error)
@@ -103,6 +105,20 @@ func (m *opsRepoMock) ListRequestTraceAudits(ctx context.Context, traceID int64)
 		return m.ListRequestTraceAuditsFn(ctx, traceID)
 	}
 	return []*OpsRequestTraceAuditLog{}, nil
+}
+
+func (m *opsRepoMock) DeleteRequestTraces(ctx context.Context, filter *OpsRequestTraceFilter) (OpsRequestTraceDeleteCounts, error) {
+	if m.DeleteRequestTracesFn != nil {
+		return m.DeleteRequestTracesFn(ctx, filter)
+	}
+	return OpsRequestTraceDeleteCounts{}, nil
+}
+
+func (m *opsRepoMock) DeleteExpiredRequestTraces(ctx context.Context, cutoff time.Time, batchSize int) (OpsRequestTraceDeleteCounts, error) {
+	if m.DeleteExpiredRequestTracesFn != nil {
+		return m.DeleteExpiredRequestTracesFn(ctx, cutoff, batchSize)
+	}
+	return OpsRequestTraceDeleteCounts{}, nil
 }
 
 func (m *opsRepoMock) BatchInsertSystemLogs(ctx context.Context, inputs []*OpsInsertSystemLogInput) (int64, error) {

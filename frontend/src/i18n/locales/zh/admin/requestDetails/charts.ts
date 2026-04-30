@@ -1,0 +1,17 @@
+export default {
+    requests: "请求量",
+    errors: "错误量",
+    p95Latency: "P95 延迟",
+    trendTitle: "请求量与延迟趋势",
+    trendDescription: "观察请求量、错误量与延迟的时间变化。",
+    statusTitle: "状态分布",
+    statusDescription: "当前窗口内 trace 的最终状态分布。",
+    protocolTitle: "协议对分布",
+    protocolDescription: "当前窗口内入口协议与出口协议的组合。",
+    finishReasonTitle: "Finish Reason 分布",
+    finishReasonDescription: "上游 finish reason 与阻断结果的主要分布。",
+    modelTitle: "模型分布",
+    modelDescription: "请求模型与上游模型的集中度。",
+    capabilityTitle: "能力分布",
+    capabilityDescription: "展示流式、工具、Thinking 与原文保留等能力标记的占比。",
+}

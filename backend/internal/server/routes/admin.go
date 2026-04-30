@@ -249,6 +249,7 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		ops.GET("/request-details/summary", h.Admin.Ops.GetRequestTraceSummary)
 		ops.GET("/request-details/subjects/insights", h.Admin.Ops.GetSubjectInsights)
 		ops.GET("/request-details/export.csv", h.Admin.Ops.ExportRequestTracesCSV)
+		ops.POST("/request-details/cleanup", h.Admin.Ops.CleanupRequestTraces)
 		ops.GET("/request-details/:id", h.Admin.Ops.GetRequestTraceByID)
 		ops.GET("/request-details/:id/raw", h.Admin.Ops.GetRequestTraceRawByID)
 

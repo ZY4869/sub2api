@@ -8,6 +8,7 @@ const props = defineProps<{
   modelValue: OpsRequestTraceFilter
   loading: boolean
   rawExportAllowed: boolean
+  cleanupLoading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -15,6 +16,8 @@ const emit = defineEmits<{
   (e: 'apply'): void
   (e: 'reset'): void
   (e: 'export', includeRaw: boolean): void
+  (e: 'cleanup-filter'): void
+  (e: 'cleanup-expired'): void
 }>()
 
 const { t } = useI18n()
@@ -104,6 +107,22 @@ function resetFilters() {
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
+        <button
+          class="btn btn-danger"
+          type="button"
+          :disabled="loading || cleanupLoading"
+          @click="emit('cleanup-filter')"
+        >
+          {{ t('admin.requestDetails.actions.cleanupFilter') }}
+        </button>
+        <button
+          class="btn btn-danger"
+          type="button"
+          :disabled="loading || cleanupLoading"
+          @click="emit('cleanup-expired')"
+        >
+          {{ t('admin.requestDetails.actions.cleanupExpired') }}
+        </button>
         <button class="btn btn-secondary" type="button" @click="resetFilters">
           {{ t('common.reset') }}
         </button>

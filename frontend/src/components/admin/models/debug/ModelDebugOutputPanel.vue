@@ -37,7 +37,7 @@
               {{ event.title }}
             </div>
             <span class="rounded-full bg-white/10 px-2 py-0.5 text-[11px]">
-              {{ event.type }}
+              {{ eventTypeLabel(event.type, event.title) }}
             </span>
           </div>
           <pre class="mt-3 whitespace-pre-wrap break-words font-mono text-xs leading-6">{{ event.body }}</pre>
@@ -68,6 +68,25 @@ function eventClass(tone: ModelDebugOutputEvent["tone"]) {
       return "border-rose-500/30 bg-rose-500/10 text-rose-100";
     default:
       return "border-sky-500/20 bg-sky-500/10 text-sky-100";
+  }
+}
+
+function eventTypeLabel(type: string, fallback: string) {
+  switch (type) {
+    case "start":
+      return t("admin.models.pages.debug.events.start");
+    case "request_preview":
+      return t("admin.models.pages.debug.events.request");
+    case "response_headers":
+      return t("admin.models.pages.debug.events.headers");
+    case "content":
+      return t("admin.models.pages.debug.events.content");
+    case "final":
+      return t("admin.models.pages.debug.events.final");
+    case "error":
+      return t("admin.models.pages.debug.events.error");
+    default:
+      return fallback;
   }
 }
 </script>

@@ -11,9 +11,9 @@ vi.mock('vue-i18n', async () => {
       locale: ref('zh'),
       t: (key: string) => {
         const labels: Record<string, string> = {
-          'admin.models.pages.available.nav': 'Available Models',
-          'admin.models.pages.all.nav': 'All Models',
-          'admin.models.pages.debug.nav': 'Model Debug'
+          'admin.models.pages.available.nav': '可用模型',
+          'admin.models.pages.all.nav': '全部模型',
+          'admin.models.pages.debug.nav': '模型调试'
         }
         return labels[key] || key
       }
@@ -39,7 +39,7 @@ describe('ModelCatalogSubnav', () => {
     const labels = wrapper.findAll('a').map((link) => link.text())
     const destinations = wrapper.findAll('a').map((link) => link.attributes('href'))
 
-    expect(labels).toEqual(['Available Models', 'All Models', 'Model Debug'])
+    expect(labels).toEqual(['可用模型', '全部模型', '模型调试'])
     expect(destinations).toEqual(['/admin/models/available', '/admin/models/all', '/admin/models/debug'])
   })
 })

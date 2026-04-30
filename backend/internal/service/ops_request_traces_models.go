@@ -156,8 +156,10 @@ type OpsInsertRequestTraceInput struct {
 type OpsRequestTraceAuditAction string
 
 const (
-	OpsRequestTraceAuditActionViewRaw   OpsRequestTraceAuditAction = "view_raw"
-	OpsRequestTraceAuditActionExportCSV OpsRequestTraceAuditAction = "export_csv"
+	OpsRequestTraceAuditActionViewRaw        OpsRequestTraceAuditAction = "view_raw"
+	OpsRequestTraceAuditActionExportCSV      OpsRequestTraceAuditAction = "export_csv"
+	OpsRequestTraceAuditActionCleanupFilter  OpsRequestTraceAuditAction = "cleanup_filter"
+	OpsRequestTraceAuditActionCleanupExpired OpsRequestTraceAuditAction = "cleanup_expired"
 )
 
 type OpsInsertRequestTraceAuditInput struct {
@@ -207,6 +209,24 @@ type OpsRequestTraceFilter struct {
 	Page     int    `json:"page,omitempty"`
 	PageSize int    `json:"page_size,omitempty"`
 	Limit    int    `json:"limit,omitempty"`
+}
+
+type OpsRequestTraceCleanupMode string
+
+const (
+	OpsRequestTraceCleanupModeFilter  OpsRequestTraceCleanupMode = "filter"
+	OpsRequestTraceCleanupModeExpired OpsRequestTraceCleanupMode = "expired"
+)
+
+type OpsRequestTraceDeleteCounts struct {
+	DeletedTraces int64 `json:"deleted_traces"`
+	DeletedAudits int64 `json:"deleted_audits"`
+}
+
+type OpsRequestTraceCleanupResult struct {
+	Mode OpsRequestTraceCleanupMode `json:"mode"`
+	OpsRequestTraceDeleteCounts
+	Cutoff *time.Time `json:"cutoff,omitempty"`
 }
 
 func (f *OpsRequestTraceFilter) Normalize() (page, pageSize int, startTime, endTime time.Time) {

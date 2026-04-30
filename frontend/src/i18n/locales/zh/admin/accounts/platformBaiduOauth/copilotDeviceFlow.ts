@@ -1,0 +1,23 @@
+export default {
+    title: "GitHub Copilot 设备授权",
+    description: "使用 GitHub Device Flow 完成 Copilot 授权。开始后在 GitHub 页面输入验证码，系统会自动轮询状态。",
+    userCode: "用户验证码",
+    verificationUrl: "验证地址",
+    notStarted: "尚未开始设备流",
+    openGitHub: "打开 GitHub",
+    copyCode: "复制验证码",
+    copyUrl: "复制地址",
+    pollHint: "系统会每 {seconds} 秒自动检查一次授权状态，你也可以手动点击检查。",
+    expiresHint: "当前设备流大约会在 {seconds} 秒后过期。",
+    authorizedAs: "已授权账号：{user}",
+    restart: "重新开始设备流",
+    start: "开始设备流",
+    checkStatus: "立即检查状态",
+    startFailed: "启动 Copilot 设备流失败",
+    pollFailed: "检查 Copilot 授权状态失败",
+    status: {
+        idle: "未开始",
+        pending: "等待授权",
+        completed: "已授权",
+    },
+}

@@ -1,0 +1,25 @@
+export default {
+    affiliate: {
+        title: "Affiliate / Invite Rebate",
+        description: "Configure affiliate rebate switches and rate (default: disabled).",
+        enabled: "Enable Affiliate Rebates",
+        enabledHint: "Enable binding affiliate codes and accruing rebates (usage / topup).",
+        transferEnabled: "Enable Transfer to Balance",
+        transferEnabledHint: "Independent switch: only controls whether users can transfer rebates to balance.",
+        ratePercent: "Rebate Rate (%)",
+        ratePercentHint: "Integer 0-100. Used when accruing rebates (effective only when enabled).",
+        rate: "Rebate Rate (%)",
+        freezeHours: "Freeze (hours)",
+        durationDays: "Duration (days)",
+        durationDaysHint: "0 means forever. It only limits the rebate window per invitee.",
+        perInviteeCap: "Per-invitee cap",
+        perInviteeCapHint: "0 means unlimited. Caps cumulative rebates from a single invitee.",
+        affCodeLength: "Code length",
+        onUsage: "Rebate on usage",
+        onUsageHint: "Accrue rebates after successful usage billing.",
+        onTopup: "Rebate on topup",
+        onTopupHint: "Accrue rebates on positive balance topups (redeem/admin balance).",
+        note: "Note: Usage/topup switches take effect only when affiliate is enabled. Transfer is controlled independently.",
+        rateInvalid: "Rebate rate must be an integer between 0 and 100.",
+    }
+}

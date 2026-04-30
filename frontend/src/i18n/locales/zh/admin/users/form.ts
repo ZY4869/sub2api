@@ -1,0 +1,17 @@
+export default {
+    emailLabel: "邮箱",
+    emailPlaceholder: "请输入邮箱",
+    usernameLabel: "用户名",
+    usernamePlaceholder: "请输入用户名（选填）",
+    notesLabel: "备注",
+    notesPlaceholder: "请输入备注（仅管理员可见）",
+    notesHint: "此备注仅对管理员可见",
+    passwordLabel: "密码",
+    passwordPlaceholder: "请输入密码（留空则不修改）",
+    roleLabel: "角色",
+    selectRole: "选择角色",
+    balanceLabel: "余额",
+    concurrencyLabel: "并发数",
+    statusLabel: "状态",
+    selectStatus: "选择状态",
+}
