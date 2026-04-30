@@ -61,6 +61,7 @@ func RegisterGatewayRoutes(
 		gateway.DELETE("/responses/*subpath", dispatchers.OpenAIResponses)
 		gateway.GET("/responses", dispatchers.OpenAIResponsesWebSocket)
 		gateway.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
+		gateway.POST("/completions", dispatchers.OpenAICompletions)
 		gateway.POST("/images/generations", dispatchers.PublicImagesGeneration)
 		gateway.POST("/images/edits", dispatchers.PublicImagesEdits)
 		gateway.POST("/videos", dispatchers.GrokVideosGeneration)

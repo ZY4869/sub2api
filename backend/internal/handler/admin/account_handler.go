@@ -113,19 +113,36 @@ type UpdateAccountRequest struct {
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"`
 }
 type BulkUpdateAccountsRequest struct {
-	AccountIDs              []int64        `json:"account_ids" binding:"required,min=1"`
-	Name                    string         `json:"name"`
-	ProxyID                 *int64         `json:"proxy_id"`
-	Concurrency             *int           `json:"concurrency"`
-	Priority                *int           `json:"priority"`
-	RateMultiplier          *float64       `json:"rate_multiplier"`
-	LoadFactor              *int           `json:"load_factor"`
-	Status                  string         `json:"status" binding:"omitempty,oneof=active inactive error"`
-	Schedulable             *bool          `json:"schedulable"`
-	GroupIDs                *[]int64       `json:"group_ids"`
-	Credentials             map[string]any `json:"credentials"`
-	Extra                   map[string]any `json:"extra"`
-	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"`
+	// Either AccountIDs or Filters must be provided. The handler enforces this.
+	AccountIDs              []int64                    `json:"account_ids"`
+	Filters                 *BulkUpdateAccountsFilters `json:"filters,omitempty"`
+	Name                    string                     `json:"name"`
+	ProxyID                 *int64                     `json:"proxy_id"`
+	Concurrency             *int                       `json:"concurrency"`
+	Priority                *int                       `json:"priority"`
+	RateMultiplier          *float64                   `json:"rate_multiplier"`
+	LoadFactor              *int                       `json:"load_factor"`
+	Status                  string                     `json:"status" binding:"omitempty,oneof=active inactive error"`
+	Schedulable             *bool                      `json:"schedulable"`
+	GroupIDs                *[]int64                   `json:"group_ids"`
+	Credentials             map[string]any             `json:"credentials"`
+	Extra                   map[string]any             `json:"extra"`
+	ConfirmMixedChannelRisk *bool                      `json:"confirm_mixed_channel_risk"`
+}
+
+// BulkUpdateAccountsFilters reuses the same semantics as the admin accounts list endpoint.
+// All fields are optional; when omitted, the default list behavior applies.
+type BulkUpdateAccountsFilters struct {
+	Platform      string `json:"platform,omitempty"`
+	Type          string `json:"type,omitempty"`
+	Status        string `json:"status,omitempty"`
+	Group         string `json:"group,omitempty"` // numeric group id or "ungrouped"
+	Search        string `json:"search,omitempty"`
+	Lifecycle     string `json:"lifecycle,omitempty"`
+	PrivacyMode   string `json:"privacy_mode,omitempty"`
+	LimitedView   string `json:"limited_view,omitempty"`
+	LimitedReason string `json:"limited_reason,omitempty"`
+	RuntimeView   string `json:"runtime_view,omitempty"`
 }
 type BlacklistAccountRequest struct {
 	Source   string                          `json:"source"`
@@ -205,6 +222,29 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 		response.BadRequestKey(c, "admin.account.no_updates", "No updates provided")
 		return
 	}
+
+	// Target selection: either explicit account_ids or filters (mutually exclusive).
+	if len(req.AccountIDs) > 0 && req.Filters != nil {
+		response.BadRequestKey(c, "admin.account.invalid_request", "Provide either account_ids or filters, not both")
+		return
+	}
+	if len(req.AccountIDs) == 0 {
+		if req.Filters == nil {
+			response.BadRequestKey(c, "admin.account.invalid_request", "account_ids or filters is required")
+			return
+		}
+		targetIDs, err := h.resolveBulkUpdateAccountIDsByFilters(c, req.Filters)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		if len(targetIDs) == 0 {
+			response.BadRequestKey(c, "admin.account.invalid_request", "No accounts matched the filters")
+			return
+		}
+		req.AccountIDs = targetIDs
+	}
+
 	result, err := h.adminService.BulkUpdateAccounts(c.Request.Context(), &service.BulkUpdateAccountsInput{AccountIDs: req.AccountIDs, Name: req.Name, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, Status: normalizedStatus, Schedulable: req.Schedulable, GroupIDs: req.GroupIDs, Credentials: req.Credentials, Extra: req.Extra, SkipMixedChannelCheck: skipCheck})
 	if err != nil {
 		var mixedErr *service.MixedChannelError

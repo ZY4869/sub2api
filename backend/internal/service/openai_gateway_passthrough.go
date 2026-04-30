@@ -48,6 +48,21 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *
 	if sanitized {
 		body = sanitizedBody
 	}
+
+	// Enforce OpenAI Fast/Flex policy (service_tier) even in passthrough mode.
+	if tier := extractOpenAIServiceTierFromBody(body); tier != nil {
+		updatedBody, decision, policyErr := s.applyOpenAIFastPolicyToJSONBody(ctx, account, body, *tier, reqModel)
+		if policyErr != nil {
+			msg := "This request is blocked by policy"
+			setOpsUpstreamError(c, http.StatusForbidden, msg, "")
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: http.StatusForbidden, Passthrough: true, Kind: "policy_block", Message: msg, Detail: policyErr.Error()})
+			c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"type": "forbidden_error", "code": "openai_fast_policy_blocked", "message": msg}})
+			return nil, policyErr
+		}
+		if decision.matched && decision.action == OpenAIFastPolicyActionFilter {
+			body = updatedBody
+		}
+	}
 	logger.LegacyPrintf("service.openai_gateway", "[OpenAI 自动透传] 命中自动透传分支: account=%d name=%s type=%s model=%s stream=%v", account.ID, account.Name, account.Type, reqModel, reqStream)
 	if reqStream && c != nil && c.Request != nil {
 		if timeoutHeaders := collectOpenAIPassthroughTimeoutHeaders(c.Request.Header); len(timeoutHeaders) > 0 {

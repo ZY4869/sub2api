@@ -48,3 +48,33 @@ func TestGroupHandlerUpdate_AllowsGrokPlatform(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 }
+
+func TestGroupHandlerCreate_AllowsDeepSeekPlatform(t *testing.T) {
+	router := setupGroupHandlerRouter(newStubAdminService())
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/admin/groups",
+		bytes.NewBufferString(`{"name":"deepseek-group","platform":"deepseek"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestGroupHandlerUpdate_AllowsDeepSeekPlatform(t *testing.T) {
+	router := setupGroupHandlerRouter(newStubAdminService())
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodPut,
+		"/api/v1/admin/groups/2",
+		bytes.NewBufferString(`{"name":"deepseek-group","platform":"deepseek"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+}

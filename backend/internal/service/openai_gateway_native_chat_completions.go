@@ -26,6 +26,11 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 	body []byte,
 	defaultMappedModel string,
 ) (*OpenAIForwardResult, error) {
+	account = ResolveProtocolGatewayInboundAccount(account, PlatformOpenAI)
+	if RoutingPlatformForAccount(account) == PlatformDeepSeek {
+		return s.forwardDeepSeekNativeChatCompletions(ctx, c, account, body, defaultMappedModel)
+	}
+
 	startTime := time.Now()
 
 	var chatReq apicompat.ChatCompletionsRequest

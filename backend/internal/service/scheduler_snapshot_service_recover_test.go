@@ -52,8 +52,11 @@ func (c *schedulerSnapshotCacheRecorder) DeleteAccount(_ context.Context, _ int6
 func (c *schedulerSnapshotCacheRecorder) UpdateLastUsed(_ context.Context, _ map[int64]time.Time) error {
 	return nil
 }
-func (c *schedulerSnapshotCacheRecorder) TryLockBucket(_ context.Context, _ SchedulerBucket, _ time.Duration) (bool, error) {
-	return true, nil
+func (c *schedulerSnapshotCacheRecorder) TryLockBucket(_ context.Context, _ SchedulerBucket, _ time.Duration) (string, bool, error) {
+	return "lock", true, nil
+}
+func (c *schedulerSnapshotCacheRecorder) UnlockBucket(_ context.Context, _ SchedulerBucket, _ string) error {
+	return nil
 }
 func (c *schedulerSnapshotCacheRecorder) ListBuckets(_ context.Context) ([]SchedulerBucket, error) {
 	return nil, nil

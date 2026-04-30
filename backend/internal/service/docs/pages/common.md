@@ -20,7 +20,7 @@ Sub2API 是一个多协议聚合网关。你面对的是一套统一站内 API K
 | `anthropic` | Anthropic / Claude | Claude SDK、Claude Code、Anthropic 风格客户端 | `messages`、`count_tokens`、保留头 |
 | `gemini` | Gemini 原生 | Gemini SDK、AI Studio / Vertex 风格客户端 | `models`、`files`、`batches`、`live`、`openai compat` |
 | `grok` | Grok | xAI / Grok 兼容接入 | 聊天、Responses、图像、视频 |
-| `deepseek` | DeepSeek | DeepSeek 官方 API Key 调用方 | OpenAI / Anthropic 兼容入口、专用前缀、不支持能力 |
+| `deepseek` | DeepSeek | DeepSeek 官方 API Key 调用方 | OpenAI / Anthropic 兼容入口、专用前缀、`chat/completions` 私有 `beta` 开关、公共 `/v1/completions`、不支持能力 |
 | `antigravity` | Antigravity | 需要显式绑定 Antigravity 平台的接入方 | Anthropic 风格入口 + Gemini 风格入口 |
 | `vertex-batch` | Vertex / Batch | 使用站内 Vertex / Batch 简化入口或严格兼容入口的调用方 | `/v1/vertex/...`、`/vertex-batch/jobs...`、严格 `/v1/projects/...`、统一 archive 回查 |
 | `document-ai` | 百度智能文档 | 百度智能文档 / OCR 调用方 | 直连解析、异步任务、模型模式差异 |
@@ -120,6 +120,20 @@ https://api.zyxai.de
 
 - 普通协议中间件：`Authorization: Bearer` -> `x-api-key` -> `x-goog-api-key` -> 允许时的 `?key=`
 - Google / Gemini 风格中间件：`x-goog-api-key` -> `Authorization: Bearer` -> `x-api-key` -> 允许时的 `?key=`
+
+### 请求体压缩（Content-Encoding）
+
+网关支持在 **HTTP 请求体** 使用以下压缩编码（用于 JSON 等非流式请求）：
+
+- `Content-Encoding: gzip`
+- `Content-Encoding: deflate`（兼容 zlib-wrapped 与 raw DEFLATE）
+- `Content-Encoding: zstd`
+
+注意：
+
+- 只支持单层编码（不支持 `gzip, br` 这种多层组合）；空值与 `identity` 视为未编码。
+- 网关会在读取请求体时先解码，再进行协议解析与转发；解码成功后不会再继续保留 `Content-Encoding` 元数据。
+- 出于安全考虑，**解码后的 body** 有硬上限（当前为 64MB）；超限会返回 `413 invalid_request_error`。
 
 ### 公共模型库
 
@@ -664,6 +678,50 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/affiliates/users/batch-rate" \
   }'
 ```
 
+### 管理端：账号批量更新（Bulk Update Accounts）
+
+管理员可以通过一个接口批量修改账号字段（例如分组、状态、并发、额外配置等）：
+
+- 路径：`POST /api/v1/admin/accounts/bulk-update`
+- 鉴权：管理员 JWT（`Authorization: Bearer <ADMIN_JWT>`）
+- 目标选择：`account_ids` 与 `filters` 二选一（必须提供其一，且不能同时提供两者）
+- 混合渠道风险：如果目标账号存在混合渠道风险，接口会返回 `409 mixed_channel_warning`；此时可在确认后重试并带上 `confirm_mixed_channel_risk=true` 继续执行
+
+`filters` 的语义与管理端“账号列表”一致，当前至少支持：
+
+- `platform`、`type`、`status`、`group`（数字或 `"ungrouped"`）、`search`
+- `lifecycle`、`privacy_mode`
+- `limited_view`、`limited_reason`、`runtime_view`
+
+当 `filters` 解析出的目标为空时会返回 `400`。
+
+#### REST
+```bash
+# 1) 按显式 account_ids 批量更新
+curl -X POST "https://api.zyxai.de/api/v1/admin/accounts/bulk-update" \
+  -H "Authorization: Bearer <ADMIN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "account_ids": [1, 2, 3],
+    "status": "inactive",
+    "group_ids": [10]
+  }'
+
+# 2) 按 filters（筛选结果）批量更新
+curl -X POST "https://api.zyxai.de/api/v1/admin/accounts/bulk-update" \
+  -H "Authorization: Bearer <ADMIN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filters": {
+      "platform": "openai",
+      "status": "active",
+      "group": "ungrouped",
+      "search": "corp"
+    },
+    "schedulable": false
+  }'
+```
+
 ### 错误响应与限流
 
 错误体会按协议风格返回，而不是统一强行包成一种格式。
@@ -759,7 +817,7 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 | Gemini 原生生成 | `/v1beta/models/{model}:generateContent` | 原生 Google 风格 |
 | Gemini 文件 / Batch / Live | `/v1beta/files`、`/v1beta/batches`、`/v1beta/live` | 走 Gemini 原生页 |
 | Grok 图像 / 视频 | `/grok/v1/...` | 更明确，排错更容易 |
-| DeepSeek 文本 / Claude 风格消息 | `/deepseek/v1/...` | 显式只走 DeepSeek；支持 `models`、`chat/completions`、`messages` |
+| DeepSeek 文本 / Claude 风格消息 / FIM completion | `/deepseek/v1/...` + `/v1/completions` | `models`、`messages` 走 `/deepseek/v1/...`；`chat/completions` 走同一路由并支持私有 `beta:true|false`；FIM / Beta completion 只走公共 `/v1/completions` |
 | 显式只走 Antigravity | `/antigravity/...` | 禁止混合调度 |
 | Vertex / Batch / Archive | `/v1/vertex/...`、`/vertex-batch/jobs...` | 新接入优先；严格 `/v1/projects/...` 只留给 SDK 兼容，结果归档继续走 `/google/batch/archive/...` |
 | 百度智能文档解析 | `/document-ai/v1/...` | 优先区分 `async` 与 `direct` |
@@ -769,7 +827,10 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 - `/v1/messages` 在 OpenAI / Copilot 平台下可能被翻译到 Responses。
 - `/v1/messages` 在 DeepSeek 平台下会走 DeepSeek 官方 Anthropic 兼容入口，但会预检并拒绝 DeepSeek 官方未支持的多模态、搜索、工具和容器类内容块。
 - `/v1/messages/count_tokens` 只应当期望在 Anthropic 原生平台成功；DeepSeek 明确不支持。
-- `/v1/responses`、Images、Videos、FIM / Beta completion 不属于 DeepSeek 稳定接入面，请改用 `/deepseek/v1/chat/completions` 或 `/deepseek/v1/messages`。
+- DeepSeek `/deepseek/v1/chat/completions` 额外支持顶层私有字段 `beta?: boolean`：`true` 强制走 beta，`false` 强制稳定面；未传时才按 `prefix` / `reasoning_content` 自动识别 beta。
+- `/v1/completions` 是 DeepSeek 专用公共 FIM / Beta completion 入口；它不会提供 `/deepseek/v1/completions` 或 `/completions` 别名。
+- `/v1/responses`、Images、Videos 不属于 DeepSeek 接入面；文本类请求请改用 `/deepseek/v1/chat/completions`、`/deepseek/v1/messages` 或公共 `/v1/completions`。
+- `/user/balance` 不会对 DeepSeek 分组开放，避免把上游 Key 余额暴露给下游调用方。
 - `/v1/responses` 在 Grok 平台可以工作，但 Responses 的 WebSocket / 长连接模式不应对 Grok 做乐观假设。
 - `/v1/responses` 额外支持一组“网关兼容扩展”的生图写法：`$imagegen ...` 简写、`image_generation` / `reference_images` / `mask` 扩展字段、`multipart/form-data` 直传 `reference_image`，以及 **JSON 下的 `model=gpt-image-2` 生图简写**；标准官方 Responses JSON 仍然原样可用。
 - `/v1/images/generations`、`/v1/images/edits` 现在是公共智能图片入口：会先按当前 Key 的本地模型策略与 provider 元数据判断要落到 OpenAI、Grok 还是 Gemini。
@@ -836,7 +897,7 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 - 先选协议，再选模型，再调优参数。
 - 把 `Base URL` 固定为网关根地址，路径由 SDK 或你自己的请求代码拼接。
 - 新项目优先使用 `openai-native`、`anthropic`、`gemini` 或 `vertex-batch` 页推荐的主入口，不要继续扩散历史别名路径。
-- 如果你要显式绑定 DeepSeek，请使用 `deepseek` 页的 `/deepseek/v1/...` 前缀，默认模型使用 `deepseek-v4-flash` 或 `deepseek-v4-pro`。
+- 如果你要显式绑定 DeepSeek，请使用 `deepseek` 页的 `/deepseek/v1/...` 前缀；如果需要 chat beta，可在 `chat/completions` 请求体顶层传 `beta:true|false`。只有 FIM / Beta completion 例外，它固定走公共 `/v1/completions`。默认模型使用 `deepseek-v4-flash` 或 `deepseek-v4-pro`。
 - 调试 `404` 时先确认“当前平台是否支持这个动作”，再排查路径拼写。
 - 调试 `429` 时先区分是站内订阅窗口、Key 自身额度，还是上游平台限流。
 - 对 Vertex / Batch 简化入口，默认统一使用 `Authorization: Bearer`；只有确实复用 Gemini / Google 原生客户端时，才优先使用 `x-goog-api-key`。

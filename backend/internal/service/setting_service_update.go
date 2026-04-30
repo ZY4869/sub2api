@@ -105,6 +105,19 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	if settings.OpsMetricsIntervalSeconds > 0 {
 		updates[SettingKeyOpsMetricsIntervalSeconds] = strconv.Itoa(settings.OpsMetricsIntervalSeconds)
 	}
+
+	fastPolicy := settings.OpenAIFastPolicySettings
+	if fastPolicy == nil {
+		fastPolicy = DefaultOpenAIFastPolicySettings()
+	}
+	fastPolicy = NormalizeOpenAIFastPolicySettings(fastPolicy)
+	fastPolicyJSON, err := json.Marshal(fastPolicy)
+	if err != nil {
+		return fmt.Errorf("marshal openai fast policy settings: %w", err)
+	}
+	updates[SettingKeyOpenAIFastPolicySettings] = string(fastPolicyJSON)
+	updates[SettingKeyEnableAnthropicCacheTTL1hInjection] = strconv.FormatBool(settings.EnableAnthropicCacheTTL1hInjection)
+
 	updates[SettingKeyMinClaudeCodeVersion] = settings.MinClaudeCodeVersion
 	updates[SettingKeyMaxClaudeCodeVersion] = settings.MaxClaudeCodeVersion
 	updates[SettingKeyAllowUngroupedKeyScheduling] = strconv.FormatBool(settings.AllowUngroupedKeyScheduling)

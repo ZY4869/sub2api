@@ -465,6 +465,12 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 			continue
 		}
 		typ, _ := m["type"].(string)
+		typ = strings.TrimSpace(typ)
+
+		// OAuth/Codex upstream rejects "reasoning" input items. Drop them entirely.
+		if typ == "reasoning" {
+			continue
+		}
 
 		// 仅修正真正的 tool/function call 标识，避免误改普通 message/reasoning id；
 		// 若 item_reference 指向 legacy call_* 标识，则仅修正该引用本身。

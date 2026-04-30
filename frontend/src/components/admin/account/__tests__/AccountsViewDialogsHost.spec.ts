@@ -35,6 +35,8 @@ function createProps() {
     includeProxyOnExport: true,
     proxies: [],
     groups: [],
+    bulkEditFilters: null,
+    bulkEditFiltersTotal: null,
     selectedIds: [1, 2],
     selectedPlatforms: ['openai'],
     selectedTypes: ['apikey'],

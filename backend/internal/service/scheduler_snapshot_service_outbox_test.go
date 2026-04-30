@@ -51,8 +51,12 @@ func (c *schedulerSnapshotCacheSpy) UpdateLastUsed(context.Context, map[int64]ti
 	return nil
 }
 
-func (c *schedulerSnapshotCacheSpy) TryLockBucket(context.Context, SchedulerBucket, time.Duration) (bool, error) {
-	return true, nil
+func (c *schedulerSnapshotCacheSpy) TryLockBucket(context.Context, SchedulerBucket, time.Duration) (string, bool, error) {
+	return "lock", true, nil
+}
+
+func (c *schedulerSnapshotCacheSpy) UnlockBucket(context.Context, SchedulerBucket, string) error {
+	return nil
 }
 
 func (c *schedulerSnapshotCacheSpy) ListBuckets(context.Context) ([]SchedulerBucket, error) {

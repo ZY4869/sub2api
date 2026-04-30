@@ -112,7 +112,10 @@ export default {
     },
     bulkEdit: {
         title: "批量编辑账号",
+        editFiltered: "按筛选结果批量编辑",
         selectionInfo: "已选择 {count} 个账号。只更新您勾选或填写的字段，未勾选的字段保持不变。",
+        filtersInfo: "当前筛选命中 {count} 个账号。批量更新会由服务端基于筛选条件解析真实目标；只更新您勾选或填写的字段，未勾选的字段保持不变。",
+        filtersInfoUnknown: "将按当前筛选条件批量更新账号。目标由服务端解析；只更新您勾选或填写的字段，未勾选的字段保持不变。",
         baseUrlPlaceholder: "https://api.anthropic.com 或 https://api.openai.com",
         baseUrlNotice: "仅适用于 API Key 账号，留空则不修改",
         submit: "批量更新",
@@ -121,6 +124,7 @@ export default {
         partialSuccess: "部分更新成功：成功 {success} 个，失败 {failed} 个",
         failed: "批量更新失败",
         noSelection: "请选择要编辑的账号",
+        noFilteredTargets: "当前筛选结果为空，无法批量编辑",
         noFieldsSelected: "请至少选择一个要更新的字段",
         mixedPlatformWarning: "所选账号跨越多个平台（{platforms}）。显示的模型映射预设为合并结果——请确保映射对每个平台都适用。",
     }

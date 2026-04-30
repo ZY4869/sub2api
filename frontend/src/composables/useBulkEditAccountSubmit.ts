@@ -2,10 +2,11 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
+import type { BulkUpdateAccountsTarget } from '@/api/admin/accounts'
 import type { UpdateAccountRequest } from '@/types'
 
 interface UseBulkEditAccountSubmitOptions {
-  accountIds: () => number[]
+  target: () => BulkUpdateAccountsTarget | number[]
   withConfirmFlag: <TPayload extends object>(payload: TPayload) => TPayload
   onMixedChannelWarning: (options: { message: string; retry: () => Promise<void> }) => void
   onUpdated: () => void
@@ -35,14 +36,22 @@ export function useBulkEditAccountSubmit(options: UseBulkEditAccountSubmitOption
     appStore.showError(t('admin.accounts.bulkEdit.failed'))
   }
 
-  const submitBulkUpdate = async (baseUpdates: Partial<UpdateAccountRequest>) => {
+  const submitBulkUpdate = async (
+    baseUpdates: Partial<UpdateAccountRequest>,
+    forceConfirmMixedChannelRisk = false
+  ) => {
     submitting.value = true
 
     try {
-      const result = await adminAPI.accounts.bulkUpdate(
-        options.accountIds(),
-        options.withConfirmFlag(baseUpdates) as Record<string, unknown>
-      )
+      const payload = options.withConfirmFlag(baseUpdates) as Record<string, unknown>
+      if (forceConfirmMixedChannelRisk) {
+        payload.confirm_mixed_channel_risk = true
+      }
+
+      const target = options.target()
+      const result = Array.isArray(target)
+        ? await adminAPI.accounts.bulkUpdate(target, payload)
+        : await adminAPI.accounts.bulkUpdate(target, payload)
       const { success, failed } = getBulkUpdateCounts(result)
       notifyUpdateResult(success, failed)
       if (success > 0) {
@@ -52,7 +61,7 @@ export function useBulkEditAccountSubmit(options: UseBulkEditAccountSubmitOption
       if (error?.status === 409 && error?.error === 'mixed_channel_warning') {
         options.onMixedChannelWarning({
           message: error?.message || t('admin.accounts.bulkEdit.failed'),
-          retry: async () => submitBulkUpdate(baseUpdates)
+          retry: async () => submitBulkUpdate(baseUpdates, true)
         })
         return
       }
@@ -69,4 +78,3 @@ export function useBulkEditAccountSubmit(options: UseBulkEditAccountSubmitOption
     submitBulkUpdate
   }
 }
-

@@ -222,6 +222,8 @@ func sampleRequestBody(pattern string) string {
 		return `{"model":"claude-sonnet-4.5","messages":[{"role":"user","content":"hello"}]}`
 	case strings.Contains(pattern, "/chat/completions"):
 		return `{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}]}`
+	case strings.Contains(pattern, "/completions"):
+		return `{"model":"deepseek-v4-pro","prompt":"hello"}`
 	case strings.Contains(pattern, "/responses"):
 		return `{"model":"gpt-5.4","input":"hello"}`
 	case strings.Contains(pattern, "/embeddings"):
@@ -260,6 +262,8 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 	switch {
 	case strings.Contains(handlerName, ".AnthropicMessages-fm"), strings.Contains(handlerName, ".AnthropicCountTokens-fm"):
 		return "anthropic_messages"
+	case strings.Contains(handlerName, ".OpenAICompletions-fm"):
+		return "openai_completions"
 	case strings.Contains(handlerName, ".OpenAIChatCompletions-fm"):
 		return "openai_chat_completions"
 	case strings.Contains(handlerName, ".OpenAIResponses-fm"), strings.Contains(handlerName, ".OpenAIResponsesWebSocket-fm"):
@@ -548,6 +552,21 @@ func TestGatewayRoutesChatCompletionsRejectAnthropicGroup(t *testing.T) {
 	require.Equal(t, service.GatewayReasonPublicEndpointUnsupported, gjson.Get(w.Body.String(), "error.code").String())
 }
 
+func TestGatewayRoutesCompletionsRejectOpenAIGroupExplicitly(t *testing.T) {
+	router := newGatewayRoutesTestRouterForPlatform(service.PlatformOpenAI)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/completions", strings.NewReader(`{"model":"gpt-5.4","prompt":"hello"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Language", "en")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Equal(t, service.GatewayReasonPublicEndpointUnsupported, gjson.Get(w.Body.String(), "error.reason").String())
+	require.Equal(t, service.GatewayReasonPublicEndpointUnsupported, gjson.Get(w.Body.String(), "error.code").String())
+}
+
 func TestGatewayRoutesRegisterPublicProtocolEndpoints(t *testing.T) {
 	router := newGatewayRoutesTestRouter()
 	registered := make(map[string]gin.RouteInfo, len(router.Routes()))
@@ -575,6 +594,18 @@ func TestGatewayRoutesRegisterPublicProtocolEndpoints(t *testing.T) {
 				require.Equal(t, expectedHandlerFamily, handlerFamilyForRegisteredRoute(registeredRoute.Handler), "handler=%s", registeredRoute.Handler)
 			})
 		}
+	}
+}
+
+func TestGatewayRoutesDoesNotRegisterDeepSeekCompletionsAlias(t *testing.T) {
+	router := newGatewayRoutesTestRouter()
+
+	for _, route := range router.Routes() {
+		require.False(
+			t,
+			route.Method == http.MethodPost && route.Path == "/deepseek/v1/completions",
+			"/deepseek/v1/completions should not be registered",
+		)
 	}
 }
 

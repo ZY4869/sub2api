@@ -140,16 +140,16 @@ const validation = computed(() => {
       minute_metrics_retention_days,
       hourly_metrics_retention_days
     } = advancedSettings.value.data_retention
-    if (error_log_retention_days < 1 || error_log_retention_days > 365) {
+    if (error_log_retention_days < 0 || error_log_retention_days > 365) {
       errors.push(t('admin.ops.settings.validation.retentionDaysRange'))
     }
-    if (minute_metrics_retention_days < 1 || minute_metrics_retention_days > 365) {
+    if (minute_metrics_retention_days < 0 || minute_metrics_retention_days > 365) {
       errors.push(t('admin.ops.settings.validation.retentionDaysRange'))
     }
-    if (hourly_metrics_retention_days < 1 || hourly_metrics_retention_days > 365) {
+    if (hourly_metrics_retention_days < 0 || hourly_metrics_retention_days > 365) {
       errors.push(t('admin.ops.settings.validation.retentionDaysRange'))
     }
-    if (advancedSettings.value.request_detail_retention_days < 1 || advancedSettings.value.request_detail_retention_days > 365) {
+    if (advancedSettings.value.request_detail_retention_days < 0 || advancedSettings.value.request_detail_retention_days > 365) {
       errors.push(t('admin.ops.settings.validation.retentionDaysRange'))
     }
     if (advancedSettings.value.success_sample_rate < 0 || advancedSettings.value.success_sample_rate > 1) {
@@ -447,7 +447,7 @@ async function saveAllSettings() {
                 <input
                   v-model.number="advancedSettings.data_retention.error_log_retention_days"
                   type="number"
-                  min="1"
+                  min="0"
                   max="365"
                   class="input"
                 />
@@ -457,7 +457,7 @@ async function saveAllSettings() {
                 <input
                   v-model.number="advancedSettings.data_retention.minute_metrics_retention_days"
                   type="number"
-                  min="1"
+                  min="0"
                   max="365"
                   class="input"
                 />
@@ -467,7 +467,7 @@ async function saveAllSettings() {
                 <input
                   v-model.number="advancedSettings.data_retention.hourly_metrics_retention_days"
                   type="number"
-                  min="1"
+                  min="0"
                   max="365"
                   class="input"
                 />
@@ -529,7 +529,7 @@ async function saveAllSettings() {
                 <input
                   v-model.number="advancedSettings.request_detail_retention_days"
                   type="number"
-                  min="1"
+                  min="0"
                   max="365"
                   class="input"
                 />

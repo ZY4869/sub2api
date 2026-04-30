@@ -258,6 +258,21 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		})
 	}
 
+	var openAIFastPolicy *dto.OpenAIFastPolicySettings
+	if settings.OpenAIFastPolicySettings != nil {
+		rules := make([]dto.OpenAIFastPolicyRule, 0, len(settings.OpenAIFastPolicySettings.Rules))
+		for _, r := range settings.OpenAIFastPolicySettings.Rules {
+			rules = append(rules, dto.OpenAIFastPolicyRule{
+				ServiceTier:    r.ServiceTier,
+				Action:         r.Action,
+				Scope:          r.Scope,
+				ModelWhitelist: append([]string(nil), r.ModelWhitelist...),
+				FallbackAction: r.FallbackAction,
+			})
+		}
+		openAIFastPolicy = &dto.OpenAIFastPolicySettings{Rules: rules}
+	}
+
 	return dto.SystemSettings{
 		RegistrationEnabled:                  settings.RegistrationEnabled,
 		EmailVerifyEnabled:                   settings.EmailVerifyEnabled,
@@ -328,6 +343,8 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		AllowUngroupedKeyScheduling:          settings.AllowUngroupedKeyScheduling,
 		BackendModeEnabled:                   settings.BackendModeEnabled,
 		MaintenanceModeEnabled:               settings.MaintenanceModeEnabled,
+		OpenAIFastPolicySettings:             openAIFastPolicy,
+		EnableAnthropicCacheTTL1hInjection:   settings.EnableAnthropicCacheTTL1hInjection,
 	}
 }
 func normalizeDefaultSubscriptions(input []dto.DefaultSubscriptionSetting) []dto.DefaultSubscriptionSetting {

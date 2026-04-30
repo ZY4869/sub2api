@@ -92,6 +92,9 @@ type UpdateSettingsRequest struct {
 	AffiliateRebateDurationDays   *int     `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap  *float64 `json:"affiliate_rebate_per_invitee_cap"`
 	AffiliateAffCodeLength        *int     `json:"affiliate_aff_code_length"`
+
+	OpenAIFastPolicySettings           *dto.OpenAIFastPolicySettings `json:"openai_fast_policy_settings"`
+	EnableAnthropicCacheTTL1hInjection *bool                         `json:"enable_anthropic_cache_ttl_1h_injection"`
 }
 
 func (h *SettingHandler) UpdateSettings(c *gin.Context) {
@@ -370,6 +373,30 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	for _, sub := range req.DefaultSubscriptions {
 		defaultSubscriptions = append(defaultSubscriptions, service.DefaultSubscriptionSetting{GroupID: sub.GroupID, ValidityDays: sub.ValidityDays})
 	}
+
+	openAIFastPolicy := previousSettings.OpenAIFastPolicySettings
+	if req.OpenAIFastPolicySettings != nil {
+		rules := make([]service.OpenAIFastPolicyRule, 0, len(req.OpenAIFastPolicySettings.Rules))
+		for _, r := range req.OpenAIFastPolicySettings.Rules {
+			rules = append(rules, service.OpenAIFastPolicyRule{
+				ServiceTier:    r.ServiceTier,
+				Action:         r.Action,
+				Scope:          r.Scope,
+				ModelWhitelist: append([]string(nil), r.ModelWhitelist...),
+				FallbackAction: r.FallbackAction,
+			})
+		}
+		openAIFastPolicy = &service.OpenAIFastPolicySettings{Rules: rules}
+	}
+	if openAIFastPolicy == nil {
+		openAIFastPolicy = service.DefaultOpenAIFastPolicySettings()
+	}
+
+	enableAnthropicTTL1hInjection := previousSettings.EnableAnthropicCacheTTL1hInjection
+	if req.EnableAnthropicCacheTTL1hInjection != nil {
+		enableAnthropicTTL1hInjection = *req.EnableAnthropicCacheTTL1hInjection
+	}
+
 	if req.MinClaudeCodeVersion != "" {
 		if !semverPattern.MatchString(req.MinClaudeCodeVersion) {
 			response.Error(c, http.StatusBadRequest, "min_claude_code_version must be empty or a valid semver (e.g. 2.1.63)")
@@ -408,7 +435,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return *req.OpsMetricsIntervalSeconds
 		}
 		return previousSettings.OpsMetricsIntervalSeconds
-	}()}
+	}(), OpenAIFastPolicySettings: openAIFastPolicy, EnableAnthropicCacheTTL1hInjection: enableAnthropicTTL1hInjection}
 	settings.AffiliateEnabled = affiliateEnabled
 	settings.AffiliateTransferEnabled = affiliateTransferEnabled
 	settings.AffiliateRebateOnUsageEnabled = affiliateRebateOnUsageEnabled

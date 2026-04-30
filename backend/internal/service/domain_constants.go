@@ -180,6 +180,7 @@ const (
 	SettingKeyStreamTimeoutSettings    = "stream_timeout_settings"
 	SettingKeyRectifierSettings        = "rectifier_settings"
 	SettingKeyBetaPolicySettings       = "beta_policy_settings"
+	SettingKeyOpenAIFastPolicySettings = "openai_fast_policy_settings"
 	SettingKeyBlacklistRuleCandidates  = "blacklist_rule_candidates"
 
 	SettingKeyGoogleBatchGCSProfiles = "google_batch_gcs_profiles"
@@ -193,6 +194,8 @@ const (
 	SettingKeyMaintenanceModeEnabled      = "maintenance_mode_enabled"
 	SettingKeyDocumentAIEnabled           = "document_ai_enabled"
 	SettingKeyOpenAIBackfillGPT55Done     = "openai_backfill_gpt_5_5_done"
+
+	SettingKeyEnableAnthropicCacheTTL1hInjection = "enable_anthropic_cache_ttl_1h_injection"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys.

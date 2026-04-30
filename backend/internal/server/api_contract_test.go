@@ -619,6 +619,7 @@ func TestAPIContracts(t *testing.T) {
 				"data": {
 					"registration_enabled": true,
 					"email_verify_enabled": false,
+					"enable_anthropic_cache_ttl_1h_injection": false,
 					"registration_email_suffix_whitelist": [],
 					"promo_code_enabled": true,
 					"password_reset_enabled": false,
@@ -674,6 +675,13 @@ func TestAPIContracts(t *testing.T) {
 					"maintenance_mode_enabled": false,
 					"min_claude_code_version": "",
 					"max_claude_code_version": "",
+					"openai_fast_policy_settings": {
+						"rules": [
+							{ "service_tier": "priority", "action": "filter", "scope": "all" },
+							{ "service_tier": "fast", "action": "filter", "scope": "all" },
+							{ "service_tier": "flex", "action": "pass", "scope": "all" }
+						]
+					},
 					"allow_ungrouped_key_scheduling": false,
 					"backend_mode_enabled": false,
 					"affiliate_enabled": false,

@@ -146,6 +146,38 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		}
 	}
 
+	// Enforce OpenAI Fast/Flex policy (service_tier) for compat paths too.
+	effectiveModel := strings.TrimSpace(gjson.GetBytes(responsesBody, "model").String())
+	if effectiveModel != "" && effectiveModel != mappedModel {
+		mappedModel = effectiveModel
+		if responsesReq != nil {
+			responsesReq.Model = effectiveModel
+		}
+	}
+	serviceTier := strings.TrimSpace(gjson.GetBytes(responsesBody, "service_tier").String())
+	if serviceTier != "" {
+		updatedBody, decision, policyErr := s.applyOpenAIFastPolicyToJSONBody(ctx, account, responsesBody, serviceTier, effectiveModel)
+		if policyErr != nil {
+			msg := "This request is blocked by policy"
+			setOpsUpstreamError(c, http.StatusForbidden, msg, "")
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				Platform:           account.Platform,
+				AccountID:          account.ID,
+				AccountName:        account.Name,
+				UpstreamStatusCode: http.StatusForbidden,
+				Kind:               "policy_block",
+				Message:            msg,
+				Detail:             policyErr.Error(),
+			})
+			writeChatCompletionsError(c, http.StatusForbidden, "forbidden_error", msg, "openai_fast_policy_blocked")
+			return nil, policyErr
+		}
+		if decision.matched && decision.action == OpenAIFastPolicyActionFilter {
+			responsesBody = updatedBody
+			responsesReq.ServiceTier = ""
+		}
+	}
+
 	// 5. Get access token
 	ctx = WithOpenAICodexRequestModel(ctx, mappedModel)
 	if c != nil && c.Request != nil {

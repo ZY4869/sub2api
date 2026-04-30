@@ -74,13 +74,13 @@ func (s *OpsCleanupService) cleanupRetentionConfig(ctx context.Context) opsClean
 		}
 	}
 	if advanced := s.loadCleanupAdvancedSettings(ctx); advanced != nil {
-		if days := advanced.DataRetention.ErrorLogRetentionDays; days > 0 {
+		if days := advanced.DataRetention.ErrorLogRetentionDays; days >= 0 {
 			out.ErrorLogRetentionDays = days
 		}
-		if days := advanced.DataRetention.MinuteMetricsRetentionDays; days > 0 {
+		if days := advanced.DataRetention.MinuteMetricsRetentionDays; days >= 0 {
 			out.MinuteMetricsRetentionDays = days
 		}
-		if days := advanced.DataRetention.HourlyMetricsRetentionDays; days > 0 {
+		if days := advanced.DataRetention.HourlyMetricsRetentionDays; days >= 0 {
 			out.HourlyMetricsRetentionDays = days
 		}
 	}
@@ -92,7 +92,7 @@ func (s *OpsCleanupService) requestDetailRetentionDays(ctx context.Context) int 
 	if s != nil && s.cfg != nil && s.cfg.Ops.RequestDetails.RetentionDays > 0 {
 		days = s.cfg.Ops.RequestDetails.RetentionDays
 	}
-	if advanced := s.loadCleanupAdvancedSettings(ctx); advanced != nil && advanced.RequestDetailRetentionDays > 0 {
+	if advanced := s.loadCleanupAdvancedSettings(ctx); advanced != nil && advanced.RequestDetailRetentionDays >= 0 {
 		days = advanced.RequestDetailRetentionDays
 	}
 	return days

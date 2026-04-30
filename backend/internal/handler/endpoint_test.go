@@ -24,6 +24,7 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		// Direct canonical paths.
 		{"/v1/messages", EndpointMessages},
 		{"/v1/chat/completions", EndpointChatCompletions},
+		{"/v1/completions", EndpointCompletions},
 		{"/v1/responses", EndpointResponses},
 		{"/v1/videos", EndpointVideosCreate},
 		{"/v1/videos/generations", EndpointVideosCreate},
@@ -80,6 +81,7 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 
 		// Unknown path is returned as-is.
 		{"/v1/embeddings", "/v1/embeddings"},
+		{"/deepseek/v1/completions", "/deepseek/v1/completions"},
 		{"", ""},
 		{"  /v1/messages  ", EndpointMessages},
 	}
@@ -136,6 +138,7 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 		{"openai responses nested", EndpointResponses, "/openai/v1/responses/compact/detail", service.PlatformOpenAI, "/v1/responses/compact/detail"},
 		{"openai from messages", EndpointMessages, "/v1/messages", service.PlatformOpenAI, EndpointResponses},
 		{"openai from completions", EndpointChatCompletions, "/v1/chat/completions", service.PlatformOpenAI, EndpointResponses},
+		{"deepseek native completions", EndpointCompletions, "/v1/completions", service.PlatformDeepSeek, EndpointCompletions},
 
 		// Antigravity — uses inbound to pick Claude vs Gemini upstream.
 		{"antigravity claude", EndpointMessages, "/antigravity/v1/messages", service.PlatformAntigravity, EndpointMessages},

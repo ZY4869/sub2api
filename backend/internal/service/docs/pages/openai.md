@@ -26,6 +26,7 @@
 - 当 `POST /v1/chat/completions` 的目标模型在所有可路由账号上都只因为对应额度侧冷却而不可服务时，接口会返回 `429 rate_limit_error`；如果是其它 no-account、上游失败或平台不支持，仍然保持现有 `503` / `502` / `400` 语义。
 - `/v1/models`、`/v1beta/models` 和对应 detail 读路径会按当前运行时可服务性临时隐藏受限侧模型；这类临时隐藏不会改写账号白名单，也不会把真实调用改成 `404`。
 - 管理后台单账号测试 `POST /api/v1/admin/accounts/:id/test` 会在发起上游请求前先做本地预检；命中受限侧时直接返回 `400`，提示 `Spark 冷却中`、`普通额度冷却中` 或整号冷却。
+- `service_tier`（priority/fast/flex）可能会被管理员策略过滤或阻断；默认 `priority/fast` 被过滤、`flex` 放行。命中阻断时返回 `403 forbidden_error`，错误码 `openai_fast_policy_blocked`。
 
 选择 `chat/completions` 的典型场景：
 

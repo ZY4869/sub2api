@@ -102,6 +102,8 @@
   <BulkEditAccountModal
     :show="showBulkEdit"
     :account-ids="selectedIds"
+    :filters="bulkEditFilters"
+    :filters-total="bulkEditFiltersTotal"
     :selected-platforms="selectedPlatforms"
     :selected-types="selectedTypes"
     :proxies="proxies"
@@ -159,6 +161,7 @@ import type { SelectOption } from '@/components/common/Select.vue'
 import type {
   AccountModelDiagnosticsResponse,
   AccountModelImportResult,
+  BulkUpdateAccountsFilters,
   BlacklistFeedbackPayload
 } from '@/api/admin/accounts'
 import type { ModelRegistryExposureTarget } from '@/api/admin/modelRegistry'
@@ -212,6 +215,8 @@ defineProps<{
   showSchedulePanel: boolean
   proxies: Proxy[]
   groups: AdminGroup[]
+  bulkEditFilters: BulkUpdateAccountsFilters | null
+  bulkEditFiltersTotal: number | null
   selectedIds: number[]
   selectedPlatforms: AccountPlatform[]
   selectedTypes: AccountType[]

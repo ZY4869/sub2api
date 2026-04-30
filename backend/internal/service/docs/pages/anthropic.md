@@ -163,6 +163,16 @@ curl https://api.zyxai.de/v1/messages \
   }'
 ```
 
+### cache_control 与 TTL（管理员可选）
+
+Anthropic 的 prompt cache 语义会通过 `cache_control` 体现（例如 `{"cache_control":{"type":"ephemeral"}}`）。在部分 OAuth / SetupToken 账号下，管理员可以开启一个“统一 TTL 注入”开关：
+
+- 入口：`GET/PUT /api/v1/admin/settings` 字段 `enable_anthropic_cache_ttl_1h_injection`（默认关闭）
+- 生效范围：仅对 Anthropic OAuth / SetupToken 账号生效
+- 注入规则：当 `cache_control.type=="ephemeral"` 时，网关会在转发前写入或覆盖 `cache_control.ttl="1h"`（当前仅处理 `system[]` 与 `messages[].content[]` 里的结构化 block）
+
+如果你需要自定义 TTL，请与管理员确认该开关是否开启；开启后，非 `"1h"` 的 `ttl` 可能会被归一为 `"1h"`。
+
 ### `count_tokens` 规则
 
 `POST /v1/messages/count_tokens` 的结论要比 `messages` 更严格：

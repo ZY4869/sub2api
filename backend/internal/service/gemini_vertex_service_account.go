@@ -20,6 +20,9 @@ import (
 const (
 	vertexServiceAccountScope     = "https://www.googleapis.com/auth/cloud-platform"
 	vertexServiceAccountTokenPath = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+	// Security: never trust token_uri from uploaded JSON. Always exchange tokens
+	// against the official Google OAuth token endpoint to avoid SSRF.
+	vertexServiceAccountTokenURL = "https://oauth2.googleapis.com/token"
 )
 
 type vertexServiceAccountCredentials struct {
@@ -90,7 +93,7 @@ func buildVertexServiceAccountAssertion(creds *vertexServiceAccountCredentials, 
 	claims := jwt.MapClaims{
 		"iss":   creds.ClientEmail,
 		"sub":   creds.ClientEmail,
-		"aud":   creds.TokenURI,
+		"aud":   vertexServiceAccountTokenURL,
 		"scope": vertexServiceAccountScope,
 		"iat":   now.Unix(),
 		"exp":   now.Add(time.Hour).Unix(),
@@ -178,7 +181,7 @@ func (p *GeminiTokenProvider) exchangeVertexServiceAccountToken(ctx context.Cont
 		return "", 0, fmt.Errorf("build vertex service account http client: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, creds.TokenURI, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, vertexServiceAccountTokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", 0, fmt.Errorf("build vertex service account token request: %w", err)
 	}

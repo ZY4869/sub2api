@@ -234,6 +234,14 @@
 
         <template #beforeCreate>
           <button
+            v-if="!selectedCount"
+            type="button"
+            class="btn btn-secondary"
+            @click="emit('bulk-edit-filtered')"
+          >
+            {{ t("admin.accounts.bulkEdit.editFiltered") }}
+          </button>
+          <button
             type="button"
             class="btn btn-secondary"
             @click="emit('import-data')"
@@ -324,6 +332,7 @@ const emit = defineEmits<{
   change: [];
   refresh: [];
   "refresh-usage": [];
+  "bulk-edit-filtered": [];
   sync: [];
   create: [];
   "import-data": [];

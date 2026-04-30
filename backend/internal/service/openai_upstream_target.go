@@ -70,6 +70,30 @@ func resolveOpenAIChatCompletionsTargetURL(account *Account, validateBaseURL fun
 	return buildOpenAIChatCompletionsURLForPlatform(baseURL, account.Platform), nil
 }
 
+func resolveDeepSeekChatCompletionsTargetURL(account *Account, validateBaseURL func(string) (string, error), beta bool) (string, error) {
+	baseURL := strings.TrimSpace(resolveOpenAICompatibleBaseURL(account))
+	if validateBaseURL != nil && baseURL != "" {
+		validatedURL, err := validateBaseURL(baseURL)
+		if err != nil {
+			return "", err
+		}
+		baseURL = validatedURL
+	}
+	return buildDeepSeekOpenAITextURL(baseURL, "/chat/completions", beta), nil
+}
+
+func resolveDeepSeekCompletionsTargetURL(account *Account, validateBaseURL func(string) (string, error)) (string, error) {
+	baseURL := strings.TrimSpace(resolveOpenAICompatibleBaseURL(account))
+	if validateBaseURL != nil && baseURL != "" {
+		validatedURL, err := validateBaseURL(baseURL)
+		if err != nil {
+			return "", err
+		}
+		baseURL = validatedURL
+	}
+	return buildDeepSeekOpenAITextURL(baseURL, "/completions", true), nil
+}
+
 func resolveOpenAITargetURLForRequestFormat(account *Account, requestFormat string, validateBaseURL func(string) (string, error)) (string, error) {
 	switch NormalizeGatewayOpenAIRequestFormat(requestFormat) {
 	case GatewayOpenAIRequestFormatChatCompletions:
@@ -131,7 +155,7 @@ func buildOpenAIChatCompletionsURLForPlatform(baseURL string, platform string) s
 			return "https://api.githubcopilot.com/chat/completions"
 		}
 		if platform == PlatformDeepSeek {
-			return deepseekDefaultAPIBaseURL + "/chat/completions"
+			return buildDeepSeekOpenAITextURL("", "/chat/completions", false)
 		}
 		return openaiPlatformChatCompletionsURL
 	}
@@ -157,6 +181,44 @@ func buildOpenAIChatCompletionsURLForPlatform(baseURL string, platform string) s
 		return normalized + "/chat/completions"
 	}
 	return normalized + "/v1/chat/completions"
+}
+
+func buildDeepSeekOpenAITextURL(baseURL string, path string, beta bool) string {
+	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if normalized == "" {
+		normalized = deepseekDefaultAPIBaseURL
+	}
+	normalized = trimDeepSeekOpenAICompatSuffix(normalized)
+	if beta {
+		normalized = normalized + "/beta"
+	}
+	if strings.HasSuffix(normalized, path) {
+		return normalized
+	}
+	if strings.HasSuffix(normalized, "/v1"+path) {
+		return normalized
+	}
+	if strings.HasSuffix(normalized, "/v1") {
+		return normalized + path
+	}
+	return normalized + path
+}
+
+func trimDeepSeekOpenAICompatSuffix(baseURL string) string {
+	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if normalized == "" {
+		return deepseekDefaultAPIBaseURL
+	}
+	for _, suffix := range []string{"/anthropic", "/beta"} {
+		lower := strings.ToLower(normalized)
+		if strings.HasSuffix(lower, suffix) {
+			normalized = strings.TrimRight(normalized[:len(normalized)-len(suffix)], "/")
+		}
+	}
+	if normalized == "" {
+		return deepseekDefaultAPIBaseURL
+	}
+	return normalized
 }
 
 func buildOpenAIImagesURLForPlatform(baseURL string, platform string, action string) string {

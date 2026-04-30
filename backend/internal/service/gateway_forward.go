@@ -85,6 +85,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	}
 	body = enforceCacheControlLimit(body)
 	body = StripEmptyTextBlocks(body)
+	body = s.maybeInjectAnthropicCacheTTL1h(ctx, account, body)
 	mappedModel := reqModel
 	mappingSource := ""
 	if account.Type == AccountTypeAPIKey {

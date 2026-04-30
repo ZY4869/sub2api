@@ -17,7 +17,13 @@
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          {{ t('admin.accounts.bulkEdit.selectionInfo', { count: accountIds.length }) }}
+          {{
+            isFilterMode
+              ? typeof filtersTotal === 'number'
+                ? t('admin.accounts.bulkEdit.filtersInfo', { count: filtersTotal })
+                : t('admin.accounts.bulkEdit.filtersInfoUnknown')
+              : t('admin.accounts.bulkEdit.selectionInfo', { count: accountIds.length })
+          }}
         </p>
       </div>
 
@@ -147,6 +153,7 @@
 import { computed, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import type { BulkUpdateAccountsFilters } from '@/api/admin/accounts'
 import type {
   Proxy as ProxyConfig,
   AdminGroup,
@@ -177,6 +184,8 @@ import {
 interface Props {
   show: boolean
   accountIds: number[]
+  filters?: BulkUpdateAccountsFilters | null
+  filtersTotal?: number | null
   selectedPlatforms: AccountPlatform[]
   selectedTypes: AccountType[]
   proxies: ProxyConfig[]
@@ -194,6 +203,7 @@ const appStore = useAppStore()
 
 // Platform awareness
 const isMixedPlatform = computed(() => props.selectedPlatforms.length > 1)
+const isFilterMode = computed(() => !!props.filters && props.accountIds.length === 0)
 const {
   allAnthropicOAuthOrSetupToken,
   allModels,
@@ -283,7 +293,15 @@ const handleClose = () => {
 }
 
 const { submitting, submitBulkUpdate } = useBulkEditAccountSubmit({
-  accountIds: () => props.accountIds,
+  target: () => {
+    if (props.accountIds.length > 0) {
+      return props.accountIds
+    }
+    if (props.filters) {
+      return { filters: props.filters }
+    }
+    return props.accountIds
+  },
   withConfirmFlag,
   onMixedChannelWarning: ({ message, retry }) => {
     openMixedChannelDialog({
@@ -298,8 +316,12 @@ const { submitting, submitBulkUpdate } = useBulkEditAccountSubmit({
 })
 
 const handleSubmit = async () => {
-  if (props.accountIds.length === 0) {
+  if (props.accountIds.length === 0 && !props.filters) {
     appStore.showError(t('admin.accounts.bulkEdit.noSelection'))
+    return
+  }
+  if (isFilterMode.value && props.filtersTotal === 0) {
+    appStore.showError(t('admin.accounts.bulkEdit.noFilteredTargets'))
     return
   }
 

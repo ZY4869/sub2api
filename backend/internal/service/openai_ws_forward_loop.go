@@ -525,6 +525,25 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 			}
 			normalized = next
 		}
+
+		// Enforce OpenAI Fast/Flex policy for WS ingress (response.create only).
+		serviceTier := strings.TrimSpace(gjson.GetBytes(normalized, "service_tier").String())
+		if serviceTier != "" {
+			decision := s.evaluateOpenAIFastPolicy(ctx, account, serviceTier, mappedModel)
+			if decision.matched {
+				s.logOpenAIFastPolicyDecision(ctx, account, mappedModel, serviceTier, decision, "ws_ingress")
+				switch decision.action {
+				case OpenAIFastPolicyActionBlock:
+					return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "This request is blocked by policy", nil)
+				case OpenAIFastPolicyActionFilter:
+					next, deleteErr := deleteTopLevelJSONKeyBytes(normalized, "service_tier")
+					if deleteErr != nil {
+						return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", deleteErr)
+					}
+					normalized = next
+				}
+			}
+		}
 		return openAIWSClientPayload{payloadRaw: normalized, rawForHash: trimmed, promptCacheKey: promptCacheKey, previousResponseID: previousResponseID, originalModel: originalModel, payloadBytes: len(normalized)}, nil
 	}
 	firstPayload, err := parseClientPayload(firstClientMessage)

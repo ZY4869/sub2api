@@ -103,6 +103,7 @@ curl https://api.zyxai.de/v1/responses \
 - 当 `POST /v1/responses` 的目标模型在所有可路由账号上都只因为对应额度侧冷却而不可服务时，接口会返回 `429 rate_limit_error`；如果是账号忙、上游故障或其它选路失败，仍然保持原来的 `503` / `502` 语义。
 - `/v1/models`、`/v1beta/models` 和对应 detail 读路径会按当前运行时可服务性临时隐藏受限侧模型；这不代表模型被永久删除，也不会把这类临时隐藏改成 `404`。
 - 管理后台单账号测试 `POST /api/v1/admin/accounts/:id/test` 会在发起上游请求前先做本地预检；命中受限侧时直接返回 `400`，提示 `Spark 冷却中`、`普通额度冷却中` 或整号冷却。
+- `service_tier`（priority/fast/flex）可能会被管理员策略过滤或阻断；详见下文 “OpenAI Fast/Flex Policy（service_tier）”。
 
 排错建议：
 
@@ -153,6 +154,26 @@ console.log(response.status);
 curl https://api.zyxai.de/v1/responses/resp_123 \
   -H "Authorization: Bearer sk-你的站内Key"
 ```
+
+### OpenAI Fast/Flex Policy（service_tier）
+
+部分 OpenAI 客户端会在请求体里携带 `service_tier`（例如 `priority` / `fast` / `flex`）以请求不同服务层级。网关会在转发前按管理员配置执行策略：
+
+- 默认策略：`priority` / `fast` 会被 **过滤**（从请求体移除），`flex` 默认 **放行**。
+- 归一化规则：`fast` 会按 `priority` 处理（因此两者的策略结果等价）。
+
+策略动作：
+
+- `pass`：透传 `service_tier`。
+- `filter`：删除 `service_tier` 后再转发（上游将按默认层级处理）。
+- `block`：拒绝请求并返回 `403 forbidden_error`，错误码 `openai_fast_policy_blocked`。
+
+覆盖范围：
+
+- HTTP：`POST /v1/responses`、`POST /v1/chat/completions` 等 OpenAI JSON 请求（包含 passthrough 模式）。
+- 长连接 / WebSocket：只对 `response.create` 入站 payload 生效；其它 WS 事件不会被改写。
+
+管理员配置入口：`GET/PUT /api/v1/admin/settings` 字段 `openai_fast_policy_settings`。
 
 ### OpenAI / Codex 生图
 

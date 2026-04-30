@@ -11,6 +11,18 @@ export interface DefaultSubscriptionSetting {
   validity_days: number
 }
 
+export interface OpenAIFastPolicyRule {
+  service_tier: string
+  action: string
+  scope: string
+  model_whitelist?: string[]
+  fallback_action?: string
+}
+
+export interface OpenAIFastPolicySettings {
+  rules: OpenAIFastPolicyRule[]
+}
+
 /**
  * System settings interface
  */
@@ -96,6 +108,10 @@ export interface SystemSettings {
   ops_query_mode_default: 'auto' | 'raw' | 'preagg' | string
   ops_metrics_interval_seconds: number
 
+  // Gateway forwarding policies / toggles
+  openai_fast_policy_settings: OpenAIFastPolicySettings
+  enable_anthropic_cache_ttl_1h_injection: boolean
+
   // Claude Code version check
   min_claude_code_version: string
   max_claude_code_version: string
@@ -169,6 +185,8 @@ export interface UpdateSettingsRequest {
   ops_realtime_monitoring_enabled?: boolean
   ops_query_mode_default?: 'auto' | 'raw' | 'preagg' | string
   ops_metrics_interval_seconds?: number
+  openai_fast_policy_settings?: OpenAIFastPolicySettings
+  enable_anthropic_cache_ttl_1h_injection?: boolean
   min_claude_code_version?: string
   max_claude_code_version?: string
   allow_ungrouped_key_scheduling?: boolean

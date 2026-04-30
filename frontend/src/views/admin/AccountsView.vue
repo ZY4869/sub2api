@@ -41,6 +41,7 @@
         @toggle-group-view="groupViewEnabled = !groupViewEnabled"
         @toggle-hide-limited="toggleHideLimitedAccounts"
         @open-limited-page="openLimitedAccountsPage"
+        @bulk-edit-filtered="openBulkEditFilteredModal"
       />
     </template>
     <template #table>
@@ -79,7 +80,7 @@
           @delete="handleBulkDelete"
           @reset-status="handleBulkResetStatus"
           @refresh-token="handleBulkRefreshToken"
-          @edit="showBulkEdit = true"
+          @edit="openBulkEditSelectedModal"
           @clear="clearSelection"
           @select-page="selectPage"
           @toggle-schedulable="handleBulkToggleSchedulable"
@@ -188,9 +189,11 @@
     :show-schedule-panel="showSchedulePanel"
     :proxies="proxies"
     :groups="groups"
+    :bulk-edit-filters="bulkEditFilters"
+    :bulk-edit-filters-total="bulkEditFiltersTotal"
     :selected-ids="selIds"
-    :selected-platforms="selPlatforms"
-    :selected-types="selTypes"
+    :selected-platforms="bulkEditSelectedPlatforms"
+    :selected-types="bulkEditSelectedTypes"
     :editing-account="edAcc"
     :temp-unsched-account="tempUnschedAcc"
     :deleting-account="deletingAcc"
@@ -246,7 +249,7 @@
     @reload="handleReloadRequested"
     @close-import-data="showImportData = false"
     @data-imported="handleDataImported"
-    @close-bulk-edit="showBulkEdit = false"
+    @close-bulk-edit="closeBulkEditModal"
     @bulk-updated="handleBulkUpdated"
     @close-temp-unsched="showTempUnsched = false"
     @temp-unsched-reset="handleTempUnschedReset"
@@ -291,6 +294,7 @@ import AccountsViewToolbar from "@/components/admin/account/AccountsViewToolbar.
 import type { SelectOption } from "@/components/common/Select.vue";
 import type {
   AccountModelDiagnosticsResponse,
+  BulkUpdateAccountsFilters,
   BlacklistFeedbackPayload,
 } from "@/api/admin/accounts";
 import {
@@ -376,6 +380,22 @@ const showImportData = ref(false);
 const showExportDataDialog = ref(false);
 const includeProxyOnExport = ref(true);
 const showBulkEdit = ref(false);
+const bulkEditFilters = ref<BulkUpdateAccountsFilters | null>(null);
+const bulkEditFiltersTotal = ref<number | null>(null);
+const bulkEditSelectedPlatforms = computed<AccountPlatform[]>(() => {
+  const platform = String(bulkEditFilters.value?.platform || "").trim();
+  if (platform) {
+    return [platform as AccountPlatform];
+  }
+  return selPlatforms.value;
+});
+const bulkEditSelectedTypes = computed<AccountType[]>(() => {
+  const type = String(bulkEditFilters.value?.type || "").trim();
+  if (type) {
+    return [type as AccountType];
+  }
+  return selTypes.value;
+});
 const showTempUnsched = ref(false);
 const showDeleteDialog = ref(false);
 const showReAuth = ref(false);
@@ -1164,6 +1184,46 @@ const openArchiveSelectedModal = () => {
   }
   showArchiveSelected.value = true;
 };
+
+const toOptionalString = (value: unknown) => {
+  const v = String(value || "").trim();
+  return v ? v : undefined;
+};
+
+const buildBulkEditFiltersFromParams = (): BulkUpdateAccountsFilters => ({
+  platform: toOptionalString(params.platform),
+  type: toOptionalString(params.type),
+  status: toOptionalString(params.status),
+  group: toOptionalString(params.group),
+  search: toOptionalString(params.search),
+  lifecycle: toOptionalString(params.lifecycle),
+  privacy_mode: toOptionalString(params.privacy_mode),
+  limited_view: toOptionalString(params.limited_view),
+  limited_reason: toOptionalString(params.limited_reason),
+  runtime_view: toOptionalString(params.runtime_view),
+});
+
+const openBulkEditSelectedModal = () => {
+  bulkEditFilters.value = null;
+  bulkEditFiltersTotal.value = null;
+  showBulkEdit.value = true;
+};
+
+const openBulkEditFilteredModal = () => {
+  if (pagination.total <= 0) {
+    appStore.showWarning(t("admin.accounts.bulkEdit.noFilteredTargets"));
+    return;
+  }
+  bulkEditFilters.value = buildBulkEditFiltersFromParams();
+  bulkEditFiltersTotal.value = pagination.total;
+  showBulkEdit.value = true;
+};
+
+const closeBulkEditModal = () => {
+  showBulkEdit.value = false;
+  bulkEditFilters.value = null;
+  bulkEditFiltersTotal.value = null;
+};
 const resolveAccountsByID = (accountIDs: number[]) => {
   if (accountIDs.length === 0) {
     return [] as Account[];
@@ -1495,7 +1555,7 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
   }
 };
 const handleBulkUpdated = () => {
-  showBulkEdit.value = false;
+  closeBulkEditModal();
   clearSelection();
   reload();
 };

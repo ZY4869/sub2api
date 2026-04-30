@@ -103,6 +103,9 @@ type SystemSettings struct {
 	// Backend Mode
 	BackendModeEnabled     bool `json:"backend_mode_enabled"`
 	MaintenanceModeEnabled bool `json:"maintenance_mode_enabled"`
+
+	OpenAIFastPolicySettings           *OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
+	EnableAnthropicCacheTTL1hInjection bool                      `json:"enable_anthropic_cache_ttl_1h_injection"`
 }
 
 type DefaultSubscriptionSetting struct {
@@ -253,6 +256,18 @@ type BetaPolicyRule struct {
 // BetaPolicySettings Beta 策略配置 DTO
 type BetaPolicySettings struct {
 	Rules []BetaPolicyRule `json:"rules"`
+}
+
+type OpenAIFastPolicyRule struct {
+	ServiceTier    string   `json:"service_tier"`
+	Action         string   `json:"action"`
+	Scope          string   `json:"scope"`
+	ModelWhitelist []string `json:"model_whitelist,omitempty"`
+	FallbackAction string   `json:"fallback_action,omitempty"`
+}
+
+type OpenAIFastPolicySettings struct {
+	Rules []OpenAIFastPolicyRule `json:"rules"`
 }
 
 // ParseCustomMenuItems parses a JSON string into a slice of CustomMenuItem.

@@ -9,6 +9,7 @@ import (
 const (
 	EndpointMessages                       = "/v1/messages"
 	EndpointChatCompletions                = "/v1/chat/completions"
+	EndpointCompletions                    = "/v1/completions"
 	EndpointResponses                      = "/v1/responses"
 	EndpointImagesGen                      = "/v1/images/generations"
 	EndpointImagesEdits                    = "/v1/images/edits"
@@ -154,6 +155,18 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointCompletions,
+		SourceProtocol:    PlatformOpenAI,
+		HandlerFamily:     "openai_completions",
+		NormalizePrefixes: []string{"/openai"},
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1/completions"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointCompletions, RequestFormat: EndpointCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityNativePassthrough},
 		},
 	},
 	{

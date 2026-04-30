@@ -211,8 +211,7 @@ func (s *OpsCleanupService) runCleanupOnce(ctx context.Context) (opsCleanupDelet
 	retention := s.cleanupRetentionConfig(ctx)
 
 	// Error-like tables: error logs / retry attempts / alert events.
-	if days := retention.ErrorLogRetentionDays; days > 0 {
-		cutoff := now.AddDate(0, 0, -days)
+	if cutoff, ok := resolveOpsRetentionCutoff(now, retention.ErrorLogRetentionDays); ok {
 		n, err := deleteOldRowsByID(ctx, s.db, "ops_error_logs", "created_at", cutoff, batchSize, false)
 		if err != nil {
 			return out, err
@@ -245,8 +244,7 @@ func (s *OpsCleanupService) runCleanupOnce(ctx context.Context) (opsCleanupDelet
 	}
 
 	// Minute-level metrics snapshots.
-	if days := retention.MinuteMetricsRetentionDays; days > 0 {
-		cutoff := now.AddDate(0, 0, -days)
+	if cutoff, ok := resolveOpsRetentionCutoff(now, retention.MinuteMetricsRetentionDays); ok {
 		n, err := deleteOldRowsByID(ctx, s.db, "ops_system_metrics", "created_at", cutoff, batchSize, false)
 		if err != nil {
 			return out, err
@@ -255,8 +253,7 @@ func (s *OpsCleanupService) runCleanupOnce(ctx context.Context) (opsCleanupDelet
 	}
 
 	// Pre-aggregation tables (hourly/daily).
-	if days := retention.HourlyMetricsRetentionDays; days > 0 {
-		cutoff := now.AddDate(0, 0, -days)
+	if cutoff, ok := resolveOpsRetentionCutoff(now, retention.HourlyMetricsRetentionDays); ok {
 		n, err := deleteOldRowsByID(ctx, s.db, "ops_metrics_hourly", "bucket_start", cutoff, batchSize, false)
 		if err != nil {
 			return out, err
@@ -280,11 +277,15 @@ func (s *OpsCleanupService) runRequestDetailCleanupOnce(ctx context.Context) (op
 	}
 
 	days := s.requestDetailRetentionDays(ctx)
-	if days <= 0 {
+	if days < 0 {
 		return out, nil
 	}
 
-	cutoff := time.Now().UTC().AddDate(0, 0, -days)
+	now := time.Now().UTC()
+	cutoff, ok := resolveOpsRetentionCutoff(now, days)
+	if !ok {
+		return out, nil
+	}
 	counts, err := s.opsRepo.DeleteExpiredRequestTraces(ctx, cutoff, 5000)
 	if err != nil {
 		return out, err
@@ -292,6 +293,18 @@ func (s *OpsCleanupService) runRequestDetailCleanupOnce(ctx context.Context) (op
 	out.requestTraces = counts.DeletedTraces
 	out.traceAudits = counts.DeletedAudits
 	return out, nil
+}
+
+func resolveOpsRetentionCutoff(now time.Time, days int) (time.Time, bool) {
+	if days < 0 {
+		return time.Time{}, false
+	}
+	if days == 0 {
+		// `0` means wipe data on each cleanup run. We express this by choosing a cutoff
+		// far enough in the future so every row matches the "< cutoff" predicate.
+		return now.AddDate(100, 0, 0), true
+	}
+	return now.AddDate(0, 0, -days), true
 }
 
 func deleteOldRowsByID(

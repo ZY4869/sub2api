@@ -400,16 +400,16 @@ func normalizeOpsAdvancedSettings(cfg *OpsAdvancedSettings) {
 	if cfg.RequestDetailCleanupSchedule == "" {
 		cfg.RequestDetailCleanupSchedule = cfg.DataRetention.CleanupSchedule
 	}
-	if cfg.DataRetention.ErrorLogRetentionDays <= 0 {
+	if cfg.DataRetention.ErrorLogRetentionDays < 0 {
 		cfg.DataRetention.ErrorLogRetentionDays = 30
 	}
-	if cfg.DataRetention.MinuteMetricsRetentionDays <= 0 {
+	if cfg.DataRetention.MinuteMetricsRetentionDays < 0 {
 		cfg.DataRetention.MinuteMetricsRetentionDays = 30
 	}
-	if cfg.DataRetention.HourlyMetricsRetentionDays <= 0 {
+	if cfg.DataRetention.HourlyMetricsRetentionDays < 0 {
 		cfg.DataRetention.HourlyMetricsRetentionDays = 30
 	}
-	if cfg.RequestDetailRetentionDays <= 0 {
+	if cfg.RequestDetailRetentionDays < 0 {
 		cfg.RequestDetailRetentionDays = 30
 	}
 	if cfg.SuccessSampleRate < 0 {
@@ -434,17 +434,17 @@ func validateOpsAdvancedSettings(cfg *OpsAdvancedSettings) error {
 	if cfg == nil {
 		return errors.New("invalid config")
 	}
-	if cfg.DataRetention.ErrorLogRetentionDays < 1 || cfg.DataRetention.ErrorLogRetentionDays > 365 {
-		return errors.New("error_log_retention_days must be between 1 and 365")
+	if cfg.DataRetention.ErrorLogRetentionDays < 0 || cfg.DataRetention.ErrorLogRetentionDays > 365 {
+		return errors.New("error_log_retention_days must be between 0 and 365")
 	}
-	if cfg.DataRetention.MinuteMetricsRetentionDays < 1 || cfg.DataRetention.MinuteMetricsRetentionDays > 365 {
-		return errors.New("minute_metrics_retention_days must be between 1 and 365")
+	if cfg.DataRetention.MinuteMetricsRetentionDays < 0 || cfg.DataRetention.MinuteMetricsRetentionDays > 365 {
+		return errors.New("minute_metrics_retention_days must be between 0 and 365")
 	}
-	if cfg.DataRetention.HourlyMetricsRetentionDays < 1 || cfg.DataRetention.HourlyMetricsRetentionDays > 365 {
-		return errors.New("hourly_metrics_retention_days must be between 1 and 365")
+	if cfg.DataRetention.HourlyMetricsRetentionDays < 0 || cfg.DataRetention.HourlyMetricsRetentionDays > 365 {
+		return errors.New("hourly_metrics_retention_days must be between 0 and 365")
 	}
-	if cfg.RequestDetailRetentionDays < 1 || cfg.RequestDetailRetentionDays > 365 {
-		return errors.New("request_detail_retention_days must be between 1 and 365")
+	if cfg.RequestDetailRetentionDays < 0 || cfg.RequestDetailRetentionDays > 365 {
+		return errors.New("request_detail_retention_days must be between 0 and 365")
 	}
 	if cfg.SuccessSampleRate < 0 || cfg.SuccessSampleRate > 1 {
 		return errors.New("success_sample_rate must be between 0 and 1")

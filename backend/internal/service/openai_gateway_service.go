@@ -77,6 +77,7 @@ type OpenAIGatewayService struct {
 	userSubRepo                   UserSubscriptionRepository
 	cache                         GatewayCache
 	cfg                           *config.Config
+	settingService                *SettingService
 	modelRegistryService          *ModelRegistryService
 	codexDetector                 CodexClientRestrictionDetector
 	schedulerSnapshot             *SchedulerSnapshotService
@@ -106,7 +107,7 @@ type OpenAIGatewayService struct {
 	codexSnapshotThrottle         *accountWriteThrottle
 }
 
-func NewOpenAIGatewayService(accountRepo AccountRepository, usageLogRepo UsageLogRepository, usageBillingRepo UsageBillingRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, httpUpstream HTTPUpstream, deferredService *DeferredService, openAITokenProvider *OpenAITokenProvider) *OpenAIGatewayService {
+func NewOpenAIGatewayService(accountRepo AccountRepository, usageLogRepo UsageLogRepository, usageBillingRepo UsageBillingRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, httpUpstream HTTPUpstream, deferredService *DeferredService, openAITokenProvider *OpenAITokenProvider, settingService *SettingService) *OpenAIGatewayService {
 	svc := &OpenAIGatewayService{
 		accountRepo:           accountRepo,
 		usageLogRepo:          usageLogRepo,
@@ -115,6 +116,7 @@ func NewOpenAIGatewayService(accountRepo AccountRepository, usageLogRepo UsageLo
 		userSubRepo:           userSubRepo,
 		cache:                 cache,
 		cfg:                   cfg,
+		settingService:        settingService,
 		codexDetector:         NewOpenAICodexClientRestrictionDetector(cfg),
 		schedulerSnapshot:     schedulerSnapshot,
 		concurrencyService:    concurrencyService,

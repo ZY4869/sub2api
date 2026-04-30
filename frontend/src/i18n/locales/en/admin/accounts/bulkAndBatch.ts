@@ -112,7 +112,10 @@ export default {
     },
     bulkEdit: {
         title: "Bulk Edit Accounts",
+        editFiltered: "Bulk edit filtered",
         selectionInfo: "{count} account(s) selected. Only checked or filled fields will be updated; others stay unchanged.",
+        filtersInfo: "{count} account(s) match the current filters. Targets are resolved server-side from filters; only checked or filled fields will be updated; others stay unchanged.",
+        filtersInfoUnknown: "Accounts will be updated using the current filters. Targets are resolved server-side; only checked or filled fields will be updated; others stay unchanged.",
         baseUrlPlaceholder: "https://api.anthropic.com or https://api.openai.com",
         baseUrlNotice: "Applies to API Key accounts only; leave empty to keep existing value",
         submit: "Update Accounts",
@@ -121,6 +124,7 @@ export default {
         partialSuccess: "Partially updated: {success} succeeded, {failed} failed",
         failed: "Bulk update failed",
         noSelection: "Please select accounts to edit",
+        noFilteredTargets: "No accounts match the current filters",
         noFieldsSelected: "Select at least one field to update",
         mixedPlatformWarning: "Selected accounts span multiple platforms ({platforms}). Model mapping presets shown are combined — ensure mappings are appropriate for each platform.",
     }

@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 )
 
@@ -112,6 +113,38 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 					return nil, fmt.Errorf("remarshal after prompt cache key injection: %w", err)
 				}
 			}
+		}
+	}
+
+	// Enforce OpenAI Fast/Flex policy (service_tier) for the Anthropic compat path.
+	effectiveModel := strings.TrimSpace(gjson.GetBytes(responsesBody, "model").String())
+	if effectiveModel != "" && effectiveModel != mappedModel {
+		mappedModel = effectiveModel
+		if responsesReq != nil {
+			responsesReq.Model = effectiveModel
+		}
+	}
+	serviceTier := strings.TrimSpace(gjson.GetBytes(responsesBody, "service_tier").String())
+	if serviceTier != "" {
+		updatedBody, decision, policyErr := s.applyOpenAIFastPolicyToJSONBody(ctx, account, responsesBody, serviceTier, effectiveModel)
+		if policyErr != nil {
+			msg := "This request is blocked by policy"
+			setOpsUpstreamError(c, http.StatusForbidden, msg, "")
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				Platform:           account.Platform,
+				AccountID:          account.ID,
+				AccountName:        account.Name,
+				UpstreamStatusCode: http.StatusForbidden,
+				Kind:               "policy_block",
+				Message:            msg,
+				Detail:             policyErr.Error(),
+			})
+			writeAnthropicError(c, http.StatusForbidden, "permission_error", msg, "openai_fast_policy_blocked")
+			return nil, policyErr
+		}
+		if decision.matched && decision.action == OpenAIFastPolicyActionFilter {
+			responsesBody = updatedBody
+			responsesReq.ServiceTier = ""
 		}
 	}
 

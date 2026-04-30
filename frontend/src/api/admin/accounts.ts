@@ -972,26 +972,47 @@ export async function batchUpdateCredentials(request: {
  * @param updates - Fields to update
  * @returns Success confirmation
  */
-export async function bulkUpdate(
-  accountIds: number[],
-  updates: Record<string, unknown>
-): Promise<{
+export interface BulkUpdateAccountsFilters {
+  platform?: string
+  type?: string
+  status?: string
+  group?: string
+  search?: string
+  lifecycle?: string
+  privacy_mode?: string
+  limited_view?: string
+  limited_reason?: string
+  runtime_view?: string
+}
+
+export type BulkUpdateAccountsTarget =
+  | { account_ids: number[] }
+  | { filters: BulkUpdateAccountsFilters }
+
+type BulkUpdateAccountsResponse = {
   success: number
   failed: number
   success_ids?: number[]
   failed_ids?: number[]
   results: Array<{ account_id: number; success: boolean; error?: string }>
-  }> {
-  const { data } = await apiClient.post<{
-    success: number
-    failed: number
-    success_ids?: number[]
-    failed_ids?: number[]
-    results: Array<{ account_id: number; success: boolean; error?: string }>
-  }>('/admin/accounts/bulk-update', {
-    account_ids: accountIds,
-    ...updates
-  })
+}
+
+export async function bulkUpdate(
+  accountIds: number[],
+  updates: Record<string, unknown>
+): Promise<BulkUpdateAccountsResponse>
+export async function bulkUpdate(
+  target: BulkUpdateAccountsTarget,
+  updates: Record<string, unknown>
+): Promise<BulkUpdateAccountsResponse>
+export async function bulkUpdate(
+  target: number[] | BulkUpdateAccountsTarget,
+  updates: Record<string, unknown>
+): Promise<BulkUpdateAccountsResponse> {
+  const body = Array.isArray(target)
+    ? { account_ids: target, ...updates }
+    : { ...target, ...updates }
+  const { data } = await apiClient.post<BulkUpdateAccountsResponse>('/admin/accounts/bulk-update', body)
   return data
 }
 

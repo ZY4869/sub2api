@@ -188,6 +188,19 @@ func TestFilterCodexInput_RemovesItemReferenceWhenNotPreserved(t *testing.T) {
 	require.False(t, hasID)
 }
 
+func TestFilterCodexInput_DropsReasoningItems(t *testing.T) {
+	input := []any{
+		map[string]any{"type": "reasoning", "id": "r1", "summary": "internal"},
+		map[string]any{"type": "text", "id": "t1", "text": "hi"},
+	}
+
+	filtered := filterCodexInput(input, true)
+	require.Len(t, filtered, 1)
+	item, ok := filtered[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "text", item["type"])
+}
+
 func TestApplyCodexOAuthTransform_NormalizeCodexTools_PreservesResponsesFunctionTools(t *testing.T) {
 	reqBody := map[string]any{
 		"model": "gpt-5.1",

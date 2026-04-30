@@ -332,6 +332,13 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 			result.OpsMetricsIntervalSeconds = v
 		}
 	}
+
+	result.OpenAIFastPolicySettings = DefaultOpenAIFastPolicySettings()
+	if raw := strings.TrimSpace(settings[SettingKeyOpenAIFastPolicySettings]); raw != "" {
+		result.OpenAIFastPolicySettings = ParseOpenAIFastPolicySettings(raw)
+	}
+	result.EnableAnthropicCacheTTL1hInjection = strings.TrimSpace(settings[SettingKeyEnableAnthropicCacheTTL1hInjection]) == "true"
+
 	result.ChannelMonitorDefaultIntervalSeconds = 60
 	if raw := strings.TrimSpace(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]); raw != "" {
 		if v, err := strconv.Atoi(raw); err == nil {

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -530,12 +531,20 @@ func (s *SchedulerSnapshotService) rebuildBucket(ctx context.Context, bucket Sch
 	if s.cache == nil {
 		return ErrSchedulerCacheNotReady
 	}
-	ok, err := s.cache.TryLockBucket(ctx, bucket, 30*time.Second)
+	lockToken, ok, err := s.cache.TryLockBucket(ctx, bucket, 30*time.Second)
 	if err != nil {
 		return err
 	}
 	if !ok {
 		return nil
+	}
+	if strings.TrimSpace(lockToken) != "" {
+		defer func() {
+			// Always attempt to unlock, even if the rebuild context is already canceled.
+			unlockCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_ = s.cache.UnlockBucket(unlockCtx, bucket, lockToken)
+		}()
 	}
 
 	rebuildCtx, cancel := context.WithTimeout(ctx, 30*time.Second)

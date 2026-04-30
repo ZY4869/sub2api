@@ -31,6 +31,12 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "anthropic native messages", runtimePlatform: PlatformAnthropic, inboundEndpoint: EndpointMessages, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "openai compat messages", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointMessages, wantMode: ProtocolCapabilityCompatTranslate, wantOK: true},
 		{name: "grok rejects messages", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointMessages, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "deepseek native completions", runtimePlatform: PlatformDeepSeek, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "openai rejects completions", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "copilot rejects completions", runtimePlatform: PlatformCopilot, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "anthropic rejects completions", runtimePlatform: PlatformAnthropic, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "gemini rejects completions", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "grok rejects completions", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "anthropic count tokens native", runtimePlatform: PlatformAnthropic, inboundEndpoint: EndpointMessages, action: ProtocolCapabilityActionCountTokens, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "antigravity count tokens rejected", runtimePlatform: PlatformAntigravity, inboundEndpoint: EndpointMessages, action: ProtocolCapabilityActionCountTokens, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "grok websocket responses rejected", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointResponses, action: ProtocolCapabilityActionWebSocket, wantMode: ProtocolCapabilityReject, wantOK: true},
@@ -76,6 +82,7 @@ func TestLookupProtocolCapability(t *testing.T) {
 }
 
 func TestPublicEndpointRequestFormatForAction(t *testing.T) {
+	require.Equal(t, EndpointCompletions, PublicEndpointRequestFormatForAction(EndpointCompletions, ProtocolCapabilityActionDefault))
 	require.Equal(t, "/v1/messages/count_tokens", PublicEndpointRequestFormatForAction(EndpointMessages, ProtocolCapabilityActionCountTokens))
 	require.Equal(t, "/v1beta/models/{model}:batchGenerateContent", PublicEndpointRequestFormatForAction(EndpointGeminiBatches, ProtocolCapabilityActionBatchGenerateContent))
 	require.Equal(t, "/v1/models/{model}:embedContent", PublicEndpointRequestFormatForAction(EndpointGeminiEmbeddings, ProtocolCapabilityActionGeminiEmbedContent))

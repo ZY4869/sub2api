@@ -443,6 +443,7 @@ func TestOpenAIResponses_RuntimeQuotaOnlySelectionFailureReturns429(t *testing.T
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	h := &OpenAIGatewayHandler{
 		gatewayService:      gatewaySvc,

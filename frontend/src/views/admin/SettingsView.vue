@@ -495,6 +495,11 @@
 
         <GoogleBatchGCSProfilesManager />
 
+        <OpenAIFastPolicySettingsCard
+          v-model="form.openai_fast_policy_settings"
+          v-model:enable-injection="form.enable_anthropic_cache_ttl_1h_injection"
+        />
+
         <!-- Beta Policy Settings -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -2073,6 +2078,7 @@ import Toggle from '@/components/common/Toggle.vue'
 import ImageUpload from '@/components/common/ImageUpload.vue'
 import GoogleBatchArchiveSettingsCard from '@/components/settings/GoogleBatchArchiveSettingsCard.vue'
 import GoogleBatchGCSProfilesManager from '@/components/settings/GoogleBatchGCSProfilesManager.vue'
+import OpenAIFastPolicySettingsCard from '@/components/settings/OpenAIFastPolicySettingsCard.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
@@ -2251,6 +2257,15 @@ const form = reactive<SettingsForm>({
   ops_realtime_monitoring_enabled: true,
   ops_query_mode_default: 'auto',
   ops_metrics_interval_seconds: 60,
+  // Gateway forwarding policies
+  openai_fast_policy_settings: {
+    rules: [
+      { service_tier: 'priority', action: 'filter', scope: 'all' },
+      { service_tier: 'fast', action: 'filter', scope: 'all' },
+      { service_tier: 'flex', action: 'pass', scope: 'all' }
+    ]
+  },
+  enable_anthropic_cache_ttl_1h_injection: false,
   // Claude Code version check
   min_claude_code_version: '',
   max_claude_code_version: '',
@@ -2533,7 +2548,9 @@ async function saveSettings() {
       identity_patch_prompt: form.identity_patch_prompt,
       min_claude_code_version: form.min_claude_code_version,
       max_claude_code_version: form.max_claude_code_version,
-      allow_ungrouped_key_scheduling: form.allow_ungrouped_key_scheduling
+      allow_ungrouped_key_scheduling: form.allow_ungrouped_key_scheduling,
+      openai_fast_policy_settings: form.openai_fast_policy_settings,
+      enable_anthropic_cache_ttl_1h_injection: form.enable_anthropic_cache_ttl_1h_injection
     }
     const updated = await adminAPI.settings.updateSettings(payload)
     Object.assign(form, updated)

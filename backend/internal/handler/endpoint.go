@@ -17,6 +17,7 @@ import (
 const (
 	EndpointMessages                       = service.EndpointMessages
 	EndpointChatCompletions                = service.EndpointChatCompletions
+	EndpointCompletions                    = service.EndpointCompletions
 	EndpointResponses                      = service.EndpointResponses
 	EndpointImagesGen                      = service.EndpointImagesGen
 	EndpointImagesEdits                    = service.EndpointImagesEdits
@@ -150,6 +151,13 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 		}
 		return inbound
 
+	case service.PlatformDeepSeek:
+		switch inbound {
+		case EndpointMessages, EndpointChatCompletions, EndpointCompletions:
+			return inbound
+		}
+		return inbound
+
 	case service.PlatformAntigravity:
 		// Antigravity accounts serve both Claude and Gemini.
 		if inbound == EndpointGeminiModels || inbound == EndpointVertexSyncModels {
@@ -167,6 +175,7 @@ func gatewayProtocolHintForInboundEndpoint(inbound string) string {
 	case EndpointMessages:
 		return service.PlatformAnthropic
 	case EndpointChatCompletions,
+		EndpointCompletions,
 		EndpointResponses,
 		EndpointVideosCreate,
 		EndpointVideosGen,

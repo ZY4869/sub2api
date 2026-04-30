@@ -50,6 +50,10 @@ func (d gatewayRouteDispatchers) OpenAIChatCompletions(c *gin.Context) {
 	dispatchOpenAIRoute(c, service.EndpointChatCompletions, service.ProtocolCapabilityActionDefault, d.handlers.OpenAIGateway.ChatCompletions, d.handlers.GrokGateway.ChatCompletions)
 }
 
+func (d gatewayRouteDispatchers) OpenAICompletions(c *gin.Context) {
+	dispatchOpenAIRoute(c, service.EndpointCompletions, service.ProtocolCapabilityActionDefault, d.handlers.OpenAIGateway.Completions, nil)
+}
+
 func (d gatewayRouteDispatchers) GrokImagesGeneration(c *gin.Context) {
 	dispatchGrokOnlyRoute(c, service.EndpointImagesGen, d.handlers.GrokGateway.ImagesGeneration)
 }

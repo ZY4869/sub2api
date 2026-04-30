@@ -83,6 +83,10 @@ type SystemSettings struct {
 	OpsQueryModeDefault          string
 	OpsMetricsIntervalSeconds    int
 
+	// Gateway forwarding toggles / policies.
+	OpenAIFastPolicySettings           *OpenAIFastPolicySettings
+	EnableAnthropicCacheTTL1hInjection bool
+
 	// Claude Code version check
 	MinClaudeCodeVersion string
 	MaxClaudeCodeVersion string
@@ -306,11 +310,6 @@ func DefaultOverloadCooldownSettings() *OverloadCooldownSettings {
 func DefaultBetaPolicySettings() *BetaPolicySettings {
 	return &BetaPolicySettings{
 		Rules: []BetaPolicyRule{
-			{
-				BetaToken: "fast-mode-2026-02-01",
-				Action:    BetaPolicyActionFilter,
-				Scope:     BetaPolicyScopeAll,
-			},
 			{
 				BetaToken: "context-1m-2025-08-07",
 				Action:    BetaPolicyActionFilter,

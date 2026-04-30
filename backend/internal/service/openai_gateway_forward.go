@@ -214,6 +214,26 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		bodyModified = true
 		disablePatch()
 	}
+
+	// Enforce OpenAI Fast/Flex policy (service_tier) after all model/codex normalization.
+	if policyModified, policyErr := s.applyOpenAIFastPolicyToRequestBodyMap(ctx, account, reqBody); policyErr != nil {
+		msg := "This request is blocked by policy"
+		setOpsUpstreamError(c, http.StatusForbidden, msg, "")
+		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			Platform:           RoutingPlatformForAccount(account),
+			AccountID:          account.ID,
+			AccountName:        account.Name,
+			UpstreamStatusCode: http.StatusForbidden,
+			Kind:               "policy_block",
+			Message:            msg,
+			Detail:             policyErr.Error(),
+		})
+		c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"type": "forbidden_error", "code": "openai_fast_policy_blocked", "message": msg}})
+		return nil, policyErr
+	} else if policyModified {
+		bodyModified = true
+		markPatchDelete("service_tier")
+	}
 	if profile := resolveSimulatedClient(mappedModel); profile == GatewayClientProfileCodex {
 		simulatedClient = profile
 		isCodexCLI = true

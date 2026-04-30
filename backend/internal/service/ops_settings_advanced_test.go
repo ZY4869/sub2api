@@ -135,3 +135,42 @@ func TestGetOpsAdvancedSettings_BackfillsRequestDetailCleanupFromDataRetentionWh
 		t.Fatalf("RequestDetailCleanupSchedule = %q, want %q inherited from data_retention.cleanup_schedule", cfg.RequestDetailCleanupSchedule, "15 3 * * *")
 	}
 }
+
+func TestUpdateOpsAdvancedSettings_AllowsZeroRetentionDays(t *testing.T) {
+	repo := newRuntimeSettingRepoStub()
+	svc := &OpsService{settingRepo: repo}
+
+	cfg := defaultOpsAdvancedSettings()
+	cfg.DataRetention.ErrorLogRetentionDays = 0
+	cfg.DataRetention.MinuteMetricsRetentionDays = 0
+	cfg.DataRetention.HourlyMetricsRetentionDays = 0
+	cfg.RequestDetailRetentionDays = 0
+
+	updated, err := svc.UpdateOpsAdvancedSettings(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("UpdateOpsAdvancedSettings() error = %v", err)
+	}
+	if updated.DataRetention.ErrorLogRetentionDays != 0 {
+		t.Fatalf("ErrorLogRetentionDays = %d, want 0", updated.DataRetention.ErrorLogRetentionDays)
+	}
+	if updated.DataRetention.MinuteMetricsRetentionDays != 0 {
+		t.Fatalf("MinuteMetricsRetentionDays = %d, want 0", updated.DataRetention.MinuteMetricsRetentionDays)
+	}
+	if updated.DataRetention.HourlyMetricsRetentionDays != 0 {
+		t.Fatalf("HourlyMetricsRetentionDays = %d, want 0", updated.DataRetention.HourlyMetricsRetentionDays)
+	}
+	if updated.RequestDetailRetentionDays != 0 {
+		t.Fatalf("RequestDetailRetentionDays = %d, want 0", updated.RequestDetailRetentionDays)
+	}
+
+	reloaded, err := svc.GetOpsAdvancedSettings(context.Background())
+	if err != nil {
+		t.Fatalf("GetOpsAdvancedSettings() error = %v", err)
+	}
+	if reloaded.DataRetention.ErrorLogRetentionDays != 0 {
+		t.Fatalf("reloaded ErrorLogRetentionDays = %d, want 0", reloaded.DataRetention.ErrorLogRetentionDays)
+	}
+	if reloaded.RequestDetailRetentionDays != 0 {
+		t.Fatalf("reloaded RequestDetailRetentionDays = %d, want 0", reloaded.RequestDetailRetentionDays)
+	}
+}
