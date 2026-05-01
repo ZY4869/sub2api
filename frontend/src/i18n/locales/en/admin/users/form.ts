@@ -1,0 +1,17 @@
+export default {
+    emailLabel: "Email",
+    emailPlaceholder: "Enter email",
+    usernameLabel: "Username",
+    usernamePlaceholder: "Enter username (optional)",
+    notesLabel: "Notes",
+    notesPlaceholder: "Enter notes (admin only)",
+    notesHint: "This note is only visible to administrators",
+    passwordLabel: "Password",
+    passwordPlaceholder: "Enter password (leave blank to keep unchanged)",
+    roleLabel: "Role",
+    selectRole: "Select role",
+    balanceLabel: "Balance",
+    concurrencyLabel: "Concurrency",
+    statusLabel: "Status",
+    selectStatus: "Select status",
+}

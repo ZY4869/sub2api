@@ -7,7 +7,7 @@
       :title="currentLocale?.name"
     >
       <span class="text-base">{{ currentLocale?.flag }}</span>
-      <span class="hidden sm:inline">{{ currentLocale?.code.toUpperCase() }}</span>
+      <span class="hidden sm:inline">{{ currentLocale?.name }}</span>
       <Icon
         name="chevronDown"
         size="xs"
@@ -47,14 +47,20 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { setLocale, availableLocales } from '@/i18n'
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const switching = ref(false)
 
 const currentLocaleCode = computed(() => locale.value)
-const currentLocale = computed(() => availableLocales.find((l) => l.code === locale.value))
+const localeNames = computed(() => ({
+  en: t('ui.locale.en'),
+  zh: t('ui.locale.zh')
+}))
+const currentLocale = computed(() => availableLocales
+  .map((item) => ({ ...item, name: localeNames.value[item.code] }))
+  .find((l) => l.code === locale.value))
 
 function toggleDropdown() {
   isOpen.value = !isOpen.value

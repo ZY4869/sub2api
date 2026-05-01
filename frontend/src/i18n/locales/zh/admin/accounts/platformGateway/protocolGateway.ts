@@ -1,4 +1,9 @@
 export default {
+    protocolOptions: {
+        openai: "OpenAI",
+        anthropic: "Anthropic",
+        gemini: "Gemini",
+    },
     protocolLabel: "子协议",
     protocolHint: "协议网关账号会按所选子协议复用现有官方调度、测试和模型导入逻辑。",
     openaiImageProtocol: {

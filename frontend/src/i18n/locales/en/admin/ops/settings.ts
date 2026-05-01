@@ -64,6 +64,8 @@ export default {
         ignoreNoAvailableAccountsHint: 'When enabled, "No available accounts" errors will not be written to the error log (not recommended; usually a config issue).',
         ignoreInvalidApiKeyErrors: "Ignore invalid API key errors",
         ignoreInvalidApiKeyErrorsHint: "When enabled, invalid or missing API key errors (INVALID_API_KEY, API_KEY_REQUIRED) will not be written to the error log.",
+        ignoreInsufficientBalanceErrors: "Ignore insufficient balance errors",
+        ignoreInsufficientBalanceErrorsHint: "When enabled, insufficient balance or quota errors will not be written to the error log.",
         autoRefresh: "Auto Refresh",
         enableAutoRefresh: "Enable auto refresh",
         enableAutoRefreshHint: "Automatically refresh dashboard data at a fixed interval.",

@@ -10,4 +10,10 @@ export default {
     status: "状态",
     actions: "操作",
     billingType: "计费类型",
+    userEmail: "用户邮箱",
+    userName: "用户名",
+    userNotes: "用户备注",
+    userStatus: "用户状态",
+    capacity: "容量",
+    usage: "用量",
 }

@@ -654,7 +654,7 @@ const exportToExcel = async () => {
       t("usage.original"),
       t("usage.userBilled"),
       t("usage.accountBilled"),
-      "免扣原因",
+      t("admin.usage.billingExemptReason"),
       t("usage.firstToken"),
       t("usage.duration"),
       t("admin.usage.requestId"),
@@ -744,7 +744,7 @@ const exportToExcel = async () => {
     }
   } catch (error) {
     console.error("Failed to export:", error);
-    appStore.showError("Export Failed");
+    appStore.showError(t("admin.usage.exportFailed"));
   } finally {
     if (exportAbortController === c) {
       exportAbortController = null;

@@ -955,23 +955,23 @@ const truncateUsageErrorMessage = (message: string): string => {
 const getRequestTypeExportText = (log: UsageLog): string => {
   switch (log.operation_type) {
     case "batch_create":
-      return "Batch Create";
+      return t("usage.operationTypeBatchCreate");
     case "batch_settlement":
-      return "Batch Settlement";
+      return t("usage.operationTypeBatchSettlement");
     case "batch_status":
-      return "Batch Status";
+      return t("usage.operationTypeBatchStatus");
     case "get_file_metadata":
-      return "File Metadata";
+      return t("usage.operationTypeGetFileMetadata");
     case "official_result_download":
-      return "Official Download";
+      return t("usage.operationTypeOfficialResultDownload");
     case "local_archive_download":
-      return "Local Archive Download";
+      return t("usage.operationTypeLocalArchiveDownload");
     default: {
       const label = getUsageOperationLabel(log, t);
-      if (label === t("usage.ws")) return "WS";
-      if (label === t("usage.stream")) return "Stream";
-      if (label === t("usage.sync")) return "Sync";
-      return "Unknown";
+      if (label === t("usage.ws")) return t("usage.ws");
+      if (label === t("usage.stream")) return t("usage.stream");
+      if (label === t("usage.sync")) return t("usage.sync");
+      return t("usage.unknown");
     }
   }
 };
@@ -1173,31 +1173,30 @@ const exportToCSV = async () => {
     }
 
     const headers = [
-      "Time",
-      "API Key Name",
-      "Model",
-      "Status",
-      "Simulated Client",
-      "Thinking Mode",
-      "Reasoning Effort",
-      "Request Protocol",
-      "Inbound Endpoint",
-      "Type",
-      "HTTP Status",
-      "Error Code",
-      "Error Message",
-      "Input Tokens",
-      "Output Tokens",
-      "Cache Read Tokens",
-      "Cache Creation Tokens",
-      "Rate Multiplier",
-      "Billed Cost",
-      "Original Cost",
-      "免扣原因",
-      "First Token (ms)",
-      "Duration (ms)",
+      t("usage.time"),
+      t("usage.apiKeyFilter"),
+      t("usage.model"),
+      t("usage.status"),
+      t("usage.simulatedClient"),
+      t("usage.thinkingMode"),
+      t("usage.reasoningEffort"),
+      t("usage.requestProtocol"),
+      t("usage.inboundEndpoint"),
+      t("usage.type"),
+      t("usage.httpStatus"),
+      t("usage.errorCode"),
+      t("usage.errorMessage"),
+      t("usage.inputTokens"),
+      t("usage.outputTokens"),
+      t("usage.cacheReadTokens"),
+      t("usage.cacheCreationTokens"),
+      t("usage.rate"),
+      t("usage.billed"),
+      t("usage.original"),
+      t("usage.billingExemptReason"),
+      t("usage.firstToken"),
+      t("usage.duration"),
     ];
-    headers[20] = "Billing Exempt Reason";
 
     const rows = allLogs.map((log) =>
       [

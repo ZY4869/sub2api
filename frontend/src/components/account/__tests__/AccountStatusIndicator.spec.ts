@@ -15,6 +15,15 @@ vi.mock('vue-i18n', async () => {
         if (key === 'common.time.countdown.minutes') {
           return `${String(params?.count ?? '')}m`
         }
+        if (key === 'common.time.countdown.hoursMinutes') {
+          return `${String(params?.h ?? '')}h ${String(params?.m ?? '')}m`
+        }
+        if (key === 'common.time.countdown.daysHours') {
+          return `${String(params?.d ?? '')}d ${String(params?.h ?? '')}h`
+        }
+        if (key === 'common.time.countdown.withSuffix') {
+          return `${String(params?.time ?? '')} 后解除`
+        }
         return key
       }
     })

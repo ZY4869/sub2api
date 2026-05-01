@@ -5,6 +5,7 @@ export default {
     notes: "Notes",
     role: "Role",
     subscriptions: "Subscriptions",
+    groups: "Groups",
     balance: "Balance",
     usage: "Usage",
     concurrency: "Concurrency",

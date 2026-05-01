@@ -6,6 +6,7 @@ import affiliates from './affiliates'
 import models from './models'
 import billing from './billing'
 import dataManagement from './dataManagement'
+import backup from './backup'
 import users from './users'
 import groups from './groups'
 import subscriptions from './subscriptions'
@@ -33,6 +34,7 @@ export default {
     models,
     billing,
     dataManagement,
+    backup,
     users,
     groups,
     subscriptions,

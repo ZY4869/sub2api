@@ -6,6 +6,24 @@
 import { i18n, getLocale } from "@/i18n";
 import type { TokenDisplayMode } from "@/types";
 
+function translateWithFallback(
+  key: string,
+  fallbackZh: string,
+  fallbackEn: string,
+  params?: Record<string, string | number>,
+): string {
+  const locale = getLocale();
+  if (typeof i18n.global.te === "function" && i18n.global.te(key, locale)) {
+    const message = params
+      ? i18n.global.t(key, params as Record<string, unknown>)
+      : i18n.global.t(key);
+    if (typeof message === "string" && message !== key) {
+      return message;
+    }
+  }
+  return locale === "zh" ? fallbackZh : fallbackEn;
+}
+
 /**
  * 格式化相对时间
  * @param date 日期字符串或 Date 对象
@@ -199,14 +217,14 @@ export function formatReasoningEffort(
   const normalized = raw.toLowerCase().replace(/[-_\s]/g, "");
   switch (normalized) {
     case "low":
-      return "Low";
+      return translateWithFallback("usage.reasoningEffortLow", "低", "Low");
     case "medium":
-      return "Medium";
+      return translateWithFallback("usage.reasoningEffortMedium", "中", "Medium");
     case "high":
-      return "High";
+      return translateWithFallback("usage.reasoningEffortHigh", "高", "High");
     case "xhigh":
     case "extrahigh":
-      return "Xhigh";
+      return translateWithFallback("usage.reasoningEffortXhigh", "超高", "Xhigh");
     case "none":
     case "minimal":
       return "-";
@@ -348,21 +366,27 @@ export function formatCountdown(
   const remainingMins = diffMins % 60;
 
   if (diffDays > 0) {
-    // 超过1天：显示 "Xd Yh"
-    return i18n.global.t("common.time.countdown.daysHours", {
-      d: diffDays,
-      h: remainingHours,
-    });
+    return translateWithFallback(
+      "common.time.countdown.daysHours",
+      `${diffDays}天 ${remainingHours}小时`,
+      `${diffDays}d ${remainingHours}h`,
+      { d: diffDays, h: remainingHours },
+    );
   }
   if (diffHours > 0) {
-    // 小于1天：显示 "Xh Ym"
-    return i18n.global.t("common.time.countdown.hoursMinutes", {
-      h: diffHours,
-      m: remainingMins,
-    });
+    return translateWithFallback(
+      "common.time.countdown.hoursMinutes",
+      `${diffHours}小时 ${remainingMins}分钟`,
+      `${diffHours}h ${remainingMins}m`,
+      { h: diffHours, m: remainingMins },
+    );
   }
-  // 小于1小时：显示 "Ym"
-  return i18n.global.t("common.time.countdown.minutes", { m: diffMins });
+  return translateWithFallback(
+    "common.time.countdown.minutes",
+    `${diffMins}分钟`,
+    `${diffMins}m`,
+    { m: diffMins },
+  );
 }
 
 /**
@@ -375,7 +399,12 @@ export function formatCountdownWithSuffix(
 ): string | null {
   const countdown = formatCountdown(targetDate);
   if (!countdown) return null;
-  return i18n.global.t("common.time.countdown.withSuffix", { time: countdown });
+  return translateWithFallback(
+    "common.time.countdown.withSuffix",
+    `${countdown} 后解除`,
+    `${countdown} to lift`,
+    { time: countdown },
+  );
 }
 
 /**

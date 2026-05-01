@@ -5,6 +5,7 @@ export default {
     notes: "备注",
     role: "角色",
     subscriptions: "订阅分组",
+    groups: "分组",
     balance: "余额",
     usage: "用量",
     concurrency: "并发数",

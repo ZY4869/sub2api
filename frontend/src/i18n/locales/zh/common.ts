@@ -2,10 +2,12 @@ export default {
   common: {
     loading: '加载中...',
     save: '保存',
+    remove: '移除',
     cancel: '取消',
     delete: '删除',
     edit: '编辑',
     create: '创建',
+    creating: '创建中...',
     update: '更新',
     confirm: '确认',
     reset: '重置',
@@ -49,8 +51,12 @@ export default {
     copyFailed: '复制失败',
     verifying: '验证中...',
     processing: '处理中...',
+    sending: '发送中...',
+    submitting: '提交中...',
     contactSupport: '联系客服',
     add: '添加',
+    apply: '应用',
+    clear: '清空',
     invalidEmail: '请输入有效的邮箱地址',
     optional: '可选',
     selectOption: '请选择',
@@ -67,7 +73,10 @@ export default {
     chooseFile: '选择文件',
     notAvailable: '不可用',
     now: '现在',
+    on: '开',
+    off: '关',
     unknown: '未知',
+    tryAgainLater: '请稍后重试',
     minutes: '分钟',
     time: {
       never: '从未',
@@ -76,9 +85,9 @@ export default {
       hoursAgo: '{n}小时前',
       daysAgo: '{n}天前',
       countdown: {
-        daysHours: '{d}d {h}h',
-        hoursMinutes: '{h}h {m}m',
-        minutes: '{m}m',
+        daysHours: '{d}天 {h}小时',
+        hoursMinutes: '{h}小时 {m}分钟',
+        minutes: '{m}分钟',
         withSuffix: '{time} 后解除'
       }
     }

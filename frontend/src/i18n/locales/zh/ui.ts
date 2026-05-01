@@ -1,5 +1,9 @@
 export default {
   ui: {
+    locale: {
+      en: '英文',
+      zh: '中文',
+    },
     routeTitles: {
       home: '首页',
       models: '模型库',

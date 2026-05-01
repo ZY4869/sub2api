@@ -32,12 +32,17 @@ const messages: Record<string, string> = {
   "usage.httpStatus": "HTTP Status",
   "usage.errorCode": "Error Code",
   "usage.errorMessage": "Error Message",
+  "usage.simulatedClient": "Simulated Client",
   "usage.simulatedClientCodex": "Codex",
   "usage.simulatedClientGeminiCli": "Gemini CLI",
   "admin.usage.inputCost": "Input Cost",
   "admin.usage.outputCost": "Output Cost",
   "admin.usage.cacheCreationCost": "Cache Creation Cost",
   "admin.usage.cacheReadCost": "Cache Read Cost",
+  "admin.usage.inputTokens": "Input Tokens",
+  "admin.usage.outputTokens": "Output Tokens",
+  "admin.usage.cacheCreationTokens": "Cache Creation Tokens",
+  "admin.usage.cacheReadTokens": "Cache Read Tokens",
   "usage.inputTokenPrice": "Input price",
   "usage.outputTokenPrice": "Output price",
   "usage.perMillionTokens": "/ 1M tokens",
@@ -68,8 +73,20 @@ const messages: Record<string, string> = {
   "usage.firstToken": "First Token",
   "usage.duration": "Duration",
   "usage.time": "Time",
+  "usage.requestProtocol": "Request Protocol",
+  "usage.inboundEndpoint": "Inbound Endpoint",
   "usage.userAgent": "User Agent",
+  "usage.endpoint": "Endpoint",
   "usage.requestInfo": "Request Info",
+  "usage.inputTokens": "Input Tokens",
+  "usage.outputTokens": "Output Tokens",
+  "usage.cacheReadTokens": "Cache Read Tokens",
+  "usage.cacheCreationTokens": "Cache Creation Tokens",
+  "usage.billingExemptReason": "免扣原因",
+  "usage.unknown": "Unknown",
+  "usage.ws": "WS",
+  "usage.stream": "Stream",
+  "usage.sync": "Sync",
   "common.actions": "Actions",
   "common.close": "Close",
   "common.loading": "Loading...",
@@ -360,7 +377,7 @@ describe("user UsageView tooltip", () => {
     expect(csvText.charCodeAt(0)).toBe(0xfeff);
     expect(csvText).toContain("Thinking Mode");
     expect(csvText).toContain("Enabled");
-    expect(csvText).toContain("Billing Exempt Reason");
+    expect(csvText).toContain("免扣原因");
 
     window.URL.createObjectURL = originalCreateObjectURL;
     window.URL.revokeObjectURL = originalRevokeObjectURL;

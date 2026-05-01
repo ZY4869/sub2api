@@ -1,5 +1,9 @@
 export default {
   ui: {
+    locale: {
+      en: 'English',
+      zh: 'Chinese',
+    },
     routeTitles: {
       home: 'Home',
       models: 'Models Catalog',

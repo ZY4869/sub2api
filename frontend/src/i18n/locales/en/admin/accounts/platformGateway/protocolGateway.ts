@@ -1,4 +1,9 @@
 export default {
+    protocolOptions: {
+        openai: "OpenAI",
+        anthropic: "Anthropic",
+        gemini: "Gemini",
+    },
     protocolLabel: "Subprotocol",
     protocolHint: "Protocol Gateway accounts reuse the existing official scheduling, test, and model-import flows based on the selected subprotocol.",
     openaiImageProtocol: {

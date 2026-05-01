@@ -27,7 +27,7 @@
                 v-if="row.user?.admin_free_billing"
                 class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
               >
-                免扣
+                {{ t('admin.usage.adminFreeBillingBadge') }}
               </span>
             </div>
             <span class="ml-1 text-gray-500 dark:text-gray-400"
@@ -358,7 +358,7 @@
                 class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
               >
                 <Icon name="crown" size="xs" class="h-3 w-3" />
-                免扣
+                {{ t('admin.usage.adminFreeBillingBadge') }}
               </span>
               <!-- Cost Detail Tooltip -->
               <div
@@ -739,12 +739,12 @@
             v-if="tooltipData?.billing_exempt_reason === 'admin_free'"
             class="flex items-center justify-between gap-6"
           >
-            <span class="text-gray-400">免扣原因</span>
+            <span class="text-gray-400">{{ t('admin.usage.billingExemptReason') }}</span>
             <span
               class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300"
             >
               <Icon name="crown" size="xs" class="h-3 w-3" />
-              管理员免费
+              {{ t('admin.usage.adminFreeBillingBadge') }}
             </span>
           </div>
           <div
