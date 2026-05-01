@@ -88,7 +88,9 @@ const translations: Record<string, string> = {
   'admin.requestDetails.presentation.flags.rawUnavailable': 'No Raw',
   'admin.requestDetails.presentation.flags.sampled': 'Sampled',
   'admin.requestDetails.presentation.flags.notSampled': 'Not Sampled',
-  'admin.requestDetails.presentation.protocols.openai': 'OpenAI'
+  'admin.requestDetails.presentation.protocols.openai': 'OpenAI',
+  'admin.requestDetails.presentation.thinkingLevels.xhigh': 'Extra High',
+  'admin.requestDetails.presentation.thinkingLevels.max': 'Max'
 }
 
 vi.mock('vue-i18n', async () => {

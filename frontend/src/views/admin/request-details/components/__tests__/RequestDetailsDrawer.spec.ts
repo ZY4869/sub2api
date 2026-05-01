@@ -126,6 +126,8 @@ const translations: Record<string, string> = {
   'admin.requestDetails.presentation.captureReasons.sampled': 'Sampled',
   'admin.requestDetails.presentation.thinkingSources.request': 'Request Parameter',
   'admin.requestDetails.presentation.thinkingLevels.high': 'High',
+  'admin.requestDetails.presentation.thinkingLevels.xhigh': 'Extra High',
+  'admin.requestDetails.presentation.thinkingLevels.max': 'Max',
   'admin.requestDetails.drawer.sections.basicInfo': 'Basic Info',
   'admin.requestDetails.drawer.sections.identifiers': 'Identifiers',
   'admin.requestDetails.drawer.sections.execution': 'Execution',
@@ -352,5 +354,16 @@ describe('RequestDetailsDrawer', () => {
     expect(wrapper.text()).toContain('deepseek-v4-pro')
     expect(wrapper.text()).toContain('reasoning_effort')
     expect(wrapper.text()).toContain('prompt_cache_hit_tokens')
+  })
+
+  it('renders distinct xhigh thinking level labels', () => {
+    const wrapper = createWrapper({
+      detail: {
+        ...detail,
+        thinking_level: 'xhigh'
+      }
+    })
+
+    expect(wrapper.text()).toContain('Extra High')
   })
 })

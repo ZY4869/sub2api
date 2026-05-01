@@ -583,8 +583,12 @@ func enrichOpsTraceRequestMetadata(payload map[string]any, result *service.Proto
 			result.ThinkingLevel = "LOW"
 		case "medium":
 			result.ThinkingLevel = "MEDIUM"
-		case "high", "xhigh":
+		case "high":
 			result.ThinkingLevel = "HIGH"
+		case "xhigh":
+			result.ThinkingLevel = "XHIGH"
+		case "max":
+			result.ThinkingLevel = "MAX"
 		case "none":
 			result.ThinkingLevel = "MINIMAL"
 		}

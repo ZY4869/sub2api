@@ -72,4 +72,51 @@ describe('UseKeyModal', () => {
 
     expect(wrapper.text()).toContain('/grok/v1/images/generations')
   })
+
+  it('exports dynamic Claude effort config by default', () => {
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-test',
+        baseUrl: 'https://example.com/v1',
+        platform: 'anthropic',
+        allowMessagesDispatch: false
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Icon: true
+        }
+      }
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('"effortLevel": "xhigh"')
+    expect(text).not.toContain('CLAUDE_CODE_EFFORT_LEVEL')
+    expect(text).toContain('ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES')
+  })
+
+  it('exports fixed Claude effort config when fixed mode is selected', async () => {
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-test',
+        baseUrl: 'https://example.com/v1',
+        platform: 'anthropic',
+        allowMessagesDispatch: false
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.findAll('button').find((button) => button.text() === 'keys.useKeyModal.claudeEffort.fixed')?.trigger('click')
+
+    const text = wrapper.text()
+    expect(text).toContain('CLAUDE_CODE_EFFORT_LEVEL')
+    expect(text).not.toContain('"effortLevel": "xhigh"')
+  })
 })

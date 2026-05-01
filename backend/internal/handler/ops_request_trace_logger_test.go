@@ -269,6 +269,34 @@ func TestRecordImageRouteRuntimeMetrics_RecordsResponsesImageToolFailure(t *test
 	require.Equal(t, int64(1), snapshot.ImageRouteFailureByUpstreamStatus["502"])
 }
 
+func TestBuildOpsTraceNormalizeResult_MapsReasoningEffortXhighAndMaxSeparately(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	c.Set(ctxKeyInboundEndpoint, EndpointMessages)
+	setOpsEndpointContext(c, "claude-opus-4-6", service.RequestTypeSync)
+
+	normalizeXhigh, _ := buildOpsTraceNormalizeResult(
+		c,
+		nil,
+		[]byte(`{"model":"claude-opus-4-6","reasoning_effort":"xhigh"}`),
+		nil,
+	)
+	require.Equal(t, "XHIGH", normalizeXhigh.ThinkingLevel)
+	require.Equal(t, "mapped_reasoning_effort", normalizeXhigh.ThinkingSource)
+
+	normalizeMax, _ := buildOpsTraceNormalizeResult(
+		c,
+		nil,
+		[]byte(`{"model":"claude-opus-4-6","reasoning_effort":"max"}`),
+		nil,
+	)
+	require.Equal(t, "MAX", normalizeMax.ThinkingLevel)
+	require.Equal(t, "mapped_reasoning_effort", normalizeMax.ThinkingSource)
+}
+
 func buildOpsTraceInputForTest(
 	t *testing.T,
 	method string,

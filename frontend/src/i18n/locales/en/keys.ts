@@ -62,6 +62,15 @@ export default {
       copy: 'Copy',
       copied: 'Copied',
       note: 'These environment variables will be active in the current terminal session. For permanent configuration, add them to ~/.bashrc, ~/.zshrc, or the appropriate configuration file.',
+      claudeEffort: {
+        modeLabel: 'Claude Code effort export mode',
+        modeHint: 'Dynamic mode keeps effort adjustable in Claude Code. Fixed mode locks the client to one effort level.',
+        dynamic: 'Dynamic mode',
+        fixed: 'Fixed mode',
+        dynamicHint: 'Exports top-level effortLevel=xhigh without CLAUDE_CODE_EFFORT_LEVEL so you can keep changing it in Claude Code.',
+        fixedHint: 'Exports CLAUDE_CODE_EFFORT_LEVEL and overrides later client-side effort changes.',
+        fixedLevelLabel: 'Fixed effort level'
+      },
       noGroupTitle: 'Please assign a group first',
       noGroupDescription: 'This API key has not been assigned to a group. Please click the group column in the key list to assign one before viewing the configuration.',
       openai: {

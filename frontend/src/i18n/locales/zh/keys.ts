@@ -61,6 +61,15 @@ export default {
       copy: '复制',
       copied: '已复制',
       note: '这些环境变量将在当前终端会话中生效。如需永久配置，请将其添加到 ~/.bashrc、~/.zshrc 或相应的配置文件中。',
+      claudeEffort: {
+        modeLabel: 'Claude Code 思考强度导出模式',
+        modeHint: '动态模式允许在 Claude Code 客户端内切换思考强度；固定模式会锁定到指定等级。',
+        dynamic: '动态模式',
+        fixed: '固定模式',
+        dynamicHint: '导出顶层 effortLevel=xhigh，不写入 CLAUDE_CODE_EFFORT_LEVEL，后续可在 Claude Code 客户端继续切换。',
+        fixedHint: '导出 CLAUDE_CODE_EFFORT_LEVEL，客户端内切换会被当前固定等级覆盖。',
+        fixedLevelLabel: '固定思考强度'
+      },
       noGroupTitle: '请先分配分组',
       noGroupDescription:
         '此 API 密钥尚未分配分组，请先在密钥列表中点击分组列进行分配，然后才能查看使用配置。',

@@ -119,6 +119,8 @@ export default {
         low: "低",
         medium: "中",
         high: "高",
+        xhigh: "极高",
+        max: "最高",
         minimal: "极低",
         deep: "深入",
         none: "无",

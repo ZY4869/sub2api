@@ -101,6 +101,14 @@ curl https://api.zyxai.de/v1/messages \
 - Claude SDK、Claude Code 优先用这一条路径。
 - 如果你的项目未来要兼容多个平台，请让调用方固定协议，不要同一个客户端实例一会儿用 `messages`，一会儿改成 `responses`。
 
+Thinking 强度补充说明：
+
+- Claude 原生 `messages` 请求支持通过 `output_config.effort` 传递思考强度。
+- 当前网关按原样识别并透传 5 档：`low`、`medium`、`high`、`xhigh`、`max`。
+- 如果你希望 Claude Code 内还能继续动态切换，优先使用顶层 `effortLevel` 作为默认值。
+- 如果你需要强制锁定某一档位，可使用 `CLAUDE_CODE_EFFORT_LEVEL`；该环境变量会覆盖客户端内后续切换。
+- 对第三方 Claude 风格模型，建议同时声明模型能力（例如 `SUPPORTED_CAPABILITIES`），让 Claude Code 能正确显示 `xhigh` / `max` 等档位。
+
 #### Python
 ```python focus=1-12
 import requests

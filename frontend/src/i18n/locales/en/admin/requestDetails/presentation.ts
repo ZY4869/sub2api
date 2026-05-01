@@ -119,6 +119,8 @@ export default {
         low: "Low",
         medium: "Medium",
         high: "High",
+        xhigh: "Extra High",
+        max: "Max",
         minimal: "Minimal",
         deep: "Deep",
         none: "None",

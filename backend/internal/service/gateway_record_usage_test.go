@@ -400,6 +400,36 @@ func TestGatewayServiceRecordUsage_ReasoningEffortPersisted(t *testing.T) {
 	require.True(t, *usageRepo.lastLog.ThinkingEnabled)
 }
 
+func TestGatewayServiceRecordUsage_ReasoningEffortXhighPersisted(t *testing.T) {
+	usageRepo := &openAIRecordUsageBestEffortLogRepoStub{}
+	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+	effort := "xhigh"
+	ctx := WithThinkingEnabled(context.Background(), true, false)
+	err := svc.RecordUsage(ctx, &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "effort_xhigh_test",
+			Usage: ClaudeUsage{
+				InputTokens:  10,
+				OutputTokens: 5,
+			},
+			Model:           "claude-opus-4-6",
+			Duration:        time.Second,
+			ReasoningEffort: &effort,
+		},
+		APIKey:  &APIKey{ID: 1},
+		User:    &User{ID: 1},
+		Account: &Account{ID: 1},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.ReasoningEffort)
+	require.Equal(t, "xhigh", *usageRepo.lastLog.ReasoningEffort)
+	require.NotNil(t, usageRepo.lastLog.ThinkingEnabled)
+	require.True(t, *usageRepo.lastLog.ThinkingEnabled)
+}
+
 func TestGatewayServiceRecordUsage_ReasoningEffortNil(t *testing.T) {
 	usageRepo := &openAIRecordUsageBestEffortLogRepoStub{}
 	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})

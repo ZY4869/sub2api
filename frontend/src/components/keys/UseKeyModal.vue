@@ -75,6 +75,64 @@
         <!-- Code Blocks (Stacked for multi-file platforms) -->
         <div class="space-y-4">
           <div
+            v-if="showClaudeEffortControls"
+            class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-900/40"
+          >
+            <div class="space-y-3">
+              <div>
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {{ t('keys.useKeyModal.claudeEffort.modeLabel') }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('keys.useKeyModal.claudeEffort.modeHint') }}
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  @click="claudeEffortExportMode = 'dynamic'"
+                  class="rounded-lg border px-3 py-1.5 text-sm transition-colors"
+                  :class="claudeEffortExportMode === 'dynamic'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-500/10 dark:text-primary-300'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200'"
+                >
+                  {{ t('keys.useKeyModal.claudeEffort.dynamic') }}
+                </button>
+                <button
+                  type="button"
+                  @click="claudeEffortExportMode = 'fixed'"
+                  class="rounded-lg border px-3 py-1.5 text-sm transition-colors"
+                  :class="claudeEffortExportMode === 'fixed'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-500/10 dark:text-primary-300'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200'"
+                >
+                  {{ t('keys.useKeyModal.claudeEffort.fixed') }}
+                </button>
+              </div>
+              <div v-if="claudeEffortExportMode === 'fixed'" class="space-y-2">
+                <label class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {{ t('keys.useKeyModal.claudeEffort.fixedLevelLabel') }}
+                </label>
+                <select
+                  v-model="claudeFixedEffortLevel"
+                  class="input max-w-xs"
+                >
+                  <option v-for="level in claudeEffortLevels" :key="level" :value="level">
+                    {{ level }}
+                  </option>
+                </select>
+              </div>
+              <div class="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                {{
+                  claudeEffortExportMode === 'dynamic'
+                    ? t('keys.useKeyModal.claudeEffort.dynamicHint')
+                    : t('keys.useKeyModal.claudeEffort.fixedHint')
+                }}
+              </div>
+            </div>
+          </div>
+
+          <div
             v-for="(file, index) in currentFiles"
             :key="index"
             class="relative"
@@ -176,6 +234,9 @@ const { copyToClipboard: clipboardCopy } = useClipboard()
 const copiedIndex = ref<number | null>(null)
 const activeTab = ref<string>('unix')
 const activeClientTab = ref<string>('claude')
+const claudeEffortExportMode = ref<'dynamic' | 'fixed'>('dynamic')
+const claudeFixedEffortLevel = ref<'low' | 'medium' | 'high' | 'xhigh' | 'max'>('max')
+const claudeEffortLevels = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 
 // Reset tabs when platform changes
 const defaultClientTab = computed(() => {
@@ -195,12 +256,19 @@ const defaultClientTab = computed(() => {
 watch(() => props.platform, () => {
   activeTab.value = 'unix'
   activeClientTab.value = defaultClientTab.value
+  claudeEffortExportMode.value = 'dynamic'
+  claudeFixedEffortLevel.value = 'max'
 }, { immediate: true })
 
 // Reset shell tab when client changes
 watch(activeClientTab, () => {
   activeTab.value = 'unix'
 })
+
+const showClaudeEffortControls = computed(() => (
+  activeClientTab.value === 'claude' &&
+  (props.platform === 'anthropic' || props.platform === 'openai' || props.platform === 'antigravity')
+))
 
 // Icon components
 const AppleIcon = {
@@ -458,27 +526,44 @@ const currentFiles = computed((): FileConfig[] => {
 })
 
 function generateAnthropicFiles(baseUrl: string, apiKey: string): FileConfig[] {
+  const settingsPathModel = 'ANTHROPIC_DEFAULT_OPUS_MODEL'
+  const settingsPathName = 'ANTHROPIC_DEFAULT_OPUS_MODEL_NAME'
+  const settingsPathCapabilities = 'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES'
+  const modelId = 'third-party-opus'
+  const capabilityFlags = 'effort,xhigh_effort,max_effort,thinking,adaptive_thinking,interleaved_thinking'
   let path: string
   let content: string
+  const shellEffortLine = claudeEffortExportMode.value === 'fixed'
+    ? buildShellEffortLine(activeTab.value, claudeFixedEffortLevel.value)
+    : ''
 
   switch (activeTab.value) {
     case 'unix':
       path = 'Terminal'
       content = `export ANTHROPIC_BASE_URL="${baseUrl}"
 export ANTHROPIC_AUTH_TOKEN="${apiKey}"
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
+export ${settingsPathModel}="${modelId}"
+export ${settingsPathName}="Third-party Opus"
+export ${settingsPathCapabilities}="${capabilityFlags}"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1${shellEffortLine}`
       break
     case 'cmd':
       path = 'Command Prompt'
       content = `set ANTHROPIC_BASE_URL=${baseUrl}
 set ANTHROPIC_AUTH_TOKEN=${apiKey}
-set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
+set ${settingsPathModel}=${modelId}
+set ${settingsPathName}=Third-party Opus
+set ${settingsPathCapabilities}=${capabilityFlags}
+set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1${shellEffortLine}`
       break
     case 'powershell':
       path = 'PowerShell'
       content = `$env:ANTHROPIC_BASE_URL="${baseUrl}"
 $env:ANTHROPIC_AUTH_TOKEN="${apiKey}"
-$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
+$env:${settingsPathModel}="${modelId}"
+$env:${settingsPathName}="Third-party Opus"
+$env:${settingsPathCapabilities}="${capabilityFlags}"
+$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1${shellEffortLine}`
       break
     default:
       path = 'Terminal'
@@ -489,19 +574,43 @@ $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
     ? '~/.claude/settings.json'
     : '%userprofile%\\.claude\\settings.json'
 
-  const vscodeContent = `{
-  "env": {
-    "ANTHROPIC_BASE_URL": "${baseUrl}",
-    "ANTHROPIC_AUTH_TOKEN": "${apiKey}",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0"
+  const settingsObject: Record<string, unknown> = {
+    env: {
+      ANTHROPIC_BASE_URL: baseUrl,
+      ANTHROPIC_AUTH_TOKEN: apiKey,
+      ANTHROPIC_DEFAULT_OPUS_MODEL: modelId,
+      ANTHROPIC_DEFAULT_OPUS_MODEL_NAME: 'Third-party Opus',
+      ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES: capabilityFlags,
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+      CLAUDE_CODE_ATTRIBUTION_HEADER: '0',
+      ...(claudeEffortExportMode.value === 'fixed'
+        ? { CLAUDE_CODE_EFFORT_LEVEL: claudeFixedEffortLevel.value }
+        : {})
+    },
+    ...(claudeEffortExportMode.value === 'dynamic'
+      ? { effortLevel: 'xhigh' }
+      : {})
   }
-}`
+
+  const vscodeContent = JSON.stringify(settingsObject, null, 2)
 
   return [
     { path, content },
     { path: vscodeSettingsPath, content: vscodeContent, hint: 'VSCode Claude Code' }
   ]
+}
+
+function buildShellEffortLine(shell: string, effort: string): string {
+  switch (shell) {
+    case 'unix':
+      return `\nexport CLAUDE_CODE_EFFORT_LEVEL="${effort}"`
+    case 'cmd':
+      return `\nset CLAUDE_CODE_EFFORT_LEVEL=${effort}`
+    case 'powershell':
+      return `\n$env:CLAUDE_CODE_EFFORT_LEVEL="${effort}"`
+    default:
+      return ''
+  }
 }
 
 function generateGeminiCliContent(baseUrl: string, apiKey: string): FileConfig {
