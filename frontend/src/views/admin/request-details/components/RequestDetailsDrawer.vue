@@ -18,6 +18,7 @@ import {
   getRequestTraceExecutionFields,
   getRequestTraceFlagBadges,
   getRequestTraceIdentityFields,
+  getRequestTraceKeyFields,
   getRequestTraceRequestTypeLabel,
   getRequestTraceRouteFields,
   getRequestTraceStatusLabel,
@@ -142,6 +143,25 @@ const executionFields = computed(() => {
 const capabilityFields = computed(() => {
   if (!props.detail) return []
   return getRequestTraceCapabilityFields(t, props.detail)
+})
+
+const keyFieldItems = computed(() => {
+  if (!props.detail) return []
+  const all = [
+    ...getRequestTraceKeyFields(props.detail.inbound_request_json),
+    ...getRequestTraceKeyFields(props.detail.normalized_request_json),
+    ...getRequestTraceKeyFields(props.detail.upstream_request_json),
+    ...getRequestTraceKeyFields(props.detail.upstream_response_json),
+    ...getRequestTraceKeyFields(props.detail.gateway_response_json),
+    ...getRequestTraceKeyFields(props.detail.tool_trace_json)
+  ]
+  const deduped = new Map<string, string>()
+  for (const item of all) {
+    if (!deduped.has(item.key)) {
+      deduped.set(item.key, item.value)
+    }
+  }
+  return Array.from(deduped.entries()).map(([key, value]) => ({ key, value }))
 })
 
 const flagBadges = computed(() => {
@@ -658,6 +678,29 @@ watch(
                   {{ t('admin.requestDetails.presentation.labels.responseHeaders') }}
                 </div>
                 <pre class="max-h-[260px] overflow-auto rounded-2xl bg-gray-50 p-4 text-xs text-gray-800 dark:bg-dark-800 dark:text-gray-200"><code>{{ responseHeaders || '-' }}</code></pre>
+              </div>
+            </div>
+          </section>
+
+          <section
+            v-if="keyFieldItems.length > 0"
+            class="rounded-3xl border border-gray-200 p-5 dark:border-dark-700"
+          >
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.requestDetails.drawer.sections.keyFields') }}
+            </h3>
+            <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div
+                v-for="item in keyFieldItems"
+                :key="item.key"
+                class="rounded-2xl bg-gray-50 px-4 py-3 dark:bg-dark-800"
+              >
+                <div class="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                  {{ item.key }}
+                </div>
+                <div class="mt-2 break-all font-mono text-xs text-gray-700 dark:text-gray-200">
+                  {{ item.value }}
+                </div>
               </div>
             </div>
           </section>

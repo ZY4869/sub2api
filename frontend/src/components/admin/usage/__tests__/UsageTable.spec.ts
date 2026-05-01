@@ -29,6 +29,8 @@ const messages: Record<string, string> = {
   'usage.original': 'Original',
   'usage.userBilled': 'User billed',
   'usage.accountBilled': 'Account billed',
+  'admin.usage.cacheCreationTokens': 'Cache Creation Tokens',
+  'admin.usage.cacheReadTokens': 'Cache Read Tokens',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -49,6 +51,7 @@ const DataTableStub = {
       <div v-for="(row, index) in data" :key="(row && row[rowKey]) || row.request_id || index">
         <slot name="cell-status" :row="row" />
         <slot name="cell-request_protocol" :row="row" />
+        <slot name="cell-tokens" :row="row" />
         <slot name="cell-cost" :row="row" />
       </div>
     </div>
@@ -103,7 +106,7 @@ describe('admin UsageTable tooltip', () => {
       },
     })
 
-    await wrapper.find('.group.relative').trigger('mouseenter')
+    await wrapper.findAll('.group.relative')[1]?.trigger('mouseenter')
     await nextTick()
 
     const text = wrapper.text()
@@ -225,5 +228,49 @@ describe('admin UsageTable tooltip', () => {
     })
 
     expect(wrapper.get('[data-testid="row-key-prop"]').text()).toBe('id')
+  })
+
+  it('shows DeepSeek cache labels as Cache Hit and Cache Miss', async () => {
+    const row = {
+      id: 4,
+      request_id: 'req-admin-deepseek-cache',
+      upstream_service: 'deepseek',
+      input_tokens: 12,
+      output_tokens: 34,
+      cache_creation_tokens: 56,
+      cache_read_tokens: 78,
+      cache_creation_1h_tokens: 0,
+      cache_ttl_overridden: false,
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+    }
+
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [row],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    await wrapper.findAll('.group.relative')[0]?.trigger('mouseenter')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Cache Hit')
+    expect(wrapper.text()).toContain('Cache Miss')
   })
 })

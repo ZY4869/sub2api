@@ -47,3 +47,28 @@ func TestBuildOpsTracePayloadEnvelopeJSONCompactsLargeStrings(t *testing.T) {
 		t.Fatalf("compacted payload missing large string marker: %s", *got)
 	}
 }
+
+func TestSetOpsTraceGatewayResponseUsesConfiguredPreviewLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	SetOpsTracePayloadPreviewLimit(c, 32)
+
+	SetOpsTraceGatewayResponse(
+		c,
+		"preview_limited_response",
+		[]byte(`{"model":"deepseek-v4-pro","reasoning_effort":"high","payload":"`+strings.Repeat("A", 128)+`"}`),
+		"application/json",
+		false,
+	)
+
+	got := GetOpsTraceGatewayResponseJSON(c)
+	if got == nil {
+		t.Fatalf("expected trace payload")
+	}
+	if !strings.Contains(*got, `"preview_limit_bytes":32`) {
+		t.Fatalf("expected configured preview limit to be applied: %s", *got)
+	}
+	if !strings.Contains(*got, `"payload_exceeds_preview_limit"`) {
+		t.Fatalf("expected payload omission marker: %s", *got)
+	}
+}

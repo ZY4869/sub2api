@@ -217,14 +217,16 @@ export function formatReasoningEffort(
   const normalized = raw.toLowerCase().replace(/[-_\s]/g, "");
   switch (normalized) {
     case "low":
-      return translateWithFallback("usage.reasoningEffortLow", "低", "Low");
+      return "Low";
     case "medium":
-      return translateWithFallback("usage.reasoningEffortMedium", "中", "Medium");
+      return "Medium";
     case "high":
-      return translateWithFallback("usage.reasoningEffortHigh", "高", "High");
+      return "High";
+    case "max":
+      return "Max";
     case "xhigh":
     case "extrahigh":
-      return translateWithFallback("usage.reasoningEffortXhigh", "超高", "Xhigh");
+      return "Xhigh";
     case "none":
     case "minimal":
       return "-";

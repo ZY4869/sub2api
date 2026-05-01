@@ -22,6 +22,7 @@ const (
 	opsTraceUpstreamResponsePayloadKey  = "ops_trace_upstream_response_payload"
 	opsTraceGatewayResponsePayloadKey   = "ops_trace_gateway_response_payload"
 	opsTraceToolTracePayloadKey         = "ops_trace_tool_trace_payload"
+	opsTracePayloadPreviewLimitKey      = "ops_trace_payload_preview_limit"
 )
 
 type OpsTracePayloadEnvelope struct {
@@ -29,6 +30,7 @@ type OpsTracePayloadEnvelope struct {
 	Source      string               `json:"source,omitempty"`
 	Truncated   bool                 `json:"truncated,omitempty"`
 	ContentType string               `json:"content_type,omitempty"`
+	KeyFields   map[string]any       `json:"key_fields,omitempty"`
 	Payload     any                  `json:"payload,omitempty"`
 }
 
@@ -52,6 +54,13 @@ func SetOpsTraceToolTrace(c *gin.Context, source string, payload any) {
 	setOpsTracePayload(c, opsTraceToolTracePayloadKey, OpsTracePayloadStateCaptured, source, payload, "application/json", false)
 }
 
+func SetOpsTracePayloadPreviewLimit(c *gin.Context, maxBytes int) {
+	if c == nil || maxBytes <= 0 {
+		return
+	}
+	c.Set(opsTracePayloadPreviewLimitKey, maxBytes)
+}
+
 func GetOpsTraceNormalizedRequestJSON(c *gin.Context) *string {
 	return getOpsTracePayloadJSON(c, opsTraceNormalizedRequestPayloadKey)
 }
@@ -73,6 +82,10 @@ func GetOpsTraceToolTraceJSON(c *gin.Context) *string {
 }
 
 func BuildOpsTracePayloadEnvelopeJSON(state OpsTracePayloadState, source string, payload any, contentType string, truncated bool) *string {
+	return BuildOpsTracePayloadEnvelopeJSONWithKeyFields(state, source, payload, contentType, truncated, nil)
+}
+
+func BuildOpsTracePayloadEnvelopeJSONWithKeyFields(state OpsTracePayloadState, source string, payload any, contentType string, truncated bool, keyFields map[string]any) *string {
 	state = normalizeOpsTracePayloadState(state)
 	normalizedPayload := normalizeOpsTracePayloadEnvelopePayload(payload)
 	if normalizedPayload == nil {
@@ -86,6 +99,7 @@ func BuildOpsTracePayloadEnvelopeJSON(state OpsTracePayloadState, source string,
 		Source:      strings.TrimSpace(source),
 		Truncated:   truncated,
 		ContentType: strings.TrimSpace(contentType),
+		KeyFields:   normalizeOpsTraceKeyFields(keyFields),
 		Payload:     normalizedPayload,
 	}
 	raw, err := json.Marshal(envelope)
@@ -105,29 +119,34 @@ func BuildOpsTracePayloadEnvelopeJSON(state OpsTracePayloadState, source string,
 }
 
 func BuildOpsTracePayloadEnvelopeJSONFromBytes(payload []byte, maxBytes int, state OpsTracePayloadState, source string, contentType string) *string {
+	return BuildOpsTracePayloadEnvelopeJSONFromBytesWithKeyFields(payload, maxBytes, state, source, contentType, nil)
+}
+
+func BuildOpsTracePayloadEnvelopeJSONFromBytesWithKeyFields(payload []byte, maxBytes int, state OpsTracePayloadState, source string, contentType string, keyFields map[string]any) *string {
 	if len(payload) == 0 {
-		return BuildOpsTracePayloadEnvelopeJSON(OpsTracePayloadStateEmpty, source, nil, contentType, false)
+		return BuildOpsTracePayloadEnvelopeJSONWithKeyFields(OpsTracePayloadStateEmpty, source, nil, contentType, false, keyFields)
 	}
 	if maxBytes > 0 && len(payload) > maxBytes {
-		return BuildOpsTracePayloadEnvelopeJSON(
+		return BuildOpsTracePayloadEnvelopeJSONWithKeyFields(
 			state,
 			source,
 			buildOpsTraceOmittedPayloadSummary(len(payload), maxBytes, "payload_exceeds_preview_limit"),
 			contentType,
 			true,
+			keyFields,
 		)
 	}
 
 	sanitized, truncated, _ := sanitizeAndTrimRequestBody(payload, maxBytes)
 	if strings.TrimSpace(sanitized) != "" {
 		if parsed, ok := parseOpsTracePayloadValue(sanitized); ok {
-			return BuildOpsTracePayloadEnvelopeJSON(state, source, parsed, contentType, truncated)
+			return BuildOpsTracePayloadEnvelopeJSONWithKeyFields(state, source, parsed, contentType, truncated, keyFields)
 		}
 	}
 
 	text := strings.TrimSpace(string(payload))
 	if text == "" {
-		return BuildOpsTracePayloadEnvelopeJSON(OpsTracePayloadStateEmpty, source, nil, contentType, truncated)
+		return BuildOpsTracePayloadEnvelopeJSONWithKeyFields(OpsTracePayloadStateEmpty, source, nil, contentType, truncated, keyFields)
 	}
 	if maxBytes > 0 && len(text) > maxBytes {
 		text = truncateString(text, maxBytes)
@@ -136,28 +155,56 @@ func BuildOpsTracePayloadEnvelopeJSONFromBytes(payload []byte, maxBytes int, sta
 	if contentType == "" {
 		contentType = "text/plain"
 	}
-	return BuildOpsTracePayloadEnvelopeJSON(state, source, text, contentType, truncated)
+	return BuildOpsTracePayloadEnvelopeJSONWithKeyFields(state, source, text, contentType, truncated, keyFields)
 }
 
 func setOpsTracePayload(c *gin.Context, key string, state OpsTracePayloadState, source string, payload any, contentType string, truncated bool) {
 	if c == nil || strings.TrimSpace(key) == "" {
 		return
 	}
+	previewLimit := resolveOpsTracePayloadPreviewLimit(c)
+	keyFields := ExtractOpsTraceKeyFieldsFromPayload(payload)
 	switch typed := payload.(type) {
 	case []byte:
-		if value := BuildOpsTracePayloadEnvelopeJSONFromBytes(typed, opsTracePayloadInlineBytesLimit, state, source, contentType); value != nil {
+		keyFields = ExtractOpsTraceKeyFieldsFromBytes(typed)
+		if value := BuildOpsTracePayloadEnvelopeJSONFromBytesWithKeyFields(typed, previewLimit, state, source, contentType, keyFields); value != nil {
 			c.Set(key, *value)
 		}
 		return
 	case string:
-		if len(typed) > opsTracePayloadInlineBytesLimit {
-			payload = buildOpsTraceOmittedPayloadSummary(len(typed), opsTracePayloadInlineBytesLimit, "payload_exceeds_preview_limit")
+		if len(typed) > previewLimit {
+			payload = buildOpsTraceOmittedPayloadSummary(len(typed), previewLimit, "payload_exceeds_preview_limit")
 			truncated = true
 		}
 	}
-	if value := BuildOpsTracePayloadEnvelopeJSON(state, source, payload, contentType, truncated); value != nil {
+	if value := BuildOpsTracePayloadEnvelopeJSONWithKeyFields(state, source, payload, contentType, truncated, keyFields); value != nil {
 		c.Set(key, *value)
 	}
+}
+
+func resolveOpsTracePayloadPreviewLimit(c *gin.Context) int {
+	if c == nil {
+		return opsTracePayloadInlineBytesLimit
+	}
+	value, ok := c.Get(opsTracePayloadPreviewLimitKey)
+	if !ok {
+		return opsTracePayloadInlineBytesLimit
+	}
+	switch typed := value.(type) {
+	case int:
+		if typed > 0 {
+			return typed
+		}
+	case int64:
+		if typed > 0 {
+			return int(typed)
+		}
+	case float64:
+		if typed > 0 {
+			return int(typed)
+		}
+	}
+	return opsTracePayloadInlineBytesLimit
 }
 
 func getOpsTracePayloadJSON(c *gin.Context, key string) *string {
@@ -260,6 +307,29 @@ func buildOpsTraceOmittedPayloadSummary(bytesLen int, limit int, reason string) 
 		"bytes":               bytesLen,
 		"preview_limit_bytes": limit,
 	}
+}
+
+func normalizeOpsTraceKeyFields(fields map[string]any) map[string]any {
+	if len(fields) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(fields))
+	for key, value := range fields {
+		trimmedKey := strings.TrimSpace(key)
+		if trimmedKey == "" {
+			continue
+		}
+		switch typed := value.(type) {
+		case nil, bool, float64, int, int64, string:
+			out[trimmedKey] = typed
+		case json.Number:
+			out[trimmedKey] = typed.String()
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func parseOpsTracePayloadValue(raw string) (any, bool) {

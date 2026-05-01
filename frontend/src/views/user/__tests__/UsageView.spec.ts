@@ -1158,4 +1158,85 @@ describe("user UsageView tooltip", () => {
 
     expect(wrapper.text()).toContain("Failed to load request details");
   });
+
+  it("uses Cache Hit and Cache Miss labels for DeepSeek token tooltips", async () => {
+    query.mockResolvedValue({
+      items: [
+        {
+          id: 10,
+          request_id: "req-user-deepseek-cache",
+          model: "deepseek-v4-pro",
+          status: "succeeded",
+          upstream_service: "deepseek",
+          thinking_enabled: true,
+          reasoning_effort: "high",
+          actual_cost: 0.01,
+          total_cost: 0.01,
+          rate_multiplier: 1,
+          service_tier: "standard",
+          input_cost: 0.004,
+          output_cost: 0.006,
+          cache_creation_cost: 0,
+          cache_read_cost: 0,
+          input_tokens: 100,
+          output_tokens: 200,
+          cache_creation_tokens: 20,
+          cache_read_tokens: 40,
+          cache_creation_5m_tokens: 0,
+          cache_creation_1h_tokens: 0,
+          image_count: 0,
+          image_size: null,
+          first_token_ms: 20,
+          duration_ms: 40,
+          created_at: "2026-03-08T00:00:00Z",
+          api_key: { name: "preview-key" },
+        },
+      ],
+      total: 1,
+      pages: 1,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 1,
+      total_tokens: 300,
+      total_cost: 0.01,
+      avg_duration_ms: 40,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const setupState = (wrapper.vm as any).$?.setupState;
+    setupState.tokenTooltipData = {
+      upstream_service: "deepseek",
+      input_tokens: 100,
+      output_tokens: 200,
+      cache_creation_tokens: 20,
+      cache_read_tokens: 40,
+      cache_creation_5m_tokens: 0,
+      cache_creation_1h_tokens: 0,
+      cache_ttl_overridden: false,
+    };
+    setupState.tokenTooltipVisible = true;
+    await nextTick();
+
+    expect(wrapper.text()).toContain("Cache Hit");
+    expect(wrapper.text()).toContain("Cache Miss");
+  });
 });

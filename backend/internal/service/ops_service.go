@@ -451,7 +451,7 @@ func sanitizeAndTrimRequestBody(raw []byte, maxBytes int) (jsonString string, tr
 			decoded = trimmed
 		}
 
-		essential := shrinkToEssentials(root)
+		essential := shrinkToEssentials(root, maxBytes)
 		encoded3, err3 := json.Marshal(essential)
 		if err3 == nil && len(encoded3) <= maxBytes {
 			return string(encoded3), true, bytesLen
@@ -681,11 +681,13 @@ func trimArrayField(root map[string]any, field string, maxBytes int) (map[string
 	return next, true
 }
 
-func shrinkToEssentials(root map[string]any) map[string]any {
+func shrinkToEssentials(root map[string]any, maxBytes int) map[string]any {
 	out := make(map[string]any)
 	for _, key := range []string{
 		"model",
 		"stream",
+		"reasoning_effort",
+		"service_tier",
 		"max_tokens",
 		"max_output_tokens",
 		"max_input_tokens",
@@ -700,6 +702,10 @@ func shrinkToEssentials(root map[string]any) map[string]any {
 		}
 	}
 
+	if key, value, ok := compactTopLevelPromptValue(root, maxBytes); ok {
+		out[key] = value
+	}
+
 	// Keep only the last element of the conversation array.
 	if v, ok := root["messages"]; ok {
 		if arr, ok := v.([]any); ok && len(arr) > 0 {
@@ -712,6 +718,33 @@ func shrinkToEssentials(root map[string]any) map[string]any {
 		}
 	}
 	return out
+}
+
+func compactTopLevelPromptValue(root map[string]any, maxBytes int) (string, any, bool) {
+	budget := maxBytes / 4
+	if budget <= 0 {
+		budget = 256
+	}
+	if budget > 16*1024 {
+		budget = 16 * 1024
+	}
+	for _, key := range []string{"input", "prompt", "text"} {
+		value, ok := root[key]
+		if !ok {
+			continue
+		}
+		switch typed := value.(type) {
+		case string:
+			return key, truncateString(typed, budget), true
+		case []any:
+			if len(typed) > 0 {
+				return key, []any{typed[len(typed)-1]}, true
+			}
+		default:
+			return key, typed, true
+		}
+	}
+	return "", nil, false
 }
 
 func shallowCopyMap(m map[string]any) map[string]any {

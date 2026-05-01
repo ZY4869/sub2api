@@ -6,6 +6,7 @@ export interface RequestPreviewEnvelope {
   source?: string
   truncated?: boolean
   content_type?: string
+  key_fields?: Record<string, string | number | boolean | null>
   payload?: unknown
 }
 
@@ -18,6 +19,7 @@ export interface ParsedRequestPreviewContent {
   source: string
   truncated: boolean
   contentType: string
+  keyFields: Record<string, string | number | boolean | null>
   payload: unknown
 }
 
@@ -71,6 +73,28 @@ function formatPayload(payload: unknown): string {
   }
 }
 
+function normalizeKeyFields(
+  value: unknown,
+): Record<string, string | number | boolean | null> {
+  if (!isRecord(value)) {
+    return {}
+  }
+  const out: Record<string, string | number | boolean | null> = {}
+  for (const [key, fieldValue] of Object.entries(value)) {
+    const trimmedKey = key.trim()
+    if (!trimmedKey) continue
+    if (
+      fieldValue === null
+      || typeof fieldValue === 'string'
+      || typeof fieldValue === 'number'
+      || typeof fieldValue === 'boolean'
+    ) {
+      out[trimmedKey] = fieldValue
+    }
+  }
+  return out
+}
+
 export function parseRequestPreviewContent(raw?: string | null): ParsedRequestPreviewContent {
   const normalizedRaw = String(raw || '').trim()
   if (!normalizedRaw) {
@@ -84,6 +108,7 @@ export function parseRequestPreviewContent(raw?: string | null): ParsedRequestPr
       truncated: false,
       contentType: '',
       payload: null,
+      keyFields: {},
     }
   }
 
@@ -103,6 +128,7 @@ export function parseRequestPreviewContent(raw?: string | null): ParsedRequestPr
         source: String(parsed.source || '').trim(),
         truncated: Boolean(parsed.truncated),
         contentType: String(parsed.content_type || '').trim(),
+        keyFields: normalizeKeyFields(parsed.key_fields),
         payload: typeof parsed.payload === 'undefined' ? null : parsed.payload,
       }
     }
@@ -116,6 +142,7 @@ export function parseRequestPreviewContent(raw?: string | null): ParsedRequestPr
       source: '',
       truncated: false,
       contentType: 'application/json',
+      keyFields: {},
       payload: parsed,
     }
   } catch {
@@ -128,6 +155,7 @@ export function parseRequestPreviewContent(raw?: string | null): ParsedRequestPr
       source: '',
       truncated: false,
       contentType: 'text/plain',
+      keyFields: {},
       payload: normalizedRaw,
     }
   }

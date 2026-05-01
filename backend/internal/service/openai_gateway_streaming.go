@@ -385,7 +385,13 @@ func (s *OpenAIGatewayService) parseSSEUsageBytes(data []byte, usage *OpenAIUsag
 	}
 	usage.InputTokens = int(gjson.GetBytes(data, "response.usage.input_tokens").Int())
 	usage.OutputTokens = int(gjson.GetBytes(data, "response.usage.output_tokens").Int())
-	usage.CacheReadInputTokens = int(gjson.GetBytes(data, "response.usage.input_tokens_details.cached_tokens").Int())
+	if miss := gjson.GetBytes(data, "response.usage.prompt_cache_miss_tokens"); miss.Exists() && miss.Int() > 0 {
+		usage.CacheCreationInputTokens = int(miss.Int())
+	}
+	usage.CacheReadInputTokens = int(firstPositiveInt64(
+		gjson.GetBytes(data, "response.usage.prompt_cache_hit_tokens").Int(),
+		gjson.GetBytes(data, "response.usage.input_tokens_details.cached_tokens").Int(),
+	))
 }
 
 func countOpenAIResponsesOutputImagesFromTerminalEvent(data []byte) int {

@@ -16,6 +16,11 @@ export interface RequestTraceField {
   mono?: boolean
 }
 
+export interface RequestTraceKeyFieldItem {
+  key: string
+  value: string
+}
+
 export interface RequestTraceBadge {
   key: string
   label: string
@@ -251,6 +256,16 @@ export function formatPrettyJSON(raw?: string): string {
   } catch {
     return raw
   }
+}
+
+export function getRequestTraceKeyFields(raw?: string | null): RequestTraceKeyFieldItem[] {
+  const parsed = parseRequestPreviewContent(raw)
+  return Object.entries(parsed.keyFields)
+    .map(([key, value]) => ({
+      key,
+      value: value === null ? '-' : String(value)
+    }))
+    .sort((left, right) => left.key.localeCompare(right.key))
 }
 
 export function getRequestTraceStatusLabel(t: TranslateFn, status?: string): string {

@@ -49,6 +49,8 @@ export default {
         requestDetailCleanupScheduleHint: "例如：0 2 * * * 表示每天凌晨2点",
         requestDetailRetentionDays: "请求详细保留天数",
         requestDetailRetentionDaysHint: "范围 0-365。0 表示每次定时清理时清空全部请求详细、脱敏 payload 与原文 trace 数据。",
+        requestDetailPayloadPreviewLimitBytes: "请求详细 Payload 预览上限（字节）",
+        requestDetailPayloadPreviewLimitBytesHint: "仅控制请求详情预览和脱敏摘要的单段预览上限，范围 4096-1048576，默认 65536。",
         successSampleRate: "成功请求采样率",
         successSampleRateHint: "仅作用于未被强制保留的成功请求，填写 0 到 1 之间的小数。",
         forceCaptureSlowMs: "慢请求强制保留阈值",
@@ -82,6 +84,7 @@ export default {
         validation: {
             title: "请先修正以下问题",
             retentionDaysRange: "保留天数必须在0-365天之间",
+            requestDetailPayloadPreviewLimitRange: "请求详细 Payload 预览上限必须在 4096 到 1048576 字节之间",
             successSampleRateRange: "成功采样率必须在 0 到 1 之间",
             forceCaptureSlowMsRange: "慢请求阈值必须在 100 到 300000 毫秒之间",
             rawExportMaxRowsRange: "原文导出最大行数必须在 100 到 100000 之间",

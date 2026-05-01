@@ -301,7 +301,7 @@ func buildOpsTraceInputForTest(
 		require.NoError(t, err)
 	}
 
-	input := buildOpsRequestTraceInput(c, writer, time.Now().Add(-duration))
+	input := buildOpsRequestTraceInput(nil, c, writer, time.Now().Add(-duration))
 	require.NotNil(t, input)
 	return input
 }

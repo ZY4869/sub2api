@@ -279,6 +279,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		applyCacheTTLOverride(&result.Usage, account.GetCacheTTLOverrideTarget())
 		cacheTTLOverridden = (result.Usage.CacheCreation5mTokens + result.Usage.CacheCreation1hTokens) > 0
 	}
+	usageProvider := ResolveUsageLogUpstreamService(account, input.UpstreamService)
+	normalizedUsage := normalizeClaudeUsageForDisplayAndBilling(usageProvider, result.Usage)
 	multiplier := 1.0
 	if s.cfg != nil {
 		multiplier = s.cfg.Default.RateMultiplier
@@ -287,14 +289,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		groupDefault := apiKey.Group.RateMultiplier
 		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
-	tokens := UsageTokens{
-		InputTokens:           result.Usage.InputTokens,
-		OutputTokens:          result.Usage.OutputTokens,
-		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:       result.Usage.CacheReadInputTokens,
-		CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
-		CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
-	}
+	tokens := normalizedUsage.BillingTokens
 	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
 		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens + tokens.CacheCreation5mTokens + tokens.CacheCreation1hTokens,
 		ImageOutputTokens: result.Usage.OutputTokens,
@@ -307,7 +302,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
 		Model:                billingModel,
-		Provider:             RoutingPlatformForAccount(account),
+		Provider:             usageProvider,
 		Layer:                BillingLayerSale,
 		InboundEndpoint:      input.InboundEndpoint,
 		RawInboundPath:       input.RawInboundPath,
@@ -353,7 +348,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if thinkingEnabled == nil {
 		thinkingEnabled = usageLogThinkingEnabledFromContext(ctx)
 	}
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingCurrency: billingCurrency, TotalCostUSDEquivalent: cost.TotalCostUSDEquivalent, ActualCostUSDEquivalent: actualCostUSDEquivalent, USDToCNYRate: cost.USDToCNYRate, FXRateDate: optionalTrimmedStringPtr(cost.FXRateDate), FXLockedAt: cloneBillingTime(cost.FXLockedAt), CostByCurrency: cloneBillingStringMapFloat64(cost.CostByCurrency), ActualCostByCurrency: normalizedBillingCostMap(billingCurrency, actualCost), BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
+	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(usageProvider), InputTokens: normalizedUsage.DisplayTokens.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: normalizedUsage.DisplayTokens.CacheCreationTokens, CacheReadTokens: normalizedUsage.DisplayTokens.CacheReadTokens, CacheCreation5mTokens: normalizedUsage.DisplayTokens.CacheCreation5mTokens, CacheCreation1hTokens: normalizedUsage.DisplayTokens.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingCurrency: billingCurrency, TotalCostUSDEquivalent: cost.TotalCostUSDEquivalent, ActualCostUSDEquivalent: actualCostUSDEquivalent, USDToCNYRate: cost.USDToCNYRate, FXRateDate: optionalTrimmedStringPtr(cost.FXRateDate), FXLockedAt: cloneBillingTime(cost.FXLockedAt), CostByCurrency: cloneBillingStringMapFloat64(cost.CostByCurrency), ActualCostByCurrency: normalizedBillingCostMap(billingCurrency, actualCost), BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}
@@ -435,6 +430,8 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		applyCacheTTLOverride(&result.Usage, account.GetCacheTTLOverrideTarget())
 		cacheTTLOverridden = (result.Usage.CacheCreation5mTokens + result.Usage.CacheCreation1hTokens) > 0
 	}
+	usageProvider := ResolveUsageLogUpstreamService(account, input.UpstreamService)
+	normalizedUsage := normalizeClaudeUsageForDisplayAndBilling(usageProvider, result.Usage)
 	multiplier := 1.0
 	if s.cfg != nil {
 		multiplier = s.cfg.Default.RateMultiplier
@@ -443,14 +440,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		groupDefault := apiKey.Group.RateMultiplier
 		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
-	tokens := UsageTokens{
-		InputTokens:           result.Usage.InputTokens,
-		OutputTokens:          result.Usage.OutputTokens,
-		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:       result.Usage.CacheReadInputTokens,
-		CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
-		CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
-	}
+	tokens := normalizedUsage.BillingTokens
 	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
 		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens + tokens.CacheCreation5mTokens + tokens.CacheCreation1hTokens,
 		ImageOutputTokens: result.Usage.OutputTokens,
@@ -463,7 +453,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
 		Model:                 billingModel,
-		Provider:              RoutingPlatformForAccount(account),
+		Provider:              usageProvider,
 		Layer:                 BillingLayerSale,
 		InboundEndpoint:       input.InboundEndpoint,
 		RawInboundPath:        input.RawInboundPath,
@@ -511,7 +501,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if thinkingEnabled == nil {
 		thinkingEnabled = usageLogThinkingEnabledFromContext(ctx)
 	}
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingCurrency: billingCurrency, TotalCostUSDEquivalent: cost.TotalCostUSDEquivalent, ActualCostUSDEquivalent: actualCostUSDEquivalent, USDToCNYRate: cost.USDToCNYRate, FXRateDate: optionalTrimmedStringPtr(cost.FXRateDate), FXLockedAt: cloneBillingTime(cost.FXLockedAt), CostByCurrency: cloneBillingStringMapFloat64(cost.CostByCurrency), ActualCostByCurrency: normalizedBillingCostMap(billingCurrency, actualCost), BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
+	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(usageProvider), InputTokens: normalizedUsage.DisplayTokens.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: normalizedUsage.DisplayTokens.CacheCreationTokens, CacheReadTokens: normalizedUsage.DisplayTokens.CacheReadTokens, CacheCreation5mTokens: normalizedUsage.DisplayTokens.CacheCreation5mTokens, CacheCreation1hTokens: normalizedUsage.DisplayTokens.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingCurrency: billingCurrency, TotalCostUSDEquivalent: cost.TotalCostUSDEquivalent, ActualCostUSDEquivalent: actualCostUSDEquivalent, USDToCNYRate: cost.USDToCNYRate, FXRateDate: optionalTrimmedStringPtr(cost.FXRateDate), FXLockedAt: cloneBillingTime(cost.FXLockedAt), CostByCurrency: cloneBillingStringMapFloat64(cost.CostByCurrency), ActualCostByCurrency: normalizedBillingCostMap(billingCurrency, actualCost), BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}

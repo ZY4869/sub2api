@@ -56,13 +56,14 @@ type OpsRecordRequestTraceInput struct {
 }
 
 type opsRequestTraceRuntimeConfig struct {
-	Enabled            bool
-	EncryptionKey      string
-	RawAccessUserIDs   map[int64]struct{}
-	RetentionDays      int
-	SuccessSampleRate  float64
-	ForceCaptureSlowMs int64
-	RawExportMaxRows   int
+	Enabled                  bool
+	EncryptionKey            string
+	RawAccessUserIDs         map[int64]struct{}
+	RetentionDays            int
+	PayloadPreviewLimitBytes int
+	SuccessSampleRate        float64
+	ForceCaptureSlowMs       int64
+	RawExportMaxRows         int
 }
 
 func (s *OpsService) RecordRequestTrace(ctx context.Context, input *OpsRecordRequestTraceInput) error {
@@ -150,7 +151,7 @@ func (s *OpsService) RecordRequestTrace(ctx context.Context, input *OpsRecordReq
 			"inbound_request_fallback",
 			"ops_trace_inbound_request_jsonb_fallback",
 			"application/json",
-			sanitizeTracePayloadForStorage(input.Trace.RawRequest, opsRequestTraceInboundPreviewLimit, "application/json"),
+			sanitizeTracePayloadForStorage(input.Trace.RawRequest, runtimeCfg.PayloadPreviewLimitBytes, "application/json"),
 		)
 	}
 	insert.NormalizedRequestJSON = normalizeJSONBField(
@@ -182,7 +183,7 @@ func (s *OpsService) RecordRequestTrace(ctx context.Context, input *OpsRecordReq
 			"gateway_response_fallback",
 			"ops_trace_gateway_response_jsonb_fallback",
 			"application/json",
-			sanitizeTracePayloadForStorage(input.Trace.RawResponse, opsRequestTracePayloadJSONLimit, ""),
+			sanitizeTracePayloadForStorage(input.Trace.RawResponse, runtimeCfg.PayloadPreviewLimitBytes, ""),
 		)
 	}
 	insert.ToolTraceJSON = normalizeJSONBField(
@@ -659,13 +660,14 @@ func (s *OpsService) requestDetailRetentionDays(ctx context.Context) int {
 
 func (s *OpsService) getOpsRequestTraceRuntimeConfig(ctx context.Context) opsRequestTraceRuntimeConfig {
 	cfg := opsRequestTraceRuntimeConfig{
-		Enabled:            true,
-		EncryptionKey:      "",
-		RawAccessUserIDs:   map[int64]struct{}{},
-		RetentionDays:      30,
-		SuccessSampleRate:  0.1,
-		ForceCaptureSlowMs: opsRequestTraceDefaultSlowMs,
-		RawExportMaxRows:   10000,
+		Enabled:                  true,
+		EncryptionKey:            "",
+		RawAccessUserIDs:         map[int64]struct{}{},
+		RetentionDays:            30,
+		PayloadPreviewLimitBytes: opsTracePayloadInlineBytesLimit,
+		SuccessSampleRate:        0.1,
+		ForceCaptureSlowMs:       opsRequestTraceDefaultSlowMs,
+		RawExportMaxRows:         10000,
 	}
 
 	if s != nil && s.cfg != nil {
@@ -696,6 +698,9 @@ func (s *OpsService) getOpsRequestTraceRuntimeConfig(ctx context.Context) opsReq
 			if advanced.RequestDetailRetentionDays > 0 {
 				cfg.RetentionDays = advanced.RequestDetailRetentionDays
 			}
+			if advanced.RequestDetailPayloadPreviewLimitBytes > 0 {
+				cfg.PayloadPreviewLimitBytes = advanced.RequestDetailPayloadPreviewLimitBytes
+			}
 			if advanced.SuccessSampleRate >= 0 {
 				cfg.SuccessSampleRate = advanced.SuccessSampleRate
 			}
@@ -713,6 +718,9 @@ func (s *OpsService) getOpsRequestTraceRuntimeConfig(ctx context.Context) opsReq
 	}
 	if cfg.SuccessSampleRate > 1 {
 		cfg.SuccessSampleRate = 1
+	}
+	if cfg.PayloadPreviewLimitBytes <= 0 {
+		cfg.PayloadPreviewLimitBytes = opsTracePayloadInlineBytesLimit
 	}
 	if cfg.ForceCaptureSlowMs <= 0 {
 		cfg.ForceCaptureSlowMs = opsRequestTraceDefaultSlowMs
@@ -948,12 +956,29 @@ func sanitizeTracePayloadForStorage(payload []byte, maxBytes int, contentType st
 	if len(payload) == 0 {
 		return nil
 	}
-	return BuildOpsTracePayloadEnvelopeJSONFromBytes(
+	keyFields := ExtractOpsTraceKeyFieldsFromBytes(payload)
+	if sanitized, truncated, _ := sanitizeAndTrimRequestBody(payload, maxBytes); strings.TrimSpace(sanitized) != "" {
+		if strings.TrimSpace(contentType) == "" {
+			contentType = "application/json"
+		}
+		if parsed, ok := parseOpsTracePayloadValue(sanitized); ok {
+			return BuildOpsTracePayloadEnvelopeJSONWithKeyFields(
+				OpsTracePayloadStateCaptured,
+				"legacy_capture_fallback",
+				parsed,
+				contentType,
+				truncated,
+				keyFields,
+			)
+		}
+	}
+	return BuildOpsTracePayloadEnvelopeJSONFromBytesWithKeyFields(
 		payload,
 		maxBytes,
 		OpsTracePayloadStateCaptured,
 		"legacy_capture_fallback",
 		contentType,
+		keyFields,
 	)
 }
 
@@ -984,11 +1009,57 @@ func buildOpsRequestTraceSearchText(input *OpsInsertRequestTraceInput) string {
 		input.CountTokensSource,
 		strings.Join(input.ToolKinds, " "),
 	}
+	for _, raw := range []*string{
+		input.InboundRequestJSON,
+		input.NormalizedRequestJSON,
+		input.UpstreamRequestJSON,
+		input.UpstreamResponseJSON,
+		input.GatewayResponseJSON,
+		input.ToolTraceJSON,
+	} {
+		parts = append(parts, buildOpsTraceKeyFieldSearchTerms(raw)...)
+	}
 	value := strings.Join(dedupeNonEmptyStrings(parts), " ")
 	if len(value) > opsRequestTraceSearchTextLimit {
 		value = truncateString(value, opsRequestTraceSearchTextLimit)
 	}
 	return value
+}
+
+func buildOpsTraceKeyFieldSearchTerms(raw *string) []string {
+	if raw == nil {
+		return nil
+	}
+	fields := ExtractOpsTraceKeyFieldsFromEnvelopeJSON(*raw)
+	if len(fields) == 0 {
+		return nil
+	}
+	terms := make([]string, 0, len(fields)*2)
+	for key, value := range fields {
+		terms = append(terms, key)
+		switch typed := value.(type) {
+		case string:
+			terms = append(terms, typed)
+		case bool:
+			if typed {
+				terms = append(terms, "true")
+			} else {
+				terms = append(terms, "false")
+			}
+		case float64:
+			terms = append(terms, formatFloatForSearch(typed))
+		case int:
+			terms = append(terms, strconv.Itoa(typed))
+		case int64:
+			terms = append(terms, strconv.FormatInt(typed, 10))
+		}
+	}
+	return terms
+}
+
+func formatFloatForSearch(value float64) string {
+	text := strconv.FormatFloat(value, 'f', -1, 64)
+	return strings.TrimSpace(text)
 }
 
 func dedupeNonEmptyStrings(items []string) []string {

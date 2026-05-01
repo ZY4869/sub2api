@@ -630,6 +630,7 @@ export interface OpsAdvancedSettings {
   request_detail_cleanup_enabled: boolean
   request_detail_cleanup_schedule: string
   request_detail_retention_days: number
+  request_detail_payload_preview_limit_bytes: number
   success_sample_rate: number
   force_capture_slow_ms: number
   raw_export_max_rows: number

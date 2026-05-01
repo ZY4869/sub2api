@@ -152,6 +152,9 @@ const validation = computed(() => {
     if (advancedSettings.value.request_detail_retention_days < 0 || advancedSettings.value.request_detail_retention_days > 365) {
       errors.push(t('admin.ops.settings.validation.retentionDaysRange'))
     }
+    if (advancedSettings.value.request_detail_payload_preview_limit_bytes < 4096 || advancedSettings.value.request_detail_payload_preview_limit_bytes > 1048576) {
+      errors.push(t('admin.ops.settings.validation.requestDetailPayloadPreviewLimitRange'))
+    }
     if (advancedSettings.value.success_sample_rate < 0 || advancedSettings.value.success_sample_rate > 1) {
       errors.push(t('admin.ops.settings.validation.successSampleRateRange'))
     }
@@ -534,6 +537,18 @@ async function saveAllSettings() {
                   class="input"
                 />
                 <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.requestDetailRetentionDaysHint') }}</p>
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.requestDetailPayloadPreviewLimitBytes') }}</label>
+                <input
+                  v-model.number="advancedSettings.request_detail_payload_preview_limit_bytes"
+                  type="number"
+                  min="4096"
+                  max="1048576"
+                  step="1024"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.requestDetailPayloadPreviewLimitBytesHint') }}</p>
               </div>
               <div>
                 <label class="input-label">{{ t('admin.ops.settings.successSampleRate') }}</label>

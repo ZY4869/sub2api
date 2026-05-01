@@ -51,20 +51,12 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	user := input.User
 	account := input.Account
 	subscription := input.Subscription
+	usageProvider := ResolveUsageLogUpstreamService(account, input.UpstreamService)
+	normalizedUsage := normalizeOpenAIUsageForDisplayAndBilling(usageProvider, result.Usage)
 
-	// input_tokens includes cache_read tokens; cached reads are not billed at input price.
-	actualInputTokens := result.Usage.InputTokens - result.Usage.CacheReadInputTokens
-	if actualInputTokens < 0 {
-		actualInputTokens = 0
-	}
-
-	// Calculate cost.
-	tokens := UsageTokens{
-		InputTokens:         actualInputTokens,
-		OutputTokens:        result.Usage.OutputTokens,
-		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     result.Usage.CacheReadInputTokens,
-	}
+	// input_tokens includes cache_read tokens in compatible payloads; DeepSeek also includes miss tokens.
+	actualInputTokens := normalizedUsage.DisplayTokens.InputTokens
+	tokens := normalizedUsage.BillingTokens
 
 	// Resolve rate multiplier.
 	multiplier := s.cfg.Default.RateMultiplier
@@ -90,7 +82,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
 		Model:           billingModel,
-		Provider:        PlatformOpenAI,
+		Provider:        usageProvider,
 		Layer:           BillingLayerSale,
 		InboundEndpoint: input.InboundEndpoint,
 		Tokens:          tokens,
@@ -140,11 +132,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		InboundEndpoint:         optionalTrimmedStringPtr(input.InboundEndpoint),
 		UpstreamEndpoint:        optionalTrimmedStringPtr(input.UpstreamEndpoint),
 		UpstreamURL:             optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)),
-		UpstreamService:         optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)),
+		UpstreamService:         optionalTrimmedStringPtr(usageProvider),
 		InputTokens:             actualInputTokens,
 		OutputTokens:            result.Usage.OutputTokens,
-		CacheCreationTokens:     result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:         result.Usage.CacheReadInputTokens,
+		CacheCreationTokens:     normalizedUsage.DisplayTokens.CacheCreationTokens,
+		CacheReadTokens:         normalizedUsage.DisplayTokens.CacheReadTokens,
 		InputCost:               cost.InputCost,
 		OutputCost:              cost.OutputCost,
 		CacheCreationCost:       cost.CacheCreationCost,

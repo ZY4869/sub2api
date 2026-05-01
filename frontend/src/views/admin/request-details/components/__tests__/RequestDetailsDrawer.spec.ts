@@ -130,6 +130,7 @@ const translations: Record<string, string> = {
   'admin.requestDetails.drawer.sections.identifiers': 'Identifiers',
   'admin.requestDetails.drawer.sections.execution': 'Execution',
   'admin.requestDetails.drawer.sections.flags': 'Flags',
+  'admin.requestDetails.drawer.sections.keyFields': 'Key Fields',
   'admin.requestDetails.drawer.sections.headers': 'Headers'
 }
 
@@ -323,5 +324,33 @@ describe('RequestDetailsDrawer', () => {
     expect(wrapper.text()).toContain('Source: canonical_preview')
     expect(wrapper.text()).toContain('Truncated')
     expect(wrapper.find('[data-test="normalized-panel"]').text()).toContain('"normalized": true')
+  })
+
+  it('renders aggregated key fields in the overview section', () => {
+    const wrapper = createWrapper({
+      detail: {
+        ...detail,
+        inbound_request_json: JSON.stringify({
+          state: 'captured',
+          key_fields: {
+            model: 'deepseek-v4-pro',
+            reasoning_effort: 'high'
+          },
+          payload: { ok: true }
+        }),
+        gateway_response_json: JSON.stringify({
+          state: 'captured',
+          key_fields: {
+            prompt_cache_hit_tokens: 1024
+          },
+          payload: { ok: true }
+        })
+      }
+    })
+
+    expect(wrapper.text()).toContain('Key Fields')
+    expect(wrapper.text()).toContain('deepseek-v4-pro')
+    expect(wrapper.text()).toContain('reasoning_effort')
+    expect(wrapper.text()).toContain('prompt_cache_hit_tokens')
   })
 })

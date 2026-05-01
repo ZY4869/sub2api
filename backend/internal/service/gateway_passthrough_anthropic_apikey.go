@@ -344,6 +344,17 @@ func (s *GatewayService) parseSSEUsagePassthrough(data string, usage *ClaudeUsag
 		return
 	}
 	parsed := gjson.Parse(data)
+	applyDeepSeekAnthropicUsageNode := func(node gjson.Result) {
+		if !node.Exists() {
+			return
+		}
+		if hit := node.Get("prompt_cache_hit_tokens"); hit.Exists() && hit.Int() > 0 {
+			usage.CacheReadInputTokens = int(hit.Int())
+		}
+		if miss := node.Get("prompt_cache_miss_tokens"); miss.Exists() && miss.Int() > 0 {
+			usage.CacheCreationInputTokens = int(miss.Int())
+		}
+	}
 	switch parsed.Get("type").String() {
 	case "message_start":
 		msgUsage := parsed.Get("message.usage")
@@ -351,6 +362,7 @@ func (s *GatewayService) parseSSEUsagePassthrough(data string, usage *ClaudeUsag
 			usage.InputTokens = int(msgUsage.Get("input_tokens").Int())
 			usage.CacheCreationInputTokens = int(msgUsage.Get("cache_creation_input_tokens").Int())
 			usage.CacheReadInputTokens = int(msgUsage.Get("cache_read_input_tokens").Int())
+			applyDeepSeekAnthropicUsageNode(msgUsage)
 			cc5m := msgUsage.Get("cache_creation.ephemeral_5m_input_tokens")
 			cc1h := msgUsage.Get("cache_creation.ephemeral_1h_input_tokens")
 			if cc5m.Exists() || cc1h.Exists() {
@@ -373,6 +385,7 @@ func (s *GatewayService) parseSSEUsagePassthrough(data string, usage *ClaudeUsag
 			if v := deltaUsage.Get("cache_read_input_tokens").Int(); v > 0 {
 				usage.CacheReadInputTokens = int(v)
 			}
+			applyDeepSeekAnthropicUsageNode(deltaUsage)
 			cc5m := deltaUsage.Get("cache_creation.ephemeral_5m_input_tokens")
 			cc1h := deltaUsage.Get("cache_creation.ephemeral_1h_input_tokens")
 			if cc5m.Exists() && cc5m.Int() > 0 {
@@ -418,6 +431,12 @@ func parseClaudeUsageFromResponseBody(body []byte) *ClaudeUsage {
 	usage.OutputTokens = int(usageNode.Get("output_tokens").Int())
 	usage.CacheCreationInputTokens = int(usageNode.Get("cache_creation_input_tokens").Int())
 	usage.CacheReadInputTokens = int(usageNode.Get("cache_read_input_tokens").Int())
+	if hit := usageNode.Get("prompt_cache_hit_tokens"); hit.Exists() && hit.Int() > 0 {
+		usage.CacheReadInputTokens = int(hit.Int())
+	}
+	if miss := usageNode.Get("prompt_cache_miss_tokens"); miss.Exists() && miss.Int() > 0 {
+		usage.CacheCreationInputTokens = int(miss.Int())
+	}
 	cc5m := usageNode.Get("cache_creation.ephemeral_5m_input_tokens").Int()
 	cc1h := usageNode.Get("cache_creation.ephemeral_1h_input_tokens").Int()
 	if cc5m > 0 || cc1h > 0 {

@@ -36,6 +36,7 @@ export default {
         identity: "Identity",
         execution: "Execution",
         flags: "Flags",
+        keyFields: "Key Fields",
         headers: "Headers",
     },
     tabs: {

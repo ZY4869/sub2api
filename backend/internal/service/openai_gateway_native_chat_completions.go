@@ -336,9 +336,14 @@ func extractOpenAIChatCompletionsUsageFromJSONBytes(body []byte) (OpenAIUsage, b
 		return OpenAIUsage{}, false
 	}
 	return OpenAIUsage{
-		InputTokens:          int(firstPositiveInt64(gjson.GetBytes(body, "usage.input_tokens").Int(), gjson.GetBytes(body, "usage.prompt_tokens").Int())),
-		OutputTokens:         int(firstPositiveInt64(gjson.GetBytes(body, "usage.output_tokens").Int(), gjson.GetBytes(body, "usage.completion_tokens").Int())),
-		CacheReadInputTokens: int(firstPositiveInt64(gjson.GetBytes(body, "usage.input_tokens_details.cached_tokens").Int(), gjson.GetBytes(body, "usage.prompt_tokens_details.cached_tokens").Int())),
+		InputTokens:              int(firstPositiveInt64(gjson.GetBytes(body, "usage.input_tokens").Int(), gjson.GetBytes(body, "usage.prompt_tokens").Int())),
+		OutputTokens:             int(firstPositiveInt64(gjson.GetBytes(body, "usage.output_tokens").Int(), gjson.GetBytes(body, "usage.completion_tokens").Int())),
+		CacheCreationInputTokens: int(gjson.GetBytes(body, "usage.prompt_cache_miss_tokens").Int()),
+		CacheReadInputTokens: int(firstPositiveInt64(
+			gjson.GetBytes(body, "usage.prompt_cache_hit_tokens").Int(),
+			gjson.GetBytes(body, "usage.input_tokens_details.cached_tokens").Int(),
+			gjson.GetBytes(body, "usage.prompt_tokens_details.cached_tokens").Int(),
+		)),
 	}, true
 }
 
@@ -351,7 +356,15 @@ func parseOpenAIChatCompletionsSSEUsage(data []byte, usage *OpenAIUsage) {
 	}
 	usage.InputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "usage.input_tokens").Int(), gjson.GetBytes(data, "usage.prompt_tokens").Int(), int64(usage.InputTokens)))
 	usage.OutputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "usage.output_tokens").Int(), gjson.GetBytes(data, "usage.completion_tokens").Int(), int64(usage.OutputTokens)))
-	usage.CacheReadInputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "usage.input_tokens_details.cached_tokens").Int(), gjson.GetBytes(data, "usage.prompt_tokens_details.cached_tokens").Int(), int64(usage.CacheReadInputTokens)))
+	if miss := gjson.GetBytes(data, "usage.prompt_cache_miss_tokens"); miss.Exists() && miss.Int() > 0 {
+		usage.CacheCreationInputTokens = int(miss.Int())
+	}
+	usage.CacheReadInputTokens = int(firstPositiveInt64(
+		gjson.GetBytes(data, "usage.prompt_cache_hit_tokens").Int(),
+		gjson.GetBytes(data, "usage.input_tokens_details.cached_tokens").Int(),
+		gjson.GetBytes(data, "usage.prompt_tokens_details.cached_tokens").Int(),
+		int64(usage.CacheReadInputTokens),
+	))
 }
 
 func isOpenAIChatCompletionsUsageOnlyChunk(data []byte) bool {

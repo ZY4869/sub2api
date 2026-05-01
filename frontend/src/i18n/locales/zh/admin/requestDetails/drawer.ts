@@ -36,6 +36,7 @@ export default {
         identity: "基础身份",
         execution: "执行结果",
         flags: "能力标记",
+        keyFields: "关键字段",
         headers: "请求头 / 响应头",
     },
     tabs: {

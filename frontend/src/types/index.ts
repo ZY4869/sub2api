@@ -1294,6 +1294,7 @@ export interface UsageLog {
   thinking_enabled?: boolean | null;
   inbound_endpoint?: string | null;
   upstream_endpoint?: string | null;
+  upstream_service?: string | null;
   channel_id?: number | null;
   model_mapping_chain?: string | null;
   billing_tier?: string | null;

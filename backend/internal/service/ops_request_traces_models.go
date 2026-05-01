@@ -78,18 +78,26 @@ type ProtocolNormalizeResult struct {
 	Stream                                  bool     `json:"stream"`
 }
 
+type OpsTraceKeyFields = map[string]any
+
 type GatewayTraceContext struct {
-	Normalize             ProtocolNormalizeResult `json:"normalize"`
-	InboundRequestJSON    *string                 `json:"inbound_request_json,omitempty"`
-	NormalizedRequestJSON *string                 `json:"normalized_request_json,omitempty"`
-	UpstreamRequestJSON   *string                 `json:"upstream_request_json,omitempty"`
-	UpstreamResponseJSON  *string                 `json:"upstream_response_json,omitempty"`
-	GatewayResponseJSON   *string                 `json:"gateway_response_json,omitempty"`
-	ToolTraceJSON         *string                 `json:"tool_trace_json,omitempty"`
-	RequestHeadersJSON    *string                 `json:"request_headers_json,omitempty"`
-	ResponseHeadersJSON   *string                 `json:"response_headers_json,omitempty"`
-	RawRequest            []byte                  `json:"-"`
-	RawResponse           []byte                  `json:"-"`
+	Normalize                  ProtocolNormalizeResult `json:"normalize"`
+	InboundRequestJSON         *string                 `json:"inbound_request_json,omitempty"`
+	NormalizedRequestJSON      *string                 `json:"normalized_request_json,omitempty"`
+	UpstreamRequestJSON        *string                 `json:"upstream_request_json,omitempty"`
+	UpstreamResponseJSON       *string                 `json:"upstream_response_json,omitempty"`
+	GatewayResponseJSON        *string                 `json:"gateway_response_json,omitempty"`
+	ToolTraceJSON              *string                 `json:"tool_trace_json,omitempty"`
+	RequestHeadersJSON         *string                 `json:"request_headers_json,omitempty"`
+	ResponseHeadersJSON        *string                 `json:"response_headers_json,omitempty"`
+	InboundRequestKeyFields    OpsTraceKeyFields       `json:"-"`
+	NormalizedRequestKeyFields OpsTraceKeyFields       `json:"-"`
+	UpstreamRequestKeyFields   OpsTraceKeyFields       `json:"-"`
+	UpstreamResponseKeyFields  OpsTraceKeyFields       `json:"-"`
+	GatewayResponseKeyFields   OpsTraceKeyFields       `json:"-"`
+	ToolTraceKeyFields         OpsTraceKeyFields       `json:"-"`
+	RawRequest                 []byte                  `json:"-"`
+	RawResponse                []byte                  `json:"-"`
 }
 
 type OpsInsertRequestTraceInput struct {

@@ -92,7 +92,7 @@ func TestShrinkToEssentials_IncludesThinking(t *testing.T) {
 		},
 	}
 
-	out := shrinkToEssentials(root)
+	out := shrinkToEssentials(root, 10*1024)
 	if _, ok := out["thinking"]; !ok {
 		t.Fatalf("expected thinking to be included in essentials: %#v", out)
 	}

@@ -67,6 +67,7 @@ func OpsRequestTraceMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			return
 		}
 
+		service.SetOpsTracePayloadPreviewLimit(c, resolveOpsRequestTracePreviewLimit(ops, c.Request.Context()))
 		startedAt := time.Now()
 		originalWriter := c.Writer
 		writer := acquireOpsRequestTraceCaptureWriter(originalWriter)
@@ -84,7 +85,7 @@ func OpsRequestTraceMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			return
 		}
 
-		input := buildOpsRequestTraceInput(c, writer, startedAt)
+		input := buildOpsRequestTraceInput(ops, c, writer, startedAt)
 		if !shouldQueueOpsRequestTrace(input) {
 			return
 		}
@@ -201,7 +202,7 @@ func enqueueOpsRequestTrace(ops *service.OpsService, input *service.OpsRecordReq
 	}
 }
 
-func buildOpsRequestTraceInput(c *gin.Context, writer *opsRequestTraceCaptureWriter, startedAt time.Time) *service.OpsRecordRequestTraceInput {
+func buildOpsRequestTraceInput(ops *service.OpsService, c *gin.Context, writer *opsRequestTraceCaptureWriter, startedAt time.Time) *service.OpsRecordRequestTraceInput {
 	if c == nil || c.Request == nil {
 		return nil
 	}
@@ -237,50 +238,59 @@ func buildOpsRequestTraceInput(c *gin.Context, writer *opsRequestTraceCaptureWri
 
 	normalize, usage := buildOpsTraceNormalizeResult(c, apiKey, requestBody, responseBody)
 	statusCode := c.Writer.Status()
+	previewLimit := resolveOpsRequestTracePreviewLimit(ops, c.Request.Context())
 	requestContentType := strings.TrimSpace(c.Request.Header.Get("Content-Type"))
 	if requestContentType == "" {
 		requestContentType = "application/json"
 	}
 	responseContentType := strings.TrimSpace(c.Writer.Header().Get("Content-Type"))
+	inboundKeyFields := service.ExtractOpsTraceKeyFieldsFromBytes(requestBody)
 	inboundRequestJSON := service.BuildOpsTracePayloadEnvelopeJSONFromBytes(
 		requestBody,
-		opsRequestTracePreviewLimit,
+		previewLimit,
 		service.OpsTracePayloadStateCaptured,
 		"inbound_request_capture",
 		requestContentType,
 	)
+	normalizedKeyFields := service.ExtractOpsTraceKeyFieldsFromPayload(map[string]any{"normalize": normalize})
 	normalizedRequestJSON := service.GetOpsTraceNormalizedRequestJSON(c)
 	if normalizedRequestJSON == nil {
 		normalizedRequestJSON = buildOpsTraceCanonicalNormalizedRequestJSON(normalize)
 	}
+	upstreamRequestKeyFields := service.ExtractOpsTraceKeyFieldsFromBytes(requestBody)
 	upstreamRequestJSON := service.GetOpsTraceUpstreamRequestJSON(c)
 	if upstreamRequestJSON == nil && len(requestBody) > 0 {
-		upstreamRequestJSON = service.BuildOpsTracePayloadEnvelopeJSONFromBytes(
+		upstreamRequestJSON = service.BuildOpsTracePayloadEnvelopeJSONFromBytesWithKeyFields(
 			requestBody,
-			opsRequestTracePreviewLimit,
+			previewLimit,
 			service.OpsTracePayloadStateRawOnly,
 			"inbound_request_fallback",
 			requestContentType,
+			upstreamRequestKeyFields,
 		)
 	}
+	upstreamResponseKeyFields := service.ExtractOpsTraceKeyFieldsFromBytes(responseBody)
 	upstreamResponseJSON := service.GetOpsTraceUpstreamResponseJSON(c)
 	if upstreamResponseJSON == nil && len(responseBody) > 0 {
-		upstreamResponseJSON = service.BuildOpsTracePayloadEnvelopeJSONFromBytes(
+		upstreamResponseJSON = service.BuildOpsTracePayloadEnvelopeJSONFromBytesWithKeyFields(
 			responseBody,
-			opsRequestTracePreviewLimit,
+			previewLimit,
 			service.OpsTracePayloadStateRawOnly,
 			"gateway_response_fallback",
 			responseContentType,
+			upstreamResponseKeyFields,
 		)
 	}
+	gatewayResponseKeyFields := service.ExtractOpsTraceKeyFieldsFromBytes(responseBody)
 	gatewayResponseJSON := service.GetOpsTraceGatewayResponseJSON(c)
 	if gatewayResponseJSON == nil && len(responseBody) > 0 {
-		gatewayResponseJSON = service.BuildOpsTracePayloadEnvelopeJSONFromBytes(
+		gatewayResponseJSON = service.BuildOpsTracePayloadEnvelopeJSONFromBytesWithKeyFields(
 			responseBody,
-			opsRequestTracePreviewLimit,
+			previewLimit,
 			service.OpsTracePayloadStateCaptured,
 			"gateway_response_capture",
 			responseContentType,
+			gatewayResponseKeyFields,
 		)
 	}
 	toolTraceJSON := service.GetOpsTraceToolTraceJSON(c)
@@ -303,17 +313,23 @@ func buildOpsRequestTraceInput(c *gin.Context, writer *opsRequestTraceCaptureWri
 		OutputTokens:       usage.outputTokens,
 		TotalTokens:        usage.totalTokens,
 		Trace: service.GatewayTraceContext{
-			Normalize:             normalize,
-			InboundRequestJSON:    inboundRequestJSON,
-			NormalizedRequestJSON: normalizedRequestJSON,
-			UpstreamRequestJSON:   upstreamRequestJSON,
-			UpstreamResponseJSON:  upstreamResponseJSON,
-			GatewayResponseJSON:   gatewayResponseJSON,
-			ToolTraceJSON:         toolTraceJSON,
-			RequestHeadersJSON:    requestHeadersJSON,
-			ResponseHeadersJSON:   responseHeadersJSON,
-			RawRequest:            requestBody,
-			RawResponse:           responseBody,
+			Normalize:                  normalize,
+			InboundRequestJSON:         inboundRequestJSON,
+			NormalizedRequestJSON:      normalizedRequestJSON,
+			UpstreamRequestJSON:        upstreamRequestJSON,
+			UpstreamResponseJSON:       upstreamResponseJSON,
+			GatewayResponseJSON:        gatewayResponseJSON,
+			ToolTraceJSON:              toolTraceJSON,
+			RequestHeadersJSON:         requestHeadersJSON,
+			ResponseHeadersJSON:        responseHeadersJSON,
+			InboundRequestKeyFields:    inboundKeyFields,
+			NormalizedRequestKeyFields: normalizedKeyFields,
+			UpstreamRequestKeyFields:   upstreamRequestKeyFields,
+			UpstreamResponseKeyFields:  upstreamResponseKeyFields,
+			GatewayResponseKeyFields:   gatewayResponseKeyFields,
+			ToolTraceKeyFields:         service.ExtractOpsTraceKeyFieldsFromPayload(map[string]any{"normalize": normalize}),
+			RawRequest:                 requestBody,
+			RawResponse:                responseBody,
 		},
 		CreatedAt: time.Now().UTC(),
 	}
@@ -322,12 +338,13 @@ func buildOpsRequestTraceInput(c *gin.Context, writer *opsRequestTraceCaptureWri
 }
 
 func buildOpsTraceCanonicalNormalizedRequestJSON(normalize service.ProtocolNormalizeResult) *string {
-	return service.BuildOpsTracePayloadEnvelopeJSON(
+	return service.BuildOpsTracePayloadEnvelopeJSONWithKeyFields(
 		service.OpsTracePayloadStateCaptured,
 		"canonical_preview",
 		map[string]any{"normalize": normalize},
 		"application/json",
 		false,
+		service.ExtractOpsTraceKeyFieldsFromPayload(map[string]any{"normalize": normalize}),
 	)
 }
 
@@ -335,17 +352,29 @@ func buildOpsTraceToolSummaryJSON(normalize service.ProtocolNormalizeResult) *st
 	if !normalize.HasTools && len(normalize.ToolKinds) == 0 {
 		return nil
 	}
-	return service.BuildOpsTracePayloadEnvelopeJSON(
+	payload := map[string]any{
+		"has_tools":                            normalize.HasTools,
+		"tool_kinds":                           normalize.ToolKinds,
+		"include_server_side_tool_invocations": normalize.IncludeServerSideToolInvocations,
+	}
+	return service.BuildOpsTracePayloadEnvelopeJSONWithKeyFields(
 		service.OpsTracePayloadStateCaptured,
 		"tool_summary_fallback",
-		map[string]any{
-			"has_tools":                            normalize.HasTools,
-			"tool_kinds":                           normalize.ToolKinds,
-			"include_server_side_tool_invocations": normalize.IncludeServerSideToolInvocations,
-		},
+		payload,
 		"application/json",
 		false,
+		service.ExtractOpsTraceKeyFieldsFromPayload(payload),
 	)
+}
+
+func resolveOpsRequestTracePreviewLimit(ops *service.OpsService, ctx context.Context) int {
+	if ops == nil {
+		return opsRequestTracePreviewLimit
+	}
+	if advanced, err := ops.GetOpsAdvancedSettings(ctx); err == nil && advanced != nil && advanced.RequestDetailPayloadPreviewLimitBytes > 0 {
+		return advanced.RequestDetailPayloadPreviewLimitBytes
+	}
+	return opsRequestTracePreviewLimit
 }
 
 type opsTraceUsage struct {

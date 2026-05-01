@@ -92,24 +92,25 @@ type OpsAlertRuntimeSettings struct {
 
 // OpsAdvancedSettings stores advanced ops configuration (data retention, aggregation).
 type OpsAdvancedSettings struct {
-	DataRetention                   OpsDataRetentionSettings `json:"data_retention"`
-	Aggregation                     OpsAggregationSettings   `json:"aggregation"`
-	RequestDetailsEnabled           bool                     `json:"request_details_enabled"`
-	RequestDetailCleanupEnabled     bool                     `json:"request_detail_cleanup_enabled"`
-	RequestDetailCleanupSchedule    string                   `json:"request_detail_cleanup_schedule"`
-	RequestDetailRetentionDays      int                      `json:"request_detail_retention_days"`
-	SuccessSampleRate               float64                  `json:"success_sample_rate"`
-	ForceCaptureSlowMs              int                      `json:"force_capture_slow_ms"`
-	RawExportMaxRows                int                      `json:"raw_export_max_rows"`
-	IgnoreCountTokensErrors         bool                     `json:"ignore_count_tokens_errors"`
-	IgnoreContextCanceled           bool                     `json:"ignore_context_canceled"`
-	IgnoreNoAvailableAccounts       bool                     `json:"ignore_no_available_accounts"`
-	IgnoreInvalidApiKeyErrors       bool                     `json:"ignore_invalid_api_key_errors"`
-	IgnoreInsufficientBalanceErrors bool                     `json:"ignore_insufficient_balance_errors"`
-	DisplayOpenAITokenStats         bool                     `json:"display_openai_token_stats"`
-	DisplayAlertEvents              bool                     `json:"display_alert_events"`
-	AutoRefreshEnabled              bool                     `json:"auto_refresh_enabled"`
-	AutoRefreshIntervalSec          int                      `json:"auto_refresh_interval_seconds"`
+	DataRetention                         OpsDataRetentionSettings `json:"data_retention"`
+	Aggregation                           OpsAggregationSettings   `json:"aggregation"`
+	RequestDetailsEnabled                 bool                     `json:"request_details_enabled"`
+	RequestDetailCleanupEnabled           bool                     `json:"request_detail_cleanup_enabled"`
+	RequestDetailCleanupSchedule          string                   `json:"request_detail_cleanup_schedule"`
+	RequestDetailRetentionDays            int                      `json:"request_detail_retention_days"`
+	RequestDetailPayloadPreviewLimitBytes int                      `json:"request_detail_payload_preview_limit_bytes"`
+	SuccessSampleRate                     float64                  `json:"success_sample_rate"`
+	ForceCaptureSlowMs                    int                      `json:"force_capture_slow_ms"`
+	RawExportMaxRows                      int                      `json:"raw_export_max_rows"`
+	IgnoreCountTokensErrors               bool                     `json:"ignore_count_tokens_errors"`
+	IgnoreContextCanceled                 bool                     `json:"ignore_context_canceled"`
+	IgnoreNoAvailableAccounts             bool                     `json:"ignore_no_available_accounts"`
+	IgnoreInvalidApiKeyErrors             bool                     `json:"ignore_invalid_api_key_errors"`
+	IgnoreInsufficientBalanceErrors       bool                     `json:"ignore_insufficient_balance_errors"`
+	DisplayOpenAITokenStats               bool                     `json:"display_openai_token_stats"`
+	DisplayAlertEvents                    bool                     `json:"display_alert_events"`
+	AutoRefreshEnabled                    bool                     `json:"auto_refresh_enabled"`
+	AutoRefreshIntervalSec                int                      `json:"auto_refresh_interval_seconds"`
 }
 
 type OpsDataRetentionSettings struct {

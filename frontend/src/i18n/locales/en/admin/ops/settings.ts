@@ -49,6 +49,8 @@ export default {
         requestDetailCleanupScheduleHint: "Example: 0 2 * * * runs daily at 2:00 AM",
         requestDetailRetentionDays: "Request detail retention days",
         requestDetailRetentionDaysHint: "Range 0-365. 0 wipes all request details, sanitized payloads, and raw traces on every scheduled cleanup run.",
+        requestDetailPayloadPreviewLimitBytes: "Request detail payload preview limit (bytes)",
+        requestDetailPayloadPreviewLimitBytesHint: "Controls the per-section preview limit for request details and sanitized summaries only. Range 4096-1048576, default 65536.",
         successSampleRate: "Success sampling rate",
         successSampleRateHint: "Applies to successful requests that are not force-captured. Use a decimal between 0 and 1.",
         forceCaptureSlowMs: "Force capture slow request threshold",
@@ -82,6 +84,7 @@ export default {
         validation: {
             title: "Please fix the following issues",
             retentionDaysRange: "Retention days must be between 0-365 days",
+            requestDetailPayloadPreviewLimitRange: "Request detail payload preview limit must be between 4096 and 1048576 bytes",
             successSampleRateRange: "Success sample rate must be between 0 and 1",
             forceCaptureSlowMsRange: "Slow request threshold must be between 100 and 300000 milliseconds",
             rawExportMaxRowsRange: "Raw export max rows must be between 100 and 100000",

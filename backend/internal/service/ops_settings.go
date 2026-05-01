@@ -370,21 +370,22 @@ func defaultOpsAdvancedSettings() *OpsAdvancedSettings {
 		Aggregation: OpsAggregationSettings{
 			AggregationEnabled: false,
 		},
-		RequestDetailsEnabled:           true,
-		RequestDetailCleanupEnabled:     true,
-		RequestDetailCleanupSchedule:    "0 2 * * *",
-		RequestDetailRetentionDays:      30,
-		SuccessSampleRate:               0.1,
-		ForceCaptureSlowMs:              int(opsRequestTraceDefaultSlowMs),
-		RawExportMaxRows:                10000,
-		IgnoreCountTokensErrors:         true,  // count_tokens 404 是预期行为，默认忽略
-		IgnoreContextCanceled:           true,  // Default to true - client disconnects are not errors
-		IgnoreNoAvailableAccounts:       false, // Default to false - this is a real routing issue
-		IgnoreInsufficientBalanceErrors: false, // 默认不忽略，余额不足可能需要关注
-		DisplayOpenAITokenStats:         false,
-		DisplayAlertEvents:              true,
-		AutoRefreshEnabled:              false,
-		AutoRefreshIntervalSec:          30,
+		RequestDetailsEnabled:                 true,
+		RequestDetailCleanupEnabled:           true,
+		RequestDetailCleanupSchedule:          "0 2 * * *",
+		RequestDetailRetentionDays:            30,
+		RequestDetailPayloadPreviewLimitBytes: opsTracePayloadInlineBytesLimit,
+		SuccessSampleRate:                     0.1,
+		ForceCaptureSlowMs:                    int(opsRequestTraceDefaultSlowMs),
+		RawExportMaxRows:                      10000,
+		IgnoreCountTokensErrors:               true,  // count_tokens 404 是预期行为，默认忽略
+		IgnoreContextCanceled:                 true,  // Default to true - client disconnects are not errors
+		IgnoreNoAvailableAccounts:             false, // Default to false - this is a real routing issue
+		IgnoreInsufficientBalanceErrors:       false, // 默认不忽略，余额不足可能需要关注
+		DisplayOpenAITokenStats:               false,
+		DisplayAlertEvents:                    true,
+		AutoRefreshEnabled:                    false,
+		AutoRefreshIntervalSec:                30,
 	}
 }
 
@@ -411,6 +412,9 @@ func normalizeOpsAdvancedSettings(cfg *OpsAdvancedSettings) {
 	}
 	if cfg.RequestDetailRetentionDays < 0 {
 		cfg.RequestDetailRetentionDays = 30
+	}
+	if cfg.RequestDetailPayloadPreviewLimitBytes <= 0 {
+		cfg.RequestDetailPayloadPreviewLimitBytes = opsTracePayloadInlineBytesLimit
 	}
 	if cfg.SuccessSampleRate < 0 {
 		cfg.SuccessSampleRate = 0
@@ -445,6 +449,9 @@ func validateOpsAdvancedSettings(cfg *OpsAdvancedSettings) error {
 	}
 	if cfg.RequestDetailRetentionDays < 0 || cfg.RequestDetailRetentionDays > 365 {
 		return errors.New("request_detail_retention_days must be between 0 and 365")
+	}
+	if cfg.RequestDetailPayloadPreviewLimitBytes < 4096 || cfg.RequestDetailPayloadPreviewLimitBytes > 1048576 {
+		return errors.New("request_detail_payload_preview_limit_bytes must be between 4096 and 1048576")
 	}
 	if cfg.SuccessSampleRate < 0 || cfg.SuccessSampleRate > 1 {
 		return errors.New("success_sample_rate must be between 0 and 1")

@@ -513,7 +513,7 @@
               <!-- 无明细时，只显示聚合值 -->
               <div v-else class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{
-                  t("admin.usage.cacheCreationTokens")
+                  getCacheCreationLabel(tokenTooltipData)
                 }}</span>
                 <span class="font-medium text-white">{{
                   tokenTooltipData.cache_creation_tokens.toLocaleString()
@@ -544,7 +544,7 @@
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
-                t("admin.usage.cacheReadTokens")
+                getCacheReadLabel(tokenTooltipData)
               }}</span>
               <span class="font-medium text-white">{{
                 tokenTooltipData.cache_read_tokens.toLocaleString()
@@ -912,6 +912,18 @@ const formatDuration = (ms: number | null | undefined): string => {
 const formatUserAgent = (ua: string): string => {
   return formatUsageUserAgentDisplay(ua);
 };
+
+const isDeepSeekUsageRow = (
+  row: Pick<UsageLog, "upstream_service"> | null | undefined,
+): boolean => String(row?.upstream_service || "").trim().toLowerCase() === "deepseek";
+
+const getCacheReadLabel = (
+  row: Pick<UsageLog, "upstream_service"> | null | undefined,
+): string => (isDeepSeekUsageRow(row) ? "Cache Hit" : t("admin.usage.cacheReadTokens"));
+
+const getCacheCreationLabel = (
+  row: Pick<UsageLog, "upstream_service"> | null | undefined,
+): string => (isDeepSeekUsageRow(row) ? "Cache Miss" : t("admin.usage.cacheCreationTokens"));
 
 const getChargeLabel = (row: UsageLog): string | null =>
   getUsageChargeLabel(row, t);

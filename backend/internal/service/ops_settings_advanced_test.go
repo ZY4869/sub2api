@@ -174,3 +174,36 @@ func TestUpdateOpsAdvancedSettings_AllowsZeroRetentionDays(t *testing.T) {
 		t.Fatalf("reloaded RequestDetailRetentionDays = %d, want 0", reloaded.RequestDetailRetentionDays)
 	}
 }
+
+func TestGetOpsAdvancedSettings_DefaultPreviewLimit(t *testing.T) {
+	repo := newRuntimeSettingRepoStub()
+	svc := &OpsService{settingRepo: repo}
+
+	cfg, err := svc.GetOpsAdvancedSettings(context.Background())
+	if err != nil {
+		t.Fatalf("GetOpsAdvancedSettings() error = %v", err)
+	}
+	if cfg.RequestDetailPayloadPreviewLimitBytes != opsTracePayloadInlineBytesLimit {
+		t.Fatalf("RequestDetailPayloadPreviewLimitBytes = %d, want %d", cfg.RequestDetailPayloadPreviewLimitBytes, opsTracePayloadInlineBytesLimit)
+	}
+}
+
+func TestUpdateOpsAdvancedSettings_ValidatesPreviewLimitRange(t *testing.T) {
+	repo := newRuntimeSettingRepoStub()
+	svc := &OpsService{settingRepo: repo}
+
+	cfg := defaultOpsAdvancedSettings()
+	cfg.RequestDetailPayloadPreviewLimitBytes = 2048
+	if _, err := svc.UpdateOpsAdvancedSettings(context.Background(), cfg); err == nil {
+		t.Fatalf("expected preview limit validation error")
+	}
+
+	cfg.RequestDetailPayloadPreviewLimitBytes = 32768
+	updated, err := svc.UpdateOpsAdvancedSettings(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("UpdateOpsAdvancedSettings() error = %v", err)
+	}
+	if updated.RequestDetailPayloadPreviewLimitBytes != 32768 {
+		t.Fatalf("RequestDetailPayloadPreviewLimitBytes = %d, want 32768", updated.RequestDetailPayloadPreviewLimitBytes)
+	}
+}
