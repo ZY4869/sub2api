@@ -24,7 +24,7 @@ func TestBuildUpstreamRequest_RewritesClaudeCodeSessionHeaderFromMetadataUserID(
 	svc := &GatewayService{}
 	account := &Account{ID: 1, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
 
-	req, err := svc.buildUpstreamRequest(context.Background(), c, account, body, "oauth-token", "oauth", "claude-sonnet-4", false, false)
+	req, err := svc.buildUpstreamRequest(context.Background(), c, account, body, "oauth-token", "oauth", "claude-sonnet-4", false, false, ClaudeRequestCapability{})
 	require.NoError(t, err)
 	require.Equal(t, "11111111-2222-3333-4444-555555555555", req.Header.Get("X-Claude-Code-Session-Id"))
 	require.Equal(t, "client-req-1", req.Header.Get("X-Client-Request-Id"))
@@ -43,7 +43,7 @@ func TestBuildCountTokensRequest_RewritesClaudeCodeSessionHeaderFromMetadataUser
 	svc := &GatewayService{}
 	account := &Account{ID: 2, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
 
-	req, err := svc.buildCountTokensRequest(context.Background(), c, account, body, "oauth-token", "oauth", "claude-sonnet-4", false)
+	req, err := svc.buildCountTokensRequest(context.Background(), c, account, body, "oauth-token", "oauth", "claude-sonnet-4", false, ClaudeRequestCapability{})
 	require.NoError(t, err)
 	require.Equal(t, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", req.Header.Get("X-Claude-Code-Session-Id"))
 	require.Equal(t, "client-req-2", req.Header.Get("X-Client-Request-Id"))

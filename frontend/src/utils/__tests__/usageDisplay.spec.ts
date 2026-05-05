@@ -26,6 +26,8 @@ vi.mock("@/i18n", () => ({
 import {
   formatUsageEndpointDisplay,
   formatUsageEndpointPath,
+  formatUsageMillionContextDisplay,
+  formatUsageMillionContextExportFields,
   formatUsageUserAgentDisplay,
 } from "../usageDisplay";
 
@@ -94,5 +96,48 @@ describe("usageDisplay", () => {
     expect(formatUsageUserAgentDisplay("Mozilla/5.0")).toBe("浏览器");
     expect(formatUsageUserAgentDisplay("custom-app/2.0")).toBe("custom-app/2.0");
     expect(formatUsageUserAgentDisplay("")).toBe("-");
+  });
+
+  it("formats 1M usage display and export fields", () => {
+    const log = {
+      million_context_requested: true,
+      million_context_effective: false,
+      million_context_source: "model_suffix_[1m]",
+      million_context_beta_token: "context-1m-2025-08-07",
+    };
+
+    expect(formatUsageMillionContextDisplay(log as never)).toEqual([
+      {
+        key: "requested",
+        labelKey: "usage.millionContextRequested",
+        raw: "true",
+        display: "Yes",
+      },
+      {
+        key: "effective",
+        labelKey: "usage.millionContextEffective",
+        raw: "false",
+        display: "No",
+      },
+      {
+        key: "source",
+        labelKey: "usage.millionContextSource",
+        raw: "model_suffix_[1m]",
+        display: "model_suffix_[1m]",
+      },
+      {
+        key: "betaToken",
+        labelKey: "usage.millionContextBetaToken",
+        raw: "context-1m-2025-08-07",
+        display: "context-1m-2025-08-07",
+      },
+    ]);
+
+    expect(formatUsageMillionContextExportFields(log as never)).toEqual({
+      requested: "true",
+      effective: "false",
+      source: "model_suffix_[1m]",
+      betaToken: "context-1m-2025-08-07",
+    });
   });
 });

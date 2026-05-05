@@ -158,9 +158,27 @@
           </template>
 
           <template #cell-reasoning_effort="{ row }">
-            <span class="text-sm text-gray-900 dark:text-white">
-              {{ formatReasoningEffort(row.reasoning_effort) }}
-            </span>
+            <div class="space-y-1">
+              <div class="text-sm text-gray-900 dark:text-white">
+                {{ formatReasoningEffortPair(row.reasoning_effort_raw, row.reasoning_effort_effective, row.reasoning_effort) }}
+              </div>
+              <div
+                v-if="formatUsageMillionContextLines(row).length > 0"
+                class="space-y-0.5 text-xs text-gray-500 dark:text-gray-400"
+              >
+                <span
+                  v-for="line in formatUsageMillionContextLines(row)"
+                  :key="`${row.id}-${line.key}`"
+                  class="block break-all"
+                  :title="line.raw"
+                >
+                  <span class="font-medium text-gray-400 dark:text-gray-500"
+                    >{{ t(line.labelKey) }}:</span
+                  >
+                  <span class="ml-1">{{ line.display }}</span>
+                </span>
+              </div>
+            </div>
           </template>
 
           <template #cell-thinking_enabled="{ row }">
@@ -756,13 +774,15 @@ import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import {
   formatDateTime,
-  formatReasoningEffort,
+  formatReasoningEffortPair,
   formatThinkingEnabled,
 } from "@/utils/format";
 import { formatTokenPricePerMillion } from "@/utils/usagePricing";
 import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
 import {
   formatUsageEndpointDisplay,
+  formatUsageMillionContextDisplay,
+  formatUsageMillionContextExportFields,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
 import { formatUsageProtocolExportText } from "@/utils/protocolDisplay";
@@ -992,6 +1012,16 @@ const formatUsageEndpoints = (
   log: Pick<UsageLog, "inbound_endpoint" | "upstream_endpoint">,
 ) => formatUsageEndpointDisplay(log);
 
+const formatUsageMillionContextLines = (
+  row: Pick<
+    UsageLog,
+    | "million_context_requested"
+    | "million_context_effective"
+    | "million_context_source"
+    | "million_context_beta_token"
+  >,
+) => formatUsageMillionContextDisplay(row);
+
 const formatTokens = (value: number): string => formatTokenDisplay(value);
 
 // Compact format for cache tokens in table cells
@@ -1192,6 +1222,10 @@ const exportToCSV = async () => {
       t("usage.simulatedClient"),
       t("usage.thinkingMode"),
       t("usage.reasoningEffort"),
+      t("usage.millionContextRequested"),
+      t("usage.millionContextEffective"),
+      t("usage.millionContextSource"),
+      t("usage.millionContextBetaToken"),
       t("usage.requestProtocol"),
       t("usage.inboundEndpoint"),
       t("usage.type"),
@@ -1210,8 +1244,9 @@ const exportToCSV = async () => {
       t("usage.duration"),
     ];
 
-    const rows = allLogs.map((log) =>
-      [
+    const rows = allLogs.map((log) => {
+      const millionContext = formatUsageMillionContextExportFields(log);
+      return [
         log.created_at,
         log.api_key?.name || "",
         log.model,
@@ -1220,7 +1255,11 @@ const exportToCSV = async () => {
           ? getSimulatedClientLabel(log.simulated_client)
           : "",
         formatThinkingEnabled(log.thinking_enabled),
-        formatReasoningEffort(log.reasoning_effort),
+        formatReasoningEffortPair(log.reasoning_effort_raw, log.reasoning_effort_effective, log.reasoning_effort),
+        millionContext.requested,
+        millionContext.effective,
+        millionContext.source,
+        millionContext.betaToken,
         formatUsageProtocolExportText(
           log.inbound_endpoint,
           log.upstream_endpoint,
@@ -1240,8 +1279,8 @@ const exportToCSV = async () => {
         log.billing_exempt_reason || "",
         log.first_token_ms ?? "",
         log.duration_ms,
-      ].map(escapeCSVValue),
-    );
+      ].map(escapeCSVValue);
+    });
 
     const csvContent = [
       headers.map(escapeCSVValue).join(","),

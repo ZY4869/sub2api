@@ -21,6 +21,22 @@ import (
 	"time"
 )
 
+func applyClaudeCapabilityToForwardResult(result *ForwardResult, capability ClaudeRequestCapability) {
+	if result == nil {
+		return
+	}
+	result.RequestedModelRaw = strings.TrimSpace(capability.RequestedModelRaw)
+	result.RequestedModelNormalized = strings.TrimSpace(capability.RequestedModelNormalized)
+	result.MillionContextRequested = capability.MillionContextRequested
+	result.MillionContextEffective = capability.MillionContextEffective
+	result.MillionContextSource = strings.TrimSpace(capability.MillionContextSource)
+	if capability.MillionContextEffective {
+		result.MillionContextBetaToken = strings.TrimSpace(capability.MillionContextBetaToken)
+		return
+	}
+	result.MillionContextBetaToken = ""
+}
+
 func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*ForwardResult, error) {
 	if s == nil || s.GeminiMessagesCompatService == nil {
 		return nil, nil
@@ -38,9 +54,12 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 		return nil, fmt.Errorf("missing model")
 	}
 	originalModel := req.Model
-	mappedModel := req.Model
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String()))
+	normalizedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, originalModel)
+	req.Model = normalizedModel
+	mappedModel := normalizedModel
 	if account.Type == AccountTypeAPIKey {
-		mappedModel = account.GetMappedModel(req.Model)
+		mappedModel = account.GetMappedModel(normalizedModel)
 	}
 	simulatedClient := ""
 	if route := MatchGatewayClientRoute(account, PlatformGemini, mappedModel); route != nil {
@@ -418,7 +437,9 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 	if resolvedServiceTier == nil {
 		resolvedServiceTier = requestedServiceTier
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, RequestedServiceTier: requestedServiceTier, ServiceTier: resolvedServiceTier, SimulatedClient: simulatedClient, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	result := &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, RequestedServiceTier: requestedServiceTier, ServiceTier: resolvedServiceTier, SimulatedClient: simulatedClient, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}
+	applyClaudeCapabilityToForwardResult(result, claudeCapability)
+	return result, nil
 }
 func isGeminiSignatureRelatedError(respBody []byte) bool {
 	msg := strings.ToLower(strings.TrimSpace(extractAntigravityErrorMessage(respBody)))
@@ -451,9 +472,11 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 		return nil, s.writeGoogleError(c, http.StatusNotFound, "Unsupported action: "+action)
 	}
 	body = ensureGeminiFunctionCallThoughtSignatures(body)
-	mappedModel := originalModel
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String()))
+	normalizedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, originalModel)
+	mappedModel := normalizedModel
 	if account.Type == AccountTypeAPIKey {
-		mappedModel = account.GetMappedModel(originalModel)
+		mappedModel = account.GetMappedModel(normalizedModel)
 	}
 	simulatedClient := ""
 	if route := MatchGatewayClientRoute(account, PlatformGemini, mappedModel); route != nil {
@@ -826,7 +849,9 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 	if resolvedServiceTier == nil {
 		resolvedServiceTier = requestedServiceTier
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, RequestedServiceTier: requestedServiceTier, ServiceTier: resolvedServiceTier, SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	result := &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, RequestedServiceTier: requestedServiceTier, ServiceTier: resolvedServiceTier, SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}
+	applyClaudeCapabilityToForwardResult(result, claudeCapability)
+	return result, nil
 }
 func (s *GeminiMessagesCompatService) checkErrorPolicyInLoop(ctx context.Context, account *Account, resp *http.Response) (matched bool, rebuilt *http.Response) {
 	if resp.StatusCode < 400 || s.rateLimitService == nil {
@@ -1151,7 +1176,7 @@ func (s *GeminiMessagesCompatService) finishGeminiEstimatedCountTokensResponse(
 	if c != nil {
 		c.JSON(http.StatusOK, map[string]any{"totalTokens": estimateGeminiCountTokens(body)})
 	}
-	return &ForwardResult{
+	result := &ForwardResult{
 		RequestID:            requestID,
 		Usage:                ClaudeUsage{},
 		Model:                originalModel,
@@ -1162,5 +1187,7 @@ func (s *GeminiMessagesCompatService) finishGeminiEstimatedCountTokensResponse(
 		Stream:               false,
 		Duration:             time.Since(startTime),
 		FirstTokenMs:         nil,
-	}, nil
+	}
+	applyClaudeCapabilityToForwardResult(result, ParseClaudeRequestCapability(originalModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String())))
+	return result, nil
 }

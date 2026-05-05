@@ -161,9 +161,27 @@
         </template>
 
         <template #cell-reasoning_effort="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">
-            {{ formatReasoningEffort(row.reasoning_effort) }}
-          </span>
+          <div class="space-y-1">
+            <div class="text-sm text-gray-900 dark:text-white">
+              {{ formatUsageCapabilityPair(row) }}
+            </div>
+            <div
+              v-if="formatUsageMillionContextLines(row).length > 0"
+              class="space-y-0.5 text-xs text-gray-500 dark:text-gray-400"
+            >
+              <span
+                v-for="line in formatUsageMillionContextLines(row)"
+                :key="`${row.id}-${line.key}`"
+                class="block break-all"
+                :title="line.raw"
+              >
+                <span class="font-medium text-gray-400 dark:text-gray-500"
+                  >{{ t(line.labelKey) }}:</span
+                >
+                <span class="ml-1">{{ line.display }}</span>
+              </span>
+            </div>
+          </div>
         </template>
 
         <template #cell-request_protocol="{ row }">
@@ -777,7 +795,7 @@ import { useI18n } from "vue-i18n";
 import { useClipboard } from "@/composables/useClipboard";
 import {
   formatDateTime,
-  formatReasoningEffort,
+  formatReasoningEffortPair,
   formatThinkingEnabled,
 } from "@/utils/format";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
@@ -785,6 +803,7 @@ import { formatTokenPricePerMillion } from "@/utils/usagePricing";
 import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
 import {
   formatUsageEndpointDisplay,
+  formatUsageMillionContextDisplay,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
@@ -899,6 +918,23 @@ const formatUserAgent = (ua: string): string => {
 const formatUsageEndpoints = (
   row: Pick<AdminUsageLog, "inbound_endpoint" | "upstream_endpoint">,
 ) => formatUsageEndpointDisplay(row);
+
+const formatUsageMillionContextLines = (
+  row: Pick<
+    AdminUsageLog,
+    | "million_context_requested"
+    | "million_context_effective"
+    | "million_context_source"
+    | "million_context_beta_token"
+  >,
+) => formatUsageMillionContextDisplay(row);
+
+const formatUsageCapabilityPair = (row: AdminUsageLog): string =>
+  formatReasoningEffortPair(
+    row.reasoning_effort_raw,
+    row.reasoning_effort_effective,
+    row.reasoning_effort,
+  );
 
 const getChargeLabel = (row: AdminUsageLog): string | null =>
   getUsageChargeLabel(row, t);

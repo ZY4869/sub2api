@@ -67,6 +67,10 @@ const messages: Record<string, string> = {
   "usage.thinkingEnabled": "Enabled",
   "usage.thinkingDisabled": "Disabled",
   "usage.reasoningEffort": "Reasoning Effort",
+  "usage.millionContextRequested": "1M Requested",
+  "usage.millionContextEffective": "1M Effective",
+  "usage.millionContextSource": "1M Source",
+  "usage.millionContextBetaToken": "1M Beta Token",
   "usage.type": "Type",
   "usage.tokens": "Tokens",
   "usage.cost": "Cost",
@@ -305,6 +309,10 @@ describe("user UsageView tooltip", () => {
         model: "gpt-5.4",
         thinking_enabled: true,
         reasoning_effort: null,
+        million_context_requested: true,
+        million_context_effective: false,
+        million_context_source: "model_suffix_[1m]",
+        million_context_beta_token: "context-1m-2025-08-07",
         api_key: { name: "demo-key" },
       },
     ];
@@ -378,6 +386,10 @@ describe("user UsageView tooltip", () => {
     expect(csvText).toContain("Thinking Mode");
     expect(csvText).toContain("Enabled");
     expect(csvText).toContain("免扣原因");
+    expect(csvText).toContain("1M Requested");
+    expect(csvText).toContain("1M Effective");
+    expect(csvText).toContain("model_suffix_[1m]");
+    expect(csvText).toContain("context-1m-2025-08-07");
 
     window.URL.createObjectURL = originalCreateObjectURL;
     window.URL.revokeObjectURL = originalRevokeObjectURL;

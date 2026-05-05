@@ -7,8 +7,12 @@ import (
 
 var opsTraceKeyFieldPaths = []string{
 	"model",
+	"effortLevel",
+	"reasoning.effort",
 	"reasoning_effort",
 	"output_config.effort",
+	"thinkingLevel",
+	"thinking.thinkingLevel",
 	"thinking.type",
 	"thinking.budget_tokens",
 	"service_tier",

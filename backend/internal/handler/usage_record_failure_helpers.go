@@ -32,6 +32,25 @@ func firstHeaderValue(headers http.Header, keys ...string) string {
 	return ""
 }
 
+func optionalContextString(value string, ok bool) *string {
+	if !ok {
+		return nil
+	}
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func optionalContextBool(value bool, ok bool) *bool {
+	if !ok {
+		return nil
+	}
+	resolved := value
+	return &resolved
+}
+
 func resolveFailedUsageResolution(c *gin.Context, failoverErr *service.UpstreamFailoverError, err error) failedUsageResolution {
 	resolution := failedUsageResolution{}
 	if failoverErr != nil {
@@ -101,26 +120,39 @@ func (h *OpenAIGatewayHandler) submitFailedUsageRecordTask(
 	inboundEndpoint := GetInboundEndpoint(c)
 	upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 	simulatedClient := resolveFailedUsageSimulatedClient(account, service.PlatformOpenAI, model)
+	requestCtx := c.Request.Context()
+	requestedModelRaw := optionalContextString(service.ClaudeRequestedModelRawMetadataFromContext(requestCtx))
+	requestedModelNormalized := optionalContextString(service.ClaudeRequestedModelNormalizedMetadataFromContext(requestCtx))
+	millionContextRequested := optionalContextBool(service.ClaudeMillionContextRequestedMetadataFromContext(requestCtx))
+	millionContextEffective := optionalContextBool(service.ClaudeMillionContextEffectiveMetadataFromContext(requestCtx))
+	millionContextSource := optionalContextString(service.ClaudeMillionContextSourceMetadataFromContext(requestCtx))
+	millionContextBetaToken := optionalContextString(service.ClaudeMillionContextBetaTokenMetadataFromContext(requestCtx))
 
 	h.submitUsageRecordTask(func(ctx context.Context) {
 		if recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.OpenAIRecordFailedUsageInput{
-			APIKey:           apiKey,
-			User:             apiKey.User,
-			Account:          account,
-			Subscription:     subscription,
-			RequestID:        resolution.RequestID,
-			Model:            model,
-			UpstreamModel:    account.GetMappedModel(model),
-			InboundEndpoint:  inboundEndpoint,
-			UpstreamEndpoint: upstreamEndpoint,
-			UserAgent:        userAgent,
-			IPAddress:        clientIP,
-			HTTPStatus:       resolution.HTTPStatus,
-			ErrorCode:        resolution.ErrorCode,
-			ErrorMessage:     resolution.ErrorMessage,
-			SimulatedClient:  simulatedClient,
-			Stream:           stream,
-			Duration:         duration,
+			APIKey:                   apiKey,
+			User:                     apiKey.User,
+			Account:                  account,
+			Subscription:             subscription,
+			RequestID:                resolution.RequestID,
+			Model:                    model,
+			UpstreamModel:            account.GetMappedModel(model),
+			InboundEndpoint:          inboundEndpoint,
+			UpstreamEndpoint:         upstreamEndpoint,
+			UserAgent:                userAgent,
+			IPAddress:                clientIP,
+			HTTPStatus:               resolution.HTTPStatus,
+			ErrorCode:                resolution.ErrorCode,
+			ErrorMessage:             resolution.ErrorMessage,
+			SimulatedClient:          simulatedClient,
+			Stream:                   stream,
+			Duration:                 duration,
+			RequestedModelRaw:        requestedModelRaw,
+			RequestedModelNormalized: requestedModelNormalized,
+			MillionContextRequested:  millionContextRequested,
+			MillionContextEffective:  millionContextEffective,
+			MillionContextSource:     millionContextSource,
+			MillionContextBetaToken:  millionContextBetaToken,
 		}); recordErr != nil {
 			logger.L().With(
 				zap.String("component", component),
@@ -155,26 +187,39 @@ func (h *GatewayHandler) submitFailedUsageRecordTask(
 	inboundEndpoint := GetInboundEndpoint(c)
 	upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 	simulatedClient := resolveFailedUsageSimulatedClient(account, protocol, model)
+	requestCtx := c.Request.Context()
+	requestedModelRaw := optionalContextString(service.ClaudeRequestedModelRawMetadataFromContext(requestCtx))
+	requestedModelNormalized := optionalContextString(service.ClaudeRequestedModelNormalizedMetadataFromContext(requestCtx))
+	millionContextRequested := optionalContextBool(service.ClaudeMillionContextRequestedMetadataFromContext(requestCtx))
+	millionContextEffective := optionalContextBool(service.ClaudeMillionContextEffectiveMetadataFromContext(requestCtx))
+	millionContextSource := optionalContextString(service.ClaudeMillionContextSourceMetadataFromContext(requestCtx))
+	millionContextBetaToken := optionalContextString(service.ClaudeMillionContextBetaTokenMetadataFromContext(requestCtx))
 
 	h.submitUsageRecordTask(func(ctx context.Context) {
 		if recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.RecordFailedUsageInput{
-			APIKey:           apiKey,
-			User:             apiKey.User,
-			Account:          account,
-			Subscription:     subscription,
-			RequestID:        resolution.RequestID,
-			Model:            model,
-			UpstreamModel:    account.GetMappedModel(model),
-			InboundEndpoint:  inboundEndpoint,
-			UpstreamEndpoint: upstreamEndpoint,
-			UserAgent:        userAgent,
-			IPAddress:        clientIP,
-			HTTPStatus:       resolution.HTTPStatus,
-			ErrorCode:        resolution.ErrorCode,
-			ErrorMessage:     resolution.ErrorMessage,
-			SimulatedClient:  simulatedClient,
-			Stream:           stream,
-			Duration:         duration,
+			APIKey:                   apiKey,
+			User:                     apiKey.User,
+			Account:                  account,
+			Subscription:             subscription,
+			RequestID:                resolution.RequestID,
+			Model:                    model,
+			UpstreamModel:            account.GetMappedModel(model),
+			InboundEndpoint:          inboundEndpoint,
+			UpstreamEndpoint:         upstreamEndpoint,
+			UserAgent:                userAgent,
+			IPAddress:                clientIP,
+			HTTPStatus:               resolution.HTTPStatus,
+			ErrorCode:                resolution.ErrorCode,
+			ErrorMessage:             resolution.ErrorMessage,
+			SimulatedClient:          simulatedClient,
+			Stream:                   stream,
+			Duration:                 duration,
+			RequestedModelRaw:        requestedModelRaw,
+			RequestedModelNormalized: requestedModelNormalized,
+			MillionContextRequested:  millionContextRequested,
+			MillionContextEffective:  millionContextEffective,
+			MillionContextSource:     millionContextSource,
+			MillionContextBetaToken:  millionContextBetaToken,
 		}); recordErr != nil {
 			logger.L().With(
 				zap.String("component", component),

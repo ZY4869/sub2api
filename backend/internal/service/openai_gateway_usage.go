@@ -11,6 +11,28 @@ import (
 	"time"
 )
 
+func applyClaudeCapabilityToOpenAIForwardResult(result *OpenAIForwardResult, capability ClaudeRequestCapability) {
+	if result == nil {
+		return
+	}
+	if value := strings.TrimSpace(capability.RequestedModelRaw); value != "" {
+		result.RequestedModelRaw = &value
+	}
+	if value := strings.TrimSpace(capability.RequestedModelNormalized); value != "" {
+		result.RequestedModelNormalized = &value
+	}
+	requested := capability.MillionContextRequested
+	effective := capability.MillionContextEffective
+	result.MillionContextRequested = &requested
+	result.MillionContextEffective = &effective
+	if value := strings.TrimSpace(capability.MillionContextSource); value != "" {
+		result.MillionContextSource = &value
+	}
+	if value := strings.TrimSpace(capability.MillionContextBetaToken); value != "" && capability.MillionContextEffective {
+		result.MillionContextBetaToken = &value
+	}
+}
+
 func openAIThinkingEnabledFromReasoningEffort(effort *string) *bool {
 	if effort == nil {
 		return nil
@@ -20,7 +42,7 @@ func openAIThinkingEnabledFromReasoningEffort(effort *string) *bool {
 	case "none":
 		disabled := false
 		return &disabled
-	case "low", "medium", "high", "xhigh":
+	case "low", "medium", "high", "xhigh", "max":
 		enabled := true
 		return &enabled
 	default:
@@ -117,50 +139,63 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	accountRateMultiplier := account.BillingRateMultiplier()
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
 	billingCurrency := normalizeBillingCurrency(cost.Currency)
+	legacyReasoningEffort, reasoningEffortRaw, reasoningEffortEffective := NormalizeGatewayEffortForUsage(
+		result.ReasoningEffort,
+		result.ReasoningEffortRaw,
+		result.ReasoningEffortEffective,
+	)
 
 	usageLog := &UsageLog{
-		UserID:                  user.ID,
-		APIKeyID:                apiKey.ID,
-		AccountID:               account.ID,
-		RequestID:               requestID,
-		Model:                   result.Model,
-		RequestedModel:          result.Model,
-		UpstreamModel:           optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
-		ServiceTier:             result.ServiceTier,
-		ReasoningEffort:         result.ReasoningEffort,
-		ThinkingEnabled:         openAIThinkingEnabledFromReasoningEffort(result.ReasoningEffort),
-		InboundEndpoint:         optionalTrimmedStringPtr(input.InboundEndpoint),
-		UpstreamEndpoint:        optionalTrimmedStringPtr(input.UpstreamEndpoint),
-		UpstreamURL:             optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)),
-		UpstreamService:         optionalTrimmedStringPtr(usageProvider),
-		InputTokens:             actualInputTokens,
-		OutputTokens:            result.Usage.OutputTokens,
-		CacheCreationTokens:     normalizedUsage.DisplayTokens.CacheCreationTokens,
-		CacheReadTokens:         normalizedUsage.DisplayTokens.CacheReadTokens,
-		InputCost:               cost.InputCost,
-		OutputCost:              cost.OutputCost,
-		CacheCreationCost:       cost.CacheCreationCost,
-		CacheReadCost:           cost.CacheReadCost,
-		TotalCost:               cost.TotalCost,
-		ActualCost:              cost.ActualCost,
-		BillingCurrency:         billingCurrency,
-		TotalCostUSDEquivalent:  cost.TotalCostUSDEquivalent,
-		ActualCostUSDEquivalent: cost.ActualCostUSDEquivalent,
-		USDToCNYRate:            cost.USDToCNYRate,
-		FXRateDate:              optionalTrimmedStringPtr(cost.FXRateDate),
-		FXLockedAt:              cloneBillingTime(cost.FXLockedAt),
-		CostByCurrency:          cloneBillingStringMapFloat64(cost.CostByCurrency),
-		ActualCostByCurrency:    cloneBillingStringMapFloat64(cost.ActualCostByCurrency),
-		RateMultiplier:          multiplier,
-		AccountRateMultiplier:   &accountRateMultiplier,
-		BillingType:             billingType,
-		Status:                  UsageLogStatusSucceeded,
-		Stream:                  result.Stream,
-		OpenAIWSMode:            result.OpenAIWSMode,
-		DurationMs:              &durationMs,
-		FirstTokenMs:            result.FirstTokenMs,
-		ImageCount:              result.ImageCount,
-		CreatedAt:               time.Now(),
+		UserID:                   user.ID,
+		APIKeyID:                 apiKey.ID,
+		AccountID:                account.ID,
+		RequestID:                requestID,
+		Model:                    result.Model,
+		RequestedModel:           result.Model,
+		UpstreamModel:            optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
+		ServiceTier:              result.ServiceTier,
+		ReasoningEffort:          legacyReasoningEffort,
+		ReasoningEffortRaw:       reasoningEffortRaw,
+		ReasoningEffortEffective: reasoningEffortEffective,
+		RequestedModelRaw:        result.RequestedModelRaw,
+		RequestedModelNormalized: result.RequestedModelNormalized,
+		MillionContextRequested:  result.MillionContextRequested,
+		MillionContextEffective:  result.MillionContextEffective,
+		MillionContextSource:     result.MillionContextSource,
+		MillionContextBetaToken:  result.MillionContextBetaToken,
+		ThinkingEnabled:          openAIThinkingEnabledFromReasoningEffort(reasoningEffortEffective),
+		InboundEndpoint:          optionalTrimmedStringPtr(input.InboundEndpoint),
+		UpstreamEndpoint:         optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		UpstreamURL:              optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)),
+		UpstreamService:          optionalTrimmedStringPtr(usageProvider),
+		InputTokens:              actualInputTokens,
+		OutputTokens:             result.Usage.OutputTokens,
+		CacheCreationTokens:      normalizedUsage.DisplayTokens.CacheCreationTokens,
+		CacheReadTokens:          normalizedUsage.DisplayTokens.CacheReadTokens,
+		InputCost:                cost.InputCost,
+		OutputCost:               cost.OutputCost,
+		CacheCreationCost:        cost.CacheCreationCost,
+		CacheReadCost:            cost.CacheReadCost,
+		TotalCost:                cost.TotalCost,
+		ActualCost:               cost.ActualCost,
+		BillingCurrency:          billingCurrency,
+		TotalCostUSDEquivalent:   cost.TotalCostUSDEquivalent,
+		ActualCostUSDEquivalent:  cost.ActualCostUSDEquivalent,
+		USDToCNYRate:             cost.USDToCNYRate,
+		FXRateDate:               optionalTrimmedStringPtr(cost.FXRateDate),
+		FXLockedAt:               cloneBillingTime(cost.FXLockedAt),
+		CostByCurrency:           cloneBillingStringMapFloat64(cost.CostByCurrency),
+		ActualCostByCurrency:     cloneBillingStringMapFloat64(cost.ActualCostByCurrency),
+		RateMultiplier:           multiplier,
+		AccountRateMultiplier:    &accountRateMultiplier,
+		BillingType:              billingType,
+		Status:                   UsageLogStatusSucceeded,
+		Stream:                   result.Stream,
+		OpenAIWSMode:             result.OpenAIWSMode,
+		DurationMs:               &durationMs,
+		FirstTokenMs:             result.FirstTokenMs,
+		ImageCount:               result.ImageCount,
+		CreatedAt:                time.Now(),
 	}
 	if result.ImageSize != "" {
 		imageSize := result.ImageSize

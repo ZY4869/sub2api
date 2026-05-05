@@ -19,6 +19,7 @@ import (
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -337,14 +338,20 @@ func setOpsRequestContext(c *gin.Context, model string, stream bool, requestBody
 		return
 	}
 	model = strings.TrimSpace(model)
+	rawModel := model
+	if len(requestBody) > 0 {
+		if parsedModel := strings.TrimSpace(gjson.GetBytes(requestBody, "model").String()); parsedModel != "" {
+			rawModel = parsedModel
+		}
+	}
 	c.Set(opsModelKey, model)
 	c.Set(opsStreamKey, stream)
 	if len(requestBody) > 0 {
 		c.Set(opsRequestBodyKey, requestBody)
 	}
-	if c.Request != nil && model != "" {
+	if c.Request != nil && rawModel != "" {
 		ctx := service.EnsureRequestMetadata(c.Request.Context())
-		ctx = context.WithValue(ctx, ctxkey.Model, model)
+		ctx = context.WithValue(ctx, ctxkey.Model, rawModel)
 		c.Request = c.Request.WithContext(ctx)
 		return
 	}

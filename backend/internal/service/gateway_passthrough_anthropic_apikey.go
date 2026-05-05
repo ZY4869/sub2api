@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, requestedModel string, upstreamModel string, reqStream bool, startTime time.Time, reasoningEffort *string) (*ForwardResult, error) {
+func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, requestedModel string, upstreamModel string, reqStream bool, startTime time.Time, effortResolution GatewayEffortResolution, capability ClaudeRequestCapability) (*ForwardResult, error) {
 	token, tokenType, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, 
 	var resp *http.Response
 	retryStart := time.Now()
 	for attempt := 1; attempt <= maxRetryAttempts; attempt++ {
-		upstreamReq, err := s.buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx, c, account, body, token)
+		upstreamReq, err := s.buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx, c, account, body, token, capability)
 		if err != nil {
 			return nil, err
 		}
@@ -147,9 +147,33 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, 
 	if usage == nil {
 		usage = &ClaudeUsage{}
 	}
-	return &ForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: requestedModel, UpstreamModel: upstreamModel, ReasoningEffort: reasoningEffort, Stream: reqStream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
+	return &ForwardResult{
+		RequestID:                resp.Header.Get("x-request-id"),
+		Usage:                    *usage,
+		Model:                    requestedModel,
+		UpstreamModel:            upstreamModel,
+		RequestedModelRaw:        capability.RequestedModelRaw,
+		RequestedModelNormalized: capability.RequestedModelNormalized,
+		MillionContextRequested:  capability.MillionContextRequested,
+		MillionContextEffective:  capability.MillionContextEffective,
+		MillionContextSource:     capability.MillionContextSource,
+		MillionContextBetaToken: func() string {
+			if capability.MillionContextEffective {
+				return capability.MillionContextBetaToken
+			}
+			return ""
+		}(),
+		ReasoningEffort:          effortResolution.Effective,
+		ReasoningEffortRaw:       effortResolution.Raw,
+		ReasoningEffortEffective: effortResolution.Effective,
+		ReasoningEffortSource:    effortResolution.Source,
+		Stream:                   reqStream,
+		Duration:                 time.Since(startTime),
+		FirstTokenMs:             firstTokenMs,
+		ClientDisconnect:         clientDisconnect,
+	}, nil
 }
-func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, token string) (*http.Request, error) {
+func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, token string, capability ClaudeRequestCapability) (*http.Request, error) {
 	targetURL := claudeAPIURL
 	baseURL := account.GetBaseURL()
 	if baseURL != "" {
@@ -185,6 +209,7 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx cont
 	if req.Header.Get("anthropic-version") == "" {
 		req.Header.Set("anthropic-version", "2023-06-01")
 	}
+	ApplyClaudeCapabilityToHeader(req, capability)
 	return req, nil
 }
 func (s *GatewayService) handleStreamingResponseAnthropicAPIKeyPassthrough(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, startTime time.Time, model string) (*streamingResult, error) {

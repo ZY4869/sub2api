@@ -8,6 +8,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/sjson"
 
 	"io"
 	"net/http"
@@ -21,13 +22,24 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	if parsed == nil {
 		return nil, fmt.Errorf("parse request: empty request")
 	}
-	reasoningEffort := NormalizeClaudeOutputEffort(parsed.OutputEffort)
+	capability := ApplyClaudeCapabilityRuntime(parsed.Capability, EffectiveProtocol(account))
+	RecordClaudeCapabilityMetadata(ctx, capability)
+	effortResolution := ResolveAnthropicEffort(parsed.OutputEffort, parsed.EffortLevel)
+	reasoningEffort := effortResolution.Effective
 	if account != nil && account.IsAnthropicAPIKeyPassthroughEnabled() {
 		passthroughBody := parsed.Body
 		requestedModel := parsed.Model
 		passthroughModel := ResolveGatewaySelectionModelFromContext(ctx, parsed.Model)
 		if passthroughModel == "" {
 			passthroughModel = parsed.Model
+		}
+		if effortResolution.Source == effortSourceTopLevel && effortResolution.Effective != nil {
+			if nextBody, err := sjson.SetBytes(passthroughBody, "output_config.effort", *effortResolution.Effective); err == nil {
+				passthroughBody = nextBody
+				if cleanedBody, delErr := sjson.DeleteBytes(passthroughBody, "effortLevel"); delErr == nil {
+					passthroughBody = cleanedBody
+				}
+			}
 		}
 		if passthroughModel != "" {
 			if mappedModel := account.GetMappedModel(passthroughModel); mappedModel != passthroughModel {
@@ -36,7 +48,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				passthroughModel = mappedModel
 			}
 		}
-		return s.forwardAnthropicAPIKeyPassthrough(ctx, c, account, passthroughBody, requestedModel, passthroughModel, parsed.Stream, startTime, reasoningEffort)
+		return s.forwardAnthropicAPIKeyPassthrough(ctx, c, account, passthroughBody, requestedModel, passthroughModel, parsed.Stream, startTime, effortResolution, capability)
 	}
 	if account.IsAnthropic() && c != nil {
 		policy := s.evaluateBetaPolicy(ctx, c.GetHeader("anthropic-beta"), account)
@@ -50,6 +62,14 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		c.Set(betaPolicyFilterSetKey, filterSet)
 	}
 	body := parsed.Body
+	if effortResolution.Source == effortSourceTopLevel && effortResolution.Effective != nil {
+		if nextBody, err := sjson.SetBytes(body, "output_config.effort", *effortResolution.Effective); err == nil {
+			body = nextBody
+			if cleanedBody, delErr := sjson.DeleteBytes(body, "effortLevel"); delErr == nil {
+				body = cleanedBody
+			}
+		}
+	}
 	reqModel := s.resolveCanonicalRequestModel(ctx, parsed.Model)
 	if reqModel == "" {
 		reqModel = parsed.Model
@@ -142,7 +162,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				resp = nil
 			}
 		} else {
-			upstreamReq, buildErr := s.buildUpstreamRequest(ctx, c, account, body, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+			upstreamReq, buildErr := s.buildUpstreamRequest(ctx, c, account, body, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode, capability)
 			if buildErr != nil {
 				return nil, buildErr
 			}
@@ -179,7 +199,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					}
 					logger.LegacyPrintf("service.gateway", "Account %d: detected thinking block signature error, retrying with filtered thinking blocks", account.ID)
 					filteredBody := FilterThinkingBlocksForRetry(body)
-					retryReq, buildErr := s.buildUpstreamRequest(ctx, c, account, filteredBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+					retryReq, buildErr := s.buildUpstreamRequest(ctx, c, account, filteredBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode, capability)
 					if buildErr == nil {
 						retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 						if retryErr == nil {
@@ -201,7 +221,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 								if looksLikeToolSignatureError(msg2) && time.Since(retryStart) < maxRetryElapsed {
 									logger.LegacyPrintf("service.gateway", "Account %d: signature retry still failing and looks tool-related, retrying with tool blocks downgraded", account.ID)
 									filteredBody2 := FilterSignatureSensitiveBlocksForRetry(body)
-									retryReq2, buildErr2 := s.buildUpstreamRequest(ctx, c, account, filteredBody2, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+									retryReq2, buildErr2 := s.buildUpstreamRequest(ctx, c, account, filteredBody2, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode, capability)
 									if buildErr2 == nil {
 										retryResp2, retryErr2 := s.httpUpstream.DoWithTLS(retryReq2, proxyURL, account.ID, account.Concurrency, tlsProfile)
 										if retryErr2 == nil {
@@ -242,7 +262,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					rectifiedBody, applied := RectifyThinkingBudget(body)
 					if applied && time.Since(retryStart) < maxRetryElapsed {
 						logger.LegacyPrintf("service.gateway", "Account %d: detected budget_tokens constraint error, retrying with rectified budget (budget_tokens=%d, max_tokens=%d)", account.ID, BudgetRectifyBudgetTokens, BudgetRectifyMaxTokens)
-						budgetRetryReq, buildErr := s.buildUpstreamRequest(ctx, c, account, rectifiedBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+						budgetRetryReq, buildErr := s.buildUpstreamRequest(ctx, c, account, rectifiedBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode, capability)
 						if buildErr == nil {
 							budgetRetryResp, retryErr := s.httpUpstream.DoWithTLS(budgetRetryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 							if retryErr == nil {
@@ -391,5 +411,29 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			return nil, err
 		}
 	}
-	return &ForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: originalModel, UpstreamModel: reqModel, ReasoningEffort: reasoningEffort, Stream: reqStream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
+	return &ForwardResult{
+		RequestID:                resp.Header.Get("x-request-id"),
+		Usage:                    *usage,
+		Model:                    originalModel,
+		UpstreamModel:            reqModel,
+		RequestedModelRaw:        capability.RequestedModelRaw,
+		RequestedModelNormalized: capability.RequestedModelNormalized,
+		MillionContextRequested:  capability.MillionContextRequested,
+		MillionContextEffective:  capability.MillionContextEffective,
+		MillionContextSource:     capability.MillionContextSource,
+		MillionContextBetaToken: func() string {
+			if capability.MillionContextEffective {
+				return capability.MillionContextBetaToken
+			}
+			return ""
+		}(),
+		ReasoningEffort:          reasoningEffort,
+		ReasoningEffortRaw:       effortResolution.Raw,
+		ReasoningEffortEffective: effortResolution.Effective,
+		ReasoningEffortSource:    effortResolution.Source,
+		Stream:                   reqStream,
+		Duration:                 time.Since(startTime),
+		FirstTokenMs:             firstTokenMs,
+		ClientDisconnect:         clientDisconnect,
+	}, nil
 }

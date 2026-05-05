@@ -208,7 +208,7 @@ import { useAppStore } from "@/stores/app";
 import { useAuthStore } from "@/stores/auth";
 import { adminAPI } from "@/api/admin";
 import { adminUsageAPI } from "@/api/admin/usage";
-import { formatReasoningEffort, formatThinkingEnabled } from "@/utils/format";
+import { formatReasoningEffortPair, formatThinkingEnabled } from "@/utils/format";
 import { formatUsageProtocolExportText } from "@/utils/protocolDisplay";
 import {
   calculateUsageAmount,
@@ -217,6 +217,7 @@ import {
 } from "@/utils/usageCost";
 import { requestTypeToLegacyStream } from "@/utils/usageRequestType";
 import { getUsageOperationLabel } from "@/utils/usageOperation";
+import { formatUsageMillionContextExportFields } from "@/utils/usageDisplay";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import Select from "@/components/common/Select.vue";
@@ -635,6 +636,10 @@ const exportToExcel = async () => {
       t("usage.upstreamModel"),
       t("usage.thinkingMode"),
       t("usage.reasoningEffort"),
+      t("usage.millionContextRequested"),
+      t("usage.millionContextEffective"),
+      t("usage.millionContextSource"),
+      t("usage.millionContextBetaToken"),
       t("usage.requestProtocol"),
       t("admin.usage.group"),
       t("usage.type"),
@@ -682,7 +687,9 @@ const exportToExcel = async () => {
         total = res.total;
         exportProgress.total = total;
       }
-      const rows = (res.items || []).map((log: AdminUsageLog) => [
+      const rows = (res.items || []).map((log: AdminUsageLog) => {
+        const millionContext = formatUsageMillionContextExportFields(log);
+        return [
         log.created_at,
         log.user?.email || "",
         log.api_key?.name || "",
@@ -692,7 +699,11 @@ const exportToExcel = async () => {
         log.simulated_client ? getSimulatedClientLabel(log.simulated_client) : "",
         log.upstream_model || "",
         formatThinkingEnabled(log.thinking_enabled),
-        formatReasoningEffort(log.reasoning_effort),
+        formatReasoningEffortPair(log.reasoning_effort_raw, log.reasoning_effort_effective, log.reasoning_effort),
+        millionContext.requested,
+        millionContext.effective,
+        millionContext.source,
+        millionContext.betaToken,
         formatUsageProtocolExportText(log.inbound_endpoint, log.upstream_endpoint),
         log.group?.name || "",
         getRequestTypeLabel(log),
@@ -718,7 +729,8 @@ const exportToExcel = async () => {
         log.request_id || "",
         log.user_agent || "",
         log.ip_address || "",
-      ]);
+        ];
+      });
       if (rows.length) {
         XLSX.utils.sheet_add_aoa(ws, rows, { origin: -1 });
       }

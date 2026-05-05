@@ -157,6 +157,7 @@ https://api.zyxai.de
 - 如果某个账号把真实模型配置成了自定义映射名，那么 downstream `models list` 与 `models detail` 只返回映射名这个 display ID；`target model` 只保留在内部转发链路和后台诊断里。
 - 模型列表读路径只读取本地策略投影和本地 availability snapshot。即使 snapshot 缺失或过期，也只会返回现有投影并标记状态，不会在读请求里同步触发实时探测。
 - 没有有效售价的模型不会出现在公共目录里，也不会出现在用户创建 / 编辑 Key 时的模型选择器里。
+- `model[1m]` 只是 Claude Cloud 百万上下文的请求时能力后缀，不会成为新的公开模型资产；`/v1/models`、`/v1beta/models`、公共模型目录、策略投影与模型选择器都不会枚举带 `[1m]` 的镜像项。
 - 当站内 Key 开启“生图专用”后，`/v1/models`、`/v1beta/models`、模型详情和 Key 编辑器模型选择器都会在本地投影上继续收敛，只暴露 `image_generation` 原生生图模型；非生图模型即使在原分组可见，也不会成为这个 Key 的可调用 public ID。
 - `/v1/models`、`/v1beta/models` 以及复用同一公共模型读路径的详情接口，都是“运行时可服务视图”，不是永久静态目录；如果当前所有可路由账号都因为同一类运行时额度冷却而暂时无法服务某个模型，该模型会临时从列表和详情里隐藏，额度恢复后会自动重新出现。
 - 这类运行时隐藏不会反写账号白名单、`model_scope_v2`、probe snapshot 或 manual whitelist；它只是读路径上的临时过滤。

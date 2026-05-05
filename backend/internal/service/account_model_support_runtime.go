@@ -302,7 +302,7 @@ func isRequestedModelSupportedByAccount(ctx context.Context, registry *ModelRegi
 }
 
 func accountModelRequestedDisplayCandidates(modelID string) []string {
-	modelID = strings.TrimSpace(modelID)
+	modelID = NormalizeRequestedModelForClaudeCapability(modelID)
 	if modelID == "" {
 		return nil
 	}

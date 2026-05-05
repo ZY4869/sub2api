@@ -33,6 +33,17 @@ type ProtocolNormalizeResult struct {
 	ThinkingSource                          string   `json:"thinking_source"`
 	ThinkingLevel                           string   `json:"thinking_level"`
 	ThinkingBudget                          *int     `json:"thinking_budget,omitempty"`
+	GatewayEffortLevel                      string   `json:"gateway_effort_level,omitempty"`
+	ProtocolEffortField                     string   `json:"protocol_effort_field,omitempty"`
+	ProtocolEffortValue                     string   `json:"protocol_effort_value,omitempty"`
+	ReasoningEffortRaw                      string   `json:"reasoning_effort_raw,omitempty"`
+	ReasoningEffortEffective                string   `json:"reasoning_effort_effective,omitempty"`
+	RequestedModelRaw                       string   `json:"requested_model_raw,omitempty"`
+	RequestedModelNormalized                string   `json:"requested_model_normalized,omitempty"`
+	MillionContextRequested                 bool     `json:"million_context_requested"`
+	MillionContextEffective                 bool     `json:"million_context_effective"`
+	MillionContextSource                    string   `json:"million_context_source,omitempty"`
+	MillionContextBetaToken                 string   `json:"million_context_beta_token,omitempty"`
 	MediaResolution                         string   `json:"media_resolution"`
 	ToolKinds                               []string `json:"tool_kinds,omitempty"`
 	CountTokensSource                       string   `json:"count_tokens_source"`

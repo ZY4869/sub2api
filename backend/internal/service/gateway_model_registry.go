@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
-	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 )
 
 func (s *GatewayService) resolveCanonicalRequestModel(ctx context.Context, requestedModel string) string {
-	requestedModel = strings.TrimSpace(requestedModel)
+	requestedModel = NormalizeRequestedModelForClaudeCapability(requestedModel)
 	if requestedModel == "" {
 		return ""
 	}

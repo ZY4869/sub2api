@@ -140,3 +140,8 @@ func TestGetOpenAIRequestBodyMap_WriteBackContextCache(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, got, cachedMap)
 }
+
+func TestExtractOpenAIReasoningEffortFromBody_IgnoresTopLevelEffortLevel(t *testing.T) {
+	got := extractOpenAIReasoningEffortFromBody([]byte(`{"effortLevel":"max","input":"hi"}`), "gpt-5.4")
+	require.Nil(t, got)
+}

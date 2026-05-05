@@ -72,7 +72,7 @@ func claudeCodeBodyMapFromParsedRequest(parsedReq *service.ParsedRequest) map[st
 		return nil
 	}
 	bodyMap := map[string]any{
-		"model": parsedReq.Model,
+		"model": firstNonEmptyString(parsedReq.Capability.RequestedModelRaw, parsedReq.RawModel, parsedReq.Model),
 	}
 	if parsedReq.System != nil || parsedReq.HasSystem {
 		bodyMap["system"] = parsedReq.System

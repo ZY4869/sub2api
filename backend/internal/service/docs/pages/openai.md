@@ -28,6 +28,15 @@
 - 管理后台单账号测试 `POST /api/v1/admin/accounts/:id/test` 会在发起上游请求前先做本地预检；命中受限侧时直接返回 `400`，提示 `Spark 冷却中`、`普通额度冷却中` 或整号冷却。
 - `service_tier`（priority/fast/flex）可能会被管理员策略过滤或阻断；默认 `priority/fast` 被过滤、`flex` 放行。命中阻断时返回 `403 forbidden_error`，错误码 `openai_fast_policy_blocked`。
 
+Thinking / reasoning 强度补充规则：
+
+- 顶层 `effortLevel` 现在只保留为 Claude 定向补位字段，不再作为 OpenAI / Responses 的公开承诺能力。
+- OpenAI 兼容入口只认 `reasoning.effort` / `reasoning_effort`；请求详情与使用记录仍会展示 `reasoning_effort_raw` / `reasoning_effort_effective`。
+- OpenAI 入口当前会接受并记录顶层 `effortLevel` 与 `model[1m]`，并把 `[1m]` 先剥离后再参与模型映射、路由和上游请求构造。
+- 但在当前运行时矩阵下，OpenAI 文本入口不会新增直达 Anthropic runtime 的跨平台转发能力；因此这两类字段默认只会体现为“用户请求过”，不承诺在该入口直接转成 Claude 上游生效。
+- 对纯 OpenAI / Copilot / DeepSeek 等当前可运行目标来说，请求详情与使用记录里通常会看到 `million_context_requested=true`、`million_context_effective=false`；这属于当前能力边界内的正常行为，而不是报错。
+- 即使请求里写了 `deepseek-v4-pro[1m]` 或顶层 `effortLevel=max`，它们也不会让 `/v1/models`、策略投影或公开模型目录出现新的 `[1m]` 变体。
+
 选择 `chat/completions` 的典型场景：
 
 - 现有代码或第三方工具不支持 `responses`
@@ -58,6 +67,27 @@ response = requests.post(
 print(response.json())
 if response.status_code == 429:
     print("当前模型可能因为对应的 OpenAI Pro 额度侧冷却而暂时不可用。")
+```
+
+#### Python
+```python focus=1-14
+import requests
+
+response = requests.post(
+    "https://api.zyxai.de/v1/chat/completions",
+    headers={
+        "Authorization": "Bearer sk-你的站内Key",
+        "Content-Type": "application/json",
+    },
+    json={
+        "model": "deepseek-v4-pro[1m]",
+        "effortLevel": "max",
+        "messages": [{"role": "user", "content": "当前入口会记录 1M 与 Claude 定向 effort 请求意图，但不会因为它们新增直达 Claude runtime 的转发能力。"}],
+    },
+    timeout=60,
+)
+
+print(response.json())
 ```
 
 #### JavaScript

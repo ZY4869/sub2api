@@ -163,22 +163,31 @@ type ClaudeUsage struct {
 }
 
 type ForwardResult struct {
-	RequestID            string
-	Usage                ClaudeUsage
-	Model                string
-	UpstreamModel        string
-	RequestedServiceTier *string
-	ServiceTier          *string
-	SimulatedClient      string
-	ReasoningEffort      *string
-	Stream               bool
-	Duration             time.Duration
-	FirstTokenMs         *int
-	ClientDisconnect     bool
-	ImageCount           int
-	ImageSize            string
-	MediaType            string
-	MediaURL             string
+	RequestID                string
+	Usage                    ClaudeUsage
+	Model                    string
+	UpstreamModel            string
+	RequestedModelRaw        string
+	RequestedModelNormalized string
+	MillionContextRequested  bool
+	MillionContextEffective  bool
+	MillionContextSource     string
+	MillionContextBetaToken  string
+	RequestedServiceTier     *string
+	ServiceTier              *string
+	SimulatedClient          string
+	ReasoningEffort          *string
+	ReasoningEffortRaw       *string
+	ReasoningEffortEffective *string
+	ReasoningEffortSource    string
+	Stream                   bool
+	Duration                 time.Duration
+	FirstTokenMs             *int
+	ClientDisconnect         bool
+	ImageCount               int
+	ImageSize                string
+	MediaType                string
+	MediaURL                 string
 }
 
 type UpstreamFailoverError struct {

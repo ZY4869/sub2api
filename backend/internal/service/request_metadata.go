@@ -13,48 +13,54 @@ type requestMetadataContextKey struct{}
 var requestMetadataKey = requestMetadataContextKey{}
 
 type RequestMetadata struct {
-	IsMaxTokensOneHaikuRequest  *bool
-	ThinkingEnabled             *bool
-	PrefetchedStickyAccountID   *int64
-	PrefetchedStickyGroupID     *int64
-	SingleAccountRetry          *bool
-	AccountSwitchCount          *int
-	GeminiSurface               *string
-	GeminiRequestedServiceTier  *string
-	GeminiResolvedServiceTier   *string
-	GeminiBatchMode             *string
-	GeminiCachePhase            *string
-	GeminiPublicVersion         *string
-	GeminiPublicResource        *string
-	GeminiAliasUsed             *bool
-	GeminiModelMetadataSource   *string
-	GeminiUpstreamPath          *string
-	GeminiBillingFallbackReason *string
-	BillingRuleID               *string
-	ProbeAction                 *string
-	ImageRouteFamily            *string
-	ImageAction                 *string
-	ImageResolvedProvider       *string
-	ImageDisplayModelID         *string
-	ImageTargetModelID          *string
-	ImageUpstreamEndpoint       *string
-	ImageRequestFormat          *string
-	ImageRouteReason            *string
-	ImageProtocolMode           *string
-	ImageRequestSurface         *string
-	ImageSizeTier               *string
-	ImageCapabilityProfile      *string
-	ImageOutputCount            *int
-	ImagegenCompat              *bool
-	ImagegenCompatRejected      *bool
-	ImagegenCompatRejectCode    *string
-	ImagegenCompatSourceGuess   *string
-	ImagegenCompatSource        *string
-	ImagegenCompatRefCount      *int
-	ImagegenCompatBytesBefore   *int64
-	ImagegenCompatBytesAfter    *int64
-	ImagegenCompatNormalized    *bool
-	ImagegenCompatSize          *string
+	IsMaxTokensOneHaikuRequest     *bool
+	ThinkingEnabled                *bool
+	ClaudeRequestedModelRaw        *string
+	ClaudeRequestedModelNormalized *string
+	ClaudeMillionContextRequested  *bool
+	ClaudeMillionContextEffective  *bool
+	ClaudeMillionContextSource     *string
+	ClaudeMillionContextBetaToken  *string
+	PrefetchedStickyAccountID      *int64
+	PrefetchedStickyGroupID        *int64
+	SingleAccountRetry             *bool
+	AccountSwitchCount             *int
+	GeminiSurface                  *string
+	GeminiRequestedServiceTier     *string
+	GeminiResolvedServiceTier      *string
+	GeminiBatchMode                *string
+	GeminiCachePhase               *string
+	GeminiPublicVersion            *string
+	GeminiPublicResource           *string
+	GeminiAliasUsed                *bool
+	GeminiModelMetadataSource      *string
+	GeminiUpstreamPath             *string
+	GeminiBillingFallbackReason    *string
+	BillingRuleID                  *string
+	ProbeAction                    *string
+	ImageRouteFamily               *string
+	ImageAction                    *string
+	ImageResolvedProvider          *string
+	ImageDisplayModelID            *string
+	ImageTargetModelID             *string
+	ImageUpstreamEndpoint          *string
+	ImageRequestFormat             *string
+	ImageRouteReason               *string
+	ImageProtocolMode              *string
+	ImageRequestSurface            *string
+	ImageSizeTier                  *string
+	ImageCapabilityProfile         *string
+	ImageOutputCount               *int
+	ImagegenCompat                 *bool
+	ImagegenCompatRejected         *bool
+	ImagegenCompatRejectCode       *string
+	ImagegenCompatSourceGuess      *string
+	ImagegenCompatSource           *string
+	ImagegenCompatRefCount         *int
+	ImagegenCompatBytesBefore      *int64
+	ImagegenCompatBytesAfter       *int64
+	ImagegenCompatNormalized       *bool
+	ImagegenCompatSize             *string
 }
 
 var (
@@ -260,6 +266,84 @@ func AccountSwitchCountFromContext(ctx context.Context) (int, bool) {
 		return int(t), true
 	}
 	return 0, false
+}
+
+func SetClaudeRequestedModelRawMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ClaudeRequestedModelRaw, value)
+	}
+}
+
+func ClaudeRequestedModelRawMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ClaudeRequestedModelRaw != nil {
+		return strings.TrimSpace(*md.ClaudeRequestedModelRaw), true
+	}
+	return "", false
+}
+
+func SetClaudeRequestedModelNormalizedMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ClaudeRequestedModelNormalized, value)
+	}
+}
+
+func ClaudeRequestedModelNormalizedMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ClaudeRequestedModelNormalized != nil {
+		return strings.TrimSpace(*md.ClaudeRequestedModelNormalized), true
+	}
+	return "", false
+}
+
+func SetClaudeMillionContextRequestedMetadata(ctx context.Context, value bool) {
+	if md := metadataFromContext(ctx); md != nil {
+		setBoolMetadataField(&md.ClaudeMillionContextRequested, value)
+	}
+}
+
+func ClaudeMillionContextRequestedMetadataFromContext(ctx context.Context) (bool, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ClaudeMillionContextRequested != nil {
+		return *md.ClaudeMillionContextRequested, true
+	}
+	return false, false
+}
+
+func SetClaudeMillionContextEffectiveMetadata(ctx context.Context, value bool) {
+	if md := metadataFromContext(ctx); md != nil {
+		setBoolMetadataField(&md.ClaudeMillionContextEffective, value)
+	}
+}
+
+func ClaudeMillionContextEffectiveMetadataFromContext(ctx context.Context) (bool, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ClaudeMillionContextEffective != nil {
+		return *md.ClaudeMillionContextEffective, true
+	}
+	return false, false
+}
+
+func SetClaudeMillionContextSourceMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ClaudeMillionContextSource, value)
+	}
+}
+
+func ClaudeMillionContextSourceMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ClaudeMillionContextSource != nil {
+		return strings.TrimSpace(*md.ClaudeMillionContextSource), true
+	}
+	return "", false
+}
+
+func SetClaudeMillionContextBetaTokenMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ClaudeMillionContextBetaToken, value)
+	}
+}
+
+func ClaudeMillionContextBetaTokenMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ClaudeMillionContextBetaToken != nil {
+		return strings.TrimSpace(*md.ClaudeMillionContextBetaToken), true
+	}
+	return "", false
 }
 
 func SetGeminiSurfaceMetadata(ctx context.Context, value string) {

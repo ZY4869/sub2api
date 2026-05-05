@@ -14,56 +14,72 @@ const (
 )
 
 type OpenAIRecordFailedUsageInput struct {
-	APIKey           *APIKey
-	User             *User
-	Account          *Account
-	Subscription     *UserSubscription
-	RequestID        string
-	Model            string
-	UpstreamModel    string
-	InboundEndpoint  string
-	UpstreamEndpoint string
-	UpstreamURL      string
-	UpstreamService  string
-	UserAgent        string
-	IPAddress        string
-	HTTPStatus       int
-	ErrorCode        string
-	ErrorMessage     string
-	SimulatedClient  string
-	Stream           bool
-	OpenAIWSMode     bool
-	Duration         time.Duration
-	ReasoningEffort  *string
-	ThinkingEnabled  *bool
+	APIKey                   *APIKey
+	User                     *User
+	Account                  *Account
+	Subscription             *UserSubscription
+	RequestID                string
+	Model                    string
+	UpstreamModel            string
+	InboundEndpoint          string
+	UpstreamEndpoint         string
+	UpstreamURL              string
+	UpstreamService          string
+	UserAgent                string
+	IPAddress                string
+	HTTPStatus               int
+	ErrorCode                string
+	ErrorMessage             string
+	SimulatedClient          string
+	Stream                   bool
+	OpenAIWSMode             bool
+	Duration                 time.Duration
+	ReasoningEffort          *string
+	ReasoningEffortRaw       *string
+	ReasoningEffortEffective *string
+	RequestedModelRaw        *string
+	RequestedModelNormalized *string
+	MillionContextRequested  *bool
+	MillionContextEffective  *bool
+	MillionContextSource     *string
+	MillionContextBetaToken  *string
+	ThinkingEnabled          *bool
 }
 
 type RecordFailedUsageInput struct {
-	APIKey           *APIKey
-	User             *User
-	Account          *Account
-	Subscription     *UserSubscription
-	RequestID        string
-	Model            string
-	UpstreamModel    string
-	InboundEndpoint  string
-	UpstreamEndpoint string
-	UpstreamURL      string
-	UpstreamService  string
-	UserAgent        string
-	IPAddress        string
-	HTTPStatus       int
-	ErrorCode        string
-	ErrorMessage     string
-	SimulatedClient  string
-	Stream           bool
-	OpenAIWSMode     bool
-	Duration         time.Duration
-	ReasoningEffort  *string
-	ThinkingEnabled  *bool
-	ImageCount       int
-	ImageSize        string
-	MediaType        string
+	APIKey                   *APIKey
+	User                     *User
+	Account                  *Account
+	Subscription             *UserSubscription
+	RequestID                string
+	Model                    string
+	UpstreamModel            string
+	InboundEndpoint          string
+	UpstreamEndpoint         string
+	UpstreamURL              string
+	UpstreamService          string
+	UserAgent                string
+	IPAddress                string
+	HTTPStatus               int
+	ErrorCode                string
+	ErrorMessage             string
+	SimulatedClient          string
+	Stream                   bool
+	OpenAIWSMode             bool
+	Duration                 time.Duration
+	ReasoningEffort          *string
+	ReasoningEffortRaw       *string
+	ReasoningEffortEffective *string
+	RequestedModelRaw        *string
+	RequestedModelNormalized *string
+	MillionContextRequested  *bool
+	MillionContextEffective  *bool
+	MillionContextSource     *string
+	MillionContextBetaToken  *string
+	ThinkingEnabled          *bool
+	ImageCount               int
+	ImageSize                string
+	MediaType                string
 }
 
 func resolveFailedUsageUser(user *User, apiKey *APIKey) *User {
@@ -125,6 +141,10 @@ func optionalMediaTypePtr(value string) *string {
 	return optionalTrimmedStringPtr(value)
 }
 
+func normalizeUsageReasoningFieldsForLog(legacy *string, raw *string, effective *string) (*string, *string, *string) {
+	return NormalizeGatewayEffortForUsage(legacy, raw, effective)
+}
+
 func optionalImageSizePtr(value string) *string {
 	return optionalTrimmedStringPtr(value)
 }
@@ -148,38 +168,52 @@ func buildFailedUsageLogBase(
 	}
 
 	accountRateMultiplier := account.BillingRateMultiplier()
+	legacyReasoningEffort, reasoningEffortRaw, reasoningEffortEffective := normalizeUsageReasoningFieldsForLog(
+		input.ReasoningEffort,
+		input.ReasoningEffortRaw,
+		input.ReasoningEffortEffective,
+	)
+
 	log := &UsageLog{
-		UserID:                user.ID,
-		APIKeyID:              apiKey.ID,
-		AccountID:             account.ID,
-		RequestID:             resolveUsageBillingRequestID(ctx, input.RequestID),
-		Model:                 strings.TrimSpace(input.Model),
-		RequestedModel:        strings.TrimSpace(input.Model),
-		UpstreamModel:         optionalNonEqualStringPtr(input.UpstreamModel, input.Model),
-		ReasoningEffort:       input.ReasoningEffort,
-		ThinkingEnabled:       input.ThinkingEnabled,
-		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
-		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),
-		UpstreamURL:           optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)),
-		UpstreamService:       optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)),
-		RateMultiplier:        multiplier,
-		AccountRateMultiplier: &accountRateMultiplier,
-		BillingType:           billingType,
-		RequestType:           RequestTypeFromLegacy(input.Stream, input.OpenAIWSMode),
-		Status:                UsageLogStatusFailed,
-		Stream:                input.Stream,
-		OpenAIWSMode:          input.OpenAIWSMode,
-		DurationMs:            optionalDurationMsPtr(input.Duration),
-		UserAgent:             optionalTrimmedStringPtr(input.UserAgent),
-		IPAddress:             optionalTrimmedStringPtr(input.IPAddress),
-		HTTPStatus:            optionalIntPtr(input.HTTPStatus),
-		ErrorCode:             optionalTruncatedTrimmedStringPtr(input.ErrorCode, failedUsageErrorCodeMaxLen),
-		ErrorMessage:          sanitizeUsageFailureErrorMessage(input.ErrorMessage),
-		SimulatedClient:       NormalizeUsageLogSimulatedClient(input.SimulatedClient),
-		ImageCount:            input.ImageCount,
-		ImageSize:             optionalImageSizePtr(input.ImageSize),
-		MediaType:             optionalMediaTypePtr(input.MediaType),
-		CreatedAt:             time.Now(),
+		UserID:                   user.ID,
+		APIKeyID:                 apiKey.ID,
+		AccountID:                account.ID,
+		RequestID:                resolveUsageBillingRequestID(ctx, input.RequestID),
+		Model:                    strings.TrimSpace(input.Model),
+		RequestedModel:           strings.TrimSpace(input.Model),
+		UpstreamModel:            optionalNonEqualStringPtr(input.UpstreamModel, input.Model),
+		ReasoningEffort:          legacyReasoningEffort,
+		ReasoningEffortRaw:       reasoningEffortRaw,
+		ReasoningEffortEffective: reasoningEffortEffective,
+		RequestedModelRaw:        input.RequestedModelRaw,
+		RequestedModelNormalized: input.RequestedModelNormalized,
+		MillionContextRequested:  input.MillionContextRequested,
+		MillionContextEffective:  input.MillionContextEffective,
+		MillionContextSource:     input.MillionContextSource,
+		MillionContextBetaToken:  input.MillionContextBetaToken,
+		ThinkingEnabled:          input.ThinkingEnabled,
+		InboundEndpoint:          optionalTrimmedStringPtr(input.InboundEndpoint),
+		UpstreamEndpoint:         optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		UpstreamURL:              optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)),
+		UpstreamService:          optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)),
+		RateMultiplier:           multiplier,
+		AccountRateMultiplier:    &accountRateMultiplier,
+		BillingType:              billingType,
+		RequestType:              RequestTypeFromLegacy(input.Stream, input.OpenAIWSMode),
+		Status:                   UsageLogStatusFailed,
+		Stream:                   input.Stream,
+		OpenAIWSMode:             input.OpenAIWSMode,
+		DurationMs:               optionalDurationMsPtr(input.Duration),
+		UserAgent:                optionalTrimmedStringPtr(input.UserAgent),
+		IPAddress:                optionalTrimmedStringPtr(input.IPAddress),
+		HTTPStatus:               optionalIntPtr(input.HTTPStatus),
+		ErrorCode:                optionalTruncatedTrimmedStringPtr(input.ErrorCode, failedUsageErrorCodeMaxLen),
+		ErrorMessage:             sanitizeUsageFailureErrorMessage(input.ErrorMessage),
+		SimulatedClient:          NormalizeUsageLogSimulatedClient(input.SimulatedClient),
+		ImageCount:               input.ImageCount,
+		ImageSize:                optionalImageSizePtr(input.ImageSize),
+		MediaType:                optionalMediaTypePtr(input.MediaType),
+		CreatedAt:                time.Now(),
 	}
 	if apiKey.GroupID != nil {
 		log.GroupID = apiKey.GroupID
@@ -213,24 +247,32 @@ func (s *OpenAIGatewayService) RecordFailedUsage(ctx context.Context, input *Ope
 	}
 
 	usageLog := buildFailedUsageLogBase(ctx, input.APIKey, user, input.Account, input.Subscription, multiplier, &RecordFailedUsageInput{
-		RequestID:        input.RequestID,
-		Model:            input.Model,
-		UpstreamModel:    input.UpstreamModel,
-		InboundEndpoint:  input.InboundEndpoint,
-		UpstreamEndpoint: input.UpstreamEndpoint,
-		UpstreamURL:      input.UpstreamURL,
-		UpstreamService:  input.UpstreamService,
-		UserAgent:        input.UserAgent,
-		IPAddress:        input.IPAddress,
-		HTTPStatus:       input.HTTPStatus,
-		ErrorCode:        input.ErrorCode,
-		ErrorMessage:     input.ErrorMessage,
-		SimulatedClient:  input.SimulatedClient,
-		Stream:           input.Stream,
-		OpenAIWSMode:     input.OpenAIWSMode,
-		Duration:         input.Duration,
-		ReasoningEffort:  input.ReasoningEffort,
-		ThinkingEnabled:  input.ThinkingEnabled,
+		RequestID:                input.RequestID,
+		Model:                    input.Model,
+		UpstreamModel:            input.UpstreamModel,
+		InboundEndpoint:          input.InboundEndpoint,
+		UpstreamEndpoint:         input.UpstreamEndpoint,
+		UpstreamURL:              input.UpstreamURL,
+		UpstreamService:          input.UpstreamService,
+		UserAgent:                input.UserAgent,
+		IPAddress:                input.IPAddress,
+		HTTPStatus:               input.HTTPStatus,
+		ErrorCode:                input.ErrorCode,
+		ErrorMessage:             input.ErrorMessage,
+		SimulatedClient:          input.SimulatedClient,
+		Stream:                   input.Stream,
+		OpenAIWSMode:             input.OpenAIWSMode,
+		Duration:                 input.Duration,
+		ReasoningEffort:          input.ReasoningEffort,
+		ReasoningEffortRaw:       input.ReasoningEffortRaw,
+		ReasoningEffortEffective: input.ReasoningEffortEffective,
+		RequestedModelRaw:        input.RequestedModelRaw,
+		RequestedModelNormalized: input.RequestedModelNormalized,
+		MillionContextRequested:  input.MillionContextRequested,
+		MillionContextEffective:  input.MillionContextEffective,
+		MillionContextSource:     input.MillionContextSource,
+		MillionContextBetaToken:  input.MillionContextBetaToken,
+		ThinkingEnabled:          input.ThinkingEnabled,
 	})
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
 	if s.deferredService != nil && input.Account != nil {

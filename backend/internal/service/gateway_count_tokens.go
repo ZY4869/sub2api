@@ -8,6 +8,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/sjson"
 	"net/http"
 	"strings"
 )
@@ -17,17 +18,36 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		s.countTokensError(c, http.StatusBadRequest, "invalid_request_error", "Request body is empty")
 		return fmt.Errorf("parse request: empty request")
 	}
+	capability := ApplyClaudeCapabilityRuntime(parsed.Capability, EffectiveProtocol(account))
+	RecordClaudeCapabilityMetadata(ctx, capability)
+	effortResolution := ResolveAnthropicEffort(parsed.OutputEffort, parsed.EffortLevel)
 	if account != nil && account.IsAnthropicAPIKeyPassthroughEnabled() {
 		passthroughBody := parsed.Body
+		if effortResolution.Source == effortSourceTopLevel && effortResolution.Effective != nil {
+			if nextBody, err := sjson.SetBytes(passthroughBody, "output_config.effort", *effortResolution.Effective); err == nil {
+				passthroughBody = nextBody
+				if cleanedBody, delErr := sjson.DeleteBytes(passthroughBody, "effortLevel"); delErr == nil {
+					passthroughBody = cleanedBody
+				}
+			}
+		}
 		if reqModel := ResolveGatewaySelectionModelFromContext(ctx, parsed.Model); reqModel != "" {
 			if mappedModel := account.GetMappedModel(reqModel); mappedModel != reqModel {
 				passthroughBody = s.replaceModelInBody(passthroughBody, mappedModel)
 				logger.LegacyPrintf("service.gateway", "CountTokens passthrough model mapping: %s -> %s (account: %s)", parsed.Model, mappedModel, account.Name)
 			}
 		}
-		return s.forwardCountTokensAnthropicAPIKeyPassthrough(ctx, c, account, passthroughBody)
+		return s.forwardCountTokensAnthropicAPIKeyPassthrough(ctx, c, account, passthroughBody, capability)
 	}
 	body := parsed.Body
+	if effortResolution.Source == effortSourceTopLevel && effortResolution.Effective != nil {
+		if nextBody, err := sjson.SetBytes(body, "output_config.effort", *effortResolution.Effective); err == nil {
+			body = nextBody
+			if cleanedBody, delErr := sjson.DeleteBytes(body, "effortLevel"); delErr == nil {
+				body = cleanedBody
+			}
+		}
+	}
 	reqModel := s.resolveCanonicalRequestModel(ctx, parsed.Model)
 	if reqModel == "" {
 		reqModel = parsed.Model
@@ -73,7 +93,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Failed to get access token")
 		return err
 	}
-	upstreamReq, err := s.buildCountTokensRequest(ctx, c, account, body, token, tokenType, reqModel, shouldMimicClaudeCode)
+	upstreamReq, err := s.buildCountTokensRequest(ctx, c, account, body, token, tokenType, reqModel, shouldMimicClaudeCode, capability)
 	if err != nil {
 		s.countTokensError(c, http.StatusInternalServerError, "api_error", "Failed to build request")
 		return err
@@ -101,7 +121,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	if resp.StatusCode == 400 && s.isThinkingBlockSignatureError(respBody) && s.settingService.IsSignatureRectifierEnabled(ctx) {
 		logger.LegacyPrintf("service.gateway", "Account %d: detected thinking block signature error on count_tokens, retrying with filtered thinking blocks", account.ID)
 		filteredBody := FilterThinkingBlocksForRetry(body)
-		retryReq, buildErr := s.buildCountTokensRequest(ctx, c, account, filteredBody, token, tokenType, reqModel, shouldMimicClaudeCode)
+		retryReq, buildErr := s.buildCountTokensRequest(ctx, c, account, filteredBody, token, tokenType, reqModel, shouldMimicClaudeCode, capability)
 		if buildErr == nil {
 			retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 			if retryErr == nil {
@@ -152,7 +172,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	c.Data(resp.StatusCode, "application/json", respBody)
 	return nil
 }
-func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte) error {
+func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, capability ClaudeRequestCapability) error {
 	body = StripEmptyTextBlocks(body)
 	token, tokenType, err := s.GetAccessToken(ctx, account)
 	if err != nil {
@@ -163,7 +183,7 @@ func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx contex
 		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Invalid account token type")
 		return fmt.Errorf("anthropic api key passthrough requires apikey token, got: %s", tokenType)
 	}
-	upstreamReq, err := s.buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx, c, account, body, token)
+	upstreamReq, err := s.buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx, c, account, body, token, capability)
 	if err != nil {
 		s.countTokensError(c, http.StatusInternalServerError, "api_error", "Failed to build request")
 		return err
@@ -234,7 +254,7 @@ func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx contex
 	c.Data(resp.StatusCode, contentType, respBody)
 	return nil
 }
-func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, token string) (*http.Request, error) {
+func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, token string, capability ClaudeRequestCapability) (*http.Request, error) {
 	targetURL := claudeAPICountTokensURL
 	baseURL := account.GetBaseURL()
 	if baseURL != "" {
@@ -270,9 +290,10 @@ func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx c
 	if req.Header.Get("anthropic-version") == "" {
 		req.Header.Set("anthropic-version", "2023-06-01")
 	}
+	ApplyClaudeCapabilityToHeader(req, capability)
 	return req, nil
 }
-func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, mimicClaudeCode bool) (*http.Request, error) {
+func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, mimicClaudeCode bool, capability ClaudeRequestCapability) (*http.Request, error) {
 	targetURL, err := s.resolveAnthropicTargetURL(account, anthropicCountTokensPath, claudeAPICountTokensURL)
 	if err != nil {
 		return nil, err
@@ -330,17 +351,17 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 			applyClaudeCodeMimicHeaders(req, false)
 			incomingBeta := req.Header.Get("anthropic-beta")
 			requiredBetas := []string{claude.BetaClaudeCode, claude.BetaOAuth, claude.BetaInterleavedThinking, claude.BetaTokenCounting}
-			req.Header.Set("anthropic-beta", mergeAnthropicBetaDropping(requiredBetas, incomingBeta, ctEffectiveDropSet))
+			req.Header.Set("anthropic-beta", ApplyClaudeCapabilityBetaHeaderDropping(incomingBeta, ctEffectiveDropSet, capability, requiredBetas...))
 		} else {
 			clientBetaHeader := req.Header.Get("anthropic-beta")
 			if clientBetaHeader == "" {
-				req.Header.Set("anthropic-beta", claude.CountTokensBetaHeader)
+				req.Header.Set("anthropic-beta", ApplyClaudeCapabilityBetaHeader("", capability, claude.BetaTokenCounting))
 			} else {
 				beta := s.getBetaHeader(modelID, clientBetaHeader)
 				if !strings.Contains(beta, claude.BetaTokenCounting) {
 					beta = beta + "," + claude.BetaTokenCounting
 				}
-				req.Header.Set("anthropic-beta", stripBetaTokensWithSet(beta, ctEffectiveDropSet))
+				req.Header.Set("anthropic-beta", stripBetaTokensWithSet(ApplyClaudeCapabilityBetaHeader(beta, capability), ctEffectiveDropSet))
 			}
 		}
 	} else {
@@ -348,15 +369,17 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 			applyClaudeCodeMimicHeaders(req, false)
 			incomingBeta := req.Header.Get("anthropic-beta")
 			requiredBetas := []string{claude.BetaClaudeCode, claude.BetaInterleavedThinking, claude.BetaFineGrainedToolStreaming, claude.BetaTokenCounting}
-			req.Header.Set("anthropic-beta", mergeAnthropicBetaDropping(requiredBetas, incomingBeta, ctEffectiveDropSet))
+			req.Header.Set("anthropic-beta", ApplyClaudeCapabilityBetaHeaderDropping(incomingBeta, ctEffectiveDropSet, capability, requiredBetas...))
 		} else if existingBeta := req.Header.Get("anthropic-beta"); existingBeta != "" {
-			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(existingBeta, ctEffectiveDropSet))
+			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(ApplyClaudeCapabilityBetaHeader(existingBeta, capability), ctEffectiveDropSet))
 		} else if s.cfg != nil && s.cfg.Gateway.InjectBetaForAPIKey {
 			if requestNeedsBetaFeatures(body) {
 				if beta := defaultAPIKeyBetaHeader(body); beta != "" {
-					req.Header.Set("anthropic-beta", beta)
+					req.Header.Set("anthropic-beta", ApplyClaudeCapabilityBetaHeader(beta, capability))
 				}
 			}
+		} else {
+			ApplyClaudeCapabilityToHeaderDropping(req, ctEffectiveDropSet, capability)
 		}
 	}
 	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {

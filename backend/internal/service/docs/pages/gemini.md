@@ -96,6 +96,15 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key"
 - 如果账号把 `gemini-2.0-flash` 映射成 `friendly-flash`，那么列表与详情只会返回 `models/friendly-flash`；真实模型名不会再出现在返回体里，也不能再当作公开模型 ID 查询详情。
 - 这些 `models` 读路径只读取本地策略投影和本地 availability snapshot，不会在请求时同步触发 Vertex / Gemini 上游探测来扩充列表。
 
+Thinking 强度补充规则：
+
+- 顶层 `effortLevel` 现在只保留为 Claude 定向补位字段，不再作为 Gemini 原生公开能力。
+- Gemini 原生只以 `thinkingLevel` / `thinking.thinkingLevel` 为准；`reasoning.effort` / `reasoning_effort` 仅作为兼容输入保留。
+- 请求详情与观测仍会展示 `reasoning_effort_raw` / `reasoning_effort_effective`，但不会把 `effortLevel` 视为 Gemini 原生档位承诺。
+- Gemini 入口当前会接受并记录顶层 `effortLevel` 与 URL / `model` 里的 `[1m]`，并在进入账号映射、channel selection 与上游 URL 构造前先把 `[1m]` 剥离。
+- 但在当前运行时矩阵下，Gemini 原生入口不会新增直达 Anthropic runtime 的跨平台转发能力；因此这些字段默认只会保留为请求侧观测，不承诺在该入口直接转成 Claude 上游生效。
+- 对 Gemini / Antigravity 当前支持的运行目标来说，请求详情与使用记录里通常会看到 `million_context_requested=true`、`million_context_effective=false`；这表示用户表达了 1M 意图，但当前入口不会把它当成 Gemini 官方模型变体或额外 beta。
+
 #### Python
 ```python focus=1-12
 import requests
@@ -118,6 +127,26 @@ response = requests.post(
 )
 
 print(response.json())
+```
+
+#### JavaScript
+```javascript focus=1-12
+const response = await fetch(
+  "https://api.zyxai.de/v1beta/models/deepseek-v4-flash[1m]:generateContent",
+  {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": "sk-你的站内Key",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      effortLevel: "max",
+      contents: [{ role: "user", parts: [{ text: "当前入口会记录 [1m] 与 effortLevel 请求意图，但不会因为它们新增直达 Claude runtime 的转发能力。" }] }],
+    }),
+  }
+);
+
+console.log(await response.json());
 ```
 
 #### JavaScript

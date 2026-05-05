@@ -15,11 +15,17 @@ func getOpenAIReasoningEffortFromReqBody(reqBody map[string]any) (value string, 
 	}
 	if reasoning, ok := reqBody["reasoning"].(map[string]any); ok {
 		if effort, ok := reasoning["effort"].(string); ok {
-			return normalizeOpenAIReasoningEffort(effort), true
+			if normalized := normalizeOpenAIReasoningEffortRaw(effort); normalized != nil {
+				return *normalized, true
+			}
+			return "", true
 		}
 	}
 	if effort, ok := reqBody["reasoning_effort"].(string); ok {
-		return normalizeOpenAIReasoningEffort(effort), true
+		if normalized := normalizeOpenAIReasoningEffortRaw(effort); normalized != nil {
+			return *normalized, true
+		}
+		return "", true
 	}
 	return "", false
 }
@@ -43,7 +49,10 @@ func deriveOpenAIReasoningEffortFromModel(model string) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	return normalizeOpenAIReasoningEffort(parts[len(parts)-1])
+	if normalized := normalizeOpenAIReasoningEffortRaw(parts[len(parts)-1]); normalized != nil {
+		return *normalized
+	}
+	return ""
 }
 func extractOpenAIRequestMetaFromBody(body []byte) (model string, stream bool, promptCacheKey string) {
 	if len(body) == 0 {
@@ -114,23 +123,28 @@ func detectOpenAIPassthroughInstructionsRejectReason(reqModel string, body []byt
 	}
 	return ""
 }
-func extractOpenAIReasoningEffortFromBody(body []byte, requestedModel string) *string {
+func extractOpenAIReasoningEffortResolutionFromBody(body []byte, requestedModel string) GatewayEffortResolution {
 	reasoningEffort := strings.TrimSpace(gjson.GetBytes(body, "reasoning.effort").String())
-	if reasoningEffort == "" {
-		reasoningEffort = strings.TrimSpace(gjson.GetBytes(body, "reasoning_effort").String())
-	}
 	if reasoningEffort != "" {
-		normalized := normalizeOpenAIReasoningEffort(reasoningEffort)
-		if normalized == "" {
-			return nil
-		}
-		return &normalized
+		return ResolveOpenAIEffort(reasoningEffort, "", effortSourceOpenAIField)
+	}
+	reasoningEffort = strings.TrimSpace(gjson.GetBytes(body, "reasoning_effort").String())
+	if reasoningEffort != "" {
+		return ResolveOpenAIEffort(reasoningEffort, "", effortSourceOpenAIAlias)
 	}
 	value := deriveOpenAIReasoningEffortFromModel(requestedModel)
 	if value == "" {
-		return nil
+		return GatewayEffortResolution{}
 	}
-	return &value
+	return GatewayEffortResolution{
+		Raw:       &value,
+		Effective: NormalizeOpenAIReasoningEffortEffective(value),
+		Source:    "model_suffix",
+	}
+}
+
+func extractOpenAIReasoningEffortFromBody(body []byte, requestedModel string) *string {
+	return extractOpenAIReasoningEffortResolutionFromBody(body, requestedModel).Effective
 }
 func extractOpenAIServiceTier(reqBody map[string]any) *string {
 	if reqBody == nil {
@@ -180,33 +194,86 @@ func getOpenAIRequestBodyMap(c *gin.Context, body []byte) (map[string]any, error
 	}
 	return reqBody, nil
 }
-func extractOpenAIReasoningEffort(reqBody map[string]any, requestedModel string) *string {
+func extractOpenAIReasoningEffortResolution(reqBody map[string]any, requestedModel string) GatewayEffortResolution {
 	if value, present := getOpenAIReasoningEffortFromReqBody(reqBody); present {
 		if value == "" {
-			return nil
+			return GatewayEffortResolution{}
 		}
-		return &value
+		source := effortSourceOpenAIAlias
+		if reasoning, ok := reqBody["reasoning"].(map[string]any); ok {
+			if _, ok := reasoning["effort"]; ok {
+				source = effortSourceOpenAIField
+			}
+		}
+		return ResolveOpenAIEffort(value, "", source)
 	}
 	value := deriveOpenAIReasoningEffortFromModel(requestedModel)
 	if value == "" {
-		return nil
+		return GatewayEffortResolution{}
 	}
-	return &value
+	return GatewayEffortResolution{
+		Raw:       &value,
+		Effective: NormalizeOpenAIReasoningEffortEffective(value),
+		Source:    "model_suffix",
+	}
 }
-func normalizeOpenAIReasoningEffort(raw string) string {
-	value := strings.ToLower(strings.TrimSpace(raw))
-	if value == "" {
-		return ""
+
+func applyOpenAIEffortResolutionToReqBody(reqBody map[string]any, effortResolution GatewayEffortResolution) {
+	if reqBody == nil || effortResolution.Effective == nil {
+		return
 	}
-	value = strings.NewReplacer("-", "", "_", "", " ", "").Replace(value)
-	switch value {
-	case "none", "minimal":
-		return "none"
-	case "low", "medium", "high":
-		return value
-	case "xhigh", "extrahigh":
-		return "xhigh"
-	default:
-		return ""
+	switch effortResolution.Source {
+	case effortSourceOpenAIField, effortSourceOpenAIAlias, effortSourceTopLevel, effortSourceAnthropicField:
+		reasoning, _ := reqBody["reasoning"].(map[string]any)
+		if reasoning == nil {
+			reasoning = map[string]any{}
+			reqBody["reasoning"] = reasoning
+		}
+		reasoning["effort"] = *effortResolution.Effective
+		delete(reqBody, "reasoning_effort")
+		if effortResolution.Source == effortSourceTopLevel {
+			delete(reqBody, "effortLevel")
+		}
 	}
+}
+
+func normalizeOpenAIRequestBodyEffort(reqBody map[string]any, requestedModel string) GatewayEffortResolution {
+	effortResolution := extractOpenAIReasoningEffortResolution(reqBody, requestedModel)
+	applyOpenAIEffortResolutionToReqBody(reqBody, effortResolution)
+	return effortResolution
+}
+
+func applyOpenAIEffortResolutionToBodyBytes(body []byte, effortResolution GatewayEffortResolution) ([]byte, error) {
+	if effortResolution.Effective == nil {
+		return body, nil
+	}
+	normalized := body
+	var err error
+	switch effortResolution.Source {
+	case effortSourceOpenAIField, effortSourceOpenAIAlias, effortSourceTopLevel, effortSourceAnthropicField:
+		normalized, err = sjson.SetBytes(normalized, "reasoning.effort", *effortResolution.Effective)
+		if err != nil {
+			return body, err
+		}
+		if gjson.GetBytes(normalized, "reasoning_effort").Exists() {
+			if nextBody, delErr := sjson.DeleteBytes(normalized, "reasoning_effort"); delErr == nil {
+				normalized = nextBody
+			}
+		}
+		if effortResolution.Source == effortSourceTopLevel && gjson.GetBytes(normalized, "effortLevel").Exists() {
+			if nextBody, delErr := sjson.DeleteBytes(normalized, "effortLevel"); delErr == nil {
+				normalized = nextBody
+			}
+		}
+	}
+	return normalized, nil
+}
+
+func normalizeOpenAIRequestBodyEffortBytes(body []byte, requestedModel string) ([]byte, GatewayEffortResolution, error) {
+	effortResolution := extractOpenAIReasoningEffortResolutionFromBody(body, requestedModel)
+	normalized, err := applyOpenAIEffortResolutionToBodyBytes(body, effortResolution)
+	if err != nil {
+		return body, effortResolution, err
+	}
+	return normalized, effortResolution, nil
 }

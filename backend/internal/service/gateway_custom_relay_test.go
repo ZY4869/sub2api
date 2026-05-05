@@ -95,6 +95,7 @@ func TestBuildUpstreamRequest_UsesCustomRelayURLForOAuthAccounts(t *testing.T) {
 		"claude-sonnet-4",
 		false,
 		false,
+		ClaudeRequestCapability{},
 	)
 	require.NoError(t, err)
 	require.Equal(
@@ -121,6 +122,7 @@ func TestBuildCountTokensRequest_UsesCustomRelayURLForOAuthAccounts(t *testing.T
 		"oauth",
 		"claude-sonnet-4",
 		false,
+		ClaudeRequestCapability{},
 	)
 	require.NoError(t, err)
 	require.Equal(

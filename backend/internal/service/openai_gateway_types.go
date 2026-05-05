@@ -91,22 +91,31 @@ type OpenAIUsage struct {
 	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 }
 type OpenAIForwardResult struct {
-	RequestID       string
-	Usage           OpenAIUsage
-	Model           string
-	BillingModel    string
-	UpstreamModel   string
-	SimulatedClient string
-	ServiceTier     *string
-	ReasoningEffort *string
-	Stream          bool
-	OpenAIWSMode    bool
-	ResponseHeaders http.Header
-	ImageCount      int
-	ImageSize       string
-	MediaType       string
-	Duration        time.Duration
-	FirstTokenMs    *int
+	RequestID                string
+	Usage                    OpenAIUsage
+	Model                    string
+	BillingModel             string
+	UpstreamModel            string
+	SimulatedClient          string
+	ServiceTier              *string
+	ReasoningEffort          *string
+	ReasoningEffortRaw       *string
+	ReasoningEffortEffective *string
+	ReasoningEffortSource    string
+	RequestedModelRaw        *string
+	RequestedModelNormalized *string
+	MillionContextRequested  *bool
+	MillionContextEffective  *bool
+	MillionContextSource     *string
+	MillionContextBetaToken  *string
+	Stream                   bool
+	OpenAIWSMode             bool
+	ResponseHeaders          http.Header
+	ImageCount               int
+	ImageSize                string
+	MediaType                string
+	Duration                 time.Duration
+	FirstTokenMs             *int
 }
 type OpenAIWSRetryMetricsSnapshot struct {
 	RetryAttemptsTotal            int64 `json:"retry_attempts_total"`

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"io"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*OpenAIForwardResult, error) {
 	account = ResolveProtocolGatewayInboundAccount(account, PlatformOpenAI)
 	startTime := time.Now()
+	ctx = EnsureRequestMetadata(ctx)
 	restrictionResult := s.detectCodexClientRestriction(c, account)
 	apiKeyID := getAPIKeyIDFromContext(c)
 	logCodexCLIOnlyDetection(ctx, c, account, apiKeyID, restrictionResult, body)
@@ -30,6 +32,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	originalBody := body
 	reqModel, reqStream, promptCacheKey := extractOpenAIRequestMetaFromBody(body)
 	originalModel := reqModel
+	topLevelEffort := strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String())
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalModel, topLevelEffort)
+	reqModel = firstNonEmptyString(claudeCapability.RequestedModelNormalized, reqModel)
 	routingModel := ResolveGatewaySelectionModelFromContext(ctx, reqModel)
 	if routingModel == "" {
 		routingModel = reqModel
@@ -72,16 +77,25 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 	passthroughEnabled := account.IsOpenAIPassthroughEnabled()
 	if passthroughEnabled {
+		if reqModel != "" && reqModel != strings.TrimSpace(originalModel) {
+			if nextBody, setErr := sjson.SetBytes(originalBody, "model", reqModel); setErr == nil {
+				originalBody = nextBody
+			}
+		}
 		if routingModel != "" && routingModel != reqModel {
 			if nextBody, setErr := sjson.SetBytes(originalBody, "model", routingModel); setErr == nil {
 				originalBody = nextBody
 			}
 			reqModel = routingModel
 		}
-		reasoningEffort := extractOpenAIReasoningEffortFromBody(body, reqModel)
-		result, forwardErr := s.forwardOpenAIPassthrough(ctx, c, account, originalBody, originalModel, reqModel, reasoningEffort, reqStream, startTime)
+		normalizedBody, effortResolution, normalizeErr := normalizeOpenAIRequestBodyEffortBytes(originalBody, reqModel)
+		if normalizeErr == nil {
+			originalBody = normalizedBody
+		}
+		result, forwardErr := s.forwardOpenAIPassthrough(ctx, c, account, originalBody, originalModel, reqModel, effortResolution, reqStream, startTime)
 		if result != nil {
 			result.SimulatedClient = simulatedClient
+			applyClaudeCapabilityToOpenAIForwardResult(result, claudeCapability)
 		}
 		return result, forwardErr
 	}
@@ -89,9 +103,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	if err != nil {
 		return nil, err
 	}
+	normalizedRequestModelPatched := false
 	if v, ok := reqBody["model"].(string); ok {
-		reqModel = v
-		originalModel = reqModel
+		originalModel = v
+		reqModel = firstNonEmptyString(claudeCapability.RequestedModelNormalized, NormalizeRequestedModelForClaudeCapability(v))
+		if reqModel != "" && reqModel != v {
+			reqBody["model"] = reqModel
+			normalizedRequestModelPatched = true
+		}
 		routingModel = ResolveGatewaySelectionModelFromContext(ctx, reqModel)
 		if routingModel == "" {
 			routingModel = reqModel
@@ -108,6 +127,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			promptCacheKey = strings.TrimSpace(v)
 		}
 	}
+	effortResolution := normalizeOpenAIRequestBodyEffort(reqBody, originalModel)
 	bodyModified := false
 	patchDisabled := false
 	patchHasOp := false
@@ -156,6 +176,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	disablePatch := func() {
 		patchDisabled = true
 	}
+	if normalizedRequestModelPatched {
+		bodyModified = true
+		markPatchSet("model", reqModel)
+	}
 	if routingModel != "" && routingModel != reqModel {
 		reqBody["model"] = routingModel
 		bodyModified = true
@@ -166,6 +190,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		reqBody["instructions"] = "You are a helpful coding assistant."
 		bodyModified = true
 		markPatchSet("instructions", "You are a helpful coding assistant.")
+	}
+	if effortResolution.Effective != nil && (effortResolution.Source == effortSourceOpenAIField || effortResolution.Source == effortSourceOpenAIAlias || effortResolution.Source == effortSourceTopLevel) {
+		bodyModified = true
+		disablePatch()
 	}
 	mappedModel := account.GetMappedModel(reqModel)
 	if mappedModel != reqModel {
@@ -432,6 +460,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			if wsResult != nil {
 				wsResult.UpstreamModel = mappedModel
 				wsResult.SimulatedClient = simulatedClient
+				applyClaudeCapabilityToOpenAIForwardResult(wsResult, claudeCapability)
 			}
 			firstTokenMs := int64(0)
 			hasFirstTokenMs := wsResult != nil && wsResult.FirstTokenMs != nil
@@ -536,8 +565,24 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if usage == nil {
 			usage = &OpenAIUsage{}
 		}
-		reasoningEffort := extractOpenAIReasoningEffort(reqBody, originalModel)
 		serviceTier := extractOpenAIServiceTier(reqBody)
-		return &OpenAIForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, SimulatedClient: simulatedClient, ServiceTier: serviceTier, ReasoningEffort: reasoningEffort, Stream: reqStream, OpenAIWSMode: false, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs}, nil
+		result := &OpenAIForwardResult{
+			RequestID:                resp.Header.Get("x-request-id"),
+			Usage:                    *usage,
+			Model:                    originalModel,
+			UpstreamModel:            mappedModel,
+			SimulatedClient:          simulatedClient,
+			ServiceTier:              serviceTier,
+			ReasoningEffort:          effortResolution.Effective,
+			ReasoningEffortRaw:       effortResolution.Raw,
+			ReasoningEffortEffective: effortResolution.Effective,
+			ReasoningEffortSource:    effortResolution.Source,
+			Stream:                   reqStream,
+			OpenAIWSMode:             false,
+			Duration:                 time.Since(startTime),
+			FirstTokenMs:             firstTokenMs,
+		}
+		applyClaudeCapabilityToOpenAIForwardResult(result, claudeCapability)
+		return result, nil
 	}
 }

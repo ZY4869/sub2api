@@ -31,6 +31,10 @@ const messages: Record<string, string> = {
   'usage.accountBilled': 'Account billed',
   'admin.usage.cacheCreationTokens': 'Cache Creation Tokens',
   'admin.usage.cacheReadTokens': 'Cache Read Tokens',
+  'usage.millionContextRequested': '1M Requested',
+  'usage.millionContextEffective': '1M Effective',
+  'usage.millionContextSource': '1M Source',
+  'usage.millionContextBetaToken': '1M Beta Token',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -50,6 +54,7 @@ const DataTableStub = {
       <span data-testid="row-key-prop">{{ rowKey }}</span>
       <div v-for="(row, index) in data" :key="(row && row[rowKey]) || row.request_id || index">
         <slot name="cell-status" :row="row" />
+        <slot name="cell-reasoning_effort" :row="row" />
         <slot name="cell-request_protocol" :row="row" />
         <slot name="cell-tokens" :row="row" />
         <slot name="cell-cost" :row="row" />
@@ -272,5 +277,54 @@ describe('admin UsageTable tooltip', () => {
 
     expect(wrapper.text()).toContain('Cache Hit')
     expect(wrapper.text()).toContain('Cache Miss')
+  })
+
+  it('renders 1M capability lines in the reasoning effort cell', () => {
+    const row = {
+      id: 5,
+      request_id: 'req-admin-1m',
+      reasoning_effort_raw: 'max',
+      reasoning_effort_effective: 'xhigh',
+      reasoning_effort: 'xhigh',
+      million_context_requested: true,
+      million_context_effective: false,
+      million_context_source: 'model_suffix_[1m]',
+      million_context_beta_token: 'context-1m-2025-08-07',
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    }
+
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [row],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('Max -> Xhigh')
+    expect(text).toContain('1M Requested')
+    expect(text).toContain('Yes')
+    expect(text).toContain('1M Effective')
+    expect(text).toContain('No')
+    expect(text).toContain('1M Source')
+    expect(text).toContain('model_suffix_[1m]')
   })
 })

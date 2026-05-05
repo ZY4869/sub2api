@@ -660,7 +660,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_BuildRequestRejectsInvalidBas
 		},
 	}
 
-	_, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{}`), "k")
+	_, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{}`), "k", ClaudeRequestCapability{})
 	require.Error(t, err)
 }
 
@@ -685,7 +685,7 @@ func TestGatewayService_AnthropicOAuth_NotAffectedByAPIKeyPassthroughToggle(t *t
 
 	require.False(t, account.IsAnthropicAPIKeyPassthroughEnabled())
 
-	req, err := svc.buildUpstreamRequest(context.Background(), c, account, []byte(`{"model":"claude-3-7-sonnet-20250219"}`), "oauth-token", "oauth", "claude-3-7-sonnet-20250219", true, false)
+	req, err := svc.buildUpstreamRequest(context.Background(), c, account, []byte(`{"model":"claude-3-7-sonnet-20250219"}`), "oauth-token", "oauth", "claude-3-7-sonnet-20250219", true, false, ClaudeRequestCapability{})
 	require.NoError(t, err)
 	require.Equal(t, "Bearer oauth-token", req.Header.Get("authorization"))
 	require.Contains(t, req.Header.Get("anthropic-beta"), claude.BetaOAuth, "OAuth 链路仍应按原逻辑补齐 oauth beta")
@@ -877,9 +877,9 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_NonStreamingSuc
 		httpUpstream:     upstream,
 		rateLimitService: &RateLimitService{},
 	}
-	reasoningEffort := NormalizeClaudeOutputEffort("high")
+	effortResolution := ResolveAnthropicEffort("high", "")
 
-	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, newAnthropicAPIKeyAccountForTest(), body, "claude-3-5-sonnet-latest", "claude-3-5-sonnet-latest", false, time.Now(), reasoningEffort)
+	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, newAnthropicAPIKeyAccountForTest(), body, "claude-3-5-sonnet-latest", "claude-3-5-sonnet-latest", false, time.Now(), effortResolution, ClaudeRequestCapability{})
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, 12, result.Usage.InputTokens)
@@ -908,7 +908,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_InvalidTokenTyp
 	}
 	svc := &GatewayService{}
 
-	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{}`), "claude-3-5-sonnet-latest", "claude-3-5-sonnet-latest", false, time.Now(), nil)
+	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{}`), "claude-3-5-sonnet-latest", "claude-3-5-sonnet-latest", false, time.Now(), GatewayEffortResolution{}, ClaudeRequestCapability{})
 	require.Nil(t, result)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "requires apikey token")
@@ -933,7 +933,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_UpstreamRequest
 	}
 	account := newAnthropicAPIKeyAccountForTest()
 
-	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{"model":"x"}`), "x", "x", false, time.Now(), nil)
+	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{"model":"x"}`), "x", "x", false, time.Now(), GatewayEffortResolution{}, ClaudeRequestCapability{})
 	require.Nil(t, result)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "upstream request failed")
@@ -966,7 +966,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_EmptyResponseBo
 		httpUpstream: upstream,
 	}
 
-	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, newAnthropicAPIKeyAccountForTest(), []byte(`{"model":"x"}`), "x", "x", false, time.Now(), nil)
+	result, err := svc.forwardAnthropicAPIKeyPassthrough(context.Background(), c, newAnthropicAPIKeyAccountForTest(), []byte(`{"model":"x"}`), "x", "x", false, time.Now(), GatewayEffortResolution{}, ClaudeRequestCapability{})
 	require.Nil(t, result)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "empty response")

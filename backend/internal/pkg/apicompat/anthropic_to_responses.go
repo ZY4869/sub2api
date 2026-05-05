@@ -46,7 +46,7 @@ func AnthropicToResponses(req *AnthropicRequest) (*ResponsesRequest, error) {
 
 	// Determine reasoning effort: only output_config.effort controls the
 	// level; thinking.type is ignored. Default is xhigh when unset.
-	// Anthropic levels map to OpenAI: low→low, medium→high, high→xhigh.
+	// Anthropic levels map to OpenAI: low→low, medium→high, high/max→xhigh.
 	effort := "high" // default → maps to xhigh
 	if req.OutputConfig != nil && req.OutputConfig.Effort != "" {
 		effort = req.OutputConfig.Effort
@@ -402,7 +402,7 @@ func mapAnthropicEffortToResponses(effort string) string {
 	switch effort {
 	case "medium":
 		return "high"
-	case "high":
+	case "high", "max":
 		return "xhigh"
 	default:
 		return effort // "low" and any unknown values pass through unchanged

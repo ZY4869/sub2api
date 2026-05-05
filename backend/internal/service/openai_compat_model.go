@@ -82,6 +82,8 @@ func splitOpenAICompatReasoningModel(model string) (normalizedModel string, reas
 	case "none", "minimal":
 	case "low", "medium", "high":
 		reasoningEffort = last
+	case "max":
+		reasoningEffort = "max"
 	case "xhigh", "extrahigh":
 		reasoningEffort = "xhigh"
 	default:
@@ -95,7 +97,7 @@ func openAIReasoningEffortToClaudeOutputEffort(effort string) string {
 	switch strings.TrimSpace(effort) {
 	case "low", "medium", "high":
 		return effort
-	case "xhigh":
+	case "xhigh", "max":
 		return "max"
 	default:
 		return ""

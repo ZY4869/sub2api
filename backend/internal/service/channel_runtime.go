@@ -71,7 +71,7 @@ func (s *ChannelService) ResolveGatewayState(ctx context.Context, groupID int64,
 	}
 
 	normalizedPlatform := normalizeChannelRuntimePlatform(platform)
-	normalizedRequested := strings.TrimSpace(requestedModel)
+	normalizedRequested := NormalizeRequestedModelForClaudeCapability(requestedModel)
 	if normalizedRequested != "" && isHardRemovedModelID(normalizedRequested) {
 		return nil, ErrModelHardRemoved
 	}
@@ -102,7 +102,7 @@ func channelStateResult(channel *model.Channel, groupID int64, platform, request
 	if channel == nil {
 		return nil
 	}
-	normalizedRequested := strings.TrimSpace(requestedModel)
+	normalizedRequested := NormalizeRequestedModelForClaudeCapability(requestedModel)
 	return &GatewayChannelState{
 		Channel:        channel,
 		GroupID:        groupID,

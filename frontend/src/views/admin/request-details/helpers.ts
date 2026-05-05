@@ -16,6 +16,20 @@ export interface RequestTraceField {
   mono?: boolean
 }
 
+interface RequestTraceNormalizeEffortMeta {
+  gatewayEffortLevel: string
+  protocolEffortField: string
+  protocolEffortValue: string
+  reasoningEffortRaw: string
+  reasoningEffortEffective: string
+  requestedModelRaw: string
+  requestedModelNormalized: string
+  millionContextRequested: string
+  millionContextEffective: string
+  millionContextSource: string
+  millionContextBetaToken: string
+}
+
 export interface RequestTraceKeyFieldItem {
   key: string
   value: string
@@ -296,6 +310,26 @@ export function getRequestTraceThinkingLevelLabel(t: TranslateFn, thinkingLevel?
   return translateMappedValue(t, 'admin.requestDetails.presentation.thinkingLevels', thinkingLevel)
 }
 
+function extractRequestTraceNormalizeEffortMeta(item: TraceRow): RequestTraceNormalizeEffortMeta {
+  const parsed = parseRequestPreviewContent('normalized_request_json' in item ? item.normalized_request_json : '')
+  const normalize = isRecord(parsed.payload) && isRecord(parsed.payload.normalize)
+    ? parsed.payload.normalize
+    : {}
+  return {
+    gatewayEffortLevel: resolveFirstNonEmptyString(normalize, ['gateway_effort_level', 'gatewayEffortLevel']),
+    protocolEffortField: resolveFirstNonEmptyString(normalize, ['protocol_effort_field', 'protocolEffortField']),
+    protocolEffortValue: resolveFirstNonEmptyString(normalize, ['protocol_effort_value', 'protocolEffortValue']),
+    reasoningEffortRaw: resolveFirstNonEmptyString(normalize, ['reasoning_effort_raw', 'reasoningEffortRaw']),
+    reasoningEffortEffective: resolveFirstNonEmptyString(normalize, ['reasoning_effort_effective', 'reasoningEffortEffective']),
+    requestedModelRaw: resolveFirstNonEmptyString(normalize, ['requested_model_raw', 'requestedModelRaw']),
+    requestedModelNormalized: resolveFirstNonEmptyString(normalize, ['requested_model_normalized', 'requestedModelNormalized']),
+    millionContextRequested: resolveFirstDisplayValue(normalize, ['million_context_requested', 'millionContextRequested']),
+    millionContextEffective: resolveFirstDisplayValue(normalize, ['million_context_effective', 'millionContextEffective']),
+    millionContextSource: resolveFirstNonEmptyString(normalize, ['million_context_source', 'millionContextSource']),
+    millionContextBetaToken: resolveFirstNonEmptyString(normalize, ['million_context_beta_token', 'millionContextBetaToken'])
+  }
+}
+
 export function resolveRequestTraceModelPresentation(model?: string | null): RequestTraceModelPresentation | null {
   const modelId = String(model || '').trim()
   if (!modelId) return null
@@ -372,9 +406,21 @@ export function getRequestTraceIdentityFields(t: TranslateFn, item: TraceRow): R
 }
 
 export function getRequestTraceCapabilityFields(t: TranslateFn, item: TraceRow): RequestTraceField[] {
+  const effortMeta = extractRequestTraceNormalizeEffortMeta(item)
   return [
     createField(t('admin.requestDetails.presentation.labels.thinkingSource'), getRequestTraceThinkingSourceLabel(t, item.thinking_source)),
     createField(t('admin.requestDetails.presentation.labels.thinkingLevel'), getRequestTraceThinkingLevelLabel(t, item.thinking_level)),
+    createField(t('admin.requestDetails.presentation.labels.gatewayEffortLevel'), effortMeta.gatewayEffortLevel),
+    createField(t('admin.requestDetails.presentation.labels.protocolEffortField'), effortMeta.protocolEffortField, true),
+    createField(t('admin.requestDetails.presentation.labels.protocolEffortValue'), effortMeta.protocolEffortValue),
+    createField(t('admin.requestDetails.presentation.labels.reasoningEffortRaw'), effortMeta.reasoningEffortRaw),
+    createField(t('admin.requestDetails.presentation.labels.reasoningEffortEffective'), effortMeta.reasoningEffortEffective),
+    createField(t('admin.requestDetails.presentation.labels.requestedModelRaw'), effortMeta.requestedModelRaw, true),
+    createField(t('admin.requestDetails.presentation.labels.requestedModelNormalized'), effortMeta.requestedModelNormalized, true),
+    createField(t('admin.requestDetails.presentation.labels.millionContextRequested'), effortMeta.millionContextRequested),
+    createField(t('admin.requestDetails.presentation.labels.millionContextEffective'), effortMeta.millionContextEffective),
+    createField(t('admin.requestDetails.presentation.labels.millionContextSource'), effortMeta.millionContextSource),
+    createField(t('admin.requestDetails.presentation.labels.millionContextBetaToken'), effortMeta.millionContextBetaToken, true),
     createField(t('admin.requestDetails.presentation.labels.tokenSource'), item.count_tokens_source),
     createField(t('admin.requestDetails.presentation.labels.mediaResolution'), item.media_resolution)
   ]
@@ -446,6 +492,24 @@ function resolveFirstNonEmptyString(payload: unknown, keys: string[]): string {
     if (typeof value === 'string') {
       const trimmed = value.trim()
       if (trimmed) return trimmed
+    }
+  }
+  return ''
+}
+
+function resolveFirstDisplayValue(payload: unknown, keys: string[]): string {
+  if (!isRecord(payload)) {
+    return ''
+  }
+  for (const key of keys) {
+    const value = payload[key]
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (trimmed) return trimmed
+      continue
+    }
+    if (typeof value === 'boolean' || typeof value === 'number') {
+      return String(value)
     }
   }
   return ''

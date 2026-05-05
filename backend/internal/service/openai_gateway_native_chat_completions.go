@@ -32,6 +32,11 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 	}
 
 	startTime := time.Now()
+	ctx = EnsureRequestMetadata(ctx)
+	originalRequestedModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	entryEffortResolution := extractOpenAIReasoningEffortResolutionFromBody(body, originalRequestedModel)
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalRequestedModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String()))
+	normalizedRequestedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, originalRequestedModel)
 
 	var chatReq apicompat.ChatCompletionsRequest
 	if err := json.Unmarshal(body, &chatReq); err != nil {
@@ -39,8 +44,9 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 	}
 
 	originalModel := strings.TrimSpace(chatReq.Model)
+	chatReq.Model = normalizedRequestedModel
 	clientRequestedUsage := chatReq.StreamOptions != nil && chatReq.StreamOptions.IncludeUsage
-	mappedModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
+	mappedModel := resolveOpenAIForwardModel(account, normalizedRequestedModel, defaultMappedModel)
 	chatReq.Model = mappedModel
 	if chatReq.Stream && !clientRequestedUsage {
 		if chatReq.StreamOptions == nil {
@@ -52,6 +58,11 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 	requestBody, err := json.Marshal(chatReq)
 	if err != nil {
 		return nil, fmt.Errorf("marshal native chat completions request: %w", err)
+	}
+	if entryEffortResolution.Effective != nil {
+		if normalizedBody, normalizeErr := applyOpenAIEffortResolutionToBodyBytes(requestBody, entryEffortResolution); normalizeErr == nil {
+			requestBody = normalizedBody
+		}
 	}
 
 	ctx = WithOpenAICodexRequestModel(ctx, mappedModel)
@@ -155,18 +166,27 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 		usage = &OpenAIUsage{}
 	}
 
-	return &OpenAIForwardResult{
-		RequestID:       resp.Header.Get("x-request-id"),
-		Usage:           *usage,
-		Model:           originalModel,
-		BillingModel:    mappedModel,
-		UpstreamModel:   mappedModel,
-		ServiceTier:     extractOpenAIServiceTierFromBody(requestBody),
-		ReasoningEffort: extractOpenAIReasoningEffortFromBody(requestBody, originalModel),
-		Stream:          chatReq.Stream,
-		Duration:        time.Since(startTime),
-		FirstTokenMs:    firstTokenMs,
-	}, nil
+	effortResolution := entryEffortResolution
+	if effortResolution.Effective == nil {
+		effortResolution = extractOpenAIReasoningEffortResolutionFromBody(requestBody, originalModel)
+	}
+	result := &OpenAIForwardResult{
+		RequestID:                resp.Header.Get("x-request-id"),
+		Usage:                    *usage,
+		Model:                    originalModel,
+		BillingModel:             mappedModel,
+		UpstreamModel:            mappedModel,
+		ServiceTier:              extractOpenAIServiceTierFromBody(requestBody),
+		ReasoningEffort:          effortResolution.Effective,
+		ReasoningEffortRaw:       effortResolution.Raw,
+		ReasoningEffortEffective: effortResolution.Effective,
+		ReasoningEffortSource:    effortResolution.Source,
+		Stream:                   chatReq.Stream,
+		Duration:                 time.Since(startTime),
+		FirstTokenMs:             firstTokenMs,
+	}
+	applyClaudeCapabilityToOpenAIForwardResult(result, claudeCapability)
+	return result, nil
 }
 
 func (s *OpenAIGatewayService) buildNativeChatCompletionsUpstreamRequest(

@@ -152,6 +152,16 @@ type UsageLog struct {
 	// OpenAI: "low" / "medium" / "high" / "xhigh"; Claude: "low" / "medium" / "high" / "max".
 	// Nil means not provided / not applicable.
 	ReasoningEffort *string
+	// ReasoningEffortRaw preserves the user's original requested effort level.
+	ReasoningEffortRaw *string
+	// ReasoningEffortEffective records the actual effort value sent to the upstream.
+	ReasoningEffortEffective *string
+	RequestedModelRaw        *string
+	RequestedModelNormalized *string
+	MillionContextRequested  *bool
+	MillionContextEffective  *bool
+	MillionContextSource     *string
+	MillionContextBetaToken  *string
 	// ThinkingEnabled explicitly records whether a request used thinking mode.
 	// Nil means the upstream/request metadata did not provide a reliable value.
 	ThinkingEnabled *bool
@@ -256,6 +266,12 @@ func (u *UsageLog) EffectiveRequestType() RequestType {
 func (u *UsageLog) SyncRequestTypeAndLegacyFields() {
 	if u == nil {
 		return
+	}
+	if u.ReasoningEffortEffective == nil && u.ReasoningEffort != nil {
+		u.ReasoningEffortEffective = u.ReasoningEffort
+	}
+	if u.ReasoningEffort == nil && u.ReasoningEffortEffective != nil {
+		u.ReasoningEffort = u.ReasoningEffortEffective
 	}
 	requestType := u.EffectiveRequestType()
 	u.RequestType = requestType

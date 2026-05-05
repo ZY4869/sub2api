@@ -405,7 +405,15 @@ type UsageLog struct {
 	ServiceTier *string `json:"service_tier,omitempty"`
 	// ReasoningEffort is the request's reasoning effort level.
 	// OpenAI: "low"/"medium"/"high"/"xhigh"; Claude: "low"/"medium"/"high"/"max".
-	ReasoningEffort *string `json:"reasoning_effort,omitempty"`
+	ReasoningEffort          *string `json:"reasoning_effort,omitempty"`
+	ReasoningEffortRaw       *string `json:"reasoning_effort_raw,omitempty"`
+	ReasoningEffortEffective *string `json:"reasoning_effort_effective,omitempty"`
+	RequestedModelRaw        *string `json:"requested_model_raw,omitempty"`
+	RequestedModelNormalized *string `json:"requested_model_normalized,omitempty"`
+	MillionContextRequested  *bool   `json:"million_context_requested,omitempty"`
+	MillionContextEffective  *bool   `json:"million_context_effective,omitempty"`
+	MillionContextSource     *string `json:"million_context_source,omitempty"`
+	MillionContextBetaToken  *string `json:"million_context_beta_token,omitempty"`
 	// ThinkingEnabled explicitly records whether thinking mode was enabled.
 	ThinkingEnabled *bool `json:"thinking_enabled,omitempty"`
 	// InboundEndpoint is the client-facing API endpoint path, e.g. /v1/chat/completions.

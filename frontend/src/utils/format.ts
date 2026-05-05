@@ -238,6 +238,19 @@ export function formatReasoningEffort(
   }
 }
 
+export function formatReasoningEffortPair(
+  raw: string | null | undefined,
+  effective: string | null | undefined,
+  fallback?: string | null | undefined,
+): string {
+  const displayRaw = formatReasoningEffort(raw)
+  const displayEffective = formatReasoningEffort(effective ?? fallback)
+  if (displayRaw === "-" && displayEffective === "-") return "-"
+  if (displayRaw === "-" || displayRaw === displayEffective) return displayEffective
+  if (displayEffective === "-") return displayRaw
+  return `${displayRaw} -> ${displayEffective}`
+}
+
 export function formatThinkingEnabled(
   enabled: boolean | null | undefined,
 ): string {

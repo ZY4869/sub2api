@@ -2,6 +2,7 @@ import { i18n } from "@/i18n";
 import type { UsageLog } from "@/types";
 
 type UsageEndpointLineKey = "inbound" | "upstream";
+type UsageMillionContextLineKey = "requested" | "effective" | "source" | "betaToken";
 
 export interface UsageEndpointDisplayLine {
   key: UsageEndpointLineKey;
@@ -10,12 +11,93 @@ export interface UsageEndpointDisplayLine {
   display: string;
 }
 
+export interface UsageMillionContextDisplayLine {
+  key: UsageMillionContextLineKey;
+  labelKey:
+    | "usage.millionContextRequested"
+    | "usage.millionContextEffective"
+    | "usage.millionContextSource"
+    | "usage.millionContextBetaToken";
+  raw: string;
+  display: string;
+}
+
+export interface UsageMillionContextExportFields {
+  requested: string;
+  effective: string;
+  source: string;
+  betaToken: string;
+}
+
 function translate(key: string, fallback: string): string {
   if (typeof i18n.global.te === "function" && !i18n.global.te(key)) {
     return fallback;
   }
   const message = i18n.global.t(key);
   return typeof message === "string" && message !== key ? message : fallback;
+}
+
+function formatTruthLikeDisplay(
+  value: boolean | number | string | null | undefined,
+): string {
+  if (value === true) {
+    return translate("common.yes", "Yes");
+  }
+  if (value === false) {
+    return translate("common.no", "No");
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      return "-";
+    }
+    if (value === 1) {
+      return translate("common.yes", "Yes");
+    }
+    if (value === 0) {
+      return translate("common.no", "No");
+    }
+    return String(value);
+  }
+  const raw = value?.toString().trim();
+  if (!raw) return "-";
+  const normalized = raw.toLowerCase();
+  if (normalized === "true" || normalized === "1") {
+    return translate("common.yes", "Yes");
+  }
+  if (normalized === "false" || normalized === "0") {
+    return translate("common.no", "No");
+  }
+  return raw;
+}
+
+function toUsageRawDisplay(value: unknown): string {
+  if (value === null || typeof value === "undefined") {
+    return "-";
+  }
+  if (typeof value === "string") {
+    const raw = value.trim();
+    return raw || "-";
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "-";
+  }
+  if (typeof value === "boolean") {
+    return String(value);
+  }
+  return String(value);
+}
+
+function hasUsageValue(value: unknown): boolean {
+  if (value === null || typeof value === "undefined") {
+    return false;
+  }
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+  return true;
 }
 
 export function formatUsageEndpointPath(
@@ -66,6 +148,73 @@ export function formatUsageEndpointDisplay(
   }
 
   return lines;
+}
+
+export function formatUsageMillionContextDisplay(
+  log: Pick<
+    UsageLog,
+    | "million_context_requested"
+    | "million_context_effective"
+    | "million_context_source"
+    | "million_context_beta_token"
+  >,
+): UsageMillionContextDisplayLine[] {
+  const lines: UsageMillionContextDisplayLine[] = [];
+
+  if (hasUsageValue(log.million_context_requested)) {
+    lines.push({
+      key: "requested",
+      labelKey: "usage.millionContextRequested",
+      raw: toUsageRawDisplay(log.million_context_requested),
+      display: formatTruthLikeDisplay(log.million_context_requested),
+    });
+  }
+
+  if (hasUsageValue(log.million_context_effective)) {
+    lines.push({
+      key: "effective",
+      labelKey: "usage.millionContextEffective",
+      raw: toUsageRawDisplay(log.million_context_effective),
+      display: formatTruthLikeDisplay(log.million_context_effective),
+    });
+  }
+
+  if (hasUsageValue(log.million_context_source)) {
+    lines.push({
+      key: "source",
+      labelKey: "usage.millionContextSource",
+      raw: toUsageRawDisplay(log.million_context_source),
+      display: toUsageRawDisplay(log.million_context_source),
+    });
+  }
+
+  if (hasUsageValue(log.million_context_beta_token)) {
+    lines.push({
+      key: "betaToken",
+      labelKey: "usage.millionContextBetaToken",
+      raw: toUsageRawDisplay(log.million_context_beta_token),
+      display: toUsageRawDisplay(log.million_context_beta_token),
+    });
+  }
+
+  return lines;
+}
+
+export function formatUsageMillionContextExportFields(
+  log: Pick<
+    UsageLog,
+    | "million_context_requested"
+    | "million_context_effective"
+    | "million_context_source"
+    | "million_context_beta_token"
+  >,
+): UsageMillionContextExportFields {
+  return {
+    requested: toUsageRawDisplay(log.million_context_requested),
+    effective: toUsageRawDisplay(log.million_context_effective),
+    source: toUsageRawDisplay(log.million_context_source),
+    betaToken: toUsageRawDisplay(log.million_context_beta_token),
+  };
 }
 
 export function formatUsageUserAgentDisplay(

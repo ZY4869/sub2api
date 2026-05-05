@@ -101,6 +101,17 @@ const translations: Record<string, string> = {
   'admin.requestDetails.presentation.labels.tokenBreakdown': 'Input / Output Tokens',
   'admin.requestDetails.presentation.labels.thinkingSource': 'Thinking Source',
   'admin.requestDetails.presentation.labels.thinkingLevel': 'Thinking Level',
+  'admin.requestDetails.presentation.labels.gatewayEffortLevel': 'Gateway effortLevel',
+  'admin.requestDetails.presentation.labels.protocolEffortField': 'Protocol Effort Field',
+  'admin.requestDetails.presentation.labels.protocolEffortValue': 'Protocol Effort Value',
+  'admin.requestDetails.presentation.labels.reasoningEffortRaw': 'Raw Reasoning Effort',
+  'admin.requestDetails.presentation.labels.reasoningEffortEffective': 'Effective Upstream Effort',
+  'admin.requestDetails.presentation.labels.requestedModelRaw': 'Requested Model Raw',
+  'admin.requestDetails.presentation.labels.requestedModelNormalized': 'Requested Model Normalized',
+  'admin.requestDetails.presentation.labels.millionContextRequested': '1M Requested',
+  'admin.requestDetails.presentation.labels.millionContextEffective': '1M Effective',
+  'admin.requestDetails.presentation.labels.millionContextSource': '1M Source',
+  'admin.requestDetails.presentation.labels.millionContextBetaToken': '1M Beta Token',
   'admin.requestDetails.presentation.labels.tokenSource': 'Token Counting Source',
   'admin.requestDetails.presentation.labels.mediaResolution': 'Media Resolution',
   'admin.requestDetails.presentation.labels.requestHeaders': 'Request Headers',
@@ -125,6 +136,7 @@ const translations: Record<string, string> = {
   'admin.requestDetails.presentation.finishReasons.stop': 'Completed Normally',
   'admin.requestDetails.presentation.captureReasons.sampled': 'Sampled',
   'admin.requestDetails.presentation.thinkingSources.request': 'Request Parameter',
+  'admin.requestDetails.presentation.thinkingSources.mapped_reasoning_effort': 'Compat-mapped reasoning effort',
   'admin.requestDetails.presentation.thinkingLevels.high': 'High',
   'admin.requestDetails.presentation.thinkingLevels.xhigh': 'Extra High',
   'admin.requestDetails.presentation.thinkingLevels.max': 'Max',
@@ -198,7 +210,20 @@ const detail = {
   raw_available: true,
   raw_access_allowed: true,
   inbound_request_json: '{"preview":true}',
-  normalized_request_json: '{"normalized":true}',
+  normalized_request_json: JSON.stringify({
+    payload: {
+      normalize: {
+        gateway_effort_level: 'max',
+        reasoning_effort_raw: 'max',
+        reasoning_effort_effective: 'xhigh',
+        requested_model_raw: 'claude-opus-4.1[1m]',
+        requested_model_normalized: 'claude-opus-4.1',
+        million_context_requested: true,
+        million_context_effective: false,
+        million_context_source: 'model_suffix_[1m]'
+      }
+    }
+  }),
   upstream_request_json: '',
   upstream_response_json: '{"upstream":true}',
   gateway_response_json: '{"gateway":true}',
@@ -247,6 +272,21 @@ describe('RequestDetailsDrawer', () => {
 
     expect(wrapper.text()).toContain('/v1/responses -> /v1/chat/completions')
     expect(wrapper.text()).toContain('/v1/responses')
+  })
+
+  it('shows claude capability raw effective and 1m flags from normalized payload', () => {
+    const wrapper = createWrapper()
+
+    expect(wrapper.text()).toContain('Gateway effortLevel')
+    expect(wrapper.text()).toContain('max')
+    expect(wrapper.text()).toContain('Effective Upstream Effort')
+    expect(wrapper.text()).toContain('xhigh')
+    expect(wrapper.text()).toContain('Requested Model Raw')
+    expect(wrapper.text()).toContain('claude-opus-4.1[1m]')
+    expect(wrapper.text()).toContain('1M Requested')
+    expect(wrapper.text()).toContain('true')
+    expect(wrapper.text()).toContain('1M Effective')
+    expect(wrapper.text()).toContain('false')
   })
 
   it('renders payload empty state instead of a blank pre block', async () => {
@@ -365,5 +405,51 @@ describe('RequestDetailsDrawer', () => {
     })
 
     expect(wrapper.text()).toContain('Extra High')
+  })
+
+  it('renders normalize effort metadata from normalized request payload', () => {
+    const wrapper = createWrapper({
+      detail: {
+        ...detail,
+        thinking_source: 'mapped_reasoning_effort',
+        thinking_level: 'max',
+        normalized_request_json: JSON.stringify({
+          state: 'captured',
+          payload: {
+            normalize: {
+              gateway_effort_level: 'max',
+              protocol_effort_field: 'reasoning.effort',
+              protocol_effort_value: 'xhigh',
+              reasoning_effort_raw: 'max',
+              reasoning_effort_effective: 'xhigh',
+              requested_model_raw: 'deepseek-v4-pro[1m]',
+              requested_model_normalized: 'deepseek-v4-pro',
+              million_context_requested: 'true',
+              million_context_effective: 'true',
+              million_context_source: 'model_suffix_[1m]',
+              million_context_beta_token: 'context-1m-2025-08-07'
+            }
+          }
+        })
+      }
+    })
+
+    expect(wrapper.text()).toContain('Gateway effortLevel')
+    expect(wrapper.text()).toContain('max')
+    expect(wrapper.text()).toContain('Protocol Effort Field')
+    expect(wrapper.text()).toContain('reasoning.effort')
+    expect(wrapper.text()).toContain('Protocol Effort Value')
+    expect(wrapper.text()).toContain('xhigh')
+    expect(wrapper.text()).toContain('Raw Reasoning Effort')
+    expect(wrapper.text()).toContain('Effective Upstream Effort')
+    expect(wrapper.text()).toContain('Requested Model Raw')
+    expect(wrapper.text()).toContain('deepseek-v4-pro[1m]')
+    expect(wrapper.text()).toContain('Requested Model Normalized')
+    expect(wrapper.text()).toContain('deepseek-v4-pro')
+    expect(wrapper.text()).toContain('1M Requested')
+    expect(wrapper.text()).toContain('1M Effective')
+    expect(wrapper.text()).toContain('1M Source')
+    expect(wrapper.text()).toContain('1M Beta Token')
+    expect(wrapper.text()).toContain('Compat-mapped reasoning effort')
   })
 })

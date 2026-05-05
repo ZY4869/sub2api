@@ -106,10 +106,14 @@ func TestForwardAsAnthropic_NormalizesRoutingAndEffortForGpt54XHigh(t *testing.T
 	require.Equal(t, "gpt-5.4-xhigh", result.Model)
 	require.Equal(t, "gpt-5.4", result.UpstreamModel)
 	require.NotNil(t, result.ReasoningEffort)
-	require.Equal(t, "max", *result.ReasoningEffort)
+	require.Equal(t, "xhigh", *result.ReasoningEffort)
+	require.NotNil(t, result.ReasoningEffortRaw)
+	require.Equal(t, "max", *result.ReasoningEffortRaw)
+	require.NotNil(t, result.ReasoningEffortEffective)
+	require.Equal(t, "xhigh", *result.ReasoningEffortEffective)
 
 	require.Equal(t, "gpt-5.4", gjson.GetBytes(upstream.lastBody, "model").String())
-	require.Equal(t, "max", gjson.GetBytes(upstream.lastBody, "reasoning.effort").String())
+	require.Equal(t, "xhigh", gjson.GetBytes(upstream.lastBody, "reasoning.effort").String())
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "gpt-5.4-xhigh", gjson.GetBytes(rec.Body.Bytes(), "model").String())
 }
@@ -141,4 +145,58 @@ func TestForwardAsAnthropic_InjectsPromptCacheKeyForAPIKeyAccounts(t *testing.T)
 	require.NotNil(t, result)
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "pc-msg-123", gjson.GetBytes(upstream.lastBody, "prompt_cache_key").String())
+}
+
+func TestForwardAsAnthropic_StripsClaudeMillionContextSuffixBeforeOpenAIRouting(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	body := []byte(`{"model":"deepseek-v4-pro[1m]","max_tokens":16,"messages":[{"role":"user","content":"hello"}],"stream":false}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	upstreamBody := strings.Join([]string{
+		`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"deepseek-v4-pro","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}}}`,
+		"",
+		"data: [DONE]",
+		"",
+	}, "\n")
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}, "x-request-id": []string{"rid_compat_1m"}},
+		Body:       io.NopCloser(strings.NewReader(upstreamBody)),
+	}}
+
+	svc := &OpenAIGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+	account := &Account{
+		ID:          1,
+		Name:        "openai-apikey",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key": "test-token",
+			"model_mapping": map[string]any{
+				"deepseek-v4-pro": "deepseek-v4-pro",
+			},
+		},
+	}
+
+	result, err := svc.ForwardAsAnthropic(context.Background(), c, account, body, "", "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "deepseek-v4-pro[1m]", result.Model)
+	require.NotNil(t, result.RequestedModelRaw)
+	require.Equal(t, "deepseek-v4-pro[1m]", *result.RequestedModelRaw)
+	require.NotNil(t, result.RequestedModelNormalized)
+	require.Equal(t, "deepseek-v4-pro", *result.RequestedModelNormalized)
+	require.NotNil(t, result.MillionContextRequested)
+	require.True(t, *result.MillionContextRequested)
+	require.NotNil(t, result.MillionContextEffective)
+	require.False(t, *result.MillionContextEffective)
+	require.Equal(t, "deepseek-v4-pro", gjson.GetBytes(upstream.lastBody, "model").String())
 }

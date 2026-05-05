@@ -403,7 +403,7 @@ func buildOpsTraceNormalizeResult(c *gin.Context, apiKey *service.APIKey, reques
 	}
 
 	if requestJSON != nil {
-		enrichOpsTraceRequestMetadata(requestJSON, &result)
+		enrichOpsTraceRequestMetadata(c.Request.Context(), requestJSON, &result)
 	}
 	if responseJSON != nil {
 		enrichOpsTraceResponseMetadata(responseJSON, result.ProtocolOut, &result, &usage)
@@ -530,7 +530,7 @@ func buildOpsTraceNormalizeResult(c *gin.Context, apiKey *service.APIKey, reques
 	return result, usage
 }
 
-func enrichOpsTraceRequestMetadata(payload map[string]any, result *service.ProtocolNormalizeResult) {
+func enrichOpsTraceRequestMetadata(ctx context.Context, payload map[string]any, result *service.ProtocolNormalizeResult) {
 	if payload == nil || result == nil {
 		return
 	}
@@ -575,10 +575,109 @@ func enrichOpsTraceRequestMetadata(payload map[string]any, result *service.Proto
 		}
 	}
 
-	if reasoningEffort := strings.TrimSpace(stringValueFromMap(payload, "reasoning_effort")); reasoningEffort != "" {
+	protocolFamily := opsTraceProtocolFamily(firstNonEmptyString(result.ProtocolOut, result.ProtocolIn))
+	gatewayEffort := strings.TrimSpace(stringValueFromMap(payload, "effortLevel"))
+	openAIReasoningEffort := ""
+	if reasoning, ok := payload["reasoning"].(map[string]any); ok && reasoning != nil {
+		openAIReasoningEffort = strings.TrimSpace(stringValueFromMap(reasoning, "effort"))
+	}
+	openAIAliasEffort := strings.TrimSpace(stringValueFromMap(payload, "reasoning_effort"))
+	anthropicEffort := ""
+	if outputConfig, ok := payload["output_config"].(map[string]any); ok && outputConfig != nil {
+		anthropicEffort = strings.TrimSpace(stringValueFromMap(outputConfig, "effort"))
+	}
+	geminiEffort := strings.TrimSpace(stringValueFromMap(payload, "thinkingLevel"))
+	geminiNestedEffort := ""
+	if thinking, ok := payload["thinking"].(map[string]any); ok && thinking != nil {
+		geminiNestedEffort = firstNonEmptyString(
+			stringValueFromMap(thinking, "thinkingLevel"),
+			stringValueFromMap(thinking, "thinking_level"),
+			stringValueFromMap(thinking, "level"),
+		)
+	}
+
+	if gatewayEffort != "" {
+		result.GatewayEffortLevel = gatewayEffort
+	}
+	if rawModel, ok := service.ClaudeRequestedModelRawMetadataFromContext(ctx); ok {
+		result.RequestedModelRaw = rawModel
+		result.RequestedModel = rawModel
+	}
+	if normalizedModel, ok := service.ClaudeRequestedModelNormalizedMetadataFromContext(ctx); ok && strings.TrimSpace(normalizedModel) != "" {
+		result.RequestedModelNormalized = normalizedModel
+		result.UpstreamModel = normalizedModel
+	}
+	if requested, ok := service.ClaudeMillionContextRequestedMetadataFromContext(ctx); ok {
+		result.MillionContextRequested = requested
+		if requested {
+			result.HasThinking = true
+		}
+	}
+	if effective, ok := service.ClaudeMillionContextEffectiveMetadataFromContext(ctx); ok {
+		result.MillionContextEffective = effective
+		if effective {
+			result.HasThinking = true
+		}
+	}
+	if source, ok := service.ClaudeMillionContextSourceMetadataFromContext(ctx); ok {
+		result.MillionContextSource = source
+	}
+	if betaToken, ok := service.ClaudeMillionContextBetaTokenMetadataFromContext(ctx); ok {
+		result.MillionContextBetaToken = betaToken
+	}
+
+	var effortResolution service.GatewayEffortResolution
+	switch {
+	case protocolFamily == "gemini":
+		effortResolution = service.ResolveGeminiEffort(anthropicEffort, geminiNestedEffort, openAIReasoningEffort, openAIAliasEffort, "")
+		if geminiEffort != "" || anthropicEffort != "" {
+			effortResolution = service.ResolveGeminiEffort(geminiEffort, firstNonEmptyString(geminiNestedEffort, anthropicEffort), openAIReasoningEffort, openAIAliasEffort, "")
+		}
+	case protocolFamily == "anthropic":
+		effortResolution = service.ResolveAnthropicEffort(firstNonEmptyString(anthropicEffort, openAIReasoningEffort, openAIAliasEffort), gatewayEffort)
+		if anthropicEffort == "" && (openAIReasoningEffort != "" || openAIAliasEffort != "") {
+			effortResolution.Source = "mapped_reasoning_effort"
+		}
+	case anthropicEffort != "":
+		effortResolution = service.ResolveAnthropicEffortForOpenAI(anthropicEffort, gatewayEffort)
+	case openAIReasoningEffort != "":
+		effortResolution = service.ResolveOpenAIEffort(openAIReasoningEffort, "", "reasoning.effort")
+	case openAIAliasEffort != "":
+		effortResolution = service.ResolveOpenAIEffort(openAIAliasEffort, "", "reasoning_effort")
+	case geminiEffort != "" || geminiNestedEffort != "":
+		effortResolution = service.ResolveGeminiEffort(geminiEffort, geminiNestedEffort, openAIReasoningEffort, openAIAliasEffort, "")
+	}
+
+	if anthropicEffort != "" {
+		result.ProtocolEffortField = "output_config.effort"
+		result.ProtocolEffortValue = anthropicEffort
+	} else if openAIReasoningEffort != "" {
+		result.ProtocolEffortField = "reasoning.effort"
+		result.ProtocolEffortValue = openAIReasoningEffort
+	} else if openAIAliasEffort != "" {
+		result.ProtocolEffortField = "reasoning_effort"
+		result.ProtocolEffortValue = openAIAliasEffort
+	} else if geminiEffort != "" {
+		result.ProtocolEffortField = "thinkingLevel"
+		result.ProtocolEffortValue = geminiEffort
+	} else if geminiNestedEffort != "" {
+		result.ProtocolEffortField = "thinking.thinkingLevel"
+		result.ProtocolEffortValue = geminiNestedEffort
+	}
+
+	if effortResolution.Raw != nil {
 		result.HasThinking = true
-		result.ThinkingSource = "mapped_reasoning_effort"
-		switch strings.ToLower(reasoningEffort) {
+		result.ReasoningEffortRaw = *effortResolution.Raw
+	}
+	if effortResolution.Effective != nil {
+		result.HasThinking = true
+		result.ReasoningEffortEffective = *effortResolution.Effective
+		result.ThinkingSource = effortResolution.Source
+		levelValue := firstNonEmptyString(result.ReasoningEffortRaw, result.ReasoningEffortEffective)
+		if protocolFamily == "gemini" && geminiEffort == "" && geminiNestedEffort == "" {
+			levelValue = result.ReasoningEffortEffective
+		}
+		switch strings.ToLower(levelValue) {
 		case "low":
 			result.ThinkingLevel = "LOW"
 		case "medium":
@@ -589,7 +688,7 @@ func enrichOpsTraceRequestMetadata(payload map[string]any, result *service.Proto
 			result.ThinkingLevel = "XHIGH"
 		case "max":
 			result.ThinkingLevel = "MAX"
-		case "none":
+		case "none", "minimal":
 			result.ThinkingLevel = "MINIMAL"
 		}
 	}

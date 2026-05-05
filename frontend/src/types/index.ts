@@ -1291,6 +1291,12 @@ export interface UsageLog {
   upstream_model?: string | null;
   service_tier?: string | null;
   reasoning_effort?: string | null;
+  reasoning_effort_raw?: string | null;
+  reasoning_effort_effective?: string | null;
+  million_context_requested?: boolean | null;
+  million_context_effective?: boolean | null;
+  million_context_source?: string | null;
+  million_context_beta_token?: string | null;
   thinking_enabled?: boolean | null;
   inbound_endpoint?: string | null;
   upstream_endpoint?: string | null;

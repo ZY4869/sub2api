@@ -47,6 +47,11 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	}
 
 	startTime := time.Now()
+	ctx = EnsureRequestMetadata(ctx)
+	originalRequestedModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	entryEffortResolution := extractOpenAIReasoningEffortResolutionFromBody(body, originalRequestedModel)
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalRequestedModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String()))
+	normalizedRequestedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, originalRequestedModel)
 
 	// 1. Parse Chat Completions request
 	var chatReq apicompat.ChatCompletionsRequest
@@ -54,12 +59,13 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		return nil, fmt.Errorf("parse chat completions request: %w", err)
 	}
 	originalModel := chatReq.Model
+	chatReq.Model = normalizedRequestedModel
 	clientStream := chatReq.Stream
 	includeUsage := chatReq.StreamOptions != nil && chatReq.StreamOptions.IncludeUsage
 
 	// 2. Resolve model mapping early so compat prompt_cache_key injection can
 	// derive a stable seed from the final upstream model family.
-	mappedModel := normalizeOpenAIModelForUpstream(account, resolveOpenAIForwardModel(account, originalModel, defaultMappedModel))
+	mappedModel := normalizeOpenAIModelForUpstream(account, resolveOpenAIForwardModel(account, normalizedRequestedModel, defaultMappedModel))
 
 	promptCacheKey = strings.TrimSpace(promptCacheKey)
 	compatPromptCacheInjected := false
@@ -111,6 +117,11 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		responsesBody, err = json.Marshal(responsesReq)
 		if err != nil {
 			return nil, fmt.Errorf("marshal responses request: %w", err)
+		}
+	}
+	if entryEffortResolution.Effective != nil {
+		if normalizedBody, normalizeErr := applyOpenAIEffortResolutionToBodyBytes(responsesBody, entryEffortResolution); normalizeErr == nil {
+			responsesBody = normalizedBody
 		}
 	}
 
@@ -263,6 +274,10 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	// 9. Handle normal response
 	var result *OpenAIForwardResult
 	var handleErr error
+	effortResolution := entryEffortResolution
+	if effortResolution.Effective == nil {
+		effortResolution = extractOpenAIReasoningEffortResolutionFromBody(responsesBody, originalModel)
+	}
 	if clientStream {
 		result, handleErr = s.handleChatStreamingResponse(resp, c, originalModel, mappedModel, includeUsage, startTime)
 	} else {
@@ -279,6 +294,13 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 			re := responsesReq.Reasoning.Effort
 			result.ReasoningEffort = &re
 		}
+		result.ReasoningEffortRaw = effortResolution.Raw
+		result.ReasoningEffortEffective = effortResolution.Effective
+		result.ReasoningEffortSource = effortResolution.Source
+		if effortResolution.Effective != nil {
+			result.ReasoningEffort = effortResolution.Effective
+		}
+		applyClaudeCapabilityToOpenAIForwardResult(result, claudeCapability)
 	}
 
 	// Extract and save Codex usage snapshot from response headers (for OAuth accounts)

@@ -103,11 +103,29 @@ curl https://api.zyxai.de/v1/messages \
 
 Thinking 强度补充说明：
 
+- 顶层 `effortLevel` 是 Claude 定向补位字段，可接受：`low`、`medium`、`high`、`xhigh`、`max`。
+- 优先级固定为：`output_config.effort` 优先，顶层 `effortLevel` 只在原生字段缺失时补位，不会报错也不会覆盖原值。
 - Claude 原生 `messages` 请求支持通过 `output_config.effort` 传递思考强度。
 - 当前网关按原样识别并透传 5 档：`low`、`medium`、`high`、`xhigh`、`max`。
+- 对 Anthropic 原生上游，`xhigh` 与 `max` 都会原样发送，不会再被静默折叠。
 - 如果你希望 Claude Code 内还能继续动态切换，优先使用顶层 `effortLevel` 作为默认值。
 - 如果你需要强制锁定某一档位，可使用 `CLAUDE_CODE_EFFORT_LEVEL`；该环境变量会覆盖客户端内后续切换。
 - 对第三方 Claude 风格模型，建议同时声明模型能力（例如 `SUPPORTED_CAPABILITIES`），让 Claude Code 能正确显示 `xhigh` / `max` 等档位。
+
+观测与请求详情也会同时保留两种口径：
+
+- `reasoning_effort_raw`：用户原始意图，例如 `max`
+- `reasoning_effort_effective`：实际上游发送值；Anthropic 原生路径下通常与 `raw` 相同
+
+Claude Cloud 1M 上下文补充说明：
+
+- 你可以在请求时把模型写成 `claude-sonnet-4.5[1m]`，表示“希望启用 Claude Cloud 1M context”。
+- `[1m]` 只接受模型名尾部标准后缀；网关会先剥离后缀，再继续做模型归一化、策略匹配和上游路由。
+- `[1m]` 不会变成新的公开模型 ID：`/v1/models`、模型策略和前端模型选择器里都不会出现 `claude-sonnet-4.5[1m]` 这种枚举项。
+- 当前 `[1m]` 的最终实现方式是注入 `anthropic-beta: context-1m-2025-08-07`；如果请求本身已带 `anthropic-beta`，网关会合并并去重。
+- 官方 Claude 模型以及 `deepseek-v4-flash`、`deepseek-v4-pro` 当前纳入 `[1m]` 支持名单；其它模型即使带了 `[1m]` 也只会静默忽略，不会报错。
+- 请求详情与使用记录会额外保留 `requested_model_raw`、`requested_model_normalized`、`million_context_requested`、`million_context_effective`、`million_context_source`、`million_context_beta_token`，用于区分“用户请求了 1M”与“实际上游是否启用 1M”。
+- 与 `openai` / `gemini` 页不同，Anthropic 家族入口当前就是 `[1m]` 真正会落到 Claude beta 注入的主生效面；其它入口目前只保证接受、剥离和观测，不承诺在当前运行时矩阵下直接转成同样的上游效果。
 
 #### Python
 ```python focus=1-12
@@ -133,6 +151,66 @@ response = requests.post(
 )
 
 print(response.json())
+```
+
+#### Python
+```python focus=1-16
+import requests
+
+response = requests.post(
+    "https://api.zyxai.de/v1/messages",
+    headers={
+        "Authorization": "Bearer sk-你的站内Key",
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "output-128k-2025-02-19",
+    },
+    json={
+        "model": "claude-sonnet-4.5[1m]",
+        "max_tokens": 512,
+        "effortLevel": "max",
+        "messages": [{"role": "user", "content": "请给我一份 Claude 1M 接入说明。"}],
+    },
+    timeout=60,
+)
+
+print(response.json())
+```
+
+#### JavaScript
+```javascript focus=1-14
+const response = await fetch("https://api.zyxai.de/v1/messages", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer sk-你的站内Key",
+    "Content-Type": "application/json",
+    "anthropic-version": "2023-06-01",
+  },
+  body: JSON.stringify({
+    model: "deepseek-v4-pro[1m]",
+    effortLevel: "max",
+    output_config: { effort: "high" },
+    max_tokens: 512,
+    messages: [{ role: "user", content: "验证协议字段优先于顶层 effortLevel。" }],
+  }),
+});
+
+console.log(await response.json());
+```
+
+#### REST
+```bash focus=1-8
+curl https://api.zyxai.de/v1/messages \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "claude-sonnet-4.5[1m]",
+    "effortLevel": "max",
+    "output_config": { "effort": "high" },
+    "max_tokens": 256,
+    "messages": [{ "role": "user", "content": "这里最终会保持 high，而不是被 max 覆盖。" }]
+  }'
 ```
 
 #### JavaScript

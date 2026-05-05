@@ -617,7 +617,7 @@ func removeCacheControlFromThinkingBlocks(data map[string]any) {
 		}
 	}
 }
-func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, reqStream bool, mimicClaudeCode bool) (*http.Request, error) {
+func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, reqStream bool, mimicClaudeCode bool, capability ClaudeRequestCapability) (*http.Request, error) {
 	targetURL, err := s.resolveAnthropicTargetURL(account, anthropicMessagesPath, claudeAPIURL)
 	if err != nil {
 		return nil, err
@@ -678,25 +678,27 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 			applyClaudeCodeMimicHeaders(req, reqStream)
 			incomingBeta := req.Header.Get("anthropic-beta")
 			requiredBetas := []string{claude.BetaOAuth, claude.BetaInterleavedThinking}
-			req.Header.Set("anthropic-beta", mergeAnthropicBetaDropping(requiredBetas, incomingBeta, effectiveDropWithClaudeCodeSet))
+			req.Header.Set("anthropic-beta", ApplyClaudeCapabilityBetaHeaderDropping(incomingBeta, effectiveDropWithClaudeCodeSet, capability, requiredBetas...))
 		} else {
 			clientBetaHeader := req.Header.Get("anthropic-beta")
-			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(s.getBetaHeader(modelID, clientBetaHeader), effectiveDropSet))
+			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(ApplyClaudeCapabilityBetaHeader(s.getBetaHeader(modelID, clientBetaHeader), capability), effectiveDropSet))
 		}
 	} else {
 		if mimicClaudeCode {
 			applyClaudeCodeMimicHeaders(req, reqStream)
 			incomingBeta := req.Header.Get("anthropic-beta")
 			requiredBetas := []string{claude.BetaClaudeCode, claude.BetaInterleavedThinking, claude.BetaFineGrainedToolStreaming}
-			req.Header.Set("anthropic-beta", mergeAnthropicBetaDropping(requiredBetas, incomingBeta, effectiveDropWithClaudeCodeSet))
+			req.Header.Set("anthropic-beta", ApplyClaudeCapabilityBetaHeaderDropping(incomingBeta, effectiveDropWithClaudeCodeSet, capability, requiredBetas...))
 		} else if existingBeta := req.Header.Get("anthropic-beta"); existingBeta != "" {
-			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(existingBeta, effectiveDropSet))
+			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(ApplyClaudeCapabilityBetaHeader(existingBeta, capability), effectiveDropSet))
 		} else if account.Platform != PlatformDeepSeek && s.cfg != nil && s.cfg.Gateway.InjectBetaForAPIKey {
 			if requestNeedsBetaFeatures(body) {
 				if beta := defaultAPIKeyBetaHeader(body); beta != "" {
-					req.Header.Set("anthropic-beta", beta)
+					req.Header.Set("anthropic-beta", ApplyClaudeCapabilityBetaHeader(beta, capability))
 				}
 			}
+		} else {
+			ApplyClaudeCapabilityToHeaderDropping(req, effectiveDropSet, capability)
 		}
 	}
 	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {

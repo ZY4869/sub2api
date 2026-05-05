@@ -176,3 +176,99 @@ func TestForwardNativeChatCompletions_DeepSeekStripsBetaOnlyFieldsForUnsupported
 	require.False(t, gjson.GetBytes(forwardedBody, "messages.1.reasoning_content").Exists())
 	require.Contains(t, recorder.Body.String(), `"content":"ok"`)
 }
+
+func TestForwardNativeChatCompletions_StripsClaudeMillionContextSuffixBeforeUpstream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	body := []byte(`{"model":"deepseek-v4-pro[1m]","messages":[{"role":"user","content":"hi"}]}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
+
+	resp := newJSONResponse(http.StatusOK, `{"id":"chatcmpl_1","object":"chat.completion","model":"deepseek-v4-pro","choices":[{"index":0,"message":{"role":"assistant","content":"ok"}}],"usage":{"prompt_tokens":5,"completion_tokens":2}}`)
+
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &OpenAIGatewayService{
+		httpUpstream:  upstream,
+		cfg:           &config.Config{},
+		toolCorrector: NewCodexToolCorrector(),
+	}
+	account := &Account{
+		ID:          203,
+		Name:        "openai-stable",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key": "test-token",
+		},
+	}
+
+	result, err := svc.ForwardNativeChatCompletions(context.Background(), c, account, body, "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	forwardedBody, err := io.ReadAll(upstream.requests[0].Body)
+	require.NoError(t, err)
+	require.Equal(t, "deepseek-v4-pro", gjson.GetBytes(forwardedBody, "model").String())
+	require.NotNil(t, result.RequestedModelRaw)
+	require.Equal(t, "deepseek-v4-pro[1m]", *result.RequestedModelRaw)
+	require.NotNil(t, result.RequestedModelNormalized)
+	require.Equal(t, "deepseek-v4-pro", *result.RequestedModelNormalized)
+	require.NotNil(t, result.MillionContextRequested)
+	require.True(t, *result.MillionContextRequested)
+	require.NotNil(t, result.MillionContextEffective)
+	require.False(t, *result.MillionContextEffective)
+}
+
+func TestForwardAsChatCompletions_StripsClaudeMillionContextSuffixBeforeResponsesUpstream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	body := []byte(`{"model":"deepseek-v4-pro[1m]","messages":[{"role":"user","content":"hi"}],"stream":false}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
+
+	upstreamBody := strings.Join([]string{
+		`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"deepseek-v4-pro","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}}}`,
+		"",
+		"data: [DONE]",
+		"",
+	}, "\n")
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}, "x-request-id": []string{"rid-chat-compat-1m"}},
+		Body:       io.NopCloser(strings.NewReader(upstreamBody)),
+	}
+
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &OpenAIGatewayService{
+		httpUpstream:  upstream,
+		cfg:           &config.Config{},
+		toolCorrector: NewCodexToolCorrector(),
+	}
+	account := &Account{
+		ID:          204,
+		Name:        "openai-compat",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key": "test-token",
+		},
+	}
+
+	result, err := svc.ForwardAsChatCompletions(context.Background(), c, account, body, "", "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	forwardedBody, err := io.ReadAll(upstream.requests[0].Body)
+	require.NoError(t, err)
+	require.Equal(t, "deepseek-v4-pro", gjson.GetBytes(forwardedBody, "model").String())
+	require.NotNil(t, result.RequestedModelRaw)
+	require.Equal(t, "deepseek-v4-pro[1m]", *result.RequestedModelRaw)
+	require.NotNil(t, result.RequestedModelNormalized)
+	require.Equal(t, "deepseek-v4-pro", *result.RequestedModelNormalized)
+	require.NotNil(t, result.MillionContextRequested)
+	require.True(t, *result.MillionContextRequested)
+	require.NotNil(t, result.MillionContextEffective)
+	require.False(t, *result.MillionContextEffective)
+}

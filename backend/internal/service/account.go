@@ -523,7 +523,7 @@ func ensureAntigravityDefaultPassthroughs(mapping map[string]string, models []st
 }
 
 func normalizeRequestedModelForLookup(platform, requestedModel string) string {
-	trimmed := strings.TrimSpace(requestedModel)
+	trimmed := NormalizeRequestedModelForClaudeCapability(requestedModel)
 	if trimmed == "" {
 		return ""
 	}

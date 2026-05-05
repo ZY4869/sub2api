@@ -95,6 +95,14 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // image_output_cost
 			sqlmock.AnyArg(), // service_tier
 			sqlmock.AnyArg(), // reasoning_effort
+			sqlmock.AnyArg(), // reasoning_effort_raw
+			sqlmock.AnyArg(), // reasoning_effort_effective
+			sqlmock.AnyArg(), // requested_model_raw
+			sqlmock.AnyArg(), // requested_model_normalized
+			sqlmock.AnyArg(), // million_context_requested
+			sqlmock.AnyArg(), // million_context_effective
+			sqlmock.AnyArg(), // million_context_source
+			sqlmock.AnyArg(), // million_context_beta_token
 			sqlmock.AnyArg(), // thinking_enabled
 			sqlmock.AnyArg(), // inbound_endpoint
 			sqlmock.AnyArg(), // upstream_endpoint
@@ -195,6 +203,14 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.CacheTTLOverridden,
 			createdAt,
 		).
@@ -275,6 +291,14 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.ImageCount,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -698,6 +722,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{},
 			sql.NullString{Valid: true, String: "priority"},
 			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullBool{},
+			sql.NullBool{},
+			sql.NullString{},
+			sql.NullString{},
 			sql.NullBool{Valid: true, Bool: true},
 			sql.NullString{},
 			sql.NullString{},
@@ -765,6 +797,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{},
 			sql.NullString{Valid: true, String: "flex"},
 			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullBool{},
+			sql.NullBool{},
+			sql.NullString{},
+			sql.NullString{},
 			sql.NullBool{},
 			sql.NullString{},
 			sql.NullString{},
@@ -829,6 +869,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullInt64{},
 			sql.NullFloat64{},
 			sql.NullString{Valid: true, String: "priority"},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullBool{},
+			sql.NullBool{},
+			sql.NullString{},
 			sql.NullString{},
 			sql.NullBool{Valid: true, Bool: false},
 			sql.NullString{},

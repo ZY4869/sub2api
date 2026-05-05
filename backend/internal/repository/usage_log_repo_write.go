@@ -89,6 +89,14 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			image_output_cost,
 			service_tier,
 			reasoning_effort,
+			reasoning_effort_raw,
+			reasoning_effort_effective,
+			requested_model_raw,
+			requested_model_normalized,
+			million_context_requested,
+			million_context_effective,
+			million_context_source,
+			million_context_beta_token,
 			thinking_enabled,
 			inbound_endpoint,
 			upstream_endpoint,
@@ -103,7 +111,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			$17, $18,
 			$19, $20, $21, $22, $23, $24,
 			$25, $26, $27, $28, $29, $30,
-			$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62
+			$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -128,6 +136,14 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	imageSize := nullString(log.ImageSize)
 	serviceTier := nullString(log.ServiceTier)
 	reasoningEffort := nullString(log.ReasoningEffort)
+	reasoningEffortRaw := nullString(log.ReasoningEffortRaw)
+	reasoningEffortEffective := nullString(log.ReasoningEffortEffective)
+	requestedModelRaw := nullString(log.RequestedModelRaw)
+	requestedModelNormalized := nullString(log.RequestedModelNormalized)
+	millionContextRequested := nullUsageLogBool(log.MillionContextRequested)
+	millionContextEffective := nullUsageLogBool(log.MillionContextEffective)
+	millionContextSource := nullString(log.MillionContextSource)
+	millionContextBetaToken := nullString(log.MillionContextBetaToken)
 	thinkingEnabled := nullUsageLogBool(log.ThinkingEnabled)
 	inboundEndpoint := nullString(log.InboundEndpoint)
 	upstreamEndpoint := nullString(log.UpstreamEndpoint)
@@ -158,7 +174,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	if requestID != "" {
 		requestIDArg = requestID
 	}
-	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, nullString(requestedModelPtr), upstreamModel, channelID, modelMappingChain, billingTier, billingMode, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingCurrency, totalCostUSDEquivalent, actualCostUSDEquivalent, log.USDToCNYRate, fxRateDate, fxLockedAt, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, imageOutputTokens, imageOutputCost, serviceTier, reasoningEffort, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, createdAt}
+	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, nullString(requestedModelPtr), upstreamModel, channelID, modelMappingChain, billingTier, billingMode, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingCurrency, totalCostUSDEquivalent, actualCostUSDEquivalent, log.USDToCNYRate, fxRateDate, fxLockedAt, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, imageOutputTokens, imageOutputCost, serviceTier, reasoningEffort, reasoningEffortRaw, reasoningEffortEffective, requestedModelRaw, requestedModelNormalized, millionContextRequested, millionContextEffective, millionContextSource, millionContextBetaToken, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, createdAt}
 	if err := scanSingleRow(ctx, sqlq, query, args, &log.ID, &log.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) && requestID != "" {
 			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id = $2"

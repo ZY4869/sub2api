@@ -436,4 +436,52 @@ describe("PublicModelCatalogContent", () => {
     expect(wrapper.text()).toContain('ui.modelCatalog.liveFallbackNotice')
     expect(wrapper.text()).toContain('ui.modelCatalog.emptyLiveFallback')
   })
+
+  it("does not expose [1m] variants as separate public catalog entries", async () => {
+    apiMocks.getModelCatalog.mockResolvedValueOnce({
+      notModified: false,
+      etag: 'W/"catalog-1m"',
+      data: {
+        etag: 'W/"catalog-1m"',
+        updated_at: "2026-04-18T00:00:00Z",
+        page_size: 10,
+        catalog_source: 'published',
+        items: [
+          {
+            model: "claude-sonnet-4.5",
+            display_name: "Claude Sonnet 4.5",
+            provider: "anthropic",
+            provider_icon_key: "anthropic",
+            request_protocols: ["anthropic"],
+            currency: "USD",
+            price_display: {
+              primary: [{ id: "input_price", unit: "input_token", value: 0.000002 }],
+            },
+            multiplier_summary: {
+              enabled: false,
+              kind: "disabled",
+            },
+          },
+        ],
+      },
+    });
+
+    const pinia = createPinia()
+    const wrapper = mount(PublicModelCatalogContent, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          PublicModelCatalogDetailDialog: true,
+          ModelIcon: true,
+          ModelPlatformIcon: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Claude Sonnet 4.5");
+    expect(wrapper.text()).not.toContain("[1m]");
+    expect(wrapper.find('[data-testid="public-model-card-claude-sonnet-4.5[1m]"]').exists()).toBe(false);
+  })
 });

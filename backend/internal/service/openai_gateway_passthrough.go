@@ -18,7 +18,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, requestedModel string, upstreamModel string, reasoningEffort *string, reqStream bool, startTime time.Time) (*OpenAIForwardResult, error) {
+func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, requestedModel string, upstreamModel string, effortResolution GatewayEffortResolution, reqStream bool, startTime time.Time) (*OpenAIForwardResult, error) {
+	requestedModel = firstNonEmptyString(NormalizeRequestedModelForClaudeCapability(requestedModel), requestedModel)
+	upstreamModel = firstNonEmptyString(NormalizeRequestedModelForClaudeCapability(upstreamModel), upstreamModel)
 	reqModel := strings.TrimSpace(upstreamModel)
 	if reqModel == "" {
 		reqModel = strings.TrimSpace(requestedModel)
@@ -136,7 +138,21 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *
 	if usage == nil {
 		usage = &OpenAIUsage{}
 	}
-	result := &OpenAIForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: requestedModel, BillingModel: reqModel, ServiceTier: extractOpenAIServiceTierFromBody(body), ReasoningEffort: reasoningEffort, Stream: reqStream, OpenAIWSMode: false, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs}
+	result := &OpenAIForwardResult{
+		RequestID:                resp.Header.Get("x-request-id"),
+		Usage:                    *usage,
+		Model:                    requestedModel,
+		BillingModel:             reqModel,
+		ServiceTier:              extractOpenAIServiceTierFromBody(body),
+		ReasoningEffort:          effortResolution.Effective,
+		ReasoningEffortRaw:       effortResolution.Raw,
+		ReasoningEffortEffective: effortResolution.Effective,
+		ReasoningEffortSource:    effortResolution.Source,
+		Stream:                   reqStream,
+		OpenAIWSMode:             false,
+		Duration:                 time.Since(startTime),
+		FirstTokenMs:             firstTokenMs,
+	}
 	if upstreamModel = strings.TrimSpace(upstreamModel); upstreamModel != "" && upstreamModel != strings.TrimSpace(requestedModel) {
 		result.UpstreamModel = upstreamModel
 	}

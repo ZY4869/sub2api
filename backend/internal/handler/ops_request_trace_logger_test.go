@@ -297,6 +297,28 @@ func TestBuildOpsTraceNormalizeResult_MapsReasoningEffortXhighAndMaxSeparately(t
 	require.Equal(t, "mapped_reasoning_effort", normalizeMax.ThinkingSource)
 }
 
+func TestBuildOpsTraceNormalizeResult_DoesNotTreatTopLevelEffortLevelAsOpenAIReasoning(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	c.Set(ctxKeyInboundEndpoint, EndpointChatCompletions)
+	setOpsEndpointContext(c, "gpt-5.4", service.RequestTypeSync)
+
+	normalize, _ := buildOpsTraceNormalizeResult(
+		c,
+		nil,
+		[]byte(`{"model":"gpt-5.4","effortLevel":"max"}`),
+		nil,
+	)
+
+	require.Equal(t, "max", normalize.GatewayEffortLevel)
+	require.Empty(t, normalize.ReasoningEffortRaw)
+	require.Empty(t, normalize.ReasoningEffortEffective)
+	require.Empty(t, normalize.ThinkingSource)
+}
+
 func buildOpsTraceInputForTest(
 	t *testing.T,
 	method string,

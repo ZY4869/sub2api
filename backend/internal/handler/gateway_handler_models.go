@@ -148,9 +148,12 @@ func (h *GatewayHandler) resolveParsedRequestModel(ctx context.Context, parsed *
 		parsed.RawModel = parsed.Model
 	}
 	if h.modelRegistryService == nil {
+		if parsed.Model == "" {
+			parsed.Model = service.NormalizeRequestedModelForClaudeCapability(parsed.RawModel)
+		}
 		return
 	}
-	resolution, err := h.modelRegistryService.ExplainResolution(ctx, parsed.RawModel)
+	resolution, err := h.modelRegistryService.ExplainResolution(ctx, parsed.Model)
 	if err != nil || resolution == nil {
 		return
 	}

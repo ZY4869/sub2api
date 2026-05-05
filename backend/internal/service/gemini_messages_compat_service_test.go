@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 type geminiCompatHTTPUpstreamStub struct {
@@ -329,6 +331,148 @@ func TestForwardNativeGenerateAnswer_Passthrough(t *testing.T) {
 	require.Equal(t, "upstream-answer-1", result.RequestID)
 	require.Equal(t, "upstream-answer-1", w.Header().Get("x-request-id"))
 	require.Contains(t, w.Body.String(), `"answer":"ok"`)
+}
+
+func TestForwardNativeGenerateContent_StripsClaudeMillionContextSuffixBeforeUpstream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var capturedURL string
+	svc := &GeminiMessagesCompatService{
+		httpUpstream: &geminiCompatHTTPUpstreamStub{
+			do: func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+				capturedURL = req.URL.String()
+				require.Equal(t, http.MethodPost, req.Method)
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Content-Type": []string{"application/json"},
+					},
+					Body: io.NopCloser(strings.NewReader(`{"responseId":"resp-native-1m","usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":2}}`)),
+				}, nil
+			},
+		},
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body := []byte(`{"contents":[{"role":"user","parts":[{"text":"hello world"}]}]}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/deepseek-v4-flash[1m]:generateContent", strings.NewReader(string(body)))
+
+	result, err := svc.ForwardNative(context.Background(), c, &Account{
+		ID:       504,
+		Name:     "Gemini API Key",
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key": "test-key",
+		},
+	}, "deepseek-v4-flash[1m]", "generateContent", false, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Contains(t, capturedURL, "/v1beta/models/deepseek-v4-flash:generateContent")
+	require.NotContains(t, capturedURL, "[1m]")
+	require.Equal(t, "deepseek-v4-flash[1m]", result.RequestedModelRaw)
+	require.Equal(t, "deepseek-v4-flash", result.RequestedModelNormalized)
+	require.True(t, result.MillionContextRequested)
+	require.False(t, result.MillionContextEffective)
+	require.Equal(t, "model_suffix_[1m]", result.MillionContextSource)
+	require.Empty(t, result.MillionContextBetaToken)
+}
+
+func TestForwardNativeCountTokens_EstimatedFallbackPreservesClaudeMillionContextObservation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &GeminiMessagesCompatService{
+		httpUpstream: &geminiCompatHTTPUpstreamStub{
+			do: func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusBadRequest,
+					Header: http.Header{
+						"Content-Type": []string{"application/json"},
+						"x-request-id": []string{"upstream-count-1m"},
+					},
+					Body: io.NopCloser(strings.NewReader(`{"error":{"message":"request payload rejected"}}`)),
+				}, nil
+			},
+		},
+	}
+
+	body := []byte(`{"effortLevel":"max","contents":[{"role":"user","parts":[{"text":"hello world"}]}]}`)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/deepseek-v4-flash[1m]:countTokens", strings.NewReader(string(body)))
+
+	result, err := svc.ForwardNative(context.Background(), c, &Account{
+		ID:       505,
+		Name:     "Gemini API Key",
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key": "test-key",
+		},
+	}, "deepseek-v4-flash[1m]", "countTokens", false, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "upstream-count-1m", result.RequestID)
+	require.Equal(t, "deepseek-v4-flash[1m]", result.RequestedModelRaw)
+	require.Equal(t, "deepseek-v4-flash", result.RequestedModelNormalized)
+	require.True(t, result.MillionContextRequested)
+	require.False(t, result.MillionContextEffective)
+	require.Equal(t, "model_suffix_[1m]", result.MillionContextSource)
+	require.Empty(t, result.MillionContextBetaToken)
+	require.Contains(t, w.Body.String(), `"totalTokens":`)
+}
+
+func TestGeminiCompatForward_StripsClaudeMillionContextSuffixBeforeUpstream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var capturedURL string
+	var capturedBody []byte
+	svc := &GeminiMessagesCompatService{
+		httpUpstream: &geminiCompatHTTPUpstreamStub{
+			do: func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+				capturedURL = req.URL.String()
+				if req.Body != nil {
+					capturedBody, _ = io.ReadAll(req.Body)
+					_ = req.Body.Close()
+					req.Body = io.NopCloser(bytes.NewReader(capturedBody))
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Content-Type": []string{"application/json"},
+					},
+					Body: io.NopCloser(strings.NewReader(`{"responseId":"resp-compat-1m","candidates":[{"content":{"parts":[{"text":"ok"}]}}],"usageMetadata":{"promptTokenCount":9,"candidatesTokenCount":3}}`)),
+				}, nil
+			},
+		},
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body := []byte(`{"model":"deepseek-v4-flash[1m]","max_tokens":16,"messages":[{"role":"user","content":"hello"}],"stream":false}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(string(body)))
+
+	result, err := svc.Forward(context.Background(), c, &Account{
+		ID:       506,
+		Name:     "Gemini API Key",
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key": "test-key",
+		},
+	}, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Contains(t, capturedURL, "/v1beta/models/deepseek-v4-flash:generateContent")
+	require.NotContains(t, capturedURL, "[1m]")
+	require.False(t, gjson.GetBytes(capturedBody, "model").Exists())
+	require.Equal(t, "deepseek-v4-flash[1m]", result.RequestedModelRaw)
+	require.Equal(t, "deepseek-v4-flash", result.RequestedModelNormalized)
+	require.True(t, result.MillionContextRequested)
+	require.False(t, result.MillionContextEffective)
+	require.Equal(t, "model_suffix_[1m]", result.MillionContextSource)
+	require.Empty(t, result.MillionContextBetaToken)
 }
 
 func TestConvertClaudeMessagesToGeminiGenerateContent_AddsThoughtSignatureForToolUse(t *testing.T) {

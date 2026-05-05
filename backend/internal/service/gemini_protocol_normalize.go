@@ -50,6 +50,7 @@ type geminiModelCapabilities struct {
 type geminiThinkingConfigResult struct {
 	Config map[string]any
 	Source string
+	Effort GatewayEffortResolution
 }
 
 type geminiToolSummary struct {
@@ -379,13 +380,35 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 	capabilities := detectGeminiModelCapabilities(model)
 	thinking, _ := req["thinking"].(map[string]any)
 	thinkingType := strings.ToLower(strings.TrimSpace(stringValueFromAny(thinking["type"])))
-	reasoningEffort := normalizeOpenAIReasoningEffort(stringValueFromAny(req["reasoning_effort"]))
+	reasoningEffort := ""
+	if reasoning, ok := req["reasoning"].(map[string]any); ok && reasoning != nil {
+		reasoningEffort = stringValueFromAny(reasoning["effort"])
+	}
+	effortResolution := ResolveGeminiEffort(
+		stringValueFromAny(req["thinkingLevel"]),
+		firstNonEmptyGeminiString(
+			stringValueFromAny(req["thinking_level"]),
+			stringValueFromAny(thinking["thinkingLevel"]),
+			stringValueFromAny(thinking["thinking_level"]),
+			stringValueFromAny(thinking["level"]),
+		),
+		reasoningEffort,
+		stringValueFromAny(req["reasoning_effort"]),
+		"",
+	)
 	explicitLevel, hasLevel := extractGeminiThinkingLevel(req, thinking)
 	explicitBudget, hasBudget := extractGeminiThinkingBudget(req, thinking)
-	hasThinkingInstruction := thinkingType == "enabled" || thinkingType == "adaptive" || hasLevel || hasBudget || reasoningEffort != ""
+	hasThinkingInstruction := thinkingType == "enabled" || thinkingType == "adaptive" || hasLevel || hasBudget || effortResolution.Effective != nil
 
 	if capabilities.SupportsThinkingLevel {
-		mappedLevel := mapGeminiReasoningEffortToThinkingLevel(reasoningEffort)
+		mappedLevel := ""
+		mappedSource := effortSourceGeminiMapped
+		if effortResolution.Source == effortSourceOpenAIField || effortResolution.Source == effortSourceOpenAIAlias || effortResolution.Source == effortSourceTopLevel {
+			if effortResolution.Effective != nil {
+				mappedLevel = *effortResolution.Effective
+			}
+			mappedSource = effortResolution.Source
+		}
 		if (hasLevel || mappedLevel != "") && hasBudget {
 			return geminiThinkingConfigResult{}, apicompat.NewCompatError(
 				apicompat.CompatReasonGeminiThinkingConflict,
@@ -401,7 +424,7 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 		}
 		if finalLevel == "" && mappedLevel != "" {
 			finalLevel = mappedLevel
-			source = "mapped_reasoning_effort"
+			source = mappedSource
 		}
 		if finalLevel != "" {
 			if finalLevel == "MINIMAL" && !capabilities.SupportsMinimalThinkingLevel {
@@ -417,7 +440,16 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 					"thinkingLevel":   finalLevel,
 				},
 				Source: source,
+				Effort: effortResolution,
 			}, nil
+		}
+
+		if effortResolution.Raw != nil && *effortResolution.Raw == "none" && !capabilities.SupportsMinimalThinkingLevel {
+			return geminiThinkingConfigResult{}, apicompat.NewCompatError(
+				apicompat.CompatReasonGeminiMinimalThinkingUnsupported,
+				"compat.gemini.minimal_thinking_unsupported",
+				"thinkingLevel MINIMAL is only supported by gemini-3-flash-preview and gemini-3.1-flash-lite-preview",
+			)
 		}
 
 		if hasBudget {
@@ -428,6 +460,7 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 						"thinkingBudget":  normalizedBudget,
 					},
 					Source: "legacy_budget",
+					Effort: effortResolution,
 				}, nil
 			}
 		}
@@ -436,6 +469,7 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 			return geminiThinkingConfigResult{
 				Config: map[string]any{"includeThoughts": true},
 				Source: "thinking_type",
+				Effort: effortResolution,
 			}, nil
 		}
 		return geminiThinkingConfigResult{}, nil
@@ -449,7 +483,7 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 		)
 	}
 
-	if reasoningEffort == "none" {
+	if effortResolution.Raw != nil && *effortResolution.Raw == "none" {
 		return geminiThinkingConfigResult{}, apicompat.NewCompatError(
 			apicompat.CompatReasonGeminiReasoningNoneUnsupported,
 			"compat.gemini.reasoning_none_unsupported",
@@ -465,6 +499,7 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 					"thinkingBudget":  normalizedBudget,
 				},
 				Source: "budget",
+				Effort: effortResolution,
 			}, nil
 		}
 	}
@@ -473,6 +508,7 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 		return geminiThinkingConfigResult{
 			Config: map[string]any{"includeThoughts": true},
 			Source: "thinking_type",
+			Effort: effortResolution,
 		}, nil
 	}
 
@@ -601,21 +637,6 @@ func normalizeGeminiThinkingLevel(raw string) (string, bool) {
 		return "HIGH", true
 	default:
 		return "", false
-	}
-}
-
-func mapGeminiReasoningEffortToThinkingLevel(reasoningEffort string) string {
-	switch normalizeOpenAIReasoningEffort(reasoningEffort) {
-	case "none":
-		return "MINIMAL"
-	case "low":
-		return "LOW"
-	case "medium":
-		return "MEDIUM"
-	case "high", "xhigh":
-		return "HIGH"
-	default:
-		return ""
 	}
 }
 

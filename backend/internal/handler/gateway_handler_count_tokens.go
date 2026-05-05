@@ -50,6 +50,8 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
 		return
 	}
+	c.Request = c.Request.WithContext(service.EnsureRequestMetadata(c.Request.Context()))
+	service.RecordClaudeCapabilityMetadata(c.Request.Context(), parsedReq.Capability)
 	h.resolveParsedRequestModel(c.Request.Context(), parsedReq)
 	SetClaudeCodeClientContext(c, body, parsedReq)
 	reqLog = reqLog.With(zap.String("model", parsedReq.Model), zap.Bool("stream", parsedReq.Stream))

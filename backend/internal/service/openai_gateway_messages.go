@@ -18,6 +18,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 )
 
@@ -34,6 +35,8 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	defaultMappedModel string,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
+	ctx = EnsureRequestMetadata(ctx)
+	topLevelEffort := strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String())
 
 	// 1. Parse Anthropic request
 	var anthropicReq apicompat.AnthropicRequest
@@ -41,7 +44,15 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		return nil, fmt.Errorf("parse anthropic request: %w", err)
 	}
 	originalModel := anthropicReq.Model
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalModel, topLevelEffort)
+	anthropicReq.Model = firstNonEmptyString(claudeCapability.RequestedModelNormalized, anthropicReq.Model)
 	applyOpenAICompatModelNormalization(&anthropicReq)
+	entryEffortResolution := ResolveAnthropicEffortForOpenAI(func() string {
+		if anthropicReq.OutputConfig == nil {
+			return ""
+		}
+		return anthropicReq.OutputConfig.Effort
+	}(), topLevelEffort)
 	clientStream := anthropicReq.Stream // client's original stream preference
 
 	// 2. Convert Anthropic → Responses
@@ -78,6 +89,15 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	responsesBody, err := json.Marshal(responsesReq)
 	if err != nil {
 		return nil, fmt.Errorf("marshal responses request: %w", err)
+	}
+	if entryEffortResolution.Effective != nil {
+		effective := *entryEffortResolution.Effective
+		if normalized := NormalizeOpenAIReasoningEffortEffective(effective); normalized != nil {
+			effective = *normalized
+		}
+		if normalizedBody, setErr := sjson.SetBytes(responsesBody, "reasoning.effort", effective); setErr == nil {
+			responsesBody = normalizedBody
+		}
 	}
 
 	if isChatGPTOpenAIOAuthAccount(account) {
@@ -237,6 +257,10 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	// Upstream is always streaming; choose response format based on client preference.
 	var result *OpenAIForwardResult
 	var handleErr error
+	effortResolution := entryEffortResolution
+	if effortResolution.Effective == nil {
+		effortResolution = extractOpenAIReasoningEffortResolutionFromBody(responsesBody, originalModel)
+	}
 	if clientStream {
 		result, handleErr = s.handleAnthropicStreamingResponse(resp, c, originalModel, mappedModel, startTime)
 	} else {
@@ -254,6 +278,13 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 			re := responsesReq.Reasoning.Effort
 			result.ReasoningEffort = &re
 		}
+		result.ReasoningEffortRaw = effortResolution.Raw
+		result.ReasoningEffortEffective = effortResolution.Effective
+		result.ReasoningEffortSource = effortResolution.Source
+		if result.ReasoningEffort == nil && effortResolution.Effective != nil {
+			result.ReasoningEffort = effortResolution.Effective
+		}
+		applyClaudeCapabilityToOpenAIForwardResult(result, claudeCapability)
 	}
 
 	// Extract and save Codex usage snapshot from response headers (for OAuth accounts)

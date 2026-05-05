@@ -9,7 +9,6 @@ import (
 	"unsafe"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
-	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -60,14 +59,16 @@ type SessionContext struct {
 // 3. 避免重复 json.Unmarshal，减少 CPU 和内存开销
 type ParsedRequest struct {
 	RawModel        string
-	Body            []byte          // 原始请求体（保留用于转发）
-	Model           string          // 请求的模型名称
+	Body            []byte // 原始请求体（保留用于转发）
+	Model           string // 请求的模型名称
+	Capability      ClaudeRequestCapability
 	Stream          bool            // 是否为流式请求
 	MetadataUserID  string          // metadata.user_id（用于会话亲和）
 	System          any             // system 字段内容
 	Messages        []any           // messages 数组
 	HasSystem       bool            // 是否包含 system 字段（包含 null 也视为显式传入）
 	ThinkingEnabled bool            // 是否开启 thinking（部分平台会影响最终模型名）
+	EffortLevel     string          // effortLevel（网关级公共思考强度）
 	OutputEffort    string          // output_config.effort（Claude API 的推理强度控制）
 	MaxTokens       int             // max_tokens 值（用于探测请求拦截）
 	SessionContext  *SessionContext // 可选：请求上下文区分因子（nil 时行为不变）
@@ -105,10 +106,6 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 			return nil, fmt.Errorf("invalid model field type")
 		}
 		parsed.RawModel = modelResult.String()
-		parsed.Model = parsed.RawModel
-		if canonicalID, ok := modelregistry.ResolveToCanonicalID(parsed.RawModel); ok {
-			parsed.Model = canonicalID
-		}
 	}
 
 	// stream: 需要严格类型校验，非 bool 返回错误
@@ -131,6 +128,17 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 
 	// output_config.effort: Claude API 的推理强度控制参数
 	parsed.OutputEffort = strings.TrimSpace(gjson.Get(jsonStr, "output_config.effort").String())
+
+	// effortLevel: 网关级跨协议公共思考强度参数
+	if effortLevel := NormalizeGatewayEffortLevel(gjson.Get(jsonStr, "effortLevel").String()); effortLevel != nil {
+		parsed.EffortLevel = *effortLevel
+	}
+
+	parsed.Capability = ParseClaudeRequestCapability(parsed.RawModel, parsed.EffortLevel)
+	parsed.Model = parsed.Capability.RequestedModelNormalized
+	if parsed.Model == "" {
+		parsed.Model = NormalizeRequestedModelForClaudeCapability(parsed.RawModel)
+	}
 
 	// max_tokens: 仅接受整数值
 	maxTokensResult := gjson.Get(jsonStr, "max_tokens")
@@ -894,21 +902,6 @@ func filterThinkingBlocksInternal(body []byte, _ bool) []byte {
 		return body
 	}
 	return newBody
-}
-
-// NormalizeClaudeOutputEffort normalizes Claude's output_config.effort value.
-// Returns nil for empty or unrecognized values.
-func NormalizeClaudeOutputEffort(raw string) *string {
-	value := strings.ToLower(strings.TrimSpace(raw))
-	if value == "" {
-		return nil
-	}
-	switch value {
-	case "low", "medium", "high", "xhigh", "max":
-		return &value
-	default:
-		return nil
-	}
 }
 
 // =========================
