@@ -273,7 +273,8 @@ func buildPublicModelCatalogItem(
 	}
 
 	metadata := billingPricingMetadataForPersistedModel(persisted)
-	priceDisplay := publicModelCatalogPriceDisplayFromForm(metadata, persisted.SaleForm)
+	effectiveSaleForm := billingPricingEffectiveSaleDisplayForm(persisted)
+	priceDisplay := publicModelCatalogPriceDisplayFromForm(metadata, effectiveSaleForm)
 	if len(priceDisplay.Primary) == 0 && len(priceDisplay.Secondary) == 0 {
 		return PublicModelCatalogItem{}, false
 	}

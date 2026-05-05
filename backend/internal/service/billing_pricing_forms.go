@@ -2,6 +2,7 @@ package service
 
 import (
 	"math"
+	"sort"
 	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -277,58 +278,119 @@ func cloneBillingPricingLayerForm(form BillingPricingLayerForm) BillingPricingLa
 	return cloned
 }
 
-func validateBillingPricingLayerForm(form BillingPricingLayerForm) error {
-	values := []*float64{
-		form.InputPrice,
-		form.OutputPrice,
-		form.CachePrice,
-		form.InputPriceAboveThreshold,
-		form.OutputPriceAboveThreshold,
-		form.Special.BatchInputPrice,
-		form.Special.BatchOutputPrice,
-		form.Special.BatchCachePrice,
-		form.Special.GroundingSearch,
-		form.Special.GroundingMaps,
-		form.Special.FileSearchEmbedding,
-		form.Special.FileSearchRetrieval,
+type billingPricingValidationErrors map[string]string
+
+func (errors billingPricingValidationErrors) add(fieldID string, message string) {
+	fieldID = strings.TrimSpace(fieldID)
+	message = strings.TrimSpace(message)
+	if fieldID == "" || message == "" {
+		return
 	}
-	for _, value := range values {
+	errors[fieldID] = message
+}
+
+func (errors billingPricingValidationErrors) toError() error {
+	if len(errors) == 0 {
+		return nil
+	}
+	metadata := make(map[string]string, len(errors))
+	keys := make([]string, 0, len(errors))
+	for fieldID := range errors {
+		keys = append(keys, fieldID)
+	}
+	sort.Strings(keys)
+	for _, fieldID := range keys {
+		metadata["field_errors."+fieldID] = errors[fieldID]
+	}
+	return infraerrors.BadRequest(
+		"BILLING_PRICE_INVALID",
+		"pricing layer form contains invalid fields",
+	).WithMetadata(metadata)
+}
+
+func validateBillingPricingLayerForm(form BillingPricingLayerForm) error {
+	errors := billingPricingValidationErrors{}
+	validateNonNegative := func(value *float64, fieldID string, label string) {
 		if value == nil {
-			continue
+			return
 		}
 		if math.IsNaN(*value) || math.IsInf(*value, 0) || *value < 0 {
-			return infraerrors.BadRequest("BILLING_PRICE_INVALID", "pricing must be a non-negative number")
+			errors.add(fieldID, label+"必须是非负数")
 		}
 	}
+	validateNonNegative(form.InputPrice, billingDiscountFieldInputPrice, "输入定价")
+	validateNonNegative(form.OutputPrice, billingDiscountFieldOutputPrice, "输出定价")
+	validateNonNegative(form.CachePrice, billingDiscountFieldCachePrice, "缓存定价")
+	validateNonNegative(form.InputPriceAboveThreshold, billingDiscountFieldInputPriceAboveThreshold, "输入阈值后定价")
+	validateNonNegative(form.OutputPriceAboveThreshold, billingDiscountFieldOutputPriceAboveThreshold, "输出阈值后定价")
+	validateNonNegative(form.Special.BatchInputPrice, billingDiscountFieldBatchInputPrice, "Batch 输入定价")
+	validateNonNegative(form.Special.BatchOutputPrice, billingDiscountFieldBatchOutputPrice, "Batch 输出定价")
+	validateNonNegative(form.Special.BatchCachePrice, billingDiscountFieldBatchCachePrice, "Batch 缓存定价")
+	validateNonNegative(form.Special.GroundingSearch, billingDiscountFieldGroundingSearch, "Grounding Search")
+	validateNonNegative(form.Special.GroundingMaps, billingDiscountFieldGroundingMaps, "Grounding Maps")
+	validateNonNegative(form.Special.FileSearchEmbedding, billingDiscountFieldFileSearchEmbedding, "File Search Embedding")
+	validateNonNegative(form.Special.FileSearchRetrieval, billingDiscountFieldFileSearchRetrieval, "File Search Retrieval")
 	if form.TierThresholdTokens != nil && *form.TierThresholdTokens <= 0 {
-		return infraerrors.BadRequest("BILLING_PRICE_INVALID", "tier threshold must be a positive integer")
+		errors.add("tier_threshold_tokens", "共享阈值必须是正整数")
 	}
-	validateMultiplier := func(value float64) error {
+	validateMultiplier := func(value float64, fieldID string, message string) {
 		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
-			return infraerrors.BadRequest("BILLING_PRICE_INVALID", "multiplier must be a non-negative number")
+			errors.add(fieldID, message)
 		}
-		return nil
 	}
 	if form.SharedMultiplier != nil {
-		if err := validateMultiplier(*form.SharedMultiplier); err != nil {
-			return err
-		}
+		validateMultiplier(*form.SharedMultiplier, "shared_multiplier", "统一倍率必须是非负数")
 	}
-	for _, value := range form.ItemMultipliers {
-		if err := validateMultiplier(value); err != nil {
-			return err
-		}
+	for fieldID, value := range form.ItemMultipliers {
+		validateMultiplier(
+			value,
+			"item_multipliers."+fieldID,
+			billingPricingValidationLabelForField(fieldID)+"倍率必须是非负数",
+		)
 	}
 	if !form.TieredEnabled {
-		return nil
+		return errors.toError()
 	}
 	if form.TierThresholdTokens == nil {
-		return infraerrors.BadRequest("BILLING_PRICE_INVALID", "tiered pricing requires a shared threshold")
+		errors.add("tier_threshold_tokens", "共享阈值必须是正整数")
 	}
 	if form.InputPriceAboveThreshold == nil && form.OutputPriceAboveThreshold == nil {
-		return infraerrors.BadRequest("BILLING_PRICE_INVALID", "tiered pricing requires at least one above-threshold price")
+		message := "至少填写一个阈值后价格"
+		errors.add(billingDiscountFieldInputPriceAboveThreshold, message)
+		errors.add(billingDiscountFieldOutputPriceAboveThreshold, message)
 	}
-	return nil
+	return errors.toError()
+}
+
+func billingPricingValidationLabelForField(fieldID string) string {
+	switch strings.TrimSpace(fieldID) {
+	case billingDiscountFieldInputPrice:
+		return "输入定价"
+	case billingDiscountFieldOutputPrice:
+		return "输出定价"
+	case billingDiscountFieldCachePrice:
+		return "缓存定价"
+	case billingDiscountFieldInputPriceAboveThreshold:
+		return "输入阈值后定价"
+	case billingDiscountFieldOutputPriceAboveThreshold:
+		return "输出阈值后定价"
+	case billingDiscountFieldBatchInputPrice:
+		return "Batch 输入定价"
+	case billingDiscountFieldBatchOutputPrice:
+		return "Batch 输出定价"
+	case billingDiscountFieldBatchCachePrice:
+		return "Batch 缓存定价"
+	case billingDiscountFieldGroundingSearch:
+		return "Grounding Search"
+	case billingDiscountFieldGroundingMaps:
+		return "Grounding Maps"
+	case billingDiscountFieldFileSearchEmbedding:
+		return "File Search Embedding"
+	case billingDiscountFieldFileSearchRetrieval:
+		return "File Search Retrieval"
+	default:
+		return fieldID
+	}
 }
 
 func applyDiscountToBillingPricingLayerForm(form BillingPricingLayerForm, ratio float64, selected map[string]struct{}) BillingPricingLayerForm {

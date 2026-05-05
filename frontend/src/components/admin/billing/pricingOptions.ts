@@ -24,6 +24,8 @@ export const BILLING_DISCOUNT_FIELD_IDS = {
   file_search_retrieval: 'file_search_retrieval',
 } as const
 
+export type BillingPricingValidationErrors = Record<string, string>
+
 export function createEmptyBillingPricingSpecial(): BillingPricingSimpleSpecial {
   return {}
 }
@@ -51,6 +53,41 @@ export function createEmptyBillingPricingLayerForm(seed: Partial<BillingPricingL
 
 export function cloneBillingPricingLayerForm(form?: Partial<BillingPricingLayerForm>): BillingPricingLayerForm {
   return createEmptyBillingPricingLayerForm(form || {})
+}
+
+export function normalizeBillingPricingLayerFormForSave(
+  form?: Partial<BillingPricingLayerForm>,
+): BillingPricingLayerForm {
+  const next = cloneBillingPricingLayerForm(form)
+
+  if (!next.special_enabled) {
+    next.special = createEmptyBillingPricingSpecial()
+  }
+  if (!next.tiered_enabled) {
+    next.tier_threshold_tokens = undefined
+    next.input_price_above_threshold = undefined
+    next.output_price_above_threshold = undefined
+  }
+  if (!next.multiplier_enabled) {
+    next.multiplier_mode = undefined
+    next.shared_multiplier = undefined
+    next.item_multipliers = {}
+    return next
+  }
+
+  next.multiplier_mode = normalizeBillingPricingMultiplierMode(next.multiplier_mode)
+  if (next.multiplier_mode === 'shared') {
+    next.item_multipliers = {}
+    return next
+  }
+
+  next.shared_multiplier = undefined
+  next.item_multipliers = Object.fromEntries(
+    Object.entries(next.item_multipliers || {}).filter(([fieldId, value]) =>
+      fieldId.trim() && typeof value === 'number' && Number.isFinite(value),
+    ),
+  )
+  return next
 }
 
 export function normalizeBillingPricingSheetDetail(detail: BillingPricingSheetDetail): BillingPricingSheetDetail {
@@ -171,4 +208,93 @@ export function resolveEffectiveBillingPricingFieldValue(
     return baseValue
   }
   return baseValue * multiplier
+}
+
+export function validateBillingPricingLayerFormForSave(
+  form?: Partial<BillingPricingLayerForm>,
+): BillingPricingValidationErrors {
+  const normalized = normalizeBillingPricingLayerFormForSave(form)
+  const errors: BillingPricingValidationErrors = {}
+
+  const validateNonNegative = (value: number | undefined, fieldId: string, label: string) => {
+    if (value == null) {
+      return
+    }
+    if (!Number.isFinite(value) || value < 0) {
+      errors[fieldId] = `${label}必须是非负数`
+    }
+  }
+
+  validateNonNegative(normalized.input_price, 'input_price', '输入定价')
+  validateNonNegative(normalized.output_price, 'output_price', '输出定价')
+  validateNonNegative(normalized.cache_price, 'cache_price', '缓存定价')
+  validateNonNegative(normalized.input_price_above_threshold, 'input_price_above_threshold', '输入阈值后定价')
+  validateNonNegative(normalized.output_price_above_threshold, 'output_price_above_threshold', '输出阈值后定价')
+  validateNonNegative(normalized.special.batch_input_price, 'batch_input_price', 'Batch 输入定价')
+  validateNonNegative(normalized.special.batch_output_price, 'batch_output_price', 'Batch 输出定价')
+  validateNonNegative(normalized.special.batch_cache_price, 'batch_cache_price', 'Batch 缓存定价')
+  validateNonNegative(normalized.special.grounding_search, 'grounding_search', 'Grounding Search')
+  validateNonNegative(normalized.special.grounding_maps, 'grounding_maps', 'Grounding Maps')
+  validateNonNegative(normalized.special.file_search_embedding, 'file_search_embedding', 'File Search Embedding')
+  validateNonNegative(normalized.special.file_search_retrieval, 'file_search_retrieval', 'File Search Retrieval')
+
+  if (normalized.tiered_enabled) {
+    if (!Number.isInteger(normalized.tier_threshold_tokens) || (normalized.tier_threshold_tokens || 0) <= 0) {
+      errors.tier_threshold_tokens = '共享阈值必须是正整数'
+    }
+    if (normalized.input_price_above_threshold == null && normalized.output_price_above_threshold == null) {
+      const message = '至少填写一个阈值后价格'
+      errors.input_price_above_threshold = message
+      errors.output_price_above_threshold = message
+    }
+  }
+
+  if (normalized.multiplier_enabled) {
+    if (normalized.multiplier_mode === 'shared') {
+      validateNonNegative(normalized.shared_multiplier, 'shared_multiplier', '统一倍率')
+    } else {
+      Object.entries(normalized.item_multipliers || {}).forEach(([fieldId, value]) => {
+        if (!Number.isFinite(value) || value < 0) {
+          errors[`item_multipliers.${fieldId}`] = `${fieldLabelForValidation(fieldId)}倍率必须是非负数`
+        }
+      })
+    }
+  }
+
+  return errors
+}
+
+export function hasBillingPricingValidationErrors(errors: BillingPricingValidationErrors): boolean {
+  return Object.keys(errors).length > 0
+}
+
+function fieldLabelForValidation(fieldId: string): string {
+  switch (fieldId) {
+    case 'input_price':
+      return '输入定价'
+    case 'output_price':
+      return '输出定价'
+    case 'cache_price':
+      return '缓存定价'
+    case 'input_price_above_threshold':
+      return '输入阈值后定价'
+    case 'output_price_above_threshold':
+      return '输出阈值后定价'
+    case 'batch_input_price':
+      return 'Batch 输入定价'
+    case 'batch_output_price':
+      return 'Batch 输出定价'
+    case 'batch_cache_price':
+      return 'Batch 缓存定价'
+    case 'grounding_search':
+      return 'Grounding Search'
+    case 'grounding_maps':
+      return 'Grounding Maps'
+    case 'file_search_embedding':
+      return 'File Search Embedding'
+    case 'file_search_retrieval':
+      return 'File Search Retrieval'
+    default:
+      return fieldId
+  }
 }

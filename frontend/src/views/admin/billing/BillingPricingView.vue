@@ -34,6 +34,15 @@
             type="button"
             class="btn btn-secondary"
             :disabled="loading || refreshing || exporting || importing"
+            data-testid="billing-pricing-export-template"
+            @click="handleExportExecutablePricingPatch"
+          >
+            {{ exporting ? '导出中...' : '导出可执行模板 JSON' }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            :disabled="loading || refreshing || exporting || importing"
             data-testid="billing-pricing-import"
             @click="triggerImport"
           >
@@ -155,6 +164,7 @@
       :active-model="activeEditorModel"
       :busy="editorBusy"
       :preview-group-name="previewGroupName"
+      :server-errors="serverLayerErrors"
       @close="editorOpen = false"
       @update:activeModel="activeEditorModel = $event"
       @save-layer="handleSaveLayer"
@@ -200,6 +210,7 @@ import {
   buildBillingPricingPatchFileV1,
   parseBillingPricingPatchFileV1,
 } from '@/utils/billingPricingPatch'
+import type { BillingPricingValidationErrors } from '@/components/admin/billing/pricingOptions'
 
 const PAGE_SIZE_STORAGE_KEY = 'admin.billing.pricing.page_size'
 
@@ -236,6 +247,7 @@ const audit = ref<BillingPricingAudit | null>(null)
 const previewGroups = ref<AdminGroup[]>([])
 const importFileInput = ref<HTMLInputElement | null>(null)
 const importProgress = ref<{ processed: number; total: number } | null>(null)
+const serverLayerErrors = ref<Partial<Record<'official' | 'sale', BillingPricingValidationErrors>>>({})
 
 const importButtonLabel = computed(() => {
   if (!importing.value) {
@@ -547,6 +559,7 @@ async function openProviderWorkset(provider: string) {
 async function openWorkset(models: string[], activeModel: string) {
   editorBusy.value = true
   editorOpen.value = true
+  serverLayerErrors.value = {}
   try {
     editorDetails.value = await loadWorksetDetails(dedupeModels(models))
     activeEditorModel.value = activeModel
@@ -565,6 +578,10 @@ async function handleSaveLayer(payload: {
   currency: 'USD' | 'CNY'
 }) {
   editorBusy.value = true
+  serverLayerErrors.value = {
+    ...serverLayerErrors.value,
+    [payload.layer]: {},
+  }
   try {
     const detail = await updateBillingPricingLayer(payload.model, payload.layer, {
       form: payload.form,
@@ -576,6 +593,21 @@ async function handleSaveLayer(payload: {
     billingPricingStore.invalidate()
     await guardedLoad(() => reloadAfterMutation(true))
   } catch (error) {
+    const fieldErrors = extractBillingPricingFieldErrors(error)
+    if (Object.keys(fieldErrors).length > 0) {
+      serverLayerErrors.value = {
+        ...serverLayerErrors.value,
+        [payload.layer]: fieldErrors,
+      }
+      appStore.showError(
+        payload.layer === 'official' ? '官方价格保存失败，请先修正标记字段。' : '售价保存失败，请先修正标记字段。',
+        {
+          title: payload.layer === 'official' ? '官方价格校验失败' : '售价校验失败',
+          details: uniqueErrorMessages(fieldErrors),
+        },
+      )
+      return
+    }
     appStore.showError(resolveErrorMessage(error, '保存模型定价失败'))
   } finally {
     editorBusy.value = false
@@ -664,6 +696,31 @@ async function handleExportPricingPatch() {
   }
 }
 
+async function handleExportExecutablePricingPatch() {
+  exporting.value = true
+  try {
+    const currentAudit = audit.value || await getBillingPricingAudit()
+    const issueModels = (currentAudit?.pricing_issue_examples || []).map((item) => item.model)
+    const missingModels = await fetchAllModelIDsByPricingStatus('missing')
+    const models = dedupeModels([...issueModels, ...missingModels])
+
+    if (models.length === 0) {
+      appStore.showSuccess('没有可导出的缺价/问题模型')
+      return
+    }
+
+    const details = await fetchPricingDetailsInBatches(models)
+    const ordered = orderPricingDetails(models, details)
+    const payload = buildBillingPricingPatchFileV1(ordered, { executableTemplate: true })
+    downloadJSONFile(buildExportFilename('billing_pricing_patch_template'), payload)
+    appStore.showSuccess(`已导出 ${ordered.length} 个模型的可执行模板`)
+  } catch (error) {
+    appStore.showError(resolveErrorMessage(error, '导出 JSON 模板失败'))
+  } finally {
+    exporting.value = false
+  }
+}
+
 function mergeEditorDetail(detail: BillingPricingSheetDetail) {
   const next = [...editorDetails.value]
   const index = next.findIndex((item) => item.model === detail.model)
@@ -692,6 +749,7 @@ async function refreshEditorWorkset(models: string[] = editorDetails.value.map((
     return
   }
   editorBusy.value = true
+  serverLayerErrors.value = {}
   try {
     editorDetails.value = await loadWorksetDetails(normalizedModels)
     if (!normalizedModels.includes(activeEditorModel.value)) {
@@ -805,5 +863,37 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
     return String((error as { message: string }).message)
   }
   return fallback
+}
+
+function extractBillingPricingFieldErrors(error: unknown): BillingPricingValidationErrors {
+  const metadata = (
+    typeof error === 'object'
+    && error
+    && 'metadata' in error
+    && typeof (error as { metadata?: unknown }).metadata === 'object'
+    && (error as { metadata?: unknown }).metadata !== null
+      ? (error as { metadata: Record<string, unknown> }).metadata
+      : null
+  )
+  if (!metadata) {
+    return {}
+  }
+
+  const fieldErrors: BillingPricingValidationErrors = {}
+  Object.entries(metadata).forEach(([key, value]) => {
+    if (!key.startsWith('field_errors.') || typeof value !== 'string') {
+      return
+    }
+    const fieldId = key.slice('field_errors.'.length).trim()
+    if (!fieldId || !value.trim()) {
+      return
+    }
+    fieldErrors[fieldId] = value
+  })
+  return fieldErrors
+}
+
+function uniqueErrorMessages(errors: BillingPricingValidationErrors): string[] {
+  return Array.from(new Set(Object.values(errors).filter((message) => Boolean(message))))
 }
 </script>

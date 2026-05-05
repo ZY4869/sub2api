@@ -52,6 +52,13 @@
             @input="handleInput"
             @blur="handleBlur"
           />
+          <span
+            v-if="sharedMultiplierError"
+            class="mt-1 block text-xs text-rose-600 dark:text-rose-300"
+            data-testid="pricing-shared-multiplier-error"
+          >
+            {{ sharedMultiplierError }}
+          </span>
         </label>
         <button
           type="button"
@@ -80,10 +87,12 @@ const props = withDefaults(defineProps<{
   enabled: boolean
   mode: BillingPricingMultiplierMode
   sharedMultiplier?: number
+  sharedMultiplierError?: string
   fieldCount: number
   disabled?: boolean
 }>(), {
   sharedMultiplier: undefined,
+  sharedMultiplierError: '',
   disabled: false,
 })
 

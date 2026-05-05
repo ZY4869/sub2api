@@ -146,6 +146,33 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	require.InDelta(t, 2e-6, *saveResp.Data.OfficialForm.InputPrice, 1e-12)
 	require.InDelta(t, 7e-6, *saveResp.Data.OfficialForm.OutputPrice, 1e-12)
 
+	invalidSaveRec := httptest.NewRecorder()
+	invalidSaveReq := httptest.NewRequest(http.MethodPut, "/api/v1/admin/billing/pricing/models/gpt-5.4/layers/sale", mustJSONBody(t, map[string]any{
+		"currency": service.ModelPricingCurrencyUSD,
+		"form": map[string]any{
+			"special_enabled":    false,
+			"special":            map[string]any{},
+			"tiered_enabled":     true,
+			"multiplier_enabled": false,
+		},
+	}))
+	invalidSaveReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(invalidSaveRec, invalidSaveReq)
+	require.Equal(t, http.StatusBadRequest, invalidSaveRec.Code)
+
+	var invalidSaveResp struct {
+		Code     int               `json:"code"`
+		Message  string            `json:"message"`
+		Reason   string            `json:"reason"`
+		Metadata map[string]string `json:"metadata"`
+	}
+	require.NoError(t, json.Unmarshal(invalidSaveRec.Body.Bytes(), &invalidSaveResp))
+	require.Equal(t, http.StatusBadRequest, invalidSaveResp.Code)
+	require.Equal(t, "BILLING_PRICE_INVALID", invalidSaveResp.Reason)
+	require.Equal(t, "共享阈值必须是正整数", invalidSaveResp.Metadata["field_errors.tier_threshold_tokens"])
+	require.Equal(t, "至少填写一个阈值后价格", invalidSaveResp.Metadata["field_errors.input_price_above_threshold"])
+	require.Equal(t, "至少填写一个阈值后价格", invalidSaveResp.Metadata["field_errors.output_price_above_threshold"])
+
 	copyRec := httptest.NewRecorder()
 	copyReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/billing/pricing/sale/copy-from-official", mustJSONBody(t, map[string]any{
 		"models": []string{"gpt-5.4"},

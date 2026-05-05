@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -51,6 +54,9 @@ func TestBillingCenterService_SavePricingLayer_PersistsCurrencyPreference(t *tes
 	require.Equal(t, ModelPricingCurrencyCNY, prefs["gpt-5.4"].Currency)
 	require.Equal(t, int64(9), prefs["gpt-5.4"].UpdatedByUserID)
 	require.Equal(t, "billing@example.com", prefs["gpt-5.4"].UpdatedByEmail)
+	if prefs["gpt-5.4"].USDToCNYRate != nil {
+		require.Greater(t, *prefs["gpt-5.4"].USDToCNYRate, 0.0)
+	}
 
 	snapshot := loadBillingPricingCatalogSnapshotBySetting(context.Background(), svc.settingRepo, SettingKeyBillingPricingCatalogSnapshot)
 	require.NotNil(t, snapshot)
@@ -68,6 +74,9 @@ func TestBillingCenterService_SavePricingLayer_PersistsCurrencyPreference(t *tes
 	require.NotNil(t, override.OutputCostPerToken)
 	require.InDelta(t, inputPrice, *override.InputCostPerToken, 1e-12)
 	require.InDelta(t, outputPrice, *override.OutputCostPerToken, 1e-12)
+	if override.USDToCNYRate != nil {
+		require.Greater(t, *override.USDToCNYRate, 0.0)
+	}
 }
 
 func TestBillingCenterService_CopyAndDiscount_PreservePricingCurrency(t *testing.T) {
@@ -117,6 +126,72 @@ func TestBillingCenterService_CopyAndDiscount_PreservePricingCurrency(t *testing
 	prefs := svc.loadModelPricingCurrencies(context.Background())
 	require.Contains(t, prefs, "gpt-5.4")
 	require.Equal(t, ModelPricingCurrencyCNY, prefs["gpt-5.4"].Currency)
+}
+
+func TestBillingCenterService_RuntimeBackfillsPendingCNYPricingFX(t *testing.T) {
+	resetBillingPricingMetricsForTest()
+	t.Cleanup(resetBillingPricingMetricsForTest)
+
+	svc, _ := newBillingPricingCurrencyCatalogServiceForTest(t)
+	svc.exchangeRateService = newModelCatalogExchangeRateService(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return nil, io.EOF
+		}),
+	})
+
+	inputPrice := 1.75e-6
+	outputPrice := 6.5e-6
+	_, err := svc.billingCenterService.SavePricingLayer(
+		context.Background(),
+		ModelCatalogActor{UserID: 9, Email: "billing@example.com"},
+		UpsertBillingPricingLayerInput{
+			Model:    "gpt-5.4",
+			Layer:    BillingLayerSale,
+			Currency: ModelPricingCurrencyCNY,
+			Form: &BillingPricingLayerForm{
+				InputPrice:     &inputPrice,
+				OutputPrice:    &outputPrice,
+				SpecialEnabled: false,
+				Special:        BillingPricingSimpleSpecial{},
+				TieredEnabled:  false,
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	svc.exchangeRateService = newModelCatalogExchangeRateService(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			body := `{"base":"USD","date":"2026-05-05","rates":{"CNY":7.21}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	cost, err := svc.billingService.CalculateCostWithServiceTierWithContext(
+		context.Background(),
+		"gpt-5.4",
+		UsageTokens{InputTokens: 1000, OutputTokens: 500},
+		1,
+		"",
+	)
+	require.NoError(t, err)
+	require.Equal(t, ModelPricingCurrencyCNY, cost.Currency)
+	require.InDelta(t, 7.21, cost.USDToCNYRate, 1e-12)
+	require.Equal(t, "2026-05-05", cost.FXRateDate)
+	require.NotNil(t, cost.FXLockedAt)
+
+	prefs := svc.loadModelPricingCurrencies(context.Background())
+	require.Contains(t, prefs, "gpt-5.4")
+	require.NotNil(t, prefs["gpt-5.4"].USDToCNYRate)
+	require.InDelta(t, 7.21, *prefs["gpt-5.4"].USDToCNYRate, 1e-12)
+	require.NotNil(t, prefs["gpt-5.4"].FXLockedAt)
+	require.NotEmpty(t, prefs["gpt-5.4"].UpdatedByEmail)
+
+	metrics := GetBillingPricingMetricsSnapshot()
+	require.Equal(t, int64(1), metrics.CNYRuntimeFXBackfillTotal)
 }
 
 func newBillingPricingCurrencyCatalogServiceForTest(

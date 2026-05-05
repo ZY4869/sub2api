@@ -3,10 +3,13 @@
 package service
 
 import (
+	"context"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -844,7 +847,7 @@ func TestCalculateCost_UsesRuntimePricingOverridesWithoutMutatingBasePricing(t *
 	require.NoError(t, err)
 	require.InDelta(t, 101*12e-6, cost.InputCost, 1e-12)
 
-	imageCost, _ := svc.getImageUnitPriceWithPricing("gpt-5.4", "1024x1024", nil, "")
+	imageCost, _ := svc.getImageUnitPriceWithPricingWithContext(context.Background(), "gpt-5.4", "1024x1024", nil, "")
 	require.InDelta(t, 0.5, imageCost, 1e-12)
 }
 
@@ -861,16 +864,22 @@ func TestCalculateCost_CNYPricingRequiresLockedFX(t *testing.T) {
 
 	_, err := svc.CalculateCost("cny-missing-fx", UsageTokens{InputTokens: 10}, 1)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "missing locked USD/CNY rate")
+	require.Equal(t, "BILLING_FX_RATE_UNAVAILABLE", infraerrors.Reason(err))
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, "cny-missing-fx", appErr.Metadata["model"])
+	require.Equal(t, ModelPricingCurrencyCNY, appErr.Metadata["currency"])
+	require.Equal(t, "pending", appErr.Metadata["fx_state"])
 }
 
 func TestCalculateCost_CNYPricingCarriesSourceCurrencyAndUSDEquivalent(t *testing.T) {
+	lockedAt := time.Date(2026, time.April, 24, 8, 0, 0, 0, time.UTC)
 	svc := NewBillingService(&config.Config{}, &PricingService{
 		pricingData: map[string]*LiteLLMModelPricing{
 			"cny-with-fx": {
 				Currency:           ModelPricingCurrencyCNY,
 				USDToCNYRate:       6.8,
 				FXRateDate:         "2026-04-24",
+				FXLockedAt:         &lockedAt,
 				InputCostPerToken:  1,
 				OutputCostPerToken: 2,
 			},
@@ -883,4 +892,6 @@ func TestCalculateCost_CNYPricingCarriesSourceCurrencyAndUSDEquivalent(t *testin
 	require.InDelta(t, 8, cost.ActualCost, 1e-12)
 	require.InDelta(t, 8/6.8, cost.ActualCostUSDEquivalent, 1e-12)
 	require.Equal(t, map[string]float64{ModelPricingCurrencyCNY: 8}, cost.ActualCostByCurrency)
+	require.NotNil(t, cost.FXLockedAt)
+	require.True(t, cost.FXLockedAt.Equal(lockedAt))
 }

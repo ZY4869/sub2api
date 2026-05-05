@@ -1,0 +1,5286 @@
+{
+  "version": 1,
+  "kind": "billing_pricing_patch",
+  "generated_at": "2026-05-05T12:17:43.110Z",
+  "models": [
+    {
+      "model": "tab_flash_lite_preview",
+      "display_name": "Tab_flash_lite_preview",
+      "provider": "antigravity",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-3.5-128k",
+      "display_name": "Ernie-3.5-128k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-3.5-8k",
+      "display_name": "Ernie-3.5-8k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-4.0-8k",
+      "display_name": "Ernie-4.0-8k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-4.0-8k-latest",
+      "display_name": "Ernie-4.0-8k-latest",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-4.0-turbo-8k",
+      "display_name": "Ernie-4.0-turbo-8k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-lite-8k",
+      "display_name": "Ernie-lite-8k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-lite-pro-128k",
+      "display_name": "Ernie-lite-pro-128k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-speed-128k",
+      "display_name": "Ernie-speed-128k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-speed-8k",
+      "display_name": "Ernie-speed-8k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-speed-pro-128k",
+      "display_name": "Ernie-speed-pro-128k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "ernie-tiny-8k",
+      "display_name": "Ernie-tiny-8k",
+      "provider": "baidu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "abab5.5-chat",
+      "display_name": "Abab5.5-chat",
+      "provider": "minimax",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "abab5.5s-chat",
+      "display_name": "Abab5.5s-chat",
+      "provider": "minimax",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "abab6-chat",
+      "display_name": "Abab6-chat",
+      "provider": "minimax",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "abab6.5-chat",
+      "display_name": "Abab6.5-chat",
+      "provider": "minimax",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "abab6.5s-chat",
+      "display_name": "Abab6.5s-chat",
+      "provider": "minimax",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "abab6.5s-chat-pro",
+      "display_name": "Abab6.5s-chat-pro",
+      "provider": "minimax",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "c4ai-aya-23-35b",
+      "display_name": "C4ai-aya-23-35b",
+      "provider": "cohere",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "c4ai-aya-23-8b",
+      "display_name": "C4ai-aya-23-8b",
+      "provider": "cohere",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "chatglm_lite",
+      "display_name": "Chatglm_lite",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "chatglm_pro",
+      "display_name": "Chatglm_pro",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "chatglm_std",
+      "display_name": "Chatglm_std",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "chatglm_turbo",
+      "display_name": "Chatglm_turbo",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "chatgpt-4o-latest",
+      "display_name": "Chatgpt-4o-latest",
+      "provider": "openai",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 5e-06,
+          "output_price": 1.5e-05
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "codellama-13b-instruct",
+      "display_name": "Codellama-13b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "codellama-34b-instruct",
+      "display_name": "Codellama-34b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3.5e-07,
+          "output_price": 1.4e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "codellama-70b-instruct",
+      "display_name": "Codellama-70b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 7e-07,
+          "output_price": 2.8e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "codestral-latest",
+      "display_name": "Codestral-latest",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1e-06,
+          "output_price": 3e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "codestral-mamba",
+      "display_name": "Codestral-mamba",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.5e-07,
+          "output_price": 2.5e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "cogvideo",
+      "display_name": "Cogvideo",
+      "provider": "zhipu",
+      "mode": "video",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "cogview-3",
+      "display_name": "Cogview-3",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "command",
+      "display_name": "Command",
+      "provider": "cohere",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1e-06,
+          "output_price": 2e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "command-a-03-2025",
+      "display_name": "Command-a-03-2025",
+      "provider": "cohere",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.5e-06,
+          "output_price": 1e-05
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "command-light",
+      "display_name": "Command-light",
+      "provider": "cohere",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3e-07,
+          "output_price": 6e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "command-r",
+      "display_name": "Command-r",
+      "provider": "cohere",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.5e-07,
+          "output_price": 6e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "command-r-08-2024",
+      "display_name": "Command-r-08-2024",
+      "provider": "cohere",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.5e-07,
+          "output_price": 6e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "command-r-plus",
+      "display_name": "Command-r-plus",
+      "provider": "cohere",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.5e-06,
+          "output_price": 1e-05
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "command-r-plus-08-2024",
+      "display_name": "Command-r-plus-08-2024",
+      "provider": "cohere",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.5e-06,
+          "output_price": 1e-05
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "display_name": "DeepSeek V4 Flash",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "CNY",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found.",
+        "Manual override pricing exists without an upstream source."
+      ],
+      "current": {
+        "official": {
+          "input_price": 1e-06,
+          "output_price": 2e-06,
+          "cache_price": 2e-08,
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "input_price": 2.8e-07,
+          "output_price": 4.2e-07,
+          "cache_price": 2.8e-08,
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.4e-07,
+          "output_price": 2.8e-07
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "display_name": "DeepSeek V4 Pro",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.74e-06,
+          "output_price": 3.48e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "deepseek-coder",
+      "display_name": "Deepseek-coder",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.4e-07,
+          "output_price": 2.8e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-r1",
+      "display_name": "Deepseek-r1",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.35e-06,
+          "output_price": 5.4e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-r1-0528",
+      "display_name": "Deepseek-r1-0528",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 5e-07,
+          "output_price": 2.15e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-r1-distill-llama-70b",
+      "display_name": "Deepseek-r1-distill-llama-70b",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 7e-07,
+          "output_price": 8e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-r1-distill-llama-8b",
+      "display_name": "Deepseek-r1-distill-llama-8b",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.5e-08,
+          "output_price": 2.5e-08
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-r1-distill-qwen-14b",
+      "display_name": "Deepseek-r1-distill-qwen-14b",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 7e-08,
+          "output_price": 7e-08
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-r1-distill-qwen-32b",
+      "display_name": "Deepseek-r1-distill-qwen-32b",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.9e-07,
+          "output_price": 2.9e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-r1-distill-qwen-7b",
+      "display_name": "Deepseek-r1-distill-qwen-7b",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-07,
+          "output_price": 2e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-v3",
+      "display_name": "Deepseek-v3",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.14e-06,
+          "output_price": 4.56e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "deepseek-v3-0324",
+      "display_name": "Deepseek-v3-0324",
+      "provider": "deepseek",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.14e-06,
+          "output_price": 4.56e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "doubao-1.5-lite-32k",
+      "display_name": "Doubao-1.5-lite-32k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-1.5-pro-256k",
+      "display_name": "Doubao-1.5-pro-256k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-1.5-pro-32k",
+      "display_name": "Doubao-1.5-pro-32k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-1.5-pro-vision-32k",
+      "display_name": "Doubao-1.5-pro-vision-32k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-1.5-thinking-pro",
+      "display_name": "Doubao-1.5-thinking-pro",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-lite-128k",
+      "display_name": "Doubao-lite-128k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-lite-32k",
+      "display_name": "Doubao-lite-32k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-lite-4k",
+      "display_name": "Doubao-lite-4k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-pro-128k",
+      "display_name": "Doubao-pro-128k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-pro-256k",
+      "display_name": "Doubao-pro-256k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-pro-32k",
+      "display_name": "Doubao-pro-32k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-pro-4k",
+      "display_name": "Doubao-pro-4k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-vision-lite-32k",
+      "display_name": "Doubao-vision-lite-32k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "doubao-vision-pro-32k",
+      "display_name": "Doubao-vision-pro-32k",
+      "provider": "doubao",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "gemini-2.5-flash-image-preview",
+      "display_name": "Gemini 2.5 Flash Image Preview",
+      "provider": "gemini",
+      "mode": "image",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3e-07,
+          "output_price": 3e-05
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "gemini-2.5-flash-thinking",
+      "display_name": "Gemini 2.5 Flash Thinking",
+      "provider": "gemini",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "gemini-3-pro-high",
+      "display_name": "Gemini 3 Pro High",
+      "provider": "gemini",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "gemini-3-pro-low",
+      "display_name": "Gemini 3 Pro Low",
+      "provider": "gemini",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-3-turbo",
+      "display_name": "Glm-3-turbo",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4",
+      "display_name": "Glm-4",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4-0520",
+      "display_name": "Glm-4-0520",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4-air",
+      "display_name": "Glm-4-air",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4-airx",
+      "display_name": "Glm-4-airx",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4-alltools",
+      "display_name": "Glm-4-alltools",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4-flash",
+      "display_name": "Glm-4-flash",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4-long",
+      "display_name": "Glm-4-long",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4-plus",
+      "display_name": "Glm-4-plus",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4.5",
+      "display_name": "Glm-4.5",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 8.000000000000001e-07,
+          "output_price": 2e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "glm-4.6",
+      "display_name": "Glm-4.6",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3.9e-07,
+          "output_price": 1.9e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "glm-4v",
+      "display_name": "Glm-4v",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "glm-4v-plus",
+      "display_name": "Glm-4v-plus",
+      "provider": "zhipu",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-4-expert",
+      "display_name": "Grok 4 Expert",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-imagine-1.0",
+      "display_name": "Grok Imagine 1.0",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-imagine-1.0-video",
+      "display_name": "Grok Imagine 1.0 Video",
+      "provider": "grok",
+      "mode": "video",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-3",
+      "display_name": "Grok-3",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3e-06,
+          "output_price": 1.5e-05
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "grok-3-fast",
+      "display_name": "Grok-3-fast",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 5e-06,
+          "output_price": 2.5e-05
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "grok-3-mini",
+      "display_name": "Grok-3-mini",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.5e-07,
+          "output_price": 1.27e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "grok-4-1-fast-non-reasoning",
+      "display_name": "Grok-4-1-fast-non-reasoning",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-07,
+          "output_price": 5e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "grok-4-1-fast-reasoning",
+      "display_name": "Grok-4-1-fast-reasoning",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-07,
+          "output_price": 5e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "grok-4-fast-non-reasoning",
+      "display_name": "Grok-4-fast-non-reasoning",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-07,
+          "output_price": 5e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "grok-4-fast-reasoning",
+      "display_name": "Grok-4-fast-reasoning",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-07,
+          "output_price": 5e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "grok-4-heavy",
+      "display_name": "Grok-4-heavy",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-4.20-0309-non-reasoning",
+      "display_name": "Grok-4.20-0309-non-reasoning",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-4.20-0309-reasoning",
+      "display_name": "Grok-4.20-0309-reasoning",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 6e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "grok-4.20-multi-agent-0309",
+      "display_name": "Grok-4.20-multi-agent-0309",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-auto",
+      "display_name": "Grok-auto",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-code-fast-1",
+      "display_name": "Grok-code-fast-1",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-07,
+          "output_price": 1.5e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "grok-imagine-1.0-edit",
+      "display_name": "Grok-imagine-1.0-edit",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-imagine-1.0-fast",
+      "display_name": "Grok-imagine-1.0-fast",
+      "provider": "grok",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "grok-imagine-image-pro",
+      "display_name": "Grok-imagine-image-pro",
+      "provider": "grok",
+      "mode": "image",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "hunyuan-code",
+      "display_name": "Hunyuan-code",
+      "provider": "hunyuan",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "hunyuan-large",
+      "display_name": "Hunyuan-large",
+      "provider": "hunyuan",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "hunyuan-lite",
+      "display_name": "Hunyuan-lite",
+      "provider": "hunyuan",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "hunyuan-pro",
+      "display_name": "Hunyuan-pro",
+      "provider": "hunyuan",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "hunyuan-standard",
+      "display_name": "Hunyuan-standard",
+      "provider": "hunyuan",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "hunyuan-standard-256k",
+      "display_name": "Hunyuan-standard-256k",
+      "provider": "hunyuan",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "hunyuan-turbo",
+      "display_name": "Hunyuan-turbo",
+      "provider": "hunyuan",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "hunyuan-vision",
+      "display_name": "Hunyuan-vision",
+      "provider": "hunyuan",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "kimi-latest",
+      "display_name": "Kimi-latest",
+      "provider": "moonshot",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 5e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3-70b-instruct",
+      "display_name": "Llama-3-70b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 5.1e-07,
+          "output_price": 7.4e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3-8b-instruct",
+      "display_name": "Llama-3-8b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3e-08,
+          "output_price": 4e-08
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3-sonar-large-32k-chat",
+      "display_name": "Llama-3-sonar-large-32k-chat",
+      "provider": "perplexity",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "llama-3-sonar-large-32k-online",
+      "display_name": "Llama-3-sonar-large-32k-online",
+      "provider": "perplexity",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "llama-3-sonar-small-32k-chat",
+      "display_name": "Llama-3-sonar-small-32k-chat",
+      "provider": "perplexity",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "llama-3-sonar-small-32k-online",
+      "display_name": "Llama-3-sonar-small-32k-online",
+      "provider": "perplexity",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "llama-3.1-405b-instruct",
+      "display_name": "Llama-3.1-405b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 5.33e-06,
+          "output_price": 1.6e-05
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3.1-70b-instruct",
+      "display_name": "Llama-3.1-70b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1e-06,
+          "output_price": 1e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3.1-8b-instruct",
+      "display_name": "Llama-3.1-8b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3e-08,
+          "output_price": 3e-08
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3.2-11b-vision-instruct",
+      "display_name": "Llama-3.2-11b-vision-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3.7e-07,
+          "output_price": 3.7e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3.2-1b-instruct",
+      "display_name": "Llama-3.2-1b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.7e-08,
+          "output_price": 2e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3.2-3b-instruct",
+      "display_name": "Llama-3.2-3b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-08,
+          "output_price": 2e-08
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3.2-90b-vision-instruct",
+      "display_name": "Llama-3.2-90b-vision-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.04e-06,
+          "output_price": 2.04e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "llama-3.3-70b-instruct",
+      "display_name": "Llama-3.3-70b-instruct",
+      "provider": "meta",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 7.1e-07,
+          "output_price": 7.1e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "mistral-large-latest",
+      "display_name": "Mistral-large-latest",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 6e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "mistral-medium-latest",
+      "display_name": "Mistral-medium-latest",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 4e-07,
+          "output_price": 2e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "mistral-small-latest",
+      "display_name": "Mistral-small-latest",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 6e-08,
+          "output_price": 1.8e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "moonshot-v1-128k",
+      "display_name": "Moonshot-v1-128k",
+      "provider": "moonshot",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1e-05,
+          "output_price": 3e-05
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "moonshot-v1-32k",
+      "display_name": "Moonshot-v1-32k",
+      "provider": "moonshot",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 5e-06,
+          "output_price": 2e-05
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "moonshot-v1-8k",
+      "display_name": "Moonshot-v1-8k",
+      "provider": "moonshot",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 1e-05
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "o1-mini",
+      "display_name": "O1-mini",
+      "provider": "openai",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.1e-06,
+          "output_price": 4.4e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "o1-preview",
+      "display_name": "O1-preview",
+      "provider": "openai",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.5e-05,
+          "output_price": 6e-05
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "open-mistral-7b",
+      "display_name": "Open-mistral-7b",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.5e-07,
+          "output_price": 2.5e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "open-mixtral-8x22b",
+      "display_name": "Open-mixtral-8x22b",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 6e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "open-mixtral-8x7b",
+      "display_name": "Open-mixtral-8x7b",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 7e-07,
+          "output_price": 7e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "pixtral-12b-2409",
+      "display_name": "Pixtral-12b-2409",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1.5e-07,
+          "output_price": 1.5e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "pixtral-large-latest",
+      "display_name": "Pixtral-large-latest",
+      "provider": "mistral",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 6e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "qwen-long",
+      "display_name": "Qwen-long",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 5e-07,
+          "output_price": 2e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen-max",
+      "display_name": "Qwen-max",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2.4e-06,
+          "output_price": 9.6e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen-max-longcontext",
+      "display_name": "Qwen-max-longcontext",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "qwen-plus",
+      "display_name": "Qwen-plus",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 8.000000000000001e-07,
+          "output_price": 2e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen-turbo",
+      "display_name": "Qwen-turbo",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3e-07,
+          "output_price": 6e-07
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen2-57b-a14b-instruct",
+      "display_name": "Qwen2-57b-a14b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "qwen2-72b-instruct",
+      "display_name": "Qwen2-72b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 9e-07,
+          "output_price": 9e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "qwen2-7b-instruct",
+      "display_name": "Qwen2-7b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-07,
+          "output_price": 2e-07
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "qwen2.5-1.5b-instruct",
+      "display_name": "Qwen2.5-1.5b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "qwen2.5-14b-instruct",
+      "display_name": "Qwen2.5-14b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1e-06,
+          "output_price": 3e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen2.5-32b-instruct",
+      "display_name": "Qwen2.5-32b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 6e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen2.5-3b-instruct",
+      "display_name": "Qwen2.5-3b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3e-07,
+          "output_price": 9.000000000000001e-07
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen2.5-72b-instruct",
+      "display_name": "Qwen2.5-72b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 4e-06,
+          "output_price": 1.2e-05
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen2.5-7b-instruct",
+      "display_name": "Qwen2.5-7b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 5e-07,
+          "output_price": 1e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen2.5-coder-14b-instruct",
+      "display_name": "Qwen2.5-coder-14b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 6e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen2.5-coder-32b-instruct",
+      "display_name": "Qwen2.5-coder-32b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 6e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen2.5-coder-7b-instruct",
+      "display_name": "Qwen2.5-coder-7b-instruct",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1e-06,
+          "output_price": 2e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwen3-235b-a22b",
+      "display_name": "Qwen3-235b-a22b",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 8e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwq-32b",
+      "display_name": "Qwq-32b",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 6e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "qwq-32b-preview",
+      "display_name": "Qwq-32b-preview",
+      "provider": "qwen",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 2e-06,
+          "output_price": 6e-06
+        }
+      },
+      "notes": "已从本地官方基线自动补全 official 价格。"
+    },
+    {
+      "model": "sonar",
+      "display_name": "Sonar",
+      "provider": "perplexity",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1e-06,
+          "output_price": 1e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "sonar-pro",
+      "display_name": "Sonar-pro",
+      "provider": "perplexity",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3e-06,
+          "output_price": 1.5e-05
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "sonar-reasoning",
+      "display_name": "Sonar-reasoning",
+      "provider": "perplexity",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 1e-06,
+          "output_price": 5e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "spark-desk",
+      "display_name": "Spark-desk",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "spark-desk-v1.1",
+      "display_name": "Spark-desk-v1.1",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "spark-desk-v2.1",
+      "display_name": "Spark-desk-v2.1",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "spark-desk-v3.1",
+      "display_name": "Spark-desk-v3.1",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "spark-desk-v3.5",
+      "display_name": "Spark-desk-v3.5",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "spark-desk-v4.0",
+      "display_name": "Spark-desk-v4.0",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "spark-lite",
+      "display_name": "Spark-lite",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "spark-max",
+      "display_name": "Spark-max",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "spark-pro",
+      "display_name": "Spark-pro",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "spark-ultra",
+      "display_name": "Spark-ultra",
+      "provider": "spark",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "unknown",
+      "display_name": "Unknown",
+      "provider": "gemini",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "yi-1.5-34b-chat",
+      "display_name": "Yi-1.5-34b-chat",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "yi-1.5-6b-chat",
+      "display_name": "Yi-1.5-6b-chat",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "yi-1.5-9b-chat",
+      "display_name": "Yi-1.5-9b-chat",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "yi-large",
+      "display_name": "Yi-large",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {
+        "official": {
+          "input_price": 3e-06,
+          "output_price": 3e-06
+        }
+      },
+      "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
+    },
+    {
+      "model": "yi-large-rag",
+      "display_name": "Yi-large-rag",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "yi-large-turbo",
+      "display_name": "Yi-large-turbo",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "yi-medium",
+      "display_name": "Yi-medium",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "yi-medium-200k",
+      "display_name": "Yi-medium-200k",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "yi-spark",
+      "display_name": "Yi-spark",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    },
+    {
+      "model": "yi-vision",
+      "display_name": "Yi-vision",
+      "provider": "yi",
+      "mode": "chat",
+      "currency": "USD",
+      "pricing_status": "missing",
+      "pricing_warnings": [
+        "No stable upstream pricing source found."
+      ],
+      "current": {
+        "official": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        },
+        "sale": {
+          "special_enabled": false,
+          "special": {},
+          "tiered_enabled": false,
+          "multiplier_enabled": false
+        }
+      },
+      "patch": {},
+      "notes": ""
+    }
+  ]
+}

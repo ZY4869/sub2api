@@ -451,6 +451,80 @@ describe('BillingPricingView', () => {
     }))
   })
 
+  it('imports nested pricing patch fields and null-clears item multipliers', async () => {
+    apiMocks.getBillingPricingDetails.mockResolvedValueOnce([{
+      ...createDetail(),
+      sale_form: createForm({
+        input_price: 1.5,
+        output_price: 2.5,
+        special_enabled: true,
+        special: {
+          grounding_search: 0.01,
+        },
+        multiplier_enabled: true,
+        multiplier_mode: 'item',
+        item_multipliers: {
+          input_price: 0.9,
+          output_price: 0.8,
+        },
+      }),
+    }])
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    const patch = {
+      version: 1,
+      kind: 'billing_pricing_patch',
+      generated_at: '2026-05-05T00:00:00Z',
+      models: [
+        {
+          model: 'gpt-5.4',
+          current: {
+            official: createForm(),
+            sale: createForm(),
+          },
+          patch: {
+            sale: {
+              special_enabled: true,
+              special: {
+                grounding_search: 0.03,
+              },
+              multiplier_enabled: true,
+              multiplier_mode: 'item',
+              item_multipliers: {
+                input_price: null,
+              },
+            },
+          },
+          notes: '',
+        },
+      ],
+    }
+
+    const input = wrapper.get('input[type="file"]')
+    const file = new File([JSON.stringify(patch)], 'patch-nested.json', { type: 'application/json' })
+    Object.defineProperty(input.element, 'files', { value: [file] })
+    await input.trigger('change')
+    for (let i = 0; i < 5 && apiMocks.updateBillingPricingLayer.mock.calls.length === 0; i += 1) {
+      await flushPromises()
+    }
+
+    expect(apiMocks.updateBillingPricingLayer).toHaveBeenCalledWith('gpt-5.4', 'sale', expect.objectContaining({
+      form: expect.objectContaining({
+        special_enabled: true,
+        special: expect.objectContaining({
+          grounding_search: 0.03,
+        }),
+        multiplier_enabled: true,
+        multiplier_mode: 'item',
+        item_multipliers: {
+          output_price: 0.8,
+        },
+      }),
+    }))
+  })
+
   it('imports source currency from the pricing patch file', async () => {
     const wrapper = mountView()
     await flushPromises()
@@ -569,5 +643,118 @@ describe('BillingPricingView', () => {
     })
     expect(apiMocks.listBillingPricingProviders).toHaveBeenCalledTimes(2)
     expect(apiMocks.listBillingPricingModels).toHaveBeenCalledTimes(2)
+  })
+
+  it('maps server metadata field errors back into the editor instead of only showing a generic toast', async () => {
+    apiMocks.updateBillingPricingLayer.mockRejectedValueOnce({
+      message: 'pricing layer form contains invalid fields',
+      reason: 'BILLING_PRICE_INVALID',
+      metadata: {
+        'field_errors.tier_threshold_tokens': '共享阈值必须是正整数',
+        'field_errors.input_price_above_threshold': '至少填写一个阈值后价格',
+      },
+    })
+
+    const wrapper = mount(BillingPricingView, {
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          BillingPricingEditorDialog: {
+            props: ['show', 'activeModel', 'serverErrors'],
+            emits: ['save-layer', 'copy-official', 'apply-discount', 'close', 'update:activeModel'],
+            template: `
+              <div v-if="show" data-testid="editor-dialog-stub">
+                <div data-testid="server-error-threshold">{{ serverErrors?.official?.tier_threshold_tokens || '' }}</div>
+                <button
+                  data-testid="emit-save-layer"
+                  @click="$emit('save-layer', {
+                    model: activeModel || 'gpt-5.4',
+                    layer: 'official',
+                    currency: 'USD',
+                    form: {
+                      input_price: 1.25,
+                      output_price: 2.5,
+                      special_enabled: false,
+                      special: {},
+                      tiered_enabled: true,
+                      multiplier_enabled: false,
+                      item_multipliers: {}
+                    }
+                  })"
+                >
+                  save
+                </button>
+              </div>
+            `,
+          },
+          ModelIcon: true,
+          ModelPlatformIcon: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    wrapper.getComponent(BillingPricingModelList).vm.$emit('open', 'gpt-5.4')
+    await flushPromises()
+    await wrapper.get('[data-testid="emit-save-layer"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="server-error-threshold"]').text()).toContain('共享阈值必须是正整数')
+    expect(storeMocks.showError).toHaveBeenCalledWith(
+      '官方价格保存失败，请先修正标记字段。',
+      expect.objectContaining({
+        title: '官方价格校验失败',
+        details: expect.arrayContaining(['共享阈值必须是正整数', '至少填写一个阈值后价格']),
+      }),
+    )
+  })
+
+  it('exports executable pricing patch templates', async () => {
+    apiMocks.getBillingPricingDetails.mockResolvedValueOnce([
+      createDetail(),
+      {
+        ...createDetail(),
+        model: 'gpt-5.4-mini',
+        display_name: 'GPT-5.4 Mini',
+      },
+      {
+        ...createDetail(),
+        model: 'gemini-3.1-flash-image',
+        display_name: 'Gemini 3.1 Flash Image',
+        provider: 'gemini',
+      },
+    ])
+
+    const createObjectURL = vi.fn(() => 'blob:pricing-template')
+    const revokeObjectURL = vi.fn()
+    const originalURL = window.URL
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild')
+    const removeSpy = vi.spyOn(HTMLAnchorElement.prototype, 'remove').mockImplementation(() => {})
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    // @ts-expect-error test override
+    window.URL = {
+      ...originalURL,
+      createObjectURL,
+      revokeObjectURL,
+    }
+
+    try {
+      const wrapper = mountView()
+      await flushPromises()
+
+      await wrapper.get('[data-testid="billing-pricing-export-template"]').trigger('click')
+      await flushPromises()
+
+      expect(createObjectURL).toHaveBeenCalledTimes(1)
+      expect(clickSpy).toHaveBeenCalledTimes(1)
+      expect(revokeObjectURL).toHaveBeenCalledTimes(1)
+      expect(storeMocks.showSuccess).toHaveBeenCalledWith('已导出 3 个模型的可执行模板')
+      expect(appendChildSpy).toHaveBeenCalled()
+    } finally {
+      window.URL = originalURL
+      appendChildSpy.mockRestore()
+      removeSpy.mockRestore()
+      clickSpy.mockRestore()
+    }
   })
 })

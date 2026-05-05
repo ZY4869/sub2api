@@ -284,6 +284,88 @@ func TestBillingCenterService_SavePricingLayer_PublicCatalogMatchesLegacyEffecti
 	require.InDelta(t, item.PriceDisplay.Primary[1].Value, *override.OutputCostPerToken, 1e-12)
 }
 
+func TestModelCatalogService_PublicModelCatalogSnapshot_UsesOfficialPricingWhenSaleFormIsEmpty(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 21, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			{
+				Model:            "gpt-5.4",
+				DisplayName:      "GPT-5.4",
+				Provider:         PlatformOpenAI,
+				Mode:             "chat",
+				Currency:         ModelPricingCurrencyUSD,
+				InputSupported:   true,
+				OutputChargeSlot: BillingChargeSlotTextOutput,
+				OfficialForm: BillingPricingLayerForm{
+					InputPrice:     modelCatalogFloat64Ptr(1.5e-6),
+					OutputPrice:    modelCatalogFloat64Ptr(6e-6),
+					SpecialEnabled: false,
+					Special:        BillingPricingSimpleSpecial{},
+				},
+				SaleForm: BillingPricingLayerForm{
+					SpecialEnabled: false,
+					Special:        BillingPricingSimpleSpecial{},
+				},
+			},
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+
+	items := publicCatalogItemsByModel(result.Items)
+	item, ok := items["gpt-5.4"]
+	require.True(t, ok)
+	require.Len(t, item.PriceDisplay.Primary, 2)
+	require.InDelta(t, 1.5e-6, item.PriceDisplay.Primary[0].Value, 1e-12)
+	require.InDelta(t, 6e-6, item.PriceDisplay.Primary[1].Value, 1e-12)
+}
+
+func TestModelCatalogService_PublicModelCatalogSnapshot_FallsBackFieldByFieldToOfficialPricing(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 21, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			{
+				Model:            "gpt-5.4",
+				DisplayName:      "GPT-5.4",
+				Provider:         PlatformOpenAI,
+				Mode:             "chat",
+				Currency:         ModelPricingCurrencyUSD,
+				InputSupported:   true,
+				OutputChargeSlot: BillingChargeSlotTextOutput,
+				OfficialForm: BillingPricingLayerForm{
+					InputPrice:     modelCatalogFloat64Ptr(2e-6),
+					OutputPrice:    modelCatalogFloat64Ptr(8e-6),
+					CachePrice:     modelCatalogFloat64Ptr(1e-6),
+					SpecialEnabled: false,
+					Special:        BillingPricingSimpleSpecial{},
+				},
+				SaleForm: BillingPricingLayerForm{
+					InputPrice:        modelCatalogFloat64Ptr(1e-6),
+					SpecialEnabled:    false,
+					Special:           BillingPricingSimpleSpecial{},
+					MultiplierEnabled: true,
+					MultiplierMode:    BillingPricingMultiplierShared,
+					SharedMultiplier:  modelCatalogFloat64Ptr(0.5),
+				},
+			},
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+
+	item := publicCatalogItemsByModel(result.Items)["gpt-5.4"]
+	require.Len(t, item.PriceDisplay.Primary, 3)
+	require.InDelta(t, 0.5e-6, item.PriceDisplay.Primary[0].Value, 1e-12)
+	require.InDelta(t, 8e-6, item.PriceDisplay.Primary[1].Value, 1e-12)
+	require.InDelta(t, 1e-6, item.PriceDisplay.Primary[2].Value, 1e-12)
+}
+
 func TestModelCatalogService_PublicModelCatalogSnapshot_UsesScopedProjectionAndSkipsUnpricedModels(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	repo.values[SettingKeyModelCatalogEntries] = mustModelCatalogJSON(t, []ModelCatalogEntry{

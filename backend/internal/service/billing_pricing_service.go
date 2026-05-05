@@ -67,12 +67,13 @@ func (s *BillingCenterService) ListPricingModels(ctx context.Context, filter Bil
 	items := make([]BillingPricingListItem, 0, len(snapshot.Models))
 	for _, model := range snapshot.Models {
 		item := billingPricingPersistedModelToListItem(model)
+		previewForm := billingPricingEffectiveSaleDisplayForm(model)
 		if groupMultiplier != nil {
-			previewForm := scaleBillingPricingLayerForm(model.SaleForm, *groupMultiplier)
 			item.PreviewGroupID = filter.GroupID
 			item.PreviewRateMultiplier = cloneBillingFloat64(groupMultiplier)
-			item.PreviewPriceDisplay = billingPricingPreviewPriceDisplay(model, previewForm)
+			previewForm = scaleBillingPricingLayerForm(previewForm, *groupMultiplier)
 		}
+		item.PreviewPriceDisplay = billingPricingPreviewPriceDisplay(model, previewForm)
 		if matchesBillingPricingFilter(item, filter) {
 			items = append(items, item)
 		}
@@ -143,7 +144,10 @@ func (s *BillingCenterService) GetPricingDetails(ctx context.Context, models []s
 		}
 		detail := billingPricingPersistedModelToDetail(persisted)
 		if groupMultiplier != nil {
-			previewForm := scaleBillingPricingLayerForm(persisted.SaleForm, *groupMultiplier)
+			previewForm := scaleBillingPricingLayerForm(
+				billingPricingEffectiveSaleDisplayForm(persisted),
+				*groupMultiplier,
+			)
 			detail.PreviewGroupID = previewGroupID
 			detail.PreviewRateMultiplier = cloneBillingFloat64(groupMultiplier)
 			detail.PreviewSaleForm = cloneBillingPricingLayerFormPtr(previewForm)
@@ -188,6 +192,7 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	}
 	form = normalizeBillingPricingLayerFormForLayer(form, layer)
 	if err := validateBillingPricingLayerForm(form); err != nil {
+		recordBillingPricingSaveFailure(billingPricingSaveFailureValidation)
 		return nil, err
 	}
 	items := billingPricingItemsFromForm(metadata, layer, form)
@@ -215,10 +220,12 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	snapshot.Models[index] = updatedModel
 	snapshot.UpdatedAt = time.Now().UTC()
 	if err := s.persistBillingPricingCatalogSnapshot(ctx, snapshot); err != nil {
+		recordBillingPricingSaveFailure(billingPricingSaveFailureSnapshotPersist)
 		return nil, err
 	}
 
 	if err := s.modelCatalogService.ReplacePricingOverrideLayer(ctx, actor, record.model, layer == BillingLayerOfficial, legacyPricing); err != nil {
+		recordBillingPricingSaveFailure(billingPricingSaveFailureOverridePersist)
 		return nil, err
 	}
 
@@ -233,9 +240,11 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	}
 	rules = append(rules, billingPricingRulesFromForm(record, layer, items)...)
 	if err := persistBillingRulesBySetting(ctx, s.settingRepo, SettingKeyBillingCenterRules, rules); err != nil {
+		recordBillingPricingSaveFailure(billingPricingSaveFailureRulesPersist)
 		return nil, err
 	}
 	if err := s.modelCatalogService.saveModelPricingCurrency(ctx, actor, record.model, currency, currencyMeta); err != nil {
+		recordBillingPricingSaveFailure(billingPricingSaveFailureCurrencyPersist)
 		return nil, err
 	}
 	s.syncBillingServiceOverrides(ctx)
@@ -253,13 +262,17 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 		zap.Bool("tiered_enabled", form.TieredEnabled),
 		zap.Bool("multiplier_enabled", form.MultiplierEnabled),
 		zap.String("multiplier_mode", string(form.MultiplierMode)),
+		zap.String("fx_state", billingPricingFXState(currencyMeta)),
 		zap.Int("affected_item_count", len(editorItems)),
 	)
 
 	detail := billingPricingPersistedModelToDetail(snapshot.Models[index])
 	if input.GroupID != nil {
 		if _, groupMultiplier, previewErr := s.resolveBillingPreviewGroupMultiplier(ctx, input.GroupID); previewErr == nil && groupMultiplier != nil {
-			previewForm := scaleBillingPricingLayerForm(snapshot.Models[index].SaleForm, *groupMultiplier)
+			previewForm := scaleBillingPricingLayerForm(
+				billingPricingEffectiveSaleDisplayForm(snapshot.Models[index]),
+				*groupMultiplier,
+			)
 			detail.PreviewGroupID = input.GroupID
 			detail.PreviewRateMultiplier = cloneBillingFloat64(groupMultiplier)
 			detail.PreviewSaleForm = cloneBillingPricingLayerFormPtr(previewForm)
@@ -275,20 +288,13 @@ func (s *BillingCenterService) resolveBillingPricingCurrencyMetadata(ctx context
 		return meta, nil
 	}
 	if s == nil || s.modelCatalogService == nil {
-		return meta, infraerrors.ServiceUnavailable("BILLING_FX_RATE_UNAVAILABLE", "USD/CNY exchange rate is unavailable")
+		return meta, nil
 	}
 	rate, err := s.modelCatalogService.GetUSDCNYExchangeRate(ctx, false)
 	if err != nil || rate == nil || rate.Rate <= 0 {
-		return meta, infraerrors.ServiceUnavailable("BILLING_FX_RATE_UNAVAILABLE", "USD/CNY exchange rate is unavailable")
+		return meta, nil
 	}
-	lockedAt := rate.UpdatedAt
-	if lockedAt.IsZero() {
-		lockedAt = time.Now().UTC()
-	}
-	meta.USDToCNYRate = modelCatalogFloat64Ptr(rate.Rate)
-	meta.FXRateDate = strings.TrimSpace(rate.Date)
-	meta.FXLockedAt = cloneBillingTime(&lockedAt)
-	return meta, nil
+	return modelPricingCurrencyMetadataFromExchangeRate(rate), nil
 }
 
 func billingPricingSnapshotModel(snapshot *BillingPricingCatalogSnapshot, model string) (BillingPricingPersistedModel, bool, int) {

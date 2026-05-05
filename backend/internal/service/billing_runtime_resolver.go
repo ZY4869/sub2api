@@ -80,7 +80,7 @@ func (r *BillingRuntimeResolver) Resolve(ctx context.Context, input BillingRunti
 	if result := r.resolveRuleBasedRuntime(ctx, input, provider); result != nil {
 		return result, nil
 	}
-	return r.resolveLegacyRuntime(input)
+	return r.resolveLegacyRuntime(ctx, input)
 }
 
 func normalizeBillingRuntimeInput(input BillingRuntimeInput) BillingRuntimeInput {
@@ -123,7 +123,7 @@ func (r *BillingRuntimeResolver) resolveGeminiRuntime(ctx context.Context, input
 		}, nil
 	}
 	if r.billingCenterService == nil {
-		return r.resolveLegacyRuntime(input)
+		return r.resolveLegacyRuntime(ctx, input)
 	}
 	result, err := r.billingCenterService.CalculateGeminiCost(ctx, GeminiBillingCalculationInput{
 		Model:                input.Model,
@@ -214,7 +214,7 @@ func resolveBillingRuntimeOutputModality(input BillingRuntimeInput) string {
 	}
 }
 
-func (r *BillingRuntimeResolver) resolveLegacyRuntime(input BillingRuntimeInput) (*BillingRuntimeResult, error) {
+func (r *BillingRuntimeResolver) resolveLegacyRuntime(ctx context.Context, input BillingRuntimeInput) (*BillingRuntimeResult, error) {
 	if r == nil || r.billingService == nil {
 		return &BillingRuntimeResult{Cost: &CostBreakdown{}, PricingSource: "unavailable", ResolverPath: "service_unavailable"}, nil
 	}
@@ -226,19 +226,19 @@ func (r *BillingRuntimeResolver) resolveLegacyRuntime(input BillingRuntimeInput)
 	serviceTier := firstNonEmptyBillingRuntime(input.ResolvedServiceTier, input.ServiceTier)
 	switch {
 	case input.ImageCount > 0 || input.MediaType == "image":
-		cost = r.billingService.CalculateImageCostWithServiceTier(input.Model, input.ImageSize, input.ImageCount, input.ImagePriceConfig, input.RateMultiplier, serviceTier)
+		cost = r.billingService.CalculateImageCostWithServiceTierWithContext(ctx, input.Model, input.ImageSize, input.ImageCount, input.ImagePriceConfig, input.RateMultiplier, serviceTier)
 		path = "legacy_image"
 	case input.VideoRequests > 0 || input.MediaType == "video":
-		cost = r.billingService.CalculateVideoRequestCost(input.Model, input.RateMultiplier)
+		cost = r.billingService.CalculateVideoRequestCostWithContext(ctx, input.Model, input.RateMultiplier)
 		path = "legacy_video"
 	case input.LongContextThreshold > 0 && input.LongContextMultiplier > 1:
-		cost, err = r.billingService.CalculateCostWithLongContext(input.Model, input.Tokens, input.RateMultiplier, input.LongContextThreshold, input.LongContextMultiplier)
+		cost, err = r.billingService.CalculateCostWithLongContextWithContext(ctx, input.Model, input.Tokens, input.RateMultiplier, input.LongContextThreshold, input.LongContextMultiplier)
 		path = "legacy_long_context"
 	case serviceTier != "":
-		cost, err = r.billingService.CalculateCostWithServiceTier(input.Model, input.Tokens, input.RateMultiplier, serviceTier)
+		cost, err = r.billingService.CalculateCostWithServiceTierWithContext(ctx, input.Model, input.Tokens, input.RateMultiplier, serviceTier)
 		path = "legacy_service_tier"
 	default:
-		cost, err = r.billingService.CalculateCost(input.Model, input.Tokens, input.RateMultiplier)
+		cost, err = r.billingService.CalculateCostWithServiceTierWithContext(ctx, input.Model, input.Tokens, input.RateMultiplier, "")
 		path = "legacy_base"
 	}
 	if err != nil {

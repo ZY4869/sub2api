@@ -17,7 +17,7 @@
           @change="emit('update:currency', ($event.target as HTMLSelectElement).value as BillingPricingCurrency)"
         >
           <option value="USD">USD ($)</option>
-          <option value="CNY" :disabled="!cnyEnabled">CNY (￥)</option>
+          <option value="CNY">CNY (￥)</option>
         </select>
       </label>
     </div>
@@ -39,7 +39,7 @@
       class="mt-3 rounded-2xl border border-amber-300 bg-white/80 px-3 py-2 text-xs text-amber-950 dark:border-amber-400/30 dark:bg-dark-900/40 dark:text-amber-100"
       data-testid="pricing-currency-alert"
     >
-      当前选择的是人民币保存，但本次会话没有可用的 USD/CNY 汇率，无法锁定换汇审计汇率。请刷新汇率后再继续编辑。
+      当前选择的是人民币保存，但当前没有可用的 USD/CNY 汇率。本次仍可保存，系统会在首次实际计费时自动补锁汇并持续告警。
     </p>
   </section>
 </template>

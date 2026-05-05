@@ -93,13 +93,14 @@
             title="官方价格"
             :description="officialDescription"
             :form="currentOfficialForm"
+            :errors="currentOfficialErrors"
             :currency="currentCurrency"
             :usd-to-cny-rate="usdToCnyRate"
             :input-supported="currentDetail?.input_supported ?? true"
             :output-charge-slot="currentDetail?.output_charge_slot || 'text_output'"
             :supports-prompt-caching="currentDetail?.supports_prompt_caching ?? false"
             :capabilities="currentCapabilities"
-            :disabled="currencySaveBlocked"
+            :disabled="props.busy"
             column-test-id="official-column"
             @update-form="updateForm('official', $event)"
           >
@@ -151,6 +152,7 @@
             title="售价"
             description="保留复制官方价和批量折扣能力，但编辑界面统一收敛到紧凑表单。"
             :form="currentSaleForm"
+            :errors="currentSaleErrors"
             :currency="currentCurrency"
             :usd-to-cny-rate="usdToCnyRate"
             :input-supported="currentDetail?.input_supported ?? true"
@@ -159,7 +161,7 @@
             :capabilities="currentCapabilities"
             :special-visibility="saleSpecialVisibility"
             :selected-ids="selectedSaleFieldIds"
-            :disabled="currencySaveBlocked"
+            :disabled="props.busy"
             selectable
             show-multiplier-controls
             column-test-id="sale-column"
@@ -193,6 +195,7 @@ import type {
   BillingPricingSheetDetail,
 } from '@/api/admin/billing'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import { useAppStore } from '@/stores/app'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import BillingBulkDiscountPanel from './BillingBulkDiscountPanel.vue'
 import BillingPriceColumn from './BillingPriceColumn.vue'
@@ -203,7 +206,11 @@ import {
   cloneBillingPricingLayerForm,
   countConfiguredBillingFields,
   createEmptyBillingPricingLayerForm,
+  hasBillingPricingValidationErrors,
+  normalizeBillingPricingLayerFormForSave,
   normalizeBillingPricingSheetDetail,
+  type BillingPricingValidationErrors,
+  validateBillingPricingLayerFormForSave,
 } from './pricingOptions'
 
 type Layer = 'official' | 'sale'
@@ -214,6 +221,7 @@ const props = defineProps<{
   activeModel: string
   busy?: boolean
   previewGroupName?: string
+  serverErrors?: Partial<Record<Layer, BillingPricingValidationErrors>>
 }>()
 
 const emit = defineEmits<{
@@ -233,6 +241,7 @@ const emit = defineEmits<{
   }): void
 }>()
 
+const appStore = useAppStore()
 const exchangeRateStore = useExchangeRateStore()
 
 const search = ref('')
@@ -240,6 +249,10 @@ const discountRatio = ref(0.9)
 const discountScope = ref<'current' | 'workset'>('current')
 const selectedSaleFieldIds = ref<string[]>([])
 const currentDetailMap = ref<Record<string, BillingPricingSheetDetail>>({})
+const layerErrors = ref<Record<Layer, BillingPricingValidationErrors>>({
+  official: {},
+  sale: {},
+})
 
 watch(
   () => props.details,
@@ -255,6 +268,7 @@ watch(
   () => props.activeModel,
   () => {
     selectedSaleFieldIds.value = []
+    resetLayerErrors()
   },
 )
 
@@ -263,9 +277,31 @@ watch(
   (show) => {
     if (show) {
       exchangeRateStore.fetchExchangeRate()
+      return
     }
+    resetLayerErrors()
   },
   { immediate: true },
+)
+
+watch(
+  () => props.serverErrors,
+  (value) => {
+    if (!value) {
+      return
+    }
+    layerErrors.value = {
+      official: {
+        ...layerErrors.value.official,
+        ...(value.official || {}),
+      },
+      sale: {
+        ...layerErrors.value.sale,
+        ...(value.sale || {}),
+      },
+    }
+  },
+  { deep: true, immediate: true },
 )
 
 const detailList = computed(() => props.details.map((detail) => (
@@ -291,7 +327,7 @@ const currentCurrency = computed<BillingPricingCurrency>(() => currentDetail.val
 const usdToCnyRate = computed(() => exchangeRateStore.exchangeRate?.rate ?? null)
 const cnyEnabled = computed(() => typeof usdToCnyRate.value === 'number' && usdToCnyRate.value > 0)
 const currencySaveBlocked = computed(() => currentCurrency.value === 'CNY' && !cnyEnabled.value)
-const saveDisabled = computed(() => props.busy || !currentModel.value || currencySaveBlocked.value)
+const saveDisabled = computed(() => props.busy || !currentModel.value)
 
 const currentOfficialForm = computed(() => (
   currentDetail.value?.official_form || createEmptyBillingPricingLayerForm()
@@ -299,6 +335,8 @@ const currentOfficialForm = computed(() => (
 const currentSaleForm = computed(() => (
   currentDetail.value?.sale_form || createEmptyBillingPricingLayerForm()
 ))
+const currentOfficialErrors = computed(() => layerErrors.value.official)
+const currentSaleErrors = computed(() => layerErrors.value.sale)
 const currentCapabilities = computed<BillingPricingCapabilities>(() => (
   currentDetail.value?.capabilities || {
     supports_tiered_pricing: false,
@@ -409,6 +447,7 @@ function updateForm(layer: Layer, form: BillingPricingLayerForm) {
     return
   }
 
+  clearLayerErrors(layer)
   const next = normalizeBillingPricingSheetDetail(currentDetail.value)
   if (layer === 'official') {
     next.official_form = cloneBillingPricingLayerForm(form)
@@ -442,6 +481,7 @@ function updateCurrentCurrency(currency: BillingPricingCurrency) {
       conversionFactor,
     ),
   }
+  resetLayerErrors()
 }
 
 function resolveSourceCurrencyConversionFactor(
@@ -514,12 +554,24 @@ function saveLayer(layer: Layer) {
     return
   }
 
+  const sourceForm = layer === 'official' ? currentOfficialForm.value : currentSaleForm.value
+  const errors = validateBillingPricingLayerFormForSave(sourceForm)
+  layerErrors.value = {
+    ...layerErrors.value,
+    [layer]: errors,
+  }
+  if (hasBillingPricingValidationErrors(errors)) {
+    appStore.showError('保存前请先修正当前价格表单中的问题', {
+      title: layer === 'official' ? '官方价格校验失败' : '售价校验失败',
+      details: buildValidationErrorDetails(errors),
+    })
+    return
+  }
+
   emit('save-layer', {
     model: currentModel.value,
     layer,
-    form: cloneBillingPricingLayerForm(
-      layer === 'official' ? currentOfficialForm.value : currentSaleForm.value,
-    ),
+    form: normalizeBillingPricingLayerFormForSave(sourceForm),
     currency: currentCurrency.value,
   })
 }
@@ -570,5 +622,25 @@ function formatPreviewValue(value: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: value >= 1 ? 4 : 8,
   }).format(value)}`
+}
+
+function clearLayerErrors(layer: Layer) {
+  layerErrors.value = {
+    ...layerErrors.value,
+    [layer]: {},
+  }
+}
+
+function resetLayerErrors() {
+  layerErrors.value = {
+    official: {},
+    sale: {},
+  }
+}
+
+function buildValidationErrorDetails(errors: BillingPricingValidationErrors): string[] {
+  return Object.values(errors).filter((message, index, list) =>
+    Boolean(message) && list.indexOf(message) === index,
+  )
 }
 </script>

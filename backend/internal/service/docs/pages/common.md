@@ -156,7 +156,7 @@ https://api.zyxai.de
 - 账号级白名单 / 取模勾选会直接影响 downstream `/v1/models`、`/v1beta/models` 的返回结果；未被该账号允许的模型不会出现在列表或详情里。
 - 如果某个账号把真实模型配置成了自定义映射名，那么 downstream `models list` 与 `models detail` 只返回映射名这个 display ID；`target model` 只保留在内部转发链路和后台诊断里。
 - 模型列表读路径只读取本地策略投影和本地 availability snapshot。即使 snapshot 缺失或过期，也只会返回现有投影并标记状态，不会在读请求里同步触发实时探测。
-- 没有有效售价的模型不会出现在公共目录里，也不会出现在用户创建 / 编辑 Key 时的模型选择器里。
+- 没有有效售价的模型不会出现在公共目录里，也不会出现在用户创建 / 编辑 Key 时的模型选择器里。这里的“有效售价”口径不是只看 `sale_form` 原始字段，而是按“sale 优先、缺失字段逐项回退 official”的生效展示价计算；因此只配置了官方价、但 sale 为空的模型，只要存在可展示价格，仍然可以进入公开目录。
 - `model[1m]` 只是 Claude Cloud 百万上下文的请求时能力后缀，不会成为新的公开模型资产；`/v1/models`、`/v1beta/models`、公共模型目录、策略投影与模型选择器都不会枚举带 `[1m]` 的镜像项。
 - 当站内 Key 开启“生图专用”后，`/v1/models`、`/v1beta/models`、模型详情和 Key 编辑器模型选择器都会在本地投影上继续收敛，只暴露 `image_generation` 原生生图模型；非生图模型即使在原分组可见，也不会成为这个 Key 的可调用 public ID。
 - `/v1/models`、`/v1beta/models` 以及复用同一公共模型读路径的详情接口，都是“运行时可服务视图”，不是永久静态目录；如果当前所有可路由账号都因为同一类运行时额度冷却而暂时无法服务某个模型，该模型会临时从列表和详情里隐藏，额度恢复后会自动重新出现。
@@ -331,8 +331,10 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 
 模型价格与用量统计采用“源币种计费 + USD 兼容字段”的响应契约：
 
-- 公共目录、分组目录和后台价格页里的 `currency` 是源币种；`price_display.primary[].value` 按该源币种展示。CNY 官方价格保持人民币数值，不会在保存或展示时先折算成 USD。
-- CNY 价格必须带有锁定汇率元数据：`usd_to_cny_rate`、`fx_rate_date`、`fx_locked_at`。缺少锁定 USD/CNY 汇率的 CNY 价格会被视为不可计费价格，不应进入运行时可扣费状态。
+- 公共目录、分组目录和后台价格页里的 `currency` 是源币种；`price_display.primary[].value` 按该源币种展示。价格展示统一使用“sale 优先、缺失字段逐项回退 official”的生效表单；sale 层倍率只作用于 sale 自身已填写字段，不会套到 official 回退字段上。CNY 官方价格保持人民币数值，不会在保存或展示时先折算成 USD。
+- CNY 价格现在允许先保存为“待锁汇”状态：保存时可以暂时没有 `usd_to_cny_rate`、`fx_rate_date`、`fx_locked_at`。后台与审计会继续标记 warning；首次实际计费时，系统会尝试拉取当前 USD/CNY 并回写锁定汇率元数据，然后按该锁汇结果继续计费。
+- 如果运行时遇到 CNY 价格但暂时无法获得可用汇率，接口会明确返回 `BILLING_FX_RATE_UNAVAILABLE`，而不是静默改扣或错误扣费。
+- 管理端计费定价保存接口在参数非法时仍返回 `400`，并保持 `reason=BILLING_PRICE_INVALID`；如存在字段级校验错误，响应还会附带扁平 `metadata.field_errors.<field_id>`，便于前端直接回填对应输入框。
 - `usage_logs` 和用量列表会返回 `billing_currency`、`total_cost_usd_equivalent`、`actual_cost_usd_equivalent`、`cost_by_currency`、`actual_cost_by_currency`。其中 `total_cost` / `actual_cost` 保留旧字段语义，对非 USD 记录按 USD 等值给旧客户端使用；分币种金额请读取 `*_by_currency`。
 - `/api/v1/usage/stats`、`/api/v1/admin/usage/stats`、用户 Dashboard 和管理员 Dashboard 会返回 `cost_by_currency`、`actual_cost_by_currency`；Dashboard 还会返回 `today_cost_by_currency`、`today_actual_cost_by_currency`。
 - `/api/v1/usage/stats`、`/api/v1/admin/usage/stats` 现在还会额外返回 `today_requests`、`today_input_tokens`、`today_output_tokens`、`today_cache_tokens`、`today_tokens`、`today_cost`、`today_actual_cost`、`today_average_duration_ms`，用于前台和后台“今日统计”卡片。

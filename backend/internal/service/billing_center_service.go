@@ -302,7 +302,7 @@ func (s *BillingCenterService) Simulate(ctx context.Context, input BillingSimula
 	classification := s.classifier.ClassifySimulation(normalized)
 	result := s.evaluateSimulation(normalized, classification, s.ListRules(ctx), s.resolveLongContextThreshold(ctx, normalized.Model), 1.0)
 	if len(result.Lines) == 0 && normalized.Provider == BillingRuleProviderGemini {
-		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(normalized.Model, normalized.Charges, normalized.ServiceTier, normalized.BatchMode, 1.0)
+		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(ctx, normalized.Model, normalized.Charges, normalized.ServiceTier, normalized.BatchMode, 1.0)
 		if err != nil {
 			return nil, err
 		}
@@ -332,7 +332,7 @@ func (s *BillingCenterService) CalculateGeminiCost(ctx context.Context, input Ge
 	})
 	result := s.evaluateSimulation(sim, classification, s.ListRules(ctx), s.resolveLongContextThreshold(ctx, sim.Model), input.RateMultiplier)
 	if len(result.Lines) == 0 {
-		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(sim.Model, sim.Charges, sim.ServiceTier, sim.BatchMode, input.RateMultiplier)
+		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(ctx, sim.Model, sim.Charges, sim.ServiceTier, sim.BatchMode, input.RateMultiplier)
 		if err != nil {
 			return nil, err
 		}
@@ -446,7 +446,7 @@ func (s *BillingCenterService) resolveLongContextThreshold(ctx context.Context, 
 		return 0
 	}
 	if s.billingService != nil {
-		if pricing, err := s.billingService.getPricingForBilling(model); err == nil && pricing != nil && pricing.LongContextInputThreshold > 0 {
+		if pricing, err := s.billingService.getPricingForBillingWithContext(ctx, model); err == nil && pricing != nil && pricing.LongContextInputThreshold > 0 {
 			return pricing.LongContextInputThreshold
 		}
 	}
@@ -460,7 +460,7 @@ func (s *BillingCenterService) resolveLongContextThreshold(ctx context.Context, 
 	return record.longContextInputTokenThreshold
 }
 
-func (s *BillingCenterService) buildLegacyGeminiFallback(model string, charges BillingSimulationCharges, serviceTier string, batchMode string, rateMultiplier float64) (*BillingSimulationFallback, *CostBreakdown, map[string]struct{}, error) {
+func (s *BillingCenterService) buildLegacyGeminiFallback(ctx context.Context, model string, charges BillingSimulationCharges, serviceTier string, batchMode string, rateMultiplier float64) (*BillingSimulationFallback, *CostBreakdown, map[string]struct{}, error) {
 	if s == nil || s.billingService == nil {
 		return &BillingSimulationFallback{
 			Policy:      "legacy_model_pricing",
@@ -469,7 +469,7 @@ func (s *BillingCenterService) buildLegacyGeminiFallback(model string, charges B
 			DerivedFrom: "billing_service",
 		}, &CostBreakdown{}, nil, nil
 	}
-	pricing, err := s.billingService.getPricingForBilling(model)
+	pricing, err := s.billingService.getPricingForBillingWithContext(ctx, model)
 	if err != nil {
 		return nil, nil, nil, err
 	}

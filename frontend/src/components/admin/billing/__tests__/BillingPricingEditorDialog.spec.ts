@@ -5,6 +5,11 @@ import type { BillingPricingLayerForm, BillingPricingSheetDetail } from '@/api/a
 import BillingBulkDiscountPanel from '../BillingBulkDiscountPanel.vue'
 import BillingPricingEditorDialog from '../BillingPricingEditorDialog.vue'
 
+const appStoreMock = vi.hoisted(() => ({
+  showError: vi.fn(),
+  showSuccess: vi.fn(),
+}))
+
 const exchangeRateStoreMock = vi.hoisted(() => ({
   exchangeRate: {
     base: 'USD',
@@ -27,6 +32,10 @@ const exchangeRateStoreMock = vi.hoisted(() => ({
 
 vi.mock('@/stores/exchangeRate', () => ({
   useExchangeRateStore: () => exchangeRateStoreMock,
+}))
+
+vi.mock('@/stores/app', () => ({
+  useAppStore: () => appStoreMock,
 }))
 
 function createForm(overrides: Partial<BillingPricingLayerForm> = {}): BillingPricingLayerForm {
@@ -105,6 +114,8 @@ function mountDialog(details: BillingPricingSheetDetail[]) {
 
 describe('BillingPricingEditorDialog', () => {
   beforeEach(() => {
+    appStoreMock.showError.mockReset()
+    appStoreMock.showSuccess.mockReset()
     exchangeRateStoreMock.exchangeRate = {
       base: 'USD',
       quote: 'CNY',
@@ -291,7 +302,7 @@ describe('BillingPricingEditorDialog', () => {
     ])
   })
 
-  it('blocks cny save when exchange rate is unavailable', async () => {
+  it('allows cny save when exchange rate is unavailable and keeps the warning visible', async () => {
     exchangeRateStoreMock.exchangeRate = null
     const wrapper = mountDialog([
       createDetail({
@@ -302,8 +313,65 @@ describe('BillingPricingEditorDialog', () => {
     await nextTick()
 
     expect(wrapper.find('[data-testid="pricing-currency-alert"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="save-layer-official"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('[data-testid="save-layer-sale"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="save-layer-official"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-testid="save-layer-sale"]').attributes('disabled')).toBeUndefined()
+
+    await wrapper.get('[data-testid="save-layer-official"]').trigger('click')
+    expect(wrapper.emitted('save-layer')?.[0]?.[0]).toEqual(expect.objectContaining({
+      currency: 'CNY',
+    }))
+  })
+
+  it('blocks incomplete tiered pricing before save and shows field-level errors', async () => {
+    const wrapper = mountDialog([
+      createDetail({
+        official_form: createForm({
+          tiered_enabled: true,
+        }),
+      }),
+    ])
+
+    await wrapper.get('[data-testid="save-layer-official"]').trigger('click')
+
+    expect(wrapper.emitted('save-layer')).toBeUndefined()
+    expect(wrapper.get('[data-testid="pricing-field-error-tier_threshold_tokens"]').text()).toContain('共享阈值必须是正整数')
+    expect(wrapper.get('[data-testid="pricing-field-error-input_price_above_threshold"]').text()).toContain('至少填写一个阈值后价格')
+    expect(appStoreMock.showError).toHaveBeenCalled()
+  })
+
+  it('merges server field errors into the active layer and lets server text override the same field', async () => {
+    const wrapper = mount(BillingPricingEditorDialog, {
+      props: {
+        show: true,
+        details: [
+          createDetail({
+            official_form: createForm({
+              tiered_enabled: true,
+            }),
+          }),
+        ],
+        activeModel: 'gpt-5.4',
+        serverErrors: {
+          official: {
+            tier_threshold_tokens: '服务端：共享阈值必须是正整数',
+            input_price_above_threshold: '服务端：至少填写一个阈值后价格',
+          },
+        },
+      },
+      global: {
+        stubs: {
+          BaseDialog: {
+            props: ['show'],
+            template: '<div v-if="show"><slot /></div>',
+          },
+        },
+      },
+    })
+
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="pricing-field-error-tier_threshold_tokens"]').text()).toContain('服务端：共享阈值必须是正整数')
+    expect(wrapper.get('[data-testid="pricing-field-error-input_price_above_threshold"]').text()).toContain('服务端：至少填写一个阈值后价格')
   })
 
   it('shows conflict badges and audit warnings for non-ok models', () => {

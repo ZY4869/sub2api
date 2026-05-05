@@ -19,6 +19,7 @@
         :enabled="form.multiplier_enabled"
         :mode="multiplierMode"
         :shared-multiplier="form.shared_multiplier"
+        :shared-multiplier-error="props.errors.shared_multiplier"
         :field-count="visibleMultiplierFieldIds.length"
         :disabled="disabled"
         @update:enabled="updateMultiplierEnabled"
@@ -41,6 +42,7 @@
             :unit-label="field.unitLabel"
             :value="field.value"
             :secondary-text="field.secondaryText"
+            :error-text="fieldError(field.id)"
             :selectable="selectable"
             :selected="selectedIds.includes(field.id)"
             :disabled="disabled"
@@ -57,6 +59,7 @@
                 :item-multiplier="resolveItemMultiplier(field.id)"
                 :display-base-value="field.value"
                 :display-effective-value="displayEffectiveValue(field.id)"
+                :error-text="itemMultiplierError(field.id)"
                 :disabled="disabled"
                 @update:item-multiplier="updateItemMultiplier(field.id, $event)"
               />
@@ -87,6 +90,7 @@
             :unit-label="field.unitLabel"
             :value="field.value"
             :secondary-text="field.secondaryText"
+            :error-text="fieldError(field.id)"
             :selectable="selectable"
             :selected="selectedIds.includes(field.id)"
             :disabled="disabled"
@@ -103,6 +107,7 @@
                 :item-multiplier="resolveItemMultiplier(field.id)"
                 :display-base-value="field.value"
                 :display-effective-value="displayEffectiveValue(field.id)"
+                :error-text="itemMultiplierError(field.id)"
                 :disabled="disabled"
                 @update:item-multiplier="updateItemMultiplier(field.id, $event)"
               />
@@ -151,6 +156,13 @@
                 data-testid="pricing-field-tier_threshold_tokens"
                 @input="updateTierThreshold(($event.target as HTMLInputElement).value)"
               />
+              <p
+                v-if="tierThresholdError"
+                class="mt-2 text-xs text-rose-600 dark:text-rose-300"
+                data-testid="pricing-field-error-tier_threshold_tokens"
+              >
+                {{ tierThresholdError }}
+              </p>
             </div>
           </div>
 
@@ -162,6 +174,7 @@
             :unit-label="field.unitLabel"
             :value="field.value"
             :secondary-text="field.secondaryText"
+            :error-text="fieldError(field.id)"
             :selectable="selectable"
             :selected="selectedIds.includes(field.id)"
             :disabled="disabled"
@@ -178,6 +191,7 @@
                 :item-multiplier="resolveItemMultiplier(field.id)"
                 :display-base-value="field.value"
                 :display-effective-value="displayEffectiveValue(field.id)"
+                :error-text="itemMultiplierError(field.id)"
                 :disabled="disabled"
                 @update:item-multiplier="updateItemMultiplier(field.id, $event)"
               />
@@ -253,6 +267,7 @@ const props = withDefaults(defineProps<{
   outputChargeSlot?: string
   supportsPromptCaching?: boolean
   capabilities: BillingPricingCapabilities
+  errors?: Record<string, string>
   selectedIds?: string[]
   selectable?: boolean
   disabled?: boolean
@@ -264,6 +279,7 @@ const props = withDefaults(defineProps<{
   usdToCnyRate: null,
   outputChargeSlot: 'text_output',
   supportsPromptCaching: false,
+  errors: () => ({}),
   selectedIds: () => [],
   selectable: false,
   disabled: false,
@@ -459,9 +475,18 @@ const visibleMultiplierFieldIds = computed(() => [
   ...specialFields.value,
   ...tierFields.value,
 ].filter((field) => field.value != null).map((field) => field.id))
+const tierThresholdError = computed(() => props.errors.tier_threshold_tokens || '')
 
 function emitForm(next: BillingPricingLayerForm) {
   emit('update-form', cloneBillingPricingLayerForm(next))
+}
+
+function fieldError(fieldId: string): string {
+  return props.errors[fieldId] || ''
+}
+
+function itemMultiplierError(fieldId: string): string {
+  return props.errors[`item_multipliers.${fieldId}`] || ''
 }
 
 function buildFieldDescriptor<T extends BillingPricingFieldId>(options: {

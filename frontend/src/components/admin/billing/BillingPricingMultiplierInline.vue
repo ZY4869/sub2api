@@ -25,6 +25,13 @@
       </template>
       <span class="font-medium">{{ formattedBase }} × {{ formattedMultiplier }} = {{ formattedEffective }}</span>
     </div>
+    <p
+      v-if="errorText"
+      class="mt-2 text-xs text-rose-600 dark:text-rose-300"
+      :data-testid="`pricing-item-multiplier-error-${fieldId}`"
+    >
+      {{ errorText }}
+    </p>
   </div>
 </template>
 
@@ -43,6 +50,7 @@ const props = withDefaults(defineProps<{
   itemMultiplier?: number
   displayBaseValue?: number
   displayEffectiveValue?: number
+  errorText?: string
   disabled?: boolean
 }>(), {
   multiplierMode: 'shared',
@@ -50,6 +58,7 @@ const props = withDefaults(defineProps<{
   itemMultiplier: undefined,
   displayBaseValue: undefined,
   displayEffectiveValue: undefined,
+  errorText: '',
   disabled: false,
 })
 

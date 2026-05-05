@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
-
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // APIKeyRateLimitCacheData holds rate limit usage data cached in Redis.
@@ -478,9 +479,6 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				LongContextInputMultiplier:                litellmPricing.LongContextInputCostMultiplier,
 				LongContextOutputMultiplier:               litellmPricing.LongContextOutputCostMultiplier,
 			})
-			if err := validateBillablePricingFX(model, pricing); err != nil {
-				return nil, err
-			}
 			return pricing, nil
 		}
 	}
@@ -497,11 +495,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				logger.LegacyPrintf("service.billing", "[Debug] [Billing] Using fallback pricing for model: %s", model)
 			}
 		}
-		pricing := s.applyModelSpecificPricingPolicy(model, fallback)
-		if err := validateBillablePricingFX(model, pricing); err != nil {
-			return nil, err
-		}
-		return pricing, nil
+		return s.applyModelSpecificPricingPolicy(model, fallback), nil
 	}
 
 	return nil, fmt.Errorf("pricing not found for model: %s", model)
@@ -511,8 +505,16 @@ func validateBillablePricingFX(model string, pricing *ModelPricing) error {
 	if pricing == nil {
 		return nil
 	}
-	if normalizeBillingCurrency(pricing.Currency) == ModelPricingCurrencyCNY && pricing.USDToCNYRate <= 0 {
-		return fmt.Errorf("pricing for CNY model %s is missing locked USD/CNY rate", strings.TrimSpace(model))
+	if normalizeBillingCurrency(pricing.Currency) == ModelPricingCurrencyCNY &&
+		(pricing.USDToCNYRate <= 0 || pricing.FXLockedAt == nil || pricing.FXLockedAt.IsZero()) {
+		return infraerrors.ServiceUnavailable(
+			"BILLING_FX_RATE_UNAVAILABLE",
+			"USD/CNY exchange rate is unavailable",
+		).WithMetadata(map[string]string{
+			"model":    NormalizeModelCatalogModelID(model),
+			"currency": ModelPricingCurrencyCNY,
+			"fx_state": "pending",
+		})
 	}
 	return nil
 }
@@ -630,22 +632,70 @@ func applyModelPricingOverride(pricing *ModelPricing, override *ModelPricingOver
 }
 
 func (s *BillingService) getPricingForBilling(model string) (*ModelPricing, error) {
+	return s.getPricingForBillingWithContext(context.Background(), model)
+}
+
+func (s *BillingService) getPricingForBillingWithContext(ctx context.Context, model string) (*ModelPricing, error) {
 	pricing, err := s.GetModelPricing(model)
 	if err != nil {
 		return nil, err
 	}
 	pricing = applyModelPricingOverride(pricing, s.getModelOfficialPriceOverride(model))
 	pricing = applyModelPricingOverride(pricing, s.getModelPriceOverride(model))
-	return pricing, nil
+	return s.ensureBillablePricingFX(ctx, model, pricing)
+}
+
+func (s *BillingService) ensureBillablePricingFX(ctx context.Context, model string, pricing *ModelPricing) (*ModelPricing, error) {
+	if err := validateBillablePricingFX(model, pricing); err == nil {
+		return pricing, nil
+	}
+	if pricing == nil || normalizeBillingCurrency(pricing.Currency) != ModelPricingCurrencyCNY {
+		return pricing, validateBillablePricingFX(model, pricing)
+	}
+	if s == nil || s.billingCenterService == nil || s.billingCenterService.modelCatalogService == nil {
+		return pricing, validateBillablePricingFX(model, pricing)
+	}
+
+	rate, err := s.billingCenterService.modelCatalogService.GetUSDCNYExchangeRate(ctx, false)
+	if err != nil || rate == nil || rate.Rate <= 0 {
+		return pricing, validateBillablePricingFX(model, pricing)
+	}
+
+	meta := modelPricingCurrencyMetadataFromExchangeRate(rate)
+	enriched := *pricing
+	applyModelPricingCurrencyMetadata(&enriched, meta)
+	if persistErr := s.billingCenterService.backfillModelPricingCurrencyFX(ctx, model, meta); persistErr != nil {
+		logger.FromContext(ctx).Warn(
+			"billing pricing runtime fx backfill persist failed",
+			zap.String("component", "service.billing"),
+			zap.String("request_id", billingContextRequestID(ctx)),
+			zap.String("model", NormalizeModelCatalogModelID(model)),
+			zap.Error(persistErr),
+		)
+	}
+	if err := validateBillablePricingFX(model, &enriched); err != nil {
+		return &enriched, err
+	}
+	return &enriched, nil
 }
 
 // CalculateCost computes billing using the model pricing table.
 func (s *BillingService) CalculateCost(model string, tokens UsageTokens, rateMultiplier float64) (*CostBreakdown, error) {
-	return s.CalculateCostWithServiceTier(model, tokens, rateMultiplier, "")
+	return s.CalculateCostWithServiceTierWithContext(context.Background(), model, tokens, rateMultiplier, "")
 }
 
 func (s *BillingService) CalculateCostWithServiceTier(model string, tokens UsageTokens, rateMultiplier float64, serviceTier string) (*CostBreakdown, error) {
-	pricing, err := s.getPricingForBilling(model)
+	return s.CalculateCostWithServiceTierWithContext(context.Background(), model, tokens, rateMultiplier, serviceTier)
+}
+
+func (s *BillingService) CalculateCostWithServiceTierWithContext(
+	ctx context.Context,
+	model string,
+	tokens UsageTokens,
+	rateMultiplier float64,
+	serviceTier string,
+) (*CostBreakdown, error) {
+	pricing, err := s.getPricingForBillingWithContext(ctx, model)
 	if err != nil {
 		return nil, err
 	}
@@ -787,12 +837,23 @@ func (s *BillingService) CalculateCostWithConfig(model string, tokens UsageToken
 // Split into in-range (200k, 0) and overflow (10k, 10k).
 // The in-range portion uses normal pricing and the overflow portion uses the extra multiplier.
 func (s *BillingService) CalculateCostWithLongContext(model string, tokens UsageTokens, rateMultiplier float64, threshold int, extraMultiplier float64) (*CostBreakdown, error) {
+	return s.CalculateCostWithLongContextWithContext(context.Background(), model, tokens, rateMultiplier, threshold, extraMultiplier)
+}
+
+func (s *BillingService) CalculateCostWithLongContextWithContext(
+	ctx context.Context,
+	model string,
+	tokens UsageTokens,
+	rateMultiplier float64,
+	threshold int,
+	extraMultiplier float64,
+) (*CostBreakdown, error) {
 	// Invalid long-context configuration falls back to normal pricing.
 	if threshold <= 0 || extraMultiplier <= 1 {
-		return s.CalculateCost(model, tokens, rateMultiplier)
+		return s.CalculateCostWithServiceTierWithContext(ctx, model, tokens, rateMultiplier, "")
 	}
 
-	pricing, err := s.getPricingForBilling(model)
+	pricing, err := s.getPricingForBillingWithContext(ctx, model)
 	if err != nil {
 		return nil, err
 	}
@@ -920,15 +981,27 @@ type ImagePriceConfig struct {
 // groupConfig: optional group override pricing, nil means using defaults.
 // rateMultiplier: billing rate multiplier.
 func (s *BillingService) CalculateImageCost(model string, imageSize string, imageCount int, groupConfig *ImagePriceConfig, rateMultiplier float64) *CostBreakdown {
-	return s.CalculateImageCostWithServiceTier(model, imageSize, imageCount, groupConfig, rateMultiplier, "")
+	return s.CalculateImageCostWithServiceTierWithContext(context.Background(), model, imageSize, imageCount, groupConfig, rateMultiplier, "")
 }
 
 func (s *BillingService) CalculateImageCostWithServiceTier(model string, imageSize string, imageCount int, groupConfig *ImagePriceConfig, rateMultiplier float64, serviceTier string) *CostBreakdown {
+	return s.CalculateImageCostWithServiceTierWithContext(context.Background(), model, imageSize, imageCount, groupConfig, rateMultiplier, serviceTier)
+}
+
+func (s *BillingService) CalculateImageCostWithServiceTierWithContext(
+	ctx context.Context,
+	model string,
+	imageSize string,
+	imageCount int,
+	groupConfig *ImagePriceConfig,
+	rateMultiplier float64,
+	serviceTier string,
+) *CostBreakdown {
 	if imageCount <= 0 {
 		return finalizeCostBreakdownCurrency(&CostBreakdown{}, nil)
 	}
 
-	unitPrice, pricing := s.getImageUnitPriceWithPricing(model, imageSize, groupConfig, serviceTier)
+	unitPrice, pricing := s.getImageUnitPriceWithPricingWithContext(ctx, model, imageSize, groupConfig, serviceTier)
 	totalCost := unitPrice * float64(imageCount)
 	if rateMultiplier <= 0 {
 		rateMultiplier = 1.0
@@ -943,9 +1016,13 @@ func (s *BillingService) CalculateImageCostWithServiceTier(model string, imageSi
 
 // CalculateVideoRequestCost calculates one-shot video request billing using model pricing.
 func (s *BillingService) CalculateVideoRequestCost(model string, rateMultiplier float64) *CostBreakdown {
+	return s.CalculateVideoRequestCostWithContext(context.Background(), model, rateMultiplier)
+}
+
+func (s *BillingService) CalculateVideoRequestCostWithContext(ctx context.Context, model string, rateMultiplier float64) *CostBreakdown {
 	unitPrice := 0.0
 	var pricing *ModelPricing
-	if resolved, err := s.getPricingForBilling(model); err == nil && resolved != nil && resolved.OutputPricePerVideoRequest > 0 {
+	if resolved, err := s.getPricingForBillingWithContext(ctx, model); err == nil && resolved != nil && resolved.OutputPricePerVideoRequest > 0 {
 		pricing = resolved
 		unitPrice = pricing.OutputPricePerVideoRequest
 	}
@@ -958,7 +1035,13 @@ func (s *BillingService) CalculateVideoRequestCost(model string, rateMultiplier 
 	}, pricing)
 }
 
-func (s *BillingService) getImageUnitPriceWithPricing(model string, imageSize string, groupConfig *ImagePriceConfig, serviceTier string) (float64, *ModelPricing) {
+func (s *BillingService) getImageUnitPriceWithPricingWithContext(
+	ctx context.Context,
+	model string,
+	imageSize string,
+	groupConfig *ImagePriceConfig,
+	serviceTier string,
+) (float64, *ModelPricing) {
 	if groupConfig != nil {
 		switch imageSize {
 		case "1K":
@@ -975,7 +1058,7 @@ func (s *BillingService) getImageUnitPriceWithPricing(model string, imageSize st
 			}
 		}
 	}
-	pricing, _ := s.getPricingForBilling(model)
+	pricing, _ := s.getPricingForBillingWithContext(ctx, model)
 	basePrice := 0.0
 	if pricing != nil {
 		basePrice = pricing.OutputPricePerImage

@@ -50,6 +50,13 @@
     >
       {{ secondaryText }}
     </p>
+    <p
+      v-if="errorText"
+      class="mt-2 text-xs text-rose-600 dark:text-rose-300"
+      :data-testid="`pricing-field-error-${fieldId}`"
+    >
+      {{ errorText }}
+    </p>
   </div>
 </template>
 
@@ -66,12 +73,14 @@ const props = withDefaults(defineProps<{
   unitLabel: string
   value?: number
   secondaryText?: string
+  errorText?: string
   selectable?: boolean
   selected?: boolean
   disabled?: boolean
 }>(), {
   value: undefined,
   secondaryText: '',
+  errorText: '',
   selectable: false,
   selected: false,
   disabled: false,
