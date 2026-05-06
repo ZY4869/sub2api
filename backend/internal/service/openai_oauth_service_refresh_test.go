@@ -89,7 +89,7 @@ func TestOpenAIOAuthService_RefreshTokenWithClientID_EnrichesPlanTypeAndPrivacyM
 						"accounts": {
 							"default-org": {
 								"account": {
-									"plan_type": "chatgptpro",
+									"plan_type": "chatgptpro20x",
 									"is_default": true
 								}
 							}
@@ -118,6 +118,9 @@ func TestOpenAIOAuthService_RefreshTokenWithClientID_EnrichesPlanTypeAndPrivacyM
 	require.NoError(t, err)
 	require.NotNil(t, info)
 	require.Equal(t, "pro", info.PlanType)
+	require.Equal(t, "chatgptpro20x", info.PlanTypeRaw)
+	require.Equal(t, "Pro 20x", info.PlanTypeLabel)
+	require.Equal(t, 20, info.ProMultiplier)
 	require.Equal(t, PrivacyModeTrainingOff, info.PrivacyMode)
 	require.Equal(t, "client-id-2", info.ClientID)
 	require.Equal(t, int32(1), atomic.LoadInt32(&client.refreshCalls))

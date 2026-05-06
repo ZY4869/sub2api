@@ -75,6 +75,12 @@
         :gateway-protocol="row.gateway_protocol"
         :type="row.type"
         :plan-type="row.credentials?.plan_type"
+        :plan-type-label="String(row.credentials?.plan_type_label || '') || undefined"
+        :pro-multiplier="
+          typeof row.credentials?.pro_multiplier === 'number'
+            ? row.credentials.pro_multiplier
+            : undefined
+        "
         :privacy-mode="String(row.extra?.privacy_mode || '') || undefined"
         :subscription-expires-at="
           String(row.credentials?.subscription_expires_at || '') || undefined

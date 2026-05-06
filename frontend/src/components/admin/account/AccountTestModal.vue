@@ -131,12 +131,12 @@
         {{ t(grokTestHintKey) }}
       </div>
 
-      <div v-if="supportsImageTest" class="space-y-1.5">
+      <div v-if="supportsPromptInput" class="space-y-1.5">
         <TextArea
           v-model="testPrompt"
-          :label="t('admin.accounts.imageTestPromptLabel')"
-          :placeholder="t('admin.accounts.imageTestPromptPlaceholder')"
-          :hint="t('admin.accounts.imageTestHint')"
+          :label="promptInputLabel"
+          :placeholder="promptInputPlaceholder"
+          :hint="promptInputHint"
           :disabled="status === 'connecting'"
           rows="3"
         />
@@ -271,7 +271,9 @@
           {{
             supportsImageTest
               ? t('admin.accounts.imageTestMode')
-              : t('admin.accounts.testPrompt')
+              : supportsPromptInput
+                ? t('admin.accounts.textTestPromptLabel')
+                : t('admin.accounts.testPrompt')
           }}
         </span>
       </div>
@@ -501,6 +503,32 @@ const supportsImageTest = computed(() => {
     (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
   )
 })
+const supportsPromptInput = computed(() => {
+  if (isGrokAccount.value || isBaiduDocumentAIAccount.value) {
+    return false
+  }
+  return Boolean(effectiveSelectedModelId.value.trim())
+})
+const promptInputLabel = computed(() =>
+  supportsImageTest.value
+    ? t('admin.accounts.imageTestPromptLabel')
+    : t('admin.accounts.textTestPromptLabel')
+)
+const promptInputPlaceholder = computed(() =>
+  supportsImageTest.value
+    ? t('admin.accounts.imageTestPromptPlaceholder')
+    : t('admin.accounts.textTestPromptPlaceholder')
+)
+const promptInputHint = computed(() =>
+  supportsImageTest.value
+    ? t('admin.accounts.imageTestHint')
+    : t('admin.accounts.textTestHint')
+)
+const defaultTestPrompt = computed(() =>
+  supportsImageTest.value
+    ? t('admin.accounts.imageTestPromptDefault')
+    : t('admin.accounts.textTestPromptDefault')
+)
 
 watch(
   [modelInputMode, manualModelId, isProtocolGatewayAccount, manualSourceProtocol],
@@ -691,8 +719,8 @@ watch(
 )
 
 watch([effectiveSelectedModelId, effectiveTestPlatform], () => {
-  if (supportsImageTest.value && !testPrompt.value.trim()) {
-    testPrompt.value = t('admin.accounts.imageTestPromptDefault')
+  if (supportsPromptInput.value && !testPrompt.value.trim()) {
+    testPrompt.value = defaultTestPrompt.value
   }
 })
 
@@ -806,6 +834,7 @@ const selectTestMode = (mode: AccountTestMode) => {
 }
 
 const resolveTestRequestBody = () => {
+  const prompt = supportsPromptInput.value ? testPrompt.value.trim() : ''
   if (modelInputMode.value === 'manual') {
     return {
       model_input_mode: 'manual' as const,
@@ -813,7 +842,7 @@ const resolveTestRequestBody = () => {
       request_alias: manualRequestAlias.value.trim() || undefined,
       test_mode: effectiveTestMode.value,
       source_protocol: effectiveSelectedSourceProtocol.value || undefined,
-      prompt: supportsImageTest.value ? testPrompt.value.trim() : ''
+      prompt
     }
   }
   const catalogTarget = resolveCatalogTargetFromModel(selectedModelOption.value)
@@ -833,7 +862,7 @@ const resolveTestRequestBody = () => {
     source_protocol: catalogTarget.sourceProtocol || effectiveSelectedSourceProtocol.value || undefined,
     target_provider: catalogTarget.targetProvider,
     target_model_id: catalogTarget.targetModelId,
-    prompt: supportsImageTest.value ? testPrompt.value.trim() : ''
+    prompt
   }
 }
 

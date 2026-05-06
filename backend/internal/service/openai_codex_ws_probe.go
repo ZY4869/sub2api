@@ -161,7 +161,7 @@ func buildCodexWSProbeHeaders(account *Account, accessToken string) http.Header 
 
 func buildCodexWSProbeCreatePayload(modelID string) map[string]any {
 	modelID = strings.TrimSpace(modelID)
-	payload := createOpenAITestPayload(modelID, true)
+	payload := createOpenAITestPayload(modelID, "", true)
 	payload["type"] = "response.create"
 	payload["max_output_tokens"] = 1
 	payload["generate"] = false

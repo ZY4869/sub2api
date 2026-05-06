@@ -28,18 +28,16 @@
         }
       },
       "patch": {},
-      "notes": ""
+      "notes": "未找到稳定官方价格来源；仓库内仅见 antigravity 内部模型别名，未发现可公开核价的官方模型映射（2026-05-06 复核）。"
     },
     {
       "model": "ernie-3.5-128k",
       "display_name": "Ernie-3.5-128k",
       "provider": "baidu",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -54,19 +52,22 @@
           "multiplier_enabled": false
         }
       },
-      "patch": {},
-      "notes": ""
+      "patch": {
+        "official": {
+          "input_price": 8e-7,
+          "output_price": 0.000002
+        }
+      },
+      "notes": "官方来源：百度智能云千帆《千帆ModelBuilder关于ERNIE系列模型刊例价调整公告》（2025-04-11）；币种 CNY。"
     },
     {
       "model": "ernie-3.5-8k",
       "display_name": "Ernie-3.5-8k",
       "provider": "baidu",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -81,19 +82,22 @@
           "multiplier_enabled": false
         }
       },
-      "patch": {},
-      "notes": ""
+      "patch": {
+        "official": {
+          "input_price": 8e-7,
+          "output_price": 0.000002
+        }
+      },
+      "notes": "官方来源：百度智能云千帆《千帆ModelBuilder关于ERNIE系列模型刊例价调整公告》（2025-04-11）；币种 CNY。"
     },
     {
       "model": "ernie-4.0-8k",
       "display_name": "Ernie-4.0-8k",
       "provider": "baidu",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -108,19 +112,22 @@
           "multiplier_enabled": false
         }
       },
-      "patch": {},
-      "notes": ""
+      "patch": {
+        "official": {
+          "input_price": 0.000004,
+          "output_price": 0.000016
+        }
+      },
+      "notes": "官方来源：百度智能云千帆《Ernie系列模型降价通知》（2025-04-18）；币种 CNY。"
     },
     {
       "model": "ernie-4.0-8k-latest",
       "display_name": "Ernie-4.0-8k-latest",
       "provider": "baidu",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -135,19 +142,22 @@
           "multiplier_enabled": false
         }
       },
-      "patch": {},
-      "notes": ""
+      "patch": {
+        "official": {
+          "input_price": 0.000004,
+          "output_price": 0.000016
+        }
+      },
+      "notes": "官方来源：百度智能云千帆《Ernie系列模型降价通知》（2025-04-18）；公告明确将 ERNIE-4.0-8K-Latest 归入与 ERNIE-4.0-8K 同一价格组；币种 CNY。"
     },
     {
       "model": "ernie-4.0-turbo-8k",
       "display_name": "Ernie-4.0-turbo-8k",
       "provider": "baidu",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -162,8 +172,14 @@
           "multiplier_enabled": false
         }
       },
-      "patch": {},
-      "notes": ""
+      "patch": {
+        "official": {
+          "input_price": 0.000003,
+          "output_price": 0.000009,
+          "cache_price": 0.0000012
+        }
+      },
+      "notes": "官方来源：百度智能云千帆《Ernie系列模型降价通知》（2025-04-18）；仅 ERNIE-4.0-Turbo-8K 公开了缓存价，已一并补录；币种 CNY。"
     },
     {
       "model": "ernie-lite-8k",
@@ -197,11 +213,9 @@
       "display_name": "Ernie-lite-pro-128k",
       "provider": "baidu",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -216,8 +230,13 @@
           "multiplier_enabled": false
         }
       },
-      "patch": {},
-      "notes": ""
+      "patch": {
+        "official": {
+          "input_price": 2e-7,
+          "output_price": 4e-7
+        }
+      },
+      "notes": "官方来源：百度智能云千帆《模型服务计费》页（2026-04-24 更新）中 ERNIE-Lite-Pro-128K 推理服务标准价；币种 CNY。"
     },
     {
       "model": "ernie-speed-128k",
@@ -244,7 +263,7 @@
         }
       },
       "patch": {},
-      "notes": ""
+      "notes": "2026-05-06 复核：百度官方计费页仅明确列出 ERNIE-Speed-Pro-128K 推理服务标准价，未找到与当前模型 ID `ernie-speed-128k` 一一对应的稳定官方价格来源，暂保持 unresolved。"
     },
     {
       "model": "ernie-speed-8k",
@@ -278,11 +297,9 @@
       "display_name": "Ernie-speed-pro-128k",
       "provider": "baidu",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -297,8 +314,13 @@
           "multiplier_enabled": false
         }
       },
-      "patch": {},
-      "notes": ""
+      "patch": {
+        "official": {
+          "input_price": 3e-7,
+          "output_price": 6e-7
+        }
+      },
+      "notes": "官方来源：百度智能云千帆《千帆ModelBuilder关于ERNIE系列模型刊例价调整公告》（2025-04-11）；币种 CNY。"
     },
     {
       "model": "ernie-tiny-8k",
@@ -325,7 +347,7 @@
         }
       },
       "patch": {},
-      "notes": ""
+      "notes": "2026-05-06 复核：未在百度智能云千帆稳定官方计费页中找到与当前模型 ID `ernie-tiny-8k` 一一对应的公开价格，暂保持 unresolved。"
     },
     {
       "model": "abab5.5-chat",
@@ -677,8 +699,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 5e-06,
-          "output_price": 1.5e-05
+          "input_price": 0.000005,
+          "output_price": 0.000015
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -736,8 +758,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3.5e-07,
-          "output_price": 1.4e-06
+          "input_price": 3.5e-7,
+          "output_price": 0.0000014
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -768,8 +790,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 7e-07,
-          "output_price": 2.8e-06
+          "input_price": 7e-7,
+          "output_price": 0.0000028
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -800,8 +822,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1e-06,
-          "output_price": 3e-06
+          "input_price": 0.000001,
+          "output_price": 0.000003
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -832,8 +854,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.5e-07,
-          "output_price": 2.5e-07
+          "input_price": 2.5e-7,
+          "output_price": 2.5e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -918,8 +940,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1e-06,
-          "output_price": 2e-06
+          "input_price": 0.000001,
+          "output_price": 0.000002
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -950,8 +972,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.5e-06,
-          "output_price": 1e-05
+          "input_price": 0.0000025,
+          "output_price": 0.00001
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -982,8 +1004,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3e-07,
-          "output_price": 6e-07
+          "input_price": 3e-7,
+          "output_price": 6e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1014,8 +1036,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.5e-07,
-          "output_price": 6e-07
+          "input_price": 1.5e-7,
+          "output_price": 6e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1046,8 +1068,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.5e-07,
-          "output_price": 6e-07
+          "input_price": 1.5e-7,
+          "output_price": 6e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1078,8 +1100,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.5e-06,
-          "output_price": 1e-05
+          "input_price": 0.0000025,
+          "output_price": 0.00001
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1110,8 +1132,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.5e-06,
-          "output_price": 1e-05
+          "input_price": 0.0000025,
+          "output_price": 0.00001
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1121,26 +1143,23 @@
       "display_name": "DeepSeek V4 Flash",
       "provider": "deepseek",
       "mode": "chat",
-      "currency": "CNY",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found.",
-        "Manual override pricing exists without an upstream source."
-      ],
+      "currency": "USD",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
-          "input_price": 1e-06,
-          "output_price": 2e-06,
-          "cache_price": 2e-08,
+          "input_price": 0.000001,
+          "output_price": 0.000002,
+          "cache_price": 2e-8,
           "special_enabled": false,
           "special": {},
           "tiered_enabled": false,
           "multiplier_enabled": false
         },
         "sale": {
-          "input_price": 2.8e-07,
-          "output_price": 4.2e-07,
-          "cache_price": 2.8e-08,
+          "input_price": 2.8e-7,
+          "output_price": 4.2e-7,
+          "cache_price": 2.8e-8,
           "special_enabled": false,
           "special": {},
           "tiered_enabled": false,
@@ -1149,11 +1168,11 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.4e-07,
-          "output_price": 2.8e-07
+          "input_price": 1.4e-7,
+          "output_price": 2.8e-7
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：DeepSeek Pricing（本地 official 基线 checked_at=2026-04-28）；币种 USD。"
     },
     {
       "model": "deepseek-v4-pro",
@@ -1161,10 +1180,8 @@
       "provider": "deepseek",
       "mode": "chat",
       "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -1181,11 +1198,11 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.74e-06,
-          "output_price": 3.48e-06
+          "input_price": 0.00000174,
+          "output_price": 0.00000348
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：DeepSeek Pricing（本地 official 基线 checked_at=2026-04-28）；币种 USD。"
     },
     {
       "model": "deepseek-coder",
@@ -1211,8 +1228,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.4e-07,
-          "output_price": 2.8e-07
+          "input_price": 1.4e-7,
+          "output_price": 2.8e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1241,8 +1258,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.35e-06,
-          "output_price": 5.4e-06
+          "input_price": 0.00000135,
+          "output_price": 0.0000054
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1271,8 +1288,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 5e-07,
-          "output_price": 2.15e-06
+          "input_price": 5e-7,
+          "output_price": 0.00000215
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1301,8 +1318,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 7e-07,
-          "output_price": 8e-07
+          "input_price": 7e-7,
+          "output_price": 8e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1331,8 +1348,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.5e-08,
-          "output_price": 2.5e-08
+          "input_price": 2.5e-8,
+          "output_price": 2.5e-8
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1361,8 +1378,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 7e-08,
-          "output_price": 7e-08
+          "input_price": 7e-8,
+          "output_price": 7e-8
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1391,8 +1408,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.9e-07,
-          "output_price": 2.9e-07
+          "input_price": 2.9e-7,
+          "output_price": 2.9e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1421,8 +1438,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-07,
-          "output_price": 2e-07
+          "input_price": 2e-7,
+          "output_price": 2e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1451,8 +1468,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.14e-06,
-          "output_price": 4.56e-06
+          "input_price": 0.00000114,
+          "output_price": 0.00000456
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1481,8 +1498,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.14e-06,
-          "output_price": 4.56e-06
+          "input_price": 0.00000114,
+          "output_price": 0.00000456
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -1891,8 +1908,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3e-07,
-          "output_price": 3e-05
+          "input_price": 3e-7,
+          "output_price": 0.00003
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2226,11 +2243,9 @@
       "display_name": "Glm-4.5",
       "provider": "zhipu",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -2247,11 +2262,11 @@
       },
       "patch": {
         "official": {
-          "input_price": 8.000000000000001e-07,
-          "output_price": 2e-06
+          "input_price": 8.000000000000001e-7,
+          "output_price": 0.000002
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：智谱 GLM-4.5 文档（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "glm-4.6",
@@ -2279,8 +2294,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3.9e-07,
-          "output_price": 1.9e-06
+          "input_price": 3.9e-7,
+          "output_price": 0.0000019
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2446,8 +2461,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3e-06,
-          "output_price": 1.5e-05
+          "input_price": 0.000003,
+          "output_price": 0.000015
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2478,8 +2493,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 5e-06,
-          "output_price": 2.5e-05
+          "input_price": 0.000005,
+          "output_price": 0.000025
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2510,8 +2525,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.5e-07,
-          "output_price": 1.27e-06
+          "input_price": 2.5e-7,
+          "output_price": 0.00000127
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2542,8 +2557,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-07,
-          "output_price": 5e-07
+          "input_price": 2e-7,
+          "output_price": 5e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2574,8 +2589,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-07,
-          "output_price": 5e-07
+          "input_price": 2e-7,
+          "output_price": 5e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2606,8 +2621,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-07,
-          "output_price": 5e-07
+          "input_price": 2e-7,
+          "output_price": 5e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2638,8 +2653,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-07,
-          "output_price": 5e-07
+          "input_price": 2e-7,
+          "output_price": 5e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2724,8 +2739,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 6e-06
+          "input_price": 0.000002,
+          "output_price": 0.000006
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -2810,8 +2825,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-07,
-          "output_price": 1.5e-06
+          "input_price": 2e-7,
+          "output_price": 0.0000015
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3139,8 +3154,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 5e-06
+          "input_price": 0.000002,
+          "output_price": 0.000005
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3171,8 +3186,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 5.1e-07,
-          "output_price": 7.4e-07
+          "input_price": 5.1e-7,
+          "output_price": 7.4e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3203,8 +3218,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3e-08,
-          "output_price": 4e-08
+          "input_price": 3e-8,
+          "output_price": 4e-8
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3343,8 +3358,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 5.33e-06,
-          "output_price": 1.6e-05
+          "input_price": 0.00000533,
+          "output_price": 0.000016
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3375,8 +3390,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1e-06,
-          "output_price": 1e-06
+          "input_price": 0.000001,
+          "output_price": 0.000001
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3407,8 +3422,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3e-08,
-          "output_price": 3e-08
+          "input_price": 3e-8,
+          "output_price": 3e-8
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3439,8 +3454,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3.7e-07,
-          "output_price": 3.7e-07
+          "input_price": 3.7e-7,
+          "output_price": 3.7e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3471,8 +3486,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.7e-08,
-          "output_price": 2e-07
+          "input_price": 2.7e-8,
+          "output_price": 2e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3503,8 +3518,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-08,
-          "output_price": 2e-08
+          "input_price": 2e-8,
+          "output_price": 2e-8
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3535,8 +3550,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.04e-06,
-          "output_price": 2.04e-06
+          "input_price": 0.00000204,
+          "output_price": 0.00000204
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3567,8 +3582,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 7.1e-07,
-          "output_price": 7.1e-07
+          "input_price": 7.1e-7,
+          "output_price": 7.1e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3599,8 +3614,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 6e-06
+          "input_price": 0.000002,
+          "output_price": 0.000006
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3631,8 +3646,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 4e-07,
-          "output_price": 2e-06
+          "input_price": 4e-7,
+          "output_price": 0.000002
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3663,8 +3678,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 6e-08,
-          "output_price": 1.8e-07
+          "input_price": 6e-8,
+          "output_price": 1.8e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3674,11 +3689,9 @@
       "display_name": "Moonshot-v1-128k",
       "provider": "moonshot",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -3695,22 +3708,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 1e-05,
-          "output_price": 3e-05
+          "input_price": 0.00001,
+          "output_price": 0.00003
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：Kimi / Moonshot chat-v1 定价页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "moonshot-v1-32k",
       "display_name": "Moonshot-v1-32k",
       "provider": "moonshot",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -3727,22 +3738,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 5e-06,
-          "output_price": 2e-05
+          "input_price": 0.000005,
+          "output_price": 0.00002
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：Kimi / Moonshot chat-v1 定价页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "moonshot-v1-8k",
       "display_name": "Moonshot-v1-8k",
       "provider": "moonshot",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -3759,11 +3768,11 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 1e-05
+          "input_price": 0.000002,
+          "output_price": 0.00001
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：Kimi / Moonshot chat-v1 定价页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "o1-mini",
@@ -3771,10 +3780,8 @@
       "provider": "openai",
       "mode": "chat",
       "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -3791,11 +3798,11 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.1e-06,
-          "output_price": 4.4e-06
+          "input_price": 0.0000011,
+          "output_price": 0.0000044
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：OpenAI API 定价页（本地 official 基线 checked_at=2026-04-27）；币种 USD。"
     },
     {
       "model": "o1-preview",
@@ -3803,10 +3810,8 @@
       "provider": "openai",
       "mode": "chat",
       "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -3823,11 +3828,11 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.5e-05,
-          "output_price": 6e-05
+          "input_price": 0.000015,
+          "output_price": 0.00006
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：OpenAI API 定价页（本地 official 基线 checked_at=2026-04-27）；币种 USD。"
     },
     {
       "model": "open-mistral-7b",
@@ -3855,8 +3860,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.5e-07,
-          "output_price": 2.5e-07
+          "input_price": 2.5e-7,
+          "output_price": 2.5e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3887,8 +3892,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 6e-06
+          "input_price": 0.000002,
+          "output_price": 0.000006
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3919,8 +3924,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 7e-07,
-          "output_price": 7e-07
+          "input_price": 7e-7,
+          "output_price": 7e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3951,8 +3956,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1.5e-07,
-          "output_price": 1.5e-07
+          "input_price": 1.5e-7,
+          "output_price": 1.5e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3983,8 +3988,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 6e-06
+          "input_price": 0.000002,
+          "output_price": 0.000006
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -3994,11 +3999,9 @@
       "display_name": "Qwen-long",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4015,22 +4018,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 5e-07,
-          "output_price": 2e-06
+          "input_price": 5e-7,
+          "output_price": 0.000002
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen-max",
       "display_name": "Qwen-max",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4047,11 +4048,11 @@
       },
       "patch": {
         "official": {
-          "input_price": 2.4e-06,
-          "output_price": 9.6e-06
+          "input_price": 0.0000024,
+          "output_price": 0.0000096
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen-max-longcontext",
@@ -4085,11 +4086,9 @@
       "display_name": "Qwen-plus",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4106,22 +4105,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 8.000000000000001e-07,
-          "output_price": 2e-06
+          "input_price": 8.000000000000001e-7,
+          "output_price": 0.000002
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen-turbo",
       "display_name": "Qwen-turbo",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4138,11 +4135,11 @@
       },
       "patch": {
         "official": {
-          "input_price": 3e-07,
-          "output_price": 6e-07
+          "input_price": 3e-7,
+          "output_price": 6e-7
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen2-57b-a14b-instruct",
@@ -4197,8 +4194,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 9e-07,
-          "output_price": 9e-07
+          "input_price": 9e-7,
+          "output_price": 9e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -4229,8 +4226,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-07,
-          "output_price": 2e-07
+          "input_price": 2e-7,
+          "output_price": 2e-7
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -4260,18 +4257,16 @@
         }
       },
       "patch": {},
-      "notes": ""
+      "notes": "官方来源：阿里云百炼模型调用计费页（2026-05-06 复核）标注“目前仅供免费体验”，未公开稳定标准单价；为避免误写 0 价影响导入语义，暂保持 unresolved。"
     },
     {
       "model": "qwen2.5-14b-instruct",
       "display_name": "Qwen2.5-14b-instruct",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4288,22 +4283,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 1e-06,
-          "output_price": 3e-06
+          "input_price": 0.000001,
+          "output_price": 0.000003
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen2.5-32b-instruct",
       "display_name": "Qwen2.5-32b-instruct",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4320,22 +4313,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 6e-06
+          "input_price": 0.000002,
+          "output_price": 0.000006
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen2.5-3b-instruct",
       "display_name": "Qwen2.5-3b-instruct",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4352,22 +4343,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 3e-07,
-          "output_price": 9.000000000000001e-07
+          "input_price": 3e-7,
+          "output_price": 9.000000000000001e-7
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen2.5-72b-instruct",
       "display_name": "Qwen2.5-72b-instruct",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4384,22 +4373,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 4e-06,
-          "output_price": 1.2e-05
+          "input_price": 0.000004,
+          "output_price": 0.000012
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen2.5-7b-instruct",
       "display_name": "Qwen2.5-7b-instruct",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4416,22 +4403,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 5e-07,
-          "output_price": 1e-06
+          "input_price": 5e-7,
+          "output_price": 0.000001
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen2.5-coder-14b-instruct",
       "display_name": "Qwen2.5-coder-14b-instruct",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4448,22 +4433,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 6e-06
+          "input_price": 0.000002,
+          "output_price": 0.000006
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen2.5-coder-32b-instruct",
       "display_name": "Qwen2.5-coder-32b-instruct",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4480,22 +4463,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 6e-06
+          "input_price": 0.000002,
+          "output_price": 0.000006
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen2.5-coder-7b-instruct",
       "display_name": "Qwen2.5-coder-7b-instruct",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4512,22 +4493,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 1e-06,
-          "output_price": 2e-06
+          "input_price": 0.000001,
+          "output_price": 0.000002
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwen3-235b-a22b",
       "display_name": "Qwen3-235b-a22b",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4544,22 +4523,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 8e-06
+          "input_price": 0.000002,
+          "output_price": 0.000008
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwq-32b",
       "display_name": "Qwq-32b",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4576,22 +4553,20 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 6e-06
+          "input_price": 0.000002,
+          "output_price": 0.000006
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "qwq-32b-preview",
       "display_name": "Qwq-32b-preview",
       "provider": "qwen",
       "mode": "chat",
-      "currency": "USD",
-      "pricing_status": "missing",
-      "pricing_warnings": [
-        "No stable upstream pricing source found."
-      ],
+      "currency": "CNY",
+      "pricing_status": "ok",
+      "pricing_warnings": [],
       "current": {
         "official": {
           "special_enabled": false,
@@ -4608,11 +4583,11 @@
       },
       "patch": {
         "official": {
-          "input_price": 2e-06,
-          "output_price": 6e-06
+          "input_price": 0.000002,
+          "output_price": 0.000006
         }
       },
-      "notes": "已从本地官方基线自动补全 official 价格。"
+      "notes": "官方来源：阿里云百炼模型价格页（本地 official 基线 checked_at=2026-04-27）；币种 CNY。"
     },
     {
       "model": "sonar",
@@ -4640,8 +4615,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1e-06,
-          "output_price": 1e-06
+          "input_price": 0.000001,
+          "output_price": 0.000001
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -4672,8 +4647,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3e-06,
-          "output_price": 1.5e-05
+          "input_price": 0.000003,
+          "output_price": 0.000015
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -4704,8 +4679,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 1e-06,
-          "output_price": 5e-06
+          "input_price": 0.000001,
+          "output_price": 0.000005
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"
@@ -5114,8 +5089,8 @@
       },
       "patch": {
         "official": {
-          "input_price": 3e-06,
-          "output_price": 3e-06
+          "input_price": 0.000003,
+          "output_price": 0.000003
         }
       },
       "notes": "已从本地聚合基线自动补全 official 候选价格，请人工复核来源后再导入。"

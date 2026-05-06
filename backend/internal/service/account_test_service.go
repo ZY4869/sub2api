@@ -905,7 +905,7 @@ func (s *AccountTestService) testAccountConnectionHealthCheck(c *gin.Context, ac
 		if isOpenAIGPTImageProfileModelID(modelID) {
 			return s.testOpenAIImageAccountConnection(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
 		}
-		return s.testOpenAIAccountConnection(c, account, modelID, resolvedSourceProtocol, simulatedClient)
+		return s.testOpenAIAccountConnection(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
 	}
 
 	if account.IsGrok() {
@@ -1282,7 +1282,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 }
 
 // testOpenAIAccountConnection tests an OpenAI account's connection
-func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account *Account, modelID string, sourceProtocol string, simulatedClient string) error {
+func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account *Account, modelID string, prompt string, sourceProtocol string, simulatedClient string) error {
 	ctx := c.Request.Context()
 	requestFormat := ResolveOpenAITextRequestFormatForAccount(account, "")
 
@@ -1364,7 +1364,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.Flush()
 
-	payload := createOpenAITestPayloadForRequestFormat(testModelID, requestFormat, useChatGPTOAuth)
+	payload := createOpenAITestPayloadForRequestFormat(testModelID, prompt, requestFormat, useChatGPTOAuth)
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event
@@ -1873,15 +1873,19 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 	}
 }
 
-func createOpenAITestPayloadForRequestFormat(modelID string, requestFormat string, isOAuth bool) map[string]any {
+func createOpenAITestPayloadForRequestFormat(modelID string, prompt string, requestFormat string, isOAuth bool) map[string]any {
 	if NormalizeGatewayOpenAIRequestFormat(requestFormat) == GatewayOpenAIRequestFormatChatCompletions {
-		return createOpenAIChatCompletionsTestPayload(modelID)
+		return createOpenAIChatCompletionsTestPayload(modelID, prompt)
 	}
-	return createOpenAITestPayload(modelID, isOAuth)
+	return createOpenAITestPayload(modelID, prompt, isOAuth)
 }
 
 // createOpenAITestPayload creates a test payload for OpenAI Responses API
-func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
+func createOpenAITestPayload(modelID string, prompt string, isOAuth bool) map[string]any {
+	textPrompt := strings.TrimSpace(prompt)
+	if textPrompt == "" {
+		textPrompt = "hi"
+	}
 	payload := map[string]any{
 		"model": modelID,
 		"input": []map[string]any{
@@ -1890,7 +1894,7 @@ func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
 				"content": []map[string]any{
 					{
 						"type": "input_text",
-						"text": "hi",
+						"text": textPrompt,
 					},
 				},
 			},
@@ -1909,13 +1913,17 @@ func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
 	return payload
 }
 
-func createOpenAIChatCompletionsTestPayload(modelID string) map[string]any {
+func createOpenAIChatCompletionsTestPayload(modelID string, prompt string) map[string]any {
+	textPrompt := strings.TrimSpace(prompt)
+	if textPrompt == "" {
+		textPrompt = "hi"
+	}
 	return map[string]any{
 		"model": modelID,
 		"messages": []map[string]any{
 			{
 				"role":    "user",
-				"content": "hi",
+				"content": textPrompt,
 			},
 		},
 		"stream": true,

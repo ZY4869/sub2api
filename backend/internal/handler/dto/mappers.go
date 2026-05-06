@@ -11,6 +11,9 @@ import (
 
 var accountListLiteCredentialAllowlist = map[string]struct{}{
 	"plan_type":               {},
+	"plan_type_raw":           {},
+	"plan_type_label":         {},
+	"pro_multiplier":          {},
 	"subscription_expires_at": {},
 	"tier_id":                 {},
 	"oauth_type":              {},

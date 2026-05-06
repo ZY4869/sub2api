@@ -765,7 +765,7 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 		}
 	}
 
-	payload := createOpenAITestPayload(probeModelID, true)
+	payload := createOpenAITestPayload(probeModelID, "", true)
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal openai probe payload: %w", err)

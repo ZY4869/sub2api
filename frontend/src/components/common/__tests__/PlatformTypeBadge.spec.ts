@@ -69,4 +69,39 @@ describe('PlatformTypeBadge', () => {
     expect(privacyWrapper.text()).toContain('OAuth')
     expect(privacyWrapper.text()).toContain('失败')
   })
+
+  it('prefers explicit plan label and falls back to pro multiplier formatting', () => {
+    const explicitWrapper = mount(PlatformTypeBadge, {
+      props: {
+        platform: 'openai',
+        type: 'oauth',
+        planType: 'pro',
+        planTypeLabel: 'Pro 20x'
+      } as any,
+      global: {
+        stubs: {
+          PlatformIcon: PlatformIconStub,
+          Icon: IconStub
+        }
+      }
+    })
+
+    const multiplierWrapper = mount(PlatformTypeBadge, {
+      props: {
+        platform: 'openai',
+        type: 'oauth',
+        planType: 'pro',
+        proMultiplier: 5
+      } as any,
+      global: {
+        stubs: {
+          PlatformIcon: PlatformIconStub,
+          Icon: IconStub
+        }
+      }
+    })
+
+    expect(explicitWrapper.text()).toContain('Pro 20x')
+    expect(multiplierWrapper.text()).toContain('Pro 5x')
+  })
 })

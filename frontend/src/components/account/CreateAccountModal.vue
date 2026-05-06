@@ -690,6 +690,9 @@ import {
   resolveOpenAIImageProtocolState
 } from '@/utils/openaiAccountDefaults'
 import {
+  resolveOpenAIOAuthDefaultAllowedModels
+} from '@/utils/openaiOAuthDefaults'
+import {
   DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE,
   DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT,
   applyProtocolGatewayOpenAIImageProtocolModeExtra,
@@ -841,6 +844,8 @@ const modelRestrictionEnabled = ref(true)
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
+const hasCustomizedOpenAIOAuthDefaults = ref(false)
+const applyingOpenAIOAuthDefaults = ref(false)
 const manualModels = ref<AccountManualModel[]>([])
 const modelProbeSnapshot = ref<AccountModelProbeSnapshotDraft | null>(null)
 const resolvedUpstream = ref<AccountResolvedUpstreamDraft | null>(null)
@@ -1256,12 +1261,53 @@ const handleOpenAIImageProtocolModeChange = (value: OpenAIImageProtocolMode) => 
   openAIImageProtocolMode.value = value
 }
 
+const resetOpenAIOAuthDefaultSelection = () => {
+  hasCustomizedOpenAIOAuthDefaults.value = false
+}
+
+const markOpenAIOAuthDefaultsCustomized = () => {
+  if (applyingOpenAIOAuthDefaults.value) {
+    return
+  }
+  if (form.platform !== 'openai' || accountCategory.value !== 'oauth-based') {
+    return
+  }
+  hasCustomizedOpenAIOAuthDefaults.value = true
+}
+
+const applyOpenAIOAuthPresetModels = (
+  planType?: string | null,
+  proMultiplier?: number | null,
+  force = false
+) => {
+  if (form.platform !== 'openai' || accountCategory.value !== 'oauth-based') {
+    return
+  }
+  if (!force && hasCustomizedOpenAIOAuthDefaults.value) {
+    return
+  }
+  applyingOpenAIOAuthDefaults.value = true
+  modelRestrictionEnabled.value = true
+  modelRestrictionMode.value = 'whitelist'
+  allowedModels.value = resolveOpenAIOAuthDefaultAllowedModels({
+    planType,
+    proMultiplier
+  })
+  modelMappings.value = []
+  openAIImageProtocolTouched.value = false
+  applyOpenAIImageProtocolDefaults(planType, true)
+  void nextTick(() => {
+    applyingOpenAIOAuthDefaults.value = false
+  })
+}
+
 // Watchers
 watch(
   () => props.show,
   (newVal) => {
     if (newVal) {
       void ensureModelRegistryFresh()
+      resetOpenAIOAuthDefaultSelection()
       modelRestrictionMode.value = form.platform === 'protocol_gateway' ? 'mapping' : 'whitelist'
       modelRestrictionEnabled.value = true
       allowedModels.value = []
@@ -1287,6 +1333,7 @@ watch(
       }
       openAIImageProtocolTouched.value = false
       applyOpenAIImageProtocolDefaults(undefined, true)
+      applyOpenAIOAuthPresetModels(undefined, null, true)
     } else {
       resetForm()
     }
@@ -1334,6 +1381,7 @@ watch(
 watch(
   () => form.platform,
   (newPlatform, previousPlatform) => {
+    resetOpenAIOAuthDefaultSelection()
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     actualModelLocked.value = true
     modelRestrictionEnabled.value = true
@@ -1438,6 +1486,7 @@ watch(
       codexCLIOnlyEnabled.value = false
     } else {
       applyOpenAIImageProtocolDefaults(undefined, true)
+      applyOpenAIOAuthPresetModels(undefined, null, true)
     }
     if (effectivePlatform.value !== 'anthropic') {
       anthropicPassthroughEnabled.value = false
@@ -1491,8 +1540,21 @@ watch(
     if (form.platform === 'openai') {
       openAIImageProtocolTouched.value = false
       applyOpenAIImageProtocolDefaults(undefined, true)
+      if (accountCategory.value === 'oauth-based') {
+        applyOpenAIOAuthPresetModels(undefined, null, true)
+      } else {
+        resetOpenAIOAuthDefaultSelection()
+      }
     }
   }
+)
+
+watch(
+  [allowedModels, modelMappings, modelRestrictionMode],
+  () => {
+    markOpenAIOAuthDefaultsCustomized()
+  },
+  { deep: true }
 )
 
 watch(
@@ -1997,6 +2059,7 @@ const { handleOpenAIExchange } = useCreateAccountOpenAIExchange({
   modelRestrictionMode,
   allowedModels,
   modelMappings,
+  hasCustomizedOpenAIDefaults: hasCustomizedOpenAIOAuthDefaults,
   buildAccountExtra,
   applyOpenAIImageProtocolDefaults: (planType) => applyOpenAIImageProtocolDefaults(planType),
   afterCreateImportModels: maybeImportCreatedAccounts,
@@ -2013,6 +2076,7 @@ const { handleOpenAIValidateRT } = useCreateAccountOpenAIRefreshTokenValidation(
   modelRestrictionMode,
   allowedModels,
   modelMappings,
+  hasCustomizedOpenAIDefaults: hasCustomizedOpenAIOAuthDefaults,
   buildAccountExtra,
   applyOpenAIImageProtocolDefaults: (planType) => applyOpenAIImageProtocolDefaults(planType),
   afterCreateImportModels: maybeImportCreatedAccounts,

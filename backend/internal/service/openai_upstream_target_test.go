@@ -56,3 +56,22 @@ func TestResolveDeepSeekTargetURLs_TrimAnthropicAndBetaSuffixes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "https://relay.example.com/beta/completions", completionsURL)
 }
+
+func TestBuildOpenAITargetURLForCopilot(t *testing.T) {
+	require.Equal(t, "https://api.githubcopilot.com/responses", buildOpenAIResponsesURLForPlatform("", PlatformCopilot))
+	require.Equal(t, "https://api.githubcopilot.com/chat/completions", buildOpenAIChatCompletionsURLForPlatform("", PlatformCopilot))
+	require.Equal(t, "https://api.githubcopilot.com/models", buildOpenAIModelsURLForPlatform("", PlatformCopilot))
+	require.Equal(t, "https://api.githubcopilot.com/images/generations", buildOpenAIImagesURLForPlatform("", PlatformCopilot, "generations"))
+	require.Equal(t, "https://relay.example.com/responses", buildOpenAIResponsesURLForPlatform("https://relay.example.com", PlatformCopilot))
+	require.Equal(t, "https://relay.example.com/chat/completions", buildOpenAIChatCompletionsURLForPlatform("https://relay.example.com", PlatformCopilot))
+	require.Equal(t, "https://relay.example.com/models", buildOpenAIModelsURLForPlatform("https://relay.example.com", PlatformCopilot))
+	require.Equal(t, "https://relay.example.com/images/edits", buildOpenAIImagesURLForPlatform("https://relay.example.com", PlatformCopilot, "edits"))
+}
+
+func TestTrustedCopilotAPIBaseURL(t *testing.T) {
+	require.Equal(t, "https://api.githubcopilot.com", trustedCopilotAPIBaseURL("https://api.githubcopilot.com/"))
+	require.Equal(t, "https://api.business.githubcopilot.com/path", trustedCopilotAPIBaseURL("https://api.business.githubcopilot.com/path/"))
+	require.Equal(t, "", trustedCopilotAPIBaseURL("http://api.githubcopilot.com"))
+	require.Equal(t, "", trustedCopilotAPIBaseURL("https://example.com/copilot"))
+	require.Equal(t, "", trustedCopilotAPIBaseURL("not-a-url"))
+}

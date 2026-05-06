@@ -247,9 +247,13 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 
 	// 3) Populate cache with TTL.
 	if p.tokenCache != nil {
+		effectiveAccount := account
+		usedLatestAccount := false
 		latestAccount, isStale := CheckTokenVersion(ctx, account, p.accountRepo)
 		if isStale && latestAccount != nil {
 			slog.Debug("openai_token_version_stale_use_latest", "account_id", account.ID)
+			effectiveAccount = latestAccount
+			usedLatestAccount = true
 			if latestAccount.Platform == PlatformCopilot {
 				if p.copilotOAuthService == nil {
 					return "", errors.New("copilot oauth service is not configured")
@@ -260,37 +264,39 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 				}
 				p.persistCopilotRuntimeMetadata(ctx, latestAccount, copilotTokenInfo)
 				accessToken = strings.TrimSpace(copilotTokenInfo.Token)
+				copilotTokenExpiresAt = copilotTokenInfo.ExpiresAt
 			} else {
 				accessToken = latestAccount.GetOpenAIAccessToken()
 				if strings.TrimSpace(accessToken) == "" {
 					return "", errors.New("access_token not found after version check")
 				}
+				expiresAt = latestAccount.GetCredentialAsTime("expires_at")
 			}
-		} else {
-			ttl := 30 * time.Minute
-			if refreshFailed {
-				if p.refreshPolicy.FailureTTL > 0 {
-					ttl = p.refreshPolicy.FailureTTL
-				} else {
-					ttl = time.Minute
-				}
-				slog.Debug("openai_token_cache_short_ttl", "account_id", account.ID, "reason", "refresh_failed")
-			} else if account.Platform == PlatformCopilot {
-				ttl = copilotTokenCacheTTL(copilotTokenExpiresAt)
-			} else if expiresAt != nil {
-				until := time.Until(*expiresAt)
-				switch {
-				case until > openAITokenCacheSkew:
-					ttl = until - openAITokenCacheSkew
-				case until > 0:
-					ttl = until
-				default:
-					ttl = time.Minute
-				}
+		}
+
+		ttl := 30 * time.Minute
+		if refreshFailed && !usedLatestAccount {
+			if p.refreshPolicy.FailureTTL > 0 {
+				ttl = p.refreshPolicy.FailureTTL
+			} else {
+				ttl = time.Minute
 			}
-			if err := p.tokenCache.SetAccessToken(ctx, cacheKey, accessToken, ttl); err != nil {
-				slog.Warn("openai_token_cache_set_failed", "account_id", account.ID, "error", err)
+			slog.Debug("openai_token_cache_short_ttl", "account_id", account.ID, "reason", "refresh_failed")
+		} else if effectiveAccount.Platform == PlatformCopilot {
+			ttl = copilotTokenCacheTTL(copilotTokenExpiresAt)
+		} else if expiresAt != nil {
+			until := time.Until(*expiresAt)
+			switch {
+			case until > openAITokenCacheSkew:
+				ttl = until - openAITokenCacheSkew
+			case until > 0:
+				ttl = until
+			default:
+				ttl = time.Minute
 			}
+		}
+		if err := p.tokenCache.SetAccessToken(ctx, cacheKey, accessToken, ttl); err != nil {
+			slog.Warn("openai_token_cache_set_failed", "account_id", account.ID, "error", err)
 		}
 	}
 

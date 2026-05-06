@@ -40,6 +40,12 @@
           :gateway-protocol="account.gateway_protocol"
           :type="account.type"
           :plan-type="String(account.credentials?.plan_type || '') || undefined"
+          :plan-type-label="String(account.credentials?.plan_type_label || '') || undefined"
+          :pro-multiplier="
+            typeof account.credentials?.pro_multiplier === 'number'
+              ? account.credentials.pro_multiplier
+              : undefined
+          "
           :privacy-mode="String(account.extra?.privacy_mode || '') || undefined"
           :subscription-expires-at="
             String(account.credentials?.subscription_expires_at || '') || undefined

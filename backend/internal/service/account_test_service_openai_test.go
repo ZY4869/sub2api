@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -88,7 +89,7 @@ func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
 	require.NoError(t, err)
 	require.NotEmpty(t, repo.updatedExtra)
 	require.Equal(t, 42.0, repo.updatedExtra["codex_5h_used_percent"])
@@ -119,7 +120,7 @@ func TestAccountTestService_OpenAI429PersistsSnapshotAndRateLimit(t *testing.T) 
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
 	require.Error(t, err)
 	require.Len(t, repo.updateExtraCalls, 1)
 	require.Equal(t, 100.0, repo.updateExtraCalls[0]["codex_5h_used_percent"])
@@ -158,7 +159,7 @@ func TestAccountTestService_OpenAISpark429PersistsSparkScopeSnapshot(t *testing.
 		},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.3-codex-spark", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.3-codex-spark", "", "", "")
 	require.Error(t, err)
 	require.Len(t, repo.updateExtraCalls, 1)
 	require.Equal(t, 40.0, repo.updateExtraCalls[0][codexSpark5hUsedPercentKey])
@@ -189,7 +190,7 @@ func TestAccountTestService_OpenAIUnauthorizedDetailMarksAccountError(t *testing
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
 
 	require.Error(t, err)
 	require.Len(t, repo.setErrorCalls, 1)
@@ -220,7 +221,7 @@ func TestAccountTestService_OpenAIRuntimeQuotaPrecheckBlocksBeforeSSE(t *testing
 		},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "普通额度冷却中")
@@ -256,7 +257,7 @@ func TestAccountTestService_OpenAIRuntimeQuotaPrecheckAllowsOtherScope(t *testin
 		},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.3-codex-spark", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.3-codex-spark", "", "", "")
 
 	require.NoError(t, err)
 	require.Equal(t, 1, upstream.callCount)
@@ -300,7 +301,7 @@ func TestAccountTestService_OpenAISuccessProbesKnownModelsInBackground(t *testin
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
 	require.NoError(t, err)
 	require.Len(t, repo.updateExtraCalls, 2)
 	require.Equal(t, OpenAIKnownModelsSourceTestProbe, repo.updateExtraCalls[1]["openai_known_models_source"])
@@ -343,7 +344,7 @@ func TestAccountTestService_OpenAISuccessProbeFailureKeepsExistingKnownModels(t 
 		},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
 	require.NoError(t, err)
 	require.Len(t, repo.updateExtraCalls, 0)
 	require.Equal(t, []string{"existing-model"}, account.Extra["openai_known_models"])
@@ -408,7 +409,7 @@ func TestAccountTestService_OpenAIChatGPTOAuthExplicitUnsupportedModelFallsBackT
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.1-codex-mini", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.1-codex-mini", "", "", "")
 	require.NoError(t, err)
 	require.Len(t, upstream.requests, 1)
 
@@ -441,10 +442,107 @@ func TestAccountTestService_OpenAIProtocolGatewayChatPreferenceUsesChatCompletio
 		},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", PlatformOpenAI, "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", PlatformOpenAI, "")
 	require.NoError(t, err)
 	require.Len(t, upstream.requests, 1)
 	require.Equal(t, "/v1/chat/completions", upstream.requests[0].URL.Path)
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAIHealthCheckUsesCustomPrompt(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader("data: {\"type\":\"response.completed\"}\n\n"))
+
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{httpUpstream: upstream}
+	account := &Account{
+		ID:          120,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "Say hello from the health check.", "", "")
+	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+
+	body, readErr := io.ReadAll(upstream.requests[0].Body)
+	require.NoError(t, readErr)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+	input, ok := payload["input"].([]any)
+	require.True(t, ok)
+	require.NotEmpty(t, input)
+	firstItem, ok := input[0].(map[string]any)
+	require.True(t, ok)
+	content, ok := firstItem["content"].([]any)
+	require.True(t, ok)
+	require.NotEmpty(t, content)
+	firstContent, ok := content[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "Say hello from the health check.", firstContent["text"])
+}
+
+func TestAccountTestService_CopilotOAuthUsesTokenProviderAndCopilotHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Header.Set("Content-Type", "text/event-stream")
+	resp.Body = io.NopCloser(strings.NewReader("data: {\"type\":\"response.completed\"}\n\n"))
+
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	provider := NewOpenAITokenProvider(nil, nil, nil)
+	provider.SetCopilotOAuthService(&CopilotOAuthService{})
+	account := &Account{
+		ID:          903,
+		Platform:    PlatformCopilot,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "github-token"},
+	}
+	var exchangeAuthorization string
+	var exchangeAccept string
+	var exchangeUserAgent string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		exchangeAuthorization = req.Header.Get("Authorization")
+		exchangeAccept = req.Header.Get("Accept")
+		exchangeUserAgent = req.Header.Get("User-Agent")
+		_, _ = io.WriteString(w, `{"token":"copilot-runtime-token","expires_at":4102444800,"endpoints":{"api":"https://api.githubcopilot.com"}}`)
+	}))
+	defer server.Close()
+
+	oldInternalTokenURL := copilotInternalTokenURL
+	copilotInternalTokenURL = server.URL
+	defer func() {
+		copilotInternalTokenURL = oldInternalTokenURL
+	}()
+
+	svc := &AccountTestService{
+		httpUpstream:        upstream,
+		openAITokenProvider: provider,
+		cfg:                 &config.Config{},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
+	require.NoError(t, err)
+	require.Equal(t, "token github-token", exchangeAuthorization)
+	require.Equal(t, "application/json", exchangeAccept)
+	require.Equal(t, resolveCopilotRequestUserAgent(account), exchangeUserAgent)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "https://api.githubcopilot.com/responses", upstream.requests[0].URL.String())
+	require.Equal(t, "Bearer copilot-runtime-token", upstream.requests[0].Header.Get("Authorization"))
+	require.Equal(t, "text/event-stream", upstream.requests[0].Header.Get("Accept"))
+	require.Equal(t, copilotDefaultEditorVersion, upstream.requests[0].Header.Get("Editor-Version"))
+	require.Equal(t, copilotDefaultPluginVersion, upstream.requests[0].Header.Get("Editor-Plugin-Version"))
+	require.Equal(t, copilotDefaultIntegrationID, upstream.requests[0].Header.Get("Copilot-Integration-Id"))
+	require.Equal(t, copilotDefaultOpenAIIntent, upstream.requests[0].Header.Get("Openai-Intent"))
+	require.Equal(t, copilotGitHubAPIVersion, upstream.requests[0].Header.Get("X-GitHub-Api-Version"))
 	require.Contains(t, recorder.Body.String(), "test_complete")
 }
 

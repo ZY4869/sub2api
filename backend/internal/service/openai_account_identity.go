@@ -1,11 +1,15 @@
 package service
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 )
+
+var openAIProMultiplierPattern = regexp.MustCompile(`(?i)(?:^|[^0-9])(5|20)\s*x(?:$|[^a-z0-9])`)
 
 const (
 	OpenAIKnownModelsSourceImportModels = "import_models"
@@ -31,9 +35,66 @@ func normalizeOpenAIPlanType(raw string) string {
 		return "pro"
 	case "chatgptfree", "free":
 		return "free"
-	default:
-		return trimmed
 	}
+	if strings.HasPrefix(normalized, "chatgptpro") || strings.HasPrefix(normalized, "pro") {
+		return "pro"
+	}
+	if strings.HasPrefix(normalized, "chatgptplus") || strings.HasPrefix(normalized, "plus") {
+		return "plus"
+	}
+	if strings.HasPrefix(normalized, "chatgptteam") || strings.HasPrefix(normalized, "team") {
+		return "team"
+	}
+	if strings.HasPrefix(normalized, "chatgptfree") || strings.HasPrefix(normalized, "free") {
+		return "free"
+	}
+	return trimmed
+}
+
+func extractOpenAIProMultiplier(raw string) int {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return 0
+	}
+	if normalized := strings.ToLower(trimmed); strings.Contains(normalized, "pro") {
+		if matches := openAIProMultiplierPattern.FindStringSubmatch(normalized); len(matches) >= 2 {
+			switch matches[1] {
+			case "5":
+				return 5
+			case "20":
+				return 20
+			}
+		}
+		if strings.Contains(normalized, "20x") {
+			return 20
+		}
+		if strings.Contains(normalized, "5x") {
+			return 5
+		}
+	}
+	return 0
+}
+
+func buildOpenAIPlanTypeLabel(rawPlanType string, proMultiplier int) string {
+	normalizedPlanType := normalizeOpenAIPlanType(rawPlanType)
+	switch normalizedPlanType {
+	case "pro":
+		if proMultiplier > 0 {
+			return fmt.Sprintf("Pro %dx", proMultiplier)
+		}
+		return "Pro"
+	case "plus":
+		return "Plus"
+	case "team":
+		return "Team"
+	case "free":
+		return "Free"
+	}
+	trimmed := strings.TrimSpace(rawPlanType)
+	if trimmed == "" {
+		return ""
+	}
+	return trimmed
 }
 
 func cloneStringAnyMap(src map[string]any) map[string]any {
@@ -101,6 +162,40 @@ func EnrichOpenAIOAuthCredentials(platform, accountType string, credentials map[
 		changed = true
 		cloned = true
 	}
+	planTypeRaw := stringValueFromAny(credentials["plan_type_raw"])
+	if planTypeRaw == "" && planType != "" {
+		if !cloned {
+			out = cloneStringAnyMap(credentials)
+			cloned = true
+		}
+		out["plan_type_raw"] = planType
+		changed = true
+		planTypeRaw = planType
+	}
+	if normalizeOpenAIPlanType(planType) == "pro" {
+		proMultiplier := extractOpenAIProMultiplier(firstAvailableOpenAIPlanString(planTypeRaw, planType))
+		if proMultiplier > 0 {
+			if !cloned {
+				out = cloneStringAnyMap(credentials)
+				cloned = true
+			}
+			if existing, ok := out["pro_multiplier"].(int); !ok || existing != proMultiplier {
+				out["pro_multiplier"] = proMultiplier
+				changed = true
+			}
+		}
+		label := buildOpenAIPlanTypeLabel(firstAvailableOpenAIPlanString(planTypeRaw, planType), proMultiplier)
+		if label != "" {
+			if !cloned {
+				out = cloneStringAnyMap(credentials)
+				cloned = true
+			}
+			if stringValueFromAny(out["plan_type_label"]) != label {
+				out["plan_type_label"] = label
+				changed = true
+			}
+		}
+	}
 
 	idToken := stringValueFromAny(credentials["id_token"])
 	if idToken == "" {
@@ -135,8 +230,34 @@ func EnrichOpenAIOAuthCredentials(platform, accountType string, credentials map[
 	setIfMissing("chatgpt_user_id", userInfo.ChatGPTUserID)
 	setIfMissing("organization_id", userInfo.OrganizationID)
 	setIfMissing("plan_type", normalizeOpenAIPlanType(userInfo.PlanType))
+	setIfMissing("plan_type_raw", userInfo.PlanType)
+
+	if rawPlanType := stringValueFromAny(out["plan_type_raw"]); rawPlanType != "" {
+		proMultiplier := extractOpenAIProMultiplier(rawPlanType)
+		if proMultiplier > 0 {
+			if _, exists := out["pro_multiplier"]; !exists {
+				out["pro_multiplier"] = proMultiplier
+				changed = true
+			}
+		}
+		if _, exists := out["plan_type_label"]; !exists {
+			if label := buildOpenAIPlanTypeLabel(rawPlanType, proMultiplier); label != "" {
+				out["plan_type_label"] = label
+				changed = true
+			}
+		}
+	}
 
 	return out, changed
+}
+
+func firstAvailableOpenAIPlanString(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func BuildOpenAIKnownModelsExtra(models []string, updatedAt time.Time, source string) map[string]any {

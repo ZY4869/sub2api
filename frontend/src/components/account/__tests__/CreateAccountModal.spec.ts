@@ -578,6 +578,19 @@ describe('CreateAccountModal', () => {
     )
   })
 
+  it('keeps copilot and kiro on the dedicated oauth finalize flow', () => {
+    expect(source).toContain("const showOAuthFinalizeStep = computed(() =>")
+    expect(source).toContain("form.platform === 'copilot' || form.platform === 'kiro'")
+    expect(source).toContain("<AccountCopilotDeviceFlowPanel")
+    expect(source).toContain("<AccountKiroAuthPanel")
+  })
+
+  it('resets copilot and kiro auth panels when platform changes or the flow goes back', () => {
+    expect(source).toContain('copilotDeviceFlowRef.value?.reset()')
+    expect(source).toContain('kiroAuthRef.value?.reset()')
+    expect(source).toContain('copilotSubmitting.value = false')
+  })
+
   it('embeds the Grok batch import panel alongside the single-account Grok fields', () => {
     expect(source).toContain('AccountGrokImportPanel')
     expect(source).toContain("@imported=\"handleGrokImportCompleted\"")
@@ -802,13 +815,13 @@ describe('CreateAccountModal', () => {
     })
   })
 
-  it('keeps the openai login flow whitelist empty until models are explicitly selected', async () => {
+  it('preloads the local default whitelist for the openai login flow', async () => {
     const wrapper = mountModal()
 
     await wrapper.get('[data-testid="select-openai"]').trigger('click')
 
     expect(wrapper.get('[data-testid="oauth-model-scope-enabled-prop"]').text()).toBe('true')
-    expect(wrapper.get('[data-testid="oauth-allowed-models-prop"]').text()).toBe('')
+    expect(wrapper.get('[data-testid="oauth-allowed-models-prop"]').text()).toContain('gpt-5.4')
   })
 
   it('persists the protocol gateway OpenAI request format selection', async () => {

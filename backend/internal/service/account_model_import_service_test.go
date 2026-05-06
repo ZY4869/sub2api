@@ -418,6 +418,34 @@ func TestImportAccountModels_ImportsKiroModelsFromBuiltinCatalog(t *testing.T) {
 	require.Equal(t, len(result.DetectedModels), countImportModelResults(result.ModelResults, "imported"))
 }
 
+func TestProbeAccountModels_CopilotFallsBackToStaticCatalogOnUpstreamFailure(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusUnauthorized,
+		body:       `{"error":"unauthorized"}`,
+	}
+	svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+	svc.openAITokenProvider = &OpenAITokenProvider{
+		tokenCache: &accountModelImportGeminiTokenCacheStub{token: "copilot-runtime-token"},
+	}
+	account := &Account{
+		ID:       116,
+		Platform: PlatformCopilot,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"access_token": "github-token",
+		},
+	}
+
+	result, err := svc.ProbeAccountModels(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, accountModelProbeSourceCopilotStaticCatalog, result.ProbeSource)
+	require.Contains(t, result.ProbeNotice, "fallback static catalog")
+	require.NotEmpty(t, result.DetectedModels)
+}
+
 func TestImportAccountModels_ImportsGeminiModelsFromAIStudioListing(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)

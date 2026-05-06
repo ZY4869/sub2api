@@ -5,6 +5,10 @@ import { adminAPI } from '@/api/admin'
 import { buildModelMappingObject } from '@/composables/useModelWhitelist'
 import type { Account } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
+import {
+  applyOpenAIOAuthDefaultModelState,
+  buildOpenAIOAuthCreateExtra,
+} from '@/utils/openaiOAuthDefaults'
 
 interface OpenAIOAuthClient {
   sessionId: Ref<string>
@@ -43,6 +47,7 @@ interface UseCreateAccountOpenAIExchangeOptions {
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
   modelMappings: Ref<ModelMapping[]>
+  hasCustomizedOpenAIDefaults: Ref<boolean>
   buildAccountExtra: (base?: Record<string, unknown>) => Record<string, unknown> | undefined
   applyOpenAIImageProtocolDefaults?: (planType?: string | null) => void
   afterCreateImportModels: (accounts: Account[]) => Promise<void>
@@ -77,11 +82,29 @@ export function useCreateAccountOpenAIExchange(options: UseCreateAccountOpenAIEx
       )
       if (!tokenInfo) return
 
+      const nextDefaults = applyOpenAIOAuthDefaultModelState({
+        planType: String(tokenInfo.plan_type || ''),
+        proMultiplier:
+          typeof tokenInfo.pro_multiplier === 'number' ? tokenInfo.pro_multiplier : null,
+        currentAllowedModels: options.allowedModels.value,
+        currentModelMappings: options.modelMappings.value,
+        modelRestrictionMode: options.modelRestrictionMode.value,
+        userCustomized: options.hasCustomizedOpenAIDefaults.value,
+      })
+      options.allowedModels.value = nextDefaults.allowedModels
+      options.modelMappings.value = nextDefaults.modelMappings
       options.applyOpenAIImageProtocolDefaults?.(String(tokenInfo.plan_type || ''))
 
       const credentials = oauthClient.buildCredentials(tokenInfo)
       const oauthExtra = oauthClient.buildExtraInfo(tokenInfo)
-      const extra = options.buildAccountExtra(oauthExtra)
+      const extra = buildOpenAIOAuthCreateExtra(options.buildAccountExtra(oauthExtra), {
+        modelRestrictionEnabled:
+          options.modelRestrictionEnabled.value &&
+          !options.isOpenAIModelRestrictionDisabled.value,
+        modelRestrictionMode: options.modelRestrictionMode.value,
+        allowedModels: options.allowedModels.value,
+        modelMappings: options.modelMappings.value,
+      })
 
       if (
         options.modelRestrictionEnabled.value &&

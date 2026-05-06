@@ -8,6 +8,7 @@ export default {
     thisMonth: '本月',
     lastMonth: '上月',
     last7Days: '近 7 天',
+    last24Hours: '近 24 小时',
     last14Days: '近 14 天',
     last30Days: '近 30 天',
     custom: '自定义',

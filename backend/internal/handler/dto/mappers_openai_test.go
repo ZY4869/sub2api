@@ -32,7 +32,7 @@ func TestAccountFromServiceShallow_EnrichesOpenAIIdentityFromIDToken(t *testing.
 		"https://api.openai.com/auth": map[string]any{
 			"chatgpt_account_id": "acc_1234567890",
 			"chatgpt_user_id":    "user_123",
-			"chatgpt_plan_type":  "chatgptpro",
+			"chatgpt_plan_type":  "chatgptpro20x",
 			"organizations": []map[string]any{
 				{"id": "org_1", "is_default": true},
 			},
@@ -57,6 +57,9 @@ func TestAccountFromServiceShallow_EnrichesOpenAIIdentityFromIDToken(t *testing.
 	require.Equal(t, "user_123", dtoAccount.Credentials["chatgpt_user_id"])
 	require.Equal(t, "org_1", dtoAccount.Credentials["organization_id"])
 	require.Equal(t, "pro", dtoAccount.Credentials["plan_type"])
+	require.Equal(t, "chatgptpro20x", dtoAccount.Credentials["plan_type_raw"])
+	require.Equal(t, "Pro 20x", dtoAccount.Credentials["plan_type_label"])
+	require.Equal(t, 20, dtoAccount.Credentials["pro_multiplier"])
 	require.NotContains(t, originalCredentials, "email")
 	require.NotContains(t, originalCredentials, "plan_type")
 }
@@ -68,14 +71,17 @@ func TestAccountFromServiceShallow_NormalizesPlanTypeWithoutMutatingSource(t *te
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
 		Credentials: map[string]any{
-			"plan_type": "chatgptpro",
+			"plan_type": "chatgptpro5x",
 		},
 	}
 
 	dtoAccount := AccountFromServiceShallow(account)
 	require.NotNil(t, dtoAccount)
 	require.Equal(t, "pro", dtoAccount.Credentials["plan_type"])
-	require.Equal(t, "chatgptpro", account.Credentials["plan_type"])
+	require.Equal(t, "chatgptpro5x", dtoAccount.Credentials["plan_type_raw"])
+	require.Equal(t, "Pro 5x", dtoAccount.Credentials["plan_type_label"])
+	require.Equal(t, 5, dtoAccount.Credentials["pro_multiplier"])
+	require.Equal(t, "chatgptpro5x", account.Credentials["plan_type"])
 }
 
 func TestAccountFromServiceShallow_CanonicalizesBaiduPlatform(t *testing.T) {

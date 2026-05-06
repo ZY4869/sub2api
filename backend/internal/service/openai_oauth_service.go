@@ -121,6 +121,9 @@ type OpenAITokenInfo struct {
 	ChatGPTUserID         string `json:"chatgpt_user_id,omitempty"`
 	OrganizationID        string `json:"organization_id,omitempty"`
 	PlanType              string `json:"plan_type,omitempty"`
+	PlanTypeRaw           string `json:"plan_type_raw,omitempty"`
+	PlanTypeLabel         string `json:"plan_type_label,omitempty"`
+	ProMultiplier         int    `json:"pro_multiplier,omitempty"`
 	SubscriptionExpiresAt string `json:"subscription_expires_at,omitempty"`
 	PrivacyMode           string `json:"privacy_mode,omitempty"`
 }
@@ -133,7 +136,10 @@ func applyOpenAIUserInfo(tokenInfo *OpenAITokenInfo, userInfo *openai.UserInfo) 
 	tokenInfo.ChatGPTAccountID = userInfo.ChatGPTAccountID
 	tokenInfo.ChatGPTUserID = userInfo.ChatGPTUserID
 	tokenInfo.OrganizationID = userInfo.OrganizationID
+	tokenInfo.PlanTypeRaw = userInfo.PlanType
 	tokenInfo.PlanType = normalizeOpenAIPlanType(userInfo.PlanType)
+	tokenInfo.ProMultiplier = extractOpenAIProMultiplier(userInfo.PlanType)
+	tokenInfo.PlanTypeLabel = buildOpenAIPlanTypeLabel(userInfo.PlanType, tokenInfo.ProMultiplier)
 }
 
 // ExchangeCode exchanges authorization code for tokens
@@ -263,7 +269,10 @@ func (s *OpenAIOAuthService) enrichTokenInfo(ctx context.Context, tokenInfo *Ope
 
 	if info := fetchChatGPTAccountInfo(ctx, s.privacyClientFactory, tokenInfo.AccessToken, proxyURL, orgID); info != nil {
 		if info.PlanType != "" {
+			tokenInfo.PlanTypeRaw = info.PlanType
 			tokenInfo.PlanType = normalizeOpenAIPlanType(info.PlanType)
+			tokenInfo.ProMultiplier = info.ProMultiplier
+			tokenInfo.PlanTypeLabel = buildOpenAIPlanTypeLabel(info.PlanType, info.ProMultiplier)
 		}
 		if info.SubscriptionExpiresAt != "" {
 			tokenInfo.SubscriptionExpiresAt = info.SubscriptionExpiresAt
@@ -299,7 +308,17 @@ func (s *OpenAIOAuthService) RefreshAccountToken(ctx context.Context, account *A
 				ChatGPTUserID:         account.GetCredential("chatgpt_user_id"),
 				OrganizationID:        account.GetCredential("organization_id"),
 				PlanType:              account.GetCredential("plan_type"),
+				PlanTypeRaw:           account.GetCredential("plan_type_raw"),
+				PlanTypeLabel:         account.GetCredential("plan_type_label"),
 				SubscriptionExpiresAt: account.GetCredential("subscription_expires_at"),
+			}
+			if proMultiplier := account.GetCredential("pro_multiplier"); proMultiplier != "" {
+				switch strings.TrimSpace(proMultiplier) {
+				case "5":
+					tokenInfo.ProMultiplier = 5
+				case "20":
+					tokenInfo.ProMultiplier = 20
+				}
 			}
 			if expiresAt := account.GetCredentialAsTime("expires_at"); expiresAt != nil {
 				tokenInfo.ExpiresAt = expiresAt.Unix()
@@ -352,6 +371,15 @@ func (s *OpenAIOAuthService) BuildAccountCredentials(tokenInfo *OpenAITokenInfo)
 	}
 	if tokenInfo.PlanType != "" {
 		creds["plan_type"] = normalizeOpenAIPlanType(tokenInfo.PlanType)
+	}
+	if strings.TrimSpace(tokenInfo.PlanTypeRaw) != "" {
+		creds["plan_type_raw"] = strings.TrimSpace(tokenInfo.PlanTypeRaw)
+	}
+	if strings.TrimSpace(tokenInfo.PlanTypeLabel) != "" {
+		creds["plan_type_label"] = strings.TrimSpace(tokenInfo.PlanTypeLabel)
+	}
+	if tokenInfo.ProMultiplier > 0 {
+		creds["pro_multiplier"] = tokenInfo.ProMultiplier
 	}
 	if tokenInfo.SubscriptionExpiresAt != "" {
 		creds["subscription_expires_at"] = tokenInfo.SubscriptionExpiresAt

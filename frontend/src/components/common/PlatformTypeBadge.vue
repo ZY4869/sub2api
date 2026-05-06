@@ -82,6 +82,8 @@ interface Props {
   gatewayProtocol?: GatewayProtocol
   type: AccountType
   planType?: string
+  planTypeLabel?: string
+  proMultiplier?: number | null
   privacyMode?: string
   subscriptionExpiresAt?: string
 }
@@ -132,6 +134,7 @@ const typeLabel = computed(() => {
 })
 
 const planLabel = computed(() => {
+  if (props.planTypeLabel?.trim()) return props.planTypeLabel.trim()
   if (!props.planType) return ''
   const lower = props.planType.toLowerCase()
   switch (lower) {
@@ -141,7 +144,9 @@ const planLabel = computed(() => {
       return 'Team'
     case 'chatgptpro':
     case 'pro':
-      return 'Pro'
+      return typeof props.proMultiplier === 'number' && props.proMultiplier > 0
+        ? `Pro ${props.proMultiplier}x`
+        : 'Pro'
     case 'free':
       return 'Free'
     default:

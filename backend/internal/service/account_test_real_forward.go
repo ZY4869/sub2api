@@ -306,7 +306,7 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 		if isOpenAIGPTImageProfileModelID(modelID) {
 			return s.testOpenAIImageAccountConnection(c, account, modelID, prompt, "", simulatedClient)
 		}
-		return s.testOpenAIAccountConnection(c, account, modelID, "", simulatedClient)
+		return s.testOpenAIAccountConnection(c, account, modelID, prompt, "", simulatedClient)
 	}
 
 	if isOpenAIGPTImageProfileModelID(modelID) {
@@ -318,7 +318,7 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 
 	requestFormat := ResolveOpenAITextRequestFormatForAccount(account, "")
 	testModelID := resolveOpenAITestModelID(c.Request.Context(), account, modelID, s.modelRegistryService)
-	body, err := json.Marshal(createOpenAITestPayloadForRequestFormat(testModelID, requestFormat, isChatGPTOpenAIOAuthAccount(account)))
+	body, err := json.Marshal(createOpenAITestPayloadForRequestFormat(testModelID, prompt, requestFormat, isChatGPTOpenAIOAuthAccount(account)))
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to encode OpenAI test payload")
 	}

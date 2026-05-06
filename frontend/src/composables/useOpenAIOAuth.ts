@@ -18,6 +18,9 @@ export interface OpenAITokenInfo {
   chatgpt_user_id?: string
   organization_id?: string
   plan_type?: string
+  plan_type_raw?: string
+  plan_type_label?: string
+  pro_multiplier?: number
   [key: string]: unknown
 }
 
@@ -174,6 +177,15 @@ export function useOpenAIOAuth(options?: UseOpenAIOAuthOptions) {
     }
     if (tokenInfo.plan_type) {
       creds.plan_type = tokenInfo.plan_type
+    }
+    if (tokenInfo.plan_type_raw) {
+      creds.plan_type_raw = tokenInfo.plan_type_raw
+    }
+    if (tokenInfo.plan_type_label) {
+      creds.plan_type_label = tokenInfo.plan_type_label
+    }
+    if (typeof tokenInfo.pro_multiplier === 'number') {
+      creds.pro_multiplier = tokenInfo.pro_multiplier
     }
 
     // Include OpenAI specific IDs (required for forwarding)

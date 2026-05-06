@@ -89,8 +89,10 @@ func disableOpenAITraining(ctx context.Context, clientFactory PrivacyClientFacto
 // ChatGPTAccountInfo stores best-effort account metadata fetched from ChatGPT backend-api.
 type ChatGPTAccountInfo struct {
 	PlanType              string
+	PlanTypeLabel         string
 	Email                 string
 	SubscriptionExpiresAt string
+	ProMultiplier         int
 }
 
 const chatGPTAccountsCheckURL = "https://chatgpt.com/backend-api/accounts/check/v4-2023-04-27"
@@ -149,8 +151,9 @@ func fetchChatGPTAccountInfo(ctx context.Context, clientFactory PrivacyClientFac
 
 	if info.PlanType == "" {
 		type candidate struct {
-			planType  string
-			expiresAt string
+			planType   string
+			expiresAt  string
+			multiplier int
 		}
 		var defaultC, paidC, anyC candidate
 		for _, acctRaw := range accounts {
@@ -164,27 +167,28 @@ func fetchChatGPTAccountInfo(ctx context.Context, clientFactory PrivacyClientFac
 				continue
 			}
 			expiresAt := extractEntitlementExpiresAt(acct)
+			multiplier := extractOpenAIProMultiplier(planType)
 
 			if anyC.planType == "" {
-				anyC = candidate{planType: planType, expiresAt: expiresAt}
+				anyC = candidate{planType: planType, expiresAt: expiresAt, multiplier: multiplier}
 			}
 			if account, ok := acct["account"].(map[string]any); ok {
 				if isDefault, _ := account["is_default"].(bool); isDefault {
-					defaultC = candidate{planType: planType, expiresAt: expiresAt}
+					defaultC = candidate{planType: planType, expiresAt: expiresAt, multiplier: multiplier}
 				}
 			}
 			if !strings.EqualFold(planType, "free") && paidC.planType == "" {
-				paidC = candidate{planType: planType, expiresAt: expiresAt}
+				paidC = candidate{planType: planType, expiresAt: expiresAt, multiplier: multiplier}
 			}
 		}
 
 		switch {
 		case defaultC.planType != "":
-			info.PlanType, info.SubscriptionExpiresAt = defaultC.planType, defaultC.expiresAt
+			info.PlanType, info.SubscriptionExpiresAt, info.ProMultiplier = defaultC.planType, defaultC.expiresAt, defaultC.multiplier
 		case paidC.planType != "":
-			info.PlanType, info.SubscriptionExpiresAt = paidC.planType, paidC.expiresAt
+			info.PlanType, info.SubscriptionExpiresAt, info.ProMultiplier = paidC.planType, paidC.expiresAt, paidC.multiplier
 		default:
-			info.PlanType, info.SubscriptionExpiresAt = anyC.planType, anyC.expiresAt
+			info.PlanType, info.SubscriptionExpiresAt, info.ProMultiplier = anyC.planType, anyC.expiresAt, anyC.multiplier
 		}
 	}
 
@@ -193,9 +197,13 @@ func fetchChatGPTAccountInfo(ctx context.Context, clientFactory PrivacyClientFac
 		return nil
 	}
 
+	info.PlanTypeLabel = buildOpenAIPlanTypeLabel(info.PlanType, info.ProMultiplier)
+
 	slog.Info(
 		"chatgpt_account_check_success",
 		"plan_type", info.PlanType,
+		"plan_type_label", info.PlanTypeLabel,
+		"pro_multiplier", info.ProMultiplier,
 		"subscription_expires_at", info.SubscriptionExpiresAt,
 		"org_id", orgID,
 	)
@@ -208,6 +216,7 @@ func fillAccountInfo(info *ChatGPTAccountInfo, acct map[string]any) {
 	}
 	info.PlanType = extractPlanType(acct)
 	info.SubscriptionExpiresAt = extractEntitlementExpiresAt(acct)
+	info.ProMultiplier = extractOpenAIProMultiplier(info.PlanType)
 }
 
 func extractPlanType(acct map[string]any) string {

@@ -27,6 +27,7 @@ vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, string> = {
     'admin.accounts.imageTestPromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
+    'admin.accounts.textTestPromptDefault': 'Reply with a short hello from this model.',
     'admin.accounts.testModelAvailability.verified': 'verified',
     'admin.accounts.testModelAvailability.unavailable': 'unavailable',
     'admin.accounts.testModelAvailability.unknown': 'unknown',
@@ -443,7 +444,75 @@ describe('AccountTestModal', () => {
       target_provider: 'anthropic',
       target_model_id: 'claude-sonnet-4.5',
       test_mode: 'real_forward',
-      prompt: ''
+      prompt: 'Reply with a short hello from this model.'
+    })
+  })
+
+  it('shows text prompt input for text models and forwards a custom prompt', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      { id: 'gpt-5.4', display_name: 'GPT-5.4' }
+    ])
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 100,
+          name: 'OpenAI Text Test',
+          platform: 'openai',
+          type: 'oauth',
+          status: 'active',
+          extra: {}
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div class="select-stub">
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.key || option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    expect((promptInput.element as HTMLTextAreaElement).value).toBe('Reply with a short hello from this model.')
+
+    await promptInput.setValue('Say hello and mention GPT-5.4.')
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model: 'gpt-5.4',
+      model_id: 'gpt-5.4',
+      target_model_id: 'gpt-5.4',
+      test_mode: 'real_forward',
+      prompt: 'Say hello and mention GPT-5.4.'
     })
   })
 
@@ -809,7 +878,7 @@ describe('AccountTestModal', () => {
       test_mode: 'real_forward',
       source_protocol: 'anthropic',
       target_model_id: 'claude-sonnet-4.5',
-      prompt: ''
+      prompt: 'Reply with a short hello from this model.'
     })
     expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextTitle')
     expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextProtocol')
