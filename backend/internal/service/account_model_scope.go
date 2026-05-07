@@ -259,8 +259,6 @@ func accountModelScopeRouteKey(platform string, accountType string) string {
 		return "kiro"
 	case PlatformOpenAI:
 		return "openai"
-	case PlatformCopilot:
-		return "copilot"
 	case PlatformGemini:
 		return "gemini"
 	case PlatformAntigravity:

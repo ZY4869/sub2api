@@ -427,6 +427,7 @@ import type { PricingFormEntry } from '@/components/admin/channel/types'
 import { mTokToPerToken, perTokenToMTok, apiIntervalsToForm, formIntervalsToAPI, findModelConflict, validateIntervals } from '@/components/admin/channel/types'
 import type { AdminGroup, GroupPlatform } from '@/types'
 import type { Column } from '@/components/common/types'
+import { GROUP_PLATFORM_ORDER } from '@/utils/platformBranding'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -523,7 +524,7 @@ const form = reactive({
 let abortController: AbortController | null = null
 
 // ── Platform config ──
-const platformOrder: GroupPlatform[] = ['anthropic', 'openai', 'deepseek', 'gemini', 'antigravity']
+const platformOrder: GroupPlatform[] = [...GROUP_PLATFORM_ORDER]
 
 function getPlatformTextColor(platform: string): string {
   switch (platform) {

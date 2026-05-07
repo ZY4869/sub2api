@@ -6,7 +6,6 @@ export const MODEL_REGISTRY_PLATFORM_PRESETS = [
   'anthropic',
   'kiro',
   'openai',
-  'copilot',
   'deepseek',
   'gemini',
   'antigravity'

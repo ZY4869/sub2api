@@ -120,6 +120,11 @@ func Notes(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldNotes, v))
 }
 
+// UsageModelDisplayMode applies equality check predicate on the "usage_model_display_mode" field. It's identical to UsageModelDisplayModeEQ.
+func UsageModelDisplayMode(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldUsageModelDisplayMode, v))
+}
+
 // TotpSecretEncrypted applies equality check predicate on the "totp_secret_encrypted" field. It's identical to TotpSecretEncryptedEQ.
 func TotpSecretEncrypted(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldTotpSecretEncrypted, v))
@@ -753,6 +758,71 @@ func NotesEqualFold(v string) predicate.User {
 // NotesContainsFold applies the ContainsFold predicate on the "notes" field.
 func NotesContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldNotes, v))
+}
+
+// UsageModelDisplayModeEQ applies the EQ predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeNEQ applies the NEQ predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeIn applies the In predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldUsageModelDisplayMode, vs...))
+}
+
+// UsageModelDisplayModeNotIn applies the NotIn predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldUsageModelDisplayMode, vs...))
+}
+
+// UsageModelDisplayModeGT applies the GT predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeGTE applies the GTE predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeLT applies the LT predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeLTE applies the LTE predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeContains applies the Contains predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeHasPrefix applies the HasPrefix predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeHasSuffix applies the HasSuffix predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeEqualFold applies the EqualFold predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldUsageModelDisplayMode, v))
+}
+
+// UsageModelDisplayModeContainsFold applies the ContainsFold predicate on the "usage_model_display_mode" field.
+func UsageModelDisplayModeContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldUsageModelDisplayMode, v))
 }
 
 // TotpSecretEncryptedEQ applies the EQ predicate on the "totp_secret_encrypted" field.

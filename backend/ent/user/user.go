@@ -41,6 +41,8 @@ const (
 	FieldUsername = "username"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
+	// FieldUsageModelDisplayMode holds the string denoting the usage_model_display_mode field in the database.
+	FieldUsageModelDisplayMode = "usage_model_display_mode"
 	// FieldTotpSecretEncrypted holds the string denoting the totp_secret_encrypted field in the database.
 	FieldTotpSecretEncrypted = "totp_secret_encrypted"
 	// FieldTotpEnabled holds the string denoting the totp_enabled field in the database.
@@ -155,6 +157,7 @@ var Columns = []string{
 	FieldRequestDetailsReview,
 	FieldUsername,
 	FieldNotes,
+	FieldUsageModelDisplayMode,
 	FieldTotpSecretEncrypted,
 	FieldTotpEnabled,
 	FieldTotpEnabledAt,
@@ -216,6 +219,10 @@ var (
 	UsernameValidator func(string) error
 	// DefaultNotes holds the default value on creation for the "notes" field.
 	DefaultNotes string
+	// DefaultUsageModelDisplayMode holds the default value on creation for the "usage_model_display_mode" field.
+	DefaultUsageModelDisplayMode string
+	// UsageModelDisplayModeValidator is a validator for the "usage_model_display_mode" field. It is called by the builders before save.
+	UsageModelDisplayModeValidator func(string) error
 	// DefaultTotpEnabled holds the default value on creation for the "totp_enabled" field.
 	DefaultTotpEnabled bool
 )
@@ -291,6 +298,11 @@ func ByUsername(opts ...sql.OrderTermOption) OrderOption {
 // ByNotes orders the results by the notes field.
 func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
+}
+
+// ByUsageModelDisplayMode orders the results by the usage_model_display_mode field.
+func ByUsageModelDisplayMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUsageModelDisplayMode, opts...).ToFunc()
 }
 
 // ByTotpSecretEncrypted orders the results by the totp_secret_encrypted field.

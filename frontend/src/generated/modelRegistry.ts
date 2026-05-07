@@ -6,6 +6,7 @@ export interface ModelRegistryEntry {
   protocol_ids: string[]
   aliases: string[]
   pricing_lookup_ids: string[]
+  context_window_tokens?: number
   preferred_protocol_ids?: Record<string, string>
   modalities: string[]
   capabilities: string[]
@@ -34,16 +35,15 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-28T02:23:00Z"
+export const generatedModelRegistryBuiltAt = "2026-05-06T07:05:33Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"84afa0ad206a49df4207a070a04d8b37758abd421f6492a27e712bc95e85110e\"",
-  "updated_at": "2026-04-28T02:23:00Z",
+  "etag": "W/\"9662f717c7f0fd217433137f1dc865014f806fb45151c8a9b91d0d8fe9642f02\"",
+  "updated_at": "2026-05-06T07:05:33Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
     "baidu": "Baidu-Document-AI",
-    "copilot": "GitHub-Copilot",
     "deepseek": "DeepSeek",
     "gemini": "Google-Gemini",
     "grok": "xAI-Grok",
@@ -95,6 +95,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-opus-4-1-20250805"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -121,6 +122,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "command-a-03-2025"
       ],
+      "context_window_tokens": 256000,
       "modalities": [
         "text"
       ],
@@ -144,6 +146,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-v4-flash"
       ],
+      "context_window_tokens": 1048576,
       "preferred_protocol_ids": {
         "anthropic_apikey": "deepseek-v4-flash",
         "deepseek": "deepseek-v4-flash",
@@ -274,6 +277,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-3.5-turbo"
       ],
+      "context_window_tokens": 16385,
       "modalities": [
         "text"
       ],
@@ -347,6 +351,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "llama-3.3-70b-instruct"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -370,6 +375,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "mistral-small-latest"
       ],
+      "context_window_tokens": 131072,
       "modalities": [
         "text"
       ],
@@ -439,6 +445,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "sonar"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -485,6 +492,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "yi-large"
       ],
+      "context_window_tokens": 32768,
       "modalities": [
         "text"
       ],
@@ -537,6 +545,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-sonnet-4-5-20250929"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -562,6 +571,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "command-r"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -585,6 +595,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-v4-pro"
       ],
+      "context_window_tokens": 1048576,
       "preferred_protocol_ids": {
         "anthropic_apikey": "deepseek-v4-pro",
         "deepseek": "deepseek-v4-pro",
@@ -666,6 +677,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-2.5-flash-image"
       ],
+      "context_window_tokens": 32768,
       "modalities": [
         "text",
         "image"
@@ -717,6 +729,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-3.5-turbo-0125"
       ],
+      "context_window_tokens": 16385,
       "modalities": [
         "text"
       ],
@@ -743,6 +756,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "grok-3-fast"
       ],
+      "context_window_tokens": 131072,
       "preferred_protocol_ids": {
         "grok": "grok-3-fast-beta"
       },
@@ -794,6 +808,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "llama-3.2-90b-vision-instruct"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text",
         "image"
@@ -820,6 +835,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "mistral-medium-latest"
       ],
+      "context_window_tokens": 131072,
       "modalities": [
         "text"
       ],
@@ -889,6 +905,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "sonar-pro"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -986,6 +1003,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-haiku-4-5-20251001"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -1009,6 +1027,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "command-r-plus"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -1078,6 +1097,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-2.0-flash"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -1127,6 +1147,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-3.5-turbo-1106"
       ],
+      "context_window_tokens": 16385,
       "modalities": [
         "text"
       ],
@@ -1206,6 +1227,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "llama-3.2-11b-vision-instruct"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text",
         "image"
@@ -1232,6 +1254,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "mistral-large-latest"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -1301,6 +1324,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "sonar-reasoning"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -1398,6 +1422,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-opus-4-7"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -1425,6 +1450,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "command-r-08-2024"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -1495,6 +1521,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-2.5-flash"
       ],
+      "context_window_tokens": 1000000,
       "modalities": [
         "text"
       ],
@@ -1544,6 +1571,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-3.5-turbo-16k"
       ],
+      "context_window_tokens": 16385,
       "modalities": [
         "text"
       ],
@@ -1615,6 +1643,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "kimi-latest"
       ],
+      "context_window_tokens": 131072,
       "modalities": [
         "text"
       ],
@@ -1661,6 +1690,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "llama-3.2-3b-instruct"
       ],
+      "context_window_tokens": 131072,
       "modalities": [
         "text"
       ],
@@ -1684,6 +1714,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "open-mistral-7b"
       ],
+      "context_window_tokens": 32000,
       "modalities": [
         "text"
       ],
@@ -1799,6 +1830,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "command-r-plus-08-2024"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -1869,6 +1901,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-2.5-pro"
       ],
+      "context_window_tokens": 1000000,
       "modalities": [
         "text"
       ],
@@ -1917,6 +1950,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4"
       ],
+      "context_window_tokens": 8192,
       "modalities": [
         "text"
       ],
@@ -2014,6 +2048,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "llama-3.2-1b-instruct"
       ],
+      "context_window_tokens": 60000,
       "modalities": [
         "text"
       ],
@@ -2037,6 +2072,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "open-mixtral-8x7b"
       ],
+      "context_window_tokens": 32000,
       "modalities": [
         "text"
       ],
@@ -2221,6 +2257,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-3-flash-preview"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -2269,6 +2306,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4-turbo"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -2372,6 +2410,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "llama-3.1-405b-instruct"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -2395,6 +2434,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "open-mixtral-8x22b"
       ],
+      "context_window_tokens": 65336,
       "modalities": [
         "text"
       ],
@@ -2418,6 +2458,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "qwen2-72b-instruct"
       ],
+      "context_window_tokens": 32768,
       "modalities": [
         "text"
       ],
@@ -2510,6 +2551,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "codestral-latest"
       ],
+      "context_window_tokens": 32000,
       "modalities": [
         "text"
       ],
@@ -2579,6 +2621,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-2.5-flash-lite"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -2605,6 +2648,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-3-pro-preview"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -2653,6 +2697,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4-turbo-preview"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -2753,6 +2798,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "llama-3.1-70b-instruct"
       ],
+      "context_window_tokens": 131072,
       "modalities": [
         "text"
       ],
@@ -2848,6 +2894,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "codestral-mamba"
       ],
+      "context_window_tokens": 256000,
       "modalities": [
         "text"
       ],
@@ -2871,6 +2918,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "command"
       ],
+      "context_window_tokens": 4096,
       "modalities": [
         "text"
       ],
@@ -2993,6 +3041,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4o"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -3096,6 +3145,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "qwen2-7b-instruct"
       ],
+      "context_window_tokens": 32768,
       "modalities": [
         "text"
       ],
@@ -3165,6 +3215,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "command-light"
       ],
+      "context_window_tokens": 4096,
       "modalities": [
         "text"
       ],
@@ -3260,6 +3311,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4o-2024-08-06"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -3283,6 +3335,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "llama-3-70b-instruct"
       ],
+      "context_window_tokens": 8192,
       "modalities": [
         "text"
       ],
@@ -3306,6 +3359,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "pixtral-12b-2409"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -3444,6 +3498,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-3-flash-preview"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -3492,6 +3547,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4o-2024-11-20"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -3515,6 +3571,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "llama-3-8b-instruct"
       ],
+      "context_window_tokens": 8192,
       "modalities": [
         "text"
       ],
@@ -3538,6 +3595,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "pixtral-large-latest"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -3630,6 +3688,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "codellama-70b-instruct"
       ],
+      "context_window_tokens": 16384,
       "modalities": [
         "text"
       ],
@@ -3724,6 +3783,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "glm-4.6"
       ],
+      "context_window_tokens": 204800,
       "modalities": [
         "text"
       ],
@@ -3747,6 +3807,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4o-mini"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -3793,6 +3854,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "codellama-34b-instruct"
       ],
+      "context_window_tokens": 16384,
       "modalities": [
         "text"
       ],
@@ -3887,6 +3949,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4o-mini-2024-07-18"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -3982,6 +4045,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-3.1-pro-high"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -4030,6 +4094,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4.5-preview"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -4124,6 +4189,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-3.1-pro-low"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -4149,6 +4215,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4.1"
       ],
+      "context_window_tokens": 1047576,
       "modalities": [
         "text"
       ],
@@ -4219,6 +4286,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-3-pro-image-preview"
       ],
+      "context_window_tokens": 65536,
       "modalities": [
         "text",
         "image"
@@ -4247,6 +4315,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4.1-mini"
       ],
+      "context_window_tokens": 1047576,
       "modalities": [
         "text"
       ],
@@ -4316,6 +4385,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4.1-nano"
       ],
+      "context_window_tokens": 1047576,
       "modalities": [
         "text"
       ],
@@ -4502,6 +4572,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "o1-preview"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -4573,6 +4644,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "o1-mini"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -4621,6 +4693,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "o1-pro"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -4669,6 +4742,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-chat"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -4698,6 +4772,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "o3"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -4723,6 +4798,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-reasoner"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -4754,6 +4830,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "o3-mini"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -4779,6 +4856,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "o3-pro"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -4804,6 +4882,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "o4-mini"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -4829,6 +4908,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -4854,6 +4934,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-2025-08-07"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -4877,6 +4958,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-chat"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -4900,6 +4982,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-chat-latest"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -4948,6 +5031,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-pro"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -4998,6 +5082,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-pro-2025-10-06"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -5048,6 +5133,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-mini"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -5098,6 +5184,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-mini-2025-08-07"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -5148,6 +5235,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-nano"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -5198,6 +5286,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-nano-2025-08-07"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -5425,6 +5514,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.2"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -5450,6 +5540,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.2-2025-12-11"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -5473,6 +5564,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.2-chat-latest"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -5496,6 +5588,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.2-pro"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -5519,6 +5612,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.2-pro-2025-12-11"
       ],
+      "context_window_tokens": 272000,
       "modalities": [
         "text"
       ],
@@ -5542,6 +5636,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.4"
       ],
+      "context_window_tokens": 1050000,
       "modalities": [
         "text"
       ],
@@ -5569,6 +5664,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.5"
       ],
+      "context_window_tokens": 1050000,
       "modalities": [
         "text"
       ],
@@ -5596,6 +5692,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.4-2026-03-05"
       ],
+      "context_window_tokens": 1050000,
       "modalities": [
         "text"
       ],
@@ -5675,6 +5772,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.4-pro"
       ],
+      "context_window_tokens": 1050000,
       "modalities": [
         "text"
       ],
@@ -5702,6 +5800,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.4-pro"
       ],
+      "context_window_tokens": 1050000,
       "modalities": [
         "text"
       ],
@@ -5727,6 +5826,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "chatgpt-4o-latest"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -5779,6 +5879,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4o-audio-preview"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -5802,6 +5903,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-4o-realtime-preview"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -5825,6 +5927,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-haiku-4-5-20251001"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -5851,6 +5954,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-opus-4-5-20251101"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -5908,6 +6012,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-opus-4-6"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -5935,6 +6040,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-opus-4-6-thinking"
       ],
+      "context_window_tokens": 1000000,
       "modalities": [
         "text"
       ],
@@ -5961,6 +6067,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-sonnet-4-5"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -5989,6 +6096,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-sonnet-4-5-20250929"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
@@ -6046,6 +6154,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-sonnet-4-6"
       ],
+      "context_window_tokens": 1000000,
       "modalities": [
         "text"
       ],
@@ -6073,6 +6182,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-coder"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -6094,6 +6204,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-r1"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -6115,6 +6226,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-r1-0528"
       ],
+      "context_window_tokens": 163840,
       "modalities": [
         "text"
       ],
@@ -6136,6 +6248,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-r1-distill-llama-70b"
       ],
+      "context_window_tokens": 131072,
       "modalities": [
         "text"
       ],
@@ -6199,6 +6312,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-r1-distill-qwen-32b"
       ],
+      "context_window_tokens": 32768,
       "modalities": [
         "text"
       ],
@@ -6241,6 +6355,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-v3"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -6262,6 +6377,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "deepseek-v3-0324"
       ],
+      "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
@@ -6283,6 +6399,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-2.5-flash-image-preview"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text",
         "image"
@@ -6310,6 +6427,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-3.1-flash-image-preview"
       ],
+      "context_window_tokens": 65536,
       "modalities": [
         "text",
         "image"
@@ -6337,6 +6455,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-3.1-pro-preview"
       ],
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],

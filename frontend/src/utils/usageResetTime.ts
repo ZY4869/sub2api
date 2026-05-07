@@ -38,21 +38,22 @@ export function formatLocalAbsoluteTime(
   now: Date,
   labels: AbsoluteTimeLabels
 ): string {
+  const timePart = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
   if (isSameDay(date, now)) {
-    return `${labels.today} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+    return `${labels.today} ${timePart}`
   }
 
   const tomorrow = new Date(now)
   tomorrow.setDate(tomorrow.getDate() + 1)
   if (isSameDay(date, tomorrow)) {
-    return `${labels.tomorrow} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+    return `${labels.tomorrow} ${timePart}`
   }
 
   if (date.getFullYear() === now.getFullYear()) {
-    return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+    return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${timePart}`
   }
 
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${timePart}`
 }
 
 export function formatLocalTimestamp(date: Date): string {

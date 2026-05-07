@@ -66,8 +66,6 @@ function resolveCcsImportTarget(
   }
 
   switch (platform) {
-    case "copilot":
-      return { app: "codex", endpoint: baseUrl };
     case "kiro":
       return { app: "claude", endpoint: baseUrl };
     case "openai":

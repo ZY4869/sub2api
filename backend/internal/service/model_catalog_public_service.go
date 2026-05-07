@@ -491,7 +491,7 @@ func publicModelCatalogProtocolFamily(value string) string {
 	switch {
 	case normalized == "" || normalized == "*":
 		return ""
-	case normalized == PlatformOpenAI || normalized == PlatformCopilot || strings.HasPrefix(normalized, "gpt") || strings.HasPrefix(normalized, "codex") || strings.HasPrefix(normalized, "o1") || strings.HasPrefix(normalized, "o3") || strings.HasPrefix(normalized, "o4"):
+	case normalized == PlatformOpenAI || strings.HasPrefix(normalized, "gpt") || strings.HasPrefix(normalized, "codex") || strings.HasPrefix(normalized, "o1") || strings.HasPrefix(normalized, "o3") || strings.HasPrefix(normalized, "o4"):
 		return PlatformOpenAI
 	case normalized == PlatformAnthropic || normalized == PlatformKiro || strings.HasPrefix(normalized, "claude"):
 		return PlatformAnthropic

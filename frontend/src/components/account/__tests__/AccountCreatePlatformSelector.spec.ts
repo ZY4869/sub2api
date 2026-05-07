@@ -6,15 +6,14 @@ vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, string> = {
     'admin.accounts.platforms.anthropic': 'Anthropic',
+    'admin.accounts.platforms.antigravity': 'Antigravity',
+    'admin.accounts.platforms.baidu_document_ai': 'Baidu Document AI',
+    'admin.accounts.platforms.deepseek': 'DeepSeek',
+    'admin.accounts.platforms.gemini': 'Google',
+    'admin.accounts.platforms.grok': 'Grok',
     'admin.accounts.platforms.kiro': 'Kiro',
     'admin.accounts.platforms.openai': 'OpenAI',
-    'admin.accounts.platforms.copilot': 'GitHub Copilot',
-    'admin.accounts.platforms.grok': 'Grok',
-    'admin.accounts.platforms.deepseek': 'DeepSeek',
     'admin.accounts.platforms.protocol_gateway': 'Protocol Gateway',
-    'admin.accounts.platforms.gemini': 'Google',
-    'admin.accounts.platforms.antigravity': 'Antigravity',
-    'admin.accounts.platforms.baidu_document_ai': 'Baidu Document AI'
   }
   return {
     ...actual,
@@ -48,20 +47,34 @@ describe('AccountCreatePlatformSelector', () => {
     const buttonTexts = wrapper.findAll('button').map((button) => button.text())
     expect(buttonTexts).toEqual([
       'Anthropic',
+      'Antigravity',
+      'Baidu Document AI',
+      'DeepSeek',
+      'Google',
+      'Grok',
       'Kiro',
       'OpenAI',
-      'GitHub Copilot',
-      'Grok',
-      'DeepSeek',
-      'Protocol Gateway',
-      'Google',
-      'Antigravity',
-      'Baidu Document AI'
+      'Protocol Gateway'
     ])
     expect(wrapper.findAll('button')[0].classes()).toContain('min-w-0')
     expect(wrapper.findAll('button')[0].classes()).toContain('whitespace-normal')
 
-    await wrapper.findAll('button')[4].trigger('click')
+    await wrapper.findAll('button')[5].trigger('click')
     expect(wrapper.emitted('update:platform')).toEqual([['grok']])
+  })
+
+  it('does not render copilot anywhere in the selector text', () => {
+    const wrapper = mount(AccountCreatePlatformSelector, {
+      props: {
+        platform: 'anthropic'
+      },
+      global: {
+        stubs: {
+          PlatformIcon: true
+        }
+      }
+    })
+
+    expect(wrapper.text().toLowerCase()).not.toContain('copilot')
   })
 })

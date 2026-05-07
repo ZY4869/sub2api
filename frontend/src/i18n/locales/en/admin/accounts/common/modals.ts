@@ -4,7 +4,6 @@ export default {
     claudeCodeAccount: "Claude Code Account",
     kiroAccount: "Kiro Account",
     openaiAccount: "OpenAI Account",
-    copilotAccount: "GitHub Copilot Account",
     geminiAccount: "Gemini Account",
     antigravityAccount: "Antigravity Account",
     reauthUnavailableForPlatform: "This version cannot re-authorize {platform} accounts from the web console yet. Please refresh credentials through the import flow first.",

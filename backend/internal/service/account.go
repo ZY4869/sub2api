@@ -972,9 +972,6 @@ func (a *Account) GetOpenAIBaseURL() string {
 	if baseURL != "" {
 		return baseURL
 	}
-	if a.Platform == PlatformCopilot {
-		return "https://api.githubcopilot.com"
-	}
 	return "https://api.openai.com"
 }
 

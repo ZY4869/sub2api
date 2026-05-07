@@ -28,6 +28,7 @@ const fakeUser = {
   email: 'test@example.com',
   role: 'user' as const,
   request_details_review: false,
+  usage_model_display_mode: 'model_only' as const,
   balance: 100,
   concurrency: 5,
   status: 'active' as const,
@@ -303,6 +304,31 @@ describe('useAuthStore', () => {
     it('未认证时抛出错误', async () => {
       const store = useAuthStore()
       await expect(store.refreshUser()).rejects.toThrow('Not authenticated')
+    })
+  })
+
+  describe('usageModelDisplayMode helpers', () => {
+    it('setCurrentUser persists the updated user snapshot', () => {
+      const store = useAuthStore()
+
+      store.setCurrentUser({ ...fakeUser, usage_model_display_mode: 'display_only' })
+
+      expect(store.user?.usage_model_display_mode).toBe('display_only')
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}').usage_model_display_mode).toBe(
+        'display_only'
+      )
+    })
+
+    it('setUsageModelDisplayMode updates the in-memory and persisted preference', () => {
+      const store = useAuthStore()
+      store.setCurrentUser(fakeUser)
+
+      store.setUsageModelDisplayMode('display_and_model')
+
+      expect(store.user?.usage_model_display_mode).toBe('display_and_model')
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}').usage_model_display_mode).toBe(
+        'display_and_model'
+      )
     })
   })
 

@@ -10,25 +10,25 @@ describe('usageResetTime', () => {
   it('formats today reset time', () => {
     const now = new Date('2026-03-13T08:00:00')
     const target = new Date('2026-03-13T10:15:00')
-    expect(formatLocalAbsoluteTime(target, now, { today: '今天', tomorrow: '明天' })).toBe('今天 10:15')
+    expect(formatLocalAbsoluteTime(target, now, { today: '今天', tomorrow: '明天' })).toBe('今天 10:15:00')
   })
 
   it('formats tomorrow reset time', () => {
     const now = new Date('2026-03-13T23:00:00')
     const target = new Date('2026-03-14T01:15:00')
-    expect(formatLocalAbsoluteTime(target, now, { today: '今天', tomorrow: '明天' })).toBe('明天 01:15')
+    expect(formatLocalAbsoluteTime(target, now, { today: '今天', tomorrow: '明天' })).toBe('明天 01:15:00')
   })
 
   it('formats same-year cross-day reset time', () => {
     const now = new Date('2026-03-13T08:00:00')
     const target = new Date('2026-04-02T01:15:00')
-    expect(formatLocalAbsoluteTime(target, now, { today: '今天', tomorrow: '明天' })).toBe('04-02 01:15')
+    expect(formatLocalAbsoluteTime(target, now, { today: '今天', tomorrow: '明天' })).toBe('04-02 01:15:00')
   })
 
   it('formats cross-year reset time', () => {
     const now = new Date('2026-12-31T08:00:00')
     const target = new Date('2027-01-02T01:15:00')
-    expect(formatLocalAbsoluteTime(target, now, { today: '今天', tomorrow: '明天' })).toBe('2027-01-02 01:15')
+    expect(formatLocalAbsoluteTime(target, now, { today: '今天', tomorrow: '明天' })).toBe('2027-01-02 01:15:00')
   })
 
   it('formats full local timestamp to seconds', () => {

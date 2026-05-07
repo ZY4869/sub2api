@@ -54,15 +54,14 @@ describe('AccountPlatformTabs', () => {
     expect(resolveOrder(wrapper)).toEqual([
       'all',
       'anthropic',
+      'antigravity',
+      'baidu_document_ai',
+      'deepseek',
+      'gemini',
+      'grok',
       'kiro',
       'openai',
-      'copilot',
-      'grok',
-      'deepseek',
-      'protocol_gateway',
-      'gemini',
-      'antigravity',
-      'baidu_document_ai'
+      'protocol_gateway'
     ])
   })
 
@@ -84,15 +83,14 @@ describe('AccountPlatformTabs', () => {
     expect(resolveOrder(wrapper)).toEqual([
       'all',
       'anthropic',
+      'antigravity',
+      'baidu_document_ai',
+      'deepseek',
+      'gemini',
+      'grok',
       'kiro',
       'openai',
-      'copilot',
-      'grok',
-      'deepseek',
-      'protocol_gateway',
-      'gemini',
-      'antigravity',
-      'baidu_document_ai'
+      'protocol_gateway'
     ])
   })
 

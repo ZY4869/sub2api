@@ -77,14 +77,13 @@ type OpenAITokenCache = GeminiTokenCache
 
 // OpenAITokenProvider manages access_token for OpenAI-family OAuth accounts.
 type OpenAITokenProvider struct {
-	accountRepo         AccountRepository
-	tokenCache          OpenAITokenCache
-	openAIOAuthService  *OpenAIOAuthService
-	copilotOAuthService *CopilotOAuthService
-	metrics             *openAITokenRuntimeMetricsStore
-	refreshAPI          *OAuthRefreshAPI
-	executor            OAuthRefreshExecutor
-	refreshPolicy       ProviderRefreshPolicy
+	accountRepo        AccountRepository
+	tokenCache         OpenAITokenCache
+	openAIOAuthService *OpenAIOAuthService
+	metrics            *openAITokenRuntimeMetricsStore
+	refreshAPI         *OAuthRefreshAPI
+	executor           OAuthRefreshExecutor
+	refreshPolicy      ProviderRefreshPolicy
 }
 
 func NewOpenAITokenProvider(
@@ -105,10 +104,6 @@ func NewOpenAITokenProvider(
 func (p *OpenAITokenProvider) SetRefreshAPI(api *OAuthRefreshAPI, executor OAuthRefreshExecutor) {
 	p.refreshAPI = api
 	p.executor = executor
-}
-
-func (p *OpenAITokenProvider) SetCopilotOAuthService(copilotOAuthService *CopilotOAuthService) {
-	p.copilotOAuthService = copilotOAuthService
 }
 
 // SetRefreshPolicy injects caller-side refresh policy.
@@ -142,11 +137,11 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	if !account.IsOpenAI() {
 		return "", errors.New("not an openai-family oauth account")
 	}
+	if err := EnsureSupportedAccountPlatform(account); err != nil {
+		return "", err
+	}
 
 	cacheKey := OpenAITokenCacheKey(account)
-	if account.Platform == PlatformCopilot {
-		cacheKey = CopilotTokenCacheKey(account)
-	}
 
 	// 1) Try cache first.
 	if p.tokenCache != nil {
@@ -169,39 +164,34 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 		p.metrics.refreshRequests.Add(1)
 		p.metrics.touchNow()
 
-		if account.Platform == PlatformCopilot {
-			slog.Debug("openai_token_refresh_skipped", "account_id", account.ID, "platform", account.Platform)
-			refreshFailed = true
-		} else {
-			result, err := p.refreshAPI.RefreshIfNeeded(ctx, account, p.executor, openAITokenRefreshSkew)
-			if err != nil {
-				if p.refreshPolicy.OnRefreshError == ProviderRefreshErrorReturn {
-					return "", err
-				}
-				slog.Warn("openai_token_refresh_failed", "account_id", account.ID, "error", err)
-				p.metrics.refreshFailure.Add(1)
-				refreshFailed = true
-			} else if result.LockHeld {
-				if p.refreshPolicy.OnLockHeld == ProviderLockHeldWaitForCache {
-					p.metrics.lockContention.Add(1)
-					p.metrics.touchNow()
-					token, waitErr := p.waitForTokenAfterLockRace(ctx, cacheKey)
-					if waitErr != nil {
-						return "", waitErr
-					}
-					if strings.TrimSpace(token) != "" {
-						slog.Debug("openai_token_cache_hit_after_wait", "account_id", account.ID)
-						return token, nil
-					}
-				}
-			} else if result.Refreshed {
-				p.metrics.refreshSuccess.Add(1)
-				account = result.Account
-				expiresAt = account.GetCredentialAsTime("expires_at")
-			} else {
-				account = result.Account
-				expiresAt = account.GetCredentialAsTime("expires_at")
+		result, err := p.refreshAPI.RefreshIfNeeded(ctx, account, p.executor, openAITokenRefreshSkew)
+		if err != nil {
+			if p.refreshPolicy.OnRefreshError == ProviderRefreshErrorReturn {
+				return "", err
 			}
+			slog.Warn("openai_token_refresh_failed", "account_id", account.ID, "error", err)
+			p.metrics.refreshFailure.Add(1)
+			refreshFailed = true
+		} else if result.LockHeld {
+			if p.refreshPolicy.OnLockHeld == ProviderLockHeldWaitForCache {
+				p.metrics.lockContention.Add(1)
+				p.metrics.touchNow()
+				token, waitErr := p.waitForTokenAfterLockRace(ctx, cacheKey)
+				if waitErr != nil {
+					return "", waitErr
+				}
+				if strings.TrimSpace(token) != "" {
+					slog.Debug("openai_token_cache_hit_after_wait", "account_id", account.ID)
+					return token, nil
+				}
+			}
+		} else if result.Refreshed {
+			p.metrics.refreshSuccess.Add(1)
+			account = result.Account
+			expiresAt = account.GetCredentialAsTime("expires_at")
+		} else {
+			account = result.Account
+			expiresAt = account.GetCredentialAsTime("expires_at")
 		}
 	} else if needsRefresh && p.tokenCache != nil {
 		// Backward-compatible test path when refreshAPI is not injected.
@@ -229,49 +219,22 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	}
 
 	accessToken := account.GetCredential("access_token")
-	var copilotTokenExpiresAt int64
-	if account.Platform == PlatformCopilot {
-		if p.copilotOAuthService == nil {
-			return "", errors.New("copilot oauth service is not configured")
-		}
-		copilotTokenInfo, err := p.copilotOAuthService.ExchangeGitHubTokenForCopilotToken(ctx, account)
-		if err != nil {
-			return "", err
-		}
-		p.persistCopilotRuntimeMetadata(ctx, account, copilotTokenInfo)
-		accessToken = strings.TrimSpace(copilotTokenInfo.Token)
-		copilotTokenExpiresAt = copilotTokenInfo.ExpiresAt
-	} else if strings.TrimSpace(accessToken) == "" {
+	if strings.TrimSpace(accessToken) == "" {
 		return "", errors.New("access_token not found in credentials")
 	}
 
 	// 3) Populate cache with TTL.
 	if p.tokenCache != nil {
-		effectiveAccount := account
 		usedLatestAccount := false
 		latestAccount, isStale := CheckTokenVersion(ctx, account, p.accountRepo)
 		if isStale && latestAccount != nil {
 			slog.Debug("openai_token_version_stale_use_latest", "account_id", account.ID)
-			effectiveAccount = latestAccount
 			usedLatestAccount = true
-			if latestAccount.Platform == PlatformCopilot {
-				if p.copilotOAuthService == nil {
-					return "", errors.New("copilot oauth service is not configured")
-				}
-				copilotTokenInfo, err := p.copilotOAuthService.ExchangeGitHubTokenForCopilotToken(ctx, latestAccount)
-				if err != nil {
-					return "", err
-				}
-				p.persistCopilotRuntimeMetadata(ctx, latestAccount, copilotTokenInfo)
-				accessToken = strings.TrimSpace(copilotTokenInfo.Token)
-				copilotTokenExpiresAt = copilotTokenInfo.ExpiresAt
-			} else {
-				accessToken = latestAccount.GetOpenAIAccessToken()
-				if strings.TrimSpace(accessToken) == "" {
-					return "", errors.New("access_token not found after version check")
-				}
-				expiresAt = latestAccount.GetCredentialAsTime("expires_at")
+			accessToken = latestAccount.GetOpenAIAccessToken()
+			if strings.TrimSpace(accessToken) == "" {
+				return "", errors.New("access_token not found after version check")
 			}
+			expiresAt = latestAccount.GetCredentialAsTime("expires_at")
 		}
 
 		ttl := 30 * time.Minute
@@ -282,8 +245,6 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 				ttl = time.Minute
 			}
 			slog.Debug("openai_token_cache_short_ttl", "account_id", account.ID, "reason", "refresh_failed")
-		} else if effectiveAccount.Platform == PlatformCopilot {
-			ttl = copilotTokenCacheTTL(copilotTokenExpiresAt)
 		} else if expiresAt != nil {
 			until := time.Until(*expiresAt)
 			switch {
@@ -301,37 +262,6 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	}
 
 	return accessToken, nil
-}
-
-func (p *OpenAITokenProvider) persistCopilotRuntimeMetadata(ctx context.Context, account *Account, tokenInfo *CopilotAPITokenInfo) {
-	if p == nil || p.copilotOAuthService == nil || account == nil || account.Platform != PlatformCopilot || tokenInfo == nil {
-		return
-	}
-
-	baseURL := strings.TrimSpace(tokenInfo.APIBaseURL)
-	info := p.copilotOAuthService.buildResolvedUpstreamInfo(tokenInfo, "copilot_runtime_token_exchange")
-	needsPersist := strings.TrimSpace(account.GetCredential("base_url")) != strings.TrimSpace(baseURL) ||
-		strings.TrimSpace(account.GetExtraString("upstream_url")) != strings.TrimSpace(info.URL) ||
-		strings.TrimSpace(account.GetExtraString("upstream_host")) != strings.TrimSpace(info.Host) ||
-		strings.TrimSpace(account.GetExtraString("upstream_service")) != strings.TrimSpace(info.Service) ||
-		strings.TrimSpace(account.GetExtraString("upstream_probe_source")) != strings.TrimSpace(info.ProbeSource)
-
-	if !needsPersist {
-		if baseURL != "" {
-			account.Credentials = MergeCredentials(account.Credentials, map[string]any{"base_url": baseURL})
-		}
-		account.Extra = MergeStringAnyMap(account.Extra, MergeUpstreamExtra(nil, info))
-		return
-	}
-
-	account.Credentials = MergeCredentials(account.Credentials, p.copilotOAuthService.BuildAccountCredentialsWithTokenInfo(account.GetCredential("access_token"), tokenInfo))
-	account.Extra = MergeStringAnyMap(account.Extra, p.copilotOAuthService.BuildAccountUpstreamExtra(tokenInfo, "copilot_runtime_token_exchange"))
-	if p.accountRepo == nil || account.ID <= 0 {
-		return
-	}
-	if err := p.accountRepo.Update(ctx, account); err != nil {
-		slog.Warn("copilot_runtime_metadata_persist_failed", "account_id", account.ID, "error", err)
-	}
 }
 
 func (p *OpenAITokenProvider) waitForTokenAfterLockRace(ctx context.Context, cacheKey string) (string, error) {

@@ -17,12 +17,10 @@ describe('modelCatalogPresentation', () => {
     expect(formatModelCatalogProvider('anthropic')).toBe('Anthropic-Claude')
     expect(formatModelCatalogProvider('kiro')).toBe('Kiro')
     expect(formatModelCatalogProvider('openai')).toBe('OpenAI-GPT')
-    expect(formatModelCatalogProvider('copilot')).toBe('GitHub-Copilot')
     expect(formatModelCatalogProvider('custom')).toBe('Custom')
-    expect(formatModelCatalogPlatforms(['anthropic', 'kiro', 'copilot', 'gemini'])).toEqual([
+    expect(formatModelCatalogPlatforms(['anthropic', 'kiro', 'gemini'])).toEqual([
       'Anthropic-Claude',
       'Kiro',
-      'GitHub-Copilot',
       'Google-Gemini'
     ])
   })

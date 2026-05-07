@@ -4,7 +4,6 @@ export default {
     claudeCodeAccount: "Claude Code 账号",
     kiroAccount: "Kiro 账号",
     openaiAccount: "OpenAI 账号",
-    copilotAccount: "GitHub Copilot 账号",
     geminiAccount: "Gemini 账号",
     antigravityAccount: "Antigravity 账号",
     reauthUnavailableForPlatform: "当前版本暂不支持在控制台中直接重新授权 {platform} 账号，请先更新凭证或继续使用导入流程。",

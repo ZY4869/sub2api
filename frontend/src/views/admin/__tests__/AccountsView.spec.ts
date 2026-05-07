@@ -325,7 +325,7 @@ const PlatformTabsStub = defineComponent({
   props: ['platformCounts'],
   template: `
     <div>
-      <div class="platform-tabs-order">all,anthropic,kiro,openai,copilot,grok,protocol_gateway,gemini,antigravity</div>
+      <div class="platform-tabs-order">all,anthropic,antigravity,baidu_document_ai,deepseek,gemini,grok,kiro,openai,protocol_gateway</div>
       <div class="platform-tabs-sort-attr">{{ $attrs['sort-order'] || '' }}</div>
     </div>
   `
@@ -602,9 +602,9 @@ describe('AccountsView', () => {
     await flushPromises()
 
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_asc')
-    expect(wrapper.get('.table-account-order').text()).toBe('Gateway-1,Gemini-1,OpenAI-1,OpenAI-2')
+    expect(wrapper.get('.table-account-order').text()).toBe('Gemini-1,Gateway-1,OpenAI-1,OpenAI-2')
     expect(wrapper.get('.table-preserve-input-order').text()).toBe('true')
-    expect(wrapper.get('.platform-tabs-order').text()).toBe('all,anthropic,kiro,openai,copilot,grok,protocol_gateway,gemini,antigravity')
+    expect(wrapper.get('.platform-tabs-order').text()).toBe('all,anthropic,antigravity,baidu_document_ai,deepseek,gemini,grok,kiro,openai,protocol_gateway')
     expect(wrapper.get('.platform-tabs-sort-attr').text()).toBe('')
 
     wrapper.unmount()
@@ -616,7 +616,7 @@ describe('AccountsView', () => {
     await flushPromises()
 
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_desc')
-    expect(wrapper.get('.table-account-order').text()).toBe('OpenAI-1,OpenAI-2,Gateway-1,Gemini-1')
+    expect(wrapper.get('.table-account-order').text()).toBe('OpenAI-1,OpenAI-2,Gemini-1,Gateway-1')
     expect(wrapper.get('.platform-tabs-sort-attr').text()).toBe('')
 
     wrapper.unmount()
@@ -630,7 +630,7 @@ describe('AccountsView', () => {
     await flushPromises()
 
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_desc')
-    expect(wrapper.get('.table-account-order').text()).toBe('OpenAI-1,OpenAI-2,Gateway-1,Gemini-1')
+    expect(wrapper.get('.table-account-order').text()).toBe('OpenAI-1,OpenAI-2,Gemini-1,Gateway-1')
     expect(localStorage.getItem('account-platform-count-sort-order')).toBe('count_desc')
 
     wrapper.unmount()
@@ -746,7 +746,7 @@ describe('AccountsView', () => {
     await wrapper.get('.edit-first-account').trigger('click')
 
     expect(mockState.getById).toHaveBeenCalledWith(
-      4,
+      2,
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
     expect(wrapper.get('.dialog-show-edit').text()).toBe('true')
@@ -754,9 +754,9 @@ describe('AccountsView', () => {
     expect(wrapper.get('.dialog-edit-account').text()).toBe('')
 
     deferred.resolve({
-      id: 4,
-      name: 'Gateway-1 detail',
-      platform: 'protocol_gateway',
+      id: 2,
+      name: 'Gemini-1 detail',
+      platform: 'gemini',
       type: 'apikey',
       status: 'active',
       schedulable: true,
@@ -787,7 +787,7 @@ describe('AccountsView', () => {
     await flushPromises()
 
     expect(wrapper.get('.dialog-edit-loading').text()).toBe('false')
-    expect(wrapper.get('.dialog-edit-account').text()).toBe('Gateway-1 detail')
+    expect(wrapper.get('.dialog-edit-account').text()).toBe('Gemini-1 detail')
 
     wrapper.unmount()
   })
@@ -851,21 +851,21 @@ describe('AccountsView', () => {
 
     expect(mockState.getById).toHaveBeenNthCalledWith(
       1,
-      4,
+      2,
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
     expect(mockState.getById).toHaveBeenNthCalledWith(
       2,
-      4,
+      2,
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
     expect(signals[0]?.aborted).toBe(true)
     expect(signals[1]?.aborted).toBe(false)
 
     second.resolve({
-      id: 4,
-      name: 'Gateway-1 newest detail',
-      platform: 'protocol_gateway',
+      id: 2,
+      name: 'Gemini-1 newest detail',
+      platform: 'gemini',
       type: 'apikey',
       status: 'active',
       schedulable: true,
@@ -892,7 +892,7 @@ describe('AccountsView', () => {
     await flushPromises()
 
     expect(wrapper.get('.dialog-edit-loading').text()).toBe('false')
-    expect(wrapper.get('.dialog-edit-account').text()).toBe('Gateway-1 newest detail')
+    expect(wrapper.get('.dialog-edit-account').text()).toBe('Gemini-1 newest detail')
     expect(mockState.showError).not.toHaveBeenCalled()
 
     wrapper.unmount()

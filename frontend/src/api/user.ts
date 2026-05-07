@@ -4,7 +4,7 @@
  */
 
 import { apiClient } from './client'
-import type { User, ChangePasswordRequest } from '@/types'
+import type { User, ChangePasswordRequest, UsageModelDisplayMode } from '@/types'
 
 /**
  * Get current user profile
@@ -22,6 +22,7 @@ export async function getProfile(): Promise<User> {
  */
 export async function updateProfile(profile: {
   username?: string
+  usage_model_display_mode?: UsageModelDisplayMode
 }): Promise<User> {
   const { data } = await apiClient.put<User>('/user', profile)
   return data

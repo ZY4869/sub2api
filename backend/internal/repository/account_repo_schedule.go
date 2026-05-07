@@ -12,7 +12,7 @@ import (
 
 func (r *accountRepository) ListSchedulable(ctx context.Context) ([]service.Account, error) {
 	now := time.Now()
-	accounts, err := r.client.Account.Query().Where(dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.SchedulableEQ(true), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...), dbaccount.SchedulableEQ(true), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func (r *accountRepository) ListSchedulableByGroupID(ctx context.Context, groupI
 func (r *accountRepository) ListSchedulableByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
 	now := time.Now()
 	platforms := platformFilterValues(platform)
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.SchedulableEQ(true), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...), dbaccount.SchedulableEQ(true), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 		return nil, nil
 	}
 	now := time.Now()
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.SchedulableEQ(true), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...), dbaccount.SchedulableEQ(true), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 func (r *accountRepository) ListSchedulableUngroupedByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
 	now := time.Now()
 	platforms := platformFilterValues(platform)
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.SchedulableEQ(true), dbaccount.Not(dbaccount.HasAccountGroups()), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...), dbaccount.SchedulableEQ(true), dbaccount.Not(dbaccount.HasAccountGroups()), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatforms(ctx context.Cont
 		return nil, nil
 	}
 	now := time.Now()
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.SchedulableEQ(true), dbaccount.Not(dbaccount.HasAccountGroups()), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...), dbaccount.SchedulableEQ(true), dbaccount.Not(dbaccount.HasAccountGroups()), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}

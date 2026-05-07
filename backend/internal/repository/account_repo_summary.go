@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
 
 func (r *accountRepository) GetStatusSummary(ctx context.Context, filters service.AccountStatusSummaryFilters) (*service.AccountStatusSummary, error) {
@@ -29,9 +30,10 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		return summary, nil
 	}
 
-	baseWhere := []string{"a.deleted_at IS NULL"}
+	baseWhere := []string{"a.deleted_at IS NULL", "a.platform <> ALL($9)"}
 	baseArgs := make([]any, 0, 6)
-	baseWhere, baseArgs, _ = appendAdminAccountFilterWhereClauses(baseWhere, baseArgs, 9, normalized, "a", true)
+	baseArgs = append(baseArgs, pq.Array(service.UnsupportedPrimaryAccountPredicateValues()))
+	baseWhere, baseArgs, _ = appendAdminAccountFilterWhereClauses(baseWhere, baseArgs, 10, normalized, "a", true)
 	reasonExpr := accountRateLimitReasonSQL(accountLimitedSQLColumns{
 		Platform:         "f.platform",
 		Credentials:      "f.credentials",
@@ -142,9 +144,10 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 	summary.ByStatus["inactive"] = inactiveCount
 	summary.ByStatus["error"] = errorCount
 
-	platformWhere := []string{"a.deleted_at IS NULL"}
+	platformWhere := []string{"a.deleted_at IS NULL", "a.platform <> ALL($1)"}
 	platformArgs := make([]any, 0, 5)
-	platformWhere, platformArgs, _ = appendAdminAccountFilterWhereClauses(platformWhere, platformArgs, 1, normalized, "a", false)
+	platformArgs = append(platformArgs, pq.Array(service.UnsupportedPrimaryAccountPredicateValues()))
+	platformWhere, platformArgs, _ = appendAdminAccountFilterWhereClauses(platformWhere, platformArgs, 2, normalized, "a", false)
 	platformQuery := `
 		SELECT a.platform, COUNT(*) AS total
 		FROM accounts a

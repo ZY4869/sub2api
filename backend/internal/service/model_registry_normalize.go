@@ -57,6 +57,11 @@ func normalizePersistedEntry(entry modelregistry.ModelEntry) (modelregistry.Mode
 	if len(entry.PricingLookupIDs) == 0 {
 		entry.PricingLookupIDs = []string{entry.ProtocolIDs[0]}
 	}
+	if tokens, ok := modelregistry.ResolveContextWindowTokens(append(append([]string{}, entry.PricingLookupIDs...), entry.ID)...); ok {
+		entry.ContextWindowTokens = tokens
+	} else {
+		entry.ContextWindowTokens = 0
+	}
 	entry.PreferredProtocolIDs = normalizePreferredProtocolIDs(entry.ID, entry.ProtocolIDs, entry.PreferredProtocolIDs)
 	entry.Modalities = normalizeStringList(entry.Modalities, normalizeLowerTrimmed)
 	if len(entry.Modalities) == 0 {
@@ -177,12 +182,6 @@ func normalizePreferredProtocolIDs(modelID string, protocolIDs []string, raw map
 	if normalized["openai"] == "" {
 		normalized["openai"] = normalizeRegistryID(modelID)
 	}
-	if normalized["copilot"] == "" {
-		normalized["copilot"] = firstNonEmptyString(
-			normalized["openai"],
-			modelID,
-		)
-	}
 	if normalized["deepseek"] == "" {
 		normalized["deepseek"] = normalizeRegistryID(modelID)
 	}
@@ -206,7 +205,7 @@ func normalizeRegistryRouteKey(value string) string {
 		return "kiro"
 	case "anthropic_apikey", "anthropic_api_key", "claude_apikey":
 		return "anthropic_apikey"
-	case "openai", "copilot", "deepseek", "gemini", "antigravity":
+	case "openai", "deepseek", "gemini", "antigravity":
 		return value
 	default:
 		return value
@@ -374,7 +373,7 @@ func providerOrPlatform(provider string, sourcePlatform string) string {
 
 func isRuntimeSupportedPlatform(platform string) bool {
 	switch normalizeRegistryPlatform(platform) {
-	case PlatformOpenAI, PlatformAnthropic, PlatformDeepSeek, PlatformGemini, PlatformAntigravity, PlatformKiro, PlatformCopilot, PlatformGrok, "baidu", PlatformBaiduDocumentAI:
+	case PlatformOpenAI, PlatformAnthropic, PlatformDeepSeek, PlatformGemini, PlatformAntigravity, PlatformKiro, PlatformGrok, "baidu", PlatformBaiduDocumentAI:
 		return true
 	default:
 		return false

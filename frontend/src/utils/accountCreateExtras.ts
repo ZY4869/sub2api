@@ -15,7 +15,7 @@ export function buildOpenAIExtra(options: {
   openAIImageCompatAllowed: boolean
   includeOpenAIImageProtocolMode?: boolean
 }): Record<string, unknown> | undefined {
-  if (options.platform !== 'openai' && options.platform !== 'copilot') {
+  if (options.platform !== 'openai') {
     return options.base
   }
 

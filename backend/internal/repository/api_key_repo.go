@@ -886,11 +886,14 @@ func userEntityToService(u *dbent.User) *service.User {
 		Status:               u.Status,
 		AdminFreeBilling:     u.AdminFreeBilling,
 		RequestDetailsReview: u.RequestDetailsReview,
-		TotpSecretEncrypted:  u.TotpSecretEncrypted,
-		TotpEnabled:          u.TotpEnabled,
-		TotpEnabledAt:        u.TotpEnabledAt,
-		CreatedAt:            u.CreatedAt,
-		UpdatedAt:            u.UpdatedAt,
+		UsageModelDisplayMode: service.NormalizeUserUsageModelDisplayMode(
+			u.UsageModelDisplayMode,
+		),
+		TotpSecretEncrypted: u.TotpSecretEncrypted,
+		TotpEnabled:         u.TotpEnabled,
+		TotpEnabledAt:       u.TotpEnabledAt,
+		CreatedAt:           u.CreatedAt,
+		UpdatedAt:           u.UpdatedAt,
 	}
 }
 

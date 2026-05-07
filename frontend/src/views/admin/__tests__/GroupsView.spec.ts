@@ -326,4 +326,27 @@ describe('GroupsView iconized selections', () => {
       wrapper.findAll('[data-testid="group-option-item"][data-name="Anthropic Copy Source"][data-platform="anthropic"]').length
     ).toBeGreaterThan(0)
   })
+
+  it('uses the shared english-name platform order in both create and filter selects', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const platformLabels = wrapper
+      .findAll('[data-testid="platform-label"]')
+      .map((node) => node.attributes('data-label'))
+      .filter(Boolean)
+
+    expect(platformLabels).toEqual(
+      expect.arrayContaining([
+        'admin.groups.platforms.anthropic',
+        'admin.groups.platforms.antigravity',
+        'admin.groups.platforms.baidu_document_ai',
+        'admin.groups.platforms.deepseek',
+        'admin.groups.platforms.gemini',
+        'admin.groups.platforms.grok',
+        'admin.groups.platforms.kiro',
+        'admin.groups.platforms.openai'
+      ])
+    )
+  })
 })

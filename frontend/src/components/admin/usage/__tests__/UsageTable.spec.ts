@@ -47,6 +47,14 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
+vi.mock('@/composables/useUsageModelDisplayModePreference', () => ({
+  useUsageModelDisplayModePreference: () => ({
+    usageModelDisplayMode: 'model_only',
+    updatingUsageModelDisplayMode: false,
+    setUsageModelDisplayMode: vi.fn(),
+  }),
+}))
+
 const DataTableStub = {
   props: ['data', 'rowKey'],
   template: `

@@ -9,6 +9,7 @@ export default {
     user: 'User',
     username: 'Username',
     enterUsername: 'Enter username',
+    usageModelDisplayMode: 'Usage Model Display',
     editProfile: 'Edit Profile',
     updateProfile: 'Update Profile',
     updating: 'Updating...',

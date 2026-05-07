@@ -188,17 +188,15 @@ describe('AccountCreatePlatformTypeEditor', () => {
     expect(oauthWrapper.emitted('update:antigravityAccountType')).toContainEqual(['upstream'])
   })
 
-  it('skips Step 1 type cards for kiro and copilot', () => {
-    for (const platform of ['kiro', 'copilot'] as const) {
-      const wrapper = createWrapper({
-        platform
-      })
+  it('skips Step 1 type cards for kiro', () => {
+    const wrapper = createWrapper({
+      platform: 'kiro'
+    })
 
-      expect(wrapper.text()).not.toContain('admin.accounts.accountType')
-      expect(wrapper.findAll('button')).toHaveLength(0)
-      expect(wrapper.find('[data-testid="gemini-stub"]').exists()).toBe(false)
-      expect(wrapper.find('[data-testid="upstream-stub"]').exists()).toBe(false)
-    }
+    expect(wrapper.text()).not.toContain('admin.accounts.accountType')
+    expect(wrapper.findAll('button')).toHaveLength(0)
+    expect(wrapper.find('[data-testid="gemini-stub"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="upstream-stub"]').exists()).toBe(false)
   })
 
   it('shows protocol gateway request formats on the same row', async () => {

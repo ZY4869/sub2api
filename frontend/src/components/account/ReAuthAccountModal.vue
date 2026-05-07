@@ -16,8 +16,6 @@
               'flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br',
               isOpenAI
                 ? 'from-green-500 to-green-600'
-                : isCopilot
-                  ? 'from-cyan-500 to-cyan-600'
                 : isGemini
                   ? 'from-blue-500 to-blue-600'
                   : isKiro
@@ -37,8 +35,6 @@
               {{
                 isOpenAI
                   ? t('admin.accounts.openaiAccount')
-                  : isCopilot
-                    ? t('admin.accounts.copilotAccount')
                   : isKiro
                     ? t('admin.accounts.kiroAccount')
                   : isGemini
@@ -140,17 +136,8 @@
         </div>
       </div>
 
-      <AccountCopilotDeviceFlowPanel
-        v-if="isCopilot"
-        ref="copilotDeviceFlowRef"
-        :proxy-id="account.proxy_id"
-        :submit-label="t('admin.accounts.reAuthorize')"
-        :submit-loading="platformSubmitLoading"
-        @submit="handleCopilotReauthorize"
-      />
-
       <AccountKiroAuthPanel
-        v-else-if="isKiro"
+        v-if="isKiro"
         ref="kiroAuthRef"
         :proxy-id="account.proxy_id"
         :initial-extra="account.extra"
@@ -193,7 +180,7 @@
           {{ t('common.cancel') }}
         </button>
         <button
-          v-if="!isCopilot && !isKiro && !isGeminiVertexAccount && isManualInputMethod"
+          v-if="!isKiro && !isGeminiVertexAccount && isManualInputMethod"
           type="button"
           :disabled="!canExchangeCode"
           class="btn btn-primary"
@@ -251,7 +238,6 @@ import {
 } from '@/utils/geminiAccount'
 import { ensureOpenAIOAuthGatewayTestDefaults } from '@/utils/accountGatewayTestDefaults'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
-import AccountCopilotDeviceFlowPanel from '@/components/account/AccountCopilotDeviceFlowPanel.vue'
 import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -280,7 +266,6 @@ const antigravityOAuth = useAntigravityOAuth()
 
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
-const copilotDeviceFlowRef = ref<{ reset: () => void } | null>(null)
 const kiroAuthRef = ref<{ reset: () => void } | null>(null)
 
 // State
@@ -290,7 +275,6 @@ const platformSubmitLoading = ref(false)
 
 // Computed - check platform
 const isOpenAI = computed(() => props.account?.platform === 'openai')
-const isCopilot = computed(() => props.account?.platform === 'copilot')
 const isGemini = computed(() => props.account?.platform === 'gemini')
 const isAnthropic = computed(() => props.account?.platform === 'anthropic')
 const isKiro = computed(() => props.account?.platform === 'kiro')
@@ -372,7 +356,6 @@ const resetState = () => {
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset()
-  copilotDeviceFlowRef.value?.reset()
   kiroAuthRef.value?.reset()
 }
 
@@ -384,22 +367,6 @@ const handleReauthorizedSuccess = () => {
   appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))
   emit('reauthorized')
   handleClose()
-}
-
-const handleCopilotReauthorize = async (payload: { sessionId: string }) => {
-  if (!props.account) return
-
-  try {
-    platformSubmitLoading.value = true
-    await adminAPI.accounts.reauthorizeCopilotAccountFromDevice(props.account.id, {
-      session_id: payload.sessionId
-    })
-    handleReauthorizedSuccess()
-  } catch (error: any) {
-    appStore.showError(error?.message || t('admin.accounts.oauth.authFailed'))
-  } finally {
-    platformSubmitLoading.value = false
-  }
 }
 
 const handleKiroReauthorize = async (payload: ParsedKiroTokenImport) => {

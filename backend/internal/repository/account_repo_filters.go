@@ -41,6 +41,7 @@ func normalizeAdminAccountListFilters(platform, accountType, status, search stri
 }
 
 func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountListFilters) *dbent.AccountQuery {
+	q = q.Where(dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...))
 	switch filters.RuntimeView {
 	case service.AccountRuntimeViewInUseOnly:
 		if len(filters.CandidateAccountIDs) == 0 {

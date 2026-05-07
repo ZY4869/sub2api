@@ -21,7 +21,6 @@ const (
 	accountModelProbeSourceVertexExpressCatalog        = "vertex_express_catalog"
 	accountModelProbeSourceVertexServiceAccountCatalog = "vertex_service_account_catalog"
 	accountModelProbeSourceKiroBuiltinCatalog          = "kiro_builtin_catalog"
-	accountModelProbeSourceCopilotStaticCatalog        = "copilot_static_catalog"
 	accountModelProbeCacheTTL                          = 5 * time.Minute
 )
 
@@ -157,6 +156,9 @@ func (s *AccountModelImportService) ListAccountModels(
 	if account == nil {
 		return nil, infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
 	}
+	if err := EnsureSupportedAccountPlatform(account); err != nil {
+		return nil, err
+	}
 
 	probeResult, err := s.loadProbeResult(ctx, account, forceRefresh)
 	if err != nil {
@@ -194,6 +196,9 @@ func decorateAccountModelProbeDetails(details []AccountModelProbeModel, provider
 func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, account *Account, trigger string, selectedModels ...[]string) (*AccountModelImportResult, error) {
 	if account == nil {
 		return nil, infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+	}
+	if err := EnsureSupportedAccountPlatform(account); err != nil {
+		return nil, err
 	}
 	if !account.IsActive() {
 		return nil, infraerrors.BadRequest("ACCOUNT_INACTIVE", "account must be active to import models")

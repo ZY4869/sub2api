@@ -3,10 +3,23 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import type { AccountPlatform } from '@/types'
+import { ACCOUNT_PLATFORM_ORDER } from '@/utils/platformBranding'
 
 const platform = defineModel<AccountPlatform>('platform', { required: true })
 
 const { t } = useI18n()
+
+const PLATFORM_ACTIVE_CLASSES: Record<AccountPlatform, string> = {
+  anthropic: 'text-orange-600 dark:text-orange-400',
+  antigravity: 'text-purple-600 dark:text-purple-400',
+  baidu_document_ai: 'text-rose-600 dark:text-rose-400',
+  deepseek: 'text-indigo-600 dark:text-indigo-400',
+  gemini: 'text-blue-600 dark:text-blue-400',
+  grok: 'text-slate-700 dark:text-slate-200',
+  kiro: 'text-orange-600 dark:text-orange-400',
+  openai: 'text-green-600 dark:text-green-400',
+  protocol_gateway: 'text-slate-600 dark:text-slate-300'
+}
 
 const platformOptions = computed<
   Array<{
@@ -14,58 +27,13 @@ const platformOptions = computed<
     label: string
     activeClass: string
   }>
->(() => [
-  {
-    value: 'anthropic',
-    label: t('admin.accounts.platforms.anthropic'),
-    activeClass: 'text-orange-600 dark:text-orange-400'
-  },
-  {
-    value: 'kiro',
-    label: t('admin.accounts.platforms.kiro'),
-    activeClass: 'text-orange-600 dark:text-orange-400'
-  },
-  {
-    value: 'openai',
-    label: t('admin.accounts.platforms.openai'),
-    activeClass: 'text-green-600 dark:text-green-400'
-  },
-  {
-    value: 'copilot',
-    label: t('admin.accounts.platforms.copilot'),
-    activeClass: 'text-blue-600 dark:text-blue-400'
-  },
-  {
-    value: 'grok',
-    label: t('admin.accounts.platforms.grok'),
-    activeClass: 'text-slate-700 dark:text-slate-200'
-  },
-  {
-    value: 'deepseek',
-    label: t('admin.accounts.platforms.deepseek'),
-    activeClass: 'text-indigo-600 dark:text-indigo-400'
-  },
-  {
-    value: 'protocol_gateway',
-    label: t('admin.accounts.platforms.protocol_gateway'),
-    activeClass: 'text-slate-600 dark:text-slate-300'
-  },
-  {
-    value: 'gemini',
-    label: t('admin.accounts.platforms.gemini'),
-    activeClass: 'text-blue-600 dark:text-blue-400'
-  },
-  {
-    value: 'antigravity',
-    label: t('admin.accounts.platforms.antigravity'),
-    activeClass: 'text-purple-600 dark:text-purple-400'
-  },
-  {
-    value: 'baidu_document_ai',
-    label: t('admin.accounts.platforms.baidu_document_ai'),
-    activeClass: 'text-rose-600 dark:text-rose-400'
-  }
-])
+>(() =>
+  ACCOUNT_PLATFORM_ORDER.map((value) => ({
+    value,
+    label: t(`admin.accounts.platforms.${value}`),
+    activeClass: PLATFORM_ACTIVE_CLASSES[value]
+  }))
+)
 </script>
 
 <template>

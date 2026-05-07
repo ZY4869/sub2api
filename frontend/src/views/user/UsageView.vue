@@ -33,6 +33,12 @@
               <!-- Actions -->
               <div class="ml-auto flex items-center gap-3">
                 <TokenDisplayModeToggle />
+                <UsageModelDisplayModeToggle
+                  class="md:hidden"
+                  :model-value="usageModelDisplayMode"
+                  :disabled="updatingUsageModelDisplayMode"
+                  @update:modelValue="handleUsageModelDisplayModeChange"
+                />
                 <button
                   @click="applyFilters"
                   :disabled="loading"
@@ -84,6 +90,21 @@
           :virtual-scroll="false"
           row-key="id"
         >
+          <template #header-model="{ column }">
+            <div class="flex items-center justify-between gap-3">
+              <span>{{ column.label }}</span>
+              <div class="hidden md:block" @click.stop>
+                <UsageModelDisplayModeToggle
+                  :model-value="usageModelDisplayMode"
+                  :disabled="updatingUsageModelDisplayMode"
+                  :show-label="false"
+                  compact
+                  @update:modelValue="handleUsageModelDisplayModeChange"
+                />
+              </div>
+            </div>
+          </template>
+
           <template #cell-api_key="{ row }">
             <span class="text-sm text-gray-900 dark:text-white">{{
               row.api_key?.name || "-"
@@ -91,22 +112,7 @@
           </template>
 
           <template #cell-model="{ row }">
-            <div class="flex items-start gap-2">
-              <ModelIcon :model="row.model" size="16px" />
-              <div class="min-w-0">
-                <div
-                  class="break-all font-medium text-gray-900 dark:text-white"
-                >
-                  {{ row.model }}
-                </div>
-                <div
-                  v-if="row.upstream_model && row.upstream_model !== row.model"
-                  class="break-all text-xs text-gray-500 dark:text-gray-400"
-                >
-                  <span class="mr-1">-></span>{{ row.upstream_model }}
-                </div>
-              </div>
-            </div>
+            <UsageModelCell :row="row" :mode="usageModelDisplayMode" />
           </template>
 
           <template #cell-status="{ row }">
@@ -761,17 +767,24 @@ import Pagination from "@/components/common/Pagination.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import Select from "@/components/common/Select.vue";
 import DateRangePicker from "@/components/common/DateRangePicker.vue";
-import ModelIcon from "@/components/common/ModelIcon.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
+import UsageModelCell from "@/components/common/UsageModelCell.vue";
+import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import Icon from "@/components/icons/Icon.vue";
 import UsageStatsCards from "@/components/user/usage/UsageStatsCards.vue";
 import UsageRequestPreviewModal from "@/components/user/usage/UsageRequestPreviewModal.vue";
-import type { UsageLog, UsageQueryParams, UsageStatsResponse } from "@/types";
+import type {
+  UsageLog,
+  UsageModelDisplayMode,
+  UsageQueryParams,
+  UsageStatsResponse,
+} from "@/types";
 import type { UsageFilterApiKey } from "@/api/usage";
 import type { Column } from "@/components/common/types";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
+import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
 import {
   formatDateTime,
   formatReasoningEffortPair,
@@ -801,6 +814,11 @@ import {
 const { t } = useI18n();
 const appStore = useAppStore();
 const { formatTokenDisplay } = useTokenDisplayMode();
+const {
+  usageModelDisplayMode,
+  updatingUsageModelDisplayMode,
+  setUsageModelDisplayMode,
+} = useUsageModelDisplayModePreference();
 
 const formatCurrencyBreakdown = (
   values: Record<string, number> | null | undefined,
@@ -1148,6 +1166,12 @@ const handlePageSizeChange = (pageSize: number) => {
   pagination.page_size = pageSize;
   pagination.page = 1;
   loadUsageLogs();
+};
+
+const handleUsageModelDisplayModeChange = async (
+  mode: UsageModelDisplayMode,
+) => {
+  await setUsageModelDisplayMode(mode);
 };
 
 const openRequestPreview = (usageLog: UsageLog) => {

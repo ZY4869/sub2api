@@ -33,7 +33,6 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "grok rejects messages", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointMessages, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "deepseek native completions", runtimePlatform: PlatformDeepSeek, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "openai rejects completions", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},
-		{name: "copilot rejects completions", runtimePlatform: PlatformCopilot, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "anthropic rejects completions", runtimePlatform: PlatformAnthropic, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "gemini rejects completions", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "grok rejects completions", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointCompletions, wantMode: ProtocolCapabilityReject, wantOK: true},

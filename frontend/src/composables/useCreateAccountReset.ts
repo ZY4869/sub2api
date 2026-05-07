@@ -133,7 +133,6 @@ interface UseCreateAccountResetOptions {
   geminiOAuthReset: () => void
   antigravityOAuthReset: () => void
   oauthFlowReset: () => void
-  copilotFlowReset?: () => void
   kiroImportReset?: () => void
   resetMixedChannelRisk: () => void
 }
@@ -235,7 +234,6 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.geminiOAuthReset()
     options.antigravityOAuthReset()
     options.oauthFlowReset()
-    options.copilotFlowReset?.()
     options.kiroImportReset?.()
     options.resetMixedChannelRisk()
   }

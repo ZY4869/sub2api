@@ -44,9 +44,8 @@ func (h *AccountHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
-	if err != nil {
-		response.ErrorFrom(c, err)
+	account, blocked := h.rejectUnsupportedAccountByID(c, accountID)
+	if blocked {
 		return
 	}
 

@@ -1,6 +1,7 @@
 export default {
     requestDetails: {
         title: "Request Details",
+        description: "Review request traces, summaries, and cleanup results.",
         details: "Details",
         rangeLabel: "Window: {range}",
         rangeMinutes: "{n} minutes",
@@ -12,6 +13,23 @@ export default {
         copyFailed: "Copy failed",
         copy: "Copy",
         viewError: "View Error",
+        messages: {
+            listFailed: "Failed to load request trace list",
+            summaryFailed: "Failed to load request summary",
+            detailFailed: "Failed to load request detail",
+            rawFailed: "Failed to load raw payload",
+            exportFailed: "Failed to export request details",
+        },
+        cleanup: {
+            filterTitle: "Cleanup Current Filter",
+            expiredTitle: "Cleanup Expired Data",
+            confirmAction: "Cleanup Now",
+            confirmFilter: "This will permanently delete request traces and audit records matching the current filters. Continue?",
+            confirmExpired: "This will permanently delete all expired request traces and audit records. Continue?",
+            success: "Cleanup finished: deleted {traces} request traces and {audits} audit records.",
+            successExpired: "Expired cleanup finished: deleted {traces} request traces and {audits} audit records. Cutoff: {cutoff}.",
+            failed: "Failed to cleanup request details",
+        },
         kind: {
             success: "SUCCESS",
             error: "ERROR",

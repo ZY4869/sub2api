@@ -371,7 +371,7 @@ func containsGatewayProtocol(values []string, target string) bool {
 
 func supportedProtocolsForProvider(provider string) []string {
 	switch NormalizeModelProvider(provider) {
-	case PlatformOpenAI, PlatformGrok, PlatformCopilot, PlatformDeepSeek:
+	case PlatformOpenAI, PlatformGrok, PlatformDeepSeek:
 		return []string{PlatformOpenAI}
 	case PlatformAnthropic, PlatformKiro:
 		return []string{PlatformAnthropic}
@@ -760,6 +760,10 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	account, err := s.accountRepo.GetByID(ctx, accountID)
 	if err != nil {
 		testErr = s.sendErrorAndEnd(c, "Account not found")
+		return testErr
+	}
+	if err := EnsureSupportedAccountPlatform(account); err != nil {
+		testErr = err
 		return testErr
 	}
 
@@ -1382,11 +1386,6 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	if simulatedClient == GatewayClientProfileCodex {
 		req.Header.Set("Originator", resolveOpenAIUpstreamOriginator(c, true))
 		req.Header.Set("User-Agent", codexCLIUserAgent)
-	}
-
-	if isCopilotOAuthAccount(account) {
-		req.Header.Set("Accept", "text/event-stream")
-		applyCopilotDefaultHeaders(req.Header, account)
 	}
 
 	// Set OAuth-specific headers for ChatGPT internal API

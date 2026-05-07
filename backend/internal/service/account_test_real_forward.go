@@ -66,8 +66,6 @@ func accountTestPlatformLabel(platform string) string {
 		return "Antigravity"
 	case PlatformKiro:
 		return "Kiro"
-	case PlatformCopilot:
-		return "GitHub Copilot"
 	case PlatformProtocolGateway:
 		return "Protocol Gateway"
 	default:

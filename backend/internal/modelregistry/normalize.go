@@ -41,8 +41,6 @@ func NormalizePlatformFamily(platform string) string {
 	switch platform {
 	case "kiro":
 		return "anthropic"
-	case "copilot":
-		return "openai"
 	case "baidu", "baidu_document_ai":
 		return "baidu_document_ai"
 	default:

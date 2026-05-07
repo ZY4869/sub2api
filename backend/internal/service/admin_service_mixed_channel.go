@@ -42,7 +42,7 @@ func shouldEnforceMixedChannelCheck(platform string, skipRequested bool) bool {
 	if !skipRequested {
 		return true
 	}
-	return platform == PlatformKiro || platform == PlatformCopilot
+	return platform == PlatformKiro
 }
 
 func (s *adminServiceImpl) validateGroupIDsExist(ctx context.Context, groupIDs []int64) error {

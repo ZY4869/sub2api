@@ -202,9 +202,6 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(ctx context
 	req.Header.Del("x-api-key")
 	req.Header.Del("x-goog-api-key")
 	req.Header.Set("authorization", "Bearer "+token)
-	if isCopilotOAuthAccount(account) {
-		applyCopilotDefaultHeaders(req.Header, account)
-	}
 	if isChatGPTOpenAIOAuthAccount(account) {
 		promptCacheKey := strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String())
 		req.Host = "chatgpt.com"

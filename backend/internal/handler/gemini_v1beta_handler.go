@@ -44,7 +44,7 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 	}
 	// 检查平台：优先使用强制平台（/antigravity 路由），否则要求 gemini 分组
 	forcePlatform, hasForcePlatform := middleware.GetForcePlatformFromContext(c)
-	if forcePlatform == service.PlatformKiro || forcePlatform == service.PlatformCopilot {
+	if forcePlatform == service.PlatformKiro || service.IsUnsupportedRuntimePlatform(forcePlatform) {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 		return
 	}
@@ -84,7 +84,7 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 	}
 	// 检查平台：优先使用强制平台（/antigravity 路由），否则要求 gemini 分组
 	forcePlatform, hasForcePlatform := middleware.GetForcePlatformFromContext(c)
-	if forcePlatform == service.PlatformKiro || forcePlatform == service.PlatformCopilot {
+	if forcePlatform == service.PlatformKiro || service.IsUnsupportedRuntimePlatform(forcePlatform) {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 		return
 	}
@@ -142,7 +142,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 
 	// 检查平台：优先使用强制平台（/antigravity 路由，中间件已设置 request.Context），否则要求 gemini 分组
 	if !middleware.HasForcePlatform(c) && !multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) {
-		if apiKey.Group != nil && (apiKey.Group.Platform == service.PlatformKiro || apiKey.Group.Platform == service.PlatformCopilot) {
+		if apiKey.Group != nil && (apiKey.Group.Platform == service.PlatformKiro || service.IsUnsupportedRuntimePlatform(apiKey.Group.Platform)) {
 			googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 			return
 		}
@@ -267,7 +267,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	}
 
 	selectedForcePlatform, hasSelectedForcePlatform := middleware.GetForcePlatformFromContext(c)
-	if hasSelectedForcePlatform && (selectedForcePlatform == service.PlatformKiro || selectedForcePlatform == service.PlatformCopilot) {
+	if hasSelectedForcePlatform && (selectedForcePlatform == service.PlatformKiro || service.IsUnsupportedRuntimePlatform(selectedForcePlatform)) {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 		return
 	}
@@ -300,7 +300,7 @@ groupSelectionLoop:
 		if currentAPIKey.Group != nil {
 			currentPlatform = currentAPIKey.Group.Platform
 		}
-		if currentPlatform == service.PlatformKiro || currentPlatform == service.PlatformCopilot {
+		if currentPlatform == service.PlatformKiro || service.IsUnsupportedRuntimePlatform(currentPlatform) {
 			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 				continue
 			}

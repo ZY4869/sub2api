@@ -890,7 +890,7 @@ const supportsUnifiedModelEditor = computed(() => {
     return true
   }
   if (props.account.type === 'oauth') {
-    return ['openai', 'anthropic', 'gemini', 'copilot', 'kiro'].includes(props.account.platform)
+    return ['openai', 'anthropic', 'gemini', 'kiro'].includes(props.account.platform)
   }
   return props.account.type === 'setup-token' && props.account.platform === 'anthropic'
 })

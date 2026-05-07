@@ -8,6 +8,7 @@ type ModelEntry struct {
 	ProtocolIDs          []string          `json:"protocol_ids"`
 	Aliases              []string          `json:"aliases"`
 	PricingLookupIDs     []string          `json:"pricing_lookup_ids"`
+	ContextWindowTokens  int64             `json:"context_window_tokens,omitempty"`
 	PreferredProtocolIDs map[string]string `json:"preferred_protocol_ids,omitempty"`
 	Modalities           []string          `json:"modalities"`
 	Capabilities         []string          `json:"capabilities"`

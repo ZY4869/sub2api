@@ -93,7 +93,6 @@ export default {
     modelImportFailed: "导入模型失败",
     modelImportUnsupported: "当前账号类型不支持真实探测",
     modelImportKiroBuiltinCatalog: "使用内置 Kiro 模型目录导入",
-    modelImportCopilotStaticCatalog: "使用 Copilot 静态模型目录导入（非真实上游）",
     kiroTestModelSourceHint: "Kiro 的测试模型列表来自模型注册表或内置目录；真实测试请求仍会直接发往 Kiro/AWS generateAssistantResponse 运行时端点。",
     modelImportResultTitle: "模型导入结果",
     modelImportSummary: "新增 {imported} / 归并 {merged} / 跳过 {skipped} / 失败 {failed}",

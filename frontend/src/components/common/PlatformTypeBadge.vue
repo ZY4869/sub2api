@@ -178,9 +178,6 @@ const platformClass = computed(() => {
   if (props.platform === 'openai') {
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
   }
-  if (props.platform === 'copilot') {
-    return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
-  }
   if (props.platform === 'grok') {
     return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
   }
@@ -202,9 +199,6 @@ const typeClass = computed(() => {
   }
   if (props.platform === 'openai') {
     return 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
-  }
-  if (props.platform === 'copilot') {
-    return 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400'
   }
   if (props.platform === 'grok') {
     return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'

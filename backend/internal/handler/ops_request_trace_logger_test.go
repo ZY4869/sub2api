@@ -148,7 +148,7 @@ func TestBuildOpsRequestTraceInput_OpsRequestTraceImageRouteMetricsCoexist(t *te
 			setOpsEndpointContext(c, "gpt-5.4-mini", service.RequestTypeSync)
 			applyResponsesImageToolTraceMetadata(
 				c,
-				service.PlatformCopilot,
+				service.PlatformOpenAI,
 				"gpt-5.4-mini",
 				"gpt-image-2",
 				service.PublicImageToolRouteReason,

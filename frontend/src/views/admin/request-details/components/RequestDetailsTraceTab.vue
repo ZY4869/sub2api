@@ -18,6 +18,7 @@ import RequestDetailsFilterPanel from './RequestDetailsFilterPanel.vue'
 import RequestDetailsSummaryCards from './RequestDetailsSummaryCards.vue'
 import RequestDetailsTable from './RequestDetailsTable.vue'
 import RequestDetailsTrendChart from './RequestDetailsTrendChart.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import {
   buildCopyableRequestTraceErrorSummary,
   buildRequestTraceQuery,
@@ -51,6 +52,8 @@ const loadingDetail = ref(false)
 const loadingRaw = ref(false)
 const refreshing = ref(false)
 const cleanupLoading = ref(false)
+const showCleanupFilterConfirm = ref(false)
+const showCleanupExpiredConfirm = ref(false)
 
 let listController: AbortController | null = null
 let summaryController: AbortController | null = null
@@ -321,9 +324,11 @@ async function refreshAfterCleanup() {
 
 async function handleCleanupFilter() {
   if (cleanupLoading.value) return
-  const ok = window.confirm(t('admin.requestDetails.cleanup.confirmFilter'))
-  if (!ok) return
+  showCleanupFilterConfirm.value = true
+}
 
+async function confirmCleanupFilter() {
+  if (cleanupLoading.value) return
   cleanupLoading.value = true
   try {
     const result = await opsAPI.cleanupRequestTraces({ mode: 'filter', filter: cleanupFilter() })
@@ -331,6 +336,7 @@ async function handleCleanupFilter() {
       traces: result.deleted_traces || 0,
       audits: result.deleted_audits || 0,
     }))
+    showCleanupFilterConfirm.value = false
     await refreshAfterCleanup()
   } catch (error: any) {
     console.error('[RequestDetailsTraceTab] Failed to cleanup request traces (filter)', error)
@@ -342,9 +348,11 @@ async function handleCleanupFilter() {
 
 async function handleCleanupExpired() {
   if (cleanupLoading.value) return
-  const ok = window.confirm(t('admin.requestDetails.cleanup.confirmExpired'))
-  if (!ok) return
+  showCleanupExpiredConfirm.value = true
+}
 
+async function confirmCleanupExpired() {
+  if (cleanupLoading.value) return
   cleanupLoading.value = true
   try {
     const result = await opsAPI.cleanupRequestTraces({ mode: 'expired' })
@@ -353,6 +361,7 @@ async function handleCleanupExpired() {
       audits: result.deleted_audits || 0,
       cutoff: result.cutoff || '',
     }))
+    showCleanupExpiredConfirm.value = false
     await refreshAfterCleanup()
   } catch (error: any) {
     console.error('[RequestDetailsTraceTab] Failed to cleanup request traces (expired)', error)
@@ -465,6 +474,32 @@ onUnmounted(() => {
       :raw-loading="loadingRaw"
       @close="closeDrawer"
       @load-raw="fetchRawDetail"
+    />
+
+    <ConfirmDialog
+      :show="showCleanupFilterConfirm"
+      :title="t('admin.requestDetails.cleanup.filterTitle')"
+      :message="t('admin.requestDetails.cleanup.confirmFilter')"
+      :confirm-text="t('admin.requestDetails.cleanup.confirmAction')"
+      :loading-text="t('admin.requestDetails.cleanup.confirmAction')"
+      :loading="cleanupLoading"
+      :disabled="cleanupLoading"
+      danger
+      @cancel="showCleanupFilterConfirm = false"
+      @confirm="confirmCleanupFilter"
+    />
+
+    <ConfirmDialog
+      :show="showCleanupExpiredConfirm"
+      :title="t('admin.requestDetails.cleanup.expiredTitle')"
+      :message="t('admin.requestDetails.cleanup.confirmExpired')"
+      :confirm-text="t('admin.requestDetails.cleanup.confirmAction')"
+      :loading-text="t('admin.requestDetails.cleanup.confirmAction')"
+      :loading="cleanupLoading"
+      :disabled="cleanupLoading"
+      danger
+      @cancel="showCleanupExpiredConfirm = false"
+      @confirm="confirmCleanupExpired"
     />
   </div>
 </template>

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"sort"
-
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -90,10 +88,10 @@ func buildPlatformSections(ch service.AvailableChannel, visibleGroups []userAvai
 	}
 
 	platforms := make([]string, 0, len(groupsByPlatform))
-	for p := range groupsByPlatform {
-		platforms = append(platforms, p)
+	for platform := range groupsByPlatform {
+		platforms = append(platforms, platform)
 	}
-	sort.Strings(platforms)
+	platforms = service.SortPlatformKeysForDisplay(platforms)
 
 	sections := make([]userChannelPlatformSection, 0, len(platforms))
 	for _, platform := range platforms {

@@ -120,6 +120,7 @@ import { useTableLoader } from '@/composables/useTableLoader'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/format'
+import { ACCOUNT_PLATFORM_ORDER } from '@/utils/platformBranding'
 import type { Column } from '@/components/common/types'
 import type { Account, AdminGroup } from '@/types'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -169,16 +170,10 @@ const columns = computed<Column[]>(() => [
 
 const platformOptions = computed(() => [
   { value: '', label: t('admin.accounts.allPlatforms') },
-  { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') },
-  { value: 'kiro', label: t('admin.accounts.platforms.kiro') },
-  { value: 'openai', label: t('admin.accounts.platforms.openai') },
-  { value: 'copilot', label: t('admin.accounts.platforms.copilot') },
-  { value: 'grok', label: t('admin.accounts.platforms.grok') },
-  { value: 'deepseek', label: t('admin.accounts.platforms.deepseek') },
-  { value: 'protocol_gateway', label: t('admin.accounts.platforms.protocol_gateway') },
-  { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
-  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
-  { value: 'baidu_document_ai', label: t('admin.accounts.platforms.baidu_document_ai') }
+  ...ACCOUNT_PLATFORM_ORDER.map((platform) => ({
+    value: platform,
+    label: t(`admin.accounts.platforms.${platform}`)
+  }))
 ])
 
 const groupOptions = computed(() => [

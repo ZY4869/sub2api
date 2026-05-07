@@ -104,6 +104,16 @@ func TestResolveToPricingIDUsesIntendedSharedOrExactTargets(t *testing.T) {
 	}
 }
 
+func TestResolveContextWindowTokensUsesPricingLookupIDs(t *testing.T) {
+	tokens, ok := ResolveContextWindowTokens("deepseek-v4-pro")
+	require.True(t, ok)
+	require.EqualValues(t, 1048576, tokens)
+
+	tokens, ok = ResolveContextWindowTokens("claude-opus-4-1-20250805")
+	require.True(t, ok)
+	require.EqualValues(t, 200000, tokens)
+}
+
 func TestExplainSeedResolutionReportsDeprecatedReplacement(t *testing.T) {
 	resolution, ok := ExplainSeedResolution("claude-haiku-4-5-20251001")
 	require.True(t, ok)

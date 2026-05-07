@@ -84,10 +84,10 @@ describe('AccountUsageResetCell', () => {
     expect(wrapper.text()).toContain('5h')
     expect(wrapper.text()).toContain('2h 53m')
     expect(wrapper.text()).toContain('·')
-    expect(wrapper.text()).toContain('Today 15:22')
+    expect(wrapper.text()).toContain('Today 15:22:00')
     expect(wrapper.text()).toContain('7d')
     expect(wrapper.text()).toContain('6d 13h')
-    expect(wrapper.text()).toContain('03-20 01:09')
+    expect(wrapper.text()).toContain('03-20 01:09:00')
 
   })
 
@@ -124,16 +124,16 @@ describe('AccountUsageResetCell', () => {
     const text = wrapper.text()
     expect(text).toContain('5h')
     expect(text).toContain('1h')
-    expect(text).toContain('Today 13:00')
+    expect(text).toContain('Today 13:00:00')
     expect(text).toContain('7d')
     expect(text).toContain('2h')
-    expect(text).toContain('Today 14:00')
+    expect(text).toContain('Today 14:00:00')
     expect(text).toContain('Spark 5h')
     expect(text).toContain('3h')
-    expect(text).toContain('Today 15:00')
+    expect(text).toContain('Today 15:00:00')
     expect(text).toContain('Spark 7d')
     expect(text).toContain('4h')
-    expect(text).toContain('Today 16:00')
+    expect(text).toContain('Today 16:00:00')
   })
 
   it('updates day labels when the shared clock crosses midnight', async () => {
@@ -158,13 +158,13 @@ describe('AccountUsageResetCell', () => {
 
     await flushPromises()
     expect(wrapper.text()).toContain('2m')
-    expect(wrapper.text()).toContain('Tomorrow 00:01')
+    expect(wrapper.text()).toContain('Tomorrow 00:01:00')
 
     vi.advanceTimersByTime(2 * 60 * 1000)
     await flushPromises()
 
     expect(wrapper.text()).toContain('Now')
-    expect(wrapper.text()).toContain('Today 00:01')
+    expect(wrapper.text()).toContain('Today 00:01:00')
   })
 
   it('falls back to a dash when no reset rows are available', async () => {

@@ -26,7 +26,9 @@ func init() {
 		panic(err)
 	}
 	seedModelMap = make(map[string]ModelEntry, len(seedModels))
-	for _, entry := range seedModels {
+	for index, entry := range seedModels {
+		entry = hydrateContextWindowTokens(entry)
+		seedModels[index] = entry
 		seedModelMap[NormalizeID(entry.ID)] = cloneEntry(entry)
 	}
 	seedIndex = BuildIndex(seedModels)

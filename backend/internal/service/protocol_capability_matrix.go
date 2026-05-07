@@ -127,12 +127,10 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointMessages, RequestFormat: EndpointMessages, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformAnthropic, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointMessages, RequestFormat: EndpointMessages, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityCompatTranslate},
-			{InboundEndpoint: EndpointMessages, RequestFormat: EndpointMessages, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityCompatTranslate},
 			{InboundEndpoint: EndpointMessages, RequestFormat: EndpointMessages, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointMessages, RequestFormat: EndpointMessages, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointMessages, RequestFormat: "/v1/messages/count_tokens", Action: ProtocolCapabilityActionCountTokens, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformAnthropic, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointMessages, RequestFormat: "/v1/messages/count_tokens", Action: ProtocolCapabilityActionCountTokens, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityReject},
-			{InboundEndpoint: EndpointMessages, RequestFormat: "/v1/messages/count_tokens", Action: ProtocolCapabilityActionCountTokens, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityReject},
 			{InboundEndpoint: EndpointMessages, RequestFormat: "/v1/messages/count_tokens", Action: ProtocolCapabilityActionCountTokens, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityReject},
 			{InboundEndpoint: EndpointMessages, RequestFormat: "/v1/messages/count_tokens", Action: ProtocolCapabilityActionCountTokens, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityReject},
 			{InboundEndpoint: EndpointMessages, RequestFormat: "/v1/messages/count_tokens", Action: ProtocolCapabilityActionCountTokens, SourceProtocol: PlatformAnthropic, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityReject},
@@ -152,7 +150,6 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
-			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
 		},
@@ -192,10 +189,8 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
-			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionWebSocket, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
-			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionWebSocket, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionWebSocket, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityReject},
 		},
 	},
@@ -211,7 +206,6 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointImagesGen, RequestFormat: EndpointImagesGen, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
-			{InboundEndpoint: EndpointImagesGen, RequestFormat: EndpointImagesGen, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointImagesGen, RequestFormat: EndpointImagesGen, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointImagesGen, RequestFormat: EndpointImagesGen, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 		},
@@ -228,7 +222,6 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointImagesEdits, RequestFormat: EndpointImagesEdits, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
-			{InboundEndpoint: EndpointImagesEdits, RequestFormat: EndpointImagesEdits, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointImagesEdits, RequestFormat: EndpointImagesEdits, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointImagesEdits, RequestFormat: EndpointImagesEdits, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityReject},
 		},

@@ -458,7 +458,6 @@ func isFallbackOnlyProbeSource(source string) bool {
 	switch strings.TrimSpace(source) {
 	case accountModelProbeSourceGrokSSOCapability,
 		accountModelProbeSourceKiroBuiltinCatalog,
-		accountModelProbeSourceCopilotStaticCatalog,
 		accountModelProbeSourceVertexExpressCatalog,
 		accountModelProbeSourceVertexServiceAccountCatalog:
 		return true

@@ -216,6 +216,20 @@ func (_u *UserUpdate) SetNillableNotes(v *string) *UserUpdate {
 	return _u
 }
 
+// SetUsageModelDisplayMode sets the "usage_model_display_mode" field.
+func (_u *UserUpdate) SetUsageModelDisplayMode(v string) *UserUpdate {
+	_u.mutation.SetUsageModelDisplayMode(v)
+	return _u
+}
+
+// SetNillableUsageModelDisplayMode sets the "usage_model_display_mode" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableUsageModelDisplayMode(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetUsageModelDisplayMode(*v)
+	}
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdate) SetTotpSecretEncrypted(v string) *UserUpdate {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -668,6 +682,11 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "username", err: fmt.Errorf(`ent: validator failed for field "User.username": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UsageModelDisplayMode(); ok {
+		if err := user.UsageModelDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "usage_model_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_model_display_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -727,6 +746,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Notes(); ok {
 		_spec.SetField(user.FieldNotes, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UsageModelDisplayMode(); ok {
+		_spec.SetField(user.FieldUsageModelDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
@@ -1360,6 +1382,20 @@ func (_u *UserUpdateOne) SetNillableNotes(v *string) *UserUpdateOne {
 	return _u
 }
 
+// SetUsageModelDisplayMode sets the "usage_model_display_mode" field.
+func (_u *UserUpdateOne) SetUsageModelDisplayMode(v string) *UserUpdateOne {
+	_u.mutation.SetUsageModelDisplayMode(v)
+	return _u
+}
+
+// SetNillableUsageModelDisplayMode sets the "usage_model_display_mode" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableUsageModelDisplayMode(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetUsageModelDisplayMode(*v)
+	}
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdateOne) SetTotpSecretEncrypted(v string) *UserUpdateOne {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -1825,6 +1861,11 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "username", err: fmt.Errorf(`ent: validator failed for field "User.username": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UsageModelDisplayMode(); ok {
+		if err := user.UsageModelDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "usage_model_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_model_display_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -1901,6 +1942,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.Notes(); ok {
 		_spec.SetField(user.FieldNotes, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UsageModelDisplayMode(); ok {
+		_spec.SetField(user.FieldUsageModelDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)

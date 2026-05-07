@@ -1,7 +1,29 @@
 <template>
   <div class="card overflow-hidden">
+    <div class="border-b border-gray-100 px-4 py-3 dark:border-dark-700 md:hidden">
+      <UsageModelDisplayModeToggle
+        :model-value="usageModelDisplayMode"
+        :disabled="updatingUsageModelDisplayMode"
+        @update:modelValue="handleUsageModelDisplayModeChange"
+      />
+    </div>
     <div class="overflow-auto">
       <DataTable :columns="columns" :data="data" :loading="loading" row-key="id">
+        <template #header-model="{ column }">
+          <div class="flex items-center justify-between gap-3">
+            <span>{{ column.label }}</span>
+            <div class="hidden md:block" @click.stop>
+              <UsageModelDisplayModeToggle
+                :model-value="usageModelDisplayMode"
+                :disabled="updatingUsageModelDisplayMode"
+                :show-label="false"
+                compact
+                @update:modelValue="handleUsageModelDisplayModeChange"
+              />
+            </div>
+          </div>
+        </template>
+
         <template #cell-user="{ row }">
           <div class="text-sm">
             <div class="flex items-center gap-2">
@@ -50,29 +72,7 @@
 
         <template #cell-model="{ row }">
           <div class="space-y-1 text-xs">
-            <div
-              v-if="row.upstream_model && row.upstream_model !== row.model"
-              class="space-y-1"
-            >
-              <div class="flex items-start gap-2">
-                <ModelIcon :model="row.model" size="16px" />
-                <div class="break-all font-medium text-gray-900 dark:text-white">
-                  {{ row.model }}
-                </div>
-              </div>
-              <div class="flex items-start gap-2 text-gray-500 dark:text-gray-400">
-                <ModelIcon :model="row.upstream_model" size="16px" />
-                <div class="break-all">
-                  <span class="mr-1">-></span>{{ row.upstream_model }}
-                </div>
-              </div>
-            </div>
-            <div v-else class="flex items-start gap-2">
-              <ModelIcon :model="row.model" size="16px" />
-              <span class="break-all font-medium text-gray-900 dark:text-white">{{
-                row.model
-              }}</span>
-            </div>
+            <UsageModelCell :row="row" :mode="usageModelDisplayMode" />
             <div
               v-if="row.model_mapping_chain && row.model_mapping_chain !== row.model"
               class="break-all text-[11px] text-gray-500 dark:text-gray-400"
@@ -821,15 +821,22 @@ import {
 } from "@/utils/usageCost";
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import ModelIcon from "@/components/common/ModelIcon.vue";
+import UsageModelCell from "@/components/common/UsageModelCell.vue";
+import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import Icon from "@/components/icons/Icon.vue";
-import type { AdminUsageLog } from "@/types";
+import type { AdminUsageLog, UsageModelDisplayMode } from "@/types";
+import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
 
 defineProps(["data", "loading", "columns"]);
 defineEmits(["userClick"]);
 const { t } = useI18n();
 const { formatTokenDisplay } = useTokenDisplayMode();
 const { copyToClipboard } = useClipboard();
+const {
+  usageModelDisplayMode,
+  updatingUsageModelDisplayMode,
+  setUsageModelDisplayMode,
+} = useUsageModelDisplayModePreference();
 
 const formatCurrencyBreakdown = (
   values: Record<string, number> | null | undefined,
@@ -991,5 +998,11 @@ const showTokenTooltip = (event: MouseEvent, row: AdminUsageLog) => {
 const hideTokenTooltip = () => {
   tokenTooltipVisible.value = false;
   tokenTooltipData.value = null;
+};
+
+const handleUsageModelDisplayModeChange = async (
+  mode: UsageModelDisplayMode,
+) => {
+  await setUsageModelDisplayMode(mode);
 };
 </script>

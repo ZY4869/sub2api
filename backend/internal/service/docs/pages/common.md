@@ -729,6 +729,96 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/accounts/bulk-update" \
 
 错误体会按协议风格返回，而不是统一强行包成一种格式。
 
+### 当前登录用户资料与使用记录展示偏好
+
+除了协议入口外，站内前端还会调用一组登录后资料接口来读取当前用户信息和保存个人偏好：
+
+- `GET /api/v1/auth/me`
+- `GET /api/v1/user/profile`
+- `PUT /api/v1/user`
+
+这三条接口都要求用户 JWT：
+
+```text
+Authorization: Bearer <USER_JWT>
+```
+
+其中 `GET /api/v1/auth/me` 与 `GET /api/v1/user/profile` 当前都会返回统一的当前用户资料；前者通常用于登录态恢复，后者更多用于用户资料页。
+
+当前用户资料返回体里新增了：
+
+- `usage_model_display_mode`：使用记录里“模型列”的全局展示偏好
+
+允许值固定为：
+
+- `model_only`：仅显示模型 ID
+- `display_only`：仅显示展示名；如果本地目录解析不到展示名，则回退模型 ID
+- `display_and_model`：第一行显示展示名，第二行显示模型 ID
+
+兼容规则如下：
+
+- 新用户与旧用户默认都是 `model_only`
+- 如果数据库里读到空值或脏值，后端会统一归一化回 `model_only`
+- 这个偏好只影响前台 / 后台“使用记录类表格”的显示层，不影响模型路由、可见模型集合、计费、权限或限流
+
+`PUT /api/v1/user` 当前支持的请求体字段包括：
+
+- `username`：可选，更新用户名
+- `usage_model_display_mode`：可选，更新模型列展示偏好
+
+更新接口遵循“只改传入字段”的局部更新语义；未传字段保持不变。`usage_model_display_mode` 如果传入非法值会直接返回 `400`。
+
+#### REST
+```bash
+# 读取当前登录用户资料
+curl https://api.zyxai.de/api/v1/auth/me \
+  -H "Authorization: Bearer <USER_JWT>"
+
+# 或者读取用户资料页使用的同类接口
+curl https://api.zyxai.de/api/v1/user/profile \
+  -H "Authorization: Bearer <USER_JWT>"
+
+# 更新使用记录里的模型展示模式
+curl -X PUT https://api.zyxai.de/api/v1/user \
+  -H "Authorization: Bearer <USER_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "usage_model_display_mode": "display_and_model"
+  }'
+```
+
+典型成功响应示例：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "email": "alice@example.com",
+    "username": "alice",
+    "role": "user",
+    "usage_model_display_mode": "display_and_model",
+    "balance": 12.5,
+    "concurrency": 5,
+    "status": "active",
+    "allowed_groups": null,
+    "created_at": "2025-01-02T03:04:05Z",
+    "updated_at": "2025-01-02T03:04:05Z"
+  }
+}
+```
+
+典型非法枚举响应示例：
+
+```json
+{
+  "code": 400,
+  "message": "usage_model_display_mode must be one of model_only, display_only, display_and_model",
+  "reason": "USER_USAGE_MODEL_DISPLAY_MODE_INVALID"
+}
+```
+
 OpenAI / Anthropic 风格常见于：
 
 - `/v1/responses`
@@ -827,7 +917,7 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 
 跨协议兼容也存在，但不是无条件开放：
 
-- `/v1/messages` 在 OpenAI / Copilot 平台下可能被翻译到 Responses。
+- `/v1/messages` 在 OpenAI 平台下可能被翻译到 Responses。
 - `/v1/messages` 在 DeepSeek 平台下会走 DeepSeek 官方 Anthropic 兼容入口，但会预检并拒绝 DeepSeek 官方未支持的多模态、搜索、工具和容器类内容块。
 - `/v1/messages/count_tokens` 只应当期望在 Anthropic 原生平台成功；DeepSeek 明确不支持。
 - DeepSeek `/deepseek/v1/chat/completions` 额外支持顶层私有字段 `beta?: boolean`：`true` 强制走 beta，`false` 强制稳定面；未传时才按 `prefix` / `reasoning_content` 自动识别 beta。

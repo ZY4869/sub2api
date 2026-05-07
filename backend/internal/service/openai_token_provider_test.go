@@ -5,9 +5,6 @@ package service
 import (
 	"context"
 	"errors"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -418,94 +415,6 @@ func TestOpenAITokenProvider_NilCache(t *testing.T) {
 	token, err := provider.GetAccessToken(context.Background(), account)
 	require.NoError(t, err)
 	require.Equal(t, "nocache-token", token)
-}
-
-func TestOpenAITokenProvider_CopilotUsesExchangedTokenAndCacheTTL(t *testing.T) {
-	cache := newOpenAITokenCacheStub()
-	account := &Account{
-		ID:       901,
-		Platform: PlatformCopilot,
-		Type:     AccountTypeOAuth,
-		Credentials: map[string]any{
-			"access_token": "github-token",
-		},
-	}
-
-	provider := NewOpenAITokenProvider(nil, cache, nil)
-	provider.SetCopilotOAuthService(&CopilotOAuthService{})
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		require.Equal(t, http.MethodGet, req.Method)
-		require.Equal(t, "token github-token", req.Header.Get("Authorization"))
-		_, _ = io.WriteString(w, `{"token":"copilot-runtime-token","expires_at":4102444800,"endpoints":{"api":"https://api.githubcopilot.com"}}`)
-	}))
-	defer server.Close()
-
-	oldInternalTokenURL := copilotInternalTokenURL
-	copilotInternalTokenURL = server.URL
-	defer func() {
-		copilotInternalTokenURL = oldInternalTokenURL
-	}()
-
-	token, err := provider.GetAccessToken(context.Background(), account)
-	require.NoError(t, err)
-	require.Equal(t, "copilot-runtime-token", token)
-	cacheKey := CopilotTokenCacheKey(account)
-	require.Equal(t, "copilot-runtime-token", cache.tokens[cacheKey])
-	require.Greater(t, cache.lastTTL[cacheKey], time.Minute)
-}
-
-func TestOpenAITokenProvider_CopilotStaleLatestAccountUsesLatestExpiryForTTL(t *testing.T) {
-	cache := newOpenAITokenCacheStub()
-	repo := &openAIAccountRepoStub{
-		account: &Account{
-			ID:       902,
-			Platform: PlatformCopilot,
-			Type:     AccountTypeOAuth,
-			Credentials: map[string]any{
-				"access_token":   "latest-github-token",
-				"_token_version": int64(2),
-			},
-		},
-		updateErr: errors.New("persist noop for stale-version test"),
-	}
-	account := &Account{
-		ID:       902,
-		Platform: PlatformCopilot,
-		Type:     AccountTypeOAuth,
-		Credentials: map[string]any{
-			"access_token":   "stale-github-token",
-			"_token_version": int64(1),
-		},
-	}
-
-	provider := NewOpenAITokenProvider(repo, cache, nil)
-	provider.SetCopilotOAuthService(&CopilotOAuthService{})
-	authHeaders := make([]string, 0, 2)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		require.Equal(t, http.MethodGet, req.Method)
-		authHeaders = append(authHeaders, req.Header.Get("Authorization"))
-		_, _ = io.WriteString(w, `{"token":"latest-runtime-token","expires_at":4102444800,"endpoints":{"api":"https://api.githubcopilot.com"}}`)
-	}))
-	defer server.Close()
-
-	oldInternalTokenURL := copilotInternalTokenURL
-	copilotInternalTokenURL = server.URL
-	defer func() {
-		copilotInternalTokenURL = oldInternalTokenURL
-	}()
-
-	token, err := provider.GetAccessToken(context.Background(), account)
-	require.NoError(t, err)
-	require.Equal(t, "latest-runtime-token", token)
-	require.GreaterOrEqual(t, len(authHeaders), 2)
-	require.NotEmpty(t, authHeaders)
-	require.Contains(t, authHeaders[len(authHeaders)-1], "latest-github-token")
-	cacheKey := CopilotTokenCacheKey(account)
-	require.Equal(t, "latest-runtime-token", cache.tokens[cacheKey])
-	require.Equal(t, int32(1), atomic.LoadInt32(&cache.setCalled))
-	require.Greater(t, cache.lastTTL[cacheKey], time.Minute)
 }
 
 func TestOpenAITokenProvider_CacheGetError(t *testing.T) {

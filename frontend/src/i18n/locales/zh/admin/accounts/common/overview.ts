@@ -124,7 +124,6 @@ export default {
         openai: "OpenAI",
         anthropic: "Anthropic",
         kiro: "Kiro",
-        copilot: "GitHub Copilot",
         protocol_gateway: "协议网关",
         grok: "Grok",
         deepseek: "DeepSeek",

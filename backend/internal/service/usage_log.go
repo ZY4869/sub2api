@@ -171,7 +171,7 @@ type UsageLog struct {
 	UpstreamEndpoint *string
 	// UpstreamURL is the best-effort actual upstream base/request URL resolved at runtime.
 	UpstreamURL *string
-	// UpstreamService records the resolved upstream service family, e.g. copilot / kiro.
+	// UpstreamService records the resolved upstream service family, e.g. openai / kiro.
 	UpstreamService   *string
 	ChannelID         *int64
 	ModelMappingChain *string

@@ -101,9 +101,7 @@
                     ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                   : value === 'openai'
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                    : value === 'copilot'
-                      ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
-                      : value === 'grok'
+                    : value === 'grok'
                         ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                       : value === 'deepseek'
                         ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
@@ -1810,8 +1808,6 @@
                         ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                       : group.platform === 'openai'
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                        : group.platform === 'copilot'
-                          ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
                         : group.platform === 'grok'
                           ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                         : group.platform === 'deepseek'
@@ -1909,6 +1905,7 @@ import { VueDraggable } from 'vue-draggable-plus'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import { useKeyedDebouncedSearch } from '@/composables/useKeyedDebouncedSearch'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { GROUP_PLATFORM_ORDER } from '@/utils/platformBranding'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -2009,17 +2006,9 @@ const exclusiveOptions = computed(() => [
   { value: 'false', label: t('admin.groups.nonExclusive') }
 ])
 
-const platformOptions = computed<PlatformSelectOption[]>(() => [
-  buildPlatformSelectOption('anthropic'),
-  buildPlatformSelectOption('kiro'),
-  buildPlatformSelectOption('openai'),
-  buildPlatformSelectOption('copilot'),
-  buildPlatformSelectOption('grok'),
-  buildPlatformSelectOption('deepseek'),
-  buildPlatformSelectOption('gemini'),
-  buildPlatformSelectOption('antigravity'),
-  buildPlatformSelectOption('baidu_document_ai')
-])
+const platformOptions = computed<PlatformSelectOption[]>(() =>
+  GROUP_PLATFORM_ORDER.map((platform) => buildPlatformSelectOption(platform))
+)
 
 const platformFilterOptions = computed<PlatformSelectOption[]>(() => [
   { value: '', label: t('admin.groups.allPlatforms') },

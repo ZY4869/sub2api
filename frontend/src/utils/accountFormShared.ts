@@ -222,13 +222,12 @@ export function supportsMixedChannelCheck(platform?: AccountPlatform | null): bo
   return (
     platform === 'antigravity' ||
     platform === 'anthropic' ||
-    platform === 'kiro' ||
-    platform === 'copilot'
+    platform === 'kiro'
   )
 }
 
 export function supportsMixedChannelConfirmOverride(platform?: AccountPlatform | null): boolean {
-  return supportsMixedChannelCheck(platform) && platform !== 'kiro' && platform !== 'copilot'
+  return supportsMixedChannelCheck(platform) && platform !== 'kiro'
 }
 
 export function buildMixedChannelWarningDetails(

@@ -7,22 +7,23 @@ import (
 )
 
 type User struct {
-	ID                   int64
-	Email                string
-	Username             string
-	Notes                string
-	PasswordHash         string
-	Role                 string
-	Balance              float64
-	Balances             map[string]float64
-	Concurrency          int
-	Status               string
-	AdminFreeBilling     bool
-	RequestDetailsReview bool
-	AllowedGroups        []int64
-	TokenVersion         int64 // Incremented on password change to invalidate existing tokens
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+	ID                    int64
+	Email                 string
+	Username              string
+	Notes                 string
+	PasswordHash          string
+	Role                  string
+	Balance               float64
+	Balances              map[string]float64
+	Concurrency           int
+	Status                string
+	AdminFreeBilling      bool
+	RequestDetailsReview  bool
+	UsageModelDisplayMode string
+	AllowedGroups         []int64
+	TokenVersion          int64 // Incremented on password change to invalidate existing tokens
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]rateMultiplier
@@ -63,6 +64,13 @@ func (u *User) HasUsableBillingBalance() bool {
 		}
 	}
 	return u.Balance > 0
+}
+
+func (u *User) EffectiveUsageModelDisplayMode() string {
+	if u == nil {
+		return UsageModelDisplayModeModelOnly
+	}
+	return NormalizeUserUsageModelDisplayMode(u.UsageModelDisplayMode)
 }
 
 // CanBindGroup checks whether a user can bind to a given group.

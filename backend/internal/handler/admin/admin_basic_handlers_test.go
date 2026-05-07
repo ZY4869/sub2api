@@ -161,21 +161,43 @@ func TestGroupHandlerEndpoints(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 
-func TestGroupHandlerEndpoints_AcceptsKiroAndCopilotPlatforms(t *testing.T) {
+func TestGroupHandlerEndpoints_AcceptsKiroAndRejectsCopilotPlatform(t *testing.T) {
 	router, _ := setupAdminRouter()
 
-	for _, platform := range []string{"kiro", "copilot"} {
-		body, _ := json.Marshal(map[string]any{
-			"name":              "new-" + platform,
-			"platform":          platform,
-			"subscription_type": "standard",
-		})
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		router.ServeHTTP(rec, req)
-		require.Equal(t, http.StatusOK, rec.Code, platform)
-	}
+	body, _ := json.Marshal(map[string]any{
+		"name":              "new-kiro",
+		"platform":          "kiro",
+		"subscription_type": "standard",
+	})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body, _ = json.Marshal(map[string]any{
+		"name":              "new-copilot",
+		"platform":          "copilot",
+		"subscription_type": "standard",
+	})
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "UNSUPPORTED_PLATFORM")
+
+	body, _ = json.Marshal(map[string]any{
+		"name":              "new-invalid",
+		"platform":          "totally-unknown",
+		"subscription_type": "standard",
+	})
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "INVALID_PLATFORM")
 }
 
 func TestProxyHandlerEndpoints(t *testing.T) {

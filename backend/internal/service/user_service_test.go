@@ -19,14 +19,27 @@ import (
 type mockUserRepo struct {
 	updateBalanceErr error
 	updateBalanceFn  func(ctx context.Context, id int64, amount float64) error
+	getByIDFn        func(ctx context.Context, id int64) (*User, error)
+	updateFn         func(ctx context.Context, user *User) error
+	existsByEmailFn  func(ctx context.Context, email string) (bool, error)
 }
 
-func (m *mockUserRepo) Create(context.Context, *User) error               { return nil }
-func (m *mockUserRepo) GetByID(context.Context, int64) (*User, error)     { return &User{}, nil }
+func (m *mockUserRepo) Create(context.Context, *User) error { return nil }
+func (m *mockUserRepo) GetByID(ctx context.Context, id int64) (*User, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, id)
+	}
+	return &User{}, nil
+}
 func (m *mockUserRepo) GetByEmail(context.Context, string) (*User, error) { return &User{}, nil }
 func (m *mockUserRepo) GetFirstAdmin(context.Context) (*User, error)      { return &User{}, nil }
-func (m *mockUserRepo) Update(context.Context, *User) error               { return nil }
-func (m *mockUserRepo) Delete(context.Context, int64) error               { return nil }
+func (m *mockUserRepo) Update(ctx context.Context, user *User) error {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, user)
+	}
+	return nil
+}
+func (m *mockUserRepo) Delete(context.Context, int64) error { return nil }
 func (m *mockUserRepo) List(context.Context, pagination.PaginationParams) ([]User, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
@@ -41,7 +54,12 @@ func (m *mockUserRepo) UpdateBalance(ctx context.Context, id int64, amount float
 }
 func (m *mockUserRepo) DeductBalance(context.Context, int64, float64) error { return nil }
 func (m *mockUserRepo) UpdateConcurrency(context.Context, int64, int) error { return nil }
-func (m *mockUserRepo) ExistsByEmail(context.Context, string) (bool, error) { return false, nil }
+func (m *mockUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	if m.existsByEmailFn != nil {
+		return m.existsByEmailFn(ctx, email)
+	}
+	return false, nil
+}
 func (m *mockUserRepo) RemoveGroupFromAllowedGroups(context.Context, int64) (int64, error) {
 	return 0, nil
 }
@@ -199,4 +217,90 @@ func TestNewUserService_FieldsAssignment(t *testing.T) {
 	require.Equal(t, repo, svc.userRepo)
 	require.Equal(t, auth, svc.authCacheInvalidator)
 	require.Equal(t, cache, svc.billingCache)
+}
+
+func TestUpdateProfile_UsageModelDisplayMode_DefaultFallback(t *testing.T) {
+	user := &User{
+		ID:                    1,
+		Email:                 "alice@example.com",
+		Username:              "alice",
+		Concurrency:           5,
+		Status:                StatusActive,
+		UsageModelDisplayMode: "",
+	}
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			clone := *user
+			return &clone, nil
+		},
+		updateFn: func(_ context.Context, updated *User) error {
+			user.UsageModelDisplayMode = updated.UsageModelDisplayMode
+			return nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		Username: ptrString("alice-2"),
+	})
+	require.NoError(t, err)
+	require.Equal(t, UsageModelDisplayModeModelOnly, updated.EffectiveUsageModelDisplayMode())
+	require.Equal(t, UsageModelDisplayModeModelOnly, NormalizeUserUsageModelDisplayMode(user.UsageModelDisplayMode))
+}
+
+func TestUpdateProfile_UsageModelDisplayMode_Success(t *testing.T) {
+	user := &User{
+		ID:                    1,
+		Email:                 "alice@example.com",
+		Username:              "alice",
+		Concurrency:           5,
+		Status:                StatusActive,
+		UsageModelDisplayMode: UsageModelDisplayModeModelOnly,
+	}
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			clone := *user
+			return &clone, nil
+		},
+		updateFn: func(_ context.Context, updated *User) error {
+			user.Username = updated.Username
+			user.UsageModelDisplayMode = updated.UsageModelDisplayMode
+			return nil
+		},
+		existsByEmailFn: func(context.Context, string) (bool, error) { return false, nil },
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		Username:              ptrString("alice-2"),
+		UsageModelDisplayMode: ptrString(UsageModelDisplayModeDisplayAndModel),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "alice-2", updated.Username)
+	require.Equal(t, UsageModelDisplayModeDisplayAndModel, updated.UsageModelDisplayMode)
+	require.Equal(t, UsageModelDisplayModeDisplayAndModel, user.UsageModelDisplayMode)
+}
+
+func TestUpdateProfile_UsageModelDisplayMode_Invalid(t *testing.T) {
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			return &User{
+				ID:                    1,
+				Email:                 "alice@example.com",
+				Username:              "alice",
+				UsageModelDisplayMode: UsageModelDisplayModeModelOnly,
+			}, nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	_, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		UsageModelDisplayMode: ptrString("bad-mode"),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "usage_model_display_mode")
+}
+
+func ptrString(value string) *string {
+	return &value
 }

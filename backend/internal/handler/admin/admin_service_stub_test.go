@@ -176,6 +176,10 @@ func (s *stubAdminService) GetGroup(ctx context.Context, id int64) (*service.Gro
 	for i := range s.groups {
 		if s.groups[i].ID == id {
 			group := s.groups[i]
+			group.Platform = service.CanonicalizePlatformValue(group.Platform)
+			if err := service.EnsureValidPrimaryGroupPlatform(group.Platform); err != nil {
+				return nil, err
+			}
 			return &group, nil
 		}
 	}
@@ -193,17 +197,47 @@ func (s *stubAdminService) GetGroupByName(ctx context.Context, name string) (*se
 }
 
 func (s *stubAdminService) CreateGroup(ctx context.Context, input *service.CreateGroupInput) (*service.Group, error) {
-	group := service.Group{ID: int64(200 + len(s.groups)), Name: input.Name, Platform: input.Platform, Status: service.StatusActive}
+	platform := service.CanonicalizePlatformValue(input.Platform)
+	if platform == "" {
+		platform = service.PlatformAnthropic
+	}
+	if err := service.EnsureValidPrimaryGroupPlatform(platform); err != nil {
+		return nil, err
+	}
+	group := service.Group{ID: int64(200 + len(s.groups)), Name: input.Name, Platform: platform, Status: service.StatusActive}
 	s.groups = append(s.groups, group)
 	return &group, nil
 }
 
 func (s *stubAdminService) UpdateGroup(ctx context.Context, id int64, input *service.UpdateGroupInput) (*service.Group, error) {
-	group := service.Group{ID: id, Name: input.Name, Status: service.StatusActive}
+	group := service.Group{ID: id, Name: input.Name, Platform: service.PlatformAnthropic, Status: service.StatusActive}
+	for i := range s.groups {
+		if s.groups[i].ID == id {
+			group = s.groups[i]
+			break
+		}
+	}
+	group.Platform = service.CanonicalizePlatformValue(group.Platform)
+	if err := service.EnsureValidPrimaryGroupPlatform(group.Platform); err != nil {
+		return nil, err
+	}
+	if input.Platform != "" {
+		platform := service.CanonicalizePlatformValue(input.Platform)
+		if err := service.EnsureValidPrimaryGroupPlatform(platform); err != nil {
+			return nil, err
+		}
+		group.Platform = platform
+	}
+	if input.Name != "" {
+		group.Name = input.Name
+	}
 	return &group, nil
 }
 
 func (s *stubAdminService) DeleteGroup(ctx context.Context, id int64) error {
+	if _, err := s.GetGroup(ctx, id); err != nil {
+		return err
+	}
 	return nil
 }
 

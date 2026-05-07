@@ -262,24 +262,6 @@ func TestGetOpenAIBaseURL(t *testing.T) {
 			},
 			expected: "https://relay.example.com",
 		},
-		{
-			name: "copilot oauth defaults to github copilot endpoint",
-			account: Account{
-				Type:        AccountTypeOAuth,
-				Platform:    PlatformCopilot,
-				Credentials: map[string]any{},
-			},
-			expected: "https://api.githubcopilot.com",
-		},
-		{
-			name: "copilot oauth honors custom base_url",
-			account: Account{
-				Type:        AccountTypeOAuth,
-				Platform:    PlatformCopilot,
-				Credentials: map[string]any{"base_url": "https://copilot-relay.example.com"},
-			},
-			expected: "https://copilot-relay.example.com",
-		},
 	}
 
 	for _, tt := range tests {

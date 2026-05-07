@@ -12,6 +12,9 @@ export default {
         cleanupExpired: "立即清理过期数据",
     },
     cleanup: {
+        filterTitle: "按当前筛选立即清理",
+        expiredTitle: "立即清理过期数据",
+        confirmAction: "立即清理",
         confirmFilter: "确认按当前筛选条件清理请求详情？该操作不可撤销。",
         confirmExpired: "确认立即清理过期请求详情？该操作不可撤销。",
         success: "清理完成，删除 {traces} 条 trace / {audits} 条审计",

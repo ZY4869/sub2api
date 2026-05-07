@@ -745,6 +745,7 @@ import type { SimpleUser } from '@/api/admin/usage'
 import type { Column } from '@/components/common/types'
 import { formatDateOnly } from '@/utils/format'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { FILTER_PLATFORM_ORDER } from '@/utils/platformBranding'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -962,12 +963,10 @@ const groupOptions = computed(() => [
 
 const platformFilterOptions = computed(() => [
   { value: '', label: t('admin.subscriptions.allPlatforms') },
-  { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') },
-  { value: 'openai', label: t('admin.accounts.platforms.openai') },
-  { value: 'deepseek', label: t('admin.accounts.platforms.deepseek') },
-  { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
-  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
-  { value: 'baidu_document_ai', label: t('admin.accounts.platforms.baidu_document_ai') }
+  ...FILTER_PLATFORM_ORDER.map((platform) => ({
+    value: platform,
+    label: t(`admin.accounts.platforms.${platform}`)
+  }))
 ])
 
 // Group options for assign (only subscription type groups)

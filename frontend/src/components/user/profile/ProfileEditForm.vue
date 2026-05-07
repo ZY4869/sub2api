@@ -20,6 +20,16 @@
           />
         </div>
 
+        <div>
+          <label class="input-label">
+            {{ t('profile.usageModelDisplayMode') }}
+          </label>
+          <UsageModelDisplayModeToggle
+            v-model="usageModelDisplayMode"
+            :show-label="false"
+          />
+        </div>
+
         <div class="flex justify-end pt-4">
           <button type="submit" :disabled="loading" class="btn btn-primary">
             {{ loading ? t('profile.updating') : t('profile.updateProfile') }}
@@ -33,9 +43,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import UsageModelDisplayModeToggle from '@/components/common/UsageModelDisplayModeToggle.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { userAPI } from '@/api'
+import { normalizeUsageModelDisplayMode } from '@/utils/usageModelPresentation'
 
 const props = defineProps<{
   initialUsername: string
@@ -46,11 +58,21 @@ const authStore = useAuthStore()
 const appStore = useAppStore()
 
 const username = ref(props.initialUsername)
+const usageModelDisplayMode = ref(
+  normalizeUsageModelDisplayMode(authStore.user?.usage_model_display_mode)
+)
 const loading = ref(false)
 
 watch(() => props.initialUsername, (val) => {
   username.value = val
 })
+
+watch(
+  () => authStore.user?.usage_model_display_mode,
+  (val) => {
+    usageModelDisplayMode.value = normalizeUsageModelDisplayMode(val)
+  }
+)
 
 const handleUpdateProfile = async () => {
   if (!username.value.trim()) {
@@ -61,9 +83,10 @@ const handleUpdateProfile = async () => {
   loading.value = true
   try {
     const updatedUser = await userAPI.updateProfile({
-      username: username.value
+      username: username.value,
+      usage_model_display_mode: usageModelDisplayMode.value,
     })
-    authStore.user = updatedUser
+    authStore.setCurrentUser(updatedUser)
     appStore.showSuccess(t('profile.updateSuccess'))
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('profile.updateFailed'))

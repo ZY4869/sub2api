@@ -133,9 +133,6 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(c *gin.Context, account *Acc
 	if metadata := strings.TrimSpace(turnMetadata); metadata != "" {
 		headers.Set(openAIWSTurnMetadataHeader, metadata)
 	}
-	if isCopilotOAuthAccount(account) {
-		applyCopilotDefaultHeaders(headers, account)
-	}
 	if isChatGPTOpenAIOAuthAccount(account) {
 		if chatgptAccountID := account.GetChatGPTAccountID(); chatgptAccountID != "" {
 			headers.Set("chatgpt-account-id", chatgptAccountID)

@@ -506,15 +506,6 @@
 
       </form>
 
-      <AccountCopilotDeviceFlowPanel
-        v-else-if="form.platform === 'copilot'"
-        ref="copilotDeviceFlowRef"
-        :proxy-id="form.proxy_id"
-        :submit-label="t('common.create')"
-        :submit-loading="copilotSubmitting"
-        @submit="handleCreateCopilotAccount"
-      />
-
       <AccountKiroAuthPanel
         v-else-if="form.platform === 'kiro'"
         ref="kiroAuthRef"
@@ -629,7 +620,6 @@ import AccountAntigravityModelMappingEditor from '@/components/account/AccountAn
 import AccountApiKeyModelProbeEditor from '@/components/account/AccountApiKeyModelProbeEditor.vue'
 import AccountAutoPauseToggle from '@/components/account/AccountAutoPauseToggle.vue'
 import AccountBaiduDocumentAICredentialsEditor from '@/components/account/AccountBaiduDocumentAICredentialsEditor.vue'
-import AccountCopilotDeviceFlowPanel from '@/components/account/AccountCopilotDeviceFlowPanel.vue'
 import AccountCreateFooterActions from '@/components/account/AccountCreateFooterActions.vue'
 import AccountCreateOAuthStep from '@/components/account/AccountCreateOAuthStep.vue'
 import AccountCreatePlatformSelector from '@/components/account/AccountCreatePlatformSelector.vue'
@@ -673,7 +663,6 @@ import {
 import {
   buildLocalAccountModelProbeSnapshot,
   createAccountModelProbeSnapshotDraft,
-  createResolvedUpstreamDraft,
   mergeAccountModelProbeSnapshotIntoExtra,
   mergeAccountManualModelsIntoExtra,
   mergeResolvedUpstreamDraftIntoExtra,
@@ -747,7 +736,6 @@ const oauthStepTitle = computed(() => {
   if (form.platform === 'openai') return t('admin.accounts.oauth.openai.title')
   if (form.platform === 'gemini') return t('admin.accounts.oauth.gemini.title')
   if (form.platform === 'antigravity') return t('admin.accounts.oauth.antigravity.title')
-  if (form.platform === 'copilot') return t('admin.accounts.copilotDeviceFlow.title')
   if (form.platform === 'kiro') return t('admin.accounts.kiroAuth.title')
   return t('admin.accounts.oauth.title')
 })
@@ -799,7 +787,7 @@ const currentOAuthLoading = computed(() => {
 })
 
 const currentOAuthError = computed(() => {
-  if (form.platform === 'copilot' || form.platform === 'kiro') return ''
+  if (form.platform === 'kiro') return ''
   if (form.platform === 'openai') return openaiOAuth.error.value
   if (form.platform === 'gemini') return geminiOAuth.error.value
   if (form.platform === 'antigravity') return antigravityOAuth.error.value
@@ -808,13 +796,11 @@ const currentOAuthError = computed(() => {
 
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
-const copilotDeviceFlowRef = ref<{ reset: () => void } | null>(null)
 const kiroAuthRef = ref<{ reset: () => void } | null>(null)
 
 // State
 const step = ref(1)
 const autoImportModels = ref(false)
-const copilotSubmitting = ref(false)
 const accountCategory = ref<'oauth-based' | 'apikey' | 'vertex_ai'>('oauth-based') // UI selection for account category
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const gatewayProtocol = ref<GatewayProtocol>('openai')
@@ -985,7 +971,7 @@ const showGeminiVertexBatchArchiveEditor = computed(() =>
   geminiVertexAuthMode.value !== 'express_api_key'
 )
 const showOAuthFinalizeStep = computed(() =>
-  isOAuthFlow.value && (form.platform === 'copilot' || form.platform === 'kiro')
+  isOAuthFlow.value && form.platform === 'kiro'
 )
 const showOAuthFinalizeProbeEditor = computed(() =>
   showOAuthFinalizeStep.value && step.value === 3 && oauthDraftProbeReady.value
@@ -1180,7 +1166,7 @@ const isOAuthFlow = computed(() => {
 })
 
 const isManualInputMethod = computed(() => {
-  if (form.platform === 'copilot' || form.platform === 'kiro') {
+  if (form.platform === 'kiro') {
     return false
   }
   return oauthFlowRef.value?.inputMethod === 'manual'
@@ -1195,7 +1181,7 @@ const expiresAtInput = computed({
 
 const canExchangeCode = computed(() => {
   const authCode = oauthFlowRef.value?.authCode || ''
-  if (form.platform === 'copilot' || form.platform === 'kiro') {
+  if (form.platform === 'kiro') {
     return false
   }
   if (form.platform === 'openai') {
@@ -1473,7 +1459,7 @@ watch(
     if (effectivePlatform.value !== 'anthropic' && newPlatform !== 'antigravity') {
       interceptWarmupRequests.value = false
     }
-    if (newPlatform === 'copilot' || newPlatform === 'kiro') {
+    if (newPlatform === 'kiro') {
       accountCategory.value = 'oauth-based'
       form.type = 'oauth'
     }
@@ -1496,7 +1482,6 @@ watch(
     openaiOAuth.resetState()
     geminiOAuth.resetState()
     antigravityOAuth.resetState()
-    copilotDeviceFlowRef.value?.reset()
     kiroAuthRef.value?.reset()
   }
 )
@@ -1847,7 +1832,6 @@ const { resetForm } = useCreateAccountReset({
   geminiOAuthReset: () => geminiOAuth.resetState(),
   antigravityOAuthReset: () => antigravityOAuth.resetState(),
   oauthFlowReset: () => oauthFlowRef.value?.reset(),
-  copilotFlowReset: () => copilotDeviceFlowRef.value?.reset(),
   kiroImportReset: () => kiroAuthRef.value?.reset(),
   resetMixedChannelRisk
 })
@@ -2102,38 +2086,6 @@ const { handleAntigravityValidateRT, handleAntigravityExchange } = useCreateAcco
   onClose: handleClose
 })
 
-const handleCreateCopilotAccount = async (payload: { sessionId: string }) => {
-  if (!form.name.trim()) {
-    appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
-    return
-  }
-
-  copilotSubmitting.value = true
-  try {
-    const draft = await adminAPI.accounts.resolveCopilotDeviceDraft({
-      session_id: payload.sessionId,
-      proxy_id: form.proxy_id
-    })
-    oauthDraftCredentials.value = { ...(draft.credentials || {}) }
-    oauthDraftExtra.value = { ...(draft.extra || {}) }
-    modelProbeSnapshot.value = createAccountModelProbeSnapshotDraft(
-      draft.extra?.model_probe_snapshot as AccountModelProbeSnapshotDraft | null | undefined
-    )
-    resolvedUpstream.value =
-      createResolvedUpstreamDraft({
-        upstream_url: draft.resolved_upstream_url,
-        upstream_host: draft.resolved_upstream_host,
-        upstream_service: draft.resolved_upstream_service,
-        upstream_probe_source: 'copilot_device_draft'
-      }) || resolvedUpstream.value
-    step.value = 3
-  } catch (error: any) {
-    appStore.showError(error?.message || t('admin.accounts.failedToCreate'))
-  } finally {
-    copilotSubmitting.value = false
-  }
-}
-
 const handleCreateKiroAccount = async (payload: ParsedKiroTokenImport) => {
   oauthDraftCredentials.value = { ...(payload.credentials || {}) }
   oauthDraftExtra.value = { ...(payload.extra || {}) }
@@ -2366,13 +2318,11 @@ const goBackToBasicInfo = () => {
     return
   }
   step.value = 1
-  copilotSubmitting.value = false
   oauth.resetState()
   openaiOAuth.resetState()
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset?.()
-  copilotDeviceFlowRef.value?.reset?.()
   kiroAuthRef.value?.reset?.()
 }
 

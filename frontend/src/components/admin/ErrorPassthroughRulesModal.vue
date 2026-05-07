@@ -435,6 +435,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import type { ErrorPassthroughRule } from '@/api/admin/errorPassthrough'
+import { FILTER_PLATFORM_ORDER } from '@/utils/platformBranding'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -485,14 +486,12 @@ const matchModeOptions = computed(() => [
   { value: 'all', label: t('admin.errorPassthrough.matchMode.all'), description: t('admin.errorPassthrough.matchMode.allHint') }
 ])
 
-const platformOptions = computed(() => [
-  { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') },
-  { value: 'openai', label: t('admin.accounts.platforms.openai') },
-  { value: 'deepseek', label: t('admin.accounts.platforms.deepseek') },
-  { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
-  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
-  { value: 'baidu_document_ai', label: t('admin.accounts.platforms.baidu_document_ai') }
-])
+const platformOptions = computed(() =>
+  FILTER_PLATFORM_ORDER.map((platform) => ({
+    value: platform,
+    label: t(`admin.accounts.platforms.${platform}`)
+  }))
+)
 
 const getPlatformLabel = (platform: string) => {
   const key = `admin.accounts.platforms.${platform}`

@@ -16,6 +16,9 @@ func (h *AccountHandler) Create(c *gin.Context) {
 		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
+	if rejectUnsupportedPlatform(c, req.Platform) {
+		return
+	}
 	if req.RateMultiplier != nil && *req.RateMultiplier < 0 {
 		response.BadRequestKey(c, "admin.account.rate_multiplier_invalid", "rate_multiplier must be >= 0")
 		return
@@ -74,13 +77,8 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	}
 	sanitizeExtraBaseRPM(req.Extra)
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
-	accountBeforeUpdate, err := h.adminService.GetAccount(c.Request.Context(), accountID)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	if accountBeforeUpdate == nil {
-		response.NotFound(c, response.LocalizedMessage(c, "admin.account.not_found", "Account not found"))
+	accountBeforeUpdate, blocked := h.rejectUnsupportedAccountByID(c, accountID)
+	if blocked {
 		return
 	}
 	accountType := req.Type

@@ -220,6 +220,7 @@ func (r *groupRepository) List(ctx context.Context, params pagination.Pagination
 
 func (r *groupRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, status, search string, isExclusive *bool) ([]service.Group, *pagination.PaginationResult, error) {
 	q := r.client.Group.Query()
+	q = q.Where(group.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...))
 
 	if platform != "" {
 		values := platformFilterValues(platform)
@@ -279,7 +280,7 @@ func (r *groupRepository) ListWithFilters(ctx context.Context, params pagination
 
 func (r *groupRepository) ListActive(ctx context.Context) ([]service.Group, error) {
 	groups, err := r.client.Group.Query().
-		Where(group.StatusEQ(service.StatusActive)).
+		Where(group.StatusEQ(service.StatusActive), group.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...)).
 		Order(dbent.Asc(group.FieldSortOrder), dbent.Asc(group.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -309,8 +310,11 @@ func (r *groupRepository) ListActive(ctx context.Context) ([]service.Group, erro
 
 func (r *groupRepository) ListActiveByPlatform(ctx context.Context, platform string) ([]service.Group, error) {
 	values := platformFilterValues(platform)
+	if len(values) == 0 {
+		return []service.Group{}, nil
+	}
 	groups, err := r.client.Group.Query().
-		Where(group.StatusEQ(service.StatusActive), group.PlatformIn(values...)).
+		Where(group.StatusEQ(service.StatusActive), group.PlatformIn(values...), group.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...)).
 		Order(dbent.Asc(group.FieldSortOrder), dbent.Asc(group.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -606,8 +610,10 @@ func (r *groupRepository) loadAccountCounts(ctx context.Context, groupIDs []int6
 		FROM account_groups ag
 		JOIN accounts a ON a.id = ag.account_id
 		WHERE ag.group_id = ANY($1)
+			AND a.platform <> ALL($2)
 		GROUP BY ag.group_id`,
 		pq.Array(groupIDs),
+		pq.Array(service.UnsupportedPrimaryAccountPredicateValues()),
 	)
 	if err != nil {
 		return nil, err

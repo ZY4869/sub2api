@@ -87,6 +87,27 @@ func TestToUserSupportedModelPricing_MapsIntervals(t *testing.T) {
 	require.Equal(t, "tier-1", out.Intervals[0].TierLabel)
 }
 
+func TestBuildPlatformSections_UsesDisplayEnglishOrder(t *testing.T) {
+	ch := service.AvailableChannel{
+		Name:        "Channel Ordered",
+		Description: "desc",
+		Groups: []service.AvailableGroupRef{
+			{ID: 10, Name: "OpenAI", Platform: service.PlatformOpenAI, SubscriptionType: service.SubscriptionTypeStandard, RateMultiplier: 1, IsExclusive: false},
+			{ID: 11, Name: "Google", Platform: service.PlatformGemini, SubscriptionType: service.SubscriptionTypeStandard, RateMultiplier: 1, IsExclusive: false},
+			{ID: 12, Name: "Anthropic", Platform: service.PlatformAnthropic, SubscriptionType: service.SubscriptionTypeStandard, RateMultiplier: 1, IsExclusive: false},
+		},
+	}
+
+	allowed := map[int64]struct{}{10: {}, 11: {}, 12: {}}
+	visibleGroups := filterUserVisibleGroups(ch.Groups, allowed)
+	sections := buildPlatformSections(ch, visibleGroups)
+
+	require.Len(t, sections, 3)
+	require.Equal(t, service.PlatformAnthropic, sections[0].Platform)
+	require.Equal(t, service.PlatformGemini, sections[1].Platform)
+	require.Equal(t, service.PlatformOpenAI, sections[2].Platform)
+}
+
 func ptrInt(v int) *int {
 	return &v
 }

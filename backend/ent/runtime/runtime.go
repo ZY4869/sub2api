@@ -1133,8 +1133,14 @@ func init() {
 	userDescNotes := userFields[9].Descriptor()
 	// user.DefaultNotes holds the default value on creation for the notes field.
 	user.DefaultNotes = userDescNotes.Default.(string)
+	// userDescUsageModelDisplayMode is the schema descriptor for usage_model_display_mode field.
+	userDescUsageModelDisplayMode := userFields[10].Descriptor()
+	// user.DefaultUsageModelDisplayMode holds the default value on creation for the usage_model_display_mode field.
+	user.DefaultUsageModelDisplayMode = userDescUsageModelDisplayMode.Default.(string)
+	// user.UsageModelDisplayModeValidator is a validator for the "usage_model_display_mode" field. It is called by the builders before save.
+	user.UsageModelDisplayModeValidator = userDescUsageModelDisplayMode.Validators[0].(func(string) error)
 	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
-	userDescTotpEnabled := userFields[11].Descriptor()
+	userDescTotpEnabled := userFields[12].Descriptor()
 	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
 	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()

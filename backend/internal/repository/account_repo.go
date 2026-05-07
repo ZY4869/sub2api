@@ -471,7 +471,7 @@ type accountGroupQueryOptions struct {
 func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID int64, opts accountGroupQueryOptions) ([]service.Account, error) {
 	q := r.client.AccountGroup.Query().Where(dbaccountgroup.GroupIDEQ(groupID))
 	preds := make([]dbpredicate.Account, 0, 6)
-	preds = append(preds, dbaccount.DeletedAtIsNil())
+	preds = append(preds, dbaccount.DeletedAtIsNil(), dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...))
 	if opts.status != "" {
 		preds = append(preds, dbaccount.StatusEQ(opts.status))
 	}

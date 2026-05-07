@@ -87,7 +87,6 @@ func ProvideAdminAccountHandler(
 	adminService service.AdminService,
 	oauthService *service.OAuthService,
 	openaiOAuthService *service.OpenAIOAuthService,
-	copilotOAuthService *service.CopilotOAuthService,
 	kiroOAuthService *service.KiroOAuthService,
 	geminiOAuthService *service.GeminiOAuthService,
 	antigravityOAuthService *service.AntigravityOAuthService,
@@ -122,7 +121,6 @@ func ProvideAdminAccountHandler(
 	handler.SetAccountModelImportService(accountModelImportService)
 	handler.SetAccountModelDiagnosticsService(accountModelDiagnosticsService)
 	handler.SetModelRegistryService(modelRegistryService)
-	handler.SetCopilotOAuthService(copilotOAuthService)
 	handler.SetKiroOAuthService(kiroOAuthService)
 	handler.SetOpsService(opsService)
 	if accountTestService != nil {
@@ -133,12 +131,9 @@ func ProvideAdminAccountHandler(
 
 func ProvideOpenAIOAuthHandler(
 	openaiOAuthService *service.OpenAIOAuthService,
-	copilotOAuthService *service.CopilotOAuthService,
 	adminService service.AdminService,
 ) *admin.OpenAIOAuthHandler {
-	handler := admin.NewOpenAIOAuthHandler(openaiOAuthService, adminService)
-	handler.SetCopilotOAuthService(copilotOAuthService)
-	return handler
+	return admin.NewOpenAIOAuthHandler(openaiOAuthService, adminService)
 }
 
 func ProvideAdminModelCatalogHandler(

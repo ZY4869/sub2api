@@ -26,7 +26,6 @@ const (
 	PlatformProtocolGateway = domain.PlatformProtocolGateway
 	PlatformAntigravity     = domain.PlatformAntigravity
 	PlatformKiro            = domain.PlatformKiro
-	PlatformCopilot         = domain.PlatformCopilot
 	PlatformGrok            = domain.PlatformGrok
 	PlatformDeepSeek        = domain.PlatformDeepSeek
 	PlatformBaiduDocumentAI = domain.PlatformBaiduDocumentAI

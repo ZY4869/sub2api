@@ -12,6 +12,9 @@ export default {
         cleanupExpired: "Cleanup Expired Data",
     },
     cleanup: {
+        filterTitle: "Cleanup Current Filter",
+        expiredTitle: "Cleanup Expired Data",
+        confirmAction: "Cleanup Now",
         confirmFilter: "Are you sure you want to cleanup request details matching the current filter? This action cannot be undone.",
         confirmExpired: "Are you sure you want to cleanup expired request details now? This action cannot be undone.",
         success: "Cleanup complete: deleted {traces} traces / {audits} audits",

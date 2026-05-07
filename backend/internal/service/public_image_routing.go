@@ -204,7 +204,6 @@ func (s *GatewayService) resolvePublicImageModelSupports(
 		Provider       string
 	}{
 		{LookupPlatform: PlatformOpenAI, Provider: PlatformOpenAI},
-		{LookupPlatform: PlatformCopilot, Provider: PlatformOpenAI},
 		{LookupPlatform: PlatformGrok, Provider: PlatformGrok},
 		{LookupPlatform: PlatformGemini, Provider: PlatformGemini},
 	}

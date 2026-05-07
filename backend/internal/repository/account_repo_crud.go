@@ -93,6 +93,9 @@ func (r *accountRepository) GetByID(ctx context.Context, id int64) (*service.Acc
 	if len(accounts) == 0 {
 		return nil, service.ErrAccountNotFound
 	}
+	if service.IsUnsupportedPrimaryPlatform(accounts[0].Platform) {
+		return &accounts[0], nil
+	}
 	return &accounts[0], nil
 }
 func (r *accountRepository) GetByIDs(ctx context.Context, ids []int64) ([]*service.Account, error) {
@@ -114,7 +117,7 @@ func (r *accountRepository) GetByIDs(ctx context.Context, ids []int64) ([]*servi
 	if len(uniqueIDs) == 0 {
 		return []*service.Account{}, nil
 	}
-	entAccounts, err := r.client.Account.Query().Where(dbaccount.IDIn(uniqueIDs...)).WithProxy().All(ctx)
+	entAccounts, err := r.client.Account.Query().Where(dbaccount.IDIn(uniqueIDs...), dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...)).WithProxy().All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -367,14 +370,18 @@ func (r *accountRepository) ListByGroup(ctx context.Context, groupID int64) ([]s
 	return accounts, nil
 }
 func (r *accountRepository) ListActive(ctx context.Context) ([]service.Account, error) {
-	accounts, err := r.client.Account.Query().Where(dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate()).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...)).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return r.accountsToService(ctx, accounts)
 }
 func (r *accountRepository) ListByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platformFilterValues(platform)...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate()).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	values := platformFilterValues(platform)
+	if len(values) == 0 {
+		return []service.Account{}, nil
+	}
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(values...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.PlatformNotIn(service.UnsupportedPrimaryAccountPredicateValues()...)).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}

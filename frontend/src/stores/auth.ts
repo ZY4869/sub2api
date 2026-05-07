@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import { authAPI, isTotp2FARequired, type LoginResponse } from '@/api'
-import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types'
+import type { User, LoginRequest, RegisterRequest, AuthResponse, UsageModelDisplayMode } from '@/types'
 
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
@@ -258,6 +258,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function setCurrentUser(nextUser: User): void {
+    user.value = nextUser
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser))
+  }
+
+  function setUsageModelDisplayMode(mode: UsageModelDisplayMode): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      usage_model_display_mode: mode,
+    })
+  }
+
   /**
    * User registration
    * @param userData - Registration data (username, email, password)
@@ -352,10 +367,7 @@ export const useAuthStore = defineStore('auth', () => {
         runMode.value = response.data.run_mode
       }
       const { run_mode: _run_mode, ...userData } = response.data
-      user.value = userData
-
-      // Update localStorage
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData))
+      setCurrentUser(userData)
 
       return userData
     } catch (error) {
@@ -406,6 +418,8 @@ export const useAuthStore = defineStore('auth', () => {
     login2FA,
     register,
     setToken,
+    setCurrentUser,
+    setUsageModelDisplayMode,
     logout,
     checkAuth,
     refreshUser

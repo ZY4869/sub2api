@@ -194,7 +194,7 @@ const antigravityOptions = computed<TypeOption[]>(() => [
   }
 ])
 
-const showStepOneTypeCards = computed(() => platform.value !== 'kiro' && platform.value !== 'copilot')
+const showStepOneTypeCards = computed(() => platform.value !== 'kiro')
 
 const showAnthropicAddMethod = computed(() => platform.value === 'anthropic' && accountCategory.value === 'oauth-based')
 

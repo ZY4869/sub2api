@@ -182,7 +182,7 @@ export function canAccountFetchUsage(account: Account): boolean {
   if (runtimePlatform === "antigravity") {
     return account.type === "oauth";
   }
-  if (runtimePlatform === "openai" || runtimePlatform === "copilot") {
+  if (runtimePlatform === "openai") {
     return account.type === "oauth";
   }
   return false;
@@ -233,8 +233,7 @@ async function performUsageLoad(
     entry.usageInfo = resolvedUsageInfo;
     entry.preferOpenAIFetchedUsage = Boolean(
       options.force &&
-      (getRuntimePlatform(account) === "openai" ||
-        getRuntimePlatform(account) === "copilot") &&
+      getRuntimePlatform(account) === "openai" &&
       account.type === "oauth",
     );
   };

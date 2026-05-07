@@ -93,7 +93,6 @@ export default {
     modelImportFailed: "Failed to import models",
     modelImportUnsupported: "Current account type does not support real model probing",
     modelImportKiroBuiltinCatalog: "Imported from the built-in Kiro model catalog",
-    modelImportCopilotStaticCatalog: "Imported from the Copilot static model catalog (not real upstream)",
     kiroTestModelSourceHint: "Kiro test-model choices come from the model registry or built-in catalog. The real test request still goes directly to the Kiro/AWS generateAssistantResponse runtime endpoint.",
     modelImportResultTitle: "Model import results",
     modelImportSummary: "Added {imported} / Merged {merged} / Skipped {skipped} / Failed {failed}",

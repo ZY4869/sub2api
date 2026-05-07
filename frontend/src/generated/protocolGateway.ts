@@ -11,7 +11,7 @@ export interface GeneratedProtocolGatewayDescriptor {
   targetGroupPlatform: GatewayAcceptedProtocol | ''
 }
 
-export const generatedProtocolGatewayBuiltAt = "2026-04-28T02:23:00Z"
+export const generatedProtocolGatewayBuiltAt = "2026-05-06T07:05:33Z"
 
 export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, GeneratedProtocolGatewayDescriptor> = {
   "anthropic": {
@@ -96,6 +96,7 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
     "displayName": "Mixed",
     "requestFormats": [
       "/v1/chat/completions",
+      "/v1/completions",
       "/v1/responses",
       "/v1/images/generations",
       "/v1/images/edits",
@@ -169,6 +170,7 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
     "displayName": "OpenAI",
     "requestFormats": [
       "/v1/chat/completions",
+      "/v1/completions",
       "/v1/responses",
       "/v1/images/generations",
       "/v1/images/edits",

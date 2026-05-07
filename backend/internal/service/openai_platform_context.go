@@ -9,8 +9,6 @@ func WithOpenAIPlatform(ctx context.Context, platform string) context.Context {
 		ctx = context.Background()
 	}
 	switch platform {
-	case PlatformCopilot:
-		return context.WithValue(ctx, openAIPlatformContextKey{}, PlatformCopilot)
 	case PlatformDeepSeek:
 		return context.WithValue(ctx, openAIPlatformContextKey{}, PlatformDeepSeek)
 	default:

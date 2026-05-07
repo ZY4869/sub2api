@@ -9,6 +9,7 @@ export default {
     user: '用户',
     username: '用户名',
     enterUsername: '输入用户名',
+    usageModelDisplayMode: '使用记录模型展示',
     editProfile: '编辑个人资料',
     updateProfile: '更新资料',
     updating: '更新中...',

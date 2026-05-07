@@ -22,7 +22,7 @@ func activeAccountLimitedSQL(rateLimitResetAt string) string {
 }
 
 func openAIFamilySQL(platform string) string {
-	return fmt.Sprintf("LOWER(BTRIM(COALESCE(%s, ''))) IN ('%s', '%s')", platform, service.PlatformOpenAI, service.PlatformCopilot)
+	return fmt.Sprintf("LOWER(BTRIM(COALESCE(%s, ''))) = '%s'", platform, service.PlatformOpenAI)
 }
 
 func openAIProPlanSQL(credentials string) string {

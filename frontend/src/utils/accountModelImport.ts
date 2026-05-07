@@ -51,7 +51,7 @@ export const MODEL_IMPORT_SYNC_EXPOSURES = ['whitelist', 'use_key', 'test', 'run
 function isNonUpstreamProbeSource(
   probeSource: AccountModelImportResult['probe_source']
 ): boolean {
-  return probeSource === 'kiro_builtin_catalog' || probeSource === 'copilot_static_catalog'
+  return probeSource === 'kiro_builtin_catalog'
 }
 
 function normalizeErrorMetadata(value: unknown): Record<string, string> {
@@ -241,10 +241,6 @@ export function resolveAccountModelImportProbeNoticeMessage(
   if (result?.probe_source === 'kiro_builtin_catalog') {
     return t('admin.accounts.modelImportKiroBuiltinCatalog')
   }
-  if (result?.probe_source === 'copilot_static_catalog') {
-    return t('admin.accounts.modelImportCopilotStaticCatalog')
-  }
-
   const probeNotice = typeof result?.probe_notice === 'string'
     ? result.probe_notice.trim()
     : ''

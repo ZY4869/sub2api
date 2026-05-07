@@ -7,6 +7,9 @@ func platformFilterValues(platform string) []string {
 	if canonical == "" {
 		return nil
 	}
+	if service.IsUnsupportedPrimaryPlatform(canonical) {
+		return nil
+	}
 	if canonical == service.PlatformBaiduDocumentAI {
 		return []string{service.PlatformBaiduDocumentAI, "baidu"}
 	}

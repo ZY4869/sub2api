@@ -3,7 +3,6 @@ export default {
     anthropic: "Anthropic",
     kiro: "Kiro",
     openai: "OpenAI",
-    copilot: "GitHub Copilot",
     grok: "Grok",
     deepseek: "DeepSeek",
     gemini: "Google",

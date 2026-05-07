@@ -12,7 +12,7 @@
 当前程序对 `messages` 的处理不是“死板只认 Anthropic 平台”：
 
 - 运行平台是 Anthropic 时，`/v1/messages` 原生直通。
-- 运行平台是 OpenAI / Copilot 时，`/v1/messages` 可能被翻译到 Responses。
+- 运行平台是 OpenAI 时，`/v1/messages` 可能被翻译到 Responses。
 - 运行平台是 Antigravity 时，`/antigravity/v1/messages` 可以走原生 Antigravity 路径。
 - 运行平台是 Grok 时，`messages` 在能力矩阵中被明确拒绝。
 
@@ -93,7 +93,7 @@ curl https://api.zyxai.de/v1/messages \
 
 - 这是当前最稳定的 Claude 入口。
 - 当分组平台是 Anthropic 时按原生协议透传。
-- 当分组平台是 OpenAI / Copilot 时，网关可能把请求翻译成 Responses。
+- 当分组平台是 OpenAI 时，网关可能把请求翻译成 Responses。
 - Grok 平台不支持 `messages`，会返回协议能力错误。
 
 实际接入建议：
@@ -264,7 +264,7 @@ Anthropic 的 prompt cache 语义会通过 `cache_control` 体现（例如 `{"ca
 `POST /v1/messages/count_tokens` 的结论要比 `messages` 更严格：
 
 - 只应当对 Anthropic 原生平台抱有成功预期。
-- OpenAI、Copilot、Grok、Antigravity 在当前能力矩阵中都不是成功面。
+- OpenAI、Grok、Antigravity 在当前能力矩阵中都不是成功面。
 - 你即使看到了路由存在，也不应该把它当作“所有 Claude 风格入口都支持”的信号。
 
 也就是说，`count_tokens` 是一条“能力收窄”的路径，而不是“语法兼容就一定成功”的路径。

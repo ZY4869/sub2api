@@ -255,9 +255,8 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 		response.BadRequest(c, "Invalid account ID")
 		return
 	}
-	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
-	if err != nil {
-		response.ErrorFrom(c, err)
+	account, blocked := h.rejectUnsupportedAccountByID(c, accountID)
+	if blocked {
 		return
 	}
 	response.Success(c, h.buildAccountDetailResponse(c.Request.Context(), account))

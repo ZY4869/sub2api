@@ -74,14 +74,6 @@ describe('resolveAccountModelImportProbeNoticeMessage', () => {
     })).toBe('admin.accounts.modelImportKiroBuiltinCatalog')
   })
 
-  it('maps Copilot static catalog source to localized copy', () => {
-    expect(resolveAccountModelImportProbeNoticeMessage(t, {
-      imported_count: 3,
-      probe_source: 'copilot_static_catalog',
-      probe_notice: 'using Copilot static model catalog'
-    })).toBe('admin.accounts.modelImportCopilotStaticCatalog')
-  })
-
   it('prefers explicit probe notice from backend', () => {
     expect(resolveAccountModelImportProbeNoticeMessage(t, {
       imported_count: 6,
@@ -181,7 +173,7 @@ describe('mergeAccountModelImportResults', () => {
             reason_code: 'merged_canonical'
           }
         ],
-        probe_source: 'copilot_static_catalog',
+        probe_source: 'upstream',
         probe_notice: 'fallback notice',
         trigger: 'create'
       }
@@ -189,7 +181,7 @@ describe('mergeAccountModelImportResults', () => {
 
     expect(merged?.imported_count).toBe(1)
     expect(merged?.skipped_count).toBe(1)
-    expect(merged?.probe_source).toBe('copilot_static_catalog')
+    expect(merged?.probe_source).toBe('upstream')
     expect(merged?.probe_notice).toBe('fallback notice')
     expect(merged?.model_results).toHaveLength(2)
   })

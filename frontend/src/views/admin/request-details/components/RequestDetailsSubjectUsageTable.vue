@@ -2,18 +2,25 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
-import type { AdminUsageLog } from '@/types'
+import type { AdminUsageLog, UsageModelDisplayMode } from '@/types'
 import { adminUsageAPI } from '@/api/admin/usage'
 import { formatDateTime } from '@/utils/format'
 import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
+import { useUsageModelDisplayModePreference } from '@/composables/useUsageModelDisplayModePreference'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import ModelIcon from '@/components/common/ModelIcon.vue'
 import Pagination from '@/components/common/Pagination.vue'
+import UsageModelCell from '@/components/common/UsageModelCell.vue'
+import UsageModelDisplayModeToggle from '@/components/common/UsageModelDisplayModeToggle.vue'
 import UsageRequestPreviewModal from '@/components/user/usage/UsageRequestPreviewModal.vue'
 
 const { t } = useI18n()
 const { formatTokenDisplay } = useTokenDisplayMode()
+const {
+  usageModelDisplayMode,
+  updatingUsageModelDisplayMode,
+  setUsageModelDisplayMode,
+} = useUsageModelDisplayModePreference()
 
 defineProps<{
   items: AdminUsageLog[]
@@ -69,20 +76,47 @@ function statusBadgeClass(status: AdminUsageLog['status']): string {
     ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
     : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
 }
+
+async function handleUsageModelDisplayModeChange(mode: UsageModelDisplayMode) {
+  await setUsageModelDisplayMode(mode)
+}
 </script>
 
 <template>
   <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-800">
-    <div class="mb-4">
-      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-        {{ t('admin.requestDetails.subject.ledger.title') }}
-      </h3>
-      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        {{ t('admin.requestDetails.subject.ledger.description') }}
-      </p>
+    <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div>
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+          {{ t('admin.requestDetails.subject.ledger.title') }}
+        </h3>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {{ t('admin.requestDetails.subject.ledger.description') }}
+        </p>
+      </div>
+      <UsageModelDisplayModeToggle
+        class="md:hidden"
+        :model-value="usageModelDisplayMode"
+        :disabled="updatingUsageModelDisplayMode"
+        @update:modelValue="handleUsageModelDisplayModeChange"
+      />
     </div>
 
     <DataTable :columns="columns" :data="items" :loading="loading">
+      <template #header-models="{ column }">
+        <div class="flex items-center justify-between gap-3">
+          <span>{{ column.label }}</span>
+          <div class="hidden md:block" @click.stop>
+            <UsageModelDisplayModeToggle
+              :model-value="usageModelDisplayMode"
+              :disabled="updatingUsageModelDisplayMode"
+              :show-label="false"
+              compact
+              @update:modelValue="handleUsageModelDisplayModeChange"
+            />
+          </div>
+        </div>
+      </template>
+
       <template #cell-created_at="{ value }">
         <span class="text-sm text-gray-600 dark:text-gray-300">
           {{ formatDateTime(value) }}
@@ -108,16 +142,7 @@ function statusBadgeClass(status: AdminUsageLog['status']): string {
       </template>
 
       <template #cell-models="{ row }">
-        <div class="space-y-1 text-xs">
-          <div class="flex items-center gap-2">
-            <ModelIcon :model="row.model" size="16px" />
-            <span class="break-all text-gray-900 dark:text-white">{{ row.model || '-' }}</span>
-          </div>
-          <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            <ModelIcon :model="row.upstream_model || row.model" size="16px" />
-            <span class="break-all">{{ row.upstream_model || '-' }}</span>
-          </div>
-        </div>
+        <UsageModelCell :row="row" :mode="usageModelDisplayMode" />
       </template>
 
       <template #cell-status="{ row }">

@@ -338,95 +338,6 @@ export async function setPrivacy(id: number): Promise<Account> {
   return data
 }
 
-export interface CopilotDeviceFlowStartResult {
-  session_id: string
-  device_code?: string
-  user_code: string
-  verification_uri: string
-  verification_uri_complete?: string
-  expires_in: number
-  interval: number
-}
-
-export interface CopilotDeviceFlowUser {
-  login?: string
-  email?: string
-  name?: string
-}
-
-export interface CopilotDeviceFlowPollResult {
-  session_id: string
-  status: 'pending' | 'completed'
-  interval: number
-  expires_in?: number
-  user?: CopilotDeviceFlowUser
-}
-
-export interface CopilotDeviceDraftResolveResult {
-  credentials: Record<string, unknown>
-  extra: Record<string, unknown>
-  user?: CopilotDeviceFlowUser
-  resolved_upstream_url?: string
-  resolved_upstream_host?: string
-  resolved_upstream_service?: string
-}
-
-export async function startCopilotDeviceFlow(payload: {
-  proxy_id?: number | null
-} = {}): Promise<CopilotDeviceFlowStartResult> {
-  const { data } = await apiClient.post<CopilotDeviceFlowStartResult>('/admin/copilot/device/start', payload)
-  return data
-}
-
-export async function pollCopilotDeviceFlow(sessionId: string): Promise<CopilotDeviceFlowPollResult> {
-  const { data } = await apiClient.post<CopilotDeviceFlowPollResult>('/admin/copilot/device/poll', {
-    session_id: sessionId
-  })
-  return data
-}
-
-export async function resolveCopilotDeviceDraft(payload: {
-  session_id: string
-  proxy_id?: number | null
-}): Promise<CopilotDeviceDraftResolveResult> {
-  const { data } = await apiClient.post<CopilotDeviceDraftResolveResult>(
-    '/admin/copilot/device/resolve-draft',
-    payload
-  )
-  return data
-}
-
-export async function createCopilotAccountFromDevice(payload: {
-  session_id: string
-  proxy_id?: number | null
-  name: string
-  notes?: string | null
-  concurrency?: number
-  load_factor?: number | null
-  priority?: number
-  rate_multiplier?: number
-  group_ids?: number[]
-  expires_at?: number | null
-  auto_pause_on_expired?: boolean
-  confirm_mixed_channel_risk?: boolean
-}): Promise<Account> {
-  const { data } = await apiClient.post<Account>('/admin/copilot/create-from-device', payload)
-  return data
-}
-
-export async function reauthorizeCopilotAccountFromDevice(
-  id: number,
-  payload: { session_id: string }
-): Promise<Account> {
-  const { data } = await apiClient.post<Account>(`/admin/copilot/accounts/${id}/reauthorize-from-device`, payload)
-  return data
-}
-
-export async function refreshCopilotAccount(id: number): Promise<Account> {
-  const { data } = await apiClient.post<Account>(`/admin/copilot/accounts/${id}/refresh`)
-  return data
-}
-
 export interface KiroAuthUrlResult {
   auth_url: string
   session_id: string
@@ -1400,12 +1311,6 @@ export const accountsAPI = {
   testGrokAccount,
   refreshCredentials,
   setPrivacy,
-  startCopilotDeviceFlow,
-  pollCopilotDeviceFlow,
-  resolveCopilotDeviceDraft,
-  createCopilotAccountFromDevice,
-  reauthorizeCopilotAccountFromDevice,
-  refreshCopilotAccount,
   generateKiroAuthUrl,
   exchangeKiroAuthCode,
   createKiroAccountFromOAuth,

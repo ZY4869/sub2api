@@ -9,7 +9,6 @@ var providerLabelOverrides = map[string]string{
 	PlatformGrok:        "xAI-Grok",
 	PlatformDeepSeek:    "DeepSeek",
 	PlatformAntigravity: "Antigravity",
-	PlatformCopilot:     "GitHub-Copilot",
 	PlatformKiro:        "Kiro",
 	"baidu":             "Baidu-Document-AI",
 }
@@ -29,7 +28,7 @@ func NormalizeModelProvider(provider string) string {
 func ProviderForPlatform(platform string) string {
 	switch NormalizePlatformFamily(platform) {
 	case PlatformOpenAI:
-		if normalized := NormalizeModelProvider(platform); normalized == PlatformGrok || normalized == PlatformCopilot {
+		if normalized := NormalizeModelProvider(platform); normalized == PlatformGrok {
 			return normalized
 		}
 		return PlatformOpenAI

@@ -309,6 +309,7 @@ import {
   resolveAccountModelImportErrorMessage,
   shouldInvalidateModelInventory,
 } from "@/utils/accountModelImport";
+import { getPlatformOrderIndex } from "@/utils/platformBranding";
 import { buildProviderDisplayName } from "@/utils/providerLabels";
 import type { AccountListRequestParams } from "@/utils/accountListSync";
 import type {
@@ -449,22 +450,6 @@ const HIDE_LIMITED_ACCOUNTS_STORAGE_KEY =
   "account-always-hide-limited-accounts";
 const PLATFORM_COUNT_SORT_ORDER_STORAGE_KEY =
   "account-platform-count-sort-order";
-const ACCOUNT_PLATFORM_DISPLAY_ORDER: AccountPlatform[] = [
-  "anthropic",
-  "kiro",
-  "openai",
-  "copilot",
-  "grok",
-  "deepseek",
-  "protocol_gateway",
-  "gemini",
-  "antigravity",
-  "baidu_document_ai",
-];
-const ACCOUNT_PLATFORM_ORDER_INDEX = new Map(
-  ACCOUNT_PLATFORM_DISPLAY_ORDER.map((platform, index) => [platform, index]),
-);
-
 const loadHideLimitedPreference = () => {
   if (typeof window === "undefined") {
     return true;
@@ -801,9 +786,7 @@ const displayAccounts = computed<Account[]>(() => {
       account,
       index,
       count: pagePlatformCounts[account.platform] ?? 0,
-      platformRank:
-        ACCOUNT_PLATFORM_ORDER_INDEX.get(account.platform) ??
-        Number.MAX_SAFE_INTEGER,
+      platformRank: getPlatformOrderIndex(account.platform),
     }))
     .sort((left, right) => {
       if (left.count !== right.count) {

@@ -453,3 +453,28 @@ func TestModelRegistryService_ManualAddEntry_RejectsUnknownProvider(t *testing.T
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "MODEL_PROVIDER_INFERENCE_FAILED")
 }
+
+func TestModelRegistryService_PublicSnapshotIncludesContextWindowTokens(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	_, err := svc.ActivateModels(context.Background(), []string{"claude-opus-4.1", "deepseek-v4-pro"})
+	require.NoError(t, err)
+
+	snapshot, err := svc.PublicSnapshot(context.Background())
+	require.NoError(t, err)
+
+	var claudeTokens int64
+	var deepseekTokens int64
+	for _, model := range snapshot.Models {
+		switch model.ID {
+		case "claude-opus-4.1":
+			claudeTokens = model.ContextWindowTokens
+		case "deepseek-v4-pro":
+			deepseekTokens = model.ContextWindowTokens
+		}
+	}
+
+	require.EqualValues(t, 200000, claudeTokens)
+	require.EqualValues(t, 1048576, deepseekTokens)
+}

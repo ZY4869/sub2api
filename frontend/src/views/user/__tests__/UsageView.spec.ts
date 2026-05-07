@@ -140,6 +140,14 @@ vi.mock("@/stores/app", () => ({
   useAppStore: () => ({ showError, showWarning, showSuccess, showInfo }),
 }));
 
+vi.mock("@/composables/useUsageModelDisplayModePreference", () => ({
+  useUsageModelDisplayModePreference: () => ({
+    usageModelDisplayMode: "model_only",
+    updatingUsageModelDisplayMode: false,
+    setUsageModelDisplayMode: vi.fn(),
+  }),
+}));
+
 vi.mock("vue-i18n", async () => {
   const actual = await vi.importActual<typeof import("vue-i18n")>("vue-i18n");
   return {
@@ -237,6 +245,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -368,6 +381,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -481,6 +499,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -564,6 +587,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -638,6 +666,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -715,6 +748,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -820,6 +858,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -894,6 +937,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -991,6 +1039,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -1082,6 +1135,11 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
           Teleport: true,
         },
       },

@@ -1,6 +1,7 @@
 export default {
     requestDetails: {
         title: "请求明细",
+        description: "查看请求明细、摘要和清理结果。",
         details: "明细",
         rangeLabel: "窗口：{range}",
         rangeMinutes: "{n} 分钟",
@@ -12,6 +13,23 @@ export default {
         copyFailed: "复制失败",
         copy: "复制",
         viewError: "查看错误",
+        messages: {
+            listFailed: "加载请求明细列表失败",
+            summaryFailed: "加载请求摘要失败",
+            detailFailed: "加载请求详情失败",
+            rawFailed: "加载原始载荷失败",
+            exportFailed: "导出请求明细失败",
+        },
+        cleanup: {
+            filterTitle: "按当前筛选立即清理",
+            expiredTitle: "立即清理过期数据",
+            confirmAction: "立即清理",
+            confirmFilter: "将按当前筛选条件清理命中的请求明细和审计记录，此操作不可撤销。是否继续？",
+            confirmExpired: "将清理所有已过期的请求明细和审计记录，此操作不可撤销。是否继续？",
+            success: "清理完成：删除 {traces} 条请求明细，{audits} 条审计记录。",
+            successExpired: "过期数据清理完成：删除 {traces} 条请求明细，{audits} 条审计记录，截止时间 {cutoff}。",
+            failed: "清理请求明细失败",
+        },
         kind: {
             success: "成功",
             error: "失败",

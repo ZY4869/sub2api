@@ -17,8 +17,8 @@ type gatewayChannelStateResolver interface {
 }
 
 var (
-	openAICompatiblePlatforms     = []string{service.PlatformOpenAI, service.PlatformCopilot}
-	openAITextCompatiblePlatforms = []string{service.PlatformOpenAI, service.PlatformCopilot, service.PlatformDeepSeek}
+	openAICompatiblePlatforms     = []string{service.PlatformOpenAI}
+	openAITextCompatiblePlatforms = []string{service.PlatformOpenAI, service.PlatformDeepSeek}
 	gatewayCompatiblePlatforms    = []string{
 		service.PlatformAnthropic,
 		service.PlatformDeepSeek,

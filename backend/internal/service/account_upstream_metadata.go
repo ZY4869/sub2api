@@ -70,8 +70,6 @@ func MergeUpstreamExtra(base map[string]any, info ResolvedUpstreamInfo) map[stri
 func inferUpstreamServiceFromHost(host string) string {
 	normalized := strings.ToLower(strings.TrimSpace(host))
 	switch {
-	case strings.Contains(normalized, "githubcopilot.com"), strings.Contains(normalized, "githubusercontent.com"):
-		return PlatformCopilot
 	case strings.Contains(normalized, "amazonaws.com"):
 		return PlatformKiro
 	case strings.Contains(normalized, "openai.com"):

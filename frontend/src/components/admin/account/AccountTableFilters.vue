@@ -18,6 +18,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'; import { useI18n } from 'vue-i18n'; import Select from '@/components/common/Select.vue'; import SearchInput from '@/components/common/SearchInput.vue'
 import type { AdminGroup } from '@/types'
+import { ACCOUNT_PLATFORM_ORDER } from '@/utils/platformBranding'
 const props = defineProps<{ searchQuery: string; filters: Record<string, any>; groups?: AdminGroup[] }>()
 const emit = defineEmits(['update:searchQuery', 'update:filters', 'change']); const { t } = useI18n()
 const updatePlatform = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, platform: value }) }
@@ -25,7 +26,13 @@ const updateType = (value: string | number | boolean | null) => { emit('update:f
 const updateStatus = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, status: value }) }
 const updatePrivacyMode = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, privacy_mode: value }) }
 const updateGroup = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, group: value }) }
-const pOpts = computed(() => [{ value: '', label: t('admin.accounts.allPlatforms') }, { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') }, { value: 'kiro', label: t('admin.accounts.platforms.kiro') }, { value: 'openai', label: t('admin.accounts.platforms.openai') }, { value: 'copilot', label: t('admin.accounts.platforms.copilot') }, { value: 'grok', label: t('admin.accounts.platforms.grok') }, { value: 'deepseek', label: t('admin.accounts.platforms.deepseek') }, { value: 'protocol_gateway', label: t('admin.accounts.platforms.protocol_gateway') }, { value: 'gemini', label: t('admin.accounts.platforms.gemini') }, { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') }])
+const pOpts = computed(() => [
+  { value: '', label: t('admin.accounts.allPlatforms') },
+  ...ACCOUNT_PLATFORM_ORDER.map((platform) => ({
+    value: platform,
+    label: t(`admin.accounts.platforms.${platform}`)
+  }))
+])
 const tOpts = computed(() => [{ value: '', label: t('admin.accounts.allTypes') }, { value: 'oauth', label: t('admin.accounts.oauthType') }, { value: 'setup-token', label: t('admin.accounts.setupToken') }, { value: 'apikey', label: t('admin.accounts.apiKey') }, { value: 'sso', label: t('admin.accounts.types.sso') }, { value: 'bedrock', label: 'AWS Bedrock' }])
 const sOpts = computed(() => [{ value: '', label: t('admin.accounts.allStatus') }, { value: 'active', label: t('admin.accounts.status.active') }, { value: 'inactive', label: t('admin.accounts.status.inactive') }, { value: 'error', label: t('admin.accounts.status.error') }, { value: 'paused', label: t('admin.accounts.status.paused') }, { value: 'rate_limited', label: t('admin.accounts.status.rateLimited') }, { value: 'temp_unschedulable', label: t('admin.accounts.status.tempUnschedulable') }])
 const privacyOpts = computed(() => [

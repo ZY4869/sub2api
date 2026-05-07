@@ -18,8 +18,3 @@ func ClaudeTokenCacheKey(account *Account) string {
 func KiroTokenCacheKey(account *Account) string {
 	return "kiro:account:" + strconv.FormatInt(account.ID, 10)
 }
-
-// CopilotTokenCacheKey generates the cache key for Copilot OAuth accounts.
-func CopilotTokenCacheKey(account *Account) string {
-	return "copilot:account:" + strconv.FormatInt(account.ID, 10)
-}

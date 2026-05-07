@@ -58,9 +58,10 @@ type UserRepository interface {
 
 // UpdateProfileRequest 更新用户资料请求
 type UpdateProfileRequest struct {
-	Email       *string `json:"email"`
-	Username    *string `json:"username"`
-	Concurrency *int    `json:"concurrency"`
+	Email                 *string `json:"email"`
+	Username              *string `json:"username"`
+	Concurrency           *int    `json:"concurrency"`
+	UsageModelDisplayMode *string `json:"usage_model_display_mode"`
 }
 
 // ChangePasswordRequest 修改密码请求
@@ -130,6 +131,14 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int64, req Updat
 
 	if req.Concurrency != nil {
 		user.Concurrency = *req.Concurrency
+	}
+
+	if req.UsageModelDisplayMode != nil {
+		mode, err := ValidateUserUsageModelDisplayMode(*req.UsageModelDisplayMode)
+		if err != nil {
+			return nil, err
+		}
+		user.UsageModelDisplayMode = mode
 	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {

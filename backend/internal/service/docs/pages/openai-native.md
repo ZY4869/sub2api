@@ -96,7 +96,7 @@ curl https://api.zyxai.de/v1/responses \
 - `POST /v1/responses/*subpath` 用于保留 Responses 子资源动作。
 - `GET /v1/responses/*subpath` 与 `DELETE /v1/responses/*subpath` 用于查询或删除子资源。
 - `GET /v1/responses` 由专门的 Responses WebSocket / 长连接处理链路接管。
-- 当运行平台为 OpenAI 或 Copilot 时，Responses 能力是原生直通。
+- 当运行平台为 OpenAI 时，Responses 能力是原生直通。
 - 当运行平台为 Grok 时，普通 `POST /grok/v1/responses` 可用，但 WebSocket 动作在能力矩阵中被拒绝。
 - 如果你在 `POST /v1/responses` 里使用 `image_generation` tool，而上游返回的是 compact SSE 且终态 `response.completed.response.output` 为空，网关会根据 `response.image_generation_call.partial_image` 自动回填 `output[].content[].type = "output_image"`，`image_url` 为 data URI，方便非流式客户端直接消费。
 - 如果上游账号是 OpenAI Pro，运行时额度会拆成两侧：`gpt-5.3-codex-spark*` 只占用 `Spark` 侧，其它 OpenAI 模型统一占用 `普通` 侧；一侧冷却不会连带阻断另一侧。
@@ -109,7 +109,7 @@ curl https://api.zyxai.de/v1/responses \
 
 - 普通文本生成失败时，先确认你用的是 `POST` 而不是 `GET`。
 - 看到 `404` 时，不要只怀疑路径拼写，还要看当前分组平台是否真的支持该动作。
-- 如果你依赖持续连接或多轮状态链路，请优先在 OpenAI / Copilot 平台验证。
+- 如果你依赖持续连接或多轮状态链路，请优先在 OpenAI 平台验证。
 - 如果是 OpenAI Pro，`429 rate_limit_error` 现在还可能表示“相关额度侧正在冷却”，这时另一侧模型通常仍可继续调用。
 
 #### Python

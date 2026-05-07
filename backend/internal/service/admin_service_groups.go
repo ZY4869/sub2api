@@ -25,15 +25,34 @@ func (s *adminServiceImpl) GetAllGroupsByPlatform(ctx context.Context, platform 
 	return s.groupRepo.ListActiveByPlatform(ctx, platform)
 }
 func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, error) {
-	return s.groupRepo.GetByID(ctx, id)
+	group, err := s.groupRepo.GetByID(ctx, id)
+	if err != nil || group == nil {
+		return group, err
+	}
+	group.Platform = CanonicalizePlatformValue(group.Platform)
+	if err := EnsureValidPrimaryGroupPlatform(group.Platform); err != nil {
+		return nil, err
+	}
+	return group, nil
 }
 func (s *adminServiceImpl) GetGroupByName(ctx context.Context, name string) (*Group, error) {
-	return s.groupRepo.GetByName(ctx, name)
+	group, err := s.groupRepo.GetByName(ctx, name)
+	if err != nil || group == nil {
+		return group, err
+	}
+	group.Platform = CanonicalizePlatformValue(group.Platform)
+	if err := EnsureValidPrimaryGroupPlatform(group.Platform); err != nil {
+		return nil, err
+	}
+	return group, nil
 }
 func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error) {
 	platform := CanonicalizePlatformValue(input.Platform)
 	if platform == "" {
 		platform = PlatformAnthropic
+	}
+	if err := EnsureValidPrimaryGroupPlatform(platform); err != nil {
+		return nil, err
 	}
 	subscriptionType := input.SubscriptionType
 	if subscriptionType == "" {
@@ -178,6 +197,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		return nil, err
 	}
 	group.Platform = CanonicalizePlatformValue(group.Platform)
+	if err := EnsureValidPrimaryGroupPlatform(group.Platform); err != nil {
+		return nil, err
+	}
 	if input.Name != "" {
 		group.Name = input.Name
 	}
@@ -186,6 +208,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.Platform != "" {
 		group.Platform = CanonicalizePlatformValue(input.Platform)
+		if err := EnsureValidPrimaryGroupPlatform(group.Platform); err != nil {
+			return nil, err
+		}
 	}
 	if input.Priority != nil && *input.Priority > 0 {
 		group.Priority = *input.Priority
@@ -316,6 +341,14 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	return group, nil
 }
 func (s *adminServiceImpl) DeleteGroup(ctx context.Context, id int64) error {
+	group, err := s.groupRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	group.Platform = CanonicalizePlatformValue(group.Platform)
+	if err := EnsureValidPrimaryGroupPlatform(group.Platform); err != nil {
+		return err
+	}
 	var groupKeys []string
 	if s.authCacheInvalidator != nil {
 		keys, err := s.apiKeyRepo.ListKeysByGroupID(ctx, id)

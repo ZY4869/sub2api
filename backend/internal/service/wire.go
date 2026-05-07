@@ -96,13 +96,11 @@ func ProvideOpenAITokenProvider(
 	accountRepo AccountRepository,
 	tokenCache GeminiTokenCache,
 	openaiOAuthService *OpenAIOAuthService,
-	copilotOAuthService *CopilotOAuthService,
 	refreshAPI *OAuthRefreshAPI,
 ) *OpenAITokenProvider {
 	p := NewOpenAITokenProvider(accountRepo, tokenCache, openaiOAuthService)
 	executor := NewOpenAITokenRefresher(openaiOAuthService, accountRepo)
 	p.SetRefreshAPI(refreshAPI, executor)
-	p.SetCopilotOAuthService(copilotOAuthService)
 	p.SetRefreshPolicy(OpenAIProviderRefreshPolicy())
 	return p
 }
@@ -756,7 +754,6 @@ var ProviderSet = wire.NewSet(
 	NewGrokReverseClient,
 	NewOAuthService,
 	NewOpenAIOAuthService,
-	NewCopilotOAuthService,
 	NewKiroOAuthService,
 	NewGeminiOAuthService,
 	NewGeminiQuotaService,

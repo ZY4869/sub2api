@@ -105,19 +105,4 @@ describe("ccswitchImport", () => {
     expect(config.env.ANTHROPIC_REASONING_MODEL).toBe("claude-opus-4-6");
   });
 
-  it("maps copilot imports onto the codex app", () => {
-    const params = parseImportLink(
-      buildCcsProviderImportLink({
-        apiKey: "sk-test",
-        baseUrl: "https://relay.example.com",
-        clientType: "claude",
-        platform: "copilot",
-        providerName: "Sub2API",
-      }),
-    );
-
-    expect(params.get("app")).toBe("codex");
-    expect(params.get("endpoint")).toBe("https://relay.example.com");
-    expect(params.has("config")).toBe(false);
-  });
 });

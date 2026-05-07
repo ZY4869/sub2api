@@ -212,6 +212,7 @@ func renderTypeScriptSnapshot(snapshot tsSnapshot, builtAt string) []byte {
 	mustWriteString(&buf, "  protocol_ids: string[]\n")
 	mustWriteString(&buf, "  aliases: string[]\n")
 	mustWriteString(&buf, "  pricing_lookup_ids: string[]\n")
+	mustWriteString(&buf, "  context_window_tokens?: number\n")
 	mustWriteString(&buf, "  preferred_protocol_ids?: Record<string, string>\n")
 	mustWriteString(&buf, "  modalities: string[]\n")
 	mustWriteString(&buf, "  capabilities: string[]\n")
@@ -280,6 +281,7 @@ func normalizeModels(models []modelregistry.ModelEntry) []modelregistry.ModelEnt
 			ProtocolIDs:          append([]string{}, model.ProtocolIDs...),
 			Aliases:              append([]string{}, model.Aliases...),
 			PricingLookupIDs:     append([]string{}, model.PricingLookupIDs...),
+			ContextWindowTokens:  model.ContextWindowTokens,
 			PreferredProtocolIDs: clonePreferredProtocolIDs(model.PreferredProtocolIDs),
 			Modalities:           append([]string{}, model.Modalities...),
 			Capabilities:         append([]string{}, model.Capabilities...),

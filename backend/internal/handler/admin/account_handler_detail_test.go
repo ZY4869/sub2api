@@ -98,6 +98,37 @@ func TestAccountHandlerGetByIDReturnsEditSafeDetailPayload(t *testing.T) {
 	require.NotContains(t, resp.Data, "current_rpm")
 }
 
+func TestAccountHandlerGetByIDRejectsLegacyCopilotAccount(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{
+		{
+			ID:        99,
+			Name:      "Legacy Copilot",
+			Platform:  "copilot",
+			Type:      service.AccountTypeAPIKey,
+			Status:    service.StatusActive,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/api/v1/admin/accounts/:id", handler.GetByID)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/99", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "UNSUPPORTED_PLATFORM")
+}
+
 func ptrInt64ForDetailTest(value int64) *int64 {
 	return &value
 }

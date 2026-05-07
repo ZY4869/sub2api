@@ -328,7 +328,7 @@ func isDirectPlatformTestModelAllowed(account *Account, entry modelregistry.Mode
 	}
 
 	switch RoutingPlatformForAccount(account) {
-	case PlatformOpenAI, PlatformCopilot:
+	case PlatformOpenAI:
 		return provider == PlatformOpenAI
 	case PlatformDeepSeek:
 		return provider == PlatformDeepSeek
@@ -787,7 +787,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 			})
 		}
 		return decorateDefaultTestModels(result, PlatformAntigravity)
-	case PlatformOpenAI, PlatformCopilot:
+	case PlatformOpenAI:
 		result := make([]AvailableTestModel, 0, len(openai.DefaultModels))
 		for _, item := range openai.DefaultModels {
 			result = append(result, AvailableTestModel{

@@ -116,11 +116,9 @@ describe('accountFormShared', () => {
   it('builds mixed-channel warning details and platform support correctly', () => {
     expect(supportsMixedChannelCheck('anthropic')).toBe(true)
     expect(supportsMixedChannelCheck('kiro')).toBe(true)
-    expect(supportsMixedChannelCheck('copilot')).toBe(true)
     expect(supportsMixedChannelCheck('openai')).toBe(false)
     expect(supportsMixedChannelConfirmOverride('anthropic')).toBe(true)
     expect(supportsMixedChannelConfirmOverride('kiro')).toBe(false)
-    expect(supportsMixedChannelConfirmOverride('copilot')).toBe(false)
     expect(
       buildMixedChannelWarningDetails({
         has_risk: true,

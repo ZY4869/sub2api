@@ -196,6 +196,20 @@ func (_c *UserCreate) SetNillableNotes(v *string) *UserCreate {
 	return _c
 }
 
+// SetUsageModelDisplayMode sets the "usage_model_display_mode" field.
+func (_c *UserCreate) SetUsageModelDisplayMode(v string) *UserCreate {
+	_c.mutation.SetUsageModelDisplayMode(v)
+	return _c
+}
+
+// SetNillableUsageModelDisplayMode sets the "usage_model_display_mode" field if the given value is not nil.
+func (_c *UserCreate) SetNillableUsageModelDisplayMode(v *string) *UserCreate {
+	if v != nil {
+		_c.SetUsageModelDisplayMode(*v)
+	}
+	return _c
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_c *UserCreate) SetTotpSecretEncrypted(v string) *UserCreate {
 	_c.mutation.SetTotpSecretEncrypted(v)
@@ -456,6 +470,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultNotes
 		_c.mutation.SetNotes(v)
 	}
+	if _, ok := _c.mutation.UsageModelDisplayMode(); !ok {
+		v := user.DefaultUsageModelDisplayMode
+		_c.mutation.SetUsageModelDisplayMode(v)
+	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
 		v := user.DefaultTotpEnabled
 		_c.mutation.SetTotpEnabled(v)
@@ -525,6 +543,14 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.Notes(); !ok {
 		return &ValidationError{Name: "notes", err: errors.New(`ent: missing required field "User.notes"`)}
+	}
+	if _, ok := _c.mutation.UsageModelDisplayMode(); !ok {
+		return &ValidationError{Name: "usage_model_display_mode", err: errors.New(`ent: missing required field "User.usage_model_display_mode"`)}
+	}
+	if v, ok := _c.mutation.UsageModelDisplayMode(); ok {
+		if err := user.UsageModelDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "usage_model_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_model_display_mode": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
 		return &ValidationError{Name: "totp_enabled", err: errors.New(`ent: missing required field "User.totp_enabled"`)}
@@ -607,6 +633,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Notes(); ok {
 		_spec.SetField(user.FieldNotes, field.TypeString, value)
 		_node.Notes = value
+	}
+	if value, ok := _c.mutation.UsageModelDisplayMode(); ok {
+		_spec.SetField(user.FieldUsageModelDisplayMode, field.TypeString, value)
+		_node.UsageModelDisplayMode = value
 	}
 	if value, ok := _c.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
@@ -982,6 +1012,18 @@ func (u *UserUpsert) UpdateNotes() *UserUpsert {
 	return u
 }
 
+// SetUsageModelDisplayMode sets the "usage_model_display_mode" field.
+func (u *UserUpsert) SetUsageModelDisplayMode(v string) *UserUpsert {
+	u.Set(user.FieldUsageModelDisplayMode, v)
+	return u
+}
+
+// UpdateUsageModelDisplayMode sets the "usage_model_display_mode" field to the value that was provided on create.
+func (u *UserUpsert) UpdateUsageModelDisplayMode() *UserUpsert {
+	u.SetExcluded(user.FieldUsageModelDisplayMode)
+	return u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (u *UserUpsert) SetTotpSecretEncrypted(v string) *UserUpsert {
 	u.Set(user.FieldTotpSecretEncrypted, v)
@@ -1261,6 +1303,20 @@ func (u *UserUpsertOne) SetNotes(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateNotes() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateNotes()
+	})
+}
+
+// SetUsageModelDisplayMode sets the "usage_model_display_mode" field.
+func (u *UserUpsertOne) SetUsageModelDisplayMode(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetUsageModelDisplayMode(v)
+	})
+}
+
+// UpdateUsageModelDisplayMode sets the "usage_model_display_mode" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateUsageModelDisplayMode() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateUsageModelDisplayMode()
 	})
 }
 
@@ -1717,6 +1773,20 @@ func (u *UserUpsertBulk) SetNotes(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateNotes() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateNotes()
+	})
+}
+
+// SetUsageModelDisplayMode sets the "usage_model_display_mode" field.
+func (u *UserUpsertBulk) SetUsageModelDisplayMode(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetUsageModelDisplayMode(v)
+	})
+}
+
+// UpdateUsageModelDisplayMode sets the "usage_model_display_mode" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateUsageModelDisplayMode() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateUsageModelDisplayMode()
 	})
 }
 

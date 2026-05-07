@@ -114,6 +114,7 @@ func (s *userRepoStub) DisableTotp(ctx context.Context, userID int64) error {
 }
 
 type groupRepoStub struct {
+	group           *Group
 	affectedUserIDs []int64
 	deleteErr       error
 	deleteCalls     []int64
@@ -124,7 +125,13 @@ func (s *groupRepoStub) Create(ctx context.Context, group *Group) error {
 }
 
 func (s *groupRepoStub) GetByID(ctx context.Context, id int64) (*Group, error) {
-	panic("unexpected GetByID call")
+	if s.group != nil {
+		return s.group, nil
+	}
+	if s.deleteErr != nil {
+		return nil, s.deleteErr
+	}
+	return &Group{ID: id, Platform: PlatformAnthropic}, nil
 }
 
 func (s *groupRepoStub) GetByIDLite(ctx context.Context, id int64) (*Group, error) {
@@ -427,7 +434,10 @@ func TestAdminService_DeleteUser_DeleteError(t *testing.T) {
 
 func TestAdminService_DeleteGroup_Success_WithCacheInvalidation(t *testing.T) {
 	cache := newBillingCacheStub(2)
-	repo := &groupRepoStub{affectedUserIDs: []int64{11, 12}}
+	repo := &groupRepoStub{
+		group:           &Group{ID: 5, Platform: PlatformAnthropic},
+		affectedUserIDs: []int64{11, 12},
+	}
 	svc := &adminServiceImpl{
 		groupRepo:           repo,
 		billingCacheService: &BillingCacheService{cache: cache},
@@ -454,7 +464,10 @@ func TestAdminService_DeleteGroup_NotFound(t *testing.T) {
 
 func TestAdminService_DeleteGroup_Error(t *testing.T) {
 	deleteErr := errors.New("delete failed")
-	repo := &groupRepoStub{deleteErr: deleteErr}
+	repo := &groupRepoStub{
+		group:     &Group{ID: 42, Platform: PlatformAnthropic},
+		deleteErr: deleteErr,
+	}
 	svc := &adminServiceImpl{groupRepo: repo}
 
 	err := svc.DeleteGroup(context.Background(), 42)

@@ -61,6 +61,9 @@ func (s *adminServiceImpl) GetAccountsByIDs(ctx context.Context, ids []int64) ([
 }
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
 	input.Platform = CanonicalizePlatformValue(input.Platform)
+	if err := EnsureSupportedPrimaryPlatform(input.Platform); err != nil {
+		return nil, err
+	}
 	input.Extra = normalizeAccountExtraForStorage(input.Platform, input.Type, input.Credentials, input.Extra)
 	if err := validateProtocolGatewayAccountInput(input.Platform, input.Type, input.Extra); err != nil {
 		return nil, err
@@ -185,6 +188,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		return nil, err
 	}
 	account.Platform = CanonicalizePlatformValue(account.Platform)
+	if err := EnsureSupportedAccountPlatform(account); err != nil {
+		return nil, err
+	}
 	if err := ensureBlacklistedAccountNotRestored(account, input.Status, nil); err != nil {
 		return nil, err
 	}

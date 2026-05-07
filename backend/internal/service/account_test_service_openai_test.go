@@ -488,64 +488,6 @@ func TestAccountTestService_OpenAIHealthCheckUsesCustomPrompt(t *testing.T) {
 	require.Equal(t, "Say hello from the health check.", firstContent["text"])
 }
 
-func TestAccountTestService_CopilotOAuthUsesTokenProviderAndCopilotHeaders(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
-	resp := newJSONResponse(http.StatusOK, "")
-	resp.Header.Set("Content-Type", "text/event-stream")
-	resp.Body = io.NopCloser(strings.NewReader("data: {\"type\":\"response.completed\"}\n\n"))
-
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
-	provider := NewOpenAITokenProvider(nil, nil, nil)
-	provider.SetCopilotOAuthService(&CopilotOAuthService{})
-	account := &Account{
-		ID:          903,
-		Platform:    PlatformCopilot,
-		Type:        AccountTypeOAuth,
-		Concurrency: 1,
-		Credentials: map[string]any{"access_token": "github-token"},
-	}
-	var exchangeAuthorization string
-	var exchangeAccept string
-	var exchangeUserAgent string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		exchangeAuthorization = req.Header.Get("Authorization")
-		exchangeAccept = req.Header.Get("Accept")
-		exchangeUserAgent = req.Header.Get("User-Agent")
-		_, _ = io.WriteString(w, `{"token":"copilot-runtime-token","expires_at":4102444800,"endpoints":{"api":"https://api.githubcopilot.com"}}`)
-	}))
-	defer server.Close()
-
-	oldInternalTokenURL := copilotInternalTokenURL
-	copilotInternalTokenURL = server.URL
-	defer func() {
-		copilotInternalTokenURL = oldInternalTokenURL
-	}()
-
-	svc := &AccountTestService{
-		httpUpstream:        upstream,
-		openAITokenProvider: provider,
-		cfg:                 &config.Config{},
-	}
-
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
-	require.NoError(t, err)
-	require.Equal(t, "token github-token", exchangeAuthorization)
-	require.Equal(t, "application/json", exchangeAccept)
-	require.Equal(t, resolveCopilotRequestUserAgent(account), exchangeUserAgent)
-	require.Len(t, upstream.requests, 1)
-	require.Equal(t, "https://api.githubcopilot.com/responses", upstream.requests[0].URL.String())
-	require.Equal(t, "Bearer copilot-runtime-token", upstream.requests[0].Header.Get("Authorization"))
-	require.Equal(t, "text/event-stream", upstream.requests[0].Header.Get("Accept"))
-	require.Equal(t, copilotDefaultEditorVersion, upstream.requests[0].Header.Get("Editor-Version"))
-	require.Equal(t, copilotDefaultPluginVersion, upstream.requests[0].Header.Get("Editor-Plugin-Version"))
-	require.Equal(t, copilotDefaultIntegrationID, upstream.requests[0].Header.Get("Copilot-Integration-Id"))
-	require.Equal(t, copilotDefaultOpenAIIntent, upstream.requests[0].Header.Get("Openai-Intent"))
-	require.Equal(t, copilotGitHubAPIVersion, upstream.requests[0].Header.Get("X-GitHub-Api-Version"))
-	require.Contains(t, recorder.Body.String(), "test_complete")
-}
-
 func TestAccountTestService_RunTestBackgroundDetailed_InheritsGatewayOpenAIRequestFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

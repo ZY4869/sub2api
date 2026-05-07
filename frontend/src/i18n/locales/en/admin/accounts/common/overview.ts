@@ -123,7 +123,6 @@ export default {
         claude: "Claude",
         kiro: "Kiro",
         openai: "OpenAI",
-        copilot: "GitHub Copilot",
         protocol_gateway: "Protocol Gateway",
         grok: "Grok",
         deepseek: "DeepSeek",

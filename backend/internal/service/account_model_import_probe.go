@@ -14,7 +14,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"go.uber.org/zap"
 )
@@ -36,8 +35,6 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 			return nil, err
 		}
 		return newAccountModelProbeResult(models), nil
-	case PlatformCopilot:
-		return s.detectCopilotModels(ctx, account)
 	case PlatformGemini:
 		return s.detectGeminiModels(ctx, account)
 	case PlatformGrok:
@@ -160,60 +157,6 @@ func (s *AccountModelImportService) detectOpenAIModels(ctx context.Context, acco
 		return nil, err
 	}
 	return parseOpenAIModelListForAccount(account, body)
-}
-
-func (s *AccountModelImportService) detectCopilotModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
-	if account == nil || !isCopilotOAuthAccount(account) {
-		return nil, infraerrors.BadRequest("ACCOUNT_TYPE_UNSUPPORTED", "current Copilot account type does not support model import")
-	}
-	if s.openAITokenProvider == nil {
-		return nil, infraerrors.InternalServer("MODEL_IMPORT_OPENAI_TOKEN_PROVIDER_UNAVAILABLE", "copilot token provider is not configured")
-	}
-	token, err := s.openAITokenProvider.GetAccessToken(ctx, account)
-	if err != nil {
-		return nil, err
-	}
-
-	modelsURL := buildOpenAIModelsURLForPlatform(account.GetOpenAIBaseURL(), account.Platform)
-	headers := map[string]string{
-		"Authorization": "Bearer " + token,
-	}
-	applyCopilotDefaultHeadersMap(headers, account)
-
-	body, err := s.doImportGET(ctx, account, modelsURL, headers, false)
-	if err != nil {
-		logger.FromContext(ctx).Warn("account model import: copilot upstream /models failed, falling back to static catalog",
-			zap.Int64("account_id", account.ID),
-			zap.String("platform", account.Platform),
-			zap.String("probe_source", accountModelProbeSourceCopilotStaticCatalog),
-			zap.Error(err),
-		)
-		return &accountModelProbeResult{
-			Models:           copilotDefaultModelIDs(),
-			Source:           accountModelProbeSourceCopilotStaticCatalog,
-			Notice:           "Copilot real upstream /models probe failed; showing fallback static catalog",
-			ResolvedUpstream: ResolveUpstreamInfo(modelsURL, PlatformCopilot, accountModelProbeSourceCopilotStaticCatalog),
-		}, nil
-	}
-	models, parseErr := parseOpenAIModelListForAccount(account, body)
-	if parseErr != nil {
-		logger.FromContext(ctx).Warn("account model import: copilot upstream /models parse failed, falling back to static catalog",
-			zap.Int64("account_id", account.ID),
-			zap.String("platform", account.Platform),
-			zap.String("probe_source", accountModelProbeSourceCopilotStaticCatalog),
-			zap.Error(parseErr),
-		)
-		return &accountModelProbeResult{
-			Models:           copilotDefaultModelIDs(),
-			Source:           accountModelProbeSourceCopilotStaticCatalog,
-			Notice:           "Copilot upstream /models returned an unreadable payload; showing fallback static catalog",
-			ResolvedUpstream: ResolveUpstreamInfo(modelsURL, PlatformCopilot, accountModelProbeSourceCopilotStaticCatalog),
-		}, nil
-	}
-	result := newAccountModelProbeResult(models)
-	result.ResolvedUpstream = ResolveUpstreamInfo(modelsURL, PlatformCopilot, accountModelProbeSourceUpstream)
-	result.Notice = "Copilot model list was read from the runtime APIBaseURL /models endpoint"
-	return result, nil
 }
 
 func (s *AccountModelImportService) detectKiroModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
@@ -755,15 +698,4 @@ func truncateImportBody(body []byte) string {
 		return message
 	}
 	return message[:256] + "..."
-}
-
-func copilotDefaultModelIDs() []string {
-	ids := make([]string, 0, len(openai.DefaultModels))
-	for _, model := range openai.DefaultModels {
-		if id := strings.TrimSpace(model.ID); id != "" {
-			ids = append(ids, id)
-		}
-	}
-	normalized, _ := normalizeImportedModelIDs(ids)
-	return normalized
 }

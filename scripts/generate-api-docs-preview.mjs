@@ -7,7 +7,7 @@ const repoRoot = path.resolve(__dirname, '..')
 const docsRoot = path.join(repoRoot, 'backend/internal/service/docs')
 const outputPath = path.join(repoRoot, 'backend/internal/service/docs/api_reference.html')
 
-const pageOrder = ['common', 'openai-native', 'openai', 'anthropic', 'gemini', 'grok', 'antigravity', 'vertex-batch', 'document-ai']
+const pageOrder = ['common', 'openai-native', 'openai', 'anthropic', 'deepseek', 'gemini', 'grok', 'antigravity', 'vertex-batch', 'document-ai']
 const pageMeta = {
   common: {
     title: '通用接入',
@@ -28,6 +28,11 @@ const pageMeta = {
     title: 'Anthropic / Claude',
     shortTitle: 'Claude',
     description: '说明 Messages、count_tokens、保留头透传，以及 Claude 风格客户端的接入约束。',
+  },
+  deepseek: {
+    title: 'DeepSeek',
+    shortTitle: 'DeepSeek',
+    description: '整理 DeepSeek 一级平台下的 OpenAI / Anthropic 兼容入口、Beta 路由规则与能力边界。',
   },
   gemini: {
     title: 'Gemini 原生',
@@ -61,6 +66,7 @@ const themes = {
   'openai-native': ['#059669', 'rgba(5,150,105,.12)'],
   openai: ['#7c3aed', 'rgba(124,58,237,.12)'],
   anthropic: ['#d97706', 'rgba(217,119,6,.12)'],
+  deepseek: ['#0f172a', 'rgba(15,23,42,.10)'],
   gemini: ['#2563eb', 'rgba(37,99,235,.12)'],
   grok: ['#e11d48', 'rgba(225,29,72,.12)'],
   antigravity: ['#0f766e', 'rgba(15,118,110,.12)'],
@@ -80,6 +86,7 @@ const pageIcons = {
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 7.5h10.75a4.25 4.25 0 1 1 0 8.5H9"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5 4.5 9 9 13.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 16.5H8.75a4.25 4.25 0 0 1 0-8.5H15"/><path stroke-linecap="round" stroke-linejoin="round" d="m15 10.5 4.5 4.5-4.5 4.5"/></svg>',
   },
   anthropic: { src: `${previewIconBase}/anthropic.svg`, alt: 'Anthropic' },
+  deepseek: { src: `${previewIconBase}/deepseek-color.svg`, alt: 'DeepSeek' },
   gemini: { src: `${previewIconBase}/google-color.svg`, alt: 'Gemini' },
   grok: { src: `${previewIconBase}/grok.svg`, alt: 'Grok' },
   antigravity: { src: `${previewIconBase}/antigravity-color.svg`, alt: 'Antigravity' },

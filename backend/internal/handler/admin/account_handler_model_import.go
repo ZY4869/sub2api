@@ -29,9 +29,8 @@ func (h *AccountHandler) ImportModels(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	account, err := h.adminService.GetAccount(ctx, accountID)
-	if err != nil || account == nil {
-		response.NotFound(c, response.LocalizedMessage(c, "admin.account.not_found", "Account not found"))
+	account, blocked := h.rejectUnsupportedAccountByID(c, accountID)
+	if blocked {
 		return
 	}
 	result, err := h.accountModelImportService.ImportAccountModels(ctx, account, req.Trigger, req.Models)
@@ -121,6 +120,9 @@ func (h *AccountHandler) ProbeModels(c *gin.Context) {
 	var req probeAccountModelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
+		return
+	}
+	if rejectUnsupportedPlatform(c, req.Platform) {
 		return
 	}
 
@@ -254,9 +256,8 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
-	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
-	if err != nil {
-		response.NotFound(c, response.LocalizedMessage(c, "admin.account.not_found", "Account not found"))
+	account, blocked := h.rejectUnsupportedAccountByID(c, accountID)
+	if blocked {
 		return
 	}
 	response.Success(c, service.BuildAvailableTestModels(c.Request.Context(), account, h.modelRegistryService))

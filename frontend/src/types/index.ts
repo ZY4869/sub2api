@@ -31,6 +31,7 @@ export interface User {
   role: "admin" | "user"; // User role for authorization
   request_details_review?: boolean;
   admin_free_billing?: boolean;
+  usage_model_display_mode?: UsageModelDisplayMode;
   balance: number; // User balance for API usage
   balances?: Record<string, number>; // Wallet balances by billing currency
   concurrency: number; // Allowed concurrent requests
@@ -126,6 +127,11 @@ export interface AuthResponse {
 export interface CurrentUserResponse extends User {
   run_mode?: "standard" | "simple";
 }
+
+export type UsageModelDisplayMode =
+  | "model_only"
+  | "display_only"
+  | "display_and_model";
 
 // ==================== Subscription Types ====================
 
@@ -387,7 +393,6 @@ export type GroupPlatform =
   | "anthropic"
   | "kiro"
   | "openai"
-  | "copilot"
   | "grok"
   | "deepseek"
   | "gemini"
@@ -619,7 +624,6 @@ export type AccountPlatform =
   | "anthropic"
   | "kiro"
   | "openai"
-  | "copilot"
   | "grok"
   | "deepseek"
   | "gemini"

@@ -15,7 +15,6 @@ func TestResponsesImageToolEndpointPlatformSupport(t *testing.T) {
 		wantProvider  string
 	}{
 		{name: "openai", platform: service.PlatformOpenAI, wantSupported: true, wantProvider: service.PlatformOpenAI},
-		{name: "copilot", platform: service.PlatformCopilot, wantSupported: true, wantProvider: service.PlatformOpenAI},
 		{name: "grok", platform: service.PlatformGrok, wantSupported: false, wantProvider: service.PlatformGrok},
 		{name: "gemini", platform: service.PlatformGemini, wantSupported: false, wantProvider: service.PlatformGemini},
 	}

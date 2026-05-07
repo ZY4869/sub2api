@@ -532,7 +532,6 @@ function mountModal(stubOverrides: Record<string, any> = {}) {
         AccountApiKeyModelProbeEditor: AccountApiKeyModelProbeEditorStub,
         AccountAntigravityModelMappingEditor: true,
         AccountAutoPauseToggle: true,
-        AccountCopilotDeviceFlowPanel: true,
         AccountCreateFooterActions: true,
         AccountCreateOAuthStep: true,
         AccountCustomErrorCodesEditor: true,
@@ -578,17 +577,15 @@ describe('CreateAccountModal', () => {
     )
   })
 
-  it('keeps copilot and kiro on the dedicated oauth finalize flow', () => {
+  it('keeps only kiro on the dedicated oauth finalize flow', () => {
     expect(source).toContain("const showOAuthFinalizeStep = computed(() =>")
-    expect(source).toContain("form.platform === 'copilot' || form.platform === 'kiro'")
-    expect(source).toContain("<AccountCopilotDeviceFlowPanel")
+    expect(source).not.toContain("form.platform === 'copilot'")
     expect(source).toContain("<AccountKiroAuthPanel")
   })
 
-  it('resets copilot and kiro auth panels when platform changes or the flow goes back', () => {
-    expect(source).toContain('copilotDeviceFlowRef.value?.reset()')
+  it('resets the kiro auth panel when platform changes or the flow goes back', () => {
     expect(source).toContain('kiroAuthRef.value?.reset()')
-    expect(source).toContain('copilotSubmitting.value = false')
+    expect(source).not.toContain('copilotSubmitting.value = false')
   })
 
   it('embeds the Grok batch import panel alongside the single-account Grok fields', () => {

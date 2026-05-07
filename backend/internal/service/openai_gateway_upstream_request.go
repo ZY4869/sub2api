@@ -41,15 +41,6 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 		}
 	}
 
-	if isCopilotOAuthAccount(account) {
-		if isStream {
-			req.Header.Set("accept", "text/event-stream")
-		} else if req.Header.Get("accept") == "" {
-			req.Header.Set("accept", "application/json")
-		}
-		applyCopilotDefaultHeaders(req.Header, account)
-	}
-
 	if isChatGPTOpenAIOAuthAccount(account) {
 		req.Header.Del("conversation_id")
 		req.Header.Del("session_id")
@@ -81,9 +72,6 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	}
 	if isChatGPTOpenAIOAuthAccount(account) && !openai.IsCodexCLIRequest(req.Header.Get("user-agent")) {
 		req.Header.Set("user-agent", codexCLIUserAgent)
-	}
-	if isCopilotOAuthAccount(account) {
-		applyCopilotDefaultHeaders(req.Header, account)
 	}
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")

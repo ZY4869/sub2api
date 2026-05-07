@@ -109,6 +109,9 @@ func (h *AccountHandler) Test(c *gin.Context) {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
+	if _, blocked := h.rejectUnsupportedAccountByID(c, accountID); blocked {
+		return
+	}
 
 	var req accountTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
@@ -239,6 +242,9 @@ func (h *AccountHandler) RecoverState(c *gin.Context) {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
+	if _, blocked := h.rejectUnsupportedAccountByID(c, accountID); blocked {
+		return
+	}
 
 	_, err = h.rateLimitService.RecoverAccountState(c.Request.Context(), accountID, service.AccountRecoveryOptions{
 		InvalidateToken: true,
@@ -268,6 +274,9 @@ func (h *AccountHandler) GetStats(c *gin.Context) {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
+	if _, blocked := h.rejectUnsupportedAccountByID(c, accountID); blocked {
+		return
+	}
 
 	days, err := strconv.Atoi(c.DefaultQuery("days", "30"))
 	if err != nil || days <= 0 {
@@ -290,6 +299,9 @@ func (h *AccountHandler) ClearError(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
+		return
+	}
+	if _, blocked := h.rejectUnsupportedAccountByID(c, accountID); blocked {
 		return
 	}
 
@@ -315,6 +327,9 @@ func (h *AccountHandler) GetUsage(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
+		return
+	}
+	if _, blocked := h.rejectUnsupportedAccountByID(c, accountID); blocked {
 		return
 	}
 
@@ -348,6 +363,9 @@ func (h *AccountHandler) GetTodayStats(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
+		return
+	}
+	if _, blocked := h.rejectUnsupportedAccountByID(c, accountID); blocked {
 		return
 	}
 
@@ -397,6 +415,9 @@ func (h *AccountHandler) ClearRateLimit(c *gin.Context) {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
+	if _, blocked := h.rejectUnsupportedAccountByID(c, accountID); blocked {
+		return
+	}
 
 	if err := h.rateLimitService.ClearRateLimit(c.Request.Context(), accountID); err != nil {
 		response.ErrorFrom(c, err)
@@ -416,6 +437,9 @@ func (h *AccountHandler) ResetQuota(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
+		return
+	}
+	if _, blocked := h.rejectUnsupportedAccountByID(c, accountID); blocked {
 		return
 	}
 
@@ -481,6 +505,9 @@ func (h *AccountHandler) SetSchedulable(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
+		return
+	}
+	if _, blocked := h.rejectUnsupportedAccountByID(c, accountID); blocked {
 		return
 	}
 

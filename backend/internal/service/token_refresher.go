@@ -127,9 +127,6 @@ func NewOpenAITokenRefresher(openaiOAuthService *OpenAIOAuthService, accountRepo
 
 // CacheKey 返回用于分布式锁的缓存键
 func (r *OpenAITokenRefresher) CacheKey(account *Account) string {
-	if account != nil && account.Platform == PlatformCopilot {
-		return CopilotTokenCacheKey(account)
-	}
 	return OpenAITokenCacheKey(account)
 }
 

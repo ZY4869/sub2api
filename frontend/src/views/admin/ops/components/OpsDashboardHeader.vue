@@ -11,6 +11,7 @@ import type { OpsRequestDetailsPreset } from './OpsRequestDetailsModal.vue'
 import { useAdminSettingsStore } from '@/stores'
 import { formatNumber } from '@/utils/format'
 import { loadAllAdminChannelOptions } from '@/utils/adminChannelOptions'
+import { FILTER_PLATFORM_ORDER } from '@/utils/platformBranding'
 
 type RealtimeWindow = '1min' | '5min' | '30min' | '1h'
 
@@ -112,12 +113,10 @@ const channelOptions = ref<SelectOption[]>([{ value: null, label: t('admin.ops.a
 
 const platformOptions = computed(() => [
   { value: '', label: t('common.all') },
-  { value: 'openai', label: t('admin.accounts.platforms.openai') },
-  { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') },
-  { value: 'deepseek', label: t('admin.accounts.platforms.deepseek') },
-  { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
-  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
-  { value: 'baidu_document_ai', label: t('admin.accounts.platforms.baidu_document_ai') }
+  ...FILTER_PLATFORM_ORDER.map((platform) => ({
+    value: platform,
+    label: t(`admin.accounts.platforms.${platform}`)
+  }))
 ])
 
 const timeRangeOptions = computed(() => [

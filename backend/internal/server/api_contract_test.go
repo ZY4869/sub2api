@@ -57,6 +57,7 @@ func TestAPIContracts(t *testing.T) {
 					"balance": 12.5,
 					"concurrency": 5,
 					"status": "active",
+					"usage_model_display_mode": "model_only",
 					"allowed_groups": null,
  					"created_at": "2025-01-02T03:04:05Z",
  					"updated_at": "2025-01-02T03:04:05Z",
@@ -123,6 +124,75 @@ func TestAPIContracts(t *testing.T) {
 					"maintenance_mode_enabled": false,
 					"version": "0.0.0-test"
 				}
+			}`,
+		},
+		{
+			name:       "GET /api/v1/user/profile",
+			method:     http.MethodGet,
+			path:       "/api/v1/user/profile",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"id": 1,
+					"email": "alice@example.com",
+					"username": "alice",
+					"role": "user",
+					"balance": 12.5,
+					"concurrency": 5,
+					"status": "active",
+					"usage_model_display_mode": "model_only",
+					"allowed_groups": null,
+					"created_at": "2025-01-02T03:04:05Z",
+					"updated_at": "2025-01-02T03:04:05Z",
+					"admin_free_billing": false,
+					"request_details_review": false
+				}
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/user",
+			method: http.MethodPut,
+			path:   "/api/v1/user",
+			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model"}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"id": 1,
+					"email": "alice@example.com",
+					"username": "alice-2",
+					"role": "user",
+					"balance": 12.5,
+					"concurrency": 5,
+					"status": "active",
+					"usage_model_display_mode": "display_and_model",
+					"allowed_groups": null,
+					"created_at": "2025-01-02T03:04:05Z",
+					"updated_at": "2025-01-02T03:04:05Z",
+					"admin_free_billing": false,
+					"request_details_review": false
+				}
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/user invalid usage_model_display_mode",
+			method: http.MethodPut,
+			path:   "/api/v1/user",
+			body:   `{"usage_model_display_mode":"bad-mode"}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "usage_model_display_mode must be one of model_only, display_only, display_and_model",
+				"reason": "USER_USAGE_MODEL_DISPLAY_MODE_INVALID"
 			}`,
 		},
 		{
@@ -876,17 +946,18 @@ func newContractDeps(t *testing.T) *contractDeps {
 	userRepo := &stubUserRepo{
 		users: map[int64]*service.User{
 			1: {
-				ID:            1,
-				Email:         "alice@example.com",
-				Username:      "alice",
-				Notes:         "hello",
-				Role:          service.RoleUser,
-				Balance:       12.5,
-				Concurrency:   5,
-				Status:        service.StatusActive,
-				AllowedGroups: nil,
-				CreatedAt:     now,
-				UpdatedAt:     now,
+				ID:                    1,
+				Email:                 "alice@example.com",
+				Username:              "alice",
+				Notes:                 "hello",
+				Role:                  service.RoleUser,
+				Balance:               12.5,
+				Concurrency:           5,
+				Status:                service.StatusActive,
+				UsageModelDisplayMode: service.UsageModelDisplayModeModelOnly,
+				AllowedGroups:         nil,
+				CreatedAt:             now,
+				UpdatedAt:             now,
 			},
 		},
 	}
@@ -981,6 +1052,8 @@ func newContractDeps(t *testing.T) *contractDeps {
 
 	v1User := v1.Group("/user")
 	v1User.Use(jwtAuth)
+	v1User.GET("/profile", userHandler.GetProfile)
+	v1User.PUT("", userHandler.UpdateProfile)
 	v1User.GET("/aff", userHandler.GetAffiliate)
 	v1User.POST("/aff/transfer", userHandler.TransferAffiliate)
 
@@ -1065,7 +1138,15 @@ func (r *stubUserRepo) GetFirstAdmin(ctx context.Context) (*service.User, error)
 }
 
 func (r *stubUserRepo) Update(ctx context.Context, user *service.User) error {
-	return errors.New("not implemented")
+	if user == nil {
+		return errors.New("user is nil")
+	}
+	if _, ok := r.users[user.ID]; !ok {
+		return service.ErrUserNotFound
+	}
+	clone := *user
+	r.users[user.ID] = &clone
+	return nil
 }
 
 func (r *stubUserRepo) Delete(ctx context.Context, id int64) error {
@@ -1093,7 +1174,12 @@ func (r *stubUserRepo) UpdateConcurrency(ctx context.Context, id int64, amount i
 }
 
 func (r *stubUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
-	return false, errors.New("not implemented")
+	for _, user := range r.users {
+		if user.Email == email {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (r *stubUserRepo) RemoveGroupFromAllowedGroups(ctx context.Context, groupID int64) (int64, error) {

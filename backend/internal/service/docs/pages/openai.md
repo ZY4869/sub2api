@@ -19,7 +19,7 @@
 
 `chat/completions` 的核心规则如下：
 
-- `POST /v1/chat/completions` 对 OpenAI / Copilot / Grok 平台可直通。
+- `POST /v1/chat/completions` 对 OpenAI / Grok 平台可直通。
 - 对于仍然使用 `messages` 数组的旧应用，这是最省心的入口。
 - 如果是全新项目，仍然建议优先改用 `responses`。
 - 如果上游账号是 OpenAI Pro，运行时额度会拆成两侧：`gpt-5.3-codex-spark*` 只占用 `Spark` 侧，其它 OpenAI 模型统一占用 `普通` 侧；一侧冷却不会连带阻断另一侧。
@@ -34,7 +34,7 @@ Thinking / reasoning 强度补充规则：
 - OpenAI 兼容入口只认 `reasoning.effort` / `reasoning_effort`；请求详情与使用记录仍会展示 `reasoning_effort_raw` / `reasoning_effort_effective`。
 - OpenAI 入口当前会接受并记录顶层 `effortLevel` 与 `model[1m]`，并把 `[1m]` 先剥离后再参与模型映射、路由和上游请求构造。
 - 但在当前运行时矩阵下，OpenAI 文本入口不会新增直达 Anthropic runtime 的跨平台转发能力；因此这两类字段默认只会体现为“用户请求过”，不承诺在该入口直接转成 Claude 上游生效。
-- 对纯 OpenAI / Copilot / DeepSeek 等当前可运行目标来说，请求详情与使用记录里通常会看到 `million_context_requested=true`、`million_context_effective=false`；这属于当前能力边界内的正常行为，而不是报错。
+- 对纯 OpenAI / DeepSeek 等当前可运行目标来说，请求详情与使用记录里通常会看到 `million_context_requested=true`、`million_context_effective=false`；这属于当前能力边界内的正常行为，而不是报错。
 - 即使请求里写了 `deepseek-v4-pro[1m]` 或顶层 `effortLevel=max`，它们也不会让 `/v1/models`、策略投影或公开模型目录出现新的 `[1m]` 变体。
 
 选择 `chat/completions` 的典型场景：

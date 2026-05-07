@@ -150,6 +150,26 @@ const RequestDetailsDrawerStub = defineComponent({
   template: `<div data-test="drawer" :data-open="open ? '1' : '0'"></div>`,
 });
 
+const ConfirmDialogStub = defineComponent({
+  props: {
+    show: {
+      type: Boolean,
+      default: false,
+    },
+    title: {
+      type: String,
+      default: "",
+    },
+  },
+  emits: ["confirm", "cancel"],
+  template: `
+    <div v-if="show" :data-test="title">
+      <button data-test="confirm-dialog-confirm" type="button" @click="$emit('confirm')">confirm</button>
+      <button data-test="confirm-dialog-cancel" type="button" @click="$emit('cancel')">cancel</button>
+    </div>
+  `,
+});
+
 function mountTraceTab(props?: { routeTabValue?: string }) {
   return mount(RequestDetailsTraceTab, {
     props,
@@ -161,6 +181,7 @@ function mountTraceTab(props?: { routeTabValue?: string }) {
         RequestDetailsBreakdownChart: true,
         RequestDetailsTable: RequestDetailsTableStub,
         RequestDetailsDrawer: RequestDetailsDrawerStub,
+        ConfirmDialog: ConfirmDialogStub,
       },
     },
   });
@@ -243,8 +264,7 @@ describe("RequestDetailsTraceTab", () => {
     });
   });
 
-  it("runs cleanup with the current filter", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("opens a confirm dialog and runs cleanup with the current filter", async () => {
     cleanupRequestTraces.mockResolvedValueOnce({
       mode: "filter",
       deleted_traces: 2,
@@ -255,6 +275,10 @@ describe("RequestDetailsTraceTab", () => {
     await flushPromises();
 
     await wrapper.get('[data-test="cleanup-filter"]').trigger("click");
+    await flushPromises();
+    expect(cleanupRequestTraces).not.toHaveBeenCalled();
+
+    await wrapper.get('[data-test="admin.requestDetails.cleanup.filterTitle"] [data-test="confirm-dialog-confirm"]').trigger("click");
     await flushPromises();
 
     expect(cleanupRequestTraces).toHaveBeenCalledWith(
@@ -274,8 +298,7 @@ describe("RequestDetailsTraceTab", () => {
     expect(showSuccess).toHaveBeenCalled();
   });
 
-  it("runs expired cleanup without filter", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("opens a confirm dialog and runs expired cleanup without filter", async () => {
     cleanupRequestTraces.mockResolvedValueOnce({
       mode: "expired",
       deleted_traces: 5,
@@ -288,14 +311,36 @@ describe("RequestDetailsTraceTab", () => {
 
     await wrapper.get('[data-test="cleanup-expired"]').trigger("click");
     await flushPromises();
+    expect(cleanupRequestTraces).not.toHaveBeenCalled();
+
+    await wrapper.get('[data-test="admin.requestDetails.cleanup.expiredTitle"] [data-test="confirm-dialog-confirm"]').trigger("click");
+    await flushPromises();
 
     expect(cleanupRequestTraces).toHaveBeenCalledWith({ mode: "expired" });
     expect(showSuccess).toHaveBeenCalled();
   });
 
-  it("closes the drawer when the selected trace is deleted by cleanup", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("shows backend detail when expired cleanup fails", async () => {
+    cleanupRequestTraces.mockRejectedValueOnce({
+      response: {
+        data: {
+          detail: "cleanup backend failed",
+        },
+      },
+    });
 
+    const wrapper = mountTraceTab();
+    await flushPromises();
+
+    await wrapper.get('[data-test="cleanup-expired"]').trigger("click");
+    await flushPromises();
+    await wrapper.get('[data-test="admin.requestDetails.cleanup.expiredTitle"] [data-test="confirm-dialog-confirm"]').trigger("click");
+    await flushPromises();
+
+    expect(showError).toHaveBeenCalledWith("cleanup backend failed");
+  });
+
+  it("closes the drawer when the selected trace is deleted by cleanup", async () => {
     listRequestTraces.mockResolvedValueOnce({
       items: [{ id: 1 }],
       total: 1,
@@ -321,6 +366,8 @@ describe("RequestDetailsTraceTab", () => {
 
     // Cleanup deletes the selected trace -> detail reload returns 404 -> drawer closes.
     await wrapper.get('[data-test="cleanup-filter"]').trigger("click");
+    await flushPromises();
+    await wrapper.get('[data-test="admin.requestDetails.cleanup.filterTitle"] [data-test="confirm-dialog-confirm"]').trigger("click");
     await flushPromises();
 
     expect(wrapper.get('[data-test="drawer"]').attributes("data-open")).toBe("0");
