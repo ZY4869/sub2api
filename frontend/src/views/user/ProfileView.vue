@@ -7,6 +7,13 @@
         <StatCard :title="t('profile.memberSince')" :value="formatDate(user?.created_at || '', { year: 'numeric', month: 'long' })" :icon="CalendarIcon" icon-variant="primary" />
       </div>
       <ProfileInfoCard :user="user" />
+      <AuthIdentitiesCard
+        :identities="authIdentities"
+        :loading="loadingIdentities"
+        :github-enabled="githubOAuthEnabled"
+        :google-enabled="googleOAuthEnabled"
+        @refresh="loadAuthIdentities"
+      />
       <div v-if="contactInfo" class="card border-primary-200 bg-primary-50 dark:bg-primary-900/20 p-6">
         <div class="flex items-center gap-4">
           <div class="p-3 bg-primary-100 rounded-xl text-primary-600"><Icon name="chat" size="lg" /></div>
@@ -26,18 +33,47 @@ import { useAuthStore } from '@/stores/auth'; import { formatDate } from '@/util
 import { authAPI } from '@/api'; import AppLayout from '@/components/layout/AppLayout.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import ProfileInfoCard from '@/components/user/profile/ProfileInfoCard.vue'
+import AuthIdentitiesCard from '@/components/user/profile/AuthIdentitiesCard.vue'
 import ProfileEditForm from '@/components/user/profile/ProfileEditForm.vue'
 import ProfilePasswordForm from '@/components/user/profile/ProfilePasswordForm.vue'
 import ProfileTotpCard from '@/components/user/profile/ProfileTotpCard.vue'
 import { Icon } from '@/components/icons'
+import { userAPI } from '@/api'
+import type { AuthIdentity } from '@/types'
 
 const { t } = useI18n(); const authStore = useAuthStore(); const user = computed(() => authStore.user)
 const contactInfo = ref('')
+const authIdentities = ref<AuthIdentity[]>([])
+const loadingIdentities = ref(false)
+const githubOAuthEnabled = ref(false)
+const googleOAuthEnabled = ref(false)
 
 const WalletIcon = { render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' }, [h('path', { d: 'M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12' })]) }
 const BoltIcon = { render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' }, [h('path', { d: 'm3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z' })]) }
 const CalendarIcon = { render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' }, [h('path', { d: 'M6.75 3v2.25M17.25 3v2.25' })]) }
 
-onMounted(async () => { try { const s = await authAPI.getPublicSettings(); contactInfo.value = s.contact_info || '' } catch (error) { console.error('Failed to load contact info:', error) } })
+async function loadAuthIdentities() {
+  loadingIdentities.value = true
+  try {
+    authIdentities.value = await userAPI.getAuthIdentities()
+  } catch (error) {
+    console.error('Failed to load auth identities:', error)
+    authIdentities.value = []
+  } finally {
+    loadingIdentities.value = false
+  }
+}
+
+onMounted(async () => {
+  try {
+    const s = await authAPI.getPublicSettings()
+    contactInfo.value = s.contact_info || ''
+    githubOAuthEnabled.value = !!s.github_oauth_enabled
+    googleOAuthEnabled.value = !!s.google_oauth_enabled
+  } catch (error) {
+    console.error('Failed to load contact info:', error)
+  }
+  await loadAuthIdentities()
+})
 const formatCurrency = (v: number) => `$${v.toFixed(2)}`
 </script>

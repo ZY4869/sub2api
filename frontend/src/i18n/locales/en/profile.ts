@@ -27,6 +27,18 @@ export default {
     passwordTooShort: 'Password must be at least 8 characters long',
     passwordChangeSuccess: 'Password changed successfully',
     passwordChangeFailed: 'Failed to change password',
+    identities: {
+      title: 'Third-Party Identities',
+      description: 'Manage linked GitHub and Google sign-in identities.',
+      bindGitHub: 'Bind GitHub',
+      bindGoogle: 'Bind Google',
+      verified: 'Verified Email',
+      unverified: 'Email Unverified',
+      empty: 'No third-party identities are linked yet.',
+      unbind: 'Unbind',
+      unbindSuccess: 'Identity unbound successfully',
+      unbindFailed: 'Failed to unbind identity'
+    },
     // TOTP 2FA
     totp: {
       title: 'Two-Factor Authentication (2FA)',

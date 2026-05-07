@@ -5,14 +5,41 @@ import (
 	"strings"
 )
 
+type AuthIdentity struct {
+	ID             int64  `json:"id"`
+	Provider       string `json:"provider"`
+	ProviderUserID string `json:"provider_user_id"`
+	Email          string `json:"email"`
+	EmailVerified  bool   `json:"email_verified"`
+	DisplayName    string `json:"display_name"`
+	AvatarURL      string `json:"avatar_url"`
+	CreatedAt      string `json:"created_at,omitempty"`
+	UpdatedAt      string `json:"updated_at,omitempty"`
+}
+
 // CustomMenuItem represents a user-configured custom menu entry.
 type CustomMenuItem struct {
+	ID            string `json:"id"`
+	Label         string `json:"label"`
+	IconSVG       string `json:"icon_svg"`
+	URL           string `json:"url"`
+	Visibility    string `json:"visibility"` // "user" or "admin"
+	SortOrder     int    `json:"sort_order"`
+	PageMode      string `json:"page_mode,omitempty"`      // "iframe" or "markdown"
+	PageSlug      string `json:"page_slug,omitempty"`      // stable page slug for markdown mode
+	PageContent   string `json:"page_content,omitempty"`   // admin-only markdown body
+	PagePublic    bool   `json:"page_public,omitempty"`    // reserved visibility gate for future public pages
+	PagePublished bool   `json:"page_published,omitempty"` // whether markdown page is enabled
+}
+
+type PageContentResponse struct {
 	ID         string `json:"id"`
+	Slug       string `json:"slug"`
 	Label      string `json:"label"`
-	IconSVG    string `json:"icon_svg"`
-	URL        string `json:"url"`
-	Visibility string `json:"visibility"` // "user" or "admin"
-	SortOrder  int    `json:"sort_order"`
+	Visibility string `json:"visibility"`
+	PageMode   string `json:"page_mode"`
+	Content    string `json:"content"`
+	UpdatedAt  string `json:"updated_at,omitempty"`
 }
 
 // SystemSettings represents the admin settings API response payload.
@@ -46,6 +73,22 @@ type SystemSettings struct {
 	LinuxDoConnectClientID               string `json:"linuxdo_connect_client_id"`
 	LinuxDoConnectClientSecretConfigured bool   `json:"linuxdo_connect_client_secret_configured"`
 	LinuxDoConnectRedirectURL            string `json:"linuxdo_connect_redirect_url"`
+	GitHubOAuthEnabled                   bool   `json:"github_oauth_enabled"`
+	GitHubOAuthClientID                  string `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecretConfigured    bool   `json:"github_oauth_client_secret_configured"`
+	GitHubOAuthRedirectURL               string `json:"github_oauth_redirect_url"`
+	GoogleOAuthEnabled                   bool   `json:"google_oauth_enabled"`
+	GoogleOAuthClientID                  string `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecretConfigured    bool   `json:"google_oauth_client_secret_configured"`
+	GoogleOAuthRedirectURL               string `json:"google_oauth_redirect_url"`
+	ContentModerationEnabled             bool   `json:"content_moderation_enabled"`
+	ContentModerationProvider            string `json:"content_moderation_provider"`
+	ContentModerationBaseURL             string `json:"content_moderation_base_url"`
+	ContentModerationAPIKeyConfigured    bool   `json:"content_moderation_api_key_configured"`
+	ContentModerationModel               string `json:"content_moderation_model"`
+	ContentModerationTimeoutMs           int    `json:"content_moderation_timeout_ms"`
+	ContentModerationDedupeWindowSeconds int    `json:"content_moderation_dedupe_window_seconds"`
+	ContentModerationFailOpen            bool   `json:"content_moderation_fail_open"`
 
 	SiteName                             string           `json:"site_name"`
 	SiteLogo                             string           `json:"site_logo"`
@@ -139,6 +182,8 @@ type PublicSettings struct {
 	PurchaseSubscriptionURL          string           `json:"purchase_subscription_url"`
 	CustomMenuItems                  []CustomMenuItem `json:"custom_menu_items"`
 	LinuxDoOAuthEnabled              bool             `json:"linuxdo_oauth_enabled"`
+	GitHubOAuthEnabled               bool             `json:"github_oauth_enabled"`
+	GoogleOAuthEnabled               bool             `json:"google_oauth_enabled"`
 	BackendModeEnabled               bool             `json:"backend_mode_enabled"`
 	MaintenanceModeEnabled           bool             `json:"maintenance_mode_enabled"`
 	Version                          string           `json:"version"`
@@ -289,9 +334,14 @@ func ParseUserVisibleMenuItems(raw string) []CustomMenuItem {
 	items := ParseCustomMenuItems(raw)
 	filtered := make([]CustomMenuItem, 0, len(items))
 	for _, item := range items {
-		if item.Visibility != "admin" {
-			filtered = append(filtered, item)
+		if item.Visibility == "admin" {
+			continue
 		}
+		if strings.EqualFold(strings.TrimSpace(item.PageMode), "markdown") && !item.PagePublished {
+			continue
+		}
+		item.PageContent = ""
+		filtered = append(filtered, item)
 	}
 	return filtered
 }

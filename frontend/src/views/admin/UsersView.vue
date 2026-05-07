@@ -225,6 +225,13 @@
             </div>
 
             <!-- Create User Button (full width on mobile, auto width on desktop) -->
+            <button
+              @click="showBatchConcurrencyModal = true"
+              class="btn btn-secondary flex-1 md:flex-initial"
+            >
+              <Icon name="grid" size="md" class="mr-2" />
+              {{ t('admin.users.batchConcurrencyAction') }}
+            </button>
             <button @click="showCreateModal = true" class="btn btn-primary flex-1 md:flex-initial">
               <Icon name="plus" size="md" class="mr-2" />
               {{ t('admin.users.createUser') }}
@@ -603,6 +610,17 @@
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
+    <BatchConcurrencyModal
+      :show="showBatchConcurrencyModal"
+      :matched-count="pagination.total"
+      :search="searchQuery"
+      :role="filters.role as 'admin' | 'user' | ''"
+      :status="filters.status as 'active' | 'disabled' | ''"
+      :group-name="filters.group"
+      :attributes="batchAttributeFilters"
+      @close="showBatchConcurrencyModal = false"
+      @success="handleBatchConcurrencySuccess"
+    />
   </AppLayout>
 </template>
 
@@ -636,6 +654,7 @@ import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsMod
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
+import BatchConcurrencyModal from '@/components/admin/user/BatchConcurrencyModal.vue'
 
 const appStore = useAppStore()
 
@@ -911,6 +930,13 @@ const usageStats = ref<Record<string, BatchUserUsageStats>>({})
 // User attribute definitions and values
 const attributeDefinitions = ref<UserAttributeDefinition[]>([])
 const userAttributeValues = ref<Record<number, Record<number, string>>>({})
+const batchAttributeFilters = computed<Record<number, string>>(() =>
+  Object.fromEntries(
+    Object.entries(activeAttributeFilters)
+      .map(([attrId, value]) => [Number(attrId), String(value || '').trim()] as const)
+      .filter(([attrId, value]) => attrId > 0 && value.length > 0)
+  )
+)
 const pagination = reactive({
   page: 1,
   page_size: getPersistedPageSize(),
@@ -923,6 +949,7 @@ const showEditModal = ref(false)
 const showDeleteDialog = ref(false)
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
+const showBatchConcurrencyModal = ref(false)
 const editingUser = ref<AdminUser | null>(null)
 const deletingUser = ref<AdminUser | null>(null)
 const viewingUser = ref<AdminUser | null>(null)
@@ -1238,6 +1265,11 @@ const updateAttributeFilter = (attrId: number, value: string) => {
 // Apply filter and save to localStorage
 const applyFilter = () => {
   saveFiltersToStorage()
+  pagination.page = 1
+  loadUsers()
+}
+
+const handleBatchConcurrencySuccess = () => {
   loadUsers()
 }
 

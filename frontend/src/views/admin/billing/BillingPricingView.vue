@@ -208,6 +208,7 @@ import {
   applyBillingPricingLayerPatch,
   billingPricingLayerPatchHasChanges,
   buildBillingPricingPatchFileV1,
+  materializeBillingPricingPatchFileV1,
   parseBillingPricingPatchFileV1,
 } from '@/utils/billingPricingPatch'
 import type { BillingPricingValidationErrors } from '@/components/admin/billing/pricingOptions'
@@ -378,7 +379,8 @@ async function handleImportFileChange(event: Event) {
 
   try {
     const parsed = parseBillingPricingPatchFileV1(JSON.parse(await readTextFromFile(file)))
-    const models = dedupeModels(parsed.models.map((entry) => entry.model))
+    const materialized = materializeBillingPricingPatchFileV1(parsed)
+    const models = dedupeModels(materialized.file.models.map((entry) => entry.model))
     if (models.length === 0) {
       appStore.showSuccess('导入文件中没有可处理的模型')
       return
@@ -392,11 +394,11 @@ async function handleImportFileChange(event: Event) {
     let failedUpdates = 0
     const firstErrors: string[] = []
 
-    importProgress.value = { processed: 0, total: parsed.models.length }
+    importProgress.value = { processed: 0, total: materialized.file.models.length }
 
-    for (let index = 0; index < parsed.models.length; index += 1) {
-      const entry = parsed.models[index]
-      importProgress.value = { processed: index + 1, total: parsed.models.length }
+    for (let index = 0; index < materialized.file.models.length; index += 1) {
+      const entry = materialized.file.models[index]
+      importProgress.value = { processed: index + 1, total: materialized.file.models.length }
 
       const model = String(entry.model || '').trim()
       const base = model ? detailMap.get(model) : undefined
@@ -447,6 +449,11 @@ async function handleImportFileChange(event: Event) {
       }
     }
 
+    downloadJSONFile(
+      buildExportFilename('billing_pricing_patch_confirmed'),
+      materialized.file,
+    )
+
     billingPricingStore.invalidate()
     await guardedLoad(async () => {
       await Promise.all([reloadAfterMutation(true), loadAudit()])
@@ -458,7 +465,8 @@ async function handleImportFileChange(event: Event) {
         persistent: true,
         details: [
           `更新层数：${updatedLayers}`,
-          `跳过模型：${skippedModels}`,
+          `自动补全：${materialized.updated}`,
+          `跳过模型：${skippedModels + materialized.skipped}`,
           `失败次数：${failedUpdates}`,
           ...firstErrors,
         ],
@@ -468,7 +476,11 @@ async function handleImportFileChange(event: Event) {
 
     appStore.showSuccess('批量导入完成', {
       title: '导入结果',
-      details: [`更新层数：${updatedLayers}`, `跳过模型：${skippedModels}`],
+      details: [
+        `更新层数：${updatedLayers}`,
+        `自动补全：${materialized.updated}`,
+        `跳过模型：${skippedModels + materialized.skipped}`,
+      ],
     })
   } catch (error) {
     appStore.showError(resolveErrorMessage(error, '导入 JSON 失败'), { persistent: true })

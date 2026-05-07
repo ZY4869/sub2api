@@ -96,6 +96,17 @@ func (h *GatewayHandler) GeminiV1BetaOpenAICompat(c *gin.Context) {
 	case strings.Contains(strings.ToLower(strings.TrimSpace(c.Request.URL.Path)), "/openai/batches"):
 		resourceKind = service.UpstreamResourceKindGeminiBatch
 	}
+	if resourceKind == "" && strings.Contains(strings.ToLower(strings.TrimSpace(c.Request.URL.Path)), "/openai/chat/completions") {
+		if body, err := c.GetRawData(); err == nil && len(body) > 0 {
+			c.Request.Body = ioNopCloserBytes(body)
+			modelHint := strings.TrimSpace(detectGeminiPassthroughRequestedModel(c.Request.URL.Path, body))
+			submitContentModerationAudit(
+				c.Request.Context(),
+				h.contentModerationService,
+				buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiOpenAICompat, service.PlatformGemini, modelHint, body),
+			)
+		}
+	}
 	h.forwardGeminiPassthrough(c, service.GeminiPublicPassthroughInput{ResourceKind: resourceKind})
 }
 

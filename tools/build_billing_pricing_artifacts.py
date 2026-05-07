@@ -7,30 +7,10 @@ from pathlib import Path
 from typing import Any
 
 
-ROOT_FIELDS = [
+PRICE_FIELDS = [
     "input_price",
     "output_price",
     "cache_price",
-    "tier_threshold_tokens",
-    "input_price_above_threshold",
-    "output_price_above_threshold",
-    "shared_multiplier",
-]
-
-BOOLEAN_FIELDS = [
-    "special_enabled",
-    "tiered_enabled",
-    "multiplier_enabled",
-]
-
-SPECIAL_FIELDS = [
-    "batch_input_price",
-    "batch_output_price",
-    "batch_cache_price",
-    "grounding_search",
-    "grounding_maps",
-    "file_search_embedding",
-    "file_search_retrieval",
 ]
 
 
@@ -58,17 +38,8 @@ def load_json(path: Path) -> dict[str, Any]:
 def clone_layer(value: Any) -> dict[str, Any]:
     if isinstance(value, dict):
         cloned = deepcopy(value)
-        if not isinstance(cloned.get("special"), dict):
-            cloned["special"] = {}
-        if "item_multipliers" in cloned and not isinstance(cloned["item_multipliers"], dict):
-            cloned["item_multipliers"] = {}
         return cloned
-    return {
-        "special_enabled": False,
-        "special": {},
-        "tiered_enabled": False,
-        "multiplier_enabled": False,
-    }
+    return {}
 
 
 def has_non_empty_patch(value: Any) -> bool:
@@ -79,44 +50,21 @@ def has_non_empty_patch(value: Any) -> bool:
 
 def build_confirmed_layer(layer: dict[str, Any]) -> dict[str, Any]:
     patch: dict[str, Any] = {}
-    has_confirmed_value = False
-
-    for key in ROOT_FIELDS:
-        if key in layer and layer[key] is not None:
-            patch[key] = layer[key]
-            has_confirmed_value = True
-
-    if "multiplier_mode" in layer and layer["multiplier_mode"] is not None:
-        patch["multiplier_mode"] = layer["multiplier_mode"]
-
-    special = layer.get("special")
-    if isinstance(special, dict):
-        special_patch = {key: special[key] for key in SPECIAL_FIELDS if special.get(key) is not None}
-        if special_patch:
-            patch["special"] = special_patch
-            has_confirmed_value = True
-
-    item_multipliers = layer.get("item_multipliers")
-    if isinstance(item_multipliers, dict) and item_multipliers:
-        patch["item_multipliers"] = {
-            key: value for key, value in item_multipliers.items() if value is not None
-        }
-        if patch["item_multipliers"]:
-            has_confirmed_value = True
-
-    if not has_confirmed_value:
-        return {}
-
-    for key in BOOLEAN_FIELDS:
-        if key in layer:
-            patch[key] = bool(layer[key])
-    if "special" not in patch and bool(layer.get("special_enabled")):
-        patch["special"] = {}
+    for key in PRICE_FIELDS:
+        value = layer.get(key)
+        if isinstance(value, (int, float)):
+            patch[key] = value
 
     return patch
 
 
 def build_confirmed_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
+    existing_patch = entry.get("patch")
+    if has_non_empty_patch(existing_patch):
+        cloned_entry = deepcopy(entry)
+        if isinstance(cloned_entry.get("patch"), dict):
+            return cloned_entry
+
     current = entry.get("current") if isinstance(entry.get("current"), dict) else {}
     official_layer = clone_layer(current.get("official"))
     sale_layer = clone_layer(current.get("sale"))
@@ -145,7 +93,7 @@ def build_confirmed_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
             "sale": sale_layer,
         },
         "patch": patch,
-        "notes": "Auto-built confirmed patch from current.official/current.sale known fields only.",
+        "notes": "Auto-built confirmed patch from current.official/current.sale known price fields only.",
     }
 
 

@@ -468,15 +468,11 @@ const AccountModelScopeEditorStub = defineComponent({
 const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
   name: 'AccountBaiduDocumentAICredentialsEditor',
   props: {
-    asyncBearerToken: {
+    accessToken: {
       type: String,
       default: ''
     },
     asyncBaseUrl: {
-      type: String,
-      default: ''
-    },
-    directToken: {
       type: String,
       default: ''
     },
@@ -486,25 +482,22 @@ const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
     }
   },
   emits: [
-    'update:async-bearer-token',
-    'update:async-base-url',
-    'update:direct-token',
-    'update:direct-api-urls-text'
+    'update:accessToken',
+    'update:asyncBaseUrl',
+    'update:directApiUrlsText'
   ],
   template: `
     <div data-testid="baidu-document-ai-credentials-editor">
-      <span data-testid="baidu-async-bearer-token-prop">{{ asyncBearerToken }}</span>
+      <span data-testid="baidu-access-token-prop">{{ accessToken }}</span>
       <span data-testid="baidu-async-base-url-prop">{{ asyncBaseUrl }}</span>
-      <span data-testid="baidu-direct-token-prop">{{ directToken }}</span>
       <span data-testid="baidu-direct-api-urls-prop">{{ directApiUrlsText }}</span>
       <button
         type="button"
         data-testid="set-baidu-document-ai-credentials"
         @click="
-          $emit('update:async-bearer-token', 'async-token');
-          $emit('update:async-base-url', 'https://aistudio.baidu.com/async');
-          $emit('update:direct-token', 'direct-token');
-          $emit('update:direct-api-urls-text', '{&quot;pp-ocrv5-server&quot;:&quot;https://direct.baidu.com/ocr&quot;}')
+          $emit('update:accessToken', 'shared-token');
+          $emit('update:asyncBaseUrl', 'https://aistudio.baidu.com/async');
+          $emit('update:directApiUrlsText', '{&quot;pp-ocrv5-server&quot;:&quot;https://direct.baidu.com/ocr&quot;}')
         "
       >
         set baidu credentials
@@ -911,9 +904,9 @@ describe('CreateAccountModal', () => {
       platform: 'baidu_document_ai',
       type: 'apikey',
       credentials: {
-        async_bearer_token: 'async-token',
+        async_bearer_token: 'shared-token',
         async_base_url: 'https://aistudio.baidu.com/async',
-        direct_token: 'direct-token',
+        direct_token: 'shared-token',
         direct_api_urls: {
           'pp-ocrv5-server': 'https://direct.baidu.com/ocr'
         }
@@ -942,13 +935,11 @@ describe('CreateAccountModal', () => {
 
     await wrapper.get('[data-testid="select-baidu-document-ai"]').trigger('click')
 
-    expect(wrapper.find('[data-testid="baidu-document-ai-async-bearer-token"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="baidu-document-ai-direct-token"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="baidu-document-ai-access-token"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="baidu-document-ai-direct-api-urls"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="set-api-key"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="baidu-document-ai-async-bearer-token"]').setValue('async-token')
-    await wrapper.get('[data-testid="baidu-document-ai-direct-token"]').setValue('direct-token')
+    await wrapper.get('[data-testid="baidu-document-ai-access-token"]').setValue('shared-token')
     await wrapper
       .get('[data-testid="baidu-document-ai-direct-api-urls"]')
       .setValue('{"pp-ocrv5-server":"https://direct.baidu.com/ocr"}')
@@ -962,9 +953,9 @@ describe('CreateAccountModal', () => {
       platform: 'baidu_document_ai',
       type: 'apikey',
       credentials: {
-        async_bearer_token: 'async-token',
+        async_bearer_token: 'shared-token',
         async_base_url: BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL,
-        direct_token: 'direct-token',
+        direct_token: 'shared-token',
         direct_api_urls: {
           'pp-ocrv5-server': 'https://direct.baidu.com/ocr'
         }
@@ -983,8 +974,7 @@ describe('CreateAccountModal', () => {
 
     await wrapper.get('[data-testid="select-baidu-document-ai"]').trigger('click')
     await wrapper.get('[data-testid="set-baidu-document-ai-credentials"]').trigger('click')
-    expect(wrapper.get('[data-testid="baidu-async-bearer-token-prop"]').text()).toBe('async-token')
-    expect(wrapper.get('[data-testid="baidu-direct-token-prop"]').text()).toBe('direct-token')
+    expect(wrapper.get('[data-testid="baidu-access-token-prop"]').text()).toBe('shared-token')
     expect(wrapper.get('[data-testid="baidu-direct-api-urls-prop"]').text()).toContain('pp-ocrv5-server')
 
     await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
@@ -995,11 +985,10 @@ describe('CreateAccountModal', () => {
 
     await wrapper.get('[data-testid="select-baidu-document-ai"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="baidu-async-bearer-token-prop"]').text()).toBe('')
+    expect(wrapper.get('[data-testid="baidu-access-token-prop"]').text()).toBe('')
     expect(wrapper.get('[data-testid="baidu-async-base-url-prop"]').text()).toBe(
       BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
     )
-    expect(wrapper.get('[data-testid="baidu-direct-token-prop"]').text()).toBe('')
     expect(wrapper.get('[data-testid="baidu-direct-api-urls-prop"]').text()).toBe('')
   })
 

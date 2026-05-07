@@ -9,9 +9,8 @@ const props = withDefaults(defineProps<{
   mode: 'create'
 })
 
-const asyncBearerToken = defineModel<string>('asyncBearerToken', { required: true })
+const accessToken = defineModel<string>('accessToken', { required: true })
 const asyncBaseUrl = defineModel<string>('asyncBaseUrl', { required: true })
-const directToken = defineModel<string>('directToken', { required: true })
 const directApiUrlsText = defineModel<string>('directApiUrlsText', { required: true })
 
 const { t } = useI18n()
@@ -54,31 +53,17 @@ const tokenPlaceholderKey = computed(() =>
     </div>
 
     <div>
-      <label class="input-label">{{ t('admin.accounts.baiduDocumentAI.asyncBearerToken') }}</label>
+      <label class="input-label">{{ t('admin.accounts.baiduDocumentAI.accessToken') }}</label>
       <input
-        v-model="asyncBearerToken"
+        v-model="accessToken"
         type="password"
         class="input font-mono"
         :placeholder="t(tokenPlaceholderKey)"
         autocomplete="off"
-        data-testid="baidu-document-ai-async-bearer-token"
+        data-testid="baidu-document-ai-access-token"
         spellcheck="false"
       />
-      <p class="input-hint">{{ t('admin.accounts.baiduDocumentAI.asyncBearerTokenHint') }}</p>
-    </div>
-
-    <div>
-      <label class="input-label">{{ t('admin.accounts.baiduDocumentAI.directToken') }}</label>
-      <input
-        v-model="directToken"
-        type="password"
-        class="input font-mono"
-        :placeholder="t(tokenPlaceholderKey)"
-        autocomplete="off"
-        data-testid="baidu-document-ai-direct-token"
-        spellcheck="false"
-      />
-      <p class="input-hint">{{ t('admin.accounts.baiduDocumentAI.directTokenHint') }}</p>
+      <p class="input-hint">{{ t('admin.accounts.baiduDocumentAI.accessTokenHint') }}</p>
     </div>
 
     <div>

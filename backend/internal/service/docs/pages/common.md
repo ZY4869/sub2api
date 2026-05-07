@@ -725,6 +725,208 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/accounts/bulk-update" \
   }'
 ```
 
+### 管理端：按筛选结果批量更新用户并发
+
+管理员现在可以直接基于“用户列表当前筛选结果”批量修改用户并发：
+
+- 路径：`POST /api/v1/admin/users/batch-concurrency`
+- 鉴权：管理员 JWT（`Authorization: Bearer <ADMIN_JWT>`）
+- 幂等：必须携带 `Idempotency-Key`
+- 用途：把当前搜索词、角色、状态、分组名和用户属性筛选条件对应到的所有用户，并发上限统一改成同一个值
+
+请求体字段：
+
+- `concurrency`：必填，目标并发值，最小为 `1`
+- `search`：可选，按邮箱 / 用户名模糊筛选
+- `role`：可选，`admin` 或 `user`
+- `status`：可选，`active` 或 `disabled`
+- `group_name`：可选，按允许分组名称模糊筛选
+- `attributes`：可选，对应用户属性筛选，结构为 `{ "<attribute_id>": "<value>" }`
+
+响应体会返回：
+
+- `matched`：命中的用户数
+- `success_count` / `failed_count`：成功 / 失败条数
+- `concurrency`：本次写入的目标并发值
+- `results[]`：逐个用户的执行结果，包含 `user_id`、`email`、`success` 与可选 `error`
+
+#### REST
+```bash
+curl -X POST "https://api.zyxai.de/api/v1/admin/users/batch-concurrency" \
+  -H "Authorization: Bearer <ADMIN_JWT>" \
+  -H "Idempotency-Key: users-batch-concurrency-001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "concurrency": 8,
+    "search": "example.com",
+    "status": "active",
+    "attributes": {
+      "12": "enterprise"
+    }
+  }'
+```
+
+### 自定义 Markdown 页面
+
+站内自定义菜单现在支持 `markdown` 页面模式。前端会优先按 slug 读取 markdown 页面；如果菜单项仍然是旧 `iframe` URL 模式，则继续回退到原有嵌入行为。
+
+- 路径：`GET /api/v1/pages/:slug`
+- 鉴权：公开可访问
+- 可见性：
+  - `visibility=user` 的已发布页面可公开读取
+  - `visibility=admin` 的已发布页面只有管理员登录态可读取；未登录或普通用户会收到 `404`
+  - 未发布的 markdown 页面不会出现在公开设置返回的菜单里，也无法通过该接口读取
+
+返回体字段：
+
+- `id`：菜单项 ID
+- `slug`：规范化后的页面 slug
+- `label`：页面标题
+- `visibility`：`user` 或 `admin`
+- `page_mode`：固定为 `markdown`
+- `content`：Markdown 正文
+
+#### REST
+```bash
+curl "https://api.zyxai.de/api/v1/pages/getting-started"
+```
+
+### GitHub / Google 快捷登录
+
+除 LinuxDo 之外，站点还支持 GitHub 与 Google 的快捷登录和登录后绑定：
+
+- `GET /api/v1/auth/oauth/:provider/start`
+- `GET /api/v1/auth/oauth/:provider/callback`
+- `POST /api/v1/auth/oauth/:provider/complete`
+
+其中 `:provider` 只允许：
+
+- `github`
+- `google`
+
+`start` 支持以下查询参数：
+
+- `mode`：可选，`login` 或 `bind`；默认 `login`
+- `redirect`：可选，前端相对路径，登录或绑定成功后跳回该页面
+- `aff_code`：可选，登录注册场景沿用现有邀请返利码
+
+安全规则：
+
+- `bind` 模式必须带当前用户登录态，且只会绑定到当前账号，不会切换到其他用户
+- provider 邮箱已验证且唯一匹配现有用户时，会自动登录并补齐绑定
+- provider 邮箱未验证时，不能接管现有邮箱账号
+- 邀请码注册开启时，新用户会进入 pending token + `complete` 的补邀请码流程
+
+#### REST
+```bash
+# 1) 发起 GitHub 登录
+curl -I "https://api.zyxai.de/api/v1/auth/oauth/github/start?mode=login&redirect=%2Fdashboard"
+
+# 2) 发起 Google 绑定
+curl -I "https://api.zyxai.de/api/v1/auth/oauth/google/start?mode=bind&redirect=%2Fprofile" \
+  -H "Authorization: Bearer <USER_JWT>"
+
+# 3) 邀请码补全注册
+curl -X POST "https://api.zyxai.de/api/v1/auth/oauth/github/complete" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pending_oauth_token": "<PENDING_OAUTH_TOKEN>",
+    "invitation_code": "INVITE123"
+  }'
+```
+
+### 当前用户第三方身份
+
+登录后，用户资料页可以查看和解绑已绑定的第三方身份：
+
+- `GET /api/v1/user/auth-identities`
+- `DELETE /api/v1/user/auth-identities/:provider`
+
+鉴权要求：
+
+- 两条接口都要求用户 JWT
+- `DELETE` 只会移除当前用户自己的绑定记录
+
+返回字段包含：
+
+- `id`
+- `provider`
+- `provider_user_id`
+- `email`
+- `email_verified`
+- `display_name`
+- `avatar_url`
+- `created_at`
+- `updated_at`
+
+#### REST
+```bash
+curl "https://api.zyxai.de/api/v1/user/auth-identities" \
+  -H "Authorization: Bearer <USER_JWT>"
+
+curl -X DELETE "https://api.zyxai.de/api/v1/user/auth-identities/github" \
+  -H "Authorization: Bearer <USER_JWT>"
+```
+
+### 管理端：内容审核审计
+
+内容审核 v1 默认是“审计而非阻断”能力。它只覆盖文本类请求入口，并且默认 `fail-open`：
+
+- `POST /v1/responses`
+- `POST /v1/chat/completions`
+- `POST /v1/messages`
+- `POST /messages`
+- `POST /v1beta/models/{model}:generateContent`
+- `POST /v1beta/models/{model}:streamGenerateContent`
+- `POST /v1beta/openai/chat/completions`
+
+后台查询接口：
+
+- `GET /api/v1/admin/moderation/audits`
+- `GET /api/v1/admin/moderation/audits/:id`
+
+鉴权要求：
+
+- 两条接口都要求管理员 JWT
+- 审计记录只保存脱敏摘要、内容哈希、provider/model、命中状态、错误原因、耗时，以及 `request_id` / `client_request_id` / `user_id` / `api_key_id`
+- 不会把原始明文内容写入数据库
+
+列表筛选参数：
+
+- `page` / `page_size`
+- `request_id`
+- `client_request_id`
+- `provider`
+- `model`
+- `source_endpoint`
+- `content_hash`
+- `user_id`
+- `hit=true|false`
+
+#### REST
+```bash
+curl "https://api.zyxai.de/api/v1/admin/moderation/audits?page=1&page_size=20&provider=openai&hit=false" \
+  -H "Authorization: Bearer <ADMIN_JWT>"
+
+curl "https://api.zyxai.de/api/v1/admin/moderation/audits/42" \
+  -H "Authorization: Bearer <ADMIN_JWT>"
+```
+
+### 管理端：内容审核设置字段
+
+系统设置接口 `GET|PUT /api/v1/admin/settings` 现在包含以下审核字段：
+
+- `content_moderation_enabled`
+- `content_moderation_provider`
+- `content_moderation_base_url`
+- `content_moderation_api_key`（仅 `PUT` 可写；`GET` 只返回 `content_moderation_api_key_configured`）
+- `content_moderation_model`
+- `content_moderation_timeout_ms`
+- `content_moderation_dedupe_window_seconds`
+- `content_moderation_fail_open`
+
+这些字段全部挂在现有 settings 体系，不会新增独立 settings API。
+
 ### 错误响应与限流
 
 错误体会按协议风格返回，而不是统一强行包成一种格式。

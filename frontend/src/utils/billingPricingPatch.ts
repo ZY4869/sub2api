@@ -83,6 +83,12 @@ export interface BillingPricingPatchFileV1 {
   models: BillingPricingPatchModelV1[]
 }
 
+export interface BillingPricingPatchMaterializationResult {
+  file: BillingPricingPatchFileV1
+  updated: number
+  skipped: number
+}
+
 const rootNumberKeys = [
   'input_price',
   'output_price',
@@ -438,6 +444,96 @@ function createTemplatePatchLayer(form: BillingPricingLayerForm): BillingPricing
     item_multipliers: Object.keys(form.item_multipliers || {}).length > 0
       ? Object.fromEntries(Object.entries(form.item_multipliers || {}).map(([key, value]) => [key, value]))
       : {},
+  }
+}
+
+function hasAnyPatchLayer(patch?: BillingPricingPatchPayloadV1): boolean {
+  if (!patch || typeof patch !== 'object') {
+    return false
+  }
+  return Object.keys(patch).some((layerKey) => {
+    const layer = patch[layerKey as keyof BillingPricingPatchPayloadV1]
+    return typeof layer === 'object' && layer !== null && Object.keys(layer).length > 0
+  })
+}
+
+function materializePatchLayerFromCurrent(form?: BillingPricingLayerForm): BillingPricingLayerPatchV1 | undefined {
+  if (!form) {
+    return undefined
+  }
+  const layer = createTemplatePatchLayer(form)
+  const next: BillingPricingLayerPatchV1 = {}
+  let hasValue = false
+
+  ;(['input_price', 'output_price', 'cache_price'] as const).forEach((key) => {
+    const value = layer[key]
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      next[key] = value
+      hasValue = true
+    }
+  })
+
+  if (!hasValue) {
+    return undefined
+  }
+
+  return next
+}
+
+function materializePatchModelEntry(entry: BillingPricingPatchModelV1): BillingPricingPatchModelV1 | null {
+  if (hasAnyPatchLayer(entry.patch)) {
+    return entry
+  }
+
+  const official = materializePatchLayerFromCurrent(entry.current?.official)
+  const sale = materializePatchLayerFromCurrent(entry.current?.sale)
+  if (!official && !sale) {
+    return null
+  }
+
+  const patch: BillingPricingPatchPayloadV1 = {}
+  if (official) {
+    patch.official = official
+  }
+  if (sale) {
+    patch.sale = sale
+  }
+
+  return {
+    ...entry,
+    currency: entry.currency,
+    patch,
+    notes: entry.notes || 'Auto-built confirmed patch from current.official/current.sale known price fields only.',
+  }
+}
+
+export function materializeBillingPricingPatchFileV1(
+  file: BillingPricingPatchFileV1,
+): BillingPricingPatchMaterializationResult {
+  let updated = 0
+  let skipped = 0
+
+  const models = (file.models || []).reduce<BillingPricingPatchModelV1[]>((result, entry) => {
+    const next = materializePatchModelEntry(entry)
+    if (!next) {
+      skipped += 1
+      return result
+    }
+    if (next !== entry) {
+      updated += 1
+    }
+    result.push(next)
+    return result
+  }, [])
+
+  return {
+    file: {
+      ...file,
+      export_mode: 'executable_template',
+      models,
+    },
+    updated,
+    skipped,
   }
 }
 

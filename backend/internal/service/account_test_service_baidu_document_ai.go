@@ -28,7 +28,7 @@ func (s *AccountTestService) testBaiduDocumentAIAccountConnection(c *gin.Context
 	c.Writer.Flush()
 
 	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService)
-	if account.GetBaiduDocumentAIAsyncBearerToken() != "" {
+	if account.IsBaiduDocumentAIAsyncMode() && account.GetBaiduDocumentAIAsyncBearerToken() != "" && account.GetBaiduDocumentAIAsyncBaseURL() != "" {
 		modelID := DocumentAIModelPPOCRV5Server
 		s.sendEvent(c, TestEvent{Type: "test_start", Model: modelID})
 		s.sendEvent(c, TestEvent{
@@ -72,7 +72,7 @@ func (s *AccountTestService) testBaiduDocumentAIAccountConnection(c *gin.Context
 
 	apiURL := account.GetBaiduDocumentAIDirectAPIURL(DocumentAIModelPPOCRV5Server)
 	if account.GetBaiduDocumentAIDirectToken() == "" || apiURL == "" {
-		return s.sendErrorAndEnd(c, "Baidu Document AI account is missing async token or direct PP-OCRv5 API_URL")
+		return s.sendErrorAndEnd(c, "Baidu Document AI account is missing direct token or direct PP-OCRv5 API_URL")
 	}
 
 	modelID := DocumentAIModelPPOCRV5Server

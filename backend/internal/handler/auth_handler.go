@@ -24,6 +24,7 @@ type AuthHandler struct {
 	promoService  *service.PromoService
 	redeemService *service.RedeemService
 	totpService   *service.TotpService
+	identities    *service.AuthIdentityService
 }
 
 // NewAuthHandler creates a new AuthHandler
@@ -37,6 +38,20 @@ func NewAuthHandler(cfg *config.Config, authService *service.AuthService, userSe
 		redeemService: redeemService,
 		totpService:   totpService,
 	}
+}
+
+func (h *AuthHandler) GetAuthService() *service.AuthService {
+	if h == nil {
+		return nil
+	}
+	return h.authService
+}
+
+func (h *AuthHandler) GetUserService() *service.UserService {
+	if h == nil {
+		return nil
+	}
+	return h.userService
 }
 
 // RegisterRequest represents the registration request payload

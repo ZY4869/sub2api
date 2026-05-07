@@ -71,12 +71,28 @@ func RegisterAuthRoutes(
 			}),
 			h.Auth.CompleteLinuxDoOAuthRegistration,
 		)
+		auth.GET("/oauth/:provider/start", h.Auth.SocialOAuthStart)
+		auth.GET("/oauth/:provider/callback", h.Auth.SocialOAuthCallback)
+		auth.POST("/oauth/:provider/complete",
+			rateLimiter.LimitWithOptions("oauth-social-complete", 10, time.Minute, middleware.RateLimitOptions{
+				FailureMode: middleware.RateLimitFailClose,
+			}),
+			h.Auth.CompleteSocialOAuthRegistration,
+		)
 	}
 
 	// 公开设置（无需认证）
 	settings := v1.Group("/settings")
 	{
 		settings.GET("/public", h.Setting.GetPublicSettings)
+	}
+
+	pages := v1.Group("/pages")
+	if h != nil && h.Auth != nil && h.User != nil {
+		pages.Use(servermiddleware.NewOptionalJWTAuthMiddleware(h.Auth.GetAuthService(), h.User.GetUserService()))
+	}
+	{
+		pages.GET("/:slug", h.Setting.GetCustomPage)
 	}
 
 	// 需要认证的当前用户信息

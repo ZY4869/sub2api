@@ -90,6 +90,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/auth/social/callback',
+    name: 'SocialOAuthCallback',
+    component: () => import('@/views/auth/SocialOAuthCallbackView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Social OAuth Callback',
+      titleKey: 'ui.routeTitles.oauthCallback'
+    }
+  },
+  {
     path: '/forgot-password',
     name: 'ForgotPassword',
     component: () => import('@/views/auth/ForgotPasswordView.vue'),
@@ -428,6 +438,18 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'issues',
+        name: 'AdminBillingIssues',
+        component: () => import('@/views/admin/billing/BillingPricingIssuesView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Billing Issues',
+          titleKey: 'admin.billing.pages.issues.title',
+          descriptionKey: 'admin.billing.pages.issues.description'
+        }
+      },
+      {
         path: 'public-model-catalog',
         name: 'AdminBillingPublicCatalog',
         component: () => import('@/views/admin/billing/BillingPublicCatalogView.vue'),
@@ -493,6 +515,18 @@ const routes: RouteRecordRaw[] = [
       title: 'User Management',
       titleKey: 'admin.users.title',
       descriptionKey: 'admin.users.description'
+    }
+  },
+  {
+    path: '/admin/moderation',
+    name: 'AdminModeration',
+    component: () => import('@/views/admin/ModerationAuditsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Content Moderation Audits',
+      titleKey: 'admin.moderation.title',
+      descriptionKey: 'admin.moderation.description'
     }
   },
   {

@@ -35,8 +35,6 @@ func (s *SettingService) UpdateGoogleBatchArchiveSettings(ctx context.Context, s
 	if err := s.settingRepo.Set(ctx, SettingKeyGoogleBatchArchiveSettings, string(data)); err != nil {
 		return nil, err
 	}
-	if s.onUpdate != nil {
-		s.onUpdate()
-	}
+	s.notifyUpdateCallbacks()
 	return normalized, nil
 }

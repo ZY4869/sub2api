@@ -69,6 +69,12 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
 		return
 	}
+	modelHint := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	submitContentModerationAudit(
+		c.Request.Context(),
+		h.contentModerationService,
+		buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIMessages, service.PlatformOpenAI, modelHint, body),
+	)
 
 	modelResult := gjson.GetBytes(body, "model")
 	if !modelResult.Exists() || modelResult.Type != gjson.String || modelResult.String() == "" {

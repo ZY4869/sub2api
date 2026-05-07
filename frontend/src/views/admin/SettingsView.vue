@@ -948,6 +948,259 @@
             </div>
           </div>
         </div>
+
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.socialOAuth.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.socialOAuth.description') }}
+            </p>
+          </div>
+          <div class="space-y-6 p-6">
+            <div class="space-y-5 rounded-2xl border border-gray-100 p-5 dark:border-dark-700">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.settings.socialOAuth.githubEnable') }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.socialOAuth.githubEnableHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.github_oauth_enabled" />
+              </div>
+
+              <div v-if="form.github_oauth_enabled" class="grid grid-cols-1 gap-6 border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.socialOAuth.clientId') }}
+                  </label>
+                  <input
+                    v-model="form.github_oauth_client_id"
+                    type="text"
+                    class="input font-mono text-sm"
+                    :placeholder="t('admin.settings.socialOAuth.githubClientIdPlaceholder')"
+                  />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.socialOAuth.clientSecret') }}
+                  </label>
+                  <input
+                    v-model="form.github_oauth_client_secret"
+                    type="password"
+                    class="input font-mono text-sm"
+                    :placeholder="
+                      form.github_oauth_client_secret_configured
+                        ? t('admin.settings.socialOAuth.clientSecretConfiguredPlaceholder')
+                        : t('admin.settings.socialOAuth.githubClientSecretPlaceholder')
+                    "
+                  />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.socialOAuth.redirectUrl') }}
+                  </label>
+                  <input
+                    v-model="form.github_oauth_redirect_url"
+                    type="url"
+                    class="input font-mono text-sm"
+                    :placeholder="t('admin.settings.socialOAuth.githubRedirectUrlPlaceholder')"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-5 rounded-2xl border border-gray-100 p-5 dark:border-dark-700">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.settings.socialOAuth.googleEnable') }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.socialOAuth.googleEnableHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.google_oauth_enabled" />
+              </div>
+
+              <div v-if="form.google_oauth_enabled" class="grid grid-cols-1 gap-6 border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.socialOAuth.clientId') }}
+                  </label>
+                  <input
+                    v-model="form.google_oauth_client_id"
+                    type="text"
+                    class="input font-mono text-sm"
+                    :placeholder="t('admin.settings.socialOAuth.googleClientIdPlaceholder')"
+                  />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.socialOAuth.clientSecret') }}
+                  </label>
+                  <input
+                    v-model="form.google_oauth_client_secret"
+                    type="password"
+                    class="input font-mono text-sm"
+                    :placeholder="
+                      form.google_oauth_client_secret_configured
+                        ? t('admin.settings.socialOAuth.clientSecretConfiguredPlaceholder')
+                        : t('admin.settings.socialOAuth.googleClientSecretPlaceholder')
+                    "
+                  />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.socialOAuth.redirectUrl') }}
+                  </label>
+                  <input
+                    v-model="form.google_oauth_redirect_url"
+                    type="url"
+                    class="input font-mono text-sm"
+                    :placeholder="t('admin.settings.socialOAuth.googleRedirectUrlPlaceholder')"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.moderation.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.moderation.description') }}
+            </p>
+          </div>
+          <div class="space-y-6 p-6">
+            <div class="flex items-center justify-between rounded-2xl border border-gray-100 p-5 dark:border-dark-700">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.moderation.enabled') }}
+                </label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.content_moderation_enabled" />
+            </div>
+
+            <div
+              v-if="form.content_moderation_enabled"
+              class="grid grid-cols-1 gap-6 rounded-2xl border border-gray-100 p-5 dark:border-dark-700 md:grid-cols-2"
+            >
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.provider') }}
+                </label>
+                <input
+                  v-model="form.content_moderation_provider"
+                  type="text"
+                  class="input"
+                  placeholder="openai"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.providerHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.model') }}
+                </label>
+                <input
+                  v-model="form.content_moderation_model"
+                  type="text"
+                  class="input"
+                  placeholder="omni-moderation-latest"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.modelHint') }}
+                </p>
+              </div>
+              <div class="md:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.baseUrl') }}
+                </label>
+                <input
+                  v-model="form.content_moderation_base_url"
+                  type="url"
+                  class="input font-mono text-sm"
+                  placeholder="https://api.example.com"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.baseUrlHint') }}
+                </p>
+              </div>
+              <div class="md:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.apiKey') }}
+                </label>
+                <input
+                  v-model="form.content_moderation_api_key"
+                  type="password"
+                  class="input font-mono text-sm"
+                  :placeholder="
+                    form.content_moderation_api_key_configured
+                      ? t('admin.settings.moderation.apiKeyConfiguredPlaceholder')
+                      : 'sk-...'
+                  "
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.apiKeyHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.timeoutMs') }}
+                </label>
+                <input
+                  v-model.number="form.content_moderation_timeout_ms"
+                  type="number"
+                  min="100"
+                  step="100"
+                  class="input"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.timeoutMsHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.dedupeWindowSeconds') }}
+                </label>
+                <input
+                  v-model.number="form.content_moderation_dedupe_window_seconds"
+                  type="number"
+                  min="0"
+                  step="10"
+                  class="input"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.dedupeWindowSecondsHint') }}
+                </p>
+              </div>
+              <div class="md:col-span-2">
+                <div class="flex items-center justify-between rounded-2xl border border-gray-100 p-4 dark:border-dark-700">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">
+                      {{ t('admin.settings.moderation.failOpen') }}
+                    </label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.moderation.failOpenHint') }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.content_moderation_fail_open" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         </div><!-- /Tab: Security — Registration, Turnstile, LinuxDo -->
 
         <!-- Tab: Users -->
@@ -1603,126 +1856,7 @@
           </div>
         </div>
 
-        <!-- Custom Menu Items -->
-        <div class="card">
-          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.settings.customMenu.title') }}
-            </h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {{ t('admin.settings.customMenu.description') }}
-            </p>
-          </div>
-          <div class="space-y-4 p-6">
-            <!-- Existing menu items -->
-            <div
-              v-for="(item, index) in form.custom_menu_items"
-              :key="item.id || index"
-              class="rounded-lg border border-gray-200 p-4 dark:border-dark-600"
-            >
-              <div class="mb-3 flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('admin.settings.customMenu.itemLabel', { n: index + 1 }) }}
-                </span>
-                <div class="flex items-center gap-2">
-                  <!-- Move up -->
-                  <button
-                    v-if="index > 0"
-                    type="button"
-                    class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700"
-                    :title="t('admin.settings.customMenu.moveUp')"
-                    @click="moveMenuItem(index, -1)"
-                  >
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>
-                  </button>
-                  <!-- Move down -->
-                  <button
-                    v-if="index < form.custom_menu_items.length - 1"
-                    type="button"
-                    class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700"
-                    :title="t('admin.settings.customMenu.moveDown')"
-                    @click="moveMenuItem(index, 1)"
-                  >
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                  </button>
-                  <!-- Delete -->
-                  <button
-                    type="button"
-                    class="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                    :title="t('admin.settings.customMenu.remove')"
-                    @click="removeMenuItem(index)"
-                  >
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <!-- Label -->
-                <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    {{ t('admin.settings.customMenu.name') }}
-                  </label>
-                  <input
-                    v-model="item.label"
-                    type="text"
-                    class="input text-sm"
-                    :placeholder="t('admin.settings.customMenu.namePlaceholder')"
-                  />
-                </div>
-
-                <!-- Visibility -->
-                <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    {{ t('admin.settings.customMenu.visibility') }}
-                  </label>
-                  <select v-model="item.visibility" class="input text-sm">
-                    <option value="user">{{ t('admin.settings.customMenu.visibilityUser') }}</option>
-                    <option value="admin">{{ t('admin.settings.customMenu.visibilityAdmin') }}</option>
-                  </select>
-                </div>
-
-                <!-- URL (full width) -->
-                <div class="sm:col-span-2">
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    {{ t('admin.settings.customMenu.url') }}
-                  </label>
-                  <input
-                    v-model="item.url"
-                    type="url"
-                    class="input font-mono text-sm"
-                    :placeholder="t('admin.settings.customMenu.urlPlaceholder')"
-                  />
-                </div>
-
-                <!-- SVG Icon (full width) -->
-                <div class="sm:col-span-2">
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    {{ t('admin.settings.customMenu.iconSvg') }}
-                  </label>
-                  <ImageUpload
-                    :model-value="item.icon_svg"
-                    mode="svg"
-                    size="sm"
-                    :upload-label="t('admin.settings.customMenu.uploadSvg')"
-                    :remove-label="t('admin.settings.customMenu.removeSvg')"
-                    @update:model-value="(v: string) => item.icon_svg = v"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Add button -->
-            <button
-              type="button"
-              class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-3 text-sm text-gray-500 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:text-gray-400 dark:hover:border-primary-500 dark:hover:text-primary-400"
-              @click="addMenuItem"
-            >
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-              {{ t('admin.settings.customMenu.add') }}
-            </button>
-          </div>
-        </div>
+        <CustomMenuSettingsCard v-model="form.custom_menu_items" />
 
         </div><!-- /Tab: General -->
 
@@ -2068,7 +2202,7 @@ import type {
   DefaultSubscriptionSetting,
   BetaPolicyRule
 } from '@/api/admin/settings'
-import type { AdminGroup } from '@/types'
+import type { AdminGroup, CustomMenuItem } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Select from '@/components/common/Select.vue'
@@ -2076,6 +2210,7 @@ import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import ImageUpload from '@/components/common/ImageUpload.vue'
+import CustomMenuSettingsCard from '@/components/settings/CustomMenuSettingsCard.vue'
 import GoogleBatchArchiveSettingsCard from '@/components/settings/GoogleBatchArchiveSettingsCard.vue'
 import GoogleBatchGCSProfilesManager from '@/components/settings/GoogleBatchGCSProfilesManager.vue'
 import OpenAIFastPolicySettingsCard from '@/components/settings/OpenAIFastPolicySettingsCard.vue'
@@ -2179,6 +2314,9 @@ type SettingsForm = SystemSettings & {
   telegram_bot_token: string
   turnstile_secret_key: string
   linuxdo_connect_client_secret: string
+  github_oauth_client_secret: string
+  google_oauth_client_secret: string
+  content_moderation_api_key: string
 }
 
 const form = reactive<SettingsForm>({
@@ -2219,7 +2357,7 @@ const form = reactive<SettingsForm>({
   purchase_subscription_url: '',
   backend_mode_enabled: false,
   maintenance_mode_enabled: false,
-  custom_menu_items: [] as Array<{id: string; label: string; icon_svg: string; url: string; visibility: 'user' | 'admin'; sort_order: number}>,
+  custom_menu_items: [] as CustomMenuItem[],
   smtp_host: '',
   smtp_port: 587,
   smtp_username: '',
@@ -2243,6 +2381,25 @@ const form = reactive<SettingsForm>({
   linuxdo_connect_client_secret: '',
   linuxdo_connect_client_secret_configured: false,
   linuxdo_connect_redirect_url: '',
+  github_oauth_enabled: false,
+  github_oauth_client_id: '',
+  github_oauth_client_secret: '',
+  github_oauth_client_secret_configured: false,
+  github_oauth_redirect_url: '',
+  google_oauth_enabled: false,
+  google_oauth_client_id: '',
+  google_oauth_client_secret: '',
+  google_oauth_client_secret_configured: false,
+  google_oauth_redirect_url: '',
+  content_moderation_enabled: false,
+  content_moderation_provider: 'openai',
+  content_moderation_base_url: '',
+  content_moderation_api_key: '',
+  content_moderation_api_key_configured: false,
+  content_moderation_model: '',
+  content_moderation_timeout_ms: 1500,
+  content_moderation_dedupe_window_seconds: 300,
+  content_moderation_fail_open: true,
   // Model fallback
   enable_model_fallback: false,
   fallback_model_anthropic: 'claude-3-5-sonnet-20241022',
@@ -2368,39 +2525,6 @@ async function setAndCopyLinuxdoRedirectUrl() {
   await copyToClipboard(url, t('admin.settings.linuxdo.redirectUrlSetAndCopied'))
 }
 
-// Custom menu item management
-function addMenuItem() {
-  form.custom_menu_items.push({
-    id: '',
-    label: '',
-    icon_svg: '',
-    url: '',
-    visibility: 'user',
-    sort_order: form.custom_menu_items.length,
-  })
-}
-
-function removeMenuItem(index: number) {
-  form.custom_menu_items.splice(index, 1)
-  // Re-index sort_order
-  form.custom_menu_items.forEach((item, i) => {
-    item.sort_order = i
-  })
-}
-
-function moveMenuItem(index: number, direction: -1 | 1) {
-  const targetIndex = index + direction
-  if (targetIndex < 0 || targetIndex >= form.custom_menu_items.length) return
-  const items = form.custom_menu_items
-  const temp = items[index]
-  items[index] = items[targetIndex]
-  items[targetIndex] = temp
-  // Re-index sort_order
-  items.forEach((item, i) => {
-    item.sort_order = i
-  })
-}
-
 async function loadSettings() {
   loading.value = true
   try {
@@ -2422,6 +2546,9 @@ async function loadSettings() {
     form.telegram_bot_token = ''
     form.turnstile_secret_key = ''
     form.linuxdo_connect_client_secret = ''
+    form.github_oauth_client_secret = ''
+    form.google_oauth_client_secret = ''
+    form.content_moderation_api_key = ''
   } catch (error: any) {
     appStore.showError(
       t('admin.settings.failedToLoad') + ': ' + (error.message || t('common.unknownError'))
@@ -2539,6 +2666,22 @@ async function saveSettings() {
       linuxdo_connect_client_id: form.linuxdo_connect_client_id,
       linuxdo_connect_client_secret: form.linuxdo_connect_client_secret || undefined,
       linuxdo_connect_redirect_url: form.linuxdo_connect_redirect_url,
+      github_oauth_enabled: form.github_oauth_enabled,
+      github_oauth_client_id: form.github_oauth_client_id,
+      github_oauth_client_secret: form.github_oauth_client_secret || undefined,
+      github_oauth_redirect_url: form.github_oauth_redirect_url,
+      google_oauth_enabled: form.google_oauth_enabled,
+      google_oauth_client_id: form.google_oauth_client_id,
+      google_oauth_client_secret: form.google_oauth_client_secret || undefined,
+      google_oauth_redirect_url: form.google_oauth_redirect_url,
+      content_moderation_enabled: form.content_moderation_enabled,
+      content_moderation_provider: form.content_moderation_provider,
+      content_moderation_base_url: form.content_moderation_base_url,
+      content_moderation_api_key: form.content_moderation_api_key || undefined,
+      content_moderation_model: form.content_moderation_model,
+      content_moderation_timeout_ms: form.content_moderation_timeout_ms,
+      content_moderation_dedupe_window_seconds: form.content_moderation_dedupe_window_seconds,
+      content_moderation_fail_open: form.content_moderation_fail_open,
       enable_model_fallback: form.enable_model_fallback,
       fallback_model_anthropic: form.fallback_model_anthropic,
       fallback_model_openai: form.fallback_model_openai,
@@ -2562,6 +2705,9 @@ async function saveSettings() {
     form.telegram_bot_token = ''
     form.turnstile_secret_key = ''
     form.linuxdo_connect_client_secret = ''
+    form.github_oauth_client_secret = ''
+    form.google_oauth_client_secret = ''
+    form.content_moderation_api_key = ''
     // Refresh cached settings so sidebar/header update immediately
     await appStore.fetchPublicSettings(true)
     await adminSettingsStore.fetch(true)

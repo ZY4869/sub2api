@@ -52,7 +52,11 @@ func (s *settingPublicRepoStub) SetMultiple(ctx context.Context, settings map[st
 }
 
 func (s *settingPublicRepoStub) GetAll(ctx context.Context) (map[string]string, error) {
-	panic("unexpected GetAll call")
+	out := make(map[string]string, len(s.values))
+	for key, value := range s.values {
+		out[key] = value
+	}
+	return out, nil
 }
 
 func (s *settingPublicRepoStub) Delete(ctx context.Context, key string) error {
@@ -187,4 +191,49 @@ func TestSettingService_AvailableChannelsAndChannelMonitor_RoundTripsAcrossPubli
 	require.NoError(t, json.Unmarshal(raw, &payload))
 	require.Equal(t, true, payload["available_channels_enabled"])
 	require.Equal(t, true, payload["channel_monitor_enabled"])
+}
+
+func TestSettingService_GetPublicSettings_FiltersDraftMarkdownPages(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyCustomMenuItems: `[{"id":"published","label":"Published","visibility":"user","page_mode":"markdown","page_slug":"published","page_content":"# hidden","page_published":true},{"id":"draft","label":"Draft","visibility":"user","page_mode":"markdown","page_slug":"draft","page_content":"# hidden","page_published":false},{"id":"admin","label":"Admin","visibility":"admin","url":"https://admin.example.com","page_mode":"iframe"}]`,
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+
+	raw, err := svc.GetPublicSettingsForInjection(context.Background())
+	require.NoError(t, err)
+	payload, err := json.Marshal(raw)
+	require.NoError(t, err)
+
+	var injected map[string]any
+	require.NoError(t, json.Unmarshal(payload, &injected))
+
+	items, ok := injected["custom_menu_items"].([]any)
+	require.True(t, ok)
+	require.Len(t, items, 1)
+
+	item, ok := items[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "published", item["id"])
+	_, exists := item["page_content"]
+	require.False(t, exists)
+	require.NotEmpty(t, settings.CustomMenuItems)
+}
+
+func TestSettingService_GetCustomPageBySlug_PreservesBackslashes(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyCustomMenuItems: `[{"id":"guide","label":"Guide","visibility":"user","page_mode":"markdown","page_slug":"guide","page_content":"# Guide\r\nPath: C:\\temp\\file.txt","page_published":true}]`,
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	page, err := svc.GetCustomPageBySlug(context.Background(), "guide")
+	require.NoError(t, err)
+	require.NotNil(t, page)
+	require.Equal(t, "# Guide\nPath: C:\\temp\\file.txt", page.Content)
 }

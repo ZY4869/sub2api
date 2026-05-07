@@ -27,7 +27,49 @@
           </div>
         </div>
 
-        <div v-else-if="!isValidUrl" class="flex h-full items-center justify-center p-10 text-center">
+        <div
+          v-else-if="isMarkdownMode && pageLoading"
+          class="flex h-full items-center justify-center py-12"
+        >
+          <div
+            class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
+          ></div>
+        </div>
+
+        <div
+          v-else-if="isMarkdownMode && pageError"
+          class="flex h-full items-center justify-center p-10 text-center"
+        >
+          <div class="max-w-md">
+            <div
+              class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700"
+            >
+              <Icon name="document" size="lg" class="text-gray-400" />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('customPage.loadFailedTitle') }}
+            </h3>
+            <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">
+              {{ pageError || t('customPage.loadFailedDesc') }}
+            </p>
+          </div>
+        </div>
+
+        <div
+          v-else-if="isMarkdownMode && pageContent"
+          class="h-full overflow-y-auto px-4 py-5 md:px-6"
+        >
+          <CustomMarkdownPageContent
+            :markdown="pageContent"
+            :title="menuItem?.label || t('customPage.title')"
+            :toc-title="t('customPage.pageToc')"
+          />
+        </div>
+
+        <div
+          v-else-if="!isValidUrl"
+          class="flex h-full items-center justify-center p-10 text-center"
+        >
           <div class="max-w-md">
             <div
               class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700"
@@ -65,15 +107,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { pagesAPI } from '@/api'
 import { useAppStore } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import CustomMarkdownPageContent from '@/components/custom/CustomMarkdownPageContent.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { buildEmbeddedUrl, detectTheme } from '@/utils/embedded-url'
+import { sanitizeUrl } from '@/utils/url'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -82,18 +127,24 @@ const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
 
 const loading = ref(false)
+const pageLoading = ref(false)
+const pageError = ref('')
+const pageContent = ref('')
 const pageTheme = ref<'light' | 'dark'>('light')
 let themeObserver: MutationObserver | null = null
 
-const menuItemId = computed(() => route.params.id as string)
+const menuItemId = computed(() => String(route.params.id || '').trim())
 
 const menuItem = computed(() => {
   const id = menuItemId.value
-  // Try public settings first (contains user-visible items)
+  if (!id) {
+    return null
+  }
   const publicItems = appStore.cachedPublicSettings?.custom_menu_items ?? []
   const found = publicItems.find((item) => item.id === id) ?? null
-  if (found) return found
-  // For admin users, also check admin settings (contains admin-only items)
+  if (found) {
+    return found
+  }
   if (authStore.isAdmin) {
     return adminSettingsStore.customMenuItems.find((item) => item.id === id) ?? null
   }
@@ -111,10 +162,70 @@ const embeddedUrl = computed(() => {
   )
 })
 
+const isMarkdownMode = computed(() =>
+  (menuItem.value?.page_mode || 'iframe') === 'markdown' && !!menuItem.value?.page_slug,
+)
+
 const isValidUrl = computed(() => {
-  const url = embeddedUrl.value
+  const url = sanitizeUrl(embeddedUrl.value)
   return url.startsWith('http://') || url.startsWith('https://')
 })
+
+async function ensureSettingsReady() {
+  const tasks: Promise<unknown>[] = []
+
+  if (!appStore.publicSettingsLoaded) {
+    tasks.push(appStore.fetchPublicSettings())
+  }
+
+  if (authStore.isAdmin && !adminSettingsStore.loaded) {
+    tasks.push(adminSettingsStore.fetch())
+  }
+
+  if (tasks.length === 0) {
+    return
+  }
+
+  await Promise.all(tasks)
+}
+
+async function loadMarkdownPage() {
+  if (!isMarkdownMode.value || !menuItem.value?.page_slug) {
+    pageContent.value = ''
+    pageError.value = ''
+    pageLoading.value = false
+    return
+  }
+
+  if (authStore.isAdmin && menuItem.value.page_content) {
+    pageContent.value = menuItem.value.page_content
+    pageError.value = ''
+    pageLoading.value = false
+    return
+  }
+
+  pageLoading.value = true
+  pageError.value = ''
+  try {
+    const page = await pagesAPI.getCustomPage(menuItem.value.page_slug)
+    pageContent.value = page.content || ''
+  } catch (error: any) {
+    pageContent.value = ''
+    pageError.value = error?.message || t('customPage.loadFailedDesc')
+  } finally {
+    pageLoading.value = false
+  }
+}
+
+async function initializePage() {
+  loading.value = true
+  try {
+    await ensureSettingsReady()
+    await loadMarkdownPage()
+  } finally {
+    loading.value = false
+  }
+}
 
 onMounted(async () => {
   pageTheme.value = detectTheme()
@@ -129,14 +240,28 @@ onMounted(async () => {
     })
   }
 
-  if (appStore.publicSettingsLoaded) return
-  loading.value = true
-  try {
-    await appStore.fetchPublicSettings()
-  } finally {
-    loading.value = false
-  }
+  await initializePage()
 })
+
+watch(
+  () => [menuItemId.value, menuItem.value?.page_slug, menuItem.value?.page_content, menuItem.value?.page_mode] as const,
+  async () => {
+    if (loading.value) {
+      return
+    }
+    await loadMarkdownPage()
+  },
+)
+
+watch(
+  () => authStore.isAdmin,
+  async (isAdmin, wasAdmin) => {
+    if (isAdmin && !wasAdmin && !adminSettingsStore.loaded) {
+      await adminSettingsStore.fetch()
+      await loadMarkdownPage()
+    }
+  },
+)
 
 onUnmounted(() => {
   if (themeObserver) {

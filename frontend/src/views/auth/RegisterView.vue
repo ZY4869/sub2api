@@ -12,9 +12,12 @@
       </div>
 
       <!-- LinuxDo Connect OAuth 登录 -->
-      <LinuxDoOAuthSection
-        v-if="linuxdoOAuthEnabled && !maintenanceModeEnabled"
+      <SocialOAuthSection
+        v-if="socialOAuthVisible"
         :disabled="isLoading"
+        :show-linux-do="linuxdoOAuthEnabled"
+        :show-git-hub="githubOAuthEnabled"
+        :show-google="googleOAuthEnabled"
       />
 
       <AuthMaintenanceNotice v-if="maintenanceModeEnabled && settingsLoaded" show-admin-login-hint />
@@ -316,7 +319,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
 import AuthMaintenanceNotice from '@/components/auth/AuthMaintenanceNotice.vue'
-import LinuxDoOAuthSection from '@/components/auth/LinuxDoOAuthSection.vue'
+import SocialOAuthSection from '@/components/auth/SocialOAuthSection.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import { useAuthStore, useAppStore } from '@/stores'
@@ -353,7 +356,10 @@ const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
 const siteName = ref<string>('Sub2API')
 const linuxdoOAuthEnabled = ref<boolean>(false)
+const githubOAuthEnabled = ref<boolean>(false)
+const googleOAuthEnabled = ref<boolean>(false)
 const maintenanceModeEnabled = ref<boolean>(false)
+const socialOAuthVisible = ref<boolean>(false)
 const registrationEmailSuffixWhitelist = ref<string[]>([])
 
 // Turnstile
@@ -408,7 +414,12 @@ onMounted(async () => {
     turnstileSiteKey.value = settings.turnstile_site_key || ''
     siteName.value = settings.site_name || 'Sub2API'
     linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled
+    githubOAuthEnabled.value = settings.github_oauth_enabled
+    googleOAuthEnabled.value = settings.google_oauth_enabled
     maintenanceModeEnabled.value = settings.maintenance_mode_enabled
+    socialOAuthVisible.value =
+      !maintenanceModeEnabled.value &&
+      (linuxdoOAuthEnabled.value || githubOAuthEnabled.value || googleOAuthEnabled.value)
     registrationEmailSuffixWhitelist.value = normalizeRegistrationEmailSuffixWhitelist(
       settings.registration_email_suffix_whitelist || []
     )

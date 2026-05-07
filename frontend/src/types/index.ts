@@ -84,6 +84,21 @@ export interface CustomMenuItem {
   url: string;
   visibility: "user" | "admin";
   sort_order: number;
+  page_mode?: "iframe" | "markdown";
+  page_slug?: string;
+  page_content?: string;
+  page_public?: boolean;
+  page_published?: boolean;
+}
+
+export interface CustomPageContent {
+  id: string;
+  slug: string;
+  label: string;
+  visibility: "user" | "admin";
+  page_mode: "markdown";
+  content: string;
+  updated_at?: string;
 }
 
 export interface PublicSettings {
@@ -111,9 +126,50 @@ export interface PublicSettings {
   purchase_subscription_url: string;
   custom_menu_items: CustomMenuItem[];
   linuxdo_oauth_enabled: boolean;
+  github_oauth_enabled: boolean;
+  google_oauth_enabled: boolean;
   backend_mode_enabled: boolean;
   maintenance_mode_enabled: boolean;
   version: string;
+}
+
+export interface AuthIdentity {
+  id: number;
+  provider: "github" | "google" | string;
+  provider_user_id: string;
+  email: string;
+  email_verified: boolean;
+  display_name: string;
+  avatar_url: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContentModerationAudit {
+  id: number;
+  request_id: string;
+  client_request_id: string;
+  user_id: number | null;
+  api_key_id: number | null;
+  provider: string;
+  model: string;
+  source_endpoint: string;
+  content_hash: string;
+  content_summary: string;
+  hit: boolean;
+  dedupe_hit: boolean;
+  error_reason: string;
+  latency_ms: number;
+  created_at: string;
+}
+
+export type SocialOAuthProvider = "github" | "google";
+
+export interface SocialOAuthCompleteResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: string;
 }
 
 export interface AuthResponse {

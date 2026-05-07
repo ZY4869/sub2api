@@ -14,9 +14,12 @@
       <AuthMaintenanceNotice v-if="maintenanceModeEnabled" show-admin-login-hint />
 
       <!-- LinuxDo Connect OAuth 登录 -->
-      <LinuxDoOAuthSection
-        v-if="linuxdoOAuthEnabled && !backendModeEnabled && !maintenanceModeEnabled"
+      <SocialOAuthSection
+        v-if="socialOAuthVisible"
         :disabled="isLoading"
+        :show-linux-do="linuxdoOAuthEnabled"
+        :show-git-hub="githubOAuthEnabled"
+        :show-google="googleOAuthEnabled"
       />
 
       <!-- Login Form -->
@@ -186,7 +189,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
 import AuthMaintenanceNotice from '@/components/auth/AuthMaintenanceNotice.vue'
-import LinuxDoOAuthSection from '@/components/auth/LinuxDoOAuthSection.vue'
+import SocialOAuthSection from '@/components/auth/SocialOAuthSection.vue'
 import TotpLoginModal from '@/components/auth/TotpLoginModal.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/TurnstileWidget.vue'
@@ -212,9 +215,12 @@ const showPassword = ref<boolean>(false)
 const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
 const linuxdoOAuthEnabled = ref<boolean>(false)
+const githubOAuthEnabled = ref<boolean>(false)
+const googleOAuthEnabled = ref<boolean>(false)
 const backendModeEnabled = ref<boolean>(false)
 const maintenanceModeEnabled = ref<boolean>(false)
 const passwordResetEnabled = ref<boolean>(false)
+const socialOAuthVisible = ref<boolean>(false)
 
 // Turnstile
 const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
@@ -253,9 +259,15 @@ onMounted(async () => {
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
     linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled
+    githubOAuthEnabled.value = settings.github_oauth_enabled
+    googleOAuthEnabled.value = settings.google_oauth_enabled
     backendModeEnabled.value = settings.backend_mode_enabled
     maintenanceModeEnabled.value = settings.maintenance_mode_enabled
     passwordResetEnabled.value = settings.password_reset_enabled
+    socialOAuthVisible.value =
+      !backendModeEnabled.value &&
+      !maintenanceModeEnabled.value &&
+      (linuxdoOAuthEnabled.value || githubOAuthEnabled.value || googleOAuthEnabled.value)
   } catch (error) {
     console.error('Failed to load public settings:', error)
   }

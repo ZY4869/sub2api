@@ -216,6 +216,11 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.body_empty", "Request body is empty")
 		return
 	}
+	submitContentModerationAudit(
+		c.Request.Context(),
+		h.contentModerationService,
+		buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiGenerate, service.PlatformGemini, modelName, body),
+	)
 
 	setOpsRequestContext(c, modelName, stream, body)
 

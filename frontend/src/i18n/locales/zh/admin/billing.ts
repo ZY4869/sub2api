@@ -7,6 +7,11 @@ export default {
             title: "模型定价",
             description: "默认列表模式分页展示模型价格，并支持切换到供应商九宫格巡检。",
         },
+        issues: {
+            nav: "问题榜",
+            title: "计费问题榜",
+            description: "集中查看重点问题模型与供应商问题榜，帮助优先处理冲突、缺价与回退异常。",
+        },
         publicCatalog: {
             nav: "对外模型展示",
             title: "对外模型展示",

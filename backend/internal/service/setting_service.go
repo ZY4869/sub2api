@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -44,13 +45,85 @@ type SettingService struct {
 	settingRepo           SettingRepository
 	defaultSubGroupReader DefaultSubscriptionGroupReader
 	cfg                   *config.Config
-	onUpdate              func()
+	updateCallbacksMu     sync.RWMutex
+	onUpdateCallbacks     []func()
 	onS3Update            func()
 	version               string
 }
 
 func NewSettingService(settingRepo SettingRepository, cfg *config.Config) *SettingService {
 	return &SettingService{settingRepo: settingRepo, cfg: cfg}
+}
+
+func (s *SettingService) addOnUpdateCallback(callback func()) {
+	if s == nil || callback == nil {
+		return
+	}
+	s.updateCallbacksMu.Lock()
+	defer s.updateCallbacksMu.Unlock()
+	s.onUpdateCallbacks = append(s.onUpdateCallbacks, callback)
+}
+
+func (s *SettingService) notifyUpdateCallbacks() {
+	if s == nil {
+		return
+	}
+
+	s.updateCallbacksMu.RLock()
+	callbacks := append([]func(){}, s.onUpdateCallbacks...)
+	s.updateCallbacksMu.RUnlock()
+
+	for _, callback := range callbacks {
+		if callback == nil {
+			continue
+		}
+		func() {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					slog.Error("setting update callback panicked", "panic", recovered)
+				}
+			}()
+			callback()
+		}()
+	}
+}
+
+func defaultSocialOAuthConfig(provider string) SocialOAuthConfig {
+	switch NormalizeOAuthProvider(provider) {
+	case AuthProviderGitHub:
+		return SocialOAuthConfig{
+			Provider:                  AuthProviderGitHub,
+			AuthorizeURL:              "https://github.com/login/oauth/authorize",
+			TokenURL:                  "https://github.com/login/oauth/access_token",
+			UserInfoURL:               "https://api.github.com/user",
+			Scopes:                    "read:user user:email",
+			FrontendRedirectURL:       "/auth/social/callback",
+			TokenAuthMethod:           "client_secret_post",
+			UserInfoEmailPath:         "email",
+			UserInfoIDPath:            "id",
+			UserInfoUsernamePath:      "login",
+			UserInfoAvatarPath:        "avatar_url",
+			UserInfoEmailVerifiedPath: "verified",
+		}
+	case AuthProviderGoogle:
+		return SocialOAuthConfig{
+			Provider:                  AuthProviderGoogle,
+			AuthorizeURL:              "https://accounts.google.com/o/oauth2/v2/auth",
+			TokenURL:                  "https://oauth2.googleapis.com/token",
+			UserInfoURL:               "https://openidconnect.googleapis.com/v1/userinfo",
+			Scopes:                    "openid email profile",
+			FrontendRedirectURL:       "/auth/social/callback",
+			TokenAuthMethod:           "client_secret_post",
+			UsePKCE:                   true,
+			UserInfoEmailPath:         "email",
+			UserInfoIDPath:            "sub",
+			UserInfoUsernamePath:      "name",
+			UserInfoAvatarPath:        "picture",
+			UserInfoEmailVerifiedPath: "email_verified",
+		}
+	default:
+		return SocialOAuthConfig{}
+	}
 }
 
 func (s *SettingService) SetDefaultSubscriptionGroupReader(reader DefaultSubscriptionGroupReader) {
@@ -64,7 +137,8 @@ func parseCustomMenuItemURLs(raw string) []string {
 	}
 
 	var items []struct {
-		URL string `json:"url"`
+		URL      string `json:"url"`
+		PageMode string `json:"page_mode"`
 	}
 	if err := json.Unmarshal([]byte(raw), &items); err != nil {
 		return nil
@@ -72,6 +146,9 @@ func parseCustomMenuItemURLs(raw string) []string {
 
 	urls := make([]string, 0, len(items))
 	for _, item := range items {
+		if strings.EqualFold(strings.TrimSpace(item.PageMode), "markdown") {
+			continue
+		}
 		if item.URL != "" {
 			urls = append(urls, item.URL)
 		}

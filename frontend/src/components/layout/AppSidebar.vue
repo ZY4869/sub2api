@@ -374,6 +374,21 @@ const BellIcon = {
     )
 }
 
+const ShieldCheckIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M9 12.75 11.25 15 15 9.75m6 2.25c0 4.97-3.435 9.137-8.062 10.261a1.714 1.714 0 01-.876 0C7.435 21.137 4 16.97 4 12V6.84c0-.917.648-1.73 1.539-1.924A11.944 11.944 0 0012 2.25c2.007 0 3.893.494 5.461 1.366.89.195 1.539 1.007 1.539 1.924V12z'
+        })
+      ]
+    )
+}
+
 const DocumentTextIcon = {
   render: () =>
     h(
@@ -606,6 +621,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
+    { path: '/admin/moderation', label: t('nav.moderation'), icon: ShieldCheckIcon },
     { path: '/admin/api-docs', label: t('nav.apiDocs'), icon: DocumentTextIcon },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
     { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon }

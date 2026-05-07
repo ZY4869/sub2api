@@ -329,6 +329,10 @@ const AccountProtocolGatewayOpenAIRequestFormatEditorStub = defineComponent({
 const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
   name: 'AccountBaiduDocumentAICredentialsEditor',
   props: {
+    accessToken: {
+      type: String,
+      default: ''
+    },
     asyncBaseUrl: {
       type: String,
       default: ''
@@ -339,19 +343,19 @@ const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
     }
   },
   emits: [
-    'update:async-bearer-token',
-    'update:async-base-url',
-    'update:direct-token',
-    'update:direct-api-urls-text'
+    'update:accessToken',
+    'update:asyncBaseUrl',
+    'update:directApiUrlsText'
   ],
   template: `
     <div>
+      <span data-testid="baidu-access-token-prop">{{ accessToken }}</span>
       <span data-testid="baidu-async-base-url-prop">{{ asyncBaseUrl }}</span>
       <span data-testid="baidu-direct-api-urls-prop">{{ directApiUrlsText }}</span>
       <button
         type="button"
         data-testid="set-baidu-async-token"
-        @click="$emit('update:async-bearer-token', 'new-async-token')"
+        @click="$emit('update:accessToken', 'new-shared-token')"
       >
         set baidu async token
       </button>
@@ -1016,6 +1020,7 @@ describe('EditAccountModal', () => {
 
     const wrapper = mountModal(account)
 
+    expect(wrapper.get('[data-testid="baidu-access-token-prop"]').text()).toBe('existing-async-token')
     expect(wrapper.get('[data-testid="baidu-async-base-url-prop"]').text()).toBe('https://aistudio.baidu.com/async')
     expect(wrapper.get('[data-testid="baidu-direct-api-urls-prop"]').text()).toContain('pp-ocrv5-server')
 
@@ -1025,7 +1030,7 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials).toMatchObject({
       async_bearer_token: 'existing-async-token',
       async_base_url: 'https://aistudio.baidu.com/async',
-      direct_token: 'existing-direct-token',
+      direct_token: 'existing-async-token',
       direct_api_urls: {
         'pp-ocrv5-server': 'https://direct.baidu.com/ocr'
       }
@@ -1036,8 +1041,8 @@ describe('EditAccountModal', () => {
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
-    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.async_bearer_token).toBe('new-async-token')
-    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.direct_token).toBe('existing-direct-token')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.async_bearer_token).toBe('new-shared-token')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.direct_token).toBe('new-shared-token')
   })
 
   it('renders the baidu document ai editor for legacy baidu platform values', async () => {

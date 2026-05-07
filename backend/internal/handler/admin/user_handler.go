@@ -6,10 +6,13 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 // UserWithConcurrency wraps AdminUser with current concurrency info
@@ -66,6 +69,22 @@ type UpdateBalanceRequest struct {
 	Balance   float64 `json:"balance" binding:"required,gt=0"`
 	Operation string  `json:"operation" binding:"required,oneof=set add subtract"`
 	Notes     string  `json:"notes"`
+}
+
+type BatchUpdateConcurrencyRequest struct {
+	Concurrency int               `json:"concurrency" binding:"required,min=1"`
+	Search      string            `json:"search"`
+	Role        string            `json:"role"`
+	Status      string            `json:"status"`
+	GroupName   string            `json:"group_name"`
+	Attributes  map[int64]string  `json:"attributes"`
+}
+
+type BatchUpdateConcurrencyItemResult struct {
+	UserID  int64  `json:"user_id"`
+	Email   string `json:"email"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
 }
 
 // List handles listing all users with pagination
@@ -399,4 +418,141 @@ func (h *UserHandler) ReplaceGroup(c *gin.Context) {
 	response.Success(c, gin.H{
 		"migrated_keys": result.MigratedKeys,
 	})
+}
+
+// BatchUpdateConcurrency updates concurrency for users matched by the current filters.
+// POST /api/v1/admin/users/batch-concurrency
+func (h *UserHandler) BatchUpdateConcurrency(c *gin.Context) {
+	var req BatchUpdateConcurrencyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	req.Search = strings.TrimSpace(req.Search)
+	req.GroupName = strings.TrimSpace(req.GroupName)
+
+	filters := service.UserListFilters{
+		Status:     req.Status,
+		Role:       req.Role,
+		Search:     req.Search,
+		GroupName:  req.GroupName,
+		Attributes: normalizeAttributeFilters(req.Attributes),
+	}
+
+	idempotencyPayload := struct {
+		Body    BatchUpdateConcurrencyRequest `json:"body"`
+		Filters service.UserListFilters       `json:"filters"`
+	}{
+		Body:    req,
+		Filters: filters,
+	}
+
+	executeAdminIdempotentJSON(c, "admin.users.batch_concurrency", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		users, err := h.listAllUsersForBatchConcurrency(ctx, filters)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]BatchUpdateConcurrencyItemResult, 0, len(users))
+		successCount := 0
+		failedCount := 0
+
+		for i := range users {
+			updated, updateErr := h.adminService.UpdateUser(ctx, users[i].ID, &service.UpdateUserInput{
+				Concurrency: &req.Concurrency,
+			})
+			item := BatchUpdateConcurrencyItemResult{
+				UserID: users[i].ID,
+				Email:  users[i].Email,
+			}
+			if updateErr != nil {
+				item.Error = updateErr.Error()
+				item.Success = false
+				failedCount++
+			} else {
+				item.Success = true
+				if updated != nil && strings.TrimSpace(updated.Email) != "" {
+					item.Email = updated.Email
+				}
+				successCount++
+			}
+			results = append(results, item)
+		}
+
+		if subject, ok := middleware.GetAuthSubjectFromContext(c); ok {
+			logger.With(
+				zap.String("component", "audit.admin.users.batch_concurrency"),
+				zap.Int64("operator_user_id", subject.UserID),
+				zap.Int("matched", len(users)),
+				zap.Int("success_count", successCount),
+				zap.Int("failed_count", failedCount),
+				zap.Int("concurrency", req.Concurrency),
+				zap.String("search", req.Search),
+				zap.String("role", req.Role),
+				zap.String("status", req.Status),
+				zap.String("group_name", req.GroupName),
+				zap.Int("attribute_filter_count", len(filters.Attributes)),
+			).Info("admin batch concurrency updated")
+		}
+
+		return gin.H{
+			"matched":       len(users),
+			"success_count": successCount,
+			"failed_count":  failedCount,
+			"concurrency":   req.Concurrency,
+			"results":       results,
+		}, nil
+	})
+}
+
+func normalizeAttributeFilters(input map[int64]string) map[int64]string {
+	if len(input) == 0 {
+		return nil
+	}
+
+	out := make(map[int64]string, len(input))
+	for attrID, value := range input {
+		if attrID <= 0 {
+			continue
+		}
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		out[attrID] = trimmed
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func (h *UserHandler) listAllUsersForBatchConcurrency(ctx context.Context, filters service.UserListFilters) ([]service.User, error) {
+	const pageSize = 100
+
+	page := 1
+	total := int64(0)
+	users := make([]service.User, 0)
+
+	for {
+		batch, matched, err := h.adminService.ListUsers(ctx, page, pageSize, filters)
+		if err != nil {
+			return nil, err
+		}
+		if page == 1 {
+			total = matched
+			if total == 0 {
+				return []service.User{}, nil
+			}
+			users = make([]service.User, 0, total)
+		}
+		users = append(users, batch...)
+		if len(batch) < pageSize || int64(len(users)) >= total {
+			break
+		}
+		page++
+	}
+
+	return users, nil
 }

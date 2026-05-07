@@ -12,6 +12,7 @@ import (
 func ProvideAdminHandlers(
 	dashboardHandler *admin.DashboardHandler,
 	userHandler *admin.UserHandler,
+	contentModerationAuditHandler *admin.ContentModerationAuditHandler,
 	groupHandler *admin.GroupHandler,
 	channelHandler *admin.ChannelHandler,
 	channelMonitorHandler *admin.ChannelMonitorHandler,
@@ -49,6 +50,7 @@ func ProvideAdminHandlers(
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,
+		Moderation:             contentModerationAuditHandler,
 		Group:                  groupHandler,
 		Channel:                channelHandler,
 		ChannelMonitor:         channelMonitorHandler,
@@ -80,6 +82,23 @@ func ProvideAdminHandlers(
 		ScheduledTest:          scheduledTestHandler,
 		TLSFingerprintProfile:  tlsFingerprintProfileHandler,
 	}
+}
+
+func ProvideOpenAIGatewayHandler(
+	openAIGatewayService *service.OpenAIGatewayService,
+	concurrencyService *service.ConcurrencyService,
+	billingCacheService *service.BillingCacheService,
+	apiKeyService *service.APIKeyService,
+	usageRecordWorkerPool *service.UsageRecordWorkerPool,
+	errorPassthroughService *service.ErrorPassthroughService,
+	cfg *config.Config,
+	settingService *service.SettingService,
+	contentModerationService *service.ContentModerationService,
+) *OpenAIGatewayHandler {
+	handler := NewOpenAIGatewayHandler(openAIGatewayService, concurrencyService, billingCacheService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, cfg)
+	handler.SetSettingService(settingService)
+	handler.SetContentModerationService(contentModerationService)
+	return handler
 }
 
 // ProvideAdminAccountHandler creates AccountHandler and wires optional import dependencies.
@@ -154,6 +173,31 @@ func ProvideMetaHandler(modelCatalogService *service.ModelCatalogService, modelR
 	return handler
 }
 
+func ProvideUserHandler(
+	userService *service.UserService,
+	affiliateService *service.AffiliateService,
+	authIdentityService *service.AuthIdentityService,
+) *UserHandler {
+	handler := NewUserHandler(userService, affiliateService)
+	handler.SetAuthIdentityService(authIdentityService)
+	return handler
+}
+
+func ProvideAuthHandler(
+	cfg *config.Config,
+	authService *service.AuthService,
+	userService *service.UserService,
+	settingService *service.SettingService,
+	promoService *service.PromoService,
+	redeemService *service.RedeemService,
+	totpService *service.TotpService,
+	authIdentityService *service.AuthIdentityService,
+) *AuthHandler {
+	handler := NewAuthHandler(cfg, authService, userService, settingService, promoService, redeemService, totpService)
+	handler.SetAuthIdentityService(authIdentityService)
+	return handler
+}
+
 func ProvideGatewayHandler(
 	gatewayService *service.GatewayService,
 	geminiNativeService *service.GeminiNativeGatewayService,
@@ -172,10 +216,12 @@ func ProvideGatewayHandler(
 	cfg *config.Config,
 	settingService *service.SettingService,
 	modelRegistryService *service.ModelRegistryService,
+	contentModerationService *service.ContentModerationService,
 ) *GatewayHandler {
 	gatewayService.SetModelRegistryService(modelRegistryService)
 	handler := NewGatewayHandler(gatewayService, geminiNativeService, geminiCompatService, geminiLiveService, geminiInteractionsService, antigravityGatewayService, userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, userMsgQueueService, cfg, settingService)
 	handler.SetModelRegistryService(modelRegistryService)
+	handler.SetContentModerationService(contentModerationService)
 	return handler
 }
 
@@ -256,8 +302,8 @@ func ProvideHandlers(
 // ProviderSet is the Wire provider set for all handlers
 var ProviderSet = wire.NewSet(
 	// Top-level handlers
-	NewAuthHandler,
-	NewUserHandler,
+	ProvideAuthHandler,
+	ProvideUserHandler,
 	ProvideMetaHandler,
 	NewAPIKeyHandler,
 	NewAvailableChannelHandler,
@@ -268,7 +314,7 @@ var ProviderSet = wire.NewSet(
 	NewAnnouncementHandler,
 	NewDocsHandler,
 	ProvideGatewayHandler,
-	NewOpenAIGatewayHandler,
+	ProvideOpenAIGatewayHandler,
 	ProvideGrokGatewayHandler,
 	NewDocumentAIHandler,
 	NewTotpHandler,
@@ -277,6 +323,7 @@ var ProviderSet = wire.NewSet(
 	// Admin handlers
 	admin.NewDashboardHandler,
 	admin.NewUserHandler,
+	admin.NewContentModerationAuditHandler,
 	admin.NewGroupHandler,
 	admin.NewChannelHandler,
 	admin.NewChannelMonitorHandler,

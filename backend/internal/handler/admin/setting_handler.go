@@ -117,6 +117,54 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.LinuxDoConnectRedirectURL != after.LinuxDoConnectRedirectURL {
 		changed = append(changed, "linuxdo_connect_redirect_url")
 	}
+	if before.GitHubOAuthEnabled != after.GitHubOAuthEnabled {
+		changed = append(changed, "github_oauth_enabled")
+	}
+	if before.GitHubOAuthClientID != after.GitHubOAuthClientID {
+		changed = append(changed, "github_oauth_client_id")
+	}
+	if req.GitHubOAuthClientSecret != "" {
+		changed = append(changed, "github_oauth_client_secret")
+	}
+	if before.GitHubOAuthRedirectURL != after.GitHubOAuthRedirectURL {
+		changed = append(changed, "github_oauth_redirect_url")
+	}
+	if before.GoogleOAuthEnabled != after.GoogleOAuthEnabled {
+		changed = append(changed, "google_oauth_enabled")
+	}
+	if before.GoogleOAuthClientID != after.GoogleOAuthClientID {
+		changed = append(changed, "google_oauth_client_id")
+	}
+	if req.GoogleOAuthClientSecret != "" {
+		changed = append(changed, "google_oauth_client_secret")
+	}
+	if before.GoogleOAuthRedirectURL != after.GoogleOAuthRedirectURL {
+		changed = append(changed, "google_oauth_redirect_url")
+	}
+	if before.ContentModerationEnabled != after.ContentModerationEnabled {
+		changed = append(changed, "content_moderation_enabled")
+	}
+	if before.ContentModerationProvider != after.ContentModerationProvider {
+		changed = append(changed, "content_moderation_provider")
+	}
+	if before.ContentModerationBaseURL != after.ContentModerationBaseURL {
+		changed = append(changed, "content_moderation_base_url")
+	}
+	if req.ContentModerationAPIKey != "" {
+		changed = append(changed, "content_moderation_api_key")
+	}
+	if before.ContentModerationModel != after.ContentModerationModel {
+		changed = append(changed, "content_moderation_model")
+	}
+	if before.ContentModerationTimeoutMs != after.ContentModerationTimeoutMs {
+		changed = append(changed, "content_moderation_timeout_ms")
+	}
+	if before.ContentModerationDedupeWindowSeconds != after.ContentModerationDedupeWindowSeconds {
+		changed = append(changed, "content_moderation_dedupe_window_seconds")
+	}
+	if before.ContentModerationFailOpen != after.ContentModerationFailOpen {
+		changed = append(changed, "content_moderation_fail_open")
+	}
 	if before.SiteName != after.SiteName {
 		changed = append(changed, "site_name")
 	}
@@ -300,6 +348,22 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		LinuxDoConnectClientID:               settings.LinuxDoConnectClientID,
 		LinuxDoConnectClientSecretConfigured: settings.LinuxDoConnectClientSecretConfigured,
 		LinuxDoConnectRedirectURL:            settings.LinuxDoConnectRedirectURL,
+		GitHubOAuthEnabled:                   settings.GitHubOAuthEnabled,
+		GitHubOAuthClientID:                  settings.GitHubOAuthClientID,
+		GitHubOAuthClientSecretConfigured:    settings.GitHubOAuthClientSecretConfigured,
+		GitHubOAuthRedirectURL:               settings.GitHubOAuthRedirectURL,
+		GoogleOAuthEnabled:                   settings.GoogleOAuthEnabled,
+		GoogleOAuthClientID:                  settings.GoogleOAuthClientID,
+		GoogleOAuthClientSecretConfigured:    settings.GoogleOAuthClientSecretConfigured,
+		GoogleOAuthRedirectURL:               settings.GoogleOAuthRedirectURL,
+		ContentModerationEnabled:             settings.ContentModerationEnabled,
+		ContentModerationProvider:            settings.ContentModerationProvider,
+		ContentModerationBaseURL:             settings.ContentModerationBaseURL,
+		ContentModerationAPIKeyConfigured:    settings.ContentModerationAPIKeyConfigured,
+		ContentModerationModel:               settings.ContentModerationModel,
+		ContentModerationTimeoutMs:           settings.ContentModerationTimeoutMs,
+		ContentModerationDedupeWindowSeconds: settings.ContentModerationDedupeWindowSeconds,
+		ContentModerationFailOpen:            settings.ContentModerationFailOpen,
 		SiteName:                             settings.SiteName,
 		SiteLogo:                             settings.SiteLogo,
 		SiteSubtitle:                         settings.SiteSubtitle,

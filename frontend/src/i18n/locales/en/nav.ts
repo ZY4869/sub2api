@@ -6,6 +6,7 @@ export default {
     modelsCatalog: 'Models Catalog',
     billing: 'Billing Center',
     announcements: 'Announcements',
+    moderation: 'Moderation',
     apiKeys: 'API Keys',
     availableChannels: 'Available Channels',
     channelStatus: 'Channel Status',

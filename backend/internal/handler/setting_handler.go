@@ -2,7 +2,9 @@ package handler
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -57,8 +59,35 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
 		CustomMenuItems:                  dto.ParseUserVisibleMenuItems(settings.CustomMenuItems),
 		LinuxDoOAuthEnabled:              settings.LinuxDoOAuthEnabled,
+		GitHubOAuthEnabled:               settings.GitHubOAuthEnabled,
+		GoogleOAuthEnabled:               settings.GoogleOAuthEnabled,
 		BackendModeEnabled:               settings.BackendModeEnabled,
 		MaintenanceModeEnabled:           settings.MaintenanceModeEnabled,
 		Version:                          h.version,
+	})
+}
+
+// GetCustomPage returns markdown-backed custom page content.
+// GET /api/v1/pages/:slug
+func (h *SettingHandler) GetCustomPage(c *gin.Context) {
+	page, err := h.settingService.GetCustomPageBySlug(c.Request.Context(), c.Param("slug"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	role, _ := middleware.GetUserRoleFromContext(c)
+	if page.Visibility == "admin" && role != "admin" {
+		response.ErrorFrom(c, infraerrors.NotFound("CUSTOM_PAGE_NOT_FOUND", "custom page not found"))
+		return
+	}
+
+	response.Success(c, dto.PageContentResponse{
+		ID:         page.ID,
+		Slug:       page.Slug,
+		Label:      page.Label,
+		Visibility: page.Visibility,
+		PageMode:   page.PageMode,
+		Content:    page.Content,
 	})
 }

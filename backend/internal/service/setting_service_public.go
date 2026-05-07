@@ -31,7 +31,7 @@ func (s *SettingService) IsPublicModelCatalogEnabled(ctx context.Context) bool {
 }
 
 func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings, error) {
-	keys := []string{SettingKeyRegistrationEnabled, SettingKeyEmailVerifyEnabled, SettingKeyRegistrationEmailSuffixWhitelist, SettingKeyPromoCodeEnabled, SettingKeyPasswordResetEnabled, SettingKeyInvitationCodeEnabled, SettingKeyTotpEnabled, SettingKeyTurnstileEnabled, SettingKeyTurnstileSiteKey, SettingKeySiteName, SettingKeySiteLogo, SettingKeySiteSubtitle, SettingKeyAPIBaseURL, SettingKeyContactInfo, SettingKeyDocURL, SettingKeyHomeContent, SettingKeyHideCcsImportButton, SettingKeyAvailableChannelsEnabled, SettingKeyChannelMonitorEnabled, SettingKeyPublicModelCatalogEnabled, SettingKeyAffiliateEnabled, SettingKeyPurchaseSubscriptionEnabled, SettingKeyPurchaseSubscriptionURL, SettingKeyCustomMenuItems, SettingKeyLinuxDoConnectEnabled, SettingKeyBackendModeEnabled, SettingKeyMaintenanceModeEnabled}
+	keys := []string{SettingKeyRegistrationEnabled, SettingKeyEmailVerifyEnabled, SettingKeyRegistrationEmailSuffixWhitelist, SettingKeyPromoCodeEnabled, SettingKeyPasswordResetEnabled, SettingKeyInvitationCodeEnabled, SettingKeyTotpEnabled, SettingKeyTurnstileEnabled, SettingKeyTurnstileSiteKey, SettingKeySiteName, SettingKeySiteLogo, SettingKeySiteSubtitle, SettingKeyAPIBaseURL, SettingKeyContactInfo, SettingKeyDocURL, SettingKeyHomeContent, SettingKeyHideCcsImportButton, SettingKeyAvailableChannelsEnabled, SettingKeyChannelMonitorEnabled, SettingKeyPublicModelCatalogEnabled, SettingKeyAffiliateEnabled, SettingKeyPurchaseSubscriptionEnabled, SettingKeyPurchaseSubscriptionURL, SettingKeyCustomMenuItems, SettingKeyLinuxDoConnectEnabled, SettingKeyGitHubOAuthEnabled, SettingKeyGoogleOAuthEnabled, SettingKeyBackendModeEnabled, SettingKeyMaintenanceModeEnabled}
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
 		return nil, fmt.Errorf("get public settings: %w", err)
@@ -42,13 +42,15 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 	} else {
 		linuxDoEnabled = s.cfg != nil && s.cfg.LinuxDo.Enabled
 	}
+	githubEnabled := settings[SettingKeyGitHubOAuthEnabled] == "true"
+	googleEnabled := settings[SettingKeyGoogleOAuthEnabled] == "true"
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
 	passwordResetEnabled := emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true"
 	registrationEmailSuffixWhitelist := ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist])
-	return &PublicSettings{RegistrationEnabled: settings[SettingKeyRegistrationEnabled] == "true", EmailVerifyEnabled: emailVerifyEnabled, RegistrationEmailSuffixWhitelist: registrationEmailSuffixWhitelist, PromoCodeEnabled: settings[SettingKeyPromoCodeEnabled] != "false", PasswordResetEnabled: passwordResetEnabled, InvitationCodeEnabled: settings[SettingKeyInvitationCodeEnabled] == "true", TotpEnabled: settings[SettingKeyTotpEnabled] == "true", TurnstileEnabled: settings[SettingKeyTurnstileEnabled] == "true", TurnstileSiteKey: settings[SettingKeyTurnstileSiteKey], SiteName: s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"), SiteLogo: settings[SettingKeySiteLogo], SiteSubtitle: s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"), APIBaseURL: settings[SettingKeyAPIBaseURL], ContactInfo: settings[SettingKeyContactInfo], DocURL: settings[SettingKeyDocURL], HomeContent: settings[SettingKeyHomeContent], HideCcsImportButton: settings[SettingKeyHideCcsImportButton] == "true", AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true", ChannelMonitorEnabled: settings[SettingKeyChannelMonitorEnabled] == "true", PublicModelCatalogEnabled: !isFalseSettingValue(settings[SettingKeyPublicModelCatalogEnabled]), AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true", PurchaseSubscriptionEnabled: settings[SettingKeyPurchaseSubscriptionEnabled] == "true", PurchaseSubscriptionURL: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]), CustomMenuItems: settings[SettingKeyCustomMenuItems], LinuxDoOAuthEnabled: linuxDoEnabled, BackendModeEnabled: settings[SettingKeyBackendModeEnabled] == "true", MaintenanceModeEnabled: settings[SettingKeyMaintenanceModeEnabled] == "true"}, nil
+	return &PublicSettings{RegistrationEnabled: settings[SettingKeyRegistrationEnabled] == "true", EmailVerifyEnabled: emailVerifyEnabled, RegistrationEmailSuffixWhitelist: registrationEmailSuffixWhitelist, PromoCodeEnabled: settings[SettingKeyPromoCodeEnabled] != "false", PasswordResetEnabled: passwordResetEnabled, InvitationCodeEnabled: settings[SettingKeyInvitationCodeEnabled] == "true", TotpEnabled: settings[SettingKeyTotpEnabled] == "true", TurnstileEnabled: settings[SettingKeyTurnstileEnabled] == "true", TurnstileSiteKey: settings[SettingKeyTurnstileSiteKey], SiteName: s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"), SiteLogo: settings[SettingKeySiteLogo], SiteSubtitle: s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"), APIBaseURL: settings[SettingKeyAPIBaseURL], ContactInfo: settings[SettingKeyContactInfo], DocURL: settings[SettingKeyDocURL], HomeContent: settings[SettingKeyHomeContent], HideCcsImportButton: settings[SettingKeyHideCcsImportButton] == "true", AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true", ChannelMonitorEnabled: settings[SettingKeyChannelMonitorEnabled] == "true", PublicModelCatalogEnabled: !isFalseSettingValue(settings[SettingKeyPublicModelCatalogEnabled]), AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true", PurchaseSubscriptionEnabled: settings[SettingKeyPurchaseSubscriptionEnabled] == "true", PurchaseSubscriptionURL: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]), CustomMenuItems: settings[SettingKeyCustomMenuItems], LinuxDoOAuthEnabled: linuxDoEnabled, GitHubOAuthEnabled: githubEnabled, GoogleOAuthEnabled: googleEnabled, BackendModeEnabled: settings[SettingKeyBackendModeEnabled] == "true", MaintenanceModeEnabled: settings[SettingKeyMaintenanceModeEnabled] == "true"}, nil
 }
 func (s *SettingService) SetOnUpdateCallback(callback func()) {
-	s.onUpdate = callback
+	s.addOnUpdateCallback(callback)
 }
 func (s *SettingService) SetOnS3UpdateCallback(callback func()) {
 	s.onS3Update = callback
@@ -86,31 +88,34 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PurchaseSubscriptionURL          string          `json:"purchase_subscription_url,omitempty"`
 		CustomMenuItems                  json.RawMessage `json:"custom_menu_items"`
 		LinuxDoOAuthEnabled              bool            `json:"linuxdo_oauth_enabled"`
+		GitHubOAuthEnabled               bool            `json:"github_oauth_enabled"`
+		GoogleOAuthEnabled               bool            `json:"google_oauth_enabled"`
 		BackendModeEnabled               bool            `json:"backend_mode_enabled"`
 		MaintenanceModeEnabled           bool            `json:"maintenance_mode_enabled"`
 		Version                          string          `json:"version,omitempty"`
-	}{RegistrationEnabled: settings.RegistrationEnabled, EmailVerifyEnabled: settings.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: settings.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: settings.PromoCodeEnabled, PasswordResetEnabled: settings.PasswordResetEnabled, InvitationCodeEnabled: settings.InvitationCodeEnabled, TotpEnabled: settings.TotpEnabled, TurnstileEnabled: settings.TurnstileEnabled, TurnstileSiteKey: settings.TurnstileSiteKey, SiteName: settings.SiteName, SiteLogo: settings.SiteLogo, SiteSubtitle: settings.SiteSubtitle, APIBaseURL: settings.APIBaseURL, ContactInfo: settings.ContactInfo, DocURL: settings.DocURL, HomeContent: settings.HomeContent, HideCcsImportButton: settings.HideCcsImportButton, AvailableChannelsEnabled: settings.AvailableChannelsEnabled, ChannelMonitorEnabled: settings.ChannelMonitorEnabled, PublicModelCatalogEnabled: settings.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: settings.PurchaseSubscriptionEnabled, PurchaseSubscriptionURL: settings.PurchaseSubscriptionURL, CustomMenuItems: filterUserVisibleMenuItems(settings.CustomMenuItems), LinuxDoOAuthEnabled: settings.LinuxDoOAuthEnabled, BackendModeEnabled: settings.BackendModeEnabled, MaintenanceModeEnabled: settings.MaintenanceModeEnabled, Version: s.version}, nil
+	}{RegistrationEnabled: settings.RegistrationEnabled, EmailVerifyEnabled: settings.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: settings.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: settings.PromoCodeEnabled, PasswordResetEnabled: settings.PasswordResetEnabled, InvitationCodeEnabled: settings.InvitationCodeEnabled, TotpEnabled: settings.TotpEnabled, TurnstileEnabled: settings.TurnstileEnabled, TurnstileSiteKey: settings.TurnstileSiteKey, SiteName: settings.SiteName, SiteLogo: settings.SiteLogo, SiteSubtitle: settings.SiteSubtitle, APIBaseURL: settings.APIBaseURL, ContactInfo: settings.ContactInfo, DocURL: settings.DocURL, HomeContent: settings.HomeContent, HideCcsImportButton: settings.HideCcsImportButton, AvailableChannelsEnabled: settings.AvailableChannelsEnabled, ChannelMonitorEnabled: settings.ChannelMonitorEnabled, PublicModelCatalogEnabled: settings.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: settings.PurchaseSubscriptionEnabled, PurchaseSubscriptionURL: settings.PurchaseSubscriptionURL, CustomMenuItems: filterUserVisibleMenuItems(settings.CustomMenuItems), LinuxDoOAuthEnabled: settings.LinuxDoOAuthEnabled, GitHubOAuthEnabled: settings.GitHubOAuthEnabled, GoogleOAuthEnabled: settings.GoogleOAuthEnabled, BackendModeEnabled: settings.BackendModeEnabled, MaintenanceModeEnabled: settings.MaintenanceModeEnabled, Version: s.version}, nil
 }
+
 func filterUserVisibleMenuItems(raw string) json.RawMessage {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || raw == "[]" {
 		return json.RawMessage("[]")
 	}
-	var items []struct {
-		Visibility string `json:"visibility"`
-	}
+	var items []map[string]any
 	if err := json.Unmarshal([]byte(raw), &items); err != nil {
 		return json.RawMessage("[]")
 	}
-	var fullItems []json.RawMessage
-	if err := json.Unmarshal([]byte(raw), &fullItems); err != nil {
-		return json.RawMessage("[]")
-	}
-	var filtered []json.RawMessage
-	for i, item := range items {
-		if item.Visibility != "admin" {
-			filtered = append(filtered, fullItems[i])
+	filtered := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		visibility, _ := item["visibility"].(string)
+		if visibility == "admin" {
+			continue
 		}
+		if !isVisiblePublishedCustomPageItem(item) {
+			continue
+		}
+		delete(item, "page_content")
+		filtered = append(filtered, item)
 	}
 	if len(filtered) == 0 {
 		return json.RawMessage("[]")
@@ -121,6 +126,17 @@ func filterUserVisibleMenuItems(raw string) json.RawMessage {
 	}
 	return result
 }
+
+func isVisiblePublishedCustomPageItem(item map[string]any) bool {
+	pageMode, _ := item["page_mode"].(string)
+	if !strings.EqualFold(strings.TrimSpace(pageMode), "markdown") {
+		return true
+	}
+
+	published, ok := item["page_published"].(bool)
+	return ok && published
+}
+
 func (s *SettingService) GetFrameSrcOrigins(ctx context.Context) ([]string, error) {
 	settings, err := s.GetPublicSettings(ctx)
 	if err != nil {
@@ -143,6 +159,133 @@ func (s *SettingService) GetFrameSrcOrigins(ctx context.Context) ([]string, erro
 		addOrigin(item)
 	}
 	return origins, nil
+}
+
+type CustomPageContent struct {
+	ID         string
+	Slug       string
+	Label      string
+	Visibility string
+	PageMode   string
+	Content    string
+}
+
+func (s *SettingService) GetCustomPageBySlug(ctx context.Context, slug string) (*CustomPageContent, error) {
+	settings, err := s.GetAllSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	slug = normalizeCustomPageSlug(slug)
+	if slug == "" {
+		return nil, infraerrors.NotFound("CUSTOM_PAGE_NOT_FOUND", "custom page not found")
+	}
+
+	type menuItem struct {
+		ID            string `json:"id"`
+		Label         string `json:"label"`
+		Visibility    string `json:"visibility"`
+		PageMode      string `json:"page_mode"`
+		PageSlug      string `json:"page_slug"`
+		PageContent   string `json:"page_content"`
+		PagePublished bool   `json:"page_published"`
+	}
+
+	var items []menuItem
+	if err := json.Unmarshal([]byte(strings.TrimSpace(settings.CustomMenuItems)), &items); err != nil {
+		return nil, infraerrors.NotFound("CUSTOM_PAGE_NOT_FOUND", "custom page not found")
+	}
+
+	for _, item := range items {
+		if !strings.EqualFold(strings.TrimSpace(item.PageMode), "markdown") {
+			continue
+		}
+		if !item.PagePublished {
+			continue
+		}
+		if normalizeCustomPageSlug(item.PageSlug) != slug {
+			continue
+		}
+		return &CustomPageContent{
+			ID:         strings.TrimSpace(item.ID),
+			Slug:       slug,
+			Label:      strings.TrimSpace(item.Label),
+			Visibility: normalizeMenuVisibility(item.Visibility),
+			PageMode:   "markdown",
+			Content:    sanitizeCustomPageContent(item.PageContent),
+		}, nil
+	}
+
+	return nil, infraerrors.NotFound("CUSTOM_PAGE_NOT_FOUND", "custom page not found")
+}
+
+func normalizeCustomPageSlug(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	lastDash := false
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+			lastDash = false
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastDash = false
+		case r == '-' || r == '_' || r == ' ' || r == '/':
+			if b.Len() == 0 || lastDash {
+				continue
+			}
+			b.WriteByte('-')
+			lastDash = true
+		default:
+			continue
+		}
+	}
+
+	out := strings.Trim(b.String(), "-")
+	if out == "" || len(out) > 64 {
+		return ""
+	}
+	return out
+}
+
+func NormalizeCustomPageSlugForAdmin(value string) string {
+	return normalizeCustomPageSlug(value)
+}
+
+func normalizeMenuVisibility(value string) string {
+	if strings.TrimSpace(strings.ToLower(value)) == "admin" {
+		return "admin"
+	}
+	return "user"
+}
+
+func parseSettingInt(raw string, fallback int) int {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+func sanitizeCustomPageContent(content string) string {
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return ""
+	}
+	if len(content) > 128*1024 {
+		content = content[:128*1024]
+	}
+	return content
 }
 func extractOriginFromURL(rawURL string) string {
 	rawURL = strings.TrimSpace(rawURL)
@@ -255,7 +398,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	if !errors.Is(err, ErrSettingNotFound) {
 		return fmt.Errorf("check existing settings: %w", err)
 	}
-	defaults := map[string]string{SettingKeyRegistrationEnabled: "true", SettingKeyEmailVerifyEnabled: "false", SettingKeyRegistrationEmailSuffixWhitelist: "[]", SettingKeyPromoCodeEnabled: "true", SettingKeyFrontendURL: "", SettingKeySiteName: "Sub2API", SettingKeySiteLogo: "", SettingKeyAvailableChannelsEnabled: "false", SettingKeyChannelMonitorEnabled: "false", SettingKeyChannelMonitorDefaultIntervalSeconds: "60", SettingKeyPublicModelCatalogEnabled: "true", SettingKeyAffiliateEnabled: "false", SettingKeyAffiliateTransferEnabled: "true", SettingKeyAffiliateRebateOnUsageEnabled: "true", SettingKeyAffiliateRebateOnTopupEnabled: "true", SettingKeyAffiliateRebateRate: "20.0", SettingKeyAffiliateRebateFreezeHours: "0", SettingKeyAffiliateRebateDurationDays: "0", SettingKeyAffiliateRebatePerInviteeCap: "0", SettingKeyAffiliateAffCodeLength: "10", SettingKeyPurchaseSubscriptionEnabled: "false", SettingKeyPurchaseSubscriptionURL: "", SettingKeyCustomMenuItems: "[]", SettingKeyDefaultConcurrency: strconv.Itoa(s.cfg.Default.UserConcurrency), SettingKeyDefaultBalance: strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64), SettingKeyDefaultSubscriptions: "[]", SettingKeySMTPPort: "587", SettingKeySMTPUseTLS: "false", SettingKeyEnableModelFallback: "false", SettingKeyFallbackModelAnthropic: "claude-3-5-sonnet-20241022", SettingKeyFallbackModelOpenAI: "gpt-4o", SettingKeyFallbackModelGemini: "gemini-2.5-pro", SettingKeyFallbackModelAntigravity: "gemini-2.5-pro", SettingKeyEnableIdentityPatch: "true", SettingKeyIdentityPatchPrompt: "", SettingKeyOpsMonitoringEnabled: "true", SettingKeyOpsRealtimeMonitoringEnabled: "true", SettingKeyOpsQueryModeDefault: "auto", SettingKeyOpsMetricsIntervalSeconds: "60", SettingKeyMinClaudeCodeVersion: "", SettingKeyMaxClaudeCodeVersion: "", SettingKeyAllowUngroupedKeyScheduling: "false", SettingKeyMultiGroupRoutingEnabled: "true", SettingKeyBackendModeEnabled: "false", SettingKeyMaintenanceModeEnabled: "false", SettingKeyDocumentAIEnabled: "false", SettingKeyTelegramChatID: ""}
+	defaults := map[string]string{SettingKeyRegistrationEnabled: "true", SettingKeyEmailVerifyEnabled: "false", SettingKeyRegistrationEmailSuffixWhitelist: "[]", SettingKeyPromoCodeEnabled: "true", SettingKeyFrontendURL: "", SettingKeySiteName: "Sub2API", SettingKeySiteLogo: "", SettingKeyAvailableChannelsEnabled: "false", SettingKeyChannelMonitorEnabled: "false", SettingKeyChannelMonitorDefaultIntervalSeconds: "60", SettingKeyPublicModelCatalogEnabled: "true", SettingKeyAffiliateEnabled: "false", SettingKeyAffiliateTransferEnabled: "true", SettingKeyAffiliateRebateOnUsageEnabled: "true", SettingKeyAffiliateRebateOnTopupEnabled: "true", SettingKeyAffiliateRebateRate: "20.0", SettingKeyAffiliateRebateFreezeHours: "0", SettingKeyAffiliateRebateDurationDays: "0", SettingKeyAffiliateRebatePerInviteeCap: "0", SettingKeyAffiliateAffCodeLength: "10", SettingKeyPurchaseSubscriptionEnabled: "false", SettingKeyPurchaseSubscriptionURL: "", SettingKeyCustomMenuItems: "[]", SettingKeyDefaultConcurrency: strconv.Itoa(s.cfg.Default.UserConcurrency), SettingKeyDefaultBalance: strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64), SettingKeyDefaultSubscriptions: "[]", SettingKeySMTPPort: "587", SettingKeySMTPUseTLS: "false", SettingKeyEnableModelFallback: "false", SettingKeyFallbackModelAnthropic: "claude-3-5-sonnet-20241022", SettingKeyFallbackModelOpenAI: "gpt-4o", SettingKeyFallbackModelGemini: "gemini-2.5-pro", SettingKeyFallbackModelAntigravity: "gemini-2.5-pro", SettingKeyEnableIdentityPatch: "true", SettingKeyIdentityPatchPrompt: "", SettingKeyOpsMonitoringEnabled: "true", SettingKeyOpsRealtimeMonitoringEnabled: "true", SettingKeyOpsQueryModeDefault: "auto", SettingKeyOpsMetricsIntervalSeconds: "60", SettingKeyMinClaudeCodeVersion: "", SettingKeyMaxClaudeCodeVersion: "", SettingKeyAllowUngroupedKeyScheduling: "false", SettingKeyMultiGroupRoutingEnabled: "true", SettingKeyBackendModeEnabled: "false", SettingKeyMaintenanceModeEnabled: "false", SettingKeyDocumentAIEnabled: "false", SettingKeyTelegramChatID: "", SettingKeyGitHubOAuthEnabled: "false", SettingKeyGitHubOAuthClientID: "", SettingKeyGitHubOAuthClientSecret: "", SettingKeyGitHubOAuthRedirectURL: "", SettingKeyGoogleOAuthEnabled: "false", SettingKeyGoogleOAuthClientID: "", SettingKeyGoogleOAuthClientSecret: "", SettingKeyGoogleOAuthRedirectURL: "", SettingKeyContentModerationEnabled: "false", SettingKeyContentModerationProvider: "openai", SettingKeyContentModerationBaseURL: "", SettingKeyContentModerationAPIKey: "", SettingKeyContentModerationModel: "", SettingKeyContentModerationTimeoutMs: "1500", SettingKeyContentModerationDedupeWindowSeconds: "300", SettingKeyContentModerationFailOpen: "true"}
 	return s.settingRepo.SetMultiple(ctx, defaults)
 }
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
@@ -306,6 +449,25 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.LinuxDoConnectClientSecret = strings.TrimSpace(linuxDoBase.ClientSecret)
 	}
 	result.LinuxDoConnectClientSecretConfigured = result.LinuxDoConnectClientSecret != ""
+	result.GitHubOAuthEnabled = settings[SettingKeyGitHubOAuthEnabled] == "true"
+	result.GitHubOAuthClientID = strings.TrimSpace(settings[SettingKeyGitHubOAuthClientID])
+	result.GitHubOAuthRedirectURL = strings.TrimSpace(settings[SettingKeyGitHubOAuthRedirectURL])
+	result.GitHubOAuthClientSecret = strings.TrimSpace(settings[SettingKeyGitHubOAuthClientSecret])
+	result.GitHubOAuthClientSecretConfigured = result.GitHubOAuthClientSecret != ""
+	result.GoogleOAuthEnabled = settings[SettingKeyGoogleOAuthEnabled] == "true"
+	result.GoogleOAuthClientID = strings.TrimSpace(settings[SettingKeyGoogleOAuthClientID])
+	result.GoogleOAuthRedirectURL = strings.TrimSpace(settings[SettingKeyGoogleOAuthRedirectURL])
+	result.GoogleOAuthClientSecret = strings.TrimSpace(settings[SettingKeyGoogleOAuthClientSecret])
+	result.GoogleOAuthClientSecretConfigured = result.GoogleOAuthClientSecret != ""
+	result.ContentModerationEnabled = settings[SettingKeyContentModerationEnabled] == "true"
+	result.ContentModerationProvider = s.getStringOrDefault(settings, SettingKeyContentModerationProvider, "openai")
+	result.ContentModerationBaseURL = strings.TrimSpace(settings[SettingKeyContentModerationBaseURL])
+	result.ContentModerationAPIKey = strings.TrimSpace(settings[SettingKeyContentModerationAPIKey])
+	result.ContentModerationAPIKeyConfigured = result.ContentModerationAPIKey != ""
+	result.ContentModerationModel = strings.TrimSpace(settings[SettingKeyContentModerationModel])
+	result.ContentModerationTimeoutMs = parseSettingInt(settings[SettingKeyContentModerationTimeoutMs], 1500)
+	result.ContentModerationDedupeWindowSeconds = parseSettingInt(settings[SettingKeyContentModerationDedupeWindowSeconds], 300)
+	result.ContentModerationFailOpen = settings[SettingKeyContentModerationFailOpen] != "false"
 	result.EnableModelFallback = settings[SettingKeyEnableModelFallback] == "true"
 	result.FallbackModelAnthropic = s.getStringOrDefault(settings, SettingKeyFallbackModelAnthropic, "claude-3-5-sonnet-20241022")
 	result.FallbackModelOpenAI = s.getStringOrDefault(settings, SettingKeyFallbackModelOpenAI, "gpt-4o")
@@ -639,6 +801,65 @@ func (s *SettingService) GetLinuxDoConnectOAuthConfig(ctx context.Context) (conf
 		}
 	default:
 		return config.LinuxDoConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token_auth_method invalid")
+	}
+	return effective, nil
+}
+
+func (s *SettingService) GetSocialOAuthConfig(ctx context.Context, provider string) (SocialOAuthConfig, error) {
+	provider = NormalizeOAuthProvider(provider)
+	if provider == "" {
+		return SocialOAuthConfig{}, ErrOAuthProviderUnsupported
+	}
+	effective := defaultSocialOAuthConfig(provider)
+	var keys []string
+	switch provider {
+	case AuthProviderGitHub:
+		keys = []string{SettingKeyGitHubOAuthEnabled, SettingKeyGitHubOAuthClientID, SettingKeyGitHubOAuthClientSecret, SettingKeyGitHubOAuthRedirectURL}
+	case AuthProviderGoogle:
+		keys = []string{SettingKeyGoogleOAuthEnabled, SettingKeyGoogleOAuthClientID, SettingKeyGoogleOAuthClientSecret, SettingKeyGoogleOAuthRedirectURL}
+	}
+	settings, err := s.settingRepo.GetMultiple(ctx, keys)
+	if err != nil {
+		return SocialOAuthConfig{}, err
+	}
+	switch provider {
+	case AuthProviderGitHub:
+		effective.Enabled = settings[SettingKeyGitHubOAuthEnabled] == "true"
+		effective.ClientID = strings.TrimSpace(settings[SettingKeyGitHubOAuthClientID])
+		effective.ClientSecret = strings.TrimSpace(settings[SettingKeyGitHubOAuthClientSecret])
+		effective.RedirectURL = strings.TrimSpace(settings[SettingKeyGitHubOAuthRedirectURL])
+	case AuthProviderGoogle:
+		effective.Enabled = settings[SettingKeyGoogleOAuthEnabled] == "true"
+		effective.ClientID = strings.TrimSpace(settings[SettingKeyGoogleOAuthClientID])
+		effective.ClientSecret = strings.TrimSpace(settings[SettingKeyGoogleOAuthClientSecret])
+		effective.RedirectURL = strings.TrimSpace(settings[SettingKeyGoogleOAuthRedirectURL])
+	}
+	if !effective.Enabled {
+		return SocialOAuthConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "oauth login is disabled")
+	}
+	if strings.TrimSpace(effective.ClientID) == "" {
+		return SocialOAuthConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth client id not configured")
+	}
+	if strings.TrimSpace(effective.ClientSecret) == "" {
+		return SocialOAuthConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth client secret not configured")
+	}
+	if strings.TrimSpace(effective.RedirectURL) == "" {
+		return SocialOAuthConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth redirect url not configured")
+	}
+	if err := config.ValidateAbsoluteHTTPURL(effective.AuthorizeURL); err != nil {
+		return SocialOAuthConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth authorize url invalid")
+	}
+	if err := config.ValidateAbsoluteHTTPURL(effective.TokenURL); err != nil {
+		return SocialOAuthConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token url invalid")
+	}
+	if err := config.ValidateAbsoluteHTTPURL(effective.UserInfoURL); err != nil {
+		return SocialOAuthConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth user info url invalid")
+	}
+	if err := config.ValidateAbsoluteHTTPURL(effective.RedirectURL); err != nil {
+		return SocialOAuthConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth redirect url invalid")
+	}
+	if err := config.ValidateFrontendRedirectURL(effective.FrontendRedirectURL); err != nil {
+		return SocialOAuthConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth frontend redirect url invalid")
 	}
 	return effective, nil
 }

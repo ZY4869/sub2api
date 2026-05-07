@@ -47,9 +47,7 @@ func (s *SettingService) SetOverloadCooldownSettings(ctx context.Context, settin
 	if err := s.settingRepo.Set(ctx, SettingKeyOverloadCooldownSettings, string(data)); err != nil {
 		return err
 	}
-	if s.onUpdate != nil {
-		s.onUpdate()
-	}
+	s.notifyUpdateCallbacks()
 	return nil
 }
 

@@ -218,6 +218,7 @@ describe('AccountCreatePlatformTypeEditor', () => {
     expect(optionPlatforms).toContain('anthropic')
     expect(optionPlatforms).toContain('gemini')
     expect(optionPlatforms).toContain('protocol_gateway')
+    expect(wrapper.text()).toContain('混合')
     expect(wrapper.text()).toContain('/v1/responses')
     expect(wrapper.text()).toContain('/v1/messages')
     expect(wrapper.text()).toContain('/v1beta/models/{model}:streamGenerateContent')

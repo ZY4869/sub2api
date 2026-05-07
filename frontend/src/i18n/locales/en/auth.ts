@@ -91,6 +91,22 @@ export default {
       completing: 'Completing registration…',
       completeRegistrationFailed: 'Registration failed. Please check your invitation code and try again.'
     },
+    social: {
+      continueWithLinuxDo: 'Continue with Linux.do',
+      continueWithGitHub: 'Continue with GitHub',
+      continueWithGoogle: 'Continue with Google',
+      orContinue: 'or continue with email',
+      callbackTitle: 'Signing you in',
+      callbackProcessing: 'Completing social sign-in, please wait...',
+      callbackHint: 'If you are not redirected automatically, go back to the login page and try again.',
+      callbackMissingToken: 'Missing login token, please try again.',
+      invitationRequired: 'This social account is not registered yet. The site requires an invitation code to complete registration.',
+      invalidPendingToken: 'The registration token has expired. Please start the sign-in flow again.',
+      completeRegistration: 'Complete Registration',
+      completing: 'Completing registration...',
+      completeRegistrationFailed: 'Registration failed. Please check your invitation code and try again.',
+      bindSuccess: 'Third-party identity bound successfully'
+    },
     oauth: {
       code: 'Code',
       state: 'State',

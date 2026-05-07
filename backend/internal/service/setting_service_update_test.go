@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"sync/atomic"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -192,6 +193,25 @@ func TestSettingService_UpdateSettings_RegistrationEmailSuffixWhitelist_Invalid(
 	})
 	require.Error(t, err)
 	require.Equal(t, "INVALID_REGISTRATION_EMAIL_SUFFIX_WHITELIST", infraerrors.Reason(err))
+}
+
+func TestSettingService_UpdateSettings_NotifiesAllUpdateCallbacks(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	var firstCalls atomic.Int32
+	var secondCalls atomic.Int32
+	svc.SetOnUpdateCallback(func() {
+		firstCalls.Add(1)
+	})
+	svc.SetOnUpdateCallback(func() {
+		secondCalls.Add(1)
+	})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{})
+	require.NoError(t, err)
+	require.Equal(t, int32(1), firstCalls.Load())
+	require.Equal(t, int32(1), secondCalls.Load())
 }
 
 func TestParseDefaultSubscriptions_NormalizesValues(t *testing.T) {

@@ -26,6 +26,16 @@ func normalizeBaiduDocumentAICredentialsForStorage(credentials map[string]any) m
 	if value := strings.TrimSpace(anyString(credentials["direct_token"])); value != "" {
 		normalized["direct_token"] = value
 	}
+	if _, ok := normalized["async_bearer_token"]; !ok {
+		if value := strings.TrimSpace(anyString(normalized["direct_token"])); value != "" {
+			normalized["async_bearer_token"] = value
+		}
+	}
+	if _, ok := normalized["direct_token"]; !ok {
+		if value := strings.TrimSpace(anyString(normalized["async_bearer_token"])); value != "" {
+			normalized["direct_token"] = value
+		}
+	}
 	if directAPIURLs := normalizeBaiduDocumentAIDirectAPIURLs(credentials["direct_api_urls"]); len(directAPIURLs) > 0 {
 		normalized["direct_api_urls"] = directAPIURLs
 	}

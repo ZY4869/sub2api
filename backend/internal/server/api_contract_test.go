@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -80,12 +81,13 @@ func TestAPIContracts(t *testing.T) {
 					service.SettingKeyTurnstileEnabled: "true",
 					service.SettingKeyTurnstileSiteKey: "site-key",
 
-					service.SettingKeySiteName:     "Sub2API",
-					service.SettingKeySiteLogo:     "",
-					service.SettingKeySiteSubtitle: "Subtitle",
-					service.SettingKeyAPIBaseURL:   "https://api.example.com",
-					service.SettingKeyContactInfo:  "support",
-					service.SettingKeyDocURL:       "https://docs.example.com",
+					service.SettingKeySiteName:        "Sub2API",
+					service.SettingKeySiteLogo:        "",
+					service.SettingKeySiteSubtitle:    "Subtitle",
+					service.SettingKeyAPIBaseURL:      "https://api.example.com",
+					service.SettingKeyContactInfo:     "support",
+					service.SettingKeyDocURL:          "https://docs.example.com",
+					service.SettingKeyCustomMenuItems: `[{"id":"page-public","label":"Guide","icon_svg":"","url":"","visibility":"user","sort_order":0,"page_mode":"markdown","page_slug":"guide","page_content":"# hidden","page_published":true},{"id":"page-draft","label":"Draft","icon_svg":"","url":"","visibility":"user","sort_order":1,"page_mode":"markdown","page_slug":"draft","page_content":"# hidden","page_published":false},{"id":"page-admin","label":"Admin","icon_svg":"","url":"https://admin.example.com","visibility":"admin","sort_order":2,"page_mode":"iframe"}]`,
 				})
 			},
 			method:     http.MethodGet,
@@ -118,11 +120,178 @@ func TestAPIContracts(t *testing.T) {
 					"affiliate_enabled": false,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
-					"custom_menu_items": [],
+					"custom_menu_items": [
+						{
+							"id": "page-public",
+							"label": "Guide",
+							"icon_svg": "",
+							"url": "",
+							"visibility": "user",
+							"sort_order": 0,
+							"page_mode": "markdown",
+							"page_slug": "guide",
+							"page_published": true
+						}
+					],
 					"linuxdo_oauth_enabled": false,
+					"github_oauth_enabled": false,
+					"google_oauth_enabled": false,
 					"backend_mode_enabled": false,
 					"maintenance_mode_enabled": false,
 					"version": "0.0.0-test"
+				}
+			}`,
+		},
+		{
+			name: "GET /api/v1/pages/:slug",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.settingRepo.SetAll(map[string]string{
+					service.SettingKeyCustomMenuItems: `[{"id":"page-guide","label":"Guide","icon_svg":"","url":"","visibility":"user","sort_order":0,"page_mode":"markdown","page_slug":"guide","page_content":"# Guide\nWindows path: C:\\temp\\file.txt","page_published":true}]`,
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/pages/guide",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"id": "page-guide",
+					"slug": "guide",
+					"label": "Guide",
+					"visibility": "user",
+					"page_mode": "markdown",
+					"content": "# Guide\nWindows path: C:\\temp\\file.txt"
+				}
+			}`,
+		},
+		{
+			name: "GET /api/v1/pages/:slug admin page without auth returns not found",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.settingRepo.SetAll(map[string]string{
+					service.SettingKeyCustomMenuItems: `[{"id":"page-admin","label":"Admin Guide","icon_svg":"","url":"","visibility":"admin","sort_order":0,"page_mode":"markdown","page_slug":"admin-guide","page_content":"# Admin Guide","page_published":true}]`,
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/pages/admin-guide",
+			wantStatus: http.StatusNotFound,
+			wantJSON: `{
+				"code": 404,
+				"message": "custom page not found",
+				"reason": "CUSTOM_PAGE_NOT_FOUND"
+			}`,
+		},
+		{
+			name: "GET /api/v1/pages/:slug admin page with admin auth returns content",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.settingRepo.SetAll(map[string]string{
+					service.SettingKeyCustomMenuItems: `[{"id":"page-admin","label":"Admin Guide","icon_svg":"","url":"","visibility":"admin","sort_order":0,"page_mode":"markdown","page_slug":"admin-guide","page_content":"# Admin Guide","page_published":true}]`,
+				})
+			},
+			method: http.MethodGet,
+			path:   "/api/v1/pages/admin-guide",
+			headers: map[string]string{
+				"Authorization": "Bearer admin-token",
+			},
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"id": "page-admin",
+					"slug": "admin-guide",
+					"label": "Admin Guide",
+					"visibility": "admin",
+					"page_mode": "markdown",
+					"content": "# Admin Guide"
+				}
+			}`,
+		},
+		{
+			name: "GET /api/v1/pages/:slug draft admin page returns not found",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.settingRepo.SetAll(map[string]string{
+					service.SettingKeyCustomMenuItems: `[{"id":"page-draft","label":"Draft Guide","icon_svg":"","url":"","visibility":"admin","sort_order":0,"page_mode":"markdown","page_slug":"draft-guide","page_content":"# Draft","page_published":false}]`,
+				})
+			},
+			method: http.MethodGet,
+			path:   "/api/v1/pages/draft-guide",
+			headers: map[string]string{
+				"Authorization": "Bearer admin-token",
+			},
+			wantStatus: http.StatusNotFound,
+			wantJSON: `{
+				"code": 404,
+				"message": "custom page not found",
+				"reason": "CUSTOM_PAGE_NOT_FOUND"
+			}`,
+		},
+		{
+			name: "GET /api/v1/user/auth-identities",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.authIdentityRepo.items = append(deps.authIdentityRepo.items, &service.AuthIdentity{
+					ID:             11,
+					Provider:       service.AuthProviderGitHub,
+					ProviderUserID: "github-user-1",
+					UserID:         1,
+					Email:          "alice@example.com",
+					EmailVerified:  true,
+					DisplayName:    "alice-gh",
+					AvatarURL:      "https://avatars.example.com/alice.png",
+					CreatedAt:      deps.now,
+					UpdatedAt:      deps.now,
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/user/auth-identities",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": [
+					{
+						"id": 11,
+						"provider": "github",
+						"provider_user_id": "github-user-1",
+						"email": "alice@example.com",
+						"email_verified": true,
+						"display_name": "alice-gh",
+						"avatar_url": "https://avatars.example.com/alice.png",
+						"created_at": "2025-01-02T03:04:05Z",
+						"updated_at": "2025-01-02T03:04:05Z"
+					}
+				]
+			}`,
+		},
+		{
+			name: "DELETE /api/v1/user/auth-identities/:provider",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.authIdentityRepo.items = append(deps.authIdentityRepo.items, &service.AuthIdentity{
+					ID:             12,
+					Provider:       service.AuthProviderGoogle,
+					ProviderUserID: "google-user-1",
+					UserID:         1,
+					Email:          "alice@example.com",
+					EmailVerified:  true,
+					DisplayName:    "alice-google",
+					CreatedAt:      deps.now,
+					UpdatedAt:      deps.now,
+				})
+			},
+			method:     http.MethodDelete,
+			path:       "/api/v1/user/auth-identities/google",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"message": "Auth identity removed"
 				}
 			}`,
 		},
@@ -149,6 +318,37 @@ func TestAPIContracts(t *testing.T) {
 					"admin_free_billing": false,
 					"request_details_review": false
 				}
+			}`,
+		},
+		{
+			name:       "GET /api/v1/auth/oauth/:provider/start unsupported provider",
+			method:     http.MethodGet,
+			path:       "/api/v1/auth/oauth/unknown/start",
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "oauth provider is unsupported",
+				"reason": "OAUTH_PROVIDER_UNSUPPORTED"
+			}`,
+		},
+		{
+			name: "GET /api/v1/auth/oauth/:provider/start bind requires auth",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.settingRepo.SetAll(map[string]string{
+					service.SettingKeyGitHubOAuthEnabled:      "true",
+					service.SettingKeyGitHubOAuthClientID:     "github-client-id",
+					service.SettingKeyGitHubOAuthClientSecret: "github-secret",
+					service.SettingKeyGitHubOAuthRedirectURL:  "https://example.com/api/v1/auth/oauth/github/callback",
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/auth/oauth/github/start?mode=bind&redirect=%2Fprofile",
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "bind mode requires authenticated user",
+				"reason": "AUTH_IDENTITY_BIND_REQUIRED"
 			}`,
 		},
 		{
@@ -713,6 +913,22 @@ func TestAPIContracts(t *testing.T) {
 						"linuxdo_connect_client_id": "",
 						"linuxdo_connect_client_secret_configured": false,
 						"linuxdo_connect_redirect_url": "",
+						"github_oauth_enabled": false,
+						"github_oauth_client_id": "",
+						"github_oauth_client_secret_configured": false,
+						"github_oauth_redirect_url": "",
+						"google_oauth_enabled": false,
+						"google_oauth_client_id": "",
+						"google_oauth_client_secret_configured": false,
+						"google_oauth_redirect_url": "",
+						"content_moderation_enabled": false,
+						"content_moderation_provider": "openai",
+						"content_moderation_base_url": "",
+						"content_moderation_api_key_configured": false,
+						"content_moderation_model": "",
+						"content_moderation_timeout_ms": 1500,
+						"content_moderation_dedupe_window_seconds": 300,
+						"content_moderation_fail_open": true,
 						"ops_monitoring_enabled": false,
 						"ops_realtime_monitoring_enabled": true,
 						"ops_query_mode_default": "auto",
@@ -907,6 +1123,146 @@ func TestAPIContracts(t *testing.T) {
 				}
 			}`,
 		},
+		{
+			name: "POST /api/v1/admin/users/batch-concurrency",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.userRepo.users[2] = &service.User{
+					ID:                    2,
+					Email:                 "bob@example.com",
+					Username:              "bob",
+					Role:                  service.RoleUser,
+					Balance:               3,
+					Concurrency:           2,
+					Status:                service.StatusActive,
+					UsageModelDisplayMode: service.UsageModelDisplayModeModelOnly,
+					CreatedAt:             deps.now,
+					UpdatedAt:             deps.now,
+				}
+			},
+			method: http.MethodPost,
+			path:   "/api/v1/admin/users/batch-concurrency",
+			body:   `{"concurrency":7,"search":"example.com"}`,
+			headers: map[string]string{
+				"Content-Type":    "application/json",
+				"Idempotency-Key": "contract-batch-concurrency-1",
+			},
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"matched": 2,
+					"success_count": 2,
+					"failed_count": 0,
+					"concurrency": 7,
+					"results": [
+						{"user_id": 1, "email": "alice@example.com", "success": true},
+						{"user_id": 2, "email": "bob@example.com", "success": true}
+					]
+				}
+			}`,
+		},
+		{
+			name: "GET /api/v1/admin/moderation/audits",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.moderationRepo.items = append(deps.moderationRepo.items, &service.ContentModerationAudit{
+					ID:              31,
+					RequestID:       "req-mod-1",
+					ClientRequestID: "creq-mod-1",
+					UserID:          ptr(int64(1)),
+					APIKeyID:        ptr(int64(100)),
+					Provider:        "openai",
+					Model:           "gpt-4o-mini",
+					SourceEndpoint:  service.ContentModerationSourceOpenAIChat,
+					ContentHash:     "hash-1",
+					ContentSummary:  "hello world",
+					Hit:             false,
+					DedupeHit:       true,
+					ErrorReason:     "moderation_not_configured",
+					LatencyMs:       2,
+					CreatedAt:       deps.now,
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/admin/moderation/audits?page=1&page_size=20",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"items": [
+						{
+							"id": 31,
+							"request_id": "req-mod-1",
+							"client_request_id": "creq-mod-1",
+							"user_id": 1,
+							"api_key_id": 100,
+							"provider": "openai",
+							"model": "gpt-4o-mini",
+							"source_endpoint": "openai_chat_completions",
+							"content_hash": "hash-1",
+							"content_summary": "hello world",
+							"hit": false,
+							"dedupe_hit": true,
+							"error_reason": "moderation_not_configured",
+							"latency_ms": 2,
+							"created_at": "2025-01-02T03:04:05Z"
+						}
+					],
+					"total": 1,
+					"page": 1,
+					"page_size": 20,
+					"pages": 1
+				}
+			}`,
+		},
+		{
+			name: "GET /api/v1/admin/moderation/audits/:id",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.moderationRepo.items = append(deps.moderationRepo.items, &service.ContentModerationAudit{
+					ID:              32,
+					RequestID:       "req-mod-2",
+					ClientRequestID: "creq-mod-2",
+					Provider:        "gemini",
+					Model:           "gemini-2.5-pro",
+					SourceEndpoint:  service.ContentModerationSourceGeminiGenerate,
+					ContentHash:     "hash-2",
+					ContentSummary:  "summary",
+					Hit:             true,
+					DedupeHit:       false,
+					ErrorReason:     "",
+					LatencyMs:       18,
+					CreatedAt:       deps.now,
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/admin/moderation/audits/32",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"id": 32,
+					"request_id": "req-mod-2",
+					"client_request_id": "creq-mod-2",
+					"user_id": null,
+					"api_key_id": null,
+					"provider": "gemini",
+					"model": "gemini-2.5-pro",
+					"source_endpoint": "gemini_generate_content",
+					"content_hash": "hash-2",
+					"content_summary": "summary",
+					"hit": true,
+					"dedupe_hit": false,
+					"error_reason": "",
+					"latency_ms": 18,
+					"created_at": "2025-01-02T03:04:05Z"
+				}
+			}`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -924,15 +1280,19 @@ func TestAPIContracts(t *testing.T) {
 }
 
 type contractDeps struct {
-	now         time.Time
-	router      http.Handler
-	apiKeyRepo  *stubApiKeyRepo
-	groupRepo   *stubGroupRepo
-	userSubRepo *stubUserSubscriptionRepo
-	usageRepo   *stubUsageLogRepo
-	settingRepo *stubSettingRepo
-	redeemRepo  *stubRedeemCodeRepo
-	affRepo     *stubAffiliateRepo
+	now              time.Time
+	router           http.Handler
+	userRepo         *stubUserRepo
+	apiKeyRepo       *stubApiKeyRepo
+	groupRepo        *stubGroupRepo
+	userSubRepo      *stubUserSubscriptionRepo
+	usageRepo        *stubUsageLogRepo
+	settingRepo      *stubSettingRepo
+	redeemRepo       *stubRedeemCodeRepo
+	affRepo          *stubAffiliateRepo
+	authIdentityRepo *stubAuthIdentityRepo
+	moderationRepo   *stubContentModerationAuditRepo
+	authService      *service.AuthService
 }
 
 func newContractDeps(t *testing.T) *contractDeps {
@@ -992,14 +1352,23 @@ func newContractDeps(t *testing.T) *contractDeps {
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
 	settingHandler := handler.NewSettingHandler(settingService, "0.0.0-test")
+	authIdentityRepo := newStubAuthIdentityRepo()
+	moderationRepo := newStubContentModerationAuditRepo()
 
 	affiliateRepo := newStubAffiliateRepo(now)
 	affiliateService := service.NewAffiliateService(settingService, affiliateRepo)
 	userHandler := handler.NewUserHandler(userService, affiliateService)
+	authService := service.NewAuthService(nil, userRepo, redeemRepo, &stubRefreshTokenCache{}, cfg, settingService, nil, nil, nil, nil, affiliateService, subscriptionService)
+	authIdentityService := service.NewAuthIdentityService(authIdentityRepo, userRepo, authService)
+	userHandler.SetAuthIdentityService(authIdentityService)
 	adminAffiliateHandler := adminhandler.NewAffiliateHandler(affiliateService)
+	contentModerationService := service.NewContentModerationService(moderationRepo, settingRepo)
+	adminModerationHandler := adminhandler.NewContentModerationAuditHandler(contentModerationService)
 
 	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, settingService, nil, userSubRepo, affiliateService)
-	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil)
+	adminUserHandler := adminhandler.NewUserHandler(adminService, nil)
+	authHandler := handler.NewAuthHandler(cfg, authService, userService, settingService, nil, redeemService, nil)
+	authHandler.SetAuthIdentityService(authIdentityService)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService)
 	adminSettingHandler := adminhandler.NewSettingHandler(settingService, nil, nil, nil, nil)
@@ -1026,6 +1395,20 @@ func newContractDeps(t *testing.T) *contractDeps {
 
 	v1 := r.Group("/api/v1")
 	v1.GET("/settings/public", settingHandler.GetPublicSettings)
+	v1Pages := v1.Group("/pages")
+	v1Pages.Use(func(c *gin.Context) {
+		if c.GetHeader("Authorization") == "Bearer admin-token" {
+			c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
+				UserID:      1,
+				Concurrency: 5,
+			})
+			c.Set(string(middleware.ContextKeyUserRole), service.RoleAdmin)
+		}
+		c.Next()
+	})
+	v1Pages.GET("/:slug", settingHandler.GetCustomPage)
+	v1.GET("/auth/oauth/:provider/start", authHandler.SocialOAuthStart)
+	v1.POST("/auth/oauth/:provider/complete", authHandler.CompleteSocialOAuthRegistration)
 
 	v1Auth := v1.Group("")
 	v1Auth.Use(jwtAuth)
@@ -1054,6 +1437,8 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1User.Use(jwtAuth)
 	v1User.GET("/profile", userHandler.GetProfile)
 	v1User.PUT("", userHandler.UpdateProfile)
+	v1User.GET("/auth-identities", userHandler.ListAuthIdentities)
+	v1User.DELETE("/auth-identities/:provider", userHandler.DeleteAuthIdentity)
 	v1User.GET("/aff", userHandler.GetAffiliate)
 	v1User.POST("/aff/transfer", userHandler.TransferAffiliate)
 
@@ -1061,6 +1446,9 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1Admin.Use(adminAuth)
 	v1Admin.GET("/settings", adminSettingHandler.GetSettings)
 	v1Admin.POST("/accounts/bulk-update", adminAccountHandler.BulkUpdate)
+	v1Admin.POST("/users/batch-concurrency", adminUserHandler.BatchUpdateConcurrency)
+	v1Admin.GET("/moderation/audits", adminModerationHandler.List)
+	v1Admin.GET("/moderation/audits/:id", adminModerationHandler.Detail)
 	v1AdminAff := v1Admin.Group("/affiliates")
 	v1AdminAff.GET("/users", adminAffiliateHandler.ListUsers)
 	v1AdminAff.GET("/users/lookup", adminAffiliateHandler.LookupUsers)
@@ -1069,15 +1457,19 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1AdminAff.POST("/users/batch-rate", adminAffiliateHandler.BatchRate)
 
 	return &contractDeps{
-		now:         now,
-		router:      r,
-		apiKeyRepo:  apiKeyRepo,
-		groupRepo:   groupRepo,
-		userSubRepo: userSubRepo,
-		usageRepo:   usageRepo,
-		settingRepo: settingRepo,
-		redeemRepo:  redeemRepo,
-		affRepo:     affiliateRepo,
+		now:              now,
+		router:           r,
+		userRepo:         userRepo,
+		apiKeyRepo:       apiKeyRepo,
+		groupRepo:        groupRepo,
+		userSubRepo:      userSubRepo,
+		usageRepo:        usageRepo,
+		settingRepo:      settingRepo,
+		redeemRepo:       redeemRepo,
+		affRepo:          affiliateRepo,
+		authIdentityRepo: authIdentityRepo,
+		moderationRepo:   moderationRepo,
+		authService:      authService,
 	}
 }
 
@@ -1158,7 +1550,39 @@ func (r *stubUserRepo) List(ctx context.Context, params pagination.PaginationPar
 }
 
 func (r *stubUserRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, filters service.UserListFilters) ([]service.User, *pagination.PaginationResult, error) {
-	return nil, nil, errors.New("not implemented")
+	filtered := make([]service.User, 0, len(r.users))
+	for _, user := range r.users {
+		if filters.Status != "" && user.Status != filters.Status {
+			continue
+		}
+		if filters.Role != "" && user.Role != filters.Role {
+			continue
+		}
+		if filters.Search != "" {
+			search := strings.ToLower(strings.TrimSpace(filters.Search))
+			email := strings.ToLower(user.Email)
+			username := strings.ToLower(user.Username)
+			if !strings.Contains(email, search) && !strings.Contains(username, search) {
+				continue
+			}
+		}
+		clone := *user
+		filtered = append(filtered, clone)
+	}
+	sort.Slice(filtered, func(i, j int) bool {
+		return filtered[i].ID < filtered[j].ID
+	})
+	total := int64(len(filtered))
+	start := params.Offset()
+	if start > len(filtered) {
+		start = len(filtered)
+	}
+	end := start + params.Limit()
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	pageItems := append([]service.User(nil), filtered[start:end]...)
+	return pageItems, paginationResult(total, params), nil
 }
 
 func (r *stubUserRepo) UpdateBalance(ctx context.Context, id int64, amount float64) error {
@@ -1222,6 +1646,48 @@ func (stubApiKeyCache) DeleteCreateAttemptCount(ctx context.Context, userID int6
 
 func (stubApiKeyCache) IncrementDailyUsage(ctx context.Context, apiKey string) error {
 	return nil
+}
+
+type stubRefreshTokenCache struct{}
+
+func (stubRefreshTokenCache) StoreRefreshToken(ctx context.Context, tokenHash string, data *service.RefreshTokenData, ttl time.Duration) error {
+	return nil
+}
+
+func (stubRefreshTokenCache) GetRefreshToken(ctx context.Context, tokenHash string) (*service.RefreshTokenData, error) {
+	return nil, service.ErrRefreshTokenNotFound
+}
+
+func (stubRefreshTokenCache) DeleteRefreshToken(ctx context.Context, tokenHash string) error {
+	return nil
+}
+
+func (stubRefreshTokenCache) DeleteUserRefreshTokens(ctx context.Context, userID int64) error {
+	return nil
+}
+
+func (stubRefreshTokenCache) DeleteTokenFamily(ctx context.Context, familyID string) error {
+	return nil
+}
+
+func (stubRefreshTokenCache) AddToUserTokenSet(ctx context.Context, userID int64, tokenHash string, ttl time.Duration) error {
+	return nil
+}
+
+func (stubRefreshTokenCache) AddToFamilyTokenSet(ctx context.Context, familyID string, tokenHash string, ttl time.Duration) error {
+	return nil
+}
+
+func (stubRefreshTokenCache) GetUserTokenHashes(ctx context.Context, userID int64) ([]string, error) {
+	return nil, nil
+}
+
+func (stubRefreshTokenCache) GetFamilyTokenHashes(ctx context.Context, familyID string) ([]string, error) {
+	return nil, nil
+}
+
+func (stubRefreshTokenCache) IsTokenInFamily(ctx context.Context, familyID string, tokenHash string) (bool, error) {
+	return false, nil
 }
 
 func (stubApiKeyCache) SetDailyUsageExpiry(ctx context.Context, apiKey string, ttl time.Duration) error {
@@ -2513,6 +2979,184 @@ type stubSettingRepo struct {
 	all map[string]string
 }
 
+type stubAuthIdentityRepo struct {
+	items []*service.AuthIdentity
+}
+
+type stubContentModerationAuditRepo struct {
+	items []*service.ContentModerationAudit
+}
+
+func newStubContentModerationAuditRepo() *stubContentModerationAuditRepo {
+	return &stubContentModerationAuditRepo{items: make([]*service.ContentModerationAudit, 0)}
+}
+
+func (r *stubContentModerationAuditRepo) CreateContentModerationAudit(ctx context.Context, audit *service.ContentModerationAudit) error {
+	if audit == nil {
+		return errors.New("audit required")
+	}
+	if audit.ID <= 0 {
+		audit.ID = int64(len(r.items) + 1)
+	}
+	if audit.CreatedAt.IsZero() {
+		audit.CreatedAt = time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
+	}
+	clone := *audit
+	r.items = append(r.items, &clone)
+	return nil
+}
+
+func (r *stubContentModerationAuditRepo) FindRecentContentModerationAuditByHash(ctx context.Context, contentHash string, since time.Time) (*service.ContentModerationAudit, error) {
+	for i := len(r.items) - 1; i >= 0; i-- {
+		item := r.items[i]
+		if item == nil || item.ContentHash != contentHash || item.CreatedAt.Before(since) {
+			continue
+		}
+		clone := *item
+		return &clone, nil
+	}
+	return nil, service.ErrContentModerationAuditNotFound
+}
+
+func (r *stubContentModerationAuditRepo) ListContentModerationAudits(ctx context.Context, filter *service.ContentModerationAuditFilter) (*service.ContentModerationAuditList, error) {
+	page, pageSize := filter.Normalize()
+	items := make([]*service.ContentModerationAudit, 0, len(r.items))
+	for i := len(r.items) - 1; i >= 0; i-- {
+		item := r.items[i]
+		if item == nil {
+			continue
+		}
+		if filter != nil {
+			if filter.RequestID != "" && !strings.Contains(item.RequestID, filter.RequestID) {
+				continue
+			}
+			if filter.ClientRequestID != "" && !strings.Contains(item.ClientRequestID, filter.ClientRequestID) {
+				continue
+			}
+			if filter.Provider != "" && item.Provider != filter.Provider {
+				continue
+			}
+			if filter.Model != "" && item.Model != filter.Model {
+				continue
+			}
+			if filter.SourceEndpoint != "" && item.SourceEndpoint != filter.SourceEndpoint {
+				continue
+			}
+			if filter.ContentHash != "" && item.ContentHash != filter.ContentHash {
+				continue
+			}
+			if filter.UserID != nil {
+				if item.UserID == nil || *item.UserID != *filter.UserID {
+					continue
+				}
+			}
+			if filter.Hit != nil && item.Hit != *filter.Hit {
+				continue
+			}
+		}
+		clone := *item
+		items = append(items, &clone)
+	}
+
+	start := (page - 1) * pageSize
+	if start > len(items) {
+		start = len(items)
+	}
+	end := start + pageSize
+	if end > len(items) {
+		end = len(items)
+	}
+	return &service.ContentModerationAuditList{
+		Items:    items[start:end],
+		Total:    int64(len(items)),
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+func (r *stubContentModerationAuditRepo) GetContentModerationAuditByID(ctx context.Context, id int64) (*service.ContentModerationAudit, error) {
+	for _, item := range r.items {
+		if item != nil && item.ID == id {
+			clone := *item
+			return &clone, nil
+		}
+	}
+	return nil, service.ErrContentModerationAuditNotFound
+}
+
+func newStubAuthIdentityRepo() *stubAuthIdentityRepo {
+	return &stubAuthIdentityRepo{items: make([]*service.AuthIdentity, 0)}
+}
+
+func (r *stubAuthIdentityRepo) Create(ctx context.Context, identity *service.AuthIdentity) error {
+	if identity == nil {
+		return errors.New("identity required")
+	}
+	if identity.ID <= 0 {
+		identity.ID = int64(len(r.items) + 1)
+	}
+	if identity.CreatedAt.IsZero() {
+		identity.CreatedAt = time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
+	}
+	if identity.UpdatedAt.IsZero() {
+		identity.UpdatedAt = identity.CreatedAt
+	}
+	r.items = append(r.items, identity)
+	return nil
+}
+
+func (r *stubAuthIdentityRepo) GetByProviderUserID(ctx context.Context, provider, providerUserID string) (*service.AuthIdentity, error) {
+	for _, item := range r.items {
+		if item.Provider == provider && item.ProviderUserID == providerUserID {
+			clone := *item
+			return &clone, nil
+		}
+	}
+	return nil, service.ErrAuthIdentityNotFound
+}
+
+func (r *stubAuthIdentityRepo) GetByUserIDAndProvider(ctx context.Context, userID int64, provider string) (*service.AuthIdentity, error) {
+	for _, item := range r.items {
+		if item.UserID == userID && item.Provider == provider {
+			clone := *item
+			return &clone, nil
+		}
+	}
+	return nil, service.ErrAuthIdentityNotFound
+}
+
+func (r *stubAuthIdentityRepo) ListByUserID(ctx context.Context, userID int64) ([]*service.AuthIdentity, error) {
+	result := make([]*service.AuthIdentity, 0)
+	for _, item := range r.items {
+		if item.UserID != userID {
+			continue
+		}
+		clone := *item
+		result = append(result, &clone)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return strconv.FormatInt(result[i].ID, 10) < strconv.FormatInt(result[j].ID, 10)
+	})
+	return result, nil
+}
+
+func (r *stubAuthIdentityRepo) DeleteByUserIDAndProvider(ctx context.Context, userID int64, provider string) error {
+	next := make([]*service.AuthIdentity, 0, len(r.items))
+	deleted := false
+	for _, item := range r.items {
+		if item.UserID == userID && item.Provider == provider {
+			deleted = true
+			continue
+		}
+		next = append(next, item)
+	}
+	if !deleted {
+		return service.ErrAuthIdentityNotFound
+	}
+	r.items = next
+	return nil
+}
+
 func newStubSettingRepo() *stubSettingRepo {
 	return &stubSettingRepo{all: make(map[string]string)}
 }
@@ -2603,12 +3247,14 @@ func paginationResult(total int64, params pagination.PaginationParams) *paginati
 
 // Ensure compile-time interface compliance.
 var (
-	_ service.UserRepository             = (*stubUserRepo)(nil)
-	_ service.APIKeyRepository           = (*stubApiKeyRepo)(nil)
-	_ service.APIKeyCache                = (*stubApiKeyCache)(nil)
-	_ service.GroupRepository            = (*stubGroupRepo)(nil)
-	_ service.UserSubscriptionRepository = (*stubUserSubscriptionRepo)(nil)
-	_ service.UsageLogRepository         = (*stubUsageLogRepo)(nil)
-	_ service.SettingRepository          = (*stubSettingRepo)(nil)
-	_ service.AffiliateRepository        = (*stubAffiliateRepo)(nil)
+	_ service.UserRepository                   = (*stubUserRepo)(nil)
+	_ service.AuthIdentityRepository           = (*stubAuthIdentityRepo)(nil)
+	_ service.ContentModerationAuditRepository = (*stubContentModerationAuditRepo)(nil)
+	_ service.APIKeyRepository                 = (*stubApiKeyRepo)(nil)
+	_ service.APIKeyCache                      = (*stubApiKeyCache)(nil)
+	_ service.GroupRepository                  = (*stubGroupRepo)(nil)
+	_ service.UserSubscriptionRepository       = (*stubUserSubscriptionRepo)(nil)
+	_ service.UsageLogRepository               = (*stubUsageLogRepo)(nil)
+	_ service.SettingRepository                = (*stubSettingRepo)(nil)
+	_ service.AffiliateRepository              = (*stubAffiliateRepo)(nil)
 )

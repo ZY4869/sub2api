@@ -525,6 +525,7 @@ func (s *OpsService) UpdateOpsAdvancedSettings(ctx context.Context, cfg *OpsAdva
 	if err := s.settingRepo.Set(ctx, SettingKeyOpsAdvancedSettings, string(raw)); err != nil {
 		return nil, err
 	}
+	s.notifyAdvancedSettingsUpdated()
 
 	updated := &OpsAdvancedSettings{}
 	_ = json.Unmarshal(raw, updated)

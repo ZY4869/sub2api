@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -54,6 +55,9 @@ type OpsService struct {
 	geminiCompatService       *GeminiMessagesCompatService
 	antigravityGatewayService *AntigravityGatewayService
 	systemLogSink             *OpsSystemLogSink
+
+	advancedSettingsCallbacksMu sync.RWMutex
+	onAdvancedSettingsUpdated   []func()
 }
 
 func NewOpsService(
@@ -86,6 +90,30 @@ func NewOpsService(
 	}
 	svc.applyRuntimeLogConfigOnStartup(context.Background())
 	return svc
+}
+
+func (s *OpsService) AddOnAdvancedSettingsUpdatedCallback(callback func()) {
+	if s == nil || callback == nil {
+		return
+	}
+	s.advancedSettingsCallbacksMu.Lock()
+	defer s.advancedSettingsCallbacksMu.Unlock()
+	s.onAdvancedSettingsUpdated = append(s.onAdvancedSettingsUpdated, callback)
+}
+
+func (s *OpsService) notifyAdvancedSettingsUpdated() {
+	if s == nil {
+		return
+	}
+	s.advancedSettingsCallbacksMu.RLock()
+	callbacks := append([]func(){}, s.onAdvancedSettingsUpdated...)
+	s.advancedSettingsCallbacksMu.RUnlock()
+	for _, callback := range callbacks {
+		if callback == nil {
+			continue
+		}
+		callback()
+	}
 }
 
 func (s *OpsService) RequireMonitoringEnabled(ctx context.Context) error {

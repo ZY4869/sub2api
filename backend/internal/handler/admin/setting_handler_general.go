@@ -48,6 +48,22 @@ type UpdateSettingsRequest struct {
 	LinuxDoConnectClientID               string                           `json:"linuxdo_connect_client_id"`
 	LinuxDoConnectClientSecret           string                           `json:"linuxdo_connect_client_secret"`
 	LinuxDoConnectRedirectURL            string                           `json:"linuxdo_connect_redirect_url"`
+	GitHubOAuthEnabled                   bool                             `json:"github_oauth_enabled"`
+	GitHubOAuthClientID                  string                           `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecret              string                           `json:"github_oauth_client_secret"`
+	GitHubOAuthRedirectURL               string                           `json:"github_oauth_redirect_url"`
+	GoogleOAuthEnabled                   bool                             `json:"google_oauth_enabled"`
+	GoogleOAuthClientID                  string                           `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecret              string                           `json:"google_oauth_client_secret"`
+	GoogleOAuthRedirectURL               string                           `json:"google_oauth_redirect_url"`
+	ContentModerationEnabled             bool                             `json:"content_moderation_enabled"`
+	ContentModerationProvider            string                           `json:"content_moderation_provider"`
+	ContentModerationBaseURL             string                           `json:"content_moderation_base_url"`
+	ContentModerationAPIKey              string                           `json:"content_moderation_api_key"`
+	ContentModerationModel               string                           `json:"content_moderation_model"`
+	ContentModerationTimeoutMs           int                              `json:"content_moderation_timeout_ms"`
+	ContentModerationDedupeWindowSeconds int                              `json:"content_moderation_dedupe_window_seconds"`
+	ContentModerationFailOpen            *bool                            `json:"content_moderation_fail_open"`
 	SiteName                             string                           `json:"site_name"`
 	SiteLogo                             string                           `json:"site_logo"`
 	SiteSubtitle                         string                           `json:"site_subtitle"`
@@ -169,6 +185,73 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			req.LinuxDoConnectClientSecret = previousSettings.LinuxDoConnectClientSecret
 		}
 	}
+	if req.GitHubOAuthEnabled {
+		req.GitHubOAuthClientID = strings.TrimSpace(req.GitHubOAuthClientID)
+		req.GitHubOAuthClientSecret = strings.TrimSpace(req.GitHubOAuthClientSecret)
+		req.GitHubOAuthRedirectURL = strings.TrimSpace(req.GitHubOAuthRedirectURL)
+		if req.GitHubOAuthClientID == "" {
+			response.BadRequest(c, "GitHub Client ID is required when enabled")
+			return
+		}
+		if req.GitHubOAuthRedirectURL == "" {
+			response.BadRequest(c, "GitHub Redirect URL is required when enabled")
+			return
+		}
+		if err := config.ValidateAbsoluteHTTPURL(req.GitHubOAuthRedirectURL); err != nil {
+			response.BadRequest(c, "GitHub Redirect URL must be an absolute http(s) URL")
+			return
+		}
+		if req.GitHubOAuthClientSecret == "" {
+			if previousSettings.GitHubOAuthClientSecret == "" {
+				response.BadRequest(c, "GitHub Client Secret is required when enabled")
+				return
+			}
+			req.GitHubOAuthClientSecret = previousSettings.GitHubOAuthClientSecret
+		}
+	}
+	if req.GoogleOAuthEnabled {
+		req.GoogleOAuthClientID = strings.TrimSpace(req.GoogleOAuthClientID)
+		req.GoogleOAuthClientSecret = strings.TrimSpace(req.GoogleOAuthClientSecret)
+		req.GoogleOAuthRedirectURL = strings.TrimSpace(req.GoogleOAuthRedirectURL)
+		if req.GoogleOAuthClientID == "" {
+			response.BadRequest(c, "Google Client ID is required when enabled")
+			return
+		}
+		if req.GoogleOAuthRedirectURL == "" {
+			response.BadRequest(c, "Google Redirect URL is required when enabled")
+			return
+		}
+		if err := config.ValidateAbsoluteHTTPURL(req.GoogleOAuthRedirectURL); err != nil {
+			response.BadRequest(c, "Google Redirect URL must be an absolute http(s) URL")
+			return
+		}
+		if req.GoogleOAuthClientSecret == "" {
+			if previousSettings.GoogleOAuthClientSecret == "" {
+				response.BadRequest(c, "Google Client Secret is required when enabled")
+				return
+			}
+			req.GoogleOAuthClientSecret = previousSettings.GoogleOAuthClientSecret
+		}
+	}
+	req.ContentModerationProvider = strings.TrimSpace(req.ContentModerationProvider)
+	req.ContentModerationBaseURL = strings.TrimSpace(req.ContentModerationBaseURL)
+	req.ContentModerationAPIKey = strings.TrimSpace(req.ContentModerationAPIKey)
+	req.ContentModerationModel = strings.TrimSpace(req.ContentModerationModel)
+	if req.ContentModerationTimeoutMs <= 0 {
+		req.ContentModerationTimeoutMs = previousSettings.ContentModerationTimeoutMs
+		if req.ContentModerationTimeoutMs <= 0 {
+			req.ContentModerationTimeoutMs = 1500
+		}
+	}
+	if req.ContentModerationDedupeWindowSeconds < 0 {
+		req.ContentModerationDedupeWindowSeconds = 0
+	}
+	if req.ContentModerationEnabled && req.ContentModerationProvider == "" {
+		req.ContentModerationProvider = "openai"
+	}
+	if req.ContentModerationEnabled && req.ContentModerationAPIKey == "" {
+		req.ContentModerationAPIKey = previousSettings.ContentModerationAPIKey
+	}
 	purchaseEnabled := previousSettings.PurchaseSubscriptionEnabled
 	if req.PurchaseSubscriptionEnabled != nil {
 		purchaseEnabled = *req.PurchaseSubscriptionEnabled
@@ -205,6 +288,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		maxMenuItemURLLen     = 2048
 		maxMenuItemIconSVGLen = 10 * 1024
 		maxMenuItemIDLen      = 32
+		maxMenuItemSlugLen    = 64
+		maxMenuItemContentLen = 128 * 1024
 	)
 	customMenuJSON := previousSettings.CustomMenuItems
 	if req.CustomMenuItems != nil {
@@ -214,56 +299,105 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 		for i, item := range items {
-			if strings.TrimSpace(item.Label) == "" {
+			items[i].Label = strings.TrimSpace(item.Label)
+			items[i].Visibility = strings.TrimSpace(item.Visibility)
+			items[i].IconSVG = strings.TrimSpace(item.IconSVG)
+			items[i].URL = strings.TrimSpace(item.URL)
+			items[i].PageMode = strings.TrimSpace(item.PageMode)
+			items[i].PageSlug = strings.TrimSpace(item.PageSlug)
+			items[i].ID = strings.TrimSpace(item.ID)
+
+			if items[i].Label == "" {
 				response.BadRequest(c, "Custom menu item label is required")
 				return
 			}
-			if len(item.Label) > maxMenuItemLabelLen {
+			if len(items[i].Label) > maxMenuItemLabelLen {
 				response.BadRequest(c, "Custom menu item label is too long (max 50 characters)")
 				return
 			}
-			if strings.TrimSpace(item.URL) == "" {
-				response.BadRequest(c, "Custom menu item URL is required")
-				return
-			}
-			if len(item.URL) > maxMenuItemURLLen {
-				response.BadRequest(c, "Custom menu item URL is too long (max 2048 characters)")
-				return
-			}
-			if err := config.ValidateAbsoluteHTTPURL(strings.TrimSpace(item.URL)); err != nil {
-				response.BadRequest(c, "Custom menu item URL must be an absolute http(s) URL")
-				return
-			}
-			if item.Visibility != "user" && item.Visibility != "admin" {
+			if items[i].Visibility != "user" && items[i].Visibility != "admin" {
 				response.BadRequest(c, "Custom menu item visibility must be 'user' or 'admin'")
 				return
 			}
-			if len(item.IconSVG) > maxMenuItemIconSVGLen {
+			switch strings.ToLower(items[i].PageMode) {
+			case "", "iframe":
+				items[i].PageMode = "iframe"
+				items[i].PageSlug = ""
+				items[i].PageContent = ""
+				items[i].PagePublished = false
+				items[i].PagePublic = false
+				if items[i].URL == "" {
+					response.BadRequest(c, "Custom menu item URL is required")
+					return
+				}
+				if len(items[i].URL) > maxMenuItemURLLen {
+					response.BadRequest(c, "Custom menu item URL is too long (max 2048 characters)")
+					return
+				}
+				if err := config.ValidateAbsoluteHTTPURL(items[i].URL); err != nil {
+					response.BadRequest(c, "Custom menu item URL must be an absolute http(s) URL")
+					return
+				}
+			case "markdown":
+				items[i].URL = ""
+				items[i].PageMode = "markdown"
+				if items[i].PageSlug == "" {
+					response.BadRequest(c, "Custom markdown page slug is required")
+					return
+				}
+				if len(items[i].PageSlug) > maxMenuItemSlugLen {
+					response.BadRequest(c, "Custom markdown page slug is too long (max 64 characters)")
+					return
+				}
+				normalizedSlug := service.NormalizeCustomPageSlugForAdmin(items[i].PageSlug)
+				if normalizedSlug == "" {
+					response.BadRequest(c, "Custom markdown page slug is invalid")
+					return
+				}
+				items[i].PageSlug = normalizedSlug
+				if len(items[i].PageContent) > maxMenuItemContentLen {
+					response.BadRequest(c, "Custom markdown page content is too large (max 128KB)")
+					return
+				}
+				items[i].PageContent = strings.ReplaceAll(items[i].PageContent, "\r\n", "\n")
+			default:
+				response.BadRequest(c, "Custom menu item page_mode must be 'iframe' or 'markdown'")
+				return
+			}
+			if len(items[i].IconSVG) > maxMenuItemIconSVGLen {
 				response.BadRequest(c, "Custom menu item icon SVG is too large (max 10KB)")
 				return
 			}
-			if strings.TrimSpace(item.ID) == "" {
+			if items[i].ID == "" {
 				id, err := generateMenuItemID()
 				if err != nil {
 					response.Error(c, http.StatusInternalServerError, "Failed to generate menu item ID")
 					return
 				}
 				items[i].ID = id
-			} else if len(item.ID) > maxMenuItemIDLen {
+			} else if len(items[i].ID) > maxMenuItemIDLen {
 				response.BadRequest(c, "Custom menu item ID is too long (max 32 characters)")
 				return
-			} else if !menuItemIDPattern.MatchString(item.ID) {
+			} else if !menuItemIDPattern.MatchString(items[i].ID) {
 				response.BadRequest(c, "Custom menu item ID contains invalid characters (only a-z, A-Z, 0-9, - and _ are allowed)")
 				return
 			}
 		}
 		seen := make(map[string]struct{}, len(items))
+		seenSlugs := make(map[string]struct{}, len(items))
 		for _, item := range items {
 			if _, exists := seen[item.ID]; exists {
 				response.BadRequest(c, "Duplicate custom menu item ID: "+item.ID)
 				return
 			}
 			seen[item.ID] = struct{}{}
+			if item.PageMode == "markdown" {
+				if _, exists := seenSlugs[item.PageSlug]; exists {
+					response.BadRequest(c, "Duplicate custom markdown page slug: "+item.PageSlug)
+					return
+				}
+				seenSlugs[item.PageSlug] = struct{}{}
+			}
 		}
 		menuBytes, err := json.Marshal(items)
 		if err != nil {
@@ -415,7 +549,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 	}
-	settings := &service.SystemSettings{RegistrationEnabled: req.RegistrationEnabled, EmailVerifyEnabled: req.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: req.PromoCodeEnabled, PasswordResetEnabled: req.PasswordResetEnabled, FrontendURL: req.FrontendURL, InvitationCodeEnabled: req.InvitationCodeEnabled, TotpEnabled: req.TotpEnabled, SMTPHost: req.SMTPHost, SMTPPort: req.SMTPPort, SMTPUsername: req.SMTPUsername, SMTPPassword: req.SMTPPassword, SMTPFrom: req.SMTPFrom, SMTPFromName: req.SMTPFromName, SMTPUseTLS: req.SMTPUseTLS, TelegramChatID: req.TelegramChatID, TelegramBotToken: req.TelegramBotToken, TurnstileEnabled: req.TurnstileEnabled, TurnstileSiteKey: req.TurnstileSiteKey, TurnstileSecretKey: req.TurnstileSecretKey, LinuxDoConnectEnabled: req.LinuxDoConnectEnabled, LinuxDoConnectClientID: req.LinuxDoConnectClientID, LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret, LinuxDoConnectRedirectURL: req.LinuxDoConnectRedirectURL, SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
+	settings := &service.SystemSettings{RegistrationEnabled: req.RegistrationEnabled, EmailVerifyEnabled: req.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: req.PromoCodeEnabled, PasswordResetEnabled: req.PasswordResetEnabled, FrontendURL: req.FrontendURL, InvitationCodeEnabled: req.InvitationCodeEnabled, TotpEnabled: req.TotpEnabled, SMTPHost: req.SMTPHost, SMTPPort: req.SMTPPort, SMTPUsername: req.SMTPUsername, SMTPPassword: req.SMTPPassword, SMTPFrom: req.SMTPFrom, SMTPFromName: req.SMTPFromName, SMTPUseTLS: req.SMTPUseTLS, TelegramChatID: req.TelegramChatID, TelegramBotToken: req.TelegramBotToken, TurnstileEnabled: req.TurnstileEnabled, TurnstileSiteKey: req.TurnstileSiteKey, TurnstileSecretKey: req.TurnstileSecretKey, LinuxDoConnectEnabled: req.LinuxDoConnectEnabled, LinuxDoConnectClientID: req.LinuxDoConnectClientID, LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret, LinuxDoConnectRedirectURL: req.LinuxDoConnectRedirectURL, GitHubOAuthEnabled: req.GitHubOAuthEnabled, GitHubOAuthClientID: req.GitHubOAuthClientID, GitHubOAuthClientSecret: req.GitHubOAuthClientSecret, GitHubOAuthRedirectURL: req.GitHubOAuthRedirectURL, GoogleOAuthEnabled: req.GoogleOAuthEnabled, GoogleOAuthClientID: req.GoogleOAuthClientID, GoogleOAuthClientSecret: req.GoogleOAuthClientSecret, GoogleOAuthRedirectURL: req.GoogleOAuthRedirectURL, ContentModerationEnabled: req.ContentModerationEnabled, ContentModerationProvider: req.ContentModerationProvider, ContentModerationBaseURL: req.ContentModerationBaseURL, ContentModerationAPIKey: req.ContentModerationAPIKey, ContentModerationModel: req.ContentModerationModel, ContentModerationTimeoutMs: req.ContentModerationTimeoutMs, ContentModerationDedupeWindowSeconds: req.ContentModerationDedupeWindowSeconds, ContentModerationFailOpen: func() bool {
+		if req.ContentModerationFailOpen != nil {
+			return *req.ContentModerationFailOpen
+		}
+		return previousSettings.ContentModerationFailOpen
+	}(), SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
 		if req.OpsMonitoringEnabled != nil {
 			return *req.OpsMonitoringEnabled
 		}

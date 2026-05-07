@@ -60,6 +60,28 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	if settings.LinuxDoConnectClientSecret != "" {
 		updates[SettingKeyLinuxDoConnectClientSecret] = settings.LinuxDoConnectClientSecret
 	}
+	updates[SettingKeyGitHubOAuthEnabled] = strconv.FormatBool(settings.GitHubOAuthEnabled)
+	updates[SettingKeyGitHubOAuthClientID] = settings.GitHubOAuthClientID
+	updates[SettingKeyGitHubOAuthRedirectURL] = settings.GitHubOAuthRedirectURL
+	if settings.GitHubOAuthClientSecret != "" {
+		updates[SettingKeyGitHubOAuthClientSecret] = settings.GitHubOAuthClientSecret
+	}
+	updates[SettingKeyGoogleOAuthEnabled] = strconv.FormatBool(settings.GoogleOAuthEnabled)
+	updates[SettingKeyGoogleOAuthClientID] = settings.GoogleOAuthClientID
+	updates[SettingKeyGoogleOAuthRedirectURL] = settings.GoogleOAuthRedirectURL
+	if settings.GoogleOAuthClientSecret != "" {
+		updates[SettingKeyGoogleOAuthClientSecret] = settings.GoogleOAuthClientSecret
+	}
+	updates[SettingKeyContentModerationEnabled] = strconv.FormatBool(settings.ContentModerationEnabled)
+	updates[SettingKeyContentModerationProvider] = strings.TrimSpace(settings.ContentModerationProvider)
+	updates[SettingKeyContentModerationBaseURL] = strings.TrimSpace(settings.ContentModerationBaseURL)
+	if strings.TrimSpace(settings.ContentModerationAPIKey) != "" {
+		updates[SettingKeyContentModerationAPIKey] = strings.TrimSpace(settings.ContentModerationAPIKey)
+	}
+	updates[SettingKeyContentModerationModel] = strings.TrimSpace(settings.ContentModerationModel)
+	updates[SettingKeyContentModerationTimeoutMs] = strconv.Itoa(settings.ContentModerationTimeoutMs)
+	updates[SettingKeyContentModerationDedupeWindowSeconds] = strconv.Itoa(settings.ContentModerationDedupeWindowSeconds)
+	updates[SettingKeyContentModerationFailOpen] = strconv.FormatBool(settings.ContentModerationFailOpen)
 	updates[SettingKeySiteName] = settings.SiteName
 	updates[SettingKeySiteLogo] = settings.SiteLogo
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle
@@ -145,9 +167,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		backendModeCache.Store(&cachedBackendMode{value: settings.BackendModeEnabled, expiresAt: time.Now().Add(backendModeCacheTTL).UnixNano()})
 		maintenanceModeSF.Forget("maintenance_mode_enabled")
 		maintenanceModeCache.Store(&cachedMaintenanceMode{value: settings.MaintenanceModeEnabled, expiresAt: time.Now().Add(maintenanceModeCacheTTL).UnixNano()})
-		if s.onUpdate != nil {
-			s.onUpdate()
-		}
+		s.notifyUpdateCallbacks()
 	}
 	return err
 }

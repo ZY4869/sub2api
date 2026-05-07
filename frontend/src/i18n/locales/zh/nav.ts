@@ -6,6 +6,7 @@ export default {
     modelsCatalog: '模型库',
     billing: '计费中心',
     announcements: '公告',
+    moderation: '内容审核',
     apiKeys: 'API 密钥',
     availableChannels: '可用渠道',
     channelStatus: '渠道状态',

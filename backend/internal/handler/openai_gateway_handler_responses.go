@@ -166,6 +166,12 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
 		return
 	}
+	modelHint := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	submitContentModerationAudit(
+		c.Request.Context(),
+		h.contentModerationService,
+		buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIResponses, service.PlatformOpenAI, modelHint, body),
+	)
 
 	// 使用 gjson 只读提取字段做校验，避免完整 Unmarshal
 	modelResult := gjson.GetBytes(body, "model")

@@ -96,3 +96,33 @@ func TestHasItemReferenceForCallIDs(t *testing.T) {
 	require.True(t, HasItemReferenceForCallIDs(req, []string{"call_1", "call_2"}))
 	require.False(t, HasItemReferenceForCallIDs(req, []string{"call_1", "call_3"}))
 }
+
+func TestValidateFunctionCallOutputContext_TodoToolStateGuardUsesToolContext(t *testing.T) {
+	req := map[string]any{
+		"input": []any{
+			map[string]any{"type": "function_call", "call_id": "call_todo_1", "name": "todowrite"},
+			map[string]any{"type": "function_call_output", "call_id": "call_todo_1", "output": "ok"},
+		},
+	}
+
+	validation := ValidateFunctionCallOutputContext(req)
+	require.True(t, validation.HasFunctionCallOutput)
+	require.True(t, validation.HasToolCallContext)
+	require.False(t, validation.HasFunctionCallOutputMissingCallID)
+	require.False(t, validation.HasItemReferenceForAllCallIDs)
+}
+
+func TestValidateFunctionCallOutputContext_DigestSessionStickinessViaItemReference(t *testing.T) {
+	req := map[string]any{
+		"input": []any{
+			map[string]any{"type": "item_reference", "id": "call_digest_1"},
+			map[string]any{"type": "function_call_output", "call_id": "call_digest_1", "output": "done"},
+		},
+	}
+
+	validation := ValidateFunctionCallOutputContext(req)
+	require.True(t, validation.HasFunctionCallOutput)
+	require.False(t, validation.HasToolCallContext)
+	require.False(t, validation.HasFunctionCallOutputMissingCallID)
+	require.True(t, validation.HasItemReferenceForAllCallIDs)
+}

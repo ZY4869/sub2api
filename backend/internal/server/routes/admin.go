@@ -22,6 +22,7 @@ func RegisterAdminRoutes(
 
 		// 用户管理
 		registerUserManagementRoutes(admin, h)
+		registerContentModerationRoutes(admin, h)
 		registerAffiliateRoutes(admin, h)
 
 		// 分组管理
@@ -92,6 +93,17 @@ func RegisterAdminRoutes(
 		// 定时测试计划
 		registerScheduledTestRoutes(admin, h)
 		registerTLSFingerprintProfileRoutes(admin, h)
+	}
+}
+
+func registerContentModerationRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	moderation := admin.Group("/moderation")
+	{
+		audits := moderation.Group("/audits")
+		{
+			audits.GET("", h.Admin.Moderation.List)
+			audits.GET("/:id", h.Admin.Moderation.Detail)
+		}
 	}
 }
 
@@ -291,6 +303,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	users := admin.Group("/users")
 	{
 		users.GET("", h.Admin.User.List)
+		users.POST("/batch-concurrency", h.Admin.User.BatchUpdateConcurrency)
 		users.GET("/:id", h.Admin.User.GetByID)
 		users.POST("", h.Admin.User.Create)
 		users.PUT("/:id", h.Admin.User.Update)

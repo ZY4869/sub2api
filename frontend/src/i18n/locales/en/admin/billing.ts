@@ -7,6 +7,11 @@ export default {
             title: "Model Pricing",
             description: "Browse model pricing in paginated list mode by default, with an optional provider grid for bulk inspection.",
         },
+        issues: {
+            nav: "Issues",
+            title: "Billing Issues",
+            description: "Review prioritized model pricing issues and vendor issue rankings to triage conflicts, missing prices, and fallbacks.",
+        },
         publicCatalog: {
             nav: "Public Catalog",
             title: "Public Model Catalog",

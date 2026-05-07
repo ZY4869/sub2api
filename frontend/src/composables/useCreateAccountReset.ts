@@ -119,9 +119,8 @@ interface UseCreateAccountResetOptions {
   geminiVertexAccessToken: Ref<string>
   geminiVertexExpiresAtInput: Ref<string>
   geminiVertexBaseUrl: Ref<string>
-  baiduDocumentAIAsyncBearerToken: Ref<string>
+  baiduDocumentAIAccessToken: Ref<string>
   baiduDocumentAIAsyncBaseUrl: Ref<string>
-  baiduDocumentAIDirectToken: Ref<string>
   baiduDocumentAIDirectApiUrlsText: Ref<string>
   resetTempUnschedRules: () => void
   geminiOAuthType: Ref<GeminiOAuthType>
@@ -220,9 +219,8 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.geminiVertexAccessToken.value = ''
     options.geminiVertexExpiresAtInput.value = ''
     options.geminiVertexBaseUrl.value = ''
-    options.baiduDocumentAIAsyncBearerToken.value = ''
+    options.baiduDocumentAIAccessToken.value = ''
     options.baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
-    options.baiduDocumentAIDirectToken.value = ''
     options.baiduDocumentAIDirectApiUrlsText.value = ''
     options.resetTempUnschedRules()
     options.geminiOAuthType.value = 'code_assist'

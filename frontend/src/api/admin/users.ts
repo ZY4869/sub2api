@@ -244,6 +244,45 @@ export async function replaceGroup(
   return data
 }
 
+export interface BatchConcurrencyUpdateRequest {
+  concurrency: number
+  search?: string
+  role?: 'admin' | 'user' | ''
+  status?: 'active' | 'disabled' | ''
+  group_name?: string
+  attributes?: Record<number, string>
+}
+
+export interface BatchConcurrencyUpdateResultItem {
+  user_id: number
+  email: string
+  success: boolean
+  error?: string
+}
+
+export interface BatchConcurrencyUpdateResponse {
+  matched: number
+  success_count: number
+  failed_count: number
+  concurrency: number
+  results: BatchConcurrencyUpdateResultItem[]
+}
+
+export async function batchUpdateConcurrency(
+  payload: BatchConcurrencyUpdateRequest,
+  idempotencyKey?: string
+): Promise<BatchConcurrencyUpdateResponse> {
+  const headers = idempotencyKey
+    ? { 'Idempotency-Key': idempotencyKey }
+    : undefined
+  const { data } = await apiClient.post<BatchConcurrencyUpdateResponse>(
+    '/admin/users/batch-concurrency',
+    payload,
+    headers ? { headers } : undefined
+  )
+  return data
+}
+
 export const usersAPI = {
   list,
   getById,
@@ -256,7 +295,8 @@ export const usersAPI = {
   getUserApiKeys,
   getUserUsageStats,
   getUserBalanceHistory,
-  replaceGroup
+  replaceGroup,
+  batchUpdateConcurrency
 }
 
 export default usersAPI

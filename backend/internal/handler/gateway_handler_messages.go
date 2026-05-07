@@ -69,6 +69,11 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Request body is empty")
 		return
 	}
+	submitContentModerationAudit(
+		c.Request.Context(),
+		h.contentModerationService,
+		buildContentModerationRecordInput(c, service.ContentModerationSourceAnthropicMessages, service.PlatformAnthropic, "", body),
+	)
 	setOpsRequestContext(c, "", false, body)
 	parsedReq, err := service.ParseGatewayRequest(body, domain.PlatformAnthropic)
 	if err != nil {

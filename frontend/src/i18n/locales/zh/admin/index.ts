@@ -20,6 +20,7 @@ import promo from './promo'
 import usage from './usage'
 import ops from './ops'
 import settings from './settings'
+import moderation from './moderation'
 import errorPassthrough from './errorPassthrough'
 import requestDetails from './requestDetails'
 import tlsFingerprintProfiles from './tlsFingerprintProfiles'
@@ -48,6 +49,7 @@ export default {
     usage,
     ops,
     settings,
+    moderation,
     errorPassthrough,
     requestDetails,
     tlsFingerprintProfiles,

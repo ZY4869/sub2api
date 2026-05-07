@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"testing"
 	"time"
@@ -225,5 +226,110 @@ func TestOpsCleanupRequestDetailCleanupOnce_WipesOnZeroRetentionDays(t *testing.
 	}
 	if counts.requestTraces != 3 || counts.traceAudits != 4 {
 		t.Fatalf("deleted counts = traces=%d audits=%d, want traces=3 audits=4", counts.requestTraces, counts.traceAudits)
+	}
+}
+
+func TestOpsCleanupReloadSwitchesSchedulesImmediately(t *testing.T) {
+	repo := newRuntimeSettingRepoStub()
+	advanced := defaultOpsAdvancedSettings()
+	advanced.DataRetention.CleanupEnabled = true
+	advanced.DataRetention.CleanupSchedule = "0 1 * * *"
+	advanced.RequestDetailCleanupEnabled = true
+	advanced.RequestDetailCleanupSchedule = "0 5 * * *"
+	raw, err := json.Marshal(advanced)
+	if err != nil {
+		t.Fatalf("marshal advanced settings: %v", err)
+	}
+	repo.values[SettingKeyOpsAdvancedSettings] = string(raw)
+
+	svc := NewOpsCleanupService(&opsRepoMock{}, repo, &sql.DB{}, nil, &config.Config{
+		Ops: config.OpsConfig{
+			Enabled: true,
+			Cleanup: config.OpsCleanupConfig{
+				Enabled:  true,
+				Schedule: "0 2 * * *",
+			},
+			RequestDetails: config.OpsRequestDetailsConfig{
+				RetentionDays: 30,
+			},
+		},
+	})
+	t.Cleanup(svc.Stop)
+
+	svc.Start()
+	if svc.cron == nil {
+		t.Fatalf("expected cron to be initialized after start")
+	}
+	if got := len(svc.cron.Entries()); got != 2 {
+		t.Fatalf("cron entry count after start = %d, want 2", got)
+	}
+
+	advanced.DataRetention.CleanupEnabled = false
+	advanced.DataRetention.CleanupSchedule = "*/15 * * * *"
+	advanced.RequestDetailCleanupEnabled = true
+	advanced.RequestDetailCleanupSchedule = "*/20 * * * *"
+	raw, err = json.Marshal(advanced)
+	if err != nil {
+		t.Fatalf("marshal updated advanced settings: %v", err)
+	}
+	repo.values[SettingKeyOpsAdvancedSettings] = string(raw)
+
+	svc.Reload()
+
+	if svc.cron == nil {
+		t.Fatalf("expected cron to remain initialized after reload")
+	}
+	if got := len(svc.cron.Entries()); got != 1 {
+		t.Fatalf("cron entry count after reload = %d, want 1", got)
+	}
+	if got := svc.cleanupEnabled(context.Background()); got {
+		t.Fatalf("cleanupEnabled() = true, want false after reload")
+	}
+	if got := svc.requestDetailCleanupSchedule(context.Background()); got != "*/20 * * * *" {
+		t.Fatalf("requestDetailCleanupSchedule() = %q, want %q after reload", got, "*/20 * * * *")
+	}
+}
+
+func TestOpsCleanupReloadBackfillsRequestDetailScheduleImmediately(t *testing.T) {
+	repo := newRuntimeSettingRepoStub()
+	legacyCfg := map[string]any{
+		"data_retention": map[string]any{
+			"cleanup_enabled":               true,
+			"cleanup_schedule":              "10 6 * * *",
+			"error_log_retention_days":      30,
+			"minute_metrics_retention_days": 30,
+			"hourly_metrics_retention_days": 30,
+		},
+		"aggregation": map[string]any{
+			"aggregation_enabled": false,
+		},
+	}
+	raw, err := json.Marshal(legacyCfg)
+	if err != nil {
+		t.Fatalf("marshal legacy config: %v", err)
+	}
+	repo.values[SettingKeyOpsAdvancedSettings] = string(raw)
+
+	svc := NewOpsCleanupService(&opsRepoMock{}, repo, &sql.DB{}, nil, &config.Config{
+		Ops: config.OpsConfig{
+			Enabled: true,
+			Cleanup: config.OpsCleanupConfig{
+				Enabled:  true,
+				Schedule: "0 2 * * *",
+			},
+		},
+	})
+	t.Cleanup(svc.Stop)
+
+	svc.Start()
+	if svc.cron == nil {
+		t.Fatalf("expected cron to be initialized after start")
+	}
+	if got := len(svc.cron.Entries()); got != 2 {
+		t.Fatalf("cron entry count after start = %d, want 2", got)
+	}
+
+	if got := svc.requestDetailCleanupSchedule(context.Background()); got != "10 6 * * *" {
+		t.Fatalf("requestDetailCleanupSchedule() = %q, want inherited schedule", got)
 	}
 }

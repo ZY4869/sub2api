@@ -404,7 +404,7 @@ func (s *DocumentAIService) resolvePollingAccount(ctx context.Context, job *Docu
 	}
 	if job.AccountID != nil && *job.AccountID > 0 {
 		account, err := s.accountRepo.GetByID(ctx, *job.AccountID)
-		if err == nil && account != nil && account.IsBaiduDocumentAI() && account.GetBaiduDocumentAIAsyncBearerToken() != "" {
+		if err == nil && account != nil && account.IsBaiduDocumentAI() && account.IsBaiduDocumentAIAsyncMode() {
 			return account, nil
 		}
 	}
@@ -501,7 +501,7 @@ func documentAIAccountNeedDirect(model string) documentAIAccountCapability {
 }
 
 func documentAIAccountNeedAsync(account *Account) bool {
-	return account != nil && account.IsBaiduDocumentAI() && account.GetBaiduDocumentAIAsyncBearerToken() != ""
+	return account != nil && account.IsBaiduDocumentAI() && account.IsBaiduDocumentAIAsyncMode()
 }
 
 func (s *DocumentAIService) selectAccountForGroup(ctx context.Context, groupID int64, capability documentAIAccountCapability) (*Account, error) {

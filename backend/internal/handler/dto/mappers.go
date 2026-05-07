@@ -89,6 +89,46 @@ func UserFromServiceAdmin(u *service.User) *AdminUser {
 	}
 }
 
+func AuthIdentityFromService(identity *service.AuthIdentity) *AuthIdentity {
+	if identity == nil {
+		return nil
+	}
+	return &AuthIdentity{
+		ID:             identity.ID,
+		Provider:       identity.Provider,
+		ProviderUserID: identity.ProviderUserID,
+		Email:          identity.Email,
+		EmailVerified:  identity.EmailVerified,
+		DisplayName:    identity.DisplayName,
+		AvatarURL:      identity.AvatarURL,
+		CreatedAt:      identity.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      identity.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func ContentModerationAuditFromService(audit *service.ContentModerationAudit) *ContentModerationAudit {
+	if audit == nil {
+		return nil
+	}
+	return &ContentModerationAudit{
+		ID:              audit.ID,
+		RequestID:       audit.RequestID,
+		ClientRequestID: audit.ClientRequestID,
+		UserID:          audit.UserID,
+		APIKeyID:        audit.APIKeyID,
+		Provider:        audit.Provider,
+		Model:           audit.Model,
+		SourceEndpoint:  audit.SourceEndpoint,
+		ContentHash:     audit.ContentHash,
+		ContentSummary:  audit.ContentSummary,
+		Hit:             audit.Hit,
+		DedupeHit:       audit.DedupeHit,
+		ErrorReason:     audit.ErrorReason,
+		LatencyMs:       audit.LatencyMs,
+		CreatedAt:       audit.CreatedAt.Format(time.RFC3339),
+	}
+}
+
 func APIKeyFromService(k *service.APIKey) *APIKey {
 	if k == nil {
 		return nil

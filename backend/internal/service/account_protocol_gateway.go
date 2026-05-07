@@ -100,7 +100,7 @@ var protocolGatewayDescriptors = map[string]ProtocolGatewayDescriptor{
 	},
 	GatewayProtocolMixed: {
 		ID:                  GatewayProtocolMixed,
-		DisplayName:         "Mixed",
+		DisplayName:         "混合",
 		RequestFormats:      ProtocolGatewayRequestFormats(GatewayProtocolMixed),
 		DefaultBaseURL:      "",
 		APIKeyPlaceholder:   "gateway-key-...",

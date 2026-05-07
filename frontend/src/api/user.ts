@@ -4,7 +4,7 @@
  */
 
 import { apiClient } from './client'
-import type { User, ChangePasswordRequest, UsageModelDisplayMode } from '@/types'
+import type { User, ChangePasswordRequest, UsageModelDisplayMode, AuthIdentity, SocialOAuthProvider } from '@/types'
 
 /**
  * Get current user profile
@@ -46,10 +46,22 @@ export async function changePassword(
   return data
 }
 
+export async function getAuthIdentities(): Promise<AuthIdentity[]> {
+  const { data } = await apiClient.get<AuthIdentity[]>('/user/auth-identities')
+  return data
+}
+
+export async function deleteAuthIdentity(provider: SocialOAuthProvider): Promise<{ message: string }> {
+  const { data } = await apiClient.delete<{ message: string }>(`/user/auth-identities/${provider}`)
+  return data
+}
+
 export const userAPI = {
   getProfile,
   updateProfile,
-  changePassword
+  changePassword,
+  getAuthIdentities,
+  deleteAuthIdentity
 }
 
 export default userAPI

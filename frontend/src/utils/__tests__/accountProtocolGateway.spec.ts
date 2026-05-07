@@ -6,6 +6,7 @@ import {
   applyProtocolGatewayOpenAIImageProtocolModeExtra,
   DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE,
   resolveGatewayOpenAIImageProtocolMode,
+  resolveGatewayProtocolLabel,
   resolveGatewayProtocolDescriptor,
   resolveProtocolGatewayBatchRequestFormats
 } from '../accountProtocolGateway'
@@ -32,6 +33,11 @@ describe('accountProtocolGateway', () => {
     expect(resolveGatewayProtocolDescriptor('gemini')?.requestFormats).toEqual(
       generatedProtocolGatewayDescriptors.gemini.requestFormats
     )
+  })
+
+  it('exposes the localized mixed protocol label from the generated snapshot', () => {
+    expect(resolveGatewayProtocolDescriptor('mixed')?.displayName).toBe('混合')
+    expect(resolveGatewayProtocolLabel('mixed')).toBe('混合')
   })
 
   it('derives protocol gateway gemini batch request formats from gemini request formats', () => {

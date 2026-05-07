@@ -90,6 +90,22 @@ export interface SystemSettings {
   linuxdo_connect_client_id: string
   linuxdo_connect_client_secret_configured: boolean
   linuxdo_connect_redirect_url: string
+  github_oauth_enabled: boolean
+  github_oauth_client_id: string
+  github_oauth_client_secret_configured: boolean
+  github_oauth_redirect_url: string
+  google_oauth_enabled: boolean
+  google_oauth_client_id: string
+  google_oauth_client_secret_configured: boolean
+  google_oauth_redirect_url: string
+  content_moderation_enabled: boolean
+  content_moderation_provider: string
+  content_moderation_base_url: string
+  content_moderation_api_key_configured: boolean
+  content_moderation_model: string
+  content_moderation_timeout_ms: number
+  content_moderation_dedupe_window_seconds: number
+  content_moderation_fail_open: boolean
 
   // Model fallback configuration
   enable_model_fallback: boolean
@@ -174,6 +190,22 @@ export interface UpdateSettingsRequest {
   linuxdo_connect_client_id?: string
   linuxdo_connect_client_secret?: string
   linuxdo_connect_redirect_url?: string
+  github_oauth_enabled?: boolean
+  github_oauth_client_id?: string
+  github_oauth_client_secret?: string
+  github_oauth_redirect_url?: string
+  google_oauth_enabled?: boolean
+  google_oauth_client_id?: string
+  google_oauth_client_secret?: string
+  google_oauth_redirect_url?: string
+  content_moderation_enabled?: boolean
+  content_moderation_provider?: string
+  content_moderation_base_url?: string
+  content_moderation_api_key?: string
+  content_moderation_model?: string
+  content_moderation_timeout_ms?: number
+  content_moderation_dedupe_window_seconds?: number
+  content_moderation_fail_open?: boolean
   enable_model_fallback?: boolean
   fallback_model_anthropic?: string
   fallback_model_openai?: string

@@ -10,15 +10,16 @@ import (
 
 // OpenAIGatewayHandler handles OpenAI API gateway requests.
 type OpenAIGatewayHandler struct {
-	gatewayService          *service.OpenAIGatewayService
-	billingCacheService     *service.BillingCacheService
-	apiKeyService           *service.APIKeyService
-	usageRecordWorkerPool   *service.UsageRecordWorkerPool
-	errorPassthroughService *service.ErrorPassthroughService
-	concurrencyHelper       *ConcurrencyHelper
-	maxAccountSwitches      int
-	cfg                     *config.Config
-	settingService          *service.SettingService
+	gatewayService           *service.OpenAIGatewayService
+	billingCacheService      *service.BillingCacheService
+	apiKeyService            *service.APIKeyService
+	usageRecordWorkerPool    *service.UsageRecordWorkerPool
+	errorPassthroughService  *service.ErrorPassthroughService
+	concurrencyHelper        *ConcurrencyHelper
+	maxAccountSwitches       int
+	cfg                      *config.Config
+	settingService           *service.SettingService
+	contentModerationService *service.ContentModerationService
 }
 
 // NewOpenAIGatewayHandler creates a new OpenAIGatewayHandler.
@@ -53,6 +54,10 @@ func NewOpenAIGatewayHandler(
 
 func (h *OpenAIGatewayHandler) SetSettingService(settingService *service.SettingService) {
 	h.settingService = settingService
+}
+
+func (h *OpenAIGatewayHandler) SetContentModerationService(contentModerationService *service.ContentModerationService) {
+	h.contentModerationService = contentModerationService
 }
 
 func normalizeOpenAIGroupPlatform(platform string) string {

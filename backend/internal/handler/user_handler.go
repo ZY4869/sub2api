@@ -13,6 +13,7 @@ import (
 type UserHandler struct {
 	userService *service.UserService
 	affiliate   *service.AffiliateService
+	identities  *service.AuthIdentityService
 }
 
 // NewUserHandler creates a new UserHandler
@@ -21,6 +22,17 @@ func NewUserHandler(userService *service.UserService, affiliateService *service.
 		userService: userService,
 		affiliate:   affiliateService,
 	}
+}
+
+func (h *UserHandler) GetUserService() *service.UserService {
+	if h == nil {
+		return nil
+	}
+	return h.userService
+}
+
+func (h *UserHandler) SetAuthIdentityService(identityService *service.AuthIdentityService) {
+	h.identities = identityService
 }
 
 // ChangePasswordRequest represents the change password request payload
@@ -107,4 +119,45 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	response.Success(c, dto.UserFromService(updatedUser))
+}
+
+func (h *UserHandler) ListAuthIdentities(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.identities == nil {
+		response.Success(c, []dto.AuthIdentity{})
+		return
+	}
+	items, err := h.identities.ListByUserID(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	result := make([]dto.AuthIdentity, 0, len(items))
+	for _, item := range items {
+		if mapped := dto.AuthIdentityFromService(item); mapped != nil {
+			result = append(result, *mapped)
+		}
+	}
+	response.Success(c, result)
+}
+
+func (h *UserHandler) DeleteAuthIdentity(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.identities == nil {
+		response.ErrorFrom(c, service.ErrAuthIdentityNotFound)
+		return
+	}
+	if err := h.identities.DeleteByUserIDAndProvider(c.Request.Context(), subject.UserID, c.Param("provider")); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"message": "Auth identity removed"})
 }

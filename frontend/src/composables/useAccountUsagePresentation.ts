@@ -1271,7 +1271,7 @@ export function useAccountUsagePresentation(
     const protocolLabel =
       resolveGatewayProtocolLabel(
         resolveAccountGatewayProtocol(account.value),
-      ) || "Mixed";
+      ) || "混合";
     return t("admin.accounts.protocolGateway.usageWindow.badge", {
       protocol: protocolLabel,
     });

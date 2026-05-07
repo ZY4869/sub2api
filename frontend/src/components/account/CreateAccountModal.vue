@@ -125,9 +125,8 @@
 
         <AccountBaiduDocumentAICredentialsEditor
           v-if="isBaiduDocumentAISelected"
-          v-model:async-bearer-token="baiduDocumentAIAsyncBearerToken"
+          v-model:access-token="baiduDocumentAIAccessToken"
           v-model:async-base-url="baiduDocumentAIAsyncBaseUrl"
-          v-model:direct-token="baiduDocumentAIDirectToken"
           v-model:direct-api-urls-text="baiduDocumentAIDirectApiUrlsText"
           mode="create"
         />
@@ -873,9 +872,8 @@ const geminiVertexApiKey = ref('')
 const geminiVertexAccessToken = ref('')
 const geminiVertexExpiresAtInput = ref('')
 const geminiVertexBaseUrl = ref('')
-const baiduDocumentAIAsyncBearerToken = ref('')
+const baiduDocumentAIAccessToken = ref('')
 const baiduDocumentAIAsyncBaseUrl = ref(BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL)
-const baiduDocumentAIDirectToken = ref('')
 const baiduDocumentAIDirectApiUrlsText = ref('')
 const oauthDraftCredentials = ref<Record<string, unknown>>({})
 const oauthDraftExtra = ref<Record<string, unknown>>({})
@@ -1419,9 +1417,8 @@ watch(
         }
       })
     } else if (isBaiduDocumentAIPlatform(previousPlatform)) {
-      baiduDocumentAIAsyncBearerToken.value = ''
+      baiduDocumentAIAccessToken.value = ''
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
-      baiduDocumentAIDirectToken.value = ''
       baiduDocumentAIDirectApiUrlsText.value = ''
     }
     if (newPlatform === 'protocol_gateway') {
@@ -1818,9 +1815,8 @@ const { resetForm } = useCreateAccountReset({
   geminiVertexAccessToken,
   geminiVertexExpiresAtInput,
   geminiVertexBaseUrl,
-  baiduDocumentAIAsyncBearerToken,
+  baiduDocumentAIAccessToken,
   baiduDocumentAIAsyncBaseUrl,
-  baiduDocumentAIDirectToken,
   baiduDocumentAIDirectApiUrlsText,
   resetTempUnschedRules,
   geminiOAuthType,
@@ -1934,9 +1930,8 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
 }
 
 function buildBaiduDocumentAICredentialsForCreate(): Record<string, unknown> | null {
-  const asyncBearerToken = baiduDocumentAIAsyncBearerToken.value.trim()
-  const directToken = baiduDocumentAIDirectToken.value.trim()
-  if (!asyncBearerToken && !directToken) {
+  const accessToken = baiduDocumentAIAccessToken.value.trim()
+  if (!accessToken) {
     appStore.showError(t('admin.accounts.baiduDocumentAI.tokenRequired'))
     return null
   }
@@ -1956,12 +1951,8 @@ function buildBaiduDocumentAICredentialsForCreate(): Record<string, unknown> | n
       baiduDocumentAIAsyncBaseUrl.value.trim() ||
       BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
   }
-  if (asyncBearerToken) {
-    credentials.async_bearer_token = asyncBearerToken
-  }
-  if (directToken) {
-    credentials.direct_token = directToken
-  }
+  credentials.async_bearer_token = accessToken
+  credentials.direct_token = accessToken
   if (Object.keys(directAPIURLs).length > 0) {
     credentials.direct_api_urls = directAPIURLs
   }

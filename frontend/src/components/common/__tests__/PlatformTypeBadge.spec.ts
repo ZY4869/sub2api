@@ -11,6 +11,7 @@ vi.mock('vue-i18n', async () => {
       locale: ref('zh'),
       t: (key: string) => ({
         'admin.accounts.platforms.openai': 'OpenAI',
+        'admin.accounts.platforms.protocol_gateway': '协议网关',
         'ui.platformType.oauth': 'OAuth',
         'ui.platformType.token': '令牌',
         'ui.platformType.key': '密钥',
@@ -103,5 +104,25 @@ describe('PlatformTypeBadge', () => {
 
     expect(explicitWrapper.text()).toContain('Pro 20x')
     expect(multiplierWrapper.text()).toContain('Pro 5x')
+  })
+
+  it('renders protocol gateway mixed badge with localized label', () => {
+    const wrapper = mount(PlatformTypeBadge, {
+      props: {
+        platform: 'protocol_gateway',
+        gatewayProtocol: 'mixed',
+        type: 'apikey'
+      } as any,
+      global: {
+        stubs: {
+          PlatformIcon: PlatformIconStub,
+          Icon: IconStub
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('协议网关')
+    expect(wrapper.text()).toContain('混合')
+    expect(wrapper.text()).toContain('密钥')
   })
 })

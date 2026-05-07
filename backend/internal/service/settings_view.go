@@ -1,5 +1,7 @@
 package service
 
+import "time"
+
 type SystemSettings struct {
 	RegistrationEnabled              bool
 	EmailVerifyEnabled               bool
@@ -34,6 +36,25 @@ type SystemSettings struct {
 	LinuxDoConnectClientSecret           string
 	LinuxDoConnectClientSecretConfigured bool
 	LinuxDoConnectRedirectURL            string
+	GitHubOAuthEnabled                   bool
+	GitHubOAuthClientID                  string
+	GitHubOAuthClientSecret              string
+	GitHubOAuthClientSecretConfigured    bool
+	GitHubOAuthRedirectURL               string
+	GoogleOAuthEnabled                   bool
+	GoogleOAuthClientID                  string
+	GoogleOAuthClientSecret              string
+	GoogleOAuthClientSecretConfigured    bool
+	GoogleOAuthRedirectURL               string
+	ContentModerationEnabled             bool
+	ContentModerationProvider            string
+	ContentModerationBaseURL             string
+	ContentModerationAPIKey              string
+	ContentModerationAPIKeyConfigured    bool
+	ContentModerationModel               string
+	ContentModerationTimeoutMs           int
+	ContentModerationDedupeWindowSeconds int
+	ContentModerationFailOpen            bool
 
 	SiteName                             string
 	SiteLogo                             string
@@ -132,9 +153,29 @@ type PublicSettings struct {
 	CustomMenuItems             string // JSON array of custom menu items
 
 	LinuxDoOAuthEnabled    bool
+	GitHubOAuthEnabled     bool
+	GoogleOAuthEnabled     bool
 	BackendModeEnabled     bool
 	MaintenanceModeEnabled bool
 	Version                string
+}
+
+type ContentModerationAuditListItem struct {
+	ID               int64     `json:"id"`
+	RequestID        string    `json:"request_id"`
+	ClientRequestID  string    `json:"client_request_id"`
+	UserID           *int64    `json:"user_id,omitempty"`
+	APIKeyID         *int64    `json:"api_key_id,omitempty"`
+	Provider         string    `json:"provider"`
+	Model            string    `json:"model"`
+	SourceEndpoint   string    `json:"source_endpoint"`
+	ContentHash      string    `json:"content_hash"`
+	ContentSummary   string    `json:"content_summary"`
+	Hit              bool      `json:"hit"`
+	DedupeHit        bool      `json:"dedupe_hit"`
+	ErrorReason      string    `json:"error_reason"`
+	LatencyMs        int       `json:"latency_ms"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 type GoogleBatchGCSProfile struct {

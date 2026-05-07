@@ -62,6 +62,7 @@ type JWTClaims struct {
 type AuthService struct {
 	entClient          *dbent.Client
 	userRepo           UserRepository
+	authIdentityRepo   AuthIdentityRepository
 	redeemRepo         RedeemCodeRepository
 	refreshTokenCache  RefreshTokenCache
 	cfg                *config.Config
@@ -107,6 +108,10 @@ func NewAuthService(
 		affiliateService:   affiliateService,
 		defaultSubAssigner: defaultSubAssigner,
 	}
+}
+
+func (s *AuthService) SetAuthIdentityRepository(repo AuthIdentityRepository) {
+	s.authIdentityRepo = repo
 }
 
 // Register 用户注册，返回token和用户
@@ -718,31 +723,45 @@ const pendingOAuthTokenTTL = 10 * time.Minute
 const pendingOAuthPurpose = "pending_oauth_registration"
 
 type pendingOAuthClaims struct {
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	AffCode  string `json:"aff_code,omitempty"`
-	Purpose  string `json:"purpose"`
+	Email          string `json:"email"`
+	Username       string `json:"username"`
+	AffCode        string `json:"aff_code,omitempty"`
+	Provider       string `json:"provider,omitempty"`
+	ProviderUserID string `json:"provider_user_id,omitempty"`
+	EmailVerified  bool   `json:"email_verified,omitempty"`
+	DisplayName    string `json:"display_name,omitempty"`
+	AvatarURL      string `json:"avatar_url,omitempty"`
+	BindUserID     int64  `json:"bind_user_id,omitempty"`
+	Purpose        string `json:"purpose"`
 	jwt.RegisteredClaims
 }
 
 // CreatePendingOAuthToken generates a short-lived JWT that carries the OAuth identity
 // while waiting for the user to supply an invitation code.
 func (s *AuthService) CreatePendingOAuthToken(email, username, affCode string) (string, error) {
-	now := time.Now()
-	affCode = strings.TrimSpace(affCode)
-	if len([]rune(affCode)) > 64 {
-		affCode = string([]rune(affCode)[:64])
-	}
-	claims := &pendingOAuthClaims{
+	return s.CreatePendingOAuthTokenWithIdentity(&pendingOAuthClaims{
 		Email:    email,
 		Username: username,
 		AffCode:  affCode,
-		Purpose:  pendingOAuthPurpose,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(pendingOAuthTokenTTL)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-		},
+	})
+}
+
+func (s *AuthService) CreatePendingOAuthTokenWithIdentity(claims *pendingOAuthClaims) (string, error) {
+	now := time.Now()
+	if claims == nil {
+		claims = &pendingOAuthClaims{}
+	}
+	affCode := strings.TrimSpace(claims.AffCode)
+	if len([]rune(affCode)) > 64 {
+		affCode = string([]rune(affCode)[:64])
+	}
+	claims.AffCode = affCode
+	claims.Provider = NormalizeOAuthProvider(claims.Provider)
+	claims.Purpose = pendingOAuthPurpose
+	claims.RegisteredClaims = jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(now.Add(pendingOAuthTokenTTL)),
+		IssuedAt:  jwt.NewNumericDate(now),
+		NotBefore: jwt.NewNumericDate(now),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(s.cfg.JWT.Secret))
@@ -751,8 +770,16 @@ func (s *AuthService) CreatePendingOAuthToken(email, username, affCode string) (
 // VerifyPendingOAuthToken validates a pending OAuth token and returns the embedded identity.
 // Returns ErrInvalidToken when the token is invalid or expired.
 func (s *AuthService) VerifyPendingOAuthToken(tokenStr string) (email, username, affCode string, err error) {
+	claims, err := s.VerifyPendingOAuthClaims(tokenStr)
+	if err != nil {
+		return "", "", "", err
+	}
+	return claims.Email, claims.Username, claims.AffCode, nil
+}
+
+func (s *AuthService) VerifyPendingOAuthClaims(tokenStr string) (*pendingOAuthClaims, error) {
 	if len(tokenStr) > maxTokenLength {
-		return "", "", "", ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
 	parser := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
 	token, parseErr := parser.ParseWithClaims(tokenStr, &pendingOAuthClaims{}, func(t *jwt.Token) (any, error) {
@@ -762,16 +789,16 @@ func (s *AuthService) VerifyPendingOAuthToken(tokenStr string) (email, username,
 		return []byte(s.cfg.JWT.Secret), nil
 	})
 	if parseErr != nil {
-		return "", "", "", ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
 	claims, ok := token.Claims.(*pendingOAuthClaims)
 	if !ok || !token.Valid {
-		return "", "", "", ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
 	if claims.Purpose != pendingOAuthPurpose {
-		return "", "", "", ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
-	return claims.Email, claims.Username, claims.AffCode, nil
+	return claims, nil
 }
 
 func (s *AuthService) assignDefaultSubscriptions(ctx context.Context, userID int64) {

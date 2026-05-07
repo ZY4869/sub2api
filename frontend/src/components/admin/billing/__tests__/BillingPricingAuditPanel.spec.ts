@@ -56,48 +56,30 @@ function mountPanel(audit: BillingPricingAudit | null) {
       loading: false,
       snapshotUpdatedAtLabel: '2026-04-16 08:00',
     },
-    global: {
-      stubs: {
-        ModelIcon: {
-          template: '<span data-testid="model-icon-stub" />',
-        },
-        ModelPlatformIcon: {
-          template: '<span data-testid="provider-icon-stub" />',
-        },
-      },
-    },
   })
 }
 
 describe('BillingPricingAuditPanel', () => {
-  it('renders red and amber issue states with provider rankings', () => {
+  it('renders overview cards without the issue ranking sections', () => {
     const wrapper = mountPanel(createAudit())
 
-    const issueCards = wrapper.findAll('[data-testid="billing-audit-issue-card"]')
-    expect(issueCards).toHaveLength(2)
-    expect(issueCards[0].classes()).toContain('border-rose-200')
-    expect(issueCards[1].classes()).toContain('border-amber-200')
-
-    const statusBadges = wrapper.findAll('[data-testid="billing-audit-issue-status"]')
-    expect(statusBadges[0].classes()).toContain('bg-rose-100')
-    expect(statusBadges[1].classes()).toContain('bg-amber-100')
-
-    const providerCards = wrapper.findAll('[data-testid="billing-audit-provider-card"]')
-    expect(providerCards).toHaveLength(2)
-    expect(wrapper.text()).toContain('供应商问题榜')
-    expect(wrapper.text()).toContain('OpenAI')
-    expect(wrapper.text()).toContain('GPT-5.4 Mini')
-    expect(wrapper.findAll('[data-testid="model-icon-stub"]')).toHaveLength(2)
-    expect(wrapper.findAll('[data-testid="provider-icon-stub"]')).toHaveLength(2)
+    expect(wrapper.text()).toContain('计费审计')
+    expect(wrapper.text()).toContain('状态分布')
+    expect(wrapper.text()).toContain('冲突来源')
+    expect(wrapper.text()).toContain('快照健康度')
+    expect(wrapper.text()).not.toContain('供应商问题榜')
+    expect(wrapper.text()).not.toContain('重点问题模型')
   })
 
-  it('renders empty states when no issue examples or provider issues exist', () => {
+  it('renders snapshot and collision counts', () => {
     const wrapper = mountPanel(createAudit({
-      provider_issue_counts: [],
-      pricing_issue_examples: [],
+      duplicate_model_ids: ['gpt-5.4'],
+      snapshot_only_count: 3,
     }))
 
-    expect(wrapper.text()).toContain('当前没有需要优先处理的模型问题。')
-    expect(wrapper.text()).toContain('当前没有供应商级计费异常。')
+    expect(wrapper.text()).toContain('主 ID 重复')
+    expect(wrapper.text()).toContain('快照缺口')
+    expect(wrapper.text()).toContain('仅快照模型')
+    expect(wrapper.text()).toContain('3')
   })
 })

@@ -93,7 +93,7 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
   },
   "mixed": {
     "id": "mixed",
-    "displayName": "Mixed",
+    "displayName": "混合",
     "requestFormats": [
       "/v1/chat/completions",
       "/v1/completions",

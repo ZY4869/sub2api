@@ -89,6 +89,22 @@ export default {
       completing: '正在完成注册...',
       completeRegistrationFailed: '注册失败，请检查邀请码后重试。'
     },
+    social: {
+      continueWithLinuxDo: '使用 Linux.do 登录',
+      continueWithGitHub: '使用 GitHub 登录',
+      continueWithGoogle: '使用 Google 登录',
+      orContinue: '或使用邮箱密码继续',
+      callbackTitle: '正在完成登录',
+      callbackProcessing: '正在验证社交登录信息，请稍候...',
+      callbackHint: '如果页面未自动跳转，请返回登录页重试。',
+      callbackMissingToken: '登录信息缺失，请返回重试。',
+      invitationRequired: '该第三方账号尚未完成注册，站点已开启邀请码注册，请输入邀请码以完成注册。',
+      invalidPendingToken: '注册凭证已失效，请重新发起登录。',
+      completeRegistration: '完成注册',
+      completing: '正在完成注册...',
+      completeRegistrationFailed: '注册失败，请检查邀请码后重试。',
+      bindSuccess: '第三方身份绑定成功'
+    },
     oauth: {
       code: '授权码',
       state: '状态',

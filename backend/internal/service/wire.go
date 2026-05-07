@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/google/wire"
@@ -359,8 +360,16 @@ func ProvideOpsCleanupService(
 	db *sql.DB,
 	redisClient *redis.Client,
 	cfg *config.Config,
+	settingService *SettingService,
+	opsService *OpsService,
 ) *OpsCleanupService {
 	svc := NewOpsCleanupService(opsRepo, settingRepo, db, redisClient, cfg)
+	if settingService != nil {
+		settingService.SetOnUpdateCallback(svc.Reload)
+	}
+	if opsService != nil {
+		opsService.AddOnAdvancedSettingsUpdatedCallback(svc.Reload)
+	}
 	svc.Start()
 	return svc
 }
@@ -711,10 +720,32 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	return svc
 }
 
+func ProvideAuthService(
+	entClient *dbent.Client,
+	userRepo UserRepository,
+	authIdentityRepo AuthIdentityRepository,
+	redeemRepo RedeemCodeRepository,
+	refreshTokenCache RefreshTokenCache,
+	cfg *config.Config,
+	settingService *SettingService,
+	emailService *EmailService,
+	turnstileService *TurnstileService,
+	emailQueueService *EmailQueueService,
+	promoService *PromoService,
+	affiliateService *AffiliateService,
+	defaultSubAssigner DefaultSubscriptionAssigner,
+) *AuthService {
+	authService := NewAuthService(entClient, userRepo, redeemRepo, refreshTokenCache, cfg, settingService, emailService, turnstileService, emailQueueService, promoService, affiliateService, defaultSubAssigner)
+	authService.SetAuthIdentityRepository(authIdentityRepo)
+	return authService
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
-	NewAuthService,
+	ProvideAuthService,
+	NewAuthIdentityService,
+	NewContentModerationService,
 	NewUserService,
 	ProvideAPIKeyService,
 	wire.Bind(new(modelDebugAPIKeyReader), new(*APIKeyService)),

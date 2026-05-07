@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
+	"go.uber.org/zap"
 )
 
 const (
@@ -47,10 +48,10 @@ type OpsCleanupService struct {
 
 	instanceID string
 
-	cron *cron.Cron
-
-	startOnce sync.Once
-	stopOnce  sync.Once
+	mu      sync.Mutex
+	cron    *cron.Cron
+	started bool
+	stopped bool
 
 	warnNoRedisOnce sync.Once
 }
@@ -76,7 +77,64 @@ func (s *OpsCleanupService) Start() {
 	if s == nil {
 		return
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stopped || s.started {
+		return
+	}
+	s.started = true
+	s.rebuildCronLocked("start", opsCleanupRuntimeState{})
+}
+
+func (s *OpsCleanupService) Stop() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	cronToStop := s.cron
+	s.cron = nil
+	s.stopped = true
+	s.mu.Unlock()
+	s.stopCron(cronToStop)
+}
+
+func (s *OpsCleanupService) Reload() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stopped {
+		return
+	}
+	before := s.runtimeStateLocked(context.Background())
+	s.rebuildCronLocked("reload", before)
+}
+
+type opsCleanupRuntimeState struct {
+	cleanupEnabled               bool
+	cleanupSchedule              string
+	requestDetailCleanupEnabled  bool
+	requestDetailCleanupSchedule string
+}
+
+func (s *OpsCleanupService) runtimeStateLocked(ctx context.Context) opsCleanupRuntimeState {
+	return opsCleanupRuntimeState{
+		cleanupEnabled:               s.cleanupEnabled(ctx),
+		cleanupSchedule:              s.cleanupSchedule(ctx),
+		requestDetailCleanupEnabled:  s.requestDetailCleanupEnabled(ctx),
+		requestDetailCleanupSchedule: s.requestDetailCleanupSchedule(ctx),
+	}
+}
+
+func (s *OpsCleanupService) rebuildCronLocked(reason string, before opsCleanupRuntimeState) {
+	if s == nil {
+		return
+	}
 	if s.cfg != nil && !s.cfg.Ops.Enabled {
+		s.stopCron(s.cron)
+		s.cron = nil
+		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] not started (ops disabled)")
 		return
 	}
 	if s.opsRepo == nil || s.db == nil {
@@ -84,61 +142,84 @@ func (s *OpsCleanupService) Start() {
 		return
 	}
 
-	s.startOnce.Do(func() {
-		loc := time.Local
-		if s.cfg != nil && strings.TrimSpace(s.cfg.Timezone) != "" {
-			if parsed, err := time.LoadLocation(strings.TrimSpace(s.cfg.Timezone)); err == nil && parsed != nil {
-				loc = parsed
-			}
+	loc := time.Local
+	if s.cfg != nil && strings.TrimSpace(s.cfg.Timezone) != "" {
+		if parsed, err := time.LoadLocation(strings.TrimSpace(s.cfg.Timezone)); err == nil && parsed != nil {
+			loc = parsed
 		}
+	}
 
-		c := cron.New(cron.WithParser(opsCleanupCronParser), cron.WithLocation(loc))
-		jobs := make([]string, 0, 2)
+	ctx := context.Background()
+	after := s.runtimeStateLocked(ctx)
+	c := cron.New(cron.WithParser(opsCleanupCronParser), cron.WithLocation(loc))
+	jobs := make([]string, 0, 2)
 
-		if s.cleanupEnabled(context.Background()) {
-			schedule := s.cleanupSchedule(context.Background())
-			if _, err := c.AddFunc(schedule, func() { s.runScheduledJob(opsCleanupJobName, opsCleanupLeaderLockKeyDefault, s.runCleanupOnce) }); err != nil {
-				logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] general cleanup not started (invalid schedule=%q): %v", schedule, err)
-			} else {
-				jobs = append(jobs, fmt.Sprintf("%s=%s", opsCleanupJobName, schedule))
-			}
+	if after.cleanupEnabled {
+		if _, err := c.AddFunc(after.cleanupSchedule, func() {
+			s.runScheduledJob(opsCleanupJobName, opsCleanupLeaderLockKeyDefault, s.runCleanupOnce)
+		}); err != nil {
+			logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] general cleanup not started (invalid schedule=%q): %v", after.cleanupSchedule, err)
+		} else {
+			jobs = append(jobs, fmt.Sprintf("%s=%s", opsCleanupJobName, after.cleanupSchedule))
 		}
+	}
 
-		if s.requestDetailCleanupEnabled(context.Background()) {
-			schedule := s.requestDetailCleanupSchedule(context.Background())
-			if _, err := c.AddFunc(schedule, func() {
-				s.runScheduledJob(opsRequestDetailCleanupJobName, opsRequestDetailCleanupLeaderLockKeyDefault, s.runRequestDetailCleanupOnce)
-			}); err != nil {
-				logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] request detail cleanup not started (invalid schedule=%q): %v", schedule, err)
-			} else {
-				jobs = append(jobs, fmt.Sprintf("%s=%s", opsRequestDetailCleanupJobName, schedule))
-			}
+	if after.requestDetailCleanupEnabled {
+		if _, err := c.AddFunc(after.requestDetailCleanupSchedule, func() {
+			s.runScheduledJob(opsRequestDetailCleanupJobName, opsRequestDetailCleanupLeaderLockKeyDefault, s.runRequestDetailCleanupOnce)
+		}); err != nil {
+			logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] request detail cleanup not started (invalid schedule=%q): %v", after.requestDetailCleanupSchedule, err)
+		} else {
+			jobs = append(jobs, fmt.Sprintf("%s=%s", opsRequestDetailCleanupJobName, after.requestDetailCleanupSchedule))
 		}
+	}
 
-		if len(jobs) == 0 {
-			logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] not started (disabled)")
-			return
-		}
-		s.cron = c
-		s.cron.Start()
-		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] started (jobs=%q tz=%s)", strings.Join(jobs, ", "), loc.String())
-	})
-}
-
-func (s *OpsCleanupService) Stop() {
-	if s == nil {
+	oldCron := s.cron
+	if len(jobs) == 0 {
+		s.cron = nil
+		s.stopCron(oldCron)
+		s.logRuntimeTransition(reason, before, after, jobs, loc)
+		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] not started (disabled)")
 		return
 	}
-	s.stopOnce.Do(func() {
-		if s.cron != nil {
-			ctx := s.cron.Stop()
-			select {
-			case <-ctx.Done():
-			case <-time.After(3 * time.Second):
-				logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] cron stop timed out")
-			}
-		}
-	})
+
+	c.Start()
+	s.cron = c
+	s.stopCron(oldCron)
+	s.logRuntimeTransition(reason, before, after, jobs, loc)
+	logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] started (jobs=%q tz=%s)", strings.Join(jobs, ", "), loc.String())
+}
+
+func (s *OpsCleanupService) stopCron(cronToStop *cron.Cron) {
+	if cronToStop == nil {
+		return
+	}
+	ctx := cronToStop.Stop()
+	select {
+	case <-ctx.Done():
+	case <-time.After(3 * time.Second):
+		logger.LegacyPrintf("service.ops_cleanup", "[OpsCleanup] cron stop timed out")
+	}
+}
+
+func (s *OpsCleanupService) logRuntimeTransition(reason string, before, after opsCleanupRuntimeState, jobs []string, loc *time.Location) {
+	if loc == nil {
+		loc = time.Local
+	}
+	logger.L().With(
+		zap.String("component", "service.ops_cleanup"),
+		zap.String("reason", strings.TrimSpace(reason)),
+		zap.Bool("cleanup_enabled_before", before.cleanupEnabled),
+		zap.String("cleanup_schedule_before", before.cleanupSchedule),
+		zap.Bool("request_detail_cleanup_enabled_before", before.requestDetailCleanupEnabled),
+		zap.String("request_detail_cleanup_schedule_before", before.requestDetailCleanupSchedule),
+		zap.Bool("cleanup_enabled_after", after.cleanupEnabled),
+		zap.String("cleanup_schedule_after", after.cleanupSchedule),
+		zap.Bool("request_detail_cleanup_enabled_after", after.requestDetailCleanupEnabled),
+		zap.String("request_detail_cleanup_schedule_after", after.requestDetailCleanupSchedule),
+		zap.Strings("jobs", jobs),
+		zap.String("timezone", loc.String()),
+	).Info("ops cleanup runtime reloaded")
 }
 
 func (s *OpsCleanupService) runScheduledJob(jobName string, lockKey string, run func(ctx context.Context) (opsCleanupDeletedCounts, error)) {

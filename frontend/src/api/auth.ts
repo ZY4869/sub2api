@@ -13,7 +13,9 @@ import type {
   SendVerifyCodeResponse,
   PublicSettings,
   TotpLoginResponse,
-  TotpLogin2FARequest
+  TotpLogin2FARequest,
+  SocialOAuthCompleteResponse,
+  SocialOAuthProvider
 } from '@/types'
 
 /**
@@ -357,6 +359,50 @@ export async function completeLinuxDoOAuthRegistration(
   return data
 }
 
+export function buildSocialOAuthStartURL(
+  provider: SocialOAuthProvider,
+  options?: {
+    redirect?: string
+    mode?: 'login' | 'bind'
+    affCode?: string
+  }
+): string {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api/v1'
+  const normalized = apiBase.replace(/\/$/, '')
+  const params = new URLSearchParams()
+  if (options?.redirect) {
+    params.set('redirect', options.redirect)
+  }
+  if (options?.mode) {
+    params.set('mode', options.mode)
+  }
+  if (options?.affCode) {
+    params.set('aff_code', options.affCode)
+  }
+  const suffix = params.toString()
+  return `${normalized}/auth/oauth/${provider}/start${suffix ? `?${suffix}` : ''}`
+}
+
+export async function completeSocialOAuthRegistration(
+  provider: SocialOAuthProvider,
+  pendingOAuthToken: string,
+  invitationCode: string,
+  affCode?: string
+): Promise<SocialOAuthCompleteResponse> {
+  const payload: Record<string, string> = {
+    pending_oauth_token: pendingOAuthToken,
+    invitation_code: invitationCode
+  }
+  if (affCode?.trim()) {
+    payload.aff_code = affCode.trim()
+  }
+  const { data } = await apiClient.post<SocialOAuthCompleteResponse>(
+    `/auth/oauth/${provider}/complete`,
+    payload
+  )
+  return data
+}
+
 export const authAPI = {
   login,
   login2FA,
@@ -380,7 +426,9 @@ export const authAPI = {
   resetPassword,
   refreshToken,
   revokeAllSessions,
-  completeLinuxDoOAuthRegistration
+  completeLinuxDoOAuthRegistration,
+  buildSocialOAuthStartURL,
+  completeSocialOAuthRegistration
 }
 
 export default authAPI

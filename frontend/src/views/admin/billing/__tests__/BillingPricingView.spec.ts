@@ -7,6 +7,7 @@ import BillingPricingModelList from '@/components/admin/billing/BillingPricingMo
 import BillingPricingProviderGrid from '@/components/admin/billing/BillingPricingProviderGrid.vue'
 import { useBillingPricingStore } from '@/stores'
 import BillingPricingView from '../BillingPricingView.vue'
+import { materializeBillingPricingPatchFileV1 } from '@/utils/billingPricingPatch'
 
 const apiMocks = vi.hoisted(() => ({
   listBillingPricingProviders: vi.fn(),
@@ -278,9 +279,6 @@ describe('BillingPricingView', () => {
     expect(apiMocks.getBillingPricingAudit).toHaveBeenCalledTimes(1)
     expect(wrapper.text()).toContain('计费审计')
     expect(wrapper.text()).toContain('状态分布')
-    expect(wrapper.text()).toContain('供应商问题榜')
-    expect(wrapper.text()).toContain('重点问题模型')
-    expect(wrapper.text()).toContain('GPT-5.4 Mini')
     expect(wrapper.text()).toContain('1')
   })
 
@@ -451,6 +449,110 @@ describe('BillingPricingView', () => {
     }))
   })
 
+  it('materializes empty worklist patches before import and downloads the confirmed json', async () => {
+    const createObjectURL = vi.fn(() => 'blob:pricing-confirmed')
+    const revokeObjectURL = vi.fn()
+    const originalURL = window.URL
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild')
+    const removeSpy = vi.spyOn(HTMLAnchorElement.prototype, 'remove').mockImplementation(() => {})
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    // @ts-expect-error test override
+    window.URL = {
+      ...originalURL,
+      createObjectURL,
+      revokeObjectURL,
+    }
+
+    try {
+      const wrapper = mountView()
+      await flushPromises()
+
+      const worklist = {
+        version: 1,
+        kind: 'billing_pricing_patch',
+        generated_at: '2026-05-06T12:37:48Z',
+        export_mode: 'issue_worklist',
+        models: [
+          {
+            model: 'gpt-5.4',
+            currency: 'USD',
+            current: {
+              official: createForm({
+                input_price: 1.5e-6,
+                output_price: undefined,
+                cache_price: undefined,
+              }),
+              sale: createForm({
+                input_price: undefined,
+                output_price: 2.5e-6,
+                cache_price: undefined,
+              }),
+            },
+            patch: {},
+            notes: '',
+          },
+          {
+            model: 'missing-model',
+            currency: 'CNY',
+            current: {
+              official: createForm({
+                input_price: undefined,
+                output_price: undefined,
+                cache_price: undefined,
+              }),
+              sale: createForm({
+                input_price: undefined,
+                output_price: undefined,
+                cache_price: undefined,
+              }),
+            },
+            patch: {},
+            notes: '',
+          },
+        ],
+      }
+
+      const input = wrapper.get('input[type="file"]')
+      const file = new File([JSON.stringify(worklist)], 'issue-worklist.json', { type: 'application/json' })
+      Object.defineProperty(input.element, 'files', { value: [file] })
+      await input.trigger('change')
+      for (let i = 0; i < 5 && apiMocks.updateBillingPricingLayer.mock.calls.length === 0; i += 1) {
+        await flushPromises()
+      }
+
+      expect(apiMocks.updateBillingPricingLayer).toHaveBeenCalledTimes(2)
+      expect(apiMocks.updateBillingPricingLayer).toHaveBeenNthCalledWith(1, 'gpt-5.4', 'official', expect.objectContaining({
+        currency: 'USD',
+        form: expect.objectContaining({
+          input_price: 1.5e-6,
+        }),
+      }))
+      expect(apiMocks.updateBillingPricingLayer).toHaveBeenNthCalledWith(2, 'gpt-5.4', 'sale', expect.objectContaining({
+        currency: 'USD',
+        form: expect.objectContaining({
+          output_price: 2.5e-6,
+        }),
+      }))
+      expect(clickSpy).toHaveBeenCalledTimes(1)
+      expect(createObjectURL).toHaveBeenCalledTimes(1)
+      expect(revokeObjectURL).toHaveBeenCalledTimes(1)
+      expect(storeMocks.showSuccess).toHaveBeenCalledWith('批量导入完成', expect.objectContaining({
+        title: '导入结果',
+        details: expect.arrayContaining([
+          '更新层数：2',
+          '自动补全：1',
+          '跳过模型：1',
+        ]),
+      }))
+      expect(appendChildSpy).toHaveBeenCalled()
+    } finally {
+      window.URL = originalURL
+      appendChildSpy.mockRestore()
+      removeSpy.mockRestore()
+      clickSpy.mockRestore()
+    }
+  })
+
   it('imports nested pricing patch fields and null-clears item multipliers', async () => {
     apiMocks.getBillingPricingDetails.mockResolvedValueOnce([{
       ...createDetail(),
@@ -565,6 +667,63 @@ describe('BillingPricingView', () => {
         input_price: 0.3,
       }),
     }))
+  })
+
+  it('materializes empty issue worklist patches from current prices and skips models without price data', () => {
+    const result = materializeBillingPricingPatchFileV1({
+      version: 1,
+      kind: 'billing_pricing_patch',
+      generated_at: '2026-05-06T12:37:48Z',
+      export_mode: 'issue_worklist',
+      models: [
+        {
+          model: 'ernie-3.5-8k',
+          currency: 'CNY',
+          current: {
+            official: createForm({
+              input_price: 0.0000008,
+              output_price: 0.000002,
+              cache_price: undefined,
+            }),
+            sale: createForm({
+              input_price: undefined,
+              output_price: undefined,
+              cache_price: undefined,
+            }),
+          },
+          patch: {},
+          notes: '',
+        } as any,
+        {
+          model: 'missing-model',
+          currency: 'USD',
+          current: {
+            official: createForm({
+              input_price: undefined,
+              output_price: undefined,
+              cache_price: undefined,
+            }),
+            sale: createForm({
+              input_price: undefined,
+              output_price: undefined,
+              cache_price: undefined,
+            }),
+          },
+          patch: {},
+          notes: '',
+        } as any,
+      ],
+    })
+
+    expect(result.updated).toBe(1)
+    expect(result.skipped).toBe(1)
+    expect(result.file.export_mode).toBe('executable_template')
+    expect(result.file.models).toHaveLength(1)
+    expect(result.file.models[0]?.patch.official).toEqual({
+      input_price: 0.0000008,
+      output_price: 0.000002,
+    })
+    expect(result.file.models[0]?.currency).toBe('CNY')
   })
 
   it('refreshes the persisted catalog and reloads the current filters', async () => {

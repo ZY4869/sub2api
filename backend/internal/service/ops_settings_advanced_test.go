@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"sync/atomic"
 	"testing"
 )
 
@@ -205,5 +206,24 @@ func TestUpdateOpsAdvancedSettings_ValidatesPreviewLimitRange(t *testing.T) {
 	}
 	if updated.RequestDetailPayloadPreviewLimitBytes != 32768 {
 		t.Fatalf("RequestDetailPayloadPreviewLimitBytes = %d, want 32768", updated.RequestDetailPayloadPreviewLimitBytes)
+	}
+}
+
+func TestUpdateOpsAdvancedSettings_NotifiesCallbacks(t *testing.T) {
+	repo := newRuntimeSettingRepoStub()
+	svc := &OpsService{settingRepo: repo}
+
+	var calls atomic.Int32
+	svc.AddOnAdvancedSettingsUpdatedCallback(func() {
+		calls.Add(1)
+	})
+
+	cfg := defaultOpsAdvancedSettings()
+	_, err := svc.UpdateOpsAdvancedSettings(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("UpdateOpsAdvancedSettings() error = %v", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("expected callback to be called once, got %d", calls.Load())
 	}
 }

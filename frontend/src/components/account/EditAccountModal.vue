@@ -34,9 +34,8 @@
 
       <AccountBaiduDocumentAICredentialsEditor
         v-if="isBaiduDocumentAIAccount"
-        v-model:async-bearer-token="baiduDocumentAIAsyncBearerToken"
+        v-model:access-token="baiduDocumentAIAccessToken"
         v-model:async-base-url="baiduDocumentAIAsyncBaseUrl"
-        v-model:direct-token="baiduDocumentAIDirectToken"
         v-model:direct-api-urls-text="baiduDocumentAIDirectApiUrlsText"
         mode="edit"
       />
@@ -746,9 +745,8 @@ const geminiVertexApiKey = ref('')
 const geminiVertexAccessToken = ref('')
 const geminiVertexExpiresAtInput = ref('')
 const geminiVertexBaseUrl = ref('')
-const baiduDocumentAIAsyncBearerToken = ref('')
+const baiduDocumentAIAccessToken = ref('')
 const baiduDocumentAIAsyncBaseUrl = ref(BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL)
-const baiduDocumentAIDirectToken = ref('')
 const baiduDocumentAIDirectApiUrlsText = ref('')
 const currentAccountCredentials = computed<Record<string, unknown>>(
   () => ((props.account?.credentials as Record<string, unknown> | undefined) || {})
@@ -1076,11 +1074,10 @@ function buildBaiduDocumentAICredentialsForUpdate(): Record<string, unknown> | n
   delete newCredentials.model_mapping
   delete newCredentials.model_whitelist
 
-  if (baiduDocumentAIAsyncBearerToken.value.trim()) {
-    newCredentials.async_bearer_token = baiduDocumentAIAsyncBearerToken.value.trim()
-  }
-  if (baiduDocumentAIDirectToken.value.trim()) {
-    newCredentials.direct_token = baiduDocumentAIDirectToken.value.trim()
+  const accessToken = baiduDocumentAIAccessToken.value.trim()
+  if (accessToken) {
+    newCredentials.async_bearer_token = accessToken
+    newCredentials.direct_token = accessToken
   }
   if (Object.keys(directAPIURLs).length > 0) {
     newCredentials.direct_api_urls = directAPIURLs
@@ -1525,11 +1522,12 @@ watch(
           if (!loadedFromScope) {
             applyModelRestrictionFromRecord(undefined)
           }
-          baiduDocumentAIAsyncBearerToken.value = ''
+          baiduDocumentAIAccessToken.value =
+            String(credentials.async_bearer_token || '').trim() ||
+            String(credentials.direct_token || '').trim()
           baiduDocumentAIAsyncBaseUrl.value =
             String(credentials.async_base_url || '').trim() ||
             BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
-          baiduDocumentAIDirectToken.value = ''
           baiduDocumentAIDirectApiUrlsText.value = stringifyBaiduDocumentAIDirectApiUrls(
             credentials.direct_api_urls
           )
@@ -1631,9 +1629,8 @@ watch(
       geminiVertexAccessToken.value = ''
       geminiVertexExpiresAtInput.value = ''
       geminiVertexBaseUrl.value = ''
-      baiduDocumentAIAsyncBearerToken.value = ''
+      baiduDocumentAIAccessToken.value = ''
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
-      baiduDocumentAIDirectToken.value = ''
       baiduDocumentAIDirectApiUrlsText.value = ''
     }
   },

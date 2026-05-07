@@ -31,6 +31,7 @@ type GatewayHandler struct {
 	cfg                       *config.Config
 	settingService            *service.SettingService
 	modelRegistryService      *service.ModelRegistryService
+	contentModerationService  *service.ContentModerationService
 }
 
 func NewGatewayHandler(gatewayService *service.GatewayService, geminiNativeService *service.GeminiNativeGatewayService, geminiCompatService *service.GeminiCompatGatewayService, geminiLiveService *service.GeminiLiveGatewayService, geminiInteractionsService *service.GeminiInteractionsGatewayService, antigravityGatewayService *service.AntigravityGatewayService, userService *service.UserService, concurrencyService *service.ConcurrencyService, billingCacheService *service.BillingCacheService, usageService *service.UsageService, apiKeyService *service.APIKeyService, usageRecordWorkerPool *service.UsageRecordWorkerPool, errorPassthroughService *service.ErrorPassthroughService, userMsgQueueService *service.UserMessageQueueService, cfg *config.Config, settingService *service.SettingService) *GatewayHandler {
@@ -54,6 +55,10 @@ func NewGatewayHandler(gatewayService *service.GatewayService, geminiNativeServi
 }
 func (h *GatewayHandler) SetModelRegistryService(modelRegistryService *service.ModelRegistryService) {
 	h.modelRegistryService = modelRegistryService
+}
+
+func (h *GatewayHandler) SetContentModerationService(contentModerationService *service.ContentModerationService) {
+	h.contentModerationService = contentModerationService
 }
 func cloneAPIKeyWithGroup(apiKey *service.APIKey, group *service.Group) *service.APIKey {
 	if apiKey == nil || group == nil {

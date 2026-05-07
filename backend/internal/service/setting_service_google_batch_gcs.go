@@ -282,9 +282,7 @@ func (s *SettingService) persistGoogleBatchGCSProfilesStore(ctx context.Context,
 	if err := s.settingRepo.Set(ctx, SettingKeyGoogleBatchGCSProfiles, string(data)); err != nil {
 		return err
 	}
-	if s.onUpdate != nil {
-		s.onUpdate()
-	}
+	s.notifyUpdateCallbacks()
 	return nil
 }
 

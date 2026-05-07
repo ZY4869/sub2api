@@ -44,9 +44,11 @@ describe('admin model routes', () => {
 
   it('registers billing pricing and billing rules child routes', () => {
     const billingPricing = router.getRoutes().find((route) => route.name === 'AdminBillingPricing')
+    const billingIssues = router.getRoutes().find((route) => route.name === 'AdminBillingIssues')
     const billingRules = router.getRoutes().find((route) => route.name === 'AdminBillingRules')
 
     expect(billingPricing?.path).toBe('/admin/billing/pricing')
+    expect(billingIssues?.path).toBe('/admin/billing/issues')
     expect(billingRules?.path).toBe('/admin/billing/rules')
   })
 })

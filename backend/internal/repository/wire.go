@@ -54,6 +54,8 @@ func ProvidePrivacyClientFactory() service.PrivacyClientFactory {
 // ProviderSet is the Wire provider set for all repositories
 var ProviderSet = wire.NewSet(
 	NewUserRepository,
+	NewAuthIdentityRepository,
+	NewContentModerationAuditRepository,
 	NewAPIKeyRepository,
 	NewGroupRepository,
 	NewChannelRepository,

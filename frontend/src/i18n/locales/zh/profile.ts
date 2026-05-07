@@ -27,6 +27,18 @@ export default {
     passwordTooShort: '密码至少需要 8 个字符',
     passwordChangeSuccess: '密码修改成功',
     passwordChangeFailed: '密码修改失败',
+    identities: {
+      title: '第三方身份绑定',
+      description: '管理已绑定的 GitHub / Google 登录身份。',
+      bindGitHub: '绑定 GitHub',
+      bindGoogle: '绑定 Google',
+      verified: '已验证邮箱',
+      unverified: '邮箱未验证',
+      empty: '尚未绑定任何第三方身份。',
+      unbind: '解绑',
+      unbindSuccess: '第三方身份已解绑',
+      unbindFailed: '解绑失败，请稍后重试'
+    },
     // TOTP 2FA
     totp: {
       title: '双因素认证 (2FA)',

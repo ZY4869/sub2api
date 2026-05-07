@@ -3,6 +3,7 @@ import {
   applyBillingPricingLayerPatch,
   billingPricingLayerPatchHasChanges,
   buildBillingPricingPatchFileV1,
+  materializeBillingPricingPatchFileV1,
   parseBillingPricingPatchFileV1,
 } from '../billingPricingPatch'
 
@@ -149,5 +150,75 @@ describe('billingPricingPatch', () => {
         }],
       }),
     ).not.toThrow()
+  })
+
+  it('materializes issue worklist entries from known current prices and preserves currency', () => {
+    const result = materializeBillingPricingPatchFileV1({
+      version: 1,
+      kind: 'billing_pricing_patch',
+      generated_at: '2026-05-06T12:37:48Z',
+      export_mode: 'issue_worklist',
+      models: [{
+        model: 'command-r',
+        currency: 'USD',
+        current: {
+          official: {
+            ...createBaseForm(),
+            input_price: 1.5e-7,
+            output_price: 6e-7,
+            cache_price: undefined,
+          } as any,
+          sale: {
+            ...createBaseForm(),
+            input_price: undefined,
+            output_price: undefined,
+            cache_price: undefined,
+          } as any,
+        },
+        patch: {},
+        notes: '',
+      }],
+    })
+
+    expect(result.updated).toBe(1)
+    expect(result.skipped).toBe(0)
+    expect(result.file.models[0]?.currency).toBe('USD')
+    expect(result.file.models[0]?.patch.official).toEqual({
+      input_price: 1.5e-7,
+      output_price: 6e-7,
+    })
+  })
+
+  it('skips models when both official and sale have no known price fields', () => {
+    const result = materializeBillingPricingPatchFileV1({
+      version: 1,
+      kind: 'billing_pricing_patch',
+      generated_at: '2026-05-06T12:37:48Z',
+      export_mode: 'issue_worklist',
+      models: [{
+        model: 'missing-model',
+        currency: 'CNY',
+        current: {
+          official: {
+            ...createBaseForm(),
+            input_price: undefined,
+            output_price: undefined,
+            cache_price: undefined,
+          } as any,
+          sale: {
+            ...createBaseForm(),
+            input_price: undefined,
+            output_price: undefined,
+            cache_price: undefined,
+          } as any,
+        },
+        patch: {},
+        notes: '',
+      }],
+    })
+
+    expect(result.updated).toBe(0)
+    expect(result.skipped).toBe(1)
+    expect(result.file.models).toHaveLength(0)
   })
 })
