@@ -93,7 +93,7 @@ func (r *authIdentityRepository) ListByUserID(ctx context.Context, userID int64)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := make([]*service.AuthIdentity, 0)
 	for rows.Next() {

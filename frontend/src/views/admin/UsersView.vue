@@ -614,8 +614,8 @@
       :show="showBatchConcurrencyModal"
       :matched-count="pagination.total"
       :search="searchQuery"
-      :role="filters.role as 'admin' | 'user' | ''"
-      :status="filters.status as 'active' | 'disabled' | ''"
+      :role="batchConcurrencyRole"
+      :status="batchConcurrencyStatus"
       :group-name="filters.group"
       :attributes="batchAttributeFilters"
       @close="showBatchConcurrencyModal = false"
@@ -936,6 +936,12 @@ const batchAttributeFilters = computed<Record<number, string>>(() =>
       .map(([attrId, value]) => [Number(attrId), String(value || '').trim()] as const)
       .filter(([attrId, value]) => attrId > 0 && value.length > 0)
   )
+)
+const batchConcurrencyRole = computed<'admin' | 'user' | ''>(() =>
+  filters.role === 'admin' || filters.role === 'user' ? filters.role : ''
+)
+const batchConcurrencyStatus = computed<'active' | 'disabled' | ''>(() =>
+  filters.status === 'active' || filters.status === 'disabled' ? filters.status : ''
 )
 const pagination = reactive({
   page: 1,

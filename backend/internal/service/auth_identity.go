@@ -46,22 +46,22 @@ type AuthIdentityRepository interface {
 }
 
 type SocialOAuthConfig struct {
-	Provider             string
-	Enabled              bool
-	ClientID             string
-	ClientSecret         string
-	AuthorizeURL         string
-	TokenURL             string
-	UserInfoURL          string
-	Scopes               string
-	RedirectURL          string
-	FrontendRedirectURL  string
-	TokenAuthMethod      string
-	UsePKCE              bool
-	UserInfoEmailPath    string
-	UserInfoIDPath       string
-	UserInfoUsernamePath string
-	UserInfoAvatarPath   string
+	Provider                  string
+	Enabled                   bool
+	ClientID                  string
+	ClientSecret              string
+	AuthorizeURL              string
+	TokenURL                  string
+	UserInfoURL               string
+	Scopes                    string
+	RedirectURL               string
+	FrontendRedirectURL       string
+	TokenAuthMethod           string
+	UsePKCE                   bool
+	UserInfoEmailPath         string
+	UserInfoIDPath            string
+	UserInfoUsernamePath      string
+	UserInfoAvatarPath        string
 	UserInfoEmailVerifiedPath string
 }
 

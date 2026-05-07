@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 const (
@@ -53,16 +53,16 @@ type ContentModerationAuditList struct {
 }
 
 type ContentModerationAuditFilter struct {
-	Page           int
-	PageSize       int
-	RequestID      string
+	Page            int
+	PageSize        int
+	RequestID       string
 	ClientRequestID string
-	Provider       string
-	Model          string
-	SourceEndpoint string
-	ContentHash    string
-	Hit            *bool
-	UserID         *int64
+	Provider        string
+	Model           string
+	SourceEndpoint  string
+	ContentHash     string
+	Hit             *bool
+	UserID          *int64
 }
 
 func (f *ContentModerationAuditFilter) Normalize() (int, int) {
@@ -95,14 +95,14 @@ type ContentModerationSettings struct {
 }
 
 type ContentModerationRecordInput struct {
-	SourceEndpoint string
-	Provider       string
-	Model          string
-	Content        string
-	RequestID      string
+	SourceEndpoint  string
+	Provider        string
+	Model           string
+	Content         string
+	RequestID       string
 	ClientRequestID string
-	UserID         *int64
-	APIKeyID       *int64
+	UserID          *int64
+	APIKeyID        *int64
 }
 
 type ContentModerationService struct {

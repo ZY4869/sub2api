@@ -88,7 +88,7 @@ func RegisterAuthRoutes(
 	}
 
 	pages := v1.Group("/pages")
-	if h != nil && h.Auth != nil && h.User != nil {
+	if h.User != nil {
 		pages.Use(servermiddleware.NewOptionalJWTAuthMiddleware(h.Auth.GetAuthService(), h.User.GetUserService()))
 	}
 	{

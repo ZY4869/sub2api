@@ -8,8 +8,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -72,12 +72,12 @@ type UpdateBalanceRequest struct {
 }
 
 type BatchUpdateConcurrencyRequest struct {
-	Concurrency int               `json:"concurrency" binding:"required,min=1"`
-	Search      string            `json:"search"`
-	Role        string            `json:"role"`
-	Status      string            `json:"status"`
-	GroupName   string            `json:"group_name"`
-	Attributes  map[int64]string  `json:"attributes"`
+	Concurrency int              `json:"concurrency" binding:"required,min=1"`
+	Search      string           `json:"search"`
+	Role        string           `json:"role"`
+	Status      string           `json:"status"`
+	GroupName   string           `json:"group_name"`
+	Attributes  map[int64]string `json:"attributes"`
 }
 
 type BatchUpdateConcurrencyItemResult struct {

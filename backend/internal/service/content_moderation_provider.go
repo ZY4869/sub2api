@@ -104,7 +104,7 @@ func callOpenAIContentModeration(
 		}
 		return contentModerationProviderResult{ErrorReason: "moderation_upstream_failed"}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var decoded contentModerationOpenAIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {

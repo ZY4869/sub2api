@@ -161,21 +161,21 @@ type PublicSettings struct {
 }
 
 type ContentModerationAuditListItem struct {
-	ID               int64     `json:"id"`
-	RequestID        string    `json:"request_id"`
-	ClientRequestID  string    `json:"client_request_id"`
-	UserID           *int64    `json:"user_id,omitempty"`
-	APIKeyID         *int64    `json:"api_key_id,omitempty"`
-	Provider         string    `json:"provider"`
-	Model            string    `json:"model"`
-	SourceEndpoint   string    `json:"source_endpoint"`
-	ContentHash      string    `json:"content_hash"`
-	ContentSummary   string    `json:"content_summary"`
-	Hit              bool      `json:"hit"`
-	DedupeHit        bool      `json:"dedupe_hit"`
-	ErrorReason      string    `json:"error_reason"`
-	LatencyMs        int       `json:"latency_ms"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID              int64     `json:"id"`
+	RequestID       string    `json:"request_id"`
+	ClientRequestID string    `json:"client_request_id"`
+	UserID          *int64    `json:"user_id,omitempty"`
+	APIKeyID        *int64    `json:"api_key_id,omitempty"`
+	Provider        string    `json:"provider"`
+	Model           string    `json:"model"`
+	SourceEndpoint  string    `json:"source_endpoint"`
+	ContentHash     string    `json:"content_hash"`
+	ContentSummary  string    `json:"content_summary"`
+	Hit             bool      `json:"hit"`
+	DedupeHit       bool      `json:"dedupe_hit"`
+	ErrorReason     string    `json:"error_reason"`
+	LatencyMs       int       `json:"latency_ms"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type GoogleBatchGCSProfile struct {
