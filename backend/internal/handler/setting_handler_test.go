@@ -87,4 +87,5 @@ func TestSettingHandlerGetPublicSettings_DoesNotExposeAPIDocsOverride(t *testing
 	require.Equal(t, "https://docs.example.com", data["doc_url"])
 	_, exists := data["api_docs_markdown"]
 	require.False(t, exists)
+	require.Equal(t, false, data["login_agreement_enabled"])
 }

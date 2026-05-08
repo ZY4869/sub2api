@@ -4,7 +4,7 @@
  */
 
 import { apiClient } from '../client'
-import type { CustomMenuItem } from '@/types'
+import type { CustomMenuItem, LoginAgreementDocument } from '@/types'
 
 export interface DefaultSubscriptionSetting {
   group_id: number
@@ -21,6 +21,13 @@ export interface OpenAIFastPolicyRule {
 
 export interface OpenAIFastPolicySettings {
   rules: OpenAIFastPolicyRule[]
+}
+
+export interface ContentModerationAPIKeyStatus {
+  hash: string
+  masked: string
+  frozen_until?: string
+  last_error?: string
 }
 
 /**
@@ -69,6 +76,10 @@ export interface SystemSettings {
   backend_mode_enabled: boolean
   maintenance_mode_enabled: boolean
   custom_menu_items: CustomMenuItem[]
+  login_agreement_enabled: boolean
+  login_agreement_mode: 'checkbox' | string
+  login_agreement_updated_at: string
+  login_agreement_documents: LoginAgreementDocument[]
   // SMTP settings
   smtp_host: string
   smtp_port: number
@@ -102,6 +113,7 @@ export interface SystemSettings {
   content_moderation_provider: string
   content_moderation_base_url: string
   content_moderation_api_key_configured: boolean
+  content_moderation_api_key_statuses: ContentModerationAPIKeyStatus[]
   content_moderation_model: string
   content_moderation_timeout_ms: number
   content_moderation_dedupe_window_seconds: number
@@ -174,6 +186,10 @@ export interface UpdateSettingsRequest {
   backend_mode_enabled?: boolean
   maintenance_mode_enabled?: boolean
   custom_menu_items?: CustomMenuItem[]
+  login_agreement_enabled?: boolean
+  login_agreement_mode?: 'checkbox' | string
+  login_agreement_updated_at?: string
+  login_agreement_documents?: LoginAgreementDocument[]
   smtp_host?: string
   smtp_port?: number
   smtp_username?: string
@@ -202,6 +218,9 @@ export interface UpdateSettingsRequest {
   content_moderation_provider?: string
   content_moderation_base_url?: string
   content_moderation_api_key?: string
+  content_moderation_api_keys?: string[]
+  content_moderation_api_keys_mode?: 'append' | 'replace'
+  delete_content_moderation_api_key_hashes?: string[]
   content_moderation_model?: string
   content_moderation_timeout_ms?: number
   content_moderation_dedupe_window_seconds?: number

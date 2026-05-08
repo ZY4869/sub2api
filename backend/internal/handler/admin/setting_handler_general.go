@@ -60,6 +60,9 @@ type UpdateSettingsRequest struct {
 	ContentModerationProvider            string                           `json:"content_moderation_provider"`
 	ContentModerationBaseURL             string                           `json:"content_moderation_base_url"`
 	ContentModerationAPIKey              string                           `json:"content_moderation_api_key"`
+	ContentModerationAPIKeys             []string                         `json:"content_moderation_api_keys"`
+	ContentModerationAPIKeysMode         string                           `json:"content_moderation_api_keys_mode"`
+	DeleteContentModerationAPIKeyHashes  []string                         `json:"delete_content_moderation_api_key_hashes"`
 	ContentModerationModel               string                           `json:"content_moderation_model"`
 	ContentModerationTimeoutMs           int                              `json:"content_moderation_timeout_ms"`
 	ContentModerationDedupeWindowSeconds int                              `json:"content_moderation_dedupe_window_seconds"`
@@ -79,6 +82,10 @@ type UpdateSettingsRequest struct {
 	PurchaseSubscriptionEnabled          *bool                            `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL              *string                          `json:"purchase_subscription_url"`
 	CustomMenuItems                      *[]dto.CustomMenuItem            `json:"custom_menu_items"`
+	LoginAgreementEnabled                *bool                            `json:"login_agreement_enabled"`
+	LoginAgreementMode                   *string                          `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt              *string                          `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments              *[]dto.LoginAgreementDocument    `json:"login_agreement_documents"`
 	DefaultConcurrency                   int                              `json:"default_concurrency"`
 	DefaultBalance                       float64                          `json:"default_balance"`
 	DefaultSubscriptions                 []dto.DefaultSubscriptionSetting `json:"default_subscriptions"`
@@ -237,6 +244,22 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	req.ContentModerationBaseURL = strings.TrimSpace(req.ContentModerationBaseURL)
 	req.ContentModerationAPIKey = strings.TrimSpace(req.ContentModerationAPIKey)
 	req.ContentModerationModel = strings.TrimSpace(req.ContentModerationModel)
+	newModerationKeys := append([]string{}, req.ContentModerationAPIKeys...)
+	if req.ContentModerationAPIKey != "" {
+		newModerationKeys = append(newModerationKeys, req.ContentModerationAPIKey)
+	}
+	hasModerationKeyMutation := len(newModerationKeys) > 0 ||
+		len(req.DeleteContentModerationAPIKeyHashes) > 0 ||
+		strings.TrimSpace(req.ContentModerationAPIKeysMode) != ""
+	contentModerationAPIKeys := service.BuildContentModerationAPIKeyUpdate(service.ContentModerationAPIKeyUpdate{
+		Existing:     previousSettings.ContentModerationAPIKeys,
+		NewKeys:      newModerationKeys,
+		Mode:         req.ContentModerationAPIKeysMode,
+		DeleteHashes: req.DeleteContentModerationAPIKeyHashes,
+	})
+	if len(contentModerationAPIKeys) == 0 && !hasModerationKeyMutation {
+		contentModerationAPIKeys = nil
+	}
 	if req.ContentModerationTimeoutMs <= 0 {
 		req.ContentModerationTimeoutMs = previousSettings.ContentModerationTimeoutMs
 		if req.ContentModerationTimeoutMs <= 0 {
@@ -249,8 +272,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.ContentModerationEnabled && req.ContentModerationProvider == "" {
 		req.ContentModerationProvider = "openai"
 	}
-	if req.ContentModerationEnabled && req.ContentModerationAPIKey == "" {
+	if req.ContentModerationEnabled && !hasModerationKeyMutation && len(contentModerationAPIKeys) == 0 && req.ContentModerationAPIKey == "" {
 		req.ContentModerationAPIKey = previousSettings.ContentModerationAPIKey
+		contentModerationAPIKeys = previousSettings.ContentModerationAPIKeys
 	}
 	purchaseEnabled := previousSettings.PurchaseSubscriptionEnabled
 	if req.PurchaseSubscriptionEnabled != nil {
@@ -508,6 +532,44 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		defaultSubscriptions = append(defaultSubscriptions, service.DefaultSubscriptionSetting{GroupID: sub.GroupID, ValidityDays: sub.ValidityDays})
 	}
 
+	loginAgreementEnabled := previousSettings.LoginAgreementEnabled
+	if req.LoginAgreementEnabled != nil {
+		loginAgreementEnabled = *req.LoginAgreementEnabled
+	}
+	loginAgreementMode := previousSettings.LoginAgreementMode
+	if req.LoginAgreementMode != nil {
+		loginAgreementMode = service.NormalizeLoginAgreementMode(*req.LoginAgreementMode)
+	}
+	loginAgreementUpdatedAt := previousSettings.LoginAgreementUpdatedAt
+	if req.LoginAgreementUpdatedAt != nil {
+		loginAgreementUpdatedAt = strings.TrimSpace(*req.LoginAgreementUpdatedAt)
+	}
+	loginAgreementDocuments := previousSettings.LoginAgreementDocuments
+	if req.LoginAgreementDocuments != nil {
+		loginAgreementDocuments = make([]service.LoginAgreementDocument, 0, len(*req.LoginAgreementDocuments))
+		for _, item := range *req.LoginAgreementDocuments {
+			loginAgreementDocuments = append(loginAgreementDocuments, service.LoginAgreementDocument{
+				ID:       item.ID,
+				Title:    item.Title,
+				PageSlug: item.PageSlug,
+			})
+		}
+		loginAgreementDocuments = service.NormalizeLoginAgreementDocuments(loginAgreementDocuments)
+	}
+	if loginAgreementEnabled && len(loginAgreementDocuments) == 0 {
+		response.BadRequest(c, "Login agreement requires at least one published markdown page")
+		return
+	}
+	if loginAgreementEnabled {
+		publishedPages := collectPublishedMarkdownPageSlugs(customMenuJSON)
+		for _, doc := range loginAgreementDocuments {
+			if _, ok := publishedPages[doc.PageSlug]; !ok {
+				response.BadRequest(c, "Login agreement document must reference a published markdown page")
+				return
+			}
+		}
+	}
+
 	openAIFastPolicy := previousSettings.OpenAIFastPolicySettings
 	if req.OpenAIFastPolicySettings != nil {
 		rules := make([]service.OpenAIFastPolicyRule, 0, len(req.OpenAIFastPolicySettings.Rules))
@@ -584,6 +646,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	settings.AffiliateRebateDurationDays = affiliateRebateDurationDays
 	settings.AffiliateRebatePerInviteeCap = affiliateRebatePerInviteeCap
 	settings.AffiliateAffCodeLength = affiliateAffCodeLength
+	settings.ContentModerationAPIKeys = contentModerationAPIKeys
+	if settings.ContentModerationAPIKey == "" && len(contentModerationAPIKeys) > 0 {
+		settings.ContentModerationAPIKey = contentModerationAPIKeys[0].Key
+	}
+	settings.LoginAgreementEnabled = loginAgreementEnabled
+	settings.LoginAgreementMode = loginAgreementMode
+	settings.LoginAgreementUpdatedAt = loginAgreementUpdatedAt
+	settings.LoginAgreementDocuments = loginAgreementDocuments
 	if err := h.settingService.UpdateSettings(c.Request.Context(), settings); err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -595,4 +665,20 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		return
 	}
 	response.Success(c, buildSystemSettingsDTO(h.settingService, updatedSettings, dto.ParseCustomMenuItems(updatedSettings.CustomMenuItems)))
+}
+
+func collectPublishedMarkdownPageSlugs(raw string) map[string]struct{} {
+	var items []dto.CustomMenuItem
+	_ = json.Unmarshal([]byte(strings.TrimSpace(raw)), &items)
+	out := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		if !strings.EqualFold(strings.TrimSpace(item.PageMode), "markdown") || !item.PagePublished {
+			continue
+		}
+		slug := service.NormalizeCustomPageSlugForAdmin(item.PageSlug)
+		if slug != "" {
+			out[slug] = struct{}{}
+		}
+	}
+	return out
 }

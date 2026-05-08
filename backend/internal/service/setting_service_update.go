@@ -75,8 +75,25 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyContentModerationEnabled] = strconv.FormatBool(settings.ContentModerationEnabled)
 	updates[SettingKeyContentModerationProvider] = strings.TrimSpace(settings.ContentModerationProvider)
 	updates[SettingKeyContentModerationBaseURL] = strings.TrimSpace(settings.ContentModerationBaseURL)
-	if strings.TrimSpace(settings.ContentModerationAPIKey) != "" {
-		updates[SettingKeyContentModerationAPIKey] = strings.TrimSpace(settings.ContentModerationAPIKey)
+	if settings.ContentModerationAPIKeys != nil {
+		apiKeysJSON, err := MarshalContentModerationAPIKeys(settings.ContentModerationAPIKeys)
+		if err != nil {
+			return fmt.Errorf("marshal content moderation api keys: %w", err)
+		}
+		updates[SettingKeyContentModerationAPIKeys] = apiKeysJSON
+		if len(settings.ContentModerationAPIKeys) > 0 {
+			updates[SettingKeyContentModerationAPIKey] = settings.ContentModerationAPIKeys[0].Key
+		} else {
+			updates[SettingKeyContentModerationAPIKey] = ""
+		}
+	} else if strings.TrimSpace(settings.ContentModerationAPIKey) != "" {
+		key := strings.TrimSpace(settings.ContentModerationAPIKey)
+		apiKeysJSON, err := MarshalContentModerationAPIKeys([]ContentModerationAPIKey{{Key: key}})
+		if err != nil {
+			return fmt.Errorf("marshal content moderation api key: %w", err)
+		}
+		updates[SettingKeyContentModerationAPIKey] = key
+		updates[SettingKeyContentModerationAPIKeys] = apiKeysJSON
 	}
 	updates[SettingKeyContentModerationModel] = strings.TrimSpace(settings.ContentModerationModel)
 	updates[SettingKeyContentModerationTimeoutMs] = strconv.Itoa(settings.ContentModerationTimeoutMs)
@@ -107,6 +124,14 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
 	updates[SettingKeyCustomMenuItems] = settings.CustomMenuItems
+	updates[SettingKeyLoginAgreementEnabled] = strconv.FormatBool(settings.LoginAgreementEnabled)
+	updates[SettingKeyLoginAgreementMode] = NormalizeLoginAgreementMode(settings.LoginAgreementMode)
+	updates[SettingKeyLoginAgreementUpdatedAt] = strings.TrimSpace(settings.LoginAgreementUpdatedAt)
+	loginAgreementDocumentsJSON, err := MarshalLoginAgreementDocuments(settings.LoginAgreementDocuments)
+	if err != nil {
+		return fmt.Errorf("marshal login agreement documents: %w", err)
+	}
+	updates[SettingKeyLoginAgreementDocuments] = loginAgreementDocumentsJSON
 	updates[SettingKeyDefaultConcurrency] = strconv.Itoa(settings.DefaultConcurrency)
 	updates[SettingKeyDefaultBalance] = strconv.FormatFloat(settings.DefaultBalance, 'f', 8, 64)
 	defaultSubsJSON, err := json.Marshal(settings.DefaultSubscriptions)

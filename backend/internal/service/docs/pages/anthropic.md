@@ -30,6 +30,11 @@
 
 这些头不会被要求改成自定义字段，网关会尽量按原语义透传。
 
+关于默认 beta 注入，有两条要特别记住：
+
+- 系统默认要求的 Claude / OAuth beta 集合里不包含 `redact-thinking`；网关不会无条件替你注入这一类 token。
+- 如果客户端显式传入了 `redact-thinking-*`，默认也不会被静默删除；只有管理员在 beta policy 里把它配置成 `filter` 或 `block` 时，才会被过滤或直接拦截。
+
 #### Python
 ```python focus=1-12
 import requests
@@ -95,6 +100,7 @@ curl https://api.zyxai.de/v1/messages \
 - 当分组平台是 Anthropic 时按原生协议透传。
 - 当分组平台是 OpenAI 时，网关可能把请求翻译成 Responses。
 - Grok 平台不支持 `messages`，会返回协议能力错误。
+- 默认系统 beta 仍会合并 `oauth-*`、`interleaved-thinking-*` 等必需 token，但不会额外偷偷加入 `redact-thinking-*`。
 
 实际接入建议：
 
@@ -204,6 +210,7 @@ curl https://api.zyxai.de/v1/messages \
   -H "Authorization: Bearer sk-你的站内Key" \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
+  -H "anthropic-beta: redact-thinking-2025-10-01" \
   -d '{
     "model": "claude-sonnet-4.5[1m]",
     "effortLevel": "max",
@@ -212,6 +219,11 @@ curl https://api.zyxai.de/v1/messages \
     "messages": [{ "role": "user", "content": "这里最终会保持 high，而不是被 max 覆盖。" }]
   }'
 ```
+
+上面的例子同时说明两件事：
+
+- 顶层 `effortLevel` 不会覆盖已经给出的 `output_config.effort`。
+- 显式传入的 `anthropic-beta: redact-thinking-2025-10-01` 会被保留，除非管理员 beta policy 明确把该 token 过滤或拦截。
 
 #### JavaScript
 ```javascript focus=1-10

@@ -50,6 +50,8 @@ type SystemSettings struct {
 	ContentModerationProvider            string
 	ContentModerationBaseURL             string
 	ContentModerationAPIKey              string
+	ContentModerationAPIKeys             []ContentModerationAPIKey
+	ContentModerationAPIKeyStatuses      []ContentModerationAPIKeyStatus
 	ContentModerationAPIKeyConfigured    bool
 	ContentModerationModel               string
 	ContentModerationTimeoutMs           int
@@ -71,6 +73,10 @@ type SystemSettings struct {
 	PurchaseSubscriptionEnabled          bool
 	PurchaseSubscriptionURL              string
 	CustomMenuItems                      string // JSON array of custom menu items
+	LoginAgreementEnabled                bool
+	LoginAgreementMode                   string
+	LoginAgreementUpdatedAt              string
+	LoginAgreementDocuments              []LoginAgreementDocument
 
 	// Affiliate rebate configuration
 	AffiliateEnabled              bool
@@ -151,6 +157,10 @@ type PublicSettings struct {
 	PurchaseSubscriptionEnabled bool
 	PurchaseSubscriptionURL     string
 	CustomMenuItems             string // JSON array of custom menu items
+	LoginAgreementEnabled       bool
+	LoginAgreementMode          string
+	LoginAgreementUpdatedAt     string
+	LoginAgreementDocuments     []LoginAgreementDocument
 
 	LinuxDoOAuthEnabled    bool
 	GitHubOAuthEnabled     bool

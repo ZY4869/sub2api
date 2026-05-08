@@ -88,6 +88,7 @@ type ContentModerationSettings struct {
 	Provider            string
 	BaseURL             string
 	APIKey              string
+	APIKeys             []ContentModerationAPIKey
 	Model               string
 	TimeoutMs           int
 	DedupeWindowSeconds int
@@ -130,6 +131,7 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 		SettingKeyContentModerationProvider,
 		SettingKeyContentModerationBaseURL,
 		SettingKeyContentModerationAPIKey,
+		SettingKeyContentModerationAPIKeys,
 		SettingKeyContentModerationModel,
 		SettingKeyContentModerationTimeoutMs,
 		SettingKeyContentModerationDedupeWindowSeconds,
@@ -144,10 +146,14 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 		Provider:            strings.TrimSpace(values[SettingKeyContentModerationProvider]),
 		BaseURL:             strings.TrimSpace(values[SettingKeyContentModerationBaseURL]),
 		APIKey:              strings.TrimSpace(values[SettingKeyContentModerationAPIKey]),
+		APIKeys:             NormalizeContentModerationAPIKeys(values[SettingKeyContentModerationAPIKey], values[SettingKeyContentModerationAPIKeys]),
 		Model:               strings.TrimSpace(values[SettingKeyContentModerationModel]),
 		TimeoutMs:           parseIntWithDefault(values[SettingKeyContentModerationTimeoutMs], contentModerationDefaultTimeoutMs),
 		DedupeWindowSeconds: parseIntWithDefault(values[SettingKeyContentModerationDedupeWindowSeconds], contentModerationDefaultDedupeWindowSecond),
 		FailOpen:            values[SettingKeyContentModerationFailOpen] != "false",
+	}
+	if settings.APIKey == "" && len(settings.APIKeys) > 0 {
+		settings.APIKey = settings.APIKeys[0].Key
 	}
 	if settings.TimeoutMs <= 0 {
 		settings.TimeoutMs = contentModerationDefaultTimeoutMs
@@ -251,38 +257,91 @@ func ExtractModerationTextFromJSONBody(body []byte) string {
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return ""
 	}
-	var parts []string
-	walkModerationValue(payload, &parts)
-	return strings.TrimSpace(strings.Join(parts, "\n"))
+	state := &moderationExtractionState{}
+	walkModerationValue(payload, state)
+	return strings.TrimSpace(redactContentModerationSecrets(strings.Join(state.parts, "\n")))
 }
 
-func walkModerationValue(value any, parts *[]string) {
+type moderationExtractionState struct {
+	parts      []string
+	imageCount int
+}
+
+func (s *moderationExtractionState) appendText(value string) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed != "" {
+		s.parts = append(s.parts, trimmed)
+	}
+}
+
+func (s *moderationExtractionState) appendImageMarker() {
+	if s.imageCount > 0 {
+		return
+	}
+	s.imageCount++
+	s.parts = append(s.parts, "[redacted-image]")
+}
+
+func walkModerationValue(value any, state *moderationExtractionState) {
 	switch v := value.(type) {
 	case map[string]any:
+		if isModerationImagePart(v) {
+			state.appendImageMarker()
+			return
+		}
+		if isModerationTextPart(v) {
+			walkModerationValue(v["text"], state)
+			return
+		}
 		for key, item := range v {
 			switch key {
 			case "text", "content", "input", "instructions", "system", "prompt":
-				walkModerationValue(item, parts)
+				walkModerationValue(item, state)
 			case "messages", "parts", "contents":
-				walkModerationValue(item, parts)
+				walkModerationValue(item, state)
 			default:
 				if nested, ok := item.(map[string]any); ok {
 					if itemType, _ := nested["type"].(string); itemType == "text" || itemType == "input_text" || itemType == "output_text" {
-						walkModerationValue(nested["text"], parts)
+						walkModerationValue(nested["text"], state)
 					}
 				}
 			}
 		}
 	case []any:
 		for _, item := range v {
-			walkModerationValue(item, parts)
+			walkModerationValue(item, state)
 		}
 	case string:
-		trimmed := strings.TrimSpace(v)
-		if trimmed != "" {
-			*parts = append(*parts, trimmed)
-		}
+		state.appendText(v)
 	}
+}
+
+func isModerationTextPart(value map[string]any) bool {
+	itemType, _ := value["type"].(string)
+	switch strings.ToLower(strings.TrimSpace(itemType)) {
+	case "text", "input_text", "output_text":
+		return true
+	default:
+		return false
+	}
+}
+
+func isModerationImagePart(value map[string]any) bool {
+	itemType, _ := value["type"].(string)
+	switch strings.ToLower(strings.TrimSpace(itemType)) {
+	case "image", "input_image", "image_url":
+		return true
+	}
+	if _, ok := value["image_url"]; ok {
+		return true
+	}
+	if _, ok := value["inline_data"]; ok {
+		return true
+	}
+	if _, ok := value["file_data"]; ok {
+		return true
+	}
+	return false
 }
 
 func summarizeModerationContent(content string) string {

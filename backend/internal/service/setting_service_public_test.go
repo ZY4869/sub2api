@@ -193,6 +193,81 @@ func TestSettingService_AvailableChannelsAndChannelMonitor_RoundTripsAcrossPubli
 	require.Equal(t, true, payload["channel_monitor_enabled"])
 }
 
+func TestSettingService_LoginAgreement_RoundTripsAcrossPublicSettings(t *testing.T) {
+	ctx := context.Background()
+	repo := &settingPublicRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(ctx, &SystemSettings{
+		LoginAgreementEnabled:   true,
+		LoginAgreementMode:      "checkbox",
+		LoginAgreementUpdatedAt: "2026-05-07",
+		LoginAgreementDocuments: []LoginAgreementDocument{
+			{ID: "terms", Title: "Terms", PageSlug: "terms"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "true", repo.values[SettingKeyLoginAgreementEnabled])
+	require.NotContains(t, repo.values[SettingKeyLoginAgreementDocuments], "page_content")
+
+	settings, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.True(t, settings.LoginAgreementEnabled)
+	require.Equal(t, LoginAgreementModeCheckbox, settings.LoginAgreementMode)
+	require.Equal(t, "2026-05-07", settings.LoginAgreementUpdatedAt)
+	require.Equal(t, []LoginAgreementDocument{
+		{ID: "terms", Title: "Terms", PageSlug: "terms"},
+	}, settings.LoginAgreementDocuments)
+
+	injected, err := svc.GetPublicSettingsForInjection(ctx)
+	require.NoError(t, err)
+	raw, err := json.Marshal(injected)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"login_agreement_enabled":true`)
+	require.Contains(t, string(raw), `"page_slug":"terms"`)
+}
+
+func TestSettingService_UpdateSettings_PreservesContentModerationKeysWhenUnchanged(t *testing.T) {
+	ctx := context.Background()
+	rawKeys, err := MarshalContentModerationAPIKeys([]ContentModerationAPIKey{
+		{Key: "sk-first"},
+		{Key: "sk-second"},
+	})
+	require.NoError(t, err)
+	repo := &settingPublicRepoStub{values: map[string]string{
+		SettingKeyContentModerationAPIKey:  "sk-first",
+		SettingKeyContentModerationAPIKeys: rawKeys,
+	}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err = svc.UpdateSettings(ctx, &SystemSettings{
+		SiteName: "Updated",
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, rawKeys, repo.values[SettingKeyContentModerationAPIKeys])
+	require.Equal(t, "sk-first", repo.values[SettingKeyContentModerationAPIKey])
+}
+
+func TestSettingService_UpdateSettings_ClearsContentModerationKeysWhenExplicitlyEmpty(t *testing.T) {
+	ctx := context.Background()
+	rawKeys, err := MarshalContentModerationAPIKeys([]ContentModerationAPIKey{{Key: "sk-first"}})
+	require.NoError(t, err)
+	repo := &settingPublicRepoStub{values: map[string]string{
+		SettingKeyContentModerationAPIKey:  "sk-first",
+		SettingKeyContentModerationAPIKeys: rawKeys,
+	}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err = svc.UpdateSettings(ctx, &SystemSettings{
+		ContentModerationAPIKeys: []ContentModerationAPIKey{},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, "[]", repo.values[SettingKeyContentModerationAPIKeys])
+	require.Equal(t, "", repo.values[SettingKeyContentModerationAPIKey])
+}
+
 func TestSettingService_GetPublicSettings_FiltersDraftMarkdownPages(t *testing.T) {
 	repo := &settingPublicRepoStub{
 		values: map[string]string{

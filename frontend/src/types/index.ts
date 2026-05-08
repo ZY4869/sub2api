@@ -101,6 +101,12 @@ export interface CustomPageContent {
   updated_at?: string;
 }
 
+export interface LoginAgreementDocument {
+  id: string;
+  title: string;
+  page_slug: string;
+}
+
 export interface PublicSettings {
   registration_enabled: boolean;
   email_verify_enabled: boolean;
@@ -125,6 +131,10 @@ export interface PublicSettings {
   purchase_subscription_enabled: boolean;
   purchase_subscription_url: string;
   custom_menu_items: CustomMenuItem[];
+  login_agreement_enabled: boolean;
+  login_agreement_mode: "checkbox" | string;
+  login_agreement_updated_at: string;
+  login_agreement_documents: LoginAgreementDocument[];
   linuxdo_oauth_enabled: boolean;
   github_oauth_enabled: boolean;
   google_oauth_enabled: boolean;

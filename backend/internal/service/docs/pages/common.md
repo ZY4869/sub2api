@@ -326,6 +326,9 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - 关闭时，游客访问该接口会返回 `401`，前端 `/models` 页面会跳转到登录页。
 - 已登录用户不受这个开关影响，仍然可以继续访问模型库与对应接口。
 - `GET /api/v1/settings/public` 会额外返回 `maintenance_mode_enabled`、`available_channels_enabled`、`channel_monitor_enabled`、`affiliate_enabled`，前端可据此决定是否展示维护提示与菜单入口。
+- 登录 / 注册页还会读取 `login_agreement_enabled`、`login_agreement_mode`、`login_agreement_updated_at`、`login_agreement_documents`。
+- 当前 `login_agreement_mode` 固定为 `checkbox`；只有当 `login_agreement_enabled=true` 且 `login_agreement_documents` 至少包含一篇已发布 markdown 页面时，前端才会启用勾选阻断。
+- `login_agreement_documents[]` 只返回脱离正文后的文档引用：`{ id, title, page_slug }`；正文仍通过 `GET /api/v1/pages/:slug` 拉取。
 
 ### 混合币种计费字段
 
@@ -791,6 +794,12 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/users/batch-concurrency" \
 curl "https://api.zyxai.de/api/v1/pages/getting-started"
 ```
 
+登录 / 注册条款确认复用的也是同一套页面能力：
+
+- 管理员在 `GET|PUT /api/v1/admin/settings` 中写入 `login_agreement_documents[]`，每一项都必须引用一个已发布的 markdown 页面 slug。
+- 前端公开入口会把这些文档渲染成 `/legal/:slug` 链接；`/legal/:slug` 只是前端别名路由，最终内容源仍是 `GET /api/v1/pages/:slug`。
+- 这意味着系统不会新增独立“法律文档表”或另一套正文存储；条款页与现有 custom markdown page 共用发布、可见性和正文渲染能力。
+
 ### GitHub / Google 快捷登录
 
 除 LinuxDo 之外，站点还支持 GitHub 与 Google 的快捷登录和登录后绑定：
@@ -919,13 +928,24 @@ curl "https://api.zyxai.de/api/v1/admin/moderation/audits/42" \
 - `content_moderation_enabled`
 - `content_moderation_provider`
 - `content_moderation_base_url`
-- `content_moderation_api_key`（仅 `PUT` 可写；`GET` 只返回 `content_moderation_api_key_configured`）
+- `content_moderation_api_key`（兼容旧单 key 输入；仅 `PUT` 可写）
+- `content_moderation_api_keys`（可选多 key 追加/替换输入；仅 `PUT` 可写）
+- `content_moderation_api_keys_mode`（`append` 或 `replace`；仅 `PUT` 可写）
+- `delete_content_moderation_api_key_hashes`（按 hash 删除已保存 key；仅 `PUT` 可写）
+- `content_moderation_api_key_configured`（`GET` 只读布尔值）
+- `content_moderation_api_key_statuses[]`（`GET` 只读列表，包含 `hash`、`masked`、可选 `frozen_until`、`last_error`）
 - `content_moderation_model`
 - `content_moderation_timeout_ms`
 - `content_moderation_dedupe_window_seconds`
 - `content_moderation_fail_open`
 
-这些字段全部挂在现有 settings 体系，不会新增独立 settings API。
+兼容与安全规则：
+
+- 旧客户端继续可以只传 `content_moderation_api_key`；后端会把它归一化进内部 key 列表。
+- `append` 会在现有列表后追加并按 hash 去重；`replace` 会用本次提交的新 key 集合替换原列表。
+- 删除操作只接受 `delete_content_moderation_api_key_hashes[]`，不会通过 `GET` 返回任何明文 key。
+- `content_moderation_api_key_statuses[]` 只用于后台展示 masked key 与冻结状态；错误摘要会脱敏，不应出现 URL、Bearer token 或 key 明文。
+- 这些字段全部挂在现有 settings 体系，不会新增独立 settings API。
 
 ### 错误响应与限流
 

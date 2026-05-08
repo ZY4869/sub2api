@@ -13,6 +13,8 @@ import (
 type contentModerationProviderResult struct {
 	Hit         bool
 	ErrorReason string
+	StatusCode  int
+	KeyHash     string
 }
 
 type contentModerationOpenAIRequest struct {
@@ -46,12 +48,28 @@ func evaluateContentModeration(
 		return contentModerationProviderResult{ErrorReason: "moderation_provider_unsupported"}
 	}
 
-	if strings.TrimSpace(settings.APIKey) == "" || strings.TrimSpace(settings.Model) == "" {
+	if strings.TrimSpace(settings.Model) == "" {
+		return contentModerationProviderResult{ErrorReason: "moderation_not_configured"}
+	}
+	key, ok := SelectContentModerationAPIKey(settings.APIKeys, time.Now().UTC())
+	if !ok && strings.TrimSpace(settings.APIKey) != "" {
+		key = ContentModerationAPIKey{
+			Key:  strings.TrimSpace(settings.APIKey),
+			Hash: ContentModerationAPIKeyHash(settings.APIKey),
+		}
+		_, frozen := getContentModerationFreeze(key.Hash, time.Now().UTC())
+		ok = !frozen
+	}
+	if !ok || strings.TrimSpace(key.Key) == "" {
 		return contentModerationProviderResult{ErrorReason: "moderation_not_configured"}
 	}
 
 	if strings.EqualFold(strings.TrimSpace(settings.Provider), "openai") || provider == "" {
-		return callOpenAIContentModeration(ctx, settings, input, content)
+		result := callOpenAIContentModeration(ctx, settings, input, content, key)
+		if result.ErrorReason == "" {
+			ClearContentModerationKeyFreeze(result.KeyHash)
+		}
+		return result
 	}
 
 	return contentModerationProviderResult{ErrorReason: "moderation_provider_unsupported"}
@@ -62,7 +80,12 @@ func callOpenAIContentModeration(
 	settings *ContentModerationSettings,
 	input *ContentModerationRecordInput,
 	content string,
+	apiKey ContentModerationAPIKey,
 ) contentModerationProviderResult {
+	keyHash := strings.TrimSpace(apiKey.Hash)
+	if keyHash == "" {
+		keyHash = ContentModerationAPIKeyHash(apiKey.Key)
+	}
 	baseURL := strings.TrimRight(strings.TrimSpace(settings.BaseURL), "/")
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
@@ -76,7 +99,7 @@ func callOpenAIContentModeration(
 		Input: content,
 	})
 	if err != nil {
-		return contentModerationProviderResult{ErrorReason: "moderation_request_encode_failed"}
+		return contentModerationProviderResult{ErrorReason: "moderation_request_encode_failed", KeyHash: keyHash}
 	}
 
 	timeoutMs := settings.TimeoutMs
@@ -88,9 +111,9 @@ func callOpenAIContentModeration(
 
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, endpoint, bytes.NewReader(payloadBytes))
 	if err != nil {
-		return contentModerationProviderResult{ErrorReason: "moderation_request_build_failed"}
+		return contentModerationProviderResult{ErrorReason: "moderation_request_build_failed", KeyHash: keyHash}
 	}
-	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(settings.APIKey))
+	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(apiKey.Key))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	if strings.TrimSpace(input.RequestID) != "" {
@@ -100,35 +123,49 @@ func callOpenAIContentModeration(
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		if reqCtx.Err() == context.DeadlineExceeded {
-			return contentModerationProviderResult{ErrorReason: "moderation_timeout"}
+			result := contentModerationProviderResult{ErrorReason: "moderation_timeout", KeyHash: keyHash}
+			RegisterContentModerationKeyFailure(keyHash, result.ErrorReason, 0, err, time.Now().UTC())
+			return result
 		}
-		return contentModerationProviderResult{ErrorReason: "moderation_upstream_failed"}
+		result := contentModerationProviderResult{ErrorReason: "moderation_upstream_failed", KeyHash: keyHash}
+		RegisterContentModerationKeyFailure(keyHash, result.ErrorReason, 0, err, time.Now().UTC())
+		return result
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	var decoded contentModerationOpenAIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return contentModerationProviderResult{ErrorReason: "moderation_response_decode_failed"}
+		result := contentModerationProviderResult{
+			ErrorReason: "moderation_response_decode_failed",
+			StatusCode:  resp.StatusCode,
+			KeyHash:     keyHash,
+		}
+		RegisterContentModerationKeyFailure(keyHash, result.ErrorReason, resp.StatusCode, err, time.Now().UTC())
+		return result
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		reason := fmt.Sprintf("moderation_http_%d", resp.StatusCode)
 		if decoded.Error != nil {
 			if msg := strings.TrimSpace(decoded.Error.Message); msg != "" {
-				return contentModerationProviderResult{ErrorReason: truncateModerationErrorReason(msg)}
+				reason = truncateModerationErrorReason(msg)
 			}
 		}
-		return contentModerationProviderResult{ErrorReason: fmt.Sprintf("moderation_http_%d", resp.StatusCode)}
+		result := contentModerationProviderResult{ErrorReason: reason, StatusCode: resp.StatusCode, KeyHash: keyHash}
+		RegisterContentModerationKeyFailure(keyHash, reason, resp.StatusCode, nil, time.Now().UTC())
+		return result
 	}
 
 	for _, result := range decoded.Results {
 		if result.Flagged {
-			return contentModerationProviderResult{Hit: true}
+			return contentModerationProviderResult{Hit: true, StatusCode: resp.StatusCode, KeyHash: keyHash}
 		}
 	}
-	return contentModerationProviderResult{}
+	return contentModerationProviderResult{StatusCode: resp.StatusCode, KeyHash: keyHash}
 }
 
 func truncateModerationErrorReason(value string) string {
+	value = redactContentModerationSecrets(value)
 	value = strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
 	if len(value) <= 120 {
 		return value

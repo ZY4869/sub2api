@@ -153,6 +153,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if req.ContentModerationAPIKey != "" {
 		changed = append(changed, "content_moderation_api_key")
 	}
+	if len(req.ContentModerationAPIKeys) > 0 || len(req.DeleteContentModerationAPIKeyHashes) > 0 || strings.TrimSpace(req.ContentModerationAPIKeysMode) != "" {
+		changed = append(changed, "content_moderation_api_keys")
+	}
 	if before.ContentModerationModel != after.ContentModerationModel {
 		changed = append(changed, "content_moderation_model")
 	}
@@ -264,6 +267,18 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.PurchaseSubscriptionURL != after.PurchaseSubscriptionURL {
 		changed = append(changed, "purchase_subscription_url")
 	}
+	if before.LoginAgreementEnabled != after.LoginAgreementEnabled {
+		changed = append(changed, "login_agreement_enabled")
+	}
+	if before.LoginAgreementMode != after.LoginAgreementMode {
+		changed = append(changed, "login_agreement_mode")
+	}
+	if before.LoginAgreementUpdatedAt != after.LoginAgreementUpdatedAt {
+		changed = append(changed, "login_agreement_updated_at")
+	}
+	if !equalLoginAgreementDocuments(before.LoginAgreementDocuments, after.LoginAgreementDocuments) {
+		changed = append(changed, "login_agreement_documents")
+	}
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")
 	}
@@ -360,6 +375,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		ContentModerationProvider:            settings.ContentModerationProvider,
 		ContentModerationBaseURL:             settings.ContentModerationBaseURL,
 		ContentModerationAPIKeyConfigured:    settings.ContentModerationAPIKeyConfigured,
+		ContentModerationAPIKeyStatuses:      buildContentModerationAPIKeyStatusDTOs(settings.ContentModerationAPIKeyStatuses),
 		ContentModerationModel:               settings.ContentModerationModel,
 		ContentModerationTimeoutMs:           settings.ContentModerationTimeoutMs,
 		ContentModerationDedupeWindowSeconds: settings.ContentModerationDedupeWindowSeconds,
@@ -379,6 +395,10 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		PurchaseSubscriptionEnabled:          settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:              settings.PurchaseSubscriptionURL,
 		CustomMenuItems:                      customMenuItems,
+		LoginAgreementEnabled:                settings.LoginAgreementEnabled,
+		LoginAgreementMode:                   settings.LoginAgreementMode,
+		LoginAgreementUpdatedAt:              settings.LoginAgreementUpdatedAt,
+		LoginAgreementDocuments:              buildLoginAgreementDocumentDTOs(settings.LoginAgreementDocuments),
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		AffiliateTransferEnabled:             settings.AffiliateTransferEnabled,
 		AffiliateRebateOnUsageEnabled:        settings.AffiliateRebateOnUsageEnabled,
@@ -449,6 +469,44 @@ func equalDefaultSubscriptions(a, b []service.DefaultSubscriptionSetting) bool {
 	}
 	return true
 }
+
+func equalLoginAgreementDocuments(a, b []service.LoginAgreementDocument) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].ID != b[i].ID || a[i].Title != b[i].Title || a[i].PageSlug != b[i].PageSlug {
+			return false
+		}
+	}
+	return true
+}
+
+func buildContentModerationAPIKeyStatusDTOs(items []service.ContentModerationAPIKeyStatus) []dto.ContentModerationAPIKeyStatus {
+	out := make([]dto.ContentModerationAPIKeyStatus, 0, len(items))
+	for _, item := range items {
+		out = append(out, dto.ContentModerationAPIKeyStatus{
+			Hash:        item.Hash,
+			Masked:      item.Masked,
+			FrozenUntil: item.FrozenUntil,
+			LastError:   item.LastError,
+		})
+	}
+	return out
+}
+
+func buildLoginAgreementDocumentDTOs(items []service.LoginAgreementDocument) []dto.LoginAgreementDocument {
+	out := make([]dto.LoginAgreementDocument, 0, len(items))
+	for _, item := range items {
+		out = append(out, dto.LoginAgreementDocument{
+			ID:       item.ID,
+			Title:    item.Title,
+			PageSlug: item.PageSlug,
+		})
+	}
+	return out
+}
+
 func (h *SettingHandler) SendTestEmail(c *gin.Context) {
 	var req SendTestEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

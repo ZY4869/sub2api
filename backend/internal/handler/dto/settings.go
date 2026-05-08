@@ -42,6 +42,19 @@ type PageContentResponse struct {
 	UpdatedAt  string `json:"updated_at,omitempty"`
 }
 
+type LoginAgreementDocument struct {
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	PageSlug string `json:"page_slug"`
+}
+
+type ContentModerationAPIKeyStatus struct {
+	Hash        string `json:"hash"`
+	Masked      string `json:"masked"`
+	FrozenUntil string `json:"frozen_until,omitempty"`
+	LastError   string `json:"last_error,omitempty"`
+}
+
 // SystemSettings represents the admin settings API response payload.
 type SystemSettings struct {
 	RegistrationEnabled              bool     `json:"registration_enabled"`
@@ -69,42 +82,47 @@ type SystemSettings struct {
 	TurnstileSiteKey             string `json:"turnstile_site_key"`
 	TurnstileSecretKeyConfigured bool   `json:"turnstile_secret_key_configured"`
 
-	LinuxDoConnectEnabled                bool   `json:"linuxdo_connect_enabled"`
-	LinuxDoConnectClientID               string `json:"linuxdo_connect_client_id"`
-	LinuxDoConnectClientSecretConfigured bool   `json:"linuxdo_connect_client_secret_configured"`
-	LinuxDoConnectRedirectURL            string `json:"linuxdo_connect_redirect_url"`
-	GitHubOAuthEnabled                   bool   `json:"github_oauth_enabled"`
-	GitHubOAuthClientID                  string `json:"github_oauth_client_id"`
-	GitHubOAuthClientSecretConfigured    bool   `json:"github_oauth_client_secret_configured"`
-	GitHubOAuthRedirectURL               string `json:"github_oauth_redirect_url"`
-	GoogleOAuthEnabled                   bool   `json:"google_oauth_enabled"`
-	GoogleOAuthClientID                  string `json:"google_oauth_client_id"`
-	GoogleOAuthClientSecretConfigured    bool   `json:"google_oauth_client_secret_configured"`
-	GoogleOAuthRedirectURL               string `json:"google_oauth_redirect_url"`
-	ContentModerationEnabled             bool   `json:"content_moderation_enabled"`
-	ContentModerationProvider            string `json:"content_moderation_provider"`
-	ContentModerationBaseURL             string `json:"content_moderation_base_url"`
-	ContentModerationAPIKeyConfigured    bool   `json:"content_moderation_api_key_configured"`
-	ContentModerationModel               string `json:"content_moderation_model"`
-	ContentModerationTimeoutMs           int    `json:"content_moderation_timeout_ms"`
-	ContentModerationDedupeWindowSeconds int    `json:"content_moderation_dedupe_window_seconds"`
-	ContentModerationFailOpen            bool   `json:"content_moderation_fail_open"`
+	LinuxDoConnectEnabled                bool                            `json:"linuxdo_connect_enabled"`
+	LinuxDoConnectClientID               string                          `json:"linuxdo_connect_client_id"`
+	LinuxDoConnectClientSecretConfigured bool                            `json:"linuxdo_connect_client_secret_configured"`
+	LinuxDoConnectRedirectURL            string                          `json:"linuxdo_connect_redirect_url"`
+	GitHubOAuthEnabled                   bool                            `json:"github_oauth_enabled"`
+	GitHubOAuthClientID                  string                          `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecretConfigured    bool                            `json:"github_oauth_client_secret_configured"`
+	GitHubOAuthRedirectURL               string                          `json:"github_oauth_redirect_url"`
+	GoogleOAuthEnabled                   bool                            `json:"google_oauth_enabled"`
+	GoogleOAuthClientID                  string                          `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecretConfigured    bool                            `json:"google_oauth_client_secret_configured"`
+	GoogleOAuthRedirectURL               string                          `json:"google_oauth_redirect_url"`
+	ContentModerationEnabled             bool                            `json:"content_moderation_enabled"`
+	ContentModerationProvider            string                          `json:"content_moderation_provider"`
+	ContentModerationBaseURL             string                          `json:"content_moderation_base_url"`
+	ContentModerationAPIKeyConfigured    bool                            `json:"content_moderation_api_key_configured"`
+	ContentModerationAPIKeyStatuses      []ContentModerationAPIKeyStatus `json:"content_moderation_api_key_statuses"`
+	ContentModerationModel               string                          `json:"content_moderation_model"`
+	ContentModerationTimeoutMs           int                             `json:"content_moderation_timeout_ms"`
+	ContentModerationDedupeWindowSeconds int                             `json:"content_moderation_dedupe_window_seconds"`
+	ContentModerationFailOpen            bool                            `json:"content_moderation_fail_open"`
 
-	SiteName                             string           `json:"site_name"`
-	SiteLogo                             string           `json:"site_logo"`
-	SiteSubtitle                         string           `json:"site_subtitle"`
-	APIBaseURL                           string           `json:"api_base_url"`
-	ContactInfo                          string           `json:"contact_info"`
-	DocURL                               string           `json:"doc_url"`
-	HomeContent                          string           `json:"home_content"`
-	HideCcsImportButton                  bool             `json:"hide_ccs_import_button"`
-	AvailableChannelsEnabled             bool             `json:"available_channels_enabled"`
-	ChannelMonitorEnabled                bool             `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds int              `json:"channel_monitor_default_interval_seconds"`
-	PublicModelCatalogEnabled            bool             `json:"public_model_catalog_enabled"`
-	PurchaseSubscriptionEnabled          bool             `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL              string           `json:"purchase_subscription_url"`
-	CustomMenuItems                      []CustomMenuItem `json:"custom_menu_items"`
+	SiteName                             string                   `json:"site_name"`
+	SiteLogo                             string                   `json:"site_logo"`
+	SiteSubtitle                         string                   `json:"site_subtitle"`
+	APIBaseURL                           string                   `json:"api_base_url"`
+	ContactInfo                          string                   `json:"contact_info"`
+	DocURL                               string                   `json:"doc_url"`
+	HomeContent                          string                   `json:"home_content"`
+	HideCcsImportButton                  bool                     `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled             bool                     `json:"available_channels_enabled"`
+	ChannelMonitorEnabled                bool                     `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds int                      `json:"channel_monitor_default_interval_seconds"`
+	PublicModelCatalogEnabled            bool                     `json:"public_model_catalog_enabled"`
+	PurchaseSubscriptionEnabled          bool                     `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL              string                   `json:"purchase_subscription_url"`
+	CustomMenuItems                      []CustomMenuItem         `json:"custom_menu_items"`
+	LoginAgreementEnabled                bool                     `json:"login_agreement_enabled"`
+	LoginAgreementMode                   string                   `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt              string                   `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments              []LoginAgreementDocument `json:"login_agreement_documents"`
 
 	AffiliateEnabled              bool    `json:"affiliate_enabled"`
 	AffiliateTransferEnabled      bool    `json:"affiliate_transfer_enabled"`
@@ -157,36 +175,40 @@ type DefaultSubscriptionSetting struct {
 }
 
 type PublicSettings struct {
-	RegistrationEnabled              bool             `json:"registration_enabled"`
-	EmailVerifyEnabled               bool             `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist []string         `json:"registration_email_suffix_whitelist"`
-	PromoCodeEnabled                 bool             `json:"promo_code_enabled"`
-	PasswordResetEnabled             bool             `json:"password_reset_enabled"`
-	InvitationCodeEnabled            bool             `json:"invitation_code_enabled"`
-	TotpEnabled                      bool             `json:"totp_enabled"` // TOTP 双因素认证
-	TurnstileEnabled                 bool             `json:"turnstile_enabled"`
-	TurnstileSiteKey                 string           `json:"turnstile_site_key"`
-	SiteName                         string           `json:"site_name"`
-	SiteLogo                         string           `json:"site_logo"`
-	SiteSubtitle                     string           `json:"site_subtitle"`
-	APIBaseURL                       string           `json:"api_base_url"`
-	ContactInfo                      string           `json:"contact_info"`
-	DocURL                           string           `json:"doc_url"`
-	HomeContent                      string           `json:"home_content"`
-	HideCcsImportButton              bool             `json:"hide_ccs_import_button"`
-	AvailableChannelsEnabled         bool             `json:"available_channels_enabled"`
-	ChannelMonitorEnabled            bool             `json:"channel_monitor_enabled"`
-	PublicModelCatalogEnabled        bool             `json:"public_model_catalog_enabled"`
-	AffiliateEnabled                 bool             `json:"affiliate_enabled"`
-	PurchaseSubscriptionEnabled      bool             `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL          string           `json:"purchase_subscription_url"`
-	CustomMenuItems                  []CustomMenuItem `json:"custom_menu_items"`
-	LinuxDoOAuthEnabled              bool             `json:"linuxdo_oauth_enabled"`
-	GitHubOAuthEnabled               bool             `json:"github_oauth_enabled"`
-	GoogleOAuthEnabled               bool             `json:"google_oauth_enabled"`
-	BackendModeEnabled               bool             `json:"backend_mode_enabled"`
-	MaintenanceModeEnabled           bool             `json:"maintenance_mode_enabled"`
-	Version                          string           `json:"version"`
+	RegistrationEnabled              bool                     `json:"registration_enabled"`
+	EmailVerifyEnabled               bool                     `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist []string                 `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                 bool                     `json:"promo_code_enabled"`
+	PasswordResetEnabled             bool                     `json:"password_reset_enabled"`
+	InvitationCodeEnabled            bool                     `json:"invitation_code_enabled"`
+	TotpEnabled                      bool                     `json:"totp_enabled"` // TOTP 双因素认证
+	TurnstileEnabled                 bool                     `json:"turnstile_enabled"`
+	TurnstileSiteKey                 string                   `json:"turnstile_site_key"`
+	SiteName                         string                   `json:"site_name"`
+	SiteLogo                         string                   `json:"site_logo"`
+	SiteSubtitle                     string                   `json:"site_subtitle"`
+	APIBaseURL                       string                   `json:"api_base_url"`
+	ContactInfo                      string                   `json:"contact_info"`
+	DocURL                           string                   `json:"doc_url"`
+	HomeContent                      string                   `json:"home_content"`
+	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled         bool                     `json:"available_channels_enabled"`
+	ChannelMonitorEnabled            bool                     `json:"channel_monitor_enabled"`
+	PublicModelCatalogEnabled        bool                     `json:"public_model_catalog_enabled"`
+	AffiliateEnabled                 bool                     `json:"affiliate_enabled"`
+	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL          string                   `json:"purchase_subscription_url"`
+	CustomMenuItems                  []CustomMenuItem         `json:"custom_menu_items"`
+	LoginAgreementEnabled            bool                     `json:"login_agreement_enabled"`
+	LoginAgreementMode               string                   `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt          string                   `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments          []LoginAgreementDocument `json:"login_agreement_documents"`
+	LinuxDoOAuthEnabled              bool                     `json:"linuxdo_oauth_enabled"`
+	GitHubOAuthEnabled               bool                     `json:"github_oauth_enabled"`
+	GoogleOAuthEnabled               bool                     `json:"google_oauth_enabled"`
+	BackendModeEnabled               bool                     `json:"backend_mode_enabled"`
+	MaintenanceModeEnabled           bool                     `json:"maintenance_mode_enabled"`
+	Version                          string                   `json:"version"`
 }
 
 type GoogleBatchGCSProfile struct {

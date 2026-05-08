@@ -135,6 +135,27 @@ func TestDroppedBetaSet(t *testing.T) {
 	require.Len(t, extended, len(claude.DroppedBetas)+1)
 }
 
+func TestDefaultClaudeBetaHeadersDoNotInjectRedactThinking(t *testing.T) {
+	headers := []string{
+		claude.DefaultBetaHeader,
+		claude.APIKeyBetaHeader,
+		claude.HaikuBetaHeader,
+		claude.CountTokensBetaHeader,
+	}
+	for _, header := range headers {
+		require.NotContains(t, header, "redact-thinking")
+	}
+}
+
+func TestMergeAnthropicBetaDropping_PreservesExplicitRedactThinkingWithoutPolicyDrop(t *testing.T) {
+	got := mergeAnthropicBetaDropping(
+		[]string{"oauth-2025-04-20"},
+		"redact-thinking-2025-10-01",
+		map[string]struct{}{},
+	)
+	require.Equal(t, "oauth-2025-04-20,redact-thinking-2025-10-01", got)
+}
+
 func TestBuildBetaTokenSet(t *testing.T) {
 	got := buildBetaTokenSet([]string{"foo", "", "bar", "foo"})
 	require.Len(t, got, 2)

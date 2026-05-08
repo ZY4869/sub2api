@@ -1139,7 +1139,7 @@
               </div>
               <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('admin.settings.moderation.apiKey') }}
+                  {{ t('admin.settings.moderation.addApiKey') }}
                 </label>
                 <input
                   v-model="form.content_moderation_api_key"
@@ -1154,6 +1154,47 @@
                 <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                   {{ t('admin.settings.moderation.apiKeyHint') }}
                 </p>
+              </div>
+              <div
+                v-if="form.content_moderation_api_key_statuses.length > 0"
+                class="md:col-span-2"
+              >
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.configuredKeys') }}
+                </label>
+                <div class="space-y-2">
+                  <div
+                    v-for="keyStatus in form.content_moderation_api_key_statuses"
+                    :key="keyStatus.hash"
+                    class="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700"
+                  >
+                    <div class="min-w-0">
+                      <div class="truncate font-mono text-sm text-gray-900 dark:text-white">
+                        {{ keyStatus.masked }}
+                      </div>
+                      <div class="truncate text-xs text-gray-500 dark:text-gray-400">
+                        {{ keyStatus.hash }}
+                      </div>
+                      <div
+                        v-if="keyStatus.frozen_until"
+                        class="mt-1 text-xs text-amber-600 dark:text-amber-400"
+                      >
+                        {{
+                          t('admin.settings.moderation.frozenUntil', {
+                            time: keyStatus.frozen_until
+                          })
+                        }}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm shrink-0"
+                      @click="deleteContentModerationKey(keyStatus.hash)"
+                    >
+                      {{ t('admin.settings.moderation.deleteKey') }}
+                    </button>
+                  </div>
+                </div>
               </div>
               <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1858,6 +1899,103 @@
 
         <CustomMenuSettingsCard v-model="form.custom_menu_items" />
 
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.loginAgreement.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.loginAgreement.description') }}
+            </p>
+          </div>
+          <div class="space-y-6 p-6">
+            <div class="flex items-center justify-between rounded-2xl border border-gray-100 p-5 dark:border-dark-700">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.loginAgreement.enabled') }}
+                </label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.loginAgreement.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.login_agreement_enabled" />
+            </div>
+
+            <div v-if="form.login_agreement_enabled" class="space-y-4">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.loginAgreement.mode') }}
+                  </label>
+                  <Select
+                    v-model="form.login_agreement_mode"
+                    :options="loginAgreementModeOptions"
+                  />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.loginAgreement.updatedAt') }}
+                  </label>
+                  <input
+                    v-model="form.login_agreement_updated_at"
+                    type="text"
+                    class="input"
+                    placeholder="2026-05-07"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div class="mb-2 flex items-center justify-between gap-3">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.loginAgreement.documents') }}
+                  </label>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    :disabled="publishedMarkdownPageOptions.length === 0"
+                    @click="addLoginAgreementDocument"
+                  >
+                    {{ t('admin.settings.loginAgreement.addDocument') }}
+                  </button>
+                </div>
+                <p
+                  v-if="publishedMarkdownPageOptions.length === 0"
+                  class="text-sm text-amber-600 dark:text-amber-400"
+                >
+                  {{ t('admin.settings.loginAgreement.noPublishedPages') }}
+                </p>
+                <div v-else class="space-y-3">
+                  <div
+                    v-for="(doc, index) in form.login_agreement_documents"
+                    :key="`${doc.id}-${index}`"
+                    class="grid grid-cols-1 gap-3 rounded-lg border border-gray-100 p-3 dark:border-dark-700 md:grid-cols-[1fr,1fr,auto]"
+                  >
+                    <Select
+                      v-model="doc.page_slug"
+                      :options="publishedMarkdownPageOptions"
+                      @update:modelValue="syncLoginAgreementDocument(index)"
+                    />
+                    <input
+                      v-model="doc.title"
+                      type="text"
+                      class="input"
+                      :placeholder="t('admin.settings.loginAgreement.documentTitle')"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      @click="removeLoginAgreementDocument(index)"
+                    >
+                      {{ t('admin.settings.loginAgreement.removeDocument') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         </div><!-- /Tab: General -->
 
         <!-- Tab: Notification -->
@@ -2200,9 +2338,10 @@ import type {
   SystemSettings,
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
-  BetaPolicyRule
+  BetaPolicyRule,
+  ContentModerationAPIKeyStatus
 } from '@/api/admin/settings'
-import type { AdminGroup, CustomMenuItem } from '@/types'
+import type { AdminGroup, CustomMenuItem, LoginAgreementDocument } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Select from '@/components/common/Select.vue'
@@ -2317,6 +2456,7 @@ type SettingsForm = SystemSettings & {
   github_oauth_client_secret: string
   google_oauth_client_secret: string
   content_moderation_api_key: string
+  delete_content_moderation_api_key_hashes: string[]
 }
 
 const form = reactive<SettingsForm>({
@@ -2358,6 +2498,10 @@ const form = reactive<SettingsForm>({
   backend_mode_enabled: false,
   maintenance_mode_enabled: false,
   custom_menu_items: [] as CustomMenuItem[],
+  login_agreement_enabled: false,
+  login_agreement_mode: 'checkbox',
+  login_agreement_updated_at: '',
+  login_agreement_documents: [] as LoginAgreementDocument[],
   smtp_host: '',
   smtp_port: 587,
   smtp_username: '',
@@ -2396,6 +2540,7 @@ const form = reactive<SettingsForm>({
   content_moderation_base_url: '',
   content_moderation_api_key: '',
   content_moderation_api_key_configured: false,
+  content_moderation_api_key_statuses: [] as ContentModerationAPIKeyStatus[],
   content_moderation_model: '',
   content_moderation_timeout_ms: 1500,
   content_moderation_dedupe_window_seconds: 300,
@@ -2427,7 +2572,8 @@ const form = reactive<SettingsForm>({
   min_claude_code_version: '',
   max_claude_code_version: '',
   // 分组隔离
-  allow_ungrouped_key_scheduling: false
+  allow_ungrouped_key_scheduling: false,
+  delete_content_moderation_api_key_hashes: []
 })
 
 const defaultSubscriptionGroupOptions = computed<DefaultSubscriptionGroupOption[]>(() =>
@@ -2439,6 +2585,19 @@ const defaultSubscriptionGroupOptions = computed<DefaultSubscriptionGroupOption[
     subscriptionType: group.subscription_type,
     rate: group.rate_multiplier
   }))
+)
+
+const loginAgreementModeOptions = computed(() => [
+  { value: 'checkbox', label: t('admin.settings.loginAgreement.checkboxMode') }
+])
+
+const publishedMarkdownPageOptions = computed(() =>
+  form.custom_menu_items
+    .filter((item) => item.page_mode === 'markdown' && item.page_published && item.page_slug)
+    .map((item) => ({
+      value: item.page_slug || '',
+      label: item.label || item.page_slug || ''
+    }))
 )
 
 const registrationEmailSuffixWhitelistSeparatorKeys = new Set([' ', ',', '，', 'Enter', 'Tab'])
@@ -2549,6 +2708,7 @@ async function loadSettings() {
     form.github_oauth_client_secret = ''
     form.google_oauth_client_secret = ''
     form.content_moderation_api_key = ''
+    form.delete_content_moderation_api_key_hashes = []
   } catch (error: any) {
     appStore.showError(
       t('admin.settings.failedToLoad') + ': ' + (error.message || t('common.unknownError'))
@@ -2585,6 +2745,44 @@ function removeDefaultSubscription(index: number) {
   form.default_subscriptions.splice(index, 1)
 }
 
+function deleteContentModerationKey(hash: string) {
+  if (!hash || form.delete_content_moderation_api_key_hashes.includes(hash)) {
+    return
+  }
+  form.delete_content_moderation_api_key_hashes.push(hash)
+  form.content_moderation_api_key_statuses = form.content_moderation_api_key_statuses.filter(
+    (item) => item.hash !== hash
+  )
+}
+
+function syncLoginAgreementDocument(index: number) {
+  const doc = form.login_agreement_documents[index]
+  if (!doc) return
+  const option = publishedMarkdownPageOptions.value.find((item) => item.value === doc.page_slug)
+  doc.page_slug = String(option?.value || doc.page_slug || '')
+  if (!doc.id) {
+    doc.id = doc.page_slug
+  }
+  if (!doc.title && option?.label) {
+    doc.title = String(option.label)
+  }
+}
+
+function addLoginAgreementDocument() {
+  const existing = new Set(form.login_agreement_documents.map((item) => item.page_slug))
+  const option = publishedMarkdownPageOptions.value.find((item) => !existing.has(String(item.value)))
+  if (!option) return
+  form.login_agreement_documents.push({
+    id: String(option.value),
+    title: String(option.label),
+    page_slug: String(option.value)
+  })
+}
+
+function removeLoginAgreementDocument(index: number) {
+  form.login_agreement_documents.splice(index, 1)
+}
+
 async function saveSettings() {
   saving.value = true
   try {
@@ -2611,6 +2809,14 @@ async function saveSettings() {
       )
       return
     }
+
+    const contentModerationNewKeys = form.content_moderation_api_key
+      ? [form.content_moderation_api_key]
+      : undefined
+    const contentModerationDeletedKeys =
+      form.delete_content_moderation_api_key_hashes.length > 0
+        ? form.delete_content_moderation_api_key_hashes
+        : undefined
 
     const payload: UpdateSettingsRequest = {
       registration_enabled: form.registration_enabled,
@@ -2650,6 +2856,16 @@ async function saveSettings() {
       purchase_subscription_url: form.purchase_subscription_url,
       maintenance_mode_enabled: form.maintenance_mode_enabled,
       custom_menu_items: form.custom_menu_items,
+      login_agreement_enabled: form.login_agreement_enabled,
+      login_agreement_mode: form.login_agreement_mode,
+      login_agreement_updated_at: form.login_agreement_updated_at,
+      login_agreement_documents: form.login_agreement_documents
+        .filter((doc) => doc.page_slug)
+        .map((doc) => ({
+          id: doc.id || doc.page_slug,
+          title: doc.title || doc.page_slug,
+          page_slug: doc.page_slug
+        })),
       smtp_host: form.smtp_host,
       smtp_port: form.smtp_port,
       smtp_username: form.smtp_username,
@@ -2677,7 +2893,10 @@ async function saveSettings() {
       content_moderation_enabled: form.content_moderation_enabled,
       content_moderation_provider: form.content_moderation_provider,
       content_moderation_base_url: form.content_moderation_base_url,
-      content_moderation_api_key: form.content_moderation_api_key || undefined,
+      content_moderation_api_keys: contentModerationNewKeys,
+      content_moderation_api_keys_mode:
+        contentModerationNewKeys || contentModerationDeletedKeys ? 'append' : undefined,
+      delete_content_moderation_api_key_hashes: contentModerationDeletedKeys,
       content_moderation_model: form.content_moderation_model,
       content_moderation_timeout_ms: form.content_moderation_timeout_ms,
       content_moderation_dedupe_window_seconds: form.content_moderation_dedupe_window_seconds,
@@ -2708,6 +2927,7 @@ async function saveSettings() {
     form.github_oauth_client_secret = ''
     form.google_oauth_client_secret = ''
     form.content_moderation_api_key = ''
+    form.delete_content_moderation_api_key_hashes = []
     // Refresh cached settings so sidebar/header update immediately
     await appStore.fetchPublicSettings(true)
     await adminSettingsStore.fetch(true)

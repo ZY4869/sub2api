@@ -81,13 +81,17 @@ func TestAPIContracts(t *testing.T) {
 					service.SettingKeyTurnstileEnabled: "true",
 					service.SettingKeyTurnstileSiteKey: "site-key",
 
-					service.SettingKeySiteName:        "Sub2API",
-					service.SettingKeySiteLogo:        "",
-					service.SettingKeySiteSubtitle:    "Subtitle",
-					service.SettingKeyAPIBaseURL:      "https://api.example.com",
-					service.SettingKeyContactInfo:     "support",
-					service.SettingKeyDocURL:          "https://docs.example.com",
-					service.SettingKeyCustomMenuItems: `[{"id":"page-public","label":"Guide","icon_svg":"","url":"","visibility":"user","sort_order":0,"page_mode":"markdown","page_slug":"guide","page_content":"# hidden","page_published":true},{"id":"page-draft","label":"Draft","icon_svg":"","url":"","visibility":"user","sort_order":1,"page_mode":"markdown","page_slug":"draft","page_content":"# hidden","page_published":false},{"id":"page-admin","label":"Admin","icon_svg":"","url":"https://admin.example.com","visibility":"admin","sort_order":2,"page_mode":"iframe"}]`,
+					service.SettingKeySiteName:                "Sub2API",
+					service.SettingKeySiteLogo:                "",
+					service.SettingKeySiteSubtitle:            "Subtitle",
+					service.SettingKeyAPIBaseURL:              "https://api.example.com",
+					service.SettingKeyContactInfo:             "support",
+					service.SettingKeyDocURL:                  "https://docs.example.com",
+					service.SettingKeyCustomMenuItems:         `[{"id":"page-public","label":"Guide","icon_svg":"","url":"","visibility":"user","sort_order":0,"page_mode":"markdown","page_slug":"guide","page_content":"# hidden","page_published":true},{"id":"page-draft","label":"Draft","icon_svg":"","url":"","visibility":"user","sort_order":1,"page_mode":"markdown","page_slug":"draft","page_content":"# hidden","page_published":false},{"id":"page-admin","label":"Admin","icon_svg":"","url":"https://admin.example.com","visibility":"admin","sort_order":2,"page_mode":"iframe"}]`,
+					service.SettingKeyLoginAgreementEnabled:   "true",
+					service.SettingKeyLoginAgreementMode:      "checkbox",
+					service.SettingKeyLoginAgreementUpdatedAt: "2026-05-07",
+					service.SettingKeyLoginAgreementDocuments: `[{"id":"terms","title":"Terms","page_slug":"terms"}]`,
 				})
 			},
 			method:     http.MethodGet,
@@ -131,6 +135,16 @@ func TestAPIContracts(t *testing.T) {
 							"page_mode": "markdown",
 							"page_slug": "guide",
 							"page_published": true
+						}
+					],
+					"login_agreement_enabled": true,
+					"login_agreement_mode": "checkbox",
+					"login_agreement_updated_at": "2026-05-07",
+					"login_agreement_documents": [
+						{
+							"id": "terms",
+							"title": "Terms",
+							"page_slug": "terms"
 						}
 					],
 					"linuxdo_oauth_enabled": false,
@@ -925,6 +939,7 @@ func TestAPIContracts(t *testing.T) {
 						"content_moderation_provider": "openai",
 						"content_moderation_base_url": "",
 						"content_moderation_api_key_configured": false,
+						"content_moderation_api_key_statuses": [],
 						"content_moderation_model": "",
 						"content_moderation_timeout_ms": 1500,
 						"content_moderation_dedupe_window_seconds": 300,
@@ -958,6 +973,10 @@ func TestAPIContracts(t *testing.T) {
 					"public_model_catalog_enabled": true,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
+					"login_agreement_enabled": false,
+					"login_agreement_mode": "checkbox",
+					"login_agreement_updated_at": "",
+					"login_agreement_documents": [],
 					"maintenance_mode_enabled": false,
 					"min_claude_code_version": "",
 					"max_claude_code_version": "",

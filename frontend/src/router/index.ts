@@ -139,6 +139,16 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'ui.routeTitles.models'
     }
   },
+  {
+    path: '/legal/:slug',
+    name: 'LegalDocument',
+    component: () => import('@/views/LegalDocumentView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Legal',
+      titleKey: 'customPage.title'
+    }
+  },
 
   // ==================== User Routes ====================
   {
@@ -764,7 +774,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/models']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/models', '/legal']
 const LOGIN_ENTRY_PATHS = ['/login', '/register']
 
 function isAllowedPath(path: string, allowedPaths: string[]) {

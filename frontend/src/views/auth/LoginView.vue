@@ -109,6 +109,13 @@
           </p>
         </div>
 
+        <LoginAgreementPrompt
+          v-model:accepted="loginAgreementAccepted"
+          :enabled="loginAgreementEnabled"
+          :documents="loginAgreementDocuments"
+          :error="errors.agreement"
+        />
+
         <!-- Error Message -->
         <transition name="fade">
           <div
@@ -129,7 +136,11 @@
         <!-- Submit Button -->
         <button
           type="submit"
-          :disabled="isLoading || (turnstileEnabled && !turnstileToken)"
+          :disabled="
+            isLoading ||
+            (turnstileEnabled && !turnstileToken) ||
+            (loginAgreementEnabled && !loginAgreementAccepted)
+          "
           class="btn btn-primary w-full"
         >
           <svg
@@ -189,13 +200,14 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
 import AuthMaintenanceNotice from '@/components/auth/AuthMaintenanceNotice.vue'
+import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
 import SocialOAuthSection from '@/components/auth/SocialOAuthSection.vue'
 import TotpLoginModal from '@/components/auth/TotpLoginModal.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import { useAuthStore, useAppStore } from '@/stores'
 import { getPublicSettings, isTotp2FARequired } from '@/api/auth'
-import type { TotpLoginResponse } from '@/types'
+import type { LoginAgreementDocument, TotpLoginResponse } from '@/types'
 
 const { t } = useI18n()
 
@@ -221,6 +233,9 @@ const backendModeEnabled = ref<boolean>(false)
 const maintenanceModeEnabled = ref<boolean>(false)
 const passwordResetEnabled = ref<boolean>(false)
 const socialOAuthVisible = ref<boolean>(false)
+const loginAgreementEnabled = ref<boolean>(false)
+const loginAgreementAccepted = ref<boolean>(false)
+const loginAgreementDocuments = ref<LoginAgreementDocument[]>([])
 
 // Turnstile
 const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
@@ -240,7 +255,8 @@ const formData = reactive({
 const errors = reactive({
   email: '',
   password: '',
-  turnstile: ''
+  turnstile: '',
+  agreement: ''
 })
 
 // ==================== Lifecycle ====================
@@ -264,6 +280,11 @@ onMounted(async () => {
     backendModeEnabled.value = settings.backend_mode_enabled
     maintenanceModeEnabled.value = settings.maintenance_mode_enabled
     passwordResetEnabled.value = settings.password_reset_enabled
+    loginAgreementEnabled.value =
+      settings.login_agreement_enabled === true &&
+      Array.isArray(settings.login_agreement_documents) &&
+      settings.login_agreement_documents.length > 0
+    loginAgreementDocuments.value = settings.login_agreement_documents || []
     socialOAuthVisible.value =
       !backendModeEnabled.value &&
       !maintenanceModeEnabled.value &&
@@ -297,6 +318,7 @@ function validateForm(): boolean {
   errors.email = ''
   errors.password = ''
   errors.turnstile = ''
+  errors.agreement = ''
 
   let isValid = true
 
@@ -321,6 +343,11 @@ function validateForm(): boolean {
   // Turnstile validation
   if (turnstileEnabled.value && !turnstileToken.value) {
     errors.turnstile = t('auth.completeVerification')
+    isValid = false
+  }
+
+  if (loginAgreementEnabled.value && !loginAgreementAccepted.value) {
+    errors.agreement = t('auth.agreementRequired')
     isValid = false
   }
 

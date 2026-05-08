@@ -243,6 +243,13 @@
           </p>
         </div>
 
+        <LoginAgreementPrompt
+          v-model:accepted="loginAgreementAccepted"
+          :enabled="loginAgreementEnabled"
+          :documents="loginAgreementDocuments"
+          :error="errors.agreement"
+        />
+
         <!-- Error Message -->
         <transition name="fade">
           <div
@@ -263,7 +270,11 @@
         <!-- Submit Button -->
         <button
           type="submit"
-          :disabled="isLoading || (turnstileEnabled && !turnstileToken)"
+          :disabled="
+            isLoading ||
+            (turnstileEnabled && !turnstileToken) ||
+            (loginAgreementEnabled && !loginAgreementAccepted)
+          "
           class="btn btn-primary w-full"
         >
           <svg
@@ -319,6 +330,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
 import AuthMaintenanceNotice from '@/components/auth/AuthMaintenanceNotice.vue'
+import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
 import SocialOAuthSection from '@/components/auth/SocialOAuthSection.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/TurnstileWidget.vue'
@@ -329,6 +341,7 @@ import {
   isRegistrationEmailSuffixAllowed,
   normalizeRegistrationEmailSuffixWhitelist
 } from '@/utils/registrationEmailPolicy'
+import type { LoginAgreementDocument } from '@/types'
 
 const { t, locale } = useI18n()
 
@@ -361,6 +374,9 @@ const googleOAuthEnabled = ref<boolean>(false)
 const maintenanceModeEnabled = ref<boolean>(false)
 const socialOAuthVisible = ref<boolean>(false)
 const registrationEmailSuffixWhitelist = ref<string[]>([])
+const loginAgreementEnabled = ref<boolean>(false)
+const loginAgreementAccepted = ref<boolean>(false)
+const loginAgreementDocuments = ref<LoginAgreementDocument[]>([])
 
 // Turnstile
 const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
@@ -397,7 +413,8 @@ const errors = reactive({
   email: '',
   password: '',
   turnstile: '',
-  invitation_code: ''
+  invitation_code: '',
+  agreement: ''
 })
 
 // ==================== Lifecycle ====================
@@ -423,6 +440,11 @@ onMounted(async () => {
     registrationEmailSuffixWhitelist.value = normalizeRegistrationEmailSuffixWhitelist(
       settings.registration_email_suffix_whitelist || []
     )
+    loginAgreementEnabled.value =
+      settings.login_agreement_enabled === true &&
+      Array.isArray(settings.login_agreement_documents) &&
+      settings.login_agreement_documents.length > 0
+    loginAgreementDocuments.value = settings.login_agreement_documents || []
 
     // Read promo code from URL parameter only if promo code is enabled
     if (promoCodeEnabled.value) {
@@ -636,6 +658,7 @@ function validateForm(): boolean {
   errors.password = ''
   errors.turnstile = ''
   errors.invitation_code = ''
+  errors.agreement = ''
 
   let isValid = true
 
@@ -673,6 +696,11 @@ function validateForm(): boolean {
   // Turnstile validation
   if (turnstileEnabled.value && !turnstileToken.value) {
     errors.turnstile = t('auth.completeVerification')
+    isValid = false
+  }
+
+  if (loginAgreementEnabled.value && !loginAgreementAccepted.value) {
+    errors.agreement = t('auth.agreementRequired')
     isValid = false
   }
 

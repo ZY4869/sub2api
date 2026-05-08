@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -116,6 +117,96 @@ func TestContentModerationService_RecordAudit_CallsOpenAIProvider(t *testing.T) 
 	require.Contains(t, repo.created[0].ContentSummary, "redacted text")
 }
 
+func TestContentModerationService_RecordAudit_UsesNextKeyWhenAuthFailureFreezesFirst(t *testing.T) {
+	originalClient := http.DefaultClient
+	defer func() {
+		http.DefaultClient = originalClient
+	}()
+	ClearContentModerationKeyFreeze(ContentModerationAPIKeyHash("sk-first"))
+	ClearContentModerationKeyFreeze(ContentModerationAPIKeyHash("sk-second"))
+
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("Authorization"))
+		w.Header().Set("Content-Type", "application/json")
+		if len(seen) == 1 {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":{"message":"invalid api_key=sk-first https://example.test/token"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"results":[{"flagged":false}]}`))
+	}))
+	defer server.Close()
+	http.DefaultClient = server.Client()
+
+	rawKeys, err := MarshalContentModerationAPIKeys([]ContentModerationAPIKey{
+		{Key: "sk-first"},
+		{Key: "sk-second"},
+	})
+	require.NoError(t, err)
+	settingsRepo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyContentModerationEnabled:   "true",
+			SettingKeyContentModerationProvider:  "openai",
+			SettingKeyContentModerationBaseURL:   server.URL,
+			SettingKeyContentModerationAPIKeys:   rawKeys,
+			SettingKeyContentModerationModel:     "omni-moderation-latest",
+			SettingKeyContentModerationTimeoutMs: "1500",
+		},
+	}
+	repo := &moderationAuditRepoStub{}
+	svc := NewContentModerationService(repo, settingsRepo)
+
+	svc.RecordAudit(context.Background(), &ContentModerationRecordInput{Content: "first"})
+	svc.RecordAudit(context.Background(), &ContentModerationRecordInput{Content: "second"})
+
+	require.Equal(t, []string{"Bearer sk-first", "Bearer sk-second"}, seen)
+	require.Len(t, repo.created, 2)
+	require.NotContains(t, repo.created[0].ErrorReason, "sk-first")
+	require.NotContains(t, repo.created[0].ErrorReason, "https://example.test")
+}
+
+func TestContentModerationService_RecordAudit_SkipsProviderWhenAllKeysFrozen(t *testing.T) {
+	originalClient := http.DefaultClient
+	defer func() {
+		http.DefaultClient = originalClient
+	}()
+
+	keyHash := ContentModerationAPIKeyHash("sk-frozen")
+	ClearContentModerationKeyFreeze(keyHash)
+	RegisterContentModerationKeyFailure(keyHash, "invalid key", http.StatusUnauthorized, nil, time.Now().UTC())
+	defer ClearContentModerationKeyFreeze(keyHash)
+
+	var upstreamCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamCalls++
+		_, _ = w.Write([]byte(`{"results":[{"flagged":false}]}`))
+	}))
+	defer server.Close()
+	http.DefaultClient = server.Client()
+
+	rawKeys, err := MarshalContentModerationAPIKeys([]ContentModerationAPIKey{{Key: "sk-frozen"}})
+	require.NoError(t, err)
+	settingsRepo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyContentModerationEnabled:   "true",
+			SettingKeyContentModerationProvider:  "openai",
+			SettingKeyContentModerationBaseURL:   server.URL,
+			SettingKeyContentModerationAPIKeys:   rawKeys,
+			SettingKeyContentModerationModel:     "omni-moderation-latest",
+			SettingKeyContentModerationTimeoutMs: "1500",
+		},
+	}
+	repo := &moderationAuditRepoStub{}
+	svc := NewContentModerationService(repo, settingsRepo)
+
+	svc.RecordAudit(context.Background(), &ContentModerationRecordInput{Content: "hello world"})
+
+	require.Zero(t, upstreamCalls)
+	require.Len(t, repo.created, 1)
+	require.Equal(t, "moderation_not_configured", repo.created[0].ErrorReason)
+}
+
 func TestContentModerationService_RecordAudit_StoresProviderErrors(t *testing.T) {
 	originalClient := http.DefaultClient
 	defer func() {
@@ -153,6 +244,45 @@ func TestContentModerationService_RecordAudit_StoresProviderErrors(t *testing.T)
 	require.Equal(t, "invalid moderation key", repo.created[0].ErrorReason)
 	require.NotContains(t, repo.created[0].ContentSummary, "hello world")
 	require.Contains(t, repo.created[0].ContentSummary, "redacted text")
+}
+
+func TestContentModerationAPIKeyStatuses_MasksKeys(t *testing.T) {
+	keys := NormalizeContentModerationAPIKeys("sk-legacy-secret", "")
+	require.Len(t, keys, 1)
+
+	statuses := ContentModerationAPIKeyStatuses(keys, time.Time{})
+	require.Len(t, statuses, 1)
+	require.NotEmpty(t, statuses[0].Hash)
+	require.NotContains(t, statuses[0].Masked, "legacy-secret")
+	require.NotContains(t, statuses[0].Masked, "sk-legacy-secret")
+}
+
+func TestExtractModerationTextFromJSONBody_RedactsSecretsAndLimitsImages(t *testing.T) {
+	body := []byte(`{
+		"messages": [
+			{
+				"role": "user",
+				"content": [
+					{"type": "input_text", "text": "check Bearer sk-token and https://example.test/path"},
+					{"type": "input_image", "image_url": "data:image/png;base64,first"},
+					{"type": "input_image", "image_url": "https://example.test/second.png"}
+				]
+			}
+		],
+		"metadata": {
+			"authorization": "Bearer should-not-appear",
+			"api_key": "sk-should-not-appear"
+		}
+	}`)
+
+	extracted := ExtractModerationTextFromJSONBody(body)
+
+	require.Contains(t, extracted, "check Bearer [redacted-token] and [redacted-url]")
+	require.Contains(t, extracted, "[redacted-image]")
+	require.Equal(t, 1, strings.Count(extracted, "[redacted-image]"))
+	require.NotContains(t, extracted, "sk-token")
+	require.NotContains(t, extracted, "example.test")
+	require.NotContains(t, extracted, "sk-should-not-appear")
 }
 
 func TestContentModerationService_RecordAudit_DisabledSkipsPersistence(t *testing.T) {

@@ -58,6 +58,10 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
 		CustomMenuItems:                  dto.ParseUserVisibleMenuItems(settings.CustomMenuItems),
+		LoginAgreementEnabled:            settings.LoginAgreementEnabled,
+		LoginAgreementMode:               settings.LoginAgreementMode,
+		LoginAgreementUpdatedAt:          settings.LoginAgreementUpdatedAt,
+		LoginAgreementDocuments:          buildPublicLoginAgreementDocumentDTOs(settings.LoginAgreementDocuments),
 		LinuxDoOAuthEnabled:              settings.LinuxDoOAuthEnabled,
 		GitHubOAuthEnabled:               settings.GitHubOAuthEnabled,
 		GoogleOAuthEnabled:               settings.GoogleOAuthEnabled,
@@ -65,6 +69,18 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		MaintenanceModeEnabled:           settings.MaintenanceModeEnabled,
 		Version:                          h.version,
 	})
+}
+
+func buildPublicLoginAgreementDocumentDTOs(items []service.LoginAgreementDocument) []dto.LoginAgreementDocument {
+	out := make([]dto.LoginAgreementDocument, 0, len(items))
+	for _, item := range items {
+		out = append(out, dto.LoginAgreementDocument{
+			ID:       item.ID,
+			Title:    item.Title,
+			PageSlug: item.PageSlug,
+		})
+	}
+	return out
 }
 
 // GetCustomPage returns markdown-backed custom page content.
