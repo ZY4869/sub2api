@@ -76,6 +76,7 @@ func provideCleanup(
 	tokenRefresh *service.TokenRefreshService,
 	openAIGPT55WhitelistBackfill *service.OpenAIGPT55WhitelistBackfillService,
 	accountExpiry *service.AccountExpiryService,
+	accountDaily5HTrigger *service.AccountDaily5HTriggerService,
 	accountBlacklistCleanup *service.AccountBlacklistCleanupService,
 	accountRateLimitRecoveryProbe *service.AccountRateLimitRecoveryProbeService,
 	subscriptionExpiry *service.SubscriptionExpiryService,
@@ -204,6 +205,12 @@ func provideCleanup(
 			}},
 			{"AccountExpiryService", func() error {
 				accountExpiry.Stop()
+				return nil
+			}},
+			{"AccountDaily5HTriggerService", func() error {
+				if accountDaily5HTrigger != nil {
+					accountDaily5HTrigger.Stop()
+				}
 				return nil
 			}},
 			{"AccountBlacklistCleanupService", func() error {

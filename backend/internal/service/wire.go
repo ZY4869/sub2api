@@ -214,8 +214,20 @@ func ProvideUsageRepairService(repo UsageRepairRepository, timingWheel *TimingWh
 }
 
 // ProvideAccountExpiryService creates and starts AccountExpiryService.
-func ProvideAccountExpiryService(accountRepo AccountRepository) *AccountExpiryService {
-	svc := NewAccountExpiryService(accountRepo, time.Minute)
+func ProvideAccountExpiryService(accountRepo AccountRepository, accountTestService *AccountTestService) *AccountExpiryService {
+	svc := NewAccountExpiryService(accountRepo, accountTestService, time.Minute)
+	svc.Start()
+	return svc
+}
+
+// ProvideAccountDaily5HTriggerService creates and starts AccountDaily5HTriggerService.
+func ProvideAccountDaily5HTriggerService(
+	accountRepo AccountRepository,
+	accountTestService *AccountTestService,
+	settingService *SettingService,
+	modelRegistryService *ModelRegistryService,
+) *AccountDaily5HTriggerService {
+	svc := NewAccountDaily5HTriggerService(accountRepo, accountTestService, settingService, modelRegistryService, time.Minute)
 	svc.Start()
 	return svc
 }
@@ -834,6 +846,7 @@ var ProviderSet = wire.NewSet(
 	ProvideTokenRefreshService,
 	ProvideOpenAIGPT55WhitelistBackfillService,
 	ProvideAccountExpiryService,
+	ProvideAccountDaily5HTriggerService,
 	ProvideAccountBlacklistCleanupService,
 	ProvideAccountRateLimitRecoveryProbeService,
 	ProvideSubscriptionExpiryService,

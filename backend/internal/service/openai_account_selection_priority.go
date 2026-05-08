@@ -179,6 +179,12 @@ func compareOpenAIAccountsByPriorityPlanAndPressure(left, right *Account, reques
 	if left == nil || right == nil {
 		return 0
 	}
+	if leftBoost, rightBoost := AccountHasActiveExpiryProbePriority(left, now), AccountHasActiveExpiryProbePriority(right, now); leftBoost != rightBoost {
+		if leftBoost {
+			return -1
+		}
+		return 1
+	}
 	if left.Priority != right.Priority {
 		if left.Priority < right.Priority {
 			return -1

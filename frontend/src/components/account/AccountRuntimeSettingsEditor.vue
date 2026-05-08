@@ -22,8 +22,16 @@ const loadFactor = defineModel<number | null>('loadFactor', { required: true })
 const priority = defineModel<number>('priority', { required: true })
 const rateMultiplier = defineModel<number>('rateMultiplier', { required: true })
 const expiresAtInput = defineModel<string>('expiresAtInput', { required: true })
+const expiryProbeExtensionDaysModel = defineModel<number>('expiryProbeExtensionDays', { required: true })
 
 const { t } = useI18n()
+
+const expiryProbeExtensionDays = computed({
+  get: () => normalizeExpiryProbeExtensionDaysValue(expiryProbeExtensionDaysModel.value),
+  set: (value: number) => {
+    expiryProbeExtensionDaysModel.value = normalizeExpiryProbeExtensionDaysValue(value)
+  }
+})
 
 const expirationEnabled = computed({
   get: () => Boolean(expiresAtInput.value),
@@ -53,9 +61,23 @@ const handleLoadFactorInput = () => {
   loadFactor.value = normalizeAccountLoadFactor(loadFactor.value)
 }
 
-function buildExpiryInput(amount: number, unit: 'month' | 'year'): string {
+const handleExpiryProbeExtensionDaysInput = () => {
+  expiryProbeExtensionDays.value = normalizeExpiryProbeExtensionDaysValue(expiryProbeExtensionDays.value)
+}
+
+function normalizeExpiryProbeExtensionDaysValue(value: number | null | undefined): number {
+  const normalized = Number(value)
+  if (!Number.isFinite(normalized) || normalized <= 0) {
+    return 1
+  }
+  return Math.floor(normalized)
+}
+
+function buildExpiryInput(amount: number, unit: 'day' | 'month' | 'year'): string {
   const next = new Date()
-  if (unit === 'month') {
+  if (unit === 'day') {
+    next.setDate(next.getDate() + amount)
+  } else if (unit === 'month') {
     next.setMonth(next.getMonth() + amount)
   } else {
     next.setFullYear(next.getFullYear() + amount)
@@ -68,9 +90,13 @@ function buildExpiryInput(amount: number, unit: 'month' | 'year'): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
-function applyQuickExpiry(unit: 'month' | 'year') {
+function applyQuickExpiry(amount: number, unit: 'day' | 'month' | 'year') {
   expirationEnabled.value = true
-  expiresAtInput.value = buildExpiryInput(1, unit)
+  expiresAtInput.value = buildExpiryInput(amount, unit)
+}
+
+function applyQuickExtensionDays(days: number) {
+  expiryProbeExtensionDays.value = days
 }
 </script>
 
@@ -131,10 +157,13 @@ function applyQuickExpiry(unit: 'month' | 'year') {
     </div>
     <div v-if="expirationEnabled" class="mt-3 space-y-3">
       <div class="flex flex-wrap gap-2">
-        <button type="button" class="btn btn-secondary btn-sm" @click="applyQuickExpiry('month')">
+        <button type="button" class="btn btn-secondary btn-sm" @click="applyQuickExpiry(7, 'day')">
+          {{ t('admin.accounts.expirationQuickWeek') }}
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" @click="applyQuickExpiry(1, 'month')">
           {{ t('admin.accounts.expirationQuickMonth') }}
         </button>
-        <button type="button" class="btn btn-secondary btn-sm" @click="applyQuickExpiry('year')">
+        <button type="button" class="btn btn-secondary btn-sm" @click="applyQuickExpiry(1, 'year')">
           {{ t('admin.accounts.expirationQuickYear') }}
         </button>
       </div>
@@ -142,6 +171,30 @@ function applyQuickExpiry(unit: 'month' | 'year') {
       <p v-if="expiresAtPreview" class="text-xs text-gray-500 dark:text-gray-400">
         {{ t('admin.accounts.expiresAtPreview', { value: expiresAtPreview.replace('T', ' ') }) }}
       </p>
+      <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-600">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <label class="input-label">{{ t('admin.accounts.expiryProbeExtensionDays') }}</label>
+            <input
+              v-model.number="expiryProbeExtensionDays"
+              type="number"
+              min="1"
+              step="1"
+              class="input"
+              @input="handleExpiryProbeExtensionDaysInput"
+            />
+            <p class="input-hint">{{ t('admin.accounts.expiryProbeExtensionDaysHint') }}</p>
+          </div>
+          <div class="flex flex-wrap gap-2 md:pt-7">
+            <button type="button" class="btn btn-secondary btn-sm" @click="applyQuickExtensionDays(1)">
+              {{ t('admin.accounts.expiryProbeExtensionQuick1d') }}
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" @click="applyQuickExtensionDays(7)">
+              {{ t('admin.accounts.expiryProbeExtensionQuick7d') }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
     <p class="input-hint">{{ t('admin.accounts.expiresAtHint') }}</p>
   </div>

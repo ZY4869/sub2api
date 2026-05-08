@@ -69,6 +69,19 @@ func isSchedulerNeutralAccountExtraKey(key string) bool {
 	if key == "session_window_utilization" {
 		return true
 	}
+	switch key {
+	case "expiry_probe_extension_days",
+		"expiry_probe_status",
+		"expiry_probe_checked_at",
+		"expiry_probe_next_check_at",
+		"expiry_probe_priority_until",
+		"expiry_probe_summary",
+		"daily_5h_trigger_last_local_date",
+		"daily_5h_trigger_last_status",
+		"daily_5h_trigger_last_model_id",
+		"daily_5h_trigger_last_summary":
+		return true
+	}
 	return strings.HasPrefix(key, "codex_")
 }
 func codexExtraIndicatesRateLimit(updates map[string]any, window string) bool {

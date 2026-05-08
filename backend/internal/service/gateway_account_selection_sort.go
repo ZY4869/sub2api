@@ -10,14 +10,27 @@ func filterByMinPriority(accounts []accountWithLoad) []accountWithLoad {
 	if len(accounts) == 0 {
 		return accounts
 	}
+	now := time.Now().UTC()
+	bestHasBoost := AccountHasActiveExpiryProbePriority(accounts[0].account, now)
 	minPriority := accounts[0].account.Priority
 	for _, acc := range accounts[1:] {
+		currentHasBoost := AccountHasActiveExpiryProbePriority(acc.account, now)
+		if currentHasBoost != bestHasBoost {
+			if currentHasBoost {
+				bestHasBoost = true
+				minPriority = acc.account.Priority
+			}
+			continue
+		}
 		if acc.account.Priority < minPriority {
 			minPriority = acc.account.Priority
 		}
 	}
 	result := make([]accountWithLoad, 0, len(accounts))
 	for _, acc := range accounts {
+		if AccountHasActiveExpiryProbePriority(acc.account, now) != bestHasBoost {
+			continue
+		}
 		if acc.account.Priority == minPriority {
 			result = append(result, acc)
 		}
@@ -147,6 +160,12 @@ func compareAccountsByPriorityAndLastUsed(left, right *Account, preferOAuth bool
 	if left == nil || right == nil {
 		return 0
 	}
+	if leftBoost, rightBoost := AccountHasActiveExpiryProbePriority(left, now), AccountHasActiveExpiryProbePriority(right, now); leftBoost != rightBoost {
+		if leftBoost {
+			return -1
+		}
+		return 1
+	}
 	if left.Priority != right.Priority {
 		if left.Priority < right.Priority {
 			return -1
@@ -237,6 +256,9 @@ func shuffleWithinSortGroups(accounts []accountWithLoad) {
 	}
 }
 func sameAccountWithLoadGroupAtTime(a, b accountWithLoad, now time.Time) bool {
+	if AccountHasActiveExpiryProbePriority(a.account, now) != AccountHasActiveExpiryProbePriority(b.account, now) {
+		return false
+	}
 	if a.account.Priority != b.account.Priority {
 		return false
 	}
@@ -294,6 +316,9 @@ func shuffleWithinPriorityAndLastUsed(accounts []*Account, preferOAuth bool, now
 	}
 }
 func sameAccountGroupAtTime(a, b *Account, now time.Time) bool {
+	if AccountHasActiveExpiryProbePriority(a, now) != AccountHasActiveExpiryProbePriority(b, now) {
+		return false
+	}
 	if a.Priority != b.Priority {
 		return false
 	}
@@ -337,10 +362,12 @@ func shuffleWithinPriority(accounts []*Account) {
 	now := time.Now()
 	start := 0
 	for start < len(accounts) {
+		boosted := AccountHasActiveExpiryProbePriority(accounts[start], now)
 		priority := accounts[start].Priority
 		penalty := geminiRegionalPenalty(accounts[start], true)
 		end := start + 1
 		for end < len(accounts) &&
+			AccountHasActiveExpiryProbePriority(accounts[end], now) == boosted &&
 			accounts[end].Priority == priority &&
 			geminiRegionalPenalty(accounts[end], true) == penalty &&
 			compareAccountUsagePressure(accounts[start], accounts[end], now) == 0 {

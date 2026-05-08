@@ -42,6 +42,7 @@ type AccountHandler struct {
 	accountModelImportService *service.AccountModelImportService
 	accountModelDiagnostics   *service.AccountModelDiagnosticsService
 	modelRegistryService      *service.ModelRegistryService
+	settingService            *service.SettingService
 	opsService                *service.OpsService
 }
 
@@ -59,6 +60,9 @@ func (h *AccountHandler) SetModelRegistryService(modelRegistryService *service.M
 }
 func (h *AccountHandler) SetAccountModelDiagnosticsService(svc *service.AccountModelDiagnosticsService) {
 	h.accountModelDiagnostics = svc
+}
+func (h *AccountHandler) SetSettingService(settingService *service.SettingService) {
+	h.settingService = settingService
 }
 func (h *AccountHandler) SetKiroOAuthService(kiroOAuthService *service.KiroOAuthService) {
 	h.kiroOAuthService = kiroOAuthService

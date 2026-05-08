@@ -58,6 +58,52 @@ func TestSortAccountsByPriorityAndLastUsed_ByPriority(t *testing.T) {
 	require.Equal(t, int64(1), accounts[2].ID)
 }
 
+func TestSortAccountsByPriorityAndLastUsed_PrefersActiveExpiryProbePriorityBeforePersistentPriority(t *testing.T) {
+	now := time.Now().UTC()
+	accounts := []*Account{
+		{
+			ID:       1,
+			Priority: 1,
+			Extra:    map[string]any{},
+		},
+		{
+			ID:       2,
+			Priority: 99,
+			Extra: map[string]any{
+				accountExpiryProbePriorityUntilKey: now.Add(30 * time.Minute).Format(time.RFC3339),
+			},
+		},
+	}
+
+	sortAccountsByPriorityAndLastUsed(accounts, false)
+
+	require.Equal(t, int64(2), accounts[0].ID)
+	require.Equal(t, int64(1), accounts[1].ID)
+}
+
+func TestSortAccountsByPriorityAndLastUsed_ExpiredExpiryProbePriorityFallsBackToPersistentPriority(t *testing.T) {
+	now := time.Now().UTC()
+	accounts := []*Account{
+		{
+			ID:       1,
+			Priority: 1,
+			Extra:    map[string]any{},
+		},
+		{
+			ID:       2,
+			Priority: 99,
+			Extra: map[string]any{
+				accountExpiryProbePriorityUntilKey: now.Add(-30 * time.Minute).Format(time.RFC3339),
+			},
+		},
+	}
+
+	sortAccountsByPriorityAndLastUsed(accounts, false)
+
+	require.Equal(t, int64(1), accounts[0].ID)
+	require.Equal(t, int64(2), accounts[1].ID)
+}
+
 func TestSortAccountsByPriorityAndLastUsed_SamePriorityByLastUsed(t *testing.T) {
 	now := time.Now()
 	accounts := []*Account{
@@ -213,6 +259,29 @@ func TestFilterByMinPriority_SelectsMinPriority(t *testing.T) {
 	require.Len(t, result, 2)
 	require.Equal(t, int64(2), result[0].account.ID)
 	require.Equal(t, int64(3), result[1].account.ID)
+}
+
+func TestFilterByMinPriority_PrefersActiveExpiryProbePriorityBucket(t *testing.T) {
+	now := time.Now().UTC()
+	accounts := []accountWithLoad{
+		makeAccWithLoad(1, 1, 10, nil, AccountTypeAPIKey),
+		{
+			account: &Account{
+				ID:       2,
+				Priority: 99,
+				Type:     AccountTypeAPIKey,
+				Status:   StatusActive,
+				Extra: map[string]any{
+					accountExpiryProbePriorityUntilKey: now.Add(30 * time.Minute).Format(time.RFC3339),
+				},
+			},
+			loadInfo: &AccountLoadInfo{AccountID: 2, LoadRate: 20},
+		},
+	}
+
+	result := filterByMinPriority(accounts)
+	require.Len(t, result, 1)
+	require.Equal(t, int64(2), result[0].account.ID)
 }
 
 // --- filterByMinConcurrencyUtilization ---

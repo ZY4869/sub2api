@@ -23,7 +23,9 @@ import type {
   AdminDataImportResult,
   CheckMixedChannelRequest,
   CheckMixedChannelResponse,
-  UnarchiveAccountsResult
+  UnarchiveAccountsResult,
+  AccountDaily5HTriggerSettings,
+  AccountDaily5HTriggerSettingsView
 } from '@/types'
 
 /**
@@ -164,6 +166,23 @@ export async function create(accountData: CreateAccountRequest): Promise<Account
  */
 export async function update(id: number, updates: UpdateAccountRequest): Promise<Account> {
   const { data } = await apiClient.put<Account>(`/admin/accounts/${id}`, updates)
+  return data
+}
+
+export async function getDaily5HTriggerSettings(): Promise<AccountDaily5HTriggerSettingsView> {
+  const { data } = await apiClient.get<AccountDaily5HTriggerSettingsView>(
+    '/admin/accounts/daily-5h-trigger-settings'
+  )
+  return data
+}
+
+export async function updateDaily5HTriggerSettings(
+  payload: AccountDaily5HTriggerSettings
+): Promise<AccountDaily5HTriggerSettingsView> {
+  const { data } = await apiClient.put<AccountDaily5HTriggerSettingsView>(
+    '/admin/accounts/daily-5h-trigger-settings',
+    payload
+  )
   return data
 }
 
@@ -1302,6 +1321,8 @@ export const accountsAPI = {
   getById,
   create,
   update,
+  getDaily5HTriggerSettings,
+  updateDaily5HTriggerSettings,
   checkMixedChannelRisk,
   delete: deleteAccount,
   toggleStatus,

@@ -1260,6 +1260,46 @@ func TestOpenAISelectAccountForModelWithExclusions_LeastRecentlyUsed(t *testing.
 	}
 }
 
+func TestOpenAISelectAccountForModelWithExclusions_PrefersActiveExpiryProbePriority(t *testing.T) {
+	now := time.Now().UTC()
+	repo := stubOpenAIAccountRepo{
+		accounts: []Account{
+			{
+				ID:          1,
+				Platform:    PlatformOpenAI,
+				Status:      StatusActive,
+				Schedulable: true,
+				Priority:    1,
+				Extra:       map[string]any{},
+			},
+			{
+				ID:          2,
+				Platform:    PlatformOpenAI,
+				Status:      StatusActive,
+				Schedulable: true,
+				Priority:    99,
+				Extra: map[string]any{
+					accountExpiryProbePriorityUntilKey: now.Add(30 * time.Minute).Format(time.RFC3339),
+				},
+			},
+		},
+	}
+	cache := &stubGatewayCache{}
+
+	svc := &OpenAIGatewayService{
+		accountRepo: repo,
+		cache:       cache,
+	}
+
+	acc, err := svc.SelectAccountForModelWithExclusions(context.Background(), nil, "", "gpt-4", nil)
+	if err != nil {
+		t.Fatalf("SelectAccountForModelWithExclusions error: %v", err)
+	}
+	if acc == nil || acc.ID != 2 {
+		t.Fatalf("expected boosted account 2")
+	}
+}
+
 func TestOpenAISelectAccountWithLoadAwareness_PreferNeverUsed(t *testing.T) {
 	groupID := int64(1)
 	lastUsed := time.Now().Add(-1 * time.Hour)

@@ -467,6 +467,7 @@
         v-model:priority="form.priority"
         v-model:rate-multiplier="form.rate_multiplier"
         v-model:expires-at-input="expiresAtInput"
+        v-model:expiry-probe-extension-days="expiryProbeExtensionDays"
         :proxies="proxies"
       />
 
@@ -849,6 +850,7 @@ const poolModeState = reactive(createDefaultAccountPoolModeState(DEFAULT_POOL_MO
 const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState())
 const interceptWarmupRequests = ref(false)
 const autoPauseOnExpired = ref(true)
+const expiryProbeExtensionDays = ref(1)
 const openaiPassthroughEnabled = ref(false)
 const openAIImageProtocolMode = ref<OpenAIImageProtocolMode>('native')
 const openAIImageCompatAllowed = ref(true)
@@ -1795,6 +1797,7 @@ const { resetForm } = useCreateAccountReset({
   customErrorCodesState,
   interceptWarmupRequests,
   autoPauseOnExpired,
+  expiryProbeExtensionDays,
   openaiPassthroughEnabled,
   openAIImageProtocolMode,
   openAIImageCompatAllowed,
@@ -1852,7 +1855,10 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
   const openaiExtra = buildOpenAIExtra({
     platform: effectivePlatform.value,
     accountCategory: accountCategory.value,
-    base,
+    base: {
+      ...(base || {}),
+      expiry_probe_extension_days: expiryProbeExtensionDays.value
+    },
     openaiOAuthResponsesWebSocketV2Mode: openaiOAuthResponsesWebSocketV2Mode.value,
     openaiAPIKeyResponsesWebSocketV2Mode: openaiAPIKeyResponsesWebSocketV2Mode.value,
     openaiPassthroughEnabled: openaiPassthroughEnabled.value,
@@ -1973,6 +1979,7 @@ const { submitting, createAccountAndFinish } = useCreateAccountSubmit({
   applyTempUnschedConfig,
   form,
   autoPauseOnExpired,
+  expiryProbeExtensionDays,
   editQuotaLimit,
   editQuotaDailyLimit,
   editQuotaWeeklyLimit,

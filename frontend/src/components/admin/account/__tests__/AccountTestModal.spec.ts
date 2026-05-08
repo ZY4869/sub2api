@@ -27,7 +27,7 @@ vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, string> = {
     'admin.accounts.imageTestPromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
-    'admin.accounts.textTestPromptDefault': 'Reply with a short hello from this model.',
+    'admin.accounts.textTestPromptDefault': 'Output exactly: OK',
     'admin.accounts.testModelAvailability.verified': 'verified',
     'admin.accounts.testModelAvailability.unavailable': 'unavailable',
     'admin.accounts.testModelAvailability.unknown': 'unknown',
@@ -444,7 +444,7 @@ describe('AccountTestModal', () => {
       target_provider: 'anthropic',
       target_model_id: 'claude-sonnet-4.5',
       test_mode: 'real_forward',
-      prompt: 'Reply with a short hello from this model.'
+      prompt: 'Output exactly: OK'
     })
   })
 
@@ -496,7 +496,7 @@ describe('AccountTestModal', () => {
 
     const promptInput = wrapper.find('textarea.textarea-stub')
     expect(promptInput.exists()).toBe(true)
-    expect((promptInput.element as HTMLTextAreaElement).value).toBe('Reply with a short hello from this model.')
+    expect((promptInput.element as HTMLTextAreaElement).value).toBe('Output exactly: OK')
 
     await promptInput.setValue('Say hello and mention GPT-5.4.')
 
@@ -878,7 +878,7 @@ describe('AccountTestModal', () => {
       test_mode: 'real_forward',
       source_protocol: 'anthropic',
       target_model_id: 'claude-sonnet-4.5',
-      prompt: 'Reply with a short hello from this model.'
+      prompt: 'Output exactly: OK'
     })
     expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextTitle')
     expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextProtocol')

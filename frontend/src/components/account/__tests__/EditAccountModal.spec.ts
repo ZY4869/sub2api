@@ -377,7 +377,9 @@ function buildAccount() {
         'gpt-5.2': 'gpt-5.2'
       }
     },
-    extra: {},
+    extra: {
+      expiry_probe_extension_days: 7
+    },
     proxy_id: null,
     concurrency: 1,
     priority: 1,
@@ -709,6 +711,7 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
       'gpt-5.2': 'gpt-5.2'
     })
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.expiry_probe_extension_days).toBe(7)
   })
 
   it('rehydrates whitelist selected_model_ids before canonical ids and keeps them on submit', async () => {

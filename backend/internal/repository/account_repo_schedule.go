@@ -7,6 +7,8 @@ import (
 	dbaccount "github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -16,7 +18,12 @@ func (r *accountRepository) ListSchedulable(ctx context.Context) ([]service.Acco
 	if err != nil {
 		return nil, err
 	}
-	return r.accountsToService(ctx, accounts)
+	items, err := r.accountsToService(ctx, accounts)
+	if err != nil {
+		return nil, err
+	}
+	sortSchedulableAccountsWithExpiryProbePriority(items, now.UTC())
+	return items, nil
 }
 func (r *accountRepository) ListSchedulableByGroupID(ctx context.Context, groupID int64) ([]service.Account, error) {
 	return r.queryAccountsByGroup(ctx, groupID, accountGroupQueryOptions{status: service.StatusActive, schedulable: true, excludeBlacklisted: true})
@@ -28,7 +35,12 @@ func (r *accountRepository) ListSchedulableByPlatform(ctx context.Context, platf
 	if err != nil {
 		return nil, err
 	}
-	return r.accountsToService(ctx, accounts)
+	items, err := r.accountsToService(ctx, accounts)
+	if err != nil {
+		return nil, err
+	}
+	sortSchedulableAccountsWithExpiryProbePriority(items, now.UTC())
+	return items, nil
 }
 func (r *accountRepository) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]service.Account, error) {
 	return r.queryAccountsByGroup(ctx, groupID, accountGroupQueryOptions{status: service.StatusActive, schedulable: true, platforms: platformFilterValues(platform), excludeBlacklisted: true})
@@ -42,7 +54,12 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 	if err != nil {
 		return nil, err
 	}
-	return r.accountsToService(ctx, accounts)
+	items, err := r.accountsToService(ctx, accounts)
+	if err != nil {
+		return nil, err
+	}
+	sortSchedulableAccountsWithExpiryProbePriority(items, now.UTC())
+	return items, nil
 }
 func (r *accountRepository) ListSchedulableUngroupedByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
 	now := time.Now()
@@ -51,7 +68,12 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatform(ctx context.Conte
 	if err != nil {
 		return nil, err
 	}
-	return r.accountsToService(ctx, accounts)
+	items, err := r.accountsToService(ctx, accounts)
+	if err != nil {
+		return nil, err
+	}
+	sortSchedulableAccountsWithExpiryProbePriority(items, now.UTC())
+	return items, nil
 }
 func (r *accountRepository) ListSchedulableUngroupedByPlatforms(ctx context.Context, platforms []string) ([]service.Account, error) {
 	if len(platforms) == 0 {
@@ -62,13 +84,59 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatforms(ctx context.Cont
 	if err != nil {
 		return nil, err
 	}
-	return r.accountsToService(ctx, accounts)
+	items, err := r.accountsToService(ctx, accounts)
+	if err != nil {
+		return nil, err
+	}
+	sortSchedulableAccountsWithExpiryProbePriority(items, now.UTC())
+	return items, nil
 }
 func (r *accountRepository) ListSchedulableByGroupIDAndPlatforms(ctx context.Context, groupID int64, platforms []string) ([]service.Account, error) {
 	if len(platforms) == 0 {
 		return nil, nil
 	}
 	return r.queryAccountsByGroup(ctx, groupID, accountGroupQueryOptions{status: service.StatusActive, schedulable: true, platforms: platforms, excludeBlacklisted: true})
+}
+
+func sortSchedulableAccountsWithExpiryProbePriority(accounts []service.Account, now time.Time) {
+	if len(accounts) <= 1 {
+		return
+	}
+	sort.SliceStable(accounts, func(i, j int) bool {
+		leftPriority := hasActiveExpiryProbePriority(&accounts[i], now)
+		rightPriority := hasActiveExpiryProbePriority(&accounts[j], now)
+		if leftPriority != rightPriority {
+			return leftPriority
+		}
+		return false
+	})
+}
+
+func hasActiveExpiryProbePriority(account *service.Account, now time.Time) bool {
+	if account == nil || len(account.Extra) == 0 {
+		return false
+	}
+	value := strings.TrimSpace(extraStringValue(account.Extra["expiry_probe_priority_until"]))
+	if value == "" {
+		return false
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.UTC().After(now)
+		}
+	}
+	return false
+}
+
+func extraStringValue(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case []byte:
+		return string(typed)
+	default:
+		return ""
+	}
 }
 func (r *accountRepository) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
 	now := time.Now()

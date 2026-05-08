@@ -95,6 +95,42 @@
             </span>
           </button>
 
+          <div
+            class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 dark:border-dark-600 dark:bg-dark-800"
+            :title="t('admin.accounts.daily5h.toolbarHint')"
+          >
+            <div class="hidden md:block">
+              <div class="text-xs font-medium text-gray-900 dark:text-white">
+                {{ t("admin.accounts.daily5h.toolbarLabel") }}
+              </div>
+            </div>
+            <button
+              type="button"
+              class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              :class="[daily5HTriggerEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600']"
+              role="switch"
+              :aria-checked="daily5HTriggerEnabled"
+              :disabled="loading || daily5HTriggerBusy"
+              data-daily5h-toggle="true"
+              @click="emit('toggle-daily-5h-trigger')"
+            >
+              <span
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="[daily5HTriggerEnabled ? 'translate-x-5' : 'translate-x-0']"
+              />
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary px-2"
+              :disabled="loading || daily5HTriggerBusy"
+              :title="t('admin.accounts.daily5h.settingsButtonTitle')"
+              data-daily5h-settings="true"
+              @click="emit('open-daily-5h-settings')"
+            >
+              <Icon name="cog" size="sm" />
+            </button>
+          </div>
+
           <div class="relative" ref="autoRefreshDropdownRef">
             <button
               type="button"
@@ -324,6 +360,8 @@ const props = defineProps<{
   hideLimitedAccounts?: boolean;
   limitedAccountsCount?: number;
   actualUsageRefreshSummary: ActualUsageRefreshSummary;
+  daily5HTriggerEnabled?: boolean;
+  daily5HTriggerBusy?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -348,6 +386,8 @@ const emit = defineEmits<{
   "toggle-group-view": [];
   "toggle-hide-limited": [];
   "open-limited-page": [];
+  "toggle-daily-5h-trigger": [];
+  "open-daily-5h-settings": [];
 }>();
 
 const { t } = useI18n();

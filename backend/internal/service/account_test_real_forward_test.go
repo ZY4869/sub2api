@@ -3,6 +3,7 @@
 package service
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,46 @@ func TestNormalizeAccountTestModeDefaultsToRealForward(t *testing.T) {
 	require.Equal(t, AccountTestModeRealForward, normalizeAccountTestMode("unexpected"))
 	require.Equal(t, AccountTestModeRealForward, normalizeAccountTestMode("real_forward"))
 	require.Equal(t, AccountTestModeHealthCheck, normalizeAccountTestMode("health_check"))
+}
+
+func TestNormalizeDefaultTextTestPrompt_UsesUnifiedDefault(t *testing.T) {
+	require.Equal(t, accountDaily5HPrompt, normalizeDefaultTextTestPrompt(""))
+	require.Equal(t, accountDaily5HPrompt, normalizeDefaultTextTestPrompt("   "))
+	require.Equal(t, "hello", normalizeDefaultTextTestPrompt(" hello "))
+}
+
+func TestCreateOpenAITestPayloadForRequestFormat_UsesUnifiedDefaultPrompt(t *testing.T) {
+	responsesPayload := createOpenAITestPayloadForRequestFormat("gpt-5.4-mini", "", GatewayOpenAIRequestFormatResponses, false)
+	input := responsesPayload["input"].([]map[string]any)
+	content := input[0]["content"].([]map[string]any)
+	require.Equal(t, accountDaily5HPrompt, content[0]["text"])
+
+	chatPayload := createOpenAITestPayloadForRequestFormat("gpt-5.4-mini", "", GatewayOpenAIRequestFormatChatCompletions, false)
+	messages := chatPayload["messages"].([]map[string]any)
+	require.Equal(t, accountDaily5HPrompt, messages[0]["content"])
+}
+
+func TestCreateAnthropicStandardTestPayload_UsesUnifiedDefaultPrompt(t *testing.T) {
+	payload := createAnthropicStandardTestPayload("claude-haiku-4-5")
+	messages := payload["messages"].([]map[string]any)
+	require.Equal(t, accountDaily5HPrompt, messages[0]["content"])
+}
+
+func TestCreateGeminiTestPayload_TextModelUsesUnifiedDefaultPrompt(t *testing.T) {
+	payload := createGeminiTestPayload("gemini-2.5-flash", "")
+
+	var parsed struct {
+		Contents []struct {
+			Parts []struct {
+				Text string `json:"text"`
+			} `json:"parts"`
+		} `json:"contents"`
+	}
+
+	require.NoError(t, json.Unmarshal(payload, &parsed))
+	require.Len(t, parsed.Contents, 1)
+	require.Len(t, parsed.Contents[0].Parts, 1)
+	require.Equal(t, accountDaily5HPrompt, parsed.Contents[0].Parts[0].Text)
 }
 
 func TestAccountTestServiceSendResolvedTestRuntimeMetaEvents(t *testing.T) {

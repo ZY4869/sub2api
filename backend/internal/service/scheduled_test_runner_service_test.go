@@ -237,10 +237,6 @@ func (s *scheduledTestAccountRepoStub) SetSchedulable(ctx context.Context, id in
 	panic("unexpected SetSchedulable call")
 }
 
-func (s *scheduledTestAccountRepoStub) AutoPauseExpiredAccounts(ctx context.Context, now time.Time) (int64, error) {
-	panic("unexpected AutoPauseExpiredAccounts call")
-}
-
 func (s *scheduledTestAccountRepoStub) BindGroups(ctx context.Context, accountID int64, groupIDs []int64) error {
 	panic("unexpected BindGroups call")
 }

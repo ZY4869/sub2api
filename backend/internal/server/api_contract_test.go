@@ -1161,6 +1161,91 @@ func TestAPIContracts(t *testing.T) {
 			}`,
 		},
 		{
+			name: "GET /api/v1/admin/accounts/daily-5h-trigger-settings",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.settingRepo.SetAll(map[string]string{
+					service.SettingKeyAccountDaily5HTriggerSettings: `{
+						"enabled": true,
+						"selected_account_types": ["chatgpt_oauth", "google_oauth", "unknown"],
+						"include_paused_accounts": true,
+						"openai_model_mode": {"mode": "fixed", "fixed_model_id": "gpt-5.4-mini"},
+						"anthropic_model_mode": {"mode": "invalid", "fixed_model_id": "claude-3.5-haiku"},
+						"gemini_model_mode": {"mode": "auto", "fixed_model_id": ""}
+					}`,
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/admin/accounts/daily-5h-trigger-settings",
+			headers:    map[string]string{"Authorization": "Bearer admin-token"},
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"settings": {
+						"enabled": true,
+						"selected_account_types": ["chatgpt_oauth", "google_oauth"],
+						"include_paused_accounts": true,
+						"openai_model_mode": {
+							"mode": "fixed",
+							"fixed_model_id": "gpt-5.4-mini"
+						},
+						"anthropic_model_mode": {
+							"mode": "auto",
+							"fixed_model_id": "claude-3.5-haiku"
+						},
+						"gemini_model_mode": {
+							"mode": "auto"
+						}
+					},
+					"candidates": []
+				}
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/admin/accounts/daily-5h-trigger-settings",
+			method: http.MethodPut,
+			path:   "/api/v1/admin/accounts/daily-5h-trigger-settings",
+			body: `{
+				"enabled": true,
+				"selected_account_types": ["chatgpt_oauth", "google_oauth", "unknown", "chatgpt_oauth"],
+				"include_paused_accounts": false,
+				"openai_model_mode": {"mode": "fixed", "fixed_model_id": "gpt-5.4-mini"},
+				"anthropic_model_mode": {"mode": "invalid", "fixed_model_id": "claude-3.5-haiku"},
+				"gemini_model_mode": {"mode": "fixed", "fixed_model_id": "gemini-2.5-flash"}
+			}`,
+			headers: map[string]string{
+				"Authorization": "Bearer admin-token",
+				"Content-Type":  "application/json",
+			},
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"settings": {
+						"enabled": true,
+						"selected_account_types": ["chatgpt_oauth", "google_oauth"],
+						"include_paused_accounts": false,
+						"openai_model_mode": {
+							"mode": "fixed",
+							"fixed_model_id": "gpt-5.4-mini"
+						},
+						"anthropic_model_mode": {
+							"mode": "auto",
+							"fixed_model_id": "claude-3.5-haiku"
+						},
+						"gemini_model_mode": {
+							"mode": "fixed",
+							"fixed_model_id": "gemini-2.5-flash"
+						}
+					},
+					"candidates": []
+				}
+			}`,
+		},
+		{
 			name: "POST /api/v1/admin/users/batch-concurrency",
 			setup: func(t *testing.T, deps *contractDeps) {
 				t.Helper()
@@ -1410,6 +1495,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService)
 	adminSettingHandler := adminhandler.NewSettingHandler(settingService, nil, nil, nil, nil)
 	adminAccountHandler := adminhandler.NewAccountHandler(adminService, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	adminAccountHandler.SetSettingService(settingService)
 
 	jwtAuth := func(c *gin.Context) {
 		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
@@ -1482,6 +1568,8 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1Admin := v1.Group("/admin")
 	v1Admin.Use(adminAuth)
 	v1Admin.GET("/settings", adminSettingHandler.GetSettings)
+	v1Admin.GET("/accounts/daily-5h-trigger-settings", adminAccountHandler.GetDaily5HTriggerSettings)
+	v1Admin.PUT("/accounts/daily-5h-trigger-settings", adminAccountHandler.UpdateDaily5HTriggerSettings)
 	v1Admin.POST("/accounts/bulk-update", adminAccountHandler.BulkUpdate)
 	v1Admin.POST("/users/batch-concurrency", adminUserHandler.BatchUpdateConcurrency)
 	v1Admin.GET("/moderation/audits", adminModerationHandler.List)
@@ -1928,10 +2016,6 @@ func (s *stubAccountRepo) ClearError(ctx context.Context, id int64) error {
 
 func (s *stubAccountRepo) SetSchedulable(ctx context.Context, id int64, schedulable bool) error {
 	return errors.New("not implemented")
-}
-
-func (s *stubAccountRepo) AutoPauseExpiredAccounts(ctx context.Context, now time.Time) (int64, error) {
-	return 0, errors.New("not implemented")
 }
 
 func (s *stubAccountRepo) BindGroups(ctx context.Context, accountID int64, groupIDs []int64) error {

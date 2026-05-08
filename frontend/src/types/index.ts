@@ -997,6 +997,46 @@ export interface Account {
   current_rpm?: number | null; // Runtime snapshot of current requests per minute.
 }
 
+export type AccountDaily5HTriggerAccountType =
+  | "chatgpt_oauth"
+  | "claude_code_oauth_setup_token"
+  | "google_oauth";
+
+export type AccountDaily5HTriggerModelMode = "auto" | "fixed";
+
+export interface AccountDaily5HTriggerModelSettings {
+  mode: AccountDaily5HTriggerModelMode;
+  fixed_model_id?: string;
+}
+
+export interface AccountDaily5HTriggerModelOption {
+  model_id: string;
+  display_name: string;
+  provider?: string;
+  provider_label?: string;
+  account_count: number;
+}
+
+export interface AccountDaily5HTriggerAccountTypeSummary {
+  account_type: AccountDaily5HTriggerAccountType;
+  count: number;
+  models: AccountDaily5HTriggerModelOption[];
+}
+
+export interface AccountDaily5HTriggerSettings {
+  enabled: boolean;
+  selected_account_types: AccountDaily5HTriggerAccountType[];
+  include_paused_accounts: boolean;
+  openai_model_mode: AccountDaily5HTriggerModelSettings;
+  anthropic_model_mode: AccountDaily5HTriggerModelSettings;
+  gemini_model_mode: AccountDaily5HTriggerModelSettings;
+}
+
+export interface AccountDaily5HTriggerSettingsView {
+  settings: AccountDaily5HTriggerSettings;
+  candidates: AccountDaily5HTriggerAccountTypeSummary[];
+}
+
 export interface AccountStatusSummary {
   total: number;
   by_status: {

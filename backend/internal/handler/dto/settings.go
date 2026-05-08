@@ -241,6 +241,39 @@ type GoogleBatchArchiveSettings struct {
 	LocalStorageRoot       string `json:"local_storage_root"`
 }
 
+type AccountDaily5HTriggerModelSettings struct {
+	Mode         string `json:"mode"`
+	FixedModelID string `json:"fixed_model_id,omitempty"`
+}
+
+type AccountDaily5HTriggerSettings struct {
+	Enabled               bool                               `json:"enabled"`
+	SelectedAccountTypes  []string                           `json:"selected_account_types"`
+	IncludePausedAccounts bool                               `json:"include_paused_accounts"`
+	OpenAIModelMode       AccountDaily5HTriggerModelSettings `json:"openai_model_mode"`
+	AnthropicModelMode    AccountDaily5HTriggerModelSettings `json:"anthropic_model_mode"`
+	GeminiModelMode       AccountDaily5HTriggerModelSettings `json:"gemini_model_mode"`
+}
+
+type AccountDaily5HTriggerModelOption struct {
+	ModelID       string `json:"model_id"`
+	DisplayName   string `json:"display_name"`
+	Provider      string `json:"provider,omitempty"`
+	ProviderLabel string `json:"provider_label,omitempty"`
+	AccountCount  int    `json:"account_count"`
+}
+
+type AccountDaily5HTriggerAccountTypeSummary struct {
+	AccountType string                             `json:"account_type"`
+	Count       int                                `json:"count"`
+	Models      []AccountDaily5HTriggerModelOption `json:"models"`
+}
+
+type AccountDaily5HTriggerSettingsView struct {
+	Settings   AccountDaily5HTriggerSettings             `json:"settings"`
+	Candidates []AccountDaily5HTriggerAccountTypeSummary `json:"candidates"`
+}
+
 type GeminiRateCatalog struct {
 	EffectiveDate              string                       `json:"effective_date"`
 	RemainingQuotaAPISupported bool                         `json:"remaining_quota_api_supported"`

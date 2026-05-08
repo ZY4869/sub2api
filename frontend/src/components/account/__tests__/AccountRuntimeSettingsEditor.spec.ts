@@ -30,7 +30,8 @@ describe('AccountRuntimeSettingsEditor', () => {
         loadFactor: null,
         priority: 1,
         rateMultiplier: 1,
-        expiresAtInput: ''
+        expiresAtInput: '',
+        expiryProbeExtensionDays: 7
       },
       global: {
         stubs: {
@@ -50,6 +51,9 @@ describe('AccountRuntimeSettingsEditor', () => {
     const checkbox = wrapper.find('input[type="checkbox"]')
     await checkbox.setValue(true)
 
+    const extensionInput = wrapper.findAll('input[type="number"]')[4]
+    await extensionInput.setValue('0')
+
     const datetimeInput = wrapper.find('input[type="datetime-local"]')
     await datetimeInput.setValue('2026-03-14T12:00')
 
@@ -58,10 +62,11 @@ describe('AccountRuntimeSettingsEditor', () => {
     expect(wrapper.emitted('update:loadFactor')?.at(-1)).toEqual([null])
     expect(wrapper.emitted('update:priority')?.[0]).toEqual([4])
     expect(wrapper.emitted('update:rateMultiplier')?.[0]).toEqual([1.5])
+    expect(wrapper.emitted('update:expiryProbeExtensionDays')?.at(-1)).toEqual([1])
     expect(wrapper.emitted('update:expiresAtInput')?.at(-1)).toEqual(['2026-03-14T12:00'])
   })
 
-  it('enables expiration with a default one month value and can switch to one year', async () => {
+  it('enables expiration with a default value and can switch quick presets', async () => {
     const wrapper = mount(AccountRuntimeSettingsEditor, {
       props: {
         proxies: [],
@@ -70,7 +75,8 @@ describe('AccountRuntimeSettingsEditor', () => {
         loadFactor: null,
         priority: 1,
         rateMultiplier: 1,
-        expiresAtInput: ''
+        expiresAtInput: '',
+        expiryProbeExtensionDays: 1
       },
       global: {
         stubs: {
@@ -87,15 +93,16 @@ describe('AccountRuntimeSettingsEditor', () => {
     expect(String(initialExpiry)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
 
     const buttons = wrapper.findAll('button')
-    await buttons[0].trigger('click')
+    await buttons[1].trigger('click')
     const monthExpiry = wrapper.emitted('update:expiresAtInput')?.at(-1)?.[0]
 
-    await buttons[1].trigger('click')
+    await buttons[2].trigger('click')
     const yearExpiry = wrapper.emitted('update:expiresAtInput')?.at(-1)?.[0]
 
     expect(String(monthExpiry)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
     expect(String(yearExpiry)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
     expect(wrapper.text()).toContain('admin.accounts.expiresAtPreview')
+    expect(wrapper.text()).toContain('admin.accounts.expiryProbeExtensionDays')
   })
 
   it('clears expiration when toggled off from an existing value', async () => {
@@ -107,7 +114,8 @@ describe('AccountRuntimeSettingsEditor', () => {
         loadFactor: null,
         priority: 1,
         rateMultiplier: 1,
-        expiresAtInput: '2026-06-01T12:30'
+        expiresAtInput: '2026-06-01T12:30',
+        expiryProbeExtensionDays: 7
       },
       global: {
         stubs: {

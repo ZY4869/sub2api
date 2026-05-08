@@ -386,6 +386,7 @@ type openAIAccountCandidateScore struct {
 	loadInfo      *AccountLoadInfo
 	pressure      *accountUsagePressure
 	pressureScope string
+	expiryBoost   bool
 	planType      string
 	planRank      int
 	score         float64
@@ -426,6 +427,9 @@ func (h *openAIAccountCandidateHeap) Pop() any {
 }
 
 func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right openAIAccountCandidateScore) bool {
+	if left.expiryBoost != right.expiryBoost {
+		return left.expiryBoost
+	}
 	if left.account.Priority != right.account.Priority {
 		return left.account.Priority < right.account.Priority
 	}
@@ -573,6 +577,9 @@ func buildOpenAIWeightedSelectionOrder(
 
 func sameOpenAIWeightedSelectionGroup(left, right openAIAccountCandidateScore) bool {
 	if left.account == nil || right.account == nil {
+		return false
+	}
+	if left.expiryBoost != right.expiryBoost {
 		return false
 	}
 	if left.account.Priority != right.account.Priority {
@@ -732,6 +739,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			loadInfo:      loadInfo,
 			pressure:      pressure,
 			pressureScope: resolveOpenAIAccountUsagePressureScope(account, req.RequestedModel),
+			expiryBoost:   AccountHasActiveExpiryProbePriority(account, now),
 			planType:      openAIAccountPlanType(account),
 			planRank:      resolveOpenAIAccountPlanRankForLog(account),
 			errorRate:     errorRate,
@@ -748,7 +756,9 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	for i := range candidates {
 		item := &candidates[i]
 		priorityFactor := 1.0
-		if maxPriority > minPriority {
+		if item.expiryBoost {
+			priorityFactor = 1.0
+		} else if maxPriority > minPriority {
 			priorityFactor = 1 - float64(item.account.Priority-minPriority)/float64(maxPriority-minPriority)
 		}
 		loadFactor := 1 - clamp01(calcConcurrencyUtilization(item.loadInfo.CurrentConcurrency, item.account.Concurrency))

@@ -14,6 +14,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func normalizeDefaultTextTestPrompt(prompt string) string {
+	trimmed := strings.TrimSpace(prompt)
+	if trimmed != "" {
+		return trimmed
+	}
+	return accountDaily5HPrompt
+}
+
 type AccountTestMode string
 
 const (
@@ -304,7 +312,7 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 		if isOpenAIGPTImageProfileModelID(modelID) {
 			return s.testOpenAIImageAccountConnection(c, account, modelID, prompt, "", simulatedClient)
 		}
-		return s.testOpenAIAccountConnection(c, account, modelID, prompt, "", simulatedClient)
+		return s.testOpenAIAccountConnection(c, account, modelID, normalizeDefaultTextTestPrompt(prompt), "", simulatedClient)
 	}
 
 	if isOpenAIGPTImageProfileModelID(modelID) {
@@ -316,7 +324,7 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 
 	requestFormat := ResolveOpenAITextRequestFormatForAccount(account, "")
 	testModelID := resolveOpenAITestModelID(c.Request.Context(), account, modelID, s.modelRegistryService)
-	body, err := json.Marshal(createOpenAITestPayloadForRequestFormat(testModelID, prompt, requestFormat, isChatGPTOpenAIOAuthAccount(account)))
+	body, err := json.Marshal(createOpenAITestPayloadForRequestFormat(testModelID, normalizeDefaultTextTestPrompt(prompt), requestFormat, isChatGPTOpenAIOAuthAccount(account)))
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to encode OpenAI test payload")
 	}
@@ -350,7 +358,7 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 
 func (s *AccountTestService) testGeminiRealForwardConnection(c *gin.Context, account *Account, modelID string, prompt string) error {
 	if s.geminiCompatService == nil {
-		return s.testGeminiAccountConnection(c, account, modelID, prompt, "", "")
+		return s.testGeminiAccountConnection(c, account, modelID, normalizeDefaultTextTestPrompt(prompt), "", "")
 	}
 
 	testModelID := strings.TrimSpace(modelID)
@@ -358,7 +366,7 @@ func (s *AccountTestService) testGeminiRealForwardConnection(c *gin.Context, acc
 		testModelID = defaultGeminiTestModelID(account)
 	}
 	testModelID = s.resolveTestModelID(c.Request.Context(), account, testModelID)
-	body := createGeminiTestPayload(testModelID, prompt)
+	body := createGeminiTestPayload(testModelID, normalizeDefaultTextTestPrompt(prompt))
 
 	s.prepareTestStream(c)
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})

@@ -939,6 +939,30 @@ func TestIsOpenAIAccountCandidateBetter_PrefersUsagePressureBeforeScore(t *testi
 	))
 }
 
+func TestIsOpenAIAccountCandidateBetter_PrefersActiveExpiryProbePriorityBeforePersistentPriority(t *testing.T) {
+	now := time.Now().UTC()
+	require.True(t, isOpenAIAccountCandidateBetter(
+		openAIAccountCandidateScore{
+			account: &Account{
+				ID:       2201,
+				Priority: 99,
+				Extra: map[string]any{
+					accountExpiryProbePriorityUntilKey: now.Add(30 * time.Minute).Format(time.RFC3339),
+				},
+			},
+			loadInfo:    &AccountLoadInfo{LoadRate: 80, WaitingCount: 2},
+			expiryBoost: true,
+			score:       0.1,
+		},
+		openAIAccountCandidateScore{
+			account:     &Account{ID: 2202, Priority: 1},
+			loadInfo:    &AccountLoadInfo{LoadRate: 1, WaitingCount: 0},
+			expiryBoost: false,
+			score:       0.9,
+		},
+	))
+}
+
 func TestIsOpenAIAccountCandidateBetter_PrefersPlanRankBeforeScore(t *testing.T) {
 	require.True(t, isOpenAIAccountCandidateBetter(
 		openAIAccountCandidateScore{
@@ -1037,6 +1061,59 @@ func TestBuildOpenAIWeightedSelectionOrder_KeepsHigherPlanRankAheadOfLowerTier(t
 		require.Len(t, order, 2)
 		require.Equal(t, int64(301), order[0].account.ID)
 	}
+}
+
+func TestBuildOpenAIWeightedSelectionOrder_KeepsExpiryBoostAheadOfNormalPriority(t *testing.T) {
+	req := OpenAIAccountScheduleRequest{
+		SessionHash:    "expiry-boost-order",
+		RequestedModel: "gpt-5.4",
+	}
+	now := time.Now().UTC()
+	candidates := []openAIAccountCandidateScore{
+		{
+			account: &Account{
+				ID:       401,
+				Priority: 99,
+				Extra: map[string]any{
+					accountExpiryProbePriorityUntilKey: now.Add(30 * time.Minute).Format(time.RFC3339),
+				},
+			},
+			loadInfo:    &AccountLoadInfo{LoadRate: 90, WaitingCount: 3},
+			expiryBoost: true,
+			score:       0.1,
+		},
+		{
+			account:     &Account{ID: 402, Priority: 1},
+			loadInfo:    &AccountLoadInfo{LoadRate: 0, WaitingCount: 0},
+			expiryBoost: false,
+			score:       0.9,
+		},
+	}
+
+	for i := 0; i < 5; i++ {
+		order := buildOpenAIWeightedSelectionOrder(candidates, req)
+		require.Len(t, order, 2)
+		require.Equal(t, int64(401), order[0].account.ID)
+	}
+}
+
+func TestCompareOpenAIAccountsForSelection_PrefersActiveExpiryProbePriorityBeforePersistentPriority(t *testing.T) {
+	now := time.Now().UTC()
+	left := &Account{
+		ID:       501,
+		Priority: 99,
+		Extra: map[string]any{
+			accountExpiryProbePriorityUntilKey: now.Add(30 * time.Minute).Format(time.RFC3339),
+		},
+	}
+	right := &Account{
+		ID:       502,
+		Priority: 1,
+		Extra:    map[string]any{},
+	}
+
+	require.Less(t, compareOpenAIAccountsForSelection(left, right, "gpt-5.4", now), 0)
+	require.Greater(t, compareOpenAIAccountsForSelection(right, left, "gpt-5.4", now), 0)
 }
 
 func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyKeepsLowerPlanRank(t *testing.T) {

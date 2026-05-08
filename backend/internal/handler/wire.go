@@ -120,6 +120,7 @@ func ProvideAdminAccountHandler(
 	accountModelImportService *service.AccountModelImportService,
 	accountModelDiagnosticsService *service.AccountModelDiagnosticsService,
 	modelRegistryService *service.ModelRegistryService,
+	settingService *service.SettingService,
 	opsService *service.OpsService,
 ) *admin.AccountHandler {
 	handler := admin.NewAccountHandler(
@@ -140,6 +141,7 @@ func ProvideAdminAccountHandler(
 	handler.SetAccountModelImportService(accountModelImportService)
 	handler.SetAccountModelDiagnosticsService(accountModelDiagnosticsService)
 	handler.SetModelRegistryService(modelRegistryService)
+	handler.SetSettingService(settingService)
 	handler.SetKiroOAuthService(kiroOAuthService)
 	handler.SetOpsService(opsService)
 	if accountTestService != nil {

@@ -309,7 +309,7 @@ const resetForm = () => {
   manualSourceProtocol.value = ''
   selectedTestMode.value = supportsRealForwardForAll.value ? props.defaultTestMode : 'health_check'
   resultTestMode.value = selectedTestMode.value
-  testPrompt.value = ''
+  testPrompt.value = selectedTestMode.value === 'real_forward' ? 'Output exactly: OK' : ''
   availableModels.value = []
   results.value = []
 }
@@ -351,6 +351,16 @@ watch(
 watch(supportsRealForwardForAll, (supported) => {
   if (!supported && selectedTestMode.value === 'real_forward') {
     selectedTestMode.value = 'health_check'
+  }
+})
+
+watch(selectedTestMode, (mode) => {
+  if (mode === 'real_forward' && !testPrompt.value.trim()) {
+    testPrompt.value = 'Output exactly: OK'
+    return
+  }
+  if (mode !== 'real_forward') {
+    testPrompt.value = ''
   }
 })
 

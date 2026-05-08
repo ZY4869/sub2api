@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { computed, defineComponent, toValue } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { adminAPI } from '@/api/admin'
 
 const mockState = vi.hoisted(() => ({
   summaryParamsSource: null as any,
@@ -75,7 +76,26 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
       list: vi.fn(),
-      getById: mockState.getById
+      getById: mockState.getById,
+      getDaily5HTriggerSettings: vi.fn(() =>
+        Promise.resolve({
+          settings: {
+            enabled: true,
+            selected_account_types: ['chatgpt_oauth'],
+            include_paused_accounts: false,
+            openai_model_mode: { mode: 'auto', fixed_model_id: '' },
+            anthropic_model_mode: { mode: 'auto', fixed_model_id: '' },
+            gemini_model_mode: { mode: 'auto', fixed_model_id: '' }
+          },
+          candidates: []
+        })
+      ),
+      updateDaily5HTriggerSettings: vi.fn((payload: any) =>
+        Promise.resolve({
+          settings: payload,
+          candidates: []
+        })
+      )
     },
     groups: {
       getAll: mockState.getAllGroups
@@ -305,12 +325,15 @@ const SummaryBarStub = defineComponent({
 
 const ToolbarStub = defineComponent({
   name: 'AccountsViewToolbar',
-  props: ['platformCountSortOrder'],
-  emits: ['refresh-usage', 'update:platform-count-sort-order'],
+  props: ['platformCountSortOrder', 'daily5HTriggerEnabled', 'daily5HTriggerBusy'],
+  emits: ['refresh-usage', 'update:platform-count-sort-order', 'toggle-daily-5h-trigger'],
   template: `
     <div>
       <div class="toolbar-platform-sort">{{ platformCountSortOrder }}</div>
+      <div class="toolbar-daily5h-enabled">{{ String(daily5HTriggerEnabled) }}</div>
+      <div class="toolbar-daily5h-busy">{{ String(daily5HTriggerBusy) }}</div>
       <button class="toolbar-refresh-usage" @click="$emit('refresh-usage')" />
+      <button class="toolbar-daily5h-toggle" @click="$emit('toggle-daily-5h-trigger')" />
       <button
         class="toolbar-platform-sort-toggle"
         @click="$emit('update:platform-count-sort-order', 'count_desc')"
@@ -431,6 +454,21 @@ describe('AccountsView', () => {
     mockState.getAllGroups.mockReset().mockResolvedValue([])
     mockState.getAllProxies.mockReset().mockResolvedValue([])
     mockState.getById.mockReset()
+    vi.mocked(adminAPI.accounts.getDaily5HTriggerSettings).mockResolvedValue({
+      settings: {
+        enabled: true,
+        selected_account_types: ['chatgpt_oauth'],
+        include_paused_accounts: false,
+        openai_model_mode: { mode: 'auto', fixed_model_id: '' },
+        anthropic_model_mode: { mode: 'auto', fixed_model_id: '' },
+        gemini_model_mode: { mode: 'auto', fixed_model_id: '' }
+      },
+      candidates: []
+    } as any)
+    vi.mocked(adminAPI.accounts.updateDaily5HTriggerSettings).mockImplementation(async (payload: any) => ({
+      settings: payload,
+      candidates: []
+    }) as any)
     vi.mocked(canAccountFetchUsage).mockImplementation(() => false)
     vi.mocked(invalidateAccountUsagePresentationCache).mockReset()
     vi.mocked(refreshAccountUsagePresentation).mockReset()
@@ -916,6 +954,27 @@ describe('AccountsView', () => {
     expect(wrapper.get('.dialog-edit-loading').text()).toBe('false')
     expect(wrapper.get('.dialog-edit-account').text()).toBe('')
     expect(mockState.showError).toHaveBeenCalledWith('detail failed')
+
+    wrapper.unmount()
+  })
+
+  it('preloads daily 5H settings on mount and toggles from the latest server value', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(adminAPI.accounts.getDaily5HTriggerSettings).toHaveBeenCalled()
+    expect(wrapper.get('.toolbar-daily5h-enabled').text()).toBe('true')
+    expect(wrapper.get('.toolbar-daily5h-busy').text()).toBe('false')
+
+    await wrapper.get('.toolbar-daily5h-toggle').trigger('click')
+    await flushPromises()
+
+    expect(adminAPI.accounts.updateDaily5HTriggerSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: false
+      })
+    )
+    expect(wrapper.get('.toolbar-daily5h-enabled').text()).toBe('false')
 
     wrapper.unmount()
   })

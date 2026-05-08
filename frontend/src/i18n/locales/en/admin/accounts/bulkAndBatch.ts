@@ -47,8 +47,8 @@ export default {
         realForwardUnsupportedHint: "The current selection includes Grok accounts, so only health check mode is available.",
         quickCheck: "Quick Check",
         promptLabel: "Shared test prompt",
-        promptPlaceholder: "Only real forward tests will use this prompt.",
-        promptHint: "Leave empty to use the platform default probe message. Health check mode ignores this field.",
+        promptPlaceholder: "Example: Output exactly: OK",
+        promptHint: "Leave empty to default to Output exactly: OK. Health check mode ignores this field.",
         summary: {
             success: "Healthy {count}",
             failed: "Abnormal {count}",

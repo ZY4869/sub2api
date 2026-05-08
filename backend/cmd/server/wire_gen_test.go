@@ -39,7 +39,8 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		cfg,
 		nil,
 	)
-	accountExpirySvc := service.NewAccountExpiryService(nil, time.Second)
+	accountExpirySvc := service.NewAccountExpiryService(nil, nil, time.Second)
+	accountDaily5HTriggerSvc := service.NewAccountDaily5HTriggerService(nil, nil, nil, nil, time.Second)
 	accountBlacklistCleanupSvc := service.NewAccountBlacklistCleanupService(nil, time.Second)
 	accountRateLimitRecoveryProbeSvc := service.NewAccountRateLimitRecoveryProbeService(nil, nil, nil, time.Second)
 	subscriptionExpirySvc := service.NewSubscriptionExpiryService(nil, time.Second)
@@ -66,6 +67,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		tokenRefreshSvc,
 		nil, // openAIGPT55WhitelistBackfill
 		accountExpirySvc,
+		accountDaily5HTriggerSvc,
 		accountBlacklistCleanupSvc,
 		accountRateLimitRecoveryProbeSvc,
 		subscriptionExpirySvc,

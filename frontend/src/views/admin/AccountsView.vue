@@ -21,6 +21,8 @@
         :hide-limited-accounts="hideLimitedAccounts"
         :limited-accounts-count="limitedAccountsCount"
         :actual-usage-refresh-summary="actualUsageRefreshSummary"
+        :daily-5-h-trigger-enabled="daily5HTriggerSettingsView.settings.enabled"
+        :daily-5-h-trigger-busy="daily5HTriggerSettingsLoading || daily5HTriggerSettingsSaving"
         @update:filters="handleFilterUpdate"
         @update:search-query="handleSearchQueryUpdate"
         @update:view-mode="viewMode = $event"
@@ -42,6 +44,8 @@
         @toggle-hide-limited="toggleHideLimitedAccounts"
         @open-limited-page="openLimitedAccountsPage"
         @bulk-edit-filtered="openBulkEditFilteredModal"
+        @toggle-daily-5h-trigger="handleToggleDaily5HTrigger"
+        @open-daily-5h-settings="handleOpenDaily5HTriggerSettings"
       />
     </template>
     <template #table>
@@ -260,6 +264,14 @@
     @close-error-passthrough="showErrorPassthrough = false"
     @close-tls-fingerprint-profiles="showTLSFingerprintProfiles = false"
   />
+  <AccountDaily5HTriggerSettingsDialog
+    :show="showDaily5HTriggerSettings"
+    :saving="daily5HTriggerSettingsSaving"
+    :settings="daily5HTriggerSettingsView.settings"
+    :candidates="daily5HTriggerSettingsView.candidates"
+    @close="showDaily5HTriggerSettings = false"
+    @save="handleSaveDaily5HTriggerSettings"
+  />
 </template>
 
 <script setup lang="ts">
@@ -288,6 +300,7 @@ import AccountGroupedView from "@/components/admin/account/AccountGroupedView.vu
 import AccountLimitedSummaryBar from "@/components/admin/account/AccountLimitedSummaryBar.vue";
 import AccountPlatformTabs from "@/components/admin/account/AccountPlatformTabs.vue";
 import AccountStatusSummaryBar from "@/components/admin/account/AccountStatusSummaryBar.vue";
+import AccountDaily5HTriggerSettingsDialog from "@/components/admin/account/AccountDaily5HTriggerSettingsDialog.vue";
 import AccountsViewDialogsHost from "@/components/admin/account/AccountsViewDialogsHost.vue";
 import AccountsViewTable from "@/components/admin/account/AccountsViewTable.vue";
 import AccountsViewToolbar from "@/components/admin/account/AccountsViewToolbar.vue";
@@ -323,6 +336,8 @@ import type {
   AdminGroup,
   ClaudeModel,
   ToastDetailItem,
+  AccountDaily5HTriggerSettings,
+  AccountDaily5HTriggerSettingsView,
 } from "@/types";
 
 type ActualUsageRefreshSummary = {
@@ -406,6 +421,7 @@ const showStats = ref(false);
 const showModelDiagnostics = ref(false);
 const showErrorPassthrough = ref(false);
 const showTLSFingerprintProfiles = ref(false);
+const showDaily5HTriggerSettings = ref(false);
 const edAcc = ref<Account | null>(null);
 const tempUnschedAcc = ref<Account | null>(null);
 const deletingAcc = ref<Account | null>(null);
@@ -429,6 +445,8 @@ const togglingSchedulable = ref<number | null>(null);
 const exportingData = ref(false);
 const usageManualRefreshToken = ref(0);
 const usageRefreshing = ref(false);
+const daily5HTriggerSettingsLoading = ref(false);
+const daily5HTriggerSettingsSaving = ref(false);
 const archivedPanelRefreshToken = ref(0);
 const { menu, openMenu, closeMenu, syncMenuAccount, clearMenuAccount } =
   useAccountActionMenu();
@@ -660,7 +678,8 @@ const isAnyModalOpen = computed(() => {
     showStats.value ||
     showModelDiagnostics.value ||
     showSchedulePanel.value ||
-    showErrorPassthrough.value
+    showErrorPassthrough.value ||
+    showDaily5HTriggerSettings.value
   );
 });
 const isActionMenuOpen = computed(() => menu.show);
@@ -727,6 +746,98 @@ const {
 const isLiveSyncBlocked = computed(
   () => loading.value || isAnyModalOpen.value || isActionMenuOpen.value,
 );
+const createDefaultDaily5HTriggerSettings =
+  (): AccountDaily5HTriggerSettings => ({
+    enabled: false,
+    selected_account_types: ["chatgpt_oauth"],
+    include_paused_accounts: false,
+    openai_model_mode: { mode: "auto", fixed_model_id: "" },
+    anthropic_model_mode: { mode: "auto", fixed_model_id: "" },
+    gemini_model_mode: { mode: "auto", fixed_model_id: "" },
+  });
+const daily5HTriggerSettingsView = reactive<AccountDaily5HTriggerSettingsView>({
+  settings: createDefaultDaily5HTriggerSettings(),
+  candidates: [],
+});
+
+const applyDaily5HTriggerSettingsView = (
+  value?: AccountDaily5HTriggerSettingsView | null,
+) => {
+  daily5HTriggerSettingsView.settings =
+    value?.settings || createDefaultDaily5HTriggerSettings();
+  daily5HTriggerSettingsView.candidates = Array.isArray(value?.candidates)
+    ? value.candidates
+    : [];
+};
+
+const loadDaily5HTriggerSettings = async () => {
+  daily5HTriggerSettingsLoading.value = true;
+  try {
+    const view = await adminAPI.accounts.getDaily5HTriggerSettings();
+    applyDaily5HTriggerSettingsView(view);
+  } catch (error: any) {
+    console.error("Failed to load daily 5H trigger settings:", error);
+    appStore.showError(
+      error?.message || t("admin.accounts.daily5h.loadFailed"),
+    );
+  } finally {
+    daily5HTriggerSettingsLoading.value = false;
+  }
+};
+
+const updateDaily5HTriggerSettings = async (
+  settings: AccountDaily5HTriggerSettings,
+) => {
+  const view = await adminAPI.accounts.updateDaily5HTriggerSettings(settings);
+  applyDaily5HTriggerSettingsView(view);
+};
+
+const handleToggleDaily5HTrigger = async () => {
+  if (daily5HTriggerSettingsLoading.value || daily5HTriggerSettingsSaving.value) {
+    return;
+  }
+  daily5HTriggerSettingsSaving.value = true;
+  try {
+    await updateDaily5HTriggerSettings({
+      ...daily5HTriggerSettingsView.settings,
+      enabled: !daily5HTriggerSettingsView.settings.enabled,
+    });
+    appStore.showSuccess(t("admin.accounts.daily5h.updateSuccess"));
+  } catch (error: any) {
+    console.error("Failed to toggle daily 5H trigger settings:", error);
+    appStore.showError(
+      error?.message || t("admin.accounts.daily5h.updateFailed"),
+    );
+  } finally {
+    daily5HTriggerSettingsSaving.value = false;
+  }
+};
+
+const handleSaveDaily5HTriggerSettings = async (
+  settings: AccountDaily5HTriggerSettings,
+) => {
+  daily5HTriggerSettingsSaving.value = true;
+  try {
+    await updateDaily5HTriggerSettings(settings);
+    showDaily5HTriggerSettings.value = false;
+    appStore.showSuccess(t("admin.accounts.daily5h.updateSuccess"));
+  } catch (error: any) {
+    console.error("Failed to save daily 5H trigger settings:", error);
+    appStore.showError(
+      error?.message || t("admin.accounts.daily5h.updateFailed"),
+    );
+  } finally {
+    daily5HTriggerSettingsSaving.value = false;
+  }
+};
+
+const handleOpenDaily5HTriggerSettings = async () => {
+  showDaily5HTriggerSettings.value = true;
+  if (!daily5HTriggerSettingsLoading.value) {
+    await loadDaily5HTriggerSettings();
+  }
+};
+
 const pendingRuntimeListRefresh = ref(false);
 const runtimeSummaryParams = computed<AccountListRequestParams>(() => ({
   platform: String(params.platform || ""),
@@ -1952,15 +2063,28 @@ const handleTempUnschedReset = async (updated: Account) => {
 };
 
 const loadRuntimeOptions = async () => {
-  try {
-    const [p, g] = await Promise.all([
-      adminAPI.proxies.getAll(),
-      adminAPI.groups.getAll(),
-    ]);
-    proxies.value = p;
-    groups.value = g;
-  } catch (error) {
-    console.error("Failed to load proxies/groups:", error);
+  const [proxyResult, groupResult, daily5HResult] = await Promise.allSettled([
+    adminAPI.proxies.getAll(),
+    adminAPI.groups.getAll(),
+    adminAPI.accounts.getDaily5HTriggerSettings(),
+  ]);
+  if (proxyResult.status === "fulfilled") {
+    proxies.value = proxyResult.value;
+  } else {
+    console.error("Failed to load proxies:", proxyResult.reason);
+  }
+  if (groupResult.status === "fulfilled") {
+    groups.value = groupResult.value;
+  } else {
+    console.error("Failed to load groups:", groupResult.reason);
+  }
+  if (daily5HResult.status === "fulfilled") {
+    applyDaily5HTriggerSettingsView(daily5HResult.value);
+  } else {
+    console.error(
+      "Failed to load daily 5H trigger settings:",
+      daily5HResult.reason,
+    );
   }
 };
 
@@ -1974,6 +2098,9 @@ const handleScroll = () => {
 onMounted(async () => {
   load().catch((error) => {
     console.error("Failed to load accounts:", error);
+  });
+  loadDaily5HTriggerSettings().catch((error) => {
+    console.error("Failed to preload daily 5H trigger settings:", error);
   });
   await loadRuntimeOptions();
   window.addEventListener("scroll", handleScroll, true);

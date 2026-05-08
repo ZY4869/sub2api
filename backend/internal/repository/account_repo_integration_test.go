@@ -643,6 +643,43 @@ func (s *AccountRepoSuite) TestListSchedulable() {
 	s.Require().NotContains(ids, overloaded.ID)
 }
 
+func (s *AccountRepoSuite) TestListSchedulable_PrioritizesActiveExpiryProbeAccountsWithoutMutatingPriority() {
+	now := time.Now().UTC()
+
+	normal := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "normal-priority",
+		Schedulable: true,
+		Priority:    1,
+	})
+	boosted := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "boosted-priority",
+		Schedulable: true,
+		Priority:    99,
+		Extra: map[string]any{
+			"expiry_probe_priority_until": now.Add(30 * time.Minute).Format(time.RFC3339),
+		},
+	})
+	expiredBoost := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "expired-boost-priority",
+		Schedulable: true,
+		Priority:    50,
+		Extra: map[string]any{
+			"expiry_probe_priority_until": now.Add(-30 * time.Minute).Format(time.RFC3339),
+		},
+	})
+
+	sched, err := s.repo.ListSchedulable(s.ctx)
+	s.Require().NoError(err, "ListSchedulable")
+	ids := idsOfAccounts(sched)
+	s.Require().GreaterOrEqual(len(ids), 3)
+	s.Require().Equal(boosted.ID, ids[0])
+	s.Require().True(indexOfAccountID(ids, normal.ID) < indexOfAccountID(ids, expiredBoost.ID))
+
+	boostedFresh, err := s.repo.GetByID(s.ctx, boosted.ID)
+	s.Require().NoError(err)
+	s.Require().Equal(99, boostedFresh.Priority)
+}
+
 func (s *AccountRepoSuite) TestListSchedulableByGroupID_TimeBoundaries_And_StatusUpdates() {
 	now := time.Now()
 	group := mustCreateGroup(s.T(), s.client, &service.Group{Name: "g-sched"})
@@ -1175,4 +1212,13 @@ func idsOfAccounts(accounts []service.Account) []int64 {
 		out = append(out, accounts[i].ID)
 	}
 	return out
+}
+
+func indexOfAccountID(ids []int64, target int64) int {
+	for i, id := range ids {
+		if id == target {
+			return i
+		}
+	}
+	return -1
 }

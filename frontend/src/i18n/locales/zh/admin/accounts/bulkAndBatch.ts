@@ -47,8 +47,8 @@ export default {
         realForwardUnsupportedHint: "当前选中的账号包含 Grok，仅支持快速探活测试。",
         quickCheck: "快速检测",
         promptLabel: "统一测试提示词",
-        promptPlaceholder: "仅真实转发测试会使用这段提示词。",
-        promptHint: "留空则使用平台默认探测文案；快速探活测试会忽略该字段。",
+        promptPlaceholder: "例如：Output exactly: OK",
+        promptHint: "留空则默认使用 Output exactly: OK；快速探活测试会忽略该字段。",
         summary: {
             success: "正常 {count} 个",
             failed: "异常 {count} 个",

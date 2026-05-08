@@ -728,6 +728,81 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/accounts/bulk-update" \
   }'
 ```
 
+### 管理端：每日 07:00 自动触发 5H 设置
+
+管理员现在可以为账号管理页配置一个全局的“每日 07:00 自动触发 5H”任务：
+
+- 路径：`GET /api/v1/admin/accounts/daily-5h-trigger-settings`
+- 路径：`PUT /api/v1/admin/accounts/daily-5h-trigger-settings`
+- 鉴权：管理员 JWT（`Authorization: Bearer <ADMIN_JWT>`）
+- 用途：每天早上 07:00（按服务器本地时区）对被选中的账号类型执行一次后台文本测试，用来主动触发 5H 时限
+- 默认文本：所有文本测试统一使用 `Output exactly: OK`
+- 运行约束：每天只执行一次；如果服务重启且当天尚未执行，系统会补跑一次
+- 候选约束：默认只处理“当前未进入限流窗口”的账号；黑名单账号始终跳过；`include_paused_accounts=true` 时，停用或 `schedulable=false` 但未限流的账号也会纳入
+- 固定模型约束：若固定模型已不在该账号自己的白名单可见集合里，则当天跳过该账号，不会降级到别的模型家族
+- 可观测性：账号 `extra` 会记录 `daily_5h_trigger_last_local_date`、`daily_5h_trigger_last_status`、`daily_5h_trigger_last_model_id`、`daily_5h_trigger_last_summary`；跳过时会把最近一次 skip reason 摘要写进 `daily_5h_trigger_last_summary`
+- 到期自检优先态：`expiry_probe_priority_until` 只影响运行时调度顺序，不会修改数据库中的持久 `priority`；到新 `expires_at` 到期或账号后续探测失败后自动失效
+
+`GET` 返回：
+
+- `settings`
+- `candidates[]`
+- `candidates[].account_type`
+- `candidates[].count`
+- `candidates[].models[]`
+- `candidates[].models[].model_id`
+- `candidates[].models[].display_name`
+- `candidates[].models[].provider`
+- `candidates[].models[].provider_label`
+- `candidates[].models[].account_count`
+
+`PUT` 请求体字段固定为：
+
+- `enabled`
+- `selected_account_types[]`
+- `include_paused_accounts`
+- `openai_model_mode.mode`
+- `openai_model_mode.fixed_model_id`
+- `anthropic_model_mode.mode`
+- `anthropic_model_mode.fixed_model_id`
+- `gemini_model_mode.mode`
+- `gemini_model_mode.fixed_model_id`
+
+账号类型与自动家族规则固定如下：
+
+- `chatgpt_oauth`：自动选择该账号白名单里最新的 `mini` 家族模型
+- `claude_code_oauth_setup_token`：自动选择该账号白名单里最新的 `haiku` 家族模型
+- `google_oauth`：自动选择该账号白名单里最新的 `gemini` 家族模型
+
+#### REST
+```bash
+# 1) 读取当前设置与候选统计
+curl "https://api.zyxai.de/api/v1/admin/accounts/daily-5h-trigger-settings" \
+  -H "Authorization: Bearer <ADMIN_JWT>"
+
+# 2) 更新设置
+curl -X PUT "https://api.zyxai.de/api/v1/admin/accounts/daily-5h-trigger-settings" \
+  -H "Authorization: Bearer <ADMIN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "selected_account_types": ["chatgpt_oauth", "google_oauth"],
+    "include_paused_accounts": false,
+    "openai_model_mode": {
+      "mode": "auto",
+      "fixed_model_id": ""
+    },
+    "anthropic_model_mode": {
+      "mode": "fixed",
+      "fixed_model_id": "claude-3.5-haiku"
+    },
+    "gemini_model_mode": {
+      "mode": "auto",
+      "fixed_model_id": ""
+    }
+  }'
+```
+
 ### 管理端：按筛选结果批量更新用户并发
 
 管理员现在可以直接基于“用户列表当前筛选结果”批量修改用户并发：

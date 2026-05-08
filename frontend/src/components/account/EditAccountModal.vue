@@ -323,6 +323,7 @@
         v-model:priority="form.priority"
         v-model:rate-multiplier="form.rate_multiplier"
         v-model:expires-at-input="expiresAtInput"
+        v-model:expiry-probe-extension-days="expiryProbeExtensionDays"
         :proxies="proxies"
       />
 
@@ -700,6 +701,7 @@ const poolModeState = reactive(createDefaultAccountPoolModeState(DEFAULT_POOL_MO
 const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState())
 const interceptWarmupRequests = ref(false)
 const autoPauseOnExpired = ref(false)
+const expiryProbeExtensionDays = ref(1)
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 const antigravityModelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const antigravityWhitelistModels = ref<string[]>([])
@@ -1328,6 +1330,10 @@ watch(
 
       // Load mixed scheduling setting (only for antigravity accounts)
       const extra = newAccount.extra as Record<string, unknown> | undefined
+      expiryProbeExtensionDays.value = Math.max(
+        1,
+        Number.parseInt(String(extra?.expiry_probe_extension_days || ''), 10) || 1
+      )
       manualModels.value = readAccountManualModelsFromExtra(extra, isProtocolGatewayAccount.value)
       modelProbeSnapshot.value = readAccountModelProbeSnapshot(extra)
       resolvedUpstream.value = readAccountResolvedUpstreamDraft(extra)
@@ -2159,6 +2165,7 @@ const handleSubmit = async () => {
           (props.account.extra as Record<string, unknown>) ||
           {}) as Record<string, unknown>)
       }
+      normalizedExtra.expiry_probe_extension_days = Math.max(1, expiryProbeExtensionDays.value)
       if (runtimePlatform !== 'openai') {
         delete normalizedExtra.openai_passthrough
         delete normalizedExtra.openai_oauth_passthrough

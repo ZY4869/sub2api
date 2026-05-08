@@ -203,7 +203,8 @@ const (
 	SettingKeyOpenAIFastPolicySettings = "openai_fast_policy_settings"
 	SettingKeyBlacklistRuleCandidates  = "blacklist_rule_candidates"
 
-	SettingKeyGoogleBatchGCSProfiles = "google_batch_gcs_profiles"
+	SettingKeyGoogleBatchGCSProfiles        = "google_batch_gcs_profiles"
+	SettingKeyAccountDaily5HTriggerSettings = "account_daily_5h_trigger_settings"
 
 	SettingKeyMinClaudeCodeVersion = "min_claude_code_version"
 	SettingKeyMaxClaudeCodeVersion = "max_claude_code_version"

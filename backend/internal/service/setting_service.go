@@ -42,13 +42,18 @@ type DefaultSubscriptionGroupReader interface {
 }
 
 type SettingService struct {
-	settingRepo           SettingRepository
-	defaultSubGroupReader DefaultSubscriptionGroupReader
-	cfg                   *config.Config
-	updateCallbacksMu     sync.RWMutex
-	onUpdateCallbacks     []func()
-	onS3Update            func()
-	version               string
+	settingRepo                     SettingRepository
+	defaultSubGroupReader           DefaultSubscriptionGroupReader
+	accountDaily5HCandidateProvider AccountDaily5HTriggerCandidateProvider
+	cfg                             *config.Config
+	updateCallbacksMu               sync.RWMutex
+	onUpdateCallbacks               []func()
+	onS3Update                      func()
+	version                         string
+}
+
+type AccountDaily5HTriggerCandidateProvider interface {
+	ListDaily5HTriggerCandidates(ctx context.Context) []AccountDaily5HTriggerAccountTypeSummary
 }
 
 func NewSettingService(settingRepo SettingRepository, cfg *config.Config) *SettingService {
@@ -128,6 +133,21 @@ func defaultSocialOAuthConfig(provider string) SocialOAuthConfig {
 
 func (s *SettingService) SetDefaultSubscriptionGroupReader(reader DefaultSubscriptionGroupReader) {
 	s.defaultSubGroupReader = reader
+}
+
+func (s *SettingService) SetAccountDaily5HTriggerCandidateProvider(provider AccountDaily5HTriggerCandidateProvider) {
+	s.accountDaily5HCandidateProvider = provider
+}
+
+func (s *SettingService) ListDaily5HTriggerCandidates(ctx context.Context) []AccountDaily5HTriggerAccountTypeSummary {
+	if s == nil || s.accountDaily5HCandidateProvider == nil {
+		return []AccountDaily5HTriggerAccountTypeSummary{}
+	}
+	items := s.accountDaily5HCandidateProvider.ListDaily5HTriggerCandidates(ctx)
+	if items == nil {
+		return []AccountDaily5HTriggerAccountTypeSummary{}
+	}
+	return items
 }
 
 func parseCustomMenuItemURLs(raw string) []string {

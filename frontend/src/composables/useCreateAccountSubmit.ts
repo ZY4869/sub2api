@@ -48,6 +48,7 @@ interface UseCreateAccountSubmitOptions {
     expires_at: number | null
   }
   autoPauseOnExpired: Ref<boolean>
+  expiryProbeExtensionDays: Ref<number>
   editQuotaLimit: Ref<number | null>
   editQuotaDailyLimit: Ref<number | null>
   editQuotaWeeklyLimit: Ref<number | null>
@@ -141,7 +142,10 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
   }
 
   const applyQuotaLimits = (base?: Record<string, unknown>): Record<string, unknown> | undefined => {
-    const extra: Record<string, unknown> = { ...(base || {}) }
+    const extra: Record<string, unknown> = {
+      ...(base || {}),
+      expiry_probe_extension_days: Math.max(1, options.expiryProbeExtensionDays.value)
+    }
     if (options.editQuotaLimit.value != null && options.editQuotaLimit.value > 0) {
       extra.quota_limit = options.editQuotaLimit.value
     }

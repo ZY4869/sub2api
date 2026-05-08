@@ -37,6 +37,7 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
         live: 4,
         fallback: 2,
       },
+      daily5HTriggerEnabled: true,
       toggleableColumns: [
         { key: "proxy", label: "Proxy", visible: true },
         { key: "notes", label: "Notes", visible: false },
@@ -151,6 +152,8 @@ describe("AccountsViewToolbar", () => {
       .findAll("button")
       .find((button) => button.text().includes("Proxy"))
       ?.trigger("click");
+    await wrapper.get('[data-daily5h-toggle="true"]').trigger("click");
+    await wrapper.get('[data-daily5h-settings="true"]').trigger("click");
     await wrapper
       .findAll("button")
       .find((button) => button.text().includes("admin.accounts.dataImport"))
@@ -187,6 +190,8 @@ describe("AccountsViewToolbar", () => {
     expect(wrapper.emitted("set-auto-refresh-enabled")).toEqual([[false]]);
     expect(wrapper.emitted("set-auto-refresh-interval")).toEqual([[5]]);
     expect(wrapper.emitted("toggle-column")).toEqual([["proxy"]]);
+    expect(wrapper.emitted("toggle-daily-5h-trigger")).toEqual([[]]);
+    expect(wrapper.emitted("open-daily-5h-settings")).toEqual([[]]);
     expect(wrapper.emitted("import-data")).toEqual([[]]);
     expect(wrapper.emitted("export-data")).toEqual([[]]);
     expect(wrapper.emitted("show-error-passthrough")).toEqual([[]]);

@@ -705,6 +705,7 @@ describe('CreateAccountModal', () => {
         base_url: 'https://gateway.example.com'
       },
       extra: {
+        expiry_probe_extension_days: 1,
         gateway_protocol: 'mixed',
         gateway_test_provider: 'anthropic',
         gateway_test_model_id: 'claude-sonnet-4.5'

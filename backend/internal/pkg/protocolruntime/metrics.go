@@ -18,6 +18,8 @@ type MetricsSnapshot struct {
 	RecoveryProbeSuccessTotal              int64            `json:"recovery_probe_success_total"`
 	RecoveryProbeRetryTotal                int64            `json:"recovery_probe_retry_total"`
 	RecoveryProbeBlacklistedTotal          int64            `json:"recovery_probe_blacklisted_total"`
+	RecoveryProbeResultTotal               int64            `json:"recovery_probe_result_total"`
+	RecoveryProbeLatencyMsTotal            int64            `json:"recovery_probe_latency_ms_total"`
 	BillingResolverTotal                   int64            `json:"billing_resolver_total"`
 	BillingResolverFallbackTotal           int64            `json:"billing_resolver_fallback_total"`
 	BillingDeprecatedAPITotal              int64            `json:"billing_deprecated_api_total"`
@@ -43,6 +45,10 @@ type MetricsSnapshot struct {
 	RecoveryProbeSuccessByReason           map[string]int64 `json:"recovery_probe_success_by_reason"`
 	RecoveryProbeRetryByReason             map[string]int64 `json:"recovery_probe_retry_by_reason"`
 	RecoveryProbeBlacklistedByReason       map[string]int64 `json:"recovery_probe_blacklisted_by_reason"`
+	RecoveryProbeResultByReason            map[string]int64 `json:"recovery_probe_result_by_reason"`
+	RecoveryProbeResultByStatus            map[string]int64 `json:"recovery_probe_result_by_status"`
+	RecoveryProbeLatencyMsByReason         map[string]int64 `json:"recovery_probe_latency_ms_by_reason"`
+	RecoveryProbeLatencyMsByStatus         map[string]int64 `json:"recovery_probe_latency_ms_by_status"`
 	BillingResolverByPath                  map[string]int64 `json:"billing_resolver_by_path"`
 	BillingResolverFallbackByReason        map[string]int64 `json:"billing_resolver_fallback_by_reason"`
 	BillingDeprecatedAPIByPath             map[string]int64 `json:"billing_deprecated_api_by_path"`
@@ -92,6 +98,8 @@ type metrics struct {
 	recoveryProbeSuccessTotal         atomic.Int64
 	recoveryProbeRetryTotal           atomic.Int64
 	recoveryProbeBlacklistedTotal     atomic.Int64
+	recoveryProbeResultTotal          atomic.Int64
+	recoveryProbeLatencyMsTotal       atomic.Int64
 	billingResolverTotal              atomic.Int64
 	billingResolverFallbackTotal      atomic.Int64
 	billingDeprecatedAPITotal         atomic.Int64
@@ -118,6 +126,10 @@ type metrics struct {
 	recoveryProbeSuccessByReason           sync.Map
 	recoveryProbeRetryByReason             sync.Map
 	recoveryProbeBlacklistedByReason       sync.Map
+	recoveryProbeResultByReason            sync.Map
+	recoveryProbeResultByStatus            sync.Map
+	recoveryProbeLatencyMsByReason         sync.Map
+	recoveryProbeLatencyMsByStatus         sync.Map
 	billingResolverByPath                  sync.Map
 	billingResolverFallbackByReason        sync.Map
 	billingDeprecatedAPIByPath             sync.Map
@@ -170,6 +182,8 @@ func Snapshot() MetricsSnapshot {
 		RecoveryProbeSuccessTotal:              defaultMetrics.recoveryProbeSuccessTotal.Load(),
 		RecoveryProbeRetryTotal:                defaultMetrics.recoveryProbeRetryTotal.Load(),
 		RecoveryProbeBlacklistedTotal:          defaultMetrics.recoveryProbeBlacklistedTotal.Load(),
+		RecoveryProbeResultTotal:               defaultMetrics.recoveryProbeResultTotal.Load(),
+		RecoveryProbeLatencyMsTotal:            defaultMetrics.recoveryProbeLatencyMsTotal.Load(),
 		BillingResolverTotal:                   defaultMetrics.billingResolverTotal.Load(),
 		BillingResolverFallbackTotal:           defaultMetrics.billingResolverFallbackTotal.Load(),
 		BillingDeprecatedAPITotal:              defaultMetrics.billingDeprecatedAPITotal.Load(),
@@ -195,6 +209,10 @@ func Snapshot() MetricsSnapshot {
 		RecoveryProbeSuccessByReason:           snapshotCounterMap(&defaultMetrics.recoveryProbeSuccessByReason),
 		RecoveryProbeRetryByReason:             snapshotCounterMap(&defaultMetrics.recoveryProbeRetryByReason),
 		RecoveryProbeBlacklistedByReason:       snapshotCounterMap(&defaultMetrics.recoveryProbeBlacklistedByReason),
+		RecoveryProbeResultByReason:            snapshotCounterMap(&defaultMetrics.recoveryProbeResultByReason),
+		RecoveryProbeResultByStatus:            snapshotCounterMap(&defaultMetrics.recoveryProbeResultByStatus),
+		RecoveryProbeLatencyMsByReason:         snapshotCounterMap(&defaultMetrics.recoveryProbeLatencyMsByReason),
+		RecoveryProbeLatencyMsByStatus:         snapshotCounterMap(&defaultMetrics.recoveryProbeLatencyMsByStatus),
 		BillingResolverByPath:                  snapshotCounterMap(&defaultMetrics.billingResolverByPath),
 		BillingResolverFallbackByReason:        snapshotCounterMap(&defaultMetrics.billingResolverFallbackByReason),
 		BillingDeprecatedAPIByPath:             snapshotCounterMap(&defaultMetrics.billingDeprecatedAPIByPath),
@@ -278,6 +296,19 @@ func RecordRecoveryProbeRetry(reason string) {
 func RecordRecoveryProbeBlacklisted(reason string) {
 	defaultMetrics.recoveryProbeBlacklistedTotal.Add(1)
 	incrementCounterMap(&defaultMetrics.recoveryProbeBlacklistedByReason, reason)
+}
+
+func RecordRecoveryProbeResult(reason string, status string, latencyMs int64) {
+	defaultMetrics.recoveryProbeResultTotal.Add(1)
+	incrementCounterMap(&defaultMetrics.recoveryProbeResultByReason, reason)
+	incrementCounterMap(&defaultMetrics.recoveryProbeResultByStatus, status)
+
+	if latencyMs < 0 {
+		latencyMs = 0
+	}
+	defaultMetrics.recoveryProbeLatencyMsTotal.Add(latencyMs)
+	addCounterMap(&defaultMetrics.recoveryProbeLatencyMsByReason, reason, latencyMs)
+	addCounterMap(&defaultMetrics.recoveryProbeLatencyMsByStatus, status, latencyMs)
 }
 
 func RecordBillingResolver(path string) {
@@ -406,6 +437,8 @@ func ResetForTest() {
 	defaultMetrics.recoveryProbeSuccessTotal.Store(0)
 	defaultMetrics.recoveryProbeRetryTotal.Store(0)
 	defaultMetrics.recoveryProbeBlacklistedTotal.Store(0)
+	defaultMetrics.recoveryProbeResultTotal.Store(0)
+	defaultMetrics.recoveryProbeLatencyMsTotal.Store(0)
 	defaultMetrics.billingResolverTotal.Store(0)
 	defaultMetrics.billingResolverFallbackTotal.Store(0)
 	defaultMetrics.billingDeprecatedAPITotal.Store(0)
@@ -431,6 +464,10 @@ func ResetForTest() {
 	resetCounterMap(&defaultMetrics.recoveryProbeSuccessByReason)
 	resetCounterMap(&defaultMetrics.recoveryProbeRetryByReason)
 	resetCounterMap(&defaultMetrics.recoveryProbeBlacklistedByReason)
+	resetCounterMap(&defaultMetrics.recoveryProbeResultByReason)
+	resetCounterMap(&defaultMetrics.recoveryProbeResultByStatus)
+	resetCounterMap(&defaultMetrics.recoveryProbeLatencyMsByReason)
+	resetCounterMap(&defaultMetrics.recoveryProbeLatencyMsByStatus)
 	resetCounterMap(&defaultMetrics.billingResolverByPath)
 	resetCounterMap(&defaultMetrics.billingResolverFallbackByReason)
 	resetCounterMap(&defaultMetrics.billingDeprecatedAPIByPath)

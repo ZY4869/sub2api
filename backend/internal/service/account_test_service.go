@@ -52,7 +52,7 @@ type TestEvent struct {
 }
 
 const (
-	defaultGeminiTextTestPrompt  = "hi"
+	defaultGeminiTextTestPrompt  = accountDaily5HPrompt
 	defaultGeminiImageTestPrompt = "Generate a cute orange cat astronaut sticker on a clean pastel background."
 )
 
@@ -301,7 +301,7 @@ func createTestPayload(modelID string) (map[string]any, error) {
 				"content": []map[string]any{
 					{
 						"type": "text",
-						"text": "hi",
+						"text": accountDaily5HPrompt,
 						"cache_control": map[string]string{
 							"type": "ephemeral",
 						},
@@ -333,7 +333,7 @@ func createAnthropicStandardTestPayload(modelID string) map[string]any {
 		"messages": []map[string]any{
 			{
 				"role":    "user",
-				"content": "hi",
+				"content": accountDaily5HPrompt,
 			},
 		},
 		"max_tokens": 64,
@@ -1222,7 +1222,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 				"content": []map[string]any{
 					{
 						"type": "text",
-						"text": "hi",
+						"text": accountDaily5HPrompt,
 					},
 				},
 			},
@@ -1898,7 +1898,7 @@ func createOpenAITestPayloadForRequestFormat(modelID string, prompt string, requ
 func createOpenAITestPayload(modelID string, prompt string, isOAuth bool) map[string]any {
 	textPrompt := strings.TrimSpace(prompt)
 	if textPrompt == "" {
-		textPrompt = "hi"
+		textPrompt = accountDaily5HPrompt
 	}
 	payload := map[string]any{
 		"model": modelID,
@@ -1930,7 +1930,7 @@ func createOpenAITestPayload(modelID string, prompt string, isOAuth bool) map[st
 func createOpenAIChatCompletionsTestPayload(modelID string, prompt string) map[string]any {
 	textPrompt := strings.TrimSpace(prompt)
 	if textPrompt == "" {
-		textPrompt = "hi"
+		textPrompt = accountDaily5HPrompt
 	}
 	return map[string]any{
 		"model": modelID,

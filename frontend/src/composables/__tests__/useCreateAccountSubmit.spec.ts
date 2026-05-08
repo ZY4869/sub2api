@@ -83,6 +83,7 @@ describe('useCreateAccountSubmit', () => {
         expires_at: null
       },
       autoPauseOnExpired: ref(false),
+      expiryProbeExtensionDays: ref(7),
       editQuotaLimit: ref(null),
       editQuotaDailyLimit: ref(null),
       editQuotaWeeklyLimit: ref(null),
@@ -123,6 +124,7 @@ describe('useCreateAccountSubmit', () => {
       platform: 'protocol_gateway',
       gateway_protocol: 'mixed',
       extra: {
+        expiry_probe_extension_days: 7,
         gateway_protocol: 'mixed',
         gateway_test_provider: 'anthropic',
         gateway_test_model_id: 'claude-sonnet-4.5'

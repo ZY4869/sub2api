@@ -198,31 +198,6 @@ func (r *accountRepository) BindGroups(ctx context.Context, accountID int64, gro
 	}
 	return nil
 }
-func (r *accountRepository) AutoPauseExpiredAccounts(ctx context.Context, now time.Time) (int64, error) {
-	result, err := r.sql.ExecContext(ctx, `
-		UPDATE accounts
-		SET schedulable = FALSE,
-			updated_at = NOW()
-		WHERE deleted_at IS NULL
-			AND schedulable = TRUE
-			AND auto_pause_on_expired = TRUE
-			AND expires_at IS NOT NULL
-			AND expires_at <= $1
-	`, now)
-	if err != nil {
-		return 0, err
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-	if rows > 0 {
-		if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventFullRebuild, nil, nil, nil); err != nil {
-			logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue auto pause rebuild failed: err=%v", err)
-		}
-	}
-	return rows, nil
-}
 func extraValueToFloat64(value any) (float64, bool) {
 	switch v := value.(type) {
 	case float64:
@@ -513,7 +488,14 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 			accounts = append(accounts, acc)
 		}
 	}
-	return r.accountsToService(ctx, accounts)
+	items, err := r.accountsToService(ctx, accounts)
+	if err != nil {
+		return nil, err
+	}
+	if opts.schedulable {
+		sortSchedulableAccountsWithExpiryProbePriority(items, time.Now().UTC())
+	}
+	return items, nil
 }
 func (r *accountRepository) FindByExtraField(ctx context.Context, key string, value any) ([]service.Account, error) {
 	accounts, err := r.client.Account.Query().Where(dbaccount.DeletedAtIsNil(), func(s *entsql.Selector) {
