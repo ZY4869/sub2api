@@ -230,6 +230,20 @@ func (_u *UserUpdate) SetNillableUsageModelDisplayMode(v *string) *UserUpdate {
 	return _u
 }
 
+// SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
+func (_u *UserUpdate) SetUsageContextBadgeDisplayMode(v string) *UserUpdate {
+	_u.mutation.SetUsageContextBadgeDisplayMode(v)
+	return _u
+}
+
+// SetNillableUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableUsageContextBadgeDisplayMode(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetUsageContextBadgeDisplayMode(*v)
+	}
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdate) SetTotpSecretEncrypted(v string) *UserUpdate {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -687,6 +701,11 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "usage_model_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_model_display_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
+		if err := user.UsageContextBadgeDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -749,6 +768,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UsageModelDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageModelDisplayMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
+		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
@@ -1396,6 +1418,20 @@ func (_u *UserUpdateOne) SetNillableUsageModelDisplayMode(v *string) *UserUpdate
 	return _u
 }
 
+// SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
+func (_u *UserUpdateOne) SetUsageContextBadgeDisplayMode(v string) *UserUpdateOne {
+	_u.mutation.SetUsageContextBadgeDisplayMode(v)
+	return _u
+}
+
+// SetNillableUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableUsageContextBadgeDisplayMode(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetUsageContextBadgeDisplayMode(*v)
+	}
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdateOne) SetTotpSecretEncrypted(v string) *UserUpdateOne {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -1866,6 +1902,11 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "usage_model_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_model_display_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
+		if err := user.UsageContextBadgeDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -1945,6 +1986,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.UsageModelDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageModelDisplayMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
+		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)

@@ -382,6 +382,7 @@ func (h *AccountHandler) resolveBatchAccountTestExecutionInput(
 		TestMode:       strings.TrimSpace(req.TestMode),
 		TargetProvider: strings.TrimSpace(req.TargetProvider),
 		TargetModelID:  strings.TrimSpace(req.TargetModelID),
+		OperationType:  service.UsageOperationTypeBatchTest,
 	}
 	if input.TestMode == "" {
 		input.TestMode = string(service.AccountTestModeHealthCheck)

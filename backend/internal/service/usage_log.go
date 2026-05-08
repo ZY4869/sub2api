@@ -16,6 +16,13 @@ const (
 )
 
 const (
+	UsageOperationTypeAccountTest      = "account_test"
+	UsageOperationTypeBatchTest        = "batch_test"
+	UsageOperationTypeScheduledTest    = "scheduled_test"
+	UsageOperationTypeAutoRecoveryTest = "auto_recovery_test"
+)
+
+const (
 	UsageLogStatusSucceeded = "succeeded"
 	UsageLogStatusFailed    = "failed"
 

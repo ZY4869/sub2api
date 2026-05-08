@@ -590,6 +590,9 @@ func ProvideAccountTestService(
 	grokGatewayService *GrokGatewayService,
 	openAIGatewayService *OpenAIGatewayService,
 	geminiCompatService *GeminiMessagesCompatService,
+	userRepo UserRepository,
+	apiKeyRepo APIKeyRepository,
+	usageLogRepo UsageLogRepository,
 	httpUpstream HTTPUpstream,
 	cfg *config.Config,
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
@@ -604,6 +607,7 @@ func ProvideAccountTestService(
 	svc.SetGrokGatewayService(grokGatewayService)
 	svc.SetOpenAIGatewayService(openAIGatewayService)
 	svc.SetGeminiCompatService(geminiCompatService)
+	svc.SetUsageLogDependencies(userRepo, apiKeyRepo, usageLogRepo)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
 	return svc
 }

@@ -35,6 +35,12 @@ const messages: Record<string, string> = {
   'usage.millionContextEffective': '1M Effective',
   'usage.millionContextSource': '1M Source',
   'usage.millionContextBetaToken': '1M Beta Token',
+  'usage.nativeContext': 'Native Context',
+  'usage.stream': 'Stream',
+  'usage.operationTypeAccountTest': 'Account Test',
+  'usage.operationTypeBatchTest': 'Batch Test',
+  'usage.operationTypeScheduledTest': 'Scheduled Test',
+  'usage.operationTypeAutoRecoveryTest': 'Auto Recovery Probe',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -52,6 +58,14 @@ vi.mock('@/composables/useUsageModelDisplayModePreference', () => ({
     usageModelDisplayMode: 'model_only',
     updatingUsageModelDisplayMode: false,
     setUsageModelDisplayMode: vi.fn(),
+  }),
+}))
+
+vi.mock('@/composables/useUsageContextBadgeDisplayModePreference', () => ({
+  useUsageContextBadgeDisplayModePreference: () => ({
+    usageContextBadgeDisplayMode: 'request_only',
+    updatingUsageContextBadgeDisplayMode: false,
+    setUsageContextBadgeDisplayMode: vi.fn(),
   }),
 }))
 
@@ -287,7 +301,7 @@ describe('admin UsageTable tooltip', () => {
     expect(wrapper.text()).toContain('Cache Miss')
   })
 
-  it('renders 1M capability lines in the reasoning effort cell', () => {
+  it('does not render 1M capability lines in the reasoning effort cell anymore', () => {
     const row = {
       id: 5,
       request_id: 'req-admin-1m',
@@ -328,11 +342,58 @@ describe('admin UsageTable tooltip', () => {
 
     const text = wrapper.text()
     expect(text).toContain('Max -> Xhigh')
-    expect(text).toContain('1M Requested')
-    expect(text).toContain('Yes')
-    expect(text).toContain('1M Effective')
-    expect(text).toContain('No')
-    expect(text).toContain('1M Source')
-    expect(text).toContain('model_suffix_[1m]')
+    expect(text).not.toContain('1M Requested')
+    expect(text).not.toContain('1M Effective')
+    expect(text).not.toContain('1M Source')
+  })
+
+  it('renders system operation badge alongside transport label', () => {
+    const row = {
+      id: 6,
+      request_id: 'req-admin-system-op',
+      request_type: 'stream',
+      stream: true,
+      operation_type: 'account_test',
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    }
+
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [row],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: {
+            props: ['data', 'rowKey'],
+            template: `
+              <div>
+                <div v-for="(row, index) in data" :key="(row && row[rowKey]) || index">
+                  <slot name="cell-stream" :row="row" />
+                </div>
+              </div>
+            `,
+          },
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+          UsageContextBadgeDisplayModeToggle: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('Stream')
+    expect(text).toContain('Account Test')
   })
 })

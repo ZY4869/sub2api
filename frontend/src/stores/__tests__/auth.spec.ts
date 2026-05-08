@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import type { UsageContextBadgeDisplayMode } from '@/types'
 
 // Mock authAPI
 const mockLogin = vi.fn()
@@ -29,6 +30,7 @@ const fakeUser = {
   role: 'user' as const,
   request_details_review: false,
   usage_model_display_mode: 'model_only' as const,
+  usage_context_badge_display_mode: 'request_only' as const,
   balance: 100,
   concurrency: 5,
   status: 'active' as const,
@@ -328,6 +330,18 @@ describe('useAuthStore', () => {
       expect(store.user?.usage_model_display_mode).toBe('display_and_model')
       expect(JSON.parse(localStorage.getItem('auth_user') || '{}').usage_model_display_mode).toBe(
         'display_and_model'
+      )
+    })
+
+    it('setUsageContextBadgeDisplayMode updates the in-memory and persisted preference', () => {
+      const store = useAuthStore()
+      store.setCurrentUser(fakeUser)
+
+      store.setUsageContextBadgeDisplayMode('both' satisfies UsageContextBadgeDisplayMode)
+
+      expect(store.user?.usage_context_badge_display_mode).toBe('both')
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}').usage_context_badge_display_mode).toBe(
+        'both'
       )
     })
   })

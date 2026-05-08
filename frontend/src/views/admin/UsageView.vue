@@ -783,6 +783,7 @@ const allColumns = computed(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
+  { key: "native_context", label: t("usage.nativeContext"), sortable: false },
   { key: "request_protocol", label: t("usage.requestProtocol"), sortable: false },
   { key: "endpoint", label: t("usage.endpoint"), sortable: false },
   { key: "group", label: t("admin.usage.group"), sortable: false },

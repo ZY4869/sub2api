@@ -10,6 +10,7 @@ export default {
     username: 'Username',
     enterUsername: 'Enter username',
     usageModelDisplayMode: 'Usage Model Display',
+    usageContextBadgeDisplayMode: 'Context Badge Display',
     editProfile: 'Edit Profile',
     updateProfile: 'Update Profile',
     updating: 'Updating...',

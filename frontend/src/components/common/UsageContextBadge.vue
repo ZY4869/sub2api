@@ -2,7 +2,7 @@
   <span
     v-if="badge"
     :class="badgeClass"
-    :title="badge.title || badge.label"
+    :title="badgeTitle"
   >
     <span class="mr-1 inline-flex h-3.5 w-3.5 items-center justify-center">
       <svg v-if="badge.tier === '1m'" viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-current">
@@ -51,17 +51,32 @@
         <rect x="9" y="9" width="6" height="6" />
       </svg>
     </span>
-    {{ badge.label }}
+    {{ badgeLabel }}
   </span>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { UsageContextBadgeInfo } from '@/utils/usageModelPresentation'
 
 const props = defineProps<{
   badge: UsageContextBadgeInfo | null
 }>()
+const { t } = useI18n()
+
+const badgeLabel = computed(() => {
+  if (!props.badge) return ''
+  return props.badge.labelKey ? t(props.badge.labelKey) : props.badge.label
+})
+
+const badgeTitle = computed(() => {
+  if (!props.badge) return ''
+  if (props.badge.titleKey) {
+    return t(props.badge.titleKey, props.badge.titleParams || {})
+  }
+  return props.badge.title || badgeLabel.value
+})
 
 const badgeClass = computed(() => {
   if (!props.badge) return ''

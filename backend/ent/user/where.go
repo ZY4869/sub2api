@@ -125,6 +125,11 @@ func UsageModelDisplayMode(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldUsageModelDisplayMode, v))
 }
 
+// UsageContextBadgeDisplayMode applies equality check predicate on the "usage_context_badge_display_mode" field. It's identical to UsageContextBadgeDisplayModeEQ.
+func UsageContextBadgeDisplayMode(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldUsageContextBadgeDisplayMode, v))
+}
+
 // TotpSecretEncrypted applies equality check predicate on the "totp_secret_encrypted" field. It's identical to TotpSecretEncryptedEQ.
 func TotpSecretEncrypted(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldTotpSecretEncrypted, v))
@@ -823,6 +828,71 @@ func UsageModelDisplayModeEqualFold(v string) predicate.User {
 // UsageModelDisplayModeContainsFold applies the ContainsFold predicate on the "usage_model_display_mode" field.
 func UsageModelDisplayModeContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldUsageModelDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeEQ applies the EQ predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeNEQ applies the NEQ predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeIn applies the In predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldUsageContextBadgeDisplayMode, vs...))
+}
+
+// UsageContextBadgeDisplayModeNotIn applies the NotIn predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldUsageContextBadgeDisplayMode, vs...))
+}
+
+// UsageContextBadgeDisplayModeGT applies the GT predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeGTE applies the GTE predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeLT applies the LT predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeLTE applies the LTE predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeContains applies the Contains predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeHasPrefix applies the HasPrefix predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeHasSuffix applies the HasSuffix predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeEqualFold applies the EqualFold predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// UsageContextBadgeDisplayModeContainsFold applies the ContainsFold predicate on the "usage_context_badge_display_mode" field.
+func UsageContextBadgeDisplayModeContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldUsageContextBadgeDisplayMode, v))
 }
 
 // TotpSecretEncryptedEQ applies the EQ predicate on the "totp_secret_encrypted" field.

@@ -24913,59 +24913,60 @@ func (m *UsageLogMutation) ResetEdge(name string) error {
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op                            Op
-	typ                           string
-	id                            *int64
-	created_at                    *time.Time
-	updated_at                    *time.Time
-	deleted_at                    *time.Time
-	email                         *string
-	password_hash                 *string
-	role                          *string
-	balance                       *float64
-	addbalance                    *float64
-	concurrency                   *int
-	addconcurrency                *int
-	status                        *string
-	admin_free_billing            *bool
-	request_details_review        *bool
-	username                      *string
-	notes                         *string
-	usage_model_display_mode      *string
-	totp_secret_encrypted         *string
-	totp_enabled                  *bool
-	totp_enabled_at               *time.Time
-	clearedFields                 map[string]struct{}
-	api_keys                      map[int64]struct{}
-	removedapi_keys               map[int64]struct{}
-	clearedapi_keys               bool
-	redeem_codes                  map[int64]struct{}
-	removedredeem_codes           map[int64]struct{}
-	clearedredeem_codes           bool
-	subscriptions                 map[int64]struct{}
-	removedsubscriptions          map[int64]struct{}
-	clearedsubscriptions          bool
-	assigned_subscriptions        map[int64]struct{}
-	removedassigned_subscriptions map[int64]struct{}
-	clearedassigned_subscriptions bool
-	announcement_reads            map[int64]struct{}
-	removedannouncement_reads     map[int64]struct{}
-	clearedannouncement_reads     bool
-	allowed_groups                map[int64]struct{}
-	removedallowed_groups         map[int64]struct{}
-	clearedallowed_groups         bool
-	usage_logs                    map[int64]struct{}
-	removedusage_logs             map[int64]struct{}
-	clearedusage_logs             bool
-	attribute_values              map[int64]struct{}
-	removedattribute_values       map[int64]struct{}
-	clearedattribute_values       bool
-	promo_code_usages             map[int64]struct{}
-	removedpromo_code_usages      map[int64]struct{}
-	clearedpromo_code_usages      bool
-	done                          bool
-	oldValue                      func(context.Context) (*User, error)
-	predicates                    []predicate.User
+	op                               Op
+	typ                              string
+	id                               *int64
+	created_at                       *time.Time
+	updated_at                       *time.Time
+	deleted_at                       *time.Time
+	email                            *string
+	password_hash                    *string
+	role                             *string
+	balance                          *float64
+	addbalance                       *float64
+	concurrency                      *int
+	addconcurrency                   *int
+	status                           *string
+	admin_free_billing               *bool
+	request_details_review           *bool
+	username                         *string
+	notes                            *string
+	usage_model_display_mode         *string
+	usage_context_badge_display_mode *string
+	totp_secret_encrypted            *string
+	totp_enabled                     *bool
+	totp_enabled_at                  *time.Time
+	clearedFields                    map[string]struct{}
+	api_keys                         map[int64]struct{}
+	removedapi_keys                  map[int64]struct{}
+	clearedapi_keys                  bool
+	redeem_codes                     map[int64]struct{}
+	removedredeem_codes              map[int64]struct{}
+	clearedredeem_codes              bool
+	subscriptions                    map[int64]struct{}
+	removedsubscriptions             map[int64]struct{}
+	clearedsubscriptions             bool
+	assigned_subscriptions           map[int64]struct{}
+	removedassigned_subscriptions    map[int64]struct{}
+	clearedassigned_subscriptions    bool
+	announcement_reads               map[int64]struct{}
+	removedannouncement_reads        map[int64]struct{}
+	clearedannouncement_reads        bool
+	allowed_groups                   map[int64]struct{}
+	removedallowed_groups            map[int64]struct{}
+	clearedallowed_groups            bool
+	usage_logs                       map[int64]struct{}
+	removedusage_logs                map[int64]struct{}
+	clearedusage_logs                bool
+	attribute_values                 map[int64]struct{}
+	removedattribute_values          map[int64]struct{}
+	clearedattribute_values          bool
+	promo_code_usages                map[int64]struct{}
+	removedpromo_code_usages         map[int64]struct{}
+	clearedpromo_code_usages         bool
+	done                             bool
+	oldValue                         func(context.Context) (*User, error)
+	predicates                       []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -25623,6 +25624,42 @@ func (m *UserMutation) ResetUsageModelDisplayMode() {
 	m.usage_model_display_mode = nil
 }
 
+// SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
+func (m *UserMutation) SetUsageContextBadgeDisplayMode(s string) {
+	m.usage_context_badge_display_mode = &s
+}
+
+// UsageContextBadgeDisplayMode returns the value of the "usage_context_badge_display_mode" field in the mutation.
+func (m *UserMutation) UsageContextBadgeDisplayMode() (r string, exists bool) {
+	v := m.usage_context_badge_display_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsageContextBadgeDisplayMode returns the old "usage_context_badge_display_mode" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldUsageContextBadgeDisplayMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsageContextBadgeDisplayMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsageContextBadgeDisplayMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsageContextBadgeDisplayMode: %w", err)
+	}
+	return oldValue.UsageContextBadgeDisplayMode, nil
+}
+
+// ResetUsageContextBadgeDisplayMode resets all changes to the "usage_context_badge_display_mode" field.
+func (m *UserMutation) ResetUsageContextBadgeDisplayMode() {
+	m.usage_context_badge_display_mode = nil
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (m *UserMutation) SetTotpSecretEncrypted(s string) {
 	m.totp_secret_encrypted = &s
@@ -26277,7 +26314,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 18)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -26319,6 +26356,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.usage_model_display_mode != nil {
 		fields = append(fields, user.FieldUsageModelDisplayMode)
+	}
+	if m.usage_context_badge_display_mode != nil {
+		fields = append(fields, user.FieldUsageContextBadgeDisplayMode)
 	}
 	if m.totp_secret_encrypted != nil {
 		fields = append(fields, user.FieldTotpSecretEncrypted)
@@ -26365,6 +26405,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Notes()
 	case user.FieldUsageModelDisplayMode:
 		return m.UsageModelDisplayMode()
+	case user.FieldUsageContextBadgeDisplayMode:
+		return m.UsageContextBadgeDisplayMode()
 	case user.FieldTotpSecretEncrypted:
 		return m.TotpSecretEncrypted()
 	case user.FieldTotpEnabled:
@@ -26408,6 +26450,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldNotes(ctx)
 	case user.FieldUsageModelDisplayMode:
 		return m.OldUsageModelDisplayMode(ctx)
+	case user.FieldUsageContextBadgeDisplayMode:
+		return m.OldUsageContextBadgeDisplayMode(ctx)
 	case user.FieldTotpSecretEncrypted:
 		return m.OldTotpSecretEncrypted(ctx)
 	case user.FieldTotpEnabled:
@@ -26520,6 +26564,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUsageModelDisplayMode(v)
+		return nil
+	case user.FieldUsageContextBadgeDisplayMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsageContextBadgeDisplayMode(v)
 		return nil
 	case user.FieldTotpSecretEncrypted:
 		v, ok := value.(string)
@@ -26680,6 +26731,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldUsageModelDisplayMode:
 		m.ResetUsageModelDisplayMode()
+		return nil
+	case user.FieldUsageContextBadgeDisplayMode:
+		m.ResetUsageContextBadgeDisplayMode()
 		return nil
 	case user.FieldTotpSecretEncrypted:
 		m.ResetTotpSecretEncrypted()

@@ -148,6 +148,14 @@ vi.mock("@/composables/useUsageModelDisplayModePreference", () => ({
   }),
 }));
 
+vi.mock("@/composables/useUsageContextBadgeDisplayModePreference", () => ({
+  useUsageContextBadgeDisplayModePreference: () => ({
+    usageContextBadgeDisplayMode: "request_only",
+    updatingUsageContextBadgeDisplayMode: false,
+    setUsageContextBadgeDisplayMode: vi.fn(),
+  }),
+}));
+
 vi.mock("vue-i18n", async () => {
   const actual = await vi.importActual<typeof import("vue-i18n")>("vue-i18n");
   return {
@@ -250,6 +258,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -386,6 +395,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -504,6 +514,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -592,6 +603,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -671,6 +683,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -685,7 +698,7 @@ describe("user UsageView tooltip", () => {
 
     expect(setupState.formatDuration(null)).toBe("-");
     expect(row.exists()).toBe(true);
-    expect(rowCells).toHaveLength(15);
+    expect(rowCells).toHaveLength(16);
     expect(row.text()).toContain("null-duration-key");
     expect(row.text()).toContain("gemini-3-flash-preview");
     expect(row.text()).toContain("Failed");
@@ -753,6 +766,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -764,6 +778,49 @@ describe("user UsageView tooltip", () => {
     expect(wrapper.findAll("tbody tr[data-row-id]")).toHaveLength(1);
     expect(wrapper.text()).toContain("visible-key");
     expect(wrapper.text()).toContain("gpt-5.4");
+  });
+
+  it("includes the native context column in the usage table schema", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          UsageModelCell: true,
+          UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const setupState = (wrapper.vm as any).$?.setupState;
+    const columns = setupState.columns.value ?? setupState.columns;
+    expect(columns.map((column: { key: string }) => column.key)).toContain(
+      "native_context",
+    );
   });
 
   it("renders today stats and keeps duplicate request ids stable by using row id keys", async () => {
@@ -863,6 +920,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -942,6 +1000,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -1044,6 +1103,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },
@@ -1140,6 +1200,7 @@ describe("user UsageView tooltip", () => {
             template: '<div>{{ row.model }}</div>',
           },
           UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
           Teleport: true,
         },
       },

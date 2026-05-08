@@ -1,11 +1,18 @@
 <template>
   <div class="card overflow-hidden">
     <div class="border-b border-gray-100 px-4 py-3 dark:border-dark-700 md:hidden">
-      <UsageModelDisplayModeToggle
-        :model-value="usageModelDisplayMode"
-        :disabled="updatingUsageModelDisplayMode"
-        @update:modelValue="handleUsageModelDisplayModeChange"
-      />
+      <div class="flex flex-wrap items-center gap-2">
+        <UsageModelDisplayModeToggle
+          :model-value="usageModelDisplayMode"
+          :disabled="updatingUsageModelDisplayMode"
+          @update:modelValue="handleUsageModelDisplayModeChange"
+        />
+        <UsageContextBadgeDisplayModeToggle
+          :model-value="usageContextBadgeDisplayMode"
+          :disabled="updatingUsageContextBadgeDisplayMode"
+          @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+        />
+      </div>
     </div>
     <div class="overflow-auto">
       <DataTable :columns="columns" :data="data" :loading="loading" row-key="id">
@@ -13,13 +20,22 @@
           <div class="flex items-center justify-between gap-3">
             <span>{{ column.label }}</span>
             <div class="hidden md:block" @click.stop>
-              <UsageModelDisplayModeToggle
-                :model-value="usageModelDisplayMode"
-                :disabled="updatingUsageModelDisplayMode"
-                :show-label="false"
-                compact
-                @update:modelValue="handleUsageModelDisplayModeChange"
-              />
+              <div class="flex items-center gap-2">
+                <UsageModelDisplayModeToggle
+                  :model-value="usageModelDisplayMode"
+                  :disabled="updatingUsageModelDisplayMode"
+                  :show-label="false"
+                  compact
+                  @update:modelValue="handleUsageModelDisplayModeChange"
+                />
+                <UsageContextBadgeDisplayModeToggle
+                  :model-value="usageContextBadgeDisplayMode"
+                  :disabled="updatingUsageContextBadgeDisplayMode"
+                  :show-label="false"
+                  compact
+                  @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+                />
+              </div>
             </div>
           </div>
         </template>
@@ -72,7 +88,11 @@
 
         <template #cell-model="{ row }">
           <div class="space-y-1 text-xs">
-            <UsageModelCell :row="row" :mode="usageModelDisplayMode" />
+            <UsageModelCell
+              :row="row"
+              :mode="usageModelDisplayMode"
+              :context-badge-mode="usageContextBadgeDisplayMode"
+            />
             <div
               v-if="row.model_mapping_chain && row.model_mapping_chain !== row.model"
               class="break-all text-[11px] text-gray-500 dark:text-gray-400"
@@ -104,6 +124,12 @@
               </span>
             </div>
           </div>
+        </template>
+
+        <template #cell-native_context="{ row }">
+          <span class="text-sm text-gray-900 dark:text-white">
+            {{ resolveUsageNativeContextLabel(row.model) }}
+          </span>
         </template>
 
         <template #cell-status="{ row }">
@@ -161,26 +187,8 @@
         </template>
 
         <template #cell-reasoning_effort="{ row }">
-          <div class="space-y-1">
-            <div class="text-sm text-gray-900 dark:text-white">
-              {{ formatUsageCapabilityPair(row) }}
-            </div>
-            <div
-              v-if="formatUsageMillionContextLines(row).length > 0"
-              class="space-y-0.5 text-xs text-gray-500 dark:text-gray-400"
-            >
-              <span
-                v-for="line in formatUsageMillionContextLines(row)"
-                :key="`${row.id}-${line.key}`"
-                class="block break-all"
-                :title="line.raw"
-              >
-                <span class="font-medium text-gray-400 dark:text-gray-500"
-                  >{{ t(line.labelKey) }}:</span
-                >
-                <span class="ml-1">{{ line.display }}</span>
-              </span>
-            </div>
+          <div class="text-sm text-gray-900 dark:text-white">
+            {{ formatUsageCapabilityPair(row) }}
           </div>
         </template>
 
@@ -223,12 +231,21 @@
         </template>
 
         <template #cell-stream="{ row }">
-          <span
-            class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
-            :class="getRequestTypeBadgeClass(row)"
-          >
-            {{ getRequestTypeLabel(row) }}
-          </span>
+          <div class="flex flex-wrap items-center gap-1">
+            <span
+              class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
+              :class="getRequestTypeBadgeClass(row)"
+            >
+              {{ getRequestTypeLabel(row) }}
+            </span>
+            <span
+              v-if="getSystemOperationLabel(row)"
+              class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
+              :class="getSystemOperationBadgeClass(row)"
+            >
+              {{ getSystemOperationLabel(row) }}
+            </span>
+          </div>
         </template>
 
         <template #cell-tokens="{ row }">
@@ -803,7 +820,6 @@ import { formatTokenPricePerMillion } from "@/utils/usagePricing";
 import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
 import {
   formatUsageEndpointDisplay,
-  formatUsageMillionContextDisplay,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
@@ -812,6 +828,8 @@ import {
   getUsageChargeLabel,
   getUsageOperationBadgeClass,
   getUsageOperationLabel,
+  getUsageSystemOperationBadgeClass,
+  getUsageSystemOperationLabel,
 } from "@/utils/usageOperation";
 import {
   calculateUsageAmount,
@@ -822,10 +840,13 @@ import {
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import UsageModelCell from "@/components/common/UsageModelCell.vue";
+import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContextBadgeDisplayModeToggle.vue";
 import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type { AdminUsageLog, UsageModelDisplayMode } from "@/types";
+import { useUsageContextBadgeDisplayModePreference } from "@/composables/useUsageContextBadgeDisplayModePreference";
 import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
+import { resolveUsageNativeContextLabel } from "@/utils/usageModelPresentation";
 
 defineProps(["data", "loading", "columns"]);
 defineEmits(["userClick"]);
@@ -837,6 +858,11 @@ const {
   updatingUsageModelDisplayMode,
   setUsageModelDisplayMode,
 } = useUsageModelDisplayModePreference();
+const {
+  usageContextBadgeDisplayMode,
+  updatingUsageContextBadgeDisplayMode,
+  setUsageContextBadgeDisplayMode,
+} = useUsageContextBadgeDisplayModePreference();
 
 const formatCurrencyBreakdown = (
   values: Record<string, number> | null | undefined,
@@ -889,6 +915,12 @@ const getRequestTypeBadgeClass = (row: AdminUsageLog): string => {
   return getUsageOperationBadgeClass(row);
 };
 
+const getSystemOperationLabel = (row: AdminUsageLog): string | null =>
+  getUsageSystemOperationLabel(row, t);
+
+const getSystemOperationBadgeClass = (row: AdminUsageLog): string =>
+  getUsageSystemOperationBadgeClass(row);
+
 const getStatusLabel = (status: AdminUsageLog["status"]): string =>
   status === "failed" ? t("usage.statusFailed") : t("usage.statusSucceeded");
 
@@ -925,16 +957,6 @@ const formatUserAgent = (ua: string): string => {
 const formatUsageEndpoints = (
   row: Pick<AdminUsageLog, "inbound_endpoint" | "upstream_endpoint">,
 ) => formatUsageEndpointDisplay(row);
-
-const formatUsageMillionContextLines = (
-  row: Pick<
-    AdminUsageLog,
-    | "million_context_requested"
-    | "million_context_effective"
-    | "million_context_source"
-    | "million_context_beta_token"
-  >,
-) => formatUsageMillionContextDisplay(row);
 
 const formatUsageCapabilityPair = (row: AdminUsageLog): string =>
   formatReasoningEffortPair(
@@ -1004,5 +1026,11 @@ const handleUsageModelDisplayModeChange = async (
   mode: UsageModelDisplayMode,
 ) => {
   await setUsageModelDisplayMode(mode);
+};
+
+const handleUsageContextBadgeDisplayModeChange = async (
+  mode: "request_only" | "native_only" | "both",
+) => {
+  await setUsageContextBadgeDisplayMode(mode);
 };
 </script>

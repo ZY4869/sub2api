@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import { authAPI, isTotp2FARequired, type LoginResponse } from '@/api'
-import type { User, LoginRequest, RegisterRequest, AuthResponse, UsageModelDisplayMode } from '@/types'
+import type { User, LoginRequest, RegisterRequest, AuthResponse, UsageContextBadgeDisplayMode, UsageModelDisplayMode } from '@/types'
 
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
@@ -273,6 +273,16 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  function setUsageContextBadgeDisplayMode(mode: UsageContextBadgeDisplayMode): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      usage_context_badge_display_mode: mode,
+    })
+  }
+
   /**
    * User registration
    * @param userData - Registration data (username, email, password)
@@ -420,6 +430,7 @@ export const useAuthStore = defineStore('auth', () => {
     setToken,
     setCurrentUser,
     setUsageModelDisplayMode,
+    setUsageContextBadgeDisplayMode,
     logout,
     checkAuth,
     refreshUser

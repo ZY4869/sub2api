@@ -4,6 +4,7 @@ import { mount } from '@vue/test-utils'
 import RequestDetailsSubjectUsageTable from '../RequestDetailsSubjectUsageTable.vue'
 
 const setUsageModelDisplayMode = vi.fn()
+const setUsageContextBadgeDisplayMode = vi.fn()
 
 const messages: Record<string, string> = {
   'admin.requestDetails.subject.ledger.title': 'Subject Usage',
@@ -14,6 +15,7 @@ const messages: Record<string, string> = {
   'admin.requestDetails.subject.ledger.columns.accountId': 'Account ID',
   'admin.requestDetails.subject.ledger.columns.groupId': 'Group ID',
   'admin.requestDetails.subject.ledger.columns.models': 'Models',
+  'admin.requestDetails.subject.ledger.columns.nativeContext': 'Native Context',
   'admin.requestDetails.subject.ledger.columns.status': 'Status',
   'admin.requestDetails.subject.ledger.columns.totalTokens': 'Total Tokens',
   'admin.requestDetails.subject.ledger.columns.totalStandardCost': 'Standard Cost',
@@ -51,6 +53,14 @@ vi.mock('@/composables/useUsageModelDisplayModePreference', () => ({
   }),
 }))
 
+vi.mock('@/composables/useUsageContextBadgeDisplayModePreference', () => ({
+  useUsageContextBadgeDisplayModePreference: () => ({
+    usageContextBadgeDisplayMode: 'request_only',
+    updatingUsageContextBadgeDisplayMode: false,
+    setUsageContextBadgeDisplayMode,
+  }),
+}))
+
 vi.mock('@/api/admin/usage', () => ({
   default: {
     getRequestPreview: vi.fn(),
@@ -67,6 +77,7 @@ const DataTableStub = {
       <slot name="header-models" :column="{ key: 'models', label: 'Models' }" />
       <div v-for="(row, index) in data" :key="row.id ?? index">
         <slot name="cell-models" :row="row" />
+        <slot name="cell-native_context" :row="row" />
         <slot name="cell-preview_available" :value="row.preview_available" />
         <slot name="cell-actions" :row="row" />
       </div>
@@ -120,14 +131,30 @@ describe('RequestDetailsSubjectUsageTable', () => {
               </button>
             `,
           },
+          UsageContextBadgeDisplayModeToggle: {
+            props: ['modelValue', 'disabled', 'showLabel', 'compact'],
+            template: `
+              <button
+                data-testid="context-mode-toggle"
+                @click="$emit('update:modelValue', 'native_only')"
+              >
+                {{ modelValue }}
+              </button>
+            `,
+          },
         },
       },
     })
 
     expect(wrapper.get('[data-testid="usage-model-cell"]').text()).toContain('deepseek-v4-pro|display_and_model')
     expect(wrapper.findAll('[data-testid="usage-mode-toggle"]').length).toBeGreaterThan(0)
+    expect(wrapper.text()).toContain('1M')
+    expect(wrapper.findAll('[data-testid="context-mode-toggle"]').length).toBeGreaterThan(0)
 
     await wrapper.get('[data-testid="usage-mode-toggle"]').trigger('click')
     expect(setUsageModelDisplayMode).toHaveBeenCalledWith('display_only')
+
+    await wrapper.get('[data-testid="context-mode-toggle"]').trigger('click')
+    expect(setUsageContextBadgeDisplayMode).toHaveBeenCalledWith('native_only')
   })
 })

@@ -60,6 +60,9 @@ const (
 type AccountTestService struct {
 	accountRepo                  AccountRepository
 	accountModelImportService    *AccountModelImportService
+	userRepo                     UserRepository
+	apiKeyRepo                   APIKeyRepository
+	usageLogRepo                 UsageLogRepository
 	claudeTokenProvider          *ClaudeTokenProvider
 	modelRegistryService         *ModelRegistryService
 	gatewayService               *GatewayService
@@ -125,6 +128,12 @@ func (s *AccountTestService) SetOpenAITokenProvider(openAITokenProvider *OpenAIT
 
 func (s *AccountTestService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
 	s.tlsFingerprintProfileService = tlsFingerprintProfileService
+}
+
+func (s *AccountTestService) SetUsageLogDependencies(userRepo UserRepository, apiKeyRepo APIKeyRepository, usageLogRepo UsageLogRepository) {
+	s.userRepo = userRepo
+	s.apiKeyRepo = apiKeyRepo
+	s.usageLogRepo = usageLogRepo
 }
 
 func (s *AccountTestService) runBackgroundTask(fn func()) {
@@ -744,6 +753,10 @@ func (s *AccountTestService) resolveGatewayTestSimulatedClient(ctx context.Conte
 // All account types use full Claude Code client characteristics, only auth header differs
 // modelID is optional - if empty, defaults to claude.DefaultTestModel
 func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, targetProvider string, targetModelID string, testMode string) error {
+	if c != nil && c.Request != nil {
+		ctxWithMetadata := EnsureRequestMetadata(c.Request.Context())
+		c.Request = c.Request.WithContext(ctxWithMetadata)
+	}
 	ctx := c.Request.Context()
 
 	// Best-effort: attach an ops trace collector (if the caller has provided a test_run_id).
@@ -752,7 +765,9 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	runtimeMeta := accountTestRuntimeMeta{}
 	normalizedTestMode := AccountTestModeHealthCheck
 	var testErr error
+	startedAt := time.Now()
 	defer func() {
+		s.recordSystemUsageForTestConnection(c, accountID, modelID, runtimeMeta, normalizedTestMode, startedAt, testErr)
 		s.finalizeUpstreamTrace(c, accountID, runtimeMeta, modelID, normalizedTestMode, testErr)
 	}()
 
@@ -2187,6 +2202,9 @@ func (s *AccountTestService) RunTestBackgroundDetailed(ctx context.Context, inpu
 	w := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(w)
 	ginCtx.Request = (&http.Request{}).WithContext(ctx)
+	if operationType := normalizeSystemUsageOperationType(input.OperationType); operationType != "" {
+		ginCtx.Set(accountTestOpsProbeActionBaseContextKey, operationType)
+	}
 
 	testMode := string(normalizeAccountTestMode(input.TestMode))
 	testErr := s.TestAccountConnection(
@@ -2222,7 +2240,7 @@ func (s *AccountTestService) RunTestBackgroundDetailed(ctx context.Context, inpu
 		}
 	}
 
-	return &BackgroundAccountTestResult{
+	result := &BackgroundAccountTestResult{
 		Status:                  status,
 		ResponseText:            parsed.ResponseText,
 		ErrorMessage:            errMsg,
@@ -2234,7 +2252,8 @@ func (s *AccountTestService) RunTestBackgroundDetailed(ctx context.Context, inpu
 		ResolvedSourceProtocol:  parsed.ResolvedSourceProtocol,
 		BlacklistAdviceDecision: parsed.BlacklistAdviceDecision,
 		CurrentLifecycleState:   currentLifecycleState,
-	}, nil
+	}
+	return result, nil
 }
 
 // RunTestBackground preserves the legacy scheduled-test result shape.

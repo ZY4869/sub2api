@@ -84,6 +84,7 @@ type ScheduledTestExecutionInput struct {
 	RequestAlias   string
 	Prompt         string
 	TestMode       string
+	OperationType  string
 }
 
 // ScheduledTestPlanRepository defines the data access interface for test plans.

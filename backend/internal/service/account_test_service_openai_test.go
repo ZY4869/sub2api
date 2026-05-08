@@ -575,3 +575,63 @@ func TestAccountTestService_RunTestBackgroundDetailed_RuntimeQuotaPrecheckReturn
 	require.Equal(t, "普通额度冷却中，请等待额度恢复后再测试", result.ErrorMessage)
 	require.Zero(t, upstream.callCount)
 }
+
+func TestAccountTestService_RunTestBackgroundDetailed_RecordsSystemUsageForAccountTest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+	account := &Account{
+		ID:          973,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{"api_key": "test-token", "base_url": "https://api.openai.com"},
+	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				account.ID: account,
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	userRepo := &systemUsageUserRepoStub{}
+	apiKeyRepo := &systemUsageAPIKeyRepoStub{}
+	usageRepo := &systemUsageLogRepoStub{}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+		userRepo:     userRepo,
+		apiKeyRepo:   apiKeyRepo,
+		usageLogRepo: usageRepo,
+	}
+
+	result, err := svc.RunTestBackgroundDetailed(context.Background(), ScheduledTestExecutionInput{
+		AccountID:     account.ID,
+		ModelID:       "gpt-5.4",
+		OperationType: UsageOperationTypeAccountTest,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "success", result.Status)
+	require.Len(t, usageRepo.logs, 1)
+	log := usageRepo.logs[0]
+	require.NotNil(t, log.OperationType)
+	require.Equal(t, UsageOperationTypeAccountTest, *log.OperationType)
+	require.Equal(t, int64(973), log.AccountID)
+	require.Equal(t, userRepo.user.ID, log.UserID)
+	require.Equal(t, apiKeyRepo.apiKey.ID, log.APIKeyID)
+	require.Equal(t, "gpt-5.4", log.Model)
+	require.Equal(t, "gpt-5.4", log.RequestedModel)
+	require.Equal(t, UsageLogStatusSucceeded, log.Status)
+	require.Equal(t, RequestTypeStream, log.RequestType)
+	require.Zero(t, log.ActualCost)
+	require.NotNil(t, log.BillingExemptReason)
+	require.Equal(t, BillingExemptReasonAdminFree, *log.BillingExemptReason)
+	require.NotNil(t, log.DurationMs)
+}

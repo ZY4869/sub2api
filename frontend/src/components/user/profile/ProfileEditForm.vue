@@ -30,6 +30,16 @@
           />
         </div>
 
+        <div>
+          <label class="input-label">
+            {{ t('profile.usageContextBadgeDisplayMode') }}
+          </label>
+          <UsageContextBadgeDisplayModeToggle
+            v-model="usageContextBadgeDisplayMode"
+            :show-label="false"
+          />
+        </div>
+
         <div class="flex justify-end pt-4">
           <button type="submit" :disabled="loading" class="btn btn-primary">
             {{ loading ? t('profile.updating') : t('profile.updateProfile') }}
@@ -44,10 +54,14 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UsageModelDisplayModeToggle from '@/components/common/UsageModelDisplayModeToggle.vue'
+import UsageContextBadgeDisplayModeToggle from '@/components/common/UsageContextBadgeDisplayModeToggle.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { userAPI } from '@/api'
-import { normalizeUsageModelDisplayMode } from '@/utils/usageModelPresentation'
+import {
+  normalizeUsageContextBadgeDisplayMode,
+  normalizeUsageModelDisplayMode,
+} from '@/utils/usageModelPresentation'
 
 const props = defineProps<{
   initialUsername: string
@@ -60,6 +74,9 @@ const appStore = useAppStore()
 const username = ref(props.initialUsername)
 const usageModelDisplayMode = ref(
   normalizeUsageModelDisplayMode(authStore.user?.usage_model_display_mode)
+)
+const usageContextBadgeDisplayMode = ref(
+  normalizeUsageContextBadgeDisplayMode(authStore.user?.usage_context_badge_display_mode)
 )
 const loading = ref(false)
 
@@ -74,6 +91,13 @@ watch(
   }
 )
 
+watch(
+  () => authStore.user?.usage_context_badge_display_mode,
+  (val) => {
+    usageContextBadgeDisplayMode.value = normalizeUsageContextBadgeDisplayMode(val)
+  }
+)
+
 const handleUpdateProfile = async () => {
   if (!username.value.trim()) {
     appStore.showError(t('profile.usernameRequired'))
@@ -85,6 +109,7 @@ const handleUpdateProfile = async () => {
     const updatedUser = await userAPI.updateProfile({
       username: username.value,
       usage_model_display_mode: usageModelDisplayMode.value,
+      usage_context_badge_display_mode: usageContextBadgeDisplayMode.value,
     })
     authStore.setCurrentUser(updatedUser)
     appStore.showSuccess(t('profile.updateSuccess'))

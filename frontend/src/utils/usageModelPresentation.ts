@@ -1,9 +1,10 @@
 import type { ModelRegistryEntry } from '@/generated/modelRegistry'
 import { getModelRegistrySnapshot } from '@/stores/modelRegistry'
-import type { UsageLog, UsageModelDisplayMode } from '@/types'
+import type { UsageContextBadgeDisplayMode, UsageLog, UsageModelDisplayMode } from '@/types'
 
 export interface UsageContextBadgeInfo {
   label: string
+  labelKey?: string
   tokens: number
   tier:
     | '4k'
@@ -19,6 +20,8 @@ export interface UsageContextBadgeInfo {
     | '10m'
   muted?: boolean
   title?: string
+  titleKey?: string
+  titleParams?: Record<string, string | number>
 }
 
 export interface UsageModelLinePresentation {
@@ -27,7 +30,9 @@ export interface UsageModelLinePresentation {
   provider: string
   primaryText: string
   secondaryText: string
-  badge: UsageContextBadgeInfo | null
+  requestBadge: UsageContextBadgeInfo | null
+  nativeContextBadge: UsageContextBadgeInfo | null
+  nativeContextLabel: string
 }
 
 export interface UsageModelPresentation {
@@ -122,11 +127,17 @@ function resolveMillionContextBadge(log: Pick<UsageLog, 'million_context_request
   }
   const effective = Boolean(log.million_context_effective)
   return {
-    label: '1M',
+    label: effective ? '1M' : 'usage.contextBadgeRequested1M',
+    labelKey: effective ? undefined : 'usage.contextBadgeRequested1M',
     tokens: 1_000_000,
     tier: '1m',
     muted: !effective,
-    title: effective ? '1M 上下文已生效' : '已请求 1M 上下文，当前记录未显示生效'
+    title: effective
+      ? 'usage.contextBadgeRequested1MEffective'
+      : 'usage.contextBadgeRequested1MPending',
+    titleKey: effective
+      ? 'usage.contextBadgeRequested1MEffective'
+      : 'usage.contextBadgeRequested1MPending'
   }
 }
 
@@ -140,7 +151,10 @@ function resolveRegistryContextBadge(modelId: string): UsageContextBadgeInfo | n
     label: formatContextWindowLabel(tokens),
     tokens,
     tier: resolveContextWindowTier(tokens),
-    title: `上下文窗口 ${formatContextWindowLabel(tokens)}`
+    titleKey: 'usage.nativeContextTooltip',
+    titleParams: {
+      context: formatContextWindowLabel(tokens),
+    },
   }
 }
 
@@ -175,7 +189,9 @@ export function buildUsageModelLinePresentation(
   const displayName = String(entry?.display_name || '').trim() || safeModelId
   const provider = String(entry?.provider || '').trim()
   const { primaryText, secondaryText } = resolvePresentationText(displayName, safeModelId, mode)
-  const badge = log ? resolveMillionContextBadge(log) || resolveRegistryContextBadge(safeModelId) : resolveRegistryContextBadge(safeModelId)
+  const requestBadge = log ? resolveMillionContextBadge(log) : null
+  const nativeContextBadge = resolveRegistryContextBadge(safeModelId)
+  const nativeContextLabel = nativeContextBadge?.label || '-'
 
   return {
     modelId: safeModelId,
@@ -183,7 +199,9 @@ export function buildUsageModelLinePresentation(
     provider,
     primaryText,
     secondaryText,
-    badge,
+    requestBadge,
+    nativeContextBadge,
+    nativeContextLabel,
   }
 }
 
@@ -197,4 +215,34 @@ export function buildUsageModelPresentation(
     ? buildUsageModelLinePresentation(upstreamModel, mode)
     : null
   return { requested, upstream }
+}
+
+export function normalizeUsageContextBadgeDisplayMode(mode: string | null | undefined): UsageContextBadgeDisplayMode {
+  switch (mode) {
+    case 'native_only':
+      return 'native_only'
+    case 'both':
+      return 'both'
+    case 'request_only':
+    default:
+      return 'request_only'
+  }
+}
+
+export function resolveUsageContextBadge(
+  line: Pick<UsageModelLinePresentation, 'requestBadge' | 'nativeContextBadge'>,
+  mode: UsageContextBadgeDisplayMode
+): UsageContextBadgeInfo | null {
+  const normalized = normalizeUsageContextBadgeDisplayMode(mode)
+  if (normalized === 'native_only') {
+    return line.nativeContextBadge
+  }
+  if (normalized === 'both') {
+    return line.requestBadge || line.nativeContextBadge
+  }
+  return line.requestBadge
+}
+
+export function resolveUsageNativeContextLabel(modelId: string | null | undefined): string {
+  return buildUsageModelLinePresentation(modelId, 'model_only').nativeContextLabel
 }

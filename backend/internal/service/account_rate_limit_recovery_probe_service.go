@@ -143,7 +143,8 @@ func (s *AccountRateLimitRecoveryProbeService) runProbeForAccount(ctx context.Co
 
 	slog.Info("account_auto_recovery_probe_started", "account_id", account.ID, "probe_action", "test", "rate_limit_reset_at", account.RateLimitResetAt)
 	result, err := s.accountTestRunner.RunTestBackgroundDetailed(probeCtx, ScheduledTestExecutionInput{
-		AccountID: account.ID,
+		AccountID:     account.ID,
+		OperationType: UsageOperationTypeAutoRecoveryTest,
 	})
 	if err != nil && (result == nil || strings.TrimSpace(result.ErrorMessage) == "") {
 		result = &BackgroundAccountTestResult{

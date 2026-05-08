@@ -47,6 +47,7 @@ export default {
             accountId: "账号 ID",
             groupId: "分组 ID",
             models: "请求 / 上游模型",
+            nativeContext: "原生上下文",
             status: "状态",
             totalTokens: "总 Tokens",
             totalStandardCost: "标准费用",

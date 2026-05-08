@@ -59,6 +59,7 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetUsername(userIn.Username).
 		SetNotes(userIn.Notes).
 		SetUsageModelDisplayMode(userIn.EffectiveUsageModelDisplayMode()).
+		SetUsageContextBadgeDisplayMode(userIn.EffectiveUsageContextBadgeDisplayMode()).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
@@ -153,6 +154,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetUsername(userIn.Username).
 		SetNotes(userIn.Notes).
 		SetUsageModelDisplayMode(userIn.EffectiveUsageModelDisplayMode()).
+		SetUsageContextBadgeDisplayMode(userIn.EffectiveUsageContextBadgeDisplayMode()).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).

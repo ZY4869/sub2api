@@ -141,6 +141,7 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 		ModelID:        plan.EffectiveModelID(),
 		SourceProtocol: plan.SourceProtocol,
 		RequestAlias:   plan.RequestAlias,
+		OperationType:  UsageOperationTypeScheduledTest,
 	}
 	input = s.applyScheduledGatewayTestDefaults(ctx, input)
 

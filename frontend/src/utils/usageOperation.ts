@@ -45,6 +45,39 @@ export function getUsageOperationLabel(
   }
 }
 
+export function getUsageSystemOperationLabel(
+  row: UsageOperationRow,
+  t: TranslateFn,
+): string | null {
+  switch (row.operation_type) {
+    case 'account_test':
+      return t('usage.operationTypeAccountTest')
+    case 'batch_test':
+      return t('usage.operationTypeBatchTest')
+    case 'scheduled_test':
+      return t('usage.operationTypeScheduledTest')
+    case 'auto_recovery_test':
+      return t('usage.operationTypeAutoRecoveryTest')
+    default:
+      return null
+  }
+}
+
+export function getUsageSystemOperationBadgeClass(row: UsageOperationRow): string {
+  switch (row.operation_type) {
+    case 'account_test':
+      return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+    case 'batch_test':
+      return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200'
+    case 'scheduled_test':
+      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+    case 'auto_recovery_test':
+      return 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-200'
+    default:
+      return ''
+  }
+}
+
 export function getUsageOperationBadgeClass(row: UsageOperationRow): string {
   switch (row.operation_type) {
     case 'batch_create':

@@ -43,6 +43,8 @@ const (
 	FieldNotes = "notes"
 	// FieldUsageModelDisplayMode holds the string denoting the usage_model_display_mode field in the database.
 	FieldUsageModelDisplayMode = "usage_model_display_mode"
+	// FieldUsageContextBadgeDisplayMode holds the string denoting the usage_context_badge_display_mode field in the database.
+	FieldUsageContextBadgeDisplayMode = "usage_context_badge_display_mode"
 	// FieldTotpSecretEncrypted holds the string denoting the totp_secret_encrypted field in the database.
 	FieldTotpSecretEncrypted = "totp_secret_encrypted"
 	// FieldTotpEnabled holds the string denoting the totp_enabled field in the database.
@@ -158,6 +160,7 @@ var Columns = []string{
 	FieldUsername,
 	FieldNotes,
 	FieldUsageModelDisplayMode,
+	FieldUsageContextBadgeDisplayMode,
 	FieldTotpSecretEncrypted,
 	FieldTotpEnabled,
 	FieldTotpEnabledAt,
@@ -223,6 +226,10 @@ var (
 	DefaultUsageModelDisplayMode string
 	// UsageModelDisplayModeValidator is a validator for the "usage_model_display_mode" field. It is called by the builders before save.
 	UsageModelDisplayModeValidator func(string) error
+	// DefaultUsageContextBadgeDisplayMode holds the default value on creation for the "usage_context_badge_display_mode" field.
+	DefaultUsageContextBadgeDisplayMode string
+	// UsageContextBadgeDisplayModeValidator is a validator for the "usage_context_badge_display_mode" field. It is called by the builders before save.
+	UsageContextBadgeDisplayModeValidator func(string) error
 	// DefaultTotpEnabled holds the default value on creation for the "totp_enabled" field.
 	DefaultTotpEnabled bool
 )
@@ -303,6 +310,11 @@ func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 // ByUsageModelDisplayMode orders the results by the usage_model_display_mode field.
 func ByUsageModelDisplayMode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUsageModelDisplayMode, opts...).ToFunc()
+}
+
+// ByUsageContextBadgeDisplayMode orders the results by the usage_context_badge_display_mode field.
+func ByUsageContextBadgeDisplayMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUsageContextBadgeDisplayMode, opts...).ToFunc()
 }
 
 // ByTotpSecretEncrypted orders the results by the totp_secret_encrypted field.

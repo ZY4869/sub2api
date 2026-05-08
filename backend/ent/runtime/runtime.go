@@ -1139,8 +1139,14 @@ func init() {
 	user.DefaultUsageModelDisplayMode = userDescUsageModelDisplayMode.Default.(string)
 	// user.UsageModelDisplayModeValidator is a validator for the "usage_model_display_mode" field. It is called by the builders before save.
 	user.UsageModelDisplayModeValidator = userDescUsageModelDisplayMode.Validators[0].(func(string) error)
+	// userDescUsageContextBadgeDisplayMode is the schema descriptor for usage_context_badge_display_mode field.
+	userDescUsageContextBadgeDisplayMode := userFields[11].Descriptor()
+	// user.DefaultUsageContextBadgeDisplayMode holds the default value on creation for the usage_context_badge_display_mode field.
+	user.DefaultUsageContextBadgeDisplayMode = userDescUsageContextBadgeDisplayMode.Default.(string)
+	// user.UsageContextBadgeDisplayModeValidator is a validator for the "usage_context_badge_display_mode" field. It is called by the builders before save.
+	user.UsageContextBadgeDisplayModeValidator = userDescUsageContextBadgeDisplayMode.Validators[0].(func(string) error)
 	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
-	userDescTotpEnabled := userFields[12].Descriptor()
+	userDescTotpEnabled := userFields[13].Descriptor()
 	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
 	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()

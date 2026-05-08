@@ -39,6 +39,12 @@
                   :disabled="updatingUsageModelDisplayMode"
                   @update:modelValue="handleUsageModelDisplayModeChange"
                 />
+                <UsageContextBadgeDisplayModeToggle
+                  class="md:hidden"
+                  :model-value="usageContextBadgeDisplayMode"
+                  :disabled="updatingUsageContextBadgeDisplayMode"
+                  @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+                />
                 <button
                   @click="applyFilters"
                   :disabled="loading"
@@ -94,13 +100,22 @@
             <div class="flex items-center justify-between gap-3">
               <span>{{ column.label }}</span>
               <div class="hidden md:block" @click.stop>
-                <UsageModelDisplayModeToggle
-                  :model-value="usageModelDisplayMode"
-                  :disabled="updatingUsageModelDisplayMode"
-                  :show-label="false"
-                  compact
-                  @update:modelValue="handleUsageModelDisplayModeChange"
-                />
+                <div class="flex items-center gap-2">
+                  <UsageModelDisplayModeToggle
+                    :model-value="usageModelDisplayMode"
+                    :disabled="updatingUsageModelDisplayMode"
+                    :show-label="false"
+                    compact
+                    @update:modelValue="handleUsageModelDisplayModeChange"
+                  />
+                  <UsageContextBadgeDisplayModeToggle
+                    :model-value="usageContextBadgeDisplayMode"
+                    :disabled="updatingUsageContextBadgeDisplayMode"
+                    :show-label="false"
+                    compact
+                    @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+                  />
+                </div>
               </div>
             </div>
           </template>
@@ -112,7 +127,17 @@
           </template>
 
           <template #cell-model="{ row }">
-            <UsageModelCell :row="row" :mode="usageModelDisplayMode" />
+            <UsageModelCell
+              :row="row"
+              :mode="usageModelDisplayMode"
+              :context-badge-mode="usageContextBadgeDisplayMode"
+            />
+          </template>
+
+          <template #cell-native_context="{ row }">
+            <span class="text-sm text-gray-900 dark:text-white">
+              {{ resolveUsageNativeContextLabel(row.model) }}
+            </span>
           </template>
 
           <template #cell-status="{ row }">
@@ -769,6 +794,7 @@ import Select from "@/components/common/Select.vue";
 import DateRangePicker from "@/components/common/DateRangePicker.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
 import UsageModelCell from "@/components/common/UsageModelCell.vue";
+import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContextBadgeDisplayModeToggle.vue";
 import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import Icon from "@/components/icons/Icon.vue";
@@ -784,6 +810,7 @@ import type { UsageFilterApiKey } from "@/api/usage";
 import type { Column } from "@/components/common/types";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
+import { useUsageContextBadgeDisplayModePreference } from "@/composables/useUsageContextBadgeDisplayModePreference";
 import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
 import {
   formatDateTime,
@@ -798,6 +825,7 @@ import {
   formatUsageMillionContextExportFields,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
+import { resolveUsageNativeContextLabel } from "@/utils/usageModelPresentation";
 import { formatUsageProtocolExportText } from "@/utils/protocolDisplay";
 import {
   getUsageChargeBadgeClass,
@@ -819,6 +847,11 @@ const {
   updatingUsageModelDisplayMode,
   setUsageModelDisplayMode,
 } = useUsageModelDisplayModePreference();
+const {
+  usageContextBadgeDisplayMode,
+  updatingUsageContextBadgeDisplayMode,
+  setUsageContextBadgeDisplayMode,
+} = useUsageContextBadgeDisplayModePreference();
 
 const formatCurrencyBreakdown = (
   values: Record<string, number> | null | undefined,
@@ -864,6 +897,7 @@ const columns = computed<Column[]>(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
+  { key: "native_context", label: t("usage.nativeContext"), sortable: false },
   {
     key: "request_protocol",
     label: t("usage.requestProtocol"),
@@ -975,6 +1009,12 @@ const getRequestTypeLabel = (log: UsageLog): string => {
 
 const getRequestTypeBadgeClass = (log: UsageLog): string => {
   return getUsageOperationBadgeClass(log);
+};
+
+const handleUsageContextBadgeDisplayModeChange = async (
+  mode: "request_only" | "native_only" | "both",
+) => {
+  await setUsageContextBadgeDisplayMode(mode);
 };
 
 const getStatusLabel = (status: UsageLog["status"]): string =>

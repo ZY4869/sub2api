@@ -43,8 +43,9 @@ type ChangePasswordRequest struct {
 
 // UpdateProfileRequest represents the update profile request payload
 type UpdateProfileRequest struct {
-	Username              *string `json:"username"`
-	UsageModelDisplayMode *string `json:"usage_model_display_mode"`
+	Username                     *string `json:"username"`
+	UsageModelDisplayMode        *string `json:"usage_model_display_mode"`
+	UsageContextBadgeDisplayMode *string `json:"usage_context_badge_display_mode"`
 }
 
 // GetProfile handles getting user profile
@@ -109,8 +110,9 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	svcReq := service.UpdateProfileRequest{
-		Username:              req.Username,
-		UsageModelDisplayMode: req.UsageModelDisplayMode,
+		Username:                     req.Username,
+		UsageModelDisplayMode:        req.UsageModelDisplayMode,
+		UsageContextBadgeDisplayMode: req.UsageContextBadgeDisplayMode,
 	}
 	updatedUser, err := h.userService.UpdateProfile(c.Request.Context(), subject.UserID, svcReq)
 	if err != nil {

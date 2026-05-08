@@ -59,6 +59,7 @@ func TestAPIContracts(t *testing.T) {
 					"concurrency": 5,
 					"status": "active",
 					"usage_model_display_mode": "model_only",
+					"usage_context_badge_display_mode": "request_only",
 					"allowed_groups": null,
  					"created_at": "2025-01-02T03:04:05Z",
  					"updated_at": "2025-01-02T03:04:05Z",
@@ -326,6 +327,7 @@ func TestAPIContracts(t *testing.T) {
 					"concurrency": 5,
 					"status": "active",
 					"usage_model_display_mode": "model_only",
+					"usage_context_badge_display_mode": "request_only",
 					"allowed_groups": null,
 					"created_at": "2025-01-02T03:04:05Z",
 					"updated_at": "2025-01-02T03:04:05Z",
@@ -369,7 +371,7 @@ func TestAPIContracts(t *testing.T) {
 			name:   "PUT /api/v1/user",
 			method: http.MethodPut,
 			path:   "/api/v1/user",
-			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model"}`,
+			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","usage_context_badge_display_mode":"both"}`,
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
@@ -386,6 +388,7 @@ func TestAPIContracts(t *testing.T) {
 					"concurrency": 5,
 					"status": "active",
 					"usage_model_display_mode": "display_and_model",
+					"usage_context_badge_display_mode": "both",
 					"allowed_groups": null,
 					"created_at": "2025-01-02T03:04:05Z",
 					"updated_at": "2025-01-02T03:04:05Z",
@@ -407,6 +410,21 @@ func TestAPIContracts(t *testing.T) {
 				"code": 400,
 				"message": "usage_model_display_mode must be one of model_only, display_only, display_and_model",
 				"reason": "USER_USAGE_MODEL_DISPLAY_MODE_INVALID"
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/user invalid usage_context_badge_display_mode",
+			method: http.MethodPut,
+			path:   "/api/v1/user",
+			body:   `{"usage_context_badge_display_mode":"bad-mode"}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "usage_context_badge_display_mode must be one of request_only, native_only, both",
+				"reason": "USER_USAGE_CONTEXT_BADGE_DISPLAY_MODE_INVALID"
 			}`,
 		},
 		{

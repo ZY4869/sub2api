@@ -16,6 +16,7 @@ const (
 	accountTestOpsProbeActionBaseContextKey  = "account_test_ops_probe_action_base"
 	accountTestOpsAdminUserIDContextKey      = "account_test_ops_admin_user_id"
 	accountTestOpsCollectorContextKey        = "account_test_ops_collector"
+	accountTestUpstreamStatusContextKey      = "account_test_upstream_status"
 	accountTestOpsResponsePreviewLimitBytes  = 8 * 1024
 	accountTestOpsUpstreamBodyPreviewMaxByte = 8 * 1024
 )
@@ -163,6 +164,9 @@ func (c *accountTestOpsCollector) appendPreview(text string) {
 }
 
 func (s *AccountTestService) captureUpstreamFailure(c *gin.Context, statusCode int, body []byte) {
+	if c != nil {
+		c.Set(accountTestUpstreamStatusContextKey, statusCode)
+	}
 	collector := s.ensureOpsCollector(c)
 	if collector == nil {
 		return

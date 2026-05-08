@@ -32,6 +32,7 @@ export interface User {
   request_details_review?: boolean;
   admin_free_billing?: boolean;
   usage_model_display_mode?: UsageModelDisplayMode;
+  usage_context_badge_display_mode?: UsageContextBadgeDisplayMode;
   balance: number; // User balance for API usage
   balances?: Record<string, number>; // Wallet balances by billing currency
   concurrency: number; // Allowed concurrent requests
@@ -198,6 +199,11 @@ export type UsageModelDisplayMode =
   | "model_only"
   | "display_only"
   | "display_and_model";
+
+export type UsageContextBadgeDisplayMode =
+  | "request_only"
+  | "native_only"
+  | "both";
 
 // ==================== Subscription Types ====================
 

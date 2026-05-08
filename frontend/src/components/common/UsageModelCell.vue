@@ -12,7 +12,7 @@
           <div class="break-all font-medium text-gray-900 dark:text-white">
             {{ presentation.requested.primaryText }}
           </div>
-          <UsageContextBadge :badge="presentation.requested.badge" />
+          <UsageContextBadge :badge="requestedBadge" />
         </div>
         <div
           v-if="presentation.requested.secondaryText"
@@ -39,7 +39,7 @@
           <div class="break-all">
             {{ presentation.upstream.primaryText }}
           </div>
-          <UsageContextBadge :badge="presentation.upstream.badge" />
+          <UsageContextBadge :badge="upstreamBadge" />
         </div>
         <div
           v-if="presentation.upstream.secondaryText"
@@ -56,18 +56,32 @@
 import { computed } from 'vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import UsageContextBadge from '@/components/common/UsageContextBadge.vue'
-import type { UsageLog, UsageModelDisplayMode } from '@/types'
+import type { UsageContextBadgeDisplayMode, UsageLog, UsageModelDisplayMode } from '@/types'
 import {
   buildUsageModelPresentation,
+  normalizeUsageContextBadgeDisplayMode,
   normalizeUsageModelDisplayMode,
+  resolveUsageContextBadge,
 } from '@/utils/usageModelPresentation'
 
 const props = defineProps<{
   row: Pick<UsageLog, 'model' | 'upstream_model' | 'million_context_requested' | 'million_context_effective'>
   mode?: UsageModelDisplayMode | null
+  contextBadgeMode?: UsageContextBadgeDisplayMode | null
 }>()
 
 const presentation = computed(() =>
   buildUsageModelPresentation(props.row, normalizeUsageModelDisplayMode(props.mode))
+)
+const badgeMode = computed(() =>
+  normalizeUsageContextBadgeDisplayMode(props.contextBadgeMode)
+)
+const requestedBadge = computed(() =>
+  resolveUsageContextBadge(presentation.value.requested, badgeMode.value)
+)
+const upstreamBadge = computed(() =>
+  presentation.value.upstream
+    ? resolveUsageContextBadge(presentation.value.upstream, badgeMode.value)
+    : null
 )
 </script>

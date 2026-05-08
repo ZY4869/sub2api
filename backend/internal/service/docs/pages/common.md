@@ -970,6 +970,7 @@ Authorization: Bearer <USER_JWT>
 当前用户资料返回体里新增了：
 
 - `usage_model_display_mode`：使用记录里“模型列”的全局展示偏好
+- `usage_context_badge_display_mode`：使用记录里“模型名旁上下文角标”的全局展示偏好
 
 允许值固定为：
 
@@ -977,18 +978,28 @@ Authorization: Bearer <USER_JWT>
 - `display_only`：仅显示展示名；如果本地目录解析不到展示名，则回退模型 ID
 - `display_and_model`：第一行显示展示名，第二行显示模型 ID
 
+`usage_context_badge_display_mode` 允许值固定为：
+
+- `request_only`：模型名旁只显示请求态上下文角标；未请求时不显示
+- `native_only`：模型名旁只显示模型原生上下文角标
+- `both`：优先显示请求态角标；没有请求态时回退显示模型原生上下文角标（不会同时并排显示两个角标）
+
 兼容规则如下：
 
 - 新用户与旧用户默认都是 `model_only`
 - 如果数据库里读到空值或脏值，后端会统一归一化回 `model_only`
 - 这个偏好只影响前台 / 后台“使用记录类表格”的显示层，不影响模型路由、可见模型集合、计费、权限或限流
+- `usage_context_badge_display_mode` 对新用户与旧用户默认都是 `request_only`
+- 如果数据库里读到空值或脏值，后端会统一归一化回 `request_only`
+- 这个偏好同样只影响前台 / 后台“使用记录类表格”的显示层，不会改变 usage log 原始数据
 
 `PUT /api/v1/user` 当前支持的请求体字段包括：
 
 - `username`：可选，更新用户名
 - `usage_model_display_mode`：可选，更新模型列展示偏好
+- `usage_context_badge_display_mode`：可选，更新上下文角标展示偏好
 
-更新接口遵循“只改传入字段”的局部更新语义；未传字段保持不变。`usage_model_display_mode` 如果传入非法值会直接返回 `400`。
+更新接口遵循“只改传入字段”的局部更新语义；未传字段保持不变。`usage_model_display_mode` 或 `usage_context_badge_display_mode` 如果传入非法值会直接返回 `400`。
 
 #### REST
 ```bash
@@ -1005,7 +1016,8 @@ curl -X PUT https://api.zyxai.de/api/v1/user \
   -H "Authorization: Bearer <USER_JWT>" \
   -H "Content-Type: application/json" \
   -d '{
-    "usage_model_display_mode": "display_and_model"
+    "usage_model_display_mode": "display_and_model",
+    "usage_context_badge_display_mode": "both"
   }'
 ```
 
@@ -1021,6 +1033,7 @@ curl -X PUT https://api.zyxai.de/api/v1/user \
     "username": "alice",
     "role": "user",
     "usage_model_display_mode": "display_and_model",
+    "usage_context_badge_display_mode": "both",
     "balance": 12.5,
     "concurrency": 5,
     "status": "active",
@@ -1036,8 +1049,8 @@ curl -X PUT https://api.zyxai.de/api/v1/user \
 ```json
 {
   "code": 400,
-  "message": "usage_model_display_mode must be one of model_only, display_only, display_and_model",
-  "reason": "USER_USAGE_MODEL_DISPLAY_MODE_INVALID"
+  "message": "usage_context_badge_display_mode must be one of request_only, native_only, both",
+  "reason": "USER_USAGE_CONTEXT_BADGE_DISPLAY_MODE_INVALID"
 }
 ```
 

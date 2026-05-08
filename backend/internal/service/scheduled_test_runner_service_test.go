@@ -4,6 +4,9 @@ package service
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,6 +96,49 @@ func (s *scheduledTestExecutorStub) RunTestBackground(ctx context.Context, input
 	}
 	clone := *s.result
 	return &clone, s.err
+}
+
+type scheduledTestUsageRecordingExecutorStub struct {
+	input     ScheduledTestExecutionInput
+	userRepo  *systemUsageUserRepoStub
+	apiKeyRepo *systemUsageAPIKeyRepoStub
+	usageRepo *systemUsageLogRepoStub
+}
+
+func (s *scheduledTestUsageRecordingExecutorStub) RunTestBackground(ctx context.Context, input ScheduledTestExecutionInput) (*ScheduledTestResult, error) {
+	s.input = input
+	accountTestSvc := &AccountTestService{
+		userRepo:     s.userRepo,
+		apiKeyRepo:   s.apiKeyRepo,
+		usageLogRepo: s.usageRepo,
+	}
+	result := &BackgroundAccountTestResult{
+		Status:          "success",
+		LatencyMs:       321,
+		StartedAt:       time.Date(2026, 5, 8, 9, 0, 0, 0, time.UTC),
+		FinishedAt:      time.Date(2026, 5, 8, 9, 0, 1, 0, time.UTC),
+		ResolvedModelID: "gpt-5.4",
+	}
+	if err := accountTestSvc.recordSystemUsage(ctx, input, result); err != nil {
+		return nil, err
+	}
+	return &ScheduledTestResult{
+		Status:       "success",
+		ResponseText: "ok",
+		LatencyMs:    result.LatencyMs,
+		StartedAt:    result.StartedAt,
+		FinishedAt:   result.FinishedAt,
+	}, nil
+}
+
+type scheduledTestRealUsageExecutor struct {
+	service *AccountTestService
+	input   ScheduledTestExecutionInput
+}
+
+func (s *scheduledTestRealUsageExecutor) RunTestBackground(ctx context.Context, input ScheduledTestExecutionInput) (*ScheduledTestResult, error) {
+	s.input = input
+	return s.service.RunTestBackground(ctx, input)
 }
 
 type scheduledTestNotifierStub struct {
@@ -523,4 +569,70 @@ func TestScheduledTestRunnerService_ExplicitSourceProtocolStillWinsOverGatewayDe
 	require.Equal(t, PlatformAnthropic, executor.input.SourceProtocol)
 	require.Equal(t, PlatformOpenAI, executor.input.TargetProvider)
 	require.Equal(t, "gpt-5.4", executor.input.TargetModelID)
+}
+
+func TestScheduledTestRunnerService_RunOnePlan_RecordsUsageLogWithScheduledOperationType(t *testing.T) {
+	planRepo := &scheduledTestPlanRepoStub{}
+	resultRepo := &scheduledTestResultRepoStub{}
+	scheduledSvc := NewScheduledTestService(planRepo, resultRepo)
+	notifier := &scheduledTestNotifierStub{}
+	accountRepo := &scheduledTestAccountRepoStub{
+		account: &Account{
+			ID:          77,
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeAPIKey,
+			Concurrency: 1,
+			Credentials: map[string]any{"api_key": "test-token", "base_url": "https://api.openai.com"},
+		},
+	}
+	userRepo := &systemUsageUserRepoStub{}
+	apiKeyRepo := &systemUsageAPIKeyRepoStub{}
+	usageRepo := &systemUsageLogRepoStub{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{
+		newJSONResponse(200, ""),
+	}}
+	upstream.responses[0].Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+	accountTestSvc := &AccountTestService{
+		accountRepo:  accountRepo,
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+		userRepo:     userRepo,
+		apiKeyRepo:   apiKeyRepo,
+		usageLogRepo: usageRepo,
+	}
+	executor := &scheduledTestRealUsageExecutor{
+		service: accountTestSvc,
+	}
+	runner := NewScheduledTestRunnerService(
+		planRepo,
+		scheduledSvc,
+		executor,
+		nil,
+		accountRepo,
+		notifier,
+		&config.Config{},
+	)
+
+	plan := &ScheduledTestPlan{
+		ID:             7,
+		AccountID:      77,
+		ModelID:        "gpt-5.4",
+		CronExpression: "* * * * *",
+		MaxResults:     20,
+	}
+
+	runner.runOnePlan(context.Background(), plan)
+
+	require.Equal(t, UsageOperationTypeScheduledTest, executor.input.OperationType)
+	require.Len(t, usageRepo.logs, 1)
+	require.NotNil(t, usageRepo.logs[0].OperationType)
+	require.Equal(t, UsageOperationTypeScheduledTest, *usageRepo.logs[0].OperationType)
+	require.Equal(t, int64(77), usageRepo.logs[0].AccountID)
+	require.Equal(t, userRepo.user.ID, usageRepo.logs[0].UserID)
+	require.Equal(t, apiKeyRepo.apiKey.ID, usageRepo.logs[0].APIKeyID)
+	require.Zero(t, usageRepo.logs[0].ActualCost)
+	require.NotNil(t, usageRepo.logs[0].BillingExemptReason)
+	require.Equal(t, BillingExemptReasonAdminFree, *usageRepo.logs[0].BillingExemptReason)
 }

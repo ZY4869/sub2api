@@ -62,6 +62,9 @@ func (User) Fields() []ent.Field {
 		field.String("usage_model_display_mode").
 			MaxLen(32).
 			Default("model_only"),
+		field.String("usage_context_badge_display_mode").
+			MaxLen(32).
+			Default("request_only"),
 		field.String("totp_secret_encrypted").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Optional().

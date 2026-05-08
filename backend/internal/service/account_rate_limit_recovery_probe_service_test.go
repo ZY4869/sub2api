@@ -4,9 +4,13 @@ package service
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/stretchr/testify/require"
 )
@@ -61,6 +65,45 @@ func (s *accountAutoRecoveryProbeExecutorStub) RunTestBackgroundDetailed(ctx con
 	s.calls++
 	s.lastProbeAction, _ = ProbeActionMetadataFromContext(ctx)
 	return s.result, s.err
+}
+
+type accountAutoRecoveryProbeUsageRecordingExecutorStub struct {
+	result           *BackgroundAccountTestResult
+	calls            int
+	lastProbeAction  string
+	lastInput        ScheduledTestExecutionInput
+	userRepo         *systemUsageUserRepoStub
+	apiKeyRepo       *systemUsageAPIKeyRepoStub
+	usageRepo        *systemUsageLogRepoStub
+}
+
+func (s *accountAutoRecoveryProbeUsageRecordingExecutorStub) RunTestBackgroundDetailed(ctx context.Context, input ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error) {
+	s.calls++
+	s.lastInput = input
+	s.lastProbeAction, _ = ProbeActionMetadataFromContext(ctx)
+	accountTestSvc := &AccountTestService{
+		userRepo:     s.userRepo,
+		apiKeyRepo:   s.apiKeyRepo,
+		usageLogRepo: s.usageRepo,
+	}
+	if err := accountTestSvc.recordSystemUsage(ctx, input, s.result); err != nil {
+		return nil, err
+	}
+	return s.result, nil
+}
+
+type accountAutoRecoveryProbeRealUsageExecutorStub struct {
+	service         *AccountTestService
+	calls           int
+	lastProbeAction string
+	lastInput       ScheduledTestExecutionInput
+}
+
+func (s *accountAutoRecoveryProbeRealUsageExecutorStub) RunTestBackgroundDetailed(ctx context.Context, input ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error) {
+	s.calls++
+	s.lastInput = input
+	s.lastProbeAction, _ = ProbeActionMetadataFromContext(ctx)
+	return s.service.RunTestBackgroundDetailed(ctx, input)
 }
 
 type accountAutoRecoveryProbeRecovererStub struct {
@@ -303,4 +346,74 @@ func TestAccountRateLimitRecoveryProbeService_RunOnceBlacklistsExplicitFailure(t
 	require.Equal(t, int64(1), snapshot.RecoveryProbeStartedTotal)
 	require.Equal(t, int64(1), snapshot.RecoveryProbeBlacklistedTotal)
 	require.Equal(t, int64(1), snapshot.RecoveryProbeBlacklistedByReason[string(BlacklistAdviceRecommendBlacklist)])
+}
+
+func TestAccountRateLimitRecoveryProbeService_RunOnce_RecordsUsageLogWithAutoRecoveryOperationType(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	now := time.Date(2026, 4, 9, 10, 0, 0, 0, time.UTC)
+	resetAt := now.Add(-time.Minute)
+	account := &Account{
+		ID:             22,
+		Status:         StatusActive,
+		LifecycleState: AccountLifecycleNormal,
+		RateLimitResetAt: &resetAt,
+		Platform:       PlatformOpenAI,
+		Type:           AccountTypeAPIKey,
+		Concurrency:    1,
+		Credentials: map[string]any{
+			"api_key":  "test-token",
+			"base_url": "https://api.openai.com",
+		},
+		Extra: map[string]any{
+			"rate_limit_reason": AccountRateLimitReasonUsage7d,
+		},
+	}
+	repo := &accountAutoRecoveryProbeRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				22: account,
+			},
+		},
+		activeAccounts: []Account{*account},
+	}
+	userRepo := &systemUsageUserRepoStub{}
+	apiKeyRepo := &systemUsageAPIKeyRepoStub{}
+	usageRepo := &systemUsageLogRepoStub{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{
+		newJSONResponse(200, ""),
+	}}
+	upstream.responses[0].Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+	accountTestSvc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+		userRepo:     userRepo,
+		apiKeyRepo:   apiKeyRepo,
+		usageLogRepo: usageRepo,
+	}
+	executor := &accountAutoRecoveryProbeRealUsageExecutorStub{
+		service: accountTestSvc,
+	}
+	recoverer := &accountAutoRecoveryProbeRecovererStub{}
+	svc := NewAccountRateLimitRecoveryProbeService(repo, executor, recoverer, time.Minute)
+	svc.now = func() time.Time { return now }
+
+	svc.runOnce(context.Background())
+
+	require.Equal(t, 1, executor.calls)
+	require.Equal(t, "test", executor.lastProbeAction)
+	require.Equal(t, UsageOperationTypeAutoRecoveryTest, executor.lastInput.OperationType)
+	require.Len(t, usageRepo.logs, 1)
+	require.NotNil(t, usageRepo.logs[0].OperationType)
+	require.Equal(t, UsageOperationTypeAutoRecoveryTest, *usageRepo.logs[0].OperationType)
+	require.Equal(t, int64(22), usageRepo.logs[0].AccountID)
+	require.Equal(t, userRepo.user.ID, usageRepo.logs[0].UserID)
+	require.Equal(t, apiKeyRepo.apiKey.ID, usageRepo.logs[0].APIKeyID)
+	require.Zero(t, usageRepo.logs[0].ActualCost)
+	require.NotNil(t, usageRepo.logs[0].BillingExemptReason)
+	require.Equal(t, BillingExemptReasonAdminFree, *usageRepo.logs[0].BillingExemptReason)
 }

@@ -889,6 +889,9 @@ func userEntityToService(u *dbent.User) *service.User {
 		UsageModelDisplayMode: service.NormalizeUserUsageModelDisplayMode(
 			u.UsageModelDisplayMode,
 		),
+		UsageContextBadgeDisplayMode: service.NormalizeUserUsageContextBadgeDisplayMode(
+			u.UsageContextBadgeDisplayMode,
+		),
 		TotpSecretEncrypted: u.TotpSecretEncrypted,
 		TotpEnabled:         u.TotpEnabled,
 		TotpEnabledAt:       u.TotpEnabledAt,

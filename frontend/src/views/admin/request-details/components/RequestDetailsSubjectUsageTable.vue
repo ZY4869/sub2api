@@ -11,8 +11,11 @@ import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import UsageModelCell from '@/components/common/UsageModelCell.vue'
+import UsageContextBadgeDisplayModeToggle from '@/components/common/UsageContextBadgeDisplayModeToggle.vue'
 import UsageModelDisplayModeToggle from '@/components/common/UsageModelDisplayModeToggle.vue'
+import { useUsageContextBadgeDisplayModePreference } from '@/composables/useUsageContextBadgeDisplayModePreference'
 import UsageRequestPreviewModal from '@/components/user/usage/UsageRequestPreviewModal.vue'
+import { resolveUsageNativeContextLabel } from '@/utils/usageModelPresentation'
 
 const { t } = useI18n()
 const { formatTokenDisplay } = useTokenDisplayMode()
@@ -21,6 +24,11 @@ const {
   updatingUsageModelDisplayMode,
   setUsageModelDisplayMode,
 } = useUsageModelDisplayModePreference()
+const {
+  usageContextBadgeDisplayMode,
+  updatingUsageContextBadgeDisplayMode,
+  setUsageContextBadgeDisplayMode,
+} = useUsageContextBadgeDisplayModePreference()
 
 defineProps<{
   items: AdminUsageLog[]
@@ -45,6 +53,7 @@ const columns = computed<Column[]>(() => [
   { key: 'account_id', label: t('admin.requestDetails.subject.ledger.columns.accountId') },
   { key: 'group_id', label: t('admin.requestDetails.subject.ledger.columns.groupId') },
   { key: 'models', label: t('admin.requestDetails.subject.ledger.columns.models') },
+  { key: 'native_context', label: t('admin.requestDetails.subject.ledger.columns.nativeContext') },
   { key: 'status', label: t('admin.requestDetails.subject.ledger.columns.status') },
   { key: 'total_tokens', label: t('admin.requestDetails.subject.ledger.columns.totalTokens') },
   { key: 'total_cost', label: t('admin.requestDetails.subject.ledger.columns.totalStandardCost') },
@@ -80,6 +89,10 @@ function statusBadgeClass(status: AdminUsageLog['status']): string {
 async function handleUsageModelDisplayModeChange(mode: UsageModelDisplayMode) {
   await setUsageModelDisplayMode(mode)
 }
+
+async function handleUsageContextBadgeDisplayModeChange(mode: "request_only" | "native_only" | "both") {
+  await setUsageContextBadgeDisplayMode(mode)
+}
 </script>
 
 <template>
@@ -99,6 +112,12 @@ async function handleUsageModelDisplayModeChange(mode: UsageModelDisplayMode) {
         :disabled="updatingUsageModelDisplayMode"
         @update:modelValue="handleUsageModelDisplayModeChange"
       />
+      <UsageContextBadgeDisplayModeToggle
+        class="md:hidden"
+        :model-value="usageContextBadgeDisplayMode"
+        :disabled="updatingUsageContextBadgeDisplayMode"
+        @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+      />
     </div>
 
     <DataTable :columns="columns" :data="items" :loading="loading">
@@ -106,13 +125,22 @@ async function handleUsageModelDisplayModeChange(mode: UsageModelDisplayMode) {
         <div class="flex items-center justify-between gap-3">
           <span>{{ column.label }}</span>
           <div class="hidden md:block" @click.stop>
-            <UsageModelDisplayModeToggle
-              :model-value="usageModelDisplayMode"
-              :disabled="updatingUsageModelDisplayMode"
-              :show-label="false"
-              compact
-              @update:modelValue="handleUsageModelDisplayModeChange"
-            />
+            <div class="flex items-center gap-2">
+              <UsageModelDisplayModeToggle
+                :model-value="usageModelDisplayMode"
+                :disabled="updatingUsageModelDisplayMode"
+                :show-label="false"
+                compact
+                @update:modelValue="handleUsageModelDisplayModeChange"
+              />
+              <UsageContextBadgeDisplayModeToggle
+                :model-value="usageContextBadgeDisplayMode"
+                :disabled="updatingUsageContextBadgeDisplayMode"
+                :show-label="false"
+                compact
+                @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+              />
+            </div>
           </div>
         </div>
       </template>
@@ -142,7 +170,17 @@ async function handleUsageModelDisplayModeChange(mode: UsageModelDisplayMode) {
       </template>
 
       <template #cell-models="{ row }">
-        <UsageModelCell :row="row" :mode="usageModelDisplayMode" />
+        <UsageModelCell
+          :row="row"
+          :mode="usageModelDisplayMode"
+          :context-badge-mode="usageContextBadgeDisplayMode"
+        />
+      </template>
+
+      <template #cell-native_context="{ row }">
+        <span class="text-sm text-gray-700 dark:text-gray-200">
+          {{ resolveUsageNativeContextLabel(row.model) }}
+        </span>
       </template>
 
       <template #cell-status="{ row }">

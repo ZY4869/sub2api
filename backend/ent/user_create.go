@@ -210,6 +210,20 @@ func (_c *UserCreate) SetNillableUsageModelDisplayMode(v *string) *UserCreate {
 	return _c
 }
 
+// SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
+func (_c *UserCreate) SetUsageContextBadgeDisplayMode(v string) *UserCreate {
+	_c.mutation.SetUsageContextBadgeDisplayMode(v)
+	return _c
+}
+
+// SetNillableUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field if the given value is not nil.
+func (_c *UserCreate) SetNillableUsageContextBadgeDisplayMode(v *string) *UserCreate {
+	if v != nil {
+		_c.SetUsageContextBadgeDisplayMode(*v)
+	}
+	return _c
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_c *UserCreate) SetTotpSecretEncrypted(v string) *UserCreate {
 	_c.mutation.SetTotpSecretEncrypted(v)
@@ -474,6 +488,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultUsageModelDisplayMode
 		_c.mutation.SetUsageModelDisplayMode(v)
 	}
+	if _, ok := _c.mutation.UsageContextBadgeDisplayMode(); !ok {
+		v := user.DefaultUsageContextBadgeDisplayMode
+		_c.mutation.SetUsageContextBadgeDisplayMode(v)
+	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
 		v := user.DefaultTotpEnabled
 		_c.mutation.SetTotpEnabled(v)
@@ -550,6 +568,14 @@ func (_c *UserCreate) check() error {
 	if v, ok := _c.mutation.UsageModelDisplayMode(); ok {
 		if err := user.UsageModelDisplayModeValidator(v); err != nil {
 			return &ValidationError{Name: "usage_model_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_model_display_mode": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.UsageContextBadgeDisplayMode(); !ok {
+		return &ValidationError{Name: "usage_context_badge_display_mode", err: errors.New(`ent: missing required field "User.usage_context_badge_display_mode"`)}
+	}
+	if v, ok := _c.mutation.UsageContextBadgeDisplayMode(); ok {
+		if err := user.UsageContextBadgeDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
@@ -637,6 +663,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UsageModelDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageModelDisplayMode, field.TypeString, value)
 		_node.UsageModelDisplayMode = value
+	}
+	if value, ok := _c.mutation.UsageContextBadgeDisplayMode(); ok {
+		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
+		_node.UsageContextBadgeDisplayMode = value
 	}
 	if value, ok := _c.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
@@ -1024,6 +1054,18 @@ func (u *UserUpsert) UpdateUsageModelDisplayMode() *UserUpsert {
 	return u
 }
 
+// SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
+func (u *UserUpsert) SetUsageContextBadgeDisplayMode(v string) *UserUpsert {
+	u.Set(user.FieldUsageContextBadgeDisplayMode, v)
+	return u
+}
+
+// UpdateUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field to the value that was provided on create.
+func (u *UserUpsert) UpdateUsageContextBadgeDisplayMode() *UserUpsert {
+	u.SetExcluded(user.FieldUsageContextBadgeDisplayMode)
+	return u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (u *UserUpsert) SetTotpSecretEncrypted(v string) *UserUpsert {
 	u.Set(user.FieldTotpSecretEncrypted, v)
@@ -1317,6 +1359,20 @@ func (u *UserUpsertOne) SetUsageModelDisplayMode(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateUsageModelDisplayMode() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateUsageModelDisplayMode()
+	})
+}
+
+// SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
+func (u *UserUpsertOne) SetUsageContextBadgeDisplayMode(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetUsageContextBadgeDisplayMode(v)
+	})
+}
+
+// UpdateUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateUsageContextBadgeDisplayMode() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateUsageContextBadgeDisplayMode()
 	})
 }
 
@@ -1787,6 +1843,20 @@ func (u *UserUpsertBulk) SetUsageModelDisplayMode(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateUsageModelDisplayMode() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateUsageModelDisplayMode()
+	})
+}
+
+// SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
+func (u *UserUpsertBulk) SetUsageContextBadgeDisplayMode(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetUsageContextBadgeDisplayMode(v)
+	})
+}
+
+// UpdateUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateUsageContextBadgeDisplayMode() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateUsageContextBadgeDisplayMode()
 	})
 }
 
