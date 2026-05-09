@@ -53,7 +53,6 @@
             <UsageModelCell
               :row="row"
               :mode="usageModelDisplayMode"
-              :context-badge-mode="usageContextBadgeDisplayMode"
             />
             <div
               v-if="row.model_mapping_chain && row.model_mapping_chain !== row.model"
@@ -89,9 +88,10 @@
         </template>
 
         <template #cell-native_context="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">
-            {{ resolveUsageNativeContextLabel(row.model) }}
-          </span>
+          <UsageContextBadgesCell
+            :row="row"
+            :mode="usageContextBadgeDisplayMode"
+          />
         </template>
 
         <template #cell-status="{ row }">
@@ -802,13 +802,13 @@ import {
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import UsageModelCell from "@/components/common/UsageModelCell.vue";
+import UsageContextBadgesCell from "@/components/common/UsageContextBadgesCell.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type {
   AdminUsageLog,
   UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
 } from "@/types";
-import { resolveUsageNativeContextLabel } from "@/utils/usageModelPresentation";
 
 defineProps<{
   data: AdminUsageLog[];

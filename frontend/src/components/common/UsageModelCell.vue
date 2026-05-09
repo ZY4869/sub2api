@@ -12,16 +12,6 @@
           <div class="break-all font-medium text-gray-900 dark:text-white">
             {{ presentation.requested.primaryText }}
           </div>
-          <div
-            v-if="requestedBadges.length"
-            class="flex flex-wrap items-center gap-1"
-          >
-            <UsageContextBadge
-              v-for="badge in requestedBadges"
-              :key="buildBadgeKey('requested', badge)"
-              :badge="badge"
-            />
-          </div>
         </div>
         <div
           v-if="presentation.requested.secondaryText"
@@ -48,16 +38,6 @@
           <div class="break-all">
             {{ presentation.upstream.primaryText }}
           </div>
-          <div
-            v-if="upstreamBadges.length"
-            class="flex flex-wrap items-center gap-1"
-          >
-            <UsageContextBadge
-              v-for="badge in upstreamBadges"
-              :key="buildBadgeKey('upstream', badge)"
-              :badge="badge"
-            />
-          </div>
         </div>
         <div
           v-if="presentation.upstream.secondaryText"
@@ -73,40 +53,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
-import UsageContextBadge from '@/components/common/UsageContextBadge.vue'
-import type { UsageContextBadgeDisplayMode, UsageLog, UsageModelDisplayMode } from '@/types'
+import type { UsageLog, UsageModelDisplayMode } from '@/types'
 import {
   buildUsageModelPresentation,
-  type UsageContextBadgeInfo,
-  normalizeUsageContextBadgeDisplayMode,
   normalizeUsageModelDisplayMode,
-  resolveUsageContextBadges,
 } from '@/utils/usageModelPresentation'
 
 const props = defineProps<{
   row: Pick<UsageLog, 'model' | 'upstream_model' | 'million_context_requested' | 'million_context_effective'>
   mode?: UsageModelDisplayMode | null
-  contextBadgeMode?: UsageContextBadgeDisplayMode | null
 }>()
 
 const presentation = computed(() =>
   buildUsageModelPresentation(props.row, normalizeUsageModelDisplayMode(props.mode))
 )
-const badgeMode = computed(() =>
-  normalizeUsageContextBadgeDisplayMode(props.contextBadgeMode)
-)
-const requestedBadges = computed(() =>
-  resolveUsageContextBadges(presentation.value.requested, badgeMode.value)
-)
-const upstreamBadges = computed(() =>
-  presentation.value.upstream
-    ? resolveUsageContextBadges(presentation.value.upstream, badgeMode.value)
-    : []
-)
-
-const buildBadgeKey = (
-  scope: 'requested' | 'upstream',
-  badge: UsageContextBadgeInfo,
-) =>
-  `${scope}-${badge.labelKey || badge.label}-${badge.tier}-${badge.tokens}-${badge.muted ? 'muted' : 'solid'}`
 </script>

@@ -142,13 +142,17 @@ describe('RequestDetailsSubjectUsageTable', () => {
               </button>
             `,
           },
+          UsageContextBadgesCell: {
+            props: ['row', 'mode'],
+            template: '<div data-testid="native-context-badges">{{ row.model }}|{{ mode }}</div>',
+          },
         },
       },
     })
 
     expect(wrapper.get('[data-testid="usage-model-cell"]').text()).toContain('deepseek-v4-pro|display_and_model')
     expect(wrapper.findAll('[data-testid="usage-mode-toggle"]').length).toBeGreaterThan(0)
-    expect(wrapper.text()).toContain('1M')
+    expect(wrapper.get('[data-testid="native-context-badges"]').text()).toBe('deepseek-v4-pro|request_only')
     expect(wrapper.findAll('[data-testid="context-mode-toggle"]').length).toBeGreaterThan(0)
 
     await wrapper.get('[data-testid="usage-mode-toggle"]').trigger('click')

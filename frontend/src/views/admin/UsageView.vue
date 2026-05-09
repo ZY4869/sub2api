@@ -109,11 +109,13 @@
                 <UsageModelDisplayModeToggle
                   :model-value="usageModelDisplayMode"
                   :disabled="updatingUsageModelDisplayMode"
+                  :label-text="t('usage.modelDisplay')"
                   @update:modelValue="handleUsageModelDisplayModeChange"
                 />
                 <UsageContextBadgeDisplayModeToggle
                   :model-value="usageContextBadgeDisplayMode"
                   :disabled="updatingUsageContextBadgeDisplayMode"
+                  :label-text="t('usage.contextBadgeDisplay')"
                   @update:modelValue="handleUsageContextBadgeDisplayModeChange"
                 />
               </div>

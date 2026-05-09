@@ -116,6 +116,7 @@ const DataTableStub = {
       <span data-testid="row-key-prop">{{ rowKey }}</span>
       <div v-for="(row, index) in data" :key="(row && row[rowKey]) || row.request_id || index">
         <slot name="cell-model" :row="row" />
+        <slot name="cell-native_context" :row="row" />
         <slot name="cell-status" :row="row" />
         <slot name="cell-reasoning_effort" :row="row" />
         <slot name="cell-request_protocol" :row="row" />
@@ -425,6 +426,43 @@ describe('admin UsageTable tooltip', () => {
         .findAll('[data-test="usage-context-badge"]')
         .map((badge) => badge.text()),
     ).toEqual(['usage.contextBadgeRequested1M', '1M'])
+  })
+
+  it('renders native context through the dedicated context badge cell instead of the model cell', () => {
+    const row = {
+      id: 10,
+      request_id: 'req-admin-native-context-column',
+      model: 'deepseek-v4-pro',
+      million_context_requested: true,
+      million_context_effective: false,
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    }
+
+    const wrapper = mountUsageTable([row], {
+      stubs: {
+        UsageModelCell: {
+          props: ['row', 'mode'],
+          template: '<div data-test="usage-model-cell">{{ row.model }}|{{ mode }}</div>',
+        },
+      },
+    })
+
+    expect(wrapper.get('[data-test="usage-model-cell"]').text()).toBe('deepseek-v4-pro|model_only')
+    expect(wrapper.get('[data-test="usage-context-badges-cell"]').exists()).toBe(true)
+    expect(
+      wrapper
+        .findAll('[data-test="usage-context-badge"]')
+        .map((badge) => badge.text()),
+    ).toEqual(['usage.contextBadgeRequested1M'])
   })
 
   it('keeps showing the existing badge in both mode when only one side is available', () => {

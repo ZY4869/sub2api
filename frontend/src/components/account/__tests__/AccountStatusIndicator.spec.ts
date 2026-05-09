@@ -285,6 +285,40 @@ describe('AccountStatusIndicator', () => {
     expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
   })
 
+  it('deduplicates repeated codex 5h limit badges and stacks visible limit badges vertically', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          platform: 'openai',
+          rate_limit_reset_at: '2026-03-13T13:56:00Z',
+          rate_limit_reason: 'usage_5h',
+          extra: {
+            codex_5h_used_percent: 100,
+            codex_5h_reset_at: '2026-03-13T13:56:00Z',
+            model_rate_limits: {
+              'gpt-5.3-codex': {
+                rate_limited_at: '2026-03-13T12:00:00Z',
+                rate_limit_reset_at: '2026-03-13T13:56:00Z'
+              }
+            }
+          }
+        })
+      },
+      global: {
+        stubs: componentStubs
+      }
+    })
+
+    const limitContainer = wrapper.get('[data-test="account-limit-badges"]')
+    expect(limitContainer.classes()).toContain('flex')
+    expect(limitContainer.classes()).toContain('flex-col')
+    expect(limitContainer.findAll('[data-test="account-status-limit-badge"]')).toHaveLength(1)
+    expect(limitContainer.text()).toContain('Codex 5h')
+  })
+
   it('shows mixed pro codex and spark account limits as scoped badges', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
@@ -311,6 +345,9 @@ describe('AccountStatusIndicator', () => {
     expect(wrapper.text()).toContain('Codex 7d')
     expect(wrapper.text()).toContain('Spark 5h')
     expect(wrapper.text()).not.toContain('7d×2')
+    const limitContainer = wrapper.get('[data-test="account-limit-badges"]')
+    expect(limitContainer.classes()).toContain('flex-col')
+    expect(limitContainer.findAll('[data-test="account-status-limit-badge"]')).toHaveLength(2)
   })
 
   it('renders overage model tags without broken glyphs', () => {

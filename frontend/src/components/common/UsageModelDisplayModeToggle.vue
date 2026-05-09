@@ -4,7 +4,7 @@
       v-if="showLabel"
       class="text-xs font-medium text-gray-500 dark:text-gray-400"
     >
-      {{ t('usage.modelDisplay') }}:
+      {{ labelText }}:
     </span>
     <div
       class="inline-flex border border-gray-200 bg-white p-0.5 shadow-sm dark:border-dark-600 dark:bg-dark-800"
@@ -41,6 +41,7 @@ const props = defineProps<{
   disabled?: boolean
   showLabel?: boolean
   compact?: boolean
+  labelText?: string
 }>()
 
 defineEmits<{
@@ -52,6 +53,7 @@ const { t } = useI18n()
 const mode = computed(() => normalizeUsageModelDisplayMode(props.modelValue))
 const showLabel = computed(() => props.showLabel !== false)
 const compact = computed(() => props.compact === true)
+const labelText = computed(() => props.labelText || t('usage.modelDisplay'))
 const options = computed(() => [
   { value: 'model_only' as const, label: t('usage.modelDisplayModelOnly') },
   { value: 'display_only' as const, label: t('usage.modelDisplayDisplayOnly') },

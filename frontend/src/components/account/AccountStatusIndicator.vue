@@ -58,29 +58,14 @@
     </div>
 
     <div
-      v-if="isRateLimited && accountRateLimitBadges.length > 0"
-      :class="accountRateLimitBadges.length > 1 ? 'flex flex-wrap gap-1' : ''"
-    >
-      <AccountStatusLimitBadge
-        v-for="item in accountRateLimitBadges"
-        :key="item.key"
-        :tone="item.tone"
-        :label="item.label"
-        :countdown="item.countdown"
-        :tooltip="item.tooltip"
-        :model="item.model"
-        :model-display-name="item.modelDisplayName"
-      />
-    </div>
-
-    <div
-      v-if="activeModelBadges.length > 0"
-      :class="activeModelBadgeLayoutClass"
+      v-if="visibleLimitBadges.length > 0"
+      data-test="account-limit-badges"
+      :class="limitBadgeLayoutClass"
     >
       <div
-        v-for="item in activeModelBadges"
+        v-for="item in visibleLimitBadges"
         :key="item.key"
-        class="mb-1 break-inside-avoid"
+        class="break-inside-avoid"
       >
         <AccountStatusLimitBadge
           :tone="item.tone"
@@ -196,12 +181,6 @@ const activeModelStatuses = computed<AccountModelStatusItem[]>(() => {
   }
 
   return items
-})
-
-const activeModelBadgeLayoutClass = computed(() => {
-  if (activeModelBadges.value.length <= 4) return 'flex flex-col gap-1'
-  if (activeModelBadges.value.length <= 8) return 'columns-2 gap-x-2'
-  return 'columns-3 gap-x-2'
 })
 
 const formatScopeName = (scope: string): string => {
@@ -355,7 +334,16 @@ const formatBadgeCountdown = (resetAt: string | null | undefined): string => {
   return `${seconds}s`
 }
 
-const activeModelBadges = computed<AccountStatusLimitBadgeItem[]>(() => {
+const buildLimitBadgeIdentity = (
+  item: Pick<AccountStatusLimitBadgeItem, 'label' | 'model' | 'tooltip'>,
+): string => {
+  const model = String(item.model || '').trim().toLowerCase()
+  const label = String(item.label || '').trim().toLowerCase()
+  const tooltip = String(item.tooltip || '').trim().toLowerCase()
+  return `${model}::${label}::${tooltip}`
+}
+
+const rawActiveModelBadges = computed<AccountStatusLimitBadgeItem[]>(() => {
   return activeModelStatuses.value.map((item) => {
     if (item.kind === 'credits_exhausted') {
       return {
@@ -499,6 +487,26 @@ const accountRateLimitBadges = computed<AccountStatusLimitBadgeItem[]>(() => {
         : '429',
     tooltip: fallbackTooltip,
   }]
+})
+
+const activeModelBadges = computed<AccountStatusLimitBadgeItem[]>(() => {
+  const accountBadgeIdentities = new Set(
+    accountRateLimitBadges.value.map((item) => buildLimitBadgeIdentity(item)),
+  )
+  return rawActiveModelBadges.value.filter(
+    (item) => !accountBadgeIdentities.has(buildLimitBadgeIdentity(item)),
+  )
+})
+
+const visibleLimitBadges = computed<AccountStatusLimitBadgeItem[]>(() => [
+  ...accountRateLimitBadges.value,
+  ...activeModelBadges.value,
+])
+
+const limitBadgeLayoutClass = computed(() => {
+  if (visibleLimitBadges.value.length <= 4) return 'flex flex-col gap-1'
+  if (visibleLimitBadges.value.length <= 8) return 'grid grid-cols-2 gap-1'
+  return 'grid grid-cols-3 gap-1'
 })
 
 const overloadCountdown = computed(() => {

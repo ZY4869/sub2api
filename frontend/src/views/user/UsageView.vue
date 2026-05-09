@@ -33,18 +33,6 @@
               <!-- Actions -->
               <div class="ml-auto flex items-center gap-3">
                 <TokenDisplayModeToggle />
-                <UsageModelDisplayModeToggle
-                  class="md:hidden"
-                  :model-value="usageModelDisplayMode"
-                  :disabled="updatingUsageModelDisplayMode"
-                  @update:modelValue="handleUsageModelDisplayModeChange"
-                />
-                <UsageContextBadgeDisplayModeToggle
-                  class="md:hidden"
-                  :model-value="usageContextBadgeDisplayMode"
-                  :disabled="updatingUsageContextBadgeDisplayMode"
-                  @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-                />
                 <button
                   @click="applyFilters"
                   :disabled="loading"
@@ -84,6 +72,20 @@
                 </button>
               </div>
             </div>
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+              <UsageModelDisplayModeToggle
+                :model-value="usageModelDisplayMode"
+                :disabled="updatingUsageModelDisplayMode"
+                :label-text="t('usage.modelDisplay')"
+                @update:modelValue="handleUsageModelDisplayModeChange"
+              />
+              <UsageContextBadgeDisplayModeToggle
+                :model-value="usageContextBadgeDisplayMode"
+                :disabled="updatingUsageContextBadgeDisplayMode"
+                :label-text="t('usage.contextBadgeDisplay')"
+                @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+              />
+            </div>
           </div>
         </div>
       </template>
@@ -96,30 +98,6 @@
           :virtual-scroll="false"
           row-key="id"
         >
-          <template #header-model="{ column }">
-            <div class="flex items-center justify-between gap-3">
-              <span>{{ column.label }}</span>
-              <div class="hidden md:block" @click.stop>
-                <div class="flex items-center gap-2">
-                  <UsageModelDisplayModeToggle
-                    :model-value="usageModelDisplayMode"
-                    :disabled="updatingUsageModelDisplayMode"
-                    :show-label="false"
-                    compact
-                    @update:modelValue="handleUsageModelDisplayModeChange"
-                  />
-                  <UsageContextBadgeDisplayModeToggle
-                    :model-value="usageContextBadgeDisplayMode"
-                    :disabled="updatingUsageContextBadgeDisplayMode"
-                    :show-label="false"
-                    compact
-                    @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-
           <template #cell-api_key="{ row }">
             <span class="text-sm text-gray-900 dark:text-white">{{
               row.api_key?.name || "-"
@@ -130,14 +108,14 @@
             <UsageModelCell
               :row="row"
               :mode="usageModelDisplayMode"
-              :context-badge-mode="usageContextBadgeDisplayMode"
             />
           </template>
 
           <template #cell-native_context="{ row }">
-            <span class="text-sm text-gray-900 dark:text-white">
-              {{ resolveUsageNativeContextLabel(row.model) }}
-            </span>
+            <UsageContextBadgesCell
+              :row="row"
+              :mode="usageContextBadgeDisplayMode"
+            />
           </template>
 
           <template #cell-status="{ row }">
@@ -794,6 +772,7 @@ import Select from "@/components/common/Select.vue";
 import DateRangePicker from "@/components/common/DateRangePicker.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
 import UsageModelCell from "@/components/common/UsageModelCell.vue";
+import UsageContextBadgesCell from "@/components/common/UsageContextBadgesCell.vue";
 import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContextBadgeDisplayModeToggle.vue";
 import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
@@ -825,7 +804,6 @@ import {
   formatUsageMillionContextExportFields,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
-import { resolveUsageNativeContextLabel } from "@/utils/usageModelPresentation";
 import { formatUsageProtocolExportText } from "@/utils/protocolDisplay";
 import {
   getUsageChargeBadgeClass,

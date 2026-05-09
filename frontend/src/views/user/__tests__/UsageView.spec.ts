@@ -823,6 +823,57 @@ describe("user UsageView tooltip", () => {
     );
   });
 
+  it("moves usage display toggles into the filter area and keeps label prefixes visible", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          UsageModelCell: true,
+          UsageContextBadgesCell: true,
+          UsageModelDisplayModeToggle: {
+            props: ['modelValue', 'disabled', 'showLabel', 'compact', 'labelText'],
+            template: '<div data-testid="usage-model-toggle">{{ labelText || "usage.modelDisplay" }}|{{ modelValue }}</div>',
+          },
+          UsageContextBadgeDisplayModeToggle: {
+            props: ['modelValue', 'disabled', 'showLabel', 'compact', 'labelText'],
+            template: '<div data-testid="usage-context-toggle">{{ labelText || "usage.contextBadgeDisplay" }}|{{ modelValue }}</div>',
+          },
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const modelToggles = wrapper.findAll('[data-testid="usage-model-toggle"]');
+    const contextToggles = wrapper.findAll('[data-testid="usage-context-toggle"]');
+    expect(modelToggles).toHaveLength(1);
+    expect(contextToggles).toHaveLength(1);
+    expect(modelToggles[0]?.text()).toContain('usage.modelDisplay');
+    expect(contextToggles[0]?.text()).toContain('usage.contextBadgeDisplay');
+  });
+
   it("renders today stats and keeps duplicate request ids stable by using row id keys", async () => {
     query.mockResolvedValue({
       items: [

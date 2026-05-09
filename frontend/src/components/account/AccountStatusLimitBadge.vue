@@ -1,5 +1,5 @@
 <template>
-  <div class="group relative inline-flex">
+  <div data-test="account-status-limit-badge" class="group relative inline-flex">
     <span
       :class="[
         'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium',

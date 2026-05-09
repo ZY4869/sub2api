@@ -11,11 +11,11 @@ import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import UsageModelCell from '@/components/common/UsageModelCell.vue'
+import UsageContextBadgesCell from '@/components/common/UsageContextBadgesCell.vue'
 import UsageContextBadgeDisplayModeToggle from '@/components/common/UsageContextBadgeDisplayModeToggle.vue'
 import UsageModelDisplayModeToggle from '@/components/common/UsageModelDisplayModeToggle.vue'
 import { useUsageContextBadgeDisplayModePreference } from '@/composables/useUsageContextBadgeDisplayModePreference'
 import UsageRequestPreviewModal from '@/components/user/usage/UsageRequestPreviewModal.vue'
-import { resolveUsageNativeContextLabel } from '@/utils/usageModelPresentation'
 
 const { t } = useI18n()
 const { formatTokenDisplay } = useTokenDisplayMode()
@@ -110,12 +110,14 @@ async function handleUsageContextBadgeDisplayModeChange(mode: "request_only" | "
         class="md:hidden"
         :model-value="usageModelDisplayMode"
         :disabled="updatingUsageModelDisplayMode"
+        :label-text="t('usage.modelDisplay')"
         @update:modelValue="handleUsageModelDisplayModeChange"
       />
       <UsageContextBadgeDisplayModeToggle
         class="md:hidden"
         :model-value="usageContextBadgeDisplayMode"
         :disabled="updatingUsageContextBadgeDisplayMode"
+        :label-text="t('usage.contextBadgeDisplay')"
         @update:modelValue="handleUsageContextBadgeDisplayModeChange"
       />
     </div>
@@ -173,14 +175,14 @@ async function handleUsageContextBadgeDisplayModeChange(mode: "request_only" | "
         <UsageModelCell
           :row="row"
           :mode="usageModelDisplayMode"
-          :context-badge-mode="usageContextBadgeDisplayMode"
         />
       </template>
 
       <template #cell-native_context="{ row }">
-        <span class="text-sm text-gray-700 dark:text-gray-200">
-          {{ resolveUsageNativeContextLabel(row.model) }}
-        </span>
+        <UsageContextBadgesCell
+          :row="row"
+          :mode="usageContextBadgeDisplayMode"
+        />
       </template>
 
       <template #cell-status="{ row }">
