@@ -132,7 +132,6 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
-!docs/MODEL_CATALOG_PRICING_CN.md
 tools/__pycache__/
 *.pyc
 .serena/
@@ -155,3 +154,4 @@ MODEL_PRICING_UNRESOLVED_20260427.md
 billing_pricing_patch_20260505_201743.json
 billing_pricing_patch_20260506_123748.json
 上下文角标.html
+security/

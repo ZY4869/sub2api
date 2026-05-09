@@ -104,6 +104,20 @@
             @cleanup="openCleanupDialog"
             @export="exportToExcel"
           >
+            <template #toolbar-left>
+              <div class="flex flex-wrap items-center gap-3">
+                <UsageModelDisplayModeToggle
+                  :model-value="usageModelDisplayMode"
+                  :disabled="updatingUsageModelDisplayMode"
+                  @update:modelValue="handleUsageModelDisplayModeChange"
+                />
+                <UsageContextBadgeDisplayModeToggle
+                  :model-value="usageContextBadgeDisplayMode"
+                  :disabled="updatingUsageContextBadgeDisplayMode"
+                  @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+                />
+              </div>
+            </template>
             <template #after-reset>
               <div class="flex items-center gap-3">
                 <TokenDisplayModeToggle />
@@ -158,6 +172,8 @@
             :data="usageLogs"
             :loading="loading"
             :columns="visibleColumns"
+            :usage-model-display-mode="usageModelDisplayMode"
+            :usage-context-badge-display-mode="usageContextBadgeDisplayMode"
             @userClick="handleUserClick"
           />
           <Pagination
@@ -232,7 +248,11 @@ import GroupDistributionChart from "@/components/charts/GroupDistributionChart.v
 import TokenUsageTrend from "@/components/charts/TokenUsageTrend.vue";
 import Icon from "@/components/icons/Icon.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
+import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContextBadgeDisplayModeToggle.vue";
+import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import RequestDetailsTraceTab from "./request-details/components/RequestDetailsTraceTab.vue";
+import { useUsageContextBadgeDisplayModePreference } from "@/composables/useUsageContextBadgeDisplayModePreference";
+import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import type {
   AdminUsageLog,
@@ -251,6 +271,16 @@ const appStore = useAppStore();
 const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const {
+  usageModelDisplayMode,
+  updatingUsageModelDisplayMode,
+  setUsageModelDisplayMode,
+} = useUsageModelDisplayModePreference();
+const {
+  usageContextBadgeDisplayMode,
+  updatingUsageContextBadgeDisplayMode,
+  setUsageContextBadgeDisplayMode,
+} = useUsageContextBadgeDisplayModePreference();
 const canReviewRequestDetails = computed(() => authStore.isAdmin === true);
 
 type UsageViewTab = "records" | "request_details" | "leaderboard";
@@ -355,6 +385,18 @@ const handleUserClick = async (userId: number) => {
   } catch {
     appStore.showError(t("admin.usage.failedToLoadUser"));
   }
+};
+
+const handleUsageModelDisplayModeChange = async (
+  mode: "model_only" | "display_only" | "display_and_model",
+) => {
+  await setUsageModelDisplayMode(mode);
+};
+
+const handleUsageContextBadgeDisplayModeChange = async (
+  mode: "request_only" | "native_only" | "both",
+) => {
+  await setUsageContextBadgeDisplayMode(mode);
 };
 
 const granularityOptions = computed(() => [

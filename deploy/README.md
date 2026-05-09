@@ -109,7 +109,7 @@ mkdir -p data postgres_data redis_data
 # Start all services using local directory version
 docker-compose -f docker-compose.local.yml up -d
 
-# View logs (check for auto-generated admin password)
+# View logs
 docker-compose -f docker-compose.local.yml logs -f sub2api
 
 # Access Web UI
@@ -127,21 +127,18 @@ docker-compose -f docker-compose.local.yml logs -f sub2api
 
 ### How Auto-Setup Works
 
-When using Docker Compose with `AUTO_SETUP=true`:
+When using Docker Compose with `AUTO_SETUP=true` in a local or explicitly authorized initialization window:
 
 1. On first run, the system automatically:
    - Connects to PostgreSQL and Redis
    - Applies database migrations (SQL files in `backend/migrations/*.sql`) and records them in `schema_migrations`
    - Generates JWT secret (if not provided)
-   - Creates admin account (password auto-generated if not provided)
+   - Creates admin account (requires an explicit `ADMIN_PASSWORD`)
    - Writes config.yaml
 
 2. No manual Setup Wizard needed - just configure `.env` and start
 
-3. If `ADMIN_PASSWORD` is not set, check logs for the generated password:
-   ```bash
-   docker-compose logs sub2api | grep "admin password"
-   ```
+3. `ADMIN_PASSWORD` must be set explicitly before enabling `AUTO_SETUP=true`. The application no longer generates or prints an admin password automatically.
 
 ### Database Migration Notes (PostgreSQL)
 

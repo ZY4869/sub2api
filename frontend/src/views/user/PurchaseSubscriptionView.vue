@@ -71,14 +71,12 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
-import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { buildEmbeddedUrl, detectTheme } from '@/utils/embedded-url'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
-const authStore = useAuthStore()
 
 const loading = ref(false)
 const purchaseTheme = ref<'light' | 'dark'>('light')
@@ -90,7 +88,7 @@ const purchaseEnabled = computed(() => {
 
 const purchaseUrl = computed(() => {
   const baseUrl = (appStore.cachedPublicSettings?.purchase_subscription_url || '').trim()
-  return buildEmbeddedUrl(baseUrl, authStore.user?.id, authStore.token, purchaseTheme.value, locale.value)
+  return buildEmbeddedUrl(baseUrl, purchaseTheme.value, locale.value)
 })
 
 const isValidUrl = computed(() => {

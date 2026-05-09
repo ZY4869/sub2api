@@ -153,13 +153,7 @@ const menuItem = computed(() => {
 
 const embeddedUrl = computed(() => {
   if (!menuItem.value) return ''
-  return buildEmbeddedUrl(
-    menuItem.value.url,
-    authStore.user?.id,
-    authStore.token,
-    pageTheme.value,
-    locale.value,
-  )
+  return buildEmbeddedUrl(menuItem.value.url, pageTheme.value, locale.value)
 })
 
 const isMarkdownMode = computed(() =>

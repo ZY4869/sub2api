@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -107,5 +108,43 @@ func TestRegisterRoutes_ExposesHealthEndpointDuringSetup(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), `"status":"ok"`) {
 		t.Fatalf("GET /health body=%q, want status ok payload", w.Body.String())
+	}
+}
+
+func TestSetupWindowOpen(t *testing.T) {
+	t.Setenv("AUTO_SETUP", "false")
+	t.Setenv("DATA_DIR", t.TempDir())
+	if SetupWindowOpen() {
+		t.Fatalf("SetupWindowOpen() should be false when AUTO_SETUP is disabled")
+	}
+}
+
+func TestGetStatusReturnsClosedWhenAutoSetupDisabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("AUTO_SETUP", "false")
+	t.Setenv("DATA_DIR", t.TempDir())
+
+	router := gin.New()
+	RegisterRoutes(router)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/setup/status", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /setup/status status=%d, want %d", w.Code, http.StatusOK)
+	}
+
+	var payload struct {
+		Data SetupStatus `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal setup status: %v", err)
+	}
+	if payload.Data.NeedsSetup {
+		t.Fatalf("expected needs_setup=false when auto setup is disabled")
+	}
+	if payload.Data.Step != "completed" {
+		t.Fatalf("step=%q, want completed", payload.Data.Step)
 	}
 }

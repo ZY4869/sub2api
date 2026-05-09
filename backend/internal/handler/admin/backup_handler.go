@@ -52,7 +52,7 @@ func (h *BackupHandler) TestS3Connection(c *gin.Context) {
 	}
 	err := h.backupService.TestS3Connection(c.Request.Context(), req)
 	if err != nil {
-		response.Success(c, gin.H{"ok": false, "message": err.Error()})
+		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, gin.H{"ok": true, "message": "connection successful"})

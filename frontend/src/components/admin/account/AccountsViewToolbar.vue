@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="flex flex-wrap-reverse items-start justify-between gap-3">
+    <div class="flex flex-col gap-3">
       <AccountTableFilters
         :search-query="searchQuery"
         :filters="filters"
@@ -9,13 +9,14 @@
         @change="emit('change')"
         @update:search-query="handleSearchQueryUpdate"
       />
-      <AccountTableActions
-        :loading="loading"
-        @refresh="emit('refresh')"
-        @sync="emit('sync')"
-        @create="emit('create')"
-      >
-        <template #after>
+      <div class="overflow-x-auto pb-1">
+        <AccountTableActions
+          :loading="loading"
+          @refresh="emit('refresh')"
+          @sync="emit('sync')"
+          @create="emit('create')"
+        >
+          <template #after>
           <AccountViewModeToggle
             :model-value="viewMode"
             @update:model-value="emit('update:view-mode', $event)"
@@ -193,56 +194,85 @@
             </div>
           </div>
 
-          <button
-            type="button"
-            class="btn btn-secondary"
-            :title="t('admin.errorPassthrough.title')"
-            @click="emit('show-error-passthrough')"
-          >
-            <Icon name="shield" size="md" class="mr-1.5" />
-            <span class="hidden md:inline">{{
-              t("admin.errorPassthrough.title")
-            }}</span>
-          </button>
-
-          <button
-            type="button"
-            class="btn btn-secondary"
-            :title="t('admin.tlsFingerprintProfiles.title')"
-            @click="emit('show-tls-fingerprint-profiles')"
-          >
-            <span class="hidden md:inline">{{
-              t("admin.tlsFingerprintProfiles.title")
-            }}</span>
-            <span class="md:hidden">{{
-              t("admin.tlsFingerprintProfiles.shortTitle")
-            }}</span>
-          </button>
-
-          <div class="relative" ref="columnDropdownRef">
+          <div class="relative" ref="moreActionsDropdownRef">
             <button
               type="button"
               class="btn btn-secondary px-2 md:px-3"
-              :title="t('admin.users.columnSettings')"
-              @click="toggleColumnDropdown"
+              :title="t('common.more')"
+              data-more-actions-button="true"
+              @click="toggleMoreActionsDropdown"
             >
-              <svg
-                class="h-4 w-4 md:mr-1.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
-                />
-              </svg>
-              <span class="hidden md:inline">{{
-                t("admin.users.columnSettings")
-              }}</span>
+              <Icon name="more" size="sm" class="md:mr-1.5" />
+              <span class="hidden md:inline">{{ t("common.more") }}</span>
             </button>
+            <div
+              v-if="showMoreActionsDropdown"
+              class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+            >
+              <div class="p-2">
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                  :title="t('admin.errorPassthrough.title')"
+                  @click="handleMoreAction('show-error-passthrough')"
+                >
+                  <span>{{ t("admin.errorPassthrough.title") }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                  :title="t('admin.tlsFingerprintProfiles.title')"
+                  @click="handleMoreAction('show-tls-fingerprint-profiles')"
+                >
+                  <span>{{ t("admin.tlsFingerprintProfiles.title") }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                  :title="t('admin.users.columnSettings')"
+                  @click="toggleColumnDropdownFromMore"
+                >
+                  <span>{{ t("admin.users.columnSettings") }}</span>
+                  <Icon name="menu" size="sm" />
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                  @click="handleMoreAction('sync')"
+                >
+                  <span>{{ t("admin.accounts.syncFromCrs") }}</span>
+                </button>
+                <button
+                  v-if="!selectedCount"
+                  type="button"
+                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                  @click="handleMoreAction('bulk-edit-filtered')"
+                >
+                  <span>{{ t("admin.accounts.bulkEdit.editFiltered") }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                  @click="handleMoreAction('import-data')"
+                >
+                  <span>{{ t("admin.accounts.dataImport") }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                  @click="handleMoreAction('export-data')"
+                >
+                  <span>{{
+                    selectedCount
+                      ? t("admin.accounts.dataExportSelected")
+                      : t("admin.accounts.dataExport")
+                  }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="relative" ref="columnDropdownRef">
             <div
               v-if="showColumnDropdown"
               class="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
@@ -266,37 +296,9 @@
               </div>
             </div>
           </div>
-        </template>
-
-        <template #beforeCreate>
-          <button
-            v-if="!selectedCount"
-            type="button"
-            class="btn btn-secondary"
-            @click="emit('bulk-edit-filtered')"
-          >
-            {{ t("admin.accounts.bulkEdit.editFiltered") }}
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            @click="emit('import-data')"
-          >
-            {{ t("admin.accounts.dataImport") }}
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            @click="emit('export-data')"
-          >
-            {{
-              selectedCount
-                ? t("admin.accounts.dataExportSelected")
-                : t("admin.accounts.dataExport")
-            }}
-          </button>
-        </template>
-      </AccountTableActions>
+          </template>
+        </AccountTableActions>
+      </div>
     </div>
 
     <div
@@ -394,8 +396,10 @@ const { t } = useI18n();
 
 const showAutoRefreshDropdown = ref(false);
 const showColumnDropdown = ref(false);
+const showMoreActionsDropdown = ref(false);
 const autoRefreshDropdownRef = ref<HTMLElement | null>(null);
 const columnDropdownRef = ref<HTMLElement | null>(null);
+const moreActionsDropdownRef = ref<HTMLElement | null>(null);
 
 const nextPlatformCountSortOrder = computed<AccountPlatformCountSortOrder>(
   () =>
@@ -431,11 +435,52 @@ const autoRefreshIntervalLabel = (sec: number) => {
 const toggleAutoRefreshDropdown = () => {
   showAutoRefreshDropdown.value = !showAutoRefreshDropdown.value;
   showColumnDropdown.value = false;
+  showMoreActionsDropdown.value = false;
 };
 
-const toggleColumnDropdown = () => {
+const toggleColumnDropdownFromMore = () => {
   showColumnDropdown.value = !showColumnDropdown.value;
   showAutoRefreshDropdown.value = false;
+  showMoreActionsDropdown.value = false;
+};
+
+const toggleMoreActionsDropdown = () => {
+  showMoreActionsDropdown.value = !showMoreActionsDropdown.value;
+  showAutoRefreshDropdown.value = false;
+  showColumnDropdown.value = false;
+};
+
+const handleMoreAction = (
+  action:
+    | "show-error-passthrough"
+    | "show-tls-fingerprint-profiles"
+    | "sync"
+    | "bulk-edit-filtered"
+    | "import-data"
+    | "export-data",
+) => {
+  showMoreActionsDropdown.value = false;
+  if (action === "show-error-passthrough") {
+    emit("show-error-passthrough");
+    return;
+  }
+  if (action === "show-tls-fingerprint-profiles") {
+    emit("show-tls-fingerprint-profiles");
+    return;
+  }
+  if (action === "sync") {
+    emit("sync");
+    return;
+  }
+  if (action === "bulk-edit-filtered") {
+    emit("bulk-edit-filtered");
+    return;
+  }
+  if (action === "import-data") {
+    emit("import-data");
+    return;
+  }
+  emit("export-data");
 };
 
 const handleClickOutside = (event: MouseEvent) => {
@@ -453,6 +498,13 @@ const handleClickOutside = (event: MouseEvent) => {
     !autoRefreshDropdownRef.value.contains(target)
   ) {
     showAutoRefreshDropdown.value = false;
+  }
+  if (
+    moreActionsDropdownRef.value &&
+    target &&
+    !moreActionsDropdownRef.value.contains(target)
+  ) {
+    showMoreActionsDropdown.value = false;
   }
 };
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -75,4 +76,31 @@ func TestNormalizeBackupIdempotencyKey(t *testing.T) {
 	require.Equal(t, "from-header", normalizeBackupIdempotencyKey("from-header", "from-body"))
 	require.Equal(t, "from-body", normalizeBackupIdempotencyKey(" ", " from-body "))
 	require.Equal(t, "", normalizeBackupIdempotencyKey("", ""))
+}
+
+func TestDataManagementHandler_TestS3RequiresExplicitSecret(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := service.NewDataManagementServiceWithOptions(filepath.Join(t.TempDir(), "missing.sock"), 50*time.Millisecond)
+	h := NewDataManagementHandler(svc)
+
+	r := gin.New()
+	r.POST("/api/v1/admin/data-management/test-s3", h.TestS3)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/data-management/test-s3", strings.NewReader(`{
+		"endpoint":"https://s3.example.com",
+		"region":"auto",
+		"bucket":"bucket",
+		"access_key_id":"AKID"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var envelope apiEnvelope
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &envelope))
+	require.Equal(t, http.StatusBadRequest, envelope.Code)
+	require.Contains(t, envelope.Message, "secret_access_key is required")
 }

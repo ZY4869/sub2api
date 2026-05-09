@@ -155,6 +155,10 @@ func (h *DataManagementHandler) TestS3(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if strings.TrimSpace(req.SecretAccessKey) == "" {
+		response.BadRequest(c, "secret_access_key is required when testing S3 connectivity")
+		return
+	}
 
 	if !h.requireAgentEnabled(c) {
 		return

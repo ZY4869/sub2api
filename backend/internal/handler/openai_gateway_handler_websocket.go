@@ -53,7 +53,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		return
 	}
 	reqLog.Info("openai.websocket_ingress_started")
-	clientIP := ip.GetClientIP(c)
+	clientIP := ip.GetTrustedClientIP(c)
 	userAgent := strings.TrimSpace(c.GetHeader("User-Agent"))
 
 	wsConn, err := coderws.Accept(c.Writer, c.Request, &coderws.AcceptOptions{

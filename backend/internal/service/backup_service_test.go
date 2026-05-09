@@ -161,6 +161,7 @@ func (d *blockingDumper) Restore(_ context.Context, data io.Reader) error {
 type mockObjectStore struct {
 	objects map[string][]byte
 	mu      sync.Mutex
+	headErr error
 }
 
 func newMockObjectStore() *mockObjectStore {
@@ -200,7 +201,7 @@ func (m *mockObjectStore) PresignURL(_ context.Context, key string, _ time.Durat
 }
 
 func (m *mockObjectStore) HeadBucket(_ context.Context) error {
-	return nil
+	return m.headErr
 }
 
 func newTestBackupService(repo *mockSettingRepo, dumper DBDumper, store *mockObjectStore) *BackupService {
@@ -286,6 +287,34 @@ func TestBackupService_S3ConfigKeepExistingSecret(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "original-secret", internal.SecretAccessKey)
 	require.Equal(t, "AKID-NEW", internal.AccessKeyID)
+}
+
+func TestBackupService_TestS3ConnectionRequiresExplicitSecret(t *testing.T) {
+	repo := newMockSettingRepo()
+	svc := newTestBackupService(repo, &mockDumper{}, newMockObjectStore())
+	seedS3Config(t, repo)
+
+	err := svc.TestS3Connection(context.Background(), BackupS3Config{
+		Endpoint:    "https://s3.example.com",
+		Bucket:      "bucket",
+		AccessKeyID: "AKID",
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrBackupS3TestRequiresSecret)
+}
+
+func TestBackupService_TestS3ConnectionRejectsPrivateEndpoint(t *testing.T) {
+	repo := newMockSettingRepo()
+	svc := newTestBackupService(repo, &mockDumper{}, newMockObjectStore())
+
+	err := svc.TestS3Connection(context.Background(), BackupS3Config{
+		Endpoint:        "https://127.0.0.1:9000",
+		Bucket:          "bucket",
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "secret",
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrBackupS3EndpointInvalid)
 }
 
 func TestBackupService_SaveRecordConcurrency(t *testing.T) {
@@ -503,6 +532,7 @@ func TestBackupService_TestS3Connection(t *testing.T) {
 	svc := newTestBackupService(repo, &mockDumper{}, store)
 
 	err := svc.TestS3Connection(context.Background(), BackupS3Config{
+		Endpoint:        "https://example.com",
 		Bucket:          "test",
 		AccessKeyID:     "ak",
 		SecretAccessKey: "sk",
@@ -518,7 +548,7 @@ func TestBackupService_TestS3Connection_Incomplete(t *testing.T) {
 		Bucket: "test",
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "incomplete")
+	require.ErrorContains(t, err, "BACKUP_S3_TEST_INCOMPLETE")
 }
 
 func TestBackupService_Schedule_CronValidation(t *testing.T) {

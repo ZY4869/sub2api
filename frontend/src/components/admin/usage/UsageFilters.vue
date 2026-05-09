@@ -147,20 +147,28 @@
       </div>
 
       <!-- Right: actions -->
-      <div v-if="showActions" class="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
-        <button type="button" @click="$emit('refresh')" class="btn btn-secondary">
-          {{ t('common.refresh') }}
-        </button>
-        <button type="button" @click="$emit('reset')" class="btn btn-secondary">
-          {{ t('common.reset') }}
-        </button>
-        <slot name="after-reset" />
-        <button type="button" @click="$emit('cleanup')" class="btn btn-danger">
-          {{ t('admin.usage.cleanup.button') }}
-        </button>
-        <button type="button" @click="$emit('export')" :disabled="exporting" class="btn btn-primary">
-          {{ t('usage.exportExcel') }}
-        </button>
+      <div
+        v-if="showActions"
+        class="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[420px] xl:items-end"
+      >
+        <div class="flex w-full flex-wrap items-center justify-start gap-3 xl:justify-between">
+          <slot name="toolbar-left" />
+          <div class="flex flex-wrap items-center justify-end gap-3 xl:ml-auto">
+            <button type="button" @click="$emit('refresh')" class="btn btn-secondary">
+              {{ t('common.refresh') }}
+            </button>
+            <button type="button" @click="$emit('reset')" class="btn btn-secondary">
+              {{ t('common.reset') }}
+            </button>
+            <slot name="after-reset" />
+            <button type="button" @click="$emit('cleanup')" class="btn btn-danger">
+              {{ t('admin.usage.cleanup.button') }}
+            </button>
+            <button type="button" @click="$emit('export')" :disabled="exporting" class="btn btn-primary">
+              {{ t('usage.exportExcel') }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

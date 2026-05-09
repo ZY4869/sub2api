@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 )
 
 const (
@@ -30,12 +32,14 @@ const (
 )
 
 var (
-	ErrBackupS3NotConfigured = infraerrors.BadRequest("BACKUP_S3_NOT_CONFIGURED", "backup S3 storage is not configured")
-	ErrBackupNotFound        = infraerrors.NotFound("BACKUP_NOT_FOUND", "backup record not found")
-	ErrBackupInProgress      = infraerrors.Conflict("BACKUP_IN_PROGRESS", "a backup is already in progress")
-	ErrRestoreInProgress     = infraerrors.Conflict("RESTORE_IN_PROGRESS", "a restore is already in progress")
-	ErrBackupRecordsCorrupt  = infraerrors.InternalServer("BACKUP_RECORDS_CORRUPT", "backup records data is corrupted")
-	ErrBackupS3ConfigCorrupt = infraerrors.InternalServer("BACKUP_S3_CONFIG_CORRUPT", "backup S3 config data is corrupted")
+	ErrBackupS3NotConfigured      = infraerrors.BadRequest("BACKUP_S3_NOT_CONFIGURED", "backup S3 storage is not configured")
+	ErrBackupNotFound             = infraerrors.NotFound("BACKUP_NOT_FOUND", "backup record not found")
+	ErrBackupInProgress           = infraerrors.Conflict("BACKUP_IN_PROGRESS", "a backup is already in progress")
+	ErrRestoreInProgress          = infraerrors.Conflict("RESTORE_IN_PROGRESS", "a restore is already in progress")
+	ErrBackupRecordsCorrupt       = infraerrors.InternalServer("BACKUP_RECORDS_CORRUPT", "backup records data is corrupted")
+	ErrBackupS3ConfigCorrupt      = infraerrors.InternalServer("BACKUP_S3_CONFIG_CORRUPT", "backup S3 config data is corrupted")
+	ErrBackupS3TestRequiresSecret = infraerrors.BadRequest("BACKUP_S3_TEST_SECRET_REQUIRED", "secret_access_key is required when testing S3 connectivity")
+	ErrBackupS3EndpointInvalid    = infraerrors.BadRequest("BACKUP_S3_ENDPOINT_INVALID", "S3 endpoint is not allowed")
 )
 
 // ─── 接口定义 ───
@@ -107,6 +111,7 @@ type BackupRecord struct {
 type BackupService struct {
 	settingRepo  SettingRepository
 	dbCfg        *config.DatabaseConfig
+	cfg          *config.Config
 	encryptor    SecretEncryptor
 	storeFactory BackupObjectStoreFactory
 	dumper       DBDumper
@@ -142,6 +147,7 @@ func NewBackupService(
 	return &BackupService{
 		settingRepo:  settingRepo,
 		dbCfg:        &cfg.Database,
+		cfg:          cfg,
 		encryptor:    encryptor,
 		storeFactory: storeFactory,
 		dumper:       dumper,
@@ -284,23 +290,24 @@ func (s *BackupService) UpdateS3Config(ctx context.Context, cfg BackupS3Config) 
 }
 
 func (s *BackupService) TestS3Connection(ctx context.Context, cfg BackupS3Config) error {
-	// 如果没提供 secret，用已保存的
-	if cfg.SecretAccessKey == "" {
-		old, _ := s.loadS3Config(ctx)
-		if old != nil {
-			cfg.SecretAccessKey = old.SecretAccessKey
-		}
+	if cfg.Bucket == "" || cfg.AccessKeyID == "" {
+		return infraerrors.BadRequest("BACKUP_S3_TEST_INCOMPLETE", "bucket and access_key_id are required when testing S3 connectivity")
 	}
-
-	if cfg.Bucket == "" || cfg.AccessKeyID == "" || cfg.SecretAccessKey == "" {
-		return fmt.Errorf("incomplete S3 config: bucket, access_key_id, secret_access_key are required")
+	if strings.TrimSpace(cfg.SecretAccessKey) == "" {
+		return ErrBackupS3TestRequiresSecret
+	}
+	if err := s.validateS3TestEndpoint(ctx, cfg.Endpoint); err != nil {
+		return err
 	}
 
 	store, err := s.storeFactory(ctx, &cfg)
 	if err != nil {
-		return err
+		return infraerrors.BadRequest("BACKUP_S3_TEST_FAILED", "failed to initialize S3 client for the provided endpoint").WithCause(err)
 	}
-	return store.HeadBucket(ctx)
+	if err := store.HeadBucket(ctx); err != nil {
+		return infraerrors.BadRequest("BACKUP_S3_TEST_FAILED", "failed to reach the provided S3 bucket with the supplied credentials").WithCause(err)
+	}
+	return nil
 }
 
 // ─── 定时备份管理 ───
@@ -999,6 +1006,42 @@ func (s *BackupService) getOrCreateStore(ctx context.Context, cfg *BackupS3Confi
 	s.store = store
 	s.s3Cfg = cfg
 	return store, nil
+}
+
+func (s *BackupService) validateS3TestEndpoint(ctx context.Context, endpoint string) error {
+	normalized := strings.TrimSpace(endpoint)
+	if normalized == "" {
+		return nil
+	}
+
+	allowlistCfg := config.URLAllowlistConfig{}
+	if s != nil && s.cfg != nil {
+		allowlistCfg = s.cfg.Security.URLAllowlist
+	}
+
+	allowedHosts := append([]string{}, allowlistCfg.UpstreamHosts...)
+	opts := urlvalidator.ValidationOptions{
+		AllowedHosts:     allowedHosts,
+		AllowPrivate:     false,
+		RequireAllowlist: len(allowedHosts) > 0,
+	}
+	validated, err := urlvalidator.ValidateHTTPSURL(normalized, opts)
+	if err != nil {
+		return ErrBackupS3EndpointInvalid.WithCause(err)
+	}
+
+	host := ""
+	if parsed, parseErr := url.Parse(validated); parseErr == nil {
+		host = parsed.Hostname()
+	}
+	if host == "" {
+		return ErrBackupS3EndpointInvalid
+	}
+	if err := urlvalidator.ValidateResolvedIP(host); err != nil {
+		return ErrBackupS3EndpointInvalid.WithCause(err)
+	}
+	_ = ctx
+	return nil
 }
 
 func (s *BackupService) buildS3Key(cfg *BackupS3Config, fileName string) string {

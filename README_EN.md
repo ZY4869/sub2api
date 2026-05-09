@@ -24,7 +24,7 @@ Demo credentials (shared demo environment; **not** created automatically for sel
 
 | Email | Password |
 |-------|----------|
-| admin@sub2api.com | admin123 |
+| admin@sub2api.com | See the live demo notice |
 
 ## Overview
 

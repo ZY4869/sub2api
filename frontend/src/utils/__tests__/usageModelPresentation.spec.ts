@@ -48,6 +48,7 @@ import {
   normalizeUsageModelDisplayMode,
   normalizeUsageContextBadgeDisplayMode,
   resolveUsageContextBadge,
+  resolveUsageContextBadges,
   resolveContextWindowTier,
 } from '../usageModelPresentation'
 
@@ -142,6 +143,28 @@ describe('usageModelPresentation', () => {
     expect(normalizeUsageContextBadgeDisplayMode('bad-mode')).toBe('request_only')
     expect(resolveUsageContextBadge(presentation, 'request_only')).toBeNull()
     expect(resolveUsageContextBadge(presentation, 'native_only')?.label).toBe('256K')
-    expect(resolveUsageContextBadge(presentation, 'both')?.label).toBe('256K')
+    expect(resolveUsageContextBadges(presentation, 'request_only')).toEqual([])
+    expect(resolveUsageContextBadges(presentation, 'native_only').map((badge) => badge.label)).toEqual(['256K'])
+    expect(resolveUsageContextBadges(presentation, 'both').map((badge) => badge.label)).toEqual(['256K'])
+  })
+
+  it('returns request badge before native context badge in both mode', () => {
+    const presentation = buildUsageModelLinePresentation('deepseek-v4-pro', 'display_only', {
+      million_context_requested: true,
+      million_context_effective: false,
+    })
+
+    expect(
+      resolveUsageContextBadges(presentation, 'both').map((badge) => badge.labelKey || badge.label)
+    ).toEqual(['usage.contextBadgeRequested1M', '1M'])
+  })
+
+  it('returns an empty badge list when neither request nor native context exists', () => {
+    const presentation = buildUsageModelLinePresentation('unknown-model', 'model_only', {
+      million_context_requested: false,
+      million_context_effective: false,
+    })
+
+    expect(resolveUsageContextBadges(presentation, 'both')).toEqual([])
   })
 })

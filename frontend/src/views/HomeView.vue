@@ -8,8 +8,11 @@
       class="h-screen w-full border-0"
       allowfullscreen
     ></iframe>
-    <!-- HTML mode - SECURITY: homeContent is admin-only setting, XSS risk is acceptable -->
-    <div v-else v-html="homeContent"></div>
+    <div
+      v-else
+      class="home-content-safe prose mx-auto max-w-5xl px-6 py-8 dark:prose-invert"
+      v-html="renderedHomeContent"
+    ></div>
   </div>
 
   <!-- Default Home Page -->
@@ -410,6 +413,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { renderSafeMarkdown } from '@/utils/sanitize'
 
 const { t } = useI18n()
 
@@ -422,6 +426,7 @@ const siteLogo = computed(() => appStore.cachedPublicSettings?.site_logo || appS
 const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || 'AI API Gateway Platform')
 const docUrl = computed(() => appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
+const renderedHomeContent = computed(() => renderSafeMarkdown(homeContent.value))
 
 // Check if homeContent is a URL (for iframe display)
 const isHomeContentUrl = computed(() => {

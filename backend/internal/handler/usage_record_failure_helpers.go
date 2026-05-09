@@ -116,7 +116,7 @@ func (h *OpenAIGatewayHandler) submitFailedUsageRecordTask(
 	}
 	resolution := resolveFailedUsageResolution(c, failoverErr, err)
 	userAgent := c.GetHeader("User-Agent")
-	clientIP := ip.GetClientIP(c)
+	clientIP := ip.GetTrustedClientIP(c)
 	inboundEndpoint := GetInboundEndpoint(c)
 	upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 	simulatedClient := resolveFailedUsageSimulatedClient(account, service.PlatformOpenAI, model)
@@ -183,7 +183,7 @@ func (h *GatewayHandler) submitFailedUsageRecordTask(
 	}
 	resolution := resolveFailedUsageResolution(c, failoverErr, err)
 	userAgent := c.GetHeader("User-Agent")
-	clientIP := ip.GetClientIP(c)
+	clientIP := ip.GetTrustedClientIP(c)
 	inboundEndpoint := GetInboundEndpoint(c)
 	upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 	simulatedClient := resolveFailedUsageSimulatedClient(account, protocol, model)
@@ -252,7 +252,7 @@ func (h *GrokGatewayHandler) submitFailedUsageRecordTask(
 	}
 	resolution := resolveFailedUsageResolution(c, failoverErr, err)
 	userAgent := c.GetHeader("User-Agent")
-	clientIP := ip.GetClientIP(c)
+	clientIP := ip.GetTrustedClientIP(c)
 	inboundEndpoint := GetInboundEndpoint(c)
 	upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 

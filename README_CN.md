@@ -27,7 +27,7 @@
 
 | 邮箱 | 密码 |
 |------|------|
-| admin@sub2api.org | admin123 |
+| admin@sub2api.org | 请查看演示页说明 |
 
 ## 项目概述
 

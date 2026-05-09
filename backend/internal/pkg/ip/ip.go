@@ -9,6 +9,8 @@ import (
 )
 
 // GetClientIP 从 Gin Context 中提取客户端真实 IP 地址。
+// Deprecated: 该方法会优先信任原始转发头，只能用于纯诊断场景，
+// 不能用于鉴权、限流、审计、计费或任何安全敏感决策。
 // 按以下优先级检查 Header：
 // 1. CF-Connecting-IP (Cloudflare)
 // 2. X-Real-IP (Nginx)

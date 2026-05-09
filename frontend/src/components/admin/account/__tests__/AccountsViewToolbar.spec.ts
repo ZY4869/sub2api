@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import AccountsViewToolbar from "../AccountsViewToolbar.vue";
 
@@ -145,29 +146,41 @@ describe("AccountsViewToolbar", () => {
       )
       ?.trigger("click");
 
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
     await wrapper
-      .get('button[title="admin.users.columnSettings"]')
-      .trigger("click");
+      .findAll("button")
+      .find((button) => button.text().includes("admin.users.columnSettings"))
+      ?.trigger("click");
+    await nextTick();
     await wrapper
       .findAll("button")
       .find((button) => button.text().includes("Proxy"))
       ?.trigger("click");
     await wrapper.get('[data-daily5h-toggle="true"]').trigger("click");
     await wrapper.get('[data-daily5h-settings="true"]').trigger("click");
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
     await wrapper
       .findAll("button")
       .find((button) => button.text().includes("admin.accounts.dataImport"))
       ?.trigger("click");
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
     await wrapper
       .findAll("button")
       .find((button) =>
         button.text().includes("admin.accounts.dataExportSelected"),
       )
       ?.trigger("click");
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
     await wrapper
       .findAll("button")
       .find((button) => button.text().includes("admin.errorPassthrough.title"))
       ?.trigger("click");
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
     await wrapper
       .findAll("button")
       .find((button) =>

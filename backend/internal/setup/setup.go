@@ -386,13 +386,7 @@ func createAdminUser(cfg *SetupConfig) (bool, string, error) {
 	}
 
 	if strings.TrimSpace(cfg.Admin.Password) == "" {
-		password, genErr := generateSecret(16)
-		if genErr != nil {
-			return false, "", fmt.Errorf("failed to generate admin password: %w", genErr)
-		}
-		cfg.Admin.Password = password
-		fmt.Printf("Generated admin password (one-time): %s\n", cfg.Admin.Password)
-		fmt.Println("IMPORTANT: Save this password! It will not be shown again.")
+		return false, "", fmt.Errorf("admin password is required for initial admin bootstrap")
 	}
 
 	admin := &service.User{
@@ -513,6 +507,13 @@ func AutoSetupEnabled() bool {
 	return val == "true" || val == "1" || val == "yes"
 }
 
+func SetupWindowOpen() bool {
+	if !AutoSetupEnabled() {
+		return false
+	}
+	return NeedsSetup()
+}
+
 // getEnvOrDefault gets environment variable or returns default value
 func getEnvOrDefault(key, defaultValue string) string {
 	if val := os.Getenv(key); val != "" {
@@ -584,6 +585,10 @@ func AutoSetupFromEnv() error {
 		}
 		cfg.JWT.Secret = secret
 		logger.LegacyPrintf("setup", "%s", "Warning: JWT secret auto-generated. Consider setting a fixed secret for production.")
+	}
+
+	if strings.TrimSpace(cfg.Admin.Password) == "" {
+		return fmt.Errorf("ADMIN_PASSWORD is required when AUTO_SETUP is enabled")
 	}
 
 	// Test database connection

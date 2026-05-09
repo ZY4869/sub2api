@@ -32,7 +32,7 @@ func (h *GatewayHandler) forwardGeminiLiveWebSocket(c *gin.Context) {
 		return
 	}
 	subscription, _ := middleware.GetSubscriptionFromContext(c)
-	clientIP := ip.GetClientIP(c)
+	clientIP := ip.GetTrustedClientIP(c)
 	userAgent := c.GetHeader("User-Agent")
 	reqLog := requestLogger(c, "handler.gemini_v1beta.live", zap.Int64("user_id", authSubject.UserID), zap.Int64("api_key_id", apiKey.ID), zap.Any("group_id", apiKey.GroupID))
 

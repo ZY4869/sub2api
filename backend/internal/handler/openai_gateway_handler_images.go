@@ -308,7 +308,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 
 		if result != nil && currentAPIKey.User != nil {
 			userAgent := c.GetHeader("User-Agent")
-			clientIP := ip.GetClientIP(c)
+			clientIP := ip.GetTrustedClientIP(c)
 			requestPayloadHash := service.HashUsageRequestPayload(body)
 			h.submitUsageRecordTask(func(ctx context.Context) {
 				_ = h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{

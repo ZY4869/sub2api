@@ -203,7 +203,7 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 		return
 	}
 	userAgent := c.GetHeader("User-Agent")
-	clientIP := ip.GetClientIP(c)
+	clientIP := ip.GetTrustedClientIP(c)
 	h.submitUsageRecordTask(func(ctx context.Context) {
 		if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
 			Result:                result.ForwardResult,

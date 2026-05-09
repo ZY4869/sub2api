@@ -81,7 +81,7 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing")
 		return
 	}
-	parsedReq.SessionContext = &service.SessionContext{ClientIP: ip.GetClientIP(c), UserAgent: c.GetHeader("User-Agent"), APIKeyID: apiKey.ID}
+	parsedReq.SessionContext = &service.SessionContext{ClientIP: ip.GetTrustedClientIP(c), UserAgent: c.GetHeader("User-Agent"), APIKeyID: apiKey.ID}
 	sessionHash := h.gatewayService.GenerateSessionHash(parsedReq)
 	account, err := h.gatewayService.SelectAccountForModel(c.Request.Context(), apiKey.GroupID, sessionHash, selectionModel)
 	if err != nil {

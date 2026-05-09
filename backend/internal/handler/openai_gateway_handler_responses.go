@@ -650,7 +650,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 
 			// 捕获请求信息（用于异步记录，避免在 goroutine 中访问 gin.Context）
 			userAgent := c.GetHeader("User-Agent")
-			clientIP := ip.GetClientIP(c)
+			clientIP := ip.GetTrustedClientIP(c)
 
 			if reservedImageUnits > 0 && !imageCountSettled {
 				actualCount := expectedImageCount

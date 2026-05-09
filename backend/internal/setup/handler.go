@@ -49,21 +49,28 @@ type SetupStatus struct {
 // getStatus returns the current setup status
 func getStatus(c *gin.Context) {
 	response.Success(c, SetupStatus{
-		NeedsSetup: NeedsSetup(),
-		Step:       "welcome",
+		NeedsSetup: SetupWindowOpen(),
+		Step:       currentSetupStep(),
 	})
 }
 
 // setupGuard middleware ensures setup endpoints are only accessible during setup mode
 func setupGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !NeedsSetup() {
-			response.Error(c, http.StatusForbidden, "Setup is not allowed: system is already installed")
+		if !SetupWindowOpen() {
+			response.Error(c, http.StatusForbidden, "Setup is not allowed: auto setup is disabled or the installation window is already closed")
 			c.Abort()
 			return
 		}
 		c.Next()
 	}
+}
+
+func currentSetupStep() string {
+	if !SetupWindowOpen() {
+		return "completed"
+	}
+	return "welcome"
 }
 
 // validateHostname checks if a hostname/IP is safe (no injection characters)
@@ -240,8 +247,8 @@ func install(c *gin.Context) {
 	defer installMutex.Unlock()
 
 	// Double-check after acquiring lock
-	if !NeedsSetup() {
-		response.Error(c, http.StatusForbidden, "Setup is not allowed: system is already installed")
+	if !SetupWindowOpen() {
+		response.Error(c, http.StatusForbidden, "Setup is not allowed: auto setup is disabled or the installation window is already closed")
 		return
 	}
 

@@ -6,6 +6,7 @@ import UsageTable from '../UsageTable.vue'
 
 const messages: Record<string, string> = {
   'usage.costDetails': 'Cost Breakdown',
+  'usage.contextBadgeRequested1M': 'Requested 1M',
   'usage.statusFailed': 'Failed',
   'usage.statusSucceeded': 'Succeeded',
   'usage.httpStatus': 'HTTP Status',
@@ -53,6 +54,45 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
+vi.mock('@/stores/modelRegistry', () => ({
+  getModelRegistrySnapshot: () => ({
+    etag: 'usage-table-test-etag',
+    updated_at: '2026-05-09T00:00:00Z',
+    provider_labels: {},
+    presets: [],
+    models: [
+      {
+        id: 'deepseek-v4-pro',
+        display_name: 'DeepSeek V4 Pro',
+        provider: 'deepseek',
+        platforms: ['deepseek'],
+        protocol_ids: ['deepseek-v4-pro'],
+        aliases: [],
+        pricing_lookup_ids: ['deepseek-v4-pro'],
+        context_window_tokens: 1_048_576,
+        modalities: ['text'],
+        capabilities: ['reasoning'],
+        ui_priority: 1,
+        exposed_in: ['runtime'],
+      },
+      {
+        id: 'doubao-pro-256k',
+        display_name: 'Doubao Pro 256K',
+        provider: 'doubao',
+        platforms: ['doubao'],
+        protocol_ids: ['doubao-pro-256k'],
+        aliases: [],
+        pricing_lookup_ids: ['doubao-pro-256k'],
+        context_window_tokens: 262_144,
+        modalities: ['text'],
+        capabilities: [],
+        ui_priority: 1,
+        exposed_in: ['runtime'],
+      },
+    ],
+  }),
+}))
+
 vi.mock('@/composables/useUsageModelDisplayModePreference', () => ({
   useUsageModelDisplayModePreference: () => ({
     usageModelDisplayMode: 'model_only',
@@ -75,14 +115,50 @@ const DataTableStub = {
     <div>
       <span data-testid="row-key-prop">{{ rowKey }}</span>
       <div v-for="(row, index) in data" :key="(row && row[rowKey]) || row.request_id || index">
+        <slot name="cell-model" :row="row" />
         <slot name="cell-status" :row="row" />
         <slot name="cell-reasoning_effort" :row="row" />
         <slot name="cell-request_protocol" :row="row" />
+        <slot name="cell-stream" :row="row" />
         <slot name="cell-tokens" :row="row" />
         <slot name="cell-cost" :row="row" />
       </div>
     </div>
   `,
+}
+
+function mountUsageTable(
+  data: Record<string, unknown>[],
+  options: {
+    props?: Record<string, unknown>
+    stubs?: Record<string, unknown>
+  } = {},
+) {
+  return mount(UsageTable, {
+    props: {
+      data,
+      loading: false,
+      columns: [],
+      usageModelDisplayMode: 'model_only',
+      usageContextBadgeDisplayMode: 'request_only',
+      ...options.props,
+    },
+    global: {
+      stubs: {
+        DataTable: DataTableStub,
+        EmptyState: true,
+        Icon: true,
+        ModelIcon: true,
+        Teleport: true,
+        UsageContextBadge: {
+          props: ['badge'],
+          template:
+            '<span v-if="badge" data-test="usage-context-badge">{{ badge.labelKey || badge.label }}</span>',
+        },
+        ...options.stubs,
+      },
+    },
+  })
 }
 
 describe('admin UsageTable tooltip', () => {
@@ -117,21 +193,7 @@ describe('admin UsageTable tooltip', () => {
       output_tokens: 101,
     }
 
-    const wrapper = mount(UsageTable, {
-      props: {
-        data: [row],
-        loading: false,
-        columns: [],
-      },
-      global: {
-        stubs: {
-          DataTable: DataTableStub,
-          EmptyState: true,
-          Icon: true,
-          Teleport: true,
-        },
-      },
-    })
+    const wrapper = mountUsageTable([row])
 
     await wrapper.findAll('.group.relative')[1]?.trigger('mouseenter')
     await nextTick()
@@ -171,21 +233,7 @@ describe('admin UsageTable tooltip', () => {
       output_tokens: 0,
     }
 
-    const wrapper = mount(UsageTable, {
-      props: {
-        data: [row],
-        loading: false,
-        columns: [],
-      },
-      global: {
-        stubs: {
-          DataTable: DataTableStub,
-          EmptyState: true,
-          Icon: true,
-          Teleport: true,
-        },
-      },
-    })
+    const wrapper = mountUsageTable([row])
 
     const text = wrapper.text()
     expect(text).toContain('Failed')
@@ -216,21 +264,7 @@ describe('admin UsageTable tooltip', () => {
       output_tokens: 0,
     }
 
-    const wrapper = mount(UsageTable, {
-      props: {
-        data: [row],
-        loading: false,
-        columns: [],
-      },
-      global: {
-        stubs: {
-          DataTable: DataTableStub,
-          EmptyState: true,
-          Icon: true,
-          Teleport: true,
-        },
-      },
-    })
+    const wrapper = mountUsageTable([row])
 
     const text = wrapper.text()
     expect(text).toContain('OpenAI')
@@ -238,21 +272,16 @@ describe('admin UsageTable tooltip', () => {
   })
 
   it('passes the stable id row key to the shared DataTable', () => {
-    const wrapper = mount(UsageTable, {
-      props: {
-        data: [{ id: 99, request_id: '', input_tokens: 0, output_tokens: 0, actual_cost: 0, total_cost: 0 }],
-        loading: false,
-        columns: [],
+    const wrapper = mountUsageTable([
+      {
+        id: 99,
+        request_id: '',
+        input_tokens: 0,
+        output_tokens: 0,
+        actual_cost: 0,
+        total_cost: 0,
       },
-      global: {
-        stubs: {
-          DataTable: DataTableStub,
-          EmptyState: true,
-          Icon: true,
-          Teleport: true,
-        },
-      },
-    })
+    ])
 
     expect(wrapper.get('[data-testid="row-key-prop"]').text()).toBe('id')
   })
@@ -278,21 +307,7 @@ describe('admin UsageTable tooltip', () => {
       cache_read_cost: 0,
     }
 
-    const wrapper = mount(UsageTable, {
-      props: {
-        data: [row],
-        loading: false,
-        columns: [],
-      },
-      global: {
-        stubs: {
-          DataTable: DataTableStub,
-          EmptyState: true,
-          Icon: true,
-          Teleport: true,
-        },
-      },
-    })
+    const wrapper = mountUsageTable([row])
 
     await wrapper.findAll('.group.relative')[0]?.trigger('mouseenter')
     await nextTick()
@@ -324,21 +339,7 @@ describe('admin UsageTable tooltip', () => {
       output_tokens: 0,
     }
 
-    const wrapper = mount(UsageTable, {
-      props: {
-        data: [row],
-        loading: false,
-        columns: [],
-      },
-      global: {
-        stubs: {
-          DataTable: DataTableStub,
-          EmptyState: true,
-          Icon: true,
-          Teleport: true,
-        },
-      },
-    })
+    const wrapper = mountUsageTable([row])
 
     const text = wrapper.text()
     expect(text).toContain('Max -> Xhigh')
@@ -366,34 +367,113 @@ describe('admin UsageTable tooltip', () => {
       output_tokens: 0,
     }
 
-    const wrapper = mount(UsageTable, {
-      props: {
-        data: [row],
-        loading: false,
-        columns: [],
-      },
-      global: {
-        stubs: {
-          DataTable: {
-            props: ['data', 'rowKey'],
-            template: `
-              <div>
-                <div v-for="(row, index) in data" :key="(row && row[rowKey]) || index">
-                  <slot name="cell-stream" :row="row" />
-                </div>
-              </div>
-            `,
-          },
-          EmptyState: true,
-          Icon: true,
-          Teleport: true,
-          UsageContextBadgeDisplayModeToggle: true,
-        },
-      },
-    })
+    const wrapper = mountUsageTable([row])
 
     const text = wrapper.text()
     expect(text).toContain('Stream')
     expect(text).toContain('Account Test')
+  })
+
+  it('renders request, native, and combined context badges with the expected order', () => {
+    const row = {
+      id: 7,
+      request_id: 'req-admin-context-badges',
+      model: 'deepseek-v4-pro',
+      million_context_requested: true,
+      million_context_effective: false,
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    }
+
+    const requestOnlyWrapper = mountUsageTable([row], {
+      props: {
+        usageContextBadgeDisplayMode: 'request_only',
+      },
+    })
+    expect(
+      requestOnlyWrapper
+        .findAll('[data-test="usage-context-badge"]')
+        .map((badge) => badge.text()),
+    ).toEqual(['usage.contextBadgeRequested1M'])
+
+    const nativeOnlyWrapper = mountUsageTable([row], {
+      props: {
+        usageContextBadgeDisplayMode: 'native_only',
+      },
+    })
+    expect(
+      nativeOnlyWrapper
+        .findAll('[data-test="usage-context-badge"]')
+        .map((badge) => badge.text()),
+    ).toEqual(['1M'])
+
+    const bothWrapper = mountUsageTable([row], {
+      props: {
+        usageContextBadgeDisplayMode: 'both',
+      },
+    })
+    expect(
+      bothWrapper
+        .findAll('[data-test="usage-context-badge"]')
+        .map((badge) => badge.text()),
+    ).toEqual(['usage.contextBadgeRequested1M', '1M'])
+  })
+
+  it('keeps showing the existing badge in both mode when only one side is available', () => {
+    const nativeOnlyRow = {
+      id: 8,
+      request_id: 'req-admin-native-badge-only',
+      model: 'doubao-pro-256k',
+      million_context_requested: false,
+      million_context_effective: false,
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    }
+    const requestOnlyRow = {
+      ...nativeOnlyRow,
+      id: 9,
+      request_id: 'req-admin-request-badge-only',
+      model: 'unknown-model',
+      million_context_requested: true,
+      million_context_effective: false,
+    }
+
+    const nativeOnlyWrapper = mountUsageTable([nativeOnlyRow], {
+      props: {
+        usageContextBadgeDisplayMode: 'both',
+      },
+    })
+    expect(
+      nativeOnlyWrapper
+        .findAll('[data-test="usage-context-badge"]')
+        .map((badge) => badge.text()),
+    ).toEqual(['256K'])
+
+    const requestOnlyWrapper = mountUsageTable([requestOnlyRow], {
+      props: {
+        usageContextBadgeDisplayMode: 'both',
+      },
+    })
+    expect(
+      requestOnlyWrapper
+        .findAll('[data-test="usage-context-badge"]')
+        .map((badge) => badge.text()),
+    ).toEqual(['usage.contextBadgeRequested1M'])
   })
 })

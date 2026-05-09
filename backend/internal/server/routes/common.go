@@ -3,6 +3,7 @@ package routes
 import (
 	"net/http"
 
+	"github.com/Wei-Shaw/sub2api/internal/setup"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,11 +22,17 @@ func RegisterCommonRoutes(r *gin.Engine) {
 	// Setup status endpoint (always returns needs_setup: false in normal mode)
 	// This is used by the frontend to detect when the service has restarted after setup
 	r.GET("/setup/status", func(c *gin.Context) {
+		needsSetup := false
+		step := "completed"
+		if setup.SetupWindowOpen() {
+			needsSetup = true
+			step = "welcome"
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"code": 0,
 			"data": gin.H{
-				"needs_setup": false,
-				"step":        "completed",
+				"needs_setup": needsSetup,
+				"step":        step,
 			},
 		})
 	})

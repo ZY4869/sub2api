@@ -29,6 +29,18 @@ const routeState = vi.hoisted(() => ({
   replace: vi.fn(),
 }));
 
+const usageModelDisplayModeState = vi.hoisted(() => ({
+  usageModelDisplayMode: "display_and_model" as const,
+  updatingUsageModelDisplayMode: false,
+  setUsageModelDisplayMode: vi.fn(),
+}));
+
+const usageContextBadgeDisplayModeState = vi.hoisted(() => ({
+  usageContextBadgeDisplayMode: "both" as const,
+  updatingUsageContextBadgeDisplayMode: false,
+  setUsageContextBadgeDisplayMode: vi.fn(),
+}));
+
 const messages: Record<string, string> = {
   "admin.dashboard.day": "Day",
   "admin.dashboard.hour": "Hour",
@@ -86,6 +98,15 @@ vi.mock("@/stores/auth", () => ({
   useAuthStore: () => authState,
 }));
 
+vi.mock("@/composables/useUsageModelDisplayModePreference", () => ({
+  useUsageModelDisplayModePreference: () => usageModelDisplayModeState,
+}));
+
+vi.mock("@/composables/useUsageContextBadgeDisplayModePreference", () => ({
+  useUsageContextBadgeDisplayModePreference: () =>
+    usageContextBadgeDisplayModeState,
+}));
+
 vi.mock("vue-router", () => ({
   useRoute: () => routeState,
   useRouter: () => ({
@@ -119,20 +140,50 @@ const UsageFiltersStub = {
   props: ["modelValue"],
   template: `
     <div>
+      <div data-test="toolbar-left"><slot name="toolbar-left" /></div>
       <button
         data-test="apply-channel-filter"
         @click="$emit('update:modelValue', { ...modelValue, channel_id: 11 }); $emit('change')"
       >
         apply channel
       </button>
-      <slot name="after-reset" />
+      <div data-test="after-reset"><slot name="after-reset" /></div>
     </div>
   `,
 };
 const UsageTableStub = {
-  props: ["columns"],
-  template:
-    '<div data-test="usage-table-columns">{{ columns.map(column => column.key).join(",") }}</div>',
+  props: ["columns", "usageModelDisplayMode", "usageContextBadgeDisplayMode"],
+  template: `
+    <div>
+      <div data-test="usage-table-columns">{{ columns.map(column => column.key).join(",") }}</div>
+      <div data-test="usage-table-display-mode">{{ usageModelDisplayMode }}</div>
+      <div data-test="usage-table-badge-mode">{{ usageContextBadgeDisplayMode }}</div>
+    </div>
+  `,
+};
+const UsageModelDisplayModeToggleStub = {
+  props: ["modelValue", "disabled"],
+  emits: ["update:modelValue"],
+  template: `
+    <button
+      data-test="usage-model-display-toggle"
+      @click="$emit('update:modelValue', 'model_only')"
+    >
+      {{ modelValue }}
+    </button>
+  `,
+};
+const UsageContextBadgeDisplayModeToggleStub = {
+  props: ["modelValue", "disabled"],
+  emits: ["update:modelValue"],
+  template: `
+    <button
+      data-test="usage-context-badge-toggle"
+      @click="$emit('update:modelValue', 'native_only')"
+    >
+      {{ modelValue }}
+    </button>
+  `,
 };
 const ModelDistributionChartStub = {
   props: ["metric"],
@@ -155,6 +206,34 @@ const GroupDistributionChartStub = {
   `,
 };
 
+function mountUsageView(extraStubs: Record<string, unknown> = {}) {
+  return mount(UsageView, {
+    global: {
+      stubs: {
+        AppLayout: AppLayoutStub,
+        UsageStatsCards: true,
+        UsageFilters: UsageFiltersStub,
+        UsageTable: UsageTableStub,
+        UsageExportProgress: true,
+        UsageCleanupDialog: true,
+        UserBalanceHistoryModal: true,
+        Pagination: true,
+        Select: true,
+        DateRangePicker: true,
+        Icon: true,
+        TokenDisplayModeToggle: true,
+        TokenUsageTrend: true,
+        UsageModelDisplayModeToggle: UsageModelDisplayModeToggleStub,
+        UsageContextBadgeDisplayModeToggle:
+          UsageContextBadgeDisplayModeToggleStub,
+        ModelDistributionChart: ModelDistributionChartStub,
+        GroupDistributionChart: GroupDistributionChartStub,
+        ...extraStubs,
+      },
+    },
+  });
+}
+
 describe("admin UsageView distribution metric toggles", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -167,6 +246,13 @@ describe("admin UsageView distribution metric toggles", () => {
     routeState.replace.mockReset();
     authState.isAdmin = true;
     authState.canReviewRequestDetails = true;
+    usageModelDisplayModeState.usageModelDisplayMode = "display_and_model";
+    usageModelDisplayModeState.updatingUsageModelDisplayMode = false;
+    usageModelDisplayModeState.setUsageModelDisplayMode.mockReset();
+    usageContextBadgeDisplayModeState.usageContextBadgeDisplayMode = "both";
+    usageContextBadgeDisplayModeState.updatingUsageContextBadgeDisplayMode =
+      false;
+    usageContextBadgeDisplayModeState.setUsageContextBadgeDisplayMode.mockReset();
 
     list.mockResolvedValue({
       items: [],
@@ -198,27 +284,7 @@ describe("admin UsageView distribution metric toggles", () => {
   });
 
   it("keeps model and group metric toggles independent without refetching chart data", async () => {
-    const wrapper = mount(UsageView, {
-      global: {
-        stubs: {
-          AppLayout: AppLayoutStub,
-          UsageStatsCards: true,
-          UsageFilters: UsageFiltersStub,
-          UsageTable: UsageTableStub,
-          UsageExportProgress: true,
-          UsageCleanupDialog: true,
-          UserBalanceHistoryModal: true,
-          Pagination: true,
-          Select: true,
-          DateRangePicker: true,
-          Icon: true,
-          TokenDisplayModeToggle: true,
-          TokenUsageTrend: true,
-          ModelDistributionChart: ModelDistributionChartStub,
-          GroupDistributionChart: GroupDistributionChartStub,
-        },
-      },
-    });
+    const wrapper = mountUsageView();
 
     vi.advanceTimersByTime(120);
     await flushPromises();
@@ -249,27 +315,43 @@ describe("admin UsageView distribution metric toggles", () => {
     expect(getSnapshotV2).toHaveBeenCalledTimes(1);
   });
 
+  it("renders the display toggles in toolbar-left and forwards the selected modes", async () => {
+    const wrapper = mountUsageView();
+
+    vi.advanceTimersByTime(120);
+    await flushPromises();
+
+    const toolbarLeft = wrapper.get('[data-test="toolbar-left"]');
+
+    expect(toolbarLeft.find('[data-test="usage-model-display-toggle"]').text()).toBe(
+      "display_and_model",
+    );
+    expect(
+      toolbarLeft.find('[data-test="usage-context-badge-toggle"]').text(),
+    ).toBe("both");
+    expect(wrapper.findAll('[data-test="usage-model-display-toggle"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-test="usage-context-badge-toggle"]')).toHaveLength(1);
+    expect(wrapper.get('[data-test="usage-table-display-mode"]').text()).toBe(
+      "display_and_model",
+    );
+    expect(wrapper.get('[data-test="usage-table-badge-mode"]').text()).toBe(
+      "both",
+    );
+
+    await toolbarLeft.get('[data-test="usage-model-display-toggle"]').trigger("click");
+    await toolbarLeft.get('[data-test="usage-context-badge-toggle"]').trigger("click");
+    await flushPromises();
+
+    expect(
+      usageModelDisplayModeState.setUsageModelDisplayMode,
+    ).toHaveBeenCalledWith("model_only");
+    expect(
+      usageContextBadgeDisplayModeState.setUsageContextBadgeDisplayMode,
+    ).toHaveBeenCalledWith("native_only");
+  });
+
   it("keeps thinking mode and reasoning effort visible by default", async () => {
-    const wrapper = mount(UsageView, {
-      global: {
-        stubs: {
-          AppLayout: AppLayoutStub,
-          UsageStatsCards: true,
-          UsageFilters: UsageFiltersStub,
-          UsageTable: UsageTableStub,
-          UsageExportProgress: true,
-          UsageCleanupDialog: true,
-          UserBalanceHistoryModal: true,
-          Pagination: true,
-          Select: true,
-          Icon: true,
-          TokenDisplayModeToggle: true,
-          TokenUsageTrend: true,
-          ModelDistributionChart: ModelDistributionChartStub,
-          GroupDistributionChart: GroupDistributionChartStub,
-        },
-      },
-    });
+    const wrapper = mountUsageView();
 
     vi.advanceTimersByTime(120);
     await flushPromises();
@@ -285,26 +367,7 @@ describe("admin UsageView distribution metric toggles", () => {
   });
 
   it("passes channel_id to usage list, stats, and charts when filters change", async () => {
-    const wrapper = mount(UsageView, {
-      global: {
-        stubs: {
-          AppLayout: AppLayoutStub,
-          UsageStatsCards: true,
-          UsageFilters: UsageFiltersStub,
-          UsageTable: UsageTableStub,
-          UsageExportProgress: true,
-          UsageCleanupDialog: true,
-          UserBalanceHistoryModal: true,
-          Pagination: true,
-          Select: true,
-          Icon: true,
-          TokenDisplayModeToggle: true,
-          TokenUsageTrend: true,
-          ModelDistributionChart: ModelDistributionChartStub,
-          GroupDistributionChart: GroupDistributionChartStub,
-        },
-      },
-    });
+    const wrapper = mountUsageView();
 
     vi.advanceTimersByTime(120);
     await flushPromises();
@@ -336,26 +399,7 @@ describe("admin UsageView distribution metric toggles", () => {
     authState.isAdmin = false;
     authState.canReviewRequestDetails = false;
 
-    const wrapper = mount(UsageView, {
-      global: {
-        stubs: {
-          AppLayout: AppLayoutStub,
-          UsageStatsCards: true,
-          UsageFilters: UsageFiltersStub,
-          UsageTable: UsageTableStub,
-          UsageExportProgress: true,
-          UsageCleanupDialog: true,
-          UserBalanceHistoryModal: true,
-          Pagination: true,
-          Select: true,
-          Icon: true,
-          TokenDisplayModeToggle: true,
-          TokenUsageTrend: true,
-          ModelDistributionChart: ModelDistributionChartStub,
-          GroupDistributionChart: GroupDistributionChartStub,
-        },
-      },
-    });
+    const wrapper = mountUsageView();
 
     expect(wrapper.find('[data-test=\"admin-usage-tab-request-details\"]').exists()).toBe(false);
   });
@@ -363,30 +407,11 @@ describe("admin UsageView distribution metric toggles", () => {
   it("opens request details from the route tab query and keeps tab changes in the URL", async () => {
     routeState.query = { tab: "request_details" };
 
-    const wrapper = mount(UsageView, {
-      global: {
-        stubs: {
-          AppLayout: AppLayoutStub,
-          UsageStatsCards: true,
-          UsageFilters: UsageFiltersStub,
-          UsageTable: UsageTableStub,
-          UsageExportProgress: true,
-          UsageCleanupDialog: true,
-          UserBalanceHistoryModal: true,
-          Pagination: true,
-          Select: true,
-          DateRangePicker: true,
-          Icon: true,
-          TokenDisplayModeToggle: true,
-          TokenUsageTrend: true,
-          ModelDistributionChart: ModelDistributionChartStub,
-          GroupDistributionChart: GroupDistributionChartStub,
-          RequestDetailsTraceTab: {
-            props: ["routeTabValue"],
-            template:
-              '<div data-test="request-details-trace">{{ routeTabValue }}</div>',
-          },
-        },
+    const wrapper = mountUsageView({
+      RequestDetailsTraceTab: {
+        props: ["routeTabValue"],
+        template:
+          '<div data-test="request-details-trace">{{ routeTabValue }}</div>',
       },
     });
 

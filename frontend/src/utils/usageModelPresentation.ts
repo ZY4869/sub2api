@@ -243,6 +243,22 @@ export function resolveUsageContextBadge(
   return line.requestBadge
 }
 
+export function resolveUsageContextBadges(
+  line: Pick<UsageModelLinePresentation, 'requestBadge' | 'nativeContextBadge'>,
+  mode: UsageContextBadgeDisplayMode
+): UsageContextBadgeInfo[] {
+  const normalized = normalizeUsageContextBadgeDisplayMode(mode)
+  if (normalized === 'native_only') {
+    return line.nativeContextBadge ? [line.nativeContextBadge] : []
+  }
+  if (normalized === 'both') {
+    return [line.requestBadge, line.nativeContextBadge].filter(
+      (badge): badge is UsageContextBadgeInfo => Boolean(badge)
+    )
+  }
+  return line.requestBadge ? [line.requestBadge] : []
+}
+
 export function resolveUsageNativeContextLabel(modelId: string | null | undefined): string {
   return buildUsageModelLinePresentation(modelId, 'model_only').nativeContextLabel
 }

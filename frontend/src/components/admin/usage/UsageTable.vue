@@ -1,45 +1,7 @@
 <template>
   <div class="card overflow-hidden">
-    <div class="border-b border-gray-100 px-4 py-3 dark:border-dark-700 md:hidden">
-      <div class="flex flex-wrap items-center gap-2">
-        <UsageModelDisplayModeToggle
-          :model-value="usageModelDisplayMode"
-          :disabled="updatingUsageModelDisplayMode"
-          @update:modelValue="handleUsageModelDisplayModeChange"
-        />
-        <UsageContextBadgeDisplayModeToggle
-          :model-value="usageContextBadgeDisplayMode"
-          :disabled="updatingUsageContextBadgeDisplayMode"
-          @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-        />
-      </div>
-    </div>
     <div class="overflow-auto">
       <DataTable :columns="columns" :data="data" :loading="loading" row-key="id">
-        <template #header-model="{ column }">
-          <div class="flex items-center justify-between gap-3">
-            <span>{{ column.label }}</span>
-            <div class="hidden md:block" @click.stop>
-              <div class="flex items-center gap-2">
-                <UsageModelDisplayModeToggle
-                  :model-value="usageModelDisplayMode"
-                  :disabled="updatingUsageModelDisplayMode"
-                  :show-label="false"
-                  compact
-                  @update:modelValue="handleUsageModelDisplayModeChange"
-                />
-                <UsageContextBadgeDisplayModeToggle
-                  :model-value="usageContextBadgeDisplayMode"
-                  :disabled="updatingUsageContextBadgeDisplayMode"
-                  :show-label="false"
-                  compact
-                  @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-                />
-              </div>
-            </div>
-          </div>
-        </template>
-
         <template #cell-user="{ row }">
           <div class="text-sm">
             <div class="flex items-center gap-2">
@@ -840,29 +802,25 @@ import {
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import UsageModelCell from "@/components/common/UsageModelCell.vue";
-import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContextBadgeDisplayModeToggle.vue";
-import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import Icon from "@/components/icons/Icon.vue";
-import type { AdminUsageLog, UsageModelDisplayMode } from "@/types";
-import { useUsageContextBadgeDisplayModePreference } from "@/composables/useUsageContextBadgeDisplayModePreference";
-import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
+import type {
+  AdminUsageLog,
+  UsageContextBadgeDisplayMode,
+  UsageModelDisplayMode,
+} from "@/types";
 import { resolveUsageNativeContextLabel } from "@/utils/usageModelPresentation";
 
-defineProps(["data", "loading", "columns"]);
+defineProps<{
+  data: AdminUsageLog[];
+  loading: boolean;
+  columns: Array<{ key: string; label: string; sortable?: boolean }>;
+  usageModelDisplayMode: UsageModelDisplayMode;
+  usageContextBadgeDisplayMode: UsageContextBadgeDisplayMode;
+}>();
 defineEmits(["userClick"]);
 const { t } = useI18n();
 const { formatTokenDisplay } = useTokenDisplayMode();
 const { copyToClipboard } = useClipboard();
-const {
-  usageModelDisplayMode,
-  updatingUsageModelDisplayMode,
-  setUsageModelDisplayMode,
-} = useUsageModelDisplayModePreference();
-const {
-  usageContextBadgeDisplayMode,
-  updatingUsageContextBadgeDisplayMode,
-  setUsageContextBadgeDisplayMode,
-} = useUsageContextBadgeDisplayModePreference();
 
 const formatCurrencyBreakdown = (
   values: Record<string, number> | null | undefined,
@@ -1022,15 +980,4 @@ const hideTokenTooltip = () => {
   tokenTooltipData.value = null;
 };
 
-const handleUsageModelDisplayModeChange = async (
-  mode: UsageModelDisplayMode,
-) => {
-  await setUsageModelDisplayMode(mode);
-};
-
-const handleUsageContextBadgeDisplayModeChange = async (
-  mode: "request_only" | "native_only" | "both",
-) => {
-  await setUsageContextBadgeDisplayMode(mode);
-};
 </script>

@@ -17,7 +17,6 @@ const testState = vi.hoisted(() => ({
   },
   authStoreState: {
     isAdmin: false,
-    token: 'token-1',
     user: { id: 7 },
   },
   adminSettingsStoreState: {
@@ -185,6 +184,9 @@ describe('CustomPageView', () => {
     expect(testState.getCustomPageMock).not.toHaveBeenCalled()
     const iframe = wrapper.get('iframe')
     expect(iframe.attributes('src')).toContain('https://example.com/help')
-    expect(iframe.attributes('src')).toContain('user_id=7')
+    expect(iframe.attributes('src')).toContain('ui_mode=embedded')
+    expect(iframe.attributes('src')).not.toContain('user_id=')
+    expect(iframe.attributes('src')).not.toContain('token=')
+    expect(iframe.attributes('src')).not.toContain('src_url=')
   })
 })

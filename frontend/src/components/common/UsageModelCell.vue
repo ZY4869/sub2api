@@ -12,7 +12,16 @@
           <div class="break-all font-medium text-gray-900 dark:text-white">
             {{ presentation.requested.primaryText }}
           </div>
-          <UsageContextBadge :badge="requestedBadge" />
+          <div
+            v-if="requestedBadges.length"
+            class="flex flex-wrap items-center gap-1"
+          >
+            <UsageContextBadge
+              v-for="badge in requestedBadges"
+              :key="buildBadgeKey('requested', badge)"
+              :badge="badge"
+            />
+          </div>
         </div>
         <div
           v-if="presentation.requested.secondaryText"
@@ -39,7 +48,16 @@
           <div class="break-all">
             {{ presentation.upstream.primaryText }}
           </div>
-          <UsageContextBadge :badge="upstreamBadge" />
+          <div
+            v-if="upstreamBadges.length"
+            class="flex flex-wrap items-center gap-1"
+          >
+            <UsageContextBadge
+              v-for="badge in upstreamBadges"
+              :key="buildBadgeKey('upstream', badge)"
+              :badge="badge"
+            />
+          </div>
         </div>
         <div
           v-if="presentation.upstream.secondaryText"
@@ -59,9 +77,10 @@ import UsageContextBadge from '@/components/common/UsageContextBadge.vue'
 import type { UsageContextBadgeDisplayMode, UsageLog, UsageModelDisplayMode } from '@/types'
 import {
   buildUsageModelPresentation,
+  type UsageContextBadgeInfo,
   normalizeUsageContextBadgeDisplayMode,
   normalizeUsageModelDisplayMode,
-  resolveUsageContextBadge,
+  resolveUsageContextBadges,
 } from '@/utils/usageModelPresentation'
 
 const props = defineProps<{
@@ -76,12 +95,18 @@ const presentation = computed(() =>
 const badgeMode = computed(() =>
   normalizeUsageContextBadgeDisplayMode(props.contextBadgeMode)
 )
-const requestedBadge = computed(() =>
-  resolveUsageContextBadge(presentation.value.requested, badgeMode.value)
+const requestedBadges = computed(() =>
+  resolveUsageContextBadges(presentation.value.requested, badgeMode.value)
 )
-const upstreamBadge = computed(() =>
+const upstreamBadges = computed(() =>
   presentation.value.upstream
-    ? resolveUsageContextBadge(presentation.value.upstream, badgeMode.value)
-    : null
+    ? resolveUsageContextBadges(presentation.value.upstream, badgeMode.value)
+    : []
 )
+
+const buildBadgeKey = (
+  scope: 'requested' | 'upstream',
+  badge: UsageContextBadgeInfo,
+) =>
+  `${scope}-${badge.labelKey || badge.label}-${badge.tier}-${badge.tokens}-${badge.muted ? 'muted' : 'solid'}`
 </script>

@@ -398,7 +398,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 
 			if result != nil && result.Result != nil && !result.SkipUsageRecord {
 				userAgent := c.GetHeader("User-Agent")
-				clientIP := ip.GetClientIP(c)
+				clientIP := ip.GetTrustedClientIP(c)
 				h.submitUsageRecordTask(func(ctx context.Context) {
 					ctx = reattachGatewayChannelState(ctx, channelState)
 					if recordErr := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
