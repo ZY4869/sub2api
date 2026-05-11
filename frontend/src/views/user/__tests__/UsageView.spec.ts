@@ -868,10 +868,13 @@ describe("user UsageView tooltip", () => {
 
     const modelToggles = wrapper.findAll('[data-testid="usage-model-toggle"]');
     const contextToggles = wrapper.findAll('[data-testid="usage-context-toggle"]');
+    const toolbarRow = wrapper.get('[data-testid="usage-filter-toolbar-row"]');
     expect(modelToggles).toHaveLength(1);
     expect(contextToggles).toHaveLength(1);
     expect(modelToggles[0]?.text()).toContain('usage.modelDisplay');
     expect(contextToggles[0]?.text()).toContain('usage.contextBadgeDisplay');
+    expect(toolbarRow.text()).toContain('usage.modelDisplay');
+    expect(toolbarRow.text()).toContain('usage.contextBadgeDisplay');
   });
 
   it("renders today stats and keeps duplicate request ids stable by using row id keys", async () => {

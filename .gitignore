@@ -115,6 +115,13 @@ backend/data/
 backend/config.yaml
 deploy/config.yaml
 backend/.installed
+.env.audit
+.env.audit.*
+deploy/docker-compose.audit*.yml
+
+# 审计本地产物（不入库）
+data/
+security/reports/manual/*.log
 
 # ===================
 # 其他

@@ -154,44 +154,6 @@
                 }}
               </span>
             </button>
-            <div
-              v-if="showAutoRefreshDropdown"
-              class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
-            >
-              <div class="p-2">
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  @click="emit('set-auto-refresh-enabled', !autoRefreshEnabled)"
-                >
-                  <span>{{ t("admin.accounts.enableAutoRefresh") }}</span>
-                  <Icon
-                    v-if="autoRefreshEnabled"
-                    name="check"
-                    size="sm"
-                    class="text-primary-500"
-                  />
-                </button>
-                <div
-                  class="my-1 border-t border-gray-100 dark:border-gray-700"
-                ></div>
-                <button
-                  v-for="sec in autoRefreshIntervals"
-                  :key="sec"
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  @click="emit('set-auto-refresh-interval', sec)"
-                >
-                  <span>{{ autoRefreshIntervalLabel(sec) }}</span>
-                  <Icon
-                    v-if="autoRefreshIntervalSeconds === sec"
-                    name="check"
-                    size="sm"
-                    class="text-primary-500"
-                  />
-                </button>
-              </div>
-            </div>
           </div>
 
           <div class="relative" ref="moreActionsDropdownRef">
@@ -205,96 +167,9 @@
               <Icon name="more" size="sm" class="md:mr-1.5" />
               <span class="hidden md:inline">{{ t("common.more") }}</span>
             </button>
-            <div
-              v-if="showMoreActionsDropdown"
-              class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
-            >
-              <div class="p-2">
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  :title="t('admin.errorPassthrough.title')"
-                  @click="handleMoreAction('show-error-passthrough')"
-                >
-                  <span>{{ t("admin.errorPassthrough.title") }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  :title="t('admin.tlsFingerprintProfiles.title')"
-                  @click="handleMoreAction('show-tls-fingerprint-profiles')"
-                >
-                  <span>{{ t("admin.tlsFingerprintProfiles.title") }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  :title="t('admin.users.columnSettings')"
-                  @click="toggleColumnDropdownFromMore"
-                >
-                  <span>{{ t("admin.users.columnSettings") }}</span>
-                  <Icon name="menu" size="sm" />
-                </button>
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  @click="handleMoreAction('sync')"
-                >
-                  <span>{{ t("admin.accounts.syncFromCrs") }}</span>
-                </button>
-                <button
-                  v-if="!selectedCount"
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  @click="handleMoreAction('bulk-edit-filtered')"
-                >
-                  <span>{{ t("admin.accounts.bulkEdit.editFiltered") }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  @click="handleMoreAction('import-data')"
-                >
-                  <span>{{ t("admin.accounts.dataImport") }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  @click="handleMoreAction('export-data')"
-                >
-                  <span>{{
-                    selectedCount
-                      ? t("admin.accounts.dataExportSelected")
-                      : t("admin.accounts.dataExport")
-                  }}</span>
-                </button>
-              </div>
-            </div>
           </div>
 
           <div class="relative" ref="columnDropdownRef">
-            <div
-              v-if="showColumnDropdown"
-              class="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
-            >
-              <div class="max-h-80 overflow-y-auto p-2">
-                <button
-                  v-for="col in toggleableColumns"
-                  :key="col.key"
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  @click="emit('toggle-column', col.key)"
-                >
-                  <span>{{ col.label }}</span>
-                  <Icon
-                    v-if="col.visible"
-                    name="check"
-                    size="sm"
-                    class="text-primary-500"
-                  />
-                </button>
-              </div>
-            </div>
           </div>
           </template>
         </AccountTableActions>
@@ -315,10 +190,154 @@
       </button>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div v-if="showAutoRefreshDropdown">
+      <div class="fixed inset-0 z-40" @click="closeFloatingMenus"></div>
+      <div
+        class="fixed z-50 w-56 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+        :style="floatingAutoRefreshStyle"
+        @click.stop
+      >
+        <div class="p-2">
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            @click="emit('set-auto-refresh-enabled', !autoRefreshEnabled)"
+          >
+            <span>{{ t("admin.accounts.enableAutoRefresh") }}</span>
+            <Icon
+              v-if="autoRefreshEnabled"
+              name="check"
+              size="sm"
+              class="text-primary-500"
+            />
+          </button>
+          <div class="my-1 border-t border-gray-100 dark:border-gray-700"></div>
+          <button
+            v-for="sec in autoRefreshIntervals"
+            :key="sec"
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            @click="emit('set-auto-refresh-interval', sec)"
+          >
+            <span>{{ autoRefreshIntervalLabel(sec) }}</span>
+            <Icon
+              v-if="autoRefreshIntervalSeconds === sec"
+              name="check"
+              size="sm"
+              class="text-primary-500"
+            />
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <Teleport to="body">
+    <div v-if="showMoreActionsDropdown">
+      <div class="fixed inset-0 z-40" @click="closeFloatingMenus"></div>
+      <div
+        class="fixed z-50 w-56 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+        :style="floatingMoreActionsStyle"
+        @click.stop
+      >
+        <div class="p-2">
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            :title="t('admin.errorPassthrough.title')"
+            @click="handleMoreAction('show-error-passthrough')"
+          >
+            <span>{{ t("admin.errorPassthrough.title") }}</span>
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            :title="t('admin.tlsFingerprintProfiles.title')"
+            @click="handleMoreAction('show-tls-fingerprint-profiles')"
+          >
+            <span>{{ t("admin.tlsFingerprintProfiles.title") }}</span>
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            :title="t('admin.users.columnSettings')"
+            @click="toggleColumnDropdownFromMore"
+          >
+            <span>{{ t("admin.users.columnSettings") }}</span>
+            <Icon name="menu" size="sm" />
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            @click="handleMoreAction('sync')"
+          >
+            <span>{{ t("admin.accounts.syncFromCrs") }}</span>
+          </button>
+          <button
+            v-if="!selectedCount"
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            @click="handleMoreAction('bulk-edit-filtered')"
+          >
+            <span>{{ t("admin.accounts.bulkEdit.editFiltered") }}</span>
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            @click="handleMoreAction('import-data')"
+          >
+            <span>{{ t("admin.accounts.dataImport") }}</span>
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            @click="handleMoreAction('export-data')"
+          >
+            <span>{{
+              selectedCount
+                ? t("admin.accounts.dataExportSelected")
+                : t("admin.accounts.dataExport")
+            }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <Teleport to="body">
+    <div v-if="showColumnDropdown">
+      <div class="fixed inset-0 z-40" @click="closeFloatingMenus"></div>
+      <div
+        class="fixed z-50 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+        :style="floatingColumnStyle"
+        @click.stop
+      >
+        <div class="max-h-80 overflow-y-auto p-2">
+          <button
+            v-for="col in toggleableColumns"
+            :key="col.key"
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            @click="emit('toggle-column', col.key)"
+          >
+            <span>{{ col.label }}</span>
+            <Icon
+              v-if="col.visible"
+              name="check"
+              size="sm"
+              class="text-primary-500"
+            />
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type {
   AdminGroup,
@@ -329,6 +348,7 @@ import Icon from "@/components/icons/Icon.vue";
 import AccountViewModeToggle from "./AccountViewModeToggle.vue";
 import AccountTableActions from "./AccountTableActions.vue";
 import AccountTableFilters from "./AccountTableFilters.vue";
+import { resolveToolbarDropdownPosition } from "@/utils/toolbarDropdownPosition";
 
 interface ToggleableColumn {
   key: string;
@@ -400,6 +420,12 @@ const showMoreActionsDropdown = ref(false);
 const autoRefreshDropdownRef = ref<HTMLElement | null>(null);
 const columnDropdownRef = ref<HTMLElement | null>(null);
 const moreActionsDropdownRef = ref<HTMLElement | null>(null);
+const AUTO_REFRESH_PANEL_WIDTH = 224;
+const AUTO_REFRESH_PANEL_HEIGHT = 240;
+const MORE_ACTIONS_PANEL_WIDTH = 224;
+const MORE_ACTIONS_PANEL_HEIGHT = 320;
+const COLUMN_PANEL_WIDTH = 192;
+const COLUMN_PANEL_HEIGHT = 360;
 
 const nextPlatformCountSortOrder = computed<AccountPlatformCountSortOrder>(
   () =>
@@ -450,6 +476,48 @@ const toggleMoreActionsDropdown = () => {
   showColumnDropdown.value = false;
 };
 
+const closeFloatingMenus = () => {
+  showAutoRefreshDropdown.value = false;
+  showMoreActionsDropdown.value = false;
+  showColumnDropdown.value = false;
+};
+
+const floatingAutoRefreshStyle = computed(() => {
+  const position = resolveToolbarDropdownPosition({
+    target: autoRefreshDropdownRef.value,
+    panelWidth: AUTO_REFRESH_PANEL_WIDTH,
+    panelHeight: AUTO_REFRESH_PANEL_HEIGHT,
+  });
+  return {
+    top: `${position.top}px`,
+    left: `${position.left}px`,
+  };
+});
+
+const floatingMoreActionsStyle = computed(() => {
+  const position = resolveToolbarDropdownPosition({
+    target: moreActionsDropdownRef.value,
+    panelWidth: MORE_ACTIONS_PANEL_WIDTH,
+    panelHeight: MORE_ACTIONS_PANEL_HEIGHT,
+  });
+  return {
+    top: `${position.top}px`,
+    left: `${position.left}px`,
+  };
+});
+
+const floatingColumnStyle = computed(() => {
+  const position = resolveToolbarDropdownPosition({
+    target: moreActionsDropdownRef.value || columnDropdownRef.value,
+    panelWidth: COLUMN_PANEL_WIDTH,
+    panelHeight: COLUMN_PANEL_HEIGHT,
+  });
+  return {
+    top: `${position.top}px`,
+    left: `${position.left}px`,
+  };
+});
+
 const handleMoreAction = (
   action:
     | "show-error-passthrough"
@@ -483,36 +551,4 @@ const handleMoreAction = (
   emit("export-data");
 };
 
-const handleClickOutside = (event: MouseEvent) => {
-  const target = event.target as Node | null;
-  if (
-    columnDropdownRef.value &&
-    target &&
-    !columnDropdownRef.value.contains(target)
-  ) {
-    showColumnDropdown.value = false;
-  }
-  if (
-    autoRefreshDropdownRef.value &&
-    target &&
-    !autoRefreshDropdownRef.value.contains(target)
-  ) {
-    showAutoRefreshDropdown.value = false;
-  }
-  if (
-    moreActionsDropdownRef.value &&
-    target &&
-    !moreActionsDropdownRef.value.contains(target)
-  ) {
-    showMoreActionsDropdown.value = false;
-  }
-};
-
-onMounted(() => {
-  document.addEventListener("click", handleClickOutside);
-});
-
-onUnmounted(() => {
-  document.removeEventListener("click", handleClickOutside);
-});
 </script>

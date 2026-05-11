@@ -35,6 +35,33 @@ func TestBuildBlacklistAdviceRecommendsBlacklistForNestedUnauthorizedMessage(t *
 	}
 }
 
+func TestBuildBlacklistAdviceRecommendsBlacklistForPlainUnauthorizedText(t *testing.T) {
+	t.Parallel()
+
+	advice := BuildBlacklistAdvice(nil, 401, []byte(`unauthorized`))
+	if advice == nil {
+		t.Fatal("expected blacklist advice, got nil")
+	}
+	if advice.Decision != BlacklistAdviceRecommendBlacklist {
+		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceRecommendBlacklist)
+	}
+	if advice.ReasonMessage != "unauthorized" {
+		t.Fatalf("ReasonMessage = %q, want %q", advice.ReasonMessage, "unauthorized")
+	}
+}
+
+func TestBuildBlacklistAdviceRecommendsBlacklistForFailoverWrappedUnauthorizedText(t *testing.T) {
+	t.Parallel()
+
+	advice := BuildBlacklistAdvice(nil, 401, []byte(`upstream error: 401 (failover) unauthorized`))
+	if advice == nil {
+		t.Fatal("expected blacklist advice, got nil")
+	}
+	if advice.Decision != BlacklistAdviceRecommendBlacklist {
+		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceRecommendBlacklist)
+	}
+}
+
 func TestBuildBlacklistAdviceKeepsRateLimitFailuresNotRecommended(t *testing.T) {
 	t.Parallel()
 

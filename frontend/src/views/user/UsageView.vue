@@ -30,9 +30,23 @@
                 />
               </div>
 
-              <!-- Actions -->
-              <div class="ml-auto flex items-center gap-3">
+              <div
+                class="ml-auto flex flex-1 flex-wrap items-center justify-end gap-3"
+                data-testid="usage-filter-toolbar-row"
+              >
                 <TokenDisplayModeToggle />
+                <UsageModelDisplayModeToggle
+                  :model-value="usageModelDisplayMode"
+                  :disabled="updatingUsageModelDisplayMode"
+                  :label-text="t('usage.modelDisplay')"
+                  @update:modelValue="handleUsageModelDisplayModeChange"
+                />
+                <UsageContextBadgeDisplayModeToggle
+                  :model-value="usageContextBadgeDisplayMode"
+                  :disabled="updatingUsageContextBadgeDisplayMode"
+                  :label-text="t('usage.contextBadgeDisplay')"
+                  @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+                />
                 <button
                   @click="applyFilters"
                   :disabled="loading"
@@ -71,20 +85,6 @@
                   {{ exporting ? t("usage.exporting") : t("usage.exportCsv") }}
                 </button>
               </div>
-            </div>
-            <div class="mt-4 flex flex-wrap items-center gap-3">
-              <UsageModelDisplayModeToggle
-                :model-value="usageModelDisplayMode"
-                :disabled="updatingUsageModelDisplayMode"
-                :label-text="t('usage.modelDisplay')"
-                @update:modelValue="handleUsageModelDisplayModeChange"
-              />
-              <UsageContextBadgeDisplayModeToggle
-                :model-value="usageContextBadgeDisplayMode"
-                :disabled="updatingUsageContextBadgeDisplayMode"
-                :label-text="t('usage.contextBadgeDisplay')"
-                @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-              />
             </div>
           </div>
         </div>

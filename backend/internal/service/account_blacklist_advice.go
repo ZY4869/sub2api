@@ -149,6 +149,19 @@ func isRecommendedBlacklistError(code string, message string, statusCode int) bo
 		return false
 	}
 
+	if strings.Contains(code, "unauthorized") || strings.Contains(code, "invalid_api_key") {
+		return true
+	}
+
+	failoverNormalizedMessage := strings.ToLower(strings.TrimSpace(message))
+	if strings.Contains(failoverNormalizedMessage, "failover") {
+		failoverNormalizedMessage = strings.ReplaceAll(failoverNormalizedMessage, "(failover)", " ")
+		failoverNormalizedMessage = strings.ReplaceAll(failoverNormalizedMessage, "failover", " ")
+		failoverNormalizedMessage = strings.ReplaceAll(failoverNormalizedMessage, "upstream error:", " ")
+		failoverNormalizedMessage = strings.Join(strings.Fields(failoverNormalizedMessage), " ")
+		message = failoverNormalizedMessage
+	}
+
 	if statusCode == 401 || statusCode == 403 {
 		if strings.Contains(code, "invalid") ||
 			strings.Contains(code, "revoked") ||
@@ -160,7 +173,8 @@ func isRecommendedBlacklistError(code string, message string, statusCode int) bo
 		if strings.Contains(message, "unauthorized") ||
 			strings.Contains(message, "forbidden") ||
 			strings.Contains(message, "invalid credentials") ||
-			strings.Contains(message, "expired credentials") {
+			strings.Contains(message, "expired credentials") ||
+			strings.Contains(message, "authentication failed") {
 			return true
 		}
 	}

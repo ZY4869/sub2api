@@ -77,6 +77,7 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
             </div>
           `,
         },
+        Teleport: true,
       },
     },
   });
@@ -133,6 +134,7 @@ describe("AccountsViewToolbar", () => {
     await wrapper
       .get('button[title="admin.accounts.autoRefresh"]')
       .trigger("click");
+    expect(wrapper.text()).toContain("admin.accounts.enableAutoRefresh");
     await wrapper
       .findAll("button")
       .find((button) =>
@@ -148,11 +150,13 @@ describe("AccountsViewToolbar", () => {
 
     await wrapper.get('[data-more-actions-button="true"]').trigger("click");
     await nextTick();
+    expect(wrapper.text()).toContain("admin.users.columnSettings");
     await wrapper
       .findAll("button")
       .find((button) => button.text().includes("admin.users.columnSettings"))
       ?.trigger("click");
     await nextTick();
+    expect(wrapper.text()).toContain("Proxy");
     await wrapper
       .findAll("button")
       .find((button) => button.text().includes("Proxy"))
@@ -211,6 +215,25 @@ describe("AccountsViewToolbar", () => {
     expect(wrapper.emitted("show-tls-fingerprint-profiles")).toEqual([[]]);
     expect(wrapper.emitted("toggle-group-view")).toEqual([[]]);
     expect(wrapper.emitted("sync-pending-list")).toEqual([[]]);
+  });
+
+  it("renders the more actions and column settings panels as floating overlays", async () => {
+    const wrapper = mountToolbar();
+
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).toContain("admin.accounts.dataImport");
+    expect(wrapper.text()).toContain("admin.users.columnSettings");
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text().includes("admin.users.columnSettings"))
+      ?.trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).toContain("Proxy");
+    expect(wrapper.text()).toContain("Notes");
   });
 
   it("renders limited account controls and forwards their actions", async () => {

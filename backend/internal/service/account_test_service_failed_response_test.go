@@ -108,6 +108,60 @@ func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsNestedUnauthori
 	require.Equal(t, "credentials_likely_invalid", repo.markBlacklistedCalls[0].reasonCode)
 }
 
+func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsPlainUnauthorizedText(t *testing.T) {
+	t.Parallel()
+
+	repo := &accountTestFailureRepoStub{}
+	svc := &AccountTestService{accountRepo: repo}
+	account := &Account{
+		ID:             656,
+		Platform:       PlatformOpenAI,
+		Type:           AccountTypeOAuth,
+		LifecycleState: AccountLifecycleNormal,
+	}
+
+	message, advice := svc.formatFailedTestResponse(
+		context.Background(),
+		account,
+		401,
+		[]byte(`unauthorized`),
+		"API returned",
+	)
+
+	require.Contains(t, message, `API returned 401: unauthorized`)
+	require.NotNil(t, advice)
+	require.Equal(t, BlacklistAdviceAutoBlacklisted, advice.Decision)
+	require.Len(t, repo.markBlacklistedCalls, 1)
+	require.Equal(t, "credentials_likely_invalid", repo.markBlacklistedCalls[0].reasonCode)
+}
+
+func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsFailoverWrappedUnauthorizedText(t *testing.T) {
+	t.Parallel()
+
+	repo := &accountTestFailureRepoStub{}
+	svc := &AccountTestService{accountRepo: repo}
+	account := &Account{
+		ID:             657,
+		Platform:       PlatformOpenAI,
+		Type:           AccountTypeOAuth,
+		LifecycleState: AccountLifecycleNormal,
+	}
+
+	message, advice := svc.formatFailedTestResponse(
+		context.Background(),
+		account,
+		401,
+		[]byte(`upstream error: 401 (failover) unauthorized`),
+		"API returned",
+	)
+
+	require.Contains(t, message, `API returned 401: upstream error: 401 (failover) unauthorized`)
+	require.NotNil(t, advice)
+	require.Equal(t, BlacklistAdviceAutoBlacklisted, advice.Decision)
+	require.Len(t, repo.markBlacklistedCalls, 1)
+	require.Equal(t, int64(657), repo.markBlacklistedCalls[0].id)
+}
+
 func TestAccountTestServiceFormatFailedTestResponseRedirectBlockedUsesControlledMessage(t *testing.T) {
 	t.Parallel()
 
