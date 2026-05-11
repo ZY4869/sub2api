@@ -472,10 +472,11 @@ gateway:
 `config.yaml` 还支持以下安全相关配置：
 
 - `cors.allowed_origins` 配置 CORS 白名单
-- `security.url_allowlist` 配置上游/价格数据/CRS 主机白名单
+- `security.url_allowlist` 配置上游/价格数据/CRS/百度智能文档主机白名单
 - `security.url_allowlist.enabled` 可关闭 URL 校验（慎用）
 - `security.url_allowlist.allow_insecure_http` 关闭校验时允许 HTTP URL
 - `security.url_allowlist.allow_private_hosts` 允许私有/本地 IP 地址
+- `security.url_allowlist.document_ai_hosts` 配置百度智能文档 `async_base_url`、`direct_api_urls` 与结果下载 URL 的允许主机
 - `security.response_headers.enabled` 可启用可配置响应头过滤（关闭时使用默认白名单）
 - `security.csp` 配置 Content-Security-Policy
 - `billing.circuit_breaker` 计费异常时 fail-closed
@@ -486,6 +487,9 @@ gateway:
 
 - `gateway.upstream_response_read_max_bytes`：限制非流式上游响应读取大小（默认 `1024MB`），用于防止异常响应导致内存放大。
 - `gateway.proxy_probe_response_read_max_bytes`：限制代理探测响应读取大小（默认 `1MB`）。
+- `gateway.document_ai_upload_max_bytes`：限制百度智能文档 multipart 上传与 JSON `file_base64` 解码后的文件大小（默认 `50MB`）。
+- `gateway.document_ai_upstream_json_read_max_bytes`：限制百度智能文档上游 JSON 响应读取大小（默认 `10MB`）。
+- `gateway.document_ai_result_read_max_bytes`：限制百度智能文档异步结果下载读取大小（默认 `100MB`）。
 - `gateway.gemini_debug_response_headers`：默认 `false`，仅在排障时短时开启，避免高频请求日志开销。
 - `/auth/register`、`/auth/login`、`/auth/login/2fa`、`/auth/send-verify-code` 已提供服务端兜底限流（Redis 故障时 fail-close）。
 - 推荐将 WAF/CDN 作为第一层防护，服务端限流与响应读取上限作为第二层兜底；两层同时保留，避免旁路流量与误配置风险。

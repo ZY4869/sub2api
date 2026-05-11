@@ -301,7 +301,9 @@ func newDocumentAIServiceForTest(
 	settingService := NewSettingService(&documentAISettingRepoStub{
 		values: map[string]string{SettingKeyDocumentAIEnabled: value},
 	}, &config.Config{})
-	return NewDocumentAIService(repo, accountRepo, httpUpstream, nil, nil, settingService)
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = false
+	return NewDocumentAIService(repo, accountRepo, httpUpstream, nil, nil, settingService, cfg)
 }
 
 func TestDocumentAIServiceListModelsReturnsBuiltinsWhenNoAccounts(t *testing.T) {
@@ -584,6 +586,91 @@ func TestDocumentAIServiceSubmitJobRejectsPrivateFileURL(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Equal(t, "document_ai_invalid_request", infraerrors.Reason(err))
+}
+
+func TestDocumentAIServiceParseDirectRejectsOversizedBase64BeforeDecode(t *testing.T) {
+	repo := &memoryDocumentAIJobRepo{}
+	accountRepo := &documentAIAccountRepoStub{
+		schedulableByGroup: map[int64][]Account{
+			9: {
+				{
+					ID:       44,
+					Platform: PlatformBaiduDocumentAI,
+					Type:     AccountTypeAPIKey,
+					Credentials: map[string]any{
+						"direct_token": "direct-token",
+						"direct_api_urls": map[string]any{
+							DocumentAIModelPPOCRV5Server: DefaultBaiduDocumentAIAsyncBaseURL() + "/direct",
+						},
+					},
+				},
+			},
+		},
+	}
+	svc := newDocumentAIServiceForTest(repo, accountRepo, nil, true)
+	svc.cfg.Gateway.DocumentAIUploadMaxBytes = 2
+
+	_, err := svc.ParseDirect(context.Background(), DocumentAIParseDirectInput{
+		APIKey:     &APIKey{ID: 8, User: &User{ID: 7}},
+		GroupID:    9,
+		Model:      DocumentAIModelPPOCRV5Server,
+		SourceType: DocumentAISourceTypeFileBase64,
+		FileType:   DocumentAIFileTypeImage,
+		FileBase64: "QUJDRA==",
+	})
+
+	require.Error(t, err)
+	require.Equal(t, "document_ai_invalid_request", infraerrors.Reason(err))
+	require.Contains(t, err.Error(), "file_base64")
+}
+
+func TestBaiduDocumentAIClientRejectsDisallowedResultURL(t *testing.T) {
+	client := newBaiduDocumentAIClient(googleBatchHTTPUpstreamFunc(func(*http.Request, string, int64, int) (*http.Response, error) {
+		t.Fatal("upstream should not be called for disallowed result URL")
+		return nil, nil
+	}), nil, &config.Config{
+		Security: config.SecurityConfig{
+			URLAllowlist: config.URLAllowlistConfig{
+				Enabled:         true,
+				DocumentAIHosts: []string{"paddleocr.aistudio-app.com"},
+			},
+		},
+	})
+
+	_, err := client.downloadResultJSON(context.Background(), &Account{ID: 1}, "https://example.com/result.json")
+
+	require.Error(t, err)
+	require.Equal(t, "document_ai_invalid_request", infraerrors.Reason(err))
+}
+
+func TestBaiduDocumentAIClientLimitsProviderJSONResponse(t *testing.T) {
+	client := newBaiduDocumentAIClient(googleBatchHTTPUpstreamFunc(func(*http.Request, string, int64, int) (*http.Response, error) {
+		return documentAIServiceResponse(http.StatusOK, `{"jobId":"`+strings.Repeat("x", 64)+`"}`, nil), nil
+	}), nil, &config.Config{
+		Gateway: config.GatewayConfig{DocumentAIUpstreamJSONReadMaxBytes: 8},
+		Security: config.SecurityConfig{
+			URLAllowlist: config.URLAllowlistConfig{Enabled: false},
+		},
+	})
+	account := &Account{
+		ID:          1,
+		Concurrency: 1,
+		Platform:    PlatformBaiduDocumentAI,
+		Type:        AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"async_bearer_token": "token",
+			"async_base_url":     DefaultBaiduDocumentAIAsyncBaseURL(),
+		},
+	}
+
+	_, err := client.submitAsyncJob(context.Background(), account, DocumentAISubmitJobInput{
+		Model:      DocumentAIModelPPOCRV5Server,
+		SourceType: DocumentAISourceTypeFile,
+		FileBytes:  []byte("abc"),
+	})
+
+	require.Error(t, err)
+	require.Equal(t, "document_ai_provider_error", infraerrors.Reason(err))
 }
 
 func TestDocumentAIServiceParseDirectSucceeds(t *testing.T) {

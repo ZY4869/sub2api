@@ -3,11 +3,13 @@ package repository
 import (
 	"io"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -165,6 +167,42 @@ func (s *HTTPUpstreamSuite) TestDo_EmptyProxy_UsesDirect() {
 	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	require.Equal(s.T(), "direct-empty", string(b))
+}
+
+// TestDo_RedirectBlocked_ReturnsControlled502 验证所有上游 3xx 都会被阻断并改写为受控 502。
+func (s *HTTPUpstreamSuite) TestDo_RedirectBlocked_ReturnsControlled502() {
+	secondHopHit := int32(0)
+	upstream := newLocalTestServer(s.T(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/redirect":
+			w.Header().Set("Location", "/final")
+			w.Header().Set("Refresh", "0; url=/final")
+			w.WriteHeader(http.StatusFound)
+			_, _ = io.WriteString(w, "redirect")
+		case "/final":
+			atomic.StoreInt32(&secondHopHit, 1)
+			_, _ = io.WriteString(w, "final")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	s.T().Cleanup(upstream.Close)
+
+	up := NewHTTPUpstream(s.cfg)
+	req, err := http.NewRequest(http.MethodPost, upstream.URL+"/redirect", io.NopCloser(strings.NewReader(`{"hello":"world"}`)))
+	require.NoError(s.T(), err)
+
+	resp, err := up.Do(req, "", 1, 1)
+	require.NoError(s.T(), err)
+	defer func() { _ = resp.Body.Close() }()
+
+	body, _ := io.ReadAll(resp.Body)
+	require.Equal(s.T(), http.StatusBadGateway, resp.StatusCode)
+	require.Equal(s.T(), "UPSTREAM_REDIRECT_NOT_ALLOWED", service.ExtractUpstreamErrorCode(body))
+	require.Contains(s.T(), string(body), "Upstream redirect is not allowed")
+	require.Empty(s.T(), resp.Header.Get("Location"))
+	require.Empty(s.T(), resp.Header.Get("Refresh"))
+	require.Equal(s.T(), int32(0), atomic.LoadInt32(&secondHopHit), "redirect second hop should not be followed")
 }
 
 // TestAccountIsolation_DifferentAccounts 测试账户隔离模式

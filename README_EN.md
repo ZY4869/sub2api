@@ -413,15 +413,24 @@ default:
 Additional security-related options are available in `config.yaml`:
 
 - `cors.allowed_origins` for CORS allowlist
-- `security.url_allowlist` for upstream/pricing/CRS host allowlists
+- `security.url_allowlist` for upstream/pricing/CRS/Baidu Document AI host allowlists
 - `security.url_allowlist.enabled` to disable URL validation (use with caution)
 - `security.url_allowlist.allow_insecure_http` to allow HTTP URLs when validation is disabled
 - `security.url_allowlist.allow_private_hosts` to allow private/local IP addresses
+- `security.url_allowlist.document_ai_hosts` for Baidu Document AI `async_base_url`, `direct_api_urls`, and result-download URL hosts
 - `security.response_headers.enabled` to enable configurable response header filtering (disabled uses default allowlist)
 - `security.csp` to control Content-Security-Policy headers
 - `billing.circuit_breaker` to fail closed on billing errors
 - `server.trusted_proxies` to enable X-Forwarded-For parsing
 - `turnstile.required` to require Turnstile in release mode
+
+**Gateway defense-in-depth options**
+
+- `gateway.upstream_response_read_max_bytes`: max bytes read for non-stream upstream responses (default `1024MB`).
+- `gateway.proxy_probe_response_read_max_bytes`: max bytes read for proxy probe responses (default `1MB`).
+- `gateway.document_ai_upload_max_bytes`: max Baidu Document AI multipart upload size and decoded JSON `file_base64` size (default `50MB`).
+- `gateway.document_ai_upstream_json_read_max_bytes`: max Baidu Document AI provider JSON response size (default `10MB`).
+- `gateway.document_ai_result_read_max_bytes`: max Baidu Document AI async result download size (default `100MB`).
 
 **⚠️ Security Warning: HTTP URL Configuration**
 

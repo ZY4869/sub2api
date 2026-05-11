@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -59,6 +60,11 @@ func TestAccountTestServiceBaiduForcesHealthCheckAndPrefersAsync(t *testing.T) {
 	svc := &AccountTestService{
 		accountRepo:  accountRepo,
 		httpUpstream: upstream,
+		cfg: &config.Config{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{Enabled: false},
+			},
+		},
 	}
 
 	err := svc.TestAccountConnection(ctx, account.ID, "", "", "", "", "", string(AccountTestModeRealForward))
@@ -101,6 +107,11 @@ func TestAccountTestServiceBaiduFallsBackToDirectWithoutAsyncToken(t *testing.T)
 	svc := &AccountTestService{
 		accountRepo:  accountRepo,
 		httpUpstream: upstream,
+		cfg: &config.Config{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{Enabled: false},
+			},
+		},
 	}
 
 	err := svc.TestAccountConnection(ctx, account.ID, "", "", "", "", "", string(AccountTestModeRealForward))

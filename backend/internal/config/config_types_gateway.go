@@ -7,6 +7,9 @@ type GatewayConfig struct {
 	MaxBodySize                          int64                    `mapstructure:"max_body_size"`
 	UpstreamResponseReadMaxBytes         int64                    `mapstructure:"upstream_response_read_max_bytes"`
 	ProxyProbeResponseReadMaxBytes       int64                    `mapstructure:"proxy_probe_response_read_max_bytes"`
+	DocumentAIUploadMaxBytes             int64                    `mapstructure:"document_ai_upload_max_bytes"`
+	DocumentAIUpstreamJSONReadMaxBytes   int64                    `mapstructure:"document_ai_upstream_json_read_max_bytes"`
+	DocumentAIResultReadMaxBytes         int64                    `mapstructure:"document_ai_result_read_max_bytes"`
 	GeminiDebugResponseHeaders           bool                     `mapstructure:"gemini_debug_response_headers"`
 	GeminiLiveEnabled                    bool                     `mapstructure:"gemini_live_enabled"`
 	GeminiInteractionsEnabled            bool                     `mapstructure:"gemini_interactions_enabled"`

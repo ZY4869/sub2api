@@ -75,6 +75,13 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
   const appStore = useAppStore()
   const submitting = ref(false)
 
+  const resolveCreateErrorMessage = (error: any): string => {
+    if (error?.reason === 'ACCOUNT_INVALID_BASE_URL') {
+      return t('admin.accounts.invalidBaseUrl')
+    }
+    return error?.message || t('admin.accounts.failedToCreate')
+  }
+
   const buildPayloadWithModelScope = (payload: CreateAccountRequest): CreateAccountRequest => {
     const runtimePlatform = resolveEffectiveAccountPlatform(
       payload.platform,
@@ -124,7 +131,7 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
         return null
       }
 
-      appStore.showError(error?.message || t('admin.accounts.failedToCreate'))
+      appStore.showError(resolveCreateErrorMessage(error))
       return null
     } finally {
       submitting.value = false

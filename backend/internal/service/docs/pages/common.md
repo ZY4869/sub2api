@@ -728,6 +728,44 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/accounts/bulk-update" \
   }'
 ```
 
+### 管理端：账号保存与手动探测约束
+
+管理员创建或更新账号时，保存链路现在先执行本地出站安全校验，再决定是否落库：
+
+- 保存时会校验 `credentials.base_url`，不接受空 host、非法端口、`file://`、`gopher://`、默认私网 / `localhost`，以及默认配置下的明文 `http://`
+- 百度智能文档账号还会校验 `credentials.async_base_url` 与 `credentials.direct_api_urls`，默认必须命中 `security.url_allowlist.document_ai_hosts`
+- 默认策略固定为 `security.url_allowlist.enabled=true`、`allow_private_hosts=false`、`allow_insecure_http=false`
+- 普通账号 `base_url` 命中上述限制时，创建 / 更新接口直接返回 `400`，错误码 `ACCOUNT_INVALID_BASE_URL`
+- 百度智能文档账号 URL / 凭证校验失败时，创建 / 更新 / 批量更新接口直接返回 `400`，错误码 `ACCOUNT_INVALID_DOCUMENT_AI_CREDENTIALS`
+- 保存成功后不会再自动触发后台模型 probe，也不会在保存动作里隐式刷新 `model_probe_snapshot`
+- 如果需要验证连通性或探测模型，请在保存后手动使用现有 `Probe Models`、单账号 `Test` 或批量 `Batch Test` 入口
+- 管理端测试、手动 probe 和运行态上游请求都禁止跟随上游 `3xx`；命中重定向时会返回受控错误 `502 UPSTREAM_REDIRECT_NOT_ALLOWED`
+
+建议：
+
+- 直接填写最终的 HTTPS 上游地址，不要依赖 `302/307` 重定向
+- 审计 / 内网 mock 场景如需放宽策略，应通过显式配置项调整 allowlist，而不是依赖默认产品配置
+
+典型错误响应：
+
+```json
+{
+  "code": 400,
+  "message": "base_url is invalid or not allowed by the current outbound policy",
+  "reason": "ACCOUNT_INVALID_BASE_URL"
+}
+```
+
+百度智能文档账号 URL / 凭证校验失败时：
+
+```json
+{
+  "code": 400,
+  "message": "Baidu Document AI account credentials are invalid or not allowed by the current outbound policy",
+  "reason": "ACCOUNT_INVALID_DOCUMENT_AI_CREDENTIALS"
+}
+```
+
 ### 管理端：每日 07:00 自动触发 5H 设置
 
 管理员现在可以为账号管理页配置一个全局的“每日 07:00 自动触发 5H”任务：

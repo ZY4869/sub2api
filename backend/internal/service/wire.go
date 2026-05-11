@@ -569,8 +569,10 @@ func ProvideAccountModelImportService(
 	httpUpstream HTTPUpstream,
 	proxyRepo ProxyRepository,
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
+	cfg *config.Config,
 ) *AccountModelImportService {
 	svc := NewAccountModelImportService(modelCatalogService, geminiCompatService, httpUpstream, proxyRepo)
+	svc.SetConfig(cfg)
 	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetOpenAITokenProvider(openAITokenProvider)
 	svc.SetKiroRuntimeService(kiroRuntimeService)

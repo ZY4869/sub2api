@@ -2,7 +2,6 @@ package handler
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -156,7 +155,7 @@ func (h *DocumentAIHandler) buildSubmitInput(c *gin.Context, apiKey *service.API
 		GroupID: groupID,
 	}
 	if strings.HasPrefix(strings.ToLower(c.ContentType()), "multipart/form-data") {
-		upload, err := readDocumentAIFile(c, "file")
+		upload, err := readDocumentAIFile(c, "file", h.documentAIService.UploadMaxBytes())
 		if err != nil {
 			return input, err
 		}
@@ -195,7 +194,7 @@ func (h *DocumentAIHandler) buildDirectInput(c *gin.Context, apiKey *service.API
 		Model:   modelID,
 	}
 	if strings.HasPrefix(strings.ToLower(c.ContentType()), "multipart/form-data") {
-		upload, err := readDocumentAIFile(c, "file")
+		upload, err := readDocumentAIFile(c, "file", h.documentAIService.UploadMaxBytes())
 		if err != nil {
 			return input, err
 		}
@@ -224,13 +223,6 @@ func (h *DocumentAIHandler) buildDirectInput(c *gin.Context, apiKey *service.API
 	input.FileBase64 = strings.TrimSpace(req.FileBase64)
 	input.FileType = req.FileType
 	input.Options = req.Options
-	if input.FileBase64 != "" {
-		payload, err := base64.StdEncoding.DecodeString(input.FileBase64)
-		if err == nil {
-			input.FileBytes = payload
-			input.FileSize = int64(len(payload))
-		}
-	}
 	return input, nil
 }
 
@@ -263,7 +255,7 @@ func resolveDocumentAIGroupID(apiKey *service.APIKey) int64 {
 	return 0
 }
 
-func readDocumentAIFile(c *gin.Context, field string) (*documentAIFileUpload, error) {
+func readDocumentAIFile(c *gin.Context, field string, maxBytes int64) (*documentAIFileUpload, error) {
 	fileHeader, err := c.FormFile(field)
 	if err != nil {
 		return nil, serviceErrBadRequest("document_ai_invalid_request", "file is required")
@@ -273,9 +265,15 @@ func readDocumentAIFile(c *gin.Context, field string) (*documentAIFileUpload, er
 		return nil, serviceErrBadRequest("document_ai_invalid_request", "failed to open uploaded file")
 	}
 	defer func() { _ = file.Close() }()
-	payload, err := io.ReadAll(file)
+	if maxBytes <= 0 {
+		maxBytes = 50 * 1024 * 1024
+	}
+	payload, err := io.ReadAll(io.LimitReader(file, maxBytes+1))
 	if err != nil {
 		return nil, serviceErrBadRequest("document_ai_invalid_request", "failed to read uploaded file")
+	}
+	if int64(len(payload)) > maxBytes {
+		return nil, serviceErrBadRequest("document_ai_invalid_request", "file exceeds document ai size limit")
 	}
 	contentType := strings.TrimSpace(fileHeader.Header.Get("Content-Type"))
 	if contentType == "" && len(payload) > 0 {

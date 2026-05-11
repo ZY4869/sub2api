@@ -1487,7 +1487,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	contentModerationService := service.NewContentModerationService(moderationRepo, settingRepo)
 	adminModerationHandler := adminhandler.NewContentModerationAuditHandler(contentModerationService)
 
-	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, settingService, nil, userSubRepo, affiliateService)
+	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, settingService, nil, userSubRepo, affiliateService, cfg)
 	adminUserHandler := adminhandler.NewUserHandler(adminService, nil)
 	authHandler := handler.NewAuthHandler(cfg, authService, userService, settingService, nil, redeemService, nil)
 	authHandler.SetAuthIdentityService(authIdentityService)

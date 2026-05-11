@@ -131,4 +131,69 @@ describe('useCreateAccountSubmit', () => {
       }
     })
   })
+
+  it('maps ACCOUNT_INVALID_BASE_URL to the dedicated save error message', async () => {
+    createMock.mockRejectedValueOnce({
+      status: 400,
+      message: 'invalid base_url: blocked',
+      reason: 'ACCOUNT_INVALID_BASE_URL'
+    })
+
+    const composable = useCreateAccountSubmit({
+      withConfirmFlag: (payload) => payload,
+      ensureMixedChannelConfirmed: async () => true,
+      requiresMixedChannelCheck: ref(false),
+      openMixedChannelDialog: vi.fn(),
+      isOpenAIModelRestrictionDisabled: computed(() => true),
+      modelRestrictionEnabled: ref(false),
+      modelRestrictionMode: ref<'whitelist' | 'mapping'>('mapping'),
+      allowedModels: ref([]),
+      modelMappings: ref([]),
+      antigravityModelMappings: ref([]),
+      applyTempUnschedConfig: () => true,
+      form: {
+        name: 'Blocked Account',
+        notes: '',
+        proxy_id: null,
+        concurrency: 1,
+        load_factor: null,
+        priority: 1,
+        rate_multiplier: 1,
+        group_ids: [],
+        expires_at: null
+      },
+      autoPauseOnExpired: ref(false),
+      expiryProbeExtensionDays: ref(7),
+      editQuotaLimit: ref(null),
+      editQuotaDailyLimit: ref(null),
+      editQuotaWeeklyLimit: ref(null),
+      editQuotaDailyResetMode: ref(null),
+      editQuotaDailyResetHour: ref(null),
+      editQuotaWeeklyResetMode: ref(null),
+      editQuotaWeeklyResetDay: ref(null),
+      editQuotaWeeklyResetHour: ref(null),
+      editQuotaResetTimezone: ref(null),
+      batchArchiveEnabled: ref(false),
+      batchArchiveAutoPrefetchEnabled: ref(false),
+      batchArchiveRetentionDays: ref(7),
+      batchArchiveBillingMode: ref<'log_only' | 'archive_charge'>('log_only'),
+      batchArchiveDownloadPriceUSD: ref(0),
+      allowVertexBatchOverflow: ref(false),
+      acceptAIStudioBatchOverflow: ref(false),
+      afterCreateImportModels: vi.fn().mockResolvedValue(undefined),
+      emitCreated: vi.fn(),
+      onClose: vi.fn()
+    })
+
+    await composable.createAccountAndFinish(
+      'openai',
+      'apikey',
+      {
+        api_key: 'test-key',
+        base_url: 'http://127.0.0.1'
+      }
+    )
+
+    expect(showError).toHaveBeenCalledWith('admin.accounts.invalidBaseUrl')
+  })
 })

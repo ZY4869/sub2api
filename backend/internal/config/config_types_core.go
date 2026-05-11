@@ -158,6 +158,7 @@ type URLAllowlistConfig struct {
 	UpstreamHosts     []string `mapstructure:"upstream_hosts"`
 	PricingHosts      []string `mapstructure:"pricing_hosts"`
 	CRSHosts          []string `mapstructure:"crs_hosts"`
+	DocumentAIHosts   []string `mapstructure:"document_ai_hosts"`
 	AllowPrivateHosts bool     `mapstructure:"allow_private_hosts"`
 	AllowInsecureHTTP bool     `mapstructure:"allow_insecure_http"`
 }

@@ -545,7 +545,6 @@
         :is-manual-input-method="isManualInputMethod"
         :current-o-auth-loading="currentOAuthLoading"
         :can-exchange-code="canExchangeCode"
-        :show-auto-import="form.platform !== 'protocol_gateway' && !isBaiduDocumentAISelected"
         @close="handleClose"
         @back="goBackToBasicInfo"
         @exchange-code="handleExchangeCode"
@@ -579,7 +578,6 @@ import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
 import type {
   AccountManualModel,
-  AccountModelImportResult,
   ProtocolGatewayProbeModel
 } from '@/api/admin/accounts'
 import {
@@ -645,11 +643,7 @@ import AccountTempUnschedRulesEditor from '@/components/account/AccountTempUnsch
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
 import {
-  buildAccountModelImportToastPayload,
   extractSyncableRegistryModels,
-  mergeAccountModelImportResults,
-  resolveAccountModelImportErrorMessage,
-  shouldInvalidateModelInventory
 } from '@/utils/accountModelImport'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
@@ -750,11 +744,9 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   close: []
   created: []
-  'models-imported': [result: AccountModelImportResult]
 }>()
 
 const appStore = useAppStore()
-const pendingImportedModelsResult = ref<AccountModelImportResult | null>(null)
 const showFormError = (message: string) => appStore.showError(message)
 const showFormInfo = (message: string) => appStore.showInfo(message)
 
@@ -1445,7 +1437,7 @@ watch(
     if (newPlatform === 'deepseek') {
       accountCategory.value = 'apikey'
       form.type = 'apikey'
-      autoImportModels.value = true
+      autoImportModels.value = false
     }
     if (newPlatform === 'antigravity') {
       loadAntigravityDefaultMappings()
@@ -1669,82 +1661,19 @@ const syncProtocolGatewaySelectedModels = async (createdAccount: Account) => {
 }
 
 const maybeImportCreatedAccounts = async (createdAccounts: Account[]) => {
-  pendingImportedModelsResult.value = null
   if (createdAccounts.length > 0 && isProtocolGatewayPlatform(form.platform)) {
     await syncProtocolGatewaySelectedModels(createdAccounts[0])
     return
   }
-  if (!autoImportModels.value || createdAccounts.length === 0) {
+  if (createdAccounts.length === 0 || !autoImportModels.value) {
     return
   }
-  appStore.showInfo(t('admin.accounts.probingModels'))
-  const results: Parameters<typeof mergeAccountModelImportResults>[0] = []
-  let firstFailureMessage = ''
-  for (const account of createdAccounts) {
-    try {
-      const result = await adminAPI.accounts.importModels(account.id, { trigger: 'create' })
-      results.push(result)
-    } catch (error) {
-      console.error('Failed to auto import models after account creation:', error)
-      if (!firstFailureMessage) {
-        firstFailureMessage = resolveAccountModelImportErrorMessage(t, error)
-      }
-    }
-  }
-
-  const mergedResult = mergeAccountModelImportResults(results)
-  if (!mergedResult) {
-    if (firstFailureMessage) {
-      appStore.showError(firstFailureMessage)
-    }
-    return
-  }
-
-  const toastPayload = buildAccountModelImportToastPayload(t, mergedResult)
-  const toastOptions = {
-    ...toastPayload.options,
-    details: toastPayload.options.details ? [...toastPayload.options.details] : undefined,
-    copyText: toastPayload.options.copyText
-  }
-  let toastType = toastPayload.type
-  let toastMessage = toastPayload.message
-
-  if (firstFailureMessage) {
-    toastType = mergedResult.imported_count > 0 ? 'warning' : 'error'
-    toastMessage = `${toastMessage} - ${firstFailureMessage}`
-    toastOptions.details = [...(toastOptions.details || []), firstFailureMessage]
-    toastOptions.copyText = toastOptions.copyText
-      ? `${toastOptions.copyText}
-${firstFailureMessage}`
-      : firstFailureMessage
-    toastOptions.persistent = true
-  }
-
-  if (toastType === 'error') {
-    appStore.showError(toastMessage, toastOptions)
-  } else if (toastType === 'warning') {
-    appStore.showWarning(toastMessage, toastOptions)
-  } else {
-    appStore.showSuccess(toastMessage, toastOptions)
-  }
-
-  if (shouldInvalidateModelInventory(mergedResult)) {
-    invalidateModelRegistry()
-    modelInventoryStore.invalidate()
-  }
-  if (extractSyncableRegistryModels(mergedResult).length > 0) {
-    pendingImportedModelsResult.value = mergedResult
-  }
+  appStore.showInfo(t('admin.accounts.accountCreated'))
 }
 
 const handleClose = () => {
   resetMixedChannelRisk()
-  const importedResult = pendingImportedModelsResult.value
-  pendingImportedModelsResult.value = null
   emit('close')
-  if (importedResult) {
-    queueMicrotask(() => emit('models-imported', importedResult))
-  }
 }
 
 const { resetForm } = useCreateAccountReset({

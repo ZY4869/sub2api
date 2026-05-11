@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
@@ -105,4 +106,36 @@ func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsNestedUnauthori
 	require.Equal(t, "Unauthorized", advice.ReasonMessage)
 	require.Len(t, repo.markBlacklistedCalls, 1)
 	require.Equal(t, "credentials_likely_invalid", repo.markBlacklistedCalls[0].reasonCode)
+}
+
+func TestAccountTestServiceFormatFailedTestResponseRedirectBlockedUsesControlledMessage(t *testing.T) {
+	t.Parallel()
+
+	svc := &AccountTestService{}
+	message, advice := svc.formatFailedTestResponse(
+		context.Background(),
+		nil,
+		http.StatusBadGateway,
+		UpstreamRedirectBlockedBody(),
+		"API returned",
+	)
+
+	require.Equal(t, UpstreamRedirectBlockedMessage, message)
+	require.Nil(t, advice)
+}
+
+func TestAccountTestServiceFormatFailedTestResponseRedirectBlockedWithOriginalStatusStillUsesControlledMessage(t *testing.T) {
+	t.Parallel()
+
+	svc := &AccountTestService{}
+	message, advice := svc.formatFailedTestResponse(
+		context.Background(),
+		nil,
+		http.StatusFound,
+		[]byte(`{"error":{"code":"UPSTREAM_REDIRECT_NOT_ALLOWED","message":"Upstream redirect is not allowed"}}`),
+		"API returned",
+	)
+
+	require.Equal(t, UpstreamRedirectBlockedMessage, message)
+	require.Nil(t, advice)
 }

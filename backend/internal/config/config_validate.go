@@ -358,6 +358,15 @@ func (c *Config) Validate() error {
 	if c.Gateway.ProxyProbeResponseReadMaxBytes <= 0 {
 		return fmt.Errorf("gateway.proxy_probe_response_read_max_bytes must be positive")
 	}
+	if c.Gateway.DocumentAIUploadMaxBytes <= 0 {
+		return fmt.Errorf("gateway.document_ai_upload_max_bytes must be positive")
+	}
+	if c.Gateway.DocumentAIUpstreamJSONReadMaxBytes <= 0 {
+		return fmt.Errorf("gateway.document_ai_upstream_json_read_max_bytes must be positive")
+	}
+	if c.Gateway.DocumentAIResultReadMaxBytes <= 0 {
+		return fmt.Errorf("gateway.document_ai_result_read_max_bytes must be positive")
+	}
 	if c.Gateway.GrokVideoPollIntervalSeconds < 0 {
 		return fmt.Errorf("gateway.grok_video_poll_interval_seconds must be non-negative")
 	}

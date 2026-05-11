@@ -8,7 +8,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"strings"
 )
 
@@ -250,25 +249,7 @@ func (s *GeminiMessagesCompatService) listSchedulableAccountsOnce(ctx context.Co
 	return filterGeminiAccountsByPublicProtocol(selectionCtx, accounts, platform), err
 }
 func (s *GeminiMessagesCompatService) validateUpstreamBaseURL(raw string) (string, error) {
-	if s.cfg == nil {
-		normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{})
-		if err != nil {
-			return "", fmt.Errorf("invalid base_url: %w", err)
-		}
-		return normalized, nil
-	}
-	if !s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
-		if err != nil {
-			return "", fmt.Errorf("invalid base_url: %w", err)
-		}
-		return normalized, nil
-	}
-	normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{AllowedHosts: s.cfg.Security.URLAllowlist.UpstreamHosts, RequireAllowlist: true, AllowPrivate: s.cfg.Security.URLAllowlist.AllowPrivateHosts})
-	if err != nil {
-		return "", fmt.Errorf("invalid base_url: %w", err)
-	}
-	return normalized, nil
+	return validateUpstreamBaseURLWithConfig(s.cfg, raw)
 }
 func (s *GeminiMessagesCompatService) HasAntigravityAccounts(ctx context.Context, groupID *int64) (bool, error) {
 	accounts, err := s.listSchedulableAccountsOnce(ctx, groupID, PlatformAntigravity, false)

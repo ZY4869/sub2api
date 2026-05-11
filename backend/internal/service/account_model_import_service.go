@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -104,6 +105,7 @@ type AccountModelImportService struct {
 	openAITokenProvider          *OpenAITokenProvider
 	httpUpstream                 HTTPUpstream
 	proxyRepo                    ProxyRepository
+	cfg                          *config.Config
 	tlsFingerprintProfileService *TLSFingerprintProfileService
 	probeCache                   *gocache.Cache
 	probeSF                      singleflight.Group
@@ -142,6 +144,10 @@ func (s *AccountModelImportService) SetVertexCatalogService(vertexCatalogService
 
 func (s *AccountModelImportService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
 	s.tlsFingerprintProfileService = tlsFingerprintProfileService
+}
+
+func (s *AccountModelImportService) SetConfig(cfg *config.Config) {
+	s.cfg = cfg
 }
 
 func (s *AccountModelImportService) ProbeAccountModels(ctx context.Context, account *Account) (*AccountModelProbeSummary, error) {

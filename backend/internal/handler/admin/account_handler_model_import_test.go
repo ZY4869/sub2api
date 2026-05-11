@@ -159,13 +159,18 @@ func TestImportModels_OpenAIOAuthUpdatesKnownModelsSnapshot(t *testing.T) {
 	require.Equal(t, "upstream", snapshot["probe_source"])
 }
 
-type handlerMixedProbeHTTPUpstream struct{}
+type handlerMixedProbeHTTPUpstream struct {
+	requestURLs []string
+}
 
 func (u *handlerMixedProbeHTTPUpstream) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
 	return u.DoWithTLS(req, proxyURL, accountID, accountConcurrency, nil)
 }
 
 func (u *handlerMixedProbeHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *service.TLSFingerprintProfile) (*http.Response, error) {
+	if req != nil && req.URL != nil {
+		u.requestURLs = append(u.requestURLs, req.URL.String())
+	}
 	switch {
 	case strings.HasSuffix(req.URL.Path, "/v1/models"):
 		return &http.Response{
@@ -205,6 +210,7 @@ func TestProbeProtocolGatewayModels_MixedReturnsSourceProtocolAndRegistryState(t
 	upstream := &handlerMixedProbeHTTPUpstream{}
 	geminiCompatService := service.NewGeminiMessagesCompatService(nil, nil, nil, nil, nil, nil, upstream, nil, cfg)
 	importSvc := service.NewAccountModelImportService(nil, geminiCompatService, upstream, nil)
+	importSvc.SetConfig(cfg)
 	importSvc.SetModelRegistryService(modelRegistryService)
 
 	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -268,4 +274,77 @@ func TestProbeProtocolGatewayModels_MixedReturnsSourceProtocolAndRegistryState(t
 	require.Equal(t, service.PlatformOpenAI, modelsByID["gpt-5.4"].SourceProtocol)
 	require.Equal(t, service.PlatformGemini, modelsByID["gemini-2.5-pro"].SourceProtocol)
 	require.Equal(t, service.PlatformOpenAI, modelsByID["shared-model"].SourceProtocol)
+}
+
+func TestProbeModels_InvalidBaseURLDoesNotRequestUpstream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = true
+	cfg.Security.URLAllowlist.UpstreamHosts = []string{"api.openai.com"}
+	upstream := &handlerMixedProbeHTTPUpstream{}
+	importSvc := service.NewAccountModelImportService(nil, nil, upstream, nil)
+	importSvc.SetConfig(cfg)
+
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler.SetAccountModelImportService(importSvc)
+
+	router := gin.New()
+	router.POST("/api/v1/admin/accounts/probe-models", handler.ProbeModels)
+
+	body, err := json.Marshal(map[string]any{
+		"platform": service.PlatformOpenAI,
+		"type":     service.AccountTypeAPIKey,
+		"credentials": map[string]any{
+			"api_key":  "openai-key",
+			"base_url": "http://127.0.0.1",
+		},
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/probe-models", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "ACCOUNT_INVALID_BASE_URL")
+	require.Empty(t, upstream.requestURLs)
+}
+
+func TestProbeProtocolGatewayModels_InvalidBaseURLDoesNotRequestUpstream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = true
+	cfg.Security.URLAllowlist.UpstreamHosts = []string{"api.openai.com", "generativelanguage.googleapis.com"}
+	upstream := &handlerMixedProbeHTTPUpstream{}
+	geminiCompatService := service.NewGeminiMessagesCompatService(nil, nil, nil, nil, nil, nil, upstream, nil, cfg)
+	importSvc := service.NewAccountModelImportService(nil, geminiCompatService, upstream, nil)
+	importSvc.SetConfig(cfg)
+
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler.SetAccountModelImportService(importSvc)
+
+	router := gin.New()
+	router.POST("/api/v1/admin/accounts/protocol-gateway/probe-models", handler.ProbeProtocolGatewayModels)
+
+	body, err := json.Marshal(map[string]any{
+		"gateway_protocol":   "mixed",
+		"accepted_protocols": []string{"openai", "gemini"},
+		"base_url":           "http://127.0.0.1",
+		"api_key":            "gateway-key",
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/protocol-gateway/probe-models", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "ACCOUNT_INVALID_BASE_URL")
+	require.Empty(t, upstream.requestURLs)
 }

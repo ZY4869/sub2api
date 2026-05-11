@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,6 +49,9 @@ func TestProbeAccountModels_MixedProtocolGatewayMergesModelsAndKeepsSourceProtoc
 	upstream := &accountModelImportMixedProbeUpstreamStub{}
 	geminiCompatService := newTestGeminiCompatService(upstream)
 	svc := NewAccountModelImportService(nil, geminiCompatService, upstream, nil)
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	svc.SetConfig(cfg)
 
 	account := &Account{
 		ID:       3001,
@@ -82,4 +87,36 @@ func TestProbeAccountModels_MixedProtocolGatewayMergesModelsAndKeepsSourceProtoc
 	require.Equal(t, PlatformOpenAI, detailsByID["gpt-4.1"].SourceProtocol)
 	require.Equal(t, PlatformGemini, detailsByID["gemini-2.5-pro"].SourceProtocol)
 	require.Equal(t, PlatformOpenAI, detailsByID["shared-model"].SourceProtocol)
+}
+
+func TestProbeAccountModels_MixedProtocolGatewayInvalidBaseURLDoesNotRequestUpstream(t *testing.T) {
+	upstream := &accountModelImportMixedProbeUpstreamStub{}
+	geminiCompatService := newTestGeminiCompatService(upstream)
+	svc := NewAccountModelImportService(nil, geminiCompatService, upstream, nil)
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = true
+	cfg.Security.URLAllowlist.UpstreamHosts = []string{"api.openai.com", "generativelanguage.googleapis.com"}
+	svc.SetConfig(cfg)
+
+	account := &Account{
+		ID:       3002,
+		Platform: PlatformProtocolGateway,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"api_key":  "gateway-key",
+			"base_url": "http://127.0.0.1",
+		},
+		Extra: map[string]any{
+			"gateway_protocol":           GatewayProtocolMixed,
+			"gateway_accepted_protocols": []any{"openai", "gemini"},
+		},
+	}
+
+	result, err := svc.ProbeAccountModels(context.Background(), account)
+
+	require.Nil(t, result)
+	require.Error(t, err)
+	require.Equal(t, accountInvalidBaseURLCode, infraerrors.Reason(err))
+	require.Empty(t, upstream.lastRequests)
 }

@@ -4,14 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+
 	"go.uber.org/zap"
 )
+
+const baiduDocumentAIInvalidCredentialsCode = "ACCOUNT_INVALID_DOCUMENT_AI_CREDENTIALS"
 
 func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) ([]Account, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
@@ -64,6 +69,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err := EnsureSupportedPrimaryPlatform(input.Platform); err != nil {
 		return nil, err
 	}
+	if err := s.validateAccountBaseURL(input.Credentials); err != nil {
+		return nil, err
+	}
 	input.Extra = normalizeAccountExtraForStorage(input.Platform, input.Type, input.Credentials, input.Extra)
 	if err := validateProtocolGatewayAccountInput(input.Platform, input.Type, input.Extra); err != nil {
 		return nil, err
@@ -71,7 +79,7 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err := validateGrokAccountInput(input.Platform, input.Type, input.Credentials, input.Extra); err != nil {
 		return nil, err
 	}
-	if err := validateBaiduDocumentAIAccountInput(ctx, input.Platform, input.Type, input.Credentials); err != nil {
+	if err := validateBaiduDocumentAIAccountInput(ctx, s.cfg, input.Platform, input.Type, input.Credentials); err != nil {
 		return nil, err
 	}
 	bindingPlatform := RoutingPlatformFromValues(input.Platform, input.Extra)
@@ -127,6 +135,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	}
 	if CanonicalizePlatformValue(input.Platform) == PlatformBaiduDocumentAI {
 		credentials = normalizeBaiduDocumentAICredentialsForStorage(credentials)
+		if err := validateBaiduDocumentAIAccountInput(ctx, s.cfg, input.Platform, input.Type, credentials); err != nil {
+			return nil, err
+		}
 	}
 	account := &Account{
 		Name:                   input.Name,
@@ -215,6 +226,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	} else if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformKiro) {
 		NormalizeKiroAccountCredentials(account)
 	}
+	if err := s.validateAccountBaseURL(account.Credentials); err != nil {
+		return nil, err
+	}
 	if input.Extra != nil {
 		for _, key := range []string{"quota_used", "quota_daily_used", "quota_daily_start", "quota_weekly_used", "quota_weekly_start"} {
 			if v, ok := account.Extra[key]; ok {
@@ -235,7 +249,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err := validateGrokAccountInput(account.Platform, account.Type, account.Credentials, account.Extra); err != nil {
 		return nil, err
 	}
-	if err := validateBaiduDocumentAIAccountInput(ctx, account.Platform, account.Type, account.Credentials); err != nil {
+	if err := validateBaiduDocumentAIAccountInput(ctx, s.cfg, account.Platform, account.Type, account.Credentials); err != nil {
 		return nil, err
 	}
 	if input.ProxyID != nil {
@@ -287,6 +301,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	}
 	if CanonicalizePlatformValue(account.Platform) == PlatformBaiduDocumentAI {
 		account.Credentials = normalizeBaiduDocumentAICredentialsForStorage(account.Credentials)
+		if err := validateBaiduDocumentAIAccountInput(ctx, s.cfg, account.Platform, account.Type, account.Credentials); err != nil {
+			return nil, err
+		}
 	}
 	if input.GroupIDs != nil {
 		if err := s.validateGroupIDsExist(ctx, *input.GroupIDs); err != nil {
@@ -316,6 +333,23 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	}
 	return updated, nil
 }
+
+func (s *adminServiceImpl) validateAccountBaseURL(credentials map[string]any) error {
+	if len(credentials) == 0 {
+		return nil
+	}
+	raw, _ := credentials["base_url"].(string)
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	normalized, err := validateAccountUpstreamBaseURL(s.cfg, raw)
+	if err != nil {
+		return err
+	}
+	credentials["base_url"] = normalized
+	return nil
+}
 func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error) {
 	result := &BulkUpdateAccountsResult{SuccessIDs: make([]int64, 0, len(input.AccountIDs)), FailedIDs: make([]int64, 0, len(input.AccountIDs)), Results: make([]BulkUpdateAccountResult, 0, len(input.AccountIDs))}
 	if len(input.AccountIDs) == 0 {
@@ -329,7 +363,8 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 	needMixedChannelCheck := input.GroupIDs != nil
 	targetLifecycle := NormalizeAccountLifecycleInput(input.LifecycleState)
 	needsArchiveSnapshot := input.GroupIDs != nil && targetLifecycle == AccountLifecycleArchived
-	needAccountFetch := needMixedChannelCheck || input.Status != "" || input.Schedulable != nil || needsArchiveSnapshot
+	needCredentialPlatformValidation := len(input.Credentials) > 0
+	needAccountFetch := needMixedChannelCheck || input.Status != "" || input.Schedulable != nil || needsArchiveSnapshot || needCredentialPlatformValidation
 	platformByID := map[int64]string{}
 	accountsByID := map[int64]*Account{}
 	if needAccountFetch {
@@ -389,7 +424,14 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 			return nil, errors.New("rate_multiplier must be >= 0")
 		}
 	}
-	repoUpdates := AccountBulkUpdate{Credentials: input.Credentials, Extra: input.Extra}
+	credentials := input.Credentials
+	if err := s.validateAccountBaseURL(credentials); err != nil {
+		return nil, err
+	}
+	if err := s.validateBulkBaiduDocumentAICredentials(ctx, credentials, accountsByID, input.AccountIDs); err != nil {
+		return nil, err
+	}
+	repoUpdates := AccountBulkUpdate{Credentials: credentials, Extra: input.Extra}
 	if input.Name != "" {
 		repoUpdates.Name = &input.Name
 	}
@@ -457,6 +499,34 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		result.Results = append(result.Results, entry)
 	}
 	return result, nil
+}
+
+func (s *adminServiceImpl) validateBulkBaiduDocumentAICredentials(ctx context.Context, credentials map[string]any, accountsByID map[int64]*Account, accountIDs []int64) error {
+	if len(credentials) == 0 || len(accountsByID) == 0 {
+		return nil
+	}
+	hasDocumentAIAccount := false
+	for _, accountID := range accountIDs {
+		account := accountsByID[accountID]
+		if account == nil || CanonicalizePlatformValue(account.Platform) != PlatformBaiduDocumentAI {
+			continue
+		}
+		hasDocumentAIAccount = true
+		merged := make(map[string]any, len(account.Credentials)+len(credentials))
+		for key, value := range account.Credentials {
+			merged[key] = value
+		}
+		for key, value := range credentials {
+			merged[key] = value
+		}
+		if err := validateBaiduDocumentAIAccountInput(ctx, s.cfg, account.Platform, account.Type, merged); err != nil {
+			return err
+		}
+	}
+	if !hasDocumentAIAccount {
+		return nil
+	}
+	return validateBaiduDocumentAIURLFields(ctx, s.cfg, PlatformBaiduDocumentAI, AccountTypeAPIKey, credentials)
 }
 
 func validateProtocolGatewayAccountInput(platform string, accountType string, extra map[string]any) error {
@@ -530,7 +600,7 @@ func validateGrokAccountInput(platform string, accountType string, credentials m
 	return nil
 }
 
-func validateBaiduDocumentAIAccountInput(ctx context.Context, platform string, accountType string, credentials map[string]any) error {
+func validateBaiduDocumentAIAccountInput(ctx context.Context, cfg *config.Config, platform string, accountType string, credentials map[string]any) error {
 	if CanonicalizePlatformValue(platform) != PlatformBaiduDocumentAI {
 		return nil
 	}
@@ -545,8 +615,19 @@ func validateBaiduDocumentAIAccountInput(ctx context.Context, platform string, a
 	if asyncToken == "" && directToken == "" {
 		return newBaiduDocumentAIValidationError(ctx, platform, accountType, "baidu_document_ai accounts require credentials.async_bearer_token or credentials.direct_token")
 	}
-	if raw := strings.TrimSpace(anyString(credentials["async_base_url"])); raw != "" && !strings.HasPrefix(strings.ToLower(raw), "http://") && !strings.HasPrefix(strings.ToLower(raw), "https://") {
-		return newBaiduDocumentAIValidationError(ctx, platform, accountType, "baidu_document_ai credentials.async_base_url must be an absolute URL")
+	return validateBaiduDocumentAIURLFields(ctx, cfg, platform, accountType, credentials)
+}
+
+func validateBaiduDocumentAIURLFields(ctx context.Context, cfg *config.Config, platform string, accountType string, credentials map[string]any) error {
+	if len(credentials) == 0 {
+		return nil
+	}
+	if raw := strings.TrimSpace(anyString(credentials["async_base_url"])); raw != "" {
+		normalized, err := validateDocumentAIURLWithConfig(cfg, raw)
+		if err != nil {
+			return newBaiduDocumentAIValidationError(ctx, platform, accountType, "baidu_document_ai credentials.async_base_url is not allowed")
+		}
+		credentials["async_base_url"] = normalized
 	}
 	if rawURLs, ok := credentials["direct_api_urls"]; ok && rawURLs != nil {
 		switch typed := rawURLs.(type) {
@@ -555,15 +636,26 @@ func validateBaiduDocumentAIAccountInput(ctx context.Context, platform string, a
 				if strings.TrimSpace(modelID) == "" {
 					return newBaiduDocumentAIValidationError(ctx, platform, accountType, "baidu_document_ai credentials.direct_api_urls contains an empty model id")
 				}
-				if url := strings.TrimSpace(anyString(value)); url == "" {
+				url := strings.TrimSpace(anyString(value))
+				if url == "" {
 					return newBaiduDocumentAIValidationError(ctx, platform, accountType, "baidu_document_ai credentials.direct_api_urls contains an empty API URL")
 				}
+				normalized, err := validateDocumentAIURLWithConfig(cfg, url)
+				if err != nil {
+					return newBaiduDocumentAIValidationError(ctx, platform, accountType, "baidu_document_ai credentials.direct_api_urls contains a disallowed API URL")
+				}
+				typed[modelID] = normalized
 			}
 		case map[string]string:
 			for modelID, value := range typed {
 				if strings.TrimSpace(modelID) == "" || strings.TrimSpace(value) == "" {
 					return newBaiduDocumentAIValidationError(ctx, platform, accountType, "baidu_document_ai credentials.direct_api_urls contains an empty entry")
 				}
+				normalized, err := validateDocumentAIURLWithConfig(cfg, value)
+				if err != nil {
+					return newBaiduDocumentAIValidationError(ctx, platform, accountType, "baidu_document_ai credentials.direct_api_urls contains a disallowed API URL")
+				}
+				typed[modelID] = normalized
 			}
 		default:
 			return newBaiduDocumentAIValidationError(ctx, platform, accountType, "baidu_document_ai credentials.direct_api_urls must be an object")
@@ -573,6 +665,10 @@ func validateBaiduDocumentAIAccountInput(ctx context.Context, platform string, a
 }
 
 func newBaiduDocumentAIValidationError(ctx context.Context, platform string, accountType string, reason string) error {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "baidu_document_ai credentials are invalid"
+	}
 	requestID := ""
 	if ctx != nil {
 		if value, _ := ctx.Value(ctxkey.RequestID).(string); strings.TrimSpace(value) != "" {
@@ -587,9 +683,9 @@ func newBaiduDocumentAIValidationError(ctx context.Context, platform string, acc
 		zap.String("request_id", requestID),
 		zap.String("platform", strings.TrimSpace(platform)),
 		zap.String("account_type", strings.TrimSpace(strings.ToLower(accountType))),
-		zap.String("reason", strings.TrimSpace(reason)),
+		zap.String("reason", reason),
 	)
-	return errors.New(reason)
+	return infraerrors.BadRequest(baiduDocumentAIInvalidCredentialsCode, reason)
 }
 
 func normalizeGrokCredentialsForStorage(accountType string, credentials map[string]any, tier string) map[string]any {

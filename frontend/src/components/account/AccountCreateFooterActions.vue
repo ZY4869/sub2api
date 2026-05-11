@@ -14,7 +14,7 @@ const props = withDefaults(
     formId?: string
   }>(),
   {
-    showAutoImport: true,
+    showAutoImport: false,
     formId: 'create-account-form'
   }
 )

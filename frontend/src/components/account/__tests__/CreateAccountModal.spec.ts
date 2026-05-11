@@ -562,12 +562,10 @@ describe('CreateAccountModal', () => {
     expect(source).toContain('min-w-0 break-words text-sm font-medium text-gray-700 dark:text-gray-300')
   })
 
-  it('uses the protocol gateway probe editor and hides the generic auto-import toggle for that platform', () => {
+  it('uses the protocol gateway probe editor and no longer wires the legacy auto-import toggle', () => {
     expect(source).toContain('AccountProtocolGatewayModelProbeEditor')
     expect(source).toContain(':skip-model-scope-editor="!showApiKeyModelScopeEditor"')
-    expect(source).toContain(
-      ":show-auto-import=\"form.platform !== 'protocol_gateway' && !isBaiduDocumentAISelected\""
-    )
+    expect(source).not.toContain(':show-auto-import=')
   })
 
   it('keeps only kiro on the dedicated oauth finalize flow', () => {

@@ -3,12 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
-	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 )
 
@@ -80,25 +78,10 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 }
 
 func (s *OpenAIGatewayService) validateUpstreamBaseURL(raw string) (string, error) {
-	if s == nil || s.cfg == nil {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, false)
-		if err != nil {
-			return "", fmt.Errorf("invalid base_url: %w", err)
-		}
-		return normalized, nil
+	if s == nil {
+		return validateUpstreamBaseURLWithConfig(nil, raw)
 	}
-	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
-		if err != nil {
-			return "", fmt.Errorf("invalid base_url: %w", err)
-		}
-		return normalized, nil
-	}
-	normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{AllowedHosts: s.cfg.Security.URLAllowlist.UpstreamHosts, RequireAllowlist: true, AllowPrivate: s.cfg.Security.URLAllowlist.AllowPrivateHosts})
-	if err != nil {
-		return "", fmt.Errorf("invalid base_url: %w", err)
-	}
-	return normalized, nil
+	return validateUpstreamBaseURLWithConfig(s.cfg, raw)
 }
 
 func openAIResponsesRequestPathSuffix(c *gin.Context) string {

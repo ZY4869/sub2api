@@ -2,12 +2,16 @@ package middleware
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/gin-gonic/gin"
 )
@@ -17,31 +21,72 @@ import (
 // It preserves Gin's broken-pipe handling by not attempting to write a response
 // when the client connection is already gone.
 func Recovery() gin.HandlerFunc {
-	return gin.CustomRecoveryWithWriter(gin.DefaultErrorWriter, func(c *gin.Context, recovered any) {
-		recoveredErr, _ := recovered.(error)
-
-		if isBrokenPipe(recoveredErr) {
-			if recoveredErr != nil {
-				_ = c.Error(recoveredErr)
+	return func(c *gin.Context) {
+		defer func() {
+			recovered := recover()
+			if recovered == nil {
+				return
 			}
-			c.Abort()
-			return
-		}
 
-		if c.Writer.Written() {
-			c.Abort()
-			return
-		}
+			recoveredErr, _ := recovered.(error)
+			panicSummary := strings.TrimSpace(fmt.Sprint(recovered))
+			requestID := ""
+			if c != nil && c.Request != nil {
+				if value, ok := c.Request.Context().Value(ctxkey.RequestID).(string); ok {
+					requestID = strings.TrimSpace(value)
+				}
+			}
 
-		response.ErrorWithDetails(
-			c,
-			http.StatusInternalServerError,
-			infraerrors.UnknownMessage,
-			infraerrors.UnknownReason,
-			nil,
-		)
-		c.Abort()
-	})
+			fmt.Fprintf(
+				gin.DefaultErrorWriter,
+				"[Recovery] request_id=%s method=%s path=%s client_ip=%s panic=%s\n%s",
+				requestID,
+				requestMethod(c),
+				requestPath(c),
+				ip.GetTrustedClientIP(c),
+				panicSummary,
+				string(debug.Stack()),
+			)
+
+			if isBrokenPipe(recoveredErr) {
+				if recoveredErr != nil {
+					_ = c.Error(recoveredErr)
+				}
+				c.Abort()
+				return
+			}
+
+			if c.Writer.Written() {
+				c.Abort()
+				return
+			}
+
+			response.ErrorWithDetails(
+				c,
+				http.StatusInternalServerError,
+				infraerrors.UnknownMessage,
+				infraerrors.UnknownReason,
+				nil,
+			)
+			c.Abort()
+		}()
+
+		c.Next()
+	}
+}
+
+func requestMethod(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+	return c.Request.Method
+}
+
+func requestPath(c *gin.Context) string {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return ""
+	}
+	return c.Request.URL.Path
 }
 
 func isBrokenPipe(err error) bool {

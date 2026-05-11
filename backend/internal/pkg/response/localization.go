@@ -162,6 +162,18 @@ var localizedReasonMessages = map[string]localizedMessageMap{
 		"en": "vertex catalog service is not configured",
 		"zh": "Vertex 模型目录服务尚未配置。",
 	},
+	"ACCOUNT_INVALID_BASE_URL": {
+		"en": "base_url is invalid or not allowed by the current outbound policy",
+		"zh": "base_url 非法，或不符合当前出站安全策略。",
+	},
+	"ACCOUNT_INVALID_DOCUMENT_AI_CREDENTIALS": {
+		"en": "Baidu Document AI account credentials are invalid or not allowed by the current outbound policy",
+		"zh": "百度智能文档账号凭证非法，或不符合当前出站安全策略。",
+	},
+	"UPSTREAM_REDIRECT_NOT_ALLOWED": {
+		"en": "upstream redirect is not allowed",
+		"zh": "上游重定向已被安全策略阻止。",
+	},
 }
 
 var localizedMessageKeys = map[string]localizedMessageMap{

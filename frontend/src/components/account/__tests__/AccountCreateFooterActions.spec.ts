@@ -13,7 +13,7 @@ vi.mock('vue-i18n', async () => {
 })
 
 describe('AccountCreateFooterActions', () => {
-  it('renders step 1 actions and emits close plus model updates', async () => {
+  it('renders step 1 actions without the auto-import toggle and emits close', async () => {
     const wrapper = mount(AccountCreateFooterActions, {
       props: {
         step: 1,
@@ -27,11 +27,10 @@ describe('AccountCreateFooterActions', () => {
     })
 
     expect(wrapper.text()).toContain('common.next')
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
 
-    await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('.btn-secondary').trigger('click')
 
-    expect(wrapper.emitted('update:autoImportModels')).toEqual([[true]])
     expect(wrapper.emitted('close')).toEqual([[]])
   })
 

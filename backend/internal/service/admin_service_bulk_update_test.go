@@ -7,6 +7,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,6 +16,7 @@ type accountRepoStubForBulkUpdate struct {
 	accountRepoStub
 	bulkUpdateErr    error
 	bulkUpdateIDs    []int64
+	lastBulkUpdate   AccountBulkUpdate
 	bindGroupErrByID map[int64]error
 	bindGroupsCalls  []int64
 	getByIDsAccounts []*Account
@@ -27,8 +30,9 @@ type accountRepoStubForBulkUpdate struct {
 	listByGroupErr   map[int64]error
 }
 
-func (s *accountRepoStubForBulkUpdate) BulkUpdate(_ context.Context, ids []int64, _ AccountBulkUpdate) (int64, error) {
+func (s *accountRepoStubForBulkUpdate) BulkUpdate(_ context.Context, ids []int64, update AccountBulkUpdate) (int64, error) {
 	s.bulkUpdateIDs = append([]int64{}, ids...)
+	s.lastBulkUpdate = update
 	if s.bulkUpdateErr != nil {
 		return 0, s.bulkUpdateErr
 	}
@@ -137,6 +141,164 @@ func TestAdminService_BulkUpdateAccounts_NilGroupRepoReturnsError(t *testing.T) 
 	require.Nil(t, result)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "group repository not configured")
+}
+
+func TestAdminService_BulkUpdateAccounts_InvalidBaseURLReturnsStructuredError(t *testing.T) {
+	cases := []string{
+		"file:///etc/passwd",
+		"gopher://127.0.0.1:70",
+		"http://127.0.0.1",
+		"https:///missing-host",
+		"https://api.openai.com:99999",
+	}
+
+	for _, rawBaseURL := range cases {
+		t.Run(rawBaseURL, func(t *testing.T) {
+			repo := &accountRepoStubForBulkUpdate{}
+			cfg := &config.Config{}
+			cfg.Security.URLAllowlist.Enabled = true
+			cfg.Security.URLAllowlist.UpstreamHosts = []string{"api.openai.com"}
+			svc := &adminServiceImpl{accountRepo: repo, cfg: cfg}
+
+			result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
+				AccountIDs: []int64{1},
+				Credentials: map[string]any{
+					"base_url": rawBaseURL,
+				},
+			})
+
+			require.Nil(t, result)
+			require.Error(t, err)
+			require.Equal(t, accountInvalidBaseURLCode, infraerrors.Reason(err))
+			require.Empty(t, repo.bulkUpdateIDs)
+		})
+	}
+}
+
+func TestAdminService_BulkUpdateAccounts_NormalizesAllowedBaseURL(t *testing.T) {
+	repo := &accountRepoStubForBulkUpdate{}
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = true
+	cfg.Security.URLAllowlist.UpstreamHosts = []string{"api.openai.com"}
+	svc := &adminServiceImpl{accountRepo: repo, cfg: cfg}
+
+	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
+		AccountIDs: []int64{1},
+		Credentials: map[string]any{
+			"base_url": " https://api.openai.com/ ",
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, []int64{1}, repo.bulkUpdateIDs)
+	require.Equal(t, "https://api.openai.com", repo.lastBulkUpdate.Credentials["base_url"])
+}
+
+func TestAdminService_BulkUpdateAccounts_RejectsDisallowedBaiduDocumentAIURL(t *testing.T) {
+	repo := &accountRepoStubForBulkUpdate{
+		getByIDsAccounts: []*Account{
+			{
+				ID:       1,
+				Platform: PlatformBaiduDocumentAI,
+				Type:     AccountTypeAPIKey,
+				Credentials: map[string]any{
+					"async_bearer_token": "token",
+				},
+			},
+		},
+	}
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = true
+	cfg.Security.URLAllowlist.DocumentAIHosts = []string{"paddleocr.aistudio-app.com"}
+	svc := &adminServiceImpl{accountRepo: repo, cfg: cfg}
+
+	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
+		AccountIDs: []int64{1},
+		Credentials: map[string]any{
+			"async_base_url": "https://example.com/api/v2/ocr",
+		},
+	})
+
+	require.Nil(t, result)
+	require.Error(t, err)
+	require.True(t, infraerrors.IsBadRequest(err))
+	require.Equal(t, baiduDocumentAIInvalidCredentialsCode, infraerrors.Reason(err))
+	require.Contains(t, err.Error(), "async_base_url")
+	require.Empty(t, repo.bulkUpdateIDs)
+}
+
+func TestAdminService_BulkUpdateAccounts_RejectsDisallowedBaiduDocumentAIDirectURL(t *testing.T) {
+	repo := &accountRepoStubForBulkUpdate{
+		getByIDsAccounts: []*Account{
+			{
+				ID:       1,
+				Platform: PlatformBaiduDocumentAI,
+				Type:     AccountTypeAPIKey,
+				Credentials: map[string]any{
+					"direct_token": "direct-token",
+				},
+			},
+		},
+	}
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = true
+	cfg.Security.URLAllowlist.DocumentAIHosts = []string{"paddleocr.aistudio-app.com"}
+	svc := &adminServiceImpl{accountRepo: repo, cfg: cfg}
+
+	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
+		AccountIDs: []int64{1},
+		Credentials: map[string]any{
+			"direct_api_urls": map[string]any{
+				DocumentAIModelPPOCRV5Server: "https://example.com/api/v2/ocr/direct",
+			},
+		},
+	})
+
+	require.Nil(t, result)
+	require.Error(t, err)
+	require.True(t, infraerrors.IsBadRequest(err))
+	require.Equal(t, baiduDocumentAIInvalidCredentialsCode, infraerrors.Reason(err))
+	require.Contains(t, err.Error(), "direct_api_urls")
+	require.Empty(t, repo.bulkUpdateIDs)
+}
+
+func TestAdminService_BulkUpdateAccounts_NormalizesAllowedBaiduDocumentAIURLs(t *testing.T) {
+	repo := &accountRepoStubForBulkUpdate{
+		getByIDsAccounts: []*Account{
+			{
+				ID:       1,
+				Platform: PlatformBaiduDocumentAI,
+				Type:     AccountTypeAPIKey,
+				Credentials: map[string]any{
+					"async_bearer_token": "token",
+					"direct_token":       "direct-token",
+				},
+			},
+		},
+	}
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = true
+	cfg.Security.URLAllowlist.DocumentAIHosts = []string{"paddleocr.aistudio-app.com"}
+	svc := &adminServiceImpl{accountRepo: repo, cfg: cfg}
+
+	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
+		AccountIDs: []int64{1},
+		Credentials: map[string]any{
+			"async_base_url": " https://paddleocr.aistudio-app.com/api/v2/ocr/ ",
+			"direct_api_urls": map[string]any{
+				DocumentAIModelPPOCRV5Server: " https://paddleocr.aistudio-app.com/api/v2/ocr/direct/ ",
+			},
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, []int64{1}, repo.bulkUpdateIDs)
+	require.Equal(t, "https://paddleocr.aistudio-app.com/api/v2/ocr", repo.lastBulkUpdate.Credentials["async_base_url"])
+	directURLs, ok := repo.lastBulkUpdate.Credentials["direct_api_urls"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "https://paddleocr.aistudio-app.com/api/v2/ocr/direct", directURLs[DocumentAIModelPPOCRV5Server])
 }
 
 // TestAdminService_BulkUpdateAccounts_MixedChannelPreCheckBlocksOnExistingConflict verifies

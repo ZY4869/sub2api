@@ -4,12 +4,14 @@ package middleware
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -29,11 +31,16 @@ func TestRecovery_PanicLogContainsInfo(t *testing.T) {
 	r := gin.New()
 	r.Use(Recovery())
 	r.GET("/panic", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.RequestID, "rid-recovery-test"))
 		panic("custom panic message for test")
 	})
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/panic", nil)
+	req.Header.Set("Authorization", "Bearer secret-token")
+	req.Header.Set("Cookie", "session=secret-cookie")
+	req.Header.Set("X-Api-Key", "secret-api-key")
+	req.Header.Set("X-Client-Request-Id", "secret-client-request-id")
 	r.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusInternalServerError, w.Code)
@@ -41,6 +48,11 @@ func TestRecovery_PanicLogContainsInfo(t *testing.T) {
 	logOutput := buf.String()
 	require.Contains(t, logOutput, "custom panic message for test", "日志应包含 panic 信息")
 	require.Contains(t, logOutput, "recovery_test.go", "日志应包含堆栈跟踪文件名")
+	require.Contains(t, logOutput, "request_id=rid-recovery-test")
+	require.NotContains(t, logOutput, "secret-token")
+	require.NotContains(t, logOutput, "secret-cookie")
+	require.NotContains(t, logOutput, "secret-api-key")
+	require.NotContains(t, logOutput, "secret-client-request-id")
 }
 
 func TestRecovery(t *testing.T) {

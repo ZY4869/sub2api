@@ -98,6 +98,12 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if !cfg.Security.URLAllowlist.Enabled {
 		slog.Warn("security.url_allowlist.enabled=false; allowlist/SSRF checks disabled (minimal format validation only).")
 	}
+	if cfg.Security.URLAllowlist.AllowPrivateHosts {
+		slog.Warn("security.url_allowlist.allow_private_hosts=true; private/localhost upstream hosts are allowed.")
+	}
+	if cfg.Security.URLAllowlist.AllowInsecureHTTP {
+		slog.Warn("security.url_allowlist.allow_insecure_http=true; insecure http upstreams are allowed.")
+	}
 	if !cfg.Security.ResponseHeaders.Enabled {
 		slog.Warn("security.response_headers.enabled=false; configurable header filtering disabled (default allowlist only).")
 	}

@@ -1766,6 +1766,10 @@ const submitUpdateAccount = async (accountID: number, updatePayload: Record<stri
       })
       return
     }
+    if (error?.reason === 'ACCOUNT_INVALID_BASE_URL') {
+      appStore.showError(t('admin.accounts.invalidBaseUrl'))
+      return
+    }
     appStore.showError(error.message || t('admin.accounts.failedToUpdate'))
   } finally {
     submitting.value = false
@@ -2302,6 +2306,10 @@ const handleSubmit = async () => {
 
     await submitUpdateAccount(accountID, updatePayload)
   } catch (error: any) {
+    if (error?.reason === 'ACCOUNT_INVALID_BASE_URL') {
+      appStore.showError(t('admin.accounts.invalidBaseUrl'))
+      return
+    }
     appStore.showError(error.message || t('admin.accounts.failedToUpdate'))
   }
 }

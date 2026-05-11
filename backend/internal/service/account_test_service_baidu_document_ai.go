@@ -27,7 +27,7 @@ func (s *AccountTestService) testBaiduDocumentAIAccountConnection(c *gin.Context
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.Flush()
 
-	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService)
+	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService, s.cfg)
 	if account.IsBaiduDocumentAIAsyncMode() && account.GetBaiduDocumentAIAsyncBearerToken() != "" && account.GetBaiduDocumentAIAsyncBaseURL() != "" {
 		modelID := DocumentAIModelPPOCRV5Server
 		s.sendEvent(c, TestEvent{Type: "test_start", Model: modelID})

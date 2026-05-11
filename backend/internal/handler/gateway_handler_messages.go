@@ -43,6 +43,18 @@ func forwardFailedLogFields(account *service.Account, wroteFallback bool, err er
 	return fields
 }
 
+func (h *GatewayHandler) selectionAccountOrFail(
+	c *gin.Context,
+	selection *service.AccountSelectionResult,
+	streamStarted bool,
+) (*service.Account, bool) {
+	if selection == nil || selection.Account == nil {
+		h.handleStreamingAwareError(c, http.StatusBadGateway, "api_error", "No available accounts", streamStarted)
+		return nil, false
+	}
+	return selection.Account, true
+}
+
 func (h *GatewayHandler) Messages(c *gin.Context) {
 	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
 	if !ok {
@@ -252,7 +264,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						return
 					}
 				}
-				account := selection.Account
+				account, ok := h.selectionAccountOrFail(c, selection, streamStarted)
+				if !ok {
+					return
+				}
 				setOpsSelectedAccountDetails(c, account)
 				setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
@@ -444,7 +459,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						return
 					}
 				}
-				account := selection.Account
+				account, ok := h.selectionAccountOrFail(c, selection, streamStarted)
+				if !ok {
+					return
+				}
 				setOpsSelectedAccountDetails(c, account)
 				setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
@@ -722,7 +740,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					return
 				}
 			}
-			account := selection.Account
+			account, ok := h.selectionAccountOrFail(c, selection, streamStarted)
+			if !ok {
+				return
+			}
 			setOpsSelectedAccountDetails(c, account)
 			setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
 			if account.IsInterceptWarmupEnabled() {
@@ -886,7 +907,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					return
 				}
 			}
-			account := selection.Account
+			account, ok := h.selectionAccountOrFail(c, selection, streamStarted)
+			if !ok {
+				return
+			}
 			setOpsSelectedAccountDetails(c, account)
 			setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
 			if account.IsInterceptWarmupEnabled() {

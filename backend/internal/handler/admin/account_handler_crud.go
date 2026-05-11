@@ -40,7 +40,6 @@ func (h *AccountHandler) Create(c *gin.Context) {
 			return nil, execErr
 		}
 		h.adminService.ForceOpenAIPrivacy(ctx, account)
-		h.scheduleAccountModelProbeRefresh(nil, account, "create")
 		return h.buildAccountResponseWithRuntime(ctx, account), nil
 	})
 	if err != nil {
@@ -106,7 +105,6 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	h.scheduleAccountModelProbeRefresh(accountBeforeUpdate, account, "update")
 	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
 }
 

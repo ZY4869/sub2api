@@ -22,6 +22,11 @@ func (s *AccountModelImportService) detectGrokModels(ctx context.Context, accoun
 		if baseURL == "" {
 			baseURL = "https://api.x.ai"
 		}
+		normalizedBaseURL, err := s.validateProbeBaseURL(baseURL)
+		if err != nil {
+			return nil, err
+		}
+		baseURL = normalizedBaseURL
 		body, err := s.doImportGET(ctx, account, strings.TrimRight(baseURL, "/")+"/v1/models", map[string]string{
 			"Authorization": "Bearer " + apiKey,
 			"Accept":        "application/json",

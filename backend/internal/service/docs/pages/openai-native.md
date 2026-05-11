@@ -103,6 +103,8 @@ curl https://api.zyxai.de/v1/responses \
 - 当 `POST /v1/responses` 的目标模型在所有可路由账号上都只因为对应额度侧冷却而不可服务时，接口会返回 `429 rate_limit_error`；如果是账号忙、上游故障或其它选路失败，仍然保持原来的 `503` / `502` 语义。
 - `/v1/models`、`/v1beta/models` 和对应 detail 读路径会按当前运行时可服务性临时隐藏受限侧模型；这不代表模型被永久删除，也不会把这类临时隐藏改成 `404`。
 - 管理后台单账号测试 `POST /api/v1/admin/accounts/:id/test` 会在发起上游请求前先做本地预检；命中受限侧时直接返回 `400`，提示 `Spark 冷却中`、`普通额度冷却中` 或整号冷却。
+- 如果账号上游 `base_url` 不符合当前出站安全策略，保存阶段就会被拒绝，返回 `400 ACCOUNT_INVALID_BASE_URL`；保存成功后不会自动探测模型，需由管理员手动执行 Probe/Test。
+- 管理端单账号测试、手动 Probe 与运行态转发都不会跟随上游 `3xx`；命中重定向时会返回受控错误 `502 UPSTREAM_REDIRECT_NOT_ALLOWED`。
 - `service_tier`（priority/fast/flex）可能会被管理员策略过滤或阻断；详见下文 “OpenAI Fast/Flex Policy（service_tier）”。
 
 排错建议：

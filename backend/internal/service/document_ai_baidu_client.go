@@ -7,11 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/tidwall/gjson"
@@ -20,6 +20,7 @@ import (
 type baiduDocumentAIClient struct {
 	httpUpstream                 HTTPUpstream
 	tlsFingerprintProfileService *TLSFingerprintProfileService
+	cfg                          *config.Config
 }
 
 type baiduDocumentAIAsyncSubmitResult struct {
@@ -63,10 +64,11 @@ func (e *baiduDocumentAIProviderError) Unwrap() error {
 	return e.err
 }
 
-func newBaiduDocumentAIClient(httpUpstream HTTPUpstream, tlsFingerprintProfileService *TLSFingerprintProfileService) *baiduDocumentAIClient {
+func newBaiduDocumentAIClient(httpUpstream HTTPUpstream, tlsFingerprintProfileService *TLSFingerprintProfileService, cfg *config.Config) *baiduDocumentAIClient {
 	return &baiduDocumentAIClient{
 		httpUpstream:                 httpUpstream,
 		tlsFingerprintProfileService: tlsFingerprintProfileService,
+		cfg:                          cfg,
 	}
 }
 
@@ -77,7 +79,7 @@ func (c *baiduDocumentAIClient) submitAsyncJob(ctx context.Context, account *Acc
 	if account == nil {
 		return nil, infraerrors.BadRequest("document_ai_invalid_request", "document ai account is required")
 	}
-	baseURL, err := urlvalidator.ValidateHTTPURL(account.GetBaiduDocumentAIAsyncBaseURL(), false, urlvalidator.ValidationOptions{})
+	baseURL, err := validateDocumentAIURLWithConfig(c.cfg, account.GetBaiduDocumentAIAsyncBaseURL())
 	if err != nil {
 		return nil, infraerrors.BadRequest("document_ai_invalid_request", "invalid baidu document ai async_base_url").WithMetadata(map[string]string{
 			"provider_message": err.Error(),
@@ -148,7 +150,7 @@ func (c *baiduDocumentAIClient) getAsyncJobStatus(ctx context.Context, account *
 	if account == nil {
 		return nil, infraerrors.BadRequest("document_ai_invalid_request", "document ai account is required")
 	}
-	baseURL, err := urlvalidator.ValidateHTTPURL(account.GetBaiduDocumentAIAsyncBaseURL(), false, urlvalidator.ValidationOptions{})
+	baseURL, err := validateDocumentAIURLWithConfig(c.cfg, account.GetBaiduDocumentAIAsyncBaseURL())
 	if err != nil {
 		return nil, infraerrors.BadRequest("document_ai_invalid_request", "invalid baidu document ai async_base_url").WithMetadata(map[string]string{
 			"provider_message": err.Error(),
@@ -233,7 +235,7 @@ func (c *baiduDocumentAIClient) parseDirect(ctx context.Context, account *Accoun
 	if apiURL == "" {
 		return nil, infraerrors.BadRequest("document_ai_invalid_request", "direct API URL is not configured for this model")
 	}
-	validatedURL, err := urlvalidator.ValidateHTTPURL(apiURL, false, urlvalidator.ValidationOptions{})
+	validatedURL, err := validateDocumentAIURLWithConfig(c.cfg, apiURL)
 	if err != nil {
 		return nil, infraerrors.BadRequest("document_ai_invalid_request", "invalid baidu document ai direct_api_url").WithMetadata(map[string]string{
 			"provider_message": err.Error(),
@@ -301,7 +303,7 @@ func (c *baiduDocumentAIClient) downloadResultURL(ctx context.Context, account *
 	if c == nil || c.httpUpstream == nil {
 		return nil, nil, infraerrors.ServiceUnavailable("document_ai_provider_error", "document ai upstream client is not configured")
 	}
-	validatedURL, err := urlvalidator.ValidateHTTPURL(rawURL, false, urlvalidator.ValidationOptions{})
+	validatedURL, err := validateDocumentAIURLWithConfig(c.cfg, rawURL)
 	if err != nil {
 		return nil, nil, infraerrors.BadRequest("document_ai_invalid_request", "invalid document ai result URL").WithMetadata(map[string]string{
 			"provider_message": err.Error(),
@@ -316,7 +318,7 @@ func (c *baiduDocumentAIClient) downloadResultURL(ctx context.Context, account *
 		return nil, nil, infraerrors.ServiceUnavailable("document_ai_provider_error", "document ai result fetch failed").WithCause(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	body, readErr := io.ReadAll(resp.Body)
+	body, readErr := readAllLimited(resp.Body, documentAIResultReadMaxBytes(c.cfg))
 	if readErr != nil {
 		return nil, resp.Header, infraerrors.ServiceUnavailable("document_ai_provider_error", "document ai result fetch failed").WithCause(readErr)
 	}
@@ -413,7 +415,7 @@ func (c *baiduDocumentAIClient) doJSONRequest(req *http.Request, account *Accoun
 		return nil, nil, infraerrors.ServiceUnavailable("document_ai_provider_error", "document ai upstream request failed").WithCause(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	body, readErr := io.ReadAll(resp.Body)
+	body, readErr := readAllLimited(resp.Body, documentAIUpstreamJSONReadMaxBytes(c.cfg))
 	if readErr != nil {
 		return nil, resp.Header, infraerrors.ServiceUnavailable("document_ai_provider_error", "document ai upstream request failed").WithCause(readErr)
 	}

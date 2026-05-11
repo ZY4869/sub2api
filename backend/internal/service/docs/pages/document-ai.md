@@ -24,6 +24,27 @@
 所以百度智能文档并不只有异步解析。
 如果你需要同步直出结果，请使用 `POST /document-ai/v1/models/{model}:parse`，它就是 `direct` 同步解析入口。
 
+### 出站安全与大小限制
+
+百度智能文档的账号 URL 与结果下载会进入专属出站策略：
+
+- `credentials.async_base_url`、`credentials.direct_api_urls` 在创建、更新和批量更新账号时都会校验。
+- 默认启用 `security.url_allowlist.enabled=true`，并要求 Document AI 上游命中 `security.url_allowlist.document_ai_hosts`。
+- 默认 `document_ai_hosts` 包含 `paddleocr.aistudio-app.com`，对应内置百度 Document AI endpoint。
+- 上述账号 URL / 凭证校验失败时会返回统一 `400 ACCOUNT_INVALID_DOCUMENT_AI_CREDENTIALS`，不会退化成 `500 internal error`。
+- Provider 返回的异步结果下载 URL 也会按同一 `document_ai_hosts` 校验。
+- JSON `file_url` 是用户文件来源 URL，继续按现有私网/localhost 拦截策略处理，不要求加入 Provider allowlist。
+
+Document AI 还设置了独立读取上限，避免继承全局大请求上限：
+
+| 配置项 | 默认值 | 作用 |
+| --- | --- | --- |
+| `gateway.document_ai_upload_max_bytes` | `52428800` | multipart 文件与 JSON `file_base64` 解码后的最大大小，默认 50MB |
+| `gateway.document_ai_upstream_json_read_max_bytes` | `10485760` | 百度上游 JSON 响应最大读取大小，默认 10MB |
+| `gateway.document_ai_result_read_max_bytes` | `104857600` | 异步结果 Markdown / JSON 下载最大读取大小，默认 100MB |
+
+超出限制时，接口会返回现有统一错误结构，常见错误码为 `document_ai_invalid_request` 或 `document_ai_provider_error`。
+
 ### 账号级模型限制与映射
 
 百度智能文档账号现在也接入了统一的账号模型策略链路，和其它一级平台保持一致：

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAccountHandler_Create_SchedulesModelProbeRefresh(t *testing.T) {
+func TestAccountHandler_Create_DoesNotScheduleModelProbeRefresh(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	adminSvc := newStubAdminService()
@@ -59,13 +59,13 @@ func TestAccountHandler_Create_SchedulesModelProbeRefresh(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Eventually(t, func() bool {
+	require.Never(t, func() bool {
 		update := latestStubUpdatedAccount(adminSvc)
 		return update != nil && hasPolicyUpdateSnapshot(update)
-	}, time.Second, 20*time.Millisecond)
+	}, 200*time.Millisecond, 20*time.Millisecond)
 }
 
-func TestAccountHandler_Update_SchedulesModelProbeRefreshWhenPolicyChanges(t *testing.T) {
+func TestAccountHandler_Update_DoesNotScheduleModelProbeRefreshWhenPolicyChanges(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	adminSvc := newStubAdminService()
@@ -120,14 +120,14 @@ func TestAccountHandler_Update_SchedulesModelProbeRefreshWhenPolicyChanges(t *te
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Eventually(t, func() bool {
+	require.Never(t, func() bool {
 		adminSvc.mu.Lock()
 		defer adminSvc.mu.Unlock()
 		if len(adminSvc.updatedAccounts) < 2 {
 			return false
 		}
 		return hasPolicyUpdateSnapshot(adminSvc.updatedAccounts[len(adminSvc.updatedAccounts)-1])
-	}, time.Second, 20*time.Millisecond)
+	}, 200*time.Millisecond, 20*time.Millisecond)
 }
 
 func buildProbeRefreshScope(modelID string) map[string]any {

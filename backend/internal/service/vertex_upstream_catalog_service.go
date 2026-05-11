@@ -15,7 +15,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	gocache "github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
@@ -534,29 +533,7 @@ func (s *VertexUpstreamCatalogService) vertexCountTokensBaseURL(account *Account
 }
 
 func (s *VertexUpstreamCatalogService) validateUpstreamBaseURL(raw string) (string, error) {
-	if s.cfg == nil {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, false)
-		if err != nil {
-			return "", fmt.Errorf("invalid base_url: %w", err)
-		}
-		return normalized, nil
-	}
-	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
-		if err != nil {
-			return "", fmt.Errorf("invalid base_url: %w", err)
-		}
-		return normalized, nil
-	}
-	normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
-		AllowedHosts:     s.cfg.Security.URLAllowlist.UpstreamHosts,
-		RequireAllowlist: true,
-		AllowPrivate:     s.cfg.Security.URLAllowlist.AllowPrivateHosts,
-	})
-	if err != nil {
-		return "", fmt.Errorf("invalid base_url: %w", err)
-	}
-	return normalized, nil
+	return validateUpstreamBaseURLWithConfig(s.cfg, raw)
 }
 
 func (s *VertexUpstreamCatalogService) vertexLogFields(account *Account, extra ...zap.Field) []zap.Field {

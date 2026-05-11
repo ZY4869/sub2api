@@ -140,6 +140,11 @@ func (s *AccountModelImportService) detectOpenAIModels(ctx context.Context, acco
 		if baseURL == "" {
 			baseURL = strings.TrimSpace(account.GetCredential("base_url"))
 		}
+		var err error
+		baseURL, err = s.validateProbeBaseURL(baseURL)
+		if err != nil {
+			return nil, err
+		}
 		url = buildOpenAIModelsURLForPlatform(baseURL, account.Platform)
 	}
 	headers := map[string]string{
@@ -209,6 +214,11 @@ func (s *AccountModelImportService) detectAnthropicModels(ctx context.Context, a
 		headers["anthropic-beta"] = claude.APIKeyBetaHeader
 		baseURL := strings.TrimSpace(account.GetBaseURL())
 		if baseURL != "" {
+			normalizedBaseURL, err := s.validateProbeBaseURL(baseURL)
+			if err != nil {
+				return nil, err
+			}
+			baseURL = normalizedBaseURL
 			url = strings.TrimRight(baseURL, "/") + "/v1/models"
 		}
 	default:
@@ -222,6 +232,14 @@ func (s *AccountModelImportService) detectAnthropicModels(ctx context.Context, a
 		return nil, err
 	}
 	return parseAnthropicModelListForAccount(account, body)
+}
+
+func (s *AccountModelImportService) validateProbeBaseURL(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+	return validateAccountUpstreamBaseURL(s.cfg, trimmed)
 }
 
 func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {

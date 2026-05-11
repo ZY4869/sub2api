@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -131,7 +132,7 @@ func (r *documentAIHandlerRepoStub) TouchLastPolledAt(context.Context, string) e
 
 func newEnabledDocumentAIHandler(repo service.DocumentAIJobRepository) *DocumentAIHandler {
 	settingService := service.NewSettingService(&documentAIHandlerSettingRepoStub{enabled: true}, &config.Config{})
-	documentAIService := service.NewDocumentAIService(repo, nil, nil, nil, nil, settingService)
+	documentAIService := service.NewDocumentAIService(repo, nil, nil, nil, nil, settingService, nil)
 	return NewDocumentAIHandler(documentAIService)
 }
 
@@ -178,6 +179,28 @@ func TestDocumentAIHandlerBuildSubmitInputMultipart(t *testing.T) {
 	require.Equal(t, true, input.Options["useLayoutDetection"])
 }
 
+func TestDocumentAIHandlerBuildSubmitInputMultipartRejectsOversizedFile(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Gateway.DocumentAIUploadMaxBytes = 2
+	handler := NewDocumentAIHandler(service.NewDocumentAIService(nil, nil, nil, nil, nil, nil, cfg))
+	apiKey := &service.APIKey{ID: 1, User: &service.User{ID: 2}}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("model", "pp-structurev3"))
+	fileWriter, err := writer.CreateFormFile("file", "sample.pdf")
+	require.NoError(t, err)
+	_, err = fileWriter.Write([]byte("pdf"))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	ctx, _ := newDocumentAIHandlerContext(http.MethodPost, "/document-ai/v1/jobs", body.Bytes(), writer.FormDataContentType(), apiKey)
+	_, err = handler.buildSubmitInput(ctx, apiKey, 9)
+
+	require.Error(t, err)
+	require.Equal(t, "document_ai_invalid_request", infraerrors.Reason(err))
+}
+
 func TestDocumentAIHandlerBuildDirectInputJSONBase64(t *testing.T) {
 	handler := NewDocumentAIHandler(&service.DocumentAIService{})
 	apiKey := &service.APIKey{ID: 1, User: &service.User{ID: 2}}
@@ -194,8 +217,9 @@ func TestDocumentAIHandlerBuildDirectInputJSONBase64(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, service.DocumentAISourceTypeFileBase64, input.SourceType)
 	require.Equal(t, service.DocumentAIFileTypeImage, input.FileType)
-	require.Equal(t, int64(3), input.FileSize)
-	require.Equal(t, []byte("png"), input.FileBytes)
+	require.Equal(t, int64(0), input.FileSize)
+	require.Empty(t, input.FileBytes)
+	require.Equal(t, encoded, input.FileBase64)
 	require.Equal(t, true, input.Options["useDocUnwarping"])
 }
 

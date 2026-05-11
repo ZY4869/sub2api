@@ -143,14 +143,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 		return nil, err
 	}
 
-	// 包装响应体，在关闭时自动减少计数并更新时间戳
-	// 这确保了流式响应（如 SSE）在完全读取前不会被淘汰
-	resp.Body = wrapTrackedBody(resp.Body, func() {
-		atomic.AddInt64(&entry.inFlight, -1)
-		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
-	})
-
-	return resp, nil
+	return s.finalizeResponse(resp, entry), nil
 }
 
 // DoWithTLS 执行带 TLS 指纹伪装的 HTTP 请求
@@ -209,13 +202,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 
 	slog.Debug("tls_fingerprint_request_success", "account_id", accountID, "status", resp.StatusCode)
 
-	// 包装响应体，在关闭时自动减少计数并更新时间戳
-	resp.Body = wrapTrackedBody(resp.Body, func() {
-		atomic.AddInt64(&entry.inFlight, -1)
-		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
-	})
-
-	return resp, nil
+	return s.finalizeResponse(resp, entry), nil
 }
 
 // acquireClientWithTLS 获取或创建带 TLS 指纹的客户端
@@ -292,10 +279,7 @@ func (s *httpUpstreamService) getClientEntryWithTLS(proxyURL string, accountID i
 		return nil, fmt.Errorf("build TLS fingerprint transport: %w", err)
 	}
 
-	client := &http.Client{Transport: transport}
-	if s.shouldValidateResolvedIP() {
-		client.CheckRedirect = s.redirectChecker
-	}
+	client := &http.Client{Transport: transport, CheckRedirect: s.redirectChecker}
 
 	entry := &upstreamClientEntry{
 		client:   client,
@@ -361,10 +345,7 @@ func (s *httpUpstreamService) validateRequestHost(req *http.Request) error {
 }
 
 func (s *httpUpstreamService) redirectChecker(req *http.Request, via []*http.Request) error {
-	if len(via) >= 10 {
-		return errors.New("stopped after 10 redirects")
-	}
-	return s.validateRequestHost(req)
+	return http.ErrUseLastResponse
 }
 
 // acquireClient 获取或创建客户端，并标记为进行中请求
@@ -455,10 +436,7 @@ func (s *httpUpstreamService) getClientEntry(proxyURL string, accountID int64, a
 		s.mu.Unlock()
 		return nil, fmt.Errorf("build transport: %w", err)
 	}
-	client := &http.Client{Transport: transport}
-	if s.shouldValidateResolvedIP() {
-		client.CheckRedirect = s.redirectChecker
-	}
+	client := &http.Client{Transport: transport, CheckRedirect: s.redirectChecker}
 	entry := &upstreamClientEntry{
 		client:   client,
 		proxyKey: proxyKey,

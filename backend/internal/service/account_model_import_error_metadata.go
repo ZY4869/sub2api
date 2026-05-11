@@ -57,6 +57,9 @@ func newAccountModelImportUpstreamStatusErrorForAccount(
 	case http.StatusTooManyRequests:
 		return infraerrors.TooManyRequests("MODEL_IMPORT_UPSTREAM_RATE_LIMITED", message).WithMetadata(metadata)
 	default:
+		if strings.TrimSpace(metadata["reason_kind"]) == "redirect_blocked" || strings.Contains(strings.ToUpper(message), UpstreamRedirectBlockedCode) {
+			return UpstreamRedirectBlockedApplicationError()
+		}
 		if statusCode >= http.StatusInternalServerError {
 			return infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_SERVER_ERROR", message).WithMetadata(metadata)
 		}
@@ -99,6 +102,9 @@ func classifyAccountModelImportUpstreamMetadata(
 	hintKey := ""
 	lowerBody := strings.ToLower(string(body))
 	switch {
+	case statusCode == UpstreamRedirectBlockedStatusCode && strings.TrimSpace(ExtractUpstreamErrorCode(body)) == UpstreamRedirectBlockedCode:
+		reasonKind = "redirect_blocked"
+		hintKey = UpstreamRedirectBlockedCode
 	case statusCode == http.StatusTooManyRequests:
 		reasonKind = accountModelImportReasonKindRateLimited
 		hintKey = accountModelImportHintKeyRateLimited

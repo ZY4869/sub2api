@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -37,6 +38,7 @@ type DocumentAIService struct {
 	tlsFingerprintProfileService *TLSFingerprintProfileService
 	timingWheel                  *TimingWheelService
 	settingService               *SettingService
+	cfg                          *config.Config
 
 	startOnce sync.Once
 	stopOnce  sync.Once
@@ -50,6 +52,7 @@ func NewDocumentAIService(
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
 	timingWheel *TimingWheelService,
 	settingService *SettingService,
+	cfg *config.Config,
 ) *DocumentAIService {
 	return &DocumentAIService{
 		repo:                         repo,
@@ -58,6 +61,7 @@ func NewDocumentAIService(
 		tlsFingerprintProfileService: tlsFingerprintProfileService,
 		timingWheel:                  timingWheel,
 		settingService:               settingService,
+		cfg:                          cfg,
 	}
 }
 
@@ -68,8 +72,9 @@ func ProvideDocumentAIService(
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
 	timingWheel *TimingWheelService,
 	settingService *SettingService,
+	cfg *config.Config,
 ) *DocumentAIService {
-	svc := NewDocumentAIService(repo, accountRepo, httpUpstream, tlsFingerprintProfileService, timingWheel, settingService)
+	svc := NewDocumentAIService(repo, accountRepo, httpUpstream, tlsFingerprintProfileService, timingWheel, settingService, cfg)
 	svc.Start()
 	return svc
 }
@@ -102,6 +107,13 @@ func (s *DocumentAIService) RequireEnabled(ctx context.Context) error {
 		return ErrDocumentAIDisabled
 	}
 	return nil
+}
+
+func (s *DocumentAIService) UploadMaxBytes() int64 {
+	if s == nil {
+		return documentAIUploadMaxBytes(nil)
+	}
+	return documentAIUploadMaxBytes(s.cfg)
 }
 
 func (s *DocumentAIService) ListModels(ctx context.Context, groupID int64) ([]DocumentAIModelDescriptor, error) {
@@ -160,7 +172,7 @@ func (s *DocumentAIService) SubmitJob(ctx context.Context, input DocumentAISubmi
 		zap.String("source_type", normalizedInput.SourceType),
 		zap.String("target_model", targetModelID),
 	)
-	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService)
+	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService, s.cfg)
 	routeInput := normalizedInput
 	routeInput.Model = targetModelID
 	result, err := client.submitAsyncJob(ctx, account, routeInput)
@@ -223,7 +235,7 @@ func (s *DocumentAIService) ParseDirect(ctx context.Context, input DocumentAIPar
 		zap.String("file_type", normalizedInput.FileType),
 		zap.String("target_model", targetModelID),
 	)
-	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService)
+	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService, s.cfg)
 	routeInput := normalizedInput
 	routeInput.Model = targetModelID
 	result, err := client.parseDirect(ctx, account, routeInput)
@@ -300,7 +312,7 @@ func (s *DocumentAIService) pollJob(ctx context.Context, job *DocumentAIJob) {
 		s.markJobFailed(ctx, "poll_failed", job, nil, err)
 		return
 	}
-	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService)
+	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService, s.cfg)
 	s.logDocumentAIInfo(ctx, "poll_start", job, account)
 	result, pollErr := client.getAsyncJobStatus(ctx, account, strings.TrimSpace(*job.ProviderJobID))
 	if pollErr != nil {
@@ -371,7 +383,7 @@ func (s *DocumentAIService) buildAsyncResultEnvelope(ctx context.Context, accoun
 		ProviderJobID: job.ProviderJobID,
 		Text:          "",
 	}
-	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService)
+	client := newBaiduDocumentAIClient(s.httpUpstream, s.tlsFingerprintProfileService, s.cfg)
 	if result != nil && strings.TrimSpace(result.MarkdownResultURL) != "" {
 		if text, err := client.downloadResultText(ctx, account, result.MarkdownResultURL); err == nil {
 			envelope.Text = text
@@ -431,6 +443,9 @@ func (s *DocumentAIService) normalizeSubmitInput(input DocumentAISubmitJobInput)
 		if len(input.FileBytes) == 0 {
 			return input, infraerrors.BadRequest("document_ai_invalid_request", "file is required")
 		}
+		if int64(len(input.FileBytes)) > documentAIUploadMaxBytes(s.cfg) {
+			return input, infraerrors.BadRequest("document_ai_invalid_request", "file exceeds document ai size limit")
+		}
 	case DocumentAISourceTypeFileURL:
 		if strings.TrimSpace(input.FileURL) == "" {
 			return input, infraerrors.BadRequest("document_ai_invalid_request", "file_url is required")
@@ -468,14 +483,25 @@ func (s *DocumentAIService) normalizeDirectInput(input DocumentAIParseDirectInpu
 		if len(input.FileBytes) == 0 {
 			return input, infraerrors.BadRequest("document_ai_invalid_request", "file is required")
 		}
+		if int64(len(input.FileBytes)) > documentAIUploadMaxBytes(s.cfg) {
+			return input, infraerrors.BadRequest("document_ai_invalid_request", "file exceeds document ai size limit")
+		}
 	case DocumentAISourceTypeFileBase64:
 		if strings.TrimSpace(input.FileBase64) == "" {
 			return input, infraerrors.BadRequest("document_ai_invalid_request", "file_base64 is required")
 		}
+		if !decodedBase64SizeWithinLimit(input.FileBase64, documentAIUploadMaxBytes(s.cfg)) {
+			return input, infraerrors.BadRequest("document_ai_invalid_request", documentAIBase64DecodedSizeOverflowMessage)
+		}
 		if len(input.FileBytes) == 0 {
-			if payload, err := base64.StdEncoding.DecodeString(strings.TrimSpace(input.FileBase64)); err == nil {
-				input.FileBytes = payload
+			payload, err := base64.StdEncoding.DecodeString(strings.TrimSpace(input.FileBase64))
+			if err != nil {
+				return input, infraerrors.BadRequest("document_ai_invalid_request", "invalid file_base64")
 			}
+			if int64(len(payload)) > documentAIUploadMaxBytes(s.cfg) {
+				return input, infraerrors.BadRequest("document_ai_invalid_request", documentAIBase64DecodedSizeOverflowMessage)
+			}
+			input.FileBytes = payload
 		}
 	default:
 		return input, infraerrors.BadRequest("document_ai_invalid_request", "unsupported direct source_type")
