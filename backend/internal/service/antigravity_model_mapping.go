@@ -3,6 +3,9 @@ package service
 import "strings"
 
 func mapAntigravityModel(account *Account, requestedModel string) string {
+	if isHardRemovedModelID(requestedModel) {
+		return ""
+	}
 	if account == nil {
 		return ""
 	}
@@ -12,9 +15,15 @@ func mapAntigravityModel(account *Account, requestedModel string) string {
 	}
 	mapped := account.GetMappedModel(requestedModel)
 	if mapped != requestedModel {
+		if isHardRemovedModelID(mapped) {
+			return ""
+		}
 		return mapped
 	}
 	if account.IsModelSupported(requestedModel) {
+		if isHardRemovedModelID(requestedModel) {
+			return ""
+		}
 		return requestedModel
 	}
 	return ""
@@ -29,8 +38,14 @@ func applyThinkingModelSuffix(mappedModel string, thinkingEnabled bool) string {
 	if mappedModel == "claude-sonnet-4-5" {
 		return "claude-sonnet-4-5-thinking"
 	}
+	if mappedModel == "claude-sonnet-4.5" {
+		return "claude-sonnet-4.5-thinking"
+	}
 	return mappedModel
 }
 func (s *AntigravityGatewayService) IsModelSupported(requestedModel string) bool {
+	if isHardRemovedModelID(requestedModel) {
+		return false
+	}
 	return strings.HasPrefix(requestedModel, "claude-") || strings.HasPrefix(requestedModel, "gemini-")
 }

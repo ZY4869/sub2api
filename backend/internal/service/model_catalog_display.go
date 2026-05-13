@@ -10,6 +10,64 @@ var (
 	openAIReasoningModelPattern          = regexp.MustCompile(`^o\d`)
 )
 
+var modelCatalogTokenOverrides = map[string]string{
+	"abab":        "ABAB",
+	"airx":        "AirX",
+	"aya":         "Aya",
+	"c4ai":        "C4AI",
+	"chatgpt":     "ChatGPT",
+	"chatglm":     "ChatGLM",
+	"cogvideo":    "CogVideo",
+	"cogview":     "CogView",
+	"codestral":   "Codestral",
+	"codellama":   "CodeLlama",
+	"deepseek":    "DeepSeek",
+	"distill":     "Distill",
+	"doubao":      "Doubao",
+	"ernie":       "ERNIE",
+	"flash":       "Flash",
+	"glm":         "GLM",
+	"hunyuan":     "Hunyuan",
+	"kimi":        "Kimi",
+	"latest":      "Latest",
+	"lite":        "Lite",
+	"llama":       "Llama",
+	"longcontext": "LongContext",
+	"max":         "Max",
+	"medium":      "Medium",
+	"mistral":     "Mistral",
+	"mini":        "Mini",
+	"mixtral":     "Mixtral",
+	"moonshot":    "Moonshot",
+	"nano":        "Nano",
+	"online":      "Online",
+	"open":        "Open",
+	"oss":         "OSS",
+	"pixtral":     "Pixtral",
+	"plus":        "Plus",
+	"preview":     "Preview",
+	"pro":         "Pro",
+	"qwen":        "Qwen",
+	"qwq":         "QwQ",
+	"r1":          "R1",
+	"rag":         "RAG",
+	"reasoner":    "Reasoner",
+	"realtime":    "Realtime",
+	"small":       "Small",
+	"sonar":       "Sonar",
+	"spark":       "Spark",
+	"speed":       "Speed",
+	"std":         "STD",
+	"tab":         "Tab",
+	"thinking":    "Thinking",
+	"tiny":        "Tiny",
+	"tools":       "Tools",
+	"turbo":       "Turbo",
+	"ultra":       "Ultra",
+	"vision":      "Vision",
+	"yi":          "Yi",
+}
+
 func NormalizeModelCatalogModelID(model string) string {
 	return normalizeModelCatalogAlias(model)
 }
@@ -53,6 +111,9 @@ func InferModelCatalogIconKey(model string) string {
 }
 
 func formatModelCatalogBrand(value string) string {
+	if override, ok := modelCatalogTokenOverrides[value]; ok {
+		return override
+	}
 	switch value {
 	case "claude":
 		return "Claude"
@@ -76,6 +137,9 @@ func formatModelCatalogBrand(value string) string {
 func formatModelCatalogToken(value string, isFirst bool) string {
 	if isFirst {
 		return formatModelCatalogBrand(value)
+	}
+	if override, ok := modelCatalogTokenOverrides[value]; ok {
+		return override
 	}
 	if value == "" {
 		return value

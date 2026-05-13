@@ -576,56 +576,7 @@ func (s *ModelRegistryService) HardDeleteModels(ctx context.Context, modelIDs []
 	if len(normalizedIDs) == 0 {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
-	entries, err := s.loadRuntimeEntries(ctx)
-	if err != nil {
-		return nil, err
-	}
-	filteredEntries := entries[:0]
-	toDelete := make(map[string]struct{}, len(normalizedIDs))
-	for _, modelID := range normalizedIDs {
-		toDelete[modelID] = struct{}{}
-	}
-	for _, entry := range entries {
-		if _, shouldDelete := toDelete[entry.ID]; shouldDelete {
-			continue
-		}
-		filteredEntries = append(filteredEntries, entry)
-	}
-	if err := s.persistRuntimeEntries(ctx, filteredEntries); err != nil {
-		return nil, err
-	}
-	tombstones, err := s.loadStringSet(ctx, SettingKeyModelRegistryTombstones)
-	if err != nil {
-		return nil, err
-	}
-	for _, modelID := range normalizedIDs {
-		tombstones[modelID] = struct{}{}
-	}
-	if err := s.persistStringSet(ctx, SettingKeyModelRegistryTombstones, tombstones); err != nil {
-		return nil, err
-	}
-	hidden, err := s.loadStringSet(ctx, SettingKeyModelRegistryHiddenModels)
-	if err != nil {
-		return nil, err
-	}
-	for _, modelID := range normalizedIDs {
-		delete(hidden, modelID)
-	}
-	if err := s.persistStringSet(ctx, SettingKeyModelRegistryHiddenModels, hidden); err != nil {
-		return nil, err
-	}
-	available, err := s.loadStringSet(ctx, SettingKeyModelRegistryAvailableModels)
-	if err != nil {
-		return nil, err
-	}
-	for _, modelID := range normalizedIDs {
-		delete(available, modelID)
-	}
-	if err := s.persistStringSet(ctx, SettingKeyModelRegistryAvailableModels, available); err != nil {
-		return nil, err
-	}
-	sort.Strings(normalizedIDs)
-	return normalizedIDs, nil
+	return s.hardRemoveRegistryModels(ctx, normalizedIDs)
 }
 
 func (s *ModelRegistryService) adminDetails(ctx context.Context) ([]modelregistry.AdminModelDetail, error) {

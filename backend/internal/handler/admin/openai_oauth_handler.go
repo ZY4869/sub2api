@@ -252,7 +252,11 @@ func (h *OpenAIOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 		Platform:    platform,
 		Type:        "oauth",
 		Credentials: credentials,
-		Extra:       service.EnsureOpenAIOAuthTestTargetExtra(nil),
+		Extra: service.BuildOpenAIOAuthDefaultModelScopeExtra(
+			service.EnsureOpenAIOAuthTestTargetExtra(nil),
+			tokenInfo.PlanType,
+			tokenInfo.ProMultiplier,
+		),
 		ProxyID:     req.ProxyID,
 		Concurrency: req.Concurrency,
 		Priority:    req.Priority,

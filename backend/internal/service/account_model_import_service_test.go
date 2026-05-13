@@ -896,9 +896,10 @@ func TestImportAccountModels_ImportsAntigravityOAuthModels(t *testing.T) {
 	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
 	require.NoError(t, err)
 	require.Equal(t, []string{"claude-sonnet-4.5", "gemini-test-model-a"}, result.DetectedModels)
-	require.Equal(t, 2, result.ImportedCount)
-	require.Equal(t, 1, countImportModelResults(result.ModelResults, "merged"))
-	requireImportModelRegistry(t, result.ModelResults, "claude-sonnet-4-5", "merged", "claude-sonnet-4-5")
+	require.Equal(t, 1, result.ImportedCount)
+	require.Equal(t, 2, countImportModelResults(result.ModelResults, "skipped"))
+	requireImportModelReason(t, result.ModelResults, "claude-sonnet-4-5-20250929", "skipped", "blocked_tombstone")
+	requireImportModelReason(t, result.ModelResults, "claude-sonnet-4-5", "skipped", "blocked_tombstone")
 	requireImportModelRegistry(t, result.ModelResults, "gemini-test-model-a", "imported", "gemini-test-model-a")
 	require.Equal(t, "Bearer antigravity-token", lastAuthorization)
 	require.Equal(t, antigravity.GetUserAgent(), lastUserAgent)
@@ -909,7 +910,7 @@ func TestImportAccountModels_ImportsAntigravityOAuthModels(t *testing.T) {
 	require.Zero(t, result.ImportedCount)
 
 	stored := repo.values[SettingKeyModelRegistryEntries]
-	require.Contains(t, stored, "claude-sonnet-4-5")
+	require.NotContains(t, stored, "\"claude-sonnet-4-5\"")
 	require.Contains(t, stored, "gemini-test-model-a")
 }
 

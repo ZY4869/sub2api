@@ -7,17 +7,29 @@ import (
 )
 
 func (s *ModelRegistryService) ResolveModel(ctx context.Context, input string) (string, bool, error) {
+	if isHardRemovedModelID(input) {
+		return "", false, nil
+	}
 	resolution, err := s.ExplainResolution(ctx, input)
 	if err != nil || resolution == nil {
 		return "", false, err
 	}
 	if resolution.EffectiveID != "" {
+		if isHardRemovedModelID(resolution.EffectiveID) {
+			return "", false, nil
+		}
 		return resolution.EffectiveID, true, nil
+	}
+	if isHardRemovedModelID(resolution.CanonicalID) {
+		return "", false, nil
 	}
 	return resolution.CanonicalID, true, nil
 }
 
 func (s *ModelRegistryService) ResolveProtocolModel(ctx context.Context, input string, route string) (string, bool, error) {
+	if isHardRemovedModelID(input) {
+		return "", false, nil
+	}
 	entries, err := s.resolutionEntries(ctx)
 	if err != nil {
 		return "", false, err
@@ -28,6 +40,9 @@ func (s *ModelRegistryService) ResolveProtocolModel(ctx context.Context, input s
 }
 
 func (s *ModelRegistryService) ResolvePricingModel(ctx context.Context, input string) (string, bool, error) {
+	if isHardRemovedModelID(input) {
+		return "", false, nil
+	}
 	entries, err := s.pricingEntries(ctx)
 	if err != nil {
 		return "", false, err
@@ -38,6 +53,9 @@ func (s *ModelRegistryService) ResolvePricingModel(ctx context.Context, input st
 }
 
 func (s *ModelRegistryService) ExplainResolution(ctx context.Context, input string) (*modelregistry.Resolution, error) {
+	if isHardRemovedModelID(input) {
+		return nil, nil
+	}
 	entries, err := s.resolutionEntries(ctx)
 	if err != nil {
 		return nil, err

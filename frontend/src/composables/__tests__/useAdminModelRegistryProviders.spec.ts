@@ -440,8 +440,8 @@ describe('useAdminModelRegistryProviders', () => {
       })
       .mockResolvedValueOnce({
         items: [
-          createRegistryModel('grok-3-fast', 'grok', true),
-          createRegistryModel('grok-4-expert', 'grok', true)
+          createRegistryModel('gpt-5.4', 'openai', true),
+          createRegistryModel('gemini-3.1-pro-high', 'gemini', true)
         ],
         total: 2,
         page: 1,
@@ -457,9 +457,9 @@ describe('useAdminModelRegistryProviders', () => {
       })
       .mockResolvedValueOnce({
         items: [
-          createRegistryModel('grok-3-fast', 'grok', true),
-          createRegistryModel('grok-4-expert', 'grok', true),
-          createRegistryModel('gpt-5.4', 'grok', true)
+          createRegistryModel('gpt-5.4', 'openai', true),
+          createRegistryModel('gemini-3.1-pro-high', 'gemini', true),
+          createRegistryModel('gemini-2.5-flash', 'gemini', true)
         ],
         total: 3,
         page: 1,

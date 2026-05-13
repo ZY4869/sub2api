@@ -21,21 +21,25 @@ import {
 } from "../useModelWhitelist";
 
 describe("useModelWhitelist", () => {
-  it("keeps deprecated anthropic runtime ids selectable when requesting test exposure", () => {
+  it("surfaces normalized anthropic display ids instead of deprecated aliases", () => {
     const models = getModelsByPlatform("anthropic", "whitelist", "test");
 
     expect(models).toContain("claude-opus-4.1");
-    expect(models).toContain("claude-opus-4-5-20251101");
-    expect(models).toContain("claude-sonnet-4-5-20250929");
-    expect(models).toContain("claude-haiku-4-5-20251001");
+    expect(models).toContain("claude-sonnet-4.5");
+    expect(models).toContain("claude-haiku-4.5");
+    expect(models).not.toContain("claude-opus-4-5-20251101");
+    expect(models).not.toContain("claude-sonnet-4-5-20250929");
+    expect(models).not.toContain("claude-haiku-4-5-20251001");
   });
 
-  it("keeps antigravity thinking ids selectable without legacy blocklists", () => {
+  it("keeps active antigravity thinking display ids selectable without legacy aliases", () => {
     const models = getModelsByPlatform("antigravity", "test");
 
-    expect(models).toContain("claude-opus-4-5-thinking");
-    expect(models).toContain("claude-sonnet-4-5-thinking");
+    expect(models).toContain("claude-opus-4-6");
     expect(models).toContain("claude-opus-4-6-thinking");
+    expect(models).toContain("claude-sonnet-4-6");
+    expect(models).not.toContain("claude-opus-4-5-thinking");
+    expect(models).not.toContain("claude-sonnet-4-5-thinking");
   });
 
   it("openai models include GPT-5.4 mini/nano and GPT-5.4 official snapshots", () => {

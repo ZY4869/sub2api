@@ -12,7 +12,7 @@ import (
 func TestCollectModelCatalogAccessSources_UsesDynamicAccountTypes(t *testing.T) {
 	record := &modelCatalogRecord{
 		model:            "claude-sonnet-4.5",
-		canonicalModelID: "claude-sonnet-4-5-20250929",
+		canonicalModelID: "claude-sonnet-4.5",
 		provider:         PlatformAnthropic,
 		mode:             "chat",
 		defaultPlatforms: []string{PlatformAnthropic, PlatformAntigravity},
@@ -30,7 +30,7 @@ func TestCollectModelCatalogAccessSources_UsesDynamicAccountTypes(t *testing.T) 
 func TestCollectModelCatalogAccessSources_IgnoresDisabledAccountsAndUnsupportedMappings(t *testing.T) {
 	record := &modelCatalogRecord{
 		model:            "claude-sonnet-4.5",
-		canonicalModelID: "claude-sonnet-4-5-20250929",
+		canonicalModelID: "claude-sonnet-4.5",
 		provider:         PlatformAnthropic,
 		mode:             "chat",
 		defaultPlatforms: []string{PlatformAnthropic, PlatformAntigravity},
@@ -56,7 +56,7 @@ func TestCollectModelCatalogAccessSources_IgnoresDisabledAccountsAndUnsupportedM
 func TestCollectModelCatalogAccessSources_SupportCandidatesIncludeHyphenatedAlias(t *testing.T) {
 	record := &modelCatalogRecord{
 		model:            "claude-sonnet-4.5",
-		canonicalModelID: "claude-sonnet-4-5-20250929",
+		canonicalModelID: "claude-sonnet-4.5",
 		provider:         PlatformAnthropic,
 		mode:             "chat",
 		defaultPlatforms: []string{PlatformAntigravity},
@@ -68,7 +68,7 @@ func TestCollectModelCatalogAccessSources_SupportCandidatesIncludeHyphenatedAlia
 			Status:   StatusActive,
 			Credentials: map[string]any{
 				"model_mapping": map[string]any{
-					"claude-sonnet-4-5": "claude-sonnet-4-5",
+					"claude-sonnet-4.5": "claude-sonnet-4.5",
 				},
 			},
 		},
@@ -81,7 +81,7 @@ func TestCollectModelCatalogAccessSources_SupportCandidatesIncludeHyphenatedAlia
 func TestCollectModelCatalogAccessSources_RespectsMixedSchedulingForNativeProtocols(t *testing.T) {
 	record := &modelCatalogRecord{
 		model:            "claude-sonnet-4.5",
-		canonicalModelID: "claude-sonnet-4-5-20250929",
+		canonicalModelID: "claude-sonnet-4.5",
 		provider:         PlatformAnthropic,
 		mode:             "chat",
 	}

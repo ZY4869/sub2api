@@ -435,6 +435,9 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 	// Normalize the model name to lowercase.
 	model = strings.ToLower(model)
+	if isHardRemovedModelID(model) {
+		return nil, fmt.Errorf("pricing not found for model: %s", model)
+	}
 	if s.modelRegistryService != nil {
 		if pricingModel, ok, err := s.modelRegistryService.ResolvePricingModel(context.Background(), model); err == nil && ok && pricingModel != "" {
 			model = pricingModel

@@ -47,7 +47,7 @@ response = requests.post(
         "Content-Type": "application/json",
     },
     json={
-        "model": "grok-3",
+        "model": "<grok-text-model>",
         "input": "请概括 Grok 专用路径的优点。",
     },
     timeout=60,
@@ -65,7 +65,7 @@ const response = await fetch("https://api.zyxai.de/grok/v1/chat/completions", {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: "grok-3",
+    model: "<grok-text-model>",
     messages: [{ role: "user", content: "请概括 Grok 专用路径的优点。" }],
   }),
 });
@@ -109,7 +109,7 @@ response = requests.post(
         "Content-Type": "application/json",
     },
     json={
-        "model": "grok-2-image",
+        "model": "<grok-image-model>",
         "prompt": "一张体现三栏文档站的界面概念图",
         "size": "1024x1024",
     },
@@ -128,7 +128,7 @@ const response = await fetch("https://api.zyxai.de/grok/v1/videos", {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: "grok-video",
+    model: "<grok-video-model>",
     prompt: "一段展示协议导航滚动高亮效果的短视频",
   }),
 });

@@ -737,9 +737,9 @@ func TestSetModelRateLimitByModelName_UsesOfficialModelID(t *testing.T) {
 		expectedSuccess  bool
 	}{
 		{
-			name:             "claude-sonnet-4-5 should be stored as-is",
-			modelName:        "claude-sonnet-4-5",
-			expectedModelKey: "claude-sonnet-4-5",
+			name:             "claude-sonnet-4.5 should be stored as-is",
+			modelName:        "claude-sonnet-4.5",
+			expectedModelKey: "claude-sonnet-4.5",
 			expectedSuccess:  true,
 		},
 		{
@@ -804,7 +804,7 @@ func TestSetModelRateLimitByModelName_NotConvertToScope(t *testing.T) {
 		context.Background(),
 		repo,
 		456,
-		"claude-sonnet-4-5", // 官方模型 ID
+		"claude-sonnet-4.5", // 官方模型 ID
 		"[test]",
 		429,
 		resetAt,
@@ -815,8 +815,8 @@ func TestSetModelRateLimitByModelName_NotConvertToScope(t *testing.T) {
 	require.Len(t, repo.modelRateLimitCalls, 1)
 
 	call := repo.modelRateLimitCalls[0]
-	// 关键断言：存储的应该是 "claude-sonnet-4-5"，而不是 "claude_sonnet"
-	require.Equal(t, "claude-sonnet-4-5", call.modelKey, "should NOT convert to scope like claude_sonnet")
+	// 关键断言：存储的应该是 "claude-sonnet-4.5"，而不是 "claude_sonnet"
+	require.Equal(t, "claude-sonnet-4.5", call.modelKey, "should NOT convert to scope like claude_sonnet")
 	require.NotEqual(t, "claude_sonnet", call.modelKey, "should NOT be scope")
 }
 
@@ -831,7 +831,7 @@ func TestAntigravityRetryLoop_PreCheck_SwitchesWhenRateLimited(t *testing.T) {
 		Concurrency: 1,
 		Extra: map[string]any{
 			modelRateLimitsKey: map[string]any{
-				"claude-sonnet-4-5": map[string]any{
+				"claude-sonnet-4.5": map[string]any{
 					"rate_limit_reset_at": time.Now().Add(2 * time.Second).Format(time.RFC3339),
 				},
 			},
@@ -846,7 +846,7 @@ func TestAntigravityRetryLoop_PreCheck_SwitchesWhenRateLimited(t *testing.T) {
 		accessToken:     "token",
 		action:          "generateContent",
 		body:            []byte(`{"input":"test"}`),
-		requestedModel:  "claude-sonnet-4-5",
+		requestedModel:  "claude-sonnet-4.5",
 		httpUpstream:    upstream,
 		isStickySession: true,
 		handleError: func(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, requestedModel string, groupID int64, sessionHash string, isStickySession bool) *handleModelRateLimitResult {
@@ -858,7 +858,7 @@ func TestAntigravityRetryLoop_PreCheck_SwitchesWhenRateLimited(t *testing.T) {
 	var switchErr *AntigravityAccountSwitchError
 	require.ErrorAs(t, err, &switchErr)
 	require.Equal(t, account.ID, switchErr.OriginalAccountID)
-	require.Equal(t, "claude-sonnet-4-5", switchErr.RateLimitedModel)
+	require.Equal(t, "claude-sonnet-4.5", switchErr.RateLimitedModel)
 	require.True(t, switchErr.IsStickySession)
 	require.Equal(t, 0, upstream.calls, "should not call upstream when switching on pre-check")
 }
@@ -874,7 +874,7 @@ func TestAntigravityRetryLoop_PreCheck_SwitchesWhenRemainingLong(t *testing.T) {
 		Concurrency: 1,
 		Extra: map[string]any{
 			modelRateLimitsKey: map[string]any{
-				"claude-sonnet-4-5": map[string]any{
+				"claude-sonnet-4.5": map[string]any{
 					"rate_limit_reset_at": time.Now().Add(11 * time.Second).Format(time.RFC3339),
 				},
 			},
@@ -889,7 +889,7 @@ func TestAntigravityRetryLoop_PreCheck_SwitchesWhenRemainingLong(t *testing.T) {
 		accessToken:     "token",
 		action:          "generateContent",
 		body:            []byte(`{"input":"test"}`),
-		requestedModel:  "claude-sonnet-4-5",
+		requestedModel:  "claude-sonnet-4.5",
 		httpUpstream:    upstream,
 		isStickySession: true,
 		handleError: func(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, requestedModel string, groupID int64, sessionHash string, isStickySession bool) *handleModelRateLimitResult {
@@ -901,7 +901,7 @@ func TestAntigravityRetryLoop_PreCheck_SwitchesWhenRemainingLong(t *testing.T) {
 	var switchErr *AntigravityAccountSwitchError
 	require.ErrorAs(t, err, &switchErr)
 	require.Equal(t, account.ID, switchErr.OriginalAccountID)
-	require.Equal(t, "claude-sonnet-4-5", switchErr.RateLimitedModel)
+	require.Equal(t, "claude-sonnet-4.5", switchErr.RateLimitedModel)
 	require.True(t, switchErr.IsStickySession)
 	require.Equal(t, 0, upstream.calls, "should not call upstream when switching on pre-check")
 }

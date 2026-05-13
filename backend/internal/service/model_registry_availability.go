@@ -15,8 +15,8 @@ const modelRegistryAccountScanPageSize = 500
 
 var modelRegistryAvailableBootstrapInputsV20260313 = []string{
 	"claude-opus-4-6",
-	"claude-sonnet-4-5",
-	"claude-haiku-4-5",
+	"claude-sonnet-4.5",
+	"claude-haiku-4.5",
 	"gpt-5.4",
 	"gpt-5.2",
 	"gpt-5.4-pro",
@@ -24,7 +24,6 @@ var modelRegistryAvailableBootstrapInputsV20260313 = []string{
 	"gemini-3.1-flash-image-preview",
 	"gemini-3.1-pro-preview",
 	"gemini-3-pro-image",
-	"gemini-2.5-flash-image-preview",
 	"gemini-2.5-flash-image",
 }
 
@@ -36,16 +35,7 @@ var modelRegistryAvailableBootstrapInputsV20260317 = []string{
 	"claude-haiku-4.5",
 }
 
-var modelRegistryAvailableBootstrapInputsV20260328 = []string{
-	GrokModelAuto,
-	GrokModel3Fast,
-	GrokModel4Expert,
-	GrokModel4Heavy,
-	GrokModelImagineFast,
-	GrokModelImagine,
-	GrokModelImagineEdit,
-	GrokModelImagineVideo,
-}
+var modelRegistryAvailableBootstrapInputsV20260328 = []string{}
 
 var modelRegistryAvailableBootstrapInputsV20260416 = []string{
 	"gpt-5.4-mini",
@@ -160,7 +150,19 @@ func (s *ModelRegistryService) ensureAvailableModelsInitialized(ctx context.Cont
 	if err := s.ensureAvailableModelsBootstrapV20260416(ctx); err != nil {
 		return err
 	}
-	return s.ensureAvailableModelsBootstrapV20260417(ctx)
+	if err := s.ensureAvailableModelsBootstrapV20260417(ctx); err != nil {
+		return err
+	}
+	if err := s.ensureHardRemovedModelCleanupV20260511(ctx); err != nil {
+		return err
+	}
+	if err := s.ensureHardRemovedModelCleanupV20260512(ctx); err != nil {
+		return err
+	}
+	if err := s.ensureHardRemovedModelCleanupV20260512Phase2(ctx); err != nil {
+		return err
+	}
+	return s.ensureHardRemovedModelCleanupV20260512Pricing(ctx)
 }
 
 func (s *ModelRegistryService) migrateAvailableModels(ctx context.Context) error {
@@ -205,6 +207,98 @@ func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260416(ctx conte
 
 func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260417(ctx context.Context) error {
 	return s.ensureAvailableModelsBootstrap(ctx, "20260417", SettingKeyModelRegistryAvailableModelsBootstrapV20260417, modelRegistryAvailableBootstrapInputsV20260417)
+}
+
+func (s *ModelRegistryService) ensureHardRemovedModelCleanupV20260511(ctx context.Context) error {
+	if s.settingRepo == nil {
+		return nil
+	}
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260511)
+	if err == nil && strings.TrimSpace(raw) != "" {
+		return nil
+	}
+	cleanedIDs, err := s.hardRemoveRegistryModels(ctx, explicitHardRemovedRegistryModelIDs())
+	if err != nil {
+		return err
+	}
+	if err := s.settingRepo.Set(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260511, "true"); err != nil {
+		return err
+	}
+	logger.FromContext(ctx).Info("model registry: applied hard-removed cleanup",
+		zap.String("version", "20260511"),
+		zap.Int("cleaned_count", len(cleanedIDs)),
+		zap.Strings("cleaned_models", cleanedIDs),
+	)
+	return nil
+}
+
+func (s *ModelRegistryService) ensureHardRemovedModelCleanupV20260512(ctx context.Context) error {
+	if s.settingRepo == nil {
+		return nil
+	}
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260512)
+	if err == nil && strings.TrimSpace(raw) != "" {
+		return nil
+	}
+	cleanedIDs, err := s.hardRemoveRegistryModels(ctx, explicitHardRemovedRegistryModelIDs())
+	if err != nil {
+		return err
+	}
+	if err := s.settingRepo.Set(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260512, "true"); err != nil {
+		return err
+	}
+	logger.FromContext(ctx).Info("model registry: applied hard-removed cleanup",
+		zap.String("version", "20260512"),
+		zap.Int("cleaned_count", len(cleanedIDs)),
+		zap.Strings("cleaned_models", cleanedIDs),
+	)
+	return nil
+}
+
+func (s *ModelRegistryService) ensureHardRemovedModelCleanupV20260512Phase2(ctx context.Context) error {
+	if s.settingRepo == nil {
+		return nil
+	}
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260512Phase2)
+	if err == nil && strings.TrimSpace(raw) != "" {
+		return nil
+	}
+	cleanedIDs, err := s.hardRemoveRegistryModels(ctx, explicitHardRemovedRegistryModelIDs())
+	if err != nil {
+		return err
+	}
+	if err := s.settingRepo.Set(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260512Phase2, "true"); err != nil {
+		return err
+	}
+	logger.FromContext(ctx).Info("model registry: applied hard-removed cleanup",
+		zap.String("version", "20260512-phase2"),
+		zap.Int("cleaned_count", len(cleanedIDs)),
+		zap.Strings("cleaned_models", cleanedIDs),
+	)
+	return nil
+}
+
+func (s *ModelRegistryService) ensureHardRemovedModelCleanupV20260512Pricing(ctx context.Context) error {
+	if s.settingRepo == nil {
+		return nil
+	}
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260512Pricing)
+	if err == nil && strings.TrimSpace(raw) != "" {
+		return nil
+	}
+	cleanedIDs, err := s.hardRemoveRegistryModels(ctx, pricingPatchHardRemovedModelIDs20260506)
+	if err != nil {
+		return err
+	}
+	if err := s.settingRepo.Set(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260512Pricing, "true"); err != nil {
+		return err
+	}
+	logger.FromContext(ctx).Info("model registry: applied hard-removed cleanup",
+		zap.String("version", "20260512-pricing"),
+		zap.Int("cleaned_count", len(cleanedIDs)),
+		zap.Strings("cleaned_models", cleanedIDs),
+	)
+	return nil
 }
 
 func (s *ModelRegistryService) ensureAvailableModelsBootstrap(ctx context.Context, version string, markerKey string, inputs []string) error {
@@ -446,6 +540,9 @@ func (s *ModelRegistryService) updateAvailableModels(ctx context.Context, modelI
 func (s *ModelRegistryService) resolveCanonicalModelForAvailability(ctx context.Context, modelID string) (string, error) {
 	modelID = normalizeRegistryID(modelID)
 	if modelID == "" {
+		return "", nil
+	}
+	if isHardRemovedModelID(modelID) {
 		return "", nil
 	}
 	entries, _, _, tombstones, err := s.mergedEntries(ctx)

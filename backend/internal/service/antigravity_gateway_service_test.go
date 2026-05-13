@@ -498,7 +498,7 @@ func TestAntigravityGatewayService_Forward_BillsWithMappedModel(t *testing.T) {
 	c, _ := gin.CreateTestContext(writer)
 
 	body, err := json.Marshal(map[string]any{
-		"model": "claude-sonnet-4-5",
+		"model": "claude-sonnet-4-6",
 		"messages": []map[string]any{
 			{"role": "user", "content": "hello"},
 		},
@@ -523,7 +523,7 @@ func TestAntigravityGatewayService_Forward_BillsWithMappedModel(t *testing.T) {
 		httpUpstream:   &httpUpstreamStub{resp: resp},
 	}
 
-	const mappedModel = "gemini-3-pro-high"
+	const mappedModel = "gemini-3.1-pro-high"
 	account := &Account{
 		ID:          5,
 		Name:        "acc-forward-billing",
@@ -534,7 +534,7 @@ func TestAntigravityGatewayService_Forward_BillsWithMappedModel(t *testing.T) {
 		Credentials: map[string]any{
 			"access_token": "token",
 			"model_mapping": map[string]any{
-				"claude-sonnet-4-5": mappedModel,
+				"claude-sonnet-4-6": mappedModel,
 			},
 		},
 	}
@@ -542,7 +542,7 @@ func TestAntigravityGatewayService_Forward_BillsWithMappedModel(t *testing.T) {
 	result, err := svc.Forward(context.Background(), c, account, body, false)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equal(t, "claude-sonnet-4-5", result.Model)
+	require.Equal(t, "claude-sonnet-4-6", result.Model)
 	require.Equal(t, mappedModel, result.UpstreamModel)
 }
 
@@ -576,7 +576,7 @@ func TestAntigravityGatewayService_ForwardGemini_BillsWithMappedModel(t *testing
 		httpUpstream:   &httpUpstreamStub{resp: resp},
 	}
 
-	const mappedModel = "gemini-3-pro-high"
+	const mappedModel = "gemini-3.1-pro-high"
 	account := &Account{
 		ID:          6,
 		Name:        "acc-gemini-billing",

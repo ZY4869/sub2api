@@ -183,6 +183,10 @@ const (
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260328 = "model_registry_available_models_bootstrap_v20260328"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260416 = "model_registry_available_models_bootstrap_v20260416"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260417 = "model_registry_available_models_bootstrap_v20260417"
+	SettingKeyModelRegistryHardRemoveCleanupV20260511        = "model_registry_hard_remove_cleanup_v20260511"
+	SettingKeyModelRegistryHardRemoveCleanupV20260512        = "model_registry_hard_remove_cleanup_v20260512"
+	SettingKeyModelRegistryHardRemoveCleanupV20260512Phase2  = "model_registry_hard_remove_cleanup_v20260512_phase2"
+	SettingKeyModelRegistryHardRemoveCleanupV20260512Pricing = "model_registry_hard_remove_cleanup_v20260512_pricing"
 
 	SettingKeyEnableIdentityPatch = "enable_identity_patch"
 	SettingKeyIdentityPatchPrompt = "identity_patch_prompt"

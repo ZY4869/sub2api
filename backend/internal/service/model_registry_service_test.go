@@ -419,6 +419,172 @@ func TestModelRegistryService_ManualAddEntry_AllowsExplicitProviderOverride(t *t
 	require.Equal(t, []string{"grok"}, detail.Platforms)
 }
 
+func TestModelRegistryService_UpsertEntry_RejectsExplicitHardRemovedModel(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	_, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:        "gemini-3-pro-preview",
+		Platforms: []string{PlatformGemini},
+		ExposedIn: []string{"runtime"},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "MODEL_HARD_REMOVED")
+}
+
+func TestModelRegistryService_ManualAddEntry_RejectsExplicitHardRemovedModel(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	_, _, _, err := svc.ManualAddEntry(context.Background(), ManualAddModelRegistryEntryInput{
+		ID: "gemini-2.5-flash-image-preview",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "MODEL_HARD_REMOVED")
+}
+
+func TestModelRegistryService_UpsertDiscoveredEntry_BlocksExplicitHardRemovedModel(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	result, err := svc.UpsertDiscoveredEntry(context.Background(), UpsertDiscoveredEntryInput{
+		ModelID:        "gemini-3-pro-preview",
+		SourcePlatform: PlatformGemini,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.True(t, result.Blocked)
+	require.Equal(t, "gemini-3-pro-preview", result.RegistryModelID)
+}
+
+func TestModelRegistryService_ActivateModels_SkipsExplicitHardRemovedModel(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	require.NoError(t, repo.Set(context.Background(), SettingKeyModelRegistryAvailableModels, `["gpt-4o"]`))
+	svc := NewModelRegistryService(repo)
+	_, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:        "custom-safe-activate-model",
+		Platforms: []string{PlatformOpenAI},
+		ExposedIn: []string{"runtime"},
+	})
+	require.NoError(t, err)
+
+	changed, err := svc.ActivateModels(context.Background(), []string{"gemini-3-pro-preview", "custom-safe-activate-model"})
+	require.NoError(t, err)
+	require.Len(t, changed, 1)
+	require.Equal(t, "custom-safe-activate-model", changed[0].ID)
+
+	availableSet, err := svc.loadStringSet(context.Background(), SettingKeyModelRegistryAvailableModels)
+	require.NoError(t, err)
+	require.Contains(t, availableSet, "custom-safe-activate-model")
+	require.NotContains(t, availableSet, "gemini-3-pro-preview")
+}
+
+func TestModelRegistryService_ResolveModel_HardRemovedModelReturnsNoMatch(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	resolved, ok, err := svc.ResolveModel(context.Background(), "gemini-3-pro-preview")
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Empty(t, resolved)
+
+	protocolResolved, protocolOK, err := svc.ResolveProtocolModel(context.Background(), "gemini-3-pro-preview", "default")
+	require.NoError(t, err)
+	require.False(t, protocolOK)
+	require.Empty(t, protocolResolved)
+}
+
+func TestModelRegistryService_Phase2HardRemovedModelsAreBlockedAcrossEntryPoints(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	require.NoError(t, repo.Set(context.Background(), SettingKeyModelRegistryAvailableModels, `["gpt-4o"]`))
+	svc := NewModelRegistryService(repo)
+
+	testCases := []struct {
+		name     string
+		modelID  string
+		platform string
+	}{
+		{name: "anthropic public alias shell", modelID: "claude-sonnet-4-5", platform: PlatformAnthropic},
+		{name: "anthropic dated shell", modelID: "claude-haiku-4-5-20251001", platform: PlatformAnthropic},
+		{name: "deepseek deprecated shell", modelID: "deepseek-chat", platform: PlatformDeepSeek},
+		{name: "grok deprecated shell", modelID: "grok-4", platform: PlatformGrok},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+				ID:        tt.modelID,
+				Platforms: []string{tt.platform},
+				ExposedIn: []string{"runtime"},
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "MODEL_HARD_REMOVED")
+
+			_, _, _, err = svc.ManualAddEntry(context.Background(), ManualAddModelRegistryEntryInput{
+				ID:       tt.modelID,
+				Provider: tt.platform,
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "MODEL_HARD_REMOVED")
+
+			discovered, err := svc.UpsertDiscoveredEntry(context.Background(), UpsertDiscoveredEntryInput{
+				ModelID:        tt.modelID,
+				SourcePlatform: tt.platform,
+			})
+			require.NoError(t, err)
+			require.NotNil(t, discovered)
+			require.True(t, discovered.Blocked)
+
+			changed, err := svc.ActivateModels(context.Background(), []string{tt.modelID})
+			require.NoError(t, err)
+			require.Empty(t, changed)
+			require.False(t, svc.IsModelAvailable(context.Background(), tt.modelID))
+		})
+	}
+}
+
+func TestModelRegistryService_ResolveCanonicalProtocolAndPricingTargetsStillWorkAfterPhase2Cleanup(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	protocolResolved, protocolOK, err := svc.ResolveProtocolModel(context.Background(), "claude-sonnet-4.5", "anthropic_oauth")
+	require.NoError(t, err)
+	require.True(t, protocolOK)
+	require.Equal(t, "claude-sonnet-4-5-20250929", protocolResolved)
+
+	pricingResolved, pricingOK, err := svc.ResolvePricingModel(context.Background(), "claude-sonnet-4.5")
+	require.NoError(t, err)
+	require.True(t, pricingOK)
+	require.Equal(t, "claude-sonnet-4-5-20250929", pricingResolved)
+
+	grokResolved, grokOK, err := svc.ResolveProtocolModel(context.Background(), "grok-3-fast", "grok")
+	require.NoError(t, err)
+	require.False(t, grokOK)
+	require.Empty(t, grokResolved)
+
+	grokPricingResolved, grokPricingOK, err := svc.ResolvePricingModel(context.Background(), "grok-3-fast")
+	require.NoError(t, err)
+	require.False(t, grokPricingOK)
+	require.Empty(t, grokPricingResolved)
+}
+
+func TestModelRegistryService_PublicSnapshot_ExcludesPresetWhenTargetModelHardRemoved(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	require.NoError(t, repo.Set(context.Background(), SettingKeyModelRegistryAvailableModels, `["gemini-3.1-pro-high","gemini-3-pro-preview"]`))
+	svc := NewModelRegistryService(repo)
+
+	snapshot, err := svc.PublicSnapshot(context.Background())
+	require.NoError(t, err)
+
+	for _, model := range snapshot.Models {
+		require.NotEqual(t, "gemini-3-pro-preview", model.ID)
+	}
+	for _, preset := range snapshot.Presets {
+		require.NotEqual(t, "gemini-3-pro-preview", preset.From)
+		require.NotEqual(t, "gemini-3-pro-preview", preset.To)
+	}
+}
+
 func TestModelRegistryService_ManualAddEntry_IsIdempotentForRepeatedSubmit(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	require.NoError(t, repo.Set(context.Background(), SettingKeyModelRegistryAvailableModels, `["gpt-4o"]`))
@@ -458,7 +624,7 @@ func TestModelRegistryService_PublicSnapshotIncludesContextWindowTokens(t *testi
 	repo := newAccountModelImportSettingRepoStub()
 	svc := NewModelRegistryService(repo)
 
-	_, err := svc.ActivateModels(context.Background(), []string{"claude-opus-4.1", "deepseek-v4-pro"})
+	_, err := svc.ActivateModels(context.Background(), []string{"claude-opus-4.1", "gemini-2.5-pro"})
 	require.NoError(t, err)
 
 	snapshot, err := svc.PublicSnapshot(context.Background())
@@ -470,11 +636,11 @@ func TestModelRegistryService_PublicSnapshotIncludesContextWindowTokens(t *testi
 		switch model.ID {
 		case "claude-opus-4.1":
 			claudeTokens = model.ContextWindowTokens
-		case "deepseek-v4-pro":
+		case "gemini-2.5-pro":
 			deepseekTokens = model.ContextWindowTokens
 		}
 	}
 
 	require.EqualValues(t, 200000, claudeTokens)
-	require.EqualValues(t, 1048576, deepseekTokens)
+	require.EqualValues(t, 1000000, deepseekTokens)
 }

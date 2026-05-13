@@ -53,5 +53,7 @@ func TestParseGrokImportPayloadPlainTextMixedKinds(t *testing.T) {
 	ssoCandidate := result.Candidates[1]
 	require.Equal(t, GrokDetectedKindSSO, ssoCandidate.Type)
 	require.Equal(t, "sso-demo-token-12345678", ssoCandidate.Credentials["sso_token"])
-	require.NotEmpty(t, ssoCandidate.Credentials["model_mapping"])
+	modelMapping, ok := ssoCandidate.Credentials["model_mapping"].(map[string]any)
+	require.True(t, ok)
+	require.Empty(t, modelMapping)
 }

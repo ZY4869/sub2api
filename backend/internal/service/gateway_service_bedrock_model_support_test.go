@@ -12,7 +12,7 @@ func TestGatewayServiceIsModelSupportedByAccount_BedrockDefaultMappingRestrictsM
 		},
 	}
 
-	if !svc.isModelSupportedByAccount(account, "claude-sonnet-4-5") {
+	if !svc.isModelSupportedByAccount(account, "claude-sonnet-4.5") {
 		t.Fatalf("expected default Bedrock alias to be supported")
 	}
 

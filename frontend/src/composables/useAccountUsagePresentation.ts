@@ -864,9 +864,7 @@ export function useAccountUsagePresentation(
     buildRows(
       (() => {
         const usage = getAntigravityUsageFromAPI([
-          "gemini-3-pro-low",
-          "gemini-3-pro-high",
-          "gemini-3-pro-preview",
+          "gemini-3.1-pro-preview",
         ]);
         return usage
           ? buildUsageRow(

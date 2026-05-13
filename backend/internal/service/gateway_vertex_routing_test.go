@@ -112,7 +112,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_GeminiPreviewRegionalV
 				Credentials: map[string]any{
 					"oauth_type":      "vertex_ai",
 					"vertex_location": "us-central1",
-					"model_mapping":   map[string]any{"gemini-3-pro-preview": "gemini-3-pro-preview"},
+					"model_mapping":   map[string]any{"gemini-3.1-pro-preview": "gemini-3.1-pro-high"},
 				},
 			},
 		},
@@ -128,7 +128,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_GeminiPreviewRegionalV
 		cfg:         testConfig(),
 	}
 
-	account, err := svc.selectAccountForModelWithPlatform(ctx, nil, "", "gemini-3-pro-preview", nil, PlatformGemini)
+	account, err := svc.selectAccountForModelWithPlatform(ctx, nil, "", "gemini-3.1-pro-preview", nil, PlatformGemini)
 	require.NoError(t, err)
 	require.NotNil(t, account)
 	require.Equal(t, int64(1), account.ID)

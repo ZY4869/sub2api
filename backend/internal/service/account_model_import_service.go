@@ -292,7 +292,6 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 			result.ModelResults = append(result.ModelResults, modelResult)
 			continue
 		}
-		canonicalRegistryModels[canonicalModel] = ""
 		registryResult, registryErr := s.modelRegistryService.UpsertDiscoveredEntry(ctx, UpsertDiscoveredEntryInput{
 			ModelID:        sourceRegistryID,
 			SourcePlatform: runtimePlatform,
@@ -317,9 +316,6 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		if canonicalModel == "" {
 			canonicalModel = sourceRegistryID
 		}
-		if registryResult.RegistryModelID != "" {
-			canonicalRegistryModels[canonicalModel] = registryResult.RegistryModelID
-		}
 		if registryResult.Blocked {
 			result.SkippedCount++
 			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
@@ -329,6 +325,11 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 				ReasonCode:     "blocked_tombstone",
 			})
 			continue
+		}
+		if registryResult.RegistryModelID != "" {
+			canonicalRegistryModels[canonicalModel] = registryResult.RegistryModelID
+		} else if canonicalModel != "" {
+			canonicalRegistryModels[canonicalModel] = sourceRegistryID
 		}
 		if registryResult.Changed {
 			result.ImportedModels = append(result.ImportedModels, registryResult.RegistryModelID)

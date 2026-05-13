@@ -13,14 +13,6 @@ func TestAppendBundledModelCatalogSeedDetails_LegacyGeminiProtocolIDsStayLegacyO
 	base := []modelregistry.AdminModelDetail{
 		{
 			ModelEntry: modelregistry.ModelEntry{
-				ID:               "gemini-3-pro-preview",
-				ProtocolIDs:      []string{"gemini-3-pro-preview"},
-				PricingLookupIDs: []string{"gemini-3-pro-preview"},
-			},
-			Available: true,
-		},
-		{
-			ModelEntry: modelregistry.ModelEntry{
 				ID:               "gemini-3.1-pro-preview",
 				ProtocolIDs:      []string{"gemini-3.1-pro-preview"},
 				PricingLookupIDs: []string{"gemini-3.1-pro-preview"},
@@ -53,7 +45,6 @@ func TestAppendBundledModelCatalogSeedDetails_LegacyGeminiProtocolIDsStayLegacyO
 		if collision.Source != "protocol_ids" {
 			continue
 		}
-		require.NotEqual(t, "gemini-3-pro-preview", collision.Identifier)
 		require.NotEqual(t, "gemini-3.1-pro-preview", collision.Identifier)
 	}
 }

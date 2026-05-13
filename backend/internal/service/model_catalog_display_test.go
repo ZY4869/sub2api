@@ -12,6 +12,12 @@ func TestFormatModelCatalogDisplayNameAndIconKey(t *testing.T) {
 	require.Equal(t, "Gemini 2.5 Pro", FormatModelCatalogDisplayName("gemini-2.5-pro"))
 	require.Equal(t, "Claude Opus 4.6", FormatModelCatalogDisplayName("claude-opus-4-6"))
 	require.Equal(t, "Gemini 2.5 Pro Preview", FormatModelCatalogDisplayName("gemini-2.5-pro-preview-2026-03-05"))
+	require.Equal(t, "Tab Flash Lite Preview", FormatModelCatalogDisplayName("tab_flash_lite_preview"))
+	require.Equal(t, "DeepSeek V3", FormatModelCatalogDisplayName("deepseek-v3"))
+	require.Equal(t, "ChatGPT 4o Latest", FormatModelCatalogDisplayName("chatgpt-4o-latest"))
+	require.Equal(t, "Doubao Pro 256k", FormatModelCatalogDisplayName("doubao-pro-256k"))
+	require.Equal(t, "Mistral Small Latest", FormatModelCatalogDisplayName("mistral-small-latest"))
+	require.Equal(t, "ChatGLM Turbo", FormatModelCatalogDisplayName("chatglm_turbo"))
 
 	require.Equal(t, "claude", InferModelCatalogIconKey("claude-3-5-haiku-20241022"))
 	require.Equal(t, "chatgpt", InferModelCatalogIconKey("gpt-4o-mini"))

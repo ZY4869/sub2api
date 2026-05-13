@@ -26,8 +26,8 @@ func TestAntigravityGatewayService_GetMappedModel(t *testing.T) {
 		},
 		{
 			name:           "账户映射 - 可覆盖默认映射的模型",
-			requestedModel: "claude-sonnet-4-5",
-			accountMapping: map[string]string{"claude-sonnet-4-5": "my-custom-sonnet"},
+			requestedModel: "claude-sonnet-4.5",
+			accountMapping: map[string]string{"claude-sonnet-4.5": "my-custom-sonnet"},
 			expected:       "my-custom-sonnet",
 		},
 		{
@@ -48,31 +48,31 @@ func TestAntigravityGatewayService_GetMappedModel(t *testing.T) {
 			name:           "默认映射 - claude-opus-4-5-20251101 → claude-opus-4-6-thinking",
 			requestedModel: "claude-opus-4-5-20251101",
 			accountMapping: nil,
-			expected:       "claude-opus-4-6-thinking",
+			expected:       "",
 		},
 		{
 			name:           "默认映射 - claude-opus-4-5-thinking → claude-opus-4-6-thinking",
 			requestedModel: "claude-opus-4-5-thinking",
 			accountMapping: nil,
-			expected:       "claude-opus-4-6-thinking",
+			expected:       "",
 		},
 		{
-			name:           "默认映射 - claude-haiku-4-5 → claude-sonnet-4-6",
-			requestedModel: "claude-haiku-4-5",
+			name:           "默认映射 - claude-haiku-4.5 → claude-haiku-4.5",
+			requestedModel: "claude-haiku-4.5",
 			accountMapping: nil,
-			expected:       "claude-sonnet-4-5",
+			expected:       "claude-haiku-4.5",
 		},
 		{
-			name:           "默认映射 - claude-haiku-4-5-20251001 → claude-sonnet-4-6",
+			name:           "默认映射 - claude-haiku-4-5-20251001 已 hard-remove",
 			requestedModel: "claude-haiku-4-5-20251001",
 			accountMapping: nil,
-			expected:       "claude-sonnet-4-5",
+			expected:       "",
 		},
 		{
-			name:           "默认映射 - claude-sonnet-4-5-20250929 → claude-sonnet-4-5",
+			name:           "默认映射 - claude-sonnet-4-5-20250929 已 hard-remove",
 			requestedModel: "claude-sonnet-4-5-20250929",
 			accountMapping: nil,
-			expected:       "claude-sonnet-4-5",
+			expected:       "",
 		},
 
 		// 3. 默认映射中的透传（映射到自己）
@@ -83,22 +83,10 @@ func TestAntigravityGatewayService_GetMappedModel(t *testing.T) {
 			expected:       "claude-sonnet-4-6",
 		},
 		{
-			name:           "默认映射透传 - claude-sonnet-4-5",
-			requestedModel: "claude-sonnet-4-5",
-			accountMapping: nil,
-			expected:       "claude-sonnet-4-5",
-		},
-		{
 			name:           "默认映射透传 - claude-opus-4-6-thinking",
 			requestedModel: "claude-opus-4-6-thinking",
 			accountMapping: nil,
 			expected:       "claude-opus-4-6-thinking",
-		},
-		{
-			name:           "默认映射透传 - claude-sonnet-4-5-thinking",
-			requestedModel: "claude-sonnet-4-5-thinking",
-			accountMapping: nil,
-			expected:       "claude-sonnet-4-5-thinking",
 		},
 		{
 			name:           "默认映射透传 - gemini-2.5-flash",
@@ -206,7 +194,7 @@ func TestAntigravityGatewayService_IsModelSupported(t *testing.T) {
 		expected bool
 	}{
 		// 直接支持
-		{"直接支持 - claude-sonnet-4-5", "claude-sonnet-4-5", true},
+		{"直接支持 - claude-sonnet-4.5", "claude-sonnet-4.5", true},
 		{"直接支持 - gemini-3-flash", "gemini-3-flash", true},
 
 		// 可映射（有明确前缀映射）
@@ -229,8 +217,36 @@ func TestAntigravityGatewayService_IsModelSupported(t *testing.T) {
 	}
 }
 
+func TestMapAntigravityModel_HardRemovedModelReturnsEmpty(t *testing.T) {
+	account := &Account{
+		Platform: PlatformAntigravity,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				"claude-sonnet-4-5": "claude-sonnet-4-5",
+				"claude-*":          "claude-sonnet-4-5",
+			},
+		},
+	}
+
+	require.Empty(t, mapAntigravityModel(account, "claude-sonnet-4-5"))
+	require.False(t, (&AntigravityGatewayService{}).IsModelSupported("claude-sonnet-4-5"))
+}
+
+func TestMapAntigravityModel_HardRemovedTargetReturnsEmpty(t *testing.T) {
+	account := &Account{
+		Platform: PlatformAntigravity,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				"claude-sonnet-4.5": "claude-sonnet-4-5",
+			},
+		},
+	}
+
+	require.Empty(t, mapAntigravityModel(account, "claude-sonnet-4.5"))
+}
+
 // TestMapAntigravityModel_WildcardTargetEqualsRequest 测试通配符映射目标恰好等于请求模型名的 edge case
-// 例如 {"claude-*": "claude-sonnet-4-5"}，请求 "claude-sonnet-4-5" 时应该通过
+// 例如 {"claude-*": "claude-sonnet-4.5"}，请求 "claude-sonnet-4.5" 时应该通过
 func TestMapAntigravityModel_WildcardTargetEqualsRequest(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -240,31 +256,31 @@ func TestMapAntigravityModel_WildcardTargetEqualsRequest(t *testing.T) {
 	}{
 		{
 			name:           "wildcard target equals request model",
-			modelMapping:   map[string]any{"claude-*": "claude-sonnet-4-5"},
-			requestedModel: "claude-sonnet-4-5",
-			expected:       "claude-sonnet-4-5",
+			modelMapping:   map[string]any{"claude-*": "claude-sonnet-4.5"},
+			requestedModel: "claude-sonnet-4.5",
+			expected:       "claude-sonnet-4.5",
 		},
 		{
 			name:           "wildcard target differs from request model",
-			modelMapping:   map[string]any{"claude-*": "claude-sonnet-4-5"},
+			modelMapping:   map[string]any{"claude-*": "claude-sonnet-4.5"},
 			requestedModel: "claude-opus-4-6",
-			expected:       "claude-sonnet-4-5",
+			expected:       "claude-sonnet-4.5",
 		},
 		{
 			name:           "wildcard no match",
-			modelMapping:   map[string]any{"claude-*": "claude-sonnet-4-5"},
+			modelMapping:   map[string]any{"claude-*": "claude-sonnet-4.5"},
 			requestedModel: "gpt-4o",
 			expected:       "",
 		},
 		{
 			name:           "explicit passthrough same name",
-			modelMapping:   map[string]any{"claude-sonnet-4-5": "claude-sonnet-4-5"},
-			requestedModel: "claude-sonnet-4-5",
-			expected:       "claude-sonnet-4-5",
+			modelMapping:   map[string]any{"claude-sonnet-4.5": "claude-sonnet-4.5"},
+			requestedModel: "claude-sonnet-4.5",
+			expected:       "claude-sonnet-4.5",
 		},
 		{
 			name:           "multiple wildcards target equals one request",
-			modelMapping:   map[string]any{"claude-*": "claude-sonnet-4-5", "gemini-*": "gemini-2.5-flash"},
+			modelMapping:   map[string]any{"claude-*": "claude-sonnet-4.5", "gemini-*": "gemini-2.5-flash"},
 			requestedModel: "gemini-2.5-flash",
 			expected:       "gemini-2.5-flash",
 		},

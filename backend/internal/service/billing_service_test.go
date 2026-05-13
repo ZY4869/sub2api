@@ -163,6 +163,15 @@ func TestGetModelPricing_OpenAIGPT51HardRemovedReturnsError(t *testing.T) {
 	require.Contains(t, err.Error(), "gpt-5.1")
 }
 
+func TestGetModelPricing_ExplicitHardRemovedGeminiReturnsError(t *testing.T) {
+	svc := newTestBillingService()
+
+	pricing, err := svc.GetModelPricing("gemini-3-pro-preview")
+	require.Error(t, err)
+	require.Nil(t, pricing)
+	require.Contains(t, err.Error(), "gemini-3-pro-preview")
+}
+
 func TestGetModelPricing_OpenAIGPT54Fallback(t *testing.T) {
 	svc := newTestBillingService()
 
@@ -262,6 +271,7 @@ func TestGetFallbackPricing_FamilyMatching(t *testing.T) {
 		{name: "claude generic model fallback sonnet", model: "claude-foo-bar", expectedInput: 3e-6},
 		{name: "gemini explicit fallback", model: "gemini-3-1-pro", expectedInput: 2e-6},
 		{name: "gemini unknown no fallback", model: "gemini-2.0-pro", expectNilPricing: true},
+		{name: "gemini hard removed preview", model: "gemini-3-pro-preview", expectNilPricing: true},
 		{name: "openai gpt5.1 hard removed", model: "gpt-5.1", expectNilPricing: true},
 		{name: "openai gpt5.4", model: "gpt-5.4", expectedInput: 2.5e-6},
 		{name: "openai gpt5.3 codex hard removed", model: "gpt-5.3-codex", expectNilPricing: true},
@@ -628,11 +638,9 @@ func TestBillingServiceGetModelPricing_OpenAIFallbackGpt52Variants(t *testing.T)
 	require.InDelta(t, 3.5e-6, gpt52.InputPricePerTokenPriority, 1e-12)
 
 	gpt52Codex, err := svc.GetModelPricing("gpt-5.2-codex")
-	require.NoError(t, err)
-	require.NotNil(t, gpt52Codex)
-	require.InDelta(t, 1.75e-6, gpt52Codex.InputPricePerToken, 1e-12)
-	require.InDelta(t, 3.5e-6, gpt52Codex.InputPricePerTokenPriority, 1e-12)
-	require.InDelta(t, 28e-6, gpt52Codex.OutputPricePerTokenPriority, 1e-12)
+	require.Error(t, err)
+	require.Nil(t, gpt52Codex)
+	require.Contains(t, err.Error(), "gpt-5.2-codex")
 }
 
 func TestCalculateCostWithServiceTier_PriorityFallsBackToTierMultiplierWhenExplicitPriceMissing(t *testing.T) {
@@ -672,11 +680,9 @@ func TestGetModelPricing_OpenAIGpt52FallbacksExposePriorityPrices(t *testing.T) 
 	require.InDelta(t, 28e-6, gpt52.OutputPricePerTokenPriority, 1e-12)
 
 	gpt52Codex, err := svc.GetModelPricing("gpt-5.2-codex")
-	require.NoError(t, err)
-	require.InDelta(t, 1.75e-6, gpt52Codex.InputPricePerToken, 1e-12)
-	require.InDelta(t, 3.5e-6, gpt52Codex.InputPricePerTokenPriority, 1e-12)
-	require.InDelta(t, 14e-6, gpt52Codex.OutputPricePerToken, 1e-12)
-	require.InDelta(t, 28e-6, gpt52Codex.OutputPricePerTokenPriority, 1e-12)
+	require.Error(t, err)
+	require.Nil(t, gpt52Codex)
+	require.Contains(t, err.Error(), "gpt-5.2-codex")
 }
 
 func TestGetModelPricing_MapsDynamicPriorityFieldsIntoBillingPricing(t *testing.T) {

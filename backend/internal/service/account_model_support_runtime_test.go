@@ -114,3 +114,64 @@ func TestIsRequestedModelSupportedByAccount_ReusesCachedExplicitSupportSet(t *te
 	accountModelSupportCacheMu.RUnlock()
 	require.Equal(t, 1, secondCacheSize)
 }
+
+func TestIsRequestedModelSupportedByAccount_HardRemovedModelAlwaysRejected(t *testing.T) {
+	resetAccountModelSupportRuntimeCaches()
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+
+	account := &Account{
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Extra: map[string]any{
+			"model_scope_v2": map[string]any{
+				"policy_mode": "whitelist",
+				"entries": []map[string]any{
+					{
+						"display_model_id": "gemini-3-pro-preview",
+						"target_model_id":  "gemini-3-pro-preview",
+					},
+				},
+			},
+		},
+	}
+
+	require.False(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, "gemini-3-pro-preview"))
+}
+
+func TestIsRequestedModelSupportedByAccount_Phase2HardRemovedModelsAlwaysRejected(t *testing.T) {
+	resetAccountModelSupportRuntimeCaches()
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+
+	tests := []struct {
+		name     string
+		platform string
+		modelID  string
+	}{
+		{name: "anthropic old shell", platform: PlatformAnthropic, modelID: "claude-sonnet-4-5"},
+		{name: "anthropic dated shell", platform: PlatformAnthropic, modelID: "claude-haiku-4-5-20251001"},
+		{name: "deepseek deprecated shell", platform: PlatformDeepSeek, modelID: "deepseek-chat"},
+		{name: "grok deprecated shell", platform: PlatformGrok, modelID: "grok-4"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			account := &Account{
+				Platform: tt.platform,
+				Type:     AccountTypeAPIKey,
+				Extra: map[string]any{
+					"model_scope_v2": map[string]any{
+						"policy_mode": "whitelist",
+						"entries": []map[string]any{
+							{
+								"display_model_id": tt.modelID,
+								"target_model_id":  tt.modelID,
+							},
+						},
+					},
+				},
+			}
+
+			require.False(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, tt.modelID))
+		})
+	}
+}

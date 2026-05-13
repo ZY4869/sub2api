@@ -1,5 +1,62 @@
 const MODEL_DISPLAY_NAME_DATE_SUFFIX_PATTERN = /-(?:\d{8}|\d{4}-\d{2}-\d{2})(?:-[^-\s]+:\d+)?$/;
 const OPENAI_REASONING_MODEL_PATTERN = /^o\d/;
+const MODEL_DISPLAY_TOKEN_OVERRIDES: Record<string, string> = {
+  abab: "ABAB",
+  airx: "AirX",
+  aya: "Aya",
+  c4ai: "C4AI",
+  chatglm: "ChatGLM",
+  chatgpt: "ChatGPT",
+  codestral: "Codestral",
+  codellama: "CodeLlama",
+  cogvideo: "CogVideo",
+  cogview: "CogView",
+  deepseek: "DeepSeek",
+  distill: "Distill",
+  doubao: "Doubao",
+  ernie: "ERNIE",
+  flash: "Flash",
+  glm: "GLM",
+  hunyuan: "Hunyuan",
+  kimi: "Kimi",
+  latest: "Latest",
+  lite: "Lite",
+  llama: "Llama",
+  longcontext: "LongContext",
+  max: "Max",
+  medium: "Medium",
+  mistral: "Mistral",
+  mini: "Mini",
+  mixtral: "Mixtral",
+  moonshot: "Moonshot",
+  nano: "Nano",
+  online: "Online",
+  open: "Open",
+  oss: "OSS",
+  pixtral: "Pixtral",
+  plus: "Plus",
+  preview: "Preview",
+  pro: "Pro",
+  qwen: "Qwen",
+  qwq: "QwQ",
+  r1: "R1",
+  rag: "RAG",
+  reasoner: "Reasoner",
+  realtime: "Realtime",
+  small: "Small",
+  sonar: "Sonar",
+  spark: "Spark",
+  speed: "Speed",
+  std: "STD",
+  tab: "Tab",
+  thinking: "Thinking",
+  tiny: "Tiny",
+  tools: "Tools",
+  turbo: "Turbo",
+  ultra: "Ultra",
+  vision: "Vision",
+  yi: "Yi",
+};
 
 export function formatModelDisplayName(modelId?: string | null): string {
   const canonical = normalizeModelDisplayNameSource(modelId);
@@ -43,7 +100,11 @@ function isShortNumericToken(value?: string): boolean {
 }
 
 function formatModelDisplayToken(value: string, isFirst: boolean): string {
+  const override = MODEL_DISPLAY_TOKEN_OVERRIDES[value];
   if (isFirst) {
+    if (override) {
+      return override;
+    }
     switch (value) {
       case "claude":
         return "Claude";
@@ -60,6 +121,9 @@ function formatModelDisplayToken(value: string, isFirst: boolean): string {
     }
   }
 
+  if (override) {
+    return override;
+  }
   if (!/^[a-z]/.test(value)) {
     return value;
   }

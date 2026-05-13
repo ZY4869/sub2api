@@ -941,7 +941,7 @@ func TestGeminiMessagesCompatService_isModelSupportedByAccount(t *testing.T) {
 		{
 			name:     "Antigravity平台-支持claude模型",
 			account:  &Account{Platform: PlatformAntigravity},
-			model:    "claude-sonnet-4-5",
+			model:    "claude-sonnet-4.5",
 			expected: true,
 		},
 		{
@@ -980,7 +980,7 @@ func TestGeminiMessagesCompatService_isModelSupportedByAccount(t *testing.T) {
 					},
 				},
 			},
-			model:    "claude-sonnet-4-5",
+			model:    "claude-sonnet-4.5",
 			expected: false,
 		},
 		{

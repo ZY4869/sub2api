@@ -75,13 +75,13 @@ func TestModelRegistryServiceInferAccountModelScopeV2_PreservesIdentityWhitelist
 	})
 
 	require.NotNil(t, scope)
-	require.Equal(t, AccountModelPolicyModeMapping, scope.PolicyMode)
+	require.Equal(t, AccountModelPolicyModeWhitelist, scope.PolicyMode)
 	require.Equal(t, []AccountModelScopeEntry{
 		{
 			DisplayModelID: "claude-sonnet-4-5-20250929",
-			TargetModelID:  "claude-sonnet-4.5",
+			TargetModelID:  "claude-sonnet-4-5-20250929",
 			Provider:       "anthropic",
-			VisibilityMode: AccountModelVisibilityModeAlias,
+			VisibilityMode: AccountModelVisibilityModeDirect,
 		},
 	}, scope.Entries)
 }
@@ -106,7 +106,7 @@ func TestModelRegistryServiceBuildModelMappingFromScopeV2_FallsBackToSelectedMod
 
 	require.NoError(t, err)
 	require.True(t, hasScope)
-	require.Equal(t, []string{"claude-sonnet-4.5"}, selectedModels)
+	require.Equal(t, []string{"claude-sonnet-4-5-20250929"}, selectedModels)
 	require.Equal(t, "claude-sonnet-4.5", mapping["claude-sonnet-4-5-20250929"])
 	require.Len(t, mapping, 1)
 }

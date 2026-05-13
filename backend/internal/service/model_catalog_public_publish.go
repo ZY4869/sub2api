@@ -275,7 +275,8 @@ func (s *ModelCatalogService) loadPublishedPublicModelCatalogSnapshot(ctx contex
 	if s == nil {
 		return nil
 	}
-	return loadPublicModelCatalogPublishedSnapshotBySetting(ctx, s.settingRepo, SettingKeyPublicModelCatalogPublishedSnapshot)
+	snapshot := loadPublicModelCatalogPublishedSnapshotBySetting(ctx, s.settingRepo, SettingKeyPublicModelCatalogPublishedSnapshot)
+	return s.sanitizePublishedPublicModelCatalogSnapshot(ctx, snapshot)
 }
 
 func (s *ModelCatalogService) persistPublishedPublicModelCatalogSnapshot(ctx context.Context, snapshot *PublicModelCatalogPublishedSnapshot) error {
@@ -283,6 +284,78 @@ func (s *ModelCatalogService) persistPublishedPublicModelCatalogSnapshot(ctx con
 		return nil
 	}
 	return persistPublicModelCatalogPublishedSnapshotBySetting(ctx, s.settingRepo, SettingKeyPublicModelCatalogPublishedSnapshot, snapshot)
+}
+
+func (s *ModelCatalogService) sanitizePublishedPublicModelCatalogSnapshot(
+	ctx context.Context,
+	snapshot *PublicModelCatalogPublishedSnapshot,
+) *PublicModelCatalogPublishedSnapshot {
+	cloned := clonePublicModelCatalogPublishedSnapshot(snapshot)
+	if cloned == nil {
+		return nil
+	}
+	if len(cloned.Snapshot.Items) == 0 && len(cloned.Details) == 0 {
+		return cloned
+	}
+
+	visibleIDs := s.publishedCatalogVisibleModelIDs(ctx)
+	filteredItems := make([]PublicModelCatalogItem, 0, len(cloned.Snapshot.Items))
+	allowedIDs := make(map[string]struct{}, len(cloned.Snapshot.Items))
+	for _, item := range cloned.Snapshot.Items {
+		modelID := NormalizeModelCatalogModelID(item.Model)
+		if !s.shouldKeepPublishedCatalogModel(modelID, visibleIDs) {
+			continue
+		}
+		item.Model = modelID
+		filteredItems = append(filteredItems, item)
+		allowedIDs[modelID] = struct{}{}
+	}
+	cloned.Snapshot.Items = filteredItems
+
+	if len(cloned.Details) > 0 {
+		filteredDetails := make(map[string]PublicModelCatalogDetail, len(cloned.Details))
+		for key, detail := range cloned.Details {
+			modelID := NormalizeModelCatalogModelID(key)
+			if modelID == "" {
+				modelID = NormalizeModelCatalogModelID(detail.Item.Model)
+			}
+			if _, ok := allowedIDs[modelID]; !ok {
+				continue
+			}
+			detail.Item.Model = modelID
+			filteredDetails[modelID] = detail
+		}
+		cloned.Details = filteredDetails
+	}
+
+	return cloned
+}
+
+func (s *ModelCatalogService) publishedCatalogVisibleModelIDs(ctx context.Context) map[string]struct{} {
+	if s == nil || s.modelRegistryService == nil {
+		return nil
+	}
+	models, _, err := s.modelRegistryService.visibleSnapshotData(ctx)
+	if err != nil {
+		return nil
+	}
+	visibleIDs := make(map[string]struct{}, len(models))
+	for _, entry := range models {
+		visibleIDs[NormalizeModelCatalogModelID(entry.ID)] = struct{}{}
+	}
+	return visibleIDs
+}
+
+func (s *ModelCatalogService) shouldKeepPublishedCatalogModel(modelID string, visibleIDs map[string]struct{}) bool {
+	modelID = NormalizeModelCatalogModelID(modelID)
+	if modelID == "" || isHardRemovedModelID(modelID) {
+		return false
+	}
+	if visibleIDs == nil {
+		return true
+	}
+	_, ok := visibleIDs[modelID]
+	return ok
 }
 
 func selectPublicModelCatalogPublishItems(draft PublicModelCatalogDraft, items []PublicModelCatalogItem) []PublicModelCatalogItem {

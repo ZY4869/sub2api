@@ -30,16 +30,7 @@ type grokModelDescriptor struct {
 	HeavyOnly               bool
 }
 
-var grokCanonicalDescriptors = []grokModelDescriptor{
-	{PublicID: GrokModelAuto, LegacyAliases: []string{"grok-beta"}},
-	{PublicID: GrokModel3Fast, LegacyAliases: []string{"grok-3-fast-beta"}, PreferredAPIKeyUpstream: "grok-3-fast-beta"},
-	{PublicID: GrokModel4Expert, LegacyAliases: []string{"grok-4", "grok-4-0709"}, PreferredAPIKeyUpstream: "grok-4"},
-	{PublicID: GrokModel4Heavy, HeavyOnly: true},
-	{PublicID: GrokModelImagineFast},
-	{PublicID: GrokModelImagine, LegacyAliases: []string{"grok-imagine-image"}, MediaType: grokMediaTypeImage, PreferredAPIKeyUpstream: "grok-imagine-image"},
-	{PublicID: GrokModelImagineEdit, MediaType: grokMediaTypeImageEdit},
-	{PublicID: GrokModelImagineVideo, LegacyAliases: []string{"grok-imagine-video"}, MediaType: grokMediaTypeVideo, PreferredAPIKeyUpstream: "grok-imagine-video"},
-}
+var grokCanonicalDescriptors = []grokModelDescriptor{}
 
 var (
 	grokCanonicalModelSet          map[string]grokModelDescriptor

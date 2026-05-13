@@ -32,9 +32,7 @@ const (
 )
 
 var vertexLegacyUpstreamModelAliases = map[string]string{
-	"gemini-2.5-flash-image": "gemini-2.5-flash-image-preview",
 	"gemini-3-flash":         "gemini-3-flash-preview",
-	"gemini-3-pro":           "gemini-3-pro-preview",
 	"gemini-3-pro-image":     "gemini-3-pro-image-preview",
 	"gemini-3.1-pro":         "gemini-3.1-pro-preview",
 	"gemini-3.1-flash-lite":  "gemini-3.1-flash-lite-preview",

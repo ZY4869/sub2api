@@ -1,18 +1,8 @@
 export type GrokTier = 'basic' | 'super' | 'heavy'
 
-export const GROK_SHARED_MODEL_IDS = [
-  'grok-auto',
-  'grok-3-fast',
-  'grok-4-expert',
-  'grok-imagine-1.0-fast',
-  'grok-imagine-1.0',
-  'grok-imagine-1.0-edit',
-  'grok-imagine-1.0-video'
-] as const
+export const GROK_SHARED_MODEL_IDS = [] as const
 
-export const GROK_HEAVY_ONLY_MODEL_IDS = [
-  'grok-4-heavy'
-] as const
+export const GROK_HEAVY_ONLY_MODEL_IDS = [] as const
 
 export function normalizeGrokTier(value: unknown): GrokTier {
   switch (String(value || '').trim().toLowerCase()) {

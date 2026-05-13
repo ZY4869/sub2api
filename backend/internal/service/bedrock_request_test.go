@@ -429,7 +429,7 @@ func TestResolveBedrockModelID(t *testing.T) {
 			},
 		}
 
-		modelID, ok := ResolveBedrockModelID(account, "claude-sonnet-4-5")
+		modelID, ok := ResolveBedrockModelID(account, "claude-sonnet-4.5")
 		require.True(t, ok)
 		assert.Equal(t, "eu.anthropic.claude-sonnet-4-5-20250929-v1:0", modelID)
 	})

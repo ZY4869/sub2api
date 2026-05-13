@@ -15,10 +15,10 @@ func TestApplyThinkingModelSuffix(t *testing.T) {
 	}{
 		// Thinking 未开启：保持原样
 		{
-			name:            "thinking disabled - claude-sonnet-4-5 unchanged",
-			mappedModel:     "claude-sonnet-4-5",
+			name:            "thinking disabled - claude-sonnet-4.5 unchanged",
+			mappedModel:     "claude-sonnet-4.5",
 			thinkingEnabled: false,
-			expected:        "claude-sonnet-4-5",
+			expected:        "claude-sonnet-4.5",
 		},
 		{
 			name:            "thinking disabled - other model unchanged",
@@ -27,20 +27,20 @@ func TestApplyThinkingModelSuffix(t *testing.T) {
 			expected:        "claude-opus-4-6-thinking",
 		},
 
-		// Thinking 开启 + claude-sonnet-4-5：自动添加后缀
+		// Thinking 开启 + claude-sonnet-4.5：自动添加后缀
 		{
-			name:            "thinking enabled - claude-sonnet-4-5 becomes thinking version",
-			mappedModel:     "claude-sonnet-4-5",
+			name:            "thinking enabled - claude-sonnet-4.5 becomes thinking version",
+			mappedModel:     "claude-sonnet-4.5",
 			thinkingEnabled: true,
-			expected:        "claude-sonnet-4-5-thinking",
+			expected:        "claude-sonnet-4.5-thinking",
 		},
 
 		// Thinking 开启 + 其他模型：保持原样
 		{
-			name:            "thinking enabled - claude-sonnet-4-5-thinking unchanged",
-			mappedModel:     "claude-sonnet-4-5-thinking",
+			name:            "thinking enabled - claude-sonnet-4.5-thinking unchanged",
+			mappedModel:     "claude-sonnet-4.5-thinking",
 			thinkingEnabled: true,
-			expected:        "claude-sonnet-4-5-thinking",
+			expected:        "claude-sonnet-4.5-thinking",
 		},
 		{
 			name:            "thinking enabled - claude-opus-4-6-thinking unchanged",

@@ -41,7 +41,7 @@ describe('publicModelCatalogExamples', () => {
   })
 
   it('uses the explicit Grok images endpoint for native Grok image models', () => {
-    const code = getTabCode(buildDetail('grok-imagine-1.0', 'grok', 'image-generation'), 'REST')
+    const code = getTabCode(buildDetail('gpt-image-2', 'grok', 'image-generation'), 'REST')
 
     expect(code).toContain('/grok/v1/images/generations')
     expect(code).not.toContain('/v1beta/openai/images/generations')

@@ -62,6 +62,48 @@ function createBaseOptions() {
 }
 
 describe('OpenAI create-account defaults', () => {
+  it('uses the free OAuth whitelist defaults without gpt-image-2', async () => {
+    createMock.mockReset()
+    createMock.mockResolvedValue({ id: 4, platform: 'openai', type: 'oauth' })
+
+    const base = createBaseOptions()
+    const exchangeAuthCode = vi.fn().mockResolvedValue({ plan_type: 'free' })
+    const { handleOpenAIExchange } = useCreateAccountOpenAIExchange({
+      oauthClient: computed(() => ({
+        sessionId: ref('session'),
+        oauthState: ref('state'),
+        loading: ref(false),
+        error: ref(''),
+        exchangeAuthCode,
+        buildCredentials: (tokenInfo: any) => ({ plan_type: tokenInfo.plan_type }),
+        buildExtraInfo: () => undefined,
+      })),
+      getOAuthState: () => 'state',
+      applyTempUnschedConfig: () => true,
+      ...base,
+    })
+
+    await handleOpenAIExchange('code')
+
+    expect(base.allowedModels.value).toEqual([
+      'gpt-5.2',
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.5',
+    ])
+    expect(
+      createMock.mock.calls[0][0]?.extra?.model_scope_v2?.entries?.map((entry: any) => ({
+        display_model_id: entry.display_model_id,
+        target_model_id: entry.target_model_id,
+      }))
+    ).toEqual([
+      { display_model_id: 'gpt-5.2', target_model_id: 'gpt-5.2' },
+      { display_model_id: 'gpt-5.4', target_model_id: 'gpt-5.4' },
+      { display_model_id: 'gpt-5.4-mini', target_model_id: 'gpt-5.4-mini' },
+      { display_model_id: 'gpt-5.5', target_model_id: 'gpt-5.5' },
+    ])
+  })
+
   it('applies the pro OAuth whitelist defaults and includes Spark for Pro tiers', async () => {
     createMock.mockReset()
     createMock.mockResolvedValue({ id: 1, platform: 'openai', type: 'oauth' })
@@ -163,5 +205,32 @@ describe('OpenAI create-account defaults', () => {
       'gpt-5.5',
     ])
     expect(createMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps paid OAuth defaults for plus refresh token accounts', async () => {
+    createMock.mockReset()
+    createMock.mockResolvedValue({ id: 5, platform: 'openai', type: 'oauth' })
+
+    const base = createBaseOptions()
+    const { handleOpenAIValidateRT } = useCreateAccountOpenAIRefreshTokenValidation({
+      oauthClient: computed(() => ({
+        loading: ref(false),
+        error: ref(''),
+        validateRefreshToken: vi.fn().mockResolvedValue({ plan_type: 'plus' }),
+        buildCredentials: (tokenInfo: any) => ({ plan_type: tokenInfo.plan_type }),
+        buildExtraInfo: () => undefined,
+      })),
+      ...base,
+    })
+
+    await handleOpenAIValidateRT('rt_456')
+
+    expect(base.allowedModels.value).toEqual([
+      'gpt-image-2',
+      'gpt-5.2',
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.5',
+    ])
   })
 })

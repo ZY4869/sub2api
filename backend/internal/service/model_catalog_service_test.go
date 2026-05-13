@@ -298,7 +298,7 @@ func TestModelCatalogPricingValidationRejectsInvalidOverrides(t *testing.T) {
 func TestModelCatalogService_GeminiPricingOverrideDeprecated(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
-		"gemini-3-pro-preview": {
+		"gemini-3.1-pro-preview": {
 			InputCostPerToken:           2e-6,
 			OutputCostPerToken:          7e-6,
 			CacheCreationInputTokenCost: 1e-6,
@@ -427,7 +427,7 @@ func TestModelCatalogService_GeminiBillingSheetUsesCanonicalRulesAndClearsLegacy
 		},
 	})
 	svc, billingService := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
-		"gemini-3-pro-preview": {
+		"gemini-3.1-pro-preview": {
 			InputCostPerToken:           2e-6,
 			OutputCostPerToken:          7e-6,
 			CacheCreationInputTokenCost: 1e-6,
@@ -458,7 +458,7 @@ func TestModelCatalogService_GeminiBillingSheetUsesCanonicalRulesAndClearsLegacy
 	require.NotNil(t, sheet.SaleMatrix)
 
 	rules := loadBillingRulesBySetting(context.Background(), repo, SettingKeyBillingCenterRules)
-	require.Nil(t, buildGeminiCompatPricingOverride("gemini-3-pro-preview", BillingLayerSale, rules))
+	require.Nil(t, buildGeminiCompatPricingOverride("gemini-3.1-pro-preview", BillingLayerSale, rules))
 	_, exists := svc.loadSalePriceOverrides(context.Background())["gemini-3-pro"]
 	require.False(t, exists)
 
@@ -467,7 +467,7 @@ func TestModelCatalogService_GeminiBillingSheetUsesCanonicalRulesAndClearsLegacy
 	require.NotNil(t, cell.Price)
 	require.Equal(t, 4e-6, *cell.Price)
 
-	pricing, err := billingService.getPricingForBilling("gemini-3-pro-preview")
+	pricing, err := billingService.getPricingForBilling("gemini-3.1-pro-preview")
 	require.NoError(t, err)
 	require.Equal(t, 2e-6, pricing.InputPricePerToken)
 	require.Equal(t, 7e-6, pricing.OutputPricePerToken)

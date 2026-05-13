@@ -2,12 +2,16 @@ import type { ModelMapping } from '@/utils/accountFormShared'
 import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
 import { normalizeOpenAIPlanType } from '@/utils/openaiAccountDefaults'
 
-export const OPENAI_OAUTH_DEFAULT_MODELS = [
-  'gpt-image-2',
+export const OPENAI_OAUTH_FREE_DEFAULT_MODELS = [
   'gpt-5.2',
   'gpt-5.4',
   'gpt-5.4-mini',
   'gpt-5.5',
+] as const
+
+export const OPENAI_OAUTH_PAID_DEFAULT_MODELS = [
+  'gpt-image-2',
+  ...OPENAI_OAUTH_FREE_DEFAULT_MODELS,
 ] as const
 
 export const OPENAI_OAUTH_PRO_SPARK_MODEL = 'gpt-5.3-codex-spark'
@@ -37,7 +41,10 @@ export function resolveOpenAIOAuthDefaultAllowedModels(options: {
   planType?: string | null
   proMultiplier?: number | null
 }): string[] {
-  const next: string[] = [...OPENAI_OAUTH_DEFAULT_MODELS]
+  const normalizedPlanType = normalizeOpenAIPlanType(options.planType)
+  const next: string[] = normalizedPlanType === 'free'
+    ? [...OPENAI_OAUTH_FREE_DEFAULT_MODELS]
+    : [...OPENAI_OAUTH_PAID_DEFAULT_MODELS]
   if (shouldEnableOpenAIProSpark(options)) {
     next.push(OPENAI_OAUTH_PRO_SPARK_MODEL)
   }

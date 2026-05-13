@@ -19,7 +19,7 @@ func billingLineBySlot(lines []BillingSimulationLine, slot string) *BillingSimul
 func TestBillingCenterService_SimulateUsesCanonicalMatrixRules(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
-		"gemini-3-pro-preview": {
+		"gemini-3.1-pro-preview": {
 			InputCostPerToken:           2e-6,
 			OutputCostPerToken:          7e-6,
 			CacheCreationInputTokenCost: 1e-6,
@@ -46,7 +46,7 @@ func TestBillingCenterService_SimulateUsesCanonicalMatrixRules(t *testing.T) {
 	result, err := svc.billingCenterService.Simulate(context.Background(), BillingSimulationInput{
 		Provider:      BillingRuleProviderGemini,
 		Layer:         BillingLayerSale,
-		Model:         "gemini-3-pro-preview",
+		Model:         "gemini-3.1-pro-preview",
 		Surface:       BillingSurfaceGeminiNative,
 		OperationType: "generate_content",
 		Charges: BillingSimulationCharges{
@@ -65,7 +65,7 @@ func TestBillingCenterService_SimulateUsesCanonicalMatrixRules(t *testing.T) {
 func TestBillingCenterService_SimulateAndRuntimeShareLegacyFallback(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
-		"gemini-3-pro-preview": {
+		"gemini-3.1-pro-preview": {
 			InputCostPerToken:           2e-6,
 			OutputCostPerToken:          7e-6,
 			OutputCostPerImage:          0.04,
@@ -85,7 +85,7 @@ func TestBillingCenterService_SimulateAndRuntimeShareLegacyFallback(t *testing.T
 	simulated, err := svc.billingCenterService.Simulate(context.Background(), BillingSimulationInput{
 		Provider:      BillingRuleProviderGemini,
 		Layer:         BillingLayerSale,
-		Model:         "gemini-3-pro-preview",
+		Model:         "gemini-3.1-pro-preview",
 		Surface:       BillingSurfaceGeminiNative,
 		OperationType: "generate_content",
 		Charges:       charges,
@@ -93,8 +93,8 @@ func TestBillingCenterService_SimulateAndRuntimeShareLegacyFallback(t *testing.T
 	require.NoError(t, err)
 
 	runtimeResult, err := svc.billingCenterService.CalculateGeminiCost(context.Background(), GeminiBillingCalculationInput{
-		Model:           "gemini-3-pro-preview",
-		InboundEndpoint: "/v1beta/models/gemini-3-pro-preview:generateContent",
+		Model:           "gemini-3.1-pro-preview",
+		InboundEndpoint: "/v1beta/models/gemini-3.1-pro-preview:generateContent",
 		Charges:         charges,
 	})
 	require.NoError(t, err)

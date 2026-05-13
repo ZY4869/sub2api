@@ -173,7 +173,7 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesExpectedPrimaryPrice
 					BatchOutputPrice: modelCatalogFloat64Ptr(0.04),
 				},
 			}),
-			newPublicCatalogPersistedModel("grok-imagine-1.0-video", PlatformGrok, "video", false, BillingChargeSlotVideoRequest, BillingPricingLayerForm{
+			newPublicCatalogPersistedModel("gpt-5.5", PlatformOpenAI, "video", false, BillingChargeSlotVideoRequest, BillingPricingLayerForm{
 				OutputPrice:    modelCatalogFloat64Ptr(1.25),
 				SpecialEnabled: false,
 				Special:        BillingPricingSimpleSpecial{},
@@ -199,7 +199,7 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesExpectedPrimaryPrice
 	require.Equal(t, []string{billingDiscountFieldBatchOutputPrice}, publicCatalogPriceEntryIDs(imageItem.PriceDisplay.Secondary))
 	require.Equal(t, BillingUnitImage, imageItem.PriceDisplay.Primary[0].Unit)
 
-	videoItem := items["grok-imagine-1.0-video"]
+	videoItem := items["gpt-5.5"]
 	require.Equal(t, []string{billingDiscountFieldOutputPrice}, publicCatalogPriceEntryIDs(videoItem.PriceDisplay.Primary))
 	require.Nil(t, videoItem.PriceDisplay.Secondary)
 	require.Equal(t, BillingUnitVideoRequest, videoItem.PriceDisplay.Primary[0].Unit)
@@ -807,6 +807,63 @@ func TestModelCatalogService_PublishedPublicModelCatalogDetail_RemainsFrozenAfte
 	frozenAfter, err := svc.PublishedPublicModelCatalogDetail(context.Background(), "gpt-5.4")
 	require.NoError(t, err)
 	require.Equal(t, frozenBefore.ExampleMarkdown, frozenAfter.ExampleMarkdown)
+}
+
+func TestModelCatalogService_PublishedPublicModelCatalogSnapshot_SanitizesHardRemovedModelsAtReadTime(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	registrySvc := NewModelRegistryService(repo)
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+			newPublicCatalogPersistedModel("gemini-3-pro-preview", PlatformGemini, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetModelRegistryService(registrySvc)
+
+	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogPublishedSnapshot, &PublicModelCatalogPublishedSnapshot{
+		Snapshot: PublicModelCatalogSnapshot{
+			ETag:      "etag-hard-remove",
+			UpdatedAt: "2026-05-11T00:00:00Z",
+			PageSize:  10,
+			Items: []PublicModelCatalogItem{
+				{Model: "gpt-5.4", DisplayName: "GPT-5.4", Provider: PlatformOpenAI, Currency: ModelPricingCurrencyUSD},
+				{Model: "gemini-3-pro-preview", DisplayName: "Gemini 3 Pro Preview", Provider: PlatformGemini, Currency: ModelPricingCurrencyUSD},
+			},
+		},
+		Details: map[string]PublicModelCatalogDetail{
+			"gpt-5.4": {
+				Item: PublicModelCatalogItem{Model: "gpt-5.4", DisplayName: "GPT-5.4", Provider: PlatformOpenAI, Currency: ModelPricingCurrencyUSD},
+			},
+			"gemini-3-pro-preview": {
+				Item: PublicModelCatalogItem{Model: "gemini-3-pro-preview", DisplayName: "Gemini 3 Pro Preview", Provider: PlatformGemini, Currency: ModelPricingCurrencyUSD},
+			},
+		},
+	}))
+
+	snapshot, err := svc.PublishedPublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Len(t, snapshot.Items, 1)
+	require.Equal(t, "gpt-5.4", snapshot.Items[0].Model)
+
+	_, err = svc.PublishedPublicModelCatalogDetail(context.Background(), "gemini-3-pro-preview")
+	require.Error(t, err)
+
+	detail, err := svc.PublishedPublicModelCatalogDetail(context.Background(), "gpt-5.4")
+	require.NoError(t, err)
+	require.Equal(t, "gpt-5.4", detail.Item.Model)
 }
 
 func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesPublishedPrices(t *testing.T) {

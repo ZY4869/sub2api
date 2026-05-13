@@ -140,6 +140,9 @@ func ResolveBedrockModelID(account *Account, requestedModel string) (string, boo
 	if account == nil {
 		return "", false
 	}
+	if isHardRemovedModelID(requestedModel) {
+		return "", false
+	}
 
 	mappedModel := account.GetMappedModel(NormalizeRequestedModelForClaudeCapability(requestedModel))
 	modelID, shouldAdjustRegion, ok := normalizeBedrockModelID(mappedModel)

@@ -34,7 +34,7 @@ var googleBatchModelFamilyRegistry = map[string]string{
 	"gemini-2.5-pro-preview":        "gemini_pro",
 	"gemini-2.5-pro-preview-tts":    "gemini_pro",
 	"gemini-3-pro":                  "gemini_pro",
-	"gemini-3-pro-preview":          "gemini_pro",
+	"gemini-3.1-pro-preview":        "gemini_pro",
 	"gemini_flash":                  "gemini_flash",
 	"gemini-flash":                  "gemini_flash",
 	"gemini-1.5-flash":              "gemini_flash",
@@ -60,6 +60,7 @@ var googleBatchModelFamilyRegistryPrefixes = []struct {
 }{
 	{prefix: "gemini-2.5-pro", family: "gemini_pro"},
 	{prefix: "gemini-3-pro", family: "gemini_pro"},
+	{prefix: "gemini-3.1-pro", family: "gemini_pro"},
 	{prefix: "gemini-2.5-flash-lite", family: "gemini_flash_lite"},
 	{prefix: "gemini-3.1-flash-lite", family: "gemini_flash_lite"},
 	{prefix: "gemini-2.0-flash", family: "gemini_2_flash"},

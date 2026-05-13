@@ -63,8 +63,8 @@ var geminiModels = []string{
 	"gemini-2.5-flash",
 	"gemini-2.5-flash-lite",
 	"gemini-3-flash",
-	"gemini-3-pro-low",
-	"gemini-3-pro-high",
+	"gemini-3.1-pro-low",
+	"gemini-3.1-pro-high",
 }
 
 func TestMain(m *testing.M) {
@@ -694,11 +694,11 @@ func TestClaudeMessagesWithGeminiModel(t *testing.T) {
 
 	// 测试通过 Claude 端点调用 Gemini 模型
 	geminiViaClaude := []string{
-		"gemini-3-flash",       // 直接支持
-		"gemini-3-pro-low",     // 直接支持
-		"gemini-3-pro-high",    // 直接支持
-		"gemini-3-pro",         // 前缀映射 -> gemini-3-pro-high
-		"gemini-3-pro-preview", // 前缀映射 -> gemini-3-pro-high
+		"gemini-3-flash",         // 直接支持
+		"gemini-3.1-pro-low",     // 直接支持
+		"gemini-3.1-pro-high",    // 直接支持
+		"gemini-3.1-pro",         // 前缀映射 -> gemini-3.1-pro-high
+		"gemini-3.1-pro-preview", // 前缀映射 -> gemini-3.1-pro-high
 	}
 
 	for i, model := range geminiViaClaude {

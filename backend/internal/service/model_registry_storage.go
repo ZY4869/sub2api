@@ -95,6 +95,69 @@ func (s *ModelRegistryService) persistRuntimeEntries(ctx context.Context, entrie
 	return s.settingRepo.Set(ctx, SettingKeyModelRegistryEntries, string(payload))
 }
 
+func (s *ModelRegistryService) hardRemoveRegistryModels(ctx context.Context, modelIDs []string) ([]string, error) {
+	normalizedIDs := normalizeStringList(modelIDs, normalizeRegistryID)
+	if len(normalizedIDs) == 0 || s.settingRepo == nil {
+		return []string{}, nil
+	}
+
+	toRemove := make(map[string]struct{}, len(normalizedIDs))
+	for _, modelID := range normalizedIDs {
+		toRemove[modelID] = struct{}{}
+	}
+
+	runtimeEntries, err := s.loadRuntimeEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filteredEntries := make([]modelregistry.ModelEntry, 0, len(runtimeEntries))
+	for _, entry := range runtimeEntries {
+		if _, blocked := toRemove[entry.ID]; blocked {
+			continue
+		}
+		filteredEntries = append(filteredEntries, entry)
+	}
+	if err := s.persistRuntimeEntries(ctx, filteredEntries); err != nil {
+		return nil, err
+	}
+
+	tombstones, err := s.loadStringSet(ctx, SettingKeyModelRegistryTombstones)
+	if err != nil {
+		return nil, err
+	}
+	for _, modelID := range normalizedIDs {
+		tombstones[modelID] = struct{}{}
+	}
+	if err := s.persistStringSet(ctx, SettingKeyModelRegistryTombstones, tombstones); err != nil {
+		return nil, err
+	}
+
+	hidden, err := s.loadStringSet(ctx, SettingKeyModelRegistryHiddenModels)
+	if err != nil {
+		return nil, err
+	}
+	for _, modelID := range normalizedIDs {
+		delete(hidden, modelID)
+	}
+	if err := s.persistStringSet(ctx, SettingKeyModelRegistryHiddenModels, hidden); err != nil {
+		return nil, err
+	}
+
+	available, err := s.loadStringSet(ctx, SettingKeyModelRegistryAvailableModels)
+	if err != nil {
+		return nil, err
+	}
+	for _, modelID := range normalizedIDs {
+		delete(available, modelID)
+	}
+	if err := s.persistStringSet(ctx, SettingKeyModelRegistryAvailableModels, available); err != nil {
+		return nil, err
+	}
+
+	sort.Strings(normalizedIDs)
+	return normalizedIDs, nil
+}
+
 func (s *ModelRegistryService) clearStates(ctx context.Context, modelID string) error {
 	if modelID == "" {
 		return nil
