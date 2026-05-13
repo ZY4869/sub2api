@@ -251,6 +251,8 @@ curl https://api.zyxai.de/deepseek/v1/messages \
 - `deepseek-v4-flash`
 - `deepseek-v4-pro`
 
+当前仓库默认模型库也会把这两个 v4 模型直接纳入 DeepSeek 默认可见集合，因此在未自定义白名单的普通 DeepSeek API Key 账号下，`/deepseek/v1/models`、测试模型列表和默认策略投影都会优先看到它们。
+
 兼容保留模型：
 
 - `deepseek-chat`

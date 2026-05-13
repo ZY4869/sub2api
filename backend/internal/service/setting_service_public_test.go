@@ -227,6 +227,36 @@ func TestSettingService_LoginAgreement_RoundTripsAcrossPublicSettings(t *testing
 	require.Contains(t, string(raw), `"page_slug":"terms"`)
 }
 
+func TestSettingService_PurchaseSubscriptionSettings_RoundTripAcrossPublicSettings(t *testing.T) {
+	ctx := context.Background()
+	repo := &settingPublicRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(ctx, &SystemSettings{
+		PurchaseSubscriptionEnabled:             true,
+		PurchaseSubscriptionURL:                 "https://pay.example.com/checkout",
+		PurchaseSubscriptionProvider:            PurchaseSubscriptionProviderAirwallex,
+		PurchaseSubscriptionSupportedCurrencies: []string{"usd", "cny", "usd"},
+		PurchaseSubscriptionDefaultCurrency:     "usd",
+		PurchaseSubscriptionDefaultCountryCode:  "us",
+		PurchaseSubscriptionPaymentEnv:          PurchaseSubscriptionPaymentEnvSandbox,
+		PurchaseSubscriptionExtraParams: map[string]string{
+			"merchant_region": "global",
+		},
+	})
+	require.NoError(t, err)
+
+	settings, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.True(t, settings.PurchaseSubscriptionEnabled)
+	require.Equal(t, PurchaseSubscriptionProviderAirwallex, settings.PurchaseSubscriptionProvider)
+	require.Equal(t, []string{"USD", "CNY"}, settings.PurchaseSubscriptionSupportedCurrencies)
+	require.Equal(t, "USD", settings.PurchaseSubscriptionDefaultCurrency)
+	require.Equal(t, "US", settings.PurchaseSubscriptionDefaultCountryCode)
+	require.Equal(t, PurchaseSubscriptionPaymentEnvSandbox, settings.PurchaseSubscriptionPaymentEnv)
+	require.Equal(t, map[string]string{"merchant_region": "global"}, settings.PurchaseSubscriptionExtraParams)
+}
+
 func TestSettingService_UpdateSettings_PreservesContentModerationKeysWhenUnchanged(t *testing.T) {
 	ctx := context.Background()
 	rawKeys, err := MarshalContentModerationAPIKeys([]ContentModerationAPIKey{

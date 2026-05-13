@@ -47,6 +47,16 @@ func TestResolveToCanonicalIDVariants(t *testing.T) {
 			input:    "/publishers/google/models/gemini-2.5-pro",
 			expected: "gemini-2.5-pro",
 		},
+		{
+			name:     "deepseek v4 pro",
+			input:    "deepseek-v4-pro",
+			expected: "deepseek-v4-pro",
+		},
+		{
+			name:     "deepseek v4 flash",
+			input:    "deepseek-v4-flash",
+			expected: "deepseek-v4-flash",
+		},
 	}
 
 	for _, test := range tests {

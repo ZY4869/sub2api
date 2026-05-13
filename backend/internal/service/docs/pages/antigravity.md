@@ -172,3 +172,15 @@ curl https://api.zyxai.de/antigravity/v1beta/models \
 - 只有在你明确要“固定走 Antigravity”时才使用该前缀。
 - 不要把公共混合入口与 `/antigravity/...` 混在同一个客户端实例里。
 - 对 token 预估、批任务这类能力收窄动作，要单独验证，不要因为路径能访问就假设功能完整。
+
+### 运行时 User-Agent 版本
+
+管理员现在可以在系统设置中显式覆盖 Antigravity 相关链路使用的 `User-Agent` 版本号。
+
+当前规则如下：
+
+- 留空：回退到环境变量 `ANTIGRAVITY_USER_AGENT_VERSION`，若环境变量也为空，则使用程序内置默认值。
+- 非空：必须是 `x.y.z` 形式的版本号，例如 `1.21.9`。
+- 影响范围：仅作用于 Antigravity 的 OAuth、模型探测、额度抓取与客户端请求，不影响其他平台。
+
+这项设置的目的主要是兼容上游行为变化或灰度验证，不建议把它当作普通业务配置频繁切换。

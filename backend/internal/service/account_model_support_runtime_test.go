@@ -175,3 +175,30 @@ func TestIsRequestedModelSupportedByAccount_Phase2HardRemovedModelsAlwaysRejecte
 		})
 	}
 }
+
+func TestIsRequestedModelSupportedByAccount_DeepSeekRuntimeModelsRemainAllowed(t *testing.T) {
+	resetAccountModelSupportRuntimeCaches()
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+
+	for _, modelID := range []string{"deepseek-v4-flash", "deepseek-v4-pro"} {
+		t.Run(modelID, func(t *testing.T) {
+			account := &Account{
+				Platform: PlatformDeepSeek,
+				Type:     AccountTypeAPIKey,
+				Extra: map[string]any{
+					"model_scope_v2": map[string]any{
+						"policy_mode": "whitelist",
+						"entries": []map[string]any{
+							{
+								"display_model_id": modelID,
+								"target_model_id":  modelID,
+							},
+						},
+					},
+				},
+			}
+
+			require.True(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, modelID))
+		})
+	}
+}

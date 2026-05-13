@@ -40,6 +40,9 @@ type vertexServiceAccountTokenResponse struct {
 	ExpiresIn   int64  `json:"expires_in"`
 }
 
+// 允许测试替换共享 HTTP client 构建逻辑，以验证账号代理是否被正确透传。
+var getVertexServiceAccountHTTPClient = httpclient.GetClient
+
 func parseVertexServiceAccountCredentials(raw string) (*vertexServiceAccountCredentials, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -171,7 +174,7 @@ func (p *GeminiTokenProvider) exchangeVertexServiceAccountToken(ctx context.Cont
 	form.Set("assertion", assertion)
 
 	proxyURL := p.resolveVertexProxyURL(ctx, account)
-	client, err := httpclient.GetClient(httpclient.Options{
+	client, err := getVertexServiceAccountHTTPClient(httpclient.Options{
 		ProxyURL:              proxyURL,
 		Timeout:               20 * time.Second,
 		ResponseHeaderTimeout: 15 * time.Second,

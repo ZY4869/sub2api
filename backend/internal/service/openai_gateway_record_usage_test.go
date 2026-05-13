@@ -724,6 +724,38 @@ func TestOpenAIGatewayServiceRecordUsage_ClampsActualInputTokensToZero(t *testin
 	require.Equal(t, 0, usageRepo.lastLog.InputTokens)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_UnpricedModelStillPersistsZeroCostUsage(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_unpriced_model",
+			Usage: OpenAIUsage{
+				InputTokens:  123,
+				OutputTokens: 45,
+			},
+			Model:    "local-unpriced-model",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 1007},
+		User:    &User{ID: 2007},
+		Account: &Account{ID: 3007},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, "local-unpriced-model", usageRepo.lastLog.Model)
+	require.Equal(t, 123, usageRepo.lastLog.InputTokens)
+	require.Equal(t, 45, usageRepo.lastLog.OutputTokens)
+	require.Zero(t, usageRepo.lastLog.TotalCost)
+	require.Zero(t, usageRepo.lastLog.ActualCost)
+	require.Equal(t, 0, userRepo.deductCalls)
+	require.Equal(t, 0, subRepo.incrementCalls)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_Gpt54LongContextBillsWholeSession(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	userRepo := &openAIRecordUsageUserRepoStub{}

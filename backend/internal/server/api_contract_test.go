@@ -125,6 +125,12 @@ func TestAPIContracts(t *testing.T) {
 					"affiliate_enabled": false,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
+					"purchase_subscription_provider": "custom",
+					"purchase_subscription_supported_currencies": [],
+					"purchase_subscription_default_currency": "",
+					"purchase_subscription_default_country_code": "",
+					"purchase_subscription_payment_env": "production",
+					"purchase_subscription_extra_params": {},
 					"custom_menu_items": [
 						{
 							"id": "page-public",
@@ -991,6 +997,15 @@ func TestAPIContracts(t *testing.T) {
 					"public_model_catalog_enabled": true,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
+					"purchase_subscription_provider": "custom",
+					"purchase_subscription_airwallex_client_id": "",
+					"purchase_subscription_airwallex_api_key_configured": false,
+					"purchase_subscription_airwallex_webhook_secret_configured": false,
+					"purchase_subscription_supported_currencies": [],
+					"purchase_subscription_default_currency": "",
+					"purchase_subscription_default_country_code": "",
+					"purchase_subscription_payment_env": "production",
+					"purchase_subscription_extra_params": {},
 					"login_agreement_enabled": false,
 					"login_agreement_mode": "checkbox",
 					"login_agreement_updated_at": "",
@@ -998,6 +1013,7 @@ func TestAPIContracts(t *testing.T) {
 					"maintenance_mode_enabled": false,
 					"min_claude_code_version": "",
 					"max_claude_code_version": "",
+					"antigravity_user_agent_version": "",
 					"openai_fast_policy_settings": {
 						"rules": [
 							{ "service_tier": "priority", "action": "filter", "scope": "all" },

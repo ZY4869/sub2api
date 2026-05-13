@@ -34,6 +34,8 @@ func TestModelRegistryService_AvailableBootstrapAppendsRequestedModelsAndResolve
 	require.Contains(t, availableSet, "gpt-5.4-mini")
 	require.Contains(t, availableSet, "gpt-5.4-pro")
 	require.Contains(t, availableSet, "claude-opus-4-7")
+	require.Contains(t, availableSet, "deepseek-v4-flash")
+	require.Contains(t, availableSet, "deepseek-v4-pro")
 	require.NotContains(t, availableSet, "gpt-5.4-nano")
 	require.Contains(t, availableSet, "gemini-3.1-flash-image")
 	require.Contains(t, availableSet, "gemini-3.1-flash-image-preview")
@@ -56,6 +58,7 @@ func TestModelRegistryService_AvailableBootstrapAppendsRequestedModelsAndResolve
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260317])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260416])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260417])
+	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260513])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryHardRemoveCleanupV20260511])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryHardRemoveCleanupV20260512])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryHardRemoveCleanupV20260512Phase2])
@@ -75,6 +78,7 @@ func TestModelRegistryService_AvailableBootstrapIsIdempotent(t *testing.T) {
 	firstMarkerV20260317 := repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260317]
 	firstMarkerV20260416 := repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260416]
 	firstMarkerV20260417 := repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260417]
+	firstMarkerV20260513 := repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260513]
 
 	require.True(t, svc.IsModelAvailable(ctx, "gpt-5.4-pro"))
 	require.Equal(t, firstAvailable, repo.values[SettingKeyModelRegistryAvailableModels])
@@ -83,6 +87,7 @@ func TestModelRegistryService_AvailableBootstrapIsIdempotent(t *testing.T) {
 	require.Equal(t, firstMarkerV20260317, repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260317])
 	require.Equal(t, firstMarkerV20260416, repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260416])
 	require.Equal(t, firstMarkerV20260417, repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260417])
+	require.Equal(t, firstMarkerV20260513, repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260513])
 }
 
 func TestModelRegistryService_AvailableBootstrapRunsAfterMigrationWhenSetMissing(t *testing.T) {
@@ -100,13 +105,42 @@ func TestModelRegistryService_AvailableBootstrapRunsAfterMigrationWhenSetMissing
 	require.Contains(t, availableSet, "claude-opus-4-6")
 	require.Contains(t, availableSet, "claude-opus-4-7")
 	require.Contains(t, availableSet, "claude-sonnet-4-6")
+	require.Contains(t, availableSet, "deepseek-v4-flash")
+	require.Contains(t, availableSet, "deepseek-v4-pro")
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260313])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260317])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260416])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260417])
+	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260513])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryHardRemoveCleanupV20260511])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryHardRemoveCleanupV20260512])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryHardRemoveCleanupV20260512Phase2])
+}
+
+func TestModelRegistryService_AvailableBootstrapV20260513_BackfillsDeepSeekV4ModelsForExistingInstances(t *testing.T) {
+	ctx := context.Background()
+	repo := newAccountModelImportSettingRepoStub()
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryAvailableModels, `["gpt-4o","deepseek-v3"]`))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryAvailableModelsBootstrapV20260313, "true"))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryAvailableModelsBootstrapV20260317, "true"))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryAvailableModelsBootstrapV20260328, "true"))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryAvailableModelsBootstrapV20260416, "true"))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryAvailableModelsBootstrapV20260417, "true"))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260511, "true"))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260512, "true"))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260512Phase2, "true"))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryHardRemoveCleanupV20260512Pricing, "true"))
+
+	svc := NewModelRegistryService(repo)
+
+	require.True(t, svc.IsModelAvailable(ctx, "deepseek-v4-flash"))
+	require.True(t, svc.IsModelAvailable(ctx, "deepseek-v4-pro"))
+
+	availableSet, err := svc.loadStringSet(ctx, SettingKeyModelRegistryAvailableModels)
+	require.NoError(t, err)
+	require.Contains(t, availableSet, "deepseek-v4-flash")
+	require.Contains(t, availableSet, "deepseek-v4-pro")
+	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260513])
 }
 
 func TestModelRegistryService_HardRemoveCleanupV20260512_CleansLegacyRuntimeState(t *testing.T) {
@@ -219,4 +253,49 @@ func TestModelRegistryService_HardRemoveCleanupV20260512Phase2_CleansClaudeDeepS
 	}
 	require.Equal(t, []string{"custom-safe-model"}, runtimeIDs)
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryHardRemoveCleanupV20260512Phase2])
+}
+
+func TestModelRegistryService_HardRemoveCleanupV20260512Pricing_PreservesDeepSeekRuntimeModels(t *testing.T) {
+	ctx := context.Background()
+	repo := newAccountModelImportSettingRepoStub()
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryAvailableModels, `["gpt-4o","deepseek-v4-flash","deepseek-v4-pro","gemini-3-pro-high"]`))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryHiddenModels, `["deepseek-v4-pro","gemini-3-pro-high"]`))
+	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryEntries, `[
+		{"id":"deepseek-v4-flash","platforms":["deepseek"],"exposed_in":["runtime"]},
+		{"id":"deepseek-v4-pro","platforms":["deepseek"],"exposed_in":["runtime"]},
+		{"id":"gemini-3-pro-high","platforms":["gemini"],"exposed_in":["runtime"]},
+		{"id":"custom-safe-model","platforms":["openai"],"exposed_in":["runtime"]}
+	]`))
+
+	svc := NewModelRegistryService(repo)
+
+	require.True(t, svc.IsModelAvailable(ctx, "deepseek-v4-flash"))
+	require.True(t, svc.IsModelAvailable(ctx, "deepseek-v4-pro"))
+	require.False(t, svc.IsModelAvailable(ctx, "gemini-3-pro-high"))
+
+	availableSet, err := svc.loadStringSet(ctx, SettingKeyModelRegistryAvailableModels)
+	require.NoError(t, err)
+	require.Contains(t, availableSet, "deepseek-v4-flash")
+	require.Contains(t, availableSet, "deepseek-v4-pro")
+	require.NotContains(t, availableSet, "gemini-3-pro-high")
+
+	hiddenSet, err := svc.loadStringSet(ctx, SettingKeyModelRegistryHiddenModels)
+	require.NoError(t, err)
+	require.Contains(t, hiddenSet, "deepseek-v4-pro")
+	require.NotContains(t, hiddenSet, "gemini-3-pro-high")
+
+	tombstones, err := svc.loadStringSet(ctx, SettingKeyModelRegistryTombstones)
+	require.NoError(t, err)
+	require.NotContains(t, tombstones, "deepseek-v4-flash")
+	require.NotContains(t, tombstones, "deepseek-v4-pro")
+	require.Contains(t, tombstones, "gemini-3-pro-high")
+
+	runtimeEntries, err := svc.loadRuntimeEntries(ctx)
+	require.NoError(t, err)
+	runtimeIDs := make([]string, 0, len(runtimeEntries))
+	for _, entry := range runtimeEntries {
+		runtimeIDs = append(runtimeIDs, entry.ID)
+	}
+	require.ElementsMatch(t, []string{"custom-safe-model", "deepseek-v4-flash", "deepseek-v4-pro"}, runtimeIDs)
+	require.Equal(t, "true", repo.values[SettingKeyModelRegistryHardRemoveCleanupV20260512Pricing])
 }

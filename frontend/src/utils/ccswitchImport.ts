@@ -38,6 +38,7 @@ const CLAUDE_DEFAULT_REASONING_MODEL = {
   kiro: "claude-opus-4-6",
   antigravity: "claude-opus-4-6-thinking",
 } as const;
+const CODEX_DEFAULT_MODEL = "gpt-5.4-mini";
 
 function encodeBase64Utf8(value: string): string {
   const bytes = new TextEncoder().encode(value);
@@ -121,6 +122,10 @@ export function buildCcsProviderImportLink({
 
   if (app === "claude") {
     params.set("config", encodeBase64Utf8(buildClaudeImportConfig(endpoint, apiKey, platform)));
+  }
+
+  if (app === "codex") {
+    params.set("model", CODEX_DEFAULT_MODEL);
   }
 
   return `ccswitch://v1/import?${params.toString()}`;

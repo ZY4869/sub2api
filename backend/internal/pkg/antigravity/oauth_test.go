@@ -702,6 +702,23 @@ func TestConstants_值正确(t *testing.T) {
 	}
 }
 
+func TestSetUserAgentVersion_OverridesAndResets(t *testing.T) {
+	original := GetUserAgentVersion()
+	t.Cleanup(func() {
+		SetUserAgentVersion(original)
+	})
+
+	SetUserAgentVersion("1.23.4")
+	if got := GetUserAgent(); got != "antigravity/1.23.4 windows/amd64" {
+		t.Fatalf("UserAgent mismatch after override: got %s", got)
+	}
+
+	SetUserAgentVersion("")
+	if GetUserAgentVersion() == "" {
+		t.Fatalf("expected fallback user agent version after reset")
+	}
+}
+
 func TestScopes_包含必要范围(t *testing.T) {
 	expectedScopes := []string{
 		"https://www.googleapis.com/auth/cloud-platform",

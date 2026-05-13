@@ -5,6 +5,7 @@ import { adminAPI } from '@/api/admin'
 import { buildModelMappingObject } from '@/composables/useModelWhitelist'
 import type { Account } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
+import { parseUniqueLineTokens } from '@/utils/tokenBatchInput'
 import {
   applyOpenAIOAuthDefaultModelState,
   buildOpenAIOAuthCreateExtra,
@@ -56,10 +57,7 @@ export function useCreateAccountOpenAIRefreshTokenValidation(
     const oauthClient = options.oauthClient.value
     if (!refreshTokenInput.trim()) return
 
-    const refreshTokens = refreshTokenInput
-      .split('\n')
-      .map((rt) => rt.trim())
-      .filter((rt) => rt)
+    const refreshTokens = parseUniqueLineTokens(refreshTokenInput)
 
     if (refreshTokens.length === 0) {
       oauthClient.error.value = t('admin.accounts.oauth.openai.pleaseEnterRefreshToken')

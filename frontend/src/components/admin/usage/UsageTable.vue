@@ -415,7 +415,7 @@
         <template #cell-user_agent="{ row }">
           <span
             v-if="row.user_agent"
-            class="block max-w-[320px] whitespace-normal break-all text-sm text-gray-600 dark:text-gray-400"
+            class="block max-w-[320px] truncate text-sm text-gray-600 dark:text-gray-400"
             :title="row.user_agent"
             >{{ formatUserAgent(row.user_agent) }}</span
           >

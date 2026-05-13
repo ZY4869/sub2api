@@ -73,6 +73,15 @@ export interface SystemSettings {
   affiliate_aff_code_length: number
   purchase_subscription_enabled: boolean
   purchase_subscription_url: string
+  purchase_subscription_provider: string
+  purchase_subscription_supported_currencies: string[]
+  purchase_subscription_default_currency: string
+  purchase_subscription_default_country_code: string
+  purchase_subscription_payment_env: string
+  purchase_subscription_extra_params: Record<string, string>
+  purchase_subscription_airwallex_client_id: string
+  purchase_subscription_airwallex_api_key_configured: boolean
+  purchase_subscription_airwallex_webhook_secret_configured: boolean
   backend_mode_enabled: boolean
   maintenance_mode_enabled: boolean
   custom_menu_items: CustomMenuItem[]
@@ -143,6 +152,7 @@ export interface SystemSettings {
   // Claude Code version check
   min_claude_code_version: string
   max_claude_code_version: string
+  antigravity_user_agent_version: string
 
   // 分组隔离
   allow_ungrouped_key_scheduling: boolean
@@ -183,6 +193,15 @@ export interface UpdateSettingsRequest {
   affiliate_aff_code_length?: number
   purchase_subscription_enabled?: boolean
   purchase_subscription_url?: string
+  purchase_subscription_provider?: string
+  purchase_subscription_supported_currencies?: string[]
+  purchase_subscription_default_currency?: string
+  purchase_subscription_default_country_code?: string
+  purchase_subscription_payment_env?: string
+  purchase_subscription_extra_params?: Record<string, string>
+  purchase_subscription_airwallex_client_id?: string
+  purchase_subscription_airwallex_api_key?: string
+  purchase_subscription_airwallex_webhook_secret?: string
   backend_mode_enabled?: boolean
   maintenance_mode_enabled?: boolean
   custom_menu_items?: CustomMenuItem[]
@@ -240,6 +259,7 @@ export interface UpdateSettingsRequest {
   enable_anthropic_cache_ttl_1h_injection?: boolean
   min_claude_code_version?: string
   max_claude_code_version?: string
+  antigravity_user_agent_version?: string
   allow_ungrouped_key_scheduling?: boolean
 }
 

@@ -116,6 +116,23 @@ https://api.zyxai.de
 - `?key=...`：只在 Google / Gemini 风格白名单路径上保留兼容，不适用于 OpenAI 原生、OpenAI 兼容、Anthropic、Grok、DeepSeek、`/v1/vertex/...`、`/vertex-batch/jobs...`、严格 Vertex 路径或 archive 路径。
 - 对于 `/v1/vertex/...`、`/vertex-batch/jobs...`、`/v1/projects/:project/locations/:location/...` 和 `/google/batch/archive/...`，请使用请求头，不要依赖 `?key=...`。
 
+### 充值/订阅内嵌页
+
+如果你启用了站内“充值/订阅”入口，前端会把购买页作为 iframe 打开，但它只会透传展示层和支付展示需要的安全参数：
+
+- 固定透传：`theme`、`lang`、`ui_mode=embedded`
+- 可选透传：`currency`、`country_code`、`payment_env`
+- 管理员自定义透传：`purchase_subscription_extra_params`
+
+不会透传以下敏感信息：
+
+- 主站登录 Token
+- 用户 ID
+- 来源页面 URL
+- 任何未在安全白名单中的额外参数
+
+这意味着你可以把外部购买页接成多币种展示入口，但不能依赖 iframe 参数获取主站身份信息或会话状态。
+
 当前程序对认证头的优先级如下：
 
 - 普通协议中间件：`Authorization: Bearer` -> `x-api-key` -> `x-goog-api-key` -> 允许时的 `?key=`

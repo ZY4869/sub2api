@@ -24,87 +24,97 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 }
 
 type UpdateSettingsRequest struct {
-	RegistrationEnabled                  bool                             `json:"registration_enabled"`
-	EmailVerifyEnabled                   bool                             `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist     []string                         `json:"registration_email_suffix_whitelist"`
-	PromoCodeEnabled                     bool                             `json:"promo_code_enabled"`
-	PasswordResetEnabled                 bool                             `json:"password_reset_enabled"`
-	FrontendURL                          string                           `json:"frontend_url"`
-	InvitationCodeEnabled                bool                             `json:"invitation_code_enabled"`
-	TotpEnabled                          bool                             `json:"totp_enabled"`
-	SMTPHost                             string                           `json:"smtp_host"`
-	SMTPPort                             int                              `json:"smtp_port"`
-	SMTPUsername                         string                           `json:"smtp_username"`
-	SMTPPassword                         string                           `json:"smtp_password"`
-	SMTPFrom                             string                           `json:"smtp_from_email"`
-	SMTPFromName                         string                           `json:"smtp_from_name"`
-	SMTPUseTLS                           bool                             `json:"smtp_use_tls"`
-	TelegramChatID                       string                           `json:"telegram_chat_id"`
-	TelegramBotToken                     string                           `json:"telegram_bot_token"`
-	TurnstileEnabled                     bool                             `json:"turnstile_enabled"`
-	TurnstileSiteKey                     string                           `json:"turnstile_site_key"`
-	TurnstileSecretKey                   string                           `json:"turnstile_secret_key"`
-	LinuxDoConnectEnabled                bool                             `json:"linuxdo_connect_enabled"`
-	LinuxDoConnectClientID               string                           `json:"linuxdo_connect_client_id"`
-	LinuxDoConnectClientSecret           string                           `json:"linuxdo_connect_client_secret"`
-	LinuxDoConnectRedirectURL            string                           `json:"linuxdo_connect_redirect_url"`
-	GitHubOAuthEnabled                   bool                             `json:"github_oauth_enabled"`
-	GitHubOAuthClientID                  string                           `json:"github_oauth_client_id"`
-	GitHubOAuthClientSecret              string                           `json:"github_oauth_client_secret"`
-	GitHubOAuthRedirectURL               string                           `json:"github_oauth_redirect_url"`
-	GoogleOAuthEnabled                   bool                             `json:"google_oauth_enabled"`
-	GoogleOAuthClientID                  string                           `json:"google_oauth_client_id"`
-	GoogleOAuthClientSecret              string                           `json:"google_oauth_client_secret"`
-	GoogleOAuthRedirectURL               string                           `json:"google_oauth_redirect_url"`
-	ContentModerationEnabled             bool                             `json:"content_moderation_enabled"`
-	ContentModerationProvider            string                           `json:"content_moderation_provider"`
-	ContentModerationBaseURL             string                           `json:"content_moderation_base_url"`
-	ContentModerationAPIKey              string                           `json:"content_moderation_api_key"`
-	ContentModerationAPIKeys             []string                         `json:"content_moderation_api_keys"`
-	ContentModerationAPIKeysMode         string                           `json:"content_moderation_api_keys_mode"`
-	DeleteContentModerationAPIKeyHashes  []string                         `json:"delete_content_moderation_api_key_hashes"`
-	ContentModerationModel               string                           `json:"content_moderation_model"`
-	ContentModerationTimeoutMs           int                              `json:"content_moderation_timeout_ms"`
-	ContentModerationDedupeWindowSeconds int                              `json:"content_moderation_dedupe_window_seconds"`
-	ContentModerationFailOpen            *bool                            `json:"content_moderation_fail_open"`
-	SiteName                             string                           `json:"site_name"`
-	SiteLogo                             string                           `json:"site_logo"`
-	SiteSubtitle                         string                           `json:"site_subtitle"`
-	APIBaseURL                           string                           `json:"api_base_url"`
-	ContactInfo                          string                           `json:"contact_info"`
-	DocURL                               string                           `json:"doc_url"`
-	HomeContent                          string                           `json:"home_content"`
-	HideCcsImportButton                  bool                             `json:"hide_ccs_import_button"`
-	AvailableChannelsEnabled             *bool                            `json:"available_channels_enabled"`
-	ChannelMonitorEnabled                *bool                            `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds *int                             `json:"channel_monitor_default_interval_seconds"`
-	PublicModelCatalogEnabled            bool                             `json:"public_model_catalog_enabled"`
-	PurchaseSubscriptionEnabled          *bool                            `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL              *string                          `json:"purchase_subscription_url"`
-	CustomMenuItems                      *[]dto.CustomMenuItem            `json:"custom_menu_items"`
-	LoginAgreementEnabled                *bool                            `json:"login_agreement_enabled"`
-	LoginAgreementMode                   *string                          `json:"login_agreement_mode"`
-	LoginAgreementUpdatedAt              *string                          `json:"login_agreement_updated_at"`
-	LoginAgreementDocuments              *[]dto.LoginAgreementDocument    `json:"login_agreement_documents"`
-	DefaultConcurrency                   int                              `json:"default_concurrency"`
-	DefaultBalance                       float64                          `json:"default_balance"`
-	DefaultSubscriptions                 []dto.DefaultSubscriptionSetting `json:"default_subscriptions"`
-	EnableModelFallback                  bool                             `json:"enable_model_fallback"`
-	FallbackModelAnthropic               string                           `json:"fallback_model_anthropic"`
-	FallbackModelOpenAI                  string                           `json:"fallback_model_openai"`
-	FallbackModelGemini                  string                           `json:"fallback_model_gemini"`
-	FallbackModelAntigravity             string                           `json:"fallback_model_antigravity"`
-	EnableIdentityPatch                  bool                             `json:"enable_identity_patch"`
-	IdentityPatchPrompt                  string                           `json:"identity_patch_prompt"`
-	OpsMonitoringEnabled                 *bool                            `json:"ops_monitoring_enabled"`
-	OpsRealtimeMonitoringEnabled         *bool                            `json:"ops_realtime_monitoring_enabled"`
-	OpsQueryModeDefault                  *string                          `json:"ops_query_mode_default"`
-	OpsMetricsIntervalSeconds            *int                             `json:"ops_metrics_interval_seconds"`
-	MinClaudeCodeVersion                 string                           `json:"min_claude_code_version"`
-	MaxClaudeCodeVersion                 string                           `json:"max_claude_code_version"`
-	AllowUngroupedKeyScheduling          bool                             `json:"allow_ungrouped_key_scheduling"`
-	BackendModeEnabled                   bool                             `json:"backend_mode_enabled"`
-	MaintenanceModeEnabled               bool                             `json:"maintenance_mode_enabled"`
+	RegistrationEnabled                     bool                             `json:"registration_enabled"`
+	EmailVerifyEnabled                      bool                             `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist        []string                         `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                        bool                             `json:"promo_code_enabled"`
+	PasswordResetEnabled                    bool                             `json:"password_reset_enabled"`
+	FrontendURL                             string                           `json:"frontend_url"`
+	InvitationCodeEnabled                   bool                             `json:"invitation_code_enabled"`
+	TotpEnabled                             bool                             `json:"totp_enabled"`
+	SMTPHost                                string                           `json:"smtp_host"`
+	SMTPPort                                int                              `json:"smtp_port"`
+	SMTPUsername                            string                           `json:"smtp_username"`
+	SMTPPassword                            string                           `json:"smtp_password"`
+	SMTPFrom                                string                           `json:"smtp_from_email"`
+	SMTPFromName                            string                           `json:"smtp_from_name"`
+	SMTPUseTLS                              bool                             `json:"smtp_use_tls"`
+	TelegramChatID                          string                           `json:"telegram_chat_id"`
+	TelegramBotToken                        string                           `json:"telegram_bot_token"`
+	TurnstileEnabled                        bool                             `json:"turnstile_enabled"`
+	TurnstileSiteKey                        string                           `json:"turnstile_site_key"`
+	TurnstileSecretKey                      string                           `json:"turnstile_secret_key"`
+	LinuxDoConnectEnabled                   bool                             `json:"linuxdo_connect_enabled"`
+	LinuxDoConnectClientID                  string                           `json:"linuxdo_connect_client_id"`
+	LinuxDoConnectClientSecret              string                           `json:"linuxdo_connect_client_secret"`
+	LinuxDoConnectRedirectURL               string                           `json:"linuxdo_connect_redirect_url"`
+	GitHubOAuthEnabled                      bool                             `json:"github_oauth_enabled"`
+	GitHubOAuthClientID                     string                           `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecret                 string                           `json:"github_oauth_client_secret"`
+	GitHubOAuthRedirectURL                  string                           `json:"github_oauth_redirect_url"`
+	GoogleOAuthEnabled                      bool                             `json:"google_oauth_enabled"`
+	GoogleOAuthClientID                     string                           `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecret                 string                           `json:"google_oauth_client_secret"`
+	GoogleOAuthRedirectURL                  string                           `json:"google_oauth_redirect_url"`
+	ContentModerationEnabled                bool                             `json:"content_moderation_enabled"`
+	ContentModerationProvider               string                           `json:"content_moderation_provider"`
+	ContentModerationBaseURL                string                           `json:"content_moderation_base_url"`
+	ContentModerationAPIKey                 string                           `json:"content_moderation_api_key"`
+	ContentModerationAPIKeys                []string                         `json:"content_moderation_api_keys"`
+	ContentModerationAPIKeysMode            string                           `json:"content_moderation_api_keys_mode"`
+	DeleteContentModerationAPIKeyHashes     []string                         `json:"delete_content_moderation_api_key_hashes"`
+	ContentModerationModel                  string                           `json:"content_moderation_model"`
+	ContentModerationTimeoutMs              int                              `json:"content_moderation_timeout_ms"`
+	ContentModerationDedupeWindowSeconds    int                              `json:"content_moderation_dedupe_window_seconds"`
+	ContentModerationFailOpen               *bool                            `json:"content_moderation_fail_open"`
+	SiteName                                string                           `json:"site_name"`
+	SiteLogo                                string                           `json:"site_logo"`
+	SiteSubtitle                            string                           `json:"site_subtitle"`
+	APIBaseURL                              string                           `json:"api_base_url"`
+	ContactInfo                             string                           `json:"contact_info"`
+	DocURL                                  string                           `json:"doc_url"`
+	HomeContent                             string                           `json:"home_content"`
+	HideCcsImportButton                     bool                             `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled                *bool                            `json:"available_channels_enabled"`
+	ChannelMonitorEnabled                   *bool                            `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds    *int                             `json:"channel_monitor_default_interval_seconds"`
+	PublicModelCatalogEnabled               bool                             `json:"public_model_catalog_enabled"`
+	PurchaseSubscriptionEnabled             *bool                            `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL                 *string                          `json:"purchase_subscription_url"`
+	PurchaseSubscriptionProvider            *string                          `json:"purchase_subscription_provider"`
+	PurchaseSubscriptionSupportedCurrencies *[]string                        `json:"purchase_subscription_supported_currencies"`
+	PurchaseSubscriptionDefaultCurrency     *string                          `json:"purchase_subscription_default_currency"`
+	PurchaseSubscriptionDefaultCountryCode  *string                          `json:"purchase_subscription_default_country_code"`
+	PurchaseSubscriptionPaymentEnv          *string                          `json:"purchase_subscription_payment_env"`
+	PurchaseSubscriptionExtraParams         *map[string]string               `json:"purchase_subscription_extra_params"`
+	PurchaseSubscriptionAirwallexClientID   *string                          `json:"purchase_subscription_airwallex_client_id"`
+	PurchaseSubscriptionAirwallexAPIKey     *string                          `json:"purchase_subscription_airwallex_api_key"`
+	PurchaseSubscriptionAirwallexWebhookKey *string                          `json:"purchase_subscription_airwallex_webhook_secret"`
+	CustomMenuItems                         *[]dto.CustomMenuItem            `json:"custom_menu_items"`
+	LoginAgreementEnabled                   *bool                            `json:"login_agreement_enabled"`
+	LoginAgreementMode                      *string                          `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt                 *string                          `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments                 *[]dto.LoginAgreementDocument    `json:"login_agreement_documents"`
+	DefaultConcurrency                      int                              `json:"default_concurrency"`
+	DefaultBalance                          float64                          `json:"default_balance"`
+	DefaultSubscriptions                    []dto.DefaultSubscriptionSetting `json:"default_subscriptions"`
+	EnableModelFallback                     bool                             `json:"enable_model_fallback"`
+	FallbackModelAnthropic                  string                           `json:"fallback_model_anthropic"`
+	FallbackModelOpenAI                     string                           `json:"fallback_model_openai"`
+	FallbackModelGemini                     string                           `json:"fallback_model_gemini"`
+	FallbackModelAntigravity                string                           `json:"fallback_model_antigravity"`
+	EnableIdentityPatch                     bool                             `json:"enable_identity_patch"`
+	IdentityPatchPrompt                     string                           `json:"identity_patch_prompt"`
+	OpsMonitoringEnabled                    *bool                            `json:"ops_monitoring_enabled"`
+	OpsRealtimeMonitoringEnabled            *bool                            `json:"ops_realtime_monitoring_enabled"`
+	OpsQueryModeDefault                     *string                          `json:"ops_query_mode_default"`
+	OpsMetricsIntervalSeconds               *int                             `json:"ops_metrics_interval_seconds"`
+	MinClaudeCodeVersion                    string                           `json:"min_claude_code_version"`
+	MaxClaudeCodeVersion                    string                           `json:"max_claude_code_version"`
+	AntigravityUserAgentVersion             *string                          `json:"antigravity_user_agent_version"`
+	AllowUngroupedKeyScheduling             bool                             `json:"allow_ungrouped_key_scheduling"`
+	BackendModeEnabled                      bool                             `json:"backend_mode_enabled"`
+	MaintenanceModeEnabled                  bool                             `json:"maintenance_mode_enabled"`
 
 	AffiliateEnabled              *bool    `json:"affiliate_enabled"`
 	AffiliateTransferEnabled      *bool    `json:"affiliate_transfer_enabled"`
@@ -284,6 +294,54 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.PurchaseSubscriptionURL != nil {
 		purchaseURL = strings.TrimSpace(*req.PurchaseSubscriptionURL)
 	}
+	purchaseProvider := previousSettings.PurchaseSubscriptionProvider
+	if req.PurchaseSubscriptionProvider != nil {
+		purchaseProvider = service.NormalizePurchaseSubscriptionProvider(*req.PurchaseSubscriptionProvider)
+	}
+	purchaseSupportedCurrencies := append([]string(nil), previousSettings.PurchaseSubscriptionSupportedCurrencies...)
+	if req.PurchaseSubscriptionSupportedCurrencies != nil {
+		purchaseSupportedCurrencies = service.NormalizePurchaseSubscriptionCurrencies(*req.PurchaseSubscriptionSupportedCurrencies)
+	}
+	purchaseDefaultCurrency := previousSettings.PurchaseSubscriptionDefaultCurrency
+	if req.PurchaseSubscriptionDefaultCurrency != nil {
+		purchaseDefaultCurrency = strings.ToUpper(strings.TrimSpace(*req.PurchaseSubscriptionDefaultCurrency))
+	}
+	purchaseDefaultCountryCode := previousSettings.PurchaseSubscriptionDefaultCountryCode
+	if req.PurchaseSubscriptionDefaultCountryCode != nil {
+		purchaseDefaultCountryCode = service.NormalizePurchaseSubscriptionCountryCode(*req.PurchaseSubscriptionDefaultCountryCode)
+	}
+	purchasePaymentEnv := previousSettings.PurchaseSubscriptionPaymentEnv
+	if req.PurchaseSubscriptionPaymentEnv != nil {
+		purchasePaymentEnv = service.NormalizePurchaseSubscriptionPaymentEnv(*req.PurchaseSubscriptionPaymentEnv)
+	}
+	purchaseAirwallexClientID := strings.TrimSpace(previousSettings.PurchaseSubscriptionAirwallexClientID)
+	if req.PurchaseSubscriptionAirwallexClientID != nil {
+		purchaseAirwallexClientID = strings.TrimSpace(*req.PurchaseSubscriptionAirwallexClientID)
+	}
+	purchaseAirwallexAPIKey := strings.TrimSpace(previousSettings.PurchaseSubscriptionAirwallexAPIKey)
+	if req.PurchaseSubscriptionAirwallexAPIKey != nil {
+		if trimmed := strings.TrimSpace(*req.PurchaseSubscriptionAirwallexAPIKey); trimmed != "" {
+			purchaseAirwallexAPIKey = trimmed
+		}
+	}
+	purchaseAirwallexWebhookKey := strings.TrimSpace(previousSettings.PurchaseSubscriptionAirwallexWebhookKey)
+	if req.PurchaseSubscriptionAirwallexWebhookKey != nil {
+		if trimmed := strings.TrimSpace(*req.PurchaseSubscriptionAirwallexWebhookKey); trimmed != "" {
+			purchaseAirwallexWebhookKey = trimmed
+		}
+	}
+	purchaseExtraParams := previousSettings.PurchaseSubscriptionExtraParams
+	if purchaseExtraParams == nil {
+		purchaseExtraParams = map[string]string{}
+	}
+	if req.PurchaseSubscriptionExtraParams != nil {
+		normalizedExtraParams, err := service.NormalizePurchaseSubscriptionExtraParams(*req.PurchaseSubscriptionExtraParams)
+		if err != nil {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		purchaseExtraParams = normalizedExtraParams
+	}
 	if purchaseEnabled {
 		if purchaseURL == "" {
 			response.BadRequest(c, "Purchase Subscription URL is required when enabled")
@@ -296,6 +354,31 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	} else if purchaseURL != "" {
 		if err := config.ValidateAbsoluteHTTPURL(purchaseURL); err != nil {
 			response.BadRequest(c, "Purchase Subscription URL must be an absolute http(s) URL")
+			return
+		}
+	}
+	if err := service.ValidatePurchaseSubscriptionSettings(
+		purchaseProvider,
+		purchaseSupportedCurrencies,
+		purchaseDefaultCurrency,
+		purchaseDefaultCountryCode,
+		purchasePaymentEnv,
+		purchaseExtraParams,
+	); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if purchaseProvider == service.PurchaseSubscriptionProviderAirwallex {
+		if purchaseAirwallexClientID == "" {
+			response.BadRequest(c, "Airwallex Client ID is required when Airwallex provider is selected")
+			return
+		}
+		if purchaseAirwallexAPIKey == "" {
+			response.BadRequest(c, "Airwallex API Key is required when Airwallex provider is selected")
+			return
+		}
+		if purchaseAirwallexWebhookKey == "" {
+			response.BadRequest(c, "Airwallex Webhook Secret is required when Airwallex provider is selected")
 			return
 		}
 	}
@@ -611,12 +694,21 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 	}
+	antigravityUserAgentVersion := previousSettings.AntigravityUserAgentVersion
+	if req.AntigravityUserAgentVersion != nil {
+		normalizedVersion, err := service.NormalizeAntigravityUserAgentVersion(*req.AntigravityUserAgentVersion)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, err.Error())
+			return
+		}
+		antigravityUserAgentVersion = normalizedVersion
+	}
 	settings := &service.SystemSettings{RegistrationEnabled: req.RegistrationEnabled, EmailVerifyEnabled: req.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: req.PromoCodeEnabled, PasswordResetEnabled: req.PasswordResetEnabled, FrontendURL: req.FrontendURL, InvitationCodeEnabled: req.InvitationCodeEnabled, TotpEnabled: req.TotpEnabled, SMTPHost: req.SMTPHost, SMTPPort: req.SMTPPort, SMTPUsername: req.SMTPUsername, SMTPPassword: req.SMTPPassword, SMTPFrom: req.SMTPFrom, SMTPFromName: req.SMTPFromName, SMTPUseTLS: req.SMTPUseTLS, TelegramChatID: req.TelegramChatID, TelegramBotToken: req.TelegramBotToken, TurnstileEnabled: req.TurnstileEnabled, TurnstileSiteKey: req.TurnstileSiteKey, TurnstileSecretKey: req.TurnstileSecretKey, LinuxDoConnectEnabled: req.LinuxDoConnectEnabled, LinuxDoConnectClientID: req.LinuxDoConnectClientID, LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret, LinuxDoConnectRedirectURL: req.LinuxDoConnectRedirectURL, GitHubOAuthEnabled: req.GitHubOAuthEnabled, GitHubOAuthClientID: req.GitHubOAuthClientID, GitHubOAuthClientSecret: req.GitHubOAuthClientSecret, GitHubOAuthRedirectURL: req.GitHubOAuthRedirectURL, GoogleOAuthEnabled: req.GoogleOAuthEnabled, GoogleOAuthClientID: req.GoogleOAuthClientID, GoogleOAuthClientSecret: req.GoogleOAuthClientSecret, GoogleOAuthRedirectURL: req.GoogleOAuthRedirectURL, ContentModerationEnabled: req.ContentModerationEnabled, ContentModerationProvider: req.ContentModerationProvider, ContentModerationBaseURL: req.ContentModerationBaseURL, ContentModerationAPIKey: req.ContentModerationAPIKey, ContentModerationModel: req.ContentModerationModel, ContentModerationTimeoutMs: req.ContentModerationTimeoutMs, ContentModerationDedupeWindowSeconds: req.ContentModerationDedupeWindowSeconds, ContentModerationFailOpen: func() bool {
 		if req.ContentModerationFailOpen != nil {
 			return *req.ContentModerationFailOpen
 		}
 		return previousSettings.ContentModerationFailOpen
-	}(), SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
+	}(), SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, PurchaseSubscriptionProvider: purchaseProvider, PurchaseSubscriptionSupportedCurrencies: purchaseSupportedCurrencies, PurchaseSubscriptionDefaultCurrency: purchaseDefaultCurrency, PurchaseSubscriptionDefaultCountryCode: purchaseDefaultCountryCode, PurchaseSubscriptionPaymentEnv: purchasePaymentEnv, PurchaseSubscriptionExtraParams: purchaseExtraParams, PurchaseSubscriptionAirwallexClientID: purchaseAirwallexClientID, PurchaseSubscriptionAirwallexAPIKey: purchaseAirwallexAPIKey, PurchaseSubscriptionAirwallexWebhookKey: purchaseAirwallexWebhookKey, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AntigravityUserAgentVersion: antigravityUserAgentVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
 		if req.OpsMonitoringEnabled != nil {
 			return *req.OpsMonitoringEnabled
 		}

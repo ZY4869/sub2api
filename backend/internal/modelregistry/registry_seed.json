@@ -226,6 +226,56 @@
     "exposed_in": []
   },
   {
+    "id": "deepseek-v4-flash",
+    "display_name": "Deepseek-v4-flash",
+    "provider": "deepseek",
+    "platforms": [
+      "deepseek"
+    ],
+    "protocol_ids": [
+      "deepseek-v4-flash"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "deepseek-v4-flash"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 198,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "deepseek-v4-pro",
+    "display_name": "Deepseek-v4-pro",
+    "provider": "deepseek",
+    "platforms": [
+      "deepseek"
+    ],
+    "protocol_ids": [
+      "deepseek-v4-pro"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "deepseek-v4-pro"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 199,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "deepseek-v3",
     "display_name": "Deepseek-v3",
     "provider": "deepseek",

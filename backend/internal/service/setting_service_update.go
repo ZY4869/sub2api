@@ -23,6 +23,31 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		normalizedWhitelist = []string{}
 	}
 	settings.RegistrationEmailSuffixWhitelist = normalizedWhitelist
+	normalizedAntigravityUserAgentVersion, err := NormalizeAntigravityUserAgentVersion(settings.AntigravityUserAgentVersion)
+	if err != nil {
+		return infraerrors.BadRequest("INVALID_ANTIGRAVITY_USER_AGENT_VERSION", err.Error())
+	}
+	settings.AntigravityUserAgentVersion = normalizedAntigravityUserAgentVersion
+	settings.PurchaseSubscriptionProvider = NormalizePurchaseSubscriptionProvider(settings.PurchaseSubscriptionProvider)
+	settings.PurchaseSubscriptionSupportedCurrencies = NormalizePurchaseSubscriptionCurrencies(settings.PurchaseSubscriptionSupportedCurrencies)
+	settings.PurchaseSubscriptionDefaultCurrency = strings.ToUpper(strings.TrimSpace(settings.PurchaseSubscriptionDefaultCurrency))
+	settings.PurchaseSubscriptionDefaultCountryCode = NormalizePurchaseSubscriptionCountryCode(settings.PurchaseSubscriptionDefaultCountryCode)
+	settings.PurchaseSubscriptionPaymentEnv = NormalizePurchaseSubscriptionPaymentEnv(settings.PurchaseSubscriptionPaymentEnv)
+	normalizedPurchaseExtraParams, err := NormalizePurchaseSubscriptionExtraParams(settings.PurchaseSubscriptionExtraParams)
+	if err != nil {
+		return infraerrors.BadRequest("INVALID_PURCHASE_SUBSCRIPTION_EXTRA_PARAMS", err.Error())
+	}
+	settings.PurchaseSubscriptionExtraParams = normalizedPurchaseExtraParams
+	if err := ValidatePurchaseSubscriptionSettings(
+		settings.PurchaseSubscriptionProvider,
+		settings.PurchaseSubscriptionSupportedCurrencies,
+		settings.PurchaseSubscriptionDefaultCurrency,
+		settings.PurchaseSubscriptionDefaultCountryCode,
+		settings.PurchaseSubscriptionPaymentEnv,
+		settings.PurchaseSubscriptionExtraParams,
+	); err != nil {
+		return infraerrors.BadRequest("INVALID_PURCHASE_SUBSCRIPTION_SETTINGS", err.Error())
+	}
 	updates := make(map[string]string)
 	updates[SettingKeyRegistrationEnabled] = strconv.FormatBool(settings.RegistrationEnabled)
 	updates[SettingKeyEmailVerifyEnabled] = strconv.FormatBool(settings.EmailVerifyEnabled)
@@ -123,6 +148,27 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyPublicModelCatalogEnabled] = strconv.FormatBool(settings.PublicModelCatalogEnabled)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
+	updates[SettingKeyPurchaseSubscriptionProvider] = settings.PurchaseSubscriptionProvider
+	purchaseCurrenciesJSON, err := MarshalPurchaseSubscriptionCurrencies(settings.PurchaseSubscriptionSupportedCurrencies)
+	if err != nil {
+		return fmt.Errorf("marshal purchase subscription supported currencies: %w", err)
+	}
+	updates[SettingKeyPurchaseSubscriptionSupportedCurrencies] = purchaseCurrenciesJSON
+	updates[SettingKeyPurchaseSubscriptionDefaultCurrency] = settings.PurchaseSubscriptionDefaultCurrency
+	updates[SettingKeyPurchaseSubscriptionDefaultCountryCode] = settings.PurchaseSubscriptionDefaultCountryCode
+	updates[SettingKeyPurchaseSubscriptionPaymentEnv] = settings.PurchaseSubscriptionPaymentEnv
+	purchaseExtraParamsJSON, err := MarshalPurchaseSubscriptionExtraParams(settings.PurchaseSubscriptionExtraParams)
+	if err != nil {
+		return fmt.Errorf("marshal purchase subscription extra params: %w", err)
+	}
+	updates[SettingKeyPurchaseSubscriptionExtraParams] = purchaseExtraParamsJSON
+	updates[SettingKeyPurchaseSubscriptionAirwallexClientID] = strings.TrimSpace(settings.PurchaseSubscriptionAirwallexClientID)
+	if strings.TrimSpace(settings.PurchaseSubscriptionAirwallexAPIKey) != "" {
+		updates[SettingKeyPurchaseSubscriptionAirwallexAPIKey] = strings.TrimSpace(settings.PurchaseSubscriptionAirwallexAPIKey)
+	}
+	if strings.TrimSpace(settings.PurchaseSubscriptionAirwallexWebhookKey) != "" {
+		updates[SettingKeyPurchaseSubscriptionAirwallexWebhookKey] = strings.TrimSpace(settings.PurchaseSubscriptionAirwallexWebhookKey)
+	}
 	updates[SettingKeyCustomMenuItems] = settings.CustomMenuItems
 	updates[SettingKeyLoginAgreementEnabled] = strconv.FormatBool(settings.LoginAgreementEnabled)
 	updates[SettingKeyLoginAgreementMode] = NormalizeLoginAgreementMode(settings.LoginAgreementMode)
@@ -167,6 +213,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 
 	updates[SettingKeyMinClaudeCodeVersion] = settings.MinClaudeCodeVersion
 	updates[SettingKeyMaxClaudeCodeVersion] = settings.MaxClaudeCodeVersion
+	updates[SettingKeyAntigravityUserAgentVersion] = settings.AntigravityUserAgentVersion
 	updates[SettingKeyAllowUngroupedKeyScheduling] = strconv.FormatBool(settings.AllowUngroupedKeyScheduling)
 	updates[SettingKeyBackendModeEnabled] = strconv.FormatBool(settings.BackendModeEnabled)
 	updates[SettingKeyMaintenanceModeEnabled] = strconv.FormatBool(settings.MaintenanceModeEnabled)

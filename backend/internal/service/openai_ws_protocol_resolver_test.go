@@ -202,6 +202,20 @@ func TestOpenAIWSProtocolResolver_Resolve_ModeRouterV2(t *testing.T) {
 		require.Equal(t, "ws_v2_mode_passthrough", decision.Reason)
 	})
 
+	t.Run("unknown mode safely falls back to default ctx_pool", func(t *testing.T) {
+		invalidModeAccount := &Account{
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeOAuth,
+			Concurrency: 1,
+			Extra: map[string]any{
+				"openai_oauth_responses_websockets_v2_mode": "unknown_transport",
+			},
+		}
+		decision := NewOpenAIWSProtocolResolver(cfg).Resolve(invalidModeAccount)
+		require.Equal(t, OpenAIUpstreamTransportResponsesWebsocketV2, decision.Transport)
+		require.Equal(t, "ws_v2_mode_ctx_pool", decision.Reason)
+	})
+
 	t.Run("non-positive concurrency is rejected in v2 router", func(t *testing.T) {
 		invalidConcurrency := &Account{
 			Platform: PlatformOpenAI,

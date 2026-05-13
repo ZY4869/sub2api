@@ -4,10 +4,16 @@ package service
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/imroc/req/v3"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCalculateOpenAI429ResetTime_7dExhausted(t *testing.T) {
@@ -790,4 +796,146 @@ func TestCalculateOpenAI429ResetTime_5MinFallbackWhenNoReset(t *testing.T) {
 	if resetAt != nil {
 		t.Errorf("expected nil when no reset_after_seconds, got %v", resetAt)
 	}
+}
+
+type openAI429PlanSyncRepo struct {
+	mockAccountRepoForGemini
+	updateCredentialsCalls int
+	lastCredentials        map[string]any
+}
+
+func (r *openAI429PlanSyncRepo) UpdateCredentials(_ context.Context, _ int64, credentials map[string]any) error {
+	r.updateCredentialsCalls++
+	r.lastCredentials = cloneAccountCredentialsMap(credentials)
+	return nil
+}
+
+type openAI429PlanSyncProxyRepo struct {
+	proxy *Proxy
+}
+
+func (r *openAI429PlanSyncProxyRepo) Create(context.Context, *Proxy) error { return nil }
+func (r *openAI429PlanSyncProxyRepo) GetByID(context.Context, int64) (*Proxy, error) {
+	return r.proxy, nil
+}
+func (r *openAI429PlanSyncProxyRepo) ListByIDs(context.Context, []int64) ([]Proxy, error) {
+	return nil, nil
+}
+func (r *openAI429PlanSyncProxyRepo) Update(context.Context, *Proxy) error { return nil }
+func (r *openAI429PlanSyncProxyRepo) Delete(context.Context, int64) error  { return nil }
+func (r *openAI429PlanSyncProxyRepo) List(context.Context, pagination.PaginationParams) ([]Proxy, *pagination.PaginationResult, error) {
+	return nil, nil, nil
+}
+func (r *openAI429PlanSyncProxyRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string) ([]Proxy, *pagination.PaginationResult, error) {
+	return nil, nil, nil
+}
+func (r *openAI429PlanSyncProxyRepo) ListWithFiltersAndAccountCount(context.Context, pagination.PaginationParams, string, string, string) ([]ProxyWithAccountCount, *pagination.PaginationResult, error) {
+	return nil, nil, nil
+}
+func (r *openAI429PlanSyncProxyRepo) ListActive(context.Context) ([]Proxy, error) { return nil, nil }
+func (r *openAI429PlanSyncProxyRepo) ListActiveWithAccountCount(context.Context) ([]ProxyWithAccountCount, error) {
+	return nil, nil
+}
+func (r *openAI429PlanSyncProxyRepo) ExistsByHostPortAuth(context.Context, string, int, string, string) (bool, error) {
+	return false, nil
+}
+func (r *openAI429PlanSyncProxyRepo) CountAccountsByProxyID(context.Context, int64) (int64, error) {
+	return 0, nil
+}
+func (r *openAI429PlanSyncProxyRepo) ListAccountSummariesByProxyID(context.Context, int64) ([]ProxyAccountSummary, error) {
+	return nil, nil
+}
+
+func TestRateLimitService_Handle429_OpenAIUsageLimitSyncsPlanMetadata(t *testing.T) {
+	repo := &openAI429PlanSyncRepo{}
+	svc := NewRateLimitService(repo, nil, nil, nil, nil)
+
+	var seenProxyURL string
+	svc.SetOpenAIPlanSyncer(NewOpenAIPlanSyncService(
+		repo,
+		&openAI429PlanSyncProxyRepo{proxy: &Proxy{Protocol: "http", Host: "proxy.example.com", Port: 8080}},
+		func(proxyURL string) (*req.Client, error) {
+			seenProxyURL = proxyURL
+			httpClient := req.C()
+			httpClient.GetClient().Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method == http.MethodGet && strings.Contains(req.URL.String(), chatGPTAccountsCheckURL) {
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"accounts": {
+								"default-org": {
+									"account": {
+										"plan_type": "chatgptpro20x",
+										"is_default": true
+									},
+									"entitlement": {
+										"expires_at": "2027-01-01T00:00:00Z"
+									}
+								}
+							}
+						}`)),
+					}, nil
+				}
+				return &http.Response{
+					StatusCode: http.StatusNotFound,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader(`{}`)),
+				}, nil
+			})
+			return httpClient, nil
+		},
+	))
+
+	account := &Account{
+		ID:       901,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		ProxyID:  ptrInt64OpenAI429(12),
+		Credentials: map[string]any{
+			"access_token":    "test-access-token",
+			"organization_id": "default-org",
+			"plan_type":       "free",
+		},
+	}
+
+	svc.handle429(context.Background(), account, http.Header{}, []byte(`{"error":{"type":"usage_limit_reached","message":"The usage limit has been reached","resets_at":1769404154}}`))
+
+	require.Equal(t, "http://proxy.example.com:8080", seenProxyURL)
+	require.Equal(t, 1, repo.updateCredentialsCalls)
+	require.Equal(t, "pro", repo.lastCredentials["plan_type"])
+	require.Equal(t, "chatgptpro20x", repo.lastCredentials["plan_type_raw"])
+	require.Equal(t, "Pro 20x", repo.lastCredentials["plan_type_label"])
+	require.Equal(t, 20, repo.lastCredentials["pro_multiplier"])
+	require.Equal(t, "2027-01-01T00:00:00Z", repo.lastCredentials["subscription_expires_at"])
+	require.Equal(t, "pro", account.GetCredential("plan_type"))
+}
+
+func TestRateLimitService_Handle429_OpenAIRateLimitExceededDoesNotSyncPlanMetadata(t *testing.T) {
+	repo := &openAI429PlanSyncRepo{}
+	svc := NewRateLimitService(repo, nil, nil, nil, nil)
+
+	calls := 0
+	svc.SetOpenAIPlanSyncer(OpenAIPlanSyncerFunc(func(ctx context.Context, account *Account) error {
+		calls++
+		return nil
+	}))
+
+	account := &Account{
+		ID:       902,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "test-access-token",
+		},
+	}
+
+	svc.handle429(context.Background(), account, http.Header{}, []byte(`{"error":{"type":"rate_limit_exceeded","message":"rate limited","resets_at":1769404154}}`))
+
+	require.Zero(t, calls)
+	require.Zero(t, repo.updateCredentialsCalls)
+}
+
+func ptrInt64OpenAI429(v int64) *int64 {
+	return &v
 }

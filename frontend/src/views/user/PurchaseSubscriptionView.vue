@@ -47,6 +47,16 @@
         </div>
 
         <div v-else class="purchase-embed-shell">
+          <div class="purchase-meta-bar">
+            <span class="purchase-meta-pill">{{ purchaseProviderLabel }}</span>
+            <span
+              v-for="item in purchaseMeta"
+              :key="item"
+              class="purchase-meta-pill purchase-meta-pill-subtle"
+            >
+              {{ item }}
+            </span>
+          </div>
           <a
             :href="purchaseUrl"
             target="_blank"
@@ -88,7 +98,29 @@ const purchaseEnabled = computed(() => {
 
 const purchaseUrl = computed(() => {
   const baseUrl = (appStore.cachedPublicSettings?.purchase_subscription_url || '').trim()
-  return buildEmbeddedUrl(baseUrl, purchaseTheme.value, locale.value)
+  return buildEmbeddedUrl(baseUrl, purchaseTheme.value, locale.value, {
+    extraParams: {
+      currency: appStore.cachedPublicSettings?.purchase_subscription_default_currency,
+      country_code: appStore.cachedPublicSettings?.purchase_subscription_default_country_code,
+      payment_env: appStore.cachedPublicSettings?.purchase_subscription_payment_env,
+      ...(appStore.cachedPublicSettings?.purchase_subscription_extra_params || {}),
+    },
+  })
+})
+
+const purchaseProviderLabel = computed(() => {
+  const provider = appStore.cachedPublicSettings?.purchase_subscription_provider || 'custom'
+  return provider === 'airwallex' ? t('purchase.providerAirwallex') : t('purchase.providerCustom')
+})
+
+const purchaseMeta = computed(() => {
+  const settings = appStore.cachedPublicSettings
+  if (!settings) return []
+  return [
+    settings.purchase_subscription_default_currency,
+    settings.purchase_subscription_default_country_code,
+    settings.purchase_subscription_payment_env,
+  ].filter(Boolean)
 })
 
 const isValidUrl = computed(() => {
@@ -142,6 +174,19 @@ onUnmounted(() => {
 .purchase-open-fab {
   @apply absolute right-3 top-3 z-10;
   @apply shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-dark-800/80;
+}
+
+.purchase-meta-bar {
+  @apply absolute left-3 top-3 z-10 flex flex-wrap gap-2;
+}
+
+.purchase-meta-pill {
+  @apply inline-flex items-center rounded-full border border-primary-200 bg-white/90 px-3 py-1 text-xs font-medium text-primary-700 shadow-sm;
+  @apply dark:border-primary-900/60 dark:bg-dark-800/80 dark:text-primary-200;
+}
+
+.purchase-meta-pill-subtle {
+  @apply border-gray-200 text-gray-600 dark:border-dark-600 dark:text-dark-200;
 }
 
 .purchase-embed-frame {

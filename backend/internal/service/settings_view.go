@@ -58,25 +58,36 @@ type SystemSettings struct {
 	ContentModerationDedupeWindowSeconds int
 	ContentModerationFailOpen            bool
 
-	SiteName                             string
-	SiteLogo                             string
-	SiteSubtitle                         string
-	APIBaseURL                           string
-	ContactInfo                          string
-	DocURL                               string
-	HomeContent                          string
-	HideCcsImportButton                  bool
-	AvailableChannelsEnabled             bool
-	ChannelMonitorEnabled                bool
-	ChannelMonitorDefaultIntervalSeconds int
-	PublicModelCatalogEnabled            bool
-	PurchaseSubscriptionEnabled          bool
-	PurchaseSubscriptionURL              string
-	CustomMenuItems                      string // JSON array of custom menu items
-	LoginAgreementEnabled                bool
-	LoginAgreementMode                   string
-	LoginAgreementUpdatedAt              string
-	LoginAgreementDocuments              []LoginAgreementDocument
+	SiteName                                string
+	SiteLogo                                string
+	SiteSubtitle                            string
+	APIBaseURL                              string
+	ContactInfo                             string
+	DocURL                                  string
+	HomeContent                             string
+	HideCcsImportButton                     bool
+	AvailableChannelsEnabled                bool
+	ChannelMonitorEnabled                   bool
+	ChannelMonitorDefaultIntervalSeconds    int
+	PublicModelCatalogEnabled               bool
+	PurchaseSubscriptionEnabled             bool
+	PurchaseSubscriptionURL                 string
+	PurchaseSubscriptionProvider            string
+	PurchaseSubscriptionSupportedCurrencies []string
+	PurchaseSubscriptionDefaultCurrency     string
+	PurchaseSubscriptionDefaultCountryCode  string
+	PurchaseSubscriptionPaymentEnv          string
+	PurchaseSubscriptionExtraParams         map[string]string
+	PurchaseSubscriptionAirwallexClientID   string
+	PurchaseSubscriptionAirwallexAPIKey     string
+	PurchaseSubscriptionAirwallexWebhookKey string
+	PurchaseSubscriptionAirwallexConfigured bool
+	PurchaseSubscriptionAirwallexWebhookSet bool
+	CustomMenuItems                         string // JSON array of custom menu items
+	LoginAgreementEnabled                   bool
+	LoginAgreementMode                      string
+	LoginAgreementUpdatedAt                 string
+	LoginAgreementDocuments                 []LoginAgreementDocument
 
 	// Affiliate rebate configuration
 	AffiliateEnabled              bool
@@ -115,8 +126,9 @@ type SystemSettings struct {
 	EnableAnthropicCacheTTL1hInjection bool
 
 	// Claude Code version check
-	MinClaudeCodeVersion string
-	MaxClaudeCodeVersion string
+	MinClaudeCodeVersion        string
+	MaxClaudeCodeVersion        string
+	AntigravityUserAgentVersion string
 
 	// 分组隔离：允许未分组 Key 调度（默认 false → 403）
 	AllowUngroupedKeyScheduling bool
@@ -154,13 +166,19 @@ type PublicSettings struct {
 	PublicModelCatalogEnabled        bool
 	AffiliateEnabled                 bool
 
-	PurchaseSubscriptionEnabled bool
-	PurchaseSubscriptionURL     string
-	CustomMenuItems             string // JSON array of custom menu items
-	LoginAgreementEnabled       bool
-	LoginAgreementMode          string
-	LoginAgreementUpdatedAt     string
-	LoginAgreementDocuments     []LoginAgreementDocument
+	PurchaseSubscriptionEnabled             bool
+	PurchaseSubscriptionURL                 string
+	PurchaseSubscriptionProvider            string
+	PurchaseSubscriptionSupportedCurrencies []string
+	PurchaseSubscriptionDefaultCurrency     string
+	PurchaseSubscriptionDefaultCountryCode  string
+	PurchaseSubscriptionPaymentEnv          string
+	PurchaseSubscriptionExtraParams         map[string]string
+	CustomMenuItems                         string // JSON array of custom menu items
+	LoginAgreementEnabled                   bool
+	LoginAgreementMode                      string
+	LoginAgreementUpdatedAt                 string
+	LoginAgreementDocuments                 []LoginAgreementDocument
 
 	LinuxDoOAuthEnabled    bool
 	GitHubOAuthEnabled     bool

@@ -3,6 +3,8 @@ export default {
     title: 'Recharge / Subscription',
     description: 'Recharge balance or purchase subscription via the embedded page',
     openInNewTab: 'Open in new tab',
+    providerCustom: 'Custom checkout',
+    providerAirwallex: 'Airwallex',
     notEnabledTitle: 'Feature not enabled',
     notEnabledDesc: 'The administrator has not enabled the recharge/subscription entry. Please contact admin.',
     notConfiguredTitle: 'Recharge / Subscription URL not configured',

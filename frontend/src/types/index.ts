@@ -131,6 +131,12 @@ export interface PublicSettings {
   affiliate_enabled: boolean;
   purchase_subscription_enabled: boolean;
   purchase_subscription_url: string;
+  purchase_subscription_provider: string;
+  purchase_subscription_supported_currencies: string[];
+  purchase_subscription_default_currency: string;
+  purchase_subscription_default_country_code: string;
+  purchase_subscription_payment_env: string;
+  purchase_subscription_extra_params: Record<string, string>;
   custom_menu_items: CustomMenuItem[];
   login_agreement_enabled: boolean;
   login_agreement_mode: "checkbox" | string;

@@ -380,3 +380,22 @@ func TestBuildAvailableTestModels_BaiduDocumentAIScopeRestrictsVisibleModels(t *
 	require.Equal(t, DocumentAIModelPPOCRV5Server, models[0].ID)
 	require.Equal(t, DocumentAIModelPPOCRV5Server, models[0].TargetModelID)
 }
+
+func TestBuildAvailableTestModels_DeepSeekDefaultLibraryIncludesV4Models(t *testing.T) {
+	account := &Account{
+		ID:       1002,
+		Name:     "deepseek-default-library",
+		Platform: PlatformDeepSeek,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, nil)
+	ids := make([]string, 0, len(models))
+	for _, model := range models {
+		ids = append(ids, model.ID)
+	}
+
+	require.Contains(t, ids, "deepseek-v4-flash")
+	require.Contains(t, ids, "deepseek-v4-pro")
+}

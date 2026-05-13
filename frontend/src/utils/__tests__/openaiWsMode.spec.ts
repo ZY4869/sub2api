@@ -50,6 +50,36 @@ describe('openaiWsMode utils', () => {
     expect(mode).toBe(OPENAI_WS_MODE_OFF)
   })
 
+  it('ignores unknown mode strings and falls back to enabled flags or defaults', () => {
+    expect(
+      resolveOpenAIWSModeFromExtra(
+        {
+          openai_oauth_responses_websockets_v2_mode: 'unknown_transport',
+          responses_websockets_v2_enabled: true
+        },
+        {
+          modeKey: 'openai_oauth_responses_websockets_v2_mode',
+          enabledKey: 'openai_oauth_responses_websockets_v2_enabled',
+          fallbackEnabledKeys: ['responses_websockets_v2_enabled'],
+          defaultMode: OPENAI_WS_MODE_OFF
+        }
+      )
+    ).toBe(OPENAI_WS_MODE_CTX_POOL)
+
+    expect(
+      resolveOpenAIWSModeFromExtra(
+        {
+          openai_oauth_responses_websockets_v2_mode: 'unknown_transport'
+        },
+        {
+          modeKey: 'openai_oauth_responses_websockets_v2_mode',
+          enabledKey: 'openai_oauth_responses_websockets_v2_enabled',
+          defaultMode: OPENAI_WS_MODE_OFF
+        }
+      )
+    ).toBe(OPENAI_WS_MODE_OFF)
+  })
+
   it('treats off as disabled and non-off modes as enabled', () => {
     expect(isOpenAIWSModeEnabled(OPENAI_WS_MODE_OFF)).toBe(false)
     expect(isOpenAIWSModeEnabled(OPENAI_WS_MODE_CTX_POOL)).toBe(true)

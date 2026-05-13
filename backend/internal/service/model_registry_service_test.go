@@ -494,6 +494,30 @@ func TestModelRegistryService_ResolveModel_HardRemovedModelReturnsNoMatch(t *tes
 	require.Empty(t, protocolResolved)
 }
 
+func TestModelRegistryService_ResolveModel_DeepSeekRuntimeModelsStillResolve(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	for _, modelID := range []string{"deepseek-v4-flash", "deepseek-v4-pro"} {
+		t.Run(modelID, func(t *testing.T) {
+			_, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+				ID:        modelID,
+				Platforms: []string{PlatformDeepSeek},
+				ExposedIn: []string{"runtime"},
+			})
+			require.NoError(t, err)
+
+			_, err = svc.ActivateModels(context.Background(), []string{modelID})
+			require.NoError(t, err)
+
+			resolved, ok, err := svc.ResolveModel(context.Background(), modelID)
+			require.NoError(t, err)
+			require.True(t, ok)
+			require.Equal(t, modelID, resolved)
+		})
+	}
+}
+
 func TestModelRegistryService_Phase2HardRemovedModelsAreBlockedAcrossEntryPoints(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	require.NoError(t, repo.Set(context.Background(), SettingKeyModelRegistryAvailableModels, `["gpt-4o"]`))
@@ -624,7 +648,7 @@ func TestModelRegistryService_PublicSnapshotIncludesContextWindowTokens(t *testi
 	repo := newAccountModelImportSettingRepoStub()
 	svc := NewModelRegistryService(repo)
 
-	_, err := svc.ActivateModels(context.Background(), []string{"claude-opus-4.1", "gemini-2.5-pro"})
+	_, err := svc.ActivateModels(context.Background(), []string{"claude-opus-4.1", "deepseek-v4-pro", "gemini-2.5-pro"})
 	require.NoError(t, err)
 
 	snapshot, err := svc.PublicSnapshot(context.Background())
@@ -632,15 +656,19 @@ func TestModelRegistryService_PublicSnapshotIncludesContextWindowTokens(t *testi
 
 	var claudeTokens int64
 	var deepseekTokens int64
+	var geminiTokens int64
 	for _, model := range snapshot.Models {
 		switch model.ID {
 		case "claude-opus-4.1":
 			claudeTokens = model.ContextWindowTokens
-		case "gemini-2.5-pro":
+		case "deepseek-v4-pro":
 			deepseekTokens = model.ContextWindowTokens
+		case "gemini-2.5-pro":
+			geminiTokens = model.ContextWindowTokens
 		}
 	}
 
 	require.EqualValues(t, 200000, claudeTokens)
-	require.EqualValues(t, 1000000, deepseekTokens)
+	require.EqualValues(t, 1048576, deepseekTokens)
+	require.EqualValues(t, 1000000, geminiTokens)
 }

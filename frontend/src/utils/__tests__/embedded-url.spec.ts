@@ -50,6 +50,23 @@ describe('embedded-url', () => {
     expect(url.searchParams.has('lang')).toBe(false)
   })
 
+  it('forwards safe extra params and blocks sensitive ones', () => {
+    const result = buildEmbeddedUrl('https://pay.example.com/checkout', 'light', 'en', {
+      extraParams: {
+        currency: 'USD',
+        payment_env: 'sandbox',
+        token: 'secret',
+        user_id: '42',
+      },
+    })
+
+    const url = new URL(result)
+    expect(url.searchParams.get('currency')).toBe('USD')
+    expect(url.searchParams.get('payment_env')).toBe('sandbox')
+    expect(url.searchParams.has('token')).toBe(false)
+    expect(url.searchParams.has('user_id')).toBe(false)
+  })
+
   it('returns original string for invalid url input', () => {
     expect(buildEmbeddedUrl('not a url', 'light')).toBe('not a url')
   })

@@ -7,6 +7,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
@@ -316,11 +317,14 @@ func ProvideRateLimitService(
 	timeoutCounterCache TimeoutCounterCache,
 	settingService *SettingService,
 	tokenCacheInvalidator TokenCacheInvalidator,
+	proxyRepo ProxyRepository,
+	privacyClientFactory PrivacyClientFactory,
 ) *RateLimitService {
 	svc := NewRateLimitService(accountRepo, usageRepo, cfg, geminiQuotaService, tempUnschedCache)
 	svc.SetTimeoutCounterCache(timeoutCounterCache)
 	svc.SetSettingService(settingService)
 	svc.SetTokenCacheInvalidator(tokenCacheInvalidator)
+	svc.SetOpenAIPlanSyncer(NewOpenAIPlanSyncService(accountRepo, proxyRepo, privacyClientFactory))
 	return svc
 }
 
@@ -735,6 +739,16 @@ func ProvideBackupService(
 func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupRepository, cfg *config.Config) *SettingService {
 	svc := NewSettingService(settingRepo, cfg)
 	svc.SetDefaultSubscriptionGroupReader(groupRepo)
+
+	applyAntigravityUserAgentOverride := func() {
+		settings, err := svc.GetAllSettings(context.Background())
+		if err != nil || settings == nil {
+			return
+		}
+		antigravity.SetUserAgentVersion(settings.AntigravityUserAgentVersion)
+	}
+	applyAntigravityUserAgentOverride()
+	svc.SetOnUpdateCallback(applyAntigravityUserAgentOverride)
 	return svc
 }
 

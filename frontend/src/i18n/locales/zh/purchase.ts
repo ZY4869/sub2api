@@ -3,6 +3,8 @@ export default {
     title: '充值/订阅',
     description: '通过内嵌页面完成充值/订阅',
     openInNewTab: '新窗口打开',
+    providerCustom: '自定义支付页',
+    providerAirwallex: 'Airwallex',
     notEnabledTitle: '该功能未开启',
     notEnabledDesc: '管理员暂未开启充值/订阅入口，请联系管理员。',
     notConfiguredTitle: '充值/订阅链接未配置',

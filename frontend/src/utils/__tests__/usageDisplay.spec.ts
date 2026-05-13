@@ -98,6 +98,13 @@ describe("usageDisplay", () => {
     expect(formatUsageUserAgentDisplay("")).toBe("-");
   });
 
+  it("preserves long unknown user agents so the table can truncate them safely", () => {
+    const raw =
+      "custom-app-with-an-extremely-long-user-agent-token/2026.05 (Windows NT 10.0; Win64; x64)";
+
+    expect(formatUsageUserAgentDisplay(raw)).toBe(raw);
+  });
+
   it("formats 1M usage display and export fields", () => {
     const log = {
       million_context_requested: true,

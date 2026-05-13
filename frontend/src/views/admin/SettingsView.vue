@@ -1875,6 +1875,152 @@
               </p>
             </div>
 
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.purchase.provider') }}
+                </label>
+                <Select
+                  v-model="form.purchase_subscription_provider"
+                  :options="[
+                    { value: 'custom', label: t('admin.settings.purchase.providerCustom') },
+                    { value: 'airwallex', label: t('admin.settings.purchase.providerAirwallex') }
+                  ]"
+                />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.purchase.paymentEnv') }}
+                </label>
+                <Select
+                  v-model="form.purchase_subscription_payment_env"
+                  :options="[
+                    { value: 'production', label: t('admin.settings.purchase.paymentEnvProduction') },
+                    { value: 'sandbox', label: t('admin.settings.purchase.paymentEnvSandbox') }
+                  ]"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.purchase.supportedCurrencies') }}
+                </label>
+                <input
+                  v-model="form.purchase_subscription_supported_currencies_text"
+                  type="text"
+                  class="input font-mono text-sm"
+                  :placeholder="t('admin.settings.purchase.supportedCurrenciesPlaceholder')"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.purchase.supportedCurrenciesHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.purchase.defaultCurrency') }}
+                </label>
+                <input
+                  v-model="form.purchase_subscription_default_currency"
+                  type="text"
+                  maxlength="3"
+                  class="input font-mono text-sm uppercase"
+                  :placeholder="t('admin.settings.purchase.defaultCurrencyPlaceholder')"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.purchase.defaultCountryCode') }}
+                </label>
+                <input
+                  v-model="form.purchase_subscription_default_country_code"
+                  type="text"
+                  maxlength="2"
+                  class="input font-mono text-sm uppercase"
+                  :placeholder="t('admin.settings.purchase.defaultCountryCodePlaceholder')"
+                />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.purchase.extraParams') }}
+                </label>
+                <textarea
+                  v-model="form.purchase_subscription_extra_params_text"
+                  rows="4"
+                  class="input font-mono text-sm"
+                  :placeholder="t('admin.settings.purchase.extraParamsPlaceholder')"
+                ></textarea>
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.purchase.extraParamsHint') }}
+                </p>
+              </div>
+            </div>
+
+            <div
+              v-if="form.purchase_subscription_provider === 'airwallex'"
+              class="grid grid-cols-1 gap-4 md:grid-cols-2"
+            >
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.purchase.airwallexClientId') }}
+                </label>
+                <input
+                  v-model="form.purchase_subscription_airwallex_client_id"
+                  type="text"
+                  class="input font-mono text-sm"
+                  :placeholder="t('admin.settings.purchase.airwallexClientIdPlaceholder')"
+                />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.purchase.airwallexApiKey') }}
+                </label>
+                <input
+                  v-model="form.purchase_subscription_airwallex_api_key"
+                  type="password"
+                  class="input font-mono text-sm"
+                  :placeholder="
+                    form.purchase_subscription_airwallex_api_key_configured
+                      ? t('admin.settings.purchase.secretConfiguredPlaceholder')
+                      : t('admin.settings.purchase.airwallexApiKeyPlaceholder')
+                  "
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{
+                    form.purchase_subscription_airwallex_api_key_configured
+                      ? t('admin.settings.purchase.airwallexApiKeyConfiguredHint')
+                      : t('admin.settings.purchase.airwallexApiKeyHint')
+                  }}
+                </p>
+              </div>
+              <div class="md:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.purchase.airwallexWebhookSecret') }}
+                </label>
+                <input
+                  v-model="form.purchase_subscription_airwallex_webhook_secret"
+                  type="password"
+                  class="input font-mono text-sm"
+                  :placeholder="
+                    form.purchase_subscription_airwallex_webhook_secret_configured
+                      ? t('admin.settings.purchase.secretConfiguredPlaceholder')
+                      : t('admin.settings.purchase.airwallexWebhookSecretPlaceholder')
+                  "
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{
+                    form.purchase_subscription_airwallex_webhook_secret_configured
+                      ? t('admin.settings.purchase.airwallexWebhookSecretConfiguredHint')
+                      : t('admin.settings.purchase.airwallexWebhookSecretHint')
+                  }}
+                </p>
+              </div>
+            </div>
+
             <!-- Integration Docs -->
             <div class="flex items-center gap-2 text-sm">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1893,6 +2039,33 @@
               <span class="text-xs text-gray-500 dark:text-gray-400">
                 {{ t('admin.settings.purchase.integrationDocHint') }}
               </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.antigravity.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.antigravity.description') }}
+            </p>
+          </div>
+          <div class="space-y-4 p-6">
+            <div>
+              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('admin.settings.antigravity.userAgentVersion') }}
+              </label>
+              <input
+                v-model="form.antigravity_user_agent_version"
+                type="text"
+                class="input font-mono text-sm"
+                :placeholder="t('admin.settings.antigravity.userAgentVersionPlaceholder')"
+              />
+              <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.settings.antigravity.userAgentVersionHint') }}
+              </p>
             </div>
           </div>
         </div>
@@ -2457,6 +2630,10 @@ type SettingsForm = SystemSettings & {
   google_oauth_client_secret: string
   content_moderation_api_key: string
   delete_content_moderation_api_key_hashes: string[]
+  purchase_subscription_supported_currencies_text: string
+  purchase_subscription_extra_params_text: string
+  purchase_subscription_airwallex_api_key: string
+  purchase_subscription_airwallex_webhook_secret: string
 }
 
 const form = reactive<SettingsForm>({
@@ -2495,6 +2672,19 @@ const form = reactive<SettingsForm>({
   affiliate_aff_code_length: 10,
   purchase_subscription_enabled: false,
   purchase_subscription_url: '',
+  purchase_subscription_provider: 'custom',
+  purchase_subscription_supported_currencies: [] as string[],
+  purchase_subscription_default_currency: '',
+  purchase_subscription_default_country_code: '',
+  purchase_subscription_payment_env: 'production',
+  purchase_subscription_extra_params: {} as Record<string, string>,
+  purchase_subscription_airwallex_client_id: '',
+  purchase_subscription_airwallex_api_key_configured: false,
+  purchase_subscription_airwallex_webhook_secret_configured: false,
+  purchase_subscription_supported_currencies_text: '',
+  purchase_subscription_extra_params_text: '',
+  purchase_subscription_airwallex_api_key: '',
+  purchase_subscription_airwallex_webhook_secret: '',
   backend_mode_enabled: false,
   maintenance_mode_enabled: false,
   custom_menu_items: [] as CustomMenuItem[],
@@ -2571,6 +2761,7 @@ const form = reactive<SettingsForm>({
   // Claude Code version check
   min_claude_code_version: '',
   max_claude_code_version: '',
+  antigravity_user_agent_version: '',
   // 分组隔离
   allow_ungrouped_key_scheduling: false,
   delete_content_moderation_api_key_hashes: []
@@ -2689,6 +2880,16 @@ async function loadSettings() {
   try {
     const settings = await adminAPI.settings.getSettings()
     Object.assign(form, settings)
+    form.purchase_subscription_supported_currencies_text = Array.isArray(
+      settings.purchase_subscription_supported_currencies
+    )
+      ? settings.purchase_subscription_supported_currencies.join(', ')
+      : ''
+    form.purchase_subscription_extra_params_text = Object.entries(
+      settings.purchase_subscription_extra_params || {}
+    )
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n')
     form.default_subscriptions = Array.isArray(settings.default_subscriptions)
       ? settings.default_subscriptions
           .filter((item) => item.group_id > 0 && item.validity_days > 0)
@@ -2709,6 +2910,8 @@ async function loadSettings() {
     form.google_oauth_client_secret = ''
     form.content_moderation_api_key = ''
     form.delete_content_moderation_api_key_hashes = []
+    form.purchase_subscription_airwallex_api_key = ''
+    form.purchase_subscription_airwallex_webhook_secret = ''
   } catch (error: any) {
     appStore.showError(
       t('admin.settings.failedToLoad') + ': ' + (error.message || t('common.unknownError'))
@@ -2817,6 +3020,23 @@ async function saveSettings() {
       form.delete_content_moderation_api_key_hashes.length > 0
         ? form.delete_content_moderation_api_key_hashes
         : undefined
+    const purchaseSupportedCurrencies = form.purchase_subscription_supported_currencies_text
+      .split(/[\s,]+/)
+      .map((item) => item.trim().toUpperCase())
+      .filter(Boolean)
+    const purchaseExtraParams = form.purchase_subscription_extra_params_text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .reduce<Record<string, string>>((acc, line) => {
+        const separatorIndex = line.indexOf('=')
+        if (separatorIndex <= 0) return acc
+        const key = line.slice(0, separatorIndex).trim()
+        const value = line.slice(separatorIndex + 1).trim()
+        if (!key || !value) return acc
+        acc[key] = value
+        return acc
+      }, {})
 
     const payload: UpdateSettingsRequest = {
       registration_enabled: form.registration_enabled,
@@ -2854,6 +3074,17 @@ async function saveSettings() {
       affiliate_aff_code_length: form.affiliate_aff_code_length,
       purchase_subscription_enabled: form.purchase_subscription_enabled,
       purchase_subscription_url: form.purchase_subscription_url,
+      purchase_subscription_provider: form.purchase_subscription_provider,
+      purchase_subscription_supported_currencies: purchaseSupportedCurrencies,
+      purchase_subscription_default_currency: form.purchase_subscription_default_currency,
+      purchase_subscription_default_country_code: form.purchase_subscription_default_country_code,
+      purchase_subscription_payment_env: form.purchase_subscription_payment_env,
+      purchase_subscription_extra_params: purchaseExtraParams,
+      purchase_subscription_airwallex_client_id: form.purchase_subscription_airwallex_client_id,
+      purchase_subscription_airwallex_api_key:
+        form.purchase_subscription_airwallex_api_key || undefined,
+      purchase_subscription_airwallex_webhook_secret:
+        form.purchase_subscription_airwallex_webhook_secret || undefined,
       maintenance_mode_enabled: form.maintenance_mode_enabled,
       custom_menu_items: form.custom_menu_items,
       login_agreement_enabled: form.login_agreement_enabled,
@@ -2910,6 +3141,7 @@ async function saveSettings() {
       identity_patch_prompt: form.identity_patch_prompt,
       min_claude_code_version: form.min_claude_code_version,
       max_claude_code_version: form.max_claude_code_version,
+      antigravity_user_agent_version: form.antigravity_user_agent_version,
       allow_ungrouped_key_scheduling: form.allow_ungrouped_key_scheduling,
       openai_fast_policy_settings: form.openai_fast_policy_settings,
       enable_anthropic_cache_ttl_1h_injection: form.enable_anthropic_cache_ttl_1h_injection
@@ -2928,6 +3160,18 @@ async function saveSettings() {
     form.google_oauth_client_secret = ''
     form.content_moderation_api_key = ''
     form.delete_content_moderation_api_key_hashes = []
+    form.purchase_subscription_supported_currencies_text = Array.isArray(
+      updated.purchase_subscription_supported_currencies
+    )
+      ? updated.purchase_subscription_supported_currencies.join(', ')
+      : ''
+    form.purchase_subscription_extra_params_text = Object.entries(
+      updated.purchase_subscription_extra_params || {}
+    )
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n')
+    form.purchase_subscription_airwallex_api_key = ''
+    form.purchase_subscription_airwallex_webhook_secret = ''
     // Refresh cached settings so sidebar/header update immediately
     await appStore.fetchPublicSettings(true)
     await adminSettingsStore.fetch(true)

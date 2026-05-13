@@ -24,6 +24,7 @@ type RateLimitService struct {
 	timeoutCounterCache   TimeoutCounterCache
 	settingService        *SettingService
 	tokenCacheInvalidator TokenCacheInvalidator
+	openAIPlanSyncer      OpenAIPlanSyncer
 	usageCacheMu          sync.RWMutex
 	usageCache            map[int64]*geminiUsageCacheEntry
 }
@@ -76,6 +77,11 @@ func (s *RateLimitService) SetSettingService(settingService *SettingService) {
 // SetTokenCacheInvalidator 设置 token 缓存清理器（可选依赖）
 func (s *RateLimitService) SetTokenCacheInvalidator(invalidator TokenCacheInvalidator) {
 	s.tokenCacheInvalidator = invalidator
+}
+
+// SetOpenAIPlanSyncer 设置 OpenAI usage_limit 元数据同步器（可选依赖）。
+func (s *RateLimitService) SetOpenAIPlanSyncer(syncer OpenAIPlanSyncer) {
+	s.openAIPlanSyncer = syncer
 }
 
 // ErrorPolicyResult 表示错误策略检查的结果
@@ -803,6 +809,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 	if resetTimestamp == "" {
 		switch runtimePlatform {
 		case PlatformOpenAI:
+			s.bestEffortSyncOpenAIPlanMetadata(ctx, account, responseBody)
 			// 尝试解析 OpenAI 的 usage_limit_reached 错误
 			if resetAt := parseOpenAIRateLimitResetTime(responseBody); resetAt != nil {
 				resetTime := time.Unix(*resetAt, 0)
@@ -1116,6 +1123,31 @@ func parseOpenAIRateLimitResetTime(body []byte) *int64 {
 	}
 
 	return nil
+}
+
+func (s *RateLimitService) bestEffortSyncOpenAIPlanMetadata(ctx context.Context, account *Account, responseBody []byte) {
+	if s == nil || s.openAIPlanSyncer == nil || account == nil || !account.IsOpenAIOAuth() {
+		return
+	}
+	if !isOpenAIUsageLimitReachedBody(responseBody) {
+		return
+	}
+	if err := s.openAIPlanSyncer.SyncPlanMetadata(ctx, account); err != nil {
+		slog.Debug("openai_usage_limit_plan_sync_failed", "account_id", account.ID, "error", err)
+	}
+}
+
+func isOpenAIUsageLimitReachedBody(body []byte) bool {
+	var parsed map[string]any
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return false
+	}
+	errObj, ok := parsed["error"].(map[string]any)
+	if !ok {
+		return false
+	}
+	errType, _ := errObj["type"].(string)
+	return strings.TrimSpace(errType) == "usage_limit_reached"
 }
 
 // handle529 处理529过载错误

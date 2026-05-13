@@ -51,6 +51,7 @@ const (
 
 // defaultUserAgentVersion 可通过环境变量 ANTIGRAVITY_USER_AGENT_VERSION 配置，默认 1.21.9
 var defaultUserAgentVersion = "1.21.9"
+var defaultUserAgentVersionMu sync.RWMutex
 
 // defaultClientSecret 可通过环境变量 ANTIGRAVITY_OAUTH_CLIENT_SECRET 配置
 var defaultClientSecret = "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"
@@ -68,7 +69,33 @@ func init() {
 
 // GetUserAgent 返回当前配置的 User-Agent
 func GetUserAgent() string {
-	return fmt.Sprintf("antigravity/%s windows/amd64", defaultUserAgentVersion)
+	defaultUserAgentVersionMu.RLock()
+	version := defaultUserAgentVersion
+	defaultUserAgentVersionMu.RUnlock()
+	return fmt.Sprintf("antigravity/%s windows/amd64", version)
+}
+
+// SetUserAgentVersion 设置 User-Agent 版本；空字符串会回退到环境变量或默认值。
+func SetUserAgentVersion(version string) {
+	defaultUserAgentVersionMu.Lock()
+	defer defaultUserAgentVersionMu.Unlock()
+
+	version = strings.TrimSpace(version)
+	switch {
+	case version != "":
+		defaultUserAgentVersion = version
+	case strings.TrimSpace(os.Getenv("ANTIGRAVITY_USER_AGENT_VERSION")) != "":
+		defaultUserAgentVersion = strings.TrimSpace(os.Getenv("ANTIGRAVITY_USER_AGENT_VERSION"))
+	default:
+		defaultUserAgentVersion = "1.21.9"
+	}
+}
+
+// GetUserAgentVersion returns the currently effective Antigravity UA version.
+func GetUserAgentVersion() string {
+	defaultUserAgentVersionMu.RLock()
+	defer defaultUserAgentVersionMu.RUnlock()
+	return defaultUserAgentVersion
 }
 
 func getClientSecret() (string, error) {

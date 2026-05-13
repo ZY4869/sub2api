@@ -71,7 +71,7 @@ describe("ccswitchImport", () => {
     expect(params.has("config")).toBe(false);
   });
 
-  it("preserves codex imports for openai groups", () => {
+  it("preserves codex imports for openai groups and pins the local default model", () => {
     const params = parseImportLink(
       buildCcsProviderImportLink({
         apiKey: "sk-test",
@@ -84,6 +84,7 @@ describe("ccswitchImport", () => {
 
     expect(params.get("app")).toBe("codex");
     expect(params.get("endpoint")).toBe("https://relay.example.com");
+    expect(params.get("model")).toBe("gpt-5.4-mini");
     expect(params.has("config")).toBe(false);
   });
 

@@ -252,6 +252,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.MaxClaudeCodeVersion != after.MaxClaudeCodeVersion {
 		changed = append(changed, "max_claude_code_version")
 	}
+	if before.AntigravityUserAgentVersion != after.AntigravityUserAgentVersion {
+		changed = append(changed, "antigravity_user_agent_version")
+	}
 	if before.AllowUngroupedKeyScheduling != after.AllowUngroupedKeyScheduling {
 		changed = append(changed, "allow_ungrouped_key_scheduling")
 	}
@@ -266,6 +269,33 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.PurchaseSubscriptionURL != after.PurchaseSubscriptionURL {
 		changed = append(changed, "purchase_subscription_url")
+	}
+	if before.PurchaseSubscriptionProvider != after.PurchaseSubscriptionProvider {
+		changed = append(changed, "purchase_subscription_provider")
+	}
+	if !equalStringSlice(before.PurchaseSubscriptionSupportedCurrencies, after.PurchaseSubscriptionSupportedCurrencies) {
+		changed = append(changed, "purchase_subscription_supported_currencies")
+	}
+	if before.PurchaseSubscriptionDefaultCurrency != after.PurchaseSubscriptionDefaultCurrency {
+		changed = append(changed, "purchase_subscription_default_currency")
+	}
+	if before.PurchaseSubscriptionDefaultCountryCode != after.PurchaseSubscriptionDefaultCountryCode {
+		changed = append(changed, "purchase_subscription_default_country_code")
+	}
+	if before.PurchaseSubscriptionPaymentEnv != after.PurchaseSubscriptionPaymentEnv {
+		changed = append(changed, "purchase_subscription_payment_env")
+	}
+	if !equalStringMap(before.PurchaseSubscriptionExtraParams, after.PurchaseSubscriptionExtraParams) {
+		changed = append(changed, "purchase_subscription_extra_params")
+	}
+	if before.PurchaseSubscriptionAirwallexClientID != after.PurchaseSubscriptionAirwallexClientID {
+		changed = append(changed, "purchase_subscription_airwallex_client_id")
+	}
+	if req.PurchaseSubscriptionAirwallexAPIKey != nil && strings.TrimSpace(*req.PurchaseSubscriptionAirwallexAPIKey) != "" {
+		changed = append(changed, "purchase_subscription_airwallex_api_key")
+	}
+	if req.PurchaseSubscriptionAirwallexWebhookKey != nil && strings.TrimSpace(*req.PurchaseSubscriptionAirwallexWebhookKey) != "" {
+		changed = append(changed, "purchase_subscription_airwallex_webhook_secret")
 	}
 	if before.LoginAgreementEnabled != after.LoginAgreementEnabled {
 		changed = append(changed, "login_agreement_enabled")
@@ -337,98 +367,108 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 	}
 
 	return dto.SystemSettings{
-		RegistrationEnabled:                  settings.RegistrationEnabled,
-		EmailVerifyEnabled:                   settings.EmailVerifyEnabled,
-		RegistrationEmailSuffixWhitelist:     settings.RegistrationEmailSuffixWhitelist,
-		PromoCodeEnabled:                     settings.PromoCodeEnabled,
-		PasswordResetEnabled:                 settings.PasswordResetEnabled,
-		FrontendURL:                          settings.FrontendURL,
-		InvitationCodeEnabled:                settings.InvitationCodeEnabled,
-		TotpEnabled:                          settings.TotpEnabled,
-		TotpEncryptionKeyConfigured:          settingService.IsTotpEncryptionKeyConfigured(),
-		SMTPHost:                             settings.SMTPHost,
-		SMTPPort:                             settings.SMTPPort,
-		SMTPUsername:                         settings.SMTPUsername,
-		SMTPPasswordConfigured:               settings.SMTPPasswordConfigured,
-		SMTPFrom:                             settings.SMTPFrom,
-		SMTPFromName:                         settings.SMTPFromName,
-		SMTPUseTLS:                           settings.SMTPUseTLS,
-		TelegramChatID:                       settings.TelegramChatID,
-		TelegramBotTokenConfigured:           settings.TelegramBotTokenConfigured,
-		TelegramBotTokenMasked:               settings.TelegramBotTokenMasked,
-		TurnstileEnabled:                     settings.TurnstileEnabled,
-		TurnstileSiteKey:                     settings.TurnstileSiteKey,
-		TurnstileSecretKeyConfigured:         settings.TurnstileSecretKeyConfigured,
-		LinuxDoConnectEnabled:                settings.LinuxDoConnectEnabled,
-		LinuxDoConnectClientID:               settings.LinuxDoConnectClientID,
-		LinuxDoConnectClientSecretConfigured: settings.LinuxDoConnectClientSecretConfigured,
-		LinuxDoConnectRedirectURL:            settings.LinuxDoConnectRedirectURL,
-		GitHubOAuthEnabled:                   settings.GitHubOAuthEnabled,
-		GitHubOAuthClientID:                  settings.GitHubOAuthClientID,
-		GitHubOAuthClientSecretConfigured:    settings.GitHubOAuthClientSecretConfigured,
-		GitHubOAuthRedirectURL:               settings.GitHubOAuthRedirectURL,
-		GoogleOAuthEnabled:                   settings.GoogleOAuthEnabled,
-		GoogleOAuthClientID:                  settings.GoogleOAuthClientID,
-		GoogleOAuthClientSecretConfigured:    settings.GoogleOAuthClientSecretConfigured,
-		GoogleOAuthRedirectURL:               settings.GoogleOAuthRedirectURL,
-		ContentModerationEnabled:             settings.ContentModerationEnabled,
-		ContentModerationProvider:            settings.ContentModerationProvider,
-		ContentModerationBaseURL:             settings.ContentModerationBaseURL,
-		ContentModerationAPIKeyConfigured:    settings.ContentModerationAPIKeyConfigured,
-		ContentModerationAPIKeyStatuses:      buildContentModerationAPIKeyStatusDTOs(settings.ContentModerationAPIKeyStatuses),
-		ContentModerationModel:               settings.ContentModerationModel,
-		ContentModerationTimeoutMs:           settings.ContentModerationTimeoutMs,
-		ContentModerationDedupeWindowSeconds: settings.ContentModerationDedupeWindowSeconds,
-		ContentModerationFailOpen:            settings.ContentModerationFailOpen,
-		SiteName:                             settings.SiteName,
-		SiteLogo:                             settings.SiteLogo,
-		SiteSubtitle:                         settings.SiteSubtitle,
-		APIBaseURL:                           settings.APIBaseURL,
-		ContactInfo:                          settings.ContactInfo,
-		DocURL:                               settings.DocURL,
-		HomeContent:                          settings.HomeContent,
-		HideCcsImportButton:                  settings.HideCcsImportButton,
-		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
-		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
-		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
-		PublicModelCatalogEnabled:            settings.PublicModelCatalogEnabled,
-		PurchaseSubscriptionEnabled:          settings.PurchaseSubscriptionEnabled,
-		PurchaseSubscriptionURL:              settings.PurchaseSubscriptionURL,
-		CustomMenuItems:                      customMenuItems,
-		LoginAgreementEnabled:                settings.LoginAgreementEnabled,
-		LoginAgreementMode:                   settings.LoginAgreementMode,
-		LoginAgreementUpdatedAt:              settings.LoginAgreementUpdatedAt,
-		LoginAgreementDocuments:              buildLoginAgreementDocumentDTOs(settings.LoginAgreementDocuments),
-		AffiliateEnabled:                     settings.AffiliateEnabled,
-		AffiliateTransferEnabled:             settings.AffiliateTransferEnabled,
-		AffiliateRebateOnUsageEnabled:        settings.AffiliateRebateOnUsageEnabled,
-		AffiliateRebateOnTopupEnabled:        settings.AffiliateRebateOnTopupEnabled,
-		AffiliateRebateRate:                  settings.AffiliateRebateRate,
-		AffiliateRebateFreezeHours:           settings.AffiliateRebateFreezeHours,
-		AffiliateRebateDurationDays:          settings.AffiliateRebateDurationDays,
-		AffiliateRebatePerInviteeCap:         settings.AffiliateRebatePerInviteeCap,
-		AffiliateAffCodeLength:               settings.AffiliateAffCodeLength,
-		DefaultConcurrency:                   settings.DefaultConcurrency,
-		DefaultBalance:                       settings.DefaultBalance,
-		DefaultSubscriptions:                 defaultSubscriptions,
-		EnableModelFallback:                  settings.EnableModelFallback,
-		FallbackModelAnthropic:               settings.FallbackModelAnthropic,
-		FallbackModelOpenAI:                  settings.FallbackModelOpenAI,
-		FallbackModelGemini:                  settings.FallbackModelGemini,
-		FallbackModelAntigravity:             settings.FallbackModelAntigravity,
-		EnableIdentityPatch:                  settings.EnableIdentityPatch,
-		IdentityPatchPrompt:                  settings.IdentityPatchPrompt,
-		OpsMonitoringEnabled:                 settings.OpsMonitoringEnabled,
-		OpsRealtimeMonitoringEnabled:         settings.OpsRealtimeMonitoringEnabled,
-		OpsQueryModeDefault:                  settings.OpsQueryModeDefault,
-		OpsMetricsIntervalSeconds:            settings.OpsMetricsIntervalSeconds,
-		MinClaudeCodeVersion:                 settings.MinClaudeCodeVersion,
-		MaxClaudeCodeVersion:                 settings.MaxClaudeCodeVersion,
-		AllowUngroupedKeyScheduling:          settings.AllowUngroupedKeyScheduling,
-		BackendModeEnabled:                   settings.BackendModeEnabled,
-		MaintenanceModeEnabled:               settings.MaintenanceModeEnabled,
-		OpenAIFastPolicySettings:             openAIFastPolicy,
-		EnableAnthropicCacheTTL1hInjection:   settings.EnableAnthropicCacheTTL1hInjection,
+		RegistrationEnabled:                     settings.RegistrationEnabled,
+		EmailVerifyEnabled:                      settings.EmailVerifyEnabled,
+		RegistrationEmailSuffixWhitelist:        settings.RegistrationEmailSuffixWhitelist,
+		PromoCodeEnabled:                        settings.PromoCodeEnabled,
+		PasswordResetEnabled:                    settings.PasswordResetEnabled,
+		FrontendURL:                             settings.FrontendURL,
+		InvitationCodeEnabled:                   settings.InvitationCodeEnabled,
+		TotpEnabled:                             settings.TotpEnabled,
+		TotpEncryptionKeyConfigured:             settingService.IsTotpEncryptionKeyConfigured(),
+		SMTPHost:                                settings.SMTPHost,
+		SMTPPort:                                settings.SMTPPort,
+		SMTPUsername:                            settings.SMTPUsername,
+		SMTPPasswordConfigured:                  settings.SMTPPasswordConfigured,
+		SMTPFrom:                                settings.SMTPFrom,
+		SMTPFromName:                            settings.SMTPFromName,
+		SMTPUseTLS:                              settings.SMTPUseTLS,
+		TelegramChatID:                          settings.TelegramChatID,
+		TelegramBotTokenConfigured:              settings.TelegramBotTokenConfigured,
+		TelegramBotTokenMasked:                  settings.TelegramBotTokenMasked,
+		TurnstileEnabled:                        settings.TurnstileEnabled,
+		TurnstileSiteKey:                        settings.TurnstileSiteKey,
+		TurnstileSecretKeyConfigured:            settings.TurnstileSecretKeyConfigured,
+		LinuxDoConnectEnabled:                   settings.LinuxDoConnectEnabled,
+		LinuxDoConnectClientID:                  settings.LinuxDoConnectClientID,
+		LinuxDoConnectClientSecretConfigured:    settings.LinuxDoConnectClientSecretConfigured,
+		LinuxDoConnectRedirectURL:               settings.LinuxDoConnectRedirectURL,
+		GitHubOAuthEnabled:                      settings.GitHubOAuthEnabled,
+		GitHubOAuthClientID:                     settings.GitHubOAuthClientID,
+		GitHubOAuthClientSecretConfigured:       settings.GitHubOAuthClientSecretConfigured,
+		GitHubOAuthRedirectURL:                  settings.GitHubOAuthRedirectURL,
+		GoogleOAuthEnabled:                      settings.GoogleOAuthEnabled,
+		GoogleOAuthClientID:                     settings.GoogleOAuthClientID,
+		GoogleOAuthClientSecretConfigured:       settings.GoogleOAuthClientSecretConfigured,
+		GoogleOAuthRedirectURL:                  settings.GoogleOAuthRedirectURL,
+		ContentModerationEnabled:                settings.ContentModerationEnabled,
+		ContentModerationProvider:               settings.ContentModerationProvider,
+		ContentModerationBaseURL:                settings.ContentModerationBaseURL,
+		ContentModerationAPIKeyConfigured:       settings.ContentModerationAPIKeyConfigured,
+		ContentModerationAPIKeyStatuses:         buildContentModerationAPIKeyStatusDTOs(settings.ContentModerationAPIKeyStatuses),
+		ContentModerationModel:                  settings.ContentModerationModel,
+		ContentModerationTimeoutMs:              settings.ContentModerationTimeoutMs,
+		ContentModerationDedupeWindowSeconds:    settings.ContentModerationDedupeWindowSeconds,
+		ContentModerationFailOpen:               settings.ContentModerationFailOpen,
+		SiteName:                                settings.SiteName,
+		SiteLogo:                                settings.SiteLogo,
+		SiteSubtitle:                            settings.SiteSubtitle,
+		APIBaseURL:                              settings.APIBaseURL,
+		ContactInfo:                             settings.ContactInfo,
+		DocURL:                                  settings.DocURL,
+		HomeContent:                             settings.HomeContent,
+		HideCcsImportButton:                     settings.HideCcsImportButton,
+		AvailableChannelsEnabled:                settings.AvailableChannelsEnabled,
+		ChannelMonitorEnabled:                   settings.ChannelMonitorEnabled,
+		ChannelMonitorDefaultIntervalSeconds:    settings.ChannelMonitorDefaultIntervalSeconds,
+		PublicModelCatalogEnabled:               settings.PublicModelCatalogEnabled,
+		PurchaseSubscriptionEnabled:             settings.PurchaseSubscriptionEnabled,
+		PurchaseSubscriptionURL:                 settings.PurchaseSubscriptionURL,
+		PurchaseSubscriptionProvider:            settings.PurchaseSubscriptionProvider,
+		PurchaseSubscriptionSupportedCurrencies: settings.PurchaseSubscriptionSupportedCurrencies,
+		PurchaseSubscriptionDefaultCurrency:     settings.PurchaseSubscriptionDefaultCurrency,
+		PurchaseSubscriptionDefaultCountryCode:  settings.PurchaseSubscriptionDefaultCountryCode,
+		PurchaseSubscriptionPaymentEnv:          settings.PurchaseSubscriptionPaymentEnv,
+		PurchaseSubscriptionExtraParams:         settings.PurchaseSubscriptionExtraParams,
+		PurchaseSubscriptionAirwallexClientID:   settings.PurchaseSubscriptionAirwallexClientID,
+		PurchaseSubscriptionAirwallexConfigured: settings.PurchaseSubscriptionAirwallexConfigured,
+		PurchaseSubscriptionAirwallexWebhookSet: settings.PurchaseSubscriptionAirwallexWebhookSet,
+		CustomMenuItems:                         customMenuItems,
+		LoginAgreementEnabled:                   settings.LoginAgreementEnabled,
+		LoginAgreementMode:                      settings.LoginAgreementMode,
+		LoginAgreementUpdatedAt:                 settings.LoginAgreementUpdatedAt,
+		LoginAgreementDocuments:                 buildLoginAgreementDocumentDTOs(settings.LoginAgreementDocuments),
+		AffiliateEnabled:                        settings.AffiliateEnabled,
+		AffiliateTransferEnabled:                settings.AffiliateTransferEnabled,
+		AffiliateRebateOnUsageEnabled:           settings.AffiliateRebateOnUsageEnabled,
+		AffiliateRebateOnTopupEnabled:           settings.AffiliateRebateOnTopupEnabled,
+		AffiliateRebateRate:                     settings.AffiliateRebateRate,
+		AffiliateRebateFreezeHours:              settings.AffiliateRebateFreezeHours,
+		AffiliateRebateDurationDays:             settings.AffiliateRebateDurationDays,
+		AffiliateRebatePerInviteeCap:            settings.AffiliateRebatePerInviteeCap,
+		AffiliateAffCodeLength:                  settings.AffiliateAffCodeLength,
+		DefaultConcurrency:                      settings.DefaultConcurrency,
+		DefaultBalance:                          settings.DefaultBalance,
+		DefaultSubscriptions:                    defaultSubscriptions,
+		EnableModelFallback:                     settings.EnableModelFallback,
+		FallbackModelAnthropic:                  settings.FallbackModelAnthropic,
+		FallbackModelOpenAI:                     settings.FallbackModelOpenAI,
+		FallbackModelGemini:                     settings.FallbackModelGemini,
+		FallbackModelAntigravity:                settings.FallbackModelAntigravity,
+		EnableIdentityPatch:                     settings.EnableIdentityPatch,
+		IdentityPatchPrompt:                     settings.IdentityPatchPrompt,
+		OpsMonitoringEnabled:                    settings.OpsMonitoringEnabled,
+		OpsRealtimeMonitoringEnabled:            settings.OpsRealtimeMonitoringEnabled,
+		OpsQueryModeDefault:                     settings.OpsQueryModeDefault,
+		OpsMetricsIntervalSeconds:               settings.OpsMetricsIntervalSeconds,
+		MinClaudeCodeVersion:                    settings.MinClaudeCodeVersion,
+		MaxClaudeCodeVersion:                    settings.MaxClaudeCodeVersion,
+		AntigravityUserAgentVersion:             settings.AntigravityUserAgentVersion,
+		AllowUngroupedKeyScheduling:             settings.AllowUngroupedKeyScheduling,
+		BackendModeEnabled:                      settings.BackendModeEnabled,
+		MaintenanceModeEnabled:                  settings.MaintenanceModeEnabled,
+		OpenAIFastPolicySettings:                openAIFastPolicy,
+		EnableAnthropicCacheTTL1hInjection:      settings.EnableAnthropicCacheTTL1hInjection,
 	}
 }
 func normalizeDefaultSubscriptions(input []dto.DefaultSubscriptionSetting) []dto.DefaultSubscriptionSetting {
@@ -453,6 +493,18 @@ func equalStringSlice(a, b []string) bool {
 	}
 	for i := range a {
 		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func equalStringMap(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if b[key] != value {
 			return false
 		}
 	}

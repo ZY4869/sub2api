@@ -45,6 +45,11 @@ var modelRegistryAvailableBootstrapInputsV20260417 = []string{
 	"claude-opus-4-7",
 }
 
+var modelRegistryAvailableBootstrapInputsV20260513 = []string{
+	"deepseek-v4-flash",
+	"deepseek-v4-pro",
+}
+
 var modelRegistryAvailableBootstrapRuntimeEntriesV20260313 = []modelregistry.ModelEntry{
 	{
 		ID:               "gpt-5.4-pro",
@@ -153,6 +158,9 @@ func (s *ModelRegistryService) ensureAvailableModelsInitialized(ctx context.Cont
 	if err := s.ensureAvailableModelsBootstrapV20260417(ctx); err != nil {
 		return err
 	}
+	if err := s.ensureAvailableModelsBootstrapV20260513(ctx); err != nil {
+		return err
+	}
 	if err := s.ensureHardRemovedModelCleanupV20260511(ctx); err != nil {
 		return err
 	}
@@ -207,6 +215,10 @@ func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260416(ctx conte
 
 func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260417(ctx context.Context) error {
 	return s.ensureAvailableModelsBootstrap(ctx, "20260417", SettingKeyModelRegistryAvailableModelsBootstrapV20260417, modelRegistryAvailableBootstrapInputsV20260417)
+}
+
+func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260513(ctx context.Context) error {
+	return s.ensureAvailableModelsBootstrap(ctx, "20260513", SettingKeyModelRegistryAvailableModelsBootstrapV20260513, modelRegistryAvailableBootstrapInputsV20260513)
 }
 
 func (s *ModelRegistryService) ensureHardRemovedModelCleanupV20260511(ctx context.Context) error {
@@ -286,7 +298,7 @@ func (s *ModelRegistryService) ensureHardRemovedModelCleanupV20260512Pricing(ctx
 	if err == nil && strings.TrimSpace(raw) != "" {
 		return nil
 	}
-	cleanedIDs, err := s.hardRemoveRegistryModels(ctx, pricingPatchHardRemovedModelIDs20260506)
+	cleanedIDs, err := s.hardRemoveRegistryModels(ctx, filterRuntimeHardRemoveExceptions(pricingPatchHardRemovedModelIDs20260506))
 	if err != nil {
 		return err
 	}

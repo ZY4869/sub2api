@@ -222,3 +222,39 @@ func TestParseDefaultSubscriptions_NormalizesValues(t *testing.T) {
 		{GroupID: 12, ValidityDays: MaxValidityDays},
 	}, got)
 }
+
+func TestSettingService_UpdateSettings_NormalizesPurchaseSettings(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		PurchaseSubscriptionProvider:            "airwallex",
+		PurchaseSubscriptionSupportedCurrencies: []string{"usd", "cny", "usd"},
+		PurchaseSubscriptionDefaultCurrency:     "usd",
+		PurchaseSubscriptionDefaultCountryCode:  "us",
+		PurchaseSubscriptionPaymentEnv:          "sandbox",
+		PurchaseSubscriptionExtraParams: map[string]string{
+			"merchant_region": "global",
+		},
+		AntigravityUserAgentVersion: "1.22.0",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "airwallex", repo.updates[SettingKeyPurchaseSubscriptionProvider])
+	require.Equal(t, `["USD","CNY"]`, repo.updates[SettingKeyPurchaseSubscriptionSupportedCurrencies])
+	require.Equal(t, "USD", repo.updates[SettingKeyPurchaseSubscriptionDefaultCurrency])
+	require.Equal(t, "US", repo.updates[SettingKeyPurchaseSubscriptionDefaultCountryCode])
+	require.Equal(t, "sandbox", repo.updates[SettingKeyPurchaseSubscriptionPaymentEnv])
+	require.Equal(t, `{"merchant_region":"global"}`, repo.updates[SettingKeyPurchaseSubscriptionExtraParams])
+	require.Equal(t, "1.22.0", repo.updates[SettingKeyAntigravityUserAgentVersion])
+}
+
+func TestSettingService_UpdateSettings_RejectsInvalidAntigravityUserAgentVersion(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		AntigravityUserAgentVersion: "v1.22",
+	})
+	require.Error(t, err)
+	require.Equal(t, "INVALID_ANTIGRAVITY_USER_AGENT_VERSION", infraerrors.Reason(err))
+}

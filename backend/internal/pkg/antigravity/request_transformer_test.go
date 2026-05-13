@@ -150,6 +150,37 @@ func TestBuildParts_ToolUseSignatureHandling(t *testing.T) {
 	})
 }
 
+func TestBuildParts_ToolResultUsesOriginalToolName(t *testing.T) {
+	content := `[
+		{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "ls"}},
+		{"type": "tool_result", "tool_use_id": "t1", "content": "ok"}
+	]`
+
+	toolIDToName := make(map[string]string)
+	parts, _, err := buildParts(json.RawMessage(content), toolIDToName, true)
+	if err != nil {
+		t.Fatalf("buildParts() error = %v", err)
+	}
+	if len(parts) != 2 {
+		t.Fatalf("expected 2 parts, got %d", len(parts))
+	}
+	if parts[0].FunctionCall == nil {
+		t.Fatalf("expected first part to be function call, got %+v", parts[0])
+	}
+	if parts[1].FunctionResponse == nil {
+		t.Fatalf("expected second part to be function response, got %+v", parts[1])
+	}
+	if parts[0].FunctionCall.Name != "Bash" {
+		t.Fatalf("expected tool_use name %q, got %q", "Bash", parts[0].FunctionCall.Name)
+	}
+	if parts[1].FunctionResponse.Name != "Bash" {
+		t.Fatalf("expected tool_result to reuse tool_use name %q, got %q", "Bash", parts[1].FunctionResponse.Name)
+	}
+	if parts[1].FunctionResponse.ID != "t1" {
+		t.Fatalf("expected tool_result id %q, got %q", "t1", parts[1].FunctionResponse.ID)
+	}
+}
+
 // TestBuildTools_CustomTypeTools 测试custom类型工具转换
 func TestBuildTools_CustomTypeTools(t *testing.T) {
 	tests := []struct {

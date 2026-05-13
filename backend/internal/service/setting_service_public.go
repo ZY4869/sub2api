@@ -56,6 +56,12 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAffiliateEnabled,
 		SettingKeyPurchaseSubscriptionEnabled,
 		SettingKeyPurchaseSubscriptionURL,
+		SettingKeyPurchaseSubscriptionProvider,
+		SettingKeyPurchaseSubscriptionSupportedCurrencies,
+		SettingKeyPurchaseSubscriptionDefaultCurrency,
+		SettingKeyPurchaseSubscriptionDefaultCountryCode,
+		SettingKeyPurchaseSubscriptionPaymentEnv,
+		SettingKeyPurchaseSubscriptionExtraParams,
 		SettingKeyCustomMenuItems,
 		SettingKeyLoginAgreementEnabled,
 		SettingKeyLoginAgreementMode,
@@ -83,39 +89,45 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 	passwordResetEnabled := emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true"
 	registrationEmailSuffixWhitelist := ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist])
 	return &PublicSettings{
-		RegistrationEnabled:              settings[SettingKeyRegistrationEnabled] == "true",
-		EmailVerifyEnabled:               emailVerifyEnabled,
-		RegistrationEmailSuffixWhitelist: registrationEmailSuffixWhitelist,
-		PromoCodeEnabled:                 settings[SettingKeyPromoCodeEnabled] != "false",
-		PasswordResetEnabled:             passwordResetEnabled,
-		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
-		TotpEnabled:                      settings[SettingKeyTotpEnabled] == "true",
-		TurnstileEnabled:                 settings[SettingKeyTurnstileEnabled] == "true",
-		TurnstileSiteKey:                 settings[SettingKeyTurnstileSiteKey],
-		SiteName:                         s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
-		SiteLogo:                         settings[SettingKeySiteLogo],
-		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
-		APIBaseURL:                       settings[SettingKeyAPIBaseURL],
-		ContactInfo:                      settings[SettingKeyContactInfo],
-		DocURL:                           settings[SettingKeyDocURL],
-		HomeContent:                      settings[SettingKeyHomeContent],
-		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
-		AvailableChannelsEnabled:         settings[SettingKeyAvailableChannelsEnabled] == "true",
-		ChannelMonitorEnabled:            settings[SettingKeyChannelMonitorEnabled] == "true",
-		PublicModelCatalogEnabled:        !isFalseSettingValue(settings[SettingKeyPublicModelCatalogEnabled]),
-		AffiliateEnabled:                 settings[SettingKeyAffiliateEnabled] == "true",
-		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
-		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
-		CustomMenuItems:                  settings[SettingKeyCustomMenuItems],
-		LoginAgreementEnabled:            settings[SettingKeyLoginAgreementEnabled] == "true",
-		LoginAgreementMode:               NormalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]),
-		LoginAgreementUpdatedAt:          strings.TrimSpace(settings[SettingKeyLoginAgreementUpdatedAt]),
-		LoginAgreementDocuments:          ParseLoginAgreementDocuments(settings[SettingKeyLoginAgreementDocuments]),
-		LinuxDoOAuthEnabled:              linuxDoEnabled,
-		GitHubOAuthEnabled:               githubEnabled,
-		GoogleOAuthEnabled:               googleEnabled,
-		BackendModeEnabled:               settings[SettingKeyBackendModeEnabled] == "true",
-		MaintenanceModeEnabled:           settings[SettingKeyMaintenanceModeEnabled] == "true",
+		RegistrationEnabled:                     settings[SettingKeyRegistrationEnabled] == "true",
+		EmailVerifyEnabled:                      emailVerifyEnabled,
+		RegistrationEmailSuffixWhitelist:        registrationEmailSuffixWhitelist,
+		PromoCodeEnabled:                        settings[SettingKeyPromoCodeEnabled] != "false",
+		PasswordResetEnabled:                    passwordResetEnabled,
+		InvitationCodeEnabled:                   settings[SettingKeyInvitationCodeEnabled] == "true",
+		TotpEnabled:                             settings[SettingKeyTotpEnabled] == "true",
+		TurnstileEnabled:                        settings[SettingKeyTurnstileEnabled] == "true",
+		TurnstileSiteKey:                        settings[SettingKeyTurnstileSiteKey],
+		SiteName:                                s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
+		SiteLogo:                                settings[SettingKeySiteLogo],
+		SiteSubtitle:                            s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
+		APIBaseURL:                              settings[SettingKeyAPIBaseURL],
+		ContactInfo:                             settings[SettingKeyContactInfo],
+		DocURL:                                  settings[SettingKeyDocURL],
+		HomeContent:                             settings[SettingKeyHomeContent],
+		HideCcsImportButton:                     settings[SettingKeyHideCcsImportButton] == "true",
+		AvailableChannelsEnabled:                settings[SettingKeyAvailableChannelsEnabled] == "true",
+		ChannelMonitorEnabled:                   settings[SettingKeyChannelMonitorEnabled] == "true",
+		PublicModelCatalogEnabled:               !isFalseSettingValue(settings[SettingKeyPublicModelCatalogEnabled]),
+		AffiliateEnabled:                        settings[SettingKeyAffiliateEnabled] == "true",
+		PurchaseSubscriptionEnabled:             settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
+		PurchaseSubscriptionURL:                 strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
+		PurchaseSubscriptionProvider:            NormalizePurchaseSubscriptionProvider(settings[SettingKeyPurchaseSubscriptionProvider]),
+		PurchaseSubscriptionSupportedCurrencies: ParsePurchaseSubscriptionCurrencies(settings[SettingKeyPurchaseSubscriptionSupportedCurrencies]),
+		PurchaseSubscriptionDefaultCurrency:     strings.ToUpper(strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionDefaultCurrency])),
+		PurchaseSubscriptionDefaultCountryCode:  NormalizePurchaseSubscriptionCountryCode(settings[SettingKeyPurchaseSubscriptionDefaultCountryCode]),
+		PurchaseSubscriptionPaymentEnv:          NormalizePurchaseSubscriptionPaymentEnv(settings[SettingKeyPurchaseSubscriptionPaymentEnv]),
+		PurchaseSubscriptionExtraParams:         ParsePurchaseSubscriptionExtraParams(settings[SettingKeyPurchaseSubscriptionExtraParams]),
+		CustomMenuItems:                         settings[SettingKeyCustomMenuItems],
+		LoginAgreementEnabled:                   settings[SettingKeyLoginAgreementEnabled] == "true",
+		LoginAgreementMode:                      NormalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]),
+		LoginAgreementUpdatedAt:                 strings.TrimSpace(settings[SettingKeyLoginAgreementUpdatedAt]),
+		LoginAgreementDocuments:                 ParseLoginAgreementDocuments(settings[SettingKeyLoginAgreementDocuments]),
+		LinuxDoOAuthEnabled:                     linuxDoEnabled,
+		GitHubOAuthEnabled:                      githubEnabled,
+		GoogleOAuthEnabled:                      googleEnabled,
+		BackendModeEnabled:                      settings[SettingKeyBackendModeEnabled] == "true",
+		MaintenanceModeEnabled:                  settings[SettingKeyMaintenanceModeEnabled] == "true",
 	}, nil
 }
 func (s *SettingService) SetOnUpdateCallback(callback func()) {
@@ -133,73 +145,85 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		return nil, err
 	}
 	return &struct {
-		RegistrationEnabled              bool            `json:"registration_enabled"`
-		EmailVerifyEnabled               bool            `json:"email_verify_enabled"`
-		RegistrationEmailSuffixWhitelist []string        `json:"registration_email_suffix_whitelist"`
-		PromoCodeEnabled                 bool            `json:"promo_code_enabled"`
-		PasswordResetEnabled             bool            `json:"password_reset_enabled"`
-		InvitationCodeEnabled            bool            `json:"invitation_code_enabled"`
-		TotpEnabled                      bool            `json:"totp_enabled"`
-		TurnstileEnabled                 bool            `json:"turnstile_enabled"`
-		TurnstileSiteKey                 string          `json:"turnstile_site_key,omitempty"`
-		SiteName                         string          `json:"site_name"`
-		SiteLogo                         string          `json:"site_logo,omitempty"`
-		SiteSubtitle                     string          `json:"site_subtitle,omitempty"`
-		APIBaseURL                       string          `json:"api_base_url,omitempty"`
-		ContactInfo                      string          `json:"contact_info,omitempty"`
-		DocURL                           string          `json:"doc_url,omitempty"`
-		HomeContent                      string          `json:"home_content,omitempty"`
-		HideCcsImportButton              bool            `json:"hide_ccs_import_button"`
-		AvailableChannelsEnabled         bool            `json:"available_channels_enabled"`
-		ChannelMonitorEnabled            bool            `json:"channel_monitor_enabled"`
-		PublicModelCatalogEnabled        bool            `json:"public_model_catalog_enabled"`
-		PurchaseSubscriptionEnabled      bool            `json:"purchase_subscription_enabled"`
-		PurchaseSubscriptionURL          string          `json:"purchase_subscription_url,omitempty"`
-		CustomMenuItems                  json.RawMessage `json:"custom_menu_items"`
-		LoginAgreementEnabled            bool            `json:"login_agreement_enabled"`
-		LoginAgreementMode               string          `json:"login_agreement_mode"`
-		LoginAgreementUpdatedAt          string          `json:"login_agreement_updated_at,omitempty"`
-		LoginAgreementDocuments          any             `json:"login_agreement_documents"`
-		LinuxDoOAuthEnabled              bool            `json:"linuxdo_oauth_enabled"`
-		GitHubOAuthEnabled               bool            `json:"github_oauth_enabled"`
-		GoogleOAuthEnabled               bool            `json:"google_oauth_enabled"`
-		BackendModeEnabled               bool            `json:"backend_mode_enabled"`
-		MaintenanceModeEnabled           bool            `json:"maintenance_mode_enabled"`
-		Version                          string          `json:"version,omitempty"`
+		RegistrationEnabled                     bool              `json:"registration_enabled"`
+		EmailVerifyEnabled                      bool              `json:"email_verify_enabled"`
+		RegistrationEmailSuffixWhitelist        []string          `json:"registration_email_suffix_whitelist"`
+		PromoCodeEnabled                        bool              `json:"promo_code_enabled"`
+		PasswordResetEnabled                    bool              `json:"password_reset_enabled"`
+		InvitationCodeEnabled                   bool              `json:"invitation_code_enabled"`
+		TotpEnabled                             bool              `json:"totp_enabled"`
+		TurnstileEnabled                        bool              `json:"turnstile_enabled"`
+		TurnstileSiteKey                        string            `json:"turnstile_site_key,omitempty"`
+		SiteName                                string            `json:"site_name"`
+		SiteLogo                                string            `json:"site_logo,omitempty"`
+		SiteSubtitle                            string            `json:"site_subtitle,omitempty"`
+		APIBaseURL                              string            `json:"api_base_url,omitempty"`
+		ContactInfo                             string            `json:"contact_info,omitempty"`
+		DocURL                                  string            `json:"doc_url,omitempty"`
+		HomeContent                             string            `json:"home_content,omitempty"`
+		HideCcsImportButton                     bool              `json:"hide_ccs_import_button"`
+		AvailableChannelsEnabled                bool              `json:"available_channels_enabled"`
+		ChannelMonitorEnabled                   bool              `json:"channel_monitor_enabled"`
+		PublicModelCatalogEnabled               bool              `json:"public_model_catalog_enabled"`
+		PurchaseSubscriptionEnabled             bool              `json:"purchase_subscription_enabled"`
+		PurchaseSubscriptionURL                 string            `json:"purchase_subscription_url,omitempty"`
+		PurchaseSubscriptionProvider            string            `json:"purchase_subscription_provider,omitempty"`
+		PurchaseSubscriptionSupportedCurrencies []string          `json:"purchase_subscription_supported_currencies"`
+		PurchaseSubscriptionDefaultCurrency     string            `json:"purchase_subscription_default_currency,omitempty"`
+		PurchaseSubscriptionDefaultCountryCode  string            `json:"purchase_subscription_default_country_code,omitempty"`
+		PurchaseSubscriptionPaymentEnv          string            `json:"purchase_subscription_payment_env,omitempty"`
+		PurchaseSubscriptionExtraParams         map[string]string `json:"purchase_subscription_extra_params"`
+		CustomMenuItems                         json.RawMessage   `json:"custom_menu_items"`
+		LoginAgreementEnabled                   bool              `json:"login_agreement_enabled"`
+		LoginAgreementMode                      string            `json:"login_agreement_mode"`
+		LoginAgreementUpdatedAt                 string            `json:"login_agreement_updated_at,omitempty"`
+		LoginAgreementDocuments                 any               `json:"login_agreement_documents"`
+		LinuxDoOAuthEnabled                     bool              `json:"linuxdo_oauth_enabled"`
+		GitHubOAuthEnabled                      bool              `json:"github_oauth_enabled"`
+		GoogleOAuthEnabled                      bool              `json:"google_oauth_enabled"`
+		BackendModeEnabled                      bool              `json:"backend_mode_enabled"`
+		MaintenanceModeEnabled                  bool              `json:"maintenance_mode_enabled"`
+		Version                                 string            `json:"version,omitempty"`
 	}{
-		RegistrationEnabled:              settings.RegistrationEnabled,
-		EmailVerifyEnabled:               settings.EmailVerifyEnabled,
-		RegistrationEmailSuffixWhitelist: settings.RegistrationEmailSuffixWhitelist,
-		PromoCodeEnabled:                 settings.PromoCodeEnabled,
-		PasswordResetEnabled:             settings.PasswordResetEnabled,
-		InvitationCodeEnabled:            settings.InvitationCodeEnabled,
-		TotpEnabled:                      settings.TotpEnabled,
-		TurnstileEnabled:                 settings.TurnstileEnabled,
-		TurnstileSiteKey:                 settings.TurnstileSiteKey,
-		SiteName:                         settings.SiteName,
-		SiteLogo:                         settings.SiteLogo,
-		SiteSubtitle:                     settings.SiteSubtitle,
-		APIBaseURL:                       settings.APIBaseURL,
-		ContactInfo:                      settings.ContactInfo,
-		DocURL:                           settings.DocURL,
-		HomeContent:                      settings.HomeContent,
-		HideCcsImportButton:              settings.HideCcsImportButton,
-		AvailableChannelsEnabled:         settings.AvailableChannelsEnabled,
-		ChannelMonitorEnabled:            settings.ChannelMonitorEnabled,
-		PublicModelCatalogEnabled:        settings.PublicModelCatalogEnabled,
-		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
-		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
-		CustomMenuItems:                  filterUserVisibleMenuItems(settings.CustomMenuItems),
-		LoginAgreementEnabled:            settings.LoginAgreementEnabled,
-		LoginAgreementMode:               settings.LoginAgreementMode,
-		LoginAgreementUpdatedAt:          settings.LoginAgreementUpdatedAt,
-		LoginAgreementDocuments:          settings.LoginAgreementDocuments,
-		LinuxDoOAuthEnabled:              settings.LinuxDoOAuthEnabled,
-		GitHubOAuthEnabled:               settings.GitHubOAuthEnabled,
-		GoogleOAuthEnabled:               settings.GoogleOAuthEnabled,
-		BackendModeEnabled:               settings.BackendModeEnabled,
-		MaintenanceModeEnabled:           settings.MaintenanceModeEnabled,
-		Version:                          s.version,
+		RegistrationEnabled:                     settings.RegistrationEnabled,
+		EmailVerifyEnabled:                      settings.EmailVerifyEnabled,
+		RegistrationEmailSuffixWhitelist:        settings.RegistrationEmailSuffixWhitelist,
+		PromoCodeEnabled:                        settings.PromoCodeEnabled,
+		PasswordResetEnabled:                    settings.PasswordResetEnabled,
+		InvitationCodeEnabled:                   settings.InvitationCodeEnabled,
+		TotpEnabled:                             settings.TotpEnabled,
+		TurnstileEnabled:                        settings.TurnstileEnabled,
+		TurnstileSiteKey:                        settings.TurnstileSiteKey,
+		SiteName:                                settings.SiteName,
+		SiteLogo:                                settings.SiteLogo,
+		SiteSubtitle:                            settings.SiteSubtitle,
+		APIBaseURL:                              settings.APIBaseURL,
+		ContactInfo:                             settings.ContactInfo,
+		DocURL:                                  settings.DocURL,
+		HomeContent:                             settings.HomeContent,
+		HideCcsImportButton:                     settings.HideCcsImportButton,
+		AvailableChannelsEnabled:                settings.AvailableChannelsEnabled,
+		ChannelMonitorEnabled:                   settings.ChannelMonitorEnabled,
+		PublicModelCatalogEnabled:               settings.PublicModelCatalogEnabled,
+		PurchaseSubscriptionEnabled:             settings.PurchaseSubscriptionEnabled,
+		PurchaseSubscriptionURL:                 settings.PurchaseSubscriptionURL,
+		PurchaseSubscriptionProvider:            settings.PurchaseSubscriptionProvider,
+		PurchaseSubscriptionSupportedCurrencies: settings.PurchaseSubscriptionSupportedCurrencies,
+		PurchaseSubscriptionDefaultCurrency:     settings.PurchaseSubscriptionDefaultCurrency,
+		PurchaseSubscriptionDefaultCountryCode:  settings.PurchaseSubscriptionDefaultCountryCode,
+		PurchaseSubscriptionPaymentEnv:          settings.PurchaseSubscriptionPaymentEnv,
+		PurchaseSubscriptionExtraParams:         settings.PurchaseSubscriptionExtraParams,
+		CustomMenuItems:                         filterUserVisibleMenuItems(settings.CustomMenuItems),
+		LoginAgreementEnabled:                   settings.LoginAgreementEnabled,
+		LoginAgreementMode:                      settings.LoginAgreementMode,
+		LoginAgreementUpdatedAt:                 settings.LoginAgreementUpdatedAt,
+		LoginAgreementDocuments:                 settings.LoginAgreementDocuments,
+		LinuxDoOAuthEnabled:                     settings.LinuxDoOAuthEnabled,
+		GitHubOAuthEnabled:                      settings.GitHubOAuthEnabled,
+		GoogleOAuthEnabled:                      settings.GoogleOAuthEnabled,
+		BackendModeEnabled:                      settings.BackendModeEnabled,
+		MaintenanceModeEnabled:                  settings.MaintenanceModeEnabled,
+		Version:                                 s.version,
 	}, nil
 }
 
@@ -506,80 +530,87 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		return fmt.Errorf("check existing settings: %w", err)
 	}
 	defaults := map[string]string{
-		SettingKeyRegistrationEnabled:                  "true",
-		SettingKeyEmailVerifyEnabled:                   "false",
-		SettingKeyRegistrationEmailSuffixWhitelist:     "[]",
-		SettingKeyPromoCodeEnabled:                     "true",
-		SettingKeyFrontendURL:                          "",
-		SettingKeySiteName:                             "Sub2API",
-		SettingKeySiteLogo:                             "",
-		SettingKeyAvailableChannelsEnabled:             "false",
-		SettingKeyChannelMonitorEnabled:                "false",
-		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",
-		SettingKeyPublicModelCatalogEnabled:            "true",
-		SettingKeyAffiliateEnabled:                     "false",
-		SettingKeyAffiliateTransferEnabled:             "true",
-		SettingKeyAffiliateRebateOnUsageEnabled:        "true",
-		SettingKeyAffiliateRebateOnTopupEnabled:        "true",
-		SettingKeyAffiliateRebateRate:                  "20.0",
-		SettingKeyAffiliateRebateFreezeHours:           "0",
-		SettingKeyAffiliateRebateDurationDays:          "0",
-		SettingKeyAffiliateRebatePerInviteeCap:         "0",
-		SettingKeyAffiliateAffCodeLength:               "10",
-		SettingKeyPurchaseSubscriptionEnabled:          "false",
-		SettingKeyPurchaseSubscriptionURL:              "",
-		SettingKeyCustomMenuItems:                      "[]",
-		SettingKeyLoginAgreementEnabled:                "false",
-		SettingKeyLoginAgreementMode:                   LoginAgreementModeCheckbox,
-		SettingKeyLoginAgreementUpdatedAt:              "",
-		SettingKeyLoginAgreementDocuments:              "[]",
-		SettingKeyDefaultConcurrency:                   strconv.Itoa(s.cfg.Default.UserConcurrency),
-		SettingKeyDefaultBalance:                       strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
-		SettingKeyDefaultSubscriptions:                 "[]",
-		SettingKeySMTPPort:                             "587",
-		SettingKeySMTPUseTLS:                           "false",
-		SettingKeyEnableModelFallback:                  "false",
-		SettingKeyFallbackModelAnthropic:               "claude-3-5-sonnet-20241022",
-		SettingKeyFallbackModelOpenAI:                  "gpt-4o",
-		SettingKeyFallbackModelGemini:                  "gemini-2.5-pro",
-		SettingKeyFallbackModelAntigravity:             "gemini-2.5-pro",
-		SettingKeyEnableIdentityPatch:                  "true",
-		SettingKeyIdentityPatchPrompt:                  "",
-		SettingKeyOpsMonitoringEnabled:                 "true",
-		SettingKeyOpsRealtimeMonitoringEnabled:         "true",
-		SettingKeyOpsQueryModeDefault:                  "auto",
-		SettingKeyOpsMetricsIntervalSeconds:            "60",
-		SettingKeyMinClaudeCodeVersion:                 "",
-		SettingKeyMaxClaudeCodeVersion:                 "",
-		SettingKeyAllowUngroupedKeyScheduling:          "false",
-		SettingKeyMultiGroupRoutingEnabled:             "true",
-		SettingKeyBackendModeEnabled:                   "false",
-		SettingKeyMaintenanceModeEnabled:               "false",
-		SettingKeyDocumentAIEnabled:                    "false",
-		SettingKeyTelegramChatID:                       "",
-		SettingKeyGitHubOAuthEnabled:                   "false",
-		SettingKeyGitHubOAuthClientID:                  "",
-		SettingKeyGitHubOAuthClientSecret:              "",
-		SettingKeyGitHubOAuthRedirectURL:               "",
-		SettingKeyGoogleOAuthEnabled:                   "false",
-		SettingKeyGoogleOAuthClientID:                  "",
-		SettingKeyGoogleOAuthClientSecret:              "",
-		SettingKeyGoogleOAuthRedirectURL:               "",
-		SettingKeyContentModerationEnabled:             "false",
-		SettingKeyContentModerationProvider:            "openai",
-		SettingKeyContentModerationBaseURL:             "",
-		SettingKeyContentModerationAPIKey:              "",
-		SettingKeyContentModerationAPIKeys:             "[]",
-		SettingKeyContentModerationModel:               "",
-		SettingKeyContentModerationTimeoutMs:           "1500",
-		SettingKeyContentModerationDedupeWindowSeconds: "300",
-		SettingKeyContentModerationFailOpen:            "true",
+		SettingKeyRegistrationEnabled:                     "true",
+		SettingKeyEmailVerifyEnabled:                      "false",
+		SettingKeyRegistrationEmailSuffixWhitelist:        "[]",
+		SettingKeyPromoCodeEnabled:                        "true",
+		SettingKeyFrontendURL:                             "",
+		SettingKeySiteName:                                "Sub2API",
+		SettingKeySiteLogo:                                "",
+		SettingKeyAvailableChannelsEnabled:                "false",
+		SettingKeyChannelMonitorEnabled:                   "false",
+		SettingKeyChannelMonitorDefaultIntervalSeconds:    "60",
+		SettingKeyPublicModelCatalogEnabled:               "true",
+		SettingKeyAffiliateEnabled:                        "false",
+		SettingKeyAffiliateTransferEnabled:                "true",
+		SettingKeyAffiliateRebateOnUsageEnabled:           "true",
+		SettingKeyAffiliateRebateOnTopupEnabled:           "true",
+		SettingKeyAffiliateRebateRate:                     "20.0",
+		SettingKeyAffiliateRebateFreezeHours:              "0",
+		SettingKeyAffiliateRebateDurationDays:             "0",
+		SettingKeyAffiliateRebatePerInviteeCap:            "0",
+		SettingKeyAffiliateAffCodeLength:                  "10",
+		SettingKeyPurchaseSubscriptionEnabled:             "false",
+		SettingKeyPurchaseSubscriptionURL:                 "",
+		SettingKeyPurchaseSubscriptionProvider:            PurchaseSubscriptionProviderCustom,
+		SettingKeyPurchaseSubscriptionSupportedCurrencies: "[]",
+		SettingKeyPurchaseSubscriptionDefaultCurrency:     "",
+		SettingKeyPurchaseSubscriptionDefaultCountryCode:  "",
+		SettingKeyPurchaseSubscriptionPaymentEnv:          PurchaseSubscriptionPaymentEnvProduction,
+		SettingKeyPurchaseSubscriptionExtraParams:         "{}",
+		SettingKeyCustomMenuItems:                         "[]",
+		SettingKeyLoginAgreementEnabled:                   "false",
+		SettingKeyLoginAgreementMode:                      LoginAgreementModeCheckbox,
+		SettingKeyLoginAgreementUpdatedAt:                 "",
+		SettingKeyLoginAgreementDocuments:                 "[]",
+		SettingKeyDefaultConcurrency:                      strconv.Itoa(s.cfg.Default.UserConcurrency),
+		SettingKeyDefaultBalance:                          strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
+		SettingKeyDefaultSubscriptions:                    "[]",
+		SettingKeySMTPPort:                                "587",
+		SettingKeySMTPUseTLS:                              "false",
+		SettingKeyEnableModelFallback:                     "false",
+		SettingKeyFallbackModelAnthropic:                  "claude-3-5-sonnet-20241022",
+		SettingKeyFallbackModelOpenAI:                     "gpt-4o",
+		SettingKeyFallbackModelGemini:                     "gemini-2.5-pro",
+		SettingKeyFallbackModelAntigravity:                "gemini-2.5-pro",
+		SettingKeyEnableIdentityPatch:                     "true",
+		SettingKeyIdentityPatchPrompt:                     "",
+		SettingKeyOpsMonitoringEnabled:                    "true",
+		SettingKeyOpsRealtimeMonitoringEnabled:            "true",
+		SettingKeyOpsQueryModeDefault:                     "auto",
+		SettingKeyOpsMetricsIntervalSeconds:               "60",
+		SettingKeyMinClaudeCodeVersion:                    "",
+		SettingKeyMaxClaudeCodeVersion:                    "",
+		SettingKeyAntigravityUserAgentVersion:             "",
+		SettingKeyAllowUngroupedKeyScheduling:             "false",
+		SettingKeyMultiGroupRoutingEnabled:                "true",
+		SettingKeyBackendModeEnabled:                      "false",
+		SettingKeyMaintenanceModeEnabled:                  "false",
+		SettingKeyDocumentAIEnabled:                       "false",
+		SettingKeyTelegramChatID:                          "",
+		SettingKeyGitHubOAuthEnabled:                      "false",
+		SettingKeyGitHubOAuthClientID:                     "",
+		SettingKeyGitHubOAuthClientSecret:                 "",
+		SettingKeyGitHubOAuthRedirectURL:                  "",
+		SettingKeyGoogleOAuthEnabled:                      "false",
+		SettingKeyGoogleOAuthClientID:                     "",
+		SettingKeyGoogleOAuthClientSecret:                 "",
+		SettingKeyGoogleOAuthRedirectURL:                  "",
+		SettingKeyContentModerationEnabled:                "false",
+		SettingKeyContentModerationProvider:               "openai",
+		SettingKeyContentModerationBaseURL:                "",
+		SettingKeyContentModerationAPIKey:                 "",
+		SettingKeyContentModerationAPIKeys:                "[]",
+		SettingKeyContentModerationModel:                  "",
+		SettingKeyContentModerationTimeoutMs:              "1500",
+		SettingKeyContentModerationDedupeWindowSeconds:    "300",
+		SettingKeyContentModerationFailOpen:               "true",
 	}
 	return s.settingRepo.SetMultiple(ctx, defaults)
 }
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
-	result := &SystemSettings{RegistrationEnabled: settings[SettingKeyRegistrationEnabled] == "true", EmailVerifyEnabled: emailVerifyEnabled, RegistrationEmailSuffixWhitelist: ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]), PromoCodeEnabled: settings[SettingKeyPromoCodeEnabled] != "false", PasswordResetEnabled: emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true", FrontendURL: strings.TrimSpace(settings[SettingKeyFrontendURL]), InvitationCodeEnabled: settings[SettingKeyInvitationCodeEnabled] == "true", TotpEnabled: settings[SettingKeyTotpEnabled] == "true", SMTPHost: settings[SettingKeySMTPHost], SMTPUsername: settings[SettingKeySMTPUsername], SMTPFrom: settings[SettingKeySMTPFrom], SMTPFromName: settings[SettingKeySMTPFromName], SMTPUseTLS: settings[SettingKeySMTPUseTLS] == "true", SMTPPasswordConfigured: settings[SettingKeySMTPPassword] != "", TelegramChatID: strings.TrimSpace(settings[SettingKeyTelegramChatID]), TurnstileEnabled: settings[SettingKeyTurnstileEnabled] == "true", TurnstileSiteKey: settings[SettingKeyTurnstileSiteKey], TurnstileSecretKeyConfigured: settings[SettingKeyTurnstileSecretKey] != "", SiteName: s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"), SiteLogo: settings[SettingKeySiteLogo], SiteSubtitle: s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"), APIBaseURL: settings[SettingKeyAPIBaseURL], ContactInfo: settings[SettingKeyContactInfo], DocURL: settings[SettingKeyDocURL], HomeContent: settings[SettingKeyHomeContent], HideCcsImportButton: settings[SettingKeyHideCcsImportButton] == "true", AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true", ChannelMonitorEnabled: settings[SettingKeyChannelMonitorEnabled] == "true", PublicModelCatalogEnabled: !isFalseSettingValue(settings[SettingKeyPublicModelCatalogEnabled]), PurchaseSubscriptionEnabled: settings[SettingKeyPurchaseSubscriptionEnabled] == "true", PurchaseSubscriptionURL: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]), CustomMenuItems: settings[SettingKeyCustomMenuItems], LoginAgreementEnabled: settings[SettingKeyLoginAgreementEnabled] == "true", LoginAgreementMode: NormalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]), LoginAgreementUpdatedAt: strings.TrimSpace(settings[SettingKeyLoginAgreementUpdatedAt]), LoginAgreementDocuments: ParseLoginAgreementDocuments(settings[SettingKeyLoginAgreementDocuments]), BackendModeEnabled: settings[SettingKeyBackendModeEnabled] == "true", MaintenanceModeEnabled: settings[SettingKeyMaintenanceModeEnabled] == "true"}
+	result := &SystemSettings{RegistrationEnabled: settings[SettingKeyRegistrationEnabled] == "true", EmailVerifyEnabled: emailVerifyEnabled, RegistrationEmailSuffixWhitelist: ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]), PromoCodeEnabled: settings[SettingKeyPromoCodeEnabled] != "false", PasswordResetEnabled: emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true", FrontendURL: strings.TrimSpace(settings[SettingKeyFrontendURL]), InvitationCodeEnabled: settings[SettingKeyInvitationCodeEnabled] == "true", TotpEnabled: settings[SettingKeyTotpEnabled] == "true", SMTPHost: settings[SettingKeySMTPHost], SMTPUsername: settings[SettingKeySMTPUsername], SMTPFrom: settings[SettingKeySMTPFrom], SMTPFromName: settings[SettingKeySMTPFromName], SMTPUseTLS: settings[SettingKeySMTPUseTLS] == "true", SMTPPasswordConfigured: settings[SettingKeySMTPPassword] != "", TelegramChatID: strings.TrimSpace(settings[SettingKeyTelegramChatID]), TurnstileEnabled: settings[SettingKeyTurnstileEnabled] == "true", TurnstileSiteKey: settings[SettingKeyTurnstileSiteKey], TurnstileSecretKeyConfigured: settings[SettingKeyTurnstileSecretKey] != "", SiteName: s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"), SiteLogo: settings[SettingKeySiteLogo], SiteSubtitle: s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"), APIBaseURL: settings[SettingKeyAPIBaseURL], ContactInfo: settings[SettingKeyContactInfo], DocURL: settings[SettingKeyDocURL], HomeContent: settings[SettingKeyHomeContent], HideCcsImportButton: settings[SettingKeyHideCcsImportButton] == "true", AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true", ChannelMonitorEnabled: settings[SettingKeyChannelMonitorEnabled] == "true", PublicModelCatalogEnabled: !isFalseSettingValue(settings[SettingKeyPublicModelCatalogEnabled]), PurchaseSubscriptionEnabled: settings[SettingKeyPurchaseSubscriptionEnabled] == "true", PurchaseSubscriptionURL: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]), PurchaseSubscriptionProvider: NormalizePurchaseSubscriptionProvider(settings[SettingKeyPurchaseSubscriptionProvider]), PurchaseSubscriptionSupportedCurrencies: ParsePurchaseSubscriptionCurrencies(settings[SettingKeyPurchaseSubscriptionSupportedCurrencies]), PurchaseSubscriptionDefaultCurrency: strings.ToUpper(strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionDefaultCurrency])), PurchaseSubscriptionDefaultCountryCode: NormalizePurchaseSubscriptionCountryCode(settings[SettingKeyPurchaseSubscriptionDefaultCountryCode]), PurchaseSubscriptionPaymentEnv: NormalizePurchaseSubscriptionPaymentEnv(settings[SettingKeyPurchaseSubscriptionPaymentEnv]), PurchaseSubscriptionExtraParams: ParsePurchaseSubscriptionExtraParams(settings[SettingKeyPurchaseSubscriptionExtraParams]), PurchaseSubscriptionAirwallexClientID: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionAirwallexClientID]), PurchaseSubscriptionAirwallexAPIKey: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionAirwallexAPIKey]), PurchaseSubscriptionAirwallexWebhookKey: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionAirwallexWebhookKey]), CustomMenuItems: settings[SettingKeyCustomMenuItems], LoginAgreementEnabled: settings[SettingKeyLoginAgreementEnabled] == "true", LoginAgreementMode: NormalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]), LoginAgreementUpdatedAt: strings.TrimSpace(settings[SettingKeyLoginAgreementUpdatedAt]), LoginAgreementDocuments: ParseLoginAgreementDocuments(settings[SettingKeyLoginAgreementDocuments]), BackendModeEnabled: settings[SettingKeyBackendModeEnabled] == "true", MaintenanceModeEnabled: settings[SettingKeyMaintenanceModeEnabled] == "true"}
 	if port, err := strconv.Atoi(settings[SettingKeySMTPPort]); err == nil {
 		result.SMTPPort = port
 	} else {
@@ -645,6 +676,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	)
 	result.ContentModerationAPIKeyStatuses = ContentModerationAPIKeyStatuses(result.ContentModerationAPIKeys, time.Time{})
 	result.ContentModerationAPIKeyConfigured = len(result.ContentModerationAPIKeys) > 0
+	result.PurchaseSubscriptionAirwallexConfigured = result.PurchaseSubscriptionAirwallexClientID != "" && result.PurchaseSubscriptionAirwallexAPIKey != ""
+	result.PurchaseSubscriptionAirwallexWebhookSet = result.PurchaseSubscriptionAirwallexWebhookKey != ""
 	result.ContentModerationModel = strings.TrimSpace(settings[SettingKeyContentModerationModel])
 	result.ContentModerationTimeoutMs = parseSettingInt(settings[SettingKeyContentModerationTimeoutMs], 1500)
 	result.ContentModerationDedupeWindowSeconds = parseSettingInt(settings[SettingKeyContentModerationDedupeWindowSeconds], 300)
@@ -696,6 +729,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	result.MinClaudeCodeVersion = settings[SettingKeyMinClaudeCodeVersion]
 	result.MaxClaudeCodeVersion = settings[SettingKeyMaxClaudeCodeVersion]
+	result.AntigravityUserAgentVersion = strings.TrimSpace(settings[SettingKeyAntigravityUserAgentVersion])
 	result.AllowUngroupedKeyScheduling = settings[SettingKeyAllowUngroupedKeyScheduling] == "true"
 	result.BackendModeEnabled = settings[SettingKeyBackendModeEnabled] == "true"
 	result.MaintenanceModeEnabled = settings[SettingKeyMaintenanceModeEnabled] == "true"

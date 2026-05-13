@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
+import { parseUniqueLineTokens } from '@/utils/tokenBatchInput'
 
 export type AddMethod = 'oauth' | 'setup-token'
 export type AuthInputMethod = 'manual' | 'cookie' | 'refresh_token'
@@ -146,10 +147,7 @@ export function useAccountOAuth() {
 
   // Parse multiple session keys
   const parseSessionKeys = (input: string): string[] => {
-    return input
-      .split('\n')
-      .map((k) => k.trim())
-      .filter((k) => k)
+    return parseUniqueLineTokens(input)
   }
 
   // Build extra info from token response

@@ -2,6 +2,35 @@ package service
 
 import "strings"
 
+var runtimeModelHardRemoveExceptions = map[string]struct{}{
+	"deepseek-v4-flash": {},
+	"deepseek-v4-pro":   {},
+}
+
+func isRuntimeHardRemoveException(modelID string) bool {
+	normalized := normalizeRegistryID(modelID)
+	if normalized == "" {
+		return false
+	}
+	_, ok := runtimeModelHardRemoveExceptions[normalized]
+	return ok
+}
+
+func filterRuntimeHardRemoveExceptions(modelIDs []string) []string {
+	normalizedIDs := normalizeStringList(modelIDs, normalizeRegistryID)
+	if len(normalizedIDs) == 0 {
+		return []string{}
+	}
+	filtered := make([]string, 0, len(normalizedIDs))
+	for _, modelID := range normalizedIDs {
+		if isRuntimeHardRemoveException(modelID) {
+			continue
+		}
+		filtered = append(filtered, modelID)
+	}
+	return filtered
+}
+
 var explicitHardRemovedInputModelIDs = map[string]struct{}{
 	"claude-haiku-4-5":               {},
 	"claude-haiku-4-5-20251001":      {},
@@ -40,6 +69,9 @@ func init() {
 func isHardRemovedModelID(modelID string) bool {
 	normalized := normalizeRegistryID(modelID)
 	if normalized == "" {
+		return false
+	}
+	if isRuntimeHardRemoveException(normalized) {
 		return false
 	}
 	if _, ok := explicitHardRemovedInputModelIDs[normalized]; ok {
@@ -98,5 +130,5 @@ func explicitHardRemovedRegistryModelIDs() []string {
 	for modelID := range explicitHardRemovedRegistryModelIDsSet {
 		items = append(items, modelID)
 	}
-	return items
+	return filterRuntimeHardRemoveExceptions(items)
 }

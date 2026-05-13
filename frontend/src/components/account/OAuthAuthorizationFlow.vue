@@ -512,6 +512,7 @@ import { useClipboard } from '@/composables/useClipboard'
 import Icon from '@/components/icons/Icon.vue'
 import type { AddMethod, AuthInputMethod } from '@/composables/useAccountOAuth'
 import type { AccountPlatform } from '@/types'
+import { parseUniqueLineTokens } from '@/utils/tokenBatchInput'
 
 interface Props {
   addMethod: AddMethod
@@ -599,18 +600,12 @@ const { copied, copyToClipboard } = useClipboard()
 
 // Computed
 const parsedKeyCount = computed(() => {
-  return sessionKeyInput.value
-    .split('\n')
-    .map((k) => k.trim())
-    .filter((k) => k).length
+  return parseUniqueLineTokens(sessionKeyInput.value).length
 })
 
 // Computed: count of refresh tokens entered
 const parsedRefreshTokenCount = computed(() => {
-  return refreshTokenInput.value
-    .split('\n')
-    .map((rt) => rt.trim())
-    .filter((rt) => rt).length
+  return parseUniqueLineTokens(refreshTokenInput.value).length
 })
 
 // Watchers

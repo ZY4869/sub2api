@@ -233,4 +233,29 @@ describe('OpenAI create-account defaults', () => {
       'gpt-5.5',
     ])
   })
+
+  it('de-duplicates refresh tokens before creating OpenAI accounts', async () => {
+    createMock.mockReset()
+    createMock.mockResolvedValue({ id: 6, platform: 'openai', type: 'oauth' })
+
+    const base = createBaseOptions()
+    const validateRefreshToken = vi.fn().mockResolvedValue({ plan_type: 'plus' })
+    const { handleOpenAIValidateRT } = useCreateAccountOpenAIRefreshTokenValidation({
+      oauthClient: computed(() => ({
+        loading: ref(false),
+        error: ref(''),
+        validateRefreshToken,
+        buildCredentials: (tokenInfo: any) => ({ plan_type: tokenInfo.plan_type }),
+        buildExtraInfo: () => undefined,
+      })),
+      ...base,
+    })
+
+    await handleOpenAIValidateRT('rt_dup\nrt_dup\r\n  rt_other  \nrt_dup')
+
+    expect(validateRefreshToken).toHaveBeenCalledTimes(2)
+    expect(validateRefreshToken).toHaveBeenNthCalledWith(1, 'rt_dup', null)
+    expect(validateRefreshToken).toHaveBeenNthCalledWith(2, 'rt_other', null)
+    expect(createMock).toHaveBeenCalledTimes(2)
+  })
 })

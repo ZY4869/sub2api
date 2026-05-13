@@ -6,6 +6,7 @@ import type { Account, AccountType, CreateAccountRequest } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
 import { buildModelMappingObject } from '@/composables/useModelWhitelist'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
+import { parseUniqueLineTokens } from '@/utils/tokenBatchInput'
 
 interface AntigravityOAuthClient {
   sessionId: Ref<string>
@@ -62,10 +63,7 @@ export function useCreateAccountAntigravityHandlers(
     const oauthClient = options.oauthClient
     if (!refreshTokenInput.trim()) return
 
-    const refreshTokens = refreshTokenInput
-      .split('\n')
-      .map((rt) => rt.trim())
-      .filter((rt) => rt)
+    const refreshTokens = parseUniqueLineTokens(refreshTokenInput)
 
     if (refreshTokens.length === 0) {
       oauthClient.error.value = t('admin.accounts.oauth.antigravity.pleaseEnterRefreshToken')
@@ -199,4 +197,3 @@ export function useCreateAccountAntigravityHandlers(
     handleAntigravityExchange
   }
 }
-

@@ -158,7 +158,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	timeoutCounterCache := repository.NewTimeoutCounterCache(redisClient)
 	geminiTokenCache := repository.NewGeminiTokenCache(redisClient)
 	compositeTokenCacheInvalidator := service.NewCompositeTokenCacheInvalidator(geminiTokenCache)
-	rateLimitService := service.ProvideRateLimitService(accountRepository, usageLogRepository, configConfig, geminiQuotaService, tempUnschedCache, timeoutCounterCache, settingService, compositeTokenCacheInvalidator)
+	rateLimitService := service.ProvideRateLimitService(accountRepository, usageLogRepository, configConfig, geminiQuotaService, tempUnschedCache, timeoutCounterCache, settingService, compositeTokenCacheInvalidator, proxyRepository, privacyClientFactory)
 	httpUpstream := repository.NewHTTPUpstream(configConfig)
 	claudeUsageFetcher := repository.NewClaudeUsageFetcher(httpUpstream)
 	antigravityQuotaFetcher := service.NewAntigravityQuotaFetcher(proxyRepository)
