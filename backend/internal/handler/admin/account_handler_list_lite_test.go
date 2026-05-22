@@ -75,10 +75,10 @@ func TestAccountHandlerListHonorsLiteResponseContract(t *testing.T) {
 
 	type listItem struct {
 		ActiveUsageAvailable bool             `json:"active_usage_available"`
-		Credentials map[string]any   `json:"credentials"`
-		Extra       map[string]any   `json:"extra"`
-		Proxy       map[string]any   `json:"proxy"`
-		Groups      []map[string]any `json:"groups"`
+		Credentials          map[string]any   `json:"credentials"`
+		Extra                map[string]any   `json:"extra"`
+		Proxy                map[string]any   `json:"proxy"`
+		Groups               []map[string]any `json:"groups"`
 	}
 	type listResponse struct {
 		Code int `json:"code"`

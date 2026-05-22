@@ -340,8 +340,10 @@ func TestPaymentServiceWebhookPaidRedactsPayloadAndFulfillsInTransaction(t *test
 	require.Equal(t, PaymentStatusPaid, order.Status)
 	var redacted map[string]any
 	require.NoError(t, json.Unmarshal(repo.events["evt_1"].PayloadRedactedJSON, &redacted))
-	require.Equal(t, "[REDACTED]", redacted["data"].(map[string]any)["client_secret"])
-	require.Equal(t, "[REDACTED]", redacted["data"].(map[string]any)["customer_email"])
+	data, ok := redacted["data"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "[REDACTED]", data["client_secret"])
+	require.Equal(t, "[REDACTED]", data["customer_email"])
 	require.Equal(t, int64(1), SnapshotPaymentRuntimeMetrics().WebhookSuccess)
 }
 

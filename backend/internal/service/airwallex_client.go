@@ -210,11 +210,3 @@ func airwallexBaseURL(env string) string {
 	}
 	return "https://api-demo.airwallex.com"
 }
-
-func redactAirwallexBody(body []byte) string {
-	text := string(body)
-	if len(text) > 512 {
-		text = text[:512]
-	}
-	return strings.ReplaceAll(text, "\n", " ")
-}

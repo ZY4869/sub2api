@@ -162,14 +162,14 @@ type UsageLog struct {
 	// ReasoningEffortRaw preserves the user's original requested effort level.
 	ReasoningEffortRaw *string
 	// ReasoningEffortEffective records the actual effort value sent to the upstream.
-	ReasoningEffortEffective *string
-	RequestedModelRaw        *string
-	RequestedModelNormalized *string
+	ReasoningEffortEffective   *string
+	RequestedModelRaw          *string
+	RequestedModelNormalized   *string
 	RequestContextLengthTokens *int
-	MillionContextRequested  *bool
-	MillionContextEffective  *bool
-	MillionContextSource     *string
-	MillionContextBetaToken  *string
+	MillionContextRequested    *bool
+	MillionContextEffective    *bool
+	MillionContextSource       *string
+	MillionContextBetaToken    *string
 	// ThinkingEnabled explicitly records whether a request used thinking mode.
 	// Nil means the upstream/request metadata did not provide a reliable value.
 	ThinkingEnabled *bool

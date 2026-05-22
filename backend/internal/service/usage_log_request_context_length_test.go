@@ -7,9 +7,9 @@ import "github.com/stretchr/testify/require"
 func TestResolveUsageLogRequestContextLengthTokens_ExplicitMillionContext(t *testing.T) {
 	raw := "claude-opus-4-7[1m]"
 	log := &UsageLog{
-		Model:                 "claude-opus-4-7",
-		RequestedModel:        "claude-opus-4-7",
-		RequestedModelRaw:     &raw,
+		Model:                   "claude-opus-4-7",
+		RequestedModel:          "claude-opus-4-7",
+		RequestedModelRaw:       &raw,
 		MillionContextRequested: requestContextBoolPtr(true),
 	}
 
