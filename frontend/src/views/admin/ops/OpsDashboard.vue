@@ -23,6 +23,7 @@
         :thresholds="metricThresholds"
         :auto-refresh-enabled="autoRefreshEnabled"
         :auto-refresh-countdown="autoRefreshCountdown"
+        :refresh-token="dashboardRefreshToken"
         :fullscreen="isFullscreen"
         :custom-start-time="customStartTime"
         :custom-end-time="customEndTime"
@@ -174,12 +175,14 @@ import OpsSystemLogTable from './components/OpsSystemLogTable.vue'
 import OpsRequestDetailsModal, { type OpsRequestDetailsPreset } from './components/OpsRequestDetailsModal.vue'
 import OpsSettingsDialog from './components/OpsSettingsDialog.vue'
 import OpsAlertRulesCard from './components/OpsAlertRulesCard.vue'
+import { useRealtimeCountdownNow } from '@/composables/useRealtimeCountdownNow'
 
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
 const adminSettingsStore = useAdminSettingsStore()
 const { t } = useI18n()
+const { nowMs: displayNowMs } = useRealtimeCountdownNow('global')
 
 const opsEnabled = computed(() => adminSettingsStore.opsMonitoringEnabled)
 
@@ -396,7 +399,13 @@ const showAlertEvents = ref(true)
 const showOpenAITokenStats = ref(false)
 const autoRefreshEnabled = ref(false)
 const autoRefreshIntervalMs = ref(30000) // default 30 seconds
-const autoRefreshCountdown = ref(0)
+const nextRefreshAtMs = ref(0)
+const autoRefreshCountdown = computed(() => {
+  if (!autoRefreshEnabled.value || nextRefreshAtMs.value <= 0) {
+    return 0
+  }
+  return Math.max(0, Math.ceil((nextRefreshAtMs.value - displayNowMs.value) / 1000))
+})
 
 // Used to trigger child component refreshes in a single shared cadence.
 const dashboardRefreshToken = ref(0)
@@ -408,14 +417,14 @@ const { pause: pauseCountdown, resume: resumeCountdown } = useIntervalFn(
     if (!opsEnabled.value) return
     if (loading.value) return
 
-    if (autoRefreshCountdown.value <= 0) {
-      // Fetch immediately when the countdown reaches 0.
-      // fetchData() will reset the countdown to the full interval.
-      fetchData()
+    if (nextRefreshAtMs.value <= 0) {
+      nextRefreshAtMs.value = Date.now() + autoRefreshIntervalMs.value
       return
     }
 
-    autoRefreshCountdown.value -= 1
+    if (Date.now() >= nextRefreshAtMs.value) {
+      fetchData()
+    }
   },
   1000,
   { immediate: false }
@@ -429,14 +438,16 @@ async function loadDashboardAdvancedSettings() {
     showOpenAITokenStats.value = settings.display_openai_token_stats
     autoRefreshEnabled.value = settings.auto_refresh_enabled
     autoRefreshIntervalMs.value = settings.auto_refresh_interval_seconds * 1000
-    autoRefreshCountdown.value = settings.auto_refresh_interval_seconds
+    nextRefreshAtMs.value = settings.auto_refresh_enabled
+      ? Date.now() + settings.auto_refresh_interval_seconds * 1000
+      : 0
   } catch (err) {
     console.error('[OpsDashboard] Failed to load dashboard advanced settings', err)
     showAlertEvents.value = true
     showOpenAITokenStats.value = false
     autoRefreshEnabled.value = false
     autoRefreshIntervalMs.value = 30000
-    autoRefreshCountdown.value = 0
+    nextRefreshAtMs.value = 0
   }
 }
 
@@ -746,7 +757,7 @@ async function fetchData() {
 
     // Reset auto refresh countdown after successful fetch
     if (autoRefreshEnabled.value) {
-      autoRefreshCountdown.value = Math.floor(autoRefreshIntervalMs.value / 1000)
+      nextRefreshAtMs.value = Date.now() + autoRefreshIntervalMs.value
     }
 
     // Defer non-core visual panels to reduce initial blocking.
@@ -847,11 +858,11 @@ onUnmounted(() => {
 // Watch auto refresh settings changes
 watch(autoRefreshEnabled, (enabled) => {
   if (enabled) {
-    autoRefreshCountdown.value = Math.floor(autoRefreshIntervalMs.value / 1000)
+    nextRefreshAtMs.value = Date.now() + autoRefreshIntervalMs.value
     resumeCountdown()
   } else {
     pauseCountdown()
-    autoRefreshCountdown.value = 0
+    nextRefreshAtMs.value = 0
   }
 })
 

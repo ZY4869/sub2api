@@ -9,7 +9,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api/admin";
 import { i18n } from "@/i18n";
-import { useUiNow } from "@/composables/useUiNow";
+import { useRealtimeCountdownNow } from "@/composables/useRealtimeCountdownNow";
 import type {
   Account,
   AccountUsageInfo,
@@ -148,12 +148,18 @@ function prefersPassiveUsageSnapshot(account: Account): boolean {
 
 function supportsActiveAnthropicUsage(account: Account): boolean {
   return (
-    getRuntimePlatform(account) === "anthropic" && account.type === "oauth"
+    getRuntimePlatform(account) === "anthropic" &&
+    account.type === "oauth" &&
+    account.active_usage_available === true
   );
 }
 
 function supportsActiveOpenAIUsage(account: Account): boolean {
-  return getRuntimePlatform(account) === "openai" && account.type === "oauth";
+  return (
+    getRuntimePlatform(account) === "openai" &&
+    account.type === "oauth" &&
+    account.active_usage_available === true
+  );
 }
 
 function shouldFallbackToActiveAnthropicUsage(
@@ -505,7 +511,7 @@ export function useAccountUsagePresentation(
   options: UseAccountUsagePresentationOptions = {},
 ) {
   const { t } = useI18n();
-  const { nowMs, nowDate } = useUiNow();
+  const { nowMs, nowDate } = useRealtimeCountdownNow("accounts");
   const account = computed(() => toValue(accountSource));
   const cacheEntry = computed(() => getUsageCacheEntry(account.value.id));
   const usageInfo = computed(() => cacheEntry.value.usageInfo);

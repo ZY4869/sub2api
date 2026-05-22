@@ -23,6 +23,10 @@
         :actual-usage-refresh-summary="actualUsageRefreshSummary"
         :daily-5-h-trigger-enabled="daily5HTriggerSettingsView.settings.enabled"
         :daily-5-h-trigger-busy="daily5HTriggerSettingsLoading || daily5HTriggerSettingsSaving"
+        :account-realtime-countdown-enabled="authStore.user?.account_realtime_countdown_enabled !== false"
+        :account-visual-preset-override="accountVisualPresetOverride"
+        :visual-style="resolvedAccountVisualPreset"
+        :account-visual-style-updating="updatingAccountVisualStyle"
         @update:filters="handleFilterUpdate"
         @update:search-query="handleSearchQueryUpdate"
         @update:view-mode="viewMode = $event"
@@ -46,6 +50,8 @@
         @bulk-edit-filtered="openBulkEditFilteredModal"
         @toggle-daily-5h-trigger="handleToggleDaily5HTrigger"
         @open-daily-5h-settings="handleOpenDaily5HTriggerSettings"
+        @toggle-account-realtime-countdown="handleToggleAccountRealtimeCountdown"
+        @set-account-visual-preset-override="setAccountVisualPresetOverride"
       />
     </template>
     <template #table>
@@ -107,6 +113,8 @@
             :usage-manual-refresh-token="usageManualRefreshToken"
             :sort-storage-key="ACCOUNT_SORT_STORAGE_KEY"
             :preserve-input-order="true"
+            :visual-style="resolvedAccountVisualPreset"
+            :white-surface-enabled="airyWhiteSurfaceEnabled"
             @toggle-selected="toggleSel"
             @toggle-section-selected="handleToggleSectionSelected"
             @show-temp-unsched="handleShowTempUnsched"
@@ -125,6 +133,8 @@
             :today-stats-by-account-id="todayStatsByAccountId"
             :today-stats-loading="todayStatsLoading"
             :usage-manual-refresh-token="usageManualRefreshToken"
+            :visual-style="resolvedAccountVisualPreset"
+            :white-surface-enabled="airyWhiteSurfaceEnabled"
             @toggle-selected="toggleSel"
             @show-temp-unsched="handleShowTempUnsched"
             @toggle-schedulable="handleToggleSchedulable"
@@ -147,6 +157,8 @@
             :usage-manual-refresh-token="usageManualRefreshToken"
             :sort-storage-key="ACCOUNT_SORT_STORAGE_KEY"
             :preserve-input-order="true"
+            :visual-style="resolvedAccountVisualPreset"
+            :white-surface-enabled="airyWhiteSurfaceEnabled"
             :pagination="pagination"
             @toggle-select-all-visible="toggleSelectAllVisible"
             @toggle-selected="toggleSel"
@@ -282,6 +294,7 @@ import { useAppStore } from "@/stores/app";
 import { useAuthStore } from "@/stores/auth";
 import { useModelInventoryStore } from "@/stores";
 import { invalidateModelRegistry } from "@/stores/modelRegistry";
+import { userAPI } from "@/api";
 import { adminAPI } from "@/api/admin";
 import { useAccountStatusSummary } from "@/composables/useAccountStatusSummary";
 import { useAccountActionMenu } from "@/composables/useAccountActionMenu";
@@ -292,6 +305,7 @@ import { useAccountsViewListPatching } from "@/composables/useAccountsViewListPa
 import { useTableLoader } from "@/composables/useTableLoader";
 import { useSwipeSelect } from "@/composables/useSwipeSelect";
 import { useTableSelection } from "@/composables/useTableSelection";
+import { useAccountVisualStylePreference } from "@/composables/useAccountVisualStylePreference";
 import TablePageLayout from "@/components/layout/TablePageLayout.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import AccountCardGrid from "@/components/admin/account/AccountCardGrid.vue";
@@ -360,6 +374,15 @@ const { t } = useI18n();
 const router = useRouter();
 const appStore = useAppStore();
 const authStore = useAuthStore();
+const {
+  accountVisualPresetOverride,
+  resolvedAccountVisualPreset,
+  updatingAccountVisualStyle,
+  setAccountVisualPresetOverride,
+} = useAccountVisualStylePreference();
+const airyWhiteSurfaceEnabled = computed(
+  () => resolvedAccountVisualPreset.value === "airy" && appStore.accountAiryWhiteSurfaceEnabled,
+);
 const modelInventoryStore = useModelInventoryStore();
 const {
   syncDialogOpen,
@@ -838,6 +861,34 @@ const handleOpenDaily5HTriggerSettings = async () => {
   }
 };
 
+const accountRealtimeCountdownUpdating = ref(false);
+
+const handleToggleAccountRealtimeCountdown = async () => {
+  const currentUser = authStore.user;
+  if (!currentUser || accountRealtimeCountdownUpdating.value) {
+    return;
+  }
+
+  const previousValue = currentUser.account_realtime_countdown_enabled !== false;
+  const nextValue = !previousValue;
+  accountRealtimeCountdownUpdating.value = true;
+  authStore.setAccountRealtimeCountdownEnabled(nextValue);
+
+  try {
+    const updatedUser = await userAPI.updateProfile({
+      account_realtime_countdown_enabled: nextValue,
+    });
+    authStore.setCurrentUser(updatedUser);
+  } catch (error: any) {
+    authStore.setAccountRealtimeCountdownEnabled(previousValue);
+    appStore.showError(
+      error?.message || t("admin.accounts.accountRealtimeCountdownUpdateFailed"),
+    );
+  } finally {
+    accountRealtimeCountdownUpdating.value = false;
+  }
+};
+
 const pendingRuntimeListRefresh = ref(false);
 const runtimeSummaryParams = computed<AccountListRequestParams>(() => ({
   platform: String(params.platform || ""),
@@ -989,11 +1040,13 @@ const allColumns = computed(() => {
       key: "capacity",
       label: t("admin.accounts.columns.capacity"),
       sortable: false,
+      class: "w-[120px] max-w-[120px]",
     },
     {
       key: "status",
       label: t("admin.accounts.columns.status"),
       sortable: true,
+      class: "w-[240px] max-w-[240px]",
     },
     {
       key: "schedulable",
@@ -2106,7 +2159,6 @@ onMounted(async () => {
   window.addEventListener("scroll", handleScroll, true);
 
   if (autoRefreshEnabled.value) {
-    autoRefreshCountdown.value = autoRefreshIntervalSeconds.value;
     resumeAutoRefresh();
   } else {
     pauseAutoRefresh();

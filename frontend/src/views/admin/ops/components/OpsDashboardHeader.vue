@@ -27,6 +27,7 @@ interface Props {
   thresholds?: OpsMetricThresholds | null // 阈值配置
   autoRefreshEnabled?: boolean
   autoRefreshCountdown?: number
+  refreshToken?: number
   fullscreen?: boolean
   customStartTime?: string | null
   customEndTime?: string | null
@@ -368,14 +369,12 @@ watch(
 
 // Realtime traffic refresh follows the parent (OpsDashboard) refresh cadence.
 watch(
-  () => [props.autoRefreshEnabled, props.autoRefreshCountdown, props.loading] as const,
-  ([enabled, countdown, loading]) => {
-    if (!enabled) return
-    if (loading) return
-    // Treat countdown reset (or reaching 0) as a refresh boundary.
-    if (countdown === 0) {
-      loadRealtimeTrafficSummary()
-    }
+  () => props.refreshToken,
+  (refreshToken, previousRefreshToken) => {
+    if (!props.autoRefreshEnabled) return
+    if (props.loading) return
+    if (refreshToken === undefined || refreshToken === previousRefreshToken) return
+    loadRealtimeTrafficSummary()
   }
 )
 

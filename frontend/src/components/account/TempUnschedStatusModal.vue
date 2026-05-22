@@ -147,6 +147,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
+import { useRealtimeCountdownNow } from '@/composables/useRealtimeCountdownNow'
 import type { Account, TempUnschedulableStatus } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import { formatDateTime } from '@/utils/format'
@@ -163,6 +164,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const { nowMs } = useRealtimeCountdownNow('accounts')
 
 const loading = ref(false)
 const resetting = ref(false)
@@ -172,7 +174,7 @@ const state = computed(() => status.value?.state || null)
 
 const isActive = computed(() => {
   if (!status.value?.active || !state.value) return false
-  return state.value.until_unix * 1000 > Date.now()
+  return state.value.until_unix * 1000 > nowMs.value
 })
 
 const ruleIndexDisplay = computed(() => {
@@ -192,7 +194,7 @@ const untilText = computed(() => {
 
 const remainingText = computed(() => {
   if (!state.value) return '-'
-  const remainingMs = state.value.until_unix * 1000 - Date.now()
+  const remainingMs = state.value.until_unix * 1000 - nowMs.value
   if (remainingMs <= 0) {
     return t('admin.accounts.tempUnschedulable.expired')
   }

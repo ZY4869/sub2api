@@ -874,23 +874,28 @@ func userEntityToService(u *dbent.User) *service.User {
 		return nil
 	}
 	return &service.User{
-		ID:                   u.ID,
-		Email:                u.Email,
-		Username:             u.Username,
-		Notes:                u.Notes,
-		PasswordHash:         u.PasswordHash,
-		Role:                 u.Role,
-		Balance:              u.Balance,
-		Balances:             map[string]float64{service.ModelPricingCurrencyUSD: u.Balance},
-		Concurrency:          u.Concurrency,
-		Status:               u.Status,
-		AdminFreeBilling:     u.AdminFreeBilling,
-		RequestDetailsReview: u.RequestDetailsReview,
+		ID:                              u.ID,
+		Email:                           u.Email,
+		Username:                        u.Username,
+		Notes:                           u.Notes,
+		PasswordHash:                    u.PasswordHash,
+		Role:                            u.Role,
+		Balance:                         u.Balance,
+		Balances:                        map[string]float64{service.ModelPricingCurrencyUSD: u.Balance},
+		Concurrency:                     u.Concurrency,
+		Status:                          u.Status,
+		AdminFreeBilling:                u.AdminFreeBilling,
+		RequestDetailsReview:            u.RequestDetailsReview,
+		GlobalRealtimeCountdownEnabled:  u.GlobalRealtimeCountdownEnabled,
+		AccountRealtimeCountdownEnabled: u.AccountRealtimeCountdownEnabled,
+		VisualPresetPreference: service.NormalizeVisualPresetPreference(
+			u.VisualPresetPreference,
+		),
+		AccountVisualPresetOverride: service.NormalizeVisualPresetPreference(
+			u.AccountVisualPresetOverride,
+		),
 		UsageModelDisplayMode: service.NormalizeUserUsageModelDisplayMode(
 			u.UsageModelDisplayMode,
-		),
-		UsageContextBadgeDisplayMode: service.NormalizeUserUsageContextBadgeDisplayMode(
-			u.UsageContextBadgeDisplayMode,
 		),
 		TotpSecretEncrypted: u.TotpSecretEncrypted,
 		TotpEnabled:         u.TotpEnabled,

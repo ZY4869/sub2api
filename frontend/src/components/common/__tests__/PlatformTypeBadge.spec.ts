@@ -71,13 +71,14 @@ describe('PlatformTypeBadge', () => {
     expect(privacyWrapper.text()).toContain('失败')
   })
 
-  it('prefers explicit plan label and falls back to pro multiplier formatting', () => {
+  it('prefers multiplier-specific Pro label when plan type is Pro and falls back to pro multiplier formatting', () => {
     const explicitWrapper = mount(PlatformTypeBadge, {
       props: {
         platform: 'openai',
         type: 'oauth',
         planType: 'pro',
-        planTypeLabel: 'Pro 20x'
+        planTypeLabel: 'Pro',
+        proMultiplier: 20
       } as any,
       global: {
         stubs: {
@@ -102,8 +103,49 @@ describe('PlatformTypeBadge', () => {
       }
     })
 
-    expect(explicitWrapper.text()).toContain('Pro 20x')
-    expect(multiplierWrapper.text()).toContain('Pro 5x')
+    expect(explicitWrapper.text()).toContain('Pro20x')
+    expect(multiplierWrapper.text()).toContain('Pro5x')
+  })
+
+  it('expands generic Pro label with pro multiplier when available', () => {
+    const wrapper = mount(PlatformTypeBadge, {
+      props: {
+        platform: 'openai',
+        type: 'oauth',
+        planType: 'pro',
+        planTypeLabel: 'Pro',
+        proMultiplier: 20
+      } as any,
+      global: {
+        stubs: {
+          PlatformIcon: PlatformIconStub,
+          Icon: IconStub
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('Pro20x')
+    expect(wrapper.text()).not.toContain('ProOAuth')
+  })
+
+  it('prefers multiplier-specific Pro label even when explicit label is only generic Pro', () => {
+    const wrapper = mount(PlatformTypeBadge, {
+      props: {
+        platform: 'openai',
+        type: 'oauth',
+        planType: 'pro',
+        planTypeLabel: 'Pro',
+        proMultiplier: 5
+      } as any,
+      global: {
+        stubs: {
+          PlatformIcon: PlatformIconStub,
+          Icon: IconStub
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('Pro5x')
   })
 
   it('renders protocol gateway mixed badge with localized label', () => {

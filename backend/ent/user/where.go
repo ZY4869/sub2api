@@ -125,6 +125,26 @@ func UsageModelDisplayMode(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldUsageModelDisplayMode, v))
 }
 
+// GlobalRealtimeCountdownEnabled applies equality check predicate on the "global_realtime_countdown_enabled" field. It's identical to GlobalRealtimeCountdownEnabledEQ.
+func GlobalRealtimeCountdownEnabled(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldGlobalRealtimeCountdownEnabled, v))
+}
+
+// AccountRealtimeCountdownEnabled applies equality check predicate on the "account_realtime_countdown_enabled" field. It's identical to AccountRealtimeCountdownEnabledEQ.
+func AccountRealtimeCountdownEnabled(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountRealtimeCountdownEnabled, v))
+}
+
+// VisualPresetPreference applies equality check predicate on the "visual_preset_preference" field. It's identical to VisualPresetPreferenceEQ.
+func VisualPresetPreference(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldVisualPresetPreference, v))
+}
+
+// AccountVisualPresetOverride applies equality check predicate on the "account_visual_preset_override" field. It's identical to AccountVisualPresetOverrideEQ.
+func AccountVisualPresetOverride(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountVisualPresetOverride, v))
+}
+
 // UsageContextBadgeDisplayMode applies equality check predicate on the "usage_context_badge_display_mode" field. It's identical to UsageContextBadgeDisplayModeEQ.
 func UsageContextBadgeDisplayMode(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldUsageContextBadgeDisplayMode, v))
@@ -828,6 +848,156 @@ func UsageModelDisplayModeEqualFold(v string) predicate.User {
 // UsageModelDisplayModeContainsFold applies the ContainsFold predicate on the "usage_model_display_mode" field.
 func UsageModelDisplayModeContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldUsageModelDisplayMode, v))
+}
+
+// GlobalRealtimeCountdownEnabledEQ applies the EQ predicate on the "global_realtime_countdown_enabled" field.
+func GlobalRealtimeCountdownEnabledEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldGlobalRealtimeCountdownEnabled, v))
+}
+
+// GlobalRealtimeCountdownEnabledNEQ applies the NEQ predicate on the "global_realtime_countdown_enabled" field.
+func GlobalRealtimeCountdownEnabledNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldGlobalRealtimeCountdownEnabled, v))
+}
+
+// AccountRealtimeCountdownEnabledEQ applies the EQ predicate on the "account_realtime_countdown_enabled" field.
+func AccountRealtimeCountdownEnabledEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountRealtimeCountdownEnabled, v))
+}
+
+// AccountRealtimeCountdownEnabledNEQ applies the NEQ predicate on the "account_realtime_countdown_enabled" field.
+func AccountRealtimeCountdownEnabledNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldAccountRealtimeCountdownEnabled, v))
+}
+
+// VisualPresetPreferenceEQ applies the EQ predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceNEQ applies the NEQ predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceIn applies the In predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldVisualPresetPreference, vs...))
+}
+
+// VisualPresetPreferenceNotIn applies the NotIn predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldVisualPresetPreference, vs...))
+}
+
+// VisualPresetPreferenceGT applies the GT predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceGTE applies the GTE predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceLT applies the LT predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceLTE applies the LTE predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceContains applies the Contains predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceHasPrefix applies the HasPrefix predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceHasSuffix applies the HasSuffix predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceEqualFold applies the EqualFold predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldVisualPresetPreference, v))
+}
+
+// VisualPresetPreferenceContainsFold applies the ContainsFold predicate on the "visual_preset_preference" field.
+func VisualPresetPreferenceContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldVisualPresetPreference, v))
+}
+
+// AccountVisualPresetOverrideEQ applies the EQ predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideNEQ applies the NEQ predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideIn applies the In predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldAccountVisualPresetOverride, vs...))
+}
+
+// AccountVisualPresetOverrideNotIn applies the NotIn predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldAccountVisualPresetOverride, vs...))
+}
+
+// AccountVisualPresetOverrideGT applies the GT predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideGTE applies the GTE predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideLT applies the LT predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideLTE applies the LTE predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideContains applies the Contains predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideHasPrefix applies the HasPrefix predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideHasSuffix applies the HasSuffix predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideEqualFold applies the EqualFold predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountVisualPresetOverrideContainsFold applies the ContainsFold predicate on the "account_visual_preset_override" field.
+func AccountVisualPresetOverrideContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldAccountVisualPresetOverride, v))
 }
 
 // UsageContextBadgeDisplayModeEQ applies the EQ predicate on the "usage_context_badge_display_mode" field.

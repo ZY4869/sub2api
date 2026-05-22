@@ -25,6 +25,10 @@ export default {
             title: "兑换码",
             description: "生成、发放和追踪余额兑换码。",
         },
+        paymentOrders: {
+            title: "支付订单",
+            description: "查看站内支付订单并处理全额或部分退款。",
+        },
         registration: {
             title: "注册码",
             description: "进入注册开关、优惠码和邀请限制配置。",

@@ -178,4 +178,35 @@ describe("UsageProgressBar", () => {
     ).toContain("width: 68%;");
     expect(wrapper.text()).toContain("68%");
   });
+
+  it("renders the glass visual variant without changing width math", async () => {
+    const wrapper = mount(UsageProgressBar, {
+      props: {
+        label: "5h",
+        utilization: 32,
+        color: "indigo",
+        displayMode: "remaining",
+        visualVariant: "glass",
+        windowStats: {
+          requests: 12,
+          tokens: 3456,
+          cost: 0.12,
+          user_cost: 0.12,
+        },
+      },
+    });
+
+    await wrapper
+      .get('[data-testid="usage-progress-trigger"]')
+      .trigger("mouseenter");
+
+    expect(wrapper.classes()).toContain("usage-progress-glass");
+    expect(
+      wrapper.get('[data-testid="usage-progress-fill"]').attributes("style"),
+    ).toContain("width: 68%;");
+    expect(wrapper.text()).toContain("68%");
+    expect(wrapper.html()).not.toContain("backdrop-blur");
+    expect(wrapper.html()).not.toContain("shadow-[");
+    expect(wrapper.html()).not.toContain("shadow-inner");
+  });
 });

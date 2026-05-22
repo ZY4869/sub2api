@@ -43,9 +43,12 @@ type ChangePasswordRequest struct {
 
 // UpdateProfileRequest represents the update profile request payload
 type UpdateProfileRequest struct {
-	Username                     *string `json:"username"`
-	UsageModelDisplayMode        *string `json:"usage_model_display_mode"`
-	UsageContextBadgeDisplayMode *string `json:"usage_context_badge_display_mode"`
+	Username                        *string `json:"username"`
+	UsageModelDisplayMode           *string `json:"usage_model_display_mode"`
+	GlobalRealtimeCountdownEnabled  *bool   `json:"global_realtime_countdown_enabled"`
+	AccountRealtimeCountdownEnabled *bool   `json:"account_realtime_countdown_enabled"`
+	VisualPresetPreference          *string `json:"visual_preset_preference"`
+	AccountVisualPresetOverride     *string `json:"account_visual_preset_override"`
 }
 
 // GetProfile handles getting user profile
@@ -110,9 +113,12 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	svcReq := service.UpdateProfileRequest{
-		Username:                     req.Username,
-		UsageModelDisplayMode:        req.UsageModelDisplayMode,
-		UsageContextBadgeDisplayMode: req.UsageContextBadgeDisplayMode,
+		Username:                        req.Username,
+		UsageModelDisplayMode:           req.UsageModelDisplayMode,
+		GlobalRealtimeCountdownEnabled:  req.GlobalRealtimeCountdownEnabled,
+		AccountRealtimeCountdownEnabled: req.AccountRealtimeCountdownEnabled,
+		VisualPresetPreference:          req.VisualPresetPreference,
+		AccountVisualPresetOverride:     req.AccountVisualPresetOverride,
 	}
 	updatedUser, err := h.userService.UpdateProfile(c.Request.Context(), subject.UserID, svcReq)
 	if err != nil {

@@ -698,11 +698,11 @@ describe("user UsageView tooltip", () => {
 
     expect(setupState.formatDuration(null)).toBe("-");
     expect(row.exists()).toBe(true);
-    expect(rowCells).toHaveLength(16);
+    expect(rowCells).toHaveLength(17);
     expect(row.text()).toContain("null-duration-key");
     expect(row.text()).toContain("gemini-3-flash-preview");
     expect(row.text()).toContain("Failed");
-    expect(rowCells[11].text()).toBe("-");
+    expect(rowCells[12].text()).toBe("-");
   });
 
   it("renders usage rows when query data is returned", async () => {

@@ -145,6 +145,51 @@ func TestAccountHandlerGetUsageSupportsSourceQuery(t *testing.T) {
 		require.Nil(t, resp.Data.SevenDay)
 	})
 
+	t.Run("active falls back to passive snapshot when anthropic oauth is missing access token", func(t *testing.T) {
+		oauthWindowEnd := now.Add(4 * time.Hour)
+		oauthAccount := &service.Account{
+			ID:               42,
+			Name:             "Claude OAuth Missing Token",
+			Platform:         service.PlatformAnthropic,
+			Type:             service.AccountTypeOAuth,
+			Status:           service.StatusActive,
+			SessionWindowEnd: &oauthWindowEnd,
+			Extra: map[string]any{
+				"session_window_utilization":   0.18,
+				"passive_usage_sampled_at":     now.Format(time.RFC3339),
+				"passive_usage_7d_utilization": 0.42,
+				"passive_usage_7d_reset":       float64(passiveReset.Unix()),
+			},
+		}
+		oauthUsageService := service.NewAccountUsageService(
+			&usageQueryAccountRepoStub{account: oauthAccount},
+			&usageQueryLogRepoStub{},
+			nil,
+			nil,
+			nil,
+			service.NewUsageCache(),
+			nil,
+		)
+		oauthHandler := NewAccountHandler(newStubAdminService(), nil, nil, nil, nil, nil, oauthUsageService, nil, nil, nil, nil, nil, nil)
+
+		oauthRouter := gin.New()
+		oauthRouter.GET("/api/v1/admin/accounts/:id/usage", oauthHandler.GetUsage)
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/42/usage?source=active", nil)
+		oauthRouter.ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		var resp usageResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		require.Equal(t, 0, resp.Code)
+		require.Equal(t, "passive", resp.Data.Source)
+		require.NotNil(t, resp.Data.FiveHour)
+		require.NotNil(t, resp.Data.SevenDay)
+		require.InDelta(t, 18, resp.Data.FiveHour.Utilization, 0.001)
+		require.InDelta(t, 42, resp.Data.SevenDay.Utilization, 0.001)
+	})
+
 	t.Run("invalid source returns bad request", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/41/usage?source=bogus", nil)

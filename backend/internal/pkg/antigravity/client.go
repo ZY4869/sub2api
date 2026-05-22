@@ -437,6 +437,7 @@ func (c *Client) ExchangeCode(ctx context.Context, code, codeVerifier string) (*
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", GetUserAgent())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -479,6 +480,7 @@ func (c *Client) RefreshToken(ctx context.Context, refreshToken string) (*TokenR
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", GetUserAgent())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 import AccountActionMenu from '../AccountActionMenu.vue'
 import type { Account } from '@/types'
@@ -35,6 +36,7 @@ describe('AccountActionMenu', () => {
         position: { top: 12, left: 34 }
       },
       global: {
+        plugins: [createPinia()],
         stubs: {
           Icon: true,
           Teleport: true
@@ -62,6 +64,7 @@ describe('AccountActionMenu', () => {
         position: { top: 12, left: 34 }
       },
       global: {
+        plugins: [createPinia()],
         stubs: {
           Icon: true,
           Teleport: true
@@ -80,6 +83,7 @@ describe('AccountActionMenu', () => {
         position: { top: 12, left: 34 }
       },
       global: {
+        plugins: [createPinia()],
         stubs: {
           Icon: true,
           Teleport: true
@@ -107,6 +111,7 @@ describe('AccountActionMenu', () => {
         position: { top: 12, left: 34 }
       },
       global: {
+        plugins: [createPinia()],
         stubs: {
           Icon: true,
           Teleport: true

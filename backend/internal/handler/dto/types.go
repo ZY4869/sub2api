@@ -3,21 +3,24 @@ package dto
 import "time"
 
 type User struct {
-	ID                           int64              `json:"id"`
-	Email                        string             `json:"email"`
-	Username                     string             `json:"username"`
-	Role                         string             `json:"role"`
-	AdminFreeBilling             bool               `json:"admin_free_billing"`
-	RequestDetailsReview         bool               `json:"request_details_review"`
-	UsageModelDisplayMode        string             `json:"usage_model_display_mode"`
-	UsageContextBadgeDisplayMode string             `json:"usage_context_badge_display_mode"`
-	Balance                      float64            `json:"balance"`
-	Balances                     map[string]float64 `json:"balances,omitempty"`
-	Concurrency                  int                `json:"concurrency"`
-	Status                       string             `json:"status"`
-	AllowedGroups                []int64            `json:"allowed_groups"`
-	CreatedAt                    time.Time          `json:"created_at"`
-	UpdatedAt                    time.Time          `json:"updated_at"`
+	ID                              int64              `json:"id"`
+	Email                           string             `json:"email"`
+	Username                        string             `json:"username"`
+	Role                            string             `json:"role"`
+	AdminFreeBilling                bool               `json:"admin_free_billing"`
+	RequestDetailsReview            bool               `json:"request_details_review"`
+	UsageModelDisplayMode           string             `json:"usage_model_display_mode"`
+	GlobalRealtimeCountdownEnabled  bool               `json:"global_realtime_countdown_enabled"`
+	AccountRealtimeCountdownEnabled bool               `json:"account_realtime_countdown_enabled"`
+	VisualPresetPreference          string             `json:"visual_preset_preference"`
+	AccountVisualPresetOverride     string             `json:"account_visual_preset_override"`
+	Balance                         float64            `json:"balance"`
+	Balances                        map[string]float64 `json:"balances,omitempty"`
+	Concurrency                     int                `json:"concurrency"`
+	Status                          string             `json:"status"`
+	AllowedGroups                   []int64            `json:"allowed_groups"`
+	CreatedAt                       time.Time          `json:"created_at"`
+	UpdatedAt                       time.Time          `json:"updated_at"`
 
 	APIKeys       []APIKey           `json:"api_keys,omitempty"`
 	Subscriptions []UserSubscription `json:"subscriptions,omitempty"`
@@ -165,6 +168,7 @@ type Account struct {
 	GatewayProtocol        string         `json:"gateway_protocol,omitempty"`
 	GatewayBatchEnabled    *bool          `json:"gateway_batch_enabled,omitempty"`
 	Type                   string         `json:"type"`
+	ActiveUsageAvailable   bool           `json:"active_usage_available"`
 	Credentials            map[string]any `json:"credentials"`
 	Extra                  map[string]any `json:"extra"`
 	ProxyID                *int64         `json:"proxy_id"`
@@ -407,15 +411,16 @@ type UsageLog struct {
 	ServiceTier *string `json:"service_tier,omitempty"`
 	// ReasoningEffort is the request's reasoning effort level.
 	// OpenAI: "low"/"medium"/"high"/"xhigh"; Claude: "low"/"medium"/"high"/"max".
-	ReasoningEffort          *string `json:"reasoning_effort,omitempty"`
-	ReasoningEffortRaw       *string `json:"reasoning_effort_raw,omitempty"`
-	ReasoningEffortEffective *string `json:"reasoning_effort_effective,omitempty"`
-	RequestedModelRaw        *string `json:"requested_model_raw,omitempty"`
-	RequestedModelNormalized *string `json:"requested_model_normalized,omitempty"`
-	MillionContextRequested  *bool   `json:"million_context_requested,omitempty"`
-	MillionContextEffective  *bool   `json:"million_context_effective,omitempty"`
-	MillionContextSource     *string `json:"million_context_source,omitempty"`
-	MillionContextBetaToken  *string `json:"million_context_beta_token,omitempty"`
+	ReasoningEffort            *string `json:"reasoning_effort,omitempty"`
+	ReasoningEffortRaw         *string `json:"reasoning_effort_raw,omitempty"`
+	ReasoningEffortEffective   *string `json:"reasoning_effort_effective,omitempty"`
+	RequestedModelRaw          *string `json:"requested_model_raw,omitempty"`
+	RequestedModelNormalized   *string `json:"requested_model_normalized,omitempty"`
+	RequestContextLengthTokens *int    `json:"request_context_length_tokens,omitempty"`
+	MillionContextRequested    *bool   `json:"million_context_requested,omitempty"`
+	MillionContextEffective    *bool   `json:"million_context_effective,omitempty"`
+	MillionContextSource       *string `json:"million_context_source,omitempty"`
+	MillionContextBetaToken    *string `json:"million_context_beta_token,omitempty"`
 	// ThinkingEnabled explicitly records whether thinking mode was enabled.
 	ThinkingEnabled *bool `json:"thinking_enabled,omitempty"`
 	// InboundEndpoint is the client-facing API endpoint path, e.g. /v1/chat/completions.

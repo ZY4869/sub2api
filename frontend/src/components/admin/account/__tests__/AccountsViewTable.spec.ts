@@ -5,6 +5,17 @@ import { ref } from 'vue'
 import AccountsViewTable from '../AccountsViewTable.vue'
 import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
 
+const countdownHookSpy = vi.hoisted(() =>
+  vi.fn(() => ({
+    nowMs: { value: 0 },
+    nowDate: { value: new Date(0) }
+  }))
+)
+
+vi.mock('@/composables/useRealtimeCountdownNow', () => ({
+  useRealtimeCountdownNow: countdownHookSpy
+}))
+
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   return {
@@ -17,14 +28,20 @@ vi.mock('vue-i18n', async () => {
 })
 
 const DataTableStub = defineComponent({
-  props: ['data'],
+  props: ['data', 'columns', 'rowClass', 'rowStyle'],
   template: `
     <div>
       <div class="header-select"><slot name="header-select" /></div>
+      <div class="column-capacity">{{ columns?.find((column) => column.key === 'capacity')?.label }}</div>
       <div class="header-usage"><slot name="header-usage" :column="{ key: 'usage', label: 'Usage Windows' }" /></div>
+      <div class="row-class">{{ rowClass ? rowClass(data[0], 0) : '' }}</div>
+      <div class="row-style">{{ rowStyle ? JSON.stringify(rowStyle(data[0], 0)) : '' }}</div>
       <div class="cell-name"><slot name="cell-name" :row="data[0]" :value="data[0].name" /></div>
+      <div class="cell-platform"><slot name="cell-platform_type" :row="data[0]" /></div>
+      <div class="cell-capacity"><slot name="cell-capacity" :row="data[0]" /></div>
       <div class="cell-select"><slot name="cell-select" :row="data[0]" /></div>
       <div class="cell-status"><slot name="cell-status" :row="data[0]" /></div>
+      <div class="cell-usage"><slot name="cell-usage" :row="data[0]" /></div>
       <div class="cell-actions"><slot name="cell-actions" :row="data[0]" /></div>
     </div>
   `
@@ -56,6 +73,9 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
     props: {
       columns: [
         { key: 'select', label: '' },
+        { key: 'name', label: '名称' },
+        { key: 'platform_type', label: '平台/类型' },
+        { key: 'capacity', label: '容量' },
         { key: 'status', label: 'Status' },
         { key: 'actions', label: 'Actions' }
       ],
@@ -67,8 +87,13 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
           type: 'apikey',
           status: 'active',
           schedulable: true,
+          concurrency: 3,
+          current_concurrency: 1,
           lifecycle_state: 'normal',
           extra: {},
+          credentials: {
+            plan_type: 'plus'
+          },
           auto_recovery_probe: {
             status: 'retry_scheduled',
             summary: 'Temporary gateway error',
@@ -85,6 +110,7 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
       todayStatsLoading: false,
       todayStatsError: null,
       usageManualRefreshToken: 0,
+      visualStyle: 'airy',
       sortStorageKey: 'account-table-sort',
       pagination: {
         total: 1,
@@ -98,14 +124,31 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
         Pagination: PaginationStub,
         AccountStatusIndicator: {
           emits: ['show-temp-unsched'],
-          template: '<button class="show-temp-unsched" @click="$emit(\'show-temp-unsched\')" />'
+          template: '<button class="show-temp-unsched status-classic-stub" @click="$emit(\'show-temp-unsched\')" />'
         },
+        PlatformIcon: {
+          props: ['platform', 'size'],
+          template: '<span class="platform-icon-stub" :data-platform="platform" :data-size="size" />'
+        },
+        AccountStatusVisualCell: defineComponent({
+          props: ['visualStyle', 'whiteSurfaceEnabled'],
+          emits: ['show-temp-unsched'],
+          template: '<button class="show-temp-unsched status-visual-stub" :data-visual-style="visualStyle" :data-white-surface-enabled="String(whiteSurfaceEnabled)" @click="$emit(\'show-temp-unsched\')" />'
+        }),
         AccountsViewRowActions: RowActionsStub,
-        PlatformTypeBadge: true,
-        AccountCapacityCell: true,
+        AccountCapacityCell: {
+          props: ['account', 'visualVariant', 'whiteSurfaceEnabled', 'compact'],
+          template: '<div class="capacity-stub" :data-visual-variant="visualVariant" :data-white-surface-enabled="String(whiteSurfaceEnabled)" :data-compact="String(compact)">{{ String(account.current_concurrency).padStart(2, "0") }}/{{ String(account.concurrency).padStart(2, "0") }}</div>'
+        },
         AccountTodayStatsCell: true,
         AccountGroupsCell: true,
-        AccountUsageCell: true,
+        AccountUsageCell: {
+          template: '<div class="usage-classic-stub" />'
+        },
+        AccountUsageVisualCell: {
+          props: ['whiteSurfaceEnabled'],
+          template: '<div class="usage-visual-stub" :data-white-surface-enabled="String(whiteSurfaceEnabled)" />'
+        },
         AccountUsageResetCell: true
       }
     }
@@ -115,6 +158,7 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
 describe('AccountsViewTable', () => {
   beforeEach(() => {
     localStorage.clear()
+    countdownHookSpy.mockClear()
     useAccountUsageDisplayMode().setAccountUsageDisplayMode('used')
   })
 
@@ -151,11 +195,14 @@ describe('AccountsViewTable', () => {
     expect(wrapper.emitted('page-size-change')).toEqual([[50]])
   })
 
-  it('renders auto recovery probe summary in the name cell', () => {
+  it('keeps the name cell aligned to the reference name-only visual', () => {
     const wrapper = mountTable()
 
-    expect(wrapper.text()).toContain('Temporary gateway error')
-    expect(wrapper.text()).toContain('admin.accounts.autoRecoveryProbe.headline')
+    expect(wrapper.get('.cell-name').text()).toContain('Primary')
+    expect(wrapper.get('.cell-name').text()).not.toContain('admin.accounts.autoRecoveryProbe.statuses.retry_scheduled')
+    expect(wrapper.get('.cell-name').text()).not.toContain('Temporary gateway error')
+    expect(wrapper.get('.cell-name').text()).not.toContain('admin.accounts.autoRecoveryProbe.headline')
+    expect(wrapper.get('.cell-name [title="admin.accounts.autoRecoveryProbe.headline"]').exists()).toBe(true)
   })
 
   it('shows the recovery success indicator and hides the success notice block', () => {
@@ -192,5 +239,63 @@ describe('AccountsViewTable', () => {
 
     expect(wrapper.text()).not.toContain('API returned 502')
     expect(wrapper.text()).not.toContain('admin.accounts.autoRecoveryProbe.headline')
+  })
+
+  it('keeps airy visual upgrades while preserving name, service and capacity content', () => {
+    const wrapper = mountTable({
+      extra: {
+        email_address: 'owner@example.com'
+      }
+    })
+
+    expect(wrapper.get('.column-capacity').text()).toBe('容量')
+    expect(wrapper.get('.cell-name').text()).toContain('Primary')
+    expect(wrapper.get('.cell-name').text()).toContain('owner@example.com')
+    expect(wrapper.get('.cell-name .platform-icon-stub').attributes('data-platform')).toBe('openai')
+    expect(wrapper.get('.cell-platform').text()).toContain('admin.accounts.platforms.openai')
+    expect(wrapper.get('.cell-platform').text()).toContain('ui.platformType.key')
+    expect(wrapper.get('.cell-capacity').text()).toContain('01/03')
+    expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-visual-variant')).toBe('glass')
+    expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-white-surface-enabled')).toBe('false')
+    expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-compact')).toBe('true')
+    expect(wrapper.find('.status-visual-stub').exists()).toBe(true)
+    expect(wrapper.get('.status-visual-stub').attributes('data-visual-style')).toBe('airy')
+    expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
+    expect(wrapper.find('.usage-visual-stub').exists()).toBe(true)
+    expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
+    expect(wrapper.get('.row-class').text()).toContain('account-visual-row')
+    expect(wrapper.get('.row-style').text()).toContain('--account-row-bg')
+    expect(countdownHookSpy).not.toHaveBeenCalled()
+  })
+
+  it('switches airy row surfaces to white when the site setting is enabled', async () => {
+    const wrapper = mountTable()
+
+    await wrapper.setProps({ whiteSurfaceEnabled: true })
+
+    expect(wrapper.get('.row-style').text()).toContain('"--account-row-bg":"#FFFFFF"')
+    expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-white-surface-enabled')).toBe('true')
+    expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('true')
+    expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('true')
+  })
+
+  it('falls back to classic visuals without airy row styles', async () => {
+    const wrapper = mountTable({
+      extra: {
+        email_address: 'owner@example.com'
+      }
+    })
+
+    await wrapper.setProps({ visualStyle: 'classic' })
+
+    expect(wrapper.get('.row-class').text()).toBe('')
+    expect(wrapper.get('.row-style').text()).toBe('')
+    expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-visual-variant')).toBe('default')
+    expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-white-surface-enabled')).toBe('false')
+    expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-compact')).toBe('false')
+    expect(wrapper.find('.status-classic-stub').exists()).toBe(true)
+    expect(wrapper.find('.usage-classic-stub').exists()).toBe(true)
+    expect(wrapper.find('.status-visual-stub').exists()).toBe(false)
+    expect(wrapper.find('.usage-visual-stub').exists()).toBe(false)
   })
 })

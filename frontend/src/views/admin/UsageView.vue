@@ -228,6 +228,7 @@ import { adminAPI } from "@/api/admin";
 import { adminUsageAPI } from "@/api/admin/usage";
 import { formatReasoningEffortPair, formatThinkingEnabled } from "@/utils/format";
 import { formatUsageProtocolExportText } from "@/utils/protocolDisplay";
+import { formatContextWindowLabel } from "@/utils/usageModelPresentation";
 import {
   calculateUsageAmount,
   formatUsageAmount,
@@ -258,6 +259,7 @@ import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelD
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import type {
   AdminUsageLog,
+  UsageContextBadgeDisplayMode,
   TrendDataPoint,
   ModelStat,
   GroupStat,
@@ -396,7 +398,7 @@ const handleUsageModelDisplayModeChange = async (
 };
 
 const handleUsageContextBadgeDisplayModeChange = async (
-  mode: "request_only" | "native_only" | "both",
+  mode: UsageContextBadgeDisplayMode,
 ) => {
   await setUsageContextBadgeDisplayMode(mode);
 };
@@ -658,6 +660,16 @@ const getSimulatedClientLabel = (
   return t("usage.simulatedClientCodex");
 };
 
+const formatRequestLengthExport = (
+  tokens: number | null | undefined,
+): string => {
+  const value = Number(tokens || 0);
+  if (!Number.isFinite(value) || value <= 0) {
+    return "";
+  }
+  return formatContextWindowLabel(value);
+};
+
 const exportToExcel = async () => {
   if (exporting.value) return;
   exporting.value = true;
@@ -678,6 +690,7 @@ const exportToExcel = async () => {
       t("usage.status"),
       t("usage.simulatedClient"),
       t("usage.upstreamModel"),
+      t("usage.requestLength"),
       t("usage.thinkingMode"),
       t("usage.reasoningEffort"),
       t("usage.millionContextRequested"),
@@ -742,6 +755,7 @@ const exportToExcel = async () => {
         getStatusLabel(log.status),
         log.simulated_client ? getSimulatedClientLabel(log.simulated_client) : "",
         log.upstream_model || "",
+        formatRequestLengthExport(log.request_context_length_tokens),
         formatThinkingEnabled(log.thinking_enabled),
         formatReasoningEffortPair(log.reasoning_effort_raw, log.reasoning_effort_effective, log.reasoning_effort),
         millionContext.requested,
@@ -820,6 +834,7 @@ const allColumns = computed(() => [
   { key: "api_key", label: t("usage.apiKeyFilter"), sortable: false },
   { key: "account", label: t("admin.usage.account"), sortable: false },
   { key: "model", label: t("usage.model"), sortable: true },
+  { key: "native_context", label: t("usage.nativeContext"), sortable: false },
   { key: "status", label: t("usage.status"), sortable: false },
   { key: "thinking_enabled", label: t("usage.thinkingMode"), sortable: false },
   {
@@ -827,7 +842,7 @@ const allColumns = computed(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
-  { key: "native_context", label: t("usage.nativeContext"), sortable: false },
+  { key: "request_length", label: t("usage.requestLength"), sortable: false },
   { key: "request_protocol", label: t("usage.requestProtocol"), sortable: false },
   { key: "endpoint", label: t("usage.endpoint"), sortable: false },
   { key: "group", label: t("admin.usage.group"), sortable: false },

@@ -230,6 +230,62 @@ func (_u *UserUpdate) SetNillableUsageModelDisplayMode(v *string) *UserUpdate {
 	return _u
 }
 
+// SetGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field.
+func (_u *UserUpdate) SetGlobalRealtimeCountdownEnabled(v bool) *UserUpdate {
+	_u.mutation.SetGlobalRealtimeCountdownEnabled(v)
+	return _u
+}
+
+// SetNillableGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableGlobalRealtimeCountdownEnabled(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetGlobalRealtimeCountdownEnabled(*v)
+	}
+	return _u
+}
+
+// SetAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field.
+func (_u *UserUpdate) SetAccountRealtimeCountdownEnabled(v bool) *UserUpdate {
+	_u.mutation.SetAccountRealtimeCountdownEnabled(v)
+	return _u
+}
+
+// SetNillableAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAccountRealtimeCountdownEnabled(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetAccountRealtimeCountdownEnabled(*v)
+	}
+	return _u
+}
+
+// SetVisualPresetPreference sets the "visual_preset_preference" field.
+func (_u *UserUpdate) SetVisualPresetPreference(v string) *UserUpdate {
+	_u.mutation.SetVisualPresetPreference(v)
+	return _u
+}
+
+// SetNillableVisualPresetPreference sets the "visual_preset_preference" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableVisualPresetPreference(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetVisualPresetPreference(*v)
+	}
+	return _u
+}
+
+// SetAccountVisualPresetOverride sets the "account_visual_preset_override" field.
+func (_u *UserUpdate) SetAccountVisualPresetOverride(v string) *UserUpdate {
+	_u.mutation.SetAccountVisualPresetOverride(v)
+	return _u
+}
+
+// SetNillableAccountVisualPresetOverride sets the "account_visual_preset_override" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAccountVisualPresetOverride(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAccountVisualPresetOverride(*v)
+	}
+	return _u
+}
+
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
 func (_u *UserUpdate) SetUsageContextBadgeDisplayMode(v string) *UserUpdate {
 	_u.mutation.SetUsageContextBadgeDisplayMode(v)
@@ -701,6 +757,16 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "usage_model_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_model_display_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.VisualPresetPreference(); ok {
+		if err := user.VisualPresetPreferenceValidator(v); err != nil {
+			return &ValidationError{Name: "visual_preset_preference", err: fmt.Errorf(`ent: validator failed for field "User.visual_preset_preference": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.AccountVisualPresetOverride(); ok {
+		if err := user.AccountVisualPresetOverrideValidator(v); err != nil {
+			return &ValidationError{Name: "account_visual_preset_override", err: fmt.Errorf(`ent: validator failed for field "User.account_visual_preset_override": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		if err := user.UsageContextBadgeDisplayModeValidator(v); err != nil {
 			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
@@ -768,6 +834,18 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UsageModelDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageModelDisplayMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.GlobalRealtimeCountdownEnabled(); ok {
+		_spec.SetField(user.FieldGlobalRealtimeCountdownEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AccountRealtimeCountdownEnabled(); ok {
+		_spec.SetField(user.FieldAccountRealtimeCountdownEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.VisualPresetPreference(); ok {
+		_spec.SetField(user.FieldVisualPresetPreference, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AccountVisualPresetOverride(); ok {
+		_spec.SetField(user.FieldAccountVisualPresetOverride, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
@@ -1418,6 +1496,62 @@ func (_u *UserUpdateOne) SetNillableUsageModelDisplayMode(v *string) *UserUpdate
 	return _u
 }
 
+// SetGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field.
+func (_u *UserUpdateOne) SetGlobalRealtimeCountdownEnabled(v bool) *UserUpdateOne {
+	_u.mutation.SetGlobalRealtimeCountdownEnabled(v)
+	return _u
+}
+
+// SetNillableGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableGlobalRealtimeCountdownEnabled(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetGlobalRealtimeCountdownEnabled(*v)
+	}
+	return _u
+}
+
+// SetAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field.
+func (_u *UserUpdateOne) SetAccountRealtimeCountdownEnabled(v bool) *UserUpdateOne {
+	_u.mutation.SetAccountRealtimeCountdownEnabled(v)
+	return _u
+}
+
+// SetNillableAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAccountRealtimeCountdownEnabled(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetAccountRealtimeCountdownEnabled(*v)
+	}
+	return _u
+}
+
+// SetVisualPresetPreference sets the "visual_preset_preference" field.
+func (_u *UserUpdateOne) SetVisualPresetPreference(v string) *UserUpdateOne {
+	_u.mutation.SetVisualPresetPreference(v)
+	return _u
+}
+
+// SetNillableVisualPresetPreference sets the "visual_preset_preference" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableVisualPresetPreference(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetVisualPresetPreference(*v)
+	}
+	return _u
+}
+
+// SetAccountVisualPresetOverride sets the "account_visual_preset_override" field.
+func (_u *UserUpdateOne) SetAccountVisualPresetOverride(v string) *UserUpdateOne {
+	_u.mutation.SetAccountVisualPresetOverride(v)
+	return _u
+}
+
+// SetNillableAccountVisualPresetOverride sets the "account_visual_preset_override" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAccountVisualPresetOverride(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAccountVisualPresetOverride(*v)
+	}
+	return _u
+}
+
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
 func (_u *UserUpdateOne) SetUsageContextBadgeDisplayMode(v string) *UserUpdateOne {
 	_u.mutation.SetUsageContextBadgeDisplayMode(v)
@@ -1902,6 +2036,16 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "usage_model_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_model_display_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.VisualPresetPreference(); ok {
+		if err := user.VisualPresetPreferenceValidator(v); err != nil {
+			return &ValidationError{Name: "visual_preset_preference", err: fmt.Errorf(`ent: validator failed for field "User.visual_preset_preference": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.AccountVisualPresetOverride(); ok {
+		if err := user.AccountVisualPresetOverrideValidator(v); err != nil {
+			return &ValidationError{Name: "account_visual_preset_override", err: fmt.Errorf(`ent: validator failed for field "User.account_visual_preset_override": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		if err := user.UsageContextBadgeDisplayModeValidator(v); err != nil {
 			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
@@ -1986,6 +2130,18 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.UsageModelDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageModelDisplayMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.GlobalRealtimeCountdownEnabled(); ok {
+		_spec.SetField(user.FieldGlobalRealtimeCountdownEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AccountRealtimeCountdownEnabled(); ok {
+		_spec.SetField(user.FieldAccountRealtimeCountdownEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.VisualPresetPreference(); ok {
+		_spec.SetField(user.FieldVisualPresetPreference, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AccountVisualPresetOverride(); ok {
+		_spec.SetField(user.FieldAccountVisualPresetOverride, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)

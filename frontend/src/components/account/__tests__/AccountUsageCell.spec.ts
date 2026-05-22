@@ -81,9 +81,10 @@ const usageBarStub = {
     "remainingSeconds",
     "inlineReset",
     "detailedReset",
+    "visualVariant",
   ],
   template:
-    '<div class="usage-bar" :data-display-mode="displayMode" :data-detailed-reset="String(!!detailedReset)" :data-has-reset="String(!!resetsAt || remainingSeconds != null)">{{ label }}|{{ utilization }}|{{ windowStats?.tokens }}</div>',
+    '<div class="usage-bar" :data-display-mode="displayMode" :data-detailed-reset="String(!!detailedReset)" :data-has-reset="String(!!resetsAt || remainingSeconds != null)" :data-visual-variant="visualVariant">{{ label }}|{{ utilization }}|{{ windowStats?.tokens }}</div>',
 };
 
 const passiveUsageResponse = {
@@ -450,6 +451,7 @@ describe("AccountUsageCell", () => {
           id: 1100,
           platform: "anthropic",
           type: "oauth",
+          active_usage_available: true,
           extra: {},
         } as any,
       },
@@ -475,6 +477,54 @@ describe("AccountUsageCell", () => {
     );
     expect(wrapper.text()).toContain(
       "7d|63|630",
+    );
+  });
+
+  it("keeps passive anthropic usage when active usage is unavailable", async () => {
+    getUsage.mockResolvedValueOnce({
+      source: "passive",
+      updated_at: "2026-03-07T10:00:00Z",
+      five_hour: {
+        utilization: 21,
+        resets_at: "2026-03-08T12:00:00Z",
+        remaining_seconds: 3600,
+        window_stats: {
+          requests: 2,
+          tokens: 200,
+          cost: 0.02,
+          standard_cost: 0.02,
+          user_cost: 0.02,
+        },
+      },
+      seven_day: null,
+    });
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 1102,
+          platform: "anthropic",
+          type: "oauth",
+          active_usage_available: false,
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(getUsage).toHaveBeenCalledTimes(1);
+    expect(getUsage).toHaveBeenCalledWith(1102, {
+      force: undefined,
+      source: "passive",
+    });
+    expect(wrapper.text()).toContain(
+      "5h|21|200",
     );
   });
 
@@ -604,6 +654,7 @@ describe("AccountUsageCell", () => {
           id: 2000,
           platform: "openai",
           type: "oauth",
+          active_usage_available: true,
           extra: {
             codex_usage_updated_at: "2026-03-07T00:00:00Z",
             codex_5h_used_percent: 12,
@@ -954,6 +1005,42 @@ describe("AccountUsageCell", () => {
     );
   });
 
+  it("passes the glass visual variant down to progress bars and keeps snapshot metadata", async () => {
+    getUsage.mockResolvedValueOnce({
+      ...passiveUsageResponse,
+      updated_at: "2026-03-07T10:00:00Z",
+    });
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        visualVariant: "glass",
+        account: {
+          id: 2100,
+          platform: "anthropic",
+          type: "oauth",
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.find(".account-usage-glass").exists()).toBe(true);
+    expect(wrapper.find(".usage-bar").attributes("data-visual-variant")).toBe(
+      "glass",
+    );
+    expect(wrapper.text()).toContain("Snapshot updated");
+    expect(wrapper.text()).toContain("Sampled");
+    expect(wrapper.html()).not.toContain("backdrop-blur");
+    expect(wrapper.html()).not.toContain("shadow-[");
+    expect(wrapper.html()).not.toContain("shadow-inner");
+  });
+
   it("supplements missing openai 7d snapshots with fetched usage", async () => {
     getUsage.mockResolvedValue({
       updated_at: "2026-03-07T11:00:00Z",
@@ -989,6 +1076,7 @@ describe("AccountUsageCell", () => {
           id: 2007,
           platform: "openai",
           type: "oauth",
+          active_usage_available: true,
           extra: {
             codex_usage_updated_at: "2099-03-07T10:00:00Z",
             codex_5h_used_percent: 12,
@@ -1020,6 +1108,7 @@ describe("AccountUsageCell", () => {
       id: 2010,
       platform: "openai",
       type: "oauth",
+      active_usage_available: true,
       extra: {
         codex_usage_updated_at: "2099-03-07T10:00:00Z",
         codex_5h_used_percent: 12,
@@ -1098,6 +1187,7 @@ describe("AccountUsageCell", () => {
       id: 2014,
       platform: "openai",
       type: "oauth",
+      active_usage_available: true,
       credentials: {
         plan_type: "pro",
       },
@@ -1269,6 +1359,7 @@ describe("AccountUsageCell", () => {
           id: 2002,
           platform: "openai",
           type: "oauth",
+          active_usage_available: true,
           extra: {},
         } as any,
       },
@@ -1328,6 +1419,7 @@ describe("AccountUsageCell", () => {
           id: 2003,
           platform: "openai",
           type: "oauth",
+          active_usage_available: true,
           updated_at: "2026-03-07T10:00:00Z",
           extra: {},
         } as any,
@@ -1344,12 +1436,13 @@ describe("AccountUsageCell", () => {
     expect(getUsage).toHaveBeenCalledTimes(1);
 
     await wrapper.setProps({
-      account: {
-        id: 2003,
-        platform: "openai",
-        type: "oauth",
-        updated_at: "2026-03-07T10:01:00Z",
-        extra: {},
+        account: {
+          id: 2003,
+          platform: "openai",
+          type: "oauth",
+          active_usage_available: true,
+          updated_at: "2026-03-07T10:01:00Z",
+          extra: {},
       } as any,
     });
 
@@ -1396,6 +1489,7 @@ describe("AccountUsageCell", () => {
           id: 2006,
           platform: "openai",
           type: "oauth",
+          active_usage_available: true,
           extra: {
             codex_usage_updated_at: "2026-03-13T11:59:30Z",
             codex_5h_used_percent: 12,
@@ -1463,6 +1557,7 @@ describe("AccountUsageCell", () => {
           id: 2004,
           platform: "openai",
           type: "oauth",
+          active_usage_available: true,
           rate_limit_reset_at: "2099-03-07T12:00:00Z",
           extra: {
             codex_5h_used_percent: 0,
@@ -1497,6 +1592,7 @@ describe("AccountUsageCell", () => {
       id: 3100,
       platform: "anthropic",
       type: "oauth",
+      active_usage_available: true,
       extra: {},
     } as any;
     const anthropicSetupTokenAccount = {
@@ -1509,6 +1605,7 @@ describe("AccountUsageCell", () => {
       id: 3102,
       platform: "openai",
       type: "oauth",
+      active_usage_available: true,
       extra: {},
     } as any;
 

@@ -61,7 +61,7 @@ withDefaults(defineProps<{
 }
 
 .table-scroll-container :deep(thead) {
-  @apply bg-gray-50/80 dark:bg-dark-800/80 backdrop-blur-sm;
+  @apply bg-gray-50 dark:bg-dark-800;
 }
 
 .table-scroll-container :deep(th) {

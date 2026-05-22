@@ -1,4 +1,5 @@
 import { computed, reactive, ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAccountsViewLiveSync } from '@/composables/useAccountsViewLiveSync'
 import type { AccountListRequestParams } from '@/utils/accountListSync'
@@ -11,7 +12,8 @@ const intervalMocks = vi.hoisted(() => ({
 
 const adminMocks = vi.hoisted(() => ({
   getBatchTodayStats: vi.fn(),
-  listWithEtag: vi.fn()
+  listWithEtag: vi.fn(),
+  list: vi.fn(),
 }))
 
 vi.mock('@vueuse/core', () => ({
@@ -25,7 +27,8 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
       getBatchTodayStats: adminMocks.getBatchTodayStats,
-      listWithEtag: adminMocks.listWithEtag
+      listWithEtag: adminMocks.listWithEtag,
+      list: adminMocks.list,
     }
   }
 }))
@@ -110,6 +113,7 @@ describe('useAccountsViewLiveSync', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    setActivePinia(createPinia())
   })
 
   it('loads first page with lite flag and refreshes today stats', async () => {
@@ -161,5 +165,35 @@ describe('useAccountsViewLiveSync', () => {
     expect(liveSync.autoRefreshIntervalSeconds.value).toBe(5)
     expect(intervalMocks.pause).toHaveBeenCalled()
     expect(intervalMocks.resume).toHaveBeenCalled()
+  })
+
+  it('hydrates the next page from prefetch cache before falling back to base page change', async () => {
+    adminMocks.getBatchTodayStats.mockResolvedValue({ stats: {} })
+    adminMocks.list.mockResolvedValue({
+      items: [createAccount({ id: 2, name: 'Prefetched Account' })],
+      total: 40,
+      page: 2,
+      page_size: 20,
+      pages: 2,
+    })
+
+    const { accounts, pagination, baseLoad, liveSync } = createLiveSync({
+      baseLoad: async () => {
+        accounts.value = [createAccount({ id: 1, name: 'Current Page Account' })]
+        pagination.total = 40
+        pagination.page = 1
+        pagination.page_size = 20
+        pagination.pages = 2
+      },
+    })
+
+    await liveSync.load()
+    await liveSync.handlePageChange(2)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(baseLoad).toHaveBeenCalledTimes(1)
+    expect(accounts.value[0]?.id).toBe(2)
+    expect(pagination.page).toBe(2)
   })
 })

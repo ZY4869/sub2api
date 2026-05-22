@@ -349,6 +349,9 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 					age := time.Since(cache.timestamp)
 					if cache.err != nil && age < apiErrorCacheTTL {
 						// 负缓存命中：返回缓存的错误，避免重试风暴
+						if passiveUsage, ok := s.passiveUsageFallbackForMissingAccessToken(ctx, account, cache.err); ok {
+							return passiveUsage, nil
+						}
 						return nil, cache.err
 					}
 					if cache.response != nil && age < apiCacheTTL {
@@ -406,6 +409,9 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 				return resp, nil
 			})
 			if flightErr != nil {
+				if passiveUsage, ok := s.passiveUsageFallbackForMissingAccessToken(ctx, account, flightErr); ok {
+					return passiveUsage, nil
+				}
 				return nil, flightErr
 			}
 			apiResp, _ = result.(*ClaudeUsageResponse)
@@ -452,6 +458,14 @@ func (s *AccountUsageService) GetPassiveUsage(ctx context.Context, accountID int
 		return nil, fmt.Errorf("get account failed: %w", err)
 	}
 
+	return s.buildPassiveUsageInfo(ctx, account)
+}
+
+func (s *AccountUsageService) buildPassiveUsageInfo(ctx context.Context, account *Account) (*UsageInfo, error) {
+	if account == nil {
+		return nil, fmt.Errorf("account is nil")
+	}
+
 	if !account.IsAnthropicOAuthOrSetupToken() {
 		return nil, fmt.Errorf("passive usage only supported for Anthropic OAuth/SetupToken accounts")
 	}
@@ -494,6 +508,34 @@ func (s *AccountUsageService) GetPassiveUsage(ctx context.Context, accountID int
 	s.addWindowStats(ctx, account, info, false)
 
 	return info, nil
+}
+
+func (s *AccountUsageService) passiveUsageFallbackForMissingAccessToken(ctx context.Context, account *Account, cause error) (*UsageInfo, bool) {
+	if account == nil || !account.IsAnthropicOAuthOrSetupToken() || !isMissingUsageAccessTokenError(cause) {
+		return nil, false
+	}
+
+	usage, err := s.buildPassiveUsageInfo(ctx, account)
+	if err != nil {
+		slog.Warn("account_usage_passive_fallback_failed", "account_id", account.ID, "error", err)
+		return nil, false
+	}
+
+	slog.Info(
+		"account_usage_passive_fallback_applied",
+		"account_id", account.ID,
+		"platform", account.Platform,
+		"type", account.Type,
+	)
+
+	return usage, true
+}
+
+func isMissingUsageAccessTokenError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "no access token available")
 }
 
 // syncActiveToPassive 将主动查询的最新数据回写到 Extra 被动缓存，

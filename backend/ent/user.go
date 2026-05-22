@@ -45,6 +45,14 @@ type User struct {
 	Notes string `json:"notes,omitempty"`
 	// UsageModelDisplayMode holds the value of the "usage_model_display_mode" field.
 	UsageModelDisplayMode string `json:"usage_model_display_mode,omitempty"`
+	// GlobalRealtimeCountdownEnabled holds the value of the "global_realtime_countdown_enabled" field.
+	GlobalRealtimeCountdownEnabled bool `json:"global_realtime_countdown_enabled,omitempty"`
+	// AccountRealtimeCountdownEnabled holds the value of the "account_realtime_countdown_enabled" field.
+	AccountRealtimeCountdownEnabled bool `json:"account_realtime_countdown_enabled,omitempty"`
+	// VisualPresetPreference holds the value of the "visual_preset_preference" field.
+	VisualPresetPreference string `json:"visual_preset_preference,omitempty"`
+	// AccountVisualPresetOverride holds the value of the "account_visual_preset_override" field.
+	AccountVisualPresetOverride string `json:"account_visual_preset_override,omitempty"`
 	// UsageContextBadgeDisplayMode holds the value of the "usage_context_badge_display_mode" field.
 	UsageContextBadgeDisplayMode string `json:"usage_context_badge_display_mode,omitempty"`
 	// TotpSecretEncrypted holds the value of the "totp_secret_encrypted" field.
@@ -181,13 +189,13 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldAdminFreeBilling, user.FieldRequestDetailsReview, user.FieldTotpEnabled:
+		case user.FieldAdminFreeBilling, user.FieldRequestDetailsReview, user.FieldGlobalRealtimeCountdownEnabled, user.FieldAccountRealtimeCountdownEnabled, user.FieldTotpEnabled:
 			values[i] = new(sql.NullBool)
 		case user.FieldBalance:
 			values[i] = new(sql.NullFloat64)
 		case user.FieldID, user.FieldConcurrency:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldUsageContextBadgeDisplayMode, user.FieldTotpSecretEncrypted:
+		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldVisualPresetPreference, user.FieldAccountVisualPresetOverride, user.FieldUsageContextBadgeDisplayMode, user.FieldTotpSecretEncrypted:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt, user.FieldTotpEnabledAt:
 			values[i] = new(sql.NullTime)
@@ -296,6 +304,30 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field usage_model_display_mode", values[i])
 			} else if value.Valid {
 				_m.UsageModelDisplayMode = value.String
+			}
+		case user.FieldGlobalRealtimeCountdownEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field global_realtime_countdown_enabled", values[i])
+			} else if value.Valid {
+				_m.GlobalRealtimeCountdownEnabled = value.Bool
+			}
+		case user.FieldAccountRealtimeCountdownEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field account_realtime_countdown_enabled", values[i])
+			} else if value.Valid {
+				_m.AccountRealtimeCountdownEnabled = value.Bool
+			}
+		case user.FieldVisualPresetPreference:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field visual_preset_preference", values[i])
+			} else if value.Valid {
+				_m.VisualPresetPreference = value.String
+			}
+		case user.FieldAccountVisualPresetOverride:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field account_visual_preset_override", values[i])
+			} else if value.Valid {
+				_m.AccountVisualPresetOverride = value.String
 			}
 		case user.FieldUsageContextBadgeDisplayMode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -452,6 +484,18 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("usage_model_display_mode=")
 	builder.WriteString(_m.UsageModelDisplayMode)
+	builder.WriteString(", ")
+	builder.WriteString("global_realtime_countdown_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GlobalRealtimeCountdownEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("account_realtime_countdown_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AccountRealtimeCountdownEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("visual_preset_preference=")
+	builder.WriteString(_m.VisualPresetPreference)
+	builder.WriteString(", ")
+	builder.WriteString("account_visual_preset_override=")
+	builder.WriteString(_m.AccountVisualPresetOverride)
 	builder.WriteString(", ")
 	builder.WriteString("usage_context_badge_display_mode=")
 	builder.WriteString(_m.UsageContextBadgeDisplayMode)

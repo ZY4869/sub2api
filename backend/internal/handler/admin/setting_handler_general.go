@@ -70,6 +70,8 @@ type UpdateSettingsRequest struct {
 	SiteName                             string                           `json:"site_name"`
 	SiteLogo                             string                           `json:"site_logo"`
 	SiteSubtitle                         string                           `json:"site_subtitle"`
+	VisualPresetDefault                  string                           `json:"visual_preset_default"`
+	AccountAiryWhiteSurfaceEnabled       bool                             `json:"account_airy_white_surface_enabled"`
 	APIBaseURL                           string                           `json:"api_base_url"`
 	ContactInfo                          string                           `json:"contact_info"`
 	DocURL                               string                           `json:"doc_url"`
@@ -81,6 +83,17 @@ type UpdateSettingsRequest struct {
 	PublicModelCatalogEnabled            bool                             `json:"public_model_catalog_enabled"`
 	PurchaseSubscriptionEnabled          *bool                            `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL              *string                          `json:"purchase_subscription_url"`
+	PaymentProviderAirwallexEnabled      *bool                            `json:"payment_provider_airwallex_enabled"`
+	AirwallexEnv                         *string                          `json:"airwallex_env"`
+	AirwallexClientID                    *string                          `json:"airwallex_client_id"`
+	AirwallexAPIKey                      *string                          `json:"airwallex_api_key"`
+	AirwallexWebhookSecret               *string                          `json:"airwallex_webhook_secret"`
+	PaymentAllowedCurrencies             *[]string                        `json:"payment_allowed_currencies"`
+	PaymentDefaultCurrency               *string                          `json:"payment_default_currency"`
+	PaymentMinTopupAmount                *float64                         `json:"payment_min_topup_amount"`
+	PaymentMaxTopupAmount                *float64                         `json:"payment_max_topup_amount"`
+	PaymentSubscriptionPlans             *[]dto.PaymentSubscriptionPlan   `json:"payment_subscription_plans"`
+	AntigravityUserAgentVersion          *string                          `json:"antigravity_user_agent_version"`
 	CustomMenuItems                      *[]dto.CustomMenuItem            `json:"custom_menu_items"`
 	LoginAgreementEnabled                *bool                            `json:"login_agreement_enabled"`
 	LoginAgreementMode                   *string                          `json:"login_agreement_mode"`
@@ -276,6 +289,93 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		req.ContentModerationAPIKey = previousSettings.ContentModerationAPIKey
 		contentModerationAPIKeys = previousSettings.ContentModerationAPIKeys
 	}
+	paymentAirwallexEnabled := previousSettings.PaymentProviderAirwallexEnabled
+	if req.PaymentProviderAirwallexEnabled != nil {
+		paymentAirwallexEnabled = *req.PaymentProviderAirwallexEnabled
+	}
+	airwallexEnv := previousSettings.AirwallexEnv
+	if req.AirwallexEnv != nil {
+		airwallexEnv = service.NormalizeAirwallexEnv(*req.AirwallexEnv)
+	}
+	airwallexClientID := previousSettings.AirwallexClientID
+	if req.AirwallexClientID != nil {
+		airwallexClientID = strings.TrimSpace(*req.AirwallexClientID)
+	}
+	airwallexAPIKey := ""
+	if req.AirwallexAPIKey != nil {
+		airwallexAPIKey = strings.TrimSpace(*req.AirwallexAPIKey)
+	}
+	if airwallexAPIKey == "" {
+		airwallexAPIKey = previousSettings.AirwallexAPIKey
+	}
+	airwallexWebhookSecret := ""
+	if req.AirwallexWebhookSecret != nil {
+		airwallexWebhookSecret = strings.TrimSpace(*req.AirwallexWebhookSecret)
+	}
+	if airwallexWebhookSecret == "" {
+		airwallexWebhookSecret = previousSettings.AirwallexWebhookSecret
+	}
+	paymentAllowedCurrencies := previousSettings.PaymentAllowedCurrencies
+	if req.PaymentAllowedCurrencies != nil {
+		paymentAllowedCurrencies = service.NormalizePaymentAllowedCurrencies(*req.PaymentAllowedCurrencies)
+	}
+	if len(paymentAllowedCurrencies) == 0 {
+		paymentAllowedCurrencies = service.DefaultPaymentCurrencies()
+	}
+	paymentDefaultCurrency := previousSettings.PaymentDefaultCurrency
+	if req.PaymentDefaultCurrency != nil {
+		paymentDefaultCurrency = service.NormalizePaymentCurrency(*req.PaymentDefaultCurrency)
+	}
+	if paymentDefaultCurrency == "" || !service.PaymentCurrencyAllowed(paymentDefaultCurrency, paymentAllowedCurrencies) {
+		paymentDefaultCurrency = paymentAllowedCurrencies[0]
+	}
+	paymentMinTopupAmount := previousSettings.PaymentMinTopupAmount
+	if req.PaymentMinTopupAmount != nil {
+		paymentMinTopupAmount = *req.PaymentMinTopupAmount
+	}
+	if paymentMinTopupAmount <= 0 {
+		paymentMinTopupAmount = 1
+	}
+	paymentMaxTopupAmount := previousSettings.PaymentMaxTopupAmount
+	if req.PaymentMaxTopupAmount != nil {
+		paymentMaxTopupAmount = *req.PaymentMaxTopupAmount
+	}
+	if paymentMaxTopupAmount < paymentMinTopupAmount {
+		paymentMaxTopupAmount = paymentMinTopupAmount
+	}
+	paymentPlans := previousSettings.PaymentSubscriptionPlans
+	if req.PaymentSubscriptionPlans != nil {
+		paymentPlans = make([]service.PaymentSubscriptionPlan, 0, len(*req.PaymentSubscriptionPlans))
+		for _, plan := range *req.PaymentSubscriptionPlans {
+			paymentPlans = append(paymentPlans, service.PaymentSubscriptionPlan{
+				PlanID:           strings.TrimSpace(plan.PlanID),
+				Name:             strings.TrimSpace(plan.Name),
+				GroupID:          plan.GroupID,
+				ValidityDays:     plan.ValidityDays,
+				PricesByCurrency: plan.PricesByCurrency,
+				Enabled:          plan.Enabled,
+			})
+		}
+	}
+	antigravityVersion := previousSettings.AntigravityUserAgentVersion
+	if req.AntigravityUserAgentVersion != nil {
+		var ok bool
+		antigravityVersion, ok = service.NormalizeAntigravityUserAgentVersion(*req.AntigravityUserAgentVersion)
+		if !ok {
+			response.BadRequest(c, "Antigravity User-Agent version must match major.minor.patch[-suffix]")
+			return
+		}
+	}
+	if paymentAirwallexEnabled {
+		if airwallexClientID == "" {
+			response.BadRequest(c, "Airwallex Client ID is required when enabled")
+			return
+		}
+		if airwallexAPIKey == "" {
+			response.BadRequest(c, "Airwallex API Key is required when enabled")
+			return
+		}
+	}
 	purchaseEnabled := previousSettings.PurchaseSubscriptionEnabled
 	if req.PurchaseSubscriptionEnabled != nil {
 		purchaseEnabled = *req.PurchaseSubscriptionEnabled
@@ -284,16 +384,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.PurchaseSubscriptionURL != nil {
 		purchaseURL = strings.TrimSpace(*req.PurchaseSubscriptionURL)
 	}
-	if purchaseEnabled {
-		if purchaseURL == "" {
-			response.BadRequest(c, "Purchase Subscription URL is required when enabled")
-			return
-		}
-		if err := config.ValidateAbsoluteHTTPURL(purchaseURL); err != nil {
-			response.BadRequest(c, "Purchase Subscription URL must be an absolute http(s) URL")
-			return
-		}
-	} else if purchaseURL != "" {
+	if purchaseEnabled && purchaseURL == "" && !paymentAirwallexEnabled {
+		response.BadRequest(c, "Purchase Subscription URL is required when enabled")
+		return
+	}
+	if purchaseURL != "" {
 		if err := config.ValidateAbsoluteHTTPURL(purchaseURL); err != nil {
 			response.BadRequest(c, "Purchase Subscription URL must be an absolute http(s) URL")
 			return
@@ -616,7 +711,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return *req.ContentModerationFailOpen
 		}
 		return previousSettings.ContentModerationFailOpen
-	}(), SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
+	}(), SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, VisualPresetDefault: req.VisualPresetDefault, AccountAiryWhiteSurfaceEnabled: req.AccountAiryWhiteSurfaceEnabled, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, PaymentProviderAirwallexEnabled: paymentAirwallexEnabled, AirwallexEnv: airwallexEnv, AirwallexClientID: airwallexClientID, AirwallexAPIKey: airwallexAPIKey, AirwallexWebhookSecret: airwallexWebhookSecret, PaymentAllowedCurrencies: paymentAllowedCurrencies, PaymentDefaultCurrency: paymentDefaultCurrency, PaymentMinTopupAmount: paymentMinTopupAmount, PaymentMaxTopupAmount: paymentMaxTopupAmount, PaymentSubscriptionPlans: paymentPlans, AntigravityUserAgentVersion: antigravityVersion, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
 		if req.OpsMonitoringEnabled != nil {
 			return *req.OpsMonitoringEnabled
 		}

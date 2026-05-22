@@ -165,6 +165,7 @@ type UsageLog struct {
 	ReasoningEffortEffective *string
 	RequestedModelRaw        *string
 	RequestedModelNormalized *string
+	RequestContextLengthTokens *int
 	MillionContextRequested  *bool
 	MillionContextEffective  *bool
 	MillionContextSource     *string

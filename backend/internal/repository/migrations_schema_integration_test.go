@@ -25,6 +25,29 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	// users: columns required by repository queries
 	requireColumn(t, tx, "users", "username", "character varying", 100, false)
 	requireColumn(t, tx, "users", "notes", "text", 0, false)
+	requireColumn(t, tx, "users", "global_realtime_countdown_enabled", "boolean", 0, false)
+	requireColumn(t, tx, "users", "account_realtime_countdown_enabled", "boolean", 0, false)
+	requireColumn(t, tx, "users", "visual_preset_preference", "character varying", 32, false)
+	requireColumn(t, tx, "users", "account_visual_preset_override", "character varying", 32, false)
+	requireColumnDefaultContains(t, tx, "users", "global_realtime_countdown_enabled", "false")
+	requireColumnDefaultContains(t, tx, "users", "account_realtime_countdown_enabled", "true")
+	requireColumnDefaultContains(t, tx, "users", "visual_preset_preference", "inherit")
+	requireColumnDefaultContains(t, tx, "users", "account_visual_preset_override", "inherit")
+	var globalRealtimeEnabled bool
+	var accountRealtimeEnabled bool
+	var visualPresetPreference string
+	var accountVisualPresetOverride string
+	require.NoError(t, tx.QueryRowContext(
+		context.Background(),
+		`INSERT INTO users (email, password_hash) VALUES ($1, $2)
+		 RETURNING global_realtime_countdown_enabled, account_realtime_countdown_enabled, visual_preset_preference, account_visual_preset_override`,
+		"migration-realtime-defaults@example.com",
+		"hash",
+	).Scan(&globalRealtimeEnabled, &accountRealtimeEnabled, &visualPresetPreference, &accountVisualPresetOverride))
+	require.False(t, globalRealtimeEnabled)
+	require.True(t, accountRealtimeEnabled)
+	require.Equal(t, "inherit", visualPresetPreference)
+	require.Equal(t, "inherit", accountVisualPresetOverride)
 
 	// accounts: schedulable and rate-limit fields
 	requireColumn(t, tx, "accounts", "notes", "text", 0, true)
@@ -69,6 +92,41 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	var settingsRegclass sql.NullString
 	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.settings')").Scan(&settingsRegclass))
 	require.True(t, settingsRegclass.Valid, "expected settings table to exist")
+
+	// payment SQL repository schema (Airwallex clean-room payment path)
+	requireTable(t, tx, "payment_orders")
+	requireColumn(t, tx, "payment_orders", "order_no", "text", 0, false)
+	requireColumn(t, tx, "payment_orders", "user_id", "bigint", 0, false)
+	requireColumn(t, tx, "payment_orders", "product_type", "text", 0, false)
+	requireColumn(t, tx, "payment_orders", "status", "text", 0, false)
+	requireColumn(t, tx, "payment_orders", "provider", "text", 0, false)
+	requireColumn(t, tx, "payment_orders", "provider_env", "text", 0, false)
+	requireColumn(t, tx, "payment_orders", "amount_minor", "bigint", 0, false)
+	requireColumn(t, tx, "payment_orders", "currency", "text", 0, false)
+	requireColumn(t, tx, "payment_orders", "provider_intent_id", "text", 0, true)
+	requireColumn(t, tx, "payment_orders", "resume_token_hash", "text", 0, false)
+	requireColumn(t, tx, "payment_orders", "idempotency_key_hash", "text", 0, true)
+	requireColumn(t, tx, "payment_orders", "snapshot_json", "jsonb", 0, false)
+	requireIndex(t, tx, "payment_orders", "idx_payment_orders_provider_intent")
+	requireIndex(t, tx, "payment_orders", "idx_payment_orders_user_idempotency")
+
+	requireTable(t, tx, "payment_events")
+	requireColumn(t, tx, "payment_events", "provider", "text", 0, false)
+	requireColumn(t, tx, "payment_events", "provider_event_id", "text", 0, false)
+	requireColumn(t, tx, "payment_events", "payload_hash", "text", 0, false)
+	requireColumn(t, tx, "payment_events", "payload_redacted_json", "jsonb", 0, false)
+	requireIndex(t, tx, "payment_events", "idx_payment_events_provider_event")
+
+	requireTable(t, tx, "payment_refunds")
+	requireColumn(t, tx, "payment_refunds", "refund_no", "text", 0, false)
+	requireColumn(t, tx, "payment_refunds", "order_no", "text", 0, false)
+	requireColumn(t, tx, "payment_refunds", "provider_refund_id", "text", 0, true)
+	requireColumn(t, tx, "payment_refunds", "amount_minor", "bigint", 0, false)
+	requireColumn(t, tx, "payment_refunds", "currency", "text", 0, false)
+	requireColumn(t, tx, "payment_refunds", "idempotency_key_hash", "text", 0, true)
+	requireIndex(t, tx, "payment_refunds", "idx_payment_refunds_order_idempotency")
+	requireColumn(t, tx, "user_affiliate_ledger", "payment_order_id", "bigint", 0, true)
+	requireIndex(t, tx, "user_affiliate_ledger", "idx_user_affiliate_ledger_payment_topup_dedup")
 
 	// security_secrets table should exist
 	var securitySecretsRegclass sql.NullString
@@ -129,6 +187,14 @@ SELECT EXISTS (
 `, table, index).Scan(&exists)
 	require.NoError(t, err, "query pg_indexes for %s.%s", table, index)
 	require.True(t, exists, "expected index %s on %s", index, table)
+}
+
+func requireTable(t *testing.T, tx *sql.Tx, table string) {
+	t.Helper()
+
+	var regclass sql.NullString
+	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.' || $1)", table).Scan(&regclass))
+	require.True(t, regclass.Valid, "expected %s table to exist", table)
 }
 
 func requireColumn(t *testing.T, tx *sql.Tx, table, column, dataType string, maxLen int, nullable bool) {

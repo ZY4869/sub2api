@@ -43,6 +43,14 @@ const (
 	FieldNotes = "notes"
 	// FieldUsageModelDisplayMode holds the string denoting the usage_model_display_mode field in the database.
 	FieldUsageModelDisplayMode = "usage_model_display_mode"
+	// FieldGlobalRealtimeCountdownEnabled holds the string denoting the global_realtime_countdown_enabled field in the database.
+	FieldGlobalRealtimeCountdownEnabled = "global_realtime_countdown_enabled"
+	// FieldAccountRealtimeCountdownEnabled holds the string denoting the account_realtime_countdown_enabled field in the database.
+	FieldAccountRealtimeCountdownEnabled = "account_realtime_countdown_enabled"
+	// FieldVisualPresetPreference holds the string denoting the visual_preset_preference field in the database.
+	FieldVisualPresetPreference = "visual_preset_preference"
+	// FieldAccountVisualPresetOverride holds the string denoting the account_visual_preset_override field in the database.
+	FieldAccountVisualPresetOverride = "account_visual_preset_override"
 	// FieldUsageContextBadgeDisplayMode holds the string denoting the usage_context_badge_display_mode field in the database.
 	FieldUsageContextBadgeDisplayMode = "usage_context_badge_display_mode"
 	// FieldTotpSecretEncrypted holds the string denoting the totp_secret_encrypted field in the database.
@@ -160,6 +168,10 @@ var Columns = []string{
 	FieldUsername,
 	FieldNotes,
 	FieldUsageModelDisplayMode,
+	FieldGlobalRealtimeCountdownEnabled,
+	FieldAccountRealtimeCountdownEnabled,
+	FieldVisualPresetPreference,
+	FieldAccountVisualPresetOverride,
 	FieldUsageContextBadgeDisplayMode,
 	FieldTotpSecretEncrypted,
 	FieldTotpEnabled,
@@ -226,6 +238,18 @@ var (
 	DefaultUsageModelDisplayMode string
 	// UsageModelDisplayModeValidator is a validator for the "usage_model_display_mode" field. It is called by the builders before save.
 	UsageModelDisplayModeValidator func(string) error
+	// DefaultGlobalRealtimeCountdownEnabled holds the default value on creation for the "global_realtime_countdown_enabled" field.
+	DefaultGlobalRealtimeCountdownEnabled bool
+	// DefaultAccountRealtimeCountdownEnabled holds the default value on creation for the "account_realtime_countdown_enabled" field.
+	DefaultAccountRealtimeCountdownEnabled bool
+	// DefaultVisualPresetPreference holds the default value on creation for the "visual_preset_preference" field.
+	DefaultVisualPresetPreference string
+	// VisualPresetPreferenceValidator is a validator for the "visual_preset_preference" field. It is called by the builders before save.
+	VisualPresetPreferenceValidator func(string) error
+	// DefaultAccountVisualPresetOverride holds the default value on creation for the "account_visual_preset_override" field.
+	DefaultAccountVisualPresetOverride string
+	// AccountVisualPresetOverrideValidator is a validator for the "account_visual_preset_override" field. It is called by the builders before save.
+	AccountVisualPresetOverrideValidator func(string) error
 	// DefaultUsageContextBadgeDisplayMode holds the default value on creation for the "usage_context_badge_display_mode" field.
 	DefaultUsageContextBadgeDisplayMode string
 	// UsageContextBadgeDisplayModeValidator is a validator for the "usage_context_badge_display_mode" field. It is called by the builders before save.
@@ -310,6 +334,26 @@ func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 // ByUsageModelDisplayMode orders the results by the usage_model_display_mode field.
 func ByUsageModelDisplayMode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUsageModelDisplayMode, opts...).ToFunc()
+}
+
+// ByGlobalRealtimeCountdownEnabled orders the results by the global_realtime_countdown_enabled field.
+func ByGlobalRealtimeCountdownEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGlobalRealtimeCountdownEnabled, opts...).ToFunc()
+}
+
+// ByAccountRealtimeCountdownEnabled orders the results by the account_realtime_countdown_enabled field.
+func ByAccountRealtimeCountdownEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountRealtimeCountdownEnabled, opts...).ToFunc()
+}
+
+// ByVisualPresetPreference orders the results by the visual_preset_preference field.
+func ByVisualPresetPreference(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVisualPresetPreference, opts...).ToFunc()
+}
+
+// ByAccountVisualPresetOverride orders the results by the account_visual_preset_override field.
+func ByAccountVisualPresetOverride(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountVisualPresetOverride, opts...).ToFunc()
 }
 
 // ByUsageContextBadgeDisplayMode orders the results by the usage_context_badge_display_mode field.

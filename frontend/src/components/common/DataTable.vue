@@ -35,7 +35,11 @@
       <div
         v-for="(row, index) in sortedData"
         :key="resolveRowKey(row, index)"
-        class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900"
+        :class="[
+          'rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900',
+          resolveMobileRowClass(row, index)
+        ]"
+        :style="resolveMobileRowStyle(row, index)"
       >
         <div class="space-y-3">
           <div
@@ -118,7 +122,10 @@
           </th>
         </tr>
       </thead>
-      <tbody class="table-body divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
+      <tbody
+        ref="tableBodyRef"
+        class="table-body divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900"
+      >
         <!-- Loading skeleton -->
         <tr v-if="loading" v-for="i in 5" :key="i">
           <td v-for="column in columns" :key="column.key" :class="['whitespace-nowrap py-4', getAdaptivePaddingClass()]">
@@ -158,7 +165,8 @@
               :key="resolveRowKey(row, rowIndex)"
               :data-row-id="resolveRowKey(row, rowIndex)"
               :data-index="rowIndex"
-              class="hover:bg-gray-50 dark:hover:bg-dark-800"
+              :class="resolveDesktopRowClass(row, rowIndex)"
+              :style="resolveDesktopRowStyle(row, rowIndex)"
             >
               <td
                 v-for="(column, colIndex) in columns"
@@ -193,7 +201,8 @@
               :data-row-id="resolveRowKey(sortedData[virtualRow.index], virtualRow.index)"
               :data-index="virtualRow.index"
               :ref="measureElement"
-              class="hover:bg-gray-50 dark:hover:bg-dark-800"
+              :class="resolveDesktopRowClass(sortedData[virtualRow.index], virtualRow.index)"
+              :style="resolveDesktopRowStyle(sortedData[virtualRow.index], virtualRow.index)"
             >
               <td
                 v-for="(column, colIndex) in columns"
@@ -229,9 +238,9 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useVirtualizer } from '@tanstack/vue-virtual'
+import { useVirtualizer, useWindowVirtualizer } from '@tanstack/vue-virtual'
 import { useI18n } from 'vue-i18n'
-import type { Column } from './types'
+import type { Column, TableRowClassResolver, TableRowStyleResolver } from './types'
 import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
@@ -251,8 +260,10 @@ const emit = defineEmits<{
 
 // 表格容器引用
 const tableWrapperRef = ref<HTMLElement | null>(null)
+const tableBodyRef = ref<HTMLTableSectionElement | null>(null)
 const isScrollable = ref(false)
 const actionsColumnNeedsExpanding = ref(false)
+const windowVirtualScrollMargin = ref(0)
 
 // 检查是否可滚动
 const checkScrollable = () => {
@@ -307,6 +318,16 @@ const checkActionsColumnWidth = () => {
   })
 }
 
+const updateWindowVirtualScrollMargin = () => {
+  if (typeof window === 'undefined') return
+  const anchor = tableBodyRef.value ?? tableWrapperRef.value
+  if (!anchor) return
+  windowVirtualScrollMargin.value = Math.max(
+    0,
+    anchor.getBoundingClientRect().top + window.scrollY,
+  )
+}
+
 // 监听尺寸变化
 let resizeObserver: ResizeObserver | null = null
 let resizeHandler: (() => void) | null = null
@@ -325,10 +346,12 @@ const detachDesktopTableTracking = () => {
 const attachDesktopTableTracking = () => {
   checkScrollable()
   checkActionsColumnWidth()
+  updateWindowVirtualScrollMargin()
   if (tableWrapperRef.value && typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => {
       checkScrollable()
       checkActionsColumnWidth()
+      updateWindowVirtualScrollMargin()
     })
     resizeObserver.observe(tableWrapperRef.value)
   } else {
@@ -336,6 +359,7 @@ const attachDesktopTableTracking = () => {
     resizeHandler = () => {
       checkScrollable()
       checkActionsColumnWidth()
+      updateWindowVirtualScrollMargin()
     }
     window.addEventListener('resize', resizeHandler)
   }
@@ -400,10 +424,16 @@ interface Props {
   serverSideSort?: boolean
   /** Render desktop rows directly instead of using virtual scroll */
   virtualScroll?: boolean
+  /** Select the vertical scroll source used by virtual scrolling */
+  virtualScrollTarget?: 'container' | 'window'
   /** Estimated row height in px for the virtualizer (default 56) */
   estimateRowHeight?: number
   /** Number of rows to render beyond the visible area (default 5) */
   overscan?: number
+  /** Resolve per-row class names for desktop and mobile renderers */
+  rowClass?: TableRowClassResolver
+  /** Resolve per-row inline styles for desktop and mobile renderers */
+  rowStyle?: TableRowStyleResolver
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -414,7 +444,8 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortOrder: 'asc',
   preserveInputOrder: false,
   serverSideSort: false,
-  virtualScroll: true
+  virtualScroll: true,
+  virtualScrollTarget: 'container'
 })
 
 const sortKey = ref<string>('')
@@ -582,6 +613,7 @@ watch(
     await nextTick()
     checkScrollable()
     checkActionsColumnWidth()
+    updateWindowVirtualScrollMargin()
   },
   { flush: 'post' }
 )
@@ -590,6 +622,7 @@ watch(
 watch(actionsExpanded, async () => {
   await nextTick()
   checkScrollable()
+  updateWindowVirtualScrollMargin()
 })
 
 const handleSort = (key: string) => {
@@ -629,14 +662,37 @@ const sortedData = computed(() => {
 })
 
 // --- Virtual scrolling ---
-const rowVirtualizer = useVirtualizer(computed(() => ({
-  count: isDesktopViewport.value && props.virtualScroll ? (sortedData.value?.length ?? 0) : 0,
+const useWindowScrollVirtualizer = computed(() =>
+  props.virtualScroll && props.virtualScrollTarget === 'window'
+)
+
+const containerRowVirtualizer = useVirtualizer(computed(() => ({
+  count:
+    isDesktopViewport.value && props.virtualScroll && !useWindowScrollVirtualizer.value
+      ? (sortedData.value?.length ?? 0)
+      : 0,
   getScrollElement: () => tableWrapperRef.value,
   estimateSize: () => props.estimateRowHeight ?? 56,
   overscan: props.overscan ?? 5,
 })))
 
-const virtualItems = computed(() => rowVirtualizer.value.getVirtualItems())
+const windowRowVirtualizer = useWindowVirtualizer(computed(() => ({
+  count:
+    isDesktopViewport.value && useWindowScrollVirtualizer.value
+      ? (sortedData.value?.length ?? 0)
+      : 0,
+  estimateSize: () => props.estimateRowHeight ?? 56,
+  overscan: props.overscan ?? 5,
+  scrollMargin: windowVirtualScrollMargin.value,
+})))
+
+const activeRowVirtualizer = computed(() =>
+  useWindowScrollVirtualizer.value
+    ? windowRowVirtualizer.value
+    : containerRowVirtualizer.value
+)
+
+const virtualItems = computed(() => activeRowVirtualizer.value.getVirtualItems())
 
 const shouldFallbackToDirectRows = computed(() => {
   return (
@@ -649,18 +705,24 @@ const shouldFallbackToDirectRows = computed(() => {
 
 const virtualPaddingTop = computed(() => {
   const items = virtualItems.value
-  return items.length > 0 ? items[0].start : 0
+  if (items.length === 0) return 0
+  const scrollMargin = useWindowScrollVirtualizer.value ? windowVirtualScrollMargin.value : 0
+  return Math.max(0, items[0].start - scrollMargin)
 })
 
 const virtualPaddingBottom = computed(() => {
   const items = virtualItems.value
   if (items.length === 0) return 0
-  return rowVirtualizer.value.getTotalSize() - items[items.length - 1].end
+  const scrollMargin = useWindowScrollVirtualizer.value ? windowVirtualScrollMargin.value : 0
+  return Math.max(
+    0,
+    activeRowVirtualizer.value.getTotalSize() - scrollMargin - items[items.length - 1].end,
+  )
 })
 
 const measureElement = (el: any) => {
   if (el) {
-    rowVirtualizer.value.measureElement(el as Element)
+    activeRowVirtualizer.value.measureElement(el as Element)
   }
 }
 
@@ -715,6 +777,23 @@ const getAdaptivePaddingClass = () => {
     return 'px-6' // 24px (原始值)
   }
 }
+
+const resolveRowClassList = (row: any, index: number) => {
+  const value = props.rowClass?.(row, index)
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
+}
+
+const resolveDesktopRowClass = (row: any, index: number) => [
+  'table-data-row hover:bg-gray-50 dark:hover:bg-dark-800',
+  ...resolveRowClassList(row, index)
+]
+
+const resolveDesktopRowStyle = (row: any, index: number) => props.rowStyle?.(row, index)
+
+const resolveMobileRowClass = (row: any, index: number) => resolveRowClassList(row, index)
+
+const resolveMobileRowStyle = (row: any, index: number) => props.rowStyle?.(row, index)
 
 // Init + keep persisted sort state consistent with current columns
 const didInitSort = ref(false)
@@ -774,7 +853,7 @@ watch(
 )
 
 defineExpose({
-  virtualizer: rowVirtualizer,
+  virtualizer: activeRowVirtualizer,
   sortedData,
   resolveRowKey,
   tableWrapperEl: tableWrapperRef,
@@ -856,20 +935,25 @@ defineExpose({
 
 /* 表体 sticky 列背景 */
 tbody .sticky-col {
-  background-color: white;
+  background-color: var(--account-row-sticky-bg, white);
 }
 
 .dark tbody .sticky-col {
-  background-color: rgb(17 24 39);
+  background-color: var(--account-row-sticky-bg, rgb(17 24 39));
 }
 
 /* hover 状态保持 */
 tbody tr:hover .sticky-col {
-  background-color: rgb(249 250 251);
+  background-color: var(--account-row-sticky-bg-hover, rgb(249 250 251));
 }
 
 .dark tbody tr:hover .sticky-col {
-  background-color: rgb(31 41 55);
+  background-color: var(--account-row-sticky-bg-hover, rgb(31 41 55));
+}
+
+tbody tr.account-visual-row {
+  border-color: var(--account-row-border, rgba(229, 231, 235, 1));
+  color: var(--account-row-text, inherit);
 }
 
 /* 阴影只在可滚动时显示 */

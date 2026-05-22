@@ -46,6 +46,8 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		SiteName:                         settings.SiteName,
 		SiteLogo:                         settings.SiteLogo,
 		SiteSubtitle:                     settings.SiteSubtitle,
+		VisualPresetDefault:              settings.VisualPresetDefault,
+		AccountAiryWhiteSurfaceEnabled:   settings.AccountAiryWhiteSurfaceEnabled,
 		APIBaseURL:                       settings.APIBaseURL,
 		ContactInfo:                      settings.ContactInfo,
 		DocURL:                           settings.DocURL,
@@ -57,6 +59,12 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		AffiliateEnabled:                 settings.AffiliateEnabled,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
+		PaymentProviderAirwallexEnabled:  settings.PaymentProviderAirwallexEnabled,
+		PaymentAllowedCurrencies:         settings.PaymentAllowedCurrencies,
+		PaymentDefaultCurrency:           settings.PaymentDefaultCurrency,
+		PaymentMinTopupAmount:            settings.PaymentMinTopupAmount,
+		PaymentMaxTopupAmount:            settings.PaymentMaxTopupAmount,
+		PaymentSubscriptionPlans:         buildPublicPaymentPlanDTOs(settings.PaymentSubscriptionPlans),
 		CustomMenuItems:                  dto.ParseUserVisibleMenuItems(settings.CustomMenuItems),
 		LoginAgreementEnabled:            settings.LoginAgreementEnabled,
 		LoginAgreementMode:               settings.LoginAgreementMode,
@@ -69,6 +77,24 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		MaintenanceModeEnabled:           settings.MaintenanceModeEnabled,
 		Version:                          h.version,
 	})
+}
+
+func buildPublicPaymentPlanDTOs(items []service.PaymentSubscriptionPlan) []dto.PaymentSubscriptionPlan {
+	out := make([]dto.PaymentSubscriptionPlan, 0, len(items))
+	for _, item := range items {
+		if !item.Enabled {
+			continue
+		}
+		out = append(out, dto.PaymentSubscriptionPlan{
+			PlanID:           item.PlanID,
+			Name:             item.Name,
+			GroupID:          item.GroupID,
+			ValidityDays:     item.ValidityDays,
+			PricesByCurrency: item.PricesByCurrency,
+			Enabled:          item.Enabled,
+		})
+	}
+	return out
 }
 
 func buildPublicLoginAgreementDocumentDTOs(items []service.LoginAgreementDocument) []dto.LoginAgreementDocument {

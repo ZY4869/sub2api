@@ -301,12 +301,13 @@ func TestUpdateProfile_UsageModelDisplayMode_Invalid(t *testing.T) {
 	require.Contains(t, err.Error(), "usage_model_display_mode")
 }
 
-func TestUpdateProfile_UsageContextBadgeDisplayMode_DefaultFallback(t *testing.T) {
+func TestUpdateProfile_RealtimeCountdownPreferences_PartialUpdate(t *testing.T) {
 	user := &User{
-		ID:      1,
-		Email:   "alice@example.com",
-		Username: "alice",
-		Status:  StatusActive,
+		ID:                              1,
+		Email:                           "alice@example.com",
+		Username:                        "alice",
+		GlobalRealtimeCountdownEnabled:  false,
+		AccountRealtimeCountdownEnabled: true,
 	}
 	repo := &mockUserRepo{
 		getByIDFn: func(context.Context, int64) (*User, error) {
@@ -314,7 +315,39 @@ func TestUpdateProfile_UsageContextBadgeDisplayMode_DefaultFallback(t *testing.T
 			return &clone, nil
 		},
 		updateFn: func(_ context.Context, updated *User) error {
-			user.UsageContextBadgeDisplayMode = updated.UsageContextBadgeDisplayMode
+			user.GlobalRealtimeCountdownEnabled = updated.GlobalRealtimeCountdownEnabled
+			user.AccountRealtimeCountdownEnabled = updated.AccountRealtimeCountdownEnabled
+			return nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		GlobalRealtimeCountdownEnabled: ptrBool(true),
+	})
+	require.NoError(t, err)
+	require.True(t, updated.GlobalRealtimeCountdownEnabled)
+	require.True(t, user.GlobalRealtimeCountdownEnabled)
+	require.True(t, updated.AccountRealtimeCountdownEnabled)
+	require.True(t, user.AccountRealtimeCountdownEnabled)
+}
+
+func TestUpdateProfile_VisualPreset_DefaultFallback(t *testing.T) {
+	user := &User{
+		ID:                          1,
+		Email:                       "alice@example.com",
+		Username:                    "alice",
+		VisualPresetPreference:      "",
+		AccountVisualPresetOverride: "",
+	}
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			clone := *user
+			return &clone, nil
+		},
+		updateFn: func(_ context.Context, updated *User) error {
+			user.VisualPresetPreference = updated.VisualPresetPreference
+			user.AccountVisualPresetOverride = updated.AccountVisualPresetOverride
 			return nil
 		},
 	}
@@ -324,17 +357,18 @@ func TestUpdateProfile_UsageContextBadgeDisplayMode_DefaultFallback(t *testing.T
 		Username: ptrString("alice-2"),
 	})
 	require.NoError(t, err)
-	require.Equal(t, UsageContextBadgeDisplayModeRequestOnly, updated.EffectiveUsageContextBadgeDisplayMode())
-	require.Equal(t, UsageContextBadgeDisplayModeRequestOnly, NormalizeUserUsageContextBadgeDisplayMode(user.UsageContextBadgeDisplayMode))
+	require.Equal(t, VisualPresetClassic, updated.EffectiveVisualPreset(VisualPresetClassic))
+	require.Equal(t, VisualPresetPreferenceInherit, NormalizeVisualPresetPreference(user.VisualPresetPreference))
+	require.Equal(t, VisualPresetPreferenceInherit, NormalizeVisualPresetPreference(user.AccountVisualPresetOverride))
 }
 
-func TestUpdateProfile_UsageContextBadgeDisplayMode_Success(t *testing.T) {
+func TestUpdateProfile_VisualPreset_Success(t *testing.T) {
 	user := &User{
-		ID:                           1,
-		Email:                        "alice@example.com",
-		Username:                     "alice",
-		Status:                       StatusActive,
-		UsageContextBadgeDisplayMode: UsageContextBadgeDisplayModeRequestOnly,
+		ID:                          1,
+		Email:                       "alice@example.com",
+		Username:                    "alice",
+		VisualPresetPreference:      VisualPresetPreferenceInherit,
+		AccountVisualPresetOverride: VisualPresetPreferenceInherit,
 	}
 	repo := &mockUserRepo{
 		getByIDFn: func(context.Context, int64) (*User, error) {
@@ -342,40 +376,113 @@ func TestUpdateProfile_UsageContextBadgeDisplayMode_Success(t *testing.T) {
 			return &clone, nil
 		},
 		updateFn: func(_ context.Context, updated *User) error {
-			user.UsageContextBadgeDisplayMode = updated.UsageContextBadgeDisplayMode
+			user.Username = updated.Username
+			user.VisualPresetPreference = updated.VisualPresetPreference
+			user.AccountVisualPresetOverride = updated.AccountVisualPresetOverride
 			return nil
 		},
 	}
 	svc := NewUserService(repo, nil, nil)
 
 	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
-		UsageContextBadgeDisplayMode: ptrString(UsageContextBadgeDisplayModeBoth),
+		Username:                    ptrString("alice-2"),
+		VisualPresetPreference:      ptrString(VisualPresetAiry),
+		AccountVisualPresetOverride: ptrString(VisualPresetClassic),
 	})
 	require.NoError(t, err)
-	require.Equal(t, UsageContextBadgeDisplayModeBoth, updated.UsageContextBadgeDisplayMode)
-	require.Equal(t, UsageContextBadgeDisplayModeBoth, user.UsageContextBadgeDisplayMode)
+	require.Equal(t, "alice-2", updated.Username)
+	require.Equal(t, VisualPresetAiry, updated.VisualPresetPreference)
+	require.Equal(t, VisualPresetClassic, updated.AccountVisualPresetOverride)
+	require.Equal(t, VisualPresetAiry, user.VisualPresetPreference)
+	require.Equal(t, VisualPresetClassic, user.AccountVisualPresetOverride)
+	require.Equal(t, VisualPresetClassic, updated.EffectiveVisualPreset(VisualPresetClassic))
 }
 
-func TestUpdateProfile_UsageContextBadgeDisplayMode_Invalid(t *testing.T) {
+func TestUpdateProfile_VisualPresetPreference_Invalid(t *testing.T) {
 	repo := &mockUserRepo{
 		getByIDFn: func(context.Context, int64) (*User, error) {
 			return &User{
-				ID:                           1,
-				Email:                        "alice@example.com",
-				Username:                     "alice",
-				UsageContextBadgeDisplayMode: UsageContextBadgeDisplayModeRequestOnly,
+				ID:                          1,
+				Email:                       "alice@example.com",
+				Username:                    "alice",
+				VisualPresetPreference:      VisualPresetPreferenceInherit,
+				AccountVisualPresetOverride: VisualPresetPreferenceInherit,
 			}, nil
 		},
 	}
 	svc := NewUserService(repo, nil, nil)
 
 	_, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
-		UsageContextBadgeDisplayMode: ptrString("bad-mode"),
+		VisualPresetPreference: ptrString("bad-style"),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "usage_context_badge_display_mode")
+	require.Contains(t, err.Error(), "visual_preset_preference")
+}
+
+func TestUpdateProfile_AccountVisualPresetOverride_Invalid(t *testing.T) {
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			return &User{
+				ID:                          1,
+				Email:                       "alice@example.com",
+				Username:                    "alice",
+				VisualPresetPreference:      VisualPresetPreferenceInherit,
+				AccountVisualPresetOverride: VisualPresetPreferenceInherit,
+			}, nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	_, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		AccountVisualPresetOverride: ptrString("bad-style"),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "account_visual_preset_override")
+}
+
+func TestUpdateProfile_VisualPreset_PartialUpdateDoesNotOverrideOtherPreferences(t *testing.T) {
+	user := &User{
+		ID:                              1,
+		Email:                           "alice@example.com",
+		Username:                        "alice",
+		UsageModelDisplayMode:           UsageModelDisplayModeDisplayOnly,
+		GlobalRealtimeCountdownEnabled:  true,
+		AccountRealtimeCountdownEnabled: false,
+		VisualPresetPreference:          VisualPresetAiry,
+		AccountVisualPresetOverride:     VisualPresetPreferenceInherit,
+	}
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			clone := *user
+			return &clone, nil
+		},
+		updateFn: func(_ context.Context, updated *User) error {
+			user.UsageModelDisplayMode = updated.UsageModelDisplayMode
+			user.GlobalRealtimeCountdownEnabled = updated.GlobalRealtimeCountdownEnabled
+			user.AccountRealtimeCountdownEnabled = updated.AccountRealtimeCountdownEnabled
+			user.VisualPresetPreference = updated.VisualPresetPreference
+			user.AccountVisualPresetOverride = updated.AccountVisualPresetOverride
+			return nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		AccountVisualPresetOverride: ptrString(VisualPresetClassic),
+	})
+	require.NoError(t, err)
+	require.Equal(t, UsageModelDisplayModeDisplayOnly, updated.UsageModelDisplayMode)
+	require.True(t, updated.GlobalRealtimeCountdownEnabled)
+	require.False(t, updated.AccountRealtimeCountdownEnabled)
+	require.Equal(t, VisualPresetAiry, updated.VisualPresetPreference)
+	require.Equal(t, VisualPresetClassic, updated.AccountVisualPresetOverride)
+	require.Equal(t, VisualPresetClassic, updated.EffectiveVisualPreset(VisualPresetClassic))
 }
 
 func ptrString(value string) *string {
+	return &value
+}
+
+func ptrBool(value bool) *bool {
 	return &value
 }

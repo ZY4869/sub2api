@@ -605,6 +605,7 @@ const adminNavItems = computed((): NavItem[] => {
         '/admin/channels',
         '/admin/channel-monitors',
         '/admin/subscriptions',
+        '/admin/payment/orders',
         '/admin/proxies',
         '/admin/redeem',
         '/admin/promo-codes',

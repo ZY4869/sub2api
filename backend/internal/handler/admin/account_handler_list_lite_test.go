@@ -74,6 +74,7 @@ func TestAccountHandlerListHonorsLiteResponseContract(t *testing.T) {
 	router.GET("/api/v1/admin/accounts", handler.List)
 
 	type listItem struct {
+		ActiveUsageAvailable bool             `json:"active_usage_available"`
 		Credentials map[string]any   `json:"credentials"`
 		Extra       map[string]any   `json:"extra"`
 		Proxy       map[string]any   `json:"proxy"`
@@ -96,6 +97,7 @@ func TestAccountHandlerListHonorsLiteResponseContract(t *testing.T) {
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 		require.Len(t, resp.Data.Items, 1)
 		item := resp.Data.Items[0]
+		require.False(t, item.ActiveUsageAvailable)
 		require.Equal(t, map[string]any{
 			"plan_type":          "pro",
 			"tier_id":            "gemini_pro",
@@ -126,6 +128,7 @@ func TestAccountHandlerListHonorsLiteResponseContract(t *testing.T) {
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 		require.Len(t, resp.Data.Items, 1)
 		item := resp.Data.Items[0]
+		require.False(t, item.ActiveUsageAvailable)
 		require.Contains(t, item.Credentials, "access_token")
 		require.Contains(t, item.Credentials, "refresh_token")
 		require.Contains(t, item.Extra, "api_key")

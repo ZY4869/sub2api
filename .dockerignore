@@ -25,6 +25,9 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+.dist/
+.gocache/
+.wsl-data/
 
 # Node modules (will be installed in container)
 frontend/node_modules/

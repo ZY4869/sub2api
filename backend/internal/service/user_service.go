@@ -58,11 +58,14 @@ type UserRepository interface {
 
 // UpdateProfileRequest 更新用户资料请求
 type UpdateProfileRequest struct {
-	Email                        *string `json:"email"`
-	Username                     *string `json:"username"`
-	Concurrency                  *int    `json:"concurrency"`
-	UsageModelDisplayMode        *string `json:"usage_model_display_mode"`
-	UsageContextBadgeDisplayMode *string `json:"usage_context_badge_display_mode"`
+	Email                           *string `json:"email"`
+	Username                        *string `json:"username"`
+	Concurrency                     *int    `json:"concurrency"`
+	UsageModelDisplayMode           *string `json:"usage_model_display_mode"`
+	GlobalRealtimeCountdownEnabled  *bool   `json:"global_realtime_countdown_enabled"`
+	AccountRealtimeCountdownEnabled *bool   `json:"account_realtime_countdown_enabled"`
+	VisualPresetPreference          *string `json:"visual_preset_preference"`
+	AccountVisualPresetOverride     *string `json:"account_visual_preset_override"`
 }
 
 // ChangePasswordRequest 修改密码请求
@@ -142,12 +145,28 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int64, req Updat
 		user.UsageModelDisplayMode = mode
 	}
 
-	if req.UsageContextBadgeDisplayMode != nil {
-		mode, err := ValidateUserUsageContextBadgeDisplayMode(*req.UsageContextBadgeDisplayMode)
+	if req.GlobalRealtimeCountdownEnabled != nil {
+		user.GlobalRealtimeCountdownEnabled = *req.GlobalRealtimeCountdownEnabled
+	}
+
+	if req.AccountRealtimeCountdownEnabled != nil {
+		user.AccountRealtimeCountdownEnabled = *req.AccountRealtimeCountdownEnabled
+	}
+
+	if req.VisualPresetPreference != nil {
+		preference, err := ValidateVisualPresetPreference(*req.VisualPresetPreference, "visual_preset_preference")
 		if err != nil {
 			return nil, err
 		}
-		user.UsageContextBadgeDisplayMode = mode
+		user.VisualPresetPreference = preference
+	}
+
+	if req.AccountVisualPresetOverride != nil {
+		override, err := ValidateVisualPresetPreference(*req.AccountVisualPresetOverride, "account_visual_preset_override")
+		if err != nil {
+			return nil, err
+		}
+		user.AccountVisualPresetOverride = override
 	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {

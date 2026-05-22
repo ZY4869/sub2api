@@ -88,6 +88,13 @@
   .dark .table-wrapper::-webkit-scrollbar-thumb {
     @apply rounded-full bg-gray-500/70;
   }
+
+  @keyframes organicAir {
+    0% { background-position: 0% 0%, 100% 100%; }
+    33% { background-position: 100% 50%, 0% 20%; }
+    66% { background-position: 50% 100%, 100% 0%; }
+    100% { background-position: 0% 0%, 100% 100%; }
+  }
 }
 
 @layer components {

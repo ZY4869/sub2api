@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { computed, defineComponent, toValue } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { userAPI } from '@/api'
 import { adminAPI } from '@/api/admin'
 
 const mockState = vi.hoisted(() => ({
@@ -26,9 +27,39 @@ const mockState = vi.hoisted(() => ({
   showWarning: vi.fn(),
   showError: vi.fn(),
   showInfo: vi.fn(),
+  authUser: {
+    id: 99,
+    username: 'admin',
+    email: 'admin@example.com',
+    role: 'admin',
+    visual_preset_preference: 'inherit',
+    account_visual_preset_override: 'inherit',
+    account_realtime_countdown_enabled: true,
+    global_realtime_countdown_enabled: false
+  } as any,
+  setCurrentUser: vi.fn(),
+  setAccountVisualPresetOverride: vi.fn((preset: string) => {
+    mockState.authUser = {
+      ...mockState.authUser,
+      account_visual_preset_override: preset
+    }
+  }),
+  setAccountRealtimeCountdownEnabled: vi.fn((enabled: boolean) => {
+    mockState.authUser = {
+      ...mockState.authUser,
+      account_realtime_countdown_enabled: enabled
+    }
+  }),
   getAllGroups: vi.fn(),
   getAllProxies: vi.fn(),
-  getById: vi.fn()
+  getById: vi.fn(),
+  updateProfile: vi.fn()
+}))
+
+vi.mock('@/api', () => ({
+  userAPI: {
+    updateProfile: mockState.updateProfile
+  }
 }))
 
 vi.mock('vue-router', () => ({
@@ -52,13 +83,18 @@ vi.mock('@/stores/app', () => ({
     showSuccess: mockState.showSuccess,
     showWarning: mockState.showWarning,
     showError: mockState.showError,
-    showInfo: mockState.showInfo
+    showInfo: mockState.showInfo,
+    visualPresetDefault: 'classic'
   })
 }))
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
-    isSimpleMode: false
+    isSimpleMode: false,
+    user: mockState.authUser,
+    setCurrentUser: mockState.setCurrentUser,
+    setAccountVisualPresetOverride: mockState.setAccountVisualPresetOverride,
+    setAccountRealtimeCountdownEnabled: mockState.setAccountRealtimeCountdownEnabled
   })
 }))
 
@@ -239,6 +275,20 @@ vi.mock('@/composables/useAccountViewMode', async () => {
   }
 })
 
+vi.mock('@/composables/useAccountVisualStylePreference', async () => {
+  const { computed, ref } = await import('vue')
+  return {
+    useAccountVisualStylePreference: vi.fn(() => ({
+      accountVisualPresetOverride: computed(() => mockState.authUser.account_visual_preset_override || 'inherit'),
+      resolvedAccountVisualPreset: computed(() =>
+        mockState.authUser.account_visual_preset_override === 'airy' ? 'airy' : 'classic'
+      ),
+      updatingAccountVisualStyle: ref(false),
+      setAccountVisualPresetOverride: mockState.setAccountVisualPresetOverride
+    }))
+  }
+})
+
 vi.mock('@/composables/useAccountsViewListPatching', () => ({
   useAccountsViewListPatching: vi.fn(() => ({
     patchAccountInList: vi.fn()
@@ -325,15 +375,20 @@ const SummaryBarStub = defineComponent({
 
 const ToolbarStub = defineComponent({
   name: 'AccountsViewToolbar',
-  props: ['platformCountSortOrder', 'daily5HTriggerEnabled', 'daily5HTriggerBusy'],
-  emits: ['refresh-usage', 'update:platform-count-sort-order', 'toggle-daily-5h-trigger'],
+  props: ['platformCountSortOrder', 'daily5HTriggerEnabled', 'daily5HTriggerBusy', 'accountRealtimeCountdownEnabled', 'accountVisualPresetOverride', 'visualStyle'],
+  emits: ['refresh-usage', 'update:platform-count-sort-order', 'toggle-daily-5h-trigger', 'toggle-account-realtime-countdown', 'set-account-visual-preset-override'],
   template: `
     <div>
       <div class="toolbar-platform-sort">{{ platformCountSortOrder }}</div>
       <div class="toolbar-daily5h-enabled">{{ String(daily5HTriggerEnabled) }}</div>
       <div class="toolbar-daily5h-busy">{{ String(daily5HTriggerBusy) }}</div>
+      <div class="toolbar-account-realtime">{{ String(accountRealtimeCountdownEnabled) }}</div>
+      <div class="toolbar-account-visual-preset-override">{{ String(accountVisualPresetOverride) }}</div>
+      <div class="toolbar-visual-style">{{ String(visualStyle) }}</div>
       <button class="toolbar-refresh-usage" @click="$emit('refresh-usage')" />
       <button class="toolbar-daily5h-toggle" @click="$emit('toggle-daily-5h-trigger')" />
+      <button class="toolbar-account-realtime-toggle" @click="$emit('toggle-account-realtime-countdown')" />
+      <button class="toolbar-account-visual-preset-toggle" @click="$emit('set-account-visual-preset-override', 'airy')" />
       <button
         class="toolbar-platform-sort-toggle"
         @click="$emit('update:platform-count-sort-order', 'count_desc')"
@@ -356,7 +411,7 @@ const PlatformTabsStub = defineComponent({
 
 const AccountsViewTableStub = defineComponent({
   name: 'AccountsViewTable',
-  props: ['accounts', 'preserveInputOrder'],
+  props: ['accounts', 'preserveInputOrder', 'visualStyle'],
   emits: ['edit'],
   setup(props: { accounts?: Array<{ name: string }>; preserveInputOrder?: boolean }) {
     const accountOrder = computed(() => (props.accounts ?? []).map((account) => account.name).join(','))
@@ -368,6 +423,7 @@ const AccountsViewTableStub = defineComponent({
     <div>
       <div class="table-account-order">{{ accountOrder }}</div>
       <div class="table-preserve-input-order">{{ preserveInputOrder }}</div>
+      <div class="table-visual-style">{{ visualStyle }}</div>
       <button
         v-if="accounts && accounts.length > 0"
         class="edit-first-account"
@@ -451,6 +507,20 @@ describe('AccountsView', () => {
     mockState.showWarning.mockReset()
     mockState.showError.mockReset()
     mockState.showInfo.mockReset()
+    mockState.authUser = {
+      id: 99,
+      username: 'admin',
+      email: 'admin@example.com',
+      role: 'admin',
+      visual_preset_preference: 'inherit',
+      account_visual_preset_override: 'inherit',
+      account_realtime_countdown_enabled: true,
+      global_realtime_countdown_enabled: false
+    }
+    mockState.setCurrentUser.mockReset()
+    mockState.setAccountVisualPresetOverride.mockClear()
+    mockState.setAccountRealtimeCountdownEnabled.mockClear()
+    mockState.updateProfile.mockReset()
     mockState.getAllGroups.mockReset().mockResolvedValue([])
     mockState.getAllProxies.mockReset().mockResolvedValue([])
     mockState.getById.mockReset()
@@ -975,6 +1045,66 @@ describe('AccountsView', () => {
       })
     )
     expect(wrapper.get('.toolbar-daily5h-enabled').text()).toBe('false')
+
+    wrapper.unmount()
+  })
+
+  it('updates account realtime countdown preference and syncs the auth user on success', async () => {
+    mockState.updateProfile.mockResolvedValue({
+      ...mockState.authUser,
+      account_realtime_countdown_enabled: false
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('.toolbar-account-realtime').text()).toBe('true')
+
+    await wrapper.get('.toolbar-account-realtime-toggle').trigger('click')
+    await flushPromises()
+
+    expect(userAPI.updateProfile).toHaveBeenCalledWith({
+      account_realtime_countdown_enabled: false
+    })
+    expect(mockState.setAccountRealtimeCountdownEnabled).toHaveBeenCalledWith(false)
+    expect(mockState.setCurrentUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account_realtime_countdown_enabled: false
+      })
+    )
+
+    wrapper.unmount()
+  })
+
+  it('passes the account visual preset down and updates it from the toolbar', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('.toolbar-account-visual-preset-override').text()).toBe('inherit')
+    expect(wrapper.get('.toolbar-visual-style').text()).toBe('classic')
+    expect(wrapper.get('.table-visual-style').text()).toBe('classic')
+
+    await wrapper.get('.toolbar-account-visual-preset-toggle').trigger('click')
+    await flushPromises()
+
+    expect(mockState.setAccountVisualPresetOverride).toHaveBeenCalledWith('airy')
+
+    wrapper.unmount()
+  })
+
+  it('rolls back account realtime countdown preference and reports an error on failure', async () => {
+    mockState.updateProfile.mockRejectedValue(new Error('toggle failed'))
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.toolbar-account-realtime-toggle').trigger('click')
+    await flushPromises()
+
+    expect(mockState.setAccountRealtimeCountdownEnabled).toHaveBeenNthCalledWith(1, false)
+    expect(mockState.setAccountRealtimeCountdownEnabled).toHaveBeenNthCalledWith(2, true)
+    expect(mockState.setCurrentUser).not.toHaveBeenCalled()
+    expect(mockState.showError).toHaveBeenCalledWith('toggle failed')
 
     wrapper.unmount()
   })

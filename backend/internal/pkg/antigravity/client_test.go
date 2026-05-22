@@ -847,6 +847,9 @@ func TestClient_ExchangeCode_Success_RealCall(t *testing.T) {
 		if ct := r.Header.Get("Content-Type"); ct != "application/x-www-form-urlencoded" {
 			t.Errorf("Content-Type 不匹配: got %s", ct)
 		}
+		if ua := r.Header.Get("User-Agent"); ua != GetUserAgent() {
+			t.Errorf("User-Agent 不匹配: got %s, want %s", ua, GetUserAgent())
+		}
 		if err := r.ParseForm(); err != nil {
 			t.Fatalf("解析表单失败: %v", err)
 		}
@@ -994,6 +997,9 @@ func TestClient_RefreshToken_Success_RealCall(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("请求方法不匹配: got %s, want POST", r.Method)
+		}
+		if ua := r.Header.Get("User-Agent"); ua != GetUserAgent() {
+			t.Errorf("User-Agent 不匹配: got %s, want %s", ua, GetUserAgent())
 		}
 		if err := r.ParseForm(); err != nil {
 			t.Fatalf("解析表单失败: %v", err)

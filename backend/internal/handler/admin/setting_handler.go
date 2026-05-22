@@ -177,6 +177,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.SiteSubtitle != after.SiteSubtitle {
 		changed = append(changed, "site_subtitle")
 	}
+	if before.AccountAiryWhiteSurfaceEnabled != after.AccountAiryWhiteSurfaceEnabled {
+		changed = append(changed, "account_airy_white_surface_enabled")
+	}
 	if before.APIBaseURL != after.APIBaseURL {
 		changed = append(changed, "api_base_url")
 	}
@@ -266,6 +269,39 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.PurchaseSubscriptionURL != after.PurchaseSubscriptionURL {
 		changed = append(changed, "purchase_subscription_url")
+	}
+	if before.PaymentProviderAirwallexEnabled != after.PaymentProviderAirwallexEnabled {
+		changed = append(changed, "payment_provider_airwallex_enabled")
+	}
+	if before.AirwallexEnv != after.AirwallexEnv {
+		changed = append(changed, "airwallex_env")
+	}
+	if before.AirwallexClientID != after.AirwallexClientID {
+		changed = append(changed, "airwallex_client_id")
+	}
+	if req.AirwallexAPIKey != nil && strings.TrimSpace(*req.AirwallexAPIKey) != "" {
+		changed = append(changed, "airwallex_api_key")
+	}
+	if req.AirwallexWebhookSecret != nil && strings.TrimSpace(*req.AirwallexWebhookSecret) != "" {
+		changed = append(changed, "airwallex_webhook_secret")
+	}
+	if !equalStringSlice(before.PaymentAllowedCurrencies, after.PaymentAllowedCurrencies) {
+		changed = append(changed, "payment_allowed_currencies")
+	}
+	if before.PaymentDefaultCurrency != after.PaymentDefaultCurrency {
+		changed = append(changed, "payment_default_currency")
+	}
+	if before.PaymentMinTopupAmount != after.PaymentMinTopupAmount {
+		changed = append(changed, "payment_min_topup_amount")
+	}
+	if before.PaymentMaxTopupAmount != after.PaymentMaxTopupAmount {
+		changed = append(changed, "payment_max_topup_amount")
+	}
+	if !equalPaymentSubscriptionPlans(before.PaymentSubscriptionPlans, after.PaymentSubscriptionPlans) {
+		changed = append(changed, "payment_subscription_plans")
+	}
+	if before.AntigravityUserAgentVersion != after.AntigravityUserAgentVersion {
+		changed = append(changed, "antigravity_user_agent_version")
 	}
 	if before.LoginAgreementEnabled != after.LoginAgreementEnabled {
 		changed = append(changed, "login_agreement_enabled")
@@ -383,6 +419,8 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		SiteName:                             settings.SiteName,
 		SiteLogo:                             settings.SiteLogo,
 		SiteSubtitle:                         settings.SiteSubtitle,
+		VisualPresetDefault:                  settings.VisualPresetDefault,
+		AccountAiryWhiteSurfaceEnabled:       settings.AccountAiryWhiteSurfaceEnabled,
 		APIBaseURL:                           settings.APIBaseURL,
 		ContactInfo:                          settings.ContactInfo,
 		DocURL:                               settings.DocURL,
@@ -394,6 +432,18 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		PublicModelCatalogEnabled:            settings.PublicModelCatalogEnabled,
 		PurchaseSubscriptionEnabled:          settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:              settings.PurchaseSubscriptionURL,
+		PaymentProviderAirwallexEnabled:      settings.PaymentProviderAirwallexEnabled,
+		PaymentProviderAirwallexEffective:    settings.PaymentProviderAirwallexEffective,
+		AirwallexEnv:                         settings.AirwallexEnv,
+		AirwallexClientID:                    settings.AirwallexClientID,
+		AirwallexAPIKeyConfigured:            settings.AirwallexAPIKeyConfigured,
+		AirwallexWebhookSecretConfigured:     settings.AirwallexWebhookSecretConfigured,
+		PaymentAllowedCurrencies:             settings.PaymentAllowedCurrencies,
+		PaymentDefaultCurrency:               settings.PaymentDefaultCurrency,
+		PaymentMinTopupAmount:                settings.PaymentMinTopupAmount,
+		PaymentMaxTopupAmount:                settings.PaymentMaxTopupAmount,
+		PaymentSubscriptionPlans:             buildPaymentSubscriptionPlanDTOs(settings.PaymentSubscriptionPlans),
+		AntigravityUserAgentVersion:          settings.AntigravityUserAgentVersion,
 		CustomMenuItems:                      customMenuItems,
 		LoginAgreementEnabled:                settings.LoginAgreementEnabled,
 		LoginAgreementMode:                   settings.LoginAgreementMode,
@@ -468,6 +518,43 @@ func equalDefaultSubscriptions(a, b []service.DefaultSubscriptionSetting) bool {
 		}
 	}
 	return true
+}
+
+func equalPaymentSubscriptionPlans(a, b []service.PaymentSubscriptionPlan) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].PlanID != b[i].PlanID ||
+			a[i].Name != b[i].Name ||
+			a[i].GroupID != b[i].GroupID ||
+			a[i].ValidityDays != b[i].ValidityDays ||
+			a[i].Enabled != b[i].Enabled ||
+			len(a[i].PricesByCurrency) != len(b[i].PricesByCurrency) {
+			return false
+		}
+		for currency, price := range a[i].PricesByCurrency {
+			if b[i].PricesByCurrency[currency] != price {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func buildPaymentSubscriptionPlanDTOs(items []service.PaymentSubscriptionPlan) []dto.PaymentSubscriptionPlan {
+	out := make([]dto.PaymentSubscriptionPlan, 0, len(items))
+	for _, item := range items {
+		out = append(out, dto.PaymentSubscriptionPlan{
+			PlanID:           item.PlanID,
+			Name:             item.Name,
+			GroupID:          item.GroupID,
+			ValidityDays:     item.ValidityDays,
+			PricesByCurrency: item.PricesByCurrency,
+			Enabled:          item.Enabled,
+		})
+	}
+	return out
 }
 
 func equalLoginAgreementDocuments(a, b []service.LoginAgreementDocument) bool {

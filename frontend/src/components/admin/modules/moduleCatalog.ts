@@ -57,6 +57,15 @@ export const adminModuleSections: AdminModuleSection[] = [
         hideInSimpleMode: true
       },
       {
+        id: 'payment-orders',
+        titleKey: 'admin.modules.cards.paymentOrders.title',
+        descriptionKey: 'admin.modules.cards.paymentOrders.description',
+        to: '/admin/payment/orders',
+        icon: 'creditCard',
+        accent: 'cyan',
+        hideInSimpleMode: true
+      },
+      {
         id: 'registration',
         titleKey: 'admin.modules.cards.registration.title',
         descriptionKey: 'admin.modules.cards.registration.description',

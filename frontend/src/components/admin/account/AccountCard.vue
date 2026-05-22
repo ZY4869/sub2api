@@ -1,5 +1,12 @@
 <template>
-  <article class="card card-hover relative overflow-hidden p-4">
+  <article
+    :class="[
+      'card card-hover relative overflow-hidden p-4',
+      articleClass,
+      visualStyle === 'airy' ? rowVisual.className : ''
+    ]"
+    :style="visualStyle === 'airy' ? rowVisual.style : undefined"
+  >
     <div class="absolute left-4 top-4">
       <input
         type="checkbox"
@@ -12,7 +19,8 @@
     <div class="pl-8">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <div class="flex items-center gap-2">
+          <AccountNameVisualCell v-if="visualStyle === 'airy'" :account="account" />
+          <div v-else class="flex items-center gap-2">
             <div class="truncate text-base font-semibold text-gray-900 dark:text-white">
               {{ account.name }}
             </div>
@@ -28,14 +36,32 @@
             </span>
           </div>
           <div
-            v-if="email"
-            class="truncate text-xs text-gray-500 dark:text-gray-400"
+            v-if="email && visualStyle !== 'airy'"
+            class="mt-2 truncate text-xs text-gray-500 dark:text-gray-400"
             :title="email"
           >
             {{ email }}
           </div>
         </div>
+        <AccountServiceAuthVisualCell
+          v-if="visualStyle === 'airy'"
+          :platform="account.platform"
+          :gateway-protocol="account.gateway_protocol"
+          :type="account.type"
+          :plan-type="String(account.credentials?.plan_type || '') || undefined"
+          :plan-type-label="String(account.credentials?.plan_type_label || '') || undefined"
+          :pro-multiplier="
+            typeof account.credentials?.pro_multiplier === 'number'
+              ? account.credentials.pro_multiplier
+              : undefined
+          "
+          :privacy-mode="String(account.extra?.privacy_mode || '') || undefined"
+          :subscription-expires-at="
+            String(account.credentials?.subscription_expires_at || '') || undefined
+          "
+        />
         <PlatformTypeBadge
+          v-else
           :platform="account.platform"
           :gateway-protocol="account.gateway_protocol"
           :type="account.type"
@@ -54,7 +80,19 @@
       </div>
 
       <div class="mt-4">
-        <AccountStatusIndicator :account="account" @show-temp-unsched="emit('show-temp-unsched', account)" />
+        <AccountStatusVisualCell
+          v-if="visualStyle === 'airy'"
+          :account="account"
+          :visual-style="visualStyle"
+          :white-surface-enabled="whiteSurfaceEnabled"
+          @show-temp-unsched="emit('show-temp-unsched', account)"
+        />
+        <AccountStatusIndicator
+          v-else
+          :account="account"
+          visual-variant="default"
+          @show-temp-unsched="emit('show-temp-unsched', account)"
+        />
       </div>
 
       <AccountAutoRecoveryProbeNotice
@@ -64,14 +102,18 @@
         :lifecycle-state="account.lifecycle_state"
       />
 
-      <div class="mt-4 grid gap-3 sm:grid-cols-2">
-        <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-dark-900/40">
+      <div :class="metricsSectionClass">
+        <div :class="metricCardClass">
           <div class="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
             {{ t('admin.accounts.columns.capacity') }}
           </div>
-          <AccountCapacityCell :account="account" />
+          <AccountCapacityCell
+            :account="account"
+            :visual-variant="visualStyle === 'airy' ? 'glass' : 'default'"
+            :white-surface-enabled="visualStyle === 'airy' ? whiteSurfaceEnabled : false"
+          />
         </div>
-        <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-dark-900/40">
+        <div :class="metricCardClass">
           <div class="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
             {{ t('admin.accounts.columns.lastUsed') }}
           </div>
@@ -81,15 +123,25 @@
         </div>
       </div>
 
-      <div class="mt-4 rounded-xl border border-gray-100 px-3 py-3 dark:border-dark-700">
+      <div :class="usageSectionClass">
         <div class="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
           {{ t('admin.accounts.columns.usageWindows') }}
         </div>
-        <AccountUsageCell
+        <AccountUsageVisualCell
+          v-if="visualStyle === 'airy'"
           :account="account"
           :today-stats="todayStatsByAccountId[String(account.id)] ?? null"
           :today-stats-loading="todayStatsLoading"
           :manual-refresh-token="usageManualRefreshToken"
+          :white-surface-enabled="whiteSurfaceEnabled"
+        />
+        <AccountUsageCell
+          v-else
+          :account="account"
+          :today-stats="todayStatsByAccountId[String(account.id)] ?? null"
+          :today-stats-loading="todayStatsLoading"
+          :manual-refresh-token="usageManualRefreshToken"
+          visual-variant="default"
         />
       </div>
 
@@ -133,19 +185,29 @@ import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
-import type { Account, WindowStats } from '@/types'
+import type { Account, AccountVisualStyle, WindowStats } from '@/types'
 import { formatRelativeTime } from '@/utils/format'
 import AccountAutoRecoveryProbeNotice from './AccountAutoRecoveryProbeNotice.vue'
 import AccountsViewRowActions from './AccountsViewRowActions.vue'
+import AccountNameVisualCell from './AccountNameVisualCell.vue'
+import AccountServiceAuthVisualCell from './AccountServiceAuthVisualCell.vue'
+import AccountStatusVisualCell from './AccountStatusVisualCell.vue'
+import AccountUsageVisualCell from './AccountUsageVisualCell.vue'
+import { resolveAccountRowVisualState } from './accountVisuals'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   account: Account
   selected: boolean
   togglingSchedulable: number | null
   todayStatsByAccountId: Record<string, WindowStats>
   todayStatsLoading: boolean
   usageManualRefreshToken: number
-}>()
+  visualStyle?: AccountVisualStyle
+  whiteSurfaceEnabled?: boolean
+}>(), {
+  visualStyle: 'airy',
+  whiteSurfaceEnabled: false
+})
 
 const emit = defineEmits<{
   'toggle-selected': [id: number]
@@ -159,5 +221,37 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const email = computed(() => String(props.account.extra?.email_address || '').trim())
+const rowVisual = computed(() => resolveAccountRowVisualState(props.account))
 const showAutoRecoverySuccess = computed(() => props.account.auto_recovery_probe?.status === 'success')
+const articleClass = computed(() =>
+  props.visualStyle === 'airy'
+    ? props.whiteSurfaceEnabled
+      ? 'border border-slate-200/90 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.06)] dark:border-slate-700/80 dark:bg-slate-900'
+      : 'border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] shadow-[0_18px_38px_rgba(148,163,184,0.18)] dark:border-slate-700/80 dark:bg-[linear-gradient(135deg,rgba(30,41,59,0.82),rgba(15,23,42,0.72))]'
+    : ''
+)
+const metricsSectionClass = computed(() =>
+  props.visualStyle === 'airy' ? 'mt-4 grid gap-4 sm:grid-cols-2' : 'mt-4 grid gap-3 sm:grid-cols-2'
+)
+const metricCardClass = computed(() =>
+  props.visualStyle === 'airy'
+    ? props.whiteSurfaceEnabled
+      ? 'space-y-0 rounded-[1.1rem] border border-slate-200/85 bg-white px-3.5 py-3 shadow-sm dark:border-slate-700/80 dark:bg-slate-900/80'
+      : 'space-y-0 rounded-[1.1rem] border border-white/70 bg-white/75 px-3.5 py-3 shadow-sm backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-900/65'
+    : 'rounded-xl bg-gray-50 px-3 py-3 dark:bg-dark-900/40'
+)
+const usageSectionClass = computed(() =>
+  props.visualStyle === 'airy'
+    ? props.whiteSurfaceEnabled
+      ? 'mt-4 rounded-[1.25rem] border border-slate-200/85 bg-white px-3.5 py-3.5 shadow-sm dark:border-slate-700/80 dark:bg-slate-900/80'
+      : 'mt-4 rounded-[1.25rem] border border-white/70 bg-white/72 px-3.5 py-3.5 shadow-sm backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-900/65'
+    : 'mt-4 rounded-xl border border-gray-100 px-3 py-3 dark:border-dark-700'
+)
 </script>
+
+<style scoped>
+article {
+  content-visibility: auto;
+  contain-intrinsic-size: 420px;
+}
+</style>

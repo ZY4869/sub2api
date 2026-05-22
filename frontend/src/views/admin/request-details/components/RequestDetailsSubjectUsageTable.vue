@@ -2,19 +2,24 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
-import type { AdminUsageLog, UsageModelDisplayMode } from '@/types'
+import type {
+  AdminUsageLog,
+  UsageContextBadgeDisplayMode,
+  UsageModelDisplayMode,
+} from '@/types'
 import { adminUsageAPI } from '@/api/admin/usage'
 import { formatDateTime } from '@/utils/format'
 import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
+import { useUsageContextBadgeDisplayModePreference } from '@/composables/useUsageContextBadgeDisplayModePreference'
 import { useUsageModelDisplayModePreference } from '@/composables/useUsageModelDisplayModePreference'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Pagination from '@/components/common/Pagination.vue'
-import UsageModelCell from '@/components/common/UsageModelCell.vue'
 import UsageContextBadgesCell from '@/components/common/UsageContextBadgesCell.vue'
 import UsageContextBadgeDisplayModeToggle from '@/components/common/UsageContextBadgeDisplayModeToggle.vue'
+import UsageModelCell from '@/components/common/UsageModelCell.vue'
+import UsageRequestLengthCell from '@/components/common/UsageRequestLengthCell.vue'
 import UsageModelDisplayModeToggle from '@/components/common/UsageModelDisplayModeToggle.vue'
-import { useUsageContextBadgeDisplayModePreference } from '@/composables/useUsageContextBadgeDisplayModePreference'
 import UsageRequestPreviewModal from '@/components/user/usage/UsageRequestPreviewModal.vue'
 
 const { t } = useI18n()
@@ -54,6 +59,7 @@ const columns = computed<Column[]>(() => [
   { key: 'group_id', label: t('admin.requestDetails.subject.ledger.columns.groupId') },
   { key: 'models', label: t('admin.requestDetails.subject.ledger.columns.models') },
   { key: 'native_context', label: t('admin.requestDetails.subject.ledger.columns.nativeContext') },
+  { key: 'request_length', label: t('admin.requestDetails.subject.ledger.columns.requestLength') },
   { key: 'status', label: t('admin.requestDetails.subject.ledger.columns.status') },
   { key: 'total_tokens', label: t('admin.requestDetails.subject.ledger.columns.totalTokens') },
   { key: 'total_cost', label: t('admin.requestDetails.subject.ledger.columns.totalStandardCost') },
@@ -90,9 +96,12 @@ async function handleUsageModelDisplayModeChange(mode: UsageModelDisplayMode) {
   await setUsageModelDisplayMode(mode)
 }
 
-async function handleUsageContextBadgeDisplayModeChange(mode: "request_only" | "native_only" | "both") {
+async function handleUsageContextBadgeDisplayModeChange(
+  mode: UsageContextBadgeDisplayMode,
+) {
   await setUsageContextBadgeDisplayMode(mode)
 }
+
 </script>
 
 <template>
@@ -106,43 +115,41 @@ async function handleUsageContextBadgeDisplayModeChange(mode: "request_only" | "
           {{ t('admin.requestDetails.subject.ledger.description') }}
         </p>
       </div>
-      <UsageModelDisplayModeToggle
-        class="md:hidden"
-        :model-value="usageModelDisplayMode"
-        :disabled="updatingUsageModelDisplayMode"
-        :label-text="t('usage.modelDisplay')"
-        @update:modelValue="handleUsageModelDisplayModeChange"
-      />
-      <UsageContextBadgeDisplayModeToggle
-        class="md:hidden"
-        :model-value="usageContextBadgeDisplayMode"
-        :disabled="updatingUsageContextBadgeDisplayMode"
-        :label-text="t('usage.contextBadgeDisplay')"
-        @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-      />
+      <div class="flex flex-wrap gap-2 md:hidden">
+        <UsageModelDisplayModeToggle
+          :model-value="usageModelDisplayMode"
+          :disabled="updatingUsageModelDisplayMode"
+          :label-text="t('usage.modelDisplay')"
+          @update:modelValue="handleUsageModelDisplayModeChange"
+        />
+        <UsageContextBadgeDisplayModeToggle
+          :model-value="usageContextBadgeDisplayMode"
+          :disabled="updatingUsageContextBadgeDisplayMode"
+          :label-text="t('usage.contextBadgeDisplay')"
+          @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+        />
+      </div>
     </div>
 
     <DataTable :columns="columns" :data="items" :loading="loading">
       <template #header-models="{ column }">
         <div class="flex items-center justify-between gap-3">
           <span>{{ column.label }}</span>
-          <div class="hidden md:block" @click.stop>
-            <div class="flex items-center gap-2">
-              <UsageModelDisplayModeToggle
-                :model-value="usageModelDisplayMode"
-                :disabled="updatingUsageModelDisplayMode"
-                :show-label="false"
-                compact
-                @update:modelValue="handleUsageModelDisplayModeChange"
-              />
-              <UsageContextBadgeDisplayModeToggle
-                :model-value="usageContextBadgeDisplayMode"
-                :disabled="updatingUsageContextBadgeDisplayMode"
-                :show-label="false"
-                compact
-                @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-              />
-            </div>
+          <div class="hidden items-center gap-2 md:flex" @click.stop>
+            <UsageModelDisplayModeToggle
+              :model-value="usageModelDisplayMode"
+              :disabled="updatingUsageModelDisplayMode"
+              :show-label="false"
+              compact
+              @update:modelValue="handleUsageModelDisplayModeChange"
+            />
+            <UsageContextBadgeDisplayModeToggle
+              :model-value="usageContextBadgeDisplayMode"
+              :disabled="updatingUsageContextBadgeDisplayMode"
+              :show-label="false"
+              compact
+              @update:modelValue="handleUsageContextBadgeDisplayModeChange"
+            />
           </div>
         </div>
       </template>
@@ -183,6 +190,10 @@ async function handleUsageContextBadgeDisplayModeChange(mode: "request_only" | "
           :row="row"
           :mode="usageContextBadgeDisplayMode"
         />
+      </template>
+
+      <template #cell-request_length="{ row }">
+        <UsageRequestLengthCell :row="row" />
       </template>
 
       <template #cell-status="{ row }">

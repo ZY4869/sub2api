@@ -62,6 +62,16 @@ func (User) Fields() []ent.Field {
 		field.String("usage_model_display_mode").
 			MaxLen(32).
 			Default("model_only"),
+		field.Bool("global_realtime_countdown_enabled").
+			Default(false),
+		field.Bool("account_realtime_countdown_enabled").
+			Default(true),
+		field.String("visual_preset_preference").
+			MaxLen(32).
+			Default("inherit"),
+		field.String("account_visual_preset_override").
+			MaxLen(32).
+			Default("inherit"),
 		field.String("usage_context_badge_display_mode").
 			MaxLen(32).
 			Default("request_only"),

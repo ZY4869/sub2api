@@ -102,6 +102,8 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeySiteName] = settings.SiteName
 	updates[SettingKeySiteLogo] = settings.SiteLogo
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle
+	updates[SettingKeyVisualPresetDefault] = NormalizeVisualPreset(settings.VisualPresetDefault)
+	updates[SettingKeyAccountAiryWhiteSurfaceEnabled] = strconv.FormatBool(settings.AccountAiryWhiteSurfaceEnabled)
 	updates[SettingKeyAPIBaseURL] = settings.APIBaseURL
 	updates[SettingKeyContactInfo] = settings.ContactInfo
 	updates[SettingKeyDocURL] = settings.DocURL
@@ -123,6 +125,39 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyPublicModelCatalogEnabled] = strconv.FormatBool(settings.PublicModelCatalogEnabled)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
+	updates[SettingKeyPaymentProviderAirwallexEnabled] = strconv.FormatBool(settings.PaymentProviderAirwallexEnabled)
+	updates[SettingKeyAirwallexEnv] = NormalizeAirwallexEnv(settings.AirwallexEnv)
+	updates[SettingKeyAirwallexClientID] = strings.TrimSpace(settings.AirwallexClientID)
+	if strings.TrimSpace(settings.AirwallexAPIKey) != "" {
+		updates[SettingKeyAirwallexAPIKey] = strings.TrimSpace(settings.AirwallexAPIKey)
+	}
+	if strings.TrimSpace(settings.AirwallexWebhookSecret) != "" {
+		updates[SettingKeyAirwallexWebhookSecret] = strings.TrimSpace(settings.AirwallexWebhookSecret)
+	}
+	paymentCurrenciesJSON, err := json.Marshal(NormalizePaymentAllowedCurrencies(settings.PaymentAllowedCurrencies))
+	if err != nil {
+		return fmt.Errorf("marshal payment allowed currencies: %w", err)
+	}
+	updates[SettingKeyPaymentAllowedCurrencies] = string(paymentCurrenciesJSON)
+	defaultCurrency := NormalizePaymentCurrency(settings.PaymentDefaultCurrency)
+	if defaultCurrency == "" || !PaymentCurrencyAllowed(defaultCurrency, settings.PaymentAllowedCurrencies) {
+		defaultCurrency = NormalizePaymentAllowedCurrencies(settings.PaymentAllowedCurrencies)[0]
+	}
+	updates[SettingKeyPaymentDefaultCurrency] = defaultCurrency
+	if settings.PaymentMinTopupAmount <= 0 {
+		settings.PaymentMinTopupAmount = DefaultPaymentSettings().MinTopupAmount
+	}
+	if settings.PaymentMaxTopupAmount < settings.PaymentMinTopupAmount {
+		settings.PaymentMaxTopupAmount = settings.PaymentMinTopupAmount
+	}
+	updates[SettingKeyPaymentMinTopupAmount] = strconv.FormatFloat(settings.PaymentMinTopupAmount, 'f', 8, 64)
+	updates[SettingKeyPaymentMaxTopupAmount] = strconv.FormatFloat(settings.PaymentMaxTopupAmount, 'f', 8, 64)
+	updates[SettingKeyPaymentSubscriptionPlans] = MarshalPaymentSubscriptionPlans(settings.PaymentSubscriptionPlans)
+	antigravityVersion, ok := NormalizeAntigravityUserAgentVersion(settings.AntigravityUserAgentVersion)
+	if !ok {
+		return infraerrors.BadRequest("ANTIGRAVITY_USER_AGENT_VERSION_INVALID", "antigravity user-agent version must match major.minor.patch[-suffix]")
+	}
+	updates[SettingKeyAntigravityUserAgentVersion] = antigravityVersion
 	updates[SettingKeyCustomMenuItems] = settings.CustomMenuItems
 	updates[SettingKeyLoginAgreementEnabled] = strconv.FormatBool(settings.LoginAgreementEnabled)
 	updates[SettingKeyLoginAgreementMode] = NormalizeLoginAgreementMode(settings.LoginAgreementMode)

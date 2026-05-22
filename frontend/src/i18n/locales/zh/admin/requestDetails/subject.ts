@@ -48,6 +48,7 @@ export default {
             groupId: "分组 ID",
             models: "请求 / 上游模型",
             nativeContext: "原生上下文",
+            requestLength: "请求长度",
             status: "状态",
             totalTokens: "总 Tokens",
             totalStandardCost: "标准费用",

@@ -39,6 +39,7 @@ type AdminHandlers struct {
 	ModelRegistry          *admin.ModelRegistryHandler
 	ScheduledTest          *admin.ScheduledTestHandler
 	TLSFingerprintProfile  *admin.TLSFingerprintProfileHandler
+	Payment                *AdminPaymentHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -61,6 +62,7 @@ type Handlers struct {
 	DocumentAI       *DocumentAIHandler
 	Setting          *SettingHandler
 	Totp             *TotpHandler
+	Payment          *PaymentHandler
 }
 
 // BuildInfo contains build-time information

@@ -32,12 +32,24 @@
 
         <div>
           <label class="input-label">
-            {{ t('profile.usageContextBadgeDisplayMode') }}
+            {{ t('profile.visualPresetPreference') }}
           </label>
-          <UsageContextBadgeDisplayModeToggle
-            v-model="usageContextBadgeDisplayMode"
-            :show-label="false"
-          />
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <button
+              v-for="option in visualPresetOptions"
+              :key="option.value"
+              type="button"
+              class="rounded-xl border px-3 py-2 text-sm font-medium transition"
+              :class="
+                visualPresetPreference === option.value
+                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-200'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:bg-dark-700'
+              "
+              @click="visualPresetPreference = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
         </div>
 
         <div class="flex justify-end pt-4">
@@ -54,14 +66,14 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UsageModelDisplayModeToggle from '@/components/common/UsageModelDisplayModeToggle.vue'
-import UsageContextBadgeDisplayModeToggle from '@/components/common/UsageContextBadgeDisplayModeToggle.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { userAPI } from '@/api'
+import type { VisualPresetPreference } from '@/types'
 import {
-  normalizeUsageContextBadgeDisplayMode,
   normalizeUsageModelDisplayMode,
 } from '@/utils/usageModelPresentation'
+import { normalizeVisualPresetPreference } from '@/utils/visualPreset'
 
 const props = defineProps<{
   initialUsername: string
@@ -75,10 +87,15 @@ const username = ref(props.initialUsername)
 const usageModelDisplayMode = ref(
   normalizeUsageModelDisplayMode(authStore.user?.usage_model_display_mode)
 )
-const usageContextBadgeDisplayMode = ref(
-  normalizeUsageContextBadgeDisplayMode(authStore.user?.usage_context_badge_display_mode)
+const visualPresetPreference = ref<VisualPresetPreference>(
+  normalizeVisualPresetPreference(authStore.user?.visual_preset_preference)
 )
 const loading = ref(false)
+const visualPresetOptions = [
+  { value: 'inherit', label: t('profile.visualPresetFollowSite') },
+  { value: 'classic', label: t('profile.visualPresetClassic') },
+  { value: 'airy', label: t('profile.visualPresetAiry') },
+] as const
 
 watch(() => props.initialUsername, (val) => {
   username.value = val
@@ -92,9 +109,9 @@ watch(
 )
 
 watch(
-  () => authStore.user?.usage_context_badge_display_mode,
+  () => authStore.user?.visual_preset_preference,
   (val) => {
-    usageContextBadgeDisplayMode.value = normalizeUsageContextBadgeDisplayMode(val)
+    visualPresetPreference.value = normalizeVisualPresetPreference(val)
   }
 )
 
@@ -109,7 +126,7 @@ const handleUpdateProfile = async () => {
     const updatedUser = await userAPI.updateProfile({
       username: username.value,
       usage_model_display_mode: usageModelDisplayMode.value,
-      usage_context_badge_display_mode: usageContextBadgeDisplayMode.value,
+      visual_preset_preference: visualPresetPreference.value,
     })
     authStore.setCurrentUser(updatedUser)
     appStore.showSuccess(t('profile.updateSuccess'))

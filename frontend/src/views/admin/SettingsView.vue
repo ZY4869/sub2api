@@ -1626,6 +1626,65 @@
 
         <!-- Tab: General -->
         <div v-show="activeTab === 'general'" class="space-y-6">
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.realtimeCountdown.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.realtimeCountdown.description') }}
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.realtimeCountdown.globalEnabled') }}
+                </label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.realtimeCountdown.globalEnabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="globalRealtimeCountdownEnabled" />
+            </div>
+
+            <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-800 dark:border-sky-700/40 dark:bg-sky-950/30 dark:text-sky-200">
+              {{ t('admin.settings.realtimeCountdown.scopeHint') }}
+            </div>
+
+            <div class="flex justify-end border-t border-gray-100 pt-4 dark:border-dark-700">
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                :disabled="savingGlobalRealtimeCountdown"
+                @click="saveGlobalRealtimeCountdownPreference"
+              >
+                <svg
+                  v-if="savingGlobalRealtimeCountdown"
+                  class="mr-1 h-4 w-4 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                {{ savingGlobalRealtimeCountdown ? t('common.saving') : t('common.save') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Site Settings -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -1665,6 +1724,55 @@
                 <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                   {{ t('admin.settings.site.siteSubtitleHint') }}
                 </p>
+              </div>
+            </div>
+
+            <div>
+              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('admin.settings.site.visualPresetDefault') }}
+              </label>
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  class="rounded-xl border px-3 py-2 text-sm font-medium transition"
+                  :class="
+                    form.visual_preset_default === 'classic'
+                      ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-200'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:bg-dark-700'
+                  "
+                  @click="form.visual_preset_default = 'classic'"
+                >
+                  {{ t('admin.settings.site.visualPresetClassic') }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl border px-3 py-2 text-sm font-medium transition"
+                  :class="
+                    form.visual_preset_default === 'airy'
+                      ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-200'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:bg-dark-700'
+                  "
+                  @click="form.visual_preset_default = 'airy'"
+                >
+                  {{ t('admin.settings.site.visualPresetAiry') }}
+                </button>
+              </div>
+              <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.settings.site.visualPresetDefaultHint') }}
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-dark-600 dark:bg-dark-800/80">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.site.accountAiryWhiteSurfaceEnabled') }}
+                  </label>
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.site.accountAiryWhiteSurfaceEnabledHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.account_airy_white_surface_enabled" />
               </div>
             </div>
 
@@ -1832,70 +1940,24 @@
           </div>
         </div>
 
-        <!-- Purchase Subscription Page -->
-        <div class="card">
-          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.settings.purchase.title') }}
-            </h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {{ t('admin.settings.purchase.description') }}
-            </p>
-          </div>
-          <div class="space-y-6 p-6">
-            <!-- Enable Toggle -->
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="font-medium text-gray-900 dark:text-white">{{
-                  t('admin.settings.purchase.enabled')
-                }}</label>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ t('admin.settings.purchase.enabledHint') }}
-                </p>
-              </div>
-              <Toggle v-model="form.purchase_subscription_enabled" />
-            </div>
-
-            <!-- URL -->
-            <div>
-              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ t('admin.settings.purchase.url') }}
-              </label>
-              <input
-                v-model="form.purchase_subscription_url"
-                type="url"
-                class="input font-mono text-sm"
-                :placeholder="t('admin.settings.purchase.urlPlaceholder')"
-              />
-              <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                {{ t('admin.settings.purchase.urlHint') }}
-              </p>
-              <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                {{ t('admin.settings.purchase.iframeWarning') }}
-              </p>
-            </div>
-
-            <!-- Integration Docs -->
-            <div class="flex items-center gap-2 text-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <a
-                href="https://raw.githubusercontent.com/ZY4869/sub2api/main/docs/ADMIN_PAYMENT_INTEGRATION_API.md"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-blue-600 hover:underline dark:text-blue-400"
-                download="ADMIN_PAYMENT_INTEGRATION_API.md"
-              >
-                {{ t('admin.settings.purchase.integrationDoc') }}
-              </a>
-              <span class="text-gray-400 dark:text-gray-500">—</span>
-              <span class="text-xs text-gray-500 dark:text-gray-400">
-                {{ t('admin.settings.purchase.integrationDocHint') }}
-              </span>
-            </div>
-          </div>
-        </div>
+        <PaymentSettingsCard
+          v-model:enabled="form.purchase_subscription_enabled"
+          v-model:purchase-url="form.purchase_subscription_url"
+          v-model:airwallex-enabled="form.payment_provider_airwallex_enabled"
+          v-model:airwallex-env="form.airwallex_env"
+          v-model:airwallex-client-id="form.airwallex_client_id"
+          v-model:airwallex-api-key="form.airwallex_api_key"
+          v-model:airwallex-webhook-secret="form.airwallex_webhook_secret"
+          v-model:allowed-currencies="form.payment_allowed_currencies"
+          v-model:default-currency="form.payment_default_currency"
+          v-model:min-topup-amount="form.payment_min_topup_amount"
+          v-model:max-topup-amount="form.payment_max_topup_amount"
+          v-model:subscription-plans="form.payment_subscription_plans"
+          v-model:antigravity-user-agent-version="form.antigravity_user_agent_version"
+          :api-key-configured="form.airwallex_api_key_configured"
+          :webhook-secret-configured="form.airwallex_webhook_secret_configured"
+          :effective-enabled="form.payment_provider_airwallex_effective"
+        />
 
         <CustomMenuSettingsCard v-model="form.custom_menu_items" />
 
@@ -2333,7 +2395,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { adminAPI } from '@/api'
+import { adminAPI, userAPI } from '@/api'
 import type {
   SystemSettings,
   UpdateSettingsRequest,
@@ -2350,11 +2412,13 @@ import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import ImageUpload from '@/components/common/ImageUpload.vue'
 import CustomMenuSettingsCard from '@/components/settings/CustomMenuSettingsCard.vue'
+import PaymentSettingsCard from '@/components/settings/PaymentSettingsCard.vue'
 import GoogleBatchArchiveSettingsCard from '@/components/settings/GoogleBatchArchiveSettingsCard.vue'
 import GoogleBatchGCSProfilesManager from '@/components/settings/GoogleBatchGCSProfilesManager.vue'
 import OpenAIFastPolicySettingsCard from '@/components/settings/OpenAIFastPolicySettingsCard.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
+import { useAuthStore } from '@/stores/auth'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { resolveSettingsTab, settingsTabs, type SettingsTab } from './settingsTabs'
 import {
@@ -2369,6 +2433,7 @@ const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
 const adminSettingsStore = useAdminSettingsStore()
+const authStore = useAuthStore()
 
 const activeTab = ref<SettingsTab>(resolveSettingsTab(route.query.tab))
 const { copyToClipboard } = useClipboard()
@@ -2392,6 +2457,8 @@ const testingSmtp = ref(false)
 const testingTelegram = ref(false)
 const sendingTestEmail = ref(false)
 const testEmailAddress = ref('')
+const globalRealtimeCountdownEnabled = ref(false)
+const savingGlobalRealtimeCountdown = ref(false)
 const registrationEmailSuffixWhitelistTags = ref<string[]>([])
 const registrationEmailSuffixWhitelistDraft = ref('')
 
@@ -2455,6 +2522,8 @@ type SettingsForm = SystemSettings & {
   linuxdo_connect_client_secret: string
   github_oauth_client_secret: string
   google_oauth_client_secret: string
+  airwallex_api_key: string
+  airwallex_webhook_secret: string
   content_moderation_api_key: string
   delete_content_moderation_api_key_hashes: string[]
 }
@@ -2475,6 +2544,8 @@ const form = reactive<SettingsForm>({
   site_name: 'Sub2API',
   site_logo: '',
   site_subtitle: 'Subscription to API Conversion Platform',
+  visual_preset_default: 'classic',
+  account_airy_white_surface_enabled: false,
   api_base_url: '',
   contact_info: '',
   doc_url: '',
@@ -2495,6 +2566,20 @@ const form = reactive<SettingsForm>({
   affiliate_aff_code_length: 10,
   purchase_subscription_enabled: false,
   purchase_subscription_url: '',
+  payment_provider_airwallex_enabled: false,
+  payment_provider_airwallex_effective: false,
+  airwallex_env: 'demo',
+  airwallex_client_id: '',
+  airwallex_api_key: '',
+  airwallex_api_key_configured: false,
+  airwallex_webhook_secret: '',
+  airwallex_webhook_secret_configured: false,
+  payment_allowed_currencies: ['USD', 'CNY', 'HKD'],
+  payment_default_currency: 'USD',
+  payment_min_topup_amount: 1,
+  payment_max_topup_amount: 5000,
+  payment_subscription_plans: [],
+  antigravity_user_agent_version: '',
   backend_mode_enabled: false,
   maintenance_mode_enabled: false,
   custom_menu_items: [] as CustomMenuItem[],
@@ -2707,8 +2792,12 @@ async function loadSettings() {
     form.linuxdo_connect_client_secret = ''
     form.github_oauth_client_secret = ''
     form.google_oauth_client_secret = ''
+    form.airwallex_api_key = ''
+    form.airwallex_webhook_secret = ''
     form.content_moderation_api_key = ''
     form.delete_content_moderation_api_key_hashes = []
+    globalRealtimeCountdownEnabled.value =
+      authStore.user?.global_realtime_countdown_enabled === true
   } catch (error: any) {
     appStore.showError(
       t('admin.settings.failedToLoad') + ': ' + (error.message || t('common.unknownError'))
@@ -2717,6 +2806,14 @@ async function loadSettings() {
     loading.value = false
   }
 }
+
+watch(
+  () => authStore.user?.global_realtime_countdown_enabled,
+  (enabled) => {
+    globalRealtimeCountdownEnabled.value = enabled === true
+  },
+  { immediate: true }
+)
 
 async function loadSubscriptionGroups() {
   try {
@@ -2834,6 +2931,8 @@ async function saveSettings() {
       site_name: form.site_name,
       site_logo: form.site_logo,
       site_subtitle: form.site_subtitle,
+      visual_preset_default: form.visual_preset_default,
+      account_airy_white_surface_enabled: form.account_airy_white_surface_enabled,
       api_base_url: form.api_base_url,
       contact_info: form.contact_info,
       doc_url: form.doc_url,
@@ -2854,6 +2953,17 @@ async function saveSettings() {
       affiliate_aff_code_length: form.affiliate_aff_code_length,
       purchase_subscription_enabled: form.purchase_subscription_enabled,
       purchase_subscription_url: form.purchase_subscription_url,
+      payment_provider_airwallex_enabled: form.payment_provider_airwallex_enabled,
+      airwallex_env: form.airwallex_env,
+      airwallex_client_id: form.airwallex_client_id,
+      airwallex_api_key: form.airwallex_api_key || undefined,
+      airwallex_webhook_secret: form.airwallex_webhook_secret || undefined,
+      payment_allowed_currencies: form.payment_allowed_currencies,
+      payment_default_currency: form.payment_default_currency,
+      payment_min_topup_amount: form.payment_min_topup_amount,
+      payment_max_topup_amount: form.payment_max_topup_amount,
+      payment_subscription_plans: form.payment_subscription_plans,
+      antigravity_user_agent_version: form.antigravity_user_agent_version,
       maintenance_mode_enabled: form.maintenance_mode_enabled,
       custom_menu_items: form.custom_menu_items,
       login_agreement_enabled: form.login_agreement_enabled,
@@ -3165,6 +3275,27 @@ async function saveRectifierSettings() {
     )
   } finally {
     rectifierSaving.value = false
+  }
+}
+
+async function saveGlobalRealtimeCountdownPreference() {
+  savingGlobalRealtimeCountdown.value = true
+  try {
+    const updatedUser = await userAPI.updateProfile({
+      global_realtime_countdown_enabled: globalRealtimeCountdownEnabled.value,
+    })
+    authStore.setCurrentUser(updatedUser)
+    appStore.showSuccess(t('admin.settings.realtimeCountdown.saved'))
+  } catch (error: any) {
+    globalRealtimeCountdownEnabled.value =
+      authStore.user?.global_realtime_countdown_enabled === true
+    appStore.showError(
+      t('admin.settings.realtimeCountdown.saveFailed') +
+        ': ' +
+        (error.message || t('common.unknownError'))
+    )
+  } finally {
+    savingGlobalRealtimeCountdown.value = false
   }
 }
 

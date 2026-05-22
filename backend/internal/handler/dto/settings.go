@@ -104,25 +104,39 @@ type SystemSettings struct {
 	ContentModerationDedupeWindowSeconds int                             `json:"content_moderation_dedupe_window_seconds"`
 	ContentModerationFailOpen            bool                            `json:"content_moderation_fail_open"`
 
-	SiteName                             string                   `json:"site_name"`
-	SiteLogo                             string                   `json:"site_logo"`
-	SiteSubtitle                         string                   `json:"site_subtitle"`
-	APIBaseURL                           string                   `json:"api_base_url"`
-	ContactInfo                          string                   `json:"contact_info"`
-	DocURL                               string                   `json:"doc_url"`
-	HomeContent                          string                   `json:"home_content"`
-	HideCcsImportButton                  bool                     `json:"hide_ccs_import_button"`
-	AvailableChannelsEnabled             bool                     `json:"available_channels_enabled"`
-	ChannelMonitorEnabled                bool                     `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds int                      `json:"channel_monitor_default_interval_seconds"`
-	PublicModelCatalogEnabled            bool                     `json:"public_model_catalog_enabled"`
-	PurchaseSubscriptionEnabled          bool                     `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL              string                   `json:"purchase_subscription_url"`
-	CustomMenuItems                      []CustomMenuItem         `json:"custom_menu_items"`
-	LoginAgreementEnabled                bool                     `json:"login_agreement_enabled"`
-	LoginAgreementMode                   string                   `json:"login_agreement_mode"`
-	LoginAgreementUpdatedAt              string                   `json:"login_agreement_updated_at"`
-	LoginAgreementDocuments              []LoginAgreementDocument `json:"login_agreement_documents"`
+	SiteName                             string                    `json:"site_name"`
+	SiteLogo                             string                    `json:"site_logo"`
+	SiteSubtitle                         string                    `json:"site_subtitle"`
+	VisualPresetDefault                  string                    `json:"visual_preset_default"`
+	AccountAiryWhiteSurfaceEnabled       bool                      `json:"account_airy_white_surface_enabled"`
+	APIBaseURL                           string                    `json:"api_base_url"`
+	ContactInfo                          string                    `json:"contact_info"`
+	DocURL                               string                    `json:"doc_url"`
+	HomeContent                          string                    `json:"home_content"`
+	HideCcsImportButton                  bool                      `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled             bool                      `json:"available_channels_enabled"`
+	ChannelMonitorEnabled                bool                      `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds int                       `json:"channel_monitor_default_interval_seconds"`
+	PublicModelCatalogEnabled            bool                      `json:"public_model_catalog_enabled"`
+	PurchaseSubscriptionEnabled          bool                      `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL              string                    `json:"purchase_subscription_url"`
+	PaymentProviderAirwallexEnabled      bool                      `json:"payment_provider_airwallex_enabled"`
+	PaymentProviderAirwallexEffective    bool                      `json:"payment_provider_airwallex_effective"`
+	AirwallexEnv                         string                    `json:"airwallex_env"`
+	AirwallexClientID                    string                    `json:"airwallex_client_id"`
+	AirwallexAPIKeyConfigured            bool                      `json:"airwallex_api_key_configured"`
+	AirwallexWebhookSecretConfigured     bool                      `json:"airwallex_webhook_secret_configured"`
+	PaymentAllowedCurrencies             []string                  `json:"payment_allowed_currencies"`
+	PaymentDefaultCurrency               string                    `json:"payment_default_currency"`
+	PaymentMinTopupAmount                float64                   `json:"payment_min_topup_amount"`
+	PaymentMaxTopupAmount                float64                   `json:"payment_max_topup_amount"`
+	PaymentSubscriptionPlans             []PaymentSubscriptionPlan `json:"payment_subscription_plans"`
+	AntigravityUserAgentVersion          string                    `json:"antigravity_user_agent_version"`
+	CustomMenuItems                      []CustomMenuItem          `json:"custom_menu_items"`
+	LoginAgreementEnabled                bool                      `json:"login_agreement_enabled"`
+	LoginAgreementMode                   string                    `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt              string                    `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments              []LoginAgreementDocument  `json:"login_agreement_documents"`
 
 	AffiliateEnabled              bool    `json:"affiliate_enabled"`
 	AffiliateTransferEnabled      bool    `json:"affiliate_transfer_enabled"`
@@ -174,41 +188,58 @@ type DefaultSubscriptionSetting struct {
 	ValidityDays int   `json:"validity_days"`
 }
 
+type PaymentSubscriptionPlan struct {
+	PlanID           string             `json:"plan_id"`
+	Name             string             `json:"name"`
+	GroupID          int64              `json:"group_id"`
+	ValidityDays     int                `json:"validity_days"`
+	PricesByCurrency map[string]float64 `json:"prices_by_currency"`
+	Enabled          bool               `json:"enabled"`
+}
+
 type PublicSettings struct {
-	RegistrationEnabled              bool                     `json:"registration_enabled"`
-	EmailVerifyEnabled               bool                     `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist []string                 `json:"registration_email_suffix_whitelist"`
-	PromoCodeEnabled                 bool                     `json:"promo_code_enabled"`
-	PasswordResetEnabled             bool                     `json:"password_reset_enabled"`
-	InvitationCodeEnabled            bool                     `json:"invitation_code_enabled"`
-	TotpEnabled                      bool                     `json:"totp_enabled"` // TOTP 双因素认证
-	TurnstileEnabled                 bool                     `json:"turnstile_enabled"`
-	TurnstileSiteKey                 string                   `json:"turnstile_site_key"`
-	SiteName                         string                   `json:"site_name"`
-	SiteLogo                         string                   `json:"site_logo"`
-	SiteSubtitle                     string                   `json:"site_subtitle"`
-	APIBaseURL                       string                   `json:"api_base_url"`
-	ContactInfo                      string                   `json:"contact_info"`
-	DocURL                           string                   `json:"doc_url"`
-	HomeContent                      string                   `json:"home_content"`
-	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
-	AvailableChannelsEnabled         bool                     `json:"available_channels_enabled"`
-	ChannelMonitorEnabled            bool                     `json:"channel_monitor_enabled"`
-	PublicModelCatalogEnabled        bool                     `json:"public_model_catalog_enabled"`
-	AffiliateEnabled                 bool                     `json:"affiliate_enabled"`
-	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL          string                   `json:"purchase_subscription_url"`
-	CustomMenuItems                  []CustomMenuItem         `json:"custom_menu_items"`
-	LoginAgreementEnabled            bool                     `json:"login_agreement_enabled"`
-	LoginAgreementMode               string                   `json:"login_agreement_mode"`
-	LoginAgreementUpdatedAt          string                   `json:"login_agreement_updated_at"`
-	LoginAgreementDocuments          []LoginAgreementDocument `json:"login_agreement_documents"`
-	LinuxDoOAuthEnabled              bool                     `json:"linuxdo_oauth_enabled"`
-	GitHubOAuthEnabled               bool                     `json:"github_oauth_enabled"`
-	GoogleOAuthEnabled               bool                     `json:"google_oauth_enabled"`
-	BackendModeEnabled               bool                     `json:"backend_mode_enabled"`
-	MaintenanceModeEnabled           bool                     `json:"maintenance_mode_enabled"`
-	Version                          string                   `json:"version"`
+	RegistrationEnabled              bool                      `json:"registration_enabled"`
+	EmailVerifyEnabled               bool                      `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist []string                  `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                 bool                      `json:"promo_code_enabled"`
+	PasswordResetEnabled             bool                      `json:"password_reset_enabled"`
+	InvitationCodeEnabled            bool                      `json:"invitation_code_enabled"`
+	TotpEnabled                      bool                      `json:"totp_enabled"` // TOTP 双因素认证
+	TurnstileEnabled                 bool                      `json:"turnstile_enabled"`
+	TurnstileSiteKey                 string                    `json:"turnstile_site_key"`
+	SiteName                         string                    `json:"site_name"`
+	SiteLogo                         string                    `json:"site_logo"`
+	SiteSubtitle                     string                    `json:"site_subtitle"`
+	VisualPresetDefault              string                    `json:"visual_preset_default"`
+	AccountAiryWhiteSurfaceEnabled   bool                      `json:"account_airy_white_surface_enabled"`
+	APIBaseURL                       string                    `json:"api_base_url"`
+	ContactInfo                      string                    `json:"contact_info"`
+	DocURL                           string                    `json:"doc_url"`
+	HomeContent                      string                    `json:"home_content"`
+	HideCcsImportButton              bool                      `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled         bool                      `json:"available_channels_enabled"`
+	ChannelMonitorEnabled            bool                      `json:"channel_monitor_enabled"`
+	PublicModelCatalogEnabled        bool                      `json:"public_model_catalog_enabled"`
+	AffiliateEnabled                 bool                      `json:"affiliate_enabled"`
+	PurchaseSubscriptionEnabled      bool                      `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL          string                    `json:"purchase_subscription_url"`
+	PaymentProviderAirwallexEnabled  bool                      `json:"payment_provider_airwallex_enabled"`
+	PaymentAllowedCurrencies         []string                  `json:"payment_allowed_currencies"`
+	PaymentDefaultCurrency           string                    `json:"payment_default_currency"`
+	PaymentMinTopupAmount            float64                   `json:"payment_min_topup_amount"`
+	PaymentMaxTopupAmount            float64                   `json:"payment_max_topup_amount"`
+	PaymentSubscriptionPlans         []PaymentSubscriptionPlan `json:"payment_subscription_plans"`
+	CustomMenuItems                  []CustomMenuItem          `json:"custom_menu_items"`
+	LoginAgreementEnabled            bool                      `json:"login_agreement_enabled"`
+	LoginAgreementMode               string                    `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt          string                    `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments          []LoginAgreementDocument  `json:"login_agreement_documents"`
+	LinuxDoOAuthEnabled              bool                      `json:"linuxdo_oauth_enabled"`
+	GitHubOAuthEnabled               bool                      `json:"github_oauth_enabled"`
+	GoogleOAuthEnabled               bool                      `json:"google_oauth_enabled"`
+	BackendModeEnabled               bool                      `json:"backend_mode_enabled"`
+	MaintenanceModeEnabled           bool                      `json:"maintenance_mode_enabled"`
+	Version                          string                    `json:"version"`
 }
 
 type GoogleBatchGCSProfile struct {

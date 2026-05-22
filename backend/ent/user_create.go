@@ -210,6 +210,62 @@ func (_c *UserCreate) SetNillableUsageModelDisplayMode(v *string) *UserCreate {
 	return _c
 }
 
+// SetGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field.
+func (_c *UserCreate) SetGlobalRealtimeCountdownEnabled(v bool) *UserCreate {
+	_c.mutation.SetGlobalRealtimeCountdownEnabled(v)
+	return _c
+}
+
+// SetNillableGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field if the given value is not nil.
+func (_c *UserCreate) SetNillableGlobalRealtimeCountdownEnabled(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetGlobalRealtimeCountdownEnabled(*v)
+	}
+	return _c
+}
+
+// SetAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field.
+func (_c *UserCreate) SetAccountRealtimeCountdownEnabled(v bool) *UserCreate {
+	_c.mutation.SetAccountRealtimeCountdownEnabled(v)
+	return _c
+}
+
+// SetNillableAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAccountRealtimeCountdownEnabled(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetAccountRealtimeCountdownEnabled(*v)
+	}
+	return _c
+}
+
+// SetVisualPresetPreference sets the "visual_preset_preference" field.
+func (_c *UserCreate) SetVisualPresetPreference(v string) *UserCreate {
+	_c.mutation.SetVisualPresetPreference(v)
+	return _c
+}
+
+// SetNillableVisualPresetPreference sets the "visual_preset_preference" field if the given value is not nil.
+func (_c *UserCreate) SetNillableVisualPresetPreference(v *string) *UserCreate {
+	if v != nil {
+		_c.SetVisualPresetPreference(*v)
+	}
+	return _c
+}
+
+// SetAccountVisualPresetOverride sets the "account_visual_preset_override" field.
+func (_c *UserCreate) SetAccountVisualPresetOverride(v string) *UserCreate {
+	_c.mutation.SetAccountVisualPresetOverride(v)
+	return _c
+}
+
+// SetNillableAccountVisualPresetOverride sets the "account_visual_preset_override" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAccountVisualPresetOverride(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAccountVisualPresetOverride(*v)
+	}
+	return _c
+}
+
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
 func (_c *UserCreate) SetUsageContextBadgeDisplayMode(v string) *UserCreate {
 	_c.mutation.SetUsageContextBadgeDisplayMode(v)
@@ -488,6 +544,22 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultUsageModelDisplayMode
 		_c.mutation.SetUsageModelDisplayMode(v)
 	}
+	if _, ok := _c.mutation.GlobalRealtimeCountdownEnabled(); !ok {
+		v := user.DefaultGlobalRealtimeCountdownEnabled
+		_c.mutation.SetGlobalRealtimeCountdownEnabled(v)
+	}
+	if _, ok := _c.mutation.AccountRealtimeCountdownEnabled(); !ok {
+		v := user.DefaultAccountRealtimeCountdownEnabled
+		_c.mutation.SetAccountRealtimeCountdownEnabled(v)
+	}
+	if _, ok := _c.mutation.VisualPresetPreference(); !ok {
+		v := user.DefaultVisualPresetPreference
+		_c.mutation.SetVisualPresetPreference(v)
+	}
+	if _, ok := _c.mutation.AccountVisualPresetOverride(); !ok {
+		v := user.DefaultAccountVisualPresetOverride
+		_c.mutation.SetAccountVisualPresetOverride(v)
+	}
 	if _, ok := _c.mutation.UsageContextBadgeDisplayMode(); !ok {
 		v := user.DefaultUsageContextBadgeDisplayMode
 		_c.mutation.SetUsageContextBadgeDisplayMode(v)
@@ -568,6 +640,28 @@ func (_c *UserCreate) check() error {
 	if v, ok := _c.mutation.UsageModelDisplayMode(); ok {
 		if err := user.UsageModelDisplayModeValidator(v); err != nil {
 			return &ValidationError{Name: "usage_model_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_model_display_mode": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.GlobalRealtimeCountdownEnabled(); !ok {
+		return &ValidationError{Name: "global_realtime_countdown_enabled", err: errors.New(`ent: missing required field "User.global_realtime_countdown_enabled"`)}
+	}
+	if _, ok := _c.mutation.AccountRealtimeCountdownEnabled(); !ok {
+		return &ValidationError{Name: "account_realtime_countdown_enabled", err: errors.New(`ent: missing required field "User.account_realtime_countdown_enabled"`)}
+	}
+	if _, ok := _c.mutation.VisualPresetPreference(); !ok {
+		return &ValidationError{Name: "visual_preset_preference", err: errors.New(`ent: missing required field "User.visual_preset_preference"`)}
+	}
+	if v, ok := _c.mutation.VisualPresetPreference(); ok {
+		if err := user.VisualPresetPreferenceValidator(v); err != nil {
+			return &ValidationError{Name: "visual_preset_preference", err: fmt.Errorf(`ent: validator failed for field "User.visual_preset_preference": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AccountVisualPresetOverride(); !ok {
+		return &ValidationError{Name: "account_visual_preset_override", err: errors.New(`ent: missing required field "User.account_visual_preset_override"`)}
+	}
+	if v, ok := _c.mutation.AccountVisualPresetOverride(); ok {
+		if err := user.AccountVisualPresetOverrideValidator(v); err != nil {
+			return &ValidationError{Name: "account_visual_preset_override", err: fmt.Errorf(`ent: validator failed for field "User.account_visual_preset_override": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.UsageContextBadgeDisplayMode(); !ok {
@@ -663,6 +757,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UsageModelDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageModelDisplayMode, field.TypeString, value)
 		_node.UsageModelDisplayMode = value
+	}
+	if value, ok := _c.mutation.GlobalRealtimeCountdownEnabled(); ok {
+		_spec.SetField(user.FieldGlobalRealtimeCountdownEnabled, field.TypeBool, value)
+		_node.GlobalRealtimeCountdownEnabled = value
+	}
+	if value, ok := _c.mutation.AccountRealtimeCountdownEnabled(); ok {
+		_spec.SetField(user.FieldAccountRealtimeCountdownEnabled, field.TypeBool, value)
+		_node.AccountRealtimeCountdownEnabled = value
+	}
+	if value, ok := _c.mutation.VisualPresetPreference(); ok {
+		_spec.SetField(user.FieldVisualPresetPreference, field.TypeString, value)
+		_node.VisualPresetPreference = value
+	}
+	if value, ok := _c.mutation.AccountVisualPresetOverride(); ok {
+		_spec.SetField(user.FieldAccountVisualPresetOverride, field.TypeString, value)
+		_node.AccountVisualPresetOverride = value
 	}
 	if value, ok := _c.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
@@ -1054,6 +1164,54 @@ func (u *UserUpsert) UpdateUsageModelDisplayMode() *UserUpsert {
 	return u
 }
 
+// SetGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field.
+func (u *UserUpsert) SetGlobalRealtimeCountdownEnabled(v bool) *UserUpsert {
+	u.Set(user.FieldGlobalRealtimeCountdownEnabled, v)
+	return u
+}
+
+// UpdateGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field to the value that was provided on create.
+func (u *UserUpsert) UpdateGlobalRealtimeCountdownEnabled() *UserUpsert {
+	u.SetExcluded(user.FieldGlobalRealtimeCountdownEnabled)
+	return u
+}
+
+// SetAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field.
+func (u *UserUpsert) SetAccountRealtimeCountdownEnabled(v bool) *UserUpsert {
+	u.Set(user.FieldAccountRealtimeCountdownEnabled, v)
+	return u
+}
+
+// UpdateAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field to the value that was provided on create.
+func (u *UserUpsert) UpdateAccountRealtimeCountdownEnabled() *UserUpsert {
+	u.SetExcluded(user.FieldAccountRealtimeCountdownEnabled)
+	return u
+}
+
+// SetVisualPresetPreference sets the "visual_preset_preference" field.
+func (u *UserUpsert) SetVisualPresetPreference(v string) *UserUpsert {
+	u.Set(user.FieldVisualPresetPreference, v)
+	return u
+}
+
+// UpdateVisualPresetPreference sets the "visual_preset_preference" field to the value that was provided on create.
+func (u *UserUpsert) UpdateVisualPresetPreference() *UserUpsert {
+	u.SetExcluded(user.FieldVisualPresetPreference)
+	return u
+}
+
+// SetAccountVisualPresetOverride sets the "account_visual_preset_override" field.
+func (u *UserUpsert) SetAccountVisualPresetOverride(v string) *UserUpsert {
+	u.Set(user.FieldAccountVisualPresetOverride, v)
+	return u
+}
+
+// UpdateAccountVisualPresetOverride sets the "account_visual_preset_override" field to the value that was provided on create.
+func (u *UserUpsert) UpdateAccountVisualPresetOverride() *UserUpsert {
+	u.SetExcluded(user.FieldAccountVisualPresetOverride)
+	return u
+}
+
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
 func (u *UserUpsert) SetUsageContextBadgeDisplayMode(v string) *UserUpsert {
 	u.Set(user.FieldUsageContextBadgeDisplayMode, v)
@@ -1359,6 +1517,62 @@ func (u *UserUpsertOne) SetUsageModelDisplayMode(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateUsageModelDisplayMode() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateUsageModelDisplayMode()
+	})
+}
+
+// SetGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field.
+func (u *UserUpsertOne) SetGlobalRealtimeCountdownEnabled(v bool) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetGlobalRealtimeCountdownEnabled(v)
+	})
+}
+
+// UpdateGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateGlobalRealtimeCountdownEnabled() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateGlobalRealtimeCountdownEnabled()
+	})
+}
+
+// SetAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field.
+func (u *UserUpsertOne) SetAccountRealtimeCountdownEnabled(v bool) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountRealtimeCountdownEnabled(v)
+	})
+}
+
+// UpdateAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateAccountRealtimeCountdownEnabled() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountRealtimeCountdownEnabled()
+	})
+}
+
+// SetVisualPresetPreference sets the "visual_preset_preference" field.
+func (u *UserUpsertOne) SetVisualPresetPreference(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetVisualPresetPreference(v)
+	})
+}
+
+// UpdateVisualPresetPreference sets the "visual_preset_preference" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateVisualPresetPreference() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateVisualPresetPreference()
+	})
+}
+
+// SetAccountVisualPresetOverride sets the "account_visual_preset_override" field.
+func (u *UserUpsertOne) SetAccountVisualPresetOverride(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountVisualPresetOverride(v)
+	})
+}
+
+// UpdateAccountVisualPresetOverride sets the "account_visual_preset_override" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateAccountVisualPresetOverride() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountVisualPresetOverride()
 	})
 }
 
@@ -1843,6 +2057,62 @@ func (u *UserUpsertBulk) SetUsageModelDisplayMode(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateUsageModelDisplayMode() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateUsageModelDisplayMode()
+	})
+}
+
+// SetGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field.
+func (u *UserUpsertBulk) SetGlobalRealtimeCountdownEnabled(v bool) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetGlobalRealtimeCountdownEnabled(v)
+	})
+}
+
+// UpdateGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateGlobalRealtimeCountdownEnabled() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateGlobalRealtimeCountdownEnabled()
+	})
+}
+
+// SetAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field.
+func (u *UserUpsertBulk) SetAccountRealtimeCountdownEnabled(v bool) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountRealtimeCountdownEnabled(v)
+	})
+}
+
+// UpdateAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateAccountRealtimeCountdownEnabled() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountRealtimeCountdownEnabled()
+	})
+}
+
+// SetVisualPresetPreference sets the "visual_preset_preference" field.
+func (u *UserUpsertBulk) SetVisualPresetPreference(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetVisualPresetPreference(v)
+	})
+}
+
+// UpdateVisualPresetPreference sets the "visual_preset_preference" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateVisualPresetPreference() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateVisualPresetPreference()
+	})
+}
+
+// SetAccountVisualPresetOverride sets the "account_visual_preset_override" field.
+func (u *UserUpsertBulk) SetAccountVisualPresetOverride(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountVisualPresetOverride(v)
+	})
+}
+
+// UpdateAccountVisualPresetOverride sets the "account_visual_preset_override" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateAccountVisualPresetOverride() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountVisualPresetOverride()
 	})
 }
 

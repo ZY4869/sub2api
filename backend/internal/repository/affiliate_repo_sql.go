@@ -22,6 +22,9 @@ func affiliateSQLExecutorFromContext(ctx context.Context, db *sql.DB) affiliateS
 	if db == nil {
 		return nil
 	}
+	if tx, ok := ctx.Value(paymentSQLTxContextKey{}).(*sql.Tx); ok && tx != nil {
+		return tx
+	}
 	if tx := dbent.TxFromContext(ctx); tx != nil {
 		if exec, ok := any(tx.Client()).(affiliateSQLExecutor); ok {
 			return exec
@@ -34,6 +37,9 @@ func affiliateSQLExecutorFromContext(ctx context.Context, db *sql.DB) affiliateS
 }
 
 func beginAffiliateSQLTx(ctx context.Context, exec affiliateSQLExecutor) (affiliateSQLExecutor, func() error, func(), error) {
+	if tx, ok := ctx.Value(paymentSQLTxContextKey{}).(*sql.Tx); ok && tx != nil {
+		return tx, func() error { return nil }, func() {}, nil
+	}
 	if tx := dbent.TxFromContext(ctx); tx != nil {
 		if txExec, ok := any(tx.Client()).(affiliateSQLExecutor); ok {
 			return txExec, func() error { return nil }, func() {}, nil

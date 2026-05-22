@@ -134,19 +134,20 @@ const typeLabel = computed(() => {
 })
 
 const planLabel = computed(() => {
-  if (props.planTypeLabel?.trim()) return props.planTypeLabel.trim()
-  if (!props.planType) return ''
-  const lower = props.planType.toLowerCase()
+  const lower = String(props.planType || '').trim().toLowerCase()
+  if (lower === 'pro' || lower === 'chatgptpro') {
+    return typeof props.proMultiplier === 'number' && props.proMultiplier > 0
+      ? `Pro${props.proMultiplier}x`
+      : 'Pro'
+  }
+  const explicitLabel = props.planTypeLabel?.trim()
+  if (explicitLabel) return explicitLabel
+  if (!lower) return ''
   switch (lower) {
     case 'plus':
       return 'Plus'
     case 'team':
       return 'Team'
-    case 'chatgptpro':
-    case 'pro':
-      return typeof props.proMultiplier === 'number' && props.proMultiplier > 0
-        ? `Pro ${props.proMultiplier}x`
-        : 'Pro'
     case 'free':
       return 'Free'
     default:

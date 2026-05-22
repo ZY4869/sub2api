@@ -54,6 +54,7 @@ var defaultUserAgentVersion = "1.21.9"
 
 // defaultClientSecret 可通过环境变量 ANTIGRAVITY_OAUTH_CLIENT_SECRET 配置
 var defaultClientSecret = "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"
+var userAgentVersionOverride func() string
 
 func init() {
 	// 从环境变量读取版本号，未设置则使用默认值
@@ -68,7 +69,17 @@ func init() {
 
 // GetUserAgent 返回当前配置的 User-Agent
 func GetUserAgent() string {
-	return fmt.Sprintf("antigravity/%s windows/amd64", defaultUserAgentVersion)
+	version := defaultUserAgentVersion
+	if userAgentVersionOverride != nil {
+		if override := strings.TrimSpace(userAgentVersionOverride()); override != "" {
+			version = override
+		}
+	}
+	return fmt.Sprintf("antigravity/%s windows/amd64", version)
+}
+
+func SetUserAgentVersionOverride(fn func() string) {
+	userAgentVersionOverride = fn
 }
 
 func getClientSecret() (string, error) {

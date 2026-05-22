@@ -70,6 +70,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		reasoningEffortEff    sql.NullString
 		requestedModelRaw     sql.NullString
 		requestedModelNorm    sql.NullString
+		requestContextLength  sql.NullInt64
 		millionContextReq     sql.NullBool
 		millionContextEff     sql.NullBool
 		millionContextSource  sql.NullString
@@ -82,7 +83,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		cacheTTLOverridden    bool
 		createdAt             time.Time
 	)
-	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &model, &requestedModel, &upstreamModel, &channelID, &modelMappingChain, &billingTier, &billingMode, &groupID, &subscriptionID, &inputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingCurrency, &totalCostUSDEq, &actualCostUSDEq, &usdToCNYRate, &fxRateDate, &fxLockedAt, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &billingType, &requestTypeRaw, &status, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &httpStatus, &errorCode, &errorMessage, &simulatedClient, &operationType, &chargeSource, &imageCount, &imageSize, &imageOutputTokens, &imageOutputCost, &serviceTier, &reasoningEffort, &reasoningEffortRaw, &reasoningEffortEff, &requestedModelRaw, &requestedModelNorm, &millionContextReq, &millionContextEff, &millionContextSource, &millionContextBeta, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &upstreamURL, &upstreamService, &cacheTTLOverridden, &createdAt); err != nil {
+	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &model, &requestedModel, &upstreamModel, &channelID, &modelMappingChain, &billingTier, &billingMode, &groupID, &subscriptionID, &inputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingCurrency, &totalCostUSDEq, &actualCostUSDEq, &usdToCNYRate, &fxRateDate, &fxLockedAt, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &billingType, &requestTypeRaw, &status, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &httpStatus, &errorCode, &errorMessage, &simulatedClient, &operationType, &chargeSource, &imageCount, &imageSize, &imageOutputTokens, &imageOutputCost, &serviceTier, &reasoningEffort, &reasoningEffortRaw, &reasoningEffortEff, &requestedModelRaw, &requestedModelNorm, &requestContextLength, &millionContextReq, &millionContextEff, &millionContextSource, &millionContextBeta, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &upstreamURL, &upstreamService, &cacheTTLOverridden, &createdAt); err != nil {
 		return nil, err
 	}
 	currency := service.NormalizeUsageBillingCurrency(billingCurrency)
@@ -178,6 +179,10 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	}
 	if requestedModelNorm.Valid {
 		log.RequestedModelNormalized = &requestedModelNorm.String
+	}
+	if requestContextLength.Valid {
+		value := int(requestContextLength.Int64)
+		log.RequestContextLengthTokens = &value
 	}
 	if millionContextReq.Valid {
 		log.MillionContextRequested = nullBoolPtr(millionContextReq)

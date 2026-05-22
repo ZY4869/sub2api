@@ -23,6 +23,12 @@ vi.mock('@/api', () => ({
   isTotp2FARequired: (response: any) => response?.requires_2fa === true,
 }))
 
+vi.mock('@/stores/app', () => ({
+  useAppStore: () => ({
+    visualPresetDefault: 'classic',
+  }),
+}))
+
 const fakeUser = {
   id: 1,
   username: 'testuser',
@@ -31,6 +37,10 @@ const fakeUser = {
   request_details_review: false,
   usage_model_display_mode: 'model_only' as const,
   usage_context_badge_display_mode: 'request_only' as const,
+  global_realtime_countdown_enabled: false,
+  account_realtime_countdown_enabled: true,
+  visual_preset_preference: 'inherit' as const,
+  account_visual_preset_override: 'inherit' as const,
   balance: 100,
   concurrency: 5,
   status: 'active' as const,
@@ -342,6 +352,54 @@ describe('useAuthStore', () => {
       expect(store.user?.usage_context_badge_display_mode).toBe('both')
       expect(JSON.parse(localStorage.getItem('auth_user') || '{}').usage_context_badge_display_mode).toBe(
         'both'
+      )
+    })
+
+    it('setGlobalRealtimeCountdownEnabled updates the in-memory and persisted preference', () => {
+      const store = useAuthStore()
+      store.setCurrentUser(fakeUser)
+
+      store.setGlobalRealtimeCountdownEnabled(true)
+
+      expect(store.user?.global_realtime_countdown_enabled).toBe(true)
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}').global_realtime_countdown_enabled).toBe(
+        true
+      )
+    })
+
+    it('setAccountRealtimeCountdownEnabled updates the in-memory and persisted preference', () => {
+      const store = useAuthStore()
+      store.setCurrentUser(fakeUser)
+
+      store.setAccountRealtimeCountdownEnabled(false)
+
+      expect(store.user?.account_realtime_countdown_enabled).toBe(false)
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}').account_realtime_countdown_enabled).toBe(
+        false
+      )
+    })
+
+    it('setVisualPresetPreference updates the in-memory and persisted preference', () => {
+      const store = useAuthStore()
+      store.setCurrentUser(fakeUser)
+
+      store.setVisualPresetPreference('airy')
+
+      expect(store.user?.visual_preset_preference).toBe('airy')
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}').visual_preset_preference).toBe(
+        'airy'
+      )
+    })
+
+    it('setAccountVisualPresetOverride updates the in-memory and persisted preference', () => {
+      const store = useAuthStore()
+      store.setCurrentUser(fakeUser)
+
+      store.setAccountVisualPresetOverride('airy')
+
+      expect(store.user?.account_visual_preset_override).toBe('airy')
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}').account_visual_preset_override).toBe(
+        'airy'
       )
     })
   })

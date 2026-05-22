@@ -1,6 +1,11 @@
 <template>
   <div>
-    <div class="flex flex-col gap-3">
+    <div
+      :class="[
+        'flex flex-col gap-3',
+        toolbarShellClass
+      ]"
+    >
       <AccountTableFilters
         :search-query="searchQuery"
         :filters="filters"
@@ -9,7 +14,12 @@
         @change="emit('change')"
         @update:search-query="handleSearchQueryUpdate"
       />
-      <div class="overflow-x-auto pb-1">
+      <div
+        :class="[
+          'overflow-x-auto pb-1',
+          actionsViewportClass
+        ]"
+      >
         <AccountTableActions
           :loading="loading"
           @refresh="emit('refresh')"
@@ -17,160 +27,207 @@
           @create="emit('create')"
         >
           <template #after>
-          <AccountViewModeToggle
-            :model-value="viewMode"
-            @update:model-value="emit('update:view-mode', $event)"
-          />
-
-          <button
-            type="button"
-            class="btn btn-secondary"
-            @click="emit('toggle-group-view')"
-          >
-            {{
-              groupViewEnabled
-                ? t("admin.accounts.groupView.disable")
-                : t("admin.accounts.groupView.enable")
-            }}
-          </button>
-
-          <button
-            type="button"
-            class="btn btn-secondary"
-            data-platform-sort-button="true"
-            :title="platformSortToggleTitle"
-            @click="
-              emit(
-                'update:platform-count-sort-order',
-                nextPlatformCountSortOrder,
-              )
-            "
-          >
-            {{ platformSortLabel }}
-          </button>
-
-          <button
-            v-if="showLimitedControls"
-            type="button"
-            class="btn btn-secondary"
-            @click="emit('toggle-hide-limited')"
-          >
-            {{
-              hideLimitedAccounts
-                ? t("admin.accounts.limited.hideToggleOn")
-                : t("admin.accounts.limited.hideToggleOff")
-            }}
-          </button>
-
-          <button
-            v-if="showLimitedControls"
-            type="button"
-            class="btn btn-secondary"
-            @click="emit('open-limited-page')"
-          >
-            {{
-              t("admin.accounts.limited.entry", { count: limitedAccountsCount })
-            }}
-          </button>
-
-          <button
-            type="button"
-            class="btn btn-secondary"
-            data-actual-usage-button="true"
-            :title="t('admin.accounts.refreshActualUsageTitle')"
-            :aria-label="t('admin.accounts.refreshActualUsageTitle')"
-            :disabled="loading || usageRefreshing"
-            @click="emit('refresh-usage')"
-          >
-            <Icon
-              name="refresh"
-              size="md"
-              :class="[usageRefreshing ? 'animate-spin' : '']"
-            />
-            <span class="hidden md:inline">
-              {{
-                usageRefreshing
-                  ? t("admin.accounts.refreshingActualUsage")
-                  : t("admin.accounts.refreshActualUsage")
-              }}
-            </span>
-          </button>
-
-          <div
-            class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 dark:border-dark-600 dark:bg-dark-800"
-            :title="t('admin.accounts.daily5h.toolbarHint')"
-          >
-            <div class="hidden md:block">
-              <div class="text-xs font-medium text-gray-900 dark:text-white">
-                {{ t("admin.accounts.daily5h.toolbarLabel") }}
-              </div>
+            <div
+              :class="visualStyleToggleClass"
+              data-account-visual-style-toggle="true"
+            >
+              <span :class="visualStyleLabelClass">
+                {{ t("admin.accounts.accountVisualStyle") }}
+              </span>
+              <button
+                type="button"
+                class="rounded-full px-3 py-1 text-xs font-semibold transition"
+                :class="
+                  accountVisualPresetOverride === 'inherit'
+                    ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-gray-900'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700'
+                "
+                :disabled="accountVisualStyleUpdating"
+                @click="emit('set-account-visual-preset-override', 'inherit')"
+              >
+                {{ t("admin.accounts.accountVisualStyleInherit") }}
+              </button>
+              <button
+                type="button"
+                class="rounded-full px-3 py-1 text-xs font-semibold transition"
+                :class="
+                  accountVisualPresetOverride === 'classic'
+                    ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-900'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700'
+                "
+                :disabled="accountVisualStyleUpdating"
+                @click="emit('set-account-visual-preset-override', 'classic')"
+              >
+                {{ t("admin.accounts.accountVisualStyleClassic") }}
+              </button>
+              <button
+                type="button"
+                class="rounded-full px-3 py-1 text-xs font-semibold transition"
+                :class="
+                  accountVisualPresetOverride === 'airy'
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700'
+                "
+                :disabled="accountVisualStyleUpdating"
+                @click="emit('set-account-visual-preset-override', 'airy')"
+              >
+                {{ t("admin.accounts.accountVisualStyleAiry") }}
+              </button>
             </div>
-            <button
-              type="button"
-              class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-              :class="[daily5HTriggerEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600']"
-              role="switch"
-              :aria-checked="daily5HTriggerEnabled"
-              :disabled="loading || daily5HTriggerBusy"
-              data-daily5h-toggle="true"
-              @click="emit('toggle-daily-5h-trigger')"
-            >
-              <span
-                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                :class="[daily5HTriggerEnabled ? 'translate-x-5' : 'translate-x-0']"
-              />
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary px-2"
-              :disabled="loading || daily5HTriggerBusy"
-              :title="t('admin.accounts.daily5h.settingsButtonTitle')"
-              data-daily5h-settings="true"
-              @click="emit('open-daily-5h-settings')"
-            >
-              <Icon name="cog" size="sm" />
-            </button>
-          </div>
 
-          <div class="relative" ref="autoRefreshDropdownRef">
+            <AccountViewModeToggle
+              :model-value="viewMode"
+              @update:model-value="emit('update:view-mode', $event)"
+            />
+
             <button
               type="button"
-              class="btn btn-secondary px-2 md:px-3"
-              :title="t('admin.accounts.autoRefresh')"
-              @click="toggleAutoRefreshDropdown"
+              class="btn btn-secondary"
+              @click="emit('toggle-group-view')"
+            >
+              {{
+                groupViewEnabled
+                  ? t("admin.accounts.groupView.disable")
+                  : t("admin.accounts.groupView.enable")
+              }}
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-platform-sort-button="true"
+              :title="platformSortToggleTitle"
+              @click="
+                emit(
+                  'update:platform-count-sort-order',
+                  nextPlatformCountSortOrder,
+                )
+              "
+            >
+              {{ platformSortLabel }}
+            </button>
+
+            <button
+              v-if="showLimitedControls"
+              type="button"
+              class="btn btn-secondary"
+              @click="emit('toggle-hide-limited')"
+            >
+              {{
+                hideLimitedAccounts
+                  ? t("admin.accounts.limited.hideToggleOn")
+                  : t("admin.accounts.limited.hideToggleOff")
+              }}
+            </button>
+
+            <button
+              v-if="showLimitedControls"
+              type="button"
+              class="btn btn-secondary"
+              @click="emit('open-limited-page')"
+            >
+              {{
+                t("admin.accounts.limited.entry", { count: limitedAccountsCount })
+              }}
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-actual-usage-button="true"
+              :title="t('admin.accounts.refreshActualUsageTitle')"
+              :aria-label="t('admin.accounts.refreshActualUsageTitle')"
+              :disabled="loading || usageRefreshing"
+              @click="emit('refresh-usage')"
             >
               <Icon
                 name="refresh"
-                size="sm"
-                :class="[autoRefreshEnabled ? 'animate-spin' : '']"
+                size="md"
+                :class="[usageRefreshing ? 'animate-spin' : '']"
               />
               <span class="hidden md:inline">
                 {{
-                  autoRefreshEnabled
-                    ? t("admin.accounts.autoRefreshCountdown", {
-                        seconds: autoRefreshCountdown,
-                      })
-                    : t("admin.accounts.autoRefresh")
+                  usageRefreshing
+                    ? t("admin.accounts.refreshingActualUsage")
+                    : t("admin.accounts.refreshActualUsage")
                 }}
               </span>
             </button>
-          </div>
 
-          <div class="relative" ref="moreActionsDropdownRef">
-            <button
-              type="button"
-              class="btn btn-secondary px-2 md:px-3"
-              :title="t('common.more')"
-              data-more-actions-button="true"
-              @click="toggleMoreActionsDropdown"
+            <div
+              :class="daily5HToggleClass"
+              :title="t('admin.accounts.daily5h.toolbarHint')"
             >
-              <Icon name="more" size="sm" class="md:mr-1.5" />
-              <span class="hidden md:inline">{{ t("common.more") }}</span>
-            </button>
-          </div>
+              <div class="hidden md:block">
+                <div class="text-xs font-medium text-gray-900 dark:text-white">
+                  {{ t("admin.accounts.daily5h.toolbarLabel") }}
+                </div>
+              </div>
+              <button
+                type="button"
+                class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                :class="[daily5HTriggerEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600']"
+                role="switch"
+                :aria-checked="daily5HTriggerEnabled"
+                :disabled="loading || daily5HTriggerBusy"
+                data-daily5h-toggle="true"
+                @click="emit('toggle-daily-5h-trigger')"
+              >
+                <span
+                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  :class="[daily5HTriggerEnabled ? 'translate-x-5' : 'translate-x-0']"
+                />
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary px-2"
+                :disabled="loading || daily5HTriggerBusy"
+                :title="t('admin.accounts.daily5h.settingsButtonTitle')"
+                data-daily5h-settings="true"
+                @click="emit('open-daily-5h-settings')"
+              >
+                <Icon name="cog" size="sm" />
+              </button>
+            </div>
 
-          <div class="relative" ref="columnDropdownRef">
-          </div>
+            <div class="relative" ref="autoRefreshDropdownRef">
+              <button
+                type="button"
+                class="btn btn-secondary px-2 md:px-3"
+                :title="t('admin.accounts.autoRefresh')"
+                @click="toggleAutoRefreshDropdown"
+              >
+                <Icon
+                  name="refresh"
+                  size="sm"
+                  :class="[autoRefreshEnabled ? 'animate-spin' : '']"
+                />
+                <span class="hidden md:inline">
+                  {{
+                    autoRefreshEnabled
+                      ? t("admin.accounts.autoRefreshCountdown", {
+                          seconds: autoRefreshCountdown,
+                        })
+                      : t("admin.accounts.autoRefresh")
+                  }}
+                </span>
+              </button>
+            </div>
+
+            <div class="relative" ref="moreActionsDropdownRef">
+              <button
+                type="button"
+                class="btn btn-secondary px-2 md:px-3"
+                :title="t('common.more')"
+                data-more-actions-button="true"
+                @click="toggleMoreActionsDropdown"
+              >
+                <Icon name="more" size="sm" class="md:mr-1.5" />
+                <span class="hidden md:inline">{{ t("common.more") }}</span>
+              </button>
+            </div>
+
+            <div class="relative" ref="columnDropdownRef"></div>
           </template>
         </AccountTableActions>
       </div>
@@ -243,6 +300,27 @@
         @click.stop
       >
         <div class="p-2">
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            data-account-realtime-toggle="true"
+            @click="handleToggleAccountRealtimeCountdown"
+          >
+            <span>{{ t("admin.accounts.accountRealtimeCountdown") }}</span>
+            <span
+              class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out"
+              :class="[
+                accountRealtimeCountdownEnabled
+                  ? 'bg-primary-600'
+                  : 'bg-gray-200 dark:bg-dark-600'
+              ]"
+            >
+              <span
+                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="[accountRealtimeCountdownEnabled ? 'translate-x-4' : 'translate-x-0']"
+              />
+            </span>
+          </button>
           <button
             type="button"
             class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -341,6 +419,8 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type {
   AdminGroup,
+  VisualPreset,
+  VisualPresetPreference,
   AccountPlatformCountSortOrder,
   AccountViewMode,
 } from "@/types";
@@ -384,6 +464,10 @@ const props = defineProps<{
   actualUsageRefreshSummary: ActualUsageRefreshSummary;
   daily5HTriggerEnabled?: boolean;
   daily5HTriggerBusy?: boolean;
+  accountRealtimeCountdownEnabled?: boolean;
+  accountVisualPresetOverride?: VisualPresetPreference;
+  visualStyle?: VisualPreset;
+  accountVisualStyleUpdating?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -410,6 +494,8 @@ const emit = defineEmits<{
   "open-limited-page": [];
   "toggle-daily-5h-trigger": [];
   "open-daily-5h-settings": [];
+  "toggle-account-realtime-countdown": [];
+  "set-account-visual-preset-override": [value: VisualPresetPreference];
 }>();
 
 const { t } = useI18n();
@@ -423,7 +509,7 @@ const moreActionsDropdownRef = ref<HTMLElement | null>(null);
 const AUTO_REFRESH_PANEL_WIDTH = 224;
 const AUTO_REFRESH_PANEL_HEIGHT = 240;
 const MORE_ACTIONS_PANEL_WIDTH = 224;
-const MORE_ACTIONS_PANEL_HEIGHT = 320;
+const MORE_ACTIONS_PANEL_HEIGHT = 360;
 const COLUMN_PANEL_WIDTH = 192;
 const COLUMN_PANEL_HEIGHT = 360;
 
@@ -440,6 +526,29 @@ const platformSortToggleTitle = computed(() =>
   nextPlatformCountSortOrder.value === "count_desc"
     ? t("admin.accounts.platformSort.toggleDesc")
     : t("admin.accounts.platformSort.toggleAsc"),
+);
+const toolbarShellClass = computed(() =>
+  props.visualStyle === "airy"
+    ? "rounded-[1.75rem] border border-slate-200/75 bg-[linear-gradient(135deg,rgba(255,255,255,0.97),rgba(248,250,252,0.92))] p-4 dark:border-slate-700/80 dark:bg-[linear-gradient(135deg,rgba(30,41,59,0.82),rgba(15,23,42,0.72))]"
+    : "rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800",
+);
+const actionsViewportClass = computed(() =>
+  props.visualStyle === "airy" ? "-mx-1 px-1" : "",
+);
+const visualStyleToggleClass = computed(() =>
+  props.visualStyle === "airy"
+    ? "inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-slate-50/95 p-1 dark:border-slate-700/80 dark:bg-slate-800/80"
+    : "inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-900/60",
+);
+const visualStyleLabelClass = computed(() =>
+  props.visualStyle === "airy"
+    ? "px-2 text-xs font-medium text-slate-600 dark:text-slate-200"
+    : "px-2 text-xs font-medium text-gray-500 dark:text-gray-300",
+);
+const daily5HToggleClass = computed(() =>
+  props.visualStyle === "airy"
+    ? "flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/95 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/80"
+    : "flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 dark:border-dark-600 dark:bg-dark-800",
 );
 
 const handleFiltersUpdate = (value: Record<string, unknown>) => {
@@ -474,6 +583,11 @@ const toggleMoreActionsDropdown = () => {
   showMoreActionsDropdown.value = !showMoreActionsDropdown.value;
   showAutoRefreshDropdown.value = false;
   showColumnDropdown.value = false;
+};
+
+const handleToggleAccountRealtimeCountdown = () => {
+  showMoreActionsDropdown.value = false;
+  emit("toggle-account-realtime-countdown");
 };
 
 const closeFloatingMenus = () => {

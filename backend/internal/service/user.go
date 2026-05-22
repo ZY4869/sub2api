@@ -7,24 +7,27 @@ import (
 )
 
 type User struct {
-	ID                           int64
-	Email                        string
-	Username                     string
-	Notes                        string
-	PasswordHash                 string
-	Role                         string
-	Balance                      float64
-	Balances                     map[string]float64
-	Concurrency                  int
-	Status                       string
-	AdminFreeBilling             bool
-	RequestDetailsReview         bool
-	UsageModelDisplayMode        string
-	UsageContextBadgeDisplayMode string
-	AllowedGroups                []int64
-	TokenVersion                 int64 // Incremented on password change to invalidate existing tokens
-	CreatedAt                    time.Time
-	UpdatedAt                    time.Time
+	ID                              int64
+	Email                           string
+	Username                        string
+	Notes                           string
+	PasswordHash                    string
+	Role                            string
+	Balance                         float64
+	Balances                        map[string]float64
+	Concurrency                     int
+	Status                          string
+	AdminFreeBilling                bool
+	RequestDetailsReview            bool
+	UsageModelDisplayMode           string
+	GlobalRealtimeCountdownEnabled  bool
+	AccountRealtimeCountdownEnabled bool
+	VisualPresetPreference          string
+	AccountVisualPresetOverride     string
+	AllowedGroups                   []int64
+	TokenVersion                    int64 // Incremented on password change to invalidate existing tokens
+	CreatedAt                       time.Time
+	UpdatedAt                       time.Time
 
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]rateMultiplier
@@ -74,11 +77,11 @@ func (u *User) EffectiveUsageModelDisplayMode() string {
 	return NormalizeUserUsageModelDisplayMode(u.UsageModelDisplayMode)
 }
 
-func (u *User) EffectiveUsageContextBadgeDisplayMode() string {
+func (u *User) EffectiveVisualPreset(siteDefault string) string {
 	if u == nil {
-		return UsageContextBadgeDisplayModeRequestOnly
+		return NormalizeVisualPreset(siteDefault)
 	}
-	return NormalizeUserUsageContextBadgeDisplayMode(u.UsageContextBadgeDisplayMode)
+	return ResolveVisualPreset(siteDefault, u.VisualPresetPreference, u.AccountVisualPresetOverride)
 }
 
 // CanBindGroup checks whether a user can bind to a given group.

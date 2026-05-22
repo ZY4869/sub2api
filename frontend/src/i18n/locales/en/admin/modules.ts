@@ -25,6 +25,10 @@ export default {
             title: "Redeem Codes",
             description: "Generate, distribute, and track balance redeem codes.",
         },
+        paymentOrders: {
+            title: "Payment Orders",
+            description: "Review built-in payment orders and process full or partial refunds.",
+        },
         registration: {
             title: "Registration Codes",
             description: "Open registration, promo-code, and invitation restrictions.",

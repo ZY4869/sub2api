@@ -19,6 +19,7 @@ import {
   type ReleaseInfo,
 } from "@/api/admin/system";
 import { getPublicSettings as fetchPublicSettingsAPI } from "@/api/auth";
+import { applyRootVisualPreset, normalizeVisualPreset } from "@/utils/visualPreset";
 
 export const useAppStore = defineStore("app", () => {
   // ==================== State ====================
@@ -37,6 +38,7 @@ export const useAppStore = defineStore("app", () => {
   const contactInfo = ref<string>("");
   const apiBaseUrl = ref<string>("");
   const docUrl = ref<string>("");
+  const visualPresetDefault = ref<"classic" | "airy">("classic");
   const cachedPublicSettings = ref<PublicSettings | null>(null);
 
   // Version cache state
@@ -62,6 +64,9 @@ export const useAppStore = defineStore("app", () => {
   );
   const publicModelCatalogEnabled = computed(
     () => cachedPublicSettings.value?.public_model_catalog_enabled ?? true,
+  );
+  const accountAiryWhiteSurfaceEnabled = computed(
+    () => cachedPublicSettings.value?.account_airy_white_surface_enabled ?? false,
   );
 
   const loadingCount = ref<number>(0);
@@ -363,6 +368,8 @@ export const useAppStore = defineStore("app", () => {
     contactInfo.value = config.contact_info || "";
     apiBaseUrl.value = config.api_base_url || "";
     docUrl.value = config.doc_url || "";
+    visualPresetDefault.value = normalizeVisualPreset(config.visual_preset_default);
+    applyRootVisualPreset(visualPresetDefault.value);
     publicSettingsLoaded.value = true;
   }
 
@@ -396,6 +403,8 @@ export const useAppStore = defineStore("app", () => {
         site_name: siteName.value,
         site_logo: siteLogo.value,
         site_subtitle: "",
+        visual_preset_default: visualPresetDefault.value,
+        account_airy_white_surface_enabled: false,
         api_base_url: apiBaseUrl.value,
         contact_info: contactInfo.value,
         doc_url: docUrl.value,
@@ -407,6 +416,12 @@ export const useAppStore = defineStore("app", () => {
         affiliate_enabled: false,
         purchase_subscription_enabled: false,
         purchase_subscription_url: "",
+        payment_provider_airwallex_enabled: false,
+        payment_allowed_currencies: ["USD", "CNY", "HKD"],
+        payment_default_currency: "USD",
+        payment_min_topup_amount: 1,
+        payment_max_topup_amount: 5000,
+        payment_subscription_plans: [],
         custom_menu_items: [],
         login_agreement_enabled: false,
         login_agreement_mode: "checkbox",
@@ -445,6 +460,7 @@ export const useAppStore = defineStore("app", () => {
   function clearPublicSettingsCache(): void {
     publicSettingsLoaded.value = false;
     cachedPublicSettings.value = null;
+    visualPresetDefault.value = "classic";
   }
 
   /**
@@ -477,6 +493,7 @@ export const useAppStore = defineStore("app", () => {
     contactInfo,
     apiBaseUrl,
     docUrl,
+    visualPresetDefault,
     cachedPublicSettings,
 
     // Version state
@@ -493,6 +510,7 @@ export const useAppStore = defineStore("app", () => {
     backendModeEnabled,
     maintenanceModeEnabled,
     publicModelCatalogEnabled,
+    accountAiryWhiteSurfaceEnabled,
 
     // Actions
     toggleSidebar,

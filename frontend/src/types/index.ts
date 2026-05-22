@@ -33,6 +33,10 @@ export interface User {
   admin_free_billing?: boolean;
   usage_model_display_mode?: UsageModelDisplayMode;
   usage_context_badge_display_mode?: UsageContextBadgeDisplayMode;
+  global_realtime_countdown_enabled?: boolean;
+  account_realtime_countdown_enabled?: boolean;
+  visual_preset_preference?: VisualPresetPreference;
+  account_visual_preset_override?: VisualPresetPreference;
   balance: number; // User balance for API usage
   balances?: Record<string, number>; // Wallet balances by billing currency
   concurrency: number; // Allowed concurrent requests
@@ -120,6 +124,8 @@ export interface PublicSettings {
   site_name: string;
   site_logo: string;
   site_subtitle: string;
+  visual_preset_default: VisualPreset;
+  account_airy_white_surface_enabled?: boolean;
   api_base_url: string;
   contact_info: string;
   doc_url: string;
@@ -131,6 +137,12 @@ export interface PublicSettings {
   affiliate_enabled: boolean;
   purchase_subscription_enabled: boolean;
   purchase_subscription_url: string;
+  payment_provider_airwallex_enabled: boolean;
+  payment_allowed_currencies: string[];
+  payment_default_currency: string;
+  payment_min_topup_amount: number;
+  payment_max_topup_amount: number;
+  payment_subscription_plans: PaymentSubscriptionPlan[];
   custom_menu_items: CustomMenuItem[];
   login_agreement_enabled: boolean;
   login_agreement_mode: "checkbox" | string;
@@ -142,6 +154,87 @@ export interface PublicSettings {
   backend_mode_enabled: boolean;
   maintenance_mode_enabled: boolean;
   version: string;
+}
+
+export type PaymentProductType = "balance_topup" | "subscription";
+
+export type PaymentOrderStatus =
+  | "created"
+  | "pending"
+  | "paid"
+  | "failed"
+  | "cancelled"
+  | "expired"
+  | "partial_refunded"
+  | "refunded";
+
+export interface PaymentSubscriptionPlan {
+  plan_id: string;
+  name: string;
+  group_id: number;
+  validity_days: number;
+  prices_by_currency: Record<string, number>;
+  enabled: boolean;
+}
+
+export interface PaymentOrder {
+  order_no: string;
+  user_id?: number;
+  product_type: PaymentProductType;
+  status: PaymentOrderStatus;
+  provider: string;
+  provider_env: "demo" | "prod" | string;
+  amount_minor: number;
+  amount: number;
+  refunded_amount_minor?: number;
+  refunded_amount?: number;
+  refundable_amount_minor?: number;
+  refundable_amount?: number;
+  currency: string;
+  country_code?: string;
+  provider_intent_id?: string;
+  snapshot?: Record<string, unknown>;
+  paid_at?: string | null;
+  refunded_at?: string | null;
+  expires_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PaymentCreateOrderRequest {
+  product_type: PaymentProductType;
+  amount?: number;
+  currency: string;
+  country_code?: string;
+  plan_id?: string;
+  return_url?: string;
+}
+
+export interface PaymentCreateOrderResponse {
+  order: PaymentOrder;
+  client_secret: string;
+  client_id: string;
+  intent_id: string;
+  resume_token: string;
+  provider_env: "demo" | "prod" | string;
+}
+
+export interface PaymentResumeOrderResponse {
+  order: PaymentOrder;
+  client_secret: string;
+  client_id: string;
+  intent_id: string;
+  provider_env: "demo" | "prod" | string;
+}
+
+export interface PaymentRefund {
+  refund_no: string;
+  order_no: string;
+  provider_refund_id: string;
+  amount_minor: number;
+  currency: string;
+  status: "received" | "accepted" | "settled" | "failed" | string;
+  created_at?: string;
 }
 
 export interface AuthIdentity {
@@ -199,6 +292,10 @@ export type UsageModelDisplayMode =
   | "model_only"
   | "display_only"
   | "display_and_model";
+
+export type VisualPreset = "classic" | "airy";
+export type VisualPresetPreference = "inherit" | VisualPreset;
+export type AccountVisualStyle = VisualPreset;
 
 export type UsageContextBadgeDisplayMode =
   | "request_only"
@@ -897,6 +994,7 @@ export interface Account {
   platform: AccountPlatform;
   gateway_protocol?: GatewayProtocol;
   gateway_batch_enabled?: boolean | null;
+  active_usage_available?: boolean;
   batch_archive_enabled?: boolean | null;
   batch_archive_auto_prefetch_enabled?: boolean | null;
   batch_archive_retention_days?: number | null;
@@ -1409,6 +1507,7 @@ export interface UsageLog {
   reasoning_effort?: string | null;
   reasoning_effort_raw?: string | null;
   reasoning_effort_effective?: string | null;
+  request_context_length_tokens?: number | null;
   million_context_requested?: boolean | null;
   million_context_effective?: boolean | null;
   million_context_source?: string | null;

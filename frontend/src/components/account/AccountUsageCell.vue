@@ -1,5 +1,12 @@
 <template>
-  <div ref="rootRef">
+  <div
+    ref="rootRef"
+    :class="[
+      visualVariant === 'glass'
+        ? 'account-usage-glass'
+        : '',
+    ]"
+  >
     <div
       v-if="presentation.meta.antigravityTierLabel"
       class="mb-1 flex items-center gap-1"
@@ -92,25 +99,25 @@
         class="flex items-center gap-1"
       >
         <div
-          class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"
+          :class="skeletonLabelClass"
         ></div>
         <div
-          class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"
+          :class="skeletonBarClass"
         ></div>
         <div
-          class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"
+          :class="skeletonValueClass"
         ></div>
       </div>
     </div>
 
     <div
       v-else-if="presentation.state === 'error'"
-      class="text-xs text-red-500"
+      :class="errorTextClass"
     >
       {{ presentation.error }}
     </div>
 
-    <div v-else-if="presentation.state === 'bars'" class="space-y-1">
+    <div v-else-if="presentation.state === 'bars'" :class="barsWrapperClass">
       <UsageProgressBar
         v-for="row in presentation.windowRows"
         :key="row.key"
@@ -119,10 +126,11 @@
         :window-stats="row.windowStats"
         :color="row.color"
         :display-mode="accountUsageDisplayMode"
+        :visual-variant="visualVariant"
       />
       <p
         v-if="presentation.meta.snapshotUpdatedAtText"
-        class="text-[9px] leading-tight text-gray-400 dark:text-gray-500"
+        :class="snapshotTextClass"
         :title="presentation.meta.snapshotUpdatedAtTooltip || undefined"
       >
         {{
@@ -134,7 +142,7 @@
       <div v-if="presentation.meta.sampledBadgeLabel" class="mt-1">
         <button
           type="button"
-          class="inline-flex cursor-help items-center rounded-full border border-amber-300/80 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+          :class="sampledBadgeClass"
           @mouseenter="handleTooltipEnter('sampled', $event)"
           @mouseleave="scheduleTooltipHide"
           @focusin="handleTooltipEnter('sampled', $event)"
@@ -146,7 +154,7 @@
       </div>
       <p
         v-if="presentation.meta.noteText"
-        class="mt-1 text-[9px] italic leading-tight text-gray-400 dark:text-gray-500"
+        :class="noteTextClass"
       >
         * {{ presentation.meta.noteText }}
       </p>
@@ -154,12 +162,12 @@
 
     <div
       v-else-if="presentation.state === 'unlimited'"
-      class="text-xs text-gray-400"
+      :class="emptyTextClass"
     >
       {{ t("admin.accounts.gemini.rateLimit.unlimited") }}
     </div>
 
-    <div v-else class="text-xs text-gray-400">-</div>
+    <div v-else :class="emptyTextClass">-</div>
   </div>
 
   <Teleport to="body">
@@ -233,11 +241,15 @@ const props = withDefaults(
     todayStats?: WindowStats | null;
     todayStatsLoading?: boolean;
     manualRefreshToken?: number;
+    visualVariant?: "default" | "glass";
+    whiteSurfaceEnabled?: boolean;
   }>(),
   {
     todayStats: null,
     todayStatsLoading: false,
     manualRefreshToken: 0,
+    visualVariant: "default",
+    whiteSurfaceEnabled: false,
   },
 );
 
@@ -266,6 +278,72 @@ const skeletonRows = computed(() => {
     { length: presentation.value.meta.loadingRows },
     (_, index) => index + 1,
   );
+});
+
+const skeletonLabelClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return props.whiteSurfaceEnabled
+      ? "h-3 w-[38px] animate-pulse rounded-full border border-slate-200/80 bg-slate-100 dark:border-slate-700/80 dark:bg-slate-800/70"
+      : "h-3 w-[38px] animate-pulse rounded-full border border-slate-200/75 bg-slate-100 dark:border-slate-700/80 dark:bg-slate-800/70";
+  }
+  return "h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700";
+});
+
+const skeletonBarClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return props.whiteSurfaceEnabled
+      ? "h-1.5 w-16 animate-pulse rounded-full border border-slate-200/80 bg-slate-100 dark:border-slate-700/80 dark:bg-slate-800/70"
+      : "h-1.5 w-16 animate-pulse rounded-full border border-slate-200/75 bg-slate-100 dark:border-slate-700/80 dark:bg-slate-800/70";
+  }
+  return "h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700";
+});
+
+const skeletonValueClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return props.whiteSurfaceEnabled
+      ? "h-3 w-[36px] animate-pulse rounded-full border border-slate-200/80 bg-slate-100 dark:border-slate-700/80 dark:bg-slate-800/70"
+      : "h-3 w-[36px] animate-pulse rounded-full border border-slate-200/75 bg-slate-100 dark:border-slate-700/80 dark:bg-slate-800/70";
+  }
+  return "h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700";
+});
+
+const barsWrapperClass = computed(() => {
+  return props.visualVariant === "glass" ? "space-y-2" : "space-y-1";
+});
+
+const snapshotTextClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "text-[9px] font-medium leading-tight text-slate-500 dark:text-slate-300";
+  }
+  return "text-[9px] leading-tight text-gray-400 dark:text-gray-500";
+});
+
+const sampledBadgeClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "inline-flex cursor-help items-center rounded-full border border-amber-200/75 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100";
+  }
+  return "inline-flex cursor-help items-center rounded-full border border-amber-300/80 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200";
+});
+
+const noteTextClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "mt-1 text-[9px] italic leading-tight text-slate-500 dark:text-slate-300";
+  }
+  return "mt-1 text-[9px] italic leading-tight text-gray-400 dark:text-gray-500";
+});
+
+const errorTextClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "text-xs font-medium text-rose-700 dark:text-rose-200";
+  }
+  return "text-xs text-red-500";
+});
+
+const emptyTextClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "text-xs text-slate-500 dark:text-slate-300";
+  }
+  return "text-xs text-gray-400";
 });
 
 const cancelTooltipHide = () => {

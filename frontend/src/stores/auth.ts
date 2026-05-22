@@ -6,7 +6,22 @@
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import { authAPI, isTotp2FARequired, type LoginResponse } from '@/api'
-import type { User, LoginRequest, RegisterRequest, AuthResponse, UsageContextBadgeDisplayMode, UsageModelDisplayMode } from '@/types'
+import type {
+  User,
+  LoginRequest,
+  RegisterRequest,
+  AuthResponse,
+  UsageModelDisplayMode,
+  VisualPreset,
+  VisualPresetPreference,
+  UsageContextBadgeDisplayMode,
+} from '@/types'
+import { useAppStore } from './app'
+import {
+  applyRootVisualPreset,
+  normalizeVisualPresetPreference,
+  resolveGlobalVisualPreset,
+} from '@/utils/visualPreset'
 
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
@@ -41,6 +56,13 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   const isSimpleMode = computed(() => runMode.value === 'simple')
+  const resolvedGlobalVisualPreset = computed<VisualPreset>(() => {
+    const appStore = useAppStore()
+    return resolveGlobalVisualPreset(
+      appStore.visualPresetDefault,
+      user.value?.visual_preset_preference,
+    )
+  })
 
   // ==================== Actions ====================
 
@@ -61,6 +83,7 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = JSON.parse(savedUser)
         refreshTokenValue.value = savedRefreshToken
         tokenExpiresAt.value = savedExpiresAt ? parseInt(savedExpiresAt, 10) : null
+        applyResolvedVisualPreset()
 
         // Immediately refresh user data from backend (async, don't block)
         refreshUser().catch((error) => {
@@ -243,6 +266,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     const { run_mode: _run_mode, ...userData } = response.user
     user.value = userData
+    applyResolvedVisualPreset()
 
     // Persist to localStorage
     localStorage.setItem(AUTH_TOKEN_KEY, response.access_token)
@@ -261,6 +285,7 @@ export const useAuthStore = defineStore('auth', () => {
   function setCurrentUser(nextUser: User): void {
     user.value = nextUser
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser))
+    applyResolvedVisualPreset()
   }
 
   function setUsageModelDisplayMode(mode: UsageModelDisplayMode): void {
@@ -280,6 +305,46 @@ export const useAuthStore = defineStore('auth', () => {
     setCurrentUser({
       ...user.value,
       usage_context_badge_display_mode: mode,
+    })
+  }
+
+  function setGlobalRealtimeCountdownEnabled(enabled: boolean): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      global_realtime_countdown_enabled: enabled,
+    })
+  }
+
+  function setAccountRealtimeCountdownEnabled(enabled: boolean): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      account_realtime_countdown_enabled: enabled,
+    })
+  }
+
+  function setVisualPresetPreference(preference: VisualPresetPreference): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      visual_preset_preference: normalizeVisualPresetPreference(preference),
+    })
+  }
+
+  function setAccountVisualPresetOverride(preference: VisualPresetPreference): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      account_visual_preset_override: normalizeVisualPresetPreference(preference),
     })
   }
 
@@ -403,10 +468,21 @@ export const useAuthStore = defineStore('auth', () => {
     refreshTokenValue.value = null
     tokenExpiresAt.value = null
     user.value = null
+    applyRootVisualPreset(useAppStore().visualPresetDefault)
     localStorage.removeItem(AUTH_TOKEN_KEY)
     localStorage.removeItem(AUTH_USER_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(TOKEN_EXPIRES_AT_KEY)
+  }
+
+  function applyResolvedVisualPreset(): void {
+    const appStore = useAppStore()
+    applyRootVisualPreset(
+      resolveGlobalVisualPreset(
+        appStore.visualPresetDefault,
+        user.value?.visual_preset_preference,
+      ),
+    )
   }
 
   // ==================== Return Store API ====================
@@ -422,6 +498,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     canReviewRequestDetails,
     isSimpleMode,
+    resolvedGlobalVisualPreset,
 
     // Actions
     login,
@@ -431,6 +508,10 @@ export const useAuthStore = defineStore('auth', () => {
     setCurrentUser,
     setUsageModelDisplayMode,
     setUsageContextBadgeDisplayMode,
+    setGlobalRealtimeCountdownEnabled,
+    setAccountRealtimeCountdownEnabled,
+    setVisualPresetPreference,
+    setAccountVisualPresetOverride,
     logout,
     checkAuth,
     refreshUser

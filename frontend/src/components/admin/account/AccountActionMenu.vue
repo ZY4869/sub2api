@@ -73,7 +73,7 @@
 import { computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@/components/icons'
-import { useUiNow } from '@/composables/useUiNow'
+import { useRealtimeCountdownNow } from '@/composables/useRealtimeCountdownNow'
 import type { Account } from '@/types'
 
 const props = defineProps<{ show: boolean; account: Account | null; position: { top: number; left: number } | null }>()
@@ -94,7 +94,7 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 
-const { nowMs } = useUiNow()
+const { nowMs } = useRealtimeCountdownNow('accounts')
 
 const isRateLimited = computed(() => {
   const account = props.account

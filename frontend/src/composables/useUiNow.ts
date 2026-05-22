@@ -1,6 +1,6 @@
 import { computed, getCurrentScope, onScopeDispose, readonly, ref } from 'vue'
 
-export const UI_NOW_TICK_MS = 5000
+export const UI_NOW_TICK_MS = 1000
 
 const nowMsState = ref(Date.now())
 

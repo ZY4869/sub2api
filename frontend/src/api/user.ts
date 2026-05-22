@@ -4,7 +4,15 @@
  */
 
 import { apiClient } from './client'
-import type { User, ChangePasswordRequest, UsageContextBadgeDisplayMode, UsageModelDisplayMode, AuthIdentity, SocialOAuthProvider } from '@/types'
+import type {
+  User,
+  ChangePasswordRequest,
+  UsageContextBadgeDisplayMode,
+  UsageModelDisplayMode,
+  VisualPresetPreference,
+  AuthIdentity,
+  SocialOAuthProvider,
+} from '@/types'
 
 /**
  * Get current user profile
@@ -24,6 +32,10 @@ export async function updateProfile(profile: {
   username?: string
   usage_model_display_mode?: UsageModelDisplayMode
   usage_context_badge_display_mode?: UsageContextBadgeDisplayMode
+  global_realtime_countdown_enabled?: boolean
+  account_realtime_countdown_enabled?: boolean
+  visual_preset_preference?: VisualPresetPreference
+  account_visual_preset_override?: VisualPresetPreference
 }): Promise<User> {
   const { data } = await apiClient.put<User>('/user', profile)
   return data

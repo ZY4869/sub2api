@@ -22,6 +22,8 @@
       :usage-manual-refresh-token="usageManualRefreshToken"
       :sort-storage-key="sortStorageKey"
       :preserve-input-order="preserveInputOrder"
+      :visual-style="visualStyle"
+      :white-surface-enabled="whiteSurfaceEnabled"
       @toggle-selected="emit('toggle-selected', $event)"
       @toggle-section-selected="emit('toggle-section-selected', $event)"
       @show-temp-unsched="emit('show-temp-unsched', $event)"
@@ -37,7 +39,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
-import type { Account, AccountViewMode, AdminGroup, WindowStats } from '@/types'
+import type { Account, AccountViewMode, AccountVisualStyle, AdminGroup, WindowStats } from '@/types'
 import AccountGroupSection from './AccountGroupSection.vue'
 
 type GroupSection = {
@@ -61,6 +63,8 @@ const props = defineProps<{
   usageManualRefreshToken: number
   sortStorageKey: string
   preserveInputOrder?: boolean
+  visualStyle?: AccountVisualStyle
+  whiteSurfaceEnabled?: boolean
 }>()
 
 const emit = defineEmits<{

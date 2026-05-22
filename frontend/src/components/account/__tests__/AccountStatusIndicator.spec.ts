@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import AccountStatusIndicator from '../AccountStatusIndicator.vue'
 import type { Account } from '@/types'
 import { resetUiNowForTests, UI_NOW_TICK_MS } from '@/composables/useUiNow'
@@ -92,6 +93,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -120,6 +122,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -144,6 +147,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -171,6 +175,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -192,6 +197,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -215,6 +221,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -247,6 +254,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -277,6 +285,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -308,6 +317,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -338,6 +348,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -366,6 +377,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -385,6 +397,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })
@@ -395,6 +408,56 @@ describe('AccountStatusIndicator', () => {
     const tooltip = document.body.querySelector('.error-info-tooltip')
     expect(tooltip).not.toBeNull()
     expect(tooltip?.textContent).toContain('Payment required (402): {"code":"deactivated_workspace"}')
+  })
+
+  it('renders the glass variant with segmented countdown and preserved resume copy', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        visualVariant: 'glass',
+        account: makeAccount({
+          rate_limit_reset_at: '2026-03-13T12:02:00Z',
+          rate_limit_reason: 'usage_5h',
+        })
+      },
+      global: {
+        plugins: [createPinia()],
+        stubs: componentStubs
+      }
+    })
+
+    expect(wrapper.find('.account-status-glass').exists()).toBe(true)
+    expect(wrapper.find('[data-test="account-segmented-countdown"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('admin.accounts.status.usage5h')
+    expect(wrapper.text()).toContain('admin.accounts.status.usage5hAutoResume')
+    expect(wrapper.html()).not.toContain('backdrop-blur')
+    expect(wrapper.html()).not.toContain('shadow-[')
+  })
+
+  it('keeps temp unschedulable clickable in the glass variant', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        visualVariant: 'glass',
+        account: makeAccount({
+          temp_unschedulable_until: '2026-03-13T12:10:00Z',
+        })
+      },
+      global: {
+        plugins: [createPinia()],
+        stubs: componentStubs
+      }
+    })
+
+    await wrapper.get('button[type="button"]').trigger('click')
+
+    expect(wrapper.emitted('show-temp-unsched')).toEqual([
+      [expect.objectContaining({ id: 1 })]
+    ])
   })
 
   it('repositions the error tooltip to stay within the viewport', async () => {
@@ -452,6 +515,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
+        plugins: [createPinia()],
         stubs: componentStubs
       }
     })

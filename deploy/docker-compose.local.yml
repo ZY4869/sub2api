@@ -43,7 +43,7 @@ services:
       # =======================================================================
       # Auto Setup (REQUIRED for Docker deployment)
       # =======================================================================
-      - AUTO_SETUP=false
+      - AUTO_SETUP=${AUTO_SETUP:-false}
 
       # =======================================================================
       # Server Configuration
@@ -172,8 +172,8 @@ services:
         soft: 100000
         hard: 100000
     volumes:
-      # Local directory mapping for easy migration
-      - ./postgres_data:/var/lib/postgresql/data
+      # Docker volume avoids permission issues on WSL/Windows bind mounts
+      - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-sub2api}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -203,8 +203,8 @@ services:
         soft: 100000
         hard: 100000
     volumes:
-      # Local directory mapping for easy migration
-      - ./redis_data:/data
+      # Docker volume avoids permission issues on WSL/Windows bind mounts
+      - redis_data:/data
     command: >
         sh -c '
           redis-server
@@ -231,3 +231,10 @@ services:
 networks:
   sub2api-network:
     driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+  redis_data:

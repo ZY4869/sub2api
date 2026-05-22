@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
-import { useUiNow } from '@/composables/useUiNow'
+import { useRealtimeCountdownNow } from '@/composables/useRealtimeCountdownNow'
 import {
   formatLocalAbsoluteTime,
   formatLocalTimestamp,
@@ -69,7 +69,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const { nowDate } = useUiNow()
+const { nowDate } = useRealtimeCountdownNow('accounts')
 const { presentation } = useAccountUsagePresentation(() => props.account)
 
 function formatResetValue(

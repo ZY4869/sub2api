@@ -50,6 +50,7 @@ describe('AdminModulesView', () => {
     expect(wrapper.findAll('[data-testid="module-section"]')).toHaveLength(3)
     expect(wrapper.find('[data-testid="module-card-promo-codes"]').attributes('href')).toBe('/admin/promo-codes')
     expect(wrapper.find('[data-testid="module-card-redeem-codes"]').attributes('href')).toBe('/admin/redeem')
+    expect(wrapper.find('[data-testid="module-card-payment-orders"]').attributes('href')).toBe('/admin/payment/orders')
     expect(wrapper.find('[data-testid="module-card-proxies"]').attributes('href')).toBe('/admin/proxies')
     expect(wrapper.find('[data-testid="module-card-settings-email"]').attributes('href')).toBe('/admin/settings?tab=email')
   })
@@ -73,6 +74,7 @@ describe('AdminModulesView', () => {
 
     expect(wrapper.find('[data-testid="module-card-promo-codes"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="module-card-redeem-codes"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="module-card-payment-orders"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="module-card-invitation"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="module-card-proxies"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="module-card-registration"]').exists()).toBe(true)

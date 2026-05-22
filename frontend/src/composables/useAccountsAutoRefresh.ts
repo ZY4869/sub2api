@@ -1,5 +1,6 @@
-import { ref, type ComputedRef } from 'vue'
+import { computed, ref, type ComputedRef } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
+import { useRealtimeCountdownNow } from '@/composables/useRealtimeCountdownNow'
 
 const AUTO_REFRESH_STORAGE_KEY = 'account-auto-refresh'
 const AUTO_REFRESH_SILENT_WINDOW_MS = 15000
@@ -20,8 +21,9 @@ const isValidAutoRefreshInterval = (value: number): value is AutoRefreshInterval
 export function useAccountsAutoRefresh({ isBlocked, onRefresh }: UseAccountsAutoRefreshOptions) {
   const autoRefreshEnabled = ref(false)
   const autoRefreshIntervalSeconds = ref<AutoRefreshInterval>(30)
-  const autoRefreshCountdown = ref(0)
   const autoRefreshSilentUntil = ref(0)
+  const nextRefreshAtMs = ref(0)
+  const { nowMs: displayNowMs } = useRealtimeCountdownNow('accounts')
 
   const loadSavedAutoRefresh = () => {
     try {
@@ -55,12 +57,23 @@ export function useAccountsAutoRefresh({ isBlocked, onRefresh }: UseAccountsAuto
 
   const enterAutoRefreshSilentWindow = () => {
     autoRefreshSilentUntil.value = Date.now() + AUTO_REFRESH_SILENT_WINDOW_MS
-    autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
+    nextRefreshAtMs.value = autoRefreshSilentUntil.value
   }
 
   const inAutoRefreshSilentWindow = () => {
     return Date.now() < autoRefreshSilentUntil.value
   }
+
+  const resetNextRefreshAt = () => {
+    nextRefreshAtMs.value = Date.now() + autoRefreshIntervalSeconds.value * 1000
+  }
+
+  const autoRefreshCountdown = computed(() => {
+    if (!autoRefreshEnabled.value || nextRefreshAtMs.value <= 0) {
+      return 0
+    }
+    return Math.max(0, Math.ceil((nextRefreshAtMs.value - displayNowMs.value) / 1000))
+  })
 
   const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
     async () => {
@@ -68,20 +81,19 @@ export function useAccountsAutoRefresh({ isBlocked, onRefresh }: UseAccountsAuto
       if (typeof document !== 'undefined' && document.hidden) return
       if (isBlocked.value) return
       if (inAutoRefreshSilentWindow()) {
-        autoRefreshCountdown.value = Math.max(
-          0,
-          Math.ceil((autoRefreshSilentUntil.value - Date.now()) / 1000)
-        )
         return
       }
 
-      if (autoRefreshCountdown.value <= 0) {
-        autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
+      if (nextRefreshAtMs.value <= 0) {
+        resetNextRefreshAt()
+        return
+      }
+
+      if (Date.now() >= nextRefreshAtMs.value) {
+        resetNextRefreshAt()
         await onRefresh()
         return
       }
-
-      autoRefreshCountdown.value -= 1
     },
     1000,
     { immediate: false }
@@ -91,11 +103,11 @@ export function useAccountsAutoRefresh({ isBlocked, onRefresh }: UseAccountsAuto
     autoRefreshEnabled.value = enabled
     saveAutoRefreshToStorage()
     if (enabled) {
-      autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
+      resetNextRefreshAt()
       resumeAutoRefresh()
     } else {
       pauseAutoRefresh()
-      autoRefreshCountdown.value = 0
+      nextRefreshAtMs.value = 0
     }
   }
 
@@ -103,7 +115,7 @@ export function useAccountsAutoRefresh({ isBlocked, onRefresh }: UseAccountsAuto
     autoRefreshIntervalSeconds.value = seconds
     saveAutoRefreshToStorage()
     if (autoRefreshEnabled.value) {
-      autoRefreshCountdown.value = seconds
+      resetNextRefreshAt()
     }
   }
 
@@ -122,6 +134,7 @@ export function useAccountsAutoRefresh({ isBlocked, onRefresh }: UseAccountsAuto
     autoRefreshEnabled,
     autoRefreshIntervalSeconds,
     autoRefreshCountdown,
+    nextRefreshAtMs,
     setAutoRefreshEnabled,
     handleAutoRefreshIntervalChange,
     enterAutoRefreshSilentWindow,

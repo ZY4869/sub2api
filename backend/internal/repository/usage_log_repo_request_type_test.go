@@ -99,6 +99,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // reasoning_effort_effective
 			sqlmock.AnyArg(), // requested_model_raw
 			sqlmock.AnyArg(), // requested_model_normalized
+			sqlmock.AnyArg(), // request_context_length_tokens
 			sqlmock.AnyArg(), // million_context_requested
 			sqlmock.AnyArg(), // million_context_effective
 			sqlmock.AnyArg(), // million_context_source
@@ -211,6 +212,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.CacheTTLOverridden,
 			createdAt,
 		).
@@ -304,6 +306,7 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			thinkingEnabled,
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -324,6 +327,105 @@ func TestCoalesceTrimmedString(t *testing.T) {
 	require.Equal(t, "fallback", coalesceTrimmedString(sql.NullString{}, "fallback"))
 	require.Equal(t, "fallback", coalesceTrimmedString(sql.NullString{Valid: true, String: "   "}, "fallback"))
 	require.Equal(t, "value", coalesceTrimmedString(sql.NullString{Valid: true, String: "value"}, "fallback"))
+}
+
+func TestUsageLogRepositoryCreate_ResolvesRequestContextLengthTokens(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	createdAt := time.Date(2025, 1, 4, 12, 0, 0, 0, time.UTC)
+	log := &service.UsageLog{
+		UserID:         1,
+		APIKeyID:       2,
+		AccountID:      3,
+		RequestID:      "req-context-length",
+		Model:          "claude-opus-4-7",
+		RequestedModel: "claude-opus-4-7",
+		CreatedAt:      createdAt,
+	}
+
+	mock.ExpectQuery("INSERT INTO usage_logs").
+		WithArgs(
+			log.UserID,
+			log.APIKeyID,
+			log.AccountID,
+			log.RequestID,
+			log.Model,
+			log.RequestedModel,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			log.InputTokens,
+			log.OutputTokens,
+			log.CacheCreationTokens,
+			log.CacheReadTokens,
+			log.CacheCreation5mTokens,
+			log.CacheCreation1hTokens,
+			log.InputCost,
+			log.OutputCost,
+			log.CacheCreationCost,
+			log.CacheReadCost,
+			log.TotalCost,
+			log.ActualCost,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			log.RateMultiplier,
+			log.AccountRateMultiplier,
+			log.BillingType,
+			int16(service.RequestTypeSync),
+			service.UsageLogStatusSucceeded,
+			false,
+			false,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			log.ImageCount,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			200000,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			log.CacheTTLOverridden,
+			createdAt,
+		).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(102), createdAt))
+
+	inserted, err := repo.Create(context.Background(), log)
+	require.NoError(t, err)
+	require.True(t, inserted)
+	require.NotNil(t, log.RequestContextLengthTokens)
+	require.Equal(t, 200000, *log.RequestContextLengthTokens)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestUsageLogRepositoryListWithFiltersRequestTypePriority(t *testing.T) {
@@ -726,6 +828,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
+			sql.NullInt64{Valid: true, Int64: 200000},
 			sql.NullBool{},
 			sql.NullBool{},
 			sql.NullString{},
@@ -741,6 +844,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
 		require.Equal(t, "priority", *log.ServiceTier)
+		require.NotNil(t, log.RequestContextLengthTokens)
+		require.Equal(t, 200000, *log.RequestContextLengthTokens)
 		require.NotNil(t, log.ThinkingEnabled)
 		require.True(t, *log.ThinkingEnabled)
 		require.Equal(t, service.RequestTypeWSV2, log.RequestType)
@@ -801,6 +906,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
+			sql.NullInt64{},
 			sql.NullBool{},
 			sql.NullBool{},
 			sql.NullString{},
@@ -874,6 +980,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
+			sql.NullInt64{},
 			sql.NullBool{},
 			sql.NullBool{},
 			sql.NullString{},

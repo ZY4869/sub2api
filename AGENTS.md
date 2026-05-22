@@ -23,3 +23,12 @@
 - Read paths for model lists, model detail, runtime support checks, and test-model selection must use local policy projection plus local availability snapshot only. Do not trigger synchronous downstream model probing on read paths.
 - Any model-policy change must regression-cover admin available models, public `/models` or `/v1/models` style enumeration, runtime routing/support checks, snapshot refresh behavior, and legacy compatibility in the same change.
 - Any change to model request paths, response semantics, alias visibility, compatibility fallbacks, or model enumeration behavior must update `backend/internal/service/docs/pages/` and the related tests in the same change.
+
+## Local Deployment Rules
+
+- When the request is about local deployment, default the target environment to WSL even if WSL is not mentioned explicitly.
+- Default local deployment to Docker Compose containers. Do not switch to native Windows processes, Windows services, or other non-container local deployment modes unless the user explicitly asks for them.
+- When the user asks to deploy locally and there is no existing local Docker Compose deployment, treat it as a first-time deployment and default to starting the containers.
+- When the user asks to update a local deployment, or an existing local Docker Compose deployment is already present, treat it as a container update and default to updating the image and recreating the containers instead of only restarting them.
+- The automatic choice between starting containers and updating containers must be based on whether an existing local Docker Compose deployment already exists.
+- Only override these defaults when the user explicitly requests a non-WSL environment, a non-Docker workflow, or another deployment method.

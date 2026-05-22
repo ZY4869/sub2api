@@ -7,6 +7,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
@@ -735,6 +736,9 @@ func ProvideBackupService(
 func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupRepository, cfg *config.Config) *SettingService {
 	svc := NewSettingService(settingRepo, cfg)
 	svc.SetDefaultSubscriptionGroupReader(groupRepo)
+	antigravity.SetUserAgentVersionOverride(func() string {
+		return svc.GetAntigravityUserAgentVersion(context.Background())
+	})
 	return svc
 }
 
@@ -776,6 +780,9 @@ var ProviderSet = wire.NewSet(
 	NewProxyService,
 	NewRedeemService,
 	NewAffiliateService,
+	NewPaymentService,
+	NewHTTPAirwallexClient,
+	wire.Bind(new(AirwallexClient), new(*HTTPAirwallexClient)),
 	NewPromoService,
 	NewUsageService,
 	NewDashboardService,

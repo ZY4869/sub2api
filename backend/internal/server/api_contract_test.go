@@ -59,7 +59,10 @@ func TestAPIContracts(t *testing.T) {
 					"concurrency": 5,
 					"status": "active",
 					"usage_model_display_mode": "model_only",
-					"usage_context_badge_display_mode": "request_only",
+					"global_realtime_countdown_enabled": false,
+					"account_realtime_countdown_enabled": true,
+					"visual_preset_preference": "inherit",
+					"account_visual_preset_override": "inherit",
 					"allowed_groups": null,
  					"created_at": "2025-01-02T03:04:05Z",
  					"updated_at": "2025-01-02T03:04:05Z",
@@ -82,17 +85,19 @@ func TestAPIContracts(t *testing.T) {
 					service.SettingKeyTurnstileEnabled: "true",
 					service.SettingKeyTurnstileSiteKey: "site-key",
 
-					service.SettingKeySiteName:                "Sub2API",
-					service.SettingKeySiteLogo:                "",
-					service.SettingKeySiteSubtitle:            "Subtitle",
-					service.SettingKeyAPIBaseURL:              "https://api.example.com",
-					service.SettingKeyContactInfo:             "support",
-					service.SettingKeyDocURL:                  "https://docs.example.com",
-					service.SettingKeyCustomMenuItems:         `[{"id":"page-public","label":"Guide","icon_svg":"","url":"","visibility":"user","sort_order":0,"page_mode":"markdown","page_slug":"guide","page_content":"# hidden","page_published":true},{"id":"page-draft","label":"Draft","icon_svg":"","url":"","visibility":"user","sort_order":1,"page_mode":"markdown","page_slug":"draft","page_content":"# hidden","page_published":false},{"id":"page-admin","label":"Admin","icon_svg":"","url":"https://admin.example.com","visibility":"admin","sort_order":2,"page_mode":"iframe"}]`,
-					service.SettingKeyLoginAgreementEnabled:   "true",
-					service.SettingKeyLoginAgreementMode:      "checkbox",
-					service.SettingKeyLoginAgreementUpdatedAt: "2026-05-07",
-					service.SettingKeyLoginAgreementDocuments: `[{"id":"terms","title":"Terms","page_slug":"terms"}]`,
+					service.SettingKeySiteName:                       "Sub2API",
+					service.SettingKeySiteLogo:                       "",
+					service.SettingKeySiteSubtitle:                   "Subtitle",
+					service.SettingKeyVisualPresetDefault:            "airy",
+					service.SettingKeyAccountAiryWhiteSurfaceEnabled: "true",
+					service.SettingKeyAPIBaseURL:                     "https://api.example.com",
+					service.SettingKeyContactInfo:                    "support",
+					service.SettingKeyDocURL:                         "https://docs.example.com",
+					service.SettingKeyCustomMenuItems:                `[{"id":"page-public","label":"Guide","icon_svg":"","url":"","visibility":"user","sort_order":0,"page_mode":"markdown","page_slug":"guide","page_content":"# hidden","page_published":true},{"id":"page-draft","label":"Draft","icon_svg":"","url":"","visibility":"user","sort_order":1,"page_mode":"markdown","page_slug":"draft","page_content":"# hidden","page_published":false},{"id":"page-admin","label":"Admin","icon_svg":"","url":"https://admin.example.com","visibility":"admin","sort_order":2,"page_mode":"iframe"}]`,
+					service.SettingKeyLoginAgreementEnabled:          "true",
+					service.SettingKeyLoginAgreementMode:             "checkbox",
+					service.SettingKeyLoginAgreementUpdatedAt:        "2026-05-07",
+					service.SettingKeyLoginAgreementDocuments:        `[{"id":"terms","title":"Terms","page_slug":"terms"}]`,
 				})
 			},
 			method:     http.MethodGet,
@@ -114,6 +119,8 @@ func TestAPIContracts(t *testing.T) {
 					"site_name": "Sub2API",
 					"site_logo": "",
 					"site_subtitle": "Subtitle",
+					"visual_preset_default": "airy",
+					"account_airy_white_surface_enabled": true,
 					"api_base_url": "https://api.example.com",
 					"contact_info": "support",
 					"doc_url": "https://docs.example.com",
@@ -125,6 +132,12 @@ func TestAPIContracts(t *testing.T) {
 					"affiliate_enabled": false,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
+					"payment_provider_airwallex_enabled": false,
+					"payment_allowed_currencies": ["USD", "CNY", "HKD"],
+					"payment_default_currency": "USD",
+					"payment_min_topup_amount": 1,
+					"payment_max_topup_amount": 5000,
+					"payment_subscription_plans": [],
 					"custom_menu_items": [
 						{
 							"id": "page-public",
@@ -154,6 +167,34 @@ func TestAPIContracts(t *testing.T) {
 					"backend_mode_enabled": false,
 					"maintenance_mode_enabled": false,
 					"version": "0.0.0-test"
+				}
+			}`,
+		},
+		{
+			name: "GET /api/v1/settings/public exposes effective Airwallex flag without webhook secret",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.settingRepo.SetAll(map[string]string{
+					service.SettingKeyPurchaseSubscriptionEnabled:     "true",
+					service.SettingKeyPaymentProviderAirwallexEnabled: "true",
+					service.SettingKeyAirwallexClientID:               "client-id",
+					service.SettingKeyAirwallexAPIKey:                 "secret-api-key",
+					service.SettingKeyAirwallexWebhookSecret:          "secret-webhook",
+					service.SettingKeyPaymentAllowedCurrencies:        `["USD","CNY","HKD"]`,
+					service.SettingKeyPaymentDefaultCurrency:          "USD",
+					service.SettingKeyPaymentMinTopupAmount:           "1",
+					service.SettingKeyPaymentMaxTopupAmount:           "5000",
+					service.SettingKeyPaymentSubscriptionPlans:        "[]",
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/settings/public",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"payment_provider_airwallex_enabled": true
 				}
 			}`,
 		},
@@ -327,7 +368,10 @@ func TestAPIContracts(t *testing.T) {
 					"concurrency": 5,
 					"status": "active",
 					"usage_model_display_mode": "model_only",
-					"usage_context_badge_display_mode": "request_only",
+					"global_realtime_countdown_enabled": false,
+					"account_realtime_countdown_enabled": true,
+					"visual_preset_preference": "inherit",
+					"account_visual_preset_override": "inherit",
 					"allowed_groups": null,
 					"created_at": "2025-01-02T03:04:05Z",
 					"updated_at": "2025-01-02T03:04:05Z",
@@ -371,7 +415,7 @@ func TestAPIContracts(t *testing.T) {
 			name:   "PUT /api/v1/user",
 			method: http.MethodPut,
 			path:   "/api/v1/user",
-			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","usage_context_badge_display_mode":"both"}`,
+			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","global_realtime_countdown_enabled":true,"account_realtime_countdown_enabled":false,"visual_preset_preference":"airy","account_visual_preset_override":"classic"}`,
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
@@ -388,7 +432,10 @@ func TestAPIContracts(t *testing.T) {
 					"concurrency": 5,
 					"status": "active",
 					"usage_model_display_mode": "display_and_model",
-					"usage_context_badge_display_mode": "both",
+					"global_realtime_countdown_enabled": true,
+					"account_realtime_countdown_enabled": false,
+					"visual_preset_preference": "airy",
+					"account_visual_preset_override": "classic",
 					"allowed_groups": null,
 					"created_at": "2025-01-02T03:04:05Z",
 					"updated_at": "2025-01-02T03:04:05Z",
@@ -413,18 +460,33 @@ func TestAPIContracts(t *testing.T) {
 			}`,
 		},
 		{
-			name:   "PUT /api/v1/user invalid usage_context_badge_display_mode",
+			name:   "PUT /api/v1/user invalid visual_preset_preference",
 			method: http.MethodPut,
 			path:   "/api/v1/user",
-			body:   `{"usage_context_badge_display_mode":"bad-mode"}`,
+			body:   `{"visual_preset_preference":"retro-future"}`,
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
 			wantStatus: http.StatusBadRequest,
 			wantJSON: `{
 				"code": 400,
-				"message": "usage_context_badge_display_mode must be one of request_only, native_only, both",
-				"reason": "USER_USAGE_CONTEXT_BADGE_DISPLAY_MODE_INVALID"
+				"message": "visual_preset_preference must be one of inherit, classic, airy",
+				"reason": "VISUAL_PRESET_PREFERENCE_INVALID"
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/user invalid account_visual_preset_override",
+			method: http.MethodPut,
+			path:   "/api/v1/user",
+			body:   `{"account_visual_preset_override":"retro-future"}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "account_visual_preset_override must be one of inherit, classic, airy",
+				"reason": "VISUAL_PRESET_PREFERENCE_INVALID"
 			}`,
 		},
 		{
@@ -732,19 +794,20 @@ func TestAPIContracts(t *testing.T) {
 				t.Helper()
 				deps.usageRepo.SetUserLogs(1, []service.UsageLog{
 					{
-						ID:                  1,
-						UserID:              1,
-						APIKeyID:            100,
-						AccountID:           200,
-						Model:               "claude-3",
-						InputTokens:         10,
-						OutputTokens:        20,
-						CacheCreationTokens: 1,
-						CacheReadTokens:     2,
-						TotalCost:           0.5,
-						ActualCost:          0.5,
-						DurationMs:          ptr(100),
-						CreatedAt:           deps.now.Add(-2 * time.Minute),
+						ID:                         1,
+						UserID:                     1,
+						APIKeyID:                   100,
+						AccountID:                  200,
+						Model:                      "claude-3",
+						RequestContextLengthTokens: ptr(200000),
+						InputTokens:                10,
+						OutputTokens:               20,
+						CacheCreationTokens:        1,
+						CacheReadTokens:            2,
+						TotalCost:                  0.5,
+						ActualCost:                 0.5,
+						DurationMs:                 ptr(100),
+						CreatedAt:                  deps.now.Add(-2 * time.Minute),
 					},
 					{
 						ID:           2,
@@ -795,28 +858,29 @@ func TestAPIContracts(t *testing.T) {
 				t.Helper()
 				deps.usageRepo.SetUserLogs(1, []service.UsageLog{
 					{
-						ID:                      1,
-						UserID:                  1,
-						APIKeyID:                100,
-						AccountID:               200,
-						AccountRateMultiplier:   ptr(0.5),
-						RequestID:               "req_123",
-						Model:                   "claude-3",
-						InputTokens:             10,
-						OutputTokens:            20,
-						CacheCreationTokens:     1,
-						CacheReadTokens:         2,
-						TotalCost:               0.5,
-						ActualCost:              0.5,
-						BillingCurrency:         "USD",
-						TotalCostUSDEquivalent:  0.5,
-						ActualCostUSDEquivalent: 0.5,
-						RateMultiplier:          1,
-						BillingType:             service.BillingTypeBalance,
-						Stream:                  true,
-						DurationMs:              ptr(100),
-						FirstTokenMs:            ptr(50),
-						CreatedAt:               deps.now,
+						ID:                         1,
+						UserID:                     1,
+						APIKeyID:                   100,
+						AccountID:                  200,
+						AccountRateMultiplier:      ptr(0.5),
+						RequestID:                  "req_123",
+						Model:                      "claude-3",
+						RequestContextLengthTokens: ptr(1000000),
+						InputTokens:                10,
+						OutputTokens:               20,
+						CacheCreationTokens:        1,
+						CacheReadTokens:            2,
+						TotalCost:                  0.5,
+						ActualCost:                 0.5,
+						BillingCurrency:            "USD",
+						TotalCostUSDEquivalent:     0.5,
+						ActualCostUSDEquivalent:    0.5,
+						RateMultiplier:             1,
+						BillingType:                service.BillingTypeBalance,
+						Stream:                     true,
+						DurationMs:                 ptr(100),
+						FirstTokenMs:               ptr(50),
+						CreatedAt:                  deps.now,
 					},
 				})
 			},
@@ -833,9 +897,10 @@ func TestAPIContracts(t *testing.T) {
 							"user_id": 1,
 							"api_key_id": 100,
 							"account_id": 200,
-								"request_id": "req_123",
-								"model": "claude-3",
-								"request_type": "stream",
+							"request_id": "req_123",
+							"model": "claude-3",
+							"request_context_length_tokens": 1000000,
+							"request_type": "stream",
 								"status": "succeeded",
 								"openai_ws_mode": false,
 								"group_id": null,
@@ -965,11 +1030,13 @@ func TestAPIContracts(t *testing.T) {
 						"ops_monitoring_enabled": false,
 						"ops_realtime_monitoring_enabled": true,
 						"ops_query_mode_default": "auto",
-						"ops_metrics_interval_seconds": 60,
-						"site_name": "Sub2API",
-						"site_logo": "",
-						"site_subtitle": "Subtitle",
-						"api_base_url": "https://api.example.com",
+					"ops_metrics_interval_seconds": 60,
+					"site_name": "Sub2API",
+					"site_logo": "",
+					"site_subtitle": "Subtitle",
+					"visual_preset_default": "classic",
+					"account_airy_white_surface_enabled": false,
+					"api_base_url": "https://api.example.com",
 					"contact_info": "support",
 					"doc_url": "https://docs.example.com",
 					"default_concurrency": 5,
@@ -991,6 +1058,18 @@ func TestAPIContracts(t *testing.T) {
 					"public_model_catalog_enabled": true,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
+					"payment_provider_airwallex_enabled": false,
+					"payment_provider_airwallex_effective": false,
+					"airwallex_env": "demo",
+					"airwallex_client_id": "",
+					"airwallex_api_key_configured": false,
+					"airwallex_webhook_secret_configured": false,
+					"payment_allowed_currencies": ["USD", "CNY", "HKD"],
+					"payment_default_currency": "USD",
+					"payment_min_topup_amount": 1,
+					"payment_max_topup_amount": 5000,
+					"payment_subscription_plans": [],
+					"antigravity_user_agent_version": "",
 					"login_agreement_enabled": false,
 					"login_agreement_mode": "checkbox",
 					"login_agreement_updated_at": "",
@@ -1385,6 +1464,28 @@ func TestAPIContracts(t *testing.T) {
 				}
 			}`,
 		},
+		{
+			name:       "GET /api/v1/admin/ops/runtime/payment",
+			method:     http.MethodGet,
+			path:       "/api/v1/admin/ops/runtime/payment",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"create_success": 0,
+					"create_failure": 0,
+					"provider_latency_count": 0,
+					"provider_latency_ms_total": 0,
+					"webhook_success": 0,
+					"webhook_failure": 0,
+					"resume_success": 0,
+					"resume_failure": 0,
+					"refund_success": 0,
+					"refund_failure": 0
+				}
+			}`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1397,6 +1498,11 @@ func TestAPIContracts(t *testing.T) {
 			status, body := doRequest(t, deps.router, tt.method, tt.path, tt.body, tt.headers)
 			require.Equal(t, tt.wantStatus, status)
 			require.JSONEq(t, tt.wantJSON, body)
+			if tt.name == "GET /api/v1/settings/public exposes effective Airwallex flag without webhook secret" {
+				require.Contains(t, deps.settingRepo.lastKeys, service.SettingKeyAirwallexClientID)
+				require.Contains(t, deps.settingRepo.lastKeys, service.SettingKeyAirwallexAPIKey)
+				require.NotContains(t, deps.settingRepo.lastKeys, service.SettingKeyAirwallexWebhookSecret)
+			}
 		})
 	}
 }
@@ -1428,18 +1534,22 @@ func newContractDeps(t *testing.T) *contractDeps {
 	userRepo := &stubUserRepo{
 		users: map[int64]*service.User{
 			1: {
-				ID:                    1,
-				Email:                 "alice@example.com",
-				Username:              "alice",
-				Notes:                 "hello",
-				Role:                  service.RoleUser,
-				Balance:               12.5,
-				Concurrency:           5,
-				Status:                service.StatusActive,
-				UsageModelDisplayMode: service.UsageModelDisplayModeModelOnly,
-				AllowedGroups:         nil,
-				CreatedAt:             now,
-				UpdatedAt:             now,
+				ID:                              1,
+				Email:                           "alice@example.com",
+				Username:                        "alice",
+				Notes:                           "hello",
+				Role:                            service.RoleUser,
+				Balance:                         12.5,
+				Concurrency:                     5,
+				Status:                          service.StatusActive,
+				UsageModelDisplayMode:           service.UsageModelDisplayModeModelOnly,
+				GlobalRealtimeCountdownEnabled:  false,
+				AccountRealtimeCountdownEnabled: true,
+				VisualPresetPreference:          service.VisualPresetPreferenceInherit,
+				AccountVisualPresetOverride:     service.VisualPresetPreferenceInherit,
+				AllowedGroups:                   nil,
+				CreatedAt:                       now,
+				UpdatedAt:                       now,
 			},
 		},
 	}
@@ -1494,6 +1604,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService)
 	adminSettingHandler := adminhandler.NewSettingHandler(settingService, nil, nil, nil, nil)
+	adminOpsHandler := adminhandler.NewOpsHandler(nil)
 	adminAccountHandler := adminhandler.NewAccountHandler(adminService, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	adminAccountHandler.SetSettingService(settingService)
 
@@ -1574,6 +1685,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1Admin.POST("/users/batch-concurrency", adminUserHandler.BatchUpdateConcurrency)
 	v1Admin.GET("/moderation/audits", adminModerationHandler.List)
 	v1Admin.GET("/moderation/audits/:id", adminModerationHandler.Detail)
+	v1Admin.GET("/ops/runtime/payment", adminOpsHandler.GetPaymentRuntimeMetrics)
 	v1AdminAff := v1Admin.Group("/affiliates")
 	v1AdminAff.GET("/users", adminAffiliateHandler.ListUsers)
 	v1AdminAff.GET("/users/lookup", adminAffiliateHandler.LookupUsers)
@@ -3097,7 +3209,8 @@ func (r *stubAffiliateRepo) BatchUpdateAffiliateUserCustomRates(ctx context.Cont
 }
 
 type stubSettingRepo struct {
-	all map[string]string
+	all      map[string]string
+	lastKeys []string
 }
 
 type stubAuthIdentityRepo struct {
@@ -3311,6 +3424,7 @@ func (r *stubSettingRepo) Set(ctx context.Context, key, value string) error {
 }
 
 func (r *stubSettingRepo) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	r.lastKeys = append([]string(nil), keys...)
 	out := make(map[string]string, len(keys))
 	for _, key := range keys {
 		out[key] = r.all[key]

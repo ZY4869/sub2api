@@ -48,6 +48,7 @@ export default {
             groupId: "Group ID",
             models: "Requested / Upstream Model",
             nativeContext: "Native Context",
+            requestLength: "Request Length",
             status: "Status",
             totalTokens: "Total Tokens",
             totalStandardCost: "Standard Cost",

@@ -10,13 +10,21 @@ import (
 )
 
 func (r *affiliateRepository) AccrueTopupRebate(ctx context.Context, redeemCodeID int64, inviteeUserID int64, creditedAmount float64, policy service.AffiliateRebatePolicy) (accruedAmount float64, err error) {
+	return r.accrueTopupRebate(ctx, redeemCodeID, 0, inviteeUserID, creditedAmount, policy)
+}
+
+func (r *affiliateRepository) AccruePaymentTopupRebate(ctx context.Context, paymentOrderID int64, inviteeUserID int64, creditedAmount float64, policy service.AffiliateRebatePolicy) (accruedAmount float64, err error) {
+	return r.accrueTopupRebate(ctx, 0, paymentOrderID, inviteeUserID, creditedAmount, policy)
+}
+
+func (r *affiliateRepository) accrueTopupRebate(ctx context.Context, redeemCodeID int64, paymentOrderID int64, inviteeUserID int64, creditedAmount float64, policy service.AffiliateRebatePolicy) (accruedAmount float64, err error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("affiliate repository db is nil")
 	}
 	if !policy.Enabled || !policy.RebateOnTopupEnabled {
 		return 0, nil
 	}
-	if redeemCodeID <= 0 || inviteeUserID <= 0 || creditedAmount <= 0 {
+	if (redeemCodeID <= 0 && paymentOrderID <= 0) || inviteeUserID <= 0 || creditedAmount <= 0 {
 		return 0, nil
 	}
 
@@ -126,12 +134,13 @@ func (r *affiliateRepository) AccrueTopupRebate(ctx context.Context, redeemCodeI
 			rate_percent,
 			frozen_until,
 			redeem_code_id,
+			payment_order_id,
 			created_at
 		)
-		VALUES ($1, $2, 'topup_accrue', $3, $4, $5, $6, $7, NOW())
+		VALUES ($1, $2, 'topup_accrue', $3, $4, $5, $6, NULLIF($7, 0), NULLIF($8, 0), NOW())
 		ON CONFLICT DO NOTHING
 		RETURNING id
-	`, inviterUserID.Int64, inviteeUserID, accruedAmount, creditedAmount, ratePercent, frozenUntil, redeemCodeID).Scan(&ledgerID)
+	`, inviterUserID.Int64, inviteeUserID, accruedAmount, creditedAmount, ratePercent, frozenUntil, redeemCodeID, paymentOrderID).Scan(&ledgerID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}

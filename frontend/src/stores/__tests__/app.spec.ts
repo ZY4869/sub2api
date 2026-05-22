@@ -250,6 +250,7 @@ describe('useAppStore', () => {
 
   describe('公开设置加载', () => {
     it('从 window.__APP_CONFIG__ 初始化', () => {
+      document.documentElement.removeAttribute('data-visual-preset')
       const windowAny = window as any
       windowAny.__APP_CONFIG__ = {
         site_name: 'TestSite',
@@ -259,6 +260,8 @@ describe('useAppStore', () => {
         api_base_url: 'https://api.test.com',
         doc_url: 'https://docs.test.com',
         maintenance_mode_enabled: true,
+        visual_preset_default: 'airy',
+        account_airy_white_surface_enabled: true,
       }
 
       const store = useAppStore()
@@ -269,6 +272,9 @@ describe('useAppStore', () => {
       expect(store.siteLogo).toBe('/logo.png')
       expect(store.siteVersion).toBe('1.0.0')
       expect(store.maintenanceModeEnabled).toBe(true)
+      expect(store.visualPresetDefault).toBe('airy')
+      expect(store.accountAiryWhiteSurfaceEnabled).toBe(true)
+      expect(document.documentElement.getAttribute('data-visual-preset')).toBe('airy')
       expect(store.publicSettingsLoaded).toBe(true)
     })
 

@@ -1,16 +1,25 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AccountAiryQuotaCard from './capacity/AccountAiryQuotaCard.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   used: number
   limit: number
   kind?: 'daily' | 'weekly' | 'total'
   label?: string
-}>()
+  visualVariant?: 'default' | 'glass'
+  whiteSurfaceEnabled?: boolean
+}>(), {
+  kind: 'total',
+  label: '',
+  visualVariant: 'default',
+  whiteSurfaceEnabled: false
+})
 
 const { t } = useI18n()
 
+const isGlassVariant = computed(() => props.visualVariant === 'glass')
 const resolvedKind = computed(() => props.kind || 'total')
 const resolvedLabel = computed(() => {
   if (props.label) {
@@ -43,11 +52,20 @@ const tooltip = computed(() => {
   return t(`admin.accounts.capacity.quota.${resolvedKind.value}Normal`)
 })
 
-const fmt = (v: number) => v.toFixed(2)
+const fmt = (value: number) => value.toFixed(2)
 </script>
 
 <template>
+  <AccountAiryQuotaCard
+    v-if="isGlassVariant"
+    :used="used"
+    :limit="limit"
+    :kind="kind"
+    :label="label"
+    :white-surface-enabled="whiteSurfaceEnabled"
+  />
   <span
+    v-else
     :class="[
       'inline-flex items-center gap-1 rounded-md px-1.5 py-px text-[10px] font-medium leading-tight',
       badgeClass

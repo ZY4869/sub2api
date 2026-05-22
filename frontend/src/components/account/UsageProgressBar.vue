@@ -1,5 +1,5 @@
 <template>
-  <div :class="detailedReset ? 'space-y-0.5' : ''">
+  <div :class="[detailedReset ? 'space-y-0.5' : '', visualVariant === 'glass' ? 'usage-progress-glass' : '']">
     <div class="flex min-w-0 items-center gap-1">
       <span
         :title="label"
@@ -22,35 +22,35 @@
         @focusout="hideStatsTooltip"
       >
         <div
-          class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+          :class="trackClass"
         >
           <div
             data-testid="usage-progress-fill"
-            :class="['h-full transition-all duration-300', barClass]"
+            :class="['h-full transition-[width] duration-300', barClass]"
             :style="{ width: barWidth }"
           ></div>
         </div>
         <div
           v-if="windowStats && statsTooltipVisible"
           data-testid="usage-progress-tooltip"
-          class="absolute left-1/2 top-full z-20 mt-2 min-w-max -translate-x-1/2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[10px] text-gray-700 shadow-lg dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200"
+          :class="tooltipClass"
         >
           <div class="flex items-center gap-1.5">
-            <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
+            <span :class="tooltipChipClass"
               >{{ formatRequests }} req</span
             >
             <span
-              class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
+              :class="tooltipChipClass"
               :title="rawTokenCount || undefined"
             >
               {{ formatTokens }}
             </span>
-            <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
+            <span :class="tooltipChipClass"
               >A ${{ formatAccountCost }}</span
             >
             <span
               v-if="windowStats?.user_cost != null"
-              class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
+              :class="tooltipChipClass"
             >
               U ${{ formatUserCost }}
             </span>
@@ -77,7 +77,7 @@
 
       <span
         v-else-if="!detailedReset && effectiveResetAt"
-        class="shrink-0 text-[10px] text-gray-400"
+        :class="resetTextClass"
       >
         {{ compactResetText }}
       </span>
@@ -87,7 +87,7 @@
       v-if="detailedReset"
       :class="[
         detailPaddingClass,
-        'flex items-center gap-1 text-[10px] text-gray-400',
+        detailedResetClass,
       ]"
       :title="resetTooltip || undefined"
     >
@@ -106,7 +106,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useUiNow } from "@/composables/useUiNow";
+import { useRealtimeCountdownNow } from "@/composables/useRealtimeCountdownNow";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import type { AccountUsageDisplayMode, WindowStats } from "@/types";
 import {
@@ -127,18 +127,30 @@ const props = withDefaults(
     detailedReset?: boolean;
     inlineReset?: boolean;
     displayMode?: AccountUsageDisplayMode;
+    visualVariant?: "default" | "glass";
   }>(),
   {
     displayMode: "used",
+    visualVariant: "default",
   },
 );
 
 const { t } = useI18n();
-const { nowDate } = useUiNow();
+const { nowDate } = useRealtimeCountdownNow("accounts");
 const { formatTokenDisplay } = useTokenDisplayMode();
 const statsTooltipVisible = ref(false);
 
 const labelClass = computed(() => {
+  const glassColors = {
+    indigo:
+      "border border-indigo-200/70 bg-indigo-50 text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-400/10 dark:text-indigo-100",
+    emerald:
+      "border border-emerald-200/70 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-100",
+    purple:
+      "border border-violet-200/70 bg-violet-50 text-violet-700 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-100",
+    amber:
+      "border border-amber-200/70 bg-amber-50 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100",
+  };
   const colors = {
     indigo:
       "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
@@ -149,7 +161,7 @@ const labelClass = computed(() => {
     amber:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   };
-  return colors[props.color];
+  return props.visualVariant === "glass" ? glassColors[props.color] : colors[props.color];
 });
 
 const labelWidthClass = computed(() => {
@@ -163,19 +175,78 @@ const detailPaddingClass = computed(() => {
 });
 
 const barClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    if (props.utilization >= 100) {
+      return "bg-gradient-to-r from-rose-500 to-rose-600";
+    }
+    if (props.utilization >= 80) {
+      return "bg-gradient-to-r from-orange-400 to-orange-500";
+    }
+    if (props.utilization >= 50) {
+      return "bg-gradient-to-r from-amber-300 to-amber-400";
+    }
+    if (props.utilization >= 25) {
+      return "bg-gradient-to-r from-emerald-300 to-emerald-400";
+    }
+    return "bg-gradient-to-r from-emerald-200 to-emerald-300";
+  }
   if (props.utilization >= 100) return "bg-red-500";
   if (props.utilization >= 80) return "bg-amber-500";
   return "bg-green-500";
 });
 
 const textClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    if (props.utilization >= 100) return "text-rose-800 dark:text-rose-100";
+    if (props.utilization >= 80) return "text-orange-700 dark:text-orange-100";
+    if (props.utilization >= 50) return "text-amber-700 dark:text-amber-100";
+    return "text-slate-600 dark:text-slate-200";
+  }
   if (props.utilization >= 100) return "text-red-600 dark:text-red-400";
   if (props.utilization >= 80) return "text-amber-600 dark:text-amber-400";
   return "text-gray-600 dark:text-gray-400";
 });
 
 const remainingTextClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "shrink-0 text-[10px] font-semibold text-amber-700 dark:text-amber-100";
+  }
   return "shrink-0 text-[10px] font-semibold text-amber-700 dark:text-amber-300";
+});
+
+const trackClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "h-1.5 w-16 shrink-0 overflow-hidden rounded-full border border-slate-200/75 bg-slate-100 dark:border-slate-700/80 dark:bg-slate-800/70";
+  }
+  return "h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700";
+});
+
+const tooltipClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "absolute left-1/2 top-full z-20 mt-2 min-w-max -translate-x-1/2 rounded-2xl border border-slate-200/80 bg-white px-2.5 py-2 text-[10px] text-slate-700 ring-1 ring-slate-200/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700/70";
+  }
+  return "absolute left-1/2 top-full z-20 mt-2 min-w-max -translate-x-1/2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[10px] text-gray-700 shadow-lg dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200";
+});
+
+const tooltipChipClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "rounded-full border border-slate-200/75 bg-slate-50 px-1.5 py-0.5 dark:border-slate-700/80 dark:bg-slate-800/70";
+  }
+  return "rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700";
+});
+
+const resetTextClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-300";
+  }
+  return "shrink-0 text-[10px] text-gray-400";
+});
+
+const detailedResetClass = computed(() => {
+  if (props.visualVariant === "glass") {
+    return "flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-300";
+  }
+  return "flex items-center gap-1 text-[10px] text-gray-400";
 });
 
 const resolvedBarPercent = computed(() => {

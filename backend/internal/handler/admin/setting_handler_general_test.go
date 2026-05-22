@@ -243,3 +243,21 @@ func TestSettingHandlerUpdateSettings_LoginAgreementRequiresPublishedMarkdownPag
 	require.Equal(t, "checkbox", settings["login_agreement_mode"])
 	require.Equal(t, "2026-05-08", settings["login_agreement_updated_at"])
 }
+
+func TestSettingHandlerUpdateSettings_AccountAiryWhiteSurfaceEnabled(t *testing.T) {
+	repo := &adminSettingRepoStub{
+		values: map[string]string{
+			service.SettingKeyAccountAiryWhiteSurfaceEnabled: "false",
+		},
+	}
+	handler := newAdminSettingTestHandler(repo)
+
+	resp := performAdminSettingsUpdate(t, handler, `{
+		"account_airy_white_surface_enabled": true
+	}`)
+	require.Equal(t, http.StatusOK, resp.Code)
+	require.Equal(t, "true", repo.values[service.SettingKeyAccountAiryWhiteSurfaceEnabled])
+
+	settings := decodeUpdatedSystemSettings(t, resp)
+	require.Equal(t, true, settings["account_airy_white_surface_enabled"])
+}

@@ -43,6 +43,7 @@ func ProvideAdminHandlers(
 	modelRegistryHandler *admin.ModelRegistryHandler,
 	scheduledTestHandler *admin.ScheduledTestHandler,
 	tlsFingerprintProfileHandler *admin.TLSFingerprintProfileHandler,
+	adminPaymentHandler *AdminPaymentHandler,
 ) *AdminHandlers {
 	if opsHandler != nil {
 		opsHandler.BindUsageHandler(usageHandler)
@@ -81,6 +82,7 @@ func ProvideAdminHandlers(
 		ModelRegistry:          modelRegistryHandler,
 		ScheduledTest:          scheduledTestHandler,
 		TLSFingerprintProfile:  tlsFingerprintProfileHandler,
+		Payment:                adminPaymentHandler,
 	}
 }
 
@@ -272,6 +274,7 @@ func ProvideHandlers(
 	documentAIHandler *DocumentAIHandler,
 	settingHandler *SettingHandler,
 	totpHandler *TotpHandler,
+	paymentHandler *PaymentHandler,
 	opsService *service.OpsService,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
@@ -298,6 +301,7 @@ func ProvideHandlers(
 		DocumentAI:       documentAIHandler,
 		Setting:          settingHandler,
 		Totp:             totpHandler,
+		Payment:          paymentHandler,
 	}
 }
 
@@ -320,6 +324,7 @@ var ProviderSet = wire.NewSet(
 	ProvideGrokGatewayHandler,
 	NewDocumentAIHandler,
 	NewTotpHandler,
+	NewPaymentHandler,
 	ProvideSettingHandler,
 
 	// Admin handlers
@@ -356,6 +361,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewModelRegistryHandler,
 	admin.NewScheduledTestHandler,
 	admin.NewTLSFingerprintProfileHandler,
+	NewAdminPaymentHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

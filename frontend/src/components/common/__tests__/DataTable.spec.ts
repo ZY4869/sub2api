@@ -9,6 +9,12 @@ const virtualState = vi.hoisted(() => ({
 vi.mock('@tanstack/vue-virtual', async () => {
   const vue = await vi.importActual<typeof import('vue')>('vue')
   return {
+    useWindowVirtualizer: () =>
+      vue.computed(() => ({
+        getVirtualItems: () => virtualState.items,
+        getTotalSize: () => virtualState.totalSize,
+        measureElement: () => {}
+      })),
     useVirtualizer: () =>
       vue.computed(() => ({
         getVirtualItems: () => virtualState.items,
@@ -129,6 +135,53 @@ describe('DataTable', () => {
         data: rows,
         rowKey: 'id',
         virtualScroll: false
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('tbody tr[data-row-id]')).toHaveLength(2)
+    expect(wrapper.text()).toContain('Beta')
+    expect(wrapper.text()).toContain('Alpha')
+  })
+
+  it('keeps existing behavior when row visuals are not provided and applies visuals when configured', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        columns,
+        data: rows,
+        rowKey: 'id',
+        virtualScroll: false,
+        rowClass: (row: { id: number }) => (row.id === 1 ? 'visual-row' : ''),
+        rowStyle: (row: { id: number }) =>
+          row.id === 1 ? ({ '--account-row-sticky-bg': '#fff7ed' } as any) : undefined
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    const row = wrapper.get('tbody tr[data-row-id="1"]')
+    expect(row.classes()).toContain('visual-row')
+    expect(row.attributes('style')).toContain('--account-row-sticky-bg')
+  })
+
+  it('supports window virtual scroll mode without breaking direct fallback rendering', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        columns,
+        data: rows,
+        rowKey: 'id',
+        virtualScrollTarget: 'window'
       },
       global: {
         stubs: {

@@ -111,6 +111,10 @@
             />
           </template>
 
+          <template #cell-request_length="{ row }">
+            <UsageRequestLengthCell :row="row" />
+          </template>
+
           <template #cell-native_context="{ row }">
             <UsageContextBadgesCell
               :row="row"
@@ -775,12 +779,14 @@ import UsageModelCell from "@/components/common/UsageModelCell.vue";
 import UsageContextBadgesCell from "@/components/common/UsageContextBadgesCell.vue";
 import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContextBadgeDisplayModeToggle.vue";
 import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
+import UsageRequestLengthCell from "@/components/common/UsageRequestLengthCell.vue";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import Icon from "@/components/icons/Icon.vue";
 import UsageStatsCards from "@/components/user/usage/UsageStatsCards.vue";
 import UsageRequestPreviewModal from "@/components/user/usage/UsageRequestPreviewModal.vue";
 import type {
   UsageLog,
+  UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
   UsageQueryParams,
   UsageStatsResponse,
@@ -868,6 +874,7 @@ const usageStats = ref<UsageStatsResponse | null>(null);
 const columns = computed<Column[]>(() => [
   { key: "api_key", label: t("usage.apiKeyFilter"), sortable: false },
   { key: "model", label: t("usage.model"), sortable: true },
+  { key: "native_context", label: t("usage.nativeContext"), sortable: false },
   { key: "status", label: t("usage.status"), sortable: false },
   { key: "thinking_enabled", label: t("usage.thinkingMode"), sortable: false },
   {
@@ -875,7 +882,7 @@ const columns = computed<Column[]>(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
-  { key: "native_context", label: t("usage.nativeContext"), sortable: false },
+  { key: "request_length", label: t("usage.requestLength"), sortable: false },
   {
     key: "request_protocol",
     label: t("usage.requestProtocol"),
@@ -987,12 +994,6 @@ const getRequestTypeLabel = (log: UsageLog): string => {
 
 const getRequestTypeBadgeClass = (log: UsageLog): string => {
   return getUsageOperationBadgeClass(log);
-};
-
-const handleUsageContextBadgeDisplayModeChange = async (
-  mode: "request_only" | "native_only" | "both",
-) => {
-  await setUsageContextBadgeDisplayMode(mode);
 };
 
 const getStatusLabel = (status: UsageLog["status"]): string =>
@@ -1190,6 +1191,12 @@ const handleUsageModelDisplayModeChange = async (
   mode: UsageModelDisplayMode,
 ) => {
   await setUsageModelDisplayMode(mode);
+};
+
+const handleUsageContextBadgeDisplayModeChange = async (
+  mode: UsageContextBadgeDisplayMode,
+) => {
+  await setUsageContextBadgeDisplayMode(mode);
 };
 
 const openRequestPreview = (usageLog: UsageLog) => {

@@ -8,6 +8,9 @@
     default-sort-order="asc"
     :sort-storage-key="sortStorageKey"
     :preserve-input-order="preserveInputOrder"
+    virtual-scroll-target="window"
+    :row-class="visualStyle === 'airy' ? resolveRowClass : undefined"
+    :row-style="visualStyle === 'airy' ? resolveRowStyle : undefined"
   >
     <template #header-select>
       <input
@@ -28,10 +31,11 @@
       />
     </template>
 
-    <template #cell-name="{ row, value }">
-      <div class="flex flex-col gap-2">
+    <template #cell-name="{ row }">
+      <AccountNameVisualCell v-if="visualStyle === 'airy'" :account="row" />
+      <div v-else class="flex flex-col gap-2">
         <div class="flex items-center gap-2">
-          <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+          <span class="font-medium text-gray-900 dark:text-white">{{ row.name }}</span>
           <span
             v-if="row.auto_recovery_probe?.status === 'success'"
             class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
@@ -70,7 +74,25 @@
     </template>
 
     <template #cell-platform_type="{ row }">
+      <AccountServiceAuthVisualCell
+        v-if="visualStyle === 'airy'"
+        :platform="row.platform"
+        :gateway-protocol="row.gateway_protocol"
+        :type="row.type"
+        :plan-type="row.credentials?.plan_type"
+        :plan-type-label="String(row.credentials?.plan_type_label || '') || undefined"
+        :pro-multiplier="
+          typeof row.credentials?.pro_multiplier === 'number'
+            ? row.credentials.pro_multiplier
+            : undefined
+        "
+        :privacy-mode="String(row.extra?.privacy_mode || '') || undefined"
+        :subscription-expires-at="
+          String(row.credentials?.subscription_expires_at || '') || undefined
+        "
+      />
       <PlatformTypeBadge
+        v-else
         :platform="row.platform"
         :gateway-protocol="row.gateway_protocol"
         :type="row.type"
@@ -89,11 +111,28 @@
     </template>
 
     <template #cell-capacity="{ row }">
-      <AccountCapacityCell :account="row" />
+      <AccountCapacityCell
+        :account="row"
+        :visual-variant="visualStyle === 'airy' ? 'glass' : 'default'"
+        :white-surface-enabled="visualStyle === 'airy' ? whiteSurfaceEnabled : false"
+        :compact="visualStyle === 'airy'"
+      />
     </template>
 
     <template #cell-status="{ row }">
-      <AccountStatusIndicator :account="row" @show-temp-unsched="emit('show-temp-unsched', row)" />
+      <AccountStatusVisualCell
+        v-if="visualStyle === 'airy'"
+        :account="row"
+        :visual-style="visualStyle"
+        :white-surface-enabled="whiteSurfaceEnabled"
+        @show-temp-unsched="emit('show-temp-unsched', row)"
+      />
+      <AccountStatusIndicator
+        v-else
+        :account="row"
+        visual-variant="default"
+        @show-temp-unsched="emit('show-temp-unsched', row)"
+      />
     </template>
 
     <template #cell-schedulable="{ row }">
@@ -147,11 +186,21 @@
     </template>
 
     <template #cell-usage="{ row }">
-      <AccountUsageCell
+      <AccountUsageVisualCell
+        v-if="visualStyle === 'airy'"
         :account="row"
         :today-stats="todayStatsByAccountId[String(row.id)] ?? null"
         :today-stats-loading="todayStatsLoading"
         :manual-refresh-token="usageManualRefreshToken"
+        :white-surface-enabled="whiteSurfaceEnabled"
+      />
+      <AccountUsageCell
+        v-else
+        :account="row"
+        :today-stats="todayStatsByAccountId[String(row.id)] ?? null"
+        :today-stats-loading="todayStatsLoading"
+        :manual-refresh-token="usageManualRefreshToken"
+        visual-variant="default"
       />
     </template>
 
@@ -231,23 +280,28 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
-import type { Account, WindowStats } from '@/types'
+import type { Account, AccountVisualStyle, WindowStats } from '@/types'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
-import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
 import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountUsageResetCell from '@/components/account/AccountUsageResetCell.vue'
+import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import { formatCountryLabel } from '@/utils/displayLabels'
 import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
 import AccountAutoRecoveryProbeNotice from './AccountAutoRecoveryProbeNotice.vue'
 import AccountsViewRowActions from './AccountsViewRowActions.vue'
+import AccountNameVisualCell from './AccountNameVisualCell.vue'
+import AccountServiceAuthVisualCell from './AccountServiceAuthVisualCell.vue'
+import AccountStatusVisualCell from './AccountStatusVisualCell.vue'
+import AccountUsageVisualCell from './AccountUsageVisualCell.vue'
+import { resolveAccountRowVisualState } from './accountVisuals'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   columns: Column[]
   accounts: Account[]
   loading: boolean
@@ -260,6 +314,8 @@ withDefaults(defineProps<{
   usageManualRefreshToken: number
   sortStorageKey: string
   preserveInputOrder?: boolean
+  visualStyle?: AccountVisualStyle
+  whiteSurfaceEnabled?: boolean
   pagination: {
     total: number
     page: number
@@ -268,7 +324,9 @@ withDefaults(defineProps<{
   showPagination?: boolean
 }>(), {
   preserveInputOrder: false,
-  showPagination: true
+  showPagination: true,
+  visualStyle: 'airy',
+  whiteSurfaceEnabled: false
 })
 
 const emit = defineEmits<{
@@ -295,6 +353,22 @@ const usageDisplayModeLabel = computed(() => {
 const usageDisplayModeTitle = computed(() => {
   return t('admin.accounts.usageWindow.displayMode.toggle')
 })
+
+const resolveRowClass = (row: Account) => resolveAccountRowVisualState(row).className
+const resolveRowStyle = (row: Account) => {
+  const style = resolveAccountRowVisualState(row).style
+  if (!props.whiteSurfaceEnabled) {
+    return style
+  }
+  return {
+    ...style,
+    '--account-row-bg': '#FFFFFF',
+    '--account-row-bg-hover': '#FFFFFF',
+    '--account-row-sticky-bg': '#FFFFFF',
+    '--account-row-sticky-bg-hover': '#FFFFFF',
+    backgroundColor: '#FFFFFF'
+  }
+}
 
 const handleToggleSelectAllVisible = (event: Event) => {
   emit('toggle-select-all-visible', (event.target as HTMLInputElement).checked)

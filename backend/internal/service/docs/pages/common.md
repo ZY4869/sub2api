@@ -325,7 +325,7 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - 开启时，游客与已登录用户都可以访问 `GET /api/v1/meta/model-catalog`。
 - 关闭时，游客访问该接口会返回 `401`，前端 `/models` 页面会跳转到登录页。
 - 已登录用户不受这个开关影响，仍然可以继续访问模型库与对应接口。
-- `GET /api/v1/settings/public` 会额外返回 `maintenance_mode_enabled`、`available_channels_enabled`、`channel_monitor_enabled`、`affiliate_enabled`，前端可据此决定是否展示维护提示与菜单入口。
+- `GET /api/v1/settings/public` 会额外返回 `maintenance_mode_enabled`、`available_channels_enabled`、`channel_monitor_enabled`、`affiliate_enabled`、`account_airy_white_surface_enabled`，前端可据此决定是否展示维护提示、菜单入口，以及账号管理页清透模式是否切换为纯白主表面。
 - 登录 / 注册页还会读取 `login_agreement_enabled`、`login_agreement_mode`、`login_agreement_updated_at`、`login_agreement_documents`。
 - 当前 `login_agreement_mode` 固定为 `checkbox`；只有当 `login_agreement_enabled=true` 且 `login_agreement_documents` 至少包含一篇已发布 markdown 页面时，前端才会启用勾选阻断。
 - `login_agreement_documents[]` 只返回脱离正文后的文档引用：`{ id, title, page_slug }`；正文仍通过 `GET /api/v1/pages/:slug` 拉取。
@@ -1083,7 +1083,10 @@ Authorization: Bearer <USER_JWT>
 当前用户资料返回体里新增了：
 
 - `usage_model_display_mode`：使用记录里“模型列”的全局展示偏好
-- `usage_context_badge_display_mode`：使用记录里“模型名旁上下文角标”的全局展示偏好
+- `global_realtime_countdown_enabled`：非账号页实时倒计时显示偏好
+- `account_realtime_countdown_enabled`：账号页实时倒计时显示偏好
+- `visual_preset_preference`：当前用户的全局视觉预设偏好
+- `account_visual_preset_override`：账号管理页局部视觉预设覆盖
 
 允许值固定为：
 
@@ -1091,28 +1094,61 @@ Authorization: Bearer <USER_JWT>
 - `display_only`：仅显示展示名；如果本地目录解析不到展示名，则回退模型 ID
 - `display_and_model`：第一行显示展示名，第二行显示模型 ID
 
-`usage_context_badge_display_mode` 允许值固定为：
+视觉预设的允许值固定为：
 
-- `request_only`：模型名旁只显示请求态上下文角标；未请求时不显示
-- `native_only`：模型名旁只显示模型原生上下文角标
-- `both`：优先显示请求态角标；没有请求态时回退显示模型原生上下文角标（不会同时并排显示两个角标）
+- `classic`：经典样式
+- `airy`：清透样式
+
+两个视觉预设偏好字段的允许值为：
+
+- `inherit`：跟随上一层
+- `classic`：强制经典
+- `airy`：强制清透
 
 兼容规则如下：
 
 - 新用户与旧用户默认都是 `model_only`
 - 如果数据库里读到空值或脏值，后端会统一归一化回 `model_only`
 - 这个偏好只影响前台 / 后台“使用记录类表格”的显示层，不影响模型路由、可见模型集合、计费、权限或限流
-- `usage_context_badge_display_mode` 对新用户与旧用户默认都是 `request_only`
-- 如果数据库里读到空值或脏值，后端会统一归一化回 `request_only`
-- 这个偏好同样只影响前台 / 后台“使用记录类表格”的显示层，不会改变 usage log 原始数据
+- 站点默认视觉预设固定为 `visual_preset_default`，默认值是 `classic`
+- `account_airy_white_surface_enabled` 默认是 `false`，它只影响管理员账号管理页在 `airy` 视觉预设下的表格、卡片和分组容器底色，不影响 `classic` 或其他页面
+- `visual_preset_preference` 与 `account_visual_preset_override` 对新用户默认都是 `inherit`
+- 最终有效视觉预设按 `site default -> user preference -> account override` 解析
+- 这组偏好只影响站内视觉呈现，不改变账号数据、调度、配额、限流或自动刷新逻辑本体
+
+两个实时倒计时偏好的固定语义如下：
+
+- `global_realtime_countdown_enabled`
+  - 默认 `false`
+  - 只控制非账号页的实时倒计时显示，例如 Ops 自动刷新剩余秒数
+- `account_realtime_countdown_enabled`
+  - 默认 `true`
+  - 只控制账号页内部的实时倒计时显示，例如限流恢复、窗口重置、分段数字倒计时与账号页自动刷新剩余秒数
+
+这两个偏好都是“当前登录账号自己的显示偏好”，互不覆盖，也不会改变真实自动刷新调度、限流判断、配额计算或接口返回数据。
 
 `PUT /api/v1/user` 当前支持的请求体字段包括：
 
 - `username`：可选，更新用户名
 - `usage_model_display_mode`：可选，更新模型列展示偏好
-- `usage_context_badge_display_mode`：可选，更新上下文角标展示偏好
+- `global_realtime_countdown_enabled`：可选，更新非账号页实时倒计时显示偏好
+- `account_realtime_countdown_enabled`：可选，更新账号页实时倒计时显示偏好
+- `visual_preset_preference`：可选，更新当前用户全局视觉预设偏好
+- `account_visual_preset_override`：可选，更新账号页局部视觉预设覆盖
 
-更新接口遵循“只改传入字段”的局部更新语义；未传字段保持不变。`usage_model_display_mode` 或 `usage_context_badge_display_mode` 如果传入非法值会直接返回 `400`。
+更新接口遵循“只改传入字段”的局部更新语义；未传字段保持不变。`usage_model_display_mode`、`visual_preset_preference` 或 `account_visual_preset_override` 如果传入非法值会直接返回 `400`；两个实时倒计时字段如果传入，会按布尔值原样更新当前账号偏好。
+
+同时，用户 / 管理员使用记录列表与管理员请求详情台账现在会返回：
+
+- `request_context_length_tokens`：本次请求采用的上下文档位快照，单位为 token 整数，例如 `128000`、`200000`、`1000000`
+
+这个字段的语义固定为：
+
+- 它表示“本次请求按哪个上下文档位发起”，不是实际输入 token
+- 它也不是 `max_tokens` / `max_output_tokens` 这类输出上限
+- 如果请求显式表达 1M 上下文并被解析到（例如 Claude / DeepSeek 风格的 `[1m]`），这里会记录 `1000000`
+- 否则会记录请求时最终模型对应的默认上下文档位快照
+- 历史记录允许为空；为空时前端通常展示为 `-`
 
 #### REST
 ```bash
@@ -1130,7 +1166,10 @@ curl -X PUT https://api.zyxai.de/api/v1/user \
   -H "Content-Type: application/json" \
   -d '{
     "usage_model_display_mode": "display_and_model",
-    "usage_context_badge_display_mode": "both"
+    "global_realtime_countdown_enabled": true,
+    "account_realtime_countdown_enabled": false,
+    "visual_preset_preference": "airy",
+    "account_visual_preset_override": "classic"
   }'
 ```
 
@@ -1146,7 +1185,10 @@ curl -X PUT https://api.zyxai.de/api/v1/user \
     "username": "alice",
     "role": "user",
     "usage_model_display_mode": "display_and_model",
-    "usage_context_badge_display_mode": "both",
+    "global_realtime_countdown_enabled": true,
+    "account_realtime_countdown_enabled": false,
+    "visual_preset_preference": "airy",
+    "account_visual_preset_override": "classic",
     "balance": 12.5,
     "concurrency": 5,
     "status": "active",
@@ -1162,8 +1204,24 @@ curl -X PUT https://api.zyxai.de/api/v1/user \
 ```json
 {
   "code": 400,
-  "message": "usage_context_badge_display_mode must be one of request_only, native_only, both",
-  "reason": "USER_USAGE_CONTEXT_BADGE_DISPLAY_MODE_INVALID"
+  "message": "usage_model_display_mode must be one of model_only, display_only, display_and_model",
+  "reason": "USER_USAGE_MODEL_DISPLAY_MODE_INVALID"
+}
+```
+
+```json
+{
+  "code": 400,
+  "message": "visual_preset_preference must be one of inherit, classic, airy",
+  "reason": "VISUAL_PRESET_PREFERENCE_INVALID"
+}
+```
+
+```json
+{
+  "code": 400,
+  "message": "account_visual_preset_override must be one of inherit, classic, airy",
+  "reason": "VISUAL_PRESET_PREFERENCE_INVALID"
 }
 ```
 
@@ -1331,6 +1389,151 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
     "code": "IMAGE_ONLY_KEY_IMAGE_QUOTA_EXHAUSTED"
   }
 }
+```
+
+### 站内支付与订阅购买
+
+站内支付接口用于用户余额充值与订阅购买。它与模型网关 API Key 是两套认证面：用户支付接口使用登录后的 JWT，管理员支付接口需要管理员权限，Airwallex webhook 不接受 JWT，只接受 webhook 签名校验。
+
+功能默认关闭。公开设置响应中的 `payment_provider_airwallex_enabled` 是展示用有效态：只有管理员同时开启 `purchase_subscription_enabled`、`payment_provider_airwallex_enabled`，并满足 Airwallex Client ID/API Key configured、币种、默认币种和充值上下限校验后才会返回 `true`；旧的 `purchase_subscription_url` 仍保留为外部购买链接兜底。公开设置只返回这个布尔态与非密钥商品配置，不返回 Airwallex secret、client secret 或 webhook secret。管理员设置接口仍返回原始 `payment_provider_airwallex_enabled` 开关和 `payment_provider_airwallex_effective` 有效态，便于排障。
+
+关键设置字段：
+
+- `payment_provider_airwallex_enabled`：是否启用 Airwallex 站内支付。
+- `airwallex_env`：`demo` 或 `prod`。
+- `airwallex_client_id`、`airwallex_api_key`、`airwallex_webhook_secret`：仅管理员可写。公开设置只使用 Client ID/API Key 的 configured 状态计算支付展示开关，不返回这些字段，也不返回 webhook secret。
+- `payment_allowed_currencies`：允许币种白名单，默认 `USD/CNY/HKD`。
+- `payment_default_currency`：用户购买页默认币种。
+- `payment_min_topup_amount`、`payment_max_topup_amount`：余额充值上下限。
+- `payment_subscription_plans`：订阅计划数组，包含 `plan_id`、`name`、`group_id`、`validity_days`、`prices_by_currency`、`enabled`。
+- `antigravity_user_agent_version`：可选 Antigravity User-Agent 版本，留空使用系统默认；显式值需符合 `major.minor.patch[-suffix]`。
+
+用户接口：
+
+- `POST /api/v1/payment/orders`：创建订单。需要 JWT，建议带 `Idempotency-Key`；同一用户同一请求体与同一 `Idempotency-Key` 重放会返回同一订单，且不会创建新的 Airwallex PaymentIntent。请求可传 `return_url`，支持 `__ORDER_NO__` 占位；未传时默认生成站内 `/payment/result/:orderNo` 结果页地址。
+- `GET /api/v1/payment/orders/:order_no`：查询当前用户自己的订单。
+- `GET /api/v1/payment/orders/:order_no/resume`：按订单号恢复当前用户自己的未完成订单，返回 Airwallex 前端初始化字段。结果页应优先使用该接口恢复 `created` / `pending` 订单，避免依赖一次性可见的恢复令牌。
+- `GET /api/v1/payment/resume/:resume_token`：用恢复令牌恢复未完成订单，返回支付组件初始化所需的非密钥字段。仅 `created` / `pending` 状态应展示支付组件。
+- `POST /api/v1/payment/orders/:order_no/cancel`：取消当前用户自己的未支付订单。
+
+创建与恢复订单响应都会包含：
+
+- `client_id`：Airwallex 前端 SDK 初始化使用的 Client ID。
+- `provider_env`：`demo` 或 `prod`，对应 Airwallex 前端 SDK `init({ env })`。
+- `intent_id`：Airwallex PaymentIntent ID。
+- `client_secret`：仅返回给当前订单用户，用于 Airwallex `confirm({ client_secret, intent_id })`；禁止写入日志、公开设置或持久化明文字段。
+- `order`：订单快照，包含 `order_no`、`status`、`amount_minor`、`currency`、`refunded_amount_minor`、`refundable_amount_minor` 等字段。
+
+管理员接口：
+
+- `GET /api/v1/admin/payment/orders`：分页查询订单，支持 `status`、`provider`、`product_type`、`user_id`。
+- `POST /api/v1/admin/payment/orders/:order_no/refund`：发起全额或部分退款。请求体可传 `amount_minor` 与 `reason`，建议带 `Idempotency-Key`；重复提交会按本地幂等记录 replay 或返回冲突。
+- `GET /api/v1/admin/ops/runtime/payment`：返回内存运行时支付指标快照，包含订单创建成功/失败、provider 耗时计数与总耗时、webhook 成功/失败、恢复成功/失败、退款成功/失败。
+
+公开 webhook：
+
+- `POST /api/v1/payment/webhooks/airwallex`：Airwallex 回调入口，不走 JWT。服务端会按 Airwallex webhook secret 验签，并按 provider event id 幂等处理。
+- 验签输入固定为 `x-timestamp + raw JSON body`，使用 HMAC-SHA256，与 `x-signature` 比对；时间戳允许 5 分钟窗口，支持秒或毫秒时间戳。
+- webhook payload 入库时只保存 hash 与脱敏 JSON；`secret`、`token`、`api_key`、`authorization`、`client_secret`、邮箱、电话、姓名、地址等字段会被替换为 `[REDACTED]`。
+- 重复的 provider event id 会直接返回成功，避免 Airwallex 重试造成重复发放。
+
+数据层说明：
+
+- 支付表 `payment_orders`、`payment_events`、`payment_refunds` 当前由 raw SQL 仓储维护，不生成 ent entity。这是支付仓储的刻意边界：订单、webhook 事件与退款幂等写入集中在 `PaymentRepository`，权益发放继续复用既有钱包与订阅表。
+- 前端 Airwallex 嵌入式组件依赖 `@airwallex/components-sdk@1.32.0`，已按 npm 包页面核验为 MIT；仓库根 `LICENSE` 保持 MIT。
+
+退款说明：
+
+- 服务端调用 Airwallex 官方退款接口 `POST /api/v1/pa/refunds/create`，请求体使用 `payment_intent_id`，必要时可携带 `payment_attempt_id`。
+- `amount_minor` 为空或小于等于 0 时按全额退款处理；部分退款使用订单币种的最小货币单位。
+- 订单退款状态按 `payment_refunds` 中 `accepted` / `settled` 累计成功退款金额判断；累计小于订单金额为 `partial_refunded`，达到订单金额为 `refunded`。服务端和管理员前端都会拒绝超过剩余可退金额的退款请求。
+- provider 失败会映射为统一 `PAYMENT_PROVIDER_FAILED`，响应与日志都不会包含 Airwallex 原始错误体中的密钥、client secret 或个人信息。
+
+错误响应示例：
+
+```json
+{
+  "code": 400,
+  "message": "unsupported payment currency",
+  "reason": "PAYMENT_UNSUPPORTED_CURRENCY",
+  "metadata": {
+    "currency": "EUR"
+  }
+}
+```
+
+订单状态固定为：
+
+```text
+created | pending | paid | failed | cancelled | expired | partial_refunded | refunded
+```
+
+#### Python
+```python focus=5-16,19-24
+import requests
+
+base_url = "https://api.zyxai.de/api/v1"
+jwt = "用户登录后获得的 JWT"
+
+resp = requests.post(
+    f"{base_url}/payment/orders",
+    headers={
+        "Authorization": f"Bearer {jwt}",
+        "Content-Type": "application/json",
+        "Idempotency-Key": "topup-20260522-001",
+    },
+    json={
+        "product_type": "balance_topup",
+        "amount": 10,
+        "currency": "USD",
+        "country_code": "US",
+        "return_url": "https://app.example.com/payment/result/__ORDER_NO__",
+    },
+    timeout=30,
+)
+order = resp.json()["data"]
+print(order["order"]["order_no"], order["client_id"], order["provider_env"])
+print("client_secret is returned only to the current order user")
+```
+
+#### JavaScript
+```javascript focus=5-17
+const baseUrl = "https://api.zyxai.de/api/v1";
+const jwt = "用户登录后获得的 JWT";
+
+const response = await fetch(`${baseUrl}/payment/orders`, {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${jwt}`,
+    "Content-Type": "application/json",
+    "Idempotency-Key": "subscription-20260522-001",
+  },
+  body: JSON.stringify({
+    product_type: "subscription",
+    plan_id: "pro-monthly",
+    currency: "USD",
+    country_code: "US",
+    return_url: `${window.location.origin}/payment/result/__ORDER_NO__`,
+  }),
+});
+
+const data = await response.json();
+console.log(data.data.client_id, data.data.intent_id, data.data.provider_env);
+```
+
+#### REST
+```bash focus=1-12
+curl https://api.zyxai.de/api/v1/payment/orders \
+  -H "Authorization: Bearer 用户登录后获得的JWT" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: topup-20260522-001" \
+  -d '{
+    "product_type": "balance_topup",
+    "amount": 10,
+    "currency": "USD",
+    "country_code": "US",
+    "return_url": "https://app.example.com/payment/result/__ORDER_NO__"
+  }'
 ```
 
 ### 接入最佳实践

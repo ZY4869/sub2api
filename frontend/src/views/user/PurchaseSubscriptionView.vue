@@ -28,6 +28,13 @@
         </div>
 
         <div
+          v-else-if="airwallexEnabled && publicSettings"
+          class="h-full min-h-0"
+        >
+          <PaymentWorkbench :settings="publicSettings" />
+        </div>
+
+        <div
           v-else-if="!isValidUrl"
           class="flex h-full items-center justify-center p-10 text-center"
         >
@@ -73,6 +80,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import PaymentWorkbench from '@/components/payment/PaymentWorkbench.vue'
 import { buildEmbeddedUrl, detectTheme } from '@/utils/embedded-url'
 
 const { t, locale } = useI18n()
@@ -84,6 +92,13 @@ let themeObserver: MutationObserver | null = null
 
 const purchaseEnabled = computed(() => {
   return appStore.cachedPublicSettings?.purchase_subscription_enabled ?? false
+})
+
+const publicSettings = computed(() => appStore.cachedPublicSettings)
+
+const airwallexEnabled = computed(() => {
+  const settings = appStore.cachedPublicSettings
+  return settings?.payment_provider_airwallex_enabled === true
 })
 
 const purchaseUrl = computed(() => {
@@ -134,8 +149,8 @@ onUnmounted(() => {
 
 .purchase-embed-shell {
   @apply relative;
-  @apply h-full w-full overflow-hidden rounded-2xl;
-  @apply bg-gradient-to-b from-gray-50 to-white dark:from-dark-900 dark:to-dark-950;
+  @apply h-full w-full overflow-hidden rounded-lg;
+  @apply bg-gray-50 dark:bg-dark-900;
   @apply p-0;
 }
 

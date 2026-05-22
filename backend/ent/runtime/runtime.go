@@ -1139,14 +1139,34 @@ func init() {
 	user.DefaultUsageModelDisplayMode = userDescUsageModelDisplayMode.Default.(string)
 	// user.UsageModelDisplayModeValidator is a validator for the "usage_model_display_mode" field. It is called by the builders before save.
 	user.UsageModelDisplayModeValidator = userDescUsageModelDisplayMode.Validators[0].(func(string) error)
+	// userDescGlobalRealtimeCountdownEnabled is the schema descriptor for global_realtime_countdown_enabled field.
+	userDescGlobalRealtimeCountdownEnabled := userFields[11].Descriptor()
+	// user.DefaultGlobalRealtimeCountdownEnabled holds the default value on creation for the global_realtime_countdown_enabled field.
+	user.DefaultGlobalRealtimeCountdownEnabled = userDescGlobalRealtimeCountdownEnabled.Default.(bool)
+	// userDescAccountRealtimeCountdownEnabled is the schema descriptor for account_realtime_countdown_enabled field.
+	userDescAccountRealtimeCountdownEnabled := userFields[12].Descriptor()
+	// user.DefaultAccountRealtimeCountdownEnabled holds the default value on creation for the account_realtime_countdown_enabled field.
+	user.DefaultAccountRealtimeCountdownEnabled = userDescAccountRealtimeCountdownEnabled.Default.(bool)
+	// userDescVisualPresetPreference is the schema descriptor for visual_preset_preference field.
+	userDescVisualPresetPreference := userFields[13].Descriptor()
+	// user.DefaultVisualPresetPreference holds the default value on creation for the visual_preset_preference field.
+	user.DefaultVisualPresetPreference = userDescVisualPresetPreference.Default.(string)
+	// user.VisualPresetPreferenceValidator is a validator for the "visual_preset_preference" field. It is called by the builders before save.
+	user.VisualPresetPreferenceValidator = userDescVisualPresetPreference.Validators[0].(func(string) error)
+	// userDescAccountVisualPresetOverride is the schema descriptor for account_visual_preset_override field.
+	userDescAccountVisualPresetOverride := userFields[14].Descriptor()
+	// user.DefaultAccountVisualPresetOverride holds the default value on creation for the account_visual_preset_override field.
+	user.DefaultAccountVisualPresetOverride = userDescAccountVisualPresetOverride.Default.(string)
+	// user.AccountVisualPresetOverrideValidator is a validator for the "account_visual_preset_override" field. It is called by the builders before save.
+	user.AccountVisualPresetOverrideValidator = userDescAccountVisualPresetOverride.Validators[0].(func(string) error)
 	// userDescUsageContextBadgeDisplayMode is the schema descriptor for usage_context_badge_display_mode field.
-	userDescUsageContextBadgeDisplayMode := userFields[11].Descriptor()
+	userDescUsageContextBadgeDisplayMode := userFields[15].Descriptor()
 	// user.DefaultUsageContextBadgeDisplayMode holds the default value on creation for the usage_context_badge_display_mode field.
 	user.DefaultUsageContextBadgeDisplayMode = userDescUsageContextBadgeDisplayMode.Default.(string)
 	// user.UsageContextBadgeDisplayModeValidator is a validator for the "usage_context_badge_display_mode" field. It is called by the builders before save.
 	user.UsageContextBadgeDisplayModeValidator = userDescUsageContextBadgeDisplayMode.Validators[0].(func(string) error)
 	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
-	userDescTotpEnabled := userFields[13].Descriptor()
+	userDescTotpEnabled := userFields[17].Descriptor()
 	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
 	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()

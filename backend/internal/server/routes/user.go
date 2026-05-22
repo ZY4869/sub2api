@@ -15,6 +15,10 @@ func RegisterUserRoutes(
 	jwtAuth middleware.JWTAuthMiddleware,
 	settingService *service.SettingService,
 ) {
+	if h.Payment != nil {
+		v1.POST("/payment/webhooks/airwallex", h.Payment.AirwallexWebhook)
+	}
+
 	authenticated := v1.Group("")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))
 	authenticated.Use(middleware.MaintenanceModeUserGuard(settingService))
@@ -105,6 +109,17 @@ func RegisterUserRoutes(
 			subscriptions.GET("/active", h.Subscription.GetActive)
 			subscriptions.GET("/progress", h.Subscription.GetProgress)
 			subscriptions.GET("/summary", h.Subscription.GetSummary)
+		}
+
+		payments := authenticated.Group("/payment")
+		{
+			if h.Payment != nil {
+				payments.POST("/orders", h.Payment.CreateOrder)
+				payments.GET("/orders/:order_no", h.Payment.GetOrder)
+				payments.GET("/orders/:order_no/resume", h.Payment.ResumeOrderByOrderNo)
+				payments.GET("/resume/:resume_token", h.Payment.ResumeOrder)
+				payments.POST("/orders/:order_no/cancel", h.Payment.CancelOrder)
+			}
 		}
 	}
 }

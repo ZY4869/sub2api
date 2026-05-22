@@ -1,0 +1,201 @@
+package service
+
+import (
+	"context"
+	"encoding/json"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+func DefaultPaymentSettings() PaymentSettings {
+	return PaymentSettings{
+		AllowedCurrencies: NormalizePaymentAllowedCurrencies(nil),
+		DefaultCurrency:   "USD",
+		MinTopupAmount:    1,
+		MaxTopupAmount:    5000,
+	}
+}
+
+var antigravityUserAgentVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(-[A-Za-z0-9._-]+)?$`)
+
+func (s *SettingService) GetAntigravityUserAgentVersion(ctx context.Context) string {
+	if s == nil || s.settingRepo == nil {
+		return ""
+	}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAntigravityUserAgentVersion)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}
+
+func NormalizeAntigravityUserAgentVersion(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", true
+	}
+	if !antigravityUserAgentVersionPattern.MatchString(value) {
+		return "", false
+	}
+	return value, true
+}
+
+func (s *SettingService) GetPaymentSettings(ctx context.Context) PaymentSettings {
+	defaults := DefaultPaymentSettings()
+	if s == nil || s.settingRepo == nil {
+		return defaults
+	}
+	keys := []string{
+		SettingKeyPurchaseSubscriptionEnabled,
+		SettingKeyPaymentProviderAirwallexEnabled,
+		SettingKeyAirwallexEnv,
+		SettingKeyAirwallexClientID,
+		SettingKeyAirwallexAPIKey,
+		SettingKeyAirwallexWebhookSecret,
+		SettingKeyPaymentAllowedCurrencies,
+		SettingKeyPaymentDefaultCurrency,
+		SettingKeyPaymentMinTopupAmount,
+		SettingKeyPaymentMaxTopupAmount,
+		SettingKeyPaymentSubscriptionPlans,
+	}
+	raw, err := s.settingRepo.GetMultiple(ctx, keys)
+	if err != nil {
+		return defaults
+	}
+	out := paymentSettingsFromRaw(raw)
+	out.FrontendURL = s.GetFrontendURL(ctx)
+	return out
+}
+
+func paymentSettingsFromRaw(raw map[string]string) PaymentSettings {
+	out := DefaultPaymentSettings()
+	if raw == nil {
+		return out
+	}
+	out.Enabled = raw[SettingKeyPurchaseSubscriptionEnabled] == "true"
+	out.AirwallexEnabled = raw[SettingKeyPaymentProviderAirwallexEnabled] == "true"
+	out.AirwallexEnv = NormalizeAirwallexEnv(raw[SettingKeyAirwallexEnv])
+	out.AirwallexClientID = strings.TrimSpace(raw[SettingKeyAirwallexClientID])
+	out.AirwallexAPIKey = strings.TrimSpace(raw[SettingKeyAirwallexAPIKey])
+	out.AirwallexAPIKeyConfigured = out.AirwallexAPIKey != ""
+	out.AirwallexWebhookSecret = strings.TrimSpace(raw[SettingKeyAirwallexWebhookSecret])
+	out.AirwallexWebhookSecretConfigured = out.AirwallexWebhookSecret != ""
+	out.AllowedCurrencies = parsePaymentCurrencies(raw[SettingKeyPaymentAllowedCurrencies])
+	out.DefaultCurrency = NormalizePaymentCurrency(raw[SettingKeyPaymentDefaultCurrency])
+	if out.DefaultCurrency == "" || !PaymentCurrencyAllowed(out.DefaultCurrency, out.AllowedCurrencies) {
+		out.DefaultCurrency = out.AllowedCurrencies[0]
+	}
+	if v, err := strconv.ParseFloat(strings.TrimSpace(raw[SettingKeyPaymentMinTopupAmount]), 64); err == nil && v > 0 {
+		out.MinTopupAmount = v
+	}
+	if v, err := strconv.ParseFloat(strings.TrimSpace(raw[SettingKeyPaymentMaxTopupAmount]), 64); err == nil && v > 0 {
+		out.MaxTopupAmount = v
+	}
+	if out.MaxTopupAmount < out.MinTopupAmount {
+		out.MaxTopupAmount = out.MinTopupAmount
+	}
+	out.SubscriptionPlans = ParsePaymentSubscriptionPlans(raw[SettingKeyPaymentSubscriptionPlans])
+	return out
+}
+
+func IsPaymentPublicAirwallexEnabled(settings PaymentSettings) bool {
+	return isPaymentPublicAirwallexEnabled(settings, true)
+}
+
+func IsPaymentPublicAirwallexEnabledWithoutSecrets(settings PaymentSettings) bool {
+	return isPaymentPublicAirwallexEnabled(settings, false)
+}
+
+func isPaymentPublicAirwallexEnabled(settings PaymentSettings, requireProviderCredentials bool) bool {
+	if !settings.Enabled || !settings.AirwallexEnabled {
+		return false
+	}
+	if requireProviderCredentials && (strings.TrimSpace(settings.AirwallexClientID) == "" || !settings.AirwallexAPIKeyConfigured) {
+		return false
+	}
+	if len(settings.AllowedCurrencies) == 0 || !PaymentCurrencyAllowed(settings.DefaultCurrency, settings.AllowedCurrencies) {
+		return false
+	}
+	if settings.MinTopupAmount <= 0 || settings.MaxTopupAmount < settings.MinTopupAmount {
+		return false
+	}
+	return true
+}
+
+func NormalizeAirwallexEnv(input string) string {
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case "prod", "production":
+		return "prod"
+	default:
+		return "demo"
+	}
+}
+
+func parsePaymentCurrencies(raw string) []string {
+	var items []string
+	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &items); err != nil {
+		return DefaultPaymentCurrencies()
+	}
+	return NormalizePaymentAllowedCurrencies(items)
+}
+
+func ParsePaymentSubscriptionPlans(raw string) []PaymentSubscriptionPlan {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var plans []PaymentSubscriptionPlan
+	if err := json.Unmarshal([]byte(raw), &plans); err != nil {
+		return nil
+	}
+	out := make([]PaymentSubscriptionPlan, 0, len(plans))
+	for _, plan := range plans {
+		plan.PlanID = strings.TrimSpace(plan.PlanID)
+		plan.Name = strings.TrimSpace(plan.Name)
+		if plan.PlanID == "" || plan.GroupID <= 0 || plan.ValidityDays <= 0 {
+			continue
+		}
+		if plan.PricesByCurrency == nil {
+			plan.PricesByCurrency = map[string]float64{}
+		}
+		normalizedPrices := make(map[string]float64, len(plan.PricesByCurrency))
+		for currency, price := range plan.PricesByCurrency {
+			normalized := NormalizePaymentCurrency(currency)
+			if normalized == "" || price <= 0 {
+				continue
+			}
+			normalizedPrices[normalized] = price
+		}
+		plan.PricesByCurrency = normalizedPrices
+		out = append(out, plan)
+	}
+	return out
+}
+
+func MarshalPaymentSubscriptionPlans(plans []PaymentSubscriptionPlan) string {
+	normalized := ParsePaymentSubscriptionPlans(string(mustJSON(plans)))
+	data, err := json.Marshal(normalized)
+	if err != nil {
+		return "[]"
+	}
+	return string(data)
+}
+
+func mustJSON(v any) []byte {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return []byte("[]")
+	}
+	return data
+}
+
+func findPaymentSubscriptionPlan(plans []PaymentSubscriptionPlan, planID string) (PaymentSubscriptionPlan, bool) {
+	planID = strings.TrimSpace(planID)
+	for _, plan := range plans {
+		if plan.Enabled && plan.PlanID == planID {
+			return plan, true
+		}
+	}
+	return PaymentSubscriptionPlan{}, false
+}

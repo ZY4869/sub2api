@@ -21,6 +21,7 @@ export { totpAPI } from './totp'
 export { default as announcementsAPI } from './announcements'
 export { affiliateAPI } from './affiliate'
 export { pagesAPI } from './pages'
+export { paymentAPI } from './payment'
 
 // Admin APIs
 export { adminAPI } from './admin'

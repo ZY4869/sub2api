@@ -270,6 +270,52 @@ func (s *AffiliateService) AccrueTopupRebateBestEffort(ctx context.Context, rede
 	slog.Info("affiliate: topup accrued", "redeem_code_id", redeemCodeID, "user_id", inviteeUserID, "amount", accrued)
 }
 
+type paymentTopupAffiliateRepository interface {
+	AccruePaymentTopupRebate(ctx context.Context, paymentOrderID int64, inviteeUserID int64, creditedAmount float64, policy AffiliateRebatePolicy) (accruedAmount float64, err error)
+}
+
+func (s *AffiliateService) AccruePaymentTopupRebateBestEffort(ctx context.Context, paymentOrderID int64, inviteeUserID int64, creditedAmount float64) {
+	if s == nil || s.repo == nil || paymentOrderID <= 0 || inviteeUserID <= 0 || creditedAmount <= 0 {
+		return
+	}
+	repo, ok := s.repo.(paymentTopupAffiliateRepository)
+	if !ok {
+		return
+	}
+	settings := &SystemSettings{}
+	if s.settingService != nil {
+		all, err := s.settingService.GetAllSettings(ctx)
+		if err != nil {
+			slog.Warn("affiliate: load settings failed, skip payment topup accrual", "error", err)
+			return
+		}
+		settings = all
+	}
+	policy := AffiliateRebatePolicy{
+		Enabled:              settings.AffiliateEnabled,
+		RebateOnTopupEnabled: settings.AffiliateRebateOnTopupEnabled,
+		DefaultRatePercent:   settings.AffiliateRebateRate,
+		FreezeHours:          settings.AffiliateRebateFreezeHours,
+		DurationDays:         settings.AffiliateRebateDurationDays,
+		PerInviteeCap:        settings.AffiliateRebatePerInviteeCap,
+	}
+	if !policy.Enabled || !policy.RebateOnTopupEnabled {
+		return
+	}
+	if _, err := s.EnsureAffiliateRow(ctx, inviteeUserID); err != nil {
+		slog.Warn("affiliate: ensure invitee row failed, skip payment topup accrual", "user_id", inviteeUserID, "error", err)
+		return
+	}
+	accrued, err := repo.AccruePaymentTopupRebate(ctx, paymentOrderID, inviteeUserID, creditedAmount, policy)
+	if err != nil {
+		slog.Warn("affiliate: payment topup accrue failed", "payment_order_id", paymentOrderID, "user_id", inviteeUserID, "error", err)
+		return
+	}
+	if accrued > 0 {
+		slog.Info("affiliate: payment topup accrued", "payment_order_id", paymentOrderID, "user_id", inviteeUserID, "amount", accrued)
+	}
+}
+
 func (s *AffiliateService) ListAdminUsers(ctx context.Context, params pagination.PaginationParams, filters AffiliateAdminUserListFilters) ([]AffiliateAdminUser, *pagination.PaginationResult, error) {
 	if s == nil || s.repo == nil {
 		return nil, nil, errors.New("affiliate service repo is nil")

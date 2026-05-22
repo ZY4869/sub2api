@@ -24913,60 +24913,64 @@ func (m *UsageLogMutation) ResetEdge(name string) error {
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op                               Op
-	typ                              string
-	id                               *int64
-	created_at                       *time.Time
-	updated_at                       *time.Time
-	deleted_at                       *time.Time
-	email                            *string
-	password_hash                    *string
-	role                             *string
-	balance                          *float64
-	addbalance                       *float64
-	concurrency                      *int
-	addconcurrency                   *int
-	status                           *string
-	admin_free_billing               *bool
-	request_details_review           *bool
-	username                         *string
-	notes                            *string
-	usage_model_display_mode         *string
-	usage_context_badge_display_mode *string
-	totp_secret_encrypted            *string
-	totp_enabled                     *bool
-	totp_enabled_at                  *time.Time
-	clearedFields                    map[string]struct{}
-	api_keys                         map[int64]struct{}
-	removedapi_keys                  map[int64]struct{}
-	clearedapi_keys                  bool
-	redeem_codes                     map[int64]struct{}
-	removedredeem_codes              map[int64]struct{}
-	clearedredeem_codes              bool
-	subscriptions                    map[int64]struct{}
-	removedsubscriptions             map[int64]struct{}
-	clearedsubscriptions             bool
-	assigned_subscriptions           map[int64]struct{}
-	removedassigned_subscriptions    map[int64]struct{}
-	clearedassigned_subscriptions    bool
-	announcement_reads               map[int64]struct{}
-	removedannouncement_reads        map[int64]struct{}
-	clearedannouncement_reads        bool
-	allowed_groups                   map[int64]struct{}
-	removedallowed_groups            map[int64]struct{}
-	clearedallowed_groups            bool
-	usage_logs                       map[int64]struct{}
-	removedusage_logs                map[int64]struct{}
-	clearedusage_logs                bool
-	attribute_values                 map[int64]struct{}
-	removedattribute_values          map[int64]struct{}
-	clearedattribute_values          bool
-	promo_code_usages                map[int64]struct{}
-	removedpromo_code_usages         map[int64]struct{}
-	clearedpromo_code_usages         bool
-	done                             bool
-	oldValue                         func(context.Context) (*User, error)
-	predicates                       []predicate.User
+	op                                 Op
+	typ                                string
+	id                                 *int64
+	created_at                         *time.Time
+	updated_at                         *time.Time
+	deleted_at                         *time.Time
+	email                              *string
+	password_hash                      *string
+	role                               *string
+	balance                            *float64
+	addbalance                         *float64
+	concurrency                        *int
+	addconcurrency                     *int
+	status                             *string
+	admin_free_billing                 *bool
+	request_details_review             *bool
+	username                           *string
+	notes                              *string
+	usage_model_display_mode           *string
+	global_realtime_countdown_enabled  *bool
+	account_realtime_countdown_enabled *bool
+	visual_preset_preference           *string
+	account_visual_preset_override     *string
+	usage_context_badge_display_mode   *string
+	totp_secret_encrypted              *string
+	totp_enabled                       *bool
+	totp_enabled_at                    *time.Time
+	clearedFields                      map[string]struct{}
+	api_keys                           map[int64]struct{}
+	removedapi_keys                    map[int64]struct{}
+	clearedapi_keys                    bool
+	redeem_codes                       map[int64]struct{}
+	removedredeem_codes                map[int64]struct{}
+	clearedredeem_codes                bool
+	subscriptions                      map[int64]struct{}
+	removedsubscriptions               map[int64]struct{}
+	clearedsubscriptions               bool
+	assigned_subscriptions             map[int64]struct{}
+	removedassigned_subscriptions      map[int64]struct{}
+	clearedassigned_subscriptions      bool
+	announcement_reads                 map[int64]struct{}
+	removedannouncement_reads          map[int64]struct{}
+	clearedannouncement_reads          bool
+	allowed_groups                     map[int64]struct{}
+	removedallowed_groups              map[int64]struct{}
+	clearedallowed_groups              bool
+	usage_logs                         map[int64]struct{}
+	removedusage_logs                  map[int64]struct{}
+	clearedusage_logs                  bool
+	attribute_values                   map[int64]struct{}
+	removedattribute_values            map[int64]struct{}
+	clearedattribute_values            bool
+	promo_code_usages                  map[int64]struct{}
+	removedpromo_code_usages           map[int64]struct{}
+	clearedpromo_code_usages           bool
+	done                               bool
+	oldValue                           func(context.Context) (*User, error)
+	predicates                         []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -25622,6 +25626,150 @@ func (m *UserMutation) OldUsageModelDisplayMode(ctx context.Context) (v string, 
 // ResetUsageModelDisplayMode resets all changes to the "usage_model_display_mode" field.
 func (m *UserMutation) ResetUsageModelDisplayMode() {
 	m.usage_model_display_mode = nil
+}
+
+// SetGlobalRealtimeCountdownEnabled sets the "global_realtime_countdown_enabled" field.
+func (m *UserMutation) SetGlobalRealtimeCountdownEnabled(b bool) {
+	m.global_realtime_countdown_enabled = &b
+}
+
+// GlobalRealtimeCountdownEnabled returns the value of the "global_realtime_countdown_enabled" field in the mutation.
+func (m *UserMutation) GlobalRealtimeCountdownEnabled() (r bool, exists bool) {
+	v := m.global_realtime_countdown_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGlobalRealtimeCountdownEnabled returns the old "global_realtime_countdown_enabled" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldGlobalRealtimeCountdownEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGlobalRealtimeCountdownEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGlobalRealtimeCountdownEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGlobalRealtimeCountdownEnabled: %w", err)
+	}
+	return oldValue.GlobalRealtimeCountdownEnabled, nil
+}
+
+// ResetGlobalRealtimeCountdownEnabled resets all changes to the "global_realtime_countdown_enabled" field.
+func (m *UserMutation) ResetGlobalRealtimeCountdownEnabled() {
+	m.global_realtime_countdown_enabled = nil
+}
+
+// SetAccountRealtimeCountdownEnabled sets the "account_realtime_countdown_enabled" field.
+func (m *UserMutation) SetAccountRealtimeCountdownEnabled(b bool) {
+	m.account_realtime_countdown_enabled = &b
+}
+
+// AccountRealtimeCountdownEnabled returns the value of the "account_realtime_countdown_enabled" field in the mutation.
+func (m *UserMutation) AccountRealtimeCountdownEnabled() (r bool, exists bool) {
+	v := m.account_realtime_countdown_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountRealtimeCountdownEnabled returns the old "account_realtime_countdown_enabled" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAccountRealtimeCountdownEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountRealtimeCountdownEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountRealtimeCountdownEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountRealtimeCountdownEnabled: %w", err)
+	}
+	return oldValue.AccountRealtimeCountdownEnabled, nil
+}
+
+// ResetAccountRealtimeCountdownEnabled resets all changes to the "account_realtime_countdown_enabled" field.
+func (m *UserMutation) ResetAccountRealtimeCountdownEnabled() {
+	m.account_realtime_countdown_enabled = nil
+}
+
+// SetVisualPresetPreference sets the "visual_preset_preference" field.
+func (m *UserMutation) SetVisualPresetPreference(s string) {
+	m.visual_preset_preference = &s
+}
+
+// VisualPresetPreference returns the value of the "visual_preset_preference" field in the mutation.
+func (m *UserMutation) VisualPresetPreference() (r string, exists bool) {
+	v := m.visual_preset_preference
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVisualPresetPreference returns the old "visual_preset_preference" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldVisualPresetPreference(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVisualPresetPreference is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVisualPresetPreference requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVisualPresetPreference: %w", err)
+	}
+	return oldValue.VisualPresetPreference, nil
+}
+
+// ResetVisualPresetPreference resets all changes to the "visual_preset_preference" field.
+func (m *UserMutation) ResetVisualPresetPreference() {
+	m.visual_preset_preference = nil
+}
+
+// SetAccountVisualPresetOverride sets the "account_visual_preset_override" field.
+func (m *UserMutation) SetAccountVisualPresetOverride(s string) {
+	m.account_visual_preset_override = &s
+}
+
+// AccountVisualPresetOverride returns the value of the "account_visual_preset_override" field in the mutation.
+func (m *UserMutation) AccountVisualPresetOverride() (r string, exists bool) {
+	v := m.account_visual_preset_override
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountVisualPresetOverride returns the old "account_visual_preset_override" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAccountVisualPresetOverride(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountVisualPresetOverride is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountVisualPresetOverride requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountVisualPresetOverride: %w", err)
+	}
+	return oldValue.AccountVisualPresetOverride, nil
+}
+
+// ResetAccountVisualPresetOverride resets all changes to the "account_visual_preset_override" field.
+func (m *UserMutation) ResetAccountVisualPresetOverride() {
+	m.account_visual_preset_override = nil
 }
 
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
@@ -26314,7 +26462,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 22)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -26356,6 +26504,18 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.usage_model_display_mode != nil {
 		fields = append(fields, user.FieldUsageModelDisplayMode)
+	}
+	if m.global_realtime_countdown_enabled != nil {
+		fields = append(fields, user.FieldGlobalRealtimeCountdownEnabled)
+	}
+	if m.account_realtime_countdown_enabled != nil {
+		fields = append(fields, user.FieldAccountRealtimeCountdownEnabled)
+	}
+	if m.visual_preset_preference != nil {
+		fields = append(fields, user.FieldVisualPresetPreference)
+	}
+	if m.account_visual_preset_override != nil {
+		fields = append(fields, user.FieldAccountVisualPresetOverride)
 	}
 	if m.usage_context_badge_display_mode != nil {
 		fields = append(fields, user.FieldUsageContextBadgeDisplayMode)
@@ -26405,6 +26565,14 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Notes()
 	case user.FieldUsageModelDisplayMode:
 		return m.UsageModelDisplayMode()
+	case user.FieldGlobalRealtimeCountdownEnabled:
+		return m.GlobalRealtimeCountdownEnabled()
+	case user.FieldAccountRealtimeCountdownEnabled:
+		return m.AccountRealtimeCountdownEnabled()
+	case user.FieldVisualPresetPreference:
+		return m.VisualPresetPreference()
+	case user.FieldAccountVisualPresetOverride:
+		return m.AccountVisualPresetOverride()
 	case user.FieldUsageContextBadgeDisplayMode:
 		return m.UsageContextBadgeDisplayMode()
 	case user.FieldTotpSecretEncrypted:
@@ -26450,6 +26618,14 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldNotes(ctx)
 	case user.FieldUsageModelDisplayMode:
 		return m.OldUsageModelDisplayMode(ctx)
+	case user.FieldGlobalRealtimeCountdownEnabled:
+		return m.OldGlobalRealtimeCountdownEnabled(ctx)
+	case user.FieldAccountRealtimeCountdownEnabled:
+		return m.OldAccountRealtimeCountdownEnabled(ctx)
+	case user.FieldVisualPresetPreference:
+		return m.OldVisualPresetPreference(ctx)
+	case user.FieldAccountVisualPresetOverride:
+		return m.OldAccountVisualPresetOverride(ctx)
 	case user.FieldUsageContextBadgeDisplayMode:
 		return m.OldUsageContextBadgeDisplayMode(ctx)
 	case user.FieldTotpSecretEncrypted:
@@ -26564,6 +26740,34 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUsageModelDisplayMode(v)
+		return nil
+	case user.FieldGlobalRealtimeCountdownEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGlobalRealtimeCountdownEnabled(v)
+		return nil
+	case user.FieldAccountRealtimeCountdownEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountRealtimeCountdownEnabled(v)
+		return nil
+	case user.FieldVisualPresetPreference:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVisualPresetPreference(v)
+		return nil
+	case user.FieldAccountVisualPresetOverride:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountVisualPresetOverride(v)
 		return nil
 	case user.FieldUsageContextBadgeDisplayMode:
 		v, ok := value.(string)
@@ -26731,6 +26935,18 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldUsageModelDisplayMode:
 		m.ResetUsageModelDisplayMode()
+		return nil
+	case user.FieldGlobalRealtimeCountdownEnabled:
+		m.ResetGlobalRealtimeCountdownEnabled()
+		return nil
+	case user.FieldAccountRealtimeCountdownEnabled:
+		m.ResetAccountRealtimeCountdownEnabled()
+		return nil
+	case user.FieldVisualPresetPreference:
+		m.ResetVisualPresetPreference()
+		return nil
+	case user.FieldAccountVisualPresetOverride:
+		m.ResetAccountVisualPresetOverride()
 		return nil
 	case user.FieldUsageContextBadgeDisplayMode:
 		m.ResetUsageContextBadgeDisplayMode()

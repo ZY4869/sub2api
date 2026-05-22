@@ -59,7 +59,8 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetUsername(userIn.Username).
 		SetNotes(userIn.Notes).
 		SetUsageModelDisplayMode(userIn.EffectiveUsageModelDisplayMode()).
-		SetUsageContextBadgeDisplayMode(userIn.EffectiveUsageContextBadgeDisplayMode()).
+		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
+		SetAccountVisualPresetOverride(service.NormalizeVisualPresetPreference(userIn.AccountVisualPresetOverride)).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
@@ -154,7 +155,10 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetUsername(userIn.Username).
 		SetNotes(userIn.Notes).
 		SetUsageModelDisplayMode(userIn.EffectiveUsageModelDisplayMode()).
-		SetUsageContextBadgeDisplayMode(userIn.EffectiveUsageContextBadgeDisplayMode()).
+		SetGlobalRealtimeCountdownEnabled(userIn.GlobalRealtimeCountdownEnabled).
+		SetAccountRealtimeCountdownEnabled(userIn.AccountRealtimeCountdownEnabled).
+		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
+		SetAccountVisualPresetOverride(service.NormalizeVisualPresetPreference(userIn.AccountVisualPresetOverride)).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
@@ -677,6 +681,10 @@ func applyUserEntityToService(dst *service.User, src *dbent.User) {
 		return
 	}
 	dst.ID = src.ID
+	dst.GlobalRealtimeCountdownEnabled = src.GlobalRealtimeCountdownEnabled
+	dst.AccountRealtimeCountdownEnabled = src.AccountRealtimeCountdownEnabled
+	dst.VisualPresetPreference = service.NormalizeVisualPresetPreference(src.VisualPresetPreference)
+	dst.AccountVisualPresetOverride = service.NormalizeVisualPresetPreference(src.AccountVisualPresetOverride)
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
 }

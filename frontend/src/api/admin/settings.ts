@@ -4,7 +4,12 @@
  */
 
 import { apiClient } from '../client'
-import type { CustomMenuItem, LoginAgreementDocument } from '@/types'
+import type {
+  CustomMenuItem,
+  LoginAgreementDocument,
+  PaymentSubscriptionPlan,
+  VisualPreset
+} from '@/types'
 
 export interface DefaultSubscriptionSetting {
   group_id: number
@@ -52,6 +57,8 @@ export interface SystemSettings {
   site_name: string
   site_logo: string
   site_subtitle: string
+  visual_preset_default: VisualPreset
+  account_airy_white_surface_enabled: boolean
   api_base_url: string
   contact_info: string
   doc_url: string
@@ -73,6 +80,18 @@ export interface SystemSettings {
   affiliate_aff_code_length: number
   purchase_subscription_enabled: boolean
   purchase_subscription_url: string
+  payment_provider_airwallex_enabled: boolean
+  payment_provider_airwallex_effective?: boolean
+  airwallex_env: 'demo' | 'prod' | string
+  airwallex_client_id: string
+  airwallex_api_key_configured: boolean
+  airwallex_webhook_secret_configured: boolean
+  payment_allowed_currencies: string[]
+  payment_default_currency: string
+  payment_min_topup_amount: number
+  payment_max_topup_amount: number
+  payment_subscription_plans: PaymentSubscriptionPlan[]
+  antigravity_user_agent_version: string
   backend_mode_enabled: boolean
   maintenance_mode_enabled: boolean
   custom_menu_items: CustomMenuItem[]
@@ -163,6 +182,8 @@ export interface UpdateSettingsRequest {
   site_name?: string
   site_logo?: string
   site_subtitle?: string
+  visual_preset_default?: VisualPreset
+  account_airy_white_surface_enabled?: boolean
   api_base_url?: string
   contact_info?: string
   doc_url?: string
@@ -183,6 +204,17 @@ export interface UpdateSettingsRequest {
   affiliate_aff_code_length?: number
   purchase_subscription_enabled?: boolean
   purchase_subscription_url?: string
+  payment_provider_airwallex_enabled?: boolean
+  airwallex_env?: 'demo' | 'prod' | string
+  airwallex_client_id?: string
+  airwallex_api_key?: string
+  airwallex_webhook_secret?: string
+  payment_allowed_currencies?: string[]
+  payment_default_currency?: string
+  payment_min_topup_amount?: number
+  payment_max_topup_amount?: number
+  payment_subscription_plans?: PaymentSubscriptionPlan[]
+  antigravity_user_agent_version?: string
   backend_mode_enabled?: boolean
   maintenance_mode_enabled?: boolean
   custom_menu_items?: CustomMenuItem[]

@@ -291,6 +291,30 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/payment/resume/:resumeToken',
+    name: 'PaymentResume',
+    component: () => import('@/views/user/PaymentResumeView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Payment Resume',
+      titleKey: 'purchase.resumeTitle',
+      descriptionKey: 'purchase.resumeDesc'
+    }
+  },
+  {
+    path: '/payment/result/:orderNo',
+    name: 'PaymentResult',
+    component: () => import('@/views/user/PaymentResultView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Payment Result',
+      titleKey: 'purchase.resultTitle',
+      descriptionKey: 'purchase.resultDesc'
+    }
+  },
+  {
     path: '/custom/:id',
     name: 'CustomPage',
     component: () => import('@/views/user/CustomPageView.vue'),
@@ -484,6 +508,18 @@ const routes: RouteRecordRaw[] = [
         }
       },
     ]
+  },
+  {
+    path: '/admin/payment/orders',
+    name: 'AdminPaymentOrders',
+    component: () => import('@/views/admin/PaymentOrdersView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Payment Orders',
+      titleKey: 'admin.payment.title',
+      descriptionKey: 'admin.payment.description'
+    }
   },
   {
     path: '/admin/ops',

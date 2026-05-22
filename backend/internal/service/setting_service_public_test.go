@@ -12,7 +12,8 @@ import (
 )
 
 type settingPublicRepoStub struct {
-	values map[string]string
+	values   map[string]string
+	lastKeys []string
 }
 
 func (s *settingPublicRepoStub) Get(ctx context.Context, key string) (*Setting, error) {
@@ -32,6 +33,7 @@ func (s *settingPublicRepoStub) Set(ctx context.Context, key, value string) erro
 }
 
 func (s *settingPublicRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	s.lastKeys = append([]string(nil), keys...)
 	out := make(map[string]string, len(keys))
 	for _, key := range keys {
 		if value, ok := s.values[key]; ok {
@@ -61,6 +63,72 @@ func (s *settingPublicRepoStub) GetAll(ctx context.Context) (map[string]string, 
 
 func (s *settingPublicRepoStub) Delete(ctx context.Context, key string) error {
 	panic("unexpected Delete call")
+}
+
+func TestSettingService_GetPublicSettings_UsesEffectiveAirwallexFlagWithoutExposingSecrets(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyPurchaseSubscriptionEnabled:     "true",
+			SettingKeyPaymentProviderAirwallexEnabled: "true",
+			SettingKeyAirwallexClientID:               "client-id",
+			SettingKeyAirwallexAPIKey:                 "secret-api-key",
+			SettingKeyAirwallexWebhookSecret:          "secret-webhook",
+			SettingKeyPaymentAllowedCurrencies:        `["USD","CNY","HKD"]`,
+			SettingKeyPaymentDefaultCurrency:          "USD",
+			SettingKeyPaymentMinTopupAmount:           "1",
+			SettingKeyPaymentMaxTopupAmount:           "100",
+			SettingKeyPaymentSubscriptionPlans:        "[]",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.PaymentProviderAirwallexEnabled)
+	require.Contains(t, repo.lastKeys, SettingKeyAirwallexClientID)
+	require.Contains(t, repo.lastKeys, SettingKeyAirwallexAPIKey)
+	require.NotContains(t, repo.lastKeys, SettingKeyAirwallexWebhookSecret)
+}
+
+func TestSettingService_GetPublicSettings_DisablesAirwallexWhenProviderConfigIncomplete(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyPurchaseSubscriptionEnabled:     "false",
+			SettingKeyPaymentProviderAirwallexEnabled: "true",
+			SettingKeyAirwallexClientID:               "client-id",
+			SettingKeyAirwallexAPIKey:                 "secret-api-key",
+			SettingKeyPaymentAllowedCurrencies:        `["USD","CNY","HKD"]`,
+			SettingKeyPaymentDefaultCurrency:          "USD",
+			SettingKeyPaymentMinTopupAmount:           "1",
+			SettingKeyPaymentMaxTopupAmount:           "100",
+			SettingKeyPaymentSubscriptionPlans:        "[]",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.False(t, settings.PaymentProviderAirwallexEnabled)
+}
+
+func TestSettingService_GetPublicSettings_DisablesAirwallexWhenProviderCredentialsIncomplete(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyPurchaseSubscriptionEnabled:     "true",
+			SettingKeyPaymentProviderAirwallexEnabled: "true",
+			SettingKeyAirwallexClientID:               "client-id",
+			SettingKeyPaymentAllowedCurrencies:        `["USD","CNY","HKD"]`,
+			SettingKeyPaymentDefaultCurrency:          "USD",
+			SettingKeyPaymentMinTopupAmount:           "1",
+			SettingKeyPaymentMaxTopupAmount:           "100",
+			SettingKeyPaymentSubscriptionPlans:        "[]",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.False(t, settings.PaymentProviderAirwallexEnabled)
 }
 
 func TestSettingService_GetPublicSettings_ExposesRegistrationEmailSuffixWhitelist(t *testing.T) {
@@ -157,6 +225,35 @@ func TestSettingService_MaintenanceMode_RoundTripsAcrossPublicSettings(t *testin
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(raw, &payload))
 	require.Equal(t, true, payload["maintenance_mode_enabled"])
+}
+
+func TestSettingService_AccountAiryWhiteSurface_RoundTripsAcrossPublicSettings(t *testing.T) {
+	ctx := context.Background()
+	repo := &settingPublicRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	initial, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.False(t, initial.AccountAiryWhiteSurfaceEnabled)
+
+	err = svc.UpdateSettings(ctx, &SystemSettings{
+		AccountAiryWhiteSurfaceEnabled: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "true", repo.values[SettingKeyAccountAiryWhiteSurfaceEnabled])
+
+	updated, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.True(t, updated.AccountAiryWhiteSurfaceEnabled)
+
+	injected, err := svc.GetPublicSettingsForInjection(ctx)
+	require.NoError(t, err)
+	raw, err := json.Marshal(injected)
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(raw, &payload))
+	require.Equal(t, true, payload["account_airy_white_surface_enabled"])
 }
 
 func TestSettingService_AvailableChannelsAndChannelMonitor_RoundTripsAcrossPublicSettings(t *testing.T) {

@@ -61,6 +61,8 @@ type SystemSettings struct {
 	SiteName                             string
 	SiteLogo                             string
 	SiteSubtitle                         string
+	VisualPresetDefault                  string
+	AccountAiryWhiteSurfaceEnabled       bool
 	APIBaseURL                           string
 	ContactInfo                          string
 	DocURL                               string
@@ -72,6 +74,20 @@ type SystemSettings struct {
 	PublicModelCatalogEnabled            bool
 	PurchaseSubscriptionEnabled          bool
 	PurchaseSubscriptionURL              string
+	PaymentProviderAirwallexEnabled      bool
+	PaymentProviderAirwallexEffective    bool
+	AirwallexEnv                         string
+	AirwallexClientID                    string
+	AirwallexAPIKey                      string
+	AirwallexAPIKeyConfigured            bool
+	AirwallexWebhookSecret               string
+	AirwallexWebhookSecretConfigured     bool
+	PaymentAllowedCurrencies             []string
+	PaymentDefaultCurrency               string
+	PaymentMinTopupAmount                float64
+	PaymentMaxTopupAmount                float64
+	PaymentSubscriptionPlans             []PaymentSubscriptionPlan
+	AntigravityUserAgentVersion          string
 	CustomMenuItems                      string // JSON array of custom menu items
 	LoginAgreementEnabled                bool
 	LoginAgreementMode                   string
@@ -144,6 +160,8 @@ type PublicSettings struct {
 	SiteName                         string
 	SiteLogo                         string
 	SiteSubtitle                     string
+	VisualPresetDefault              string
+	AccountAiryWhiteSurfaceEnabled   bool
 	APIBaseURL                       string
 	ContactInfo                      string
 	DocURL                           string
@@ -154,13 +172,19 @@ type PublicSettings struct {
 	PublicModelCatalogEnabled        bool
 	AffiliateEnabled                 bool
 
-	PurchaseSubscriptionEnabled bool
-	PurchaseSubscriptionURL     string
-	CustomMenuItems             string // JSON array of custom menu items
-	LoginAgreementEnabled       bool
-	LoginAgreementMode          string
-	LoginAgreementUpdatedAt     string
-	LoginAgreementDocuments     []LoginAgreementDocument
+	PurchaseSubscriptionEnabled     bool
+	PurchaseSubscriptionURL         string
+	PaymentProviderAirwallexEnabled bool
+	PaymentAllowedCurrencies        []string
+	PaymentDefaultCurrency          string
+	PaymentMinTopupAmount           float64
+	PaymentMaxTopupAmount           float64
+	PaymentSubscriptionPlans        []PaymentSubscriptionPlan
+	CustomMenuItems                 string // JSON array of custom menu items
+	LoginAgreementEnabled           bool
+	LoginAgreementMode              string
+	LoginAgreementUpdatedAt         string
+	LoginAgreementDocuments         []LoginAgreementDocument
 
 	LinuxDoOAuthEnabled    bool
 	GitHubOAuthEnabled     bool

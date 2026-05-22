@@ -93,6 +93,7 @@ func RegisterAdminRoutes(
 		// 定时测试计划
 		registerScheduledTestRoutes(admin, h)
 		registerTLSFingerprintProfileRoutes(admin, h)
+		registerPaymentRoutes(admin, h)
 	}
 }
 
@@ -210,6 +211,7 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			runtime.GET("/alert", h.Admin.Ops.GetAlertRuntimeSettings)
 			runtime.GET("/google-batch", h.Admin.Ops.GetGoogleBatchRuntimeMetrics)
 			runtime.GET("/protocol-gateway", h.Admin.Ops.GetProtocolGatewayRuntimeMetrics)
+			runtime.GET("/payment", h.Admin.Ops.GetPaymentRuntimeMetrics)
 			runtime.PUT("/alert", h.Admin.Ops.UpdateAlertRuntimeSettings)
 			runtime.GET("/logging", h.Admin.Ops.GetRuntimeLogConfig)
 			runtime.PUT("/logging", h.Admin.Ops.UpdateRuntimeLogConfig)
@@ -331,6 +333,17 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			users.DELETE("/:user_id", h.Admin.Affiliate.DeleteUserCustom)
 			users.POST("/batch-rate", h.Admin.Affiliate.BatchRate)
 		}
+	}
+}
+
+func registerPaymentRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h.Admin == nil || h.Admin.Payment == nil {
+		return
+	}
+	payments := admin.Group("/payment")
+	{
+		payments.GET("/orders", h.Admin.Payment.ListOrders)
+		payments.POST("/orders/:order_no/refund", h.Admin.Payment.RefundOrder)
 	}
 }
 

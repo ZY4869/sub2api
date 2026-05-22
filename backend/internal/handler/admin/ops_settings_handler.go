@@ -39,6 +39,19 @@ func (h *OpsHandler) GetProtocolGatewayRuntimeMetrics(c *gin.Context) {
 	response.Success(c, service.SnapshotProtocolGatewayRuntimeMetrics())
 }
 
+// GetPaymentRuntimeMetrics returns built-in payment runtime metrics snapshot.
+// GET /api/v1/admin/ops/runtime/payment
+func (h *OpsHandler) GetPaymentRuntimeMetrics(c *gin.Context) {
+	if h.opsService != nil {
+		if err := h.opsService.RequireMonitoringEnabled(c.Request.Context()); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
+
+	response.Success(c, service.SnapshotPaymentRuntimeMetrics())
+}
+
 // GetEmailNotificationConfig returns Ops email notification config (DB-backed).
 // GET /api/v1/admin/ops/email-notification/config
 func (h *OpsHandler) GetEmailNotificationConfig(c *gin.Context) {

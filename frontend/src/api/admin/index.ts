@@ -33,6 +33,7 @@ import modelDebugAPI from './modelDebug'
 import modelRegistryAPI from './modelRegistry'
 import tlsFingerprintProfilesAPI from './tlsFingerprintProfile'
 import moderationAPI from './moderation'
+import paymentAPI from './payment'
 
 /**
  * Unified admin API object for convenient access
@@ -67,7 +68,8 @@ export const adminAPI = {
   modelRegistry: modelRegistryAPI,
   moderation: moderationAPI,
   scheduledTests: scheduledTestsAPI,
-  tlsFingerprintProfiles: tlsFingerprintProfilesAPI
+  tlsFingerprintProfiles: tlsFingerprintProfilesAPI,
+  payment: paymentAPI
 }
 
 export {
@@ -100,7 +102,8 @@ export {
   modelRegistryAPI,
   moderationAPI,
   scheduledTestsAPI,
-  tlsFingerprintProfilesAPI
+  tlsFingerprintProfilesAPI,
+  paymentAPI
 }
 
 export default adminAPI

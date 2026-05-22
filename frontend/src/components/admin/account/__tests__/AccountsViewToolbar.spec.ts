@@ -38,6 +38,9 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
         live: 4,
         fallback: 2,
       },
+      accountVisualPresetOverride: 'inherit',
+      visualStyle: 'classic',
+      accountVisualStyleUpdating: false,
       daily5HTriggerEnabled: true,
       toggleableColumns: [
         { key: "proxy", label: "Proxy", visible: true },
@@ -234,6 +237,55 @@ describe("AccountsViewToolbar", () => {
 
     expect(wrapper.text()).toContain("Proxy");
     expect(wrapper.text()).toContain("Notes");
+  });
+
+  it("renders and emits the account realtime countdown toggle from More", async () => {
+    const wrapper = mountToolbar({
+      accountRealtimeCountdownEnabled: true,
+    });
+
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
+
+    const toggleButton = wrapper.get('[data-account-realtime-toggle="true"]');
+    expect(toggleButton.text()).toContain(
+      "admin.accounts.accountRealtimeCountdown",
+    );
+
+    await toggleButton.trigger("click");
+    await nextTick();
+
+    expect(wrapper.emitted("toggle-account-realtime-countdown")).toEqual([[]]);
+    expect(wrapper.text()).not.toContain(
+      "admin.accounts.accountRealtimeCountdown",
+    );
+  });
+
+  it("renders and emits the account visual style toggle", async () => {
+    const wrapper = mountToolbar({
+      accountVisualPresetOverride: "inherit",
+      visualStyle: "classic",
+    });
+
+    const visualStyleToggle = wrapper.get('[data-account-visual-style-toggle="true"]');
+    expect(visualStyleToggle.text()).toContain(
+      "admin.accounts.accountVisualStyleInherit",
+    );
+    expect(visualStyleToggle.text()).toContain(
+      "admin.accounts.accountVisualStyleClassic",
+    );
+    expect(visualStyleToggle.text()).toContain(
+      "admin.accounts.accountVisualStyleAiry",
+    );
+
+    await wrapper
+      .findAll("button")
+      .find((button) =>
+        button.text().includes("admin.accounts.accountVisualStyleAiry"),
+      )
+      ?.trigger("click");
+
+    expect(wrapper.emitted("set-account-visual-preset-override")).toEqual([["airy"]]);
   });
 
   it("renders limited account controls and forwards their actions", async () => {
