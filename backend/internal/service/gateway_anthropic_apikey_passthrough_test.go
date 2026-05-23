@@ -21,10 +21,11 @@ import (
 )
 
 type anthropicHTTPUpstreamRecorder struct {
-	lastReq  *http.Request
-	lastBody []byte
-	resp     *http.Response
-	err      error
+	lastReq         *http.Request
+	lastBody        []byte
+	lastConcurrency int
+	resp            *http.Response
+	err             error
 }
 
 func newAnthropicAPIKeyAccountForTest() *Account {
@@ -48,6 +49,7 @@ func newAnthropicAPIKeyAccountForTest() *Account {
 
 func (u *anthropicHTTPUpstreamRecorder) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
 	u.lastReq = req
+	u.lastConcurrency = accountConcurrency
 	if req != nil && req.Body != nil {
 		b, _ := io.ReadAll(req.Body)
 		u.lastBody = b
@@ -195,6 +197,58 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardStreamPreservesBodyAnd
 	bodyBytes, ok := rawBody.([]byte)
 	require.True(t, ok, "应以 []byte 形式缓存上游请求体，避免重复 string 拷贝")
 	require.Equal(t, "claude-3-haiku-20240307", gjson.GetBytes(bodyBytes, "model").String(), "缓存的上游请求体应包含映射后的模型")
+}
+
+func TestGatewayService_DeepSeekAnthropicInjectsInternalUserIDAndConcurrency(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	c.Set("api_key", &APIKey{ID: 44, UserID: 55})
+
+	body := []byte(`{"model":"DEEPSEEK V4 PRO","metadata":{"user_id":"client-user"},"max_tokens":16,"messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}]}`)
+	parsed := &ParsedRequest{
+		Body:   body,
+		Model:  "DEEPSEEK V4 PRO",
+		Stream: false,
+	}
+
+	upstream := &anthropicHTTPUpstreamRecorder{
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}, "x-request-id": []string{"rid-deepseek"}},
+			Body:       io.NopCloser(strings.NewReader(`{"id":"msg_1","type":"message","role":"assistant","model":"deepseek-v4-pro","content":[{"type":"text","text":"ok"}],"usage":{"input_tokens":2,"output_tokens":1}}`)),
+		},
+	}
+	svc := &GatewayService{
+		cfg:              &config.Config{JWT: config.JWTConfig{Secret: "deepseek-anthropic-secret"}},
+		httpUpstream:     upstream,
+		rateLimitService: &RateLimitService{},
+	}
+	account := &Account{
+		ID:          401,
+		Name:        "deepseek-anthropic",
+		Platform:    PlatformDeepSeek,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1000,
+		Credentials: map[string]any{"api_key": "deepseek-key"},
+		Extra: map[string]any{
+			DeepSeekModelConcurrencyLimitsExtraKey: map[string]any{
+				"deepseek-v4-pro": 500,
+			},
+		},
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+
+	result, err := svc.Forward(context.Background(), c, account, parsed)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, 500, upstream.lastConcurrency)
+	require.Equal(t, "deepseek-v4-pro", gjson.GetBytes(upstream.lastBody, "model").String())
+	require.Regexp(t, `^sub2api_[a-f0-9]{40}$`, gjson.GetBytes(upstream.lastBody, "metadata.user_id").String())
+	require.NotEqual(t, "client-user", gjson.GetBytes(upstream.lastBody, "metadata.user_id").String())
 }
 
 func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardCountTokensPreservesBody(t *testing.T) {

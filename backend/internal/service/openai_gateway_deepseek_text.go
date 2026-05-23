@@ -36,6 +36,12 @@ func (s *OpenAIGatewayService) forwardDeepSeekNativeChatCompletions(
 		}
 		return nil, fmt.Errorf("prepare deepseek native chat request: %w", err)
 	}
+	preparedBody, injectedUserID, err := s.injectDeepSeekOpenAIUserID(c, account, prepared.body)
+	if err != nil {
+		return nil, err
+	}
+	prepared.body = preparedBody
+	logDeepSeekRequestIsolation(account, prepared.mappedModel, injectedUserID, DeepSeekEffectiveAccountConcurrency(account, prepared.mappedModel))
 	logDeepSeekBetaRouting(
 		account,
 		prepared.originalModel,
@@ -67,7 +73,7 @@ func (s *OpenAIGatewayService) forwardDeepSeekNativeChatCompletions(
 	if account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
-	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, DeepSeekEffectiveAccountConcurrency(account, prepared.mappedModel))
 	if err != nil {
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
 		setOpsUpstreamError(c, 0, safeErr, "")
@@ -82,7 +88,11 @@ func (s *OpenAIGatewayService) forwardDeepSeekNativeChatCompletions(
 		writeChatCompletionsError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed", "")
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
+		}
+	}()
 
 	if resp.StatusCode >= 400 {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
@@ -177,7 +187,11 @@ func (s *OpenAIGatewayService) ForwardDeepSeekCompletions(
 	if originalModel == "" {
 		return nil, fmt.Errorf("missing model")
 	}
-	mappedModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
+	mappedModel := resolveDeepSeekForwardModel(account, originalModel, defaultMappedModel)
+	if mappedModel == "" {
+		writeChatCompletionsError(c, http.StatusBadRequest, "invalid_request_error", "Unknown DeepSeek model variant", "unknown_deepseek_model")
+		return nil, fmt.Errorf("unknown deepseek model variant: %s", originalModel)
+	}
 	if mappedModel != "" && mappedModel != originalModel {
 		nextBody, err := sjson.SetBytes(body, "model", mappedModel)
 		if err != nil {
@@ -185,12 +199,21 @@ func (s *OpenAIGatewayService) ForwardDeepSeekCompletions(
 		}
 		body = nextBody
 	}
+	var injectedUserID bool
+	updatedBody, injected, injectErr := s.injectDeepSeekOpenAIUserID(c, account, body)
+	if injectErr != nil {
+		return nil, injectErr
+	}
+	body = updatedBody
+	injectedUserID = injected
 	if !isDeepSeekFIMCompletionModel(mappedModel) {
 		writeChatCompletionsError(c, http.StatusBadRequest, "invalid_request_error", "DeepSeek /v1/completions currently only supports deepseek-v4-flash or deepseek-v4-pro", "deepseek_fim_model_unsupported")
 		return nil, fmt.Errorf("deepseek completions unsupported model: %s", mappedModel)
 	}
 
 	stream := gjson.GetBytes(body, "stream").Bool()
+	upstreamConcurrency := DeepSeekEffectiveAccountConcurrency(account, mappedModel)
+	logDeepSeekRequestIsolation(account, mappedModel, injectedUserID, upstreamConcurrency)
 	logDeepSeekBetaRouting(account, originalModel, mappedModel, EndpointCompletions, EndpointCompletions, false, false, false, true, false)
 
 	ctx = WithOpenAICodexRequestModel(ctx, mappedModel)
@@ -211,7 +234,7 @@ func (s *OpenAIGatewayService) ForwardDeepSeekCompletions(
 	if account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
-	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, upstreamConcurrency)
 	if err != nil {
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
 		setOpsUpstreamError(c, 0, safeErr, "")
@@ -457,5 +480,23 @@ func logDeepSeekBetaRouting(account *Account, originalModel string, mappedModel 
 		zap.Bool("deepseek_beta_fields_stripped", betaFieldsStripped),
 		zap.String("inbound_endpoint", inboundEndpoint),
 		zap.String("upstream_endpoint", upstreamEndpoint),
+	)
+}
+
+func logDeepSeekRequestIsolation(account *Account, canonicalModel string, injectedUserID bool, effectiveConcurrency int) {
+	if account == nil {
+		return
+	}
+	source := "account"
+	if account.DeepSeekModelConcurrencyLimit(canonicalModel) > 0 {
+		source = "model_limit"
+	}
+	logger.L().Debug(
+		"deepseek.request_isolation",
+		zap.Int64("account_id", account.ID),
+		zap.String("canonical_model", strings.TrimSpace(canonicalModel)),
+		zap.Bool("user_id_injected", injectedUserID),
+		zap.Int("effective_concurrency", effectiveConcurrency),
+		zap.String("concurrency_source", source),
 	)
 }

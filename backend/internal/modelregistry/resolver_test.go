@@ -47,6 +47,21 @@ func TestResolveToCanonicalIDVariants(t *testing.T) {
 			input:    "/publishers/google/models/gemini-2.5-pro",
 			expected: "gemini-2.5-pro",
 		},
+		{
+			name:     "deepseek provider prefixed free flash",
+			input:    "Deepseek/deepseek V4 Flash:free",
+			expected: "deepseek-v4-flash",
+		},
+		{
+			name:     "deepseek underscore free flash",
+			input:    "deepseek_v4_flash_free",
+			expected: "deepseek-v4-flash",
+		},
+		{
+			name:     "deepseek uppercase pro",
+			input:    "DEEPSEEK V4 PRO",
+			expected: "deepseek-v4-pro",
+		},
 	}
 
 	for _, test := range tests {
@@ -56,6 +71,11 @@ func TestResolveToCanonicalIDVariants(t *testing.T) {
 			require.Equal(t, test.expected, actual)
 		})
 	}
+}
+
+func TestResolveToCanonicalIDUnknownDeepSeekVariantDoesNotMatch(t *testing.T) {
+	_, ok := ResolveToCanonicalID("deepseek-v4-lite-free")
+	require.False(t, ok)
 }
 
 func TestResolveToProtocolIDRouteSpecific(t *testing.T) {

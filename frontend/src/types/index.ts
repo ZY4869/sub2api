@@ -1027,6 +1027,7 @@ export interface Account {
     gateway_accepted_protocols?: GatewayAcceptedProtocol[];
     gateway_openai_request_format?: GatewayOpenAIRequestFormat;
     gateway_openai_image_protocol_mode?: OpenAIImageProtocolMode;
+    deepseek_model_concurrency_limits?: Record<string, number>;
   } & Record<string, unknown>;
   proxy_id: number | null;
   concurrency: number;
@@ -1175,7 +1176,13 @@ export interface WindowStats {
   cost: number; // Standard cost before final billing adjustments.
   standard_cost?: number;
   user_cost?: number;
+  success_rate?: number;
+  average_duration_ms?: number;
+  weekly?: WindowStats | null;
+  total?: WindowStats | null;
 }
+
+export type AccountTodayStats = WindowStats;
 
 export interface UsageProgress {
   utilization: number; // Utilization percentage in the range 0-100.

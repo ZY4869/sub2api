@@ -258,6 +258,11 @@
           v-model:image-protocol-mode="gatewayOpenAIImageProtocolMode"
         />
 
+        <AccountDeepSeekConcurrencyLimitsEditor
+          v-if="showDeepSeekConcurrencyEditor"
+          v-model:limits="deepSeekModelConcurrencyLimits"
+        />
+
         <AccountProtocolGatewayBatchEditor
           v-if="showProtocolGatewayBatchEditor"
           v-model:enabled="gatewayBatchEnabled"
@@ -597,7 +602,7 @@ import { useCreateAccountOpenAIExchange } from '@/composables/useCreateAccountOp
 import { useCreateAccountOpenAIRefreshTokenValidation } from '@/composables/useCreateAccountOpenAIRefreshTokenValidation'
 import { useCreateAccountReset } from '@/composables/useCreateAccountReset'
 import { useCreateAccountSubmit } from '@/composables/useCreateAccountSubmit'
-import type { GrokImportResult } from '@/api/admin/accounts'
+import type { AccountModelImportResult, GrokImportResult } from '@/api/admin/accounts'
 import type {
   Proxy,
   AdminGroup,
@@ -623,6 +628,7 @@ import AccountCreateOAuthStep from '@/components/account/AccountCreateOAuthStep.
 import AccountCreatePlatformSelector from '@/components/account/AccountCreatePlatformSelector.vue'
 import AccountCreatePlatformTypeEditor from '@/components/account/AccountCreatePlatformTypeEditor.vue'
 import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErrorCodesEditor.vue'
+import AccountDeepSeekConcurrencyLimitsEditor from '@/components/account/AccountDeepSeekConcurrencyLimitsEditor.vue'
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
 import AccountGoogleBatchArchiveEditor from '@/components/account/AccountGoogleBatchArchiveEditor.vue'
 import AccountGeminiHelpDialog from '@/components/account/AccountGeminiHelpDialog.vue'
@@ -669,6 +675,10 @@ import {
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { buildAnthropicExtra, buildOpenAIExtra } from '@/utils/accountCreateExtras'
+import {
+  applyDeepSeekModelConcurrencyLimitsExtra,
+  createDefaultDeepSeekModelConcurrencyLimitDraft
+} from '@/utils/deepseekAccount'
 import {
   resolveOpenAIImageProtocolState
 } from '@/utils/openaiAccountDefaults'
@@ -744,6 +754,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   close: []
   created: []
+  'models-imported': [result: AccountModelImportResult]
 }>()
 
 const appStore = useAppStore()
@@ -798,6 +809,7 @@ const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-
 const gatewayProtocol = ref<GatewayProtocol>('openai')
 const apiKeyBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const apiKeyValue = ref('')
+const deepSeekModelConcurrencyLimits = ref(createDefaultDeepSeekModelConcurrencyLimitDraft())
 const grokSSOToken = ref('')
 const grokTier = ref<'basic' | 'super' | 'heavy'>('basic')
 const editQuotaLimit = ref<number | null>(null)
@@ -934,6 +946,9 @@ const showApiKeyModelScopeEditor = computed(() =>
   showCommonApiKeySection.value &&
   form.platform !== 'protocol_gateway' &&
   effectivePlatform.value !== 'antigravity'
+)
+const showDeepSeekConcurrencyEditor = computed(() =>
+  showCommonApiKeySection.value && effectivePlatform.value === 'deepseek'
 )
 const showStandaloneModelScopeEditor = computed(() => {
   if (form.platform === 'antigravity') {
@@ -1303,6 +1318,7 @@ watch(
       gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
       gatewayOpenAIImageProtocolMode.value = DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
       gatewayBatchEnabled.value = false
+      deepSeekModelConcurrencyLimits.value = createDefaultDeepSeekModelConcurrencyLimitDraft()
       resetProtocolGatewayClaudeMimicState()
       if (form.platform === 'antigravity') {
         loadAntigravityDefaultMappings()
@@ -1438,6 +1454,7 @@ watch(
       accountCategory.value = 'apikey'
       form.type = 'apikey'
       autoImportModels.value = false
+      deepSeekModelConcurrencyLimits.value = createDefaultDeepSeekModelConcurrencyLimitDraft()
     }
     if (newPlatform === 'antigravity') {
       loadAntigravityDefaultMappings()
@@ -1639,6 +1656,7 @@ const syncProtocolGatewaySelectedModels = async (createdAccount: Account) => {
       trigger: 'create',
       models: selectedMissingModels.map((model) => model.id)
     })
+    emit('models-imported', result)
     const syncableModels = extractSyncableRegistryModels(result)
     if (syncableModels.length > 0) {
       await adminAPI.modelRegistry.syncModelRegistryExposures({
@@ -1851,10 +1869,16 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
       }
     )
 
+  const extraWithDeepSeek = applyDeepSeekModelConcurrencyLimitsExtra(
+    extraWithProtocolGateway,
+    effectivePlatform.value,
+    deepSeekModelConcurrencyLimits.value
+  )
+
   return mergeResolvedUpstreamDraftIntoExtra(
     mergeAccountModelProbeSnapshotIntoExtra(
       mergeAccountManualModelsIntoExtra(
-        extraWithProtocolGateway,
+        extraWithDeepSeek,
         manualModels.value,
         isProtocolGatewayPlatform(form.platform)
       ),

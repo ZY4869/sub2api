@@ -37,6 +37,14 @@ export default {
     deepseek: {
         baseUrlHint: "Leave default for the official DeepSeek API (https://api.deepseek.com)",
         apiKeyHint: "Your DeepSeek API Key",
+        modelConcurrency: {
+            title: "DeepSeek model concurrency limits",
+            description: "Limit upstream concurrency per canonical model. Runtime scheduling uses the lower value between the account concurrency and the model limit.",
+            fallbackHint: "Clear a model value to fall back to the account concurrency. Non-positive values are not saved.",
+            officialDefault: "Official default: {count}",
+            pro: "DeepSeek V4 Pro",
+            flash: "DeepSeek V4 Flash",
+        },
     },
     anthropic: {
         apiKeyPassthrough: "Auto passthrough (auth only)",

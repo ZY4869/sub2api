@@ -10,6 +10,7 @@
         :subscription-type="group.subscription_type"
         :rate-multiplier="group.rate_multiplier"
         :show-rate="false"
+        :visual-variant="visualVariant"
         class="max-w-24"
       />
       <!-- 更多数量徽章 -->
@@ -17,7 +18,7 @@
         v-if="hiddenCount > 0"
         ref="moreButtonRef"
         @click.stop="showPopover = !showPopover"
-        class="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500 transition-colors cursor-pointer whitespace-nowrap"
+        :class="moreButtonClass"
       >
         <span>+{{ hiddenCount }}</span>
       </button>
@@ -61,6 +62,7 @@
               :subscription-type="group.subscription_type"
               :rate-multiplier="group.rate_multiplier"
               :show-rate="false"
+              :visual-variant="visualVariant"
             />
           </div>
         </div>
@@ -86,10 +88,12 @@ import type { Group } from '@/types'
 interface Props {
   groups: Group[] | null | undefined
   maxDisplay?: number
+  visualVariant?: 'default' | 'airy'
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  maxDisplay: 4
+  maxDisplay: 4,
+  visualVariant: 'default'
 })
 
 const { t } = useI18n()
@@ -113,6 +117,13 @@ const hiddenCount = computed(() => {
   if (!props.groups) return 0
   if (props.groups.length <= props.maxDisplay) return 0
   return props.groups.length - (props.maxDisplay - 1)
+})
+
+const moreButtonClass = computed(() => {
+  if (props.visualVariant === 'airy') {
+    return 'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap rounded border border-slate-200 bg-slate-100 px-1.5 py-[2.5px] text-[9px] font-extrabold text-slate-700 transition-colors hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+  }
+  return 'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500'
 })
 
 // Popover 位置样式

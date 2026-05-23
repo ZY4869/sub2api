@@ -84,6 +84,23 @@ func (i *Index) Resolve(input string) (*Resolution, bool) {
 	if canonicalID, ok := i.pricingToID[normalizedInput]; ok {
 		return resolveBy("pricing", canonicalID, normalizedInput)
 	}
+	for _, variant := range AlternateVersionVariants(input) {
+		if variant == normalizedInput {
+			continue
+		}
+		if _, ok := i.byID[variant]; ok {
+			return resolveBy("id", variant, variant)
+		}
+		if canonicalID, ok := i.aliasToID[variant]; ok {
+			return resolveBy("alias", canonicalID, variant)
+		}
+		if canonicalID, ok := i.protocolToID[variant]; ok {
+			return resolveBy("protocol", canonicalID, variant)
+		}
+		if canonicalID, ok := i.pricingToID[variant]; ok {
+			return resolveBy("pricing", canonicalID, variant)
+		}
+	}
 	return nil, false
 }
 

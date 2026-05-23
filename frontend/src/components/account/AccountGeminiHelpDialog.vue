@@ -125,7 +125,7 @@ watch(
   <BaseDialog
     :show="show"
     :title="t('admin.accounts.gemini.helpDialog.title')"
-    max-width="max-w-3xl"
+    width="wide"
     @close="emit('close')"
   >
     <div class="space-y-6">

@@ -2,6 +2,8 @@ export type AccountGlassTone =
   | 'emerald'
   | 'indigo'
   | 'sky'
+  | 'purple'
+  | 'teal'
   | 'amber'
   | 'orange'
   | 'red'
@@ -60,6 +62,34 @@ const TONE_STYLES: Record<AccountGlassTone, AccountGlassToneStyles> = {
     timerBlockClass:
       'border-sky-200/80 bg-white text-sky-800 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-100',
     timerAccentClass: 'text-sky-700 dark:text-sky-200'
+  },
+  purple: {
+    surfaceClass:
+      'border-purple-200/75 bg-[linear-gradient(135deg,rgba(250,245,255,0.94),rgba(243,232,255,0.88))] dark:border-purple-400/15 dark:bg-[linear-gradient(135deg,rgba(88,28,135,0.32),rgba(76,29,149,0.24))]',
+    iconWrapClass:
+      'border border-purple-200/80 bg-white text-purple-600 dark:border-purple-400/20 dark:bg-purple-400/10 dark:text-purple-200',
+    iconClass: 'text-purple-600 dark:text-purple-200',
+    titleClass: 'text-purple-900 dark:text-purple-100',
+    statusBadgeClass:
+      'border-purple-200/75 bg-purple-50/80 text-purple-700 dark:border-purple-400/20 dark:bg-purple-400/10 dark:text-purple-100',
+    helperTextClass: 'text-purple-700/80 dark:text-purple-100/80',
+    timerBlockClass:
+      'border-purple-200/80 bg-white text-purple-800 dark:border-purple-400/20 dark:bg-purple-400/10 dark:text-purple-100',
+    timerAccentClass: 'text-purple-700 dark:text-purple-200'
+  },
+  teal: {
+    surfaceClass:
+      'border-teal-200/75 bg-[linear-gradient(135deg,rgba(240,253,250,0.94),rgba(204,251,241,0.88))] dark:border-teal-400/15 dark:bg-[linear-gradient(135deg,rgba(15,118,110,0.3),rgba(19,78,74,0.22))]',
+    iconWrapClass:
+      'border border-teal-200/80 bg-white text-teal-600 dark:border-teal-400/20 dark:bg-teal-400/10 dark:text-teal-200',
+    iconClass: 'text-teal-600 dark:text-teal-200',
+    titleClass: 'text-teal-900 dark:text-teal-100',
+    statusBadgeClass:
+      'border-teal-200/75 bg-teal-50/80 text-teal-700 dark:border-teal-400/20 dark:bg-teal-400/10 dark:text-teal-100',
+    helperTextClass: 'text-teal-700/80 dark:text-teal-100/80',
+    timerBlockClass:
+      'border-teal-200/80 bg-white text-teal-800 dark:border-teal-400/20 dark:bg-teal-400/10 dark:text-teal-100',
+    timerAccentClass: 'text-teal-700 dark:text-teal-200'
   },
   amber: {
     surfaceClass:

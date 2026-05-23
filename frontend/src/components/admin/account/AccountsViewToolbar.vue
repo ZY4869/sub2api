@@ -493,7 +493,9 @@ const emit = defineEmits<{
   "toggle-hide-limited": [];
   "open-limited-page": [];
   "toggle-daily-5h-trigger": [];
+  toggleDaily5hTrigger: [];
   "open-daily-5h-settings": [];
+  openDaily5hSettings: [];
   "toggle-account-realtime-countdown": [];
   "set-account-visual-preset-override": [value: VisualPresetPreference];
 }>();

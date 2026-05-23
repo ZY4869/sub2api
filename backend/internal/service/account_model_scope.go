@@ -452,6 +452,7 @@ func normalizeAccountModelScopeEntries(entries []AccountModelScopeEntry) []Accou
 		if targetModelID == "" {
 			targetModelID = displayModelID
 		}
+		targetModelID = normalizeAccountModelScopeTargetID(targetModelID)
 		provider := NormalizeModelProvider(entry.Provider)
 		if provider == "" {
 			provider = buildScopeEntryProvider("", targetModelID)
@@ -481,6 +482,20 @@ func normalizeAccountModelScopeEntries(entries []AccountModelScopeEntry) []Accou
 		return normalized[i].DisplayModelID < normalized[j].DisplayModelID
 	})
 	return normalized
+}
+
+func normalizeAccountModelScopeTargetID(targetModelID string) string {
+	targetModelID = strings.TrimSpace(targetModelID)
+	if targetModelID == "" {
+		return ""
+	}
+	if resolution, ok := modelregistry.ExplainSeedResolution(targetModelID); ok {
+		switch strings.TrimSpace(strings.ToLower(resolution.CanonicalID)) {
+		case "deepseek-v4-flash", "deepseek-v4-pro":
+			return strings.TrimSpace(resolution.CanonicalID)
+		}
+	}
+	return targetModelID
 }
 
 func buildScopeEntryProvider(platform string, modelID string) string {

@@ -1126,6 +1126,10 @@ const toggleableColumns = computed(() =>
 const cols = computed(() =>
   allColumns.value.filter(
     (col) =>
+      resolvedAccountVisualPreset.value !== "airy" ||
+      col.key !== "schedulable",
+  ).filter(
+    (col) =>
       col.key === "select" ||
       col.key === "name" ||
       col.key === "actions" ||

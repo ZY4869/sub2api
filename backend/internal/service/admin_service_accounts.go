@@ -762,7 +762,39 @@ func normalizeAccountExtraForStorage(platform string, accountType string, creden
 	if IsProtocolGatewayPlatform(normalizedPlatform) {
 		nextExtra = NormalizeProtocolGatewayExtra(normalizedPlatform, nextExtra, ResolveAccountGatewayProtocol(normalizedPlatform, nextExtra), "")
 	}
+	if normalizedPlatform == PlatformDeepSeek || RoutingPlatformFromValues(normalizedPlatform, nextExtra) == PlatformDeepSeek {
+		nextExtra = normalizeDeepSeekAccountExtraForStorage(nextExtra)
+	} else if len(nextExtra) > 0 {
+		copied := make(map[string]any, len(nextExtra))
+		for key, value := range nextExtra {
+			if key == DeepSeekModelConcurrencyLimitsExtraKey {
+				continue
+			}
+			copied[key] = value
+		}
+		nextExtra = copied
+	}
 	return NormalizeOpenAIAccountImageExtra(normalizedPlatform, accountType, credentials, nextExtra)
+}
+
+func normalizeDeepSeekAccountExtraForStorage(extra map[string]any) map[string]any {
+	if len(extra) == 0 {
+		return nil
+	}
+	normalized := make(map[string]any, len(extra))
+	for key, value := range extra {
+		if key == DeepSeekModelConcurrencyLimitsExtraKey {
+			continue
+		}
+		normalized[key] = value
+	}
+	if limits := DeepSeekModelConcurrencyLimitsForStorage(extra[DeepSeekModelConcurrencyLimitsExtraKey]); len(limits) > 0 {
+		normalized[DeepSeekModelConcurrencyLimitsExtraKey] = limits
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 func normalizeGrokTier(extra map[string]any) string {

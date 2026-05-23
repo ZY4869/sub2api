@@ -37,6 +37,14 @@ export default {
     deepseek: {
         baseUrlHint: "留空使用官方 DeepSeek API（https://api.deepseek.com）",
         apiKeyHint: "您的 DeepSeek API Key",
+        modelConcurrency: {
+            title: "DeepSeek 模型并发上限",
+            description: "按 canonical 模型限制当前账号的上游并发，运行时会与账号并发取较小值。",
+            fallbackHint: "清空某个模型的数值后，将回退使用账号并发上限；非正数不会保存。",
+            officialDefault: "官方默认：{count}",
+            pro: "DeepSeek V4 Pro",
+            flash: "DeepSeek V4 Flash",
+        },
     },
     anthropic: {
         apiKeyPassthrough: "自动透传（仅替换认证）",

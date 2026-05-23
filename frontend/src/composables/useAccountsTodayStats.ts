@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { adminAPI } from '@/api/admin'
 import { buildDefaultTodayStats } from '@/utils/accountListSync'
-import type { Account, WindowStats } from '@/types'
+import type { Account, AccountTodayStats } from '@/types'
 
 interface UseAccountsTodayStatsOptions {
   accounts: Ref<Account[]>
@@ -9,7 +9,7 @@ interface UseAccountsTodayStatsOptions {
 }
 
 export function useAccountsTodayStats({ accounts, hiddenColumns }: UseAccountsTodayStatsOptions) {
-  const todayStatsByAccountId = ref<Record<string, WindowStats>>({})
+  const todayStatsByAccountId = ref<Record<string, AccountTodayStats>>({})
   const todayStatsLoading = ref(false)
   const todayStatsError = ref<string | null>(null)
   const todayStatsReqSeq = ref(0)
@@ -38,7 +38,7 @@ export function useAccountsTodayStats({ accounts, hiddenColumns }: UseAccountsTo
       if (reqSeq !== todayStatsReqSeq.value) return
 
       const serverStats = result.stats ?? {}
-      const nextStats: Record<string, WindowStats> = {}
+      const nextStats: Record<string, AccountTodayStats> = {}
       for (const accountID of accountIDs) {
         const key = String(accountID)
         nextStats[key] = serverStats[key] ?? buildDefaultTodayStats()

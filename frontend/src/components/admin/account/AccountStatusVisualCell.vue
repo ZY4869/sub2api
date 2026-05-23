@@ -113,12 +113,11 @@ import { createAccountStatusPresentation } from '@/components/account/accountSta
 import Icon from '@/components/icons/Icon.vue'
 import { useRealtimeCountdownNow } from '@/composables/useRealtimeCountdownNow'
 import AccountSegmentedCountdown from './AccountSegmentedCountdown.vue'
+import { resolveAccountAiryStatus } from './accountAiryStatus'
 import {
   resolveAccountGlassToneStyles,
   type AccountGlassTone,
 } from './accountVisualGlass'
-
-type StatusIconName = 'exclamationTriangle' | 'clock' | 'checkCircle'
 
 const props = withDefaults(defineProps<{
   account: Account
@@ -143,33 +142,20 @@ const {
   hasError,
   statusText,
   rateLimitResumeText,
-  rateLimitStatusLabel,
   overloadCountdown,
   visibleLimitBadges,
 } = createAccountStatusPresentation(accountRef, t, nowMs, nowDate)
 
-const isPaused = computed(() => !props.account.schedulable || props.account.status === 'inactive')
-const isBlacklisted = computed(() => props.account.lifecycle_state === 'blacklisted')
+const airyStatus = computed(() => resolveAccountAiryStatus(props.account, {
+  nowMs: nowMs.value,
+  isRateLimited: isRateLimited.value,
+  isOverloaded: isOverloaded.value,
+  isTempUnschedulable: isTempUnschedulable.value,
+  hasError: hasError.value,
+  activeLimitBadgeCount: visibleLimitBadges.value.length
+}))
 
-const visualTone = computed<AccountGlassTone>(() => {
-  if (hasError.value || isBlacklisted.value || isOverloaded.value) return 'red'
-  if (isRateLimited.value) {
-    switch (props.account.rate_limit_reason) {
-      case 'usage_5h':
-      case 'rate_429':
-        return 'orange'
-      case 'usage_7d':
-        return 'indigo'
-      case 'usage_7d_all':
-        return 'amber'
-      default:
-        return 'amber'
-    }
-  }
-  if (isTempUnschedulable.value) return 'sky'
-  if (isPaused.value) return 'slate'
-  return 'emerald'
-})
+const visualTone = computed<AccountGlassTone>(() => airyStatus.value.tone)
 
 const toneStyles = computed(() => resolveAccountGlassToneStyles(visualTone.value))
 const whiteSurfaceClass = computed(() => {
@@ -181,6 +167,8 @@ const whiteSurfaceClass = computed(() => {
       return 'border-amber-200/80 bg-white dark:border-amber-400/20 dark:bg-slate-900'
     case 'indigo':
     case 'sky':
+    case 'purple':
+    case 'teal':
       return 'border-sky-200/80 bg-white dark:border-sky-400/20 dark:bg-slate-900'
     case 'emerald':
       return 'border-emerald-200/80 bg-white dark:border-emerald-400/20 dark:bg-slate-900'
@@ -189,51 +177,16 @@ const whiteSurfaceClass = computed(() => {
   }
 })
 
-const statusIconName = computed<StatusIconName>(() => {
-  if (hasError.value || isBlacklisted.value || isOverloaded.value) return 'exclamationTriangle'
-  if (isRateLimited.value || isTempUnschedulable.value || isPaused.value) return 'clock'
-  return 'checkCircle'
-})
+const statusIconName = computed(() => airyStatus.value.iconName)
 
 const statusTitle = computed(() => {
-  if (isBlacklisted.value) return t('admin.accounts.lifecycle.blacklisted')
-  if (hasError.value) return t('admin.accounts.status.error')
-  if (isOverloaded.value) return t('admin.accounts.status.overloaded')
-  if (isRateLimited.value) {
-    switch (props.account.rate_limit_reason) {
-      case 'usage_5h':
-        return t('admin.accounts.status.visualUsage5hTitle')
-      case 'usage_7d':
-      case 'usage_7d_all':
-        return t('admin.accounts.status.visualUsage7dTitle')
-      default:
-        return rateLimitStatusLabel.value
-    }
-  }
-  if (isTempUnschedulable.value) return t('admin.accounts.status.tempUnschedulable')
-  if (isPaused.value) return t('admin.accounts.status.paused')
-  return t('admin.accounts.status.active')
+  return t(airyStatus.value.titleKey)
 })
 
 const statusTagText = computed(() => {
-  if (isBlacklisted.value) return t('admin.accounts.lifecycle.blacklisted')
-  if (hasError.value) return t('admin.accounts.status.error')
-  if (isOverloaded.value) return '529'
-  if (isRateLimited.value) {
-    switch (props.account.rate_limit_reason) {
-      case 'usage_5h':
-        return t('admin.accounts.status.visualUsage5hTag')
-      case 'usage_7d':
-        return t('admin.accounts.status.visualUsage7dTag')
-      case 'usage_7d_all':
-        return t('admin.accounts.status.visualUsage7dAllTag')
-      default:
-        return '429'
-    }
-  }
-  if (isTempUnschedulable.value) return statusText.value
-  if (isPaused.value) return t('admin.accounts.status.paused')
-  return t('admin.accounts.status.active')
+  if (airyStatus.value.tagFallback) return airyStatus.value.tagFallback
+  if (airyStatus.value.kind === 'tempUnschedulable') return statusText.value
+  return t(airyStatus.value.tagKey)
 })
 
 const statusTagClass = computed(() => [
@@ -256,7 +209,7 @@ const countdownSuffix = computed(() => {
 const helperText = computed(() => {
   if (isRateLimited.value) return rateLimitResumeText.value
   if (isOverloaded.value) return overloadCountdown.value || ''
-  return ''
+  return airyStatus.value.helper || ''
 })
 </script>
 

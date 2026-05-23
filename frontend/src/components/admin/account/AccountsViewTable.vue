@@ -182,7 +182,11 @@
     </template>
 
     <template #cell-groups="{ row }">
-      <AccountGroupsCell :groups="row.groups" :max-display="4" />
+      <AccountGroupsCell
+        :groups="row.groups"
+        :max-display="4"
+        :visual-variant="visualStyle === 'airy' ? 'airy' : 'default'"
+      />
     </template>
 
     <template #cell-usage="{ row }">
@@ -257,7 +261,17 @@
 
     <template #cell-actions="{ row }">
       <slot name="row-actions" :row="row">
+        <AccountsViewAiryRowActions
+          v-if="visualStyle === 'airy'"
+          :account="row"
+          :toggling-schedulable="togglingSchedulable"
+          @toggle-schedulable="emit('toggle-schedulable', row)"
+          @edit="emit('edit', row)"
+          @delete="emit('delete', row)"
+          @more="emit('open-menu', { account: row, event: $event })"
+        />
         <AccountsViewRowActions
+          v-else
           @edit="emit('edit', row)"
           @delete="emit('delete', row)"
           @more="emit('open-menu', { account: row, event: $event })"
@@ -294,6 +308,7 @@ import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import { formatCountryLabel } from '@/utils/displayLabels'
 import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
 import AccountAutoRecoveryProbeNotice from './AccountAutoRecoveryProbeNotice.vue'
+import AccountsViewAiryRowActions from './AccountsViewAiryRowActions.vue'
 import AccountsViewRowActions from './AccountsViewRowActions.vue'
 import AccountNameVisualCell from './AccountNameVisualCell.vue'
 import AccountServiceAuthVisualCell from './AccountServiceAuthVisualCell.vue'

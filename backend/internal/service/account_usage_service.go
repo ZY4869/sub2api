@@ -85,6 +85,10 @@ type accountWindowStatsBatchReader interface {
 	GetAccountWindowStatsBatch(ctx context.Context, accountIDs []int64, startTime time.Time) (map[int64]*usagestats.AccountStats, error)
 }
 
+type accountTodayStatsBreakdownBatchReader interface {
+	GetAccountTodayStatsBreakdownBatch(ctx context.Context, accountIDs []int64, todayStart, weekStart time.Time) (map[int64]*usagestats.AccountTodayStatsBreakdown, error)
+}
+
 // apiUsageCache 缓存从 Anthropic API 获取的使用率数据（utilization, resets_at）
 // 同时支持缓存错误响应（负缓存），防止 429 等错误导致的重试风暴
 type apiUsageCache struct {
@@ -135,11 +139,15 @@ func NewUsageCache() *UsageCache {
 // standard_cost: 标准费用（total_cost，不含倍率）
 // user_cost: 用户/API Key 口径费用（actual_cost，受分组倍率影响）
 type WindowStats struct {
-	Requests     int64   `json:"requests"`
-	Tokens       int64   `json:"tokens"`
-	Cost         float64 `json:"cost"`
-	StandardCost float64 `json:"standard_cost"`
-	UserCost     float64 `json:"user_cost"`
+	Requests          int64        `json:"requests"`
+	Tokens            int64        `json:"tokens"`
+	Cost              float64      `json:"cost"`
+	StandardCost      float64      `json:"standard_cost"`
+	UserCost          float64      `json:"user_cost"`
+	SuccessRate       float64      `json:"success_rate,omitempty"`
+	AverageDurationMs float64      `json:"average_duration_ms,omitempty"`
+	Weekly            *WindowStats `json:"weekly,omitempty"`
+	Total             *WindowStats `json:"total,omitempty"`
 }
 
 // UsageProgress 使用量进度
@@ -1259,18 +1267,14 @@ func (s *AccountUsageService) addWindowStats(ctx context.Context, account *Accou
 
 // GetTodayStats 获取账号今日统计
 func (s *AccountUsageService) GetTodayStats(ctx context.Context, accountID int64) (*WindowStats, error) {
-	stats, err := s.usageLogRepo.GetAccountTodayStats(ctx, accountID)
+	statsByAccount, err := s.GetTodayStatsBatch(ctx, []int64{accountID})
 	if err != nil {
 		return nil, fmt.Errorf("get today stats failed: %w", err)
 	}
-
-	return &WindowStats{
-		Requests:     stats.Requests,
-		Tokens:       stats.Tokens,
-		Cost:         stats.Cost,
-		StandardCost: stats.StandardCost,
-		UserCost:     stats.UserCost,
-	}, nil
+	if stats := statsByAccount[accountID]; stats != nil {
+		return stats, nil
+	}
+	return windowStatsFromTodayBreakdown(nil), nil
 }
 
 // GetTodayStatsBatch 批量获取账号今日统计，优先走批量 SQL，失败时回退单账号查询。
@@ -1294,6 +1298,17 @@ func (s *AccountUsageService) GetTodayStatsBatch(ctx context.Context, accountIDs
 	}
 
 	startTime := timezone.Today()
+	weekStart := startTime.AddDate(0, 0, -6)
+	if breakdownReader, ok := s.usageLogRepo.(accountTodayStatsBreakdownBatchReader); ok {
+		breakdownByAccount, err := breakdownReader.GetAccountTodayStatsBreakdownBatch(ctx, uniqueIDs, startTime, weekStart)
+		if err == nil {
+			for _, accountID := range uniqueIDs {
+				result[accountID] = windowStatsFromTodayBreakdown(breakdownByAccount[accountID])
+			}
+			return result, nil
+		}
+	}
+
 	if batchReader, ok := s.usageLogRepo.(accountWindowStatsBatchReader); ok {
 		statsByAccount, err := batchReader.GetAccountWindowStatsBatch(ctx, uniqueIDs, startTime)
 		if err == nil {
@@ -1332,16 +1347,36 @@ func (s *AccountUsageService) GetTodayStatsBatch(ctx context.Context, accountIDs
 	return result, nil
 }
 
+func windowStatsFromTodayBreakdown(stats *usagestats.AccountTodayStatsBreakdown) *WindowStats {
+	if stats == nil {
+		return &WindowStats{
+			SuccessRate: 100,
+			Weekly:      &WindowStats{SuccessRate: 100},
+			Total:       &WindowStats{SuccessRate: 100},
+		}
+	}
+	today := windowStatsFromAccountStats(&stats.Today)
+	today.Weekly = windowStatsFromAccountStats(&stats.Weekly)
+	today.Total = windowStatsFromAccountStats(&stats.Total)
+	return today
+}
+
 func windowStatsFromAccountStats(stats *usagestats.AccountStats) *WindowStats {
 	if stats == nil {
-		return &WindowStats{}
+		return &WindowStats{SuccessRate: 100}
+	}
+	successRate := stats.SuccessRate
+	if stats.Requests == 0 && successRate == 0 {
+		successRate = 100
 	}
 	return &WindowStats{
-		Requests:     stats.Requests,
-		Tokens:       stats.Tokens,
-		Cost:         stats.Cost,
-		StandardCost: stats.StandardCost,
-		UserCost:     stats.UserCost,
+		Requests:          stats.Requests,
+		Tokens:            stats.Tokens,
+		Cost:              stats.Cost,
+		StandardCost:      stats.StandardCost,
+		UserCost:          stats.UserCost,
+		SuccessRate:       successRate,
+		AverageDurationMs: stats.AverageDurationMs,
 	}
 }
 

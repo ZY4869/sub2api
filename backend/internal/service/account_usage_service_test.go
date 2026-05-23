@@ -9,6 +9,7 @@ import (
 	"time"
 
 	openaipkg "github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
 
 type accountUsageCodexProbeRepo struct {
@@ -55,6 +56,19 @@ type openAICodexProbeQueueDialer struct {
 	dialCount int
 }
 
+type accountUsageTodayStatsRepo struct {
+	UsageLogRepository
+	breakdown map[int64]*usagestats.AccountTodayStatsBreakdown
+}
+
+func (r *accountUsageTodayStatsRepo) GetAccountTodayStatsBreakdownBatch(_ context.Context, accountIDs []int64, _ time.Time, _ time.Time) (map[int64]*usagestats.AccountTodayStatsBreakdown, error) {
+	out := make(map[int64]*usagestats.AccountTodayStatsBreakdown, len(accountIDs))
+	for _, id := range accountIDs {
+		out[id] = r.breakdown[id]
+	}
+	return out, nil
+}
+
 func (d *openAICodexProbeQueueDialer) Dial(_ context.Context, _ string, _ http.Header, _ string) (openAIWSClientConn, int, http.Header, error) {
 	d.dialCount++
 	if len(d.conns) == 0 {
@@ -63,6 +77,57 @@ func (d *openAICodexProbeQueueDialer) Dial(_ context.Context, _ string, _ http.H
 	conn := d.conns[0]
 	d.conns = d.conns[1:]
 	return conn, 0, cloneHeader(d.handshake), nil
+}
+
+func TestAccountUsageServiceGetTodayStatsReturnsBreakdown(t *testing.T) {
+	t.Parallel()
+
+	repo := &accountUsageTodayStatsRepo{
+		breakdown: map[int64]*usagestats.AccountTodayStatsBreakdown{
+			10: {
+				Today:  usagestats.AccountStats{Requests: 2, Tokens: 30, Cost: 1.2, SuccessRate: 50, AverageDurationMs: 123},
+				Weekly: usagestats.AccountStats{Requests: 5, Tokens: 90, Cost: 4.8, SuccessRate: 80, AverageDurationMs: 160},
+				Total:  usagestats.AccountStats{Requests: 8, Tokens: 120, Cost: 8.4, SuccessRate: 75, AverageDurationMs: 180},
+			},
+		},
+	}
+	svc := &AccountUsageService{usageLogRepo: repo}
+
+	singleStats, err := svc.GetTodayStats(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("GetTodayStats() error = %v", err)
+	}
+	if singleStats == nil || singleStats.Weekly == nil || singleStats.Total == nil {
+		t.Fatalf("expected single stats with weekly and total breakdown, got %#v", singleStats)
+	}
+	if singleStats.Requests != 2 || singleStats.Weekly.Requests != 5 || singleStats.Total.Requests != 8 {
+		t.Fatalf("unexpected single request breakdown: today=%d weekly=%d total=%d", singleStats.Requests, singleStats.Weekly.Requests, singleStats.Total.Requests)
+	}
+
+	statsByAccount, err := svc.GetTodayStatsBatch(context.Background(), []int64{10, 10, -1, 20})
+	if err != nil {
+		t.Fatalf("GetTodayStatsBatch() error = %v", err)
+	}
+	if len(statsByAccount) != 2 {
+		t.Fatalf("stats len = %d, want 2", len(statsByAccount))
+	}
+	stats := statsByAccount[10]
+	if stats == nil || stats.Weekly == nil || stats.Total == nil {
+		t.Fatalf("expected today stats with weekly and total breakdown, got %#v", stats)
+	}
+	if stats.Requests != 2 || stats.Weekly.Requests != 5 || stats.Total.Requests != 8 {
+		t.Fatalf("unexpected request breakdown: today=%d weekly=%d total=%d", stats.Requests, stats.Weekly.Requests, stats.Total.Requests)
+	}
+	if stats.SuccessRate != 50 || stats.Weekly.SuccessRate != 80 || stats.Total.SuccessRate != 75 {
+		t.Fatalf("unexpected success rates: today=%v weekly=%v total=%v", stats.SuccessRate, stats.Weekly.SuccessRate, stats.Total.SuccessRate)
+	}
+	empty := statsByAccount[20]
+	if empty == nil || empty.Weekly == nil || empty.Total == nil {
+		t.Fatalf("expected empty account breakdown, got %#v", empty)
+	}
+	if empty.Requests != 0 || empty.SuccessRate != 100 || empty.Weekly.SuccessRate != 100 || empty.Total.SuccessRate != 100 {
+		t.Fatalf("unexpected empty breakdown: %#v", empty)
+	}
 }
 
 func TestShouldRefreshOpenAICodexSnapshot(t *testing.T) {

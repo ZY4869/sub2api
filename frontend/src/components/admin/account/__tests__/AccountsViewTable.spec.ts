@@ -41,6 +41,7 @@ const DataTableStub = defineComponent({
       <div class="cell-capacity"><slot name="cell-capacity" :row="data[0]" /></div>
       <div class="cell-select"><slot name="cell-select" :row="data[0]" /></div>
       <div class="cell-status"><slot name="cell-status" :row="data[0]" /></div>
+      <div class="cell-groups"><slot name="cell-groups" :row="data[0]" /></div>
       <div class="cell-usage"><slot name="cell-usage" :row="data[0]" /></div>
       <div class="cell-actions"><slot name="cell-actions" :row="data[0]" /></div>
     </div>
@@ -64,6 +65,19 @@ const RowActionsStub = defineComponent({
       <button class="row-edit" @click="$emit('edit')" />
       <button class="row-delete" @click="$emit('delete')" />
       <button class="row-more" @click="$emit('more', $event)" />
+    </div>
+  `
+})
+
+const AiryRowActionsStub = defineComponent({
+  props: ['account', 'togglingSchedulable'],
+  emits: ['toggle-schedulable', 'edit', 'delete', 'more'],
+  template: `
+    <div class="airy-row-actions" :data-account-id="account.id" :data-toggling="String(togglingSchedulable)">
+      <button class="airy-row-toggle" @click="$emit('toggle-schedulable')" />
+      <button class="airy-row-edit" @click="$emit('edit')" />
+      <button class="airy-row-delete" @click="$emit('delete')" />
+      <button class="airy-row-more" @click="$emit('more', $event)" />
     </div>
   `
 })
@@ -94,6 +108,15 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
           credentials: {
             plan_type: 'plus'
           },
+          groups: [
+            {
+              id: 7,
+              name: 'Admin',
+              platform: 'openai',
+              subscription_type: 'standard',
+              rate_multiplier: 1
+            }
+          ],
           auto_recovery_probe: {
             status: 'retry_scheduled',
             summary: 'Temporary gateway error',
@@ -136,12 +159,16 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
           template: '<button class="show-temp-unsched status-visual-stub" :data-visual-style="visualStyle" :data-white-surface-enabled="String(whiteSurfaceEnabled)" @click="$emit(\'show-temp-unsched\')" />'
         }),
         AccountsViewRowActions: RowActionsStub,
+        AccountsViewAiryRowActions: AiryRowActionsStub,
         AccountCapacityCell: {
           props: ['account', 'visualVariant', 'whiteSurfaceEnabled', 'compact'],
           template: '<div class="capacity-stub" :data-visual-variant="visualVariant" :data-white-surface-enabled="String(whiteSurfaceEnabled)" :data-compact="String(compact)">{{ String(account.current_concurrency).padStart(2, "0") }}/{{ String(account.concurrency).padStart(2, "0") }}</div>'
         },
         AccountTodayStatsCell: true,
-        AccountGroupsCell: true,
+        AccountGroupsCell: {
+          props: ['groups', 'maxDisplay', 'visualVariant'],
+          template: '<div class="groups-stub" :data-visual-variant="visualVariant">{{ groups?.map((group) => group.name).join(",") }}</div>'
+        },
         AccountUsageCell: {
           template: '<div class="usage-classic-stub" />'
         },
@@ -179,15 +206,17 @@ describe('AccountsViewTable', () => {
     await wrapper.get('.header-select input').setValue(false)
     await wrapper.get('.cell-select input').setValue(false)
     await wrapper.get('.show-temp-unsched').trigger('click')
-    await wrapper.get('.row-edit').trigger('click')
-    await wrapper.get('.row-delete').trigger('click')
-    await wrapper.get('.row-more').trigger('click')
+    await wrapper.get('.airy-row-toggle').trigger('click')
+    await wrapper.get('.airy-row-edit').trigger('click')
+    await wrapper.get('.airy-row-delete').trigger('click')
+    await wrapper.get('.airy-row-more').trigger('click')
     await wrapper.get('.page-change').trigger('click')
     await wrapper.get('.page-size-change').trigger('click')
 
     expect(wrapper.emitted('toggle-select-all-visible')).toEqual([[false]])
     expect(wrapper.emitted('toggle-selected')).toEqual([[1]])
     expect(wrapper.emitted('show-temp-unsched')).toEqual([[expect.objectContaining({ id: 1 })]])
+    expect(wrapper.emitted('toggle-schedulable')).toEqual([[expect.objectContaining({ id: 1 })]])
     expect(wrapper.emitted('edit')).toEqual([[expect.objectContaining({ id: 1 })]])
     expect(wrapper.emitted('delete')).toEqual([[expect.objectContaining({ id: 1 })]])
     expect(wrapper.emitted('open-menu')?.[0]?.[0].account).toEqual(expect.objectContaining({ id: 1 }))
@@ -263,6 +292,9 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(true)
     expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
+    expect(wrapper.get('.groups-stub').attributes('data-visual-variant')).toBe('airy')
+    expect(wrapper.find('.airy-row-actions').exists()).toBe(true)
+    expect(wrapper.find('.row-edit').exists()).toBe(false)
     expect(wrapper.get('.row-class').text()).toContain('account-visual-row')
     expect(wrapper.get('.row-style').text()).toContain('--account-row-bg')
     expect(countdownHookSpy).not.toHaveBeenCalled()
@@ -295,6 +327,9 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-compact')).toBe('false')
     expect(wrapper.find('.status-classic-stub').exists()).toBe(true)
     expect(wrapper.find('.usage-classic-stub').exists()).toBe(true)
+    expect(wrapper.get('.groups-stub').attributes('data-visual-variant')).toBe('default')
+    expect(wrapper.find('.row-edit').exists()).toBe(true)
+    expect(wrapper.find('.airy-row-actions').exists()).toBe(false)
     expect(wrapper.find('.status-visual-stub').exists()).toBe(false)
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(false)
   })

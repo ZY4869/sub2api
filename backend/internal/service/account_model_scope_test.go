@@ -111,6 +111,34 @@ func TestModelRegistryServiceBuildModelMappingFromScopeV2_FallsBackToSelectedMod
 	require.Len(t, mapping, 1)
 }
 
+func TestAccountModelScopeV2PreservesDisplayAndCanonicalizesDeepSeekTarget(t *testing.T) {
+	t.Parallel()
+
+	scope, ok := ExtractAccountModelScopeV2(map[string]any{
+		"model_scope_v2": map[string]any{
+			"policy_mode": AccountModelPolicyModeMapping,
+			"entries": []any{
+				map[string]any{
+					"display_model_id": "Deepseek/deepseek V4 Flash:free",
+					"target_model_id":  "Deepseek/deepseek V4 Flash:free",
+					"provider":         "deepseek",
+				},
+			},
+		},
+	})
+
+	require.True(t, ok)
+	require.Len(t, scope.Entries, 1)
+	require.Equal(t, "Deepseek/deepseek V4 Flash:free", scope.Entries[0].DisplayModelID)
+	require.Equal(t, "deepseek-v4-flash", scope.Entries[0].TargetModelID)
+
+	serialized := scope.ToMap()
+	entries, ok := serialized["entries"].([]map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "Deepseek/deepseek V4 Flash:free", entries[0]["display_model_id"])
+	require.Equal(t, "deepseek-v4-flash", entries[0]["target_model_id"])
+}
+
 func seedAccountModelScopeAnthropicEntry(t *testing.T, ctx context.Context, svc *ModelRegistryService) {
 	t.Helper()
 

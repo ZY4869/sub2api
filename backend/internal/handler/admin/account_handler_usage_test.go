@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -31,7 +32,8 @@ func (s *usageQueryAccountRepoStub) GetByID(_ context.Context, id int64) (*servi
 
 type usageQueryLogRepoStub struct {
 	service.UsageLogRepository
-	stats *usagestats.AccountStats
+	stats     *usagestats.AccountStats
+	breakdown map[int64]*usagestats.AccountTodayStatsBreakdown
 }
 
 func (s *usageQueryLogRepoStub) GetAccountWindowStats(_ context.Context, _ int64, _ time.Time) (*usagestats.AccountStats, error) {
@@ -39,6 +41,14 @@ func (s *usageQueryLogRepoStub) GetAccountWindowStats(_ context.Context, _ int64
 		return s.stats, nil
 	}
 	return &usagestats.AccountStats{}, nil
+}
+
+func (s *usageQueryLogRepoStub) GetAccountTodayStatsBreakdownBatch(_ context.Context, accountIDs []int64, _ time.Time, _ time.Time) (map[int64]*usagestats.AccountTodayStatsBreakdown, error) {
+	result := make(map[int64]*usagestats.AccountTodayStatsBreakdown, len(accountIDs))
+	for _, accountID := range accountIDs {
+		result[accountID] = s.breakdown[accountID]
+	}
+	return result, nil
 }
 
 func cloneAnyMap(source map[string]any) map[string]any {
@@ -197,4 +207,74 @@ func TestAccountHandlerGetUsageSupportsSourceQuery(t *testing.T) {
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
+}
+
+func TestAccountHandlerGetBatchTodayStatsIncludesBreakdown(t *testing.T) {
+	t.Parallel()
+
+	breakdown := map[int64]*usagestats.AccountTodayStatsBreakdown{
+		41: {
+			Today:  usagestats.AccountStats{Requests: 1, Tokens: 30, Cost: 1.2, SuccessRate: 100, AverageDurationMs: 120},
+			Weekly: usagestats.AccountStats{Requests: 3, Tokens: 90, Cost: 3.6, SuccessRate: 66.666, AverageDurationMs: 180},
+			Total:  usagestats.AccountStats{Requests: 4, Tokens: 120, Cost: 4.8, SuccessRate: 75, AverageDurationMs: 200},
+		},
+	}
+	usageService := service.NewAccountUsageService(
+		nil,
+		&usageQueryLogRepoStub{breakdown: breakdown},
+		nil,
+		nil,
+		nil,
+		service.NewUsageCache(),
+		nil,
+	)
+	handler := NewAccountHandler(newStubAdminService(), nil, nil, nil, nil, nil, usageService, nil, nil, nil, nil, nil, nil)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/api/v1/admin/accounts/:id/today-stats", handler.GetTodayStats)
+	router.POST("/api/v1/admin/accounts/today-stats/batch", handler.GetBatchTodayStats)
+
+	singleRec := httptest.NewRecorder()
+	singleReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/41/today-stats", nil)
+	router.ServeHTTP(singleRec, singleReq)
+
+	require.Equal(t, http.StatusOK, singleRec.Code)
+	var singleResp struct {
+		Code int                  `json:"code"`
+		Data *service.WindowStats `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(singleRec.Body.Bytes(), &singleResp))
+	require.Equal(t, 0, singleResp.Code)
+	require.NotNil(t, singleResp.Data)
+	require.Equal(t, int64(1), singleResp.Data.Requests)
+	require.NotNil(t, singleResp.Data.Weekly)
+	require.Equal(t, int64(3), singleResp.Data.Weekly.Requests)
+	require.NotNil(t, singleResp.Data.Total)
+	require.Equal(t, int64(4), singleResp.Data.Total.Requests)
+
+	body := bytes.NewBufferString(`{"account_ids":[41,42]}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/today-stats/batch", body)
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			Stats map[string]*service.WindowStats `json:"stats"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.NotNil(t, resp.Data.Stats["41"])
+	require.Equal(t, int64(1), resp.Data.Stats["41"].Requests)
+	require.NotNil(t, resp.Data.Stats["41"].Weekly)
+	require.Equal(t, int64(3), resp.Data.Stats["41"].Weekly.Requests)
+	require.NotNil(t, resp.Data.Stats["41"].Total)
+	require.Equal(t, int64(4), resp.Data.Stats["41"].Total.Requests)
+	require.NotNil(t, resp.Data.Stats["42"])
+	require.Equal(t, int64(0), resp.Data.Stats["42"].Requests)
+	require.InEpsilon(t, 100, resp.Data.Stats["42"].SuccessRate, 0.0001)
 }

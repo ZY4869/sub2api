@@ -31,13 +31,14 @@ func newJSONResponse(status int, body string) *http.Response {
 }
 
 type queuedHTTPUpstream struct {
-	responses []*http.Response
-	errors    []error
-	requests  []*http.Request
-	callCount int
+	responses     []*http.Response
+	errors        []error
+	requests      []*http.Request
+	concurrencies []int
+	callCount     int
 }
 
-func (s *queuedHTTPUpstream) Do(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+func (s *queuedHTTPUpstream) Do(req *http.Request, _ string, _ int64, accountConcurrency int) (*http.Response, error) {
 	var bodyBytes []byte
 	if req != nil && req.Body != nil {
 		bodyBytes, _ = io.ReadAll(req.Body)
@@ -48,6 +49,7 @@ func (s *queuedHTTPUpstream) Do(req *http.Request, _ string, _ int64, _ int) (*h
 		cloned.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		s.requests = append(s.requests, cloned)
 	}
+	s.concurrencies = append(s.concurrencies, accountConcurrency)
 
 	idx := s.callCount
 	s.callCount++

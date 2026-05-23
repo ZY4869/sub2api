@@ -8,6 +8,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 
 	"io"
@@ -126,6 +127,22 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		reqModel = mappedModel
 		logger.LegacyPrintf("service.gateway", "Model mapping applied: %s -> %s (account: %s, source=%s)", originalModel, mappedModel, account.Name, mappingSource)
 	}
+	if RoutingPlatformForAccount(account) == PlatformDeepSeek {
+		if canonical := normalizeDeepSeekModelID(reqModel); canonical != "" {
+			if bodyModel := strings.TrimSpace(gjson.GetBytes(body, "model").String()); bodyModel != canonical {
+				body = s.replaceModelInBody(body, canonical)
+			}
+			reqModel = canonical
+		}
+		var injectedUserID bool
+		updatedBody, injected, injectErr := s.injectDeepSeekAnthropicUserID(c, account, body)
+		if injectErr != nil {
+			return nil, injectErr
+		}
+		body = updatedBody
+		injectedUserID = injected
+		logDeepSeekRequestIsolation(account, reqModel, injectedUserID, DeepSeekEffectiveAccountConcurrency(account, reqModel))
+	}
 	debugLogRequestBody("CLIENT_ORIGINAL", body)
 	token := ""
 	tokenType := ""
@@ -166,7 +183,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			if buildErr != nil {
 				return nil, buildErr
 			}
-			resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
+			resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, DeepSeekEffectiveAccountConcurrency(account, reqModel), tlsProfile)
 		}
 		if err != nil {
 			if resp != nil && resp.Body != nil {
@@ -201,7 +218,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					filteredBody := FilterThinkingBlocksForRetry(body)
 					retryReq, buildErr := s.buildUpstreamRequest(ctx, c, account, filteredBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode, capability)
 					if buildErr == nil {
-						retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
+						retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, DeepSeekEffectiveAccountConcurrency(account, reqModel), tlsProfile)
 						if retryErr == nil {
 							if retryResp.StatusCode < 400 {
 								logger.LegacyPrintf("service.gateway", "Account %d: signature error retry succeeded (thinking downgraded)", account.ID)
@@ -223,7 +240,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 									filteredBody2 := FilterSignatureSensitiveBlocksForRetry(body)
 									retryReq2, buildErr2 := s.buildUpstreamRequest(ctx, c, account, filteredBody2, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode, capability)
 									if buildErr2 == nil {
-										retryResp2, retryErr2 := s.httpUpstream.DoWithTLS(retryReq2, proxyURL, account.ID, account.Concurrency, tlsProfile)
+										retryResp2, retryErr2 := s.httpUpstream.DoWithTLS(retryReq2, proxyURL, account.ID, DeepSeekEffectiveAccountConcurrency(account, reqModel), tlsProfile)
 										if retryErr2 == nil {
 											resp = retryResp2
 											break
@@ -264,7 +281,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 						logger.LegacyPrintf("service.gateway", "Account %d: detected budget_tokens constraint error, retrying with rectified budget (budget_tokens=%d, max_tokens=%d)", account.ID, BudgetRectifyBudgetTokens, BudgetRectifyMaxTokens)
 						budgetRetryReq, buildErr := s.buildUpstreamRequest(ctx, c, account, rectifiedBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode, capability)
 						if buildErr == nil {
-							budgetRetryResp, retryErr := s.httpUpstream.DoWithTLS(budgetRetryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
+							budgetRetryResp, retryErr := s.httpUpstream.DoWithTLS(budgetRetryReq, proxyURL, account.ID, DeepSeekEffectiveAccountConcurrency(account, reqModel), tlsProfile)
 							if retryErr == nil {
 								resp = budgetRetryResp
 								break

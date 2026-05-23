@@ -163,6 +163,11 @@
           v-model:image-protocol-mode="gatewayOpenAIImageProtocolMode"
         />
 
+        <AccountDeepSeekConcurrencyLimitsEditor
+          v-if="showDeepSeekConcurrencyEditor"
+          v-model:limits="deepSeekModelConcurrencyLimits"
+        />
+
         <AccountProtocolGatewayBatchEditor
           v-if="showProtocolGatewayBatchEditor"
           v-model:enabled="gatewayBatchEnabled"
@@ -508,6 +513,7 @@ import AccountApiKeyModelProbeEditor from '@/components/account/AccountApiKeyMod
 import AccountAutoPauseToggle from '@/components/account/AccountAutoPauseToggle.vue'
 import AccountBaiduDocumentAICredentialsEditor from '@/components/account/AccountBaiduDocumentAICredentialsEditor.vue'
 import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErrorCodesEditor.vue'
+import AccountDeepSeekConcurrencyLimitsEditor from '@/components/account/AccountDeepSeekConcurrencyLimitsEditor.vue'
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
 import AccountGoogleBatchArchiveEditor from '@/components/account/AccountGoogleBatchArchiveEditor.vue'
 import AccountGeminiVertexCredentialsEditor from '@/components/account/AccountGeminiVertexCredentialsEditor.vue'
@@ -543,6 +549,11 @@ import {
   resetAccountPoolModeState
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
+import {
+  applyDeepSeekModelConcurrencyLimitsExtra,
+  createDefaultDeepSeekModelConcurrencyLimitDraft,
+  readDeepSeekModelConcurrencyLimitDraft
+} from '@/utils/deepseekAccount'
 import {
   OPENAI_WS_MODE_CTX_POOL,
   OPENAI_WS_MODE_OFF,
@@ -676,6 +687,7 @@ const gatewayProtocol = ref<GatewayProtocol>('openai')
 const isInitializingGatewayProtocol = ref(false)
 const editBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const editApiKey = ref('')
+const deepSeekModelConcurrencyLimits = ref(createDefaultDeepSeekModelConcurrencyLimitDraft())
 const editGrokSSOToken = ref('')
 const editGrokTier = ref<GrokTier>('basic')
 const modelMappings = ref<ModelMapping[]>([])
@@ -872,6 +884,9 @@ const showCommonApiKeySection = computed(() =>
   props.account?.type === 'apikey' &&
   !isGeminiVertexAccount.value &&
   !isBaiduDocumentAIAccount.value
+)
+const showDeepSeekConcurrencyEditor = computed(() =>
+  showCommonApiKeySection.value && effectivePlatform.value === 'deepseek'
 )
 const supportsUnifiedModelEditor = computed(() => {
   if (!props.account) {
@@ -1330,6 +1345,7 @@ watch(
 
       // Load mixed scheduling setting (only for antigravity accounts)
       const extra = newAccount.extra as Record<string, unknown> | undefined
+      deepSeekModelConcurrencyLimits.value = readDeepSeekModelConcurrencyLimitDraft(extra)
       expiryProbeExtensionDays.value = Math.max(
         1,
         Number.parseInt(String(extra?.expiry_probe_extension_days || ''), 10) || 1
@@ -1608,6 +1624,7 @@ watch(
       gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
       gatewayOpenAIImageProtocolMode.value = DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
       gatewayBatchEnabled.value = false
+      deepSeekModelConcurrencyLimits.value = createDefaultDeepSeekModelConcurrencyLimitDraft()
       resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
       manualModels.value = []
@@ -2296,6 +2313,12 @@ const handleSubmit = async () => {
       updatePayload.extra =
         Object.keys(sanitizedExtra).length > 0 ? sanitizedExtra : undefined
     }
+
+    updatePayload.extra = applyDeepSeekModelConcurrencyLimitsExtra(
+      updatePayload.extra as Record<string, unknown> | undefined,
+      runtimePlatform,
+      deepSeekModelConcurrencyLimits.value
+    )
 
     const canContinue = await ensureMixedChannelConfirmed(async () => {
       await submitUpdateAccount(accountID, updatePayload)

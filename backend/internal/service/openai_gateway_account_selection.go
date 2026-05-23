@@ -219,7 +219,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 				}
 				return nil, err
 			}
-			result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
+			result, err := s.tryAcquireAccountSlot(ctx, account.ID, DeepSeekEffectiveAccountConcurrency(account, requestedModel))
 			if err == nil && result.Acquired {
 				s.logSelectedAccountUsagePressure("local_acquired", groupID, sessionHash, requestedModel, account)
 				return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
@@ -237,7 +237,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 					}
 				}
 				s.logSelectedAccountUsagePressure(phase, groupID, sessionHash, requestedModel, account)
-				waitResult = &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: account.Concurrency, Timeout: timeout, MaxWaiting: maxWaiting}}
+				waitResult = &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: DeepSeekEffectiveAccountConcurrency(account, requestedModel), Timeout: timeout, MaxWaiting: maxWaiting}}
 			}
 			localExcluded[account.ID] = struct{}{}
 		}
@@ -275,7 +275,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 					if account == nil {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 					} else {
-						result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
+						result, err := s.tryAcquireAccountSlot(ctx, accountID, DeepSeekEffectiveAccountConcurrency(account, requestedModel))
 						if err == nil && result != nil && result.Acquired {
 							_ = s.refreshStickySessionTTL(ctx, groupID, sessionHash, openaiStickySessionTTL)
 							s.logSelectedAccountUsagePressure("sticky_acquired", groupID, sessionHash, requestedModel, account)
@@ -314,7 +314,11 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 	}
 	accountLoads := make([]AccountWithConcurrency, 0, len(candidates))
 	for _, acc := range candidates {
-		accountLoads = append(accountLoads, AccountWithConcurrency{ID: acc.ID, MaxConcurrency: acc.EffectiveLoadFactor()})
+		maxConcurrency := acc.EffectiveLoadFactor()
+		if effective := DeepSeekEffectiveAccountConcurrency(acc, requestedModel); effective > 0 && effective < maxConcurrency {
+			maxConcurrency = effective
+		}
+		accountLoads = append(accountLoads, AccountWithConcurrency{ID: acc.ID, MaxConcurrency: maxConcurrency})
 	}
 	loadMap, err := s.concurrencyService.GetAccountsLoadBatch(ctx, accountLoads)
 	if err != nil {
@@ -337,7 +341,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 			if fresh == nil {
 				continue
 			}
-			result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, fresh.Concurrency)
+			result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, DeepSeekEffectiveAccountConcurrency(fresh, requestedModel))
 			if err == nil && result.Acquired {
 				if sessionHash != "" {
 					_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, fresh.ID, openaiStickySessionTTL)
@@ -371,7 +375,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 				if fresh == nil {
 					continue
 				}
-				result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, fresh.Concurrency)
+				result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, DeepSeekEffectiveAccountConcurrency(fresh, requestedModel))
 				if err == nil && result.Acquired {
 					if sessionHash != "" {
 						_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, fresh.ID, openaiStickySessionTTL)
@@ -405,7 +409,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 			return stickyWaitResult, nil
 		}
 		s.logSelectedAccountUsagePressure("load_wait", groupID, sessionHash, requestedModel, fresh)
-		return &AccountSelectionResult{Account: fresh, WaitPlan: &AccountWaitPlan{AccountID: fresh.ID, MaxConcurrency: fresh.Concurrency, Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
+		return &AccountSelectionResult{Account: fresh, WaitPlan: &AccountWaitPlan{AccountID: fresh.ID, MaxConcurrency: DeepSeekEffectiveAccountConcurrency(fresh, requestedModel), Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
 	}
 	if stickyWaitResult != nil {
 		return stickyWaitResult, nil
@@ -435,7 +439,7 @@ func (s *OpenAIGatewayService) buildOpenAIStickyWaitSelection(
 		Account: account,
 		WaitPlan: &AccountWaitPlan{
 			AccountID:      account.ID,
-			MaxConcurrency: account.Concurrency,
+			MaxConcurrency: DeepSeekEffectiveAccountConcurrency(account, requestedModel),
 			Timeout:        cfg.StickySessionWaitTimeout,
 			MaxWaiting:     cfg.StickySessionMaxWaiting,
 		},

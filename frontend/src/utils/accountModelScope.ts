@@ -218,7 +218,8 @@ function buildScopeEntry(
   targetModelID: string
 ) {
   const normalizedDisplayModelID = String(displayModelID || '').trim()
-  const normalizedTargetModelID = String(targetModelID || normalizedDisplayModelID).trim()
+  const rawTargetModelID = String(targetModelID || normalizedDisplayModelID).trim()
+  const normalizedTargetModelID = normalizeDeepSeekV4ModelID(rawTargetModelID) || rawTargetModelID
   const registryEntry = registryModels.find(
     (item) =>
       item.id === normalizedTargetModelID ||
@@ -240,6 +241,26 @@ function buildScopeEntry(
     entry.source_protocol = sourceProtocol
   }
   return entry
+}
+
+function normalizeDeepSeekV4ModelID(value: string): string {
+  let normalized = String(value || '').trim().toLowerCase()
+  if (!normalized) {
+    return ''
+  }
+  normalized = normalized.replace(/^models\//, '')
+  const slashIndex = normalized.lastIndexOf('/')
+  if (slashIndex >= 0) {
+    normalized = normalized.slice(slashIndex + 1)
+  }
+  normalized = normalized.replace(/[:\s_]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  if (normalized.endsWith('-free')) {
+    normalized = normalized.slice(0, -'-free'.length)
+  }
+  if (normalized === 'deepseek-v4-flash' || normalized === 'deepseek-v4-pro') {
+    return normalized
+  }
+  return ''
 }
 
 function uniqueStrings(values: unknown): string[] {

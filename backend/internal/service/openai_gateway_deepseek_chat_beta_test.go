@@ -47,6 +47,7 @@ func TestForwardNativeChatCompletions_DeepSeekExplicitBetaTrueUsesBetaWithoutPre
 			"api_key": "test-token",
 		},
 	}
+	c.Set("api_key", &APIKey{ID: 9, UserID: 7})
 
 	result, err := svc.ForwardNativeChatCompletions(context.Background(), c, account, body, "")
 	require.NoError(t, err)
@@ -57,6 +58,7 @@ func TestForwardNativeChatCompletions_DeepSeekExplicitBetaTrueUsesBetaWithoutPre
 	require.NoError(t, err)
 	require.False(t, gjson.GetBytes(forwardedBody, "beta").Exists())
 	require.True(t, gjson.GetBytes(forwardedBody, "thinking").Exists())
+	require.Contains(t, gjson.GetBytes(forwardedBody, "user_id").String(), "sub2api_")
 }
 
 func TestForwardNativeChatCompletions_DeepSeekExplicitBetaFalseKeepsStableAndStripsBetaFields(t *testing.T) {
@@ -136,7 +138,7 @@ func TestForwardNativeChatCompletions_DeepSeekExplicitBetaTrueRejectsUnsupported
 	require.Nil(t, result)
 	require.Equal(t, 0, upstream.callCount)
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
-	require.Equal(t, "deepseek_chat_beta_model_unsupported", gjson.Get(recorder.Body.String(), "error.reason").String())
+	require.Equal(t, "unknown_deepseek_model", gjson.Get(recorder.Body.String(), "error.reason").String())
 }
 
 func TestForwardNativeChatCompletions_DeepSeekRejectsInvalidBetaType(t *testing.T) {
@@ -173,4 +175,52 @@ func TestForwardNativeChatCompletions_DeepSeekRejectsInvalidBetaType(t *testing.
 	require.Equal(t, 0, upstream.callCount)
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
 	require.Equal(t, "invalid_beta", gjson.Get(recorder.Body.String(), "error.reason").String())
+}
+
+func TestForwardNativeChatCompletions_DeepSeekVariantCanonicalizesAndOverridesUserID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	body := []byte(`{
+		"model":"Deepseek/deepseek V4 Flash:free",
+		"user_id":"client_supplied",
+		"messages":[{"role":"user","content":"hi"}]
+	}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
+	c.Set("api_key", &APIKey{ID: 100, UserID: 200})
+
+	resp := newJSONResponse(http.StatusOK, `{"id":"chatcmpl_1","object":"chat.completion","model":"deepseek-v4-flash","choices":[{"index":0,"message":{"role":"assistant","content":"ok"}}],"usage":{"prompt_tokens":5,"completion_tokens":2}}`)
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &OpenAIGatewayService{
+		httpUpstream:  upstream,
+		cfg:           &config.Config{JWT: config.JWTConfig{Secret: "test-secret"}},
+		toolCorrector: NewCodexToolCorrector(),
+	}
+	account := &Account{
+		ID:          215,
+		Name:        "deepseek-variant",
+		Platform:    PlatformDeepSeek,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 5000,
+		Credentials: map[string]any{
+			"api_key": "test-token",
+		},
+		Extra: map[string]any{
+			DeepSeekModelConcurrencyLimitsExtraKey: map[string]any{
+				"deepseek_v4_flash_free": 2500,
+			},
+		},
+	}
+
+	result, err := svc.ForwardNativeChatCompletions(context.Background(), c, account, body, "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "deepseek-v4-flash", result.UpstreamModel)
+	require.Equal(t, []int{2500}, upstream.concurrencies)
+
+	forwardedBody, err := io.ReadAll(upstream.requests[0].Body)
+	require.NoError(t, err)
+	require.Equal(t, "deepseek-v4-flash", gjson.GetBytes(forwardedBody, "model").String())
+	require.NotEqual(t, "client_supplied", gjson.GetBytes(forwardedBody, "user_id").String())
+	require.Regexp(t, `^sub2api_[a-f0-9]{40}$`, gjson.GetBytes(forwardedBody, "user_id").String())
 }

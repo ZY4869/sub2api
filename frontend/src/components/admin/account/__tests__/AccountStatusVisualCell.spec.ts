@@ -78,7 +78,7 @@ describe('AccountStatusVisualCell', () => {
     const wrapper = mountVisual(makeAccount())
 
     expect(wrapper.get('[data-testid="account-status-visual-cell"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('admin.accounts.status.active')
+    expect(wrapper.text()).toContain('admin.accounts.status.visualAvailableTitle')
     expect(wrapper.find('[data-testid="account-status-visual-countdown"]').exists()).toBe(false)
   })
 
@@ -161,8 +161,59 @@ describe('AccountStatusVisualCell', () => {
       error_message: 'Demo invalid credential state',
     }))
 
-    expect(paused.text()).toContain('admin.accounts.status.paused')
+    expect(paused.text()).toContain('admin.accounts.status.visualPausedTitle')
     expect(errored.text()).toContain('admin.accounts.status.error')
     expect(errored.find('.error-info-trigger').exists()).toBe(true)
+  })
+
+  it('covers the airy full status set from reliable reason signals', () => {
+    const cases = [
+      {
+        account: makeAccount({ lifecycle_state: 'blacklisted' }),
+        expected: 'admin.accounts.status.visualBannedTitle',
+      },
+      {
+        account: makeAccount({ error_message: 'security locked due suspicious login' }),
+        expected: 'admin.accounts.status.visualLockedTitle',
+      },
+      {
+        account: makeAccount({ error_message: 'scheduled maintenance window' }),
+        expected: 'admin.accounts.status.visualMaintenanceTitle',
+      },
+      {
+        account: makeAccount({ error_message: 'network timeout while connecting proxy' }),
+        expected: 'admin.accounts.status.visualOfflineTitle',
+      },
+      {
+        account: makeAccount({ error_message: 'quota exhausted, payment required' }),
+        expected: 'admin.accounts.status.visualOverdueTitle',
+      },
+      {
+        account: makeAccount({ session_window_status: 'allowed_warning' }),
+        expected: 'admin.accounts.status.visualDegradedTitle',
+      },
+      {
+        account: makeAccount({ error_message: 'captcha challenge required' }),
+        expected: 'admin.accounts.status.visualCaptchaTitle',
+      },
+      {
+        account: makeAccount({ auto_recovery_probe: { status: 'retry_scheduled' } }),
+        expected: 'admin.accounts.status.visualSyncingTitle',
+      },
+      {
+        account: makeAccount({ schedulable: false }),
+        expected: 'admin.accounts.status.visualPausedTitle',
+      },
+      {
+        account: makeAccount(),
+        expected: 'admin.accounts.status.visualAvailableTitle',
+      },
+    ]
+
+    for (const item of cases) {
+      const wrapper = mountVisual(item.account)
+      expect(wrapper.text()).toContain(item.expected)
+      wrapper.unmount()
+    }
   })
 })

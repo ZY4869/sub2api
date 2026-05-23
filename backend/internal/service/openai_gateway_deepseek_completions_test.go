@@ -124,6 +124,48 @@ func TestForwardDeepSeekCompletions_RejectsUnsupportedModel(t *testing.T) {
 	require.Nil(t, result)
 	require.Equal(t, 0, upstream.callCount)
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
-	require.Equal(t, "deepseek_fim_model_unsupported", gjson.Get(recorder.Body.String(), "error.reason").String())
-	require.Equal(t, "deepseek_fim_model_unsupported", gjson.Get(recorder.Body.String(), "error.code").String())
+	require.Equal(t, "unknown_deepseek_model", gjson.Get(recorder.Body.String(), "error.reason").String())
+	require.Equal(t, "unknown_deepseek_model", gjson.Get(recorder.Body.String(), "error.code").String())
+}
+
+func TestForwardDeepSeekCompletions_VariantCanonicalizesAndInjectsUserID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	body := []byte(`{"model":"deepseek_v4_pro_free","prompt":"hello","user_id":"client"}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/completions", strings.NewReader(string(body)))
+	c.Set("api_key", &APIKey{ID: 12, UserID: 34})
+
+	resp := newJSONResponse(http.StatusOK, `{"id":"cmpl_1","object":"text_completion","model":"deepseek-v4-pro","choices":[{"index":0,"text":"ok"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}`)
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &OpenAIGatewayService{
+		httpUpstream:  upstream,
+		cfg:           &config.Config{JWT: config.JWTConfig{Secret: "deepseek-secret"}},
+		toolCorrector: NewCodexToolCorrector(),
+	}
+	account := &Account{
+		ID:          304,
+		Name:        "deepseek-completions-variant",
+		Platform:    PlatformDeepSeek,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1000,
+		Credentials: map[string]any{"api_key": "test-token"},
+		Extra: map[string]any{
+			DeepSeekModelConcurrencyLimitsExtraKey: map[string]any{
+				"DEEPSEEK V4 PRO": 500,
+			},
+		},
+	}
+
+	result, err := svc.ForwardDeepSeekCompletions(context.Background(), c, account, body, "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "deepseek-v4-pro", result.UpstreamModel)
+	require.Equal(t, []int{500}, upstream.concurrencies)
+
+	forwardedBody, err := io.ReadAll(upstream.requests[0].Body)
+	require.NoError(t, err)
+	require.Equal(t, "deepseek-v4-pro", gjson.GetBytes(forwardedBody, "model").String())
+	require.Regexp(t, `^sub2api_[a-f0-9]{40}$`, gjson.GetBytes(forwardedBody, "user_id").String())
+	require.NotEqual(t, "client", gjson.GetBytes(forwardedBody, "user_id").String())
 }

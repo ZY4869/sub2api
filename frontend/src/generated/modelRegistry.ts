@@ -35,11 +35,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-05-06T07:05:33Z"
+export const generatedModelRegistryBuiltAt = "2026-05-23T13:49:17Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"9662f717c7f0fd217433137f1dc865014f806fb45151c8a9b91d0d8fe9642f02\"",
-  "updated_at": "2026-05-06T07:05:33Z",
+  "etag": "W/\"cd27694027794cf6575d85c916040a4092e329f496cb4bb08121d2aba7bacf71\"",
+  "updated_at": "2026-05-23T13:49:17Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -142,7 +142,13 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "deepseek-v4-flash"
       ],
-      "aliases": [],
+      "aliases": [
+        "deepseek v4 flash",
+        "deepseek_v4_flash",
+        "deepseek_v4_flash_free",
+        "deepseek/deepseek v4 flash:free",
+        "deepseek/deepseek-v4-flash:free"
+      ],
       "pricing_lookup_ids": [
         "deepseek-v4-flash"
       ],
@@ -591,7 +597,13 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "deepseek-v4-pro"
       ],
-      "aliases": [],
+      "aliases": [
+        "deepseek v4 pro",
+        "deepseek_v4_pro",
+        "deepseek_v4_pro_free",
+        "deepseek/deepseek v4 pro:free",
+        "deepseek/deepseek-v4-pro:free"
+      ],
       "pricing_lookup_ids": [
         "deepseek-v4-pro"
       ],

@@ -30,4 +30,48 @@ describe('GroupBadge', () => {
     expect(wrapper.attributes('title')).toBe('Very Long Group Name For Hover Preview')
     expect(wrapper.attributes('aria-label')).toBe('Very Long Group Name For Hover Preview')
   })
+
+  it('uses the high-contrast airy preset and hash marker without rendering platform text', () => {
+    const wrapper = mount(GroupBadge, {
+      props: {
+        name: 'Admin',
+        platform: 'gemini',
+        showRate: false,
+        visualVariant: 'airy'
+      },
+      global: {
+        stubs: {
+          PlatformIcon: {
+            template: '<span class="platform-icon-stub" />'
+          }
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('#')
+    expect(wrapper.classes()).toContain('bg-red-100')
+    expect(wrapper.classes()).toContain('border-red-300')
+    expect(wrapper.classes()).toContain('text-red-800')
+    expect(wrapper.find('.platform-icon-stub').exists()).toBe(false)
+  })
+
+  it('assigns stable airy fallback colors for custom group names', () => {
+    const first = mount(GroupBadge, {
+      props: {
+        name: '上海主路由',
+        showRate: false,
+        visualVariant: 'airy'
+      }
+    })
+    const second = mount(GroupBadge, {
+      props: {
+        name: '上海主路由',
+        showRate: false,
+        visualVariant: 'airy'
+      }
+    })
+
+    expect(first.classes().join(' ')).toBe(second.classes().join(' '))
+    expect(first.classes().some((className) => className.startsWith('bg-'))).toBe(true)
+  })
 })

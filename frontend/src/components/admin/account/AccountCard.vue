@@ -146,10 +146,25 @@
       </div>
 
       <div v-if="account.groups?.length" class="mt-4">
-        <AccountGroupsCell :groups="account.groups" :max-display="4" />
+        <AccountGroupsCell
+          :groups="account.groups"
+          :max-display="4"
+          :visual-variant="visualStyle === 'airy' ? 'airy' : 'default'"
+        />
       </div>
 
-      <div class="mt-4 flex items-center justify-between gap-3">
+      <div v-if="visualStyle === 'airy'" class="mt-4 flex justify-end">
+        <AccountsViewAiryRowActions
+          :account="account"
+          :toggling-schedulable="togglingSchedulable"
+          @toggle-schedulable="emit('toggle-schedulable', account)"
+          @edit="emit('edit', account)"
+          @delete="emit('delete', account)"
+          @more="emit('open-menu', { account, event: $event })"
+        />
+      </div>
+
+      <div v-else class="mt-4 flex items-center justify-between gap-3">
         <button
           class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-dark-800"
           :class="[
@@ -188,6 +203,7 @@ import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import type { Account, AccountVisualStyle, WindowStats } from '@/types'
 import { formatRelativeTime } from '@/utils/format'
 import AccountAutoRecoveryProbeNotice from './AccountAutoRecoveryProbeNotice.vue'
+import AccountsViewAiryRowActions from './AccountsViewAiryRowActions.vue'
 import AccountsViewRowActions from './AccountsViewRowActions.vue'
 import AccountNameVisualCell from './AccountNameVisualCell.vue'
 import AccountServiceAuthVisualCell from './AccountServiceAuthVisualCell.vue'

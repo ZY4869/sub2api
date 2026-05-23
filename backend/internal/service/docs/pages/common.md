@@ -153,8 +153,10 @@ https://api.zyxai.de
 公共目录与运行时模型枚举接口共用同一套账号模型投影规则，必须记住下面五条：
 
 - 账号模型集合只来自两层：账号显式白名单 / 映射，或默认模型库。探测结果、已知模型快照和 saved snapshot 只能补充状态，不会扩展列表。
+- `extra.model_scope_v2.entries[]` 是账号模型策略的唯一事实源；新增写入会规范到 `policy_mode + entries[]`，旧字段只作为兼容输入。
 - 账号级白名单 / 取模勾选会直接影响 downstream `/v1/models`、`/v1beta/models` 的返回结果；未被该账号允许的模型不会出现在列表或详情里。
-- 如果某个账号把真实模型配置成了自定义映射名，那么 downstream `models list` 与 `models detail` 只返回映射名这个 display ID；`target model` 只保留在内部转发链路和后台诊断里。
+- 如果某个账号把真实模型配置成了自定义映射名，那么 downstream `models list` 与 `models detail` 只返回映射名这个 `display_model_id`；`target_model_id` 只保留在内部转发链路和后台诊断里，不会作为另一个可调用 public ID 暴露。
+- 保存账号模型策略时，部分 provider 会把常见模型变体规范为 canonical target，例如 DeepSeek V4 的 provider 前缀、空格、下划线和 `:free` / `-free` 后缀会归一化到 `deepseek-v4-flash` 或 `deepseek-v4-pro`；公共列表仍只展示管理员配置的 `display_model_id`。
 - 模型列表读路径只读取本地策略投影和本地 availability snapshot。即使 snapshot 缺失或过期，也只会返回现有投影并标记状态，不会在读请求里同步触发实时探测。
 - 没有有效售价的模型不会出现在公共目录里，也不会出现在用户创建 / 编辑 Key 时的模型选择器里。这里的“有效售价”口径不是只看 `sale_form` 原始字段，而是按“sale 优先、缺失字段逐项回退 official”的生效展示价计算；因此只配置了官方价、但 sale 为空的模型，只要存在可展示价格，仍然可以进入公开目录。
 - `model[1m]` 只是 Claude Cloud 百万上下文的请求时能力后缀，不会成为新的公开模型资产；`/v1/models`、`/v1beta/models`、公共模型目录、策略投影与模型选择器都不会枚举带 `[1m]` 的镜像项。
@@ -344,6 +346,7 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - `/api/v1/usage/stats`、`/api/v1/admin/usage/stats`、用户 Dashboard 和管理员 Dashboard 会返回 `cost_by_currency`、`actual_cost_by_currency`；Dashboard 还会返回 `today_cost_by_currency`、`today_actual_cost_by_currency`。
 - `/api/v1/usage/stats`、`/api/v1/admin/usage/stats` 会额外返回 `platform_breakdown[]`，每项包含 `platform`、`requests`、`input_tokens`、`output_tokens`、`cache_tokens`、`total_tokens`、`cost`、`actual_cost`、`average_duration_ms`，用于前台和后台用量页的平台拆分展示。
 - `/api/v1/usage/stats`、`/api/v1/admin/usage/stats` 现在还会额外返回 `today_requests`、`today_input_tokens`、`today_output_tokens`、`today_cache_tokens`、`today_tokens`、`today_cost`、`today_actual_cost`、`today_average_duration_ms`，用于前台和后台“今日统计”卡片。
+- `GET /api/v1/admin/accounts/:id/today-stats` 与 `POST /api/v1/admin/accounts/today-stats/batch` 保持原路径不变；响应继续返回今日 `requests`、`tokens`、`cost`、`standard_cost`、`user_cost`、`success_rate`、`average_duration_ms`，并附加同形的 `weekly` 与 `total`。`weekly` 是服务端本地时区含今日的近 7 个自然日，`total` 是账号全部历史；空账号默认请求数、Token 和金额为 `0`，成功率为 `100`。
 - 这些 `today_*` 字段按请求里的 `timezone` 计算“今日”窗口：从调用方所在时区当天 `00:00` 到当前时间；如果 `timezone` 缺失或非法，则回退到服务端默认时区。
 - `/v1/usage` 在钱包模式下会返回 `balances`，格式为 `{ "USD": 10, "CNY": 25 }`；旧 `balance` / `remaining` 仍只代表 USD 钱包影子余额。
 - `/v1/usage` 会返回 `daily_details[]`，按页面选择的日期范围汇总每日请求数、token、花费与实际扣费；默认沿用调用方当前查询窗口，最大 31 天。

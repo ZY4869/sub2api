@@ -175,19 +175,19 @@ const expiresLabel = computed(() => {
 
 const planBadgeClass = computed(() => {
   if (planLabel.value === 'Free') {
-    return 'border-slate-200/60 bg-slate-50/80 text-slate-600'
+    return 'border-slate-300/80 bg-slate-100 text-slate-600'
   }
   if (planLabel.value === 'Plus') {
-    return 'border-purple-200/60 bg-purple-50/90 text-purple-700'
+    return 'border-emerald-300/80 bg-emerald-50 text-emerald-700'
   }
   if (planLabel.value === 'Team') {
-    return 'border-blue-200/60 bg-blue-50/90 text-blue-700'
+    return 'border-blue-300/80 bg-blue-50 text-blue-700'
   }
   if (planLabel.value.startsWith('Pro')) {
     if (planLabel.value.includes('20x')) {
-      return 'border-slate-700 bg-slate-900 text-amber-300'
+      return 'border-slate-700 bg-slate-800 text-amber-400 ring-1 ring-slate-900'
     }
-    return 'border-rose-200/80 bg-rose-50 text-rose-700'
+    return 'border-cyan-200 bg-cyan-50 text-cyan-700'
   }
   if (props.platform === 'openai') {
     return 'border-emerald-200/60 bg-emerald-50/85 text-emerald-700'

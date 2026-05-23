@@ -363,6 +363,59 @@ const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
   `
 })
 
+const AccountDeepSeekConcurrencyLimitsEditorStub = defineComponent({
+  name: 'AccountDeepSeekConcurrencyLimitsEditor',
+  props: {
+    limits: {
+      type: Object,
+      default: () => ({})
+    }
+  },
+  emits: ['update:limits'],
+  template: `
+    <div data-testid="deepseek-concurrency-editor">
+      <span data-testid="deepseek-concurrency-prop">{{ JSON.stringify(limits) }}</span>
+      <button
+        type="button"
+        data-testid="set-deepseek-custom-limits"
+        @click="$emit('update:limits', { 'deepseek-v4-pro': 222, 'deepseek-v4-flash': 1111 })"
+      >
+        set deepseek limits
+      </button>
+      <button
+        type="button"
+        data-testid="clear-deepseek-limits"
+        @click="$emit('update:limits', { 'deepseek-v4-pro': '', 'deepseek-v4-flash': '' })"
+      >
+        clear deepseek limits
+      </button>
+    </div>
+  `
+})
+
+function buildDeepSeekAPIKeyAccount(extra: Record<string, unknown> = {}) {
+  return {
+    id: 10,
+    name: 'DeepSeek Key',
+    notes: '',
+    platform: 'deepseek',
+    type: 'apikey',
+    credentials: {
+      api_key: 'sk-deepseek',
+      base_url: 'https://api.deepseek.com'
+    },
+    extra,
+    proxy_id: null,
+    concurrency: 10,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function buildAccount() {
   return {
     id: 1,
@@ -659,6 +712,7 @@ function mountModal(account = buildAccount()) {
       stubs: {
         BaseDialog: BaseDialogStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
+        AccountDeepSeekConcurrencyLimitsEditor: AccountDeepSeekConcurrencyLimitsEditorStub,
         AccountApiKeyModelProbeEditor: AccountApiKeyModelProbeEditorStub,
         AccountBaiduDocumentAICredentialsEditor: AccountBaiduDocumentAICredentialsEditorStub,
         AccountProtocolGatewayModelProbeEditor: AccountProtocolGatewayModelProbeEditorStub,
@@ -805,6 +859,53 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
       'grok-4': 'grok-4'
     })
+  })
+
+  it('rehydrates and submits DeepSeek model concurrency limits on edit', async () => {
+    const account = buildDeepSeekAPIKeyAccount({
+      deepseek_model_concurrency_limits: {
+        'Deepseek/deepseek V4 Pro:free': 444,
+        'deepseek-v4-flash': 1800
+      }
+    })
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.find('[data-testid="deepseek-concurrency-editor"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="deepseek-concurrency-prop"]').text()).toContain('"deepseek-v4-pro":444')
+
+    await wrapper.get('[data-testid="set-deepseek-custom-limits"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.deepseek_model_concurrency_limits).toEqual({
+      'deepseek-v4-pro': 222,
+      'deepseek-v4-flash': 1111
+    })
+  })
+
+  it('drops stale DeepSeek model concurrency limits for non-DeepSeek edit payloads', async () => {
+    const account = buildAccount()
+    account.extra.deepseek_model_concurrency_limits = {
+      'deepseek-v4-pro': 500
+    }
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.find('[data-testid="deepseek-concurrency-editor"]').exists()).toBe(false)
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.deepseek_model_concurrency_limits).toBeUndefined()
   })
 
   it('renders the unified model probe editor for OpenAI OAuth accounts and rebuilds snapshot extra from the current model scope on submit', async () => {

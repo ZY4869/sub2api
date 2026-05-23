@@ -699,6 +699,8 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStats() {
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-today"})
 
 	createdAt := timezone.Today().Add(1 * time.Hour)
+	duration1 := 120
+	duration2 := 360
 
 	m1 := 1.5
 	m2 := 0.0
@@ -713,6 +715,8 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStats() {
 		TotalCost:             1.0,
 		ActualCost:            2.0,
 		AccountRateMultiplier: &m1,
+		Status:                service.UsageLogStatusSucceeded,
+		DurationMs:            &duration1,
 		CreatedAt:             createdAt,
 	})
 	s.Require().NoError(err)
@@ -727,6 +731,8 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStats() {
 		TotalCost:             0.5,
 		ActualCost:            1.0,
 		AccountRateMultiplier: &m2,
+		Status:                service.UsageLogStatusFailed,
+		DurationMs:            &duration2,
 		CreatedAt:             createdAt,
 	})
 	s.Require().NoError(err)
@@ -741,6 +747,94 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStats() {
 	s.Require().InEpsilon(1.5, stats.StandardCost, 0.0001)
 	// user cost = SUM(actual_cost_usd_equivalent)
 	s.Require().InEpsilon(3.0, stats.UserCost, 0.0001)
+	s.Require().InEpsilon(50.0, stats.SuccessRate, 0.0001)
+	s.Require().InEpsilon(120.0, stats.AverageDurationMs, 0.0001)
+}
+
+func (s *UsageLogRepoSuite) TestGetAccountTodayStatsBreakdownBatch() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "acctodaybreakdown@test.com"})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-acctodaybreakdown", Name: "k"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-today-breakdown"})
+	emptyAccount := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-today-breakdown-empty"})
+
+	todayStart := timezone.Today()
+	weekStart := todayStart.AddDate(0, 0, -6)
+	durationToday := 100
+	durationWeek := 200
+	durationOld := 300
+
+	_, err := s.repo.Create(s.ctx, &service.UsageLog{
+		UserID:       user.ID,
+		APIKeyID:     apiKey.ID,
+		AccountID:    account.ID,
+		RequestID:    uuid.New().String(),
+		Model:        "claude-3",
+		InputTokens:  10,
+		OutputTokens: 20,
+		TotalCost:    1.0,
+		ActualCost:   1.0,
+		Status:       service.UsageLogStatusSucceeded,
+		DurationMs:   &durationToday,
+		CreatedAt:    todayStart.Add(1 * time.Hour),
+	})
+	s.Require().NoError(err)
+	_, err = s.repo.Create(s.ctx, &service.UsageLog{
+		UserID:       user.ID,
+		APIKeyID:     apiKey.ID,
+		AccountID:    account.ID,
+		RequestID:    uuid.New().String(),
+		Model:        "claude-3",
+		InputTokens:  5,
+		OutputTokens: 5,
+		TotalCost:    0.5,
+		ActualCost:   0.5,
+		Status:       service.UsageLogStatusFailed,
+		DurationMs:   &durationWeek,
+		CreatedAt:    weekStart.Add(2 * time.Hour),
+	})
+	s.Require().NoError(err)
+	_, err = s.repo.Create(s.ctx, &service.UsageLog{
+		UserID:       user.ID,
+		APIKeyID:     apiKey.ID,
+		AccountID:    account.ID,
+		RequestID:    uuid.New().String(),
+		Model:        "claude-3",
+		InputTokens:  2,
+		OutputTokens: 3,
+		TotalCost:    0.25,
+		ActualCost:   0.25,
+		Status:       service.UsageLogStatusSucceeded,
+		DurationMs:   &durationOld,
+		CreatedAt:    weekStart.Add(-24 * time.Hour),
+	})
+	s.Require().NoError(err)
+
+	statsByAccount, err := s.repo.GetAccountTodayStatsBreakdownBatch(s.ctx, []int64{account.ID, emptyAccount.ID}, todayStart, weekStart)
+	s.Require().NoError(err, "GetAccountTodayStatsBreakdownBatch")
+
+	stats := statsByAccount[account.ID]
+	s.Require().NotNil(stats)
+	s.Require().Equal(int64(1), stats.Today.Requests)
+	s.Require().Equal(int64(30), stats.Today.Tokens)
+	s.Require().InEpsilon(100.0, stats.Today.SuccessRate, 0.0001)
+	s.Require().InEpsilon(100.0, stats.Today.AverageDurationMs, 0.0001)
+	s.Require().Equal(int64(2), stats.Weekly.Requests)
+	s.Require().Equal(int64(40), stats.Weekly.Tokens)
+	s.Require().InEpsilon(50.0, stats.Weekly.SuccessRate, 0.0001)
+	s.Require().InEpsilon(100.0, stats.Weekly.AverageDurationMs, 0.0001)
+	s.Require().Equal(int64(3), stats.Total.Requests)
+	s.Require().Equal(int64(45), stats.Total.Tokens)
+	s.Require().InEpsilon(66.666, stats.Total.SuccessRate, 0.01)
+	s.Require().InEpsilon(200.0, stats.Total.AverageDurationMs, 0.0001)
+
+	emptyStats := statsByAccount[emptyAccount.ID]
+	s.Require().NotNil(emptyStats)
+	s.Require().Equal(int64(0), emptyStats.Today.Requests)
+	s.Require().InEpsilon(100.0, emptyStats.Today.SuccessRate, 0.0001)
+	s.Require().Equal(int64(0), emptyStats.Weekly.Requests)
+	s.Require().InEpsilon(100.0, emptyStats.Weekly.SuccessRate, 0.0001)
+	s.Require().Equal(int64(0), emptyStats.Total.Requests)
+	s.Require().InEpsilon(100.0, emptyStats.Total.SuccessRate, 0.0001)
 }
 
 func (s *UsageLogRepoSuite) TestDashboardAggregationConsistency() {

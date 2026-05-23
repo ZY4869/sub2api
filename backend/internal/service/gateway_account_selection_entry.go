@@ -80,7 +80,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 				}
 				return nil, err
 			}
-			result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
+			result, err := s.tryAcquireAccountSlot(ctx, account.ID, DeepSeekEffectiveAccountConcurrency(account, requestedModel))
 			if err == nil && result.Acquired {
 				if !s.checkAndRegisterSession(ctx, account, sessionHash) {
 					result.ReleaseFunc()
@@ -107,7 +107,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					}
 				}
 				s.logSelectedAccountUsagePressure(phase, groupID, sessionHash, requestedModel, account)
-				waitResult = &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: account.Concurrency, Timeout: timeout, MaxWaiting: maxWaiting}}
+				waitResult = &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: DeepSeekEffectiveAccountConcurrency(account, requestedModel), Timeout: timeout, MaxWaiting: maxWaiting}}
 			}
 			localExcluded[account.ID] = struct{}{}
 		}
@@ -159,7 +159,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			Account: account,
 			WaitPlan: &AccountWaitPlan{
 				AccountID:      account.ID,
-				MaxConcurrency: account.Concurrency,
+				MaxConcurrency: DeepSeekEffectiveAccountConcurrency(account, requestedModel),
 				Timeout:        cfg.StickySessionWaitTimeout,
 				MaxWaiting:     cfg.StickySessionMaxWaiting,
 			},
@@ -252,7 +252,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					if stickyAccount, ok := accountByID[stickyAccountID]; ok {
 						freshSticky := s.resolveFreshSelectionAccount(ctx, stickyAccount, platform, useMixed, requestedModel, true)
 						if freshSticky != nil {
-							result, err := s.tryAcquireAccountSlot(ctx, freshSticky.ID, freshSticky.Concurrency)
+							result, err := s.tryAcquireAccountSlot(ctx, freshSticky.ID, DeepSeekEffectiveAccountConcurrency(freshSticky, requestedModel))
 							if err == nil && result.Acquired {
 								if !s.checkAndRegisterSession(ctx, freshSticky, sessionHash) {
 									result.ReleaseFunc()
@@ -274,7 +274,11 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 			routingLoads := make([]AccountWithConcurrency, 0, len(routingCandidates))
 			for _, acc := range routingCandidates {
-				routingLoads = append(routingLoads, AccountWithConcurrency{ID: acc.ID, MaxConcurrency: acc.EffectiveLoadFactor()})
+				maxConcurrency := acc.EffectiveLoadFactor()
+				if effective := DeepSeekEffectiveAccountConcurrency(acc, requestedModel); effective > 0 && effective < maxConcurrency {
+					maxConcurrency = effective
+				}
+				routingLoads = append(routingLoads, AccountWithConcurrency{ID: acc.ID, MaxConcurrency: maxConcurrency})
 			}
 			routingLoadMap, _ := s.concurrencyService.GetAccountsLoadBatch(ctx, routingLoads)
 			var routingAvailable []accountWithLoad
@@ -303,7 +307,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					if fresh == nil {
 						continue
 					}
-					result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, fresh.Concurrency)
+					result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, DeepSeekEffectiveAccountConcurrency(fresh, requestedModel))
 					if err == nil && result.Acquired {
 						if !s.checkAndRegisterSession(ctx, fresh, sessionHash) {
 							result.ReleaseFunc()
@@ -333,7 +337,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					}
 					s.logSelectedAccountUsagePressure("routed_wait", groupID, sessionHash, requestedModel, fresh)
 					observeVertexSelection(fresh, "routed_wait")
-					return &AccountSelectionResult{Account: fresh, WaitPlan: &AccountWaitPlan{AccountID: fresh.ID, MaxConcurrency: fresh.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
+					return &AccountSelectionResult{Account: fresh, WaitPlan: &AccountWaitPlan{AccountID: fresh.ID, MaxConcurrency: DeepSeekEffectiveAccountConcurrency(fresh, requestedModel), Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 				}
 			}
 			logger.LegacyPrintf("service.gateway", "[ModelRouting] All routed accounts unavailable for model=%s, falling back to normal selection", requestedModel)
@@ -350,7 +354,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 				}
 				freshSticky := s.resolveFreshSelectionAccount(ctx, account, platform, useMixed, requestedModel, true)
 				if !clearSticky && freshSticky != nil && s.isAccountInGroup(freshSticky, groupID) {
-					result, err := s.tryAcquireAccountSlot(ctx, freshSticky.ID, freshSticky.Concurrency)
+					result, err := s.tryAcquireAccountSlot(ctx, freshSticky.ID, DeepSeekEffectiveAccountConcurrency(freshSticky, requestedModel))
 					if err == nil && result.Acquired {
 						if !s.checkAndRegisterSession(ctx, freshSticky, sessionHash) {
 							result.ReleaseFunc()
@@ -403,7 +407,11 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	}
 	accountLoads := make([]AccountWithConcurrency, 0, len(candidates))
 	for _, acc := range candidates {
-		accountLoads = append(accountLoads, AccountWithConcurrency{ID: acc.ID, MaxConcurrency: acc.EffectiveLoadFactor()})
+		maxConcurrency := acc.EffectiveLoadFactor()
+		if effective := DeepSeekEffectiveAccountConcurrency(acc, requestedModel); effective > 0 && effective < maxConcurrency {
+			maxConcurrency = effective
+		}
+		accountLoads = append(accountLoads, AccountWithConcurrency{ID: acc.ID, MaxConcurrency: maxConcurrency})
 	}
 	loadMap, err := s.concurrencyService.GetAccountsLoadBatch(ctx, accountLoads)
 	if err != nil {
@@ -451,7 +459,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 				available = newAvailable
 				continue
 			}
-			result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, fresh.Concurrency)
+			result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, DeepSeekEffectiveAccountConcurrency(fresh, requestedModel))
 			if err == nil && result.Acquired {
 				if !s.checkAndRegisterSession(ctx, fresh, sessionHash) {
 					result.ReleaseFunc()
@@ -486,7 +494,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		}
 		s.logSelectedAccountUsagePressure("load_wait", groupID, sessionHash, requestedModel, fresh)
 		observeVertexSelection(fresh, "load_wait")
-		return &AccountSelectionResult{Account: fresh, WaitPlan: &AccountWaitPlan{AccountID: fresh.ID, MaxConcurrency: fresh.Concurrency, Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
+		return &AccountSelectionResult{Account: fresh, WaitPlan: &AccountWaitPlan{AccountID: fresh.ID, MaxConcurrency: DeepSeekEffectiveAccountConcurrency(fresh, requestedModel), Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
 	}
 	if result, ok := returnStickyWaitPlan(); ok {
 		return result, nil
@@ -543,7 +551,7 @@ func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates
 			}
 			continue
 		}
-		result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, fresh.Concurrency)
+		result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, DeepSeekEffectiveAccountConcurrency(fresh, requestedModel))
 		if err == nil && result.Acquired {
 			if !s.checkAndRegisterSession(ctx, fresh, sessionHash) {
 				result.ReleaseFunc()

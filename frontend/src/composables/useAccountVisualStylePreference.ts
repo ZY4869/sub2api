@@ -53,7 +53,10 @@ export function useAccountVisualStylePreference() {
       const updatedUser = await userAPI.updateProfile({
         account_visual_preset_override: nextPreference,
       });
-      authStore.setCurrentUser(updatedUser);
+      authStore.setCurrentUser({
+        ...updatedUser,
+        account_visual_preset_override: nextPreference,
+      });
     } catch (error: any) {
       authStore.setAccountVisualPresetOverride(previousPreference);
       appStore.showError(

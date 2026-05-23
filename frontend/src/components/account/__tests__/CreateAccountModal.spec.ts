@@ -163,6 +163,13 @@ const AccountCreatePlatformSelectorStub = defineComponent({
       </button>
       <button
         type="button"
+        data-testid="select-deepseek"
+        @click="$emit('update:platform', 'deepseek')"
+      >
+        select deepseek
+      </button>
+      <button
+        type="button"
         data-testid="select-openai"
         @click="$emit('update:platform', 'openai')"
       >
@@ -254,7 +261,14 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
       default: false
     }
   },
-  emits: ['update:api-key', 'update:base-url', 'update:allowedModels', 'update:modelScopeEnabled'],
+  emits: [
+    'update:api-key',
+    'update:base-url',
+    'update:allowedModels',
+    'update:modelScopeEnabled',
+    'update:modelScopeMode',
+    'update:modelMappings'
+  ],
   template: `
     <div>
       <span data-testid="actual-model-locked-prop">{{ actualModelLocked }}</span>
@@ -291,6 +305,16 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
         @click="$emit('update:allowedModels', ['claude-sonnet-4-5-20250929', 'claude-sonnet-4.5'])"
       >
         set whitelist selection
+      </button>
+      <button
+        type="button"
+        data-testid="set-deepseek-variant-mapping"
+        @click="
+          $emit('update:modelScopeMode', 'mapping');
+          $emit('update:modelMappings', [{ from: 'Deepseek/deepseek V4 Flash:free', to: 'Deepseek/deepseek V4 Flash:free' }])
+        "
+      >
+        set deepseek mapping
       </button>
     </div>
   `
@@ -506,6 +530,36 @@ const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
   `
 })
 
+const AccountDeepSeekConcurrencyLimitsEditorStub = defineComponent({
+  name: 'AccountDeepSeekConcurrencyLimitsEditor',
+  props: {
+    limits: {
+      type: Object,
+      default: () => ({})
+    }
+  },
+  emits: ['update:limits'],
+  template: `
+    <div data-testid="deepseek-concurrency-editor">
+      <span data-testid="deepseek-concurrency-prop">{{ JSON.stringify(limits) }}</span>
+      <button
+        type="button"
+        data-testid="set-deepseek-custom-limits"
+        @click="$emit('update:limits', { 'deepseek-v4-pro': 321, 'deepseek-v4-flash': 1234 })"
+      >
+        set deepseek limits
+      </button>
+      <button
+        type="button"
+        data-testid="clear-deepseek-limits"
+        @click="$emit('update:limits', { 'deepseek-v4-pro': '', 'deepseek-v4-flash': '' })"
+      >
+        clear deepseek limits
+      </button>
+    </div>
+  `
+})
+
 function mountModal(stubOverrides: Record<string, any> = {}) {
   return mount(CreateAccountModal, {
     props: {
@@ -519,6 +573,7 @@ function mountModal(stubOverrides: Record<string, any> = {}) {
         AccountCreatePlatformSelector: AccountCreatePlatformSelectorStub,
         AccountCreatePlatformTypeEditor: AccountCreatePlatformTypeEditorStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
+        AccountDeepSeekConcurrencyLimitsEditor: AccountDeepSeekConcurrencyLimitsEditorStub,
         AccountBaiduDocumentAICredentialsEditor: AccountBaiduDocumentAICredentialsEditorStub,
         AccountProtocolGatewayModelProbeEditor: AccountProtocolGatewayModelProbeEditorStub,
         AccountProtocolGatewayOpenAIRequestFormatEditor: AccountProtocolGatewayOpenAIRequestFormatEditorStub,
@@ -604,6 +659,109 @@ describe('CreateAccountModal', () => {
 
     expect(wrapper.find('[data-testid="set-api-key"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="oauth-allowed-models-prop"]').exists()).toBe(true)
+  })
+
+  it('submits DeepSeek model concurrency limits from API key creation', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 19,
+      name: 'DeepSeek Key',
+      platform: 'deepseek',
+      type: 'apikey',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-deepseek"]').trigger('click')
+    expect(wrapper.find('[data-testid="deepseek-concurrency-editor"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="deepseek-concurrency-prop"]').text()).toContain('deepseek-v4-pro')
+
+    await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('[data-testid="set-deepseek-custom-limits"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('DeepSeek Key')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]).toMatchObject({
+      name: 'DeepSeek Key',
+      platform: 'deepseek',
+      type: 'apikey',
+      extra: {
+        deepseek_model_concurrency_limits: {
+          'deepseek-v4-pro': 321,
+          'deepseek-v4-flash': 1234
+        }
+      }
+    })
+  })
+
+  it('keeps DeepSeek display variant while canonicalizing model scope target', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 21,
+      name: 'DeepSeek Variant',
+      platform: 'deepseek',
+      type: 'apikey',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-deepseek"]').trigger('click')
+    await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('[data-testid="set-deepseek-variant-mapping"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('DeepSeek Variant')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]?.extra?.model_scope_v2?.entries).toEqual([
+      expect.objectContaining({
+        display_model_id: 'Deepseek/deepseek V4 Flash:free',
+        target_model_id: 'deepseek-v4-flash',
+        provider: 'deepseek',
+        visibility_mode: 'alias'
+      })
+    ])
+  })
+
+  it('does not submit DeepSeek concurrency limits for non-DeepSeek creation', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 20,
+      name: 'OpenAI Key',
+      platform: 'openai',
+      type: 'apikey',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-openai"]').trigger('click')
+    await wrapper.get('[data-testid="set-apikey-mode"]').trigger('click')
+    expect(wrapper.find('[data-testid="deepseek-concurrency-editor"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('OpenAI Key')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]?.extra?.deepseek_model_concurrency_limits).toBeUndefined()
   })
 
   it('submits Grok SSO model scope through extra.model_scope_v2 while preserving grok_tier', async () => {

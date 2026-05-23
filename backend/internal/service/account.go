@@ -13,6 +13,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 )
 
 type Account struct {
@@ -537,6 +538,43 @@ func normalizeRequestedModelForLookup(platform, requestedModel string) string {
 	return trimmed
 }
 
+func requestedModelLookupCandidates(platform, requestedModel string) []string {
+	candidates := []string{strings.TrimSpace(requestedModel)}
+	normalized := normalizeRequestedModelForLookup(platform, requestedModel)
+	if normalized != "" {
+		candidates = append(candidates, normalized)
+	}
+	if platform == PlatformDeepSeek {
+		for _, value := range modelregistry.AlternateVersionVariants(requestedModel) {
+			candidates = append(candidates, value)
+		}
+		if canonical, ok := modelregistry.ResolveToCanonicalID(requestedModel); ok {
+			candidates = append(candidates, canonical)
+		}
+	}
+	return uniqueNonEmptyStrings(candidates)
+}
+
+func uniqueNonEmptyStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
 func mappingSupportsRequestedModel(mapping map[string]string, requestedModel string) bool {
 	if requestedModel == "" {
 		return false
@@ -586,11 +624,12 @@ func (a *Account) IsModelSupported(requestedModel string) bool {
 		}
 		return false
 	}
-	if mappingSupportsRequestedModel(mapping, requestedModel) {
-		return true
+	for _, candidate := range requestedModelLookupCandidates(a.Platform, requestedModel) {
+		if mappingSupportsRequestedModel(mapping, candidate) {
+			return true
+		}
 	}
-	normalized := normalizeRequestedModelForLookup(a.Platform, requestedModel)
-	return normalized != requestedModel && mappingSupportsRequestedModel(mapping, normalized)
+	return false
 }
 
 // GetMappedModel 获取映射后的模型名（支持通配符，最长优先匹配）
@@ -617,12 +656,8 @@ func (a *Account) ResolveMappedModel(requestedModel string) (mappedModel string,
 		}
 		return matchWildcardMappingResultCandidates(mapping, candidates...)
 	}
-	if mappedModel, matched := resolveRequestedModelInMapping(mapping, requestedModel); matched {
-		return mappedModel, true
-	}
-	normalized := normalizeRequestedModelForLookup(a.Platform, requestedModel)
-	if normalized != requestedModel {
-		if mappedModel, matched := resolveRequestedModelInMapping(mapping, normalized); matched {
+	for _, candidate := range requestedModelLookupCandidates(a.Platform, requestedModel) {
+		if mappedModel, matched := resolveRequestedModelInMapping(mapping, candidate); matched {
 			return mappedModel, true
 		}
 	}

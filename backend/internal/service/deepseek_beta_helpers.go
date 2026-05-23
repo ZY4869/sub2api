@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -44,7 +45,13 @@ type preparedDeepSeekNativeChatRequest struct {
 }
 
 func normalizeDeepSeekModelID(model string) string {
-	return strings.TrimSpace(strings.ToLower(model))
+	normalized := NormalizeRequestedModelForClaudeCapability(model)
+	if resolution, ok := modelregistry.ExplainSeedResolution(normalized); ok {
+		if isDeepSeekV4CanonicalModelID(resolution.CanonicalID) {
+			return resolution.CanonicalID
+		}
+	}
+	return strings.TrimSpace(strings.ToLower(normalized))
 }
 
 func isDeepSeekChatPrefixBetaModel(model string) bool {
@@ -67,7 +74,13 @@ func prepareDeepSeekNativeChatRequestBody(account *Account, body []byte, default
 		}
 	}
 
-	prepared.mappedModel = resolveOpenAIForwardModel(account, prepared.originalModel, defaultMappedModel)
+	prepared.mappedModel = resolveDeepSeekForwardModel(account, prepared.originalModel, defaultMappedModel)
+	if prepared.mappedModel == "" {
+		return nil, &deepSeekChatRequestError{
+			reason:  "unknown_deepseek_model",
+			message: "Unknown DeepSeek model variant",
+		}
+	}
 	prepared.stream = gjson.GetBytes(body, "stream").Bool()
 	prepared.clientRequestedUsage = gjson.GetBytes(body, "stream_options.include_usage").Bool()
 	var err error
@@ -119,6 +132,29 @@ func prepareDeepSeekNativeChatRequestBody(account *Account, body []byte, default
 
 	prepared.body = body
 	return prepared, nil
+}
+
+func resolveDeepSeekForwardModel(account *Account, requestedModel string, defaultMappedModel string) string {
+	mappedModel := resolveOpenAIForwardModel(account, requestedModel, defaultMappedModel)
+	if resolution, ok := modelregistry.ExplainSeedResolution(mappedModel); ok {
+		if isDeepSeekV4CanonicalModelID(resolution.CanonicalID) {
+			return resolution.CanonicalID
+		}
+	}
+	normalized := strings.TrimSpace(strings.ToLower(NormalizeRequestedModelForClaudeCapability(mappedModel)))
+	if isDeepSeekV4CanonicalModelID(normalized) {
+		return normalized
+	}
+	return ""
+}
+
+func isDeepSeekV4CanonicalModelID(model string) bool {
+	switch strings.TrimSpace(strings.ToLower(model)) {
+	case "deepseek-v4-pro", "deepseek-v4-flash":
+		return true
+	default:
+		return false
+	}
 }
 
 func stripDeepSeekExplicitBetaField(body []byte) ([]byte, bool, bool, error) {

@@ -15,7 +15,7 @@ import type {
   UpdateAccountRequest,
   PaginatedResponse,
   AccountUsageInfo,
-  WindowStats,
+  AccountTodayStats,
   AdminAccountModelOption,
   AccountUsageStatsResponse,
   TempUnschedulableStatus,
@@ -952,13 +952,13 @@ export async function bulkUpdate(
  * @param id - Account ID
  * @returns Today's stats (requests, tokens, cost)
  */
-export async function getTodayStats(id: number): Promise<WindowStats> {
-  const { data } = await apiClient.get<WindowStats>(`/admin/accounts/${id}/today-stats`)
+export async function getTodayStats(id: number): Promise<AccountTodayStats> {
+  const { data } = await apiClient.get<AccountTodayStats>(`/admin/accounts/${id}/today-stats`)
   return data
 }
 
 export interface BatchTodayStatsResponse {
-  stats: Record<string, WindowStats>
+  stats: Record<string, AccountTodayStats>
 }
 
 /**

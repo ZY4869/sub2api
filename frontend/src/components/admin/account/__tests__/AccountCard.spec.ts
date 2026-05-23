@@ -59,6 +59,18 @@ function mountCard(autoRecoveryProbe: Record<string, unknown>, accountOverrides:
           template: '<div class="capacity-stub" :data-visual-variant="visualVariant" :data-white-surface-enabled="String(whiteSurfaceEnabled)" />'
         }),
         AccountGroupsCell: true,
+        AccountsViewAiryRowActions: defineComponent({
+          props: ['account', 'togglingSchedulable'],
+          emits: ['toggle-schedulable', 'edit', 'delete', 'more'],
+          template: `
+            <div class="airy-row-actions" :data-account-id="account.id" :data-toggling="String(togglingSchedulable)">
+              <button class="airy-row-toggle" @click="$emit('toggle-schedulable')" />
+              <button class="airy-row-edit" @click="$emit('edit')" />
+              <button class="airy-row-delete" @click="$emit('delete')" />
+              <button class="airy-row-more" @click="$emit('more', $event)" />
+            </div>
+          `
+        }),
         PlatformIcon: {
           props: ['platform', 'size'],
           template: '<span class="platform-icon-stub" :data-platform="platform" :data-size="size" />'
@@ -77,7 +89,9 @@ function mountCard(autoRecoveryProbe: Record<string, unknown>, accountOverrides:
           props: ['whiteSurfaceEnabled'],
           template: '<div class="usage-visual-stub" :data-white-surface-enabled="String(whiteSurfaceEnabled)" />'
         },
-        AccountsViewRowActions: true
+        AccountsViewRowActions: {
+          template: '<div class="classic-row-actions" />'
+        }
       }
     }
   })
@@ -164,6 +178,8 @@ describe('AccountCard', () => {
     expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(true)
     expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
+    expect(wrapper.find('.airy-row-actions').exists()).toBe(true)
+    expect(wrapper.find('.classic-row-actions').exists()).toBe(false)
     expect(countdownHookSpy).not.toHaveBeenCalled()
   })
 
@@ -215,6 +231,8 @@ describe('AccountCard', () => {
     expect(wrapper.get('.capacity-stub').attributes('data-white-surface-enabled')).toBe('false')
     expect(wrapper.find('.status-classic-stub').exists()).toBe(true)
     expect(wrapper.find('.usage-classic-stub').exists()).toBe(true)
+    expect(wrapper.find('.classic-row-actions').exists()).toBe(true)
+    expect(wrapper.find('.airy-row-actions').exists()).toBe(false)
     expect(wrapper.find('.status-visual-stub').exists()).toBe(false)
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(false)
   })

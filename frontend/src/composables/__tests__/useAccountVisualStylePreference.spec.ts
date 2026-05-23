@@ -107,6 +107,25 @@ describe('useAccountVisualStylePreference', () => {
     expect(updatingAccountVisualStyle.value).toBe(false)
   })
 
+  it('keeps the submitted override when a stale profile response contains the previous value', async () => {
+    mockState.updateProfile.mockResolvedValueOnce({
+      ...mockState.user,
+      account_visual_preset_override: 'inherit',
+    })
+
+    const { resolvedAccountVisualPreset, setAccountVisualPresetOverride } =
+      useAccountVisualStylePreference()
+
+    await setAccountVisualPresetOverride('airy')
+
+    expect(mockState.setCurrentUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account_visual_preset_override: 'airy',
+      }),
+    )
+    expect(resolvedAccountVisualPreset.value).toBe('airy')
+  })
+
   it('rolls back to the previous preset override and reports the save error', async () => {
     mockState.updateProfile.mockRejectedValueOnce(new Error('save failed'))
 
