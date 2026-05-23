@@ -10,6 +10,7 @@ import type {
   PaginatedResponse,
   UsageRequestPreviewResponse,
   UsageRequestType,
+  PlatformUsageStat,
 } from '@/types'
 import type { EndpointStat } from '@/types'
 
@@ -42,6 +43,7 @@ export interface AdminUsageStatsResponse {
   endpoints?: EndpointStat[]
   upstream_endpoints?: EndpointStat[]
   endpoint_paths?: EndpointStat[]
+  platform_breakdown?: PlatformUsageStat[]
 }
 
 export interface SimpleUser {
@@ -135,6 +137,7 @@ export async function getStats(params: {
   account_id?: number
   group_id?: number
   channel_id?: number
+  platform?: string | null
   model?: string
   request_type?: UsageRequestType
   stream?: boolean

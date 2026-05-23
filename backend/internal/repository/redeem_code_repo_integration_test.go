@@ -166,6 +166,24 @@ func (s *RedeemCodeRepoSuite) TestListWithFilters_Status() {
 	s.Require().Equal(service.StatusUsed, codes[0].Status)
 }
 
+func (s *RedeemCodeRepoSuite) TestListWithFilters_StatusTreatsNilExpiresAtAsUnused() {
+	expiredAt := time.Now().Add(-time.Hour)
+	s.Require().NoError(s.repo.Create(s.ctx, &service.RedeemCode{Code: "STAT-NIL-EXP", Type: service.RedeemTypeBalance, Value: 0, Status: service.StatusUnused}))
+	s.Require().NoError(s.repo.Create(s.ctx, &service.RedeemCode{Code: "STAT-PAST-EXP", Type: service.RedeemTypeBalance, Value: 0, Status: service.StatusUnused, ExpiresAt: &expiredAt}))
+
+	unused, _, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", service.StatusUnused, "")
+	s.Require().NoError(err)
+	s.Require().Len(unused, 1)
+	s.Require().Equal("STAT-NIL-EXP", unused[0].Code)
+	s.Require().Nil(unused[0].ExpiresAt)
+
+	expired, _, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", service.StatusExpired, "")
+	s.Require().NoError(err)
+	s.Require().Len(expired, 1)
+	s.Require().Equal("STAT-PAST-EXP", expired[0].Code)
+	s.Require().NotNil(expired[0].ExpiresAt)
+}
+
 func (s *RedeemCodeRepoSuite) TestListWithFilters_Search() {
 	s.Require().NoError(s.repo.Create(s.ctx, &service.RedeemCode{Code: "ALPHA-CODE", Type: service.RedeemTypeBalance, Value: 0, Status: service.StatusUnused}))
 	s.Require().NoError(s.repo.Create(s.ctx, &service.RedeemCode{Code: "BETA-CODE", Type: service.RedeemTypeBalance, Value: 0, Status: service.StatusUnused}))

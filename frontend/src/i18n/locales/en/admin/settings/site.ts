@@ -132,12 +132,14 @@ export default {
         moveDown: "Move Down",
     },
     socialOAuth: {
-        title: "GitHub / Google Sign-In",
+        title: "GitHub / Google / DingTalk Sign-In",
         description: "Configure shared social OAuth sign-in entry points while keeping existing registration, maintenance mode, and backend mode rules.",
         githubEnable: "Enable GitHub Sign-In",
         githubEnableHint: "Show the GitHub sign-in button on login and registration pages.",
         googleEnable: "Enable Google Sign-In",
         googleEnableHint: "Show the Google sign-in button on login and registration pages.",
+        dingtalkEnable: "Enable DingTalk Sign-In",
+        dingtalkEnableHint: "Show the DingTalk sign-in button on login and registration pages.",
         clientId: "Client ID",
         clientSecret: "Client Secret",
         redirectUrl: "Redirect URL",
@@ -145,9 +147,12 @@ export default {
         githubClientSecretPlaceholder: "GitHub OAuth App Client Secret",
         googleClientIdPlaceholder: "Google OAuth Client ID",
         googleClientSecretPlaceholder: "Google OAuth Client Secret",
+        dingtalkClientIdPlaceholder: "DingTalk app Client ID",
+        dingtalkClientSecretPlaceholder: "DingTalk app Client Secret",
         clientSecretConfiguredPlaceholder: "Already configured. Leave blank to keep current value.",
         githubRedirectUrlPlaceholder: "https://your-domain.com/api/v1/auth/oauth/github/callback",
-        googleRedirectUrlPlaceholder: "https://your-domain.com/api/v1/auth/oauth/google/callback"
+        googleRedirectUrlPlaceholder: "https://your-domain.com/api/v1/auth/oauth/google/callback",
+        dingtalkRedirectUrlPlaceholder: "https://your-domain.com/api/v1/auth/oauth/dingtalk/callback"
     },
     moderation: {
         title: "Content Moderation Audits",

@@ -196,9 +196,11 @@ func ProvideAuthHandler(
 	redeemService *service.RedeemService,
 	totpService *service.TotpService,
 	authIdentityService *service.AuthIdentityService,
+	userAttributeService *service.UserAttributeService,
 ) *AuthHandler {
 	handler := NewAuthHandler(cfg, authService, userService, settingService, promoService, redeemService, totpService)
 	handler.SetAuthIdentityService(authIdentityService)
+	handler.SetUserAttributeService(userAttributeService)
 	return handler
 }
 

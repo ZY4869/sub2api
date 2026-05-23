@@ -74,6 +74,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyLinuxDoConnectEnabled,
 		SettingKeyGitHubOAuthEnabled,
 		SettingKeyGoogleOAuthEnabled,
+		SettingKeyDingTalkOAuthEnabled,
 		SettingKeyBackendModeEnabled,
 		SettingKeyMaintenanceModeEnabled,
 	}
@@ -89,6 +90,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 	}
 	githubEnabled := settings[SettingKeyGitHubOAuthEnabled] == "true"
 	googleEnabled := settings[SettingKeyGoogleOAuthEnabled] == "true"
+	dingtalkEnabled := settings[SettingKeyDingTalkOAuthEnabled] == "true"
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
 	passwordResetEnabled := emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true"
 	registrationEmailSuffixWhitelist := ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist])
@@ -133,6 +135,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		LinuxDoOAuthEnabled:              linuxDoEnabled,
 		GitHubOAuthEnabled:               githubEnabled,
 		GoogleOAuthEnabled:               googleEnabled,
+		DingTalkOAuthEnabled:             dingtalkEnabled,
 		BackendModeEnabled:               settings[SettingKeyBackendModeEnabled] == "true",
 		MaintenanceModeEnabled:           settings[SettingKeyMaintenanceModeEnabled] == "true",
 	}, nil
@@ -190,6 +193,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		LinuxDoOAuthEnabled              bool                      `json:"linuxdo_oauth_enabled"`
 		GitHubOAuthEnabled               bool                      `json:"github_oauth_enabled"`
 		GoogleOAuthEnabled               bool                      `json:"google_oauth_enabled"`
+		DingTalkOAuthEnabled             bool                      `json:"dingtalk_oauth_enabled"`
 		BackendModeEnabled               bool                      `json:"backend_mode_enabled"`
 		MaintenanceModeEnabled           bool                      `json:"maintenance_mode_enabled"`
 		Version                          string                    `json:"version,omitempty"`
@@ -232,6 +236,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		LinuxDoOAuthEnabled:              settings.LinuxDoOAuthEnabled,
 		GitHubOAuthEnabled:               settings.GitHubOAuthEnabled,
 		GoogleOAuthEnabled:               settings.GoogleOAuthEnabled,
+		DingTalkOAuthEnabled:             settings.DingTalkOAuthEnabled,
 		BackendModeEnabled:               settings.BackendModeEnabled,
 		MaintenanceModeEnabled:           settings.MaintenanceModeEnabled,
 		Version:                          s.version,
@@ -611,6 +616,10 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyGoogleOAuthClientID:                  "",
 		SettingKeyGoogleOAuthClientSecret:              "",
 		SettingKeyGoogleOAuthRedirectURL:               "",
+		SettingKeyDingTalkOAuthEnabled:                 "false",
+		SettingKeyDingTalkOAuthClientID:                "",
+		SettingKeyDingTalkOAuthClientSecret:            "",
+		SettingKeyDingTalkOAuthRedirectURL:             "",
 		SettingKeyContentModerationEnabled:             "false",
 		SettingKeyContentModerationProvider:            "openai",
 		SettingKeyContentModerationBaseURL:             "",
@@ -698,6 +707,11 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.GoogleOAuthRedirectURL = strings.TrimSpace(settings[SettingKeyGoogleOAuthRedirectURL])
 	result.GoogleOAuthClientSecret = strings.TrimSpace(settings[SettingKeyGoogleOAuthClientSecret])
 	result.GoogleOAuthClientSecretConfigured = result.GoogleOAuthClientSecret != ""
+	result.DingTalkOAuthEnabled = settings[SettingKeyDingTalkOAuthEnabled] == "true"
+	result.DingTalkOAuthClientID = strings.TrimSpace(settings[SettingKeyDingTalkOAuthClientID])
+	result.DingTalkOAuthRedirectURL = strings.TrimSpace(settings[SettingKeyDingTalkOAuthRedirectURL])
+	result.DingTalkOAuthClientSecret = strings.TrimSpace(settings[SettingKeyDingTalkOAuthClientSecret])
+	result.DingTalkOAuthClientSecretConfigured = result.DingTalkOAuthClientSecret != ""
 	result.ContentModerationEnabled = settings[SettingKeyContentModerationEnabled] == "true"
 	result.ContentModerationProvider = s.getStringOrDefault(settings, SettingKeyContentModerationProvider, "openai")
 	result.ContentModerationBaseURL = strings.TrimSpace(settings[SettingKeyContentModerationBaseURL])
@@ -1061,6 +1075,8 @@ func (s *SettingService) GetSocialOAuthConfig(ctx context.Context, provider stri
 		keys = []string{SettingKeyGitHubOAuthEnabled, SettingKeyGitHubOAuthClientID, SettingKeyGitHubOAuthClientSecret, SettingKeyGitHubOAuthRedirectURL}
 	case AuthProviderGoogle:
 		keys = []string{SettingKeyGoogleOAuthEnabled, SettingKeyGoogleOAuthClientID, SettingKeyGoogleOAuthClientSecret, SettingKeyGoogleOAuthRedirectURL}
+	case AuthProviderDingTalk:
+		keys = []string{SettingKeyDingTalkOAuthEnabled, SettingKeyDingTalkOAuthClientID, SettingKeyDingTalkOAuthClientSecret, SettingKeyDingTalkOAuthRedirectURL}
 	}
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
@@ -1077,6 +1093,11 @@ func (s *SettingService) GetSocialOAuthConfig(ctx context.Context, provider stri
 		effective.ClientID = strings.TrimSpace(settings[SettingKeyGoogleOAuthClientID])
 		effective.ClientSecret = strings.TrimSpace(settings[SettingKeyGoogleOAuthClientSecret])
 		effective.RedirectURL = strings.TrimSpace(settings[SettingKeyGoogleOAuthRedirectURL])
+	case AuthProviderDingTalk:
+		effective.Enabled = settings[SettingKeyDingTalkOAuthEnabled] == "true"
+		effective.ClientID = strings.TrimSpace(settings[SettingKeyDingTalkOAuthClientID])
+		effective.ClientSecret = strings.TrimSpace(settings[SettingKeyDingTalkOAuthClientSecret])
+		effective.RedirectURL = strings.TrimSpace(settings[SettingKeyDingTalkOAuthRedirectURL])
 	}
 	if !effective.Enabled {
 		return SocialOAuthConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "oauth login is disabled")

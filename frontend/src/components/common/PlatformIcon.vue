@@ -18,7 +18,7 @@ import {
 import LobeStaticIcon from '@/components/common/LobeStaticIcon.vue'
 
 interface Props {
-  platform?: AccountPlatform | GroupPlatform
+  platform?: AccountPlatform | GroupPlatform | string
   size?: 'xs' | 'sm' | 'md' | 'lg'
 }
 

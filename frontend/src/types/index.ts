@@ -151,6 +151,7 @@ export interface PublicSettings {
   linuxdo_oauth_enabled: boolean;
   github_oauth_enabled: boolean;
   google_oauth_enabled: boolean;
+  dingtalk_oauth_enabled: boolean;
   backend_mode_enabled: boolean;
   maintenance_mode_enabled: boolean;
   version: string;
@@ -267,7 +268,7 @@ export interface ContentModerationAudit {
   created_at: string;
 }
 
-export type SocialOAuthProvider = "github" | "google";
+export type SocialOAuthProvider = "github" | "google" | "dingtalk";
 
 export interface SocialOAuthCompleteResponse {
   access_token: string;
@@ -1642,6 +1643,7 @@ export interface RedeemCode {
   used_by: number | null;
   used_at: string | null;
   created_at: string;
+  expires_at?: string | null;
   updated_at?: string;
   group_id?: number | null; // Subscription group bound to this redeem code.
   validity_days?: number; // Subscription validity in days for subscription codes.
@@ -1655,6 +1657,7 @@ export interface GenerateRedeemCodesRequest {
   value: number;
   group_id?: number | null; // Subscription group bound to the generated codes.
   validity_days?: number; // Subscription validity in days for subscription codes.
+  expires_at?: string | null; // Redeem code expiration time, separate from subscription validity.
 }
 
 export interface RedeemCodeRequest {
@@ -1732,6 +1735,21 @@ export interface UsageStatsResponse {
   today_actual_cost_by_currency?: Record<string, number>;
   today_average_duration_ms: number;
   models?: Record<string, number>;
+  platform_breakdown?: PlatformUsageStat[];
+}
+
+export interface PlatformUsageStat {
+  platform: AccountPlatform | GroupPlatform | "unknown" | string;
+  requests: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_tokens: number;
+  total_tokens: number;
+  cost: number;
+  actual_cost: number;
+  cost_by_currency?: Record<string, number>;
+  actual_cost_by_currency?: Record<string, number>;
+  average_duration_ms: number;
 }
 
 // ==================== Trend & Chart Types ====================
@@ -1919,6 +1937,7 @@ export interface UsageQueryParams {
   account_id?: number;
   group_id?: number;
   channel_id?: number;
+  platform?: AccountPlatform | GroupPlatform | string | null;
   model?: string;
   request_type?: UsageRequestType;
   stream?: boolean;

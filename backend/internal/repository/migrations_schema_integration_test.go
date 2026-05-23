@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -63,6 +64,70 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	// redeem_codes: subscription fields
 	requireColumn(t, tx, "redeem_codes", "group_id", "bigint", 0, true)
 	requireColumn(t, tx, "redeem_codes", "validity_days", "integer", 0, false)
+	requireColumn(t, tx, "redeem_codes", "expires_at", "timestamp with time zone", 0, true)
+	requireIndex(t, tx, "redeem_codes", "idx_redeem_codes_expires_at")
+
+	var redeemMigrationChecksum sql.NullString
+	require.NoError(t, tx.QueryRowContext(
+		context.Background(),
+		"SELECT checksum FROM schema_migrations WHERE filename = $1",
+		"119_add_redeem_code_expires_at.sql",
+	).Scan(&redeemMigrationChecksum))
+	require.True(t, redeemMigrationChecksum.Valid, "expected migration 119_add_redeem_code_expires_at.sql to be recorded")
+
+	var legacyRedeemExpiresAt sql.NullTime
+	require.NoError(t, tx.QueryRowContext(
+		context.Background(),
+		`INSERT INTO redeem_codes (code, type, value, status, notes, validity_days)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 RETURNING expires_at`,
+		"MIGRATION-LEGACY-REDEEM",
+		"balance",
+		1,
+		"unused",
+		"",
+		30,
+	).Scan(&legacyRedeemExpiresAt))
+	require.False(t, legacyRedeemExpiresAt.Valid, "legacy redeem codes without expires_at should stay non-expiring after migration")
+
+	// auth_identities: DingTalk OAuth continues to rely on the shared social identity table introduced earlier.
+	requireTable(t, tx, "auth_identities")
+	requireColumn(t, tx, "auth_identities", "provider", "character varying", 32, false)
+	requireColumn(t, tx, "auth_identities", "provider_user_id", "character varying", 255, false)
+	requireColumn(t, tx, "auth_identities", "user_id", "bigint", 0, false)
+	requireColumn(t, tx, "auth_identities", "email", "character varying", 255, false)
+	requireColumn(t, tx, "auth_identities", "email_verified", "boolean", 0, false)
+	requireColumn(t, tx, "auth_identities", "display_name", "character varying", 255, false)
+	requireColumn(t, tx, "auth_identities", "avatar_url", "text", 0, false)
+	requireIndex(t, tx, "auth_identities", "idx_auth_identities_provider_user")
+	requireIndex(t, tx, "auth_identities", "idx_auth_identities_user_provider")
+
+	var authIdentityUserID int64
+	require.NoError(t, tx.QueryRowContext(
+		context.Background(),
+		`INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id`,
+		"dingtalk-auth-identity@example.com",
+		"hash",
+	).Scan(&authIdentityUserID))
+
+	var authIdentityID int64
+	var authIdentityCreatedAt time.Time
+	require.NoError(t, tx.QueryRowContext(
+		context.Background(),
+		`INSERT INTO auth_identities (
+			provider, provider_user_id, user_id, email, email_verified, display_name, avatar_url
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at`,
+		"dingtalk",
+		"ding-unionid-1",
+		authIdentityUserID,
+		"dingtalk-user@example.com",
+		true,
+		"DingTalk User",
+		"https://example.com/avatar.png",
+	).Scan(&authIdentityID, &authIdentityCreatedAt))
+	require.NotZero(t, authIdentityID)
+	require.False(t, authIdentityCreatedAt.IsZero())
 
 	// usage_logs: billing_type used by filters/stats
 	requireColumn(t, tx, "usage_logs", "billing_type", "smallint", 0, false)

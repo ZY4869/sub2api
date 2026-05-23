@@ -44,13 +44,18 @@ const { t, locale } = useI18n()
 
 const amountText = computed(() => {
   if (!props.order) return ''
+  const amount = Number(props.order.amount)
+  const currency = String(props.order.currency || '').trim().toUpperCase()
+  if (!Number.isFinite(amount)) {
+    return currency ? t('purchase.amountUnavailableWithCurrency', { currency }) : t('purchase.amountUnavailable')
+  }
   try {
     return new Intl.NumberFormat(locale.value, {
       style: 'currency',
-      currency: props.order.currency
-    }).format(props.order.amount)
+      currency
+    }).format(amount)
   } catch {
-    return `${props.order.amount.toFixed(2)} ${props.order.currency}`
+    return `${amount.toFixed(2)} ${currency}`
   }
 })
 

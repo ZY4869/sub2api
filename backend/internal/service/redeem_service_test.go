@@ -41,3 +41,20 @@ func TestAppendRedeemSubscriptionNote_AppendsWithNewline(t *testing.T) {
 	got := appendRedeemSubscriptionNote("existing note", "new note")
 	require.Equal(t, "existing note\nnew note", got)
 }
+
+func TestRedeemCodeCanUse_RejectsNaturallyExpiredCode(t *testing.T) {
+	expiresAt := time.Now().Add(-time.Minute)
+	code := &RedeemCode{
+		Status:    StatusUnused,
+		ExpiresAt: &expiresAt,
+	}
+
+	require.False(t, code.CanUse())
+}
+
+func TestRedeemCodeIsExpired_TreatsMissingExpirationAsActive(t *testing.T) {
+	now := time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)
+	code := &RedeemCode{Status: StatusUnused}
+
+	require.False(t, code.IsExpired(now))
+}

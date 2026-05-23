@@ -247,3 +247,25 @@ func TestAdminService_ListRedeemCodes_WithSearch(t *testing.T) {
 		require.Equal(t, "ABC", repo.listWithFiltersSearch)
 	})
 }
+
+func TestAdminService_ListRedeemCodes_WithExpiredStatus(t *testing.T) {
+	t.Run("expired 状态筛选透传到 repository 层", func(t *testing.T) {
+		repo := &redeemRepoStubForAdminList{
+			listWithFiltersCodes:  []RedeemCode{{ID: 8, Code: "EXPIRED-1", Status: StatusExpired}},
+			listWithFiltersResult: &pagination.PaginationResult{Total: 1},
+		}
+		svc := &adminServiceImpl{redeemCodeRepo: repo}
+
+		codes, total, err := svc.ListRedeemCodes(context.Background(), 2, 50, RedeemTypeBalance, StatusExpired, "")
+		require.NoError(t, err)
+		require.Equal(t, int64(1), total)
+		require.Len(t, codes, 1)
+		require.Equal(t, "EXPIRED-1", codes[0].Code)
+
+		require.Equal(t, 1, repo.listWithFiltersCalls)
+		require.Equal(t, pagination.PaginationParams{Page: 2, PageSize: 50}, repo.listWithFiltersParams)
+		require.Equal(t, RedeemTypeBalance, repo.listWithFiltersType)
+		require.Equal(t, StatusExpired, repo.listWithFiltersStatus)
+		require.Equal(t, "", repo.listWithFiltersSearch)
+	})
+}

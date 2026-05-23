@@ -97,6 +97,7 @@ export default {
       continueWithLinuxDo: '使用 Linux.do 登录',
       continueWithGitHub: '使用 GitHub 登录',
       continueWithGoogle: '使用 Google 登录',
+      continueWithDingTalk: '使用钉钉登录',
       orContinue: '或使用邮箱密码继续',
       callbackTitle: '正在完成登录',
       callbackProcessing: '正在验证社交登录信息，请稍候...',

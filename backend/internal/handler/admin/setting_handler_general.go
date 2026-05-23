@@ -56,6 +56,10 @@ type UpdateSettingsRequest struct {
 	GoogleOAuthClientID                  string                           `json:"google_oauth_client_id"`
 	GoogleOAuthClientSecret              string                           `json:"google_oauth_client_secret"`
 	GoogleOAuthRedirectURL               string                           `json:"google_oauth_redirect_url"`
+	DingTalkOAuthEnabled                 bool                             `json:"dingtalk_oauth_enabled"`
+	DingTalkOAuthClientID                string                           `json:"dingtalk_oauth_client_id"`
+	DingTalkOAuthClientSecret            string                           `json:"dingtalk_oauth_client_secret"`
+	DingTalkOAuthRedirectURL             string                           `json:"dingtalk_oauth_redirect_url"`
 	ContentModerationEnabled             bool                             `json:"content_moderation_enabled"`
 	ContentModerationProvider            string                           `json:"content_moderation_provider"`
 	ContentModerationBaseURL             string                           `json:"content_moderation_base_url"`
@@ -251,6 +255,30 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return
 			}
 			req.GoogleOAuthClientSecret = previousSettings.GoogleOAuthClientSecret
+		}
+	}
+	if req.DingTalkOAuthEnabled {
+		req.DingTalkOAuthClientID = strings.TrimSpace(req.DingTalkOAuthClientID)
+		req.DingTalkOAuthClientSecret = strings.TrimSpace(req.DingTalkOAuthClientSecret)
+		req.DingTalkOAuthRedirectURL = strings.TrimSpace(req.DingTalkOAuthRedirectURL)
+		if req.DingTalkOAuthClientID == "" {
+			response.BadRequest(c, "DingTalk Client ID is required when enabled")
+			return
+		}
+		if req.DingTalkOAuthRedirectURL == "" {
+			response.BadRequest(c, "DingTalk Redirect URL is required when enabled")
+			return
+		}
+		if err := config.ValidateAbsoluteHTTPURL(req.DingTalkOAuthRedirectURL); err != nil {
+			response.BadRequest(c, "DingTalk Redirect URL must be an absolute http(s) URL")
+			return
+		}
+		if req.DingTalkOAuthClientSecret == "" {
+			if previousSettings.DingTalkOAuthClientSecret == "" {
+				response.BadRequest(c, "DingTalk Client Secret is required when enabled")
+				return
+			}
+			req.DingTalkOAuthClientSecret = previousSettings.DingTalkOAuthClientSecret
 		}
 	}
 	req.ContentModerationProvider = strings.TrimSpace(req.ContentModerationProvider)
@@ -706,7 +734,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 	}
-	settings := &service.SystemSettings{RegistrationEnabled: req.RegistrationEnabled, EmailVerifyEnabled: req.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: req.PromoCodeEnabled, PasswordResetEnabled: req.PasswordResetEnabled, FrontendURL: req.FrontendURL, InvitationCodeEnabled: req.InvitationCodeEnabled, TotpEnabled: req.TotpEnabled, SMTPHost: req.SMTPHost, SMTPPort: req.SMTPPort, SMTPUsername: req.SMTPUsername, SMTPPassword: req.SMTPPassword, SMTPFrom: req.SMTPFrom, SMTPFromName: req.SMTPFromName, SMTPUseTLS: req.SMTPUseTLS, TelegramChatID: req.TelegramChatID, TelegramBotToken: req.TelegramBotToken, TurnstileEnabled: req.TurnstileEnabled, TurnstileSiteKey: req.TurnstileSiteKey, TurnstileSecretKey: req.TurnstileSecretKey, LinuxDoConnectEnabled: req.LinuxDoConnectEnabled, LinuxDoConnectClientID: req.LinuxDoConnectClientID, LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret, LinuxDoConnectRedirectURL: req.LinuxDoConnectRedirectURL, GitHubOAuthEnabled: req.GitHubOAuthEnabled, GitHubOAuthClientID: req.GitHubOAuthClientID, GitHubOAuthClientSecret: req.GitHubOAuthClientSecret, GitHubOAuthRedirectURL: req.GitHubOAuthRedirectURL, GoogleOAuthEnabled: req.GoogleOAuthEnabled, GoogleOAuthClientID: req.GoogleOAuthClientID, GoogleOAuthClientSecret: req.GoogleOAuthClientSecret, GoogleOAuthRedirectURL: req.GoogleOAuthRedirectURL, ContentModerationEnabled: req.ContentModerationEnabled, ContentModerationProvider: req.ContentModerationProvider, ContentModerationBaseURL: req.ContentModerationBaseURL, ContentModerationAPIKey: req.ContentModerationAPIKey, ContentModerationModel: req.ContentModerationModel, ContentModerationTimeoutMs: req.ContentModerationTimeoutMs, ContentModerationDedupeWindowSeconds: req.ContentModerationDedupeWindowSeconds, ContentModerationFailOpen: func() bool {
+	settings := &service.SystemSettings{RegistrationEnabled: req.RegistrationEnabled, EmailVerifyEnabled: req.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: req.PromoCodeEnabled, PasswordResetEnabled: req.PasswordResetEnabled, FrontendURL: req.FrontendURL, InvitationCodeEnabled: req.InvitationCodeEnabled, TotpEnabled: req.TotpEnabled, SMTPHost: req.SMTPHost, SMTPPort: req.SMTPPort, SMTPUsername: req.SMTPUsername, SMTPPassword: req.SMTPPassword, SMTPFrom: req.SMTPFrom, SMTPFromName: req.SMTPFromName, SMTPUseTLS: req.SMTPUseTLS, TelegramChatID: req.TelegramChatID, TelegramBotToken: req.TelegramBotToken, TurnstileEnabled: req.TurnstileEnabled, TurnstileSiteKey: req.TurnstileSiteKey, TurnstileSecretKey: req.TurnstileSecretKey, LinuxDoConnectEnabled: req.LinuxDoConnectEnabled, LinuxDoConnectClientID: req.LinuxDoConnectClientID, LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret, LinuxDoConnectRedirectURL: req.LinuxDoConnectRedirectURL, GitHubOAuthEnabled: req.GitHubOAuthEnabled, GitHubOAuthClientID: req.GitHubOAuthClientID, GitHubOAuthClientSecret: req.GitHubOAuthClientSecret, GitHubOAuthRedirectURL: req.GitHubOAuthRedirectURL, GoogleOAuthEnabled: req.GoogleOAuthEnabled, GoogleOAuthClientID: req.GoogleOAuthClientID, GoogleOAuthClientSecret: req.GoogleOAuthClientSecret, GoogleOAuthRedirectURL: req.GoogleOAuthRedirectURL, DingTalkOAuthEnabled: req.DingTalkOAuthEnabled, DingTalkOAuthClientID: req.DingTalkOAuthClientID, DingTalkOAuthClientSecret: req.DingTalkOAuthClientSecret, DingTalkOAuthRedirectURL: req.DingTalkOAuthRedirectURL, ContentModerationEnabled: req.ContentModerationEnabled, ContentModerationProvider: req.ContentModerationProvider, ContentModerationBaseURL: req.ContentModerationBaseURL, ContentModerationAPIKey: req.ContentModerationAPIKey, ContentModerationModel: req.ContentModerationModel, ContentModerationTimeoutMs: req.ContentModerationTimeoutMs, ContentModerationDedupeWindowSeconds: req.ContentModerationDedupeWindowSeconds, ContentModerationFailOpen: func() bool {
 		if req.ContentModerationFailOpen != nil {
 			return *req.ContentModerationFailOpen
 		}

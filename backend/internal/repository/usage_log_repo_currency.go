@@ -8,16 +8,20 @@ import (
 )
 
 func queryUsageCostByCurrency(ctx context.Context, q sqlQueryer, whereClause string, args []any) (map[string]float64, map[string]float64, error) {
+	return queryUsageCostByCurrencyFrom(ctx, q, "usage_logs", "", whereClause, args)
+}
+
+func queryUsageCostByCurrencyFrom(ctx context.Context, q sqlQueryer, fromClause, columnPrefix, whereClause string, args []any) (map[string]float64, map[string]float64, error) {
 	query := `
 		SELECT
 			COALESCE(jsonb_object_agg(currency, total_amount), '{}'::jsonb) AS cost_by_currency,
 			COALESCE(jsonb_object_agg(currency, actual_amount), '{}'::jsonb) AS actual_cost_by_currency
 		FROM (
 			SELECT
-				UPPER(COALESCE(NULLIF(TRIM(billing_currency), ''), 'USD')) AS currency,
-				COALESCE(SUM(total_cost), 0) AS total_amount,
-				COALESCE(SUM(actual_cost), 0) AS actual_amount
-			FROM usage_logs
+				UPPER(COALESCE(NULLIF(TRIM(` + columnPrefix + `billing_currency), ''), 'USD')) AS currency,
+				COALESCE(SUM(` + columnPrefix + `total_cost), 0) AS total_amount,
+				COALESCE(SUM(` + columnPrefix + `actual_cost), 0) AS actual_amount
+			FROM ` + fromClause + `
 			` + whereClause + `
 			GROUP BY 1
 		) by_currency

@@ -339,7 +339,9 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - 如果运行时遇到 CNY 价格但暂时无法获得可用汇率，接口会明确返回 `BILLING_FX_RATE_UNAVAILABLE`，而不是静默改扣或错误扣费。
 - 管理端计费定价保存接口在参数非法时仍返回 `400`，并保持 `reason=BILLING_PRICE_INVALID`；如存在字段级校验错误，响应还会附带扁平 `metadata.field_errors.<field_id>`，便于前端直接回填对应输入框。
 - `usage_logs` 和用量列表会返回 `billing_currency`、`total_cost_usd_equivalent`、`actual_cost_usd_equivalent`、`cost_by_currency`、`actual_cost_by_currency`。其中 `total_cost` / `actual_cost` 保留旧字段语义，对非 USD 记录按 USD 等值给旧客户端使用；分币种金额请读取 `*_by_currency`。
+- `/api/v1/usage`、`/api/v1/admin/usage`、`/api/v1/usage/stats`、`/api/v1/admin/usage/stats` 支持 `platform` 查询参数；平台来源按分组平台、账号平台、`unknown` 的顺序归一，不改变既有扣费与配额扣减逻辑。
 - `/api/v1/usage/stats`、`/api/v1/admin/usage/stats`、用户 Dashboard 和管理员 Dashboard 会返回 `cost_by_currency`、`actual_cost_by_currency`；Dashboard 还会返回 `today_cost_by_currency`、`today_actual_cost_by_currency`。
+- `/api/v1/usage/stats`、`/api/v1/admin/usage/stats` 会额外返回 `platform_breakdown[]`，每项包含 `platform`、`requests`、`input_tokens`、`output_tokens`、`cache_tokens`、`total_tokens`、`cost`、`actual_cost`、`average_duration_ms`，用于前台和后台用量页的平台拆分展示。
 - `/api/v1/usage/stats`、`/api/v1/admin/usage/stats` 现在还会额外返回 `today_requests`、`today_input_tokens`、`today_output_tokens`、`today_cache_tokens`、`today_tokens`、`today_cost`、`today_actual_cost`、`today_average_duration_ms`，用于前台和后台“今日统计”卡片。
 - 这些 `today_*` 字段按请求里的 `timezone` 计算“今日”窗口：从调用方所在时区当天 `00:00` 到当前时间；如果 `timezone` 缺失或非法，则回退到服务端默认时区。
 - `/v1/usage` 在钱包模式下会返回 `balances`，格式为 `{ "USD": 10, "CNY": 25 }`；旧 `balance` / `remaining` 仍只代表 USD 钱包影子余额。
@@ -913,9 +915,9 @@ curl "https://api.zyxai.de/api/v1/pages/getting-started"
 - 前端公开入口会把这些文档渲染成 `/legal/:slug` 链接；`/legal/:slug` 只是前端别名路由，最终内容源仍是 `GET /api/v1/pages/:slug`。
 - 这意味着系统不会新增独立“法律文档表”或另一套正文存储；条款页与现有 custom markdown page 共用发布、可见性和正文渲染能力。
 
-### GitHub / Google 快捷登录
+### GitHub / Google / 钉钉快捷登录
 
-除 LinuxDo 之外，站点还支持 GitHub 与 Google 的快捷登录和登录后绑定：
+除 LinuxDo 之外，站点还支持 GitHub、Google 与钉钉的快捷登录和登录后绑定：
 
 - `GET /api/v1/auth/oauth/:provider/start`
 - `GET /api/v1/auth/oauth/:provider/callback`
@@ -925,6 +927,7 @@ curl "https://api.zyxai.de/api/v1/pages/getting-started"
 
 - `github`
 - `google`
+- `dingtalk`
 
 `start` 支持以下查询参数：
 
@@ -938,6 +941,7 @@ curl "https://api.zyxai.de/api/v1/pages/getting-started"
 - provider 邮箱已验证且唯一匹配现有用户时，会自动登录并补齐绑定
 - provider 邮箱未验证时，不能接管现有邮箱账号
 - 邀请码注册开启时，新用户会进入 pending token + `complete` 的补邀请码流程
+- 钉钉 OAuth 默认关闭；只有管理员配置并启用后，公开设置才会返回 `dingtalk_oauth_enabled=true`，前端才展示入口。钉钉回调会优先使用 `unionId/openId` 作为第三方身份 ID，凭证和 token 不会出现在公开设置或用户资料接口中。
 
 #### REST
 ```bash
@@ -948,7 +952,10 @@ curl -I "https://api.zyxai.de/api/v1/auth/oauth/github/start?mode=login&redirect
 curl -I "https://api.zyxai.de/api/v1/auth/oauth/google/start?mode=bind&redirect=%2Fprofile" \
   -H "Authorization: Bearer <USER_JWT>"
 
-# 3) 邀请码补全注册
+# 3) 发起钉钉登录
+curl -I "https://api.zyxai.de/api/v1/auth/oauth/dingtalk/start?mode=login&redirect=%2Fdashboard"
+
+# 4) 邀请码补全注册
 curl -X POST "https://api.zyxai.de/api/v1/auth/oauth/github/complete" \
   -H "Content-Type: application/json" \
   -d '{
@@ -988,6 +995,40 @@ curl "https://api.zyxai.de/api/v1/user/auth-identities" \
 
 curl -X DELETE "https://api.zyxai.de/api/v1/user/auth-identities/github" \
   -H "Authorization: Bearer <USER_JWT>"
+```
+
+### 管理端：兑换码
+
+管理员可以生成、查询、导出和作废兑换码。兑换码自身有效期与订阅兑换后的有效天数是两个独立概念：
+
+- `expires_at`：兑换码本身的过期时间，可选；为空表示兑换码不过期。
+- `validity_days`：仅订阅兑换码使用，表示兑换成功后订阅增加或扣减的天数。
+- 旧兑换码没有 `expires_at` 时按未过期处理。
+- 列表筛选 `status=expired` 会包含手动作废以及自然过期的未使用兑换码；`status=unused` 不包含自然过期码。
+
+主要接口：
+
+- `GET /api/v1/admin/redeem-codes`
+- `POST /api/v1/admin/redeem-codes/generate`
+- `POST /api/v1/admin/redeem-codes/create-and-redeem`
+- `POST /api/v1/admin/redeem-codes/:id/expire`
+- `GET /api/v1/admin/redeem-codes/export`
+
+`expires_at` 接受 RFC3339 时间戳，或 `YYYY-MM-DDTHH:mm`、`YYYY-MM-DD HH:mm:ss`、`YYYY-MM-DD`；传入过去时间会返回统一错误码 `REDEEM_CODE_EXPIRES_AT_INVALID`。兑换已过期的兑换码会返回 `REDEEM_CODE_EXPIRED`。
+
+#### REST
+```bash
+curl -X POST "https://api.zyxai.de/api/v1/admin/redeem-codes/generate" \
+  -H "Authorization: Bearer <ADMIN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "count": 5,
+    "type": "subscription",
+    "value": 10,
+    "group_id": 2,
+    "validity_days": 30,
+    "expires_at": "2026-06-01T08:30:00Z"
+  }'
 ```
 
 ### 管理端：内容审核审计

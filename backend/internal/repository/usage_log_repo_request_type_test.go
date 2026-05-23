@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"testing"
@@ -551,6 +552,7 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 		WithArgs(requestType).
 		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
 			AddRow([]byte(`{"USD":1.2,"CNY":8}`), []byte(`{"USD":1,"CNY":7}`)))
+	expectPlatformBreakdownRows(mock, requestType)
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
@@ -558,6 +560,8 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 	require.Equal(t, int64(9), stats.TotalTokens)
 	require.Equal(t, map[string]float64{"USD": 1.2, "CNY": 8}, stats.CostByCurrency)
 	require.Equal(t, map[string]float64{"USD": 1, "CNY": 7}, stats.ActualCostByCurrency)
+	require.Len(t, stats.PlatformBreakdown, 1)
+	require.Equal(t, service.PlatformOpenAI, stats.PlatformBreakdown[0].Platform)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -592,6 +596,7 @@ func TestUsageLogRepositoryGetStatsWithFilters_UserAndAPIKeyUsesHalfOpenEndTime(
 		WithArgs(int64(42), int64(7), start, end).
 		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
 			AddRow([]byte(`{"USD":1.2}`), []byte(`{"USD":1}`)))
+	expectPlatformBreakdownRows(mock, int64(42), int64(7), start, end)
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
@@ -655,6 +660,7 @@ func TestUsageLogRepositoryGetStatsWithFilters_AlsoAggregatesTodayWindow(t *test
 		WithArgs(int64(42), int64(7), todayStart, todayEnd).
 		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
 			AddRow([]byte(`{"USD":0.5,"CNY":2}`), []byte(`{"USD":0.4,"CNY":1.6}`)))
+	expectPlatformBreakdownRows(mock, int64(42), int64(7), start, end)
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
@@ -671,6 +677,26 @@ func TestUsageLogRepositoryGetStatsWithFilters_AlsoAggregatesTodayWindow(t *test
 	require.Equal(t, map[string]float64{"USD": 0.5, "CNY": 2}, stats.TodayCostByCurrency)
 	require.Equal(t, map[string]float64{"USD": 0.4, "CNY": 1.6}, stats.TodayActualCostByCurrency)
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func expectPlatformBreakdownRows(mock sqlmock.Sqlmock, args ...any) {
+	driverArgs := make([]driver.Value, 0, len(args))
+	for _, arg := range args {
+		driverArgs = append(driverArgs, driver.Value(arg))
+	}
+	mock.ExpectQuery("FROM usage_logs ul LEFT JOIN accounts a ON a.id = ul.account_id LEFT JOIN groups g ON g.id = ul.group_id").
+		WithArgs(driverArgs...).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"platform",
+			"requests",
+			"input_tokens",
+			"output_tokens",
+			"cache_tokens",
+			"total_tokens",
+			"cost",
+			"actual_cost",
+			"average_duration_ms",
+		}).AddRow(service.PlatformOpenAI, int64(1), int64(2), int64(3), int64(4), int64(9), 1.2, 1.0, 20.0))
 }
 
 func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {

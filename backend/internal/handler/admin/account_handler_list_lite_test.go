@@ -118,7 +118,7 @@ func TestAccountHandlerListHonorsLiteResponseContract(t *testing.T) {
 		require.Len(t, item.Groups, 1)
 	})
 
-	t.Run("non-lite response keeps full payload for existing callers", func(t *testing.T) {
+	t.Run("non-lite response redacts sensitive credentials by default", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts", nil)
 		router.ServeHTTP(rec, req)
@@ -129,9 +129,11 @@ func TestAccountHandlerListHonorsLiteResponseContract(t *testing.T) {
 		require.Len(t, resp.Data.Items, 1)
 		item := resp.Data.Items[0]
 		require.False(t, item.ActiveUsageAvailable)
-		require.Contains(t, item.Credentials, "access_token")
-		require.Contains(t, item.Credentials, "refresh_token")
+		require.Equal(t, "__sub2api_credential_redacted__", item.Credentials["access_token"])
+		require.Equal(t, "__sub2api_credential_redacted__", item.Credentials["refresh_token"])
 		require.Contains(t, item.Extra, "api_key")
 		require.Contains(t, item.Extra, "vertex_service_account_json")
+		require.NotContains(t, rec.Body.String(), "secret-access-token")
+		require.NotContains(t, rec.Body.String(), "secret-refresh-token")
 	})
 }

@@ -72,6 +72,12 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	if settings.GoogleOAuthClientSecret != "" {
 		updates[SettingKeyGoogleOAuthClientSecret] = settings.GoogleOAuthClientSecret
 	}
+	updates[SettingKeyDingTalkOAuthEnabled] = strconv.FormatBool(settings.DingTalkOAuthEnabled)
+	updates[SettingKeyDingTalkOAuthClientID] = strings.TrimSpace(settings.DingTalkOAuthClientID)
+	updates[SettingKeyDingTalkOAuthRedirectURL] = strings.TrimSpace(settings.DingTalkOAuthRedirectURL)
+	if strings.TrimSpace(settings.DingTalkOAuthClientSecret) != "" {
+		updates[SettingKeyDingTalkOAuthClientSecret] = strings.TrimSpace(settings.DingTalkOAuthClientSecret)
+	}
 	updates[SettingKeyContentModerationEnabled] = strconv.FormatBool(settings.ContentModerationEnabled)
 	updates[SettingKeyContentModerationProvider] = strings.TrimSpace(settings.ContentModerationProvider)
 	updates[SettingKeyContentModerationBaseURL] = strings.TrimSpace(settings.ContentModerationBaseURL)

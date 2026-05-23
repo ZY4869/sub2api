@@ -1066,6 +1066,60 @@
                 </div>
               </div>
             </div>
+
+            <div class="space-y-5 rounded-2xl border border-gray-100 p-5 dark:border-dark-700">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.settings.socialOAuth.dingtalkEnable') }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.socialOAuth.dingtalkEnableHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.dingtalk_oauth_enabled" />
+              </div>
+
+              <div v-if="form.dingtalk_oauth_enabled" class="grid grid-cols-1 gap-6 border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.socialOAuth.clientId') }}
+                  </label>
+                  <input
+                    v-model="form.dingtalk_oauth_client_id"
+                    type="text"
+                    class="input font-mono text-sm"
+                    :placeholder="t('admin.settings.socialOAuth.dingtalkClientIdPlaceholder')"
+                  />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.socialOAuth.clientSecret') }}
+                  </label>
+                  <input
+                    v-model="form.dingtalk_oauth_client_secret"
+                    type="password"
+                    class="input font-mono text-sm"
+                    :placeholder="
+                      form.dingtalk_oauth_client_secret_configured
+                        ? t('admin.settings.socialOAuth.clientSecretConfiguredPlaceholder')
+                        : t('admin.settings.socialOAuth.dingtalkClientSecretPlaceholder')
+                    "
+                  />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.socialOAuth.redirectUrl') }}
+                  </label>
+                  <input
+                    v-model="form.dingtalk_oauth_redirect_url"
+                    type="url"
+                    class="input font-mono text-sm"
+                    :placeholder="t('admin.settings.socialOAuth.dingtalkRedirectUrlPlaceholder')"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2522,6 +2576,7 @@ type SettingsForm = SystemSettings & {
   linuxdo_connect_client_secret: string
   github_oauth_client_secret: string
   google_oauth_client_secret: string
+  dingtalk_oauth_client_secret: string
   airwallex_api_key: string
   airwallex_webhook_secret: string
   content_moderation_api_key: string
@@ -2620,6 +2675,11 @@ const form = reactive<SettingsForm>({
   google_oauth_client_secret: '',
   google_oauth_client_secret_configured: false,
   google_oauth_redirect_url: '',
+  dingtalk_oauth_enabled: false,
+  dingtalk_oauth_client_id: '',
+  dingtalk_oauth_client_secret: '',
+  dingtalk_oauth_client_secret_configured: false,
+  dingtalk_oauth_redirect_url: '',
   content_moderation_enabled: false,
   content_moderation_provider: 'openai',
   content_moderation_base_url: '',
@@ -2792,6 +2852,7 @@ async function loadSettings() {
     form.linuxdo_connect_client_secret = ''
     form.github_oauth_client_secret = ''
     form.google_oauth_client_secret = ''
+    form.dingtalk_oauth_client_secret = ''
     form.airwallex_api_key = ''
     form.airwallex_webhook_secret = ''
     form.content_moderation_api_key = ''
@@ -3000,6 +3061,10 @@ async function saveSettings() {
       google_oauth_client_id: form.google_oauth_client_id,
       google_oauth_client_secret: form.google_oauth_client_secret || undefined,
       google_oauth_redirect_url: form.google_oauth_redirect_url,
+      dingtalk_oauth_enabled: form.dingtalk_oauth_enabled,
+      dingtalk_oauth_client_id: form.dingtalk_oauth_client_id,
+      dingtalk_oauth_client_secret: form.dingtalk_oauth_client_secret || undefined,
+      dingtalk_oauth_redirect_url: form.dingtalk_oauth_redirect_url,
       content_moderation_enabled: form.content_moderation_enabled,
       content_moderation_provider: form.content_moderation_provider,
       content_moderation_base_url: form.content_moderation_base_url,
@@ -3036,6 +3101,7 @@ async function saveSettings() {
     form.linuxdo_connect_client_secret = ''
     form.github_oauth_client_secret = ''
     form.google_oauth_client_secret = ''
+    form.dingtalk_oauth_client_secret = ''
     form.content_moderation_api_key = ''
     form.delete_content_moderation_api_key_hashes = []
     // Refresh cached settings so sidebar/header update immediately

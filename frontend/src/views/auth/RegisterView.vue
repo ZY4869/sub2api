@@ -18,6 +18,7 @@
         :show-linux-do="linuxdoOAuthEnabled"
         :show-git-hub="githubOAuthEnabled"
         :show-google="googleOAuthEnabled"
+        :show-ding-talk="dingtalkOAuthEnabled"
       />
 
       <AuthMaintenanceNotice v-if="maintenanceModeEnabled && settingsLoaded" show-admin-login-hint />
@@ -371,6 +372,7 @@ const siteName = ref<string>('Sub2API')
 const linuxdoOAuthEnabled = ref<boolean>(false)
 const githubOAuthEnabled = ref<boolean>(false)
 const googleOAuthEnabled = ref<boolean>(false)
+const dingtalkOAuthEnabled = ref<boolean>(false)
 const maintenanceModeEnabled = ref<boolean>(false)
 const socialOAuthVisible = ref<boolean>(false)
 const registrationEmailSuffixWhitelist = ref<string[]>([])
@@ -433,10 +435,14 @@ onMounted(async () => {
     linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled
     githubOAuthEnabled.value = settings.github_oauth_enabled
     googleOAuthEnabled.value = settings.google_oauth_enabled
+    dingtalkOAuthEnabled.value = settings.dingtalk_oauth_enabled
     maintenanceModeEnabled.value = settings.maintenance_mode_enabled
     socialOAuthVisible.value =
       !maintenanceModeEnabled.value &&
-      (linuxdoOAuthEnabled.value || githubOAuthEnabled.value || googleOAuthEnabled.value)
+      (linuxdoOAuthEnabled.value ||
+        githubOAuthEnabled.value ||
+        googleOAuthEnabled.value ||
+        dingtalkOAuthEnabled.value)
     registrationEmailSuffixWhitelist.value = normalizeRegistrationEmailSuffixWhitelist(
       settings.registration_email_suffix_whitelist || []
     )

@@ -20,6 +20,7 @@
         :show-linux-do="linuxdoOAuthEnabled"
         :show-git-hub="githubOAuthEnabled"
         :show-google="googleOAuthEnabled"
+        :show-ding-talk="dingtalkOAuthEnabled"
       />
 
       <!-- Login Form -->
@@ -229,6 +230,7 @@ const turnstileSiteKey = ref<string>('')
 const linuxdoOAuthEnabled = ref<boolean>(false)
 const githubOAuthEnabled = ref<boolean>(false)
 const googleOAuthEnabled = ref<boolean>(false)
+const dingtalkOAuthEnabled = ref<boolean>(false)
 const backendModeEnabled = ref<boolean>(false)
 const maintenanceModeEnabled = ref<boolean>(false)
 const passwordResetEnabled = ref<boolean>(false)
@@ -277,6 +279,7 @@ onMounted(async () => {
     linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled
     githubOAuthEnabled.value = settings.github_oauth_enabled
     googleOAuthEnabled.value = settings.google_oauth_enabled
+    dingtalkOAuthEnabled.value = settings.dingtalk_oauth_enabled
     backendModeEnabled.value = settings.backend_mode_enabled
     maintenanceModeEnabled.value = settings.maintenance_mode_enabled
     passwordResetEnabled.value = settings.password_reset_enabled
@@ -288,7 +291,10 @@ onMounted(async () => {
     socialOAuthVisible.value =
       !backendModeEnabled.value &&
       !maintenanceModeEnabled.value &&
-      (linuxdoOAuthEnabled.value || githubOAuthEnabled.value || googleOAuthEnabled.value)
+      (linuxdoOAuthEnabled.value ||
+        githubOAuthEnabled.value ||
+        googleOAuthEnabled.value ||
+        dingtalkOAuthEnabled.value)
   } catch (error) {
     console.error('Failed to load public settings:', error)
   }

@@ -10,6 +10,7 @@ import (
 
 	"log/slog"
 
+	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -151,7 +152,7 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 			Notes:              acc.Notes,
 			Platform:           acc.Platform,
 			Type:               acc.Type,
-			Credentials:        acc.Credentials,
+			Credentials:        redactExportAccountCredentials(acc.Credentials),
 			Extra:              acc.Extra,
 			ProxyKey:           proxyKey,
 			Concurrency:        acc.Concurrency,
@@ -169,6 +170,14 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 	}
 
 	response.Success(c, payload)
+}
+
+func redactExportAccountCredentials(credentials map[string]any) map[string]any {
+	redacted := dto.RedactAccountCredentials(credentials)
+	if redacted == nil {
+		return map[string]any{}
+	}
+	return redacted
 }
 
 func (h *AccountHandler) ImportData(c *gin.Context) {

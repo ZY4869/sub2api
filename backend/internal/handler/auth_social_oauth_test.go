@@ -41,6 +41,7 @@ func (s *socialOAuthUserRepoStub) Create(ctx context.Context, user *service.User
 	}
 	s.usersByID[clone.ID] = &clone
 	s.usersByEmail[clone.Email] = &clone
+	s.usersByEmail[strings.ToLower(clone.Email)] = &clone
 	return nil
 }
 
@@ -55,6 +56,9 @@ func (s *socialOAuthUserRepoStub) GetByID(ctx context.Context, id int64) (*servi
 
 func (s *socialOAuthUserRepoStub) GetByEmail(ctx context.Context, email string) (*service.User, error) {
 	user, ok := s.usersByEmail[email]
+	if !ok {
+		user, ok = s.usersByEmail[strings.ToLower(strings.TrimSpace(email))]
+	}
 	if !ok {
 		return nil, service.ErrUserNotFound
 	}
@@ -79,6 +83,7 @@ func (s *socialOAuthUserRepoStub) Update(ctx context.Context, user *service.User
 	}
 	s.usersByID[clone.ID] = &clone
 	s.usersByEmail[clone.Email] = &clone
+	s.usersByEmail[strings.ToLower(clone.Email)] = &clone
 	return nil
 }
 
@@ -100,6 +105,9 @@ func (s *socialOAuthUserRepoStub) UpdateConcurrency(ctx context.Context, id int6
 }
 func (s *socialOAuthUserRepoStub) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	_, ok := s.usersByEmail[email]
+	if !ok {
+		_, ok = s.usersByEmail[strings.ToLower(strings.TrimSpace(email))]
+	}
 	return ok, nil
 }
 func (s *socialOAuthUserRepoStub) RemoveGroupFromAllowedGroups(ctx context.Context, groupID int64) (int64, error) {
@@ -347,7 +355,70 @@ func (socialOAuthAffiliateRepoStub) BatchUpdateAffiliateUserCustomRates(ctx cont
 	return 0, nil
 }
 
+type socialOAuthAttributeDefinitionRepoStub struct{}
+
+func (socialOAuthAttributeDefinitionRepoStub) Create(ctx context.Context, def *service.UserAttributeDefinition) error {
+	return nil
+}
+func (socialOAuthAttributeDefinitionRepoStub) GetByID(ctx context.Context, id int64) (*service.UserAttributeDefinition, error) {
+	return nil, service.ErrAttributeDefinitionNotFound
+}
+func (socialOAuthAttributeDefinitionRepoStub) GetByKey(ctx context.Context, key string) (*service.UserAttributeDefinition, error) {
+	if key == "internal_only" {
+		return &service.UserAttributeDefinition{
+			ID:      7,
+			Key:     key,
+			Name:    "Internal only",
+			Type:    service.AttributeTypeText,
+			Enabled: true,
+		}, nil
+	}
+	return nil, service.ErrAttributeDefinitionNotFound
+}
+func (socialOAuthAttributeDefinitionRepoStub) Update(ctx context.Context, def *service.UserAttributeDefinition) error {
+	return nil
+}
+func (socialOAuthAttributeDefinitionRepoStub) Delete(ctx context.Context, id int64) error { return nil }
+func (socialOAuthAttributeDefinitionRepoStub) List(ctx context.Context, enabledOnly bool) ([]service.UserAttributeDefinition, error) {
+	return nil, nil
+}
+func (socialOAuthAttributeDefinitionRepoStub) UpdateDisplayOrders(ctx context.Context, orders map[int64]int) error {
+	return nil
+}
+func (socialOAuthAttributeDefinitionRepoStub) ExistsByKey(ctx context.Context, key string) (bool, error) {
+	return key == "internal_only", nil
+}
+
+type socialOAuthAttributeValueRepoStub struct {
+	updates []service.UpdateUserAttributeInput
+	userIDs []int64
+}
+
+func (s *socialOAuthAttributeValueRepoStub) GetByUserID(ctx context.Context, userID int64) ([]service.UserAttributeValue, error) {
+	return nil, nil
+}
+func (s *socialOAuthAttributeValueRepoStub) GetByUserIDs(ctx context.Context, userIDs []int64) ([]service.UserAttributeValue, error) {
+	return nil, nil
+}
+func (s *socialOAuthAttributeValueRepoStub) UpsertBatch(ctx context.Context, userID int64, values []service.UpdateUserAttributeInput) error {
+	s.userIDs = append(s.userIDs, userID)
+	s.updates = append(s.updates, values...)
+	return nil
+}
+func (s *socialOAuthAttributeValueRepoStub) DeleteByAttributeID(ctx context.Context, attributeID int64) error {
+	return nil
+}
+func (s *socialOAuthAttributeValueRepoStub) DeleteByUserID(ctx context.Context, userID int64) error {
+	return nil
+}
+
 func newSocialOAuthTestHandler(t *testing.T, settings map[string]string) (*AuthHandler, *service.AuthIdentityService, *service.AuthService, *socialOAuthIdentityRepoStub) {
+	t.Helper()
+	handler, identities, authService, repo, _, _ := newSocialOAuthTestHandlerWithAttributes(t, settings)
+	return handler, identities, authService, repo
+}
+
+func newSocialOAuthTestHandlerWithAttributes(t *testing.T, settings map[string]string) (*AuthHandler, *service.AuthIdentityService, *service.AuthService, *socialOAuthIdentityRepoStub, *socialOAuthAttributeValueRepoStub, *socialOAuthUserRepoStub) {
 	t.Helper()
 
 	userRepo := &socialOAuthUserRepoStub{
@@ -357,8 +428,9 @@ func newSocialOAuthTestHandler(t *testing.T, settings map[string]string) (*AuthH
 	}
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
-			Secret:     "social-oauth-handler-test-secret",
-			ExpireHour: 1,
+			Secret:                 "social-oauth-handler-test-secret",
+			ExpireHour:             1,
+			RefreshTokenExpireDays: 7,
 		},
 		Default: config.DefaultConfig{
 			UserBalance:     1,
@@ -387,7 +459,9 @@ func newSocialOAuthTestHandler(t *testing.T, settings map[string]string) (*AuthH
 	userService := service.NewUserService(userRepo, nil, nil)
 	handler := NewAuthHandler(cfg, authService, userService, settingService, nil, nil, nil)
 	handler.SetAuthIdentityService(identities)
-	return handler, identities, authService, repo
+	attrRepo := &socialOAuthAttributeValueRepoStub{}
+	handler.SetUserAttributeService(service.NewUserAttributeService(socialOAuthAttributeDefinitionRepoStub{}, attrRepo))
+	return handler, identities, authService, repo, attrRepo, userRepo
 }
 
 func createPendingOAuthTokenForTest(t *testing.T, secret string, claims map[string]any) string {
@@ -552,6 +626,164 @@ func TestSocialOAuthCallback_RedirectsPendingInvitationFragment(t *testing.T) {
 	require.Equal(t, "/workspace", fragment.Get("redirect"))
 	require.NotEmpty(t, fragment.Get("pending_oauth_token"))
 	require.Empty(t, repo.items)
+}
+
+func TestDingTalkOAuthStartBuildsAuthorizeURLAndCookies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, _, _, _ := newSocialOAuthTestHandler(t, map[string]string{
+		service.SettingKeyDingTalkOAuthEnabled:      "true",
+		service.SettingKeyDingTalkOAuthClientID:     "ding-client-id",
+		service.SettingKeyDingTalkOAuthClientSecret: "ding-client-secret",
+		service.SettingKeyDingTalkOAuthRedirectURL:  "https://api.example.com/api/v1/auth/oauth/dingtalk/callback",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/dingtalk/start?redirect=/profile&mode=login", nil)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	c.Params = gin.Params{{Key: "provider", Value: "dingtalk"}}
+
+	handler.SocialOAuthStart(c)
+
+	require.Equal(t, http.StatusFound, rec.Code)
+	location := rec.Header().Get("Location")
+	parsed, err := url.Parse(location)
+	require.NoError(t, err)
+	require.Equal(t, "login.dingtalk.com", parsed.Host)
+	query := parsed.Query()
+	require.Equal(t, "code", query.Get("response_type"))
+	require.Equal(t, "ding-client-id", query.Get("client_id"))
+	require.Equal(t, "https://api.example.com/api/v1/auth/oauth/dingtalk/callback", query.Get("redirect_uri"))
+	require.Equal(t, "openid", query.Get("scope"))
+	require.NotEmpty(t, query.Get("state"))
+	require.Empty(t, query.Get("code_challenge"), "DingTalk config does not use PKCE")
+
+	require.Contains(t, rec.Header().Values("Set-Cookie")[0], "dingtalk_oauth_state=")
+	require.Contains(t, rec.Header().Get("Set-Cookie"), "Path=/api/v1/auth/oauth/dingtalk")
+}
+
+func TestDingTalkOAuthCallbackLoginSyncsInternalOnly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, _, _, repo, attrRepo, userRepo := newSocialOAuthTestHandlerWithAttributes(t, map[string]string{
+		service.SettingKeyRegistrationEnabled:       "true",
+		service.SettingKeyInvitationCodeEnabled:     "true",
+		service.SettingKeyDingTalkOAuthEnabled:      "true",
+		service.SettingKeyDingTalkOAuthClientID:     "ding-client-id",
+		service.SettingKeyDingTalkOAuthClientSecret: "ding-client-secret",
+		service.SettingKeyDingTalkOAuthRedirectURL:  "https://api.example.com/api/v1/auth/oauth/dingtalk/callback",
+	})
+
+	originalExchange := socialOAuthExchangeCodeFn
+	originalFetch := socialOAuthFetchUserInfoFn
+	t.Cleanup(func() {
+		socialOAuthExchangeCodeFn = originalExchange
+		socialOAuthFetchUserInfoFn = originalFetch
+	})
+
+	socialOAuthExchangeCodeFn = func(_ctx context.Context, cfg service.SocialOAuthConfig, code string, verifier string) (*socialOAuthTokenResponse, error) {
+		require.Equal(t, service.AuthProviderDingTalk, cfg.Provider)
+		require.Equal(t, "ding-code-1", code)
+		require.Empty(t, verifier)
+		return &socialOAuthTokenResponse{AccessToken: "ding-access-token", TokenType: "Bearer", ExpiresIn: 7200}, nil
+	}
+	internalOnly := true
+	socialOAuthFetchUserInfoFn = func(_ctx context.Context, cfg service.SocialOAuthConfig, tokenResp *socialOAuthTokenResponse) (*socialOAuthUserInfo, error) {
+		require.Equal(t, service.AuthProviderDingTalk, cfg.Provider)
+		require.Equal(t, "ding-access-token", tokenResp.AccessToken)
+		return &socialOAuthUserInfo{
+			ProviderUserID: "ding-union-1",
+			Email:          "ding@example.com",
+			EmailVerified:  true,
+			DisplayName:    "Ding User",
+			AvatarURL:      "https://example.com/ding.png",
+			InternalOnly:   &internalOnly,
+		}, nil
+	}
+	require.NoError(t, userRepo.Create(context.Background(), &service.User{
+		ID:       100,
+		Email:    "ding@example.com",
+		Username: "ding-user",
+		Role:     service.RoleUser,
+		Status:   service.StatusActive,
+	}))
+	repo.items = append(repo.items, &service.AuthIdentity{
+		ID:             1,
+		Provider:       service.AuthProviderDingTalk,
+		ProviderUserID: "ding-union-1",
+		UserID:         100,
+		Email:          "ding@example.com",
+		EmailVerified:  true,
+		DisplayName:    "Ding User",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/dingtalk/callback?code=ding-code-1&state=state-1", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  socialOAuthStateCookieName(service.AuthProviderDingTalk),
+		Value: encodeCookieValue("state-1"),
+		Path:  socialOAuthCookiePath(service.AuthProviderDingTalk),
+	})
+	req.AddCookie(&http.Cookie{
+		Name:  socialOAuthRedirectCookieName(service.AuthProviderDingTalk),
+		Value: encodeCookieValue("/workspace"),
+		Path:  socialOAuthCookiePath(service.AuthProviderDingTalk),
+	})
+	req.AddCookie(&http.Cookie{
+		Name:  socialOAuthModeCookieName(service.AuthProviderDingTalk),
+		Value: encodeCookieValue("login"),
+		Path:  socialOAuthCookiePath(service.AuthProviderDingTalk),
+	})
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	c.Params = gin.Params{{Key: "provider", Value: "dingtalk"}}
+
+	handler.SocialOAuthCallback(c)
+
+	require.Equal(t, http.StatusFound, rec.Code)
+	location := rec.Header().Get("Location")
+	parsed, err := url.Parse(location)
+	require.NoError(t, err)
+	fragment, err := url.ParseQuery(parsed.Fragment)
+	require.NoError(t, err)
+	require.Empty(t, fragment.Get("error"))
+	require.NotEmpty(t, fragment.Get("access_token"))
+	require.Equal(t, service.AuthProviderDingTalk, fragment.Get("provider"))
+
+	require.Len(t, attrRepo.updates, 1)
+	require.Len(t, attrRepo.userIDs, 1)
+	require.Equal(t, int64(100), attrRepo.userIDs[0])
+	require.Equal(t, int64(7), attrRepo.updates[0].AttributeID)
+	require.Equal(t, "true", attrRepo.updates[0].Value)
+}
+
+func TestCompleteDingTalkOAuthRegistrationProviderMismatch(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, _, _, _ := newSocialOAuthTestHandler(t, map[string]string{
+		service.SettingKeyRegistrationEnabled: "true",
+	})
+	pendingToken := createPendingOAuthTokenForTest(t, "social-oauth-handler-test-secret", map[string]any{
+		"email":            "ding@example.com",
+		"username":         "ding-user",
+		"provider":         service.AuthProviderDingTalk,
+		"provider_user_id": "ding-union-1",
+		"email_verified":   true,
+	})
+
+	body := bytes.NewBufferString(`{"pending_oauth_token":"` + pendingToken + `","invitation_code":"invite-1"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/github/complete", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	c.Params = gin.Params{{Key: "provider", Value: "github"}}
+
+	handler.CompleteSocialOAuthRegistration(c)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "OAUTH_PROVIDER_MISMATCH")
 }
 
 func anyString(value any) string {

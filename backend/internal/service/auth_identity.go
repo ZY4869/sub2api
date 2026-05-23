@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	AuthProviderGitHub = "github"
-	AuthProviderGoogle = "google"
+	AuthProviderGitHub   = "github"
+	AuthProviderGoogle   = "google"
+	AuthProviderDingTalk = "dingtalk"
 )
 
 var (
@@ -94,6 +95,8 @@ func NormalizeOAuthProvider(provider string) string {
 		return AuthProviderGitHub
 	case AuthProviderGoogle:
 		return AuthProviderGoogle
+	case AuthProviderDingTalk:
+		return AuthProviderDingTalk
 	default:
 		return ""
 	}

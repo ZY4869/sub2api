@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -198,6 +199,27 @@ func (s *UserAttributeService) UpdateUserAttributes(ctx context.Context, userID 
 	}
 
 	return s.valueRepo.UpsertBatch(ctx, userID, inputs)
+}
+
+// SetUserAttributeByKey updates a single enabled attribute when the definition exists.
+func (s *UserAttributeService) SetUserAttributeByKey(ctx context.Context, userID int64, key string, value string) error {
+	if s == nil || s.defRepo == nil || s.valueRepo == nil || userID <= 0 {
+		return nil
+	}
+	def, err := s.defRepo.GetByKey(ctx, strings.TrimSpace(key))
+	if err != nil {
+		if errors.Is(err, ErrAttributeDefinitionNotFound) {
+			return nil
+		}
+		return err
+	}
+	if def == nil || !def.Enabled {
+		return nil
+	}
+	if err := s.validateValue(def, value); err != nil {
+		return err
+	}
+	return s.valueRepo.UpsertBatch(ctx, userID, []UpdateUserAttributeInput{{AttributeID: def.ID, Value: value}})
 }
 
 // validateValue validates a value against its definition

@@ -28,6 +28,8 @@ export default {
     orderFailed: 'Order creation or status refresh failed. Check your input and retry, or contact support with the time of the error.',
     orderStatus: 'Order status',
     amount: 'Amount',
+    amountUnavailable: 'Amount pending confirmation',
+    amountUnavailableWithCurrency: 'Amount pending confirmation ({currency})',
     provider: 'Provider',
     currencyUnavailable: 'Unavailable in this currency',
     airwallexElement: 'Airwallex payment element',

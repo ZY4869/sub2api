@@ -29,6 +29,7 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetValidityDays(code.ValidityDays).
 		SetNillableUsedBy(code.UsedBy).
 		SetNillableUsedAt(code.UsedAt).
+		SetNillableExpiresAt(code.ExpiresAt).
 		SetNillableGroupID(code.GroupID).
 		Save(ctx)
 	if err == nil {
@@ -55,6 +56,7 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 			SetValidityDays(c.ValidityDays).
 			SetNillableUsedBy(c.UsedBy).
 			SetNillableUsedAt(c.UsedAt).
+			SetNillableExpiresAt(c.ExpiresAt).
 			SetNillableGroupID(c.GroupID)
 		builders = append(builders, b)
 	}
@@ -104,7 +106,28 @@ func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagin
 		q = q.Where(redeemcode.TypeEQ(codeType))
 	}
 	if status != "" {
-		q = q.Where(redeemcode.StatusEQ(status))
+		now := time.Now()
+		switch status {
+		case service.StatusExpired:
+			q = q.Where(redeemcode.Or(
+				redeemcode.StatusEQ(service.StatusExpired),
+				redeemcode.And(
+					redeemcode.StatusEQ(service.StatusUnused),
+					redeemcode.ExpiresAtNotNil(),
+					redeemcode.ExpiresAtLTE(now),
+				),
+			))
+		case service.StatusUnused:
+			q = q.Where(
+				redeemcode.StatusEQ(service.StatusUnused),
+				redeemcode.Or(
+					redeemcode.ExpiresAtIsNil(),
+					redeemcode.ExpiresAtGT(now),
+				),
+			)
+		default:
+			q = q.Where(redeemcode.StatusEQ(status))
+		}
 	}
 	if search != "" {
 		q = q.Where(
@@ -155,6 +178,11 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 	} else {
 		up.ClearUsedAt()
 	}
+	if code.ExpiresAt != nil {
+		up.SetExpiresAt(*code.ExpiresAt)
+	} else {
+		up.ClearExpiresAt()
+	}
 	if code.GroupID != nil {
 		up.SetGroupID(*code.GroupID)
 	} else {
@@ -176,7 +204,14 @@ func (r *redeemCodeRepository) Use(ctx context.Context, id, userID int64) error 
 	now := time.Now()
 	client := clientFromContext(ctx, r.client)
 	affected, err := client.RedeemCode.Update().
-		Where(redeemcode.IDEQ(id), redeemcode.StatusEQ(service.StatusUnused)).
+		Where(
+			redeemcode.IDEQ(id),
+			redeemcode.StatusEQ(service.StatusUnused),
+			redeemcode.Or(
+				redeemcode.ExpiresAtIsNil(),
+				redeemcode.ExpiresAtGT(now),
+			),
+		).
 		SetStatus(service.StatusUsed).
 		SetUsedBy(userID).
 		SetUsedAt(now).
@@ -185,6 +220,10 @@ func (r *redeemCodeRepository) Use(ctx context.Context, id, userID int64) error 
 		return err
 	}
 	if affected == 0 {
+		existing, getErr := client.RedeemCode.Query().Where(redeemcode.IDEQ(id)).Only(ctx)
+		if getErr == nil && existing.ExpiresAt != nil && !existing.ExpiresAt.After(now) && existing.Status == service.StatusUnused {
+			return service.ErrRedeemCodeExpired
+		}
 		return service.ErrRedeemCodeUsed
 	}
 	return nil
@@ -273,6 +312,7 @@ func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
 		UsedAt:       m.UsedAt,
 		Notes:        derefString(m.Notes),
 		CreatedAt:    m.CreatedAt,
+		ExpiresAt:    m.ExpiresAt,
 		GroupID:      m.GroupID,
 		ValidityDays: m.ValidityDays,
 	}

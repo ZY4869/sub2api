@@ -430,6 +430,7 @@ export const useAppStore = defineStore("app", () => {
         linuxdo_oauth_enabled: false,
         github_oauth_enabled: false,
         google_oauth_enabled: false,
+        dingtalk_oauth_enabled: false,
         backend_mode_enabled: false,
         maintenance_mode_enabled: false,
         version: siteVersion.value,

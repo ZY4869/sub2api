@@ -34,9 +34,10 @@ export default {
     passwordChangeFailed: 'Failed to change password',
     identities: {
       title: 'Third-Party Identities',
-      description: 'Manage linked GitHub and Google sign-in identities.',
+      description: 'Manage linked GitHub, Google, and DingTalk sign-in identities.',
       bindGitHub: 'Bind GitHub',
       bindGoogle: 'Bind Google',
+      bindDingTalk: 'Bind DingTalk',
       verified: 'Verified Email',
       unverified: 'Email Unverified',
       empty: 'No third-party identities are linked yet.',

@@ -57,7 +57,11 @@ func (r *usageLogRepository) ListByModelAndTimeRange(ctx context.Context, modelN
 	return logs, nil, err
 }
 func (r *usageLogRepository) listUsageLogsWithPagination(ctx context.Context, whereClause string, args []any, params pagination.PaginationParams) ([]service.UsageLog, *pagination.PaginationResult, error) {
-	countQuery := "SELECT COUNT(*) FROM usage_logs " + whereClause
+	return r.listUsageLogsFromWithPagination(ctx, "usage_logs", "", whereClause, args, params)
+}
+
+func (r *usageLogRepository) listUsageLogsFromWithPagination(ctx context.Context, fromClause, columnPrefix, whereClause string, args []any, params pagination.PaginationParams) ([]service.UsageLog, *pagination.PaginationResult, error) {
+	countQuery := "SELECT COUNT(*) FROM " + fromClause + " " + whereClause
 	var total int64
 	if err := scanSingleRow(ctx, r.sql, countQuery, args, &total); err != nil {
 		return nil, nil, err
@@ -65,20 +69,20 @@ func (r *usageLogRepository) listUsageLogsWithPagination(ctx context.Context, wh
 	limitPos := len(args) + 1
 	offsetPos := len(args) + 2
 	listArgs := append(append([]any{}, args...), params.Limit(), params.Offset())
-	query := fmt.Sprintf("SELECT %s FROM usage_logs %s ORDER BY id DESC LIMIT $%d OFFSET $%d", usageLogSelectColumns, whereClause, limitPos, offsetPos)
+	query := fmt.Sprintf("SELECT %s FROM %s %s ORDER BY %sid DESC LIMIT $%d OFFSET $%d", usageLogSelectColumnsWithPrefix(columnPrefix), fromClause, whereClause, columnPrefix, limitPos, offsetPos)
 	logs, err := r.queryUsageLogs(ctx, query, listArgs...)
 	if err != nil {
 		return nil, nil, err
 	}
 	return logs, paginationResultFromTotal(total, params), nil
 }
-func (r *usageLogRepository) listUsageLogsWithFastPagination(ctx context.Context, whereClause string, args []any, params pagination.PaginationParams) ([]service.UsageLog, *pagination.PaginationResult, error) {
+func (r *usageLogRepository) listUsageLogsFromWithFastPagination(ctx context.Context, fromClause, columnPrefix, whereClause string, args []any, params pagination.PaginationParams) ([]service.UsageLog, *pagination.PaginationResult, error) {
 	limit := params.Limit()
 	offset := params.Offset()
 	limitPos := len(args) + 1
 	offsetPos := len(args) + 2
 	listArgs := append(append([]any{}, args...), limit+1, offset)
-	query := fmt.Sprintf("SELECT %s FROM usage_logs %s ORDER BY id DESC LIMIT $%d OFFSET $%d", usageLogSelectColumns, whereClause, limitPos, offsetPos)
+	query := fmt.Sprintf("SELECT %s FROM %s %s ORDER BY %sid DESC LIMIT $%d OFFSET $%d", usageLogSelectColumnsWithPrefix(columnPrefix), fromClause, whereClause, columnPrefix, limitPos, offsetPos)
 	logs, err := r.queryUsageLogs(ctx, query, listArgs...)
 	if err != nil {
 		return nil, nil, err

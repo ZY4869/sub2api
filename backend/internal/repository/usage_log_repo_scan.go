@@ -253,15 +253,15 @@ func buildWhere(conditions []string) string {
 	}
 	return "WHERE " + strings.Join(conditions, " AND ")
 }
-func appendRequestTypeOrStreamWhereCondition(conditions []string, args []any, requestType *int16, stream *bool) ([]string, []any) {
+func appendRequestTypeOrStreamWhereConditionWithPrefix(conditions []string, args []any, prefix string, requestType *int16, stream *bool) ([]string, []any) {
 	if requestType != nil {
-		condition, conditionArgs := buildRequestTypeFilterCondition(len(args)+1, *requestType)
+		condition, conditionArgs := buildRequestTypeFilterConditionForColumn(len(args)+1, prefix+"request_type", prefix+"stream", prefix+"openai_ws_mode", *requestType)
 		conditions = append(conditions, condition)
 		args = append(args, conditionArgs...)
 		return conditions, args
 	}
 	if stream != nil {
-		conditions = append(conditions, fmt.Sprintf("stream = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%sstream = $%d", prefix, len(args)+1))
 		args = append(args, *stream)
 	}
 	return conditions, args
@@ -280,17 +280,21 @@ func appendRequestTypeOrStreamQueryFilter(query string, args []any, requestType 
 	return query, args
 }
 func buildRequestTypeFilterCondition(startArgIndex int, requestType int16) (string, []any) {
+	return buildRequestTypeFilterConditionForColumn(startArgIndex, "request_type", "stream", "openai_ws_mode", requestType)
+}
+
+func buildRequestTypeFilterConditionForColumn(startArgIndex int, requestTypeColumn, streamColumn, wsModeColumn string, requestType int16) (string, []any) {
 	normalized := service.RequestTypeFromInt16(requestType)
 	requestTypeArg := int16(normalized)
 	switch normalized {
 	case service.RequestTypeSync:
-		return fmt.Sprintf("(request_type = $%d OR (request_type = %d AND stream = FALSE AND openai_ws_mode = FALSE))", startArgIndex, int16(service.RequestTypeUnknown)), []any{requestTypeArg}
+		return fmt.Sprintf("(%s = $%d OR (%s = %d AND %s = FALSE AND %s = FALSE))", requestTypeColumn, startArgIndex, requestTypeColumn, int16(service.RequestTypeUnknown), streamColumn, wsModeColumn), []any{requestTypeArg}
 	case service.RequestTypeStream:
-		return fmt.Sprintf("(request_type = $%d OR (request_type = %d AND stream = TRUE AND openai_ws_mode = FALSE))", startArgIndex, int16(service.RequestTypeUnknown)), []any{requestTypeArg}
+		return fmt.Sprintf("(%s = $%d OR (%s = %d AND %s = TRUE AND %s = FALSE))", requestTypeColumn, startArgIndex, requestTypeColumn, int16(service.RequestTypeUnknown), streamColumn, wsModeColumn), []any{requestTypeArg}
 	case service.RequestTypeWSV2:
-		return fmt.Sprintf("(request_type = $%d OR (request_type = %d AND openai_ws_mode = TRUE))", startArgIndex, int16(service.RequestTypeUnknown)), []any{requestTypeArg}
+		return fmt.Sprintf("(%s = $%d OR (%s = %d AND %s = TRUE))", requestTypeColumn, startArgIndex, requestTypeColumn, int16(service.RequestTypeUnknown), wsModeColumn), []any{requestTypeArg}
 	default:
-		return fmt.Sprintf("request_type = $%d", startArgIndex), []any{requestTypeArg}
+		return fmt.Sprintf("%s = $%d", requestTypeColumn, startArgIndex), []any{requestTypeArg}
 	}
 }
 func nullInt64(v *int64) sql.NullInt64 {

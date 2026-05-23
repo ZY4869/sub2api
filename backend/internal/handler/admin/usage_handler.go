@@ -135,6 +135,7 @@ func (h *UsageHandler) List(c *gin.Context) {
 	}
 
 	model := c.Query("model")
+	platform := strings.TrimSpace(c.Query("platform"))
 
 	var requestType *int16
 	var stream *bool
@@ -196,6 +197,7 @@ func (h *UsageHandler) List(c *gin.Context) {
 		AccountID:   accountID,
 		GroupID:     groupID,
 		ChannelID:   channelID,
+		Platform:    platform,
 		Model:       model,
 		RequestType: requestType,
 		Stream:      stream,
@@ -305,6 +307,7 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 	}
 
 	model := c.Query("model")
+	platform := strings.TrimSpace(c.Query("platform"))
 
 	var requestType *int16
 	var stream *bool
@@ -382,6 +385,7 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 		AccountID:   accountID,
 		GroupID:     groupID,
 		ChannelID:   channelID,
+		Platform:    platform,
 		Model:       model,
 		RequestType: requestType,
 		Stream:      stream,

@@ -73,6 +73,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		LinuxDoOAuthEnabled:              settings.LinuxDoOAuthEnabled,
 		GitHubOAuthEnabled:               settings.GitHubOAuthEnabled,
 		GoogleOAuthEnabled:               settings.GoogleOAuthEnabled,
+		DingTalkOAuthEnabled:             settings.DingTalkOAuthEnabled,
 		BackendModeEnabled:               settings.BackendModeEnabled,
 		MaintenanceModeEnabled:           settings.MaintenanceModeEnabled,
 		Version:                          h.version,

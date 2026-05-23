@@ -27,4 +27,15 @@ describe('redeem API', () => {
       validity_days: -7,
     })
   })
+
+  it('passes redeem code expiration through to the backend', async () => {
+    await generate(1, 'balance', 5, null, undefined, '2026-06-01T08:30')
+
+    expect(mockPost).toHaveBeenCalledWith('/admin/redeem-codes/generate', {
+      count: 1,
+      type: 'balance',
+      value: 5,
+      expires_at: '2026-06-01T08:30',
+    })
+  })
 })

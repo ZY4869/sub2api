@@ -78,6 +78,19 @@ func TestUserUsageListRequestTypePriority(t *testing.T) {
 	require.Nil(t, repo.listFilters.Stream)
 }
 
+func TestUserUsageListPassesPlatform(t *testing.T) {
+	repo := &userUsageRepoCapture{}
+	router := newUserUsageRequestTypeTestRouter(repo, &userUsageAPIKeyRepoStub{})
+
+	req := httptest.NewRequest(http.MethodGet, "/usage?platform=gemini", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(42), repo.listFilters.UserID)
+	require.Equal(t, "gemini", repo.listFilters.Platform)
+}
+
 func TestUserUsageListInvalidRequestType(t *testing.T) {
 	repo := &userUsageRepoCapture{}
 	router := newUserUsageRequestTypeTestRouter(repo, &userUsageAPIKeyRepoStub{})
@@ -120,6 +133,19 @@ func TestUserUsageStatsFiltersByUserAndAPIKey(t *testing.T) {
 	require.Equal(t, int64(7), repo.statsFilters.APIKeyID)
 	require.NotNil(t, repo.statsFilters.StartTime)
 	require.NotNil(t, repo.statsFilters.EndTime)
+}
+
+func TestUserUsageStatsPassesPlatform(t *testing.T) {
+	repo := &userUsageRepoCapture{}
+	router := newUserUsageRequestTypeTestRouter(repo, &userUsageAPIKeyRepoStub{})
+
+	req := httptest.NewRequest(http.MethodGet, "/usage/stats?platform=openai", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(42), repo.statsFilters.UserID)
+	require.Equal(t, "openai", repo.statsFilters.Platform)
 }
 
 func TestUserUsageStatsInvalidAPIKeyID(t *testing.T) {

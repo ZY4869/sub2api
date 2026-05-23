@@ -94,6 +94,10 @@ type SystemSettings struct {
 	GoogleOAuthClientID                  string                          `json:"google_oauth_client_id"`
 	GoogleOAuthClientSecretConfigured    bool                            `json:"google_oauth_client_secret_configured"`
 	GoogleOAuthRedirectURL               string                          `json:"google_oauth_redirect_url"`
+	DingTalkOAuthEnabled                 bool                            `json:"dingtalk_oauth_enabled"`
+	DingTalkOAuthClientID                string                          `json:"dingtalk_oauth_client_id"`
+	DingTalkOAuthClientSecretConfigured  bool                            `json:"dingtalk_oauth_client_secret_configured"`
+	DingTalkOAuthRedirectURL             string                          `json:"dingtalk_oauth_redirect_url"`
 	ContentModerationEnabled             bool                            `json:"content_moderation_enabled"`
 	ContentModerationProvider            string                          `json:"content_moderation_provider"`
 	ContentModerationBaseURL             string                          `json:"content_moderation_base_url"`
@@ -237,6 +241,7 @@ type PublicSettings struct {
 	LinuxDoOAuthEnabled              bool                      `json:"linuxdo_oauth_enabled"`
 	GitHubOAuthEnabled               bool                      `json:"github_oauth_enabled"`
 	GoogleOAuthEnabled               bool                      `json:"google_oauth_enabled"`
+	DingTalkOAuthEnabled             bool                      `json:"dingtalk_oauth_enabled"`
 	BackendModeEnabled               bool                      `json:"backend_mode_enabled"`
 	MaintenanceModeEnabled           bool                      `json:"maintenance_mode_enabled"`
 	Version                          string                    `json:"version"`

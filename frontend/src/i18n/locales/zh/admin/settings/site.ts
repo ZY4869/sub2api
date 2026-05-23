@@ -132,12 +132,14 @@ export default {
         moveDown: "下移",
     },
     socialOAuth: {
-        title: "GitHub / Google 快捷登录",
+        title: "GitHub / Google / 钉钉快捷登录",
         description: "配置通用社交 OAuth 登录入口，复用现有注册、维护模式和后端模式约束。",
         githubEnable: "启用 GitHub 登录",
         githubEnableHint: "在登录页和注册页展示 GitHub 快捷登录入口。",
         googleEnable: "启用 Google 登录",
         googleEnableHint: "在登录页和注册页展示 Google 快捷登录入口。",
+        dingtalkEnable: "启用钉钉登录",
+        dingtalkEnableHint: "在登录页和注册页展示钉钉快捷登录入口。",
         clientId: "Client ID",
         clientSecret: "Client Secret",
         redirectUrl: "回调地址",
@@ -145,9 +147,12 @@ export default {
         githubClientSecretPlaceholder: "GitHub OAuth App Client Secret",
         googleClientIdPlaceholder: "Google OAuth Client ID",
         googleClientSecretPlaceholder: "Google OAuth Client Secret",
+        dingtalkClientIdPlaceholder: "钉钉应用 Client ID",
+        dingtalkClientSecretPlaceholder: "钉钉应用 Client Secret",
         clientSecretConfiguredPlaceholder: "已配置，留空则保持不变",
         githubRedirectUrlPlaceholder: "https://your-domain.com/api/v1/auth/oauth/github/callback",
-        googleRedirectUrlPlaceholder: "https://your-domain.com/api/v1/auth/oauth/google/callback"
+        googleRedirectUrlPlaceholder: "https://your-domain.com/api/v1/auth/oauth/google/callback",
+        dingtalkRedirectUrlPlaceholder: "https://your-domain.com/api/v1/auth/oauth/dingtalk/callback"
     },
     moderation: {
         title: "内容审核审计",

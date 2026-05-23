@@ -624,6 +624,7 @@ const resetFilters = () => {
   filters.value = {
     start_date: startDate.value,
     end_date: endDate.value,
+    platform: undefined,
     channel_id: undefined,
     request_type: undefined,
     billing_type: null,

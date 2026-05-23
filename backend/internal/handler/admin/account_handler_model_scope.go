@@ -89,3 +89,25 @@ func stringifyModelMapping(mapping map[string]string) map[string]any {
 	}
 	return result
 }
+
+func mergeMaskedAccountCredentials(existing map[string]any, incoming map[string]any) map[string]any {
+	if incoming == nil {
+		return nil
+	}
+	merged := cloneStringAnyMap(incoming)
+	if merged == nil {
+		return map[string]any{}
+	}
+	for key, value := range merged {
+		text, ok := value.(string)
+		if !ok || text != "__sub2api_credential_redacted__" {
+			continue
+		}
+		if existingValue, exists := existing[key]; exists {
+			merged[key] = existingValue
+			continue
+		}
+		delete(merged, key)
+	}
+	return merged
+}

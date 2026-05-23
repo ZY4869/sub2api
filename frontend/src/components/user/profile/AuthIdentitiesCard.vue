@@ -43,6 +43,22 @@
           />
           {{ t('profile.identities.bindGoogle') }}
         </button>
+        <button
+          v-if="dingtalkEnabled"
+          type="button"
+          class="btn btn-secondary btn-sm inline-flex items-center"
+          @click="startBind('dingtalk')"
+        >
+          <LobeStaticIcon
+            class="mr-2"
+            :sources="dingtalkIconSources"
+            badge-text="DT"
+            size="18px"
+            variant="platform"
+            alt="DingTalk"
+          />
+          {{ t('profile.identities.bindDingTalk') }}
+        </button>
       </div>
 
       <div v-if="loading" class="text-sm text-gray-500 dark:text-gray-400">
@@ -120,6 +136,7 @@ defineProps<{
   loading?: boolean
   githubEnabled?: boolean
   googleEnabled?: boolean
+  dingtalkEnabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -130,6 +147,7 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const githubIconSources = buildLobeIconSources(resolveProviderIconSlugs('github'))
 const googleIconSources = buildLobeIconSources(resolveProviderIconSlugs('google'))
+const dingtalkIconSources = buildLobeIconSources(resolveProviderIconSlugs('dingtalk'))
 
 function providerLabel(provider: string): string {
   switch (provider) {
@@ -137,6 +155,8 @@ function providerLabel(provider: string): string {
       return 'GitHub'
     case 'google':
       return 'Google'
+    case 'dingtalk':
+      return 'DingTalk'
     default:
       return provider
   }
@@ -148,6 +168,8 @@ function providerBadge(provider: string): string {
       return 'GH'
     case 'google':
       return 'GO'
+    case 'dingtalk':
+      return 'DT'
     default:
       return resolveLobeBadgeText(provider)
   }

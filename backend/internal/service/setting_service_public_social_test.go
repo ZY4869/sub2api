@@ -13,8 +13,9 @@ import (
 func TestSettingService_GetPublicSettings_ExposesSocialOAuthFlags(t *testing.T) {
 	repo := &settingPublicRepoStub{
 		values: map[string]string{
-			SettingKeyGitHubOAuthEnabled: "true",
-			SettingKeyGoogleOAuthEnabled: "true",
+			SettingKeyGitHubOAuthEnabled:   "true",
+			SettingKeyGoogleOAuthEnabled:   "true",
+			SettingKeyDingTalkOAuthEnabled: "true",
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})
@@ -23,4 +24,5 @@ func TestSettingService_GetPublicSettings_ExposesSocialOAuthFlags(t *testing.T) 
 	require.NoError(t, err)
 	require.True(t, settings.GitHubOAuthEnabled)
 	require.True(t, settings.GoogleOAuthEnabled)
+	require.True(t, settings.DingTalkOAuthEnabled)
 }

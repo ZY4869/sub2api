@@ -20,6 +20,39 @@
                 />
               </div>
 
+              <div class="min-w-[180px]">
+                <label class="input-label">{{ t("usage.platform") }}</label>
+                <Select
+                  v-model="filters.platform"
+                  :options="platformOptions"
+                  :placeholder="t('usage.allPlatforms')"
+                  @change="applyFilters"
+                >
+                  <template #selected="{ option }">
+                    <span class="flex min-w-0 items-center gap-2">
+                      <PlatformIcon
+                        v-if="option?.value"
+                        :platform="String(option.value)"
+                        size="sm"
+                        class="shrink-0"
+                      />
+                      <span class="truncate">{{ option?.label || t("usage.allPlatforms") }}</span>
+                    </span>
+                  </template>
+                  <template #option="{ option }">
+                    <span class="flex min-w-0 items-center gap-2">
+                      <PlatformIcon
+                        v-if="option.value"
+                        :platform="String(option.value)"
+                        size="sm"
+                        class="shrink-0"
+                      />
+                      <span class="truncate">{{ option.label }}</span>
+                    </span>
+                  </template>
+                </Select>
+              </div>
+
               <!-- Date Range Filter -->
               <div>
                 <label class="input-label">{{ t("usage.timeRange") }}</label>
@@ -781,6 +814,7 @@ import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContext
 import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import UsageRequestLengthCell from "@/components/common/UsageRequestLengthCell.vue";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
+import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import UsageStatsCards from "@/components/user/usage/UsageStatsCards.vue";
 import UsageRequestPreviewModal from "@/components/user/usage/UsageRequestPreviewModal.vue";
@@ -822,6 +856,7 @@ import {
   formatUsageMultiplier,
   hasPositiveUsageAmount,
 } from "@/utils/usageCost";
+import { FILTER_PLATFORM_ORDER, getPlatformEnglishName } from "@/utils/platformBranding";
 
 const { t } = useI18n();
 const appStore = useAppStore();
@@ -918,6 +953,14 @@ const apiKeyOptions = computed(() => {
   ];
 });
 
+const platformOptions = computed(() => [
+  { value: null, label: t("usage.allPlatforms") },
+  ...FILTER_PLATFORM_ORDER.map((platform) => ({
+    value: platform,
+    label: getPlatformEnglishName(platform),
+  })),
+]);
+
 // Helper function to format date in local timezone
 const formatLocalDate = (date: Date): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -934,6 +977,7 @@ const endDate = ref(formatLocalDate(now));
 
 const filters = ref<UsageQueryParams>({
   api_key_id: undefined,
+  platform: undefined,
   start_date: undefined,
   end_date: undefined,
 });
@@ -1142,6 +1186,7 @@ const loadUsageStats = async () => {
       filters.value.start_date || startDate.value,
       filters.value.end_date || endDate.value,
       apiKeyId,
+      filters.value.platform,
     );
     usageStats.value = stats;
   } catch (error) {
@@ -1159,6 +1204,7 @@ const applyFilters = () => {
 const resetFilters = () => {
   filters.value = {
     api_key_id: undefined,
+    platform: undefined,
     start_date: undefined,
     end_date: undefined,
   };

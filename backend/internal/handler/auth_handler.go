@@ -25,6 +25,7 @@ type AuthHandler struct {
 	redeemService *service.RedeemService
 	totpService   *service.TotpService
 	identities    *service.AuthIdentityService
+	userAttrs     *service.UserAttributeService
 }
 
 // NewAuthHandler creates a new AuthHandler

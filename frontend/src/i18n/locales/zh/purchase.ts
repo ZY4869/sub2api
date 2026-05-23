@@ -27,6 +27,8 @@ export default {
     orderFailed: '订单创建或状态刷新失败，请检查输入后重试；若仍失败请联系支持并提供错误时间。',
     orderStatus: '订单状态',
     amount: '金额',
+    amountUnavailable: '金额待确认',
+    amountUnavailableWithCurrency: '金额待确认（{currency}）',
     provider: '支付通道',
     currencyUnavailable: '当前币种不可用',
     airwallexElement: 'Airwallex 支付组件',

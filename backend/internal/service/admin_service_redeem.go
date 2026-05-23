@@ -43,7 +43,7 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 		if err != nil {
 			return nil, err
 		}
-		code := RedeemCode{Code: codeValue, Type: input.Type, Value: input.Value, Status: StatusUnused}
+		code := RedeemCode{Code: codeValue, Type: input.Type, Value: input.Value, Status: StatusUnused, ExpiresAt: input.ExpiresAt}
 		if input.Type == RedeemTypeSubscription {
 			code.GroupID = input.GroupID
 			code.ValidityDays = input.ValidityDays

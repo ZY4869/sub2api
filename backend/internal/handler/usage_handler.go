@@ -72,6 +72,7 @@ func (h *UsageHandler) List(c *gin.Context) {
 
 	// Parse additional filters
 	model := c.Query("model")
+	platform := strings.TrimSpace(c.Query("platform"))
 
 	var requestType *int16
 	var stream *bool
@@ -130,6 +131,7 @@ func (h *UsageHandler) List(c *gin.Context) {
 	filters := usagestats.UsageLogFilters{
 		UserID:      subject.UserID, // Always filter by current user for security
 		APIKeyID:    apiKeyID,
+		Platform:    platform,
 		Model:       model,
 		RequestType: requestType,
 		Stream:      stream,
@@ -341,10 +343,12 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 	}
 
 	todayStart := timezone.StartOfDayInUserLocation(now, userTZ)
+	platform := strings.TrimSpace(c.Query("platform"))
 
 	statsFilters := usagestats.UsageLogFilters{
 		UserID:     subject.UserID,
 		APIKeyID:   apiKeyID,
+		Platform:   platform,
 		StartTime:  &startTime,
 		EndTime:    &endTime,
 		TodayStart: &todayStart,

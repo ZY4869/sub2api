@@ -88,6 +88,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	req.Credentials = mergeMaskedAccountCredentials(accountBeforeUpdate.Credentials, req.Credentials)
 	normalizedStatus := service.NormalizeAdminAccountStatusInput(req.Status)
 	extra := withGatewayProtocol(accountBeforeUpdate.Platform, accountType, req.Extra, req.GatewayProtocol, accountBeforeUpdate.GetExtraString("gateway_protocol"))
 	credentials, extra, scopeErr := h.prepareAccountModelScope(c.Request.Context(), accountBeforeUpdate.Platform, accountType, req.Credentials, extra)

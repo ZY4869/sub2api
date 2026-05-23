@@ -129,6 +129,12 @@
             }}</span>
           </template>
 
+          <template #cell-expires_at="{ value }">
+            <span class="text-sm text-gray-500 dark:text-dark-400">{{
+              value ? formatDateTime(value) : '-'
+            }}</span>
+          </template>
+
           <template #cell-actions="{ row }">
             <div class="flex items-center space-x-2">
               <button
@@ -293,6 +299,13 @@
                 required
                 class="input"
               />
+            </div>
+            <div>
+              <label class="input-label">{{ t('admin.redeem.expiresAt') }}</label>
+              <input v-model="generateForm.expires_at" type="datetime-local" class="input" />
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.redeem.expiresAtHint') }}
+              </p>
             </div>
             <div class="flex justify-end gap-3 pt-2">
               <button type="button" @click="showGenerateDialog = false" class="btn btn-secondary">
@@ -502,6 +515,7 @@ const columns = computed<Column[]>(() => [
   { key: 'status', label: t('admin.redeem.columns.status'), sortable: true },
   { key: 'used_by', label: t('admin.redeem.columns.usedBy') },
   { key: 'used_at', label: t('admin.redeem.columns.usedAt'), sortable: true },
+  { key: 'expires_at', label: t('admin.redeem.columns.expiresAt'), sortable: true },
   { key: 'actions', label: t('admin.redeem.columns.actions') }
 ])
 
@@ -554,7 +568,8 @@ const generateForm = reactive({
   value: 10,
   count: 1,
   group_id: null as number | null,
-  validity_days: 30
+  validity_days: 30,
+  expires_at: ''
 })
 
 // 监听类型变化，邀请码类型时自动设置 value 为 0
@@ -656,12 +671,16 @@ const handleGenerateCodes = async () => {
 
   generating.value = true
   try {
+    const expiresAt = generateForm.expires_at
+      ? new Date(generateForm.expires_at).toISOString()
+      : null
     const result = await adminAPI.redeem.generate(
       generateForm.count,
       generateForm.type,
       generateForm.value,
       generateForm.type === 'subscription' ? generateForm.group_id : undefined,
-      generateForm.type === 'subscription' ? generateForm.validity_days : undefined
+      generateForm.type === 'subscription' ? generateForm.validity_days : undefined,
+      expiresAt
     )
     showGenerateDialog.value = false
     generatedCodes.value = result
@@ -669,6 +688,7 @@ const handleGenerateCodes = async () => {
     // 重置表单
     generateForm.group_id = null
     generateForm.validity_days = 30
+    generateForm.expires_at = ''
     loadCodes()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToGenerate'))

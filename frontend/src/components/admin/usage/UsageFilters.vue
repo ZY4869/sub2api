@@ -84,6 +84,34 @@
           <Select v-model="filters.model" :options="modelOptions" searchable @change="emitChange" />
         </div>
 
+        <div class="w-full sm:w-auto sm:min-w-[190px]">
+          <label class="input-label">{{ t('usage.platform') }}</label>
+          <Select v-model="filters.platform" :options="platformOptions" @change="emitChange">
+            <template #selected="{ option }">
+              <span class="flex min-w-0 items-center gap-2">
+                <PlatformIcon
+                  v-if="option?.value"
+                  :platform="String(option.value)"
+                  size="sm"
+                  class="shrink-0"
+                />
+                <span class="truncate">{{ option?.label || t('usage.allPlatforms') }}</span>
+              </span>
+            </template>
+            <template #option="{ option }">
+              <span class="flex min-w-0 items-center gap-2">
+                <PlatformIcon
+                  v-if="option.value"
+                  :platform="String(option.value)"
+                  size="sm"
+                  class="shrink-0"
+                />
+                <span class="truncate">{{ option.label }}</span>
+              </span>
+            </template>
+          </Select>
+        </div>
+
         <!-- Account Filter -->
         <div ref="accountSearchRef" class="usage-filter-dropdown relative w-full sm:w-auto sm:min-w-[220px]">
           <label class="input-label">{{ t('admin.usage.account') }}</label>
@@ -179,8 +207,10 @@ import { ref, onMounted, onUnmounted, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
+import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import type { SimpleApiKey, SimpleUser } from '@/api/admin/usage'
 import { loadAllAdminChannelOptions } from '@/utils/adminChannelOptions'
+import { FILTER_PLATFORM_ORDER, getPlatformEnglishName } from '@/utils/platformBranding'
 
 type ModelValue = Record<string, any>
 
@@ -245,6 +275,14 @@ const billingTypeOptions = ref<SelectOption[]>([
   { value: null, label: t('admin.usage.allBillingTypes') },
   { value: 0, label: t('admin.usage.billingTypeBalance') },
   { value: 1, label: t('admin.usage.billingTypeSubscription') }
+])
+
+const platformOptions = ref<SelectOption[]>([
+  { value: null, label: t('usage.allPlatforms') },
+  ...FILTER_PLATFORM_ORDER.map((platform) => ({
+    value: platform,
+    label: getPlatformEnglishName(platform)
+  }))
 ])
 
 const emitChange = () => emit('change')

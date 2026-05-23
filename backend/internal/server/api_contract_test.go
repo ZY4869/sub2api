@@ -164,6 +164,7 @@ func TestAPIContracts(t *testing.T) {
 					"linuxdo_oauth_enabled": false,
 					"github_oauth_enabled": false,
 					"google_oauth_enabled": false,
+					"dingtalk_oauth_enabled": false,
 					"backend_mode_enabled": false,
 					"maintenance_mode_enabled": false,
 					"version": "0.0.0-test"
@@ -233,6 +234,7 @@ func TestAPIContracts(t *testing.T) {
 					"linuxdo_oauth_enabled": false,
 					"github_oauth_enabled": false,
 					"google_oauth_enabled": false,
+					"dingtalk_oauth_enabled": false,
 					"backend_mode_enabled": false,
 					"maintenance_mode_enabled": false,
 					"version": "0.0.0-test"
@@ -823,6 +825,7 @@ func TestAPIContracts(t *testing.T) {
 						"used_by": 1,
 						"used_at": "2025-01-02T03:04:05Z",
 						"created_at": "2025-01-02T03:04:05Z",
+						"expires_at": null,
 						"group_id": null,
 						"validity_days": 0
 					}
@@ -1059,6 +1062,10 @@ func TestAPIContracts(t *testing.T) {
 						"google_oauth_client_id": "",
 						"google_oauth_client_secret_configured": false,
 						"google_oauth_redirect_url": "",
+						"dingtalk_oauth_enabled": false,
+						"dingtalk_oauth_client_id": "",
+						"dingtalk_oauth_client_secret_configured": false,
+						"dingtalk_oauth_redirect_url": "",
 						"content_moderation_enabled": false,
 						"content_moderation_provider": "openai",
 						"content_moderation_base_url": "",

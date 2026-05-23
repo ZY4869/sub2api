@@ -625,52 +625,63 @@ func (r *usageLogRepository) GetUserModelStats(ctx context.Context, userID int64
 type UsageLogFilters = usagestats.UsageLogFilters
 
 func (r *usageLogRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, filters UsageLogFilters) ([]service.UsageLog, *pagination.PaginationResult, error) {
-	conditions := make([]string, 0, 8)
+	platform := normalizeUsagePlatformFilter(filters.Platform)
+	withPlatformJoin := platform != ""
+	conditions := make([]string, 0, 9)
 	args := make([]any, 0, 8)
 	if filters.UserID > 0 {
-		conditions = append(conditions, fmt.Sprintf("user_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%suser_id = $%d", usageLogColumnPrefix(withPlatformJoin), len(args)+1))
 		args = append(args, filters.UserID)
 	}
 	if filters.APIKeyID > 0 {
-		conditions = append(conditions, fmt.Sprintf("api_key_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%sapi_key_id = $%d", usageLogColumnPrefix(withPlatformJoin), len(args)+1))
 		args = append(args, filters.APIKeyID)
 	}
 	if filters.AccountID > 0 {
-		conditions = append(conditions, fmt.Sprintf("account_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%saccount_id = $%d", usageLogColumnPrefix(withPlatformJoin), len(args)+1))
 		args = append(args, filters.AccountID)
 	}
 	if filters.GroupID > 0 {
-		conditions = append(conditions, fmt.Sprintf("group_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%sgroup_id = $%d", usageLogColumnPrefix(withPlatformJoin), len(args)+1))
 		args = append(args, filters.GroupID)
 	}
 	if filters.ChannelID > 0 {
-		conditions = append(conditions, fmt.Sprintf("channel_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%schannel_id = $%d", usageLogColumnPrefix(withPlatformJoin), len(args)+1))
 		args = append(args, filters.ChannelID)
 	}
-	conditions, args = appendRawUsageLogModelWhereCondition(conditions, args, filters.Model)
-	conditions, args = appendRequestTypeOrStreamWhereCondition(conditions, args, filters.RequestType, filters.Stream)
+	conditions, args = appendRawUsageLogModelWhereConditionForColumn(conditions, args, usageLogColumnPrefix(withPlatformJoin)+rawUsageLogModelColumn, filters.Model)
+	conditions, args = appendRequestTypeOrStreamWhereConditionWithPrefix(conditions, args, usageLogColumnPrefix(withPlatformJoin), filters.RequestType, filters.Stream)
 	if filters.BillingType != nil {
-		conditions = append(conditions, fmt.Sprintf("billing_type = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%sbilling_type = $%d", usageLogColumnPrefix(withPlatformJoin), len(args)+1))
 		args = append(args, int16(*filters.BillingType))
 	}
 	if filters.StartTime != nil {
-		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%screated_at >= $%d", usageLogColumnPrefix(withPlatformJoin), len(args)+1))
 		args = append(args, *filters.StartTime)
 	}
 	if filters.EndTime != nil {
-		conditions = append(conditions, fmt.Sprintf("created_at < $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%screated_at < $%d", usageLogColumnPrefix(withPlatformJoin), len(args)+1))
 		args = append(args, *filters.EndTime)
 	}
+	if platform != "" {
+		conditions = append(conditions, fmt.Sprintf("%s = $%d", usagePlatformExpression, len(args)+1))
+		args = append(args, platform)
+	}
 	whereClause := buildWhere(conditions)
+	fromClause := "usage_logs"
+	if withPlatformJoin {
+		fromClause = usageLogPlatformJoinFromClause()
+	}
 	var (
 		logs []service.UsageLog
 		page *pagination.PaginationResult
 		err  error
 	)
+	columnPrefix := usageLogColumnPrefix(withPlatformJoin)
 	if shouldUseFastUsageLogTotal(filters) {
-		logs, page, err = r.listUsageLogsWithFastPagination(ctx, whereClause, args, params)
+		logs, page, err = r.listUsageLogsFromWithFastPagination(ctx, fromClause, columnPrefix, whereClause, args, params)
 	} else {
-		logs, page, err = r.listUsageLogsWithPagination(ctx, whereClause, args, params)
+		logs, page, err = r.listUsageLogsFromWithPagination(ctx, fromClause, columnPrefix, whereClause, args, params)
 	}
 	if err != nil {
 		return nil, nil, err
@@ -684,11 +695,30 @@ func shouldUseFastUsageLogTotal(filters UsageLogFilters) bool {
 	if filters.ExactTotal {
 		return false
 	}
-	return filters.UserID == 0 && filters.APIKeyID == 0 && filters.AccountID == 0 && filters.ChannelID == 0
+	return filters.UserID == 0 && filters.APIKeyID == 0 && filters.AccountID == 0 && filters.ChannelID == 0 && normalizeUsagePlatformFilter(filters.Platform) == ""
 }
 
 type UsageStats = usagestats.UsageStats
 type BatchUserUsageStats = usagestats.BatchUserUsageStats
+
+func normalizeUsagePlatformFilter(platform string) string {
+	normalized := service.CanonicalizePlatformValue(platform)
+	if normalized == "" || service.IsUnsupportedPrimaryPlatform(normalized) {
+		return ""
+	}
+	return normalized
+}
+
+func usageLogColumnPrefix(withPlatformJoin bool) string {
+	if withPlatformJoin {
+		return "ul."
+	}
+	return ""
+}
+
+func usageLogPlatformJoinFromClause() string {
+	return "usage_logs ul LEFT JOIN accounts a ON a.id = ul.account_id LEFT JOIN groups g ON g.id = ul.group_id"
+}
 
 func normalizePositiveInt64IDs(ids []int64) []int64 {
 	if len(ids) == 0 {
@@ -1116,45 +1146,45 @@ func (r *usageLogRepository) GetGlobalStats(ctx context.Context, startTime, endT
 	return stats, nil
 }
 
-func buildUsageStatsBaseFilters(filters UsageLogFilters) ([]string, []any) {
+func buildUsageStatsBaseFiltersWithPrefix(filters UsageLogFilters, prefix string) ([]string, []any) {
 	conditions := make([]string, 0, 9)
 	args := make([]any, 0, 9)
 	if filters.UserID > 0 {
-		conditions = append(conditions, fmt.Sprintf("user_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%suser_id = $%d", prefix, len(args)+1))
 		args = append(args, filters.UserID)
 	}
 	if filters.APIKeyID > 0 {
-		conditions = append(conditions, fmt.Sprintf("api_key_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%sapi_key_id = $%d", prefix, len(args)+1))
 		args = append(args, filters.APIKeyID)
 	}
 	if filters.AccountID > 0 {
-		conditions = append(conditions, fmt.Sprintf("account_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%saccount_id = $%d", prefix, len(args)+1))
 		args = append(args, filters.AccountID)
 	}
 	if filters.GroupID > 0 {
-		conditions = append(conditions, fmt.Sprintf("group_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%sgroup_id = $%d", prefix, len(args)+1))
 		args = append(args, filters.GroupID)
 	}
 	if filters.ChannelID > 0 {
-		conditions = append(conditions, fmt.Sprintf("channel_id = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%schannel_id = $%d", prefix, len(args)+1))
 		args = append(args, filters.ChannelID)
 	}
-	conditions, args = appendRawUsageLogModelWhereCondition(conditions, args, filters.Model)
-	conditions, args = appendRequestTypeOrStreamWhereCondition(conditions, args, filters.RequestType, filters.Stream)
+	conditions, args = appendRawUsageLogModelWhereConditionForColumn(conditions, args, prefix+rawUsageLogModelColumn, filters.Model)
+	conditions, args = appendRequestTypeOrStreamWhereConditionWithPrefix(conditions, args, prefix, filters.RequestType, filters.Stream)
 	if filters.BillingType != nil {
-		conditions = append(conditions, fmt.Sprintf("billing_type = $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%sbilling_type = $%d", prefix, len(args)+1))
 		args = append(args, int16(*filters.BillingType))
 	}
 	return conditions, args
 }
 
-func appendUsageStatsTimeRange(conditions []string, args []any, startTime, endTime *time.Time) ([]string, []any) {
+func appendUsageStatsTimeRangeWithPrefix(conditions []string, args []any, prefix string, startTime, endTime *time.Time) ([]string, []any) {
 	if startTime != nil {
-		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%screated_at >= $%d", prefix, len(args)+1))
 		args = append(args, *startTime)
 	}
 	if endTime != nil {
-		conditions = append(conditions, fmt.Sprintf("created_at < $%d", len(args)+1))
+		conditions = append(conditions, fmt.Sprintf("%screated_at < $%d", prefix, len(args)+1))
 		args = append(args, *endTime)
 	}
 	return conditions, args
@@ -1164,22 +1194,22 @@ func cloneUsageStatsFilters(conditions []string, args []any) ([]string, []any) {
 	return append([]string(nil), conditions...), append([]any(nil), args...)
 }
 
-func (r *usageLogRepository) queryUsageStatsWithConditions(ctx context.Context, conditions []string, args []any, includeAccountCost bool) (*UsageStats, *float64, error) {
+func (r *usageLogRepository) queryUsageStatsFromWithConditions(ctx context.Context, fromClause, columnPrefix string, conditions []string, args []any, includeAccountCost bool) (*UsageStats, *float64, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*) as total_requests,
-			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
-			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
-			COALESCE(SUM(total_cost_usd_equivalent), 0) as total_cost,
-			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_actual_cost,
-			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
-			COALESCE(SUM(total_cost_usd_equivalent) FILTER (WHERE billing_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
-			COALESCE(SUM(total_cost_usd_equivalent * COALESCE(account_rate_multiplier, 1)), 0) as total_account_cost,
-			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
-		FROM usage_logs
-		%s
-	`, buildWhere(conditions))
+			COALESCE(SUM(%[3]sinput_tokens), 0) as total_input_tokens,
+			COALESCE(SUM(%[3]soutput_tokens), 0) as total_output_tokens,
+			COALESCE(SUM(%[3]scache_creation_tokens + %[3]scache_read_tokens), 0) as total_cache_tokens,
+			COALESCE(SUM(%[3]stotal_cost_usd_equivalent), 0) as total_cost,
+			COALESCE(SUM(%[3]sactual_cost_usd_equivalent), 0) as total_actual_cost,
+			COUNT(*) FILTER (WHERE %[3]sbilling_exempt_reason = 'admin_free') as admin_free_requests,
+			COALESCE(SUM(%[3]stotal_cost_usd_equivalent) FILTER (WHERE %[3]sbilling_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
+			COALESCE(SUM(%[3]stotal_cost_usd_equivalent * COALESCE(%[3]saccount_rate_multiplier, 1)), 0) as total_account_cost,
+			COALESCE(AVG(%[3]sduration_ms) FILTER (WHERE %[3]sstatus = 'succeeded'), 0) as avg_duration_ms
+		FROM %[1]s
+		%[2]s
+	`, fromClause, buildWhere(conditions), columnPrefix)
 
 	stats := &UsageStats{}
 	var totalAccountCost float64
@@ -1203,7 +1233,7 @@ func (r *usageLogRepository) queryUsageStatsWithConditions(ctx context.Context, 
 	}
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
 
-	costByCurrency, actualCostByCurrency, err := queryUsageCostByCurrency(ctx, r.sql, buildWhere(conditions), args)
+	costByCurrency, actualCostByCurrency, err := queryUsageCostByCurrencyFrom(ctx, r.sql, fromClause, columnPrefix, buildWhere(conditions), args)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1217,11 +1247,23 @@ func (r *usageLogRepository) queryUsageStatsWithConditions(ctx context.Context, 
 }
 
 func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters UsageLogFilters) (*UsageStats, error) {
-	baseConditions, baseArgs := buildUsageStatsBaseFilters(filters)
+	platform := normalizeUsagePlatformFilter(filters.Platform)
+	withPlatformJoin := platform != ""
+	fromClause := "usage_logs"
+	columnPrefix := ""
+	if withPlatformJoin {
+		fromClause = usageLogPlatformJoinFromClause()
+		columnPrefix = "ul."
+	}
+	baseConditions, baseArgs := buildUsageStatsBaseFiltersWithPrefix(filters, columnPrefix)
+	if platform != "" {
+		baseConditions = append(baseConditions, fmt.Sprintf("%s = $%d", usagePlatformExpression, len(baseArgs)+1))
+		baseArgs = append(baseArgs, platform)
+	}
 	selectedConditions, selectedArgs := cloneUsageStatsFilters(baseConditions, baseArgs)
-	selectedConditions, selectedArgs = appendUsageStatsTimeRange(selectedConditions, selectedArgs, filters.StartTime, filters.EndTime)
+	selectedConditions, selectedArgs = appendUsageStatsTimeRangeWithPrefix(selectedConditions, selectedArgs, columnPrefix, filters.StartTime, filters.EndTime)
 
-	stats, totalAccountCost, err := r.queryUsageStatsWithConditions(ctx, selectedConditions, selectedArgs, filters.AccountID > 0)
+	stats, totalAccountCost, err := r.queryUsageStatsFromWithConditions(ctx, fromClause, columnPrefix, selectedConditions, selectedArgs, filters.AccountID > 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1231,8 +1273,8 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 
 	if filters.TodayStart != nil || filters.TodayEnd != nil {
 		todayConditions, todayArgs := cloneUsageStatsFilters(baseConditions, baseArgs)
-		todayConditions, todayArgs = appendUsageStatsTimeRange(todayConditions, todayArgs, filters.TodayStart, filters.TodayEnd)
-		todayStats, _, todayErr := r.queryUsageStatsWithConditions(ctx, todayConditions, todayArgs, false)
+		todayConditions, todayArgs = appendUsageStatsTimeRangeWithPrefix(todayConditions, todayArgs, columnPrefix, filters.TodayStart, filters.TodayEnd)
+		todayStats, _, todayErr := r.queryUsageStatsFromWithConditions(ctx, fromClause, columnPrefix, todayConditions, todayArgs, false)
 		if todayErr != nil {
 			return nil, todayErr
 		}
@@ -1248,7 +1290,64 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 		stats.TodayAverageDurationMs = todayStats.AverageDurationMs
 	}
 
+	platformBreakdown, err := r.queryPlatformBreakdown(ctx, filters)
+	if err != nil {
+		return nil, err
+	}
+	stats.PlatformBreakdown = platformBreakdown
+
 	return stats, nil
+}
+
+func (r *usageLogRepository) queryPlatformBreakdown(ctx context.Context, filters UsageLogFilters) (results []usagestats.PlatformUsageStat, err error) {
+	platform := normalizeUsagePlatformFilter(filters.Platform)
+	conditions, args := buildUsageStatsBaseFiltersWithPrefix(filters, "ul.")
+	if platform != "" {
+		conditions = append(conditions, fmt.Sprintf("%s = $%d", usagePlatformExpression, len(args)+1))
+		args = append(args, platform)
+	}
+	conditions, args = appendUsageStatsTimeRangeWithPrefix(conditions, args, "ul.", filters.StartTime, filters.EndTime)
+
+	query := fmt.Sprintf(`
+		SELECT
+			%s AS platform,
+			COUNT(*) AS requests,
+			COALESCE(SUM(ul.input_tokens), 0) AS input_tokens,
+			COALESCE(SUM(ul.output_tokens), 0) AS output_tokens,
+			COALESCE(SUM(ul.cache_creation_tokens + ul.cache_read_tokens), 0) AS cache_tokens,
+			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) AS total_tokens,
+			COALESCE(SUM(ul.total_cost_usd_equivalent), 0) AS cost,
+			COALESCE(SUM(ul.actual_cost_usd_equivalent), 0) AS actual_cost,
+			COALESCE(AVG(ul.duration_ms) FILTER (WHERE ul.status = 'succeeded'), 0) AS average_duration_ms
+		FROM %s
+		%s
+		GROUP BY %s
+		ORDER BY total_tokens DESC, requests DESC
+	`, usagePlatformExpression, usageLogPlatformJoinFromClause(), buildWhere(conditions), usagePlatformExpression)
+
+	rows, err := r.sql.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			results = nil
+		}
+	}()
+
+	results = make([]usagestats.PlatformUsageStat, 0)
+	for rows.Next() {
+		var row usagestats.PlatformUsageStat
+		if err := rows.Scan(&row.Platform, &row.Requests, &row.InputTokens, &row.OutputTokens, &row.CacheTokens, &row.TotalTokens, &row.Cost, &row.ActualCost, &row.AverageDurationMs); err != nil {
+			return nil, err
+		}
+		results = append(results, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 type AccountUsageHistory = usagestats.AccountUsageHistory

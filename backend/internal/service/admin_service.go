@@ -275,6 +275,7 @@ type GenerateRedeemCodesInput struct {
 	Value        float64
 	GroupID      *int64
 	ValidityDays int
+	ExpiresAt    *time.Time
 }
 type ProxyBatchDeleteResult struct {
 	DeletedIDs []int64                   `json:"deleted_ids"`

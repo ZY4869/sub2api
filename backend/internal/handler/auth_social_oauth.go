@@ -50,6 +50,7 @@ type socialOAuthUserInfo struct {
 	EmailVerified  bool
 	DisplayName    string
 	AvatarURL      string
+	InternalOnly   *bool
 }
 
 type completeSocialOAuthRequest struct {
@@ -60,6 +61,10 @@ type completeSocialOAuthRequest struct {
 
 func (h *AuthHandler) SetAuthIdentityService(identityService *service.AuthIdentityService) {
 	h.identities = identityService
+}
+
+func (h *AuthHandler) SetUserAttributeService(userAttributeService *service.UserAttributeService) {
+	h.userAttrs = userAttributeService
 }
 
 // SocialOAuthStart starts a GitHub/Google OAuth flow.
@@ -244,6 +249,7 @@ func (h *AuthHandler) SocialOAuthCallback(c *gin.Context) {
 		redirectOAuthError(c, frontendCallback, "login_failed", infraerrors.Reason(resolveErr), infraerrors.Message(resolveErr))
 		return
 	}
+	h.syncDingTalkInternalOnly(c.Request.Context(), userInfo, result)
 
 	slog.Info("social_oauth_callback",
 		"provider", provider,
@@ -342,7 +348,6 @@ func (h *AuthHandler) CompleteSocialOAuthRegistration(c *gin.Context) {
 		response.ErrorFrom(c, bindErr)
 		return
 	}
-
 	response.Success(c, gin.H{
 		"access_token":  tokenPair.AccessToken,
 		"refresh_token": tokenPair.RefreshToken,
@@ -382,6 +387,26 @@ func (h *AuthHandler) resolveOAuthBindUser(c *gin.Context) (*service.User, error
 		return nil, service.ErrAuthIdentityBindRequired
 	}
 	return h.userService.GetByID(c.Request.Context(), claims.UserID)
+}
+
+func (h *AuthHandler) syncDingTalkInternalOnly(ctx context.Context, userInfo *socialOAuthUserInfo, result *service.SocialIdentityResult) {
+	if userInfo == nil || userInfo.InternalOnly == nil || result == nil || result.User == nil {
+		return
+	}
+	h.syncInternalOnlyAttribute(ctx, result.User.ID, userInfo.InternalOnly)
+}
+
+func (h *AuthHandler) syncInternalOnlyAttribute(ctx context.Context, userID int64, value *bool) {
+	if h == nil || h.userAttrs == nil || userID <= 0 || value == nil {
+		return
+	}
+	raw := "false"
+	if *value {
+		raw = "true"
+	}
+	if err := h.userAttrs.SetUserAttributeByKey(ctx, userID, "internal_only", raw); err != nil {
+		slog.Warn("social_oauth_internal_only_sync_failed", "user_id", userID, "error", err)
+	}
 }
 
 func normalizeSocialOAuthMode(raw string) string {
@@ -494,6 +519,10 @@ func buildSocialAuthorizeURL(cfg service.SocialOAuthConfig, state string, codeCh
 }
 
 func exchangeSocialOAuthCode(ctx context.Context, cfg service.SocialOAuthConfig, code string, codeVerifier string) (*socialOAuthTokenResponse, error) {
+	if cfg.Provider == service.AuthProviderDingTalk {
+		return exchangeDingTalkOAuthCode(ctx, cfg, code)
+	}
+
 	client := req.C().SetTimeout(30 * time.Second)
 	form := url.Values{}
 	form.Set("grant_type", "authorization_code")
@@ -548,6 +577,46 @@ func exchangeSocialOAuthCode(ctx context.Context, cfg service.SocialOAuthConfig,
 	return &parsed, nil
 }
 
+func exchangeDingTalkOAuthCode(ctx context.Context, cfg service.SocialOAuthConfig, code string) (*socialOAuthTokenResponse, error) {
+	client := req.C().SetTimeout(30 * time.Second)
+	payload := map[string]string{
+		"clientId":     cfg.ClientID,
+		"clientSecret": cfg.ClientSecret,
+		"code":         strings.TrimSpace(code),
+		"grantType":    "authorization_code",
+	}
+	resp, err := client.R().
+		SetContext(ctx).
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetBody(payload).
+		Post(cfg.TokenURL)
+	if err != nil {
+		return nil, err
+	}
+	body := strings.TrimSpace(resp.String())
+	if !resp.IsSuccessState() {
+		providerErr, providerDesc := parseOAuthProviderError(body)
+		return nil, fmt.Errorf("dingtalk token exchange failed: status=%d error=%s description=%s", resp.StatusCode, providerErr, providerDesc)
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(body), &raw); err != nil {
+		return nil, fmt.Errorf("parse dingtalk token response: %w", err)
+	}
+	parsed := &socialOAuthTokenResponse{
+		AccessToken:  strings.TrimSpace(firstNonEmpty(socialOAuthAnyString(raw["accessToken"]), socialOAuthAnyString(raw["access_token"]))),
+		TokenType:    strings.TrimSpace(firstNonEmpty(socialOAuthAnyString(raw["tokenType"]), socialOAuthAnyString(raw["token_type"]), "Bearer")),
+		RefreshToken: strings.TrimSpace(firstNonEmpty(socialOAuthAnyString(raw["refreshToken"]), socialOAuthAnyString(raw["refresh_token"]))),
+		Scope:        strings.TrimSpace(socialOAuthAnyString(raw["scope"])),
+	}
+	parsed.ExpiresIn = firstPositiveInt64(raw["expireIn"], raw["expiresIn"], raw["expires_in"])
+	if parsed.AccessToken == "" {
+		return nil, fmt.Errorf("dingtalk access token missing")
+	}
+	return parsed, nil
+}
+
 func fetchSocialUserInfo(ctx context.Context, cfg service.SocialOAuthConfig, tokenResp *socialOAuthTokenResponse) (*socialOAuthUserInfo, error) {
 	if tokenResp == nil {
 		return nil, errors.New("oauth token response missing")
@@ -557,6 +626,8 @@ func fetchSocialUserInfo(ctx context.Context, cfg service.SocialOAuthConfig, tok
 		return fetchGitHubUserInfo(ctx, cfg, tokenResp.AccessToken)
 	case service.AuthProviderGoogle:
 		return fetchGenericSocialUserInfo(ctx, cfg, tokenResp.AccessToken)
+	case service.AuthProviderDingTalk:
+		return fetchDingTalkUserInfo(ctx, cfg, tokenResp.AccessToken)
 	default:
 		return nil, service.ErrOAuthProviderUnsupported
 	}
@@ -661,6 +732,56 @@ func fetchGitHubUserInfo(ctx context.Context, cfg service.SocialOAuthConfig, acc
 	return info, nil
 }
 
+func fetchDingTalkUserInfo(ctx context.Context, cfg service.SocialOAuthConfig, accessToken string) (*socialOAuthUserInfo, error) {
+	client := req.C().SetTimeout(30 * time.Second)
+	resp, err := client.R().
+		SetContext(ctx).
+		SetHeader("Accept", "application/json").
+		SetHeader("x-acs-dingtalk-access-token", accessToken).
+		Get(cfg.UserInfoURL)
+	if err != nil {
+		return nil, err
+	}
+	if !resp.IsSuccessState() {
+		return nil, fmt.Errorf("dingtalk userinfo status=%d", resp.StatusCode)
+	}
+	body := resp.String()
+	info := &socialOAuthUserInfo{
+		ProviderUserID: strings.TrimSpace(firstNonEmpty(
+			getGJSON(body, cfg.UserInfoIDPath),
+			getGJSON(body, "union_id"),
+			getGJSON(body, "openId"),
+			getGJSON(body, "openid"),
+			getGJSON(body, "open_id"),
+		)),
+		Email: strings.TrimSpace(firstNonEmpty(
+			getGJSON(body, cfg.UserInfoEmailPath),
+			getGJSON(body, "email"),
+		)),
+		DisplayName: strings.TrimSpace(firstNonEmpty(
+			getGJSON(body, cfg.UserInfoUsernamePath),
+			getGJSON(body, "nick"),
+			getGJSON(body, "name"),
+			getGJSON(body, "displayName"),
+		)),
+		AvatarURL: strings.TrimSpace(firstNonEmpty(
+			getGJSON(body, cfg.UserInfoAvatarPath),
+			getGJSON(body, "avatarUrl"),
+			getGJSON(body, "avatar"),
+		)),
+	}
+	info.EmailVerified = info.Email != ""
+	if value, ok := parseOptionalTruthyValue(firstNonEmpty(
+		getGJSON(body, "internal_only"),
+		getGJSON(body, "internalOnly"),
+		getGJSON(body, "internal"),
+		getGJSON(body, "staff"),
+	)); ok {
+		info.InternalOnly = &value
+	}
+	return info, nil
+}
+
 func parseTruthyValue(raw string) bool {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "1", "true", "yes":
@@ -668,4 +789,62 @@ func parseTruthyValue(raw string) bool {
 	default:
 		return false
 	}
+}
+
+func parseOptionalTruthyValue(raw string) (bool, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes":
+		return true, true
+	case "0", "false", "no":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func socialOAuthAnyString(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case json.Number:
+		return v.String()
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case int:
+		return strconv.Itoa(v)
+	case bool:
+		return strconv.FormatBool(v)
+	default:
+		return ""
+	}
+}
+
+func firstPositiveInt64(values ...any) int64 {
+	for _, value := range values {
+		switch v := value.(type) {
+		case int64:
+			if v > 0 {
+				return v
+			}
+		case int:
+			if v > 0 {
+				return int64(v)
+			}
+		case float64:
+			if v > 0 {
+				return int64(v)
+			}
+		case json.Number:
+			if parsed, err := v.Int64(); err == nil && parsed > 0 {
+				return parsed
+			}
+		case string:
+			if parsed, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64); err == nil && parsed > 0 {
+				return parsed
+			}
+		}
+	}
+	return 0
 }

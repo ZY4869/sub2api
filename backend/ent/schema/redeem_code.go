@@ -63,6 +63,10 @@ func (RedeemCode) Fields() []ent.Field {
 			Immutable().
 			Default(time.Now).
 			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Time("expires_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 		field.Int64("group_id").
 			Optional().
 			Nillable(),
@@ -89,6 +93,7 @@ func (RedeemCode) Indexes() []ent.Index {
 		// code 字段已在 Fields() 中声明 Unique()，无需重复索引
 		index.Fields("status"),
 		index.Fields("used_by"),
+		index.Fields("expires_at"),
 		index.Fields("group_id"),
 	}
 }

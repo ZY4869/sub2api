@@ -141,6 +141,18 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.GoogleOAuthRedirectURL != after.GoogleOAuthRedirectURL {
 		changed = append(changed, "google_oauth_redirect_url")
 	}
+	if before.DingTalkOAuthEnabled != after.DingTalkOAuthEnabled {
+		changed = append(changed, "dingtalk_oauth_enabled")
+	}
+	if before.DingTalkOAuthClientID != after.DingTalkOAuthClientID {
+		changed = append(changed, "dingtalk_oauth_client_id")
+	}
+	if req.DingTalkOAuthClientSecret != "" {
+		changed = append(changed, "dingtalk_oauth_client_secret")
+	}
+	if before.DingTalkOAuthRedirectURL != after.DingTalkOAuthRedirectURL {
+		changed = append(changed, "dingtalk_oauth_redirect_url")
+	}
 	if before.ContentModerationEnabled != after.ContentModerationEnabled {
 		changed = append(changed, "content_moderation_enabled")
 	}
@@ -407,6 +419,10 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		GoogleOAuthClientID:                  settings.GoogleOAuthClientID,
 		GoogleOAuthClientSecretConfigured:    settings.GoogleOAuthClientSecretConfigured,
 		GoogleOAuthRedirectURL:               settings.GoogleOAuthRedirectURL,
+		DingTalkOAuthEnabled:                 settings.DingTalkOAuthEnabled,
+		DingTalkOAuthClientID:                settings.DingTalkOAuthClientID,
+		DingTalkOAuthClientSecretConfigured:  settings.DingTalkOAuthClientSecretConfigured,
+		DingTalkOAuthRedirectURL:             settings.DingTalkOAuthRedirectURL,
 		ContentModerationEnabled:             settings.ContentModerationEnabled,
 		ContentModerationProvider:            settings.ContentModerationProvider,
 		ContentModerationBaseURL:             settings.ContentModerationBaseURL,

@@ -47,6 +47,24 @@
         />
         {{ t('auth.social.continueWithGoogle') }}
       </button>
+
+      <button
+        v-if="showDingTalk"
+        type="button"
+        :disabled="disabled"
+        class="btn btn-secondary w-full"
+        @click="startSocial('dingtalk')"
+      >
+        <LobeStaticIcon
+          class="mr-2"
+          :sources="dingtalkIconSources"
+          badge-text="DT"
+          size="20px"
+          variant="platform"
+          alt="DingTalk"
+        />
+        {{ t('auth.social.continueWithDingTalk') }}
+      </button>
     </div>
 
     <div v-if="showDivider" class="flex items-center gap-3">
@@ -73,6 +91,7 @@ const props = defineProps<{
   showLinuxDo?: boolean
   showGitHub?: boolean
   showGoogle?: boolean
+  showDingTalk?: boolean
   mode?: 'login' | 'bind'
   redirect?: string
 }>()
@@ -80,9 +99,12 @@ const props = defineProps<{
 const route = useRoute()
 const { t } = useI18n()
 
-const showDivider = computed(() => props.showLinuxDo || props.showGitHub || props.showGoogle)
+const showDivider = computed(
+  () => props.showLinuxDo || props.showGitHub || props.showGoogle || props.showDingTalk
+)
 const githubIconSources = buildLobeIconSources(resolveProviderIconSlugs('github'))
 const googleIconSources = buildLobeIconSources(resolveProviderIconSlugs('google'))
+const dingtalkIconSources = buildLobeIconSources(resolveProviderIconSlugs('dingtalk'))
 
 function getRedirectTarget(): string {
   return props.redirect || (route.query.redirect as string) || '/dashboard'

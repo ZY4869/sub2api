@@ -99,6 +99,7 @@ export default {
       continueWithLinuxDo: 'Continue with Linux.do',
       continueWithGitHub: 'Continue with GitHub',
       continueWithGoogle: 'Continue with Google',
+      continueWithDingTalk: 'Continue with DingTalk',
       orContinue: 'or continue with email',
       callbackTitle: 'Signing you in',
       callbackProcessing: 'Completing social sign-in, please wait...',

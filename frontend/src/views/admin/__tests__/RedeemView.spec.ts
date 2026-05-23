@@ -57,6 +57,8 @@ vi.mock('vue-i18n', async (importOriginal) => {
     'admin.redeem.amount': 'Amount ($)',
     'admin.redeem.columns.value': 'Value',
     'admin.redeem.count': 'Count',
+    'admin.redeem.expiresAt': 'Redeem Code Expiration',
+    'admin.redeem.expiresAtHint': 'Leave blank for no code expiration.',
     'admin.redeem.adjustmentHint': 'Positive adds, negative subtracts, 0 is invalid',
     'admin.redeem.nonZeroValueRequired': 'Please enter a non-zero value',
     'admin.redeem.groupRequired': 'Please select a subscription group',
@@ -164,6 +166,29 @@ describe('RedeemView', () => {
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
 
-    expect(generate).toHaveBeenCalledWith(1, 'balance', -5, undefined, undefined)
+    expect(generate).toHaveBeenCalledWith(1, 'balance', -5, undefined, undefined, null)
+  })
+
+  it('submits redeem code expiration when provided', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    await openGenerateDialog(wrapper)
+
+    const amountInput = wrapper.find('form input[type="number"]')
+    await amountInput.setValue('5')
+    const expiresInput = wrapper.find('form input[type="datetime-local"]')
+    await expiresInput.setValue('2026-06-01T08:30')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    const expectedExpiresAt = new Date('2026-06-01T08:30').toISOString()
+    expect(generate).toHaveBeenCalledWith(
+      1,
+      'balance',
+      5,
+      undefined,
+      undefined,
+      expectedExpiresAt
+    )
   })
 })

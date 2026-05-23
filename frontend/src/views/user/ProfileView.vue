@@ -12,6 +12,7 @@
         :loading="loadingIdentities"
         :github-enabled="githubOAuthEnabled"
         :google-enabled="googleOAuthEnabled"
+        :dingtalk-enabled="dingtalkOAuthEnabled"
         @refresh="loadAuthIdentities"
       />
       <div v-if="contactInfo" class="card border-primary-200 bg-primary-50 dark:bg-primary-900/20 p-6">
@@ -47,6 +48,7 @@ const authIdentities = ref<AuthIdentity[]>([])
 const loadingIdentities = ref(false)
 const githubOAuthEnabled = ref(false)
 const googleOAuthEnabled = ref(false)
+const dingtalkOAuthEnabled = ref(false)
 
 const WalletIcon = { render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' }, [h('path', { d: 'M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12' })]) }
 const BoltIcon = { render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' }, [h('path', { d: 'm3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z' })]) }
@@ -70,6 +72,7 @@ onMounted(async () => {
     contactInfo.value = s.contact_info || ''
     githubOAuthEnabled.value = !!s.github_oauth_enabled
     googleOAuthEnabled.value = !!s.google_oauth_enabled
+    dingtalkOAuthEnabled.value = !!s.dingtalk_oauth_enabled
   } catch (error) {
     console.error('Failed to load contact info:', error)
   }

@@ -126,6 +126,21 @@ func defaultSocialOAuthConfig(provider string) SocialOAuthConfig {
 			UserInfoAvatarPath:        "picture",
 			UserInfoEmailVerifiedPath: "email_verified",
 		}
+	case AuthProviderDingTalk:
+		return SocialOAuthConfig{
+			Provider:                  AuthProviderDingTalk,
+			AuthorizeURL:              "https://login.dingtalk.com/oauth2/auth",
+			TokenURL:                  "https://api.dingtalk.com/v1.0/oauth2/userAccessToken",
+			UserInfoURL:               "https://api.dingtalk.com/v1.0/contact/users/me",
+			Scopes:                    "openid",
+			FrontendRedirectURL:       "/auth/social/callback",
+			TokenAuthMethod:           "client_secret_post",
+			UserInfoEmailPath:         "email",
+			UserInfoIDPath:            "unionId",
+			UserInfoUsernamePath:      "nick",
+			UserInfoAvatarPath:        "avatarUrl",
+			UserInfoEmailVerifiedPath: "email",
+		}
 	default:
 		return SocialOAuthConfig{}
 	}

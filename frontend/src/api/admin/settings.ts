@@ -128,6 +128,10 @@ export interface SystemSettings {
   google_oauth_client_id: string
   google_oauth_client_secret_configured: boolean
   google_oauth_redirect_url: string
+  dingtalk_oauth_enabled: boolean
+  dingtalk_oauth_client_id: string
+  dingtalk_oauth_client_secret_configured: boolean
+  dingtalk_oauth_redirect_url: string
   content_moderation_enabled: boolean
   content_moderation_provider: string
   content_moderation_base_url: string
@@ -246,6 +250,10 @@ export interface UpdateSettingsRequest {
   google_oauth_client_id?: string
   google_oauth_client_secret?: string
   google_oauth_redirect_url?: string
+  dingtalk_oauth_enabled?: boolean
+  dingtalk_oauth_client_id?: string
+  dingtalk_oauth_client_secret?: string
+  dingtalk_oauth_redirect_url?: string
   content_moderation_enabled?: boolean
   content_moderation_provider?: string
   content_moderation_base_url?: string

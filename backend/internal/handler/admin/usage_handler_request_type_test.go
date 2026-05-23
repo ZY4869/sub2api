@@ -115,6 +115,18 @@ func TestAdminUsageListPassesChannelID(t *testing.T) {
 	require.Equal(t, int64(31), repo.listFilters.ChannelID)
 }
 
+func TestAdminUsageListPassesPlatform(t *testing.T) {
+	repo := &adminUsageRepoCapture{}
+	router := newAdminUsageRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/usage?platform=gemini", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "gemini", repo.listFilters.Platform)
+}
+
 func TestAdminUsageStatsRequestTypePriority(t *testing.T) {
 	repo := &adminUsageRepoCapture{}
 	router := newAdminUsageRequestTypeTestRouter(repo)
@@ -161,4 +173,16 @@ func TestAdminUsageStatsPassesChannelID(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, int64(37), repo.statsFilters.ChannelID)
+}
+
+func TestAdminUsageStatsPassesPlatform(t *testing.T) {
+	repo := &adminUsageRepoCapture{}
+	router := newAdminUsageRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/usage/stats?platform=anthropic", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "anthropic", repo.statsFilters.Platform)
 }

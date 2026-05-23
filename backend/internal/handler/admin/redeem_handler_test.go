@@ -2,10 +2,13 @@ package admin
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -135,4 +138,45 @@ func TestCreateAndRedeem_BalanceIgnoresSubscriptionFields(t *testing.T) {
 
 	assert.NotEqual(t, http.StatusBadRequest, code,
 		"balance type should not require group_id or validity_days")
+}
+
+func TestRedeemExportIncludesExpiresAtColumn(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	expiresAt := time.Date(2026, 6, 1, 8, 30, 0, 0, time.UTC)
+	adminSvc.redeems = []service.RedeemCode{
+		{
+			ID:        1,
+			Code:      "EXP-1",
+			Type:      service.RedeemTypeBalance,
+			Value:     10,
+			Status:    service.StatusUnused,
+			CreatedAt: time.Date(2026, 5, 22, 1, 2, 3, 0, time.UTC),
+			ExpiresAt: &expiresAt,
+		},
+		{
+			ID:        2,
+			Code:      "LEGACY-NO-EXP",
+			Type:      service.RedeemTypeBalance,
+			Value:     20,
+			Status:    service.StatusUnused,
+			CreatedAt: time.Date(2026, 5, 22, 2, 3, 4, 0, time.UTC),
+		},
+	}
+	handler := NewRedeemHandler(adminSvc, nil)
+	router := gin.New()
+	router.GET("/api/v1/admin/redeem-codes/export", handler.Export)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/redeem-codes/export", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	body := strings.TrimPrefix(rec.Body.String(), "\uFEFF")
+	rows, err := csv.NewReader(strings.NewReader(body)).ReadAll()
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	require.Equal(t, "expires_at", rows[0][9])
+	require.Equal(t, "2026-06-01 08:30:00", rows[1][9])
+	require.Equal(t, "", rows[2][9], "legacy codes without expires_at must export as blank")
 }

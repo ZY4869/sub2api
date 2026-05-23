@@ -20,6 +20,25 @@ var accountListLiteCredentialAllowlist = map[string]struct{}{
 	"gemini_api_variant":      {},
 }
 
+const accountCredentialMaskedValue = "__sub2api_credential_redacted__"
+
+var accountCredentialSensitiveKeys = map[string]struct{}{
+	"access_token":                {},
+	"api_key":                     {},
+	"async_bearer_token":          {},
+	"client_secret":               {},
+	"direct_token":                {},
+	"id_token":                    {},
+	"password":                    {},
+	"private_key":                 {},
+	"refresh_token":               {},
+	"secret":                      {},
+	"secret_access_key":           {},
+	"sso_token":                   {},
+	"token":                       {},
+	"vertex_service_account_json": {},
+}
+
 var accountListLiteExtraAllowlist = map[string]struct{}{
 	"email_address":     {},
 	"privacy_mode":      {},
@@ -287,9 +306,9 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 	}
 	now := time.Now()
 	displayRateLimit := service.AccountDisplayRateLimitState(a, now)
-	credentials := a.Credentials
+	credentials := RedactAccountCredentials(a.Credentials)
 	if enriched, changed := service.EnrichOpenAIOAuthCredentials(a.Platform, a.Type, a.Credentials); changed {
-		credentials = enriched
+		credentials = RedactAccountCredentials(enriched)
 	}
 	var rateLimitedAt *time.Time
 	var rateLimitResetAt *time.Time
@@ -482,6 +501,43 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 	}
 
 	return out
+}
+
+func RedactAccountCredentials(credentials map[string]any) map[string]any {
+	if credentials == nil {
+		return nil
+	}
+	redacted := make(map[string]any, len(credentials))
+	for key, value := range credentials {
+		if isSensitiveAccountCredentialKey(key) && hasCredentialValue(value) {
+			redacted[key] = accountCredentialMaskedValue
+			continue
+		}
+		redacted[key] = value
+	}
+	return redacted
+}
+
+func isSensitiveAccountCredentialKey(key string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(key))
+	if _, ok := accountCredentialSensitiveKeys[normalized]; ok {
+		return true
+	}
+	return strings.Contains(normalized, "token") ||
+		strings.Contains(normalized, "secret") ||
+		strings.Contains(normalized, "api_key") ||
+		strings.Contains(normalized, "apikey") ||
+		strings.Contains(normalized, "private_key")
+}
+
+func hasCredentialValue(value any) bool {
+	if value == nil {
+		return false
+	}
+	if text, ok := value.(string); ok {
+		return strings.TrimSpace(text) != ""
+	}
+	return true
 }
 
 func isAccountActiveUsageAvailable(a *service.Account) bool {
@@ -709,15 +765,20 @@ func RedeemCodeFromServiceAdmin(rc *service.RedeemCode) *AdminRedeemCode {
 }
 
 func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
+	status := rc.Status
+	if rc.IsExpired(time.Now()) {
+		status = service.StatusExpired
+	}
 	out := RedeemCode{
 		ID:           rc.ID,
 		Code:         rc.Code,
 		Type:         rc.Type,
 		Value:        rc.Value,
-		Status:       rc.Status,
+		Status:       status,
 		UsedBy:       rc.UsedBy,
 		UsedAt:       rc.UsedAt,
 		CreatedAt:    rc.CreatedAt,
+		ExpiresAt:    rc.ExpiresAt,
 		GroupID:      rc.GroupID,
 		ValidityDays: rc.ValidityDays,
 		User:         UserFromServiceShallow(rc.User),

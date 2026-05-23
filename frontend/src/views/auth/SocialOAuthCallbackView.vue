@@ -125,7 +125,7 @@ onMounted(async () => {
   const error = params.get('error')
   const errorDesc = params.get('error_description') || params.get('error_message') || ''
 
-  if (callbackProvider === 'google' || callbackProvider === 'github') {
+  if (callbackProvider === 'google' || callbackProvider === 'github' || callbackProvider === 'dingtalk') {
     provider.value = callbackProvider
   }
   redirectTo.value = redirect

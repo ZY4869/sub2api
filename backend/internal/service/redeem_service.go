@@ -17,6 +17,7 @@ import (
 var (
 	ErrRedeemCodeNotFound  = infraerrors.NotFound("REDEEM_CODE_NOT_FOUND", "redeem code not found")
 	ErrRedeemCodeUsed      = infraerrors.Conflict("REDEEM_CODE_USED", "redeem code already used")
+	ErrRedeemCodeExpired   = infraerrors.Conflict("REDEEM_CODE_EXPIRED", "redeem code expired")
 	ErrInsufficientBalance = infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance")
 	ErrRedeemRateLimited   = infraerrors.TooManyRequests("REDEEM_RATE_LIMITED", "too many failed attempts, please try again later")
 	ErrRedeemCodeLocked    = infraerrors.Conflict("REDEEM_CODE_LOCKED", "redeem code is being processed, please try again")
@@ -57,9 +58,10 @@ type RedeemCodeRepository interface {
 
 // GenerateCodesRequest 生成兑换码请求
 type GenerateCodesRequest struct {
-	Count int     `json:"count"`
-	Value float64 `json:"value"`
-	Type  string  `json:"type"`
+	Count     int        `json:"count"`
+	Value     float64    `json:"value"`
+	Type      string     `json:"type"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
 // RedeemCodeResponse 兑换码响应
@@ -161,10 +163,11 @@ func (s *RedeemService) GenerateCodes(ctx context.Context, req GenerateCodesRequ
 		}
 
 		codes = append(codes, RedeemCode{
-			Code:   code,
-			Type:   codeType,
-			Value:  value,
-			Status: StatusUnused,
+			Code:      code,
+			Type:      codeType,
+			Value:     value,
+			Status:    StatusUnused,
+			ExpiresAt: req.ExpiresAt,
 		})
 	}
 
@@ -287,6 +290,10 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	}
 
 	// 检查兑换码状态
+	if redeemCode.IsExpired(time.Now()) {
+		s.incrementRedeemErrorCount(ctx, userID)
+		return nil, ErrRedeemCodeExpired
+	}
 	if !redeemCode.CanUse() {
 		s.incrementRedeemErrorCount(ctx, userID)
 		return nil, ErrRedeemCodeUsed
@@ -317,6 +324,9 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	// 【关键】先标记兑换码为已使用，确保并发安全
 	// 利用数据库乐观锁（WHERE status = 'unused'）保证原子性
 	if err := s.redeemRepo.Use(txCtx, redeemCode.ID, userID); err != nil {
+		if errors.Is(err, ErrRedeemCodeExpired) {
+			return nil, ErrRedeemCodeExpired
+		}
 		if errors.Is(err, ErrRedeemCodeNotFound) || errors.Is(err, ErrRedeemCodeUsed) {
 			return nil, ErrRedeemCodeUsed
 		}

@@ -46,6 +46,11 @@ type SystemSettings struct {
 	GoogleOAuthClientSecret              string
 	GoogleOAuthClientSecretConfigured    bool
 	GoogleOAuthRedirectURL               string
+	DingTalkOAuthEnabled                 bool
+	DingTalkOAuthClientID                string
+	DingTalkOAuthClientSecret            string
+	DingTalkOAuthClientSecretConfigured  bool
+	DingTalkOAuthRedirectURL             string
 	ContentModerationEnabled             bool
 	ContentModerationProvider            string
 	ContentModerationBaseURL             string
@@ -189,6 +194,7 @@ type PublicSettings struct {
 	LinuxDoOAuthEnabled    bool
 	GitHubOAuthEnabled     bool
 	GoogleOAuthEnabled     bool
+	DingTalkOAuthEnabled   bool
 	BackendModeEnabled     bool
 	MaintenanceModeEnabled bool
 	Version                string

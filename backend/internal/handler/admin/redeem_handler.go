@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -38,6 +39,7 @@ type GenerateRedeemCodesRequest struct {
 	Value        float64 `json:"value"`
 	GroupID      *int64  `json:"group_id"`                                    // 订阅类型必填
 	ValidityDays int     `json:"validity_days" binding:"omitempty,max=36500"` // 订阅类型使用，默认30天，最大100年
+	ExpiresAt    *string `json:"expires_at"`
 }
 
 // CreateAndRedeemCodeRequest represents creating a fixed code and redeeming it for a target user.
@@ -50,6 +52,7 @@ type CreateAndRedeemCodeRequest struct {
 	GroupID      *int64  `json:"group_id"`                                    // subscription 类型必填
 	ValidityDays int     `json:"validity_days" binding:"omitempty,max=36500"` // subscription 类型必填，>0
 	Notes        string  `json:"notes"`
+	ExpiresAt    *string `json:"expires_at"`
 }
 
 // List handles listing all redeem codes with pagination
@@ -104,6 +107,11 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	expiresAt, err := parseOptionalRedeemExpiresAt(req.ExpiresAt)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 
 	executeAdminIdempotentJSON(c, "admin.redeem_codes.generate", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		codes, execErr := h.adminService.GenerateRedeemCodes(ctx, &service.GenerateRedeemCodesInput{
@@ -112,6 +120,7 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 			Value:        req.Value,
 			GroupID:      req.GroupID,
 			ValidityDays: req.ValidityDays,
+			ExpiresAt:    expiresAt,
 		})
 		if execErr != nil {
 			return nil, execErr
@@ -155,6 +164,11 @@ func (h *RedeemHandler) CreateAndRedeem(c *gin.Context) {
 			return
 		}
 	}
+	expiresAt, err := parseOptionalRedeemExpiresAt(req.ExpiresAt)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 
 	executeAdminIdempotentJSON(c, "admin.redeem_codes.create_and_redeem", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		existing, err := h.redeemService.GetByCode(ctx, req.Code)
@@ -171,6 +185,7 @@ func (h *RedeemHandler) CreateAndRedeem(c *gin.Context) {
 			Value:        req.Value,
 			Status:       service.StatusUnused,
 			Notes:        req.Notes,
+			ExpiresAt:    expiresAt,
 			GroupID:      req.GroupID,
 			ValidityDays: req.ValidityDays,
 		})
@@ -313,7 +328,7 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 	writer := csv.NewWriter(&buf)
 
 	// Write header
-	if err := writer.Write([]string{"id", "code", "type", "value", "status", "used_by", "used_by_email", "used_at", "created_at"}); err != nil {
+	if err := writer.Write([]string{"id", "code", "type", "value", "status", "used_by", "used_by_email", "used_at", "created_at", "expires_at"}); err != nil {
 		response.InternalError(c, "Failed to export redeem codes: "+err.Error())
 		return
 	}
@@ -332,6 +347,10 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 		if code.UsedAt != nil {
 			usedAt = code.UsedAt.Format("2006-01-02 15:04:05")
 		}
+		expiresAt := ""
+		if code.ExpiresAt != nil {
+			expiresAt = code.ExpiresAt.Format("2006-01-02 15:04:05")
+		}
 		if err := writer.Write([]string{
 			fmt.Sprintf("%d", code.ID),
 			code.Code,
@@ -342,6 +361,7 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 			usedByEmail,
 			usedAt,
 			code.CreatedAt.Format("2006-01-02 15:04:05"),
+			expiresAt,
 		}); err != nil {
 			response.InternalError(c, "Failed to export redeem codes: "+err.Error())
 			return
@@ -357,4 +377,24 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=redeem_codes.csv")
 	c.Data(200, "text/csv; charset=utf-8", append([]byte{0xEF, 0xBB, 0xBF}, buf.Bytes()...))
+}
+
+func parseOptionalRedeemExpiresAt(raw *string) (*time.Time, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	value := strings.TrimSpace(*raw)
+	if value == "" {
+		return nil, nil
+	}
+	layouts := []string{time.RFC3339Nano, time.RFC3339, "2006-01-02T15:04", "2006-01-02 15:04:05", "2006-01-02"}
+	for _, layout := range layouts {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			if !parsed.After(time.Now()) {
+				return nil, infraerrors.BadRequest("REDEEM_CODE_EXPIRES_AT_INVALID", "expires_at must be in the future")
+			}
+			return &parsed, nil
+		}
+	}
+	return nil, infraerrors.BadRequest("REDEEM_CODE_EXPIRES_AT_INVALID", "expires_at must be a valid date or RFC3339 timestamp")
 }
