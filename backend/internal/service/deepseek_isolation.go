@@ -74,7 +74,7 @@ func deriveDeepSeekInternalUserID(c *gin.Context, account *Account, salt string)
 		salt = "sub2api-deepseek-user-id"
 	}
 	mac := hmac.New(sha256.New, []byte(salt))
-	_, _ = mac.Write([]byte(fmt.Sprintf("user:%d|api_key:%d|account:%d", userID, apiKeyID, account.ID)))
+	_, _ = fmt.Fprintf(mac, "user:%d|api_key:%d|account:%d", userID, apiKeyID, account.ID)
 	return deepSeekInternalUserIDPrefix + hex.EncodeToString(mac.Sum(nil))[:40]
 }
 

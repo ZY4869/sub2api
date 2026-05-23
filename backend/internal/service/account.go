@@ -545,9 +545,7 @@ func requestedModelLookupCandidates(platform, requestedModel string) []string {
 		candidates = append(candidates, normalized)
 	}
 	if platform == PlatformDeepSeek {
-		for _, value := range modelregistry.AlternateVersionVariants(requestedModel) {
-			candidates = append(candidates, value)
-		}
+		candidates = append(candidates, modelregistry.AlternateVersionVariants(requestedModel)...)
 		if canonical, ok := modelregistry.ResolveToCanonicalID(requestedModel); ok {
 			candidates = append(candidates, canonical)
 		}
