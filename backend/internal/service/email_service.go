@@ -348,11 +348,6 @@ func (s *EmailService) VerifyCode(ctx context.Context, email, code string) error
 	return nil
 }
 
-// buildVerifyCodeEmailBody 构建验证码邮件HTML内容
-func (s *EmailService) buildVerifyCodeEmailBody(code, siteName string) string {
-	return s.buildVerifyCodeEmailBodyWithLocale(code, siteName, "en")
-}
-
 func (s *EmailService) buildVerifyCodeEmailBodyWithLocale(code, siteName, locale string) string {
 	if NormalizeEmailLocale(locale) == "zh" {
 		return fmt.Sprintf(`

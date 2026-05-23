@@ -33,7 +33,7 @@ func (s *userUsageDailyRepoStub) GetUsageTrendWithFilters(ctx context.Context, s
 			Date:        "2026-05-20",
 			Requests:    2,
 			InputTokens: 100,
-			ActualCost: 0.25,
+			ActualCost:  0.25,
 		},
 	}, nil
 }

@@ -137,7 +137,7 @@ func responsesContentToChatContent(raw json.RawMessage, role string) json.RawMes
 		var out strings.Builder
 		for _, part := range parts {
 			if strings.TrimSpace(part.Text) != "" {
-				out.WriteString(part.Text)
+				_, _ = out.WriteString(part.Text)
 			}
 		}
 		return json.RawMessage(mustMarshalJSON(out.String()))

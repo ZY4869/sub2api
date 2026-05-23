@@ -30,7 +30,9 @@ ORDER BY template_key ASC, locale ASC`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var out []service.EmailTemplate
 	for rows.Next() {

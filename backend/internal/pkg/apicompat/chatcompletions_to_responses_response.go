@@ -187,7 +187,7 @@ func chatMessageContentAsText(raw json.RawMessage) string {
 		var out strings.Builder
 		for _, part := range parts {
 			if part.Type == "text" {
-				out.WriteString(part.Text)
+				_, _ = out.WriteString(part.Text)
 			}
 		}
 		return out.String()
