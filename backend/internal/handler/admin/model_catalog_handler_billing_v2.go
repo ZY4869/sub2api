@@ -163,6 +163,22 @@ func (h *ModelCatalogHandler) RefreshBillingPricingCatalog(c *gin.Context) {
 	response.Success(c, result)
 }
 
+func (h *ModelCatalogHandler) SyncLiteLLMPricingCatalog(c *gin.Context) {
+	var req service.BillingPricingLiteLLMSyncInput
+	if c.Request != nil && c.Request.Body != nil {
+		if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+			response.BadRequest(c, "Invalid request: "+err.Error())
+			return
+		}
+	}
+	result, err := h.modelCatalogService.SyncLiteLLMPricingCatalog(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 func (h *ModelCatalogHandler) GetBillingPricingAudit(c *gin.Context) {
 	audit, err := h.modelCatalogService.GetBillingPricingAudit(c.Request.Context())
 	if err != nil {

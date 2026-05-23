@@ -167,11 +167,14 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	modelHint := strings.TrimSpace(gjson.GetBytes(body, "model").String())
-	submitContentModerationAudit(
-		c.Request.Context(),
-		h.contentModerationService,
-		buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIResponses, service.PlatformOpenAI, modelHint, body),
-	)
+	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIResponses, service.PlatformOpenAI, modelHint, body)
+	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+		reqLog.Warn("openai.content_moderation_keyword_check_failed", zap.Error(err))
+	} else if blocked {
+		contentModerationOpenAIBlockResponse(c)
+		return
+	}
+	submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)
 
 	// 使用 gjson 只读提取字段做校验，避免完整 Unmarshal
 	modelResult := gjson.GetBytes(body, "model")
@@ -464,6 +467,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					return
 				}
 				imageProtocolMode := service.ResolveEffectiveOpenAIImageProtocolMode(currentAPIKey.Group, account)
+				if service.ResolveOpenAITextRequestFormatForAccount(account, service.EndpointResponses) == service.GatewayOpenAIRequestFormatChatCompletions {
+					h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Responses image_generation tool is not supported when the selected upstream is forced to chat completions", streamStarted)
+					return
+				}
 				if imageProtocolMode == service.OpenAIImageProtocolModeCompat && !service.IsOpenAIImageCompatAllowed(account) {
 					h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "image_compat_not_allowed", "This account does not allow compat image generation")
 					return
@@ -478,6 +485,16 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				}
 				if imageProtocolMode == service.OpenAIImageProtocolModeCompat {
 					normalizedImageToolRequest.TargetModelID = service.OpenAICompatImageTargetModel
+				}
+				if normalizedImageToolRequest.N != nil && *normalizedImageToolRequest.N > 1 {
+					h.errorResponseWithCode(
+						c,
+						http.StatusBadRequest,
+						"invalid_request_error",
+						"image_n_not_supported",
+						"Responses image_generation tool does not support n>1; call /v1/images/generations or repeat the request instead",
+					)
+					return
 				}
 				capabilityProfile, capabilityErr := service.ValidateOpenAIImageCapabilities(normalizedImageToolRequest, imageProtocolMode, normalizedImageToolRequest.TargetModelID)
 				if capabilityErr != nil {
@@ -533,7 +550,12 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			// Forward request
 			service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
 			forwardStart := time.Now()
-			result, err := h.gatewayService.Forward(c.Request.Context(), c, account, body)
+			var result *service.OpenAIForwardResult
+			if service.ResolveOpenAITextRequestFormatForAccount(account, service.EndpointResponses) == service.GatewayOpenAIRequestFormatChatCompletions {
+				result, err = h.gatewayService.ForwardResponsesAsChatCompletions(c.Request.Context(), c, account, body, runtimeSelectionModel)
+			} else {
+				result, err = h.gatewayService.Forward(c.Request.Context(), c, account, body)
+			}
 			forwardDurationMs := time.Since(forwardStart).Milliseconds()
 			if accountReleaseFunc != nil {
 				accountReleaseFunc()

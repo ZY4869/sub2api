@@ -607,6 +607,9 @@ const blacklistAdviceMessage = computed(() => {
   if (!blacklistAdvice.value) {
     return ''
   }
+  if (blacklistAdvice.value.reason_code === 'credentials_need_reauth') {
+    return t('admin.accounts.testBlacklist.needsReauth')
+  }
   const reason = blacklistAdvice.value.reason_message || t('admin.accounts.testBlacklist.noReason')
   if (blacklistAdvice.value.decision === 'not_recommended') {
     return `${reason}\n${t('admin.accounts.testBlacklist.manualOverrideHint')}`

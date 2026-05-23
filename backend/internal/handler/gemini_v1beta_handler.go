@@ -216,11 +216,14 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.body_empty", "Request body is empty")
 		return
 	}
-	submitContentModerationAudit(
-		c.Request.Context(),
-		h.contentModerationService,
-		buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiGenerate, service.PlatformGemini, modelName, body),
-	)
+	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiGenerate, service.PlatformGemini, modelName, body)
+	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+		reqLog.Warn("gemini.content_moderation_keyword_check_failed", zap.Error(err))
+	} else if blocked {
+		googleErrorWithReason(c, http.StatusForbidden, "content_policy_keyword_blocked", "gateway.gemini.content_policy_keyword_blocked", "Request blocked by local content policy keywords")
+		return
+	}
+	submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)
 
 	setOpsRequestContext(c, modelName, stream, body)
 

@@ -58,7 +58,7 @@ func classifyOpenAIWSReconnectReason(err error) (string, bool) {
 	}
 	baseReason := strings.TrimPrefix(reason, "prewarm_")
 	switch baseReason {
-	case "policy_violation", "message_too_big", "upgrade_required", "ws_unsupported", "auth_failed", "invalid_encrypted_content", "previous_response_not_found":
+	case "policy_violation", "message_too_big", "upgrade_required", "ws_unsupported", "auth_failed", "invalid_encrypted_content", "previous_response_not_found", "empty_thinking_block":
 		return reason, false
 	}
 	switch baseReason {

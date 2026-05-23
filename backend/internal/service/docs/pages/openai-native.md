@@ -97,6 +97,8 @@ curl https://api.zyxai.de/v1/responses \
 - `GET /v1/responses/*subpath` 与 `DELETE /v1/responses/*subpath` 用于查询或删除子资源。
 - `GET /v1/responses` 由专门的 Responses WebSocket / 长连接处理链路接管。
 - 当运行平台为 OpenAI 时，Responses 能力是原生直通。
+- 当管理员开启本地 force chat completions 策略时，`POST /v1/responses` 会通过本地 Responses 与 Chat Completions 适配层降级到 chat completions；流式输出、usage 记录和失败记录仍按本地网关规则保留。
+- 对 reasoning 模型转发到上游时，网关会自动剔除不适用的 `temperature` / `top_p`；非 reasoning 模型保持原行为。
 - 当运行平台为 Grok 时，普通 `POST /grok/v1/responses` 可用，但 WebSocket 动作在能力矩阵中被拒绝。
 - 如果你在 `POST /v1/responses` 里使用 `image_generation` tool，而上游返回的是 compact SSE 且终态 `response.completed.response.output` 为空，网关会根据 `response.image_generation_call.partial_image` 自动回填 `output[].content[].type = "output_image"`，`image_url` 为 data URI，方便非流式客户端直接消费。
 - 如果上游账号是 OpenAI Pro，运行时额度会拆成两侧：`gpt-5.3-codex-spark*` 只占用 `Spark` 侧，其它 OpenAI 模型统一占用 `普通` 侧；一侧冷却不会连带阻断另一侧。
@@ -196,6 +198,8 @@ OpenAI 侧现在建议明确区分两类能力：
 - `size` 推荐直接使用明确 `"WIDTHxHEIGHT"`（例如 `"1536x1024"`）。此外网关也接受 shorthand：`"2K 16:9"` / `"16:9 2K"`，以及分字段 `image_size="2K"` + `aspect_ratio="16:9"`（`aspect_ratio` 支持 `W:H` / `W/H`）。`image_size` 默认 `2K`，可选 `1K/2K/4K`（映射最大边 `1024/2048/3840`），`aspect_ratio` 默认 `1:1`；网关会在转发上游前统一换算并写回 `size`（例：`2K 16:9` → `2048x1152`），并剔除扩展字段，避免 OpenAI 上游因未知字段或非法 size 直接 400。
 - `/v1/images/edits` 的 `multipart/form-data` 支持 `image[]` 作为输入图片字段（等价于 `image` / `images` / `images[]`）。
 - `n`：`/v1/responses` 的 `image_generation` tool 当前不支持 `n>1`；网关会兼容 `n=1` 但不透传，`n>1` 直接返回 `400 invalid_request_error`，错误码 `image_n_not_supported`。
+- `/v1/images/generations` 与 `/v1/images/edits` 的 native 路径会透传当前目标模型支持的 `n`；compat / Responses image tool 对不支持的 `n>1` 明确返回 `400 image_n_not_supported`，不会静默丢字段。
+- 生图专用 Key 的图片数量额度按期望 `n` 预占，按实际上游返回张数结算差额；上游失败会回滚预占。
 - 原生与 compat 两条图片链路都会统一归一化 `generate | edit`、`images[]`、`mask`、`size`、`quality`、`background`、`output_format`、`output_compression`、`partial_images`、`moderation`、`input_fidelity`；其中 `input_fidelity` 会保留在网关内部 DTO 和 trace，但当前不会继续向 compat 内部固定目标 `gpt-image-2` 的上游 payload 透传。
 - 图片能力矩阵现在以单一 GPT image profile 为准：版本化 `gpt-image-*`（例如 `gpt-image-1.5`、`gpt-image-2`）和 `chatgpt-image-latest`，无论 native 还是 compat，都会放开 `generate`、`edit`、`stream`、多图、`mask`、`background=transparent`，以及最大边 `3840px` 的自定义尺寸；未知或旧模型保持保守拒绝路径。
 - 能力校验顺序固定在上游请求前完成：`operation` -> `stream/partial_images` -> `mask/multi-image` -> `background/output_format/output_compression` -> `size/custom-resolution`。命中的能力档会写入 `image_capability_profile`，便于观察 `transparent` / `4K` 放量。

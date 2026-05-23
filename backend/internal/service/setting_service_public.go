@@ -61,6 +61,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyPaymentProviderAirwallexEnabled,
 		SettingKeyAirwallexClientID,
 		SettingKeyAirwallexAPIKey,
+		SettingKeyPaymentMobileForceQRCodeEnabled,
 		SettingKeyPaymentAllowedCurrencies,
 		SettingKeyPaymentDefaultCurrency,
 		SettingKeyPaymentMinTopupAmount,
@@ -122,6 +123,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
 		PaymentProviderAirwallexEnabled:  IsPaymentPublicAirwallexEnabled(paymentSettings),
+		PaymentMobileForceQRCodeEnabled:  paymentSettings.MobileForceQRCodeEnabled,
 		PaymentAllowedCurrencies:         paymentSettings.AllowedCurrencies,
 		PaymentDefaultCurrency:           paymentSettings.DefaultCurrency,
 		PaymentMinTopupAmount:            paymentSettings.MinTopupAmount,
@@ -180,6 +182,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PurchaseSubscriptionEnabled      bool                      `json:"purchase_subscription_enabled"`
 		PurchaseSubscriptionURL          string                    `json:"purchase_subscription_url,omitempty"`
 		PaymentProviderAirwallexEnabled  bool                      `json:"payment_provider_airwallex_enabled"`
+		PaymentMobileForceQRCodeEnabled  bool                      `json:"payment_mobile_force_qrcode_enabled"`
 		PaymentAllowedCurrencies         []string                  `json:"payment_allowed_currencies"`
 		PaymentDefaultCurrency           string                    `json:"payment_default_currency"`
 		PaymentMinTopupAmount            float64                   `json:"payment_min_topup_amount"`
@@ -223,6 +226,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
 		PaymentProviderAirwallexEnabled:  settings.PaymentProviderAirwallexEnabled,
+		PaymentMobileForceQRCodeEnabled:  settings.PaymentMobileForceQRCodeEnabled,
 		PaymentAllowedCurrencies:         settings.PaymentAllowedCurrencies,
 		PaymentDefaultCurrency:           settings.PaymentDefaultCurrency,
 		PaymentMinTopupAmount:            settings.PaymentMinTopupAmount,
@@ -573,12 +577,15 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAirwallexClientID:                    "",
 		SettingKeyAirwallexAPIKey:                      "",
 		SettingKeyAirwallexWebhookSecret:               "",
+		SettingKeyPaymentMobileForceQRCodeEnabled:      "false",
 		SettingKeyPaymentAllowedCurrencies:             `["USD","CNY","HKD"]`,
 		SettingKeyPaymentDefaultCurrency:               "USD",
 		SettingKeyPaymentMinTopupAmount:                "1",
 		SettingKeyPaymentMaxTopupAmount:                "5000",
 		SettingKeyPaymentSubscriptionPlans:             "[]",
 		SettingKeyAntigravityUserAgentVersion:          "",
+		SettingKeyCodexOAuthUserAgentMode:              CodexOAuthUAModeDefault,
+		SettingKeyCodexOAuthUserAgentOverride:          "",
 		SettingKeyCustomMenuItems:                      "[]",
 		SettingKeyLoginAgreementEnabled:                "false",
 		SettingKeyLoginAgreementMode:                   LoginAgreementModeCheckbox,
@@ -629,6 +636,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyContentModerationTimeoutMs:           "1500",
 		SettingKeyContentModerationDedupeWindowSeconds: "300",
 		SettingKeyContentModerationFailOpen:            "true",
+		SettingKeyContentModerationKeywordBlockEnabled: "false",
+		SettingKeyContentModerationKeywords:            "[]",
+		SettingKeyContentModerationModelFilter:         `{"type":"all","models":[]}`,
 		SettingKeyVisualPresetDefault:                  VisualPresetClassic,
 		SettingKeyAccountAiryWhiteSurfaceEnabled:       "false",
 	}
@@ -662,12 +672,16 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.AirwallexAPIKeyConfigured = paymentSettings.AirwallexAPIKeyConfigured
 	result.AirwallexWebhookSecret = paymentSettings.AirwallexWebhookSecret
 	result.AirwallexWebhookSecretConfigured = paymentSettings.AirwallexWebhookSecretConfigured
+	result.PaymentMobileForceQRCodeEnabled = paymentSettings.MobileForceQRCodeEnabled
 	result.PaymentAllowedCurrencies = paymentSettings.AllowedCurrencies
 	result.PaymentDefaultCurrency = paymentSettings.DefaultCurrency
 	result.PaymentMinTopupAmount = paymentSettings.MinTopupAmount
 	result.PaymentMaxTopupAmount = paymentSettings.MaxTopupAmount
 	result.PaymentSubscriptionPlans = paymentSettings.SubscriptionPlans
 	result.AntigravityUserAgentVersion = strings.TrimSpace(settings[SettingKeyAntigravityUserAgentVersion])
+	codexUAPolicy := NormalizeCodexOAuthUserAgentPolicy(settings[SettingKeyCodexOAuthUserAgentMode], settings[SettingKeyCodexOAuthUserAgentOverride])
+	result.CodexOAuthUserAgentMode = codexUAPolicy.Mode
+	result.CodexOAuthUserAgentOverride = codexUAPolicy.Override
 	result.SMTPPassword = settings[SettingKeySMTPPassword]
 	result.TelegramBotToken = strings.TrimSpace(settings[SettingKeyTelegramBotToken])
 	result.TelegramBotTokenConfigured = result.TelegramBotToken != ""
@@ -726,6 +740,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.ContentModerationTimeoutMs = parseSettingInt(settings[SettingKeyContentModerationTimeoutMs], 1500)
 	result.ContentModerationDedupeWindowSeconds = parseSettingInt(settings[SettingKeyContentModerationDedupeWindowSeconds], 300)
 	result.ContentModerationFailOpen = settings[SettingKeyContentModerationFailOpen] != "false"
+	result.ContentModerationKeywordBlockEnabled = settings[SettingKeyContentModerationKeywordBlockEnabled] == "true"
+	result.ContentModerationKeywords = NormalizeContentModerationKeywords(settings[SettingKeyContentModerationKeywords])
+	result.ContentModerationModelFilter = NormalizeContentModerationModelFilter(settings[SettingKeyContentModerationModelFilter])
 	result.EnableModelFallback = settings[SettingKeyEnableModelFallback] == "true"
 	result.FallbackModelAnthropic = s.getStringOrDefault(settings, SettingKeyFallbackModelAnthropic, "claude-3-5-sonnet-20241022")
 	result.FallbackModelOpenAI = s.getStringOrDefault(settings, SettingKeyFallbackModelOpenAI, "gpt-4o")

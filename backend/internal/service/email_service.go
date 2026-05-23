@@ -12,6 +12,7 @@ import (
 	"net/smtp"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -82,8 +83,9 @@ type SMTPConfig struct {
 
 // EmailService 邮件服务
 type EmailService struct {
-	settingRepo SettingRepository
-	cache       EmailCache
+	settingRepo     SettingRepository
+	cache           EmailCache
+	templateService *EmailTemplateService
 }
 
 // NewEmailService 创建邮件服务实例
@@ -92,6 +94,13 @@ func NewEmailService(settingRepo SettingRepository, cache EmailCache) *EmailServ
 		settingRepo: settingRepo,
 		cache:       cache,
 	}
+}
+
+func (s *EmailService) SetTemplateService(templateService *EmailTemplateService) {
+	if s == nil {
+		return
+	}
+	s.templateService = templateService
 }
 
 // GetSMTPConfig 从数据库获取SMTP配置
@@ -234,6 +243,11 @@ func (s *EmailService) GenerateVerifyCode() (string, error) {
 
 // SendVerifyCode 发送验证码邮件
 func (s *EmailService) SendVerifyCode(ctx context.Context, email, siteName string) error {
+	return s.SendVerifyCodeWithLocale(ctx, email, siteName, "")
+}
+
+// SendVerifyCodeWithLocale 发送指定语言的验证码邮件。
+func (s *EmailService) SendVerifyCodeWithLocale(ctx context.Context, email, siteName, locale string) error {
 	// 检查是否在冷却期内
 	existing, err := s.cache.GetVerificationCode(ctx, email)
 	if err == nil && existing != nil {
@@ -258,9 +272,8 @@ func (s *EmailService) SendVerifyCode(ctx context.Context, email, siteName strin
 		return fmt.Errorf("save verify code: %w", err)
 	}
 
-	// 构建邮件内容
-	subject := fmt.Sprintf("[%s] Email Verification Code", siteName)
-	body := s.buildVerifyCodeEmailBody(code, siteName)
+	normalizedLocale := NormalizeEmailLocale(locale)
+	subject, body := s.renderVerifyCodeEmail(ctx, code, siteName, normalizedLocale)
 
 	// 发送邮件
 	if err := s.SendEmail(ctx, email, subject, body); err != nil {
@@ -268,6 +281,40 @@ func (s *EmailService) SendVerifyCode(ctx context.Context, email, siteName strin
 	}
 
 	return nil
+}
+
+func NormalizeEmailLocale(locale string) string {
+	locale = strings.ToLower(strings.TrimSpace(locale))
+	locale = strings.ReplaceAll(locale, "_", "-")
+	switch {
+	case strings.HasPrefix(locale, "zh"):
+		return "zh"
+	case strings.HasPrefix(locale, "en"):
+		return "en"
+	default:
+		return "en"
+	}
+}
+
+func buildVerifyCodeEmailSubject(siteName, locale string) string {
+	if NormalizeEmailLocale(locale) == "zh" {
+		return fmt.Sprintf("[%s] 邮箱验证码", siteName)
+	}
+	return fmt.Sprintf("[%s] Email Verification Code", siteName)
+}
+
+func (s *EmailService) renderVerifyCodeEmail(ctx context.Context, code, siteName, locale string) (string, string) {
+	if s != nil && s.templateService != nil {
+		subject, body, err := s.templateService.Render(ctx, EmailTemplateVerifyCode, locale, map[string]string{
+			"SiteName": siteName,
+			"Code":     code,
+		})
+		if err == nil && strings.TrimSpace(subject) != "" && strings.TrimSpace(body) != "" {
+			return subject, body
+		}
+		log.Printf("[Email] verify code template render fallback: %v", err)
+	}
+	return buildVerifyCodeEmailSubject(siteName, locale), s.buildVerifyCodeEmailBodyWithLocale(code, siteName, locale)
 }
 
 // VerifyCode 验证验证码
@@ -303,6 +350,48 @@ func (s *EmailService) VerifyCode(ctx context.Context, email, code string) error
 
 // buildVerifyCodeEmailBody 构建验证码邮件HTML内容
 func (s *EmailService) buildVerifyCodeEmailBody(code, siteName string) string {
+	return s.buildVerifyCodeEmailBodyWithLocale(code, siteName, "en")
+}
+
+func (s *EmailService) buildVerifyCodeEmailBodyWithLocale(code, siteName, locale string) string {
+	if NormalizeEmailLocale(locale) == "zh" {
+		return fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { padding: 40px 30px; text-align: center; }
+        .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #333; background-color: #f8f9fa; padding: 20px 30px; border-radius: 8px; display: inline-block; margin: 20px 0; font-family: monospace; }
+        .info { color: #666; font-size: 14px; line-height: 1.6; margin-top: 20px; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #999; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>%s</h1>
+        </div>
+        <div class="content">
+            <p style="font-size: 18px; color: #333;">您的邮箱验证码是：</p>
+            <div class="code">%s</div>
+            <div class="info">
+                <p>验证码将在 <strong>15 分钟</strong> 后过期。</p>
+                <p>如果这不是您本人操作，请忽略此邮件。</p>
+            </div>
+        </div>
+        <div class="footer">
+            <p>这是一封自动发送的邮件，请勿直接回复。</p>
+        </div>
+    </div>
+</body>
+</html>
+`, siteName, code)
+	}
 	return fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
@@ -429,9 +518,7 @@ func (s *EmailService) SendPasswordResetEmail(ctx context.Context, email, siteNa
 	// Build full reset URL with URL-encoded token and email
 	fullResetURL := fmt.Sprintf("%s?email=%s&token=%s", resetURL, url.QueryEscape(email), url.QueryEscape(token))
 
-	// Build email content
-	subject := fmt.Sprintf("[%s] 密码重置请求", siteName)
-	body := s.buildPasswordResetEmailBody(fullResetURL, siteName)
+	subject, body := s.renderPasswordResetEmail(ctx, siteName, fullResetURL)
 
 	// Send email
 	if err := s.SendEmail(ctx, email, subject, body); err != nil {
@@ -461,6 +548,31 @@ func (s *EmailService) SendPasswordResetEmailWithCooldown(ctx context.Context, e
 	}
 
 	return nil
+}
+
+func (s *EmailService) renderPasswordResetEmail(ctx context.Context, siteName, resetURL string) (string, string) {
+	if s != nil && s.templateService != nil {
+		subject, body, err := s.templateService.Render(ctx, EmailTemplatePasswordReset, "zh", map[string]string{
+			"SiteName": siteName,
+			"ResetURL": resetURL,
+		})
+		if err == nil && strings.TrimSpace(subject) != "" && strings.TrimSpace(body) != "" {
+			return subject, body
+		}
+		log.Printf("[Email] password reset template render fallback: %v", err)
+	}
+	return fmt.Sprintf("[%s] 密码重置请求", siteName), s.buildPasswordResetEmailBody(resetURL, siteName)
+}
+
+func (s *EmailService) SendTemplatedEmail(ctx context.Context, to, templateKey, locale string, data map[string]string) error {
+	if s == nil || s.templateService == nil {
+		return ErrEmailTemplateNotFound
+	}
+	subject, body, err := s.templateService.Render(ctx, templateKey, locale, data)
+	if err != nil {
+		return err
+	}
+	return s.SendEmail(ctx, to, subject, body)
 }
 
 // VerifyPasswordResetToken verifies the password reset token without consuming it

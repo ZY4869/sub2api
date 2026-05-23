@@ -117,6 +117,7 @@ type PaymentSettings struct {
 	AirwallexAPIKeyConfigured        bool
 	AirwallexWebhookSecret           string
 	AirwallexWebhookSecretConfigured bool
+	MobileForceQRCodeEnabled         bool
 	AllowedCurrencies                []string
 	DefaultCurrency                  string
 	MinTopupAmount                   float64
@@ -145,6 +146,7 @@ type CreatePaymentOrderResult struct {
 	IntentID     string
 	ResumeToken  string
 	ProviderEnv  string
+	PaymentMode  string
 }
 
 type ResumePaymentOrderResult struct {
@@ -153,6 +155,7 @@ type ResumePaymentOrderResult struct {
 	ClientID     string
 	IntentID     string
 	ProviderEnv  string
+	PaymentMode  string
 }
 
 type RefundPaymentOrderInput struct {

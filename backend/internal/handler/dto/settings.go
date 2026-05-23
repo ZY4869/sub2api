@@ -3,6 +3,8 @@ package dto
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 type AuthIdentity struct {
@@ -82,31 +84,34 @@ type SystemSettings struct {
 	TurnstileSiteKey             string `json:"turnstile_site_key"`
 	TurnstileSecretKeyConfigured bool   `json:"turnstile_secret_key_configured"`
 
-	LinuxDoConnectEnabled                bool                            `json:"linuxdo_connect_enabled"`
-	LinuxDoConnectClientID               string                          `json:"linuxdo_connect_client_id"`
-	LinuxDoConnectClientSecretConfigured bool                            `json:"linuxdo_connect_client_secret_configured"`
-	LinuxDoConnectRedirectURL            string                          `json:"linuxdo_connect_redirect_url"`
-	GitHubOAuthEnabled                   bool                            `json:"github_oauth_enabled"`
-	GitHubOAuthClientID                  string                          `json:"github_oauth_client_id"`
-	GitHubOAuthClientSecretConfigured    bool                            `json:"github_oauth_client_secret_configured"`
-	GitHubOAuthRedirectURL               string                          `json:"github_oauth_redirect_url"`
-	GoogleOAuthEnabled                   bool                            `json:"google_oauth_enabled"`
-	GoogleOAuthClientID                  string                          `json:"google_oauth_client_id"`
-	GoogleOAuthClientSecretConfigured    bool                            `json:"google_oauth_client_secret_configured"`
-	GoogleOAuthRedirectURL               string                          `json:"google_oauth_redirect_url"`
-	DingTalkOAuthEnabled                 bool                            `json:"dingtalk_oauth_enabled"`
-	DingTalkOAuthClientID                string                          `json:"dingtalk_oauth_client_id"`
-	DingTalkOAuthClientSecretConfigured  bool                            `json:"dingtalk_oauth_client_secret_configured"`
-	DingTalkOAuthRedirectURL             string                          `json:"dingtalk_oauth_redirect_url"`
-	ContentModerationEnabled             bool                            `json:"content_moderation_enabled"`
-	ContentModerationProvider            string                          `json:"content_moderation_provider"`
-	ContentModerationBaseURL             string                          `json:"content_moderation_base_url"`
-	ContentModerationAPIKeyConfigured    bool                            `json:"content_moderation_api_key_configured"`
-	ContentModerationAPIKeyStatuses      []ContentModerationAPIKeyStatus `json:"content_moderation_api_key_statuses"`
-	ContentModerationModel               string                          `json:"content_moderation_model"`
-	ContentModerationTimeoutMs           int                             `json:"content_moderation_timeout_ms"`
-	ContentModerationDedupeWindowSeconds int                             `json:"content_moderation_dedupe_window_seconds"`
-	ContentModerationFailOpen            bool                            `json:"content_moderation_fail_open"`
+	LinuxDoConnectEnabled                bool                                 `json:"linuxdo_connect_enabled"`
+	LinuxDoConnectClientID               string                               `json:"linuxdo_connect_client_id"`
+	LinuxDoConnectClientSecretConfigured bool                                 `json:"linuxdo_connect_client_secret_configured"`
+	LinuxDoConnectRedirectURL            string                               `json:"linuxdo_connect_redirect_url"`
+	GitHubOAuthEnabled                   bool                                 `json:"github_oauth_enabled"`
+	GitHubOAuthClientID                  string                               `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecretConfigured    bool                                 `json:"github_oauth_client_secret_configured"`
+	GitHubOAuthRedirectURL               string                               `json:"github_oauth_redirect_url"`
+	GoogleOAuthEnabled                   bool                                 `json:"google_oauth_enabled"`
+	GoogleOAuthClientID                  string                               `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecretConfigured    bool                                 `json:"google_oauth_client_secret_configured"`
+	GoogleOAuthRedirectURL               string                               `json:"google_oauth_redirect_url"`
+	DingTalkOAuthEnabled                 bool                                 `json:"dingtalk_oauth_enabled"`
+	DingTalkOAuthClientID                string                               `json:"dingtalk_oauth_client_id"`
+	DingTalkOAuthClientSecretConfigured  bool                                 `json:"dingtalk_oauth_client_secret_configured"`
+	DingTalkOAuthRedirectURL             string                               `json:"dingtalk_oauth_redirect_url"`
+	ContentModerationEnabled             bool                                 `json:"content_moderation_enabled"`
+	ContentModerationProvider            string                               `json:"content_moderation_provider"`
+	ContentModerationBaseURL             string                               `json:"content_moderation_base_url"`
+	ContentModerationAPIKeyConfigured    bool                                 `json:"content_moderation_api_key_configured"`
+	ContentModerationAPIKeyStatuses      []ContentModerationAPIKeyStatus      `json:"content_moderation_api_key_statuses"`
+	ContentModerationModel               string                               `json:"content_moderation_model"`
+	ContentModerationTimeoutMs           int                                  `json:"content_moderation_timeout_ms"`
+	ContentModerationDedupeWindowSeconds int                                  `json:"content_moderation_dedupe_window_seconds"`
+	ContentModerationFailOpen            bool                                 `json:"content_moderation_fail_open"`
+	ContentModerationKeywordBlockEnabled bool                                 `json:"content_moderation_keyword_block_enabled"`
+	ContentModerationKeywords            []string                             `json:"content_moderation_keywords"`
+	ContentModerationModelFilter         service.ContentModerationModelFilter `json:"content_moderation_model_filter"`
 
 	SiteName                             string                    `json:"site_name"`
 	SiteLogo                             string                    `json:"site_logo"`
@@ -130,12 +135,15 @@ type SystemSettings struct {
 	AirwallexClientID                    string                    `json:"airwallex_client_id"`
 	AirwallexAPIKeyConfigured            bool                      `json:"airwallex_api_key_configured"`
 	AirwallexWebhookSecretConfigured     bool                      `json:"airwallex_webhook_secret_configured"`
+	PaymentMobileForceQRCodeEnabled      bool                      `json:"payment_mobile_force_qrcode_enabled"`
 	PaymentAllowedCurrencies             []string                  `json:"payment_allowed_currencies"`
 	PaymentDefaultCurrency               string                    `json:"payment_default_currency"`
 	PaymentMinTopupAmount                float64                   `json:"payment_min_topup_amount"`
 	PaymentMaxTopupAmount                float64                   `json:"payment_max_topup_amount"`
 	PaymentSubscriptionPlans             []PaymentSubscriptionPlan `json:"payment_subscription_plans"`
 	AntigravityUserAgentVersion          string                    `json:"antigravity_user_agent_version"`
+	CodexOAuthUserAgentMode              string                    `json:"codex_oauth_user_agent_mode"`
+	CodexOAuthUserAgentOverride          string                    `json:"codex_oauth_user_agent_override"`
 	CustomMenuItems                      []CustomMenuItem          `json:"custom_menu_items"`
 	LoginAgreementEnabled                bool                      `json:"login_agreement_enabled"`
 	LoginAgreementMode                   string                    `json:"login_agreement_mode"`
@@ -228,6 +236,7 @@ type PublicSettings struct {
 	PurchaseSubscriptionEnabled      bool                      `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string                    `json:"purchase_subscription_url"`
 	PaymentProviderAirwallexEnabled  bool                      `json:"payment_provider_airwallex_enabled"`
+	PaymentMobileForceQRCodeEnabled  bool                      `json:"payment_mobile_force_qrcode_enabled"`
 	PaymentAllowedCurrencies         []string                  `json:"payment_allowed_currencies"`
 	PaymentDefaultCurrency           string                    `json:"payment_default_currency"`
 	PaymentMinTopupAmount            float64                   `json:"payment_min_topup_amount"`

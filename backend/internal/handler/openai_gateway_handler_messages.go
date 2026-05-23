@@ -70,11 +70,14 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		return
 	}
 	modelHint := strings.TrimSpace(gjson.GetBytes(body, "model").String())
-	submitContentModerationAudit(
-		c.Request.Context(),
-		h.contentModerationService,
-		buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIMessages, service.PlatformOpenAI, modelHint, body),
-	)
+	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIMessages, service.PlatformOpenAI, modelHint, body)
+	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+		reqLog.Warn("openai_messages.content_moderation_keyword_check_failed", zap.Error(err))
+	} else if blocked {
+		contentModerationAnthropicBlockResponse(c)
+		return
+	}
+	submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)
 
 	modelResult := gjson.GetBytes(body, "model")
 	if !modelResult.Exists() || modelResult.Type != gjson.String || modelResult.String() == "" {

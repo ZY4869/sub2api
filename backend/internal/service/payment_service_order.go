@@ -119,5 +119,6 @@ func (s *PaymentService) CreateOrder(ctx context.Context, input CreatePaymentOrd
 		IntentID:     intent.ID,
 		ResumeToken:  resumeToken,
 		ProviderEnv:  settings.AirwallexEnv,
+		PaymentMode:  resolvePaymentMode(settings),
 	}, nil
 }

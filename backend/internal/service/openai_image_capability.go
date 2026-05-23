@@ -105,6 +105,11 @@ func ValidateOpenAIImageCapabilities(req *NormalizedImageRequest, protocolMode s
 	if len(req.Images) > 1 && !profile.SupportsMultiImage {
 		return profile, newOpenAIImageRequestError("image_multi_image_not_supported", "multiple input images are not supported for this image profile")
 	}
+	if req.N != nil {
+		if *req.N < 1 {
+			return profile, newOpenAIImageRequestError("image_n_invalid", "n must be at least 1")
+		}
+	}
 
 	if background := normalizeOpenAIImageBackground(req.Background); background == "" {
 		if strings.TrimSpace(req.Background) != "" {

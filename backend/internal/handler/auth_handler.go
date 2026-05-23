@@ -70,6 +70,7 @@ type RegisterRequest struct {
 type SendVerifyCodeRequest struct {
 	Email          string `json:"email" binding:"required,email"`
 	TurnstileToken string `json:"turnstile_token"`
+	Locale         string `json:"locale"`
 }
 
 // SendVerifyCodeResponse 发送验证码响应
@@ -161,7 +162,7 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 		return
 	}
 
-	result, err := h.authService.SendVerifyCodeAsync(c.Request.Context(), req.Email)
+	result, err := h.authService.SendVerifyCodeAsyncWithLocale(c.Request.Context(), req.Email, req.Locale)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

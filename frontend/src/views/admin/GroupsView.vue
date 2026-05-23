@@ -2444,6 +2444,9 @@ const formatCost = (cost: number): string => {
 }
 
 const getGroupAvailableAccounts = (group: AdminGroup): number => {
+  if (typeof group.available_account_count === 'number') {
+    return Math.max(group.available_account_count, 0)
+  }
   return Math.max((group.active_account_count || 0) - (group.rate_limited_account_count || 0), 0)
 }
 

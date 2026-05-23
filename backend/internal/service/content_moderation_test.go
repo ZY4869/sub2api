@@ -117,6 +117,99 @@ func TestContentModerationService_RecordAudit_CallsOpenAIProvider(t *testing.T) 
 	require.Contains(t, repo.created[0].ContentSummary, "redacted text")
 }
 
+func TestContentModerationService_CheckKeywordBlock_StoresRedactedAuditAndSkipsProvider(t *testing.T) {
+	originalClient := http.DefaultClient
+	defer func() {
+		http.DefaultClient = originalClient
+	}()
+
+	var upstreamCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamCalls++
+		_, _ = w.Write([]byte(`{"results":[{"flagged":false}]}`))
+	}))
+	defer server.Close()
+	http.DefaultClient = server.Client()
+
+	repo := &moderationAuditRepoStub{}
+	settingsRepo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyContentModerationEnabled:             "true",
+			SettingKeyContentModerationProvider:            "openai",
+			SettingKeyContentModerationBaseURL:             server.URL,
+			SettingKeyContentModerationAPIKey:              "sk-live",
+			SettingKeyContentModerationModel:               "omni-moderation-latest",
+			SettingKeyContentModerationDedupeWindowSeconds: "300",
+			SettingKeyContentModerationKeywordBlockEnabled: "true",
+			SettingKeyContentModerationKeywords:            `["blocked phrase"]`,
+		},
+	}
+	svc := NewContentModerationService(repo, settingsRepo)
+
+	decision, err := svc.CheckKeywordBlock(context.Background(), &ContentModerationRecordInput{
+		SourceEndpoint: ContentModerationSourceOpenAIChat,
+		Content:        "please use this blocked phrase",
+	})
+
+	require.NoError(t, err)
+	require.True(t, decision.Blocked)
+	require.Zero(t, upstreamCalls)
+	require.Len(t, repo.created, 1)
+	require.True(t, repo.created[0].Hit)
+	require.False(t, repo.created[0].DedupeHit)
+	require.Contains(t, repo.created[0].ErrorReason, "keyword_blocked:")
+	require.NotContains(t, repo.created[0].ErrorReason, "blocked phrase")
+	require.NotContains(t, repo.created[0].ContentSummary, "blocked phrase")
+	require.Contains(t, repo.created[0].ContentSummary, "redacted text")
+}
+
+func TestContentModerationService_RecordAudit_KeywordHitBypassesDedupeAndProvider(t *testing.T) {
+	originalClient := http.DefaultClient
+	defer func() {
+		http.DefaultClient = originalClient
+	}()
+
+	var upstreamCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamCalls++
+		_, _ = w.Write([]byte(`{"results":[{"flagged":false}]}`))
+	}))
+	defer server.Close()
+	http.DefaultClient = server.Client()
+
+	repo := &moderationAuditRepoStub{
+		previous: &ContentModerationAudit{
+			Hit:         false,
+			ErrorReason: "cached_clean",
+		},
+	}
+	settingsRepo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyContentModerationEnabled:             "true",
+			SettingKeyContentModerationProvider:            "openai",
+			SettingKeyContentModerationBaseURL:             server.URL,
+			SettingKeyContentModerationAPIKey:              "sk-live",
+			SettingKeyContentModerationModel:               "omni-moderation-latest",
+			SettingKeyContentModerationDedupeWindowSeconds: "300",
+			SettingKeyContentModerationKeywordBlockEnabled: "true",
+			SettingKeyContentModerationKeywords:            `["local deny"]`,
+		},
+	}
+	svc := NewContentModerationService(repo, settingsRepo)
+
+	svc.RecordAudit(context.Background(), &ContentModerationRecordInput{
+		SourceEndpoint: ContentModerationSourceOpenAIResponses,
+		Content:        "contains local deny now",
+	})
+
+	require.Zero(t, upstreamCalls)
+	require.Len(t, repo.created, 1)
+	require.True(t, repo.created[0].Hit)
+	require.False(t, repo.created[0].DedupeHit)
+	require.Contains(t, repo.created[0].ErrorReason, "keyword_blocked:")
+	require.NotContains(t, repo.created[0].ErrorReason, "local deny")
+}
+
 func TestContentModerationService_RecordAudit_UsesNextKeyWhenAuthFailureFreezesFirst(t *testing.T) {
 	originalClient := http.DefaultClient
 	defer func() {
@@ -285,6 +378,20 @@ func TestExtractModerationTextFromJSONBody_RedactsSecretsAndLimitsImages(t *test
 	require.NotContains(t, extracted, "sk-should-not-appear")
 }
 
+func TestExtractModerationTextFromJSONBody_DedupesRepeatedText(t *testing.T) {
+	body := []byte(`{
+		"messages": [
+			{"role":"user","content":"repeat this"},
+			{"role":"user","content":"repeat   this"},
+			{"role":"assistant","content":"repeat this"}
+		]
+	}`)
+
+	extracted := ExtractModerationTextFromJSONBody(body)
+
+	require.Equal(t, "repeat this", extracted)
+}
+
 func TestContentModerationService_RecordAudit_DisabledSkipsPersistence(t *testing.T) {
 	repo := &moderationAuditRepoStub{}
 	settingsRepo := &settingPublicRepoStub{
@@ -296,6 +403,50 @@ func TestContentModerationService_RecordAudit_DisabledSkipsPersistence(t *testin
 
 	svc.RecordAudit(context.Background(), &ContentModerationRecordInput{
 		SourceEndpoint: ContentModerationSourceOpenAIMessages,
+		Content:        "sensitive input",
+	})
+
+	require.Empty(t, repo.created)
+}
+
+func TestContentModerationService_RecordAudit_ModelFilterIncludeSkipsUnlisted(t *testing.T) {
+	repo := &moderationAuditRepoStub{}
+	settingsRepo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyContentModerationEnabled:     "true",
+			SettingKeyContentModerationProvider:    "openai",
+			SettingKeyContentModerationAPIKey:      "sk-test",
+			SettingKeyContentModerationModel:       "omni-moderation-latest",
+			SettingKeyContentModerationModelFilter: `{"type":"include","models":["gpt-5.1"]}`,
+		},
+	}
+	svc := NewContentModerationService(repo, settingsRepo)
+
+	svc.RecordAudit(context.Background(), &ContentModerationRecordInput{
+		SourceEndpoint: ContentModerationSourceOpenAIMessages,
+		Model:          "gpt-4o",
+		Content:        "sensitive input",
+	})
+
+	require.Empty(t, repo.created)
+}
+
+func TestContentModerationService_RecordAudit_ModelFilterExcludeSkipsListed(t *testing.T) {
+	repo := &moderationAuditRepoStub{}
+	settingsRepo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyContentModerationEnabled:     "true",
+			SettingKeyContentModerationProvider:    "openai",
+			SettingKeyContentModerationAPIKey:      "sk-test",
+			SettingKeyContentModerationModel:       "omni-moderation-latest",
+			SettingKeyContentModerationModelFilter: `{"type":"exclude","models":["gpt-5.1"]}`,
+		},
+	}
+	svc := NewContentModerationService(repo, settingsRepo)
+
+	svc.RecordAudit(context.Background(), &ContentModerationRecordInput{
+		SourceEndpoint: ContentModerationSourceOpenAIMessages,
+		Model:          "GPT-5.1",
 		Content:        "sensitive input",
 	})
 

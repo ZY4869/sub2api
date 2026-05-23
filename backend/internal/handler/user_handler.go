@@ -11,9 +11,10 @@ import (
 
 // UserHandler handles user-related requests
 type UserHandler struct {
-	userService *service.UserService
-	affiliate   *service.AffiliateService
-	identities  *service.AuthIdentityService
+	userService    *service.UserService
+	affiliate      *service.AffiliateService
+	identities     *service.AuthIdentityService
+	emailTemplates *service.EmailTemplateService
 }
 
 // NewUserHandler creates a new UserHandler
@@ -33,6 +34,10 @@ func (h *UserHandler) GetUserService() *service.UserService {
 
 func (h *UserHandler) SetAuthIdentityService(identityService *service.AuthIdentityService) {
 	h.identities = identityService
+}
+
+func (h *UserHandler) SetEmailTemplateService(templateService *service.EmailTemplateService) {
+	h.emailTemplates = templateService
 }
 
 // ChangePasswordRequest represents the change password request payload
@@ -127,6 +132,51 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	response.Success(c, dto.UserFromService(updatedUser))
+}
+
+func (h *UserHandler) GetNotificationPreferences(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.emailTemplates == nil {
+		response.Success(c, []service.NotificationPreference{})
+		return
+	}
+	items, err := h.emailTemplates.ListNotificationPreferences(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, items)
+}
+
+type updateNotificationPreferenceRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (h *UserHandler) UpdateNotificationPreference(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.emailTemplates == nil {
+		response.ErrorFrom(c, service.ErrEmailTemplateNotFound)
+		return
+	}
+	var req updateNotificationPreferenceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	item, err := h.emailTemplates.UpdateNotificationPreference(c.Request.Context(), subject.UserID, c.Param("category"), req.Enabled)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, item)
 }
 
 func (h *UserHandler) ListAuthIdentities(c *gin.Context) {

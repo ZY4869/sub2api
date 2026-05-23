@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
 )
 
@@ -68,9 +67,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	if s.cfg != nil && s.cfg.Gateway.ForceCodexCLI && isChatGPTOpenAIOAuthAccount(account) {
 		req.Header.Set("user-agent", codexCLIUserAgent)
 	}
-	if isChatGPTOpenAIOAuthAccount(account) && !openai.IsCodexCLIRequest(req.Header.Get("user-agent")) {
-		req.Header.Set("user-agent", codexCLIUserAgent)
-	}
+	s.applyCodexOAuthUserAgentPolicy(ctx, req.Header, account)
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}

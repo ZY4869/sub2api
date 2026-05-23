@@ -38,6 +38,10 @@ type GroupRepository interface {
 	UpdateSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error
 }
 
+type GroupAccountCountWithRateLimitedRepository interface {
+	GetAccountCountWithRateLimited(ctx context.Context, groupID int64) (total int64, active int64, rateLimited int64, err error)
+}
+
 // GroupSortOrderUpdate 分组排序更新
 type GroupSortOrderUpdate struct {
 	ID        int64 `json:"id"`

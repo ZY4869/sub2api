@@ -70,13 +70,13 @@ func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsRecommendedUnau
 	require.Contains(t, message, `API returned 401: {"detail":"Unauthorized"}`)
 	require.NotNil(t, advice)
 	require.Equal(t, BlacklistAdviceAutoBlacklisted, advice.Decision)
-	require.Equal(t, "credentials_likely_invalid", advice.ReasonCode)
+	require.Equal(t, "credentials_need_reauth", advice.ReasonCode)
 	require.Equal(t, "Unauthorized", advice.ReasonMessage)
 	require.True(t, advice.AlreadyBlacklisted)
 	require.False(t, advice.CollectFeedback)
 	require.Len(t, repo.markBlacklistedCalls, 1)
 	require.Equal(t, int64(654), repo.markBlacklistedCalls[0].id)
-	require.Equal(t, "credentials_likely_invalid", repo.markBlacklistedCalls[0].reasonCode)
+	require.Equal(t, "credentials_need_reauth", repo.markBlacklistedCalls[0].reasonCode)
 	require.Equal(t, "Unauthorized", repo.markBlacklistedCalls[0].reasonMessage)
 	require.Empty(t, repo.setErrorCalls)
 }
@@ -105,7 +105,7 @@ func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsNestedUnauthori
 	require.Equal(t, BlacklistAdviceAutoBlacklisted, advice.Decision)
 	require.Equal(t, "Unauthorized", advice.ReasonMessage)
 	require.Len(t, repo.markBlacklistedCalls, 1)
-	require.Equal(t, "credentials_likely_invalid", repo.markBlacklistedCalls[0].reasonCode)
+	require.Equal(t, "credentials_need_reauth", repo.markBlacklistedCalls[0].reasonCode)
 }
 
 func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsPlainUnauthorizedText(t *testing.T) {
@@ -132,7 +132,7 @@ func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsPlainUnauthoriz
 	require.NotNil(t, advice)
 	require.Equal(t, BlacklistAdviceAutoBlacklisted, advice.Decision)
 	require.Len(t, repo.markBlacklistedCalls, 1)
-	require.Equal(t, "credentials_likely_invalid", repo.markBlacklistedCalls[0].reasonCode)
+	require.Equal(t, "credentials_need_reauth", repo.markBlacklistedCalls[0].reasonCode)
 }
 
 func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsFailoverWrappedUnauthorizedText(t *testing.T) {
@@ -158,6 +158,7 @@ func TestAccountTestServiceFormatFailedTestResponseAutoBlacklistsFailoverWrapped
 	require.Contains(t, message, `API returned 401: upstream error: 401 (failover) unauthorized`)
 	require.NotNil(t, advice)
 	require.Equal(t, BlacklistAdviceAutoBlacklisted, advice.Decision)
+	require.Equal(t, "credentials_need_reauth", advice.ReasonCode)
 	require.Len(t, repo.markBlacklistedCalls, 1)
 	require.Equal(t, int64(657), repo.markBlacklistedCalls[0].id)
 }

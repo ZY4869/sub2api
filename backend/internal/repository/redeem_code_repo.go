@@ -2,8 +2,10 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/user"
@@ -100,6 +102,10 @@ func (r *redeemCodeRepository) List(ctx context.Context, params pagination.Pagin
 }
 
 func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, codeType, status, search string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
+	return r.ListWithFiltersAndSort(ctx, params, codeType, status, search, "", "")
+}
+
+func (r *redeemCodeRepository) ListWithFiltersAndSort(ctx context.Context, params pagination.PaginationParams, codeType, status, search, sortBy, sortOrder string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
 	q := r.client.RedeemCode.Query()
 
 	if codeType != "" {
@@ -148,7 +154,7 @@ func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagin
 		WithGroup().
 		Offset(params.Offset()).
 		Limit(params.Limit()).
-		Order(dbent.Desc(redeemcode.FieldID)).
+		Order(redeemCodeOrder(sortBy, sortOrder)).
 		All(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -157,6 +163,40 @@ func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagin
 	outCodes := redeemCodeEntitiesToService(codes)
 
 	return outCodes, paginationResultFromTotal(int64(total), params), nil
+}
+
+func redeemCodeOrder(sortBy, sortOrder string) redeemcode.OrderOption {
+	field := redeemCodeSortField(sortBy)
+	options := []sql.OrderTermOption{sql.OrderDesc()}
+	if strings.EqualFold(strings.TrimSpace(sortOrder), "asc") {
+		options = []sql.OrderTermOption{sql.OrderAsc()}
+	}
+	return sql.OrderByField(field, options...).ToFunc()
+}
+
+func redeemCodeSortField(sortBy string) string {
+	switch strings.ToLower(strings.TrimSpace(sortBy)) {
+	case redeemcode.FieldCode:
+		return redeemcode.FieldCode
+	case redeemcode.FieldType:
+		return redeemcode.FieldType
+	case redeemcode.FieldValue:
+		return redeemcode.FieldValue
+	case redeemcode.FieldStatus:
+		return redeemcode.FieldStatus
+	case redeemcode.FieldUsedAt:
+		return redeemcode.FieldUsedAt
+	case redeemcode.FieldCreatedAt:
+		return redeemcode.FieldCreatedAt
+	case redeemcode.FieldExpiresAt:
+		return redeemcode.FieldExpiresAt
+	case redeemcode.FieldGroupID:
+		return redeemcode.FieldGroupID
+	case redeemcode.FieldValidityDays:
+		return redeemcode.FieldValidityDays
+	default:
+		return redeemcode.FieldID
+	}
 }
 
 func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemCode) error {

@@ -8,6 +8,7 @@ const {
   query,
   getStatsByDateRange,
   listFilterApiKeys,
+  getDashboardApiKeyDailyUsage,
   getRequestPreview,
   showError,
   showWarning,
@@ -17,6 +18,7 @@ const {
   query: vi.fn(),
   getStatsByDateRange: vi.fn(),
   listFilterApiKeys: vi.fn(),
+  getDashboardApiKeyDailyUsage: vi.fn(),
   getRequestPreview: vi.fn(),
   showError: vi.fn(),
   showWarning: vi.fn(),
@@ -62,6 +64,9 @@ const messages: Record<string, string> = {
   "usage.billed": "Billed",
   "usage.allApiKeys": "All API Keys",
   "usage.apiKeyFilter": "API Key",
+  "usage.apiKeyDailyUsage": "API Key Daily Usage",
+  "usage.apiKeyDailyEmpty": "No daily usage found for this API key in the selected range.",
+  "usage.apiKeyDailyFailed": "Failed to load API key daily usage",
   "usage.model": "Model",
   "usage.thinkingMode": "Thinking Mode",
   "usage.thinkingEnabled": "Enabled",
@@ -72,6 +77,7 @@ const messages: Record<string, string> = {
   "usage.millionContextSource": "1M Source",
   "usage.millionContextBetaToken": "1M Beta Token",
   "usage.type": "Type",
+  "usage.requests": "Requests",
   "usage.tokens": "Tokens",
   "usage.cost": "Cost",
   "usage.firstToken": "First Token",
@@ -132,6 +138,7 @@ vi.mock("@/api", () => ({
     query,
     getStatsByDateRange,
     listFilterApiKeys,
+    getDashboardApiKeyDailyUsage,
     getRequestPreview,
   },
 }));
@@ -177,6 +184,12 @@ describe("user UsageView tooltip", () => {
     query.mockReset();
     getStatsByDateRange.mockReset();
     listFilterApiKeys.mockReset();
+    getDashboardApiKeyDailyUsage.mockReset();
+    getDashboardApiKeyDailyUsage.mockResolvedValue({
+      daily_details: [],
+      start_date: "2026-03-01",
+      end_date: "2026-03-07",
+    });
     getRequestPreview.mockReset();
     showError.mockReset();
     showWarning.mockReset();
@@ -1087,6 +1100,87 @@ describe("user UsageView tooltip", () => {
     });
     expect(wrapper.text()).toContain("gemini-key");
     expect(wrapper.text()).toContain("gemini-2.5-pro");
+  });
+
+  it("loads daily usage details for the selected API key", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 4,
+      total_tokens: 600,
+      total_cost: 0.1234,
+      avg_duration_ms: 20,
+    });
+    listFilterApiKeys.mockResolvedValue([
+      { id: 9, name: "daily-key", deleted: false },
+    ]);
+    getDashboardApiKeyDailyUsage.mockResolvedValueOnce({
+      start_date: "2026-03-01",
+      end_date: "2026-03-03",
+      daily_details: [
+        {
+          date: "2026-03-02",
+          requests: 4,
+          input_tokens: 100,
+          output_tokens: 200,
+          cache_creation_tokens: 30,
+          cache_read_tokens: 40,
+          total_tokens: 370,
+          cost: 0.1234,
+          actual_cost: 0.1111,
+        },
+      ],
+    });
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          UsageModelCell: {
+            props: ["row"],
+            template: '<div>{{ row.model }}</div>',
+          },
+          UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const setupState = (wrapper.vm as any).$?.setupState;
+    setupState.filters.api_key_id = 9;
+    setupState.onDateRangeChange({
+      startDate: "2026-03-01",
+      endDate: "2026-03-03",
+      preset: null,
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(getDashboardApiKeyDailyUsage).toHaveBeenCalledWith(9, {
+      start_date: "2026-03-01",
+      end_date: "2026-03-03",
+    });
+    expect(wrapper.find('[data-testid="api-key-daily-usage-card"]').exists()).toBe(true);
+    const row = wrapper.find('[data-testid="api-key-daily-usage-row"]');
+    expect(row.text()).toContain("2026-03-02");
+    expect(row.text()).toContain("4");
+    expect(row.text()).toContain("$0.1111");
+    expect(wrapper.text()).toContain("daily-key");
   });
 
   it("opens request preview modal and renders captured panels", async () => {

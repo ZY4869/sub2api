@@ -24,18 +24,38 @@ func (h *GatewayHandler) Usage(c *gin.Context) {
 	ctx := c.Request.Context()
 	startTime, endTime := h.parseUsageDateRange(c)
 	usageData := h.buildUsageData(ctx, apiKey.ID)
+	dailyDetails := h.buildUsageDailyDetails(ctx, apiKey.ID, startTime, endTime)
 	var modelStats any
 	if h.usageService != nil {
 		if stats, err := h.usageService.GetAPIKeyModelStats(ctx, apiKey.ID, startTime, endTime); err == nil && len(stats) > 0 {
 			modelStats = stats
 		}
 	}
-	isQuotaLimited := apiKey.Quota > 0 || apiKey.HasRateLimits()
-	if isQuotaLimited {
-		h.usageQuotaLimited(c, ctx, apiKey, usageData, modelStats)
+	if apiKey.HasAnyGroupBinding() && !middleware2.APIKeyHasUsableGroupForUsage(apiKey) {
+		resp := gin.H{
+			"mode":    "group_unavailable",
+			"isValid": false,
+			"status":  "group_unavailable",
+			"message": "API key group is unavailable",
+		}
+		if usageData != nil {
+			resp["usage"] = usageData
+		}
+		if dailyDetails != nil {
+			resp["daily_details"] = dailyDetails
+		}
+		if modelStats != nil {
+			resp["model_stats"] = modelStats
+		}
+		c.JSON(http.StatusOK, resp)
 		return
 	}
-	h.usageUnrestricted(c, ctx, apiKey, subject, usageData, modelStats)
+	isQuotaLimited := apiKey.Quota > 0 || apiKey.HasRateLimits()
+	if isQuotaLimited {
+		h.usageQuotaLimited(c, ctx, apiKey, usageData, modelStats, dailyDetails)
+		return
+	}
+	h.usageUnrestricted(c, ctx, apiKey, subject, usageData, modelStats, dailyDetails)
 }
 func (h *GatewayHandler) parseUsageDateRange(c *gin.Context) (time.Time, time.Time) {
 	now := timezone.Now()
@@ -51,7 +71,25 @@ func (h *GatewayHandler) parseUsageDateRange(c *gin.Context) (time.Time, time.Ti
 			endTime = t.Add(24*time.Hour - time.Second)
 		}
 	}
+	if endTime.Before(startTime) {
+		startTime = endTime.AddDate(0, 0, -30)
+	}
+	maxStart := endTime.AddDate(0, 0, -31)
+	if startTime.Before(maxStart) {
+		startTime = maxStart
+	}
 	return startTime, endTime
+}
+
+func (h *GatewayHandler) buildUsageDailyDetails(ctx context.Context, apiKeyID int64, startTime, endTime time.Time) any {
+	if h.usageService == nil {
+		return nil
+	}
+	trend, err := h.usageService.GetAPIKeyDailyUsageTrend(ctx, apiKeyID, startTime, endTime)
+	if err != nil || len(trend) == 0 {
+		return nil
+	}
+	return trend
 }
 func (h *GatewayHandler) buildUsageData(ctx context.Context, apiKeyID int64) gin.H {
 	if h.usageService == nil {
@@ -63,7 +101,7 @@ func (h *GatewayHandler) buildUsageData(ctx context.Context, apiKeyID int64) gin
 	}
 	return gin.H{"today": gin.H{"requests": dashStats.TodayRequests, "input_tokens": dashStats.TodayInputTokens, "output_tokens": dashStats.TodayOutputTokens, "cache_creation_tokens": dashStats.TodayCacheCreationTokens, "cache_read_tokens": dashStats.TodayCacheReadTokens, "total_tokens": dashStats.TodayTokens, "cost": dashStats.TodayCost, "actual_cost": dashStats.TodayActualCost, "cost_by_currency": dashStats.TodayCostByCurrency, "actual_cost_by_currency": dashStats.TodayActualCostByCurrency}, "total": gin.H{"requests": dashStats.TotalRequests, "input_tokens": dashStats.TotalInputTokens, "output_tokens": dashStats.TotalOutputTokens, "cache_creation_tokens": dashStats.TotalCacheCreationTokens, "cache_read_tokens": dashStats.TotalCacheReadTokens, "total_tokens": dashStats.TotalTokens, "cost": dashStats.TotalCost, "actual_cost": dashStats.TotalActualCost, "cost_by_currency": dashStats.CostByCurrency, "actual_cost_by_currency": dashStats.ActualCostByCurrency}, "average_duration_ms": dashStats.AverageDurationMs, "rpm": dashStats.Rpm, "tpm": dashStats.Tpm}
 }
-func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, apiKey *service.APIKey, usageData gin.H, modelStats any) {
+func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, apiKey *service.APIKey, usageData gin.H, modelStats any, dailyDetails any) {
 	resp := gin.H{"mode": "quota_limited", "isValid": apiKey.Status == service.StatusAPIKeyActive || apiKey.Status == service.StatusAPIKeyQuotaExhausted || apiKey.Status == service.StatusAPIKeyExpired, "status": apiKey.Status}
 	if apiKey.Quota > 0 {
 		remaining := apiKey.GetQuotaRemaining()
@@ -114,9 +152,12 @@ func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, 
 	if modelStats != nil {
 		resp["model_stats"] = modelStats
 	}
+	if dailyDetails != nil {
+		resp["daily_details"] = dailyDetails
+	}
 	c.JSON(http.StatusOK, resp)
 }
-func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, apiKey *service.APIKey, subject middleware2.AuthSubject, usageData gin.H, modelStats any) {
+func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, apiKey *service.APIKey, subject middleware2.AuthSubject, usageData gin.H, modelStats any, dailyDetails any) {
 	if apiKey.Group != nil && apiKey.Group.IsSubscriptionType() {
 		resp := gin.H{"mode": "unrestricted", "isValid": true, "planName": apiKey.Group.Name, "unit": "USD"}
 		subscription, ok := middleware2.GetSubscriptionFromContext(c)
@@ -130,6 +171,9 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		}
 		if modelStats != nil {
 			resp["model_stats"] = modelStats
+		}
+		if dailyDetails != nil {
+			resp["daily_details"] = dailyDetails
 		}
 		c.JSON(http.StatusOK, resp)
 		return
@@ -145,6 +189,9 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 	}
 	if modelStats != nil {
 		resp["model_stats"] = modelStats
+	}
+	if dailyDetails != nil {
+		resp["daily_details"] = dailyDetails
 	}
 	c.JSON(http.StatusOK, resp)
 }

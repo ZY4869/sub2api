@@ -37,6 +37,7 @@ export default {
         apiKeyDecryptFailedPlaceholder: "Decrypt failed, please re-enter",
         apiKeyDecryptFailedHint: "The stored key cannot be decrypted; re-enter it to enable/run.",
         clearApiKey: "Clear existing key",
+        openaiApiMode: "OpenAI API mode",
         extraHeaders: "Extra headers (JSON)",
         bodyOverride: "Body override (JSON)",
         jsonHint: "Must be a JSON object, e.g. {\"x-foo\":\"bar\"}",

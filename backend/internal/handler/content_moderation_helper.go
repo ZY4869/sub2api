@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -38,6 +39,47 @@ func submitContentModerationAudit(
 		}()
 		moderationService.RecordAudit(localCtx, &localInput)
 	}(ctx, recordInput)
+}
+
+func checkContentModerationKeywordBlock(
+	ctx context.Context,
+	moderationService *service.ContentModerationService,
+	input *service.ContentModerationRecordInput,
+) (bool, error) {
+	if moderationService == nil || input == nil {
+		return false, nil
+	}
+	content := service.ExtractModerationTextFromJSONBody([]byte(input.Content))
+	if strings.TrimSpace(content) == "" {
+		return false, nil
+	}
+	recordInput := *input
+	recordInput.Content = content
+	decision, err := moderationService.CheckKeywordBlock(ctx, &recordInput)
+	if err != nil || decision == nil {
+		return false, err
+	}
+	return decision.Blocked, nil
+}
+
+func contentModerationOpenAIBlockResponse(c *gin.Context) {
+	c.JSON(http.StatusForbidden, gin.H{
+		"error": gin.H{
+			"type":    "policy_violation",
+			"code":    "content_policy_keyword_blocked",
+			"message": "Request blocked by local content policy keywords",
+		},
+	})
+}
+
+func contentModerationAnthropicBlockResponse(c *gin.Context) {
+	c.JSON(http.StatusForbidden, gin.H{
+		"type": "error",
+		"error": gin.H{
+			"type":    "policy_error",
+			"message": "Request blocked by local content policy keywords",
+		},
+	})
 }
 
 func buildContentModerationRecordInput(c *gin.Context, sourceEndpoint, provider, model string, body []byte) *service.ContentModerationRecordInput {

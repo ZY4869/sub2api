@@ -326,6 +326,7 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - 关闭时，游客访问该接口会返回 `401`，前端 `/models` 页面会跳转到登录页。
 - 已登录用户不受这个开关影响，仍然可以继续访问模型库与对应接口。
 - `GET /api/v1/settings/public` 会额外返回 `maintenance_mode_enabled`、`available_channels_enabled`、`channel_monitor_enabled`、`affiliate_enabled`、`account_airy_white_surface_enabled`，前端可据此决定是否展示维护提示、菜单入口，以及账号管理页清透模式是否切换为纯白主表面。
+- 支付展示相关公开字段还包括 `payment_mobile_force_qrcode_enabled`。该字段只表示站内支付前端是否优先尝试二维码组件，不包含任何 Airwallex secret。
 - 登录 / 注册页还会读取 `login_agreement_enabled`、`login_agreement_mode`、`login_agreement_updated_at`、`login_agreement_documents`。
 - 当前 `login_agreement_mode` 固定为 `checkbox`；只有当 `login_agreement_enabled=true` 且 `login_agreement_documents` 至少包含一篇已发布 markdown 页面时，前端才会启用勾选阻断。
 - `login_agreement_documents[]` 只返回脱离正文后的文档引用：`{ id, title, page_slug }`；正文仍通过 `GET /api/v1/pages/:slug` 拉取。
@@ -345,6 +346,9 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - `/api/v1/usage/stats`、`/api/v1/admin/usage/stats` 现在还会额外返回 `today_requests`、`today_input_tokens`、`today_output_tokens`、`today_cache_tokens`、`today_tokens`、`today_cost`、`today_actual_cost`、`today_average_duration_ms`，用于前台和后台“今日统计”卡片。
 - 这些 `today_*` 字段按请求里的 `timezone` 计算“今日”窗口：从调用方所在时区当天 `00:00` 到当前时间；如果 `timezone` 缺失或非法，则回退到服务端默认时区。
 - `/v1/usage` 在钱包模式下会返回 `balances`，格式为 `{ "USD": 10, "CNY": 25 }`；旧 `balance` / `remaining` 仍只代表 USD 钱包影子余额。
+- `/v1/usage` 会返回 `daily_details[]`，按页面选择的日期范围汇总每日请求数、token、花费与实际扣费；默认沿用调用方当前查询窗口，最大 31 天。
+- `GET /api/v1/usage/dashboard/api-keys/:id/daily` 返回当前登录用户名下指定 API Key 的每日明细。该接口会做所有权校验，不允许查询其他用户的 Key。
+- 当 API Key 绑定的单分组或动态分组全部停用 / 删除时，业务网关会返回 `403 GROUP_UNAVAILABLE`；`/v1/usage` 仍允许 Key 自查，但响应会标记 `isValid=false`、`status=group_unavailable`。
 - `/v1/usage` 的 API Key 配额块会返回 `quota.used_by_currency`，限流窗口会返回 `rate_limits[].used_by_currency`；订阅块会返回 `daily_usage_by_currency`、`weekly_usage_by_currency`、`monthly_usage_by_currency`。旧 `quota.used`、`daily_usage_usd`、`weekly_usage_usd`、`monthly_usage_usd` 均继续代表 USD。
 - 自动换汇只用于 CNY 钱包不足时的运行时扣费：系统按价格保存时锁定的 `usd_to_cny_rate` 从 USD 钱包换入刚好覆盖缺口的 CNY，并写入 `fx_out`、`fx_in`、`usage_debit` 三类账本记录。
 
@@ -405,6 +409,8 @@ curl "https://api.zyxai.de/api/v1/channels/available" \
 - 语义：
   - 关闭时：列表接口返回空数组；详情接口返回 `404`
   - 开启时：返回监控概览与每个监控的最近状态、可用率摘要与简化时间线
+- 管理员监控和请求模板的请求 / 响应包含 `openai_api_mode`，可选 `chat_completions` 或 `responses`，默认 `chat_completions`。该字段仅对 OpenAI provider 生效，非 OpenAI provider 会归一为 `chat_completions`。
+- 监控执行会按 `openai_api_mode` 构造 OpenAI 请求体，并在历史快照中保留该字段，便于区分同一个模型在 Chat Completions 与 Responses 面上的可用性。
 
 #### Python
 ```python
@@ -938,9 +944,11 @@ curl "https://api.zyxai.de/api/v1/pages/getting-started"
 安全规则：
 
 - `bind` 模式必须带当前用户登录态，且只会绑定到当前账号，不会切换到其他用户
-- provider 邮箱已验证且唯一匹配现有用户时，会自动登录并补齐绑定
-- provider 邮箱未验证时，不能接管现有邮箱账号
+- 已绑定过的 provider 用户 ID 可以直接登录；未绑定身份不会仅凭同邮箱自动接管本地账号
+- provider 邮箱未验证时，不能接管现有邮箱账号；provider 邮箱已验证但本地已存在同邮箱账号时，也会进入现有安全绑定 / 确认流程，不会自动绑定或登录该账号
+- provider 邮箱已验证、未命中本地同邮箱冲突、站点允许注册、未启用邀请码强制补全且注册邮箱白名单通过时，可以直接创建本地账号并登录，跳过二次 choice 页
 - 邀请码注册开启时，新用户会进入 pending token + `complete` 的补邀请码流程
+- 注册邮箱后缀白名单支持精确域和子域通配：`@example.com` 只匹配根域，`@*.example.com` / `*.example.com` 只匹配 `foo.example.com` 这类子域，不匹配根域本身
 - 钉钉 OAuth 默认关闭；只有管理员配置并启用后，公开设置才会返回 `dingtalk_oauth_enabled=true`，前端才展示入口。钉钉回调会优先使用 `unionId/openId` 作为第三方身份 ID，凭证和 token 不会出现在公开设置或用户资料接口中。
 
 #### REST
@@ -1005,16 +1013,31 @@ curl -X DELETE "https://api.zyxai.de/api/v1/user/auth-identities/github" \
 - `validity_days`：仅订阅兑换码使用，表示兑换成功后订阅增加或扣减的天数。
 - 旧兑换码没有 `expires_at` 时按未过期处理。
 - 列表筛选 `status=expired` 会包含手动作废以及自然过期的未使用兑换码；`status=unused` 不包含自然过期码。
+- `disabled` 表示管理员禁用的兑换码，不会被兑换流程消费。
+- `GET /api/v1/admin/redeem-codes` 与导出接口支持 `sort_by`、`sort_order`；排序字段只允许 `id`、`code`、`type`、`value`、`status`、`used_at`、`created_at`、`expires_at`、`group_id`、`validity_days`，默认 `id desc`。
 
 主要接口：
 
 - `GET /api/v1/admin/redeem-codes`
 - `POST /api/v1/admin/redeem-codes/generate`
 - `POST /api/v1/admin/redeem-codes/create-and-redeem`
+- `POST /api/v1/admin/redeem-codes/batch-update`
 - `POST /api/v1/admin/redeem-codes/:id/expire`
 - `GET /api/v1/admin/redeem-codes/export`
 
-`expires_at` 接受 RFC3339 时间戳，或 `YYYY-MM-DDTHH:mm`、`YYYY-MM-DD HH:mm:ss`、`YYYY-MM-DD`；传入过去时间会返回统一错误码 `REDEEM_CODE_EXPIRES_AT_INVALID`。兑换已过期的兑换码会返回 `REDEEM_CODE_EXPIRED`。
+`generate` 与 `create-and-redeem` 支持两种兑换码自身过期设置：
+
+- `expires_at`：接受 RFC3339 时间戳，或 `YYYY-MM-DDTHH:mm`、`YYYY-MM-DD HH:mm:ss`、`YYYY-MM-DD`。
+- `expires_in_days`：从当前时间起计算过期天数，最大 36500 天。
+
+`expires_at` 与 `expires_in_days` 不能同时传入，否则返回 `REDEEM_CODE_EXPIRY_CONFLICT`。传入过去时间会返回统一错误码 `REDEEM_CODE_EXPIRES_AT_INVALID`。兑换已过期的兑换码会返回 `REDEEM_CODE_EXPIRED`。
+
+批量更新接口请求体为 `{ "ids": [1, 2], "fields": { ... } }`，`fields` 支持 `status`、`notes`、`expires_at`、`group_id`、`type`、`value`、`validity_days`：
+
+- `status` 只允许批量改为 `unused`、`expired`、`disabled`；不能批量伪造成 `used`，避免缺失 `used_by` / `used_at` 审计语义。
+- `expires_at: null` 表示清除兑换码自身过期时间；字段缺省表示不修改。
+- `type=subscription` 时必须有有效的 `group_id` 与非零 `validity_days`；非订阅类型会清空订阅专用字段。
+- 批量更新只修改兑换码元数据，不触发兑换、扣额、退款或订阅发放。
 
 #### REST
 ```bash
@@ -1027,7 +1050,19 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/redeem-codes/generate" \
     "value": 10,
     "group_id": 2,
     "validity_days": 30,
-    "expires_at": "2026-06-01T08:30:00Z"
+    "expires_in_days": 30
+  }'
+
+curl -X POST "https://api.zyxai.de/api/v1/admin/redeem-codes/batch-update" \
+  -H "Authorization: Bearer <ADMIN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": [101, 102],
+    "fields": {
+      "status": "disabled",
+      "expires_at": null,
+      "notes": "disabled by admin batch update"
+    }
   }'
 ```
 
@@ -1089,9 +1124,12 @@ curl "https://api.zyxai.de/api/v1/admin/moderation/audits/42" \
 - `content_moderation_api_key_configured`（`GET` 只读布尔值）
 - `content_moderation_api_key_statuses[]`（`GET` 只读列表，包含 `hash`、`masked`、可选 `frozen_until`、`last_error`）
 - `content_moderation_model`
+- `content_moderation_model_filter`：`{ "type": "all" | "include" | "exclude", "models": [] }`
 - `content_moderation_timeout_ms`
 - `content_moderation_dedupe_window_seconds`
 - `content_moderation_fail_open`
+- `content_moderation_keyword_block_enabled`
+- `content_moderation_keywords`
 
 兼容与安全规则：
 
@@ -1099,6 +1137,9 @@ curl "https://api.zyxai.de/api/v1/admin/moderation/audits/42" \
 - `append` 会在现有列表后追加并按 hash 去重；`replace` 会用本次提交的新 key 集合替换原列表。
 - 删除操作只接受 `delete_content_moderation_api_key_hashes[]`，不会通过 `GET` 返回任何明文 key。
 - `content_moderation_api_key_statuses[]` 只用于后台展示 masked key 与冻结状态；错误摘要会脱敏，不应出现 URL、Bearer token 或 key 明文。
+- `content_moderation_model_filter` 默认为 `all`。`include` 只审核列表内模型，`exclude` 跳过列表内模型；模型名按大小写不敏感方式匹配。过滤只决定是否调用审核，不改变模型路由、计费或模型可见性。
+- 关键词拦截会在模型审核前执行。命中关键词时立即审计并返回策略拒绝，不调用外部模型；审计记录只保存 hash / 摘要，不记录明文提示词。
+- 同一请求内重复出现的用户消息会先去重再送审，避免 agent 工具循环把相同内容重复计入外部审核调用；跨请求仍由既有 dedupe window 控制。
 - 这些字段全部挂在现有 settings 体系，不会新增独立 settings API。
 
 ### 错误响应与限流
@@ -1120,6 +1161,19 @@ Authorization: Bearer <USER_JWT>
 ```
 
 其中 `GET /api/v1/auth/me` 与 `GET /api/v1/user/profile` 当前都会返回统一的当前用户资料；前者通常用于登录态恢复，后者更多用于用户资料页。
+
+用户通知偏好也挂在当前登录用户接口下：
+
+- `GET /api/v1/user/notification-preferences`：返回当前用户可配置通知类别，默认均为 `enabled=true`。
+- `PUT /api/v1/user/notification-preferences/:category`：更新单个类别。请求体为 `{ "enabled": true|false }`。
+
+当前通知类别固定为：
+
+- `payment_success`
+- `balance_low`
+- `subscription_expiring`
+
+这些偏好只影响站内主动通知邮件，不影响验证码、密码重置或账号安全类邮件。
 
 当前用户资料返回体里新增了：
 
@@ -1212,6 +1266,12 @@ curl -X PUT https://api.zyxai.de/api/v1/user \
     "visual_preset_preference": "airy",
     "account_visual_preset_override": "classic"
   }'
+
+# 关闭余额提醒通知
+curl -X PUT https://api.zyxai.de/api/v1/user/notification-preferences/balance_low \
+  -H "Authorization: Bearer <USER_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{ "enabled": false }'
 ```
 
 典型成功响应示例：
@@ -1291,7 +1351,7 @@ Gemini / Google 风格常见于：
 | --- | --- | --- |
 | `400` | 请求参数错误 | 使用了废弃的 `api_key` 查询参数、JSON 非法、动作与路径不匹配 |
 | `401` | 鉴权失败 | Key 缺失、Key 无效、用户被禁用、用户不活跃 |
-| `403` | 权限或余额不足 | 没有有效订阅、余额不足、Key 过期 |
+| `403` | 权限或余额不足 | 没有有效订阅、余额不足、Key 过期、Key 绑定分组不可用 |
 | `404` | 当前平台不支持该动作 | 路径存在，但当前运行平台不支持这个协议动作 |
 | `429` | 窗口限流或额度耗尽 | Key 额度耗尽、订阅窗口触发、上游平台限流 |
 | `503` | 维护模式或服务暂不可用 | 系统维护开启时，非管理员请求统一返回维护提示 |
@@ -1301,7 +1361,9 @@ Gemini / Google 风格常见于：
 
 - API Key 自身限制：已过期、额度耗尽、IP 白名单 / 黑名单、用户状态异常。
 - 分组 / 订阅限制：按日、按周、按月窗口限制，或订阅不存在、余额不足。
+- 分组不可用限制：Key 绑定的分组全部停用或删除时，业务请求返回 `GROUP_UNAVAILABLE`；用量自查接口仍返回可读状态，便于前端提示用户联系管理员。
 - OpenAI Pro 运行时额度侧限制：如果某个 OpenAI 模型在当前所有可路由账号上都只因为对应的 `Spark` / `普通` 额度侧冷却而不可服务，`/v1/responses`、`/v1/chat/completions`、`/v1/messages` 会返回 `429 rate_limit_error`，而不是把它视为永久不存在。
+- 上游 `401` / `Unauthorized` / OAuth 凭据过期会统一归类为 `credentials_need_reauth`。后台账号测试、批量测试和状态指示器会展示“需要重新授权”，支持的平台会显示重新授权入口。
 - 维护模式限制：管理员后台、管理员 JWT、管理员用户名下 API Key 调用继续放行；普通用户接口、自助认证流、普通 API Key / 百度智能文档 Key 调用统一返回 `503`。
 - 维护模式文案固定为：`维护模式开启中，恢复时间请关注官网公告或官方频道`。
 - 普通 JSON 接口会继续使用现有统一错误结构，并附带错误码 `MAINTENANCE_MODE_ACTIVE`；Google / Gemini 风格接口保持 Google 风格错误体，`status` 为 `UNAVAILABLE`。
@@ -1365,6 +1427,7 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 跨协议兼容也存在，但不是无条件开放：
 
 - `/v1/messages` 在 OpenAI 平台下可能被翻译到 Responses。
+- `/v1/responses` 会尊重本地 force chat completions 配置：命中降级策略时走本地 Responses 与 Chat Completions 适配层，继续保留流式、用量记录和失败记录。
 - `/v1/messages` 在 DeepSeek 平台下会走 DeepSeek 官方 Anthropic 兼容入口，但会预检并拒绝 DeepSeek 官方未支持的多模态、搜索、工具和容器类内容块。
 - `/v1/messages/count_tokens` 只应当期望在 Anthropic 原生平台成功；DeepSeek 明确不支持。
 - DeepSeek `/deepseek/v1/chat/completions` 额外支持顶层私有字段 `beta?: boolean`：`true` 强制走 beta，`false` 强制稳定面；未传时才按 `prefix` / `reasoning_content` 自动识别 beta。
@@ -1374,6 +1437,7 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 - `/v1/responses` 在 Grok 平台可以工作，但 Responses 的 WebSocket / 长连接模式不应对 Grok 做乐观假设。
 - `/v1/responses` 额外支持一组“网关兼容扩展”的生图写法：`$imagegen ...` 简写、`image_generation` / `reference_images` / `mask` 扩展字段、`multipart/form-data` 直传 `reference_image`，以及 **JSON 下的 `model=gpt-image-2` 生图简写**；标准官方 Responses JSON 仍然原样可用。
 - `/v1/images/generations`、`/v1/images/edits` 现在是公共智能图片入口：会先按当前 Key 的本地模型策略与 provider 元数据判断要落到 OpenAI、Grok 还是 Gemini。
+- `/v1/images/generations`、`/v1/images/edits` 的 native 路径会透传当前能力支持的 `n`；compat / Responses image tool 对不支持的 `n>1` 返回明确 `400 image_n_not_supported`，不会静默丢弃。
 - 对 OpenAI 的 `/v1/images/*` 来说，图片协议不靠 `model=gpt-image-2` 猜测，而是由账号 / Protocol Gateway / 分组三层配置共同决定；优先级是“分组强制模式 > 账号模式 > 默认策略”。
 - OpenAI OAuth `free` 计划默认只开原生图片链路，不开放 compat 图片链路；如果分组强制 compat 但账号没有 compat 权限，接口会直接返回 `403 forbidden_error`，错误码 `image_compat_not_allowed`。
 - 当 OpenAI 图片模式是 `compat` 时，`/v1/images/generations`、`/v1/images/edits` 会桥接到兼容执行链；`/v1/responses` 的 `image_generation` tool 会统一按 `gpt-image-2` 目标图片能力计费与审计，顶层文本模型（例如 `gpt-5.4-mini`）仍默认保持原样；但当你使用 `model=gpt-image-2` 的 JSON 简写时，网关会把上游顶层 `model` 内部路由为 `gpt-5.4-mini`（对外响应仍显示 `gpt-image-2`）。
@@ -1409,6 +1473,7 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 
 - `/v1/images/*`：读取请求体里的 `n`（缺省为 1）
 - `/v1/responses`：默认按 1 计；若使用 `tools:[{type:\"image_generation\", n: ...}]` 则使用该 `n`
+- 不支持多图的 compat / Responses image tool 会在进入上游前拒绝 `n>1`；图片额度按期望 `n` 预占，按实际上游返回张数结算差额。
 
 典型错误体（OpenAI 风格）示例：
 
@@ -1443,11 +1508,28 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 - `payment_provider_airwallex_enabled`：是否启用 Airwallex 站内支付。
 - `airwallex_env`：`demo` 或 `prod`。
 - `airwallex_client_id`、`airwallex_api_key`、`airwallex_webhook_secret`：仅管理员可写。公开设置只使用 Client ID/API Key 的 configured 状态计算支付展示开关，不返回这些字段，也不返回 webhook secret。
+- `payment_mobile_force_qrcode_enabled`：移动端 / 前端优先二维码支付；创建和恢复订单响应会返回 `payment_mode`，前端优先挂载 Airwallex QR 组件，SDK 不支持时降级普通支付并记录告警。
 - `payment_allowed_currencies`：允许币种白名单，默认 `USD/CNY/HKD`。
 - `payment_default_currency`：用户购买页默认币种。
 - `payment_min_topup_amount`、`payment_max_topup_amount`：余额充值上下限。
 - `payment_subscription_plans`：订阅计划数组，包含 `plan_id`、`name`、`group_id`、`validity_days`、`prices_by_currency`、`enabled`。
 - `antigravity_user_agent_version`：可选 Antigravity User-Agent 版本，留空使用系统默认；显式值需符合 `major.minor.patch[-suffix]`。
+- `codex_oauth_user_agent_mode`、`codex_oauth_user_agent_override`：可选 Codex OAuth User-Agent 改写策略，仅作用于 OpenAI OAuth/Codex 相关上游请求；日志只记录模式与是否改写，不记录凭据。
+
+邮件模板与通知：
+
+- 后台邮件页可以管理 `verify_code`、`password_reset`、`payment_success`、`balance_low`、`subscription_expiring`、`scheduled_test_result` 六类模板。
+- 模板支持 `zh` / `en` locale；请求 locale 缺失或无法识别时回退到 `en`。
+- 自定义模板渲染失败时只 fallback 一次到内置模板；如果内置模板仍失败，请求会返回受控错误并记录后台日志。
+- 支付成功、余额提醒、订阅到期提醒会走统一通知邮件服务；去重 key 由 `category + user_id + resource_id + threshold/window + date` 组成，避免不同用户或不同周期互相吞通知。
+- 用户可以通过 `GET|PUT /api/v1/user/notification-preferences` 管理支付成功、余额提醒、订阅到期三类主动通知偏好。
+
+管理员邮件模板接口：
+
+- `GET /api/v1/admin/email-templates`：列出模板定义、变量和当前生效模板。
+- `PUT /api/v1/admin/email-templates/:key/:locale`：更新单个模板，字段为 `subject`、`body`、`enabled`。
+- `POST /api/v1/admin/email-templates/:key/:locale/reset`：删除自定义模板并回退内置模板。
+- `POST /api/v1/admin/email-templates/:key/:locale/test`：向指定邮箱发送测试邮件，请求体为 `{ "email": "...", "data": { ... } }`。
 
 用户接口：
 
@@ -1463,7 +1545,41 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 - `provider_env`：`demo` 或 `prod`，对应 Airwallex 前端 SDK `init({ env })`。
 - `intent_id`：Airwallex PaymentIntent ID。
 - `client_secret`：仅返回给当前订单用户，用于 Airwallex `confirm({ client_secret, intent_id })`；禁止写入日志、公开设置或持久化明文字段。
+- `payment_mode`：`default` 或 `qrcode`，用于前端选择支付组件。
 - `order`：订单快照，包含 `order_no`、`status`、`amount_minor`、`currency`、`refunded_amount_minor`、`refundable_amount_minor` 等字段。
+
+### 后台定价同步
+
+管理员可以使用 `POST /api/v1/admin/billing/pricing/sync-litellm` 从 LiteLLM 定价源刷新官方层快照。请求体支持：
+
+- `dry_run`：`true` 时只计算 `added`、`updated`、`skipped`、`source_hash`，不落库。
+- `dry_run=false` 时会先刷新本地 LiteLLM 定价源，再更新 billing pricing 快照；本地 sale/custom 层会保留，不会被远程定价覆盖。
+
+响应示例：
+
+```json
+{
+  "dry_run": true,
+  "source_hash": "a1b2c3d4",
+  "added": 3,
+  "updated": 12,
+  "skipped": 180,
+  "total_models": 195,
+  "provider_count": 8
+}
+```
+
+### Ops 重试安全
+
+Ops 请求追踪页的错误重试继续支持客户端模式、上游账号固定模式和单个上游事件重试，但不会长期保存或复用不安全的原始请求体。发起重试前会校验已捕获 body：
+
+- 请求体为空：拒绝重试，错误码 `OPS_RETRY_NO_REQUEST_BODY` 或 `OPS_RETRY_UPSTREAM_NO_REQUEST_BODY`。
+- 请求体被截断：拒绝重试，错误码 `OPS_RETRY_BODY_TRUNCATED`。
+- 请求体不是合法 JSON：拒绝重试，错误码 `OPS_RETRY_BODY_INVALID`。
+- 请求体已经包含 `[REDACTED]`：拒绝重试，错误码 `OPS_RETRY_BODY_REDACTED`。
+- 请求体包含 `authorization`、`api_key`、`token`、`secret`、`client_secret`、`password` 等敏感认证字段：拒绝重试，错误码 `OPS_RETRY_BODY_SENSITIVE`。
+
+这些限制只影响运维回放；正常请求转发、失败记录和脱敏预览不受影响。
 
 管理员接口：
 
@@ -1481,6 +1597,7 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 数据层说明：
 
 - 支付表 `payment_orders`、`payment_events`、`payment_refunds` 当前由 raw SQL 仓储维护，不生成 ent entity。这是支付仓储的刻意边界：订单、webhook 事件与退款幂等写入集中在 `PaymentRepository`，权益发放继续复用既有钱包与订阅表。
+- 邮件模板与通知偏好使用 `email_templates`、`user_notification_preferences`、`notification_dedupe_keys` 三张表。`email_templates` 仅保存管理员自定义模板，内置模板仍在代码内作为安全 fallback；`notification_dedupe_keys` 只保存去重 key 和过期时间，不保存邮件正文或用户提示词。
 - 前端 Airwallex 嵌入式组件依赖 `@airwallex/components-sdk@1.32.0`，已按 npm 包页面核验为 MIT；仓库根 `LICENSE` 保持 MIT。
 
 退款说明：

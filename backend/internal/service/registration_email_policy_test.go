@@ -9,9 +9,9 @@ import (
 )
 
 func TestNormalizeRegistrationEmailSuffixWhitelist(t *testing.T) {
-	got, err := NormalizeRegistrationEmailSuffixWhitelist([]string{"example.com", "@EXAMPLE.COM", " @foo.bar "})
+	got, err := NormalizeRegistrationEmailSuffixWhitelist([]string{"example.com", "@EXAMPLE.COM", " @foo.bar ", "*.sub.test"})
 	require.NoError(t, err)
-	require.Equal(t, []string{"@example.com", "@foo.bar"}, got)
+	require.Equal(t, []string{"@example.com", "@foo.bar", "@*.sub.test"}, got)
 }
 
 func TestNormalizeRegistrationEmailSuffixWhitelist_Invalid(t *testing.T) {
@@ -20,12 +20,15 @@ func TestNormalizeRegistrationEmailSuffixWhitelist_Invalid(t *testing.T) {
 }
 
 func TestParseRegistrationEmailSuffixWhitelist(t *testing.T) {
-	got := ParseRegistrationEmailSuffixWhitelist(`["example.com","@foo.bar","@invalid_domain"]`)
-	require.Equal(t, []string{"@example.com", "@foo.bar"}, got)
+	got := ParseRegistrationEmailSuffixWhitelist(`["example.com","@foo.bar","@*.sub.test","@invalid_domain"]`)
+	require.Equal(t, []string{"@example.com", "@foo.bar", "@*.sub.test"}, got)
 }
 
 func TestIsRegistrationEmailSuffixAllowed(t *testing.T) {
 	require.True(t, IsRegistrationEmailSuffixAllowed("user@example.com", []string{"@example.com"}))
 	require.False(t, IsRegistrationEmailSuffixAllowed("user@sub.example.com", []string{"@example.com"}))
+	require.True(t, IsRegistrationEmailSuffixAllowed("user@sub.example.com", []string{"@*.example.com"}))
+	require.True(t, IsRegistrationEmailSuffixAllowed("user@deep.sub.example.com", []string{"@*.example.com"}))
+	require.False(t, IsRegistrationEmailSuffixAllowed("user@example.com", []string{"@*.example.com"}))
 	require.True(t, IsRegistrationEmailSuffixAllowed("user@any.com", []string{}))
 }

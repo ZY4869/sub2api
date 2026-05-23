@@ -131,6 +131,14 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			}
 		}
 
+		// API Key 绑定的分组被停用或删除后，业务网关必须阻断。
+		// /v1/usage 继续放行，便于 Key 持有人自查并获得 group_unavailable 状态。
+		skipBilling := c.Request.URL.Path == "/v1/usage"
+		if !skipBilling && apiKeyHasGroupBindings(apiKey) && !apiKeyHasUsableGroup(apiKey) {
+			AbortWithError(c, 403, "GROUP_UNAVAILABLE", "API key group is unavailable")
+			return
+		}
+
 		// ── 4. SimpleMode → early return ─────────────────────────────
 
 		if cfg.RunMode == config.RunModeSimple {
@@ -149,7 +157,6 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// ── 5. 加载订阅（订阅模式时始终加载） ───────────────────────
 
 		// skipBilling: /v1/usage 只需鉴权，跳过所有计费执行
-		skipBilling := c.Request.URL.Path == "/v1/usage"
 		dynamicGroupRouting := len(apiKey.GroupBindings) > 1
 
 		var subscription *service.UserSubscription
@@ -273,7 +280,7 @@ func setAPIKeyGroupContext(c *gin.Context, apiKey *service.APIKey) {
 	if len(apiKey.GroupBindings) > 0 {
 		groups := make([]*service.Group, 0, len(apiKey.GroupBindings))
 		for _, binding := range apiKey.GroupBindings {
-			if service.IsGroupContextValid(binding.Group) {
+			if isUsableAPIKeyGroup(binding.Group) {
 				groups = append(groups, binding.Group)
 			}
 		}
@@ -283,11 +290,50 @@ func setAPIKeyGroupContext(c *gin.Context, apiKey *service.APIKey) {
 	}
 
 	group := apiKey.Group
-	if !service.IsGroupContextValid(group) && len(apiKey.GroupBindings) > 0 {
-		group = apiKey.GroupBindings[0].Group
+	if !isUsableAPIKeyGroup(group) && len(apiKey.GroupBindings) > 0 {
+		group = firstUsableAPIKeyBindingGroup(apiKey)
 	}
-	if service.IsGroupContextValid(group) {
+	if isUsableAPIKeyGroup(group) {
 		ctx = context.WithValue(ctx, ctxkey.Group, group)
 	}
 	c.Request = c.Request.WithContext(ctx)
+}
+
+func apiKeyHasGroupBindings(apiKey *service.APIKey) bool {
+	return apiKey != nil && (apiKey.GroupID != nil || len(apiKey.GroupBindings) > 0)
+}
+
+func apiKeyHasUsableGroup(apiKey *service.APIKey) bool {
+	if apiKey == nil {
+		return false
+	}
+	if isUsableAPIKeyGroup(apiKey.Group) {
+		return true
+	}
+	for _, binding := range apiKey.GroupBindings {
+		if isUsableAPIKeyGroup(binding.Group) {
+			return true
+		}
+	}
+	return false
+}
+
+func APIKeyHasUsableGroupForUsage(apiKey *service.APIKey) bool {
+	return apiKeyHasUsableGroup(apiKey)
+}
+
+func firstUsableAPIKeyBindingGroup(apiKey *service.APIKey) *service.Group {
+	if apiKey == nil {
+		return nil
+	}
+	for _, binding := range apiKey.GroupBindings {
+		if isUsableAPIKeyGroup(binding.Group) {
+			return binding.Group
+		}
+	}
+	return nil
+}
+
+func isUsableAPIKeyGroup(group *service.Group) bool {
+	return service.IsGroupContextValid(group) && group.IsActive()
 }

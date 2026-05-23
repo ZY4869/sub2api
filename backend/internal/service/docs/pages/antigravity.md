@@ -28,6 +28,7 @@ Anthropic 风格路径包括：
 
 - `messages` 是 Antigravity 的主文本入口之一，可以按 Anthropic 风格发送。
 - `messages/count_tokens` 虽然注册了路由，但当前能力矩阵里对 Antigravity 平台并不视为成功面，不能当稳定能力依赖。
+- `GET /antigravity/v1/usage` 兼容 `/v1/usage` 的 Key 自查语义；当 Key 绑定分组全部停用或删除时仍返回可读用量状态，并标记 `isValid=false`、`status=group_unavailable`。
 
 #### Python
 ```python focus=1-12

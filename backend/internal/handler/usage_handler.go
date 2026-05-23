@@ -515,3 +515,50 @@ func (h *UsageHandler) DashboardAPIKeysUsage(c *gin.Context) {
 
 	response.Success(c, gin.H{"stats": stats})
 }
+
+// DashboardAPIKeyDailyUsage handles daily details for a user's own API key.
+// GET /api/v1/usage/dashboard/api-keys/:id/daily
+func (h *UsageHandler) DashboardAPIKeyDailyUsage(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	apiKeyID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || apiKeyID <= 0 {
+		response.BadRequest(c, "Invalid API key ID")
+		return
+	}
+
+	validAPIKeyIDs, err := h.apiKeyService.VerifyOwnership(c.Request.Context(), subject.UserID, []int64{apiKeyID})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if len(validAPIKeyIDs) == 0 {
+		response.NotFound(c, "API key not found")
+		return
+	}
+
+	startTime, endTime := parseUserTimeRange(c)
+	if endTime.Before(startTime) {
+		startTime = endTime.AddDate(0, 0, -30)
+	}
+	maxStart := endTime.AddDate(0, 0, -31)
+	if startTime.Before(maxStart) {
+		startTime = maxStart
+	}
+
+	daily, err := h.usageService.GetAPIKeyDailyUsageTrend(c.Request.Context(), apiKeyID, startTime, endTime)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"daily_details": daily,
+		"start_date":    startTime.Format("2006-01-02"),
+		"end_date":      endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+	})
+}

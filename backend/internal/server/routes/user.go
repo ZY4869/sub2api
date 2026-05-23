@@ -31,6 +31,8 @@ func RegisterUserRoutes(
 			user.PUT("", h.User.UpdateProfile)
 			user.GET("/auth-identities", h.User.ListAuthIdentities)
 			user.DELETE("/auth-identities/:provider", h.User.DeleteAuthIdentity)
+			user.GET("/notification-preferences", h.User.GetNotificationPreferences)
+			user.PUT("/notification-preferences/:category", h.User.UpdateNotificationPreference)
 			user.GET("/aff", h.User.GetAffiliate)
 			user.POST("/aff/transfer", h.User.TransferAffiliate)
 
@@ -83,6 +85,7 @@ func RegisterUserRoutes(
 			usage.GET("/dashboard/stats", h.Usage.DashboardStats)
 			usage.GET("/dashboard/trend", h.Usage.DashboardTrend)
 			usage.GET("/dashboard/models", h.Usage.DashboardModels)
+			usage.GET("/dashboard/api-keys/:id/daily", h.Usage.DashboardAPIKeyDailyUsage)
 			usage.POST("/dashboard/api-keys-usage", h.Usage.DashboardAPIKeysUsage)
 		}
 

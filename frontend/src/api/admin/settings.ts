@@ -35,6 +35,33 @@ export interface ContentModerationAPIKeyStatus {
   last_error?: string
 }
 
+export type ContentModerationModelFilterType = 'all' | 'include' | 'exclude'
+
+export interface ContentModerationModelFilter {
+  type: ContentModerationModelFilterType
+  models: string[]
+}
+
+export interface EmailTemplate {
+  id: number
+  key: string
+  locale: string
+  subject: string
+  body: string
+  enabled: boolean
+  is_custom: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailTemplateDefinition {
+  key: string
+  name: string
+  variables: string[]
+  built_in: Record<string, EmailTemplate>
+  BuiltIn?: Record<string, EmailTemplate>
+}
+
 /**
  * System settings interface
  */
@@ -86,12 +113,15 @@ export interface SystemSettings {
   airwallex_client_id: string
   airwallex_api_key_configured: boolean
   airwallex_webhook_secret_configured: boolean
+  payment_mobile_force_qrcode_enabled: boolean
   payment_allowed_currencies: string[]
   payment_default_currency: string
   payment_min_topup_amount: number
   payment_max_topup_amount: number
   payment_subscription_plans: PaymentSubscriptionPlan[]
   antigravity_user_agent_version: string
+  codex_oauth_user_agent_mode: 'default' | 'force' | 'custom' | string
+  codex_oauth_user_agent_override: string
   backend_mode_enabled: boolean
   maintenance_mode_enabled: boolean
   custom_menu_items: CustomMenuItem[]
@@ -141,6 +171,9 @@ export interface SystemSettings {
   content_moderation_timeout_ms: number
   content_moderation_dedupe_window_seconds: number
   content_moderation_fail_open: boolean
+  content_moderation_keyword_block_enabled: boolean
+  content_moderation_keywords: string[]
+  content_moderation_model_filter: ContentModerationModelFilter
 
   // Model fallback configuration
   enable_model_fallback: boolean
@@ -213,12 +246,15 @@ export interface UpdateSettingsRequest {
   airwallex_client_id?: string
   airwallex_api_key?: string
   airwallex_webhook_secret?: string
+  payment_mobile_force_qrcode_enabled?: boolean
   payment_allowed_currencies?: string[]
   payment_default_currency?: string
   payment_min_topup_amount?: number
   payment_max_topup_amount?: number
   payment_subscription_plans?: PaymentSubscriptionPlan[]
   antigravity_user_agent_version?: string
+  codex_oauth_user_agent_mode?: 'default' | 'force' | 'custom' | string
+  codex_oauth_user_agent_override?: string
   backend_mode_enabled?: boolean
   maintenance_mode_enabled?: boolean
   custom_menu_items?: CustomMenuItem[]
@@ -265,6 +301,9 @@ export interface UpdateSettingsRequest {
   content_moderation_timeout_ms?: number
   content_moderation_dedupe_window_seconds?: number
   content_moderation_fail_open?: boolean
+  content_moderation_keyword_block_enabled?: boolean
+  content_moderation_keywords?: string[]
+  content_moderation_model_filter?: ContentModerationModelFilter
   enable_model_fallback?: boolean
   fallback_model_anthropic?: string
   fallback_model_openai?: string
@@ -346,6 +385,42 @@ export async function sendTestEmail(request: SendTestEmailRequest): Promise<{ me
   const { data } = await apiClient.post<{ message: string }>(
     '/admin/settings/send-test-email',
     request
+  )
+  return data
+}
+
+export async function getEmailTemplates(): Promise<EmailTemplateDefinition[]> {
+  const { data } = await apiClient.get<EmailTemplateDefinition[]>('/admin/email-templates')
+  return data
+}
+
+export async function updateEmailTemplate(
+  key: string,
+  locale: string,
+  payload: Pick<EmailTemplate, 'subject' | 'body' | 'enabled'>
+): Promise<EmailTemplate> {
+  const { data } = await apiClient.put<EmailTemplate>(
+    `/admin/email-templates/${encodeURIComponent(key)}/${encodeURIComponent(locale)}`,
+    payload
+  )
+  return data
+}
+
+export async function resetEmailTemplate(key: string, locale: string): Promise<EmailTemplate> {
+  const { data } = await apiClient.post<EmailTemplate>(
+    `/admin/email-templates/${encodeURIComponent(key)}/${encodeURIComponent(locale)}/reset`
+  )
+  return data
+}
+
+export async function testEmailTemplate(
+  key: string,
+  locale: string,
+  email: string
+): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>(
+    `/admin/email-templates/${encodeURIComponent(key)}/${encodeURIComponent(locale)}/test`,
+    { email }
   )
   return data
 }
@@ -703,6 +778,10 @@ export const settingsAPI = {
   testSmtpConnection,
   testTelegramConnection,
   sendTestEmail,
+  getEmailTemplates,
+  updateEmailTemplate,
+  resetEmailTemplate,
+  testEmailTemplate,
   getAdminApiKey,
   regenerateAdminApiKey,
   deleteAdminApiKey,

@@ -158,6 +158,7 @@ export default {
         active: "Active",
         inactive: "Inactive",
         error: "Error",
+        needsReauth: "Needs reauthorization",
         cooldown: "Cooldown",
         paused: "Paused",
         limited: "Limited",

@@ -36,6 +36,20 @@ const codexScopeModels: Record<CodexUsageScope, string> = {
 
 const codexWindowPriority: CodexUsageWindowKind[] = ['7d', '5h']
 
+export const isCredentialsNeedReauthMessage = (value: unknown): boolean => {
+  const text = String(value || '').trim().toLowerCase()
+  if (!text) return false
+  return (
+    text.includes('credentials_need_reauth') ||
+    text.includes('upstream error: 401 (failover)') ||
+    text.includes('invalid or expired oauth') ||
+    text.includes('expired oauth') ||
+    text === 'unauthorized' ||
+    text.includes(' unauthorized') ||
+    text.includes('unauthorized ')
+  )
+}
+
 export const createAccountStatusPresentation = (
   account: Ref<Account>,
   t: (key: string, params?: Record<string, unknown>) => string,
@@ -314,6 +328,11 @@ export const createAccountStatusPresentation = (
     return !Number.isNaN(untilMs) && untilMs > nowMs.value
   })
 
+  const needsReauth = computed(() =>
+    account.value.lifecycle_reason_code === 'credentials_need_reauth' ||
+    isCredentialsNeedReauthMessage(account.value.error_message)
+  )
+
   const hasError = computed(() => account.value.status === 'error')
 
   const rateLimitCountdown = computed(() => {
@@ -463,6 +482,7 @@ export const createAccountStatusPresentation = (
   })
 
   const statusText = computed(() => {
+    if (needsReauth.value) return t('admin.accounts.status.needsReauth')
     if (hasError.value) return t('admin.accounts.status.error')
     if (isTempUnschedulable.value) return t('admin.accounts.status.tempUnschedulable')
     if (!account.value.schedulable) return t('admin.accounts.status.paused')
@@ -473,6 +493,7 @@ export const createAccountStatusPresentation = (
     isRateLimited,
     isOverloaded,
     isTempUnschedulable,
+    needsReauth,
     hasError,
     statusClass,
     statusText,

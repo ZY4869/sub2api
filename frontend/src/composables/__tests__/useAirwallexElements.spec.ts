@@ -26,6 +26,7 @@ function makeOrder(overrides: Partial<PaymentCreateOrderResponse> = {}): Payment
     intent_id: 'int_test',
     resume_token: 'resume_test',
     provider_env: 'demo',
+    payment_mode: 'default',
     ...overrides
   }
 }
@@ -65,6 +66,24 @@ describe('useAirwallexElements', () => {
     expect(result).toEqual({ id: 'int_test' })
     expect(airwallex.mounted.value).toBe(true)
     expect(airwallex.error.value).toBe('')
+  })
+
+  it('tries QR element first when the order requests QR mode and falls back to card', async () => {
+    const cardElement = { mount: vi.fn() }
+    sdkMock.createElement
+      .mockRejectedValueOnce(new Error('unsupported'))
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(cardElement)
+    const target = document.createElement('div')
+    const airwallex = useAirwallexElements()
+
+    await airwallex.mount(target, makeOrder({ payment_mode: 'qrcode' }), 'en-US')
+
+    expect(sdkMock.createElement).toHaveBeenNthCalledWith(1, 'qrcode')
+    expect(sdkMock.createElement).toHaveBeenNthCalledWith(4, 'card')
+    expect(cardElement.mount).toHaveBeenCalledWith(target)
+    expect(airwallex.mounted.value).toBe(true)
   })
 
   it('maps unknown environments to demo and preserves production explicitly', async () => {

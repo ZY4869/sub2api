@@ -222,20 +222,7 @@ func (s *AuthIdentityService) ResolveLoginOrBind(ctx context.Context, mode strin
 	if identity.EmailVerified && strings.TrimSpace(identity.Email) != "" {
 		user, err := s.userRepo.GetByEmail(ctx, strings.TrimSpace(identity.Email))
 		if err == nil && user != nil {
-			bound, bindErr := s.BindIdentity(ctx, user.ID, identity)
-			if bindErr != nil {
-				return nil, bindErr
-			}
-			tokenPair, tokenErr := s.authService.GenerateTokenPair(ctx, user, "")
-			if tokenErr != nil {
-				return nil, tokenErr
-			}
-			return &SocialIdentityResult{
-				Identity:  bound,
-				User:      user,
-				TokenPair: tokenPair,
-				Outcome:   "login",
-			}, nil
+			return nil, ErrAuthIdentityEmailConflict
 		}
 		if err != nil && !errors.Is(err, ErrUserNotFound) {
 			return nil, err

@@ -59,12 +59,13 @@ INSERT INTO channel_monitors (
 	extra_headers,
 	body_override_mode,
 	body_override,
+	openai_api_mode,
 	last_run_at,
 	next_run_at,
 	created_at,
 	updated_at
 )
-VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8, $9, $10::jsonb, $11, $12::jsonb, $13, $14, NOW(), NOW())
+VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8, $9, $10::jsonb, $11, $12::jsonb, $13, $14, $15, NOW(), NOW())
 RETURNING
 	id,
 	created_at,
@@ -82,6 +83,7 @@ RETURNING
 		string(extraHeaders),
 		monitor.BodyOverrideMode,
 		string(bodyOverride),
+		monitor.OpenAIAPIMode,
 		monitor.LastRunAt,
 		monitor.NextRunAt,
 	)
@@ -156,6 +158,7 @@ RETURNING
 	m.extra_headers,
 	m.body_override_mode,
 	m.body_override,
+	COALESCE(m.openai_api_mode, 'chat_completions'),
 	m.last_run_at,
 	m.next_run_at,
 	m.created_at,
@@ -207,8 +210,9 @@ SET
 	extra_headers = $11::jsonb,
 	body_override_mode = $12,
 	body_override = $13::jsonb,
-	last_run_at = $14,
-	next_run_at = $15,
+	openai_api_mode = $14,
+	last_run_at = $15,
+	next_run_at = $16,
 	updated_at = NOW()
 WHERE id = $1
 `,
@@ -225,6 +229,7 @@ WHERE id = $1
 		string(extraHeaders),
 		monitor.BodyOverrideMode,
 		string(bodyOverride),
+		monitor.OpenAIAPIMode,
 		monitor.LastRunAt,
 		monitor.NextRunAt,
 	)
@@ -272,6 +277,7 @@ SELECT
 	COALESCE(extra_headers, '{}'::jsonb),
 	COALESCE(body_override_mode, 'off'),
 	COALESCE(body_override, '{}'::jsonb),
+	COALESCE(openai_api_mode, 'chat_completions'),
 	last_run_at,
 	next_run_at,
 	created_at,
@@ -310,6 +316,7 @@ func scanChannelMonitorRow(row rowScanner) (*service.ChannelMonitor, error) {
 		&extraHeadersRaw,
 		&m.BodyOverrideMode,
 		&bodyOverrideRaw,
+		&m.OpenAIAPIMode,
 		&lastRunAt,
 		&nextRunAt,
 		&m.CreatedAt,
@@ -386,6 +393,8 @@ func translateChannelMonitorSQLError(err error) error {
 				return service.ErrChannelMonitorInvalidProvider
 			case "channel_monitors_body_override_mode_check":
 				return service.ErrChannelMonitorInvalidOverrideMode
+			case "channel_monitors_openai_api_mode_check":
+				return infraerrors.BadRequest("CHANNEL_MONITOR_OPENAI_API_MODE_INVALID", "invalid OpenAI API mode")
 			}
 			return infraerrors.BadRequest("CHANNEL_MONITOR_INVALID_CONSTRAINT", "invalid channel monitor configuration")
 		case "23503":

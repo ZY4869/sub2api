@@ -227,6 +227,7 @@ func (s *OpenAIGatewayService) buildNativeChatCompletionsUpstreamRequest(
 	if customUA := account.GetOpenAIUserAgent(); customUA != "" {
 		req.Header.Set("user-agent", customUA)
 	}
+	s.applyCodexOAuthUserAgentPolicy(ctx, req.Header, account)
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}

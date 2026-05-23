@@ -54,6 +54,10 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			abortWithGoogleError(c, 401, "User account is not active")
 			return
 		}
+		if apiKeyHasGroupBindings(apiKey) && !apiKeyHasUsableGroup(apiKey) {
+			abortWithGoogleError(c, 403, "API key group is unavailable")
+			return
+		}
 
 		// 生图专用 Key：限制可访问的入口（Google/Gemini 风格错误体）。
 		if apiKey.ImageOnlyEnabled {

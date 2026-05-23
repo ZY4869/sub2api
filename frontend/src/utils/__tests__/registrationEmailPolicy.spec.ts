@@ -9,8 +9,8 @@ import {
 } from '@/utils/registrationEmailPolicy'
 
 describe('registrationEmailPolicy utils', () => {
-  it('normalizeRegistrationEmailSuffixDomain lowercases, strips @, and ignores invalid chars', () => {
-    expect(normalizeRegistrationEmailSuffixDomain(' @Exa!mple.COM ')).toBe('example.com')
+  it('normalizeRegistrationEmailSuffixDomain lowercases, strips @, and keeps leading wildcard', () => {
+    expect(normalizeRegistrationEmailSuffixDomain(' @*.Exa!mple.COM ')).toBe('*.example.com')
   })
 
   it('normalizeRegistrationEmailSuffixDomains deduplicates normalized domains', () => {
@@ -22,14 +22,19 @@ describe('registrationEmailPolicy utils', () => {
         '-invalid.com',
         'foo..bar.com',
         ' @foo.bar ',
-        '@foo.bar'
+        '@foo.bar',
+        '@*.Example.com'
       ])
-    ).toEqual(['example.com', 'foo.bar'])
+    ).toEqual(['example.com', 'foo.bar', '*.example.com'])
   })
 
   it('parseRegistrationEmailSuffixWhitelistInput supports separators and deduplicates', () => {
-    const input = '\n  @example.com,example.com，@foo.bar\t@FOO.bar  '
-    expect(parseRegistrationEmailSuffixWhitelistInput(input)).toEqual(['example.com', 'foo.bar'])
+    const input = '\n  @example.com,example.com，@foo.bar\t@FOO.bar @*.example.com '
+    expect(parseRegistrationEmailSuffixWhitelistInput(input)).toEqual([
+      'example.com',
+      'foo.bar',
+      '*.example.com'
+    ])
   })
 
   it('parseRegistrationEmailSuffixWhitelistInput drops tokens containing invalid chars', () => {
@@ -56,10 +61,14 @@ describe('registrationEmailPolicy utils', () => {
         ' @foo.bar '
       ])
     ).toEqual(['@example.com', '@foo.bar'])
+    expect(normalizeRegistrationEmailSuffixWhitelist(['*.Example.com'])).toEqual([
+      '@*.example.com'
+    ])
   })
 
   it('isRegistrationEmailSuffixDomainValid matches backend-compatible domain rules', () => {
     expect(isRegistrationEmailSuffixDomainValid('example.com')).toBe(true)
+    expect(isRegistrationEmailSuffixDomainValid('*.example.com')).toBe(true)
     expect(isRegistrationEmailSuffixDomainValid('foo-bar.example.com')).toBe(true)
     expect(isRegistrationEmailSuffixDomainValid('-bad.com')).toBe(false)
     expect(isRegistrationEmailSuffixDomainValid('foo..bar.com')).toBe(false)
@@ -73,5 +82,13 @@ describe('registrationEmailPolicy utils', () => {
   it('isRegistrationEmailSuffixAllowed applies exact suffix matching', () => {
     expect(isRegistrationEmailSuffixAllowed('user@example.com', ['@example.com'])).toBe(true)
     expect(isRegistrationEmailSuffixAllowed('user@sub.example.com', ['@example.com'])).toBe(false)
+  })
+
+  it('isRegistrationEmailSuffixAllowed supports subdomain wildcards', () => {
+    expect(isRegistrationEmailSuffixAllowed('user@sub.example.com', ['@*.example.com'])).toBe(true)
+    expect(isRegistrationEmailSuffixAllowed('user@deep.sub.example.com', ['*.example.com'])).toBe(
+      true
+    )
+    expect(isRegistrationEmailSuffixAllowed('user@example.com', ['@*.example.com'])).toBe(false)
   })
 })

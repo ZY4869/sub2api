@@ -10,6 +10,8 @@ interface AirwallexPaymentElementHandle {
   destroy?: () => void
 }
 
+const AIRWALLEX_QR_ELEMENT_TYPES = ['qrcode', 'qr_code', 'qrCode']
+
 export function useAirwallexElements() {
   const mounted = ref(false)
   const loading = ref(false)
@@ -34,9 +36,9 @@ export function useAirwallexElements() {
         clientId: order.client_id,
         enabledElements: ['payments']
       })
-      const created = (await sdk.createElement('card')) as AirwallexPaymentElementHandle | null
+      const created = await createPreferredPaymentElement(sdk, order)
       if (!created || typeof created.mount !== 'function') {
-        throw new Error('Airwallex card element is unavailable')
+        throw new Error('Airwallex payment element is unavailable')
       }
       created.mount(target)
       element = created
@@ -88,6 +90,30 @@ export function useAirwallexElements() {
     confirm,
     destroy
   }
+}
+
+async function createPreferredPaymentElement(
+  sdk: AirwallexModule,
+  order: PaymentCreateOrderResponse | PaymentResumeOrderResponse
+): Promise<AirwallexPaymentElementHandle | null> {
+  if (order.payment_mode !== 'qrcode') {
+    return (await sdk.createElement('card')) as AirwallexPaymentElementHandle | null
+  }
+  for (const elementType of AIRWALLEX_QR_ELEMENT_TYPES) {
+    try {
+      const created = (await sdk.createElement(elementType)) as AirwallexPaymentElementHandle | null
+      if (created && typeof created.mount === 'function') {
+        return created
+      }
+    } catch (err) {
+      console.warn('Airwallex QR payment element unavailable, trying fallback', {
+        elementType,
+        message: err instanceof Error ? err.message : String(err)
+      })
+    }
+  }
+  console.warn('Airwallex QR-only mode fell back to card element')
+  return (await sdk.createElement('card')) as AirwallexPaymentElementHandle | null
 }
 
 function normalizeAirwallexLocale(locale: string) {

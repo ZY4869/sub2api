@@ -1398,6 +1398,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		if chatgptAccountID != "" {
 			req.Header.Set("chatgpt-account-id", chatgptAccountID)
 		}
+		if s.openAIGatewayService != nil {
+			s.openAIGatewayService.applyCodexOAuthUserAgentPolicy(ctx, req.Header, account)
+		}
 	}
 
 	// Get proxy URL

@@ -16,6 +16,7 @@
   {"model":"gemini-2.5-flash-image","display_name":"Gemini 2.5 Flash Image","provider":"gemini","mode":"image","canonical_model_id":"gemini-2.5-flash-image","pricing_lookup_model_id":"gemini-2.5-flash-image"},
   {"model":"gemini-3-pro","display_name":"Gemini 3 Pro","provider":"gemini","mode":"chat","canonical_model_id":"gemini-3-pro-preview","pricing_lookup_model_id":"gemini-3-pro-preview"},
   {"model":"gemini-3-flash","display_name":"Gemini 3 Flash","provider":"gemini","mode":"chat","canonical_model_id":"gemini-3-flash-preview","pricing_lookup_model_id":"gemini-3-flash-preview"},
+  {"model":"gemini-3.5-flash","display_name":"Gemini 3.5 Flash","provider":"gemini","mode":"chat","canonical_model_id":"gemini-3.5-flash-preview","pricing_lookup_model_id":"gemini-3.5-flash-preview"},
   {"model":"gemini-3-pro-image","display_name":"Gemini 3 Pro Image","provider":"gemini","mode":"image","canonical_model_id":"gemini-3-pro-image-preview","pricing_lookup_model_id":"gemini-3-pro-image-preview"},
   {"model":"gemini-3.1-pro","display_name":"Gemini 3.1 Pro","provider":"gemini","mode":"chat","canonical_model_id":"gemini-3.1-pro-preview","pricing_lookup_model_id":"gemini-3.1-pro-preview"},
   {"model":"gemini-3.1-flash-lite","display_name":"Gemini 3.1 Flash Lite","provider":"gemini","mode":"chat","canonical_model_id":"gemini-3.1-flash-lite-preview","pricing_lookup_model_id":"gemini-3.1-flash-lite-preview"},

@@ -62,6 +62,9 @@ type SystemSettings struct {
 	ContentModerationTimeoutMs           int
 	ContentModerationDedupeWindowSeconds int
 	ContentModerationFailOpen            bool
+	ContentModerationKeywordBlockEnabled bool
+	ContentModerationKeywords            []string
+	ContentModerationModelFilter         ContentModerationModelFilter
 
 	SiteName                             string
 	SiteLogo                             string
@@ -87,12 +90,15 @@ type SystemSettings struct {
 	AirwallexAPIKeyConfigured            bool
 	AirwallexWebhookSecret               string
 	AirwallexWebhookSecretConfigured     bool
+	PaymentMobileForceQRCodeEnabled      bool
 	PaymentAllowedCurrencies             []string
 	PaymentDefaultCurrency               string
 	PaymentMinTopupAmount                float64
 	PaymentMaxTopupAmount                float64
 	PaymentSubscriptionPlans             []PaymentSubscriptionPlan
 	AntigravityUserAgentVersion          string
+	CodexOAuthUserAgentMode              string
+	CodexOAuthUserAgentOverride          string
 	CustomMenuItems                      string // JSON array of custom menu items
 	LoginAgreementEnabled                bool
 	LoginAgreementMode                   string
@@ -180,6 +186,7 @@ type PublicSettings struct {
 	PurchaseSubscriptionEnabled     bool
 	PurchaseSubscriptionURL         string
 	PaymentProviderAirwallexEnabled bool
+	PaymentMobileForceQRCodeEnabled bool
 	PaymentAllowedCurrencies        []string
 	PaymentDefaultCurrency          string
 	PaymentMinTopupAmount           float64

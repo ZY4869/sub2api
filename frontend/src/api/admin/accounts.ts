@@ -777,6 +777,7 @@ export interface BatchAccountTestResult {
   resolved_source_protocol?: 'openai' | 'anthropic' | 'gemini'
   blacklist_advice_decision?: BlacklistAdviceDecision
   current_lifecycle_state?: string
+  lifecycle_reason_code?: string
 }
 
 export interface BatchAccountTestResponse {

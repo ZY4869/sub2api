@@ -24,6 +24,53 @@ type httpUpstreamSequence struct {
 	bodies [][]byte
 }
 
+type httpUpstreamEmptyThinkingSequence struct {
+	mu     sync.Mutex
+	calls  int
+	bodies [][]byte
+}
+
+func (u *httpUpstreamEmptyThinkingSequence) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	u.calls++
+	if req != nil && req.Body != nil {
+		b, _ := io.ReadAll(req.Body)
+		u.bodies = append(u.bodies, b)
+		_ = req.Body.Close()
+	}
+
+	lastBody := []byte(nil)
+	if len(u.bodies) > 0 {
+		lastBody = u.bodies[len(u.bodies)-1]
+	}
+	if gjson.GetBytes(lastBody, `input.0.content.#(type=="thinking")`).Exists() {
+		return &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body: io.NopCloser(strings.NewReader(
+				`{"error":{"type":"invalid_request_error","message":"thinking block must contain thinking"}}`,
+			)),
+		}, nil
+	}
+
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": []string{"application/json"},
+			"X-Request-Id": []string{"req_http_thinking_recover_ok"},
+		},
+		Body: io.NopCloser(strings.NewReader(
+			`{"id":"resp_http_thinking_recover_ok","usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`,
+		)),
+	}, nil
+}
+
+func (u *httpUpstreamEmptyThinkingSequence) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *TLSFingerprintProfile) (*http.Response, error) {
+	return u.Do(req, proxyURL, accountID, accountConcurrency)
+}
+
 func (u *httpUpstreamSequence) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -237,4 +284,57 @@ func TestOpenAIGatewayService_Forward_HTTPInvalidEncryptedContentRetriesOnceAfte
 	require.False(t, gjson.GetBytes(bodies[1], "input.#(type==\"reasoning\").encrypted_content").Exists(), "重试请求应移除 encrypted_content")
 	require.Equal(t, int64(2), gjson.GetBytes(bodies[0], "input.#").Int())
 	require.Equal(t, int64(1), gjson.GetBytes(bodies[1], "input.#").Int(), "重试请求应移除 reasoning input item")
+}
+
+func TestOpenAIGatewayService_Forward_HTTPEmptyThinkingBlockIsDroppedBeforeForward(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
+	c.Request.Header.Set("User-Agent", "custom-client/1.0")
+
+	upstream := &httpUpstreamEmptyThinkingSequence{}
+
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = false
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	cfg.Gateway.OpenAIWS.Enabled = false
+
+	svc := &OpenAIGatewayService{
+		cfg:              cfg,
+		httpUpstream:     upstream,
+		openaiWSResolver: NewOpenAIWSProtocolResolver(cfg),
+		toolCorrector:    NewCodexToolCorrector(),
+	}
+
+	account := &Account{
+		ID:          122,
+		Name:        "openai-apikey",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "http://upstream.test",
+		},
+	}
+
+	body := []byte(`{"model":"gpt-5.3-codex","stream":false,"input":[{"role":"assistant","content":[{"type":"thinking","thinking":""},{"type":"output_text","text":"ok"}]},{"role":"user","content":"hello"}]}`)
+	result, err := svc.Forward(context.Background(), c, account, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "req_http_thinking_recover_ok", result.RequestID)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "resp_http_thinking_recover_ok", gjson.Get(rec.Body.String(), "id").String())
+
+	upstream.mu.Lock()
+	calls := upstream.calls
+	bodies := append([][]byte(nil), upstream.bodies...)
+	upstream.mu.Unlock()
+
+	require.Equal(t, 1, calls, "HTTP empty thinking block should be normalized before the first upstream call")
+	require.Len(t, bodies, 1)
+	require.False(t, gjson.GetBytes(bodies[0], `input.0.content.#(type=="thinking")`).Exists(), "forwarded request should remove empty thinking block")
+	require.Equal(t, "ok", gjson.GetBytes(bodies[0], `input.0.content.#(type=="output_text").text`).String())
 }

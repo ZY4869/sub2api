@@ -51,6 +51,24 @@ func TestChatCompletionsToResponses_SystemMessage(t *testing.T) {
 	assert.Equal(t, "user", items[1].Role)
 }
 
+func TestChatCompletionsToResponses_DeveloperRoleMapsToSystem(t *testing.T) {
+	req := &ChatCompletionsRequest{
+		Model: "gpt-4o",
+		Messages: []ChatMessage{
+			{Role: "developer", Content: json.RawMessage(`"Use local policy."`)},
+			{Role: "user", Content: json.RawMessage(`"Hi"`)},
+		},
+	}
+
+	resp, err := ChatCompletionsToResponses(req)
+	require.NoError(t, err)
+
+	var items []ResponsesInputItem
+	require.NoError(t, json.Unmarshal(resp.Input, &items))
+	require.Len(t, items, 2)
+	require.Equal(t, "system", items[0].Role)
+}
+
 func TestChatCompletionsToResponses_ToolCalls(t *testing.T) {
 	req := &ChatCompletionsRequest{
 		Model: "gpt-4o",
@@ -248,6 +266,40 @@ func TestChatCompletionsToResponses_ServiceTier(t *testing.T) {
 	resp, err := ChatCompletionsToResponses(req)
 	require.NoError(t, err)
 	assert.Equal(t, "flex", resp.ServiceTier)
+}
+
+func TestChatCompletionsToResponses_StripsSamplingParamsForReasoningModels(t *testing.T) {
+	temperature := 0.7
+	topP := 0.9
+	req := &ChatCompletionsRequest{
+		Model:       "gpt-5.4-mini",
+		Temperature: &temperature,
+		TopP:        &topP,
+		Messages:    []ChatMessage{{Role: "user", Content: json.RawMessage(`"Hi"`)}},
+	}
+
+	resp, err := ChatCompletionsToResponses(req)
+	require.NoError(t, err)
+	assert.Nil(t, resp.Temperature)
+	assert.Nil(t, resp.TopP)
+}
+
+func TestChatCompletionsToResponses_PreservesSamplingParamsForNonReasoningModels(t *testing.T) {
+	temperature := 0.7
+	topP := 0.9
+	req := &ChatCompletionsRequest{
+		Model:       "gpt-4o",
+		Temperature: &temperature,
+		TopP:        &topP,
+		Messages:    []ChatMessage{{Role: "user", Content: json.RawMessage(`"Hi"`)}},
+	}
+
+	resp, err := ChatCompletionsToResponses(req)
+	require.NoError(t, err)
+	require.NotNil(t, resp.Temperature)
+	require.NotNil(t, resp.TopP)
+	assert.Equal(t, temperature, *resp.Temperature)
+	assert.Equal(t, topP, *resp.TopP)
 }
 
 func TestChatCompletionsToResponses_AssistantWithTextAndToolCalls(t *testing.T) {
@@ -601,6 +653,62 @@ func TestResponsesToChatCompletions_OutputImageFallsBackToDataURIContent(t *test
 	var content string
 	require.NoError(t, json.Unmarshal(chat.Choices[0].Message.Content, &content))
 	assert.Equal(t, "data:image/png;base64,ZmFrZS1pbWFnZQ==", content)
+}
+
+func TestResponsesToChatCompletionsRequest_StringInput(t *testing.T) {
+	maxOutputTokens := 256
+	req := &ResponsesRequest{
+		Model:           "gpt-4o",
+		Input:           json.RawMessage(`"hello"`),
+		MaxOutputTokens: &maxOutputTokens,
+		Stream:          true,
+		Reasoning:       &ResponsesReasoning{Effort: "medium"},
+	}
+
+	chat, err := ResponsesToChatCompletionsRequest(req)
+	require.NoError(t, err)
+	require.Equal(t, "gpt-4o", chat.Model)
+	require.True(t, chat.Stream)
+	require.NotNil(t, chat.StreamOptions)
+	require.True(t, chat.StreamOptions.IncludeUsage)
+	require.Equal(t, 256, *chat.MaxCompletionTokens)
+	require.Equal(t, "medium", chat.ReasoningEffort)
+	require.Len(t, chat.Messages, 1)
+	require.Equal(t, "user", chat.Messages[0].Role)
+	require.JSONEq(t, `"hello"`, string(chat.Messages[0].Content))
+}
+
+func TestResponsesToChatCompletionsRequest_StructuredInputAndTools(t *testing.T) {
+	strict := true
+	req := &ResponsesRequest{
+		Model: "gpt-4o",
+		Input: json.RawMessage(`[
+			{"role":"system","content":"be brief"},
+			{"role":"user","content":[{"type":"input_text","text":"look"},{"type":"input_image","image_url":"https://example.com/a.png"}]},
+			{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"q\":\"x\"}"},
+			{"type":"function_call_output","call_id":"call_1","output":"done"}
+		]`),
+		Tools: []ResponsesTool{{
+			Type:        "function",
+			Name:        "lookup",
+			Description: "Lookup",
+			Parameters:  json.RawMessage(`{"type":"object"}`),
+			Strict:      &strict,
+		}},
+	}
+
+	chat, err := ResponsesToChatCompletionsRequest(req)
+	require.NoError(t, err)
+	require.Len(t, chat.Messages, 4)
+	require.Equal(t, "system", chat.Messages[0].Role)
+	require.Equal(t, "user", chat.Messages[1].Role)
+	require.Equal(t, "assistant", chat.Messages[2].Role)
+	require.Len(t, chat.Messages[2].ToolCalls, 1)
+	require.Equal(t, "tool", chat.Messages[3].Role)
+	require.Equal(t, "call_1", chat.Messages[3].ToolCallID)
+	require.Len(t, chat.Tools, 1)
+	require.Equal(t, "lookup", chat.Tools[0].Function.Name)
+	require.True(t, *chat.Tools[0].Function.Strict)
 }
 
 // ---------------------------------------------------------------------------

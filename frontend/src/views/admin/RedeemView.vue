@@ -39,6 +39,13 @@
             <button @click="handleExportCodes" class="btn btn-secondary">
               {{ t('admin.redeem.exportCsv') }}
             </button>
+            <button
+              @click="openBatchUpdateDialog"
+              :disabled="selectedIds.length === 0"
+              class="btn btn-secondary"
+            >
+              {{ t('admin.redeem.batchUpdateAction', { count: selectedIds.length }) }}
+            </button>
             <button @click="showGenerateDialog = true" class="btn btn-primary">
               {{ t('admin.redeem.generateCodes') }}
             </button>
@@ -47,7 +54,31 @@
       </template>
 
       <template #table>
-        <DataTable :columns="columns" :data="codes" :loading="loading">
+        <DataTable
+          :columns="columns"
+          :data="codes"
+          :loading="loading"
+          server-side-sort
+          default-sort-key="id"
+          default-sort-order="desc"
+          @sort="handleSort"
+        >
+          <template #header-select>
+            <input
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              :checked="allVisibleSelected"
+              @change="toggleVisibleSelection(($event.target as HTMLInputElement).checked)"
+            />
+          </template>
+          <template #cell-select="{ row }">
+            <input
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              :checked="selectedIds.includes(row.id)"
+              @change="toggleSelection(row.id)"
+            />
+          </template>
           <template #cell-code="{ value }">
             <div class="flex items-center space-x-2">
               <code class="font-mono text-sm text-gray-900 dark:text-gray-100">{{ value }}</code>
@@ -110,7 +141,9 @@
                   ? 'badge-success'
                   : value === 'used'
                     ? 'badge-gray'
-                    : 'badge-danger'
+                    : value === 'disabled'
+                      ? 'badge-warning'
+                      : 'badge-danger'
               ]"
             >
               {{ t('admin.redeem.status.' + value) }}
@@ -307,12 +340,95 @@
                 {{ t('admin.redeem.expiresAtHint') }}
               </p>
             </div>
+            <div>
+              <label class="input-label">{{ t('admin.redeem.expiresInDays') }}</label>
+              <input
+                v-model.number="generateForm.expires_in_days"
+                type="number"
+                min="1"
+                max="36500"
+                class="input"
+                :disabled="!!generateForm.expires_at"
+              />
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.redeem.expiresInDaysHint') }}
+              </p>
+            </div>
             <div class="flex justify-end gap-3 pt-2">
               <button type="button" @click="showGenerateDialog = false" class="btn btn-secondary">
                 {{ t('common.cancel') }}
               </button>
               <button type="submit" :disabled="generating" class="btn btn-primary">
                 {{ generating ? t('admin.redeem.generating') : t('admin.redeem.generate') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Batch Update Dialog -->
+    <Teleport to="body">
+      <div v-if="showBatchUpdateDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-black/50" @click="closeBatchUpdateDialog"></div>
+        <div class="relative z-10 w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-dark-800">
+          <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+            {{ t('admin.redeem.batchUpdateTitle') }}
+          </h2>
+          <form class="space-y-4" @submit.prevent="handleBatchUpdate">
+            <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-600 dark:bg-dark-700 dark:text-gray-300">
+              {{ t('admin.redeem.batchUpdateSelected', { count: selectedIds.length }) }}
+            </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label class="input-label">{{ t('admin.redeem.batchStatus') }}</label>
+                <Select v-model="batchUpdateForm.status" :options="batchStatusOptions" />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.redeem.codeType') }}</label>
+                <Select v-model="batchUpdateForm.type" :options="batchTypeOptions" />
+              </div>
+            </div>
+            <div v-if="batchUpdateForm.type">
+              <label class="input-label">{{ t('admin.redeem.columns.value') }}</label>
+              <input v-model.number="batchUpdateForm.value" type="number" step="0.01" class="input" />
+            </div>
+            <template v-if="batchUpdateForm.type === 'subscription'">
+              <div>
+                <label class="input-label">{{ t('admin.redeem.selectGroup') }}</label>
+                <Select
+                  v-model="batchUpdateForm.group_id"
+                  :options="subscriptionGroupOptions"
+                  :placeholder="t('admin.redeem.selectGroupPlaceholder')"
+                />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.redeem.validityDays') }}</label>
+                <input v-model.number="batchUpdateForm.validity_days" type="number" max="36500" class="input" />
+              </div>
+            </template>
+            <div>
+              <label class="input-label">{{ t('admin.redeem.expiresAt') }}</label>
+              <input v-model="batchUpdateForm.expires_at" type="datetime-local" class="input" />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                v-model="batchUpdateForm.clear_expires_at"
+                type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              {{ t('admin.redeem.clearExpiresAt') }}
+            </label>
+            <div>
+              <label class="input-label">{{ t('admin.redeem.notes') }}</label>
+              <textarea v-model="batchUpdateForm.notes" rows="3" class="input" />
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" @click="closeBatchUpdateDialog" class="btn btn-secondary">
+                {{ t('common.cancel') }}
+              </button>
+              <button type="submit" :disabled="batchUpdating" class="btn btn-primary">
+                {{ batchUpdating ? t('common.saving') : t('admin.redeem.batchUpdateSubmit') }}
               </button>
             </div>
           </form>
@@ -414,6 +530,7 @@ import { useAppStore } from '@/stores/app'
 import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
+import type { RedeemCodeSortBy, SortOrder } from '@/api/admin/redeem'
 import { formatDateTime } from '@/utils/format'
 import type { RedeemCode, RedeemCodeType, Group, GroupPlatform, SubscriptionType } from '@/types'
 import type { Column } from '@/components/common/types'
@@ -509,6 +626,8 @@ const downloadGeneratedCodes = () => {
 }
 
 const columns = computed<Column[]>(() => [
+  { key: 'select', label: '', class: 'w-12' },
+  { key: 'id', label: 'ID', sortable: true },
   { key: 'code', label: t('admin.redeem.columns.code') },
   { key: 'type', label: t('admin.redeem.columns.type'), sortable: true },
   { key: 'value', label: t('admin.redeem.columns.value'), sortable: true },
@@ -538,7 +657,20 @@ const filterStatusOptions = computed(() => [
   { value: '', label: t('admin.redeem.allStatus') },
   { value: 'unused', label: t('admin.redeem.unused') },
   { value: 'used', label: t('admin.redeem.used') },
-  { value: 'expired', label: t('admin.redeem.status.expired') }
+  { value: 'expired', label: t('admin.redeem.status.expired') },
+  { value: 'disabled', label: t('admin.redeem.status.disabled') }
+])
+
+const batchStatusOptions = computed(() => [
+  { value: '', label: t('admin.redeem.keepUnchanged') },
+  { value: 'unused', label: t('admin.redeem.status.unused') },
+  { value: 'expired', label: t('admin.redeem.status.expired') },
+  { value: 'disabled', label: t('admin.redeem.status.disabled') }
+])
+
+const batchTypeOptions = computed(() => [
+  { value: '', label: t('admin.redeem.keepUnchanged') },
+  ...typeOptions.value
 ])
 
 const codes = ref<RedeemCode[]>([])
@@ -548,6 +680,10 @@ const searchQuery = ref('')
 const filters = reactive({
   type: '',
   status: ''
+})
+const sortState = reactive<{ sort_by: RedeemCodeSortBy; sort_order: SortOrder }>({
+  sort_by: 'id',
+  sort_order: 'desc'
 })
 const pagination = reactive({
   page: 1,
@@ -560,8 +696,11 @@ let abortController: AbortController | null = null
 
 const showDeleteDialog = ref(false)
 const showDeleteUnusedDialog = ref(false)
+const showBatchUpdateDialog = ref(false)
+const batchUpdating = ref(false)
 const deletingCode = ref<RedeemCode | null>(null)
 const copiedCode = ref<string | null>(null)
+const selectedIds = ref<number[]>([])
 
 const generateForm = reactive({
   type: 'balance' as RedeemCodeType,
@@ -569,7 +708,19 @@ const generateForm = reactive({
   count: 1,
   group_id: null as number | null,
   validity_days: 30,
-  expires_at: ''
+  expires_at: '',
+  expires_in_days: null as number | null
+})
+
+const batchUpdateForm = reactive({
+  status: '',
+  type: '',
+  value: null as number | null,
+  group_id: null as number | null,
+  validity_days: null as number | null,
+  expires_at: '',
+  clear_expires_at: false,
+  notes: ''
 })
 
 // 监听类型变化，邀请码类型时自动设置 value 为 0
@@ -598,7 +749,9 @@ const loadCodes = async () => {
       {
         type: filters.type as RedeemCodeType,
         status: filters.status as any,
-        search: searchQuery.value || undefined
+        search: searchQuery.value || undefined,
+        sort_by: sortState.sort_by,
+        sort_order: sortState.sort_order
       },
       {
         signal: currentController.signal
@@ -608,6 +761,7 @@ const loadCodes = async () => {
       return
     }
     codes.value = response.items
+    selectedIds.value = selectedIds.value.filter((id) => response.items.some((code) => code.id === id))
     pagination.total = response.total
     pagination.pages = response.pages
   } catch (error: any) {
@@ -648,6 +802,45 @@ const handlePageSizeChange = (pageSize: number) => {
   loadCodes()
 }
 
+const handleSort = (key: string, order: SortOrder) => {
+  const allowedSorts = new Set<RedeemCodeSortBy>([
+    'id',
+    'code',
+    'type',
+    'value',
+    'status',
+    'used_at',
+    'expires_at',
+    'created_at'
+  ])
+  if (!allowedSorts.has(key as RedeemCodeSortBy)) return
+  sortState.sort_by = key as RedeemCodeSortBy
+  sortState.sort_order = order
+  pagination.page = 1
+  loadCodes()
+}
+
+const allVisibleSelected = computed(() => {
+  return codes.value.length > 0 && codes.value.every((code) => selectedIds.value.includes(code.id))
+})
+
+const toggleVisibleSelection = (checked: boolean) => {
+  if (checked) {
+    selectedIds.value = Array.from(new Set([...selectedIds.value, ...codes.value.map((code) => code.id)]))
+    return
+  }
+  const visible = new Set(codes.value.map((code) => code.id))
+  selectedIds.value = selectedIds.value.filter((id) => !visible.has(id))
+}
+
+const toggleSelection = (id: number) => {
+  if (selectedIds.value.includes(id)) {
+    selectedIds.value = selectedIds.value.filter((item) => item !== id)
+    return
+  }
+  selectedIds.value = [...selectedIds.value, id]
+}
+
 const handleGenerateCodes = async () => {
   // 订阅类型必须选择分组
   if (generateForm.type === 'subscription' && !generateForm.group_id) {
@@ -680,7 +873,8 @@ const handleGenerateCodes = async () => {
       generateForm.value,
       generateForm.type === 'subscription' ? generateForm.group_id : undefined,
       generateForm.type === 'subscription' ? generateForm.validity_days : undefined,
-      expiresAt
+      expiresAt,
+      generateForm.expires_at ? null : generateForm.expires_in_days
     )
     showGenerateDialog.value = false
     generatedCodes.value = result
@@ -689,6 +883,7 @@ const handleGenerateCodes = async () => {
     generateForm.group_id = null
     generateForm.validity_days = 30
     generateForm.expires_at = ''
+    generateForm.expires_in_days = null
     loadCodes()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToGenerate'))
@@ -712,7 +907,9 @@ const handleExportCodes = async () => {
   try {
     const blob = await adminAPI.redeem.exportCodes({
       type: filters.type as RedeemCodeType,
-      status: filters.status as any
+      status: filters.status as any,
+      sort_by: sortState.sort_by,
+      sort_order: sortState.sort_order
     })
 
     // Create download link
@@ -771,6 +968,84 @@ const confirmDeleteUnused = async () => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToDeleteUnused'))
     console.error('Error deleting unused codes:', error)
+  }
+}
+
+const resetBatchUpdateForm = () => {
+  batchUpdateForm.status = ''
+  batchUpdateForm.type = ''
+  batchUpdateForm.value = null
+  batchUpdateForm.group_id = null
+  batchUpdateForm.validity_days = null
+  batchUpdateForm.expires_at = ''
+  batchUpdateForm.clear_expires_at = false
+  batchUpdateForm.notes = ''
+}
+
+const openBatchUpdateDialog = () => {
+  if (selectedIds.value.length === 0) {
+    appStore.showInfo(t('admin.redeem.selectCodesFirst'))
+    return
+  }
+  resetBatchUpdateForm()
+  showBatchUpdateDialog.value = true
+}
+
+const closeBatchUpdateDialog = () => {
+  showBatchUpdateDialog.value = false
+  resetBatchUpdateForm()
+}
+
+const handleBatchUpdate = async () => {
+  if (selectedIds.value.length === 0) {
+    appStore.showInfo(t('admin.redeem.selectCodesFirst'))
+    return
+  }
+
+  const fields: Record<string, unknown> = {}
+  if (batchUpdateForm.status) {
+    fields.status = batchUpdateForm.status
+  }
+  if (batchUpdateForm.type) {
+    fields.type = batchUpdateForm.type
+    if (batchUpdateForm.value !== null && batchUpdateForm.value !== undefined) {
+      fields.value = batchUpdateForm.value
+    }
+    if (batchUpdateForm.type === 'subscription') {
+      if (!batchUpdateForm.group_id || !batchUpdateForm.validity_days) {
+        appStore.showError(t('admin.redeem.subscriptionFieldsRequired'))
+        return
+      }
+      fields.group_id = batchUpdateForm.group_id
+      fields.validity_days = batchUpdateForm.validity_days
+    }
+  }
+  if (batchUpdateForm.clear_expires_at) {
+    fields.expires_at = null
+  } else if (batchUpdateForm.expires_at) {
+    fields.expires_at = new Date(batchUpdateForm.expires_at).toISOString()
+  }
+  if (batchUpdateForm.notes.trim()) {
+    fields.notes = batchUpdateForm.notes.trim()
+  }
+
+  if (Object.keys(fields).length === 0) {
+    appStore.showError(t('admin.redeem.noBatchUpdateFields'))
+    return
+  }
+
+  batchUpdating.value = true
+  try {
+    const result = await adminAPI.redeem.batchUpdate(selectedIds.value, fields as any)
+    appStore.showSuccess(t('admin.redeem.batchUpdateSuccess', { count: result.updated }))
+    closeBatchUpdateDialog()
+    selectedIds.value = []
+    loadCodes()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToUpdate'))
+    console.error('Error batch updating redeem codes:', error)
+  } finally {
+    batchUpdating.value = false
   }
 }
 

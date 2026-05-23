@@ -105,6 +105,17 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyContentModerationTimeoutMs] = strconv.Itoa(settings.ContentModerationTimeoutMs)
 	updates[SettingKeyContentModerationDedupeWindowSeconds] = strconv.Itoa(settings.ContentModerationDedupeWindowSeconds)
 	updates[SettingKeyContentModerationFailOpen] = strconv.FormatBool(settings.ContentModerationFailOpen)
+	updates[SettingKeyContentModerationKeywordBlockEnabled] = strconv.FormatBool(settings.ContentModerationKeywordBlockEnabled)
+	moderationKeywordsJSON, err := MarshalContentModerationKeywords(settings.ContentModerationKeywords)
+	if err != nil {
+		return fmt.Errorf("marshal content moderation keywords: %w", err)
+	}
+	updates[SettingKeyContentModerationKeywords] = moderationKeywordsJSON
+	moderationModelFilterJSON, err := MarshalContentModerationModelFilter(settings.ContentModerationModelFilter)
+	if err != nil {
+		return fmt.Errorf("marshal content moderation model filter: %w", err)
+	}
+	updates[SettingKeyContentModerationModelFilter] = moderationModelFilterJSON
 	updates[SettingKeySiteName] = settings.SiteName
 	updates[SettingKeySiteLogo] = settings.SiteLogo
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle
@@ -140,6 +151,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	if strings.TrimSpace(settings.AirwallexWebhookSecret) != "" {
 		updates[SettingKeyAirwallexWebhookSecret] = strings.TrimSpace(settings.AirwallexWebhookSecret)
 	}
+	updates[SettingKeyPaymentMobileForceQRCodeEnabled] = strconv.FormatBool(settings.PaymentMobileForceQRCodeEnabled)
 	paymentCurrenciesJSON, err := json.Marshal(NormalizePaymentAllowedCurrencies(settings.PaymentAllowedCurrencies))
 	if err != nil {
 		return fmt.Errorf("marshal payment allowed currencies: %w", err)
@@ -164,6 +176,9 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		return infraerrors.BadRequest("ANTIGRAVITY_USER_AGENT_VERSION_INVALID", "antigravity user-agent version must match major.minor.patch[-suffix]")
 	}
 	updates[SettingKeyAntigravityUserAgentVersion] = antigravityVersion
+	codexUAPolicy := NormalizeCodexOAuthUserAgentPolicy(settings.CodexOAuthUserAgentMode, settings.CodexOAuthUserAgentOverride)
+	updates[SettingKeyCodexOAuthUserAgentMode] = codexUAPolicy.Mode
+	updates[SettingKeyCodexOAuthUserAgentOverride] = codexUAPolicy.Override
 	updates[SettingKeyCustomMenuItems] = settings.CustomMenuItems
 	updates[SettingKeyLoginAgreementEnabled] = strconv.FormatBool(settings.LoginAgreementEnabled)
 	updates[SettingKeyLoginAgreementMode] = NormalizeLoginAgreementMode(settings.LoginAgreementMode)

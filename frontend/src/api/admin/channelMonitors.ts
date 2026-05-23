@@ -5,6 +5,7 @@
 import { apiClient } from '../client'
 
 export type ChannelMonitorBodyOverrideMode = 'off' | 'merge' | 'replace'
+export type ChannelMonitorOpenAIAPIMode = 'chat_completions' | 'responses'
 
 export interface AdminChannelMonitor {
   id: number
@@ -19,6 +20,7 @@ export interface AdminChannelMonitor {
   extra_headers: Record<string, string>
   body_override_mode: ChannelMonitorBodyOverrideMode | string
   body_override: Record<string, any>
+  openai_api_mode: ChannelMonitorOpenAIAPIMode | string
   last_run_at?: string
   next_run_at?: string
   api_key_configured: boolean
@@ -47,6 +49,7 @@ export interface AdminChannelMonitorTemplate {
   extra_headers: Record<string, string>
   body_override_mode: ChannelMonitorBodyOverrideMode | string
   body_override: Record<string, any>
+  openai_api_mode: ChannelMonitorOpenAIAPIMode | string
   created_at: string
   updated_at: string
 }
@@ -64,6 +67,7 @@ export interface CreateChannelMonitorRequest {
   extra_headers?: Record<string, string>
   body_override_mode?: ChannelMonitorBodyOverrideMode
   body_override?: Record<string, any>
+  openai_api_mode?: ChannelMonitorOpenAIAPIMode
 }
 
 export interface UpdateChannelMonitorRequest {
@@ -79,6 +83,7 @@ export interface UpdateChannelMonitorRequest {
   extra_headers?: Record<string, string>
   body_override_mode?: ChannelMonitorBodyOverrideMode
   body_override?: Record<string, any>
+  openai_api_mode?: ChannelMonitorOpenAIAPIMode
 }
 
 export interface CreateChannelMonitorTemplateRequest {
@@ -88,6 +93,7 @@ export interface CreateChannelMonitorTemplateRequest {
   extra_headers?: Record<string, string>
   body_override_mode?: ChannelMonitorBodyOverrideMode
   body_override?: Record<string, any>
+  openai_api_mode?: ChannelMonitorOpenAIAPIMode
 }
 
 export interface UpdateChannelMonitorTemplateRequest {
@@ -97,6 +103,7 @@ export interface UpdateChannelMonitorTemplateRequest {
   extra_headers?: Record<string, string>
   body_override_mode?: ChannelMonitorBodyOverrideMode
   body_override?: Record<string, any>
+  openai_api_mode?: ChannelMonitorOpenAIAPIMode
 }
 
 export async function listMonitors(): Promise<AdminChannelMonitor[]> {

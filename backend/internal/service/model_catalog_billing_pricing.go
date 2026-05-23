@@ -37,6 +37,13 @@ func (s *ModelCatalogService) RefreshBillingPricingCatalog(ctx context.Context) 
 	return s.billingCenterService.RefreshPricingCatalog(ctx)
 }
 
+func (s *ModelCatalogService) SyncLiteLLMPricingCatalog(ctx context.Context, input BillingPricingLiteLLMSyncInput) (*BillingPricingLiteLLMSyncResult, error) {
+	if s == nil || s.billingCenterService == nil {
+		return nil, nil
+	}
+	return s.billingCenterService.SyncLiteLLMPricingCatalog(ctx, input)
+}
+
 func (s *ModelCatalogService) GetBillingPricingAudit(ctx context.Context) (*BillingPricingAudit, error) {
 	if s == nil || s.billingCenterService == nil {
 		return &BillingPricingAudit{}, nil

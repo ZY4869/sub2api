@@ -19,6 +19,14 @@ func DefaultPaymentSettings() PaymentSettings {
 
 var antigravityUserAgentVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(-[A-Za-z0-9._-]+)?$`)
 
+const (
+	PaymentModeDefault      = "default"
+	PaymentModeQRCode       = "qrcode"
+	CodexOAuthUAModeDefault = "default"
+	CodexOAuthUAModeForce   = "force"
+	CodexOAuthUAModeCustom  = "custom"
+)
+
 func (s *SettingService) GetAntigravityUserAgentVersion(ctx context.Context) string {
 	if s == nil || s.settingRepo == nil {
 		return ""
@@ -30,6 +38,20 @@ func (s *SettingService) GetAntigravityUserAgentVersion(ctx context.Context) str
 	return strings.TrimSpace(value)
 }
 
+func (s *SettingService) GetCodexOAuthUserAgentPolicy(ctx context.Context) CodexOAuthUserAgentPolicy {
+	if s == nil || s.settingRepo == nil {
+		return NormalizeCodexOAuthUserAgentPolicy("", "")
+	}
+	raw, err := s.settingRepo.GetMultiple(ctx, []string{
+		SettingKeyCodexOAuthUserAgentMode,
+		SettingKeyCodexOAuthUserAgentOverride,
+	})
+	if err != nil {
+		return NormalizeCodexOAuthUserAgentPolicy("", "")
+	}
+	return NormalizeCodexOAuthUserAgentPolicy(raw[SettingKeyCodexOAuthUserAgentMode], raw[SettingKeyCodexOAuthUserAgentOverride])
+}
+
 func NormalizeAntigravityUserAgentVersion(value string) (string, bool) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -39,6 +61,48 @@ func NormalizeAntigravityUserAgentVersion(value string) (string, bool) {
 		return "", false
 	}
 	return value, true
+}
+
+type CodexOAuthUserAgentPolicy struct {
+	Mode      string
+	Override  string
+	Force     bool
+	HasCustom bool
+}
+
+func NormalizeCodexOAuthUserAgentPolicy(mode string, override string) CodexOAuthUserAgentPolicy {
+	normalizedOverride := sanitizeCodexOAuthUserAgentOverride(override)
+	normalizedMode := strings.ToLower(strings.TrimSpace(mode))
+	switch normalizedMode {
+	case CodexOAuthUAModeForce:
+		return CodexOAuthUserAgentPolicy{Mode: CodexOAuthUAModeForce, Override: normalizedOverride, Force: true, HasCustom: normalizedOverride != ""}
+	case CodexOAuthUAModeCustom:
+		if normalizedOverride == "" {
+			return CodexOAuthUserAgentPolicy{Mode: CodexOAuthUAModeDefault, Override: "", Force: false}
+		}
+		return CodexOAuthUserAgentPolicy{Mode: CodexOAuthUAModeCustom, Override: normalizedOverride, Force: true, HasCustom: true}
+	default:
+		return CodexOAuthUserAgentPolicy{Mode: CodexOAuthUAModeDefault, Override: normalizedOverride, Force: false, HasCustom: normalizedOverride != ""}
+	}
+}
+
+func sanitizeCodexOAuthUserAgentOverride(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	value = strings.Map(func(r rune) rune {
+		switch r {
+		case '\r', '\n', '\t':
+			return -1
+		default:
+			return r
+		}
+	}, value)
+	if len(value) > 256 {
+		value = value[:256]
+	}
+	return strings.TrimSpace(value)
 }
 
 func (s *SettingService) GetPaymentSettings(ctx context.Context) PaymentSettings {
@@ -53,6 +117,7 @@ func (s *SettingService) GetPaymentSettings(ctx context.Context) PaymentSettings
 		SettingKeyAirwallexClientID,
 		SettingKeyAirwallexAPIKey,
 		SettingKeyAirwallexWebhookSecret,
+		SettingKeyPaymentMobileForceQRCodeEnabled,
 		SettingKeyPaymentAllowedCurrencies,
 		SettingKeyPaymentDefaultCurrency,
 		SettingKeyPaymentMinTopupAmount,
@@ -81,6 +146,7 @@ func paymentSettingsFromRaw(raw map[string]string) PaymentSettings {
 	out.AirwallexAPIKeyConfigured = out.AirwallexAPIKey != ""
 	out.AirwallexWebhookSecret = strings.TrimSpace(raw[SettingKeyAirwallexWebhookSecret])
 	out.AirwallexWebhookSecretConfigured = out.AirwallexWebhookSecret != ""
+	out.MobileForceQRCodeEnabled = raw[SettingKeyPaymentMobileForceQRCodeEnabled] == "true"
 	out.AllowedCurrencies = parsePaymentCurrencies(raw[SettingKeyPaymentAllowedCurrencies])
 	out.DefaultCurrency = NormalizePaymentCurrency(raw[SettingKeyPaymentDefaultCurrency])
 	if out.DefaultCurrency == "" || !PaymentCurrencyAllowed(out.DefaultCurrency, out.AllowedCurrencies) {

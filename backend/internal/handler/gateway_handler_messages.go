@@ -81,11 +81,14 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Request body is empty")
 		return
 	}
-	submitContentModerationAudit(
-		c.Request.Context(),
-		h.contentModerationService,
-		buildContentModerationRecordInput(c, service.ContentModerationSourceAnthropicMessages, service.PlatformAnthropic, "", body),
-	)
+	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceAnthropicMessages, service.PlatformAnthropic, "", body)
+	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+		reqLog.Warn("gateway.content_moderation_keyword_check_failed", zap.Error(err))
+	} else if blocked {
+		contentModerationAnthropicBlockResponse(c)
+		return
+	}
+	submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)
 	setOpsRequestContext(c, "", false, body)
 	parsedReq, err := service.ParseGatewayRequest(body, domain.PlatformAnthropic)
 	if err != nil {

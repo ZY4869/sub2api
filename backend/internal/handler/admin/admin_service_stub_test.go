@@ -978,6 +978,10 @@ func (s *stubAdminService) ListRedeemCodes(ctx context.Context, page, pageSize i
 	return s.redeems, int64(len(s.redeems)), nil
 }
 
+func (s *stubAdminService) ListRedeemCodesWithOptions(ctx context.Context, input service.RedeemCodeListInput) ([]service.RedeemCode, int64, error) {
+	return s.redeems, int64(len(s.redeems)), nil
+}
+
 func (s *stubAdminService) GetRedeemCode(ctx context.Context, id int64) (*service.RedeemCode, error) {
 	code := service.RedeemCode{ID: id, Code: "R-TEST", Status: service.StatusUnused}
 	return &code, nil
@@ -993,6 +997,13 @@ func (s *stubAdminService) DeleteRedeemCode(ctx context.Context, id int64) error
 
 func (s *stubAdminService) BatchDeleteRedeemCodes(ctx context.Context, ids []int64) (int64, error) {
 	return int64(len(ids)), nil
+}
+
+func (s *stubAdminService) BatchUpdateRedeemCodes(ctx context.Context, input *service.BatchUpdateRedeemCodesInput) (int64, error) {
+	if input == nil {
+		return 0, nil
+	}
+	return int64(len(input.IDs)), nil
 }
 
 func (s *stubAdminService) ExpireRedeemCode(ctx context.Context, id int64) (*service.RedeemCode, error) {

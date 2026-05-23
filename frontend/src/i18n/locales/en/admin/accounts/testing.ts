@@ -35,6 +35,7 @@ export default {
         autoBadge: "Auto blacklisted",
         recommendBadge: "Recommended",
         notRecommendedBadge: "Manual review",
+        needsReauth: "Reauthorization is required. Reconnect this account before testing again.",
         button: "Blacklist Account",
         buttonDone: "Already Blacklisted",
         noReason: "No explicit reason was returned. Please review the test output before deciding.",

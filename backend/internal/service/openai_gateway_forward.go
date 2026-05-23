@@ -338,6 +338,13 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 		}
 	}
+	if sanitizeOpenAIEmptyThinkingBlocks(reqBody) {
+		var marshalErr error
+		body, marshalErr = json.Marshal(reqBody)
+		if marshalErr != nil {
+			return nil, fmt.Errorf("serialize empty thinking block normalized request body: %w", marshalErr)
+		}
+	}
 	ctx = WithOpenAICodexRequestModel(ctx, mappedModel)
 	if c != nil && c.Request != nil {
 		c.Request = c.Request.WithContext(ctx)
@@ -364,6 +371,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		wsLastFailureReason := ""
 		wsPrevResponseRecoveryTried := false
 		wsInvalidEncryptedContentRecoveryTried := false
+		wsEmptyThinkingBlockRecoveryTried := false
 		recoverPrevResponseNotFound := func(attempt int) bool {
 			if wsPrevResponseRecoveryTried {
 				return false
@@ -402,6 +410,18 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			logOpenAIWSModeInfo("reconnect_invalid_encrypted_content_recovery account_id=%d attempt=%d action=drop_encrypted_reasoning_items retry=1 previous_response_id_present=%v previous_response_id=%s previous_response_id_kind=%s has_function_call_output=%v dropped_previous_response_id=%v", account.ID, attempt, previousResponseID != "", truncateOpenAIWSLogValue(previousResponseID, openAIWSIDValueMaxLen), normalizeOpenAIWSLogValue(ClassifyOpenAIPreviousResponseIDKind(previousResponseID)), hasFunctionCallOutput, droppedPreviousResponseID)
 			return true
 		}
+		recoverEmptyThinkingBlock := func(attempt int) bool {
+			if wsEmptyThinkingBlockRecoveryTried {
+				return false
+			}
+			if !sanitizeOpenAIEmptyThinkingBlocks(wsReqBody) {
+				logOpenAIWSModeInfo("reconnect_empty_thinking_recovery_skip account_id=%d attempt=%d reason=missing_empty_thinking_blocks", account.ID, attempt)
+				return false
+			}
+			wsEmptyThinkingBlockRecoveryTried = true
+			logOpenAIWSModeInfo("reconnect_empty_thinking_recovery account_id=%d attempt=%d action=drop_empty_thinking_blocks retry=1", account.ID, attempt)
+			return true
+		}
 		retryBudget := s.openAIWSRetryTotalBudget()
 		retryStartedAt := time.Now()
 	wsRetryLoop:
@@ -422,6 +442,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				continue
 			}
 			if reason == "invalid_encrypted_content" && recoverInvalidEncryptedContent(attempt) {
+				continue
+			}
+			if reason == "empty_thinking_block" && recoverEmptyThinkingBlock(attempt) {
 				continue
 			}
 			if retryable && attempt < maxAttempts {
@@ -482,6 +505,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		proxyURL = account.Proxy.URL()
 	}
 	httpInvalidEncryptedContentRetryTried := false
+	httpEmptyThinkingBlockRetryTried := false
 	for {
 		upstreamReq, err := s.buildUpstreamRequest(ctx, c, account, body, token, reqStream, promptCacheKey, isCodexCLI)
 		if err != nil {
@@ -504,6 +528,21 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 			upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 			upstreamCode := extractUpstreamErrorCode(respBody)
+			if !httpEmptyThinkingBlockRetryTried && resp.StatusCode == http.StatusBadRequest && isOpenAIEmptyThinkingBlockError(resp.StatusCode, upstreamMsg, respBody) {
+				if sanitizeOpenAIEmptyThinkingBlocks(reqBody) {
+					body, err = json.Marshal(reqBody)
+					if err != nil {
+						_ = resp.Body.Close()
+						return nil, fmt.Errorf("serialize empty thinking block retry body: %w", err)
+					}
+					setOpsUpstreamRequestBody(c, body)
+					httpEmptyThinkingBlockRetryTried = true
+					logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Retrying non-WSv2 request once after empty thinking block error (account: %s)", account.Name)
+					_ = resp.Body.Close()
+					continue
+				}
+				logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Skip non-WSv2 empty thinking block retry because empty thinking blocks are missing (account: %s)", account.Name)
+			}
 			if !httpInvalidEncryptedContentRetryTried && resp.StatusCode == http.StatusBadRequest && upstreamCode == "invalid_encrypted_content" {
 				if trimOpenAIEncryptedReasoningItems(reqBody) {
 					body, err = json.Marshal(reqBody)

@@ -37,6 +37,7 @@ export default {
         apiKeyDecryptFailedPlaceholder: "解密失败，请重新填写",
         apiKeyDecryptFailedHint: "当前密钥解密失败，需重新填写才能启用/运行。",
         clearApiKey: "清空现有密钥",
+        openaiApiMode: "OpenAI API 模式",
         extraHeaders: "额外请求头 (JSON)",
         bodyOverride: "请求体覆盖 (JSON)",
         jsonHint: "必须是 JSON 对象，例如：{\"x-foo\":\"bar\"}",

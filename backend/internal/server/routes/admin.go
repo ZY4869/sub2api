@@ -33,6 +33,7 @@ func RegisterAdminRoutes(
 		// 账号管理
 		registerAccountRoutes(admin, h)
 		registerDocsRoutes(admin, h)
+		registerEmailTemplateRoutes(admin, h)
 
 		// 公告管理
 		registerAnnouncementRoutes(admin, h)
@@ -140,6 +141,7 @@ func registerAdminBillingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			pricing.GET("/models", h.Admin.ModelCatalog.ListBillingPricingModels)
 			pricing.POST("/details", h.Admin.ModelCatalog.GetBillingPricingDetails)
 			pricing.POST("/refresh", h.Admin.ModelCatalog.RefreshBillingPricingCatalog)
+			pricing.POST("/sync-litellm", h.Admin.ModelCatalog.SyncLiteLLMPricingCatalog)
 			pricing.PUT("/models/:model/layers/:layer", h.Admin.ModelCatalog.SaveBillingPricingLayer)
 			pricing.POST("/sale/copy-from-official", h.Admin.ModelCatalog.CopyBillingPricingOfficialToSale)
 			pricing.POST("/sale/apply-discount", h.Admin.ModelCatalog.ApplyBillingPricingSaleDiscount)
@@ -569,6 +571,19 @@ func registerProxyRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
+func registerEmailTemplateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h == nil || h.Admin == nil || h.Admin.EmailTemplate == nil {
+		return
+	}
+	templates := admin.Group("/email-templates")
+	{
+		templates.GET("", h.Admin.EmailTemplate.List)
+		templates.PUT("/:key/:locale", h.Admin.EmailTemplate.Update)
+		templates.POST("/:key/:locale/reset", h.Admin.EmailTemplate.Reset)
+		templates.POST("/:key/:locale/test", h.Admin.EmailTemplate.Test)
+	}
+}
+
 func registerRedeemCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	codes := admin.Group("/redeem-codes")
 	{
@@ -580,6 +595,7 @@ func registerRedeemCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		codes.POST("/generate", h.Admin.Redeem.Generate)
 		codes.DELETE("/:id", h.Admin.Redeem.Delete)
 		codes.POST("/batch-delete", h.Admin.Redeem.BatchDelete)
+		codes.POST("/batch-update", h.Admin.Redeem.BatchUpdate)
 		codes.POST("/:id/expire", h.Admin.Redeem.Expire)
 	}
 }

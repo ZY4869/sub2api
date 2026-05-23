@@ -75,6 +75,7 @@ export interface RegisterRequest {
 export interface SendVerifyCodeRequest {
   email: string;
   turnstile_token?: string;
+  locale?: string;
 }
 
 export interface SendVerifyCodeResponse {
@@ -138,6 +139,7 @@ export interface PublicSettings {
   purchase_subscription_enabled: boolean;
   purchase_subscription_url: string;
   payment_provider_airwallex_enabled: boolean;
+  payment_mobile_force_qrcode_enabled: boolean;
   payment_allowed_currencies: string[];
   payment_default_currency: string;
   payment_min_topup_amount: number;
@@ -218,6 +220,7 @@ export interface PaymentCreateOrderResponse {
   intent_id: string;
   resume_token: string;
   provider_env: "demo" | "prod" | string;
+  payment_mode?: "default" | "qrcode" | string;
 }
 
 export interface PaymentResumeOrderResponse {
@@ -226,6 +229,7 @@ export interface PaymentResumeOrderResponse {
   client_id: string;
   intent_id: string;
   provider_env: "demo" | "prod" | string;
+  payment_mode?: "default" | "qrcode" | string;
 }
 
 export interface PaymentRefund {
@@ -617,6 +621,7 @@ export interface AdminGroup extends Group {
   account_count?: number;
   active_account_count?: number;
   rate_limited_account_count?: number;
+  available_account_count?: number;
   // Default mapped model for OpenAI Messages-compatible groups.
   default_mapped_model?: string;
   // UI sort weight for admin lists.
@@ -1639,7 +1644,7 @@ export interface RedeemCode {
   code: string;
   type: RedeemCodeType;
   value: number;
-  status: "active" | "used" | "expired" | "unused";
+  status: "active" | "used" | "expired" | "unused" | "disabled";
   used_by: number | null;
   used_at: string | null;
   created_at: string;
@@ -1658,6 +1663,7 @@ export interface GenerateRedeemCodesRequest {
   group_id?: number | null; // Subscription group bound to the generated codes.
   validity_days?: number; // Subscription validity in days for subscription codes.
   expires_at?: string | null; // Redeem code expiration time, separate from subscription validity.
+  expires_in_days?: number; // Relative redeem code expiration days; mutually exclusive with expires_at.
 }
 
 export interface RedeemCodeRequest {

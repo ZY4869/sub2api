@@ -60,6 +60,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
 		PaymentProviderAirwallexEnabled:  settings.PaymentProviderAirwallexEnabled,
+		PaymentMobileForceQRCodeEnabled:  settings.PaymentMobileForceQRCodeEnabled,
 		PaymentAllowedCurrencies:         settings.PaymentAllowedCurrencies,
 		PaymentDefaultCurrency:           settings.PaymentDefaultCurrency,
 		PaymentMinTopupAmount:            settings.PaymentMinTopupAmount,

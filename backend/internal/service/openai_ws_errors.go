@@ -206,6 +206,8 @@ func classifyOpenAIWSErrorEventFromRaw(codeRaw, errTypeRaw, msgRaw string) (stri
 		return "invalid_encrypted_content", true
 	case "previous_response_not_found":
 		return "previous_response_not_found", true
+	case "empty_thinking_block":
+		return "empty_thinking_block", true
 	}
 	if isOpenAIWSRateLimitError(codeRaw, errTypeRaw, msgRaw) {
 		return "upstream_rate_limited", false
@@ -227,6 +229,9 @@ func classifyOpenAIWSErrorEventFromRaw(codeRaw, errTypeRaw, msgRaw string) (stri
 	}
 	if strings.Contains(msg, "previous_response_not_found") || (strings.Contains(msg, "previous response") && strings.Contains(msg, "not found")) {
 		return "previous_response_not_found", true
+	}
+	if isOpenAIEmptyThinkingBlockError(0, msg, nil) {
+		return "empty_thinking_block", true
 	}
 	if strings.Contains(errType, "server_error") || strings.Contains(code, "server_error") {
 		return "upstream_error_event", true

@@ -64,7 +64,7 @@ describe('TokenUsageTrend', () => {
     const cacheHitRate = chartData.datasets.find((dataset: any) => dataset.label === 'Cache Hit Rate')
 
     expect(cacheHitRate).toBeTruthy()
-    expect(cacheHitRate.data).toEqual([80, 0])
+    expect(cacheHitRate.data).toEqual([40, 0])
     expect(cacheHitRate.yAxisID).toBe('yPercent')
 
     const options = (wrapper.vm as any).$?.setupState.lineOptions

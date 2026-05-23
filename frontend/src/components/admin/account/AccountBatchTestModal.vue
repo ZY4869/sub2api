@@ -178,8 +178,8 @@
                   {{ formatLifecycle(item.current_lifecycle_state) }}
                 </td>
                 <td class="px-3 py-2 text-gray-600 dark:text-gray-300">
-                  <span class="max-w-[22rem] truncate" :title="item.error_message || item.response_text || '-'">
-                    {{ item.error_message || item.response_text || '-' }}
+                  <span class="max-w-[22rem] truncate" :title="formatDetail(item)">
+                    {{ formatDetail(item) }}
                   </span>
                 </td>
               </tr>
@@ -213,6 +213,7 @@ import { adminAPI } from '@/api/admin'
 import type { AccountTestMode, BatchAccountTestRequestPayload, BatchAccountTestResult } from '@/api/admin/accounts'
 import type { Account, AdminAccountModelOption } from '@/types'
 import { useAppStore } from '@/stores/app'
+import { isCredentialsNeedReauthMessage } from '@/components/account/accountStatusPresentation'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import AccountTestModelSelectionFields from './AccountTestModelSelectionFields.vue'
@@ -473,6 +474,9 @@ const formatLifecycle = (value?: string) => {
 }
 
 const formatResult = (item: BatchAccountTestResult) => {
+  if (isNeedsReauthResult(item)) {
+    return t('admin.accounts.status.needsReauth')
+  }
   if (item.blacklist_advice_decision === 'auto_blacklisted' || item.current_lifecycle_state === 'blacklisted') {
     return t('admin.accounts.batchTest.resultLabels.autoBlacklisted')
   }
@@ -483,6 +487,9 @@ const formatResult = (item: BatchAccountTestResult) => {
 }
 
 const resultBadgeClass = (item: BatchAccountTestResult) => {
+  if (isNeedsReauthResult(item)) {
+    return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+  }
   if (item.blacklist_advice_decision === 'auto_blacklisted' || item.current_lifecycle_state === 'blacklisted') {
     return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
   }
@@ -491,4 +498,13 @@ const resultBadgeClass = (item: BatchAccountTestResult) => {
   }
   return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
 }
+
+const isNeedsReauthResult = (item: BatchAccountTestResult) =>
+  item.lifecycle_reason_code === 'credentials_need_reauth' ||
+  isCredentialsNeedReauthMessage(item.error_message || item.response_text || '')
+
+const formatDetail = (item: BatchAccountTestResult) =>
+  isNeedsReauthResult(item)
+    ? t('admin.accounts.status.needsReauth')
+    : (item.error_message || item.response_text || '-')
 </script>

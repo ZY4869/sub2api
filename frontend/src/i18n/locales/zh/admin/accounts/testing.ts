@@ -35,6 +35,7 @@ export default {
         autoBadge: "已自动拉黑",
         recommendBadge: "建议拉黑",
         notRecommendedBadge: "谨慎处理",
+        needsReauth: "需要重新授权，请在账号列表中重新授权后再测试。",
         button: "拉黑账号",
         buttonDone: "已拉黑",
         noReason: "未返回明确原因，请结合测试输出判断。",

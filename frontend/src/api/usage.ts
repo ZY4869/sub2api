@@ -284,6 +284,12 @@ export interface BatchApiKeysUsageResponse {
   stats: Record<string, BatchApiKeyUsageStats>;
 }
 
+export interface ApiKeyDailyUsageResponse {
+  daily_details: TrendDataPoint[];
+  start_date: string;
+  end_date: string;
+}
+
 /**
  * Get batch usage stats for user's own API keys
  * @param apiKeyIds - Array of API key IDs
@@ -308,6 +314,20 @@ export async function getDashboardApiKeysUsage(
   return data;
 }
 
+export async function getDashboardApiKeyDailyUsage(
+  apiKeyId: number,
+  params?: {
+    start_date?: string;
+    end_date?: string;
+  },
+): Promise<ApiKeyDailyUsageResponse> {
+  const { data } = await apiClient.get<ApiKeyDailyUsageResponse>(
+    `/usage/dashboard/api-keys/${apiKeyId}/daily`,
+    { params },
+  );
+  return data;
+}
+
 export const usageAPI = {
   list,
   query,
@@ -322,6 +342,7 @@ export const usageAPI = {
   getDashboardTrend,
   getDashboardModels,
   getDashboardApiKeysUsage,
+  getDashboardApiKeyDailyUsage,
 };
 
 export default usageAPI;

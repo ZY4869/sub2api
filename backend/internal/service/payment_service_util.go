@@ -24,6 +24,13 @@ func (s *PaymentService) paymentSettings(ctx context.Context) PaymentSettings {
 	return s.settings.GetPaymentSettings(ctx)
 }
 
+func resolvePaymentMode(settings PaymentSettings) string {
+	if settings.MobileForceQRCodeEnabled {
+		return PaymentModeQRCode
+	}
+	return PaymentModeDefault
+}
+
 func (s *PaymentService) logInfo(ctx context.Context, msg string, fields ...zap.Field) {
 	logger.FromContext(ctx).Info(msg, append(paymentLogFields(ctx), fields...)...)
 }

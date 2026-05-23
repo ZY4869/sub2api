@@ -59,11 +59,21 @@ type UsageService struct {
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	requestPreviewReader UsageRequestPreviewReader
+	emailService         *EmailService
+	emailTemplates       *EmailTemplateService
 }
 
 type usageLogAPIKeyFilterReader interface {
 	ListUsageFilterAPIKeys(ctx context.Context, userID int64, startTime, endTime *time.Time) ([]APIKey, error)
 	SearchUsageAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]APIKey, error)
+}
+
+func (s *UsageService) SetEmailNotificationServices(emailService *EmailService, templates *EmailTemplateService) {
+	if s == nil {
+		return
+	}
+	s.emailService = emailService
+	s.emailTemplates = templates
 }
 
 // NewUsageService 创建使用统计服务实例
@@ -149,8 +159,35 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 	}
 
 	s.invalidateUsageCaches(ctx, req.UserID, balanceUpdated)
+	if balanceUpdated {
+		s.sendBalanceLowNotificationBestEffort(ctx, req.UserID)
+	}
 
 	return usageLog, nil
+}
+
+func (s *UsageService) sendBalanceLowNotificationBestEffort(ctx context.Context, userID int64) {
+	if s == nil || s.emailService == nil || s.emailTemplates == nil || s.userRepo == nil || userID <= 0 {
+		return
+	}
+	go func() {
+		notifyCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		user, err := s.userRepo.GetByID(notifyCtx, userID)
+		if err != nil || user == nil || user.Email == "" || user.Balance > 0 {
+			return
+		}
+		if !s.emailTemplates.ShouldSendNotification(notifyCtx, userID, NotificationCategoryBalanceLow, "USD", "0", time.Now()) {
+			return
+		}
+		data := map[string]string{
+			"SiteName":  "Sub2API",
+			"Balance":   fmt.Sprintf("%.2f", user.Balance),
+			"Currency":  "USD",
+			"Threshold": "0.00",
+		}
+		_ = s.emailService.SendTemplatedEmail(notifyCtx, user.Email, EmailTemplateBalanceLow, "zh", data)
+	}()
 }
 
 func (s *UsageService) invalidateUsageCaches(ctx context.Context, userID int64, balanceUpdated bool) {
@@ -336,6 +373,14 @@ func (s *UsageService) GetAPIKeyModelStats(ctx context.Context, apiKeyID int64, 
 		return nil, fmt.Errorf("get api key model stats: %w", err)
 	}
 	return stats, nil
+}
+
+func (s *UsageService) GetAPIKeyDailyUsageTrend(ctx context.Context, apiKeyID int64, startTime, endTime time.Time) ([]usagestats.TrendDataPoint, error) {
+	trend, err := s.usageRepo.GetUsageTrendWithFilters(ctx, startTime, endTime, "day", 0, apiKeyID, 0, 0, 0, "", nil, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get api key daily usage trend: %w", err)
+	}
+	return trend, nil
 }
 
 // GetBatchAPIKeyUsageStats returns today/total actual_cost for given api keys.

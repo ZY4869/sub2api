@@ -72,9 +72,10 @@ const chartColors = computed(() => ({
 
 const resolveCacheTokens = (value: number | null | undefined): number => Number(value ?? 0)
 const resolveCacheHitRate = (point: TrendDataPoint): number => {
+  const input = resolveCacheTokens(point.input_tokens)
   const cacheRead = resolveCacheTokens(point.cache_read_tokens)
   const cacheCreation = resolveCacheTokens(point.cache_creation_tokens)
-  const total = cacheRead + cacheCreation
+  const total = input + cacheCreation + cacheRead
   return total > 0 ? (cacheRead / total) * 100 : 0
 }
 

@@ -88,6 +88,9 @@ func (r *groupRepository) GetByID(ctx context.Context, id int64) (*service.Group
 	total, active, _ := r.GetAccountCount(ctx, out.ID)
 	out.AccountCount = total
 	out.ActiveAccountCount = active
+	_, _, rateLimited, _ := r.GetAccountCountWithRateLimited(ctx, out.ID)
+	out.RateLimitedAccountCount = rateLimited
+	out.AvailableAccountCount = maxInt64(active-rateLimited, 0)
 	return out, nil
 }
 
@@ -272,6 +275,7 @@ func (r *groupRepository) ListWithFilters(ctx context.Context, params pagination
 			outGroups[i].AccountCount = c.Total
 			outGroups[i].ActiveAccountCount = c.Active
 			outGroups[i].RateLimitedAccountCount = c.RateLimited
+			outGroups[i].AvailableAccountCount = c.Available()
 		}
 	}
 
@@ -302,6 +306,7 @@ func (r *groupRepository) ListActive(ctx context.Context) ([]service.Group, erro
 			outGroups[i].AccountCount = c.Total
 			outGroups[i].ActiveAccountCount = c.Active
 			outGroups[i].RateLimitedAccountCount = c.RateLimited
+			outGroups[i].AvailableAccountCount = c.Available()
 		}
 	}
 
@@ -336,6 +341,7 @@ func (r *groupRepository) ListActiveByPlatform(ctx context.Context, platform str
 			outGroups[i].AccountCount = c.Total
 			outGroups[i].ActiveAccountCount = c.Active
 			outGroups[i].RateLimitedAccountCount = c.RateLimited
+			outGroups[i].AvailableAccountCount = c.Available()
 		}
 	}
 
@@ -395,10 +401,14 @@ func (r *groupRepository) ExistsByIDs(ctx context.Context, ids []int64) (map[int
 }
 
 func (r *groupRepository) GetAccountCount(ctx context.Context, groupID int64) (total int64, active int64, err error) {
-	var rateLimited int64
+	total, active, _, err = r.GetAccountCountWithRateLimited(ctx, groupID)
+	return
+}
+
+func (r *groupRepository) GetAccountCountWithRateLimited(ctx context.Context, groupID int64) (total int64, active int64, rateLimited int64, err error) {
 	err = scanSingleRow(ctx, r.sql,
 		`SELECT COUNT(*),
-			COUNT(*) FILTER (WHERE a.status = 'active' AND a.schedulable = true),
+			COUNT(*) FILTER (WHERE a.status = 'active'),
 			COUNT(*) FILTER (WHERE a.status = 'active' AND (
 				a.rate_limit_reset_at > NOW() OR
 				a.overload_until > NOW() OR
@@ -591,6 +601,10 @@ type groupAccountCounts struct {
 	RateLimited int64
 }
 
+func (c groupAccountCounts) Available() int64 {
+	return maxInt64(c.Active-c.RateLimited, 0)
+}
+
 func (r *groupRepository) loadAccountCounts(ctx context.Context, groupIDs []int64) (counts map[int64]groupAccountCounts, err error) {
 	counts = make(map[int64]groupAccountCounts, len(groupIDs))
 	if len(groupIDs) == 0 {
@@ -601,7 +615,7 @@ func (r *groupRepository) loadAccountCounts(ctx context.Context, groupIDs []int6
 		ctx,
 		`SELECT ag.group_id,
 			COUNT(*) AS total,
-			COUNT(*) FILTER (WHERE a.status = 'active' AND a.schedulable = true) AS active,
+			COUNT(*) FILTER (WHERE a.status = 'active') AS active,
 			COUNT(*) FILTER (WHERE a.status = 'active' AND (
 				a.rate_limit_reset_at > NOW() OR
 				a.overload_until > NOW() OR
@@ -638,6 +652,13 @@ func (r *groupRepository) loadAccountCounts(ctx context.Context, groupIDs []int6
 	}
 
 	return counts, nil
+}
+
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // GetAccountIDsByGroupIDs 获取多个分组的所有账号 ID（去重）

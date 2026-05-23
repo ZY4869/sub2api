@@ -34,6 +34,7 @@ Thinking / reasoning 强度补充规则：
 
 - 顶层 `effortLevel` 现在只保留为 Claude 定向补位字段，不再作为 OpenAI / Responses 的公开承诺能力。
 - OpenAI 兼容入口只认 `reasoning.effort` / `reasoning_effort`；请求详情与使用记录仍会展示 `reasoning_effort_raw` / `reasoning_effort_effective`。
+- 兼容入口转 Responses 上游时，如果目标是 reasoning 模型，网关会自动剔除上游不接受的 `temperature` / `top_p`；非 reasoning 模型保持原样。
 - OpenAI 入口当前会接受并记录顶层 `effortLevel` 与 `model[1m]`，并把 `[1m]` 先剥离后再参与模型映射、路由和上游请求构造。
 - 但在当前运行时矩阵下，OpenAI 文本入口不会新增直达 Anthropic runtime 的跨平台转发能力；因此这两类字段默认只会体现为“用户请求过”，不承诺在该入口直接转成 Claude 上游生效。
 - 对纯 OpenAI / DeepSeek 等当前可运行目标来说，请求详情与使用记录里通常会看到 `million_context_requested=true`、`million_context_effective=false`；这属于当前能力边界内的正常行为，而不是报错。
@@ -177,6 +178,7 @@ curl https://api.zyxai.de/chat/completions
 - OpenAI 图片链路现在统一受 `image_protocol_mode` 控制：账号 / Protocol Gateway 可以设置默认值，OpenAI 分组还能用 `inherit | native | compat` 再做覆盖；不再根据 `gpt-image-2` 模型名猜链路。
 - 当当前模式是 `compat` 时，`/v1/images/generations`、`/v1/images/edits` 会桥接到 compat 图片执行链；如果当前账号没有 compat 图片权限，会返回 `403 forbidden_error`，错误码 `image_compat_not_allowed`。
 - Compat 图片桥接现在已经补齐 `stream=true`：`/v1/images/generations` 会输出 `image_generation.partial_image` / `image_generation.completed`，`/v1/images/edits` 会输出 `image_edit.partial_image` / `image_edit.completed`。
+- `/v1/images/generations` 与 `/v1/images/edits` 的 native 路径会透传支持的 `n`；compat 路径不支持多图时会在上游前返回 `400 image_n_not_supported`，不会静默丢弃 `n`。
 - Compat 执行链内部固定把目标图片模型归一到 `gpt-image-2`，并在真正请求上游前按能力矩阵校验 `size`、`background`、`output_format`、`output_compression`、`partial_images`、`mask` 与多图输入；`input_fidelity` 仍保留在网关内部 trace，但不会继续向 `gpt-image-2` 上游透传。
 - `/v1/responses` 的 `image_generation` tool 只有在显式 tool `model` 解析为 OpenAI GPT image profile 时才允许进入 compat 归一路径；Grok / Gemini 等非 OpenAI 图片模型不会被静默转成 Codex 生图，会返回 `400 image_tool_model_provider_unsupported`。
 - 对 GPT image profile（版本化 `gpt-image-*`，例如 `gpt-image-1.5`、`gpt-image-2`，以及 `chatgpt-image-latest`）来说，native / compat 两条链都会放开 `stream`、多图、`mask`、`background=transparent` 与最大边 `3840px` 的自定义尺寸；未知或旧模型保持保守拒绝。

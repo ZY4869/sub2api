@@ -251,6 +251,7 @@ describe('AccountBatchTestModal', () => {
           error_message: 'Unauthorized',
           resolved_model_id: 'gpt-5.4',
           blacklist_advice_decision: 'auto_blacklisted',
+          blacklist_advice_reason_code: 'credentials_need_reauth',
           current_lifecycle_state: 'blacklisted'
         }
       ]
@@ -282,6 +283,6 @@ describe('AccountBatchTestModal', () => {
     expect(wrapper.text()).toContain('OpenAI 101')
     expect(wrapper.text()).toContain('OpenAI 102')
     expect(wrapper.text()).toContain('admin.accounts.batchTest.resultLabels.healthy')
-    expect(wrapper.text()).toContain('admin.accounts.batchTest.resultLabels.autoBlacklisted')
+    expect(wrapper.text()).toContain('admin.accounts.status.needsReauth')
   })
 })

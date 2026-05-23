@@ -12,8 +12,8 @@ func TestBuildBlacklistAdviceRecommendsBlacklistForTopLevelUnauthorizedDetail(t 
 	if advice.Decision != BlacklistAdviceRecommendBlacklist {
 		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceRecommendBlacklist)
 	}
-	if advice.ReasonCode != "credentials_likely_invalid" {
-		t.Fatalf("ReasonCode = %q, want %q", advice.ReasonCode, "credentials_likely_invalid")
+	if advice.ReasonCode != "credentials_need_reauth" {
+		t.Fatalf("ReasonCode = %q, want %q", advice.ReasonCode, "credentials_need_reauth")
 	}
 	if advice.ReasonMessage != "Unauthorized" {
 		t.Fatalf("ReasonMessage = %q, want %q", advice.ReasonMessage, "Unauthorized")
@@ -59,6 +59,9 @@ func TestBuildBlacklistAdviceRecommendsBlacklistForFailoverWrappedUnauthorizedTe
 	}
 	if advice.Decision != BlacklistAdviceRecommendBlacklist {
 		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceRecommendBlacklist)
+	}
+	if advice.ReasonCode != "credentials_need_reauth" {
+		t.Fatalf("ReasonCode = %q, want %q", advice.ReasonCode, "credentials_need_reauth")
 	}
 }
 

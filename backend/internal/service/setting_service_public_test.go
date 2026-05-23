@@ -136,7 +136,7 @@ func TestSettingService_GetPublicSettings_ExposesRegistrationEmailSuffixWhitelis
 		values: map[string]string{
 			SettingKeyRegistrationEnabled:              "true",
 			SettingKeyEmailVerifyEnabled:               "true",
-			SettingKeyRegistrationEmailSuffixWhitelist: `["@EXAMPLE.com"," @foo.bar ","@invalid_domain",""]`,
+			SettingKeyRegistrationEmailSuffixWhitelist: `["@EXAMPLE.com"," @foo.bar ","@*.Sub.test","@invalid_domain",""]`,
 			SettingKeyPublicModelCatalogEnabled:        "false",
 		},
 	}
@@ -144,7 +144,7 @@ func TestSettingService_GetPublicSettings_ExposesRegistrationEmailSuffixWhitelis
 
 	settings, err := svc.GetPublicSettings(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, []string{"@example.com", "@foo.bar"}, settings.RegistrationEmailSuffixWhitelist)
+	require.Equal(t, []string{"@example.com", "@foo.bar", "@*.sub.test"}, settings.RegistrationEmailSuffixWhitelist)
 	require.False(t, settings.PublicModelCatalogEnabled)
 }
 

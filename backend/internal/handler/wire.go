@@ -20,6 +20,7 @@ func ProvideAdminHandlers(
 	accountHandler *admin.AccountHandler,
 	affiliateHandler *admin.AffiliateHandler,
 	docsHandler *admin.DocsHandler,
+	emailTemplateHandler *admin.EmailTemplateHandler,
 	announcementHandler *admin.AnnouncementHandler,
 	dataManagementHandler *admin.DataManagementHandler,
 	backupHandler *admin.BackupHandler,
@@ -59,6 +60,7 @@ func ProvideAdminHandlers(
 		Account:                accountHandler,
 		Affiliate:              affiliateHandler,
 		Docs:                   docsHandler,
+		EmailTemplate:          emailTemplateHandler,
 		Announcement:           announcementHandler,
 		DataManagement:         dataManagementHandler,
 		Backup:                 backupHandler,
@@ -169,6 +171,19 @@ func ProvideAdminModelCatalogHandler(
 	return handler
 }
 
+func ProvideAdminSettingHandler(
+	settingService *service.SettingService,
+	emailService *service.EmailService,
+	telegramNotifier *service.TelegramNotifierService,
+	turnstileService *service.TurnstileService,
+	opsService *service.OpsService,
+	templateService *service.EmailTemplateService,
+) *admin.SettingHandler {
+	handler := admin.NewSettingHandler(settingService, emailService, telegramNotifier, turnstileService, opsService)
+	handler.SetEmailTemplateService(templateService)
+	return handler
+}
+
 func ProvideMetaHandler(modelCatalogService *service.ModelCatalogService, modelRegistryService *service.ModelRegistryService, settingService *service.SettingService, authService *service.AuthService, userService *service.UserService) *MetaHandler {
 	handler := NewMetaHandler(modelCatalogService)
 	handler.SetModelRegistryService(modelRegistryService)
@@ -181,9 +196,11 @@ func ProvideUserHandler(
 	userService *service.UserService,
 	affiliateService *service.AffiliateService,
 	authIdentityService *service.AuthIdentityService,
+	emailTemplateService *service.EmailTemplateService,
 ) *UserHandler {
 	handler := NewUserHandler(userService, affiliateService)
 	handler.SetAuthIdentityService(authIdentityService)
+	handler.SetEmailTemplateService(emailTemplateService)
 	return handler
 }
 
@@ -340,6 +357,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAdminAccountHandler,
 	admin.NewAffiliateHandler,
 	admin.NewDocsHandler,
+	admin.NewEmailTemplateHandler,
 	admin.NewAnnouncementHandler,
 	admin.NewDataManagementHandler,
 	admin.NewBackupHandler,
@@ -351,7 +369,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewProxyHandler,
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,
-	admin.NewSettingHandler,
+	ProvideAdminSettingHandler,
 	admin.NewOpsHandler,
 	ProvideSystemHandler,
 	admin.NewSubscriptionHandler,

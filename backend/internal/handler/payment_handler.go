@@ -127,6 +127,7 @@ func (h *PaymentHandler) ResumeOrder(c *gin.Context) {
 		"client_id":     result.ClientID,
 		"intent_id":     result.IntentID,
 		"provider_env":  result.ProviderEnv,
+		"payment_mode":  result.PaymentMode,
 	})
 }
 
@@ -151,6 +152,7 @@ func (h *PaymentHandler) ResumeOrderByOrderNo(c *gin.Context) {
 		"client_id":     result.ClientID,
 		"intent_id":     result.IntentID,
 		"provider_env":  result.ProviderEnv,
+		"payment_mode":  result.PaymentMode,
 	})
 }
 
@@ -210,6 +212,7 @@ func paymentOrderResultDTO(result *service.CreatePaymentOrderResult) gin.H {
 		"intent_id":     result.IntentID,
 		"resume_token":  result.ResumeToken,
 		"provider_env":  result.ProviderEnv,
+		"payment_mode":  result.PaymentMode,
 	}
 }
 

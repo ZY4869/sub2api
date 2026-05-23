@@ -27,6 +27,7 @@ type createChannelMonitorTemplateRequest struct {
 	ExtraHeaders     map[string]string `json:"extra_headers"`
 	BodyOverrideMode string            `json:"body_override_mode"`
 	BodyOverride     map[string]any    `json:"body_override"`
+	OpenAIAPIMode    string            `json:"openai_api_mode"`
 }
 
 func (h *ChannelMonitorTemplateHandler) List(c *gin.Context) {
@@ -67,6 +68,7 @@ func (h *ChannelMonitorTemplateHandler) Create(c *gin.Context) {
 		ExtraHeaders:     req.ExtraHeaders,
 		BodyOverrideMode: req.BodyOverrideMode,
 		BodyOverride:     req.BodyOverride,
+		OpenAIAPIMode:    req.OpenAIAPIMode,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -82,6 +84,7 @@ type updateChannelMonitorTemplateRequest struct {
 	ExtraHeaders     *map[string]string `json:"extra_headers"`
 	BodyOverrideMode *string            `json:"body_override_mode"`
 	BodyOverride     *map[string]any    `json:"body_override"`
+	OpenAIAPIMode    *string            `json:"openai_api_mode"`
 }
 
 func (h *ChannelMonitorTemplateHandler) Update(c *gin.Context) {
@@ -116,6 +119,9 @@ func (h *ChannelMonitorTemplateHandler) Update(c *gin.Context) {
 	}
 	if req.BodyOverride != nil {
 		existing.BodyOverride = *req.BodyOverride
+	}
+	if req.OpenAIAPIMode != nil {
+		existing.OpenAIAPIMode = *req.OpenAIAPIMode
 	}
 	updated, err := h.templateService.Update(c.Request.Context(), existing)
 	if err != nil {

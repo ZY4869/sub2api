@@ -6,6 +6,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func (h *GatewayHandler) GeminiV1BetaCachedContents(c *gin.Context) {
@@ -100,11 +101,14 @@ func (h *GatewayHandler) GeminiV1BetaOpenAICompat(c *gin.Context) {
 		if body, err := c.GetRawData(); err == nil && len(body) > 0 {
 			c.Request.Body = ioNopCloserBytes(body)
 			modelHint := strings.TrimSpace(detectGeminiPassthroughRequestedModel(c.Request.URL.Path, body))
-			submitContentModerationAudit(
-				c.Request.Context(),
-				h.contentModerationService,
-				buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiOpenAICompat, service.PlatformGemini, modelHint, body),
-			)
+			moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiOpenAICompat, service.PlatformGemini, modelHint, body)
+			if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+				requestLogger(c, "handler.gemini_v1beta.passthrough").Warn("gemini_passthrough.content_moderation_keyword_check_failed", zap.Error(err))
+			} else if blocked {
+				googleErrorWithReason(c, http.StatusForbidden, "content_policy_keyword_blocked", "gateway.gemini.content_policy_keyword_blocked", "Request blocked by local content policy keywords")
+				return
+			}
+			submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)
 		}
 	}
 	h.forwardGeminiPassthrough(c, service.GeminiPublicPassthroughInput{ResourceKind: resourceKind})

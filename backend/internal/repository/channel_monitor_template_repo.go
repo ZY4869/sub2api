@@ -41,12 +41,13 @@ INSERT INTO channel_monitor_request_templates (
 	extra_headers,
 	body_override_mode,
 	body_override,
+	openai_api_mode,
 	created_at,
 	updated_at
 )
-VALUES ($1, $2, NULLIF($3, ''), $4::jsonb, $5, $6::jsonb, NOW(), NOW())
+VALUES ($1, $2, NULLIF($3, ''), $4::jsonb, $5, $6::jsonb, $7, NOW(), NOW())
 RETURNING id, created_at, updated_at
-`, tpl.Name, tpl.Provider, optionalStringValue(tpl.Description), string(headers), tpl.BodyOverrideMode, string(body))
+`, tpl.Name, tpl.Provider, optionalStringValue(tpl.Description), string(headers), tpl.BodyOverrideMode, string(body), tpl.OpenAIAPIMode)
 	if err := row.Scan(&tpl.ID, &tpl.CreatedAt, &tpl.UpdatedAt); err != nil {
 		return nil, translateChannelMonitorTemplateSQLError(err)
 	}
@@ -96,9 +97,10 @@ SET
 	extra_headers = $5::jsonb,
 	body_override_mode = $6,
 	body_override = $7::jsonb,
+	openai_api_mode = $8,
 	updated_at = NOW()
 WHERE id = $1
-`, tpl.ID, tpl.Name, tpl.Provider, optionalStringValue(tpl.Description), string(headers), tpl.BodyOverrideMode, string(body))
+`, tpl.ID, tpl.Name, tpl.Provider, optionalStringValue(tpl.Description), string(headers), tpl.BodyOverrideMode, string(body), tpl.OpenAIAPIMode)
 	if err != nil {
 		return nil, translateChannelMonitorTemplateSQLError(err)
 	}
@@ -146,6 +148,7 @@ SELECT
 	COALESCE(extra_headers, '{}'::jsonb),
 	COALESCE(body_override_mode, 'off'),
 	COALESCE(body_override, '{}'::jsonb),
+	COALESCE(openai_api_mode, 'chat_completions'),
 	created_at,
 	updated_at
 FROM channel_monitor_request_templates
@@ -171,6 +174,7 @@ func scanChannelMonitorTemplateRow(row templateRowScanner) (*service.ChannelMoni
 		&extraHeadersRaw,
 		&t.BodyOverrideMode,
 		&bodyOverrideRaw,
+		&t.OpenAIAPIMode,
 		&t.CreatedAt,
 		&t.UpdatedAt,
 	); err != nil {
@@ -227,6 +231,9 @@ func translateChannelMonitorTemplateSQLError(err error) error {
 			}
 			if pqErr.Constraint == "channel_monitor_request_templates_override_mode_check" {
 				return service.ErrChannelMonitorInvalidOverrideMode
+			}
+			if pqErr.Constraint == "channel_monitor_request_templates_openai_api_mode_check" {
+				return infraerrors.BadRequest("CHANNEL_MONITOR_OPENAI_API_MODE_INVALID", "invalid OpenAI API mode")
 			}
 		}
 	}

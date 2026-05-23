@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
@@ -50,6 +49,9 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *
 	if sanitized {
 		body = sanitizedBody
 	}
+	if normalizedBody, normalized, normalizeErr := sanitizeOpenAIEmptyThinkingBlocksInJSON(body); normalizeErr == nil && normalized {
+		body = normalizedBody
+	}
 
 	// Enforce OpenAI Fast/Flex policy (service_tier) even in passthrough mode.
 	if tier := extractOpenAIServiceTierFromBody(body); tier != nil {
@@ -84,10 +86,6 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *
 	if err != nil {
 		return nil, err
 	}
-	upstreamReq, err := s.buildUpstreamRequestOpenAIPassthrough(ctx, c, account, body, token)
-	if err != nil {
-		return nil, err
-	}
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
@@ -96,18 +94,47 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *
 	if c != nil {
 		c.Set("openai_passthrough", true)
 	}
-	upstreamStart := time.Now()
-	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
-	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
-	if err != nil {
-		safeErr := sanitizeUpstreamErrorMessage(err.Error())
-		setOpsUpstreamError(c, 0, safeErr, "")
-		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: 0, Passthrough: true, Kind: "request_error", Message: safeErr})
-		c.JSON(http.StatusBadGateway, gin.H{"error": gin.H{"type": "upstream_error", "message": "Upstream request failed"}})
-		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
+	emptyThinkingRetryTried := false
+	var resp *http.Response
+	for {
+		upstreamReq, buildErr := s.buildUpstreamRequestOpenAIPassthrough(ctx, c, account, body, token)
+		if buildErr != nil {
+			return nil, buildErr
+		}
+		upstreamStart := time.Now()
+		resp, err = s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+		SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
+		if err != nil {
+			safeErr := sanitizeUpstreamErrorMessage(err.Error())
+			setOpsUpstreamError(c, 0, safeErr, "")
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: 0, Passthrough: true, Kind: "request_error", Message: safeErr})
+			c.JSON(http.StatusBadGateway, gin.H{"error": gin.H{"type": "upstream_error", "message": "Upstream request failed"}})
+			return nil, fmt.Errorf("upstream request failed: %s", safeErr)
+		}
+		if resp.StatusCode != http.StatusBadRequest || emptyThinkingRetryTried {
+			break
+		}
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+		_ = resp.Body.Close()
+		upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+		if !isOpenAIEmptyThinkingBlockError(resp.StatusCode, upstreamMsg, respBody) {
+			resp.Body = io.NopCloser(bytes.NewReader(respBody))
+			break
+		}
+		normalizedBody, normalized, normalizeErr := sanitizeOpenAIEmptyThinkingBlocksInJSON(body)
+		if normalizeErr != nil || !normalized {
+			resp.Body = io.NopCloser(bytes.NewReader(respBody))
+			break
+		}
+		body = normalizedBody
+		setOpsUpstreamRequestBody(c, body)
+		emptyThinkingRetryTried = true
+		logger.LegacyPrintf("service.openai_gateway", "[OpenAI passthrough] Retrying once after empty thinking block error (account: %s)", account.Name)
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
+		}
 	}()
 	if resp.StatusCode >= 400 {
 		if shouldFailoverOpenAIPassthroughResponse(resp.StatusCode) {
@@ -252,9 +279,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(ctx context
 	if s.cfg != nil && s.cfg.Gateway.ForceCodexCLI && isChatGPTOpenAIOAuthAccount(account) {
 		req.Header.Set("user-agent", codexCLIUserAgent)
 	}
-	if isChatGPTOpenAIOAuthAccount(account) && !openai.IsCodexCLIRequest(req.Header.Get("user-agent")) {
-		req.Header.Set("user-agent", codexCLIUserAgent)
-	}
+	s.applyCodexOAuthUserAgentPolicy(ctx, req.Header, account)
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}

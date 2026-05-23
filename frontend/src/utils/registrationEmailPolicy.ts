@@ -1,6 +1,6 @@
 const EMAIL_SUFFIX_TOKEN_SPLIT_RE = /[\s,，]+/
-const EMAIL_SUFFIX_INVALID_CHAR_RE = /[^a-z0-9.-]/g
-const EMAIL_SUFFIX_INVALID_CHAR_CHECK_RE = /[^a-z0-9.-]/
+const EMAIL_SUFFIX_INVALID_CHAR_RE = /[^a-z0-9.*-]/g
+const EMAIL_SUFFIX_INVALID_CHAR_CHECK_RE = /[^a-z0-9.*-]/
 const EMAIL_SUFFIX_PREFIX_RE = /^@+/
 const EMAIL_SUFFIX_DOMAIN_PATTERN =
   /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/
@@ -14,7 +14,7 @@ export function normalizeRegistrationEmailSuffixDomain(raw: string): string {
   }
   value = value.replace(EMAIL_SUFFIX_PREFIX_RE, '')
   value = value.replace(EMAIL_SUFFIX_INVALID_CHAR_RE, '')
-  return value
+  return normalizeRegistrationEmailSuffixWildcard(value)
 }
 
 export function normalizeRegistrationEmailSuffixDomains(
@@ -91,7 +91,7 @@ export function isRegistrationEmailSuffixAllowed(
     return false
   }
   const emailSuffix = `@${emailDomain}`
-  return normalizedWhitelist.includes(emailSuffix)
+  return normalizedWhitelist.some((allowed) => registrationEmailSuffixMatches(emailSuffix, allowed))
 }
 
 // Pasted domains should be strict: any invalid character drops the whole token.
@@ -104,12 +104,38 @@ function normalizeRegistrationEmailSuffixDomainStrict(raw: string): string {
   if (!value || EMAIL_SUFFIX_INVALID_CHAR_CHECK_RE.test(value)) {
     return ''
   }
-  return value
+  return normalizeRegistrationEmailSuffixWildcard(value)
 }
 
 export function isRegistrationEmailSuffixDomainValid(domain: string): boolean {
-  if (!domain) {
+  const normalized = normalizeRegistrationEmailSuffixWildcard(domain)
+  if (!normalized) {
     return false
   }
-  return EMAIL_SUFFIX_DOMAIN_PATTERN.test(domain)
+  if (normalized.startsWith('*.')) {
+    return EMAIL_SUFFIX_DOMAIN_PATTERN.test(normalized.slice(2))
+  }
+  return EMAIL_SUFFIX_DOMAIN_PATTERN.test(normalized)
+}
+
+function normalizeRegistrationEmailSuffixWildcard(value: string): string {
+  if (!value) {
+    return ''
+  }
+  if (value.startsWith('*.')) {
+    return `*.${value.slice(2).replace(/\*/g, '')}`
+  }
+  return value.replace(/\*/g, '')
+}
+
+function registrationEmailSuffixMatches(emailSuffix: string, allowed: string): boolean {
+  if (!emailSuffix || !allowed) {
+    return false
+  }
+  if (allowed.startsWith('@*.')) {
+    const base = allowed.slice(3)
+    const emailDomain = emailSuffix.slice(1)
+    return emailDomain !== base && emailDomain.endsWith(`.${base}`)
+  }
+  return emailSuffix === allowed
 }

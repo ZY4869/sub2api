@@ -48,6 +48,21 @@ type BillingPricingRefreshResult struct {
 	ProviderCount int       `json:"provider_count"`
 }
 
+type BillingPricingLiteLLMSyncInput struct {
+	DryRun bool `json:"dry_run"`
+}
+
+type BillingPricingLiteLLMSyncResult struct {
+	DryRun        bool      `json:"dry_run"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	SourceHash    string    `json:"source_hash"`
+	Added         int       `json:"added"`
+	Updated       int       `json:"updated"`
+	Skipped       int       `json:"skipped"`
+	TotalModels   int       `json:"total_models"`
+	ProviderCount int       `json:"provider_count"`
+}
+
 func cloneBillingPricingCatalogSnapshot(snapshot *BillingPricingCatalogSnapshot) *BillingPricingCatalogSnapshot {
 	if snapshot == nil {
 		return nil
@@ -429,6 +444,103 @@ func mergeBillingPricingCatalogSnapshots(
 	return merged
 }
 
+func mergeBillingPricingCatalogSnapshotsUpdatingOfficial(
+	existing *BillingPricingCatalogSnapshot,
+	baseline *BillingPricingCatalogSnapshot,
+) *BillingPricingCatalogSnapshot {
+	if baseline == nil {
+		return cloneBillingPricingCatalogSnapshot(existing)
+	}
+	existingMap := make(map[string]BillingPricingPersistedModel, len(baseline.Models))
+	if existing != nil {
+		for _, model := range existing.Models {
+			existingMap[NormalizeModelCatalogModelID(model.Model)] = cloneBillingPricingPersistedModel(model)
+		}
+	}
+	merged := &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Now().UTC(),
+		Models:    make([]BillingPricingPersistedModel, 0, len(baseline.Models)+len(existingMap)),
+	}
+	seen := map[string]struct{}{}
+	for _, baselineModel := range baseline.Models {
+		next := cloneBillingPricingPersistedModel(baselineModel)
+		key := NormalizeModelCatalogModelID(next.Model)
+		if existingModel, ok := existingMap[key]; ok {
+			next.Currency = defaultModelPricingCurrency(existingModel.Currency)
+			next.SaleForm = cloneBillingPricingLayerForm(existingModel.SaleForm)
+			next.SaleItems = cloneBillingPriceItems(existingModel.SaleItems)
+			next = cloneBillingPricingPersistedModel(next)
+		}
+		seen[key] = struct{}{}
+		merged.Models = append(merged.Models, next)
+	}
+	if existing != nil {
+		for _, model := range existing.Models {
+			key := NormalizeModelCatalogModelID(model.Model)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			merged.Models = append(merged.Models, cloneBillingPricingPersistedModel(model))
+		}
+	}
+	sortBillingPricingPersistedModels(merged.Models)
+	return merged
+}
+
+func diffBillingPricingCatalogSnapshots(
+	existing *BillingPricingCatalogSnapshot,
+	baseline *BillingPricingCatalogSnapshot,
+) (added int, updated int, skipped int) {
+	baselineModels := []BillingPricingPersistedModel{}
+	if baseline != nil {
+		baselineModels = baseline.Models
+	}
+	existingMap := make(map[string]BillingPricingPersistedModel)
+	if existing != nil {
+		for _, model := range existing.Models {
+			key := NormalizeModelCatalogModelID(model.Model)
+			if key == "" {
+				continue
+			}
+			existingMap[key] = cloneBillingPricingPersistedModel(model)
+		}
+	}
+	for _, model := range baselineModels {
+		key := NormalizeModelCatalogModelID(model.Model)
+		if key == "" {
+			skipped++
+			continue
+		}
+		existingModel, ok := existingMap[key]
+		if !ok {
+			added++
+			continue
+		}
+		next := cloneBillingPricingPersistedModel(model)
+		if pricingLayerFormsEqual(existingModel.OfficialForm, next.OfficialForm) &&
+			billingPriceItemsEqual(existingModel.OfficialItems, next.OfficialItems) &&
+			existingModel.PricingStatus == next.PricingStatus &&
+			strings.EqualFold(existingModel.Currency, next.Currency) {
+			skipped++
+			continue
+		}
+		updated++
+	}
+	return added, updated, skipped
+}
+
+func pricingLayerFormsEqual(left, right BillingPricingLayerForm) bool {
+	leftJSON, _ := json.Marshal(left)
+	rightJSON, _ := json.Marshal(right)
+	return string(leftJSON) == string(rightJSON)
+}
+
+func billingPriceItemsEqual(left, right []BillingPriceItem) bool {
+	leftJSON, _ := json.Marshal(left)
+	rightJSON, _ := json.Marshal(right)
+	return string(leftJSON) == string(rightJSON)
+}
+
 func (s *BillingCenterService) RefreshPricingCatalog(ctx context.Context) (*BillingPricingRefreshResult, error) {
 	log := logger.FromContext(ctx)
 	log.Info("billing pricing catalog refresh started", zap.String("component", "service.billing_center"))
@@ -457,6 +569,78 @@ func (s *BillingCenterService) RefreshPricingCatalog(ctx context.Context) (*Bill
 		zap.String("component", "service.billing_center"),
 		zap.Int("model_count", result.TotalModels),
 		zap.Int("provider_count", result.ProviderCount),
+	)
+	return result, nil
+}
+
+func (s *BillingCenterService) SyncLiteLLMPricingCatalog(ctx context.Context, input BillingPricingLiteLLMSyncInput) (*BillingPricingLiteLLMSyncResult, error) {
+	log := logger.FromContext(ctx)
+	log.Info(
+		"billing pricing litellm sync started",
+		zap.String("component", "service.billing_center"),
+		zap.Bool("dry_run", input.DryRun),
+	)
+	if s == nil || s.modelCatalogService == nil {
+		return &BillingPricingLiteLLMSyncResult{DryRun: input.DryRun, UpdatedAt: time.Now().UTC()}, nil
+	}
+	pricingService := s.modelCatalogService.pricingService
+	beforeHash := ""
+	if pricingService != nil {
+		if status := pricingService.GetStatus(); status != nil {
+			beforeHash, _ = status["local_hash"].(string)
+		}
+	}
+	if !input.DryRun && pricingService != nil {
+		if err := pricingService.ForceUpdate(); err != nil {
+			log.Warn("billing pricing litellm source refresh failed", zap.String("component", "service.billing_center"), zap.Error(err))
+			return nil, err
+		}
+	}
+
+	existing, err := s.ensureBillingPricingCatalogMigrated(ctx)
+	if err != nil {
+		return nil, err
+	}
+	baseline, err := s.buildBillingPricingCatalogSnapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	added, updated, skipped := diffBillingPricingCatalogSnapshots(existing, baseline)
+	resultSnapshot := mergeBillingPricingCatalogSnapshotsUpdatingOfficial(existing, baseline)
+	if !input.DryRun {
+		if err := s.persistBillingPricingCatalogSnapshot(ctx, resultSnapshot); err != nil {
+			log.Warn("billing pricing litellm sync persist failed", zap.String("component", "service.billing_center"), zap.Error(err))
+			return nil, err
+		}
+	}
+
+	sourceHash := beforeHash
+	if pricingService != nil {
+		if status := pricingService.GetStatus(); status != nil {
+			if hash, ok := status["local_hash"].(string); ok && strings.TrimSpace(hash) != "" {
+				sourceHash = hash
+			}
+		}
+	}
+	result := &BillingPricingLiteLLMSyncResult{
+		DryRun:        input.DryRun,
+		UpdatedAt:     time.Now().UTC(),
+		SourceHash:    sourceHash,
+		Added:         added,
+		Updated:       updated,
+		Skipped:       skipped,
+		TotalModels:   len(resultSnapshot.Models),
+		ProviderCount: billingPricingSnapshotProviderCount(resultSnapshot.Models),
+	}
+	log.Info(
+		"billing pricing litellm sync completed",
+		zap.String("component", "service.billing_center"),
+		zap.Bool("dry_run", result.DryRun),
+		zap.String("source_hash", result.SourceHash),
+		zap.Int("added", result.Added),
+		zap.Int("updated", result.Updated),
+		zap.Int("skipped", result.Skipped),
+		zap.Int("model_count", result.TotalModels),
 	)
 	return result, nil
 }

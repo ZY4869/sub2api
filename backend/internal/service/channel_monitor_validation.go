@@ -68,6 +68,7 @@ func normalizeChannelMonitor(m *ChannelMonitor) (*ChannelMonitor, error) {
 	out.Endpoint = strings.TrimSpace(out.Endpoint)
 	out.PrimaryModelID = strings.TrimSpace(out.PrimaryModelID)
 	out.BodyOverrideMode = strings.TrimSpace(strings.ToLower(out.BodyOverrideMode))
+	out.OpenAIAPIMode = normalizeChannelMonitorOpenAIAPIMode(out.Provider, out.OpenAIAPIMode)
 
 	if out.Name == "" || len(out.Name) > 100 {
 		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_NAME_INVALID", "invalid name")
@@ -89,6 +90,9 @@ func normalizeChannelMonitor(m *ChannelMonitor) (*ChannelMonitor, error) {
 	}
 	if !isValidChannelMonitorBodyOverrideMode(out.BodyOverrideMode) {
 		return nil, ErrChannelMonitorInvalidOverrideMode
+	}
+	if !isValidChannelMonitorOpenAIAPIMode(out.Provider, out.OpenAIAPIMode) {
+		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_OPENAI_API_MODE_INVALID", "invalid OpenAI API mode")
 	}
 
 	out.ExtraHeaders = normalizeChannelMonitorHeaders(out.ExtraHeaders)
@@ -158,6 +162,29 @@ func isValidChannelMonitorBodyOverrideMode(mode string) bool {
 	case ChannelMonitorBodyOverrideModeOff,
 		ChannelMonitorBodyOverrideModeMerge,
 		ChannelMonitorBodyOverrideModeReplace:
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeChannelMonitorOpenAIAPIMode(provider string, mode string) string {
+	if strings.TrimSpace(strings.ToLower(provider)) != ChannelMonitorProviderOpenAI {
+		return ChannelMonitorOpenAIAPIModeChatCompletions
+	}
+	v := strings.TrimSpace(strings.ToLower(mode))
+	if v == "" {
+		return ChannelMonitorOpenAIAPIModeChatCompletions
+	}
+	return v
+}
+
+func isValidChannelMonitorOpenAIAPIMode(provider string, mode string) bool {
+	if strings.TrimSpace(strings.ToLower(provider)) != ChannelMonitorProviderOpenAI {
+		return mode == "" || mode == ChannelMonitorOpenAIAPIModeChatCompletions
+	}
+	switch mode {
+	case ChannelMonitorOpenAIAPIModeChatCompletions, ChannelMonitorOpenAIAPIModeResponses:
 		return true
 	default:
 		return false

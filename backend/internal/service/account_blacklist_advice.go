@@ -116,7 +116,7 @@ func BuildBlacklistAdvice(account *Account, statusCode int, responseBody []byte)
 	switch {
 	case isRecommendedBlacklistError(lowerCode, lowerMessage, statusCode):
 		advice.Decision = BlacklistAdviceRecommendBlacklist
-		advice.ReasonCode = firstNonEmptyHardBanString(lowerCode, "credentials_likely_invalid")
+		advice.ReasonCode = recommendedBlacklistReasonCode(lowerCode, lowerMessage, statusCode)
 	case isDefinitelyTransientError(lowerCode, lowerMessage, statusCode):
 		advice.Decision = BlacklistAdviceNotRecommended
 		advice.ReasonCode = firstNonEmptyHardBanString(lowerCode, "transient_or_retryable")
@@ -133,6 +133,23 @@ func BuildBlacklistAdvice(account *Account, statusCode int, responseBody []byte)
 	}
 
 	return advice
+}
+
+func recommendedBlacklistReasonCode(code string, message string, statusCode int) string {
+	normalizedCode := strings.ToLower(strings.TrimSpace(code))
+	normalizedMessage := normalizeFailoverCredentialMessage(message)
+	if statusCode == 401 ||
+		strings.Contains(normalizedCode, "unauthorized") ||
+		strings.Contains(normalizedCode, "invalid_api_key") ||
+		strings.Contains(normalizedCode, "invalid_credentials") ||
+		strings.Contains(normalizedCode, "expired") ||
+		strings.Contains(normalizedMessage, "unauthorized") ||
+		strings.Contains(normalizedMessage, "invalid credentials") ||
+		strings.Contains(normalizedMessage, "expired credentials") ||
+		strings.Contains(normalizedMessage, "authentication failed") {
+		return "credentials_need_reauth"
+	}
+	return firstNonEmptyHardBanString(normalizedCode, "credentials_likely_invalid")
 }
 
 func extractBlacklistAdviceCodeAndMessage(responseBody []byte) (string, string) {
@@ -153,14 +170,7 @@ func isRecommendedBlacklistError(code string, message string, statusCode int) bo
 		return true
 	}
 
-	failoverNormalizedMessage := strings.ToLower(strings.TrimSpace(message))
-	if strings.Contains(failoverNormalizedMessage, "failover") {
-		failoverNormalizedMessage = strings.ReplaceAll(failoverNormalizedMessage, "(failover)", " ")
-		failoverNormalizedMessage = strings.ReplaceAll(failoverNormalizedMessage, "failover", " ")
-		failoverNormalizedMessage = strings.ReplaceAll(failoverNormalizedMessage, "upstream error:", " ")
-		failoverNormalizedMessage = strings.Join(strings.Fields(failoverNormalizedMessage), " ")
-		message = failoverNormalizedMessage
-	}
+	message = normalizeFailoverCredentialMessage(message)
 
 	if statusCode == 401 || statusCode == 403 {
 		if strings.Contains(code, "invalid") ||
@@ -198,6 +208,16 @@ func isRecommendedBlacklistError(code string, message string, statusCode int) bo
 		}
 	}
 	return false
+}
+
+func normalizeFailoverCredentialMessage(message string) string {
+	normalized := strings.ToLower(strings.TrimSpace(message))
+	if strings.Contains(normalized, "failover") {
+		normalized = strings.ReplaceAll(normalized, "(failover)", " ")
+		normalized = strings.ReplaceAll(normalized, "failover", " ")
+		normalized = strings.ReplaceAll(normalized, "upstream error:", " ")
+	}
+	return strings.Join(strings.Fields(normalized), " ")
 }
 
 func isDefinitelyTransientError(code string, message string, statusCode int) bool {

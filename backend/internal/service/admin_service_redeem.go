@@ -4,12 +4,43 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
 
+type redeemCodeSortedLister interface {
+	ListWithFiltersAndSort(ctx context.Context, params pagination.PaginationParams, codeType, status, search, sortBy, sortOrder string) ([]RedeemCode, *pagination.PaginationResult, error)
+}
+
 func (s *adminServiceImpl) ListRedeemCodes(ctx context.Context, page, pageSize int, codeType, status, search string) ([]RedeemCode, int64, error) {
+	return s.ListRedeemCodesWithOptions(ctx, RedeemCodeListInput{
+		Page:     page,
+		PageSize: pageSize,
+		Type:     codeType,
+		Status:   status,
+		Search:   search,
+	})
+}
+
+func (s *adminServiceImpl) ListRedeemCodesWithOptions(ctx context.Context, input RedeemCodeListInput) ([]RedeemCode, int64, error) {
+	page := input.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := input.PageSize
+	if pageSize <= 0 {
+		pageSize = 20
+	}
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
-	codes, result, err := s.redeemCodeRepo.ListWithFilters(ctx, params, codeType, status, search)
+	if repo, ok := s.redeemCodeRepo.(redeemCodeSortedLister); ok {
+		codes, result, err := repo.ListWithFiltersAndSort(ctx, params, input.Type, input.Status, input.Search, input.SortBy, input.SortOrder)
+		if err != nil {
+			return nil, 0, err
+		}
+		return codes, result.Total, nil
+	}
+	codes, result, err := s.redeemCodeRepo.ListWithFilters(ctx, params, input.Type, input.Status, input.Search)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -67,6 +98,39 @@ func (s *adminServiceImpl) BatchDeleteRedeemCodes(ctx context.Context, ids []int
 	}
 	return deleted, nil
 }
+
+func (s *adminServiceImpl) BatchUpdateRedeemCodes(ctx context.Context, input *BatchUpdateRedeemCodesInput) (int64, error) {
+	if input == nil || len(input.IDs) == 0 {
+		return 0, infraerrors.BadRequest("REDEEM_CODE_BATCH_IDS_REQUIRED", "ids are required")
+	}
+	if !input.hasUpdates() {
+		return 0, infraerrors.BadRequest("REDEEM_CODE_BATCH_FIELDS_REQUIRED", "fields are required")
+	}
+
+	updates := make([]*RedeemCode, 0, len(input.IDs))
+	for _, id := range input.IDs {
+		code, err := s.redeemCodeRepo.GetByID(ctx, id)
+		if err != nil {
+			return 0, err
+		}
+		next := *code
+		applyRedeemCodeBatchFields(&next, input)
+		if err := s.validateRedeemCodeBatchUpdate(ctx, &next); err != nil {
+			return 0, err
+		}
+		updates = append(updates, &next)
+	}
+
+	var updated int64
+	for _, code := range updates {
+		if err := s.redeemCodeRepo.Update(ctx, code); err != nil {
+			return updated, err
+		}
+		updated++
+	}
+	return updated, nil
+}
+
 func (s *adminServiceImpl) ExpireRedeemCode(ctx context.Context, id int64) (*RedeemCode, error) {
 	code, err := s.redeemCodeRepo.GetByID(ctx, id)
 	if err != nil {
@@ -77,4 +141,86 @@ func (s *adminServiceImpl) ExpireRedeemCode(ctx context.Context, id int64) (*Red
 		return nil, err
 	}
 	return code, nil
+}
+
+func (input *BatchUpdateRedeemCodesInput) hasUpdates() bool {
+	if input == nil {
+		return false
+	}
+	return input.Status != nil || input.Notes != nil || input.ExpiresAtSet ||
+		input.GroupIDSet || input.Type != nil || input.Value != nil || input.ValidityDays != nil
+}
+
+func applyRedeemCodeBatchFields(code *RedeemCode, input *BatchUpdateRedeemCodesInput) {
+	if input.Status != nil {
+		code.Status = *input.Status
+		if code.Status == StatusUnused {
+			code.UsedBy = nil
+			code.UsedAt = nil
+		}
+	}
+	if input.Notes != nil {
+		code.Notes = *input.Notes
+	}
+	if input.ExpiresAtSet {
+		code.ExpiresAt = input.ExpiresAt
+	}
+	if input.GroupIDSet {
+		code.GroupID = input.GroupID
+	}
+	if input.Type != nil {
+		code.Type = *input.Type
+	}
+	if input.Value != nil {
+		code.Value = *input.Value
+	}
+	if input.ValidityDays != nil {
+		code.ValidityDays = *input.ValidityDays
+	}
+	if code.Type != RedeemTypeSubscription {
+		code.GroupID = nil
+		code.ValidityDays = 0
+	}
+	if code.Type == RedeemTypeInvitation {
+		code.Value = 0
+	}
+}
+
+func (s *adminServiceImpl) validateRedeemCodeBatchUpdate(ctx context.Context, code *RedeemCode) error {
+	if code == nil {
+		return infraerrors.BadRequest("REDEEM_CODE_INVALID", "redeem code is required")
+	}
+	switch code.Status {
+	case StatusUnused, StatusExpired, StatusDisabled:
+	default:
+		return infraerrors.BadRequest("REDEEM_CODE_STATUS_INVALID", "status must be unused, expired, or disabled")
+	}
+	switch code.Type {
+	case RedeemTypeBalance, RedeemTypeConcurrency, RedeemTypeSubscription, RedeemTypeInvitation:
+	default:
+		return infraerrors.BadRequest("REDEEM_CODE_TYPE_INVALID", "invalid redeem code type")
+	}
+	if code.Type != RedeemTypeInvitation && code.Value == 0 {
+		return infraerrors.BadRequest("REDEEM_CODE_VALUE_INVALID", "value must not be zero")
+	}
+	if code.Type != RedeemTypeSubscription {
+		return nil
+	}
+	if code.GroupID == nil {
+		return infraerrors.BadRequest("REDEEM_CODE_SUBSCRIPTION_FIELDS_REQUIRED", "group_id is required for subscription type")
+	}
+	if code.ValidityDays == 0 {
+		return infraerrors.BadRequest("REDEEM_CODE_SUBSCRIPTION_FIELDS_REQUIRED", "validity_days must not be zero for subscription type")
+	}
+	if s.groupRepo == nil {
+		return nil
+	}
+	group, err := s.groupRepo.GetByID(ctx, *code.GroupID)
+	if err != nil {
+		return fmt.Errorf("group not found: %w", err)
+	}
+	if !group.IsSubscriptionType() {
+		return infraerrors.BadRequest("REDEEM_CODE_GROUP_INVALID", "group must be subscription type")
+	}
+	return nil
 }

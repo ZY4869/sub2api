@@ -305,6 +305,10 @@ func (s *redeemRepoStub) ListWithFilters(ctx context.Context, params pagination.
 	panic("unexpected ListWithFilters call")
 }
 
+func (s *redeemRepoStub) ListWithFiltersAndSort(ctx context.Context, params pagination.PaginationParams, codeType, status, search, sortBy, sortOrder string) ([]RedeemCode, *pagination.PaginationResult, error) {
+	panic("unexpected ListWithFiltersAndSort call")
+}
+
 func (s *redeemRepoStub) ListByUser(ctx context.Context, userID int64, limit int) ([]RedeemCode, error) {
 	panic("unexpected ListByUser call")
 }

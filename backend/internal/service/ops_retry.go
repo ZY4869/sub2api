@@ -138,6 +138,9 @@ func (s *OpsService) RetryError(ctx context.Context, requestedByUserID int64, er
 	if strings.TrimSpace(errorLog.RequestBody) == "" {
 		return nil, infraerrors.BadRequest("OPS_RETRY_NO_REQUEST_BODY", "No request body found to retry")
 	}
+	if err := validateOpsRetryBodySafety(errorLog.RequestBody, errorLog.RequestBodyTruncated); err != nil {
+		return nil, err
+	}
 
 	var pinned *int64
 	if mode == OpsRetryModeUpstream {
@@ -193,6 +196,9 @@ func (s *OpsService) RetryUpstreamEvent(ctx context.Context, requestedByUserID i
 	if upstreamBody == "" {
 		return nil, infraerrors.BadRequest("OPS_RETRY_UPSTREAM_NO_REQUEST_BODY", "No upstream request body found to retry")
 	}
+	if err := validateOpsRetryBodySafety(upstreamBody, strings.Contains(strings.ToLower(ev.Kind), "request_body_truncated")); err != nil {
+		return nil, err
+	}
 
 	override := *errorLog
 	override.RequestBody = upstreamBody
@@ -226,6 +232,9 @@ func (s *OpsService) retryWithErrorLog(ctx context.Context, requestedByUserID in
 
 	if errorLog == nil || strings.TrimSpace(errorLog.RequestBody) == "" {
 		return nil, infraerrors.BadRequest("OPS_RETRY_NO_REQUEST_BODY", "No request body found to retry")
+	}
+	if err := validateOpsRetryBodySafety(errorLog.RequestBody, errorLog.RequestBodyTruncated); err != nil {
+		return nil, err
 	}
 
 	var pinned *int64
@@ -706,6 +715,70 @@ func extractResponsePreview(w *limitedResponseWriter) (preview string, truncated
 		return string(b[:opsRetryResponsePreviewMax]), true
 	}
 	return string(b), w.truncated()
+}
+
+func validateOpsRetryBodySafety(body string, truncated bool) error {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return infraerrors.BadRequest("OPS_RETRY_NO_REQUEST_BODY", "No request body found to retry")
+	}
+	if truncated {
+		return infraerrors.BadRequest("OPS_RETRY_BODY_TRUNCATED", "Request body was truncated and cannot be safely retried")
+	}
+	var decoded any
+	if err := json.Unmarshal([]byte(body), &decoded); err != nil {
+		return infraerrors.BadRequest("OPS_RETRY_BODY_INVALID", "Stored request body is not valid JSON")
+	}
+	if opsRetryJSONContainsRedaction(decoded) {
+		return infraerrors.BadRequest("OPS_RETRY_BODY_REDACTED", "Stored request body contains redacted sensitive fields and cannot be safely retried")
+	}
+	if opsRetryJSONContainsSensitiveKey(decoded) {
+		return infraerrors.BadRequest("OPS_RETRY_BODY_SENSITIVE", "Stored request body contains sensitive authentication fields and cannot be safely retried")
+	}
+	if root, ok := decoded.(map[string]any); ok {
+		if v, ok := root["request_body_truncated"].(bool); ok && v {
+			return infraerrors.BadRequest("OPS_RETRY_BODY_TRUNCATED", "Request body was truncated and cannot be safely retried")
+		}
+	}
+	return nil
+}
+
+func opsRetryJSONContainsRedaction(v any) bool {
+	switch t := v.(type) {
+	case map[string]any:
+		for _, vv := range t {
+			if opsRetryJSONContainsRedaction(vv) {
+				return true
+			}
+		}
+	case []any:
+		for _, vv := range t {
+			if opsRetryJSONContainsRedaction(vv) {
+				return true
+			}
+		}
+	case string:
+		return strings.EqualFold(strings.TrimSpace(t), "[REDACTED]")
+	}
+	return false
+}
+
+func opsRetryJSONContainsSensitiveKey(v any) bool {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, vv := range t {
+			if isSensitiveKey(k) || opsRetryJSONContainsSensitiveKey(vv) {
+				return true
+			}
+		}
+	case []any:
+		for _, vv := range t {
+			if opsRetryJSONContainsSensitiveKey(vv) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func containsInt64(items []int64, needle int64) bool {

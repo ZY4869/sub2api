@@ -23,6 +23,7 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	router.GET("/api/v1/admin/billing/pricing/models", handler.ListBillingPricingModels)
 	router.POST("/api/v1/admin/billing/pricing/details", handler.GetBillingPricingDetails)
 	router.POST("/api/v1/admin/billing/pricing/refresh", handler.RefreshBillingPricingCatalog)
+	router.POST("/api/v1/admin/billing/pricing/sync-litellm", handler.SyncLiteLLMPricingCatalog)
 	router.GET("/api/v1/admin/billing/pricing/audit", handler.GetBillingPricingAudit)
 	router.PUT("/api/v1/admin/billing/pricing/models/:model/layers/:layer", handler.SaveBillingPricingLayer)
 	router.POST("/api/v1/admin/billing/pricing/sale/copy-from-official", handler.CopyBillingPricingOfficialToSale)
@@ -74,6 +75,23 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	require.Zero(t, refreshResp.Code)
 	require.GreaterOrEqual(t, refreshResp.Data.TotalModels, 2)
 	require.GreaterOrEqual(t, refreshResp.Data.ProviderCount, 2)
+
+	syncRec := httptest.NewRecorder()
+	syncReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/billing/pricing/sync-litellm", mustJSONBody(t, map[string]any{
+		"dry_run": true,
+	}))
+	syncReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(syncRec, syncReq)
+	require.Equal(t, http.StatusOK, syncRec.Code)
+
+	var syncResp struct {
+		Code int                                     `json:"code"`
+		Data service.BillingPricingLiteLLMSyncResult `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(syncRec.Body.Bytes(), &syncResp))
+	require.Zero(t, syncResp.Code)
+	require.True(t, syncResp.Data.DryRun)
+	require.GreaterOrEqual(t, syncResp.Data.TotalModels, 2)
 
 	auditRec := httptest.NewRecorder()
 	auditReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/billing/pricing/audit", nil)

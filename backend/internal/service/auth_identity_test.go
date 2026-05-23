@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
@@ -313,8 +314,8 @@ func (authIdentityRedeemRepoStub) GetByCode(ctx context.Context, code string) (*
 	return nil, ErrRedeemCodeNotFound
 }
 func (authIdentityRedeemRepoStub) Update(ctx context.Context, code *RedeemCode) error { return nil }
-func (authIdentityRedeemRepoStub) Delete(ctx context.Context, id int64) error { return nil }
-func (authIdentityRedeemRepoStub) Use(ctx context.Context, id, userID int64) error { return nil }
+func (authIdentityRedeemRepoStub) Delete(ctx context.Context, id int64) error         { return nil }
+func (authIdentityRedeemRepoStub) Use(ctx context.Context, id, userID int64) error    { return nil }
 func (authIdentityRedeemRepoStub) List(ctx context.Context, params pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
@@ -402,7 +403,7 @@ func newAuthIdentityTestService(t *testing.T, userRepo *authIdentityUserRepoStub
 	return service, repo, authService
 }
 
-func TestAuthIdentityService_ResolveLoginOrBind_AutoBindsVerifiedExistingEmail(t *testing.T) {
+func TestAuthIdentityService_ResolveLoginOrBind_RejectsVerifiedExistingEmailTakeover(t *testing.T) {
 	userRepo := &authIdentityUserRepoStub{
 		usersByID: map[int64]*User{
 			7: {ID: 7, Email: "alice@example.com", Username: "alice", Role: RoleUser, Status: StatusActive},
@@ -424,11 +425,9 @@ func TestAuthIdentityService_ResolveLoginOrBind_AutoBindsVerifiedExistingEmail(t
 		DisplayName:    "Alice GH",
 	}, "", "")
 
-	require.NoError(t, err)
-	require.Equal(t, "login", result.Outcome)
-	require.NotNil(t, result.TokenPair)
-	require.Len(t, repo.items, 1)
-	require.Equal(t, int64(7), repo.items[0].UserID)
+	require.ErrorIs(t, err, ErrAuthIdentityEmailConflict)
+	require.Nil(t, result)
+	require.Empty(t, repo.items)
 }
 
 func TestAuthIdentityService_ResolveLoginOrBind_RejectsUnsafeUnverifiedEmailTakeover(t *testing.T) {
@@ -462,7 +461,7 @@ func TestAuthIdentityService_ResolveLoginOrBind_ReturnsPendingWhenInvitationRequ
 		nextID:       21,
 	}
 	svc, repo, authService := newAuthIdentityTestService(t, userRepo, map[string]string{
-		SettingKeyRegistrationEnabled: "true",
+		SettingKeyRegistrationEnabled:   "true",
 		SettingKeyInvitationCodeEnabled: "true",
 	})
 
@@ -511,4 +510,40 @@ func TestAuthIdentityService_ResolveLoginOrBind_BindsNewVerifiedIdentityAfterReg
 	require.Len(t, repo.items, 1)
 	require.Equal(t, "new-user@example.com", repo.items[0].Email)
 	require.Equal(t, int64(30), repo.items[0].UserID)
+}
+
+func TestAuthIdentityService_ResolveLoginOrBind_RespectsRegistrationEmailWildcard(t *testing.T) {
+	userRepo := &authIdentityUserRepoStub{
+		usersByID:    map[int64]*User{},
+		usersByEmail: map[string]*User{},
+		nextID:       40,
+	}
+	svc, repo, _ := newAuthIdentityTestService(t, userRepo, map[string]string{
+		SettingKeyRegistrationEnabled:              "true",
+		SettingKeyRegistrationEmailSuffixWhitelist: `["@*.example.com"]`,
+	})
+
+	result, err := svc.ResolveLoginOrBind(context.Background(), "login", 0, &AuthIdentity{
+		Provider:       AuthProviderGoogle,
+		ProviderUserID: "google-subdomain",
+		Email:          "new-user@team.example.com",
+		EmailVerified:  true,
+		DisplayName:    "New User",
+	}, "", "")
+
+	require.NoError(t, err)
+	require.Equal(t, "login", result.Outcome)
+	require.Len(t, repo.items, 1)
+
+	blockedResult, blockedErr := svc.ResolveLoginOrBind(context.Background(), "login", 0, &AuthIdentity{
+		Provider:       AuthProviderGoogle,
+		ProviderUserID: "google-root",
+		Email:          "root@example.com",
+		EmailVerified:  true,
+		DisplayName:    "Root User",
+	}, "", "")
+
+	require.Error(t, blockedErr)
+	require.Nil(t, blockedResult)
+	require.Equal(t, "EMAIL_SUFFIX_NOT_ALLOWED", infraerrors.Reason(blockedErr))
 }

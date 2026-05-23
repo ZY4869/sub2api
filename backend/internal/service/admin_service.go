@@ -70,10 +70,12 @@ type AdminService interface {
 	TestProxy(ctx context.Context, id int64) (*ProxyTestResult, error)
 	CheckProxyQuality(ctx context.Context, id int64) (*ProxyQualityCheckResult, error)
 	ListRedeemCodes(ctx context.Context, page, pageSize int, codeType, status, search string) ([]RedeemCode, int64, error)
+	ListRedeemCodesWithOptions(ctx context.Context, input RedeemCodeListInput) ([]RedeemCode, int64, error)
 	GetRedeemCode(ctx context.Context, id int64) (*RedeemCode, error)
 	GenerateRedeemCodes(ctx context.Context, input *GenerateRedeemCodesInput) ([]RedeemCode, error)
 	DeleteRedeemCode(ctx context.Context, id int64) error
 	BatchDeleteRedeemCodes(ctx context.Context, ids []int64) (int64, error)
+	BatchUpdateRedeemCodes(ctx context.Context, input *BatchUpdateRedeemCodesInput) (int64, error)
 	ExpireRedeemCode(ctx context.Context, id int64) (*RedeemCode, error)
 	ResetAccountQuota(ctx context.Context, id int64) error
 }
@@ -276,6 +278,29 @@ type GenerateRedeemCodesInput struct {
 	GroupID      *int64
 	ValidityDays int
 	ExpiresAt    *time.Time
+}
+type RedeemCodeListInput struct {
+	Page      int
+	PageSize  int
+	Type      string
+	Status    string
+	Search    string
+	SortBy    string
+	SortOrder string
+}
+type BatchUpdateRedeemCodesInput struct {
+	IDs             []int64
+	Status          *string
+	Notes           *string
+	ExpiresAtSet    bool
+	ExpiresAt       *time.Time
+	GroupIDSet      bool
+	GroupID         *int64
+	Type            *string
+	Value           *float64
+	ValidityDays    *int
+	ValidateValue   bool
+	ValidateSubtype bool
 }
 type ProxyBatchDeleteResult struct {
 	DeletedIDs []int64                   `json:"deleted_ids"`

@@ -310,7 +310,7 @@ func (s *OpenAIGatewayService) buildDeepSeekChatCompletionsUpstreamRequest(
 	if err != nil {
 		return nil, err
 	}
-	return buildOpenAIStyleJSONRequest(ctx, c, account, body, token, targetURL, isStream)
+	return s.buildOpenAIStyleJSONRequest(ctx, c, account, body, token, targetURL, isStream)
 }
 
 func (s *OpenAIGatewayService) buildDeepSeekCompletionsUpstreamRequest(
@@ -325,10 +325,10 @@ func (s *OpenAIGatewayService) buildDeepSeekCompletionsUpstreamRequest(
 	if err != nil {
 		return nil, err
 	}
-	return buildOpenAIStyleJSONRequest(ctx, c, account, body, token, targetURL, isStream)
+	return s.buildOpenAIStyleJSONRequest(ctx, c, account, body, token, targetURL, isStream)
 }
 
-func buildOpenAIStyleJSONRequest(
+func (s *OpenAIGatewayService) buildOpenAIStyleJSONRequest(
 	ctx context.Context,
 	c *gin.Context,
 	account *Account,
@@ -363,6 +363,7 @@ func buildOpenAIStyleJSONRequest(
 	if customUA := account.GetOpenAIUserAgent(); customUA != "" {
 		req.Header.Set("user-agent", customUA)
 	}
+	s.applyCodexOAuthUserAgentPolicy(ctx, req.Header, account)
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}

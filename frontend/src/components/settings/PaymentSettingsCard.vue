@@ -73,6 +73,18 @@
             />
           </label>
         </div>
+
+        <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700">
+          <div>
+            <label class="font-medium text-gray-900 dark:text-white">
+              {{ t('admin.settings.purchase.mobileForceQRCode') }}
+            </label>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.purchase.mobileForceQRCodeHint') }}
+            </p>
+          </div>
+          <Toggle v-model="mobileForceQrcodeEnabled" />
+        </div>
       </div>
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -178,6 +190,37 @@
           {{ t('admin.settings.purchase.antigravityUserAgentHint') }}
         </span>
       </label>
+
+      <div class="rounded-lg border border-gray-100 p-4 dark:border-dark-700">
+        <div class="mb-4">
+          <h3 class="font-medium text-gray-900 dark:text-white">
+            {{ t('admin.settings.purchase.codexOAuthUserAgentTitle') }}
+          </h3>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {{ t('admin.settings.purchase.codexOAuthUserAgentHint') }}
+          </p>
+        </div>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label class="space-y-2">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t('admin.settings.purchase.codexOAuthUserAgentMode') }}
+            </span>
+            <Select v-model="codexOauthUserAgentMode" :options="codexOauthUserAgentModeOptions" />
+          </label>
+          <label class="space-y-2">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t('admin.settings.purchase.codexOAuthUserAgentOverride') }}
+            </span>
+            <input
+              v-model.trim="codexOauthUserAgentOverride"
+              type="text"
+              class="input font-mono text-sm"
+              :disabled="codexOauthUserAgentMode !== 'custom'"
+              :placeholder="t('admin.settings.purchase.codexOAuthUserAgentPlaceholder')"
+            />
+          </label>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -199,12 +242,15 @@ const airwallexEnv = defineModel<string>('airwallexEnv', { required: true })
 const airwallexClientId = defineModel<string>('airwallexClientId', { required: true })
 const airwallexApiKey = defineModel<string>('airwallexApiKey', { required: true })
 const airwallexWebhookSecret = defineModel<string>('airwallexWebhookSecret', { required: true })
+const mobileForceQrcodeEnabled = defineModel<boolean>('mobileForceQrcodeEnabled', { required: true })
 const allowedCurrencies = defineModel<string[]>('allowedCurrencies', { required: true })
 const defaultCurrency = defineModel<string>('defaultCurrency', { required: true })
 const minTopupAmount = defineModel<number>('minTopupAmount', { required: true })
 const maxTopupAmount = defineModel<number>('maxTopupAmount', { required: true })
 const subscriptionPlans = defineModel<PaymentSubscriptionPlan[]>('subscriptionPlans', { required: true })
 const antigravityUserAgentVersion = defineModel<string>('antigravityUserAgentVersion', { required: true })
+const codexOauthUserAgentMode = defineModel<string>('codexOauthUserAgentMode', { required: true })
+const codexOauthUserAgentOverride = defineModel<string>('codexOauthUserAgentOverride', { required: true })
 
 defineProps<{
   apiKeyConfigured: boolean
@@ -215,6 +261,12 @@ defineProps<{
 const airwallexEnvOptions = computed(() => [
   { value: 'demo', label: t('admin.settings.purchase.airwallexEnvDemo') },
   { value: 'prod', label: t('admin.settings.purchase.airwallexEnvProd') }
+])
+
+const codexOauthUserAgentModeOptions = computed(() => [
+  { value: 'default', label: t('admin.settings.purchase.codexOAuthUserAgentModeDefault') },
+  { value: 'force', label: t('admin.settings.purchase.codexOAuthUserAgentModeForce') },
+  { value: 'custom', label: t('admin.settings.purchase.codexOAuthUserAgentModeCustom') }
 ])
 
 const allowedCurrenciesText = computed({

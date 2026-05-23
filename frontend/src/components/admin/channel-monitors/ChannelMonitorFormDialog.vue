@@ -62,6 +62,11 @@
           <label class="input-label">{{ t('admin.channelMonitors.fields.template') }}</label>
           <Select v-model="form.template_id" :options="templateOptions" />
         </div>
+
+        <div v-if="form.provider === 'openai'">
+          <label class="input-label">{{ t('admin.channelMonitors.fields.openaiApiMode') }}</label>
+          <Select v-model="form.openai_api_mode" :options="openAIApiModeOptions" />
+        </div>
       </div>
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -148,6 +153,7 @@ import type {
   AdminChannelMonitor,
   AdminChannelMonitorTemplate,
   ChannelMonitorBodyOverrideMode,
+  ChannelMonitorOpenAIAPIMode,
   CreateChannelMonitorRequest,
   UpdateChannelMonitorRequest
 } from '@/api/admin/channelMonitors'
@@ -176,7 +182,8 @@ const form = reactive({
   enabled: false,
   primary_model_id: '',
   template_id: null as number | null,
-  body_override_mode: 'off' as ChannelMonitorBodyOverrideMode
+  body_override_mode: 'off' as ChannelMonitorBodyOverrideMode,
+  openai_api_mode: 'chat_completions' as ChannelMonitorOpenAIAPIMode
 })
 
 const additionalModelsText = ref('')
@@ -212,6 +219,11 @@ const bodyOverrideModeOptions = computed(() => [
   { value: 'off', label: 'off' },
   { value: 'merge', label: 'merge' },
   { value: 'replace', label: 'replace' }
+])
+
+const openAIApiModeOptions = computed(() => [
+  { value: 'chat_completions', label: 'Chat Completions' },
+  { value: 'responses', label: 'Responses' }
 ])
 
 const apiKeyPlaceholder = computed(() => {
@@ -259,6 +271,7 @@ function resetForm() {
   form.primary_model_id = ''
   form.template_id = null
   form.body_override_mode = 'off'
+  form.openai_api_mode = 'chat_completions'
   additionalModelsText.value = ''
   apiKey.value = ''
   clearApiKey.value = false
@@ -275,6 +288,7 @@ function hydrateFromMonitor(m: AdminChannelMonitor) {
   form.primary_model_id = m.primary_model_id
   form.template_id = m.template_id ?? null
   form.body_override_mode = (m.body_override_mode || 'off') as ChannelMonitorBodyOverrideMode
+  form.openai_api_mode = (m.openai_api_mode || 'chat_completions') as ChannelMonitorOpenAIAPIMode
   additionalModelsText.value = (m.additional_model_ids || []).join(', ')
   apiKey.value = ''
   clearApiKey.value = false
@@ -335,6 +349,7 @@ async function handleSubmit() {
   }
 
   const additionalModels = normalizeModels(additionalModelsText.value)
+  const openAIApiMode = form.provider === 'openai' ? form.openai_api_mode : 'chat_completions'
 
   submitting.value = true
   try {
@@ -351,7 +366,8 @@ async function handleSubmit() {
         template_id: form.template_id,
         extra_headers: extraHeaders,
         body_override_mode: form.body_override_mode,
-        body_override: bodyOverride
+        body_override: bodyOverride,
+        openai_api_mode: openAIApiMode
       }
       await adminAPI.channelMonitors.createMonitor(payload)
       appStore.showSuccess(t('admin.channelMonitors.messages.saved'))
@@ -371,7 +387,8 @@ async function handleSubmit() {
       template_id: form.template_id,
       extra_headers: extraHeaders,
       body_override_mode: form.body_override_mode,
-      body_override: bodyOverride
+      body_override: bodyOverride,
+      openai_api_mode: openAIApiMode
     }
 
     if (clearApiKey.value) {

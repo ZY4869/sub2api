@@ -64,6 +64,7 @@ var ProviderSet = wire.NewSet(
 	NewChannelMonitorRollupRepository,
 	NewChannelMonitorAggregationRepository,
 	NewChannelMonitorTemplateRepository,
+	NewEmailTemplateRepository,
 	NewAccountRepository,
 	NewScheduledTestPlanRepository,
 	NewScheduledTestResultRepository,

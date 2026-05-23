@@ -32,6 +32,7 @@ type adminChannelMonitorView struct {
 	ExtraHeaders       map[string]string `json:"extra_headers"`
 	BodyOverrideMode   string            `json:"body_override_mode"`
 	BodyOverride       map[string]any    `json:"body_override"`
+	OpenAIAPIMode      string            `json:"openai_api_mode"`
 	LastRunAt          *time.Time        `json:"last_run_at,omitempty"`
 	NextRunAt          *time.Time        `json:"next_run_at,omitempty"`
 
@@ -90,6 +91,7 @@ type createChannelMonitorRequest struct {
 	ExtraHeaders       map[string]string `json:"extra_headers"`
 	BodyOverrideMode   string            `json:"body_override_mode"`
 	BodyOverride       map[string]any    `json:"body_override"`
+	OpenAIAPIMode      string            `json:"openai_api_mode"`
 }
 
 // Create creates a monitor.
@@ -112,6 +114,7 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 		ExtraHeaders:       req.ExtraHeaders,
 		BodyOverrideMode:   req.BodyOverrideMode,
 		BodyOverride:       req.BodyOverride,
+		OpenAIAPIMode:      req.OpenAIAPIMode,
 	}, req.APIKey)
 	if err != nil {
 		logger.FromContext(c.Request.Context()).Warn(
@@ -140,6 +143,7 @@ type updateChannelMonitorRequest struct {
 	ExtraHeaders       *map[string]string `json:"extra_headers"`
 	BodyOverrideMode   *string            `json:"body_override_mode"`
 	BodyOverride       *map[string]any    `json:"body_override"`
+	OpenAIAPIMode      *string            `json:"openai_api_mode"`
 }
 
 // Update updates a monitor.
@@ -192,6 +196,9 @@ func (h *ChannelMonitorHandler) Update(c *gin.Context) {
 	}
 	if req.BodyOverride != nil {
 		existing.BodyOverride = *req.BodyOverride
+	}
+	if req.OpenAIAPIMode != nil {
+		existing.OpenAIAPIMode = *req.OpenAIAPIMode
 	}
 
 	updated, err := h.monitorService.Update(c.Request.Context(), existing, req.APIKey)
@@ -278,6 +285,7 @@ func toAdminChannelMonitorView(svc *service.ChannelMonitorService, m *service.Ch
 		ExtraHeaders:       m.ExtraHeaders,
 		BodyOverrideMode:   m.BodyOverrideMode,
 		BodyOverride:       m.BodyOverride,
+		OpenAIAPIMode:      m.OpenAIAPIMode,
 		LastRunAt:          m.LastRunAt,
 		NextRunAt:          m.NextRunAt,
 		APIKeyConfigured:   m.APIKeyEncrypted != nil && *m.APIKeyEncrypted != "",

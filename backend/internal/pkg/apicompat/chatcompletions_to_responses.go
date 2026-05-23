@@ -38,6 +38,7 @@ func ChatCompletionsToResponses(req *ChatCompletionsRequest) (*ResponsesRequest,
 
 	storeFalse := false
 	out.Store = &storeFalse
+	stripReasoningOnlySamplingParams(out)
 
 	// max_tokens / max_completion_tokens → max_output_tokens, prefer max_completion_tokens
 	maxTokens := 0
@@ -83,6 +84,29 @@ func ChatCompletionsToResponses(req *ChatCompletionsRequest) (*ResponsesRequest,
 	return out, nil
 }
 
+func stripReasoningOnlySamplingParams(req *ResponsesRequest) {
+	if req == nil || !isReasoningOnlyResponsesModel(req.Model) {
+		return
+	}
+	req.Temperature = nil
+	req.TopP = nil
+}
+
+func isReasoningOnlyResponsesModel(model string) bool {
+	modelID := strings.ToLower(strings.TrimSpace(model))
+	if modelID == "" {
+		return false
+	}
+	if strings.Contains(modelID, "/") {
+		parts := strings.Split(modelID, "/")
+		modelID = strings.TrimSpace(parts[len(parts)-1])
+	}
+	return strings.HasPrefix(modelID, "o1") ||
+		strings.HasPrefix(modelID, "o3") ||
+		strings.HasPrefix(modelID, "o4") ||
+		strings.HasPrefix(modelID, "gpt-5")
+}
+
 // convertChatMessagesToResponsesInput converts the Chat Completions messages
 // array into a Responses API input items array.
 func convertChatMessagesToResponsesInput(msgs []ChatMessage) ([]ResponsesInputItem, error) {
@@ -101,7 +125,7 @@ func convertChatMessagesToResponsesInput(msgs []ChatMessage) ([]ResponsesInputIt
 // ResponsesInputItem values.
 func chatMessageToResponsesItems(m ChatMessage) ([]ResponsesInputItem, error) {
 	switch m.Role {
-	case "system":
+	case "system", "developer":
 		return chatSystemToResponses(m)
 	case "user":
 		return chatUserToResponses(m)

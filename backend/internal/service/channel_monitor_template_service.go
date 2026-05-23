@@ -78,6 +78,7 @@ func (s *ChannelMonitorTemplateService) ApplyToMonitor(ctx context.Context, temp
 	monitor.ExtraHeaders = tpl.ExtraHeaders
 	monitor.BodyOverrideMode = tpl.BodyOverrideMode
 	monitor.BodyOverride = tpl.BodyOverride
+	monitor.OpenAIAPIMode = tpl.OpenAIAPIMode
 	return s.monitorRepo.Update(ctx, monitor)
 }
 
@@ -89,6 +90,7 @@ func normalizeChannelMonitorTemplate(tpl *ChannelMonitorRequestTemplate) (*Chann
 	out.Name = strings.TrimSpace(out.Name)
 	out.Provider = strings.TrimSpace(strings.ToLower(out.Provider))
 	out.BodyOverrideMode = strings.TrimSpace(strings.ToLower(out.BodyOverrideMode))
+	out.OpenAIAPIMode = normalizeChannelMonitorOpenAIAPIMode(out.Provider, out.OpenAIAPIMode)
 
 	if out.Name == "" || len(out.Name) > 100 {
 		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_TEMPLATE_NAME_INVALID", "invalid name")
@@ -101,6 +103,9 @@ func normalizeChannelMonitorTemplate(tpl *ChannelMonitorRequestTemplate) (*Chann
 	}
 	if !isValidChannelMonitorBodyOverrideMode(out.BodyOverrideMode) {
 		return nil, ErrChannelMonitorInvalidOverrideMode
+	}
+	if !isValidChannelMonitorOpenAIAPIMode(out.Provider, out.OpenAIAPIMode) {
+		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_OPENAI_API_MODE_INVALID", "invalid OpenAI API mode")
 	}
 
 	out.ExtraHeaders = normalizeChannelMonitorHeaders(out.ExtraHeaders)

@@ -20,6 +20,9 @@ const (
 	ContentModerationSourceOpenAIMessages      = "openai_messages"
 	ContentModerationSourceGeminiGenerate      = "gemini_generate_content"
 	ContentModerationSourceGeminiOpenAICompat  = "gemini_openai_chat_completions"
+	ContentModerationModelFilterAll            = "all"
+	ContentModerationModelFilterInclude        = "include"
+	ContentModerationModelFilterExclude        = "exclude"
 	contentModerationDefaultTimeoutMs          = 1500
 	contentModerationDefaultDedupeWindowSecond = 300
 	contentModerationSummaryHashPrefixLen      = 12
@@ -93,6 +96,14 @@ type ContentModerationSettings struct {
 	TimeoutMs           int
 	DedupeWindowSeconds int
 	FailOpen            bool
+	KeywordBlockEnabled bool
+	Keywords            []string
+	ModelFilter         ContentModerationModelFilter
+}
+
+type ContentModerationModelFilter struct {
+	Type   string   `json:"type"`
+	Models []string `json:"models"`
 }
 
 type ContentModerationRecordInput struct {
@@ -136,6 +147,9 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 		SettingKeyContentModerationTimeoutMs,
 		SettingKeyContentModerationDedupeWindowSeconds,
 		SettingKeyContentModerationFailOpen,
+		SettingKeyContentModerationKeywordBlockEnabled,
+		SettingKeyContentModerationKeywords,
+		SettingKeyContentModerationModelFilter,
 	}
 	values, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
@@ -151,6 +165,9 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 		TimeoutMs:           parseIntWithDefault(values[SettingKeyContentModerationTimeoutMs], contentModerationDefaultTimeoutMs),
 		DedupeWindowSeconds: parseIntWithDefault(values[SettingKeyContentModerationDedupeWindowSeconds], contentModerationDefaultDedupeWindowSecond),
 		FailOpen:            values[SettingKeyContentModerationFailOpen] != "false",
+		KeywordBlockEnabled: values[SettingKeyContentModerationKeywordBlockEnabled] == "true",
+		Keywords:            NormalizeContentModerationKeywords(values[SettingKeyContentModerationKeywords]),
+		ModelFilter:         NormalizeContentModerationModelFilter(values[SettingKeyContentModerationModelFilter]),
 	}
 	if settings.APIKey == "" && len(settings.APIKeys) > 0 {
 		settings.APIKey = settings.APIKeys[0].Key
@@ -167,6 +184,29 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 	return settings, nil
 }
 
+type ContentModerationKeywordDecision struct {
+	Blocked     bool
+	Content     string
+	ErrorReason string
+}
+
+func (s *ContentModerationService) CheckKeywordBlock(ctx context.Context, input *ContentModerationRecordInput) (*ContentModerationKeywordDecision, error) {
+	if s == nil || s.repo == nil || input == nil {
+		return &ContentModerationKeywordDecision{}, nil
+	}
+	settings, err := s.GetSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	decision := EvaluateContentModerationKeywordBlock(settings, input.Content)
+	if decision.Blocked {
+		recordInput := *input
+		recordInput.Content = decision.Content
+		s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason)
+	}
+	return &decision, nil
+}
+
 func (s *ContentModerationService) RecordAudit(ctx context.Context, input *ContentModerationRecordInput) {
 	if s == nil || s.repo == nil || input == nil {
 		return
@@ -175,7 +215,21 @@ func (s *ContentModerationService) RecordAudit(ctx context.Context, input *Conte
 	if err != nil || settings == nil || !settings.Enabled {
 		return
 	}
+	if !settings.ModelFilter.Allows(input.Model) {
+		return
+	}
+	s.recordAuditWithSettings(ctx, settings, input, "")
+}
 
+func (s *ContentModerationService) recordAuditWithSettings(
+	ctx context.Context,
+	settings *ContentModerationSettings,
+	input *ContentModerationRecordInput,
+	forcedErrorReason string,
+) {
+	if s == nil || s.repo == nil || settings == nil || input == nil {
+		return
+	}
 	normalizedContent := strings.TrimSpace(input.Content)
 	if normalizedContent == "" {
 		return
@@ -215,7 +269,8 @@ func (s *ContentModerationService) RecordAudit(ctx context.Context, input *Conte
 		CreatedAt:       now,
 	}
 
-	if settings.DedupeWindowSeconds > 0 {
+	keywordResult := EvaluateContentModerationKeywordBlock(settings, normalizedContent)
+	if forcedErrorReason == "" && !keywordResult.Blocked && settings.DedupeWindowSeconds > 0 {
 		since := now.Add(-time.Duration(settings.DedupeWindowSeconds) * time.Second)
 		if previous, findErr := s.repo.FindRecentContentModerationAuditByHash(ctx, contentHash, since); findErr == nil && previous != nil {
 			result.Hit = previous.Hit
@@ -226,9 +281,17 @@ func (s *ContentModerationService) RecordAudit(ctx context.Context, input *Conte
 
 	start := time.Now()
 	if !result.DedupeHit {
-		evaluated := evaluateContentModeration(ctx, settings, input, normalizedContent)
-		result.Hit = evaluated.Hit
-		result.ErrorReason = strings.TrimSpace(evaluated.ErrorReason)
+		if forcedErrorReason != "" {
+			result.Hit = true
+			result.ErrorReason = strings.TrimSpace(forcedErrorReason)
+		} else if keywordResult.Blocked {
+			result.Hit = true
+			result.ErrorReason = keywordResult.ErrorReason
+		} else {
+			evaluated := evaluateContentModeration(ctx, settings, input, normalizedContent)
+			result.Hit = evaluated.Hit
+			result.ErrorReason = strings.TrimSpace(evaluated.ErrorReason)
+		}
 	}
 	result.LatencyMs = int(time.Since(start).Milliseconds())
 
@@ -264,14 +327,24 @@ func ExtractModerationTextFromJSONBody(body []byte) string {
 
 type moderationExtractionState struct {
 	parts      []string
+	seen       map[string]struct{}
 	imageCount int
 }
 
 func (s *moderationExtractionState) appendText(value string) {
 	trimmed := strings.TrimSpace(value)
-	if trimmed != "" {
-		s.parts = append(s.parts, trimmed)
+	if trimmed == "" {
+		return
 	}
+	key := strings.Join(strings.Fields(trimmed), " ")
+	if s.seen == nil {
+		s.seen = make(map[string]struct{})
+	}
+	if _, ok := s.seen[key]; ok {
+		return
+	}
+	s.seen[key] = struct{}{}
+	s.parts = append(s.parts, trimmed)
 }
 
 func (s *moderationExtractionState) appendImageMarker() {
@@ -373,4 +446,89 @@ func parseIntWithDefault(raw string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func NormalizeContentModerationModelFilter(raw string) ContentModerationModelFilter {
+	filter := ContentModerationModelFilter{Type: ContentModerationModelFilterAll}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return filter
+	}
+	if err := json.Unmarshal([]byte(raw), &filter); err != nil {
+		return ContentModerationModelFilter{Type: ContentModerationModelFilterAll}
+	}
+	filter.Type = strings.ToLower(strings.TrimSpace(filter.Type))
+	switch filter.Type {
+	case ContentModerationModelFilterInclude, ContentModerationModelFilterExclude:
+	default:
+		filter.Type = ContentModerationModelFilterAll
+	}
+	filter.Models = normalizeContentModerationModelIDs(filter.Models)
+	if filter.Type != ContentModerationModelFilterAll && len(filter.Models) == 0 {
+		filter.Type = ContentModerationModelFilterAll
+	}
+	return filter
+}
+
+func MarshalContentModerationModelFilter(filter ContentModerationModelFilter) (string, error) {
+	normalized := ContentModerationModelFilter{
+		Type:   strings.ToLower(strings.TrimSpace(filter.Type)),
+		Models: normalizeContentModerationModelIDs(filter.Models),
+	}
+	switch normalized.Type {
+	case ContentModerationModelFilterInclude, ContentModerationModelFilterExclude:
+	default:
+		normalized.Type = ContentModerationModelFilterAll
+		normalized.Models = []string{}
+	}
+	if normalized.Type != ContentModerationModelFilterAll && len(normalized.Models) == 0 {
+		normalized.Type = ContentModerationModelFilterAll
+	}
+	data, err := json.Marshal(normalized)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (f ContentModerationModelFilter) Allows(model string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	switch f.Type {
+	case ContentModerationModelFilterInclude:
+		return normalized != "" && containsNormalizedModerationModel(f.Models, normalized)
+	case ContentModerationModelFilterExclude:
+		return normalized == "" || !containsNormalizedModerationModel(f.Models, normalized)
+	default:
+		return true
+	}
+}
+
+func normalizeContentModerationModelIDs(models []string) []string {
+	if len(models) == 0 {
+		return []string{}
+	}
+	seen := make(map[string]struct{}, len(models))
+	out := make([]string, 0, len(models))
+	for _, item := range models {
+		model := strings.TrimSpace(item)
+		key := strings.ToLower(model)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, model)
+	}
+	return out
+}
+
+func containsNormalizedModerationModel(models []string, normalized string) bool {
+	for _, item := range models {
+		if strings.ToLower(strings.TrimSpace(item)) == normalized {
+			return true
+		}
+	}
+	return false
 }

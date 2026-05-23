@@ -103,7 +103,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(ctx context.Context, c *gin.Con
 	storeDisabledConnMode := s.openAIWSStoreDisabledConnMode()
 	forceNewConnByPolicy := shouldForceNewConnOnStoreDisabled(storeDisabledConnMode, lastFailureReason)
 	forceNewConn := forceNewConnByPolicy && storeDisabled && previousResponseID == "" && sessionHash != "" && preferredConnID == ""
-	wsHeaders, sessionResolution := s.buildOpenAIWSHeaders(c, account, token, decision, isCodexCLI, turnState, turnMetadata, promptCacheKey)
+	wsHeaders, sessionResolution := s.buildOpenAIWSHeaders(ctx, c, account, token, decision, isCodexCLI, turnState, turnMetadata, promptCacheKey)
 	logOpenAIWSModeDebug("acquire_start account_id=%d account_type=%s transport=%s preferred_conn_id=%s has_previous_response_id=%v session_hash=%s has_turn_state=%v turn_state_len=%d has_turn_metadata=%v turn_metadata_len=%d store_disabled=%v store_disabled_conn_mode=%s retry_last_reason=%s force_new_conn=%v header_user_agent=%s header_openai_beta=%s header_originator=%s header_accept_language=%s header_session_id=%s header_conversation_id=%s session_id_source=%s conversation_id_source=%s has_prompt_cache_key=%v has_chatgpt_account_id=%v has_authorization=%v has_session_id=%v has_conversation_id=%v proxy_enabled=%v", account.ID, account.Type, normalizeOpenAIWSLogValue(string(decision.Transport)), truncateOpenAIWSLogValue(preferredConnID, openAIWSIDValueMaxLen), previousResponseID != "", truncateOpenAIWSLogValue(sessionHash, 12), turnState != "", len(turnState), turnMetadata != "", len(turnMetadata), storeDisabled, normalizeOpenAIWSLogValue(storeDisabledConnMode), truncateOpenAIWSLogValue(lastFailureReason, openAIWSLogValueMaxLen), forceNewConn, openAIWSHeaderValueForLog(wsHeaders, "user-agent"), openAIWSHeaderValueForLog(wsHeaders, "openai-beta"), openAIWSHeaderValueForLog(wsHeaders, "originator"), openAIWSHeaderValueForLog(wsHeaders, "accept-language"), openAIWSHeaderValueForLog(wsHeaders, "session_id"), openAIWSHeaderValueForLog(wsHeaders, "conversation_id"), normalizeOpenAIWSLogValue(sessionResolution.SessionSource), normalizeOpenAIWSLogValue(sessionResolution.ConversationSource), promptCacheKey != "", hasOpenAIWSHeader(wsHeaders, "chatgpt-account-id"), hasOpenAIWSHeader(wsHeaders, "authorization"), hasOpenAIWSHeader(wsHeaders, "session_id"), hasOpenAIWSHeader(wsHeaders, "conversation_id"), account.ProxyID != nil && account.Proxy != nil)
 	acquireCtx, acquireCancel := context.WithTimeout(ctx, s.openAIWSAcquireTimeout())
 	defer acquireCancel()
@@ -593,7 +593,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 		}
 	}
 	isCodexCLI := openai.IsCodexOfficialClientByHeaders(c.GetHeader("User-Agent"), c.GetHeader("originator")) || (s.cfg != nil && s.cfg.Gateway.ForceCodexCLI)
-	wsHeaders, _ := s.buildOpenAIWSHeaders(c, account, token, wsDecision, isCodexCLI, turnState, strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)), firstPayload.promptCacheKey)
+	wsHeaders, _ := s.buildOpenAIWSHeaders(ctx, c, account, token, wsDecision, isCodexCLI, turnState, strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)), firstPayload.promptCacheKey)
 	baseAcquireReq := openAIWSAcquireRequest{Account: account, WSURL: wsURL, Headers: wsHeaders, ProxyURL: func() string {
 		if account.ProxyID != nil && account.Proxy != nil {
 			return account.Proxy.URL()
@@ -1140,7 +1140,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 			return parseErr
 		}
 		if nextPayload.promptCacheKey != "" {
-			updatedHeaders, _ := s.buildOpenAIWSHeaders(c, account, token, wsDecision, isCodexCLI, turnState, strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)), nextPayload.promptCacheKey)
+			updatedHeaders, _ := s.buildOpenAIWSHeaders(ctx, c, account, token, wsDecision, isCodexCLI, turnState, strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)), nextPayload.promptCacheKey)
 			baseAcquireReq.Headers = updatedHeaders
 		}
 		if nextPayload.previousResponseID != "" {

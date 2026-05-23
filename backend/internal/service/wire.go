@@ -39,6 +39,12 @@ func ProvideEmailQueueService(emailService *EmailService) *EmailQueueService {
 	return NewEmailQueueService(emailService, 3)
 }
 
+func ProvideEmailService(settingRepo SettingRepository, cache EmailCache, templateService *EmailTemplateService) *EmailService {
+	svc := NewEmailService(settingRepo, cache)
+	svc.SetTemplateService(templateService)
+	return svc
+}
+
 // ProvideTokenRefreshService creates and starts TokenRefreshService
 func ProvideTokenRefreshService(
 	accountRepo AccountRepository,
@@ -70,6 +76,21 @@ func ProvideTokenRefreshService(
 func ProvideOpenAIGPT55WhitelistBackfillService(settingRepo SettingRepository, accountRepo AccountRepository) *OpenAIGPT55WhitelistBackfillService {
 	svc := NewOpenAIGPT55WhitelistBackfillService(settingRepo, accountRepo)
 	svc.Start()
+	return svc
+}
+
+func ProvidePaymentService(
+	repo PaymentRepository,
+	settings *SettingService,
+	airwallex AirwallexClient,
+	subscriptionSvc *SubscriptionService,
+	affiliateService *AffiliateService,
+	emailService *EmailService,
+	templates *EmailTemplateService,
+	userRepo UserRepository,
+) *PaymentService {
+	svc := NewPaymentService(repo, settings, airwallex, subscriptionSvc, affiliateService)
+	svc.SetNotificationServices(emailService, templates, userRepo)
 	return svc
 }
 
@@ -250,8 +271,15 @@ func ProvideAccountRateLimitRecoveryProbeService(
 }
 
 // ProvideSubscriptionExpiryService creates and starts SubscriptionExpiryService.
-func ProvideSubscriptionExpiryService(userSubRepo UserSubscriptionRepository) *SubscriptionExpiryService {
+func ProvideSubscriptionExpiryService(
+	userSubRepo UserSubscriptionRepository,
+	emailService *EmailService,
+	templates *EmailTemplateService,
+	userRepo UserRepository,
+	settingService *SettingService,
+) *SubscriptionExpiryService {
 	svc := NewSubscriptionExpiryService(userSubRepo, time.Minute)
+	svc.SetNotificationServices(emailService, templates, userRepo, settingService)
 	svc.Start()
 	return svc
 }
@@ -485,9 +513,14 @@ func ProvideScheduledTestRunnerService(
 	rateLimitSvc *RateLimitService,
 	accountRepo AccountRepository,
 	telegramNotifier *TelegramNotifierService,
+	emailService *EmailService,
+	emailTemplates *EmailTemplateService,
+	opsService *OpsService,
 	cfg *config.Config,
 ) *ScheduledTestRunnerService {
 	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, accountRepo, telegramNotifier, cfg)
+	svc.SetEmailNotificationServices(emailService, emailTemplates)
+	svc.SetOpsService(opsService)
 	svc.Start()
 	return svc
 }
@@ -510,6 +543,19 @@ func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService) APIKeyAuthC
 	// Start Pub/Sub subscriber for L1 cache invalidation across instances
 	apiKeyService.StartAuthCacheInvalidationSubscriber(context.Background())
 	return apiKeyService
+}
+
+func ProvideUsageService(
+	usageRepo UsageLogRepository,
+	userRepo UserRepository,
+	entClient *dbent.Client,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	emailService *EmailService,
+	templates *EmailTemplateService,
+) *UsageService {
+	svc := NewUsageService(usageRepo, userRepo, entClient, authCacheInvalidator)
+	svc.SetEmailNotificationServices(emailService, templates)
+	return svc
 }
 
 func ProvideAPIKeyService(
@@ -780,17 +826,18 @@ var ProviderSet = wire.NewSet(
 	NewProxyService,
 	NewRedeemService,
 	NewAffiliateService,
-	NewPaymentService,
+	ProvidePaymentService,
 	NewHTTPAirwallexClient,
 	wire.Bind(new(AirwallexClient), new(*HTTPAirwallexClient)),
 	NewPromoService,
-	NewUsageService,
+	ProvideUsageService,
 	NewDashboardService,
 	ProvidePricingService,
 	NewBillingService,
 	NewBillingCacheService,
 	NewAnnouncementService,
 	NewAPIDocsService,
+	NewEmailTemplateService,
 	NewAdminService,
 	ProvideDocumentAIService,
 	ProvideModelRegistryService,
@@ -840,7 +887,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsAlertEvaluatorService,
 	ProvideOpsCleanupService,
 	ProvideOpsScheduledReportService,
-	NewEmailService,
+	ProvideEmailService,
 	ProvideEmailQueueService,
 	NewTurnstileService,
 	NewSubscriptionService,

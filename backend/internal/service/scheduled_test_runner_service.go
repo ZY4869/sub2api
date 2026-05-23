@@ -30,6 +30,9 @@ type ScheduledTestRunnerService struct {
 	rateLimitSvc   *RateLimitService
 	accountRepo    AccountRepository
 	notifier       scheduledTestNotificationSender
+	emailService   *EmailService
+	emailTemplates *EmailTemplateService
+	opsService     *OpsService
 	cfg            *config.Config
 
 	cron      *cron.Cron
@@ -56,6 +59,21 @@ func NewScheduledTestRunnerService(
 		notifier:       notifier,
 		cfg:            cfg,
 	}
+}
+
+func (s *ScheduledTestRunnerService) SetEmailNotificationServices(emailService *EmailService, templates *EmailTemplateService) {
+	if s == nil {
+		return
+	}
+	s.emailService = emailService
+	s.emailTemplates = templates
+}
+
+func (s *ScheduledTestRunnerService) SetOpsService(opsService *OpsService) {
+	if s == nil {
+		return
+	}
+	s.opsService = opsService
 }
 
 // Start begins the cron ticker (every minute).
@@ -293,10 +311,10 @@ func (s *ScheduledTestRunnerService) shouldSendNotification(plan *ScheduledTestP
 }
 
 func (s *ScheduledTestRunnerService) sendNotification(ctx context.Context, plan *ScheduledTestPlan, savedResult *ScheduledTestResult, result *ScheduledTestResult, consecutiveFailures int, nextRun time.Time) error {
+	s.sendEmailNotificationBestEffort(ctx, plan, savedResult, result, consecutiveFailures, nextRun)
 	if s.notifier == nil {
-		return fmt.Errorf("telegram notifier is not configured")
+		return nil
 	}
-
 	message := s.buildNotificationMessage(ctx, plan, savedResult, result, consecutiveFailures, nextRun)
 	if err := s.notifier.SendNotification(ctx, message); err != nil {
 		return err
@@ -317,7 +335,54 @@ func (s *ScheduledTestRunnerService) sendNotification(ctx context.Context, plan 
 	return nil
 }
 
+func (s *ScheduledTestRunnerService) sendEmailNotificationBestEffort(ctx context.Context, plan *ScheduledTestPlan, savedResult *ScheduledTestResult, result *ScheduledTestResult, consecutiveFailures int, nextRun time.Time) {
+	if s == nil || s.emailService == nil || s.emailTemplates == nil || plan == nil || result == nil {
+		return
+	}
+	recipients := s.scheduledTestEmailRecipients(ctx)
+	if len(recipients) == 0 {
+		return
+	}
+	data := s.buildNotificationTemplateData(ctx, plan, savedResult, result, consecutiveFailures, nextRun)
+	for _, to := range recipients {
+		if err := s.emailService.SendTemplatedEmail(ctx, to, EmailTemplateScheduledTestResult, "zh", data); err != nil {
+			logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d email notification failed: %v", plan.ID, err)
+		}
+	}
+}
+
+func (s *ScheduledTestRunnerService) scheduledTestEmailRecipients(ctx context.Context) []string {
+	if s == nil || s.opsService == nil {
+		return nil
+	}
+	cfg, err := s.opsService.GetEmailNotificationConfig(ctx)
+	if err != nil || cfg == nil || !cfg.Report.Enabled {
+		return nil
+	}
+	return normalizeEmails(cfg.Report.Recipients)
+}
+
 func (s *ScheduledTestRunnerService) buildNotificationMessage(ctx context.Context, plan *ScheduledTestPlan, savedResult *ScheduledTestResult, result *ScheduledTestResult, consecutiveFailures int, nextRun time.Time) string {
+	data := s.buildNotificationTemplateData(ctx, plan, savedResult, result, consecutiveFailures, nextRun)
+	return fmt.Sprintf(
+		"Sub2API scheduled test notification\n\nAccount: %s\nAccount ID: %s\nPlatform / Type: %s / %s\nPlan ID: %s\nResult ID: %s\nModel: %s\nStatus: %s\nLatency: %s ms\nError: %s\nConsecutive failures: %s\nCompleted at: %s\nNext run: %s",
+		data["AccountName"],
+		data["AccountID"],
+		data["Platform"],
+		data["AccountType"],
+		data["PlanID"],
+		data["ResultID"],
+		data["Model"],
+		data["Status"],
+		data["LatencyMs"],
+		data["Error"],
+		data["ConsecutiveFailures"],
+		data["CompletedAt"],
+		data["NextRun"],
+	)
+}
+
+func (s *ScheduledTestRunnerService) buildNotificationTemplateData(ctx context.Context, plan *ScheduledTestPlan, savedResult *ScheduledTestResult, result *ScheduledTestResult, consecutiveFailures int, nextRun time.Time) map[string]string {
 	accountName := fmt.Sprintf("Account #%d", plan.AccountID)
 	accountType := "-"
 	accountPlatform := "-"
@@ -344,23 +409,28 @@ func (s *ScheduledTestRunnerService) buildNotificationMessage(ctx context.Contex
 	if errorMessage == "" {
 		errorMessage = "-"
 	}
-
-	return fmt.Sprintf(
-		"Sub2API scheduled test notification\n\nAccount: %s\nAccount ID: %d\nPlatform / Type: %s / %s\nPlan ID: %d\nResult ID: %d\nModel: %s\nStatus: %s\nLatency: %d ms\nError: %s\nConsecutive failures: %d\nCompleted at: %s\nNext run: %s",
-		accountName,
-		plan.AccountID,
-		accountPlatform,
-		accountType,
-		plan.ID,
-		resultID,
-		plan.ModelID,
-		s.formatNotificationStatus(result.Status),
-		result.LatencyMs,
-		errorMessage,
-		consecutiveFailures,
-		s.formatNotificationTime(result.FinishedAt),
-		s.formatNotificationTime(nextRun),
-	)
+	siteName := "Sub2API"
+	if s.opsService != nil && s.opsService.settingRepo != nil {
+		if val, err := s.opsService.settingRepo.GetValue(ctx, SettingKeySiteName); err == nil && strings.TrimSpace(val) != "" {
+			siteName = strings.TrimSpace(val)
+		}
+	}
+	return map[string]string{
+		"SiteName":            siteName,
+		"AccountName":         accountName,
+		"AccountID":           fmt.Sprintf("%d", plan.AccountID),
+		"AccountType":         accountType,
+		"Platform":            accountPlatform,
+		"PlanID":              fmt.Sprintf("%d", plan.ID),
+		"ResultID":            fmt.Sprintf("%d", resultID),
+		"Model":               plan.ModelID,
+		"Status":              s.formatNotificationStatus(result.Status),
+		"LatencyMs":           fmt.Sprintf("%d", result.LatencyMs),
+		"Error":               errorMessage,
+		"ConsecutiveFailures": fmt.Sprintf("%d", consecutiveFailures),
+		"CompletedAt":         s.formatNotificationTime(result.FinishedAt),
+		"NextRun":             s.formatNotificationTime(nextRun),
+	}
 }
 
 func (s *ScheduledTestRunnerService) formatNotificationStatus(status string) string {

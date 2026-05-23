@@ -159,6 +159,7 @@ export default {
         active: "正常",
         inactive: "停用",
         error: "错误",
+        needsReauth: "需要重新授权",
         cooldown: "冷却中",
         paused: "暂停",
         limited: "限流",

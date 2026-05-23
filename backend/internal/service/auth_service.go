@@ -302,6 +302,11 @@ func (s *AuthService) SendVerifyCode(ctx context.Context, email string) error {
 
 // SendVerifyCodeAsync 异步发送邮箱验证码并返回倒计时
 func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string) (*SendVerifyCodeResult, error) {
+	return s.SendVerifyCodeAsyncWithLocale(ctx, email, "")
+}
+
+// SendVerifyCodeAsyncWithLocale 异步发送指定语言的邮箱验证码并返回倒计时。
+func (s *AuthService) SendVerifyCodeAsyncWithLocale(ctx context.Context, email, locale string) (*SendVerifyCodeResult, error) {
 	logger.LegacyPrintf("service.auth", "[Auth] SendVerifyCodeAsync called for email: %s", email)
 
 	// 检查是否开放注册（默认关闭）
@@ -342,7 +347,7 @@ func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string) (*S
 
 	// 异步发送
 	logger.LegacyPrintf("service.auth", "[Auth] Enqueueing verify code for: %s", email)
-	if err := s.emailQueueService.EnqueueVerifyCode(email, siteName); err != nil {
+	if err := s.emailQueueService.EnqueueVerifyCodeWithLocale(email, siteName, locale); err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to enqueue: %v", err)
 		return nil, fmt.Errorf("enqueue verify code: %w", err)
 	}
@@ -579,6 +584,9 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			// OAuth 首次登录视为注册
 			if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 				return nil, nil, ErrRegDisabled
+			}
+			if err := s.validateRegistrationEmailPolicy(ctx, email); err != nil {
+				return nil, nil, err
 			}
 
 			// 检查是否需要邀请码

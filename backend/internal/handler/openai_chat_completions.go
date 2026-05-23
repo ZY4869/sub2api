@@ -71,11 +71,14 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		return
 	}
 	modelHint := strings.TrimSpace(gjson.GetBytes(body, "model").String())
-	submitContentModerationAudit(
-		c.Request.Context(),
-		h.contentModerationService,
-		buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIChat, service.PlatformOpenAI, modelHint, body),
-	)
+	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIChat, service.PlatformOpenAI, modelHint, body)
+	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+		reqLog.Warn("openai_chat_completions.content_moderation_keyword_check_failed", zap.Error(err))
+	} else if blocked {
+		contentModerationOpenAIBlockResponse(c)
+		return
+	}
+	submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)
 
 	modelResult := gjson.GetBytes(body, "model")
 	if !modelResult.Exists() || modelResult.Type != gjson.String || modelResult.String() == "" {

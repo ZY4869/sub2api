@@ -417,6 +417,7 @@ export const useAppStore = defineStore("app", () => {
         purchase_subscription_enabled: false,
         purchase_subscription_url: "",
         payment_provider_airwallex_enabled: false,
+        payment_mobile_force_qrcode_enabled: false,
         payment_allowed_currencies: ["USD", "CNY", "HKD"],
         payment_default_currency: "USD",
         payment_min_topup_amount: 1,

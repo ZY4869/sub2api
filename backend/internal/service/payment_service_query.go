@@ -78,7 +78,7 @@ func (s *PaymentService) resumeExistingOrder(ctx context.Context, order *Payment
 		return nil, ErrPaymentOrderForbidden
 	}
 	settings := s.paymentSettings(ctx)
-	result := &ResumePaymentOrderResult{Order: order, ClientID: settings.AirwallexClientID, IntentID: order.ProviderIntentID, ProviderEnv: order.ProviderEnv}
+	result := &ResumePaymentOrderResult{Order: order, ClientID: settings.AirwallexClientID, IntentID: order.ProviderIntentID, ProviderEnv: order.ProviderEnv, PaymentMode: resolvePaymentMode(settings)}
 	if order.Status != PaymentStatusCreated && order.Status != PaymentStatusPending {
 		return result, nil
 	}
@@ -122,7 +122,7 @@ func (s *PaymentService) ListOrders(ctx context.Context, params pagination.Pagin
 }
 
 func (s *PaymentService) rebuildCreateOrderResult(ctx context.Context, settings PaymentSettings, order *PaymentOrder, resumeToken string) (*CreatePaymentOrderResult, error) {
-	result := &CreatePaymentOrderResult{Order: order, ClientID: settings.AirwallexClientID, IntentID: order.ProviderIntentID, ResumeToken: resumeToken, ProviderEnv: order.ProviderEnv}
+	result := &CreatePaymentOrderResult{Order: order, ClientID: settings.AirwallexClientID, IntentID: order.ProviderIntentID, ResumeToken: resumeToken, ProviderEnv: order.ProviderEnv, PaymentMode: resolvePaymentMode(settings)}
 	if order.ProviderIntentID == "" || s.airwallex == nil {
 		return result, nil
 	}

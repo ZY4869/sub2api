@@ -20,6 +20,11 @@ const (
 )
 
 const (
+	ChannelMonitorOpenAIAPIModeChatCompletions = "chat_completions"
+	ChannelMonitorOpenAIAPIModeResponses       = "responses"
+)
+
+const (
 	ChannelMonitorStatusSuccess  = "success"
 	ChannelMonitorStatusDegraded = "degraded"
 	ChannelMonitorStatusFailure  = "failure"
@@ -40,6 +45,7 @@ type ChannelMonitor struct {
 	ExtraHeaders     map[string]string `json:"extra_headers"`
 	BodyOverrideMode string            `json:"body_override_mode"`
 	BodyOverride     map[string]any    `json:"body_override"`
+	OpenAIAPIMode    string            `json:"openai_api_mode"`
 
 	LastRunAt *time.Time `json:"last_run_at,omitempty"`
 	NextRunAt *time.Time `json:"next_run_at,omitempty"`
@@ -69,6 +75,7 @@ type ChannelMonitorRequestTemplate struct {
 	ExtraHeaders     map[string]string `json:"extra_headers"`
 	BodyOverrideMode string            `json:"body_override_mode"`
 	BodyOverride     map[string]any    `json:"body_override"`
+	OpenAIAPIMode    string            `json:"openai_api_mode"`
 	CreatedAt        time.Time         `json:"created_at"`
 	UpdatedAt        time.Time         `json:"updated_at"`
 }

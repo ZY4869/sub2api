@@ -1,13 +1,14 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type OpenAIWSIngressHooks struct {
@@ -100,7 +101,10 @@ func (s *OpenAIGatewayService) buildOpenAIResponsesWSURL(account *Account) (stri
 	}
 	return parsed.String(), nil
 }
-func (s *OpenAIGatewayService) buildOpenAIWSHeaders(c *gin.Context, account *Account, token string, decision OpenAIWSProtocolDecision, isCodexCLI bool, turnState string, turnMetadata string, promptCacheKey string) (http.Header, openAIWSSessionHeaderResolution) {
+func (s *OpenAIGatewayService) buildOpenAIWSHeaders(ctx context.Context, c *gin.Context, account *Account, token string, decision OpenAIWSProtocolDecision, isCodexCLI bool, turnState string, turnMetadata string, promptCacheKey string) (http.Header, openAIWSSessionHeaderResolution) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	headers := make(http.Header)
 	headers.Set("authorization", "Bearer "+token)
 	sessionResolution := resolveOpenAIWSSessionHeaders(c, promptCacheKey)
@@ -160,8 +164,8 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(c *gin.Context, account *Acc
 	if s != nil && s.cfg != nil && s.cfg.Gateway.ForceCodexCLI && isChatGPTOpenAIOAuthAccount(account) {
 		headers.Set("user-agent", codexCLIUserAgent)
 	}
-	if isChatGPTOpenAIOAuthAccount(account) && !openai.IsCodexCLIRequest(headers.Get("user-agent")) {
-		headers.Set("user-agent", codexCLIUserAgent)
+	if s != nil {
+		s.applyCodexOAuthUserAgentPolicy(ctx, headers, account)
 	}
 	return headers, sessionResolution
 }

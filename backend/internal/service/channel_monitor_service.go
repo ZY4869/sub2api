@@ -111,6 +111,7 @@ func (s *ChannelMonitorService) Update(ctx context.Context, monitor *ChannelMoni
 	merged.ExtraHeaders = monitor.ExtraHeaders
 	merged.BodyOverrideMode = monitor.BodyOverrideMode
 	merged.BodyOverride = monitor.BodyOverride
+	merged.OpenAIAPIMode = monitor.OpenAIAPIMode
 
 	runtime, err := s.settingSvc.GetChannelMonitorRuntime(ctx)
 	defaultInterval := 60

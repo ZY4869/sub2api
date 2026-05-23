@@ -29,6 +29,7 @@ func generateMenuItemID() (string, error) {
 type SettingHandler struct {
 	settingService   *service.SettingService
 	emailService     *service.EmailService
+	emailTemplates   *service.EmailTemplateService
 	telegramNotifier *service.TelegramNotifierService
 	turnstileService *service.TurnstileService
 	opsService       *service.OpsService
@@ -36,6 +37,13 @@ type SettingHandler struct {
 
 func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, telegramNotifier *service.TelegramNotifierService, turnstileService *service.TurnstileService, opsService *service.OpsService) *SettingHandler {
 	return &SettingHandler{settingService: settingService, emailService: emailService, telegramNotifier: telegramNotifier, turnstileService: turnstileService, opsService: opsService}
+}
+
+func (h *SettingHandler) SetEmailTemplateService(templateService *service.EmailTemplateService) {
+	if h == nil {
+		return
+	}
+	h.emailTemplates = templateService
 }
 func (h *SettingHandler) auditSettingsUpdate(c *gin.Context, before *service.SystemSettings, after *service.SystemSettings, req UpdateSettingsRequest) {
 	if before == nil || after == nil {
@@ -180,6 +188,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.ContentModerationFailOpen != after.ContentModerationFailOpen {
 		changed = append(changed, "content_moderation_fail_open")
 	}
+	if before.ContentModerationKeywordBlockEnabled != after.ContentModerationKeywordBlockEnabled {
+		changed = append(changed, "content_moderation_keyword_block_enabled")
+	}
+	if !equalStringSlice(before.ContentModerationKeywords, after.ContentModerationKeywords) {
+		changed = append(changed, "content_moderation_keywords")
+	}
 	if before.SiteName != after.SiteName {
 		changed = append(changed, "site_name")
 	}
@@ -285,6 +299,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.PaymentProviderAirwallexEnabled != after.PaymentProviderAirwallexEnabled {
 		changed = append(changed, "payment_provider_airwallex_enabled")
 	}
+	if before.PaymentMobileForceQRCodeEnabled != after.PaymentMobileForceQRCodeEnabled {
+		changed = append(changed, "payment_mobile_force_qrcode_enabled")
+	}
 	if before.AirwallexEnv != after.AirwallexEnv {
 		changed = append(changed, "airwallex_env")
 	}
@@ -314,6 +331,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.AntigravityUserAgentVersion != after.AntigravityUserAgentVersion {
 		changed = append(changed, "antigravity_user_agent_version")
+	}
+	if before.CodexOAuthUserAgentMode != after.CodexOAuthUserAgentMode {
+		changed = append(changed, "codex_oauth_user_agent_mode")
+	}
+	if before.CodexOAuthUserAgentOverride != after.CodexOAuthUserAgentOverride {
+		changed = append(changed, "codex_oauth_user_agent_override")
 	}
 	if before.LoginAgreementEnabled != after.LoginAgreementEnabled {
 		changed = append(changed, "login_agreement_enabled")
@@ -432,6 +455,9 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		ContentModerationTimeoutMs:           settings.ContentModerationTimeoutMs,
 		ContentModerationDedupeWindowSeconds: settings.ContentModerationDedupeWindowSeconds,
 		ContentModerationFailOpen:            settings.ContentModerationFailOpen,
+		ContentModerationKeywordBlockEnabled: settings.ContentModerationKeywordBlockEnabled,
+		ContentModerationKeywords:            settings.ContentModerationKeywords,
+		ContentModerationModelFilter:         settings.ContentModerationModelFilter,
 		SiteName:                             settings.SiteName,
 		SiteLogo:                             settings.SiteLogo,
 		SiteSubtitle:                         settings.SiteSubtitle,
@@ -454,12 +480,15 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		AirwallexClientID:                    settings.AirwallexClientID,
 		AirwallexAPIKeyConfigured:            settings.AirwallexAPIKeyConfigured,
 		AirwallexWebhookSecretConfigured:     settings.AirwallexWebhookSecretConfigured,
+		PaymentMobileForceQRCodeEnabled:      settings.PaymentMobileForceQRCodeEnabled,
 		PaymentAllowedCurrencies:             settings.PaymentAllowedCurrencies,
 		PaymentDefaultCurrency:               settings.PaymentDefaultCurrency,
 		PaymentMinTopupAmount:                settings.PaymentMinTopupAmount,
 		PaymentMaxTopupAmount:                settings.PaymentMaxTopupAmount,
 		PaymentSubscriptionPlans:             buildPaymentSubscriptionPlanDTOs(settings.PaymentSubscriptionPlans),
 		AntigravityUserAgentVersion:          settings.AntigravityUserAgentVersion,
+		CodexOAuthUserAgentMode:              settings.CodexOAuthUserAgentMode,
+		CodexOAuthUserAgentOverride:          settings.CodexOAuthUserAgentOverride,
 		CustomMenuItems:                      customMenuItems,
 		LoginAgreementEnabled:                settings.LoginAgreementEnabled,
 		LoginAgreementMode:                   settings.LoginAgreementMode,

@@ -18,6 +18,11 @@
           <Select v-model="form.provider" :options="providerOptions" />
         </div>
 
+        <div v-if="form.provider === 'openai'">
+          <label class="input-label">{{ t('admin.channelMonitors.fields.openaiApiMode') }}</label>
+          <Select v-model="form.openai_api_mode" :options="openAIApiModeOptions" />
+        </div>
+
         <div class="md:col-span-2">
           <label class="input-label">{{ t('admin.channelMonitors.templateFields.description') }}</label>
           <input v-model="form.description" type="text" class="input" />
@@ -67,6 +72,7 @@ import Select from '@/components/common/Select.vue'
 import type {
   AdminChannelMonitorTemplate,
   ChannelMonitorBodyOverrideMode,
+  ChannelMonitorOpenAIAPIMode,
   CreateChannelMonitorTemplateRequest,
   UpdateChannelMonitorTemplateRequest
 } from '@/api/admin/channelMonitors'
@@ -91,7 +97,8 @@ const form = reactive({
   name: '',
   provider: 'openai',
   description: '',
-  body_override_mode: 'off' as ChannelMonitorBodyOverrideMode
+  body_override_mode: 'off' as ChannelMonitorBodyOverrideMode,
+  openai_api_mode: 'chat_completions' as ChannelMonitorOpenAIAPIMode
 })
 
 const extraHeadersText = ref('{}')
@@ -117,6 +124,11 @@ const bodyOverrideModeOptions = computed(() => [
   { value: 'replace', label: 'replace' }
 ])
 
+const openAIApiModeOptions = computed(() => [
+  { value: 'chat_completions', label: 'Chat Completions' },
+  { value: 'responses', label: 'Responses' }
+])
+
 function parseJsonRecord(text: string, fallback: Record<string, any> = {}): Record<string, any> {
   const trimmed = String(text || '').trim()
   if (!trimmed) return fallback
@@ -139,6 +151,7 @@ function resetForm() {
   form.provider = 'openai'
   form.description = ''
   form.body_override_mode = 'off'
+  form.openai_api_mode = 'chat_completions'
   extraHeadersText.value = '{}'
   bodyOverrideText.value = '{}'
 }
@@ -148,6 +161,7 @@ function hydrateFromTemplate(tpl: AdminChannelMonitorTemplate) {
   form.provider = tpl.provider
   form.description = tpl.description || ''
   form.body_override_mode = (tpl.body_override_mode || 'off') as ChannelMonitorBodyOverrideMode
+  form.openai_api_mode = (tpl.openai_api_mode || 'chat_completions') as ChannelMonitorOpenAIAPIMode
   extraHeadersText.value = JSON.stringify(tpl.extra_headers || {}, null, 2)
   bodyOverrideText.value = JSON.stringify(tpl.body_override || {}, null, 2)
 }
@@ -186,6 +200,7 @@ async function handleSubmit() {
     return
   }
 
+  const openAIApiMode = form.provider === 'openai' ? form.openai_api_mode : 'chat_completions'
   submitting.value = true
   try {
     if (!isEditMode.value) {
@@ -195,7 +210,8 @@ async function handleSubmit() {
         description: form.description.trim() || null,
         extra_headers: extraHeaders,
         body_override_mode: form.body_override_mode,
-        body_override: bodyOverride
+        body_override: bodyOverride,
+        openai_api_mode: openAIApiMode
       }
       await adminAPI.channelMonitors.createTemplate(payload)
       appStore.showSuccess(t('admin.channelMonitors.messages.saved'))
@@ -210,7 +226,8 @@ async function handleSubmit() {
       description: form.description.trim() || null,
       extra_headers: extraHeaders,
       body_override_mode: form.body_override_mode,
-      body_override: bodyOverride
+      body_override: bodyOverride,
+      openai_api_mode: openAIApiMode
     }
 
     await adminAPI.channelMonitors.updateTemplate(id, payload)

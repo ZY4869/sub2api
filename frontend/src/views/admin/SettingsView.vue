@@ -1293,6 +1293,62 @@
                   <Toggle v-model="form.content_moderation_fail_open" />
                 </div>
               </div>
+              <div class="md:col-span-2">
+                <div class="flex items-center justify-between rounded-2xl border border-gray-100 p-4 dark:border-dark-700">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">
+                      {{ t('admin.settings.moderation.keywordBlock') }}
+                    </label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.moderation.keywordBlockHint') }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.content_moderation_keyword_block_enabled" />
+                </div>
+              </div>
+              <div class="md:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.modelFilterType') }}
+                </label>
+                <Select
+                  v-model="form.content_moderation_model_filter.type"
+                  :options="contentModerationModelFilterOptions"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.modelFilterTypeHint') }}
+                </p>
+              </div>
+              <div
+                v-if="form.content_moderation_model_filter.type !== 'all'"
+                class="md:col-span-2"
+              >
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.modelFilterModels') }}
+                </label>
+                <textarea
+                  v-model="contentModerationModelFilterModelsText"
+                  rows="4"
+                  class="input font-mono text-sm"
+                  :placeholder="t('admin.settings.moderation.modelFilterModelsPlaceholder')"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.modelFilterModelsHint') }}
+                </p>
+              </div>
+              <div class="md:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.moderation.keywords') }}
+                </label>
+                <textarea
+                  v-model="contentModerationKeywordsText"
+                  rows="5"
+                  class="input font-mono text-sm"
+                  :placeholder="t('admin.settings.moderation.keywordsPlaceholder')"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.moderation.keywordsHint') }}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -2002,12 +2058,15 @@
           v-model:airwallex-client-id="form.airwallex_client_id"
           v-model:airwallex-api-key="form.airwallex_api_key"
           v-model:airwallex-webhook-secret="form.airwallex_webhook_secret"
+          v-model:mobile-force-qrcode-enabled="form.payment_mobile_force_qrcode_enabled"
           v-model:allowed-currencies="form.payment_allowed_currencies"
           v-model:default-currency="form.payment_default_currency"
           v-model:min-topup-amount="form.payment_min_topup_amount"
           v-model:max-topup-amount="form.payment_max_topup_amount"
           v-model:subscription-plans="form.payment_subscription_plans"
           v-model:antigravity-user-agent-version="form.antigravity_user_agent_version"
+          v-model:codex-oauth-user-agent-mode="form.codex_oauth_user_agent_mode"
+          v-model:codex-oauth-user-agent-override="form.codex_oauth_user_agent_override"
           :api-key-configured="form.airwallex_api_key_configured"
           :webhook-secret-configured="form.airwallex_webhook_secret_configured"
           :effective-enabled="form.payment_provider_airwallex_effective"
@@ -2417,6 +2476,118 @@
             </div>
           </div>
         </div>
+
+        <div v-if="form.email_verify_enabled" class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.emailTemplates.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.emailTemplates.description') }}
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div v-if="emailTemplatesLoading" class="flex items-center gap-2 text-gray-500">
+              <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-600"></div>
+              {{ t('common.loading') }}
+            </div>
+            <template v-else>
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.emailTemplates.template') }}
+                  </label>
+                  <Select
+                    :modelValue="selectedEmailTemplateKey"
+                    @update:modelValue="selectEmailTemplate(String($event || ''))"
+                    :options="emailTemplateOptions"
+                  />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.emailTemplates.locale') }}
+                  </label>
+                  <Select
+                    :modelValue="selectedEmailTemplateLocale"
+                    @update:modelValue="selectEmailTemplateLocale(String($event || 'en'))"
+                    :options="emailTemplateLocaleOptions"
+                  />
+                </div>
+              </div>
+
+              <div v-if="selectedEmailTemplate" class="space-y-4">
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="name in selectedEmailTemplate.variables"
+                    :key="name"
+                    class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300"
+                  >
+                    {{ '{{.' + name + '}}' }}
+                  </span>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.emailTemplates.subject') }}
+                  </label>
+                  <input v-model="emailTemplateDraft.subject" type="text" class="input" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.emailTemplates.body') }}
+                  </label>
+                  <textarea
+                    v-model="emailTemplateDraft.body"
+                    rows="10"
+                    class="input font-mono text-sm"
+                  />
+                </div>
+                <div class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">
+                      {{ t('admin.settings.emailTemplates.enabled') }}
+                    </label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.emailTemplates.enabledHint') }}
+                    </p>
+                  </div>
+                  <Toggle v-model="emailTemplateDraft.enabled" />
+                </div>
+                <div class="grid grid-cols-1 gap-4 border-t border-gray-100 pt-4 dark:border-dark-700 md:grid-cols-[1fr_auto_auto_auto]">
+                  <input
+                    v-model="emailTemplateTestAddress"
+                    type="email"
+                    class="input"
+                    :placeholder="t('admin.settings.emailTemplates.testRecipientPlaceholder')"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    :disabled="emailTemplateTesting || !emailTemplateTestAddress"
+                    @click="testSelectedEmailTemplate"
+                  >
+                    {{ emailTemplateTesting ? t('admin.settings.emailTemplates.testing') : t('admin.settings.emailTemplates.test') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    :disabled="emailTemplateSaving"
+                    @click="resetSelectedEmailTemplate"
+                  >
+                    {{ t('admin.settings.emailTemplates.reset') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    :disabled="emailTemplateSaving"
+                    @click="saveSelectedEmailTemplate"
+                  >
+                    {{ emailTemplateSaving ? t('common.saving') : t('common.save') }}
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
         </div><!-- /Tab: Email -->
 
         <!-- Save Button -->
@@ -2455,7 +2626,10 @@ import type {
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
   BetaPolicyRule,
-  ContentModerationAPIKeyStatus
+  ContentModerationAPIKeyStatus,
+  type ContentModerationModelFilterType,
+  EmailTemplate,
+  EmailTemplateDefinition
 } from '@/api/admin/settings'
 import type { AdminGroup, CustomMenuItem, LoginAgreementDocument } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -2511,6 +2685,18 @@ const testingSmtp = ref(false)
 const testingTelegram = ref(false)
 const sendingTestEmail = ref(false)
 const testEmailAddress = ref('')
+const emailTemplatesLoading = ref(false)
+const emailTemplateSaving = ref(false)
+const emailTemplateTesting = ref(false)
+const emailTemplateDefinitions = ref<EmailTemplateDefinition[]>([])
+const selectedEmailTemplateKey = ref('')
+const selectedEmailTemplateLocale = ref('zh')
+const emailTemplateTestAddress = ref('')
+const emailTemplateDraft = reactive({
+  subject: '',
+  body: '',
+  enabled: true
+})
 const globalRealtimeCountdownEnabled = ref(false)
 const savingGlobalRealtimeCountdown = ref(false)
 const registrationEmailSuffixWhitelistTags = ref<string[]>([])
@@ -2635,6 +2821,9 @@ const form = reactive<SettingsForm>({
   payment_max_topup_amount: 5000,
   payment_subscription_plans: [],
   antigravity_user_agent_version: '',
+  payment_mobile_force_qrcode_enabled: false,
+  codex_oauth_user_agent_mode: 'default',
+  codex_oauth_user_agent_override: '',
   backend_mode_enabled: false,
   maintenance_mode_enabled: false,
   custom_menu_items: [] as CustomMenuItem[],
@@ -2690,6 +2879,12 @@ const form = reactive<SettingsForm>({
   content_moderation_timeout_ms: 1500,
   content_moderation_dedupe_window_seconds: 300,
   content_moderation_fail_open: true,
+  content_moderation_keyword_block_enabled: false,
+  content_moderation_keywords: [],
+  content_moderation_model_filter: {
+    type: 'all',
+    models: []
+  },
   // Model fallback
   enable_model_fallback: false,
   fallback_model_anthropic: 'claude-3-5-sonnet-20241022',
@@ -2731,6 +2926,91 @@ const defaultSubscriptionGroupOptions = computed<DefaultSubscriptionGroupOption[
     rate: group.rate_multiplier
   }))
 )
+
+const contentModerationModelFilterOptions = computed(() => [
+  { value: 'all', label: t('admin.settings.moderation.modelFilterAll') },
+  { value: 'include', label: t('admin.settings.moderation.modelFilterInclude') },
+  { value: 'exclude', label: t('admin.settings.moderation.modelFilterExclude') }
+])
+
+const normalizeContentModerationModelNames = (value: string) => {
+  const seen = new Set<string>()
+  return value
+    .split(/[\n,，;；]+/)
+    .map((item) => item.trim())
+    .filter((item) => {
+      if (!item) return false
+      const key = item.toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+
+const ensureContentModerationModelFilter = () => {
+  const filter = form.content_moderation_model_filter
+  if (!filter || !['all', 'include', 'exclude'].includes(filter.type)) {
+    form.content_moderation_model_filter = { type: 'all', models: [] }
+    return
+  }
+  form.content_moderation_model_filter = {
+    type: filter.type as ContentModerationModelFilterType,
+    models: normalizeContentModerationModelNames((filter.models || []).join('\n'))
+  }
+}
+
+const contentModerationKeywordsText = computed({
+  get: () => form.content_moderation_keywords.join('\n'),
+  set: (value: string) => {
+    const seen = new Set<string>()
+    form.content_moderation_keywords = value
+      .split(/[\n,，;；]+/)
+      .map((item) => item.trim())
+      .filter((item) => {
+        if (!item) return false
+        const key = item.toLowerCase()
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+  }
+})
+
+const contentModerationModelFilterModelsText = computed({
+  get: () => form.content_moderation_model_filter.models.join('\n'),
+  set: (value: string) => {
+    form.content_moderation_model_filter.models = normalizeContentModerationModelNames(value)
+  }
+})
+
+const emailTemplateOptions = computed(() =>
+  emailTemplateDefinitions.value.map((item) => ({
+    value: item.key,
+    label: t(`admin.settings.emailTemplates.names.${item.key}`)
+  }))
+)
+
+const emailTemplateLocaleOptions = computed(() => [
+  { value: 'zh', label: t('admin.settings.emailTemplates.localeZh') },
+  { value: 'en', label: t('admin.settings.emailTemplates.localeEn') }
+])
+
+const selectedEmailTemplate = computed(() =>
+  emailTemplateDefinitions.value.find((item) => item.key === selectedEmailTemplateKey.value) || null
+)
+
+function emailTemplateBuiltIn(def: EmailTemplateDefinition | null, locale: string): EmailTemplate | null {
+  if (!def) return null
+  const builtIn = def.built_in || def.BuiltIn || {}
+  return builtIn[locale] || builtIn.en || builtIn.zh || null
+}
+
+function syncEmailTemplateDraft() {
+  const tmpl = emailTemplateBuiltIn(selectedEmailTemplate.value, selectedEmailTemplateLocale.value)
+  emailTemplateDraft.subject = tmpl?.subject || ''
+  emailTemplateDraft.body = tmpl?.body || ''
+  emailTemplateDraft.enabled = tmpl?.enabled !== false
+}
 
 const loginAgreementModeOptions = computed(() => [
   { value: 'checkbox', label: t('admin.settings.loginAgreement.checkboxMode') }
@@ -2834,6 +3114,7 @@ async function loadSettings() {
   try {
     const settings = await adminAPI.settings.getSettings()
     Object.assign(form, settings)
+    ensureContentModerationModelFilter()
     form.default_subscriptions = Array.isArray(settings.default_subscriptions)
       ? settings.default_subscriptions
           .filter((item) => item.group_id > 0 && item.validity_days > 0)
@@ -3019,12 +3300,15 @@ async function saveSettings() {
       airwallex_client_id: form.airwallex_client_id,
       airwallex_api_key: form.airwallex_api_key || undefined,
       airwallex_webhook_secret: form.airwallex_webhook_secret || undefined,
+      payment_mobile_force_qrcode_enabled: form.payment_mobile_force_qrcode_enabled,
       payment_allowed_currencies: form.payment_allowed_currencies,
       payment_default_currency: form.payment_default_currency,
       payment_min_topup_amount: form.payment_min_topup_amount,
       payment_max_topup_amount: form.payment_max_topup_amount,
       payment_subscription_plans: form.payment_subscription_plans,
       antigravity_user_agent_version: form.antigravity_user_agent_version,
+      codex_oauth_user_agent_mode: form.codex_oauth_user_agent_mode,
+      codex_oauth_user_agent_override: form.codex_oauth_user_agent_override,
       maintenance_mode_enabled: form.maintenance_mode_enabled,
       custom_menu_items: form.custom_menu_items,
       login_agreement_enabled: form.login_agreement_enabled,
@@ -3076,6 +3360,15 @@ async function saveSettings() {
       content_moderation_timeout_ms: form.content_moderation_timeout_ms,
       content_moderation_dedupe_window_seconds: form.content_moderation_dedupe_window_seconds,
       content_moderation_fail_open: form.content_moderation_fail_open,
+      content_moderation_keyword_block_enabled: form.content_moderation_keyword_block_enabled,
+      content_moderation_keywords: form.content_moderation_keywords,
+      content_moderation_model_filter: {
+        type: form.content_moderation_model_filter.type,
+        models:
+          form.content_moderation_model_filter.type === 'all'
+            ? []
+            : form.content_moderation_model_filter.models
+      },
       enable_model_fallback: form.enable_model_fallback,
       fallback_model_anthropic: form.fallback_model_anthropic,
       fallback_model_openai: form.fallback_model_openai,
@@ -3091,6 +3384,7 @@ async function saveSettings() {
     }
     const updated = await adminAPI.settings.updateSettings(payload)
     Object.assign(form, updated)
+    ensureContentModerationModelFilter()
     registrationEmailSuffixWhitelistTags.value = normalizeRegistrationEmailSuffixDomains(
       updated.registration_email_suffix_whitelist
     )
@@ -3183,6 +3477,104 @@ async function sendTestEmail() {
     )
   } finally {
     sendingTestEmail.value = false
+  }
+}
+
+async function loadEmailTemplates() {
+  emailTemplatesLoading.value = true
+  try {
+    const items = await adminAPI.settings.getEmailTemplates()
+    emailTemplateDefinitions.value = items
+    if (!selectedEmailTemplateKey.value && items.length > 0) {
+      selectedEmailTemplateKey.value = items[0].key
+    }
+    syncEmailTemplateDraft()
+  } catch (error: any) {
+    appStore.showError(
+      t('admin.settings.emailTemplates.loadFailed') +
+        ': ' +
+        (error.message || t('common.unknownError'))
+    )
+  } finally {
+    emailTemplatesLoading.value = false
+  }
+}
+
+function selectEmailTemplate(key: string) {
+  selectedEmailTemplateKey.value = key
+  syncEmailTemplateDraft()
+}
+
+function selectEmailTemplateLocale(locale: string) {
+  selectedEmailTemplateLocale.value = locale === 'zh' ? 'zh' : 'en'
+  syncEmailTemplateDraft()
+}
+
+async function saveSelectedEmailTemplate() {
+  if (!selectedEmailTemplateKey.value) return
+  emailTemplateSaving.value = true
+  try {
+    await adminAPI.settings.updateEmailTemplate(
+      selectedEmailTemplateKey.value,
+      selectedEmailTemplateLocale.value,
+      {
+        subject: emailTemplateDraft.subject,
+        body: emailTemplateDraft.body,
+        enabled: emailTemplateDraft.enabled
+      }
+    )
+    await loadEmailTemplates()
+    appStore.showSuccess(t('admin.settings.emailTemplates.saved'))
+  } catch (error: any) {
+    appStore.showError(
+      t('admin.settings.emailTemplates.saveFailed') +
+        ': ' +
+        (error.message || t('common.unknownError'))
+    )
+  } finally {
+    emailTemplateSaving.value = false
+  }
+}
+
+async function resetSelectedEmailTemplate() {
+  if (!selectedEmailTemplateKey.value) return
+  emailTemplateSaving.value = true
+  try {
+    await adminAPI.settings.resetEmailTemplate(
+      selectedEmailTemplateKey.value,
+      selectedEmailTemplateLocale.value
+    )
+    await loadEmailTemplates()
+    appStore.showSuccess(t('admin.settings.emailTemplates.resetDone'))
+  } catch (error: any) {
+    appStore.showError(
+      t('admin.settings.emailTemplates.resetFailed') +
+        ': ' +
+        (error.message || t('common.unknownError'))
+    )
+  } finally {
+    emailTemplateSaving.value = false
+  }
+}
+
+async function testSelectedEmailTemplate() {
+  if (!selectedEmailTemplateKey.value || !emailTemplateTestAddress.value) return
+  emailTemplateTesting.value = true
+  try {
+    const result = await adminAPI.settings.testEmailTemplate(
+      selectedEmailTemplateKey.value,
+      selectedEmailTemplateLocale.value,
+      emailTemplateTestAddress.value
+    )
+    appStore.showSuccess(result.message || t('admin.settings.emailTemplates.testSent'))
+  } catch (error: any) {
+    appStore.showError(
+      t('admin.settings.emailTemplates.testFailed') +
+        ': ' +
+        (error.message || t('common.unknownError'))
+    )
+  } finally {
+    emailTemplateTesting.value = false
   }
 }
 
@@ -3425,6 +3817,7 @@ onMounted(() => {
   loadStreamTimeoutSettings()
   loadRectifierSettings()
   loadBetaPolicySettings()
+  loadEmailTemplates()
 })
 </script>
 

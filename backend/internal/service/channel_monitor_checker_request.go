@@ -25,14 +25,10 @@ func buildChannelMonitorRequest(monitor *ChannelMonitor, modelID string, challen
 		if provider == ChannelMonitorProviderGrok {
 			path = "/grok/v1/chat/completions"
 		}
-		base := map[string]any{
-			"model": modelID,
-			"messages": []any{
-				map[string]any{"role": "user", "content": prompt},
-			},
-			"temperature": 0,
-			"max_tokens":  32,
-			"stream":      false,
+		base := buildOpenAIStyleChannelMonitorPayload(modelID, prompt, false)
+		if provider == ChannelMonitorProviderOpenAI && normalizeChannelMonitorOpenAIAPIMode(provider, monitor.OpenAIAPIMode) == ChannelMonitorOpenAIAPIModeResponses {
+			path = "/v1/responses"
+			base = buildOpenAIStyleChannelMonitorPayload(modelID, prompt, true)
 		}
 		payload, requireChallenge, err = applyBodyOverride(provider, mode, base, override)
 		return path, payload, requireChallenge, err
@@ -75,6 +71,27 @@ func buildChannelMonitorRequest(monitor *ChannelMonitor, modelID string, challen
 	}
 }
 
+func buildOpenAIStyleChannelMonitorPayload(modelID string, prompt string, responses bool) map[string]any {
+	if responses {
+		return map[string]any{
+			"model":             modelID,
+			"input":             prompt,
+			"temperature":       0,
+			"max_output_tokens": 32,
+			"stream":            false,
+		}
+	}
+	return map[string]any{
+		"model": modelID,
+		"messages": []any{
+			map[string]any{"role": "user", "content": prompt},
+		},
+		"temperature": 0,
+		"max_tokens":  32,
+		"stream":      false,
+	}
+}
+
 func applyBodyOverride(provider string, mode string, base map[string]any, override map[string]any) (map[string]any, bool, error) {
 	switch mode {
 	case ChannelMonitorBodyOverrideModeOff:
@@ -108,7 +125,7 @@ func isChannelMonitorBodyOverrideKeyBlocked(provider string, key string) bool {
 	}
 	switch provider {
 	case ChannelMonitorProviderOpenAI, ChannelMonitorProviderGrok:
-		return k == "model" || k == "messages" || k == "stream"
+		return k == "model" || k == "messages" || k == "input" || k == "stream"
 	case ChannelMonitorProviderAnthropic, ChannelMonitorProviderAntigravity:
 		return k == "model" || k == "messages"
 	case ChannelMonitorProviderGemini:

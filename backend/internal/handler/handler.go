@@ -16,6 +16,7 @@ type AdminHandlers struct {
 	Account                *admin.AccountHandler
 	Affiliate              *admin.AffiliateHandler
 	Docs                   *admin.DocsHandler
+	EmailTemplate          *admin.EmailTemplateHandler
 	Announcement           *admin.AnnouncementHandler
 	DataManagement         *admin.DataManagementHandler
 	Backup                 *admin.BackupHandler
