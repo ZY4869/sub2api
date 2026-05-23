@@ -122,14 +122,16 @@ func (s *proxyRepoStubForAdminList) ListWithFiltersAndAccountCount(_ context.Con
 type redeemRepoStubForAdminList struct {
 	redeemRepoStub
 
-	listWithFiltersCalls  int
-	listWithFiltersParams pagination.PaginationParams
-	listWithFiltersType   string
-	listWithFiltersStatus string
-	listWithFiltersSearch string
-	listWithFiltersCodes  []RedeemCode
-	listWithFiltersResult *pagination.PaginationResult
-	listWithFiltersErr    error
+	listWithFiltersCalls     int
+	listWithFiltersParams    pagination.PaginationParams
+	listWithFiltersType      string
+	listWithFiltersStatus    string
+	listWithFiltersSearch    string
+	listWithFiltersSortBy    string
+	listWithFiltersSortOrder string
+	listWithFiltersCodes     []RedeemCode
+	listWithFiltersResult    *pagination.PaginationResult
+	listWithFiltersErr       error
 }
 
 func (s *redeemRepoStubForAdminList) ListWithFilters(_ context.Context, params pagination.PaginationParams, codeType, status, search string) ([]RedeemCode, *pagination.PaginationResult, error) {
@@ -153,6 +155,12 @@ func (s *redeemRepoStubForAdminList) ListWithFilters(_ context.Context, params p
 	}
 
 	return s.listWithFiltersCodes, result, nil
+}
+
+func (s *redeemRepoStubForAdminList) ListWithFiltersAndSort(ctx context.Context, params pagination.PaginationParams, codeType, status, search, sortBy, sortOrder string) ([]RedeemCode, *pagination.PaginationResult, error) {
+	s.listWithFiltersSortBy = sortBy
+	s.listWithFiltersSortOrder = sortOrder
+	return s.ListWithFilters(ctx, params, codeType, status, search)
 }
 
 func (s *redeemRepoStubForAdminList) ListByUserPaginated(_ context.Context, userID int64, params pagination.PaginationParams, codeType string) ([]RedeemCode, *pagination.PaginationResult, error) {

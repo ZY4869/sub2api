@@ -93,6 +93,8 @@ func newGatewayRoutesTestAPIKey(platform string) *service.APIKey {
 		Group: &service.Group{
 			ID:       groupID,
 			Platform: platform,
+			Status:   service.StatusActive,
+			Hydrated: true,
 		},
 		User: &service.User{
 			ID:          1,

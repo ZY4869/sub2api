@@ -25,6 +25,7 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 	group := &service.Group{
 		ID:               42,
 		Name:             "sub",
+		Platform:         service.PlatformOpenAI,
 		Status:           service.StatusActive,
 		Hydrated:         true,
 		SubscriptionType: service.SubscriptionTypeSubscription,

@@ -2522,7 +2522,7 @@
                     :key="name"
                     class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300"
                   >
-                    {{ '{{.' + name + '}}' }}
+                    {{ formatEmailTemplateVariable(name) }}
                   </span>
                 </div>
                 <div>
@@ -2627,7 +2627,7 @@ import type {
   DefaultSubscriptionSetting,
   BetaPolicyRule,
   ContentModerationAPIKeyStatus,
-  type ContentModerationModelFilterType,
+  ContentModerationModelFilterType,
   EmailTemplate,
   EmailTemplateDefinition
 } from '@/api/admin/settings'
@@ -2998,6 +2998,8 @@ const emailTemplateLocaleOptions = computed(() => [
 const selectedEmailTemplate = computed(() =>
   emailTemplateDefinitions.value.find((item) => item.key === selectedEmailTemplateKey.value) || null
 )
+
+const formatEmailTemplateVariable = (name: string) => `{${`{.${name}}`}}`
 
 function emailTemplateBuiltIn(def: EmailTemplateDefinition | null, locale: string): EmailTemplate | null {
   if (!def) return null

@@ -137,6 +137,7 @@ func TestAPIContracts(t *testing.T) {
 					"payment_default_currency": "USD",
 					"payment_min_topup_amount": 1,
 					"payment_max_topup_amount": 5000,
+					"payment_mobile_force_qrcode_enabled": false,
 					"payment_subscription_plans": [],
 					"custom_menu_items": [
 						{
@@ -225,6 +226,7 @@ func TestAPIContracts(t *testing.T) {
 					"payment_default_currency": "USD",
 					"payment_min_topup_amount": 1,
 					"payment_max_topup_amount": 5000,
+					"payment_mobile_force_qrcode_enabled": false,
 					"payment_subscription_plans": [],
 					"custom_menu_items": [],
 					"login_agreement_enabled": false,
@@ -1072,6 +1074,12 @@ func TestAPIContracts(t *testing.T) {
 						"content_moderation_api_key_configured": false,
 						"content_moderation_api_key_statuses": [],
 						"content_moderation_model": "",
+						"content_moderation_keyword_block_enabled": false,
+						"content_moderation_keywords": null,
+						"content_moderation_model_filter": {
+							"type": "all",
+							"models": null
+						},
 						"content_moderation_timeout_ms": 1500,
 						"content_moderation_dedupe_window_seconds": 300,
 						"content_moderation_fail_open": true,
@@ -1103,6 +1111,8 @@ func TestAPIContracts(t *testing.T) {
 					"available_channels_enabled": false,
 					"channel_monitor_enabled": false,
 					"channel_monitor_default_interval_seconds": 60,
+					"codex_oauth_user_agent_mode": "default",
+					"codex_oauth_user_agent_override": "",
 					"public_model_catalog_enabled": true,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
@@ -1116,6 +1126,7 @@ func TestAPIContracts(t *testing.T) {
 					"payment_default_currency": "USD",
 					"payment_min_topup_amount": 1,
 					"payment_max_topup_amount": 5000,
+					"payment_mobile_force_qrcode_enabled": false,
 					"payment_subscription_plans": [],
 					"antigravity_user_agent_version": "",
 					"login_agreement_enabled": false,
