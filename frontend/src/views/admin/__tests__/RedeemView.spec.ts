@@ -166,7 +166,7 @@ describe('RedeemView', () => {
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
 
-    expect(generate).toHaveBeenCalledWith(1, 'balance', -5, undefined, undefined, null)
+    expect(generate).toHaveBeenCalledWith(1, 'balance', -5, undefined, undefined, null, null)
   })
 
   it('submits redeem code expiration when provided', async () => {
@@ -188,7 +188,8 @@ describe('RedeemView', () => {
       5,
       undefined,
       undefined,
-      expectedExpiresAt
+      expectedExpiresAt,
+      null
     )
   })
 })

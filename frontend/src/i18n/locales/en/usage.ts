@@ -136,6 +136,7 @@ export default {
     cost: "Cost",
     firstToken: "First Token",
     duration: "Duration",
+    date: "Date",
     time: "Time",
     requestProtocol: "Request Protocol",
     endpoint: "Endpoint",

@@ -60,6 +60,7 @@ export default {
     noUnusedCodes: "No unused codes to delete",
     failedToLoad: "Failed to load redeem codes",
     failedToGenerate: "Failed to generate codes",
+    failedToUpdate: "Failed to update redeem codes",
     failedToExport: "Failed to export codes",
     failedToDelete: "Failed to delete code",
     failedToDeleteUnused: "Failed to delete unused codes",

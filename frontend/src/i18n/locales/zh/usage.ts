@@ -140,6 +140,7 @@ export default {
     cost: "\u8d39\u7528",
     firstToken: "\u9996 Token",
     duration: "\u8017\u65f6",
+    date: "\u65e5\u671f",
     time: "\u65f6\u95f4",
     requestProtocol: "\u8bf7\u6c42\u534f\u8bae",
     endpoint: "\u7aef\u70b9",
