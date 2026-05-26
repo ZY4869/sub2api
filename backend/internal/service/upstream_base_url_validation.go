@@ -78,7 +78,7 @@ func upstreamBaseURLPrivatePolicy(cfg *config.Config, raw string) (bool, bool) {
 	port := hostexceptions.PortForURL(parsed)
 	match, ok, err := hostexceptions.ValidateResolvedHostException(context.Background(), cfg, hostexceptions.ScopeUpstreamBaseURL, parsed.Scheme, parsed.Hostname(), port)
 	if err == nil && ok {
-		hostexceptions.LogMatch(nil, match)
+		hostexceptions.LogMatch(context.Background(), match)
 		return true, true
 	}
 	return false, false

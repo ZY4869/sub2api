@@ -109,13 +109,19 @@ func TestBillingMoneyPaths_TopupRebateCapAndTransferUseFixedPoint(t *testing.T) 
 		VALUES ($1, $2, $3, NOW())
 	`, invitee.ID, "aff-"+uuid.NewString(), inviter.ID)
 	require.NoError(t, err)
+	redeemCode := mustCreateRedeemCode(t, client, &service.RedeemCode{
+		Code:   "billing-money-rebate-" + uuid.NewString(),
+		Type:   service.RedeemTypeBalance,
+		Value:  1,
+		Status: service.StatusUsed,
+	})
 	_, err = integrationDB.ExecContext(ctx, `
-		INSERT INTO user_affiliate_ledger (inviter_user_id, invitee_user_id, event_type, amount, created_at)
-		VALUES ($1, $2, 'usage_accrue', 0.02, NOW())
-	`, inviter.ID, invitee.ID)
+		INSERT INTO user_affiliate_ledger (inviter_user_id, invitee_user_id, event_type, amount, redeem_code_id, created_at)
+		VALUES ($1, $2, 'topup_accrue', 0.02, $3, NOW())
+	`, inviter.ID, invitee.ID, redeemCode.ID)
 	require.NoError(t, err)
 
-	accrued, err := affiliateRepo.AccrueTopupRebate(ctx, 12345, invitee.ID, 0.1+0.2, service.AffiliateRebatePolicy{
+	accrued, err := affiliateRepo.AccrueTopupRebate(ctx, redeemCode.ID, invitee.ID, 0.1+0.2, service.AffiliateRebatePolicy{
 		Enabled:              true,
 		RebateOnTopupEnabled: true,
 		DefaultRatePercent:   33.33333333,

@@ -885,7 +885,7 @@ func newUpstreamGuardedDialer(settings poolSettings, base *net.Dialer, scope, sc
 			}
 			match, ok := hostexceptions.IsResolvedIPAllowed(settings.privateHostConfig, scope, effectiveScheme, host, port, ip)
 			if ok {
-				hostexceptions.LogMatch(nil, match)
+				hostexceptions.LogMatch(ctx, match)
 			}
 			return ok
 		},

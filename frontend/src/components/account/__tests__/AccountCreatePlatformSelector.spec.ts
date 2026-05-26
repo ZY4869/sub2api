@@ -13,6 +13,7 @@ vi.mock('vue-i18n', async () => {
     'admin.accounts.platforms.grok': 'Grok',
     'admin.accounts.platforms.kiro': 'Kiro',
     'admin.accounts.platforms.openai': 'OpenAI',
+    'admin.accounts.platforms.openrouter': 'OpenRouter',
     'admin.accounts.platforms.protocol_gateway': 'Protocol Gateway',
   }
   return {
@@ -54,6 +55,7 @@ describe('AccountCreatePlatformSelector', () => {
       'Grok',
       'Kiro',
       'OpenAI',
+      'OpenRouter',
       'Protocol Gateway'
     ])
     expect(wrapper.findAll('button')[0].classes()).toContain('min-w-0')

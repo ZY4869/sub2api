@@ -16,6 +16,7 @@
 package httpclient
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -179,7 +180,7 @@ func privateHostAllowFunc(opts Options, scheme string) func(host string, port in
 	return func(host string, port int, ip net.IP) bool {
 		match, ok := hostexceptions.IsResolvedIPAllowed(opts.PrivateHostConfig, scope, scheme, host, port, ip)
 		if ok {
-			hostexceptions.LogMatch(nil, match)
+			hostexceptions.LogMatch(context.Background(), match)
 		}
 		return ok
 	}

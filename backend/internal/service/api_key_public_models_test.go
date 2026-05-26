@@ -104,7 +104,22 @@ func TestGatewayService_ResolveAPIKeySelectionModel_PublishedCatalogUsesSourceMo
 	}
 	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot, published))
 	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, nil)
-	svc := &GatewayService{modelCatalogService: modelCatalogSvc}
+	svc := &GatewayService{
+		modelCatalogService: modelCatalogSvc,
+		accountRepo: &mockAccountRepoForPlatform{
+			accountsByID: map[int64]*Account{
+				42: {
+					ID:          42,
+					Name:        "openai-team-a",
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeAPIKey,
+					Status:      StatusActive,
+					Schedulable: true,
+					GroupIDs:    []int64{20},
+				},
+			},
+		},
+	}
 	apiKey := &APIKey{
 		ID: 10,
 		GroupBindings: []APIKeyGroupBinding{{

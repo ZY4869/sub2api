@@ -693,12 +693,12 @@ func TestUsageBillingRepositoryApply_AccruesAffiliateUsageRebateWithFixedPointCa
 	`, invitee.ID, "aff-"+uuid.NewString(), inviter.ID)
 	require.NoError(t, err)
 	_, err = integrationDB.ExecContext(ctx, `
-		INSERT INTO settings (key, value, created_at, updated_at)
+		INSERT INTO settings (key, value, updated_at)
 		VALUES
-			($1, 'true', NOW(), NOW()),
-			($2, 'true', NOW(), NOW()),
-			($3, '33.33333333', NOW(), NOW()),
-			($4, '0.03', NOW(), NOW())
+			($1, 'true', NOW()),
+			($2, 'true', NOW()),
+			($3, '33.33333333', NOW()),
+			($4, '0.03', NOW())
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
 	`,
 		service.SettingKeyAffiliateEnabled,
