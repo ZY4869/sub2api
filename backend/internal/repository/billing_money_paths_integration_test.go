@@ -110,7 +110,7 @@ func TestBillingMoneyPaths_TopupRebateCapAndTransferUseFixedPoint(t *testing.T) 
 	`, invitee.ID, "aff-"+uuid.NewString(), inviter.ID)
 	require.NoError(t, err)
 	redeemCode := mustCreateRedeemCode(t, client, &service.RedeemCode{
-		Code:   "billing-money-rebate-" + uuid.NewString(),
+		Code:   "bm-" + uuid.NewString()[:8],
 		Type:   service.RedeemTypeBalance,
 		Value:  1,
 		Status: service.StatusUsed,
