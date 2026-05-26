@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -91,11 +93,19 @@ func (s *documentAIHandlerSettingRepoStub) Delete(context.Context, string) error
 }
 
 type documentAIHandlerRepoStub struct {
-	job *service.DocumentAIJob
+	job                    *service.DocumentAIJob
+	createCalls            int
+	updateAfterSubmitCalls int
 }
 
-func (r *documentAIHandlerRepoStub) Create(context.Context, *service.DocumentAIJob) error {
-	panic("unexpected Create call")
+func (r *documentAIHandlerRepoStub) Create(_ context.Context, job *service.DocumentAIJob) error {
+	r.createCalls++
+	if job == nil {
+		return nil
+	}
+	cloned := *job
+	r.job = &cloned
+	return nil
 }
 
 func (r *documentAIHandlerRepoStub) GetByJobIDForUser(_ context.Context, jobID string, userID int64) (*service.DocumentAIJob, error) {
@@ -106,8 +116,16 @@ func (r *documentAIHandlerRepoStub) GetByJobIDForUser(_ context.Context, jobID s
 	return &cloned, nil
 }
 
-func (r *documentAIHandlerRepoStub) UpdateAfterSubmit(context.Context, string, *string, *string, string, *string) error {
-	panic("unexpected UpdateAfterSubmit call")
+func (r *documentAIHandlerRepoStub) UpdateAfterSubmit(_ context.Context, jobID string, providerJobID *string, providerBatchID *string, status string, providerRaw *string) error {
+	r.updateAfterSubmitCalls++
+	if r.job == nil || r.job.JobID != jobID {
+		return sql.ErrNoRows
+	}
+	r.job.ProviderJobID = providerJobID
+	r.job.ProviderBatchID = providerBatchID
+	r.job.Status = status
+	r.job.ProviderResultJSON = providerRaw
+	return nil
 }
 
 func (r *documentAIHandlerRepoStub) ListPollable(context.Context, int) ([]service.DocumentAIJob, error) {
@@ -134,6 +152,130 @@ func newEnabledDocumentAIHandler(repo service.DocumentAIJobRepository) *Document
 	settingService := service.NewSettingService(&documentAIHandlerSettingRepoStub{enabled: true}, &config.Config{})
 	documentAIService := service.NewDocumentAIService(repo, nil, nil, nil, nil, settingService, nil)
 	return NewDocumentAIHandler(documentAIService)
+}
+
+type documentAIHandlerUserRepoStub struct {
+	service.UserRepository
+	user *service.User
+}
+
+func (s *documentAIHandlerUserRepoStub) GetByID(_ context.Context, id int64) (*service.User, error) {
+	if s.user != nil {
+		return s.user, nil
+	}
+	return &service.User{ID: id, Balance: 1, Status: service.StatusActive}, nil
+}
+
+type documentAIHandlerHoldRepoStub struct {
+	reserveCalls int
+	releaseCalls int
+	reserveErr   error
+	hold         *service.BillingHold
+}
+
+func (s *documentAIHandlerHoldRepoStub) Reserve(_ context.Context, hold *service.BillingHold) (*service.BillingHold, error) {
+	s.reserveCalls++
+	if s.reserveErr != nil {
+		return nil, s.reserveErr
+	}
+	if hold == nil {
+		return nil, service.ErrInvalidBillingAmount
+	}
+	cloned := *hold
+	cloned.Status = service.BillingHoldStatusHeld
+	s.hold = &cloned
+	return &cloned, nil
+}
+
+func (s *documentAIHandlerHoldRepoStub) Settle(context.Context, string, int64, float64) (*service.BillingHold, error) {
+	return nil, service.ErrBillingHoldNotFound
+}
+
+func (s *documentAIHandlerHoldRepoStub) Release(_ context.Context, requestID string, apiKeyID int64) (*service.BillingHold, error) {
+	s.releaseCalls++
+	if s.hold == nil || s.hold.RequestID != requestID || s.hold.APIKeyID != apiKeyID {
+		return nil, service.ErrBillingHoldNotFound
+	}
+	released := *s.hold
+	released.Status = service.BillingHoldStatusReleased
+	s.hold = &released
+	return &released, nil
+}
+
+type documentAIHandlerAccountRepoStub struct {
+	service.AccountRepository
+	accounts []service.Account
+}
+
+func (s *documentAIHandlerAccountRepoStub) ListSchedulableByGroupIDAndPlatform(_ context.Context, groupID int64, platform string) ([]service.Account, error) {
+	if groupID != 9 || platform != service.PlatformBaiduDocumentAI {
+		return nil, nil
+	}
+	return append([]service.Account(nil), s.accounts...), nil
+}
+
+type documentAIHandlerHTTPUpstreamFunc func(*http.Request, string, int64, int) (*http.Response, error)
+
+func (f documentAIHandlerHTTPUpstreamFunc) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+	return f(req, proxyURL, accountID, accountConcurrency)
+}
+
+func (f documentAIHandlerHTTPUpstreamFunc) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
+	return f(req, proxyURL, accountID, accountConcurrency)
+}
+
+type documentAIHandlerAPIKeyRepoStub struct {
+	service.APIKeyRepository
+	holdRepo *documentAIHandlerHoldRepoStub
+	keys     []string
+}
+
+func (s *documentAIHandlerAPIKeyRepoStub) BillingHoldRepository() service.BillingHoldRepository {
+	return s.holdRepo
+}
+
+func (s *documentAIHandlerAPIKeyRepoStub) GetRateLimitData(context.Context, int64) (*service.APIKeyRateLimitData, error) {
+	return &service.APIKeyRateLimitData{}, nil
+}
+
+func (s *documentAIHandlerAPIKeyRepoStub) ResetRateLimitWindows(context.Context, int64) error {
+	return nil
+}
+
+func (s *documentAIHandlerAPIKeyRepoStub) ListKeysByUserID(context.Context, int64) ([]string, error) {
+	return append([]string(nil), s.keys...), nil
+}
+
+func (s *documentAIHandlerAPIKeyRepoStub) ListKeysByGroupID(context.Context, int64) ([]string, error) {
+	return nil, nil
+}
+
+func newDocumentAIBillingHandler(
+	documentAIService *service.DocumentAIService,
+	user *service.User,
+	holdRepo *documentAIHandlerHoldRepoStub,
+	cfg *config.Config,
+) *DocumentAIHandler {
+	if cfg == nil {
+		cfg = &config.Config{}
+	}
+	apiKeyRepo := &documentAIHandlerAPIKeyRepoStub{holdRepo: holdRepo, keys: []string{"sk-doc"}}
+	billingCacheService := service.NewBillingCacheService(nil, &documentAIHandlerUserRepoStub{user: user}, nil, apiKeyRepo, cfg)
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg)
+	apiKeyService.SetBillingCacheService(billingCacheService)
+	return ProvideDocumentAIHandler(documentAIService, billingCacheService, apiKeyService, nil)
+}
+
+func newDocumentAITestAPIKey(balance float64) *service.APIKey {
+	return &service.APIKey{
+		ID:     1,
+		Key:    "sk-doc",
+		UserID: 2,
+		User:   &service.User{ID: 2, Balance: balance, Status: service.StatusActive},
+		GroupBindings: []service.APIKeyGroupBinding{
+			{GroupID: 9, Group: &service.Group{ID: 9, Platform: service.PlatformBaiduDocumentAI, Status: service.StatusActive, Hydrated: true}},
+		},
+	}
 }
 
 func TestDocumentAIHandlerBuildSubmitInputJSONFileURL(t *testing.T) {
@@ -257,6 +399,109 @@ func TestDocumentAIHandlerCreateJobRequiresBaiduGroupBinding(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	resp := decodeResponseEnvelope(t, rec)
 	require.Contains(t, resp.Message, "Baidu Document AI group")
+}
+
+func TestDocumentAIHandlerCreateJobRejectsInsufficientBalanceBeforeService(t *testing.T) {
+	holdRepo := &documentAIHandlerHoldRepoStub{reserveErr: service.ErrInsufficientBalance}
+	jobRepo := &documentAIHandlerRepoStub{}
+	settingService := service.NewSettingService(&documentAIHandlerSettingRepoStub{enabled: true}, &config.Config{})
+	documentAIService := service.NewDocumentAIService(jobRepo, nil, nil, nil, nil, settingService, nil)
+	apiKey := newDocumentAITestAPIKey(0.01)
+	handler := newDocumentAIBillingHandler(documentAIService, apiKey.User, holdRepo, &config.Config{})
+	ctx, rec := newDocumentAIHandlerContext(
+		http.MethodPost,
+		"/document-ai/v1/jobs",
+		[]byte(`{"model":"pp-ocrv5-server","file_url":"https://example.com/doc.pdf"}`),
+		"application/json",
+		apiKey,
+	)
+
+	handler.CreateJob(ctx)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	resp := decodeResponseEnvelope(t, rec)
+	require.Equal(t, "INSUFFICIENT_BALANCE", resp.Reason)
+	require.Equal(t, 1, holdRepo.reserveCalls)
+	require.Equal(t, 0, holdRepo.releaseCalls)
+	require.Equal(t, 0, jobRepo.createCalls)
+}
+
+func TestDocumentAIHandlerCreateJobReleasesHoldAfterServiceFailure(t *testing.T) {
+	holdRepo := &documentAIHandlerHoldRepoStub{}
+	handler := newDocumentAIBillingHandler(&service.DocumentAIService{}, &service.User{ID: 2, Balance: 1, Status: service.StatusActive}, holdRepo, &config.Config{})
+	apiKey := newDocumentAITestAPIKey(1)
+	ctx, rec := newDocumentAIHandlerContext(
+		http.MethodPost,
+		"/document-ai/v1/jobs",
+		[]byte(`{"model":"pp-ocrv5-server","file_url":"https://example.com/doc.pdf"}`),
+		"application/json",
+		apiKey,
+	)
+
+	handler.CreateJob(ctx)
+
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	resp := decodeResponseEnvelope(t, rec)
+	require.Equal(t, "document_ai_disabled", resp.Reason)
+	require.Equal(t, 1, holdRepo.reserveCalls)
+	require.Equal(t, 1, holdRepo.releaseCalls)
+	require.NotNil(t, apiKey.BillingHold)
+	require.Equal(t, service.BillingHoldStatusReleased, apiKey.BillingHold.Status)
+	require.NotEmpty(t, apiKey.BillingHold.RequestFingerprint)
+}
+
+func TestDocumentAIHandlerCreateJobReleasesHoldAfterSuccessfulFreeSubmit(t *testing.T) {
+	holdRepo := &documentAIHandlerHoldRepoStub{}
+	jobRepo := &documentAIHandlerRepoStub{}
+	accountRepo := &documentAIHandlerAccountRepoStub{accounts: []service.Account{
+		{
+			ID:       7,
+			Name:     "doc-ai",
+			Platform: service.PlatformBaiduDocumentAI,
+			Type:     service.AccountTypeAPIKey,
+			Status:   service.StatusActive,
+			Credentials: map[string]any{
+				"async_bearer_token": "token",
+				"async_base_url":     service.DefaultBaiduDocumentAIAsyncBaseURL(),
+			},
+		},
+	}}
+	upstream := documentAIHandlerHTTPUpstreamFunc(func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+		require.Equal(t, http.MethodPost, req.Method)
+		require.Equal(t, service.DefaultBaiduDocumentAIAsyncBaseURL()+"/jobs", req.URL.String())
+		body, err := io.ReadAll(req.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), `"fileUrl":"https://example.com/doc.pdf"`)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(bytes.NewBufferString(`{"jobId":"provider-job-1","status":"running"}`)),
+		}, nil
+	})
+	settingService := service.NewSettingService(&documentAIHandlerSettingRepoStub{enabled: true}, &config.Config{})
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.DocumentAIHosts = []string{"paddleocr.aistudio-app.com"}
+	documentAIService := service.NewDocumentAIService(jobRepo, accountRepo, upstream, nil, nil, settingService, cfg)
+	apiKey := newDocumentAITestAPIKey(1)
+	handler := newDocumentAIBillingHandler(documentAIService, apiKey.User, holdRepo, cfg)
+	ctx, rec := newDocumentAIHandlerContext(
+		http.MethodPost,
+		"/document-ai/v1/jobs",
+		[]byte(`{"model":"pp-ocrv5-server","file_url":"https://example.com/doc.pdf"}`),
+		"application/json",
+		apiKey,
+	)
+
+	handler.CreateJob(ctx)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 1, holdRepo.reserveCalls)
+	require.Equal(t, 1, holdRepo.releaseCalls)
+	require.Equal(t, 1, jobRepo.createCalls)
+	require.Equal(t, 1, jobRepo.updateAfterSubmitCalls)
+	require.NotNil(t, apiKey.BillingHold)
+	require.Equal(t, service.BillingHoldStatusReleased, apiKey.BillingHold.Status)
+	require.NotEmpty(t, apiKey.BillingHold.RequestFingerprint)
 }
 
 func TestDocumentAIHandlerParseReturns400OnInvalidAction(t *testing.T) {

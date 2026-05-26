@@ -123,25 +123,12 @@
                 <Icon name="link" size="xs" class="h-3 w-3" />
                 <span>{{ t('common.copy') }}</span>
               </button>
-            </div>
-            <div
-              v-if="row.status === 'failed'"
-              class="space-y-1 text-xs text-rose-600 dark:text-rose-300"
-            >
-              <div class="flex flex-wrap gap-x-3 gap-y-1">
-                <span v-if="row.http_status != null">
-                  <span class="font-medium">{{ t("usage.httpStatus") }}:</span>
-                  {{ row.http_status }}
-                </span>
-                <span v-if="row.error_code">
-                  <span class="font-medium">{{ t("usage.errorCode") }}:</span>
-                  {{ row.error_code }}
-                </span>
-              </div>
-              <div v-if="row.error_message" :title="row.error_message" class="truncate">
-                <span class="font-medium">{{ t("usage.errorMessage") }}:</span>
-                <span class="ml-1">{{ truncateUsageErrorMessage(row.error_message) }}</span>
-              </div>
+              <AccountErrorTooltipButton
+                v-if="row.status === 'failed' && hasUsageFailureDetail(row)"
+                :message="buildUsageFailureSummary(row)"
+                :ariaLabel="t('usage.errorMessage')"
+                button-class="rounded-full border border-rose-200/80 bg-rose-50 px-1.5 py-1 text-rose-600 transition hover:text-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:text-rose-100"
+              />
             </div>
           </div>
         </template>
@@ -808,6 +795,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import UsageModelCell from "@/components/common/UsageModelCell.vue";
 import UsageContextBadgesCell from "@/components/common/UsageContextBadgesCell.vue";
 import UsageRequestLengthCell from "@/components/common/UsageRequestLengthCell.vue";
+import AccountErrorTooltipButton from "@/components/account/AccountErrorTooltipButton.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type {
   AdminUsageLog,
@@ -860,6 +848,11 @@ const copyUsageFailure = async (row: AdminUsageLog) => {
   await copyToClipboard(buildUsageFailureSummary(row));
 };
 
+const hasUsageFailureDetail = (row: AdminUsageLog): boolean =>
+  row.http_status != null ||
+  Boolean(String(row.error_code || "").trim()) ||
+  Boolean(String(row.error_message || "").trim());
+
 // Tooltip state - cost
 const tooltipVisible = ref(false);
 const tooltipPosition = ref({ x: 0, y: 0 });
@@ -899,14 +892,6 @@ const getSimulatedClientLabel = (
     return t("usage.simulatedClientGeminiCli");
   }
   return t("usage.simulatedClientCodex");
-};
-
-const truncateUsageErrorMessage = (message: string): string => {
-  const trimmed = message.trim();
-  if (trimmed.length <= 120) {
-    return trimmed;
-  }
-  return `${trimmed.slice(0, 117)}...`;
 };
 
 const formatCacheTokens = (tokens: number): string => {

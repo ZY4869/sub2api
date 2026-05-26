@@ -787,7 +787,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 			})
 		}
 		return decorateDefaultTestModels(result, PlatformAntigravity)
-	case PlatformOpenAI:
+	case PlatformOpenAI, PlatformOpenRouter:
 		result := make([]AvailableTestModel, 0, len(openai.DefaultModels))
 		for _, item := range openai.DefaultModels {
 			result = append(result, AvailableTestModel{

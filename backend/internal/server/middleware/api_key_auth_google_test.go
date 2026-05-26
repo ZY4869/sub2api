@@ -21,6 +21,7 @@ import (
 type fakeAPIKeyRepo struct {
 	getByKey       func(ctx context.Context, key string) (*service.APIKey, error)
 	updateLastUsed func(ctx context.Context, id int64, usedAt time.Time) error
+	holdRepo       service.BillingHoldRepository
 }
 
 type fakeGoogleSubscriptionRepo struct {
@@ -49,6 +50,12 @@ func (f fakeAPIKeyRepo) GetByKey(ctx context.Context, key string) (*service.APIK
 }
 func (f fakeAPIKeyRepo) GetByKeyForAuth(ctx context.Context, key string) (*service.APIKey, error) {
 	return f.GetByKey(ctx, key)
+}
+func (f fakeAPIKeyRepo) BillingHoldRepository() service.BillingHoldRepository {
+	if f.holdRepo != nil {
+		return f.holdRepo
+	}
+	return fakeGoogleBillingHoldRepo{}
 }
 func (f fakeAPIKeyRepo) Update(ctx context.Context, key *service.APIKey) error {
 	return errors.New("not implemented")
@@ -121,6 +128,47 @@ func (f fakeAPIKeyRepo) SetAPIKeyGroups(ctx context.Context, keyID int64, bindin
 }
 func (f fakeAPIKeyRepo) IncrementAPIKeyGroupQuotaUsed(ctx context.Context, keyID, groupID int64, amount float64) error {
 	return errors.New("not implemented")
+}
+
+type fakeGoogleBillingHoldRepo struct{}
+
+func (fakeGoogleBillingHoldRepo) Reserve(ctx context.Context, hold *service.BillingHold) (*service.BillingHold, error) {
+	if hold == nil {
+		return nil, service.ErrInvalidBillingAmount
+	}
+	amount, err := service.NormalizeAndValidatePositiveBillingAmount(hold.Amount)
+	if err != nil {
+		return nil, err
+	}
+	if hold.UserID <= 0 || hold.APIKeyID <= 0 {
+		return nil, service.ErrInvalidBillingAmount
+	}
+	out := *hold
+	out.Amount = amount
+	out.Status = service.BillingHoldStatusHeld
+	return &out, nil
+}
+
+func (fakeGoogleBillingHoldRepo) Settle(ctx context.Context, requestID string, apiKeyID int64, actualAmount float64) (*service.BillingHold, error) {
+	return nil, service.ErrBillingHoldNotFound
+}
+
+func (fakeGoogleBillingHoldRepo) Release(ctx context.Context, requestID string, apiKeyID int64) (*service.BillingHold, error) {
+	return nil, service.ErrBillingHoldNotFound
+}
+
+type insufficientGoogleBillingHoldRepo struct{}
+
+func (insufficientGoogleBillingHoldRepo) Reserve(ctx context.Context, hold *service.BillingHold) (*service.BillingHold, error) {
+	return nil, service.ErrInsufficientBalance
+}
+
+func (insufficientGoogleBillingHoldRepo) Settle(ctx context.Context, requestID string, apiKeyID int64, actualAmount float64) (*service.BillingHold, error) {
+	return nil, service.ErrBillingHoldNotFound
+}
+
+func (insufficientGoogleBillingHoldRepo) Release(ctx context.Context, requestID string, apiKeyID int64) (*service.BillingHold, error) {
+	return nil, service.ErrBillingHoldNotFound
 }
 
 func (f fakeGoogleSubscriptionRepo) Create(ctx context.Context, sub *service.UserSubscription) error {
@@ -451,6 +499,7 @@ func TestApiKeyAuthWithSubscriptionGoogle_InsufficientBalance(t *testing.T) {
 
 	r := gin.New()
 	apiKeyService := newTestAPIKeyService(fakeAPIKeyRepo{
+		holdRepo: insufficientGoogleBillingHoldRepo{},
 		getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
 			return &service.APIKey{
 				ID:     1,
@@ -465,9 +514,9 @@ func TestApiKeyAuthWithSubscriptionGoogle_InsufficientBalance(t *testing.T) {
 		},
 	})
 	r.Use(APIKeyAuthWithSubscriptionGoogle(apiKeyService, nil, &config.Config{}))
-	r.GET("/v1beta/test", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
+	r.POST("/v1beta/models/gemini-pro:generateContent", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
 
-	req := httptest.NewRequest(http.MethodGet, "/v1beta/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-pro:generateContent", nil)
 	req.Header.Set("Authorization", "Bearer ok")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -478,6 +527,36 @@ func TestApiKeyAuthWithSubscriptionGoogle_InsufficientBalance(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, resp.Error.Code)
 	require.Equal(t, "Insufficient account balance", resp.Error.Message)
 	require.Equal(t, "PERMISSION_DENIED", resp.Error.Status)
+}
+
+func TestApiKeyAuthWithSubscriptionGoogle_ModelListDoesNotReserveHold(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	r := gin.New()
+	apiKeyService := newTestAPIKeyService(fakeAPIKeyRepo{
+		holdRepo: insufficientGoogleBillingHoldRepo{},
+		getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+			return &service.APIKey{
+				ID:     1,
+				Key:    key,
+				Status: service.StatusActive,
+				User: &service.User{
+					ID:      123,
+					Status:  service.StatusActive,
+					Balance: 0,
+				},
+			}, nil
+		},
+	})
+	r.Use(APIKeyAuthWithSubscriptionGoogle(apiKeyService, nil, &config.Config{}))
+	r.GET("/v1beta/models", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
+
+	req := httptest.NewRequest(http.MethodGet, "/v1beta/models", nil)
+	req.Header.Set("Authorization", "Bearer ok")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestApiKeyAuthWithSubscriptionGoogle_TouchesLastUsedOnSuccess(t *testing.T) {

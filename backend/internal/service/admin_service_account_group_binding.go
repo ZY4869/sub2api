@@ -48,6 +48,9 @@ func allowedGroupPlatformsForAccount(accountPlatform string, extra map[string]an
 	for _, platform := range platforms {
 		allowed[platform] = struct{}{}
 	}
+	if IsProtocolGatewayPlatform(accountPlatform) {
+		allowed[PlatformProtocolGateway] = struct{}{}
+	}
 	if strings.EqualFold(accountPlatform, PlatformAntigravity) && extraBool(extra, "mixed_scheduling") {
 		allowed[PlatformAnthropic] = struct{}{}
 		allowed[PlatformGemini] = struct{}{}

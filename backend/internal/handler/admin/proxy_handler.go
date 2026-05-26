@@ -2,14 +2,20 @@ package admin
 
 import (
 	"context"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 // ProxyHandler handles admin proxy management
@@ -299,9 +305,9 @@ func (h *ProxyHandler) GetProxyAccounts(c *gin.Context) {
 
 // BatchCreateProxyItem represents a single proxy in batch create request
 type BatchCreateProxyItem struct {
-	Protocol string `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
-	Host     string `json:"host" binding:"required"`
-	Port     int    `json:"port" binding:"required,min=1,max=65535"`
+	Protocol string `json:"protocol"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -330,6 +336,12 @@ func (h *ProxyHandler) BatchCreate(c *gin.Context) {
 		username := strings.TrimSpace(item.Username)
 		password := strings.TrimSpace(item.Password)
 
+		if err := h.adminService.ValidateProxyEndpoint(c.Request.Context(), protocol, host, item.Port); err != nil {
+			logProxyBatchValidationFailure(c, protocol, host, item.Port, err)
+			response.ErrorFrom(c, err)
+			return
+		}
+
 		// Check for duplicates (same host, port, username, password)
 		exists, err := h.adminService.CheckProxyExists(c.Request.Context(), host, item.Port, username, password)
 		if err != nil {
@@ -352,9 +364,8 @@ func (h *ProxyHandler) BatchCreate(c *gin.Context) {
 			Password: password,
 		})
 		if err != nil {
-			// If creation fails due to duplicate, count as skipped
-			skipped++
-			continue
+			response.ErrorFrom(c, err)
+			return
 		}
 
 		created++
@@ -364,4 +375,35 @@ func (h *ProxyHandler) BatchCreate(c *gin.Context) {
 		"created": created,
 		"skipped": skipped,
 	})
+}
+
+func logProxyBatchValidationFailure(c *gin.Context, protocol, host string, port int, err error) {
+	if c == nil || c.Request == nil {
+		return
+	}
+	ctx := c.Request.Context()
+	fields := []zap.Field{
+		zap.String("protocol", strings.ToLower(strings.TrimSpace(protocol))),
+		zap.String("host", redactedProxyHostForLog(host)),
+		zap.Int("port", port),
+		zap.String("reason", infraerrors.Reason(err)),
+	}
+	if requestID, _ := ctx.Value(ctxkey.RequestID).(string); strings.TrimSpace(requestID) != "" {
+		fields = append(fields, zap.String("request_id", strings.TrimSpace(requestID)))
+	}
+	logger.FromContext(ctx).Warn("admin_proxy_batch_create_rejected", fields...)
+}
+
+func redactedProxyHostForLog(host string) string {
+	trimmed := logredact.RedactText(strings.TrimSpace(host))
+	if trimmed == "" {
+		return ""
+	}
+	if parsed, err := url.Parse(trimmed); err == nil && parsed.Hostname() != "" {
+		return parsed.Hostname()
+	}
+	if idx := strings.LastIndex(trimmed, "@"); idx >= 0 {
+		return "***@" + trimmed[idx+1:]
+	}
+	return trimmed
 }

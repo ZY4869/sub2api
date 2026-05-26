@@ -982,8 +982,12 @@ func (a *Account) IsDeepSeek() bool {
 	return EffectiveProtocol(a) == PlatformDeepSeek
 }
 
+func (a *Account) IsOpenRouter() bool {
+	return EffectiveProtocol(a) == PlatformOpenRouter
+}
+
 func (a *Account) IsOpenAITextCompatible() bool {
-	return a.IsOpenAI() || a.IsDeepSeek()
+	return a.IsOpenAI() || a.IsDeepSeek() || a.IsOpenRouter()
 }
 
 func (a *Account) IsAnthropic() bool {
@@ -1009,6 +1013,17 @@ func (a *Account) GetOpenAIBaseURL() string {
 	return "https://api.openai.com"
 }
 
+func (a *Account) GetOpenRouterBaseURL() string {
+	if a == nil || a.Type != AccountTypeAPIKey || a.Platform != PlatformOpenRouter {
+		return ""
+	}
+	baseURL := strings.TrimSpace(a.GetCredential("base_url"))
+	if baseURL != "" {
+		return baseURL
+	}
+	return openRouterDefaultAPIBaseURL
+}
+
 func (a *Account) GetOpenAIAccessToken() string {
 	if !a.IsOpenAI() {
 		return ""
@@ -1032,6 +1047,13 @@ func (a *Account) GetOpenAIIDToken() string {
 
 func (a *Account) GetOpenAIApiKey() string {
 	if !a.IsOpenAIApiKey() {
+		return ""
+	}
+	return a.GetCredential("api_key")
+}
+
+func (a *Account) GetOpenRouterAPIKey() string {
+	if a == nil || a.Platform != PlatformOpenRouter || a.Type != AccountTypeAPIKey {
 		return ""
 	}
 	return a.GetCredential("api_key")

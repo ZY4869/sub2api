@@ -69,7 +69,7 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 	return user, nil
 }
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
-	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: RoleUser, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups}
+	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: RoleUser, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups, APIKeyModelBindingMode: NormalizeAPIKeyModelBindingMode(input.APIKeyModelBindingMode)}
 	if err := user.SetPassword(input.Password); err != nil {
 		return nil, err
 	}
@@ -103,6 +103,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	oldRole := user.Role
 	oldAdminFreeBilling := user.AdminFreeBilling
 	oldRequestDetailsReview := user.RequestDetailsReview
+	oldAPIKeyModelBindingMode := user.EffectiveAPIKeyModelBindingMode()
 	if input.Email != "" {
 		user.Email = input.Email
 	}
@@ -136,6 +137,9 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 			user.RequestDetailsReview = *input.RequestDetailsReview
 		}
 	}
+	if input.APIKeyModelBindingMode != nil {
+		user.APIKeyModelBindingMode = NormalizeAPIKeyModelBindingMode(*input.APIKeyModelBindingMode)
+	}
 	if user.Role != RoleAdmin {
 		user.AdminFreeBilling = false
 	}
@@ -148,7 +152,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		}
 	}
 	if s.authCacheInvalidator != nil {
-		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.AdminFreeBilling != oldAdminFreeBilling || user.RequestDetailsReview != oldRequestDetailsReview {
+		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.AdminFreeBilling != oldAdminFreeBilling || user.RequestDetailsReview != oldRequestDetailsReview || user.EffectiveAPIKeyModelBindingMode() != oldAPIKeyModelBindingMode {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
 	}
@@ -169,6 +173,14 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 			zap.Bool("before", oldRequestDetailsReview),
 			zap.Bool("after", user.RequestDetailsReview),
 		).Info("request details review updated")
+	}
+	if user.EffectiveAPIKeyModelBindingMode() != oldAPIKeyModelBindingMode {
+		logger.With(
+			zap.String("component", "audit.api_key_model_binding_mode"),
+			zap.Int64("user_id", user.ID),
+			zap.String("before", oldAPIKeyModelBindingMode),
+			zap.String("after", user.EffectiveAPIKeyModelBindingMode()),
+		).Info("api key model binding mode updated")
 	}
 	concurrencyDiff := user.Concurrency - oldConcurrency
 	if concurrencyDiff != 0 {
@@ -204,27 +216,55 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 	return nil
 }
 func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error) {
+	balance, err := NormalizeAndValidateBillingAmount(balance)
+	if err != nil {
+		return nil, err
+	}
+	balanceMoney, err := NewBillingMoneyFromFloat(balance)
+	if err != nil {
+		return nil, err
+	}
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	oldBalance := user.Balance
+	oldBalanceMoney, err := NewBillingMoneyFromFloat(oldBalance)
+	if err != nil {
+		return nil, err
+	}
+	newBalanceMoney := oldBalanceMoney
 	switch operation {
 	case "set":
-		user.Balance = balance
+		newBalanceMoney = balanceMoney
 	case "add":
-		user.Balance += balance
+		newBalanceMoney, err = oldBalanceMoney.Add(balanceMoney)
 	case "subtract":
-		user.Balance -= balance
+		newBalanceMoney, err = oldBalanceMoney.Sub(balanceMoney)
 	}
-	if user.Balance < 0 {
-		return nil, fmt.Errorf("balance cannot be negative, current balance: %.2f, requested operation would result in: %.2f", oldBalance, user.Balance)
+	if err != nil {
+		return nil, err
+	}
+	if newBalanceMoney.IsNegative() {
+		return nil, fmt.Errorf("balance cannot be negative, current balance: %.2f, requested operation would result in: %.2f", oldBalance, newBalanceMoney.Float64())
+	}
+	user.Balance, err = NormalizeAndValidateNonNegativeBillingAmount(newBalanceMoney.Float64())
+	if err != nil {
+		return nil, err
 	}
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
-	balanceDiff := user.Balance - oldBalance
-	if s.authCacheInvalidator != nil && balanceDiff != 0 {
+	newBalanceMoney, err = NewNonNegativeBillingMoneyFromFloat(user.Balance)
+	if err != nil {
+		return nil, err
+	}
+	balanceDiffMoney, err := newBalanceMoney.Sub(oldBalanceMoney)
+	if err != nil {
+		return nil, err
+	}
+	balanceDiff := balanceDiffMoney.Float64()
+	if s.authCacheInvalidator != nil && !balanceDiffMoney.IsZero() {
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
 	}
 	if s.billingCacheService != nil {
@@ -236,7 +276,7 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 			}
 		}()
 	}
-	if balanceDiff != 0 {
+	if !balanceDiffMoney.IsZero() {
 		code, err := GenerateRedeemCode()
 		if err != nil {
 			logger.LegacyPrintf("service.admin", "failed to generate adjustment redeem code: %v", err)
@@ -249,7 +289,7 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 		if createErr != nil {
 			logger.LegacyPrintf("service.admin", "failed to create balance adjustment redeem code: %v", createErr)
 		}
-		if createErr == nil && balanceDiff > 0 && s.affiliateService != nil && adjustmentRecord.ID > 0 {
+		if createErr == nil && balanceDiffMoney.IsPositive() && s.affiliateService != nil && adjustmentRecord.ID > 0 {
 			s.affiliateService.AccrueTopupRebateBestEffort(ctx, adjustmentRecord.ID, userID, balanceDiff)
 		}
 	}

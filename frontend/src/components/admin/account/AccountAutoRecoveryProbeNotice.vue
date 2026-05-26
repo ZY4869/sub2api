@@ -1,31 +1,13 @@
 <template>
   <div
     v-if="visibleSummary"
-    class="rounded-xl border px-3 py-2 text-xs"
-    :class="containerClass"
+    class="inline-flex items-center"
   >
-    <div class="flex items-center gap-2">
-      <span class="font-semibold">{{ headline }}</span>
-      <span
-        v-if="visibleSummary?.blacklisted"
-        class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-        :class="badgeClass"
-      >
-        {{ t('admin.accounts.autoRecoveryProbe.autoBlacklisted') }}
-      </span>
-    </div>
-    <p class="mt-1 leading-5">{{ summaryText }}</p>
-    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] opacity-80">
-      <span v-if="visibleSummary?.checked_at">
-        {{ t('admin.accounts.autoRecoveryProbe.checkedAt', { time: formatDateTime(visibleSummary.checked_at) }) }}
-      </span>
-      <span v-if="visibleSummary?.next_retry_at">
-        {{ t('admin.accounts.autoRecoveryProbe.nextRetryAt', { time: formatDateTime(visibleSummary.next_retry_at) }) }}
-      </span>
-      <span v-if="visibleSummary?.error_code">
-        {{ t('admin.accounts.autoRecoveryProbe.errorCode', { code: visibleSummary.error_code }) }}
-      </span>
-    </div>
+    <AccountErrorTooltipButton
+      :message="detailText"
+      :ariaLabel="headline"
+      :button-class="buttonClass"
+    />
   </div>
 </template>
 
@@ -33,7 +15,10 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AccountAutoRecoveryProbeSummary } from '@/types'
+import AccountErrorTooltipButton from '@/components/account/AccountErrorTooltipButton.vue'
 import { formatDateTime } from '@/utils/format'
+import { resolveAccountAiryIssueSummary } from './accountAiryIssueText'
+import type { AiryStatusKind } from './accountAiryStatusTypes'
 
 const props = defineProps<{
   summary?: AccountAutoRecoveryProbeSummary | null
@@ -66,6 +51,12 @@ const statusKey = computed(() => {
   }
 })
 
+const summaryKind = computed<AiryStatusKind>(() => {
+  if (statusKey.value === 'blacklisted') return 'banned'
+  if (statusKey.value === 'retry_scheduled') return 'syncing'
+  return 'error'
+})
+
 const headline = computed(() =>
   t('admin.accounts.autoRecoveryProbe.headline', {
     status: t(`admin.accounts.autoRecoveryProbe.statuses.${statusKey.value}`)
@@ -74,26 +65,51 @@ const headline = computed(() =>
 
 const summaryText = computed(() => {
   const text = String(visibleSummary.value?.summary || '').trim()
-  if (text) {
-    return text
+  if (text || visibleSummary.value?.error_code) {
+    const summary = resolveAccountAiryIssueSummary(summaryKind.value, [
+      text,
+      visibleSummary.value?.error_code,
+    ])
+    if (summary.helperKey) return t(summary.helperKey)
+    if (summary.helper) return summary.helper
   }
   return t(`admin.accounts.autoRecoveryProbe.summaries.${statusKey.value}`)
 })
 
-const containerClass = computed(() => {
-  if (visibleSummary.value?.blacklisted || visibleSummary.value?.status === 'blacklisted') {
-    return 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
+const detailText = computed(() => {
+  if (!visibleSummary.value) return ''
+  const lines = [
+    headline.value,
+    summaryText.value,
+  ]
+  if (visibleSummary.value.blacklisted) {
+    lines.push(t('admin.accounts.autoRecoveryProbe.autoBlacklisted'))
   }
-  if (visibleSummary.value?.status === 'retry_scheduled') {
-    return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100'
+  if (visibleSummary.value.checked_at) {
+    lines.push(t('admin.accounts.autoRecoveryProbe.checkedAt', {
+      time: formatDateTime(visibleSummary.value.checked_at)
+    }))
   }
-  return 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100'
+  if (visibleSummary.value.next_retry_at) {
+    lines.push(t('admin.accounts.autoRecoveryProbe.nextRetryAt', {
+      time: formatDateTime(visibleSummary.value.next_retry_at)
+    }))
+  }
+  if (visibleSummary.value.error_code) {
+    lines.push(t('admin.accounts.autoRecoveryProbe.errorCode', {
+      code: visibleSummary.value.error_code
+    }))
+  }
+  return lines.filter(Boolean).join('\n')
 })
 
-const badgeClass = computed(() => {
+const buttonClass = computed(() => {
   if (visibleSummary.value?.blacklisted || visibleSummary.value?.status === 'blacklisted') {
-    return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-100'
+    return 'rounded-full border border-red-200/80 bg-red-50 px-1.5 py-1 text-red-600 transition hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-200 dark:hover:text-red-100'
   }
-  return 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-100'
+  if (visibleSummary.value?.status === 'retry_scheduled') {
+    return 'rounded-full border border-amber-200/80 bg-amber-50 px-1.5 py-1 text-amber-600 transition hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:text-amber-50'
+  }
+  return 'rounded-full border border-rose-200/80 bg-rose-50 px-1.5 py-1 text-rose-600 transition hover:text-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:text-rose-100'
 })
 </script>

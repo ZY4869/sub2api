@@ -154,13 +154,22 @@ type SecurityConfig struct {
 	ProxyProbe      ProxyProbeConfig     `mapstructure:"proxy_probe"`
 }
 type URLAllowlistConfig struct {
-	Enabled           bool     `mapstructure:"enabled"`
-	UpstreamHosts     []string `mapstructure:"upstream_hosts"`
-	PricingHosts      []string `mapstructure:"pricing_hosts"`
-	CRSHosts          []string `mapstructure:"crs_hosts"`
-	DocumentAIHosts   []string `mapstructure:"document_ai_hosts"`
-	AllowPrivateHosts bool     `mapstructure:"allow_private_hosts"`
-	AllowInsecureHTTP bool     `mapstructure:"allow_insecure_http"`
+	Enabled               bool                         `mapstructure:"enabled"`
+	UpstreamHosts         []string                     `mapstructure:"upstream_hosts"`
+	PricingHosts          []string                     `mapstructure:"pricing_hosts"`
+	CRSHosts              []string                     `mapstructure:"crs_hosts"`
+	DocumentAIHosts       []string                     `mapstructure:"document_ai_hosts"`
+	PrivateHostExceptions []PrivateHostExceptionConfig `mapstructure:"private_host_exceptions"`
+	AllowPrivateHosts     bool                         `mapstructure:"allow_private_hosts"`
+	AllowInsecureHTTP     bool                         `mapstructure:"allow_insecure_http"`
+}
+type PrivateHostExceptionConfig struct {
+	Scope       string   `mapstructure:"scope"`
+	Hosts       []string `mapstructure:"hosts"`
+	CIDRs       []string `mapstructure:"cidrs"`
+	Ports       []int    `mapstructure:"ports"`
+	Schemes     []string `mapstructure:"schemes"`
+	Description string   `mapstructure:"description"`
 }
 type ResponseHeaderConfig struct {
 	Enabled           bool     `mapstructure:"enabled"`
@@ -178,7 +187,9 @@ type ProxyProbeConfig struct {
 	InsecureSkipVerify bool `mapstructure:"insecure_skip_verify"`
 }
 type BillingConfig struct {
-	CircuitBreaker CircuitBreakerConfig `mapstructure:"circuit_breaker"`
+	CircuitBreaker                  CircuitBreakerConfig `mapstructure:"circuit_breaker"`
+	MinimumRequestHoldUSD           float64              `mapstructure:"minimum_request_hold_usd"`
+	RequestHoldSettlementMaxSeconds int                  `mapstructure:"request_hold_settlement_max_seconds"`
 }
 type CircuitBreakerConfig struct {
 	Enabled             bool `mapstructure:"enabled"`

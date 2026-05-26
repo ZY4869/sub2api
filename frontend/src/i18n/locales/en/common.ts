@@ -88,7 +88,12 @@ export default {
         daysHours: '{d}d {h}h',
         hoursMinutes: '{h}h {m}m',
         minutes: '{m}m',
-        withSuffix: '{time} to lift'
+        withSuffix: '{time} to lift',
+        compact: {
+          hoursMinutes: '{h}h {m}m',
+          minutesSeconds: '{m}m {s}s',
+          seconds: '{s}s',
+        }
       }
     }
   },

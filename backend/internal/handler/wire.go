@@ -341,7 +341,7 @@ var ProviderSet = wire.NewSet(
 	ProvideGatewayHandler,
 	ProvideOpenAIGatewayHandler,
 	ProvideGrokGatewayHandler,
-	NewDocumentAIHandler,
+	ProvideDocumentAIHandler,
 	NewTotpHandler,
 	NewPaymentHandler,
 	ProvideSettingHandler,

@@ -166,20 +166,8 @@ describe("AccountsViewToolbar", () => {
       ?.trigger("click");
     await wrapper.get('[data-daily5h-toggle="true"]').trigger("click");
     await wrapper.get('[data-daily5h-settings="true"]').trigger("click");
-    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
-    await nextTick();
-    await wrapper
-      .findAll("button")
-      .find((button) => button.text().includes("admin.accounts.dataImport"))
-      ?.trigger("click");
-    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
-    await nextTick();
-    await wrapper
-      .findAll("button")
-      .find((button) =>
-        button.text().includes("admin.accounts.dataExportSelected"),
-      )
-      ?.trigger("click");
+    await wrapper.get('[data-account-import-button="true"]').trigger("click");
+    await wrapper.get('[data-account-export-button="true"]').trigger("click");
     await wrapper.get('[data-more-actions-button="true"]').trigger("click");
     await nextTick();
     await wrapper
@@ -226,7 +214,12 @@ describe("AccountsViewToolbar", () => {
     await wrapper.get('[data-more-actions-button="true"]').trigger("click");
     await nextTick();
 
-    expect(wrapper.text()).toContain("admin.accounts.dataImport");
+    expect(wrapper.get('[data-account-import-button="true"]').text()).toContain(
+      "admin.accounts.dataImport",
+    );
+    expect(wrapper.get('[data-account-export-button="true"]').text()).toContain(
+      "admin.accounts.dataExportSelected",
+    );
     expect(wrapper.text()).toContain("admin.users.columnSettings");
 
     await wrapper
@@ -295,8 +288,12 @@ describe("AccountsViewToolbar", () => {
       limitedAccountsCount: 7,
     });
 
-    expect(wrapper.text()).toContain("admin.accounts.limited.hideToggleOn");
     expect(wrapper.text()).toContain("admin.accounts.limited.entry");
+
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).toContain("admin.accounts.limited.hideToggleOn");
 
     await wrapper
       .findAll("button")
@@ -317,6 +314,9 @@ describe("AccountsViewToolbar", () => {
     const wrapper = mountToolbar({
       platformCountSortOrder: "count_asc",
     });
+
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
 
     const button = wrapper.get('[data-platform-sort-button="true"]');
     expect(button.text()).toContain("admin.accounts.platformSort.countAsc");

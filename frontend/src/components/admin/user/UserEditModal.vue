@@ -33,6 +33,14 @@
         <label class="input-label">{{ t('admin.users.notes') }}</label>
         <textarea v-model="form.notes" rows="3" class="input"></textarea>
       </div>
+      <div>
+        <label class="input-label">{{ t('admin.users.apiKeyModelBindingMode') }}</label>
+        <select v-model="form.api_key_model_binding_mode" class="input">
+          <option value="model_required">{{ t('admin.users.apiKeyModelBindingModeRequired') }}</option>
+          <option value="group_allowed">{{ t('admin.users.apiKeyModelBindingModeGroupAllowed') }}</option>
+        </select>
+        <p class="input-hint">{{ t('admin.users.apiKeyModelBindingModeHint') }}</p>
+      </div>
       <div v-if="user?.role === 'admin'" class="rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-700/50 dark:bg-amber-900/10">
         <label class="flex items-start gap-3">
           <input v-model="form.admin_free_billing" type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500" />
@@ -65,7 +73,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
-import type { AdminUser, UserAttributeValuesMap } from '@/types'
+import type { AdminUser, APIKeyModelBindingMode, UserAttributeValuesMap } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import UserAttributeForm from '@/components/user/UserAttributeForm.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -75,11 +83,29 @@ const emit = defineEmits(['close', 'success'])
 const { t } = useI18n(); const appStore = useAppStore(); const { copyToClipboard } = useClipboard()
 
 const submitting = ref(false); const passwordCopied = ref(false)
-const form = reactive({ email: '', password: '', username: '', notes: '', admin_free_billing: false, concurrency: 1, customAttributes: {} as UserAttributeValuesMap })
+const form = reactive({
+  email: '',
+  password: '',
+  username: '',
+  notes: '',
+  api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode,
+  admin_free_billing: false,
+  concurrency: 1,
+  customAttributes: {} as UserAttributeValuesMap
+})
 
 watch(() => props.user, (u) => {
   if (u) {
-    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', admin_free_billing: !!u.admin_free_billing, concurrency: u.concurrency, customAttributes: {} })
+    Object.assign(form, {
+      email: u.email,
+      password: '',
+      username: u.username || '',
+      notes: u.notes || '',
+      api_key_model_binding_mode: u.api_key_model_binding_mode || 'model_required',
+      admin_free_billing: !!u.admin_free_billing,
+      concurrency: u.concurrency,
+      customAttributes: {}
+    })
     passwordCopied.value = false
   }
 }, { immediate: true })
@@ -106,7 +132,14 @@ const handleUpdateUser = async () => {
   }
   submitting.value = true
   try {
-    const data: any = { email: form.email, username: form.username, notes: form.notes, admin_free_billing: props.user.role === 'admin' ? form.admin_free_billing : false, concurrency: form.concurrency }
+    const data: any = {
+      email: form.email,
+      username: form.username,
+      notes: form.notes,
+      api_key_model_binding_mode: form.api_key_model_binding_mode,
+      admin_free_billing: props.user.role === 'admin' ? form.admin_free_billing : false,
+      concurrency: form.concurrency
+    }
     if (form.password.trim()) data.password = form.password.trim()
     await adminAPI.users.update(props.user.id, data)
     if (Object.keys(form.customAttributes).length > 0) await adminAPI.userAttributes.updateUserAttributeValues(props.user.id, form.customAttributes)

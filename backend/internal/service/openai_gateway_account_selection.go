@@ -85,6 +85,9 @@ func (s *OpenAIGatewayService) SelectAccountForModel(ctx context.Context, groupI
 	return s.SelectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, nil)
 }
 func (s *OpenAIGatewayService) SelectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*Account, error) {
+	if pinned := s.publicCatalogPinnedAccount(ctx, groupID, requestedModel, excludedIDs); pinned != nil {
+		return pinned, nil
+	}
 	return s.selectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, excludedIDs, 0)
 }
 func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, stickyAccountID int64) (*Account, error) {
@@ -198,6 +201,9 @@ func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account, requ
 	return compareOpenAIAccountsForSelection(candidate, current, requestedModel, time.Now()) < 0
 }
 func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*AccountSelectionResult, error) {
+	if pinned := s.publicCatalogPinnedAccount(ctx, groupID, requestedModel, excludedIDs); pinned != nil {
+		return &AccountSelectionResult{Account: pinned}, nil
+	}
 	cfg := s.schedulingConfig()
 	var stickyAccountID int64
 	if sessionHash != "" && s.cache != nil {
@@ -449,7 +455,10 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 	platform := OpenAIPlatformFromContext(ctx)
 	if s.schedulerSnapshot != nil {
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, false)
-		return accounts, err
+		if err != nil {
+			return nil, err
+		}
+		return filterOpenAITextRuntimeAccounts(accounts, platform), nil
 	}
 	var accounts []Account
 	var err error
@@ -466,11 +475,25 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 	}
 	filtered := make([]Account, 0, len(accounts))
 	for _, acc := range accounts {
-		if isOpenAITextRuntimeAccount(&acc) {
-			filtered = append(filtered, acc)
+		resolved := ResolveProtocolGatewayInboundAccount(&acc, platform)
+		if !isOpenAITextRuntimeAccount(resolved) {
+			continue
 		}
+		filtered = append(filtered, *resolved)
 	}
 	return filtered, nil
+}
+
+func filterOpenAITextRuntimeAccounts(accounts []Account, platform string) []Account {
+	filtered := make([]Account, 0, len(accounts))
+	for _, acc := range accounts {
+		resolved := ResolveProtocolGatewayInboundAccount(&acc, platform)
+		if !isOpenAITextRuntimeAccount(resolved) {
+			continue
+		}
+		filtered = append(filtered, *resolved)
+	}
+	return filtered
 }
 func (s *OpenAIGatewayService) tryAcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int) (*AcquireResult, error) {
 	if s.concurrencyService == nil {
@@ -582,6 +605,9 @@ func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Acco
 		apiKey := account.GetOpenAIApiKey()
 		if account.Platform == PlatformDeepSeek {
 			apiKey = strings.TrimSpace(account.GetCredential("api_key"))
+		}
+		if account.Platform == PlatformOpenRouter {
+			apiKey = account.GetOpenRouterAPIKey()
 		}
 		if apiKey == "" {
 			return "", "", errors.New("api_key not found in credentials")

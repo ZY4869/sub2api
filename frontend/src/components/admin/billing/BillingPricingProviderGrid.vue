@@ -18,7 +18,6 @@
             <div class="mt-2 flex flex-wrap gap-2 text-xs">
               <span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-gray-700 dark:bg-dark-700 dark:text-gray-200">模型 {{ group.total_count }}</span>
               <span class="inline-flex rounded-full bg-sky-100 px-2 py-1 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200">官方 {{ group.official_count }}</span>
-              <span class="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">出售 {{ group.sale_count }}</span>
             </div>
             <p class="mt-3 text-xs leading-5 text-gray-500 dark:text-gray-400">
               点击卡片直接打开该供应商的模型定价工作集。

@@ -472,8 +472,14 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 		return nil, s.writeGoogleError(c, http.StatusNotFound, "Unsupported action: "+action)
 	}
 	body = ensureGeminiFunctionCallThoughtSignatures(body)
-	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String()))
-	normalizedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, originalModel)
+	runtimeRequestedModel := originalModel
+	if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
+		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
+			runtimeRequestedModel = sourceModel
+		}
+	}
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, runtimeRequestedModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String()))
+	normalizedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, runtimeRequestedModel)
 	mappedModel := normalizedModel
 	if account.Type == AccountTypeAPIKey {
 		mappedModel = account.GetMappedModel(normalizedModel)

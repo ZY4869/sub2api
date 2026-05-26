@@ -14,12 +14,8 @@ const apiMocks = vi.hoisted(() => ({
   listBillingPricingModels: vi.fn(),
   getBillingPricingAudit: vi.fn(),
   getBillingPricingDetails: vi.fn(),
-  getBillingPricingDetailsWithPreview: vi.fn(),
   refreshBillingPricingCatalog: vi.fn(),
   updateBillingPricingLayer: vi.fn(),
-  copyBillingPricingOfficialToSale: vi.fn(),
-  applyBillingPricingDiscount: vi.fn(),
-  getAllGroups: vi.fn(),
 }))
 
 const storeMocks = vi.hoisted(() => ({
@@ -32,18 +28,8 @@ vi.mock('@/api/admin/billing', () => ({
   listBillingPricingModels: apiMocks.listBillingPricingModels,
   getBillingPricingAudit: apiMocks.getBillingPricingAudit,
   getBillingPricingDetails: apiMocks.getBillingPricingDetails,
-  getBillingPricingDetailsWithPreview: apiMocks.getBillingPricingDetailsWithPreview,
   refreshBillingPricingCatalog: apiMocks.refreshBillingPricingCatalog,
   updateBillingPricingLayer: apiMocks.updateBillingPricingLayer,
-  copyBillingPricingOfficialToSale: apiMocks.copyBillingPricingOfficialToSale,
-  applyBillingPricingDiscount: apiMocks.applyBillingPricingDiscount,
-}))
-
-vi.mock('@/api/admin/groups', () => ({
-  getAll: apiMocks.getAllGroups,
-  default: {
-    getAll: apiMocks.getAllGroups,
-  },
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -150,7 +136,7 @@ function mountView() {
       stubs: {
         BillingPricingEditorDialog: {
           props: ['show', 'activeModel'],
-          emits: ['save-layer', 'copy-official', 'apply-discount', 'close', 'update:activeModel'],
+          emits: ['save-layer', 'close', 'update:activeModel'],
           template: `
             <div v-if="show" data-testid="editor-dialog-stub">
               <button
@@ -243,25 +229,21 @@ describe('BillingPricingView', () => {
       snapshot_updated_at: '2026-04-16T00:00:00Z',
     })
     apiMocks.getBillingPricingDetails.mockResolvedValue([createDetail()])
-    apiMocks.getBillingPricingDetailsWithPreview.mockResolvedValue([
-      {
-        ...createDetail(),
-        preview_group_id: 9,
-        preview_rate_multiplier: 1.3,
-      },
-    ])
     apiMocks.refreshBillingPricingCatalog.mockResolvedValue({
       updated_at: '2026-04-16T00:00:00Z',
       total_models: 12,
       provider_count: 2,
     })
     apiMocks.updateBillingPricingLayer.mockResolvedValue(createDetail())
-    apiMocks.copyBillingPricingOfficialToSale.mockResolvedValue([createDetail()])
-    apiMocks.applyBillingPricingDiscount.mockResolvedValue([createDetail()])
-    apiMocks.getAllGroups.mockResolvedValue([
-      { id: 9, name: '图像增强组' },
-      { id: 11, name: '标准组' },
-    ])
+  })
+
+  it('presents pricing as official cost management instead of a sale entry point', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('官方成本/价格源管理')
+    expect(wrapper.text()).toContain('对外出售价格请在“对外模型展示”页按公开条目设定')
+    expect(wrapper.text()).not.toContain('在同一处查看并编辑真实价格与出售价格')
   })
 
   it('loads providers and paginated list mode data on mount', async () => {
@@ -269,7 +251,6 @@ describe('BillingPricingView', () => {
     await flushPromises()
 
     expect(apiMocks.listBillingPricingProviders).toHaveBeenCalledTimes(1)
-    expect(apiMocks.getAllGroups).toHaveBeenCalledTimes(1)
     expect(apiMocks.listBillingPricingModels).toHaveBeenCalledWith(expect.objectContaining({
       page: 1,
       page_size: 20,
@@ -354,6 +335,17 @@ describe('BillingPricingView', () => {
     expect(apiMocks.getBillingPricingDetails).toHaveBeenCalledWith(['openai-model'])
   })
 
+  it('does not show sale counts in provider grid cards', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.getComponent(BillingPricingModeToggle).vm.$emit('update:modelValue', 'grid')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('官方 2')
+    expect(wrapper.text()).not.toContain('出售 1')
+  })
+
   it('loads pricing details when opening the editor from list mode', async () => {
     const wrapper = mountView()
     await flushPromises()
@@ -362,28 +354,6 @@ describe('BillingPricingView', () => {
     await flushPromises()
 
     expect(apiMocks.getBillingPricingDetails).toHaveBeenCalledWith(['gpt-5.4'])
-  })
-
-  it('loads preview prices and preview details after selecting a group', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="billing-pricing-group-preview"]').setValue('9')
-    await flushPromises()
-
-    expect(apiMocks.listBillingPricingModels).toHaveBeenLastCalledWith(expect.objectContaining({
-      group_id: 9,
-      page: 1,
-      page_size: 20,
-    }))
-
-    wrapper.getComponent(BillingPricingModelList).vm.$emit('open', 'gpt-5.4')
-    await flushPromises()
-
-    expect(apiMocks.getBillingPricingDetailsWithPreview).toHaveBeenCalledWith({
-      models: ['gpt-5.4'],
-      group_id: 9,
-    })
   })
 
   it('renders missing pricing badges and warnings in list mode', async () => {
@@ -520,17 +490,11 @@ describe('BillingPricingView', () => {
         await flushPromises()
       }
 
-      expect(apiMocks.updateBillingPricingLayer).toHaveBeenCalledTimes(2)
+      expect(apiMocks.updateBillingPricingLayer).toHaveBeenCalledTimes(1)
       expect(apiMocks.updateBillingPricingLayer).toHaveBeenNthCalledWith(1, 'gpt-5.4', 'official', expect.objectContaining({
         currency: 'USD',
         form: expect.objectContaining({
           input_price: 1.5e-6,
-        }),
-      }))
-      expect(apiMocks.updateBillingPricingLayer).toHaveBeenNthCalledWith(2, 'gpt-5.4', 'sale', expect.objectContaining({
-        currency: 'USD',
-        form: expect.objectContaining({
-          output_price: 2.5e-6,
         }),
       }))
       expect(clickSpy).toHaveBeenCalledTimes(1)
@@ -539,9 +503,10 @@ describe('BillingPricingView', () => {
       expect(storeMocks.showSuccess).toHaveBeenCalledWith('批量导入完成', expect.objectContaining({
         title: '导入结果',
         details: expect.arrayContaining([
-          '更新层数：2',
+          '更新层数：1',
           '自动补全：1',
           '跳过模型：1',
+          '已忽略出售价格补丁：1，请在“对外模型展示”页设置',
         ]),
       }))
       expect(appendChildSpy).toHaveBeenCalled()
@@ -553,7 +518,7 @@ describe('BillingPricingView', () => {
     }
   })
 
-  it('imports nested pricing patch fields and null-clears item multipliers', async () => {
+  it('ignores sale pricing patch fields and keeps sale edits on the public catalog page', async () => {
     apiMocks.getBillingPricingDetails.mockResolvedValueOnce([{
       ...createDetail(),
       sale_form: createForm({
@@ -572,59 +537,72 @@ describe('BillingPricingView', () => {
       }),
     }])
 
-    const wrapper = mountView()
-    await flushPromises()
+    const createObjectURL = vi.fn(() => 'blob:pricing-confirmed')
+    const revokeObjectURL = vi.fn()
+    const originalURL = window.URL
+    const removeSpy = vi.spyOn(HTMLAnchorElement.prototype, 'remove').mockImplementation(() => {})
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    // @ts-expect-error test override
+    window.URL = {
+      ...originalURL,
+      createObjectURL,
+      revokeObjectURL,
+    }
 
-    const patch = {
-      version: 1,
-      kind: 'billing_pricing_patch',
-      generated_at: '2026-05-05T00:00:00Z',
-      models: [
-        {
-          model: 'gpt-5.4',
-          current: {
-            official: createForm(),
-            sale: createForm(),
-          },
-          patch: {
-            sale: {
-              special_enabled: true,
-              special: {
-                grounding_search: 0.03,
-              },
-              multiplier_enabled: true,
-              multiplier_mode: 'item',
-              item_multipliers: {
-                input_price: null,
+    try {
+      const wrapper = mountView()
+      await flushPromises()
+
+      const patch = {
+        version: 1,
+        kind: 'billing_pricing_patch',
+        generated_at: '2026-05-05T00:00:00Z',
+        models: [
+          {
+            model: 'gpt-5.4',
+            current: {
+              official: createForm(),
+              sale: createForm(),
+            },
+            patch: {
+              sale: {
+                special_enabled: true,
+                special: {
+                  grounding_search: 0.03,
+                },
+                multiplier_enabled: true,
+                multiplier_mode: 'item',
+                item_multipliers: {
+                  input_price: null,
+                },
               },
             },
+            notes: '',
           },
-          notes: '',
-        },
-      ],
-    }
+        ],
+      }
 
-    const input = wrapper.get('input[type="file"]')
-    const file = new File([JSON.stringify(patch)], 'patch-nested.json', { type: 'application/json' })
-    Object.defineProperty(input.element, 'files', { value: [file] })
-    await input.trigger('change')
-    for (let i = 0; i < 5 && apiMocks.updateBillingPricingLayer.mock.calls.length === 0; i += 1) {
-      await flushPromises()
-    }
+      const input = wrapper.get('input[type="file"]')
+      const file = new File([JSON.stringify(patch)], 'patch-nested.json', { type: 'application/json' })
+      Object.defineProperty(input.element, 'files', { value: [file] })
+      await input.trigger('change')
+      for (let i = 0; i < 5 && storeMocks.showSuccess.mock.calls.length === 0; i += 1) {
+        await flushPromises()
+      }
 
-    expect(apiMocks.updateBillingPricingLayer).toHaveBeenCalledWith('gpt-5.4', 'sale', expect.objectContaining({
-      form: expect.objectContaining({
-        special_enabled: true,
-        special: expect.objectContaining({
-          grounding_search: 0.03,
-        }),
-        multiplier_enabled: true,
-        multiplier_mode: 'item',
-        item_multipliers: {
-          output_price: 0.8,
-        },
-      }),
-    }))
+      expect(apiMocks.updateBillingPricingLayer).not.toHaveBeenCalled()
+      expect(storeMocks.showSuccess).toHaveBeenCalledWith('批量导入完成', expect.objectContaining({
+        details: expect.arrayContaining([
+          '已忽略出售价格补丁：1，请在“对外模型展示”页设置',
+        ]),
+      }))
+      expect(clickSpy).toHaveBeenCalledTimes(1)
+      expect(createObjectURL).toHaveBeenCalledTimes(1)
+    } finally {
+      window.URL = originalURL
+      removeSpy.mockRestore()
+      clickSpy.mockRestore()
+    }
   })
 
   it('imports source currency from the pricing patch file', async () => {
@@ -798,7 +776,6 @@ describe('BillingPricingView', () => {
         item_multipliers: {},
       },
       currency: 'CNY',
-      group_id: null,
     })
     expect(apiMocks.listBillingPricingProviders).toHaveBeenCalledTimes(2)
     expect(apiMocks.listBillingPricingModels).toHaveBeenCalledTimes(2)
@@ -820,7 +797,7 @@ describe('BillingPricingView', () => {
         stubs: {
           BillingPricingEditorDialog: {
             props: ['show', 'activeModel', 'serverErrors'],
-            emits: ['save-layer', 'copy-official', 'apply-discount', 'close', 'update:activeModel'],
+            emits: ['save-layer', 'close', 'update:activeModel'],
             template: `
               <div v-if="show" data-testid="editor-dialog-stub">
                 <div data-testid="server-error-threshold">{{ serverErrors?.official?.tier_threshold_tokens || '' }}</div>

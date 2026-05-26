@@ -2,9 +2,9 @@
   <section class="rounded-3xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div class="space-y-1">
-        <h3 class="text-sm font-semibold text-amber-950 dark:text-amber-100">模型主货币</h3>
+        <h3 class="text-sm font-semibold text-amber-950 dark:text-amber-100">官方成本主货币</h3>
         <p class="text-xs text-amber-900 dark:text-amber-200">
-          官方价和售价共用同一主货币，保存时保留源币种数值。
+          本页只维护官方成本源，保存时保留源币种数值。
         </p>
       </div>
 

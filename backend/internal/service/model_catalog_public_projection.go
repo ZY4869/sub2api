@@ -79,6 +79,7 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
 		if detail, ok := published.Details[normalizedModel]; ok {
 			cloned := clonePublicModelCatalogDetail(detail)
+			cloned.Item = sanitizePublicModelCatalogItemForPublic(cloned.Item)
 			cloned.CatalogSource = PublicModelCatalogSourcePublished
 			return &cloned, nil
 		}
@@ -169,6 +170,7 @@ func (s *ModelCatalogService) PublishedPublicModelCatalogDetail(ctx context.Cont
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 	}
 	cloned := clonePublicModelCatalogDetail(detail)
+	cloned.Item = sanitizePublicModelCatalogItemForPublic(cloned.Item)
 	return &cloned, nil
 }
 
@@ -184,6 +186,7 @@ func buildPublicModelCatalogItemFromProjection(
 	}
 
 	metadata := billingPricingMetadataForPersistedModel(persisted)
+	officialDisplay := publicModelCatalogPriceDisplayFromForm(metadata, persisted.OfficialForm)
 	effectiveSaleForm := billingPricingEffectiveSaleDisplayForm(persisted)
 	priceDisplay := publicModelCatalogPriceDisplayFromForm(metadata, effectiveSaleForm)
 	if len(priceDisplay.Primary) == 0 && len(priceDisplay.Secondary) == 0 {
@@ -212,20 +215,28 @@ func buildPublicModelCatalogItemFromProjection(
 	)
 
 	return PublicModelCatalogItem{
-		Model:             modelID,
-		DisplayName:       displayName,
-		Provider:          provider,
-		ProviderIconKey:   provider,
-		Status:            publicModelStatusFromProjection(projection.AvailabilityState, projection.StaleState, lifecycleStatus),
-		AvailabilityState: firstNonEmptyTrimmed(projection.AvailabilityState, AccountModelAvailabilityUnknown),
-		StaleState:        firstNonEmptyTrimmed(projection.StaleState, AccountModelStaleStateUnverified),
-		LifecycleStatus:   lifecycleStatus,
-		RequestProtocols:  publicModelCatalogRequestProtocolsForProjection(projection, records, provider),
-		SourceIDs:         append([]string(nil), projection.SourceIDs...),
-		Mode:              mode,
-		Currency:          defaultModelPricingCurrency(persisted.Currency),
-		PriceDisplay:      priceDisplay,
-		MultiplierSummary: publicModelCatalogMultiplierSummaryFromForm(persisted.SaleForm),
+		EntryID:              publicModelCatalogEntryID(0, projection.Platform, firstNonEmptyTrimmed(firstRegistryString(projection.SourceIDs...), modelID)),
+		PublicModelID:        modelID,
+		Model:                modelID,
+		BaseModel:            firstNonEmptyTrimmed(firstRegistryString(projection.SourceIDs...), modelID),
+		SourceModelID:        firstNonEmptyTrimmed(firstRegistryString(projection.SourceIDs...), modelID),
+		SourceProtocol:       strings.TrimSpace(projection.Platform),
+		DisplayName:          displayName,
+		Provider:             provider,
+		ProviderIconKey:      provider,
+		Status:               publicModelStatusFromProjection(projection.AvailabilityState, projection.StaleState, lifecycleStatus),
+		AvailabilityState:    firstNonEmptyTrimmed(projection.AvailabilityState, AccountModelAvailabilityUnknown),
+		StaleState:           firstNonEmptyTrimmed(projection.StaleState, AccountModelStaleStateUnverified),
+		LifecycleStatus:      lifecycleStatus,
+		RequestProtocols:     publicModelCatalogRequestProtocolsForProjection(projection, records, provider),
+		SourceIDs:            append([]string(nil), projection.SourceIDs...),
+		Mode:                 mode,
+		Currency:             defaultModelPricingCurrency(persisted.Currency),
+		PriceDisplay:         priceDisplay,
+		OfficialPriceDisplay: officialDisplay,
+		SalePriceDisplay:     priceDisplay,
+		MultiplierSummary:    publicModelCatalogMultiplierSummaryFromForm(persisted.SaleForm),
+		RuntimePriceSpec:     publicModelCatalogRuntimePriceSpecFromPersisted(persisted),
 	}, true
 }
 

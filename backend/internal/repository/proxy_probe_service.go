@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/hostexceptions"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
@@ -23,7 +24,6 @@ func NewProxyExitInfoProber(cfg *config.Config) service.ProxyExitInfoProber {
 	if cfg != nil {
 		insecure = cfg.Security.ProxyProbe.InsecureSkipVerify
 		allowPrivate = cfg.Security.URLAllowlist.AllowPrivateHosts
-		validateResolvedIP = cfg.Security.URLAllowlist.Enabled
 		if cfg.Gateway.ProxyProbeResponseReadMaxBytes > 0 {
 			maxResponseBytes = cfg.Gateway.ProxyProbeResponseReadMaxBytes
 		}
@@ -32,6 +32,7 @@ func NewProxyExitInfoProber(cfg *config.Config) service.ProxyExitInfoProber {
 		log.Printf("[ProxyProbe] Warning: insecure_skip_verify is not allowed and will cause probe failure.")
 	}
 	return &proxyProbeService{
+		cfg:                cfg,
 		insecureSkipVerify: insecure,
 		allowPrivateHosts:  allowPrivate,
 		validateResolvedIP: validateResolvedIP,
@@ -55,6 +56,7 @@ var probeURLs = []struct {
 }
 
 type proxyProbeService struct {
+	cfg                *config.Config
 	insecureSkipVerify bool
 	allowPrivateHosts  bool
 	validateResolvedIP bool
@@ -62,12 +64,17 @@ type proxyProbeService struct {
 }
 
 func (s *proxyProbeService) ProbeProxy(ctx context.Context, proxyURL string) (*service.ProxyExitInfo, int64, error) {
+	if err := service.ValidateProxyURLForOutboundWithConfig(proxyURL, s.cfg, s.allowPrivateHosts); err != nil {
+		return nil, 0, fmt.Errorf("failed to create proxy client: %w", err)
+	}
 	client, err := httpclient.GetClient(httpclient.Options{
 		ProxyURL:           proxyURL,
 		Timeout:            defaultProxyProbeTimeout,
 		InsecureSkipVerify: s.insecureSkipVerify,
 		ValidateResolvedIP: s.validateResolvedIP,
 		AllowPrivateHosts:  s.allowPrivateHosts,
+		PrivateHostConfig:  s.cfg,
+		PrivateHostScope:   hostexceptions.ScopeProxyHost,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create proxy client: %w", err)

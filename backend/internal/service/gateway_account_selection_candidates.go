@@ -121,18 +121,7 @@ func (s *GatewayService) isAccountSchedulableForModelSelection(ctx context.Conte
 	return account.IsSchedulableForModelWithContext(ctx, requestedModel)
 }
 func (s *GatewayService) isAccountInGroup(account *Account, groupID *int64) bool {
-	if account == nil {
-		return false
-	}
-	if groupID == nil {
-		return len(account.AccountGroups) == 0
-	}
-	for _, ag := range account.AccountGroups {
-		if ag.GroupID == *groupID {
-			return true
-		}
-	}
-	return false
+	return accountBoundToGroupID(account, groupID)
 }
 func (s *GatewayService) tryAcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int) (*AcquireResult, error) {
 	if s.concurrencyService == nil {

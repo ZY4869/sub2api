@@ -61,6 +61,7 @@ describe('AccountPlatformTabs', () => {
       'grok',
       'kiro',
       'openai',
+      'openrouter',
       'protocol_gateway'
     ])
   })
@@ -76,6 +77,7 @@ describe('AccountPlatformTabs', () => {
       platformCounts: {
         openai: 99,
         protocol_gateway: 1,
+        openrouter: 7,
         gemini: 50
       }
     })
@@ -90,6 +92,7 @@ describe('AccountPlatformTabs', () => {
       'grok',
       'kiro',
       'openai',
+      'openrouter',
       'protocol_gateway'
     ])
   })

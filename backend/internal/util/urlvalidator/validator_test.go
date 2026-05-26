@@ -1,3 +1,5 @@
+//go:build unit
+
 package urlvalidator
 
 import "testing"
@@ -71,5 +73,35 @@ func TestValidateHTTPURL(t *testing.T) {
 	}
 	if _, err := ValidateHTTPURL("https://localhost", false, ValidationOptions{AllowPrivate: false}); err == nil {
 		t.Fatalf("expected localhost to be blocked when allow_private_hosts is false")
+	}
+	if _, err := ValidateHTTPURL("https://224.0.0.1", false, ValidationOptions{AllowPrivate: false}); err == nil {
+		t.Fatalf("expected multicast literal to be blocked when allow_private_hosts is false")
+	}
+}
+
+func TestValidateResolvedIPRejectsBlockedRanges(t *testing.T) {
+	for _, host := range []string{
+		"127.0.0.1",
+		"10.0.0.1",
+		"172.16.0.1",
+		"192.168.1.1",
+		"169.254.169.254",
+		"0.0.0.0",
+		"224.0.0.1",
+		"::1",
+		"fc00::1",
+		"ff02::1",
+	} {
+		t.Run(host, func(t *testing.T) {
+			if err := ValidateResolvedIP(host); err == nil {
+				t.Fatalf("expected %s to be blocked", host)
+			}
+		})
+	}
+}
+
+func TestValidateResolvedIPAllowsPublicLiteral(t *testing.T) {
+	if err := ValidateResolvedIP("1.1.1.1"); err != nil {
+		t.Fatalf("expected public literal to pass, got %v", err)
 	}
 }

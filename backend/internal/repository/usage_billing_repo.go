@@ -30,6 +30,9 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 	}
 
 	cmd.Normalize()
+	if err := normalizeUsageBillingCommandAmounts(cmd); err != nil {
+		return nil, err
+	}
 	if cmd.RequestID == "" {
 		return nil, service.ErrUsageBillingRequestIDRequired
 	}
@@ -62,6 +65,29 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 	}
 	tx = nil
 	return result, nil
+}
+
+func normalizeUsageBillingCommandAmounts(cmd *service.UsageBillingCommand) error {
+	var err error
+	if cmd.BalanceCost, err = service.NormalizeAndValidateNonNegativeBillingAmount(cmd.BalanceCost); err != nil {
+		return err
+	}
+	if cmd.SubscriptionCost, err = service.NormalizeAndValidateNonNegativeBillingAmount(cmd.SubscriptionCost); err != nil {
+		return err
+	}
+	if cmd.APIKeyQuotaCost, err = service.NormalizeAndValidateNonNegativeBillingAmount(cmd.APIKeyQuotaCost); err != nil {
+		return err
+	}
+	if cmd.APIKeyGroupQuotaCost, err = service.NormalizeAndValidateNonNegativeBillingAmount(cmd.APIKeyGroupQuotaCost); err != nil {
+		return err
+	}
+	if cmd.APIKeyRateLimitCost, err = service.NormalizeAndValidateNonNegativeBillingAmount(cmd.APIKeyRateLimitCost); err != nil {
+		return err
+	}
+	if cmd.AccountQuotaCost, err = service.NormalizeAndValidateNonNegativeBillingAmount(cmd.AccountQuotaCost); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand) (bool, error) {
@@ -104,7 +130,45 @@ func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *s
 	if !errors.Is(err, sql.ErrNoRows) {
 		return false, err
 	}
+	if err := ensureUsageBillingHoldFingerprintCompatible(ctx, tx, cmd); err != nil {
+		return false, err
+	}
 	return true, nil
+}
+
+func ensureUsageBillingHoldFingerprintCompatible(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand) error {
+	if cmd == nil || strings.TrimSpace(cmd.RequestID) == "" || cmd.APIKeyID <= 0 || strings.TrimSpace(cmd.RequestPayloadHash) == "" {
+		return nil
+	}
+	var holdFingerprint string
+	err := tx.QueryRowContext(ctx, `
+		SELECT COALESCE(request_fingerprint, '')
+		FROM billing_request_holds
+		WHERE request_id = $1 AND api_key_id = $2
+	`, strings.TrimSpace(cmd.RequestID), cmd.APIKeyID).Scan(&holdFingerprint)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	fingerprint := service.NormalizeBillingHoldRequestFingerprint(holdFingerprint)
+	payloadHash := strings.TrimSpace(cmd.RequestPayloadHash)
+	if fingerprint != "" && fingerprint != payloadHash {
+		return service.ErrBillingRequestReplayed
+	}
+	if fingerprint == "" && payloadHash != "" {
+		_, err = tx.ExecContext(ctx, `
+			UPDATE billing_request_holds
+			SET request_fingerprint = $3,
+				updated_at = NOW()
+			WHERE request_id = $1 AND api_key_id = $2 AND COALESCE(request_fingerprint, '') = ''
+		`, strings.TrimSpace(cmd.RequestID), cmd.APIKeyID, payloadHash)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
@@ -121,6 +185,10 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 
 	if cmd.BalanceCost > 0 {
 		if err := applyUsageBillingWalletDebit(ctx, tx, cmd, currency, cmd.BalanceCost); err != nil {
+			return err
+		}
+	} else {
+		if err := releaseZeroCostUsageBillingRequestHold(ctx, tx, cmd); err != nil {
 			return err
 		}
 	}
@@ -169,6 +237,19 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 
 	applyAffiliateUsageRebateBestEffort(ctx, tx, cmd)
 
+	return nil
+}
+
+func releaseZeroCostUsageBillingRequestHold(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand) error {
+	actualMoney, err := service.NewNonNegativeBillingMoneyFromFloat(0)
+	if err != nil {
+		return err
+	}
+	hold, err := settleUsageBillingRequestHold(ctx, tx, cmd, actualMoney)
+	if err != nil || hold == nil {
+		return err
+	}
+	logger.LegacyPrintf("repository.usage_billing", "wallet hold released for zero cost request_id=%s user_id=%d model=%s hold=%.10f", cmd.RequestID, cmd.UserID, cmd.Model, hold.Amount)
 	return nil
 }
 
@@ -233,20 +314,48 @@ func incrementUsageBillingSubscriptionCurrency(ctx context.Context, tx *sql.Tx, 
 
 func applyUsageBillingWalletDebit(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, currency string, amount float64) error {
 	currency = service.NormalizeUsageBillingCurrency(currency)
+	var err error
+	amount, err = service.NormalizeAndValidatePositiveBillingAmount(amount)
+	if err != nil {
+		return err
+	}
+	amountMoney, err := service.NewPositiveBillingMoneyFromFloat(amount)
+	if err != nil {
+		return err
+	}
 	if currency == service.ModelPricingCurrencyUSD {
+		hold, err := settleUsageBillingRequestHold(ctx, tx, cmd, amountMoney)
+		if err != nil {
+			return err
+		}
+		if hold != nil {
+			debitMoney, err := amountMoney.Neg()
+			if err != nil {
+				return err
+			}
+			if err := insertUsageBillingLedgerEntry(ctx, tx, cmd, service.ModelPricingCurrencyUSD, debitMoney, "usage_debit", map[string]any{"hold_amount": hold.Amount, "settled_from_hold": true}); err != nil {
+				return err
+			}
+			logger.LegacyPrintf("repository.usage_billing", "wallet debit settled from hold request_id=%s user_id=%d model=%s currency=%s hold=%.10f amount=%s", cmd.RequestID, cmd.UserID, cmd.Model, currency, hold.Amount, amountMoney.DBValue())
+			return nil
+		}
 		if err := ensureUsageBillingWallet(ctx, tx, cmd.UserID, service.ModelPricingCurrencyUSD); err != nil {
 			return err
 		}
 		if _, err := lockUsageBillingWallet(ctx, tx, cmd.UserID, service.ModelPricingCurrencyUSD); err != nil {
 			return err
 		}
-		if err := addUsageBillingWalletBalance(ctx, tx, cmd.UserID, service.ModelPricingCurrencyUSD, -amount, true); err != nil {
+		debitMoney, err := amountMoney.Neg()
+		if err != nil {
 			return err
 		}
-		if err := insertUsageBillingLedgerEntry(ctx, tx, cmd, service.ModelPricingCurrencyUSD, -amount, "usage_debit", nil); err != nil {
+		if err := addUsageBillingWalletBalance(ctx, tx, cmd.UserID, service.ModelPricingCurrencyUSD, debitMoney, true); err != nil {
 			return err
 		}
-		logger.LegacyPrintf("repository.usage_billing", "wallet debit applied request_id=%s user_id=%d model=%s currency=%s amount=%.10f", cmd.RequestID, cmd.UserID, cmd.Model, currency, amount)
+		if err := insertUsageBillingLedgerEntry(ctx, tx, cmd, service.ModelPricingCurrencyUSD, debitMoney, "usage_debit", nil); err != nil {
+			return err
+		}
+		logger.LegacyPrintf("repository.usage_billing", "wallet debit applied request_id=%s user_id=%d model=%s currency=%s amount=%s", cmd.RequestID, cmd.UserID, cmd.Model, currency, amountMoney.DBValue())
 		return nil
 	}
 	if currency != service.ModelPricingCurrencyCNY {
@@ -261,44 +370,129 @@ func applyUsageBillingWalletDebit(ctx context.Context, tx *sql.Tx, cmd *service.
 	if err := ensureUsageBillingWallet(ctx, tx, cmd.UserID, service.ModelPricingCurrencyCNY); err != nil {
 		return err
 	}
-	usdBalance, err := lockUsageBillingWallet(ctx, tx, cmd.UserID, service.ModelPricingCurrencyUSD)
+	usdBalanceMoney, err := lockUsageBillingWallet(ctx, tx, cmd.UserID, service.ModelPricingCurrencyUSD)
 	if err != nil {
 		return err
 	}
-	cnyBalance, err := lockUsageBillingWallet(ctx, tx, cmd.UserID, service.ModelPricingCurrencyCNY)
+	cnyBalanceMoney, err := lockUsageBillingWallet(ctx, tx, cmd.UserID, service.ModelPricingCurrencyCNY)
 	if err != nil {
 		return err
 	}
-	if deficit := amount - cnyBalance; deficit > 0 {
-		usdDebit := deficit / cmd.USDToCNYRate
-		if usdBalance+1e-12 < usdDebit {
+	if amountMoney.Cmp(cnyBalanceMoney) > 0 {
+		deficitMoney, err := amountMoney.Sub(cnyBalanceMoney)
+		if err != nil {
+			return err
+		}
+		usdDebitMoney, err := deficitMoney.DivRate(cmd.USDToCNYRate)
+		if err != nil {
+			return err
+		}
+		if usdBalanceMoney.Cmp(usdDebitMoney) < 0 {
 			logger.LegacyPrintf("repository.usage_billing", "cny auto fx failed insufficient usd request_id=%s user_id=%d model=%s currency=%s amount=%.10f fx_rate=%.8f", cmd.RequestID, cmd.UserID, cmd.Model, currency, amount, cmd.USDToCNYRate)
 			return service.ErrInsufficientBalance
 		}
-		if err := addUsageBillingWalletBalance(ctx, tx, cmd.UserID, service.ModelPricingCurrencyUSD, -usdDebit, true); err != nil {
+		negativeUSDDebitMoney, err := usdDebitMoney.Neg()
+		if err != nil {
 			return err
 		}
-		if err := addUsageBillingWalletBalance(ctx, tx, cmd.UserID, service.ModelPricingCurrencyCNY, deficit, false); err != nil {
+		if err := addUsageBillingWalletBalance(ctx, tx, cmd.UserID, service.ModelPricingCurrencyUSD, negativeUSDDebitMoney, true); err != nil {
 			return err
 		}
-		meta := map[string]any{"target_currency": service.ModelPricingCurrencyCNY, "target_amount": deficit}
-		if err := insertUsageBillingLedgerEntry(ctx, tx, cmd, service.ModelPricingCurrencyUSD, -usdDebit, "fx_out", meta); err != nil {
+		if err := addUsageBillingWalletBalance(ctx, tx, cmd.UserID, service.ModelPricingCurrencyCNY, deficitMoney, false); err != nil {
 			return err
 		}
-		meta = map[string]any{"source_currency": service.ModelPricingCurrencyUSD, "source_amount": usdDebit}
-		if err := insertUsageBillingLedgerEntry(ctx, tx, cmd, service.ModelPricingCurrencyCNY, deficit, "fx_in", meta); err != nil {
+		meta := map[string]any{"target_currency": service.ModelPricingCurrencyCNY, "target_amount": deficitMoney.Float64()}
+		if err := insertUsageBillingLedgerEntry(ctx, tx, cmd, service.ModelPricingCurrencyUSD, negativeUSDDebitMoney, "fx_out", meta); err != nil {
 			return err
 		}
-		logger.LegacyPrintf("repository.usage_billing", "cny auto fx applied request_id=%s user_id=%d model=%s target_amount=%.10f usd_debit=%.10f fx_rate=%.8f", cmd.RequestID, cmd.UserID, cmd.Model, deficit, usdDebit, cmd.USDToCNYRate)
+		meta = map[string]any{"source_currency": service.ModelPricingCurrencyUSD, "source_amount": usdDebitMoney.Float64()}
+		if err := insertUsageBillingLedgerEntry(ctx, tx, cmd, service.ModelPricingCurrencyCNY, deficitMoney, "fx_in", meta); err != nil {
+			return err
+		}
+		logger.LegacyPrintf("repository.usage_billing", "cny auto fx applied request_id=%s user_id=%d model=%s target_amount=%s usd_debit=%s fx_rate=%.8f", cmd.RequestID, cmd.UserID, cmd.Model, deficitMoney.DBValue(), usdDebitMoney.DBValue(), cmd.USDToCNYRate)
 	}
-	if err := addUsageBillingWalletBalance(ctx, tx, cmd.UserID, service.ModelPricingCurrencyCNY, -amount, false); err != nil {
+	debitMoney, err := amountMoney.Neg()
+	if err != nil {
 		return err
 	}
-	if err := insertUsageBillingLedgerEntry(ctx, tx, cmd, service.ModelPricingCurrencyCNY, -amount, "usage_debit", nil); err != nil {
+	if err := addUsageBillingWalletBalance(ctx, tx, cmd.UserID, service.ModelPricingCurrencyCNY, debitMoney, false); err != nil {
 		return err
 	}
-	logger.LegacyPrintf("repository.usage_billing", "wallet debit applied request_id=%s user_id=%d model=%s currency=%s amount=%.10f fx_rate=%.8f", cmd.RequestID, cmd.UserID, cmd.Model, currency, amount, cmd.USDToCNYRate)
+	if err := insertUsageBillingLedgerEntry(ctx, tx, cmd, service.ModelPricingCurrencyCNY, debitMoney, "usage_debit", nil); err != nil {
+		return err
+	}
+	logger.LegacyPrintf("repository.usage_billing", "wallet debit applied request_id=%s user_id=%d model=%s currency=%s amount=%s fx_rate=%.8f", cmd.RequestID, cmd.UserID, cmd.Model, currency, amountMoney.DBValue(), cmd.USDToCNYRate)
 	return nil
+}
+
+func settleUsageBillingRequestHold(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, actualMoney service.BillingMoney) (*service.BillingHold, error) {
+	if cmd == nil || strings.TrimSpace(cmd.RequestID) == "" || cmd.APIKeyID <= 0 {
+		return nil, nil
+	}
+	if actualMoney.IsNegative() {
+		return nil, service.ErrInvalidBillingAmount
+	}
+	var hold service.BillingHold
+	var status string
+	err := tx.QueryRowContext(ctx, `
+		SELECT request_id, api_key_id, user_id, currency, hold_amount, status, COALESCE(request_fingerprint, '')
+		FROM billing_request_holds
+		WHERE request_id = $1 AND api_key_id = $2
+		FOR UPDATE
+	`, strings.TrimSpace(cmd.RequestID), cmd.APIKeyID).Scan(&hold.RequestID, &hold.APIKeyID, &hold.UserID, &hold.Currency, &hold.Amount, &status, &hold.RequestFingerprint)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	hold.Status = service.BillingHoldStatus(status)
+	if hold.Status != service.BillingHoldStatusHeld {
+		return nil, nil
+	}
+	if hold.UserID != cmd.UserID {
+		return nil, fmt.Errorf("billing hold user mismatch")
+	}
+	fingerprint := service.NormalizeBillingHoldRequestFingerprint(hold.RequestFingerprint)
+	payloadHash := strings.TrimSpace(cmd.RequestPayloadHash)
+	if fingerprint != "" && payloadHash != "" && fingerprint != payloadHash {
+		return nil, service.ErrBillingRequestReplayed
+	}
+	if fingerprint == "" && payloadHash != "" {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE billing_request_holds
+			SET request_fingerprint = $3,
+				updated_at = NOW()
+			WHERE request_id = $1 AND api_key_id = $2 AND COALESCE(request_fingerprint, '') = ''
+		`, strings.TrimSpace(cmd.RequestID), cmd.APIKeyID, payloadHash); err != nil {
+			return nil, err
+		}
+		hold.RequestFingerprint = payloadHash
+	}
+	holdMoney, err := service.NewNonNegativeBillingMoneyFromFloat(hold.Amount)
+	if err != nil {
+		return nil, err
+	}
+	deltaMoney, err := holdMoney.Sub(actualMoney)
+	if err != nil {
+		return nil, err
+	}
+	if err := adjustUSDWalletBalance(ctx, tx, hold.UserID, deltaMoney); err != nil {
+		return nil, err
+	}
+	_, err = tx.ExecContext(ctx, `
+		UPDATE billing_request_holds
+		SET actual_amount = $3,
+			status = $4,
+			settled_at = NOW(),
+			updated_at = NOW()
+		WHERE request_id = $1 AND api_key_id = $2 AND status = $5
+	`, strings.TrimSpace(cmd.RequestID), cmd.APIKeyID, actualMoney.DBValue(), string(service.BillingHoldStatusSettled), string(service.BillingHoldStatusHeld))
+	if err != nil {
+		return nil, err
+	}
+	hold.Status = service.BillingHoldStatusSettled
+	return &hold, nil
 }
 
 func ensureUsageBillingWallet(ctx context.Context, tx *sql.Tx, userID int64, currency string) error {
@@ -349,7 +543,7 @@ func ensureUsageBillingWallet(ctx context.Context, tx *sql.Tx, userID int64, cur
 	return nil
 }
 
-func lockUsageBillingWallet(ctx context.Context, tx *sql.Tx, userID int64, currency string) (float64, error) {
+func lockUsageBillingWallet(ctx context.Context, tx *sql.Tx, userID int64, currency string) (service.BillingMoney, error) {
 	var balance float64
 	err := tx.QueryRowContext(ctx, `
 		SELECT balance
@@ -358,18 +552,21 @@ func lockUsageBillingWallet(ctx context.Context, tx *sql.Tx, userID int64, curre
 		FOR UPDATE
 	`, userID, service.NormalizeUsageBillingCurrency(currency)).Scan(&balance)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, service.ErrUserNotFound
+		return service.BillingMoney{}, service.ErrUserNotFound
 	}
-	return balance, err
+	if err != nil {
+		return service.BillingMoney{}, err
+	}
+	return service.NewBillingMoneyFromFloat(balance)
 }
 
-func addUsageBillingWalletBalance(ctx context.Context, tx *sql.Tx, userID int64, currency string, delta float64, updateUSDShadow bool) error {
+func addUsageBillingWalletBalance(ctx context.Context, tx *sql.Tx, userID int64, currency string, deltaMoney service.BillingMoney, updateUSDShadow bool) error {
 	res, err := tx.ExecContext(ctx, `
 		UPDATE billing_wallets
 		SET balance = balance + $3,
 			updated_at = NOW()
 		WHERE user_id = $1 AND currency = $2
-	`, userID, service.NormalizeUsageBillingCurrency(currency), delta)
+	`, userID, service.NormalizeUsageBillingCurrency(currency), deltaMoney.DBValue())
 	if err != nil {
 		return err
 	}
@@ -386,7 +583,7 @@ func addUsageBillingWalletBalance(ctx context.Context, tx *sql.Tx, userID int64,
 			SET balance = balance + $2,
 				updated_at = NOW()
 			WHERE id = $1 AND deleted_at IS NULL
-		`, userID, delta)
+		`, userID, deltaMoney.DBValue())
 		if err != nil {
 			return err
 		}
@@ -401,7 +598,7 @@ func addUsageBillingWalletBalance(ctx context.Context, tx *sql.Tx, userID int64,
 	return nil
 }
 
-func insertUsageBillingLedgerEntry(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, currency string, amount float64, entryType string, metadata map[string]any) error {
+func insertUsageBillingLedgerEntry(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, currency string, amountMoney service.BillingMoney, entryType string, metadata map[string]any) error {
 	if metadata == nil {
 		metadata = map[string]any{}
 	}
@@ -435,7 +632,7 @@ func insertUsageBillingLedgerEntry(ctx context.Context, tx *sql.Tx, cmd *service
 			user_id, currency, amount, type, request_id, fx_rate, fx_rate_date, fx_locked_at, metadata, created_at
 		)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW())
-	`, cmd.UserID, service.NormalizeUsageBillingCurrency(currency), amount, strings.TrimSpace(entryType), strings.TrimSpace(cmd.RequestID), fxRate, fxRateDate, fxLockedAt, string(payload))
+	`, cmd.UserID, service.NormalizeUsageBillingCurrency(currency), amountMoney.DBValue(), strings.TrimSpace(entryType), strings.TrimSpace(cmd.RequestID), fxRate, fxRateDate, fxLockedAt, string(payload))
 	return err
 }
 

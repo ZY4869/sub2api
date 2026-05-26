@@ -319,22 +319,28 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
-		Model:                billingModel,
-		Provider:             usageProvider,
-		Layer:                BillingLayerSale,
-		InboundEndpoint:      input.InboundEndpoint,
-		RawInboundPath:       input.RawInboundPath,
-		RequestBody:          input.RequestBody,
-		Tokens:               tokens,
-		ImageCount:           result.ImageCount,
-		ImageSize:            result.ImageSize,
-		VideoRequests:        geminiVideoRequestsForUsage(result),
-		MediaType:            result.MediaType,
-		ServiceTier:          geminiForwardResultResolvedServiceTier(result),
-		RequestedServiceTier: geminiForwardResultRequestedServiceTier(result),
-		ResolvedServiceTier:  geminiForwardResultResolvedServiceTier(result),
-		RateMultiplier:       multiplier,
-		ImagePriceConfig:     groupConfig,
+		Model:                         billingModel,
+		Provider:                      usageProvider,
+		Layer:                         BillingLayerSale,
+		PublicCatalogEntryID:          publicCatalogEntryIDFromContext(ctx),
+		PublicCatalogPublicModelID:    publicCatalogPublicModelIDFromContext(ctx),
+		PublicCatalogSourceAccountID:  publicCatalogSourceAccountIDFromContext(ctx),
+		PublicCatalogCurrency:         publicCatalogCurrencyFromContext(ctx),
+		PublicCatalogRuntimePriceSpec: publicCatalogRuntimePriceSpecFromContext(ctx),
+		PublicCatalogSalePriceDisplay: publicCatalogSalePriceDisplayFromContext(ctx),
+		InboundEndpoint:               input.InboundEndpoint,
+		RawInboundPath:                input.RawInboundPath,
+		RequestBody:                   input.RequestBody,
+		Tokens:                        tokens,
+		ImageCount:                    result.ImageCount,
+		ImageSize:                     result.ImageSize,
+		VideoRequests:                 geminiVideoRequestsForUsage(result),
+		MediaType:                     result.MediaType,
+		ServiceTier:                   geminiForwardResultResolvedServiceTier(result),
+		RequestedServiceTier:          geminiForwardResultRequestedServiceTier(result),
+		ResolvedServiceTier:           geminiForwardResultResolvedServiceTier(result),
+		RateMultiplier:                multiplier,
+		ImagePriceConfig:              groupConfig,
 	})
 	runtimeResult, cost := normalizeBillingRuntimeResult(runtimeResult, err, "service.gateway")
 	applyBillingRuntimeResultMetadataToContext(ctx, runtimeResult)
@@ -361,7 +367,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if actualCostUSDEquivalent == 0 && actualCost != 0 {
 		actualCostUSDEquivalent = costUSDEquivalent(actualCost, billingCurrency, cost.USDToCNYRate)
 	}
-	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
+	requestID := resolveUsageBillingRequestIDForAPIKey(ctx, result.RequestID, apiKey)
 	thinkingEnabled := input.ThinkingEnabled
 	if thinkingEnabled == nil {
 		thinkingEnabled = usageLogThinkingEnabledFromContext(ctx)
@@ -472,24 +478,30 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
-		Model:                 billingModel,
-		Provider:              usageProvider,
-		Layer:                 BillingLayerSale,
-		InboundEndpoint:       input.InboundEndpoint,
-		RawInboundPath:        input.RawInboundPath,
-		RequestBody:           input.RequestBody,
-		Tokens:                tokens,
-		ImageCount:            result.ImageCount,
-		ImageSize:             result.ImageSize,
-		VideoRequests:         geminiVideoRequestsForUsage(result),
-		MediaType:             result.MediaType,
-		ServiceTier:           geminiForwardResultResolvedServiceTier(result),
-		RequestedServiceTier:  geminiForwardResultRequestedServiceTier(result),
-		ResolvedServiceTier:   geminiForwardResultResolvedServiceTier(result),
-		RateMultiplier:        multiplier,
-		ImagePriceConfig:      groupConfig,
-		LongContextThreshold:  input.LongContextThreshold,
-		LongContextMultiplier: input.LongContextMultiplier,
+		Model:                         billingModel,
+		Provider:                      usageProvider,
+		Layer:                         BillingLayerSale,
+		PublicCatalogEntryID:          publicCatalogEntryIDFromContext(ctx),
+		PublicCatalogPublicModelID:    publicCatalogPublicModelIDFromContext(ctx),
+		PublicCatalogSourceAccountID:  publicCatalogSourceAccountIDFromContext(ctx),
+		PublicCatalogCurrency:         publicCatalogCurrencyFromContext(ctx),
+		PublicCatalogRuntimePriceSpec: publicCatalogRuntimePriceSpecFromContext(ctx),
+		PublicCatalogSalePriceDisplay: publicCatalogSalePriceDisplayFromContext(ctx),
+		InboundEndpoint:               input.InboundEndpoint,
+		RawInboundPath:                input.RawInboundPath,
+		RequestBody:                   input.RequestBody,
+		Tokens:                        tokens,
+		ImageCount:                    result.ImageCount,
+		ImageSize:                     result.ImageSize,
+		VideoRequests:                 geminiVideoRequestsForUsage(result),
+		MediaType:                     result.MediaType,
+		ServiceTier:                   geminiForwardResultResolvedServiceTier(result),
+		RequestedServiceTier:          geminiForwardResultRequestedServiceTier(result),
+		ResolvedServiceTier:           geminiForwardResultResolvedServiceTier(result),
+		RateMultiplier:                multiplier,
+		ImagePriceConfig:              groupConfig,
+		LongContextThreshold:          input.LongContextThreshold,
+		LongContextMultiplier:         input.LongContextMultiplier,
 	})
 	runtimeResult, cost := normalizeBillingRuntimeResult(runtimeResult, err, "service.gateway")
 	applyBillingRuntimeResultMetadataToContext(ctx, runtimeResult)
@@ -516,7 +528,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if actualCostUSDEquivalent == 0 && actualCost != 0 {
 		actualCostUSDEquivalent = costUSDEquivalent(actualCost, billingCurrency, cost.USDToCNYRate)
 	}
-	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
+	requestID := resolveUsageBillingRequestIDForAPIKey(ctx, result.RequestID, apiKey)
 	thinkingEnabled := input.ThinkingEnabled
 	if thinkingEnabled == nil {
 		thinkingEnabled = usageLogThinkingEnabledFromContext(ctx)

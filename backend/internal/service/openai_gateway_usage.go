@@ -103,16 +103,22 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
-		Model:           billingModel,
-		Provider:        usageProvider,
-		Layer:           BillingLayerSale,
-		InboundEndpoint: input.InboundEndpoint,
-		Tokens:          tokens,
-		ImageCount:      result.ImageCount,
-		ImageSize:       result.ImageSize,
-		MediaType:       result.MediaType,
-		ServiceTier:     serviceTier,
-		RateMultiplier:  multiplier,
+		Model:                         billingModel,
+		Provider:                      usageProvider,
+		Layer:                         BillingLayerSale,
+		PublicCatalogEntryID:          publicCatalogEntryIDFromContext(ctx),
+		PublicCatalogPublicModelID:    publicCatalogPublicModelIDFromContext(ctx),
+		PublicCatalogSourceAccountID:  publicCatalogSourceAccountIDFromContext(ctx),
+		PublicCatalogCurrency:         publicCatalogCurrencyFromContext(ctx),
+		PublicCatalogRuntimePriceSpec: publicCatalogRuntimePriceSpecFromContext(ctx),
+		PublicCatalogSalePriceDisplay: publicCatalogSalePriceDisplayFromContext(ctx),
+		InboundEndpoint:               input.InboundEndpoint,
+		Tokens:                        tokens,
+		ImageCount:                    result.ImageCount,
+		ImageSize:                     result.ImageSize,
+		MediaType:                     result.MediaType,
+		ServiceTier:                   serviceTier,
+		RateMultiplier:                multiplier,
 	})
 	if err != nil {
 		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
@@ -137,7 +143,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	durationMs := int(result.Duration.Milliseconds())
 	accountRateMultiplier := account.BillingRateMultiplier()
-	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
+	requestID := resolveUsageBillingRequestIDForAPIKey(ctx, result.RequestID, apiKey)
 	billingCurrency := normalizeBillingCurrency(cost.Currency)
 	legacyReasoningEffort, reasoningEffortRaw, reasoningEffortEffective := NormalizeGatewayEffortForUsage(
 		result.ReasoningEffort,

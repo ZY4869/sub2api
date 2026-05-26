@@ -100,7 +100,7 @@ func (h *GatewayHandler) forwardGoogleBatch(c *gin.Context, forwarder func(servi
 		googleErrorFromServiceError(c, err)
 		return
 	}
-	if !middleware.HasForcePlatform(c) && currentAPIKey.Group != nil && strings.TrimSpace(currentAPIKey.Group.Platform) != service.PlatformGemini {
+	if !middleware.HasForcePlatform(c) && currentAPIKey.Group != nil && strings.TrimSpace(currentAPIKey.Group.Platform) != service.PlatformGemini && strings.TrimSpace(currentAPIKey.Group.Platform) != service.PlatformProtocolGateway {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.group_platform_invalid", "API key group platform is not gemini")
 		return
 	}

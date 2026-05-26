@@ -152,11 +152,15 @@ func paymentSettingsFromRaw(raw map[string]string) PaymentSettings {
 	if out.DefaultCurrency == "" || !PaymentCurrencyAllowed(out.DefaultCurrency, out.AllowedCurrencies) {
 		out.DefaultCurrency = out.AllowedCurrencies[0]
 	}
-	if v, err := strconv.ParseFloat(strings.TrimSpace(raw[SettingKeyPaymentMinTopupAmount]), 64); err == nil && v > 0 {
-		out.MinTopupAmount = v
+	if v, err := strconv.ParseFloat(strings.TrimSpace(raw[SettingKeyPaymentMinTopupAmount]), 64); err == nil {
+		if normalized, normErr := NormalizePaymentAmountToCurrency(v, out.DefaultCurrency); normErr == nil && normalized > 0 {
+			out.MinTopupAmount = normalized
+		}
 	}
-	if v, err := strconv.ParseFloat(strings.TrimSpace(raw[SettingKeyPaymentMaxTopupAmount]), 64); err == nil && v > 0 {
-		out.MaxTopupAmount = v
+	if v, err := strconv.ParseFloat(strings.TrimSpace(raw[SettingKeyPaymentMaxTopupAmount]), 64); err == nil {
+		if normalized, normErr := NormalizePaymentAmountToCurrency(v, out.DefaultCurrency); normErr == nil && normalized > 0 {
+			out.MaxTopupAmount = normalized
+		}
 	}
 	if out.MaxTopupAmount < out.MinTopupAmount {
 		out.MaxTopupAmount = out.MinTopupAmount
@@ -228,10 +232,14 @@ func ParsePaymentSubscriptionPlans(raw string) []PaymentSubscriptionPlan {
 		normalizedPrices := make(map[string]float64, len(plan.PricesByCurrency))
 		for currency, price := range plan.PricesByCurrency {
 			normalized := NormalizePaymentCurrency(currency)
-			if normalized == "" || price <= 0 {
+			if normalized == "" {
 				continue
 			}
-			normalizedPrices[normalized] = price
+			normalizedPrice, err := NormalizePaymentAmountToCurrency(price, normalized)
+			if err != nil || normalizedPrice <= 0 {
+				continue
+			}
+			normalizedPrices[normalized] = normalizedPrice
 		}
 		plan.PricesByCurrency = normalizedPrices
 		out = append(out, plan)

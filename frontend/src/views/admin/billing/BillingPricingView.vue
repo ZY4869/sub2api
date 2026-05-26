@@ -6,9 +6,9 @@
           <div class="inline-flex rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
             Billing Center V2
           </div>
-          <h2 class="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">模型定价</h2>
+          <h2 class="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">官方成本/价格源管理</h2>
           <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-            模型定价已切换到持久化快照。列表视图按模型编辑，九宫格视图按供应商直接打开工作集弹窗。
+            这里维护官方成本、缺价审计、刷新与导入导出。对外出售价格请在“对外模型展示”页按公开条目设定。
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
@@ -110,25 +110,6 @@
           <option value="provider:asc">供应商 A-Z</option>
           <option value="provider:desc">供应商 Z-A</option>
         </select>
-        <select
-          :value="groupPreviewId ?? ''"
-          class="input"
-          data-testid="billing-pricing-group-preview"
-          @change="handleGroupPreviewChange(($event.target as HTMLSelectElement).value)"
-        >
-          <option value="">基础售价预览</option>
-          <option v-for="group in previewGroups" :key="group.id" :value="group.id">
-            {{ group.name }}
-          </option>
-        </select>
-      </div>
-
-      <div class="mt-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-100">
-        {{
-          previewGroupName
-            ? `当前按分组「${previewGroupName}」倍率预览有效售价，保存时仍只写入基础 sale price。`
-            : '当前展示基础售价；选择分组后可预览该分组倍率作用后的有效售价。'
-        }}
       </div>
 
       <div class="mt-4">
@@ -146,7 +127,6 @@
       :total="total"
       :page="page"
       :page-size="pageSize"
-      :preview-group-name="previewGroupName"
       @open="openEditor"
       @update:page="updatePage"
       @update:page-size="updatePageSize"
@@ -163,26 +143,20 @@
       :details="editorDetails"
       :active-model="activeEditorModel"
       :busy="editorBusy"
-      :preview-group-name="previewGroupName"
       :server-errors="serverLayerErrors"
       @close="editorOpen = false"
       @update:activeModel="activeEditorModel = $event"
       @save-layer="handleSaveLayer"
-      @copy-official="handleCopyOfficial"
-      @apply-discount="handleApplyDiscount"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
-  applyBillingPricingDiscount,
-  copyBillingPricingOfficialToSale,
   getBillingPricingAudit,
   getBillingPricingDetails,
-  getBillingPricingDetailsWithPreview,
   listBillingPricingModels,
   updateBillingPricingLayer,
   type BillingPricingAudit,
@@ -193,7 +167,6 @@ import {
   type BillingPricingSortOrder,
   type BillingPricingSheetDetail,
 } from '@/api/admin/billing'
-import { getAll as getAllGroups } from '@/api/admin/groups'
 import BillingPricingAuditPanel from '@/components/admin/billing/BillingPricingAuditPanel.vue'
 import BillingPricingEditorDialog from '@/components/admin/billing/BillingPricingEditorDialog.vue'
 import BillingPricingModeToggle from '@/components/admin/billing/BillingPricingModeToggle.vue'
@@ -202,7 +175,6 @@ import BillingPricingProviderGrid from '@/components/admin/billing/BillingPricin
 import BillingPricingProviderQuickFilters from '@/components/admin/billing/BillingPricingProviderQuickFilters.vue'
 import { useBillingPricingStore } from '@/stores'
 import { useAppStore } from '@/stores/app'
-import type { AdminGroup } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import {
   applyBillingPricingLayerPatch,
@@ -210,6 +182,7 @@ import {
   buildBillingPricingPatchFileV1,
   materializeBillingPricingPatchFileV1,
   parseBillingPricingPatchFileV1,
+  type BillingPricingPatchFileV1,
 } from '@/utils/billingPricingPatch'
 import type { BillingPricingValidationErrors } from '@/components/admin/billing/pricingOptions'
 
@@ -224,7 +197,6 @@ const {
   providerFilter,
   modeFilter,
   pricingStatusFilter,
-  groupPreviewId,
   sortBy,
   sortOrder,
   page,
@@ -245,10 +217,9 @@ const auditLoading = ref(false)
 const activeEditorModel = ref('')
 const editorDetails = ref<BillingPricingSheetDetail[]>([])
 const audit = ref<BillingPricingAudit | null>(null)
-const previewGroups = ref<AdminGroup[]>([])
 const importFileInput = ref<HTMLInputElement | null>(null)
 const importProgress = ref<{ processed: number; total: number } | null>(null)
-const serverLayerErrors = ref<Partial<Record<'official' | 'sale', BillingPricingValidationErrors>>>({})
+const serverLayerErrors = ref<Partial<Record<'official', BillingPricingValidationErrors>>>({})
 
 const importButtonLabel = computed(() => {
   if (!importing.value) {
@@ -290,10 +261,6 @@ const visibleProviders = computed(() => {
   })
 })
 
-const previewGroupName = computed(() =>
-  previewGroups.value.find((group) => group.id === groupPreviewId.value)?.name || '',
-)
-
 onMounted(async () => {
   billingPricingStore.resetPricingStatusForEntry()
   await guardedLoad(async () => {
@@ -301,16 +268,8 @@ onMounted(async () => {
       billingPricingStore.loadProviders(),
       billingPricingStore.loadModels(),
       loadAudit(),
-      loadPreviewGroups(),
     ])
   })
-})
-
-watch(groupPreviewId, async () => {
-  if (!editorOpen.value || editorDetails.value.length === 0) {
-    return
-  }
-  await refreshEditorWorkset()
 })
 
 const snapshotUpdatedAtLabel = computed(() => {
@@ -335,10 +294,6 @@ async function loadAudit() {
   } finally {
     auditLoading.value = false
   }
-}
-
-async function loadPreviewGroups() {
-  previewGroups.value = await getAllGroups()
 }
 
 function triggerImport() {
@@ -391,6 +346,7 @@ async function handleImportFileChange(event: Event) {
 
     let updatedLayers = 0
     let skippedModels = 0
+    let skippedSalePatches = 0
     let failedUpdates = 0
     const firstErrors: string[] = []
 
@@ -412,46 +368,32 @@ async function handleImportFileChange(event: Event) {
 
       const patch = entry.patch || {}
       const officialPatch = (patch as { official?: unknown }).official
-      const salePatch = (patch as { sale?: unknown }).sale
       const patchCurrency = resolvePricingPatchCurrency(entry.currency, base.currency)
 
       const officialHasChanges = billingPricingLayerPatchHasChanges(base.official_form, officialPatch as any)
-      const saleHasChanges = billingPricingLayerPatchHasChanges(base.sale_form, salePatch as any)
-      if (!officialHasChanges && !saleHasChanges) {
+      if (billingPricingLayerPatchHasChanges(base.sale_form, (patch as { sale?: unknown }).sale as any)) {
+        skippedSalePatches += 1
+      }
+      if (!officialHasChanges) {
         skippedModels += 1
         continue
       }
 
-      if (officialHasChanges) {
-        try {
-          const form = applyBillingPricingLayerPatch(base.official_form, officialPatch as any)
-          await updateBillingPricingLayer(model, 'official', { form, currency: patchCurrency })
-          updatedLayers += 1
-        } catch (error) {
-          failedUpdates += 1
-          if (firstErrors.length < 10) {
-            firstErrors.push(`${model} official: ${resolveErrorMessage(error, '保存失败')}`)
-          }
-        }
-      }
-
-      if (saleHasChanges) {
-        try {
-          const form = applyBillingPricingLayerPatch(base.sale_form, salePatch as any)
-          await updateBillingPricingLayer(model, 'sale', { form, currency: patchCurrency })
-          updatedLayers += 1
-        } catch (error) {
-          failedUpdates += 1
-          if (firstErrors.length < 10) {
-            firstErrors.push(`${model} sale: ${resolveErrorMessage(error, '保存失败')}`)
-          }
+      try {
+        const form = applyBillingPricingLayerPatch(base.official_form, officialPatch as any)
+        await updateBillingPricingLayer(model, 'official', { form, currency: patchCurrency })
+        updatedLayers += 1
+      } catch (error) {
+        failedUpdates += 1
+        if (firstErrors.length < 10) {
+          firstErrors.push(`${model} official: ${resolveErrorMessage(error, '保存失败')}`)
         }
       }
     }
 
     downloadJSONFile(
       buildExportFilename('billing_pricing_patch_confirmed'),
-      materialized.file,
+      stripSalePricingPatchFile(materialized.file),
     )
 
     billingPricingStore.invalidate()
@@ -467,6 +409,7 @@ async function handleImportFileChange(event: Event) {
           `更新层数：${updatedLayers}`,
           `自动补全：${materialized.updated}`,
           `跳过模型：${skippedModels + materialized.skipped}`,
+          ...(skippedSalePatches > 0 ? [`已忽略出售价格补丁：${skippedSalePatches}，请在“对外模型展示”页设置`] : []),
           `失败次数：${failedUpdates}`,
           ...firstErrors,
         ],
@@ -480,6 +423,7 @@ async function handleImportFileChange(event: Event) {
         `更新层数：${updatedLayers}`,
         `自动补全：${materialized.updated}`,
         `跳过模型：${skippedModels + materialized.skipped}`,
+        ...(skippedSalePatches > 0 ? [`已忽略出售价格补丁：${skippedSalePatches}，请在“对外模型展示”页设置`] : []),
       ],
     })
   } catch (error) {
@@ -497,6 +441,22 @@ function resolvePricingPatchCurrency(
   return patchCurrency === 'CNY' || patchCurrency === 'USD'
     ? patchCurrency
     : fallback
+}
+
+function stripSalePricingPatchFile(file: BillingPricingPatchFileV1): BillingPricingPatchFileV1 {
+  return {
+    ...file,
+    models: file.models.map((entry) => ({
+      ...entry,
+      current: {
+        official: entry.current.official,
+      },
+      patch: {
+        official: entry.patch?.official,
+      },
+      notes: entry.notes?.replace(/(?:或\s*)?sale\s*价/g, '官方价') || entry.notes,
+    } as BillingPricingPatchFileV1['models'][number])),
+  }
 }
 
 async function applyFilters() {
@@ -524,14 +484,6 @@ async function updatePageSize(nextPageSize: number) {
   pageSize.value = nextPageSize
   page.value = 1
   localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(nextPageSize))
-  await guardedLoad(reloadModels)
-}
-
-async function handleGroupPreviewChange(value: string) {
-  const nextValue = value.trim()
-  const parsed = Number(nextValue)
-  groupPreviewId.value = nextValue && Number.isFinite(parsed) ? parsed : null
-  page.value = 1
   await guardedLoad(reloadModels)
 }
 
@@ -585,7 +537,7 @@ async function openWorkset(models: string[], activeModel: string) {
 
 async function handleSaveLayer(payload: {
   model: string
-  layer: 'official' | 'sale'
+  layer: 'official'
   form: BillingPricingLayerForm
   currency: 'USD' | 'CNY'
 }) {
@@ -598,10 +550,9 @@ async function handleSaveLayer(payload: {
     const detail = await updateBillingPricingLayer(payload.model, payload.layer, {
       form: payload.form,
       currency: payload.currency,
-      group_id: groupPreviewId.value,
     })
     mergeEditorDetail(detail)
-    appStore.showSuccess(payload.layer === 'official' ? '官方价格已保存' : '出售价格已保存')
+    appStore.showSuccess('官方价格已保存')
     billingPricingStore.invalidate()
     await guardedLoad(() => reloadAfterMutation(true))
   } catch (error) {
@@ -612,57 +563,15 @@ async function handleSaveLayer(payload: {
         [payload.layer]: fieldErrors,
       }
       appStore.showError(
-        payload.layer === 'official' ? '官方价格保存失败，请先修正标记字段。' : '售价保存失败，请先修正标记字段。',
+        '官方价格保存失败，请先修正标记字段。',
         {
-          title: payload.layer === 'official' ? '官方价格校验失败' : '售价校验失败',
+          title: '官方价格校验失败',
           details: uniqueErrorMessages(fieldErrors),
         },
       )
       return
     }
     appStore.showError(resolveErrorMessage(error, '保存模型定价失败'))
-  } finally {
-    editorBusy.value = false
-  }
-}
-
-async function handleCopyOfficial(payload: { models: string[] }) {
-  editorBusy.value = true
-  try {
-    const details = await copyBillingPricingOfficialToSale(payload)
-    if (groupPreviewId.value) {
-      await refreshEditorWorkset(payload.models)
-    } else {
-      details.forEach(mergeEditorDetail)
-    }
-    appStore.showSuccess('已将官方价格复制到出售价格')
-    billingPricingStore.invalidate()
-    await guardedLoad(() => reloadAfterMutation(true))
-  } catch (error) {
-    appStore.showError(resolveErrorMessage(error, '复制官方价格失败'))
-  } finally {
-    editorBusy.value = false
-  }
-}
-
-async function handleApplyDiscount(payload: { models: string[]; itemIds?: string[]; discountRatio: number }) {
-  editorBusy.value = true
-  try {
-    const details = await applyBillingPricingDiscount({
-      models: payload.models,
-      item_ids: payload.itemIds,
-      discount_ratio: payload.discountRatio,
-    })
-    if (groupPreviewId.value) {
-      await refreshEditorWorkset(payload.models)
-    } else {
-      details.forEach(mergeEditorDetail)
-    }
-    appStore.showSuccess('出售价格折扣已应用')
-    billingPricingStore.invalidate()
-    await guardedLoad(() => reloadAfterMutation(true))
-  } catch (error) {
-    appStore.showError(resolveErrorMessage(error, '应用折扣失败'))
   } finally {
     editorBusy.value = false
   }
@@ -698,7 +607,7 @@ async function handleExportPricingPatch() {
 
     const details = await fetchPricingDetailsInBatches(models)
     const ordered = orderPricingDetails(models, details)
-    const payload = buildBillingPricingPatchFileV1(ordered)
+    const payload = stripSalePricingPatchFile(buildBillingPricingPatchFileV1(ordered))
     downloadJSONFile(buildExportFilename('billing_pricing_patch'), payload)
     appStore.showSuccess(`已导出 ${ordered.length} 个模型的 JSON 补丁`)
   } catch (error) {
@@ -723,7 +632,7 @@ async function handleExportExecutablePricingPatch() {
 
     const details = await fetchPricingDetailsInBatches(models)
     const ordered = orderPricingDetails(models, details)
-    const payload = buildBillingPricingPatchFileV1(ordered, { executableTemplate: true })
+    const payload = stripSalePricingPatchFile(buildBillingPricingPatchFileV1(ordered, { executableTemplate: true }))
     downloadJSONFile(buildExportFilename('billing_pricing_patch_template'), payload)
     appStore.showSuccess(`已导出 ${ordered.length} 个模型的可执行模板`)
   } catch (error) {
@@ -745,33 +654,7 @@ function mergeEditorDetail(detail: BillingPricingSheetDetail) {
 }
 
 async function loadWorksetDetails(models: string[]): Promise<BillingPricingSheetDetail[]> {
-  const normalizedModels = dedupeModels(models)
-  if (!groupPreviewId.value) {
-    return getBillingPricingDetails(normalizedModels)
-  }
-  return getBillingPricingDetailsWithPreview({
-    models: normalizedModels,
-    group_id: groupPreviewId.value,
-  })
-}
-
-async function refreshEditorWorkset(models: string[] = editorDetails.value.map((detail) => detail.model)) {
-  const normalizedModels = dedupeModels(models)
-  if (normalizedModels.length === 0) {
-    return
-  }
-  editorBusy.value = true
-  serverLayerErrors.value = {}
-  try {
-    editorDetails.value = await loadWorksetDetails(normalizedModels)
-    if (!normalizedModels.includes(activeEditorModel.value)) {
-      activeEditorModel.value = normalizedModels[0] || ''
-    }
-  } catch (error) {
-    appStore.showError(resolveErrorMessage(error, '刷新倍率预览失败'))
-  } finally {
-    editorBusy.value = false
-  }
+  return getBillingPricingDetails(dedupeModels(models))
 }
 
 async function reloadAfterMutation(force = false) {

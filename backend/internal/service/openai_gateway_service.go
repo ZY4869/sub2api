@@ -79,6 +79,7 @@ type OpenAIGatewayService struct {
 	cfg                           *config.Config
 	settingService                *SettingService
 	modelRegistryService          *ModelRegistryService
+	modelCatalogService           *ModelCatalogService
 	codexDetector                 CodexClientRestrictionDetector
 	schedulerSnapshot             *SchedulerSnapshotService
 	concurrencyService            *ConcurrencyService
@@ -159,6 +160,10 @@ func (s *OpenAIGatewayService) SetChannelService(channelService *ChannelService)
 
 func (s *OpenAIGatewayService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *OpenAIGatewayService) SetModelCatalogService(modelCatalogService *ModelCatalogService) {
+	s.modelCatalogService = modelCatalogService
 }
 
 func (s *OpenAIGatewayService) CloseOpenAIWSPool() {

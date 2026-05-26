@@ -475,7 +475,8 @@ gateway:
 - `security.url_allowlist` 配置上游/价格数据/CRS/百度智能文档主机白名单
 - `security.url_allowlist.enabled` 可关闭 URL 校验（慎用）
 - `security.url_allowlist.allow_insecure_http` 关闭校验时允许 HTTP URL
-- `security.url_allowlist.allow_private_hosts` 允许私有/本地 IP 地址
+- `security.url_allowlist.private_host_exceptions` 为管理员配置的本地上游 `base_url` / 代理 host 提供精确私网例外
+- `security.url_allowlist.allow_private_hosts` 高风险全局开关：允许所有出站 URL 场景访问私有/本地 IP 地址
 - `security.url_allowlist.document_ai_hosts` 配置百度智能文档 `async_base_url`、`direct_api_urls` 与结果下载 URL 的允许主机
 - `security.response_headers.enabled` 可启用可配置响应头过滤（关闭时使用默认白名单）
 - `security.csp` 配置 Content-Security-Policy
@@ -522,6 +523,26 @@ SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
 - ✅ 内网可信端点
 - ✅ 获取 HTTPS 前测试账号连通性
 - ❌ 生产环境（仅使用 HTTPS）
+
+**本地上游 / Docker 内网推荐配置：**
+
+如需接入同 VPS、同 Docker 网络或指定内网里的 OpenAI-compatible 上游，请优先在 `config.yaml` 配置精确例外，而不是开启全局 `allow_private_hosts`：
+
+```yaml
+security:
+  url_allowlist:
+    allow_private_hosts: false
+    allow_insecure_http: true
+    private_host_exceptions:
+      - scope: upstream_base_url
+        hosts: ["127.0.0.1", "host.docker.internal"]
+        cidrs: ["172.17.0.0/16"]
+        ports: [9000]
+        schemes: ["http"]
+        description: "Local compatible API on the same VPS"
+```
+
+`scope` 首期仅支持 `upstream_base_url` 与 `proxy_host`。这些例外只在目标解析为默认会被 SSRF guard 拦截的本地/私网地址时生效，不会变成第二套公网上游白名单；Document AI `file_url`、Pricing 和 CRS 拉取仍默认拒绝本地/私网地址。
 
 **未设置此项时的错误示例：**
 ```

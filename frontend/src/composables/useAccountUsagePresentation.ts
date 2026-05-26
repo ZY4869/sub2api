@@ -339,10 +339,24 @@ function isOpenAIProAccount(account: Account): boolean {
   );
 }
 
-function resolveOpenAIUsageSpecs(includeSpark: boolean): OpenAIUsageRowSpec[] {
-  return includeSpark
+function isOpenAIFreeAccount(account: Account): boolean {
+  return (
+    String(account.credentials?.plan_type || "")
+      .trim()
+      .toLowerCase() === "free"
+  );
+}
+
+function resolveOpenAIUsageSpecs(
+  includeSpark: boolean,
+  freeOnly7d = false,
+): OpenAIUsageRowSpec[] {
+  const allowedRows = includeSpark
     ? OPENAI_USAGE_ROW_SPECS
     : OPENAI_USAGE_ROW_SPECS.filter((spec) => spec.scope === "normal");
+  return freeOnly7d
+    ? allowedRows.filter((spec) => spec.scope === "normal" && spec.window === "7d")
+    : allowedRows;
 }
 
 function resolveOpenAIUsageLabel(
@@ -373,10 +387,11 @@ function mergeOpenAIUsageRows(
   primaryRows: AccountUsagePresentationRow[],
   fallbackRows: AccountUsagePresentationRow[],
   includeSpark: boolean,
+  freeOnly7d: boolean,
   fillMissingRows: boolean,
   t: ReturnType<typeof useI18n>["t"],
 ): AccountUsagePresentationRow[] {
-  const specs = resolveOpenAIUsageSpecs(includeSpark);
+  const specs = resolveOpenAIUsageSpecs(includeSpark, freeOnly7d);
   const hasResolvedRows = specs.some((spec) => {
     return (
       findRowByKey(primaryRows, spec.key) !== null ||
@@ -533,6 +548,14 @@ export function useAccountUsagePresentation(
       return false;
     return isOpenAIProAccount(account.value);
   });
+  const shouldShowOnlyOpenAI7dUsage = computed(() => {
+    if (
+      getRuntimePlatform(account.value) !== "openai" ||
+      account.value.type !== "oauth"
+    )
+      return false;
+    return isOpenAIFreeAccount(account.value);
+  });
 
   const loadingRows = computed(() => {
     const runtimePlatform = getRuntimePlatform(account.value);
@@ -540,7 +563,11 @@ export function useAccountUsagePresentation(
       return account.value.type === "oauth" ? 3 : 1;
     }
     if (runtimePlatform === "openai")
-      return shouldShowOpenAISparkUsage.value ? 4 : 2;
+      return shouldShowOnlyOpenAI7dUsage.value
+        ? 1
+        : shouldShowOpenAISparkUsage.value
+          ? 4
+          : 2;
     return 1;
   });
 
@@ -563,7 +590,8 @@ export function useAccountUsagePresentation(
 
   const codexRows = computed(() =>
     buildRows(
-      codex5hWindow.value.usedPercent === null
+      shouldShowOnlyOpenAI7dUsage.value ||
+        codex5hWindow.value.usedPercent === null
         ? null
         : buildUsageRow(
             "openai-5h",
@@ -622,7 +650,11 @@ export function useAccountUsagePresentation(
 
   const hasCodexUsage = computed(() => codexRows.value.length > 0);
   const expectedOpenAICodexRowCount = computed(() =>
-    shouldShowOpenAISparkUsage.value ? 4 : 2,
+    shouldShowOnlyOpenAI7dUsage.value
+      ? 1
+      : shouldShowOpenAISparkUsage.value
+        ? 4
+        : 2,
   );
   const hasCompleteCodexUsage = computed(
     () => codexRows.value.length === expectedOpenAICodexRowCount.value,
@@ -630,15 +662,18 @@ export function useAccountUsagePresentation(
 
   const openAIFetchedRows = computed(() =>
     buildRows(
-      ...resolveOpenAIUsageSpecs(shouldShowOpenAISparkUsage.value).map((spec) =>
-        buildProgressRow(
-          spec.key,
-          resolveOpenAIUsageLabel(spec, t),
-          resolveOpenAIUsageProgress(usageInfo.value, spec),
-          spec.color,
-          { inlineRemaining: true, detailedReset: true },
+      ...resolveOpenAIUsageSpecs(
+        shouldShowOpenAISparkUsage.value,
+        shouldShowOnlyOpenAI7dUsage.value,
+      ).map((spec) =>
+          buildProgressRow(
+            spec.key,
+            resolveOpenAIUsageLabel(spec, t),
+            resolveOpenAIUsageProgress(usageInfo.value, spec),
+            spec.color,
+            { inlineRemaining: true, detailedReset: true },
+          ),
         ),
-      ),
     ),
   );
 
@@ -739,6 +774,7 @@ export function useAccountUsagePresentation(
         openAIFetchedRows.value,
         codexRows.value,
         shouldShowOpenAISparkUsage.value,
+        shouldShowOnlyOpenAI7dUsage.value,
         fillMissingRows,
         t,
       );
@@ -748,6 +784,7 @@ export function useAccountUsagePresentation(
       codexRows.value,
       openAIFetchedRows.value,
       shouldShowOpenAISparkUsage.value,
+      shouldShowOnlyOpenAI7dUsage.value,
       fillMissingRows,
       t,
     );

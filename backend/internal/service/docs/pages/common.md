@@ -17,6 +17,7 @@ Sub2API 是一个多协议聚合网关。你面对的是一套统一站内 API K
 | `common` | 通用接入 | 所有调用方 | 认证、基础地址、错误、限流、模型目录 |
 | `openai-native` | OpenAI 原生 | 新版 OpenAI SDK、Responses-first 客户端 | `responses`、子资源、长连接建议 |
 | `openai` | OpenAI 兼容 | 旧版 OpenAI SDK、历史兼容客户端 | `chat/completions`、历史别名、兼容迁移 |
+| `openrouter` | OpenRouter | 需要显式绑定 OpenRouter 平台的 OpenAI-compatible 客户端 | `/openrouter/v1/models`、`/openrouter/v1/chat/completions` |
 | `anthropic` | Anthropic / Claude | Claude SDK、Claude Code、Anthropic 风格客户端 | `messages`、`count_tokens`、保留头 |
 | `gemini` | Gemini 原生 | Gemini SDK、AI Studio / Vertex 风格客户端 | `models`、`files`、`batches`、`live`、`openai compat` |
 | `grok` | Grok | xAI / Grok 兼容接入 | 聊天、Responses、图像、视频 |
@@ -142,7 +143,7 @@ https://api.zyxai.de
 - 路径：`GET /api/v1/meta/model-catalog`
 - 详情：`GET /api/v1/meta/model-catalog/:model`
 - 鉴权：无需登录，游客与已登录用户都可访问
-- 用途：返回前台 `/models` 页面使用的公开模型目录，包含供应商、请求协议族、基础出售价格、倍率摘要，以及目录配置中的 `page_size`
+- 用途：返回前台 `/models` 页面使用的公开模型目录，包含供应商、请求协议族、公开条目出售价格、官方成本对比、倍率摘要，以及目录配置中的 `page_size`
 - 发布语义：有已发布快照时，接口固定返回最近一次“推送更新”冻结下来的正式目录，列表内容、排序、分页大小与详情示例都会以该版本为准
 - 未发布语义：如果当前还没有任何已发布快照，接口会自动回退到实时目录构建结果，而不是返回空目录；详情接口也会同步回退到实时详情
 - 详情语义：`GET /api/v1/meta/model-catalog/:model` 在 `catalog_source=published` 时返回发布时固化的单模型价格块与调用示例元数据；在 `catalog_source=live_fallback` 时返回当前实时目录对应的详情结果
@@ -175,9 +176,22 @@ https://api.zyxai.de
 - `items[].availability_state`：可服务性来源状态，固定为 `verified` / `unavailable` / `unknown`
 - `items[].stale_state`：状态新鲜度，固定为 `fresh` / `stale` / `unverified`
 - `items[].lifecycle_status`：生命周期标记，固定为 `stable` / `beta` / `deprecated`
+- `items[].entry_id`：后台发布条目的稳定 ID，用于区分同一基础模型来自不同账号 / 节点的展示实例；它不是调用时的模型名
+- `items[].public_model_id` / `items[].model`：对外可调用的公开模型 ID；命中发布目录时二者保持一致
+- `items[].base_model` / `items[].source_model_id`：用于展示的基础模型 / 来源模型 ID；它们只描述来源，不应作为额外公开可调用 ID 使用
+- `items[].source_alias`：运营配置的公开来源别名；未显式配置时会生成 `source-<hash>` 脱敏别名，不会暴露后台真实账号 ID、账号名或账号凭证
 - `items[].price_display.primary`：核心售价行，可能包含 `input_price`、`output_price`、`cache_price`、`batch_cache_price`
 - `items[].price_display.secondary`：附加售价行，只保留 grounding / retrieval 等补充项
+- `items[].official_price_display`：官方成本展示行，用于前台或后台对比展示
+- `items[].sale_price_display`：本公开条目的出售价格展示行；实际计费命中发布条目时优先使用这组价格
 - `items`：公开模型数组，前台可优先展示 `display_name`；当它与 `model` 只是大小写或分隔符变体时，可按本地标题规则折叠重复 subtitle
+
+运行时调用规则：
+
+- 客户端只传 `public_model_id`（也就是响应里的 `model`）；同一基础模型如果由两个账号来源发布，会以两个不同公开 ID 暴露。
+- 网关在 OpenAI `/v1/chat/completions`、`/v1/messages`、`/v1/responses`，Anthropic `/v1/messages`，Gemini native 模型动作和 Gemini passthrough 可识别模型的路径上，都会先解析发布条目，再把请求路由到该条目的 `source_account_id` 与 `source_model_id`。
+- `source_model_id`、`base_model` 和后台候选里的真实账号信息只用于展示、路由和诊断，不会作为额外 public ID 暴露给客户端调用。
+- 计费命中发布条目时优先使用 `sale_price_display`，并在内部 billing metadata 记录 `entry_id`；如果条目售价为空或无法计算，才记录缺价回退并沿用旧模型级 sale / official 兼容逻辑。
 
 典型响应示例：
 
@@ -189,7 +203,13 @@ https://api.zyxai.de
   "catalog_source": "published",
   "items": [
     {
-      "model": "gpt-5.4",
+      "entry_id": "acct_8a6d0f3c5b9e12aa",
+      "public_model_id": "gpt-5.4@primary",
+      "model": "gpt-5.4@primary",
+      "base_model": "gpt-5.4",
+      "source_model_id": "gpt-5.4",
+      "source_protocol": "openai",
+      "source_alias": "primary",
       "display_name": "GPT-5.4",
       "provider": "openai",
       "provider_icon_key": "openai",
@@ -211,6 +231,18 @@ https://api.zyxai.de
           { "id": "file_search_retrieval", "unit": "file_search_retrieval_token", "value": 0.000001 }
         ]
       },
+      "official_price_display": {
+        "primary": [
+          { "id": "input_price", "unit": "input_token", "value": 0.000001 },
+          { "id": "output_price", "unit": "output_token", "value": 0.000002 }
+        ]
+      },
+      "sale_price_display": {
+        "primary": [
+          { "id": "input_price", "unit": "input_token", "value": 0.0000012 },
+          { "id": "output_price", "unit": "output_token", "value": 0.0000024 }
+        ]
+      },
       "multiplier_summary": {
         "enabled": false,
         "kind": "disabled"
@@ -225,7 +257,13 @@ https://api.zyxai.de
 ```json
 {
   "item": {
-    "model": "gpt-5.4",
+    "entry_id": "acct_8a6d0f3c5b9e12aa",
+    "public_model_id": "gpt-5.4@primary",
+    "model": "gpt-5.4@primary",
+    "base_model": "gpt-5.4",
+    "source_model_id": "gpt-5.4",
+    "source_protocol": "openai",
+    "source_alias": "primary",
     "display_name": "GPT-5.4",
     "provider": "openai",
     "provider_icon_key": "openai",
@@ -264,9 +302,16 @@ https://api.zyxai.de
 - 路径：`GET /api/v1/groups/model-options`
 - 鉴权：必须登录
 - 用途：返回当前用户可绑定分组下、且当前具备有效价格的公开模型列表；普通用户保存 Key 时会把结构化勾选结果写回 `groups[].model_patterns`
-- 语义：如果某个分组绑定没有提交 `model_patterns`，表示这个 Key 在该分组下可以调用全部公开模型；多个分组绑定的最终可调用模型集合取并集
+- 普通用户默认策略：用户字段 `api_key_model_binding_mode` 默认为 `model_required`。在这个模式下，普通用户创建或编辑 Key 时，每个 `groups[]` 绑定都必须提交至少一个 `model_patterns`，且只能是该用户在该分组可见的 public model ID；通配符、任意文本和不可见模型会被拒绝。
+- 允许整组策略：管理员可以把用户改为 `api_key_model_binding_mode=group_allowed`。在这个模式下，空 `model_patterns` 继续表示这个 Key 在该分组下可以调用全部公开模型；如果用户选择了具体模型，仍然会校验为可见 public model ID。
+- 管理员高级能力：管理员后台接口仍可为用户 Key 配置分组配额和高级模型匹配规则；这些规则不会扩大账号模型策略投影，只影响该 Key 在已可见模型集合内的匹配范围。
+- 分组语义：多个分组绑定的最终可调用模型集合取并集；`protocol_gateway` 分组可以绑定协议网关账号，并按账号的 `gateway_protocol` / `gateway_accepted_protocols` 参与 OpenAI、Anthropic、Gemini 入口的本地模型投影，不会把内部 `target_model_id` 暴露为另一个可调用 public ID。
 - 生图专用语义：生图专用 Key 下，空 `model_patterns` 表示该分组全部生图模型；提交了文本 / 非生图模型时会被后端归一化或拒绝，确保最终只保留生图模型。
 - 回退语义：如果正式公开目录尚未发布，这个接口会和前台 `/models` 一样自动回退到实时目录，但仍会继续过滤掉没有有效售价的模型
+
+管理员后台 `/api/v1/admin/billing/public-model-catalog/draft` 会额外返回 `available_entries[].source_account_id` 与 `available_entries[].source_account_name`，仅用于后台识别账号来源；这些字段不会出现在公开 `/meta/model-catalog`、详情、分组目录或模型枚举响应里。保存草稿时推荐提交 `selected_entries[]`，每个条目包含 `entry_id`、`public_model_id`、`source_alias` 与 `sale_price_display`；旧前端仍可提交 `selected_models[]`，后端会按公开模型 ID 自动兼容迁移。发布时会校验 `public_model_id` 唯一、售价非负、条目仍存在于当前候选快照；失败会返回 `PUBLIC_MODEL_ENTRY_UNAVAILABLE`、`PUBLIC_MODEL_ID_REQUIRED`、`PUBLIC_MODEL_ID_DUPLICATE` 或 `PUBLIC_MODEL_PRICE_INVALID`，避免静默发布部分条目。
+
+管理员后台“官方成本/价格源管理”页只维护官方成本、缺价审计与导入导出。该页导入旧 JSON 时会忽略 `patch.sale`，并提示前往“对外模型展示”页维护出售价格；新导出的补丁模板也只包含 `patch.official`。旧模型级 sale 接口仍保留为兼容层和未命中公开条目的 fallback，但会记录弃用日志与指标，前端不再把它作为出售价格主入口。
 
 如果前台已经处在明确的分组上下文里，还可以使用倍率后的展示价接口：
 
@@ -349,6 +394,7 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - `GET /api/v1/admin/accounts/:id/today-stats` 与 `POST /api/v1/admin/accounts/today-stats/batch` 保持原路径不变；响应继续返回今日 `requests`、`tokens`、`cost`、`standard_cost`、`user_cost`、`success_rate`、`average_duration_ms`，并附加同形的 `weekly` 与 `total`。`weekly` 是服务端本地时区含今日的近 7 个自然日，`total` 是账号全部历史；空账号默认请求数、Token 和金额为 `0`，成功率为 `100`。
 - 这些 `today_*` 字段按请求里的 `timezone` 计算“今日”窗口：从调用方所在时区当天 `00:00` 到当前时间；如果 `timezone` 缺失或非法，则回退到服务端默认时区。
 - `/v1/usage` 在钱包模式下会返回 `balances`，格式为 `{ "USD": 10, "CNY": 25 }`；旧 `balance` / `remaining` 仍只代表 USD 钱包影子余额。
+- 钱包模式的网关请求在进入上游前会按 `billing.minimum_request_hold_usd` 原子预留最小请求保证金，默认 `0.01 USD`；成功 usage 结算时多退少补，真实 0 费用或未进入上游的终止路径会释放预留。相同 `request_id + api_key_id` 若携带不同请求体指纹会返回 `409 billing_request_replayed`，避免请求重放复用旧 hold。
 - `/v1/usage` 会返回 `daily_details[]`，按页面选择的日期范围汇总每日请求数、token、花费与实际扣费；默认沿用调用方当前查询窗口，最大 31 天。
 - `GET /api/v1/usage/dashboard/api-keys/:id/daily` 返回当前登录用户名下指定 API Key 的每日明细。该接口会做所有权校验，不允许查询其他用户的 Key。
 - 当 API Key 绑定的单分组或动态分组全部停用 / 删除时，业务网关会返回 `403 GROUP_UNAVAILABLE`；`/v1/usage` 仍允许 Key 自查，但响应会标记 `isValid=false`、`status=group_unavailable`。
@@ -745,7 +791,11 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/accounts/bulk-update" \
 
 - 保存时会校验 `credentials.base_url`，不接受空 host、非法端口、`file://`、`gopher://`、默认私网 / `localhost`，以及默认配置下的明文 `http://`
 - 百度智能文档账号还会校验 `credentials.async_base_url` 与 `credentials.direct_api_urls`，默认必须命中 `security.url_allowlist.document_ai_hosts`
+- 即使关闭 `security.url_allowlist.enabled`，运行态上游请求、账号 `base_url`、Pricing/CRS 远程 URL、Document AI `file_url` 仍会默认执行 DNS 解析后的私网 / loopback / link-local / multicast / unspecified 拦截；HTTP/SOCKS 实际出站拨号也会先解析并只连接已验证 IP，避免 DNS rebinding 在格式校验后绕过；只有显式设置 `allow_private_hosts=true` 才会全局放行内网地址（高风险）
+- 需要接入同 VPS / Docker 网络里的本地兼容 API 时，推荐使用 `security.url_allowlist.private_host_exceptions` 做精确例外，而不是开启全局 `allow_private_hosts`。首期只支持 `scope=upstream_base_url` 与 `scope=proxy_host`；这些例外只在目标解析为默认会被 SSRF guard 拦截的本地 / 私网地址时生效，不会变成第二套公网上游白名单；`Document AI file_url`、Pricing/CRS 等普通外部拉取入口不会使用这些例外。
+- 管理端代理的 `host` 必须是单独主机名或 IP，不能填写完整 URL；默认同样拒绝私网 / `localhost` / multicast / 云元数据地址，代理测试和质量检测不会向前端回显底层端口错误细节；批量创建代理时，非法 `host` / `port` / `protocol` 会直接返回 `400`，错误码 `PROXY_INVALID_HOST`，不会计入 `skipped`
 - 默认策略固定为 `security.url_allowlist.enabled=true`、`allow_private_hosts=false`、`allow_insecure_http=false`
+- 核心计费金额在服务端使用 8 位小数定点 `BillingMoney` 运算；充值、扣费、预留结算、退款、返利和账本写入都会先拒绝 NaN / Inf / 负零 / 越界金额，再转换为 DECIMAL 兼容值。公开 API 暂保持数字金额字段兼容。
 - 普通账号 `base_url` 命中上述限制时，创建 / 更新接口直接返回 `400`，错误码 `ACCOUNT_INVALID_BASE_URL`
 - 百度智能文档账号 URL / 凭证校验失败时，创建 / 更新 / 批量更新接口直接返回 `400`，错误码 `ACCOUNT_INVALID_DOCUMENT_AI_CREDENTIALS`
 - 保存成功后不会再自动触发后台模型 probe，也不会在保存动作里隐式刷新 `model_probe_snapshot`
@@ -756,6 +806,24 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/accounts/bulk-update" \
 
 - 直接填写最终的 HTTPS 上游地址，不要依赖 `302/307` 重定向
 - 审计 / 内网 mock 场景如需放宽策略，应通过显式配置项调整 allowlist，而不是依赖默认产品配置
+
+本地上游 API 推荐配置示例：
+
+```yaml
+security:
+  url_allowlist:
+    allow_private_hosts: false
+    allow_insecure_http: true
+    private_host_exceptions:
+      - scope: upstream_base_url
+        hosts: ["127.0.0.1", "host.docker.internal"]
+        cidrs: ["172.17.0.0/16"]
+        ports: [9000]
+        schemes: ["http"]
+        description: "Local compatible API on the same VPS"
+```
+
+如果确实要配置本地代理服务器，必须单独增加 `scope: proxy_host` 且限定 host / CIDR / port / scheme；只配置 `upstream_base_url` 不会放行代理测试或质量检测。
 
 典型错误响应：
 

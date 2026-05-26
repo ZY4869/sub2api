@@ -113,9 +113,30 @@ security:
     # 允许百度智能文档 async/direct/result URL 访问的主机列表
     document_ai_hosts:
       - "paddleocr.aistudio-app.com"
-    # Allow localhost/private IPs for upstream/pricing/CRS/Document AI (use only in trusted networks)
-    # 允许本地/私有 IP 地址用于上游/定价/CRS/智能文档（仅在可信网络中使用）
+    # High-risk global switch: allow localhost/private IPs for all outbound URL surfaces.
+    # Prefer private_host_exceptions below for local upstream/proxy access.
+    # 高风险全局开关：允许所有出站 URL 场景访问本地/私有 IP。
+    # 本地上游/代理请优先使用下方 private_host_exceptions 精确例外。
     allow_private_hosts: false
+    # Scoped localhost/private-IP exceptions for administrator-configured upstream base_url/proxy host only.
+    # Not used by Document AI file_url, pricing downloads, or CRS sync.
+    # 仅用于管理员配置的上游 base_url / 代理 host 的本地/私网精确例外。
+    # 不适用于 Document AI file_url、定价下载或 CRS 同步。
+    private_host_exceptions: []
+    # Example:
+    # 示例：
+    # private_host_exceptions:
+    #   - scope: upstream_base_url
+    #     hosts: ["127.0.0.1", "host.docker.internal"]
+    #     cidrs: ["172.17.0.0/16"]
+    #     ports: [9000]
+    #     schemes: ["http"]
+    #     description: "Local compatible API on the same VPS"
+    #   - scope: proxy_host
+    #     hosts: ["127.0.0.1"]
+    #     ports: [7890]
+    #     schemes: ["http", "socks5h"]
+    #     description: "Local outbound proxy"
     # Allow http:// URLs when allowlist is disabled (default: false, require https)
     # 白名单禁用时是否允许 http:// URL（默认: false，要求 https）
     allow_insecure_http: false

@@ -168,6 +168,12 @@
           v-model:limits="deepSeekModelConcurrencyLimits"
         />
 
+        <AccountOpenRouterSettingsEditor
+          v-if="account.platform === 'openrouter'"
+          v-model:http-referer="editOpenRouterHTTPReferer"
+          v-model:openrouter-title="editOpenRouterTitle"
+        />
+
         <AccountProtocolGatewayBatchEditor
           v-if="showProtocolGatewayBatchEditor"
           v-model:enabled="gatewayBatchEnabled"
@@ -520,6 +526,7 @@ import AccountGeminiVertexCredentialsEditor from '@/components/account/AccountGe
 import AccountGroupSettingsEditor from '@/components/account/AccountGroupSettingsEditor.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
+import AccountOpenRouterSettingsEditor from '@/components/account/AccountOpenRouterSettingsEditor.vue'
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
 import AccountProtocolGatewayClaudeMimicEditor from '@/components/account/AccountProtocolGatewayClaudeMimicEditor.vue'
 import AccountProtocolGatewayBatchEditor from '@/components/account/AccountProtocolGatewayBatchEditor.vue'
@@ -687,6 +694,8 @@ const gatewayProtocol = ref<GatewayProtocol>('openai')
 const isInitializingGatewayProtocol = ref(false)
 const editBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const editApiKey = ref('')
+const editOpenRouterHTTPReferer = ref('')
+const editOpenRouterTitle = ref('')
 const deepSeekModelConcurrencyLimits = ref(createDefaultDeepSeekModelConcurrencyLimitDraft())
 const editGrokSSOToken = ref('')
 const editGrokTier = ref<GrokTier>('basic')
@@ -777,6 +786,16 @@ const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
     credentials.tier_id =
       normalizeGeminiAIStudioTier(geminiTierAIStudio.value || currentAccountCredentials.value.tier_id) ||
       'aistudio_free'
+  }
+  if (props.account?.platform === 'openrouter') {
+    const httpReferer = editOpenRouterHTTPReferer.value.trim() || String(currentAccountCredentials.value.http_referer || '').trim()
+    const openrouterTitle = editOpenRouterTitle.value.trim() || String(currentAccountCredentials.value.openrouter_title || '').trim()
+    if (httpReferer) {
+      credentials.http_referer = httpReferer
+    }
+    if (openrouterTitle) {
+      credentials.openrouter_title = openrouterTitle
+    }
   }
   return credentials
 })
@@ -1559,6 +1578,13 @@ watch(
         } else {
           const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
           editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
+          if (newAccount.platform === 'openrouter') {
+            editOpenRouterHTTPReferer.value = String(credentials.http_referer || '').trim()
+            editOpenRouterTitle.value = String(credentials.openrouter_title || '').trim()
+          } else {
+            editOpenRouterHTTPReferer.value = ''
+            editOpenRouterTitle.value = ''
+          }
 
           const loadedFromScope = loadModelScopeFromExtra(extra)
           if (!loadedFromScope) {
@@ -1570,6 +1596,8 @@ watch(
         }
       } else if (newAccount.type === 'sso' && newAccount.platform === 'grok' && newAccount.credentials) {
         const credentials = newAccount.credentials as Record<string, unknown>
+        editOpenRouterHTTPReferer.value = ''
+        editOpenRouterTitle.value = ''
         editBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
         applyModelRestrictionFromRecord(
           credentials.model_mapping || grokDefaultModelMappingForTier(editGrokTier.value)
@@ -1578,6 +1606,8 @@ watch(
         resetAccountCustomErrorCodesState(customErrorCodesState)
       } else if (newAccount.type === 'upstream' && newAccount.credentials) {
         const credentials = newAccount.credentials as Record<string, unknown>
+        editOpenRouterHTTPReferer.value = ''
+        editOpenRouterTitle.value = ''
         editBaseUrl.value = (credentials.base_url as string) || ''
         const loadedFromScope = loadModelScopeFromExtra(extra)
         if (!loadedFromScope) {
@@ -1586,6 +1616,8 @@ watch(
         resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
         resetAccountCustomErrorCodesState(customErrorCodesState)
         } else {
+          editOpenRouterHTTPReferer.value = ''
+          editOpenRouterTitle.value = ''
           const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
           editBaseUrl.value = platformDefaultUrl
 
@@ -1920,6 +1952,23 @@ const handleSubmit = async () => {
         newCredentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
       } else {
         delete newCredentials.tier_id
+      }
+      if (props.account.platform === 'openrouter') {
+        const httpReferer = editOpenRouterHTTPReferer.value.trim()
+        const openrouterTitle = editOpenRouterTitle.value.trim()
+        if (httpReferer) {
+          newCredentials.http_referer = httpReferer
+        } else {
+          delete newCredentials.http_referer
+        }
+        if (openrouterTitle) {
+          newCredentials.openrouter_title = openrouterTitle
+        } else {
+          delete newCredentials.openrouter_title
+        }
+      } else {
+        delete newCredentials.http_referer
+        delete newCredentials.openrouter_title
       }
 
       if (editApiKey.value.trim()) {

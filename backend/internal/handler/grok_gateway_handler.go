@@ -162,6 +162,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 		reqModel = strings.TrimSpace(c.Param("request_id"))
 		setOpsRequestContext(c, reqModel, false, nil)
 	}
+	requestPayloadHash := service.HashUsageRequestPayload(body)
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
 	if hasImageTool {
 		applyResponsesImageToolTraceMetadata(
@@ -244,6 +245,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 		}
 		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
 		if err != nil {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
 				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
 				return
@@ -268,8 +270,10 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			if err != nil {
 				reqLog.Warn("grok.account_select_failed", zap.Error(err), zap.Int("excluded_account_count", len(failedAccountIDs)))
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+					releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					break
 				}
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				if lastFailoverErr != nil {
 					h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
 				} else {
@@ -279,8 +283,10 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			}
 			if selection == nil || selection.Account == nil {
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+					releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					break
 				}
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available Grok accounts", streamStarted)
 				return
 			}
@@ -298,6 +304,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			setOpsEndpointContext(c, mappedModel, requestType)
 			accountReleaseFunc, acquired := h.acquireAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 			if !acquired {
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				return
 			}
 			service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
@@ -402,16 +409,17 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 				h.submitUsageRecordTask(func(ctx context.Context) {
 					ctx = reattachGatewayChannelState(ctx, channelState)
 					if recordErr := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
-						Result:           result.Result,
-						APIKey:           currentAPIKey,
-						User:             currentAPIKey.User,
-						Account:          account,
-						Subscription:     currentSubscription,
-						InboundEndpoint:  GetInboundEndpoint(c),
-						UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
-						UserAgent:        userAgent,
-						IPAddress:        clientIP,
-						APIKeyService:    h.apiKeyService,
+						Result:             result.Result,
+						APIKey:             currentAPIKey,
+						User:               currentAPIKey.User,
+						Account:            account,
+						Subscription:       currentSubscription,
+						InboundEndpoint:    GetInboundEndpoint(c),
+						UpstreamEndpoint:   GetUpstreamEndpointForAccount(c, account),
+						UserAgent:          userAgent,
+						IPAddress:          clientIP,
+						RequestPayloadHash: requestPayloadHash,
+						APIKeyService:      h.apiKeyService,
 					}); recordErr != nil {
 						logger.L().With(
 							zap.String("component", "handler.grok_gateway."+string(action)),
@@ -468,12 +476,13 @@ func (h *GrokGatewayHandler) submitUsageRecordTask(task service.UsageRecordTask)
 		return
 	}
 	if h.usageRecordWorkerPool != nil {
-		h.usageRecordWorkerPool.Submit(task)
-		return
+		mode := h.usageRecordWorkerPool.Submit(task)
+		if mode != service.UsageRecordSubmitModeDropped {
+			return
+		}
+		logger.L().With(zap.String("component", "handler.grok_gateway")).Warn("grok.usage_record_task_dropped_sync_fallback")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	task(ctx)
+	runUsageRecordTaskSync("handler.grok_gateway", "grok.usage_record_task_panic_recovered", task)
 }
 
 func (h *GrokGatewayHandler) errorResponse(c *gin.Context, status int, errType string, message string) {

@@ -55,6 +55,8 @@ type User struct {
 	AccountVisualPresetOverride string `json:"account_visual_preset_override,omitempty"`
 	// UsageContextBadgeDisplayMode holds the value of the "usage_context_badge_display_mode" field.
 	UsageContextBadgeDisplayMode string `json:"usage_context_badge_display_mode,omitempty"`
+	// APIKeyModelBindingMode holds the value of the "api_key_model_binding_mode" field.
+	APIKeyModelBindingMode string `json:"api_key_model_binding_mode,omitempty"`
 	// TotpSecretEncrypted holds the value of the "totp_secret_encrypted" field.
 	TotpSecretEncrypted *string `json:"totp_secret_encrypted,omitempty"`
 	// TotpEnabled holds the value of the "totp_enabled" field.
@@ -195,7 +197,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case user.FieldID, user.FieldConcurrency:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldVisualPresetPreference, user.FieldAccountVisualPresetOverride, user.FieldUsageContextBadgeDisplayMode, user.FieldTotpSecretEncrypted:
+		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldVisualPresetPreference, user.FieldAccountVisualPresetOverride, user.FieldUsageContextBadgeDisplayMode, user.FieldAPIKeyModelBindingMode, user.FieldTotpSecretEncrypted:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt, user.FieldTotpEnabledAt:
 			values[i] = new(sql.NullTime)
@@ -334,6 +336,12 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field usage_context_badge_display_mode", values[i])
 			} else if value.Valid {
 				_m.UsageContextBadgeDisplayMode = value.String
+			}
+		case user.FieldAPIKeyModelBindingMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field api_key_model_binding_mode", values[i])
+			} else if value.Valid {
+				_m.APIKeyModelBindingMode = value.String
 			}
 		case user.FieldTotpSecretEncrypted:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -499,6 +507,9 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("usage_context_badge_display_mode=")
 	builder.WriteString(_m.UsageContextBadgeDisplayMode)
+	builder.WriteString(", ")
+	builder.WriteString("api_key_model_binding_mode=")
+	builder.WriteString(_m.APIKeyModelBindingMode)
 	builder.WriteString(", ")
 	if v := _m.TotpSecretEncrypted; v != nil {
 		builder.WriteString("totp_secret_encrypted=")

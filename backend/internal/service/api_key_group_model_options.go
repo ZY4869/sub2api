@@ -11,7 +11,6 @@ type UserGroupModelOption struct {
 	PublicID         string   `json:"public_id"`
 	DisplayName      string   `json:"display_name"`
 	RequestProtocols []string `json:"request_protocols,omitempty"`
-	SourceIDs        []string `json:"source_ids,omitempty"`
 }
 
 type UserGroupModelOptionGroup struct {
@@ -70,7 +69,6 @@ func (s *APIKeyService) GetAvailableGroupModelOptions(
 					PublicID:         NormalizeModelCatalogModelID(entry.PublicID),
 					DisplayName:      displayName,
 					RequestProtocols: append([]string(nil), catalogItem.RequestProtocols...),
-					SourceIDs:        append([]string(nil), entry.SourceIDs...),
 				})
 			}
 		}

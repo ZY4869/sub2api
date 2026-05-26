@@ -15,6 +15,7 @@
 - 运行平台是 OpenAI 时，`/v1/messages` 可能被翻译到 Responses。
 - 运行平台是 Antigravity 时，`/antigravity/v1/messages` 可以走原生 Antigravity 路径。
 - 运行平台是 Grok 时，`messages` 在能力矩阵中被明确拒绝。
+- 当管理员发布“对外模型展示”目录后，Claude 风格请求里的 `model` 只能填写发布条目的 `public_model_id`。`source_model_id`、`base_model`、内部 `target_model_id` 只描述来源和路由，不会在 `/v1/models` 或详情里作为另一个可调用 ID 暴露。
 
 ### 认证方式与保留请求头
 

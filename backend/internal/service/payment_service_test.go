@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ type paymentRepoStub struct {
 	txRuns                  int
 	failWallet              bool
 	failStatus              bool
+	lastWalletAmount        float64
 }
 
 func newPaymentRepoStub() *paymentRepoStub {
@@ -173,8 +175,9 @@ func (r *paymentRepoStub) UpdateRefundProvider(_ context.Context, refundNo, prov
 	return nil
 }
 
-func (r *paymentRepoStub) AddWalletBalance(context.Context, int64, string, float64) error {
+func (r *paymentRepoStub) AddWalletBalance(_ context.Context, _ int64, _ string, amount float64) error {
 	r.walletAdds++
+	r.lastWalletAmount = amount
 	if r.failWallet {
 		return errors.New("wallet failed")
 	}
@@ -250,6 +253,18 @@ func newPaymentServiceTestSubject(repo PaymentRepository, air AirwallexClient) *
 	}
 }
 
+type paymentAuthCacheInvalidatorStub struct {
+	users []int64
+}
+
+func (s *paymentAuthCacheInvalidatorStub) InvalidateAuthCacheByKey(context.Context, string) {}
+
+func (s *paymentAuthCacheInvalidatorStub) InvalidateAuthCacheByUserID(_ context.Context, userID int64) {
+	s.users = append(s.users, userID)
+}
+
+func (s *paymentAuthCacheInvalidatorStub) InvalidateAuthCacheByGroupID(context.Context, int64) {}
+
 func TestPaymentServiceCreateOrderBuildsIntentAndMetrics(t *testing.T) {
 	resetPaymentRuntimeMetricsForTest()
 	repo := newPaymentRepoStub()
@@ -267,6 +282,82 @@ func TestPaymentServiceCreateOrderBuildsIntentAndMetrics(t *testing.T) {
 	require.Equal(t, result.Order.OrderNo, air.intentReq.RequestID)
 	require.Equal(t, int64(1234), air.intentReq.AmountMinor)
 	require.Equal(t, int64(1), SnapshotPaymentRuntimeMetrics().CreateSuccess)
+}
+
+func TestPaymentAmountToMinorUsesFixedPointValidation(t *testing.T) {
+	minor, err := PaymentAmountToMinor(0.1+0.2, "USD")
+	require.NoError(t, err)
+	require.Equal(t, int64(30), minor)
+
+	minor, err = PaymentAmountToMinor(12.5, "JPY")
+	require.NoError(t, err)
+	require.Equal(t, int64(13), minor)
+
+	for _, amount := range []float64{
+		math.NaN(),
+		math.Inf(1),
+		math.Copysign(0, -1),
+		MaxBillingAmount + 1,
+	} {
+		_, err := PaymentAmountToMinor(amount, "USD")
+		require.ErrorIs(t, err, ErrPaymentInvalidAmount)
+	}
+}
+
+func TestPaymentServiceCreateOrderComparesTopupBoundsByMinorUnit(t *testing.T) {
+	settings := paymentTestSettings()
+	settings.MinTopupAmount = 1.005
+	settings.MaxTopupAmount = 1.014
+	repo := newPaymentRepoStub()
+	svc := newPaymentServiceTestSubject(repo, &airwallexStub{})
+	svc.paymentSettingsOverride = func(context.Context) PaymentSettings {
+		return settings
+	}
+
+	result, err := svc.CreateOrder(context.Background(), CreatePaymentOrderInput{
+		UserID: 7, ProductType: PaymentProductBalanceTopup, Amount: 1.01, Currency: "USD",
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(101), result.Order.AmountMinor)
+
+	_, err = svc.CreateOrder(context.Background(), CreatePaymentOrderInput{
+		UserID: 7, ProductType: PaymentProductBalanceTopup, Amount: 1.02, Currency: "USD",
+	})
+	require.ErrorIs(t, err, ErrPaymentInvalidAmount)
+}
+
+func TestPaymentServiceCreateOrderNormalizesSubscriptionPrice(t *testing.T) {
+	settings := paymentTestSettings()
+	settings.SubscriptionPlans[0].PricesByCurrency["USD"] = 12.345
+	svc := newPaymentServiceTestSubject(newPaymentRepoStub(), &airwallexStub{})
+	svc.paymentSettingsOverride = func(context.Context) PaymentSettings {
+		return settings
+	}
+
+	result, err := svc.CreateOrder(context.Background(), CreatePaymentOrderInput{
+		UserID: 7, ProductType: PaymentProductSubscription, Currency: "USD", PlanID: "pro",
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(1235), result.Order.AmountMinor)
+}
+
+func TestPaymentSettingsDropUnsafeAmounts(t *testing.T) {
+	settings := paymentSettingsFromRaw(map[string]string{
+		SettingKeyPaymentAllowedCurrencies:    `["USD","CNY","JPY"]`,
+		SettingKeyPaymentDefaultCurrency:      "USD",
+		SettingKeyPaymentMinTopupAmount:       "1.005",
+		SettingKeyPaymentMaxTopupAmount:       "+Inf",
+		SettingKeyPaymentSubscriptionPlans:    `[{"plan_id":"pro","group_id":9,"validity_days":30,"enabled":true,"prices_by_currency":{"USD":0.30000000000000004,"JPY":12.5,"CNY":10000000000}}]`,
+		SettingKeyPurchaseSubscriptionEnabled: "true",
+	})
+
+	require.Equal(t, 1.01, settings.MinTopupAmount)
+	require.Equal(t, 5000.0, settings.MaxTopupAmount)
+	require.Len(t, settings.SubscriptionPlans, 1)
+	require.Equal(t, 0.3, settings.SubscriptionPlans[0].PricesByCurrency["USD"])
+	require.Equal(t, 13.0, settings.SubscriptionPlans[0].PricesByCurrency["JPY"])
+	_, ok := settings.SubscriptionPlans[0].PricesByCurrency["CNY"]
+	require.False(t, ok)
 }
 
 func TestPaymentServiceRejectsUnsupportedCurrency(t *testing.T) {
@@ -337,6 +428,7 @@ func TestPaymentServiceWebhookPaidRedactsPayloadAndFulfillsInTransaction(t *test
 
 	require.Equal(t, 1, repo.txRuns)
 	require.Equal(t, 1, repo.walletAdds)
+	require.Equal(t, 15.0, repo.lastWalletAmount)
 	require.Equal(t, PaymentStatusPaid, order.Status)
 	var redacted map[string]any
 	require.NoError(t, json.Unmarshal(repo.events["evt_1"].PayloadRedactedJSON, &redacted))
@@ -345,6 +437,26 @@ func TestPaymentServiceWebhookPaidRedactsPayloadAndFulfillsInTransaction(t *test
 	require.Equal(t, "[REDACTED]", data["client_secret"])
 	require.Equal(t, "[REDACTED]", data["customer_email"])
 	require.Equal(t, int64(1), SnapshotPaymentRuntimeMetrics().WebhookSuccess)
+}
+
+func TestPaymentServiceWebhookPaidInvalidatesAuthCacheAfterTopup(t *testing.T) {
+	repo := newPaymentRepoStub()
+	order := &PaymentOrder{
+		ID: 3, OrderNo: "pay_1", UserID: 7, ProductType: PaymentProductBalanceTopup,
+		Status: PaymentStatusPending, Provider: PaymentProviderAirwallex, ProviderIntentID: "int_123",
+		AmountMinor: 10, Currency: "USD",
+	}
+	repo.orders[order.OrderNo] = order
+	repo.ordersByIntent[order.ProviderIntentID] = order
+	authInvalidator := &paymentAuthCacheInvalidatorStub{}
+	svc := newPaymentServiceTestSubject(repo, &airwallexStub{})
+	svc.SetBillingCacheInvalidators(nil, authInvalidator)
+
+	body := []byte(`{"id":"evt_1","name":"payment_intent.succeeded","data":{"id":"int_123"}}`)
+	require.NoError(t, svc.HandleAirwallexWebhook(context.Background(), "ts", "sig", body))
+
+	require.Equal(t, []int64{7}, authInvalidator.users)
+	require.Equal(t, 0.1, repo.lastWalletAmount)
 }
 
 func TestPaymentServiceWebhookDuplicateEventSkipsFulfillment(t *testing.T) {

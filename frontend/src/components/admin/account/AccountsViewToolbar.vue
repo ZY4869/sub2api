@@ -93,34 +93,6 @@
             </button>
 
             <button
-              type="button"
-              class="btn btn-secondary"
-              data-platform-sort-button="true"
-              :title="platformSortToggleTitle"
-              @click="
-                emit(
-                  'update:platform-count-sort-order',
-                  nextPlatformCountSortOrder,
-                )
-              "
-            >
-              {{ platformSortLabel }}
-            </button>
-
-            <button
-              v-if="showLimitedControls"
-              type="button"
-              class="btn btn-secondary"
-              @click="emit('toggle-hide-limited')"
-            >
-              {{
-                hideLimitedAccounts
-                  ? t("admin.accounts.limited.hideToggleOn")
-                  : t("admin.accounts.limited.hideToggleOff")
-              }}
-            </button>
-
-            <button
               v-if="showLimitedControls"
               type="button"
               class="btn btn-secondary"
@@ -213,6 +185,28 @@
                 </span>
               </button>
             </div>
+
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-account-import-button="true"
+              @click="emit('import-data')"
+            >
+              {{ t("admin.accounts.dataImport") }}
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-account-export-button="true"
+              @click="emit('export-data')"
+            >
+              {{
+                selectedCount
+                  ? t("admin.accounts.dataExportSelected")
+                  : t("admin.accounts.dataExport")
+              }}
+            </button>
 
             <div class="relative" ref="moreActionsDropdownRef">
               <button
@@ -324,6 +318,38 @@
           <button
             type="button"
             class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            data-platform-sort-button="true"
+            :title="platformSortToggleTitle"
+            @click="
+              emit(
+                'update:platform-count-sort-order',
+                nextPlatformCountSortOrder,
+              );
+              showMoreActionsDropdown = false;
+            "
+          >
+            <span>{{ platformSortLabel }}</span>
+          </button>
+          <button
+            v-if="showLimitedControls"
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            @click="
+              emit('toggle-hide-limited');
+              showMoreActionsDropdown = false;
+            "
+          >
+            <span>
+              {{
+                hideLimitedAccounts
+                  ? t("admin.accounts.limited.hideToggleOn")
+                  : t("admin.accounts.limited.hideToggleOff")
+              }}
+            </span>
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
             :title="t('admin.errorPassthrough.title')"
             @click="handleMoreAction('show-error-passthrough')"
           >
@@ -360,24 +386,6 @@
             @click="handleMoreAction('bulk-edit-filtered')"
           >
             <span>{{ t("admin.accounts.bulkEdit.editFiltered") }}</span>
-          </button>
-          <button
-            type="button"
-            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-            @click="handleMoreAction('import-data')"
-          >
-            <span>{{ t("admin.accounts.dataImport") }}</span>
-          </button>
-          <button
-            type="button"
-            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-            @click="handleMoreAction('export-data')"
-          >
-            <span>{{
-              selectedCount
-                ? t("admin.accounts.dataExportSelected")
-                : t("admin.accounts.dataExport")
-            }}</span>
           </button>
         </div>
       </div>
@@ -639,9 +647,7 @@ const handleMoreAction = (
     | "show-error-passthrough"
     | "show-tls-fingerprint-profiles"
     | "sync"
-    | "bulk-edit-filtered"
-    | "import-data"
-    | "export-data",
+    | "bulk-edit-filtered",
 ) => {
   showMoreActionsDropdown.value = false;
   if (action === "show-error-passthrough") {
@@ -658,13 +664,7 @@ const handleMoreAction = (
   }
   if (action === "bulk-edit-filtered") {
     emit("bulk-edit-filtered");
-    return;
   }
-  if (action === "import-data") {
-    emit("import-data");
-    return;
-  }
-  emit("export-data");
 };
 
 </script>

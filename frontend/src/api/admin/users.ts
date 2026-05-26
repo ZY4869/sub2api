@@ -4,7 +4,7 @@
  */
 
 import { apiClient } from '../client'
-import type { AdminUser, UpdateUserRequest, PaginatedResponse, ApiKey } from '@/types'
+import type { AdminUser, UpdateUserRequest, PaginatedResponse, ApiKey, APIKeyModelBindingMode } from '@/types'
 
 /**
  * List all users with pagination
@@ -73,9 +73,12 @@ export async function getById(id: number): Promise<AdminUser> {
 export async function create(userData: {
   email: string
   password: string
+  username?: string
+  notes?: string
   balance?: number
   concurrency?: number
   allowed_groups?: number[] | null
+  api_key_model_binding_mode?: APIKeyModelBindingMode
 }): Promise<AdminUser> {
   const { data } = await apiClient.post<AdminUser>('/admin/users', userData)
   return data

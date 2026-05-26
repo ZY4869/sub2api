@@ -3,6 +3,8 @@ package repository
 import (
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -205,6 +207,74 @@ func (s *HTTPUpstreamSuite) TestDo_RedirectBlocked_ReturnsControlled502() {
 	require.Equal(s.T(), int32(0), atomic.LoadInt32(&secondHopHit), "redirect second hop should not be followed")
 }
 
+func (s *HTTPUpstreamSuite) TestValidateRequestHostRejectsPrivateWhenAllowlistDisabled() {
+	s.cfg.Security.URLAllowlist.Enabled = false
+	s.cfg.Security.URLAllowlist.AllowPrivateHosts = false
+	svc := s.newService()
+	req, err := http.NewRequest(http.MethodGet, "http://127.0.0.1/v1/models", nil)
+	require.NoError(s.T(), err)
+
+	err = svc.validateRequestHost(req)
+	require.Error(s.T(), err)
+}
+
+func (s *HTTPUpstreamSuite) TestValidateRequestHostAllowsPrivateWhenExplicitlyConfigured() {
+	s.cfg.Security.URLAllowlist.Enabled = false
+	s.cfg.Security.URLAllowlist.AllowPrivateHosts = true
+	svc := s.newService()
+	req, err := http.NewRequest(http.MethodGet, "http://127.0.0.1/v1/models", nil)
+	require.NoError(s.T(), err)
+
+	require.NoError(s.T(), svc.validateRequestHost(req))
+}
+
+func (s *HTTPUpstreamSuite) TestValidateRequestHostAllowsScopedPrivateException() {
+	s.cfg.Security.URLAllowlist.Enabled = false
+	s.cfg.Security.URLAllowlist.AllowPrivateHosts = false
+	s.cfg.Security.URLAllowlist.PrivateHostExceptions = []config.PrivateHostExceptionConfig{
+		{
+			Scope:   service.PrivateHostExceptionScopeUpstreamBaseURL,
+			Hosts:   []string{"127.0.0.1"},
+			Ports:   []int{9000},
+			Schemes: []string{"http"},
+		},
+	}
+	svc := s.newService()
+	req, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:9000/v1/models", nil)
+	require.NoError(s.T(), err)
+
+	require.NoError(s.T(), svc.validateRequestHost(req))
+}
+
+func (s *HTTPUpstreamSuite) TestDoAllowsLocalhostOnlyWithScopedException() {
+	s.cfg.Security.URLAllowlist.Enabled = false
+	s.cfg.Security.URLAllowlist.AllowPrivateHosts = false
+	upstream := newLocalTestServer(s.T(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, "local-exception")
+	}))
+	s.T().Cleanup(upstream.Close)
+	u, err := url.Parse(upstream.URL)
+	require.NoError(s.T(), err)
+
+	s.cfg.Security.URLAllowlist.PrivateHostExceptions = []config.PrivateHostExceptionConfig{
+		{
+			Scope:   service.PrivateHostExceptionScopeUpstreamBaseURL,
+			Hosts:   []string{u.Hostname()},
+			Ports:   []int{mustPort(s.T(), u.Port())},
+			Schemes: []string{"http"},
+		},
+	}
+
+	up := NewHTTPUpstream(s.cfg)
+	req, err := http.NewRequest(http.MethodGet, upstream.URL+"/v1/models", nil)
+	require.NoError(s.T(), err)
+	resp, err := up.Do(req, "", 1, 1)
+	require.NoError(s.T(), err)
+	defer func() { _ = resp.Body.Close() }()
+	body, _ := io.ReadAll(resp.Body)
+	require.Equal(s.T(), "local-exception", string(body))
+}
+
 // TestAccountIsolation_DifferentAccounts 测试账户隔离模式
 // 验证不同账户使用独立的连接池
 func (s *HTTPUpstreamSuite) TestAccountIsolation_DifferentAccounts() {
@@ -325,6 +395,13 @@ func mustGetOrCreateClient(t *testing.T, svc *httpUpstreamService, proxyURL stri
 	entry, err := svc.getOrCreateClient(proxyURL, accountID, concurrency)
 	require.NoError(t, err, "getOrCreateClient(%q, %d, %d)", proxyURL, accountID, concurrency)
 	return entry
+}
+
+func mustPort(t *testing.T, raw string) int {
+	t.Helper()
+	port, err := strconv.Atoi(raw)
+	require.NoError(t, err)
+	return port
 }
 
 // hasEntry 检查客户端是否存在于缓存中

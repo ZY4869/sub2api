@@ -207,6 +207,7 @@ func (s *OpenAIGatewayService) buildNativeChatCompletionsUpstreamRequest(
 	}
 
 	req.Header.Set("authorization", "Bearer "+token)
+	applyOpenRouterAttributionRequestHeaders(account, req.Header)
 	if c != nil && c.Request != nil {
 		for key, values := range c.Request.Header {
 			if !openaiAllowedHeaders[strings.ToLower(key)] {

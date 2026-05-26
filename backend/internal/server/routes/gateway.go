@@ -115,6 +115,20 @@ func RegisterGatewayRoutes(
 		deepseekV1.POST("/messages", dispatchers.AnthropicMessages)
 		deepseekV1.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
 	}
+	openRouterV1 := r.Group("/openrouter/v1")
+	openRouterV1.Use(bodyLimit)
+	openRouterV1.Use(clientRequestID)
+	openRouterV1.Use(opsErrorLogger)
+	openRouterV1.Use(opsRequestTraceLogger)
+	openRouterV1.Use(endpointNorm)
+	openRouterV1.Use(middleware.ForcePlatform(service.PlatformOpenRouter))
+	openRouterV1.Use(gin.HandlerFunc(apiKeyAuth))
+	openRouterV1.Use(requireGatewayMaintenanceOpenAI)
+	openRouterV1.Use(requireGroupAnthropic)
+	{
+		openRouterV1.GET("/models", h.Gateway.Models)
+		openRouterV1.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
+	}
 	gemini.Use(bodyLimit)
 	gemini.Use(clientRequestID)
 	gemini.Use(opsErrorLogger)

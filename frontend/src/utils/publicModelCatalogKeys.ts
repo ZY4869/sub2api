@@ -100,9 +100,8 @@ function keySupportsModel(
         return true;
       }
 
-      const modelVariants = [model.public_id, ...(model.source_ids || [])];
       return binding.model_patterns.some((pattern) =>
-        modelVariants.some((variant) => matchModelPattern(pattern, variant)),
+        matchModelPattern(pattern, model.public_id),
       );
     });
   });

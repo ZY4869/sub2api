@@ -38,6 +38,7 @@ export type AiryStatusVisual = {
   iconName: AiryStatusIconName
   tagFallback?: string
   helper?: string
+  helperKey?: string
 }
 
 export type AiryStatusContext = {

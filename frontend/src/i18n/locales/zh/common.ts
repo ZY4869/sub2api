@@ -88,7 +88,12 @@ export default {
         daysHours: '{d}天 {h}小时',
         hoursMinutes: '{h}小时 {m}分钟',
         minutes: '{m}分钟',
-        withSuffix: '{time} 后解除'
+        withSuffix: '{time} 后解除',
+        compact: {
+          hoursMinutes: '{h}小时{m}分',
+          minutesSeconds: '{m}分{s}秒',
+          seconds: '{s}秒',
+        }
       }
     }
   },

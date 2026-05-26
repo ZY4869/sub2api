@@ -400,6 +400,8 @@ func (s *AccountService) TestCredentials(ctx context.Context, id int64) error {
 		return nil
 	case PlatformDeepSeek:
 		return nil
+	case PlatformOpenRouter:
+		return nil
 	case PlatformGemini:
 		// TODO: 测试Gemini API凭证
 		return nil

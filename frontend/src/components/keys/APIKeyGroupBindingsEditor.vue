@@ -65,6 +65,7 @@
         <div class="flex items-center justify-between gap-3">
           <label class="input-label mb-0">{{ t("keys.modelScopeLabel") }}</label>
           <button
+            v-if="!modelSelectionRequired"
             type="button"
             class="text-xs text-primary-600 transition-colors hover:text-primary-500 dark:text-primary-400"
             @click="clearModelSelection(index)"
@@ -88,6 +89,8 @@
             {{
               selectedModelCount(binding) > 0
                 ? t("keys.modelScopeSelected", { count: selectedModelCount(binding) })
+                : modelSelectionRequired
+                  ? t("keys.modelScopeRequiredHint")
                 : imageOnly
                   ? t("keys.modelScopeAllImageHint")
                   : t("keys.modelScopeAllHint")
@@ -99,6 +102,13 @@
             class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
           >
             {{ t("keys.modelScopeLegacyHint") }}
+          </p>
+
+          <p
+            v-if="modelSelectionRequired && selectedModelCount(binding) === 0"
+            class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
+          >
+            {{ t("keys.modelSelectionRequired") }}
           </p>
 
           <div class="max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 dark:border-dark-600 dark:bg-dark-900">
@@ -196,10 +206,12 @@ const props = withDefaults(
     groupModelOptionsLoading?: boolean;
     adminMode?: boolean;
     imageOnly?: boolean;
+    modelSelectionRequired?: boolean;
   }>(),
   {
     adminMode: false,
     imageOnly: false,
+    modelSelectionRequired: false,
     groupModelCatalogItems: () => ({}),
     groupModelOptions: () => ({}),
     groupModelOptionsLoading: false,

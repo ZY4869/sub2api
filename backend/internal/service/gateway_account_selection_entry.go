@@ -19,6 +19,9 @@ func (s *GatewayService) SelectAccountForModel(ctx context.Context, groupID *int
 	return s.SelectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, nil)
 }
 func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*Account, error) {
+	if pinned := s.publicCatalogPinnedAccount(ctx, groupID, requestedModel, excludedIDs); pinned != nil {
+		return pinned, nil
+	}
 	var platform string
 	forcePlatform, hasForcePlatform := ctx.Value(ctxkey.ForcePlatform).(string)
 	if hasForcePlatform && forcePlatform != "" {
@@ -40,6 +43,9 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 	return s.selectAccountForModelWithPlatform(ctx, groupID, sessionHash, requestedModel, excludedIDs, platform)
 }
 func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, metadataUserID string) (*AccountSelectionResult, error) {
+	if pinned := s.publicCatalogPinnedAccount(ctx, groupID, requestedModel, excludedIDs); pinned != nil {
+		return &AccountSelectionResult{Account: pinned}, nil
+	}
 	excludedIDsList := make([]int64, 0, len(excludedIDs))
 	for id := range excludedIDs {
 		excludedIDsList = append(excludedIDsList, id)

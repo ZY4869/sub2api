@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/hostexceptions"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
 
 func (s *adminServiceImpl) ListProxies(ctx context.Context, page, pageSize int, protocol, status, search string) ([]Proxy, int64, error) {
@@ -45,7 +48,18 @@ func (s *adminServiceImpl) GetProxy(ctx context.Context, id int64) (*Proxy, erro
 func (s *adminServiceImpl) GetProxiesByIDs(ctx context.Context, ids []int64) ([]Proxy, error) {
 	return s.proxyRepo.ListByIDs(ctx, ids)
 }
+
+func (s *adminServiceImpl) ValidateProxyEndpoint(ctx context.Context, protocol, host string, port int) error {
+	return ValidateProxyEndpointWithConfig(s.cfg, protocol, host, port)
+}
+
 func (s *adminServiceImpl) CreateProxy(ctx context.Context, input *CreateProxyInput) (*Proxy, error) {
+	if input == nil {
+		return nil, ErrProxyNotFound
+	}
+	if err := s.ValidateProxyEndpoint(ctx, input.Protocol, input.Host, input.Port); err != nil {
+		return nil, err
+	}
 	proxy := &Proxy{Name: input.Name, Protocol: input.Protocol, Host: input.Host, Port: input.Port, Username: input.Username, Password: input.Password, Status: StatusActive}
 	if err := s.proxyRepo.Create(ctx, proxy); err != nil {
 		return nil, err
@@ -78,6 +92,9 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	}
 	if input.Status != "" {
 		proxy.Status = input.Status
+	}
+	if err := ValidateProxyEndpointWithConfig(s.cfg, proxy.Protocol, proxy.Host, proxy.Port); err != nil {
+		return nil, err
 	}
 	if err := s.proxyRepo.Update(ctx, proxy); err != nil {
 		return nil, err
@@ -125,11 +142,17 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestR
 	if err != nil {
 		return nil, err
 	}
+	if err := ValidateProxyEndpointWithConfig(s.cfg, proxy.Protocol, proxy.Host, proxy.Port); err != nil {
+		s.saveProxyLatency(ctx, id, &ProxyLatencyInfo{Success: false, Message: "proxy host is not allowed by outbound security policy", UpdatedAt: time.Now()})
+		return &ProxyTestResult{Success: false, Message: "proxy host is not allowed by outbound security policy"}, nil
+	}
 	proxyURL := proxy.URL()
 	exitInfo, latencyMs, err := s.proxyProber.ProbeProxy(ctx, proxyURL)
 	if err != nil {
-		s.saveProxyLatency(ctx, id, &ProxyLatencyInfo{Success: false, Message: err.Error(), UpdatedAt: time.Now()})
-		return &ProxyTestResult{Success: false, Message: err.Error()}, nil
+		logger.LegacyPrintf("service.admin.proxy", "proxy test failed proxy_id=%d err=%v", id, err)
+		message := "proxy connection failed"
+		s.saveProxyLatency(ctx, id, &ProxyLatencyInfo{Success: false, Message: message, UpdatedAt: time.Now()})
+		return &ProxyTestResult{Success: false, Message: message}, nil
 	}
 	latency := latencyMs
 	s.saveProxyLatency(ctx, id, &ProxyLatencyInfo{Success: true, LatencyMs: &latency, Message: "Proxy is accessible", IPAddress: exitInfo.IP, Country: exitInfo.Country, CountryCode: exitInfo.CountryCode, Region: exitInfo.Region, City: exitInfo.City, UpdatedAt: time.Now()})
@@ -141,6 +164,13 @@ func (s *adminServiceImpl) CheckProxyQuality(ctx context.Context, id int64) (*Pr
 		return nil, err
 	}
 	result := &ProxyQualityCheckResult{ProxyID: id, Score: 100, Grade: "A", CheckedAt: time.Now().Unix(), Items: make([]ProxyQualityCheckItem, 0, len(proxyQualityTargets)+1)}
+	if err := ValidateProxyEndpointWithConfig(s.cfg, proxy.Protocol, proxy.Host, proxy.Port); err != nil {
+		result.Items = append(result.Items, ProxyQualityCheckItem{Target: "base_connectivity", Status: "fail", Message: "proxy host is not allowed by outbound security policy"})
+		result.FailedCount++
+		finalizeProxyQualityResult(result)
+		s.saveProxyQualitySnapshot(ctx, id, result, nil)
+		return result, nil
+	}
 	proxyURL := proxy.URL()
 	if s.proxyProber == nil {
 		result.Items = append(result.Items, ProxyQualityCheckItem{Target: "base_connectivity", Status: "fail", Message: "代理探测服务未配置"})
@@ -151,7 +181,8 @@ func (s *adminServiceImpl) CheckProxyQuality(ctx context.Context, id int64) (*Pr
 	}
 	exitInfo, latencyMs, err := s.proxyProber.ProbeProxy(ctx, proxyURL)
 	if err != nil {
-		result.Items = append(result.Items, ProxyQualityCheckItem{Target: "base_connectivity", Status: "fail", LatencyMs: latencyMs, Message: err.Error()})
+		logger.LegacyPrintf("service.admin.proxy", "proxy quality base probe failed proxy_id=%d err=%v", id, err)
+		result.Items = append(result.Items, ProxyQualityCheckItem{Target: "base_connectivity", Status: "fail", LatencyMs: latencyMs, Message: "proxy connection failed"})
 		result.FailedCount++
 		finalizeProxyQualityResult(result)
 		s.saveProxyQualitySnapshot(ctx, id, result, nil)
@@ -163,9 +194,10 @@ func (s *adminServiceImpl) CheckProxyQuality(ctx context.Context, id int64) (*Pr
 	result.BaseLatencyMs = latencyMs
 	result.Items = append(result.Items, ProxyQualityCheckItem{Target: "base_connectivity", Status: "pass", LatencyMs: latencyMs, Message: "代理出口连通正常"})
 	result.PassedCount++
-	client, err := httpclient.GetClient(httpclient.Options{ProxyURL: proxyURL, Timeout: proxyQualityRequestTimeout, ResponseHeaderTimeout: proxyQualityResponseHeaderTimeout})
+	client, err := newProxyQualityHTTPClient(s.cfg, proxyURL)
 	if err != nil {
-		result.Items = append(result.Items, ProxyQualityCheckItem{Target: "http_client", Status: "fail", Message: fmt.Sprintf("创建检测客户端失败: %v", err)})
+		logger.LegacyPrintf("service.admin.proxy", "proxy quality client init failed proxy_id=%d err=%v", id, err)
+		result.Items = append(result.Items, ProxyQualityCheckItem{Target: "http_client", Status: "fail", Message: "proxy quality client unavailable"})
 		result.FailedCount++
 		finalizeProxyQualityResult(result)
 		s.saveProxyQualitySnapshot(ctx, id, result, exitInfo)
@@ -189,12 +221,26 @@ func (s *adminServiceImpl) CheckProxyQuality(ctx context.Context, id int64) (*Pr
 	s.saveProxyQualitySnapshot(ctx, id, result, exitInfo)
 	return result, nil
 }
+
+func newProxyQualityHTTPClient(cfg *config.Config, proxyURL string) (*http.Client, error) {
+	allowPrivate := cfg != nil && cfg.Security.URLAllowlist.AllowPrivateHosts
+	return httpclient.GetClient(httpclient.Options{
+		ProxyURL:              proxyURL,
+		Timeout:               proxyQualityRequestTimeout,
+		ResponseHeaderTimeout: proxyQualityResponseHeaderTimeout,
+		ValidateResolvedIP:    true,
+		AllowPrivateHosts:     allowPrivate,
+		PrivateHostConfig:     cfg,
+		PrivateHostScope:      hostexceptions.ScopeProxyHost,
+	})
+}
+
 func runProxyQualityTarget(ctx context.Context, client *http.Client, target proxyQualityTarget) ProxyQualityCheckItem {
 	item := ProxyQualityCheckItem{Target: target.Target}
 	req, err := http.NewRequestWithContext(ctx, target.Method, target.URL, nil)
 	if err != nil {
 		item.Status = "fail"
-		item.Message = fmt.Sprintf("构建请求失败: %v", err)
+		item.Message = "proxy quality request unavailable"
 		return item
 	}
 	req.Header.Set("Accept", "application/json,text/html,*/*")
@@ -204,7 +250,7 @@ func runProxyQualityTarget(ctx context.Context, client *http.Client, target prox
 	if err != nil {
 		item.Status = "fail"
 		item.LatencyMs = time.Since(start).Milliseconds()
-		item.Message = fmt.Sprintf("请求失败: %v", err)
+		item.Message = "proxy quality target request failed"
 		return item
 	}
 	defer func() {
@@ -215,7 +261,7 @@ func runProxyQualityTarget(ctx context.Context, client *http.Client, target prox
 	_, readErr := io.ReadAll(io.LimitReader(resp.Body, proxyQualityMaxBodyBytes+1))
 	if readErr != nil {
 		item.Status = "fail"
-		item.Message = fmt.Sprintf("读取响应失败: %v", readErr)
+		item.Message = "proxy quality response read failed"
 		return item
 	}
 	if _, ok := target.AllowedStatuses[resp.StatusCode]; ok {

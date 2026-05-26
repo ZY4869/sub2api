@@ -25,6 +25,7 @@ describe('DocsProtocolNav', () => {
           { id: 'common', title: '通用接入', shortTitle: '通用', description: 'desc', rawMarkdown: '', introBlocks: [], sections: [], isMissing: false },
           { id: 'openai-native', title: 'OpenAI 原生', shortTitle: 'OpenAI 原生', description: 'desc', rawMarkdown: '', introBlocks: [], sections: [], isMissing: false },
           { id: 'openai', title: 'OpenAI 兼容', shortTitle: 'OpenAI 兼容', description: 'desc', rawMarkdown: '', introBlocks: [], sections: [], isMissing: false },
+          { id: 'openrouter', title: 'OpenRouter', shortTitle: 'OpenRouter', description: 'desc', rawMarkdown: '', introBlocks: [], sections: [], isMissing: false },
           { id: 'document-ai', title: '百度智能文档', shortTitle: '百度文档', description: 'desc', rawMarkdown: '', introBlocks: [], sections: [], isMissing: false },
         ],
         currentPageId: 'common',
@@ -51,6 +52,7 @@ describe('DocsProtocolNav', () => {
     expect(links.at(-1)?.attributes('href')).toBe('/api-docs/document-ai')
     expect(wrapper.find('[href="/api-docs/openai-native"] .platform-icon').attributes('data-platform')).toBe('openai')
     expect(wrapper.find('[href="/api-docs/openai"] .generic-icon').attributes('data-icon')).toBe('swap')
+    expect(wrapper.find('[href="/api-docs/openrouter"] .platform-icon').attributes('data-platform')).toBe('openrouter')
     expect(wrapper.find('[href="/api-docs/document-ai"]').text()).toContain('百度智能文档')
   })
 })

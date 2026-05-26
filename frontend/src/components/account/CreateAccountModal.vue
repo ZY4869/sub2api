@@ -263,6 +263,12 @@
           v-model:limits="deepSeekModelConcurrencyLimits"
         />
 
+        <AccountOpenRouterSettingsEditor
+          v-if="form.platform === 'openrouter'"
+          v-model:http-referer="openRouterHTTPReferer"
+          v-model:openrouter-title="openRouterTitle"
+        />
+
         <AccountProtocolGatewayBatchEditor
           v-if="showProtocolGatewayBatchEditor"
           v-model:enabled="gatewayBatchEnabled"
@@ -619,6 +625,7 @@ import type {
 } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import AccountApiKeyBasicSettingsEditor from '@/components/account/AccountApiKeyBasicSettingsEditor.vue'
+import AccountOpenRouterSettingsEditor from '@/components/account/AccountOpenRouterSettingsEditor.vue'
 import AccountAntigravityModelMappingEditor from '@/components/account/AccountAntigravityModelMappingEditor.vue'
 import AccountApiKeyModelProbeEditor from '@/components/account/AccountApiKeyModelProbeEditor.vue'
 import AccountAutoPauseToggle from '@/components/account/AccountAutoPauseToggle.vue'
@@ -809,6 +816,8 @@ const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-
 const gatewayProtocol = ref<GatewayProtocol>('openai')
 const apiKeyBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const apiKeyValue = ref('')
+const openRouterHTTPReferer = ref('')
+const openRouterTitle = ref('')
 const deepSeekModelConcurrencyLimits = ref(createDefaultDeepSeekModelConcurrencyLimitDraft())
 const grokSSOToken = ref('')
 const grokTier = ref<'basic' | 'super' | 'heavy'>('basic')
@@ -887,6 +896,14 @@ const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
   const credentials: Record<string, unknown> = {
     api_key: apiKeyValue.value.trim(),
     base_url: apiKeyBaseUrl.value.trim() || resolveAccountApiKeyDefaultBaseUrl(form.platform, gatewayProtocol.value)
+  }
+  if (form.platform === 'openrouter') {
+    if (openRouterHTTPReferer.value.trim()) {
+      credentials.http_referer = openRouterHTTPReferer.value.trim()
+    }
+    if (openRouterTitle.value.trim()) {
+      credentials.openrouter_title = openRouterTitle.value.trim()
+    }
   }
   if (shouldPersistGeminiTierId.value) {
     credentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
@@ -1431,6 +1448,10 @@ watch(
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
       baiduDocumentAIDirectApiUrlsText.value = ''
     }
+    if (newPlatform !== 'openrouter') {
+      openRouterHTTPReferer.value = ''
+      openRouterTitle.value = ''
+    }
     if (newPlatform === 'protocol_gateway') {
       accountCategory.value = 'apikey'
       form.type = 'apikey'
@@ -1455,6 +1476,11 @@ watch(
       form.type = 'apikey'
       autoImportModels.value = false
       deepSeekModelConcurrencyLimits.value = createDefaultDeepSeekModelConcurrencyLimitDraft()
+    }
+    if (newPlatform === 'openrouter') {
+      accountCategory.value = 'apikey'
+      form.type = 'apikey'
+      autoImportModels.value = false
     }
     if (newPlatform === 'antigravity') {
       loadAntigravityDefaultMappings()
@@ -1703,6 +1729,8 @@ const { resetForm } = useCreateAccountReset({
   gatewayProtocol,
   apiKeyBaseUrl,
   apiKeyValue,
+  openRouterHTTPReferer,
+  openRouterTitle,
   grokSSOToken,
   grokTier,
   editQuotaLimit,
@@ -2230,6 +2258,14 @@ const handleSubmit = async () => {
   }
   if (shouldPersistGeminiTierId.value) {
     credentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
+  }
+  if (form.platform === 'openrouter') {
+    if (openRouterHTTPReferer.value.trim()) {
+      credentials.http_referer = openRouterHTTPReferer.value.trim()
+    }
+    if (openRouterTitle.value.trim()) {
+      credentials.openrouter_title = openRouterTitle.value.trim()
+    }
   }
 
   if (!isOpenAIModelRestrictionDisabled.value && modelRestrictionEnabled.value) {

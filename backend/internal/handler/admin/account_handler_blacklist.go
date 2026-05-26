@@ -33,6 +33,10 @@ type BlacklistBatchDeleteRequest struct {
 	DeleteAll bool    `json:"delete_all"`
 }
 
+type BlacklistBatchRestoreRequest struct {
+	IDs []int64 `json:"ids" binding:"required,min=1"`
+}
+
 type BlacklistRetestAccountResult struct {
 	AccountID    int64  `json:"account_id"`
 	Success      bool   `json:"success"`
@@ -230,6 +234,69 @@ func (h *AccountHandler) RetestBlacklistedModels(c *gin.Context) {
 	}
 
 	response.Success(c, service.MergeAvailableTestModels(modelGroups...))
+}
+
+func (h *AccountHandler) RestoreBlacklisted(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
+		return
+	}
+	slog.Info("account_blacklist_manual_restore_start", "account_ids", []int64{accountID})
+	account, err := h.adminService.RestoreBlacklistedAccount(c.Request.Context(), accountID)
+	if err != nil {
+		slog.Info("account_blacklist_manual_restore_result", "account_id", accountID, "success", false, "error_message", err.Error())
+		response.ErrorFrom(c, err)
+		return
+	}
+	if h.rateLimitService != nil {
+		if _, recoverErr := h.rateLimitService.RecoverAccountAfterSuccessfulTest(c.Request.Context(), accountID); recoverErr != nil {
+			slog.Warn("account_blacklist_manual_restore_recover_state_failed", "account_id", accountID, "error", recoverErr)
+		}
+	}
+	slog.Info("account_blacklist_manual_restore_result", "account_id", accountID, "success", true)
+	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+}
+
+func (h *AccountHandler) BatchRestoreBlacklisted(c *gin.Context) {
+	var req BlacklistBatchRestoreRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
+		return
+	}
+	accountIDs := normalizeInt64IDList(req.IDs)
+	if len(accountIDs) == 0 {
+		response.BadRequestKey(c, "admin.account.account_ids_required", "account_ids is required")
+		return
+	}
+	slog.Info("account_blacklist_manual_restore_start", "account_ids", accountIDs)
+	result := &service.BlacklistedBatchRestoreResult{
+		RestoredIDs: make([]int64, 0, len(accountIDs)),
+		Failed:      make([]service.BlacklistedBatchRestoreFailure, 0),
+	}
+	for _, accountID := range accountIDs {
+		account, err := h.adminService.RestoreBlacklistedAccount(c.Request.Context(), accountID)
+		if err != nil {
+			result.Failed = append(result.Failed, service.BlacklistedBatchRestoreFailure{ID: accountID, Reason: err.Error()})
+			slog.Info("account_blacklist_manual_restore_result", "account_id", accountID, "success", false, "error_message", err.Error())
+			continue
+		}
+		if account == nil {
+			result.Failed = append(result.Failed, service.BlacklistedBatchRestoreFailure{ID: accountID, Reason: "account not found"})
+			slog.Info("account_blacklist_manual_restore_result", "account_id", accountID, "success", false, "error_message", "account not found")
+			continue
+		}
+		if h.rateLimitService != nil {
+			if _, recoverErr := h.rateLimitService.RecoverAccountAfterSuccessfulTest(c.Request.Context(), accountID); recoverErr != nil {
+				slog.Warn("account_blacklist_manual_restore_recover_state_failed", "account_id", accountID, "error", recoverErr)
+			}
+		}
+		result.RestoredIDs = append(result.RestoredIDs, accountID)
+		slog.Info("account_blacklist_manual_restore_result", "account_id", accountID, "success", true)
+	}
+	result.RestoredCount = len(result.RestoredIDs)
+	result.FailedCount = len(result.Failed)
+	response.Success(c, result)
 }
 
 func (h *AccountHandler) BatchDeleteBlacklisted(c *gin.Context) {

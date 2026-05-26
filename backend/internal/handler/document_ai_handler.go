@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -16,7 +18,10 @@ import (
 )
 
 type DocumentAIHandler struct {
-	documentAIService *service.DocumentAIService
+	documentAIService   *service.DocumentAIService
+	billingCacheService *service.BillingCacheService
+	apiKeyService       *service.APIKeyService
+	subscriptionService *service.SubscriptionService
 }
 
 type documentAIFileUpload struct {
@@ -28,6 +33,30 @@ type documentAIFileUpload struct {
 
 func NewDocumentAIHandler(documentAIService *service.DocumentAIService) *DocumentAIHandler {
 	return &DocumentAIHandler{documentAIService: documentAIService}
+}
+
+func ProvideDocumentAIHandler(
+	documentAIService *service.DocumentAIService,
+	billingCacheService *service.BillingCacheService,
+	apiKeyService *service.APIKeyService,
+	subscriptionService *service.SubscriptionService,
+) *DocumentAIHandler {
+	handler := NewDocumentAIHandler(documentAIService)
+	handler.SetBillingServices(billingCacheService, apiKeyService, subscriptionService)
+	return handler
+}
+
+func (h *DocumentAIHandler) SetBillingServices(
+	billingCacheService *service.BillingCacheService,
+	apiKeyService *service.APIKeyService,
+	subscriptionService *service.SubscriptionService,
+) {
+	if h == nil {
+		return
+	}
+	h.billingCacheService = billingCacheService
+	h.apiKeyService = apiKeyService
+	h.subscriptionService = subscriptionService
 }
 
 func (h *DocumentAIHandler) ListModels(c *gin.Context) {
@@ -58,6 +87,11 @@ func (h *DocumentAIHandler) CreateJob(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	setDocumentAISubmitRequestFingerprint(c, input)
+	if !h.ensureDocumentAIWriteBilling(c, apiKey) {
+		return
+	}
+	defer releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, apiKey)
 	job, err := h.documentAIService.SubmitJob(c.Request.Context(), input)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -131,6 +165,11 @@ func (h *DocumentAIHandler) Parse(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	setDocumentAIDirectRequestFingerprint(c, input)
+	if !h.ensureDocumentAIWriteBilling(c, apiKey) {
+		return
+	}
+	defer releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, apiKey)
 	job, err := h.documentAIService.ParseDirect(c.Request.Context(), input)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -226,6 +265,113 @@ func (h *DocumentAIHandler) buildDirectInput(c *gin.Context, apiKey *service.API
 	return input, nil
 }
 
+type documentAIRequestFingerprintPayload struct {
+	Mode           string         `json:"mode"`
+	GroupID        int64          `json:"group_id"`
+	Model          string         `json:"model"`
+	SourceType     string         `json:"source_type"`
+	FileURL        string         `json:"file_url,omitempty"`
+	FileType       string         `json:"file_type,omitempty"`
+	FileName       string         `json:"file_name,omitempty"`
+	ContentType    string         `json:"content_type,omitempty"`
+	FileSize       int64          `json:"file_size,omitempty"`
+	FileHash       string         `json:"file_hash,omitempty"`
+	FileBase64Hash string         `json:"file_base64_hash,omitempty"`
+	Options        map[string]any `json:"options,omitempty"`
+}
+
+func setDocumentAISubmitRequestFingerprint(c *gin.Context, input service.DocumentAISubmitJobInput) {
+	setDocumentAIRequestFingerprint(c, documentAIRequestFingerprintPayload{
+		Mode:        service.DocumentAIJobModeAsync,
+		GroupID:     input.GroupID,
+		Model:       strings.TrimSpace(input.Model),
+		SourceType:  strings.TrimSpace(input.SourceType),
+		FileURL:     strings.TrimSpace(input.FileURL),
+		FileName:    strings.TrimSpace(input.FileName),
+		ContentType: strings.TrimSpace(input.ContentType),
+		FileSize:    input.FileSize,
+		FileHash:    documentAIFileBytesHash(input.FileHash, input.FileBytes),
+		Options:     input.Options,
+	})
+}
+
+func setDocumentAIDirectRequestFingerprint(c *gin.Context, input service.DocumentAIParseDirectInput) {
+	setDocumentAIRequestFingerprint(c, documentAIRequestFingerprintPayload{
+		Mode:           service.DocumentAIJobModeDirect,
+		GroupID:        input.GroupID,
+		Model:          strings.TrimSpace(input.Model),
+		SourceType:     strings.TrimSpace(input.SourceType),
+		FileType:       strings.TrimSpace(input.FileType),
+		FileName:       strings.TrimSpace(input.FileName),
+		ContentType:    strings.TrimSpace(input.ContentType),
+		FileSize:       input.FileSize,
+		FileHash:       documentAIFileBytesHash(input.FileHash, input.FileBytes),
+		FileBase64Hash: service.HashUsageRequestPayload([]byte(strings.TrimSpace(input.FileBase64))),
+		Options:        input.Options,
+	})
+}
+
+func documentAIFileBytesHash(existing string, payload []byte) string {
+	if strings.TrimSpace(existing) != "" {
+		return strings.TrimSpace(existing)
+	}
+	return service.HashUsageRequestPayload(payload)
+}
+
+func setDocumentAIRequestFingerprint(c *gin.Context, payload documentAIRequestFingerprintPayload) {
+	if c == nil || c.Request == nil {
+		return
+	}
+	fingerprint := hashDocumentAIRequestPayload(payload)
+	if fingerprint == "" {
+		return
+	}
+	ctx := context.WithValue(c.Request.Context(), ctxkey.RequestPayloadHash, fingerprint)
+	c.Request = c.Request.WithContext(ctx)
+}
+
+func hashDocumentAIRequestPayload(payload any) string {
+	body, err := json.Marshal(payload)
+	if err != nil || len(body) == 0 {
+		return ""
+	}
+	return service.HashUsageRequestPayload(body)
+}
+
+func (h *DocumentAIHandler) ensureDocumentAIWriteBilling(c *gin.Context, apiKey *service.APIKey) bool {
+	if h == nil || h.billingCacheService == nil {
+		return true
+	}
+	group := resolveDocumentAIGroup(apiKey)
+	subscription, err := h.resolveDocumentAISubscription(c, apiKey, group)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return false
+	}
+	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, group, subscription); err != nil {
+		response.ErrorFrom(c, err)
+		return false
+	}
+	return true
+}
+
+func (h *DocumentAIHandler) resolveDocumentAISubscription(c *gin.Context, apiKey *service.APIKey, group *service.Group) (*service.UserSubscription, error) {
+	if group == nil || !group.IsSubscriptionType() || apiKey == nil || apiKey.User == nil {
+		return nil, nil
+	}
+	if subscription, ok := servermiddleware.GetSubscriptionFromContext(c); ok && subscription != nil {
+		return subscription, nil
+	}
+	if h == nil || h.subscriptionService == nil {
+		return nil, service.ErrSubscriptionInvalid
+	}
+	subscription, err := h.subscriptionService.GetActiveSubscription(c.Request.Context(), apiKey.User.ID, group.ID)
+	if err != nil {
+		return nil, err
+	}
+	return subscription, nil
+}
+
 func (h *DocumentAIHandler) requireDocumentAIAccess(c *gin.Context) (*service.APIKey, int64, bool) {
 	apiKey, ok := servermiddleware.GetAPIKeyFromContext(c)
 	if !ok || apiKey == nil || apiKey.User == nil {
@@ -241,18 +387,25 @@ func (h *DocumentAIHandler) requireDocumentAIAccess(c *gin.Context) (*service.AP
 }
 
 func resolveDocumentAIGroupID(apiKey *service.APIKey) int64 {
+	if group := resolveDocumentAIGroup(apiKey); group != nil {
+		return group.ID
+	}
+	return 0
+}
+
+func resolveDocumentAIGroup(apiKey *service.APIKey) *service.Group {
 	if apiKey == nil {
-		return 0
+		return nil
 	}
 	if apiKey.Group != nil && apiKey.Group.ID > 0 && apiKey.Group.Platform == service.PlatformBaiduDocumentAI {
-		return apiKey.Group.ID
+		return apiKey.Group
 	}
 	for _, binding := range apiKey.GroupBindings {
 		if binding.Group != nil && binding.Group.ID > 0 && binding.Group.Platform == service.PlatformBaiduDocumentAI {
-			return binding.Group.ID
+			return binding.Group
 		}
 	}
-	return 0
+	return nil
 }
 
 func readDocumentAIFile(c *gin.Context, field string, maxBytes int64) (*documentAIFileUpload, error) {

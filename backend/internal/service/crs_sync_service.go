@@ -197,19 +197,9 @@ func (s *CRSSyncService) fetchCRSExport(ctx context.Context, baseURL, username, 
 	if s.cfg == nil {
 		return nil, errors.New("config is not available")
 	}
-	normalizedURL := strings.TrimSpace(baseURL)
-	if s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := normalizeBaseURL(normalizedURL, s.cfg.Security.URLAllowlist.CRSHosts, s.cfg.Security.URLAllowlist.AllowPrivateHosts)
-		if err != nil {
-			return nil, err
-		}
-		normalizedURL = normalized
-	} else {
-		normalized, err := urlvalidator.ValidateURLFormat(normalizedURL, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
-		if err != nil {
-			return nil, fmt.Errorf("invalid base_url: %w", err)
-		}
-		normalizedURL = normalized
+	normalizedURL, err := validateCRSBaseURL(s.cfg, baseURL)
+	if err != nil {
+		return nil, err
 	}
 	if strings.TrimSpace(username) == "" || strings.TrimSpace(password) == "" {
 		return nil, errors.New("username and password are required")
@@ -217,7 +207,7 @@ func (s *CRSSyncService) fetchCRSExport(ctx context.Context, baseURL, username, 
 
 	client, err := httpclient.GetClient(httpclient.Options{
 		Timeout:            20 * time.Second,
-		ValidateResolvedIP: s.cfg.Security.URLAllowlist.Enabled,
+		ValidateResolvedIP: true,
 		AllowPrivateHosts:  s.cfg.Security.URLAllowlist.AllowPrivateHosts,
 	})
 	if err != nil {
@@ -230,6 +220,23 @@ func (s *CRSSyncService) fetchCRSExport(ctx context.Context, baseURL, username, 
 	}
 
 	return crsExportAccounts(ctx, client, normalizedURL, adminToken)
+}
+
+func validateCRSBaseURL(cfg *config.Config, baseURL string) (string, error) {
+	if cfg == nil {
+		return "", errors.New("config is not available")
+	}
+	normalizedURL := strings.TrimSpace(baseURL)
+	if cfg.Security.URLAllowlist.Enabled {
+		return normalizeBaseURL(normalizedURL, cfg.Security.URLAllowlist.CRSHosts, cfg.Security.URLAllowlist.AllowPrivateHosts)
+	}
+	normalized, err := urlvalidator.ValidateHTTPURL(normalizedURL, cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
+		AllowPrivate: cfg.Security.URLAllowlist.AllowPrivateHosts,
+	})
+	if err != nil {
+		return "", fmt.Errorf("invalid base_url: %w", err)
+	}
+	return normalized, nil
 }
 
 func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput) (*SyncFromCRSResult, error) {
@@ -1040,6 +1047,9 @@ func (s *CRSSyncService) mapOrCreateProxy(ctx context.Context, enabled bool, cac
 	}
 	if protocol != "http" && protocol != "https" && protocol != "socks5" {
 		return nil, nil
+	}
+	if err := ValidateProxyEndpointWithConfig(s.cfg, protocol, host, port); err != nil {
+		return nil, err
 	}
 
 	// Find existing proxy (active only).

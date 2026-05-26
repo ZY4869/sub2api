@@ -37,6 +37,10 @@ type RequestMetadata struct {
 	GeminiUpstreamPath             *string
 	GeminiBillingFallbackReason    *string
 	BillingRuleID                  *string
+	PublicCatalogEntryID           *string
+	PublicCatalogPublicModelID     *string
+	PublicCatalogSourceModelID     *string
+	PublicCatalogSourceAccountID   *int64
 	ProbeAction                    *string
 	ImageRouteFamily               *string
 	ImageAction                    *string
@@ -554,6 +558,33 @@ func SetBillingRuleIDMetadata(ctx context.Context, value string) {
 func BillingRuleIDMetadataFromContext(ctx context.Context) (string, bool) {
 	if md := metadataFromContext(ctx); md != nil && md.BillingRuleID != nil {
 		return strings.TrimSpace(*md.BillingRuleID), true
+	}
+	return "", false
+}
+
+func SetPublicCatalogRuntimeMetadata(ctx context.Context, entry *PublishedPublicCatalogEntry) {
+	if md := metadataFromContext(ctx); md != nil {
+		if entry == nil {
+			md.PublicCatalogEntryID = nil
+			md.PublicCatalogPublicModelID = nil
+			md.PublicCatalogSourceModelID = nil
+			md.PublicCatalogSourceAccountID = nil
+			return
+		}
+		setTrimmedMetadataField(&md.PublicCatalogEntryID, entry.EntryID)
+		setTrimmedMetadataField(&md.PublicCatalogPublicModelID, entry.PublicModelID)
+		setTrimmedMetadataField(&md.PublicCatalogSourceModelID, entry.SourceModelID)
+		if entry.SourceAccountID > 0 {
+			setInt64MetadataField(&md.PublicCatalogSourceAccountID, entry.SourceAccountID)
+		} else {
+			md.PublicCatalogSourceAccountID = nil
+		}
+	}
+}
+
+func PublicCatalogEntryIDMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.PublicCatalogEntryID != nil {
+		return strings.TrimSpace(*md.PublicCatalogEntryID), true
 	}
 	return "", false
 }

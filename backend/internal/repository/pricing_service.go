@@ -31,24 +31,39 @@ func (c *pricingRemoteClientError) FetchHashText(_ context.Context, _ string) (s
 	return "", c.err
 }
 
-// NewPricingRemoteClient 创建定价数据远程客户端
+// NewPricingRemoteClient 创建定价数据远程客户端。
+// 默认禁止解析到私网地址；仅通过 NewPricingRemoteClientWithSecurity 显式放行。
+func NewPricingRemoteClient(proxyURL string, allowDirectOnProxyError bool) service.PricingRemoteClient {
+	return NewPricingRemoteClientWithSecurity(proxyURL, allowDirectOnProxyError, false)
+}
+
+// NewPricingRemoteClientWithSecurity 创建定价数据远程客户端
 // proxyURL 为空时直连，支持 http/https/socks5/socks5h 协议
 // 代理配置失败时行为由 allowDirectOnProxyError 控制：
 //   - false（默认）：返回错误占位客户端，禁止回退到直连
 //   - true：回退到直连（仅限管理员显式开启）
-func NewPricingRemoteClient(proxyURL string, allowDirectOnProxyError bool) service.PricingRemoteClient {
+func NewPricingRemoteClientWithSecurity(proxyURL string, allowDirectOnProxyError bool, allowPrivateHosts bool) service.PricingRemoteClient {
 	// 安全说明：httpclient.GetClient 的错误链（url.Parse / proxyutil）不含明文代理凭据，
 	// 但仍通过 slog 仅在服务端日志记录，不会暴露给 HTTP 响应。
 	sharedClient, err := httpclient.GetClient(httpclient.Options{
-		Timeout:  30 * time.Second,
-		ProxyURL: proxyURL,
+		Timeout:            30 * time.Second,
+		ProxyURL:           proxyURL,
+		ValidateResolvedIP: true,
+		AllowPrivateHosts:  allowPrivateHosts,
 	})
 	if err != nil {
 		if strings.TrimSpace(proxyURL) != "" && !allowDirectOnProxyError {
 			slog.Warn("proxy client init failed, all requests will fail", "service", "pricing", "error", err)
 			return &pricingRemoteClientError{err: fmt.Errorf("proxy client init failed and direct fallback is disabled; set security.proxy_fallback.allow_direct_on_error=true to allow fallback: %w", err)}
 		}
-		sharedClient = &http.Client{Timeout: 30 * time.Second}
+		sharedClient, err = httpclient.GetClient(httpclient.Options{
+			Timeout:            30 * time.Second,
+			ValidateResolvedIP: true,
+			AllowPrivateHosts:  allowPrivateHosts,
+		})
+		if err != nil {
+			return &pricingRemoteClientError{err: fmt.Errorf("pricing direct client init failed: %w", err)}
+		}
 	}
 	return &pricingRemoteClient{
 		httpClient: sharedClient,

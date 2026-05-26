@@ -97,19 +97,11 @@ func (h *OpenAIGatewayHandler) submitUsageRecordTask(task service.UsageRecordTas
 		return
 	}
 	if h.usageRecordWorkerPool != nil {
-		h.usageRecordWorkerPool.Submit(task)
-		return
-	}
-	// 回退路径：worker 池未注入时同步执行，避免退回到无界 goroutine 模式。
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			logger.L().With(
-				zap.String("component", "handler.openai_gateway.responses"),
-				zap.Any("panic", recovered),
-			).Error("openai.usage_record_task_panic_recovered")
+		mode := h.usageRecordWorkerPool.Submit(task)
+		if mode != service.UsageRecordSubmitModeDropped {
+			return
 		}
-	}()
-	task(ctx)
+		logger.L().With(zap.String("component", "handler.openai_gateway.responses")).Warn("openai.usage_record_task_dropped_sync_fallback")
+	}
+	runUsageRecordTaskSync("handler.openai_gateway.responses", "openai.usage_record_task_panic_recovered", task)
 }

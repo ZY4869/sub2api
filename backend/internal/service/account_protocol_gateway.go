@@ -640,6 +640,9 @@ func MatchesGroupPlatform(account *Account, groupPlatform string) bool {
 		return false
 	}
 	if IsProtocolGatewayAccount(account) {
+		if groupPlatform == PlatformProtocolGateway {
+			return len(RoutingPlatformsForAccount(account)) > 0
+		}
 		for _, platform := range RoutingPlatformsForAccount(account) {
 			if platform == groupPlatform {
 				return true
@@ -658,6 +661,9 @@ func QueryPlatformsForGroupPlatform(groupPlatform string, includeMixedAntigravit
 	platforms := []string{normalized}
 	if normalized == PlatformOpenAI || normalized == PlatformAnthropic || normalized == PlatformGemini {
 		platforms = append(platforms, PlatformProtocolGateway)
+	}
+	if normalized == PlatformProtocolGateway {
+		platforms = append(platforms, PlatformOpenAI, PlatformAnthropic, PlatformGemini)
 	}
 	if includeMixedAntigravity && (normalized == PlatformAnthropic || normalized == PlatformGemini) {
 		platforms = append(platforms, PlatformAntigravity)

@@ -118,7 +118,7 @@ func ValidateResolvedIP(host string) error {
 
 	for _, ip := range ips {
 		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
-			ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+			ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
 			return fmt.Errorf("resolved ip %s is not allowed", ip.String())
 		}
 	}
@@ -167,7 +167,8 @@ func isBlockedHost(host string) bool {
 		return true
 	}
 	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
+			ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
 			return true
 		}
 	}

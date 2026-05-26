@@ -19,9 +19,10 @@ var (
 type groupBindingAvailabilityChecker func(ctx context.Context, binding *APIKeyGroupBinding) (bool, error)
 
 type candidateBinding struct {
-	binding  APIKeyGroupBinding
-	explicit bool
-	priority int
+	binding         APIKeyGroupBinding
+	explicit        bool
+	priority        int
+	requestPlatform string
 }
 
 func CloneAPIKeyWithSelectedGroup(apiKey *APIKey, binding *APIKeyGroupBinding) *APIKey {
@@ -73,7 +74,8 @@ func SelectGroupBindingForRequest(
 			selected := candidate.binding
 			return &selected, nil
 		}
-		available, err := checker(ctx, &candidate.binding)
+		checkCtx := contextWithCandidateRequestPlatform(ctx, candidate.requestPlatform)
+		available, err := checker(checkCtx, &candidate.binding)
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +116,8 @@ func SelectGroupBindingForAllowedPlatforms(
 			selected := candidate.binding
 			return &selected, nil
 		}
-		available, err := checker(ctx, &candidate.binding)
+		checkCtx := contextWithCandidateRequestPlatform(ctx, candidate.requestPlatform)
+		available, err := checker(checkCtx, &candidate.binding)
 		if err != nil {
 			return nil, err
 		}
@@ -163,10 +166,13 @@ func candidateGroupBindingsForAllowedPlatforms(apiKey *APIKey, allowedPlatforms 
 		if group == nil || !group.IsActive() {
 			continue
 		}
+		requestPlatform := ""
 		if len(allowed) > 0 {
-			if _, ok := allowed[strings.TrimSpace(strings.ToLower(group.Platform))]; !ok {
+			matchedPlatform, ok := bindingRequestPlatformForAllowed(group.Platform, allowed)
+			if !ok {
 				continue
 			}
+			requestPlatform = matchedPlatform
 		}
 		if len(allowed) == 0 && len(allowedPlatforms) > 0 {
 			continue
@@ -181,10 +187,15 @@ func candidateGroupBindingsForAllowedPlatforms(apiKey *APIKey, allowedPlatforms 
 		if priority <= 0 {
 			priority = 1
 		}
+		candidateGroupBinding := binding
+		if requestPlatform != "" {
+			candidateGroupBinding = groupBindingForRequestPlatform(binding, requestPlatform)
+		}
 		candidates = append(candidates, candidateBinding{
-			binding:  binding,
-			explicit: explicit,
-			priority: priority,
+			binding:         candidateGroupBinding,
+			explicit:        explicit,
+			priority:        priority,
+			requestPlatform: requestPlatform,
 		})
 	}
 
@@ -198,6 +209,47 @@ func candidateGroupBindingsForAllowedPlatforms(apiKey *APIKey, allowedPlatforms 
 		return candidates[i].binding.GroupID < candidates[j].binding.GroupID
 	})
 	return candidates
+}
+
+func groupBindingForRequestPlatform(binding APIKeyGroupBinding, requestPlatform string) APIKeyGroupBinding {
+	requestPlatform = strings.TrimSpace(strings.ToLower(requestPlatform))
+	if requestPlatform == "" || binding.Group == nil || binding.Group.Platform != PlatformProtocolGateway {
+		return binding
+	}
+	groupCopy := *binding.Group
+	groupCopy.Platform = requestPlatform
+	binding.Group = &groupCopy
+	return binding
+}
+
+func bindingRequestPlatformForAllowed(groupPlatform string, allowed map[string]struct{}) (string, bool) {
+	groupPlatform = strings.TrimSpace(strings.ToLower(groupPlatform))
+	if groupPlatform == "" || len(allowed) == 0 {
+		return "", false
+	}
+	if _, ok := allowed[groupPlatform]; ok {
+		return "", true
+	}
+	if groupPlatform != PlatformProtocolGateway {
+		return "", false
+	}
+	for _, platform := range []string{PlatformOpenAI, PlatformAnthropic, PlatformGemini} {
+		if _, ok := allowed[platform]; ok {
+			return platform, true
+		}
+	}
+	return "", false
+}
+
+func contextWithCandidateRequestPlatform(ctx context.Context, platform string) context.Context {
+	platform = strings.TrimSpace(strings.ToLower(platform))
+	if platform == "" || platform == PlatformProtocolGateway {
+		return ctx
+	}
+	if _, hasForcePlatform := ctx.Value(ctxkey.ForcePlatform).(string); hasForcePlatform {
+		return ctx
+	}
+	return context.WithValue(ctx, ctxkey.ForcePlatform, platform)
 }
 
 func apiKeyBindingsForSelection(apiKey *APIKey) []APIKeyGroupBinding {
@@ -215,6 +267,10 @@ func apiKeyBindingsForSelection(apiKey *APIKey) []APIKeyGroupBinding {
 		}}
 	}
 	return nil
+}
+
+func APIKeyBindingsForSelection(apiKey *APIKey) []APIKeyGroupBinding {
+	return apiKeyBindingsForSelection(apiKey)
 }
 
 func bindingMatchesModel(patterns []string, model string) (explicit bool, matched bool) {
@@ -326,7 +382,7 @@ func (s *OpenAIGatewayService) groupBindingHasSchedulableAccounts(ctx context.Co
 		if !account.IsSchedulable() || !isOpenAITextRuntimeAccount(account) {
 			continue
 		}
-		if requestedModel != "" && !account.IsModelSupported(requestedModel) {
+		if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
 			continue
 		}
 		return true, nil

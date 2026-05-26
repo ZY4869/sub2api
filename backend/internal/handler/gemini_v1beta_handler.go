@@ -146,7 +146,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 			return
 		}
-		if apiKey.Group == nil || apiKey.Group.Platform != service.PlatformGemini {
+		if apiKey.Group == nil || (apiKey.Group.Platform != service.PlatformGemini && apiKey.Group.Platform != service.PlatformProtocolGateway) {
 			googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.group_platform_invalid", "API key group platform is not gemini")
 			return
 		}
@@ -198,10 +198,33 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		h.GeminiV1BetaEmbeddings(c, modelName)
 		return
 	}
-	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, selectionPlatform, modelName)
+	publicModelName := modelName
+	upstreamModelName := modelName
+	var publicCatalogEntry *service.PublishedPublicCatalogEntry
+	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, selectionPlatform, modelName); resolveErr != nil {
+		reqLog.Warn("gemini.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
+	} else if active && !matched {
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.model_not_published", service.PublicCatalogModelUnavailableMessage)
+		return
+	} else if matched {
+		publicCatalogEntry = entry
+		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
+			upstreamModelName = sourceModel
+		}
+		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))
+	}
+	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, selectionPlatform, publicModelName)
+	if selectionModel == "" {
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.model_not_published", service.PublicCatalogModelUnavailableMessage)
+		return
+	}
+	bindingSelectionModel := selectionModel
+	if publicCatalogEntry != nil {
+		bindingSelectionModel = publicModelName
+	}
 
 	stream := action == "streamGenerateContent"
-	reqLog = reqLog.With(zap.String("model", modelName), zap.String("action", action), zap.Bool("stream", stream))
+	reqLog = reqLog.With(zap.String("model", publicModelName), zap.String("action", action), zap.Bool("stream", stream))
 
 	body, err := pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
 	if err != nil {
@@ -216,7 +239,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.body_empty", "Request body is empty")
 		return
 	}
-	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiGenerate, service.PlatformGemini, modelName, body)
+	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiGenerate, service.PlatformGemini, publicModelName, body)
 	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		reqLog.Warn("gemini.content_moderation_keyword_check_failed", zap.Error(err))
 	} else if blocked {
@@ -294,7 +317,7 @@ groupSelectionLoop:
 			h.billingCacheService,
 			apiKey,
 			subscription,
-			selectionModel,
+			bindingSelectionModel,
 			selectedAllowedPlatforms,
 			excludedGroupIDs,
 		)
@@ -310,20 +333,25 @@ groupSelectionLoop:
 		}
 		if currentPlatform == service.PlatformKiro || service.IsUnsupportedRuntimePlatform(currentPlatform) {
 			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+				releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				continue
 			}
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 			return
 		}
-		if currentPlatform != service.PlatformGemini && currentPlatform != service.PlatformAntigravity {
+		if currentPlatform != service.PlatformGemini && currentPlatform != service.PlatformAntigravity && currentPlatform != service.PlatformProtocolGateway {
 			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+				releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				continue
 			}
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.group_platform_invalid", "API key group platform is not gemini")
 			return
 		}
-		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, selectionModel)
+		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, bindingSelectionModel)
 		if err != nil {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
 				googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.channel_model_not_allowed", "Requested model is not allowed by the bound channel")
 				return
@@ -334,6 +362,9 @@ groupSelectionLoop:
 			}
 			googleErrorKey(c, http.StatusInternalServerError, "gateway.gemini.channel_routing_failed", "Failed to resolve channel routing")
 			return
+		}
+		if publicCatalogEntry != nil {
+			runtimeSelectionModel = upstreamModelName
 		}
 
 		sessionHash := extractGeminiCLISessionHash(c, body)
@@ -433,8 +464,10 @@ groupSelectionLoop:
 			if err != nil {
 				if len(fs.FailedAccountIDs) == 0 {
 					if multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) && excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						continue groupSelectionLoop
 					}
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					googleNoAvailableAccountsError(c, err)
 					return
 				}
@@ -448,8 +481,10 @@ groupSelectionLoop:
 					return
 				default:
 					if multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) && excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						continue groupSelectionLoop
 					}
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					h.handleGeminiFailoverExhausted(c, fs.LastFailoverErr)
 					return
 				}
@@ -483,8 +518,10 @@ groupSelectionLoop:
 			if !selection.Acquired {
 				if selection.WaitPlan == nil {
 					if multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) && excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						continue groupSelectionLoop
 					}
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.no_available_accounts", "No available Gemini accounts")
 					return
 				}
@@ -498,6 +535,7 @@ groupSelectionLoop:
 						zap.Any("group_id", currentAPIKey.GroupID),
 						zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
 					)
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					googleErrorKey(c, http.StatusTooManyRequests, "gateway.gemini.pending_requests", "Too many pending requests, please retry later")
 					return
 				}
@@ -520,6 +558,7 @@ groupSelectionLoop:
 				)
 				if err != nil {
 					reqLog.Warn("gemini.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					googleErrorPendingRequests(c)
 					return
 				}
@@ -539,9 +578,12 @@ groupSelectionLoop:
 				requestCtx = service.WithAccountSwitchCount(requestCtx, fs.SwitchCount, h.metadataBridgeEnabled())
 			}
 			if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
-				result, err = h.antigravityGatewayService.ForwardGemini(requestCtx, c, account, modelName, action, stream, body, hasBoundSession)
+				result, err = h.antigravityGatewayService.ForwardGemini(requestCtx, c, account, upstreamModelName, action, stream, body, hasBoundSession)
+				if result != nil && publicCatalogEntry != nil {
+					result.Model = publicModelName
+				}
 			} else {
-				result, err = h.geminiNativeService.ForwardNative(requestCtx, c, account, modelName, action, stream, body)
+				result, err = h.geminiNativeService.ForwardNative(requestCtx, c, account, publicModelName, action, stream, body)
 			}
 			if accountReleaseFunc != nil {
 				accountReleaseFunc()
@@ -555,6 +597,7 @@ groupSelectionLoop:
 						continue
 					case FailoverExhausted:
 						if multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) && excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 							continue groupSelectionLoop
 						}
 						h.submitFailedUsageRecordTask(
@@ -617,8 +660,10 @@ groupSelectionLoop:
 			usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, rawInboundPath, body)
 			if !usageDecision.Persist {
 				reqLog.Info("gemini.usage_record_skipped", zap.String("reason", usageDecision.Reason), zap.String("operation_type", usageDecision.OperationType), zap.String("inbound_endpoint", inboundEndpoint))
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			} else {
 				h.submitUsageRecordTask(func(ctx context.Context) {
+					ctx = service.AttachPublishedPublicCatalogEntry(ctx, publicCatalogEntry)
 					ctx = reattachGatewayChannelState(ctx, channelState)
 					if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
 						Result:                result,
@@ -643,7 +688,7 @@ groupSelectionLoop:
 							zap.Int64("user_id", authSubject.UserID),
 							zap.Int64("api_key_id", currentAPIKey.ID),
 							zap.Any("group_id", currentAPIKey.GroupID),
-							zap.String("model", modelName),
+							zap.String("model", publicModelName),
 							zap.Int64("account_id", account.ID),
 						).Error("gemini.record_usage_failed", zap.Error(err))
 					}

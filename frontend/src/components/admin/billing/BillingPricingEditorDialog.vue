@@ -15,7 +15,7 @@
         @update:currency="updateCurrentCurrency"
       />
 
-      <div class="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_minmax(0,1fr)]">
+      <div class="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
         <aside class="rounded-3xl border border-gray-200 bg-gray-50/80 p-4 dark:border-dark-700 dark:bg-dark-900/40">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white">工作集模型</h3>
           <input
@@ -53,12 +53,6 @@
                   :class="billingLayerHasValues(detail.official_form) ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200' : 'bg-gray-200 text-gray-600 dark:bg-dark-700 dark:text-gray-300'"
                 >
                   官方 {{ countConfiguredBillingFields(detail.official_form) }} 项
-                </span>
-                <span
-                  class="inline-flex rounded-full px-2 py-1"
-                  :class="billingLayerHasValues(detail.sale_form) ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-gray-200 text-gray-600 dark:bg-dark-700 dark:text-gray-300'"
-                >
-                  售价 {{ countConfiguredBillingFields(detail.sale_form) }} 项
                 </span>
               </div>
             </button>
@@ -118,69 +112,6 @@
           </BillingPriceColumn>
         </div>
 
-        <div class="space-y-4">
-          <div
-            v-if="currentDetail?.preview_sale_form && previewGroupLabel"
-            class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
-          >
-            <div class="font-semibold">
-              {{ previewGroupLabel }} 有效售价预览
-            </div>
-            <div class="mt-2 flex flex-wrap gap-2 text-xs">
-              <span
-                v-for="entry in previewSaleSummaryEntries"
-                :key="entry.id"
-                class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-white/10"
-              >
-                {{ entry.label }}: {{ entry.value }}
-              </span>
-            </div>
-          </div>
-
-          <BillingBulkDiscountPanel
-            :discount-ratio="discountRatio"
-            :scope="discountScope"
-            :selected-count="selectedSaleFieldIds.length"
-            @copy-official="copyOfficial"
-            @apply-all="applyDiscount(false)"
-            @apply-selected="applyDiscount(true)"
-            @update:discount-ratio="discountRatio = $event"
-            @update:scope="discountScope = $event"
-          />
-
-          <BillingPriceColumn
-            title="售价"
-            description="保留复制官方价和批量折扣能力，但编辑界面统一收敛到紧凑表单。"
-            :form="currentSaleForm"
-            :errors="currentSaleErrors"
-            :currency="currentCurrency"
-            :usd-to-cny-rate="usdToCnyRate"
-            :input-supported="currentDetail?.input_supported ?? true"
-            :output-charge-slot="currentDetail?.output_charge_slot || 'text_output'"
-            :supports-prompt-caching="currentDetail?.supports_prompt_caching ?? false"
-            :capabilities="currentCapabilities"
-            :special-visibility="saleSpecialVisibility"
-            :selected-ids="selectedSaleFieldIds"
-            :disabled="props.busy"
-            selectable
-            show-multiplier-controls
-            column-test-id="sale-column"
-            @toggle-select="toggleSaleSelection"
-            @update-form="updateForm('sale', $event)"
-          >
-            <template #actions>
-              <button
-                type="button"
-                class="btn btn-primary btn-sm"
-                data-testid="save-layer-sale"
-                :disabled="saveDisabled"
-                @click="saveLayer('sale')"
-              >
-                保存售价
-              </button>
-            </template>
-          </BillingPriceColumn>
-        </div>
       </div>
     </div>
   </BaseDialog>
@@ -197,11 +128,9 @@ import type {
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import { useAppStore } from '@/stores/app'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
-import BillingBulkDiscountPanel from './BillingBulkDiscountPanel.vue'
 import BillingPriceColumn from './BillingPriceColumn.vue'
 import BillingPricingCurrencyToolbar from './BillingPricingCurrencyToolbar.vue'
 import {
-  billingLayerHasSpecialValues,
   billingLayerHasValues,
   cloneBillingPricingLayerForm,
   countConfiguredBillingFields,
@@ -213,14 +142,13 @@ import {
   validateBillingPricingLayerFormForSave,
 } from './pricingOptions'
 
-type Layer = 'official' | 'sale'
+type Layer = 'official'
 
 const props = defineProps<{
   show: boolean
   details: BillingPricingSheetDetail[]
   activeModel: string
   busy?: boolean
-  previewGroupName?: string
   serverErrors?: Partial<Record<Layer, BillingPricingValidationErrors>>
 }>()
 
@@ -233,25 +161,15 @@ const emit = defineEmits<{
     form: BillingPricingLayerForm
     currency: BillingPricingCurrency
   }): void
-  (e: 'copy-official', payload: { models: string[] }): void
-  (e: 'apply-discount', payload: {
-    models: string[]
-    itemIds?: string[]
-    discountRatio: number
-  }): void
 }>()
 
 const appStore = useAppStore()
 const exchangeRateStore = useExchangeRateStore()
 
 const search = ref('')
-const discountRatio = ref(0.9)
-const discountScope = ref<'current' | 'workset'>('current')
-const selectedSaleFieldIds = ref<string[]>([])
 const currentDetailMap = ref<Record<string, BillingPricingSheetDetail>>({})
 const layerErrors = ref<Record<Layer, BillingPricingValidationErrors>>({
   official: {},
-  sale: {},
 })
 
 watch(
@@ -267,7 +185,6 @@ watch(
 watch(
   () => props.activeModel,
   () => {
-    selectedSaleFieldIds.value = []
     resetLayerErrors()
   },
 )
@@ -294,10 +211,6 @@ watch(
       official: {
         ...layerErrors.value.official,
         ...(value.official || {}),
-      },
-      sale: {
-        ...layerErrors.value.sale,
-        ...(value.sale || {}),
       },
     }
   },
@@ -332,11 +245,7 @@ const saveDisabled = computed(() => props.busy || !currentModel.value)
 const currentOfficialForm = computed(() => (
   currentDetail.value?.official_form || createEmptyBillingPricingLayerForm()
 ))
-const currentSaleForm = computed(() => (
-  currentDetail.value?.sale_form || createEmptyBillingPricingLayerForm()
-))
 const currentOfficialErrors = computed(() => layerErrors.value.official)
-const currentSaleErrors = computed(() => layerErrors.value.sale)
 const currentCapabilities = computed<BillingPricingCapabilities>(() => (
   currentDetail.value?.capabilities || {
     supports_tiered_pricing: false,
@@ -346,67 +255,6 @@ const currentCapabilities = computed<BillingPricingCapabilities>(() => (
     supports_provider_special: false,
   }
 ))
-
-const saleSpecialVisibility = computed(() => {
-  const officialForm = currentOfficialForm.value
-  const capabilities = currentCapabilities.value
-  const forceSectionOpen = officialForm.special_enabled || billingLayerHasSpecialValues(officialForm)
-
-  return {
-    forceSectionOpen,
-    forceBatchFields: officialForm.special_enabled
-      ? capabilities.supports_batch_pricing
-      : [
-        officialForm.special.batch_input_price,
-        officialForm.special.batch_output_price,
-        officialForm.special.batch_cache_price,
-      ].some((value) => value != null),
-    forceProviderFields: officialForm.special_enabled
-      ? capabilities.supports_provider_special
-      : [
-        officialForm.special.grounding_search,
-        officialForm.special.grounding_maps,
-        officialForm.special.file_search_embedding,
-        officialForm.special.file_search_retrieval,
-      ].some((value) => value != null),
-  }
-})
-
-const previewGroupLabel = computed(() => {
-  const groupName = String(props.previewGroupName || '').trim()
-  const multiplier = currentDetail.value?.preview_rate_multiplier
-  if (!groupName) {
-    return ''
-  }
-  if (typeof multiplier === 'number' && Number.isFinite(multiplier)) {
-    return `${groupName} × ${multiplier}`
-  }
-  return groupName
-})
-
-const previewSaleSummaryEntries = computed(() => {
-  const previewForm = currentDetail.value?.preview_sale_form
-  if (!previewForm) {
-    return []
-  }
-  return [
-    { id: 'input_price', label: '输入', value: previewForm.input_price },
-    { id: 'output_price', label: '输出', value: previewForm.output_price },
-    { id: 'cache_price', label: '缓存', value: previewForm.cache_price },
-    { id: 'input_price_above_threshold', label: '输入阶梯', value: previewForm.input_price_above_threshold },
-    { id: 'output_price_above_threshold', label: '输出阶梯', value: previewForm.output_price_above_threshold },
-    { id: 'batch_input_price', label: 'Batch 输入', value: previewForm.special.batch_input_price },
-    { id: 'batch_output_price', label: 'Batch 输出', value: previewForm.special.batch_output_price },
-    { id: 'batch_cache_price', label: 'Batch 缓存', value: previewForm.special.batch_cache_price },
-  ]
-    .filter((entry) => typeof entry.value === 'number' && Number.isFinite(entry.value))
-    .map((entry) => ({
-      id: entry.id,
-      label: entry.label,
-      value: formatPreviewValue(Number(entry.value)),
-    }))
-    .slice(0, 6)
-})
 
 const officialDescription = computed(() => {
   const detail = currentDetail.value
@@ -449,11 +297,7 @@ function updateForm(layer: Layer, form: BillingPricingLayerForm) {
 
   clearLayerErrors(layer)
   const next = normalizeBillingPricingSheetDetail(currentDetail.value)
-  if (layer === 'official') {
-    next.official_form = cloneBillingPricingLayerForm(form)
-  } else {
-    next.sale_form = cloneBillingPricingLayerForm(form)
-  }
+  next.official_form = cloneBillingPricingLayerForm(form)
 
   currentDetailMap.value = {
     ...currentDetailMap.value,
@@ -509,10 +353,6 @@ function convertSheetDetailCurrency(
     ...detail,
     currency,
     official_form: scaleBillingPricingLayerForm(detail.official_form, factor),
-    sale_form: scaleBillingPricingLayerForm(detail.sale_form, factor),
-    preview_sale_form: detail.preview_sale_form
-      ? scaleBillingPricingLayerForm(detail.preview_sale_form, factor)
-      : detail.preview_sale_form,
   })
 }
 
@@ -554,7 +394,7 @@ function saveLayer(layer: Layer) {
     return
   }
 
-  const sourceForm = layer === 'official' ? currentOfficialForm.value : currentSaleForm.value
+  const sourceForm = currentOfficialForm.value
   const errors = validateBillingPricingLayerFormForSave(sourceForm)
   layerErrors.value = {
     ...layerErrors.value,
@@ -562,7 +402,7 @@ function saveLayer(layer: Layer) {
   }
   if (hasBillingPricingValidationErrors(errors)) {
     appStore.showError('保存前请先修正当前价格表单中的问题', {
-      title: layer === 'official' ? '官方价格校验失败' : '售价校验失败',
+      title: '官方价格校验失败',
       details: buildValidationErrorDetails(errors),
     })
     return
@@ -576,54 +416,6 @@ function saveLayer(layer: Layer) {
   })
 }
 
-function toggleSaleSelection(id: string) {
-  selectedSaleFieldIds.value = selectedSaleFieldIds.value.includes(id)
-    ? selectedSaleFieldIds.value.filter((itemId) => itemId !== id)
-    : [...selectedSaleFieldIds.value, id]
-}
-
-function copyOfficial() {
-  const models = normalizeModels(
-    discountScope.value === 'workset'
-      ? detailList.value.map((detail) => detail.model)
-      : [currentModel.value],
-  )
-  if (models.length === 0) {
-    return
-  }
-
-  emit('copy-official', { models })
-}
-
-function applyDiscount(selectedOnly: boolean) {
-  const models = normalizeModels(
-    discountScope.value === 'workset'
-      ? detailList.value.map((detail) => detail.model)
-      : [currentModel.value],
-  )
-  if (models.length === 0) {
-    return
-  }
-
-  emit('apply-discount', {
-    models,
-    itemIds: selectedOnly ? [...selectedSaleFieldIds.value] : undefined,
-    discountRatio: discountRatio.value,
-  })
-}
-
-function normalizeModels(models: string[]): string[] {
-  return Array.from(new Set(models.map((model) => model.trim()).filter(Boolean)))
-}
-
-function formatPreviewValue(value: number): string {
-  const symbol = currentCurrency.value === 'CNY' ? '¥' : '$'
-  return `${symbol}${new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: value >= 1 ? 4 : 8,
-  }).format(value)}`
-}
-
 function clearLayerErrors(layer: Layer) {
   layerErrors.value = {
     ...layerErrors.value,
@@ -634,7 +426,6 @@ function clearLayerErrors(layer: Layer) {
 function resetLayerErrors() {
   layerErrors.value = {
     official: {},
-    sale: {},
   }
 }
 

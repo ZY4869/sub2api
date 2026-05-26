@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -120,9 +121,16 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				maintenanceCopy := *subscription
 				subscriptionService.DoWindowMaintenance(&maintenanceCopy)
 			}
-		} else if !dynamicGroupRouting {
-			if !apiKey.User.HasUsableBillingBalance() {
-				abortWithGoogleError(c, 403, "Insufficient account balance")
+		} else if !dynamicGroupRouting && googleRouteRequiresBillingHold(c) {
+			if _, err := apiKeyService.TryReserveRequestBillingHold(c.Request.Context(), apiKey, cfg); err != nil {
+				switch {
+				case errors.Is(err, service.ErrInsufficientBalance):
+					abortWithGoogleError(c, 403, "Insufficient account balance")
+				case errors.Is(err, service.ErrBillingRequestReplayed), errors.Is(err, service.ErrBillingHoldAlreadyFinished):
+					abortWithGoogleError(c, 409, "Billing request was already used. Please retry with a new request id.")
+				default:
+					abortWithGoogleError(c, 503, "Billing service temporarily unavailable. Please retry later.")
+				}
 				return
 			}
 		}
@@ -137,6 +145,21 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 		c.Next()
 	}
+}
+
+func googleRouteRequiresBillingHold(c *gin.Context) bool {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return true
+	}
+	method := strings.ToUpper(strings.TrimSpace(c.Request.Method))
+	path := strings.ToLower(strings.TrimSpace(c.Request.URL.Path))
+	if method == http.MethodGet || method == http.MethodDelete {
+		return false
+	}
+	if strings.HasSuffix(path, "/models") || path == "/v1/models" || path == "/v1beta/models" {
+		return false
+	}
+	return true
 }
 
 // extractAPIKeyForGoogle extracts API key for Google/Gemini endpoints.

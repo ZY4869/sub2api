@@ -241,6 +241,7 @@ type GatewayService struct {
 	modelsListCache              *gocache.Cache
 	modelsListCacheTTL           time.Duration
 	settingService               *SettingService
+	modelCatalogService          *ModelCatalogService
 	modelRegistryService         *ModelRegistryService
 	channelService               *ChannelService
 	vertexCatalogService         VertexCatalogProvider
@@ -290,6 +291,10 @@ func NewGatewayService(accountRepo AccountRepository, groupRepo GroupRepository,
 
 func (s *GatewayService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *GatewayService) SetModelCatalogService(modelCatalogService *ModelCatalogService) {
+	s.modelCatalogService = modelCatalogService
 }
 
 func (s *GatewayService) SetChannelService(channelService *ChannelService) {

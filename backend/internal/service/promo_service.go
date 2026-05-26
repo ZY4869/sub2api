@@ -113,6 +113,11 @@ func (s *PromoService) ApplyPromoCode(ctx context.Context, userID int64, code st
 	if err := s.validatePromoCodeStatus(promoCode); err != nil {
 		return err
 	}
+	bonusAmount, err := NormalizeAndValidatePositiveBillingAmount(promoCode.BonusAmount)
+	if err != nil {
+		return err
+	}
+	promoCode.BonusAmount = bonusAmount
 
 	// 在事务中检查用户是否已使用过此优惠码
 	existing, err := s.promoRepo.GetUsageByPromoCodeAndUser(txCtx, promoCode.ID, userID)
@@ -190,9 +195,14 @@ func (s *PromoService) Create(ctx context.Context, input *CreatePromoCodeInput) 
 		}
 	}
 
+	bonusAmount, err := NormalizeAndValidatePositiveBillingAmount(input.BonusAmount)
+	if err != nil {
+		return nil, err
+	}
+
 	promoCode := &PromoCode{
 		Code:        strings.ToUpper(code),
-		BonusAmount: input.BonusAmount,
+		BonusAmount: bonusAmount,
 		MaxUses:     input.MaxUses,
 		UsedCount:   0,
 		Status:      PromoCodeStatusActive,
@@ -227,7 +237,11 @@ func (s *PromoService) Update(ctx context.Context, id int64, input *UpdatePromoC
 		promoCode.Code = strings.ToUpper(strings.TrimSpace(*input.Code))
 	}
 	if input.BonusAmount != nil {
-		promoCode.BonusAmount = *input.BonusAmount
+		bonusAmount, err := NormalizeAndValidatePositiveBillingAmount(*input.BonusAmount)
+		if err != nil {
+			return nil, err
+		}
+		promoCode.BonusAmount = bonusAmount
 	}
 	if input.MaxUses != nil {
 		promoCode.MaxUses = *input.MaxUses

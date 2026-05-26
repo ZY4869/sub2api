@@ -22,12 +22,20 @@ type paymentOrderSnapshot struct {
 func (s *PaymentService) buildOrderSnapshot(settings PaymentSettings, input CreatePaymentOrderInput, currency string) (json.RawMessage, int64, error) {
 	switch input.ProductType {
 	case PaymentProductBalanceTopup:
-		if input.Amount < settings.MinTopupAmount || input.Amount > settings.MaxTopupAmount {
-			return nil, 0, ErrPaymentInvalidAmount
-		}
 		amountMinor, err := PaymentAmountToMinor(input.Amount, currency)
 		if err != nil {
 			return nil, 0, err
+		}
+		minMinor, err := PaymentAmountToMinor(settings.MinTopupAmount, currency)
+		if err != nil {
+			return nil, 0, ErrPaymentInvalidAmount
+		}
+		maxMinor, err := PaymentAmountToMinor(settings.MaxTopupAmount, currency)
+		if err != nil {
+			return nil, 0, ErrPaymentInvalidAmount
+		}
+		if amountMinor < minMinor || amountMinor > maxMinor {
+			return nil, 0, ErrPaymentInvalidAmount
 		}
 		return marshalPaymentSnapshot(paymentOrderSnapshot{ProductType: input.ProductType, AmountMinor: amountMinor, Currency: currency, CountryCode: input.CountryCode, CreatedAt: time.Now().UTC().Format(time.RFC3339)}), amountMinor, nil
 	case PaymentProductSubscription:

@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+const (
+	MaxBillingAmount float64 = 9999999999.99999999
+)
+
 type ModelPricingCurrencyMetadata struct {
 	Currency     string
 	USDToCNYRate *float64
@@ -51,9 +55,60 @@ func validBillingAmount(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
+func IsNegativeZeroBillingAmount(value float64) bool {
+	return value == 0 && math.Signbit(value)
+}
+
+func NormalizeBillingAmount(value float64) float64 {
+	money, err := NewBillingMoneyFromFloat(value)
+	if err != nil {
+		return 0
+	}
+	return money.Float64()
+}
+
+func ValidNormalizedBillingAmount(value float64) bool {
+	return ValidateBillingAmount(value) == nil
+}
+
+func ValidateBillingAmount(value float64) error {
+	if !validBillingAmount(value) || IsNegativeZeroBillingAmount(value) {
+		return ErrInvalidBillingAmount
+	}
+	if math.Abs(value) > MaxBillingAmount {
+		return ErrInvalidBillingAmount
+	}
+	return nil
+}
+
+func NormalizeAndValidateBillingAmount(value float64) (float64, error) {
+	money, err := NewBillingMoneyFromFloat(value)
+	if err != nil {
+		return 0, err
+	}
+	return money.Float64(), nil
+}
+
+func NormalizeAndValidatePositiveBillingAmount(value float64) (float64, error) {
+	money, err := NewPositiveBillingMoneyFromFloat(value)
+	if err != nil {
+		return 0, err
+	}
+	return money.Float64(), nil
+}
+
+func NormalizeAndValidateNonNegativeBillingAmount(value float64) (float64, error) {
+	money, err := NewNonNegativeBillingMoneyFromFloat(value)
+	if err != nil {
+		return 0, err
+	}
+	return money.Float64(), nil
+}
+
 func normalizedBillingCostMap(currency string, amount float64) map[string]float64 {
 	currency = normalizeBillingCurrency(currency)
-	if currency == "" || !validBillingAmount(amount) || amount == 0 {
+	amount = NormalizeBillingAmount(amount)
+	if currency == "" || amount == 0 {
 		return nil
 	}
 	return map[string]float64{currency: amount}

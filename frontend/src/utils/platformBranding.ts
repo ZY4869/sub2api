@@ -18,13 +18,12 @@ export const PRIMARY_PLATFORM_ORDER = [
   'grok',
   'kiro',
   'openai',
+  'openrouter',
   'protocol_gateway'
 ] as const
 
 export const ACCOUNT_PLATFORM_ORDER: AccountPlatform[] = [...PRIMARY_PLATFORM_ORDER]
-export const GROUP_PLATFORM_ORDER: GroupPlatform[] = PRIMARY_PLATFORM_ORDER.filter(
-  (platform): platform is GroupPlatform => platform !== 'protocol_gateway'
-)
+export const GROUP_PLATFORM_ORDER: GroupPlatform[] = [...PRIMARY_PLATFORM_ORDER]
 export const FILTER_PLATFORM_ORDER = [...PRIMARY_PLATFORM_ORDER]
 
 export function getPlatformOrderIndex(platform: string): number {
@@ -41,7 +40,8 @@ const PLATFORM_BRANDING: Record<AccountPlatform, PlatformBranding> = {
   grok: { badge: 'Gr', iconKey: 'xai', englishName: 'Grok' },
   kiro: { badge: 'Ki', iconKey: 'kiro', englishName: 'Kiro' },
   openai: { badge: 'OA', iconKey: 'openai', englishName: 'OpenAI' },
-  protocol_gateway: { badge: 'PG', iconKey: 'openrouter', englishName: 'Protocol Gateway' }
+  openrouter: { badge: 'OR', iconKey: 'openrouter', englishName: 'OpenRouter' },
+  protocol_gateway: { badge: 'PG', iconKey: 'gateway', englishName: 'Protocol Gateway' }
 }
 
 export function getPlatformIconSources(platform?: PlatformKey | string | null): string[] {

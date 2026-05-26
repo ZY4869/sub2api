@@ -2,6 +2,9 @@ package service
 
 import (
 	"testing"
+
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildSelectedSet(t *testing.T) {
@@ -109,4 +112,21 @@ func TestShouldCreateAccount(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCRSBaseURLIgnoresPrivateHostExceptions(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = false
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	cfg.Security.URLAllowlist.PrivateHostExceptions = []config.PrivateHostExceptionConfig{
+		{
+			Scope:   PrivateHostExceptionScopeUpstreamBaseURL,
+			Hosts:   []string{"127.0.0.1"},
+			Ports:   []int{9000},
+			Schemes: []string{"http"},
+		},
+	}
+
+	_, err := validateCRSBaseURL(cfg, "http://127.0.0.1:9000")
+	require.Error(t, err)
 }

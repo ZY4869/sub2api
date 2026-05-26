@@ -18,6 +18,13 @@ func TestBuildOpenAITargetURLForDeepSeek(t *testing.T) {
 	require.Equal(t, "https://relay.example.com/v1/beta/chat/completions", buildDeepSeekOpenAITextURL("https://relay.example.com/v1", "/chat/completions", true))
 }
 
+func TestBuildOpenAITargetURLForOpenRouter(t *testing.T) {
+	require.Equal(t, "https://openrouter.ai/api/v1/chat/completions", buildOpenAIChatCompletionsURLForPlatform("", PlatformOpenRouter))
+	require.Equal(t, "https://openrouter.ai/api/v1/models", buildOpenAIModelsURLForPlatform("", PlatformOpenRouter))
+	require.Equal(t, "https://openrouter.ai/api/v1/chat/completions", buildOpenAIChatCompletionsURLForPlatform("https://openrouter.ai/api/v1", PlatformOpenRouter))
+	require.Equal(t, "https://openrouter.ai/api/v1/models", buildOpenAIModelsURLForPlatform("https://openrouter.ai/api/v1", PlatformOpenRouter))
+}
+
 func TestResolveOpenAICompatibleBaseURLForDeepSeekStripsAnthropicSuffix(t *testing.T) {
 	account := &Account{
 		Platform: PlatformDeepSeek,

@@ -826,12 +826,39 @@ export interface BlacklistedBatchDeleteResult {
   failed_count: number
 }
 
+export interface BlacklistedBatchRestoreFailure {
+  id: number
+  reason: string
+}
+
+export interface BlacklistedBatchRestoreResult {
+  restored_ids: number[]
+  failed: BlacklistedBatchRestoreFailure[]
+  restored_count: number
+  failed_count: number
+}
+
 export async function batchDeleteBlacklistedAccounts(payload: {
   ids?: number[]
   delete_all?: boolean
 }): Promise<BlacklistedBatchDeleteResult> {
   const { data } = await apiClient.post<BlacklistedBatchDeleteResult>(
     '/admin/accounts/blacklist/batch-delete',
+    payload
+  )
+  return data
+}
+
+export async function restoreBlacklistedAccount(id: number): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/blacklist/restore`)
+  return data
+}
+
+export async function restoreBlacklistedAccounts(payload: {
+  ids: number[]
+}): Promise<BlacklistedBatchRestoreResult> {
+  const { data } = await apiClient.post<BlacklistedBatchRestoreResult>(
+    '/admin/accounts/blacklist/restore',
     payload
   )
   return data
@@ -1365,6 +1392,8 @@ export const accountsAPI = {
   unarchiveAccounts,
   retestBlacklistedAccounts,
   getBlacklistRetestModels,
+  restoreBlacklistedAccount,
+  restoreBlacklistedAccounts,
   getBatchTestModels,
   batchTestAccounts,
   batchDeleteBlacklistedAccounts,

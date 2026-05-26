@@ -129,7 +129,7 @@ func (h *OpenAIGatewayHandler) submitFailedUsageRecordTask(
 	millionContextBetaToken := optionalContextString(service.ClaudeMillionContextBetaTokenMetadataFromContext(requestCtx))
 
 	h.submitUsageRecordTask(func(ctx context.Context) {
-		if recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.OpenAIRecordFailedUsageInput{
+		recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.OpenAIRecordFailedUsageInput{
 			APIKey:                   apiKey,
 			User:                     apiKey.User,
 			Account:                  account,
@@ -153,7 +153,8 @@ func (h *OpenAIGatewayHandler) submitFailedUsageRecordTask(
 			MillionContextEffective:  millionContextEffective,
 			MillionContextSource:     millionContextSource,
 			MillionContextBetaToken:  millionContextBetaToken,
-		}); recordErr != nil {
+		})
+		if recordErr != nil {
 			logger.L().With(
 				zap.String("component", component),
 				zap.Int64("api_key_id", apiKey.ID),
@@ -162,6 +163,7 @@ func (h *OpenAIGatewayHandler) submitFailedUsageRecordTask(
 				zap.Int64("account_id", account.ID),
 			).Error("openai.record_failed_usage_failed", zap.Error(recordErr))
 		}
+		releaseHeldBillingHold(ctx, h.apiKeyService, apiKey)
 	})
 }
 
@@ -196,7 +198,7 @@ func (h *GatewayHandler) submitFailedUsageRecordTask(
 	millionContextBetaToken := optionalContextString(service.ClaudeMillionContextBetaTokenMetadataFromContext(requestCtx))
 
 	h.submitUsageRecordTask(func(ctx context.Context) {
-		if recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.RecordFailedUsageInput{
+		recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.RecordFailedUsageInput{
 			APIKey:                   apiKey,
 			User:                     apiKey.User,
 			Account:                  account,
@@ -220,7 +222,8 @@ func (h *GatewayHandler) submitFailedUsageRecordTask(
 			MillionContextEffective:  millionContextEffective,
 			MillionContextSource:     millionContextSource,
 			MillionContextBetaToken:  millionContextBetaToken,
-		}); recordErr != nil {
+		})
+		if recordErr != nil {
 			logger.L().With(
 				zap.String("component", component),
 				zap.Int64("api_key_id", apiKey.ID),
@@ -229,6 +232,7 @@ func (h *GatewayHandler) submitFailedUsageRecordTask(
 				zap.Int64("account_id", account.ID),
 			).Error("gateway.record_failed_usage_failed", zap.Error(recordErr))
 		}
+		releaseHeldBillingHold(ctx, h.apiKeyService, apiKey)
 	})
 }
 
@@ -257,7 +261,7 @@ func (h *GrokGatewayHandler) submitFailedUsageRecordTask(
 	upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 
 	h.submitUsageRecordTask(func(ctx context.Context) {
-		if recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.RecordFailedUsageInput{
+		recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.RecordFailedUsageInput{
 			APIKey:           apiKey,
 			User:             apiKey.User,
 			Account:          account,
@@ -277,7 +281,8 @@ func (h *GrokGatewayHandler) submitFailedUsageRecordTask(
 			MediaType:        mediaType,
 			ImageCount:       imageCount,
 			ImageSize:        imageSize,
-		}); recordErr != nil {
+		})
+		if recordErr != nil {
 			logger.L().With(
 				zap.String("component", component),
 				zap.Int64("api_key_id", apiKey.ID),
@@ -286,5 +291,31 @@ func (h *GrokGatewayHandler) submitFailedUsageRecordTask(
 				zap.Int64("account_id", account.ID),
 			).Error("grok.record_failed_usage_failed", zap.Error(recordErr))
 		}
+		releaseHeldBillingHold(ctx, h.apiKeyService, apiKey)
 	})
+}
+
+func releaseHeldBillingHold(ctx context.Context, apiKeyService *service.APIKeyService, apiKey *service.APIKey) {
+	if apiKeyService == nil || apiKey == nil || apiKey.BillingHold == nil || apiKey.BillingHold.Status != service.BillingHoldStatusHeld {
+		return
+	}
+	base := context.Background()
+	if ctx != nil {
+		base = context.WithoutCancel(ctx)
+	}
+	releaseCtx, cancel := context.WithTimeout(base, service.BillingHoldSettlementMaxAge(nil))
+	defer cancel()
+	apiKeyService.ReleaseRequestBillingHold(releaseCtx, apiKey)
+	if apiKey.BillingHold != nil && apiKey.BillingHold.Status == service.BillingHoldStatusHeld {
+		logger.L().With(
+			zap.Int64("api_key_id", apiKey.ID),
+			zap.String("request_id", apiKey.BillingHold.RequestID),
+		).Warn("billing_hold_release_still_held")
+	}
+}
+
+func releaseHeldBillingHoldBeforeRetry(ctx context.Context, apiKeyService *service.APIKeyService, apiKey *service.APIKey) {
+	_ = ctx
+	_ = apiKeyService
+	_ = apiKey
 }

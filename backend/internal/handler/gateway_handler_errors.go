@@ -109,6 +109,13 @@ func (h *GatewayHandler) errorResponse(c *gin.Context, status int, errType, mess
 	c.JSON(status, gin.H{"type": "error", "error": gin.H{"type": errType, "message": message}})
 }
 func billingErrorDetails(err error) (status int, code, message string) {
+	if errors.Is(err, service.ErrBillingRequestReplayed) || errors.Is(err, service.ErrBillingHoldAlreadyFinished) {
+		msg := pkgerrors.Message(err)
+		if msg == "" {
+			msg = "Billing request was already used. Please retry with a new request id."
+		}
+		return http.StatusConflict, "billing_request_replayed", msg
+	}
 	if errors.Is(err, service.ErrBillingServiceUnavailable) {
 		msg := pkgerrors.Message(err)
 		if msg == "" {
@@ -156,14 +163,24 @@ func (h *GatewayHandler) submitUsageRecordTask(task service.UsageRecordTask) {
 		return
 	}
 	if h.usageRecordWorkerPool != nil {
-		h.usageRecordWorkerPool.Submit(task)
+		mode := h.usageRecordWorkerPool.Submit(task)
+		if mode != service.UsageRecordSubmitModeDropped {
+			return
+		}
+		logger.L().With(zap.String("component", "handler.gateway.messages")).Warn("gateway.usage_record_task_dropped_sync_fallback")
+	}
+	runUsageRecordTaskSync("handler.gateway.messages", "gateway.usage_record_task_panic_recovered", task)
+}
+
+func runUsageRecordTaskSync(component string, panicMessage string, task service.UsageRecordTask) {
+	if task == nil {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Any("panic", recovered)).Error("gateway.usage_record_task_panic_recovered")
+			logger.L().With(zap.String("component", component), zap.Any("panic", recovered)).Error(panicMessage)
 		}
 	}()
 	task(ctx)

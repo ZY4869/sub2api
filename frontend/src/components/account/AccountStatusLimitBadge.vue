@@ -1,5 +1,5 @@
 <template>
-  <div data-test="account-status-limit-badge" class="group relative inline-flex">
+  <div data-test="account-status-limit-badge" class="group relative inline-flex min-w-0 max-w-full">
     <span
       :class="[
         badgeBaseClass,
@@ -13,8 +13,8 @@
         size="12px"
       />
       <Icon v-else name="exclamationTriangle" size="xs" :stroke-width="2" />
-      <span>{{ label }}</span>
-      <span v-if="countdown" class="text-[10px] opacity-70">{{ countdown }}</span>
+      <span class="min-w-0 truncate">{{ label }}</span>
+      <span v-if="countdown" class="shrink-0 text-[10px] opacity-70">{{ countdown }}</span>
     </span>
     <div
       v-if="tooltip"
@@ -54,9 +54,9 @@ const props = withDefaults(
 
 const badgeBaseClass = computed(() => {
   if (props.visualVariant === 'glass') {
-    return 'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold tracking-tight'
+    return 'inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-full border px-2.5 py-1.5 text-[10px] font-semibold tracking-tight'
   }
-  return 'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium'
+  return 'inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium'
 })
 
 const toneClass = computed(() => {

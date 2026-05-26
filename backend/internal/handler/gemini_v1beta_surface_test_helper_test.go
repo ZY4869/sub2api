@@ -345,7 +345,7 @@ func newGeminiSurfaceFixture(t *testing.T) *geminiSurfaceFixture {
 	accountRepo := newGeminiSurfaceAccountRepoStub([]service.Account{account})
 	groupRepo := &geminiSurfaceGroupRepoStub{group: group}
 	cfg := &config.Config{
-		RunMode: config.RunModeStandard,
+		RunMode: config.RunModeSimple,
 		Gateway: config.GatewayConfig{
 			GeminiLiveEnabled:         true,
 			GeminiInteractionsEnabled: true,

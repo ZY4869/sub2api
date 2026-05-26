@@ -32,7 +32,7 @@ var publicModelCatalogProtocolOrder = map[string]int{
 
 func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
 	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
-		snapshot := clonePublicModelCatalogSnapshot(&published.Snapshot)
+		snapshot := sanitizePublicModelCatalogSnapshotForPublic(&published.Snapshot)
 		snapshot.CatalogSource = PublicModelCatalogSourcePublished
 		return snapshot, nil
 	}
@@ -83,7 +83,7 @@ func emptyPublishedPublicModelCatalogSnapshot() *PublicModelCatalogSnapshot {
 
 func (s *ModelCatalogService) PublishedPublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
 	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
-		return clonePublicModelCatalogSnapshot(&published.Snapshot), nil
+		return sanitizePublicModelCatalogSnapshotForPublic(&published.Snapshot), nil
 	}
 	return emptyPublishedPublicModelCatalogSnapshot(), nil
 }
@@ -111,9 +111,16 @@ func (s *ModelCatalogService) buildLivePublicModelCatalogSnapshot(ctx context.Co
 	protocolBuckets := map[string]struct{}{}
 	multiplierBuckets := map[string]struct{}{}
 	if s != nil && s.gatewayService != nil {
-		items, err = s.buildPublicModelCatalogItemsFromProjection(ctx, records, pricingSnapshot, rules)
+		var built bool
+		items, built, err = s.buildPublicModelCatalogAccountEntryItems(ctx, records, pricingSnapshot, rules)
 		if err != nil {
 			return nil, err
+		}
+		if !built {
+			items, err = s.buildPublicModelCatalogItemsFromProjection(ctx, records, pricingSnapshot, rules)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		visibleModels, err := s.publicModelCatalogVisibleEntries(ctx)
@@ -273,6 +280,7 @@ func buildPublicModelCatalogItem(
 	}
 
 	metadata := billingPricingMetadataForPersistedModel(persisted)
+	officialDisplay := publicModelCatalogPriceDisplayFromForm(metadata, persisted.OfficialForm)
 	effectiveSaleForm := billingPricingEffectiveSaleDisplayForm(persisted)
 	priceDisplay := publicModelCatalogPriceDisplayFromForm(metadata, effectiveSaleForm)
 	if len(priceDisplay.Primary) == 0 && len(priceDisplay.Secondary) == 0 {
@@ -292,7 +300,11 @@ func buildPublicModelCatalogItem(
 	}
 
 	return PublicModelCatalogItem{
+		EntryID:           publicModelCatalogEntryID(0, "", modelID),
+		PublicModelID:     modelID,
 		Model:             modelID,
+		BaseModel:         modelID,
+		SourceModelID:     modelID,
 		DisplayName:       displayName,
 		Provider:          provider,
 		ProviderIconKey:   provider,
@@ -304,12 +316,25 @@ func buildPublicModelCatalogItem(
 			entry.DisplayName,
 			entry.ID,
 		),
-		RequestProtocols:  publicModelCatalogRequestProtocols(entry, provider),
-		Mode:              mode,
-		Currency:          defaultModelPricingCurrency(persisted.Currency),
-		PriceDisplay:      priceDisplay,
-		MultiplierSummary: publicModelCatalogMultiplierSummaryFromForm(persisted.SaleForm),
+		RequestProtocols:     publicModelCatalogRequestProtocols(entry, provider),
+		Mode:                 mode,
+		Currency:             defaultModelPricingCurrency(persisted.Currency),
+		PriceDisplay:         priceDisplay,
+		OfficialPriceDisplay: officialDisplay,
+		SalePriceDisplay:     priceDisplay,
+		MultiplierSummary:    publicModelCatalogMultiplierSummaryFromForm(persisted.SaleForm),
+		RuntimePriceSpec:     publicModelCatalogRuntimePriceSpecFromPersisted(persisted),
 	}, true
+}
+
+func publicModelCatalogRuntimePriceSpecFromPersisted(persisted BillingPricingPersistedModel) PublicModelCatalogRuntimePriceSpec {
+	return PublicModelCatalogRuntimePriceSpec{
+		Currency:                        defaultModelPricingCurrency(persisted.Currency),
+		OutputChargeSlot:                billingDefaultOutputChargeSlot(defaultString(persisted.OutputChargeSlot, persisted.Mode)),
+		LongContextInputTokenThreshold:  persisted.LongContextInputTokenThreshold,
+		LongContextInputCostMultiplier:  persisted.LongContextInputCostMultiplier,
+		LongContextOutputCostMultiplier: persisted.LongContextOutputCostMultiplier,
+	}
 }
 
 func publicModelCatalogPriceDisplayFromForm(
@@ -548,13 +573,82 @@ func clonePublicModelCatalogItem(item PublicModelCatalogItem) PublicModelCatalog
 		Primary:   clonePublicModelCatalogPriceEntries(item.PriceDisplay.Primary),
 		Secondary: clonePublicModelCatalogPriceEntries(item.PriceDisplay.Secondary),
 	}
+	cloned.OfficialPriceDisplay = PublicModelCatalogPriceDisplay{
+		Primary:   clonePublicModelCatalogPriceEntries(item.OfficialPriceDisplay.Primary),
+		Secondary: clonePublicModelCatalogPriceEntries(item.OfficialPriceDisplay.Secondary),
+	}
+	cloned.SalePriceDisplay = PublicModelCatalogPriceDisplay{
+		Primary:   clonePublicModelCatalogPriceEntries(item.SalePriceDisplay.Primary),
+		Secondary: clonePublicModelCatalogPriceEntries(item.SalePriceDisplay.Secondary),
+	}
 	cloned.MultiplierSummary = PublicModelCatalogMultiplierSummary{
 		Enabled: item.MultiplierSummary.Enabled,
 		Kind:    item.MultiplierSummary.Kind,
 		Mode:    item.MultiplierSummary.Mode,
 		Value:   modelCatalogFloat64PtrValue(item.MultiplierSummary.Value),
 	}
+	cloned.RuntimePriceSpec = normalizePublicModelCatalogRuntimePriceSpec(item.RuntimePriceSpec)
 	return cloned
+}
+
+func clonePublicModelCatalogItems(items []PublicModelCatalogItem) []PublicModelCatalogItem {
+	if len(items) == 0 {
+		return nil
+	}
+	cloned := make([]PublicModelCatalogItem, 0, len(items))
+	for _, item := range items {
+		cloned = append(cloned, clonePublicModelCatalogItem(item))
+	}
+	return cloned
+}
+
+func sanitizePublicModelCatalogSnapshotForPublic(snapshot *PublicModelCatalogSnapshot) *PublicModelCatalogSnapshot {
+	cloned := clonePublicModelCatalogSnapshot(snapshot)
+	if cloned == nil {
+		return nil
+	}
+	cloned.Items = sanitizePublicModelCatalogItemsForPublic(cloned.Items)
+	return cloned
+}
+
+func sanitizePublicModelCatalogItemsForPublic(items []PublicModelCatalogItem) []PublicModelCatalogItem {
+	if len(items) == 0 {
+		return nil
+	}
+	sanitized := make([]PublicModelCatalogItem, 0, len(items))
+	for _, item := range items {
+		sanitized = append(sanitized, sanitizePublicModelCatalogItemForPublic(item))
+	}
+	return sanitized
+}
+
+func sanitizePublicModelCatalogItemForPublic(item PublicModelCatalogItem) PublicModelCatalogItem {
+	cloned := clonePublicModelCatalogItem(item)
+	cloned.SourceAccountID = 0
+	cloned.SourceAccountName = ""
+	cloned.RuntimePriceSpec = PublicModelCatalogRuntimePriceSpec{}
+	if cloned.PublicModelID == "" {
+		cloned.PublicModelID = cloned.Model
+	}
+	if cloned.Model == "" {
+		cloned.Model = cloned.PublicModelID
+	}
+	return cloned
+}
+
+func normalizePublicModelCatalogRuntimePriceSpec(spec PublicModelCatalogRuntimePriceSpec) PublicModelCatalogRuntimePriceSpec {
+	spec.Currency = defaultModelPricingCurrency(spec.Currency)
+	spec.OutputChargeSlot = billingDefaultOutputChargeSlot(spec.OutputChargeSlot)
+	if spec.LongContextInputTokenThreshold < 0 {
+		spec.LongContextInputTokenThreshold = 0
+	}
+	if spec.LongContextInputCostMultiplier < 0 {
+		spec.LongContextInputCostMultiplier = 0
+	}
+	if spec.LongContextOutputCostMultiplier < 0 {
+		spec.LongContextOutputCostMultiplier = 0
+	}
+	return spec
 }
 
 func clonePublicModelCatalogPriceEntries(entries []PublicModelCatalogPriceEntry) []PublicModelCatalogPriceEntry {

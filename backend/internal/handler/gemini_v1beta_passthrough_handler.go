@@ -44,6 +44,23 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 	if strings.TrimSpace(input.RequestedModel) == "" {
 		input.RequestedModel = detectGeminiPassthroughRequestedModel(c.Request.URL.Path, body)
 	}
+	publicRequestedModel := input.RequestedModel
+	var publicCatalogEntry *service.PublishedPublicCatalogEntry
+	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, service.PlatformGemini, publicRequestedModel); resolveErr != nil {
+		requestLogger(c, "handler.gemini_v1beta.passthrough").Warn("gemini.passthrough.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
+	} else if active && !matched {
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.model_not_published", service.PublicCatalogModelUnavailableMessage)
+		return
+	} else if matched {
+		publicCatalogEntry = entry
+		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
+			input.RequestedModel = sourceModel
+			if strings.Contains(input.UpstreamPath, publicRequestedModel) {
+				input.UpstreamPath = strings.ReplaceAll(input.UpstreamPath, publicRequestedModel, sourceModel)
+			}
+		}
+		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))
+	}
 	stream := geminiPassthroughStreamRequested(c, body)
 	setOpsRequestContext(c, input.RequestedModel, stream, body)
 
@@ -54,7 +71,7 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 		h.billingCacheService,
 		apiKey,
 		subscription,
-		input.RequestedModel,
+		publicRequestedModel,
 		[]string{service.PlatformGemini},
 		nil,
 	)
@@ -62,7 +79,7 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 		googleErrorFromServiceError(c, err)
 		return
 	}
-	if !middleware.HasForcePlatform(c) && currentAPIKey.Group != nil && strings.TrimSpace(currentAPIKey.Group.Platform) != service.PlatformGemini {
+	if !middleware.HasForcePlatform(c) && currentAPIKey.Group != nil && strings.TrimSpace(currentAPIKey.Group.Platform) != service.PlatformGemini && strings.TrimSpace(currentAPIKey.Group.Platform) != service.PlatformProtocolGateway {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.group_platform_invalid", "API key group platform is not gemini")
 		return
 	}
@@ -200,11 +217,13 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 	usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, rawInboundPath, body)
 	if !usageDecision.Persist {
 		reqLog.Info("gemini.usage_record_skipped", zap.String("reason", usageDecision.Reason), zap.String("operation_type", usageDecision.OperationType), zap.String("inbound_endpoint", inboundEndpoint))
+		releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 		return
 	}
 	userAgent := c.GetHeader("User-Agent")
 	clientIP := ip.GetTrustedClientIP(c)
 	h.submitUsageRecordTask(func(ctx context.Context) {
+		ctx = service.AttachPublishedPublicCatalogEntry(ctx, publicCatalogEntry)
 		if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
 			Result:                result.ForwardResult,
 			APIKey:                currentAPIKey,

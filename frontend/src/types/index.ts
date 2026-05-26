@@ -29,6 +29,7 @@ export interface User {
   username: string;
   email: string;
   role: "admin" | "user"; // User role for authorization
+  api_key_model_binding_mode?: APIKeyModelBindingMode;
   request_details_review?: boolean;
   admin_free_billing?: boolean;
   usage_model_display_mode?: UsageModelDisplayMode;
@@ -567,11 +568,15 @@ export type GroupPlatform =
   | "anthropic"
   | "kiro"
   | "openai"
+  | "openrouter"
   | "grok"
   | "deepseek"
   | "gemini"
   | "antigravity"
+  | "protocol_gateway"
   | "baidu_document_ai";
+
+export type APIKeyModelBindingMode = "model_required" | "group_allowed";
 
 export type SubscriptionType = "standard" | "subscription";
 export type OpenAIImageProtocolMode = "native" | "compat";
@@ -693,7 +698,6 @@ export interface UserGroupModelOption {
   public_id: string;
   display_name: string;
   request_protocols?: string[];
-  source_ids?: string[];
 }
 
 export interface UserGroupModelOptionGroup {
@@ -799,6 +803,7 @@ export type AccountPlatform =
   | "anthropic"
   | "kiro"
   | "openai"
+  | "openrouter"
   | "grok"
   | "deepseek"
   | "gemini"
@@ -1862,6 +1867,7 @@ export interface UpdateUserRequest {
   username?: string;
   notes?: string;
   role?: "admin" | "user";
+  api_key_model_binding_mode?: APIKeyModelBindingMode;
   request_details_review?: boolean;
   admin_free_billing?: boolean;
   balance?: number;

@@ -40,15 +40,17 @@ type Dialer struct {
 // HTTPProxyDialer creates TLS connections through HTTP/HTTPS proxies with custom fingerprints.
 // It handles the CONNECT tunnel establishment before performing TLS handshake.
 type HTTPProxyDialer struct {
-	profile  *Profile
-	proxyURL *url.URL
+	profile    *Profile
+	proxyURL   *url.URL
+	baseDialer func(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
 // SOCKS5ProxyDialer creates TLS connections through SOCKS5 proxies with custom fingerprints.
 // It uses golang.org/x/net/proxy to establish the SOCKS5 tunnel.
 type SOCKS5ProxyDialer struct {
-	profile  *Profile
-	proxyURL *url.URL
+	profile     *Profile
+	proxyURL    *url.URL
+	proxyDialer proxy.Dialer
 }
 
 // Default TLS fingerprint values captured from Claude Code (Node.js 24.x).
@@ -123,13 +125,35 @@ func NewDialer(profile *Profile, baseDialer func(ctx context.Context, network, a
 // NewHTTPProxyDialer creates a new TLS fingerprint dialer that works through HTTP/HTTPS proxies.
 // It establishes a CONNECT tunnel before performing TLS handshake with custom fingerprint.
 func NewHTTPProxyDialer(profile *Profile, proxyURL *url.URL) *HTTPProxyDialer {
-	return &HTTPProxyDialer{profile: profile, proxyURL: proxyURL}
+	return NewHTTPProxyDialerWithBaseDialer(profile, proxyURL, nil)
+}
+
+// NewHTTPProxyDialerWithBaseDialer creates an HTTP proxy TLS dialer with a
+// caller-provided dialer for connecting to the proxy server itself.
+func NewHTTPProxyDialerWithBaseDialer(profile *Profile, proxyURL *url.URL, baseDialer func(ctx context.Context, network, addr string) (net.Conn, error)) *HTTPProxyDialer {
+	if baseDialer == nil {
+		baseDialer = (&net.Dialer{}).DialContext
+	}
+	return &HTTPProxyDialer{profile: profile, proxyURL: proxyURL, baseDialer: baseDialer}
 }
 
 // NewSOCKS5ProxyDialer creates a new TLS fingerprint dialer that works through SOCKS5 proxies.
 // It establishes a SOCKS5 tunnel before performing TLS handshake with custom fingerprint.
 func NewSOCKS5ProxyDialer(profile *Profile, proxyURL *url.URL) *SOCKS5ProxyDialer {
-	return &SOCKS5ProxyDialer{profile: profile, proxyURL: proxyURL}
+	return NewSOCKS5ProxyDialerWithForwardDialer(profile, proxyURL, proxy.Direct)
+}
+
+// NewSOCKS5ProxyDialerWithForwardDialer creates a SOCKS5 TLS dialer with a
+// caller-provided dialer for connecting to the proxy server itself.
+func NewSOCKS5ProxyDialerWithForwardDialer(profile *Profile, proxyURL *url.URL, forward proxy.Dialer) *SOCKS5ProxyDialer {
+	if forward == nil {
+		forward = proxy.Direct
+	}
+	return &SOCKS5ProxyDialer{
+		profile:     profile,
+		proxyURL:    proxyURL,
+		proxyDialer: forward,
+	}
 }
 
 // DialTLSContext establishes a TLS connection through SOCKS5 proxy with the configured fingerprint.
@@ -154,7 +178,11 @@ func (d *SOCKS5ProxyDialer) DialTLSContext(ctx context.Context, network, addr st
 		proxyAddr = net.JoinHostPort(d.proxyURL.Hostname(), "1080") // Default SOCKS5 port
 	}
 
-	socksDialer, err := proxy.SOCKS5("tcp", proxyAddr, auth, proxy.Direct)
+	forward := d.proxyDialer
+	if forward == nil {
+		forward = proxy.Direct
+	}
+	socksDialer, err := proxy.SOCKS5("tcp", proxyAddr, auth, forward)
 	if err != nil {
 		slog.Debug("tls_fingerprint_socks5_dialer_failed", "error", err)
 		return nil, fmt.Errorf("create SOCKS5 dialer: %w", err)
@@ -162,7 +190,12 @@ func (d *SOCKS5ProxyDialer) DialTLSContext(ctx context.Context, network, addr st
 
 	// Step 2: Establish SOCKS5 tunnel to target
 	slog.Debug("tls_fingerprint_socks5_establishing_tunnel", "target", addr)
-	conn, err := socksDialer.Dial("tcp", addr)
+	var conn net.Conn
+	if contextDialer, ok := socksDialer.(proxy.ContextDialer); ok {
+		conn, err = contextDialer.DialContext(ctx, "tcp", addr)
+	} else {
+		conn, err = socksDialer.Dial("tcp", addr)
+	}
 	if err != nil {
 		slog.Debug("tls_fingerprint_socks5_connect_failed", "error", err)
 		return nil, fmt.Errorf("SOCKS5 connect: %w", err)
@@ -233,8 +266,11 @@ func (d *HTTPProxyDialer) DialTLSContext(ctx context.Context, network, addr stri
 		}
 	}
 
-	dialer := &net.Dialer{}
-	conn, err := dialer.DialContext(ctx, "tcp", proxyAddr)
+	baseDialer := d.baseDialer
+	if baseDialer == nil {
+		baseDialer = (&net.Dialer{}).DialContext
+	}
+	conn, err := baseDialer(ctx, "tcp", proxyAddr)
 	if err != nil {
 		slog.Debug("tls_fingerprint_http_proxy_connect_failed", "error", err)
 		return nil, fmt.Errorf("connect to proxy: %w", err)

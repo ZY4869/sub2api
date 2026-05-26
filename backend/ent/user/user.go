@@ -53,6 +53,8 @@ const (
 	FieldAccountVisualPresetOverride = "account_visual_preset_override"
 	// FieldUsageContextBadgeDisplayMode holds the string denoting the usage_context_badge_display_mode field in the database.
 	FieldUsageContextBadgeDisplayMode = "usage_context_badge_display_mode"
+	// FieldAPIKeyModelBindingMode holds the string denoting the api_key_model_binding_mode field in the database.
+	FieldAPIKeyModelBindingMode = "api_key_model_binding_mode"
 	// FieldTotpSecretEncrypted holds the string denoting the totp_secret_encrypted field in the database.
 	FieldTotpSecretEncrypted = "totp_secret_encrypted"
 	// FieldTotpEnabled holds the string denoting the totp_enabled field in the database.
@@ -173,6 +175,7 @@ var Columns = []string{
 	FieldVisualPresetPreference,
 	FieldAccountVisualPresetOverride,
 	FieldUsageContextBadgeDisplayMode,
+	FieldAPIKeyModelBindingMode,
 	FieldTotpSecretEncrypted,
 	FieldTotpEnabled,
 	FieldTotpEnabledAt,
@@ -254,6 +257,10 @@ var (
 	DefaultUsageContextBadgeDisplayMode string
 	// UsageContextBadgeDisplayModeValidator is a validator for the "usage_context_badge_display_mode" field. It is called by the builders before save.
 	UsageContextBadgeDisplayModeValidator func(string) error
+	// DefaultAPIKeyModelBindingMode holds the default value on creation for the "api_key_model_binding_mode" field.
+	DefaultAPIKeyModelBindingMode string
+	// APIKeyModelBindingModeValidator is a validator for the "api_key_model_binding_mode" field. It is called by the builders before save.
+	APIKeyModelBindingModeValidator func(string) error
 	// DefaultTotpEnabled holds the default value on creation for the "totp_enabled" field.
 	DefaultTotpEnabled bool
 )
@@ -359,6 +366,11 @@ func ByAccountVisualPresetOverride(opts ...sql.OrderTermOption) OrderOption {
 // ByUsageContextBadgeDisplayMode orders the results by the usage_context_badge_display_mode field.
 func ByUsageContextBadgeDisplayMode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUsageContextBadgeDisplayMode, opts...).ToFunc()
+}
+
+// ByAPIKeyModelBindingMode orders the results by the api_key_model_binding_mode field.
+func ByAPIKeyModelBindingMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAPIKeyModelBindingMode, opts...).ToFunc()
 }
 
 // ByTotpSecretEncrypted orders the results by the totp_secret_encrypted field.

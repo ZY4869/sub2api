@@ -37,6 +37,15 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 	if userIn == nil {
 		return nil
 	}
+	balance, err := service.NormalizeAndValidateNonNegativeBillingAmount(userIn.Balance)
+	if err != nil {
+		return err
+	}
+	userIn.Balance = balance
+	balanceMoney, err := service.NewNonNegativeBillingMoneyFromFloat(balance)
+	if err != nil {
+		return err
+	}
 
 	// 统一使用 ent 的事务：保证用户与允许分组的更新原子化，
 	// 并避免基于 *sql.Tx 手动构造 ent client 导致的 ExecQuerier 断言错误。
@@ -61,6 +70,7 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetUsageModelDisplayMode(userIn.EffectiveUsageModelDisplayMode()).
 		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
 		SetAccountVisualPresetOverride(service.NormalizeVisualPresetPreference(userIn.AccountVisualPresetOverride)).
+		SetAPIKeyModelBindingMode(userIn.EffectiveAPIKeyModelBindingMode()).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
@@ -76,7 +86,7 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 	if err := r.syncUserAllowedGroupsWithClient(ctx, txClient, created.ID, userIn.AllowedGroups); err != nil {
 		return err
 	}
-	if err := setUSDBillingWalletBalance(ctx, userRepositoryWriteExecutor(ctx, r.sql, tx), created.ID, userIn.Balance); err != nil {
+	if err := setUSDBillingWalletBalance(ctx, userRepositoryWriteExecutor(ctx, r.sql, tx), created.ID, balanceMoney); err != nil {
 		return err
 	}
 
@@ -134,6 +144,15 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 	if userIn == nil {
 		return nil
 	}
+	balance, err := service.NormalizeAndValidateNonNegativeBillingAmount(userIn.Balance)
+	if err != nil {
+		return err
+	}
+	userIn.Balance = balance
+	balanceMoney, err := service.NewNonNegativeBillingMoneyFromFloat(balance)
+	if err != nil {
+		return err
+	}
 
 	// 使用 ent 事务包裹用户更新与 allowed_groups 同步，避免跨层事务不一致。
 	tx, err := r.client.Tx(ctx)
@@ -159,6 +178,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetAccountRealtimeCountdownEnabled(userIn.AccountRealtimeCountdownEnabled).
 		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
 		SetAccountVisualPresetOverride(service.NormalizeVisualPresetPreference(userIn.AccountVisualPresetOverride)).
+		SetAPIKeyModelBindingMode(userIn.EffectiveAPIKeyModelBindingMode()).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
@@ -174,7 +194,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 	if err := r.syncUserAllowedGroupsWithClient(ctx, txClient, updated.ID, userIn.AllowedGroups); err != nil {
 		return err
 	}
-	if err := setUSDBillingWalletBalance(ctx, userRepositoryWriteExecutor(ctx, r.sql, tx), updated.ID, userIn.Balance); err != nil {
+	if err := setUSDBillingWalletBalance(ctx, userRepositoryWriteExecutor(ctx, r.sql, tx), updated.ID, balanceMoney); err != nil {
 		return err
 	}
 
@@ -360,38 +380,47 @@ func (r *userRepository) filterUsersByAttributes(ctx context.Context, attrs map[
 }
 
 func (r *userRepository) UpdateBalance(ctx context.Context, id int64, amount float64) error {
-	return r.addUserUSDBalance(ctx, id, amount)
+	var err error
+	amount, err = service.NormalizeAndValidateBillingAmount(amount)
+	if err != nil {
+		return err
+	}
+	amountMoney, err := service.NewBillingMoneyFromFloat(amount)
+	if err != nil {
+		return err
+	}
+	return r.addUserUSDBalance(ctx, id, amountMoney)
 }
 
-func (r *userRepository) addUserUSDBalance(ctx context.Context, id int64, amount float64) error {
+func (r *userRepository) addUserUSDBalance(ctx context.Context, id int64, amountMoney service.BillingMoney) error {
 	if tx := dbent.TxFromContext(ctx); tx != nil {
-		return r.addUserUSDBalanceWithClient(ctx, tx.Client(), tx, id, amount)
+		return r.addUserUSDBalanceWithClient(ctx, tx.Client(), tx, id, amountMoney)
 	}
 
 	tx, err := r.client.Tx(ctx)
 	if err != nil {
 		if errors.Is(err, dbent.ErrTxStarted) {
-			return r.addUserUSDBalanceWithClient(ctx, r.client, r.client, id, amount)
+			return r.addUserUSDBalanceWithClient(ctx, r.client, r.client, id, amountMoney)
 		}
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if err := r.addUserUSDBalanceWithClient(ctx, tx.Client(), tx, id, amount); err != nil {
+	if err := r.addUserUSDBalanceWithClient(ctx, tx.Client(), tx, id, amountMoney); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-func (r *userRepository) addUserUSDBalanceWithClient(ctx context.Context, client *dbent.Client, exec sqlExecutor, id int64, amount float64) error {
-	n, err := client.User.Update().Where(dbuser.IDEQ(id)).AddBalance(amount).Save(ctx)
+func (r *userRepository) addUserUSDBalanceWithClient(ctx context.Context, client *dbent.Client, exec sqlExecutor, id int64, amountMoney service.BillingMoney) error {
+	n, err := client.User.Update().Where(dbuser.IDEQ(id)).AddBalance(amountMoney.Float64()).Save(ctx)
 	if err != nil {
 		return translatePersistenceError(err, service.ErrUserNotFound, nil)
 	}
 	if n == 0 {
 		return service.ErrUserNotFound
 	}
-	if err := addUSDBillingWalletBalance(ctx, exec, id, amount); err != nil {
+	if err := addUSDBillingWalletBalance(ctx, exec, id, amountMoney); err != nil {
 		return err
 	}
 	return nil
@@ -401,7 +430,20 @@ func (r *userRepository) addUserUSDBalanceWithClient(ctx context.Context, client
 // 透支策略：允许余额变为负数，确保当前请求能够完成
 // 中间件会阻止余额 <= 0 的用户发起后续请求
 func (r *userRepository) DeductBalance(ctx context.Context, id int64, amount float64) error {
-	return r.addUserUSDBalance(ctx, id, -amount)
+	var err error
+	amount, err = service.NormalizeAndValidatePositiveBillingAmount(amount)
+	if err != nil {
+		return err
+	}
+	amountMoney, err := service.NewPositiveBillingMoneyFromFloat(amount)
+	if err != nil {
+		return err
+	}
+	debitMoney, err := amountMoney.Neg()
+	if err != nil {
+		return err
+	}
+	return r.addUserUSDBalance(ctx, id, debitMoney)
 }
 
 func (r *userRepository) UpdateConcurrency(ctx context.Context, id int64, amount int) error {
@@ -589,7 +631,10 @@ func userRepositoryWriteExecutor(ctx context.Context, fallback sqlExecutor, loca
 	return userRepositoryReadExecutor(ctx, fallback)
 }
 
-func setUSDBillingWalletBalance(ctx context.Context, exec sqlExecutor, userID int64, balance float64) error {
+func setUSDBillingWalletBalance(ctx context.Context, exec sqlExecutor, userID int64, balanceMoney service.BillingMoney) error {
+	if balanceMoney.IsNegative() {
+		return service.ErrInvalidBillingAmount
+	}
 	if exec == nil {
 		return nil
 	}
@@ -601,15 +646,15 @@ func setUSDBillingWalletBalance(ctx context.Context, exec sqlExecutor, userID in
 		ON CONFLICT (user_id, currency) DO UPDATE
 		SET balance = EXCLUDED.balance,
 			updated_at = NOW()
-	`, userID, service.ModelPricingCurrencyUSD, balance)
+	`, userID, service.ModelPricingCurrencyUSD, balanceMoney.DBValue())
 	if err != nil && isUndefinedBillingWalletTable(err) {
 		return nil
 	}
 	return err
 }
 
-func addUSDBillingWalletBalance(ctx context.Context, exec sqlExecutor, userID int64, delta float64) error {
-	if exec == nil || delta == 0 {
+func addUSDBillingWalletBalance(ctx context.Context, exec sqlExecutor, userID int64, deltaMoney service.BillingMoney) error {
+	if exec == nil || deltaMoney.IsZero() {
 		return nil
 	}
 	_, err := exec.ExecContext(ctx, `
@@ -620,7 +665,7 @@ func addUSDBillingWalletBalance(ctx context.Context, exec sqlExecutor, userID in
 		ON CONFLICT (user_id, currency) DO UPDATE
 		SET balance = billing_wallets.balance + EXCLUDED.balance,
 			updated_at = NOW()
-	`, userID, service.ModelPricingCurrencyUSD, delta)
+	`, userID, service.ModelPricingCurrencyUSD, deltaMoney.DBValue())
 	if err != nil && isUndefinedBillingWalletTable(err) {
 		return nil
 	}
@@ -685,6 +730,7 @@ func applyUserEntityToService(dst *service.User, src *dbent.User) {
 	dst.AccountRealtimeCountdownEnabled = src.AccountRealtimeCountdownEnabled
 	dst.VisualPresetPreference = service.NormalizeVisualPresetPreference(src.VisualPresetPreference)
 	dst.AccountVisualPresetOverride = service.NormalizeVisualPresetPreference(src.AccountVisualPresetOverride)
+	dst.APIKeyModelBindingMode = service.NormalizeAPIKeyModelBindingMode(src.APIKeyModelBindingMode)
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
 }

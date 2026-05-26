@@ -42,6 +42,7 @@ const messages: Record<string, string> = {
   'usage.operationTypeBatchTest': 'Batch Test',
   'usage.operationTypeScheduledTest': 'Scheduled Test',
   'usage.operationTypeAutoRecoveryTest': 'Auto Recovery Probe',
+  'common.copy': 'Copy',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -149,6 +150,7 @@ function mountUsageTable(
         DataTable: DataTableStub,
         EmptyState: true,
         Icon: true,
+        AccountErrorTooltipButton: false,
         ModelIcon: true,
         Teleport: true,
         UsageContextBadge: {
@@ -213,7 +215,7 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('$0.069568')
   })
 
-  it('renders failed status rows with simulated client and error details', async () => {
+  it('renders failed status rows with simulated client and tooltip error details', async () => {
     const row = {
       id: 2,
       request_id: 'req-admin-failed',
@@ -239,12 +241,17 @@ describe('admin UsageTable tooltip', () => {
     const text = wrapper.text()
     expect(text).toContain('Failed')
     expect(text).toContain('Codex')
-    expect(text).toContain('HTTP Status')
-    expect(text).toContain('429')
-    expect(text).toContain('Error Code')
-    expect(text).toContain('rate_limited')
-    expect(text).toContain('Error Message')
-    expect(text).toContain('Rate limit exceeded for this account')
+    expect(text).toContain('Copy')
+    expect(text).not.toContain('HTTP Status')
+    expect(text).not.toContain('rate_limited')
+    expect(text).not.toContain('Rate limit exceeded for this account')
+
+    await wrapper.get('.error-info-trigger').trigger('mouseenter')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('http_status: 429')
+    expect(wrapper.text()).toContain('error_code: rate_limited')
+    expect(wrapper.text()).toContain('error_message: Rate limit exceeded for this account')
   })
 
   it('renders the request protocol cell with badge text and normalized path', () => {

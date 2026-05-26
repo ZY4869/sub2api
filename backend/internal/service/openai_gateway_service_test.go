@@ -116,6 +116,44 @@ func (r stubOpenAIAccountRepo) ListSchedulableUngroupedByPlatforms(ctx context.C
 	return r.ListSchedulableByPlatforms(ctx, platforms)
 }
 
+func TestOpenAIGatewayService_ListSchedulableAccounts_NarrowsProtocolGatewayMixedAccounts(t *testing.T) {
+	svc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{
+			accounts: []Account{
+				{
+					ID:          1,
+					Platform:    PlatformProtocolGateway,
+					Type:        AccountTypeAPIKey,
+					Status:      StatusActive,
+					Schedulable: true,
+					Extra: map[string]any{
+						"gateway_protocol":           GatewayProtocolMixed,
+						"gateway_accepted_protocols": []any{PlatformOpenAI, PlatformGemini},
+					},
+				},
+				{
+					ID:          2,
+					Platform:    PlatformProtocolGateway,
+					Type:        AccountTypeAPIKey,
+					Status:      StatusActive,
+					Schedulable: true,
+					Extra: map[string]any{
+						"gateway_protocol": GatewayProtocolGemini,
+					},
+				},
+			},
+		},
+	}
+
+	accounts, err := svc.listSchedulableAccounts(WithOpenAIPlatform(context.Background(), PlatformOpenAI), int64Ptr(10))
+
+	require.NoError(t, err)
+	require.Len(t, accounts, 1)
+	require.Equal(t, int64(1), accounts[0].ID)
+	require.Equal(t, GatewayProtocolOpenAI, GetAccountGatewayProtocol(&accounts[0]))
+	require.Equal(t, []string{PlatformOpenAI}, GetAccountGatewayAcceptedProtocols(&accounts[0]))
+}
+
 type stubConcurrencyCache struct {
 	ConcurrencyCache
 	loadBatchErr    error

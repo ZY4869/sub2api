@@ -79,6 +79,22 @@ func (s *documentAIAccountRepoStub) ListSchedulableByGroupIDAndPlatform(_ contex
 	return out, nil
 }
 
+func TestDocumentAIUserFileURLIgnoresPrivateHostExceptions(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	cfg.Security.URLAllowlist.PrivateHostExceptions = []config.PrivateHostExceptionConfig{
+		{
+			Scope:   PrivateHostExceptionScopeUpstreamBaseURL,
+			Hosts:   []string{"127.0.0.1"},
+			Ports:   []int{9000},
+			Schemes: []string{"http"},
+		},
+	}
+
+	_, err := validateDocumentAIUserFileURL(cfg, "http://127.0.0.1:9000/document.pdf")
+	require.Error(t, err)
+}
+
 type memoryDocumentAIJobRepo struct {
 	mu   sync.Mutex
 	jobs map[string]*DocumentAIJob
@@ -586,6 +602,129 @@ func TestDocumentAIServiceSubmitJobRejectsPrivateFileURL(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Equal(t, "document_ai_invalid_request", infraerrors.Reason(err))
+}
+
+func TestDocumentAIServiceSubmitJobRejectsEmptyFileURL(t *testing.T) {
+	repo := &memoryDocumentAIJobRepo{}
+	accountRepo := &documentAIAccountRepoStub{}
+	svc := newDocumentAIServiceForTest(repo, accountRepo, nil, true)
+
+	_, err := svc.SubmitJob(context.Background(), DocumentAISubmitJobInput{
+		APIKey:     &APIKey{ID: 8, User: &User{ID: 7}},
+		GroupID:    12,
+		Model:      DocumentAIModelPPOCRV5Server,
+		SourceType: DocumentAISourceTypeFileURL,
+		FileURL:    " ",
+	})
+
+	require.Error(t, err)
+	require.Equal(t, "document_ai_invalid_request", infraerrors.Reason(err))
+}
+
+func TestDocumentAIServiceSubmitJobRejectsNonHTTPFileURLBeforeJobCreate(t *testing.T) {
+	repo := &memoryDocumentAIJobRepo{}
+	accountRepo := &documentAIAccountRepoStub{}
+	svc := newDocumentAIServiceForTest(repo, accountRepo, nil, true)
+
+	_, err := svc.SubmitJob(context.Background(), DocumentAISubmitJobInput{
+		APIKey:     &APIKey{ID: 8, User: &User{ID: 7}},
+		GroupID:    12,
+		Model:      DocumentAIModelPPOCRV5Server,
+		SourceType: DocumentAISourceTypeFileURL,
+		FileURL:    "file:///etc/passwd",
+	})
+
+	require.Error(t, err)
+	require.Equal(t, "document_ai_invalid_request", infraerrors.Reason(err))
+	require.Len(t, repo.jobs, 0)
+}
+
+func TestDocumentAIServiceSubmitJobRejectsResolvedPrivateFileURL(t *testing.T) {
+	repo := &memoryDocumentAIJobRepo{}
+	accountRepo := &documentAIAccountRepoStub{
+		schedulableByGroup: map[int64][]Account{
+			12: {
+				{
+					ID:       44,
+					Platform: PlatformBaiduDocumentAI,
+					Type:     AccountTypeAPIKey,
+					Credentials: map[string]any{
+						"async_bearer_token": "async-token",
+						"async_base_url":     DefaultBaiduDocumentAIAsyncBaseURL(),
+					},
+				},
+			},
+		},
+	}
+	svc := newDocumentAIServiceForTest(repo, accountRepo, googleBatchHTTPUpstreamFunc(func(*http.Request, string, int64, int) (*http.Response, error) {
+		t.Fatal("unexpected upstream call")
+		return nil, nil
+	}), true)
+
+	_, err := svc.SubmitJob(context.Background(), DocumentAISubmitJobInput{
+		APIKey:     &APIKey{ID: 8, User: &User{ID: 7}},
+		GroupID:    12,
+		Model:      DocumentAIModelPPOCRV5Server,
+		SourceType: DocumentAISourceTypeFileURL,
+		FileURL:    "https://127.0.0.1/private.pdf",
+	})
+
+	require.Error(t, err)
+	require.Equal(t, "document_ai_invalid_request", infraerrors.Reason(err))
+}
+
+func TestDocumentAIServiceSubmitJobAllowsPrivateFileURLWhenConfigured(t *testing.T) {
+	repo := &memoryDocumentAIJobRepo{}
+	accountRepo := &documentAIAccountRepoStub{
+		googleBatchAccountRepoStub: googleBatchAccountRepoStub{
+			accountsByID: map[int64]*Account{
+				44: {
+					ID:          44,
+					Platform:    PlatformBaiduDocumentAI,
+					Type:        AccountTypeAPIKey,
+					Concurrency: 1,
+					Credentials: map[string]any{
+						"async_bearer_token": "async-token",
+						"async_base_url":     DefaultBaiduDocumentAIAsyncBaseURL(),
+					},
+				},
+			},
+		},
+		schedulableByGroup: map[int64][]Account{
+			12: {
+				{
+					ID:          44,
+					Platform:    PlatformBaiduDocumentAI,
+					Type:        AccountTypeAPIKey,
+					Concurrency: 1,
+					Credentials: map[string]any{
+						"async_bearer_token": "async-token",
+						"async_base_url":     DefaultBaiduDocumentAIAsyncBaseURL(),
+					},
+				},
+			},
+		},
+	}
+	upstream := googleBatchHTTPUpstreamFunc(func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+		body, err := io.ReadAll(req.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), "http://127.0.0.1/private.pdf")
+		return documentAIServiceResponse(http.StatusOK, `{"jobId":"provider-job-private","status":"RUNNING"}`, nil), nil
+	})
+	svc := newDocumentAIServiceForTest(repo, accountRepo, upstream, true)
+	svc.cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	svc.cfg.Security.URLAllowlist.AllowPrivateHosts = true
+
+	job, err := svc.SubmitJob(context.Background(), DocumentAISubmitJobInput{
+		APIKey:     &APIKey{ID: 8, User: &User{ID: 7}},
+		GroupID:    12,
+		Model:      DocumentAIModelPPOCRV5Server,
+		SourceType: DocumentAISourceTypeFileURL,
+		FileURL:    "http://127.0.0.1/private.pdf",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, DocumentAIJobStatusRunning, job.Status)
 }
 
 func TestDocumentAIServiceParseDirectRejectsOversizedBase64BeforeDecode(t *testing.T) {

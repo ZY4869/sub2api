@@ -560,6 +560,7 @@
             :group-model-options-loading="groupModelOptionsLoading"
             :admin-mode="isAdminMode"
             :image-only="formData.image_only_enabled"
+            :model-selection-required="apiKeyModelSelectionRequired"
           />
         </div>
 
@@ -1453,6 +1454,11 @@ const authStore = useAuthStore();
 const onboardingStore = useOnboardingStore();
 const { copyToClipboard: clipboardCopy } = useClipboard();
 const isAdminMode = computed(() => authStore.isAdmin);
+const apiKeyModelSelectionRequired = computed(
+  () =>
+    !isAdminMode.value &&
+    authStore.user?.api_key_model_binding_mode !== "group_allowed",
+);
 
 const columns = computed<Column[]>(() => [
   { key: "name", label: t("common.name"), sortable: true },
@@ -1927,6 +1933,13 @@ const handleSubmit = async () => {
 
   if (groupBindingsPayload.length === 0) {
     appStore.showError(t("keys.groupRequired"));
+    return;
+  }
+  if (
+    apiKeyModelSelectionRequired.value &&
+    groupBindingsPayload.some((binding) => !binding.model_patterns?.length)
+  ) {
+    appStore.showError(t("keys.modelSelectionRequired"));
     return;
   }
 

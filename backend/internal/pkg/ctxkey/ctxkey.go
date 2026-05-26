@@ -5,13 +5,14 @@ package ctxkey
 type Key string
 
 const (
-	ForcePlatform   Key = "ctx_force_platform"
-	RequestID       Key = "ctx_request_id"
-	ClientRequestID Key = "ctx_client_request_id"
-	Model           Key = "ctx_model"
-	Platform        Key = "ctx_platform"
-	AccountID       Key = "ctx_account_id"
-	RetryCount      Key = "ctx_retry_count"
+	ForcePlatform      Key = "ctx_force_platform"
+	RequestID          Key = "ctx_request_id"
+	ClientRequestID    Key = "ctx_client_request_id"
+	RequestPayloadHash Key = "ctx_request_payload_hash"
+	Model              Key = "ctx_model"
+	Platform           Key = "ctx_platform"
+	AccountID          Key = "ctx_account_id"
+	RetryCount         Key = "ctx_retry_count"
 
 	AccountSwitchCount         Key = "ctx_account_switch_count"
 	IsClaudeCodeClient         Key = "ctx_is_claude_code_client"

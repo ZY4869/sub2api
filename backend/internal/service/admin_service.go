@@ -4,6 +4,7 @@ import (
 	"context"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"net/http"
 	"time"
 )
@@ -61,6 +62,7 @@ type AdminService interface {
 	GetAllProxiesWithAccountCount(ctx context.Context) ([]ProxyWithAccountCount, error)
 	GetProxy(ctx context.Context, id int64) (*Proxy, error)
 	GetProxiesByIDs(ctx context.Context, ids []int64) ([]Proxy, error)
+	ValidateProxyEndpoint(ctx context.Context, protocol, host string, port int) error
 	CreateProxy(ctx context.Context, input *CreateProxyInput) (*Proxy, error)
 	UpdateProxy(ctx context.Context, id int64, input *UpdateProxyInput) (*Proxy, error)
 	DeleteProxy(ctx context.Context, id int64) error
@@ -80,26 +82,28 @@ type AdminService interface {
 	ResetAccountQuota(ctx context.Context, id int64) error
 }
 type CreateUserInput struct {
-	Email         string
-	Password      string
-	Username      string
-	Notes         string
-	Balance       float64
-	Concurrency   int
-	AllowedGroups []int64
+	Email                  string
+	Password               string
+	Username               string
+	Notes                  string
+	Balance                float64
+	Concurrency            int
+	AllowedGroups          []int64
+	APIKeyModelBindingMode string
 }
 type UpdateUserInput struct {
-	Email                string
-	Password             string
-	Username             *string
-	Notes                *string
-	Balance              *float64
-	Concurrency          *int
-	AdminFreeBilling     *bool
-	RequestDetailsReview *bool
-	Status               string
-	AllowedGroups        *[]int64
-	GroupRates           map[int64]*float64
+	Email                  string
+	Password               string
+	Username               *string
+	Notes                  *string
+	Balance                *float64
+	Concurrency            *int
+	AdminFreeBilling       *bool
+	RequestDetailsReview   *bool
+	Status                 string
+	AllowedGroups          *[]int64
+	GroupRates             map[int64]*float64
+	APIKeyModelBindingMode *string
 }
 type CreateGroupInput struct {
 	Name                            string
@@ -320,6 +324,16 @@ type BlacklistedBatchDeleteFailure struct {
 	ID     int64  `json:"id"`
 	Reason string `json:"reason"`
 }
+type BlacklistedBatchRestoreResult struct {
+	RestoredIDs   []int64                          `json:"restored_ids"`
+	Failed        []BlacklistedBatchRestoreFailure `json:"failed"`
+	RestoredCount int                              `json:"restored_count"`
+	FailedCount   int                              `json:"failed_count"`
+}
+type BlacklistedBatchRestoreFailure struct {
+	ID     int64  `json:"id"`
+	Reason string `json:"reason"`
+}
 type ProxyTestResult struct {
 	Success     bool   `json:"success"`
 	Message     string `json:"message"`
@@ -417,9 +431,14 @@ func (s *adminServiceImpl) probeProxyLatency(ctx context.Context, proxy *Proxy) 
 	if s.proxyProber == nil || proxy == nil {
 		return
 	}
+	if err := ValidateProxyEndpointWithConfig(s.cfg, proxy.Protocol, proxy.Host, proxy.Port); err != nil {
+		s.saveProxyLatency(ctx, proxy.ID, &ProxyLatencyInfo{Success: false, Message: "proxy host is not allowed by outbound security policy", UpdatedAt: time.Now()})
+		return
+	}
 	exitInfo, latencyMs, err := s.proxyProber.ProbeProxy(ctx, proxy.URL())
 	if err != nil {
-		s.saveProxyLatency(ctx, proxy.ID, &ProxyLatencyInfo{Success: false, Message: err.Error(), UpdatedAt: time.Now()})
+		logger.LegacyPrintf("service.admin.proxy", "proxy latency probe failed proxy_id=%d err=%v", proxy.ID, err)
+		s.saveProxyLatency(ctx, proxy.ID, &ProxyLatencyInfo{Success: false, Message: "proxy connection failed", UpdatedAt: time.Now()})
 		return
 	}
 	latency := latencyMs

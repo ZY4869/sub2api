@@ -337,7 +337,10 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	switch redeemCode.Type {
 	case RedeemTypeBalance:
 		// 增加用户余额
-		amount := redeemCode.Value
+		amount, err := NormalizeAndValidateBillingAmount(redeemCode.Value)
+		if err != nil {
+			return nil, err
+		}
 		if amount < 0 && user.Balance+amount < 0 {
 			amount = -user.Balance
 		}

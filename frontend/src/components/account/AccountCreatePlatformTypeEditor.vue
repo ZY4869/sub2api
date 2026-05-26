@@ -159,6 +159,17 @@ const deepSeekOptions = computed<TypeOption[]>(() => [
   }
 ])
 
+const openRouterOptions = computed<TypeOption[]>(() => [
+  {
+    key: 'apikey',
+    title: 'API Key',
+    description: t('admin.accounts.openrouter.apiKeyOnly'),
+    icon: 'key',
+    accent: 'purple',
+    active: true
+  }
+])
+
 const gatewayProtocolOptions = computed<GatewayProtocolOption[]>(() =>
   PROTOCOL_GATEWAY_PROTOCOLS.map((id) => {
     const descriptor = resolveGatewayProtocolDescriptor(id)
@@ -245,6 +256,13 @@ function handleAntigravitySelect(key: string) {
       v-else-if="platform === 'deepseek'"
       :label="t('admin.accounts.accountType')"
       :options="deepSeekOptions"
+      tour="account-form-type"
+    />
+
+    <AccountCreateTypeCardGroup
+      v-else-if="platform === 'openrouter'"
+      :label="t('admin.accounts.accountType')"
+      :options="openRouterOptions"
       tour="account-form-type"
     />
 

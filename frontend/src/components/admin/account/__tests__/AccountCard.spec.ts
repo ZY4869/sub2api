@@ -121,15 +121,23 @@ describe('AccountCard', () => {
     expect(wrapper.text()).not.toContain('admin.accounts.autoRecoveryProbe.headline')
   })
 
-  it('keeps non-success recovery notices visible', () => {
+  it('moves non-success recovery notices into a detail tooltip trigger', async () => {
     const wrapper = mountCard({
       status: 'retry_scheduled',
       summary: 'Temporary gateway error',
       checked_at: '2026-04-09T00:00:00Z'
     })
 
-    expect(wrapper.text()).toContain('Temporary gateway error')
-    expect(wrapper.text()).toContain('admin.accounts.autoRecoveryProbe.headline')
+    expect(wrapper.text()).not.toContain('Temporary gateway error')
+    expect(wrapper.text()).not.toContain('admin.accounts.autoRecoveryProbe.headline')
+    const trigger = wrapper.get('.error-info-trigger')
+    expect(trigger.attributes('aria-label')).toBe('admin.accounts.autoRecoveryProbe.headline')
+
+    await trigger.trigger('mouseenter')
+
+    expect(document.body.textContent).toContain('admin.accounts.status.issueSummaries.syncing')
+    expect(document.body.textContent).not.toContain('Temporary gateway error')
+    expect(document.body.textContent).toContain('admin.accounts.autoRecoveryProbe.headline')
   })
 
   it('hides stale blacklisted recovery notices after the account is restored', () => {

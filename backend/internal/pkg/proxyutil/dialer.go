@@ -34,6 +34,19 @@ import (
 // 返回：
 //   - error: 代理配置错误（协议不支持或 dialer 创建失败）
 func ConfigureTransportProxy(transport *http.Transport, proxyURL *url.URL) error {
+	return configureTransportProxy(transport, proxyURL, nil)
+}
+
+// ConfigureTransportProxyWithDialer 根据代理 URL 配置 Transport，并允许调用方
+// 指定连接代理服务器本身时使用的底层 dialer。
+func ConfigureTransportProxyWithDialer(transport *http.Transport, proxyURL *url.URL, forward proxy.Dialer) error {
+	if forward == nil {
+		forward = proxy.Direct
+	}
+	return configureTransportProxy(transport, proxyURL, forward)
+}
+
+func configureTransportProxy(transport *http.Transport, proxyURL *url.URL, forward proxy.Dialer) error {
 	if proxyURL == nil {
 		return nil
 	}
@@ -41,11 +54,17 @@ func ConfigureTransportProxy(transport *http.Transport, proxyURL *url.URL) error
 	scheme := strings.ToLower(proxyURL.Scheme)
 	switch scheme {
 	case "http", "https":
+		if forward != nil {
+			transport.DialContext = dialContextFromProxyDialer(forward)
+		}
 		transport.Proxy = http.ProxyURL(proxyURL)
 		return nil
 
 	case "socks5", "socks5h":
-		dialer, err := proxy.FromURL(proxyURL, proxy.Direct)
+		if forward == nil {
+			forward = proxy.Direct
+		}
+		dialer, err := proxy.FromURL(proxyURL, forward)
 		if err != nil {
 			return fmt.Errorf("create socks5 dialer: %w", err)
 		}
@@ -63,5 +82,14 @@ func ConfigureTransportProxy(transport *http.Transport, proxyURL *url.URL) error
 
 	default:
 		return fmt.Errorf("unsupported proxy scheme: %s", scheme)
+	}
+}
+
+func dialContextFromProxyDialer(dialer proxy.Dialer) func(context.Context, string, string) (net.Conn, error) {
+	if contextDialer, ok := dialer.(proxy.ContextDialer); ok {
+		return contextDialer.DialContext
+	}
+	return func(_ context.Context, network, addr string) (net.Conn, error) {
+		return dialer.Dial(network, addr)
 	}
 }

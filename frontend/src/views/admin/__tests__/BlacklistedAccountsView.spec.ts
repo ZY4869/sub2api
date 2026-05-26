@@ -5,6 +5,8 @@ import BlacklistedAccountsView from '../BlacklistedAccountsView.vue'
 const {
   listAccounts,
   retestBlacklistedAccounts,
+  restoreBlacklistedAccount,
+  restoreBlacklistedAccounts,
   batchDeleteBlacklistedAccounts,
   deleteAccount,
   getAllGroups,
@@ -14,6 +16,8 @@ const {
 } = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   retestBlacklistedAccounts: vi.fn(),
+  restoreBlacklistedAccount: vi.fn(),
+  restoreBlacklistedAccounts: vi.fn(),
   batchDeleteBlacklistedAccounts: vi.fn(),
   deleteAccount: vi.fn(),
   getAllGroups: vi.fn(),
@@ -27,6 +31,8 @@ vi.mock('@/api/admin', () => ({
     accounts: {
       list: listAccounts,
       retestBlacklistedAccounts,
+      restoreBlacklistedAccount,
+      restoreBlacklistedAccounts,
       batchDeleteBlacklistedAccounts,
       delete: deleteAccount
     },
@@ -108,6 +114,8 @@ describe('BlacklistedAccountsView', () => {
   beforeEach(() => {
     listAccounts.mockReset()
     retestBlacklistedAccounts.mockReset()
+    restoreBlacklistedAccount.mockReset()
+    restoreBlacklistedAccounts.mockReset()
     batchDeleteBlacklistedAccounts.mockReset()
     deleteAccount.mockReset()
     getAllGroups.mockReset()
@@ -147,6 +155,13 @@ describe('BlacklistedAccountsView', () => {
           latency_ms: 120
         }
       ]
+    })
+    restoreBlacklistedAccount.mockResolvedValue({ id: 1, name: 'blacklisted-1' })
+    restoreBlacklistedAccounts.mockResolvedValue({
+      restored_ids: [1],
+      failed: [],
+      restored_count: 1,
+      failed_count: 0
     })
     batchDeleteBlacklistedAccounts.mockResolvedValue({
       deleted_ids: [1],
@@ -218,6 +233,55 @@ describe('BlacklistedAccountsView', () => {
     expect(confirm).toHaveBeenCalledWith('admin.accounts.blacklist.batchDeleteConfirm')
     expect(batchDeleteBlacklistedAccounts).toHaveBeenCalledWith({ ids: [1] })
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.blacklist.batchDeleteSuccess')
+    expect(listAccounts.mock.calls.length).toBeGreaterThan(2)
+  })
+
+  it('supports restoring a single blacklisted account', async () => {
+    const wrapper = mount(BlacklistedAccountsView, {
+      global: {
+        stubs: globalStubs
+      }
+    })
+
+    await flushPromises()
+
+    const restoreButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.blacklist.restoreSingle')
+    )
+    expect(restoreButton).toBeTruthy()
+
+    await restoreButton!.trigger('click')
+    await flushPromises()
+
+    expect(confirm).toHaveBeenCalledWith('admin.accounts.blacklist.restoreConfirm')
+    expect(restoreBlacklistedAccount).toHaveBeenCalledWith(1)
+    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.blacklist.restoreSuccess')
+    expect(listAccounts.mock.calls.length).toBeGreaterThan(2)
+  })
+
+  it('supports batch restoring selected blacklisted accounts', async () => {
+    const wrapper = mount(BlacklistedAccountsView, {
+      global: {
+        stubs: globalStubs
+      }
+    })
+
+    await flushPromises()
+
+    const checkboxes = wrapper.findAll('input[type="checkbox"]')
+    await checkboxes[1].setValue(true)
+
+    const batchRestoreButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.blacklist.batchRestore')
+    )
+    expect(batchRestoreButton).toBeTruthy()
+
+    await batchRestoreButton!.trigger('click')
+    await flushPromises()
+
+    expect(confirm).toHaveBeenCalledWith('admin.accounts.blacklist.batchRestoreConfirm')
+    expect(restoreBlacklistedAccounts).toHaveBeenCalledWith({ ids: [1] })
+    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.blacklist.batchRestoreSuccess')
     expect(listAccounts.mock.calls.length).toBeGreaterThan(2)
   })
 

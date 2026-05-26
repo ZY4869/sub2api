@@ -35,6 +35,21 @@ func TestAdminService_CreateGroup_RejectsInvalidPlatform(t *testing.T) {
 	require.Nil(t, repo.created)
 }
 
+func TestAdminService_CreateGroup_AllowsProtocolGatewayPlatform(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:     "protocol-gateway-group",
+		Platform: PlatformProtocolGateway,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.created)
+	require.Equal(t, PlatformProtocolGateway, repo.created.Platform)
+}
+
 func TestAdminService_GetGroup_RejectsUnsupportedLegacyPlatform(t *testing.T) {
 	repo := &groupRepoStubForAdmin{
 		getByID: &Group{

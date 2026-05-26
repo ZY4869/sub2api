@@ -384,6 +384,15 @@ func TestAuthService_RefreshToken_ExpiredTokenNoPanic(t *testing.T) {
 	})
 }
 
+func TestAuthService_RefreshToken_InvalidTokenNoPanic(t *testing.T) {
+	service := newAuthService(&userRepoStub{}, nil, nil)
+
+	require.NotPanics(t, func() {
+		_, err := service.RefreshToken(context.Background(), "not-a-jwt")
+		require.ErrorIs(t, err, ErrInvalidToken)
+	})
+}
+
 func TestAuthService_GetAccessTokenExpiresIn_FallbackToExpireHour(t *testing.T) {
 	service := newAuthService(&userRepoStub{}, nil, nil)
 	service.cfg.JWT.ExpireHour = 24

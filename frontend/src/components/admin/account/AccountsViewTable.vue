@@ -111,28 +111,32 @@
     </template>
 
     <template #cell-capacity="{ row }">
-      <AccountCapacityCell
-        :account="row"
-        :visual-variant="visualStyle === 'airy' ? 'glass' : 'default'"
-        :white-surface-enabled="visualStyle === 'airy' ? whiteSurfaceEnabled : false"
-        :compact="visualStyle === 'airy'"
-      />
+      <div :class="airySpacedCellClass('capacity')">
+        <AccountCapacityCell
+          :account="row"
+          :visual-variant="visualStyle === 'airy' ? 'glass' : 'default'"
+          :white-surface-enabled="visualStyle === 'airy' ? whiteSurfaceEnabled : false"
+          :compact="visualStyle === 'airy'"
+        />
+      </div>
     </template>
 
     <template #cell-status="{ row }">
-      <AccountStatusVisualCell
-        v-if="visualStyle === 'airy'"
-        :account="row"
-        :visual-style="visualStyle"
-        :white-surface-enabled="whiteSurfaceEnabled"
-        @show-temp-unsched="emit('show-temp-unsched', row)"
-      />
-      <AccountStatusIndicator
-        v-else
-        :account="row"
-        visual-variant="default"
-        @show-temp-unsched="emit('show-temp-unsched', row)"
-      />
+      <div :class="airySpacedCellClass('status')">
+        <AccountStatusVisualCell
+          v-if="visualStyle === 'airy'"
+          :account="row"
+          :visual-style="visualStyle"
+          :white-surface-enabled="whiteSurfaceEnabled"
+          @show-temp-unsched="emit('show-temp-unsched', row)"
+        />
+        <AccountStatusIndicator
+          v-else
+          :account="row"
+          visual-variant="default"
+          @show-temp-unsched="emit('show-temp-unsched', row)"
+        />
+      </div>
     </template>
 
     <template #cell-schedulable="{ row }">
@@ -182,11 +186,13 @@
     </template>
 
     <template #cell-groups="{ row }">
-      <AccountGroupsCell
-        :groups="row.groups"
-        :max-display="4"
-        :visual-variant="visualStyle === 'airy' ? 'airy' : 'default'"
-      />
+      <div :class="airySpacedCellClass('groups')">
+        <AccountGroupsCell
+          :groups="row.groups"
+          :max-display="4"
+          :visual-variant="visualStyle === 'airy' ? 'airy' : 'default'"
+        />
+      </div>
     </template>
 
     <template #cell-usage="{ row }">
@@ -383,6 +389,16 @@ const resolveRowStyle = (row: Account) => {
     '--account-row-sticky-bg-hover': '#FFFFFF',
     backgroundColor: '#FFFFFF'
   }
+}
+
+const airySpacedCellClass = (key: 'capacity' | 'status' | 'groups') => {
+  if (props.visualStyle !== 'airy') return ''
+  const widthClass = {
+    capacity: 'min-w-[136px]',
+    status: 'min-w-[292px]',
+    groups: 'min-w-[176px]'
+  }[key]
+  return `account-airy-spaced-cell account-airy-spaced-cell-${key} ${widthClass} px-2`
 }
 
 const handleToggleSelectAllVisible = (event: Event) => {

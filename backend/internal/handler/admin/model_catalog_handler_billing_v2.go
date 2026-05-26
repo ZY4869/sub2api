@@ -116,7 +116,7 @@ func (h *ModelCatalogHandler) SavePublicModelCatalogDraft(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	result, err := h.modelCatalogService.SavePublicModelCatalogDraft(c.Request.Context(), draft)
+	result, err := h.modelCatalogService.SavePublicModelCatalogDraft(c.Request.Context(), draft, h.resolveActor(c))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -189,6 +189,7 @@ func (h *ModelCatalogHandler) GetBillingPricingAudit(c *gin.Context) {
 }
 
 func (h *ModelCatalogHandler) CopyBillingPricingOfficialToSale(c *gin.Context) {
+	h.logDeprecatedBillingAPI(c)
 	var req service.BillingCopyOfficialToSaleInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
@@ -204,6 +205,7 @@ func (h *ModelCatalogHandler) CopyBillingPricingOfficialToSale(c *gin.Context) {
 }
 
 func (h *ModelCatalogHandler) ApplyBillingPricingSaleDiscount(c *gin.Context) {
+	h.logDeprecatedBillingAPI(c)
 	var req service.BillingBulkApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())

@@ -15,6 +15,10 @@ func newGatewayRouteDispatchers(h *handler.Handlers) gatewayRouteDispatchers {
 }
 
 func (d gatewayRouteDispatchers) AnthropicMessages(c *gin.Context) {
+	if c != nil && c.Request != nil && d.handlers != nil && d.handlers.Gateway != nil && d.handlers.Gateway.HasMultipleUsableGroups(c) {
+		d.handlers.Gateway.Messages(c)
+		return
+	}
 	dispatchMessagesRoute(c, d.handlers.Gateway.Messages, d.handlers.OpenAIGateway.Messages)
 }
 
@@ -39,6 +43,10 @@ func (d gatewayRouteDispatchers) GatewayV1ModelsAction(c *gin.Context) {
 }
 
 func (d gatewayRouteDispatchers) OpenAIResponses(c *gin.Context) {
+	if c != nil && c.Request != nil && d.handlers != nil && d.handlers.Gateway != nil && d.handlers.Gateway.HasMultipleUsableGroups(c) {
+		d.handlers.OpenAIGateway.Responses(c)
+		return
+	}
 	dispatchOpenAIRoute(c, service.EndpointResponses, service.ProtocolCapabilityActionDefault, d.handlers.OpenAIGateway.Responses, d.handlers.GrokGateway.Responses)
 }
 
@@ -47,6 +55,10 @@ func (d gatewayRouteDispatchers) OpenAIResponsesWebSocket(c *gin.Context) {
 }
 
 func (d gatewayRouteDispatchers) OpenAIChatCompletions(c *gin.Context) {
+	if c != nil && c.Request != nil && d.handlers != nil && d.handlers.Gateway != nil && d.handlers.Gateway.HasMultipleUsableGroups(c) {
+		d.handlers.OpenAIGateway.ChatCompletions(c)
+		return
+	}
 	dispatchOpenAIRoute(c, service.EndpointChatCompletions, service.ProtocolCapabilityActionDefault, d.handlers.OpenAIGateway.ChatCompletions, d.handlers.GrokGateway.ChatCompletions)
 }
 

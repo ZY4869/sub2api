@@ -18,6 +18,7 @@ const PLATFORM_ACTIVE_CLASSES: Record<AccountPlatform, string> = {
   grok: 'text-slate-700 dark:text-slate-200',
   kiro: 'text-orange-600 dark:text-orange-400',
   openai: 'text-green-600 dark:text-green-400',
+  openrouter: 'text-cyan-600 dark:text-cyan-300',
   protocol_gateway: 'text-slate-600 dark:text-slate-300'
 }
 

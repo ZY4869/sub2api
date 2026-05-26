@@ -16,7 +16,10 @@ func (s *PaymentService) markOrderPaid(ctx context.Context, order *PaymentOrder)
 	now := time.Now()
 	err := s.repo.RunInTx(ctx, func(txCtx context.Context) error {
 		if order.ProductType == PaymentProductBalanceTopup {
-			amount := PaymentMinorToAmount(order.AmountMinor, order.Currency)
+			amount, err := NormalizeAndValidatePositiveBillingAmount(PaymentMinorToAmount(order.AmountMinor, order.Currency))
+			if err != nil {
+				return err
+			}
 			if err := s.repo.AddWalletBalance(txCtx, order.UserID, order.Currency, amount); err != nil {
 				return err
 			}
@@ -57,9 +60,29 @@ func (s *PaymentService) markOrderPaid(ctx context.Context, order *PaymentOrder)
 		return nil
 	})
 	if err == nil {
+		if order.ProductType == PaymentProductBalanceTopup {
+			s.invalidateBalanceCaches(ctx, order.UserID)
+		}
 		s.sendPaymentSuccessEmailBestEffort(ctx, order)
 	}
 	return err
+}
+
+func (s *PaymentService) invalidateBalanceCaches(ctx context.Context, userID int64) {
+	if s == nil || userID <= 0 {
+		return
+	}
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
+	}
+	if s.billingCacheService == nil {
+		return
+	}
+	cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.billingCacheService.InvalidateUserBalance(cacheCtx, userID); err != nil {
+		s.logWarn(ctx, "payment.balance_cache_invalidate_failed", zap.Int64("user_id", userID), zap.Error(err))
+	}
 }
 
 func (s *PaymentService) sendPaymentSuccessEmailBestEffort(ctx context.Context, order *PaymentOrder) {

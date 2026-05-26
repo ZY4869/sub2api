@@ -18,7 +18,7 @@ type gatewayChannelStateResolver interface {
 
 var (
 	openAICompatiblePlatforms     = []string{service.PlatformOpenAI}
-	openAITextCompatiblePlatforms = []string{service.PlatformOpenAI, service.PlatformDeepSeek}
+	openAITextCompatiblePlatforms = []string{service.PlatformOpenAI, service.PlatformDeepSeek, service.PlatformOpenRouter}
 	gatewayCompatiblePlatforms    = []string{
 		service.PlatformAnthropic,
 		service.PlatformDeepSeek,
@@ -65,12 +65,39 @@ func applySelectedAPIKeyContext(c *gin.Context, apiKey *service.APIKey, subscrip
 	c.Request = c.Request.WithContext(ctx)
 }
 
+func propagateSelectedBillingHold(source *service.APIKey, selected *service.APIKey) {
+	if source == nil || selected == nil || source == selected || selected.BillingHold == nil {
+		return
+	}
+	source.BillingHold = selected.BillingHold
+}
+
 func isGroupExcluded(apiKey *service.APIKey, excludedGroupIDs map[int64]struct{}) bool {
 	if apiKey == nil || apiKey.GroupID == nil || len(excludedGroupIDs) == 0 {
 		return false
 	}
 	_, excluded := excludedGroupIDs[*apiKey.GroupID]
 	return excluded
+}
+
+func enforcePublicCatalogBindingGroup(ctx context.Context, apiKey *service.APIKey, excludedGroupIDs map[int64]struct{}) (*service.APIKey, bool, error) {
+	entry, ok := service.PublishedPublicCatalogEntryFromContext(ctx)
+	if !ok || entry == nil || entry.BindingGroupID <= 0 {
+		return nil, false, nil
+	}
+	if excludedGroupIDs != nil {
+		if _, excluded := excludedGroupIDs[entry.BindingGroupID]; excluded {
+			return nil, true, infraerrors.ServiceUnavailable("GROUP_EXHAUSTED", "all accounts in the group have been exhausted")
+		}
+	}
+	for _, binding := range service.APIKeyBindingsForSelection(apiKey) {
+		if binding.GroupID != entry.BindingGroupID {
+			continue
+		}
+		selectedAPIKey := service.CloneAPIKeyWithSelectedGroup(apiKey, &binding)
+		return selectedAPIKey, true, nil
+	}
+	return nil, true, infraerrors.BadRequest("PUBLIC_MODEL_NOT_AVAILABLE", service.PublicCatalogModelUnavailableMessage)
 }
 
 func resolveSelectedGatewayAPIKey(
@@ -84,9 +111,29 @@ func resolveSelectedGatewayAPIKey(
 	allowedPlatforms []string,
 	excludedGroupIDs map[int64]struct{},
 ) (*service.APIKey, *service.UserSubscription, error) {
+	if selectedAPIKey, handled, err := enforcePublicCatalogBindingGroup(c.Request.Context(), apiKey, excludedGroupIDs); handled {
+		if err != nil {
+			return nil, nil, err
+		}
+		selectedSubscription, err := loadSelectedSubscription(c.Request.Context(), selectedAPIKey, gatewayService.GetActiveSubscriptionForGroup)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), selectedAPIKey.User, selectedAPIKey, selectedAPIKey.Group, selectedSubscription); err != nil {
+			return nil, nil, err
+		}
+		propagateSelectedBillingHold(apiKey, selectedAPIKey)
+		applySelectedAPIKeyContext(c, selectedAPIKey, selectedSubscription)
+		return selectedAPIKey, selectedSubscription, nil
+	}
 	if !multiGroupRoutingEnabled(c.Request.Context(), apiKey, settingService) {
 		if isGroupExcluded(apiKey, excludedGroupIDs) {
 			return nil, nil, infraerrors.ServiceUnavailable("GROUP_EXHAUSTED", "all accounts in the group have been exhausted")
+		}
+		if billingCacheService != nil {
+			if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
+				return nil, nil, err
+			}
 		}
 		return apiKey, subscription, nil
 	}
@@ -102,6 +149,7 @@ func resolveSelectedGatewayAPIKey(
 	if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), selectedAPIKey.User, selectedAPIKey, selectedAPIKey.Group, selectedSubscription); err != nil {
 		return nil, nil, err
 	}
+	propagateSelectedBillingHold(apiKey, selectedAPIKey)
 	applySelectedAPIKeyContext(c, selectedAPIKey, selectedSubscription)
 	return selectedAPIKey, selectedSubscription, nil
 }
@@ -117,9 +165,29 @@ func resolveSelectedOpenAIAPIKey(
 	allowedPlatforms []string,
 	excludedGroupIDs map[int64]struct{},
 ) (*service.APIKey, *service.UserSubscription, error) {
+	if selectedAPIKey, handled, err := enforcePublicCatalogBindingGroup(c.Request.Context(), apiKey, excludedGroupIDs); handled {
+		if err != nil {
+			return nil, nil, err
+		}
+		selectedSubscription, err := loadSelectedSubscription(c.Request.Context(), selectedAPIKey, gatewayService.GetActiveSubscriptionForGroup)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), selectedAPIKey.User, selectedAPIKey, selectedAPIKey.Group, selectedSubscription); err != nil {
+			return nil, nil, err
+		}
+		propagateSelectedBillingHold(apiKey, selectedAPIKey)
+		applySelectedAPIKeyContext(c, selectedAPIKey, selectedSubscription)
+		return selectedAPIKey, selectedSubscription, nil
+	}
 	if !multiGroupRoutingEnabled(c.Request.Context(), apiKey, settingService) {
 		if isGroupExcluded(apiKey, excludedGroupIDs) {
 			return nil, nil, infraerrors.ServiceUnavailable("GROUP_EXHAUSTED", "all accounts in the group have been exhausted")
+		}
+		if billingCacheService != nil {
+			if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
+				return nil, nil, err
+			}
 		}
 		return apiKey, subscription, nil
 	}
@@ -135,6 +203,7 @@ func resolveSelectedOpenAIAPIKey(
 	if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), selectedAPIKey.User, selectedAPIKey, selectedAPIKey.Group, selectedSubscription); err != nil {
 		return nil, nil, err
 	}
+	propagateSelectedBillingHold(apiKey, selectedAPIKey)
 	applySelectedAPIKeyContext(c, selectedAPIKey, selectedSubscription)
 	return selectedAPIKey, selectedSubscription, nil
 }

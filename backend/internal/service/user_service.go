@@ -227,6 +227,9 @@ func (s *UserService) List(ctx context.Context, params pagination.PaginationPara
 
 // UpdateBalance 更新用户余额（管理员功能）
 func (s *UserService) UpdateBalance(ctx context.Context, userID int64, amount float64) error {
+	if _, err := NormalizeAndValidateBillingAmount(amount); err != nil {
+		return err
+	}
 	if err := s.userRepo.UpdateBalance(ctx, userID, amount); err != nil {
 		return fmt.Errorf("update balance: %w", err)
 	}

@@ -256,7 +256,7 @@ const routes: RouteRecordRaw[] = [
     redirect: '/api-docs/common'
   },
   {
-    path: '/api-docs/:pageId(common|openai-native|openai|anthropic|gemini|grok|deepseek|antigravity|vertex-batch|document-ai)',
+    path: '/api-docs/:pageId(common|openai-native|openai|openrouter|anthropic|gemini|grok|deepseek|antigravity|vertex-batch|document-ai)',
     name: 'ApiDocs',
     component: () => import('@/views/user/ApiDocsView.vue'),
     meta: {
@@ -689,7 +689,7 @@ const routes: RouteRecordRaw[] = [
     redirect: '/admin/api-docs/common'
   },
   {
-    path: '/admin/api-docs/:pageId(common|openai-native|openai|anthropic|gemini|grok|deepseek|antigravity|vertex-batch|document-ai)',
+    path: '/admin/api-docs/:pageId(common|openai-native|openai|openrouter|anthropic|gemini|grok|deepseek|antigravity|vertex-batch|document-ai)',
     name: 'AdminApiDocs',
     component: () => import('@/views/admin/AdminApiDocsView.vue'),
     meta: {

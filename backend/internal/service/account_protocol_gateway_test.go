@@ -120,6 +120,30 @@ func TestRoutingPlatformsFromValuesForMixedProtocolGateway(t *testing.T) {
 	require.Equal(t, []string{PlatformGemini, PlatformOpenAI}, platforms)
 }
 
+func TestMatchesGroupPlatform_ProtocolGatewayGroupOnlyMatchesGatewayAccounts(t *testing.T) {
+	gateway := &Account{
+		Platform: PlatformProtocolGateway,
+		Extra: map[string]any{
+			"gateway_protocol": GatewayProtocolOpenAI,
+		},
+	}
+	official := &Account{Platform: PlatformOpenAI}
+
+	require.True(t, MatchesGroupPlatform(gateway, PlatformProtocolGateway))
+	require.True(t, MatchesGroupPlatform(gateway, PlatformOpenAI))
+	require.False(t, MatchesGroupPlatform(official, PlatformProtocolGateway))
+}
+
+func TestMatchesGroupPlatform_OpenRouterIsolatedFromOpenAI(t *testing.T) {
+	openRouter := &Account{Platform: PlatformOpenRouter}
+	openAI := &Account{Platform: PlatformOpenAI}
+
+	require.True(t, MatchesGroupPlatform(openRouter, PlatformOpenRouter))
+	require.False(t, MatchesGroupPlatform(openRouter, PlatformOpenAI))
+	require.False(t, MatchesGroupPlatform(openAI, PlatformOpenRouter))
+	require.Equal(t, []string{PlatformOpenRouter}, QueryPlatformsForGroupPlatform(PlatformOpenRouter, false))
+}
+
 func TestNormalizeProtocolGatewayExtra_OpenAIRequestFormatDefaultsToChatCompletions(t *testing.T) {
 	extra := NormalizeProtocolGatewayExtra(PlatformProtocolGateway, map[string]any{
 		"gateway_protocol": "openai",

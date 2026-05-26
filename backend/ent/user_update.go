@@ -300,6 +300,20 @@ func (_u *UserUpdate) SetNillableUsageContextBadgeDisplayMode(v *string) *UserUp
 	return _u
 }
 
+// SetAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field.
+func (_u *UserUpdate) SetAPIKeyModelBindingMode(v string) *UserUpdate {
+	_u.mutation.SetAPIKeyModelBindingMode(v)
+	return _u
+}
+
+// SetNillableAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAPIKeyModelBindingMode(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAPIKeyModelBindingMode(*v)
+	}
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdate) SetTotpSecretEncrypted(v string) *UserUpdate {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -772,6 +786,11 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.APIKeyModelBindingMode(); ok {
+		if err := user.APIKeyModelBindingModeValidator(v); err != nil {
+			return &ValidationError{Name: "api_key_model_binding_mode", err: fmt.Errorf(`ent: validator failed for field "User.api_key_model_binding_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -849,6 +868,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.APIKeyModelBindingMode(); ok {
+		_spec.SetField(user.FieldAPIKeyModelBindingMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
@@ -1566,6 +1588,20 @@ func (_u *UserUpdateOne) SetNillableUsageContextBadgeDisplayMode(v *string) *Use
 	return _u
 }
 
+// SetAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field.
+func (_u *UserUpdateOne) SetAPIKeyModelBindingMode(v string) *UserUpdateOne {
+	_u.mutation.SetAPIKeyModelBindingMode(v)
+	return _u
+}
+
+// SetNillableAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAPIKeyModelBindingMode(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAPIKeyModelBindingMode(*v)
+	}
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdateOne) SetTotpSecretEncrypted(v string) *UserUpdateOne {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -2051,6 +2087,11 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.APIKeyModelBindingMode(); ok {
+		if err := user.APIKeyModelBindingModeValidator(v); err != nil {
+			return &ValidationError{Name: "api_key_model_binding_mode", err: fmt.Errorf(`ent: validator failed for field "User.api_key_model_binding_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -2145,6 +2186,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.APIKeyModelBindingMode(); ok {
+		_spec.SetField(user.FieldAPIKeyModelBindingMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)

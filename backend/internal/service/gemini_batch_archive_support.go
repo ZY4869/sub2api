@@ -233,6 +233,7 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 	if strings.TrimSpace(requestID) == "" {
 		requestID = "google-batch:" + operationType + ":" + generateRequestID()
 	}
+	requestID = resolveUsageBillingRequestIDForAPIKey(ctx, requestID, input.APIKey)
 	totalCost := 0.0
 	actualCost := 0.0
 	inputCost := 0.0
@@ -315,7 +316,7 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 	if _, err := s.usageLogRepo.Create(ctx, usageLog); err != nil {
 		return err
 	}
-	if s.usageBillingRepo == nil || input.APIKey == nil || actualCost <= 0 {
+	if s.usageBillingRepo == nil || input.APIKey == nil || (actualCost <= 0 && input.APIKey.BillingHold == nil) {
 		return nil
 	}
 	cmd := &UsageBillingCommand{
@@ -368,7 +369,10 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 		cmd.APIKeyRateLimitCost = actualCost
 	}
 	cmd.Normalize()
-	_, err := s.usageBillingRepo.Apply(ctx, cmd)
+	result, err := s.usageBillingRepo.Apply(ctx, cmd)
+	if err == nil && result != nil && result.Applied && input.APIKey != nil && input.APIKey.BillingHold != nil {
+		input.APIKey.BillingHold.Status = BillingHoldStatusSettled
+	}
 	return err
 }
 
@@ -422,14 +426,20 @@ func (s *GeminiMessagesCompatService) calculateGoogleBatchSettlementCost(ctx con
 		return nil, nil
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
-		Model:           strings.TrimSpace(requestedModel),
-		Provider:        PlatformGemini,
-		Layer:           BillingLayerSale,
-		InboundEndpoint: googleBatchSyntheticBillingEndpoint(requestedModel),
-		Tokens:          tokens,
-		BatchMode:       BillingBatchModeBatch,
-		ServiceTier:     BillingServiceTierStandard,
-		RateMultiplier:  account.BillingRateMultiplier(),
+		Model:                         strings.TrimSpace(requestedModel),
+		Provider:                      PlatformGemini,
+		Layer:                         BillingLayerSale,
+		PublicCatalogEntryID:          publicCatalogEntryIDFromContext(ctx),
+		PublicCatalogPublicModelID:    publicCatalogPublicModelIDFromContext(ctx),
+		PublicCatalogSourceAccountID:  publicCatalogSourceAccountIDFromContext(ctx),
+		PublicCatalogCurrency:         publicCatalogCurrencyFromContext(ctx),
+		PublicCatalogRuntimePriceSpec: publicCatalogRuntimePriceSpecFromContext(ctx),
+		PublicCatalogSalePriceDisplay: publicCatalogSalePriceDisplayFromContext(ctx),
+		InboundEndpoint:               googleBatchSyntheticBillingEndpoint(requestedModel),
+		Tokens:                        tokens,
+		BatchMode:                     BillingBatchModeBatch,
+		ServiceTier:                   BillingServiceTierStandard,
+		RateMultiplier:                account.BillingRateMultiplier(),
 	})
 	if err == nil && runtimeResult != nil && runtimeResult.Cost != nil {
 		if runtimeResult.Classification != nil || len(runtimeResult.MatchedItems) > 0 || runtimeResult.FallbackReason != "" {

@@ -1,11 +1,14 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/hostexceptions"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 )
 
@@ -31,8 +34,20 @@ func validateUpstreamBaseURLWithConfig(cfg *config.Config, raw string) (string, 
 		}
 		return normalized, nil
 	}
+	allowPrivate, privateExceptionMatched := upstreamBaseURLPrivatePolicy(cfg, trimmed)
 	if !cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateURLFormat(trimmed, cfg.Security.URLAllowlist.AllowInsecureHTTP)
+		normalized, err := urlvalidator.ValidateHTTPURL(trimmed, cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
+			AllowPrivate: allowPrivate,
+		})
+		if err != nil {
+			return "", fmt.Errorf("invalid base_url: %w", err)
+		}
+		return normalized, nil
+	}
+	if privateExceptionMatched {
+		normalized, err := urlvalidator.ValidateHTTPURL(trimmed, cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
+			AllowPrivate: true,
+		})
 		if err != nil {
 			return "", fmt.Errorf("invalid base_url: %w", err)
 		}
@@ -41,10 +56,30 @@ func validateUpstreamBaseURLWithConfig(cfg *config.Config, raw string) (string, 
 	normalized, err := urlvalidator.ValidateHTTPURL(trimmed, cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
 		AllowedHosts:     cfg.Security.URLAllowlist.UpstreamHosts,
 		RequireAllowlist: true,
-		AllowPrivate:     cfg.Security.URLAllowlist.AllowPrivateHosts,
+		AllowPrivate:     allowPrivate,
 	})
 	if err != nil {
 		return "", fmt.Errorf("invalid base_url: %w", err)
 	}
 	return normalized, nil
+}
+
+func upstreamBaseURLPrivatePolicy(cfg *config.Config, raw string) (bool, bool) {
+	if cfg == nil || cfg.Security.URLAllowlist.AllowPrivateHosts {
+		return cfg != nil && cfg.Security.URLAllowlist.AllowPrivateHosts, false
+	}
+	if len(cfg.Security.URLAllowlist.PrivateHostExceptions) == 0 {
+		return false, false
+	}
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return false, false
+	}
+	port := hostexceptions.PortForURL(parsed)
+	match, ok, err := hostexceptions.ValidateResolvedHostException(context.Background(), cfg, hostexceptions.ScopeUpstreamBaseURL, parsed.Scheme, parsed.Hostname(), port)
+	if err == nil && ok {
+		hostexceptions.LogMatch(nil, match)
+		return true, true
+	}
+	return false, false
 }

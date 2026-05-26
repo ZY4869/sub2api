@@ -42,11 +42,23 @@ func resolveUsageBillingRequestID(ctx context.Context, upstreamRequestID string)
 	return "generated:" + generateRequestID()
 }
 
+func resolveUsageBillingRequestIDForAPIKey(ctx context.Context, upstreamRequestID string, apiKey *APIKey) string {
+	if apiKey != nil && apiKey.BillingHold != nil {
+		if requestID := NormalizeBillingHoldRequestID(apiKey.BillingHold.RequestID); requestID != "" {
+			return requestID
+		}
+	}
+	return resolveUsageBillingRequestID(ctx, upstreamRequestID)
+}
+
 func resolveUsageBillingPayloadFingerprint(ctx context.Context, requestPayloadHash string) string {
 	if payloadHash := strings.TrimSpace(requestPayloadHash); payloadHash != "" {
 		return payloadHash
 	}
 	if ctx != nil {
+		if payloadHash, _ := ctx.Value(ctxkey.RequestPayloadHash).(string); strings.TrimSpace(payloadHash) != "" {
+			return strings.TrimSpace(payloadHash)
+		}
 		if clientRequestID, _ := ctx.Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(clientRequestID) != "" {
 			return "client:" + strings.TrimSpace(clientRequestID)
 		}
@@ -205,6 +217,18 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		return false, nil
 	}
 
+	if p.APIKey != nil && p.APIKey.BillingHold != nil {
+		p.APIKey.BillingHold.Status = BillingHoldStatusSettled
+		if p.APIKeyService != nil && p.APIKey.Key != "" {
+			if invalidator, ok := p.APIKeyService.(apiKeyAuthCacheInvalidator); ok {
+				invalidator.InvalidateAuthCacheByKey(billingCtx, p.APIKey.Key)
+			}
+		}
+		if deps.billingCacheService != nil && p.User != nil {
+			_ = deps.billingCacheService.InvalidateUserBalance(billingCtx, p.User.ID)
+		}
+	}
+
 	if result.APIKeyQuotaExhausted || cmd.APIKeyGroupQuotaCost > 0 {
 		if invalidator, ok := p.APIKeyService.(apiKeyAuthCacheInvalidator); ok && p.APIKey != nil && p.APIKey.Key != "" {
 			invalidator.InvalidateAuthCacheByKey(billingCtx, p.APIKey.Key)
@@ -221,24 +245,33 @@ func finalizePostUsageBilling(p *postUsageBillingParams, deps *billingDeps) {
 	}
 
 	currency := normalizeBillingCurrency(p.Cost.Currency)
-	if !p.SkipUserBilling {
+	heldBalanceRequest := p.APIKey != nil && p.APIKey.BillingHold != nil
+	if deps.billingCacheService != nil && !p.SkipUserBilling {
 		if p.IsSubscriptionBill {
 			if currency == ModelPricingCurrencyUSD && p.Cost.TotalCost > 0 && p.User != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
 				deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, p.Cost.TotalCost)
 			}
 		} else if p.Cost.ActualCost > 0 && p.User != nil {
-			if currency == ModelPricingCurrencyUSD {
+			if heldBalanceRequest {
+				ctx, cancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
+				defer cancel()
+				_ = deps.billingCacheService.InvalidateUserBalance(ctx, p.User.ID)
+			} else if currency == ModelPricingCurrencyUSD {
 				deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
 			} else {
 				ctx, cancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
 				defer cancel()
 				_ = deps.billingCacheService.InvalidateUserBalance(ctx, p.User.ID)
 			}
+		} else if heldBalanceRequest && p.User != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
+			defer cancel()
+			_ = deps.billingCacheService.InvalidateUserBalance(ctx, p.User.ID)
 		}
+	}
 
-		if currency == ModelPricingCurrencyUSD && p.Cost.ActualCost > 0 && p.APIKey != nil && p.APIKey.HasRateLimits() {
-			deps.billingCacheService.QueueUpdateAPIKeyRateLimitUsage(p.APIKey.ID, p.Cost.ActualCost)
-		}
+	if !p.SkipUserBilling && currency == ModelPricingCurrencyUSD && p.Cost.ActualCost > 0 && p.APIKey != nil && p.APIKey.HasRateLimits() && deps.billingCacheService != nil {
+		deps.billingCacheService.QueueUpdateAPIKeyRateLimitUsage(p.APIKey.ID, p.Cost.ActualCost)
 	}
 
 	deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)

@@ -416,7 +416,8 @@ Additional security-related options are available in `config.yaml`:
 - `security.url_allowlist` for upstream/pricing/CRS/Baidu Document AI host allowlists
 - `security.url_allowlist.enabled` to disable URL validation (use with caution)
 - `security.url_allowlist.allow_insecure_http` to allow HTTP URLs when validation is disabled
-- `security.url_allowlist.allow_private_hosts` to allow private/local IP addresses
+- `security.url_allowlist.private_host_exceptions` for precise private/local exceptions on administrator-configured upstream `base_url` and proxy hosts
+- `security.url_allowlist.allow_private_hosts` as a high-risk global switch that allows private/local IP addresses on all outbound URL surfaces
 - `security.url_allowlist.document_ai_hosts` for Baidu Document AI `async_base_url`, `direct_api_urls`, and result-download URL hosts
 - `security.response_headers.enabled` to enable configurable response header filtering (disabled uses default allowlist)
 - `security.csp` to control Content-Security-Policy headers
@@ -460,6 +461,26 @@ SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
 - ✅ Internal networks with trusted endpoints
 - ✅ Testing account connectivity before obtaining HTTPS
 - ❌ Production environments (use HTTPS only)
+
+**Recommended local upstream / Docker network configuration:**
+
+To connect to an OpenAI-compatible upstream on the same VPS, the same Docker network, or an explicitly trusted private network, prefer precise exceptions in `config.yaml` instead of enabling global `allow_private_hosts`:
+
+```yaml
+security:
+  url_allowlist:
+    allow_private_hosts: false
+    allow_insecure_http: true
+    private_host_exceptions:
+      - scope: upstream_base_url
+        hosts: ["127.0.0.1", "host.docker.internal"]
+        cidrs: ["172.17.0.0/16"]
+        ports: [9000]
+        schemes: ["http"]
+        description: "Local compatible API on the same VPS"
+```
+
+The initial supported scopes are `upstream_base_url` and `proxy_host`. These exceptions only apply when the target resolves to a local/private address that the SSRF guard would block by default; they do not become a second public upstream allowlist. Document AI `file_url`, pricing downloads, and CRS sync still reject local/private addresses by default.
 
 **Example error without this setting:**
 ```

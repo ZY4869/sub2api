@@ -8,6 +8,7 @@ var providerLabelOverrides = map[string]string{
 	PlatformGemini:      "Google-Gemini",
 	PlatformGrok:        "xAI-Grok",
 	PlatformDeepSeek:    "DeepSeek",
+	PlatformOpenRouter:  "OpenRouter",
 	PlatformAntigravity: "Antigravity",
 	PlatformKiro:        "Kiro",
 	"baidu":             "Baidu-Document-AI",

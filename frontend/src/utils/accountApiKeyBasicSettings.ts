@@ -21,6 +21,7 @@ export function resolveAccountApiKeyDefaultBaseUrl(
   if (descriptor) return descriptor.defaultBaseUrl
   if (platform === 'grok') return 'https://api.x.ai'
   if (platform === 'deepseek') return 'https://api.deepseek.com'
+  if (platform === 'openrouter') return 'https://openrouter.ai/api/v1'
   if (platform === 'openai') return 'https://api.openai.com'
   if (platform === 'gemini') return 'https://generativelanguage.googleapis.com'
   if (platform === 'antigravity') return 'https://cloudcode-pa.googleapis.com'
@@ -35,6 +36,7 @@ export function resolveAccountApiKeyPlaceholder(
   if (descriptor) return descriptor.apiKeyPlaceholder
   if (platform === 'grok') return 'xai-...'
   if (platform === 'deepseek') return 'sk-...'
+  if (platform === 'openrouter') return 'sk-or-v1-...'
   if (platform === 'openai') return 'sk-proj-...'
   if (platform === 'gemini') return 'AIza...'
   if (platform === 'antigravity') return 'sk-...'
@@ -50,6 +52,7 @@ export function resolveAccountApiKeyBaseUrlHintKey(
   if (descriptor) return descriptor.baseUrlHintKey
   if (platform === 'grok') return 'admin.accounts.grokDedicatedRouteHint'
   if (platform === 'deepseek') return 'admin.accounts.deepseek.baseUrlHint'
+  if (platform === 'openrouter') return 'admin.accounts.openrouter.baseUrlHint'
   if (platform === 'openai') return 'admin.accounts.openai.baseUrlHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.baseUrlHint'
   if (platform === 'antigravity') return 'admin.accounts.upstream.baseUrlHint'
@@ -66,6 +69,7 @@ export function resolveAccountApiKeyHintKey(
   if (descriptor) return descriptor.apiKeyHintKey
   if (platform === 'grok') return 'admin.accounts.openai.apiKeyHint'
   if (platform === 'deepseek') return 'admin.accounts.deepseek.apiKeyHint'
+  if (platform === 'openrouter') return 'admin.accounts.openrouter.apiKeyHint'
   if (platform === 'openai') return 'admin.accounts.openai.apiKeyHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.apiKeyHint'
   if (platform === 'antigravity') return 'admin.accounts.upstream.apiKeyHint'

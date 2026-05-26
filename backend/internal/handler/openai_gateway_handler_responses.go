@@ -183,7 +183,25 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
-	if apiKey.ImageOnlyEnabled && (!service.IsOpenAINativeImageModelID(reqModel) || !service.APIKeyAllowsConfiguredModel(apiKey, reqModel)) {
+	var publicCatalogEntry *service.PublishedPublicCatalogEntry
+	publicRequestModel := reqModel
+	routingRequestModel := reqModel
+	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), reqModel); resolveErr != nil {
+		reqLog.Warn("openai.responses.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
+	} else if active && !matched {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+		return
+	} else if matched {
+		publicCatalogEntry = entry
+		routingRequestModel = service.NormalizeModelCatalogModelID(firstNonEmptyHandlerString(entry.SourceModelID, reqModel))
+		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))
+	}
+	imageOnlyModel := firstNonEmptyHandlerString(routingRequestModel, reqModel)
+	imageOnlyModelAllowed := service.APIKeyAllowsConfiguredModel(apiKey, reqModel)
+	if routingRequestModel != reqModel {
+		imageOnlyModelAllowed = imageOnlyModelAllowed || service.APIKeyAllowsConfiguredModel(apiKey, routingRequestModel)
+	}
+	if apiKey.ImageOnlyEnabled && (!service.IsOpenAINativeImageModelID(imageOnlyModel) || !imageOnlyModelAllowed) {
 		h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "IMAGE_ONLY_KEY_MODEL_NOT_ALLOWED", "生图专用 Key 仅允许调用图片模型")
 		return
 	}
@@ -225,6 +243,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	}
 
 	setOpsRequestContext(c, reqModel, reqStream, body)
+	requestPayloadHash := service.HashUsageRequestPayload(body)
 	if hasImageTool {
 		applyResponsesImageToolTraceMetadata(c, service.PlatformOpenAI, reqModel, imageToolModel, service.PublicImageToolRouteReason)
 	}
@@ -297,7 +316,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			h.billingCacheService,
 			apiKey,
 			subscription,
-			reqModel,
+			publicRequestModel,
 			openAICompatiblePlatforms,
 			excludedGroupIDs,
 		)
@@ -305,6 +324,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			if isRequestCanceled(c.Request.Context(), err) {
 				return
 			}
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, apiKey)
 			reqLog.Info("openai.group_selection_failed", zap.Error(err))
 			status, code, message := groupSelectionErrorDetails(err)
 			h.handleStreamingAwareError(c, status, code, message, streamStarted)
@@ -313,8 +333,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if currentAPIKey.Group != nil {
 			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
 		}
-		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
+		channelSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, publicRequestModel)
 		if err != nil {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
 				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
 				return
@@ -325,6 +346,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			}
 			h.handleStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
 			return
+		}
+		runtimeSelectionModel := channelSelectionModel
+		if publicCatalogEntry != nil {
+			runtimeSelectionModel = routingRequestModel
 		}
 
 		switchCount := 0
@@ -371,9 +396,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						break
 					}
 					if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
 						return
 					}
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "Service temporarily unavailable", streamStarted)
 					return
 				}
@@ -381,11 +408,13 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 						break
 					}
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
 				} else {
 					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 						break
 					}
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					h.handleFailoverExhaustedSimple(c, 502, streamStarted)
 				}
 				return
@@ -405,9 +434,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					break
 				}
 				if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
 					return
 				}
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
 				return
 			}
@@ -439,6 +470,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					zap.String("tool_model", imageToolModel),
 				)
 				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", responsesImageToolUnsupportedPlatformMessage())
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				return
 			}
 			if hasImageTool {
@@ -464,20 +496,24 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						"image_tool_model_provider_unsupported",
 						responsesImageToolUnsupportedModelMessage(imageToolModel),
 					)
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					return
 				}
 				imageProtocolMode := service.ResolveEffectiveOpenAIImageProtocolMode(currentAPIKey.Group, account)
 				if service.ResolveOpenAITextRequestFormatForAccount(account, service.EndpointResponses) == service.GatewayOpenAIRequestFormatChatCompletions {
 					h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Responses image_generation tool is not supported when the selected upstream is forced to chat completions", streamStarted)
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					return
 				}
 				if imageProtocolMode == service.OpenAIImageProtocolModeCompat && !service.IsOpenAIImageCompatAllowed(account) {
 					h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "image_compat_not_allowed", "This account does not allow compat image generation")
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					return
 				}
 				normalizedImageToolRequest, normalizeErr := service.NormalizeOpenAIResponsesImageToolRequest(body)
 				if normalizeErr != nil {
 					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize image_generation tool request")
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					return
 				}
 				if strings.TrimSpace(imageToolTargetModel) != "" {
@@ -494,6 +530,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						"image_n_not_supported",
 						"Responses image_generation tool does not support n>1; call /v1/images/generations or repeat the request instead",
 					)
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					return
 				}
 				capabilityProfile, capabilityErr := service.ValidateOpenAIImageCapabilities(normalizedImageToolRequest, imageProtocolMode, normalizedImageToolRequest.TargetModelID)
@@ -501,9 +538,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					var imageRequestErr *service.OpenAIImageRequestError
 					if errors.As(capabilityErr, &imageRequestErr) {
 						h.errorResponseWithCode(c, imageRequestErr.Status, imageRequestErr.Type, imageRequestErr.Code, imageRequestErr.Message)
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						return
 					}
 					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", capabilityErr.Error())
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					return
 				}
 				if compatResult == nil || !compatResult.Metadata.Enabled {
@@ -513,6 +552,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					body, err = service.ForceOpenAIResponsesImageToolModel(body, service.OpenAICompatImageTargetModel)
 					if err != nil {
 						h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize image_generation tool request")
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						return
 					}
 					imageToolModel = service.OpenAICompatImageTargetModel
@@ -521,6 +561,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					body, err = service.RewriteOpenAIResponsesImageToolModel(body, imageToolTargetModel)
 					if err != nil {
 						h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize image_generation tool request")
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						return
 					}
 					imageToolModel = imageToolTargetModel
@@ -544,6 +585,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 
 			accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 			if !acquired {
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				return
 			}
 
@@ -688,18 +730,20 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 
 			// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
 			h.submitUsageRecordTask(func(ctx context.Context) {
+				ctx = service.AttachPublishedPublicCatalogEntry(ctx, publicCatalogEntry)
 				ctx = reattachGatewayChannelState(ctx, channelState)
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-					Result:           result,
-					APIKey:           currentAPIKey,
-					User:             currentAPIKey.User,
-					Account:          account,
-					Subscription:     currentSubscription,
-					InboundEndpoint:  GetInboundEndpoint(c),
-					UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
-					UserAgent:        userAgent,
-					IPAddress:        clientIP,
-					APIKeyService:    h.apiKeyService,
+					Result:             result,
+					APIKey:             currentAPIKey,
+					User:               currentAPIKey.User,
+					Account:            account,
+					Subscription:       currentSubscription,
+					InboundEndpoint:    GetInboundEndpoint(c),
+					UpstreamEndpoint:   GetUpstreamEndpointForAccount(c, account),
+					UserAgent:          userAgent,
+					IPAddress:          clientIP,
+					RequestPayloadHash: requestPayloadHash,
+					APIKeyService:      h.apiKeyService,
 				}); err != nil {
 					logger.L().With(
 						zap.String("component", "handler.openai_gateway.responses"),

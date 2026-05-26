@@ -403,7 +403,7 @@ const PlatformTabsStub = defineComponent({
   props: ['platformCounts'],
   template: `
     <div>
-      <div class="platform-tabs-order">all,anthropic,antigravity,baidu_document_ai,deepseek,gemini,grok,kiro,openai,protocol_gateway</div>
+      <div class="platform-tabs-order">all,anthropic,antigravity,baidu_document_ai,deepseek,gemini,grok,kiro,openai,openrouter,protocol_gateway</div>
       <div class="platform-tabs-sort-attr">{{ $attrs['sort-order'] || '' }}</div>
     </div>
   `
@@ -712,7 +712,7 @@ describe('AccountsView', () => {
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_asc')
     expect(wrapper.get('.table-account-order').text()).toBe('Gemini-1,Gateway-1,OpenAI-1,OpenAI-2')
     expect(wrapper.get('.table-preserve-input-order').text()).toBe('true')
-    expect(wrapper.get('.platform-tabs-order').text()).toBe('all,anthropic,antigravity,baidu_document_ai,deepseek,gemini,grok,kiro,openai,protocol_gateway')
+    expect(wrapper.get('.platform-tabs-order').text()).toBe('all,anthropic,antigravity,baidu_document_ai,deepseek,gemini,grok,kiro,openai,openrouter,protocol_gateway')
     expect(wrapper.get('.platform-tabs-sort-attr').text()).toBe('')
 
     wrapper.unmount()

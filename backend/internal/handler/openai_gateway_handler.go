@@ -64,6 +64,10 @@ func normalizeOpenAIGroupPlatform(platform string) string {
 	switch platform {
 	case service.PlatformDeepSeek:
 		return service.PlatformDeepSeek
+	case service.PlatformOpenRouter:
+		return service.PlatformOpenRouter
+	case service.PlatformProtocolGateway:
+		return service.PlatformOpenAI
 	default:
 		return service.PlatformOpenAI
 	}

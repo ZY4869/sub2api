@@ -4,8 +4,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -78,6 +81,473 @@ func TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling(t *testing.T) {
 	var dedupCount int
 	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM usage_billing_dedup WHERE request_id = $1 AND api_key_id = $2", requestID, apiKey.ID).Scan(&dedupCount))
 	require.Equal(t, 1, dedupCount)
+}
+
+func TestUsageBillingRepositoryApply_SettlesExistingBillingHold(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	billingRepo := NewUsageBillingRepository(client, integrationDB)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-hold-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.01,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-hold-" + uuid.NewString(),
+		Name:   "billing-hold",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: "usage-billing-hold-account-" + uuid.NewString(),
+		Type: service.AccountTypeAPIKey,
+	})
+
+	requestID := uuid.NewString()
+	hold, err := holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKey.ID,
+		UserID:    user.ID,
+		Currency:  service.ModelPricingCurrencyUSD,
+		Amount:    0.01,
+	})
+	require.NoError(t, err)
+	require.Equal(t, service.BillingHoldStatusHeld, hold.Status)
+
+	_, err = billingRepo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   requestID,
+		APIKeyID:    apiKey.ID,
+		UserID:      user.ID,
+		AccountID:   account.ID,
+		AccountType: service.AccountTypeAPIKey,
+		BalanceCost: 0.03,
+	})
+	require.NoError(t, err)
+
+	var balance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
+	require.InDelta(t, -0.02, balance, 0.000001)
+
+	var status string
+	var actual float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT status, actual_amount FROM billing_request_holds WHERE request_id = $1 AND api_key_id = $2", requestID, apiKey.ID).Scan(&status, &actual))
+	require.Equal(t, string(service.BillingHoldStatusSettled), status)
+	require.InDelta(t, 0.03, actual, 0.000001)
+}
+
+func TestUsageBillingRepositoryApply_RefundsHoldDeltaWhenActualBelowHold(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	billingRepo := NewUsageBillingRepository(client, integrationDB)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-hold-refund-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.05,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-hold-refund-" + uuid.NewString(),
+		Name:   "billing-hold-refund",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: "usage-billing-hold-refund-account-" + uuid.NewString(),
+		Type: service.AccountTypeAPIKey,
+	})
+
+	requestID := uuid.NewString()
+	hold, err := holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKey.ID,
+		UserID:    user.ID,
+		Currency:  service.ModelPricingCurrencyUSD,
+		Amount:    0.03,
+	})
+	require.NoError(t, err)
+	require.Equal(t, service.BillingHoldStatusHeld, hold.Status)
+
+	_, err = billingRepo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   requestID,
+		APIKeyID:    apiKey.ID,
+		UserID:      user.ID,
+		AccountID:   account.ID,
+		AccountType: service.AccountTypeAPIKey,
+		BalanceCost: 0.01,
+	})
+	require.NoError(t, err)
+
+	var balance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
+	require.InDelta(t, 0.04, balance, 0.000001)
+}
+
+func TestUsageBillingRepositoryApply_ReleasesHoldForZeroCost(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	billingRepo := NewUsageBillingRepository(client, integrationDB)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-hold-zero-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.05,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-hold-zero-" + uuid.NewString(),
+		Name:   "billing-hold-zero",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: "usage-billing-hold-zero-account-" + uuid.NewString(),
+		Type: service.AccountTypeAPIKey,
+	})
+
+	requestID := uuid.NewString()
+	hold, err := holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKey.ID,
+		UserID:    user.ID,
+		Currency:  service.ModelPricingCurrencyUSD,
+		Amount:    0.01,
+	})
+	require.NoError(t, err)
+	require.Equal(t, service.BillingHoldStatusHeld, hold.Status)
+
+	_, err = billingRepo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   requestID,
+		APIKeyID:    apiKey.ID,
+		UserID:      user.ID,
+		AccountID:   account.ID,
+		AccountType: service.AccountTypeAPIKey,
+		BalanceCost: 0,
+	})
+	require.NoError(t, err)
+
+	var balance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
+	require.InDelta(t, 0.05, balance, 0.000001)
+
+	var status string
+	var actual float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT status, actual_amount FROM billing_request_holds WHERE request_id = $1 AND api_key_id = $2", requestID, apiKey.ID).Scan(&status, &actual))
+	require.Equal(t, string(service.BillingHoldStatusSettled), status)
+	require.InDelta(t, 0, actual, 0.000001)
+}
+
+func TestBillingHoldRepositoryReleaseRefundsHeldAmount(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("billing-hold-release-refund-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.05,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-billing-hold-release-refund-" + uuid.NewString(),
+		Name:   "billing-hold-release-refund",
+	})
+
+	requestID := uuid.NewString()
+	hold, err := holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKey.ID,
+		UserID:    user.ID,
+		Currency:  service.ModelPricingCurrencyUSD,
+		Amount:    0.01,
+	})
+	require.NoError(t, err)
+	require.Equal(t, service.BillingHoldStatusHeld, hold.Status)
+
+	released, err := holdRepo.Release(ctx, requestID, apiKey.ID)
+	require.NoError(t, err)
+	require.Equal(t, service.BillingHoldStatusReleased, released.Status)
+
+	var balance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
+	require.InDelta(t, 0.05, balance, 0.000001)
+}
+
+func TestUsageBillingRepositoryApply_BackfillsEmptyHoldFingerprint(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	billingRepo := NewUsageBillingRepository(client, integrationDB)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-hold-empty-fp-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.05,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-hold-empty-fp-" + uuid.NewString(),
+		Name:   "billing-hold-empty-fp",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: "usage-billing-hold-empty-fp-account-" + uuid.NewString(),
+		Type: service.AccountTypeAPIKey,
+	})
+
+	requestID := uuid.NewString()
+	hold, err := holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKey.ID,
+		UserID:    user.ID,
+		Currency:  service.ModelPricingCurrencyUSD,
+		Amount:    0.01,
+	})
+	require.NoError(t, err)
+	require.Equal(t, service.BillingHoldStatusHeld, hold.Status)
+	require.Empty(t, hold.RequestFingerprint)
+
+	_, err = billingRepo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:          requestID,
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		AccountID:          account.ID,
+		AccountType:        service.AccountTypeAPIKey,
+		RequestPayloadHash: "payload-hash-late",
+		BalanceCost:        0.02,
+	})
+	require.NoError(t, err)
+
+	var fingerprint string
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT COALESCE(request_fingerprint, '') FROM billing_request_holds WHERE request_id = $1 AND api_key_id = $2", requestID, apiKey.ID).Scan(&fingerprint))
+	require.Equal(t, "payload-hash-late", fingerprint)
+}
+
+func TestUsageBillingRepositoryApply_DebitsWhenBillingHoldAlreadyReleased(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	billingRepo := NewUsageBillingRepository(client, integrationDB)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-released-hold-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.05,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-released-hold-" + uuid.NewString(),
+		Name:   "released-hold",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: "usage-billing-released-hold-account-" + uuid.NewString(),
+		Type: service.AccountTypeAPIKey,
+	})
+
+	requestID := uuid.NewString()
+	hold, err := holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKey.ID,
+		UserID:    user.ID,
+		Currency:  service.ModelPricingCurrencyUSD,
+		Amount:    0.01,
+	})
+	require.NoError(t, err)
+	require.Equal(t, service.BillingHoldStatusHeld, hold.Status)
+	_, err = holdRepo.Release(ctx, requestID, apiKey.ID)
+	require.NoError(t, err)
+
+	_, err = billingRepo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   requestID,
+		APIKeyID:    apiKey.ID,
+		UserID:      user.ID,
+		AccountID:   account.ID,
+		AccountType: service.AccountTypeAPIKey,
+		BalanceCost: 0.03,
+	})
+	require.NoError(t, err)
+
+	var balance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
+	require.InDelta(t, 0.02, balance, 0.000001)
+
+	var status string
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT status FROM billing_request_holds WHERE request_id = $1 AND api_key_id = $2", requestID, apiKey.ID).Scan(&status))
+	require.Equal(t, string(service.BillingHoldStatusReleased), status)
+}
+
+func TestBillingHoldRepositoryReserve_RejectsFinishedHoldReplay(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("billing-hold-replay-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.05,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-billing-hold-replay-" + uuid.NewString(),
+		Name:   "billing-hold-replay",
+	})
+
+	requestID := uuid.NewString()
+	hold, err := holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKey.ID,
+		UserID:    user.ID,
+		Currency:  service.ModelPricingCurrencyUSD,
+		Amount:    0.01,
+	})
+	require.NoError(t, err)
+	require.Equal(t, service.BillingHoldStatusHeld, hold.Status)
+	_, err = holdRepo.Release(ctx, requestID, apiKey.ID)
+	require.NoError(t, err)
+
+	_, err = holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKey.ID,
+		UserID:    user.ID,
+		Currency:  service.ModelPricingCurrencyUSD,
+		Amount:    0.01,
+	})
+	require.ErrorIs(t, err, service.ErrBillingHoldAlreadyFinished)
+}
+
+func TestBillingHoldRepositoryReserve_RejectsSameRequestDifferentFingerprint(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("billing-hold-fingerprint-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.05,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-billing-hold-fingerprint-" + uuid.NewString(),
+		Name:   "billing-hold-fingerprint",
+	})
+
+	requestID := uuid.NewString()
+	hold, err := holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID:          requestID,
+		RequestFingerprint: "payload-a",
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		Currency:           service.ModelPricingCurrencyUSD,
+		Amount:             0.01,
+	})
+	require.NoError(t, err)
+	require.Equal(t, service.BillingHoldStatusHeld, hold.Status)
+
+	_, err = holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID:          requestID,
+		RequestFingerprint: "payload-b",
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		Currency:           service.ModelPricingCurrencyUSD,
+		Amount:             0.01,
+	})
+	require.ErrorIs(t, err, service.ErrBillingRequestReplayed)
+}
+
+func TestUsageBillingRepositoryApply_RejectsHoldFingerprintMismatch(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	billingRepo := NewUsageBillingRepository(client, integrationDB)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-hold-fingerprint-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.05,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-hold-fingerprint-" + uuid.NewString(),
+		Name:   "usage-billing-hold-fingerprint",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: "usage-billing-hold-fingerprint-account-" + uuid.NewString(),
+		Type: service.AccountTypeAPIKey,
+	})
+
+	requestID := uuid.NewString()
+	_, err := holdRepo.Reserve(ctx, &service.BillingHold{
+		RequestID:          requestID,
+		RequestFingerprint: "payload-a",
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		Currency:           service.ModelPricingCurrencyUSD,
+		Amount:             0.01,
+	})
+	require.NoError(t, err)
+
+	_, err = billingRepo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:          requestID,
+		RequestPayloadHash: "payload-b",
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		AccountID:          account.ID,
+		AccountType:        service.AccountTypeAPIKey,
+		BalanceCost:        0.01,
+	})
+	require.ErrorIs(t, err, service.ErrBillingRequestReplayed)
+}
+
+func TestBillingHoldRepositoryReserve_AllowsOnlyCoveredConcurrentHolds(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	holdRepo := NewBillingHoldRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("billing-hold-concurrent-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.01,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-billing-hold-concurrent-" + uuid.NewString(),
+		Name:   "billing-hold-concurrent",
+	})
+
+	var successCount int64
+	var insufficientCount int64
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			hold, err := holdRepo.Reserve(ctx, &service.BillingHold{
+				RequestID: fmt.Sprintf("%s-%02d", uuid.NewString(), i),
+				APIKeyID:  apiKey.ID,
+				UserID:    user.ID,
+				Currency:  service.ModelPricingCurrencyUSD,
+				Amount:    0.01,
+			})
+			if err == nil && hold != nil && hold.Status == service.BillingHoldStatusHeld {
+				atomic.AddInt64(&successCount, 1)
+				return
+			}
+			if errors.Is(err, service.ErrInsufficientBalance) {
+				atomic.AddInt64(&insufficientCount, 1)
+				return
+			}
+			require.NoError(t, err)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	require.Equal(t, int64(1), successCount)
+	require.Equal(t, int64(19), insufficientCount)
+
+	var balance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
+	require.InDelta(t, 0, balance, 0.000001)
 }
 
 func TestUsageBillingRepositoryApply_DebitsCNYWallet(t *testing.T) {
@@ -185,6 +655,90 @@ func TestUsageBillingRepositoryApply_AutoFXForCNYDeficit(t *testing.T) {
 	}
 	require.NoError(t, rows.Err())
 	require.Equal(t, []string{"USD:fx_out", "CNY:fx_in", "CNY:usage_debit"}, entries)
+}
+
+func TestUsageBillingRepositoryApply_AccruesAffiliateUsageRebateWithFixedPointCap(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+
+	inviter := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-affiliate-inviter-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	invitee := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-affiliate-invitee-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: invitee.ID,
+		Key:    "sk-usage-affiliate-" + uuid.NewString(),
+		Name:   "usage-affiliate",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: "usage-affiliate-account-" + uuid.NewString(),
+		Type: service.AccountTypeAPIKey,
+	})
+
+	_, err := integrationDB.ExecContext(ctx, `
+		INSERT INTO user_affiliates (user_id, aff_code)
+		VALUES ($1, $2)
+	`, inviter.ID, "aff-"+uuid.NewString())
+	require.NoError(t, err)
+	_, err = integrationDB.ExecContext(ctx, `
+		INSERT INTO user_affiliates (user_id, aff_code, inviter_user_id, inviter_bound_at)
+		VALUES ($1, $2, $3, NOW())
+	`, invitee.ID, "aff-"+uuid.NewString(), inviter.ID)
+	require.NoError(t, err)
+	_, err = integrationDB.ExecContext(ctx, `
+		INSERT INTO settings (key, value, created_at, updated_at)
+		VALUES
+			($1, 'true', NOW(), NOW()),
+			($2, 'true', NOW(), NOW()),
+			($3, '33.33333333', NOW(), NOW()),
+			($4, '0.03', NOW(), NOW())
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+	`,
+		service.SettingKeyAffiliateEnabled,
+		service.SettingKeyAffiliateRebateOnUsageEnabled,
+		service.SettingKeyAffiliateRebateRate,
+		service.SettingKeyAffiliateRebatePerInviteeCap,
+	)
+	require.NoError(t, err)
+	_, err = integrationDB.ExecContext(ctx, `
+		INSERT INTO user_affiliate_ledger (inviter_user_id, invitee_user_id, event_type, amount, created_at)
+		VALUES ($1, $2, 'topup_accrue', 0.02, NOW())
+	`, inviter.ID, invitee.ID)
+	require.NoError(t, err)
+
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   "usage-affiliate-" + uuid.NewString(),
+		APIKeyID:    apiKey.ID,
+		UserID:      invitee.ID,
+		AccountID:   account.ID,
+		AccountType: service.AccountTypeAPIKey,
+		BalanceCost: 0.1 + 0.2,
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+
+	var amount, baseAmount, rebateBalance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		SELECT amount, base_amount
+		FROM user_affiliate_ledger
+		WHERE inviter_user_id = $1 AND invitee_user_id = $2 AND event_type = 'usage_accrue'
+	`, inviter.ID, invitee.ID).Scan(&amount, &baseAmount))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		SELECT rebate_balance
+		FROM user_affiliates
+		WHERE user_id = $1
+	`, inviter.ID).Scan(&rebateBalance))
+
+	require.InDelta(t, 0.01, amount, 0.00000001)
+	require.InDelta(t, 0.3, baseAmount, 0.00000001)
+	require.InDelta(t, 0.01, rebateBalance, 0.00000001)
 }
 
 func TestUsageBillingRepositoryApply_AutoFXFailsWhenUSDInsufficient(t *testing.T) {

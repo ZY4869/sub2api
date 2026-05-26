@@ -6,6 +6,7 @@ const (
 	openaiPlatformChatCompletionsURL = "https://api.openai.com/v1/chat/completions"
 	openaiPlatformImagesURL          = "https://api.openai.com/v1/images"
 	deepseekDefaultAPIBaseURL        = "https://api.deepseek.com"
+	openRouterDefaultAPIBaseURL      = "https://openrouter.ai/api/v1"
 )
 
 func isChatGPTOpenAIOAuthAccount(account *Account) bool {
@@ -130,6 +131,9 @@ func buildOpenAIChatCompletionsURLForPlatform(baseURL string, platform string) s
 		if platform == PlatformDeepSeek {
 			return buildDeepSeekOpenAITextURL("", "/chat/completions", false)
 		}
+		if platform == PlatformOpenRouter {
+			return openRouterDefaultAPIBaseURL + "/chat/completions"
+		}
 		return openaiPlatformChatCompletionsURL
 	}
 	if strings.HasSuffix(normalized, "/chat/completions") {
@@ -221,6 +225,9 @@ func buildOpenAIModelsURLForPlatform(baseURL string, platform string) string {
 		if platform == PlatformDeepSeek {
 			return deepseekDefaultAPIBaseURL + "/models"
 		}
+		if platform == PlatformOpenRouter {
+			return openRouterDefaultAPIBaseURL + "/models"
+		}
 		return openAIModelsURL
 	}
 	if strings.HasSuffix(normalized, "/models") {
@@ -247,6 +254,9 @@ func resolveOpenAICompatibleBaseURL(account *Account) string {
 	}
 	if account.Platform == PlatformDeepSeek {
 		return account.GetDeepSeekBaseURL()
+	}
+	if account.Platform == PlatformOpenRouter {
+		return account.GetOpenRouterBaseURL()
 	}
 	return account.GetOpenAIBaseURL()
 }

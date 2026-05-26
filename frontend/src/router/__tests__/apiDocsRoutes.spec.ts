@@ -44,6 +44,18 @@ describe('api docs routes', () => {
     expect(adminRoute.meta.titleKey).toBe('admin.apiDocs.title')
   })
 
+  it('registers OpenRouter docs routes', () => {
+    const userRoute = router.resolve('/api-docs/openrouter')
+    const adminRoute = router.resolve('/admin/api-docs/openrouter')
+    const missingRoute = router.resolve('/api-docs/not-a-docs-page')
+
+    expect(userRoute.name).toBe('ApiDocs')
+    expect(userRoute.params.pageId).toBe('openrouter')
+    expect(adminRoute.name).toBe('AdminApiDocs')
+    expect(adminRoute.params.pageId).toBe('openrouter')
+    expect(missingRoute.name).not.toBe('ApiDocs')
+  })
+
   it('keeps limited and blacklist pages nested under the accounts parent layout', () => {
     const limitedRoute = router.resolve('/admin/accounts/limited')
     const blacklistRoute = router.resolve('/admin/accounts/blacklist')

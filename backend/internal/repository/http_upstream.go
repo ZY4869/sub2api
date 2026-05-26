@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -14,12 +15,15 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/hostexceptions"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/netguard"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/proxyurl"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/proxyutil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/Wei-Shaw/sub2api/internal/service"
-	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 )
+
+type upstreamRequestSchemeContextKey struct{}
 
 // 默认配置常量
 // 这些值在配置文件未指定时作为回退默认值使用
@@ -57,6 +61,9 @@ type poolSettings struct {
 	maxConnsPerHost       int           // 每主机最大连接数（含活跃）
 	idleConnTimeout       time.Duration // 空闲连接超时时间
 	responseHeaderTimeout time.Duration // 等待响应头超时时间
+	validateResolvedIP    bool          // 拨号前校验解析后的 IP
+	allowPrivateHosts     bool          // 是否允许私网/本机解析结果
+	privateHostConfig     *config.Config
 }
 
 // upstreamClientEntry 上游客户端缓存条目
@@ -135,6 +142,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 	}
 
 	// 执行请求
+	req = withUpstreamRequestScheme(req)
 	resp, err := entry.client.Do(req)
 	if err != nil {
 		// 请求失败，立即减少计数
@@ -191,6 +199,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 	}
 
 	// 执行请求
+	req = withUpstreamRequestScheme(req)
 	resp, err := entry.client.Do(req)
 	if err != nil {
 		// 请求失败，立即减少计数
@@ -319,10 +328,7 @@ func buildTLSProfileKey(profile *tlsfingerprint.Profile) string {
 
 func (s *httpUpstreamService) shouldValidateResolvedIP() bool {
 	if s.cfg == nil {
-		return false
-	}
-	if !s.cfg.Security.URLAllowlist.Enabled {
-		return false
+		return true
 	}
 	return !s.cfg.Security.URLAllowlist.AllowPrivateHosts
 }
@@ -338,10 +344,16 @@ func (s *httpUpstreamService) validateRequestHost(req *http.Request) error {
 	if host == "" {
 		return errors.New("request host is empty")
 	}
-	if err := urlvalidator.ValidateResolvedIP(host); err != nil {
-		return err
+	port := hostexceptions.PortForURL(req.URL)
+	return hostexceptions.ValidateResolvedHost(req.Context(), s.cfg, hostexceptions.ScopeUpstreamBaseURL, req.URL.Scheme, host, port)
+}
+
+func withUpstreamRequestScheme(req *http.Request) *http.Request {
+	if req == nil || req.URL == nil || strings.TrimSpace(req.URL.Scheme) == "" {
+		return req
 	}
-	return nil
+	ctx := context.WithValue(req.Context(), upstreamRequestSchemeContextKey{}, strings.ToLower(strings.TrimSpace(req.URL.Scheme)))
+	return req.WithContext(ctx)
 }
 
 func (s *httpUpstreamService) redirectChecker(req *http.Request, via []*http.Request) error {
@@ -615,6 +627,11 @@ func (s *httpUpstreamService) clientIdleTTL() time.Duration {
 //   - 这确保了单账户不会占用过多连接资源
 func (s *httpUpstreamService) resolvePoolSettings(isolation string, accountConcurrency int) poolSettings {
 	settings := defaultPoolSettings(s.cfg)
+	settings.validateResolvedIP = s.shouldValidateResolvedIP()
+	if s.cfg != nil {
+		settings.allowPrivateHosts = s.cfg.Security.URLAllowlist.AllowPrivateHosts
+		settings.privateHostConfig = s.cfg
+	}
 	// 账户隔离模式下，根据账户并发数调整连接池大小
 	if (isolation == config.ConnectionPoolIsolationAccount || isolation == config.ConnectionPoolIsolationAccountProxy) && accountConcurrency > 0 {
 		settings.maxIdleConns = accountConcurrency
@@ -634,12 +651,19 @@ func (s *httpUpstreamService) resolvePoolSettings(isolation string, accountConcu
 // 返回:
 //   - string: 配置键
 func (s *httpUpstreamService) buildPoolKey(isolation string, accountConcurrency int) string {
+	ssrfKey := "ssrf:true:false"
+	if s.cfg != nil {
+		ssrfKey = fmt.Sprintf("ssrf:%t:%t|%s",
+			!s.cfg.Security.URLAllowlist.AllowPrivateHosts,
+			s.cfg.Security.URLAllowlist.AllowPrivateHosts,
+			hostexceptions.Key(s.cfg))
+	}
 	if isolation == config.ConnectionPoolIsolationAccount || isolation == config.ConnectionPoolIsolationAccountProxy {
 		if accountConcurrency > 0 {
-			return fmt.Sprintf("account:%d", accountConcurrency)
+			return fmt.Sprintf("account:%d|%s", accountConcurrency, ssrfKey)
 		}
 	}
-	return "default"
+	return "default|" + ssrfKey
 }
 
 // buildCacheKey 构建客户端缓存键
@@ -769,14 +793,18 @@ func defaultPoolSettings(cfg *config.Config) poolSettings {
 //   - IdleConnTimeout: 空闲连接超时（超时后关闭）
 //   - ResponseHeaderTimeout: 等待响应头超时（不影响流式传输）
 func buildUpstreamTransport(settings poolSettings, proxyURL *url.URL) (*http.Transport, error) {
+	baseDialer := &net.Dialer{}
+	targetDialer := newUpstreamGuardedDialer(settings, baseDialer, hostexceptions.ScopeUpstreamBaseURL, "")
+	proxyDialer := newUpstreamGuardedDialer(settings, baseDialer, hostexceptions.ScopeProxyHost, proxyScheme(proxyURL))
 	transport := &http.Transport{
+		DialContext:           targetDialer.DialContext,
 		MaxIdleConns:          settings.maxIdleConns,
 		MaxIdleConnsPerHost:   settings.maxIdleConnsPerHost,
 		MaxConnsPerHost:       settings.maxConnsPerHost,
 		IdleConnTimeout:       settings.idleConnTimeout,
 		ResponseHeaderTimeout: settings.responseHeaderTimeout,
 	}
-	if err := proxyutil.ConfigureTransportProxy(transport, proxyURL); err != nil {
+	if err := proxyutil.ConfigureTransportProxyWithDialer(transport, proxyURL, proxyDialer); err != nil {
 		return nil, err
 	}
 	return transport, nil
@@ -799,6 +827,9 @@ func buildUpstreamTransport(settings poolSettings, proxyURL *url.URL) (*http.Tra
 //   - http/https: HTTP 代理，使用 HTTPProxyDialer（CONNECT 隧道 + utls 握手）
 //   - socks5: SOCKS5 代理，使用 SOCKS5ProxyDialer（SOCKS5 隧道 + utls 握手）
 func buildUpstreamTransportWithTLSFingerprint(settings poolSettings, proxyURL *url.URL, profile *tlsfingerprint.Profile) (*http.Transport, error) {
+	baseDialer := &net.Dialer{}
+	targetDialer := newUpstreamGuardedDialer(settings, baseDialer, hostexceptions.ScopeUpstreamBaseURL, "")
+	proxyDialer := newUpstreamGuardedDialer(settings, baseDialer, hostexceptions.ScopeProxyHost, proxyScheme(proxyURL))
 	transport := &http.Transport{
 		MaxIdleConns:          settings.maxIdleConns,
 		MaxIdleConnsPerHost:   settings.maxIdleConnsPerHost,
@@ -813,7 +844,7 @@ func buildUpstreamTransportWithTLSFingerprint(settings poolSettings, proxyURL *u
 	if proxyURL == nil {
 		// 直连：使用 TLSFingerprintDialer
 		slog.Debug("tls_fingerprint_transport_direct")
-		dialer := tlsfingerprint.NewDialer(profile, nil)
+		dialer := tlsfingerprint.NewDialer(profile, targetDialer.DialContext)
 		transport.DialTLSContext = dialer.DialTLSContext
 	} else {
 		scheme := strings.ToLower(proxyURL.Scheme)
@@ -821,23 +852,51 @@ func buildUpstreamTransportWithTLSFingerprint(settings poolSettings, proxyURL *u
 		case "socks5", "socks5h":
 			// SOCKS5 代理：使用 SOCKS5ProxyDialer
 			slog.Debug("tls_fingerprint_transport_socks5", "proxy", proxyURL.Host)
-			socks5Dialer := tlsfingerprint.NewSOCKS5ProxyDialer(profile, proxyURL)
+			socks5Dialer := tlsfingerprint.NewSOCKS5ProxyDialerWithForwardDialer(profile, proxyURL, proxyDialer)
 			transport.DialTLSContext = socks5Dialer.DialTLSContext
 		case "http", "https":
 			// HTTP/HTTPS 代理：使用 HTTPProxyDialer（CONNECT 隧道）
 			slog.Debug("tls_fingerprint_transport_http_connect", "proxy", proxyURL.Host)
-			httpDialer := tlsfingerprint.NewHTTPProxyDialer(profile, proxyURL)
+			httpDialer := tlsfingerprint.NewHTTPProxyDialerWithBaseDialer(profile, proxyURL, proxyDialer.DialContext)
 			transport.DialTLSContext = httpDialer.DialTLSContext
 		default:
 			// 未知代理类型，回退到普通代理配置（无 TLS 指纹）
 			slog.Debug("tls_fingerprint_transport_unknown_scheme_fallback", "scheme", scheme)
-			if err := proxyutil.ConfigureTransportProxy(transport, proxyURL); err != nil {
+			if err := proxyutil.ConfigureTransportProxyWithDialer(transport, proxyURL, proxyDialer); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	return transport, nil
+}
+
+func newUpstreamGuardedDialer(settings poolSettings, base *net.Dialer, scope, scheme string) *netguard.Dialer {
+	return netguard.NewDialer(netguard.Options{
+		Base:               base,
+		ValidateResolvedIP: settings.validateResolvedIP,
+		AllowPrivateHosts:  settings.allowPrivateHosts,
+		AllowResolvedIPWithContext: func(ctx context.Context, host string, port int, ip net.IP) bool {
+			effectiveScheme := scheme
+			if effectiveScheme == "" {
+				if value, _ := ctx.Value(upstreamRequestSchemeContextKey{}).(string); strings.TrimSpace(value) != "" {
+					effectiveScheme = strings.TrimSpace(value)
+				}
+			}
+			match, ok := hostexceptions.IsResolvedIPAllowed(settings.privateHostConfig, scope, effectiveScheme, host, port, ip)
+			if ok {
+				hostexceptions.LogMatch(nil, match)
+			}
+			return ok
+		},
+	})
+}
+
+func proxyScheme(proxyURL *url.URL) string {
+	if proxyURL == nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(proxyURL.Scheme))
 }
 
 // trackedBody 带跟踪功能的响应体包装器

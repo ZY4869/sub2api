@@ -34,7 +34,11 @@ func ProvideGitHubReleaseClient(cfg *config.Config) service.GitHubReleaseClient 
 // ProvidePricingRemoteClient 创建定价数据远程客户端
 // 从配置中读取代理设置，支持国内服务器通过代理访问 GitHub 上的定价数据
 func ProvidePricingRemoteClient(cfg *config.Config) service.PricingRemoteClient {
-	return NewPricingRemoteClient(cfg.Update.ProxyURL, cfg.Security.ProxyFallback.AllowDirectOnError)
+	return NewPricingRemoteClientWithSecurity(
+		cfg.Update.ProxyURL,
+		cfg.Security.ProxyFallback.AllowDirectOnError,
+		cfg.Security.URLAllowlist.AllowPrivateHosts,
+	)
 }
 
 // ProvideSessionLimitCache 创建会话限制缓存

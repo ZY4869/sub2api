@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"fmt"
+
 	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 
@@ -75,6 +77,17 @@ func (User) Fields() []ent.Field {
 		field.String("usage_context_badge_display_mode").
 			MaxLen(32).
 			Default("request_only"),
+		field.String("api_key_model_binding_mode").
+			MaxLen(32).
+			Default("model_required").
+			Validate(func(value string) error {
+				switch value {
+				case "model_required", "group_allowed":
+					return nil
+				default:
+					return fmt.Errorf("invalid api key model binding mode %q", value)
+				}
+			}),
 		field.String("totp_secret_encrypted").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Optional().

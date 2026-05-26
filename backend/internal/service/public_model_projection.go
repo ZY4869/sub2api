@@ -44,24 +44,44 @@ func (s *GatewayService) ListGroupPublicModelProjection(
 		if account == nil || !account.IsSchedulable() {
 			continue
 		}
-		entries, err := s.publicModelEntriesForAccount(
-			ctx,
-			account,
-			APIKeyModelDisplayModeAliasOnly,
-			bindingPlatform,
-			modelPatterns,
-			account.GetModelMapping(),
-		)
-		if err != nil {
-			return nil, err
-		}
-		entries = s.filterPublicEntriesByActiveChannel(ctx, group.ID, bindingPlatform, entries)
-		for _, entry := range entries {
-			appendPublicModelProjectionEntry(projectionByID, entry)
+		for _, projectionPlatform := range groupProjectionPlatformsForAccount(bindingPlatform, account) {
+			accountForProjection := ResolveProtocolGatewayInboundAccount(account, projectionPlatform)
+			entries, err := s.publicModelEntriesForAccount(
+				ctx,
+				accountForProjection,
+				APIKeyModelDisplayModeAliasOnly,
+				projectionPlatform,
+				modelPatterns,
+				accountForProjection.GetModelMapping(),
+			)
+			if err != nil {
+				return nil, err
+			}
+			entries = s.filterPublicEntriesByActiveChannel(ctx, group.ID, projectionPlatform, entries)
+			for _, entry := range entries {
+				appendPublicModelProjectionEntry(projectionByID, entry)
+			}
 		}
 	}
 
 	return sortPublicModelProjectionEntries(projectionByID), nil
+}
+
+func groupProjectionPlatformsForAccount(groupPlatform string, account *Account) []string {
+	groupPlatform = strings.TrimSpace(strings.ToLower(groupPlatform))
+	if groupPlatform == "" || account == nil {
+		return nil
+	}
+	if groupPlatform != PlatformProtocolGateway {
+		if MatchesGroupPlatform(account, groupPlatform) {
+			return []string{groupPlatform}
+		}
+		return nil
+	}
+	if !IsProtocolGatewayAccount(account) {
+		return nil
+	}
+	return RoutingPlatformsForAccount(account)
 }
 
 func (s *GatewayService) ListActivePublicModelProjection(ctx context.Context) ([]PublicModelProjectionEntry, error) {

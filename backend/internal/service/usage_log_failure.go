@@ -178,7 +178,7 @@ func buildFailedUsageLogBase(
 		UserID:                   user.ID,
 		APIKeyID:                 apiKey.ID,
 		AccountID:                account.ID,
-		RequestID:                resolveUsageBillingRequestID(ctx, input.RequestID),
+		RequestID:                resolveUsageBillingRequestIDForAPIKey(ctx, input.RequestID, apiKey),
 		Model:                    strings.TrimSpace(input.Model),
 		RequestedModel:           strings.TrimSpace(input.Model),
 		UpstreamModel:            optionalNonEqualStringPtr(input.UpstreamModel, input.Model),

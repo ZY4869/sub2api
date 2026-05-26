@@ -90,7 +90,7 @@
         </span>
         <span class="h-[3px] w-[3px] shrink-0 rounded-full" :class="dotClass"></span>
         <span
-          class="inline-flex shrink-0 items-center rounded border px-[5px] py-[1.5px] text-[8.5px] font-black uppercase leading-none tracking-wider"
+          class="inline-flex shrink-0 items-center rounded border px-[5px] py-[1.5px] text-[8.5px] font-black leading-none tracking-wider"
           :class="badgeClass"
         >
           {{ platformBadgeLabel }}
@@ -106,24 +106,13 @@ import { useI18n } from 'vue-i18n'
 import type { Account } from '@/types'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
+import { getPlatformEnglishName } from '@/utils/platformBranding'
 
 const props = defineProps<{
   account: Account
 }>()
 
 const { t } = useI18n()
-
-const platformLabelMap: Record<string, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic',
-  gemini: 'Gemini',
-  grok: 'Grok',
-  antigravity: 'Antigravity',
-  deepseek: 'DeepSeek',
-  kiro: 'Kiro',
-  baidu_document_ai: 'Baidu',
-  protocol_gateway: 'Gateway',
-}
 
 const platformThemeMap: Record<string, {
   avatar: string
@@ -260,7 +249,7 @@ const accountIdentity = computed(() => {
 })
 const platformBadgeLabel = computed(() => {
   const key = String(resolvedPlatform.value || '').trim().toLowerCase()
-  return platformLabelMap[key] || key || 'Account'
+  return getPlatformEnglishName(key) || 'Account'
 })
 const fallbackPlatformLabel = computed(() => platformBadgeLabel.value.slice(0, 2).toUpperCase())
 const showHealthyDot = computed(() => {

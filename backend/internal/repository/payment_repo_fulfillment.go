@@ -12,7 +12,15 @@ import (
 
 func (r *paymentRepository) AddWalletBalance(ctx context.Context, userID int64, currency string, amount float64) error {
 	currency = service.NormalizePaymentCurrency(currency)
-	if currency == "" || amount == 0 {
+	normalized, err := service.NormalizeAndValidateBillingAmount(amount)
+	if err != nil {
+		return err
+	}
+	amountMoney, err := service.NewBillingMoneyFromFloat(normalized)
+	if err != nil {
+		return err
+	}
+	if currency == "" || amountMoney.IsZero() {
 		return nil
 	}
 	exec := paymentExec(ctx, r.db)
@@ -24,12 +32,12 @@ func (r *paymentRepository) AddWalletBalance(ctx context.Context, userID int64, 
 			return err
 		}
 		defer func() { _ = tx.Rollback() }()
-		if err := addWalletBalanceTx(ctx, tx, userID, currency, amount); err != nil {
+		if err := addWalletBalanceTx(ctx, tx, userID, currency, amountMoney); err != nil {
 			return err
 		}
 		return tx.Commit()
 	}
-	return addWalletBalanceTx(ctx, tx, userID, currency, amount)
+	return addWalletBalanceTx(ctx, tx, userID, currency, amountMoney)
 }
 
 func (r *paymentRepository) AssignOrExtendSubscription(ctx context.Context, input *service.AssignSubscriptionInput) error {
@@ -134,13 +142,13 @@ func assignOrExtendSubscriptionTx(ctx context.Context, exec sqlExecutor, input *
 	return err
 }
 
-func addWalletBalanceTx(ctx context.Context, exec sqlExecutor, userID int64, currency string, amount float64) error {
+func addWalletBalanceTx(ctx context.Context, exec sqlExecutor, userID int64, currency string, amountMoney service.BillingMoney) error {
 	if currency == service.ModelPricingCurrencyUSD {
 		result, err := exec.ExecContext(ctx, `
 			UPDATE users
 			SET balance = balance + $2, updated_at = NOW()
 			WHERE id = $1 AND deleted_at IS NULL
-		`, userID, amount)
+		`, userID, amountMoney.DBValue())
 		if err != nil {
 			return err
 		}
@@ -156,6 +164,6 @@ func addWalletBalanceTx(ctx context.Context, exec sqlExecutor, userID int64, cur
 		ON CONFLICT (user_id, currency) DO UPDATE
 		SET balance = billing_wallets.balance + EXCLUDED.balance,
 			updated_at = NOW()
-	`, userID, currency, amount)
+	`, userID, currency, amountMoney.DBValue())
 	return err
 }

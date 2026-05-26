@@ -107,6 +107,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(ctx context.Context, c *gin.
 	}
 	headers := make(http.Header)
 	headers.Set("authorization", "Bearer "+token)
+	applyOpenRouterAttributionRequestHeaders(account, headers)
 	sessionResolution := resolveOpenAIWSSessionHeaders(c, promptCacheKey)
 	apiKeyID := int64(0)
 	if isChatGPTOpenAIOAuthAccount(account) {

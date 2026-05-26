@@ -35,6 +35,8 @@ type stubAdminService struct {
 	blacklistErr         error
 	batchDeleteErr       error
 	backfillErr          error
+	validateProxyErr     error
+	createProxyErr       error
 	backfillRepo         service.AccountModelPolicyBackfillRepository
 	lastBackfillPageSize int
 	strictAccountLookup  bool
@@ -914,10 +916,17 @@ func (s *stubAdminService) GetProxiesByIDs(ctx context.Context, ids []int64) ([]
 	return out, nil
 }
 
+func (s *stubAdminService) ValidateProxyEndpoint(ctx context.Context, protocol, host string, port int) error {
+	return s.validateProxyErr
+}
+
 func (s *stubAdminService) CreateProxy(ctx context.Context, input *service.CreateProxyInput) (*service.Proxy, error) {
 	s.mu.Lock()
 	s.createdProxies = append(s.createdProxies, input)
 	s.mu.Unlock()
+	if s.createProxyErr != nil {
+		return nil, s.createProxyErr
+	}
 	proxy := service.Proxy{ID: 400, Name: input.Name, Status: service.StatusActive}
 	return &proxy, nil
 }

@@ -984,6 +984,7 @@ var (
 		{Name: "visual_preset_preference", Type: field.TypeString, Size: 32, Default: "inherit"},
 		{Name: "account_visual_preset_override", Type: field.TypeString, Size: 32, Default: "inherit"},
 		{Name: "usage_context_badge_display_mode", Type: field.TypeString, Size: 32, Default: "request_only"},
+		{Name: "api_key_model_binding_mode", Type: field.TypeString, Size: 32, Default: "model_required"},
 		{Name: "totp_secret_encrypted", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "totp_enabled", Type: field.TypeBool, Default: false},
 		{Name: "totp_enabled_at", Type: field.TypeTime, Nullable: true},

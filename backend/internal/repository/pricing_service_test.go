@@ -19,7 +19,7 @@ type PricingServiceSuite struct {
 
 func (s *PricingServiceSuite) SetupTest() {
 	s.ctx = context.Background()
-	client, ok := NewPricingRemoteClient("", false).(*pricingRemoteClient)
+	client, ok := NewPricingRemoteClientWithSecurity("", false, true).(*pricingRemoteClient)
 	require.True(s.T(), ok, "type assertion failed")
 	s.client = client
 }

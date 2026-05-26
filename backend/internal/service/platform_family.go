@@ -60,6 +60,8 @@ func DisplayPlatformName(platform string) string {
 		return "Grok"
 	case PlatformDeepSeek:
 		return "DeepSeek"
+	case PlatformOpenRouter:
+		return "OpenRouter"
 	case PlatformBaiduDocumentAI:
 		return "百度文档智能"
 	default:
@@ -93,6 +95,8 @@ func PlatformDisplayEnglishName(platform string) string {
 		return "Kiro"
 	case PlatformOpenAI:
 		return "OpenAI"
+	case PlatformOpenRouter:
+		return "OpenRouter"
 	case PlatformProtocolGateway:
 		return "Protocol Gateway"
 	default:

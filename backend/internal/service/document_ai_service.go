@@ -447,9 +447,11 @@ func (s *DocumentAIService) normalizeSubmitInput(input DocumentAISubmitJobInput)
 			return input, infraerrors.BadRequest("document_ai_invalid_request", "file exceeds document ai size limit")
 		}
 	case DocumentAISourceTypeFileURL:
-		if strings.TrimSpace(input.FileURL) == "" {
-			return input, infraerrors.BadRequest("document_ai_invalid_request", "file_url is required")
+		normalizedURL, err := validateDocumentAIUserFileURL(s.cfg, input.FileURL)
+		if err != nil {
+			return input, infraerrors.BadRequest("document_ai_invalid_request", "invalid file_url")
 		}
+		input.FileURL = normalizedURL
 	default:
 		return input, infraerrors.BadRequest("document_ai_invalid_request", "unsupported document ai source_type")
 	}

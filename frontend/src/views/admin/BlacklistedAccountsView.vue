@@ -18,6 +18,9 @@
               <button type="button" class="btn btn-primary" :disabled="selectedIds.length === 0 || submitting" @click="handleBatchRetest">
                 {{ t('admin.accounts.blacklist.batchRetest', { count: selectedIds.length }) }}
               </button>
+              <button type="button" class="btn btn-secondary" :disabled="selectedIds.length === 0 || submitting" @click="handleBatchRestore">
+                {{ t('admin.accounts.blacklist.batchRestore', { count: selectedIds.length }) }}
+              </button>
               <button type="button" class="btn btn-danger" :disabled="selectedIds.length === 0 || submitting" @click="handleBatchDelete">
                 {{ t('admin.accounts.blacklist.batchDelete', { count: selectedIds.length }) }}
               </button>
@@ -84,6 +87,9 @@
             <div class="flex items-center gap-2">
               <button type="button" class="btn btn-secondary btn-sm" :disabled="submitting" @click="handleSingleRetest(row.id)">
                 {{ t('admin.accounts.blacklist.retestSingle') }}
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" :disabled="submitting" @click="handleRestore(row.id, row.name)">
+                {{ t('admin.accounts.blacklist.restoreSingle') }}
               </button>
               <button type="button" class="btn btn-danger btn-sm" :disabled="submitting" @click="handleDelete(row.id, row.name)">
                 {{ t('admin.accounts.blacklist.deleteNow') }}
@@ -268,6 +274,61 @@ const handleRetestModalClose = () => {
 
 const handleRetestConfirm = async (payload: BlacklistRetestRequestPayload) => {
   await runRetest(payload)
+}
+
+const summarizeBatchRestore = (
+  result: Awaited<ReturnType<typeof adminAPI.accounts.restoreBlacklistedAccounts>>
+) => {
+  if (result.failed_count === 0) {
+    appStore.showSuccess(t('admin.accounts.blacklist.batchRestoreSuccess', { count: result.restored_count }))
+    return
+  }
+  if (result.restored_count > 0) {
+    appStore.showWarning(
+      t('admin.accounts.blacklist.batchRestorePartial', {
+        success: result.restored_count,
+        failed: result.failed_count
+      })
+    )
+    return
+  }
+  appStore.showError(t('admin.accounts.blacklist.batchRestoreFailed'))
+}
+
+const handleRestore = async (accountId: number, accountName: string) => {
+  if (!window.confirm(t('admin.accounts.blacklist.restoreConfirm', { name: accountName }))) {
+    return
+  }
+  submitting.value = true
+  try {
+    await adminAPI.accounts.restoreBlacklistedAccount(accountId)
+    appStore.showSuccess(t('admin.accounts.blacklist.restoreSuccess'))
+    await refreshBlacklistView()
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.blacklist.restoreFailed'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+const handleBatchRestore = async () => {
+  const accountIds = [...selectedIds.value]
+  if (accountIds.length === 0) {
+    return
+  }
+  if (!window.confirm(t('admin.accounts.blacklist.batchRestoreConfirm', { count: accountIds.length }))) {
+    return
+  }
+  submitting.value = true
+  try {
+    const result = await adminAPI.accounts.restoreBlacklistedAccounts({ ids: accountIds })
+    summarizeBatchRestore(result)
+    await refreshBlacklistView()
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.blacklist.batchRestoreFailed'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 const handleDelete = async (accountId: number, accountName: string) => {

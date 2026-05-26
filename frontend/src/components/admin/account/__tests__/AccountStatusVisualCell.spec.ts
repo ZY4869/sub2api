@@ -12,10 +12,22 @@ vi.mock('vue-i18n', async () => {
     ...actual,
     useI18n: () => ({
       t: (key: string, params?: Record<string, unknown>) => {
-        if (key === 'common.time.countdown.minutes') return `${params?.m}m`
-        if (key === 'common.time.countdown.hoursMinutes') return `${params?.h}h ${params?.m}m`
-        if (key === 'common.time.countdown.daysHours') return `${params?.d}d ${params?.h}h`
+        if (key === 'common.time.countdown.minutes') return `${params?.m}分钟`
+        if (key === 'common.time.countdown.hoursMinutes') return `${params?.h}小时 ${params?.m}分钟`
+        if (key === 'common.time.countdown.daysHours') return `${params?.d}天 ${params?.h}小时`
+        if (key === 'common.time.countdown.compact.hoursMinutes') return `${params?.h}小时${params?.m}分`
+        if (key === 'common.time.countdown.compact.minutesSeconds') return `${params?.m}分${params?.s}秒`
+        if (key === 'common.time.countdown.compact.seconds') return `${params?.s}秒`
         if (key === 'common.time.countdown.withSuffix') return `${params?.time} 后解除`
+        if (key === 'admin.accounts.status.visualAvailableTitle') return '可用'
+        if (key === 'admin.accounts.status.visualAvailableTag') return '可调度'
+        if (key === 'admin.accounts.status.visualBannedTitle') return '账号封禁'
+        if (key === 'admin.accounts.status.window5h') return '5小时'
+        if (key === 'admin.accounts.status.window7d') return '7天'
+        if (key === 'admin.accounts.status.issueSummaries.offline') return '连接上游或代理超时，请检查网络与代理配置。'
+        if (key === 'admin.accounts.status.issueSummaries.overdue') return '额度或账单已耗尽，请处理账单或充值后再恢复。'
+        if (key === 'admin.accounts.status.issueSummaries.error') return '账号状态异常，请打开详情或重新测试排查。'
+        if (key === 'admin.accounts.status.issueSummaries.credentials') return '凭证无效或已过期，请重新授权或更换凭证。'
         return key
       }
     })
@@ -78,7 +90,8 @@ describe('AccountStatusVisualCell', () => {
     const wrapper = mountVisual(makeAccount())
 
     expect(wrapper.get('[data-testid="account-status-visual-cell"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('admin.accounts.status.visualAvailableTitle')
+    expect(wrapper.text()).toContain('可用')
+    expect(wrapper.text()).toContain('可调度')
     expect(wrapper.find('[data-testid="account-status-visual-countdown"]').exists()).toBe(false)
   })
 
@@ -122,8 +135,18 @@ describe('AccountStatusVisualCell', () => {
     expect(usage5h.text()).toContain('admin.accounts.status.usage5hAutoResume')
     expect(usage7d.text()).toContain('admin.accounts.status.usage7d')
     expect(usage7d.text()).toContain('admin.accounts.status.usage7dAll')
-    expect(usage7d.text()).toContain('Codex 7d')
-    expect(usage7d.text()).toContain('Spark 7d')
+    expect(usage7d.text()).toContain('Codex 7天')
+    expect(usage7d.text()).toContain('Spark 7天')
+    expect(usage7d.text()).toContain('24小时0分')
+    expect(usage7d.text()).not.toContain('Codex 7d')
+    expect(usage7d.text()).not.toContain('Spark 7d')
+
+    const badgeContainer = usage7d.get('[data-test="account-limit-badges"]')
+    expect(badgeContainer.classes()).toContain('grid')
+    expect(badgeContainer.classes()).toContain('gap-2')
+    const badges = usage7d.findAll('[data-test="account-status-limit-badge"]')
+    expect(badges).toHaveLength(2)
+    expect(badges[0].find('span.inline-flex').classes()).toContain('w-full')
   })
 
   it('renders overload with 529 countdown and release copy', () => {
@@ -137,7 +160,7 @@ describe('AccountStatusVisualCell', () => {
     expect(wrapper.text()).toContain('admin.accounts.status.overloaded')
     expect(wrapper.text()).toContain('529')
     expect(wrapper.text()).toContain('admin.accounts.status.visualAfterRelease')
-    expect(wrapper.text()).toContain('20m 后解除')
+    expect(wrapper.text()).toContain('20分钟 后解除')
   })
 
   it('keeps temp unschedulable clickable', async () => {
@@ -163,14 +186,37 @@ describe('AccountStatusVisualCell', () => {
 
     expect(paused.text()).toContain('admin.accounts.status.visualPausedTitle')
     expect(errored.text()).toContain('admin.accounts.status.error')
-    expect(errored.find('.error-info-trigger').exists()).toBe(true)
+    expect(errored.text()).not.toContain('凭证无效或已过期，请重新授权或更换凭证。')
+    expect(errored.text()).not.toContain('Demo invalid credential state')
+    const trigger = errored.get('.error-info-trigger')
+    expect(trigger.exists()).toBe(true)
+
+    await trigger.trigger('mouseenter')
+
+    expect(document.body.textContent).toContain('凭证无效或已过期，请重新授权或更换凭证。')
+  })
+
+  it('renders Chinese issue summaries instead of upstream English details', () => {
+    const offline = mountVisual(makeAccount({
+      error_message: 'network timeout while connecting proxy',
+    }))
+    const overdue = mountVisual(makeAccount({
+      error_message: 'quota exhausted, payment required',
+    }))
+
+    expect(offline.text()).not.toContain('连接上游或代理超时，请检查网络与代理配置。')
+    expect(offline.text()).not.toContain('network timeout while connecting proxy')
+    expect(overdue.text()).not.toContain('额度或账单已耗尽，请处理账单或充值后再恢复。')
+    expect(overdue.text()).not.toContain('quota exhausted, payment required')
+    expect(offline.find('.error-info-trigger').exists()).toBe(true)
+    expect(overdue.find('.error-info-trigger').exists()).toBe(true)
   })
 
   it('covers the airy full status set from reliable reason signals', () => {
     const cases = [
       {
         account: makeAccount({ lifecycle_state: 'blacklisted' }),
-        expected: 'admin.accounts.status.visualBannedTitle',
+        expected: '账号封禁',
       },
       {
         account: makeAccount({ error_message: 'security locked due suspicious login' }),
@@ -206,7 +252,7 @@ describe('AccountStatusVisualCell', () => {
       },
       {
         account: makeAccount(),
-        expected: 'admin.accounts.status.visualAvailableTitle',
+        expected: '可用',
       },
     ]
 

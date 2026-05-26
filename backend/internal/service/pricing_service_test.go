@@ -21,6 +21,46 @@ func (pricingRemoteClientStub) FetchHashText(_ context.Context, _ string) (strin
 	return "", errors.New("remote hash unavailable")
 }
 
+func TestValidatePricingURLWhenAllowlistDisabledRejectsPrivateLiteral(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = false
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	svc := NewPricingService(cfg, pricingRemoteClientStub{})
+
+	_, err := svc.validatePricingURL("http://127.0.0.1/prices.json")
+	require.Error(t, err)
+}
+
+func TestValidatePricingURLWhenAllowlistDisabledAllowsPrivateByConfig(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = false
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	cfg.Security.URLAllowlist.AllowPrivateHosts = true
+	svc := NewPricingService(cfg, pricingRemoteClientStub{})
+
+	normalized, err := svc.validatePricingURL("http://127.0.0.1/prices.json")
+	require.NoError(t, err)
+	require.Equal(t, "http://127.0.0.1/prices.json", normalized)
+}
+
+func TestValidatePricingURLIgnoresPrivateHostExceptions(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = false
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	cfg.Security.URLAllowlist.PrivateHostExceptions = []config.PrivateHostExceptionConfig{
+		{
+			Scope:   PrivateHostExceptionScopeUpstreamBaseURL,
+			Hosts:   []string{"127.0.0.1"},
+			Ports:   []int{9000},
+			Schemes: []string{"http"},
+		},
+	}
+	svc := NewPricingService(cfg, pricingRemoteClientStub{})
+
+	_, err := svc.validatePricingURL("http://127.0.0.1:9000/prices.json")
+	require.Error(t, err)
+}
+
 func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	svc := &PricingService{}
 	body := []byte(`{

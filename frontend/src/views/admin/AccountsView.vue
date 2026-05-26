@@ -1040,13 +1040,19 @@ const allColumns = computed(() => {
       key: "capacity",
       label: t("admin.accounts.columns.capacity"),
       sortable: false,
-      class: "w-[120px] max-w-[120px]",
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[152px] min-w-[152px] max-w-[152px]"
+          : "w-[120px] max-w-[120px]",
     },
     {
       key: "status",
       label: t("admin.accounts.columns.status"),
       sortable: true,
-      class: "w-[240px] max-w-[240px]",
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[320px] min-w-[320px] max-w-[320px]"
+          : "w-[240px] max-w-[240px]",
     },
     {
       key: "schedulable",
@@ -1064,6 +1070,10 @@ const allColumns = computed(() => {
       key: "groups",
       label: t("admin.accounts.columns.groups"),
       sortable: false,
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[208px] min-w-[208px] max-w-[208px]"
+          : undefined,
     });
   }
   c.push(

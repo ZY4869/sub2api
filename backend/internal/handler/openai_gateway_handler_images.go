@@ -67,6 +67,19 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "model is required")
 		return
 	}
+	var publicCatalogEntry *service.PublishedPublicCatalogEntry
+	publicRequestModel := reqModel
+	runtimeRequestModel := reqModel
+	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), reqModel); resolveErr != nil {
+		reqLog.Warn("openai_images.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
+	} else if active && !matched {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+		return
+	} else if matched {
+		publicCatalogEntry = entry
+		runtimeRequestModel = service.NormalizeModelCatalogModelID(firstNonEmptyHandlerString(entry.SourceModelID, reqModel))
+		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))
+	}
 	setOpsRequestContext(c, reqModel, false, body)
 	reqLog = reqLog.With(zap.String("model", reqModel))
 	imageSizeTier := service.ResolveOpenAIImageSizeTier(service.DetectOpenAIImageRequestSize(body, c.GetHeader("Content-Type")))
@@ -123,7 +136,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 			h.billingCacheService,
 			apiKey,
 			subscription,
-			reqModel,
+			publicRequestModel,
 			openAICompatiblePlatforms,
 			excludedGroupIDs,
 		)
@@ -135,12 +148,13 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		if currentAPIKey.Group != nil {
 			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
 		}
-		selectionModel := reqModel
+		selectionModel := publicRequestModel
 		if currentAPIKey.Group != nil && service.NormalizeOpenAIGroupImageProtocolMode(currentAPIKey.Group.ImageProtocolMode) == service.OpenAIImageProtocolModeCompat {
 			selectionModel = service.OpenAICompatImageTargetModel
 		}
 		runtimeSelectionModel, _, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, selectionModel)
 		if err != nil {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
 				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel")
 				return
@@ -151,6 +165,9 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 			}
 			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing")
 			return
+		}
+		if publicCatalogEntry != nil {
+			runtimeSelectionModel = runtimeRequestModel
 		}
 
 		selection, _, err := h.gatewayService.SelectAccountWithScheduler(
@@ -164,8 +181,10 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		)
 		if err != nil || selection == nil || selection.Account == nil {
 			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+				releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				continue
 			}
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", false)
 			return
 		}
@@ -173,6 +192,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		account := selection.Account
 		imageProtocolMode := service.ResolveEffectiveOpenAIImageProtocolMode(currentAPIKey.Group, account)
 		if imageProtocolMode == service.OpenAIImageProtocolModeCompat && !service.IsOpenAIImageCompatAllowed(account) {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "image_compat_not_allowed", "This account does not allow compat image generation")
 			return
 		}
@@ -181,7 +201,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 			action,
 			imageProtocolMode,
 			reqModel,
-			reqModel,
+			runtimeRequestModel,
 			imageSizeTier,
 			c.GetHeader("Content-Type"),
 		)
@@ -189,6 +209,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeSync)
 		accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, false, &streamStarted, reqLog)
 		if !acquired {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			return
 		}
 		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
@@ -221,6 +242,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 			var requestErr *service.OpenAIImageRequestError
 			if errors.As(err, &failoverErr) {
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+					releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					continue
 				}
 				h.submitFailedUsageRecordTask(
@@ -311,6 +333,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 			clientIP := ip.GetTrustedClientIP(c)
 			requestPayloadHash := service.HashUsageRequestPayload(body)
 			h.submitUsageRecordTask(func(ctx context.Context) {
+				ctx = service.AttachPublishedPublicCatalogEntry(ctx, publicCatalogEntry)
 				_ = h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 					Result:             result,
 					APIKey:             currentAPIKey,

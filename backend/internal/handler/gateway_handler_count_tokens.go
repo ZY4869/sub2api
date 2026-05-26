@@ -53,6 +53,18 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 	c.Request = c.Request.WithContext(service.EnsureRequestMetadata(c.Request.Context()))
 	service.RecordClaudeCapabilityMetadata(c.Request.Context(), parsedReq.Capability)
 	h.resolveParsedRequestModel(c.Request.Context(), parsedReq)
+	publicRequestModel := parsedReq.Model
+	var publicCatalogEntry *service.PublishedPublicCatalogEntry
+	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, "", publicRequestModel); resolveErr != nil {
+		reqLog.Warn("gateway.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
+	} else if active && !matched {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+		return
+	} else if matched {
+		publicCatalogEntry = entry
+		ctx := service.ApplyPublicCatalogEntryToParsedRequest(c.Request.Context(), parsedReq, entry)
+		c.Request = c.Request.WithContext(ctx)
+	}
 	SetClaudeCodeClientContext(c, body, parsedReq)
 	reqLog = reqLog.With(zap.String("model", parsedReq.Model), zap.Bool("stream", parsedReq.Stream))
 	c.Request = c.Request.WithContext(service.WithThinkingEnabled(c.Request.Context(), parsedReq.ThinkingEnabled, h.metadataBridgeEnabled()))
@@ -61,14 +73,23 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		return
 	}
 	setOpsRequestContext(c, parsedReq.Model, parsedReq.Stream, body)
-	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, "", parsedReq.Model)
+	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, "", publicRequestModel)
+	if selectionModel == "" {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+		return
+	}
+	bindingSelectionModel := selectionModel
+	if publicCatalogEntry != nil {
+		bindingSelectionModel = publicRequestModel
+	}
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
 		status, code, message := billingErrorDetails(err)
 		h.errorResponse(c, status, code, message)
 		return
 	}
-	selectionModel, _, err = bindGatewayChannelState(c, h.gatewayService, apiKey.Group, selectionModel)
+	defer releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, apiKey)
+	channelSelectionModel, _, err := bindGatewayChannelState(c, h.gatewayService, apiKey.Group, bindingSelectionModel)
 	if err != nil {
 		if errors.Is(err, service.ErrChannelModelNotAllowed) {
 			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel")
@@ -80,6 +101,9 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		}
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing")
 		return
+	}
+	if publicCatalogEntry == nil {
+		selectionModel = channelSelectionModel
 	}
 	parsedReq.SessionContext = &service.SessionContext{ClientIP: ip.GetTrustedClientIP(c), UserAgent: c.GetHeader("User-Agent"), APIKeyID: apiKey.ID}
 	sessionHash := h.gatewayService.GenerateSessionHash(parsedReq)

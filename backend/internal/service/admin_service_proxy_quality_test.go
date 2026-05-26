@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,4 +93,49 @@ func TestRunProxyQualityTarget_AllowedStatusWarnForUnauthorized(t *testing.T) {
 	require.Equal(t, "warn", item.Status)
 	require.Equal(t, http.StatusUnauthorized, item.HTTPStatus)
 	require.Contains(t, item.Message, "目标可达")
+}
+
+func TestProxyQualityHTTPClientRejectsPrivateResolvedTarget(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Fatal("private target should be rejected before request reaches server")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client, err := newProxyQualityHTTPClient(&config.Config{}, "")
+	require.NoError(t, err)
+
+	item := runProxyQualityTarget(context.Background(), client, proxyQualityTarget{
+		Target:          "private-target",
+		URL:             server.URL,
+		Method:          http.MethodGet,
+		AllowedStatuses: map[int]struct{}{http.StatusOK: {}},
+	})
+
+	require.Equal(t, "fail", item.Status)
+	require.Equal(t, 0, item.HTTPStatus)
+	require.Equal(t, "proxy quality target request failed", item.Message)
+	require.GreaterOrEqual(t, item.LatencyMs, int64(0))
+}
+
+func TestProxyQualityHTTPClientAllowsPrivateTargetWhenConfigured(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.AllowPrivateHosts = true
+	client, err := newProxyQualityHTTPClient(cfg, "")
+	require.NoError(t, err)
+
+	item := runProxyQualityTarget(context.Background(), client, proxyQualityTarget{
+		Target:          "private-target",
+		URL:             server.URL,
+		Method:          http.MethodGet,
+		AllowedStatuses: map[int]struct{}{http.StatusOK: {}},
+	})
+
+	require.Equal(t, "pass", item.Status)
+	require.Equal(t, http.StatusOK, item.HTTPStatus)
 }

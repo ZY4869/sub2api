@@ -90,6 +90,37 @@ describe('AccountUsageVisualCell', () => {
     expect(wrapper.find('[data-testid="account-usage-visual-cell"]').exists()).toBe(true)
   })
 
+  it('shows only the 7d track for OpenAI Free accounts', async () => {
+    const wrapper = mount(AccountUsageVisualCell, {
+      props: {
+        account: {
+          id: 90,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: {
+            plan_type: 'free',
+          },
+          extra: {
+            codex_5h_used_percent: 44,
+            codex_5h_reset_at: '2026-05-22T17:00:00Z',
+            codex_7d_used_percent: 12,
+            codex_7d_reset_at: '2026-05-29T12:00:00Z',
+            codex_usage_updated_at: '2026-05-22T12:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        plugins: [createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('5h')
+    expect(wrapper.text()).toContain('7d')
+    expect(wrapper.text()).toContain('12%')
+  })
+
   it('follows the shared remaining display mode', async () => {
     useAccountUsageDisplayMode().setAccountUsageDisplayMode('remaining')
     getUsage.mockResolvedValue({

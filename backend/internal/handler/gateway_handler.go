@@ -2,7 +2,9 @@ package handler
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 	"sync/atomic"
 	"time"
 )
@@ -60,6 +62,18 @@ func (h *GatewayHandler) SetModelRegistryService(modelRegistryService *service.M
 func (h *GatewayHandler) SetContentModerationService(contentModerationService *service.ContentModerationService) {
 	h.contentModerationService = contentModerationService
 }
+
+func (h *GatewayHandler) HasMultipleUsableGroups(c *gin.Context) bool {
+	if h == nil || c == nil || c.Request == nil {
+		return false
+	}
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	if !ok {
+		return false
+	}
+	return multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService)
+}
+
 func cloneAPIKeyWithGroup(apiKey *service.APIKey, group *service.Group) *service.APIKey {
 	if apiKey == nil || group == nil {
 		return apiKey

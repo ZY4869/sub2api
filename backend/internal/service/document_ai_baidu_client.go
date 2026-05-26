@@ -13,7 +13,6 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/tidwall/gjson"
 )
 
@@ -375,7 +374,7 @@ func (c *baiduDocumentAIClient) buildAsyncMultipartRequest(ctx context.Context, 
 }
 
 func (c *baiduDocumentAIClient) buildAsyncFileURLRequest(ctx context.Context, endpoint, token, providerModelID string, input DocumentAISubmitJobInput) (*http.Request, error) {
-	validatedURL, err := urlvalidator.ValidateHTTPURL(strings.TrimSpace(input.FileURL), false, urlvalidator.ValidationOptions{})
+	validatedURL, err := validateDocumentAIUserFileURL(c.cfg, input.FileURL)
 	if err != nil {
 		return nil, infraerrors.BadRequest("document_ai_invalid_request", "invalid file_url").WithMetadata(map[string]string{
 			"provider_message": err.Error(),

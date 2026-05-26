@@ -1165,8 +1165,28 @@ func init() {
 	user.DefaultUsageContextBadgeDisplayMode = userDescUsageContextBadgeDisplayMode.Default.(string)
 	// user.UsageContextBadgeDisplayModeValidator is a validator for the "usage_context_badge_display_mode" field. It is called by the builders before save.
 	user.UsageContextBadgeDisplayModeValidator = userDescUsageContextBadgeDisplayMode.Validators[0].(func(string) error)
+	// userDescAPIKeyModelBindingMode is the schema descriptor for api_key_model_binding_mode field.
+	userDescAPIKeyModelBindingMode := userFields[16].Descriptor()
+	// user.DefaultAPIKeyModelBindingMode holds the default value on creation for the api_key_model_binding_mode field.
+	user.DefaultAPIKeyModelBindingMode = userDescAPIKeyModelBindingMode.Default.(string)
+	// user.APIKeyModelBindingModeValidator is a validator for the "api_key_model_binding_mode" field. It is called by the builders before save.
+	user.APIKeyModelBindingModeValidator = func() func(string) error {
+		validators := userDescAPIKeyModelBindingMode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(api_key_model_binding_mode string) error {
+			for _, fn := range fns {
+				if err := fn(api_key_model_binding_mode); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
-	userDescTotpEnabled := userFields[17].Descriptor()
+	userDescTotpEnabled := userFields[18].Descriptor()
 	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
 	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()

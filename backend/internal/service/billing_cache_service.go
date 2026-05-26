@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -87,6 +88,8 @@ type BillingCacheService struct {
 	userRepo              UserRepository
 	subRepo               UserSubscriptionRepository
 	apiKeyRateLimitLoader apiKeyRateLimitLoader
+	billingHoldRepo       BillingHoldRepository
+	authCacheInvalidator  APIKeyAuthCacheInvalidator
 	cfg                   *config.Config
 	circuitBreaker        *billingCircuitBreaker
 
@@ -112,9 +115,21 @@ func NewBillingCacheService(cache BillingCache, userRepo UserRepository, subRepo
 		apiKeyRateLimitLoader: apiKeyRepo,
 		cfg:                   cfg,
 	}
-	svc.circuitBreaker = newBillingCircuitBreaker(cfg.Billing.CircuitBreaker)
+	if provider, ok := apiKeyRepo.(billingHoldRepositoryProvider); ok {
+		svc.billingHoldRepo = provider.BillingHoldRepository()
+	}
+	if cfg != nil {
+		svc.circuitBreaker = newBillingCircuitBreaker(cfg.Billing.CircuitBreaker)
+	}
 	svc.startCacheWriteWorkers()
 	return svc
+}
+
+func (s *BillingCacheService) SetAuthCacheInvalidator(invalidator APIKeyAuthCacheInvalidator) {
+	if s == nil {
+		return
+	}
+	s.authCacheInvalidator = invalidator
 }
 
 // Stop 关闭缓存写入工作池
@@ -313,6 +328,9 @@ func (s *BillingCacheService) GetUserBalance(ctx context.Context, userID int64) 
 
 // getUserBalanceFromDB 从数据库获取用户余额
 func (s *BillingCacheService) getUserBalanceFromDB(ctx context.Context, userID int64) (float64, error) {
+	if s == nil || s.userRepo == nil {
+		return 0, ErrBillingServiceUnavailable
+	}
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return 0, fmt.Errorf("get user balance: %w", err)
@@ -636,9 +654,15 @@ func (s *BillingCacheService) QueueUpdateAPIKeyRateLimitUsage(apiKeyID int64, co
 // 余额模式：检查缓存余额 > 0
 // 订阅模式：检查缓存用量未超过限额（Group限额从参数传入）
 func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription) error {
+	if s == nil {
+		return ErrBillingServiceUnavailable
+	}
 	// 简易模式：跳过所有计费检查
-	if s.cfg.RunMode == config.RunModeSimple {
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		return nil
+	}
+	if user == nil || user.ID <= 0 {
+		return ErrInsufficientBalance
 	}
 	if s.circuitBreaker != nil && !s.circuitBreaker.Allow() {
 		return ErrBillingServiceUnavailable
@@ -647,20 +671,26 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	// 判断计费模式
 	isSubscriptionMode := group != nil && group.IsSubscriptionType() && subscription != nil
 
+	// API Key rate limits apply to both billing modes and should be checked before
+	// wallet holds are reserved, otherwise a rate-limit rejection can leak a hold.
+	if apiKey != nil && apiKey.HasRateLimits() {
+		if err := s.checkAPIKeyRateLimits(ctx, apiKey); err != nil {
+			return err
+		}
+	}
+
 	if isSubscriptionMode {
 		if err := s.checkSubscriptionEligibility(ctx, user.ID, group, subscription); err != nil {
 			return err
 		}
 	} else {
-		if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {
-			return err
-		}
-	}
-
-	// Check API Key rate limits (applies to both billing modes)
-	if apiKey != nil && apiKey.HasRateLimits() {
-		if err := s.checkAPIKeyRateLimits(ctx, apiKey); err != nil {
-			return err
+		if apiKey == nil || apiKey.BillingHold == nil || apiKey.BillingHold.Status != BillingHoldStatusHeld {
+			if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {
+				return err
+			}
+			if err := s.reserveBalanceEligibilityHold(ctx, user, apiKey); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -698,6 +728,57 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 		}
 	}
 
+	return nil
+}
+
+func (s *BillingCacheService) reserveBalanceEligibilityHold(ctx context.Context, user *User, apiKey *APIKey) error {
+	if apiKey == nil || user == nil || user.ID <= 0 || apiKey.ID <= 0 {
+		return ErrInsufficientBalance
+	}
+	if apiKey.BillingHold != nil && apiKey.BillingHold.Status == BillingHoldStatusHeld {
+		return nil
+	}
+	repo := s.billingHoldRepo
+	if repo == nil {
+		logger.LegacyPrintf("service.billing_cache", "ALERT: billing hold repository unavailable for user %d api_key %d", user.ID, apiKey.ID)
+		return ErrBillingServiceUnavailable
+	}
+	amount := MinimumRequestHoldUSD(s.cfg)
+	if amount <= 0 {
+		return ErrBillingServiceUnavailable
+	}
+	hold, err := repo.Reserve(ctx, &BillingHold{
+		RequestID:          resolveUsageBillingRequestID(ctx, ""),
+		RequestFingerprint: BillingHoldRequestFingerprintFromContext(ctx),
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		Currency:           ModelPricingCurrencyUSD,
+		Amount:             amount,
+	})
+	if err != nil {
+		if s.circuitBreaker != nil {
+			s.circuitBreaker.OnFailure(err)
+		}
+		if errors.Is(err, ErrInsufficientBalance) {
+			return ErrInsufficientBalance
+		}
+		if errors.Is(err, ErrBillingRequestReplayed) || errors.Is(err, ErrBillingHoldAlreadyFinished) {
+			return err
+		}
+		logger.LegacyPrintf("service.billing_cache", "ALERT: billing hold reserve failed for user %d api_key %d: %v", user.ID, apiKey.ID, err)
+		return ErrBillingServiceUnavailable.WithCause(err)
+	}
+	if s.circuitBreaker != nil {
+		s.circuitBreaker.OnSuccess()
+	}
+	if hold != nil && hold.Status == BillingHoldStatusHeld {
+		apiKey.BillingHold = hold
+		DeductBillingHoldFromUserSnapshot(user, hold)
+		if s.authCacheInvalidator != nil && apiKey.Key != "" {
+			s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+		}
+		_ = s.InvalidateUserBalance(ctx, user.ID)
+	}
 	return nil
 }
 

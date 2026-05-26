@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
@@ -55,12 +56,14 @@ type UpdateProxyRequest struct {
 // ProxyService 代理管理服务
 type ProxyService struct {
 	proxyRepo ProxyRepository
+	cfg       *config.Config
 }
 
 // NewProxyService 创建代理服务实例
-func NewProxyService(proxyRepo ProxyRepository) *ProxyService {
+func NewProxyService(proxyRepo ProxyRepository, cfg *config.Config) *ProxyService {
 	return &ProxyService{
 		proxyRepo: proxyRepo,
+		cfg:       cfg,
 	}
 }
 
@@ -75,6 +78,9 @@ func (s *ProxyService) Create(ctx context.Context, req CreateProxyRequest) (*Pro
 		Username: req.Username,
 		Password: req.Password,
 		Status:   StatusActive,
+	}
+	if err := ValidateProxyEndpointWithConfig(s.cfg, proxy.Protocol, proxy.Host, proxy.Port); err != nil {
+		return nil, err
 	}
 
 	if err := s.proxyRepo.Create(ctx, proxy); err != nil {
@@ -145,6 +151,9 @@ func (s *ProxyService) Update(ctx context.Context, id int64, req UpdateProxyRequ
 
 	if req.Status != nil {
 		proxy.Status = *req.Status
+	}
+	if err := ValidateProxyEndpointWithConfig(s.cfg, proxy.Protocol, proxy.Host, proxy.Port); err != nil {
+		return nil, err
 	}
 
 	if err := s.proxyRepo.Update(ctx, proxy); err != nil {

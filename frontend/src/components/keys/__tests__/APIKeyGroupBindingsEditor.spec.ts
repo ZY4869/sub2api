@@ -52,7 +52,7 @@ const groupModelCatalogItems = {
   ],
 };
 
-const mountEditor = (imageOnly: boolean) =>
+const mountEditor = (imageOnly: boolean, modelSelectionRequired = false) =>
   mount(APIKeyGroupBindingsEditor, {
     props: {
       modelValue,
@@ -60,6 +60,7 @@ const mountEditor = (imageOnly: boolean) =>
       groupModelOptions,
       groupModelCatalogItems,
       imageOnly,
+      modelSelectionRequired,
     },
     global: {
       stubs: {
@@ -86,5 +87,13 @@ describe("APIKeyGroupBindingsEditor", () => {
     const emitted = wrapper.emitted("update:modelValue")?.[0]?.[0] as EditableApiKeyGroupBinding[];
     expect(emitted[0].selected_models).toEqual(["gpt-image-2"]);
     expect(emitted[0].model_selection_dirty).toBe(true);
+  });
+
+  it("hides whole-group shortcut and shows required hint when model selection is required", () => {
+    const wrapper = mountEditor(false, true);
+
+    expect(wrapper.text()).not.toContain("keys.modelScopeAll");
+    expect(wrapper.text()).toContain("keys.modelScopeRequiredHint");
+    expect(wrapper.text()).toContain("keys.modelSelectionRequired");
   });
 });

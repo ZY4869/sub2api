@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -36,12 +37,15 @@ func PaymentCurrencyExponent(currency string) int {
 }
 
 func PaymentAmountToMinor(amount float64, currency string) (int64, error) {
-	if amount <= 0 {
+	money, err := NewPositiveBillingMoneyFromFloat(amount)
+	if err != nil {
 		return 0, ErrPaymentInvalidAmount
 	}
-	exp := PaymentCurrencyExponent(currency)
-	scale := math.Pow10(exp)
-	return int64(math.Round(amount * scale)), nil
+	minor, err := billingMoneyToPaymentMinor(money, currency)
+	if err != nil || minor <= 0 {
+		return 0, ErrPaymentInvalidAmount
+	}
+	return minor, nil
 }
 
 func PaymentMinorToAmount(minor int64, currency string) float64 {
@@ -54,6 +58,38 @@ func FormatPaymentAmount(minor int64, currency string) string {
 	exp := PaymentCurrencyExponent(currency)
 	amount := PaymentMinorToAmount(minor, currency)
 	return strconv.FormatFloat(amount, 'f', exp, 64) + " " + NormalizePaymentCurrency(currency)
+}
+
+func NormalizePaymentAmountToCurrency(amount float64, currency string) (float64, error) {
+	minor, err := PaymentAmountToMinor(amount, currency)
+	if err != nil {
+		return 0, err
+	}
+	return PaymentMinorToAmount(minor, currency), nil
+}
+
+func billingMoneyToPaymentMinor(money BillingMoney, currency string) (int64, error) {
+	exp := PaymentCurrencyExponent(currency)
+	scaleUnits := int64(1)
+	for i := 0; i < exp; i++ {
+		scaleUnits *= 10
+	}
+	// BillingMoney uses 8 decimal places. Payment minor units are currency-specific.
+	num := new(big.Int).Mul(big.NewInt(money.Units()), big.NewInt(scaleUnits))
+	den := big.NewInt(BillingAmountScale)
+	q, rem := new(big.Int), new(big.Int)
+	q.QuoRem(num, den, rem)
+	if new(big.Int).Abs(rem).Mul(new(big.Int).Abs(rem), big.NewInt(2)).Cmp(den) >= 0 {
+		if num.Sign() >= 0 {
+			q.Add(q, big.NewInt(1))
+		} else {
+			q.Sub(q, big.NewInt(1))
+		}
+	}
+	if !q.IsInt64() || q.Cmp(big.NewInt(math.MaxInt64)) > 0 || q.Cmp(big.NewInt(math.MinInt64)) < 0 {
+		return 0, ErrPaymentInvalidAmount
+	}
+	return q.Int64(), nil
 }
 
 func NormalizePaymentAllowedCurrencies(input []string) []string {

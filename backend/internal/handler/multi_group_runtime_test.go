@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -19,8 +20,106 @@ func int64PtrForTest(v int64) *int64 {
 	return &v
 }
 
+func newTestBillingCacheService() *service.BillingCacheService {
+	cfg := &config.Config{}
+	cfg.RunMode = config.RunModeSimple
+	return service.NewBillingCacheService(nil, nil, nil, nil, cfg)
+}
+
 func (s multiGroupRuntimeSettingRepoStub) Get(context.Context, string) (*service.Setting, error) {
 	panic("unexpected call")
+}
+
+func TestResolveSelectedAPIKey_PublicCatalogEntryPinsMatchedGroup(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		call func(*gin.Context, *service.SettingService, *service.APIKey, *service.BillingCacheService) (*service.APIKey, *service.UserSubscription, error)
+	}{
+		{
+			name: "gateway",
+			call: func(ctx *gin.Context, settingService *service.SettingService, apiKey *service.APIKey, billingCacheService *service.BillingCacheService) (*service.APIKey, *service.UserSubscription, error) {
+				return resolveSelectedGatewayAPIKey(
+					ctx,
+					settingService,
+					service.NewGatewayService(nil, nil, nil, nil, nil, nil, nil, nil, &config.Config{}, nil, nil, nil, nil, billingCacheService, nil, nil, nil, nil, nil, nil, nil, settingService),
+					billingCacheService,
+					apiKey,
+					nil,
+					"gpt-5.4@team-b",
+					gatewayCompatiblePlatforms,
+					nil,
+				)
+			},
+		},
+		{
+			name: "openai",
+			call: func(ctx *gin.Context, settingService *service.SettingService, apiKey *service.APIKey, billingCacheService *service.BillingCacheService) (*service.APIKey, *service.UserSubscription, error) {
+				return resolveSelectedOpenAIAPIKey(
+					ctx,
+					settingService,
+					service.NewOpenAIGatewayService(nil, nil, nil, nil, nil, nil, nil, &config.Config{}, nil, nil, nil, nil, billingCacheService, nil, nil, nil, settingService),
+					billingCacheService,
+					apiKey,
+					nil,
+					"gpt-5.4@team-b",
+					openAICompatiblePlatforms,
+					nil,
+				)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			gin.SetMode(gin.TestMode)
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			req := httptest.NewRequest("POST", "/v1/chat/completions", nil)
+			req = req.WithContext(service.AttachPublishedPublicCatalogEntry(req.Context(), &service.PublishedPublicCatalogEntry{
+				EntryID:         "entry-team-b",
+				PublicModelID:   "gpt-5.4@team-b",
+				SourceModelID:   "gpt-5.4",
+				SourceAccountID: 202,
+				BindingGroupID:  20,
+			}))
+			ctx.Request = req
+
+			apiKey := &service.APIKey{
+				ID:     7,
+				UserID: 9,
+				User:   &service.User{ID: 9},
+				GroupBindings: []service.APIKeyGroupBinding{
+					{
+						GroupID:       10,
+						ModelPatterns: []string{"gpt-5.4@team-a"},
+						Group:         &service.Group{ID: 10, Platform: service.PlatformOpenAI, Status: service.StatusActive},
+					},
+					{
+						GroupID:       20,
+						ModelPatterns: []string{"gpt-5.4@team-b"},
+						Group:         &service.Group{ID: 20, Platform: service.PlatformOpenAI, Status: service.StatusActive},
+					},
+				},
+			}
+			settingService := service.NewSettingService(multiGroupRuntimeSettingRepoStub{value: "true"}, nil)
+			billingCacheService := newTestBillingCacheService()
+			t.Cleanup(billingCacheService.Stop)
+
+			selectedAPIKey, subscription, err := tc.call(ctx, settingService, apiKey, billingCacheService)
+
+			require.NoError(t, err)
+			require.Nil(t, subscription)
+			require.NotNil(t, selectedAPIKey)
+			require.NotNil(t, selectedAPIKey.GroupID)
+			require.Equal(t, int64(20), *selectedAPIKey.GroupID)
+			require.NotNil(t, selectedAPIKey.Group)
+			require.Equal(t, int64(20), selectedAPIKey.Group.ID)
+		})
+	}
 }
 
 func (s multiGroupRuntimeSettingRepoStub) GetValue(_ context.Context, key string) (string, error) {

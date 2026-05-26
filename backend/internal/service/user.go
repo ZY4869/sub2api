@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -24,6 +25,7 @@ type User struct {
 	AccountRealtimeCountdownEnabled bool
 	VisualPresetPreference          string
 	AccountVisualPresetOverride     string
+	APIKeyModelBindingMode          string
 	AllowedGroups                   []int64
 	TokenVersion                    int64 // Incremented on password change to invalidate existing tokens
 	CreatedAt                       time.Time
@@ -82,6 +84,27 @@ func (u *User) EffectiveVisualPreset(siteDefault string) string {
 		return NormalizeVisualPreset(siteDefault)
 	}
 	return ResolveVisualPreset(siteDefault, u.VisualPresetPreference, u.AccountVisualPresetOverride)
+}
+
+const (
+	APIKeyModelBindingModeModelRequired = "model_required"
+	APIKeyModelBindingModeGroupAllowed  = "group_allowed"
+)
+
+func NormalizeAPIKeyModelBindingMode(value string) string {
+	switch strings.TrimSpace(value) {
+	case APIKeyModelBindingModeGroupAllowed:
+		return APIKeyModelBindingModeGroupAllowed
+	default:
+		return APIKeyModelBindingModeModelRequired
+	}
+}
+
+func (u *User) EffectiveAPIKeyModelBindingMode() string {
+	if u == nil {
+		return APIKeyModelBindingModeModelRequired
+	}
+	return NormalizeAPIKeyModelBindingMode(u.APIKeyModelBindingMode)
 }
 
 // CanBindGroup checks whether a user can bind to a given group.

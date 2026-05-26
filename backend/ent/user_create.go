@@ -280,6 +280,20 @@ func (_c *UserCreate) SetNillableUsageContextBadgeDisplayMode(v *string) *UserCr
 	return _c
 }
 
+// SetAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field.
+func (_c *UserCreate) SetAPIKeyModelBindingMode(v string) *UserCreate {
+	_c.mutation.SetAPIKeyModelBindingMode(v)
+	return _c
+}
+
+// SetNillableAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAPIKeyModelBindingMode(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAPIKeyModelBindingMode(*v)
+	}
+	return _c
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_c *UserCreate) SetTotpSecretEncrypted(v string) *UserCreate {
 	_c.mutation.SetTotpSecretEncrypted(v)
@@ -564,6 +578,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultUsageContextBadgeDisplayMode
 		_c.mutation.SetUsageContextBadgeDisplayMode(v)
 	}
+	if _, ok := _c.mutation.APIKeyModelBindingMode(); !ok {
+		v := user.DefaultAPIKeyModelBindingMode
+		_c.mutation.SetAPIKeyModelBindingMode(v)
+	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
 		v := user.DefaultTotpEnabled
 		_c.mutation.SetTotpEnabled(v)
@@ -672,6 +690,14 @@ func (_c *UserCreate) check() error {
 			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.APIKeyModelBindingMode(); !ok {
+		return &ValidationError{Name: "api_key_model_binding_mode", err: errors.New(`ent: missing required field "User.api_key_model_binding_mode"`)}
+	}
+	if v, ok := _c.mutation.APIKeyModelBindingMode(); ok {
+		if err := user.APIKeyModelBindingModeValidator(v); err != nil {
+			return &ValidationError{Name: "api_key_model_binding_mode", err: fmt.Errorf(`ent: validator failed for field "User.api_key_model_binding_mode": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
 		return &ValidationError{Name: "totp_enabled", err: errors.New(`ent: missing required field "User.totp_enabled"`)}
 	}
@@ -777,6 +803,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
 		_node.UsageContextBadgeDisplayMode = value
+	}
+	if value, ok := _c.mutation.APIKeyModelBindingMode(); ok {
+		_spec.SetField(user.FieldAPIKeyModelBindingMode, field.TypeString, value)
+		_node.APIKeyModelBindingMode = value
 	}
 	if value, ok := _c.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
@@ -1224,6 +1254,18 @@ func (u *UserUpsert) UpdateUsageContextBadgeDisplayMode() *UserUpsert {
 	return u
 }
 
+// SetAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field.
+func (u *UserUpsert) SetAPIKeyModelBindingMode(v string) *UserUpsert {
+	u.Set(user.FieldAPIKeyModelBindingMode, v)
+	return u
+}
+
+// UpdateAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field to the value that was provided on create.
+func (u *UserUpsert) UpdateAPIKeyModelBindingMode() *UserUpsert {
+	u.SetExcluded(user.FieldAPIKeyModelBindingMode)
+	return u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (u *UserUpsert) SetTotpSecretEncrypted(v string) *UserUpsert {
 	u.Set(user.FieldTotpSecretEncrypted, v)
@@ -1587,6 +1629,20 @@ func (u *UserUpsertOne) SetUsageContextBadgeDisplayMode(v string) *UserUpsertOne
 func (u *UserUpsertOne) UpdateUsageContextBadgeDisplayMode() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateUsageContextBadgeDisplayMode()
+	})
+}
+
+// SetAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field.
+func (u *UserUpsertOne) SetAPIKeyModelBindingMode(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAPIKeyModelBindingMode(v)
+	})
+}
+
+// UpdateAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateAPIKeyModelBindingMode() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAPIKeyModelBindingMode()
 	})
 }
 
@@ -2127,6 +2183,20 @@ func (u *UserUpsertBulk) SetUsageContextBadgeDisplayMode(v string) *UserUpsertBu
 func (u *UserUpsertBulk) UpdateUsageContextBadgeDisplayMode() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateUsageContextBadgeDisplayMode()
+	})
+}
+
+// SetAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field.
+func (u *UserUpsertBulk) SetAPIKeyModelBindingMode(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAPIKeyModelBindingMode(v)
+	})
+}
+
+// UpdateAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateAPIKeyModelBindingMode() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAPIKeyModelBindingMode()
 	})
 }
 

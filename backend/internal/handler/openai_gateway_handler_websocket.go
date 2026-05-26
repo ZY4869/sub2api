@@ -119,6 +119,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		zap.String("previous_response_id_kind", previousResponseIDKind),
 	)
 	setOpsRequestContext(c, reqModel, true, firstMessage)
+	requestPayloadHash := service.HashUsageRequestPayload(firstMessage)
 
 	var currentUserRelease func()
 	var currentAccountRelease func()
@@ -176,6 +177,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return
 			}
 			reqLog.Info("openai.websocket_group_selection_failed", zap.Error(err))
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
+			if currentAPIKey == nil {
+				releaseHeldBillingHold(ctx, h.apiKeyService, apiKey)
+			}
 			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing or group selection failed")
 			return
 		}
@@ -184,6 +189,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 		runtimeSelectionModel, channelState, err = bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
 		if err != nil {
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
 				closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "requested model is not allowed by the bound channel")
 				return
@@ -217,6 +223,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 		reqLog.Warn("openai.websocket_account_select_failed", zap.Error(err))
 		if !excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 			closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "no available account")
 			return
 		}
@@ -230,6 +237,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	accountReleaseFunc := selection.ReleaseFunc
 	if !selection.Acquired {
 		if selection.WaitPlan == nil {
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 			closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "account is busy, please retry later")
 			return
 		}
@@ -240,10 +248,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		)
 		if err != nil {
 			reqLog.Warn("openai.websocket_account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 			closeOpenAIClientWS(wsConn, coderws.StatusInternalError, "failed to acquire account concurrency slot")
 			return
 		}
 		if !fastAcquired {
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 			closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "account is busy, please retry later")
 			return
 		}
@@ -257,6 +267,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	token, _, err := h.gatewayService.GetAccessToken(ctx, account)
 	if err != nil {
 		reqLog.Warn("openai.websocket_get_access_token_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+		releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 		closeOpenAIClientWS(wsConn, coderws.StatusInternalError, "failed to get access token")
 		return
 	}
@@ -318,16 +329,17 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			h.submitUsageRecordTask(func(taskCtx context.Context) {
 				taskCtx = reattachGatewayChannelState(taskCtx, channelState)
 				if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
-					Result:           result,
-					APIKey:           currentAPIKey,
-					User:             currentAPIKey.User,
-					Account:          account,
-					Subscription:     currentSubscription,
-					InboundEndpoint:  GetInboundEndpoint(c),
-					UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
-					UserAgent:        userAgent,
-					IPAddress:        clientIP,
-					APIKeyService:    h.apiKeyService,
+					Result:             result,
+					APIKey:             currentAPIKey,
+					User:               currentAPIKey.User,
+					Account:            account,
+					Subscription:       currentSubscription,
+					InboundEndpoint:    GetInboundEndpoint(c),
+					UpstreamEndpoint:   GetUpstreamEndpointForAccount(c, account),
+					UserAgent:          userAgent,
+					IPAddress:          clientIP,
+					RequestPayloadHash: requestPayloadHash,
+					APIKeyService:      h.apiKeyService,
 				}); err != nil {
 					reqLog.Error("openai.websocket_record_usage_failed",
 						zap.Int64("account_id", account.ID),
@@ -351,9 +363,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		var closeErr *service.OpenAIWSClientCloseError
 		if errors.As(err, &closeErr) {
 			closeOpenAIClientWS(wsConn, closeErr.StatusCode(), closeErr.Reason())
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 			return
 		}
 		closeOpenAIClientWS(wsConn, coderws.StatusInternalError, "upstream websocket proxy failed")
+		releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 		return
 	}
 	reqLog.Info("openai.websocket_ingress_closed", zap.Int64("account_id", account.ID))

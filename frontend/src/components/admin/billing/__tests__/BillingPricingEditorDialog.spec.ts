@@ -2,7 +2,6 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BillingPricingLayerForm, BillingPricingSheetDetail } from '@/api/admin/billing'
-import BillingBulkDiscountPanel from '../BillingBulkDiscountPanel.vue'
 import BillingPricingEditorDialog from '../BillingPricingEditorDialog.vue'
 
 const appStoreMock = vi.hoisted(() => ({
@@ -176,7 +175,7 @@ describe('BillingPricingEditorDialog', () => {
     expect(officialColumn.find('[data-testid="pricing-tier-toggle"]').exists()).toBe(false)
   })
 
-  it('shows sale special fields when official special pricing is enabled without mutating sale payloads', async () => {
+  it('does not expose sale editing controls in the official cost editor', () => {
     const wrapper = mountDialog([
       createDetail({
         official_form: createForm({
@@ -192,23 +191,9 @@ describe('BillingPricingEditorDialog', () => {
       }),
     ])
 
-    const saleColumn = wrapper.get('[data-testid="sale-column"]')
-    expect(saleColumn.find('[data-testid="pricing-field-grounding_search"]').exists()).toBe(true)
-    expect(saleColumn.get('[data-testid="pricing-field-unit-grounding_search"]').text()).toBe('$ / 次')
-
-    await wrapper.get('[data-testid="save-layer-sale"]').trigger('click')
-
-    expect(wrapper.emitted('save-layer')?.[0]).toEqual([
-      {
-        model: 'gpt-5.4',
-        layer: 'sale',
-        currency: 'USD',
-        form: expect.objectContaining({
-          special_enabled: false,
-          special: {},
-        }),
-      },
-    ])
+    expect(wrapper.find('[data-testid="sale-column"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="save-layer-sale"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('保存售价')
   })
 
   it('shares currency state and saves converted source currency values', async () => {
@@ -217,7 +202,7 @@ describe('BillingPricingEditorDialog', () => {
     await wrapper.get('[data-testid="pricing-currency-select"]').setValue('CNY')
 
     expect(wrapper.get('[data-testid="official-column"]').get('[data-testid="pricing-field-unit-input_price"]').text()).toBe('￥ / M Tokens')
-    expect(wrapper.get('[data-testid="sale-column"]').get('[data-testid="pricing-field-unit-input_price"]').text()).toBe('￥ / M Tokens')
+    expect(wrapper.find('[data-testid="sale-column"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="save-layer-official"]').trigger('click')
 
@@ -229,77 +214,6 @@ describe('BillingPricingEditorDialog', () => {
     }))
     expect(payload?.form.input_price).toBeCloseTo(2.016e-6)
     expect(payload?.form.output_price).toBeCloseTo(4.32e-6)
-  })
-
-  it('marks sale special pricing enabled after editing mirrored special fields', async () => {
-    const wrapper = mountDialog([
-      createDetail({
-        official_form: createForm({
-          special_enabled: true,
-          special: {
-            grounding_search: 0.12,
-          },
-        }),
-        sale_form: createForm({
-          special_enabled: false,
-          special: {},
-        }),
-      }),
-    ])
-
-    const saleColumn = wrapper.get('[data-testid="sale-column"]')
-    await saleColumn.get('[data-testid="pricing-field-grounding_search"]').setValue('0.18')
-    await wrapper.get('[data-testid="save-layer-sale"]').trigger('click')
-
-    expect(wrapper.emitted('save-layer')?.[0]).toEqual([
-      {
-        model: 'gpt-5.4',
-        layer: 'sale',
-        currency: 'USD',
-        form: expect.objectContaining({
-          special_enabled: true,
-          special: expect.objectContaining({
-            grounding_search: 0.18,
-          }),
-        }),
-      },
-    ])
-  })
-
-  it('preserves sale multiplier config when saving edited item multipliers', async () => {
-    const wrapper = mountDialog([
-      createDetail({
-        sale_form: createForm({
-          input_price: 3e-7,
-          output_price: 8e-7,
-          multiplier_enabled: true,
-          multiplier_mode: 'item',
-          item_multipliers: {
-            input_price: 0.12,
-            output_price: 0.15,
-          },
-        }),
-      }),
-    ])
-
-    await wrapper.get('[data-testid="pricing-item-multiplier-input_price"]').setValue('0.2')
-    await wrapper.get('[data-testid="save-layer-sale"]').trigger('click')
-
-    expect(wrapper.emitted('save-layer')?.[0]).toEqual([
-      {
-        model: 'gpt-5.4',
-        layer: 'sale',
-        currency: 'USD',
-        form: expect.objectContaining({
-          multiplier_enabled: true,
-          multiplier_mode: 'item',
-          item_multipliers: expect.objectContaining({
-            input_price: 0.2,
-            output_price: 0.15,
-          }),
-        }),
-      },
-    ])
   })
 
   it('allows cny save when exchange rate is unavailable and keeps the warning visible', async () => {
@@ -314,7 +228,6 @@ describe('BillingPricingEditorDialog', () => {
 
     expect(wrapper.find('[data-testid="pricing-currency-alert"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="save-layer-official"]').attributes('disabled')).toBeUndefined()
-    expect(wrapper.get('[data-testid="save-layer-sale"]').attributes('disabled')).toBeUndefined()
 
     await wrapper.get('[data-testid="save-layer-official"]').trigger('click')
     expect(wrapper.emitted('save-layer')?.[0]?.[0]).toEqual(expect.objectContaining({
@@ -387,35 +300,4 @@ describe('BillingPricingEditorDialog', () => {
     expect(wrapper.text()).toContain('collides with 2 models')
   })
 
-  it('emits workset discount payloads with selected sale field ids', async () => {
-    const wrapper = mountDialog([
-      createDetail(),
-      createDetail({
-        model: 'claude-sonnet-4.5',
-        display_name: 'Claude Sonnet 4.5',
-        provider: 'anthropic',
-        sale_form: createForm({
-          input_price: 2e-7,
-          output_price: 3e-7,
-          cache_price: 4e-8,
-        }),
-      }),
-    ])
-
-    wrapper.getComponent(BillingBulkDiscountPanel).vm.$emit('update:scope', 'workset')
-    await nextTick()
-    await wrapper.get('[data-testid="sale-column"]').get('[data-testid="field-select-input_price"] input').setValue(true)
-    wrapper.getComponent(BillingBulkDiscountPanel).vm.$emit('apply-selected')
-    await nextTick()
-
-    expect(wrapper.emitted('apply-discount')).toEqual([
-      [
-        {
-          models: ['gpt-5.4', 'claude-sonnet-4.5'],
-          itemIds: ['input_price'],
-          discountRatio: 0.9,
-        },
-      ],
-    ])
-  })
 })

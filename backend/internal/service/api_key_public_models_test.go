@@ -77,6 +77,55 @@ func TestGatewayService_ResolveAPIKeySelectionModel_SourceOnlyUsesAlias(t *testi
 	require.Equal(t, "claude-sonnet-4-20250514", got)
 }
 
+func TestGatewayService_ResolveAPIKeySelectionModel_PublishedCatalogUsesSourceModel(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	published := &PublicModelCatalogPublishedSnapshot{
+		Snapshot: PublicModelCatalogSnapshot{
+			ETag:      "etag-public",
+			UpdatedAt: "2026-05-01T00:00:00Z",
+			PageSize:  10,
+			Items: []PublicModelCatalogItem{{
+				EntryID:         "entry-openai-a",
+				PublicModelID:   "gpt-5.4@team-a",
+				Model:           "gpt-5.4@team-a",
+				BaseModel:       "gpt-5.4",
+				SourceModelID:   "gpt-5.4",
+				SourceProtocol:  PlatformOpenAI,
+				SourceAccountID: 42,
+				DisplayName:     "GPT 5.4 Team A",
+				Provider:        PlatformOpenAI,
+				Currency:        ModelPricingCurrencyUSD,
+				PriceDisplay: PublicModelCatalogPriceDisplay{
+					Primary: []PublicModelCatalogPriceEntry{{ID: billingDiscountFieldOutputPrice, Unit: "token", Value: 9}},
+				},
+			}},
+		},
+	}
+	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot, published))
+	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, nil)
+	svc := &GatewayService{modelCatalogService: modelCatalogSvc}
+	apiKey := &APIKey{
+		ID: 10,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 20,
+			Group: &Group{
+				ID:       20,
+				Name:     "openai",
+				Platform: PlatformOpenAI,
+				Status:   StatusActive,
+			},
+		}},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(ctx, apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "gpt-5.4@team-a", entries[0].PublicID)
+	require.Equal(t, "gpt-5.4", entries[0].SourceID)
+	require.Equal(t, "gpt-5.4", svc.ResolveAPIKeySelectionModel(ctx, apiKey, PlatformOpenAI, "gpt-5.4@team-a"))
+}
+
 func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefix(t *testing.T) {
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)
@@ -403,6 +452,72 @@ func TestGatewayService_GetAPIKeyPublicModels_OpenAIGroupIncludesProtocolGateway
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, "grok-auto", entry.PublicID)
+}
+
+func TestGatewayService_GetAPIKeyPublicModels_ProtocolGatewayGroupOnOpenAIEntrypoint(t *testing.T) {
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          42,
+				Name:        "mixed-gateway",
+				Platform:    PlatformProtocolGateway,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":  "gateway-key",
+					"base_url": "https://gateway.example.test",
+				},
+				Extra: map[string]any{
+					"gateway_protocol":           GatewayProtocolMixed,
+					"gateway_accepted_protocols": []string{PlatformOpenAI, PlatformGemini},
+					"model_scope_v2": map[string]any{
+						"policy_mode": "whitelist",
+						"entries": []any{
+							map[string]any{
+								"display_model_id": "public-gpt",
+								"target_model_id":  "upstream-gpt",
+								"source_protocol":  PlatformOpenAI,
+							},
+						},
+					},
+				},
+			},
+			{
+				ID:          43,
+				Name:        "gemini-only-gateway",
+				Platform:    PlatformProtocolGateway,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Extra: map[string]any{
+					"gateway_protocol": GatewayProtocolGemini,
+				},
+			},
+		},
+	}
+	svc := &GatewayService{accountRepo: repo}
+	apiKey := &APIKey{
+		ID:               142,
+		ModelDisplayMode: APIKeyModelDisplayModeAliasOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 242,
+				Group: &Group{
+					ID:       242,
+					Name:     "gateway-group",
+					Platform: PlatformProtocolGateway,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "public-gpt", entries[0].PublicID)
+	require.Equal(t, "upstream-gpt", entries[0].SourceID)
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_LiveProbeFailureFallsBackToRegistry(t *testing.T) {

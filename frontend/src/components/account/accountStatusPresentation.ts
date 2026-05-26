@@ -183,7 +183,10 @@ export const createAccountStatusPresentation = (
   }
 
   const codexScopeWindowLabel = (scope: CodexUsageScope, window: CodexUsageWindowKind): string => {
-    return `${codexScopeName(scope)} ${window}`
+    const windowLabel = window === '5h'
+      ? t('admin.accounts.status.window5h')
+      : t('admin.accounts.status.window7d')
+    return `${codexScopeName(scope)} ${windowLabel}`
   }
 
   const normalizeResetAt = (value: unknown): string | null => {
@@ -234,9 +237,19 @@ export const createAccountStatusPresentation = (
     const totalHours = Math.floor(totalSecs / 3600)
     const minutes = Math.floor((totalSecs % 3600) / 60)
     const seconds = totalSecs % 60
-    if (totalHours > 0) return `${totalHours}h ${minutes}m`
-    if (minutes > 0) return `${minutes}m ${seconds}s`
-    return `${seconds}s`
+    if (totalHours > 0) {
+      return t('common.time.countdown.compact.hoursMinutes', {
+        h: totalHours,
+        m: minutes,
+      })
+    }
+    if (minutes > 0) {
+      return t('common.time.countdown.compact.minutesSeconds', {
+        m: minutes,
+        s: seconds,
+      })
+    }
+    return t('common.time.countdown.compact.seconds', { s: seconds })
   }
 
   const buildCodexScopeLimitBadge = (scope: CodexUsageScope): AccountStatusLimitBadgeItem | null => {
@@ -388,8 +401,8 @@ export const createAccountStatusPresentation = (
     const extra = account.value.extra as Record<string, unknown> | undefined
 
     if (account.value.rate_limit_reason === 'usage_7d_all') {
-      const codexLabel = 'Codex 7d'
-      const sparkLabel = 'Spark 7d'
+      const codexLabel = codexScopeWindowLabel('normal', '7d')
+      const sparkLabel = codexScopeWindowLabel('spark', '7d')
       const codexResetAt = resolvePreferredResetAt(extra?.codex_7d_reset_at, account.value.rate_limit_reset_at)
       const sparkResetAt = resolvePreferredResetAt(extra?.codex_spark_7d_reset_at, account.value.rate_limit_reset_at)
 
@@ -431,9 +444,9 @@ export const createAccountStatusPresentation = (
       key: `account-${account.value.rate_limit_reason || '429'}`,
       tone: 'amber',
       label: account.value.rate_limit_reason === 'usage_5h'
-        ? '5h'
+        ? t('admin.accounts.status.window5h')
         : account.value.rate_limit_reason === 'usage_7d'
-          ? '7d'
+          ? t('admin.accounts.status.window7d')
           : '429',
       tooltip: fallbackTooltip,
     }]
@@ -454,9 +467,9 @@ export const createAccountStatusPresentation = (
   ])
 
   const limitBadgeLayoutClass = computed(() => {
-    if (visibleLimitBadges.value.length <= 4) return 'flex flex-col gap-1'
-    if (visibleLimitBadges.value.length <= 8) return 'grid grid-cols-2 gap-1'
-    return 'grid grid-cols-3 gap-1'
+    if (visibleLimitBadges.value.length <= 2) return 'grid grid-cols-1 gap-2'
+    if (visibleLimitBadges.value.length <= 6) return 'grid grid-cols-1 gap-2 sm:grid-cols-2'
+    return 'grid grid-cols-1 gap-2 sm:grid-cols-3'
   })
 
   const overloadCountdown = computed(() => {

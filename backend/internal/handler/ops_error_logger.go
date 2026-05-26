@@ -349,6 +349,13 @@ func setOpsRequestContext(c *gin.Context, model string, stream bool, requestBody
 	if len(requestBody) > 0 {
 		c.Set(opsRequestBodyKey, requestBody)
 	}
+	if c.Request != nil && len(requestBody) > 0 {
+		payloadHash := service.HashUsageRequestPayload(requestBody)
+		if payloadHash != "" {
+			ctx := context.WithValue(c.Request.Context(), ctxkey.RequestPayloadHash, payloadHash)
+			c.Request = c.Request.WithContext(ctx)
+		}
+	}
 	if c.Request != nil && rawModel != "" {
 		ctx := service.EnsureRequestMetadata(c.Request.Context())
 		ctx = context.WithValue(ctx, ctxkey.Model, rawModel)

@@ -50,7 +50,13 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 	if err != nil {
 		return nil, fmt.Errorf("parse image request model: %w", err)
 	}
-	mappedModel := resolveOpenAIForwardModel(account, originalModel, "")
+	runtimeModel := originalModel
+	if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
+		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
+			runtimeModel = sourceModel
+		}
+	}
+	mappedModel := resolveOpenAIForwardModel(account, runtimeModel, "")
 	requestBody, rewrittenContentType, err := RewriteOpenAIImageRequestModel(body, contentType, mappedModel)
 	if err != nil {
 		return nil, fmt.Errorf("rewrite image request model: %w", err)

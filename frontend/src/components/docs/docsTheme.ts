@@ -30,6 +30,13 @@ const DOCS_THEMES: Record<DocsPageId, DocsTheme> = {
     tabActiveClass: 'bg-violet-600 text-white shadow-sm dark:bg-violet-500',
     glowClass: 'from-violet-500/20 via-fuchsia-500/10 to-transparent',
   },
+  openrouter: {
+    badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-200',
+    navActiveClass: 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-200',
+    tocActiveClass: 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-200',
+    tabActiveClass: 'bg-cyan-600 text-white shadow-sm dark:bg-cyan-500',
+    glowClass: 'from-cyan-500/20 via-teal-500/10 to-transparent',
+  },
   anthropic: {
     badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200',
     navActiveClass: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',

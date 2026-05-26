@@ -18,13 +18,21 @@ func (r *affiliateRepository) AccruePaymentTopupRebate(ctx context.Context, paym
 }
 
 func (r *affiliateRepository) accrueTopupRebate(ctx context.Context, redeemCodeID int64, paymentOrderID int64, inviteeUserID int64, creditedAmount float64, policy service.AffiliateRebatePolicy) (accruedAmount float64, err error) {
+	creditedAmount, err = service.NormalizeAndValidateBillingAmount(creditedAmount)
+	if err != nil {
+		return 0, err
+	}
+	creditedMoney, err := service.NewBillingMoneyFromFloat(creditedAmount)
+	if err != nil {
+		return 0, err
+	}
 	if r == nil || r.db == nil {
 		return 0, errors.New("affiliate repository db is nil")
 	}
 	if !policy.Enabled || !policy.RebateOnTopupEnabled {
 		return 0, nil
 	}
-	if (redeemCodeID <= 0 && paymentOrderID <= 0) || inviteeUserID <= 0 || creditedAmount <= 0 {
+	if (redeemCodeID <= 0 && paymentOrderID <= 0) || inviteeUserID <= 0 || !creditedMoney.IsPositive() {
 		return 0, nil
 	}
 
@@ -87,8 +95,11 @@ func (r *affiliateRepository) accrueTopupRebate(ctx context.Context, redeemCodeI
 		return 0, nil
 	}
 
-	accruedAmount = creditedAmount * ratePercent / 100
-	if accruedAmount <= 0 {
+	accruedMoney, err := creditedMoney.MulRatePercent(ratePercent)
+	if err != nil {
+		return 0, err
+	}
+	if !accruedMoney.IsPositive() {
 		return 0, nil
 	}
 
@@ -103,17 +114,29 @@ func (r *affiliateRepository) accrueTopupRebate(ctx context.Context, redeemCodeI
 		`, inviterUserID.Int64, inviteeUserID).Scan(&existing); err != nil {
 			return 0, err
 		}
-		remaining := policy.PerInviteeCap - existing
-		if remaining <= 0 {
+		capMoney, err := service.NewPositiveBillingMoneyFromFloat(policy.PerInviteeCap)
+		if err != nil {
+			return 0, err
+		}
+		existingMoney, err := service.NewNonNegativeBillingMoneyFromFloat(existing)
+		if err != nil {
+			return 0, err
+		}
+		if existingMoney.Cmp(capMoney) >= 0 {
 			return 0, nil
 		}
-		if accruedAmount > remaining {
-			accruedAmount = remaining
+		remainingMoney, err := capMoney.Sub(existingMoney)
+		if err != nil {
+			return 0, err
 		}
-		if accruedAmount <= 0 {
+		if accruedMoney.Cmp(remainingMoney) > 0 {
+			accruedMoney = remainingMoney
+		}
+		if !accruedMoney.IsPositive() {
 			return 0, nil
 		}
 	}
+	accruedAmount = accruedMoney.Float64()
 
 	var frozenUntil any
 	frozenUntil = nil
@@ -140,7 +163,7 @@ func (r *affiliateRepository) accrueTopupRebate(ctx context.Context, redeemCodeI
 		VALUES ($1, $2, 'topup_accrue', $3, $4, $5, $6, NULLIF($7, 0), NULLIF($8, 0), NOW())
 		ON CONFLICT DO NOTHING
 		RETURNING id
-	`, inviterUserID.Int64, inviteeUserID, accruedAmount, creditedAmount, ratePercent, frozenUntil, redeemCodeID, paymentOrderID).Scan(&ledgerID)
+	`, inviterUserID.Int64, inviteeUserID, accruedMoney.DBValue(), creditedMoney.DBValue(), ratePercent, frozenUntil, redeemCodeID, paymentOrderID).Scan(&ledgerID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
@@ -156,7 +179,7 @@ func (r *affiliateRepository) accrueTopupRebate(ctx context.Context, redeemCodeI
 				lifetime_rebate = lifetime_rebate + $1,
 				updated_at = NOW()
 			WHERE user_id = $2
-		`, accruedAmount, inviterUserID.Int64)
+		`, accruedMoney.DBValue(), inviterUserID.Int64)
 	} else {
 		_, err = txExec.ExecContext(ctx, `
 			UPDATE user_affiliates
@@ -164,7 +187,7 @@ func (r *affiliateRepository) accrueTopupRebate(ctx context.Context, redeemCodeI
 				lifetime_rebate = lifetime_rebate + $1,
 				updated_at = NOW()
 			WHERE user_id = $2
-		`, accruedAmount, inviterUserID.Int64)
+		`, accruedMoney.DBValue(), inviterUserID.Int64)
 	}
 	if err != nil {
 		return 0, err
@@ -238,9 +261,17 @@ func (r *affiliateRepository) TransferToBalance(ctx context.Context, userID int6
 	if err != nil {
 		return nil, err
 	}
+	rebateBalance, err = service.NormalizeAndValidateNonNegativeBillingAmount(rebateBalance)
+	if err != nil {
+		return nil, err
+	}
+	rebateMoney, err := service.NewNonNegativeBillingMoneyFromFloat(rebateBalance)
+	if err != nil {
+		return nil, err
+	}
 
 	result := &service.AffiliateTransferResult{}
-	if rebateBalance <= 0 {
+	if !rebateMoney.IsPositive() {
 		if err := txExec.QueryRowContext(ctx, `
 			SELECT balance
 			FROM users
@@ -260,7 +291,7 @@ func (r *affiliateRepository) TransferToBalance(ctx context.Context, userID int6
 	if _, err := txExec.ExecContext(ctx, `
 		INSERT INTO user_affiliate_ledger (inviter_user_id, event_type, amount, created_at)
 		VALUES ($1, 'transfer', $2, NOW())
-	`, userID, rebateBalance); err != nil {
+	`, userID, rebateMoney.DBValue()); err != nil {
 		return nil, err
 	}
 
@@ -279,14 +310,21 @@ func (r *affiliateRepository) TransferToBalance(ctx context.Context, userID int6
 			updated_at = NOW()
 		WHERE id = $2 AND deleted_at IS NULL
 		RETURNING balance
-	`, rebateBalance, userID).Scan(&result.NewBalance); err != nil {
+	`, rebateMoney.DBValue(), userID).Scan(&result.NewBalance); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, service.ErrUserNotFound
 		}
 		return nil, err
 	}
+	result.NewBalance, err = service.NormalizeAndValidateNonNegativeBillingAmount(result.NewBalance)
+	if err != nil {
+		return nil, err
+	}
+	if err := addUSDBillingWalletBalance(ctx, txExec, userID, rebateMoney); err != nil {
+		return nil, err
+	}
 
-	result.TransferredAmount = rebateBalance
+	result.TransferredAmount = rebateMoney.Float64()
 	if err := commit(); err != nil {
 		return nil, err
 	}
@@ -323,6 +361,10 @@ func thawFrozenIfNeededTx(ctx context.Context, exec affiliateSQLExecutor, invite
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
+	if err != nil {
+		return 0, err
+	}
+	thawedAmount, err = service.NormalizeAndValidateNonNegativeBillingAmount(thawedAmount)
 	if err != nil {
 		return 0, err
 	}

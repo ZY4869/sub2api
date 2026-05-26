@@ -147,10 +147,12 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 			{Method: http.MethodPost, Pattern: "/chat/completions"},
 			{Method: http.MethodPost, Pattern: "/deepseek/v1/chat/completions"},
 			{Method: http.MethodPost, Pattern: "/grok/v1/chat/completions"},
+			{Method: http.MethodPost, Pattern: "/openrouter/v1/chat/completions"},
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenRouter, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
 		},
 	},
@@ -267,6 +269,7 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 			{Method: http.MethodGet, Pattern: "/v1/models/:model", RegisteredHandlerFamily: "gateway_v1_models_get"},
 			{Method: http.MethodPost, Pattern: "/v1/models/*modelAction", RegisteredHandlerFamily: "gateway_v1_models_action"},
 			{Method: http.MethodGet, Pattern: "/deepseek/v1/models", RegisteredHandlerFamily: "gateway_models"},
+			{Method: http.MethodGet, Pattern: "/openrouter/v1/models", RegisteredHandlerFamily: "gateway_models"},
 			{Method: http.MethodGet, Pattern: "/v1beta/models"},
 			{Method: http.MethodGet, Pattern: "/v1beta/models/{model}", RegisteredHandlerFamily: "gemini_models_get"},
 			{Method: http.MethodPost, Pattern: "/v1beta/models/{model}:generateAnswer"},
@@ -278,6 +281,7 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenRouter, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityCompatTranslate},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},

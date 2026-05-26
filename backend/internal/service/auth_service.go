@@ -879,10 +879,13 @@ func (s *AuthService) ValidateToken(tokenString string) (*JWTClaims, error) {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			// token 过期但仍返回 claims（用于 RefreshToken 等场景）
 			// jwt-go 在解析时即使遇到过期错误，token.Claims 仍会被填充
+			if token == nil || token.Claims == nil {
+				return nil, ErrInvalidToken
+			}
 			if claims, ok := token.Claims.(*JWTClaims); ok {
 				return claims, ErrTokenExpired
 			}
-			return nil, ErrTokenExpired
+			return nil, ErrInvalidToken
 		}
 		return nil, ErrInvalidToken
 	}
@@ -973,6 +976,9 @@ func (s *AuthService) RefreshToken(ctx context.Context, oldTokenString string) (
 	claims, err := s.ValidateToken(oldTokenString)
 	if err != nil && !errors.Is(err, ErrTokenExpired) {
 		return "", err
+	}
+	if claims == nil {
+		return "", ErrInvalidToken
 	}
 
 	// 获取最新的用户信息

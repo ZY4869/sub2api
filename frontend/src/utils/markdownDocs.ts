@@ -28,6 +28,7 @@ export const DOCS_PAGE_ORDER = [
   'common',
   'openai-native',
   'openai',
+  'openrouter',
   'anthropic',
   'gemini',
   'grok',
@@ -97,6 +98,11 @@ export const DOCS_PAGE_META: Record<DocsPageId, DocsPageMeta> = {
     description: '聚焦 chat/completions、历史别名路径，以及面向旧生态客户端的兼容接入建议。',
     shortTitle: 'OpenAI 兼容',
     title: 'OpenAI 兼容',
+  },
+  openrouter: {
+    description: '说明 OpenRouter 独立平台、显式路由、模型列表和可选归因头。',
+    shortTitle: 'OpenRouter',
+    title: 'OpenRouter',
   },
   anthropic: {
     description: '说明 Messages、count_tokens、保留请求头与 Claude 客户端约束。',

@@ -248,6 +248,9 @@ func TestLoadDefaultSecurityToggles(t *testing.T) {
 	if cfg.Security.URLAllowlist.AllowPrivateHosts {
 		t.Fatalf("URLAllowlist.AllowPrivateHosts = true, want false")
 	}
+	if len(cfg.Security.URLAllowlist.PrivateHostExceptions) != 0 {
+		t.Fatalf("URLAllowlist.PrivateHostExceptions = %d, want 0", len(cfg.Security.URLAllowlist.PrivateHostExceptions))
+	}
 	if !cfg.Security.ResponseHeaders.Enabled {
 		t.Fatalf("ResponseHeaders.Enabled = false, want true")
 	}
@@ -1307,6 +1310,46 @@ func TestValidateConfigErrors(t *testing.T) {
 			name:    "ops cleanup minute retention",
 			mutate:  func(c *Config) { c.Ops.Cleanup.MinuteMetricsRetentionDays = -1 },
 			wantErr: "ops.cleanup.minute_metrics_retention_days",
+		},
+		{
+			name: "private host exception requires explicit ports",
+			mutate: func(c *Config) {
+				c.Security.URLAllowlist.PrivateHostExceptions = []PrivateHostExceptionConfig{
+					{
+						Scope:   "upstream_base_url",
+						Hosts:   []string{"127.0.0.1"},
+						Schemes: []string{"http"},
+					},
+				}
+			},
+			wantErr: "private_host_exceptions[0].ports",
+		},
+		{
+			name: "private host exception requires explicit schemes",
+			mutate: func(c *Config) {
+				c.Security.URLAllowlist.PrivateHostExceptions = []PrivateHostExceptionConfig{
+					{
+						Scope: "proxy_host",
+						Hosts: []string{"127.0.0.1"},
+						Ports: []int{7890},
+					},
+				}
+			},
+			wantErr: "private_host_exceptions[0].schemes",
+		},
+		{
+			name: "private host exception rejects unsupported scheme",
+			mutate: func(c *Config) {
+				c.Security.URLAllowlist.PrivateHostExceptions = []PrivateHostExceptionConfig{
+					{
+						Scope:   "upstream_base_url",
+						Hosts:   []string{"127.0.0.1"},
+						Ports:   []int{9000},
+						Schemes: []string{"socks5h"},
+					},
+				}
+			},
+			wantErr: "schemes[0]",
 		},
 	}
 

@@ -22,9 +22,20 @@ vi.mock('vue-i18n', async () => {
         if (key === 'common.time.countdown.daysHours') {
           return `${String(params?.d ?? '')}d ${String(params?.h ?? '')}h`
         }
+        if (key === 'common.time.countdown.compact.hoursMinutes') {
+          return `${String(params?.h ?? '')}h ${String(params?.m ?? '')}m`
+        }
+        if (key === 'common.time.countdown.compact.minutesSeconds') {
+          return `${String(params?.m ?? '')}m ${String(params?.s ?? '')}s`
+        }
+        if (key === 'common.time.countdown.compact.seconds') {
+          return `${String(params?.s ?? '')}s`
+        }
         if (key === 'common.time.countdown.withSuffix') {
           return `${String(params?.time ?? '')} 后解除`
         }
+        if (key === 'admin.accounts.status.window5h') return '5h'
+        if (key === 'admin.accounts.status.window7d') return '7d'
         return key
       }
     })
@@ -323,8 +334,9 @@ describe('AccountStatusIndicator', () => {
     })
 
     const limitContainer = wrapper.get('[data-test="account-limit-badges"]')
-    expect(limitContainer.classes()).toContain('flex')
-    expect(limitContainer.classes()).toContain('flex-col')
+    expect(limitContainer.classes()).toContain('grid')
+    expect(limitContainer.classes()).toContain('grid-cols-1')
+    expect(limitContainer.classes()).toContain('gap-2')
     expect(limitContainer.findAll('[data-test="account-status-limit-badge"]')).toHaveLength(1)
     expect(limitContainer.text()).toContain('Codex 5h')
   })
@@ -357,7 +369,9 @@ describe('AccountStatusIndicator', () => {
     expect(wrapper.text()).toContain('Spark 5h')
     expect(wrapper.text()).not.toContain('7d×2')
     const limitContainer = wrapper.get('[data-test="account-limit-badges"]')
-    expect(limitContainer.classes()).toContain('flex-col')
+    expect(limitContainer.classes()).toContain('grid')
+    expect(limitContainer.classes()).toContain('grid-cols-1')
+    expect(limitContainer.classes()).toContain('gap-2')
     expect(limitContainer.findAll('[data-test="account-status-limit-badge"]')).toHaveLength(2)
   })
 

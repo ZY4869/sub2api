@@ -13,9 +13,6 @@
         <span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-gray-700 dark:bg-dark-700 dark:text-gray-200">
           官方 {{ officialCount }}
         </span>
-        <span class="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
-          售价 {{ saleCount }}
-        </span>
       </div>
     </button>
 
@@ -41,9 +38,6 @@
         <span class="inline-flex rounded-full bg-sky-100 px-2 py-1 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200">
           官方 {{ provider.official_count }}
         </span>
-        <span class="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
-          售价 {{ provider.sale_count }}
-        </span>
       </div>
     </button>
   </div>
@@ -65,5 +59,4 @@ const emit = defineEmits<{
 
 const totalCount = computed(() => props.providers.reduce((sum, item) => sum + item.total_count, 0))
 const officialCount = computed(() => props.providers.reduce((sum, item) => sum + item.official_count, 0))
-const saleCount = computed(() => props.providers.reduce((sum, item) => sum + item.sale_count, 0))
 </script>

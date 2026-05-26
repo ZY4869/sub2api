@@ -32,6 +32,14 @@ func newAPIKeyRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor) *apiKeyR
 	return &apiKeyRepository{client: client, sql: sqlq}
 }
 
+func (r *apiKeyRepository) BillingHoldRepository() service.BillingHoldRepository {
+	db, ok := r.sql.(*sql.DB)
+	if !ok || db == nil {
+		return nil
+	}
+	return NewBillingHoldRepository(db)
+}
+
 func (r *apiKeyRepository) activeQuery() *dbent.APIKeyQuery {
 	// 默认过滤已软删除记录，避免删除后仍被查询到。
 	return r.client.APIKey.Query().Where(apikey.DeletedAtIsNil())
@@ -893,6 +901,9 @@ func userEntityToService(u *dbent.User) *service.User {
 		),
 		AccountVisualPresetOverride: service.NormalizeVisualPresetPreference(
 			u.AccountVisualPresetOverride,
+		),
+		APIKeyModelBindingMode: service.NormalizeAPIKeyModelBindingMode(
+			u.APIKeyModelBindingMode,
 		),
 		UsageModelDisplayMode: service.NormalizeUserUsageModelDisplayMode(
 			u.UsageModelDisplayMode,

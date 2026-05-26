@@ -44,7 +44,14 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		return nil, fmt.Errorf("parse anthropic request: %w", err)
 	}
 	originalModel := anthropicReq.Model
-	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalModel, topLevelEffort)
+	runtimeRequestedModel := originalModel
+	if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
+		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
+			runtimeRequestedModel = sourceModel
+		}
+	}
+	anthropicReq.Model = runtimeRequestedModel
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, runtimeRequestedModel, topLevelEffort)
 	anthropicReq.Model = firstNonEmptyString(claudeCapability.RequestedModelNormalized, anthropicReq.Model)
 	applyOpenAICompatModelNormalization(&anthropicReq)
 	entryEffortResolution := ResolveAnthropicEffortForOpenAI(func() string {

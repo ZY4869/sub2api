@@ -35,11 +35,58 @@ func TestAdminService_CreateUser_Success(t *testing.T) {
 	require.Equal(t, input.Balance, user.Balance)
 	require.Equal(t, input.Concurrency, user.Concurrency)
 	require.Equal(t, input.AllowedGroups, user.AllowedGroups)
+	require.Equal(t, APIKeyModelBindingModeModelRequired, user.EffectiveAPIKeyModelBindingMode())
 	require.Equal(t, RoleUser, user.Role)
 	require.Equal(t, StatusActive, user.Status)
 	require.True(t, user.CheckPassword(input.Password))
 	require.Len(t, repo.created, 1)
 	require.Equal(t, user, repo.created[0])
+}
+
+func TestAdminService_CreateUser_StoresGroupAllowedModelBindingMode(t *testing.T) {
+	repo := &userRepoStub{nextID: 11}
+	svc := &adminServiceImpl{userRepo: repo}
+
+	user, err := svc.CreateUser(context.Background(), &CreateUserInput{
+		Email:                  "group-allowed@test.com",
+		Password:               "strong-pass",
+		APIKeyModelBindingMode: APIKeyModelBindingModeGroupAllowed,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, APIKeyModelBindingModeGroupAllowed, user.EffectiveAPIKeyModelBindingMode())
+	require.Len(t, repo.created, 1)
+	require.Equal(t, APIKeyModelBindingModeGroupAllowed, repo.created[0].APIKeyModelBindingMode)
+}
+
+func TestAdminService_UpdateUser_ModelBindingModeInvalidatesAuthCache(t *testing.T) {
+	baseRepo := &userRepoStub{
+		user: &User{
+			ID:                     12,
+			Email:                  "mode@test.com",
+			Role:                   RoleUser,
+			Status:                 StatusActive,
+			Concurrency:            1,
+			APIKeyModelBindingMode: APIKeyModelBindingModeModelRequired,
+		},
+	}
+	repo := &balanceUserRepoStub{userRepoStub: baseRepo}
+	invalidator := &authCacheInvalidatorStub{}
+	svc := &adminServiceImpl{
+		userRepo:             repo,
+		authCacheInvalidator: invalidator,
+	}
+	mode := APIKeyModelBindingModeGroupAllowed
+
+	user, err := svc.UpdateUser(context.Background(), 12, &UpdateUserInput{
+		APIKeyModelBindingMode: &mode,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, APIKeyModelBindingModeGroupAllowed, user.EffectiveAPIKeyModelBindingMode())
+	require.Equal(t, []int64{12}, invalidator.userIDs)
+	require.Len(t, repo.updated, 1)
+	require.Equal(t, APIKeyModelBindingModeGroupAllowed, repo.updated[0].APIKeyModelBindingMode)
 }
 
 func TestAdminService_CreateUser_EmailExists(t *testing.T) {

@@ -60,6 +60,7 @@ func UserFromServiceShallow(u *service.User) *User {
 		UsageModelDisplayMode:           u.EffectiveUsageModelDisplayMode(),
 		VisualPresetPreference:          service.NormalizeVisualPresetPreference(u.VisualPresetPreference),
 		AccountVisualPresetOverride:     service.NormalizeVisualPresetPreference(u.AccountVisualPresetOverride),
+		APIKeyModelBindingMode:          u.EffectiveAPIKeyModelBindingMode(),
 		GlobalRealtimeCountdownEnabled:  u.GlobalRealtimeCountdownEnabled,
 		AccountRealtimeCountdownEnabled: u.AccountRealtimeCountdownEnabled,
 		Balance:                         u.Balance,

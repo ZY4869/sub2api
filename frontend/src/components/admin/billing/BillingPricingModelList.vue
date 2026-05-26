@@ -19,10 +19,6 @@
             <th class="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">模式</th>
             <th class="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">能力</th>
             <th class="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">官方项</th>
-            <th class="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">出售项</th>
-            <th class="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">
-              {{ previewGroupName ? `${previewGroupName} 预览价` : '基础售价预览' }}
-            </th>
             <th class="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300"></th>
           </tr>
         </thead>
@@ -66,16 +62,12 @@
               </div>
             </td>
             <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{{ item.official_count }}</td>
-            <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{{ item.sale_count }}</td>
-            <td class="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
-              {{ previewPriceSummary(item) }}
-            </td>
             <td class="px-4 py-3 text-right">
-              <button type="button" class="btn btn-primary btn-sm" @click="emit('open', item.model)">编辑定价</button>
+              <button type="button" class="btn btn-primary btn-sm" @click="emit('open', item.model)">编辑官方价</button>
             </td>
           </tr>
           <tr v-if="items.length === 0">
-            <td colspan="8" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">当前筛选下没有模型。</td>
+            <td colspan="6" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">当前筛选下没有模型。</td>
           </tr>
         </tbody>
       </table>
@@ -109,7 +101,6 @@ const props = defineProps<{
   total: number
   page: number
   pageSize: number
-  previewGroupName?: string
 }>()
 
 const emit = defineEmits<{
@@ -153,39 +144,4 @@ function pricingStatusClass(status: BillingPricingListItem['pricing_status']): s
   }
 }
 
-function previewPriceSummary(item: BillingPricingListItem): string {
-  const entries = item.preview_price_display?.primary || []
-  if (entries.length === 0) {
-    return '-'
-  }
-  return entries
-    .slice(0, 2)
-    .map((entry) => `${previewLabel(entry.id)} ${formatPreviewValue(entry.value, item.currency)}`)
-    .join(' / ')
-}
-
-function previewLabel(fieldID: string): string {
-  switch (fieldID) {
-    case 'input_price':
-      return '输入'
-    case 'output_price':
-      return '输出'
-    case 'cache_price':
-      return '缓存'
-    case 'input_price_above_threshold':
-      return '输入阶梯'
-    case 'output_price_above_threshold':
-      return '输出阶梯'
-    default:
-      return fieldID
-  }
-}
-
-function formatPreviewValue(value: number, currency?: string): string {
-  const symbol = currency === 'CNY' ? '¥' : '$'
-  return `${symbol}${new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: value >= 1 ? 4 : 8,
-  }).format(value)}`
-}
 </script>

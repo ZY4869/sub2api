@@ -29,7 +29,7 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 		return s.detectMixedProtocolGatewayModels(ctx, account)
 	}
 	switch RoutingPlatformForAccount(account) {
-	case PlatformOpenAI, PlatformDeepSeek:
+	case PlatformOpenAI, PlatformDeepSeek, PlatformOpenRouter:
 		models, err := s.detectOpenAIModels(ctx, account)
 		if err != nil {
 			return nil, err
@@ -157,6 +157,7 @@ func (s *AccountModelImportService) detectOpenAIModels(ctx context.Context, acco
 	if v := strings.TrimSpace(account.GetOpenAIOrganizationID()); v != "" {
 		headers["OpenAI-Organization"] = v
 	}
+	applyOpenRouterAttributionHeaders(account, headers)
 	body, err := s.doImportGET(ctx, account, url, headers, false)
 	if err != nil {
 		return nil, err

@@ -23,6 +23,7 @@ const (
 	PlatformAnthropic       = domain.PlatformAnthropic
 	PlatformOpenAI          = domain.PlatformOpenAI
 	PlatformGemini          = domain.PlatformGemini
+	PlatformOpenRouter      = domain.PlatformOpenRouter
 	PlatformProtocolGateway = domain.PlatformProtocolGateway
 	PlatformAntigravity     = domain.PlatformAntigravity
 	PlatformKiro            = domain.PlatformKiro

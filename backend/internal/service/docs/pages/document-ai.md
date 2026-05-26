@@ -10,6 +10,9 @@
 - 只有绑定到 `baidu_document_ai` 分组的站内 API Key 才能访问。
 - 若当前 API Key 没有绑定任何百度智能文档分组，会返回 `403 document_ai_forbidden`。
 - 对外仍然使用站内 API Key 认证；百度侧 `async_bearer_token` / `direct_token` 只保留在账号配置里，不会暴露给调用方。
+- `POST /document-ai/v1/jobs` 与 `POST /document-ai/v1/models/{model}:parse` 会在进入百度上游前执行余额 / 订阅准入；余额不足返回 `INSUFFICIENT_BALANCE`，重复 request id 搭配不同 payload 会返回 `BILLING_REQUEST_REPLAYED`。
+- 当前 Document AI 版本不按页数或调用结果单独计费：钱包模式只做最小请求保证金预留来防止并发透支，接口成功、失败或未进入上游时都会释放该预留；后续如果接入正式用量计费，会改为 usage billing 结算并同步更新本页。
+- `GET /document-ai/v1/models`、任务状态与结果查询只做鉴权和分组校验，不会预留余额。
 
 当前公开路径如下：
 
@@ -33,7 +36,9 @@
 - 默认 `document_ai_hosts` 包含 `paddleocr.aistudio-app.com`，对应内置百度 Document AI endpoint。
 - 上述账号 URL / 凭证校验失败时会返回统一 `400 ACCOUNT_INVALID_DOCUMENT_AI_CREDENTIALS`，不会退化成 `500 internal error`。
 - Provider 返回的异步结果下载 URL 也会按同一 `document_ai_hosts` 校验。
-- JSON `file_url` 是用户文件来源 URL，继续按现有私网/localhost 拦截策略处理，不要求加入 Provider allowlist。
+- JSON `file_url` 是用户文件来源 URL，必须非空且为 HTTP(S)，不要求加入 Provider allowlist；即使关闭 `security.url_allowlist.enabled`，本服务仍会在提交给百度前拦截私网 / localhost / link-local / multicast / unspecified 解析结果。
+- 只有显式配置 `security.url_allowlist.allow_private_hosts=true` 时，Document AI `file_url` 才允许指向内网地址；校验失败统一返回 `document_ai_invalid_request`。
+- `security.url_allowlist.private_host_exceptions` 只用于管理员配置的上游 `base_url` / 代理 host 精确例外，不适用于用户提交的 Document AI `file_url`。
 
 Document AI 还设置了独立读取上限，避免继承全局大请求上限：
 

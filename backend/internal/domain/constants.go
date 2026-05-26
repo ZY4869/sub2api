@@ -21,6 +21,7 @@ const (
 	PlatformAnthropic       = "anthropic"
 	PlatformOpenAI          = "openai"
 	PlatformGemini          = "gemini"
+	PlatformOpenRouter      = "openrouter"
 	PlatformProtocolGateway = "protocol_gateway"
 	PlatformAntigravity     = "antigravity"
 	PlatformKiro            = "kiro"

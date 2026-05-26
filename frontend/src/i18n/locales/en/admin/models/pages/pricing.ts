@@ -1,5 +1,5 @@
 export default {
-    nav: "Model Pricing",
-    title: "Model Pricing",
-    description: "Review and edit official and sale pricing in one place.",
+    nav: "Official Costs",
+    title: "Official Cost / Price Source Management",
+    description: "Maintain official costs, missing-price audits, refreshes, imports, and exports. Configure customer-facing sale prices on the Public Catalog page.",
 }

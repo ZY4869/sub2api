@@ -98,6 +98,7 @@ const props = withDefaults(defineProps<{
 
 const platformVisuals: Partial<Record<DocsPageId, AccountPlatform>> = {
   'openai-native': 'openai',
+  openrouter: 'openrouter',
   anthropic: 'anthropic',
   gemini: 'gemini',
   grok: 'grok',

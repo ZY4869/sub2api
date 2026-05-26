@@ -98,6 +98,18 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	c.Request = c.Request.WithContext(service.EnsureRequestMetadata(c.Request.Context()))
 	service.RecordClaudeCapabilityMetadata(c.Request.Context(), parsedReq.Capability)
 	h.resolveParsedRequestModel(c.Request.Context(), parsedReq)
+	publicRequestModel := parsedReq.Model
+	var publicCatalogEntry *service.PublishedPublicCatalogEntry
+	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, "", publicRequestModel); resolveErr != nil {
+		reqLog.Warn("gateway.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
+	} else if active && !matched {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+		return
+	} else if matched {
+		publicCatalogEntry = entry
+		ctx := service.ApplyPublicCatalogEntryToParsedRequest(c.Request.Context(), parsedReq, entry)
+		c.Request = c.Request.WithContext(ctx)
+	}
 	reqModel := parsedReq.Model
 	reqStream := parsedReq.Stream
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
@@ -112,11 +124,20 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	}
 	c.Request = c.Request.WithContext(service.WithThinkingEnabled(c.Request.Context(), parsedReq.ThinkingEnabled, h.metadataBridgeEnabled()))
 	setOpsRequestContext(c, reqModel, reqStream, body)
+	requestPayloadHash := service.HashUsageRequestPayload(body)
 	if reqModel == "" {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "model is required")
 		return
 	}
-	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, "", reqModel)
+	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, "", publicRequestModel)
+	if selectionModel == "" {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+		return
+	}
+	bindingSelectionModel := selectionModel
+	if publicCatalogEntry != nil {
+		bindingSelectionModel = publicRequestModel
+	}
 	streamStarted := false
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
@@ -171,7 +192,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			h.billingCacheService,
 			apiKey,
 			subscription,
-			selectionModel,
+			bindingSelectionModel,
 			allowedPlatforms,
 			excludedGroupIDs,
 		)
@@ -190,15 +211,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			currentPlatform != service.PlatformAnthropic &&
 			currentPlatform != service.PlatformDeepSeek &&
 			currentPlatform != service.PlatformAntigravity &&
-			currentPlatform != service.PlatformKiro {
+			currentPlatform != service.PlatformKiro &&
+			currentPlatform != service.PlatformProtocolGateway {
 			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+				releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				continue
 			}
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "This endpoint does not support the selected platform", streamStarted)
 			return
 		}
-		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, selectionModel)
+		channelSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, bindingSelectionModel)
 		if err != nil {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
 				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
 				return
@@ -209,6 +234,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			h.handleStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
 			return
+		}
+		runtimeSelectionModel := channelSelectionModel
+		if publicCatalogEntry != nil {
+			runtimeSelectionModel = reqModel
 		}
 
 		sessionKey := selectedSessionHash
@@ -242,8 +271,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if err != nil {
 					if len(fs.FailedAccountIDs) == 0 {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 							break
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
 						return
 					}
@@ -257,8 +288,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						return
 					default:
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 							break
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						if fs.LastFailoverErr != nil {
 							h.handleFailoverExhausted(c, fs.LastFailoverErr, service.PlatformGemini, streamStarted)
 						} else {
@@ -279,6 +312,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						if selection.Acquired && selection.ReleaseFunc != nil {
 							selection.ReleaseFunc()
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						if reqStream {
 							sendMockInterceptStream(c, reqModel, interceptType)
 						} else {
@@ -291,8 +325,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if !selection.Acquired {
 					if selection.WaitPlan == nil {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 							break
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
 						return
 					}
@@ -302,6 +338,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						reqLog.Warn("gateway.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
 					} else if !canWait {
 						reqLog.Info("gateway.account_wait_queue_full", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Int("max_waiting", selection.WaitPlan.MaxWaiting))
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Too many pending requests, please retry later", streamStarted)
 						return
 					}
@@ -318,6 +355,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					if err != nil {
 						reqLog.Warn("gateway.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
 						releaseWait()
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						h.handleConcurrencyError(c, err, "account", streamStarted)
 						return
 					}
@@ -395,8 +433,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				userAgent := c.GetHeader("User-Agent")
 				clientIP := ip.GetTrustedClientIP(c)
 				h.submitUsageRecordTask(func(ctx context.Context) {
+					ctx = service.AttachPublishedPublicCatalogEntry(ctx, publicCatalogEntry)
 					ctx = reattachGatewayChannelState(ctx, channelState)
-					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: currentAPIKey, User: currentAPIKey.User, Account: account, Subscription: currentSubscription, ThinkingEnabled: service.ParseExplicitThinkingEnabledValue(body), InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account), UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
+					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: currentAPIKey, User: currentAPIKey.User, Account: account, Subscription: currentSubscription, ThinkingEnabled: service.ParseExplicitThinkingEnabledValue(body), InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account), UserAgent: userAgent, IPAddress: clientIP, RequestPayloadHash: requestPayloadHash, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
 						logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", currentAPIKey.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
 					}
 				})
@@ -407,18 +446,25 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 		runtimeAPIKey := currentAPIKey
 		runtimeSubscription := currentSubscription
-		runtimeSelectionModel, channelState, err = bindGatewayChannelState(c, h.gatewayService, runtimeAPIKey.Group, selectionModel)
+		channelSelectionModel, channelState, err = bindGatewayChannelState(c, h.gatewayService, runtimeAPIKey.Group, bindingSelectionModel)
 		if err != nil {
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
 				return
 			}
 			if errors.Is(err, service.ErrModelHardRemoved) {
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is no longer available", streamStarted)
 				return
 			}
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 			h.handleStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
 			return
+		}
+		runtimeSelectionModel = channelSelectionModel
+		if publicCatalogEntry != nil {
+			runtimeSelectionModel = reqModel
 		}
 		var fallbackGroupID *int64
 		if runtimeAPIKey.Group != nil {
@@ -437,8 +483,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if err != nil {
 					if len(fs.FailedAccountIDs) == 0 {
 						if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
+							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 							break
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 						h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
 						return
 					}
@@ -452,8 +500,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						return
 					default:
 						if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
+							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 							break
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 						if fs.LastFailoverErr != nil {
 							h.handleFailoverExhausted(c, fs.LastFailoverErr, currentPlatform, streamStarted)
 						} else {
@@ -474,6 +524,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						if selection.Acquired && selection.ReleaseFunc != nil {
 							selection.ReleaseFunc()
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 						if reqStream {
 							sendMockInterceptStream(c, reqModel, interceptType)
 						} else {
@@ -486,8 +537,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if !selection.Acquired {
 					if selection.WaitPlan == nil {
 						if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
+							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 							break
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 						h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
 						return
 					}
@@ -497,6 +550,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						reqLog.Warn("gateway.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Error(err))
 					} else if !canWait {
 						reqLog.Info("gateway.account_wait_queue_full", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Int("max_waiting", selection.WaitPlan.MaxWaiting))
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 						h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Too many pending requests, please retry later", streamStarted)
 						return
 					}
@@ -513,6 +567,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					if err != nil {
 						reqLog.Warn("gateway.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Error(err))
 						releaseWait()
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 						h.handleConcurrencyError(c, err, "account", streamStarted)
 						return
 					}
@@ -559,6 +614,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						if accountReleaseFunc != nil {
 							accountReleaseFunc()
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 						h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", err.Error(), streamStarted)
 						return
 					}
@@ -578,6 +634,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if err != nil {
 					var betaBlockedErr *service.BetaBlockedError
 					if errors.As(err, &betaBlockedErr) {
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 						h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", betaBlockedErr.Message)
 						return
 					}
@@ -588,16 +645,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 							fallbackGroup, err := h.gatewayService.ResolveGroupByID(c.Request.Context(), *fallbackGroupID)
 							if err != nil {
 								reqLog.Warn("gateway.resolve_fallback_group_failed", zap.Int64("fallback_group_id", *fallbackGroupID), zap.Error(err))
+								releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 								_ = h.antigravityGatewayService.WriteMappedClaudeError(c, account, promptTooLongErr.StatusCode, promptTooLongErr.RequestID, promptTooLongErr.Body)
 								return
 							}
 							if fallbackGroup.Platform != service.PlatformAnthropic || fallbackGroup.SubscriptionType == service.SubscriptionTypeSubscription || fallbackGroup.FallbackGroupIDOnInvalidRequest != nil {
 								reqLog.Warn("gateway.fallback_group_invalid", zap.Int64("fallback_group_id", fallbackGroup.ID), zap.String("fallback_platform", fallbackGroup.Platform), zap.String("fallback_subscription_type", fallbackGroup.SubscriptionType))
+								releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 								_ = h.antigravityGatewayService.WriteMappedClaudeError(c, account, promptTooLongErr.StatusCode, promptTooLongErr.RequestID, promptTooLongErr.Body)
 								return
 							}
 							fallbackAPIKey := cloneAPIKeyWithGroup(runtimeAPIKey, fallbackGroup)
 							if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), fallbackAPIKey.User, fallbackAPIKey, fallbackGroup, nil); err != nil {
+								releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 								status, code, message := billingErrorDetails(err)
 								h.handleStreamingAwareError(c, status, code, message, streamStarted)
 								return
@@ -611,6 +671,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 							break
 						}
 						_ = h.antigravityGatewayService.WriteMappedClaudeError(c, account, promptTooLongErr.StatusCode, promptTooLongErr.RequestID, promptTooLongErr.Body)
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, runtimeAPIKey)
 						return
 					}
 					var failoverErr *service.UpstreamFailoverError
@@ -667,8 +728,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				userAgent := c.GetHeader("User-Agent")
 				clientIP := ip.GetTrustedClientIP(c)
 				h.submitUsageRecordTask(func(ctx context.Context) {
+					ctx = service.AttachPublishedPublicCatalogEntry(ctx, publicCatalogEntry)
 					ctx = reattachGatewayChannelState(ctx, channelState)
-					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: runtimeAPIKey, User: runtimeAPIKey.User, Account: account, Subscription: runtimeSubscription, ThinkingEnabled: service.ParseExplicitThinkingEnabledValue(body), InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account), UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
+					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: runtimeAPIKey, User: runtimeAPIKey.User, Account: account, Subscription: runtimeSubscription, ThinkingEnabled: service.ParseExplicitThinkingEnabledValue(body), InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account), UserAgent: userAgent, IPAddress: clientIP, RequestPayloadHash: requestPayloadHash, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
 						logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", runtimeAPIKey.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
 					}
 				})

@@ -14,6 +14,7 @@ type User struct {
 	AccountRealtimeCountdownEnabled bool               `json:"account_realtime_countdown_enabled"`
 	VisualPresetPreference          string             `json:"visual_preset_preference"`
 	AccountVisualPresetOverride     string             `json:"account_visual_preset_override"`
+	APIKeyModelBindingMode          string             `json:"api_key_model_binding_mode"`
 	Balance                         float64            `json:"balance"`
 	Balances                        map[string]float64 `json:"balances,omitempty"`
 	Concurrency                     int                `json:"concurrency"`

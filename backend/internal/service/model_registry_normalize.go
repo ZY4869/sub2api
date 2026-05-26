@@ -373,7 +373,7 @@ func providerOrPlatform(provider string, sourcePlatform string) string {
 
 func isRuntimeSupportedPlatform(platform string) bool {
 	switch normalizeRegistryPlatform(platform) {
-	case PlatformOpenAI, PlatformAnthropic, PlatformDeepSeek, PlatformGemini, PlatformAntigravity, PlatformKiro, PlatformGrok, "baidu", PlatformBaiduDocumentAI:
+	case PlatformOpenAI, PlatformAnthropic, PlatformDeepSeek, PlatformOpenRouter, PlatformGemini, PlatformAntigravity, PlatformKiro, PlatformGrok, "baidu", PlatformBaiduDocumentAI:
 		return true
 	default:
 		return false

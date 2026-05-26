@@ -15,6 +15,7 @@ var apiDocsPageOrder = []string{
 	"common",
 	"openai-native",
 	"openai",
+	"openrouter",
 	"anthropic",
 	"gemini",
 	"grok",

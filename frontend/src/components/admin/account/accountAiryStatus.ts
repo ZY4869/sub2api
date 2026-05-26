@@ -1,4 +1,5 @@
 import type { Account } from '@/types'
+import { resolveAccountAiryIssueSummary } from './accountAiryIssueText'
 import {
   AIRY_STATUS_KEYWORDS,
   createAccountAiryStatusSignal,
@@ -26,7 +27,11 @@ export const resolveAccountAiryStatus = (
       tagKey: 'admin.accounts.status.visualBannedTag',
       tone: 'red',
       iconName: 'ban',
-      helper: account.lifecycle_reason_message || undefined,
+      ...resolveAccountAiryIssueSummary(
+        'banned',
+        [account.lifecycle_reason_message, account.error_message, account.lifecycle_reason_code],
+        { defaultWhenEmpty: true },
+      ),
     }
   }
 
@@ -37,7 +42,10 @@ export const resolveAccountAiryStatus = (
       tagKey: 'admin.accounts.status.visualLockedTag',
       tone: 'slate',
       iconName: 'lock',
-      helper: account.lifecycle_reason_message || account.error_message || undefined,
+      ...resolveAccountAiryIssueSummary('locked', [
+        account.lifecycle_reason_message,
+        account.error_message,
+      ]),
     }
   }
 
@@ -48,7 +56,10 @@ export const resolveAccountAiryStatus = (
       tagKey: 'admin.accounts.status.visualMaintenanceTag',
       tone: 'slate',
       iconName: 'cog',
-      helper: account.lifecycle_reason_message || account.error_message || undefined,
+      ...resolveAccountAiryIssueSummary('maintenance', [
+        account.lifecycle_reason_message,
+        account.error_message,
+      ]),
     }
   }
 
@@ -59,7 +70,10 @@ export const resolveAccountAiryStatus = (
       tagKey: 'admin.accounts.status.visualOfflineTag',
       tone: 'slate',
       iconName: 'cloud',
-      helper: account.error_message || undefined,
+      ...resolveAccountAiryIssueSummary('offline', [
+        account.error_message,
+        account.lifecycle_reason_message,
+      ]),
     }
   }
 
@@ -70,7 +84,10 @@ export const resolveAccountAiryStatus = (
       tagKey: 'admin.accounts.status.visualOverdueTag',
       tone: 'red',
       iconName: 'creditCard',
-      helper: account.error_message || undefined,
+      ...resolveAccountAiryIssueSummary('overdue', [
+        account.error_message,
+        account.lifecycle_reason_message,
+      ]),
     }
   }
 
@@ -126,12 +143,27 @@ export const resolveAccountAiryStatus = (
     account.session_window_status === 'allowed_warning' ||
     includesAny(text, AIRY_STATUS_KEYWORDS.degraded)
   ) {
+    const degradedSummary = resolveAccountAiryIssueSummary(
+      'degraded',
+      [
+        account.lifecycle_reason_message,
+        account.error_message,
+        account.auto_recovery_probe?.summary,
+      ],
+      {
+        defaultWhenEmpty:
+          account.session_window_status === 'allowed_warning' ||
+          includesAny(text, AIRY_STATUS_KEYWORDS.degraded),
+      },
+    )
+
     return {
       kind: 'degraded',
       titleKey: 'admin.accounts.status.visualDegradedTitle',
       tagKey: 'admin.accounts.status.visualDegradedTag',
       tone: 'amber',
       iconName: 'exclamationTriangle',
+      ...degradedSummary,
     }
   }
 
@@ -142,7 +174,10 @@ export const resolveAccountAiryStatus = (
       tagKey: 'admin.accounts.status.visualCaptchaTag',
       tone: 'purple',
       iconName: 'shield',
-      helper: account.error_message || account.temp_unschedulable_reason || undefined,
+      ...resolveAccountAiryIssueSummary('captcha', [
+        account.error_message,
+        account.temp_unschedulable_reason,
+      ]),
     }
   }
 
@@ -153,7 +188,10 @@ export const resolveAccountAiryStatus = (
       tagKey: 'admin.accounts.status.tempUnschedulable',
       tone: 'sky',
       iconName: 'clock',
-      helper: account.temp_unschedulable_reason || undefined,
+      ...resolveAccountAiryIssueSummary('tempUnschedulable', [
+        account.temp_unschedulable_reason,
+        account.error_message,
+      ]),
     }
   }
 
@@ -168,6 +206,15 @@ export const resolveAccountAiryStatus = (
       tagKey: 'admin.accounts.status.visualSyncingTag',
       tone: 'teal',
       iconName: 'sync',
+      ...resolveAccountAiryIssueSummary(
+        'syncing',
+        [
+          account.auto_recovery_probe?.summary,
+          account.auto_recovery_probe?.error_code,
+          account.lifecycle_reason_message,
+        ],
+        { defaultWhenEmpty: true },
+      ),
     }
   }
 
@@ -188,7 +235,11 @@ export const resolveAccountAiryStatus = (
       tagKey: 'admin.accounts.status.error',
       tone: 'red',
       iconName: 'exclamationTriangle',
-      helper: account.error_message || undefined,
+      ...resolveAccountAiryIssueSummary(
+        'error',
+        [account.error_message, account.lifecycle_reason_message, account.lifecycle_reason_code],
+        { defaultWhenEmpty: true },
+      ),
     }
   }
 

@@ -28,11 +28,24 @@ func applyAffiliateUsageRebateBestEffort(ctx context.Context, tx *sql.Tx, cmd *s
 		return
 	}
 
-	baseAmount := cmd.BalanceCost
+	baseAmount, err := service.NormalizeAndValidateBillingAmount(cmd.BalanceCost)
+	if err != nil {
+		logger.LegacyPrintf("repository.usage_billing", "[Billing] affiliate: invalid base amount request_id=%s api_key_id=%d user_id=%d err=%v", cmd.RequestID, cmd.APIKeyID, cmd.UserID, err)
+		return
+	}
 	if cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil && *cmd.SubscriptionID > 0 {
-		baseAmount = cmd.SubscriptionCost
+		baseAmount, err = service.NormalizeAndValidateBillingAmount(cmd.SubscriptionCost)
+		if err != nil {
+			logger.LegacyPrintf("repository.usage_billing", "[Billing] affiliate: invalid subscription amount request_id=%s api_key_id=%d user_id=%d err=%v", cmd.RequestID, cmd.APIKeyID, cmd.UserID, err)
+			return
+		}
 	}
 	if baseAmount <= 0 {
+		return
+	}
+	baseMoney, err := service.NewPositiveBillingMoneyFromFloat(baseAmount)
+	if err != nil {
+		logger.LegacyPrintf("repository.usage_billing", "[Billing] affiliate: invalid normalized base amount request_id=%s api_key_id=%d user_id=%d err=%v", cmd.RequestID, cmd.APIKeyID, cmd.UserID, err)
 		return
 	}
 
@@ -48,7 +61,7 @@ func applyAffiliateUsageRebateBestEffort(ctx context.Context, tx *sql.Tx, cmd *s
 	// Isolate affiliate accounting from the main billing transaction. Even if affiliate logic fails,
 	// the core billing effects should remain unaffected.
 	if err := withUsageBillingSavepoint(ctx, tx, "aff_usage_rebate", func() error {
-		return accrueAffiliateUsageRebateTx(ctx, tx, cmd, baseAmount, policy)
+		return accrueAffiliateUsageRebateTx(ctx, tx, cmd, baseMoney, policy)
 	}); err != nil {
 		logger.LegacyPrintf("repository.usage_billing", "[Billing] affiliate: usage accrue failed: request_id=%s api_key_id=%d user_id=%d err=%v", cmd.RequestID, cmd.APIKeyID, cmd.UserID, err)
 	}
@@ -132,6 +145,9 @@ func loadAffiliateUsagePolicy(ctx context.Context, tx *sql.Tx) (affiliateUsagePo
 	}
 	if raw, ok := values[keyRate]; ok && strings.TrimSpace(raw) != "" {
 		if v, err := strconv.ParseFloat(strings.TrimSpace(raw), 64); err == nil {
+			if _, amountErr := service.NormalizeAndValidateBillingAmount(v); amountErr != nil {
+				v = policy.ratePercent
+			}
 			if v < 0 {
 				v = 0
 			}
@@ -165,10 +181,9 @@ func loadAffiliateUsagePolicy(ctx context.Context, tx *sql.Tx) (affiliateUsagePo
 	}
 	if raw, ok := values[keyPerInviteeCap]; ok && strings.TrimSpace(raw) != "" {
 		if v, err := strconv.ParseFloat(strings.TrimSpace(raw), 64); err == nil {
-			if v < 0 {
-				v = 0
+			if normalized, normErr := service.NormalizeAndValidateNonNegativeBillingAmount(v); normErr == nil {
+				policy.perInviteeCap = normalized
 			}
-			policy.perInviteeCap = v
 		}
 	}
 	return policy, nil
@@ -183,11 +198,11 @@ func isFalseSettingValue(value string) bool {
 	}
 }
 
-func accrueAffiliateUsageRebateTx(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, baseAmount float64, policy affiliateUsagePolicy) error {
+func accrueAffiliateUsageRebateTx(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, baseMoney service.BillingMoney, policy affiliateUsagePolicy) error {
 	if tx == nil || cmd == nil {
 		return nil
 	}
-	if baseAmount <= 0 {
+	if !baseMoney.IsPositive() {
 		return nil
 	}
 	if cmd.UserID <= 0 || cmd.APIKeyID <= 0 || strings.TrimSpace(cmd.RequestID) == "" {
@@ -234,6 +249,9 @@ func accrueAffiliateUsageRebateTx(ctx context.Context, tx *sql.Tx, cmd *service.
 	if customRate.Valid {
 		ratePercent = customRate.Float64
 	}
+	if _, err := service.NormalizeAndValidateBillingAmount(ratePercent); err != nil {
+		return err
+	}
 	if ratePercent < 0 {
 		ratePercent = 0
 	}
@@ -244,8 +262,11 @@ func accrueAffiliateUsageRebateTx(ctx context.Context, tx *sql.Tx, cmd *service.
 		return nil
 	}
 
-	accruedAmount := baseAmount * ratePercent / 100
-	if accruedAmount <= 0 {
+	accruedMoney, err := baseMoney.MulRatePercent(ratePercent)
+	if err != nil {
+		return err
+	}
+	if !accruedMoney.IsPositive() {
 		return nil
 	}
 
@@ -260,16 +281,31 @@ func accrueAffiliateUsageRebateTx(ctx context.Context, tx *sql.Tx, cmd *service.
 		`, inviterUserID.Int64, cmd.UserID).Scan(&existing); err != nil {
 			return err
 		}
-		remaining := policy.perInviteeCap - existing
-		if remaining <= 0 {
+		capMoney, err := service.NewPositiveBillingMoneyFromFloat(policy.perInviteeCap)
+		if err != nil {
+			return err
+		}
+		existingMoney, err := service.NewNonNegativeBillingMoneyFromFloat(existing)
+		if err != nil {
+			return err
+		}
+		if existingMoney.Cmp(capMoney) >= 0 {
 			return nil
 		}
-		if accruedAmount > remaining {
-			accruedAmount = remaining
+		remainingMoney, err := capMoney.Sub(existingMoney)
+		if err != nil {
+			return err
 		}
-		if accruedAmount <= 0 {
+		if accruedMoney.Cmp(remainingMoney) > 0 {
+			accruedMoney = remainingMoney
+		}
+		if !accruedMoney.IsPositive() {
 			return nil
 		}
+	}
+
+	if !accruedMoney.IsPositive() {
+		return nil
 	}
 
 	var frozenUntil any
@@ -281,7 +317,7 @@ func accrueAffiliateUsageRebateTx(ctx context.Context, tx *sql.Tx, cmd *service.
 	}
 
 	var ledgerID int64
-	err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		INSERT INTO user_affiliate_ledger (
 			inviter_user_id,
 			invitee_user_id,
@@ -297,7 +333,7 @@ func accrueAffiliateUsageRebateTx(ctx context.Context, tx *sql.Tx, cmd *service.
 		VALUES ($1, $2, 'usage_accrue', $3, $4, $5, $6, $7, $8, NOW())
 		ON CONFLICT DO NOTHING
 		RETURNING id
-	`, inviterUserID.Int64, cmd.UserID, accruedAmount, baseAmount, ratePercent, frozenUntil, strings.TrimSpace(cmd.RequestID), cmd.APIKeyID).Scan(&ledgerID)
+	`, inviterUserID.Int64, cmd.UserID, accruedMoney.DBValue(), baseMoney.DBValue(), ratePercent, frozenUntil, strings.TrimSpace(cmd.RequestID), cmd.APIKeyID).Scan(&ledgerID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -308,12 +344,12 @@ func accrueAffiliateUsageRebateTx(ctx context.Context, tx *sql.Tx, cmd *service.
 
 	if creditFrozen {
 		_, err = tx.ExecContext(ctx, `
-			UPDATE user_affiliates
-			SET rebate_frozen_balance = rebate_frozen_balance + $1,
-				lifetime_rebate = lifetime_rebate + $1,
-				updated_at = NOW()
-			WHERE user_id = $2
-		`, accruedAmount, inviterUserID.Int64)
+		UPDATE user_affiliates
+		SET rebate_frozen_balance = rebate_frozen_balance + $1,
+			lifetime_rebate = lifetime_rebate + $1,
+			updated_at = NOW()
+		WHERE user_id = $2
+		`, accruedMoney.DBValue(), inviterUserID.Int64)
 	} else {
 		_, err = tx.ExecContext(ctx, `
 			UPDATE user_affiliates
@@ -321,7 +357,7 @@ func accrueAffiliateUsageRebateTx(ctx context.Context, tx *sql.Tx, cmd *service.
 				lifetime_rebate = lifetime_rebate + $1,
 				updated_at = NOW()
 			WHERE user_id = $2
-		`, accruedAmount, inviterUserID.Int64)
+		`, accruedMoney.DBValue(), inviterUserID.Int64)
 	}
 	if err != nil {
 		return err

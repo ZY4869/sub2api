@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -40,13 +41,54 @@ func validateDocumentAIURLWithConfig(cfg *config.Config, raw string) (string, er
 		})
 	}
 	if !cfg.Security.URLAllowlist.Enabled {
-		return urlvalidator.ValidateURLFormat(trimmed, cfg.Security.URLAllowlist.AllowInsecureHTTP)
+		return urlvalidator.ValidateHTTPURL(trimmed, cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
+			AllowPrivate: cfg.Security.URLAllowlist.AllowPrivateHosts,
+		})
 	}
 	return urlvalidator.ValidateHTTPURL(trimmed, cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
 		AllowedHosts:     documentAIAllowedHosts(cfg),
 		RequireAllowlist: true,
 		AllowPrivate:     cfg.Security.URLAllowlist.AllowPrivateHosts,
 	})
+}
+
+func validateDocumentAIUserFileURL(cfg *config.Config, raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", errors.New("file_url is required")
+	}
+	if cfg == nil {
+		normalized, err := urlvalidator.ValidateHTTPURL(trimmed, false, urlvalidator.ValidationOptions{})
+		if err != nil {
+			return "", err
+		}
+		return validateDocumentAIUserFileURLResolvedHost(normalized, false)
+	}
+	normalized, err := urlvalidator.ValidateHTTPURL(trimmed, cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
+		AllowPrivate: cfg.Security.URLAllowlist.AllowPrivateHosts,
+	})
+	if err != nil {
+		return "", err
+	}
+	return validateDocumentAIUserFileURLResolvedHost(normalized, cfg.Security.URLAllowlist.AllowPrivateHosts)
+}
+
+func validateDocumentAIUserFileURLResolvedHost(normalized string, allowPrivateHosts bool) (string, error) {
+	if allowPrivateHosts {
+		return normalized, nil
+	}
+	parsed, err := url.Parse(normalized)
+	if err != nil {
+		return "", err
+	}
+	host := strings.TrimSpace(parsed.Hostname())
+	if host == "" {
+		return "", errors.New("invalid host")
+	}
+	if err := urlvalidator.ValidateResolvedIP(host); err != nil {
+		return "", err
+	}
+	return normalized, nil
 }
 
 func documentAIUploadMaxBytes(cfg *config.Config) int64 {

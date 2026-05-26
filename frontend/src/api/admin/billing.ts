@@ -7,6 +7,7 @@ export type BillingPricingSortBy = 'display_name' | 'provider'
 export type BillingPricingSortOrder = 'asc' | 'desc'
 export type BillingPricingMultiplierMode = 'shared' | 'item'
 export type BillingPricingStatus = 'ok' | 'fallback' | 'conflict' | 'missing'
+export type BillingPricingLayer = 'official' | 'sale'
 
 export interface BillingRuleMatchers {
   models?: string[]
@@ -302,25 +303,32 @@ export interface BillingSavePricingLayerPayload {
   group_id?: number | null
 }
 
-export interface BillingCopyOfficialToSalePayload {
-  models: string[]
-}
-
-export interface BillingBulkDiscountPayload {
-  models: string[]
-  item_ids?: string[]
-  discount_ratio: number
-}
-
 export interface BillingPricingDetailsPayload {
   models: string[]
   group_id?: number | null
 }
 
 export interface BillingPublicCatalogDraft {
-  selected_models: string[]
+  selected_models?: string[]
+  selected_entries?: BillingPublicCatalogEntryDraft[]
   page_size: number
   updated_at?: string
+}
+
+export interface BillingPublicCatalogEntryDraft {
+  entry_id: string
+  public_model_id: string
+  source_account_id?: number
+  source_alias?: string
+  source_model_id?: string
+  base_model?: string
+  source_protocol?: string
+  sale_price_display?: PublicModelCatalogPriceDisplay
+}
+
+export interface BillingPublicCatalogAdminEntry extends PublicModelCatalogItem {
+  source_account_id?: number
+  source_account_name?: string
 }
 
 export interface BillingPublicCatalogPublishedSummary {
@@ -332,7 +340,8 @@ export interface BillingPublicCatalogPublishedSummary {
 
 export interface BillingPublicCatalogDraftPayload {
   draft: BillingPublicCatalogDraft
-  available_items: PublicModelCatalogItem[]
+  available_items: BillingPublicCatalogAdminEntry[]
+  available_entries?: BillingPublicCatalogAdminEntry[]
   available_updated_at?: string
   available_source?: string
   published?: BillingPublicCatalogPublishedSummary | null
@@ -382,24 +391,10 @@ export async function getBillingPricingAudit(): Promise<BillingPricingAudit> {
 
 export async function updateBillingPricingLayer(
   model: string,
-  layer: 'official' | 'sale',
+  layer: BillingPricingLayer,
   payload: BillingSavePricingLayerPayload,
 ): Promise<BillingPricingSheetDetail> {
   const { data } = await apiClient.put<BillingPricingSheetDetail>(`/admin/billing/pricing/models/${encodeURIComponent(model)}/layers/${layer}`, payload)
-  return data
-}
-
-export async function copyBillingPricingOfficialToSale(
-  payload: BillingCopyOfficialToSalePayload,
-): Promise<BillingPricingSheetDetail[]> {
-  const { data } = await apiClient.post<BillingPricingSheetDetail[]>('/admin/billing/pricing/sale/copy-from-official', payload)
-  return data
-}
-
-export async function applyBillingPricingDiscount(
-  payload: BillingBulkDiscountPayload,
-): Promise<BillingPricingSheetDetail[]> {
-  const { data } = await apiClient.post<BillingPricingSheetDetail[]>('/admin/billing/pricing/sale/apply-discount', payload)
   return data
 }
 

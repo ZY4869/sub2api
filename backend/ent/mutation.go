@@ -25010,6 +25010,7 @@ type UserMutation struct {
 	visual_preset_preference           *string
 	account_visual_preset_override     *string
 	usage_context_badge_display_mode   *string
+	api_key_model_binding_mode         *string
 	totp_secret_encrypted              *string
 	totp_enabled                       *bool
 	totp_enabled_at                    *time.Time
@@ -25881,6 +25882,42 @@ func (m *UserMutation) ResetUsageContextBadgeDisplayMode() {
 	m.usage_context_badge_display_mode = nil
 }
 
+// SetAPIKeyModelBindingMode sets the "api_key_model_binding_mode" field.
+func (m *UserMutation) SetAPIKeyModelBindingMode(s string) {
+	m.api_key_model_binding_mode = &s
+}
+
+// APIKeyModelBindingMode returns the value of the "api_key_model_binding_mode" field in the mutation.
+func (m *UserMutation) APIKeyModelBindingMode() (r string, exists bool) {
+	v := m.api_key_model_binding_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyModelBindingMode returns the old "api_key_model_binding_mode" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAPIKeyModelBindingMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyModelBindingMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyModelBindingMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyModelBindingMode: %w", err)
+	}
+	return oldValue.APIKeyModelBindingMode, nil
+}
+
+// ResetAPIKeyModelBindingMode resets all changes to the "api_key_model_binding_mode" field.
+func (m *UserMutation) ResetAPIKeyModelBindingMode() {
+	m.api_key_model_binding_mode = nil
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (m *UserMutation) SetTotpSecretEncrypted(s string) {
 	m.totp_secret_encrypted = &s
@@ -26535,7 +26572,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 23)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -26593,6 +26630,9 @@ func (m *UserMutation) Fields() []string {
 	if m.usage_context_badge_display_mode != nil {
 		fields = append(fields, user.FieldUsageContextBadgeDisplayMode)
 	}
+	if m.api_key_model_binding_mode != nil {
+		fields = append(fields, user.FieldAPIKeyModelBindingMode)
+	}
 	if m.totp_secret_encrypted != nil {
 		fields = append(fields, user.FieldTotpSecretEncrypted)
 	}
@@ -26648,6 +26688,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.AccountVisualPresetOverride()
 	case user.FieldUsageContextBadgeDisplayMode:
 		return m.UsageContextBadgeDisplayMode()
+	case user.FieldAPIKeyModelBindingMode:
+		return m.APIKeyModelBindingMode()
 	case user.FieldTotpSecretEncrypted:
 		return m.TotpSecretEncrypted()
 	case user.FieldTotpEnabled:
@@ -26701,6 +26743,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldAccountVisualPresetOverride(ctx)
 	case user.FieldUsageContextBadgeDisplayMode:
 		return m.OldUsageContextBadgeDisplayMode(ctx)
+	case user.FieldAPIKeyModelBindingMode:
+		return m.OldAPIKeyModelBindingMode(ctx)
 	case user.FieldTotpSecretEncrypted:
 		return m.OldTotpSecretEncrypted(ctx)
 	case user.FieldTotpEnabled:
@@ -26848,6 +26892,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUsageContextBadgeDisplayMode(v)
+		return nil
+	case user.FieldAPIKeyModelBindingMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyModelBindingMode(v)
 		return nil
 	case user.FieldTotpSecretEncrypted:
 		v, ok := value.(string)
@@ -27023,6 +27074,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldUsageContextBadgeDisplayMode:
 		m.ResetUsageContextBadgeDisplayMode()
+		return nil
+	case user.FieldAPIKeyModelBindingMode:
+		m.ResetAPIKeyModelBindingMode()
 		return nil
 	case user.FieldTotpSecretEncrypted:
 		m.ResetTotpSecretEncrypted()

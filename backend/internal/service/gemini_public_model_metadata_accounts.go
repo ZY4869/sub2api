@@ -34,7 +34,8 @@ func (s *GatewayService) ResolveGeminiPublicModelMetadataAccount(
 			continue
 		}
 		bindingPlatform := strings.TrimSpace(binding.Group.Platform)
-		if !strings.EqualFold(bindingPlatform, PlatformGemini) {
+		projectionPlatform := apiKeyPublicProjectionPlatform(bindingPlatform, PlatformGemini)
+		if projectionPlatform == "" {
 			continue
 		}
 
@@ -47,17 +48,21 @@ func (s *GatewayService) ResolveGeminiPublicModelMetadataAccount(
 		}
 		for i := range accounts {
 			account := &accounts[i]
-			if account == nil || !account.IsSchedulable() || !account.IsGemini() {
+			if account == nil || !account.IsSchedulable() || !MatchesGroupPlatform(account, PlatformGemini) {
+				continue
+			}
+			accountForProjection := ResolveProtocolGatewayInboundAccount(account, PlatformGemini)
+			if !accountForProjection.IsGemini() {
 				continue
 			}
 			if normalizedModelID != "" {
 				entries, err := s.publicModelEntriesForAccount(
 					ctx,
-					account,
+					accountForProjection,
 					mode,
-					bindingPlatform,
+					projectionPlatform,
 					binding.ModelPatterns,
-					account.GetModelMapping(),
+					accountForProjection.GetModelMapping(),
 				)
 				if err != nil {
 					if firstErr == nil {
@@ -65,7 +70,7 @@ func (s *GatewayService) ResolveGeminiPublicModelMetadataAccount(
 					}
 					continue
 				}
-				entries = s.filterPublicEntriesByActiveChannel(ctx, binding.GroupID, bindingPlatform, entries)
+				entries = s.filterPublicEntriesByActiveChannel(ctx, binding.GroupID, projectionPlatform, entries)
 				if !publicModelEntriesContainID(entries, normalizedModelID) {
 					continue
 				}
@@ -74,7 +79,7 @@ func (s *GatewayService) ResolveGeminiPublicModelMetadataAccount(
 				continue
 			}
 			seenAccounts[account.ID] = struct{}{}
-			accountCopy := *account
+			accountCopy := *accountForProjection
 			candidates = append(candidates, &accountCopy)
 		}
 	}

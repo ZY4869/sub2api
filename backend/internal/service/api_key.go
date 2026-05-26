@@ -82,6 +82,8 @@ type APIKey struct {
 	Window5hStart     *time.Time         // Start of current 5h window
 	Window1dStart     *time.Time         // Start of current 1d window
 	Window7dStart     *time.Time         // Start of current 7d window
+
+	BillingHold *BillingHold `json:"-"`
 }
 
 type APIKeyGroupBinding struct {
@@ -149,6 +151,10 @@ func (k *APIKey) BindingsForPlatform(platform string) []APIKeyGroupBinding {
 	out := make([]APIKeyGroupBinding, 0, len(k.GroupBindings))
 	for _, binding := range k.GroupBindings {
 		if binding.Group != nil && strings.EqualFold(binding.Group.Platform, platform) {
+			out = append(out, binding)
+			continue
+		}
+		if binding.Group != nil && strings.EqualFold(binding.Group.Platform, PlatformProtocolGateway) {
 			out = append(out, binding)
 		}
 	}

@@ -79,6 +79,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err := validateGrokAccountInput(input.Platform, input.Type, input.Credentials, input.Extra); err != nil {
 		return nil, err
 	}
+	if err := validateOpenRouterAccountInput(input.Platform, input.Type, input.Credentials); err != nil {
+		return nil, err
+	}
 	if err := validateBaiduDocumentAIAccountInput(ctx, s.cfg, input.Platform, input.Type, input.Credentials); err != nil {
 		return nil, err
 	}
@@ -247,6 +250,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		return nil, err
 	}
 	if err := validateGrokAccountInput(account.Platform, account.Type, account.Credentials, account.Extra); err != nil {
+		return nil, err
+	}
+	if err := validateOpenRouterAccountInput(account.Platform, account.Type, account.Credentials); err != nil {
 		return nil, err
 	}
 	if err := validateBaiduDocumentAIAccountInput(ctx, s.cfg, account.Platform, account.Type, account.Credentials); err != nil {
@@ -596,6 +602,23 @@ func validateGrokAccountInput(platform string, accountType string, credentials m
 				return errors.New("grok accounts require extra.grok_capabilities to be an object")
 			}
 		}
+	}
+	return nil
+}
+
+func validateOpenRouterAccountInput(platform string, accountType string, credentials map[string]any) error {
+	if !strings.EqualFold(strings.TrimSpace(platform), PlatformOpenRouter) {
+		return nil
+	}
+	if strings.TrimSpace(strings.ToLower(accountType)) != AccountTypeAPIKey {
+		return infraerrors.BadRequest("ACCOUNT_OPENROUTER_APIKEY_REQUIRED", "openrouter accounts only support apikey type")
+	}
+	if len(credentials) == 0 {
+		return infraerrors.BadRequest("ACCOUNT_OPENROUTER_CREDENTIALS_REQUIRED", "openrouter accounts require credentials")
+	}
+	apiKey, _ := credentials["api_key"].(string)
+	if strings.TrimSpace(apiKey) == "" {
+		return infraerrors.BadRequest("ACCOUNT_OPENROUTER_API_KEY_REQUIRED", "openrouter apikey accounts require credentials.api_key")
 	}
 	return nil
 }

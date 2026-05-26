@@ -1,7 +1,7 @@
 <template>
   <div
     :class="[
-      'account-status-visual flex min-w-[220px] max-w-[240px] flex-col justify-center gap-2 whitespace-normal rounded-[1rem] border px-3.5 py-3 select-none',
+      'account-status-visual flex min-w-[240px] max-w-[280px] flex-col justify-center gap-2.5 whitespace-normal rounded-[1rem] border px-4 py-3.5 select-none',
       whiteSurfaceEnabled ? whiteSurfaceClass : toneStyles.surfaceClass
     ]"
     data-testid="account-status-visual-cell"
@@ -40,9 +40,9 @@
       </span>
 
       <AccountErrorTooltipButton
-        v-if="hasError && account.error_message"
-        :message="account.error_message"
-        :ariaLabel="t('admin.accounts.status.error')"
+        v-if="issueDetailText"
+        :message="issueDetailText"
+        :ariaLabel="t('admin.accounts.status.viewIssueDetails')"
         button-class="rounded-full border border-rose-200/80 bg-white px-1.5 py-1 text-rose-500 transition hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:text-rose-100"
       />
     </div>
@@ -73,20 +73,20 @@
     </div>
 
     <div
-      v-if="helperText"
+      v-if="visibleHelperText"
       :class="[
-        'text-[11px] font-bold leading-snug',
+        'break-words text-[11px] font-bold leading-5',
         toneStyles.helperTextClass
       ]"
       data-testid="account-status-visual-helper"
     >
-      {{ helperText }}
+      {{ visibleHelperText }}
     </div>
 
     <div
       v-if="visibleLimitBadges.length > 0"
       data-test="account-limit-badges"
-      class="flex flex-wrap gap-1.5"
+      :class="limitBadgeLayoutClass"
     >
       <AccountStatusLimitBadge
         v-for="item in visibleLimitBadges"
@@ -114,6 +114,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { useRealtimeCountdownNow } from '@/composables/useRealtimeCountdownNow'
 import AccountSegmentedCountdown from './AccountSegmentedCountdown.vue'
 import { resolveAccountAiryStatus } from './accountAiryStatus'
+import type { AiryStatusKind } from './accountAiryStatusTypes'
 import {
   resolveAccountGlassToneStyles,
   type AccountGlassTone,
@@ -144,6 +145,7 @@ const {
   rateLimitResumeText,
   overloadCountdown,
   visibleLimitBadges,
+  limitBadgeLayoutClass,
 } = createAccountStatusPresentation(accountRef, t, nowMs, nowDate)
 
 const airyStatus = computed(() => resolveAccountAiryStatus(props.account, {
@@ -183,6 +185,34 @@ const statusTitle = computed(() => {
   return t(airyStatus.value.titleKey)
 })
 
+const issueDetailStatusKinds = new Set<AiryStatusKind>([
+  'banned',
+  'locked',
+  'maintenance',
+  'offline',
+  'overdue',
+  'degraded',
+  'captcha',
+  'syncing',
+  'error',
+])
+
+const firstText = (...values: Array<unknown>) => {
+  for (const value of values) {
+    const text = String(value || '').trim()
+    if (text) return text
+  }
+  return ''
+}
+
+const issueDetailText = computed(() => {
+  if (!issueDetailStatusKinds.has(airyStatus.value.kind)) return ''
+  if (airyStatus.value.helperKey) return t(airyStatus.value.helperKey)
+  return firstText(
+    airyStatus.value.helper,
+  )
+})
+
 const statusTagText = computed(() => {
   if (airyStatus.value.tagFallback) return airyStatus.value.tagFallback
   if (airyStatus.value.kind === 'tempUnschedulable') return statusText.value
@@ -209,7 +239,13 @@ const countdownSuffix = computed(() => {
 const helperText = computed(() => {
   if (isRateLimited.value) return rateLimitResumeText.value
   if (isOverloaded.value) return overloadCountdown.value || ''
+  if (airyStatus.value.helperKey) return t(airyStatus.value.helperKey)
   return airyStatus.value.helper || ''
+})
+
+const visibleHelperText = computed(() => {
+  if (issueDetailText.value) return ''
+  return helperText.value
 })
 </script>
 

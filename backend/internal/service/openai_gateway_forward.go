@@ -32,9 +32,15 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	originalBody := body
 	reqModel, reqStream, promptCacheKey := extractOpenAIRequestMetaFromBody(body)
 	originalModel := reqModel
+	runtimeRequestedModel := originalModel
+	if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
+		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
+			runtimeRequestedModel = sourceModel
+		}
+	}
 	topLevelEffort := strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String())
-	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalModel, topLevelEffort)
-	reqModel = firstNonEmptyString(claudeCapability.RequestedModelNormalized, reqModel)
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, runtimeRequestedModel, topLevelEffort)
+	reqModel = firstNonEmptyString(claudeCapability.RequestedModelNormalized, runtimeRequestedModel, reqModel)
 	routingModel := ResolveGatewaySelectionModelFromContext(ctx, reqModel)
 	if routingModel == "" {
 		routingModel = reqModel
@@ -106,7 +112,13 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	normalizedRequestModelPatched := false
 	if v, ok := reqBody["model"].(string); ok {
 		originalModel = v
-		reqModel = firstNonEmptyString(claudeCapability.RequestedModelNormalized, NormalizeRequestedModelForClaudeCapability(v))
+		runtimeRequestedModel = v
+		if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
+			if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
+				runtimeRequestedModel = sourceModel
+			}
+		}
+		reqModel = firstNonEmptyString(claudeCapability.RequestedModelNormalized, NormalizeRequestedModelForClaudeCapability(runtimeRequestedModel))
 		if reqModel != "" && reqModel != v {
 			reqBody["model"] = reqModel
 			normalizedRequestModelPatched = true

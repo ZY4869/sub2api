@@ -507,6 +507,10 @@ type stubApiKeyRepo struct {
 	updateLastUsed func(ctx context.Context, id int64, usedAt time.Time) error
 }
 
+func (r *stubApiKeyRepo) BillingHoldRepository() service.BillingHoldRepository {
+	return stubBillingHoldRepo{}
+}
+
 func (r *stubApiKeyRepo) Create(ctx context.Context, key *service.APIKey) error {
 	return errors.New("not implemented")
 }
@@ -618,6 +622,39 @@ func (r *stubApiKeyRepo) ResetRateLimitWindows(ctx context.Context, id int64) er
 }
 func (r *stubApiKeyRepo) GetRateLimitData(ctx context.Context, id int64) (*service.APIKeyRateLimitData, error) {
 	return nil, nil
+}
+
+type stubBillingHoldRepo struct{}
+
+func (stubBillingHoldRepo) Reserve(ctx context.Context, hold *service.BillingHold) (*service.BillingHold, error) {
+	if hold == nil {
+		return nil, service.ErrInvalidBillingAmount
+	}
+	out := *hold
+	amount, err := service.NormalizeAndValidatePositiveBillingAmount(out.Amount)
+	if err != nil {
+		return nil, err
+	}
+	out.Amount = amount
+	out.Status = service.BillingHoldStatusHeld
+	return &out, nil
+}
+
+func (stubBillingHoldRepo) Settle(ctx context.Context, requestID string, apiKeyID int64, actualAmount float64) (*service.BillingHold, error) {
+	return &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKeyID,
+		Amount:    service.NormalizeBillingAmount(actualAmount),
+		Status:    service.BillingHoldStatusSettled,
+	}, nil
+}
+
+func (stubBillingHoldRepo) Release(ctx context.Context, requestID string, apiKeyID int64) (*service.BillingHold, error) {
+	return &service.BillingHold{
+		RequestID: requestID,
+		APIKeyID:  apiKeyID,
+		Status:    service.BillingHoldStatusReleased,
+	}, nil
 }
 
 type stubUserSubscriptionRepo struct {

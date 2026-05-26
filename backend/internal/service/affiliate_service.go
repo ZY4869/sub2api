@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -19,12 +20,22 @@ var (
 )
 
 type AffiliateService struct {
-	settingService *SettingService
-	repo           AffiliateRepository
+	settingService       *SettingService
+	repo                 AffiliateRepository
+	billingCacheService  *BillingCacheService
+	authCacheInvalidator APIKeyAuthCacheInvalidator
 }
 
 func NewAffiliateService(settingService *SettingService, repo AffiliateRepository) *AffiliateService {
 	return &AffiliateService{settingService: settingService, repo: repo}
+}
+
+func (s *AffiliateService) SetBillingCacheInvalidators(billingCacheService *BillingCacheService, authCacheInvalidator APIKeyAuthCacheInvalidator) {
+	if s == nil {
+		return
+	}
+	s.billingCacheService = billingCacheService
+	s.authCacheInvalidator = authCacheInvalidator
 }
 
 func normalizeAffiliateCode(input string) string {
@@ -221,7 +232,31 @@ func (s *AffiliateService) TransferToBalance(ctx context.Context, userID int64) 
 	if _, err := s.EnsureAffiliateRow(ctx, userID); err != nil {
 		return nil, err
 	}
-	return s.repo.TransferToBalance(ctx, userID)
+	result, err := s.repo.TransferToBalance(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if result != nil && result.TransferredAmount > 0 {
+		s.invalidateTransferBalanceCaches(ctx, userID)
+	}
+	return result, nil
+}
+
+func (s *AffiliateService) invalidateTransferBalanceCaches(ctx context.Context, userID int64) {
+	if s == nil || userID <= 0 {
+		return
+	}
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
+	}
+	if s.billingCacheService == nil {
+		return
+	}
+	cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.billingCacheService.InvalidateUserBalance(cacheCtx, userID); err != nil {
+		slog.Warn("affiliate: invalidate balance cache failed", "user_id", userID, "error", err)
+	}
 }
 
 func (s *AffiliateService) AccrueTopupRebateBestEffort(ctx context.Context, redeemCodeID int64, inviteeUserID int64, creditedAmount float64) {

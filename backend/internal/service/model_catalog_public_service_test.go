@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -442,6 +443,152 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesScopedProjectionAndS
 	require.NoError(t, err)
 	require.Len(t, result.Items, 1)
 	require.Equal(t, "registry-openai-beta", result.Items[0].Model)
+	require.Equal(t, "scoped-openai", result.Items[0].SourceAccountName)
+	require.NotEqual(t, "scoped-openai", result.Items[0].SourceAlias)
+	require.Contains(t, result.Items[0].SourceAlias, "source-")
+}
+
+func TestModelCatalogService_PublicModelCatalogAccountEntriesDeduplicateSameAccountAcrossGroups(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 19, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("registry-openai-beta", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	registrySvc := NewModelRegistryService(repo)
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "registry-openai-beta",
+		DisplayName: "Registry OpenAI Beta",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"registry-openai-beta"})
+	require.NoError(t, err)
+
+	groups := &publicCatalogGroupRepoStub{
+		groups: []Group{
+			{ID: 10, Name: "OpenAI A", Platform: PlatformOpenAI, Status: StatusActive},
+			{ID: 11, Name: "OpenAI B", Platform: PlatformOpenAI, Status: StatusActive},
+		},
+	}
+	sharedAccount := Account{
+		ID:          88,
+		Name:        "shared-openai",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Extra: map[string]any{
+			"model_scope_v2": (&AccountModelScopeV2{
+				PolicyMode: AccountModelPolicyModeWhitelist,
+				Entries: []AccountModelScopeEntry{{
+					DisplayModelID: "registry-openai-beta",
+					TargetModelID:  "registry-openai-beta",
+					Provider:       PlatformOpenAI,
+					VisibilityMode: AccountModelVisibilityModeDirect,
+				}},
+			}).ToMap(),
+		},
+	}
+	accountRepo := &publicCatalogAccountRepoStub{
+		accountsByGroup: map[int64][]Account{
+			10: {sharedAccount},
+			11: {sharedAccount},
+		},
+	}
+
+	gatewaySvc := &GatewayService{
+		accountRepo:          accountRepo,
+		groupRepo:            groups,
+		modelRegistryService: registrySvc,
+		cfg:                  &config.Config{},
+	}
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetGatewayService(gatewaySvc)
+
+	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Len(t, result.Items, 1)
+	require.Equal(t, int64(88), result.Items[0].SourceAccountID)
+}
+
+func TestModelCatalogService_PublicModelCatalogAccountEntriesKeepSameModelAcrossAccounts(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 19, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("registry-openai-beta", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	registrySvc := NewModelRegistryService(repo)
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "registry-openai-beta",
+		DisplayName: "Registry OpenAI Beta",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"registry-openai-beta"})
+	require.NoError(t, err)
+
+	accountForID := func(id int64) Account {
+		return Account{
+			ID:          id,
+			Name:        "openai",
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeAPIKey,
+			Status:      StatusActive,
+			Schedulable: true,
+			Extra: map[string]any{
+				"model_scope_v2": (&AccountModelScopeV2{
+					PolicyMode: AccountModelPolicyModeWhitelist,
+					Entries: []AccountModelScopeEntry{{
+						DisplayModelID: "registry-openai-beta",
+						TargetModelID:  "registry-openai-beta",
+						Provider:       PlatformOpenAI,
+						VisibilityMode: AccountModelVisibilityModeDirect,
+					}},
+				}).ToMap(),
+			},
+		}
+	}
+	gatewaySvc := &GatewayService{
+		accountRepo: &publicCatalogAccountRepoStub{
+			accountsByGroup: map[int64][]Account{
+				10: {accountForID(88), accountForID(89)},
+			},
+		},
+		groupRepo: &publicCatalogGroupRepoStub{
+			groups: []Group{{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive}},
+		},
+		modelRegistryService: registrySvc,
+		cfg:                  &config.Config{},
+	}
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetGatewayService(gatewaySvc)
+
+	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Len(t, result.Items, 2)
+	require.NotEqual(t, result.Items[0].EntryID, result.Items[1].EntryID)
+	require.NotEqual(t, result.Items[0].PublicModelID, result.Items[1].PublicModelID)
+	require.ElementsMatch(t, []int64{88, 89}, []int64{result.Items[0].SourceAccountID, result.Items[1].SourceAccountID})
 }
 
 func TestBuildPublicModelCatalogItemFromProjection_PrefersActualProviderOverProjectionProtocol(t *testing.T) {
@@ -649,6 +796,11 @@ func TestAPIKeyService_GetAvailableGroupModelOptions_MatchesPublicCatalogProject
 	require.Equal(t, int64(10), options[0].GroupID)
 	require.Len(t, options[0].Models, 1)
 	require.Equal(t, "registry-openai-beta", options[0].Models[0].PublicID)
+
+	encoded, err := json.Marshal(options)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "source_ids")
+	require.NotContains(t, string(encoded), "target_model_id")
 }
 
 func TestModelCatalogService_PublishedPublicModelCatalogSnapshot_ReturnsEmptyWhenNotPublished(t *testing.T) {

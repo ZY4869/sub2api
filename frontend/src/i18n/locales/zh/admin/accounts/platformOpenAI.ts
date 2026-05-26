@@ -46,6 +46,16 @@ export default {
             flash: "DeepSeek V4 Flash",
         },
     },
+    openrouter: {
+        apiKeyOnly: "通过 OpenRouter 官方 API Key 接入",
+        baseUrlHint: "留空使用 OpenRouter 官方 API（https://openrouter.ai/api/v1）",
+        apiKeyHint: "您的 OpenRouter API Key（通常以 sk-or-v1- 开头）",
+        httpReferer: "站点 URL",
+        httpRefererHint: "可选。用于 OpenRouter 排名与归因，会作为 HTTP-Referer 请求头发送。",
+        title: "站点标题",
+        titlePlaceholder: "例如：Sub2API",
+        titleHint: "可选。用于 OpenRouter 展示来源，会作为 X-OpenRouter-Title 请求头发送。",
+    },
     anthropic: {
         apiKeyPassthrough: "自动透传（仅替换认证）",
         apiKeyPassthroughDesc: "仅对 Anthropic API Key 生效。开启后，messages/count_tokens 请求将透传上游并仅替换认证，保留计费/并发/审计及必要安全过滤；关闭即可回滚到现有兼容链路。",

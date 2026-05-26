@@ -62,7 +62,7 @@ func (h *GatewayHandler) forwardGeminiLiveWebSocket(c *gin.Context) {
 		closeOpenAIClientWS(clientConn, coderws.StatusPolicyViolation, "billing or group selection failed")
 		return
 	}
-	if !middleware.HasForcePlatform(c) && currentAPIKey.Group != nil && currentAPIKey.Group.Platform != service.PlatformGemini {
+	if !middleware.HasForcePlatform(c) && currentAPIKey.Group != nil && currentAPIKey.Group.Platform != service.PlatformGemini && currentAPIKey.Group.Platform != service.PlatformProtocolGateway {
 		closeOpenAIClientWS(clientConn, coderws.StatusPolicyViolation, "API key group platform is not gemini")
 		return
 	}
@@ -146,6 +146,7 @@ func (h *GatewayHandler) forwardGeminiLiveWebSocket(c *gin.Context) {
 	usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, rawInboundPath, firstMessage)
 	if !usageDecision.Persist {
 		reqLog.Info("gemini.usage_record_skipped", zap.String("reason", usageDecision.Reason), zap.String("operation_type", usageDecision.OperationType), zap.String("inbound_endpoint", inboundEndpoint))
+		releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 		return
 	}
 	if currentAPIKey.User != nil {

@@ -345,7 +345,8 @@ describe('GroupsView iconized selections', () => {
         'admin.groups.platforms.gemini',
         'admin.groups.platforms.grok',
         'admin.groups.platforms.kiro',
-        'admin.groups.platforms.openai'
+        'admin.groups.platforms.openai',
+        'admin.groups.platforms.protocol_gateway'
       ])
     )
   })

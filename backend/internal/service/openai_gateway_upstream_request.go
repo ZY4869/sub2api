@@ -21,6 +21,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	}
 
 	req.Header.Set("authorization", "Bearer "+token)
+	applyOpenRouterAttributionRequestHeaders(account, req.Header)
 	if isChatGPTOpenAIOAuthAccount(account) {
 		req.Host = "chatgpt.com"
 		if chatgptAccountID := account.GetChatGPTAccountID(); chatgptAccountID != "" {

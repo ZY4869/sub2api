@@ -49,9 +49,15 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	startTime := time.Now()
 	ctx = EnsureRequestMetadata(ctx)
 	originalRequestedModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	runtimeRequestedModel := originalRequestedModel
+	if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
+		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
+			runtimeRequestedModel = sourceModel
+		}
+	}
 	entryEffortResolution := extractOpenAIReasoningEffortResolutionFromBody(body, originalRequestedModel)
-	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, originalRequestedModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String()))
-	normalizedRequestedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, originalRequestedModel)
+	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, runtimeRequestedModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String()))
+	normalizedRequestedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, runtimeRequestedModel)
 
 	// 1. Parse Chat Completions request
 	var chatReq apicompat.ChatCompletionsRequest

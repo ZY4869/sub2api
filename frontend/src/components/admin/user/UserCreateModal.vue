@@ -35,6 +35,14 @@
           <input v-model.number="form.concurrency" type="number" class="input" />
         </div>
       </div>
+      <div>
+        <label class="input-label">{{ t('admin.users.apiKeyModelBindingMode') }}</label>
+        <select v-model="form.api_key_model_binding_mode" class="input">
+          <option value="model_required">{{ t('admin.users.apiKeyModelBindingModeRequired') }}</option>
+          <option value="group_allowed">{{ t('admin.users.apiKeyModelBindingModeGroupAllowed') }}</option>
+        </select>
+        <p class="input-hint">{{ t('admin.users.apiKeyModelBindingModeHint') }}</p>
+      </div>
     </form>
     <template #footer>
       <div class="flex justify-end gap-3">
@@ -53,11 +61,20 @@ import { useI18n } from 'vue-i18n'; import { adminAPI } from '@/api/admin'
 import { useForm } from '@/composables/useForm'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
+import type { APIKeyModelBindingMode } from '@/types'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits(['close', 'success']); const { t } = useI18n()
 
-const form = reactive({ email: '', password: '', username: '', notes: '', balance: 0, concurrency: 1 })
+const form = reactive({
+  email: '',
+  password: '',
+  username: '',
+  notes: '',
+  balance: 0,
+  concurrency: 1,
+  api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode
+})
 
 const { loading, submit } = useForm({
   form,
@@ -68,7 +85,17 @@ const { loading, submit } = useForm({
   successMsg: t('admin.users.userCreated')
 })
 
-watch(() => props.show, (v) => { if(v) Object.assign(form, { email: '', password: '', username: '', notes: '', balance: 0, concurrency: 1 }) })
+watch(() => props.show, (v) => {
+  if(v) Object.assign(form, {
+    email: '',
+    password: '',
+    username: '',
+    notes: '',
+    balance: 0,
+    concurrency: 1,
+    api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode
+  })
+})
 
 const generateRandomPassword = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*'

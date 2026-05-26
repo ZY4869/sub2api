@@ -88,9 +88,23 @@ func ProvidePaymentService(
 	emailService *EmailService,
 	templates *EmailTemplateService,
 	userRepo UserRepository,
+	billingCacheService *BillingCacheService,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
 ) *PaymentService {
 	svc := NewPaymentService(repo, settings, airwallex, subscriptionSvc, affiliateService)
 	svc.SetNotificationServices(emailService, templates, userRepo)
+	svc.SetBillingCacheInvalidators(billingCacheService, authCacheInvalidator)
+	return svc
+}
+
+func ProvideAffiliateService(
+	settingService *SettingService,
+	repo AffiliateRepository,
+	billingCacheService *BillingCacheService,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+) *AffiliateService {
+	svc := NewAffiliateService(settingService, repo)
+	svc.SetBillingCacheInvalidators(billingCacheService, authCacheInvalidator)
 	return svc
 }
 
@@ -539,9 +553,12 @@ func ProvideOpsScheduledReportService(
 }
 
 // ProvideAPIKeyAuthCacheInvalidator 提供 API Key 认证缓存失效能力
-func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService) APIKeyAuthCacheInvalidator {
+func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService, billingCacheService *BillingCacheService) APIKeyAuthCacheInvalidator {
 	// Start Pub/Sub subscriber for L1 cache invalidation across instances
 	apiKeyService.StartAuthCacheInvalidationSubscriber(context.Background())
+	if billingCacheService != nil {
+		billingCacheService.SetAuthCacheInvalidator(apiKeyService)
+	}
 	return apiKeyService
 }
 
@@ -565,10 +582,12 @@ func ProvideAPIKeyService(
 	userSubRepo UserSubscriptionRepository,
 	userGroupRateRepo UserGroupRateRepository,
 	cache APIKeyCache,
+	billingCacheService *BillingCacheService,
 	modelCatalogService *ModelCatalogService,
 	cfg *config.Config,
 ) *APIKeyService {
 	svc := NewAPIKeyService(apiKeyRepo, userRepo, groupRepo, userSubRepo, userGroupRateRepo, cache, cfg)
+	svc.SetBillingCacheService(billingCacheService)
 	svc.SetModelCatalogService(modelCatalogService)
 	return svc
 }
@@ -706,6 +725,7 @@ func ProvideGatewayService(
 	svc := NewGatewayService(accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestStore, settingService)
 	svc.SetChannelService(channelService)
 	svc.SetModelRegistryService(modelRegistryService)
+	svc.SetModelCatalogService(modelCatalogService)
 	svc.SetVertexCatalogService(vertexCatalogService)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
 	if modelCatalogService != nil {
@@ -736,11 +756,13 @@ func ProvideOpenAIGatewayService(
 	openAITokenProvider *OpenAITokenProvider,
 	settingService *SettingService,
 	modelRegistryService *ModelRegistryService,
+	modelCatalogService *ModelCatalogService,
 	channelService *ChannelService,
 ) *OpenAIGatewayService {
 	svc := NewOpenAIGatewayService(accountRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, httpUpstream, deferredService, openAITokenProvider, settingService)
 	svc.SetChannelService(channelService)
 	svc.SetModelRegistryService(modelRegistryService)
+	svc.SetModelCatalogService(modelCatalogService)
 	return svc
 }
 
@@ -825,7 +847,7 @@ var ProviderSet = wire.NewSet(
 	NewAccountService,
 	NewProxyService,
 	NewRedeemService,
-	NewAffiliateService,
+	ProvideAffiliateService,
 	ProvidePaymentService,
 	NewHTTPAirwallexClient,
 	wire.Bind(new(AirwallexClient), new(*HTTPAirwallexClient)),

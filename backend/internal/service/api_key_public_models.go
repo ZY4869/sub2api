@@ -5,6 +5,10 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
+	"go.uber.org/zap"
 )
 
 type APIKeyPublicModelEntry struct {
@@ -29,6 +33,15 @@ type apiKeyPublicProjectionCandidate struct {
 
 const apiKeyPublicModelsSourcePolicyProjection = "policy_projection"
 
+type apiKeyPublishedPublicCatalogMatch struct {
+	Entry      APIKeyPublicModelEntry
+	Catalog    *PublishedPublicCatalogEntry
+	Binding    APIKeyGroupBinding
+	GroupID    *int64
+	Account    *Account
+	SourceItem PublicModelCatalogItem
+}
+
 func (s *GatewayService) GetAPIKeyPublicModels(
 	ctx context.Context,
 	apiKey *APIKey,
@@ -36,6 +49,11 @@ func (s *GatewayService) GetAPIKeyPublicModels(
 ) ([]APIKeyPublicModelEntry, error) {
 	if s == nil || s.accountRepo == nil || apiKey == nil {
 		return nil, nil
+	}
+	if publishedEntries, ok, err := s.apiKeyPublishedPublicCatalogModels(ctx, apiKey, platform); err != nil {
+		return nil, err
+	} else if ok {
+		return publishedEntries, nil
 	}
 	bindings := apiKeyBindingsForSelection(apiKey)
 	if len(bindings) == 0 {
@@ -52,7 +70,8 @@ func (s *GatewayService) GetAPIKeyPublicModels(
 			continue
 		}
 		bindingPlatform := strings.TrimSpace(binding.Group.Platform)
-		if normalizedPlatform != "" && !strings.EqualFold(bindingPlatform, normalizedPlatform) {
+		projectionPlatform := apiKeyPublicProjectionPlatform(bindingPlatform, normalizedPlatform)
+		if normalizedPlatform != "" && projectionPlatform == "" {
 			continue
 		}
 
@@ -69,13 +88,17 @@ func (s *GatewayService) GetAPIKeyPublicModels(
 			if account == nil || !account.IsSchedulable() {
 				continue
 			}
+			if !MatchesGroupPlatform(account, projectionPlatform) {
+				continue
+			}
+			accountForProjection := ResolveProtocolGatewayInboundAccount(account, projectionPlatform)
 			entries, err := s.publicModelEntriesForAccount(
 				ctx,
-				account,
+				accountForProjection,
 				mode,
-				bindingPlatform,
+				projectionPlatform,
 				binding.ModelPatterns,
-				account.GetModelMapping(),
+				accountForProjection.GetModelMapping(),
 			)
 			if err != nil {
 				if firstErr == nil {
@@ -83,8 +106,8 @@ func (s *GatewayService) GetAPIKeyPublicModels(
 				}
 				continue
 			}
-			entries = s.filterPublicEntriesByActiveChannel(ctx, binding.GroupID, bindingPlatform, entries)
-			entries = filterOpenAIAPIKeyPublicEntriesForRuntimeQuota(account, entries)
+			entries = s.filterPublicEntriesByActiveChannel(ctx, binding.GroupID, projectionPlatform, entries)
+			entries = filterOpenAIAPIKeyPublicEntriesForRuntimeQuota(accountForProjection, entries)
 			for _, entry := range entries {
 				if _, exists := entriesByID[entry.PublicID]; exists {
 					continue
@@ -119,6 +142,60 @@ func (s *GatewayService) GetAPIKeyPublicModels(
 		return entries[i].PublicID < entries[j].PublicID
 	})
 	return entries, nil
+}
+
+func (s *GatewayService) apiKeyPublishedPublicCatalogModels(
+	ctx context.Context,
+	apiKey *APIKey,
+	platform string,
+) ([]APIKeyPublicModelEntry, bool, error) {
+	if s == nil || s.modelCatalogService == nil || apiKey == nil {
+		return nil, false, nil
+	}
+	matches, active, err := s.apiKeyPublishedPublicCatalogVisibleMatches(ctx, apiKey, platform, "")
+	if err != nil || !active {
+		return nil, active, err
+	}
+	entriesByID := make(map[string]APIKeyPublicModelEntry, len(matches))
+	for _, match := range matches {
+		publicID := strings.TrimSpace(match.Entry.PublicID)
+		if publicID == "" {
+			continue
+		}
+		if _, exists := entriesByID[publicID]; exists {
+			continue
+		}
+		entriesByID[publicID] = match.Entry
+	}
+	entries := make([]APIKeyPublicModelEntry, 0, len(entriesByID))
+	for _, entry := range entriesByID {
+		entries = append(entries, entry)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].PublicID < entries[j].PublicID
+	})
+	return entries, true, nil
+}
+
+func (s *GatewayService) findPublishedPublicCatalogModel(
+	ctx context.Context,
+	apiKey *APIKey,
+	platform string,
+	modelID string,
+) (*APIKeyPublicModelEntry, bool, bool, error) {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		return nil, false, false, nil
+	}
+	matches, active, err := s.apiKeyPublishedPublicCatalogVisibleMatches(ctx, apiKey, platform, modelID)
+	if err != nil || !active {
+		return nil, false, active, err
+	}
+	if len(matches) == 0 {
+		return nil, false, true, nil
+	}
+	entry := matches[0].Entry
+	return &entry, true, true, nil
 }
 
 func (s *GatewayService) publicModelEntriesForAccount(
@@ -407,6 +484,9 @@ func (s *GatewayService) FindAPIKeyPublicModel(
 	if modelID == "" {
 		return nil, false, nil
 	}
+	if entry, ok, active, err := s.findPublishedPublicCatalogModel(ctx, apiKey, platform, modelID); err != nil || ok || active {
+		return entry, ok, err
+	}
 	entries, err := s.GetAPIKeyPublicModels(ctx, apiKey, platform)
 	if err != nil {
 		return nil, false, err
@@ -425,11 +505,360 @@ func (s *GatewayService) ResolveAPIKeySelectionModel(ctx context.Context, apiKey
 	if modelID == "" {
 		return ""
 	}
+	if entry, ok, active, err := s.findPublishedPublicCatalogModel(ctx, apiKey, platform, modelID); err == nil && ok && entry != nil {
+		if sourceID := strings.TrimSpace(entry.SourceID); sourceID != "" {
+			return sourceID
+		}
+		return strings.TrimSpace(entry.PublicID)
+	} else if err == nil && active {
+		return ""
+	}
 	entry, ok := s.findConfiguredAPIKeyModelByAnyID(ctx, apiKey, platform, modelID)
 	if !ok || strings.TrimSpace(entry.PublicID) == "" {
 		return modelID
 	}
 	return entry.PublicID
+}
+
+func (s *GatewayService) apiKeyPublishedPublicCatalogVisibleMatches(
+	ctx context.Context,
+	apiKey *APIKey,
+	platform string,
+	modelID string,
+) ([]apiKeyPublishedPublicCatalogMatch, bool, error) {
+	if s == nil || s.modelCatalogService == nil || apiKey == nil {
+		return nil, false, nil
+	}
+	published, active := s.modelCatalogService.activePublishedPublicModelCatalogSnapshot(ctx)
+	if !active {
+		return nil, false, nil
+	}
+	bindings := apiKeyBindingsForSelection(apiKey)
+	if len(bindings) == 0 {
+		return nil, true, nil
+	}
+	requestedID := NormalizeModelCatalogModelID(modelID)
+	matches := make([]apiKeyPublishedPublicCatalogMatch, 0, len(published.Snapshot.Items))
+	for _, item := range published.Snapshot.Items {
+		if requestedID != "" && !publicModelCatalogItemMatchesPublicID(item, requestedID) {
+			continue
+		}
+		for _, binding := range bindings {
+			match, ok, err := s.publishedPublicCatalogItemForBinding(ctx, binding, platform, item)
+			if err != nil {
+				return nil, true, err
+			}
+			if !ok {
+				continue
+			}
+			if apiKey.IsImageOnly() {
+				native, _ := s.resolvePublicImageCapability(ctx, &match.Entry)
+				if !native && strings.TrimSpace(item.Mode) != "image" {
+					continue
+				}
+			}
+			matches = append(matches, match)
+			break
+		}
+	}
+	return matches, true, nil
+}
+
+func (s *OpenAIGatewayService) apiKeyPublishedPublicCatalogVisibleMatches(
+	ctx context.Context,
+	apiKey *APIKey,
+	platform string,
+	modelID string,
+) ([]apiKeyPublishedPublicCatalogMatch, bool, error) {
+	if s == nil || s.modelCatalogService == nil || apiKey == nil {
+		return nil, false, nil
+	}
+	published, active := s.modelCatalogService.activePublishedPublicModelCatalogSnapshot(ctx)
+	if !active {
+		return nil, false, nil
+	}
+	bindings := apiKeyBindingsForSelection(apiKey)
+	if len(bindings) == 0 {
+		return nil, true, nil
+	}
+	requestedID := NormalizeModelCatalogModelID(modelID)
+	matches := make([]apiKeyPublishedPublicCatalogMatch, 0, len(published.Snapshot.Items))
+	for _, item := range published.Snapshot.Items {
+		if requestedID != "" && !publicModelCatalogItemMatchesPublicID(item, requestedID) {
+			continue
+		}
+		for _, binding := range bindings {
+			match, ok, err := s.publishedPublicCatalogItemForBinding(ctx, binding, platform, item)
+			if err != nil {
+				return nil, true, err
+			}
+			if !ok {
+				continue
+			}
+			if apiKey.IsImageOnly() && strings.TrimSpace(item.Mode) != "image" {
+				continue
+			}
+			matches = append(matches, match)
+			break
+		}
+	}
+	return matches, true, nil
+}
+
+func (s *GatewayService) publishedPublicCatalogItemForBinding(
+	ctx context.Context,
+	binding APIKeyGroupBinding,
+	requestedPlatform string,
+	item PublicModelCatalogItem,
+) (apiKeyPublishedPublicCatalogMatch, bool, error) {
+	publicID := NormalizeModelCatalogModelID(firstNonEmptyTrimmed(item.PublicModelID, item.Model))
+	if s == nil || publicID == "" || binding.Group == nil || !binding.Group.IsActive() {
+		return apiKeyPublishedPublicCatalogMatch{}, false, nil
+	}
+	if _, matched := bindingMatchesModel(binding.ModelPatterns, publicID); !matched {
+		return apiKeyPublishedPublicCatalogMatch{}, false, nil
+	}
+	projectionPlatform, ok := publishedCatalogBindingItemPlatform(binding, requestedPlatform, item)
+	if !ok {
+		return apiKeyPublishedPublicCatalogMatch{}, false, nil
+	}
+
+	var resolvedAccount *Account
+	if item.SourceAccountID > 0 {
+		account, err := s.accountRepo.GetByID(ctx, item.SourceAccountID)
+		if err != nil || account == nil {
+			recordPublicCatalogPinnedUnavailable(ctx, publishedPublicCatalogEntryFromItem(item), bindingGroupIDPtr(binding), "account_not_found", err)
+			return apiKeyPublishedPublicCatalogMatch{}, false, nil
+		}
+		if !publishedCatalogAccountUsableForBinding(ctx, s.modelRegistryService, account, binding.GroupID, projectionPlatform, item) {
+			recordPublicCatalogPinnedUnavailable(ctx, publishedPublicCatalogEntryFromItem(item), bindingGroupIDPtr(binding), "account_not_available_for_group", nil)
+			return apiKeyPublishedPublicCatalogMatch{}, false, nil
+		}
+		resolvedAccount = ResolveProtocolGatewayInboundAccount(account, firstNonEmptyTrimmed(item.SourceProtocol, projectionPlatform, RoutingPlatformForAccount(account)))
+		if resolvedAccount == nil {
+			return apiKeyPublishedPublicCatalogMatch{}, false, nil
+		}
+	}
+
+	entry := APIKeyPublicModelEntry{
+		PublicID:          publicID,
+		AliasID:           publicID,
+		SourceID:          NormalizeModelCatalogModelID(firstNonEmptyTrimmed(item.SourceModelID, item.BaseModel)),
+		DisplayName:       firstNonEmptyTrimmed(item.DisplayName, item.BaseModel, publicID),
+		Platform:          firstNonEmptyTrimmed(item.SourceProtocol, item.Provider, projectionPlatform),
+		AvailabilityState: firstNonEmptyTrimmed(item.AvailabilityState, AccountModelAvailabilityUnknown),
+		StaleState:        firstNonEmptyTrimmed(item.StaleState, AccountModelStaleStateUnverified),
+		LifecycleStatus:   normalizePublicModelLifecycleStatus(item.LifecycleStatus, item.DisplayName, publicID),
+	}
+	return apiKeyPublishedPublicCatalogMatch{
+		Entry:      entry,
+		Catalog:    publishedPublicCatalogEntryFromItem(item),
+		Binding:    binding,
+		GroupID:    bindingGroupIDPtr(binding),
+		Account:    resolvedAccount,
+		SourceItem: clonePublicModelCatalogItem(item),
+	}, true, nil
+}
+
+func (s *OpenAIGatewayService) publishedPublicCatalogItemForBinding(
+	ctx context.Context,
+	binding APIKeyGroupBinding,
+	requestedPlatform string,
+	item PublicModelCatalogItem,
+) (apiKeyPublishedPublicCatalogMatch, bool, error) {
+	publicID := NormalizeModelCatalogModelID(firstNonEmptyTrimmed(item.PublicModelID, item.Model))
+	if s == nil || publicID == "" || binding.Group == nil || !binding.Group.IsActive() {
+		return apiKeyPublishedPublicCatalogMatch{}, false, nil
+	}
+	if _, matched := bindingMatchesModel(binding.ModelPatterns, publicID); !matched {
+		return apiKeyPublishedPublicCatalogMatch{}, false, nil
+	}
+	projectionPlatform, ok := publishedCatalogBindingItemPlatform(binding, requestedPlatform, item)
+	if !ok {
+		return apiKeyPublishedPublicCatalogMatch{}, false, nil
+	}
+
+	var resolvedAccount *Account
+	if item.SourceAccountID > 0 {
+		account, err := s.accountRepo.GetByID(ctx, item.SourceAccountID)
+		if err != nil || account == nil {
+			recordPublicCatalogPinnedUnavailable(ctx, publishedPublicCatalogEntryFromItem(item), bindingGroupIDPtr(binding), "account_not_found", err)
+			return apiKeyPublishedPublicCatalogMatch{}, false, nil
+		}
+		if !publishedCatalogAccountUsableForBinding(ctx, s.modelRegistryService, account, binding.GroupID, projectionPlatform, item) {
+			recordPublicCatalogPinnedUnavailable(ctx, publishedPublicCatalogEntryFromItem(item), bindingGroupIDPtr(binding), "account_not_available_for_group", nil)
+			return apiKeyPublishedPublicCatalogMatch{}, false, nil
+		}
+		resolvedAccount = ResolveProtocolGatewayInboundAccount(account, firstNonEmptyTrimmed(item.SourceProtocol, projectionPlatform, OpenAIPlatformFromContext(ctx)))
+		if resolvedAccount == nil || !isOpenAITextRuntimeAccount(resolvedAccount) {
+			return apiKeyPublishedPublicCatalogMatch{}, false, nil
+		}
+	}
+
+	entry := APIKeyPublicModelEntry{
+		PublicID:          publicID,
+		AliasID:           publicID,
+		SourceID:          NormalizeModelCatalogModelID(firstNonEmptyTrimmed(item.SourceModelID, item.BaseModel)),
+		DisplayName:       firstNonEmptyTrimmed(item.DisplayName, item.BaseModel, publicID),
+		Platform:          firstNonEmptyTrimmed(item.SourceProtocol, item.Provider, projectionPlatform),
+		AvailabilityState: firstNonEmptyTrimmed(item.AvailabilityState, AccountModelAvailabilityUnknown),
+		StaleState:        firstNonEmptyTrimmed(item.StaleState, AccountModelStaleStateUnverified),
+		LifecycleStatus:   normalizePublicModelLifecycleStatus(item.LifecycleStatus, item.DisplayName, publicID),
+	}
+	return apiKeyPublishedPublicCatalogMatch{
+		Entry:      entry,
+		Catalog:    publishedPublicCatalogEntryFromItem(item),
+		Binding:    binding,
+		GroupID:    bindingGroupIDPtr(binding),
+		Account:    resolvedAccount,
+		SourceItem: clonePublicModelCatalogItem(item),
+	}, true, nil
+}
+
+func publishedCatalogBindingItemPlatform(binding APIKeyGroupBinding, requestedPlatform string, item PublicModelCatalogItem) (string, bool) {
+	if binding.Group == nil {
+		return "", false
+	}
+	bindingPlatform := strings.TrimSpace(strings.ToLower(binding.Group.Platform))
+	requestedPlatform = strings.TrimSpace(strings.ToLower(requestedPlatform))
+	if requestedPlatform != "" {
+		projectionPlatform := apiKeyPublicProjectionPlatform(bindingPlatform, requestedPlatform)
+		if projectionPlatform == "" {
+			return "", false
+		}
+		if publicCatalogItemMatchesProtocol(item, requestedPlatform) || publicCatalogItemMatchesProtocol(item, projectionPlatform) {
+			return projectionPlatform, true
+		}
+		return "", false
+	}
+	if bindingPlatform == PlatformProtocolGateway {
+		for _, protocol := range []string{PlatformOpenAI, PlatformAnthropic, PlatformGemini} {
+			if publicCatalogItemMatchesProtocol(item, protocol) {
+				return protocol, true
+			}
+		}
+		return "", false
+	}
+	if publicCatalogItemMatchesProtocol(item, bindingPlatform) {
+		return bindingPlatform, true
+	}
+	return "", false
+}
+
+func publicCatalogItemMatchesProtocol(item PublicModelCatalogItem, protocol string) bool {
+	protocol = strings.TrimSpace(strings.ToLower(protocol))
+	if protocol == "" {
+		return false
+	}
+	for _, candidate := range append([]string{item.SourceProtocol, item.Provider}, item.RequestProtocols...) {
+		if strings.TrimSpace(strings.ToLower(candidate)) == protocol {
+			return true
+		}
+	}
+	return false
+}
+
+func publishedCatalogAccountUsableForBinding(
+	ctx context.Context,
+	registry *ModelRegistryService,
+	account *Account,
+	groupID int64,
+	projectionPlatform string,
+	item PublicModelCatalogItem,
+) bool {
+	if account == nil || !account.IsSchedulable() {
+		return false
+	}
+	if isOpenAIGroupPlatform(projectionPlatform) && !isOpenAITextRuntimeAccount(ResolveProtocolGatewayInboundAccount(account, projectionPlatform)) {
+		return false
+	}
+	if !accountBoundToGroupID(account, &groupID) {
+		return false
+	}
+	if !MatchesGroupPlatform(account, projectionPlatform) {
+		return false
+	}
+	resolved := ResolveProtocolGatewayInboundAccount(account, firstNonEmptyTrimmed(item.SourceProtocol, projectionPlatform))
+	if resolved == nil || !resolved.IsSchedulable() {
+		return false
+	}
+	sourceModel := firstNonEmptyTrimmed(item.SourceModelID, item.BaseModel)
+	return accountSupportsPublishedCatalogSourceModel(ctx, registry, resolved, sourceModel)
+}
+
+func isOpenAIGroupPlatform(platform string) bool {
+	switch strings.TrimSpace(strings.ToLower(platform)) {
+	case PlatformOpenAI, PlatformDeepSeek, PlatformOpenRouter:
+		return true
+	default:
+		return false
+	}
+}
+
+func accountSupportsPublishedCatalogSourceModel(ctx context.Context, registry *ModelRegistryService, account *Account, sourceModel string) bool {
+	sourceModel = strings.TrimSpace(sourceModel)
+	if sourceModel == "" {
+		return true
+	}
+	if isRequestedModelSupportedByAccount(ctx, registry, account, sourceModel) {
+		return true
+	}
+	sourceCandidates := modelIDComparisonSet(ctx, registry, sourceModel)
+	for _, model := range BuildAvailableTestModels(ctx, account, registry) {
+		for _, candidate := range []string{model.ID, model.TargetModelID, model.CanonicalID} {
+			if modelIDComparisonSetsOverlap(sourceCandidates, modelIDComparisonSet(ctx, registry, candidate)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func modelIDComparisonSet(ctx context.Context, registry *ModelRegistryService, modelID string) map[string]struct{} {
+	set := collectModelSupportVariants(ctx, registry, "", modelID)
+	for _, candidate := range []string{
+		modelID,
+		NormalizeRequestedModelForClaudeCapability(modelID),
+		NormalizeModelCatalogModelID(modelID),
+		normalizeRegistryID(modelID),
+	} {
+		normalized := strings.TrimSpace(candidate)
+		if normalized == "" {
+			continue
+		}
+		set[normalized] = struct{}{}
+	}
+	return set
+}
+
+func modelIDComparisonSetsOverlap(left, right map[string]struct{}) bool {
+	if len(left) == 0 || len(right) == 0 {
+		return false
+	}
+	for candidate := range left {
+		if _, ok := right[candidate]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func bindingGroupIDPtr(binding APIKeyGroupBinding) *int64 {
+	if binding.GroupID <= 0 {
+		return nil
+	}
+	id := binding.GroupID
+	return &id
+}
+
+func recordPublicCatalogRouteMiss(ctx context.Context, apiKey *APIKey, groupID *int64, publicModelID string, platform string) {
+	protocolruntime.RecordBillingResolverFallback("public_catalog_route_miss")
+	fields := publicCatalogLogFields(ctx, nil, groupID, apiKey)
+	fields = append(fields,
+		zap.String("public_model_id", strings.TrimSpace(publicModelID)),
+		zap.String("platform", strings.TrimSpace(platform)),
+	)
+	logger.FromContext(ctx).Warn("public model catalog route miss", fields...)
 }
 
 func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
@@ -456,7 +885,8 @@ func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
 			continue
 		}
 		bindingPlatform := strings.TrimSpace(binding.Group.Platform)
-		if normalizedPlatform != "" && !strings.EqualFold(bindingPlatform, normalizedPlatform) {
+		projectionPlatform := apiKeyPublicProjectionPlatform(bindingPlatform, normalizedPlatform)
+		if normalizedPlatform != "" && projectionPlatform == "" {
 			continue
 		}
 		queryPlatforms := QueryPlatformsForGroupPlatform(bindingPlatform, false)
@@ -469,7 +899,11 @@ func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
 			if account == nil || !account.IsSchedulable() {
 				continue
 			}
-			entries, err := s.publicModelEntriesForAccount(ctx, account, mode, bindingPlatform, binding.ModelPatterns, account.GetModelMapping())
+			if !MatchesGroupPlatform(account, projectionPlatform) {
+				continue
+			}
+			accountForProjection := ResolveProtocolGatewayInboundAccount(account, projectionPlatform)
+			entries, err := s.publicModelEntriesForAccount(ctx, accountForProjection, mode, projectionPlatform, binding.ModelPatterns, accountForProjection.GetModelMapping())
 			if err != nil {
 				continue
 			}
@@ -487,6 +921,26 @@ func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
 		}
 	}
 	return nil, false
+}
+
+func apiKeyPublicProjectionPlatform(bindingPlatform string, requestedPlatform string) string {
+	bindingPlatform = strings.TrimSpace(strings.ToLower(bindingPlatform))
+	requestedPlatform = strings.TrimSpace(strings.ToLower(requestedPlatform))
+	if bindingPlatform == "" {
+		return ""
+	}
+	if requestedPlatform == "" || strings.EqualFold(bindingPlatform, requestedPlatform) {
+		return bindingPlatform
+	}
+	if bindingPlatform != PlatformProtocolGateway {
+		return ""
+	}
+	switch requestedPlatform {
+	case PlatformOpenAI, PlatformAnthropic, PlatformGemini:
+		return requestedPlatform
+	default:
+		return ""
+	}
 }
 
 func buildAPIKeyPublicProjectionCandidate(mode, alias, source, platform string) (apiKeyPublicProjectionCandidate, bool) {

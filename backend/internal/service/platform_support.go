@@ -17,6 +17,8 @@ var supportedPrimaryGroupPlatforms = map[string]struct{}{
 	PlatformGrok:            {},
 	PlatformKiro:            {},
 	PlatformOpenAI:          {},
+	PlatformOpenRouter:      {},
+	PlatformProtocolGateway: {},
 }
 
 func IsUnsupportedPrimaryPlatform(platform string) bool {

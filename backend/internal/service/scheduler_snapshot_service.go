@@ -460,8 +460,10 @@ func (s *SchedulerSnapshotService) rebuildByAccount(ctx context.Context, account
 	}
 
 	var firstErr error
-	if err := s.rebuildBucketsForPlatform(ctx, RoutingPlatformForAccount(account), groupIDs, reason, seen); err != nil {
-		firstErr = err
+	for _, platform := range accountSchedulerBucketPlatforms(account) {
+		if err := s.rebuildBucketsForPlatform(ctx, platform, groupIDs, reason, seen); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
 	if account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled() {
 		if err := s.rebuildBucketsForPlatform(ctx, PlatformAnthropic, groupIDs, reason, seen); err != nil && firstErr == nil {
@@ -479,7 +481,7 @@ func (s *SchedulerSnapshotService) rebuildByGroupIDs(ctx context.Context, groupI
 	if len(groupIDs) == 0 {
 		return nil
 	}
-	platforms := []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformDeepSeek, PlatformAntigravity}
+	platforms := []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformDeepSeek, PlatformOpenRouter, PlatformAntigravity, PlatformProtocolGateway}
 	var firstErr error
 	for _, platform := range platforms {
 		if err := s.rebuildBucketsForPlatform(ctx, platform, groupIDs, reason, seen); err != nil && firstErr == nil {
@@ -853,7 +855,7 @@ func (s *SchedulerSnapshotService) fullRebuildInterval() time.Duration {
 
 func (s *SchedulerSnapshotService) defaultBuckets(ctx context.Context) ([]SchedulerBucket, error) {
 	buckets := make([]SchedulerBucket, 0)
-	platforms := []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformDeepSeek, PlatformAntigravity}
+	platforms := []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformDeepSeek, PlatformOpenRouter, PlatformAntigravity, PlatformProtocolGateway}
 	for _, platform := range platforms {
 		buckets = append(buckets, SchedulerBucket{GroupID: 0, Platform: platform, Mode: SchedulerModeSingle})
 		buckets = append(buckets, SchedulerBucket{GroupID: 0, Platform: platform, Mode: SchedulerModeForced})
@@ -874,13 +876,31 @@ func (s *SchedulerSnapshotService) defaultBuckets(ctx context.Context) ([]Schedu
 		if group.Platform == "" {
 			continue
 		}
-		buckets = append(buckets, SchedulerBucket{GroupID: group.ID, Platform: group.Platform, Mode: SchedulerModeSingle})
-		buckets = append(buckets, SchedulerBucket{GroupID: group.ID, Platform: group.Platform, Mode: SchedulerModeForced})
-		if group.Platform == PlatformAnthropic || group.Platform == PlatformGemini {
-			buckets = append(buckets, SchedulerBucket{GroupID: group.ID, Platform: group.Platform, Mode: SchedulerModeMixed})
+		groupPlatforms := []string{group.Platform}
+		if group.Platform == PlatformProtocolGateway {
+			groupPlatforms = append(groupPlatforms, PlatformOpenAI, PlatformAnthropic, PlatformGemini)
+		}
+		for _, platform := range groupPlatforms {
+			buckets = append(buckets, SchedulerBucket{GroupID: group.ID, Platform: platform, Mode: SchedulerModeSingle})
+			buckets = append(buckets, SchedulerBucket{GroupID: group.ID, Platform: platform, Mode: SchedulerModeForced})
+			if platform == PlatformAnthropic || platform == PlatformGemini {
+				buckets = append(buckets, SchedulerBucket{GroupID: group.ID, Platform: platform, Mode: SchedulerModeMixed})
+			}
 		}
 	}
 	return dedupeBuckets(buckets), nil
+}
+
+func accountSchedulerBucketPlatforms(account *Account) []string {
+	if account == nil {
+		return nil
+	}
+	if IsProtocolGatewayAccount(account) {
+		platforms := append([]string(nil), RoutingPlatformsForAccount(account)...)
+		platforms = append(platforms, PlatformProtocolGateway)
+		return uniqueStrings(platforms)
+	}
+	return []string{RoutingPlatformForAccount(account)}
 }
 
 func dedupeBuckets(in []SchedulerBucket) []SchedulerBucket {

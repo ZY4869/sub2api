@@ -20,13 +20,25 @@ import (
 )
 
 var (
-	ErrAPIKeyNotFound     = infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
-	ErrGroupNotAllowed    = infraerrors.Forbidden("GROUP_NOT_ALLOWED", "user is not allowed to bind this group")
-	ErrAPIKeyExists       = infraerrors.Conflict("API_KEY_EXISTS", "api key already exists")
-	ErrAPIKeyTooShort     = infraerrors.BadRequest("API_KEY_TOO_SHORT", "api key must be at least 16 characters")
-	ErrAPIKeyInvalidChars = infraerrors.BadRequest("API_KEY_INVALID_CHARS", "api key can only contain letters, numbers, underscores, and hyphens")
-	ErrAPIKeyRateLimited  = infraerrors.TooManyRequests("API_KEY_RATE_LIMITED", "too many failed attempts, please try again later")
-	ErrInvalidIPPattern   = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
+	ErrAPIKeyNotFound               = infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
+	ErrGroupNotAllowed              = infraerrors.Forbidden("GROUP_NOT_ALLOWED", "user is not allowed to bind this group")
+	ErrAPIKeyExists                 = infraerrors.Conflict("API_KEY_EXISTS", "api key already exists")
+	ErrAPIKeyTooShort               = infraerrors.BadRequest("API_KEY_TOO_SHORT", "api key must be at least 16 characters")
+	ErrAPIKeyInvalidChars           = infraerrors.BadRequest("API_KEY_INVALID_CHARS", "api key can only contain letters, numbers, underscores, and hyphens")
+	ErrAPIKeyRateLimited            = infraerrors.TooManyRequests("API_KEY_RATE_LIMITED", "too many failed attempts, please try again later")
+	ErrInvalidIPPattern             = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
+	ErrAPIKeyModelSelectionRequired = infraerrors.BadRequest(
+		"API_KEY_MODEL_SELECTION_REQUIRED",
+		"api key must select at least one visible model for each group",
+	)
+	ErrAPIKeyModelNotVisible = infraerrors.BadRequest(
+		"API_KEY_MODEL_NOT_VISIBLE",
+		"selected model is not visible in the target group",
+	)
+	ErrAPIKeyModelPatternForbidden = infraerrors.BadRequest(
+		"API_KEY_MODEL_PATTERN_FORBIDDEN",
+		"model patterns are not allowed for user api keys",
+	)
 	// ErrAPIKeyExpired        = infraerrors.Forbidden("API_KEY_EXPIRED", "api key has expired")
 	ErrAPIKeyExpired = infraerrors.Forbidden("API_KEY_EXPIRED", "api key 已过期")
 	// ErrAPIKeyQuotaExhausted = infraerrors.TooManyRequests("API_KEY_QUOTA_EXHAUSTED", "api key quota exhausted")
@@ -84,6 +96,10 @@ type APIKeyRepository interface {
 	IncrementRateLimitUsage(ctx context.Context, id int64, cost float64) error
 	ResetRateLimitWindows(ctx context.Context, id int64) error
 	GetRateLimitData(ctx context.Context, id int64) (*APIKeyRateLimitData, error)
+}
+
+type billingHoldRepositoryProvider interface {
+	BillingHoldRepository() BillingHoldRepository
 }
 
 type apiKeyDeletedReader interface {
@@ -253,6 +269,7 @@ type APIKeyService struct {
 	gatewayService        *GatewayService
 	cache                 APIKeyCache
 	rateLimitCacheInvalid RateLimitCacheInvalidator // optional: invalidate Redis rate limit cache
+	billingCacheService   *BillingCacheService
 	cfg                   *config.Config
 	authCacheL1           *ristretto.Cache
 	authCfg               apiKeyAuthCacheConfig
@@ -288,6 +305,10 @@ func NewAPIKeyService(
 // Called after construction (e.g. in wire) to avoid circular dependencies.
 func (s *APIKeyService) SetRateLimitCacheInvalidator(inv RateLimitCacheInvalidator) {
 	s.rateLimitCacheInvalid = inv
+}
+
+func (s *APIKeyService) SetBillingCacheService(billingCacheService *BillingCacheService) {
+	s.billingCacheService = billingCacheService
 }
 
 func (s *APIKeyService) SetModelCatalogService(modelCatalogService *ModelCatalogService) {
@@ -501,10 +522,20 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		if err != nil {
 			return nil, err
 		}
+		if !user.IsAdmin() {
+			if err := s.validateUserAPIKeyModelBindings(opCtx, user, bindings); err != nil {
+				return nil, err
+			}
+		}
 		if imageOnlyEnabled {
 			bindings, err = s.normalizeImageOnlyGroupBindings(opCtx, bindings)
 			if err != nil {
 				return nil, err
+			}
+			if !user.IsAdmin() {
+				if err := s.validateUserAPIKeyModelBindings(opCtx, user, bindings); err != nil {
+					return nil, err
+				}
 			}
 		}
 		pendingGroupBindings = bindings
@@ -789,10 +820,20 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		if err != nil {
 			return nil, err
 		}
+		if !user.IsAdmin() {
+			if err := s.validateUserAPIKeyModelBindings(opCtx, user, bindings); err != nil {
+				return nil, err
+			}
+		}
 		if apiKey.ImageOnlyEnabled {
 			bindings, err = s.normalizeImageOnlyGroupBindings(opCtx, bindings)
 			if err != nil {
 				return nil, err
+			}
+			if !user.IsAdmin() {
+				if err := s.validateUserAPIKeyModelBindings(opCtx, user, bindings); err != nil {
+					return nil, err
+				}
 			}
 		}
 		pendingGroupBindings = bindings
@@ -801,6 +842,11 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		bindings, err := s.normalizeImageOnlyGroupBindings(opCtx, apiKeyBindingsForSelection(apiKey))
 		if err != nil {
 			return nil, err
+		}
+		if !user.IsAdmin() {
+			if err := s.validateUserAPIKeyModelBindings(opCtx, user, bindings); err != nil {
+				return nil, err
+			}
 		}
 		pendingGroupBindings = bindings
 		shouldSetGroupBindings = true
@@ -1028,6 +1074,11 @@ func (s *APIKeyService) CheckAPIKeyQuotaAndExpiry(apiKey *APIKey) error {
 // UpdateQuotaUsed updates the quota_used field after a request
 // Also checks if quota is exhausted and updates status accordingly
 func (s *APIKeyService) UpdateQuotaUsed(ctx context.Context, apiKeyID int64, cost float64) error {
+	normalized, err := NormalizeAndValidateNonNegativeBillingAmount(cost)
+	if err != nil {
+		return err
+	}
+	cost = normalized
 	if cost <= 0 {
 		return nil
 	}
@@ -1073,6 +1124,11 @@ func (s *APIKeyService) UpdateQuotaUsed(ctx context.Context, apiKeyID int64, cos
 }
 
 func (s *APIKeyService) UpdateGroupQuotaUsed(ctx context.Context, apiKeyID, groupID int64, cost float64) error {
+	normalized, err := NormalizeAndValidateNonNegativeBillingAmount(cost)
+	if err != nil {
+		return err
+	}
+	cost = normalized
 	if cost <= 0 || groupID <= 0 {
 		return nil
 	}
@@ -1101,6 +1157,11 @@ func (s *APIKeyService) GetRateLimitData(ctx context.Context, id int64) (*APIKey
 
 // UpdateRateLimitUsage atomically increments rate limit usage counters in the DB.
 func (s *APIKeyService) UpdateRateLimitUsage(ctx context.Context, apiKeyID int64, cost float64) error {
+	normalized, err := NormalizeAndValidateNonNegativeBillingAmount(cost)
+	if err != nil {
+		return err
+	}
+	cost = normalized
 	if cost <= 0 {
 		return nil
 	}

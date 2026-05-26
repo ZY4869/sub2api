@@ -46,6 +46,16 @@ export default {
             flash: "DeepSeek V4 Flash",
         },
     },
+    openrouter: {
+        apiKeyOnly: "Connect with an official OpenRouter API Key",
+        baseUrlHint: "Leave default for the official OpenRouter API (https://openrouter.ai/api/v1)",
+        apiKeyHint: "Your OpenRouter API Key, usually starting with sk-or-v1-",
+        httpReferer: "Site URL",
+        httpRefererHint: "Optional. Used by OpenRouter for rankings and attribution; sent as the HTTP-Referer header.",
+        title: "Site Title",
+        titlePlaceholder: "For example: Sub2API",
+        titleHint: "Optional. Used by OpenRouter to display the request source; sent as the X-OpenRouter-Title header.",
+    },
     anthropic: {
         apiKeyPassthrough: "Auto passthrough (auth only)",
         apiKeyPassthroughDesc: "Only applies to Anthropic API Key accounts. When enabled, messages/count_tokens are forwarded in passthrough mode with auth replacement only, while billing/concurrency/audit and safety filtering are preserved. Disable to roll back immediately.",

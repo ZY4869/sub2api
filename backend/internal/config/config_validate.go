@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"strings"
 )
@@ -119,6 +120,9 @@ func (c *Config) Validate() error {
 	if c.Security.CSP.Enabled && strings.TrimSpace(c.Security.CSP.Policy) == "" {
 		return fmt.Errorf("security.csp.policy is required when CSP is enabled")
 	}
+	if err := validatePrivateHostExceptions(c.Security.URLAllowlist.PrivateHostExceptions); err != nil {
+		return err
+	}
 	if c.LinuxDo.Enabled {
 		if strings.TrimSpace(c.LinuxDo.ClientID) == "" {
 			return fmt.Errorf("linuxdo_connect.client_id is required when linuxdo_connect.enabled=true")
@@ -181,6 +185,12 @@ func (c *Config) Validate() error {
 		if c.Billing.CircuitBreaker.HalfOpenRequests <= 0 {
 			return fmt.Errorf("billing.circuit_breaker.half_open_requests must be positive")
 		}
+	}
+	if c.Billing.MinimumRequestHoldUSD < 0 {
+		return fmt.Errorf("billing.minimum_request_hold_usd must be non-negative")
+	}
+	if c.Billing.RequestHoldSettlementMaxSeconds < 0 {
+		return fmt.Errorf("billing.request_hold_settlement_max_seconds must be non-negative")
 	}
 	if c.Database.MaxOpenConns <= 0 {
 		return fmt.Errorf("database.max_open_conns must be positive")
@@ -649,6 +659,95 @@ func (c *Config) Validate() error {
 	}
 	return nil
 }
+
+func validatePrivateHostExceptions(rules []PrivateHostExceptionConfig) error {
+	for i, rule := range rules {
+		scope := strings.ToLower(strings.TrimSpace(rule.Scope))
+		switch scope {
+		case "upstream_base_url", "proxy_host":
+		default:
+			return fmt.Errorf("security.url_allowlist.private_host_exceptions[%d].scope must be one of: upstream_base_url/proxy_host", i)
+		}
+		if len(rule.Hosts) == 0 && len(rule.CIDRs) == 0 {
+			return fmt.Errorf("security.url_allowlist.private_host_exceptions[%d] must set hosts or cidrs", i)
+		}
+		if len(rule.Ports) == 0 {
+			return fmt.Errorf("security.url_allowlist.private_host_exceptions[%d].ports must not be empty", i)
+		}
+		if len(rule.Schemes) == 0 {
+			return fmt.Errorf("security.url_allowlist.private_host_exceptions[%d].schemes must not be empty", i)
+		}
+		for j, host := range rule.Hosts {
+			if err := validatePrivateHostExceptionHost(host); err != nil {
+				return fmt.Errorf("security.url_allowlist.private_host_exceptions[%d].hosts[%d] invalid: %w", i, j, err)
+			}
+		}
+		for j, raw := range rule.CIDRs {
+			if _, _, err := net.ParseCIDR(strings.TrimSpace(raw)); err != nil {
+				return fmt.Errorf("security.url_allowlist.private_host_exceptions[%d].cidrs[%d] invalid: %w", i, j, err)
+			}
+		}
+		for j, port := range rule.Ports {
+			if port <= 0 || port > 65535 {
+				return fmt.Errorf("security.url_allowlist.private_host_exceptions[%d].ports[%d] must be between 1 and 65535", i, j)
+			}
+		}
+		for j, raw := range rule.Schemes {
+			scheme := strings.ToLower(strings.TrimSpace(raw))
+			if !isAllowedPrivateHostExceptionScheme(scope, scheme) {
+				return fmt.Errorf("security.url_allowlist.private_host_exceptions[%d].schemes[%d] is not allowed for scope %s", i, j, scope)
+			}
+		}
+		slog.Warn("security.url_allowlist.private_host_exceptions configured; scoped private/localhost outbound exceptions are enabled",
+			"scope", scope,
+			"hosts_count", len(rule.Hosts),
+			"cidrs_count", len(rule.CIDRs),
+			"ports", rule.Ports,
+			"schemes", rule.Schemes,
+			"description", strings.TrimSpace(rule.Description),
+		)
+	}
+	return nil
+}
+
+func validatePrivateHostExceptionHost(raw string) error {
+	host := strings.TrimSpace(raw)
+	if host == "" {
+		return fmt.Errorf("host is required")
+	}
+	if strings.Contains(host, "://") || strings.ContainsAny(host, "/?#@") {
+		return fmt.Errorf("host must not be a URL or contain path/query/userinfo")
+	}
+	if parsedHost, parsedPort, err := net.SplitHostPort(host); err == nil {
+		if strings.TrimSpace(parsedHost) == "" {
+			return fmt.Errorf("host is required")
+		}
+		port, err := net.LookupPort("tcp", parsedPort)
+		if err != nil || port <= 0 || port > 65535 {
+			return fmt.Errorf("host port must be between 1 and 65535")
+		}
+		return nil
+	}
+	if strings.Contains(host, ":") && net.ParseIP(strings.Trim(host, "[]")) == nil {
+		return fmt.Errorf("IPv6 literals with ports must use bracket form")
+	}
+	return nil
+}
+
+func isAllowedPrivateHostExceptionScheme(scope, scheme string) bool {
+	if scheme == "" {
+		return false
+	}
+	switch scope {
+	case "upstream_base_url":
+		return scheme == "http" || scheme == "https"
+	case "proxy_host":
+		return scheme == "http" || scheme == "https" || scheme == "socks5" || scheme == "socks5h"
+	default:
+		return false
+	}
+}
+
 func normalizeStringSlice(values []string) []string {
 	if len(values) == 0 {
 		return values

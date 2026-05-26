@@ -40,7 +40,13 @@ export type PublicModelStaleState = 'fresh' | 'stale' | 'unverified'
 export type PublicModelLifecycleStatus = 'stable' | 'beta' | 'deprecated'
 
 export interface PublicModelCatalogItem {
+  entry_id?: string
+  public_model_id?: string
   model: string
+  base_model?: string
+  source_model_id?: string
+  source_protocol?: string
+  source_alias?: string
   display_name?: string
   provider?: string
   provider_icon_key?: string
@@ -53,6 +59,8 @@ export interface PublicModelCatalogItem {
   mode?: string
   currency: string
   price_display: PublicModelCatalogPriceDisplay
+  official_price_display?: PublicModelCatalogPriceDisplay
+  sale_price_display?: PublicModelCatalogPriceDisplay
   multiplier_summary: PublicModelCatalogMultiplierSummary
 }
 

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
@@ -447,7 +448,7 @@ func TestOpenAIResponses_RuntimeQuotaOnlySelectionFailureReturns429(t *testing.T
 	)
 	h := &OpenAIGatewayHandler{
 		gatewayService:      gatewaySvc,
-		billingCacheService: &service.BillingCacheService{},
+		billingCacheService: service.NewBillingCacheService(nil, nil, nil, nil, &config.Config{RunMode: config.RunModeSimple}),
 		apiKeyService:       &service.APIKeyService{},
 		concurrencyHelper:   NewConcurrencyHelper(concurrencySvc, SSEPingFormatNone, time.Second),
 		maxAccountSwitches:  1,
@@ -945,7 +946,7 @@ func newOpenAIHandlerForPreviousResponseIDValidation(t *testing.T, cache *concur
 	}
 	return &OpenAIGatewayHandler{
 		gatewayService:      &service.OpenAIGatewayService{},
-		billingCacheService: &service.BillingCacheService{},
+		billingCacheService: service.NewBillingCacheService(nil, nil, nil, nil, &config.Config{RunMode: config.RunModeSimple}),
 		apiKeyService:       &service.APIKeyService{},
 		concurrencyHelper:   NewConcurrencyHelper(service.NewConcurrencyService(cache), SSEPingFormatNone, time.Second),
 	}

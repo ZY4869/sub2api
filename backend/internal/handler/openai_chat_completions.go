@@ -89,6 +89,20 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	reqStream := gjson.GetBytes(body, "stream").Bool()
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
 	setOpsRequestContext(c, reqModel, reqStream, body)
+	requestPayloadHash := service.HashUsageRequestPayload(body)
+	var publicCatalogEntry *service.PublishedPublicCatalogEntry
+	publicRequestModel := reqModel
+	runtimeRequestModel := reqModel
+	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), reqModel); resolveErr != nil {
+		reqLog.Warn("openai_chat_completions.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
+	} else if active && !matched {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+		return
+	} else if matched {
+		publicCatalogEntry = entry
+		runtimeRequestModel = service.NormalizeModelCatalogModelID(firstNonEmptyHandlerString(entry.SourceModelID, reqModel))
+		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))
+	}
 
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
@@ -126,7 +140,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			h.billingCacheService,
 			apiKey,
 			subscription,
-			reqModel,
+			publicRequestModel,
 			func() []string {
 				if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
 					return []string{forcePlatform}
@@ -150,8 +164,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
 			applyOpenAIPlatformContext(c, forcePlatform)
 		}
-		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
+		channelSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, publicRequestModel)
 		if err != nil {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
 				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
 				return
@@ -162,6 +177,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			}
 			h.handleStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
 			return
+		}
+		runtimeSelectionModel := channelSelectionModel
+		if publicCatalogEntry != nil {
+			runtimeSelectionModel = runtimeRequestModel
 		}
 
 		switchCount := 0
@@ -208,7 +227,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					if channelState == nil && currentAPIKey.Group != nil {
 						defaultModel = currentAPIKey.Group.DefaultMappedModel
 					}
-					if !quotaOnlyGroupFailure && defaultModel != "" && defaultModel != runtimeSelectionModel {
+					if publicCatalogEntry == nil && !quotaOnlyGroupFailure && defaultModel != "" && defaultModel != runtimeSelectionModel {
 						reqLog.Info("openai_chat_completions.fallback_to_default_model",
 							zap.String("default_mapped_model", defaultModel),
 						)
@@ -230,8 +249,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					}
 					if err != nil {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 							break
 						}
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
 							h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
 							return
@@ -241,8 +262,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					}
 				} else {
 					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 						break
 					}
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					if lastFailoverErr != nil {
 						h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
 					} else {
@@ -263,8 +286,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					sawNonQuotaGroupFailure = true
 				}
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+					releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					break
 				}
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
 					h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
 					return
@@ -286,6 +311,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 			accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 			if !acquired {
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				return
 			}
 
@@ -334,6 +360,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					lastFailoverErr = failoverErr
 					if switchCount >= maxAccountSwitches {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 							break
 						}
 						h.submitFailedUsageRecordTask(
@@ -391,18 +418,20 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetTrustedClientIP(c)
 			h.submitUsageRecordTask(func(ctx context.Context) {
+				ctx = service.AttachPublishedPublicCatalogEntry(ctx, publicCatalogEntry)
 				ctx = reattachGatewayChannelState(ctx, channelState)
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-					Result:           result,
-					APIKey:           currentAPIKey,
-					User:             currentAPIKey.User,
-					Account:          account,
-					Subscription:     currentSubscription,
-					InboundEndpoint:  GetInboundEndpoint(c),
-					UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
-					UserAgent:        userAgent,
-					IPAddress:        clientIP,
-					APIKeyService:    h.apiKeyService,
+					Result:             result,
+					APIKey:             currentAPIKey,
+					User:               currentAPIKey.User,
+					Account:            account,
+					Subscription:       currentSubscription,
+					InboundEndpoint:    GetInboundEndpoint(c),
+					UpstreamEndpoint:   GetUpstreamEndpointForAccount(c, account),
+					UserAgent:          userAgent,
+					IPAddress:          clientIP,
+					RequestPayloadHash: requestPayloadHash,
+					APIKeyService:      h.apiKeyService,
 				}); err != nil {
 					logger.L().With(
 						zap.String("component", "handler.openai_gateway.chat_completions"),

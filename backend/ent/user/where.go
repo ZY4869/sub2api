@@ -150,6 +150,11 @@ func UsageContextBadgeDisplayMode(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldUsageContextBadgeDisplayMode, v))
 }
 
+// APIKeyModelBindingMode applies equality check predicate on the "api_key_model_binding_mode" field. It's identical to APIKeyModelBindingModeEQ.
+func APIKeyModelBindingMode(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAPIKeyModelBindingMode, v))
+}
+
 // TotpSecretEncrypted applies equality check predicate on the "totp_secret_encrypted" field. It's identical to TotpSecretEncryptedEQ.
 func TotpSecretEncrypted(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldTotpSecretEncrypted, v))
@@ -1063,6 +1068,71 @@ func UsageContextBadgeDisplayModeEqualFold(v string) predicate.User {
 // UsageContextBadgeDisplayModeContainsFold applies the ContainsFold predicate on the "usage_context_badge_display_mode" field.
 func UsageContextBadgeDisplayModeContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldUsageContextBadgeDisplayMode, v))
+}
+
+// APIKeyModelBindingModeEQ applies the EQ predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeNEQ applies the NEQ predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeIn applies the In predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldAPIKeyModelBindingMode, vs...))
+}
+
+// APIKeyModelBindingModeNotIn applies the NotIn predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldAPIKeyModelBindingMode, vs...))
+}
+
+// APIKeyModelBindingModeGT applies the GT predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeGTE applies the GTE predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeLT applies the LT predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeLTE applies the LTE predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeContains applies the Contains predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeHasPrefix applies the HasPrefix predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeHasSuffix applies the HasSuffix predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeEqualFold applies the EqualFold predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldAPIKeyModelBindingMode, v))
+}
+
+// APIKeyModelBindingModeContainsFold applies the ContainsFold predicate on the "api_key_model_binding_mode" field.
+func APIKeyModelBindingModeContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldAPIKeyModelBindingMode, v))
 }
 
 // TotpSecretEncryptedEQ applies the EQ predicate on the "totp_secret_encrypted" field.
