@@ -109,16 +109,28 @@ func TestBillingMoneyPaths_TopupRebateCapAndTransferUseFixedPoint(t *testing.T) 
 		VALUES ($1, $2, $3, NOW())
 	`, invitee.ID, "aff-"+uuid.NewString(), inviter.ID)
 	require.NoError(t, err)
-	redeemCode := mustCreateRedeemCode(t, client, &service.RedeemCode{
-		Code:   "bm-" + uuid.NewString()[:8],
+	historyRedeemCode := mustCreateRedeemCode(t, client, &service.RedeemCode{
+		Code:   "bmh-" + uuid.NewString()[:8],
 		Type:   service.RedeemTypeBalance,
 		Value:  1,
 		Status: service.StatusUsed,
 	})
+	redeemCode := mustCreateRedeemCode(t, client, &service.RedeemCode{
+		Code:   "bmn-" + uuid.NewString()[:8],
+		Type:   service.RedeemTypeBalance,
+		Value:  1,
+		Status: service.StatusUsed,
+	})
+	t.Cleanup(func() {
+		_, _ = integrationDB.ExecContext(context.Background(), `
+			DELETE FROM redeem_codes
+			WHERE id IN ($1, $2)
+		`, historyRedeemCode.ID, redeemCode.ID)
+	})
 	_, err = integrationDB.ExecContext(ctx, `
 		INSERT INTO user_affiliate_ledger (inviter_user_id, invitee_user_id, event_type, amount, redeem_code_id, created_at)
 		VALUES ($1, $2, 'topup_accrue', 0.02, $3, NOW())
-	`, inviter.ID, invitee.ID, redeemCode.ID)
+	`, inviter.ID, invitee.ID, historyRedeemCode.ID)
 	require.NoError(t, err)
 
 	accrued, err := affiliateRepo.AccrueTopupRebate(ctx, redeemCode.ID, invitee.ID, 0.1+0.2, service.AffiliateRebatePolicy{
