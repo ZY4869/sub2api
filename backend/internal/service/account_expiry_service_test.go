@@ -12,11 +12,11 @@ import (
 )
 
 type accountExpiryRepoStub struct {
-	accounts           []Account
-	accountsByID       map[int64]*Account
-	updateExtraCalls   []expiryRepoUpdateExtraCall
-	updateCalls        []*Account
-	markBlacklisted    []expiryRepoBlacklistCall
+	accounts         []Account
+	accountsByID     map[int64]*Account
+	updateExtraCalls []expiryRepoUpdateExtraCall
+	updateCalls      []*Account
+	markBlacklisted  []expiryRepoBlacklistCall
 }
 
 type expiryRepoUpdateExtraCall struct {
@@ -85,18 +85,28 @@ func (r *accountExpiryRepoStub) ListWithFilters(_ context.Context, _ pagination.
 func (r *accountExpiryRepoStub) GetStatusSummary(context.Context, AccountStatusSummaryFilters) (*AccountStatusSummary, error) {
 	panic("unexpected")
 }
-func (r *accountExpiryRepoStub) ListByGroup(context.Context, int64) ([]Account, error) { panic("unexpected") }
+func (r *accountExpiryRepoStub) ListByGroup(context.Context, int64) ([]Account, error) {
+	panic("unexpected")
+}
 func (r *accountExpiryRepoStub) ListActive(context.Context) ([]Account, error) { panic("unexpected") }
-func (r *accountExpiryRepoStub) ListByPlatform(context.Context, string) ([]Account, error) { panic("unexpected") }
+func (r *accountExpiryRepoStub) ListByPlatform(context.Context, string) ([]Account, error) {
+	panic("unexpected")
+}
 func (r *accountExpiryRepoStub) UpdateLastUsed(context.Context, int64) error { panic("unexpected") }
 func (r *accountExpiryRepoStub) BatchUpdateLastUsed(context.Context, map[int64]time.Time) error {
 	panic("unexpected")
 }
 func (r *accountExpiryRepoStub) SetError(context.Context, int64, string) error { panic("unexpected") }
-func (r *accountExpiryRepoStub) ClearError(context.Context, int64) error { panic("unexpected") }
-func (r *accountExpiryRepoStub) SetSchedulable(context.Context, int64, bool) error { panic("unexpected") }
-func (r *accountExpiryRepoStub) BindGroups(context.Context, int64, []int64) error { panic("unexpected") }
-func (r *accountExpiryRepoStub) ListSchedulable(context.Context) ([]Account, error) { panic("unexpected") }
+func (r *accountExpiryRepoStub) ClearError(context.Context, int64) error       { panic("unexpected") }
+func (r *accountExpiryRepoStub) SetSchedulable(context.Context, int64, bool) error {
+	panic("unexpected")
+}
+func (r *accountExpiryRepoStub) BindGroups(context.Context, int64, []int64) error {
+	panic("unexpected")
+}
+func (r *accountExpiryRepoStub) ListSchedulable(context.Context) ([]Account, error) {
+	panic("unexpected")
+}
 func (r *accountExpiryRepoStub) ListSchedulableByGroupID(context.Context, int64) ([]Account, error) {
 	panic("unexpected")
 }
@@ -118,20 +128,28 @@ func (r *accountExpiryRepoStub) ListSchedulableUngroupedByPlatform(context.Conte
 func (r *accountExpiryRepoStub) ListSchedulableUngroupedByPlatforms(context.Context, []string) ([]Account, error) {
 	panic("unexpected")
 }
-func (r *accountExpiryRepoStub) SetRateLimited(context.Context, int64, time.Time) error { panic("unexpected") }
+func (r *accountExpiryRepoStub) SetRateLimited(context.Context, int64, time.Time) error {
+	panic("unexpected")
+}
 func (r *accountExpiryRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time) error {
 	panic("unexpected")
 }
-func (r *accountExpiryRepoStub) SetOverloaded(context.Context, int64, time.Time) error { panic("unexpected") }
+func (r *accountExpiryRepoStub) SetOverloaded(context.Context, int64, time.Time) error {
+	panic("unexpected")
+}
 func (r *accountExpiryRepoStub) SetTempUnschedulable(context.Context, int64, time.Time, string) error {
 	panic("unexpected")
 }
-func (r *accountExpiryRepoStub) ClearTempUnschedulable(context.Context, int64) error { panic("unexpected") }
+func (r *accountExpiryRepoStub) ClearTempUnschedulable(context.Context, int64) error {
+	panic("unexpected")
+}
 func (r *accountExpiryRepoStub) ClearRateLimit(context.Context, int64) error { panic("unexpected") }
 func (r *accountExpiryRepoStub) ClearAntigravityQuotaScopes(context.Context, int64) error {
 	panic("unexpected")
 }
-func (r *accountExpiryRepoStub) ClearModelRateLimits(context.Context, int64) error { panic("unexpected") }
+func (r *accountExpiryRepoStub) ClearModelRateLimits(context.Context, int64) error {
+	panic("unexpected")
+}
 func (r *accountExpiryRepoStub) UpdateSessionWindow(context.Context, int64, *time.Time, *time.Time, string) error {
 	panic("unexpected")
 }
@@ -156,11 +174,15 @@ func (r *accountExpiryRepoStub) MarkBlacklisted(_ context.Context, id int64, rea
 	return nil
 }
 func (r *accountExpiryRepoStub) RestoreBlacklisted(context.Context, int64) error { panic("unexpected") }
-func (r *accountExpiryRepoStub) ListBlacklistedIDs(context.Context) ([]int64, error) { panic("unexpected") }
+func (r *accountExpiryRepoStub) ListBlacklistedIDs(context.Context) ([]int64, error) {
+	panic("unexpected")
+}
 func (r *accountExpiryRepoStub) ListBlacklistedForPurge(context.Context, time.Time, int) ([]Account, error) {
 	panic("unexpected")
 }
-func (r *accountExpiryRepoStub) IncrementQuotaUsed(context.Context, int64, float64) error { panic("unexpected") }
+func (r *accountExpiryRepoStub) IncrementQuotaUsed(context.Context, int64, float64) error {
+	panic("unexpected")
+}
 func (r *accountExpiryRepoStub) ResetQuotaUsed(context.Context, int64) error { panic("unexpected") }
 
 type accountExpiryProbeExecutorStub struct {
@@ -179,14 +201,14 @@ func TestAccountExpiryService_RunOnce_WaitsUntilBlockingWindowEnds(t *testing.T)
 	expiresAt := now.Add(-2 * time.Hour)
 	windowEnd := now.Add(30 * time.Minute)
 	account := Account{
-		ID:                  1,
-		Status:              StatusActive,
-		Schedulable:         true,
-		AutoPauseOnExpired:  true,
-		LifecycleState:      AccountLifecycleNormal,
-		ExpiresAt:           &expiresAt,
-		SessionWindowEnd:    &windowEnd,
-		Extra:               map[string]any{},
+		ID:                 1,
+		Status:             StatusActive,
+		Schedulable:        true,
+		AutoPauseOnExpired: true,
+		LifecycleState:     AccountLifecycleNormal,
+		ExpiresAt:          &expiresAt,
+		SessionWindowEnd:   &windowEnd,
+		Extra:              map[string]any{},
 	}
 	repo := &accountExpiryRepoStub{
 		accounts:     []Account{account},
@@ -324,7 +346,7 @@ func TestShouldRunAccountExpiryProbe_SkipsWhileTemporaryPriorityStillActive(t *t
 		AutoPauseOnExpired: true,
 		ExpiresAt:          &expiresAt,
 		Extra: map[string]any{
-			accountExpiryProbeCheckedAtKey:   checkedAt.Format(time.RFC3339),
+			accountExpiryProbeCheckedAtKey:     checkedAt.Format(time.RFC3339),
 			accountExpiryProbePriorityUntilKey: priorityUntil.Format(time.RFC3339),
 		},
 	}

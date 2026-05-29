@@ -18,29 +18,29 @@
 
       <div v-if="visibleFilters.has('role')" class="w-full sm:w-32">
         <Select
-          v-model="filters.role"
+          :model-value="filters.role"
           :options="roleOptions"
-          @change="emit('apply-filter')"
+          @update:model-value="(value) => updateFilter('role', value)"
         />
       </div>
 
       <div v-if="visibleFilters.has('status')" class="w-full sm:w-32">
         <Select
-          v-model="filters.status"
+          :model-value="filters.status"
           :options="statusOptions"
-          @change="emit('apply-filter')"
+          @update:model-value="(value) => updateFilter('status', value)"
         />
       </div>
 
       <div v-if="visibleFilters.has('group')" class="w-full sm:w-44">
         <Select
-          v-model="filters.group"
+          :model-value="filters.group"
           :options="groupFilterOptions"
           searchable
           creatable
           :creatable-prefix="t('admin.users.fuzzySearch')"
           :search-placeholder="t('admin.users.searchGroups')"
-          @change="emit('apply-filter')"
+          @update:model-value="(value) => updateFilter('group', value)"
         />
       </div>
 
@@ -248,6 +248,7 @@ const emit = defineEmits<{
   'update:searchQuery': [value: string]
   'update:showFilterDropdown': [value: boolean]
   'update:showColumnDropdown': [value: boolean]
+  'update:filters': [value: UserFilters]
   search: []
   'apply-filter': []
   'update-attribute-filter': [attrId: number, value: string]
@@ -281,6 +282,11 @@ const searchQueryModel = computed({
 
 const handleSelectAttribute = (attrId: number, value: unknown) => {
   emit('update-attribute-filter', attrId, String(value ?? ''))
+  emit('apply-filter')
+}
+
+const updateFilter = (key: keyof UserFilters, value: unknown) => {
+  emit('update:filters', { ...props.filters, [key]: String(value ?? '') })
   emit('apply-filter')
 }
 </script>

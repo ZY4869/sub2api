@@ -55,58 +55,67 @@
       <div>
         <label class="input-label">{{ t('admin.proxies.name') }}</label>
         <input
-          v-model="createForm.name"
+          :value="createForm.name"
           type="text"
           required
           class="input"
           :placeholder="t('admin.proxies.enterProxyName')"
+          @input="(event) => updateCreateFormField('name', (event.target as HTMLInputElement).value)"
         />
       </div>
       <div>
         <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
-        <Select v-model="createForm.protocol" :options="protocolSelectOptions" />
+        <Select
+          :model-value="createForm.protocol"
+          :options="protocolSelectOptions"
+          @update:model-value="(value) => updateCreateFormField('protocol', value)"
+        />
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="input-label">{{ t('admin.proxies.host') }}</label>
           <input
-            v-model="createForm.host"
+            :value="createForm.host"
             type="text"
             required
             :placeholder="t('admin.proxies.form.hostPlaceholder')"
             class="input"
+            @input="(event) => updateCreateFormField('host', (event.target as HTMLInputElement).value)"
           />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.port') }}</label>
           <input
-            v-model.number="createForm.port"
+            :value="createForm.port"
             type="number"
             required
             min="1"
             max="65535"
             :placeholder="t('admin.proxies.form.portPlaceholder')"
             class="input"
+            @input="(event) => updateCreateFormField('port', Number((event.target as HTMLInputElement).value))"
           />
         </div>
       </div>
       <div>
         <label class="input-label">{{ t('admin.proxies.username') }}</label>
         <input
-          v-model="createForm.username"
+          :value="createForm.username"
           type="text"
           class="input"
           :placeholder="t('admin.proxies.optionalAuth')"
+          @input="(event) => updateCreateFormField('username', (event.target as HTMLInputElement).value)"
         />
       </div>
       <div>
         <label class="input-label">{{ t('admin.proxies.password') }}</label>
         <div class="relative">
           <input
-            v-model="createForm.password"
+            :value="createForm.password"
             :type="createPasswordVisible ? 'text' : 'password'"
             class="input pr-10"
             :placeholder="t('admin.proxies.optionalAuth')"
+            @input="(event) => updateCreateFormField('password', (event.target as HTMLInputElement).value)"
           />
           <button
             type="button"
@@ -287,6 +296,7 @@ const emit = defineEmits<{
   'update:createMode': [mode: 'standard' | 'batch']
   'update:createPasswordVisible': [value: boolean]
   'update:batchInput': [value: string]
+  'update:createForm': [value: ProxyForm]
   'parse-batch': []
   create: []
   'batch-create': []
@@ -298,4 +308,8 @@ const batchInputModel = computed({
   get: () => props.batchInput,
   set: (value: string) => emit('update:batchInput', value)
 })
+
+const updateCreateFormField = (key: keyof ProxyForm, value: unknown) => {
+  emit('update:createForm', { ...props.createForm, [key]: value } as ProxyForm)
+}
 </script>

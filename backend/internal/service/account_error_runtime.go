@@ -170,16 +170,6 @@ func (a *Account) IsPoolModeRetryableStatus(statusCode int) bool {
 	return false
 }
 
-// isPoolModeRetryableStatus preserves the legacy package helper for existing tests.
-func isPoolModeRetryableStatus(statusCode int) bool {
-	for _, code := range defaultPoolModeRetryStatusCodes {
-		if code == statusCode {
-			return true
-		}
-	}
-	return false
-}
-
 func (a *Account) GetCustomErrorCodes() []int {
 	if a.Credentials == nil {
 		return nil

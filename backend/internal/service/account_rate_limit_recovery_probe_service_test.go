@@ -68,13 +68,13 @@ func (s *accountAutoRecoveryProbeExecutorStub) RunTestBackgroundDetailed(ctx con
 }
 
 type accountAutoRecoveryProbeUsageRecordingExecutorStub struct {
-	result           *BackgroundAccountTestResult
-	calls            int
-	lastProbeAction  string
-	lastInput        ScheduledTestExecutionInput
-	userRepo         *systemUsageUserRepoStub
-	apiKeyRepo       *systemUsageAPIKeyRepoStub
-	usageRepo        *systemUsageLogRepoStub
+	result          *BackgroundAccountTestResult
+	calls           int
+	lastProbeAction string
+	lastInput       ScheduledTestExecutionInput
+	userRepo        *systemUsageUserRepoStub
+	apiKeyRepo      *systemUsageAPIKeyRepoStub
+	usageRepo       *systemUsageLogRepoStub
 }
 
 func (s *accountAutoRecoveryProbeUsageRecordingExecutorStub) RunTestBackgroundDetailed(ctx context.Context, input ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error) {
@@ -355,13 +355,13 @@ func TestAccountRateLimitRecoveryProbeService_RunOnce_RecordsUsageLogWithAutoRec
 	now := time.Date(2026, 4, 9, 10, 0, 0, 0, time.UTC)
 	resetAt := now.Add(-time.Minute)
 	account := &Account{
-		ID:             22,
-		Status:         StatusActive,
-		LifecycleState: AccountLifecycleNormal,
+		ID:               22,
+		Status:           StatusActive,
+		LifecycleState:   AccountLifecycleNormal,
 		RateLimitResetAt: &resetAt,
-		Platform:       PlatformOpenAI,
-		Type:           AccountTypeAPIKey,
-		Concurrency:    1,
+		Platform:         PlatformOpenAI,
+		Type:             AccountTypeAPIKey,
+		Concurrency:      1,
 		Credentials: map[string]any{
 			"api_key":  "test-token",
 			"base_url": "https://api.openai.com",

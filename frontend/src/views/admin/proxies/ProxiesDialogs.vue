@@ -8,6 +8,7 @@
     :protocol-select-options="protocolSelectOptions"
     :batch-parse-result="batchParseResult"
     :submitting="submitting"
+    @update:create-form="(value) => emit('update:createForm', value)"
     @close="emit('close-create')"
     @parse-batch="emit('parse-batch')"
     @create="emit('create')"
@@ -22,6 +23,7 @@
     :protocol-select-options="protocolSelectOptions"
     :edit-status-options="editStatusOptions"
     :submitting="submitting"
+    @update:edit-form="(value) => emit('update:editForm', value)"
     @close="emit('close-edit')"
     @update="emit('update-proxy')"
     @password-dirty="emit('password-dirty')"
@@ -154,6 +156,8 @@ const emit = defineEmits<{
   'update:createPasswordVisible': [value: boolean]
   'update:batchInput': [value: string]
   'update:editPasswordVisible': [value: boolean]
+  'update:createForm': [value: ProxyForm]
+  'update:editForm': [value: ProxyEditForm]
   'close-create': []
   'parse-batch': []
   create: []

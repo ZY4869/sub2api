@@ -4,6 +4,7 @@
       <template #filters>
         <ProxiesToolbar
           v-model:search-query="searchQuery"
+          @update:filters="(value) => Object.assign(filters, value)"
           :filters="filters"
           :protocol-options="protocolOptions"
           :status-options="statusOptions"
@@ -70,6 +71,8 @@
       v-model:create-password-visible="createPasswordVisible"
       v-model:batch-input="batchInput"
       v-model:edit-password-visible="editPasswordVisible"
+      @update:create-form="(value) => Object.assign(createForm, value)"
+      @update:edit-form="(value) => Object.assign(editForm, value)"
       :show-create-modal="showCreateModal"
       :create-form="createForm"
       :protocol-select-options="protocolSelectOptions"

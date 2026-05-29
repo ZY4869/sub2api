@@ -167,7 +167,7 @@ func TestGetPoolModeRetryStatusCodes(t *testing.T) {
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformOpenAI,
 				Credentials: map[string]any{
-					"pool_mode":                       true,
+					"pool_mode":                    true,
 					"pool_mode_retry_status_codes": "429, 500;502 503",
 				},
 			},
@@ -179,7 +179,7 @@ func TestGetPoolModeRetryStatusCodes(t *testing.T) {
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformOpenAI,
 				Credentials: map[string]any{
-					"pool_mode":                       true,
+					"pool_mode":                    true,
 					"pool_mode_retry_status_codes": []any{"oops", 99, 600},
 				},
 			},
@@ -199,7 +199,7 @@ func TestAccountIsPoolModeRetryableStatusUsesAccountConfig(t *testing.T) {
 		Type:     AccountTypeAPIKey,
 		Platform: PlatformOpenAI,
 		Credentials: map[string]any{
-			"pool_mode":                       true,
+			"pool_mode":                    true,
 			"pool_mode_retry_status_codes": []any{500, 502},
 		},
 	}

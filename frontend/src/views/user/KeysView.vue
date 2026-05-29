@@ -96,6 +96,7 @@
       :api-key-model-selection-required="apiKeyModelSelectionRequired"
       :custom-key-error="customKeyError"
       :status-options="statusOptions"
+      @update:form-data="updateFormData"
       @close="closeModals"
       @submit="handleSubmit"
       @confirm-reset-quota="confirmResetQuota"
@@ -330,6 +331,10 @@ const customKeyError = computed(() => {
   }
   return "";
 });
+
+const updateFormData = (value: ApiKeyFormData) => {
+  formData.value = value;
+};
 
 watch(
   () => formData.value.image_only_enabled,

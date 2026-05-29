@@ -6,6 +6,7 @@
           v-model:filter-user-keyword="filterUserKeyword"
           v-model:show-filter-user-dropdown="showFilterUserDropdown"
           v-model:show-column-dropdown="showColumnDropdown"
+          @update:filters="(value) => Object.assign(filters, value)"
           :filter-user-results="filterUserResults"
           :filter-user-loading="filterUserLoading"
           :selected-filter-user="selectedFilterUser"

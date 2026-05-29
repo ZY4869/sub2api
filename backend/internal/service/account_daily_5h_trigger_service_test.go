@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,14 +32,26 @@ type accountDaily5HRepoStub struct {
 }
 
 func (r *accountDaily5HRepoStub) Create(context.Context, *Account) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) GetByID(context.Context, int64) (*Account, error) { panic("unexpected") }
-func (r *accountDaily5HRepoStub) GetByIDs(context.Context, []int64) ([]*Account, error) { panic("unexpected") }
-func (r *accountDaily5HRepoStub) ExistsByID(context.Context, int64) (bool, error) { panic("unexpected") }
-func (r *accountDaily5HRepoStub) GetByCRSAccountID(context.Context, string) (*Account, error) { panic("unexpected") }
-func (r *accountDaily5HRepoStub) FindByExtraField(context.Context, string, any) ([]Account, error) { panic("unexpected") }
-func (r *accountDaily5HRepoStub) ListCRSAccountIDs(context.Context) (map[string]int64, error) { panic("unexpected") }
+func (r *accountDaily5HRepoStub) GetByID(context.Context, int64) (*Account, error) {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) GetByIDs(context.Context, []int64) ([]*Account, error) {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) ExistsByID(context.Context, int64) (bool, error) {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) GetByCRSAccountID(context.Context, string) (*Account, error) {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) FindByExtraField(context.Context, string, any) ([]Account, error) {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) ListCRSAccountIDs(context.Context) (map[string]int64, error) {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) Update(context.Context, *Account) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) Delete(context.Context, int64) error { panic("unexpected") }
+func (r *accountDaily5HRepoStub) Delete(context.Context, int64) error    { panic("unexpected") }
 func (r *accountDaily5HRepoStub) List(context.Context, pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
@@ -59,16 +71,28 @@ func (r *accountDaily5HRepoStub) ListWithFilters(_ context.Context, _ pagination
 func (r *accountDaily5HRepoStub) GetStatusSummary(context.Context, AccountStatusSummaryFilters) (*AccountStatusSummary, error) {
 	panic("unexpected")
 }
-func (r *accountDaily5HRepoStub) ListByGroup(context.Context, int64) ([]Account, error) { panic("unexpected") }
+func (r *accountDaily5HRepoStub) ListByGroup(context.Context, int64) ([]Account, error) {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) ListActive(context.Context) ([]Account, error) { panic("unexpected") }
-func (r *accountDaily5HRepoStub) ListByPlatform(context.Context, string) ([]Account, error) { panic("unexpected") }
+func (r *accountDaily5HRepoStub) ListByPlatform(context.Context, string) ([]Account, error) {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) UpdateLastUsed(context.Context, int64) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) BatchUpdateLastUsed(context.Context, map[int64]time.Time) error { panic("unexpected") }
+func (r *accountDaily5HRepoStub) BatchUpdateLastUsed(context.Context, map[int64]time.Time) error {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) SetError(context.Context, int64, string) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) ClearError(context.Context, int64) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) SetSchedulable(context.Context, int64, bool) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) BindGroups(context.Context, int64, []int64) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) ListSchedulable(context.Context) ([]Account, error) { panic("unexpected") }
+func (r *accountDaily5HRepoStub) ClearError(context.Context, int64) error       { panic("unexpected") }
+func (r *accountDaily5HRepoStub) SetSchedulable(context.Context, int64, bool) error {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) BindGroups(context.Context, int64, []int64) error {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) ListSchedulable(context.Context) ([]Account, error) {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) ListSchedulableByGroupID(context.Context, int64) ([]Account, error) {
 	panic("unexpected")
 }
@@ -90,16 +114,28 @@ func (r *accountDaily5HRepoStub) ListSchedulableUngroupedByPlatform(context.Cont
 func (r *accountDaily5HRepoStub) ListSchedulableUngroupedByPlatforms(context.Context, []string) ([]Account, error) {
 	panic("unexpected")
 }
-func (r *accountDaily5HRepoStub) SetRateLimited(context.Context, int64, time.Time) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) SetOverloaded(context.Context, int64, time.Time) error { panic("unexpected") }
+func (r *accountDaily5HRepoStub) SetRateLimited(context.Context, int64, time.Time) error {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time) error {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) SetOverloaded(context.Context, int64, time.Time) error {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) SetTempUnschedulable(context.Context, int64, time.Time, string) error {
 	panic("unexpected")
 }
-func (r *accountDaily5HRepoStub) ClearTempUnschedulable(context.Context, int64) error { panic("unexpected") }
+func (r *accountDaily5HRepoStub) ClearTempUnschedulable(context.Context, int64) error {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) ClearRateLimit(context.Context, int64) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) ClearAntigravityQuotaScopes(context.Context, int64) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) ClearModelRateLimits(context.Context, int64) error { panic("unexpected") }
+func (r *accountDaily5HRepoStub) ClearAntigravityQuotaScopes(context.Context, int64) error {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) ClearModelRateLimits(context.Context, int64) error {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) UpdateSessionWindow(context.Context, int64, *time.Time, *time.Time, string) error {
 	panic("unexpected")
 }
@@ -128,12 +164,18 @@ func (r *accountDaily5HRepoStub) BulkUpdate(context.Context, []int64, AccountBul
 func (r *accountDaily5HRepoStub) MarkBlacklisted(context.Context, int64, string, string, time.Time, time.Time) error {
 	panic("unexpected")
 }
-func (r *accountDaily5HRepoStub) RestoreBlacklisted(context.Context, int64) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) ListBlacklistedIDs(context.Context) ([]int64, error) { panic("unexpected") }
+func (r *accountDaily5HRepoStub) RestoreBlacklisted(context.Context, int64) error {
+	panic("unexpected")
+}
+func (r *accountDaily5HRepoStub) ListBlacklistedIDs(context.Context) ([]int64, error) {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) ListBlacklistedForPurge(context.Context, time.Time, int) ([]Account, error) {
 	panic("unexpected")
 }
-func (r *accountDaily5HRepoStub) IncrementQuotaUsed(context.Context, int64, float64) error { panic("unexpected") }
+func (r *accountDaily5HRepoStub) IncrementQuotaUsed(context.Context, int64, float64) error {
+	panic("unexpected")
+}
 func (r *accountDaily5HRepoStub) ResetQuotaUsed(context.Context, int64) error { panic("unexpected") }
 
 type accountDaily5HExecutorStub struct {
@@ -302,9 +344,9 @@ func TestAccountDaily5HTriggerService_SelectModelForAccount_FixedModelMustStayVi
 func TestAccountDaily5HTriggerService_ListCandidates_FiltersByFamilyAndCountsAccounts(t *testing.T) {
 	accounts := []Account{
 		{
-			ID:       16,
-			Platform: PlatformOpenAI,
-			Type:     AccountTypeOAuth,
+			ID:             16,
+			Platform:       PlatformOpenAI,
+			Type:           AccountTypeOAuth,
 			LifecycleState: AccountLifecycleNormal,
 			Extra: map[string]any{
 				"manual_models": []any{
@@ -314,9 +356,9 @@ func TestAccountDaily5HTriggerService_ListCandidates_FiltersByFamilyAndCountsAcc
 			},
 		},
 		{
-			ID:       17,
-			Platform: PlatformAnthropic,
-			Type:     AccountTypeOAuth,
+			ID:             17,
+			Platform:       PlatformAnthropic,
+			Type:           AccountTypeOAuth,
 			LifecycleState: AccountLifecycleNormal,
 			Extra: map[string]any{
 				"manual_models": []any{
@@ -326,9 +368,9 @@ func TestAccountDaily5HTriggerService_ListCandidates_FiltersByFamilyAndCountsAcc
 			},
 		},
 		{
-			ID:       18,
-			Platform: PlatformGemini,
-			Type:     AccountTypeOAuth,
+			ID:             18,
+			Platform:       PlatformGemini,
+			Type:           AccountTypeOAuth,
 			LifecycleState: AccountLifecycleNormal,
 			Extra: map[string]any{
 				"manual_models": []any{

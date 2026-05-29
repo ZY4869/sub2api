@@ -13,42 +13,64 @@
     >
       <div>
         <label class="input-label">{{ t('admin.proxies.name') }}</label>
-        <input v-model="editForm.name" type="text" required class="input" />
+        <input
+          :value="editForm.name"
+          type="text"
+          required
+          class="input"
+          @input="(event) => updateEditFormField('name', (event.target as HTMLInputElement).value)"
+        />
       </div>
       <div>
         <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
-        <Select v-model="editForm.protocol" :options="protocolSelectOptions" />
+        <Select
+          :model-value="editForm.protocol"
+          :options="protocolSelectOptions"
+          @update:model-value="(value) => updateEditFormField('protocol', value)"
+        />
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="input-label">{{ t('admin.proxies.host') }}</label>
-          <input v-model="editForm.host" type="text" required class="input" />
+          <input
+            :value="editForm.host"
+            type="text"
+            required
+            class="input"
+            @input="(event) => updateEditFormField('host', (event.target as HTMLInputElement).value)"
+          />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.port') }}</label>
           <input
-            v-model.number="editForm.port"
+            :value="editForm.port"
             type="number"
             required
             min="1"
             max="65535"
             class="input"
+            @input="(event) => updateEditFormField('port', Number((event.target as HTMLInputElement).value))"
           />
         </div>
       </div>
       <div>
         <label class="input-label">{{ t('admin.proxies.username') }}</label>
-        <input v-model="editForm.username" type="text" class="input" />
+        <input
+          :value="editForm.username"
+          type="text"
+          class="input"
+          @input="(event) => updateEditFormField('username', (event.target as HTMLInputElement).value)"
+        />
       </div>
       <div>
         <label class="input-label">{{ t('admin.proxies.password') }}</label>
         <div class="relative">
           <input
-            v-model="editForm.password"
+            :value="editForm.password"
             :type="editPasswordVisible ? 'text' : 'password'"
             :placeholder="t('admin.proxies.leaveEmptyToKeep')"
             class="input pr-10"
-            @input="emit('password-dirty')"
+            @input="handlePasswordInput"
           />
           <button
             type="button"
@@ -61,7 +83,11 @@
       </div>
       <div>
         <label class="input-label">{{ t('admin.proxies.status') }}</label>
-        <Select v-model="editForm.status" :options="editStatusOptions" />
+        <Select
+          :model-value="editForm.status"
+          :options="editStatusOptions"
+          @update:model-value="(value) => updateEditFormField('status', value)"
+        />
       </div>
     </form>
 
@@ -121,7 +147,7 @@ interface ProxyEditForm {
   status: 'active' | 'inactive'
 }
 
-defineProps<{
+const props = defineProps<{
   show: boolean
   editingProxy: Proxy | null
   editForm: ProxyEditForm
@@ -134,9 +160,19 @@ defineProps<{
 const emit = defineEmits<{
   close: []
   update: []
+  'update:editForm': [value: ProxyEditForm]
   'update:editPasswordVisible': [value: boolean]
   'password-dirty': []
 }>()
 
 const { t } = useI18n()
+
+const updateEditFormField = (key: keyof ProxyEditForm, value: unknown) => {
+  emit('update:editForm', { ...props.editForm, [key]: value } as ProxyEditForm)
+}
+
+const handlePasswordInput = (event: Event) => {
+  updateEditFormField('password', (event.target as HTMLInputElement).value)
+  emit('password-dirty')
+}
 </script>

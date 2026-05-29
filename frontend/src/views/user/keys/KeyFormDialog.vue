@@ -13,12 +13,13 @@
       <div class="lg:col-span-2">
         <label class="input-label">{{ t("keys.nameLabel") }}</label>
         <input
-          v-model="formData.name"
+          :value="formData.name"
           type="text"
           required
           class="input"
           :placeholder="t('keys.namePlaceholder')"
           data-tour="key-form-name"
+          @input="(event) => updateField('name', (event.target as HTMLInputElement).value)"
         />
       </div>
 
@@ -27,7 +28,7 @@
           {{ isAdminMode ? t("admin.users.groupBindings") : t("keys.groupLabel") }}
         </label>
         <APIKeyGroupBindingsEditor
-          v-model="formData.group_bindings"
+          :model-value="formData.group_bindings"
           :groups="groups"
           :group-model-catalog-items="groupModelCatalogItems"
           :group-model-options="groupModelOptions"
@@ -35,6 +36,7 @@
           :admin-mode="isAdminMode"
           :image-only="formData.image_only_enabled"
           :model-selection-required="apiKeyModelSelectionRequired"
+          @update:model-value="(value) => updateField('group_bindings', value)"
         />
       </div>
 
@@ -42,15 +44,16 @@
         <ToggleField
           :label="t('keys.customKeyLabel')"
           :model-value="formData.use_custom_key"
-          @update:model-value="formData.use_custom_key = $event"
+          @update:model-value="(value) => updateField('use_custom_key', value)"
         />
         <div v-if="formData.use_custom_key">
           <input
-            v-model="formData.custom_key"
+            :value="formData.custom_key"
             type="text"
             class="input font-mono"
             :placeholder="t('keys.customKeyPlaceholder')"
             :class="{ 'border-red-500 dark:border-red-500': customKeyError }"
+            @input="(event) => updateField('custom_key', (event.target as HTMLInputElement).value)"
           />
           <p v-if="customKeyError" class="mt-1 text-sm text-red-500">{{ customKeyError }}</p>
           <p v-else class="input-hint">{{ t("keys.customKeyHint") }}</p>
@@ -60,9 +63,10 @@
       <div v-if="showEditModal">
         <label class="input-label">{{ t("keys.statusLabel") }}</label>
         <Select
-          v-model="formData.status"
+          :model-value="formData.status"
           :options="statusOptions"
           :placeholder="t('keys.selectStatus')"
+          @update:model-value="(value) => updateField('status', normalizeStatus(value))"
         />
       </div>
 
@@ -70,26 +74,28 @@
         <ToggleField
           :label="t('keys.ipRestriction')"
           :model-value="formData.enable_ip_restriction"
-          @update:model-value="formData.enable_ip_restriction = $event"
+          @update:model-value="(value) => updateField('enable_ip_restriction', value)"
         />
         <div v-if="formData.enable_ip_restriction" class="grid gap-3 pt-2 md:grid-cols-2">
           <div>
             <label class="input-label">{{ t("keys.ipWhitelist") }}</label>
             <textarea
-              v-model="formData.ip_whitelist"
+              :value="formData.ip_whitelist"
               rows="3"
               class="input font-mono text-sm"
               :placeholder="t('keys.ipWhitelistPlaceholder')"
+              @input="(event) => updateField('ip_whitelist', (event.target as HTMLTextAreaElement).value)"
             />
             <p class="input-hint">{{ t("keys.ipWhitelistHint") }}</p>
           </div>
           <div>
             <label class="input-label">{{ t("keys.ipBlacklist") }}</label>
             <textarea
-              v-model="formData.ip_blacklist"
+              :value="formData.ip_blacklist"
               rows="3"
               class="input font-mono text-sm"
               :placeholder="t('keys.ipBlacklistPlaceholder')"
+              @input="(event) => updateField('ip_blacklist', (event.target as HTMLTextAreaElement).value)"
             />
             <p class="input-hint">{{ t("keys.ipBlacklistHint") }}</p>
           </div>
@@ -103,12 +109,13 @@
             <div class="relative">
               <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
               <input
-                v-model.number="formData.quota"
+                :value="formData.quota"
                 type="number"
                 step="0.01"
                 min="0"
                 class="input pl-7"
                 :placeholder="t('keys.quotaAmountPlaceholder')"
+                @input="(event) => updateField('quota', parseNullableNumber((event.target as HTMLInputElement).value))"
               />
             </div>
             <p class="input-hint">{{ t("keys.quotaAmountHint") }}</p>
@@ -145,7 +152,7 @@
           :hint="t('keys.imageOnlyKeyHint')"
           :model-value="formData.image_only_enabled"
           align-start
-          @update:model-value="formData.image_only_enabled = $event"
+          @update:model-value="(value) => updateField('image_only_enabled', value)"
         />
         <div v-if="formData.image_only_enabled" class="space-y-4 pt-2">
           <ToggleField
@@ -153,18 +160,19 @@
             :hint="t('keys.imageCountBillingHint')"
             :model-value="formData.image_count_billing_enabled"
             align-start
-            @update:model-value="formData.image_count_billing_enabled = $event"
+            @update:model-value="(value) => updateField('image_count_billing_enabled', value)"
           />
           <div v-if="formData.image_count_billing_enabled" class="grid gap-3 md:grid-cols-2">
             <div>
               <label class="input-label">{{ t("keys.imageMaxCount") }}</label>
               <input
-                v-model.number="formData.image_max_count"
+                :value="formData.image_max_count"
                 type="number"
                 step="1"
                 min="1"
                 class="input"
                 :placeholder="t('keys.imageMaxCountPlaceholder')"
+                @input="(event) => updateField('image_max_count', parseNullableNumber((event.target as HTMLInputElement).value))"
               />
               <p class="input-hint">{{ t("keys.imageMaxCountHint") }}</p>
             </div>
@@ -200,11 +208,12 @@
                     {{ t(`keys.imageCountWeight${tier}`) }}
                   </span>
                   <input
-                    v-model.number="formData.image_count_weights[tier]"
+                    :value="formData.image_count_weights[tier]"
                     type="number"
                     step="1"
                     min="1"
                     class="input"
+                    @input="(event) => updateImageCountWeight(tier, (event.target as HTMLInputElement).value)"
                   />
                 </label>
               </div>
@@ -218,34 +227,37 @@
         <ToggleField
           :label="t('keys.rateLimitSection')"
           :model-value="formData.enable_rate_limit"
-          @update:model-value="formData.enable_rate_limit = $event"
+          @update:model-value="(value) => updateField('enable_rate_limit', value)"
         />
         <div v-if="formData.enable_rate_limit" class="space-y-3 pt-2">
           <p class="input-hint -mt-2">{{ t("keys.rateLimitHint") }}</p>
           <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <RateLimitEditField
-              v-model="formData.rate_limit_5h"
+              :model-value="formData.rate_limit_5h"
               :label="t('keys.rateLimit5h')"
               :selected-key="selectedKey"
               usage-key="usage_5h"
               limit-key="rate_limit_5h"
               :show-edit-modal="showEditModal"
+              @update:model-value="(value) => updateField('rate_limit_5h', value)"
             />
             <RateLimitEditField
-              v-model="formData.rate_limit_1d"
+              :model-value="formData.rate_limit_1d"
               :label="t('keys.rateLimit1d')"
               :selected-key="selectedKey"
               usage-key="usage_1d"
               limit-key="rate_limit_1d"
               :show-edit-modal="showEditModal"
+              @update:model-value="(value) => updateField('rate_limit_1d', value)"
             />
             <RateLimitEditField
-              v-model="formData.rate_limit_7d"
+              :model-value="formData.rate_limit_7d"
               :label="t('keys.rateLimit7d')"
               :selected-key="selectedKey"
               usage-key="usage_7d"
               limit-key="rate_limit_7d"
               :show-edit-modal="showEditModal"
+              @update:model-value="(value) => updateField('rate_limit_7d', value)"
             />
           </div>
 
@@ -269,7 +281,7 @@
         <ToggleField
           :label="t('keys.expiration')"
           :model-value="formData.enable_expiration"
-          @update:model-value="formData.enable_expiration = $event"
+          @update:model-value="(value) => updateField('enable_expiration', value)"
         />
         <div v-if="formData.enable_expiration" class="space-y-4 pt-2">
           <div class="flex flex-wrap gap-2">
@@ -289,7 +301,7 @@
             </button>
             <button
               type="button"
-              @click="formData.expiration_preset = 'custom'"
+              @click="updateField('expiration_preset', 'custom')"
               :class="[
                 'rounded-lg px-3 py-1.5 text-sm transition-colors',
                 formData.expiration_preset === 'custom'
@@ -303,7 +315,12 @@
 
           <div>
             <label class="input-label">{{ t("keys.expirationDate") }}</label>
-            <input v-model="formData.expiration_date" type="datetime-local" class="input" />
+            <input
+              :value="formData.expiration_date"
+              type="datetime-local"
+              class="input"
+              @input="(event) => updateField('expiration_date', (event.target as HTMLInputElement).value)"
+            />
             <p class="input-hint">{{ t("keys.expirationDateHint") }}</p>
           </div>
 
@@ -357,12 +374,12 @@ import APIKeyGroupBindingsEditor from "@/components/keys/APIKeyGroupBindingsEdit
 import type { PublicModelCatalogItem } from "@/api/meta";
 import type { ApiKey, Group, UserGroupModelOption } from "@/types";
 import { formatDateTime } from "@/utils/format";
-import type { ApiKeyFormData } from "./types";
+import type { ApiKeyFormData, ImageCountWeightTier } from "./types";
 import { imageCountWeightTiers } from "./types";
 import RateLimitEditField from "./RateLimitEditField.vue";
 import ToggleField from "./ToggleField.vue";
 
-defineProps<{
+const props = defineProps<{
   show: boolean;
   showEditModal: boolean;
   submitting: boolean;
@@ -378,13 +395,42 @@ defineProps<{
   statusOptions: Array<{ value: string; label: string }>;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   close: [];
   submit: [];
+  "update:formData": [value: ApiKeyFormData];
   "confirm-reset-quota": [];
   "confirm-reset-rate-limit": [];
   "set-expiration-days": [days: number];
 }>();
 
 const { t } = useI18n();
+
+function updateField<K extends keyof ApiKeyFormData>(
+  key: K,
+  value: ApiKeyFormData[K],
+) {
+  emit("update:formData", { ...props.formData, [key]: value });
+}
+
+function parseNullableNumber(value: string): number | null {
+  if (value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeStatus(value: unknown): ApiKeyFormData["status"] {
+  return value === "inactive" ? "inactive" : "active";
+}
+
+function updateImageCountWeight(tier: ImageCountWeightTier, value: string) {
+  const parsed = Number(value);
+  const nextValue = Number.isFinite(parsed)
+    ? parsed
+    : props.formData.image_count_weights[tier];
+  updateField("image_count_weights", {
+    ...props.formData.image_count_weights,
+    [tier]: nextValue,
+  });
+}
 </script>

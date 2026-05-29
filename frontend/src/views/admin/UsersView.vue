@@ -7,6 +7,7 @@
           v-model:search-query="searchQuery"
           v-model:show-filter-dropdown="showFilterDropdown"
           v-model:show-column-dropdown="showColumnDropdown"
+          @update:filters="(value) => Object.assign(filters, value)"
           :filters="filters"
           :visible-filters="visibleFilters"
           :group-filter-options="groupFilterOptions"

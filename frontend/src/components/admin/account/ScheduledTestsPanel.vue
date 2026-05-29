@@ -27,6 +27,7 @@
         :form="newPlan"
         :submitting="creating"
         :submit-disabled="!canSubmitPlan(newPlan) || !newPlan.cron_expression || creating"
+        @update:form="(value) => Object.assign(newPlan, value)"
         @cancel="cancelCreate"
         @submit="handleCreate"
       />

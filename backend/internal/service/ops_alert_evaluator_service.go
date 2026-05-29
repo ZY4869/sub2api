@@ -19,6 +19,13 @@ const (
 	opsAlertEvaluatorSkipLogInterval = 1 * time.Minute
 )
 
+var opsAlertEvaluatorReleaseScript = redis.NewScript(`
+if redis.call("GET", KEYS[1]) == ARGV[1] then
+  return redis.call("DEL", KEYS[1])
+end
+return 0
+`)
+
 type OpsAlertEvaluatorService struct {
 	opsService   *OpsService
 	opsRepo      OpsRepository

@@ -56,26 +56,26 @@
 
       <div class="w-full sm:w-40">
         <Select
-          v-model="filters.status"
+          :model-value="filters.status"
           :options="statusOptions"
           :placeholder="t('admin.subscriptions.allStatus')"
-          @change="emit('apply-filters')"
+          @update:model-value="(value) => updateFilter('status', value)"
         />
       </div>
       <div class="w-full sm:w-48">
         <Select
-          v-model="filters.group_id"
+          :model-value="filters.group_id"
           :options="groupOptions"
           :placeholder="t('admin.subscriptions.allGroups')"
-          @change="emit('apply-filters')"
+          @update:model-value="(value) => updateFilter('group_id', value)"
         />
       </div>
       <div class="w-full sm:w-40">
         <Select
-          v-model="filters.platform"
+          :model-value="filters.platform"
           :options="platformFilterOptions"
           :placeholder="t('admin.subscriptions.allPlatforms')"
-          @change="emit('apply-filters')"
+          @update:model-value="(value) => updateFilter('platform', value)"
         />
       </div>
     </div>
@@ -187,6 +187,7 @@ const emit = defineEmits<{
   'update:filterUserKeyword': [value: string]
   'update:showFilterUserDropdown': [value: boolean]
   'update:showColumnDropdown': [value: boolean]
+  'update:filters': [value: SubscriptionFilters]
   'search-filter-users': []
   'select-filter-user': [user: SimpleUser]
   'clear-filter-user': []
@@ -204,4 +205,9 @@ const filterUserKeywordModel = computed({
   get: () => props.filterUserKeyword,
   set: (value: string) => emit('update:filterUserKeyword', value)
 })
+
+const updateFilter = (key: keyof SubscriptionFilters, value: unknown) => {
+  emit('update:filters', { ...props.filters, [key]: String(value ?? '') })
+  emit('apply-filters')
+}
 </script>

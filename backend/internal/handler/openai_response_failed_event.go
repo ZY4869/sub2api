@@ -102,7 +102,7 @@ func sanitizeResponseFailedID(value string) string {
 			r >= 'A' && r <= 'Z',
 			r >= '0' && r <= '9',
 			r == '_', r == '-':
-			b.WriteRune(r)
+			_, _ = b.WriteRune(r)
 		}
 		if b.Len() >= 96 {
 			break

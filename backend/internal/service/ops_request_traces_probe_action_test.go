@@ -24,8 +24,8 @@ func TestRecordRequestTrace_ForcesCaptureWhenProbeActionIsSet(t *testing.T) {
 			Ops: config.OpsConfig{
 				Enabled: true,
 				RequestDetails: config.OpsRequestDetailsConfig{
-					Enabled:           true,
-					SuccessSampleRate: 0,
+					Enabled:            true,
+					SuccessSampleRate:  0,
 					ForceCaptureSlowMs: 999999,
 				},
 			},
@@ -52,4 +52,3 @@ func TestRecordRequestTrace_ForcesCaptureWhenProbeActionIsSet(t *testing.T) {
 	require.Equal(t, "probe_action", captured.CaptureReason)
 	require.Equal(t, "account_test", captured.ProbeAction)
 }
-

@@ -10,17 +10,22 @@
         <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
           {{ t('admin.scheduledTests.modelInputMode') }}
         </label>
-        <Select v-model="form.model_input_mode" :options="modelInputModeOptions" />
+        <Select
+          :model-value="form.model_input_mode"
+          :options="modelInputModeOptions"
+          @update:model-value="(value) => updateFormField('model_input_mode', value)"
+        />
       </div>
       <div v-if="form.model_input_mode === 'catalog'">
         <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
           {{ t('admin.scheduledTests.model') }}
         </label>
         <Select
-          v-model="form.selected_model_key"
+          :model-value="form.selected_model_key"
           :options="modelOptions"
           :placeholder="t('admin.scheduledTests.model')"
           :searchable="modelOptions.length > 5"
+          @update:model-value="(value) => updateFormField('selected_model_key', value)"
         />
       </div>
       <div v-else class="space-y-3 sm:col-span-2">
@@ -30,8 +35,9 @@
               {{ t('admin.scheduledTests.manualModelId') }}
             </label>
             <Input
-              v-model="form.manual_model_id"
+              :model-value="form.manual_model_id"
               :placeholder="t('admin.scheduledTests.manualModelIdPlaceholder')"
+              @update:model-value="(value) => updateFormField('manual_model_id', value)"
             />
           </div>
           <div>
@@ -39,8 +45,9 @@
               {{ t('admin.scheduledTests.requestAlias') }}
             </label>
             <Input
-              v-model="form.request_alias"
+              :model-value="form.request_alias"
               :placeholder="form.manual_model_id || t('admin.scheduledTests.requestAliasPlaceholder')"
+              @update:model-value="(value) => updateFormField('request_alias', value)"
             />
           </div>
         </div>
@@ -49,9 +56,10 @@
             {{ t('admin.scheduledTests.sourceProtocol') }}
           </label>
           <Select
-            v-model="form.source_protocol"
+            :model-value="form.source_protocol"
             :options="sourceProtocolOptions"
             :placeholder="t('admin.scheduledTests.sourceProtocol')"
+            @update:model-value="(value) => updateFormField('source_protocol', value)"
           />
         </div>
       </div>
@@ -62,7 +70,7 @@
         <Select
           :model-value="form.frequency_preset"
           :options="frequencyOptions"
-          @update:model-value="(value) => handleFrequencyPresetChange(form, value)"
+          @update:model-value="updateFrequencyPreset"
         />
       </div>
       <div>
@@ -86,10 +94,11 @@
           </HelpTooltip>
         </label>
         <Input
-          v-model="form.cron_expression"
+          :model-value="form.cron_expression"
           :placeholder="'*/30 * * * *'"
           :hint="t('admin.scheduledTests.cronHelp')"
           :disabled="form.frequency_preset !== 'custom'"
+          @update:model-value="(value) => updateFormField('cron_expression', value)"
         />
       </div>
       <div>
@@ -110,18 +119,29 @@
             </div>
           </HelpTooltip>
         </label>
-        <Input v-model="form.max_results" type="number" placeholder="100" />
+        <Input
+          :model-value="form.max_results"
+          type="number"
+          placeholder="100"
+          @update:model-value="(value) => updateFormField('max_results', value)"
+        />
       </div>
       <div class="flex items-end">
         <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-          <Toggle v-model="form.enabled" />
+          <Toggle
+            :model-value="form.enabled"
+            @update:model-value="(value) => updateFormField('enabled', value)"
+          />
           {{ t('admin.scheduledTests.enabled') }}
         </label>
       </div>
       <div class="flex items-end">
         <div>
           <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-            <Toggle v-model="form.auto_recover" />
+            <Toggle
+              :model-value="form.auto_recover"
+              @update:model-value="(value) => updateFormField('auto_recover', value)"
+            />
             {{ t('admin.scheduledTests.autoRecover') }}
           </label>
           <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
@@ -133,25 +153,41 @@
         <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
           {{ t('admin.scheduledTests.notifyPolicy') }}
         </label>
-        <Select v-model="form.notify_policy" :options="notifyPolicyOptions" />
+        <Select
+          :model-value="form.notify_policy"
+          :options="notifyPolicyOptions"
+          @update:model-value="(value) => updateFormField('notify_policy', value)"
+        />
       </div>
       <div v-if="form.notify_policy === 'failure_only'">
         <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
           {{ t('admin.scheduledTests.notifyFailureThreshold') }}
         </label>
-        <Select v-model="form.notify_failure_threshold" :options="failureThresholdOptions" />
+        <Select
+          :model-value="form.notify_failure_threshold"
+          :options="failureThresholdOptions"
+          @update:model-value="(value) => updateFormField('notify_failure_threshold', value)"
+        />
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
           {{ t('admin.scheduledTests.retryInterval') }}
         </label>
-        <Select v-model="form.retry_interval_minutes" :options="retryIntervalOptions" />
+        <Select
+          :model-value="form.retry_interval_minutes"
+          :options="retryIntervalOptions"
+          @update:model-value="(value) => updateFormField('retry_interval_minutes', value)"
+        />
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
           {{ t('admin.scheduledTests.maxRetries') }}
         </label>
-        <Select v-model="form.max_retries" :options="maxRetryOptions" />
+        <Select
+          :model-value="form.max_retries"
+          :options="maxRetryOptions"
+          @update:model-value="(value) => updateFormField('max_retries', value)"
+        />
       </div>
     </div>
     <div class="mt-3 flex justify-end gap-2">
@@ -187,9 +223,10 @@ const props = defineProps<{
   submitDisabled?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'cancel'): void
   (e: 'submit'): void
+  (e: 'update:form', value: any): void
 }>()
 
 const {
@@ -205,4 +242,14 @@ const {
   retryIntervalOptions,
   maxRetryOptions
 } = props.ctx
+
+const updateFormField = (key: string, value: unknown) => {
+  emit('update:form', { ...props.form, [key]: value })
+}
+
+const updateFrequencyPreset = (value: string | number | boolean | null) => {
+  const next = { ...props.form }
+  handleFrequencyPresetChange(next, value)
+  emit('update:form', next)
+}
 </script>

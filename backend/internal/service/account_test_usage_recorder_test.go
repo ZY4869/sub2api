@@ -4,9 +4,9 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"fmt"
 	"testing"
 	"time"
 

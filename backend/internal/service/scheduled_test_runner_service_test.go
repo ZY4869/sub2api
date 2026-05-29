@@ -99,10 +99,10 @@ func (s *scheduledTestExecutorStub) RunTestBackground(ctx context.Context, input
 }
 
 type scheduledTestUsageRecordingExecutorStub struct {
-	input     ScheduledTestExecutionInput
-	userRepo  *systemUsageUserRepoStub
+	input      ScheduledTestExecutionInput
+	userRepo   *systemUsageUserRepoStub
 	apiKeyRepo *systemUsageAPIKeyRepoStub
-	usageRepo *systemUsageLogRepoStub
+	usageRepo  *systemUsageLogRepoStub
 }
 
 func (s *scheduledTestUsageRecordingExecutorStub) RunTestBackground(ctx context.Context, input ScheduledTestExecutionInput) (*ScheduledTestResult, error) {

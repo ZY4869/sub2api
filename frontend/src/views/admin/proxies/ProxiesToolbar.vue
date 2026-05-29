@@ -17,18 +17,18 @@
 
     <div class="w-full sm:w-40">
       <Select
-        v-model="filters.protocol"
+        :model-value="filters.protocol"
         :options="protocolOptions"
         :placeholder="t('admin.proxies.allProtocols')"
-        @change="emit('load')"
+        @update:model-value="(value) => updateFilter('protocol', value)"
       />
     </div>
     <div class="w-full sm:w-36">
       <Select
-        v-model="filters.status"
+        :model-value="filters.status"
         :options="statusOptions"
         :placeholder="t('admin.proxies.allStatus')"
-        @change="emit('load')"
+        @update:model-value="(value) => updateFilter('status', value)"
       />
     </div>
 
@@ -106,6 +106,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:searchQuery': [value: string]
+  'update:filters': [value: ProxyFilters]
   search: []
   load: []
   'batch-test': []
@@ -122,4 +123,9 @@ const searchQueryModel = computed({
   get: () => props.searchQuery,
   set: (value: string) => emit('update:searchQuery', value)
 })
+
+const updateFilter = (key: keyof ProxyFilters, value: unknown) => {
+  emit('update:filters', { ...props.filters, [key]: String(value ?? '') })
+  emit('load')
+}
 </script>
