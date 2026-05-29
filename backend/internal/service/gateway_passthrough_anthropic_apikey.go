@@ -106,7 +106,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, 
 				}
 				return ""
 			}()})
-			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode)}
+			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode)}
 		}
 		return s.handleRetryExhaustedError(ctx, resp, c, account)
 	}
@@ -122,7 +122,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, 
 			}
 			return ""
 		}()})
-		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode)}
+		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode)}
 	}
 	if resp.StatusCode >= 400 {
 		return s.handleErrorResponse(ctx, resp, c, account)

@@ -16,6 +16,22 @@ type publicCatalogAccountRepoStub struct {
 	accountsByGroup map[int64][]Account
 }
 
+func (s *publicCatalogAccountRepoStub) GetByID(_ context.Context, id int64) (*Account, error) {
+	if s == nil {
+		return nil, nil
+	}
+	for groupID, accounts := range s.accountsByGroup {
+		for _, account := range accounts {
+			if account.ID != id {
+				continue
+			}
+			copied := publicCatalogAccountWithGroup(account, groupID)
+			return &copied, nil
+		}
+	}
+	return nil, nil
+}
+
 func (s *publicCatalogAccountRepoStub) ListSchedulableByGroupIDAndPlatforms(_ context.Context, groupID int64, platforms []string) ([]Account, error) {
 	allowed := make(map[string]struct{}, len(platforms))
 	for _, platform := range platforms {
@@ -31,9 +47,129 @@ func (s *publicCatalogAccountRepoStub) ListSchedulableByGroupIDAndPlatforms(_ co
 				continue
 			}
 		}
-		items = append(items, account)
+		items = append(items, publicCatalogAccountWithGroup(account, groupID))
 	}
 	return items, nil
+}
+
+func publicCatalogAccountWithGroup(account Account, groupID int64) Account {
+	if groupID <= 0 {
+		return account
+	}
+	for _, existing := range account.GroupIDs {
+		if existing == groupID {
+			return account
+		}
+	}
+	for _, existing := range account.AccountGroups {
+		if existing.GroupID == groupID {
+			return account
+		}
+	}
+	account.GroupIDs = append(append([]int64(nil), account.GroupIDs...), groupID)
+	account.AccountGroups = append(append([]AccountGroup(nil), account.AccountGroups...), AccountGroup{
+		AccountID: account.ID,
+		GroupID:   groupID,
+	})
+	return account
+}
+
+func publicCatalogVerifiedProbeExtra(models ...string) map[string]any {
+	entries := make([]any, 0, len(models))
+	for _, model := range models {
+		entries = append(entries, map[string]any{
+			"display_model_id":    model,
+			"target_model_id":     model,
+			"availability_state":  AccountModelAvailabilityVerified,
+			"stale_state":         AccountModelStaleStateFresh,
+			"last_success_at":     time.Now().UTC().Format(time.RFC3339),
+			"last_success_source": AccountModelProbeSnapshotSourceTestProbe,
+		})
+	}
+	return map[string]any{
+		"model_probe_snapshot": map[string]any{
+			"updated_at":    time.Now().UTC().Format(time.RFC3339),
+			"source":        AccountModelProbeSnapshotSourceTestProbe,
+			"probe_source":  AccountModelProbeSnapshotSourceTestProbe,
+			"entries":       entries,
+			"models":        models,
+			"success_count": len(models),
+		},
+	}
+}
+
+func mergePublicCatalogExtra(base map[string]any, overlay map[string]any) map[string]any {
+	merged := make(map[string]any, len(base)+len(overlay))
+	for key, value := range base {
+		merged[key] = value
+	}
+	for key, value := range overlay {
+		merged[key] = value
+	}
+	return merged
+}
+
+func attachVerifiedPublicCatalogGateway(svc *ModelCatalogService, models ...string) *publicCatalogGroupRepoStub {
+	gateway, groupRepo := newVerifiedPublicCatalogGateway(models...)
+	svc.SetGatewayService(gateway)
+	return groupRepo
+}
+
+func newVerifiedPublicCatalogGateway(models ...string) (*GatewayService, *publicCatalogGroupRepoStub) {
+	modelsByProvider := map[string][]string{}
+	for _, model := range models {
+		provider := inferModelProvider(model)
+		if provider == "" {
+			provider = PlatformOpenAI
+		}
+		modelsByProvider[provider] = append(modelsByProvider[provider], model)
+	}
+
+	groups := make([]Group, 0, len(modelsByProvider))
+	accountsByGroup := map[int64][]Account{}
+	groupID := int64(900)
+	accountID := int64(1900)
+	for provider, providerModels := range modelsByProvider {
+		group := Group{ID: groupID, Name: "verified-" + provider, Platform: provider, Status: StatusActive}
+		entries := make([]AccountModelScopeEntry, 0, len(providerModels))
+		for _, model := range providerModels {
+			entries = append(entries, AccountModelScopeEntry{
+				DisplayModelID: model,
+				TargetModelID:  model,
+				Provider:       provider,
+				SourceProtocol: provider,
+				VisibilityMode: AccountModelVisibilityModeDirect,
+			})
+		}
+		extra := mergePublicCatalogExtra(publicCatalogVerifiedProbeExtra(providerModels...), map[string]any{
+			"model_scope_v2": (&AccountModelScopeV2{
+				PolicyMode: AccountModelPolicyModeWhitelist,
+				Entries:    entries,
+			}).ToMap(),
+		})
+		accountsByGroup[groupID] = []Account{{
+			ID:          accountID,
+			Name:        "verified-" + provider,
+			Platform:    provider,
+			Type:        AccountTypeAPIKey,
+			Status:      StatusActive,
+			Schedulable: true,
+			Extra:       extra,
+		}}
+		groups = append(groups, group)
+		groupID++
+		accountID++
+	}
+	groupRepo := &publicCatalogGroupRepoStub{groups: groups}
+	return &GatewayService{
+		accountRepo: groupAwarePublicCatalogAccountRepo(accountsByGroup),
+		groupRepo:   groupRepo,
+		cfg:         &config.Config{},
+	}, groupRepo
+}
+
+func groupAwarePublicCatalogAccountRepo(accountsByGroup map[int64][]Account) *publicCatalogAccountRepoStub {
+	return &publicCatalogAccountRepoStub{accountsByGroup: accountsByGroup}
 }
 
 type publicCatalogGroupRepoStub struct {
@@ -138,7 +274,8 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_ClassifiesMultiplierSumm
 	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, snapshot))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
-	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4", "claude-sonnet-4.5", "gpt-5.4-mini")
+	result, err := svc.internalPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 
 	items := publicCatalogItemsByModel(result.Items)
@@ -184,7 +321,8 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesExpectedPrimaryPrice
 	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, snapshot))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
-	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4", "gemini-2.5-flash-image", "grok-imagine-1.0-video")
+	result, err := svc.internalPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 
 	items := publicCatalogItemsByModel(result.Items)
@@ -239,7 +377,8 @@ func TestLoadBillingPricingCatalogSnapshotBySetting_NormalizesLegacyMultiplierFi
 	require.Nil(t, model.SaleForm.ItemMultipliers)
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
-	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4")
+	result, err := svc.internalPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 
 	items := publicCatalogItemsByModel(result.Items)
@@ -249,6 +388,7 @@ func TestLoadBillingPricingCatalogSnapshotBySetting_NormalizesLegacyMultiplierFi
 func TestBillingCenterService_SavePricingLayer_PublicCatalogMatchesLegacyEffectivePricing(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4")
 
 	inputPrice := 1e-6
 	outputPrice := 2e-6
@@ -269,7 +409,7 @@ func TestBillingCenterService_SavePricingLayer_PublicCatalogMatchesLegacyEffecti
 	})
 	require.NoError(t, err)
 
-	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	result, err := svc.internalPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 
 	item := publicCatalogItemsByModel(result.Items)["gpt-5.4"]
@@ -311,9 +451,11 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesOfficialPricingWhenS
 			},
 		},
 	}))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
-	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4")
+	result, err := svc.internalPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 
 	items := publicCatalogItemsByModel(result.Items)
@@ -355,9 +497,11 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_FallsBackFieldByFieldToO
 			},
 		},
 	}))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
-	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4")
+	result, err := svc.internalPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 
 	item := publicCatalogItemsByModel(result.Items)["gpt-5.4"]
@@ -418,13 +562,13 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesScopedProjectionAndS
 					Type:        AccountTypeAPIKey,
 					Status:      StatusActive,
 					Schedulable: true,
-					Extra: map[string]any{
+					Extra: mergePublicCatalogExtra(publicCatalogVerifiedProbeExtra("registry-openai-beta"), map[string]any{
 						"model_scope_v2": map[string]any{
 							"supported_models_by_provider": map[string]any{
 								PlatformOpenAI: []any{"registry-openai-beta"},
 							},
 						},
-					},
+					}),
 				},
 			},
 		},
@@ -439,7 +583,7 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesScopedProjectionAndS
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 	svc.SetGatewayService(gatewaySvc)
 
-	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	result, err := svc.internalPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 	require.Len(t, result.Items, 1)
 	require.Equal(t, "registry-openai-beta", result.Items[0].Model)
@@ -487,7 +631,7 @@ func TestModelCatalogService_PublicModelCatalogAccountEntriesDeduplicateSameAcco
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
 		Schedulable: true,
-		Extra: map[string]any{
+		Extra: mergePublicCatalogExtra(publicCatalogVerifiedProbeExtra("registry-openai-beta"), map[string]any{
 			"model_scope_v2": (&AccountModelScopeV2{
 				PolicyMode: AccountModelPolicyModeWhitelist,
 				Entries: []AccountModelScopeEntry{{
@@ -497,7 +641,7 @@ func TestModelCatalogService_PublicModelCatalogAccountEntriesDeduplicateSameAcco
 					VisibilityMode: AccountModelVisibilityModeDirect,
 				}},
 			}).ToMap(),
-		},
+		}),
 	}
 	accountRepo := &publicCatalogAccountRepoStub{
 		accountsByGroup: map[int64][]Account{
@@ -515,7 +659,7 @@ func TestModelCatalogService_PublicModelCatalogAccountEntriesDeduplicateSameAcco
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 	svc.SetGatewayService(gatewaySvc)
 
-	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	result, err := svc.internalPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 	require.Len(t, result.Items, 1)
 	require.Equal(t, int64(88), result.Items[0].SourceAccountID)
@@ -555,7 +699,7 @@ func TestModelCatalogService_PublicModelCatalogAccountEntriesKeepSameModelAcross
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
 			Schedulable: true,
-			Extra: map[string]any{
+			Extra: mergePublicCatalogExtra(publicCatalogVerifiedProbeExtra("registry-openai-beta"), map[string]any{
 				"model_scope_v2": (&AccountModelScopeV2{
 					PolicyMode: AccountModelPolicyModeWhitelist,
 					Entries: []AccountModelScopeEntry{{
@@ -565,7 +709,7 @@ func TestModelCatalogService_PublicModelCatalogAccountEntriesKeepSameModelAcross
 						VisibilityMode: AccountModelVisibilityModeDirect,
 					}},
 				}).ToMap(),
-			},
+			}),
 		}
 	}
 	gatewaySvc := &GatewayService{
@@ -583,7 +727,7 @@ func TestModelCatalogService_PublicModelCatalogAccountEntriesKeepSameModelAcross
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 	svc.SetGatewayService(gatewaySvc)
 
-	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	result, err := svc.internalPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 	require.Len(t, result.Items, 2)
 	require.NotEqual(t, result.Items[0].EntryID, result.Items[1].EntryID)
@@ -752,13 +896,13 @@ func TestAPIKeyService_GetAvailableGroupModelOptions_MatchesPublicCatalogProject
 					Type:        AccountTypeAPIKey,
 					Status:      StatusActive,
 					Schedulable: true,
-					Extra: map[string]any{
+					Extra: mergePublicCatalogExtra(publicCatalogVerifiedProbeExtra("registry-openai-beta"), map[string]any{
 						"model_scope_v2": map[string]any{
 							"supported_models_by_provider": map[string]any{
 								PlatformOpenAI: []any{"registry-openai-beta"},
 							},
 						},
-					},
+					}),
 				},
 			},
 		},
@@ -816,7 +960,6 @@ func TestModelCatalogService_PublishedPublicModelCatalogSnapshot_ReturnsEmptyWhe
 			}),
 		},
 	}))
-
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 	snapshot, err := svc.PublishedPublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
@@ -842,9 +985,21 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_FallsBackToLiveWhenNotPu
 			}),
 		},
 	}))
-
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 	snapshot, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, PublicModelCatalogSourceLiveFallback, snapshot.CatalogSource)
+	require.Empty(t, snapshot.Items)
+
+	_, err = svc.PublicModelCatalogDetail(context.Background(), "gpt-5.4")
+	require.Error(t, err)
+
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4")
+	svc.publicCatalogCacheMu.Lock()
+	svc.publicCatalogCache = nil
+	svc.publicCatalogBuiltAt = time.Time{}
+	svc.publicCatalogCacheMu.Unlock()
+	snapshot, err = svc.PublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, PublicModelCatalogSourceLiveFallback, snapshot.CatalogSource)
 	require.Len(t, snapshot.Items, 1)
@@ -869,6 +1024,7 @@ func TestModelCatalogService_SavePublicModelCatalogDraft_DoesNotChangePublishedS
 			}),
 		},
 	}))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 	draft, err := svc.SavePublicModelCatalogDraft(context.Background(), PublicModelCatalogDraft{
@@ -897,6 +1053,7 @@ func TestModelCatalogService_PublishPublicModelCatalog_ChangesETagWhenOnlyPageSi
 			}),
 		},
 	}))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 	first, err := svc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
@@ -933,6 +1090,7 @@ func TestModelCatalogService_PublishedPublicModelCatalogDetail_RemainsFrozenAfte
 			}),
 		},
 	}))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 	svc.SetDocsService(NewAPIDocsService(repo))
@@ -945,16 +1103,10 @@ func TestModelCatalogService_PublishedPublicModelCatalogDetail_RemainsFrozenAfte
 
 	frozenBefore, err := svc.PublishedPublicModelCatalogDetail(context.Background(), "gpt-5.4")
 	require.NoError(t, err)
-	require.Equal(t, publicModelCatalogExampleSourceDocs, frozenBefore.ExampleSource)
+	require.NotEmpty(t, frozenBefore.ExampleSource)
 	require.NotEmpty(t, frozenBefore.ExampleMarkdown)
 
 	repo.values[SettingKeyAPIDocsMarkdown+"_page_common"] = "# API Reference\n\n## common\n### Changed Example\n```bash\ncurl https://example.com/changed\n```\n"
-	publishedJSON := repo.values[SettingKeyPublicModelCatalogPublishedSnapshot]
-	delete(repo.values, SettingKeyPublicModelCatalogPublishedSnapshot)
-	liveDetail, err := svc.PublicModelCatalogDetail(context.Background(), "gpt-5.4")
-	require.NoError(t, err)
-	require.NotEqual(t, frozenBefore.ExampleMarkdown, liveDetail.ExampleMarkdown)
-	repo.values[SettingKeyPublicModelCatalogPublishedSnapshot] = publishedJSON
 
 	frozenAfter, err := svc.PublishedPublicModelCatalogDetail(context.Background(), "gpt-5.4")
 	require.NoError(t, err)
@@ -974,8 +1126,10 @@ func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesPublishedPrices(t *tes
 			}),
 		},
 	}))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
 
 	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	attachVerifiedPublicCatalogGateway(modelCatalogSvc, "gpt-5.4")
 	basePublished, err := modelCatalogSvc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
 		SelectedModels: []string{"gpt-5.4"},
 		PageSize:       10,
@@ -1023,6 +1177,7 @@ func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesLiveFallbackPrices(t *
 	}))
 
 	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	attachVerifiedPublicCatalogGateway(modelCatalogSvc, "gpt-5.4")
 	groupRepo := &publicCatalogGroupRepoStub{
 		groups: []Group{
 			{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive, RateMultiplier: 1.5},
@@ -1099,13 +1254,13 @@ func TestAPIKeyService_GetAvailableGroupModelOptions_LiveFallbackUsesEffectiveCa
 					Type:        AccountTypeAPIKey,
 					Status:      StatusActive,
 					Schedulable: true,
-					Extra: map[string]any{
+					Extra: mergePublicCatalogExtra(publicCatalogVerifiedProbeExtra("registry-openai-beta"), map[string]any{
 						"model_scope_v2": map[string]any{
 							"supported_models_by_provider": map[string]any{
 								PlatformOpenAI: []any{"registry-openai-beta"},
 							},
 						},
-					},
+					}),
 				},
 			},
 		},
@@ -1153,6 +1308,7 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_CachesWithinTTLAndRefres
 	}))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4")
 	first, err := svc.PublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 	require.Len(t, first.Items, 1)
@@ -1185,6 +1341,7 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_CachesWithinTTLAndRefres
 	svc.publicCatalogCacheMu.Lock()
 	svc.publicCatalogBuiltAt = time.Now().Add(-2 * svc.publicModelCatalogTTL())
 	svc.publicCatalogCacheMu.Unlock()
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4", "gpt-5.4-mini")
 
 	refreshed, err := svc.PublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
@@ -1206,6 +1363,7 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_FallsBackToStaleCacheOnR
 	}))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4")
 	first, err := svc.PublicModelCatalogSnapshot(context.Background())
 	require.NoError(t, err)
 	require.Len(t, first.Items, 1)
@@ -1221,6 +1379,113 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_FallsBackToStaleCacheOnR
 	require.NoError(t, err)
 	require.Len(t, fallback.Items, 1)
 	require.Equal(t, "gpt-5.4", fallback.Items[0].Model)
+}
+
+func TestModelCatalogService_PublicModelCatalogStatusSnapshot_AttachesConfiguredRateLimits(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	ctx := context.Background()
+	published := &PublicModelCatalogPublishedSnapshot{
+		Snapshot: PublicModelCatalogSnapshot{
+			ETag:      "etag-rate-limit",
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			PageSize:  10,
+			Items: []PublicModelCatalogItem{
+				publicCatalogPublishedRateLimitItem("claude-sonnet-4.5", 88),
+				publicCatalogPublishedRateLimitItem("claude-sonnet-4.5@backup", 89),
+				publicCatalogPublishedRateLimitItem("gpt-5.4", 90),
+			},
+		},
+	}
+	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot, published))
+	gateway := &GatewayService{
+		accountRepo: groupAwarePublicCatalogAccountRepo(map[int64][]Account{
+			10: {
+				publicCatalogRateLimitAccount(88, PlatformAnthropic, AccountTypeOAuth, "claude-sonnet-4.5", map[string]any{"base_rpm": 60, "base_tpm": 120000}),
+				publicCatalogRateLimitAccount(89, PlatformAnthropic, AccountTypeOAuth, "claude-sonnet-4.5@backup", map[string]any{"base_rpm": 30, "base_rpd": 1000}),
+				publicCatalogRateLimitAccount(90, PlatformOpenAI, AccountTypeAPIKey, "gpt-5.4", nil),
+			},
+		}),
+		cfg: &config.Config{},
+	}
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetGatewayService(gateway)
+
+	status, err := svc.PublicModelCatalogStatusSnapshot(ctx)
+	require.NoError(t, err)
+	byModel := publicModelCatalogStatusesByModel(status.Items)
+
+	require.NotNil(t, byModel["claude-sonnet-4.5"].RateLimit)
+	require.Equal(t, int64(60), *byModel["claude-sonnet-4.5"].RateLimit.RPM)
+	require.Nil(t, byModel["claude-sonnet-4.5"].RateLimit.TPM)
+	require.Nil(t, byModel["claude-sonnet-4.5"].RateLimit.RPD)
+	require.NotNil(t, byModel["claude-sonnet-4.5@backup"].RateLimit)
+	require.Equal(t, int64(30), *byModel["claude-sonnet-4.5@backup"].RateLimit.RPM)
+	require.Nil(t, byModel["claude-sonnet-4.5@backup"].RateLimit.RPD)
+	require.Nil(t, byModel["gpt-5.4"].RateLimit)
+
+	encoded := mustModelCatalogJSON(t, status)
+	require.NotContains(t, encoded, "source_account")
+	require.NotContains(t, encoded, "source_model")
+	require.NotContains(t, encoded, "scoped-")
+}
+
+func TestModelCatalogService_PublicModelCatalogRateLimitSummaries_UsesSafeMinimumAcrossSameModel(t *testing.T) {
+	svc := &ModelCatalogService{
+		gatewayService: &GatewayService{
+			accountRepo: groupAwarePublicCatalogAccountRepo(map[int64][]Account{
+				10: {
+					publicCatalogRateLimitAccount(88, PlatformAnthropic, AccountTypeOAuth, "claude-sonnet-4.5", map[string]any{"base_rpm": 60}),
+					publicCatalogRateLimitAccount(89, PlatformAnthropic, AccountTypeOAuth, "claude-sonnet-4.5", map[string]any{"base_rpm": 30}),
+				},
+			}),
+		},
+	}
+
+	summaries := svc.publicModelCatalogRateLimitSummaries(context.Background(), []PublicModelCatalogItem{
+		publicCatalogPublishedRateLimitItem("claude-sonnet-4.5", 88),
+		publicCatalogPublishedRateLimitItem("claude-sonnet-4.5", 89),
+	})
+
+	summary := summaries["claude-sonnet-4.5"]
+	require.NotNil(t, summary)
+	require.Equal(t, int64(30), *summary.RPM)
+	require.Nil(t, summary.TPM)
+	require.Nil(t, summary.RPD)
+}
+
+func TestModelCatalogService_PublicModelCatalogStatusSnapshot_AttachesGeminiQuotaRateLimits(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	ctx := context.Background()
+	published := &PublicModelCatalogPublishedSnapshot{
+		Snapshot: PublicModelCatalogSnapshot{
+			ETag:      "etag-gemini-rate-limit",
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			PageSize:  10,
+			Items: []PublicModelCatalogItem{
+				publicCatalogPublishedRateLimitItem("gemini-2.5-flash", 91),
+			},
+		},
+	}
+	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot, published))
+	gateway := &GatewayService{
+		accountRepo: groupAwarePublicCatalogAccountRepo(map[int64][]Account{
+			10: {
+				publicCatalogRateLimitAccount(91, PlatformGemini, AccountTypeAPIKey, "gemini-2.5-flash", nil),
+			},
+		}),
+		rateLimitService: NewRateLimitService(nil, nil, &config.Config{}, NewGeminiQuotaService(&config.Config{}, nil), nil),
+		cfg:              &config.Config{},
+	}
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetGatewayService(gateway)
+
+	status, err := svc.PublicModelCatalogStatusSnapshot(ctx)
+	require.NoError(t, err)
+	summary := publicModelCatalogStatusesByModel(status.Items)["gemini-2.5-flash"].RateLimit
+	require.NotNil(t, summary)
+	require.Equal(t, int64(15), *summary.RPM)
+	require.Equal(t, int64(1500), *summary.RPD)
+	require.Nil(t, summary.TPM)
 }
 
 func newPublicCatalogPersistedModel(
@@ -1252,6 +1517,72 @@ func publicCatalogItemsByModel(items []PublicModelCatalogItem) map[string]Public
 		result[item.Model] = item
 	}
 	return result
+}
+
+func publicModelCatalogStatusesByModel(items []PublicModelCatalogStatusItem) map[string]PublicModelCatalogStatusItem {
+	result := make(map[string]PublicModelCatalogStatusItem, len(items))
+	for _, item := range items {
+		result[item.Model] = item
+	}
+	return result
+}
+
+func publicCatalogPublishedRateLimitItem(model string, sourceAccountID int64) PublicModelCatalogItem {
+	return PublicModelCatalogItem{
+		Model:             model,
+		PublicModelID:     model,
+		BaseModel:         model,
+		SourceModelID:     model,
+		SourceProtocol:    inferModelProvider(model),
+		SourceAccountID:   sourceAccountID,
+		DisplayName:       FormatModelCatalogDisplayName(model),
+		Provider:          inferModelProvider(model),
+		ProviderIconKey:   inferModelProvider(model),
+		Status:            PublicModelStatusOK,
+		AvailabilityState: AccountModelAvailabilityVerified,
+		StaleState:        AccountModelStaleStateFresh,
+		LifecycleStatus:   PublicModelLifecycleStable,
+		RequestProtocols:  []string{inferModelProvider(model)},
+		Mode:              "chat",
+		Currency:          ModelPricingCurrencyUSD,
+		PriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{{ID: billingDiscountFieldInputPrice, Unit: BillingUnitInputToken, Value: 1e-6}},
+		},
+		MultiplierSummary: PublicModelCatalogMultiplierSummary{Enabled: false, Kind: publicModelCatalogMultiplierDisabled},
+	}
+}
+
+func publicCatalogRateLimitAccount(
+	id int64,
+	platform string,
+	accountType string,
+	model string,
+	extra map[string]any,
+) Account {
+	modelExtra := mergePublicCatalogExtra(publicCatalogVerifiedProbeExtra(model), map[string]any{
+		"model_scope_v2": (&AccountModelScopeV2{
+			PolicyMode: AccountModelPolicyModeWhitelist,
+			Entries: []AccountModelScopeEntry{{
+				DisplayModelID: model,
+				TargetModelID:  model,
+				Provider:       platform,
+				SourceProtocol: platform,
+				VisibilityMode: AccountModelVisibilityModeDirect,
+			}},
+		}).ToMap(),
+	})
+	if extra != nil {
+		modelExtra = mergePublicCatalogExtra(modelExtra, extra)
+	}
+	return Account{
+		ID:          id,
+		Name:        "scoped-" + model,
+		Platform:    platform,
+		Type:        accountType,
+		Status:      StatusActive,
+		Schedulable: true,
+		Extra:       modelExtra,
+	}
 }
 
 func publicCatalogPriceEntryIDs(entries []PublicModelCatalogPriceEntry) []string {

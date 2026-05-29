@@ -1,472 +1,229 @@
 <template>
-  <BaseDialog
-    :show="show"
-    :title="dialogTitle"
-    width="extra-wide"
-    @close="emit('close')"
-  >
-    <div class="space-y-5">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div class="min-w-0">
-          <div class="flex items-center gap-3">
-            <ModelIcon
-              v-if="displayItem"
-              :model="displayItem.raw.model"
-              :provider="displayItem.raw.provider"
-              :display-name="displayItem.raw.display_name"
-              size="22px"
-            />
-            <PublicModelStatusIcon
-              v-if="displayItem"
-              :status="displayItem.status"
-              :label="statusLabel(displayItem.status)"
-              :size="26"
-            />
-            <div class="min-w-0">
-              <p class="truncate text-lg font-semibold text-slate-950 dark:text-white">
-                {{ displayItem?.title || "-" }}
-              </p>
-              <p
-                v-if="displayItem?.subtitle"
-                class="truncate text-sm text-slate-500 dark:text-slate-400"
-              >
-                {{ displayItem.subtitle }}
-              </p>
-            </div>
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="show"
+        class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
+        @click="emit('close')"
+      ></div>
+    </Transition>
+
+    <Transition name="drawer">
+      <aside
+        v-if="show"
+        class="fixed right-0 top-0 z-50 flex h-full w-full max-w-[1000px] flex-col border-l border-slate-200/80 bg-[#FAFAFA] shadow-2xl dark:border-dark-700 dark:bg-dark-950"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="dialogTitle"
+      >
+        <PublicModelDetailHeader
+          :item="sourceItem"
+          :title="dialogTitle"
+          :provider-label="providerLabel"
+          :status-class="statusDotClass"
+          :copy-title="t('ui.modelCatalog.card.copyModelId')"
+          :close-title="t('common.close')"
+          :hosted-summary="t('ui.modelCatalog.detail.hostedSummary')"
+          @copy="copyModelId"
+          @close="emit('close')"
+        />
+        <PublicModelDetailTabs v-model="activeTab" :tabs="tabs" />
+
+        <main class="flex-1 overflow-y-auto bg-slate-50/50 px-6 py-8 dark:bg-dark-950 md:px-10">
+          <div v-if="!sourceItem" class="rounded-3xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-dark-700 dark:text-slate-400">
+            {{ t('ui.modelCatalog.detail.loading') }}
           </div>
-          <div
-            v-if="displayItem"
-            class="mt-3 flex flex-wrap gap-2 text-xs"
+          <PublicModelDetailOverview
+            v-else-if="activeTab === 'overview'"
+            :item="sourceItem"
+            :health="props.health"
+            :prices="displayItem?.primaryPrices || []"
+            :multiplier-label="multiplierLabel"
+            :protocol-summary="protocolSummary"
+            :labels="overviewLabels"
+            :price-entry-label="renderPriceEntryLabel"
+            :format-catalog-price="renderPrice"
+          />
+          <PublicModelDetailMonitor
+            v-else-if="activeTab === 'monitor'"
+            :health="props.health"
+            :labels="monitorLabels"
+            :t="t"
+          />
+          <PublicModelDetailRouting
+            v-else
+            :health="props.health"
+            :labels="routingLabels"
+            :params="parameterRows"
           >
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-2.5 py-1 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-200"
-            >
-              <PublicModelStatusIcon
-                :status="displayItem.status"
-                :label="statusLabel(displayItem.status)"
-                :size="14"
+            <template #example>
+              <PublicModelDetailExamplePanel
+                v-model:selected-key-i-d="selectedKeyID"
+                :supported-keys="supportedKeys"
+                :loading="loading"
+                :error-message="errorMessage"
+                :example-group="exampleResult.group"
+                :docs-theme="docsTheme"
+                :protocol="detail?.example_protocol || sourceItem?.provider || 'openai'"
+                :example-source="detail?.example_source"
+                :key-hint="keyHint"
+                :labels="exampleLabels"
               />
-              {{ statusLabel(displayItem.status) }}
-            </span>
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-dark-800 dark:text-slate-200"
-            >
-              <ModelPlatformIcon
-                :platform="displayItem.raw.provider_icon_key || displayItem.raw.provider || ''"
-                size="xs"
-              />
-              {{ providerLabel(displayItem.raw) }}
-            </span>
-            <span
-              v-for="protocol in displayItem.raw.request_protocols"
-              :key="protocol"
-              class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
-            >
-              <ModelPlatformIcon :platform="protocol" size="xs" />
-              {{ protocolLabel(protocol) }}
-            </span>
-          </div>
-        </div>
-
-        <div class="rounded-2xl bg-slate-50 px-4 py-3 text-right dark:bg-dark-800">
-          <div class="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            {{ displayItem?.raw.currency || "USD" }}
-          </div>
-          <div class="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
-            {{ multiplierLabel }}
-          </div>
-        </div>
-      </div>
-
-      <div class="grid gap-5 xl:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
-        <section class="rounded-3xl border border-slate-200 bg-slate-50/70 p-5 dark:border-dark-700 dark:bg-dark-900/60">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="text-sm font-semibold text-slate-900 dark:text-white">
-              {{ t("ui.modelCatalog.detail.pricingTitle") }}
-            </h3>
-            <span class="text-xs text-slate-500 dark:text-slate-400">
-              {{ displayItem?.raw.currency || "USD" }}
-            </span>
-          </div>
-
-          <div v-if="displayItem" class="mt-4 space-y-3">
-            <div
-              v-for="entry in displayItem.primaryPrices"
-              :key="entry.id"
-              class="flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm dark:bg-dark-800"
-              :data-testid="`detail-primary-price-${entry.id}`"
-            >
-              <span class="text-slate-600 dark:text-slate-300">
-                {{ renderPriceEntryLabel(entry.id) }}
-              </span>
-              <span class="font-semibold text-slate-950 dark:text-white" :class="primaryPriceClass(entry.id)">
-                {{ renderPrice(entry, displayItem.raw.currency) }}
-              </span>
-            </div>
-
-            <div v-if="displayItem.secondaryPrices.length" class="space-y-2">
-              <p class="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                {{ t("ui.modelCatalog.detail.secondaryPricingTitle") }}
-              </p>
-              <div class="space-y-2">
-                <div
-                  v-for="entry in displayItem.secondaryPrices"
-                  :key="entry.id"
-                  class="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-dark-700"
-                  :data-testid="`detail-secondary-price-${entry.id}`"
-                >
-                  <span class="text-slate-600 dark:text-slate-300">
-                    {{ renderPriceEntryLabel(entry.id) }}
-                  </span>
-                  <span class="font-medium text-slate-950 dark:text-white">
-                    {{ renderPrice(entry, displayItem.raw.currency) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/70">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 class="text-sm font-semibold text-slate-900 dark:text-white">
-                {{ t("ui.modelCatalog.detail.exampleTitle") }}
-              </h3>
-              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                {{ exampleCaption }}
-              </p>
-            </div>
-
-            <div
-              v-if="supportedKeys.length > 1"
-              class="w-full max-w-xs"
-            >
-              <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
-                {{ t("ui.modelCatalog.detail.keySelector") }}
-              </label>
-              <select
-                v-model="selectedKeyID"
-                class="input"
-              >
-                <option
-                  v-for="item in supportedKeys"
-                  :key="item.id"
-                  :value="item.id"
-                >
-                  {{ item.name }}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <div class="mt-4 space-y-4">
-            <div
-              v-if="loading"
-              class="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500 dark:border-dark-700 dark:text-slate-300"
-            >
-              {{ t("ui.modelCatalog.detail.loading") }}
-            </div>
-
-            <div
-              v-else-if="errorMessage"
-              class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-200"
-            >
-              {{ errorMessage }}
-            </div>
-
-            <div
-              v-else-if="exampleResult.group"
-              class="space-y-3"
-            >
-              <div class="flex flex-wrap gap-2 text-xs">
-                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-dark-800 dark:text-slate-200">
-                  {{ detail?.example_protocol || displayItem?.raw.provider || "openai" }}
-                </span>
-                <span
-                  v-if="detail?.example_source"
-                  class="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
-                >
-                  {{
-                    detail.example_source === "docs_section"
-                      ? t("ui.modelCatalog.detail.exampleSourceDocs")
-                      : t("ui.modelCatalog.detail.exampleSourceOverride")
-                  }}
-                </span>
-              </div>
-
-              <div
-                class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-dark-700 dark:bg-dark-800 dark:text-slate-300"
-              >
-                {{ keyHint }}
-              </div>
-
-              <DocsCodeTabs
-                :group="exampleResult.group"
-                :theme="docsTheme"
-              />
-            </div>
-
-            <div
-              v-else
-              class="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500 dark:border-dark-700 dark:text-slate-300"
-            >
-              {{ t("ui.modelCatalog.detail.exampleUnavailable") }}
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
-  </BaseDialog>
+            </template>
+          </PublicModelDetailRouting>
+        </main>
+      </aside>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { useI18n } from "vue-i18n";
-import { getModelCatalogDetail, type PublicModelCatalogItem } from "@/api/meta";
-import keysAPI from "@/api/keys";
-import userGroupsAPI from "@/api/groups";
-import BaseDialog from "@/components/common/BaseDialog.vue";
-import DocsCodeTabs from "@/components/docs/DocsCodeTabs.vue";
-import { getDocsTheme } from "@/components/docs/docsTheme";
-import ModelIcon from "@/components/common/ModelIcon.vue";
-import ModelPlatformIcon from "@/components/common/ModelPlatformIcon.vue";
-import PublicModelStatusIcon from "@/components/models/PublicModelStatusIcon.vue";
-import { useAppStore } from "@/stores/app";
-import { useAuthStore } from "@/stores/auth";
-import { buildPublicModelExample } from "@/utils/publicModelCatalogExamples";
-import { findSupportedKeysForModel } from "@/utils/publicModelCatalogKeys";
-import { formatProviderLabel, normalizeProviderSlug } from "@/utils/providerLabels";
+import { computed, ref, toRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import type {
+  PublicModelCatalogItem,
+  PublicModelCatalogPriceEntry,
+  PublicModelCatalogStatusItem,
+} from '@/api/meta'
+import { getDocsTheme } from '@/components/docs/docsTheme'
+import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
+import { formatProviderLabel } from '@/utils/providerLabels'
 import {
   buildPublicModelCatalogDisplayItem,
   formatCatalogPrice,
   multiplierSummaryLabel,
   priceEntryLabel,
-  publicModelStatusLabel,
   type PublicModelCatalogDisplayItem,
-} from "@/utils/publicModelCatalog";
-import type { ApiKey, UserGroupModelOptionGroup } from "@/types";
-import type {
-  PublicModelCatalogDetailResponse,
-  PublicModelCatalogPriceEntry,
-} from "@/api/meta";
+} from '@/utils/publicModelCatalog'
+import PublicModelDetailExamplePanel from './public-catalog/PublicModelDetailExamplePanel.vue'
+import PublicModelDetailHeader from './public-catalog/PublicModelDetailHeader.vue'
+import PublicModelDetailMonitor from './public-catalog/PublicModelDetailMonitor.vue'
+import PublicModelDetailOverview from './public-catalog/PublicModelDetailOverview.vue'
+import PublicModelDetailRouting from './public-catalog/PublicModelDetailRouting.vue'
+import PublicModelDetailTabs, { type PublicModelDetailTab } from './public-catalog/PublicModelDetailTabs.vue'
+import { healthDotClass } from './public-catalog/publicModelCatalogView'
+import { usePublicModelDetail } from './public-catalog/usePublicModelDetail'
+import { usePublicModelDetailLabels } from './public-catalog/usePublicModelDetailLabels'
+
+type DetailTab = 'overview' | 'monitor' | 'routing'
 
 const props = defineProps<{
-  show: boolean;
-  model: string | null;
-  catalogItem?: PublicModelCatalogItem | null;
-  usdToCnyRate?: number | null;
-}>();
+  show: boolean
+  model: string | null
+  catalogItem?: PublicModelCatalogItem | null
+  health?: PublicModelCatalogStatusItem
+  usdToCnyRate?: number | null
+}>()
 
-const emit = defineEmits<{
-  close: [];
-}>();
+const emit = defineEmits<{ close: [] }>()
+const { t } = useI18n()
+const appStore = useAppStore()
+const authStore = useAuthStore()
+const activeTab = ref<DetailTab>('overview')
+const baseUrl = computed(resolvedBaseUrl)
+const {
+  overviewLabels,
+  monitorLabels,
+  routingLabels,
+  exampleLabels,
+  parameterRows,
+} = usePublicModelDetailLabels(t)
 
-const { t } = useI18n();
-const appStore = useAppStore();
-const authStore = useAuthStore();
+const {
+  detail,
+  loading,
+  errorMessage,
+  selectedKey,
+  selectedKeyID,
+  supportedKeys,
+  exampleResult,
+} = usePublicModelDetail({
+  show: toRef(props, 'show'),
+  model: toRef(props, 'model'),
+  isAuthenticated: computed(() => authStore.isAuthenticated),
+  baseUrl,
+  missingKey: 'sk-your-key',
+  resolveErrorMessage: (error) => resolveErrorMessage(error, t('ui.modelCatalog.detail.loadFailed')),
+})
 
-const detail = ref<PublicModelCatalogDetailResponse | null>(null);
-const loading = ref(false);
-const errorMessage = ref("");
-const userKeys = ref<ApiKey[]>([]);
-const userGroupOptions = ref<UserGroupModelOptionGroup[]>([]);
-const selectedKeyID = ref<number | null>(null);
-let requestToken = 0;
-
-const sourceItem = computed(
-  () => detail.value?.item || props.catalogItem || null,
-);
+const sourceItem = computed(() => detail.value?.item || props.catalogItem || null)
 const displayItem = computed<PublicModelCatalogDisplayItem | null>(() =>
   sourceItem.value ? buildPublicModelCatalogDisplayItem(sourceItem.value) : null,
-);
-const dialogTitle = computed(
-  () => displayItem.value?.title || displayItem.value?.raw.model || t("nav.modelsCatalog"),
-);
+)
+const dialogTitle = computed(() => displayItem.value?.title || sourceItem.value?.model || t('nav.modelsCatalog'))
+const providerLabel = computed(() => formatProviderLabel(sourceItem.value?.provider || sourceItem.value?.provider_icon_key || ''))
+const statusDotClass = computed(() => healthDotClass(props.health?.status))
 const multiplierLabel = computed(() =>
-  sourceItem.value
-    ? multiplierSummaryLabel(t, sourceItem.value.multiplier_summary)
-    : "-",
-);
-const supportedKeys = computed(() =>
-  findSupportedKeysForModel(userKeys.value, userGroupOptions.value, detail.value),
-);
-const selectedKey = computed(
-  () => supportedKeys.value.find((item) => item.id === selectedKeyID.value) || supportedKeys.value[0] || null,
-);
-const effectiveAPIKey = computed(
-  () => selectedKey.value?.key || "sk-your-key",
-);
-const exampleResult = computed(() =>
-  buildPublicModelExample(detail.value, effectiveAPIKey.value, resolvedBaseUrl()),
-);
-const docsTheme = computed(() => getDocsTheme(exampleResult.value.pageId));
-const exampleCaption = computed(() => {
-  if (!detail.value?.example_protocol) {
-    return t("ui.modelCatalog.detail.exampleCaptionFallback");
-  }
-  return t("ui.modelCatalog.detail.exampleCaption", {
-    protocol: detail.value.example_protocol,
-  });
-});
+  sourceItem.value ? multiplierSummaryLabel(t, sourceItem.value.multiplier_summary) : '-',
+)
+const protocolSummary = computed(() => (sourceItem.value?.request_protocols || []).map((protocol) => formatProviderLabel(protocol)).join(' / ') || '-')
+const docsTheme = computed(() => getDocsTheme(exampleResult.value.pageId))
 const keyHint = computed(() => {
-  if (!authStore.isAuthenticated) {
-    return t("ui.modelCatalog.detail.keyHintGuest");
-  }
-  if (selectedKey.value) {
-    return t("ui.modelCatalog.detail.keyHintMatched", {
-      name: selectedKey.value.name,
-    });
-  }
-  return t("ui.modelCatalog.detail.keyHintMissing");
-});
+  if (!authStore.isAuthenticated) return t('ui.modelCatalog.detail.keyHintGuest')
+  if (selectedKey.value) return t('ui.modelCatalog.detail.keyHintMatched', { name: selectedKey.value.name })
+  return t('ui.modelCatalog.detail.keyHintMissing')
+})
+
+const tabs = computed<PublicModelDetailTab[]>(() => [
+  { id: 'overview', label: t('ui.modelCatalog.detail.tabs.overview'), icon: 'infoCircle' },
+  { id: 'monitor', label: t('ui.modelCatalog.detail.tabs.monitor'), icon: 'chart' },
+  { id: 'routing', label: t('ui.modelCatalog.detail.tabs.routing'), icon: 'terminal' },
+])
 
 watch(
-  () => [props.show, props.model, authStore.isAuthenticated] as const,
-  async ([show, model]) => {
-    if (!show || !model) {
-      return;
-    }
-    const currentToken = ++requestToken;
-    loading.value = true;
-    errorMessage.value = "";
-    try {
-      const nextDetail = await getModelCatalogDetail(model);
-      if (currentToken !== requestToken) {
-        return;
-      }
-      detail.value = nextDetail;
-      if (authStore.isAuthenticated) {
-        await loadUserContext(currentToken);
-      } else {
-        userKeys.value = [];
-        userGroupOptions.value = [];
-      }
-    } catch (error) {
-      if (currentToken !== requestToken) {
-        return;
-      }
-      detail.value = null;
-      errorMessage.value = resolveErrorMessage(
-        error,
-        t("ui.modelCatalog.detail.loadFailed"),
-      );
-    } finally {
-      if (currentToken === requestToken) {
-        loading.value = false;
-      }
-    }
+  () => [props.show, props.model] as const,
+  ([show]) => {
+    if (show) activeTab.value = 'overview'
   },
   { immediate: true },
-);
-
-watch(
-  supportedKeys,
-  (items) => {
-    if (items.length === 0) {
-      selectedKeyID.value = null;
-      return;
-    }
-    if (!items.some((item) => item.id === selectedKeyID.value)) {
-      selectedKeyID.value = items[0].id;
-    }
-  },
-  { immediate: true },
-);
+)
 
 function renderPriceEntryLabel(fieldID: string): string {
-  return priceEntryLabel(t, fieldID);
+  return priceEntryLabel(t, fieldID)
 }
 
 function renderPrice(entry: PublicModelCatalogPriceEntry, currency: string): string {
-  return formatCatalogPrice(t, entry, currency, props.usdToCnyRate ?? null);
+  return formatCatalogPrice(t, entry, currency, props.usdToCnyRate ?? null)
 }
 
-function providerLabel(item: PublicModelCatalogItem): string {
-  return formatProviderLabel(item.provider || item.provider_icon_key || "");
-}
-
-function statusLabel(status?: PublicModelCatalogItem["status"]): string {
-  return publicModelStatusLabel(t, status);
-}
-
-function protocolLabel(protocol: string): string {
-  switch (normalizeProviderSlug(protocol)) {
-    case "openai":
-      return "OpenAI";
-    case "anthropic":
-      return "Anthropic";
-    case "gemini":
-      return "Gemini";
-    case "grok":
-      return "Grok";
-    case "antigravity":
-      return "Antigravity";
-    case "vertex-batch":
-      return "Vertex Batch";
-    default:
-      return formatProviderLabel(protocol);
-  }
-}
-
-function primaryPriceClass(fieldID: string): string {
-  switch (fieldID) {
-    case "input_price":
-    case "input_price_above_threshold":
-    case "batch_input_price":
-      return "text-sky-700 dark:text-sky-300";
-    case "output_price":
-    case "output_price_above_threshold":
-    case "batch_output_price":
-      return "text-emerald-700 dark:text-emerald-300";
-    case "cache_price":
-    case "batch_cache_price":
-      return "text-amber-700 dark:text-amber-300";
-    default:
-      return "text-fuchsia-700 dark:text-fuchsia-300";
-  }
-}
-
-async function loadUserContext(currentToken: number) {
+async function copyModelId() {
+  const modelID = String(sourceItem.value?.model || '').trim()
+  if (!modelID) return
   try {
-    const [keysResponse, groupOptions] = await Promise.all([
-      keysAPI.list(1, 1000),
-      userGroupsAPI.getModelOptions(),
-    ]);
-    if (currentToken !== requestToken) {
-      return;
-    }
-    userKeys.value = keysResponse.items || [];
-    userGroupOptions.value = groupOptions || [];
-  } catch (error) {
-    if (currentToken !== requestToken) {
-      return;
-    }
-    userKeys.value = [];
-    userGroupOptions.value = [];
+    await navigator.clipboard.writeText(modelID)
+    appStore.showSuccess(t('ui.modelCatalog.copySuccess', { model: modelID }))
+  } catch {
+    appStore.showError(t('ui.modelCatalog.copyFailed'))
   }
 }
 
 function resolvedBaseUrl(): string {
-  const configured = String(appStore.apiBaseUrl || "").trim();
-  if (configured) {
-    return configured.replace(/\/+$/g, "");
+  const configured = String(appStore.apiBaseUrl || '').trim()
+  if (configured) return configured.replace(/\/+$/g, '')
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/+$/g, '')
   }
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return window.location.origin.replace(/\/+$/g, "");
-  }
-  return "https://api.zyxai.de";
+  return 'https://api.zyxai.de'
 }
 
 function resolveErrorMessage(error: unknown, fallback: string): string {
-  if (
-    typeof error === "object" &&
-    error &&
-    "message" in error &&
-    typeof (error as { message?: unknown }).message === "string"
-  ) {
-    return String((error as { message: string }).message);
+  if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+    return String((error as { message: string }).message)
   }
-  return fallback;
+  return fallback
 }
 </script>
+
+<style scoped>
+.drawer-enter-active,
+.drawer-leave-active {
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.drawer-enter-from,
+.drawer-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
+</style>

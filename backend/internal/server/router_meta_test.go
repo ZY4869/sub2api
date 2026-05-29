@@ -53,6 +53,8 @@ func TestRegisterRoutes_RegistersMetaRoutes(t *testing.T) {
 	routes := router.Routes()
 	require.True(t, hasRoute(routes, "GET", "/api/v1/meta/exchange-rate/usd-cny"))
 	require.True(t, hasRoute(routes, "GET", "/api/v1/meta/model-catalog"))
+	require.True(t, hasRoute(routes, "GET", "/api/v1/meta/model-catalog/status"))
+	require.True(t, hasRoute(routes, "GET", "/api/v1/meta/model-catalog/:model"))
 	require.True(t, hasRoute(routes, "GET", "/api/v1/meta/model-registry"))
 }
 

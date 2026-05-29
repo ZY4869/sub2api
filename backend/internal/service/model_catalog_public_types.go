@@ -40,6 +40,9 @@ type PublicModelCatalogItem struct {
 	AvailabilityState    string                              `json:"availability_state,omitempty"`
 	StaleState           string                              `json:"stale_state,omitempty"`
 	LifecycleStatus      string                              `json:"lifecycle_status,omitempty"`
+	ContextWindowTokens  int64                               `json:"context_window_tokens,omitempty"`
+	Modalities           []string                            `json:"modalities,omitempty"`
+	Capabilities         []string                            `json:"capabilities,omitempty"`
 	RequestProtocols     []string                            `json:"request_protocols,omitempty"`
 	SourceIDs            []string                            `json:"source_ids,omitempty"`
 	Mode                 string                              `json:"mode,omitempty"`
@@ -124,4 +127,47 @@ type PublicModelCatalogDraftPayload struct {
 	AvailableUpdatedAt string                              `json:"available_updated_at,omitempty"`
 	AvailableSource    string                              `json:"available_source,omitempty"`
 	Published          *PublicModelCatalogPublishedSummary `json:"published,omitempty"`
+}
+
+const (
+	PublicModelHealthStatusHealthy = "healthy"
+	PublicModelHealthStatusWarning = "warning"
+	PublicModelHealthStatusError   = "error"
+	PublicModelHealthStatusPending = "pending"
+)
+
+type PublicModelCatalogStatusSnapshot struct {
+	UpdatedAt string                         `json:"updated_at"`
+	Items     []PublicModelCatalogStatusItem `json:"items"`
+}
+
+type PublicModelCatalogStatusItem struct {
+	Model            string                              `json:"model"`
+	Status           string                              `json:"status"`
+	SuccessRateToday *float64                            `json:"success_rate_today,omitempty"`
+	SuccessRate7d    *float64                            `json:"success_rate_7d,omitempty"`
+	LatencyMs        *int64                              `json:"latency_ms,omitempty"`
+	LastCheckedAt    string                              `json:"last_checked_at,omitempty"`
+	Daily            []PublicModelCatalogDailyStatus     `json:"daily"`
+	Trend            []PublicModelCatalogTrendPoint      `json:"trend"`
+	RateLimit        *PublicModelCatalogRateLimitSummary `json:"rate_limit,omitempty"`
+}
+
+type PublicModelCatalogDailyStatus struct {
+	Date        string   `json:"date"`
+	Status      string   `json:"status"`
+	SuccessRate *float64 `json:"success_rate,omitempty"`
+	LatencyMs   *int64   `json:"latency_ms,omitempty"`
+}
+
+type PublicModelCatalogTrendPoint struct {
+	Timestamp   string   `json:"timestamp"`
+	SuccessRate *float64 `json:"success_rate,omitempty"`
+	LatencyMs   *int64   `json:"latency_ms,omitempty"`
+}
+
+type PublicModelCatalogRateLimitSummary struct {
+	RPM *int64 `json:"rpm,omitempty"`
+	TPM *int64 `json:"tpm,omitempty"`
+	RPD *int64 `json:"rpd,omitempty"`
 }

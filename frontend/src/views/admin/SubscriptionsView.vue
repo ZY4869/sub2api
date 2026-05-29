@@ -2,418 +2,48 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <!-- Top Toolbar: Left (search + filters) / Right (actions) -->
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <!-- Left: Fuzzy user search + filters (wrap to multiple lines) -->
-          <div class="flex flex-1 flex-wrap items-center gap-3">
-            <!-- User Search -->
-            <div
-              class="relative w-full sm:w-64"
-              data-filter-user-search
-            >
-              <Icon
-                name="search"
-                size="md"
-                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                v-model="filterUserKeyword"
-                type="text"
-                :placeholder="t('admin.users.searchUsers')"
-                class="input pl-10 pr-8"
-                @input="debounceSearchFilterUsers"
-                @focus="showFilterUserDropdown = true"
-              />
-              <button
-                v-if="selectedFilterUser"
-                @click="clearFilterUser"
-                type="button"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                :title="t('common.clear')"
-              >
-                <Icon name="x" size="sm" :stroke-width="2" />
-              </button>
-
-              <!-- User Dropdown -->
-              <div
-                v-if="showFilterUserDropdown && (filterUserResults.length > 0 || filterUserKeyword)"
-                class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
-              >
-                <div
-                  v-if="filterUserLoading"
-                  class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400"
-                >
-                  {{ t('common.loading') }}
-                </div>
-                <div
-                  v-else-if="filterUserResults.length === 0 && filterUserKeyword"
-                  class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400"
-                >
-                  {{ t('common.noOptionsFound') }}
-                </div>
-                <button
-                  v-for="user in filterUserResults"
-                  :key="user.id"
-                  type="button"
-                  @click="selectFilterUser(user)"
-                  class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <span class="font-medium text-gray-900 dark:text-white">{{ user.email }}</span>
-                  <span class="ml-2 text-gray-500 dark:text-gray-400">#{{ user.id }}</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Filters -->
-            <div class="w-full sm:w-40">
-              <Select
-                v-model="filters.status"
-                :options="statusOptions"
-                :placeholder="t('admin.subscriptions.allStatus')"
-                @change="applyFilters"
-              />
-            </div>
-            <div class="w-full sm:w-48">
-              <Select
-                v-model="filters.group_id"
-                :options="groupOptions"
-                :placeholder="t('admin.subscriptions.allGroups')"
-                @change="applyFilters"
-              />
-            </div>
-            <div class="w-full sm:w-40">
-              <Select
-                v-model="filters.platform"
-                :options="platformFilterOptions"
-                :placeholder="t('admin.subscriptions.allPlatforms')"
-                @change="applyFilters"
-              />
-            </div>
-          </div>
-
-          <!-- Right: Actions -->
-          <div class="ml-auto flex flex-wrap items-center justify-end gap-3">
-            <button
-              @click="loadSubscriptions"
-              :disabled="loading"
-              class="btn btn-secondary"
-              :title="t('common.refresh')"
-            >
-              <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
-            </button>
-            <!-- Column Settings Dropdown -->
-            <div class="relative" ref="columnDropdownRef">
-              <button
-                @click="showColumnDropdown = !showColumnDropdown"
-                class="btn btn-secondary px-2 md:px-3"
-                :title="t('admin.users.columnSettings')"
-              >
-                <svg class="h-4 w-4 md:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z" />
-                </svg>
-                <span class="hidden md:inline">{{ t('admin.users.columnSettings') }}</span>
-              </button>
-              <!-- Dropdown menu -->
-              <div
-                v-if="showColumnDropdown"
-                class="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
-              >
-                <div class="p-2">
-                  <!-- User column mode selection -->
-                  <div class="mb-2 border-b border-gray-200 pb-2 dark:border-gray-700">
-                    <div class="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
-                      {{ t('admin.subscriptions.columns.user') }}
-                    </div>
-                    <button
-                      @click="setUserColumnMode('email')"
-                      class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <span>{{ t('admin.users.columns.email') }}</span>
-                      <Icon v-if="userColumnMode === 'email'" name="check" size="sm" class="text-primary-500" />
-                    </button>
-                    <button
-                      @click="setUserColumnMode('username')"
-                      class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <span>{{ t('admin.users.columns.username') }}</span>
-                      <Icon v-if="userColumnMode === 'username'" name="check" size="sm" class="text-primary-500" />
-                    </button>
-                  </div>
-                  <!-- Other columns toggle -->
-                  <button
-                    v-for="col in toggleableColumns"
-                    :key="col.key"
-                    @click="toggleColumn(col.key)"
-                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    <span>{{ col.label }}</span>
-                    <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="text-primary-500" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <button
-              @click="showGuideModal = true"
-              class="btn btn-secondary"
-              :title="t('admin.subscriptions.guide.showGuide')"
-            >
-              <Icon name="questionCircle" size="md" />
-            </button>
-            <button @click="showAssignModal = true" class="btn btn-primary">
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.subscriptions.assignSubscription') }}
-            </button>
-          </div>
-        </div>
+        <SubscriptionsToolbar
+          v-model:filter-user-keyword="filterUserKeyword"
+          v-model:show-filter-user-dropdown="showFilterUserDropdown"
+          v-model:show-column-dropdown="showColumnDropdown"
+          :filter-user-results="filterUserResults"
+          :filter-user-loading="filterUserLoading"
+          :selected-filter-user="selectedFilterUser"
+          :filters="filters"
+          :status-options="statusOptions"
+          :group-options="groupOptions"
+          :platform-filter-options="platformFilterOptions"
+          :loading="loading"
+          :user-column-mode="userColumnMode"
+          :toggleable-columns="toggleableColumns"
+          :is-column-visible="isColumnVisible"
+          @search-filter-users="debounceSearchFilterUsers"
+          @select-filter-user="selectFilterUser"
+          @clear-filter-user="clearFilterUser"
+          @apply-filters="applyFilters"
+          @load="loadSubscriptions"
+          @set-user-column-mode="setUserColumnMode"
+          @toggle-column="toggleColumn"
+          @show-guide="showGuideModal = true"
+          @assign="showAssignModal = true"
+        />
       </template>
 
       <!-- Subscriptions Table -->
       <template #table>
-        <DataTable
+        <SubscriptionsTable
           :columns="columns"
-          :data="subscriptions"
+          :subscriptions="subscriptions"
           :loading="loading"
-          :server-side-sort="true"
+          :user-column-mode="userColumnMode"
+          :resetting-quota="resettingQuota"
+          :resetting-subscription-id="resettingSubscription?.id ?? null"
           @sort="handleSort"
-        >
-          <template #cell-user="{ row }">
-            <div class="flex items-center gap-2">
-              <div
-                class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30"
-              >
-                <span class="text-sm font-medium text-primary-700 dark:text-primary-300">
-                  {{ userColumnMode === 'email'
-                    ? (row.user?.email?.charAt(0).toUpperCase() || '?')
-                    : (row.user?.username?.charAt(0).toUpperCase() || '?')
-                  }}
-                </span>
-              </div>
-              <span class="font-medium text-gray-900 dark:text-white">
-                {{ userColumnMode === 'email'
-                  ? (row.user?.email || t('admin.redeem.userPrefix', { id: row.user_id }))
-                  : (row.user?.username || '-')
-                }}
-              </span>
-            </div>
-          </template>
-
-          <template #cell-group="{ row }">
-            <GroupBadge
-              v-if="row.group"
-              :name="row.group.name"
-              :platform="row.group.platform"
-              :subscription-type="row.group.subscription_type"
-              :rate-multiplier="row.group.rate_multiplier"
-              :show-rate="false"
-            />
-            <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
-          </template>
-
-          <template #cell-usage="{ row }">
-            <div class="min-w-[280px] space-y-2">
-              <!-- Daily Usage -->
-              <div v-if="row.group?.daily_limit_usd" class="usage-row">
-                <div class="flex items-center gap-2">
-                  <span class="usage-label">{{ t('admin.subscriptions.daily') }}</span>
-                  <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
-                    <div
-                      class="h-1.5 rounded-full transition-all"
-                      :class="getProgressClass(row.daily_usage_usd, row.group?.daily_limit_usd)"
-                      :style="{
-                        width: getProgressWidth(row.daily_usage_usd, row.group?.daily_limit_usd)
-                      }"
-                    ></div>
-                  </div>
-                  <span class="usage-amount">
-                    ${{ row.daily_usage_usd?.toFixed(2) || '0.00' }}
-                    <span class="text-gray-400">/</span>
-                    ${{ row.group?.daily_limit_usd?.toFixed(2) }}
-                  </span>
-                </div>
-                <div class="reset-info" v-if="row.daily_window_start">
-                  <svg
-                    class="h-3 w-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span>{{ formatResetTime(row.daily_window_start, 'daily') }}</span>
-                </div>
-              </div>
-
-              <!-- Weekly Usage -->
-              <div v-if="row.group?.weekly_limit_usd" class="usage-row">
-                <div class="flex items-center gap-2">
-                  <span class="usage-label">{{ t('admin.subscriptions.weekly') }}</span>
-                  <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
-                    <div
-                      class="h-1.5 rounded-full transition-all"
-                      :class="getProgressClass(row.weekly_usage_usd, row.group?.weekly_limit_usd)"
-                      :style="{
-                        width: getProgressWidth(row.weekly_usage_usd, row.group?.weekly_limit_usd)
-                      }"
-                    ></div>
-                  </div>
-                  <span class="usage-amount">
-                    ${{ row.weekly_usage_usd?.toFixed(2) || '0.00' }}
-                    <span class="text-gray-400">/</span>
-                    ${{ row.group?.weekly_limit_usd?.toFixed(2) }}
-                  </span>
-                </div>
-                <div class="reset-info" v-if="row.weekly_window_start">
-                  <svg
-                    class="h-3 w-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span>{{ formatResetTime(row.weekly_window_start, 'weekly') }}</span>
-                </div>
-              </div>
-
-              <!-- Monthly Usage -->
-              <div v-if="row.group?.monthly_limit_usd" class="usage-row">
-                <div class="flex items-center gap-2">
-                  <span class="usage-label">{{ t('admin.subscriptions.monthly') }}</span>
-                  <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
-                    <div
-                      class="h-1.5 rounded-full transition-all"
-                      :class="getProgressClass(row.monthly_usage_usd, row.group?.monthly_limit_usd)"
-                      :style="{
-                        width: getProgressWidth(row.monthly_usage_usd, row.group?.monthly_limit_usd)
-                      }"
-                    ></div>
-                  </div>
-                  <span class="usage-amount">
-                    ${{ row.monthly_usage_usd?.toFixed(2) || '0.00' }}
-                    <span class="text-gray-400">/</span>
-                    ${{ row.group?.monthly_limit_usd?.toFixed(2) }}
-                  </span>
-                </div>
-                <div class="reset-info" v-if="row.monthly_window_start">
-                  <svg
-                    class="h-3 w-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span>{{ formatResetTime(row.monthly_window_start, 'monthly') }}</span>
-                </div>
-              </div>
-
-              <!-- No Limits - Unlimited badge -->
-              <div
-                v-if="
-                  !row.group?.daily_limit_usd &&
-                  !row.group?.weekly_limit_usd &&
-                  !row.group?.monthly_limit_usd
-                "
-                class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-2 dark:from-emerald-900/20 dark:to-teal-900/20"
-              >
-                <span class="text-lg text-emerald-600 dark:text-emerald-400">∞</span>
-                <span class="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                  {{ t('admin.subscriptions.unlimited') }}
-                </span>
-              </div>
-            </div>
-          </template>
-
-          <template #cell-expires_at="{ value }">
-            <div v-if="value">
-              <span
-                class="text-sm"
-                :class="
-                  isExpiringSoon(value)
-                    ? 'text-orange-600 dark:text-orange-400'
-                    : 'text-gray-700 dark:text-gray-300'
-                "
-              >
-                {{ formatDateOnly(value) }}
-              </span>
-              <div v-if="getDaysRemaining(value) !== null" class="text-xs text-gray-500">
-                {{ getDaysRemaining(value) }} {{ t('admin.subscriptions.daysRemaining') }}
-              </div>
-            </div>
-            <span v-else class="text-sm text-gray-500">{{
-              t('admin.subscriptions.noExpiration')
-            }}</span>
-          </template>
-
-          <template #cell-status="{ value }">
-            <span
-              :class="[
-                'badge',
-                value === 'active'
-                  ? 'badge-success'
-                  : value === 'expired'
-                    ? 'badge-warning'
-                    : 'badge-danger'
-              ]"
-            >
-              {{ t(`admin.subscriptions.status.${value}`) }}
-            </span>
-          </template>
-
-          <template #cell-actions="{ row }">
-            <div class="flex items-center gap-1">
-              <button
-                v-if="row.status === 'active' || row.status === 'expired'"
-                @click="handleExtend(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
-              >
-                <Icon name="calendar" size="sm" />
-                <span class="text-xs">{{ t('admin.subscriptions.adjust') }}</span>
-              </button>
-              <button
-                v-if="row.status === 'active'"
-                @click="handleResetQuota(row)"
-                :disabled="resettingQuota && resettingSubscription?.id === row.id"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-900/20 dark:hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Icon name="refresh" size="sm" />
-                <span class="text-xs">{{ t('admin.subscriptions.resetQuota') }}</span>
-              </button>
-              <button
-                v-if="row.status === 'active'"
-                @click="handleRevoke(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-              >
-                <Icon name="ban" size="sm" />
-                <span class="text-xs">{{ t('admin.subscriptions.revoke') }}</span>
-              </button>
-            </div>
-          </template>
-
-          <template #empty>
-            <EmptyState
-              :title="t('admin.subscriptions.noSubscriptionsYet')"
-              :description="t('admin.subscriptions.assignFirstSubscription')"
-              :action-text="t('admin.subscriptions.assignSubscription')"
-              @action="showAssignModal = true"
-            />
-          </template>
-        </DataTable>
+          @extend="handleExtend"
+          @reset-quota="handleResetQuota"
+          @revoke="handleRevoke"
+          @assign="showAssignModal = true"
+        />
       </template>
 
       <!-- Pagination -->
@@ -748,15 +378,16 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { FILTER_PLATFORM_ORDER } from '@/utils/platformBranding'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
-import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import EmptyState from '@/components/common/EmptyState.vue'
 import Select from '@/components/common/Select.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
+import SubscriptionsTable from './subscriptions/SubscriptionsTable.vue'
+import SubscriptionsToolbar from './subscriptions/SubscriptionsToolbar.vue'
+import { getSubscriptionDaysRemaining } from './subscriptions/utils'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -884,8 +515,6 @@ const columns = computed<Column[]>(() =>
 
 // Column dropdown state
 const showColumnDropdown = ref(false)
-const columnDropdownRef = ref<HTMLElement | null>(null)
-
 // Filter options
 const statusOptions = computed(() => [
   { value: '', label: t('admin.subscriptions.allStatus') },
@@ -1282,80 +911,14 @@ const confirmResetQuota = async () => {
   }
 }
 
-// Helper functions
-const getDaysRemaining = (expiresAt: string): number | null => {
-  const now = new Date()
-  const expires = new Date(expiresAt)
-  const diff = expires.getTime() - now.getTime()
-  if (diff < 0) return null
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
-}
-
-const isExpiringSoon = (expiresAt: string): boolean => {
-  const days = getDaysRemaining(expiresAt)
-  return days !== null && days <= 7
-}
-
-const getProgressWidth = (used: number | null | undefined, limit: number | null): string => {
-  if (!limit || limit === 0) return '0%'
-  const usedValue = used ?? 0
-  const percentage = Math.min((usedValue / limit) * 100, 100)
-  return `${percentage}%`
-}
-
-const getProgressClass = (used: number | null | undefined, limit: number | null): string => {
-  if (!limit || limit === 0) return 'bg-gray-400'
-  const usedValue = used ?? 0
-  const percentage = (usedValue / limit) * 100
-  if (percentage >= 90) return 'bg-red-500'
-  if (percentage >= 70) return 'bg-orange-500'
-  return 'bg-green-500'
-}
-
-// Format reset time based on window start and period type
-const formatResetTime = (windowStart: string, period: 'daily' | 'weekly' | 'monthly'): string => {
-  if (!windowStart) return t('admin.subscriptions.windowNotActive')
-
-  const start = new Date(windowStart)
-  const now = new Date()
-
-  // Calculate reset time based on period
-  let resetTime: Date
-  switch (period) {
-    case 'daily':
-      resetTime = new Date(start.getTime() + 24 * 60 * 60 * 1000)
-      break
-    case 'weekly':
-      resetTime = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000)
-      break
-    case 'monthly':
-      resetTime = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000)
-      break
-  }
-
-  const diffMs = resetTime.getTime() - now.getTime()
-  if (diffMs <= 0) return t('admin.subscriptions.windowNotActive')
-
-  const diffSeconds = Math.floor(diffMs / 1000)
-  const days = Math.floor(diffSeconds / 86400)
-  const hours = Math.floor((diffSeconds % 86400) / 3600)
-  const minutes = Math.floor((diffSeconds % 3600) / 60)
-
-  if (days > 0) {
-    return t('admin.subscriptions.resetInDaysHours', { days, hours })
-  } else if (hours > 0) {
-    return t('admin.subscriptions.resetInHoursMinutes', { hours, minutes })
-  } else {
-    return t('admin.subscriptions.resetInMinutes', { minutes })
-  }
-}
+const getDaysRemaining = getSubscriptionDaysRemaining
 
 // Handle click outside to close dropdowns
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (!target.closest('[data-assign-user-search]')) showUserDropdown.value = false
   if (!target.closest('[data-filter-user-search]')) showFilterUserDropdown.value = false
-  if (columnDropdownRef.value && !columnDropdownRef.value.contains(target)) {
+  if (!target.closest('[data-subscriptions-column-dropdown]')) {
     showColumnDropdown.value = false
   }
 }
@@ -1378,21 +941,3 @@ onUnmounted(() => {
   }
 })
 </script>
-
-<style scoped>
-.usage-row {
-  @apply space-y-1;
-}
-
-.usage-label {
-  @apply w-10 flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400;
-}
-
-.usage-amount {
-  @apply whitespace-nowrap text-xs tabular-nums text-gray-600 dark:text-gray-300;
-}
-
-.reset-info {
-  @apply flex items-center gap-1 pl-12 text-[10px] text-blue-600 dark:text-blue-400;
-}
-</style>

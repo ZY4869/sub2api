@@ -116,6 +116,11 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		return fmt.Errorf("marshal content moderation model filter: %w", err)
 	}
 	updates[SettingKeyContentModerationModelFilter] = moderationModelFilterJSON
+	moderationThresholdsJSON, err := MarshalContentModerationCategoryThresholds(settings.ContentModerationCategoryThresholds)
+	if err != nil {
+		return fmt.Errorf("marshal content moderation category thresholds: %w", err)
+	}
+	updates[SettingKeyContentModerationCategoryThresholds] = moderationThresholdsJSON
 	updates[SettingKeySiteName] = settings.SiteName
 	updates[SettingKeySiteLogo] = settings.SiteLogo
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle

@@ -87,6 +87,9 @@ func normalizeUsageBillingCommandAmounts(cmd *service.UsageBillingCommand) error
 	if cmd.AccountQuotaCost, err = service.NormalizeAndValidateNonNegativeBillingAmount(cmd.AccountQuotaCost); err != nil {
 		return err
 	}
+	if cmd.UserPlatformCost, err = service.NormalizeAndValidateNonNegativeBillingAmount(cmd.UserPlatformCost); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -231,6 +234,12 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 				return err
 			}
 		} else if err := incrementUsageBillingAccountQuotaCurrency(ctx, tx, cmd.AccountID, currency, cmd.AccountQuotaCost); err != nil {
+			return err
+		}
+	}
+
+	if cmd.UserPlatformCost > 0 && strings.TrimSpace(cmd.Platform) != "" {
+		if err := incrementUsageBillingUserPlatformQuota(ctx, tx, cmd.UserID, cmd.Platform, cmd.UserPlatformCost); err != nil {
 			return err
 		}
 	}
@@ -925,6 +934,56 @@ func incrementUsageBillingAccountQuotaCurrency(ctx context.Context, tx *sql.Tx, 
 			logger.LegacyPrintf("repository.usage_billing", "[SchedulerOutbox] enqueue currency quota exceeded failed: account=%d currency=%s err=%v", accountID, currency, err)
 			return err
 		}
+	}
+	return nil
+}
+
+func incrementUsageBillingUserPlatformQuota(ctx context.Context, tx *sql.Tx, userID int64, platform string, amount float64) error {
+	platform = service.NormalizeUserPlatformQuotaPlatform(platform)
+	if platform == "" || amount <= 0 {
+		return nil
+	}
+	res, err := tx.ExecContext(ctx, `
+		UPDATE user_platform_quotas
+		SET
+			daily_usage_usd = CASE
+				WHEN daily_limit_usd IS NULL THEN daily_usage_usd
+				WHEN daily_window_start IS NULL OR daily_window_start + INTERVAL '24 hours' <= NOW() THEN $3
+				ELSE daily_usage_usd + $3
+			END,
+			weekly_usage_usd = CASE
+				WHEN weekly_limit_usd IS NULL THEN weekly_usage_usd
+				WHEN weekly_window_start IS NULL OR weekly_window_start + INTERVAL '7 days' <= NOW() THEN $3
+				ELSE weekly_usage_usd + $3
+			END,
+			monthly_usage_usd = CASE
+				WHEN monthly_limit_usd IS NULL THEN monthly_usage_usd
+				WHEN monthly_window_start IS NULL OR monthly_window_start + INTERVAL '30 days' <= NOW() THEN $3
+				ELSE monthly_usage_usd + $3
+			END,
+			daily_window_start = CASE
+				WHEN daily_limit_usd IS NULL THEN daily_window_start
+				WHEN daily_window_start IS NULL OR daily_window_start + INTERVAL '24 hours' <= NOW() THEN NOW()
+				ELSE daily_window_start
+			END,
+			weekly_window_start = CASE
+				WHEN weekly_limit_usd IS NULL THEN weekly_window_start
+				WHEN weekly_window_start IS NULL OR weekly_window_start + INTERVAL '7 days' <= NOW() THEN NOW()
+				ELSE weekly_window_start
+			END,
+			monthly_window_start = CASE
+				WHEN monthly_limit_usd IS NULL THEN monthly_window_start
+				WHEN monthly_window_start IS NULL OR monthly_window_start + INTERVAL '30 days' <= NOW() THEN NOW()
+				ELSE monthly_window_start
+			END,
+			updated_at = NOW()
+		WHERE user_id = $1 AND platform = $2
+	`, userID, platform, amount)
+	if err != nil {
+		return err
+	}
+	if affected, err := res.RowsAffected(); err == nil && affected > 0 {
+		logger.LegacyPrintf("repository.usage_billing", "platform quota usage applied request_user=%d platform=%s amount=%.10f", userID, platform, amount)
 	}
 	return nil
 }

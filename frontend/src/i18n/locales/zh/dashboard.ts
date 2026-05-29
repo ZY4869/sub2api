@@ -41,7 +41,18 @@ export default {
     viewUsage: '查看使用记录',
     checkDetailedLogs: '查看详细的使用日志',
     redeemCode: '兑换码',
-    addBalanceWithCode: '使用兑换码充值'
+    addBalanceWithCode: '使用兑换码充值',
+    platformQuotas: '平台配额',
+    platformQuotasHint: '查看各平台 USD 等价额度与当前用量。',
+    platformQuotasEmpty: '暂无平台配额限制',
+    platformQuotasLoadFailed: '加载平台配额失败，请稍后重试。',
+    retry: '重试',
+    daily: '日',
+    weekly: '周',
+    monthly: '月',
+    unlimited: '不限',
+    resetAt: '重置',
+    noResetWindow: '首次扣费后开始'
   },
 
   // Groups (shared),

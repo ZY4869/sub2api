@@ -4,6 +4,7 @@ import type {
   ApiKeyGroupBindingInput,
   Group,
 } from "@/types";
+import { parseModelPatternText } from "@/utils/modelPatternText";
 
 export interface EditableApiKeyGroupBinding {
   group_id: number;
@@ -83,12 +84,7 @@ export const bindingToEditableDraft = (
   model_selection_dirty: false,
 });
 
-export const parseModelPatterns = (value: string): string[] => {
-  return value
-    .split(/[\n,]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-};
+export const parseModelPatterns = parseModelPatternText;
 
 export const normalizeQuota = (
   value: number | "" | null | undefined,

@@ -10,11 +10,11 @@
     {{ presentation.error }}
   </div>
 
-  <div v-else-if="presentation.resetRows.length > 0" class="space-y-1">
+  <div v-else-if="presentation.resetRows.length > 0" class="max-w-full space-y-1 overflow-hidden">
     <div
       v-for="row in presentation.resetRows"
       :key="row.key"
-      class="flex items-center gap-1 text-[10px] tabular-nums"
+      class="flex min-w-0 max-w-full items-center gap-1 text-[10px] tabular-nums"
     >
       <span
         :title="row.label"
@@ -25,7 +25,7 @@
 
       <span
         v-if="formatResetValue(row.resetsAt, row.remainingSeconds)"
-        class="flex min-w-0 items-center gap-1.5 text-gray-700 dark:text-gray-300"
+        class="flex min-w-0 items-center gap-1.5 overflow-hidden text-gray-700 dark:text-gray-300"
         :title="formatResetValue(row.resetsAt, row.remainingSeconds)?.tooltip || undefined"
       >
         <Icon
@@ -34,7 +34,7 @@
           class="shrink-0 text-gray-400 dark:text-gray-500"
         />
         <span
-          class="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 font-medium leading-none text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+          class="max-w-[56px] shrink-0 truncate rounded-full bg-gray-100 px-1.5 py-0.5 font-medium leading-none text-gray-700 dark:bg-gray-700 dark:text-gray-200"
         >
           {{ formatResetValue(row.resetsAt, row.remainingSeconds)?.countdown }}
         </span>

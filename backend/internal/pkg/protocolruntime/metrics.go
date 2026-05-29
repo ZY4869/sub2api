@@ -9,247 +9,262 @@ import (
 )
 
 type MetricsSnapshot struct {
-	RouteMismatchTotal                     int64            `json:"route_mismatch_total"`
-	UnsupportedActionTotal                 int64            `json:"unsupported_action_total"`
-	LocalizationFallbackTotal              int64            `json:"localization_fallback_total"`
-	AccountTestResolutionFailedTotal       int64            `json:"account_test_resolution_failed_total"`
-	AccountProbeResolutionFailedTotal      int64            `json:"account_probe_resolution_failed_total"`
-	RecoveryProbeStartedTotal              int64            `json:"recovery_probe_started_total"`
-	RecoveryProbeSuccessTotal              int64            `json:"recovery_probe_success_total"`
-	RecoveryProbeRetryTotal                int64            `json:"recovery_probe_retry_total"`
-	RecoveryProbeBlacklistedTotal          int64            `json:"recovery_probe_blacklisted_total"`
-	RecoveryProbeResultTotal               int64            `json:"recovery_probe_result_total"`
-	RecoveryProbeLatencyMsTotal            int64            `json:"recovery_probe_latency_ms_total"`
-	BillingResolverTotal                   int64            `json:"billing_resolver_total"`
-	BillingResolverFallbackTotal           int64            `json:"billing_resolver_fallback_total"`
-	BillingDeprecatedAPITotal              int64            `json:"billing_deprecated_api_total"`
-	BillingBulkApplyTotal                  int64            `json:"billing_bulk_apply_total"`
-	GeminiBillingFallbackAppliedTotal      int64            `json:"gemini_billing_fallback_applied_total"`
-	GeminiBillingFallbackMissTotal         int64            `json:"gemini_billing_fallback_miss_total"`
-	PublicModelProjectionTotal             int64            `json:"public_model_projection_total"`
-	PublicModelRestrictionHitTotal         int64            `json:"public_model_restriction_hit_total"`
-	ImageRouteTotal                        int64            `json:"image_route_total"`
-	ImageRouteSuccessTotal                 int64            `json:"image_route_success_total"`
-	ImageRouteFailureTotal                 int64            `json:"image_route_failure_total"`
-	ImageRouteLatencyMsTotal               int64            `json:"image_route_latency_ms_total"`
-	ResponsesImagegenCompatTotal           int64            `json:"responses_imagegen_compat_total"`
-	ResponsesImagegenNormalizedTotal       int64            `json:"responses_imagegen_normalized_total"`
-	ResponsesImagegenRejectTotal           int64            `json:"responses_imagegen_reject_total"`
-	ResponsesImageToolFailureTotal         int64            `json:"responses_image_tool_failure_total"`
-	RouteMismatchByKind                    map[string]int64 `json:"route_mismatch_by_kind"`
-	UnsupportedActionByReason              map[string]int64 `json:"unsupported_action_by_reason"`
-	LocalizationFallbackByKind             map[string]int64 `json:"localization_fallback_by_kind"`
-	AccountTestResolutionByReason          map[string]int64 `json:"account_test_resolution_by_reason"`
-	AccountProbeResolutionByReason         map[string]int64 `json:"account_probe_resolution_by_reason"`
-	RecoveryProbeStartedByReason           map[string]int64 `json:"recovery_probe_started_by_reason"`
-	RecoveryProbeSuccessByReason           map[string]int64 `json:"recovery_probe_success_by_reason"`
-	RecoveryProbeRetryByReason             map[string]int64 `json:"recovery_probe_retry_by_reason"`
-	RecoveryProbeBlacklistedByReason       map[string]int64 `json:"recovery_probe_blacklisted_by_reason"`
-	RecoveryProbeResultByReason            map[string]int64 `json:"recovery_probe_result_by_reason"`
-	RecoveryProbeResultByStatus            map[string]int64 `json:"recovery_probe_result_by_status"`
-	RecoveryProbeLatencyMsByReason         map[string]int64 `json:"recovery_probe_latency_ms_by_reason"`
-	RecoveryProbeLatencyMsByStatus         map[string]int64 `json:"recovery_probe_latency_ms_by_status"`
-	BillingResolverByPath                  map[string]int64 `json:"billing_resolver_by_path"`
-	BillingResolverFallbackByReason        map[string]int64 `json:"billing_resolver_fallback_by_reason"`
-	BillingDeprecatedAPIByPath             map[string]int64 `json:"billing_deprecated_api_by_path"`
-	BillingBulkApplyByOperation            map[string]int64 `json:"billing_bulk_apply_by_operation"`
-	GeminiBillingFallbackByReason          map[string]int64 `json:"gemini_billing_fallback_by_reason"`
-	GeminiBillingFallbackMissByReason      map[string]int64 `json:"gemini_billing_fallback_miss_by_reason"`
-	PublicModelProjectionBySource          map[string]int64 `json:"public_model_projection_by_source"`
-	PublicModelRestrictionByReason         map[string]int64 `json:"public_model_restriction_by_reason"`
-	ImageRouteByFamily                     map[string]int64 `json:"image_route_by_family"`
-	ImageRouteByProvider                   map[string]int64 `json:"image_route_by_provider"`
-	ImageRouteSuccessByFamily              map[string]int64 `json:"image_route_success_by_family"`
-	ImageRouteSuccessByProvider            map[string]int64 `json:"image_route_success_by_provider"`
-	ImageRouteFailureByFamily              map[string]int64 `json:"image_route_failure_by_family"`
-	ImageRouteFailureByProvider            map[string]int64 `json:"image_route_failure_by_provider"`
-	ImageRouteLatencyMsByFamily            map[string]int64 `json:"image_route_latency_ms_by_family"`
-	ImageRouteLatencyMsByProvider          map[string]int64 `json:"image_route_latency_ms_by_provider"`
-	ImageRouteByProtocolMode               map[string]int64 `json:"image_route_by_protocol_mode"`
-	ImageRouteSuccessByProtocolMode        map[string]int64 `json:"image_route_success_by_protocol_mode"`
-	ImageRouteFailureByProtocolMode        map[string]int64 `json:"image_route_failure_by_protocol_mode"`
-	ImageRouteLatencyMsByProtocolMode      map[string]int64 `json:"image_route_latency_ms_by_protocol_mode"`
-	ImageRouteByAction                     map[string]int64 `json:"image_route_by_action"`
-	ImageRouteSuccessByAction              map[string]int64 `json:"image_route_success_by_action"`
-	ImageRouteFailureByAction              map[string]int64 `json:"image_route_failure_by_action"`
-	ImageRouteLatencyMsByAction            map[string]int64 `json:"image_route_latency_ms_by_action"`
-	ImageRouteBySizeTier                   map[string]int64 `json:"image_route_by_size_tier"`
-	ImageRouteSuccessBySizeTier            map[string]int64 `json:"image_route_success_by_size_tier"`
-	ImageRouteFailureBySizeTier            map[string]int64 `json:"image_route_failure_by_size_tier"`
-	ImageRouteLatencyMsBySizeTier          map[string]int64 `json:"image_route_latency_ms_by_size_tier"`
-	ImageRouteByCapabilityProfile          map[string]int64 `json:"image_route_by_capability_profile"`
-	ImageRouteSuccessByCapabilityProfile   map[string]int64 `json:"image_route_success_by_capability_profile"`
-	ImageRouteFailureByCapabilityProfile   map[string]int64 `json:"image_route_failure_by_capability_profile"`
-	ImageRouteLatencyMsByCapabilityProfile map[string]int64 `json:"image_route_latency_ms_by_capability_profile"`
-	ImageRouteFailureByUpstreamStatus      map[string]int64 `json:"image_route_failure_by_upstream_status"`
-	ResponsesImagegenCompatBySource        map[string]int64 `json:"responses_imagegen_compat_by_source"`
-	ResponsesImagegenNormalizedBySource    map[string]int64 `json:"responses_imagegen_normalized_by_source"`
-	ResponsesImagegenRejectByCode          map[string]int64 `json:"responses_imagegen_reject_by_code"`
-	ResponsesImageToolFailureByProvider    map[string]int64 `json:"responses_image_tool_failure_by_provider"`
+	RouteMismatchTotal                      int64            `json:"route_mismatch_total"`
+	UnsupportedActionTotal                  int64            `json:"unsupported_action_total"`
+	LocalizationFallbackTotal               int64            `json:"localization_fallback_total"`
+	AccountTestResolutionFailedTotal        int64            `json:"account_test_resolution_failed_total"`
+	AccountProbeResolutionFailedTotal       int64            `json:"account_probe_resolution_failed_total"`
+	RecoveryProbeStartedTotal               int64            `json:"recovery_probe_started_total"`
+	RecoveryProbeSuccessTotal               int64            `json:"recovery_probe_success_total"`
+	RecoveryProbeRetryTotal                 int64            `json:"recovery_probe_retry_total"`
+	RecoveryProbeBlacklistedTotal           int64            `json:"recovery_probe_blacklisted_total"`
+	RecoveryProbeResultTotal                int64            `json:"recovery_probe_result_total"`
+	RecoveryProbeLatencyMsTotal             int64            `json:"recovery_probe_latency_ms_total"`
+	BillingResolverTotal                    int64            `json:"billing_resolver_total"`
+	BillingResolverFallbackTotal            int64            `json:"billing_resolver_fallback_total"`
+	BillingDeprecatedAPITotal               int64            `json:"billing_deprecated_api_total"`
+	BillingBulkApplyTotal                   int64            `json:"billing_bulk_apply_total"`
+	GeminiBillingFallbackAppliedTotal       int64            `json:"gemini_billing_fallback_applied_total"`
+	GeminiBillingFallbackMissTotal          int64            `json:"gemini_billing_fallback_miss_total"`
+	PublicModelProjectionTotal              int64            `json:"public_model_projection_total"`
+	PublicModelRestrictionHitTotal          int64            `json:"public_model_restriction_hit_total"`
+	ImageRouteTotal                         int64            `json:"image_route_total"`
+	ImageRouteSuccessTotal                  int64            `json:"image_route_success_total"`
+	ImageRouteFailureTotal                  int64            `json:"image_route_failure_total"`
+	ImageRouteLatencyMsTotal                int64            `json:"image_route_latency_ms_total"`
+	ResponsesImagegenCompatTotal            int64            `json:"responses_imagegen_compat_total"`
+	ResponsesImagegenNormalizedTotal        int64            `json:"responses_imagegen_normalized_total"`
+	ResponsesImagegenRejectTotal            int64            `json:"responses_imagegen_reject_total"`
+	ResponsesImageToolFailureTotal          int64            `json:"responses_image_tool_failure_total"`
+	UserPlatformQuotaRejectionTotal         int64            `json:"user_platform_quota_rejection_total"`
+	ContentModerationThresholdHitTotal      int64            `json:"content_moderation_threshold_hit_total"`
+	RouteMismatchByKind                     map[string]int64 `json:"route_mismatch_by_kind"`
+	UnsupportedActionByReason               map[string]int64 `json:"unsupported_action_by_reason"`
+	LocalizationFallbackByKind              map[string]int64 `json:"localization_fallback_by_kind"`
+	AccountTestResolutionByReason           map[string]int64 `json:"account_test_resolution_by_reason"`
+	AccountProbeResolutionByReason          map[string]int64 `json:"account_probe_resolution_by_reason"`
+	RecoveryProbeStartedByReason            map[string]int64 `json:"recovery_probe_started_by_reason"`
+	RecoveryProbeSuccessByReason            map[string]int64 `json:"recovery_probe_success_by_reason"`
+	RecoveryProbeRetryByReason              map[string]int64 `json:"recovery_probe_retry_by_reason"`
+	RecoveryProbeBlacklistedByReason        map[string]int64 `json:"recovery_probe_blacklisted_by_reason"`
+	RecoveryProbeResultByReason             map[string]int64 `json:"recovery_probe_result_by_reason"`
+	RecoveryProbeResultByStatus             map[string]int64 `json:"recovery_probe_result_by_status"`
+	RecoveryProbeLatencyMsByReason          map[string]int64 `json:"recovery_probe_latency_ms_by_reason"`
+	RecoveryProbeLatencyMsByStatus          map[string]int64 `json:"recovery_probe_latency_ms_by_status"`
+	BillingResolverByPath                   map[string]int64 `json:"billing_resolver_by_path"`
+	BillingResolverFallbackByReason         map[string]int64 `json:"billing_resolver_fallback_by_reason"`
+	BillingDeprecatedAPIByPath              map[string]int64 `json:"billing_deprecated_api_by_path"`
+	BillingBulkApplyByOperation             map[string]int64 `json:"billing_bulk_apply_by_operation"`
+	GeminiBillingFallbackByReason           map[string]int64 `json:"gemini_billing_fallback_by_reason"`
+	GeminiBillingFallbackMissByReason       map[string]int64 `json:"gemini_billing_fallback_miss_by_reason"`
+	PublicModelProjectionBySource           map[string]int64 `json:"public_model_projection_by_source"`
+	PublicModelRestrictionByReason          map[string]int64 `json:"public_model_restriction_by_reason"`
+	ImageRouteByFamily                      map[string]int64 `json:"image_route_by_family"`
+	ImageRouteByProvider                    map[string]int64 `json:"image_route_by_provider"`
+	ImageRouteSuccessByFamily               map[string]int64 `json:"image_route_success_by_family"`
+	ImageRouteSuccessByProvider             map[string]int64 `json:"image_route_success_by_provider"`
+	ImageRouteFailureByFamily               map[string]int64 `json:"image_route_failure_by_family"`
+	ImageRouteFailureByProvider             map[string]int64 `json:"image_route_failure_by_provider"`
+	ImageRouteLatencyMsByFamily             map[string]int64 `json:"image_route_latency_ms_by_family"`
+	ImageRouteLatencyMsByProvider           map[string]int64 `json:"image_route_latency_ms_by_provider"`
+	ImageRouteByProtocolMode                map[string]int64 `json:"image_route_by_protocol_mode"`
+	ImageRouteSuccessByProtocolMode         map[string]int64 `json:"image_route_success_by_protocol_mode"`
+	ImageRouteFailureByProtocolMode         map[string]int64 `json:"image_route_failure_by_protocol_mode"`
+	ImageRouteLatencyMsByProtocolMode       map[string]int64 `json:"image_route_latency_ms_by_protocol_mode"`
+	ImageRouteByAction                      map[string]int64 `json:"image_route_by_action"`
+	ImageRouteSuccessByAction               map[string]int64 `json:"image_route_success_by_action"`
+	ImageRouteFailureByAction               map[string]int64 `json:"image_route_failure_by_action"`
+	ImageRouteLatencyMsByAction             map[string]int64 `json:"image_route_latency_ms_by_action"`
+	ImageRouteBySizeTier                    map[string]int64 `json:"image_route_by_size_tier"`
+	ImageRouteSuccessBySizeTier             map[string]int64 `json:"image_route_success_by_size_tier"`
+	ImageRouteFailureBySizeTier             map[string]int64 `json:"image_route_failure_by_size_tier"`
+	ImageRouteLatencyMsBySizeTier           map[string]int64 `json:"image_route_latency_ms_by_size_tier"`
+	ImageRouteByCapabilityProfile           map[string]int64 `json:"image_route_by_capability_profile"`
+	ImageRouteSuccessByCapabilityProfile    map[string]int64 `json:"image_route_success_by_capability_profile"`
+	ImageRouteFailureByCapabilityProfile    map[string]int64 `json:"image_route_failure_by_capability_profile"`
+	ImageRouteLatencyMsByCapabilityProfile  map[string]int64 `json:"image_route_latency_ms_by_capability_profile"`
+	ImageRouteFailureByUpstreamStatus       map[string]int64 `json:"image_route_failure_by_upstream_status"`
+	ResponsesImagegenCompatBySource         map[string]int64 `json:"responses_imagegen_compat_by_source"`
+	ResponsesImagegenNormalizedBySource     map[string]int64 `json:"responses_imagegen_normalized_by_source"`
+	ResponsesImagegenRejectByCode           map[string]int64 `json:"responses_imagegen_reject_by_code"`
+	ResponsesImageToolFailureByProvider     map[string]int64 `json:"responses_image_tool_failure_by_provider"`
+	UserPlatformQuotaRejectionByPlatform    map[string]int64 `json:"user_platform_quota_rejection_by_platform"`
+	UserPlatformQuotaRejectionByCycle       map[string]int64 `json:"user_platform_quota_rejection_by_cycle"`
+	ContentModerationThresholdHitByCategory map[string]int64 `json:"content_moderation_threshold_hit_by_category"`
 }
 
 type metrics struct {
-	routeMismatchTotal                atomic.Int64
-	unsupportedActionTotal            atomic.Int64
-	localizationFallbackTotal         atomic.Int64
-	accountTestResolutionFailedTotal  atomic.Int64
-	accountProbeResolutionFailedTotal atomic.Int64
-	recoveryProbeStartedTotal         atomic.Int64
-	recoveryProbeSuccessTotal         atomic.Int64
-	recoveryProbeRetryTotal           atomic.Int64
-	recoveryProbeBlacklistedTotal     atomic.Int64
-	recoveryProbeResultTotal          atomic.Int64
-	recoveryProbeLatencyMsTotal       atomic.Int64
-	billingResolverTotal              atomic.Int64
-	billingResolverFallbackTotal      atomic.Int64
-	billingDeprecatedAPITotal         atomic.Int64
-	billingBulkApplyTotal             atomic.Int64
-	geminiBillingFallbackAppliedTotal atomic.Int64
-	geminiBillingFallbackMissTotal    atomic.Int64
-	publicModelProjectionTotal        atomic.Int64
-	publicModelRestrictionHitTotal    atomic.Int64
-	imageRouteTotal                   atomic.Int64
-	imageRouteSuccessTotal            atomic.Int64
-	imageRouteFailureTotal            atomic.Int64
-	imageRouteLatencyMsTotal          atomic.Int64
-	responsesImagegenCompatTotal      atomic.Int64
-	responsesImagegenNormalizedTotal  atomic.Int64
-	responsesImagegenRejectTotal      atomic.Int64
-	responsesImageToolFailureTotal    atomic.Int64
+	routeMismatchTotal                 atomic.Int64
+	unsupportedActionTotal             atomic.Int64
+	localizationFallbackTotal          atomic.Int64
+	accountTestResolutionFailedTotal   atomic.Int64
+	accountProbeResolutionFailedTotal  atomic.Int64
+	recoveryProbeStartedTotal          atomic.Int64
+	recoveryProbeSuccessTotal          atomic.Int64
+	recoveryProbeRetryTotal            atomic.Int64
+	recoveryProbeBlacklistedTotal      atomic.Int64
+	recoveryProbeResultTotal           atomic.Int64
+	recoveryProbeLatencyMsTotal        atomic.Int64
+	billingResolverTotal               atomic.Int64
+	billingResolverFallbackTotal       atomic.Int64
+	billingDeprecatedAPITotal          atomic.Int64
+	billingBulkApplyTotal              atomic.Int64
+	geminiBillingFallbackAppliedTotal  atomic.Int64
+	geminiBillingFallbackMissTotal     atomic.Int64
+	publicModelProjectionTotal         atomic.Int64
+	publicModelRestrictionHitTotal     atomic.Int64
+	imageRouteTotal                    atomic.Int64
+	imageRouteSuccessTotal             atomic.Int64
+	imageRouteFailureTotal             atomic.Int64
+	imageRouteLatencyMsTotal           atomic.Int64
+	responsesImagegenCompatTotal       atomic.Int64
+	responsesImagegenNormalizedTotal   atomic.Int64
+	responsesImagegenRejectTotal       atomic.Int64
+	responsesImageToolFailureTotal     atomic.Int64
+	userPlatformQuotaRejectionTotal    atomic.Int64
+	contentModerationThresholdHitTotal atomic.Int64
 
-	routeMismatchByKind                    sync.Map
-	unsupportedActionByReason              sync.Map
-	localizationFallbackByKind             sync.Map
-	accountTestResolutionByReason          sync.Map
-	accountProbeResolutionByReason         sync.Map
-	recoveryProbeStartedByReason           sync.Map
-	recoveryProbeSuccessByReason           sync.Map
-	recoveryProbeRetryByReason             sync.Map
-	recoveryProbeBlacklistedByReason       sync.Map
-	recoveryProbeResultByReason            sync.Map
-	recoveryProbeResultByStatus            sync.Map
-	recoveryProbeLatencyMsByReason         sync.Map
-	recoveryProbeLatencyMsByStatus         sync.Map
-	billingResolverByPath                  sync.Map
-	billingResolverFallbackByReason        sync.Map
-	billingDeprecatedAPIByPath             sync.Map
-	billingBulkApplyByOperation            sync.Map
-	geminiBillingFallbackByReason          sync.Map
-	geminiBillingFallbackMissByReason      sync.Map
-	publicModelProjectionBySource          sync.Map
-	publicModelRestrictionByReason         sync.Map
-	imageRouteByFamily                     sync.Map
-	imageRouteByProvider                   sync.Map
-	imageRouteSuccessByFamily              sync.Map
-	imageRouteSuccessByProvider            sync.Map
-	imageRouteFailureByFamily              sync.Map
-	imageRouteFailureByProvider            sync.Map
-	imageRouteLatencyMsByFamily            sync.Map
-	imageRouteLatencyMsByProvider          sync.Map
-	imageRouteByProtocolMode               sync.Map
-	imageRouteSuccessByProtocolMode        sync.Map
-	imageRouteFailureByProtocolMode        sync.Map
-	imageRouteLatencyMsByProtocolMode      sync.Map
-	imageRouteByAction                     sync.Map
-	imageRouteSuccessByAction              sync.Map
-	imageRouteFailureByAction              sync.Map
-	imageRouteLatencyMsByAction            sync.Map
-	imageRouteBySizeTier                   sync.Map
-	imageRouteSuccessBySizeTier            sync.Map
-	imageRouteFailureBySizeTier            sync.Map
-	imageRouteLatencyMsBySizeTier          sync.Map
-	imageRouteByCapabilityProfile          sync.Map
-	imageRouteSuccessByCapabilityProfile   sync.Map
-	imageRouteFailureByCapabilityProfile   sync.Map
-	imageRouteLatencyMsByCapabilityProfile sync.Map
-	imageRouteFailureByUpstreamStatus      sync.Map
-	responsesImagegenCompatBySource        sync.Map
-	responsesImagegenNormalizedBySource    sync.Map
-	responsesImagegenRejectByCode          sync.Map
-	responsesImageToolFailureByProvider    sync.Map
+	routeMismatchByKind                     sync.Map
+	unsupportedActionByReason               sync.Map
+	localizationFallbackByKind              sync.Map
+	accountTestResolutionByReason           sync.Map
+	accountProbeResolutionByReason          sync.Map
+	recoveryProbeStartedByReason            sync.Map
+	recoveryProbeSuccessByReason            sync.Map
+	recoveryProbeRetryByReason              sync.Map
+	recoveryProbeBlacklistedByReason        sync.Map
+	recoveryProbeResultByReason             sync.Map
+	recoveryProbeResultByStatus             sync.Map
+	recoveryProbeLatencyMsByReason          sync.Map
+	recoveryProbeLatencyMsByStatus          sync.Map
+	billingResolverByPath                   sync.Map
+	billingResolverFallbackByReason         sync.Map
+	billingDeprecatedAPIByPath              sync.Map
+	billingBulkApplyByOperation             sync.Map
+	geminiBillingFallbackByReason           sync.Map
+	geminiBillingFallbackMissByReason       sync.Map
+	publicModelProjectionBySource           sync.Map
+	publicModelRestrictionByReason          sync.Map
+	imageRouteByFamily                      sync.Map
+	imageRouteByProvider                    sync.Map
+	imageRouteSuccessByFamily               sync.Map
+	imageRouteSuccessByProvider             sync.Map
+	imageRouteFailureByFamily               sync.Map
+	imageRouteFailureByProvider             sync.Map
+	imageRouteLatencyMsByFamily             sync.Map
+	imageRouteLatencyMsByProvider           sync.Map
+	imageRouteByProtocolMode                sync.Map
+	imageRouteSuccessByProtocolMode         sync.Map
+	imageRouteFailureByProtocolMode         sync.Map
+	imageRouteLatencyMsByProtocolMode       sync.Map
+	imageRouteByAction                      sync.Map
+	imageRouteSuccessByAction               sync.Map
+	imageRouteFailureByAction               sync.Map
+	imageRouteLatencyMsByAction             sync.Map
+	imageRouteBySizeTier                    sync.Map
+	imageRouteSuccessBySizeTier             sync.Map
+	imageRouteFailureBySizeTier             sync.Map
+	imageRouteLatencyMsBySizeTier           sync.Map
+	imageRouteByCapabilityProfile           sync.Map
+	imageRouteSuccessByCapabilityProfile    sync.Map
+	imageRouteFailureByCapabilityProfile    sync.Map
+	imageRouteLatencyMsByCapabilityProfile  sync.Map
+	imageRouteFailureByUpstreamStatus       sync.Map
+	responsesImagegenCompatBySource         sync.Map
+	responsesImagegenNormalizedBySource     sync.Map
+	responsesImagegenRejectByCode           sync.Map
+	responsesImageToolFailureByProvider     sync.Map
+	userPlatformQuotaRejectionByPlatform    sync.Map
+	userPlatformQuotaRejectionByCycle       sync.Map
+	contentModerationThresholdHitByCategory sync.Map
 }
 
 var defaultMetrics metrics
 
 func Snapshot() MetricsSnapshot {
 	return MetricsSnapshot{
-		RouteMismatchTotal:                     defaultMetrics.routeMismatchTotal.Load(),
-		UnsupportedActionTotal:                 defaultMetrics.unsupportedActionTotal.Load(),
-		LocalizationFallbackTotal:              defaultMetrics.localizationFallbackTotal.Load(),
-		AccountTestResolutionFailedTotal:       defaultMetrics.accountTestResolutionFailedTotal.Load(),
-		AccountProbeResolutionFailedTotal:      defaultMetrics.accountProbeResolutionFailedTotal.Load(),
-		RecoveryProbeStartedTotal:              defaultMetrics.recoveryProbeStartedTotal.Load(),
-		RecoveryProbeSuccessTotal:              defaultMetrics.recoveryProbeSuccessTotal.Load(),
-		RecoveryProbeRetryTotal:                defaultMetrics.recoveryProbeRetryTotal.Load(),
-		RecoveryProbeBlacklistedTotal:          defaultMetrics.recoveryProbeBlacklistedTotal.Load(),
-		RecoveryProbeResultTotal:               defaultMetrics.recoveryProbeResultTotal.Load(),
-		RecoveryProbeLatencyMsTotal:            defaultMetrics.recoveryProbeLatencyMsTotal.Load(),
-		BillingResolverTotal:                   defaultMetrics.billingResolverTotal.Load(),
-		BillingResolverFallbackTotal:           defaultMetrics.billingResolverFallbackTotal.Load(),
-		BillingDeprecatedAPITotal:              defaultMetrics.billingDeprecatedAPITotal.Load(),
-		BillingBulkApplyTotal:                  defaultMetrics.billingBulkApplyTotal.Load(),
-		GeminiBillingFallbackAppliedTotal:      defaultMetrics.geminiBillingFallbackAppliedTotal.Load(),
-		GeminiBillingFallbackMissTotal:         defaultMetrics.geminiBillingFallbackMissTotal.Load(),
-		PublicModelProjectionTotal:             defaultMetrics.publicModelProjectionTotal.Load(),
-		PublicModelRestrictionHitTotal:         defaultMetrics.publicModelRestrictionHitTotal.Load(),
-		ImageRouteTotal:                        defaultMetrics.imageRouteTotal.Load(),
-		ImageRouteSuccessTotal:                 defaultMetrics.imageRouteSuccessTotal.Load(),
-		ImageRouteFailureTotal:                 defaultMetrics.imageRouteFailureTotal.Load(),
-		ImageRouteLatencyMsTotal:               defaultMetrics.imageRouteLatencyMsTotal.Load(),
-		ResponsesImagegenCompatTotal:           defaultMetrics.responsesImagegenCompatTotal.Load(),
-		ResponsesImagegenNormalizedTotal:       defaultMetrics.responsesImagegenNormalizedTotal.Load(),
-		ResponsesImagegenRejectTotal:           defaultMetrics.responsesImagegenRejectTotal.Load(),
-		ResponsesImageToolFailureTotal:         defaultMetrics.responsesImageToolFailureTotal.Load(),
-		RouteMismatchByKind:                    snapshotCounterMap(&defaultMetrics.routeMismatchByKind),
-		UnsupportedActionByReason:              snapshotCounterMap(&defaultMetrics.unsupportedActionByReason),
-		LocalizationFallbackByKind:             snapshotCounterMap(&defaultMetrics.localizationFallbackByKind),
-		AccountTestResolutionByReason:          snapshotCounterMap(&defaultMetrics.accountTestResolutionByReason),
-		AccountProbeResolutionByReason:         snapshotCounterMap(&defaultMetrics.accountProbeResolutionByReason),
-		RecoveryProbeStartedByReason:           snapshotCounterMap(&defaultMetrics.recoveryProbeStartedByReason),
-		RecoveryProbeSuccessByReason:           snapshotCounterMap(&defaultMetrics.recoveryProbeSuccessByReason),
-		RecoveryProbeRetryByReason:             snapshotCounterMap(&defaultMetrics.recoveryProbeRetryByReason),
-		RecoveryProbeBlacklistedByReason:       snapshotCounterMap(&defaultMetrics.recoveryProbeBlacklistedByReason),
-		RecoveryProbeResultByReason:            snapshotCounterMap(&defaultMetrics.recoveryProbeResultByReason),
-		RecoveryProbeResultByStatus:            snapshotCounterMap(&defaultMetrics.recoveryProbeResultByStatus),
-		RecoveryProbeLatencyMsByReason:         snapshotCounterMap(&defaultMetrics.recoveryProbeLatencyMsByReason),
-		RecoveryProbeLatencyMsByStatus:         snapshotCounterMap(&defaultMetrics.recoveryProbeLatencyMsByStatus),
-		BillingResolverByPath:                  snapshotCounterMap(&defaultMetrics.billingResolverByPath),
-		BillingResolverFallbackByReason:        snapshotCounterMap(&defaultMetrics.billingResolverFallbackByReason),
-		BillingDeprecatedAPIByPath:             snapshotCounterMap(&defaultMetrics.billingDeprecatedAPIByPath),
-		BillingBulkApplyByOperation:            snapshotCounterMap(&defaultMetrics.billingBulkApplyByOperation),
-		GeminiBillingFallbackByReason:          snapshotCounterMap(&defaultMetrics.geminiBillingFallbackByReason),
-		GeminiBillingFallbackMissByReason:      snapshotCounterMap(&defaultMetrics.geminiBillingFallbackMissByReason),
-		PublicModelProjectionBySource:          snapshotCounterMap(&defaultMetrics.publicModelProjectionBySource),
-		PublicModelRestrictionByReason:         snapshotCounterMap(&defaultMetrics.publicModelRestrictionByReason),
-		ImageRouteByFamily:                     snapshotCounterMap(&defaultMetrics.imageRouteByFamily),
-		ImageRouteByProvider:                   snapshotCounterMap(&defaultMetrics.imageRouteByProvider),
-		ImageRouteSuccessByFamily:              snapshotCounterMap(&defaultMetrics.imageRouteSuccessByFamily),
-		ImageRouteSuccessByProvider:            snapshotCounterMap(&defaultMetrics.imageRouteSuccessByProvider),
-		ImageRouteFailureByFamily:              snapshotCounterMap(&defaultMetrics.imageRouteFailureByFamily),
-		ImageRouteFailureByProvider:            snapshotCounterMap(&defaultMetrics.imageRouteFailureByProvider),
-		ImageRouteLatencyMsByFamily:            snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByFamily),
-		ImageRouteLatencyMsByProvider:          snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByProvider),
-		ImageRouteByProtocolMode:               snapshotCounterMap(&defaultMetrics.imageRouteByProtocolMode),
-		ImageRouteSuccessByProtocolMode:        snapshotCounterMap(&defaultMetrics.imageRouteSuccessByProtocolMode),
-		ImageRouteFailureByProtocolMode:        snapshotCounterMap(&defaultMetrics.imageRouteFailureByProtocolMode),
-		ImageRouteLatencyMsByProtocolMode:      snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByProtocolMode),
-		ImageRouteByAction:                     snapshotCounterMap(&defaultMetrics.imageRouteByAction),
-		ImageRouteSuccessByAction:              snapshotCounterMap(&defaultMetrics.imageRouteSuccessByAction),
-		ImageRouteFailureByAction:              snapshotCounterMap(&defaultMetrics.imageRouteFailureByAction),
-		ImageRouteLatencyMsByAction:            snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByAction),
-		ImageRouteBySizeTier:                   snapshotCounterMap(&defaultMetrics.imageRouteBySizeTier),
-		ImageRouteSuccessBySizeTier:            snapshotCounterMap(&defaultMetrics.imageRouteSuccessBySizeTier),
-		ImageRouteFailureBySizeTier:            snapshotCounterMap(&defaultMetrics.imageRouteFailureBySizeTier),
-		ImageRouteLatencyMsBySizeTier:          snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsBySizeTier),
-		ImageRouteByCapabilityProfile:          snapshotCounterMap(&defaultMetrics.imageRouteByCapabilityProfile),
-		ImageRouteSuccessByCapabilityProfile:   snapshotCounterMap(&defaultMetrics.imageRouteSuccessByCapabilityProfile),
-		ImageRouteFailureByCapabilityProfile:   snapshotCounterMap(&defaultMetrics.imageRouteFailureByCapabilityProfile),
-		ImageRouteLatencyMsByCapabilityProfile: snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByCapabilityProfile),
-		ImageRouteFailureByUpstreamStatus:      snapshotCounterMap(&defaultMetrics.imageRouteFailureByUpstreamStatus),
-		ResponsesImagegenCompatBySource:        snapshotCounterMap(&defaultMetrics.responsesImagegenCompatBySource),
-		ResponsesImagegenNormalizedBySource:    snapshotCounterMap(&defaultMetrics.responsesImagegenNormalizedBySource),
-		ResponsesImagegenRejectByCode:          snapshotCounterMap(&defaultMetrics.responsesImagegenRejectByCode),
-		ResponsesImageToolFailureByProvider:    snapshotCounterMap(&defaultMetrics.responsesImageToolFailureByProvider),
+		RouteMismatchTotal:                      defaultMetrics.routeMismatchTotal.Load(),
+		UnsupportedActionTotal:                  defaultMetrics.unsupportedActionTotal.Load(),
+		LocalizationFallbackTotal:               defaultMetrics.localizationFallbackTotal.Load(),
+		AccountTestResolutionFailedTotal:        defaultMetrics.accountTestResolutionFailedTotal.Load(),
+		AccountProbeResolutionFailedTotal:       defaultMetrics.accountProbeResolutionFailedTotal.Load(),
+		RecoveryProbeStartedTotal:               defaultMetrics.recoveryProbeStartedTotal.Load(),
+		RecoveryProbeSuccessTotal:               defaultMetrics.recoveryProbeSuccessTotal.Load(),
+		RecoveryProbeRetryTotal:                 defaultMetrics.recoveryProbeRetryTotal.Load(),
+		RecoveryProbeBlacklistedTotal:           defaultMetrics.recoveryProbeBlacklistedTotal.Load(),
+		RecoveryProbeResultTotal:                defaultMetrics.recoveryProbeResultTotal.Load(),
+		RecoveryProbeLatencyMsTotal:             defaultMetrics.recoveryProbeLatencyMsTotal.Load(),
+		BillingResolverTotal:                    defaultMetrics.billingResolverTotal.Load(),
+		BillingResolverFallbackTotal:            defaultMetrics.billingResolverFallbackTotal.Load(),
+		BillingDeprecatedAPITotal:               defaultMetrics.billingDeprecatedAPITotal.Load(),
+		BillingBulkApplyTotal:                   defaultMetrics.billingBulkApplyTotal.Load(),
+		GeminiBillingFallbackAppliedTotal:       defaultMetrics.geminiBillingFallbackAppliedTotal.Load(),
+		GeminiBillingFallbackMissTotal:          defaultMetrics.geminiBillingFallbackMissTotal.Load(),
+		PublicModelProjectionTotal:              defaultMetrics.publicModelProjectionTotal.Load(),
+		PublicModelRestrictionHitTotal:          defaultMetrics.publicModelRestrictionHitTotal.Load(),
+		ImageRouteTotal:                         defaultMetrics.imageRouteTotal.Load(),
+		ImageRouteSuccessTotal:                  defaultMetrics.imageRouteSuccessTotal.Load(),
+		ImageRouteFailureTotal:                  defaultMetrics.imageRouteFailureTotal.Load(),
+		ImageRouteLatencyMsTotal:                defaultMetrics.imageRouteLatencyMsTotal.Load(),
+		ResponsesImagegenCompatTotal:            defaultMetrics.responsesImagegenCompatTotal.Load(),
+		ResponsesImagegenNormalizedTotal:        defaultMetrics.responsesImagegenNormalizedTotal.Load(),
+		ResponsesImagegenRejectTotal:            defaultMetrics.responsesImagegenRejectTotal.Load(),
+		ResponsesImageToolFailureTotal:          defaultMetrics.responsesImageToolFailureTotal.Load(),
+		UserPlatformQuotaRejectionTotal:         defaultMetrics.userPlatformQuotaRejectionTotal.Load(),
+		ContentModerationThresholdHitTotal:      defaultMetrics.contentModerationThresholdHitTotal.Load(),
+		RouteMismatchByKind:                     snapshotCounterMap(&defaultMetrics.routeMismatchByKind),
+		UnsupportedActionByReason:               snapshotCounterMap(&defaultMetrics.unsupportedActionByReason),
+		LocalizationFallbackByKind:              snapshotCounterMap(&defaultMetrics.localizationFallbackByKind),
+		AccountTestResolutionByReason:           snapshotCounterMap(&defaultMetrics.accountTestResolutionByReason),
+		AccountProbeResolutionByReason:          snapshotCounterMap(&defaultMetrics.accountProbeResolutionByReason),
+		RecoveryProbeStartedByReason:            snapshotCounterMap(&defaultMetrics.recoveryProbeStartedByReason),
+		RecoveryProbeSuccessByReason:            snapshotCounterMap(&defaultMetrics.recoveryProbeSuccessByReason),
+		RecoveryProbeRetryByReason:              snapshotCounterMap(&defaultMetrics.recoveryProbeRetryByReason),
+		RecoveryProbeBlacklistedByReason:        snapshotCounterMap(&defaultMetrics.recoveryProbeBlacklistedByReason),
+		RecoveryProbeResultByReason:             snapshotCounterMap(&defaultMetrics.recoveryProbeResultByReason),
+		RecoveryProbeResultByStatus:             snapshotCounterMap(&defaultMetrics.recoveryProbeResultByStatus),
+		RecoveryProbeLatencyMsByReason:          snapshotCounterMap(&defaultMetrics.recoveryProbeLatencyMsByReason),
+		RecoveryProbeLatencyMsByStatus:          snapshotCounterMap(&defaultMetrics.recoveryProbeLatencyMsByStatus),
+		BillingResolverByPath:                   snapshotCounterMap(&defaultMetrics.billingResolverByPath),
+		BillingResolverFallbackByReason:         snapshotCounterMap(&defaultMetrics.billingResolverFallbackByReason),
+		BillingDeprecatedAPIByPath:              snapshotCounterMap(&defaultMetrics.billingDeprecatedAPIByPath),
+		BillingBulkApplyByOperation:             snapshotCounterMap(&defaultMetrics.billingBulkApplyByOperation),
+		GeminiBillingFallbackByReason:           snapshotCounterMap(&defaultMetrics.geminiBillingFallbackByReason),
+		GeminiBillingFallbackMissByReason:       snapshotCounterMap(&defaultMetrics.geminiBillingFallbackMissByReason),
+		PublicModelProjectionBySource:           snapshotCounterMap(&defaultMetrics.publicModelProjectionBySource),
+		PublicModelRestrictionByReason:          snapshotCounterMap(&defaultMetrics.publicModelRestrictionByReason),
+		ImageRouteByFamily:                      snapshotCounterMap(&defaultMetrics.imageRouteByFamily),
+		ImageRouteByProvider:                    snapshotCounterMap(&defaultMetrics.imageRouteByProvider),
+		ImageRouteSuccessByFamily:               snapshotCounterMap(&defaultMetrics.imageRouteSuccessByFamily),
+		ImageRouteSuccessByProvider:             snapshotCounterMap(&defaultMetrics.imageRouteSuccessByProvider),
+		ImageRouteFailureByFamily:               snapshotCounterMap(&defaultMetrics.imageRouteFailureByFamily),
+		ImageRouteFailureByProvider:             snapshotCounterMap(&defaultMetrics.imageRouteFailureByProvider),
+		ImageRouteLatencyMsByFamily:             snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByFamily),
+		ImageRouteLatencyMsByProvider:           snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByProvider),
+		ImageRouteByProtocolMode:                snapshotCounterMap(&defaultMetrics.imageRouteByProtocolMode),
+		ImageRouteSuccessByProtocolMode:         snapshotCounterMap(&defaultMetrics.imageRouteSuccessByProtocolMode),
+		ImageRouteFailureByProtocolMode:         snapshotCounterMap(&defaultMetrics.imageRouteFailureByProtocolMode),
+		ImageRouteLatencyMsByProtocolMode:       snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByProtocolMode),
+		ImageRouteByAction:                      snapshotCounterMap(&defaultMetrics.imageRouteByAction),
+		ImageRouteSuccessByAction:               snapshotCounterMap(&defaultMetrics.imageRouteSuccessByAction),
+		ImageRouteFailureByAction:               snapshotCounterMap(&defaultMetrics.imageRouteFailureByAction),
+		ImageRouteLatencyMsByAction:             snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByAction),
+		ImageRouteBySizeTier:                    snapshotCounterMap(&defaultMetrics.imageRouteBySizeTier),
+		ImageRouteSuccessBySizeTier:             snapshotCounterMap(&defaultMetrics.imageRouteSuccessBySizeTier),
+		ImageRouteFailureBySizeTier:             snapshotCounterMap(&defaultMetrics.imageRouteFailureBySizeTier),
+		ImageRouteLatencyMsBySizeTier:           snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsBySizeTier),
+		ImageRouteByCapabilityProfile:           snapshotCounterMap(&defaultMetrics.imageRouteByCapabilityProfile),
+		ImageRouteSuccessByCapabilityProfile:    snapshotCounterMap(&defaultMetrics.imageRouteSuccessByCapabilityProfile),
+		ImageRouteFailureByCapabilityProfile:    snapshotCounterMap(&defaultMetrics.imageRouteFailureByCapabilityProfile),
+		ImageRouteLatencyMsByCapabilityProfile:  snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByCapabilityProfile),
+		ImageRouteFailureByUpstreamStatus:       snapshotCounterMap(&defaultMetrics.imageRouteFailureByUpstreamStatus),
+		ResponsesImagegenCompatBySource:         snapshotCounterMap(&defaultMetrics.responsesImagegenCompatBySource),
+		ResponsesImagegenNormalizedBySource:     snapshotCounterMap(&defaultMetrics.responsesImagegenNormalizedBySource),
+		ResponsesImagegenRejectByCode:           snapshotCounterMap(&defaultMetrics.responsesImagegenRejectByCode),
+		ResponsesImageToolFailureByProvider:     snapshotCounterMap(&defaultMetrics.responsesImageToolFailureByProvider),
+		UserPlatformQuotaRejectionByPlatform:    snapshotCounterMap(&defaultMetrics.userPlatformQuotaRejectionByPlatform),
+		UserPlatformQuotaRejectionByCycle:       snapshotCounterMap(&defaultMetrics.userPlatformQuotaRejectionByCycle),
+		ContentModerationThresholdHitByCategory: snapshotCounterMap(&defaultMetrics.contentModerationThresholdHitByCategory),
 	}
 }
 
@@ -427,6 +442,17 @@ func RecordResponsesImageToolFailure(provider string) {
 	incrementCounterMap(&defaultMetrics.responsesImageToolFailureByProvider, provider)
 }
 
+func RecordUserPlatformQuotaRejection(platform string, cycle string) {
+	defaultMetrics.userPlatformQuotaRejectionTotal.Add(1)
+	incrementCounterMap(&defaultMetrics.userPlatformQuotaRejectionByPlatform, normalizeMetricLabel(platform))
+	incrementCounterMap(&defaultMetrics.userPlatformQuotaRejectionByCycle, normalizeMetricLabel(cycle))
+}
+
+func RecordContentModerationThresholdHit(category string) {
+	defaultMetrics.contentModerationThresholdHitTotal.Add(1)
+	incrementCounterMap(&defaultMetrics.contentModerationThresholdHitByCategory, normalizeMetricLabel(category))
+}
+
 func ResetForTest() {
 	defaultMetrics.routeMismatchTotal.Store(0)
 	defaultMetrics.unsupportedActionTotal.Store(0)
@@ -455,6 +481,8 @@ func ResetForTest() {
 	defaultMetrics.responsesImagegenNormalizedTotal.Store(0)
 	defaultMetrics.responsesImagegenRejectTotal.Store(0)
 	defaultMetrics.responsesImageToolFailureTotal.Store(0)
+	defaultMetrics.userPlatformQuotaRejectionTotal.Store(0)
+	defaultMetrics.contentModerationThresholdHitTotal.Store(0)
 	resetCounterMap(&defaultMetrics.routeMismatchByKind)
 	resetCounterMap(&defaultMetrics.unsupportedActionByReason)
 	resetCounterMap(&defaultMetrics.localizationFallbackByKind)
@@ -505,6 +533,9 @@ func ResetForTest() {
 	resetCounterMap(&defaultMetrics.responsesImagegenNormalizedBySource)
 	resetCounterMap(&defaultMetrics.responsesImagegenRejectByCode)
 	resetCounterMap(&defaultMetrics.responsesImageToolFailureByProvider)
+	resetCounterMap(&defaultMetrics.userPlatformQuotaRejectionByPlatform)
+	resetCounterMap(&defaultMetrics.userPlatformQuotaRejectionByCycle)
+	resetCounterMap(&defaultMetrics.contentModerationThresholdHitByCategory)
 }
 
 func normalizeImageRouteProtocolMode(value string) string {
@@ -548,6 +579,14 @@ func normalizeImageRouteCapabilityProfile(value string) string {
 		return "unknown"
 	}
 	return trimmed
+}
+
+func normalizeMetricLabel(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return "unknown"
+	}
+	return value
 }
 
 func incrementCounterMap(target *sync.Map, key string) {

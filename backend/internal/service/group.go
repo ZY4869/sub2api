@@ -57,6 +57,10 @@ type Group struct {
 	AllowMessagesDispatch bool
 	DefaultMappedModel    string
 
+	// VisibleModelPatterns narrows the public /v1/models projection for this group.
+	// Empty means no additional group-level visibility filter.
+	VisibleModelPatterns []string
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 

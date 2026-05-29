@@ -1,16 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const getMock = vi.fn()
 const postMock = vi.fn()
+const putMock = vi.fn()
 
 vi.mock('@/api/client', () => ({
   apiClient: {
+    get: getMock,
     post: postMock,
+    put: putMock,
   },
 }))
 
 describe('admin users api', () => {
   beforeEach(() => {
+    getMock.mockReset()
     postMock.mockReset()
+    putMock.mockReset()
   })
 
   it('sends Idempotency-Key when batch updating concurrency', async () => {
@@ -45,5 +51,35 @@ describe('admin users api', () => {
         },
       },
     )
+  })
+
+  it('reads and updates user platform quotas', async () => {
+    getMock.mockResolvedValue({ data: [{ platform: 'openai' }] })
+    putMock.mockResolvedValue({ data: [{ platform: 'gemini' }] })
+
+    const { getUserPlatformQuotas, updateUserPlatformQuotas } = await import('../users')
+    const read = await getUserPlatformQuotas(123)
+    const saved = await updateUserPlatformQuotas(123, [
+      {
+        platform: 'openai',
+        daily_limit_usd: 10,
+        weekly_limit_usd: null,
+        monthly_limit_usd: 100,
+      },
+    ])
+
+    expect(read).toEqual([{ platform: 'openai' }])
+    expect(saved).toEqual([{ platform: 'gemini' }])
+    expect(getMock).toHaveBeenCalledWith('/admin/users/123/platform-quotas')
+    expect(putMock).toHaveBeenCalledWith('/admin/users/123/platform-quotas', {
+      items: [
+        {
+          platform: 'openai',
+          daily_limit_usd: 10,
+          weekly_limit_usd: null,
+          monthly_limit_usd: 100,
+        },
+      ],
+    })
   })
 })

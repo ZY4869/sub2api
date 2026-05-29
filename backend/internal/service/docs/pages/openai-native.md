@@ -98,6 +98,7 @@ curl https://api.zyxai.de/v1/responses \
 - `GET /v1/responses` 由专门的 Responses WebSocket / 长连接处理链路接管。
 - 当运行平台为 OpenAI 时，Responses 能力是原生直通。
 - 当管理员开启本地 force chat completions 策略时，`POST /v1/responses` 会通过本地 Responses 与 Chat Completions 适配层降级到 chat completions；流式输出、usage 记录和失败记录仍按本地网关规则保留。
+- 对 `/v1/responses`、`/responses`、`/backend-api/codex/responses` 及 compact 变体，如果 SSE 已经开始或响应 writer 已经写入，后续失败会追加 `event: response.failed`，避免客户端只看到静默 EOF；非 Responses 路径仍保持原有错误格式。
 - 对 reasoning 模型转发到上游时，网关会自动剔除不适用的 `temperature` / `top_p`；非 reasoning 模型保持原行为。
 - 当运行平台为 Grok 时，普通 `POST /grok/v1/responses` 可用，但 WebSocket 动作在能力矩阵中被拒绝。
 - 如果你在 `POST /v1/responses` 里使用 `image_generation` tool，而上游返回的是 compact SSE 且终态 `response.completed.response.output` 为空，网关会根据 `response.image_generation_call.partial_image` 自动回填 `output[].content[].type = "output_image"`，`image_url` 为 data URI，方便非流式客户端直接消费。
@@ -108,6 +109,7 @@ curl https://api.zyxai.de/v1/responses \
 - 如果账号上游 `base_url` 不符合当前出站安全策略，保存阶段就会被拒绝，返回 `400 ACCOUNT_INVALID_BASE_URL`；保存成功后不会自动探测模型，需由管理员手动执行 Probe/Test。
 - 管理端单账号测试、手动 Probe 与运行态转发都不会跟随上游 `3xx`；命中重定向时会返回受控错误 `502 UPSTREAM_REDIRECT_NOT_ALLOWED`。
 - `service_tier`（priority/fast/flex）可能会被管理员策略过滤或阻断；详见下文 “OpenAI Fast/Flex Policy（service_tier）”。
+- OpenAI / Codex 上游请求默认使用 OpenAI HTTP upstream profile：默认优先 HTTP/2，OpenAI profile 默认不继承通用 response header timeout；只有代理兼容性错误达到阈值时才会短期回退 HTTP/1，普通 response header timeout 不会触发回退。
 
 排错建议：
 
@@ -115,6 +117,15 @@ curl https://api.zyxai.de/v1/responses \
 - 看到 `404` 时，不要只怀疑路径拼写，还要看当前分组平台是否真的支持该动作。
 - 如果你依赖持续连接或多轮状态链路，请优先在 OpenAI 平台验证。
 - 如果是 OpenAI Pro，`429 rate_limit_error` 现在还可能表示“相关额度侧正在冷却”，这时另一侧模型通常仍可继续调用。
+
+相关网关配置项：
+
+- `gateway.openai_response_header_timeout`：默认 `0`，表示 OpenAI profile 不使用通用 response header timeout。
+- `gateway.openai_http2.enabled`：默认 `true`。
+- `gateway.openai_http2.allow_proxy_fallback_to_http1`：默认 `true`。
+- `gateway.openai_http2.fallback_error_threshold`：默认 `2`。
+- `gateway.openai_http2.fallback_window_seconds`：默认 `60`。
+- `gateway.openai_http2.fallback_ttl_seconds`：默认 `600`。
 
 #### Python
 ```python focus=2-11

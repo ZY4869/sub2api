@@ -72,7 +72,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}
-	return req, nil
+	return MarkOpenAIHTTPUpstreamRequest(req), nil
 }
 
 func (s *OpenAIGatewayService) validateUpstreamBaseURL(raw string) (string, error) {

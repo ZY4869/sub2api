@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center justify-end gap-1.5" data-testid="accounts-view-airy-row-actions">
+  <div class="flex items-center justify-end gap-1" data-testid="accounts-view-airy-row-actions">
     <button
       type="button"
       :class="toggleButtonClass"
@@ -91,8 +91,8 @@ const toggleButtonClass = computed(() => [
     : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600'
 ])
 
-const actionButtonClass = 'inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200/80 bg-white text-slate-500 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 dark:border-slate-700/80 dark:bg-slate-900/80 dark:text-slate-300 dark:hover:border-primary-400/30 dark:hover:bg-primary-500/10 dark:hover:text-primary-200'
-const dangerButtonClass = 'inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-200/80 bg-white text-rose-500 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 dark:border-rose-400/20 dark:bg-slate-900/80 dark:text-rose-200 dark:hover:bg-rose-500/10 dark:hover:text-rose-100'
+const actionButtonClass = 'inline-flex h-[26px] w-[26px] items-center justify-center rounded-full border border-slate-200/80 bg-white text-slate-500 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 dark:border-slate-700/80 dark:bg-slate-900/80 dark:text-slate-300 dark:hover:border-primary-400/30 dark:hover:bg-primary-500/10 dark:hover:text-primary-200'
+const dangerButtonClass = 'inline-flex h-[26px] w-[26px] items-center justify-center rounded-full border border-rose-200/80 bg-white text-rose-500 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 dark:border-rose-400/20 dark:bg-slate-900/80 dark:text-rose-200 dark:hover:bg-rose-500/10 dark:hover:text-rose-100'
 
 const sanitizedSummary = computed(() => ({
   id: props.account.id,

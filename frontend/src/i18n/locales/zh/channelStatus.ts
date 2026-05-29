@@ -8,6 +8,8 @@ export default {
     viewDetails: '查看详情',
     primaryModel: '主模型',
     availability7d: '7天可用率',
+    latestLatency: '最近延迟',
+    timeline: '监控时间线',
     status: {
       success: '正常',
       degraded: '降级',
@@ -16,4 +18,3 @@ export default {
     }
   }
 }
-

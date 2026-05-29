@@ -147,6 +147,7 @@ https://api.zyxai.de
 - 发布语义：有已发布快照时，接口固定返回最近一次“推送更新”冻结下来的正式目录，列表内容、排序、分页大小与详情示例都会以该版本为准
 - 未发布语义：如果当前还没有任何已发布快照，接口会自动回退到实时目录构建结果，而不是返回空目录；详情接口也会同步回退到实时详情
 - 详情语义：`GET /api/v1/meta/model-catalog/:model` 在 `catalog_source=published` 时返回发布时固化的单模型价格块与调用示例元数据；在 `catalog_source=live_fallback` 时返回当前实时目录对应的详情结果
+- 可用性语义：无论命中发布快照还是实时回退，公开列表、详情、`/v1/models` 以及实际运行时路由都只暴露 `availability_state=verified` 且 `stale_state=fresh`，并且当前源账号 / 分组仍可调度的模型。未验证、过期、不可路由或来源账号不可调度的条目会被过滤，发布时也会被拒绝。
 - 缓存：响应会返回 `ETag`，客户端可通过 `If-None-Match` 复用 `304 Not Modified`
 
 这个接口只暴露展示所需的公共目录数据，不替代具体协议页中的 `/v1/models`、`/v1beta/models` 等运行时模型枚举接口。
@@ -159,7 +160,9 @@ https://api.zyxai.de
 - 如果某个账号把真实模型配置成了自定义映射名，那么 downstream `models list` 与 `models detail` 只返回映射名这个 `display_model_id`；`target_model_id` 只保留在内部转发链路和后台诊断里，不会作为另一个可调用 public ID 暴露。
 - 保存账号模型策略时，部分 provider 会把常见模型变体规范为 canonical target，例如 DeepSeek V4 的 provider 前缀、空格、下划线和 `:free` / `-free` 后缀会归一化到 `deepseek-v4-flash` 或 `deepseek-v4-pro`；公共列表仍只展示管理员配置的 `display_model_id`。
 - 模型列表读路径只读取本地策略投影和本地 availability snapshot。即使 snapshot 缺失或过期，也只会返回现有投影并标记状态，不会在读请求里同步触发实时探测。
+- 已发布模型不是永久可见承诺；读取公开目录、用户模型选择器、`/v1/models` 和运行时路由时都会重新确认当前是否仍然 verified / fresh / routable，保证页面可见、枚举可见和实际可调用三者一致。
 - 没有有效售价的模型不会出现在公共目录里，也不会出现在用户创建 / 编辑 Key 时的模型选择器里。这里的“有效售价”口径不是只看 `sale_form` 原始字段，而是按“sale 优先、缺失字段逐项回退 official”的生效展示价计算；因此只配置了官方价、但 sale 为空的模型，只要存在可展示价格，仍然可以进入公开目录。
+- 管理员可以在分组上配置 `visible_model_patterns`，用于收敛该分组下游 `/v1/models`、`/v1beta/models`、模型详情、用户模型选择器和运行时路由可见集合。它只在“本地公开模型目录 + 账号模型策略 + API Key 绑定 + 当前可服务性”得到的候选集合上取交集，不能把账号白名单、别名映射或默认模型库以外的模型扩展成可见 / 可调用模型。
 - `model[1m]` 只是 Claude Cloud 百万上下文的请求时能力后缀，不会成为新的公开模型资产；`/v1/models`、`/v1beta/models`、公共模型目录、策略投影与模型选择器都不会枚举带 `[1m]` 的镜像项。
 - 当站内 Key 开启“生图专用”后，`/v1/models`、`/v1beta/models`、模型详情和 Key 编辑器模型选择器都会在本地投影上继续收敛，只暴露 `image_generation` 原生生图模型；非生图模型即使在原分组可见，也不会成为这个 Key 的可调用 public ID。
 - `/v1/models`、`/v1beta/models` 以及复用同一公共模型读路径的详情接口，都是“运行时可服务视图”，不是永久静态目录；如果当前所有可路由账号都因为同一类运行时额度冷却而暂时无法服务某个模型，该模型会临时从列表和详情里隐藏，额度恢复后会自动重新出现。
@@ -178,19 +181,51 @@ https://api.zyxai.de
 - `items[].lifecycle_status`：生命周期标记，固定为 `stable` / `beta` / `deprecated`
 - `items[].entry_id`：后台发布条目的稳定 ID，用于区分同一基础模型来自不同账号 / 节点的展示实例；它不是调用时的模型名
 - `items[].public_model_id` / `items[].model`：对外可调用的公开模型 ID；命中发布目录时二者保持一致
-- `items[].base_model` / `items[].source_model_id`：用于展示的基础模型 / 来源模型 ID；它们只描述来源，不应作为额外公开可调用 ID 使用
-- `items[].source_alias`：运营配置的公开来源别名；未显式配置时会生成 `source-<hash>` 脱敏别名，不会暴露后台真实账号 ID、账号名或账号凭证
+- `items[].context_window_tokens`、`items[].modalities`、`items[].capabilities`：来自模型注册表 / 定价目录的展示规格，用于前台卡片与详情抽屉；缺失时前端展示为未配置，不会造默认限额
+- 公开响应不会返回 `source_account_id`、`source_account_name`、`source_ids`、`source_model_id`、`source_protocol` 或 `source_alias`。这些字段只存在于后台候选、发布快照内部、路由和诊断链路中。
 - `items[].price_display.primary`：核心售价行，可能包含 `input_price`、`output_price`、`cache_price`、`batch_cache_price`
 - `items[].price_display.secondary`：附加售价行，只保留 grounding / retrieval 等补充项
 - `items[].official_price_display`：官方成本展示行，用于前台或后台对比展示
 - `items[].sale_price_display`：本公开条目的出售价格展示行；实际计费命中发布条目时优先使用这组价格
 - `items`：公开模型数组，前台可优先展示 `display_name`；当它与 `model` 只是大小写或分隔符变体时，可按本地标题规则折叠重复 subtitle
 
+公开模型健康状态接口：
+
+- 路径：`GET /api/v1/meta/model-catalog/status`
+- 鉴权：跟随公共模型库开关；游客可访问时只返回模型级脱敏聚合
+- 缓存：该接口不复用目录 `ETag`，健康数据可以独立刷新，避免频繁改变模型目录缓存
+- 状态枚举：`healthy` / `warning` / `error` / `pending`
+- 返回字段：`items[].model`、`status`、`success_rate_today`、`success_rate_7d`、`latency_ms`、`last_checked_at`、`daily[]`、`trend[]`、`rate_limit`
+- `rate_limit` 只聚合真实已配置或策略可得的模型级限额摘要：RPM 来自账号基础 RPM 或 Gemini quota，RPD 来自 Gemini quota，TPM 仅在系统存在真实配置时返回；多个账号命中同一公开模型时取保守的最小正值。没有真实 RPM / TPM / RPD 配置时，对应字段为空，由前端显示 `-` 或“未配置”
+- 脱敏规则：不会返回账号 ID、监控器 ID、内部来源模型 ID、上游原始错误、API Key、Header 或账号名称
+
+```json
+{
+  "updated_at": "2026-04-21T10:06:00Z",
+  "items": [
+    {
+      "model": "gpt-5.4@primary",
+      "status": "healthy",
+      "success_rate_today": 1,
+      "success_rate_7d": 0.998,
+      "latency_ms": 350,
+      "last_checked_at": "2026-04-21T10:05:30Z",
+      "daily": [
+        { "date": "2026-04-15", "status": "healthy", "success_rate": 1, "latency_ms": 340 }
+      ],
+      "trend": [
+        { "timestamp": "2026-04-15", "success_rate": 1, "latency_ms": 340 }
+      ]
+    }
+  ]
+}
+```
+
 运行时调用规则：
 
 - 客户端只传 `public_model_id`（也就是响应里的 `model`）；同一基础模型如果由两个账号来源发布，会以两个不同公开 ID 暴露。
 - 网关在 OpenAI `/v1/chat/completions`、`/v1/messages`、`/v1/responses`，Anthropic `/v1/messages`，Gemini native 模型动作和 Gemini passthrough 可识别模型的路径上，都会先解析发布条目，再把请求路由到该条目的 `source_account_id` 与 `source_model_id`。
-- `source_model_id`、`base_model` 和后台候选里的真实账号信息只用于展示、路由和诊断，不会作为额外 public ID 暴露给客户端调用。
+- `source_model_id`、`base_model` 和后台候选里的真实账号信息只用于内部路由和诊断，不会作为额外 public ID 暴露给客户端调用。
 - 计费命中发布条目时优先使用 `sale_price_display`，并在内部 billing metadata 记录 `entry_id`；如果条目售价为空或无法计算，才记录缺价回退并沿用旧模型级 sale / official 兼容逻辑。
 
 典型响应示例：
@@ -206,10 +241,6 @@ https://api.zyxai.de
       "entry_id": "acct_8a6d0f3c5b9e12aa",
       "public_model_id": "gpt-5.4@primary",
       "model": "gpt-5.4@primary",
-      "base_model": "gpt-5.4",
-      "source_model_id": "gpt-5.4",
-      "source_protocol": "openai",
-      "source_alias": "primary",
       "display_name": "GPT-5.4",
       "provider": "openai",
       "provider_icon_key": "openai",
@@ -217,6 +248,9 @@ https://api.zyxai.de
       "availability_state": "verified",
       "stale_state": "fresh",
       "lifecycle_status": "stable",
+      "context_window_tokens": 128000,
+      "modalities": ["text", "image"],
+      "capabilities": ["vision", "tools"],
       "request_protocols": ["openai"],
       "mode": "chat",
       "currency": "USD",
@@ -260,10 +294,6 @@ https://api.zyxai.de
     "entry_id": "acct_8a6d0f3c5b9e12aa",
     "public_model_id": "gpt-5.4@primary",
     "model": "gpt-5.4@primary",
-    "base_model": "gpt-5.4",
-    "source_model_id": "gpt-5.4",
-    "source_protocol": "openai",
-    "source_alias": "primary",
     "display_name": "GPT-5.4",
     "provider": "openai",
     "provider_icon_key": "openai",
@@ -309,7 +339,7 @@ https://api.zyxai.de
 - 生图专用语义：生图专用 Key 下，空 `model_patterns` 表示该分组全部生图模型；提交了文本 / 非生图模型时会被后端归一化或拒绝，确保最终只保留生图模型。
 - 回退语义：如果正式公开目录尚未发布，这个接口会和前台 `/models` 一样自动回退到实时目录，但仍会继续过滤掉没有有效售价的模型
 
-管理员后台 `/api/v1/admin/billing/public-model-catalog/draft` 会额外返回 `available_entries[].source_account_id` 与 `available_entries[].source_account_name`，仅用于后台识别账号来源；这些字段不会出现在公开 `/meta/model-catalog`、详情、分组目录或模型枚举响应里。保存草稿时推荐提交 `selected_entries[]`，每个条目包含 `entry_id`、`public_model_id`、`source_alias` 与 `sale_price_display`；旧前端仍可提交 `selected_models[]`，后端会按公开模型 ID 自动兼容迁移。发布时会校验 `public_model_id` 唯一、售价非负、条目仍存在于当前候选快照；失败会返回 `PUBLIC_MODEL_ENTRY_UNAVAILABLE`、`PUBLIC_MODEL_ID_REQUIRED`、`PUBLIC_MODEL_ID_DUPLICATE` 或 `PUBLIC_MODEL_PRICE_INVALID`，避免静默发布部分条目。
+管理员后台 `/api/v1/admin/billing/public-model-catalog/draft` 会额外返回 `available_entries[].source_account_id` 与 `available_entries[].source_account_name`，仅用于后台识别账号来源；这些字段不会出现在公开 `/meta/model-catalog`、详情、分组目录或模型枚举响应里。保存草稿时推荐提交 `selected_entries[]`，每个条目包含 `entry_id`、`public_model_id`、`source_alias`、`source_account_id`、`source_protocol`、`source_model_id` 与 `sale_price_display`；旧前端仍可提交 `selected_models[]`，后端会按公开模型 ID 自动兼容迁移。发布时会校验 `public_model_id` 唯一、售价非负、条目仍存在于当前候选快照；如果候选快照刷新导致 `entry_id` 变化，但同一 `source_account_id + source_protocol + source_model_id/base_model` 仍唯一存在，后端会把草稿条目重新对齐到当前候选条目；失败会返回 `PUBLIC_MODEL_ENTRY_UNAVAILABLE`、`PUBLIC_MODEL_ID_REQUIRED`、`PUBLIC_MODEL_ID_DUPLICATE` 或 `PUBLIC_MODEL_PRICE_INVALID`，避免静默发布部分条目。
 
 管理员后台“官方成本/价格源管理”页只维护官方成本、缺价审计与导入导出。该页导入旧 JSON 时会忽略 `patch.sale`，并提示前往“对外模型展示”页维护出售价格；新导出的补丁模板也只包含 `patch.official`。旧模型级 sale 接口仍保留为兼容层和未命中公开条目的 fallback，但会记录弃用日志与指标，前端不再把它作为出售价格主入口。
 
@@ -400,6 +430,85 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - 当 API Key 绑定的单分组或动态分组全部停用 / 删除时，业务网关会返回 `403 GROUP_UNAVAILABLE`；`/v1/usage` 仍允许 Key 自查，但响应会标记 `isValid=false`、`status=group_unavailable`。
 - `/v1/usage` 的 API Key 配额块会返回 `quota.used_by_currency`，限流窗口会返回 `rate_limits[].used_by_currency`；订阅块会返回 `daily_usage_by_currency`、`weekly_usage_by_currency`、`monthly_usage_by_currency`。旧 `quota.used`、`daily_usage_usd`、`weekly_usage_usd`、`monthly_usage_usd` 均继续代表 USD。
 - 自动换汇只用于 CNY 钱包不足时的运行时扣费：系统按价格保存时锁定的 `usd_to_cny_rate` 从 USD 钱包换入刚好覆盖缺口的 CNY，并写入 `fx_out`、`fx_in`、`usage_debit` 三类账本记录。
+
+### 用户平台 USD 配额
+
+平台配额是叠加在余额、API Key 配额、订阅 / 分组配额之外的用户级限制。它按平台与 USD 等价金额累计，不替代既有配额层。
+
+接口：
+
+- `GET /api/v1/user/platform-quotas`：当前登录用户只读查看自己的平台配额。
+- `GET /api/v1/admin/users/:id/platform-quotas`：管理员查看指定用户平台配额。
+- `PUT /api/v1/admin/users/:id/platform-quotas`：管理员替换指定用户平台配额。
+
+配额语义：
+
+- 唯一键是 `(user_id, platform)`；平台值会按系统平台标识规范化，例如 `openai`、`anthropic`、`gemini`。
+- `limit: null`、请求里省略 limit 或写入 `0` 都表示该周期不限额。
+- 无配额记录表示不限额。
+- 计费成功后才累计平台 usage；失败请求不扣减。
+- 命中平台配额会返回 `429`，错误原因是 `USER_PLATFORM_QUOTA_EXCEEDED`。
+- 日 / 周 / 月窗口分别从首次成功扣费时开始滚动，响应会返回 `window_start` 与 `reset_at`；尚未开始的窗口这两个字段为空。
+
+响应中的每个平台包含 `daily`、`weekly`、`monthly` 三个周期：
+
+```json
+[
+  {
+    "platform": "openai",
+    "daily": { "limit": 10, "used": 2.5, "window_start": "2026-05-26T00:00:00Z", "reset_at": "2026-05-27T00:00:00Z" },
+    "weekly": { "limit": null, "used": 2.5 },
+    "monthly": { "limit": 100, "used": 18.75, "reset_at": "2026-06-25T00:00:00Z" }
+  }
+]
+```
+
+#### Python
+```python
+import requests
+
+base_url = "https://api.zyxai.de/api/v1"
+jwt = "用户登录后获得的 JWT"
+
+resp = requests.get(
+    f"{base_url}/user/platform-quotas",
+    headers={"Authorization": f"Bearer {jwt}"},
+    timeout=30,
+)
+print(resp.json())
+```
+
+#### JavaScript
+```javascript
+const response = await fetch("https://api.zyxai.de/api/v1/admin/users/123/platform-quotas", {
+  method: "PUT",
+  headers: {
+    Authorization: `Bearer ${adminJwt}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    items: [
+      { platform: "openai", daily_limit_usd: 10, monthly_limit_usd: 100 },
+      { platform: "gemini", weekly_limit_usd: 25 }
+    ],
+  }),
+});
+
+console.log(await response.json());
+```
+
+#### REST
+```bash
+curl https://api.zyxai.de/api/v1/admin/users/123/platform-quotas \
+  -H "Authorization: Bearer 管理员JWT" \
+  -H "Content-Type: application/json" \
+  -X PUT \
+  -d '{
+    "items": [
+      { "platform": "openai", "daily_limit_usd": 10, "monthly_limit_usd": 100 }
+    ]
+  }'
+```
 
 ### 可用渠道（Available Channels）
 
@@ -789,6 +898,7 @@ curl -X POST "https://api.zyxai.de/api/v1/admin/accounts/bulk-update" \
 
 管理员创建或更新账号时，保存链路现在先执行本地出站安全校验，再决定是否落库：
 
+- 池模式账号可在 `credentials.pool_mode_retry_status_codes` 配置同账号重试状态码，默认 `[401,403,429]`；支持保存为数字数组，非法值、空配置或缺失字段都会回退默认值。该字段只控制池模式“同账号重试”判定，不改变 `pool_mode_retry_count`、账号切换、限流持久化、计费或上游错误归类。
 - 保存时会校验 `credentials.base_url`，不接受空 host、非法端口、`file://`、`gopher://`、默认私网 / `localhost`，以及默认配置下的明文 `http://`
 - 百度智能文档账号还会校验 `credentials.async_base_url` 与 `credentials.direct_api_urls`，默认必须命中 `security.url_allowlist.document_ai_hosts`
 - 即使关闭 `security.url_allowlist.enabled`，运行态上游请求、账号 `base_url`、Pricing/CRS 远程 URL、Document AI `file_url` 仍会默认执行 DNS 解析后的私网 / loopback / link-local / multicast / unspecified 拦截；HTTP/SOCKS 实际出站拨号也会先解析并只连接已验证 IP，避免 DNS rebinding 在格式校验后绕过；只有显式设置 `allow_private_hosts=true` 才会全局放行内网地址（高风险）
@@ -1201,6 +1311,7 @@ curl "https://api.zyxai.de/api/v1/admin/moderation/audits/42" \
 - `content_moderation_fail_open`
 - `content_moderation_keyword_block_enabled`
 - `content_moderation_keywords`
+- `content_moderation_category_thresholds`：分类到阈值的 JSON map，值必须在 `[0, 1]`。
 
 兼容与安全规则：
 
@@ -1209,6 +1320,7 @@ curl "https://api.zyxai.de/api/v1/admin/moderation/audits/42" \
 - 删除操作只接受 `delete_content_moderation_api_key_hashes[]`，不会通过 `GET` 返回任何明文 key。
 - `content_moderation_api_key_statuses[]` 只用于后台展示 masked key 与冻结状态；错误摘要会脱敏，不应出现 URL、Bearer token 或 key 明文。
 - `content_moderation_model_filter` 默认为 `all`。`include` 只审核列表内模型，`exclude` 跳过列表内模型；模型名按大小写不敏感方式匹配。过滤只决定是否调用审核，不改变模型路由、计费或模型可见性。
+- 分类阈值默认按已知分类填充 `1.0`；provider 返回 `flagged=true` 或任一已知 `category_scores` 分数达到阈值都会判定命中。未知分类会被忽略，不会被保存为新的策略项。
 - 关键词拦截会在模型审核前执行。命中关键词时立即审计并返回策略拒绝，不调用外部模型；审计记录只保存 hash / 摘要，不记录明文提示词。
 - 同一请求内重复出现的用户消息会先去重再送审，避免 agent 工具循环把相同内容重复计入外部审核调用；跨请求仍由既有 dedupe window 控制。
 - 这些字段全部挂在现有 settings 体系，不会新增独立 settings API。

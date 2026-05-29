@@ -55,7 +55,7 @@ func checkContentModerationKeywordBlock(
 	}
 	recordInput := *input
 	recordInput.Content = content
-	decision, err := moderationService.CheckKeywordBlock(ctx, &recordInput)
+	decision, err := moderationService.CheckBlock(ctx, &recordInput)
 	if err != nil || decision == nil {
 		return false, err
 	}

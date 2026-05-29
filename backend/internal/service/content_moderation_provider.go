@@ -24,7 +24,8 @@ type contentModerationOpenAIRequest struct {
 
 type contentModerationOpenAIResponse struct {
 	Results []struct {
-		Flagged bool `json:"flagged"`
+		Flagged        bool               `json:"flagged"`
+		CategoryScores map[string]float64 `json:"category_scores"`
 	} `json:"results"`
 	Error *struct {
 		Message string `json:"message"`
@@ -158,7 +159,10 @@ func callOpenAIContentModeration(
 
 	for _, result := range decoded.Results {
 		if result.Flagged {
-			return contentModerationProviderResult{Hit: true, StatusCode: resp.StatusCode, KeyHash: keyHash}
+			return contentModerationProviderResult{Hit: true, ErrorReason: "moderation_flagged", StatusCode: resp.StatusCode, KeyHash: keyHash}
+		}
+		if hit, reason := evaluateContentModerationCategoryThresholds(result.CategoryScores, settings.CategoryThresholds); hit {
+			return contentModerationProviderResult{Hit: true, ErrorReason: reason, StatusCode: resp.StatusCode, KeyHash: keyHash}
 		}
 	}
 	return contentModerationProviderResult{StatusCode: resp.StatusCode, KeyHash: keyHash}

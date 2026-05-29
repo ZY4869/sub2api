@@ -8,6 +8,7 @@
     default-sort-order="asc"
     :sort-storage-key="sortStorageKey"
     :preserve-input-order="preserveInputOrder"
+    table-layout="fixed"
     virtual-scroll-target="window"
     :row-class="visualStyle === 'airy' ? resolveRowClass : undefined"
     :row-style="visualStyle === 'airy' ? resolveRowStyle : undefined"
@@ -32,7 +33,11 @@
     </template>
 
     <template #cell-name="{ row }">
-      <AccountNameVisualCell v-if="visualStyle === 'airy'" :account="row" />
+      <AccountNameVisualCell
+        v-if="visualStyle === 'airy'"
+        :account="row"
+        compact
+      />
       <div v-else class="flex flex-col gap-2">
         <div class="flex items-center gap-2">
           <span class="font-medium text-gray-900 dark:text-white">{{ row.name }}</span>
@@ -90,6 +95,7 @@
         :subscription-expires-at="
           String(row.credentials?.subscription_expires_at || '') || undefined
         "
+        compact
       />
       <PlatformTypeBadge
         v-else
@@ -128,6 +134,7 @@
           :account="row"
           :visual-style="visualStyle"
           :white-surface-enabled="whiteSurfaceEnabled"
+          compact
           @show-temp-unsched="emit('show-temp-unsched', row)"
         />
         <AccountStatusIndicator
@@ -203,6 +210,7 @@
         :today-stats-loading="todayStatsLoading"
         :manual-refresh-token="usageManualRefreshToken"
         :white-surface-enabled="whiteSurfaceEnabled"
+        compact
       />
       <AccountUsageCell
         v-else
@@ -242,24 +250,37 @@
       <span class="text-sm text-gray-500 dark:text-dark-400">{{ formatRelativeTime(value) }}</span>
     </template>
 
+    <template #cell-created_at="{ value }">
+      <span class="text-sm text-gray-500 dark:text-dark-400" :title="formatCreatedAt(value)">
+        {{ formatCreatedAt(value) }}
+      </span>
+    </template>
+
     <template #cell-expires_at="{ row, value }">
-      <div class="flex flex-col items-start gap-1">
-        <span class="text-sm text-gray-500 dark:text-dark-400">{{ formatExpiresAt(value) }}</span>
+      <div class="flex max-w-full flex-col items-start gap-1 overflow-hidden">
+        <span
+          class="max-w-full truncate text-sm text-gray-500 dark:text-dark-400"
+          :title="formatExpiresAt(value)"
+        >
+          {{ formatExpiresAt(value) }}
+        </span>
         <div
           v-if="isExpired(value) || (row.auto_pause_on_expired && value)"
-          class="flex items-center gap-1"
+          class="flex max-w-full items-center gap-1 overflow-hidden"
         >
           <span
             v-if="isExpired(value)"
-            class="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            class="inline-flex max-w-full items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            :title="t('admin.accounts.expired')"
           >
-            {{ t('admin.accounts.expired') }}
+            <span class="truncate">{{ t('admin.accounts.expired') }}</span>
           </span>
           <span
             v-if="row.auto_pause_on_expired && value"
-            class="inline-flex items-center rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+            class="inline-flex max-w-full items-center rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+            :title="t('admin.accounts.autoPauseOnExpired')"
           >
-            {{ t('admin.accounts.autoPauseOnExpired') }}
+            <span class="truncate">{{ t('admin.accounts.autoPauseOnExpired') }}</span>
           </span>
         </div>
       </div>
@@ -394,11 +415,12 @@ const resolveRowStyle = (row: Account) => {
 const airySpacedCellClass = (key: 'capacity' | 'status' | 'groups') => {
   if (props.visualStyle !== 'airy') return ''
   const widthClass = {
-    capacity: 'min-w-[136px]',
-    status: 'min-w-[292px]',
-    groups: 'min-w-[176px]'
+    capacity: 'min-w-0 max-w-[120px]',
+    status: 'min-w-0 max-w-[244px]',
+    groups: 'min-w-0 max-w-[136px]'
   }[key]
-  return `account-airy-spaced-cell account-airy-spaced-cell-${key} ${widthClass} px-2`
+  const paddingClass = key === 'capacity' ? 'px-2' : 'px-1'
+  return `account-airy-spaced-cell account-airy-spaced-cell-${key} ${widthClass} overflow-hidden ${paddingClass}`
 }
 
 const handleToggleSelectAllVisible = (event: Event) => {
@@ -409,6 +431,22 @@ const formatExpiresAt = (value: number | null) => {
   if (!value) return '-'
   return formatDateTime(
     new Date(value * 1000),
+    {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    },
+    'sv-SE'
+  )
+}
+
+const formatCreatedAt = (value: string | null | undefined) => {
+  if (!value) return '-'
+  return formatDateTime(
+    value,
     {
       year: 'numeric',
       month: '2-digit',

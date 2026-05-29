@@ -58,7 +58,7 @@ describe('publicModelCatalog', () => {
       model: 'claude-sonnet-4.5',
       display_name: 'Claude Sonnet 4.5',
       currency: 'USD',
-      source_ids: ['claude-source'],
+      capabilities: ['tool-use'],
       price_display: {
         primary: [{ id: 'output_price', unit: 'output_token', value: 0.000004 }],
         secondary: [{ id: 'batch_cache_price', unit: 'input_token', value: 0.000001 }],
@@ -71,6 +71,6 @@ describe('publicModelCatalog', () => {
       'output_price',
       'batch_cache_price',
     ])
-    expect(displayItem.searchText).toContain('claude-source')
+    expect(displayItem.searchText).toContain('tool-use')
   })
 })

@@ -194,6 +194,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if !equalStringSlice(before.ContentModerationKeywords, after.ContentModerationKeywords) {
 		changed = append(changed, "content_moderation_keywords")
 	}
+	if !equalFloatMap(before.ContentModerationCategoryThresholds, after.ContentModerationCategoryThresholds) {
+		changed = append(changed, "content_moderation_category_thresholds")
+	}
 	if before.SiteName != after.SiteName {
 		changed = append(changed, "site_name")
 	}
@@ -458,6 +461,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		ContentModerationKeywordBlockEnabled: settings.ContentModerationKeywordBlockEnabled,
 		ContentModerationKeywords:            settings.ContentModerationKeywords,
 		ContentModerationModelFilter:         settings.ContentModerationModelFilter,
+		ContentModerationCategoryThresholds:  settings.ContentModerationCategoryThresholds,
 		SiteName:                             settings.SiteName,
 		SiteLogo:                             settings.SiteLogo,
 		SiteSubtitle:                         settings.SiteSubtitle,
@@ -553,6 +557,19 @@ func equalStringSlice(a, b []string) bool {
 	}
 	return true
 }
+
+func equalFloatMap(a, b map[string]float64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if b[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
 func equalDefaultSubscriptions(a, b []service.DefaultSubscriptionSetting) bool {
 	if len(a) != len(b) {
 		return false

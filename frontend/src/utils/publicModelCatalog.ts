@@ -4,6 +4,7 @@ import type {
   PublicModelCatalogPriceDisplay,
   PublicModelCatalogPriceEntry,
   PublicModelCatalogStatus,
+  PublicModelHealthStatus,
 } from "@/api/meta";
 import { formatModelDisplayName } from "@/utils/modelDisplayName";
 
@@ -49,12 +50,29 @@ export function buildPublicModelCatalogDisplayItem(
       normalizedSubtitle,
       item.display_name,
       item.model,
-      ...(item.source_ids || []),
+      ...(item.modalities || []),
+      ...(item.capabilities || []),
     ]
       .filter(Boolean)
       .join("\n")
       .toLowerCase(),
   };
+}
+
+export function publicModelHealthLabel(
+  t: Translate,
+  status?: PublicModelHealthStatus,
+): string {
+  switch (status) {
+    case "healthy":
+      return t("ui.modelCatalog.health.healthy");
+    case "warning":
+      return t("ui.modelCatalog.health.warning");
+    case "error":
+      return t("ui.modelCatalog.health.error");
+    default:
+      return t("ui.modelCatalog.health.pending");
+  }
 }
 
 export function resolvePublicModelTitle(item: PublicModelCatalogItem): string {

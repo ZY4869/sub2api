@@ -287,14 +287,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { useAppStore } from "@/stores/app";
 import { useAuthStore } from "@/stores/auth";
 import { useModelInventoryStore } from "@/stores";
 import { invalidateModelRegistry } from "@/stores/modelRegistry";
-import { userAPI } from "@/api";
 import { adminAPI } from "@/api/admin";
 import { useAccountStatusSummary } from "@/composables/useAccountStatusSummary";
 import { useAccountActionMenu } from "@/composables/useAccountActionMenu";
@@ -318,16 +317,16 @@ import AccountDaily5HTriggerSettingsDialog from "@/components/admin/account/Acco
 import AccountsViewDialogsHost from "@/components/admin/account/AccountsViewDialogsHost.vue";
 import AccountsViewTable from "@/components/admin/account/AccountsViewTable.vue";
 import AccountsViewToolbar from "@/components/admin/account/AccountsViewToolbar.vue";
-import type { SelectOption } from "@/components/common/Select.vue";
-import type {
-  AccountModelDiagnosticsResponse,
-  BulkUpdateAccountsFilters,
-  BlacklistFeedbackPayload,
-} from "@/api/admin/accounts";
+import { useAccountsColumnPreferences } from './accounts/useAccountsColumnPreferences';
+import { useAccountsColumns } from './accounts/useAccountsColumns';
+import { useAccountsDaily5HTrigger } from './accounts/useAccountsDaily5HTrigger';
+import { useAccountsEditActions } from './accounts/useAccountsEditActions';
+import { useAccountsBulkActions } from './accounts/useAccountsBulkActions';
+import { useAccountsRowActions } from './accounts/useAccountsRowActions';
+import { useAccountsDialogState } from './accounts/useAccountsDialogState';
+import { useAccountsDataActions } from './accounts/useAccountsDataActions';
 import {
   canAccountFetchUsage,
-  invalidateAccountUsagePresentationCache,
-  refreshAccountUsagePresentation,
   resolveActualUsageRefreshLoadOptions,
 } from "@/composables/useAccountUsagePresentation";
 import { useModelImportExposureSync } from "@/composables/useModelImportExposureSync";
@@ -343,15 +342,9 @@ import type {
   Account,
   AccountRateLimitReason,
   AccountPlatform,
-  AccountPlatformCountSortOrder,
   AccountRuntimeView,
-  AccountType,
   Proxy as AccountProxy,
   AdminGroup,
-  ClaudeModel,
-  ToastDetailItem,
-  AccountDaily5HTriggerSettings,
-  AccountDaily5HTriggerSettingsView,
 } from "@/types";
 
 type ActualUsageRefreshSummary = {
@@ -398,185 +391,22 @@ const groups = ref<AdminGroup[]>([]);
 const accountTableRef = ref<HTMLElement | null>(null);
 const importingModelsAccountId = ref<number | null>(null);
 const { viewMode, groupViewEnabled } = useAccountViewMode();
-const selPlatforms = computed<AccountPlatform[]>(() => {
-  const platforms = new Set(
-    accounts.value.filter((a) => isSelected(a.id)).map((a) => a.platform),
-  );
-  return [...platforms];
-});
-const selTypes = computed<AccountType[]>(() => {
-  const types = new Set(
-    accounts.value.filter((a) => isSelected(a.id)).map((a) => a.type),
-  );
-  return [...types];
-});
-const showCreate = ref(false);
-const showArchiveSelected = ref(false);
-const showEdit = ref(false);
-const editLoading = ref(false);
-const showSync = ref(false);
-const showImportData = ref(false);
-const showExportDataDialog = ref(false);
-const includeProxyOnExport = ref(true);
-const showBulkEdit = ref(false);
-const bulkEditFilters = ref<BulkUpdateAccountsFilters | null>(null);
-const bulkEditFiltersTotal = ref<number | null>(null);
-const bulkEditSelectedPlatforms = computed<AccountPlatform[]>(() => {
-  const platform = String(bulkEditFilters.value?.platform || "").trim();
-  if (platform) {
-    return [platform as AccountPlatform];
-  }
-  return selPlatforms.value;
-});
-const bulkEditSelectedTypes = computed<AccountType[]>(() => {
-  const type = String(bulkEditFilters.value?.type || "").trim();
-  if (type) {
-    return [type as AccountType];
-  }
-  return selTypes.value;
-});
-const showTempUnsched = ref(false);
-const showDeleteDialog = ref(false);
-const showReAuth = ref(false);
-const showTest = ref(false);
-const showBatchTest = ref(false);
-const showStats = ref(false);
-const showModelDiagnostics = ref(false);
-const showErrorPassthrough = ref(false);
-const showTLSFingerprintProfiles = ref(false);
-const showDaily5HTriggerSettings = ref(false);
-const edAcc = ref<Account | null>(null);
-const tempUnschedAcc = ref<Account | null>(null);
-const deletingAcc = ref<Account | null>(null);
-const reAuthAcc = ref<Account | null>(null);
-const testingAcc = ref<Account | null>(null);
-const batchTestAccounts = ref<Account[]>([]);
-const batchTestDefaultTestMode = ref<"real_forward" | "health_check">(
-  "health_check",
-);
-const batchTestDefaultModelStrategy = ref<"auto" | "specified">("auto");
-const statsAcc = ref<Account | null>(null);
-const diagnosticsAccount = ref<Account | null>(null);
-const diagnosticsResult = ref<AccountModelDiagnosticsResponse | null>(null);
-const diagnosticsLoading = ref(false);
-const showSchedulePanel = ref(false);
-const scheduleAcc = ref<Account | null>(null);
-const scheduleModelOptions = ref<SelectOption[]>([]);
-const activeEditRequestToken = ref(0);
-let activeEditAbortController: AbortController | null = null;
-const togglingSchedulable = ref<number | null>(null);
-const exportingData = ref(false);
-const usageManualRefreshToken = ref(0);
-const usageRefreshing = ref(false);
-const daily5HTriggerSettingsLoading = ref(false);
-const daily5HTriggerSettingsSaving = ref(false);
-const archivedPanelRefreshToken = ref(0);
 const { menu, openMenu, closeMenu, syncMenuAccount, clearMenuAccount } =
   useAccountActionMenu();
 
-// Column settings
-const hiddenColumns = reactive<Set<string>>(new Set());
-const DEFAULT_HIDDEN_COLUMNS = [
-  "today_stats",
-  "proxy",
-  "notes",
-  "priority",
-  "rate_multiplier",
-];
-const HIDDEN_COLUMNS_KEY = "account-hidden-columns";
-
-// Sorting settings
-const ACCOUNT_SORT_STORAGE_KEY = "account-table-sort";
-const HIDE_LIMITED_ACCOUNTS_STORAGE_KEY =
-  "account-always-hide-limited-accounts";
-const PLATFORM_COUNT_SORT_ORDER_STORAGE_KEY =
-  "account-platform-count-sort-order";
-const loadHideLimitedPreference = () => {
-  if (typeof window === "undefined") {
-    return true;
-  }
-  try {
-    const saved = localStorage.getItem(HIDE_LIMITED_ACCOUNTS_STORAGE_KEY);
-    return saved === "true";
-  } catch (error) {
-    console.error("Failed to load limited accounts visibility:", error);
-    return false;
-  }
-};
-
-const saveHideLimitedPreference = (value: boolean) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-  try {
-    localStorage.setItem(HIDE_LIMITED_ACCOUNTS_STORAGE_KEY, String(value));
-  } catch (error) {
-    console.error("Failed to save limited accounts visibility:", error);
-  }
-};
-
-const loadPlatformCountSortOrderPreference =
-  (): AccountPlatformCountSortOrder => {
-    if (typeof window === "undefined") {
-      return "count_asc";
-    }
-    try {
-      const saved = localStorage.getItem(PLATFORM_COUNT_SORT_ORDER_STORAGE_KEY);
-      return saved === "count_desc" ? "count_desc" : "count_asc";
-    } catch (error) {
-      console.error("Failed to load platform count sort order:", error);
-      return "count_asc";
-    }
-  };
-
-const savePlatformCountSortOrderPreference = (
-  value: AccountPlatformCountSortOrder,
-) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-  try {
-    localStorage.setItem(PLATFORM_COUNT_SORT_ORDER_STORAGE_KEY, value);
-  } catch (error) {
-    console.error("Failed to save platform count sort order:", error);
-  }
-};
-
-const loadSavedColumns = () => {
-  try {
-    const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved) as string[];
-      parsed.forEach((key) => {
-        hiddenColumns.add(key);
-      });
-    } else {
-      DEFAULT_HIDDEN_COLUMNS.forEach((key) => {
-        hiddenColumns.add(key);
-      });
-    }
-  } catch (e) {
-    console.error("Failed to load saved columns:", e);
-    DEFAULT_HIDDEN_COLUMNS.forEach((key) => {
-      hiddenColumns.add(key);
-    });
-  }
-};
-
-const saveColumnsToStorage = () => {
-  try {
-    localStorage.setItem(
-      HIDDEN_COLUMNS_KEY,
-      JSON.stringify([...hiddenColumns]),
-    );
-  } catch (e) {
-    console.error("Failed to save columns:", e);
-  }
-};
-
-if (typeof window !== "undefined") {
-  loadSavedColumns();
-}
+const {
+  hiddenColumns,
+  ACCOUNT_SORT_STORAGE_KEY,
+  hideLimitedAccounts,
+  platformCountSortOrder,
+  handlePlatformCountSortOrderUpdate,
+  saveHideLimitedPreference,
+  loadHideLimitedPreference,
+  toggleColumn,
+} = useAccountsColumnPreferences({
+  getLimitedView: () => !limitedMode.value && String(params.limited_view || ""),
+  refreshTodayStats: () => refreshTodayStats(),
+});
 
 const {
   items: accounts,
@@ -608,23 +438,8 @@ const {
   },
 });
 
-const hideLimitedAccounts = computed(
-  () =>
-    !limitedMode.value && String(params.limited_view || "") === "normal_only",
-);
-const platformCountSortOrder = ref<AccountPlatformCountSortOrder>(
-  loadPlatformCountSortOrderPreference(),
-);
-
 const handleFilterUpdate = (newFilters: Record<string, unknown>) => {
   Object.assign(params, newFilters);
-};
-
-const handlePlatformCountSortOrderUpdate = (
-  value: AccountPlatformCountSortOrder,
-) => {
-  platformCountSortOrder.value = value;
-  savePlatformCountSortOrderPreference(value);
 };
 
 const summaryParams = computed<AccountListRequestParams>(() => ({
@@ -672,6 +487,23 @@ const {
   rows: accounts,
   getId: (account) => account.id,
 });
+
+const {
+  showCreate, showArchiveSelected, showEdit, editLoading, showSync,
+  showImportData, showExportDataDialog, includeProxyOnExport, showBulkEdit,
+  bulkEditFilters, bulkEditFiltersTotal, showTempUnsched, showDeleteDialog,
+  showReAuth, showTest, showBatchTest, showStats, showModelDiagnostics,
+  showErrorPassthrough, showTLSFingerprintProfiles, showDaily5HTriggerSettings,
+  edAcc, tempUnschedAcc, deletingAcc, reAuthAcc, testingAcc,
+  batchTestAccounts, batchTestDefaultTestMode, batchTestDefaultModelStrategy,
+  statsAcc, diagnosticsAccount, diagnosticsResult, diagnosticsLoading,
+  showSchedulePanel, scheduleAcc, scheduleModelOptions, togglingSchedulable,
+  activeEditRequestToken, activeEditAbortController,
+  exportingData, usageManualRefreshToken, usageRefreshing,
+  daily5HTriggerSettingsLoading, daily5HTriggerSettingsSaving,
+  archivedPanelRefreshToken, selPlatforms, bulkEditSelectedPlatforms,
+  bulkEditSelectedTypes,
+} = useAccountsDialogState(accounts, isSelected);
 
 const handleSearchQueryUpdate = (value: string) => {
   params.search = value;
@@ -769,125 +601,18 @@ const {
 const isLiveSyncBlocked = computed(
   () => loading.value || isAnyModalOpen.value || isActionMenuOpen.value,
 );
-const createDefaultDaily5HTriggerSettings =
-  (): AccountDaily5HTriggerSettings => ({
-    enabled: false,
-    selected_account_types: ["chatgpt_oauth"],
-    include_paused_accounts: false,
-    openai_model_mode: { mode: "auto", fixed_model_id: "" },
-    anthropic_model_mode: { mode: "auto", fixed_model_id: "" },
-    gemini_model_mode: { mode: "auto", fixed_model_id: "" },
-  });
-const daily5HTriggerSettingsView = reactive<AccountDaily5HTriggerSettingsView>({
-  settings: createDefaultDaily5HTriggerSettings(),
-  candidates: [],
+const {
+  daily5HTriggerSettingsView,
+  handleToggleDaily5HTrigger,
+  handleSaveDaily5HTriggerSettings,
+  handleOpenDaily5HTriggerSettings,
+  handleToggleAccountRealtimeCountdown,
+  loadDaily5HTriggerSettings,
+  applyDaily5HTriggerSettingsView,
+} = useAccountsDaily5HTrigger({
+  appStore, authStore, t, showDaily5HTriggerSettings,
+  daily5HTriggerSettingsLoading, daily5HTriggerSettingsSaving,
 });
-
-const applyDaily5HTriggerSettingsView = (
-  value?: AccountDaily5HTriggerSettingsView | null,
-) => {
-  daily5HTriggerSettingsView.settings =
-    value?.settings || createDefaultDaily5HTriggerSettings();
-  daily5HTriggerSettingsView.candidates = Array.isArray(value?.candidates)
-    ? value.candidates
-    : [];
-};
-
-const loadDaily5HTriggerSettings = async () => {
-  daily5HTriggerSettingsLoading.value = true;
-  try {
-    const view = await adminAPI.accounts.getDaily5HTriggerSettings();
-    applyDaily5HTriggerSettingsView(view);
-  } catch (error: any) {
-    console.error("Failed to load daily 5H trigger settings:", error);
-    appStore.showError(
-      error?.message || t("admin.accounts.daily5h.loadFailed"),
-    );
-  } finally {
-    daily5HTriggerSettingsLoading.value = false;
-  }
-};
-
-const updateDaily5HTriggerSettings = async (
-  settings: AccountDaily5HTriggerSettings,
-) => {
-  const view = await adminAPI.accounts.updateDaily5HTriggerSettings(settings);
-  applyDaily5HTriggerSettingsView(view);
-};
-
-const handleToggleDaily5HTrigger = async () => {
-  if (daily5HTriggerSettingsLoading.value || daily5HTriggerSettingsSaving.value) {
-    return;
-  }
-  daily5HTriggerSettingsSaving.value = true;
-  try {
-    await updateDaily5HTriggerSettings({
-      ...daily5HTriggerSettingsView.settings,
-      enabled: !daily5HTriggerSettingsView.settings.enabled,
-    });
-    appStore.showSuccess(t("admin.accounts.daily5h.updateSuccess"));
-  } catch (error: any) {
-    console.error("Failed to toggle daily 5H trigger settings:", error);
-    appStore.showError(
-      error?.message || t("admin.accounts.daily5h.updateFailed"),
-    );
-  } finally {
-    daily5HTriggerSettingsSaving.value = false;
-  }
-};
-
-const handleSaveDaily5HTriggerSettings = async (
-  settings: AccountDaily5HTriggerSettings,
-) => {
-  daily5HTriggerSettingsSaving.value = true;
-  try {
-    await updateDaily5HTriggerSettings(settings);
-    showDaily5HTriggerSettings.value = false;
-    appStore.showSuccess(t("admin.accounts.daily5h.updateSuccess"));
-  } catch (error: any) {
-    console.error("Failed to save daily 5H trigger settings:", error);
-    appStore.showError(
-      error?.message || t("admin.accounts.daily5h.updateFailed"),
-    );
-  } finally {
-    daily5HTriggerSettingsSaving.value = false;
-  }
-};
-
-const handleOpenDaily5HTriggerSettings = async () => {
-  showDaily5HTriggerSettings.value = true;
-  if (!daily5HTriggerSettingsLoading.value) {
-    await loadDaily5HTriggerSettings();
-  }
-};
-
-const accountRealtimeCountdownUpdating = ref(false);
-
-const handleToggleAccountRealtimeCountdown = async () => {
-  const currentUser = authStore.user;
-  if (!currentUser || accountRealtimeCountdownUpdating.value) {
-    return;
-  }
-
-  const previousValue = currentUser.account_realtime_countdown_enabled !== false;
-  const nextValue = !previousValue;
-  accountRealtimeCountdownUpdating.value = true;
-  authStore.setAccountRealtimeCountdownEnabled(nextValue);
-
-  try {
-    const updatedUser = await userAPI.updateProfile({
-      account_realtime_countdown_enabled: nextValue,
-    });
-    authStore.setCurrentUser(updatedUser);
-  } catch (error: any) {
-    authStore.setAccountRealtimeCountdownEnabled(previousValue);
-    appStore.showError(
-      error?.message || t("admin.accounts.accountRealtimeCountdownUpdateFailed"),
-    );
-  } finally {
-    accountRealtimeCountdownUpdating.value = false;
-  }
-};
 
 const pendingRuntimeListRefresh = ref(false);
 const runtimeSummaryParams = computed<AccountListRequestParams>(() => ({
@@ -1008,144 +733,9 @@ const handleSyncPendingListChanges = async () => {
   usageManualRefreshToken.value += 1;
 };
 
-const toggleColumn = (key: string) => {
-  const wasHidden = hiddenColumns.has(key);
-  if (hiddenColumns.has(key)) {
-    hiddenColumns.delete(key);
-  } else {
-    hiddenColumns.add(key);
-  }
-  saveColumnsToStorage();
-  if ((key === "today_stats" || key === "usage") && wasHidden) {
-    refreshTodayStats().catch((error) => {
-      console.error(
-        "Failed to load account today stats after showing column:",
-        error,
-      );
-    });
-  }
-};
-
-// All available columns
-const allColumns = computed(() => {
-  const c = [
-    { key: "select", label: "", sortable: false },
-    { key: "name", label: t("admin.accounts.columns.name"), sortable: true },
-    {
-      key: "platform_type",
-      label: t("admin.accounts.columns.platformType"),
-      sortable: false,
-    },
-    {
-      key: "capacity",
-      label: t("admin.accounts.columns.capacity"),
-      sortable: false,
-      class:
-        resolvedAccountVisualPreset.value === "airy"
-          ? "w-[152px] min-w-[152px] max-w-[152px]"
-          : "w-[120px] max-w-[120px]",
-    },
-    {
-      key: "status",
-      label: t("admin.accounts.columns.status"),
-      sortable: true,
-      class:
-        resolvedAccountVisualPreset.value === "airy"
-          ? "w-[320px] min-w-[320px] max-w-[320px]"
-          : "w-[240px] max-w-[240px]",
-    },
-    {
-      key: "schedulable",
-      label: t("admin.accounts.columns.schedulable"),
-      sortable: true,
-    },
-    {
-      key: "today_stats",
-      label: t("admin.accounts.columns.todayStats"),
-      sortable: false,
-    },
-  ];
-  if (!authStore.isSimpleMode) {
-    c.push({
-      key: "groups",
-      label: t("admin.accounts.columns.groups"),
-      sortable: false,
-      class:
-        resolvedAccountVisualPreset.value === "airy"
-          ? "w-[208px] min-w-[208px] max-w-[208px]"
-          : undefined,
-    });
-  }
-  c.push(
-    {
-      key: "usage",
-      label: t("admin.accounts.columns.usageWindows"),
-      sortable: false,
-    },
-    {
-      key: "usage_reset_dates",
-      label: t("admin.accounts.columns.usageResetDates"),
-      sortable: false,
-    },
-    { key: "proxy", label: t("admin.accounts.columns.proxy"), sortable: false },
-    {
-      key: "priority",
-      label: t("admin.accounts.columns.priority"),
-      sortable: true,
-    },
-    {
-      key: "rate_multiplier",
-      label: t("admin.accounts.columns.billingRateMultiplier"),
-      sortable: true,
-    },
-    {
-      key: "last_used_at",
-      label: t("admin.accounts.columns.lastUsed"),
-      sortable: true,
-    },
-    {
-      key: "expires_at",
-      label: t("admin.accounts.columns.expiresAt"),
-      sortable: true,
-    },
-    { key: "notes", label: t("admin.accounts.columns.notes"), sortable: false },
-    {
-      key: "actions",
-      label: t("admin.accounts.columns.actions"),
-      sortable: false,
-    },
-  );
-  return c;
+const { toggleableColumns, cols } = useAccountsColumns({
+  t, authStore, hiddenColumns, resolvedAccountVisualPreset,
 });
-
-// Columns that can be toggled (exclude select, name, and actions)
-const toggleableColumns = computed(() =>
-  allColumns.value
-    .filter(
-      (col) =>
-        col.key !== "select" && col.key !== "name" && col.key !== "actions",
-    )
-    .map((col) => ({
-      key: col.key,
-      label: col.label,
-      visible: !hiddenColumns.has(col.key),
-    })),
-);
-
-// Filtered columns based on visibility
-const cols = computed(() =>
-  allColumns.value.filter(
-    (col) =>
-      resolvedAccountVisualPreset.value !== "airy" ||
-      col.key !== "schedulable",
-  ).filter(
-    (col) =>
-      col.key === "select" ||
-      col.key === "name" ||
-      col.key === "actions" ||
-      !hiddenColumns.has(col.key),
-  ),
-);
 const { patchAccountInList } = useAccountsViewListPatching({
   accounts,
   params,
@@ -1169,66 +759,10 @@ const refreshAccountSummarySafe = () => {
   });
 };
 
-const isEditDetailAbortError = (error: unknown) => {
-  const maybeError = error as { name?: string; code?: string } | null;
-  return (
-    maybeError?.name === "AbortError" ||
-    maybeError?.name === "CanceledError" ||
-    maybeError?.code === "ERR_CANCELED"
-  );
-};
-
-const handleCloseEdit = () => {
-  activeEditRequestToken.value += 1;
-  activeEditAbortController?.abort();
-  activeEditAbortController = null;
-  editLoading.value = false;
-  showEdit.value = false;
-  edAcc.value = null;
-};
-const handleEdit = async (a: Account) => {
-  activeEditAbortController?.abort();
-  const currentAbortController = new AbortController();
-  activeEditAbortController = currentAbortController;
-  const requestToken = activeEditRequestToken.value + 1;
-  activeEditRequestToken.value = requestToken;
-  editLoading.value = true;
-  edAcc.value = null;
-  showEdit.value = true;
-
-  try {
-    const detail = await adminAPI.accounts.getById(a.id, {
-      signal: currentAbortController.signal,
-    });
-    if (
-      currentAbortController.signal.aborted ||
-      activeEditRequestToken.value !== requestToken ||
-      !showEdit.value
-    ) {
-      return;
-    }
-    edAcc.value = detail;
-  } catch (error: any) {
-    if (
-      currentAbortController.signal.aborted ||
-      activeEditRequestToken.value !== requestToken ||
-      isEditDetailAbortError(error)
-    ) {
-      return;
-    }
-    console.error("Failed to load account detail for edit:", error);
-    handleCloseEdit();
-    appStore.showError(error?.message || t("common.error"));
-    return;
-  } finally {
-    if (activeEditAbortController === currentAbortController) {
-      activeEditAbortController = null;
-    }
-    if (activeEditRequestToken.value === requestToken) {
-      editLoading.value = false;
-    }
-  }
-};
+const { handleCloseEdit, handleEdit } = useAccountsEditActions({
+  adminAPI, appStore, t, edAcc, showEdit, editLoading, activeEditRequestToken,
+  activeEditAbortController,
+});
 const handleOpenMenu = ({
   account,
   event,
@@ -1323,417 +857,27 @@ const openLimitedAccountsPage = () => {
 const showStandalonePagination = computed(
   () => groupViewEnabled.value || viewMode.value === "card",
 );
-const handleBulkDelete = async () => {
-  if (!confirm(t("common.confirm"))) return;
-  try {
-    await Promise.all(selIds.value.map((id) => adminAPI.accounts.delete(id)));
-    clearSelection();
-    reload();
-  } catch (error) {
-    console.error("Failed to bulk delete accounts:", error);
-  }
-};
-const openArchiveSelectedModal = () => {
-  if (selIds.value.length === 0) {
-    return;
-  }
-  if (selPlatforms.value.length !== 1) {
-    appStore.showWarning(
-      t("admin.accounts.bulkActions.archiveMixedPlatformDisabled"),
-    );
-    return;
-  }
-  showArchiveSelected.value = true;
-};
-
-const toOptionalString = (value: unknown) => {
-  const v = String(value || "").trim();
-  return v ? v : undefined;
-};
-
-const buildBulkEditFiltersFromParams = (): BulkUpdateAccountsFilters => ({
-  platform: toOptionalString(params.platform),
-  type: toOptionalString(params.type),
-  status: toOptionalString(params.status),
-  group: toOptionalString(params.group),
-  search: toOptionalString(params.search),
-  lifecycle: toOptionalString(params.lifecycle),
-  privacy_mode: toOptionalString(params.privacy_mode),
-  limited_view: toOptionalString(params.limited_view),
-  limited_reason: toOptionalString(params.limited_reason),
-  runtime_view: toOptionalString(params.runtime_view),
+const {
+  handleBulkDelete, openArchiveSelectedModal, openBulkEditSelectedModal, openBulkEditFilteredModal, closeBulkEditModal,
+  openBatchTestModal, handleOpenBatchTestForSelection, handleRefreshActualUsage, handleBulkResetStatus,
+  handleBulkRefreshToken, updateSchedulableInList, handleBulkToggleSchedulable,
+} = useAccountsBulkActions({
+  t, appStore, adminAPI, accounts, params, pagination, selIds, selPlatforms,
+  bulkEditFilters, bulkEditFiltersTotal, showBulkEdit, showArchiveSelected,
+  showBatchTest, batchTestAccounts, batchTestDefaultTestMode, batchTestDefaultModelStrategy,
+  usageRefreshing, clearSelection, reload, load, setSelectedIds, refreshAccountSummarySafe,
+  usageManualRefreshToken, canAccountFetchUsage, resolveActualUsageRefreshLoadOptions,
 });
-
-const openBulkEditSelectedModal = () => {
-  bulkEditFilters.value = null;
-  bulkEditFiltersTotal.value = null;
-  showBulkEdit.value = true;
-};
-
-const openBulkEditFilteredModal = () => {
-  if (pagination.total <= 0) {
-    appStore.showWarning(t("admin.accounts.bulkEdit.noFilteredTargets"));
-    return;
-  }
-  bulkEditFilters.value = buildBulkEditFiltersFromParams();
-  bulkEditFiltersTotal.value = pagination.total;
-  showBulkEdit.value = true;
-};
-
-const closeBulkEditModal = () => {
-  showBulkEdit.value = false;
-  bulkEditFilters.value = null;
-  bulkEditFiltersTotal.value = null;
-};
-const resolveAccountsByID = (accountIDs: number[]) => {
-  if (accountIDs.length === 0) {
-    return [] as Account[];
-  }
-  const accountByID = new Map(
-    accounts.value.map((account) => [account.id, account]),
-  );
-  return accountIDs
-    .map((accountID) => accountByID.get(accountID))
-    .filter((account): account is Account => Boolean(account));
-};
-const openBatchTestModal = (
-  targetAccounts: Account[],
-  options: {
-    testMode?: "real_forward" | "health_check";
-    modelStrategy?: "auto" | "specified";
-  } = {},
-) => {
-  if (targetAccounts.length === 0) {
-    appStore.showWarning(t("admin.accounts.batchTest.noTargets"));
-    return;
-  }
-  batchTestAccounts.value = targetAccounts;
-  batchTestDefaultTestMode.value = options.testMode ?? "health_check";
-  batchTestDefaultModelStrategy.value = options.modelStrategy ?? "auto";
-  showBatchTest.value = true;
-};
-const handleOpenBatchTestForSelection = () => {
-  openBatchTestModal(resolveAccountsByID(selIds.value), {
-    testMode: "health_check",
-    modelStrategy: "auto",
-  });
-};
-const handleRefreshActualUsage = async () => {
-  if (usageRefreshing.value) return;
-
-  const visibleAccounts = accounts.value.filter(canAccountFetchUsage);
-  if (visibleAccounts.length === 0) {
-    appStore.showWarning(t("admin.accounts.refreshActualUsageNoAccounts"));
-    return;
-  }
-
-  usageRefreshing.value = true;
-  invalidateAccountUsagePresentationCache(
-    visibleAccounts.map((account) => account.id),
-  );
-
-  try {
-    const result = await refreshAccountUsagePresentation(visibleAccounts, {
-      force: true,
-      concurrency: 4,
-      resolveLoadOptions: resolveActualUsageRefreshLoadOptions,
-    });
-    const toastDetails: ToastDetailItem[] = [];
-    if (result.activeSuccess > 0) {
-      toastDetails.push({
-        text: t("admin.accounts.refreshActualUsageDetailActive", {
-          count: result.activeSuccess,
-        }),
-        tone: "success",
-      });
-    }
-    if (result.fallbackSuccess > 0) {
-      toastDetails.push({
-        text: t("admin.accounts.refreshActualUsageDetailFallback", {
-          count: result.fallbackSuccess,
-        }),
-        tone: "warning",
-      });
-    }
-    if (result.failed > 0) {
-      toastDetails.push({
-        text: t("admin.accounts.refreshActualUsageDetailFailed", {
-          count: result.failed,
-        }),
-        tone: "error",
-      });
-    }
-
-    if (result.failed > 0 && result.success > 0) {
-      appStore.showWarning(
-        t("admin.accounts.refreshActualUsagePartial", {
-          success: result.success,
-          failed: result.failed,
-          live: result.activeSuccess,
-          fallback: result.fallbackSuccess,
-        }),
-        { details: toastDetails },
-      );
-      return;
-    }
-
-    if (result.failed > 0) {
-      appStore.showError(
-        t("admin.accounts.refreshActualUsageFailedCount", {
-          failed: result.failed,
-        }),
-        { details: toastDetails },
-      );
-      return;
-    }
-
-    appStore.showSuccess(
-      t("admin.accounts.refreshActualUsageSuccess", {
-        count: result.success,
-        live: result.activeSuccess,
-        fallback: result.fallbackSuccess,
-      }),
-      { details: toastDetails },
-    );
-  } catch (error: any) {
-    console.error("Failed to refresh actual account usage:", error);
-    appStore.showError(
-      error?.message || t("admin.accounts.refreshActualUsageFailed"),
-    );
-  } finally {
-    usageRefreshing.value = false;
-  }
-};
-const handleBulkResetStatus = async () => {
-  if (!confirm(t("common.confirm"))) return;
-  try {
-    const result = await adminAPI.accounts.batchClearError(selIds.value);
-    if (result.failed > 0) {
-      appStore.showError(
-        t("admin.accounts.bulkActions.partialSuccess", {
-          success: result.success,
-          failed: result.failed,
-        }),
-      );
-    } else {
-      appStore.showSuccess(
-        t("admin.accounts.bulkActions.resetStatusSuccess", {
-          count: result.success,
-        }),
-      );
-      clearSelection();
-    }
-    reload();
-  } catch (error) {
-    console.error("Failed to bulk reset status:", error);
-    appStore.showError(String(error));
-  }
-};
-const handleBulkRefreshToken = async () => {
-  if (!confirm(t("common.confirm"))) return;
-  try {
-    const result = await adminAPI.accounts.batchRefresh(selIds.value);
-    if (result.failed > 0) {
-      appStore.showError(
-        t("admin.accounts.bulkActions.partialSuccess", {
-          success: result.success,
-          failed: result.failed,
-        }),
-      );
-    } else {
-      appStore.showSuccess(
-        t("admin.accounts.bulkActions.refreshTokenSuccess", {
-          count: result.success,
-        }),
-      );
-      clearSelection();
-    }
-    reload();
-  } catch (error) {
-    console.error("Failed to bulk refresh token:", error);
-    appStore.showError(String(error));
-  }
-};
-const updateSchedulableInList = (
-  accountIds: number[],
-  schedulable: boolean,
-) => {
-  if (accountIds.length === 0) return;
-  const idSet = new Set(accountIds);
-  accounts.value = accounts.value.map((account) =>
-    idSet.has(account.id) ? { ...account, schedulable } : account,
-  );
-};
-const normalizeBulkSchedulableResult = (
-  result: {
-    success?: number;
-    failed?: number;
-    success_ids?: number[];
-    failed_ids?: number[];
-    results?: Array<{ account_id: number; success: boolean }>;
-  },
-  accountIds: number[],
-) => {
-  const responseSuccessIds = Array.isArray(result.success_ids)
-    ? result.success_ids
-    : [];
-  const responseFailedIds = Array.isArray(result.failed_ids)
-    ? result.failed_ids
-    : [];
-  if (responseSuccessIds.length > 0 || responseFailedIds.length > 0) {
-    return {
-      successIds: responseSuccessIds,
-      failedIds: responseFailedIds,
-      successCount:
-        typeof result.success === "number"
-          ? result.success
-          : responseSuccessIds.length,
-      failedCount:
-        typeof result.failed === "number"
-          ? result.failed
-          : responseFailedIds.length,
-      hasIds: true,
-      hasCounts: true,
-    };
-  }
-
-  const results = Array.isArray(result.results) ? result.results : [];
-  if (results.length > 0) {
-    const successIds = results
-      .filter((item) => item.success)
-      .map((item) => item.account_id);
-    const failedIds = results
-      .filter((item) => !item.success)
-      .map((item) => item.account_id);
-    return {
-      successIds,
-      failedIds,
-      successCount:
-        typeof result.success === "number" ? result.success : successIds.length,
-      failedCount:
-        typeof result.failed === "number" ? result.failed : failedIds.length,
-      hasIds: true,
-      hasCounts: true,
-    };
-  }
-
-  const hasExplicitCounts =
-    typeof result.success === "number" || typeof result.failed === "number";
-  const successCount = typeof result.success === "number" ? result.success : 0;
-  const failedCount = typeof result.failed === "number" ? result.failed : 0;
-  if (
-    hasExplicitCounts &&
-    failedCount === 0 &&
-    successCount === accountIds.length &&
-    accountIds.length > 0
-  ) {
-    return {
-      successIds: accountIds,
-      failedIds: [],
-      successCount,
-      failedCount,
-      hasIds: true,
-      hasCounts: true,
-    };
-  }
-
-  return {
-    successIds: [],
-    failedIds: [],
-    successCount,
-    failedCount,
-    hasIds: false,
-    hasCounts: hasExplicitCounts,
-  };
-};
-
-const refreshGroups = async () => {
-  try {
-    groups.value = await adminAPI.groups.getAll();
-  } catch (error) {
-    console.error("Failed to refresh groups:", error);
-  }
-};
 
 const refreshListAndArchivedPanel = async () => {
   refreshArchivedPanel();
   await reload();
 };
 
-const handleReloadRequested = async () => {
-  await refreshListAndArchivedPanel();
-};
-
-const handleBulkToggleSchedulable = async (schedulable: boolean) => {
-  const accountIds = [...selIds.value];
-  try {
-    const result = await adminAPI.accounts.bulkUpdate(accountIds, {
-      schedulable,
-    });
-    const {
-      successIds,
-      failedIds,
-      successCount,
-      failedCount,
-      hasIds,
-      hasCounts,
-    } = normalizeBulkSchedulableResult(result, accountIds);
-    if (!hasIds && !hasCounts) {
-      appStore.showError(t("admin.accounts.bulkSchedulableResultUnknown"));
-      setSelectedIds(accountIds);
-      load().catch((error) => {
-        console.error("Failed to refresh accounts:", error);
-      });
-      return;
-    }
-    if (successIds.length > 0) {
-      updateSchedulableInList(successIds, schedulable);
-    }
-    if (successCount > 0 && failedCount === 0) {
-      const message = schedulable
-        ? t("admin.accounts.bulkSchedulableEnabled", { count: successCount })
-        : t("admin.accounts.bulkSchedulableDisabled", { count: successCount });
-      appStore.showSuccess(message);
-    }
-    if (failedCount > 0) {
-      const message =
-        hasCounts || hasIds
-          ? t("admin.accounts.bulkSchedulablePartial", {
-              success: successCount,
-              failed: failedCount,
-            })
-          : t("admin.accounts.bulkSchedulableResultUnknown");
-      appStore.showError(message);
-      setSelectedIds(failedIds.length > 0 ? failedIds : accountIds);
-    } else {
-      if (hasIds) clearSelection();
-      else setSelectedIds(accountIds);
-    }
-    refreshAccountSummarySafe();
-  } catch (error) {
-    console.error("Failed to bulk toggle schedulable:", error);
-    appStore.showError(t("common.error"));
-  }
-};
 const handleBulkUpdated = () => {
   closeBulkEditModal();
   clearSelection();
   reload();
-};
-const handleDataImported = async () => {
-  showImportData.value = false;
-  await refreshGroups();
-  await refreshListAndArchivedPanel();
-};
-const handleCreated = async () => {
-  showCreate.value = false;
-  await reload();
-};
-const handleArchivedAccounts = async () => {
-  showArchiveSelected.value = false;
-  clearSelection();
-  await refreshGroups();
-  await refreshListAndArchivedPanel();
 };
 const handleAccountUpdated = (updatedAccount: Account) => {
   const editedArchived =
@@ -1750,384 +894,28 @@ const handleAccountUpdated = (updatedAccount: Account) => {
     refreshArchivedPanel();
   }
 };
-const formatExportTimestamp = () => {
-  const now = new Date();
-  const pad2 = (value: number) => String(value).padStart(2, "0");
-  return `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
-};
-const openExportDataDialog = () => {
-  includeProxyOnExport.value = true;
-  showExportDataDialog.value = true;
-};
-const handleExportData = async () => {
-  if (exportingData.value) return;
-  exportingData.value = true;
-  try {
-    const dataPayload = await adminAPI.accounts.exportData(
-      selIds.value.length > 0
-        ? { ids: selIds.value, includeProxies: includeProxyOnExport.value }
-        : {
-            includeProxies: includeProxyOnExport.value,
-            filters: {
-              platform: params.platform,
-              type: params.type,
-              status: params.status,
-              search: params.search,
-            },
-          },
-    );
-    const timestamp = formatExportTimestamp();
-    const filename = `sub2api-account-${timestamp}.json`;
-    const blob = new Blob([JSON.stringify(dataPayload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-    appStore.showSuccess(t("admin.accounts.dataExported"));
-  } catch (error: any) {
-    appStore.showError(error?.message || t("admin.accounts.dataExportFailed"));
-  } finally {
-    exportingData.value = false;
-    showExportDataDialog.value = false;
-  }
-};
-const closeTestModal = async () => {
-  showTest.value = false;
-  testingAcc.value = null;
-  await refreshListAndArchivedPanel();
-};
-const closeBatchTestModal = async () => {
-  showBatchTest.value = false;
-  batchTestAccounts.value = [];
-  batchTestDefaultTestMode.value = "health_check";
-  batchTestDefaultModelStrategy.value = "auto";
-  await refreshListAndArchivedPanel();
-};
-const closeStatsModal = () => {
-  showStats.value = false;
-  statsAcc.value = null;
-};
-const closeModelDiagnostics = () => {
-  showModelDiagnostics.value = false;
-  diagnosticsAccount.value = null;
-  diagnosticsResult.value = null;
-  diagnosticsLoading.value = false;
-};
-const closeReAuthModal = () => {
-  showReAuth.value = false;
-  reAuthAcc.value = null;
-};
-const handleTest = (a: Account) => {
-  testingAcc.value = a;
-  showTest.value = true;
-};
-const handleQuickTest = (a: Account) => {
-  openBatchTestModal([a], {
-    testMode: "health_check",
-    modelStrategy: "auto",
-  });
-};
-const handleBatchTestCompleted = async () => {
-  await refreshListAndArchivedPanel();
-};
-const handleViewStats = (a: Account) => {
-  statsAcc.value = a;
-  showStats.value = true;
-};
-const handleDiagnoseModels = async (a: Account) => {
-  const sameAccount = diagnosticsAccount.value?.id === a.id;
-  diagnosticsAccount.value = a;
-  showModelDiagnostics.value = true;
-  if (!sameAccount) {
-    diagnosticsResult.value = null;
-  }
-  diagnosticsLoading.value = true;
-  try {
-    diagnosticsResult.value = await adminAPI.accounts.diagnoseAccountModels(
-      a.id,
-    );
-  } catch (error: any) {
-    console.error("Failed to diagnose account model exposure:", error);
-    appStore.showError(
-      error?.message || t("admin.accounts.modelDiagnostics.failed"),
-    );
-  } finally {
-    diagnosticsLoading.value = false;
-  }
-};
-const refreshModelDiagnostics = async () => {
-  if (!diagnosticsAccount.value) {
-    return;
-  }
-  diagnosticsLoading.value = true;
-  try {
-    diagnosticsResult.value = await adminAPI.accounts.diagnoseAccountModels(
-      diagnosticsAccount.value.id,
-      { refresh: true },
-    );
-  } catch (error: any) {
-    console.error(
-      "Failed to refresh account model exposure diagnostics:",
-      error,
-    );
-    appStore.showError(
-      error?.message || t("admin.accounts.modelDiagnostics.failed"),
-    );
-  } finally {
-    diagnosticsLoading.value = false;
-  }
-};
-const scheduleSourceProtocolLabel = (sourceProtocol?: string) => {
-  switch (String(sourceProtocol || "").trim()) {
-    case "openai":
-      return t("admin.accounts.protocolGateway.protocolOptions.openai");
-    case "anthropic":
-      return t("admin.accounts.protocolGateway.protocolOptions.anthropic");
-    case "gemini":
-      return t("admin.accounts.protocolGateway.protocolOptions.gemini");
-    default:
-      return "";
-  }
-};
-const handleSchedule = async (a: Account) => {
-  scheduleAcc.value = a;
-  scheduleModelOptions.value = [];
-  showSchedulePanel.value = true;
-  try {
-    const models = await adminAPI.accounts.getAvailableModels(a.id);
-    scheduleModelOptions.value = models.map((m: ClaudeModel) => {
-      const sourceProtocol = String(m.source_protocol || "").trim();
-      const protocolLabel = scheduleSourceProtocolLabel(sourceProtocol);
-      const displayName = buildProviderDisplayName({
-        provider: m.provider,
-        providerLabel: m.provider_label,
-        displayName: m.display_name,
-        fallbackId: m.id,
-      });
-      return {
-        value: `${sourceProtocol || "default"}::${m.id}`,
-        label: protocolLabel
-          ? `${displayName} · ${protocolLabel}`
-          : displayName,
-        model_id: m.id,
-        source_protocol: sourceProtocol || undefined,
-      };
-    });
-  } catch {
-    scheduleModelOptions.value = [];
-  }
-};
-const closeSchedulePanel = () => {
-  showSchedulePanel.value = false;
-  scheduleAcc.value = null;
-  scheduleModelOptions.value = [];
-};
-const handleReAuth = (a: Account) => {
-  reAuthAcc.value = a;
-  showReAuth.value = true;
-};
-const handleRefresh = async (a: Account) => {
-  try {
-    const updated = await adminAPI.accounts.refreshCredentials(a.id);
-    patchAccountInList(updated);
-    refreshAccountSummarySafe();
-    enterAutoRefreshSilentWindow();
-    if (
-      a.lifecycle_state === "archived" ||
-      updated.lifecycle_state === "archived"
-    ) {
-      refreshArchivedPanel();
-    }
-  } catch (error) {
-    console.error("Failed to refresh credentials:", error);
-  }
-};
-const handleSetPrivacy = async (a: Account) => {
-  try {
-    const updated = await adminAPI.accounts.setPrivacy(a.id);
-    patchAccountInList(updated);
-    refreshAccountSummarySafe();
-    enterAutoRefreshSilentWindow();
-    appStore.showSuccess(t("admin.accounts.setPrivacySuccess"));
-  } catch (error: any) {
-    console.error("Failed to set privacy:", error);
-    appStore.showError(error?.message || t("admin.accounts.setPrivacyFailed"));
-  }
-};
-const handleRecoverState = async (a: Account) => {
-  try {
-    const updated = await adminAPI.accounts.recoverState(a.id);
-    patchAccountInList(updated);
-    refreshAccountSummarySafe();
-    enterAutoRefreshSilentWindow();
-    if (
-      a.lifecycle_state === "archived" ||
-      updated.lifecycle_state === "archived"
-    ) {
-      refreshArchivedPanel();
-    }
-    appStore.showSuccess(t("admin.accounts.recoverStateSuccess"));
-  } catch (error: any) {
-    console.error("Failed to recover account state:", error);
-    appStore.showError(
-      error?.message || t("admin.accounts.recoverStateFailed"),
-    );
-  }
-};
-const handleImportModels = async (
-  a: Account,
-  trigger: "manual" | "create" = "manual",
-) => {
-  if (importingModelsAccountId.value === a.id) {
-    return;
-  }
-  importingModelsAccountId.value = a.id;
-  appStore.showInfo(t("admin.accounts.probingModels"));
-  try {
-    const result = await adminAPI.accounts.importModels(a.id, { trigger });
-    const toastPayload = buildAccountModelImportToastPayload(t, result);
-    if (toastPayload.type === "error") {
-      appStore.showError(toastPayload.message, toastPayload.options);
-    } else if (toastPayload.type === "warning") {
-      appStore.showWarning(toastPayload.message, toastPayload.options);
-    } else {
-      appStore.showSuccess(toastPayload.message, toastPayload.options);
-    }
-    if (shouldInvalidateModelInventory(result)) {
-      invalidateModelRegistry();
-      modelInventoryStore.invalidate();
-    }
-    handleImportedModels(result);
-    return result;
-  } catch (error: any) {
-    console.error("Failed to import models for account:", error);
-    appStore.showError(resolveAccountModelImportErrorMessage(t, error));
-    return null;
-  } finally {
-    importingModelsAccountId.value = null;
-  }
-};
-
-const handleResetQuota = async (a: Account) => {
-  try {
-    const updated = await adminAPI.accounts.resetAccountQuota(a.id);
-    patchAccountInList(updated);
-    refreshAccountSummarySafe();
-    enterAutoRefreshSilentWindow();
-    if (
-      a.lifecycle_state === "archived" ||
-      updated.lifecycle_state === "archived"
-    ) {
-      refreshArchivedPanel();
-    }
-    appStore.showSuccess(t("common.success"));
-  } catch (error) {
-    console.error("Failed to reset quota:", error);
-  }
-};
-const handleBlacklistAccount = async (a: Account) => {
-  if (
-    !window.confirm(t("admin.accounts.blacklist.addConfirm", { name: a.name }))
-  ) {
-    return;
-  }
-  try {
-    const updated = await adminAPI.accounts.blacklist(a.id);
-    patchAccountInList(updated);
-    refreshAccountSummarySafe();
-    enterAutoRefreshSilentWindow();
-    appStore.showSuccess(t("admin.accounts.blacklist.addSuccess"));
-  } catch (error: any) {
-    console.error("Failed to blacklist account:", error);
-    appStore.showError(
-      error?.message || t("admin.accounts.blacklist.addFailed"),
-    );
-  }
-};
-const handleTestBlacklistAccount = async (payload: {
-  account: Account;
-  source: "test_modal";
-  feedback?: BlacklistFeedbackPayload;
-}) => {
-  try {
-    const updated = await adminAPI.accounts.blacklist(payload.account.id, {
-      source: payload.source,
-      feedback: payload.feedback,
-    });
-    patchAccountInList(updated);
-    refreshAccountSummarySafe();
-    enterAutoRefreshSilentWindow();
-    appStore.showSuccess(t("admin.accounts.blacklist.addSuccess"));
-    await closeTestModal();
-  } catch (error: any) {
-    console.error("Failed to blacklist account from test modal:", error);
-    appStore.showError(
-      error?.message || t("admin.accounts.blacklist.addFailed"),
-    );
-  }
-};
-const handleDelete = (a: Account) => {
-  deletingAcc.value = a;
-  showDeleteDialog.value = true;
-};
-const confirmDelete = async () => {
-  if (!deletingAcc.value) return;
-  const deletingArchived = deletingAcc.value.lifecycle_state === "archived";
-  try {
-    await adminAPI.accounts.delete(deletingAcc.value.id);
-    showDeleteDialog.value = false;
-    deletingAcc.value = null;
-    if (deletingArchived) {
-      await refreshListAndArchivedPanel();
-      return;
-    }
-    await reload();
-  } catch (error) {
-    console.error("Failed to delete account:", error);
-  }
-};
-const handleToggleSchedulable = async (a: Account) => {
-  const nextSchedulable = !a.schedulable;
-  togglingSchedulable.value = a.id;
-  try {
-    const updated = await adminAPI.accounts.setSchedulable(
-      a.id,
-      nextSchedulable,
-    );
-    updateSchedulableInList([a.id], updated?.schedulable ?? nextSchedulable);
-    refreshAccountSummarySafe();
-    enterAutoRefreshSilentWindow();
-    if (
-      a.lifecycle_state === "archived" ||
-      updated.lifecycle_state === "archived"
-    ) {
-      refreshArchivedPanel();
-    }
-  } catch (error) {
-    console.error("Failed to toggle schedulable:", error);
-    appStore.showError(t("admin.accounts.failedToToggleSchedulable"));
-  } finally {
-    togglingSchedulable.value = null;
-  }
-};
-const handleShowTempUnsched = (a: Account) => {
-  tempUnschedAcc.value = a;
-  showTempUnsched.value = true;
-};
-const handleTempUnschedReset = async (updated: Account) => {
-  showTempUnsched.value = false;
-  tempUnschedAcc.value = null;
-  patchAccountInList(updated);
-  refreshAccountSummarySafe();
-  enterAutoRefreshSilentWindow();
-  if (updated.lifecycle_state === "archived") {
-    refreshArchivedPanel();
-  }
-};
+const {
+  handleReloadRequested, handleDataImported, handleCreated,
+  handleArchivedAccounts, openExportDataDialog, handleExportData,
+} = useAccountsDataActions({
+  adminAPI, appStore, t, groups, reload, refreshArchivedPanel, showImportData,
+  showCreate, showArchiveSelected, clearSelection, includeProxyOnExport,
+  showExportDataDialog, exportingData, selIds, params,
+});
+const {
+  closeTestModal, closeBatchTestModal, closeStatsModal, closeModelDiagnostics, closeReAuthModal, handleTest, handleQuickTest,
+  handleBatchTestCompleted, handleViewStats, handleDiagnoseModels, refreshModelDiagnostics, handleSchedule, closeSchedulePanel,
+  handleReAuth, handleRefresh, handleSetPrivacy, handleRecoverState, handleImportModels, handleResetQuota, handleBlacklistAccount,
+  handleTestBlacklistAccount, handleDelete, confirmDelete, handleToggleSchedulable, handleShowTempUnsched, handleTempUnschedReset,
+} = useAccountsRowActions({
+  t, appStore, adminAPI, modelInventoryStore, invalidateModelRegistry, buildProviderDisplayName,
+  buildAccountModelImportToastPayload, resolveAccountModelImportErrorMessage, shouldInvalidateModelInventory,
+  handleImportedModels, openBatchTestModal, refreshListAndArchivedPanel, patchAccountInList, refreshAccountSummarySafe,
+  enterAutoRefreshSilentWindow, updateSchedulableInList, reload, showTest, testingAcc, showBatchTest, batchTestAccounts,
+  batchTestDefaultTestMode, batchTestDefaultModelStrategy, showStats, statsAcc, showModelDiagnostics, diagnosticsAccount,
+  diagnosticsResult, diagnosticsLoading, showReAuth, reAuthAcc, scheduleAcc, scheduleModelOptions, showSchedulePanel,
+  importingModelsAccountId, deletingAcc, showDeleteDialog, togglingSchedulable, tempUnschedAcc, showTempUnsched,
+});
 
 const loadRuntimeOptions = async () => {
   const [proxyResult, groupResult, daily5HResult] = await Promise.allSettled([

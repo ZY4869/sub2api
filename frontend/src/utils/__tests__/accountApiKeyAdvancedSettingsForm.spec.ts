@@ -19,22 +19,26 @@ describe('accountApiKeyAdvancedSettingsForm', () => {
 
     loadAccountPoolModeStateFromCredentials(state, {
       pool_mode: true,
-      pool_mode_retry_count: 99
+      pool_mode_retry_count: 99,
+      pool_mode_retry_status_codes: [500, '502', 500]
     })
     expect(state.enabled).toBe(true)
     expect(state.retryCount).toBe(10)
+    expect(state.retryStatusCodes).toEqual([500, 502])
 
     const credentials: Record<string, unknown> = {}
     applyAccountPoolModeStateToCredentials(credentials, state)
     expect(credentials).toEqual({
       pool_mode: true,
-      pool_mode_retry_count: 10
+      pool_mode_retry_count: 10,
+      pool_mode_retry_status_codes: [500, 502]
     })
 
     resetAccountPoolModeState(state, DEFAULT_POOL_MODE_RETRY_COUNT)
     expect(state).toEqual({
       enabled: false,
-      retryCount: DEFAULT_POOL_MODE_RETRY_COUNT
+      retryCount: DEFAULT_POOL_MODE_RETRY_COUNT,
+      retryStatusCodes: [401, 403, 429]
     })
 
     applyAccountPoolModeStateToCredentials(credentials, state)
@@ -70,4 +74,3 @@ describe('accountApiKeyAdvancedSettingsForm', () => {
     expect(credentials).toEqual({})
   })
 })
-

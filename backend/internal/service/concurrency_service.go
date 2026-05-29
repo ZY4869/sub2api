@@ -71,6 +71,10 @@ func generateRequestID() string {
 	return requestIDPrefix + "-" + strconv.FormatUint(seq, 36)
 }
 
+func GenerateSafeRequestID() string {
+	return generateRequestID()
+}
+
 func (s *ConcurrencyService) CleanupStaleProcessSlots(ctx context.Context) error {
 	if s == nil || s.cache == nil {
 		return nil

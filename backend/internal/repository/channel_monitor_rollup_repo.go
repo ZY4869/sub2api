@@ -103,6 +103,51 @@ GROUP BY monitor_id, model_id
 	return out, rows.Err()
 }
 
+func (r *channelMonitorRollupRepository) ListDailyByMonitorIDs(ctx context.Context, monitorIDs []int64, startDay time.Time) ([]*service.ChannelMonitorDailyRollup, error) {
+	if len(monitorIDs) == 0 {
+		return nil, nil
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT
+	monitor_id,
+	model_id,
+	day::timestamp,
+	SUM(total_checks) AS total_checks,
+	SUM(available_checks) AS available_checks,
+	SUM(degraded_checks) AS degraded_checks,
+	SUM(total_latency_ms) AS total_latency_ms,
+	MAX(max_latency_ms) AS max_latency_ms
+FROM channel_monitor_daily_rollups
+WHERE monitor_id = ANY($1)
+  AND day >= $2::date
+GROUP BY monitor_id, model_id, day
+ORDER BY day ASC, monitor_id ASC, model_id ASC
+`, pq.Array(monitorIDs), startDay.UTC().Format("2006-01-02"))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make([]*service.ChannelMonitorDailyRollup, 0)
+	for rows.Next() {
+		rp := &service.ChannelMonitorDailyRollup{}
+		if err := rows.Scan(
+			&rp.MonitorID,
+			&rp.ModelID,
+			&rp.Day,
+			&rp.TotalChecks,
+			&rp.AvailableChecks,
+			&rp.DegradedChecks,
+			&rp.TotalLatencyMs,
+			&rp.MaxLatencyMs,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, rp)
+	}
+	return out, rows.Err()
+}
+
 func (r *channelMonitorRollupRepository) SumAvailabilityWindows(ctx context.Context, monitorID int64, start7 time.Time, start15 time.Time, start30 time.Time) (map[string]*service.ChannelMonitorAvailabilityWindows, error) {
 	if monitorID <= 0 {
 		return nil, errors.New("invalid monitor id")

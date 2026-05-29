@@ -10,6 +10,7 @@ const (
 	ClientRequestID    Key = "ctx_client_request_id"
 	RequestPayloadHash Key = "ctx_request_payload_hash"
 	Model              Key = "ctx_model"
+	ModelCandidates    Key = "ctx_model_candidates"
 	Platform           Key = "ctx_platform"
 	AccountID          Key = "ctx_account_id"
 	RetryCount         Key = "ctx_retry_count"

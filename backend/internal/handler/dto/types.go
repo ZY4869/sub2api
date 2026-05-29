@@ -131,6 +131,9 @@ type Group struct {
 	AllowMessagesDispatch      bool `json:"allow_messages_dispatch"`
 	GeminiMixedProtocolEnabled bool `json:"gemini_mixed_protocol_enabled"`
 
+	// 分组可见模型收敛配置；为空时不额外限制 /v1/models。
+	VisibleModelPatterns []string `json:"visible_model_patterns,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

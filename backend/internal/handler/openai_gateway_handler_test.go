@@ -117,6 +117,22 @@ func TestOpenAIHandleStreamingAwareError_NonStreaming(t *testing.T) {
 	assert.Equal(t, "test error", errorObj["message"])
 }
 
+func TestOpenAIHandleStreamingAwareError_DeclaredResponsesSSEAppendsFailedEvent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	c.Header("Content-Type", "text/event-stream")
+
+	h := &OpenAIGatewayHandler{}
+	h.handleStreamingAwareError(c, http.StatusBadGateway, "upstream_error", "test error", false)
+
+	body := w.Body.String()
+	assert.Contains(t, body, "event: response.failed")
+	assert.Contains(t, body, `"type":"response.failed"`)
+	assert.Contains(t, body, `"message":"test error"`)
+}
+
 func TestReadRequestBodyWithPrealloc(t *testing.T) {
 	payload := `{"model":"gpt-5","input":"hello"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(payload))
@@ -251,7 +267,7 @@ func TestOpenAIRecoverResponsesPanic_NoPanicNoWrite(t *testing.T) {
 	assert.Equal(t, "", w.Body.String())
 }
 
-func TestOpenAIRecoverResponsesPanic_DoesNotOverrideWrittenResponse(t *testing.T) {
+func TestOpenAIRecoverResponsesPanic_AppendsFailedEventAfterWrittenResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	w := httptest.NewRecorder()
@@ -269,7 +285,10 @@ func TestOpenAIRecoverResponsesPanic_DoesNotOverrideWrittenResponse(t *testing.T
 	})
 
 	require.Equal(t, http.StatusTeapot, w.Code)
-	assert.Equal(t, "already written", w.Body.String())
+	body := w.Body.String()
+	assert.Contains(t, body, "already written")
+	assert.Contains(t, body, "event: response.failed")
+	assert.Contains(t, body, `"type":"response.failed"`)
 }
 
 func TestOpenAIMissingResponsesDependencies(t *testing.T) {

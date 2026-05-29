@@ -5,14 +5,33 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 )
 
 const (
 	ContentModerationAPIKeysModeAppend  = "append"
 	ContentModerationAPIKeysModeReplace = "replace"
 )
+
+var knownContentModerationCategories = []string{
+	"hate",
+	"hate/threatening",
+	"harassment",
+	"harassment/threatening",
+	"self-harm",
+	"self-harm/intent",
+	"self-harm/instructions",
+	"sexual",
+	"sexual/minors",
+	"violence",
+	"violence/graphic",
+	"illicit",
+	"illicit/violent",
+}
 
 type ContentModerationAPIKey struct {
 	Key       string `json:"key"`
@@ -148,6 +167,114 @@ func MarshalContentModerationKeywords(values []string) (string, error) {
 		return "", err
 	}
 	return string(data), nil
+}
+
+func DefaultContentModerationCategoryThresholds() map[string]float64 {
+	out := make(map[string]float64, len(knownContentModerationCategories))
+	for _, category := range knownContentModerationCategories {
+		out[category] = 1.0
+	}
+	return out
+}
+
+func NormalizeContentModerationCategoryThresholds(raw string) map[string]float64 {
+	thresholds := DefaultContentModerationCategoryThresholds()
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return thresholds
+	}
+	var parsed map[string]float64
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		return thresholds
+	}
+	for key, value := range parsed {
+		category := normalizeContentModerationCategory(key)
+		if category == "" || math.IsNaN(value) || math.IsInf(value, 0) {
+			continue
+		}
+		if value < 0 {
+			value = 0
+		}
+		if value > 1 {
+			value = 1
+		}
+		thresholds[category] = value
+	}
+	return thresholds
+}
+
+func ValidateContentModerationCategoryThresholds(input map[string]float64) (map[string]float64, error) {
+	out := DefaultContentModerationCategoryThresholds()
+	for key, value := range input {
+		category := normalizeContentModerationCategory(key)
+		if category == "" {
+			continue
+		}
+		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 1 {
+			return nil, fmt.Errorf("content moderation category threshold for %s must be between 0 and 1", category)
+		}
+		out[category] = value
+	}
+	return out, nil
+}
+
+func MarshalContentModerationCategoryThresholds(values map[string]float64) (string, error) {
+	normalized := DefaultContentModerationCategoryThresholds()
+	for key, value := range values {
+		category := normalizeContentModerationCategory(key)
+		if category == "" || math.IsNaN(value) || math.IsInf(value, 0) {
+			continue
+		}
+		if value < 0 {
+			value = 0
+		}
+		if value > 1 {
+			value = 1
+		}
+		normalized[category] = value
+	}
+	data, err := json.Marshal(normalized)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func evaluateContentModerationCategoryThresholds(scores map[string]float64, thresholds map[string]float64) (bool, string) {
+	if len(scores) == 0 {
+		return false, ""
+	}
+	if len(thresholds) == 0 {
+		thresholds = DefaultContentModerationCategoryThresholds()
+	}
+	for rawCategory, score := range scores {
+		category := normalizeContentModerationCategory(rawCategory)
+		if category == "" || math.IsNaN(score) || math.IsInf(score, 0) {
+			continue
+		}
+		threshold, ok := thresholds[category]
+		if !ok {
+			continue
+		}
+		if score >= threshold {
+			protocolruntime.RecordContentModerationThresholdHit(category)
+			return true, "moderation_threshold:" + category
+		}
+	}
+	return false, ""
+}
+
+func normalizeContentModerationCategory(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return ""
+	}
+	for _, category := range knownContentModerationCategories {
+		if value == category {
+			return category
+		}
+	}
+	return ""
 }
 
 func EvaluateContentModerationKeywordBlock(settings *ContentModerationSettings, rawContent string) ContentModerationKeywordDecision {

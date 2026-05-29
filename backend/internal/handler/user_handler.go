@@ -15,6 +15,7 @@ type UserHandler struct {
 	affiliate      *service.AffiliateService
 	identities     *service.AuthIdentityService
 	emailTemplates *service.EmailTemplateService
+	platformQuotas *service.UserPlatformQuotaService
 }
 
 // NewUserHandler creates a new UserHandler
@@ -38,6 +39,10 @@ func (h *UserHandler) SetAuthIdentityService(identityService *service.AuthIdenti
 
 func (h *UserHandler) SetEmailTemplateService(templateService *service.EmailTemplateService) {
 	h.emailTemplates = templateService
+}
+
+func (h *UserHandler) SetUserPlatformQuotaService(quotaService *service.UserPlatformQuotaService) {
+	h.platformQuotas = quotaService
 }
 
 // ChangePasswordRequest represents the change password request payload
@@ -72,6 +77,24 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	}
 
 	response.Success(c, dto.UserFromService(userData))
+}
+
+func (h *UserHandler) GetPlatformQuotas(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.platformQuotas == nil {
+		response.Success(c, []service.UserPlatformQuotaView{})
+		return
+	}
+	items, err := h.platformQuotas.ListUserQuotas(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, items)
 }
 
 // ChangePassword handles changing user password

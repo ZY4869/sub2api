@@ -6,6 +6,7 @@ import (
 	"fmt"
 	pkgerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -62,6 +63,9 @@ func (h *GatewayHandler) mapUpstreamError(statusCode int) (int, string, string) 
 	}
 }
 func (h *GatewayHandler) handleStreamingAwareError(c *gin.Context, status int, errType, message string, streamStarted bool) {
+	if canAppendResponsesFailedEvent(c, streamStarted) && writeResponsesFailedEvent(c, errType, message) {
+		return
+	}
 	if streamStarted {
 		flusher, ok := c.Writer.(http.Flusher)
 		if ok {
@@ -76,7 +80,13 @@ func (h *GatewayHandler) handleStreamingAwareError(c *gin.Context, status int, e
 	h.errorResponse(c, status, errType, message)
 }
 func (h *GatewayHandler) ensureForwardErrorResponse(c *gin.Context, streamStarted bool) bool {
-	if c == nil || c.Writer == nil || c.Writer.Written() {
+	if c == nil || c.Writer == nil {
+		return false
+	}
+	if c.Writer.Written() {
+		if canAppendResponsesFailedEvent(c, streamStarted) {
+			return writeResponsesFailedEvent(c, "upstream_error", "Upstream request failed")
+		}
 		return false
 	}
 	h.handleStreamingAwareError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed", streamStarted)
@@ -122,6 +132,21 @@ func billingErrorDetails(err error) (status int, code, message string) {
 			msg = "Billing service temporarily unavailable. Please retry later."
 		}
 		return http.StatusServiceUnavailable, "billing_service_error", msg
+	}
+	if errors.Is(err, service.ErrUserPlatformQuotaExceeded) {
+		appErr := pkgerrors.FromError(err)
+		platform := ""
+		cycle := ""
+		if appErr != nil && appErr.Metadata != nil {
+			platform = appErr.Metadata["platform"]
+			cycle = appErr.Metadata["cycle"]
+		}
+		protocolruntime.RecordUserPlatformQuotaRejection(platform, cycle)
+		msg := pkgerrors.Message(err)
+		if msg == "" {
+			msg = "User platform quota exceeded. Please retry after the quota resets."
+		}
+		return http.StatusTooManyRequests, "USER_PLATFORM_QUOTA_EXCEEDED", msg
 	}
 	if errors.Is(err, service.ErrAPIKeyRateLimit5hExceeded) {
 		msg := pkgerrors.Message(err)

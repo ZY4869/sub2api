@@ -115,7 +115,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 			return nil, fmt.Errorf("failed to get accounts from source groups: %w", err)
 		}
 	}
-	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel}
+	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns)}
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
 	}
@@ -297,6 +297,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.DefaultMappedModel != nil {
 		group.DefaultMappedModel = *input.DefaultMappedModel
+	}
+	if input.VisibleModelPatterns != nil {
+		group.VisibleModelPatterns = NormalizeGroupVisibleModelPatterns(*input.VisibleModelPatterns)
 	}
 	if err := s.groupRepo.Update(ctx, group); err != nil {
 		return nil, err

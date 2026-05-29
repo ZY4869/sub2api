@@ -7,7 +7,7 @@
 # =============================================================================
 
 ARG NODE_IMAGE=node:24-alpine
-ARG GOLANG_IMAGE=golang:1.26.2-alpine
+ARG GOLANG_IMAGE=golang:1.26-alpine
 ARG ALPINE_IMAGE=alpine:3.21
 ARG POSTGRES_IMAGE=postgres:18-alpine
 ARG GOPROXY=https://goproxy.cn,direct
@@ -21,7 +21,7 @@ FROM ${NODE_IMAGE} AS frontend-builder
 WORKDIR /app/frontend
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.31.0 --activate
 
 # Install dependencies first (better caching)
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
@@ -45,6 +45,7 @@ ARG GOSUMDB
 
 ENV GOPROXY=${GOPROXY}
 ENV GOSUMDB=${GOSUMDB}
+ENV GOTOOLCHAIN=auto
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata

@@ -31,8 +31,20 @@ var publicModelCatalogProtocolOrder = map[string]int{
 }
 
 func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
-	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
-		snapshot := sanitizePublicModelCatalogSnapshotForPublic(&published.Snapshot)
+	return s.publicModelCatalogSnapshot(ctx, true)
+}
+
+func (s *ModelCatalogService) internalPublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
+	return s.publicModelCatalogSnapshot(ctx, false)
+}
+
+func (s *ModelCatalogService) publicModelCatalogSnapshot(ctx context.Context, sanitize bool) (*PublicModelCatalogSnapshot, error) {
+	if rawPublished := s.loadPublishedPublicModelCatalogSnapshot(ctx); rawPublished != nil {
+		published := s.filterPublishedPublicModelCatalogSnapshot(ctx, rawPublished)
+		snapshot := clonePublicModelCatalogSnapshot(&published.Snapshot)
+		if sanitize {
+			snapshot = sanitizePublicModelCatalogSnapshotForPublic(snapshot)
+		}
 		snapshot.CatalogSource = PublicModelCatalogSourcePublished
 		return snapshot, nil
 	}
@@ -44,6 +56,10 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 			zap.Duration("cache_age", age),
 			zap.Int("model_count", len(snapshot.Items)),
 		)
+		if sanitize {
+			snapshot = sanitizePublicModelCatalogSnapshotForPublic(snapshot)
+			snapshot.CatalogSource = PublicModelCatalogSourceLiveFallback
+		}
 		return snapshot, nil
 	}
 
@@ -58,6 +74,10 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 				zap.Int("model_count", len(fallback.Items)),
 				zap.Error(err),
 			)
+			if sanitize {
+				fallback = sanitizePublicModelCatalogSnapshotForPublic(fallback)
+				fallback.CatalogSource = PublicModelCatalogSourceLiveFallback
+			}
 			return fallback, nil
 		}
 		return nil, err
@@ -71,6 +91,10 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 		zap.String("component", "service.model_catalog"),
 		zap.Int("model_count", len(liveSnapshot.Items)),
 	)
+	if sanitize {
+		liveSnapshot = sanitizePublicModelCatalogSnapshotForPublic(liveSnapshot)
+		liveSnapshot.CatalogSource = PublicModelCatalogSourceLiveFallback
+	}
 	return liveSnapshot, nil
 }
 
@@ -82,7 +106,8 @@ func emptyPublishedPublicModelCatalogSnapshot() *PublicModelCatalogSnapshot {
 }
 
 func (s *ModelCatalogService) PublishedPublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
-	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
+	if rawPublished := s.loadPublishedPublicModelCatalogSnapshot(ctx); rawPublished != nil {
+		published := s.filterPublishedPublicModelCatalogSnapshot(ctx, rawPublished)
 		return sanitizePublicModelCatalogSnapshotForPublic(&published.Snapshot), nil
 	}
 	return emptyPublishedPublicModelCatalogSnapshot(), nil
@@ -136,6 +161,7 @@ func (s *ModelCatalogService) buildLivePublicModelCatalogSnapshot(ctx context.Co
 			items = append(items, item)
 		}
 	}
+	items = s.filterPublicModelCatalogConfirmedItems(ctx, items)
 	for _, item := range items {
 		if item.Provider != "" {
 			providerBuckets[item.Provider] = struct{}{}
@@ -172,6 +198,19 @@ func (s *ModelCatalogService) buildLivePublicModelCatalogSnapshot(ctx context.Co
 		PageSize:  pageSize,
 		Items:     items,
 	}, nil
+}
+
+func (s *ModelCatalogService) filterPublicModelCatalogConfirmedItems(ctx context.Context, items []PublicModelCatalogItem) []PublicModelCatalogItem {
+	if len(items) == 0 {
+		return []PublicModelCatalogItem{}
+	}
+	filtered := make([]PublicModelCatalogItem, 0, len(items))
+	for _, item := range items {
+		if s.publicModelCatalogItemRouteConfirmed(ctx, item) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
 }
 
 func (s *ModelCatalogService) publicModelCatalogTTL() time.Duration {
@@ -316,6 +355,9 @@ func buildPublicModelCatalogItem(
 			entry.DisplayName,
 			entry.ID,
 		),
+		ContextWindowTokens:  entry.ContextWindowTokens,
+		Modalities:           append([]string(nil), entry.Modalities...),
+		Capabilities:         append([]string(nil), entry.Capabilities...),
 		RequestProtocols:     publicModelCatalogRequestProtocols(entry, provider),
 		Mode:                 mode,
 		Currency:             defaultModelPricingCurrency(persisted.Currency),
@@ -567,6 +609,8 @@ func clonePublicModelCatalogSnapshot(snapshot *PublicModelCatalogSnapshot) *Publ
 
 func clonePublicModelCatalogItem(item PublicModelCatalogItem) PublicModelCatalogItem {
 	cloned := item
+	cloned.Modalities = append([]string(nil), item.Modalities...)
+	cloned.Capabilities = append([]string(nil), item.Capabilities...)
 	cloned.RequestProtocols = append([]string(nil), item.RequestProtocols...)
 	cloned.SourceIDs = append([]string(nil), item.SourceIDs...)
 	cloned.PriceDisplay = PublicModelCatalogPriceDisplay{
@@ -613,7 +657,7 @@ func sanitizePublicModelCatalogSnapshotForPublic(snapshot *PublicModelCatalogSna
 
 func sanitizePublicModelCatalogItemsForPublic(items []PublicModelCatalogItem) []PublicModelCatalogItem {
 	if len(items) == 0 {
-		return nil
+		return []PublicModelCatalogItem{}
 	}
 	sanitized := make([]PublicModelCatalogItem, 0, len(items))
 	for _, item := range items {
@@ -624,8 +668,13 @@ func sanitizePublicModelCatalogItemsForPublic(items []PublicModelCatalogItem) []
 
 func sanitizePublicModelCatalogItemForPublic(item PublicModelCatalogItem) PublicModelCatalogItem {
 	cloned := clonePublicModelCatalogItem(item)
+	cloned.BaseModel = ""
+	cloned.SourceModelID = ""
+	cloned.SourceProtocol = ""
+	cloned.SourceAlias = ""
 	cloned.SourceAccountID = 0
 	cloned.SourceAccountName = ""
+	cloned.SourceIDs = nil
 	cloned.RuntimePriceSpec = PublicModelCatalogRuntimePriceSpec{}
 	if cloned.PublicModelID == "" {
 		cloned.PublicModelID = cloned.Model

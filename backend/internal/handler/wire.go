@@ -197,10 +197,22 @@ func ProvideUserHandler(
 	affiliateService *service.AffiliateService,
 	authIdentityService *service.AuthIdentityService,
 	emailTemplateService *service.EmailTemplateService,
+	userPlatformQuotaService *service.UserPlatformQuotaService,
 ) *UserHandler {
 	handler := NewUserHandler(userService, affiliateService)
 	handler.SetAuthIdentityService(authIdentityService)
 	handler.SetEmailTemplateService(emailTemplateService)
+	handler.SetUserPlatformQuotaService(userPlatformQuotaService)
+	return handler
+}
+
+func ProvideAdminUserHandler(
+	adminService service.AdminService,
+	concurrencyService *service.ConcurrencyService,
+	userPlatformQuotaService *service.UserPlatformQuotaService,
+) *admin.UserHandler {
+	handler := admin.NewUserHandler(adminService, concurrencyService)
+	handler.SetUserPlatformQuotaService(userPlatformQuotaService)
 	return handler
 }
 
@@ -348,7 +360,7 @@ var ProviderSet = wire.NewSet(
 
 	// Admin handlers
 	admin.NewDashboardHandler,
-	admin.NewUserHandler,
+	ProvideAdminUserHandler,
 	admin.NewContentModerationAuditHandler,
 	admin.NewGroupHandler,
 	admin.NewChannelHandler,

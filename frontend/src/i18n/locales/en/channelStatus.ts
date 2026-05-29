@@ -8,6 +8,8 @@ export default {
     viewDetails: 'View details',
     primaryModel: 'Primary model',
     availability7d: '7d availability',
+    latestLatency: 'Latest latency',
+    timeline: 'Monitor timeline',
     status: {
       success: 'Healthy',
       degraded: 'Degraded',
@@ -16,4 +18,3 @@ export default {
     }
   }
 }
-

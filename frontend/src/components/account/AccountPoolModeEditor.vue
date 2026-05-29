@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
-import type { AccountPoolModeState } from '@/utils/accountFormShared'
+import {
+  normalizePoolModeRetryStatusCodes,
+  type AccountPoolModeState
+} from '@/utils/accountFormShared'
 
 defineProps<{
   defaultRetryCount: number
@@ -11,6 +14,10 @@ defineProps<{
 const state = defineModel<AccountPoolModeState>('state', { required: true })
 
 const { t } = useI18n()
+
+function updateRetryStatusCodes(value: string): void {
+  state.value.retryStatusCodes = normalizePoolModeRetryStatusCodes(value)
+}
 </script>
 
 <template>
@@ -63,6 +70,20 @@ const { t } = useI18n()
             max: maxRetryCount
           })
         }}
+      </p>
+    </div>
+
+    <div v-if="state.enabled" class="mt-3">
+      <label class="input-label">{{ t('admin.accounts.poolModeRetryStatusCodes') }}</label>
+      <input
+        :value="state.retryStatusCodes.join(', ')"
+        type="text"
+        class="input"
+        :placeholder="t('admin.accounts.poolModeRetryStatusCodesPlaceholder')"
+        @input="updateRetryStatusCodes(($event.target as HTMLInputElement).value)"
+      />
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        {{ t('admin.accounts.poolModeRetryStatusCodesHint') }}
       </p>
     </div>
   </div>

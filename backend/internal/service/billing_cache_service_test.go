@@ -248,3 +248,56 @@ func TestBillingCacheServiceCheckBillingEligibility_ReplayedHoldReturnsConflict(
 
 	require.ErrorIs(t, err, ErrBillingRequestReplayed)
 }
+
+type billingCachePlatformQuotaRepoStub struct {
+	items []UserPlatformQuota
+	calls int
+}
+
+func (s *billingCachePlatformQuotaRepoStub) ListByUser(ctx context.Context, userID int64) ([]UserPlatformQuota, error) {
+	s.calls++
+	return append([]UserPlatformQuota(nil), s.items...), nil
+}
+
+func (s *billingCachePlatformQuotaRepoStub) ReplaceForUser(ctx context.Context, userID int64, items []UserPlatformQuotaInput) ([]UserPlatformQuota, error) {
+	return nil, errors.New("unexpected ReplaceForUser call")
+}
+
+func TestBillingCacheServiceCheckBillingEligibility_UserPlatformQuotaStacksWithExistingChecks(t *testing.T) {
+	now := time.Now().UTC()
+	user := &User{ID: 14, Balance: 10}
+	holdRepo := &billingCacheHoldRepoStub{}
+	quotaRepo := &billingCachePlatformQuotaRepoStub{
+		items: []UserPlatformQuota{{
+			UserID:           user.ID,
+			Platform:         PlatformOpenAI,
+			DailyLimitUSD:    ptrFloat(1),
+			DailyUsageUSD:    1,
+			DailyWindowStart: &now,
+		}},
+	}
+	svc := NewBillingCacheService(nil, &billingCacheUserRepoStub{user: user}, nil, &billingCacheAPIKeyRepoStub{holdRepo: holdRepo}, &config.Config{})
+	svc.SetUserPlatformQuotaService(NewUserPlatformQuotaService(quotaRepo))
+	t.Cleanup(svc.Stop)
+
+	err := svc.CheckBillingEligibility(context.Background(), user, &APIKey{ID: 24, User: user}, &Group{Platform: PlatformOpenAI}, nil)
+
+	require.ErrorIs(t, err, ErrUserPlatformQuotaExceeded)
+	require.Equal(t, 1, quotaRepo.calls)
+	require.Equal(t, 0, holdRepo.reserveCalls, "quota rejection must happen before balance hold reservation")
+}
+
+func TestBillingCacheServiceCheckBillingEligibility_UserPlatformQuotaNoRecordAllowsBalancePath(t *testing.T) {
+	user := &User{ID: 15, Balance: 10}
+	holdRepo := &billingCacheHoldRepoStub{}
+	quotaRepo := &billingCachePlatformQuotaRepoStub{}
+	svc := NewBillingCacheService(nil, &billingCacheUserRepoStub{user: user}, nil, &billingCacheAPIKeyRepoStub{holdRepo: holdRepo}, &config.Config{})
+	svc.SetUserPlatformQuotaService(NewUserPlatformQuotaService(quotaRepo))
+	t.Cleanup(svc.Stop)
+
+	err := svc.CheckBillingEligibility(context.Background(), user, &APIKey{ID: 25, User: user}, &Group{Platform: PlatformOpenAI}, nil)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, quotaRepo.calls)
+	require.Equal(t, 1, holdRepo.reserveCalls)
+}

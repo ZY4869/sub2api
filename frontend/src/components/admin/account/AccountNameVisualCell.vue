@@ -1,8 +1,11 @@
 <template>
-  <div class="flex min-w-0 items-center gap-3">
+  <div :class="['flex min-w-0 items-center', compact ? 'gap-2' : 'gap-3']">
     <div
-      class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/80 shadow-sm"
-      :class="avatarClass"
+      :class="[
+        'relative flex shrink-0 items-center justify-center border border-white/80 shadow-sm',
+        compact ? 'h-9 w-9 rounded-xl' : 'h-10 w-10 rounded-2xl',
+        avatarClass
+      ]"
     >
       <PlatformIcon
         v-if="resolvedPlatform"
@@ -85,15 +88,20 @@
       </div>
 
       <div class="mt-1 flex min-w-0 items-center gap-1.5">
-        <span class="truncate font-mono text-[10.5px] font-medium leading-none" :class="metaClass">
+        <span
+          class="min-w-0 truncate font-mono text-[10.5px] font-medium leading-none"
+          :class="metaClass"
+          :title="accountIdentity"
+        >
           {{ accountIdentity }}
         </span>
         <span class="h-[3px] w-[3px] shrink-0 rounded-full" :class="dotClass"></span>
         <span
-          class="inline-flex shrink-0 items-center rounded border px-[5px] py-[1.5px] text-[8.5px] font-black leading-none tracking-wider"
+          class="inline-flex max-w-[86px] shrink-0 items-center rounded border px-[5px] py-[1.5px] text-[8.5px] font-black leading-none tracking-wider"
           :class="badgeClass"
+          :title="platformBadgeLabel"
         >
-          {{ platformBadgeLabel }}
+          <span class="truncate">{{ platformBadgeLabel }}</span>
         </span>
       </div>
     </div>
@@ -110,6 +118,7 @@ import { getPlatformEnglishName } from '@/utils/platformBranding'
 
 const props = defineProps<{
   account: Account
+  compact?: boolean
 }>()
 
 const { t } = useI18n()

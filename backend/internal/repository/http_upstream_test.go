@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -63,6 +64,92 @@ func (s *HTTPUpstreamSuite) TestCustomResponseHeaderTimeout() {
 	transport, ok := entry.client.Transport.(*http.Transport)
 	require.True(s.T(), ok, "expected *http.Transport")
 	require.Equal(s.T(), 7*time.Second, transport.ResponseHeaderTimeout, "ResponseHeaderTimeout mismatch")
+}
+
+func (s *HTTPUpstreamSuite) TestOpenAIProfileDefaultsDisableHeaderTimeoutAndEnableHTTP2() {
+	s.cfg.Gateway = config.GatewayConfig{
+		ResponseHeaderTimeout: 7,
+		OpenAIHTTP2: config.GatewayOpenAIHTTP2Config{
+			Enabled: true,
+		},
+	}
+	svc := s.newService()
+	req, err := http.NewRequest(http.MethodGet, "https://api.openai.test/v1/responses", nil)
+	require.NoError(s.T(), err)
+	req = service.MarkOpenAIHTTPUpstreamRequest(req)
+
+	entry, err := svc.acquireClientForRequest(req, "", 1, 0)
+	require.NoError(s.T(), err)
+	defer atomic.AddInt64(&entry.inFlight, -1)
+
+	transport, ok := entry.client.Transport.(*http.Transport)
+	require.True(s.T(), ok, "expected *http.Transport")
+	require.Equal(s.T(), time.Duration(0), transport.ResponseHeaderTimeout)
+	require.True(s.T(), transport.ForceAttemptHTTP2)
+}
+
+func (s *HTTPUpstreamSuite) TestOpenAIProfileUsesDedicatedHeaderTimeoutAndHTTP2Toggle() {
+	s.cfg.Gateway = config.GatewayConfig{
+		ResponseHeaderTimeout:       7,
+		OpenAIResponseHeaderTimeout: 11,
+		OpenAIHTTP2: config.GatewayOpenAIHTTP2Config{
+			Enabled: true,
+		},
+	}
+	svc := s.newService()
+	req, err := http.NewRequest(http.MethodGet, "https://api.openai.test/v1/responses", nil)
+	require.NoError(s.T(), err)
+	req = service.MarkOpenAIHTTPUpstreamRequest(req)
+
+	entry, err := svc.acquireClientForRequest(req, "", 1, 0)
+	require.NoError(s.T(), err)
+	defer atomic.AddInt64(&entry.inFlight, -1)
+
+	transport, ok := entry.client.Transport.(*http.Transport)
+	require.True(s.T(), ok, "expected *http.Transport")
+	require.Equal(s.T(), 11*time.Second, transport.ResponseHeaderTimeout)
+	require.True(s.T(), transport.ForceAttemptHTTP2)
+
+	s.cfg.Gateway.OpenAIHTTP2.Enabled = false
+	req2, err := http.NewRequest(http.MethodGet, "https://api.openai.test/v1/responses", nil)
+	require.NoError(s.T(), err)
+	req2 = service.MarkOpenAIHTTPUpstreamRequest(req2)
+	entry2, err := svc.acquireClientForRequest(req2, "", 2, 0)
+	require.NoError(s.T(), err)
+	defer atomic.AddInt64(&entry2.inFlight, -1)
+	transport2, ok := entry2.client.Transport.(*http.Transport)
+	require.True(s.T(), ok, "expected *http.Transport")
+	require.False(s.T(), transport2.ForceAttemptHTTP2)
+}
+
+func (s *HTTPUpstreamSuite) TestOpenAIHTTP2ProxyFallbackOnlyForCompatibilityErrors() {
+	s.cfg.Gateway = config.GatewayConfig{
+		OpenAIHTTP2: config.GatewayOpenAIHTTP2Config{
+			Enabled:                   true,
+			AllowProxyFallbackToHTTP1: true,
+			FallbackErrorThreshold:    2,
+			FallbackWindowSeconds:     60,
+			FallbackTTLSeconds:        600,
+		},
+	}
+	svc := s.newService()
+	req, err := http.NewRequest(http.MethodGet, "https://api.openai.test/v1/responses", nil)
+	require.NoError(s.T(), err)
+	req = service.MarkOpenAIHTTPUpstreamRequest(req)
+	proxyURL := "http://proxy-openai.local:8080"
+
+	svc.recordOpenAIHTTP2Failure(req, proxyURL, errors.New("timeout awaiting response headers"))
+	svc.recordOpenAIHTTP2Failure(req, proxyURL, errors.New("context deadline exceeded"))
+	require.False(s.T(), svc.shouldFallbackOpenAIHTTP2Proxy(proxyURL))
+
+	svc.recordOpenAIHTTP2Failure(req, proxyURL, errors.New("http2: stream error: stream ID 1; PROTOCOL_ERROR"))
+	require.False(s.T(), svc.shouldFallbackOpenAIHTTP2Proxy(proxyURL))
+	svc.recordOpenAIHTTP2Failure(req, proxyURL, errors.New("malformed HTTP response from proxy"))
+	require.True(s.T(), svc.shouldFallbackOpenAIHTTP2Proxy(proxyURL))
+
+	opts := svc.requestOptions(req, proxyURL)
+	require.Equal(s.T(), service.HTTPUpstreamProfileOpenAI, opts.profile)
+	require.False(s.T(), opts.http2)
 }
 
 // TestGetOrCreateClient_InvalidURLReturnsError 测试无效代理 URL 返回错误

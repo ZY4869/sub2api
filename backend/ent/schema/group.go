@@ -124,6 +124,10 @@ func (Group) Fields() []ent.Field {
 			MaxLen(100).
 			Default("").
 			Comment("Default mapped model ID"),
+		field.JSON("visible_model_patterns", []string{}).
+			Default([]string{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Group-level public model visibility filter; empty means no extra filter"),
 	}
 }
 

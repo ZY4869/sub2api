@@ -55,6 +55,7 @@ vi.mock("vue-i18n", async () => {
 
 describe("PublicModelCatalogDetailDialog", () => {
   beforeEach(() => {
+    document.body.innerHTML = "";
     apiMocks.authStore.isAuthenticated = false;
     apiMocks.getModelCatalogDetail.mockReset();
     apiMocks.keysList.mockReset();
@@ -66,6 +67,9 @@ describe("PublicModelCatalogDetailDialog", () => {
         provider: "openai",
         provider_icon_key: "openai",
         status: "warning",
+        context_window_tokens: 8191,
+        modalities: ["text"],
+        capabilities: ["text"],
         request_protocols: ["openai"],
         currency: "USD",
         price_display: {
@@ -87,15 +91,29 @@ describe("PublicModelCatalogDetailDialog", () => {
 
   function mountDialog() {
     return mount(PublicModelCatalogDetailDialog, {
+      attachTo: document.body,
       props: {
         show: true,
         model: "text-embedding-3-large",
+        health: {
+          model: "text-embedding-3-large",
+          status: "healthy",
+          success_rate_today: 1,
+          success_rate_7d: 0.998,
+          latency_ms: 120,
+          daily: [{ date: "2026-04-18", status: "healthy", success_rate: 1, latency_ms: 120 }],
+          trend: [{ timestamp: "2026-04-18", success_rate: 1, latency_ms: 120 }],
+          rate_limit: { rpm: 60 },
+        },
         catalogItem: {
           model: "text-embedding-3-large",
           display_name: "Text Embedding 3 Large",
           provider: "openai",
           provider_icon_key: "openai",
           status: "warning",
+          context_window_tokens: 8191,
+          modalities: ["text"],
+          capabilities: ["text"],
           request_protocols: ["openai"],
           currency: "USD",
           price_display: {
@@ -110,10 +128,6 @@ describe("PublicModelCatalogDetailDialog", () => {
       },
       global: {
         stubs: {
-          BaseDialog: {
-            props: ["show", "title"],
-            template: '<div v-if="show"><h1>{{ title }}</h1><slot /></div>',
-          },
           ModelIcon: { template: '<span data-test="model-icon" />' },
           ModelPlatformIcon: { template: '<span data-test="platform-icon" />' },
           DocsCodeTabs: {
@@ -131,11 +145,33 @@ describe("PublicModelCatalogDetailDialog", () => {
     await flushPromises();
 
     expect(apiMocks.getModelCatalogDetail).toHaveBeenCalledWith("text-embedding-3-large");
-    expect(wrapper.get("[data-test='example-code']").text()).toContain("sk-your-key");
-    expect(wrapper.text()).toContain("ui.modelCatalog.status.warning");
-    expect(wrapper.findAll('[aria-label="ui.modelCatalog.status.warning"]')).toHaveLength(2);
-    expect(wrapper.find('[data-testid="detail-primary-price-cache_price"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="detail-secondary-price-cache_price"]').exists()).toBe(false);
+    expect(document.body.textContent).toContain("120ms");
+    expect(document.body.textContent).toContain("99.8%");
+    expect(document.body.querySelector('[data-testid="detail-primary-price-cache_price"]')).toBeTruthy();
+    await document.body.querySelector<HTMLElement>('[data-testid="public-model-detail-tab-routing"]')?.click();
+    await flushPromises();
+    expect(document.body.querySelector("[data-test='example-code']")?.textContent).toContain("sk-your-key");
+    wrapper.unmount();
+  });
+
+  it("renders overview, monitor, and routing tabs", async () => {
+    const wrapper = mountDialog();
+
+    await flushPromises();
+
+    expect(document.body.textContent).toContain("text-embedding-3-large");
+    expect(document.body.textContent).toContain("RPM 60");
+
+    await document.body.querySelector<HTMLElement>('[data-testid="public-model-detail-tab-monitor"]')?.click();
+    await flushPromises();
+    expect(document.body.textContent).toContain("ui.modelCatalog.detail.dailyMatrix");
+    expect(document.body.textContent).toContain("2026-04-18");
+
+    await document.body.querySelector<HTMLElement>('[data-testid="public-model-detail-tab-routing"]')?.click();
+    await flushPromises();
+    expect(document.body.textContent).toContain("Authorization: Bearer <TOKEN>");
+    expect(document.body.textContent).toContain("sk-your-key");
+    wrapper.unmount();
   });
 
   it("injects the first matching user key and shows a switcher for multiple matches", async () => {
@@ -170,7 +206,6 @@ describe("PublicModelCatalogDetailDialog", () => {
             public_id: "text-embedding-3-large",
             display_name: "Text Embedding 3 Large",
             request_protocols: ["openai"],
-            source_ids: ["text-embedding-3-large"],
           },
         ],
       },
@@ -179,9 +214,12 @@ describe("PublicModelCatalogDetailDialog", () => {
     const wrapper = mountDialog();
 
     await flushPromises();
+    await document.body.querySelector<HTMLElement>('[data-testid="public-model-detail-tab-routing"]')?.click();
+    await flushPromises();
 
-    expect(wrapper.get("[data-test='example-code']").text()).toContain("sk-user-a");
-    const select = wrapper.get("select");
-    expect(select.findAll("option")).toHaveLength(2);
+    expect(document.body.querySelector("[data-test='example-code']")?.textContent).toContain("sk-user-a");
+    const options = document.body.querySelectorAll("select option");
+    expect(options).toHaveLength(2);
+    wrapper.unmount();
   });
 });

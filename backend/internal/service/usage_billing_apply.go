@@ -113,6 +113,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		UserID:             p.User.ID,
 		AccountID:          p.Account.ID,
 		AccountType:        p.Account.Type,
+		Platform:           UserPlatformQuotaPlatformForAccount(p.Account),
 		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
 		BillingCurrency:    normalizeBillingCurrency(p.Cost.Currency),
 		USDToCNYRate:       p.Cost.USDToCNYRate,
@@ -187,6 +188,9 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	}
 	if p.Cost.TotalCost > 0 && CanParticipateInAccountQuota(p.Account) && p.Account.HasAnyQuotaLimit() {
 		cmd.AccountQuotaCost = p.Cost.TotalCost * p.AccountRateMultiplier
+	}
+	if !p.SkipUserBilling {
+		cmd.UserPlatformCost = UserPlatformQuotaCostUSD(p.Cost, p.IsSubscriptionBill)
 	}
 
 	cmd.Normalize()

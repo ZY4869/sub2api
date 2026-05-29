@@ -2,6 +2,11 @@ package service
 
 import "strings"
 
+func publicModelCatalogItemConfirmedAvailable(item PublicModelCatalogItem) bool {
+	return strings.EqualFold(item.AvailabilityState, AccountModelAvailabilityVerified) &&
+		strings.EqualFold(item.StaleState, AccountModelStaleStateFresh)
+}
+
 func normalizePublicModelLifecycleStatus(raw string, candidates ...string) string {
 	switch strings.TrimSpace(strings.ToLower(raw)) {
 	case PublicModelLifecycleDeprecated:

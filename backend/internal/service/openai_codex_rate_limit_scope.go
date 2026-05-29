@@ -101,6 +101,10 @@ func openAICodexRequestModelFromContext(ctx context.Context) string {
 	return strings.TrimSpace(model)
 }
 
+func OpenAICodexRequestModelForEvent(ctx context.Context) string {
+	return openAICodexRequestModelFromContext(ctx)
+}
+
 func isOpenAIProPlan(account *Account) bool {
 	if account == nil {
 		return false

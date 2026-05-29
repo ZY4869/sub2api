@@ -14,6 +14,7 @@ import geminiMixedProtocol from './geminiMixedProtocol'
 import modelRouting from './modelRouting'
 import mcpXml from './mcpXml'
 import supportedScopes from './supportedScopes'
+import visibleModels from './visibleModels'
 
 export default {
   ...common,
@@ -32,4 +33,5 @@ export default {
   modelRouting,
   mcpXml,
   supportedScopes,
+  visibleModels,
 }

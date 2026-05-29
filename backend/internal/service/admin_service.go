@@ -130,6 +130,7 @@ type CreateGroupInput struct {
 	SupportedModelScopes            []string
 	AllowMessagesDispatch           bool
 	DefaultMappedModel              string
+	VisibleModelPatterns            []string
 	CopyAccountsFromGroupIDs        []int64
 }
 type UpdateGroupInput struct {
@@ -158,6 +159,7 @@ type UpdateGroupInput struct {
 	SupportedModelScopes            *[]string
 	AllowMessagesDispatch           *bool
 	DefaultMappedModel              *string
+	VisibleModelPatterns            *[]string
 	CopyAccountsFromGroupIDs        []int64
 }
 type CreateAccountInput struct {

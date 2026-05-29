@@ -284,7 +284,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(ctx context
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}
-	return req, nil
+	return MarkOpenAIHTTPUpstreamRequest(req), nil
 }
 
 func shouldFailoverOpenAIPassthroughResponse(statusCode int) bool {

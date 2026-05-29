@@ -11,6 +11,7 @@ import {
   normalizeAccountConcurrency,
   normalizeAccountLoadFactor,
   normalizePoolModeRetryCount,
+  normalizePoolModeRetryStatusCodes,
   resolveAccountUpstreamApiKeyHintKey,
   supportsMixedChannelCheck,
   supportsMixedChannelConfirmOverride
@@ -39,7 +40,8 @@ describe('accountFormShared', () => {
   it('creates stable default states for API key advanced settings', () => {
     expect(createDefaultAccountPoolModeState(3)).toEqual({
       enabled: false,
-      retryCount: 3
+      retryCount: 3,
+      retryStatusCodes: [401, 403, 429]
     })
     expect(createDefaultAccountCustomErrorCodesState()).toEqual({
       enabled: false,
@@ -53,6 +55,19 @@ describe('accountFormShared', () => {
     expect(normalizePoolModeRetryCount(-4)).toBe(0)
     expect(normalizePoolModeRetryCount(99)).toBe(10)
     expect(normalizePoolModeRetryCount(4.8)).toBe(4)
+  })
+
+  it('normalizes pool mode retry status codes', () => {
+    expect(normalizePoolModeRetryStatusCodes('429, 500; 502 429')).toEqual([
+      429,
+      500,
+      502
+    ])
+    expect(normalizePoolModeRetryStatusCodes([401, '503', 99, 600, 'bad'])).toEqual([
+      401,
+      503
+    ])
+    expect(normalizePoolModeRetryStatusCodes('bad')).toEqual([401, 403, 429])
   })
 
   it('builds only valid temp-unsched rules', () => {

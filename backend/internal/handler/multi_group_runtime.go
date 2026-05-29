@@ -137,6 +137,12 @@ func resolveSelectedGatewayAPIKey(
 		}
 		return apiKey, subscription, nil
 	}
+	if gatewayService != nil {
+		candidates := gatewayService.ResolveAPIKeyVisibleModelCandidates(c.Request.Context(), apiKey, "", model)
+		if len(candidates) > 0 {
+			c.Request = c.Request.WithContext(service.WithVisibleModelCandidates(c.Request.Context(), candidates...))
+		}
+	}
 	binding, err := gatewayService.SelectGroupForAllowedPlatforms(c.Request.Context(), apiKey, allowedPlatforms, model, excludedGroupIDs)
 	if err != nil {
 		return nil, nil, err
@@ -190,6 +196,12 @@ func resolveSelectedOpenAIAPIKey(
 			}
 		}
 		return apiKey, subscription, nil
+	}
+	if gatewayService != nil {
+		candidates := gatewayService.ResolveAPIKeyVisibleModelCandidates(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), model)
+		if len(candidates) > 0 {
+			c.Request = c.Request.WithContext(service.WithVisibleModelCandidates(c.Request.Context(), candidates...))
+		}
 	}
 	binding, err := gatewayService.SelectGroupForAllowedPlatforms(c.Request.Context(), apiKey, allowedPlatforms, model, excludedGroupIDs)
 	if err != nil {

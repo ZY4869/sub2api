@@ -57,7 +57,18 @@ func SelectGroupBindingForRequest(
 	excludedGroupIDs map[int64]struct{},
 	checker groupBindingAvailabilityChecker,
 ) (*APIKeyGroupBinding, error) {
-	candidates := candidateGroupBindingsForRequest(apiKey, platform, model, excludedGroupIDs)
+	return selectGroupBindingForRequest(ctx, apiKey, platform, model, excludedGroupIDs, checker)
+}
+
+func selectGroupBindingForRequest(
+	ctx context.Context,
+	apiKey *APIKey,
+	platform string,
+	model string,
+	excludedGroupIDs map[int64]struct{},
+	checker groupBindingAvailabilityChecker,
+) (*APIKeyGroupBinding, error) {
+	candidates := candidateGroupBindingsForRequest(ctx, apiKey, platform, model, excludedGroupIDs)
 	if len(candidates) == 0 {
 		return nil, ErrNoAvailableGroup
 	}
@@ -99,7 +110,18 @@ func SelectGroupBindingForAllowedPlatforms(
 	excludedGroupIDs map[int64]struct{},
 	checker groupBindingAvailabilityChecker,
 ) (*APIKeyGroupBinding, error) {
-	candidates := candidateGroupBindingsForAllowedPlatforms(apiKey, allowedPlatforms, model, excludedGroupIDs)
+	return selectGroupBindingForAllowedPlatforms(ctx, apiKey, allowedPlatforms, model, excludedGroupIDs, checker)
+}
+
+func selectGroupBindingForAllowedPlatforms(
+	ctx context.Context,
+	apiKey *APIKey,
+	allowedPlatforms []string,
+	model string,
+	excludedGroupIDs map[int64]struct{},
+	checker groupBindingAvailabilityChecker,
+) (*APIKeyGroupBinding, error) {
+	candidates := candidateGroupBindingsForAllowedPlatforms(ctx, apiKey, allowedPlatforms, model, excludedGroupIDs)
 	if len(candidates) == 0 {
 		return nil, ErrNoAvailableGroup
 	}
@@ -133,14 +155,14 @@ func SelectGroupBindingForAllowedPlatforms(
 	return nil, ErrNoAvailableGroup
 }
 
-func candidateGroupBindingsForRequest(apiKey *APIKey, platform string, model string, excludedGroupIDs map[int64]struct{}) []candidateBinding {
+func candidateGroupBindingsForRequest(ctx context.Context, apiKey *APIKey, platform string, model string, excludedGroupIDs map[int64]struct{}) []candidateBinding {
 	if strings.TrimSpace(platform) == "" {
-		return candidateGroupBindingsForAllowedPlatforms(apiKey, nil, model, excludedGroupIDs)
+		return candidateGroupBindingsForAllowedPlatforms(ctx, apiKey, nil, model, excludedGroupIDs)
 	}
-	return candidateGroupBindingsForAllowedPlatforms(apiKey, []string{platform}, model, excludedGroupIDs)
+	return candidateGroupBindingsForAllowedPlatforms(ctx, apiKey, []string{platform}, model, excludedGroupIDs)
 }
 
-func candidateGroupBindingsForAllowedPlatforms(apiKey *APIKey, allowedPlatforms []string, model string, excludedGroupIDs map[int64]struct{}) []candidateBinding {
+func candidateGroupBindingsForAllowedPlatforms(ctx context.Context, apiKey *APIKey, allowedPlatforms []string, model string, excludedGroupIDs map[int64]struct{}) []candidateBinding {
 	bindings := apiKeyBindingsForSelection(apiKey)
 	if len(bindings) == 0 {
 		return nil
@@ -180,6 +202,9 @@ func candidateGroupBindingsForAllowedPlatforms(apiKey *APIKey, allowedPlatforms 
 
 		explicit, matched := bindingMatchesModel(binding.ModelPatterns, model)
 		if !matched {
+			continue
+		}
+		if !groupAllowsVisibleRequestModel(group, model, ctx) {
 			continue
 		}
 
@@ -273,6 +298,20 @@ func APIKeyBindingsForSelection(apiKey *APIKey) []APIKeyGroupBinding {
 	return apiKeyBindingsForSelection(apiKey)
 }
 
+func groupAllowsVisibleRequestModel(group *Group, model string, ctx context.Context) bool {
+	if group == nil || !group.HasVisibleModelPatternFilter() {
+		return true
+	}
+	candidates := []string{model}
+	candidates = append(candidates, VisibleModelCandidatesFromContext(ctx)...)
+	for _, candidate := range visibleModelCandidates("", candidates...) {
+		if group.AllowsVisibleModel(candidate) {
+			return true
+		}
+	}
+	return false
+}
+
 func bindingMatchesModel(patterns []string, model string) (explicit bool, matched bool) {
 	if len(patterns) == 0 || strings.TrimSpace(model) == "" {
 		return false, true
@@ -301,14 +340,14 @@ func (s *GatewayService) SelectGroupForRequest(ctx context.Context, apiKey *APIK
 	if strings.TrimSpace(model) != "" {
 		ctx = context.WithValue(ctx, ctxkey.Model, model)
 	}
-	return SelectGroupBindingForRequest(ctx, apiKey, platform, model, excludedGroupIDs, s.groupBindingHasSchedulableAccounts)
+	return selectGroupBindingForRequest(ctx, apiKey, platform, model, excludedGroupIDs, s.groupBindingHasSchedulableAccounts)
 }
 
 func (s *GatewayService) SelectGroupForAllowedPlatforms(ctx context.Context, apiKey *APIKey, allowedPlatforms []string, model string, excludedGroupIDs map[int64]struct{}) (*APIKeyGroupBinding, error) {
 	if strings.TrimSpace(model) != "" {
 		ctx = context.WithValue(ctx, ctxkey.Model, model)
 	}
-	return SelectGroupBindingForAllowedPlatforms(ctx, apiKey, allowedPlatforms, model, excludedGroupIDs, s.groupBindingHasSchedulableAccounts)
+	return selectGroupBindingForAllowedPlatforms(ctx, apiKey, allowedPlatforms, model, excludedGroupIDs, s.groupBindingHasSchedulableAccounts)
 }
 
 func (s *GatewayService) groupBindingHasSchedulableAccounts(ctx context.Context, binding *APIKeyGroupBinding) (bool, error) {

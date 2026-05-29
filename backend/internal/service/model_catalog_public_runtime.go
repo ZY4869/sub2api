@@ -31,8 +31,8 @@ func (s *ModelCatalogService) ResolvePublishedPublicCatalogEntry(ctx context.Con
 	if s == nil || normalizedPublicID == "" {
 		return nil, false, nil
 	}
-	published := s.loadPublishedPublicModelCatalogSnapshot(ctx)
-	if published == nil {
+	published, active := s.activePublishedPublicModelCatalogSnapshot(ctx)
+	if !active {
 		return nil, false, nil
 	}
 	for _, item := range published.Snapshot.Items {
@@ -60,10 +60,46 @@ func (s *ModelCatalogService) activePublishedPublicModelCatalogSnapshot(ctx cont
 		return nil, false
 	}
 	published := s.loadPublishedPublicModelCatalogSnapshot(ctx)
-	if published == nil || len(published.Snapshot.Items) == 0 {
+	if published == nil {
+		return nil, false
+	}
+	published = s.filterPublishedPublicModelCatalogSnapshot(ctx, published)
+	if published == nil {
 		return nil, false
 	}
 	return published, true
+}
+
+func (s *ModelCatalogService) filterPublishedPublicModelCatalogSnapshot(ctx context.Context, published *PublicModelCatalogPublishedSnapshot) *PublicModelCatalogPublishedSnapshot {
+	cloned := clonePublicModelCatalogPublishedSnapshot(published)
+	if cloned == nil {
+		return nil
+	}
+	if len(cloned.Snapshot.Items) == 0 {
+		return cloned
+	}
+	filteredItems := make([]PublicModelCatalogItem, 0, len(cloned.Snapshot.Items))
+	filteredDetails := make(map[string]PublicModelCatalogDetail, len(cloned.Details))
+	for _, item := range cloned.Snapshot.Items {
+		if !s.publicModelCatalogItemRouteConfirmed(ctx, item) {
+			continue
+		}
+		filteredItems = append(filteredItems, item)
+		publicID := NormalizeModelCatalogModelID(firstNonEmptyTrimmed(item.PublicModelID, item.Model))
+		if publicID == "" {
+			continue
+		}
+		if detail, ok := cloned.Details[publicID]; ok {
+			filteredDetails[publicID] = detail
+		}
+	}
+	cloned.Snapshot.Items = filteredItems
+	if len(filteredDetails) > 0 {
+		cloned.Details = filteredDetails
+	} else {
+		cloned.Details = nil
+	}
+	return cloned
 }
 
 func publicModelCatalogItemMatchesPublicID(item PublicModelCatalogItem, publicModelID string) bool {

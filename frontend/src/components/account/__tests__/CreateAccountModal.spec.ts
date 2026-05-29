@@ -9,6 +9,14 @@ const source = readFileSync(
   resolve(process.cwd(), 'src/components/account/CreateAccountModal.vue'),
   'utf-8'
 )
+const modalLogicSource = readFileSync(
+  resolve(process.cwd(), 'src/components/account/createAccountModal/useCreateAccountModal.ts'),
+  'utf-8'
+)
+const modalWatchersSource = readFileSync(
+  resolve(process.cwd(), 'src/components/account/createAccountModal/watchers.ts'),
+  'utf-8'
+)
 
 const {
   createMock,
@@ -624,14 +632,15 @@ describe('CreateAccountModal', () => {
   })
 
   it('keeps only kiro on the dedicated oauth finalize flow', () => {
-    expect(source).toContain("const showOAuthFinalizeStep = computed(() =>")
-    expect(source).not.toContain("form.platform === 'copilot'")
+    expect(modalLogicSource).toContain("const showOAuthFinalizeStep = computed(() =>")
+    expect(`${source}\n${modalLogicSource}\n${modalWatchersSource}`).not.toContain("form.platform === 'copilot'")
     expect(source).toContain("<AccountKiroAuthPanel")
   })
 
   it('resets the kiro auth panel when platform changes or the flow goes back', () => {
-    expect(source).toContain('kiroAuthRef.value?.reset()')
-    expect(source).not.toContain('copilotSubmitting.value = false')
+    expect(modalWatchersSource).toContain('kiroAuthRef.value?.reset()')
+    expect(modalLogicSource).toContain('kiroAuthRef.value?.reset?.()')
+    expect(`${source}\n${modalLogicSource}\n${modalWatchersSource}`).not.toContain('copilotSubmitting.value = false')
   })
 
   it('embeds the Grok batch import panel alongside the single-account Grok fields', () => {
@@ -640,10 +649,11 @@ describe('CreateAccountModal', () => {
   })
 
   it('defaults Grok to API Key mode and only persists grok_tier for SSO submissions', () => {
-    expect(source).toContain("if (newPlatform === 'grok')")
-    expect(source).toContain("accountCategory.value = 'apikey'")
-    expect(source).toContain("form.type = 'apikey'")
-    expect(source).toContain("form.platform === 'grok' && form.type === 'sso'")
+    expect(modalWatchersSource).toContain("if (newPlatform === 'grok')")
+    expect(modalWatchersSource).toContain("accountCategory.value = 'apikey'")
+    expect(modalWatchersSource).toContain("form.type = 'apikey'")
+    expect(source).toContain("form.platform === 'grok'")
+    expect(source).toContain("form.type === 'sso'")
   })
 
   it('shows model scope controls for Grok API Key and Grok SSO account creation', async () => {
@@ -820,10 +830,10 @@ describe('CreateAccountModal', () => {
   })
 
   it('shows generic quota controls and protocol gateway batch controls in account creation', () => {
-    expect(source).toContain('const showQuotaLimitSection = computed(() =>')
-    expect(source).toContain('const showQuotaLimitSection = computed(() => true)')
+    expect(modalLogicSource).toContain('const showQuotaLimitSection = computed(() =>')
+    expect(modalLogicSource).toContain('const showQuotaLimitSection = computed(() => true)')
     expect(source).toContain('AccountProtocolGatewayBatchEditor')
-    expect(source).toContain('const showProtocolGatewayBatchEditor = computed(() =>')
+    expect(modalLogicSource).toContain('const showProtocolGatewayBatchEditor = computed(() =>')
   })
 
   it('submits protocol gateway default provider/model fields from the modal flow', async () => {

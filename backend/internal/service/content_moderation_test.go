@@ -112,9 +112,94 @@ func TestContentModerationService_RecordAudit_CallsOpenAIProvider(t *testing.T) 
 	require.Len(t, repo.created, 1)
 	require.True(t, repo.created[0].Hit)
 	require.False(t, repo.created[0].DedupeHit)
-	require.Equal(t, "", repo.created[0].ErrorReason)
+	require.Equal(t, "moderation_flagged", repo.created[0].ErrorReason)
 	require.NotContains(t, repo.created[0].ContentSummary, "hello world")
 	require.Contains(t, repo.created[0].ContentSummary, "redacted text")
+}
+
+func TestContentModerationService_CheckBlock_UsesCategoryScoreThresholds(t *testing.T) {
+	originalClient := http.DefaultClient
+	defer func() {
+		http.DefaultClient = originalClient
+	}()
+
+	tests := []struct {
+		name       string
+		response   string
+		thresholds string
+		wantBlock  bool
+		wantReason string
+	}{
+		{
+			name:       "below threshold allows",
+			response:   `{"results":[{"flagged":false,"category_scores":{"violence":0.69}}]}`,
+			thresholds: `{"violence":0.7}`,
+			wantBlock:  false,
+		},
+		{
+			name:       "score at threshold blocks",
+			response:   `{"results":[{"flagged":false,"category_scores":{"violence":0.7}}]}`,
+			thresholds: `{"violence":0.7}`,
+			wantBlock:  true,
+			wantReason: "moderation_threshold:violence",
+		},
+		{
+			name:       "unknown category ignored",
+			response:   `{"results":[{"flagged":false,"category_scores":{"unknown":1}}]}`,
+			thresholds: `{"violence":0.7}`,
+			wantBlock:  false,
+		},
+		{
+			name:       "flagged still blocks",
+			response:   `{"results":[{"flagged":true,"category_scores":{"violence":0.1}}]}`,
+			thresholds: `{"violence":0.7}`,
+			wantBlock:  true,
+			wantReason: "moderation_flagged",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tt.response))
+			}))
+			defer server.Close()
+			http.DefaultClient = server.Client()
+
+			repo := &moderationAuditRepoStub{}
+			settingsRepo := &settingPublicRepoStub{
+				values: map[string]string{
+					SettingKeyContentModerationEnabled:            "true",
+					SettingKeyContentModerationProvider:           "openai",
+					SettingKeyContentModerationBaseURL:            server.URL,
+					SettingKeyContentModerationAPIKey:             "sk-live",
+					SettingKeyContentModerationModel:              "omni-moderation-latest",
+					SettingKeyContentModerationCategoryThresholds: tt.thresholds,
+				},
+			}
+			svc := NewContentModerationService(repo, settingsRepo)
+
+			decision, err := svc.CheckBlock(context.Background(), &ContentModerationRecordInput{
+				SourceEndpoint: ContentModerationSourceOpenAIResponses,
+				Content:        "hello world",
+				Model:          "gpt-5",
+			})
+
+			require.NoError(t, err)
+			require.NotNil(t, decision)
+			require.Equal(t, tt.wantBlock, decision.Blocked)
+			if tt.wantReason != "" {
+				require.Equal(t, tt.wantReason, decision.ErrorReason)
+			}
+			if tt.wantBlock {
+				require.Len(t, repo.created, 1)
+				require.Equal(t, tt.wantReason, repo.created[0].ErrorReason)
+			} else {
+				require.Empty(t, repo.created)
+			}
+		})
+	}
 }
 
 func TestContentModerationService_CheckKeywordBlock_StoresRedactedAuditAndSkipsProvider(t *testing.T) {

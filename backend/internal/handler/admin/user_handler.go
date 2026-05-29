@@ -25,6 +25,7 @@ type UserWithConcurrency struct {
 type UserHandler struct {
 	adminService       service.AdminService
 	concurrencyService *service.ConcurrencyService
+	platformQuotas     *service.UserPlatformQuotaService
 }
 
 // NewUserHandler creates a new admin user handler
@@ -33,6 +34,13 @@ func NewUserHandler(adminService service.AdminService, concurrencyService *servi
 		adminService:       adminService,
 		concurrencyService: concurrencyService,
 	}
+}
+
+func (h *UserHandler) SetUserPlatformQuotaService(quotaService *service.UserPlatformQuotaService) {
+	if h == nil {
+		return
+	}
+	h.platformQuotas = quotaService
 }
 
 // CreateUserRequest represents admin create user request
@@ -87,6 +95,10 @@ type BatchUpdateConcurrencyItemResult struct {
 	Email   string `json:"email"`
 	Success bool   `json:"success"`
 	Error   string `json:"error,omitempty"`
+}
+
+type PlatformQuotaUpdateRequest struct {
+	Items []service.UserPlatformQuotaInput `json:"items"`
 }
 
 // List handles listing all users with pagination
@@ -389,6 +401,44 @@ func (h *UserHandler) GetBalanceHistory(c *gin.Context) {
 		"page_size":       pageSize,
 		"pages":           pages,
 		"total_recharged": totalRecharged,
+	})
+}
+
+func (h *UserHandler) GetPlatformQuotas(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	if h.platformQuotas == nil {
+		response.Success(c, []service.UserPlatformQuotaView{})
+		return
+	}
+	items, err := h.platformQuotas.ListUserQuotas(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, items)
+}
+
+func (h *UserHandler) UpdatePlatformQuotas(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	var req PlatformQuotaUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if h.platformQuotas == nil {
+		response.ErrorFrom(c, service.ErrBillingServiceUnavailable)
+		return
+	}
+	executeAdminIdempotentJSON(c, "admin.users.platform_quotas.update", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		return h.platformQuotas.ReplaceUserQuotas(ctx, userID, req.Items)
 	})
 }
 

@@ -214,7 +214,6 @@ func filterAvailableTestModelsForPublishedCatalogAccount(
 		return nil
 	}
 	entries := make([]APIKeyPublicModelEntry, 0, len(models))
-	byPublicID := make(map[string]AvailableTestModel, len(models))
 	for _, model := range models {
 		publicID := NormalizeModelCatalogModelID(model.ID)
 		if publicID == "" {
@@ -231,19 +230,30 @@ func filterAvailableTestModelsForPublishedCatalogAccount(
 			StaleState:        firstNonEmptyTrimmed(model.StaleState, AccountModelStaleStateUnverified),
 			LifecycleStatus:   normalizePublicModelLifecycleStatus(model.Status, model.DisplayName, model.ID, sourceID),
 		})
-		byPublicID[publicID] = model
 	}
 	if gateway != nil {
 		entries = gateway.filterPublicEntriesByActiveChannel(ctx, groupID, protocol, entries)
 		entries = filterOpenAIAPIKeyPublicEntriesForRuntimeQuota(account, entries)
 	}
 	filtered := make([]AvailableTestModel, 0, len(entries))
+	confirmedByPublicID := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
-		if model, ok := byPublicID[entry.PublicID]; ok {
+		if publicModelCatalogEntryConfirmedAvailable(entry) {
+			confirmedByPublicID[entry.PublicID] = struct{}{}
+		}
+	}
+	for _, model := range models {
+		publicID := NormalizeModelCatalogModelID(model.ID)
+		if _, ok := confirmedByPublicID[publicID]; ok {
 			filtered = append(filtered, model)
 		}
 	}
 	return filtered
+}
+
+func publicModelCatalogEntryConfirmedAvailable(entry APIKeyPublicModelEntry) bool {
+	return strings.EqualFold(entry.AvailabilityState, AccountModelAvailabilityVerified) &&
+		strings.EqualFold(entry.StaleState, AccountModelStaleStateFresh)
 }
 
 func buildPublicModelCatalogItemForAccountModel(

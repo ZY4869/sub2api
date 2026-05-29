@@ -1,6 +1,7 @@
 import {
   DEFAULT_POOL_MODE_RETRY_COUNT,
   normalizePoolModeRetryCount,
+  normalizePoolModeRetryStatusCodes,
   type AccountCustomErrorCodesState,
   type AccountPoolModeState
 } from '@/utils/accountFormShared'
@@ -15,6 +16,9 @@ export function loadAccountPoolModeStateFromCredentials(
   state.retryCount = normalizePoolModeRetryCount(
     Number(payload.pool_mode_retry_count ?? defaultRetryCount)
   )
+  state.retryStatusCodes = normalizePoolModeRetryStatusCodes(
+    payload.pool_mode_retry_status_codes
+  )
 }
 
 export function resetAccountPoolModeState(
@@ -23,6 +27,7 @@ export function resetAccountPoolModeState(
 ): void {
   state.enabled = false
   state.retryCount = defaultRetryCount
+  state.retryStatusCodes = normalizePoolModeRetryStatusCodes(null)
 }
 
 export function applyAccountPoolModeStateToCredentials(
@@ -32,11 +37,15 @@ export function applyAccountPoolModeStateToCredentials(
   if (state.enabled) {
     credentials.pool_mode = true
     credentials.pool_mode_retry_count = normalizePoolModeRetryCount(state.retryCount)
+    credentials.pool_mode_retry_status_codes = normalizePoolModeRetryStatusCodes(
+      state.retryStatusCodes
+    )
     return
   }
 
   delete credentials.pool_mode
   delete credentials.pool_mode_retry_count
+  delete credentials.pool_mode_retry_status_codes
 }
 
 export function loadAccountCustomErrorCodesStateFromCredentials(
@@ -75,4 +84,3 @@ export function applyAccountCustomErrorCodesStateToCredentials(
   delete credentials.custom_error_codes_enabled
   delete credentials.custom_error_codes
 }
-

@@ -34,7 +34,7 @@
         v-for="m in items"
         :key="m.id"
         type="button"
-        class="rounded-2xl border border-gray-200 bg-white p-5 text-left transition hover:border-primary-300 hover:shadow-sm dark:border-dark-700 dark:bg-dark-800 dark:hover:border-primary-600"
+        class="group rounded-[20px] border border-slate-200/80 bg-white p-5 text-left shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] transition-all duration-300 hover:-translate-y-1 hover:border-slate-300/80 hover:shadow-[0_12px_30px_-8px_rgba(0,0,0,0.08)] dark:border-dark-700 dark:bg-dark-900 dark:hover:border-dark-600"
         @click="$emit('openDetail', m.id)"
       >
         <div class="flex items-start justify-between gap-3">
@@ -53,24 +53,45 @@
           </div>
 
           <div class="flex-shrink-0">
-            <StatusBadge :status="statusVariant(m.primary_last?.status)" :label="statusLabel(m.primary_last?.status)" />
+            <span class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold" :class="statusBadgeClass(m.primary_last?.status)">
+              {{ statusLabel(m.primary_last?.status) }}
+            </span>
           </div>
         </div>
 
-        <div class="mt-4 flex items-center justify-between gap-4">
-          <div class="text-xs text-gray-500 dark:text-gray-400">
-            {{ t('channelStatus.availability7d') }}:
-            <span class="font-semibold text-gray-900 dark:text-white">
+        <div class="mt-5 grid grid-cols-2 gap-3">
+          <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 dark:border-dark-700 dark:bg-dark-800/70">
+            <div class="mb-2 flex items-center justify-between gap-2">
+              <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {{ t('channelStatus.availability7d') }}
+              </span>
+              <PublicModelSuccessBars :rate="m.primary_availability_7d" :label="t('channelStatus.availability7d')" />
+            </div>
+            <div class="font-mono text-lg font-black" :class="rateColor(m.primary_availability_7d)">
               {{ formatRate(m.primary_availability_7d) }}
-            </span>
+            </div>
           </div>
-          <div class="flex items-center gap-1">
+          <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 dark:border-dark-700 dark:bg-dark-800/70">
+            <div class="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+              {{ t('channelStatus.latestLatency') }}
+            </div>
+            <div class="font-mono text-lg font-black text-slate-800 dark:text-white">
+              {{ formatLatency(m.primary_last?.latency_ms) }}
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 flex items-end justify-between gap-4 border-t border-slate-100 pt-4 dark:border-dark-700">
+          <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            {{ t('channelStatus.timeline') }}
+          </span>
+          <div class="flex items-end gap-1">
             <span
               v-for="(dot, idx) in (m.timeline || []).slice(0, 16)"
               :key="idx"
-              class="h-2 w-2 rounded-full"
+              class="h-5 w-2 rounded-[2px] transition-colors"
               :class="timelineDotClass(dot.status)"
-              :title="dot.status"
+              :title="statusLabel(dot.status)"
             ></span>
           </div>
         </div>
@@ -83,9 +104,14 @@
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import StatusBadge from '@/components/common/StatusBadge.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import ModelPlatformIcon from '@/components/common/ModelPlatformIcon.vue'
+import PublicModelSuccessBars from '@/components/models/public-catalog/PublicModelSuccessBars.vue'
+import {
+  formatLatency,
+  formatRate,
+  rateColor,
+} from '@/components/models/public-catalog/publicModelCatalogView'
 import type { ChannelMonitorUserListItem } from '@/api/channelMonitors'
 
 defineProps<{
@@ -100,13 +126,6 @@ defineEmits<{
 
 const { t } = useI18n()
 
-function statusVariant(status?: string): string {
-  if (status === 'success') return 'success'
-  if (status === 'degraded') return 'warning'
-  if (status === 'failure') return 'error'
-  return 'inactive'
-}
-
 function statusLabel(status?: string): string {
   switch (status) {
     case 'success':
@@ -118,6 +137,13 @@ function statusLabel(status?: string): string {
     default:
       return t('channelStatus.status.unknown')
   }
+}
+
+function statusBadgeClass(status?: string): string {
+  if (status === 'success') return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
+  if (status === 'degraded') return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+  if (status === 'failure') return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200'
+  return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-dark-700 dark:bg-dark-800 dark:text-slate-300'
 }
 
 function timelineDotClass(status?: string): string {
@@ -133,8 +159,4 @@ function timelineDotClass(status?: string): string {
   }
 }
 
-function formatRate(v?: number): string {
-  if (v == null || Number.isNaN(v)) return '-'
-  return `${(v * 100).toFixed(1)}%`
-}
 </script>

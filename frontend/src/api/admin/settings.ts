@@ -174,6 +174,7 @@ export interface SystemSettings {
   content_moderation_keyword_block_enabled: boolean
   content_moderation_keywords: string[]
   content_moderation_model_filter: ContentModerationModelFilter
+  content_moderation_category_thresholds: Record<string, number>
 
   // Model fallback configuration
   enable_model_fallback: boolean
@@ -304,6 +305,7 @@ export interface UpdateSettingsRequest {
   content_moderation_keyword_block_enabled?: boolean
   content_moderation_keywords?: string[]
   content_moderation_model_filter?: ContentModerationModelFilter
+  content_moderation_category_thresholds?: Record<string, number>
   enable_model_fallback?: boolean
   fallback_model_anthropic?: string
   fallback_model_openai?: string

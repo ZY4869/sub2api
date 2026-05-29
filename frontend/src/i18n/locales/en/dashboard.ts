@@ -41,7 +41,18 @@ export default {
     viewUsage: 'View Usage',
     checkDetailedLogs: 'Check detailed usage logs',
     redeemCode: 'Redeem Code',
-    addBalanceWithCode: 'Add balance with a code'
+    addBalanceWithCode: 'Add balance with a code',
+    platformQuotas: 'Platform Quotas',
+    platformQuotasHint: 'View USD-equivalent limits and usage by platform.',
+    platformQuotasEmpty: 'No platform quota limits',
+    platformQuotasLoadFailed: 'Failed to load platform quotas. Please retry later.',
+    retry: 'Retry',
+    daily: 'Daily',
+    weekly: 'Weekly',
+    monthly: 'Monthly',
+    unlimited: 'Unlimited',
+    resetAt: 'Reset',
+    noResetWindow: 'Starts after first charge'
   },
 
   // Groups (shared),

@@ -83,6 +83,7 @@ export default {
         usageResetDates: "重置日期",
         proxy: "代理",
         lastUsed: "最近使用",
+        createdAt: "创建时间",
         updatedAt: "更新时间",
         expiresAt: "过期时间",
         actions: "操作",

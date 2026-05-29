@@ -17,16 +17,7 @@
     <template v-else-if="!data || data.length === 0">
       <div class="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-dark-700 dark:bg-dark-900">
         <slot name="empty">
-          <div class="flex flex-col items-center">
-            <Icon
-              name="inbox"
-              size="xl"
-              class="mb-4 h-12 w-12 text-gray-400 dark:text-dark-500"
-            />
-            <p class="text-lg font-medium text-gray-900 dark:text-gray-100">
-              {{ t('empty.noData') }}
-            </p>
-          </div>
+          <DataTableEmptyState />
         </slot>
       </div>
     </template>
@@ -73,7 +64,12 @@
       'is-scrollable': isScrollable
     }"
   >
-    <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-700">
+    <table
+      :class="[
+        'divide-y divide-gray-200 dark:divide-dark-700',
+        tableLayoutClass
+      ]"
+    >
       <thead class="table-header bg-gray-50 dark:bg-dark-800">
         <tr>
           <th
@@ -142,16 +138,7 @@
             :class="['py-12 text-center text-gray-500 dark:text-dark-400', getAdaptivePaddingClass()]"
           >
             <slot name="empty">
-              <div class="flex flex-col items-center">
-                <Icon
-                  name="inbox"
-                  size="xl"
-                  class="mb-4 h-12 w-12 text-gray-400 dark:text-dark-500"
-                />
-                <p class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                  {{ t('empty.noData') }}
-                </p>
-              </div>
+              <DataTableEmptyState />
             </slot>
           </td>
         </tr>
@@ -239,11 +226,8 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useVirtualizer, useWindowVirtualizer } from '@tanstack/vue-virtual'
-import { useI18n } from 'vue-i18n'
 import type { Column, TableRowClassResolver, TableRowStyleResolver } from './types'
-import Icon from '@/components/icons/Icon.vue'
-
-const { t } = useI18n()
+import DataTableEmptyState from './DataTableEmptyState.vue'
 
 const desktopViewportQuery = '(min-width: 768px)'
 const canUseMatchMedia = () =>
@@ -434,6 +418,8 @@ interface Props {
   rowClass?: TableRowClassResolver
   /** Resolve per-row inline styles for desktop and mobile renderers */
   rowStyle?: TableRowStyleResolver
+  /** Table layout mode. Fixed layout keeps dense tables from growing with long text. */
+  tableLayout?: 'auto' | 'fixed'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -445,12 +431,18 @@ const props = withDefaults(defineProps<Props>(), {
   preserveInputOrder: false,
   serverSideSort: false,
   virtualScroll: true,
-  virtualScrollTarget: 'container'
+  virtualScrollTarget: 'container',
+  tableLayout: 'auto'
 })
 
 const sortKey = ref<string>('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const actionsExpanded = ref(false)
+const tableLayoutClass = computed(() =>
+  props.tableLayout === 'fixed'
+    ? 'w-full table-fixed'
+    : 'min-w-full table-auto'
+)
 
 type PersistedSortState = {
   key: string
@@ -863,7 +855,7 @@ defineExpose({
 <style scoped>
 /* 表格横向滚动 */
 .table-wrapper {
-  --select-col-width: 52px; /* 勾选列宽度：px-6 (24px*2) + checkbox (16px) */
+  --select-col-width: 36px;
   position: relative;
   overflow-x: auto;
   overflow-y: auto;

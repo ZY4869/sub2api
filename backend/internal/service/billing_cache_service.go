@@ -88,6 +88,7 @@ type BillingCacheService struct {
 	userRepo              UserRepository
 	subRepo               UserSubscriptionRepository
 	apiKeyRateLimitLoader apiKeyRateLimitLoader
+	userPlatformQuotas    *UserPlatformQuotaService
 	billingHoldRepo       BillingHoldRepository
 	authCacheInvalidator  APIKeyAuthCacheInvalidator
 	cfg                   *config.Config
@@ -130,6 +131,13 @@ func (s *BillingCacheService) SetAuthCacheInvalidator(invalidator APIKeyAuthCach
 		return
 	}
 	s.authCacheInvalidator = invalidator
+}
+
+func (s *BillingCacheService) SetUserPlatformQuotaService(quotaService *UserPlatformQuotaService) {
+	if s == nil {
+		return
+	}
+	s.userPlatformQuotas = quotaService
 }
 
 // Stop 关闭缓存写入工作池
@@ -670,6 +678,9 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 
 	// 判断计费模式
 	isSubscriptionMode := group != nil && group.IsSubscriptionType() && subscription != nil
+	if err := s.checkUserPlatformQuotaEligibility(ctx, user.ID, group); err != nil {
+		return err
+	}
 
 	// API Key rate limits apply to both billing modes and should be checked before
 	// wallet holds are reserved, otherwise a rate-limit rejection can leak a hold.
@@ -694,6 +705,21 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 		}
 	}
 
+	return nil
+}
+
+func (s *BillingCacheService) checkUserPlatformQuotaEligibility(ctx context.Context, userID int64, group *Group) error {
+	if s == nil || s.userPlatformQuotas == nil {
+		return nil
+	}
+	platform := UserPlatformQuotaPlatformForGroup(group)
+	if platform == "" {
+		return nil
+	}
+	if err := s.userPlatformQuotas.CheckUserPlatformQuotaAllowed(ctx, userID, platform); err != nil {
+		logger.LegacyPrintf("service.billing_cache", "billing platform quota rejected user %d platform %s", userID, platform)
+		return err
+	}
 	return nil
 }
 

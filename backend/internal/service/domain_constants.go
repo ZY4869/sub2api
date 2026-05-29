@@ -141,6 +141,7 @@ const (
 	SettingKeyContentModerationKeywordBlockEnabled = "content_moderation_keyword_block_enabled"
 	SettingKeyContentModerationKeywords            = "content_moderation_keywords"
 	SettingKeyContentModerationModelFilter         = "content_moderation_model_filter"
+	SettingKeyContentModerationCategoryThresholds  = "content_moderation_category_thresholds"
 
 	SettingKeySiteName                             = "site_name"
 	SettingKeySiteLogo                             = "site_logo"

@@ -39,9 +39,6 @@ export function findSupportedKeysForModel(
 function buildModelCandidates(detail: PublicModelCatalogDetailResponse): string[] {
   const values = new Set<string>();
   appendCandidate(values, detail.item.model);
-  for (const item of detail.item.source_ids || []) {
-    appendCandidate(values, item);
-  }
   return Array.from(values);
 }
 

@@ -126,6 +126,7 @@ type ChannelMonitorHistoryRepository interface {
 type ChannelMonitorRollupRepository interface {
 	UpsertIncrement(ctx context.Context, monitorID int64, modelID string, day time.Time, deltaTotal int64, deltaAvailable int64, deltaDegraded int64, deltaLatency int64, maxLatencyCandidate int64) error
 	SumAvailability(ctx context.Context, monitorIDs []int64, startDay time.Time) (map[int64]map[string]*ChannelMonitorDailyRollup, error)
+	ListDailyByMonitorIDs(ctx context.Context, monitorIDs []int64, startDay time.Time) ([]*ChannelMonitorDailyRollup, error)
 	SumAvailabilityWindows(ctx context.Context, monitorID int64, start7 time.Time, start15 time.Time, start30 time.Time) (map[string]*ChannelMonitorAvailabilityWindows, error)
 	PruneBeforeDay(ctx context.Context, beforeDay time.Time) (int64, error)
 }

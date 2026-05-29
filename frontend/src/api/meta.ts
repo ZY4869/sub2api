@@ -38,6 +38,7 @@ export type PublicModelCatalogStatus = 'ok' | 'error' | 'maintenance' | 'warning
 export type PublicModelAvailabilityState = 'verified' | 'unavailable' | 'unknown'
 export type PublicModelStaleState = 'fresh' | 'stale' | 'unverified'
 export type PublicModelLifecycleStatus = 'stable' | 'beta' | 'deprecated'
+export type PublicModelHealthStatus = 'healthy' | 'warning' | 'error' | 'pending'
 
 export interface PublicModelCatalogItem {
   entry_id?: string
@@ -54,8 +55,10 @@ export interface PublicModelCatalogItem {
   availability_state?: PublicModelAvailabilityState
   stale_state?: PublicModelStaleState
   lifecycle_status?: PublicModelLifecycleStatus
+  context_window_tokens?: number
+  modalities?: string[]
+  capabilities?: string[]
   request_protocols?: string[]
-  source_ids?: string[]
   mode?: string
   currency: string
   price_display: PublicModelCatalogPriceDisplay
@@ -88,6 +91,42 @@ export interface ModelCatalogFetchResult {
   notModified: boolean
   etag: string | null
   data: PublicModelCatalogSnapshot | null
+}
+
+export interface PublicModelCatalogDailyStatus {
+  date: string
+  status: PublicModelHealthStatus
+  success_rate?: number
+  latency_ms?: number
+}
+
+export interface PublicModelCatalogTrendPoint {
+  timestamp: string
+  success_rate?: number
+  latency_ms?: number
+}
+
+export interface PublicModelCatalogRateLimitSummary {
+  rpm?: number
+  tpm?: number
+  rpd?: number
+}
+
+export interface PublicModelCatalogStatusItem {
+  model: string
+  status: PublicModelHealthStatus
+  success_rate_today?: number
+  success_rate_7d?: number
+  latency_ms?: number
+  last_checked_at?: string
+  daily: PublicModelCatalogDailyStatus[]
+  trend: PublicModelCatalogTrendPoint[]
+  rate_limit?: PublicModelCatalogRateLimitSummary
+}
+
+export interface PublicModelCatalogStatusSnapshot {
+  updated_at: string
+  items: PublicModelCatalogStatusItem[]
 }
 
 export async function getUSDCNYExchangeRate(force = false): Promise<ExchangeRateInfo> {
@@ -155,11 +194,17 @@ export async function getModelCatalogDetail(model: string): Promise<PublicModelC
   return data
 }
 
+export async function getModelCatalogStatus(): Promise<PublicModelCatalogStatusSnapshot> {
+  const { data } = await apiClient.get<PublicModelCatalogStatusSnapshot>('/meta/model-catalog/status')
+  return data
+}
+
 export const metaAPI = {
   getUSDCNYExchangeRate,
   getModelRegistry,
   getModelCatalog,
-  getModelCatalogDetail
+  getModelCatalogDetail,
+  getModelCatalogStatus
 }
 
 export default metaAPI

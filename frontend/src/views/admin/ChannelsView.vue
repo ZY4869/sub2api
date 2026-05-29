@@ -2,120 +2,28 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-          <!-- Left: Search + Filters -->
-          <div class="flex flex-1 flex-wrap items-center gap-3">
-            <div class="relative w-full sm:w-64">
-              <Icon
-                name="search"
-                size="md"
-                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-              />
-              <input
-                v-model="searchQuery"
-                type="text"
-                :placeholder="t('admin.channels.searchChannels', 'Search channels...')"
-                class="input pl-10"
-                @input="handleSearch"
-              />
-            </div>
-
-            <Select
-              v-model="filters.status"
-              :options="statusFilterOptions"
-              :placeholder="t('admin.channels.allStatus', 'All Status')"
-              class="w-40"
-              @change="loadChannels"
-            />
-          </div>
-
-          <!-- Right: Actions -->
-          <div class="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-3 lg:w-auto">
-            <button
-              @click="loadChannels"
-              :disabled="loading"
-              class="btn btn-secondary"
-              :title="t('common.refresh', 'Refresh')"
-            >
-              <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
-            </button>
-            <button @click="openCreateDialog" class="btn btn-primary">
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.channels.createChannel', 'Create Channel') }}
-            </button>
-          </div>
-        </div>
+        <ChannelsFilters
+          :search-query="searchQuery"
+          :status="filters.status"
+          :status-filter-options="statusFilterOptions"
+          :loading="loading"
+          @search-change="handleSearchInput"
+          @status-change="handleStatusFilterChange"
+          @refresh="loadChannels"
+          @create="openCreateDialog"
+        />
       </template>
 
       <template #table>
-        <DataTable :columns="columns" :data="channels" :loading="loading">
-          <template #cell-name="{ value }">
-            <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
-          </template>
-
-          <template #cell-description="{ value }">
-            <span class="text-sm text-gray-600 dark:text-gray-400">{{ value || '-' }}</span>
-          </template>
-
-          <template #cell-status="{ row }">
-            <Toggle
-              :modelValue="row.status === 'active'"
-              @update:modelValue="toggleChannelStatus(row)"
-            />
-          </template>
-
-          <template #cell-group_count="{ row }">
-            <span
-              class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300"
-            >
-              {{ (row.group_ids || []).length }}
-              {{ t('admin.channels.groupsUnit', 'groups') }}
-            </span>
-          </template>
-
-          <template #cell-pricing_count="{ row }">
-            <span
-              class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300"
-            >
-              {{ (row.model_pricing || []).length }}
-              {{ t('admin.channels.pricingUnit', 'pricing rules') }}
-            </span>
-          </template>
-
-          <template #cell-created_at="{ value }">
-            <span class="text-sm text-gray-600 dark:text-gray-400">
-              {{ formatDate(value) }}
-            </span>
-          </template>
-
-          <template #cell-actions="{ row }">
-            <div class="flex items-center gap-1">
-              <button
-                @click="openEditDialog(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
-              >
-                <Icon name="edit" size="sm" />
-                <span class="text-xs">{{ t('common.edit', 'Edit') }}</span>
-              </button>
-              <button
-                @click="handleDelete(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-              >
-                <Icon name="trash" size="sm" />
-                <span class="text-xs">{{ t('common.delete', 'Delete') }}</span>
-              </button>
-            </div>
-          </template>
-
-          <template #empty>
-            <EmptyState
-              :title="t('admin.channels.noChannelsYet', 'No Channels Yet')"
-              :description="t('admin.channels.createFirstChannel', 'Create your first channel to manage model pricing')"
-              :action-text="t('admin.channels.createChannel', 'Create Channel')"
-              @action="openCreateDialog"
-            />
-          </template>
-        </DataTable>
+        <ChannelsTable
+          :columns="columns"
+          :channels="channels"
+          :loading="loading"
+          @toggle-status="toggleChannelStatus"
+          @edit="openEditDialog"
+          @delete="handleDelete"
+          @create="openCreateDialog"
+        />
       </template>
 
       <template #pagination>
@@ -430,17 +338,16 @@ import type { Column } from '@/components/common/types'
 import { GROUP_PLATFORM_ORDER } from '@/utils/platformBranding'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
-import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import EmptyState from '@/components/common/EmptyState.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
-import Toggle from '@/components/common/Toggle.vue'
 import PricingEntryCard from '@/components/admin/channel/PricingEntryCard.vue'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import ChannelsFilters from './channels/ChannelsFilters.vue'
+import ChannelsTable from './channels/ChannelsTable.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -546,12 +453,6 @@ function getRateBadgeClass(platform: string): string {
     case 'antigravity': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
     default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
   }
-}
-
-// ── Helpers ──
-function formatDate(value: string): string {
-  if (!value) return '-'
-  return new Date(value).toLocaleDateString()
 }
 
 // ── Platform section helpers ──
@@ -823,6 +724,17 @@ function handleSearch() {
     pagination.page = 1
     loadChannels()
   }, 300)
+}
+
+function handleSearchInput(value: string) {
+  searchQuery.value = value
+  handleSearch()
+}
+
+function handleStatusFilterChange(status: ChannelStatus | '') {
+  filters.status = status
+  pagination.page = 1
+  loadChannels()
 }
 
 function handlePageChange(page: number) {

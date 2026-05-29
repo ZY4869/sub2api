@@ -2,9 +2,12 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
   getModelCatalog,
+  getModelCatalogStatus,
   getUSDCNYExchangeRate,
   type PublicModelCatalogItem,
-  type PublicModelCatalogSnapshot
+  type PublicModelCatalogSnapshot,
+  type PublicModelCatalogStatusItem,
+  type PublicModelCatalogStatusSnapshot
 } from '@/api/meta'
 const PUBLIC_MODEL_CATALOG_STORAGE_KEY = 'public-model-catalog:snapshot'
 
@@ -17,10 +20,13 @@ interface PersistedPublicModelCatalogState {
 }
 
 const snapshotState = ref<PublicModelCatalogSnapshot | null>(null)
+const statusSnapshotState = ref<PublicModelCatalogStatusSnapshot | null>(null)
 const etagState = ref<string | null>(null)
 const loadedAtState = ref(0)
 const loadingState = ref(false)
+const statusLoadingState = ref(false)
 const hardErrorState = ref('')
+const statusErrorState = ref('')
 const softStaleState = ref(false)
 const exchangeRateWarningState = ref(false)
 const usdToCnyRateState = ref<number | null>(null)
@@ -28,6 +34,7 @@ const exchangeRateLoadedAtState = ref(0)
 
 let hydrated = false
 let pendingRequest: Promise<PublicModelCatalogSnapshot | null> | null = null
+let pendingStatusRequest: Promise<PublicModelCatalogStatusSnapshot | null> | null = null
 
 function cloneSnapshot(snapshot: PublicModelCatalogSnapshot | null): PublicModelCatalogSnapshot | null {
   if (!snapshot) {
@@ -46,12 +53,28 @@ function cloneItem(item: PublicModelCatalogItem): PublicModelCatalogItem {
   return {
     ...item,
     request_protocols: [...(item.request_protocols || [])],
-    source_ids: [...(item.source_ids || [])],
+    modalities: [...(item.modalities || [])],
+    capabilities: [...(item.capabilities || [])],
     price_display: {
       primary: item.price_display.primary.map((entry) => ({ ...entry })),
       secondary: item.price_display.secondary?.map((entry) => ({ ...entry }))
     },
     multiplier_summary: { ...item.multiplier_summary }
+  }
+}
+
+function cloneStatusSnapshot(snapshot: PublicModelCatalogStatusSnapshot | null): PublicModelCatalogStatusSnapshot | null {
+  if (!snapshot) {
+    return null
+  }
+  return {
+    updated_at: snapshot.updated_at,
+    items: snapshot.items.map((item) => ({
+      ...item,
+      daily: [...(item.daily || [])],
+      trend: [...(item.trend || [])],
+      rate_limit: item.rate_limit ? { ...item.rate_limit } : undefined
+    }))
   }
 }
 
@@ -143,6 +166,33 @@ async function loadExchangeRate(force = false) {
   return usdToCnyRateState.value
 }
 
+export async function fetchPublicModelCatalogStatus(force = false): Promise<PublicModelCatalogStatusSnapshot | null> {
+  hydrateFromStorage()
+  if (!force && statusLoadingState.value && pendingStatusRequest) {
+    return pendingStatusRequest
+  }
+
+  pendingStatusRequest = (async () => {
+    statusLoadingState.value = true
+    statusErrorState.value = ''
+    try {
+      const snapshot = await getModelCatalogStatus()
+      statusSnapshotState.value = cloneStatusSnapshot(snapshot)
+    } catch (error) {
+      statusErrorState.value = resolveErrorMessage(error, 'Model health status is temporarily unavailable.')
+      return null
+    }
+    return statusSnapshotState.value
+  })()
+
+  try {
+    return await pendingStatusRequest
+  } finally {
+    statusLoadingState.value = false
+    pendingStatusRequest = null
+  }
+}
+
 export async function fetchPublicModelCatalog(force = false): Promise<PublicModelCatalogSnapshot | null> {
   hydrateFromStorage()
   if (!force && loadingState.value && pendingRequest) {
@@ -178,6 +228,7 @@ export async function fetchPublicModelCatalog(force = false): Promise<PublicMode
 
     if (snapshotState.value) {
       await loadExchangeRate(force)
+      void fetchPublicModelCatalogStatus(force)
     }
 
     return snapshotState.value
@@ -202,6 +253,7 @@ export async function ensurePublicModelCatalogReady(force = false): Promise<Publ
   if (shouldLoadExchangeRate()) {
     void loadExchangeRate()
   }
+  void fetchPublicModelCatalogStatus(false)
   void fetchPublicModelCatalog(false)
   return snapshotState.value
 }
@@ -212,24 +264,41 @@ export function invalidatePublicModelCatalog() {
 
 export function resetPublicModelCatalogStoreForTests() {
   snapshotState.value = null
+  statusSnapshotState.value = null
   etagState.value = null
   loadedAtState.value = 0
   loadingState.value = false
+  statusLoadingState.value = false
   hardErrorState.value = ''
+  statusErrorState.value = ''
   softStaleState.value = false
   exchangeRateWarningState.value = false
   usdToCnyRateState.value = null
   exchangeRateLoadedAtState.value = 0
   hydrated = false
   pendingRequest = null
+  pendingStatusRequest = null
 }
 
 export const usePublicModelCatalogStore = defineStore('publicModelCatalog', () => {
   const snapshot = computed(() => snapshotState.value)
+  const statusSnapshot = computed(() => statusSnapshotState.value)
+  const statusByModel = computed<Record<string, PublicModelCatalogStatusItem>>(() => {
+    const items: Record<string, PublicModelCatalogStatusItem> = {}
+    for (const item of statusSnapshotState.value?.items || []) {
+      const model = String(item.model || '').trim()
+      if (model) {
+        items[model] = item
+      }
+    }
+    return items
+  })
   const etag = computed(() => etagState.value)
   const loadedAt = computed(() => loadedAtState.value)
   const loading = computed(() => loadingState.value)
+  const statusLoading = computed(() => statusLoadingState.value)
   const hardError = computed(() => hardErrorState.value)
+  const statusError = computed(() => statusErrorState.value)
   const softStale = computed(() => softStaleState.value)
   const exchangeRateWarning = computed(() => exchangeRateWarningState.value)
   const usdToCnyRate = computed(() => usdToCnyRateState.value)
@@ -248,16 +317,24 @@ export const usePublicModelCatalogStore = defineStore('publicModelCatalog', () =
     return fetchPublicModelCatalog(force)
   }
 
+  async function fetchStatus(force = false) {
+    return fetchPublicModelCatalogStatus(force)
+  }
+
   function invalidate() {
     invalidatePublicModelCatalog()
   }
 
   return {
     snapshot,
+    statusSnapshot,
+    statusByModel,
     etag,
     loadedAt,
     loading,
+    statusLoading,
     hardError,
+    statusError,
     softStale,
     exchangeRateWarning,
     usdToCnyRate,
@@ -266,6 +343,7 @@ export const usePublicModelCatalogStore = defineStore('publicModelCatalog', () =
     initialize,
     refresh,
     fetchCatalog,
+    fetchStatus,
     invalidate
   }
 })

@@ -99,6 +99,7 @@ type ContentModerationSettings struct {
 	KeywordBlockEnabled bool
 	Keywords            []string
 	ModelFilter         ContentModerationModelFilter
+	CategoryThresholds  map[string]float64
 }
 
 type ContentModerationModelFilter struct {
@@ -150,6 +151,7 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 		SettingKeyContentModerationKeywordBlockEnabled,
 		SettingKeyContentModerationKeywords,
 		SettingKeyContentModerationModelFilter,
+		SettingKeyContentModerationCategoryThresholds,
 	}
 	values, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
@@ -168,6 +170,10 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 		KeywordBlockEnabled: values[SettingKeyContentModerationKeywordBlockEnabled] == "true",
 		Keywords:            NormalizeContentModerationKeywords(values[SettingKeyContentModerationKeywords]),
 		ModelFilter:         NormalizeContentModerationModelFilter(values[SettingKeyContentModerationModelFilter]),
+		CategoryThresholds:  NormalizeContentModerationCategoryThresholds(values[SettingKeyContentModerationCategoryThresholds]),
+	}
+	if len(settings.CategoryThresholds) == 0 {
+		settings.CategoryThresholds = DefaultContentModerationCategoryThresholds()
 	}
 	if settings.APIKey == "" && len(settings.APIKeys) > 0 {
 		settings.APIKey = settings.APIKeys[0].Key
@@ -200,6 +206,43 @@ func (s *ContentModerationService) CheckKeywordBlock(ctx context.Context, input 
 	}
 	decision := EvaluateContentModerationKeywordBlock(settings, input.Content)
 	if decision.Blocked {
+		recordInput := *input
+		recordInput.Content = decision.Content
+		s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason)
+	}
+	return &decision, nil
+}
+
+func (s *ContentModerationService) CheckBlock(ctx context.Context, input *ContentModerationRecordInput) (*ContentModerationKeywordDecision, error) {
+	if s == nil || input == nil {
+		return &ContentModerationKeywordDecision{}, nil
+	}
+	settings, err := s.GetSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if settings == nil || !settings.Enabled || !settings.ModelFilter.Allows(input.Model) {
+		return &ContentModerationKeywordDecision{Content: strings.TrimSpace(input.Content)}, nil
+	}
+	decision := EvaluateContentModerationKeywordBlock(settings, input.Content)
+	if decision.Blocked {
+		if s.repo != nil {
+			recordInput := *input
+			recordInput.Content = decision.Content
+			s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason)
+		}
+		return &decision, nil
+	}
+	evaluated := evaluateContentModeration(ctx, settings, input, decision.Content)
+	if !evaluated.Hit {
+		return &decision, nil
+	}
+	decision.Blocked = true
+	decision.ErrorReason = strings.TrimSpace(evaluated.ErrorReason)
+	if decision.ErrorReason == "" {
+		decision.ErrorReason = "moderation_flagged"
+	}
+	if s.repo != nil {
 		recordInput := *input
 		recordInput.Content = decision.Content
 		s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason)

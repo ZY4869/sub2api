@@ -76,7 +76,8 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 	if normalizedModel == "" {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
-	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
+	if rawPublished := s.loadPublishedPublicModelCatalogSnapshot(ctx); rawPublished != nil {
+		published := s.filterPublishedPublicModelCatalogSnapshot(ctx, rawPublished)
 		if detail, ok := published.Details[normalizedModel]; ok {
 			cloned := clonePublicModelCatalogDetail(detail)
 			cloned.Item = sanitizePublicModelCatalogItemForPublic(cloned.Item)
@@ -145,8 +146,11 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 	if len(projection.SourceIDs) > 0 {
 		item.SourceIDs = append([]string(nil), projection.SourceIDs...)
 	}
+	if !s.publicModelCatalogItemRouteConfirmed(ctx, item) {
+		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
+	}
 	return &PublicModelCatalogDetail{
-		Item:              item,
+		Item:              sanitizePublicModelCatalogItemForPublic(item),
 		CatalogSource:     PublicModelCatalogSourceLiveFallback,
 		ExampleSource:     exampleSource,
 		ExampleProtocol:   exampleProtocol,
@@ -161,10 +165,11 @@ func (s *ModelCatalogService) PublishedPublicModelCatalogDetail(ctx context.Cont
 	if normalizedModel == "" {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
-	published := s.loadPublishedPublicModelCatalogSnapshot(ctx)
-	if published == nil {
+	rawPublished := s.loadPublishedPublicModelCatalogSnapshot(ctx)
+	if rawPublished == nil {
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 	}
+	published := s.filterPublishedPublicModelCatalogSnapshot(ctx, rawPublished)
 	detail, ok := published.Details[normalizedModel]
 	if !ok {
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
@@ -213,6 +218,13 @@ func buildPublicModelCatalogItemFromProjection(
 		projection.PublicID,
 		firstRegistryString(projection.SourceIDs...),
 	)
+	modelMetadata := publicModelCatalogMetadataForCandidates(
+		records,
+		record,
+		projection.PublicID,
+		firstRegistryString(projection.SourceIDs...),
+		persisted.Model,
+	)
 
 	return PublicModelCatalogItem{
 		EntryID:              publicModelCatalogEntryID(0, projection.Platform, firstNonEmptyTrimmed(firstRegistryString(projection.SourceIDs...), modelID)),
@@ -228,6 +240,9 @@ func buildPublicModelCatalogItemFromProjection(
 		AvailabilityState:    firstNonEmptyTrimmed(projection.AvailabilityState, AccountModelAvailabilityUnknown),
 		StaleState:           firstNonEmptyTrimmed(projection.StaleState, AccountModelStaleStateUnverified),
 		LifecycleStatus:      lifecycleStatus,
+		ContextWindowTokens:  modelMetadata.ContextWindowTokens,
+		Modalities:           append([]string(nil), modelMetadata.Modalities...),
+		Capabilities:         append([]string(nil), modelMetadata.Capabilities...),
 		RequestProtocols:     publicModelCatalogRequestProtocolsForProjection(projection, records, provider),
 		SourceIDs:            append([]string(nil), projection.SourceIDs...),
 		Mode:                 mode,
@@ -380,4 +395,63 @@ func modelregistryEntryFromRecord(record *modelCatalogRecord) modelregistry.Mode
 		Platforms:   compactStrings(record.defaultPlatforms),
 		ProtocolIDs: compactStrings([]string{record.model, record.pricingLookupModelID, record.canonicalModelID}),
 	}
+}
+
+type publicModelCatalogMetadata struct {
+	ContextWindowTokens int64
+	Modalities          []string
+	Capabilities        []string
+}
+
+func publicModelCatalogMetadataForCandidates(
+	records map[string]*modelCatalogRecord,
+	record *modelCatalogRecord,
+	candidates ...string,
+) publicModelCatalogMetadata {
+	values := make([]string, 0, len(candidates)+3)
+	values = append(values, candidates...)
+	if record != nil {
+		values = append(values, record.model, record.pricingLookupModelID, record.canonicalModelID)
+	}
+	for _, candidate := range values {
+		if entry, ok := modelregistry.SeedModelByID(candidate); ok {
+			return publicModelCatalogMetadataFromEntry(entry)
+		}
+		if records != nil {
+			if candidateRecord, ok := resolveModelCatalogRecord(records, candidate); ok && candidateRecord != nil {
+				entry := modelregistryEntryFromRecord(candidateRecord)
+				if seed, found := modelregistry.SeedModelByID(entry.ID); found {
+					return publicModelCatalogMetadataFromEntry(seed)
+				}
+				return publicModelCatalogMetadataFromRecord(candidateRecord)
+			}
+		}
+	}
+	if record != nil {
+		return publicModelCatalogMetadataFromRecord(record)
+	}
+	return publicModelCatalogMetadata{}
+}
+
+func publicModelCatalogMetadataFromEntry(entry modelregistry.ModelEntry) publicModelCatalogMetadata {
+	return publicModelCatalogMetadata{
+		ContextWindowTokens: entry.ContextWindowTokens,
+		Modalities:          append([]string(nil), entry.Modalities...),
+		Capabilities:        append([]string(nil), entry.Capabilities...),
+	}
+}
+
+func publicModelCatalogMetadataFromRecord(record *modelCatalogRecord) publicModelCatalogMetadata {
+	if record == nil {
+		return publicModelCatalogMetadata{}
+	}
+	mode := inferModelMode(record.model, record.mode)
+	metadata := publicModelCatalogMetadata{
+		Modalities:   defaultModalitiesForMode(mode),
+		Capabilities: defaultCapabilitiesForMode(mode),
+	}
+	if tokens, ok := modelregistry.ResolveContextWindowTokens(record.pricingLookupModelID, record.canonicalModelID, record.model); ok {
+		metadata.ContextWindowTokens = tokens
+	}
+	return metadata
 }

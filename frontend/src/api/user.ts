@@ -13,6 +13,7 @@ import type {
   AuthIdentity,
   SocialOAuthProvider,
 } from '@/types'
+import type { UserPlatformQuota } from '@/api/admin/users'
 
 /**
  * Get current user profile
@@ -69,12 +70,18 @@ export async function deleteAuthIdentity(provider: SocialOAuthProvider): Promise
   return data
 }
 
+export async function getPlatformQuotas(): Promise<UserPlatformQuota[]> {
+  const { data } = await apiClient.get<UserPlatformQuota[]>('/user/platform-quotas')
+  return data
+}
+
 export const userAPI = {
   getProfile,
   updateProfile,
   changePassword,
   getAuthIdentities,
-  deleteAuthIdentity
+  deleteAuthIdentity,
+  getPlatformQuotas
 }
 
 export default userAPI

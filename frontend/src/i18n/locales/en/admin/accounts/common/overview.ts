@@ -82,6 +82,7 @@ export default {
         usageResetDates: "Reset Dates",
         proxy: "Proxy",
         lastUsed: "Last Used",
+        createdAt: "Created At",
         updatedAt: "Updated At",
         expiresAt: "Expires At",
         actions: "Actions",

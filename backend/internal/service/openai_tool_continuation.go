@@ -46,7 +46,7 @@ func NeedsToolContinuation(reqBody map[string]any) bool {
 			continue
 		}
 		itemType, _ := itemMap["type"].(string)
-		if itemType == "function_call_output" || itemType == "item_reference" {
+		if isOpenAIToolOutputItemType(itemType) || itemType == "item_reference" {
 			return true
 		}
 	}
@@ -73,13 +73,13 @@ func AnalyzeToolContinuationSignals(reqBody map[string]any) ToolContinuationSign
 			continue
 		}
 		itemType, _ := itemMap["type"].(string)
-		switch itemType {
-		case "tool_call", "function_call":
+		switch {
+		case isOpenAIToolCallContextItemType(itemType):
 			callID, _ := itemMap["call_id"].(string)
 			if strings.TrimSpace(callID) != "" {
 				signals.HasToolCallContext = true
 			}
-		case "function_call_output":
+		case isOpenAIToolOutputItemType(itemType):
 			signals.HasFunctionCallOutput = true
 			callID, _ := itemMap["call_id"].(string)
 			callID = strings.TrimSpace(callID)
@@ -91,7 +91,7 @@ func AnalyzeToolContinuationSignals(reqBody map[string]any) ToolContinuationSign
 				callIDs = make(map[string]struct{})
 			}
 			callIDs[callID] = struct{}{}
-		case "item_reference":
+		case itemType == "item_reference":
 			signals.HasItemReference = true
 			idValue, _ := itemMap["id"].(string)
 			idValue = strings.TrimSpace(idValue)
@@ -142,10 +142,10 @@ func ValidateFunctionCallOutputContext(reqBody map[string]any) FunctionCallOutpu
 			continue
 		}
 		itemType, _ := itemMap["type"].(string)
-		switch itemType {
-		case "function_call_output":
+		switch {
+		case isOpenAIToolOutputItemType(itemType):
 			result.HasFunctionCallOutput = true
-		case "tool_call", "function_call":
+		case isOpenAIToolCallContextItemType(itemType):
 			callID, _ := itemMap["call_id"].(string)
 			if strings.TrimSpace(callID) != "" {
 				result.HasToolCallContext = true
@@ -168,8 +168,8 @@ func ValidateFunctionCallOutputContext(reqBody map[string]any) FunctionCallOutpu
 			continue
 		}
 		itemType, _ := itemMap["type"].(string)
-		switch itemType {
-		case "function_call_output":
+		switch {
+		case isOpenAIToolOutputItemType(itemType):
 			callID, _ := itemMap["call_id"].(string)
 			callID = strings.TrimSpace(callID)
 			if callID == "" {
@@ -177,7 +177,7 @@ func ValidateFunctionCallOutputContext(reqBody map[string]any) FunctionCallOutpu
 				continue
 			}
 			callIDs[callID] = struct{}{}
-		case "item_reference":
+		case itemType == "item_reference":
 			idValue, _ := itemMap["id"].(string)
 			idValue = strings.TrimSpace(idValue)
 			if idValue == "" {
@@ -290,6 +290,24 @@ func hasToolChoiceSignal(reqBody map[string]any) bool {
 		return strings.TrimSpace(value) != ""
 	case map[string]any:
 		return len(value) > 0
+	default:
+		return false
+	}
+}
+
+func isOpenAIToolCallContextItemType(itemType string) bool {
+	switch strings.TrimSpace(itemType) {
+	case "tool_call", "function_call", "local_shell_call", "tool_search_call", "custom_tool_call", "mcp_tool_call":
+		return true
+	default:
+		return false
+	}
+}
+
+func isOpenAIToolOutputItemType(itemType string) bool {
+	switch strings.TrimSpace(itemType) {
+	case "function_call_output", "tool_search_output", "custom_tool_call_output", "mcp_tool_call_output":
+		return true
 	default:
 		return false
 	}

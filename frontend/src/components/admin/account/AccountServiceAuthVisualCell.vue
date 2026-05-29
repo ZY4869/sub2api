@@ -1,19 +1,21 @@
 <template>
-  <div class="flex min-w-0 flex-col gap-1.5">
-    <div class="flex items-center gap-2">
+  <div class="flex min-w-0 max-w-full flex-col gap-1.5 overflow-hidden">
+    <div class="flex min-w-0 items-center gap-1.5">
       <div
         :class="[
-          'inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-[3px]',
+          'inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full border py-[3px]',
+          compact ? 'px-2' : 'px-2.5',
           planBadgeClass
         ]"
+        :title="planLabel"
       >
         <PlatformIcon :platform="platform" size="xs" />
-        <span class="truncate text-[11px] font-bold leading-none tracking-tight">
+        <span class="min-w-0 truncate text-[11px] font-bold leading-none tracking-tight">
           {{ planLabel }}
         </span>
       </div>
 
-      <div class="flex items-center gap-1">
+      <div class="flex shrink-0 items-center gap-1">
         <div
           class="flex h-6 w-6 items-center justify-center rounded-full border border-gray-200/80 bg-white text-gray-400 dark:border-slate-700 dark:bg-slate-900/70"
           :title="typeTitle"
@@ -77,17 +79,17 @@
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center gap-1.5">
-      <span :class="metaBadgeClass">
+    <div class="flex min-w-0 flex-wrap items-center gap-1">
+      <span :class="metaBadgeClass" :title="platformLabel">
         {{ platformLabel }}
       </span>
-      <span :class="metaBadgeClass">
+      <span :class="metaBadgeClass" :title="typeLabel">
         {{ typeLabel }}
       </span>
-      <span v-if="gatewayProtocolLabel" :class="metaBadgeClass">
+      <span v-if="gatewayProtocolLabel" :class="metaBadgeClass" :title="gatewayProtocolLabel">
         {{ gatewayProtocolLabel }}
       </span>
-      <span v-if="expiresLabel" :class="metaBadgeClass">
+      <span v-if="expiresLabel" :class="metaBadgeClass" :title="expiresLabel">
         {{ expiresLabel }}
       </span>
     </div>
@@ -110,6 +112,7 @@ const props = defineProps<{
   proMultiplier?: number | null
   privacyMode?: string
   subscriptionExpiresAt?: string
+  compact?: boolean
 }>()
 
 const { t } = useI18n()
@@ -205,7 +208,7 @@ const planBadgeClass = computed(() => {
 })
 
 const metaBadgeClass =
-  'inline-flex items-center rounded border border-slate-200/75 bg-slate-50/92 px-1.5 py-[2px] text-[10px] font-medium text-gray-600 dark:border-slate-700/80 dark:bg-slate-800/70 dark:text-slate-200'
+  'inline-flex max-w-[76px] items-center rounded border border-slate-200/75 bg-slate-50/92 px-1.5 py-[2px] text-[10px] font-medium text-gray-600 dark:border-slate-700/80 dark:bg-slate-800/70 dark:text-slate-200 truncate'
 
 const privacyBadge = computed(() => {
   if (props.platform !== 'openai' || props.type !== 'oauth' || !props.privacyMode) return null

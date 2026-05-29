@@ -66,13 +66,13 @@ func TestModelCatalogService_PublicCatalogDraftCandidate_PersistedForceAndPublis
 	payload, err = svc.GetPublicModelCatalogDraftPayload(ctx, true)
 	require.NoError(t, err)
 	require.Equal(t, publicModelCatalogDraftAvailableSourceRefreshed, payload.AvailableSource)
-	require.Equal(t, []string{"gpt-image-2"}, publicCatalogItemModels(payload.AvailableItems))
+	require.Empty(t, payload.AvailableItems)
 
 	overwritten := loadPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot)
 	require.NotNil(t, overwritten)
-	require.Equal(t, []string{"gpt-image-2"}, publicCatalogItemModels(overwritten.Items))
+	require.Empty(t, overwritten.Items)
 
-	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, persisted))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-image-2")))
 	summary, err := svc.PublishPublicModelCatalog(ctx, ModelCatalogActor{UserID: 1, Email: "admin@example.test"}, &PublicModelCatalogDraft{
 		SelectedModels: []string{"gpt-image-2"},
 		PageSize:       10,
@@ -140,6 +140,48 @@ func TestModelCatalogService_PublishedSnapshotKeepsInternalAccountIDButPublicVie
 	require.Empty(t, publicDetail.Item.SourceAccountName)
 }
 
+func TestModelCatalogService_PublishPublicModelCatalog_MatchesSelectedEntryByStableSourceWhenEntryIDChanges(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	persisted := publicCatalogCandidateTestSnapshot("gpt-5.4")
+	persisted.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	persisted.Items[0].EntryID = "entry-current"
+	persisted.Items[0].PublicModelID = "gpt-5.4@team-a"
+	persisted.Items[0].Model = "gpt-5.4@team-a"
+	persisted.Items[0].BaseModel = "gpt-5.4"
+	persisted.Items[0].SourceModelID = "gpt-5.4"
+	persisted.Items[0].SourceProtocol = PlatformOpenAI
+	persisted.Items[0].SourceAlias = "Team A"
+	persisted.Items[0].SourceAccountID = 42
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, persisted))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, nil)
+	summary, err := svc.PublishPublicModelCatalog(ctx, ModelCatalogActor{UserID: 1, Email: "admin@example.test"}, &PublicModelCatalogDraft{
+		SelectedEntries: []PublicModelCatalogEntryDraft{{
+			EntryID:         "entry-stale",
+			PublicModelID:   "gpt-5.4-public",
+			SourceAccountID: 42,
+			SourceAlias:     "Team A",
+			SourceModelID:   "gpt-5.4",
+			BaseModel:       "gpt-5.4",
+			SourceProtocol:  PlatformOpenAI,
+			SalePriceDisplay: PublicModelCatalogPriceDisplay{
+				Primary: []PublicModelCatalogPriceEntry{{ID: billingDiscountFieldOutputPrice, Unit: "token", Value: 9}},
+			},
+		}},
+		PageSize: 10,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.ModelCount)
+
+	published := loadPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot)
+	require.NotNil(t, published)
+	require.Equal(t, "entry-current", published.Snapshot.Items[0].EntryID)
+	require.Equal(t, "gpt-5.4-public", published.Snapshot.Items[0].Model)
+	require.Equal(t, int64(42), published.Snapshot.Items[0].SourceAccountID)
+	require.Equal(t, 9.0, published.Snapshot.Items[0].SalePriceDisplay.Primary[0].Value)
+}
+
 func TestModelCatalogService_PublishPublicModelCatalog_RejectsUnavailableSelectedEntry(t *testing.T) {
 	ctx := context.Background()
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
@@ -183,14 +225,24 @@ func TestModelCatalogService_PublishPublicModelCatalog_RejectsStalePersistedCand
 func publicCatalogCandidateTestSnapshot(model string) *PublicModelCatalogSnapshot {
 	return &PublicModelCatalogSnapshot{
 		ETag:      "etag-" + model,
-		UpdatedAt: "2026-04-27T00:00:00Z",
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
 		PageSize:  10,
 		Items: []PublicModelCatalogItem{{
-			Model:       model,
-			DisplayName: model,
-			Provider:    PlatformOpenAI,
-			Mode:        "image",
-			Currency:    ModelPricingCurrencyUSD,
+			Model:             model,
+			PublicModelID:     model,
+			BaseModel:         model,
+			SourceModelID:     model,
+			DisplayName:       model,
+			Provider:          PlatformOpenAI,
+			ProviderIconKey:   PlatformOpenAI,
+			SourceProtocol:    PlatformOpenAI,
+			Status:            PublicModelStatusOK,
+			AvailabilityState: AccountModelAvailabilityVerified,
+			StaleState:        AccountModelStaleStateFresh,
+			LifecycleStatus:   PublicModelLifecycleStable,
+			RequestProtocols:  []string{PlatformOpenAI},
+			Mode:              inferModelMode(model, ""),
+			Currency:          ModelPricingCurrencyUSD,
 			PriceDisplay: PublicModelCatalogPriceDisplay{
 				Primary: []PublicModelCatalogPriceEntry{{ID: billingDiscountFieldOutputPrice, Unit: BillingUnitImage, Value: 0.08}},
 			},

@@ -75,6 +75,9 @@ func (h *OpenAIGatewayHandler) mapUpstreamError(statusCode int) (int, string, st
 
 // handleStreamingAwareError handles errors that may occur after streaming has started.
 func (h *OpenAIGatewayHandler) handleStreamingAwareError(c *gin.Context, status int, errType, message string, streamStarted bool) {
+	if canAppendResponsesFailedEvent(c, streamStarted) && writeResponsesFailedEvent(c, errType, message) {
+		return
+	}
 	if streamStarted {
 		// Stream already started, send error as SSE event then close
 		flusher, ok := c.Writer.(http.Flusher)
@@ -95,7 +98,13 @@ func (h *OpenAIGatewayHandler) handleStreamingAwareError(c *gin.Context, status 
 
 // ensureForwardErrorResponse 在 Forward 返回错误但尚未写响应时补写统一错误响应。
 func (h *OpenAIGatewayHandler) ensureForwardErrorResponse(c *gin.Context, streamStarted bool) bool {
-	if c == nil || c.Writer == nil || c.Writer.Written() {
+	if c == nil || c.Writer == nil {
+		return false
+	}
+	if c.Writer.Written() {
+		if canAppendResponsesFailedEvent(c, streamStarted) {
+			return writeResponsesFailedEvent(c, "upstream_error", "Upstream request failed")
+		}
 		return false
 	}
 	h.handleStreamingAwareError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed", streamStarted)

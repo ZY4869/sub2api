@@ -65,6 +65,7 @@ type SystemSettings struct {
 	ContentModerationKeywordBlockEnabled bool
 	ContentModerationKeywords            []string
 	ContentModerationModelFilter         ContentModerationModelFilter
+	ContentModerationCategoryThresholds  map[string]float64
 
 	SiteName                             string
 	SiteLogo                             string

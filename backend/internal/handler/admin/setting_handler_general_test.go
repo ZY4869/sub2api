@@ -208,6 +208,32 @@ func TestSettingHandlerUpdateSettings_ContentModerationLegacyKeyAndNoMutationPre
 	require.Equal(t, "sk-legacy-new", currentKeys[2].Key)
 }
 
+func TestSettingHandlerUpdateSettings_ContentModerationCategoryThresholds(t *testing.T) {
+	repo := &adminSettingRepoStub{values: map[string]string{}}
+	handler := newAdminSettingTestHandler(repo)
+
+	okResp := performAdminSettingsUpdate(t, handler, `{
+		"content_moderation_category_thresholds":{
+			"violence":0.42,
+			"unknown":0.1
+		}
+	}`)
+	require.Equal(t, http.StatusOK, okResp.Code)
+
+	var stored map[string]float64
+	require.NoError(t, json.Unmarshal([]byte(repo.values[service.SettingKeyContentModerationCategoryThresholds]), &stored))
+	require.Equal(t, 0.42, stored["violence"])
+	_, hasUnknown := stored["unknown"]
+	require.False(t, hasUnknown)
+
+	badResp := performAdminSettingsUpdate(t, handler, `{
+		"content_moderation_category_thresholds":{
+			"violence":1.01
+		}
+	}`)
+	require.Equal(t, http.StatusBadRequest, badResp.Code)
+}
+
 func TestSettingHandlerUpdateSettings_LoginAgreementRequiresPublishedMarkdownPages(t *testing.T) {
 	repo := &adminSettingRepoStub{
 		values: map[string]string{

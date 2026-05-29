@@ -12,20 +12,21 @@ import (
 )
 
 type ModelCatalogService struct {
-	settingRepo          SettingRepository
-	adminService         AdminService
-	billingService       *BillingService
-	billingCenterService *BillingCenterService
-	pricingService       *PricingService
-	exchangeRateService  *ModelCatalogExchangeRateService
-	modelRegistryService *ModelRegistryService
-	gatewayService       *GatewayService
-	docsService          *APIDocsService
-	publicCatalogCacheMu sync.RWMutex
-	publicCatalogCache   *PublicModelCatalogSnapshot
-	publicCatalogBuiltAt time.Time
-	publicCatalogTTL     time.Duration
-	cfg                  *config.Config
+	settingRepo           SettingRepository
+	adminService          AdminService
+	billingService        *BillingService
+	billingCenterService  *BillingCenterService
+	pricingService        *PricingService
+	exchangeRateService   *ModelCatalogExchangeRateService
+	modelRegistryService  *ModelRegistryService
+	gatewayService        *GatewayService
+	channelMonitorService *ChannelMonitorService
+	docsService           *APIDocsService
+	publicCatalogCacheMu  sync.RWMutex
+	publicCatalogCache    *PublicModelCatalogSnapshot
+	publicCatalogBuiltAt  time.Time
+	publicCatalogTTL      time.Duration
+	cfg                   *config.Config
 }
 
 func NewModelCatalogService(
@@ -59,6 +60,10 @@ func (s *ModelCatalogService) SetModelRegistryService(modelRegistryService *Mode
 
 func (s *ModelCatalogService) SetGatewayService(gatewayService *GatewayService) {
 	s.gatewayService = gatewayService
+}
+
+func (s *ModelCatalogService) SetChannelMonitorService(channelMonitorService *ChannelMonitorService) {
+	s.channelMonitorService = channelMonitorService
 }
 
 func (s *ModelCatalogService) SetDocsService(docsService *APIDocsService) {

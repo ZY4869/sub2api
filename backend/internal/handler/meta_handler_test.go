@@ -120,6 +120,58 @@ func TestMetaHandler_ModelCatalogRequiresAuthWhenPublicCatalogDisabled(t *testin
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
+func TestMetaHandler_ModelCatalogStatusRequiresAuthWhenPublicCatalogDisabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &metaSettingRepoStub{values: map[string]string{
+		service.SettingKeyPublicModelCatalogEnabled: "false",
+	}}
+	settingService := service.NewSettingService(repo, &config.Config{})
+	metaHandler := NewMetaHandler(nil)
+	metaHandler.SetSettingService(settingService)
+	metaHandler.SetAuthResolverForTest(func(*gin.Context) bool { return false })
+
+	router := gin.New()
+	router.GET("/api/v1/meta/model-catalog/status", metaHandler.ModelCatalogStatus)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog/status", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestMetaHandler_ModelCatalogStatusReturnsSanitizedModelHealth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &metaSettingRepoStub{values: map[string]string{}}
+	published := buildMetaPublishedSnapshot("W/\"published-health\"")
+	published.Snapshot.Items[0].SourceIDs = []string{"gpt-5.4-source"}
+	published.Snapshot.Items[0].SourceAccountID = 42
+	repo.values[service.SettingKeyPublicModelCatalogPublishedSnapshot] = mustMetaJSON(t, published)
+	modelCatalogService := service.NewModelCatalogService(
+		repo,
+		nil,
+		service.NewBillingService(&config.Config{}, nil),
+		nil,
+		&config.Config{},
+	)
+
+	metaHandler := NewMetaHandler(modelCatalogService)
+	router := gin.New()
+	router.GET("/api/v1/meta/model-catalog/status", metaHandler.ModelCatalogStatus)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog/status", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
+	require.Contains(t, rec.Body.String(), "\"status\":\"pending\"")
+	require.NotContains(t, rec.Body.String(), "source_account")
+	require.NotContains(t, rec.Body.String(), "gpt-5.4-source")
+}
+
 func TestMetaHandler_ModelCatalogAuthMatrix(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -232,7 +284,7 @@ func TestMetaHandler_ModelCatalogDetailReturnsModel(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "\"lifecycle_status\":\"stable\"")
 }
 
-func TestMetaHandler_ModelCatalogFallsBackToLiveSnapshotWhenNotPublished(t *testing.T) {
+func TestMetaHandler_ModelCatalogDoesNotExposeUnverifiedLiveSnapshotWhenNotPublished(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &metaSettingRepoStub{values: map[string]string{}}
@@ -277,11 +329,12 @@ func TestMetaHandler_ModelCatalogFallsBackToLiveSnapshotWhenNotPublished(t *test
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Contains(t, rec.Body.String(), "\"catalog_source\":\"live_fallback\"")
-	require.Contains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
+	require.Contains(t, rec.Body.String(), "\"items\":[]")
+	require.NotContains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
 	require.Contains(t, rec.Body.String(), "\"page_size\":10")
 }
 
-func TestMetaHandler_ModelCatalogDetailFallsBackToLiveWhenNotPublished(t *testing.T) {
+func TestMetaHandler_ModelCatalogDetailRejectsUnverifiedLiveFallbackWhenNotPublished(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &metaSettingRepoStub{values: map[string]string{}}
@@ -324,9 +377,8 @@ func TestMetaHandler_ModelCatalogDetailFallsBackToLiveWhenNotPublished(t *testin
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	require.Contains(t, rec.Body.String(), "\"catalog_source\":\"live_fallback\"")
-	require.Contains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
+	require.Equal(t, http.StatusNotFound, rec.Code)
+	require.NotContains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
 }
 
 func mustMetaJSON(t *testing.T, value any) string {

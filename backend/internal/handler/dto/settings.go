@@ -112,6 +112,7 @@ type SystemSettings struct {
 	ContentModerationKeywordBlockEnabled bool                                 `json:"content_moderation_keyword_block_enabled"`
 	ContentModerationKeywords            []string                             `json:"content_moderation_keywords"`
 	ContentModerationModelFilter         service.ContentModerationModelFilter `json:"content_moderation_model_filter"`
+	ContentModerationCategoryThresholds  map[string]float64                   `json:"content_moderation_category_thresholds"`
 
 	SiteName                             string                    `json:"site_name"`
 	SiteLogo                             string                    `json:"site_logo"`

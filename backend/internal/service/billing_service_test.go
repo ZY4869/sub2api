@@ -229,6 +229,30 @@ func TestCalculateCost_OpenAIGPT54LongContextAppliesWholeSessionMultipliers(t *t
 	require.InDelta(t, expectedInput+expectedOutput, cost.ActualCost, 1e-10)
 }
 
+func TestCalculateCost_OpenAIGPT54LongContextAppliesCacheMultipliers(t *testing.T) {
+	svc := newTestBillingService()
+
+	tokens := UsageTokens{
+		InputTokens:         10000,
+		OutputTokens:        4000,
+		CacheCreationTokens: 10000,
+		CacheReadTokens:     260000,
+	}
+
+	cost, err := svc.CalculateCost("gpt-5.4-2026-03-05", tokens, 1.0)
+	require.NoError(t, err)
+
+	expectedInput := float64(tokens.InputTokens) * 2.5e-6 * 2.0
+	expectedOutput := float64(tokens.OutputTokens) * 15e-6 * 1.5
+	expectedCacheCreation := float64(tokens.CacheCreationTokens) * 2.5e-6 * 2.0
+	expectedCacheRead := float64(tokens.CacheReadTokens) * 2.5e-7 * 2.0
+	require.InDelta(t, expectedInput, cost.InputCost, 1e-10)
+	require.InDelta(t, expectedOutput, cost.OutputCost, 1e-10)
+	require.InDelta(t, expectedCacheCreation, cost.CacheCreationCost, 1e-10)
+	require.InDelta(t, expectedCacheRead, cost.CacheReadCost, 1e-10)
+	require.InDelta(t, expectedInput+expectedOutput+expectedCacheCreation+expectedCacheRead, cost.TotalCost, 1e-10)
+}
+
 func TestCalculateCost_OpenAIGPT54MiniDoesNotApplyLongContextMultiplier(t *testing.T) {
 	svc := newTestBillingService()
 
@@ -349,6 +373,33 @@ func TestCalculateCostWithLongContext_AboveThreshold_CacheBelowThreshold(t *test
 	// 正常费用不含长上下文
 	normalCost, _ := svc.CalculateCost("claude-sonnet-4", tokens, 1.0)
 	require.True(t, cost.ActualCost > normalCost.ActualCost, "长上下文费用应高于正常费用")
+}
+
+func TestCalculateCostWithLongContext_AppliesMultiplierToCacheCreationOverflow(t *testing.T) {
+	svc := newTestBillingService()
+
+	tokens := UsageTokens{
+		InputTokens:         10000,
+		OutputTokens:        1000,
+		CacheCreationTokens: 210000,
+		CacheReadTokens:     0,
+	}
+	cost, err := svc.CalculateCostWithLongContext("claude-sonnet-4", tokens, 1.0, 200000, 2.0)
+	require.NoError(t, err)
+
+	inRange, err := svc.CalculateCost("claude-sonnet-4", UsageTokens{
+		OutputTokens:        1000,
+		CacheCreationTokens: 200000,
+	}, 1.0)
+	require.NoError(t, err)
+	outRange, err := svc.CalculateCost("claude-sonnet-4", UsageTokens{
+		InputTokens:         10000,
+		CacheCreationTokens: 10000,
+	}, 2.0)
+	require.NoError(t, err)
+
+	require.InDelta(t, inRange.ActualCost+outRange.ActualCost, cost.ActualCost, 1e-10)
+	require.InDelta(t, inRange.CacheCreationCost+outRange.CacheCreationCost, cost.CacheCreationCost, 1e-10)
 }
 
 func TestCalculateCostWithLongContext_DisabledThreshold(t *testing.T) {

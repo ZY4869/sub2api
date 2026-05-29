@@ -95,6 +95,8 @@ func TestGatewayService_ResolveAPIKeySelectionModel_PublishedCatalogUsesSourceMo
 				SourceAccountID: 42,
 				DisplayName:     "GPT 5.4 Team A",
 				Provider:        PlatformOpenAI,
+				AvailabilityState: AccountModelAvailabilityVerified,
+				StaleState:        AccountModelStaleStateFresh,
 				Currency:        ModelPricingCurrencyUSD,
 				PriceDisplay: PublicModelCatalogPriceDisplay{
 					Primary: []PublicModelCatalogPriceEntry{{ID: billingDiscountFieldOutputPrice, Unit: "token", Value: 9}},
@@ -139,6 +141,76 @@ func TestGatewayService_ResolveAPIKeySelectionModel_PublishedCatalogUsesSourceMo
 	require.Equal(t, "gpt-5.4@team-a", entries[0].PublicID)
 	require.Equal(t, "gpt-5.4", entries[0].SourceID)
 	require.Equal(t, "gpt-5.4", svc.ResolveAPIKeySelectionModel(ctx, apiKey, PlatformOpenAI, "gpt-5.4@team-a"))
+}
+
+func TestGatewayService_PublishedCatalogRespectsGroupVisibleModels(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	published := &PublicModelCatalogPublishedSnapshot{
+		Snapshot: PublicModelCatalogSnapshot{
+			ETag:      "etag-public",
+			UpdatedAt: "2026-05-01T00:00:00Z",
+			PageSize:  10,
+			Items: []PublicModelCatalogItem{{
+				EntryID:         "entry-openai-a",
+				PublicModelID:   "gpt-5.4@team-a",
+				Model:           "gpt-5.4@team-a",
+				BaseModel:       "gpt-5.4",
+				SourceModelID:   "gpt-5.4",
+				SourceProtocol:  PlatformOpenAI,
+				SourceAccountID: 42,
+				DisplayName:     "GPT 5.4 Team A",
+				Provider:        PlatformOpenAI,
+				AvailabilityState: AccountModelAvailabilityVerified,
+				StaleState:        AccountModelStaleStateFresh,
+				Currency:        ModelPricingCurrencyUSD,
+				PriceDisplay: PublicModelCatalogPriceDisplay{
+					Primary: []PublicModelCatalogPriceEntry{{ID: billingDiscountFieldOutputPrice, Unit: "token", Value: 9}},
+				},
+			}},
+		},
+	}
+	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot, published))
+	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, nil)
+	svc := &GatewayService{
+		modelCatalogService: modelCatalogSvc,
+		accountRepo: &mockAccountRepoForPlatform{
+			accountsByID: map[int64]*Account{
+				42: {
+					ID:          42,
+					Name:        "openai-team-a",
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeAPIKey,
+					Status:      StatusActive,
+					Schedulable: true,
+					GroupIDs:    []int64{20},
+				},
+			},
+		},
+	}
+	apiKey := &APIKey{
+		ID: 10,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 20,
+			Group: &Group{
+				ID:                   20,
+				Name:                 "openai",
+				Platform:             PlatformOpenAI,
+				Status:               StatusActive,
+				VisibleModelPatterns: []string{"other-model"},
+			},
+		}},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(ctx, apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Empty(t, entries)
+
+	entry, ok, active, err := svc.findPublishedPublicCatalogModel(ctx, apiKey, PlatformOpenAI, "gpt-5.4@team-a")
+	require.NoError(t, err)
+	require.True(t, active)
+	require.False(t, ok)
+	require.Nil(t, entry)
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefix(t *testing.T) {
@@ -1190,6 +1262,113 @@ func TestGatewayService_GetAPIKeyPublicModels_RestrictedScopePrefersAliasForWhit
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, "friendly-beta", aliasEntry.PublicID)
+}
+
+func TestGatewayService_GetAPIKeyPublicModels_GroupVisibleModelsNarrowsProjection(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	for _, entry := range []UpsertModelRegistryEntryInput{
+		{
+			ID:          "registry-openai-alpha",
+			DisplayName: "Registry OpenAI Alpha",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime"},
+			UIPriority:  1,
+		},
+		{
+			ID:          "registry-openai-beta",
+			DisplayName: "Registry OpenAI Beta",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime"},
+			UIPriority:  2,
+		},
+	} {
+		_, err := registrySvc.UpsertEntry(context.Background(), entry)
+		require.NoError(t, err)
+	}
+	_, err := registrySvc.ActivateModels(context.Background(), []string{"registry-openai-alpha", "registry-openai-beta"})
+	require.NoError(t, err)
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{{
+			ID:          71,
+			Name:        "openai-visible-filter",
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeAPIKey,
+			Status:      StatusActive,
+			Schedulable: true,
+			Credentials: map[string]any{
+				"api_key":  "sk-test",
+				"base_url": "https://openai.example.test",
+				"model_mapping": map[string]any{
+					"friendly-beta": "registry-openai-beta",
+				},
+			},
+			Extra: map[string]any{
+				"model_scope_v2": map[string]any{
+					"supported_models_by_provider": map[string]any{
+						PlatformOpenAI: []any{"registry-openai-alpha", "registry-openai-beta"},
+					},
+				},
+			},
+		}},
+	}
+	svc := &GatewayService{
+		accountRepo:          repo,
+		modelRegistryService: registrySvc,
+	}
+	group := &Group{
+		ID:                   271,
+		Name:                 "openai-visible",
+		Platform:             PlatformOpenAI,
+		Status:               StatusActive,
+		VisibleModelPatterns: []string{"registry-openai-beta"},
+	}
+	apiKey := &APIKey{
+		ID:               171,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 271,
+			Group:   group,
+		}},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "friendly-beta", entries[0].PublicID)
+	require.Equal(t, "registry-openai-beta", entries[0].SourceID)
+
+	alpha, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "registry-openai-alpha")
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Nil(t, alpha)
+
+	beta, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "friendly-beta")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "friendly-beta", beta.PublicID)
+
+	candidates := svc.ResolveAPIKeyVisibleModelCandidates(context.Background(), apiKey, PlatformOpenAI, "friendly-beta")
+	require.Contains(t, candidates, "friendly-beta")
+	require.Contains(t, candidates, "registry-openai-beta")
+	selectedByAlias, err := SelectGroupBindingForRequest(WithVisibleModelCandidates(context.Background(), candidates...), apiKey, PlatformOpenAI, "friendly-beta", nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, selectedByAlias)
+	require.Equal(t, int64(271), selectedByAlias.GroupID)
+
+	openAISvc := &OpenAIGatewayService{
+		accountRepo:          repo,
+		modelRegistryService: registrySvc,
+	}
+	openAICandidates := openAISvc.ResolveAPIKeyVisibleModelCandidates(context.Background(), apiKey, PlatformOpenAI, "friendly-beta")
+	require.Contains(t, openAICandidates, "friendly-beta")
+	require.Contains(t, openAICandidates, "registry-openai-beta")
+
+	selectedHidden, err := SelectGroupBindingForRequest(context.Background(), apiKey, PlatformOpenAI, "registry-openai-alpha", nil, nil)
+	require.ErrorIs(t, err, ErrNoAvailableGroup)
+	require.Nil(t, selectedHidden)
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_OpenAIProRuntimeQuotaHidesLimitedSide(t *testing.T) {

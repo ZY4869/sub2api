@@ -262,6 +262,7 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 					SupportedModelScopes:            binding.Group.SupportedModelScopes,
 					AllowMessagesDispatch:           binding.Group.AllowMessagesDispatch,
 					DefaultMappedModel:              binding.Group.DefaultMappedModel,
+					VisibleModelPatterns:            NormalizeGroupVisibleModelPatterns(binding.Group.VisibleModelPatterns),
 				}
 			}
 			snapshot.Groups = append(snapshot.Groups, item)
@@ -292,6 +293,7 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 			SupportedModelScopes:            apiKey.Group.SupportedModelScopes,
 			AllowMessagesDispatch:           apiKey.Group.AllowMessagesDispatch,
 			DefaultMappedModel:              apiKey.Group.DefaultMappedModel,
+			VisibleModelPatterns:            NormalizeGroupVisibleModelPatterns(apiKey.Group.VisibleModelPatterns),
 		}
 	}
 	return snapshot
@@ -366,6 +368,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 					SupportedModelScopes:            binding.Group.SupportedModelScopes,
 					AllowMessagesDispatch:           binding.Group.AllowMessagesDispatch,
 					DefaultMappedModel:              binding.Group.DefaultMappedModel,
+					VisibleModelPatterns:            NormalizeGroupVisibleModelPatterns(binding.Group.VisibleModelPatterns),
 				}
 			}
 			apiKey.GroupBindings = append(apiKey.GroupBindings, item)
@@ -397,6 +400,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			SupportedModelScopes:            snapshot.Group.SupportedModelScopes,
 			AllowMessagesDispatch:           snapshot.Group.AllowMessagesDispatch,
 			DefaultMappedModel:              snapshot.Group.DefaultMappedModel,
+			VisibleModelPatterns:            NormalizeGroupVisibleModelPatterns(snapshot.Group.VisibleModelPatterns),
 		}
 	}
 	apiKey.SyncLegacyGroupShadow()

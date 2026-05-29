@@ -58,13 +58,14 @@ func (s *GatewayService) ListGroupPublicModelProjection(
 				return nil, err
 			}
 			entries = s.filterPublicEntriesByActiveChannel(ctx, group.ID, projectionPlatform, entries)
+			entries = filterAPIKeyPublicEntriesByGroupVisibleModels(entries, group)
 			for _, entry := range entries {
 				appendPublicModelProjectionEntry(projectionByID, entry)
 			}
 		}
 	}
 
-	return sortPublicModelProjectionEntries(projectionByID), nil
+	return filterPublicProjectionEntriesByGroupVisibleModels(sortPublicModelProjectionEntries(projectionByID), group), nil
 }
 
 func groupProjectionPlatformsForAccount(groupPlatform string, account *Account) []string {

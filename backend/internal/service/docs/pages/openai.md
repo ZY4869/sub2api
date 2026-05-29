@@ -29,7 +29,8 @@
 - 如果账号上游 `base_url` 不符合当前出站安全策略，保存阶段就会被拒绝，返回 `400 ACCOUNT_INVALID_BASE_URL`；保存成功后不会自动探测模型，需由管理员手动执行 Probe/Test。
 - 管理端单账号测试、手动 Probe 与运行态转发都不会跟随上游 `3xx`；命中重定向时会返回受控错误 `502 UPSTREAM_REDIRECT_NOT_ALLOWED`。
 - `service_tier`（priority/fast/flex）可能会被管理员策略过滤或阻断；默认 `priority/fast` 被过滤、`flex` 放行。命中阻断时返回 `403 forbidden_error`，错误码 `openai_fast_policy_blocked`。
-- 当管理员发布“对外模型展示”目录后，`/v1/models` 以及 OpenAI 兼容请求只接受目录里的 `public_model_id`（响应中的 `id` / 请求中的 `model`）。`source_model_id`、`base_model`、内部 `target_model_id` 只用于展示、路由和诊断，不是额外可调用模型名；直接请求基础模型 ID 会按当前 Key 可见性返回不可用。
+- 当管理员发布“对外模型展示”目录后，`/v1/models` 以及 OpenAI 兼容请求只接受目录里的 `public_model_id`（响应中的 `id` / 请求中的 `model`）。公开目录、枚举和运行时调用都会再次确认该条目仍是 `verified + fresh + routable`；未验证、过期、来源账号不可调度或分组不可路由的条目不会出现在列表里，也不会被实际调用接受。`source_model_id`、`base_model`、内部 `target_model_id` 只存在于内部路由和诊断链路，不是额外可调用模型名；直接请求基础模型 ID 会按当前 Key 可见性返回不可用。
+- OpenAI / Codex 上游转发默认使用 OpenAI HTTP upstream profile：优先 HTTP/2，OpenAI profile 默认关闭 response header timeout；只有代理兼容性错误达到阈值才会临时回退 HTTP/1，普通 header timeout 不触发回退。相关配置为 `gateway.openai_response_header_timeout` 与 `gateway.openai_http2.*`。
 
 Thinking / reasoning 强度补充规则：
 

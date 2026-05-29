@@ -271,6 +271,42 @@ export interface BatchConcurrencyUpdateResponse {
   results: BatchConcurrencyUpdateResultItem[]
 }
 
+export interface UserPlatformQuotaCycle {
+  limit: number | null
+  used: number
+  window_start?: string | null
+  reset_at?: string | null
+}
+
+export interface UserPlatformQuota {
+  platform: string
+  daily: UserPlatformQuotaCycle
+  weekly: UserPlatformQuotaCycle
+  monthly: UserPlatformQuotaCycle
+}
+
+export interface UserPlatformQuotaInput {
+  platform: string
+  daily_limit_usd?: number | null
+  weekly_limit_usd?: number | null
+  monthly_limit_usd?: number | null
+}
+
+export async function getUserPlatformQuotas(id: number): Promise<UserPlatformQuota[]> {
+  const { data } = await apiClient.get<UserPlatformQuota[]>(`/admin/users/${id}/platform-quotas`)
+  return data
+}
+
+export async function updateUserPlatformQuotas(
+  id: number,
+  items: UserPlatformQuotaInput[]
+): Promise<UserPlatformQuota[]> {
+  const { data } = await apiClient.put<UserPlatformQuota[]>(`/admin/users/${id}/platform-quotas`, {
+    items
+  })
+  return data
+}
+
 export async function batchUpdateConcurrency(
   payload: BatchConcurrencyUpdateRequest,
   idempotencyKey?: string
@@ -298,6 +334,8 @@ export const usersAPI = {
   getUserApiKeys,
   getUserUsageStats,
   getUserBalanceHistory,
+  getUserPlatformQuotas,
+  updateUserPlatformQuotas,
   replaceGroup,
   batchUpdateConcurrency
 }

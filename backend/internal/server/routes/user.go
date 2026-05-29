@@ -33,6 +33,7 @@ func RegisterUserRoutes(
 			user.DELETE("/auth-identities/:provider", h.User.DeleteAuthIdentity)
 			user.GET("/notification-preferences", h.User.GetNotificationPreferences)
 			user.PUT("/notification-preferences/:category", h.User.UpdateNotificationPreference)
+			user.GET("/platform-quotas", h.User.GetPlatformQuotas)
 			user.GET("/aff", h.User.GetAffiliate)
 			user.POST("/aff/transfer", h.User.TransferAffiliate)
 

@@ -355,7 +355,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				}
 				return ""
 			}()})
-			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode)}
+			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode)}
 		}
 		return s.handleRetryExhaustedError(ctx, resp, c, account)
 	}
@@ -371,7 +371,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			}
 			return ""
 		}()})
-		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode)}
+		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode)}
 	}
 	if resp.StatusCode >= 400 {
 		if resp.StatusCode == 400 && s.cfg != nil && s.cfg.Gateway.FailoverOn400 {

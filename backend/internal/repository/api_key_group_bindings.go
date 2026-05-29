@@ -179,6 +179,15 @@ func (r *apiKeyRepository) hydrateAPIKeyGroups(ctx context.Context, keys []*serv
 	if err != nil {
 		return err
 	}
+	legacyGroups := make([]*service.Group, 0, len(keyByID))
+	for _, apiKey := range keyByID {
+		if apiKey != nil && apiKey.Group != nil {
+			legacyGroups = append(legacyGroups, apiKey.Group)
+		}
+	}
+	if err := hydrateVisibleModelPatternsForGroups(ctx, r.sql, legacyGroups); err != nil {
+		return err
+	}
 	for keyID, apiKey := range keyByID {
 		apiKey.GroupBindings = append([]service.APIKeyGroupBinding(nil), groupMap[keyID]...)
 		apiKey.SyncLegacyGroupShadow()
@@ -313,6 +322,13 @@ func (r *apiKeyRepository) loadAPIKeyBindingGroups(ctx context.Context, groupIDs
 	}
 	for _, item := range groups {
 		out[item.ID] = groupEntityToService(item)
+	}
+	ptrs := make([]*service.Group, 0, len(out))
+	for _, group := range out {
+		ptrs = append(ptrs, group)
+	}
+	if err := hydrateVisibleModelPatternsForGroups(ctx, r.sql, ptrs); err != nil {
+		return nil, err
 	}
 	return out, nil
 }

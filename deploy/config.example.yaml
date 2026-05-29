@@ -178,6 +178,17 @@ gateway:
   # Timeout for waiting upstream response headers (seconds)
   # 等待上游响应头超时时间（秒）
   response_header_timeout: 600
+  # OpenAI/Codex upstream response header timeout (seconds). 0 disables this timeout for OpenAI profile.
+  # OpenAI/Codex 上游响应头超时时间（秒）。0 表示 OpenAI profile 不使用该超时。
+  openai_response_header_timeout: 0
+  # OpenAI/Codex upstream HTTP/2 preference and proxy fallback.
+  # OpenAI/Codex 上游 HTTP/2 优先与代理兼容性回退配置。
+  openai_http2:
+    enabled: true
+    allow_proxy_fallback_to_http1: true
+    fallback_error_threshold: 2
+    fallback_window_seconds: 60
+    fallback_ttl_seconds: 600
   # Max request body size in bytes (default: 20000MB)
   # 请求体最大字节数（默认 20000MB）
   max_body_size: 20971520000

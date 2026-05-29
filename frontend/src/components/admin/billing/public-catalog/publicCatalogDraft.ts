@@ -17,6 +17,64 @@ export function entryKey(
   ].join(':')
 }
 
+export function sourceEntryKeys(
+  item: Pick<BillingPublicCatalogAdminEntry | BillingPublicCatalogEntryDraft, 'source_account_id' | 'source_model_id' | 'base_model' | 'source_protocol'> & {
+    model?: string
+    request_protocols?: string[]
+  },
+): string[] {
+  const models = [
+    item.source_model_id,
+    item.base_model,
+    item.model,
+  ].map(normalizeSourceKeyPart).filter(Boolean)
+  const protocols = [
+    item.source_protocol,
+    ...(item.request_protocols || []),
+    '',
+  ].map((value) => String(value || '').trim().toLowerCase())
+  const accountIDs = [item.source_account_id || 0]
+  if (item.source_account_id) accountIDs.push(0)
+  return uniquePreserved(accountIDs.flatMap((accountID) =>
+    protocols.flatMap((protocol) =>
+      models.map((model) => [accountID, protocol, model].join(':')),
+    ),
+  ))
+}
+
+function normalizeSourceKeyPart(value?: string): string {
+  return normalizeModelID(value).toLowerCase()
+}
+
+function createAvailableEntryMaps(items: BillingPublicCatalogAdminEntry[]) {
+  const byEntryID = new Map(items.map((item) => [entryKey(item), item] as const))
+  const bySource = new Map<string, BillingPublicCatalogAdminEntry>()
+  const ambiguous = new Set<string>()
+  items.forEach((item) => {
+    sourceEntryKeys(item).forEach((key) => {
+      if (ambiguous.has(key)) return
+      const existing = bySource.get(key)
+      if (existing && entryKey(existing) !== entryKey(item)) {
+        bySource.delete(key)
+        ambiguous.add(key)
+        return
+      }
+      bySource.set(key, item)
+    })
+  })
+  return { byEntryID, bySource }
+}
+
+export function resolveAvailableEntry(
+  entry: BillingPublicCatalogEntryDraft,
+  items: BillingPublicCatalogAdminEntry[],
+): BillingPublicCatalogAdminEntry | undefined {
+  const maps = createAvailableEntryMaps(items)
+  const direct = maps.byEntryID.get(entry.entry_id)
+  if (direct) return direct
+  return sourceEntryKeys(entry).map((key) => maps.bySource.get(key)).find(Boolean)
+}
+
 export function normalizeModelID(value?: string): string {
   return String(value || '').trim()
 }
@@ -42,10 +100,9 @@ export function normalizeDraftEntries(
   draft: BillingPublicCatalogDraft,
   items: BillingPublicCatalogAdminEntry[],
 ): BillingPublicCatalogEntryDraft[] {
-  const itemMap = new Map(items.map((item) => [entryKey(item), item] as const))
   if (draft.selected_entries?.length) {
     return draft.selected_entries.map((entry) => {
-      const source = itemMap.get(entry.entry_id)
+      const source = resolveAvailableEntry(entry, items)
       return createDraftEntry(source ? mergeDraftEntryWithItem(entry, source) : draftEntryToMissingItem(entry))
     })
   }
@@ -125,4 +182,8 @@ export function normalizeDraftEntryForPayload(
 export function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
     .sort((left, right) => left.localeCompare(right))
+}
+
+function uniquePreserved(values: string[]): string[] {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
 }

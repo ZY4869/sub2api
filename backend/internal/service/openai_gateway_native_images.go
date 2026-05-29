@@ -148,7 +148,7 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 				StatusCode:             resp.StatusCode,
 				ResponseBody:           respBody,
 				ResponseHeaders:        resp.Header.Clone(),
-				RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode),
+				RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
 			}
 		}
 		return s.handleNativeImagesErrorResponse(resp, c, account)
@@ -214,7 +214,7 @@ func (s *OpenAIGatewayService) buildNativeImagesUpstreamRequest(
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", firstNonEmptyString(contentType, "application/json"))
 	}
-	return req, nil
+	return MarkOpenAIHTTPUpstreamRequest(req), nil
 }
 
 func (s *OpenAIGatewayService) handleNativeImagesNonStreamingResponse(

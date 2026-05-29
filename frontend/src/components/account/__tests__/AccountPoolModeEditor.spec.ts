@@ -30,5 +30,8 @@ describe('AccountPoolModeEditor', () => {
 
     await wrapper.find('input').setValue('4')
     expect(state.retryCount).toBe(4)
+
+    await wrapper.findAll('input')[1]!.setValue('500, 502')
+    expect(state.retryStatusCodes).toEqual([500, 502])
   })
 })

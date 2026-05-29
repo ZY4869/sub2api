@@ -17,6 +17,7 @@ func TestNeedsToolContinuationSignals(t *testing.T) {
 		{name: "previous_response_id", body: map[string]any{"previous_response_id": "resp_1"}, want: true},
 		{name: "previous_response_id_blank", body: map[string]any{"previous_response_id": "  "}, want: false},
 		{name: "function_call_output", body: map[string]any{"input": []any{map[string]any{"type": "function_call_output"}}}, want: true},
+		{name: "tool_search_output", body: map[string]any{"input": []any{map[string]any{"type": "tool_search_output"}}}, want: true},
 		{name: "item_reference", body: map[string]any{"input": []any{map[string]any{"type": "item_reference"}}}, want: true},
 		{name: "tools", body: map[string]any{"tools": []any{map[string]any{"type": "function"}}}, want: true},
 		{name: "tools_empty", body: map[string]any{"tools": []any{}}, want: false},
@@ -35,10 +36,13 @@ func TestNeedsToolContinuationSignals(t *testing.T) {
 }
 
 func TestHasFunctionCallOutput(t *testing.T) {
-	// 仅当 input 中存在 function_call_output 才视为续链输出。
+	// Codex 工具输出族都应视为续链输出。
 	require.False(t, HasFunctionCallOutput(nil))
 	require.True(t, HasFunctionCallOutput(map[string]any{
 		"input": []any{map[string]any{"type": "function_call_output"}},
+	}))
+	require.True(t, HasFunctionCallOutput(map[string]any{
+		"input": []any{map[string]any{"type": "custom_tool_call_output"}},
 	}))
 	require.False(t, HasFunctionCallOutput(map[string]any{
 		"input": "text",
@@ -46,13 +50,19 @@ func TestHasFunctionCallOutput(t *testing.T) {
 }
 
 func TestHasToolCallContext(t *testing.T) {
-	// tool_call/function_call 必须包含 call_id，才能作为可关联上下文。
+	// 工具调用上下文必须包含 call_id，才能作为可关联上下文。
 	require.False(t, HasToolCallContext(nil))
 	require.True(t, HasToolCallContext(map[string]any{
 		"input": []any{map[string]any{"type": "tool_call", "call_id": "call_1"}},
 	}))
 	require.True(t, HasToolCallContext(map[string]any{
 		"input": []any{map[string]any{"type": "function_call", "call_id": "call_2"}},
+	}))
+	require.True(t, HasToolCallContext(map[string]any{
+		"input": []any{map[string]any{"type": "local_shell_call", "call_id": "call_3"}},
+	}))
+	require.True(t, HasToolCallContext(map[string]any{
+		"input": []any{map[string]any{"type": "mcp_tool_call", "call_id": "call_4"}},
 	}))
 	require.False(t, HasToolCallContext(map[string]any{
 		"input": []any{map[string]any{"type": "tool_call"}},
@@ -65,21 +75,31 @@ func TestFunctionCallOutputCallIDs(t *testing.T) {
 	callIDs := FunctionCallOutputCallIDs(map[string]any{
 		"input": []any{
 			map[string]any{"type": "function_call_output", "call_id": "call_1"},
+			map[string]any{"type": "tool_search_output", "call_id": "call_2"},
 			map[string]any{"type": "function_call_output", "call_id": ""},
 			map[string]any{"type": "function_call_output", "call_id": "call_1"},
 		},
 	})
-	require.ElementsMatch(t, []string{"call_1"}, callIDs)
+	require.ElementsMatch(t, []string{"call_1", "call_2"}, callIDs)
 }
 
 func TestHasFunctionCallOutputMissingCallID(t *testing.T) {
 	require.False(t, HasFunctionCallOutputMissingCallID(nil))
 	require.True(t, HasFunctionCallOutputMissingCallID(map[string]any{
-		"input": []any{map[string]any{"type": "function_call_output"}},
+		"input": []any{map[string]any{"type": "mcp_tool_call_output"}},
 	}))
 	require.False(t, HasFunctionCallOutputMissingCallID(map[string]any{
 		"input": []any{map[string]any{"type": "function_call_output", "call_id": "call_1"}},
 	}))
+}
+
+func TestOpenAIWSRawPayloadHasToolCallOutput(t *testing.T) {
+	require.False(t, openAIWSRawPayloadHasToolCallOutput(nil))
+	require.True(t, openAIWSRawPayloadHasToolCallOutput([]byte(`{"input":[{"type":"function_call_output"}]}`)))
+	require.True(t, openAIWSRawPayloadHasToolCallOutput([]byte(`{"input":[{"type":"tool_search_output"}]}`)))
+	require.True(t, openAIWSRawPayloadHasToolCallOutput([]byte(`{"input":[{"type":"custom_tool_call_output"}]}`)))
+	require.True(t, openAIWSRawPayloadHasToolCallOutput([]byte(`{"input":[{"type":"mcp_tool_call_output"}]}`)))
+	require.False(t, openAIWSRawPayloadHasToolCallOutput([]byte(`{"input":[{"type":"message"}]}`)))
 }
 
 func TestHasItemReferenceForCallIDs(t *testing.T) {

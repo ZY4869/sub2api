@@ -6,527 +6,66 @@
       </template>
 
       <template #filters>
-        <div class="card">
-          <div class="px-6 py-4">
-            <div class="flex flex-wrap items-end gap-4">
-              <!-- API Key Filter -->
-              <div class="min-w-[180px]">
-                <label class="input-label">{{ t("usage.apiKeyFilter") }}</label>
-                <Select
-                  v-model="filters.api_key_id"
-                  :options="apiKeyOptions"
-                  :placeholder="t('usage.allApiKeys')"
-                  @change="applyFilters"
-                />
-              </div>
-
-              <div class="min-w-[180px]">
-                <label class="input-label">{{ t("usage.platform") }}</label>
-                <Select
-                  v-model="filters.platform"
-                  :options="platformOptions"
-                  :placeholder="t('usage.allPlatforms')"
-                  @change="applyFilters"
-                >
-                  <template #selected="{ option }">
-                    <span class="flex min-w-0 items-center gap-2">
-                      <PlatformIcon
-                        v-if="option?.value"
-                        :platform="String(option.value)"
-                        size="sm"
-                        class="shrink-0"
-                      />
-                      <span class="truncate">{{ option?.label || t("usage.allPlatforms") }}</span>
-                    </span>
-                  </template>
-                  <template #option="{ option }">
-                    <span class="flex min-w-0 items-center gap-2">
-                      <PlatformIcon
-                        v-if="option.value"
-                        :platform="String(option.value)"
-                        size="sm"
-                        class="shrink-0"
-                      />
-                      <span class="truncate">{{ option.label }}</span>
-                    </span>
-                  </template>
-                </Select>
-              </div>
-
-              <!-- Date Range Filter -->
-              <div>
-                <label class="input-label">{{ t("usage.timeRange") }}</label>
-                <DateRangePicker
-                  v-model:start-date="startDate"
-                  v-model:end-date="endDate"
-                  @change="onDateRangeChange"
-                />
-              </div>
-
-              <div
-                class="ml-auto flex flex-1 flex-wrap items-center justify-end gap-3"
-                data-testid="usage-filter-toolbar-row"
-              >
-                <TokenDisplayModeToggle />
-                <UsageModelDisplayModeToggle
-                  :model-value="usageModelDisplayMode"
-                  :disabled="updatingUsageModelDisplayMode"
-                  :label-text="t('usage.modelDisplay')"
-                  @update:modelValue="handleUsageModelDisplayModeChange"
-                />
-                <UsageContextBadgeDisplayModeToggle
-                  :model-value="usageContextBadgeDisplayMode"
-                  :disabled="updatingUsageContextBadgeDisplayMode"
-                  :label-text="t('usage.contextBadgeDisplay')"
-                  @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-                />
-                <button
-                  @click="applyFilters"
-                  :disabled="loading"
-                  class="btn btn-secondary"
-                >
-                  {{ t("common.refresh") }}
-                </button>
-                <button @click="resetFilters" class="btn btn-secondary">
-                  {{ t("common.reset") }}
-                </button>
-                <button
-                  @click="exportToCSV"
-                  :disabled="exporting"
-                  class="btn btn-primary"
-                >
-                  <svg
-                    v-if="exporting"
-                    class="-ml-1 mr-2 h-4 w-4 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  {{ exporting ? t("usage.exporting") : t("usage.exportCsv") }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <UsageFilters
+          v-model:filters="filters"
+          v-model:start-date="startDate"
+          v-model:end-date="endDate"
+          :api-key-options="apiKeyOptions"
+          :platform-options="platformOptions"
+          :loading="loading"
+          :exporting="exporting"
+          :usage-model-display-mode="usageModelDisplayMode"
+          :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
+          :usage-context-badge-display-mode="usageContextBadgeDisplayMode"
+          :updating-usage-context-badge-display-mode="updatingUsageContextBadgeDisplayMode"
+          @apply="applyFilters"
+          @reset="resetFilters"
+          @export="exportToCSV"
+          @date-range-change="onDateRangeChange"
+          @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
+          @update-usage-context-badge-display-mode="handleUsageContextBadgeDisplayModeChange"
+        />
       </template>
 
       <template #table>
-        <div
-          v-if="selectedApiKeyID"
-          class="card mb-4 overflow-hidden"
-          data-testid="api-key-daily-usage-card"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4 dark:border-dark-800">
-            <div>
-              <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ t("usage.apiKeyDailyUsage") }}
-              </h3>
-              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {{ selectedApiKeyName }}
-              </p>
-            </div>
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              {{ apiKeyDailyRangeLabel }}
-            </span>
-          </div>
-          <div v-if="apiKeyDailyLoading" class="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
-            {{ t("common.loading") }}
-          </div>
-          <div v-else-if="apiKeyDailyRows.length === 0" class="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
-            {{ t("usage.apiKeyDailyEmpty") }}
-          </div>
-          <div v-else class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 dark:bg-dark-950 dark:text-gray-400">
-                <tr>
-                  <th class="px-4 py-3 text-left">{{ t("usage.date") }}</th>
-                  <th class="px-4 py-3 text-right">{{ t("usage.requests") }}</th>
-                  <th class="px-4 py-3 text-right">{{ t("usage.inputTokens") }}</th>
-                  <th class="px-4 py-3 text-right">{{ t("usage.outputTokens") }}</th>
-                  <th class="px-4 py-3 text-right">{{ t("usage.cacheTokens") }}</th>
-                  <th class="px-4 py-3 text-right">{{ t("usage.cost") }}</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-100 dark:divide-dark-800">
-                <tr
-                  v-for="row in apiKeyDailyRows"
-                  :key="row.date"
-                  data-testid="api-key-daily-usage-row"
-                >
-                  <td class="px-4 py-3 text-gray-900 dark:text-white">{{ row.date }}</td>
-                  <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">{{ row.requests.toLocaleString() }}</td>
-                  <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">{{ formatTokens(row.input_tokens) }}</td>
-                  <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">{{ formatTokens(row.output_tokens) }}</td>
-                  <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                    {{ formatTokens((row.cache_creation_tokens || 0) + (row.cache_read_tokens || 0)) }}
-                  </td>
-                  <td class="px-4 py-3 text-right tabular-nums font-medium text-green-600 dark:text-green-400">
-                    {{ formatCurrencyBreakdown(undefined, row.actual_cost ?? row.cost) }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <DataTable
+        <ApiKeyDailyUsageCard
+          :selected-api-key-i-d="selectedApiKeyID"
+          :selected-api-key-name="selectedApiKeyName"
+          :api-key-daily-range-label="apiKeyDailyRangeLabel"
+          :rows="apiKeyDailyRows"
+          :loading="apiKeyDailyLoading"
+          :format-tokens="formatTokens"
+          :format-currency-breakdown="formatCurrencyBreakdown"
+        />
+        <UsageTable
           :columns="columns"
-          :data="usageLogs"
+          :usage-logs="usageLogs"
           :loading="loading"
-          :virtual-scroll="false"
-          row-key="id"
-        >
-          <template #cell-api_key="{ row }">
-            <span class="text-sm text-gray-900 dark:text-white">{{
-              row.api_key?.name || "-"
-            }}</span>
-          </template>
-
-          <template #cell-model="{ row }">
-            <UsageModelCell
-              :row="row"
-              :mode="usageModelDisplayMode"
-            />
-          </template>
-
-          <template #cell-request_length="{ row }">
-            <UsageRequestLengthCell :row="row" />
-          </template>
-
-          <template #cell-native_context="{ row }">
-            <UsageContextBadgesCell
-              :row="row"
-              :mode="usageContextBadgeDisplayMode"
-            />
-          </template>
-
-          <template #cell-status="{ row }">
-            <div class="max-w-[280px] space-y-1">
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span
-                  class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                  :class="getStatusBadgeClass(row.status)"
-                >
-                  {{ getStatusLabel(row.status) }}
-                </span>
-                <span
-                  v-if="row.simulated_client"
-                  class="inline-flex items-center rounded-full bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-700 dark:text-primary-300"
-                >
-                  {{ getSimulatedClientLabel(row.simulated_client) }}
-                </span>
-              </div>
-              <div
-                v-if="row.status === 'failed'"
-                class="space-y-1 text-xs text-rose-600 dark:text-rose-300"
-              >
-                <div class="flex flex-wrap gap-x-3 gap-y-1">
-                  <span v-if="row.http_status != null">
-                    <span class="font-medium"
-                      >{{ t("usage.httpStatus") }}:</span
-                    >
-                    {{ row.http_status }}
-                  </span>
-                  <span v-if="row.error_code">
-                    <span class="font-medium">{{ t("usage.errorCode") }}:</span>
-                    {{ row.error_code }}
-                  </span>
-                </div>
-                <div
-                  v-if="row.error_message"
-                  :title="row.error_message"
-                  class="truncate"
-                >
-                  <span class="font-medium"
-                    >{{ t("usage.errorMessage") }}:</span
-                  >
-                  <span class="ml-1">{{
-                    truncateUsageErrorMessage(row.error_message)
-                  }}</span>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template #cell-reasoning_effort="{ row }">
-            <div class="space-y-1">
-              <div class="text-sm text-gray-900 dark:text-white">
-                {{ formatReasoningEffortPair(row.reasoning_effort_raw, row.reasoning_effort_effective, row.reasoning_effort) }}
-              </div>
-              <div
-                v-if="formatUsageMillionContextLines(row).length > 0"
-                class="space-y-0.5 text-xs text-gray-500 dark:text-gray-400"
-              >
-                <span
-                  v-for="line in formatUsageMillionContextLines(row)"
-                  :key="`${row.id}-${line.key}`"
-                  class="block break-all"
-                  :title="line.raw"
-                >
-                  <span class="font-medium text-gray-400 dark:text-gray-500"
-                    >{{ t(line.labelKey) }}:</span
-                  >
-                  <span class="ml-1">{{ line.display }}</span>
-                </span>
-              </div>
-            </div>
-          </template>
-
-          <template #cell-thinking_enabled="{ row }">
-            <span class="text-sm text-gray-900 dark:text-white">
-              {{ formatThinkingEnabled(row.thinking_enabled) }}
-            </span>
-          </template>
-
-          <template #cell-request_protocol="{ row }">
-            <UsageProtocolCell
-              :inbound-path="row.inbound_endpoint"
-              :upstream-path="row.upstream_endpoint"
-            />
-          </template>
-
-          <template #cell-endpoint="{ row }">
-            <div
-              class="block max-w-[320px] space-y-1 text-sm text-gray-600 dark:text-gray-300"
-            >
-              <div
-                v-for="line in formatUsageEndpoints(row)"
-                :key="`${row.id}-${line.key}`"
-                class="whitespace-normal break-all"
-              >
-                <span class="font-medium text-gray-500 dark:text-gray-400"
-                  >{{ t(line.labelKey) }}:</span
-                >
-                <span class="ml-1" :title="line.raw">{{ line.display }}</span>
-              </div>
-              <div
-                v-if="formatUsageEndpoints(row).length === 0"
-                class="text-sm text-gray-400 dark:text-gray-500"
-              >
-                -
-              </div>
-            </div>
-          </template>
-
-          <template #cell-stream="{ row }">
-            <span
-              class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
-              :class="getRequestTypeBadgeClass(row)"
-            >
-              {{ getRequestTypeLabel(row) }}
-            </span>
-          </template>
-
-          <template #cell-tokens="{ row }">
-            <!-- 图片生成请求 -->
-            <div v-if="row.image_count > 0" class="flex items-center gap-1.5">
-              <svg
-                class="h-4 w-4 text-indigo-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <span class="font-medium text-gray-900 dark:text-white"
-                >{{ row.image_count }}{{ $t("usage.imageUnit") }}</span
-              >
-              <span class="text-gray-400">({{ row.image_size || "2K" }})</span>
-            </div>
-            <!-- Token 请求 -->
-            <div v-else class="flex items-center gap-1.5">
-              <div class="space-y-1.5 text-sm">
-                <!-- Input / Output Tokens -->
-                <div class="flex items-center gap-2">
-                  <!-- Input -->
-                  <div class="inline-flex items-center gap-1">
-                    <Icon name="arrowDown" size="sm" class="text-emerald-500" />
-                    <span
-                      class="font-medium text-gray-900 dark:text-white"
-                      :title="row.input_tokens.toLocaleString()"
-                      >{{ formatTokens(row.input_tokens) }}</span
-                    >
-                  </div>
-                  <!-- Output -->
-                  <div class="inline-flex items-center gap-1">
-                    <Icon name="arrowUp" size="sm" class="text-violet-500" />
-                    <span
-                      class="font-medium text-gray-900 dark:text-white"
-                      :title="row.output_tokens.toLocaleString()"
-                      >{{ formatTokens(row.output_tokens) }}</span
-                    >
-                  </div>
-                </div>
-                <!-- Cache Tokens (Read + Write) -->
-                <div
-                  v-if="
-                    row.cache_read_tokens > 0 || row.cache_creation_tokens > 0
-                  "
-                  class="flex items-center gap-2"
-                >
-                  <!-- Cache Read -->
-                  <div
-                    v-if="row.cache_read_tokens > 0"
-                    class="inline-flex items-center gap-1"
-                  >
-                    <Icon name="inbox" size="sm" class="text-sky-500" />
-                    <span
-                      class="font-medium text-sky-600 dark:text-sky-400"
-                      :title="row.cache_read_tokens.toLocaleString()"
-                      >{{ formatCacheTokens(row.cache_read_tokens) }}</span
-                    >
-                  </div>
-                  <!-- Cache Write -->
-                  <div
-                    v-if="row.cache_creation_tokens > 0"
-                    class="inline-flex items-center gap-1"
-                  >
-                    <Icon name="edit" size="sm" class="text-amber-500" />
-                    <span
-                      class="font-medium text-amber-600 dark:text-amber-400"
-                      :title="row.cache_creation_tokens.toLocaleString()"
-                      >{{ formatCacheTokens(row.cache_creation_tokens) }}</span
-                    >
-                    <span
-                      v-if="row.cache_creation_1h_tokens > 0"
-                      class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-orange-100 text-orange-600 ring-1 ring-inset ring-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:ring-orange-500/30"
-                      >1h</span
-                    >
-                    <span
-                      v-if="row.cache_ttl_overridden"
-                      :title="t('usage.cacheTtlOverriddenHint')"
-                      class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30 cursor-help"
-                      >R</span
-                    >
-                  </div>
-                </div>
-              </div>
-              <!-- Token Detail Tooltip -->
-              <div
-                class="group relative"
-                @mouseenter="showTokenTooltip($event, row)"
-                @mouseleave="hideTokenTooltip"
-              >
-                <div
-                  class="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-gray-100 transition-colors group-hover:bg-blue-100 dark:bg-gray-700 dark:group-hover:bg-blue-900/50"
-                >
-                  <Icon
-                    name="infoCircle"
-                    size="xs"
-                    class="text-gray-400 group-hover:text-blue-500 dark:text-gray-500 dark:group-hover:text-blue-400"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template #cell-cost="{ row }">
-            <div class="flex items-center gap-1.5 text-sm">
-              <span class="font-medium text-green-600 dark:text-green-400">
-                {{ formatCurrencyBreakdown(row.actual_cost_by_currency, row.actual_cost) }}
-              </span>
-              <span
-                v-if="getChargeLabel(row)"
-                class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                :class="getChargeBadgeClass(row)"
-              >
-                {{ getChargeLabel(row) }}
-              </span>
-              <span
-                v-if="row.billing_exempt_reason === 'admin_free'"
-                class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-              >
-                <Icon name="crown" size="xs" class="h-3 w-3" />
-                免扣
-              </span>
-              <!-- Cost Detail Tooltip -->
-              <div
-                class="group relative"
-                @mouseenter="showTooltip($event, row)"
-                @mouseleave="hideTooltip"
-              >
-                <div
-                  class="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-gray-100 transition-colors group-hover:bg-blue-100 dark:bg-gray-700 dark:group-hover:bg-blue-900/50"
-                >
-                  <Icon
-                    name="infoCircle"
-                    size="xs"
-                    class="text-gray-400 group-hover:text-blue-500 dark:text-gray-500 dark:group-hover:text-blue-400"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template #cell-first_token="{ row }">
-            <span
-              v-if="row.first_token_ms != null"
-              class="text-sm text-gray-600 dark:text-gray-400"
-            >
-              {{ formatDuration(row.first_token_ms) }}
-            </span>
-            <span v-else class="text-sm text-gray-400 dark:text-gray-500"
-              >-</span
-            >
-          </template>
-
-          <template #cell-duration="{ row }">
-            <span class="text-sm text-gray-600 dark:text-gray-400">{{
-              formatDuration(row.duration_ms)
-            }}</span>
-          </template>
-
-          <template #cell-created_at="{ value }">
-            <span class="text-sm text-gray-600 dark:text-gray-400">{{
-              formatDateTime(value)
-            }}</span>
-          </template>
-
-          <template #cell-user_agent="{ row }">
-            <span
-              v-if="row.user_agent"
-              class="text-sm text-gray-600 dark:text-gray-400 block max-w-[320px] whitespace-normal break-all"
-              :title="row.user_agent"
-              >{{ formatUserAgent(row.user_agent) }}</span
-            >
-            <span v-else class="text-sm text-gray-400 dark:text-gray-500"
-              >-</span
-            >
-          </template>
-
-          <template #cell-actions="{ row }">
-            <button
-              class="btn btn-secondary btn-sm"
-              type="button"
-              :disabled="!row.id"
-              @click="openRequestPreview(row)"
-            >
-              {{ t("usage.requestPreview.action") }}
-            </button>
-          </template>
-
-          <template #empty>
-            <EmptyState :message="t('usage.noRecords')" />
-          </template>
-        </DataTable>
+          :usage-model-display-mode="usageModelDisplayMode"
+          :usage-context-badge-display-mode="usageContextBadgeDisplayMode"
+          :format-currency-breakdown="formatCurrencyBreakdown"
+          :format-tokens="formatTokens"
+          :format-cache-tokens="formatCacheTokens"
+          :format-duration="formatDuration"
+          :format-user-agent="formatUserAgent"
+          :get-status-badge-class="getStatusBadgeClass"
+          :get-status-label="getStatusLabel"
+          :get-simulated-client-label="getSimulatedClientLabel"
+          :truncate-usage-error-message="truncateUsageErrorMessage"
+          :format-reasoning-effort-pair="formatReasoningEffortPair"
+          :format-usage-million-context-lines="formatUsageMillionContextLines"
+          :format-thinking-enabled="formatThinkingEnabled"
+          :format-usage-endpoints="formatUsageEndpoints"
+          :get-request-type-badge-class="getRequestTypeBadgeClass"
+          :get-request-type-label="getRequestTypeLabel"
+          :get-charge-label="getChargeLabel"
+          :get-charge-badge-class="getChargeBadgeClass"
+          @show-token-tooltip="showTokenTooltip"
+          @hide-token-tooltip="hideTokenTooltip"
+          @show-cost-tooltip="showTooltip"
+          @hide-cost-tooltip="hideTooltip"
+          @open-request-preview="openRequestPreview"
+        />
       </template>
 
       <template #pagination>
@@ -548,309 +87,19 @@
     @close="closeRequestPreview"
   />
 
-  <!-- Token Tooltip Portal -->
-  <Teleport to="body">
-    <div
-      v-if="tokenTooltipVisible"
-      class="fixed z-[9999] pointer-events-none -translate-y-1/2"
-      :style="{
-        left: tokenTooltipPosition.x + 'px',
-        top: tokenTooltipPosition.y + 'px',
-      }"
-    >
-      <div
-        class="whitespace-nowrap rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-xl dark:border-gray-600 dark:bg-gray-800"
-      >
-        <div class="space-y-1.5">
-          <!-- Token Breakdown -->
-          <div>
-            <div class="text-xs font-semibold text-gray-300 mb-1">
-              {{ t("usage.tokenDetails") }}
-            </div>
-            <div
-              v-if="tokenTooltipData && tokenTooltipData.input_tokens > 0"
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400">{{
-                t("admin.usage.inputTokens")
-              }}</span>
-              <span class="font-medium text-white">{{
-                tokenTooltipData.input_tokens.toLocaleString()
-              }}</span>
-            </div>
-            <div
-              v-if="tokenTooltipData && tokenTooltipData.output_tokens > 0"
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400">{{
-                t("admin.usage.outputTokens")
-              }}</span>
-              <span class="font-medium text-white">{{
-                tokenTooltipData.output_tokens.toLocaleString()
-              }}</span>
-            </div>
-            <div
-              v-if="
-                tokenTooltipData && tokenTooltipData.cache_creation_tokens > 0
-              "
-            >
-              <!-- 有 5m/1h 明细时，展开显示 -->
-              <template
-                v-if="
-                  tokenTooltipData.cache_creation_5m_tokens > 0 ||
-                  tokenTooltipData.cache_creation_1h_tokens > 0
-                "
-              >
-                <div
-                  v-if="tokenTooltipData.cache_creation_5m_tokens > 0"
-                  class="flex items-center justify-between gap-4"
-                >
-                  <span class="text-gray-400 flex items-center gap-1.5">
-                    {{ t("admin.usage.cacheCreation5mTokens") }}
-                    <span
-                      class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-amber-500/20 text-amber-400 ring-1 ring-inset ring-amber-500/30"
-                      >5m</span
-                    >
-                  </span>
-                  <span class="font-medium text-white">{{
-                    tokenTooltipData.cache_creation_5m_tokens.toLocaleString()
-                  }}</span>
-                </div>
-                <div
-                  v-if="tokenTooltipData.cache_creation_1h_tokens > 0"
-                  class="flex items-center justify-between gap-4"
-                >
-                  <span class="text-gray-400 flex items-center gap-1.5">
-                    {{ t("admin.usage.cacheCreation1hTokens") }}
-                    <span
-                      class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-orange-500/20 text-orange-400 ring-1 ring-inset ring-orange-500/30"
-                      >1h</span
-                    >
-                  </span>
-                  <span class="font-medium text-white">{{
-                    tokenTooltipData.cache_creation_1h_tokens.toLocaleString()
-                  }}</span>
-                </div>
-              </template>
-              <!-- 无明细时，只显示聚合值 -->
-              <div v-else class="flex items-center justify-between gap-4">
-                <span class="text-gray-400">{{
-                  getCacheCreationLabel(tokenTooltipData)
-                }}</span>
-                <span class="font-medium text-white">{{
-                  tokenTooltipData.cache_creation_tokens.toLocaleString()
-                }}</span>
-              </div>
-            </div>
-            <div
-              v-if="tokenTooltipData && tokenTooltipData.cache_ttl_overridden"
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400 flex items-center gap-1.5">
-                {{ t("usage.cacheTtlOverriddenLabel") }}
-                <span
-                  class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-500/20 text-rose-400 ring-1 ring-inset ring-rose-500/30"
-                  >R-{{
-                    tokenTooltipData.cache_creation_1h_tokens > 0 ? "5m" : "1H"
-                  }}</span
-                >
-              </span>
-              <span class="font-medium text-rose-400">{{
-                tokenTooltipData.cache_creation_1h_tokens > 0
-                  ? t("usage.cacheTtlOverridden1h")
-                  : t("usage.cacheTtlOverridden5m")
-              }}</span>
-            </div>
-            <div
-              v-if="tokenTooltipData && tokenTooltipData.cache_read_tokens > 0"
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400">{{
-                getCacheReadLabel(tokenTooltipData)
-              }}</span>
-              <span class="font-medium text-white">{{
-                tokenTooltipData.cache_read_tokens.toLocaleString()
-              }}</span>
-            </div>
-          </div>
-          <!-- Total -->
-          <div
-            class="flex items-center justify-between gap-6 border-t border-gray-700 pt-1.5"
-          >
-            <span class="text-gray-400">{{ t("usage.totalTokens") }}</span>
-            <span class="font-semibold text-blue-400">{{
-              (
-                (tokenTooltipData?.input_tokens || 0) +
-                (tokenTooltipData?.output_tokens || 0) +
-                (tokenTooltipData?.cache_creation_tokens || 0) +
-                (tokenTooltipData?.cache_read_tokens || 0)
-              ).toLocaleString()
-            }}</span>
-          </div>
-        </div>
-        <!-- Tooltip Arrow (left side) -->
-        <div
-          class="absolute right-full top-1/2 h-0 w-0 -translate-y-1/2 border-b-[6px] border-r-[6px] border-t-[6px] border-b-transparent border-r-gray-900 border-t-transparent dark:border-r-gray-800"
-        ></div>
-      </div>
-    </div>
-  </Teleport>
+  <UsageTokenTooltip
+    :visible="tokenTooltipVisible"
+    :position="tokenTooltipPosition"
+    :data="tokenTooltipData"
+    :get-cache-read-label="getCacheReadLabel"
+    :get-cache-creation-label="getCacheCreationLabel"
+  />
 
-  <!-- Tooltip Portal -->
-  <Teleport to="body">
-    <div
-      v-if="tooltipVisible"
-      class="fixed z-[9999] pointer-events-none -translate-y-1/2"
-      :style="{
-        left: tooltipPosition.x + 'px',
-        top: tooltipPosition.y + 'px',
-      }"
-    >
-      <div
-        class="whitespace-nowrap rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-xl dark:border-gray-600 dark:bg-gray-800"
-      >
-        <div class="space-y-1.5">
-          <!-- Cost Breakdown -->
-          <div class="mb-2 border-b border-gray-700 pb-1.5">
-            <div class="text-xs font-semibold text-gray-300 mb-1">
-              {{ t("usage.costDetails") }}
-            </div>
-            <div
-              v-if="
-                tooltipData && hasPositiveUsageAmount(tooltipData.input_cost)
-              "
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400">{{
-                t("admin.usage.inputCost")
-              }}</span>
-              <span class="font-medium text-white"
-                >${{ formatUsageAmount(tooltipData.input_cost) }}</span
-              >
-            </div>
-            <div
-              v-if="
-                tooltipData && hasPositiveUsageAmount(tooltipData.output_cost)
-              "
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400">{{
-                t("admin.usage.outputCost")
-              }}</span>
-              <span class="font-medium text-white"
-                >${{ formatUsageAmount(tooltipData.output_cost) }}</span
-              >
-            </div>
-            <div
-              v-if="tooltipData && tooltipData.input_tokens > 0"
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400">{{
-                t("usage.inputTokenPrice")
-              }}</span>
-              <span class="font-medium text-sky-300"
-                >{{
-                  formatTokenPricePerMillion(
-                    tooltipData.input_cost,
-                    tooltipData.input_tokens,
-                  )
-                }}
-                {{ t("usage.perMillionTokens") }}</span
-              >
-            </div>
-            <div
-              v-if="tooltipData && tooltipData.output_tokens > 0"
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400">{{
-                t("usage.outputTokenPrice")
-              }}</span>
-              <span class="font-medium text-violet-300"
-                >{{
-                  formatTokenPricePerMillion(
-                    tooltipData.output_cost,
-                    tooltipData.output_tokens,
-                  )
-                }}
-                {{ t("usage.perMillionTokens") }}</span
-              >
-            </div>
-            <div
-              v-if="
-                tooltipData &&
-                hasPositiveUsageAmount(tooltipData.cache_creation_cost)
-              "
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400">{{
-                t("admin.usage.cacheCreationCost")
-              }}</span>
-              <span class="font-medium text-white"
-                >${{ formatUsageAmount(tooltipData.cache_creation_cost) }}</span
-              >
-            </div>
-            <div
-              v-if="
-                tooltipData &&
-                hasPositiveUsageAmount(tooltipData.cache_read_cost)
-              "
-              class="flex items-center justify-between gap-4"
-            >
-              <span class="text-gray-400">{{
-                t("admin.usage.cacheReadCost")
-              }}</span>
-              <span class="font-medium text-white"
-                >${{ formatUsageAmount(tooltipData.cache_read_cost) }}</span
-              >
-            </div>
-          </div>
-          <!-- Rate and Summary -->
-          <div class="flex items-center justify-between gap-6">
-            <span class="text-gray-400">{{ t("usage.serviceTier") }}</span>
-            <span class="font-semibold text-cyan-300">{{
-              getUsageServiceTierLabel(tooltipData?.service_tier, t)
-            }}</span>
-          </div>
-          <div class="flex items-center justify-between gap-6">
-            <span class="text-gray-400">{{ t("usage.rate") }}</span>
-            <span class="font-semibold text-blue-400"
-              >{{ formatUsageMultiplier(tooltipData?.rate_multiplier) }}x</span
-            >
-          </div>
-          <div class="flex items-center justify-between gap-6">
-            <span class="text-gray-400">{{ t("usage.original") }}</span>
-            <span class="font-medium text-white"
-              >${{ formatUsageAmount(tooltipData?.total_cost) }}</span
-            >
-          </div>
-          <div
-            class="flex items-center justify-between gap-6 border-t border-gray-700 pt-1.5"
-          >
-            <span class="text-gray-400">{{ t("usage.billed") }}</span>
-            <span class="font-semibold text-green-400"
-              >${{ formatUsageAmount(tooltipData?.actual_cost) }}</span
-            >
-          </div>
-          <div
-            v-if="tooltipData?.billing_exempt_reason === 'admin_free'"
-            class="flex items-center justify-between gap-6"
-          >
-            <span class="text-gray-400">免扣原因</span>
-            <span
-              class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300"
-            >
-              <Icon name="crown" size="xs" class="h-3 w-3" />
-              管理员免费
-            </span>
-          </div>
-        </div>
-        <!-- Tooltip Arrow (left side) -->
-        <div
-          class="absolute right-full top-1/2 h-0 w-0 -translate-y-1/2 border-b-[6px] border-r-[6px] border-t-[6px] border-b-transparent border-r-gray-900 border-t-transparent dark:border-r-gray-800"
-        ></div>
-      </div>
-    </div>
-  </Teleport>
+  <UsageCostTooltip
+    :visible="tooltipVisible"
+    :position="tooltipPosition"
+    :data="tooltipData"
+  />
 </template>
 
 <script setup lang="ts">
@@ -860,20 +109,7 @@ import { useAppStore } from "@/stores/app";
 import { usageAPI } from "@/api";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import TablePageLayout from "@/components/layout/TablePageLayout.vue";
-import DataTable from "@/components/common/DataTable.vue";
 import Pagination from "@/components/common/Pagination.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import Select from "@/components/common/Select.vue";
-import DateRangePicker from "@/components/common/DateRangePicker.vue";
-import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
-import UsageModelCell from "@/components/common/UsageModelCell.vue";
-import UsageContextBadgesCell from "@/components/common/UsageContextBadgesCell.vue";
-import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContextBadgeDisplayModeToggle.vue";
-import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
-import UsageRequestLengthCell from "@/components/common/UsageRequestLengthCell.vue";
-import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
-import PlatformIcon from "@/components/common/PlatformIcon.vue";
-import Icon from "@/components/icons/Icon.vue";
 import UsageStatsCards from "@/components/user/usage/UsageStatsCards.vue";
 import UsageRequestPreviewModal from "@/components/user/usage/UsageRequestPreviewModal.vue";
 import type {
@@ -891,12 +127,9 @@ import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import { useUsageContextBadgeDisplayModePreference } from "@/composables/useUsageContextBadgeDisplayModePreference";
 import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
 import {
-  formatDateTime,
   formatReasoningEffortPair,
   formatThinkingEnabled,
 } from "@/utils/format";
-import { formatTokenPricePerMillion } from "@/utils/usagePricing";
-import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
 import {
   formatUsageEndpointDisplay,
   formatUsageMillionContextDisplay,
@@ -913,9 +146,13 @@ import {
 import {
   formatUsageAmount,
   formatUsageMultiplier,
-  hasPositiveUsageAmount,
 } from "@/utils/usageCost";
 import { FILTER_PLATFORM_ORDER, getPlatformEnglishName } from "@/utils/platformBranding";
+import ApiKeyDailyUsageCard from "./usage/ApiKeyDailyUsageCard.vue";
+import UsageCostTooltip from "./usage/UsageCostTooltip.vue";
+import UsageFilters from "./usage/UsageFilters.vue";
+import UsageTable from "./usage/UsageTable.vue";
+import UsageTokenTooltip from "./usage/UsageTokenTooltip.vue";
 
 const { t } = useI18n();
 const appStore = useAppStore();

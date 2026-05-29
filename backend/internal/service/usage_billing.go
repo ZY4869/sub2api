@@ -37,6 +37,7 @@ type UsageBillingCommand struct {
 	GeminiInputModality  string
 	GeminiOutputModality string
 	BillingType          int8
+	Platform             string
 	InputTokens          int
 	OutputTokens         int
 	CacheCreationTokens  int
@@ -50,6 +51,7 @@ type UsageBillingCommand struct {
 	APIKeyGroupQuotaCost float64
 	APIKeyRateLimitCost  float64
 	AccountQuotaCost     float64
+	UserPlatformCost     float64
 	BillingCurrency      string
 	USDToCNYRate         float64
 	FXRateDate           string
@@ -62,6 +64,7 @@ func (c *UsageBillingCommand) Normalize() {
 	}
 	c.RequestID = strings.TrimSpace(c.RequestID)
 	c.BillingCurrency = NormalizeUsageBillingCurrency(c.BillingCurrency)
+	c.Platform = NormalizeUserPlatformQuotaPlatform(c.Platform)
 	if strings.TrimSpace(c.RequestFingerprint) == "" {
 		c.RequestFingerprint = buildUsageBillingFingerprint(c)
 	}
@@ -72,7 +75,7 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		return ""
 	}
 	raw := fmt.Sprintf(
-		"%d|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%s|%0.10f|%s",
+		"%d|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%s|%0.10f|%s",
 		c.UserID,
 		c.AccountID,
 		c.APIKeyID,
@@ -90,6 +93,7 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		strings.TrimSpace(c.GeminiInputModality),
 		strings.TrimSpace(c.GeminiOutputModality),
 		c.BillingType,
+		strings.TrimSpace(c.Platform),
 		c.InputTokens,
 		c.OutputTokens,
 		c.CacheCreationTokens,
@@ -103,6 +107,7 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		c.APIKeyGroupQuotaCost,
 		c.APIKeyRateLimitCost,
 		c.AccountQuotaCost,
+		c.UserPlatformCost,
 		NormalizeUsageBillingCurrency(c.BillingCurrency),
 		c.USDToCNYRate,
 		strings.TrimSpace(c.FXRateDate),

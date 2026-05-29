@@ -7,14 +7,7 @@ import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
 import { opsAPI, type OpsRequestDetailsParams, type OpsRequestDetail } from '@/api/admin/ops'
 import { parseTimeRangeMinutes, formatDateTime } from '../utils/opsFormatters'
-
-export interface OpsRequestDetailsPreset {
-  title: string
-  kind?: OpsRequestDetailsParams['kind']
-  sort?: OpsRequestDetailsParams['sort']
-  min_duration_ms?: number
-  max_duration_ms?: number
-}
+import type { OpsRequestDetailsPreset } from './opsRequestDetailsTypes'
 
 interface Props {
   modelValue: boolean

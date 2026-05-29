@@ -63,7 +63,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *ht
 	}
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: resp.StatusCode, UpstreamRequestID: resp.Header.Get("x-request-id"), Kind: kind, Message: upstreamMsg, Detail: upstreamDetail})
 	if shouldDisable {
-		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: body, RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode)}
+		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: body, RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode)}
 	}
 	var errType, errMsg string
 	var statusCode int
@@ -143,7 +143,7 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(resp *http.Response, c 
 	}
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: resp.StatusCode, UpstreamRequestID: resp.Header.Get("x-request-id"), Kind: kind, Message: upstreamMsg, Detail: upstreamDetail})
 	if shouldDisable {
-		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: body, RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode)}
+		return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: body, RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode)}
 	}
 	errType := "api_error"
 	switch {

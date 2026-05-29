@@ -74,6 +74,7 @@ type UpdateSettingsRequest struct {
 	ContentModerationKeywordBlockEnabled *bool                                 `json:"content_moderation_keyword_block_enabled"`
 	ContentModerationKeywords            []string                              `json:"content_moderation_keywords"`
 	ContentModerationModelFilter         *service.ContentModerationModelFilter `json:"content_moderation_model_filter"`
+	ContentModerationCategoryThresholds  map[string]float64                    `json:"content_moderation_category_thresholds"`
 	SiteName                             string                                `json:"site_name"`
 	SiteLogo                             string                                `json:"site_logo"`
 	SiteSubtitle                         string                                `json:"site_subtitle"`
@@ -339,6 +340,15 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 		contentModerationModelFilter = service.NormalizeContentModerationModelFilter(filterJSON)
+	}
+	contentModerationCategoryThresholds := previousSettings.ContentModerationCategoryThresholds
+	if req.ContentModerationCategoryThresholds != nil {
+		thresholds, err := service.ValidateContentModerationCategoryThresholds(req.ContentModerationCategoryThresholds)
+		if err != nil {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		contentModerationCategoryThresholds = thresholds
 	}
 	paymentAirwallexEnabled := previousSettings.PaymentProviderAirwallexEnabled
 	if req.PaymentProviderAirwallexEnabled != nil {
@@ -775,7 +785,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return *req.ContentModerationFailOpen
 		}
 		return previousSettings.ContentModerationFailOpen
-	}(), ContentModerationKeywordBlockEnabled: contentModerationKeywordBlockEnabled, ContentModerationKeywords: contentModerationKeywords, ContentModerationModelFilter: contentModerationModelFilter, SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, VisualPresetDefault: req.VisualPresetDefault, AccountAiryWhiteSurfaceEnabled: req.AccountAiryWhiteSurfaceEnabled, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, PaymentProviderAirwallexEnabled: paymentAirwallexEnabled, AirwallexEnv: airwallexEnv, AirwallexClientID: airwallexClientID, AirwallexAPIKey: airwallexAPIKey, AirwallexWebhookSecret: airwallexWebhookSecret, PaymentMobileForceQRCodeEnabled: paymentMobileForceQRCodeEnabled, PaymentAllowedCurrencies: paymentAllowedCurrencies, PaymentDefaultCurrency: paymentDefaultCurrency, PaymentMinTopupAmount: paymentMinTopupAmount, PaymentMaxTopupAmount: paymentMaxTopupAmount, PaymentSubscriptionPlans: paymentPlans, AntigravityUserAgentVersion: antigravityVersion, CodexOAuthUserAgentMode: codexUAPolicy.Mode, CodexOAuthUserAgentOverride: codexUAPolicy.Override, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
+	}(), ContentModerationKeywordBlockEnabled: contentModerationKeywordBlockEnabled, ContentModerationKeywords: contentModerationKeywords, ContentModerationModelFilter: contentModerationModelFilter, ContentModerationCategoryThresholds: contentModerationCategoryThresholds, SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, VisualPresetDefault: req.VisualPresetDefault, AccountAiryWhiteSurfaceEnabled: req.AccountAiryWhiteSurfaceEnabled, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, PaymentProviderAirwallexEnabled: paymentAirwallexEnabled, AirwallexEnv: airwallexEnv, AirwallexClientID: airwallexClientID, AirwallexAPIKey: airwallexAPIKey, AirwallexWebhookSecret: airwallexWebhookSecret, PaymentMobileForceQRCodeEnabled: paymentMobileForceQRCodeEnabled, PaymentAllowedCurrencies: paymentAllowedCurrencies, PaymentDefaultCurrency: paymentDefaultCurrency, PaymentMinTopupAmount: paymentMinTopupAmount, PaymentMaxTopupAmount: paymentMaxTopupAmount, PaymentSubscriptionPlans: paymentPlans, AntigravityUserAgentVersion: antigravityVersion, CodexOAuthUserAgentMode: codexUAPolicy.Mode, CodexOAuthUserAgentOverride: codexUAPolicy.Override, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
 		if req.OpsMonitoringEnabled != nil {
 			return *req.OpsMonitoringEnabled
 		}

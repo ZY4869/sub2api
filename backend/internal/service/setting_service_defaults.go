@@ -1,0 +1,113 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strconv"
+)
+
+func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
+	_, err := s.settingRepo.GetValue(ctx, SettingKeyRegistrationEnabled)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, ErrSettingNotFound) {
+		return fmt.Errorf("check existing settings: %w", err)
+	}
+	defaults := map[string]string{
+		SettingKeyRegistrationEnabled:                  "true",
+		SettingKeyEmailVerifyEnabled:                   "false",
+		SettingKeyRegistrationEmailSuffixWhitelist:     "[]",
+		SettingKeyPromoCodeEnabled:                     "true",
+		SettingKeyFrontendURL:                          "",
+		SettingKeySiteName:                             "Sub2API",
+		SettingKeySiteLogo:                             "",
+		SettingKeyAvailableChannelsEnabled:             "false",
+		SettingKeyChannelMonitorEnabled:                "false",
+		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",
+		SettingKeyPublicModelCatalogEnabled:            "true",
+		SettingKeyAffiliateEnabled:                     "false",
+		SettingKeyAffiliateTransferEnabled:             "true",
+		SettingKeyAffiliateRebateOnUsageEnabled:        "true",
+		SettingKeyAffiliateRebateOnTopupEnabled:        "true",
+		SettingKeyAffiliateRebateRate:                  "20.0",
+		SettingKeyAffiliateRebateFreezeHours:           "0",
+		SettingKeyAffiliateRebateDurationDays:          "0",
+		SettingKeyAffiliateRebatePerInviteeCap:         "0",
+		SettingKeyAffiliateAffCodeLength:               "10",
+		SettingKeyPurchaseSubscriptionEnabled:          "false",
+		SettingKeyPurchaseSubscriptionURL:              "",
+		SettingKeyPaymentProviderAirwallexEnabled:      "false",
+		SettingKeyAirwallexEnv:                         "demo",
+		SettingKeyAirwallexClientID:                    "",
+		SettingKeyAirwallexAPIKey:                      "",
+		SettingKeyAirwallexWebhookSecret:               "",
+		SettingKeyPaymentMobileForceQRCodeEnabled:      "false",
+		SettingKeyPaymentAllowedCurrencies:             `["USD","CNY","HKD"]`,
+		SettingKeyPaymentDefaultCurrency:               "USD",
+		SettingKeyPaymentMinTopupAmount:                "1",
+		SettingKeyPaymentMaxTopupAmount:                "5000",
+		SettingKeyPaymentSubscriptionPlans:             "[]",
+		SettingKeyAntigravityUserAgentVersion:          "",
+		SettingKeyCodexOAuthUserAgentMode:              CodexOAuthUAModeDefault,
+		SettingKeyCodexOAuthUserAgentOverride:          "",
+		SettingKeyCustomMenuItems:                      "[]",
+		SettingKeyLoginAgreementEnabled:                "false",
+		SettingKeyLoginAgreementMode:                   LoginAgreementModeCheckbox,
+		SettingKeyLoginAgreementUpdatedAt:              "",
+		SettingKeyLoginAgreementDocuments:              "[]",
+		SettingKeyDefaultConcurrency:                   strconv.Itoa(s.cfg.Default.UserConcurrency),
+		SettingKeyDefaultBalance:                       strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
+		SettingKeyDefaultSubscriptions:                 "[]",
+		SettingKeySMTPPort:                             "587",
+		SettingKeySMTPUseTLS:                           "false",
+		SettingKeyEnableModelFallback:                  "false",
+		SettingKeyFallbackModelAnthropic:               "claude-3-5-sonnet-20241022",
+		SettingKeyFallbackModelOpenAI:                  "gpt-4o",
+		SettingKeyFallbackModelGemini:                  "gemini-2.5-pro",
+		SettingKeyFallbackModelAntigravity:             "gemini-2.5-pro",
+		SettingKeyEnableIdentityPatch:                  "true",
+		SettingKeyIdentityPatchPrompt:                  "",
+		SettingKeyOpsMonitoringEnabled:                 "true",
+		SettingKeyOpsRealtimeMonitoringEnabled:         "true",
+		SettingKeyOpsQueryModeDefault:                  "auto",
+		SettingKeyOpsMetricsIntervalSeconds:            "60",
+		SettingKeyMinClaudeCodeVersion:                 "",
+		SettingKeyMaxClaudeCodeVersion:                 "",
+		SettingKeyAllowUngroupedKeyScheduling:          "false",
+		SettingKeyMultiGroupRoutingEnabled:             "true",
+		SettingKeyBackendModeEnabled:                   "false",
+		SettingKeyMaintenanceModeEnabled:               "false",
+		SettingKeyDocumentAIEnabled:                    "false",
+		SettingKeyTelegramChatID:                       "",
+		SettingKeyGitHubOAuthEnabled:                   "false",
+		SettingKeyGitHubOAuthClientID:                  "",
+		SettingKeyGitHubOAuthClientSecret:              "",
+		SettingKeyGitHubOAuthRedirectURL:               "",
+		SettingKeyGoogleOAuthEnabled:                   "false",
+		SettingKeyGoogleOAuthClientID:                  "",
+		SettingKeyGoogleOAuthClientSecret:              "",
+		SettingKeyGoogleOAuthRedirectURL:               "",
+		SettingKeyDingTalkOAuthEnabled:                 "false",
+		SettingKeyDingTalkOAuthClientID:                "",
+		SettingKeyDingTalkOAuthClientSecret:            "",
+		SettingKeyDingTalkOAuthRedirectURL:             "",
+		SettingKeyContentModerationEnabled:             "false",
+		SettingKeyContentModerationProvider:            "openai",
+		SettingKeyContentModerationBaseURL:             "",
+		SettingKeyContentModerationAPIKey:              "",
+		SettingKeyContentModerationAPIKeys:             "[]",
+		SettingKeyContentModerationModel:               "",
+		SettingKeyContentModerationTimeoutMs:           "1500",
+		SettingKeyContentModerationDedupeWindowSeconds: "300",
+		SettingKeyContentModerationFailOpen:            "true",
+		SettingKeyContentModerationKeywordBlockEnabled: "false",
+		SettingKeyContentModerationKeywords:            "[]",
+		SettingKeyContentModerationModelFilter:         `{"type":"all","models":[]}`,
+		SettingKeyContentModerationCategoryThresholds:  mustMarshalDefaultContentModerationThresholds(),
+		SettingKeyVisualPresetDefault:                  VisualPresetClassic,
+		SettingKeyAccountAiryWhiteSurfaceEnabled:       "false",
+	}
+	return s.settingRepo.SetMultiple(ctx, defaults)
+}

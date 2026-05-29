@@ -386,20 +386,13 @@ func selectPublicModelCatalogPublishItems(draft PublicModelCatalogDraft, items [
 }
 
 func selectPublicModelCatalogPublishEntryItems(entries []PublicModelCatalogEntryDraft, items []PublicModelCatalogItem) ([]PublicModelCatalogItem, error) {
-	itemsByEntryID := make(map[string]PublicModelCatalogItem, len(items))
-	for _, item := range items {
-		entryID := strings.TrimSpace(item.EntryID)
-		if entryID == "" {
-			continue
-		}
-		itemsByEntryID[entryID] = item
-	}
+	itemsByEntryID, itemsBySource := publicModelCatalogPublishItemLookups(items)
 
 	selected := make([]PublicModelCatalogItem, 0, len(entries))
 	seenPublicIDs := map[string]struct{}{}
 	for _, draftEntry := range entries {
 		entry := normalizePublicModelCatalogEntryDraft(draftEntry)
-		item, ok := itemsByEntryID[entry.EntryID]
+		item, ok := resolvePublicModelCatalogPublishItem(entry, itemsByEntryID, itemsBySource)
 		if !ok {
 			return nil, infraerrors.BadRequest("PUBLIC_MODEL_ENTRY_UNAVAILABLE", "selected public model entry is no longer available")
 		}
@@ -690,6 +683,19 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 	}
 	if len(selectedItems) == 0 && len(availableSnapshot.Items) > 0 {
 		return nil, infraerrors.BadRequest("PUBLIC_MODEL_CATALOG_EMPTY", "no models selected for publish")
+	}
+	for _, item := range selectedItems {
+		if s.publicModelCatalogItemRouteConfirmed(ctx, item) {
+			continue
+		}
+		fields := publicModelCatalogAuditFields(ctx, actor)
+		fields = append(fields, publicModelCatalogItemLogFields(item)...)
+		fields = append(fields,
+			zap.String("availability_state", item.AvailabilityState),
+			zap.String("stale_state", item.StaleState),
+		)
+		logger.FromContext(ctx).Warn("public model catalog publish rejected unavailable entry", fields...)
+		return nil, infraerrors.BadRequest("PUBLIC_MODEL_NOT_VERIFIED", "selected public model must be verified and freshly routable")
 	}
 	details := make(map[string]PublicModelCatalogDetail, len(selectedItems))
 	for _, item := range selectedItems {

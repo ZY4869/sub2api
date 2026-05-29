@@ -137,6 +137,24 @@ func shouldInferIngressFunctionCallOutputPreviousResponseID(storeDisabled bool, 
 	}
 	return strings.TrimSpace(expectedPreviousResponseID) != ""
 }
+
+func openAIWSRawPayloadHasToolCallOutput(payload []byte) bool {
+	if len(payload) == 0 {
+		return false
+	}
+	for _, itemType := range []string{
+		"function_call_output",
+		"tool_search_output",
+		"custom_tool_call_output",
+		"mcp_tool_call_output",
+	} {
+		if gjson.GetBytes(payload, `input.#(type=="`+itemType+`")`).Exists() {
+			return true
+		}
+	}
+	return false
+}
+
 func alignStoreDisabledPreviousResponseID(payload []byte, expectedPreviousResponseID string) ([]byte, bool, error) {
 	if len(payload) == 0 {
 		return payload, false, nil

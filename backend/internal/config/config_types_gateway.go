@@ -4,6 +4,8 @@ import "time"
 
 type GatewayConfig struct {
 	ResponseHeaderTimeout                int                      `mapstructure:"response_header_timeout"`
+	OpenAIResponseHeaderTimeout          int                      `mapstructure:"openai_response_header_timeout"`
+	OpenAIHTTP2                          GatewayOpenAIHTTP2Config `mapstructure:"openai_http2"`
 	MaxBodySize                          int64                    `mapstructure:"max_body_size"`
 	UpstreamResponseReadMaxBytes         int64                    `mapstructure:"upstream_response_read_max_bytes"`
 	ProxyProbeResponseReadMaxBytes       int64                    `mapstructure:"proxy_probe_response_read_max_bytes"`
@@ -44,6 +46,15 @@ type GatewayConfig struct {
 	ModelsListCacheTTLSeconds            int                      `mapstructure:"models_list_cache_ttl_seconds"`
 	UserMessageQueue                     UserMessageQueueConfig   `mapstructure:"user_message_queue"`
 }
+
+type GatewayOpenAIHTTP2Config struct {
+	Enabled                   bool `mapstructure:"enabled"`
+	AllowProxyFallbackToHTTP1 bool `mapstructure:"allow_proxy_fallback_to_http1"`
+	FallbackErrorThreshold    int  `mapstructure:"fallback_error_threshold"`
+	FallbackWindowSeconds     int  `mapstructure:"fallback_window_seconds"`
+	FallbackTTLSeconds        int  `mapstructure:"fallback_ttl_seconds"`
+}
+
 type UserMessageQueueConfig struct {
 	Mode                   string `mapstructure:"mode"`
 	Enabled                bool   `mapstructure:"enabled"`

@@ -562,6 +562,19 @@ func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService, billingCach
 	return apiKeyService
 }
 
+func ProvideBillingCacheService(
+	cache BillingCache,
+	userRepo UserRepository,
+	subRepo UserSubscriptionRepository,
+	apiKeyRepo APIKeyRepository,
+	cfg *config.Config,
+	userPlatformQuotaService *UserPlatformQuotaService,
+) *BillingCacheService {
+	svc := NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, cfg)
+	svc.SetUserPlatformQuotaService(userPlatformQuotaService)
+	return svc
+}
+
 func ProvideUsageService(
 	usageRepo UsageLogRepository,
 	userRepo UserRepository,
@@ -598,6 +611,7 @@ func ProvideModelCatalogService(
 	pricingService *PricingService,
 	docsService *APIDocsService,
 	modelRegistryService *ModelRegistryService,
+	channelMonitorService *ChannelMonitorService,
 	cfg *config.Config,
 ) *ModelCatalogService {
 	if billingService != nil {
@@ -605,6 +619,7 @@ func ProvideModelCatalogService(
 	}
 	svc := NewModelCatalogService(settingRepo, nil, billingService, pricingService, cfg)
 	svc.SetModelRegistryService(modelRegistryService)
+	svc.SetChannelMonitorService(channelMonitorService)
 	svc.SetDocsService(docsService)
 	return svc
 }
@@ -856,7 +871,8 @@ var ProviderSet = wire.NewSet(
 	NewDashboardService,
 	ProvidePricingService,
 	NewBillingService,
-	NewBillingCacheService,
+	ProvideBillingCacheService,
+	NewUserPlatformQuotaService,
 	NewAnnouncementService,
 	NewAPIDocsService,
 	NewEmailTemplateService,

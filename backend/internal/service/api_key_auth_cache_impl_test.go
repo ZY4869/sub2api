@@ -24,11 +24,12 @@ func TestAPIKeyAuthSnapshotRoundTripPreservesGroupPriority(t *testing.T) {
 			{
 				GroupID: 10,
 				Group: &Group{
-					ID:       10,
-					Name:     "primary",
-					Platform: PlatformAnthropic,
-					Priority: 1,
-					Status:   StatusActive,
+					ID:                   10,
+					Name:                 "primary",
+					Platform:             PlatformAnthropic,
+					Priority:             1,
+					Status:               StatusActive,
+					VisibleModelPatterns: []string{"claude-*", "friendly-sonnet"},
 				},
 			},
 			{
@@ -50,6 +51,7 @@ func TestAPIKeyAuthSnapshotRoundTripPreservesGroupPriority(t *testing.T) {
 	require.Len(t, snapshot.Groups, 2)
 	require.Equal(t, 1, snapshot.Groups[0].Group.Priority)
 	require.Equal(t, 3, snapshot.Groups[1].Group.Priority)
+	require.Equal(t, []string{"claude-*", "friendly-sonnet"}, snapshot.Groups[0].Group.VisibleModelPatterns)
 
 	restored := svc.snapshotToAPIKey(apiKey.Key, snapshot)
 	require.NotNil(t, restored)
@@ -58,6 +60,7 @@ func TestAPIKeyAuthSnapshotRoundTripPreservesGroupPriority(t *testing.T) {
 	require.NotNil(t, restored.GroupBindings[1].Group)
 	require.Equal(t, 1, restored.GroupBindings[0].Group.Priority)
 	require.Equal(t, 3, restored.GroupBindings[1].Group.Priority)
+	require.Equal(t, []string{"claude-*", "friendly-sonnet"}, restored.GroupBindings[0].Group.VisibleModelPatterns)
 	require.NotNil(t, restored.GroupID)
 	require.Equal(t, int64(10), *restored.GroupID)
 }

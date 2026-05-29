@@ -6,6 +6,7 @@ import { resetPublicModelCatalogStoreForTests } from '@/stores/publicModelCatalo
 
 const apiMocks = vi.hoisted(() => ({
   getModelCatalog: vi.fn(),
+  getModelCatalogStatus: vi.fn(),
   getUSDCNYExchangeRate: vi.fn(),
 }));
 
@@ -20,6 +21,7 @@ const clipboardMocks = vi.hoisted(() => ({
 
 vi.mock("@/api/meta", () => ({
   getModelCatalog: apiMocks.getModelCatalog,
+  getModelCatalogStatus: apiMocks.getModelCatalogStatus,
   getUSDCNYExchangeRate: apiMocks.getUSDCNYExchangeRate,
 }));
 
@@ -45,6 +47,7 @@ describe("PublicModelCatalogContent", () => {
     setActivePinia(createPinia())
     resetPublicModelCatalogStoreForTests()
     apiMocks.getModelCatalog.mockReset();
+    apiMocks.getModelCatalogStatus.mockReset();
     apiMocks.getUSDCNYExchangeRate.mockReset();
     appStoreMocks.showSuccess.mockReset();
     appStoreMocks.showError.mockReset();
@@ -74,7 +77,9 @@ describe("PublicModelCatalogContent", () => {
             provider_icon_key: "openai",
             status: "ok",
             request_protocols: ["openai"],
-            source_ids: ["source-alpha"],
+            context_window_tokens: 128000,
+            modalities: ["text", "image"],
+            capabilities: ["vision", "tools"],
             mode: "chat",
             currency: "USD",
             price_display: {
@@ -94,7 +99,9 @@ describe("PublicModelCatalogContent", () => {
             provider_icon_key: "anthropic",
             status: "warning",
             request_protocols: ["anthropic"],
-            source_ids: ["claude-source-id"],
+            context_window_tokens: 200000,
+            modalities: ["text"],
+            capabilities: ["tools"],
             mode: "chat",
             currency: "USD",
             price_display: {
@@ -112,7 +119,9 @@ describe("PublicModelCatalogContent", () => {
             provider_icon_key: "openai",
             status: "maintenance",
             request_protocols: ["gemini"],
-            source_ids: ["compat-source-id"],
+            context_window_tokens: 32000,
+            modalities: ["text"],
+            capabilities: ["json"],
             mode: "chat",
             currency: "USD",
             price_display: {
@@ -134,6 +143,40 @@ describe("PublicModelCatalogContent", () => {
       date: "2026-04-18",
       updated_at: "2026-04-18T00:00:00Z",
       cached: true,
+    });
+    apiMocks.getModelCatalogStatus.mockResolvedValue({
+      updated_at: "2026-04-18T00:00:00Z",
+      items: [
+        {
+          model: "gpt-5.4",
+          status: "healthy",
+          success_rate_today: 1,
+          success_rate_7d: 0.999,
+          latency_ms: 350,
+          daily: [
+            { date: "2026-04-12", status: "healthy", success_rate: 1, latency_ms: 320 },
+          ],
+          trend: [{ timestamp: "2026-04-12", success_rate: 1, latency_ms: 320 }],
+        },
+        {
+          model: "claude-sonnet-4.5",
+          status: "warning",
+          success_rate_today: 0.91,
+          success_rate_7d: 0.95,
+          latency_ms: 420,
+          daily: [{ date: "2026-04-12", status: "warning", success_rate: 0.95, latency_ms: 420 }],
+          trend: [{ timestamp: "2026-04-12", success_rate: 0.95, latency_ms: 420 }],
+        },
+        {
+          model: "gpt-5.4-compat",
+          status: "error",
+          success_rate_today: 0.2,
+          success_rate_7d: 0.45,
+          latency_ms: 800,
+          daily: [{ date: "2026-04-12", status: "error", success_rate: 0, latency_ms: 800 }],
+          trend: [{ timestamp: "2026-04-12", success_rate: 0.45, latency_ms: 800 }],
+        },
+      ],
     });
   });
 
@@ -162,15 +205,16 @@ describe("PublicModelCatalogContent", () => {
     expect(wrapper.text()).toContain("Claude Sonnet 4.5");
     expect(wrapper.find('[data-testid="public-model-primary-price-gpt-5.4-compat-cache_price"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="public-model-secondary-price-gpt-5.4-compat-cache_price"]').exists()).toBe(false);
-    expect(wrapper.text()).toContain("ui.modelCatalog.status.maintenance");
-    expect(wrapper.findAll('[aria-label="ui.modelCatalog.status.maintenance"]').length).toBeGreaterThan(0);
+    expect(wrapper.text()).toContain("ui.modelCatalog.health.error");
+    expect(wrapper.text()).toContain("45.0%");
+    expect(wrapper.text()).toContain("800ms");
     expect(wrapper.find('[data-testid="models-filter-provider-gemini"]').exists()).toBe(false);
 
     await wrapper.get('[data-testid="models-filter-provider-openai"]').trigger("click");
     expect(wrapper.text()).toContain("GPT 5.4");
     expect(wrapper.text()).toContain("GPT 5.4 Compatible");
     expect(wrapper.text()).not.toContain("Claude Sonnet 4.5");
-    expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).not.toContain("gpt-5.4");
+    expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("gpt-5.4");
 
     await wrapper.get('[data-testid="models-filter-provider-all"]').trigger("click");
     await wrapper.get('[data-testid="models-filter-protocol-gemini"]').trigger("click");
@@ -178,7 +222,7 @@ describe("PublicModelCatalogContent", () => {
     expect(wrapper.text()).not.toContain("Claude Sonnet 4.5");
     expect(wrapper.text()).not.toContain("GPT-5.4");
 
-    await wrapper.get('[data-testid="public-models-search"]').setValue("compat-source-id");
+    await wrapper.get('[data-testid="public-models-search"]').setValue("json");
     expect(wrapper.text()).toContain("GPT 5.4 Compatible");
 
     await wrapper.get('[data-testid="public-model-copy-gpt-5.4-compat"]').trigger("click");
@@ -404,6 +448,29 @@ describe("PublicModelCatalogContent", () => {
     expect(wrapper.text()).toContain("Gemini 2.5 Pro");
     expect(wrapper.text()).toContain("ui.modelCatalog.exchangeRateSoftWarning");
     expect(wrapper.text()).not.toContain("Network error. Please check your connection.");
+  });
+
+  it("falls back to pending health when status loading fails", async () => {
+    apiMocks.getModelCatalogStatus.mockRejectedValueOnce(new Error("status unavailable"));
+    const pinia = createPinia()
+
+    const wrapper = mount(PublicModelCatalogContent, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          PublicModelCatalogDetailDialog: true,
+          ModelIcon: { template: '<span data-testid="model-icon" />' },
+          ModelPlatformIcon: { template: '<span data-testid="provider-icon" />' },
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const card = wrapper.get('[data-testid="public-model-card-gpt-5.4"]')
+    expect(card.text()).toContain("ui.modelCatalog.health.pending");
+    expect(card.text()).toContain("-");
+    expect(wrapper.text()).not.toContain("status unavailable");
   });
 
   it("shows a live fallback notice and empty-state copy when the catalog is unpublished", async () => {

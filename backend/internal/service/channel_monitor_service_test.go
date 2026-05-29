@@ -14,6 +14,7 @@ type channelMonitorServiceRepoStub struct {
 	ChannelMonitorRepository
 	createErr error
 	created   *ChannelMonitor
+	enabled   []*ChannelMonitor
 }
 
 func (s *channelMonitorServiceRepoStub) Create(_ context.Context, monitor *ChannelMonitor) (*ChannelMonitor, error) {
@@ -26,6 +27,28 @@ func (s *channelMonitorServiceRepoStub) Create(_ context.Context, monitor *Chann
 	clone.UpdatedAt = clone.CreatedAt
 	s.created = &clone
 	return &clone, nil
+}
+
+func (s *channelMonitorServiceRepoStub) ListEnabled(context.Context) ([]*ChannelMonitor, error) {
+	return s.enabled, nil
+}
+
+type channelMonitorHistoryRepoStub struct {
+	ChannelMonitorHistoryRepository
+	latest []*ChannelMonitorHistory
+}
+
+func (s *channelMonitorHistoryRepoStub) ListLatestByMonitorIDs(context.Context, []int64) ([]*ChannelMonitorHistory, error) {
+	return s.latest, nil
+}
+
+type channelMonitorRollupRepoStub struct {
+	ChannelMonitorRollupRepository
+	daily []*ChannelMonitorDailyRollup
+}
+
+func (s *channelMonitorRollupRepoStub) ListDailyByMonitorIDs(context.Context, []int64, time.Time) ([]*ChannelMonitorDailyRollup, error) {
+	return s.daily, nil
 }
 
 type channelMonitorEncryptorStub struct {
@@ -86,6 +109,56 @@ func TestChannelMonitorService_Create_ReturnsRepositoryError(t *testing.T) {
 
 	_, err := svc.Create(context.Background(), validChannelMonitorForCreate(true), &key)
 	require.ErrorContains(t, err, "db down")
+}
+
+func TestChannelMonitorService_PublicModelCatalogHealthAggregatesAndSanitizes(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &channelMonitorServiceRepoStub{
+		enabled: []*ChannelMonitor{
+			{ID: 10, Enabled: true, PrimaryModelID: "gpt-5.4"},
+			{ID: 11, Enabled: true, PrimaryModelID: "gpt-5.4"},
+		},
+	}
+	historyRepo := &channelMonitorHistoryRepoStub{
+		latest: []*ChannelMonitorHistory{
+			{MonitorID: 10, ModelID: "gpt-5.4", Status: ChannelMonitorStatusSuccess, LatencyMs: 320, CreatedAt: now.Add(-time.Minute)},
+			{MonitorID: 11, ModelID: "gpt-5.4-source", Status: ChannelMonitorStatusDegraded, LatencyMs: 640, CreatedAt: now},
+		},
+	}
+	rollupRepo := &channelMonitorRollupRepoStub{
+		daily: []*ChannelMonitorDailyRollup{
+			{MonitorID: 10, ModelID: "gpt-5.4", Day: now, TotalChecks: 10, AvailableChecks: 10, TotalLatencyMs: 3200},
+			{MonitorID: 11, ModelID: "gpt-5.4-source", Day: now, TotalChecks: 10, AvailableChecks: 8, DegradedChecks: 2, TotalLatencyMs: 5120},
+		},
+	}
+	svc := NewChannelMonitorService(repo, historyRepo, rollupRepo, nil, nil, &config.Config{})
+
+	statuses, err := svc.PublicModelCatalogHealth(context.Background(), []PublicModelCatalogItem{{
+		Model:     "gpt-5.4-public",
+		SourceIDs: []string{"gpt-5.4", "gpt-5.4-source"},
+	}})
+
+	require.NoError(t, err)
+	status := statuses["gpt-5.4-public"]
+	require.Equal(t, PublicModelHealthStatusWarning, status.Status)
+	require.Equal(t, "gpt-5.4-public", status.Model)
+	require.NotNil(t, status.SuccessRateToday)
+	require.InDelta(t, 0.9, *status.SuccessRateToday, 0.0001)
+	require.NotNil(t, status.LatencyMs)
+	require.Equal(t, int64(640), *status.LatencyMs)
+	require.NotEmpty(t, status.Daily)
+	require.NotContains(t, mustModelCatalogJSON(t, status), "monitor_id")
+	require.NotContains(t, mustModelCatalogJSON(t, status), "gpt-5.4-source")
+}
+
+func TestChannelMonitorService_PublicModelCatalogHealthPendingWithoutMonitorData(t *testing.T) {
+	svc := NewChannelMonitorService(&channelMonitorServiceRepoStub{}, &channelMonitorHistoryRepoStub{}, &channelMonitorRollupRepoStub{}, nil, nil, &config.Config{})
+
+	statuses, err := svc.PublicModelCatalogHealth(context.Background(), []PublicModelCatalogItem{{Model: "gpt-5.4"}})
+
+	require.NoError(t, err)
+	require.Equal(t, PublicModelHealthStatusPending, statuses["gpt-5.4"].Status)
+	require.Empty(t, statuses["gpt-5.4"].Daily)
 }
 
 func newChannelMonitorServiceForCreateTest(repo ChannelMonitorRepository) *ChannelMonitorService {

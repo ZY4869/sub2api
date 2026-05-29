@@ -1,16 +1,18 @@
 <template>
   <div
     :class="[
-      'account-status-visual flex min-w-[240px] max-w-[280px] flex-col justify-center gap-2.5 whitespace-normal rounded-[1rem] border px-4 py-3.5 select-none',
+      'account-status-visual flex min-w-0 max-w-full flex-col justify-center whitespace-normal rounded-[1rem] border select-none',
+      compact ? 'gap-1.5 px-3 py-3' : 'gap-2.5 px-4 py-3.5',
       whiteSurfaceEnabled ? whiteSurfaceClass : toneStyles.surfaceClass
     ]"
     data-testid="account-status-visual-cell"
   >
-    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <div class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
       <div class="flex min-w-0 items-center gap-1.5">
         <span
           :class="[
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl',
+            'flex shrink-0 items-center justify-center rounded-xl',
+            compact ? 'h-7 w-7' : 'h-8 w-8',
             toneStyles.iconWrapClass
           ]"
         >
@@ -18,9 +20,10 @@
         </span>
         <span
           :class="[
-            'truncate text-[13px] font-extrabold tracking-tight',
+            'min-w-0 truncate text-[13px] font-extrabold tracking-tight',
             toneStyles.titleClass
           ]"
+          :title="statusTitle"
         >
           {{ statusTitle }}
         </span>
@@ -33,10 +36,10 @@
         :title="t('admin.accounts.status.viewTempUnschedDetails')"
         @click="emit('show-temp-unsched', account)"
       >
-        {{ statusTagText }}
+        <span class="min-w-0 truncate">{{ statusTagText }}</span>
       </button>
-      <span v-else :class="statusTagClass">
-        {{ statusTagText }}
+      <span v-else :class="statusTagClass" :title="statusTagText">
+        <span class="min-w-0 truncate">{{ statusTagText }}</span>
       </span>
 
       <AccountErrorTooltipButton
@@ -124,9 +127,11 @@ const props = withDefaults(defineProps<{
   account: Account
   visualStyle?: AccountVisualStyle
   whiteSurfaceEnabled?: boolean
+  compact?: boolean
 }>(), {
   visualStyle: 'airy',
-  whiteSurfaceEnabled: false
+  whiteSurfaceEnabled: false,
+  compact: false
 })
 
 const emit = defineEmits<{
@@ -220,7 +225,7 @@ const statusTagText = computed(() => {
 })
 
 const statusTagClass = computed(() => [
-  'inline-flex shrink-0 items-center rounded-full border px-2 py-1 text-[10px] font-bold tracking-tight transition',
+  'inline-flex max-w-[82px] shrink-0 items-center rounded-full border px-2 py-1 text-[10px] font-bold tracking-tight transition',
   toneStyles.value.statusBadgeClass
 ])
 

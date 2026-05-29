@@ -73,6 +73,10 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		groupIn.ID = created.ID
 		groupIn.CreatedAt = created.CreatedAt
 		groupIn.UpdatedAt = created.UpdatedAt
+		groupIn.VisibleModelPatterns = service.NormalizeGroupVisibleModelPatterns(groupIn.VisibleModelPatterns)
+		if err := saveGroupVisibleModelPatterns(ctx, r.sql, groupIn.ID, groupIn.VisibleModelPatterns); err != nil {
+			return err
+		}
 		if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventGroupChanged, nil, &groupIn.ID, nil); err != nil {
 			logger.LegacyPrintf("repository.group", "[SchedulerOutbox] enqueue group create failed: group=%d err=%v", groupIn.ID, err)
 		}
@@ -91,6 +95,9 @@ func (r *groupRepository) GetByID(ctx context.Context, id int64) (*service.Group
 	_, _, rateLimited, _ := r.GetAccountCountWithRateLimited(ctx, out.ID)
 	out.RateLimitedAccountCount = rateLimited
 	out.AvailableAccountCount = maxInt64(active-rateLimited, 0)
+	if err := hydrateVisibleModelPatternsForGroups(ctx, r.sql, []*service.Group{out}); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -200,6 +207,10 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		return translatePersistenceError(err, service.ErrGroupNotFound, service.ErrGroupExists)
 	}
 	groupIn.UpdatedAt = updated.UpdatedAt
+	groupIn.VisibleModelPatterns = service.NormalizeGroupVisibleModelPatterns(groupIn.VisibleModelPatterns)
+	if err := saveGroupVisibleModelPatterns(ctx, r.sql, groupIn.ID, groupIn.VisibleModelPatterns); err != nil {
+		return err
+	}
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventGroupChanged, nil, &groupIn.ID, nil); err != nil {
 		logger.LegacyPrintf("repository.group", "[SchedulerOutbox] enqueue group update failed: group=%d err=%v", groupIn.ID, err)
 	}
@@ -267,6 +278,9 @@ func (r *groupRepository) ListWithFilters(ctx context.Context, params pagination
 		outGroups = append(outGroups, *g)
 		groupIDs = append(groupIDs, g.ID)
 	}
+	if err := hydrateVisibleModelPatternsForGroupValues(ctx, r.sql, outGroups); err != nil {
+		return nil, nil, err
+	}
 
 	counts, err := r.loadAccountCounts(ctx, groupIDs)
 	if err == nil {
@@ -297,6 +311,9 @@ func (r *groupRepository) ListActive(ctx context.Context) ([]service.Group, erro
 		g := groupEntityToService(groups[i])
 		outGroups = append(outGroups, *g)
 		groupIDs = append(groupIDs, g.ID)
+	}
+	if err := hydrateVisibleModelPatternsForGroupValues(ctx, r.sql, outGroups); err != nil {
+		return nil, err
 	}
 
 	counts, err := r.loadAccountCounts(ctx, groupIDs)
@@ -332,6 +349,9 @@ func (r *groupRepository) ListActiveByPlatform(ctx context.Context, platform str
 		g := groupEntityToService(groups[i])
 		outGroups = append(outGroups, *g)
 		groupIDs = append(groupIDs, g.ID)
+	}
+	if err := hydrateVisibleModelPatternsForGroupValues(ctx, r.sql, outGroups); err != nil {
+		return nil, err
 	}
 
 	counts, err := r.loadAccountCounts(ctx, groupIDs)

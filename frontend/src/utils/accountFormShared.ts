@@ -60,6 +60,7 @@ export interface MixedChannelWarningDetails {
 export interface AccountPoolModeState {
   enabled: boolean
   retryCount: number
+  retryStatusCodes: number[]
 }
 
 export interface AccountCustomErrorCodesState {
@@ -70,13 +71,15 @@ export interface AccountCustomErrorCodesState {
 
 export const DEFAULT_POOL_MODE_RETRY_COUNT = 3
 export const MAX_POOL_MODE_RETRY_COUNT = 10
+export const DEFAULT_POOL_MODE_RETRY_STATUS_CODES = [401, 403, 429] as const
 export const DEFAULT_TEMP_UNSCHED_DURATION_MINUTES = 30
 
 export const createDefaultAccountPoolModeState = (
   defaultRetryCount: number
 ): AccountPoolModeState => ({
   enabled: false,
-  retryCount: defaultRetryCount
+  retryCount: defaultRetryCount,
+  retryStatusCodes: [...DEFAULT_POOL_MODE_RETRY_STATUS_CODES]
 })
 
 export const createDefaultAccountCustomErrorCodesState =
@@ -99,6 +102,25 @@ export function normalizePoolModeRetryCount(value: number): number {
     return MAX_POOL_MODE_RETRY_COUNT
   }
   return normalized
+}
+
+export function normalizePoolModeRetryStatusCodes(value: unknown): number[] {
+  const rawItems = Array.isArray(value)
+    ? value
+    : String(value ?? '').split(/[\s,;]+/)
+  const seen = new Set<number>()
+  const codes: number[] = []
+
+  for (const item of rawItems) {
+    const code = Math.trunc(Number(item))
+    if (!Number.isFinite(code) || code < 100 || code > 599 || seen.has(code)) {
+      continue
+    }
+    seen.add(code)
+    codes.push(code)
+  }
+
+  return codes.length > 0 ? codes : [...DEFAULT_POOL_MODE_RETRY_STATUS_CODES]
 }
 
 export function createEmptyTempUnschedRule(): TempUnschedRuleForm {
