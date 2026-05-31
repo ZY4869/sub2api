@@ -111,10 +111,10 @@ func contentModerationPromptSignalTokens(content string) []string {
 	for _, r := range strings.ToLower(strings.TrimSpace(content)) {
 		r = normalizeFullWidthASCII(r)
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			b.WriteRune(r)
+			_, _ = b.WriteRune(r)
 			continue
 		}
-		b.WriteByte(' ')
+		_ = b.WriteByte(' ')
 	}
 	fields := strings.Fields(b.String())
 	if len(fields) == 0 {

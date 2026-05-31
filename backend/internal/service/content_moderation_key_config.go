@@ -371,18 +371,18 @@ func normalizeContentModerationKeywordComparable(value string) string {
 	for _, r := range strings.ToLower(strings.TrimSpace(value)) {
 		r = normalizeFullWidthASCII(r)
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			b.WriteRune(r)
+			_, _ = b.WriteRune(r)
 			lastSpace = false
 			continue
 		}
 		if unicode.IsSpace(r) || strings.ContainsRune("-_./\\|,，;；:：'\"`~!@#$%^&*()[]{}<>?？、", r) {
 			if !lastSpace && b.Len() > 0 {
-				b.WriteByte(' ')
+				_ = b.WriteByte(' ')
 				lastSpace = true
 			}
 			continue
 		}
-		b.WriteRune(r)
+		_, _ = b.WriteRune(r)
 		lastSpace = false
 	}
 	return strings.Join(strings.Fields(b.String()), " ")

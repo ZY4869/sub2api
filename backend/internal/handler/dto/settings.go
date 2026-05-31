@@ -142,9 +142,9 @@ type SystemSettings struct {
 	PaymentMinTopupAmount                float64                   `json:"payment_min_topup_amount"`
 	PaymentMaxTopupAmount                float64                   `json:"payment_max_topup_amount"`
 	PaymentSubscriptionPlans             []PaymentSubscriptionPlan `json:"payment_subscription_plans"`
-	BillingCurrencyConversionEnabled      bool                      `json:"billing_currency_conversion_enabled"`
-	BillingCurrencyCNYToUSDRate           float64                   `json:"billing_currency_cny_to_usd_rate"`
-	BillingCurrencyUSDToCNYRate           float64                   `json:"billing_currency_usd_to_cny_rate"`
+	BillingCurrencyConversionEnabled     bool                      `json:"billing_currency_conversion_enabled"`
+	BillingCurrencyCNYToUSDRate          float64                   `json:"billing_currency_cny_to_usd_rate"`
+	BillingCurrencyUSDToCNYRate          float64                   `json:"billing_currency_usd_to_cny_rate"`
 	AntigravityUserAgentVersion          string                    `json:"antigravity_user_agent_version"`
 	CodexOAuthUserAgentMode              string                    `json:"codex_oauth_user_agent_mode"`
 	CodexOAuthUserAgentOverride          string                    `json:"codex_oauth_user_agent_override"`

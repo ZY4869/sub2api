@@ -97,9 +97,9 @@ type SystemSettings struct {
 	PaymentMinTopupAmount                float64
 	PaymentMaxTopupAmount                float64
 	PaymentSubscriptionPlans             []PaymentSubscriptionPlan
-	BillingCurrencyConversionEnabled      bool
-	BillingCurrencyCNYToUSDRate           float64
-	BillingCurrencyUSDToCNYRate           float64
+	BillingCurrencyConversionEnabled     bool
+	BillingCurrencyCNYToUSDRate          float64
+	BillingCurrencyUSDToCNYRate          float64
 	AntigravityUserAgentVersion          string
 	CodexOAuthUserAgentMode              string
 	CodexOAuthUserAgentOverride          string

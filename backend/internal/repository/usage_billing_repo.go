@@ -629,7 +629,6 @@ func reserveConvertedWalletDebitParts(ctx context.Context, tx *sql.Tx, userID in
 		if err != nil {
 			return nil, err
 		}
-		remaining = amountMoney
 		if targetCovered.Cmp(amountMoney) >= 0 {
 			remaining, err = service.BillingMoneyFromUnits(0)
 			if err != nil {

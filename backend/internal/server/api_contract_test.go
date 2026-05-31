@@ -64,6 +64,7 @@ func TestAPIContracts(t *testing.T) {
 					"visual_preset_preference": "inherit",
 					"account_visual_preset_override": "inherit",
 					"api_key_model_binding_mode": "model_required",
+					"api_key_access_time_policy": null,
 					"allowed_groups": null,
  					"created_at": "2025-01-02T03:04:05Z",
  					"updated_at": "2025-01-02T03:04:05Z",
@@ -419,6 +420,7 @@ func TestAPIContracts(t *testing.T) {
 					"visual_preset_preference": "inherit",
 					"account_visual_preset_override": "inherit",
 					"api_key_model_binding_mode": "model_required",
+					"api_key_access_time_policy": null,
 					"allowed_groups": null,
 					"created_at": "2025-01-02T03:04:05Z",
 					"updated_at": "2025-01-02T03:04:05Z",
@@ -484,6 +486,7 @@ func TestAPIContracts(t *testing.T) {
 					"visual_preset_preference": "airy",
 					"account_visual_preset_override": "classic",
 					"api_key_model_binding_mode": "model_required",
+					"api_key_access_time_policy": null,
 					"allowed_groups": null,
 					"created_at": "2025-01-02T03:04:05Z",
 					"updated_at": "2025-01-02T03:04:05Z",
@@ -616,7 +619,9 @@ func TestAPIContracts(t *testing.T) {
 					"window_5h_start": null,
 					"window_1d_start": null,
 					"window_7d_start": null,
+					"starts_at": null,
 					"expires_at": null,
+					"access_time_policy": null,
 					"created_at": "2025-01-02T03:04:05Z",
 					"updated_at": "2025-01-02T03:04:05Z"
 				}
@@ -672,7 +677,9 @@ func TestAPIContracts(t *testing.T) {
 							"window_5h_start": null,
 							"window_1d_start": null,
 							"window_7d_start": null,
+							"starts_at": null,
 							"expires_at": null,
+							"access_time_policy": null,
 							"created_at": "2025-01-02T03:04:05Z",
 							"updated_at": "2025-01-02T03:04:05Z"
 						}
@@ -1129,6 +1136,9 @@ func TestAPIContracts(t *testing.T) {
 					"available_channels_enabled": false,
 					"channel_monitor_enabled": false,
 					"channel_monitor_default_interval_seconds": 60,
+					"billing_currency_conversion_enabled": false,
+					"billing_currency_usd_to_cny_rate": 7,
+					"billing_currency_cny_to_usd_rate": 0.6,
 					"codex_oauth_user_agent_mode": "default",
 					"codex_oauth_user_agent_override": "",
 					"public_model_catalog_enabled": true,

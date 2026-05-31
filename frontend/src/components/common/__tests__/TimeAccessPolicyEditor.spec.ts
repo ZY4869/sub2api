@@ -1,6 +1,5 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
 import TimeAccessPolicyEditor from '../TimeAccessPolicyEditor.vue'
 
 vi.mock('vue-i18n', () => ({
@@ -35,6 +34,10 @@ function mountEditor(modelValue = {
 function lastPolicy(wrapper: ReturnType<typeof mountEditor>) {
   const events = wrapper.emitted('update:modelValue') || []
   return events.at(-1)?.[0] as any
+}
+
+function localDateTimeToISOString(value: string) {
+  return new Date(value).toISOString()
 }
 
 describe('TimeAccessPolicyEditor', () => {
@@ -80,7 +83,7 @@ describe('TimeAccessPolicyEditor', () => {
       start: '22:00',
       end: '02:00',
     }))
-    expect(policy.not_before).toBe('2026-06-01T00:00:00.000Z')
+    expect(policy.not_before).toBe(localDateTimeToISOString('2026-06-01T08:00'))
     expect(policy.daily_allowed_minutes).toBe(240)
   })
 

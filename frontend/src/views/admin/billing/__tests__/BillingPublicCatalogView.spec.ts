@@ -3,6 +3,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { defineComponent, h } from 'vue'
 import BillingPublicCatalogView from '../BillingPublicCatalogView.vue'
 
+function localDateTimeToISOString(value: string) {
+  return new Date(value).toISOString()
+}
+
 const messages: Record<string, string> = {
   'admin.billing.publicCatalog.header.eyebrow': 'Public Catalog',
   'admin.billing.publicCatalog.header.title': '对外模型展示',
@@ -690,7 +694,7 @@ describe('BillingPublicCatalogView', () => {
       selected_entries: [
         expect.objectContaining({
           entry_id: 'acct_a',
-          available_from: '2026-06-01T00:00:00.000Z',
+          available_from: localDateTimeToISOString('2026-06-01T08:00'),
           access_time_policy: expect.objectContaining({
             enabled: true,
             timezone: 'Asia/Singapore',

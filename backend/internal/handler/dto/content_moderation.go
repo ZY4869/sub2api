@@ -1,14 +1,14 @@
 package dto
 
 type ContentModerationAudit struct {
-	ID              int64  `json:"id"`
-	RequestID       string `json:"request_id"`
-	ClientRequestID string `json:"client_request_id"`
-	UserID          *int64 `json:"user_id"`
-	APIKeyID        *int64 `json:"api_key_id"`
-	Provider        string `json:"provider"`
-	Model           string `json:"model"`
-	SourceEndpoint  string `json:"source_endpoint"`
+	ID              int64    `json:"id"`
+	RequestID       string   `json:"request_id"`
+	ClientRequestID string   `json:"client_request_id"`
+	UserID          *int64   `json:"user_id"`
+	APIKeyID        *int64   `json:"api_key_id"`
+	Provider        string   `json:"provider"`
+	Model           string   `json:"model"`
+	SourceEndpoint  string   `json:"source_endpoint"`
 	ContentHash     string   `json:"content_hash"`
 	ContentSummary  string   `json:"content_summary"`
 	Categories      []string `json:"categories"`

@@ -108,20 +108,20 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	}
 
 	cmd := &UsageBillingCommand{
-		RequestID:          strings.TrimSpace(requestID),
-		APIKeyID:           p.APIKey.ID,
-		UserID:             p.User.ID,
-		AccountID:          p.Account.ID,
-		AccountType:        p.Account.Type,
-		Platform:           UserPlatformQuotaPlatformForAccount(p.Account),
-		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
-		BillingCurrency:    normalizeBillingCurrency(p.Cost.Currency),
-		USDToCNYRate:       p.Cost.USDToCNYRate,
+		RequestID:                 strings.TrimSpace(requestID),
+		APIKeyID:                  p.APIKey.ID,
+		UserID:                    p.User.ID,
+		AccountID:                 p.Account.ID,
+		AccountType:               p.Account.Type,
+		Platform:                  UserPlatformQuotaPlatformForAccount(p.Account),
+		RequestPayloadHash:        strings.TrimSpace(p.RequestPayloadHash),
+		BillingCurrency:           normalizeBillingCurrency(p.Cost.Currency),
+		USDToCNYRate:              p.Cost.USDToCNYRate,
 		CurrencyConversionEnabled: p.CurrencyConversion.Enabled,
 		CNYToUSDRate:              p.CurrencyConversion.CNYToUSDRate,
 		USDToCNYConversionRate:    p.CurrencyConversion.USDToCNYRate,
-		FXRateDate:         p.Cost.FXRateDate,
-		FXLockedAt:         cloneBillingTime(p.Cost.FXLockedAt),
+		FXRateDate:                p.Cost.FXRateDate,
+		FXLockedAt:                cloneBillingTime(p.Cost.FXLockedAt),
 	}
 	if usageLog != nil {
 		cmd.GroupID = usageLog.GroupID
