@@ -1,4 +1,5 @@
 import type { EditableApiKeyGroupBinding } from "@/components/keys/apiKeyGroupBindings";
+import type { TimeAccessPolicy } from "@/types/api-key-groups";
 
 export const imageCountWeightTiers = ["1K", "2K", "4K"] as const;
 
@@ -26,4 +27,9 @@ export interface ApiKeyFormData {
   enable_expiration: boolean;
   expiration_preset: "7" | "30" | "90" | "custom";
   expiration_date: string;
+  enable_starts_at: boolean;
+  starts_at: string;
+  enable_time_access: boolean;
+  time_access_preset: "daytime" | "deep_night" | "eight_hours" | "twelve_hours" | "business_days_daytime" | "custom";
+  access_time_policy: TimeAccessPolicy;
 }

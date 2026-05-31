@@ -87,7 +87,7 @@ func (h *OpenAIGatewayHandler) readAndValidateEmbeddingsBody(c *gin.Context) ([]
 }
 
 func (h *OpenAIGatewayHandler) resolveEmbeddingsPublicCatalogEntry(c *gin.Context, req *openAIEmbeddingsRequest) bool {
-	entry, matched, active, err := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(
+	entry, status, err := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(
 		c.Request.Context(),
 		req.apiKey,
 		service.OpenAIPlatformFromContext(c.Request.Context()),
@@ -97,11 +97,11 @@ func (h *OpenAIGatewayHandler) resolveEmbeddingsPublicCatalogEntry(c *gin.Contex
 		req.reqLog.Warn("openai_embeddings.public_catalog_entry_resolve_failed", zap.Error(err))
 		return true
 	}
-	if active && !matched {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+	if status == service.PublicCatalogResolutionNoMatch || status == service.PublicCatalogResolutionTimeWindowDenied {
+		h.publicCatalogUnavailableResponse(c, status)
 		return false
 	}
-	if matched {
+	if status == service.PublicCatalogResolutionMatched {
 		req.publicCatalogEntry = entry
 		req.runtimeRequestModel = service.NormalizeModelCatalogModelID(firstNonEmptyHandlerString(entry.SourceModelID, req.reqModel))
 		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))

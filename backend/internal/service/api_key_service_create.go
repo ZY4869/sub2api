@@ -32,6 +32,13 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 			return nil, fmt.Errorf("%w: %v", ErrInvalidIPPattern, invalid)
 		}
 	}
+	accessPolicy, err := NormalizeTimeAccessPolicy(req.AccessTimePolicy)
+	if err != nil {
+		return nil, timeAccessPolicyInputError(err)
+	}
+	if err := ValidateTimeAccessSubset(accessPolicy, user.APIKeyAccessTimePolicy); err != nil {
+		return nil, timeAccessPolicyInputError(err)
+	}
 
 	var key string
 
@@ -106,6 +113,8 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		ImageCountWeights:        NormalizeAPIKeyImageCountWeights(req.ImageCountWeights),
 		Quota:                    req.Quota,
 		QuotaUsed:                0,
+		StartsAt:                 req.StartsAt,
+		AccessTimePolicy:         accessPolicy,
 		RateLimit5h:              req.RateLimit5h,
 		RateLimit1d:              req.RateLimit1d,
 		RateLimit7d:              req.RateLimit7d,

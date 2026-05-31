@@ -32,6 +32,7 @@ export default {
         platforms: "平台",
         source: "来源",
         status: "状态",
+        schedule: "时间策略",
     },
     fields: {
         lifecycleStatus: "\u751f\u547d\u5468\u671f\u72b6\u6001",
@@ -39,6 +40,9 @@ export default {
         deprecatedAt: "\u5e9f\u5f03\u65f6\u95f4",
         preferredProtocolIds: "\u9996\u9009\u534f\u8bae ID",
         deprecationNotice: "\u5e9f\u5f03\u63d0\u793a",
+        availableFrom: "预定启用时间",
+        availableUntil: "预定停用时间",
+        accessTimePolicy: "调用时间窗",
         id: "模型 ID",
         displayName: "显示名称",
         provider: "提供商",
@@ -55,7 +59,15 @@ export default {
         syncPages: "同步页面",
         hide: "隐藏",
         show: "恢复显示",
+        editSchedule: "编辑时间",
         hardDelete: "彻底删除",
+    },
+    scheduleDialog: {
+        title: "编辑模型时间策略",
+        hint: "时间策略仅控制公开模型展示与运行时可调用性，不改变账号白名单或内部路由。",
+        save: "保存时间策略",
+        saveSuccess: "模型时间策略已保存",
+        saveFailed: "保存模型时间策略失败",
     },
     bulkActions: {
         selected: "已选择 {count} 个模型",
@@ -96,6 +108,12 @@ export default {
         stable: "\u7a33\u5b9a",
         beta: "\u6d4b\u8bd5\u7248",
         deprecated: "\u5df2\u5e9f\u5f03",
+    },
+    scheduleStatuses: {
+        scheduled: "预启用",
+        expired: "已过期",
+        outOfWindow: "窗口外",
+        invalid: "时间策略异常",
     },
     replacedByHint: "\u7531 {model} \u66ff\u4ee3",
     sourceLabels: {

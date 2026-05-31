@@ -87,6 +87,8 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		ImageSize:                  l.ImageSize,
 		ImageOutputTokens:          l.ImageOutputTokens,
 		ImageOutputCost:            l.ImageOutputCost,
+		ModelSuccessRate7d:         l.ModelSuccessRate7d,
+		ModelSuccessStatus:         l.ModelSuccessStatus,
 		UserAgent:                  l.UserAgent,
 		CacheTTLOverridden:         l.CacheTTLOverridden,
 		BillingExemptReason:        l.BillingExemptReason,

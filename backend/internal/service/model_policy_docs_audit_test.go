@@ -24,26 +24,34 @@ func TestModelPolicyDocsAndGuideStayAligned(t *testing.T) {
 		{
 			path: filepath.Join(repoRoot, "AGENTS.md"),
 			mustContain: []string{
+				"## Model Example Template Sync Rules",
+				"model_catalog_public_example_templates.go",
+				"Do not add `/api-docs/*` or `/admin/api-docs/*` routes",
 				"## Model Policy Rules",
 				"`extra.model_scope_v2.entries[]` is the single source of truth",
 				"must use `display_model_id` only",
 			},
 		},
 		{
-			path: filepath.Join(repoRoot, "backend", "internal", "service", "docs", "pages", "common.md"),
+			path: filepath.Join(repoRoot, "backend", "internal", "service", "model_catalog_public_example_templates.go"),
 			mustContain: []string{
-				"账号模型集合只来自两层：账号显式白名单 / 映射，或默认模型库",
-				"本地策略投影和本地 availability snapshot",
+				"publicModelCatalogExamplePages",
+				"Authorization: Bearer sk-你的站内Key",
+				"/v1/responses",
+				"/v1/chat/completions",
+				"/v1/messages",
+				":generateContent",
 			},
 			mustNotContain: []string{
-				"回退到保存的探测快照或实时探测结果",
+				"api-docs",
+				"admin/api-docs",
 			},
 		},
 		{
-			path: filepath.Join(repoRoot, "backend", "internal", "service", "docs", "pages", "gemini.md"),
+			path: filepath.Join(repoRoot, "backend", "internal", "service", "model_catalog_public_examples.go"),
 			mustContain: []string{
-				"只暴露 display ID",
-				"不能再当作公开模型 ID 查询详情",
+				"selectPublicModelCatalogExampleSpec",
+				"publicModelCatalogExampleTemplateMarkdown",
 			},
 		},
 		{

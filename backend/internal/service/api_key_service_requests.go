@@ -16,8 +16,10 @@ type CreateAPIKeyRequest struct {
 	ImageMaxCount            int            `json:"image_max_count"`
 	ImageCountWeights        map[string]int `json:"image_count_weights"`
 
-	Quota         float64 `json:"quota"`           // Quota limit in USD (0 = unlimited)
-	ExpiresInDays *int    `json:"expires_in_days"` // Days until expiry (nil = never expires)
+	Quota            float64           `json:"quota"`           // Quota limit in USD (0 = unlimited)
+	ExpiresInDays    *int              `json:"expires_in_days"` // Days until expiry (nil = never expires)
+	StartsAt         *time.Time        `json:"starts_at"`       // Scheduled activation time (nil = active immediately)
+	AccessTimePolicy *TimeAccessPolicy `json:"access_time_policy"`
 
 	RateLimit5h float64 `json:"rate_limit_5h"`
 	RateLimit1d float64 `json:"rate_limit_1d"`
@@ -38,10 +40,14 @@ type UpdateAPIKeyRequest struct {
 	ImageMaxCount            *int           `json:"image_max_count"`
 	ImageCountWeights        map[string]int `json:"image_count_weights"`
 
-	Quota           *float64   `json:"quota"`       // Quota limit in USD (nil = no change, 0 = unlimited)
-	ExpiresAt       *time.Time `json:"expires_at"`  // Expiration time (nil = no change)
-	ClearExpiration bool       `json:"-"`           // Clear expiration (internal use)
-	ResetQuota      *bool      `json:"reset_quota"` // Reset quota_used to 0
+	Quota                 *float64          `json:"quota"`      // Quota limit in USD (nil = no change, 0 = unlimited)
+	ExpiresAt             *time.Time        `json:"expires_at"` // Expiration time (nil = no change)
+	ClearExpiration       bool              `json:"-"`          // Clear expiration (internal use)
+	StartsAt              *time.Time        `json:"starts_at"`  // Scheduled activation time (nil = no change)
+	ClearStartsAt         bool              `json:"-"`
+	AccessTimePolicy      *TimeAccessPolicy `json:"access_time_policy"`
+	ClearAccessTimePolicy bool              `json:"-"`
+	ResetQuota            *bool             `json:"reset_quota"` // Reset quota_used to 0
 
 	RateLimit5h         *float64 `json:"rate_limit_5h"`
 	RateLimit1d         *float64 `json:"rate_limit_1d"`

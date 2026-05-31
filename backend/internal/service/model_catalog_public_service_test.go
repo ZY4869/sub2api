@@ -319,6 +319,28 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_ClassifiesMultiplierSumm
 	require.Nil(t, items["gpt-5.4-mini"].MultiplierSummary.Value)
 }
 
+func TestModelCatalogService_SavePublicModelCatalogDraft_RejectsInvalidTimeAccessPolicy(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+
+	_, err := svc.SavePublicModelCatalogDraft(context.Background(), PublicModelCatalogDraft{
+		SelectedEntries: []PublicModelCatalogEntryDraft{{
+			EntryID:       "entry-invalid-time",
+			PublicModelID: "gpt-invalid-time",
+			AccessTimePolicy: &TimeAccessPolicy{
+				Enabled:  true,
+				Timezone: "Mars/Base",
+			},
+		}},
+	})
+
+	require.Error(t, err)
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(400), appErr.Code)
+	require.Equal(t, "TIME_ACCESS_POLICY_INVALID", appErr.Reason)
+	require.NotContains(t, appErr.Message, "Mars/Base")
+}
+
 func TestModelCatalogService_PublicModelCatalogSnapshot_UsesExpectedPrimaryPriceDisplay(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	snapshot := &BillingPricingCatalogSnapshot{
@@ -1230,7 +1252,6 @@ func TestModelCatalogService_PublishedPublicModelCatalogDetail_RemainsFrozenAfte
 	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
 
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
-	svc.SetDocsService(NewAPIDocsService(repo))
 
 	_, err := svc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
 		SelectedModels: []string{"gpt-5.4"},
@@ -1243,11 +1264,131 @@ func TestModelCatalogService_PublishedPublicModelCatalogDetail_RemainsFrozenAfte
 	require.NotEmpty(t, frozenBefore.ExampleSource)
 	require.NotEmpty(t, frozenBefore.ExampleMarkdown)
 
-	repo.values[SettingKeyAPIDocsMarkdown+"_page_common"] = "# API Reference\n\n## common\n### Changed Example\n```bash\ncurl https://example.com/changed\n```\n"
+	repo.values["api_docs_markdown_page_common"] = "# API Reference\n\n## common\n### Changed Example\n```bash\ncurl https://example.com/changed\n```\n"
 
 	frozenAfter, err := svc.PublishedPublicModelCatalogDetail(context.Background(), "gpt-5.4")
 	require.NoError(t, err)
 	require.Equal(t, frozenBefore.ExampleMarkdown, frozenAfter.ExampleMarkdown)
+}
+
+func TestModelCatalogService_PublicModelCatalogDiscountDraftPublishAndSanitize(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(ctx, repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+	candidate := publicCatalogCandidateTestSnapshot("gpt-5.4")
+	candidate.Items[0].EntryID = publicModelCatalogEntryID(0, PlatformOpenAI, "gpt-5.4")
+	candidate.Items[0].PriceDisplay = PublicModelCatalogPriceDisplay{
+		Primary: []PublicModelCatalogPriceEntry{
+			{ID: billingDiscountFieldInputPrice, Unit: BillingUnitInputToken, Value: 0.000001, Configured: true},
+			{ID: billingDiscountFieldOutputPrice, Unit: BillingUnitOutputToken, Value: 0.000002, Configured: true},
+		},
+	}
+	candidate.Items[0].SalePriceDisplay = clonePublicModelCatalogPriceDisplay(candidate.Items[0].PriceDisplay)
+	candidate.Items[0].RuntimePriceSpec = PublicModelCatalogRuntimePriceSpec{
+		Currency:         ModelPricingCurrencyUSD,
+		InputSupported:   true,
+		OutputChargeSlot: BillingChargeSlotTextOutput,
+	}
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, candidate))
+
+	now := time.Now().UTC()
+	policy := &PublicModelCatalogDiscountPolicy{
+		Enabled:          true,
+		ReductionPercent: 25,
+		Timezone:         "Asia/Singapore",
+		Windows: []PublicModelCatalogDiscountWindow{{
+			ID:      "promo-once",
+			Type:    PublicModelCatalogDiscountWindowOnce,
+			StartAt: now.Add(-time.Hour).Format(time.RFC3339),
+			EndAt:   now.Add(time.Hour).Format(time.RFC3339),
+		}},
+	}
+	draft := PublicModelCatalogDraft{
+		SelectedEntries: []PublicModelCatalogEntryDraft{{
+			EntryID:          candidate.Items[0].EntryID,
+			PublicModelID:    "gpt-5.4-sale",
+			SourceModelID:    "gpt-5.4",
+			BaseModel:        "gpt-5.4",
+			SourceProtocol:   PlatformOpenAI,
+			SalePriceDisplay: clonePublicModelCatalogPriceDisplay(candidate.Items[0].SalePriceDisplay),
+			DiscountPolicy:   policy,
+		}},
+		PageSize: 10,
+	}
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	savedDraft, err := svc.SavePublicModelCatalogDraft(ctx, draft)
+	require.NoError(t, err)
+	require.Len(t, savedDraft.SelectedEntries, 1)
+	require.NotNil(t, savedDraft.SelectedEntries[0].DiscountPolicy)
+	require.Equal(t, 25.0, savedDraft.SelectedEntries[0].DiscountPolicy.ReductionPercent)
+
+	_, err = svc.PublishPublicModelCatalog(ctx, ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &draft)
+	require.NoError(t, err)
+	published := svc.loadPublishedPublicModelCatalogSnapshot(ctx)
+	require.NotNil(t, published)
+	require.Len(t, published.Snapshot.Items, 1)
+	require.NotNil(t, published.Snapshot.Items[0].DiscountPolicy)
+	require.Equal(t, "promo-once", published.Snapshot.Items[0].DiscountPolicy.Windows[0].ID)
+
+	active := sanitizePublicModelCatalogItemForPublicWithSource(published.Snapshot.Items[0], PublicModelCatalogSourcePublished)
+	require.NotNil(t, active.DiscountStatus)
+	require.True(t, active.DiscountStatus.Active)
+	require.Nil(t, active.DiscountPolicy)
+	require.Equal(t, 25.0, active.DiscountStatus.ReductionPercent)
+	require.InDelta(t, 0.00000075, active.SalePriceDisplay.Primary[0].Value, 1e-12)
+	require.InDelta(t, 0.000001, active.OriginalSalePriceDisplay.Primary[0].Value, 1e-12)
+
+	expiredSource := clonePublicModelCatalogItem(published.Snapshot.Items[0])
+	expiredSource.DiscountPolicy.Windows[0].StartAt = now.Add(-2 * time.Hour).Format(time.RFC3339)
+	expiredSource.DiscountPolicy.Windows[0].EndAt = now.Add(-time.Hour).Format(time.RFC3339)
+	expired := sanitizePublicModelCatalogItemForPublicWithSource(expiredSource, PublicModelCatalogSourcePublished)
+	require.NotNil(t, expired.DiscountStatus)
+	require.False(t, expired.DiscountStatus.Active)
+	require.Empty(t, expired.OriginalSalePriceDisplay.Primary)
+	require.InDelta(t, 0.000001, expired.SalePriceDisplay.Primary[0].Value, 1e-12)
+}
+
+func TestModelCatalogService_PublishPublicModelCatalogRejectsInvalidDiscountPolicy(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	_, err := svc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
+		SelectedEntries: []PublicModelCatalogEntryDraft{{
+			EntryID:          publicModelCatalogEntryID(0, PlatformOpenAI, "gpt-5.4"),
+			PublicModelID:    "gpt-5.4",
+			SourceModelID:    "gpt-5.4",
+			BaseModel:        "gpt-5.4",
+			SourceProtocol:   PlatformOpenAI,
+			SalePriceDisplay: publicCatalogCandidateTestSnapshot("gpt-5.4").Items[0].SalePriceDisplay,
+			DiscountPolicy: &PublicModelCatalogDiscountPolicy{
+				Enabled:          true,
+				ReductionPercent: 150,
+				Timezone:         "Asia/Singapore",
+				Windows: []PublicModelCatalogDiscountWindow{{
+					Type:    PublicModelCatalogDiscountWindowOnce,
+					StartAt: "2026-06-01T00:00:00Z",
+					EndAt:   "2026-06-01T01:00:00Z",
+				}},
+			},
+		}},
+		PageSize: 10,
+	})
+	require.Error(t, err)
+	require.Equal(t, "PUBLIC_MODEL_DISCOUNT_POLICY_INVALID", infraerrors.Reason(err))
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(400), appErr.Code)
 }
 
 func TestModelCatalogService_PublishPublicModelCatalogRejectsIncompleteBillingCoverage(t *testing.T) {

@@ -92,6 +92,7 @@
             @update-public-id="emit('update-entry', entryKey(item), { public_model_id: $event })"
             @update-source-alias="emit('update-entry', entryKey(item), { source_alias: $event })"
             @update-sale-price="emit('update-entry', entryKey(item), { sale_price_display: $event })"
+            @update-image-fixed-pricing="emit('update-entry', entryKey(item), { image_fixed_pricing: $event })"
           />
         </VueDraggable>
         <div
@@ -121,7 +122,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { VueDraggable } from 'vue-draggable-plus'
 import type { BillingPublicCatalogAdminEntry, BillingPublicCatalogEntryDraft } from '@/api/admin/billing'
-import type { PublicModelCatalogPriceDisplay } from '@/api/meta'
+import type { PublicModelCatalogPriceDisplay, PublicModelImageFixedPricing } from '@/api/meta'
 import Icon from '@/components/icons/Icon.vue'
 import PublicCatalogEntryCard from './PublicCatalogEntryCard.vue'
 import PublicCatalogEntryEditDialog from './PublicCatalogEntryEditDialog.vue'
@@ -143,7 +144,7 @@ const emit = defineEmits<{
   (e: 'remove', entryID: string): void
   (e: 'move', index: number, delta: number): void
   (e: 'reorder', entryIDs: string[]): void
-  (e: 'update-entry', entryID: string, patch: Partial<BillingPublicCatalogEntryDraft> & { sale_price_display?: PublicModelCatalogPriceDisplay }): void
+  (e: 'update-entry', entryID: string, patch: Partial<BillingPublicCatalogEntryDraft> & { sale_price_display?: PublicModelCatalogPriceDisplay; image_fixed_pricing?: PublicModelImageFixedPricing }): void
 }>()
 
 const editingEntry = ref<SelectedCatalogItem | null>(null)
@@ -163,7 +164,7 @@ function openEditDialog(item: SelectedCatalogItem) {
 
 function handleDialogSave(
   entryID: string,
-  patch: Partial<BillingPublicCatalogEntryDraft> & { sale_price_display?: PublicModelCatalogPriceDisplay },
+  patch: Partial<BillingPublicCatalogEntryDraft> & { sale_price_display?: PublicModelCatalogPriceDisplay; image_fixed_pricing?: PublicModelImageFixedPricing },
 ) {
   emit('update-entry', entryID, patch)
 }

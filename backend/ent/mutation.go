@@ -104,6 +104,8 @@ type APIKeyMutation struct {
 	addquota_used               *float64
 	quota_used_by_currency      *map[string]float64
 	expires_at                  *time.Time
+	starts_at                   *time.Time
+	access_time_policy          *map[string]interface{}
 	rate_limit_5h               *float64
 	addrate_limit_5h            *float64
 	rate_limit_1d               *float64
@@ -1208,6 +1210,104 @@ func (m *APIKeyMutation) ResetExpiresAt() {
 	delete(m.clearedFields, apikey.FieldExpiresAt)
 }
 
+// SetStartsAt sets the "starts_at" field.
+func (m *APIKeyMutation) SetStartsAt(t time.Time) {
+	m.starts_at = &t
+}
+
+// StartsAt returns the value of the "starts_at" field in the mutation.
+func (m *APIKeyMutation) StartsAt() (r time.Time, exists bool) {
+	v := m.starts_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartsAt returns the old "starts_at" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldStartsAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartsAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartsAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartsAt: %w", err)
+	}
+	return oldValue.StartsAt, nil
+}
+
+// ClearStartsAt clears the value of the "starts_at" field.
+func (m *APIKeyMutation) ClearStartsAt() {
+	m.starts_at = nil
+	m.clearedFields[apikey.FieldStartsAt] = struct{}{}
+}
+
+// StartsAtCleared returns if the "starts_at" field was cleared in this mutation.
+func (m *APIKeyMutation) StartsAtCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldStartsAt]
+	return ok
+}
+
+// ResetStartsAt resets all changes to the "starts_at" field.
+func (m *APIKeyMutation) ResetStartsAt() {
+	m.starts_at = nil
+	delete(m.clearedFields, apikey.FieldStartsAt)
+}
+
+// SetAccessTimePolicy sets the "access_time_policy" field.
+func (m *APIKeyMutation) SetAccessTimePolicy(value map[string]interface{}) {
+	m.access_time_policy = &value
+}
+
+// AccessTimePolicy returns the value of the "access_time_policy" field in the mutation.
+func (m *APIKeyMutation) AccessTimePolicy() (r map[string]interface{}, exists bool) {
+	v := m.access_time_policy
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccessTimePolicy returns the old "access_time_policy" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldAccessTimePolicy(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccessTimePolicy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccessTimePolicy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccessTimePolicy: %w", err)
+	}
+	return oldValue.AccessTimePolicy, nil
+}
+
+// ClearAccessTimePolicy clears the value of the "access_time_policy" field.
+func (m *APIKeyMutation) ClearAccessTimePolicy() {
+	m.access_time_policy = nil
+	m.clearedFields[apikey.FieldAccessTimePolicy] = struct{}{}
+}
+
+// AccessTimePolicyCleared returns if the "access_time_policy" field was cleared in this mutation.
+func (m *APIKeyMutation) AccessTimePolicyCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldAccessTimePolicy]
+	return ok
+}
+
+// ResetAccessTimePolicy resets all changes to the "access_time_policy" field.
+func (m *APIKeyMutation) ResetAccessTimePolicy() {
+	m.access_time_policy = nil
+	delete(m.clearedFields, apikey.FieldAccessTimePolicy)
+}
+
 // SetRateLimit5h sets the "rate_limit_5h" field.
 func (m *APIKeyMutation) SetRateLimit5h(f float64) {
 	m.rate_limit_5h = &f
@@ -2034,7 +2134,7 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 35)
 	if m.created_at != nil {
 		fields = append(fields, apikey.FieldCreatedAt)
 	}
@@ -2097,6 +2197,12 @@ func (m *APIKeyMutation) Fields() []string {
 	}
 	if m.expires_at != nil {
 		fields = append(fields, apikey.FieldExpiresAt)
+	}
+	if m.starts_at != nil {
+		fields = append(fields, apikey.FieldStartsAt)
+	}
+	if m.access_time_policy != nil {
+		fields = append(fields, apikey.FieldAccessTimePolicy)
 	}
 	if m.rate_limit_5h != nil {
 		fields = append(fields, apikey.FieldRateLimit5h)
@@ -2184,6 +2290,10 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.QuotaUsedByCurrency()
 	case apikey.FieldExpiresAt:
 		return m.ExpiresAt()
+	case apikey.FieldStartsAt:
+		return m.StartsAt()
+	case apikey.FieldAccessTimePolicy:
+		return m.AccessTimePolicy()
 	case apikey.FieldRateLimit5h:
 		return m.RateLimit5h()
 	case apikey.FieldRateLimit1d:
@@ -2259,6 +2369,10 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldQuotaUsedByCurrency(ctx)
 	case apikey.FieldExpiresAt:
 		return m.OldExpiresAt(ctx)
+	case apikey.FieldStartsAt:
+		return m.OldStartsAt(ctx)
+	case apikey.FieldAccessTimePolicy:
+		return m.OldAccessTimePolicy(ctx)
 	case apikey.FieldRateLimit5h:
 		return m.OldRateLimit5h(ctx)
 	case apikey.FieldRateLimit1d:
@@ -2438,6 +2552,20 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetExpiresAt(v)
+		return nil
+	case apikey.FieldStartsAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartsAt(v)
+		return nil
+	case apikey.FieldAccessTimePolicy:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccessTimePolicy(v)
 		return nil
 	case apikey.FieldRateLimit5h:
 		v, ok := value.(float64)
@@ -2700,6 +2828,12 @@ func (m *APIKeyMutation) ClearedFields() []string {
 	if m.FieldCleared(apikey.FieldExpiresAt) {
 		fields = append(fields, apikey.FieldExpiresAt)
 	}
+	if m.FieldCleared(apikey.FieldStartsAt) {
+		fields = append(fields, apikey.FieldStartsAt)
+	}
+	if m.FieldCleared(apikey.FieldAccessTimePolicy) {
+		fields = append(fields, apikey.FieldAccessTimePolicy)
+	}
 	if m.FieldCleared(apikey.FieldUsage5hByCurrency) {
 		fields = append(fields, apikey.FieldUsage5hByCurrency)
 	}
@@ -2755,6 +2889,12 @@ func (m *APIKeyMutation) ClearField(name string) error {
 		return nil
 	case apikey.FieldExpiresAt:
 		m.ClearExpiresAt()
+		return nil
+	case apikey.FieldStartsAt:
+		m.ClearStartsAt()
+		return nil
+	case apikey.FieldAccessTimePolicy:
+		m.ClearAccessTimePolicy()
 		return nil
 	case apikey.FieldUsage5hByCurrency:
 		m.ClearUsage5hByCurrency()
@@ -2844,6 +2984,12 @@ func (m *APIKeyMutation) ResetField(name string) error {
 		return nil
 	case apikey.FieldExpiresAt:
 		m.ResetExpiresAt()
+		return nil
+	case apikey.FieldStartsAt:
+		m.ResetStartsAt()
+		return nil
+	case apikey.FieldAccessTimePolicy:
+		m.ResetAccessTimePolicy()
 		return nil
 	case apikey.FieldRateLimit5h:
 		m.ResetRateLimit5h()
@@ -10096,6 +10242,8 @@ type GroupMutation struct {
 	addsort_order                           *int
 	allow_messages_dispatch                 *bool
 	default_mapped_model                    *string
+	visible_model_patterns                  *[]string
+	appendvisible_model_patterns            []string
 	clearedFields                           map[string]struct{}
 	api_keys                                map[int64]struct{}
 	removedapi_keys                         map[int64]struct{}
@@ -11707,6 +11855,57 @@ func (m *GroupMutation) ResetDefaultMappedModel() {
 	m.default_mapped_model = nil
 }
 
+// SetVisibleModelPatterns sets the "visible_model_patterns" field.
+func (m *GroupMutation) SetVisibleModelPatterns(s []string) {
+	m.visible_model_patterns = &s
+	m.appendvisible_model_patterns = nil
+}
+
+// VisibleModelPatterns returns the value of the "visible_model_patterns" field in the mutation.
+func (m *GroupMutation) VisibleModelPatterns() (r []string, exists bool) {
+	v := m.visible_model_patterns
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVisibleModelPatterns returns the old "visible_model_patterns" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldVisibleModelPatterns(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVisibleModelPatterns is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVisibleModelPatterns requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVisibleModelPatterns: %w", err)
+	}
+	return oldValue.VisibleModelPatterns, nil
+}
+
+// AppendVisibleModelPatterns adds s to the "visible_model_patterns" field.
+func (m *GroupMutation) AppendVisibleModelPatterns(s []string) {
+	m.appendvisible_model_patterns = append(m.appendvisible_model_patterns, s...)
+}
+
+// AppendedVisibleModelPatterns returns the list of values that were appended to the "visible_model_patterns" field in this mutation.
+func (m *GroupMutation) AppendedVisibleModelPatterns() ([]string, bool) {
+	if len(m.appendvisible_model_patterns) == 0 {
+		return nil, false
+	}
+	return m.appendvisible_model_patterns, true
+}
+
+// ResetVisibleModelPatterns resets all changes to the "visible_model_patterns" field.
+func (m *GroupMutation) ResetVisibleModelPatterns() {
+	m.visible_model_patterns = nil
+	m.appendvisible_model_patterns = nil
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by ids.
 func (m *GroupMutation) AddAPIKeyIDs(ids ...int64) {
 	if m.api_keys == nil {
@@ -12119,7 +12318,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 30)
+	fields := make([]string, 0, 31)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -12210,6 +12409,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.default_mapped_model != nil {
 		fields = append(fields, group.FieldDefaultMappedModel)
 	}
+	if m.visible_model_patterns != nil {
+		fields = append(fields, group.FieldVisibleModelPatterns)
+	}
 	return fields
 }
 
@@ -12278,6 +12480,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.AllowMessagesDispatch()
 	case group.FieldDefaultMappedModel:
 		return m.DefaultMappedModel()
+	case group.FieldVisibleModelPatterns:
+		return m.VisibleModelPatterns()
 	}
 	return nil, false
 }
@@ -12347,6 +12551,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldAllowMessagesDispatch(ctx)
 	case group.FieldDefaultMappedModel:
 		return m.OldDefaultMappedModel(ctx)
+	case group.FieldVisibleModelPatterns:
+		return m.OldVisibleModelPatterns(ctx)
 	}
 	return nil, fmt.Errorf("unknown Group field %s", name)
 }
@@ -12565,6 +12771,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDefaultMappedModel(v)
+		return nil
+	case group.FieldVisibleModelPatterns:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVisibleModelPatterns(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
@@ -12920,6 +13133,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldDefaultMappedModel:
 		m.ResetDefaultMappedModel()
+		return nil
+	case group.FieldVisibleModelPatterns:
+		m.ResetVisibleModelPatterns()
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
@@ -21340,6 +21556,12 @@ type UsageLogMutation struct {
 	addrate_multiplier            *float64
 	account_rate_multiplier       *float64
 	addaccount_rate_multiplier    *float64
+	discount_applied              *bool
+	discount_percent              *float64
+	adddiscount_percent           *float64
+	discount_window_id            *string
+	discount_window_type          *string
+	discount_completed_at         *time.Time
 	billing_type                  *int8
 	addbilling_type               *int8
 	stream                        *bool
@@ -23042,6 +23264,259 @@ func (m *UsageLogMutation) ResetAccountRateMultiplier() {
 	delete(m.clearedFields, usagelog.FieldAccountRateMultiplier)
 }
 
+// SetDiscountApplied sets the "discount_applied" field.
+func (m *UsageLogMutation) SetDiscountApplied(b bool) {
+	m.discount_applied = &b
+}
+
+// DiscountApplied returns the value of the "discount_applied" field in the mutation.
+func (m *UsageLogMutation) DiscountApplied() (r bool, exists bool) {
+	v := m.discount_applied
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscountApplied returns the old "discount_applied" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldDiscountApplied(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscountApplied is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscountApplied requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscountApplied: %w", err)
+	}
+	return oldValue.DiscountApplied, nil
+}
+
+// ResetDiscountApplied resets all changes to the "discount_applied" field.
+func (m *UsageLogMutation) ResetDiscountApplied() {
+	m.discount_applied = nil
+}
+
+// SetDiscountPercent sets the "discount_percent" field.
+func (m *UsageLogMutation) SetDiscountPercent(f float64) {
+	m.discount_percent = &f
+	m.adddiscount_percent = nil
+}
+
+// DiscountPercent returns the value of the "discount_percent" field in the mutation.
+func (m *UsageLogMutation) DiscountPercent() (r float64, exists bool) {
+	v := m.discount_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscountPercent returns the old "discount_percent" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldDiscountPercent(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscountPercent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscountPercent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscountPercent: %w", err)
+	}
+	return oldValue.DiscountPercent, nil
+}
+
+// AddDiscountPercent adds f to the "discount_percent" field.
+func (m *UsageLogMutation) AddDiscountPercent(f float64) {
+	if m.adddiscount_percent != nil {
+		*m.adddiscount_percent += f
+	} else {
+		m.adddiscount_percent = &f
+	}
+}
+
+// AddedDiscountPercent returns the value that was added to the "discount_percent" field in this mutation.
+func (m *UsageLogMutation) AddedDiscountPercent() (r float64, exists bool) {
+	v := m.adddiscount_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDiscountPercent clears the value of the "discount_percent" field.
+func (m *UsageLogMutation) ClearDiscountPercent() {
+	m.discount_percent = nil
+	m.adddiscount_percent = nil
+	m.clearedFields[usagelog.FieldDiscountPercent] = struct{}{}
+}
+
+// DiscountPercentCleared returns if the "discount_percent" field was cleared in this mutation.
+func (m *UsageLogMutation) DiscountPercentCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldDiscountPercent]
+	return ok
+}
+
+// ResetDiscountPercent resets all changes to the "discount_percent" field.
+func (m *UsageLogMutation) ResetDiscountPercent() {
+	m.discount_percent = nil
+	m.adddiscount_percent = nil
+	delete(m.clearedFields, usagelog.FieldDiscountPercent)
+}
+
+// SetDiscountWindowID sets the "discount_window_id" field.
+func (m *UsageLogMutation) SetDiscountWindowID(s string) {
+	m.discount_window_id = &s
+}
+
+// DiscountWindowID returns the value of the "discount_window_id" field in the mutation.
+func (m *UsageLogMutation) DiscountWindowID() (r string, exists bool) {
+	v := m.discount_window_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscountWindowID returns the old "discount_window_id" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldDiscountWindowID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscountWindowID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscountWindowID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscountWindowID: %w", err)
+	}
+	return oldValue.DiscountWindowID, nil
+}
+
+// ClearDiscountWindowID clears the value of the "discount_window_id" field.
+func (m *UsageLogMutation) ClearDiscountWindowID() {
+	m.discount_window_id = nil
+	m.clearedFields[usagelog.FieldDiscountWindowID] = struct{}{}
+}
+
+// DiscountWindowIDCleared returns if the "discount_window_id" field was cleared in this mutation.
+func (m *UsageLogMutation) DiscountWindowIDCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldDiscountWindowID]
+	return ok
+}
+
+// ResetDiscountWindowID resets all changes to the "discount_window_id" field.
+func (m *UsageLogMutation) ResetDiscountWindowID() {
+	m.discount_window_id = nil
+	delete(m.clearedFields, usagelog.FieldDiscountWindowID)
+}
+
+// SetDiscountWindowType sets the "discount_window_type" field.
+func (m *UsageLogMutation) SetDiscountWindowType(s string) {
+	m.discount_window_type = &s
+}
+
+// DiscountWindowType returns the value of the "discount_window_type" field in the mutation.
+func (m *UsageLogMutation) DiscountWindowType() (r string, exists bool) {
+	v := m.discount_window_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscountWindowType returns the old "discount_window_type" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldDiscountWindowType(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscountWindowType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscountWindowType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscountWindowType: %w", err)
+	}
+	return oldValue.DiscountWindowType, nil
+}
+
+// ClearDiscountWindowType clears the value of the "discount_window_type" field.
+func (m *UsageLogMutation) ClearDiscountWindowType() {
+	m.discount_window_type = nil
+	m.clearedFields[usagelog.FieldDiscountWindowType] = struct{}{}
+}
+
+// DiscountWindowTypeCleared returns if the "discount_window_type" field was cleared in this mutation.
+func (m *UsageLogMutation) DiscountWindowTypeCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldDiscountWindowType]
+	return ok
+}
+
+// ResetDiscountWindowType resets all changes to the "discount_window_type" field.
+func (m *UsageLogMutation) ResetDiscountWindowType() {
+	m.discount_window_type = nil
+	delete(m.clearedFields, usagelog.FieldDiscountWindowType)
+}
+
+// SetDiscountCompletedAt sets the "discount_completed_at" field.
+func (m *UsageLogMutation) SetDiscountCompletedAt(t time.Time) {
+	m.discount_completed_at = &t
+}
+
+// DiscountCompletedAt returns the value of the "discount_completed_at" field in the mutation.
+func (m *UsageLogMutation) DiscountCompletedAt() (r time.Time, exists bool) {
+	v := m.discount_completed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscountCompletedAt returns the old "discount_completed_at" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldDiscountCompletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscountCompletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscountCompletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscountCompletedAt: %w", err)
+	}
+	return oldValue.DiscountCompletedAt, nil
+}
+
+// ClearDiscountCompletedAt clears the value of the "discount_completed_at" field.
+func (m *UsageLogMutation) ClearDiscountCompletedAt() {
+	m.discount_completed_at = nil
+	m.clearedFields[usagelog.FieldDiscountCompletedAt] = struct{}{}
+}
+
+// DiscountCompletedAtCleared returns if the "discount_completed_at" field was cleared in this mutation.
+func (m *UsageLogMutation) DiscountCompletedAtCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldDiscountCompletedAt]
+	return ok
+}
+
+// ResetDiscountCompletedAt resets all changes to the "discount_completed_at" field.
+func (m *UsageLogMutation) ResetDiscountCompletedAt() {
+	m.discount_completed_at = nil
+	delete(m.clearedFields, usagelog.FieldDiscountCompletedAt)
+}
+
 // SetBillingType sets the "billing_type" field.
 func (m *UsageLogMutation) SetBillingType(i int8) {
 	m.billing_type = &i
@@ -23718,7 +24193,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 41)
+	fields := make([]string, 0, 46)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -23811,6 +24286,21 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.account_rate_multiplier != nil {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
+	}
+	if m.discount_applied != nil {
+		fields = append(fields, usagelog.FieldDiscountApplied)
+	}
+	if m.discount_percent != nil {
+		fields = append(fields, usagelog.FieldDiscountPercent)
+	}
+	if m.discount_window_id != nil {
+		fields = append(fields, usagelog.FieldDiscountWindowID)
+	}
+	if m.discount_window_type != nil {
+		fields = append(fields, usagelog.FieldDiscountWindowType)
+	}
+	if m.discount_completed_at != nil {
+		fields = append(fields, usagelog.FieldDiscountCompletedAt)
 	}
 	if m.billing_type != nil {
 		fields = append(fields, usagelog.FieldBillingType)
@@ -23912,6 +24402,16 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.RateMultiplier()
 	case usagelog.FieldAccountRateMultiplier:
 		return m.AccountRateMultiplier()
+	case usagelog.FieldDiscountApplied:
+		return m.DiscountApplied()
+	case usagelog.FieldDiscountPercent:
+		return m.DiscountPercent()
+	case usagelog.FieldDiscountWindowID:
+		return m.DiscountWindowID()
+	case usagelog.FieldDiscountWindowType:
+		return m.DiscountWindowType()
+	case usagelog.FieldDiscountCompletedAt:
+		return m.DiscountCompletedAt()
 	case usagelog.FieldBillingType:
 		return m.BillingType()
 	case usagelog.FieldStream:
@@ -24003,6 +24503,16 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldRateMultiplier(ctx)
 	case usagelog.FieldAccountRateMultiplier:
 		return m.OldAccountRateMultiplier(ctx)
+	case usagelog.FieldDiscountApplied:
+		return m.OldDiscountApplied(ctx)
+	case usagelog.FieldDiscountPercent:
+		return m.OldDiscountPercent(ctx)
+	case usagelog.FieldDiscountWindowID:
+		return m.OldDiscountWindowID(ctx)
+	case usagelog.FieldDiscountWindowType:
+		return m.OldDiscountWindowType(ctx)
+	case usagelog.FieldDiscountCompletedAt:
+		return m.OldDiscountCompletedAt(ctx)
 	case usagelog.FieldBillingType:
 		return m.OldBillingType(ctx)
 	case usagelog.FieldStream:
@@ -24249,6 +24759,41 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAccountRateMultiplier(v)
 		return nil
+	case usagelog.FieldDiscountApplied:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscountApplied(v)
+		return nil
+	case usagelog.FieldDiscountPercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscountPercent(v)
+		return nil
+	case usagelog.FieldDiscountWindowID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscountWindowID(v)
+		return nil
+	case usagelog.FieldDiscountWindowType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscountWindowType(v)
+		return nil
+	case usagelog.FieldDiscountCompletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscountCompletedAt(v)
+		return nil
 	case usagelog.FieldBillingType:
 		v, ok := value.(int8)
 		if !ok {
@@ -24378,6 +24923,9 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addaccount_rate_multiplier != nil {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
 	}
+	if m.adddiscount_percent != nil {
+		fields = append(fields, usagelog.FieldDiscountPercent)
+	}
 	if m.addbilling_type != nil {
 		fields = append(fields, usagelog.FieldBillingType)
 	}
@@ -24432,6 +24980,8 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedRateMultiplier()
 	case usagelog.FieldAccountRateMultiplier:
 		return m.AddedAccountRateMultiplier()
+	case usagelog.FieldDiscountPercent:
+		return m.AddedDiscountPercent()
 	case usagelog.FieldBillingType:
 		return m.AddedBillingType()
 	case usagelog.FieldDurationMs:
@@ -24568,6 +25118,13 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddAccountRateMultiplier(v)
 		return nil
+	case usagelog.FieldDiscountPercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDiscountPercent(v)
+		return nil
 	case usagelog.FieldBillingType:
 		v, ok := value.(int8)
 		if !ok {
@@ -24631,6 +25188,18 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldAccountRateMultiplier) {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
 	}
+	if m.FieldCleared(usagelog.FieldDiscountPercent) {
+		fields = append(fields, usagelog.FieldDiscountPercent)
+	}
+	if m.FieldCleared(usagelog.FieldDiscountWindowID) {
+		fields = append(fields, usagelog.FieldDiscountWindowID)
+	}
+	if m.FieldCleared(usagelog.FieldDiscountWindowType) {
+		fields = append(fields, usagelog.FieldDiscountWindowType)
+	}
+	if m.FieldCleared(usagelog.FieldDiscountCompletedAt) {
+		fields = append(fields, usagelog.FieldDiscountCompletedAt)
+	}
 	if m.FieldCleared(usagelog.FieldDurationMs) {
 		fields = append(fields, usagelog.FieldDurationMs)
 	}
@@ -24686,6 +25255,18 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldAccountRateMultiplier:
 		m.ClearAccountRateMultiplier()
+		return nil
+	case usagelog.FieldDiscountPercent:
+		m.ClearDiscountPercent()
+		return nil
+	case usagelog.FieldDiscountWindowID:
+		m.ClearDiscountWindowID()
+		return nil
+	case usagelog.FieldDiscountWindowType:
+		m.ClearDiscountWindowType()
+		return nil
+	case usagelog.FieldDiscountCompletedAt:
+		m.ClearDiscountCompletedAt()
 		return nil
 	case usagelog.FieldDurationMs:
 		m.ClearDurationMs()
@@ -24802,6 +25383,21 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldAccountRateMultiplier:
 		m.ResetAccountRateMultiplier()
+		return nil
+	case usagelog.FieldDiscountApplied:
+		m.ResetDiscountApplied()
+		return nil
+	case usagelog.FieldDiscountPercent:
+		m.ResetDiscountPercent()
+		return nil
+	case usagelog.FieldDiscountWindowID:
+		m.ResetDiscountWindowID()
+		return nil
+	case usagelog.FieldDiscountWindowType:
+		m.ResetDiscountWindowType()
+		return nil
+	case usagelog.FieldDiscountCompletedAt:
+		m.ResetDiscountCompletedAt()
 		return nil
 	case usagelog.FieldBillingType:
 		m.ResetBillingType()
@@ -25011,6 +25607,7 @@ type UserMutation struct {
 	account_visual_preset_override     *string
 	usage_context_badge_display_mode   *string
 	api_key_model_binding_mode         *string
+	api_key_access_time_policy         *map[string]interface{}
 	totp_secret_encrypted              *string
 	totp_enabled                       *bool
 	totp_enabled_at                    *time.Time
@@ -25918,6 +26515,55 @@ func (m *UserMutation) ResetAPIKeyModelBindingMode() {
 	m.api_key_model_binding_mode = nil
 }
 
+// SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
+func (m *UserMutation) SetAPIKeyAccessTimePolicy(value map[string]interface{}) {
+	m.api_key_access_time_policy = &value
+}
+
+// APIKeyAccessTimePolicy returns the value of the "api_key_access_time_policy" field in the mutation.
+func (m *UserMutation) APIKeyAccessTimePolicy() (r map[string]interface{}, exists bool) {
+	v := m.api_key_access_time_policy
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyAccessTimePolicy returns the old "api_key_access_time_policy" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAPIKeyAccessTimePolicy(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyAccessTimePolicy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyAccessTimePolicy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyAccessTimePolicy: %w", err)
+	}
+	return oldValue.APIKeyAccessTimePolicy, nil
+}
+
+// ClearAPIKeyAccessTimePolicy clears the value of the "api_key_access_time_policy" field.
+func (m *UserMutation) ClearAPIKeyAccessTimePolicy() {
+	m.api_key_access_time_policy = nil
+	m.clearedFields[user.FieldAPIKeyAccessTimePolicy] = struct{}{}
+}
+
+// APIKeyAccessTimePolicyCleared returns if the "api_key_access_time_policy" field was cleared in this mutation.
+func (m *UserMutation) APIKeyAccessTimePolicyCleared() bool {
+	_, ok := m.clearedFields[user.FieldAPIKeyAccessTimePolicy]
+	return ok
+}
+
+// ResetAPIKeyAccessTimePolicy resets all changes to the "api_key_access_time_policy" field.
+func (m *UserMutation) ResetAPIKeyAccessTimePolicy() {
+	m.api_key_access_time_policy = nil
+	delete(m.clearedFields, user.FieldAPIKeyAccessTimePolicy)
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (m *UserMutation) SetTotpSecretEncrypted(s string) {
 	m.totp_secret_encrypted = &s
@@ -26572,7 +27218,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 24)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -26633,6 +27279,9 @@ func (m *UserMutation) Fields() []string {
 	if m.api_key_model_binding_mode != nil {
 		fields = append(fields, user.FieldAPIKeyModelBindingMode)
 	}
+	if m.api_key_access_time_policy != nil {
+		fields = append(fields, user.FieldAPIKeyAccessTimePolicy)
+	}
 	if m.totp_secret_encrypted != nil {
 		fields = append(fields, user.FieldTotpSecretEncrypted)
 	}
@@ -26690,6 +27339,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.UsageContextBadgeDisplayMode()
 	case user.FieldAPIKeyModelBindingMode:
 		return m.APIKeyModelBindingMode()
+	case user.FieldAPIKeyAccessTimePolicy:
+		return m.APIKeyAccessTimePolicy()
 	case user.FieldTotpSecretEncrypted:
 		return m.TotpSecretEncrypted()
 	case user.FieldTotpEnabled:
@@ -26745,6 +27396,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUsageContextBadgeDisplayMode(ctx)
 	case user.FieldAPIKeyModelBindingMode:
 		return m.OldAPIKeyModelBindingMode(ctx)
+	case user.FieldAPIKeyAccessTimePolicy:
+		return m.OldAPIKeyAccessTimePolicy(ctx)
 	case user.FieldTotpSecretEncrypted:
 		return m.OldTotpSecretEncrypted(ctx)
 	case user.FieldTotpEnabled:
@@ -26900,6 +27553,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAPIKeyModelBindingMode(v)
 		return nil
+	case user.FieldAPIKeyAccessTimePolicy:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyAccessTimePolicy(v)
+		return nil
 	case user.FieldTotpSecretEncrypted:
 		v, ok := value.(string)
 		if !ok {
@@ -26981,6 +27641,9 @@ func (m *UserMutation) ClearedFields() []string {
 	if m.FieldCleared(user.FieldDeletedAt) {
 		fields = append(fields, user.FieldDeletedAt)
 	}
+	if m.FieldCleared(user.FieldAPIKeyAccessTimePolicy) {
+		fields = append(fields, user.FieldAPIKeyAccessTimePolicy)
+	}
 	if m.FieldCleared(user.FieldTotpSecretEncrypted) {
 		fields = append(fields, user.FieldTotpSecretEncrypted)
 	}
@@ -27003,6 +27666,9 @@ func (m *UserMutation) ClearField(name string) error {
 	switch name {
 	case user.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case user.FieldAPIKeyAccessTimePolicy:
+		m.ClearAPIKeyAccessTimePolicy()
 		return nil
 	case user.FieldTotpSecretEncrypted:
 		m.ClearTotpSecretEncrypted()
@@ -27077,6 +27743,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldAPIKeyModelBindingMode:
 		m.ResetAPIKeyModelBindingMode()
+		return nil
+	case user.FieldAPIKeyAccessTimePolicy:
+		m.ResetAPIKeyAccessTimePolicy()
 		return nil
 	case user.FieldTotpSecretEncrypted:
 		m.ResetTotpSecretEncrypted()

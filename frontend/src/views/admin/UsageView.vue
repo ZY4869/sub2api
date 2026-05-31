@@ -112,12 +112,6 @@
                   :label-text="t('usage.modelDisplay')"
                   @update:modelValue="handleUsageModelDisplayModeChange"
                 />
-                <UsageContextBadgeDisplayModeToggle
-                  :model-value="usageContextBadgeDisplayMode"
-                  :disabled="updatingUsageContextBadgeDisplayMode"
-                  :label-text="t('usage.contextBadgeDisplay')"
-                  @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-                />
               </div>
             </template>
             <template #after-reset>
@@ -175,7 +169,6 @@
             :loading="loading"
             :columns="visibleColumns"
             :usage-model-display-mode="usageModelDisplayMode"
-            :usage-context-badge-display-mode="usageContextBadgeDisplayMode"
             @userClick="handleUserClick"
           />
           <Pagination
@@ -228,7 +221,6 @@ import { adminAPI } from "@/api/admin";
 import { adminUsageAPI } from "@/api/admin/usage";
 import { formatReasoningEffortPair, formatThinkingEnabled } from "@/utils/format";
 import { formatUsageProtocolExportText } from "@/utils/protocolDisplay";
-import { formatContextWindowLabel } from "@/utils/usageModelPresentation";
 import {
   calculateUsageAmount,
   formatUsageAmount,
@@ -251,15 +243,12 @@ import GroupDistributionChart from "@/components/charts/GroupDistributionChart.v
 import TokenUsageTrend from "@/components/charts/TokenUsageTrend.vue";
 import Icon from "@/components/icons/Icon.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
-import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContextBadgeDisplayModeToggle.vue";
 import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import RequestDetailsTraceTab from "./request-details/components/RequestDetailsTraceTab.vue";
-import { useUsageContextBadgeDisplayModePreference } from "@/composables/useUsageContextBadgeDisplayModePreference";
 import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import type {
   AdminUsageLog,
-  UsageContextBadgeDisplayMode,
   TrendDataPoint,
   ModelStat,
   GroupStat,
@@ -280,11 +269,6 @@ const {
   updatingUsageModelDisplayMode,
   setUsageModelDisplayMode,
 } = useUsageModelDisplayModePreference();
-const {
-  usageContextBadgeDisplayMode,
-  updatingUsageContextBadgeDisplayMode,
-  setUsageContextBadgeDisplayMode,
-} = useUsageContextBadgeDisplayModePreference();
 const canReviewRequestDetails = computed(() => authStore.isAdmin === true);
 
 type UsageViewTab = "records" | "request_details" | "leaderboard";
@@ -395,12 +379,6 @@ const handleUsageModelDisplayModeChange = async (
   mode: "model_only" | "display_only" | "display_and_model",
 ) => {
   await setUsageModelDisplayMode(mode);
-};
-
-const handleUsageContextBadgeDisplayModeChange = async (
-  mode: UsageContextBadgeDisplayMode,
-) => {
-  await setUsageContextBadgeDisplayMode(mode);
 };
 
 const granularityOptions = computed(() => [
@@ -661,14 +639,13 @@ const getSimulatedClientLabel = (
   return t("usage.simulatedClientCodex");
 };
 
-const formatRequestLengthExport = (
-  tokens: number | null | undefined,
+const formatModelSuccessRateExport = (
+  rate: number | null | undefined,
 ): string => {
-  const value = Number(tokens || 0);
-  if (!Number.isFinite(value) || value <= 0) {
+  if (rate == null || !Number.isFinite(rate)) {
     return "";
   }
-  return formatContextWindowLabel(value);
+  return `${(rate * 100).toFixed(1)}%`;
 };
 
 const exportToExcel = async () => {
@@ -691,7 +668,7 @@ const exportToExcel = async () => {
       t("usage.status"),
       t("usage.simulatedClient"),
       t("usage.upstreamModel"),
-      t("usage.requestLength"),
+      t("usage.modelSuccessRate"),
       t("usage.thinkingMode"),
       t("usage.reasoningEffort"),
       t("usage.millionContextRequested"),
@@ -756,7 +733,7 @@ const exportToExcel = async () => {
         getStatusLabel(log.status),
         log.simulated_client ? getSimulatedClientLabel(log.simulated_client) : "",
         log.upstream_model || "",
-        formatRequestLengthExport(log.request_context_length_tokens),
+        formatModelSuccessRateExport(log.model_success_rate_7d),
         formatThinkingEnabled(log.thinking_enabled),
         formatReasoningEffortPair(log.reasoning_effort_raw, log.reasoning_effort_effective, log.reasoning_effort),
         millionContext.requested,
@@ -835,7 +812,7 @@ const allColumns = computed(() => [
   { key: "api_key", label: t("usage.apiKeyFilter"), sortable: false },
   { key: "account", label: t("admin.usage.account"), sortable: false },
   { key: "model", label: t("usage.model"), sortable: true },
-  { key: "native_context", label: t("usage.nativeContext"), sortable: false },
+  { key: "success_rate", label: t("usage.modelSuccessRate"), sortable: false },
   { key: "status", label: t("usage.status"), sortable: false },
   { key: "thinking_enabled", label: t("usage.thinkingMode"), sortable: false },
   {
@@ -843,7 +820,6 @@ const allColumns = computed(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
-  { key: "request_length", label: t("usage.requestLength"), sortable: false },
   { key: "request_protocol", label: t("usage.requestProtocol"), sortable: false },
   { key: "endpoint", label: t("usage.endpoint"), sortable: false },
   { key: "group", label: t("admin.usage.group"), sortable: false },

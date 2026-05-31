@@ -189,6 +189,13 @@
                     >
                       {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
                     </span>
+                    <span
+                      v-if="model.schedule_status && model.schedule_status !== 'active'"
+                      class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium"
+                      :class="scheduleBadgeClass(model.schedule_status)"
+                    >
+                      {{ scheduleStatusLabel(model.schedule_status) }}
+                    </span>
                   </div>
                   <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ model.id }}</p>
                   <p
@@ -234,6 +241,15 @@
                 @click="emit('deactivate', [model.id])"
               >
                 {{ t('admin.models.registry.actions.deactivate') }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="isModelMutating(model.id)"
+                data-testid="registry-edit-schedule"
+                @click="emit('edit-schedule', model)"
+              >
+                {{ t('admin.models.registry.actions.editSchedule') }}
               </button>
               <button
                 type="button"
@@ -317,6 +333,7 @@ const emit = defineEmits<{
   (e: 'deactivate', modelIds: string[]): void
   (e: 'hard-delete', modelIds: string[]): void
   (e: 'move-provider', payload: { targetProvider: string; modelIds: string[] }): void
+  (e: 'edit-schedule', model: ModelRegistryDetail): void
   (e: 'load-more'): void
 }>()
 
@@ -364,6 +381,26 @@ function isModelMutating(modelId: string) {
 
 function hasTestExposure(model: ModelRegistryDetail) {
   return Array.isArray(model.exposed_in) && model.exposed_in.includes('test')
+}
+
+function scheduleStatusLabel(status: string) {
+  const keyMap: Record<string, string> = {
+    scheduled: 'admin.models.registry.scheduleStatuses.scheduled',
+    expired: 'admin.models.registry.scheduleStatuses.expired',
+    out_of_window: 'admin.models.registry.scheduleStatuses.outOfWindow',
+    invalid: 'admin.models.registry.scheduleStatuses.invalid',
+  }
+  return t(keyMap[status] || 'admin.models.registry.scheduleStatuses.invalid')
+}
+
+function scheduleBadgeClass(status: string) {
+  if (status === 'scheduled') {
+    return 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300'
+  }
+  if (status === 'out_of_window') {
+    return 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'
+  }
+  return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
 }
 
 function handleExposureChange(event: Event) {

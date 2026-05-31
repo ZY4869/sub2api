@@ -14,6 +14,7 @@ import (
 )
 
 const PublicCatalogModelUnavailableMessage = "Requested model is not published or not available for this API key"
+const PublicCatalogModelTimeWindowDeniedMessage = "Requested model is outside its allowed calling time window"
 
 var publicCatalogRuntimeFailureWritebackThrottle sync.Map
 
@@ -27,41 +28,70 @@ type publicModelCatalogRuntimeFailureWriteback struct {
 }
 
 type PublishedPublicCatalogEntry struct {
-	EntryID          string
-	PublicModelID    string
-	SourceAccountID  int64
-	BindingGroupID   int64
-	SourceAlias      string
-	SourceModelID    string
-	SourceProtocol   string
-	Currency         string
-	RuntimePriceSpec PublicModelCatalogRuntimePriceSpec
-	SalePriceDisplay PublicModelCatalogPriceDisplay
-	Item             PublicModelCatalogItem
+	EntryID           string
+	PublicModelID     string
+	SourceAccountID   int64
+	BindingGroupID    int64
+	SourceAlias       string
+	SourceModelID     string
+	SourceProtocol    string
+	Currency          string
+	RuntimePriceSpec  PublicModelCatalogRuntimePriceSpec
+	SalePriceDisplay  PublicModelCatalogPriceDisplay
+	DiscountPolicy    *PublicModelCatalogDiscountPolicy
+	ImageFixedPricing PublicModelImageFixedPricing
+	Item              PublicModelCatalogItem
 }
 
+type PublicCatalogResolutionStatus string
+
+const (
+	PublicCatalogResolutionInactive         PublicCatalogResolutionStatus = "inactive"
+	PublicCatalogResolutionMatched          PublicCatalogResolutionStatus = "matched"
+	PublicCatalogResolutionNoMatch          PublicCatalogResolutionStatus = "no_match"
+	PublicCatalogResolutionTimeWindowDenied PublicCatalogResolutionStatus = "time_window_denied"
+)
+
 func (s *ModelCatalogService) ResolvePublishedPublicCatalogEntry(ctx context.Context, publicModelID string) (*PublishedPublicCatalogEntry, bool, error) {
+	entry, status, err := s.ResolvePublishedPublicCatalogEntryStatus(ctx, publicModelID)
+	return entry, status == PublicCatalogResolutionMatched, err
+}
+
+func (s *ModelCatalogService) ResolvePublishedPublicCatalogEntryStatus(ctx context.Context, publicModelID string) (*PublishedPublicCatalogEntry, PublicCatalogResolutionStatus, error) {
 	normalizedPublicID := NormalizeModelCatalogModelID(publicModelID)
 	if s == nil || normalizedPublicID == "" {
-		return nil, false, nil
+		return nil, PublicCatalogResolutionInactive, nil
+	}
+	if s.publicModelCatalogPublishedItemExists(ctx, normalizedPublicID) &&
+		!s.publicModelCatalogPublishedItemCurrentlyAvailable(ctx, normalizedPublicID) {
+		recordPublicCatalogTimeWindowDenied(ctx, nil, publicModelID, "")
+		return nil, PublicCatalogResolutionTimeWindowDenied, nil
 	}
 	published, active := s.activePublishedPublicModelCatalogSnapshot(ctx)
 	if !active {
-		return nil, false, nil
+		return nil, PublicCatalogResolutionInactive, nil
 	}
 	for _, item := range published.Snapshot.Items {
 		if !publicModelCatalogItemMatchesPublicID(item, normalizedPublicID) {
 			continue
 		}
-		return publishedPublicCatalogEntryFromItem(item), true, nil
+		if !publicModelCatalogItemCurrentlyAvailable(item, time.Now()) {
+			recordPublicCatalogTimeWindowDenied(ctx, nil, publicModelID, "")
+			return nil, PublicCatalogResolutionTimeWindowDenied, nil
+		}
+		return publishedPublicCatalogEntryFromItem(item), PublicCatalogResolutionMatched, nil
 	}
 	for _, detail := range published.Details {
 		if !publicModelCatalogItemMatchesPublicID(detail.Item, normalizedPublicID) {
 			continue
 		}
-		return publishedPublicCatalogEntryFromItem(detail.Item), true, nil
+		if !publicModelCatalogItemCurrentlyAvailable(detail.Item, time.Now()) {
+			recordPublicCatalogTimeWindowDenied(ctx, nil, publicModelID, "")
+			return nil, PublicCatalogResolutionTimeWindowDenied, nil
+		}
+		return publishedPublicCatalogEntryFromItem(detail.Item), PublicCatalogResolutionMatched, nil
 	}
-	return nil, false, nil
+	return nil, PublicCatalogResolutionNoMatch, nil
 }
 
 func (s *ModelCatalogService) PublishedPublicCatalogActive(ctx context.Context) bool {
@@ -96,6 +126,9 @@ func (s *ModelCatalogService) filterPublishedPublicModelCatalogSnapshot(ctx cont
 	filteredDetails := make(map[string]PublicModelCatalogDetail, len(cloned.Details))
 	for _, item := range cloned.Snapshot.Items {
 		if publicModelCatalogItemIsDemo(item) {
+			continue
+		}
+		if !publicModelCatalogItemCurrentlyAvailable(item, time.Now()) {
 			continue
 		}
 		if !s.publicModelCatalogItemRouteConfirmed(ctx, item) {
@@ -140,16 +173,18 @@ func publishedPublicCatalogEntryFromItem(item PublicModelCatalogItem) *Published
 		saleDisplay = item.PriceDisplay
 	}
 	return &PublishedPublicCatalogEntry{
-		EntryID:          strings.TrimSpace(item.EntryID),
-		PublicModelID:    publicID,
-		SourceAccountID:  item.SourceAccountID,
-		SourceAlias:      strings.TrimSpace(item.SourceAlias),
-		SourceModelID:    sourceModelID,
-		SourceProtocol:   strings.TrimSpace(item.SourceProtocol),
-		Currency:         defaultModelPricingCurrency(item.Currency),
-		RuntimePriceSpec: normalizePublicModelCatalogRuntimePriceSpec(item.RuntimePriceSpec),
-		SalePriceDisplay: clonePublicModelCatalogPriceDisplay(saleDisplay),
-		Item:             clonePublicModelCatalogItem(item),
+		EntryID:           strings.TrimSpace(item.EntryID),
+		PublicModelID:     publicID,
+		SourceAccountID:   item.SourceAccountID,
+		SourceAlias:       strings.TrimSpace(item.SourceAlias),
+		SourceModelID:     sourceModelID,
+		SourceProtocol:    strings.TrimSpace(item.SourceProtocol),
+		Currency:          defaultModelPricingCurrency(item.Currency),
+		RuntimePriceSpec:  normalizePublicModelCatalogRuntimePriceSpec(item.RuntimePriceSpec),
+		SalePriceDisplay:  clonePublicModelCatalogPriceDisplay(saleDisplay),
+		DiscountPolicy:    clonePublicModelCatalogDiscountPolicy(item.DiscountPolicy),
+		ImageFixedPricing: normalizePublicModelImageFixedPricing(item.ImageFixedPricing),
+		Item:              clonePublicModelCatalogItem(item),
 	}
 }
 
@@ -206,16 +241,38 @@ func (s *GatewayService) ResolvePublishedPublicCatalogRuntime(ctx context.Contex
 }
 
 func (s *GatewayService) ResolveAPIKeyPublishedPublicCatalogRuntime(ctx context.Context, apiKey *APIKey, platform string, publicModelID string) (*PublishedPublicCatalogEntry, bool, bool, error) {
+	entry, status, err := s.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(ctx, apiKey, platform, publicModelID)
+	switch status {
+	case PublicCatalogResolutionMatched:
+		return entry, true, true, err
+	case PublicCatalogResolutionNoMatch:
+		return entry, false, true, err
+	case PublicCatalogResolutionTimeWindowDenied:
+		return entry, false, true, err
+	default:
+		return entry, false, false, err
+	}
+}
+
+func (s *GatewayService) ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(ctx context.Context, apiKey *APIKey, platform string, publicModelID string) (*PublishedPublicCatalogEntry, PublicCatalogResolutionStatus, error) {
 	if s == nil || s.modelCatalogService == nil {
-		return nil, false, false, nil
+		return nil, PublicCatalogResolutionInactive, nil
 	}
 	matches, active, err := s.apiKeyPublishedPublicCatalogVisibleMatches(ctx, apiKey, platform, publicModelID)
 	if err != nil || !active {
-		return nil, false, active, err
+		if active {
+			return nil, PublicCatalogResolutionNoMatch, err
+		}
+		return nil, PublicCatalogResolutionInactive, err
+	}
+	if len(matches) == 0 && s.modelCatalogService.publicModelCatalogPublishedItemExists(ctx, publicModelID) &&
+		!s.modelCatalogService.publicModelCatalogPublishedItemCurrentlyAvailable(ctx, publicModelID) {
+		recordPublicCatalogTimeWindowDenied(ctx, apiKey, publicModelID, platform)
+		return nil, PublicCatalogResolutionTimeWindowDenied, nil
 	}
 	if len(matches) == 0 {
 		recordPublicCatalogRouteMiss(ctx, apiKey, nil, publicModelID, platform)
-		return nil, false, true, nil
+		return nil, PublicCatalogResolutionNoMatch, nil
 	}
 	match := matches[0]
 	entry := match.Catalog
@@ -228,7 +285,7 @@ func (s *GatewayService) ResolveAPIKeyPublishedPublicCatalogRuntime(ctx context.
 		"public model catalog runtime entry resolved",
 		publicCatalogLogFields(ctx, entry, match.GroupID, apiKey)...,
 	)
-	return entry, true, true, nil
+	return entry, PublicCatalogResolutionMatched, nil
 }
 
 func (s *OpenAIGatewayService) ResolvePublishedPublicCatalogRuntime(ctx context.Context, publicModelID string) (*PublishedPublicCatalogEntry, bool, error) {
@@ -251,16 +308,38 @@ func (s *OpenAIGatewayService) ResolvePublishedPublicCatalogRuntime(ctx context.
 }
 
 func (s *OpenAIGatewayService) ResolveAPIKeyPublishedPublicCatalogRuntime(ctx context.Context, apiKey *APIKey, platform string, publicModelID string) (*PublishedPublicCatalogEntry, bool, bool, error) {
+	entry, status, err := s.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(ctx, apiKey, platform, publicModelID)
+	switch status {
+	case PublicCatalogResolutionMatched:
+		return entry, true, true, err
+	case PublicCatalogResolutionNoMatch:
+		return entry, false, true, err
+	case PublicCatalogResolutionTimeWindowDenied:
+		return entry, false, true, err
+	default:
+		return entry, false, false, err
+	}
+}
+
+func (s *OpenAIGatewayService) ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(ctx context.Context, apiKey *APIKey, platform string, publicModelID string) (*PublishedPublicCatalogEntry, PublicCatalogResolutionStatus, error) {
 	if s == nil || s.modelCatalogService == nil {
-		return nil, false, false, nil
+		return nil, PublicCatalogResolutionInactive, nil
 	}
 	matches, active, err := s.apiKeyPublishedPublicCatalogVisibleMatches(ctx, apiKey, platform, publicModelID)
 	if err != nil || !active {
-		return nil, false, active, err
+		if active {
+			return nil, PublicCatalogResolutionNoMatch, err
+		}
+		return nil, PublicCatalogResolutionInactive, err
+	}
+	if len(matches) == 0 && s.modelCatalogService.publicModelCatalogPublishedItemExists(ctx, publicModelID) &&
+		!s.modelCatalogService.publicModelCatalogPublishedItemCurrentlyAvailable(ctx, publicModelID) {
+		recordPublicCatalogTimeWindowDenied(ctx, apiKey, publicModelID, platform)
+		return nil, PublicCatalogResolutionTimeWindowDenied, nil
 	}
 	if len(matches) == 0 {
 		recordPublicCatalogRouteMiss(ctx, apiKey, nil, publicModelID, platform)
-		return nil, false, true, nil
+		return nil, PublicCatalogResolutionNoMatch, nil
 	}
 	match := matches[0]
 	entry := match.Catalog
@@ -273,7 +352,7 @@ func (s *OpenAIGatewayService) ResolveAPIKeyPublishedPublicCatalogRuntime(ctx co
 		"public model catalog openai runtime entry resolved",
 		publicCatalogLogFields(ctx, entry, match.GroupID, apiKey)...,
 	)
-	return entry, true, true, nil
+	return entry, PublicCatalogResolutionMatched, nil
 }
 
 func (entry *PublishedPublicCatalogEntry) WithBindingGroupID(groupID *int64) *PublishedPublicCatalogEntry {
@@ -511,6 +590,7 @@ func clonePublishedPublicCatalogEntry(entry *PublishedPublicCatalogEntry) *Publi
 	cloned := *entry
 	cloned.RuntimePriceSpec = normalizePublicModelCatalogRuntimePriceSpec(entry.RuntimePriceSpec)
 	cloned.SalePriceDisplay = clonePublicModelCatalogPriceDisplay(entry.SalePriceDisplay)
+	cloned.ImageFixedPricing = normalizePublicModelImageFixedPricing(entry.ImageFixedPricing)
 	cloned.Item = clonePublicModelCatalogItem(entry.Item)
 	return &cloned
 }

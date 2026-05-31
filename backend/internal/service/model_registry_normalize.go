@@ -2,12 +2,17 @@ package service
 
 import (
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 func normalizeRuntimeRegistryEntry(input UpsertModelRegistryEntryInput) (modelregistry.ModelEntry, error) {
+	accessTimePolicy, err := normalizeTimeAccessPolicyAnyMap(input.AccessTimePolicy)
+	if err != nil {
+		return modelregistry.ModelEntry{}, err
+	}
 	return normalizePersistedEntry(modelregistry.ModelEntry{
 		ID:                   input.ID,
 		DisplayName:          input.DisplayName,
@@ -22,6 +27,9 @@ func normalizeRuntimeRegistryEntry(input UpsertModelRegistryEntryInput) (modelre
 		UIPriority:           input.UIPriority,
 		ExposedIn:            input.ExposedIn,
 		Status:               input.Status,
+		AvailableFrom:        input.AvailableFrom,
+		AvailableUntil:       input.AvailableUntil,
+		AccessTimePolicy:     accessTimePolicy,
 		DeprecatedAt:         input.DeprecatedAt,
 		ReplacedBy:           input.ReplacedBy,
 		DeprecationNotice:    input.DeprecationNotice,
@@ -92,6 +100,15 @@ func normalizePersistedEntry(entry modelregistry.ModelEntry) (modelregistry.Mode
 		}
 	}
 	entry.Status = normalizeRegistryStatus(entry.Status)
+	entry.AvailableFrom = normalizeRegistryOptionalRFC3339(entry.AvailableFrom)
+	entry.AvailableUntil = normalizeRegistryOptionalRFC3339(entry.AvailableUntil)
+	if len(entry.AccessTimePolicy) > 0 {
+		policy, err := normalizeTimeAccessPolicyAnyMap(timeAccessPolicyFromAnyMap(entry.AccessTimePolicy))
+		if err != nil {
+			return modelregistry.ModelEntry{}, err
+		}
+		entry.AccessTimePolicy = policy
+	}
 	entry.DeprecatedAt = strings.TrimSpace(entry.DeprecatedAt)
 	entry.ReplacedBy = normalizeRegistryID(entry.ReplacedBy)
 	entry.DeprecationNotice = strings.TrimSpace(entry.DeprecationNotice)
@@ -103,6 +120,26 @@ func normalizePersistedEntry(entry modelregistry.ModelEntry) (modelregistry.Mode
 		}
 	}
 	return entry, nil
+}
+
+func normalizeTimeAccessPolicyAnyMap(policy *TimeAccessPolicy) (map[string]any, error) {
+	normalized, err := NormalizeTimeAccessPolicy(policy)
+	if err != nil {
+		return nil, timeAccessPolicyInputError(err)
+	}
+	return timeAccessPolicyToAnyMap(normalized), nil
+}
+
+func normalizeRegistryOptionalRFC3339(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	t, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
 }
 
 func defaultPlatformsForProvider(provider string) []string {

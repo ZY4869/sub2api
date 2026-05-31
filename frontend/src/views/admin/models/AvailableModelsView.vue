@@ -80,7 +80,21 @@
           <ModelPlatformsInline :platforms="row.platforms" />
         </template>
 
+        <template #cell-schedule="{ row }">
+          <span
+            v-if="row.schedule_status && row.schedule_status !== 'active'"
+            class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
+            :class="scheduleBadgeClass(row.schedule_status)"
+          >
+            {{ scheduleStatusLabel(row.schedule_status) }}
+          </span>
+          <span v-else class="text-xs text-gray-400">-</span>
+        </template>
+
         <template #cell-actions="{ row }">
+          <button class="btn btn-secondary btn-sm" :disabled="submitting" @click="openScheduleDialog(row)">
+            {{ t('admin.models.registry.actions.editSchedule') }}
+          </button>
           <button class="btn btn-secondary btn-sm" :disabled="submitting" @click="deactivateOne(row.id)">
             {{ t('admin.models.registry.actions.deactivate') }}
           </button>
@@ -116,6 +130,13 @@
     @close="manualAddDialogOpen = false"
     @submit="manualAddModel"
   />
+  <ModelRegistryScheduleDialog
+    :show="scheduleDialogOpen"
+    :model="scheduleModel"
+    :submitting="submitting"
+    @close="scheduleDialogOpen = false"
+    @submit="saveSchedule"
+  />
 </template>
 
 <script setup lang="ts">
@@ -135,12 +156,16 @@ import {
   deactivateModelRegistryEntries,
   listModelRegistry,
   manualAddModelRegistryEntry,
+  upsertModelRegistryEntry,
   type ManualAddModelRegistryEntryPayload,
   type ModelRegistryDetail
 } from '@/api/admin/modelRegistry'
 import { useAppStore } from '@/stores/app'
 import { ensureModelRegistryFresh, getModelRegistrySnapshot, invalidateModelRegistry } from '@/stores/modelRegistry'
 import { useModelInventoryStore } from '@/stores'
+import ModelRegistryScheduleDialog from '@/components/admin/models/ModelRegistryScheduleDialog.vue'
+import type { TimeAccessPolicy } from '@/types/api-key-groups'
+import { buildModelRegistryScheduleUpsertPayload } from '@/utils/modelRegistrySchedule'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -150,6 +175,8 @@ const loading = ref(false)
 const submitting = ref(false)
 const activateDialogOpen = ref(false)
 const manualAddDialogOpen = ref(false)
+const scheduleDialogOpen = ref(false)
+const scheduleModel = ref<ModelRegistryDetail | null>(null)
 const items = ref<ModelRegistryDetail[]>([])
 
 const filters = reactive({
@@ -169,6 +196,7 @@ const columns = computed<Column[]>(() => [
   { key: 'model', label: t('admin.models.registry.columns.model') },
   { key: 'provider', label: t('admin.models.registry.columns.provider') },
   { key: 'platforms', label: t('admin.models.registry.columns.platforms') },
+  { key: 'schedule', label: t('admin.models.registry.columns.schedule') },
   { key: 'actions', label: t('common.actions') }
 ])
 
@@ -187,6 +215,22 @@ const platformSuggestions = computed(() => {
     .filter((value) => value.length > 0)
   return [...new Set(values)].sort()
 })
+
+function scheduleStatusLabel(status: string) {
+  const keyMap: Record<string, string> = {
+    scheduled: 'admin.models.registry.scheduleStatuses.scheduled',
+    expired: 'admin.models.registry.scheduleStatuses.expired',
+    out_of_window: 'admin.models.registry.scheduleStatuses.outOfWindow',
+    invalid: 'admin.models.registry.scheduleStatuses.invalid'
+  }
+  return t(keyMap[status] || 'admin.models.registry.scheduleStatuses.invalid')
+}
+
+function scheduleBadgeClass(status: string) {
+  if (status === 'scheduled') return 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300'
+  if (status === 'out_of_window') return 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'
+  return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+}
 
 onMounted(() => {
   void Promise.allSettled([ensureModelRegistryFresh(), loadList()])
@@ -283,6 +327,33 @@ async function manualAddModel(payload: ManualAddModelRegistryEntryPayload) {
   } catch (error) {
     console.error('[AvailableModelsView] manual add failed', error)
     appStore.showError(t('admin.models.available.manualAddFailed'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+function openScheduleDialog(model: ModelRegistryDetail) {
+  scheduleModel.value = model
+  scheduleDialogOpen.value = true
+}
+
+async function saveSchedule(
+  model: ModelRegistryDetail,
+  patch: {
+    available_from?: string
+    available_until?: string
+    access_time_policy?: TimeAccessPolicy | null
+  }
+) {
+  submitting.value = true
+  try {
+    await upsertModelRegistryEntry(buildModelRegistryScheduleUpsertPayload(model, patch))
+    scheduleDialogOpen.value = false
+    appStore.showSuccess(t('admin.models.registry.scheduleDialog.saveSuccess'))
+    await refreshAll()
+  } catch (error) {
+    console.error('[AvailableModelsView] schedule save failed', error)
+    appStore.showError(t('admin.models.registry.scheduleDialog.saveFailed'))
   } finally {
     submitting.value = false
   }

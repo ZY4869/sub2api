@@ -647,10 +647,10 @@
     "supports_xhigh_reasoning_effort": true,
     "tool_use_system_prompt_tokens": 346,
     "currency": "USD",
-    "source_type": "aggregator",
-    "source_url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json",
-    "checked_at": "2026-05-29T00:00:00Z",
-    "source_note": "LiteLLM exact key: anthropic/claude-opus-4-8"
+    "source_type": "official",
+    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "checked_at": "2026-05-31T00:00:00Z",
+    "source_note": "Official Claude pricing: Claude Opus 4.8"
   },
   "claude-opus-4.1": {
     "currency": "USD",

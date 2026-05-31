@@ -15,6 +15,7 @@ type User struct {
 	VisualPresetPreference          string             `json:"visual_preset_preference"`
 	AccountVisualPresetOverride     string             `json:"account_visual_preset_override"`
 	APIKeyModelBindingMode          string             `json:"api_key_model_binding_mode"`
+	APIKeyAccessTimePolicy          any                `json:"api_key_access_time_policy,omitempty"`
 	Balance                         float64            `json:"balance"`
 	Balances                        map[string]float64 `json:"balances,omitempty"`
 	Concurrency                     int                `json:"concurrency"`
@@ -64,6 +65,8 @@ type APIKey struct {
 	QuotaUsed           float64            `json:"quota_used"` // Used quota amount in USD
 	QuotaUsedByCurrency map[string]float64 `json:"quota_used_by_currency,omitempty"`
 	ExpiresAt           *time.Time         `json:"expires_at"` // Expiration time (nil = never expires)
+	StartsAt            *time.Time         `json:"starts_at"`
+	AccessTimePolicy    any                `json:"access_time_policy,omitempty"`
 	CreatedAt           time.Time          `json:"created_at"`
 	UpdatedAt           time.Time          `json:"updated_at"`
 
@@ -482,6 +485,9 @@ type UsageLog struct {
 	ImageSize         *string  `json:"image_size"`
 	ImageOutputTokens *int     `json:"image_output_tokens,omitempty"`
 	ImageOutputCost   *float64 `json:"image_output_cost,omitempty"`
+
+	ModelSuccessRate7d *float64 `json:"model_success_rate_7d,omitempty"`
+	ModelSuccessStatus string   `json:"model_success_status,omitempty"`
 
 	// User-Agent
 	UserAgent *string `json:"user_agent"`

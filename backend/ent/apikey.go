@@ -62,6 +62,10 @@ type APIKey struct {
 	QuotaUsedByCurrency map[string]float64 `json:"quota_used_by_currency,omitempty"`
 	// Expiration time for this API key (null = never expires)
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// Scheduled activation time for this API key (null = active immediately)
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+	// Time access policy for this API key
+	AccessTimePolicy map[string]interface{} `json:"access_time_policy,omitempty"`
 	// Rate limit in USD per 5 hours (0 = unlimited)
 	RateLimit5h float64 `json:"rate_limit_5h,omitempty"`
 	// Rate limit in USD per day (0 = unlimited)
@@ -163,7 +167,7 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case apikey.FieldIPWhitelist, apikey.FieldIPBlacklist, apikey.FieldImageCountWeights, apikey.FieldQuotaUsedByCurrency, apikey.FieldUsage5hByCurrency, apikey.FieldUsage1dByCurrency, apikey.FieldUsage7dByCurrency:
+		case apikey.FieldIPWhitelist, apikey.FieldIPBlacklist, apikey.FieldImageCountWeights, apikey.FieldQuotaUsedByCurrency, apikey.FieldAccessTimePolicy, apikey.FieldUsage5hByCurrency, apikey.FieldUsage1dByCurrency, apikey.FieldUsage7dByCurrency:
 			values[i] = new([]byte)
 		case apikey.FieldImageOnlyEnabled, apikey.FieldImageCountBillingEnabled:
 			values[i] = new(sql.NullBool)
@@ -173,7 +177,7 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case apikey.FieldKey, apikey.FieldName, apikey.FieldModelDisplayMode, apikey.FieldStatus:
 			values[i] = new(sql.NullString)
-		case apikey.FieldCreatedAt, apikey.FieldUpdatedAt, apikey.FieldDeletedAt, apikey.FieldLastUsedAt, apikey.FieldExpiresAt, apikey.FieldWindow5hStart, apikey.FieldWindow1dStart, apikey.FieldWindow7dStart:
+		case apikey.FieldCreatedAt, apikey.FieldUpdatedAt, apikey.FieldDeletedAt, apikey.FieldLastUsedAt, apikey.FieldExpiresAt, apikey.FieldStartsAt, apikey.FieldWindow5hStart, apikey.FieldWindow1dStart, apikey.FieldWindow7dStart:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -333,6 +337,21 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ExpiresAt = new(time.Time)
 				*_m.ExpiresAt = value.Time
+			}
+		case apikey.FieldStartsAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field starts_at", values[i])
+			} else if value.Valid {
+				_m.StartsAt = new(time.Time)
+				*_m.StartsAt = value.Time
+			}
+		case apikey.FieldAccessTimePolicy:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field access_time_policy", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.AccessTimePolicy); err != nil {
+					return fmt.Errorf("unmarshal field access_time_policy: %w", err)
+				}
 			}
 		case apikey.FieldRateLimit5h:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -546,6 +565,14 @@ func (_m *APIKey) String() string {
 		builder.WriteString("expires_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	if v := _m.StartsAt; v != nil {
+		builder.WriteString("starts_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("access_time_policy=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AccessTimePolicy))
 	builder.WriteString(", ")
 	builder.WriteString("rate_limit_5h=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RateLimit5h))

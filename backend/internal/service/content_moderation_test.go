@@ -45,6 +45,7 @@ func TestContentModerationService_RecordAudit_UsesDedupeWithoutUpstreamCall(t *t
 		previous: &ContentModerationAudit{
 			Hit:         true,
 			ErrorReason: "cached",
+			Categories:  []string{"moderation_flagged"},
 		},
 	}
 	settingsRepo := &settingPublicRepoStub{
@@ -67,6 +68,7 @@ func TestContentModerationService_RecordAudit_UsesDedupeWithoutUpstreamCall(t *t
 	require.True(t, repo.created[0].Hit)
 	require.True(t, repo.created[0].DedupeHit)
 	require.Equal(t, "cached", repo.created[0].ErrorReason)
+	require.Equal(t, []string{"moderation_flagged"}, repo.created[0].Categories)
 }
 
 func TestContentModerationService_RecordAudit_CallsOpenAIProvider(t *testing.T) {
@@ -113,6 +115,7 @@ func TestContentModerationService_RecordAudit_CallsOpenAIProvider(t *testing.T) 
 	require.True(t, repo.created[0].Hit)
 	require.False(t, repo.created[0].DedupeHit)
 	require.Equal(t, "moderation_flagged", repo.created[0].ErrorReason)
+	require.Equal(t, []string{"moderation_flagged"}, repo.created[0].Categories)
 	require.NotContains(t, repo.created[0].ContentSummary, "hello world")
 	require.Contains(t, repo.created[0].ContentSummary, "redacted text")
 }
@@ -191,10 +194,12 @@ func TestContentModerationService_CheckBlock_UsesCategoryScoreThresholds(t *test
 			require.Equal(t, tt.wantBlock, decision.Blocked)
 			if tt.wantReason != "" {
 				require.Equal(t, tt.wantReason, decision.ErrorReason)
+				require.Equal(t, moderationCategoriesForReason(tt.wantReason), decision.Categories)
 			}
 			if tt.wantBlock {
 				require.Len(t, repo.created, 1)
 				require.Equal(t, tt.wantReason, repo.created[0].ErrorReason)
+				require.Equal(t, moderationCategoriesForReason(tt.wantReason), repo.created[0].Categories)
 			} else {
 				require.Empty(t, repo.created)
 			}
@@ -242,6 +247,8 @@ func TestContentModerationService_CheckKeywordBlock_StoresRedactedAuditAndSkipsP
 	require.Len(t, repo.created, 1)
 	require.True(t, repo.created[0].Hit)
 	require.False(t, repo.created[0].DedupeHit)
+	require.Equal(t, []string{"keyword_blocked"}, decision.Categories)
+	require.Equal(t, []string{"keyword_blocked"}, repo.created[0].Categories)
 	require.Contains(t, repo.created[0].ErrorReason, "keyword_blocked:")
 	require.NotContains(t, repo.created[0].ErrorReason, "blocked phrase")
 	require.NotContains(t, repo.created[0].ContentSummary, "blocked phrase")
@@ -291,6 +298,7 @@ func TestContentModerationService_RecordAudit_KeywordHitBypassesDedupeAndProvide
 	require.Len(t, repo.created, 1)
 	require.True(t, repo.created[0].Hit)
 	require.False(t, repo.created[0].DedupeHit)
+	require.Equal(t, []string{"keyword_blocked"}, repo.created[0].Categories)
 	require.Contains(t, repo.created[0].ErrorReason, "keyword_blocked:")
 	require.NotContains(t, repo.created[0].ErrorReason, "local deny")
 }
@@ -420,6 +428,7 @@ func TestContentModerationService_RecordAudit_StoresProviderErrors(t *testing.T)
 	require.Len(t, repo.created, 1)
 	require.False(t, repo.created[0].Hit)
 	require.Equal(t, "invalid moderation key", repo.created[0].ErrorReason)
+	require.Equal(t, []string{"moderation_unavailable"}, repo.created[0].Categories)
 	require.NotContains(t, repo.created[0].ContentSummary, "hello world")
 	require.Contains(t, repo.created[0].ContentSummary, "redacted text")
 }

@@ -1135,6 +1135,16 @@ func APIKeyModelBindingModeContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldAPIKeyModelBindingMode, v))
 }
 
+// APIKeyAccessTimePolicyIsNil applies the IsNil predicate on the "api_key_access_time_policy" field.
+func APIKeyAccessTimePolicyIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldAPIKeyAccessTimePolicy))
+}
+
+// APIKeyAccessTimePolicyNotNil applies the NotNil predicate on the "api_key_access_time_policy" field.
+func APIKeyAccessTimePolicyNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldAPIKeyAccessTimePolicy))
+}
+
 // TotpSecretEncryptedEQ applies the EQ predicate on the "totp_secret_encrypted" field.
 func TotpSecretEncryptedEQ(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldTotpSecretEncrypted, v))

@@ -37,6 +37,9 @@ type UpsertModelRegistryEntryInput struct {
 	UIPriority           int               `json:"ui_priority"`
 	ExposedIn            []string          `json:"exposed_in"`
 	Status               string            `json:"status"`
+	AvailableFrom        string            `json:"available_from"`
+	AvailableUntil       string            `json:"available_until"`
+	AccessTimePolicy     *TimeAccessPolicy `json:"access_time_policy"`
 	DeprecatedAt         string            `json:"deprecated_at"`
 	ReplacedBy           string            `json:"replaced_by"`
 	DeprecationNotice    string            `json:"deprecation_notice"`

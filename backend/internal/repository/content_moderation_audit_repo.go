@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,13 +38,18 @@ INSERT INTO content_moderation_audits (
   source_endpoint,
   content_hash,
   content_summary,
+  categories,
   hit,
   dedupe_hit,
   error_reason,
   latency_ms,
   created_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 RETURNING id, created_at`
+	categories, err := json.Marshal(normalizeAuditCategoriesForStorage(audit.Categories))
+	if err != nil {
+		return err
+	}
 	return r.sql.QueryRowContext(
 		ctx,
 		query,
@@ -56,6 +62,7 @@ RETURNING id, created_at`
 		strings.TrimSpace(audit.SourceEndpoint),
 		strings.TrimSpace(audit.ContentHash),
 		strings.TrimSpace(audit.ContentSummary),
+		categories,
 		audit.Hit,
 		audit.DedupeHit,
 		strings.TrimSpace(audit.ErrorReason),
@@ -67,7 +74,7 @@ RETURNING id, created_at`
 func (r *contentModerationAuditRepository) FindRecentContentModerationAuditByHash(ctx context.Context, contentHash string, since time.Time) (*service.ContentModerationAudit, error) {
 	return r.getOne(
 		ctx,
-		`SELECT id, request_id, client_request_id, user_id, api_key_id, provider, model, source_endpoint, content_hash, content_summary, hit, dedupe_hit, error_reason, latency_ms, created_at
+		`SELECT id, request_id, client_request_id, user_id, api_key_id, provider, model, source_endpoint, content_hash, content_summary, categories, hit, dedupe_hit, error_reason, latency_ms, created_at
 		 FROM content_moderation_audits
 		 WHERE content_hash = $1 AND created_at >= $2
 		 ORDER BY created_at DESC, id DESC
@@ -103,6 +110,7 @@ SELECT
   source_endpoint,
   content_hash,
   content_summary,
+  categories,
   hit,
   dedupe_hit,
   error_reason,
@@ -141,7 +149,7 @@ LIMIT $` + fmt.Sprintf("%d", len(args)+1) + ` OFFSET $` + fmt.Sprintf("%d", len(
 func (r *contentModerationAuditRepository) GetContentModerationAuditByID(ctx context.Context, id int64) (*service.ContentModerationAudit, error) {
 	return r.getOne(
 		ctx,
-		`SELECT id, request_id, client_request_id, user_id, api_key_id, provider, model, source_endpoint, content_hash, content_summary, hit, dedupe_hit, error_reason, latency_ms, created_at
+		`SELECT id, request_id, client_request_id, user_id, api_key_id, provider, model, source_endpoint, content_hash, content_summary, categories, hit, dedupe_hit, error_reason, latency_ms, created_at
 		 FROM content_moderation_audits
 		 WHERE id = $1`,
 		id,
@@ -170,6 +178,7 @@ type contentModerationScanner interface {
 func scanContentModerationAudit(scanner contentModerationScanner) (*service.ContentModerationAudit, error) {
 	var userID sql.NullInt64
 	var apiKeyID sql.NullInt64
+	var categoriesRaw []byte
 	item := &service.ContentModerationAudit{}
 	if err := scanner.Scan(
 		&item.ID,
@@ -182,6 +191,7 @@ func scanContentModerationAudit(scanner contentModerationScanner) (*service.Cont
 		&item.SourceEndpoint,
 		&item.ContentHash,
 		&item.ContentSummary,
+		&categoriesRaw,
 		&item.Hit,
 		&item.DedupeHit,
 		&item.ErrorReason,
@@ -196,6 +206,7 @@ func scanContentModerationAudit(scanner contentModerationScanner) (*service.Cont
 	if apiKeyID.Valid {
 		item.APIKeyID = &apiKeyID.Int64
 	}
+	item.Categories = parseAuditCategories(categoriesRaw)
 	return item, nil
 }
 
@@ -247,4 +258,35 @@ func nullInt64OrNil(value *int64) any {
 		return nil
 	}
 	return *value
+}
+
+func normalizeAuditCategoriesForStorage(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		category := strings.TrimSpace(value)
+		if category == "" {
+			continue
+		}
+		if _, ok := seen[category]; ok {
+			continue
+		}
+		seen[category] = struct{}{}
+		out = append(out, category)
+	}
+	return out
+}
+
+func parseAuditCategories(raw []byte) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	var values []string
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil
+	}
+	return normalizeAuditCategoriesForStorage(values)
 }

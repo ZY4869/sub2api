@@ -21,6 +21,7 @@ func UserFromServiceShallow(u *service.User) *User {
 		VisualPresetPreference:          service.NormalizeVisualPresetPreference(u.VisualPresetPreference),
 		AccountVisualPresetOverride:     service.NormalizeVisualPresetPreference(u.AccountVisualPresetOverride),
 		APIKeyModelBindingMode:          u.EffectiveAPIKeyModelBindingMode(),
+		APIKeyAccessTimePolicy:          u.APIKeyAccessTimePolicy,
 		GlobalRealtimeCountdownEnabled:  u.GlobalRealtimeCountdownEnabled,
 		AccountRealtimeCountdownEnabled: u.AccountRealtimeCountdownEnabled,
 		Balance:                         u.Balance,

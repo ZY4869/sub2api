@@ -573,6 +573,18 @@ func (_u *GroupUpdate) SetNillableDefaultMappedModel(v *string) *GroupUpdate {
 	return _u
 }
 
+// SetVisibleModelPatterns sets the "visible_model_patterns" field.
+func (_u *GroupUpdate) SetVisibleModelPatterns(v []string) *GroupUpdate {
+	_u.mutation.SetVisibleModelPatterns(v)
+	return _u
+}
+
+// AppendVisibleModelPatterns appends value to the "visible_model_patterns" field.
+func (_u *GroupUpdate) AppendVisibleModelPatterns(v []string) *GroupUpdate {
+	_u.mutation.AppendVisibleModelPatterns(v)
+	return _u
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by IDs.
 func (_u *GroupUpdate) AddAPIKeyIDs(ids ...int64) *GroupUpdate {
 	_u.mutation.AddAPIKeyIDs(ids...)
@@ -1079,6 +1091,14 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.DefaultMappedModel(); ok {
 		_spec.SetField(group.FieldDefaultMappedModel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.VisibleModelPatterns(); ok {
+		_spec.SetField(group.FieldVisibleModelPatterns, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedVisibleModelPatterns(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, group.FieldVisibleModelPatterns, value)
+		})
 	}
 	if _u.mutation.APIKeysCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1989,6 +2009,18 @@ func (_u *GroupUpdateOne) SetNillableDefaultMappedModel(v *string) *GroupUpdateO
 	return _u
 }
 
+// SetVisibleModelPatterns sets the "visible_model_patterns" field.
+func (_u *GroupUpdateOne) SetVisibleModelPatterns(v []string) *GroupUpdateOne {
+	_u.mutation.SetVisibleModelPatterns(v)
+	return _u
+}
+
+// AppendVisibleModelPatterns appends value to the "visible_model_patterns" field.
+func (_u *GroupUpdateOne) AppendVisibleModelPatterns(v []string) *GroupUpdateOne {
+	_u.mutation.AppendVisibleModelPatterns(v)
+	return _u
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by IDs.
 func (_u *GroupUpdateOne) AddAPIKeyIDs(ids ...int64) *GroupUpdateOne {
 	_u.mutation.AddAPIKeyIDs(ids...)
@@ -2525,6 +2557,14 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.DefaultMappedModel(); ok {
 		_spec.SetField(group.FieldDefaultMappedModel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.VisibleModelPatterns(); ok {
+		_spec.SetField(group.FieldVisibleModelPatterns, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedVisibleModelPatterns(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, group.FieldVisibleModelPatterns, value)
+		})
 	}
 	if _u.mutation.APIKeysCleared() {
 		edge := &sqlgraph.EdgeSpec{

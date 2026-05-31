@@ -84,6 +84,16 @@ type UsageLog struct {
 	RateMultiplier float64 `json:"rate_multiplier,omitempty"`
 	// AccountRateMultiplier holds the value of the "account_rate_multiplier" field.
 	AccountRateMultiplier *float64 `json:"account_rate_multiplier,omitempty"`
+	// DiscountApplied holds the value of the "discount_applied" field.
+	DiscountApplied bool `json:"discount_applied,omitempty"`
+	// DiscountPercent holds the value of the "discount_percent" field.
+	DiscountPercent *float64 `json:"discount_percent,omitempty"`
+	// DiscountWindowID holds the value of the "discount_window_id" field.
+	DiscountWindowID *string `json:"discount_window_id,omitempty"`
+	// DiscountWindowType holds the value of the "discount_window_type" field.
+	DiscountWindowType *string `json:"discount_window_type,omitempty"`
+	// DiscountCompletedAt holds the value of the "discount_completed_at" field.
+	DiscountCompletedAt *time.Time `json:"discount_completed_at,omitempty"`
 	// BillingType holds the value of the "billing_type" field.
 	BillingType int8 `json:"billing_type,omitempty"`
 	// Stream holds the value of the "stream" field.
@@ -187,15 +197,15 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usagelog.FieldThinkingEnabled, usagelog.FieldStream, usagelog.FieldCacheTTLOverridden:
+		case usagelog.FieldThinkingEnabled, usagelog.FieldDiscountApplied, usagelog.FieldStream, usagelog.FieldCacheTTLOverridden:
 			values[i] = new(sql.NullBool)
-		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldTotalCostUsdEquivalent, usagelog.FieldActualCostUsdEquivalent, usagelog.FieldUsdToCnyRate, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
+		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldTotalCostUsdEquivalent, usagelog.FieldActualCostUsdEquivalent, usagelog.FieldUsdToCnyRate, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier, usagelog.FieldDiscountPercent:
 			values[i] = new(sql.NullFloat64)
 		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs, usagelog.FieldImageCount:
 			values[i] = new(sql.NullInt64)
-		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldBillingCurrency, usagelog.FieldFxRateDate, usagelog.FieldBillingExemptReason, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize:
+		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldBillingCurrency, usagelog.FieldFxRateDate, usagelog.FieldBillingExemptReason, usagelog.FieldDiscountWindowID, usagelog.FieldDiscountWindowType, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize:
 			values[i] = new(sql.NullString)
-		case usagelog.FieldFxLockedAt, usagelog.FieldCreatedAt:
+		case usagelog.FieldFxLockedAt, usagelog.FieldDiscountCompletedAt, usagelog.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -412,6 +422,40 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AccountRateMultiplier = new(float64)
 				*_m.AccountRateMultiplier = value.Float64
+			}
+		case usagelog.FieldDiscountApplied:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field discount_applied", values[i])
+			} else if value.Valid {
+				_m.DiscountApplied = value.Bool
+			}
+		case usagelog.FieldDiscountPercent:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field discount_percent", values[i])
+			} else if value.Valid {
+				_m.DiscountPercent = new(float64)
+				*_m.DiscountPercent = value.Float64
+			}
+		case usagelog.FieldDiscountWindowID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field discount_window_id", values[i])
+			} else if value.Valid {
+				_m.DiscountWindowID = new(string)
+				*_m.DiscountWindowID = value.String
+			}
+		case usagelog.FieldDiscountWindowType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field discount_window_type", values[i])
+			} else if value.Valid {
+				_m.DiscountWindowType = new(string)
+				*_m.DiscountWindowType = value.String
+			}
+		case usagelog.FieldDiscountCompletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field discount_completed_at", values[i])
+			} else if value.Valid {
+				_m.DiscountCompletedAt = new(time.Time)
+				*_m.DiscountCompletedAt = value.Time
 			}
 		case usagelog.FieldBillingType:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -648,6 +692,29 @@ func (_m *UsageLog) String() string {
 	if v := _m.AccountRateMultiplier; v != nil {
 		builder.WriteString("account_rate_multiplier=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("discount_applied=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiscountApplied))
+	builder.WriteString(", ")
+	if v := _m.DiscountPercent; v != nil {
+		builder.WriteString("discount_percent=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.DiscountWindowID; v != nil {
+		builder.WriteString("discount_window_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.DiscountWindowType; v != nil {
+		builder.WriteString("discount_window_type=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.DiscountCompletedAt; v != nil {
+		builder.WriteString("discount_completed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("billing_type=")

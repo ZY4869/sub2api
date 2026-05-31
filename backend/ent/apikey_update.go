@@ -360,6 +360,38 @@ func (_u *APIKeyUpdate) ClearExpiresAt() *APIKeyUpdate {
 	return _u
 }
 
+// SetStartsAt sets the "starts_at" field.
+func (_u *APIKeyUpdate) SetStartsAt(v time.Time) *APIKeyUpdate {
+	_u.mutation.SetStartsAt(v)
+	return _u
+}
+
+// SetNillableStartsAt sets the "starts_at" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableStartsAt(v *time.Time) *APIKeyUpdate {
+	if v != nil {
+		_u.SetStartsAt(*v)
+	}
+	return _u
+}
+
+// ClearStartsAt clears the value of the "starts_at" field.
+func (_u *APIKeyUpdate) ClearStartsAt() *APIKeyUpdate {
+	_u.mutation.ClearStartsAt()
+	return _u
+}
+
+// SetAccessTimePolicy sets the "access_time_policy" field.
+func (_u *APIKeyUpdate) SetAccessTimePolicy(v map[string]interface{}) *APIKeyUpdate {
+	_u.mutation.SetAccessTimePolicy(v)
+	return _u
+}
+
+// ClearAccessTimePolicy clears the value of the "access_time_policy" field.
+func (_u *APIKeyUpdate) ClearAccessTimePolicy() *APIKeyUpdate {
+	_u.mutation.ClearAccessTimePolicy()
+	return _u
+}
+
 // SetRateLimit5h sets the "rate_limit_5h" field.
 func (_u *APIKeyUpdate) SetRateLimit5h(v float64) *APIKeyUpdate {
 	_u.mutation.ResetRateLimit5h()
@@ -859,6 +891,18 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ExpiresAtCleared() {
 		_spec.ClearField(apikey.FieldExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.StartsAt(); ok {
+		_spec.SetField(apikey.FieldStartsAt, field.TypeTime, value)
+	}
+	if _u.mutation.StartsAtCleared() {
+		_spec.ClearField(apikey.FieldStartsAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AccessTimePolicy(); ok {
+		_spec.SetField(apikey.FieldAccessTimePolicy, field.TypeJSON, value)
+	}
+	if _u.mutation.AccessTimePolicyCleared() {
+		_spec.ClearField(apikey.FieldAccessTimePolicy, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.RateLimit5h(); ok {
 		_spec.SetField(apikey.FieldRateLimit5h, field.TypeFloat64, value)
@@ -1440,6 +1484,38 @@ func (_u *APIKeyUpdateOne) ClearExpiresAt() *APIKeyUpdateOne {
 	return _u
 }
 
+// SetStartsAt sets the "starts_at" field.
+func (_u *APIKeyUpdateOne) SetStartsAt(v time.Time) *APIKeyUpdateOne {
+	_u.mutation.SetStartsAt(v)
+	return _u
+}
+
+// SetNillableStartsAt sets the "starts_at" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableStartsAt(v *time.Time) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetStartsAt(*v)
+	}
+	return _u
+}
+
+// ClearStartsAt clears the value of the "starts_at" field.
+func (_u *APIKeyUpdateOne) ClearStartsAt() *APIKeyUpdateOne {
+	_u.mutation.ClearStartsAt()
+	return _u
+}
+
+// SetAccessTimePolicy sets the "access_time_policy" field.
+func (_u *APIKeyUpdateOne) SetAccessTimePolicy(v map[string]interface{}) *APIKeyUpdateOne {
+	_u.mutation.SetAccessTimePolicy(v)
+	return _u
+}
+
+// ClearAccessTimePolicy clears the value of the "access_time_policy" field.
+func (_u *APIKeyUpdateOne) ClearAccessTimePolicy() *APIKeyUpdateOne {
+	_u.mutation.ClearAccessTimePolicy()
+	return _u
+}
+
 // SetRateLimit5h sets the "rate_limit_5h" field.
 func (_u *APIKeyUpdateOne) SetRateLimit5h(v float64) *APIKeyUpdateOne {
 	_u.mutation.ResetRateLimit5h()
@@ -1969,6 +2045,18 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if _u.mutation.ExpiresAtCleared() {
 		_spec.ClearField(apikey.FieldExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.StartsAt(); ok {
+		_spec.SetField(apikey.FieldStartsAt, field.TypeTime, value)
+	}
+	if _u.mutation.StartsAtCleared() {
+		_spec.ClearField(apikey.FieldStartsAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AccessTimePolicy(); ok {
+		_spec.SetField(apikey.FieldAccessTimePolicy, field.TypeJSON, value)
+	}
+	if _u.mutation.AccessTimePolicyCleared() {
+		_spec.ClearField(apikey.FieldAccessTimePolicy, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.RateLimit5h(); ok {
 		_spec.SetField(apikey.FieldRateLimit5h, field.TypeFloat64, value)

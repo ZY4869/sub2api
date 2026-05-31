@@ -7,7 +7,6 @@ export default {
     routeTitles: {
       home: 'Home',
       models: 'Models Catalog',
-      apiDocs: 'API Docs',
       oauthCallback: 'OAuth Callback',
       linuxDoOAuthCallback: 'LinuxDo OAuth Callback',
       notFound: '404 Not Found',
@@ -18,37 +17,7 @@ export default {
       copy: 'Copy',
     },
     apiDocs: {
-      eyebrow: 'Protocol Reference',
-      title: 'API Docs',
-      description: 'Read the current gateway request contract, compatibility surface, and onboarding rules in standard Markdown.',
-      protocolsTitle: 'Protocols',
-      pageTocTitle: 'On This Page',
-      articleEyebrow: 'Standard Markdown',
-      articleTitle: 'Current Effective Document',
-      articleDescription: 'This page renders the effective Markdown exactly as the authenticated API exposes it.',
-      tocTitle: 'Contents',
-      copy: 'Copy Markdown',
       copyCode: 'Copy Code',
-      copySuccess: 'Markdown copied',
-      loading: 'Loading API docs...',
-      loadFailed: 'Failed to load API docs',
-      summary: {
-        protocols: {
-          label: 'Protocols',
-          value: '9 protocol pages',
-          description: 'Browse common onboarding, OpenAI Native, OpenAI Compatible, Claude, Gemini, Grok, Antigravity, Vertex / Batch, and Baidu Document AI separately.',
-        },
-        auth: {
-          label: 'Auth',
-          value: 'Bearer + Google Headers',
-          description: 'Shows the exact authentication priority, deprecated query params, and client-specific guidance.',
-        },
-        languages: {
-          label: 'Examples',
-          value: '8 code tabs',
-          description: 'Each example group offers Python, JavaScript, Go, Java, C#, PHP, Shell, and REST tabs.',
-        },
-      },
     },
     modelCatalog: {
       eyebrow: 'Public Models',
@@ -72,6 +41,7 @@ export default {
       copySuccess: 'Copied model ID',
       copyFailed: 'Failed to copy the model ID',
       detailButton: 'Open model details',
+      discountBadge: '{percent}% off',
       card: {
         detail: 'Details',
         copyModelId: 'Copy model ID',

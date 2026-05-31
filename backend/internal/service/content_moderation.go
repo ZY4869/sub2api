@@ -11,21 +11,27 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
+	"go.uber.org/zap"
 )
 
 const (
-	ContentModerationSourceAnthropicMessages   = "anthropic_messages"
-	ContentModerationSourceOpenAIResponses     = "openai_responses"
-	ContentModerationSourceOpenAIChat          = "openai_chat_completions"
-	ContentModerationSourceOpenAIMessages      = "openai_messages"
-	ContentModerationSourceGeminiGenerate      = "gemini_generate_content"
-	ContentModerationSourceGeminiOpenAICompat  = "gemini_openai_chat_completions"
-	ContentModerationModelFilterAll            = "all"
-	ContentModerationModelFilterInclude        = "include"
-	ContentModerationModelFilterExclude        = "exclude"
-	contentModerationDefaultTimeoutMs          = 1500
-	contentModerationDefaultDedupeWindowSecond = 300
-	contentModerationSummaryHashPrefixLen      = 12
+	ContentModerationSourceAnthropicMessages     = "anthropic_messages"
+	ContentModerationSourceOpenAIResponses       = "openai_responses"
+	ContentModerationSourceOpenAIChat            = "openai_chat_completions"
+	ContentModerationSourceOpenAIMessages        = "openai_messages"
+	ContentModerationSourceGeminiGenerate        = "gemini_generate_content"
+	ContentModerationSourceGeminiOpenAICompat    = "gemini_openai_chat_completions"
+	ContentModerationModelFilterAll              = "all"
+	ContentModerationModelFilterInclude          = "include"
+	ContentModerationModelFilterExclude          = "exclude"
+	contentModerationDefaultTimeoutMs            = 1500
+	contentModerationDefaultDedupeWindowSecond   = 300
+	contentModerationSummaryHashPrefixLen        = 12
+	ContentModerationReasonModerationFlagged     = "moderation_flagged"
+	ContentModerationReasonModerationUnavailable = "moderation_unavailable"
+	ContentModerationErrorCodeUnavailableBlocked = "MODERATION_UNAVAILABLE_BLOCKED"
 )
 
 var ErrContentModerationAuditNotFound = infraerrors.NotFound("CONTENT_MODERATION_AUDIT_NOT_FOUND", "content moderation audit not found")
@@ -41,6 +47,7 @@ type ContentModerationAudit struct {
 	SourceEndpoint  string
 	ContentHash     string
 	ContentSummary  string
+	Categories      []string
 	Hit             bool
 	DedupeHit       bool
 	ErrorReason     string
@@ -194,6 +201,7 @@ type ContentModerationKeywordDecision struct {
 	Blocked     bool
 	Content     string
 	ErrorReason string
+	Categories  []string
 }
 
 func (s *ContentModerationService) CheckKeywordBlock(ctx context.Context, input *ContentModerationRecordInput) (*ContentModerationKeywordDecision, error) {
@@ -217,6 +225,14 @@ func (s *ContentModerationService) CheckBlock(ctx context.Context, input *Conten
 	if s == nil || input == nil {
 		return &ContentModerationKeywordDecision{}, nil
 	}
+	start := time.Now()
+	metricResult := ""
+	metricReason := ""
+	defer func() {
+		if metricResult != "" {
+			protocolruntime.RecordContentModerationDecision(metricResult, metricReason, time.Since(start).Milliseconds())
+		}
+	}()
 	settings, err := s.GetSettings(ctx)
 	if err != nil {
 		return nil, err
@@ -226,6 +242,8 @@ func (s *ContentModerationService) CheckBlock(ctx context.Context, input *Conten
 	}
 	decision := EvaluateContentModerationKeywordBlock(settings, input.Content)
 	if decision.Blocked {
+		metricResult = "keyword_block"
+		metricReason = decision.ErrorReason
 		if s.repo != nil {
 			recordInput := *input
 			recordInput.Content = decision.Content
@@ -235,13 +253,36 @@ func (s *ContentModerationService) CheckBlock(ctx context.Context, input *Conten
 	}
 	evaluated := evaluateContentModeration(ctx, settings, input, decision.Content)
 	if !evaluated.Hit {
+		if !settings.FailOpen && strings.TrimSpace(evaluated.ErrorReason) != "" {
+			decision.Blocked = true
+			decision.ErrorReason = ContentModerationReasonModerationUnavailable
+			decision.Categories = moderationCategoriesForReason(decision.ErrorReason)
+			metricResult = "fail_closed"
+			metricReason = evaluated.ErrorReason
+			if s.repo != nil {
+				recordInput := *input
+				recordInput.Content = decision.Content
+				s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason)
+			}
+			return &decision, nil
+		}
+		if strings.TrimSpace(evaluated.ErrorReason) != "" {
+			metricResult = "fail_open"
+			metricReason = evaluated.ErrorReason
+		} else {
+			metricResult = "provider_allow"
+			metricReason = TimeAccessDecisionAllowed
+		}
 		return &decision, nil
 	}
 	decision.Blocked = true
 	decision.ErrorReason = strings.TrimSpace(evaluated.ErrorReason)
 	if decision.ErrorReason == "" {
-		decision.ErrorReason = "moderation_flagged"
+		decision.ErrorReason = ContentModerationReasonModerationFlagged
 	}
+	decision.Categories = moderationCategoriesForReason(decision.ErrorReason)
+	metricResult = "provider_block"
+	metricReason = decision.ErrorReason
 	if s.repo != nil {
 		recordInput := *input
 		recordInput.Content = decision.Content
@@ -307,6 +348,7 @@ func (s *ContentModerationService) recordAuditWithSettings(
 		ContentSummary:  summarizeModerationContent(normalizedContent),
 		Hit:             false,
 		DedupeHit:       false,
+		Categories:      nil,
 		ErrorReason:     "",
 		LatencyMs:       0,
 		CreatedAt:       now,
@@ -318,7 +360,10 @@ func (s *ContentModerationService) recordAuditWithSettings(
 		if previous, findErr := s.repo.FindRecentContentModerationAuditByHash(ctx, contentHash, since); findErr == nil && previous != nil {
 			result.Hit = previous.Hit
 			result.DedupeHit = true
+			result.Categories = normalizeModerationCategories(previous.Categories)
 			result.ErrorReason = strings.TrimSpace(previous.ErrorReason)
+			protocolruntime.RecordAbuseSignal("moderation_dedupe_hit")
+			logContentModerationDedupeHit(ctx, result)
 		}
 	}
 
@@ -327,18 +372,50 @@ func (s *ContentModerationService) recordAuditWithSettings(
 		if forcedErrorReason != "" {
 			result.Hit = true
 			result.ErrorReason = strings.TrimSpace(forcedErrorReason)
+			result.Categories = moderationCategoriesForReason(result.ErrorReason)
 		} else if keywordResult.Blocked {
 			result.Hit = true
 			result.ErrorReason = keywordResult.ErrorReason
+			result.Categories = normalizeModerationCategories(keywordResult.Categories)
 		} else {
 			evaluated := evaluateContentModeration(ctx, settings, input, normalizedContent)
 			result.Hit = evaluated.Hit
 			result.ErrorReason = strings.TrimSpace(evaluated.ErrorReason)
+			result.Categories = normalizeModerationCategories(evaluated.Categories)
 		}
+	}
+	if len(result.Categories) == 0 {
+		result.Categories = moderationCategoriesForReason(result.ErrorReason)
 	}
 	result.LatencyMs = int(time.Since(start).Milliseconds())
 
 	_ = s.repo.CreateContentModerationAudit(ctx, result)
+}
+
+func logContentModerationDedupeHit(ctx context.Context, audit *ContentModerationAudit) {
+	if audit == nil {
+		return
+	}
+	fields := []zap.Field{
+		zap.String("component", "service.content_moderation"),
+		zap.String("provider", strings.TrimSpace(audit.Provider)),
+		zap.String("model", strings.TrimSpace(audit.Model)),
+		zap.String("source_endpoint", strings.TrimSpace(audit.SourceEndpoint)),
+		zap.String("content_hash", strings.TrimSpace(audit.ContentHash)),
+		zap.Strings("categories", normalizeModerationCategories(audit.Categories)),
+		zap.String("error_reason", strings.TrimSpace(audit.ErrorReason)),
+		zap.Bool("hit", audit.Hit),
+	}
+	if requestID := strings.TrimSpace(audit.RequestID); requestID != "" {
+		fields = append(fields, zap.String("request_id", requestID))
+	}
+	if audit.UserID != nil {
+		fields = append(fields, zap.Int64("user_id", *audit.UserID))
+	}
+	if audit.APIKeyID != nil {
+		fields = append(fields, zap.Int64("api_key_id", *audit.APIKeyID))
+	}
+	logger.FromContext(ctx).Info("content moderation dedupe hit", fields...)
 }
 
 func (s *ContentModerationService) ListAudits(ctx context.Context, filter *ContentModerationAuditFilter) (*ContentModerationAuditList, error) {

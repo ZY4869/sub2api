@@ -33,7 +33,7 @@ func TestUsageBillingRepositoryApply_UserPlatformQuotaUsageAppliedOnlyOnce(t *te
 	mock.ExpectQuery(`SELECT request_fingerprint\s+FROM usage_billing_dedup_archive`).
 		WithArgs(cmd.RequestID, cmd.APIKeyID).
 		WillReturnError(sql.ErrNoRows)
-	mock.ExpectQuery(`SELECT request_id, api_key_id, user_id, currency, hold_amount, status, COALESCE\(request_fingerprint, ''\)`).
+	mock.ExpectQuery(`SELECT request_id, api_key_id, user_id, currency, hold_amount, status, COALESCE\(request_fingerprint, ''\), COALESCE\(conversion_breakdown::text, '\{\}'\), COALESCE\(conversion_policy::text, '\{\}'\)`).
 		WithArgs(cmd.RequestID, cmd.APIKeyID).
 		WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec(`UPDATE user_platform_quotas`).
@@ -85,7 +85,7 @@ func TestUsageBillingRepositoryApply_UserPlatformQuotaFailureRollsBack(t *testin
 	mock.ExpectQuery(`SELECT request_fingerprint\s+FROM usage_billing_dedup_archive`).
 		WithArgs(cmd.RequestID, cmd.APIKeyID).
 		WillReturnError(sql.ErrNoRows)
-	mock.ExpectQuery(`SELECT request_id, api_key_id, user_id, currency, hold_amount, status, COALESCE\(request_fingerprint, ''\)`).
+	mock.ExpectQuery(`SELECT request_id, api_key_id, user_id, currency, hold_amount, status, COALESCE\(request_fingerprint, ''\), COALESCE\(conversion_breakdown::text, '\{\}'\), COALESCE\(conversion_policy::text, '\{\}'\)`).
 		WithArgs(cmd.RequestID, cmd.APIKeyID).
 		WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec(`UPDATE user_platform_quotas`).

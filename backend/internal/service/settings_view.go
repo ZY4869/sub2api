@@ -97,6 +97,9 @@ type SystemSettings struct {
 	PaymentMinTopupAmount                float64
 	PaymentMaxTopupAmount                float64
 	PaymentSubscriptionPlans             []PaymentSubscriptionPlan
+	BillingCurrencyConversionEnabled      bool
+	BillingCurrencyCNYToUSDRate           float64
+	BillingCurrencyUSDToCNYRate           float64
 	AntigravityUserAgentVersion          string
 	CodexOAuthUserAgentMode              string
 	CodexOAuthUserAgentOverride          string
@@ -160,6 +163,32 @@ type DefaultSubscriptionSetting struct {
 	ValidityDays int   `json:"validity_days"`
 }
 
+func (s *SystemSettings) BillingCurrencyConversionSettings() BillingCurrencyConversionSettings {
+	if s == nil {
+		return DefaultBillingCurrencyConversionSettings()
+	}
+	return NormalizeBillingCurrencyConversionSettings(BillingCurrencyConversionSettings{
+		Enabled:      s.BillingCurrencyConversionEnabled,
+		CNYToUSDRate: s.BillingCurrencyCNYToUSDRate,
+		USDToCNYRate: s.BillingCurrencyUSDToCNYRate,
+	})
+}
+
+func DefaultBillingCurrencyConversionSettings() BillingCurrencyConversionSettings {
+	return BillingCurrencyConversionSettings{Enabled: false, CNYToUSDRate: 0.6, USDToCNYRate: 7}
+}
+
+func NormalizeBillingCurrencyConversionSettings(input BillingCurrencyConversionSettings) BillingCurrencyConversionSettings {
+	defaults := DefaultBillingCurrencyConversionSettings()
+	if input.CNYToUSDRate <= 0 {
+		input.CNYToUSDRate = defaults.CNYToUSDRate
+	}
+	if input.USDToCNYRate <= 0 {
+		input.USDToCNYRate = defaults.USDToCNYRate
+	}
+	return input
+}
+
 type PublicSettings struct {
 	RegistrationEnabled              bool
 	EmailVerifyEnabled               bool
@@ -220,6 +249,7 @@ type ContentModerationAuditListItem struct {
 	SourceEndpoint  string    `json:"source_endpoint"`
 	ContentHash     string    `json:"content_hash"`
 	ContentSummary  string    `json:"content_summary"`
+	Categories      []string  `json:"categories"`
 	Hit             bool      `json:"hit"`
 	DedupeHit       bool      `json:"dedupe_hit"`
 	ErrorReason     string    `json:"error_reason"`

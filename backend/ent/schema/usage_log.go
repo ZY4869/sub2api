@@ -111,6 +111,24 @@ func (UsageLog) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}),
+		field.Bool("discount_applied").
+			Default(false),
+		field.Float("discount_percent").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(5,2)"}),
+		field.String("discount_window_id").
+			MaxLen(64).
+			Optional().
+			Nillable(),
+		field.String("discount_window_type").
+			MaxLen(16).
+			Optional().
+			Nillable(),
+		field.Time("discount_completed_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 		field.Int8("billing_type").
 			Default(0),
 		field.Bool("stream").

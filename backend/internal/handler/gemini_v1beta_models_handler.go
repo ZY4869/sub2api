@@ -92,10 +92,10 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		return
 	}
 	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiGenerate, service.PlatformGemini, modelRuntime.publicModelName, body)
-	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+	if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		reqLog.Warn("gemini.content_moderation_keyword_check_failed", zap.Error(err))
-	} else if blocked {
-		googleErrorWithReason(c, http.StatusForbidden, "content_policy_keyword_blocked", "gateway.gemini.content_policy_keyword_blocked", "Request blocked by local content policy keywords")
+	} else if decision != nil {
+		contentModerationGeminiBlockResponse(c, decision)
 		return
 	}
 	submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)

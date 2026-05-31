@@ -75,6 +75,11 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // billing_exempt_reason
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
+			log.DiscountApplied,
+			sqlmock.AnyArg(), // discount_percent
+			sqlmock.AnyArg(), // discount_window_id
+			sqlmock.AnyArg(), // discount_window_type
+			sqlmock.AnyArg(), // discount_completed_at
 			log.BillingType,
 			int16(service.RequestTypeWSV2),
 			service.UsageLogStatusSucceeded,
@@ -179,6 +184,11 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
+			log.DiscountApplied,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.BillingType,
 			int16(service.RequestTypeSync),
 			service.UsageLogStatusSucceeded,
@@ -278,6 +288,11 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			sqlmock.AnyArg(),
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
+			log.DiscountApplied,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.BillingType,
 			int16(service.RequestTypeSync),
 			service.UsageLogStatusSucceeded,
@@ -381,6 +396,11 @@ func TestUsageLogRepositoryCreate_ResolvesRequestContextLengthTokens(t *testing.
 			sqlmock.AnyArg(),
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
+			log.DiscountApplied,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.BillingType,
 			int16(service.RequestTypeSync),
 			service.UsageLogStatusSucceeded,
@@ -426,6 +446,56 @@ func TestUsageLogRepositoryCreate_ResolvesRequestContextLengthTokens(t *testing.
 	require.True(t, inserted)
 	require.NotNil(t, log.RequestContextLengthTokens)
 	require.Equal(t, 200000, *log.RequestContextLengthTokens)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryCreate_PersistsPublicCatalogDiscountAuditFields(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	createdAt := time.Date(2026, 6, 1, 1, 2, 3, 0, time.UTC)
+	completedAt := time.Date(2026, 6, 1, 1, 2, 0, 0, time.UTC)
+	discountPercent := 20.0
+	windowID := "promo-window"
+	windowType := service.PublicModelCatalogDiscountWindowDaily
+	log := &service.UsageLog{
+		UserID:              1,
+		APIKeyID:            2,
+		AccountID:           3,
+		RequestID:           "req-public-discount",
+		Model:               "gpt-5.4-sale",
+		RequestedModel:      "gpt-5.4-sale",
+		DiscountApplied:     true,
+		DiscountPercent:     &discountPercent,
+		DiscountWindowID:    &windowID,
+		DiscountWindowType:  &windowType,
+		DiscountCompletedAt: &completedAt,
+		CreatedAt:           createdAt,
+	}
+
+	args := make([]driver.Value, 76)
+	for i := range args {
+		args[i] = sqlmock.AnyArg()
+	}
+	args[0] = log.UserID
+	args[1] = log.APIKeyID
+	args[2] = log.AccountID
+	args[3] = log.RequestID
+	args[4] = log.Model
+	args[5] = log.RequestedModel
+	args[34] = true
+	args[35] = sql.NullFloat64{Valid: true, Float64: 20}
+	args[36] = sql.NullString{Valid: true, String: "promo-window"}
+	args[37] = sql.NullString{Valid: true, String: service.PublicModelCatalogDiscountWindowDaily}
+	args[38] = sql.NullTime{Valid: true, Time: completedAt}
+	args[75] = createdAt
+	mock.ExpectQuery("INSERT INTO usage_logs").
+		WithArgs(args...).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(103), createdAt))
+
+	inserted, err := repo.Create(context.Background(), log)
+	require.NoError(t, err)
+	require.True(t, inserted)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -829,6 +899,11 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_exempt_reason
 			1.0,               // rate_multiplier
 			sql.NullFloat64{}, // account_rate_multiplier
+			true,
+			sql.NullFloat64{Valid: true, Float64: 20},
+			sql.NullString{Valid: true, String: "daily-window"},
+			sql.NullString{Valid: true, String: service.PublicModelCatalogDiscountWindowDaily},
+			sql.NullTime{Valid: true, Time: now},
 			int16(service.BillingTypeBalance),
 			int16(service.RequestTypeWSV2),
 			service.UsageLogStatusSucceeded,
@@ -874,6 +949,15 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 		require.Equal(t, 200000, *log.RequestContextLengthTokens)
 		require.NotNil(t, log.ThinkingEnabled)
 		require.True(t, *log.ThinkingEnabled)
+		require.True(t, log.DiscountApplied)
+		require.NotNil(t, log.DiscountPercent)
+		require.Equal(t, 20.0, *log.DiscountPercent)
+		require.NotNil(t, log.DiscountWindowID)
+		require.Equal(t, "daily-window", *log.DiscountWindowID)
+		require.NotNil(t, log.DiscountWindowType)
+		require.Equal(t, service.PublicModelCatalogDiscountWindowDaily, *log.DiscountWindowType)
+		require.NotNil(t, log.DiscountCompletedAt)
+		require.Equal(t, now, *log.DiscountCompletedAt)
 		require.Equal(t, service.RequestTypeWSV2, log.RequestType)
 		require.True(t, log.Stream)
 		require.True(t, log.OpenAIWSMode)
@@ -907,6 +991,11 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			1.0,
 			sql.NullFloat64{},
+			false,
+			sql.NullFloat64{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullTime{},
 			int16(service.BillingTypeBalance),
 			int16(service.RequestTypeUnknown),
 			service.UsageLogStatusSucceeded,
@@ -981,6 +1070,11 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			1.0,
 			sql.NullFloat64{},
+			false,
+			sql.NullFloat64{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullTime{},
 			int16(service.BillingTypeBalance),
 			int16(service.RequestTypeSync),
 			service.UsageLogStatusSucceeded,

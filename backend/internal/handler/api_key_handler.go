@@ -30,14 +30,16 @@ func NewAPIKeyHandler(apiKeyService *service.APIKeyService) *APIKeyHandler {
 
 // CreateAPIKeyRequest represents the create API key request payload
 type CreateAPIKeyRequest struct {
-	Name          string                   `json:"name" binding:"required"`
-	GroupID       *int64                   `json:"group_id"` // nullable
-	Groups        *[]APIKeyGroupBindingReq `json:"groups"`
-	CustomKey     *string                  `json:"custom_key"`      // 可选的自定义key
-	IPWhitelist   []string                 `json:"ip_whitelist"`    // IP 白名单
-	IPBlacklist   []string                 `json:"ip_blacklist"`    // IP 黑名单
-	Quota         *float64                 `json:"quota"`           // 配额限制 (USD)
-	ExpiresInDays *int                     `json:"expires_in_days"` // 过期天数
+	Name             string                    `json:"name" binding:"required"`
+	GroupID          *int64                    `json:"group_id"` // nullable
+	Groups           *[]APIKeyGroupBindingReq  `json:"groups"`
+	CustomKey        *string                   `json:"custom_key"`      // 可选的自定义key
+	IPWhitelist      []string                  `json:"ip_whitelist"`    // IP 白名单
+	IPBlacklist      []string                  `json:"ip_blacklist"`    // IP 黑名单
+	Quota            *float64                  `json:"quota"`           // 配额限制 (USD)
+	ExpiresInDays    *int                      `json:"expires_in_days"` // 过期天数
+	StartsAt         *string                   `json:"starts_at"`       // 预定启用时间 (ISO 8601)
+	AccessTimePolicy *service.TimeAccessPolicy `json:"access_time_policy"`
 
 	// Image-only fields
 	ImageOnlyEnabled         bool           `json:"image_only_enabled"`
@@ -53,15 +55,18 @@ type CreateAPIKeyRequest struct {
 
 // UpdateAPIKeyRequest represents the update API key request payload
 type UpdateAPIKeyRequest struct {
-	Name        string                   `json:"name"`
-	GroupID     *int64                   `json:"group_id"`
-	Groups      *[]APIKeyGroupBindingReq `json:"groups"`
-	Status      string                   `json:"status" binding:"omitempty,oneof=active inactive"`
-	IPWhitelist []string                 `json:"ip_whitelist"` // IP 白名单
-	IPBlacklist []string                 `json:"ip_blacklist"` // IP 黑名单
-	Quota       *float64                 `json:"quota"`        // 配额限制 (USD), 0=无限制
-	ExpiresAt   *string                  `json:"expires_at"`   // 过期时间 (ISO 8601)
-	ResetQuota  *bool                    `json:"reset_quota"`  // 重置已用配额
+	Name                  string                    `json:"name"`
+	GroupID               *int64                    `json:"group_id"`
+	Groups                *[]APIKeyGroupBindingReq  `json:"groups"`
+	Status                string                    `json:"status" binding:"omitempty,oneof=active inactive"`
+	IPWhitelist           []string                  `json:"ip_whitelist"` // IP 白名单
+	IPBlacklist           []string                  `json:"ip_blacklist"` // IP 黑名单
+	Quota                 *float64                  `json:"quota"`        // 配额限制 (USD), 0=无限制
+	ExpiresAt             *string                   `json:"expires_at"`   // 过期时间 (ISO 8601)
+	StartsAt              *string                   `json:"starts_at"`    // 预定启用时间 (ISO 8601)
+	AccessTimePolicy      *service.TimeAccessPolicy `json:"access_time_policy"`
+	ClearAccessTimePolicy *bool                     `json:"clear_access_time_policy"`
+	ResetQuota            *bool                     `json:"reset_quota"` // 重置已用配额
 
 	// Image-only fields (nil = no change)
 	ImageOnlyEnabled         *bool          `json:"image_only_enabled"`
@@ -205,6 +210,7 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 		IPWhitelist:              req.IPWhitelist,
 		IPBlacklist:              req.IPBlacklist,
 		ExpiresInDays:            req.ExpiresInDays,
+		AccessTimePolicy:         req.AccessTimePolicy,
 		ImageOnlyEnabled:         req.ImageOnlyEnabled,
 		ImageCountBillingEnabled: req.ImageCountBillingEnabled,
 		ImageMaxCount:            req.ImageMaxCount,
@@ -223,6 +229,14 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 	}
 	if req.Quota != nil {
 		svcReq.Quota = *req.Quota
+	}
+	if req.StartsAt != nil && strings.TrimSpace(*req.StartsAt) != "" {
+		t, err := time.Parse(time.RFC3339, strings.TrimSpace(*req.StartsAt))
+		if err != nil {
+			response.BadRequest(c, "Invalid starts_at format: "+err.Error())
+			return
+		}
+		svcReq.StartsAt = &t
 	}
 	if req.RateLimit5h != nil {
 		svcReq.RateLimit5h = *req.RateLimit5h
@@ -277,6 +291,7 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 		ImageCountBillingEnabled: req.ImageCountBillingEnabled,
 		ImageMaxCount:            req.ImageMaxCount,
 		ImageCountWeights:        req.ImageCountWeights,
+		AccessTimePolicy:         req.AccessTimePolicy,
 	}
 	if req.Name != "" {
 		svcReq.Name = &req.Name
@@ -310,6 +325,22 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 			}
 			svcReq.ExpiresAt = &t
 		}
+	}
+	if req.StartsAt != nil {
+		if strings.TrimSpace(*req.StartsAt) == "" {
+			svcReq.ClearStartsAt = true
+		} else {
+			t, err := time.Parse(time.RFC3339, strings.TrimSpace(*req.StartsAt))
+			if err != nil {
+				response.BadRequest(c, "Invalid starts_at format: "+err.Error())
+				return
+			}
+			svcReq.StartsAt = &t
+		}
+	}
+	if req.ClearAccessTimePolicy != nil && *req.ClearAccessTimePolicy {
+		svcReq.ClearAccessTimePolicy = true
+		svcReq.AccessTimePolicy = nil
 	}
 
 	key, err := h.apiKeyService.Update(c.Request.Context(), keyID, subject.UserID, svcReq)

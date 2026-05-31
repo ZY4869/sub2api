@@ -215,6 +215,11 @@ type UsageLog struct {
 	RateMultiplier          float64
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
 	AccountRateMultiplier *float64
+	DiscountApplied       bool
+	DiscountPercent       *float64
+	DiscountWindowID      *string
+	DiscountWindowType    *string
+	DiscountCompletedAt   *time.Time
 
 	BillingType          int8
 	RequestType          RequestType
@@ -247,6 +252,9 @@ type UsageLog struct {
 	MediaType         *string
 	ImageOutputTokens *int
 	ImageOutputCost   *float64
+
+	ModelSuccessRate7d *float64
+	ModelSuccessStatus string
 
 	CreatedAt time.Time
 

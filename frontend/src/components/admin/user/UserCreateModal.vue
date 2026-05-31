@@ -43,6 +43,28 @@
         </select>
         <p class="input-hint">{{ t('admin.users.apiKeyModelBindingModeHint') }}</p>
       </div>
+      <div class="space-y-3">
+        <label class="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-dark-700 dark:bg-dark-900/30">
+          <input
+            v-model="form.enable_api_key_access_time_policy"
+            type="checkbox"
+            class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <div>
+            <div class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('admin.users.apiKeyAccessTimePolicy') }}
+            </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.users.apiKeyAccessTimePolicyHint') }}
+            </p>
+          </div>
+        </label>
+        <TimeAccessPolicyEditor
+          v-if="form.enable_api_key_access_time_policy"
+          v-model="form.api_key_access_time_policy"
+          :hint="t('admin.users.apiKeyAccessTimePolicyHint')"
+        />
+      </div>
     </form>
     <template #footer>
       <div class="flex justify-end gap-3">
@@ -60,8 +82,10 @@ import { reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'; import { adminAPI } from '@/api/admin'
 import { useForm } from '@/composables/useForm'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import TimeAccessPolicyEditor from '@/components/common/TimeAccessPolicyEditor.vue'
 import Icon from '@/components/icons/Icon.vue'
-import type { APIKeyModelBindingMode } from '@/types'
+import type { APIKeyModelBindingMode, TimeAccessPolicy } from '@/types'
+import { buildPresetTimeAccessPolicy, policyToPayload } from '@/utils/timeAccessPolicy'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits(['close', 'success']); const { t } = useI18n()
@@ -73,13 +97,22 @@ const form = reactive({
   notes: '',
   balance: 0,
   concurrency: 1,
-  api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode
+  api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode,
+  enable_api_key_access_time_policy: false,
+  api_key_access_time_policy: buildPresetTimeAccessPolicy('daytime') as TimeAccessPolicy
 })
 
 const { loading, submit } = useForm({
   form,
   submitFn: async (data) => {
-    await adminAPI.users.create(data)
+    const payload = {
+      ...data,
+      api_key_access_time_policy: data.enable_api_key_access_time_policy
+        ? policyToPayload(data.api_key_access_time_policy)
+        : undefined,
+    }
+    delete (payload as { enable_api_key_access_time_policy?: boolean }).enable_api_key_access_time_policy
+    await adminAPI.users.create(payload)
     emit('success'); emit('close')
   },
   successMsg: t('admin.users.userCreated')
@@ -93,7 +126,9 @@ watch(() => props.show, (v) => {
     notes: '',
     balance: 0,
     concurrency: 1,
-    api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode
+    api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode,
+    enable_api_key_access_time_policy: false,
+    api_key_access_time_policy: buildPresetTimeAccessPolicy('daytime')
   })
 })
 

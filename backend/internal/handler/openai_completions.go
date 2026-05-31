@@ -84,12 +84,12 @@ func (h *OpenAIGatewayHandler) Completions(c *gin.Context) {
 	var publicCatalogEntry *service.PublishedPublicCatalogEntry
 	publicRequestModel := reqModel
 	runtimeRequestModel := reqModel
-	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), reqModel); resolveErr != nil {
+	if entry, status, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), reqModel); resolveErr != nil {
 		reqLog.Warn("openai_completions.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
-	} else if active && !matched {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+	} else if status == service.PublicCatalogResolutionNoMatch || status == service.PublicCatalogResolutionTimeWindowDenied {
+		h.publicCatalogUnavailableResponse(c, status)
 		return
-	} else if matched {
+	} else if status == service.PublicCatalogResolutionMatched {
 		publicCatalogEntry = entry
 		runtimeRequestModel = service.NormalizeModelCatalogModelID(firstNonEmptyHandlerString(entry.SourceModelID, reqModel))
 		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))

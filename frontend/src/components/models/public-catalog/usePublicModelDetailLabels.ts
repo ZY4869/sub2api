@@ -9,6 +9,7 @@ export function usePublicModelDetailLabels(t: Translate) {
     todaySuccess: t('ui.modelCatalog.card.todaySuccess'),
     pricing: t('ui.modelCatalog.detail.pricingTitle'),
     salePrice: t('ui.modelCatalog.detail.salePrice'),
+    discountBadge: t('ui.modelCatalog.discountBadge'),
     officialReferencePrice: t('ui.modelCatalog.detail.officialReferencePrice'),
     officialReferenceMissing: t('ui.modelCatalog.detail.officialReferenceMissing'),
     multiplierRules: t('ui.modelCatalog.detail.multiplierRules'),

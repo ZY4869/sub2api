@@ -21,6 +21,13 @@
         {{ priceParts.unit }}
       </span>
     </div>
+    <div
+      v-if="originalValue && originalValue !== value"
+      class="mt-1 truncate font-mono text-[11px] font-semibold text-slate-400 line-through dark:text-slate-500"
+      :title="originalValue"
+    >
+      {{ originalValue }}
+    </div>
   </div>
 </template>
 
@@ -30,6 +37,7 @@ import { computed } from 'vue'
 const props = defineProps<{
   label: string
   value: string
+  originalValue?: string
   theme: 'blue' | 'emerald' | 'amber'
   testid?: string
 }>()

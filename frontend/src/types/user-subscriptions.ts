@@ -1,4 +1,4 @@
-import type { APIKeyModelBindingMode, Group } from './api-key-groups'
+import type { APIKeyModelBindingMode, Group, TimeAccessPolicy } from './api-key-groups'
 import type { User } from './auth'
 // ==================== Admin User Management ====================
 
@@ -9,6 +9,8 @@ export interface UpdateUserRequest {
   notes?: string;
   role?: "admin" | "user";
   api_key_model_binding_mode?: APIKeyModelBindingMode;
+  api_key_access_time_policy?: TimeAccessPolicy | null;
+  clear_api_key_access_time_policy?: boolean;
   request_details_review?: boolean;
   admin_free_billing?: boolean;
   balance?: number;

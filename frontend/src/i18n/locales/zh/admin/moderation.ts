@@ -39,7 +39,8 @@ export default {
     contentHash: '内容哈希',
     summary: '脱敏摘要',
     latency: '耗时',
-    errorReason: '错误原因'
+    errorReason: '错误原因',
+    categories: '分类'
   },
   empty: '暂无审核记录',
   loadFailed: '加载审核记录失败',

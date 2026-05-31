@@ -4,11 +4,14 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 )
 
@@ -45,41 +48,78 @@ func checkContentModerationKeywordBlock(
 	ctx context.Context,
 	moderationService *service.ContentModerationService,
 	input *service.ContentModerationRecordInput,
-) (bool, error) {
+) (*service.ContentModerationKeywordDecision, error) {
 	if moderationService == nil || input == nil {
-		return false, nil
+		return nil, nil
 	}
 	content := service.ExtractModerationTextFromJSONBody([]byte(input.Content))
 	if strings.TrimSpace(content) == "" {
-		return false, nil
+		return nil, nil
 	}
 	recordInput := *input
 	recordInput.Content = content
+	service.RecordContentModerationRepeatedPromptSignal(&recordInput, content, time.Now().UTC())
 	decision, err := moderationService.CheckBlock(ctx, &recordInput)
-	if err != nil || decision == nil {
-		return false, err
+	if err != nil || decision == nil || !decision.Blocked {
+		return nil, err
 	}
-	return decision.Blocked, nil
+	return decision, nil
 }
 
-func contentModerationOpenAIBlockResponse(c *gin.Context) {
+func contentModerationOpenAIBlockResponse(c *gin.Context, decision *service.ContentModerationKeywordDecision) {
+	code, message := contentModerationBlockError(decision)
+	recordContentModerationBlock(c, decision)
 	c.JSON(http.StatusForbidden, gin.H{
 		"error": gin.H{
 			"type":    "policy_violation",
-			"code":    "content_policy_keyword_blocked",
-			"message": "Request blocked by local content policy keywords",
+			"code":    code,
+			"message": message,
 		},
 	})
 }
 
-func contentModerationAnthropicBlockResponse(c *gin.Context) {
+func contentModerationAnthropicBlockResponse(c *gin.Context, decision *service.ContentModerationKeywordDecision) {
+	code, message := contentModerationBlockError(decision)
+	recordContentModerationBlock(c, decision)
 	c.JSON(http.StatusForbidden, gin.H{
 		"type": "error",
 		"error": gin.H{
 			"type":    "policy_error",
-			"message": "Request blocked by local content policy keywords",
+			"code":    code,
+			"message": message,
 		},
 	})
+}
+
+func contentModerationGeminiBlockResponse(c *gin.Context, decision *service.ContentModerationKeywordDecision) {
+	code, message := contentModerationBlockError(decision)
+	messageKey := "gateway.gemini.content_policy_keyword_blocked"
+	if code == service.ContentModerationErrorCodeUnavailableBlocked {
+		messageKey = "gateway.gemini.content_moderation_unavailable_blocked"
+	}
+	recordContentModerationBlock(c, decision)
+	googleErrorWithReason(c, http.StatusForbidden, code, messageKey, message)
+}
+
+func contentModerationBlockError(decision *service.ContentModerationKeywordDecision) (string, string) {
+	if decision != nil && strings.TrimSpace(decision.ErrorReason) == service.ContentModerationReasonModerationUnavailable {
+		return service.ContentModerationErrorCodeUnavailableBlocked, "Request blocked because content moderation is temporarily unavailable"
+	}
+	return "content_policy_blocked", "Request blocked by content policy"
+}
+
+func recordContentModerationBlock(c *gin.Context, decision *service.ContentModerationKeywordDecision) {
+	reason := "content_policy_blocked"
+	if decision != nil && strings.TrimSpace(decision.ErrorReason) != "" {
+		reason = strings.TrimSpace(decision.ErrorReason)
+	}
+	code, _ := contentModerationBlockError(decision)
+	protocolruntime.RecordContentModerationBlock(reason)
+	logger.FromContext(c.Request.Context()).Warn(
+		"content moderation blocked request",
+		zap.String("reason", reason),
+		zap.String("code", code),
+	)
 }
 
 func buildContentModerationRecordInput(c *gin.Context, sourceEndpoint, provider, model string, body []byte) *service.ContentModerationRecordInput {
@@ -89,7 +129,7 @@ func buildContentModerationRecordInput(c *gin.Context, sourceEndpoint, provider,
 	record := &service.ContentModerationRecordInput{
 		SourceEndpoint: strings.TrimSpace(sourceEndpoint),
 		Provider:       strings.TrimSpace(provider),
-		Model:          strings.TrimSpace(model),
+		Model:          firstNonEmptyHandlerString(model, gjson.GetBytes(body, "model").String()),
 		Content:        string(body),
 	}
 	if subject, ok := middleware2.GetAuthSubjectFromContext(c); ok && subject.UserID > 0 {

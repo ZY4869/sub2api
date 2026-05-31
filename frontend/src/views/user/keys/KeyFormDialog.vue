@@ -334,6 +334,41 @@
           </div>
         </div>
       </section>
+
+      <section class="space-y-3">
+        <ToggleField
+          :label="t('keys.scheduledActivation')"
+          :model-value="formData.enable_starts_at"
+          @update:model-value="(value) => updateField('enable_starts_at', value)"
+        />
+        <div v-if="formData.enable_starts_at" class="pt-2">
+          <label class="input-label">{{ t("keys.startsAt") }}</label>
+          <input
+            :value="formData.starts_at"
+            type="datetime-local"
+            class="input"
+            @input="(event) => updateField('starts_at', (event.target as HTMLInputElement).value)"
+          />
+          <p class="input-hint">{{ t("keys.startsAtHint") }}</p>
+        </div>
+      </section>
+
+      <section class="space-y-3 lg:col-span-2">
+        <ToggleField
+          :label="t('keys.timeAccess')"
+          :hint="t('keys.timeAccessHint')"
+          :model-value="formData.enable_time_access"
+          align-start
+          @update:model-value="(value) => updateField('enable_time_access', value)"
+        />
+        <TimeAccessPolicyEditor
+          v-if="formData.enable_time_access"
+          :model-value="formData.access_time_policy"
+          :hint="t('keys.timeAccessWindowHint')"
+          class="pt-2"
+          @update:model-value="updateTimeAccessPolicy"
+        />
+      </section>
     </form>
 
     <template #footer>
@@ -372,8 +407,10 @@
 import { useI18n } from "vue-i18n";
 import BaseDialog from "@/components/common/BaseDialog.vue";
 import Select from "@/components/common/Select.vue";
+import TimeAccessPolicyEditor from "@/components/common/TimeAccessPolicyEditor.vue";
 import APIKeyGroupBindingsEditor from "@/components/keys/APIKeyGroupBindingsEditor.vue";
 import type { PublicModelCatalogItem } from "@/api/meta";
+import type { TimeAccessPolicy } from "@/types/api-key-groups";
 import type { ApiKey, Group, UserGroupModelOption } from "@/types";
 import { formatDateTime } from "@/utils/format";
 import type { ApiKeyFormData, ImageCountWeightTier } from "./types";
@@ -435,6 +472,14 @@ function updateImageCountWeight(tier: ImageCountWeightTier, value: string) {
   updateField("image_count_weights", {
     ...props.formData.image_count_weights,
     [tier]: nextValue,
+  });
+}
+
+function updateTimeAccessPolicy(value: TimeAccessPolicy) {
+  emit("update:formData", {
+    ...props.formData,
+    time_access_preset: "custom",
+    access_time_policy: value,
   });
 }
 </script>

@@ -45,10 +45,10 @@ func (h *GatewayHandler) prepareGatewayMessagesRequest(c *gin.Context, req *gate
 	req.body = body
 
 	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceAnthropicMessages, service.PlatformAnthropic, "", body)
-	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+	if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		req.reqLog.Warn("gateway.content_moderation_keyword_check_failed", zap.Error(err))
-	} else if blocked {
-		contentModerationAnthropicBlockResponse(c)
+	} else if decision != nil {
+		contentModerationAnthropicBlockResponse(c, decision)
 		return false
 	}
 	submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)
@@ -91,7 +91,7 @@ func (h *GatewayHandler) prepareGatewayMessagesRequest(c *gin.Context, req *gate
 
 	req.selectionModel = h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), req.apiKey, "", req.publicRequestModel)
 	if req.selectionModel == "" {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+		h.publicCatalogUnavailableResponse(c, service.PublicCatalogResolutionNoMatch)
 		return false
 	}
 	req.bindingSelectionModel = req.selectionModel
@@ -118,16 +118,16 @@ func (h *GatewayHandler) prepareGatewayMessagesRequest(c *gin.Context, req *gate
 }
 
 func (h *GatewayHandler) resolveGatewayMessagesPublicCatalog(c *gin.Context, req *gatewayMessagesRequest) bool {
-	entry, matched, active, err := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), req.apiKey, "", req.publicRequestModel)
+	entry, status, err := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(c.Request.Context(), req.apiKey, "", req.publicRequestModel)
 	if err != nil {
 		req.reqLog.Warn("gateway.public_catalog_entry_resolve_failed", zap.Error(err))
 		return true
 	}
-	if active && !matched {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+	if status == service.PublicCatalogResolutionNoMatch || status == service.PublicCatalogResolutionTimeWindowDenied {
+		h.publicCatalogUnavailableResponse(c, status)
 		return false
 	}
-	if matched {
+	if status == service.PublicCatalogResolutionMatched {
 		req.publicCatalogEntry = entry
 		ctx := service.ApplyPublicCatalogEntryToParsedRequest(c.Request.Context(), req.parsedReq, entry)
 		c.Request = c.Request.WithContext(ctx)

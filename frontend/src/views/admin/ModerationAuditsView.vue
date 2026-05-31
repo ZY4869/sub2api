@@ -152,6 +152,13 @@
                       {{ t('admin.moderation.status.dedupe') }}
                     </span>
                     <span
+                      v-for="category in audit.categories || []"
+                      :key="category"
+                      class="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+                    >
+                      {{ category }}
+                    </span>
+                    <span
                       v-if="audit.error_reason"
                       class="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-dark-800 dark:text-gray-300"
                     >
@@ -217,6 +224,19 @@
           <div>
             <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.moderation.detail.errorReason') }}</div>
             <div class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ selectedAudit.error_reason || '-' }}</div>
+          </div>
+          <div class="md:col-span-2">
+            <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.moderation.detail.categories') }}</div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <span
+                v-for="category in selectedAudit.categories || []"
+                :key="category"
+                class="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+              >
+                {{ category }}
+              </span>
+              <span v-if="!selectedAudit.categories?.length" class="text-sm text-gray-800 dark:text-gray-100">-</span>
+            </div>
           </div>
         </div>
       </div>

@@ -24,7 +24,6 @@ type ModelCatalogService struct {
 	usageHealthRepo       publicModelCatalogTrafficHealthRepository
 	apiKeyRepo            APIKeyRepository
 	userPlatformQuotas    *UserPlatformQuotaService
-	docsService           *APIDocsService
 	publicCatalogCacheMu  sync.RWMutex
 	publicCatalogCache    *PublicModelCatalogSnapshot
 	publicCatalogBuiltAt  time.Time
@@ -79,10 +78,6 @@ func (s *ModelCatalogService) SetCapacityDiagnosticsDependencies(apiKeyRepo APIK
 	}
 	s.apiKeyRepo = apiKeyRepo
 	s.userPlatformQuotas = quotaService
-}
-
-func (s *ModelCatalogService) SetDocsService(docsService *APIDocsService) {
-	s.docsService = docsService
 }
 
 func (s *ModelCatalogService) ListModels(ctx context.Context, filter ModelCatalogListFilter) ([]ModelCatalogItem, int64, error) {

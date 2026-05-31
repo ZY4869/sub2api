@@ -50,6 +50,7 @@ func TestEvaluateContentModerationCategoryThresholds(t *testing.T) {
 	)
 	require.True(t, hit)
 	require.Equal(t, "moderation_threshold:violence", reason)
+	require.Equal(t, []string{"moderation_threshold:violence"}, moderationCategoriesForReason(reason))
 	snapshot := protocolruntime.Snapshot()
 	require.Equal(t, int64(1), snapshot.ContentModerationThresholdHitTotal)
 	require.Equal(t, int64(1), snapshot.ContentModerationThresholdHitByCategory["violence"])

@@ -421,6 +421,76 @@ func (_c *UsageLogCreate) SetNillableAccountRateMultiplier(v *float64) *UsageLog
 	return _c
 }
 
+// SetDiscountApplied sets the "discount_applied" field.
+func (_c *UsageLogCreate) SetDiscountApplied(v bool) *UsageLogCreate {
+	_c.mutation.SetDiscountApplied(v)
+	return _c
+}
+
+// SetNillableDiscountApplied sets the "discount_applied" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableDiscountApplied(v *bool) *UsageLogCreate {
+	if v != nil {
+		_c.SetDiscountApplied(*v)
+	}
+	return _c
+}
+
+// SetDiscountPercent sets the "discount_percent" field.
+func (_c *UsageLogCreate) SetDiscountPercent(v float64) *UsageLogCreate {
+	_c.mutation.SetDiscountPercent(v)
+	return _c
+}
+
+// SetNillableDiscountPercent sets the "discount_percent" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableDiscountPercent(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetDiscountPercent(*v)
+	}
+	return _c
+}
+
+// SetDiscountWindowID sets the "discount_window_id" field.
+func (_c *UsageLogCreate) SetDiscountWindowID(v string) *UsageLogCreate {
+	_c.mutation.SetDiscountWindowID(v)
+	return _c
+}
+
+// SetNillableDiscountWindowID sets the "discount_window_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableDiscountWindowID(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetDiscountWindowID(*v)
+	}
+	return _c
+}
+
+// SetDiscountWindowType sets the "discount_window_type" field.
+func (_c *UsageLogCreate) SetDiscountWindowType(v string) *UsageLogCreate {
+	_c.mutation.SetDiscountWindowType(v)
+	return _c
+}
+
+// SetNillableDiscountWindowType sets the "discount_window_type" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableDiscountWindowType(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetDiscountWindowType(*v)
+	}
+	return _c
+}
+
+// SetDiscountCompletedAt sets the "discount_completed_at" field.
+func (_c *UsageLogCreate) SetDiscountCompletedAt(v time.Time) *UsageLogCreate {
+	_c.mutation.SetDiscountCompletedAt(v)
+	return _c
+}
+
+// SetNillableDiscountCompletedAt sets the "discount_completed_at" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableDiscountCompletedAt(v *time.Time) *UsageLogCreate {
+	if v != nil {
+		_c.SetDiscountCompletedAt(*v)
+	}
+	return _c
+}
+
 // SetBillingType sets the "billing_type" field.
 func (_c *UsageLogCreate) SetBillingType(v int8) *UsageLogCreate {
 	_c.mutation.SetBillingType(v)
@@ -689,6 +759,10 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultRateMultiplier
 		_c.mutation.SetRateMultiplier(v)
 	}
+	if _, ok := _c.mutation.DiscountApplied(); !ok {
+		v := usagelog.DefaultDiscountApplied
+		_c.mutation.SetDiscountApplied(v)
+	}
 	if _, ok := _c.mutation.BillingType(); !ok {
 		v := usagelog.DefaultBillingType
 		_c.mutation.SetBillingType(v)
@@ -813,6 +887,19 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "UsageLog.rate_multiplier"`)}
+	}
+	if _, ok := _c.mutation.DiscountApplied(); !ok {
+		return &ValidationError{Name: "discount_applied", err: errors.New(`ent: missing required field "UsageLog.discount_applied"`)}
+	}
+	if v, ok := _c.mutation.DiscountWindowID(); ok {
+		if err := usagelog.DiscountWindowIDValidator(v); err != nil {
+			return &ValidationError{Name: "discount_window_id", err: fmt.Errorf(`ent: validator failed for field "UsageLog.discount_window_id": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.DiscountWindowType(); ok {
+		if err := usagelog.DiscountWindowTypeValidator(v); err != nil {
+			return &ValidationError{Name: "discount_window_type", err: fmt.Errorf(`ent: validator failed for field "UsageLog.discount_window_type": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.BillingType(); !ok {
 		return &ValidationError{Name: "billing_type", err: errors.New(`ent: missing required field "UsageLog.billing_type"`)}
@@ -983,6 +1070,26 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AccountRateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64, value)
 		_node.AccountRateMultiplier = &value
+	}
+	if value, ok := _c.mutation.DiscountApplied(); ok {
+		_spec.SetField(usagelog.FieldDiscountApplied, field.TypeBool, value)
+		_node.DiscountApplied = value
+	}
+	if value, ok := _c.mutation.DiscountPercent(); ok {
+		_spec.SetField(usagelog.FieldDiscountPercent, field.TypeFloat64, value)
+		_node.DiscountPercent = &value
+	}
+	if value, ok := _c.mutation.DiscountWindowID(); ok {
+		_spec.SetField(usagelog.FieldDiscountWindowID, field.TypeString, value)
+		_node.DiscountWindowID = &value
+	}
+	if value, ok := _c.mutation.DiscountWindowType(); ok {
+		_spec.SetField(usagelog.FieldDiscountWindowType, field.TypeString, value)
+		_node.DiscountWindowType = &value
+	}
+	if value, ok := _c.mutation.DiscountCompletedAt(); ok {
+		_spec.SetField(usagelog.FieldDiscountCompletedAt, field.TypeTime, value)
+		_node.DiscountCompletedAt = &value
 	}
 	if value, ok := _c.mutation.BillingType(); ok {
 		_spec.SetField(usagelog.FieldBillingType, field.TypeInt8, value)
@@ -1686,6 +1793,96 @@ func (u *UsageLogUpsert) AddAccountRateMultiplier(v float64) *UsageLogUpsert {
 // ClearAccountRateMultiplier clears the value of the "account_rate_multiplier" field.
 func (u *UsageLogUpsert) ClearAccountRateMultiplier() *UsageLogUpsert {
 	u.SetNull(usagelog.FieldAccountRateMultiplier)
+	return u
+}
+
+// SetDiscountApplied sets the "discount_applied" field.
+func (u *UsageLogUpsert) SetDiscountApplied(v bool) *UsageLogUpsert {
+	u.Set(usagelog.FieldDiscountApplied, v)
+	return u
+}
+
+// UpdateDiscountApplied sets the "discount_applied" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateDiscountApplied() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldDiscountApplied)
+	return u
+}
+
+// SetDiscountPercent sets the "discount_percent" field.
+func (u *UsageLogUpsert) SetDiscountPercent(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldDiscountPercent, v)
+	return u
+}
+
+// UpdateDiscountPercent sets the "discount_percent" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateDiscountPercent() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldDiscountPercent)
+	return u
+}
+
+// AddDiscountPercent adds v to the "discount_percent" field.
+func (u *UsageLogUpsert) AddDiscountPercent(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldDiscountPercent, v)
+	return u
+}
+
+// ClearDiscountPercent clears the value of the "discount_percent" field.
+func (u *UsageLogUpsert) ClearDiscountPercent() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldDiscountPercent)
+	return u
+}
+
+// SetDiscountWindowID sets the "discount_window_id" field.
+func (u *UsageLogUpsert) SetDiscountWindowID(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldDiscountWindowID, v)
+	return u
+}
+
+// UpdateDiscountWindowID sets the "discount_window_id" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateDiscountWindowID() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldDiscountWindowID)
+	return u
+}
+
+// ClearDiscountWindowID clears the value of the "discount_window_id" field.
+func (u *UsageLogUpsert) ClearDiscountWindowID() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldDiscountWindowID)
+	return u
+}
+
+// SetDiscountWindowType sets the "discount_window_type" field.
+func (u *UsageLogUpsert) SetDiscountWindowType(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldDiscountWindowType, v)
+	return u
+}
+
+// UpdateDiscountWindowType sets the "discount_window_type" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateDiscountWindowType() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldDiscountWindowType)
+	return u
+}
+
+// ClearDiscountWindowType clears the value of the "discount_window_type" field.
+func (u *UsageLogUpsert) ClearDiscountWindowType() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldDiscountWindowType)
+	return u
+}
+
+// SetDiscountCompletedAt sets the "discount_completed_at" field.
+func (u *UsageLogUpsert) SetDiscountCompletedAt(v time.Time) *UsageLogUpsert {
+	u.Set(usagelog.FieldDiscountCompletedAt, v)
+	return u
+}
+
+// UpdateDiscountCompletedAt sets the "discount_completed_at" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateDiscountCompletedAt() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldDiscountCompletedAt)
+	return u
+}
+
+// ClearDiscountCompletedAt clears the value of the "discount_completed_at" field.
+func (u *UsageLogUpsert) ClearDiscountCompletedAt() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldDiscountCompletedAt)
 	return u
 }
 
@@ -2509,6 +2706,111 @@ func (u *UsageLogUpsertOne) UpdateAccountRateMultiplier() *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) ClearAccountRateMultiplier() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearAccountRateMultiplier()
+	})
+}
+
+// SetDiscountApplied sets the "discount_applied" field.
+func (u *UsageLogUpsertOne) SetDiscountApplied(v bool) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountApplied(v)
+	})
+}
+
+// UpdateDiscountApplied sets the "discount_applied" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateDiscountApplied() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountApplied()
+	})
+}
+
+// SetDiscountPercent sets the "discount_percent" field.
+func (u *UsageLogUpsertOne) SetDiscountPercent(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountPercent(v)
+	})
+}
+
+// AddDiscountPercent adds v to the "discount_percent" field.
+func (u *UsageLogUpsertOne) AddDiscountPercent(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddDiscountPercent(v)
+	})
+}
+
+// UpdateDiscountPercent sets the "discount_percent" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateDiscountPercent() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountPercent()
+	})
+}
+
+// ClearDiscountPercent clears the value of the "discount_percent" field.
+func (u *UsageLogUpsertOne) ClearDiscountPercent() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearDiscountPercent()
+	})
+}
+
+// SetDiscountWindowID sets the "discount_window_id" field.
+func (u *UsageLogUpsertOne) SetDiscountWindowID(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountWindowID(v)
+	})
+}
+
+// UpdateDiscountWindowID sets the "discount_window_id" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateDiscountWindowID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountWindowID()
+	})
+}
+
+// ClearDiscountWindowID clears the value of the "discount_window_id" field.
+func (u *UsageLogUpsertOne) ClearDiscountWindowID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearDiscountWindowID()
+	})
+}
+
+// SetDiscountWindowType sets the "discount_window_type" field.
+func (u *UsageLogUpsertOne) SetDiscountWindowType(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountWindowType(v)
+	})
+}
+
+// UpdateDiscountWindowType sets the "discount_window_type" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateDiscountWindowType() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountWindowType()
+	})
+}
+
+// ClearDiscountWindowType clears the value of the "discount_window_type" field.
+func (u *UsageLogUpsertOne) ClearDiscountWindowType() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearDiscountWindowType()
+	})
+}
+
+// SetDiscountCompletedAt sets the "discount_completed_at" field.
+func (u *UsageLogUpsertOne) SetDiscountCompletedAt(v time.Time) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountCompletedAt(v)
+	})
+}
+
+// UpdateDiscountCompletedAt sets the "discount_completed_at" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateDiscountCompletedAt() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountCompletedAt()
+	})
+}
+
+// ClearDiscountCompletedAt clears the value of the "discount_completed_at" field.
+func (u *UsageLogUpsertOne) ClearDiscountCompletedAt() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearDiscountCompletedAt()
 	})
 }
 
@@ -3525,6 +3827,111 @@ func (u *UsageLogUpsertBulk) UpdateAccountRateMultiplier() *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) ClearAccountRateMultiplier() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearAccountRateMultiplier()
+	})
+}
+
+// SetDiscountApplied sets the "discount_applied" field.
+func (u *UsageLogUpsertBulk) SetDiscountApplied(v bool) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountApplied(v)
+	})
+}
+
+// UpdateDiscountApplied sets the "discount_applied" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateDiscountApplied() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountApplied()
+	})
+}
+
+// SetDiscountPercent sets the "discount_percent" field.
+func (u *UsageLogUpsertBulk) SetDiscountPercent(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountPercent(v)
+	})
+}
+
+// AddDiscountPercent adds v to the "discount_percent" field.
+func (u *UsageLogUpsertBulk) AddDiscountPercent(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddDiscountPercent(v)
+	})
+}
+
+// UpdateDiscountPercent sets the "discount_percent" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateDiscountPercent() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountPercent()
+	})
+}
+
+// ClearDiscountPercent clears the value of the "discount_percent" field.
+func (u *UsageLogUpsertBulk) ClearDiscountPercent() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearDiscountPercent()
+	})
+}
+
+// SetDiscountWindowID sets the "discount_window_id" field.
+func (u *UsageLogUpsertBulk) SetDiscountWindowID(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountWindowID(v)
+	})
+}
+
+// UpdateDiscountWindowID sets the "discount_window_id" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateDiscountWindowID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountWindowID()
+	})
+}
+
+// ClearDiscountWindowID clears the value of the "discount_window_id" field.
+func (u *UsageLogUpsertBulk) ClearDiscountWindowID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearDiscountWindowID()
+	})
+}
+
+// SetDiscountWindowType sets the "discount_window_type" field.
+func (u *UsageLogUpsertBulk) SetDiscountWindowType(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountWindowType(v)
+	})
+}
+
+// UpdateDiscountWindowType sets the "discount_window_type" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateDiscountWindowType() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountWindowType()
+	})
+}
+
+// ClearDiscountWindowType clears the value of the "discount_window_type" field.
+func (u *UsageLogUpsertBulk) ClearDiscountWindowType() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearDiscountWindowType()
+	})
+}
+
+// SetDiscountCompletedAt sets the "discount_completed_at" field.
+func (u *UsageLogUpsertBulk) SetDiscountCompletedAt(v time.Time) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetDiscountCompletedAt(v)
+	})
+}
+
+// UpdateDiscountCompletedAt sets the "discount_completed_at" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateDiscountCompletedAt() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateDiscountCompletedAt()
+	})
+}
+
+// ClearDiscountCompletedAt clears the value of the "discount_completed_at" field.
+func (u *UsageLogUpsertBulk) ClearDiscountCompletedAt() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearDiscountCompletedAt()
 	})
 }
 

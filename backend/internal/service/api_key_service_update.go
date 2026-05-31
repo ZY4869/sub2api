@@ -38,6 +38,13 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 			return nil, fmt.Errorf("%w: %v", ErrInvalidIPPattern, invalid)
 		}
 	}
+	if req.AccessTimePolicy != nil {
+		normalized, normalizeErr := NormalizeTimeAccessPolicy(req.AccessTimePolicy)
+		if normalizeErr != nil {
+			return nil, timeAccessPolicyInputError(normalizeErr)
+		}
+		req.AccessTimePolicy = normalized
+	}
 
 	var opCtx context.Context
 	var txStarter apiKeyGroupMutationTxStarter
@@ -51,6 +58,9 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	defer rollback()
 
 	resetRateLimit := s.applyAPIKeyUpdateFields(opCtx, apiKey, req)
+	if err := ValidateTimeAccessSubset(apiKey.AccessTimePolicy, user.APIKeyAccessTimePolicy); err != nil {
+		return nil, timeAccessPolicyInputError(err)
+	}
 	pendingGroupBindings, shouldSetGroupBindings, err := s.prepareAPIKeyUpdateGroupBindings(opCtx, apiKey, user, requestedGroups)
 	if err != nil {
 		return nil, err

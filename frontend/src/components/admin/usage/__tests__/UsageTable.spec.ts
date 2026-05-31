@@ -36,7 +36,10 @@ const messages: Record<string, string> = {
   'usage.millionContextEffective': '1M Effective',
   'usage.millionContextSource': '1M Source',
   'usage.millionContextBetaToken': '1M Beta Token',
-  'usage.nativeContext': 'Native Context',
+  'usage.modelSuccessRateStatuses.healthy': 'Healthy {rate}',
+  'usage.modelSuccessRateStatuses.warning': 'Warning {rate}',
+  'usage.modelSuccessRateStatuses.error': 'Error {rate}',
+  'usage.modelSuccessRateStatuses.unknown': 'Unknown',
   'usage.stream': 'Stream',
   'usage.operationTypeAccountTest': 'Account Test',
   'usage.operationTypeBatchTest': 'Batch Test',
@@ -117,7 +120,7 @@ const DataTableStub = {
       <span data-testid="row-key-prop">{{ rowKey }}</span>
       <div v-for="(row, index) in data" :key="(row && row[rowKey]) || row.request_id || index">
         <slot name="cell-model" :row="row" />
-        <slot name="cell-native_context" :row="row" />
+        <slot name="cell-success_rate" :row="row" />
         <slot name="cell-status" :row="row" />
         <slot name="cell-reasoning_effort" :row="row" />
         <slot name="cell-request_protocol" :row="row" />
@@ -142,7 +145,6 @@ function mountUsageTable(
       loading: false,
       columns: [],
       usageModelDisplayMode: 'model_only',
-      usageContextBadgeDisplayMode: 'request_only',
       ...options.props,
     },
     global: {
@@ -153,11 +155,6 @@ function mountUsageTable(
         AccountErrorTooltipButton: false,
         ModelIcon: true,
         Teleport: true,
-        UsageContextBadge: {
-          props: ['badge'],
-          template:
-            '<span v-if="badge" data-test="usage-context-badge">{{ badge.labelKey || badge.label }}</span>',
-        },
         ...options.stubs,
       },
     },
@@ -382,13 +379,12 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('Account Test')
   })
 
-  it('renders request, native, and combined context badges with the expected order', () => {
+  it('renders model success rate through the dedicated success-rate cell', () => {
     const row = {
       id: 7,
-      request_id: 'req-admin-context-badges',
-      model: 'deepseek-v4-pro',
-      million_context_requested: true,
-      million_context_effective: false,
+      request_id: 'req-admin-success-rate',
+      model_success_rate_7d: 0.985,
+      model_success_status: 'healthy',
       actual_cost: 0,
       total_cost: 0,
       account_rate_multiplier: 1,
@@ -401,47 +397,18 @@ describe('admin UsageTable tooltip', () => {
       output_tokens: 0,
     }
 
-    const requestOnlyWrapper = mountUsageTable([row], {
-      props: {
-        usageContextBadgeDisplayMode: 'request_only',
-      },
-    })
-    expect(
-      requestOnlyWrapper
-        .findAll('[data-test="usage-context-badge"]')
-        .map((badge) => badge.text()),
-    ).toEqual(['usage.contextBadgeRequested1M'])
+    const wrapper = mountUsageTable([row])
 
-    const nativeOnlyWrapper = mountUsageTable([row], {
-      props: {
-        usageContextBadgeDisplayMode: 'native_only',
-      },
-    })
-    expect(
-      nativeOnlyWrapper
-        .findAll('[data-test="usage-context-badge"]')
-        .map((badge) => badge.text()),
-    ).toEqual(['1M'])
-
-    const bothWrapper = mountUsageTable([row], {
-      props: {
-        usageContextBadgeDisplayMode: 'both',
-      },
-    })
-    expect(
-      bothWrapper
-        .findAll('[data-test="usage-context-badge"]')
-        .map((badge) => badge.text()),
-    ).toEqual(['usage.contextBadgeRequested1M', '1M'])
+    expect(wrapper.text()).toContain('98.5%')
   })
 
-  it('renders native context through the dedicated context badge cell instead of the model cell', () => {
+  it('keeps the model cell separate from the success-rate column', () => {
     const row = {
       id: 10,
-      request_id: 'req-admin-native-context-column',
+      request_id: 'req-admin-success-rate-column',
       model: 'deepseek-v4-pro',
-      million_context_requested: true,
-      million_context_effective: false,
+      model_success_rate_7d: 0.91,
+      model_success_status: 'warning',
       actual_cost: 0,
       total_cost: 0,
       account_rate_multiplier: 1,
@@ -464,61 +431,6 @@ describe('admin UsageTable tooltip', () => {
     })
 
     expect(wrapper.get('[data-test="usage-model-cell"]').text()).toBe('deepseek-v4-pro|model_only')
-    expect(wrapper.get('[data-test="usage-context-badges-cell"]').exists()).toBe(true)
-    expect(
-      wrapper
-        .findAll('[data-test="usage-context-badge"]')
-        .map((badge) => badge.text()),
-    ).toEqual(['usage.contextBadgeRequested1M'])
-  })
-
-  it('keeps showing the existing badge in both mode when only one side is available', () => {
-    const nativeOnlyRow = {
-      id: 8,
-      request_id: 'req-admin-native-badge-only',
-      model: 'doubao-pro-256k',
-      million_context_requested: false,
-      million_context_effective: false,
-      actual_cost: 0,
-      total_cost: 0,
-      account_rate_multiplier: 1,
-      rate_multiplier: 1,
-      input_cost: 0,
-      output_cost: 0,
-      cache_creation_cost: 0,
-      cache_read_cost: 0,
-      input_tokens: 0,
-      output_tokens: 0,
-    }
-    const requestOnlyRow = {
-      ...nativeOnlyRow,
-      id: 9,
-      request_id: 'req-admin-request-badge-only',
-      model: 'unknown-model',
-      million_context_requested: true,
-      million_context_effective: false,
-    }
-
-    const nativeOnlyWrapper = mountUsageTable([nativeOnlyRow], {
-      props: {
-        usageContextBadgeDisplayMode: 'both',
-      },
-    })
-    expect(
-      nativeOnlyWrapper
-        .findAll('[data-test="usage-context-badge"]')
-        .map((badge) => badge.text()),
-    ).toEqual(['256K'])
-
-    const requestOnlyWrapper = mountUsageTable([requestOnlyRow], {
-      props: {
-        usageContextBadgeDisplayMode: 'both',
-      },
-    })
-    expect(
-      requestOnlyWrapper
-        .findAll('[data-test="usage-context-badge"]')
-        .map((badge) => badge.text()),
-    ).toEqual(['usage.contextBadgeRequested1M'])
+    expect(wrapper.text()).toContain('91.0%')
   })
 })

@@ -7,7 +7,6 @@ export default {
     routeTitles: {
       home: '首页',
       models: '模型库',
-      apiDocs: 'API 文档',
       oauthCallback: '授权回调',
       linuxDoOAuthCallback: 'LinuxDo 授权回调',
       notFound: '页面不存在',
@@ -18,37 +17,7 @@ export default {
       copy: '复制',
     },
     apiDocs: {
-      eyebrow: '协议基线',
-      title: 'API 文档',
-      description: '以标准 Markdown 展示当前网关的请求契约、兼容范围和接入规则，方便人工与 AI 协同阅读。',
-      protocolsTitle: '支持协议',
-      pageTocTitle: '本页内容',
-      articleEyebrow: '标准 Markdown',
-      articleTitle: '当前生效文档',
-      articleDescription: '这里展示的是登录后文档接口返回的当前生效 Markdown 原文。',
-      tocTitle: '目录',
-      copy: '一键复制 Markdown',
       copyCode: '复制代码',
-      copySuccess: 'Markdown 已复制',
-      loading: '正在加载 API 文档...',
-      loadFailed: '加载 API 文档失败',
-      summary: {
-        protocols: {
-          label: '协议页',
-          value: '9 个协议子页',
-          description: '按通用接入、OpenAI 原生、OpenAI 兼容、Claude、Gemini、Grok、Antigravity、Vertex / Batch、百度智能文档分页阅读。',
-        },
-        auth: {
-          label: '认证',
-          value: 'Bearer + Google 头',
-          description: '明确不同客户端应使用的认证优先级、废弃参数和接入建议。',
-        },
-        languages: {
-          label: '示例语言',
-          value: '8 种代码标签',
-          description: '每组示例统一提供 Python、JavaScript、Go、Java、C#、PHP、Shell 与 REST 标签。',
-        },
-      },
     },
     modelCatalog: {
       eyebrow: '公开模型库',
@@ -72,6 +41,7 @@ export default {
       copySuccess: '已复制模型 ID：{model}',
       copyFailed: '复制模型 ID 失败',
       detailButton: '打开模型详情',
+      discountBadge: '限时减 {percent}%',
       card: {
         detail: '参数详情',
         copyModelId: '点击复制模型 ID',

@@ -314,6 +314,18 @@ func (_u *UserUpdate) SetNillableAPIKeyModelBindingMode(v *string) *UserUpdate {
 	return _u
 }
 
+// SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
+func (_u *UserUpdate) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserUpdate {
+	_u.mutation.SetAPIKeyAccessTimePolicy(v)
+	return _u
+}
+
+// ClearAPIKeyAccessTimePolicy clears the value of the "api_key_access_time_policy" field.
+func (_u *UserUpdate) ClearAPIKeyAccessTimePolicy() *UserUpdate {
+	_u.mutation.ClearAPIKeyAccessTimePolicy()
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdate) SetTotpSecretEncrypted(v string) *UserUpdate {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -871,6 +883,12 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.APIKeyModelBindingMode(); ok {
 		_spec.SetField(user.FieldAPIKeyModelBindingMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.APIKeyAccessTimePolicy(); ok {
+		_spec.SetField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON, value)
+	}
+	if _u.mutation.APIKeyAccessTimePolicyCleared() {
+		_spec.ClearField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
@@ -1602,6 +1620,18 @@ func (_u *UserUpdateOne) SetNillableAPIKeyModelBindingMode(v *string) *UserUpdat
 	return _u
 }
 
+// SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
+func (_u *UserUpdateOne) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserUpdateOne {
+	_u.mutation.SetAPIKeyAccessTimePolicy(v)
+	return _u
+}
+
+// ClearAPIKeyAccessTimePolicy clears the value of the "api_key_access_time_policy" field.
+func (_u *UserUpdateOne) ClearAPIKeyAccessTimePolicy() *UserUpdateOne {
+	_u.mutation.ClearAPIKeyAccessTimePolicy()
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdateOne) SetTotpSecretEncrypted(v string) *UserUpdateOne {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -2189,6 +2219,12 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.APIKeyModelBindingMode(); ok {
 		_spec.SetField(user.FieldAPIKeyModelBindingMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.APIKeyAccessTimePolicy(); ok {
+		_spec.SetField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON, value)
+	}
+	if _u.mutation.APIKeyAccessTimePolicyCleared() {
+		_spec.ClearField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)

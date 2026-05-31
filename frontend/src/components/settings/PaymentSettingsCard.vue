@@ -117,6 +117,48 @@
         </label>
       </div>
 
+      <div class="rounded-lg border border-gray-100 p-4 dark:border-dark-700">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label class="font-medium text-gray-900 dark:text-white">
+              {{ t('admin.settings.purchase.currencyConversionEnabled') }}
+            </label>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.purchase.currencyConversionHint') }}
+            </p>
+          </div>
+          <Toggle v-model="currencyConversionEnabled" />
+        </div>
+        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label class="space-y-2">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t('admin.settings.purchase.cnyToUsdRate') }}
+            </span>
+            <input
+              v-model.number="cnyToUsdRate"
+              type="number"
+              min="0.000001"
+              step="0.000001"
+              class="input font-mono text-sm"
+              :disabled="!currencyConversionEnabled"
+            />
+          </label>
+          <label class="space-y-2">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t('admin.settings.purchase.usdToCnyRate') }}
+            </span>
+            <input
+              v-model.number="usdToCnyRate"
+              type="number"
+              min="0.000001"
+              step="0.000001"
+              class="input font-mono text-sm"
+              :disabled="!currencyConversionEnabled"
+            />
+          </label>
+        </div>
+      </div>
+
       <div>
         <div class="mb-3 flex items-center justify-between gap-3">
           <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -248,6 +290,9 @@ const defaultCurrency = defineModel<string>('defaultCurrency', { required: true 
 const minTopupAmount = defineModel<number>('minTopupAmount', { required: true })
 const maxTopupAmount = defineModel<number>('maxTopupAmount', { required: true })
 const subscriptionPlans = defineModel<PaymentSubscriptionPlan[]>('subscriptionPlans', { required: true })
+const currencyConversionEnabled = defineModel<boolean>('currencyConversionEnabled', { required: true })
+const cnyToUsdRate = defineModel<number>('cnyToUsdRate', { required: true })
+const usdToCnyRate = defineModel<number>('usdToCnyRate', { required: true })
 const antigravityUserAgentVersion = defineModel<string>('antigravityUserAgentVersion', { required: true })
 const codexOauthUserAgentMode = defineModel<string>('codexOauthUserAgentMode', { required: true })
 const codexOauthUserAgentOverride = defineModel<string>('codexOauthUserAgentOverride', { required: true })

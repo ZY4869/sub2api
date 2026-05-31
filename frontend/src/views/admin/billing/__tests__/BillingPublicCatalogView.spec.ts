@@ -89,6 +89,10 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.card.statuses.available': '可用',
   'admin.billing.publicCatalog.card.statuses.unavailable': '不可用',
   'admin.billing.publicCatalog.card.statuses.pending': '待验证',
+  'admin.billing.publicCatalog.card.scheduleStatuses.scheduled': '预启用',
+  'admin.billing.publicCatalog.card.scheduleStatuses.expired': '已过期',
+  'admin.billing.publicCatalog.card.scheduleStatuses.outOfWindow': '窗口外',
+  'admin.billing.publicCatalog.card.scheduleStatuses.invalid': '时间策略异常',
   'admin.billing.publicCatalog.card.lifecycle.stable': '高稳定',
   'admin.billing.publicCatalog.card.lifecycle.beta': 'Beta',
   'admin.billing.publicCatalog.card.lifecycle.deprecated': '即将下线',
@@ -96,6 +100,11 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.dialog.publicModelId': '公开模型 ID',
   'admin.billing.publicCatalog.dialog.sourceAlias': '公开来源别名',
   'admin.billing.publicCatalog.dialog.pricingTitle': '定价设置',
+  'admin.billing.publicCatalog.dialog.scheduleTitle': '预启用与限时调用',
+  'admin.billing.publicCatalog.dialog.availableFrom': '预启用时间',
+  'admin.billing.publicCatalog.dialog.availableUntil': '下架时间',
+  'admin.billing.publicCatalog.dialog.timeAccess': '限制调用时间段',
+  'admin.billing.publicCatalog.dialog.timeAccessHint': '发布后公开目录和运行时调用都会执行该时间策略。',
   'admin.billing.publicCatalog.dialog.cancel': '取消',
   'admin.billing.publicCatalog.dialog.save': '保存',
   'admin.billing.publicCatalog.price.official': '官方参考价',
@@ -119,6 +128,17 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.price.labels.cache_5m': '缓存写入 5 分钟',
   'admin.billing.publicCatalog.price.labels.cache_1h': '缓存写入 1 小时',
   'admin.billing.publicCatalog.price.labels.search_unit_price': '搜索',
+  'common.timeAccess.start': '开始时间',
+  'common.timeAccess.end': '结束时间',
+  'common.timeAccess.notBefore': '最早启用',
+  'common.timeAccess.notAfter': '最晚可用',
+  'common.timeAccess.dailyAllowedMinutes': '每日窗口上限（分钟）',
+  'common.timeAccess.windowHint': '默认使用站点统一时区 Asia/Singapore；结束时间早于开始时间时表示跨午夜。',
+  'common.timeAccess.presets.daytime': '白天',
+  'common.timeAccess.presets.deep_night': '深夜',
+  'common.timeAccess.presets.eight_hours': '8 小时',
+  'common.timeAccess.presets.twelve_hours': '12 小时',
+  'common.timeAccess.presets.business_days_daytime': '工作日白天',
   'ui.modelCatalog.support.supported': '支持',
   'ui.modelCatalog.support.partial': '部分支持',
   'ui.modelCatalog.support.unsupported': '不支持',
@@ -647,6 +667,35 @@ describe('BillingPublicCatalogView', () => {
           sale_price_display: expect.objectContaining({
             primary: expect.arrayContaining([
               expect.objectContaining({ id: 'input_price', value: 0.000004 }),
+            ]),
+          }),
+        }),
+      ],
+    }))
+  })
+
+  it('saves scheduled availability and time access policy from the dialog', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="edit-entry-acct_a"]').trigger('click')
+    await wrapper.get('[data-testid="catalog-dialog-available-from"]').setValue('2026-06-01T08:00')
+    await wrapper.get('[data-testid="catalog-dialog-time-access-enabled"]').setValue(true)
+    await flushPromises()
+    await wrapper.get('[data-testid="catalog-dialog-save"]').trigger('click')
+    await wrapper.get('[data-testid="billing-public-catalog-save"]').trigger('click')
+    await flushPromises()
+
+    expect(apiMocks.saveBillingPublicCatalogDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+      selected_entries: [
+        expect.objectContaining({
+          entry_id: 'acct_a',
+          available_from: '2026-06-01T00:00:00.000Z',
+          access_time_policy: expect.objectContaining({
+            enabled: true,
+            timezone: 'Asia/Singapore',
+            weekly_windows: expect.arrayContaining([
+              expect.objectContaining({ start: '08:00', end: '20:00' }),
             ]),
           }),
         }),

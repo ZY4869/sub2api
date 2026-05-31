@@ -75,6 +75,8 @@ const (
 	FieldAllowMessagesDispatch = "allow_messages_dispatch"
 	// FieldDefaultMappedModel holds the string denoting the default_mapped_model field in the database.
 	FieldDefaultMappedModel = "default_mapped_model"
+	// FieldVisibleModelPatterns holds the string denoting the visible_model_patterns field in the database.
+	FieldVisibleModelPatterns = "visible_model_patterns"
 	// EdgeAPIKeys holds the string denoting the api_keys edge name in mutations.
 	EdgeAPIKeys = "api_keys"
 	// EdgeRedeemCodes holds the string denoting the redeem_codes edge name in mutations.
@@ -196,6 +198,7 @@ var Columns = []string{
 	FieldSortOrder,
 	FieldAllowMessagesDispatch,
 	FieldDefaultMappedModel,
+	FieldVisibleModelPatterns,
 }
 
 var (
@@ -278,6 +281,8 @@ var (
 	DefaultDefaultMappedModel string
 	// DefaultMappedModelValidator is a validator for the "default_mapped_model" field. It is called by the builders before save.
 	DefaultMappedModelValidator func(string) error
+	// DefaultVisibleModelPatterns holds the default value on creation for the "visible_model_patterns" field.
+	DefaultVisibleModelPatterns []string
 )
 
 // OrderOption defines the ordering options for the Group queries.

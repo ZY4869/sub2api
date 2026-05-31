@@ -2,9 +2,12 @@ import { apiClient } from '../client'
 import type { PaginatedResponse } from '@/types'
 import type {
   PublicModelCatalogItem,
+  PublicModelCatalogDiscountPolicy,
+  PublicModelImageFixedPricing,
   PublicModelCatalogPriceDisplay,
   PublicModelHealthStatus,
 } from '@/api/meta'
+import type { TimeAccessPolicy } from '@/types/api-key-groups'
 
 export type BillingPricingCurrency = 'USD' | 'CNY'
 export type BillingPricingSortBy = 'display_name' | 'provider'
@@ -328,6 +331,11 @@ export interface BillingPublicCatalogEntryDraft {
   base_model?: string
   source_protocol?: string
   sale_price_display?: PublicModelCatalogPriceDisplay
+  discount_policy?: PublicModelCatalogDiscountPolicy | null
+  image_fixed_pricing?: PublicModelImageFixedPricing
+  available_from?: string
+  available_until?: string
+  access_time_policy?: TimeAccessPolicy | null
 }
 
 export interface BillingPublicCatalogAdminEntry extends PublicModelCatalogItem {

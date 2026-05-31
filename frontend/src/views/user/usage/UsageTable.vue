@@ -19,15 +19,8 @@
     />
   </template>
 
-  <template #cell-request_length="{ row }">
-    <UsageRequestLengthCell :row="row" />
-  </template>
-
-  <template #cell-native_context="{ row }">
-    <UsageContextBadgesCell
-      :row="row"
-      :mode="usageContextBadgeDisplayMode"
-    />
+  <template #cell-success_rate="{ row }">
+    <UsageSuccessRateCell :row="row" />
   </template>
 
   <template #cell-status="{ row }">
@@ -351,12 +344,10 @@ import { useI18n } from "vue-i18n";
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import UsageModelCell from "@/components/common/UsageModelCell.vue";
-import UsageContextBadgesCell from "@/components/common/UsageContextBadgesCell.vue";
-import UsageRequestLengthCell from "@/components/common/UsageRequestLengthCell.vue";
+import UsageSuccessRateCell from "@/components/common/UsageSuccessRateCell.vue";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type {
-  UsageContextBadgeDisplayMode,
   UsageLog,
   UsageModelDisplayMode,
 } from "@/types";
@@ -372,7 +363,6 @@ defineProps<{
   usageLogs: UsageLog[];
   loading: boolean;
   usageModelDisplayMode: UsageModelDisplayMode;
-  usageContextBadgeDisplayMode: UsageContextBadgeDisplayMode;
   formatCurrencyBreakdown: (
     values: Record<string, number> | null | undefined,
     fallbackUSD: number | null | undefined,

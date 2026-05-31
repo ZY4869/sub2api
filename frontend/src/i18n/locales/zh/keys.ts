@@ -199,6 +199,22 @@ export default {
     currentExpiration: '当前过期时间',
     expiresAt: '过期时间',
     noExpiration: '永久有效',
+    scheduledActivation: '预定启用',
+    startsAt: '启用时间',
+    startsAtHint: '到达该时间前，此 Key 会被拒绝调用。',
+    timeAccess: '调用时间段',
+    timeAccessHint: '限制此 Key 只能在固定时间窗口内调用，降低 24 小时滥用风险。',
+    timeAccessStart: '开始时间',
+    timeAccessEnd: '结束时间',
+    dailyAllowedMinutes: '每日窗口上限（分钟）',
+    timeAccessWindowHint: '默认使用站点统一时区 Asia/Singapore；结束时间早于开始时间时表示跨午夜。',
+    timeAccessPresets: {
+      daytime: '白天',
+      deep_night: '深夜',
+      eight_hours: '8 小时',
+      twelve_hours: '12 小时',
+      business_days_daytime: '工作日白天'
+    },
     status: {
       active: '活跃',
       inactive: '已停用',

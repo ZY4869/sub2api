@@ -66,7 +66,15 @@
         <div class="overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
           <div class="border-b border-slate-100 p-6 pb-8 dark:border-dark-700">
             <div class="mb-6 flex items-center justify-between">
-              <span class="text-[15px] font-bold text-slate-800 dark:text-white">{{ labels.salePrice }}</span>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[15px] font-bold text-slate-800 dark:text-white">{{ labels.salePrice }}</span>
+                <span
+                  v-if="discountActive"
+                  class="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
+                >
+                  {{ discountLabel }}
+                </span>
+              </div>
               <span v-if="priceUnitSummary" class="rounded bg-slate-50 px-2 py-1 text-xs font-bold uppercase tracking-wider text-slate-400 dark:bg-dark-800">
                 {{ item.currency || 'USD' }} {{ priceUnitSummary }}
               </span>
@@ -77,6 +85,7 @@
                 :key="entry.id"
                 :label="priceEntryLabel(entry.id)"
                 :value="formatCatalogPrice(entry, item.currency)"
+                :original-value="originalPriceValue(entry.id)"
                 :theme="priceTheme(entry)"
                 :testid="`detail-primary-price-${entry.id}`"
               />
@@ -240,6 +249,16 @@ const officialPrices = computed(() => [
   ...(props.item.official_price_display?.secondary || []),
 ].filter((entry) => entry.configured !== false && !entry.supported_unpriced))
 const priceUnitSummary = computed(() => priceDisplayUnitSummary(labelsLookup, props.prices))
+const discountActive = computed(() => !!props.item.discount_status?.active)
+const discountLabel = computed(() => {
+  const percent = props.item.discount_status?.reduction_percent || 0
+  return percent > 0 ? props.labels.discountBadge.replace('{percent}', formatDiscountPercent(percent)) : ''
+})
+const originalPriceEntries = computed(() => {
+  const display = props.item.original_sale_price_display || props.item.original_price_display
+  const entries = [...(display?.primary || []), ...(display?.secondary || [])]
+  return new Map(entries.map((entry) => [entry.id, entry]))
+})
 const healthSourceText = computed(() => healthSourceLabel(labelsLookup, props.health?.health_source))
 const healthReasonText = computed(() => healthReasonLabel(labelsLookup, props.health?.status_reason))
 const publishStatusText = computed(() => publishedStatusLabel((key) => labelsLookup(key), props.item))
@@ -276,6 +295,7 @@ function labelsLookup(key: string): string {
     'ui.modelCatalog.source.snapshot': props.labels.snapshotSource,
     'ui.modelCatalog.source.inferred': props.labels.inferred,
     'ui.modelCatalog.source.unknown': props.labels.unknown,
+    'ui.modelCatalog.discountBadge': props.labels.discountBadge,
   }
   return map[key] || key
 }
@@ -306,5 +326,16 @@ function formatTokenLabel(value: string): string {
     .trim()
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function originalPriceValue(entryID: string): string | undefined {
+  if (!discountActive.value) return undefined
+  const entry = originalPriceEntries.value.get(entryID)
+  if (!entry) return undefined
+  return props.formatCatalogPrice(entry, props.item.currency)
+}
+
+function formatDiscountPercent(value: number): string {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value)
 }
 </script>

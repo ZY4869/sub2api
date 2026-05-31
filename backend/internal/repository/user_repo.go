@@ -71,6 +71,7 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
 		SetAccountVisualPresetOverride(service.NormalizeVisualPresetPreference(userIn.AccountVisualPresetOverride)).
 		SetAPIKeyModelBindingMode(userIn.EffectiveAPIKeyModelBindingMode()).
+		SetAPIKeyAccessTimePolicy(timeAccessPolicyToMap(userIn.APIKeyAccessTimePolicy)).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
@@ -179,6 +180,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
 		SetAccountVisualPresetOverride(service.NormalizeVisualPresetPreference(userIn.AccountVisualPresetOverride)).
 		SetAPIKeyModelBindingMode(userIn.EffectiveAPIKeyModelBindingMode()).
+		SetAPIKeyAccessTimePolicy(timeAccessPolicyToMap(userIn.APIKeyAccessTimePolicy)).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
@@ -731,6 +733,7 @@ func applyUserEntityToService(dst *service.User, src *dbent.User) {
 	dst.VisualPresetPreference = service.NormalizeVisualPresetPreference(src.VisualPresetPreference)
 	dst.AccountVisualPresetOverride = service.NormalizeVisualPresetPreference(src.AccountVisualPresetOverride)
 	dst.APIKeyModelBindingMode = service.NormalizeAPIKeyModelBindingMode(src.APIKeyModelBindingMode)
+	dst.APIKeyAccessTimePolicy = timeAccessPolicyFromMap(src.APIKeyAccessTimePolicy)
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
 }

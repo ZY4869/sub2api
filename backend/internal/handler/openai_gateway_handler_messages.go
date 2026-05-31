@@ -71,10 +71,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	}
 	modelHint := strings.TrimSpace(gjson.GetBytes(body, "model").String())
 	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIMessages, service.PlatformOpenAI, modelHint, body)
-	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+	if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		reqLog.Warn("openai_messages.content_moderation_keyword_check_failed", zap.Error(err))
-	} else if blocked {
-		contentModerationAnthropicBlockResponse(c)
+	} else if decision != nil {
+		contentModerationAnthropicBlockResponse(c, decision)
 		return
 	}
 	submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)
@@ -92,12 +92,12 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	setOpsRequestContext(c, reqModel, reqStream, body)
 	requestPayloadHash := service.HashUsageRequestPayload(body)
 	var publicCatalogEntry *service.PublishedPublicCatalogEntry
-	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), reqModel); resolveErr != nil {
+	if entry, status, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), reqModel); resolveErr != nil {
 		reqLog.Warn("openai_messages.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
-	} else if active && !matched {
-		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+	} else if status == service.PublicCatalogResolutionNoMatch || status == service.PublicCatalogResolutionTimeWindowDenied {
+		h.anthropicPublicCatalogUnavailableResponse(c, status)
 		return
-	} else if matched {
+	} else if status == service.PublicCatalogResolutionMatched {
 		publicCatalogEntry = entry
 		requestedRoutingModel = service.NormalizeOpenAICompatRequestedModel(firstNonEmptyHandlerString(entry.SourceModelID, requestedRoutingModel))
 		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))
@@ -468,6 +468,14 @@ func (h *OpenAIGatewayHandler) anthropicErrorResponse(c *gin.Context, status int
 			"message": message,
 		},
 	})
+}
+
+func (h *OpenAIGatewayHandler) anthropicPublicCatalogUnavailableResponse(c *gin.Context, status service.PublicCatalogResolutionStatus) {
+	if status == service.PublicCatalogResolutionTimeWindowDenied {
+		h.anthropicErrorResponse(c, http.StatusForbidden, "permission_error", service.PublicCatalogModelTimeWindowDeniedMessage)
+		return
+	}
+	h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
 }
 
 // anthropicStreamingAwareError handles errors that may occur during streaming.

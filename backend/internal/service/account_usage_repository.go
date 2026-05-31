@@ -64,6 +64,15 @@ type UsageLogRepository interface {
 	GetDailyStatsAggregated(ctx context.Context, userID int64, startTime, endTime time.Time) ([]map[string]any, error)
 }
 
+type UsageLogModelSuccessRateReader interface {
+	GetModelSuccessRates7d(ctx context.Context, models []string, now time.Time) (map[string]ModelSuccessRateSnapshot, error)
+}
+
+type ModelSuccessRateSnapshot struct {
+	Rate   *float64
+	Status string
+}
+
 type accountWindowStatsBatchReader interface {
 	GetAccountWindowStatsBatch(ctx context.Context, accountIDs []int64, startTime time.Time) (map[int64]*usagestats.AccountStats, error)
 }

@@ -82,6 +82,8 @@ export interface UsageLog {
   image_size: string | null;
   image_output_tokens?: number | null;
   image_output_cost?: number | null;
+  model_success_rate_7d?: number | null;
+  model_success_status?: "healthy" | "warning" | "error" | "unknown" | null;
 
   // User-Agent
   user_agent: string | null;

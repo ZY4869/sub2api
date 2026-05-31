@@ -426,20 +426,23 @@ func (s *GeminiMessagesCompatService) calculateGoogleBatchSettlementCost(ctx con
 		return nil, nil
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
-		Model:                         strings.TrimSpace(requestedModel),
-		Provider:                      PlatformGemini,
-		Layer:                         BillingLayerSale,
-		PublicCatalogEntryID:          publicCatalogEntryIDFromContext(ctx),
-		PublicCatalogPublicModelID:    publicCatalogPublicModelIDFromContext(ctx),
-		PublicCatalogSourceAccountID:  publicCatalogSourceAccountIDFromContext(ctx),
-		PublicCatalogCurrency:         publicCatalogCurrencyFromContext(ctx),
-		PublicCatalogRuntimePriceSpec: publicCatalogRuntimePriceSpecFromContext(ctx),
-		PublicCatalogSalePriceDisplay: publicCatalogSalePriceDisplayFromContext(ctx),
-		InboundEndpoint:               googleBatchSyntheticBillingEndpoint(requestedModel),
-		Tokens:                        tokens,
-		BatchMode:                     BillingBatchModeBatch,
-		ServiceTier:                   BillingServiceTierStandard,
-		RateMultiplier:                account.BillingRateMultiplier(),
+		Model:                          strings.TrimSpace(requestedModel),
+		Provider:                       PlatformGemini,
+		Layer:                          BillingLayerSale,
+		PublicCatalogEntryID:           publicCatalogEntryIDFromContext(ctx),
+		PublicCatalogPublicModelID:     publicCatalogPublicModelIDFromContext(ctx),
+		PublicCatalogSourceAccountID:   publicCatalogSourceAccountIDFromContext(ctx),
+		PublicCatalogCurrency:          publicCatalogCurrencyFromContext(ctx),
+		PublicCatalogRuntimePriceSpec:  publicCatalogRuntimePriceSpecFromContext(ctx),
+		PublicCatalogSalePriceDisplay:  publicCatalogSalePriceDisplayFromContext(ctx),
+		PublicCatalogDiscountPolicy:    publicCatalogDiscountPolicyFromContext(ctx),
+		PublicCatalogImageFixedPricing: publicCatalogImageFixedPricingFromContext(ctx),
+		CompletedAt:                    time.Now(),
+		InboundEndpoint:                googleBatchSyntheticBillingEndpoint(requestedModel),
+		Tokens:                         tokens,
+		BatchMode:                      BillingBatchModeBatch,
+		ServiceTier:                    BillingServiceTierStandard,
+		RateMultiplier:                 account.BillingRateMultiplier(),
 	})
 	if err == nil && runtimeResult != nil && runtimeResult.Cost != nil {
 		if runtimeResult.Classification != nil || len(runtimeResult.MatchedItems) > 0 || runtimeResult.FallbackReason != "" {

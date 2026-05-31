@@ -4,9 +4,11 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -53,6 +55,14 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		}
 		if !apiKey.User.IsActive() {
 			abortWithGoogleError(c, 401, "User account is not active")
+			return
+		}
+		timeAccessStart := time.Now()
+		eval := apiKey.EvaluateTimeAccess(timeAccessStart)
+		protocolruntime.RecordTimePolicyDecision("api_key", eval.Allowed, eval.Reason, time.Since(timeAccessStart).Milliseconds())
+		if !eval.Allowed {
+			logAPIKeyTimeAccessDenied(c, apiKey, eval, timeAccessStart)
+			abortWithGoogleTimeAccessDenied(c, eval)
 			return
 		}
 		if apiKeyHasGroupBindings(apiKey) && !apiKeyHasUsableGroup(apiKey) {
@@ -221,4 +231,17 @@ func abortWithGoogleError(c *gin.Context, status int, message string) {
 		},
 	})
 	c.Abort()
+}
+
+func abortWithGoogleTimeAccessDenied(c *gin.Context, eval service.TimeAccessEvaluation) {
+	switch eval.Reason {
+	case service.TimeAccessDecisionNotBefore:
+		abortWithGoogleError(c, 403, "API key is not active yet")
+	case service.TimeAccessDecisionNotAfter:
+		abortWithGoogleError(c, 403, "API key has expired")
+	case service.TimeAccessDecisionOutsideWindow:
+		abortWithGoogleError(c, 403, "API key is outside its allowed calling window")
+	default:
+		abortWithGoogleError(c, 403, "API key is currently unavailable")
+	}
 }

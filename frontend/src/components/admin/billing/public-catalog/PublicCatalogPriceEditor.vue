@@ -79,13 +79,81 @@
         />
       </div>
     </div>
+
+    <div
+      v-if="editable"
+      class="mt-3 rounded-lg border border-emerald-100 bg-white p-3 dark:border-emerald-500/20 dark:bg-dark-800"
+    >
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div class="text-xs font-semibold text-slate-700 dark:text-slate-200">
+            {{ t('admin.billing.publicCatalog.imageFixed.title') }}
+          </div>
+          <div class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {{ t('admin.billing.publicCatalog.imageFixed.hint') }}
+          </div>
+        </div>
+        <label class="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+          <input
+            type="checkbox"
+            class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            :checked="fixedPricingValue.enabled"
+            :data-testid="`${testidPrefix}-image-fixed-enabled`"
+            @change="updateFixedEnabled(($event.target as HTMLInputElement).checked)"
+          />
+          {{ t('admin.billing.publicCatalog.imageFixed.enabled') }}
+        </label>
+      </div>
+
+      <div v-if="fixedPricingValue.enabled" class="mt-3 space-y-3">
+        <label class="flex items-center justify-between gap-3 text-xs font-medium text-slate-600 dark:text-slate-300">
+          <span>{{ t('admin.billing.publicCatalog.imageFixed.alwaysFixed') }}</span>
+          <input
+            type="checkbox"
+            class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            :checked="fixedPricingValue.always_fixed"
+            :data-testid="`${testidPrefix}-image-fixed-always`"
+            @change="updateFixedAlways(($event.target as HTMLInputElement).checked)"
+          />
+        </label>
+        <div class="grid gap-2 sm:grid-cols-3">
+          <label
+            v-for="resolution in imageResolutions"
+            :key="resolution"
+            class="space-y-1 text-xs font-medium text-slate-600 dark:text-slate-300"
+          >
+            <span>{{ t(`admin.billing.publicCatalog.imageFixed.${resolution}`) }}</span>
+            <input
+              :value="formatFixedPriceInput(fixedPricingValue.prices[resolution])"
+              type="number"
+              min="0"
+              step="0.000001"
+              class="input h-8 font-mono text-xs"
+              :data-testid="`${testidPrefix}-image-fixed-${resolution}`"
+              @input="updateFixedPrice(resolution, ($event.target as HTMLInputElement).value)"
+            />
+          </label>
+        </div>
+        <p
+          v-if="fixedPricingError"
+          class="text-[11px] font-medium text-rose-600 dark:text-rose-300"
+        >
+          {{ fixedPricingError }}
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { PublicModelCatalogPriceDisplay, PublicModelCatalogPriceEntry } from '@/api/meta'
+import type {
+  PublicModelCatalogPriceDisplay,
+  PublicModelCatalogPriceEntry,
+  PublicModelImageFixedPricing,
+  PublicModelImageResolution,
+} from '@/api/meta'
 import { formatCatalogPrice } from '@/utils/publicModelCatalog'
 import { clonePriceDisplay, scalePriceDisplay } from './publicCatalogPricing'
 import PublicCatalogPriceEntries from './PublicCatalogPriceEntries.vue'
@@ -95,12 +163,14 @@ type PriceSection = 'primary' | 'secondary'
 const props = withDefaults(defineProps<{
   official?: PublicModelCatalogPriceDisplay | null
   sale?: PublicModelCatalogPriceDisplay | null
+  imageFixedPricing?: PublicModelImageFixedPricing | null
   currency?: string
   editable?: boolean
   testidPrefix?: string
 }>(), {
   official: null,
   sale: null,
+  imageFixedPricing: null,
   currency: 'USD',
   editable: false,
   testidPrefix: 'public-catalog-price',
@@ -108,10 +178,12 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:sale', value: PublicModelCatalogPriceDisplay): void
+  (e: 'update:imageFixedPricing', value: PublicModelImageFixedPricing): void
 }>()
 
 const { t, te } = useI18n()
 const ratioInput = ref('120')
+const imageResolutions: PublicModelImageResolution[] = ['1K', '2K', '4K']
 
 const officialDisplay = computed(() => clonePriceDisplay(props.official || undefined))
 const saleDisplay = computed(() => {
@@ -128,6 +200,13 @@ const markup = computed(() => saleEntries.value.some((saleEntry) => {
   const officialEntry = officialEntries.value.find((entry) => entry.entry.id === saleEntry.entry.id)
   return officialEntry ? saleEntry.entry.value > officialEntry.entry.value : false
 }))
+const fixedPricingValue = computed(() => normalizeFixedPricing(props.imageFixedPricing))
+const fixedPricingError = computed(() => {
+  if (!fixedPricingValue.value.enabled || !fixedPricingValue.value.always_fixed) return ''
+  return imageResolutions.every((resolution) => Number(fixedPricingValue.value.prices[resolution] || 0) > 0)
+    ? ''
+    : t('admin.billing.publicCatalog.imageFixed.alwaysFixedError')
+})
 
 function updateEntry(section: PriceSection, index: number, raw: string) {
   const value = Number(raw)
@@ -155,6 +234,54 @@ function applyRatio() {
     return
   }
   emit('update:sale', scalePriceDisplay(officialDisplay.value, ratio))
+}
+
+function updateFixedEnabled(enabled: boolean) {
+  emit('update:imageFixedPricing', {
+    ...fixedPricingValue.value,
+    enabled,
+    always_fixed: enabled ? fixedPricingValue.value.always_fixed : false,
+  })
+}
+
+function updateFixedAlways(alwaysFixed: boolean) {
+  emit('update:imageFixedPricing', {
+    ...fixedPricingValue.value,
+    always_fixed: alwaysFixed,
+  })
+}
+
+function updateFixedPrice(resolution: PublicModelImageResolution, raw: string) {
+  const price = Number(raw)
+  emit('update:imageFixedPricing', {
+    ...fixedPricingValue.value,
+    prices: {
+      ...fixedPricingValue.value.prices,
+      [resolution]: Number.isFinite(price) && price > 0 ? price : null,
+    },
+  })
+}
+
+function normalizeFixedPricing(value?: PublicModelImageFixedPricing | null): PublicModelImageFixedPricing {
+  return {
+    enabled: Boolean(value?.enabled),
+    always_fixed: Boolean(value?.always_fixed),
+    prices: {
+      '1K': normalizeFixedPrice(value?.prices?.['1K']),
+      '2K': normalizeFixedPrice(value?.prices?.['2K']),
+      '4K': normalizeFixedPrice(value?.prices?.['4K']),
+    },
+  }
+}
+
+function normalizeFixedPrice(value: number | null | undefined): number | null {
+  const next = Number(value)
+  return Number.isFinite(next) && next > 0 ? next : null
+}
+
+function formatFixedPriceInput(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return ''
+  return String(value)
 }
 
 function flattenPriceDisplay(display: PublicModelCatalogPriceDisplay) {

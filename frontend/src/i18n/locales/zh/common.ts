@@ -78,6 +78,37 @@ export default {
     unknown: '未知',
     tryAgainLater: '请稍后重试',
     minutes: '分钟',
+    timeAccess: {
+      start: '开始时间',
+      end: '结束时间',
+      timezone: '时区',
+      notBefore: '最早启用',
+      notAfter: '最晚可用',
+      dailyAllowedMinutes: '每日窗口上限（分钟）',
+      windowHint: '默认使用站点统一时区 Asia/Singapore；结束时间早于开始时间时表示跨午夜。',
+      policyHint: '留空最早/最晚时间表示不限制日期范围；每日窗口上限只校验配置窗口总时长。',
+      weeklyWindows: '周时间窗',
+      windowTitle: '时间窗 {index}',
+      addWindow: '新增时间窗',
+      removeWindow: '删除时间窗',
+      days: '星期',
+      daysShort: {
+        sun: '日',
+        mon: '一',
+        tue: '二',
+        wed: '三',
+        thu: '四',
+        fri: '五',
+        sat: '六'
+      },
+      presets: {
+        daytime: '白天',
+        deep_night: '深夜',
+        eight_hours: '8 小时',
+        twelve_hours: '12 小时',
+        business_days_daytime: '工作日白天'
+      }
+    },
     time: {
       never: '从未',
       justNow: '刚刚',

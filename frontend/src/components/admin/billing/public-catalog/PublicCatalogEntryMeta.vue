@@ -39,6 +39,15 @@
         <span class="h-1.5 w-1.5 rounded-full" :class="healthDotClass" />
         {{ healthLabel }}
       </span>
+
+      <span
+        v-if="scheduleLabel"
+        class="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none"
+        :class="scheduleClass"
+      >
+        <Icon name="clock" size="xs" />
+        {{ scheduleLabel }}
+      </span>
     </div>
 
     <div class="mt-2 flex flex-wrap items-center gap-1.5">
@@ -128,6 +137,24 @@ const healthDotClass = computed(() => {
   if (props.missing || props.item.availability_state === 'unavailable' || props.item.status === 'error') return 'bg-rose-500'
   if (props.item.status === 'warning' || props.item.stale_state === 'stale') return 'bg-amber-500'
   return 'bg-emerald-500'
+})
+
+const scheduleLabel = computed(() => {
+  if (props.item.schedule_status === 'scheduled') return t('admin.billing.publicCatalog.card.scheduleStatuses.scheduled')
+  if (props.item.schedule_status === 'expired') return t('admin.billing.publicCatalog.card.scheduleStatuses.expired')
+  if (props.item.schedule_status === 'out_of_window') return t('admin.billing.publicCatalog.card.scheduleStatuses.outOfWindow')
+  if (props.item.schedule_status === 'invalid') return t('admin.billing.publicCatalog.card.scheduleStatuses.invalid')
+  return ''
+})
+
+const scheduleClass = computed(() => {
+  if (props.item.schedule_status === 'scheduled') {
+    return 'border-blue-100 bg-blue-50 text-blue-600 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200'
+  }
+  if (props.item.schedule_status === 'expired' || props.item.schedule_status === 'invalid') {
+    return 'border-rose-100 bg-rose-50 text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200'
+  }
+  return 'border-amber-100 bg-amber-50 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200'
 })
 
 const badges = computed(() => [

@@ -33,6 +33,8 @@ export default {
     apiKeyModelBindingModeRequired: "必须选择特定模型",
     apiKeyModelBindingModeGroupAllowed: "允许按分组创建",
     apiKeyModelBindingModeHint: "默认要求普通用户创建或编辑 Key 时从可见模型库选择具体模型。",
+    apiKeyAccessTimePolicy: "API Key 调用时间硬上限",
+    apiKeyAccessTimePolicyHint: "作为该用户所有 Key 的最大时间边界；Key 自己只能设置更窄的调用时间段。",
     generatePassword: "生成随机密码",
     copyPassword: "复制密码",
     creating: "创建中...",

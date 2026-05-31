@@ -61,6 +61,23 @@ func TestBuildContentModerationRecordInput_MapsSubjectAndAPIKey(t *testing.T) {
 	require.Equal(t, int64(99), *record.APIKeyID)
 }
 
+func TestBuildContentModerationRecordInput_UsesBodyModelHint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+
+	record := buildContentModerationRecordInput(
+		c,
+		service.ContentModerationSourceAnthropicMessages,
+		service.PlatformAnthropic,
+		"",
+		[]byte(`{"model":"claude-opus-4-8","messages":[{"role":"user","content":"hello moderation"}]}`),
+	)
+
+	require.NotNil(t, record)
+	require.Equal(t, "claude-opus-4-8", record.Model)
+}
+
 func TestSubmitContentModerationAudit_SkipsEmptyExtractedContent(t *testing.T) {
 	settingsRepo := &socialOAuthSettingRepoStub{values: map[string]string{
 		service.SettingKeyContentModerationEnabled:             "true",

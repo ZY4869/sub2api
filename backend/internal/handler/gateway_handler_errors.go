@@ -119,6 +119,20 @@ func (h *GatewayHandler) checkClaudeCodeVersion(c *gin.Context) bool {
 func (h *GatewayHandler) errorResponse(c *gin.Context, status int, errType, message string) {
 	c.JSON(status, gin.H{"type": "error", "error": gin.H{"type": errType, "message": message}})
 }
+func (h *GatewayHandler) publicCatalogUnavailableResponse(c *gin.Context, status service.PublicCatalogResolutionStatus) {
+	if status == service.PublicCatalogResolutionTimeWindowDenied {
+		c.JSON(http.StatusForbidden, gin.H{
+			"type": "error",
+			"error": gin.H{
+				"type":    "permission_error",
+				"message": service.PublicCatalogModelTimeWindowDeniedMessage,
+				"code":    "MODEL_TIME_WINDOW_DENIED",
+			},
+		})
+		return
+	}
+	h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+}
 func billingErrorDetails(err error) (status int, code, message string) {
 	if errors.Is(err, service.ErrBillingRequestReplayed) || errors.Is(err, service.ErrBillingHoldAlreadyFinished) {
 		msg := pkgerrors.Message(err)

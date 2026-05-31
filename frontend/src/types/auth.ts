@@ -1,4 +1,4 @@
-import type { APIKeyModelBindingMode } from './api-key-groups'
+import type { APIKeyModelBindingMode, TimeAccessPolicy } from './api-key-groups'
 import type { PaymentSubscriptionPlan } from './payments'
 import type {
   UsageContextBadgeDisplayMode,
@@ -15,6 +15,7 @@ export interface User {
   email: string;
   role: "admin" | "user"; // User role for authorization
   api_key_model_binding_mode?: APIKeyModelBindingMode;
+  api_key_access_time_policy?: TimeAccessPolicy | null;
   request_details_review?: boolean;
   admin_free_billing?: boolean;
   usage_model_display_mode?: UsageModelDisplayMode;
@@ -168,6 +169,7 @@ export interface ContentModerationAudit {
   source_endpoint: string;
   content_hash: string;
   content_summary: string;
+  categories: string[];
   hit: boolean;
   dedupe_hit: boolean;
   error_reason: string;

@@ -10,7 +10,6 @@ import backup from './backup'
 import users from './users'
 import groups from './groups'
 import subscriptions from './subscriptions'
-import apiDocs from './apiDocs'
 import accounts from './accounts'
 import scheduledTests from './scheduledTests'
 import proxies from './proxies'
@@ -40,7 +39,6 @@ export default {
     users,
     groups,
     subscriptions,
-    apiDocs,
     accounts,
     scheduledTests,
     proxies,

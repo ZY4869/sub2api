@@ -87,15 +87,8 @@
           </div>
         </template>
 
-        <template #cell-request_length="{ row }">
-          <UsageRequestLengthCell :row="row" />
-        </template>
-
-        <template #cell-native_context="{ row }">
-          <UsageContextBadgesCell
-            :row="row"
-            :mode="usageContextBadgeDisplayMode"
-          />
+        <template #cell-success_rate="{ row }">
+          <UsageSuccessRateCell :row="row" />
         </template>
 
         <template #cell-status="{ row }">
@@ -793,13 +786,11 @@ import {
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import UsageModelCell from "@/components/common/UsageModelCell.vue";
-import UsageContextBadgesCell from "@/components/common/UsageContextBadgesCell.vue";
-import UsageRequestLengthCell from "@/components/common/UsageRequestLengthCell.vue";
+import UsageSuccessRateCell from "@/components/common/UsageSuccessRateCell.vue";
 import AccountErrorTooltipButton from "@/components/account/AccountErrorTooltipButton.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type {
   AdminUsageLog,
-  UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
 } from "@/types";
 
@@ -808,7 +799,6 @@ defineProps<{
   loading: boolean;
   columns: Array<{ key: string; label: string; sortable?: boolean }>;
   usageModelDisplayMode: UsageModelDisplayMode;
-  usageContextBadgeDisplayMode: UsageContextBadgeDisplayMode;
 }>();
 defineEmits(["userClick"]);
 const { t } = useI18n();

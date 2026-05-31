@@ -176,6 +176,10 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyPaymentMinTopupAmount] = strconv.FormatFloat(settings.PaymentMinTopupAmount, 'f', 8, 64)
 	updates[SettingKeyPaymentMaxTopupAmount] = strconv.FormatFloat(settings.PaymentMaxTopupAmount, 'f', 8, 64)
 	updates[SettingKeyPaymentSubscriptionPlans] = MarshalPaymentSubscriptionPlans(settings.PaymentSubscriptionPlans)
+	conversion := settings.BillingCurrencyConversionSettings()
+	updates[SettingKeyBillingCurrencyConversionEnabled] = strconv.FormatBool(conversion.Enabled)
+	updates[SettingKeyBillingCurrencyCNYToUSDRate] = strconv.FormatFloat(conversion.CNYToUSDRate, 'f', 8, 64)
+	updates[SettingKeyBillingCurrencyUSDToCNYRate] = strconv.FormatFloat(conversion.USDToCNYRate, 'f', 8, 64)
 	antigravityVersion, ok := NormalizeAntigravityUserAgentVersion(settings.AntigravityUserAgentVersion)
 	if !ok {
 		return infraerrors.BadRequest("ANTIGRAVITY_USER_AGENT_VERSION_INVALID", "antigravity user-agent version must match major.minor.patch[-suffix]")

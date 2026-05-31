@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   DOCS_PAGE_ORDER,
@@ -8,6 +5,35 @@ import {
   parseDocsMarkdown,
   renderMarkdownDocument,
 } from '../markdownDocs'
+
+const modelExampleMarkdown = [
+  '# 模型库协议示例',
+  '## common',
+  '### OpenAI Responses',
+  '#### REST',
+  '```bash',
+  'curl https://api.zyxai.de/v1/responses \\',
+  '  -H "Authorization: Bearer sk-你的站内Key" \\',
+  '  -H "Content-Type: application/json" \\',
+  "  -d '{",
+  '    "model": "gpt-5.4",',
+  '    "input": "请用一句话确认网关已经联通。"',
+  "  }'",
+  '```',
+  '## gemini',
+  '### generateContent',
+  '#### REST',
+  '```bash',
+  'curl https://api.zyxai.de/v1beta/models/gemini-2.5-pro:generateContent \\',
+  '  -H "Authorization: Bearer sk-你的站内Key" \\',
+  '  -H "Content-Type: application/json" \\',
+  "  -d '{",
+  '    "contents": [',
+  '      { "role": "user", "parts": [{ "text": "用一句话介绍这个模型。" }] }',
+  '    ]',
+  "  }'",
+  '```',
+].join('\n')
 
 const fixtureMarkdown = [
   '# API 文档中心',
@@ -42,19 +68,6 @@ const fixtureMarkdown = [
   '### Chat Completions',
   '这里是 OpenAI 兼容页面。',
 ].join('\n')
-
-function readRepositoryDocsBaseline() {
-  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../')
-  const docsRoot = path.join(repoRoot, 'backend/internal/service/docs')
-  const parts = [
-    readFileSync(path.join(docsRoot, 'index.md'), 'utf8').trimEnd(),
-    ...DOCS_PAGE_ORDER.map((pageId) =>
-      readFileSync(path.join(docsRoot, 'pages', `${pageId}.md`), 'utf8').trimEnd(),
-    ),
-  ]
-
-  return `${parts.join('\n\n')}\n`
-}
 
 describe('markdownDocs', () => {
   it('extracts headings with stable deduplicated ids', () => {
@@ -130,25 +143,35 @@ describe('markdownDocs', () => {
     }
   })
 
-  it('keeps the repository baseline aligned with the 9-page set', () => {
-    const source = readRepositoryDocsBaseline()
-    const document = parseDocsMarkdown(source)
+  it('parses public model example template markdown without repository docs files', () => {
+    const document = parseDocsMarkdown(modelExampleMarkdown)
     const commonPage = document.pages.find((page) => page.id === 'common')
-    const documentAIPage = document.pages.find((page) => page.id === 'document-ai')
-    const openAINativePage = document.pages.find((page) => page.id === 'openai-native')
+    const geminiPage = document.pages.find((page) => page.id === 'gemini')
+    const commonGroup = commonPage?.sections[0]?.contentBlocks.find((block) => block.kind === 'code-group')
+    const geminiGroup = geminiPage?.sections[0]?.contentBlocks.find((block) => block.kind === 'code-group')
 
-    expect(document.pages.every((page) => !page.isMissing)).toBe(true)
+    expect(document.title).toBe('模型库协议示例')
     expect(document.pages.map((page) => page.id)).toEqual(DOCS_PAGE_ORDER)
-    expect(commonPage?.sections.some((section) => section.title.includes('百度智能文档'))).toBe(false)
-    expect(commonPage?.sections.some((section) => section.title.includes('文档同步说明'))).toBe(false)
-    expect(documentAIPage?.title).toBe('百度智能文档')
-    expect(openAINativePage?.sections.length).toBeGreaterThan(0)
-
-    const hasEightTabExample = documentAIPage?.sections.some((section) =>
-      section.contentBlocks.some(
-        (block) => block.kind === 'code-group' && block.group.tabs.length === 8,
-      ),
-    )
-    expect(hasEightTabExample).toBe(true)
+    expect(commonPage?.isMissing).toBe(false)
+    expect(geminiPage?.isMissing).toBe(false)
+    expect(document.pages.find((page) => page.id === 'openai')?.isMissing).toBe(true)
+    expect(commonGroup?.kind).toBe('code-group')
+    expect(geminiGroup?.kind).toBe('code-group')
+    if (commonGroup?.kind === 'code-group') {
+      expect(commonGroup.group.tabs.map((tab) => tab.label)).toEqual([
+        'Python',
+        'JavaScript',
+        'Go',
+        'Java',
+        'C#',
+        'PHP',
+        'Shell',
+        'REST',
+      ])
+      expect(commonGroup.group.tabs.find((tab) => tab.label === 'REST')?.code).toContain('/v1/responses')
+    }
+    if (geminiGroup?.kind === 'code-group') {
+      expect(geminiGroup.group.tabs.find((tab) => tab.label === 'REST')?.code).toContain(':generateContent')
+    }
   })
 })

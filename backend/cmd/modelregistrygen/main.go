@@ -204,6 +204,7 @@ func renderTypeScriptSnapshot(snapshot tsSnapshot, builtAt string) []byte {
 	}
 
 	var buf bytes.Buffer
+	mustWriteString(&buf, "import type { TimeAccessPolicy } from '../types/api-key-groups'\n\n")
 	mustWriteString(&buf, "export interface ModelRegistryEntry {\n")
 	mustWriteString(&buf, "  id: string\n")
 	mustWriteString(&buf, "  display_name: string\n")
@@ -219,6 +220,9 @@ func renderTypeScriptSnapshot(snapshot tsSnapshot, builtAt string) []byte {
 	mustWriteString(&buf, "  ui_priority: number\n")
 	mustWriteString(&buf, "  exposed_in: string[]\n")
 	mustWriteString(&buf, "  status?: string\n")
+	mustWriteString(&buf, "  available_from?: string\n")
+	mustWriteString(&buf, "  available_until?: string\n")
+	mustWriteString(&buf, "  access_time_policy?: TimeAccessPolicy | null\n")
 	mustWriteString(&buf, "  deprecated_at?: string\n")
 	mustWriteString(&buf, "  replaced_by?: string\n")
 	mustWriteString(&buf, "  deprecation_notice?: string\n")
@@ -288,6 +292,9 @@ func normalizeModels(models []modelregistry.ModelEntry) []modelregistry.ModelEnt
 			UIPriority:           model.UIPriority,
 			ExposedIn:            append([]string{}, model.ExposedIn...),
 			Status:               model.Status,
+			AvailableFrom:        model.AvailableFrom,
+			AvailableUntil:       model.AvailableUntil,
+			AccessTimePolicy:     cloneAnyMap(model.AccessTimePolicy),
 			DeprecatedAt:         model.DeprecatedAt,
 			ReplacedBy:           model.ReplacedBy,
 			DeprecationNotice:    model.DeprecationNotice,
@@ -321,6 +328,17 @@ func protocolGatewayDescriptorsSnapshot() map[string]protocolGatewayTSSnapshotDe
 		}
 	}
 	return descriptors
+}
+
+func cloneAnyMap(values map[string]any) map[string]any {
+	if len(values) == 0 {
+		return nil
+	}
+	cloned := make(map[string]any, len(values))
+	for key, value := range values {
+		cloned[key] = value
+	}
+	return cloned
 }
 
 func clonePreferredProtocolIDs(values map[string]string) map[string]string {

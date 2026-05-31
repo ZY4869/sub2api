@@ -53,14 +53,17 @@ func (r *billingHoldRepository) Reserve(ctx context.Context, hold *service.Billi
 
 	var existing service.BillingHold
 	var status string
+	var existingBreakdownRaw, existingPolicyRaw string
 	err = tx.QueryRowContext(ctx, `
-		SELECT request_id, api_key_id, user_id, currency, hold_amount, status, COALESCE(request_fingerprint, '')
+		SELECT request_id, api_key_id, user_id, currency, hold_amount, status, COALESCE(request_fingerprint, ''), COALESCE(conversion_breakdown::text, '{}'), COALESCE(conversion_policy::text, '{}')
 		FROM billing_request_holds
 		WHERE request_id = $1 AND api_key_id = $2
 		FOR UPDATE
-	`, requestID, hold.APIKeyID).Scan(&existing.RequestID, &existing.APIKeyID, &existing.UserID, &existing.Currency, &existing.Amount, &status, &existing.RequestFingerprint)
+	`, requestID, hold.APIKeyID).Scan(&existing.RequestID, &existing.APIKeyID, &existing.UserID, &existing.Currency, &existing.Amount, &status, &existing.RequestFingerprint, &existingBreakdownRaw, &existingPolicyRaw)
 	if err == nil {
 		existing.Status = service.BillingHoldStatus(status)
+		existing.ConversionBreakdown = billingHoldBreakdownFloatMap(decodeBillingHoldBreakdown(existingBreakdownRaw))
+		existing.CurrencyConversion = decodeBillingHoldConversionPolicy(existingPolicyRaw)
 		existingFingerprint := service.NormalizeBillingHoldRequestFingerprint(existing.RequestFingerprint)
 		if requestFingerprint != "" && existingFingerprint != "" && existingFingerprint != requestFingerprint {
 			if txErr := tx.Commit(); txErr != nil {
@@ -93,52 +96,28 @@ func (r *billingHoldRepository) Reserve(ctx context.Context, hold *service.Billi
 		return nil, err
 	}
 
-	if err := ensureUsageBillingWallet(ctx, tx, hold.UserID, currency); err != nil {
-		return nil, err
-	}
-	res, err := tx.ExecContext(ctx, `
-		UPDATE billing_wallets
-		SET balance = balance - $3,
-			updated_at = NOW()
-		WHERE user_id = $1
-		  AND currency = $2
-		  AND balance >= $3
-	`, hold.UserID, currency, amountMoney.DBValue())
+	parts, err := reserveConvertedWalletDebitParts(ctx, tx, hold.UserID, currency, amountMoney, hold.CurrencyConversion)
 	if err != nil {
 		return nil, err
 	}
-	affected, err := res.RowsAffected()
+	if err := applyBillingHoldBalanceDeltas(ctx, tx, hold.UserID, parts, -1); err != nil {
+		return nil, err
+	}
+	breakdownJSON, err := encodeBillingHoldBreakdown(parts)
 	if err != nil {
 		return nil, err
 	}
-	if affected == 0 {
-		return nil, service.ErrInsufficientBalance
-	}
-	res, err = tx.ExecContext(ctx, `
-		UPDATE users
-		SET balance = balance - $2,
-			updated_at = NOW()
-		WHERE id = $1
-		  AND deleted_at IS NULL
-		  AND balance >= $2
-	`, hold.UserID, amountMoney.DBValue())
+	policyJSON, err := encodeBillingHoldConversionPolicy(hold.CurrencyConversion)
 	if err != nil {
 		return nil, err
-	}
-	affected, err = res.RowsAffected()
-	if err != nil {
-		return nil, err
-	}
-	if affected == 0 {
-		return nil, service.ErrInsufficientBalance
 	}
 
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO billing_request_holds (
-			request_id, api_key_id, user_id, currency, hold_amount, status, request_fingerprint, created_at, updated_at
+			request_id, api_key_id, user_id, currency, hold_amount, status, request_fingerprint, conversion_breakdown, conversion_policy, created_at, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-	`, requestID, hold.APIKeyID, hold.UserID, currency, amountMoney.DBValue(), string(service.BillingHoldStatusHeld), requestFingerprint)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, NOW(), NOW())
+	`, requestID, hold.APIKeyID, hold.UserID, currency, amountMoney.DBValue(), string(service.BillingHoldStatusHeld), requestFingerprint, breakdownJSON, policyJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -148,13 +127,15 @@ func (r *billingHoldRepository) Reserve(ctx context.Context, hold *service.Billi
 	}
 	tx = nil
 	return &service.BillingHold{
-		RequestID:          requestID,
-		APIKeyID:           hold.APIKeyID,
-		UserID:             hold.UserID,
-		Currency:           currency,
-		Amount:             amount,
-		Status:             service.BillingHoldStatusHeld,
-		RequestFingerprint: requestFingerprint,
+		RequestID:           requestID,
+		APIKeyID:            hold.APIKeyID,
+		UserID:              hold.UserID,
+		Currency:            currency,
+		Amount:              amount,
+		Status:              service.BillingHoldStatusHeld,
+		RequestFingerprint:  requestFingerprint,
+		CurrencyConversion:  service.NormalizeBillingCurrencyConversionSettings(hold.CurrencyConversion),
+		ConversionBreakdown: billingHoldBreakdownFloatMap(parts),
 	}, nil
 }
 
@@ -195,12 +176,13 @@ func (r *billingHoldRepository) finish(ctx context.Context, requestID string, ap
 
 	var hold service.BillingHold
 	var status string
+	var breakdownRaw, policyRaw string
 	err = tx.QueryRowContext(ctx, `
-		SELECT request_id, api_key_id, user_id, currency, hold_amount, status, COALESCE(request_fingerprint, '')
+		SELECT request_id, api_key_id, user_id, currency, hold_amount, status, COALESCE(request_fingerprint, ''), COALESCE(conversion_breakdown::text, '{}'), COALESCE(conversion_policy::text, '{}')
 		FROM billing_request_holds
 		WHERE request_id = $1 AND api_key_id = $2
 		FOR UPDATE
-	`, requestID, apiKeyID).Scan(&hold.RequestID, &hold.APIKeyID, &hold.UserID, &hold.Currency, &hold.Amount, &status, &hold.RequestFingerprint)
+	`, requestID, apiKeyID).Scan(&hold.RequestID, &hold.APIKeyID, &hold.UserID, &hold.Currency, &hold.Amount, &status, &hold.RequestFingerprint, &breakdownRaw, &policyRaw)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, service.ErrBillingHoldNotFound
 	}
@@ -208,6 +190,9 @@ func (r *billingHoldRepository) finish(ctx context.Context, requestID string, ap
 		return nil, err
 	}
 	hold.Status = service.BillingHoldStatus(status)
+	breakdown := decodeBillingHoldBreakdown(breakdownRaw)
+	hold.ConversionBreakdown = billingHoldBreakdownFloatMap(breakdown)
+	hold.CurrencyConversion = decodeBillingHoldConversionPolicy(policyRaw)
 	if hold.Status != service.BillingHoldStatusHeld {
 		if err := tx.Commit(); err != nil {
 			return nil, err
@@ -220,17 +205,58 @@ func (r *billingHoldRepository) finish(ctx context.Context, requestID string, ap
 	if err != nil {
 		return nil, err
 	}
-	deltaMoney, err := holdMoney.Sub(actualMoney)
-	if err != nil {
-		return nil, err
-	}
-	if !settle {
-		deltaMoney = holdMoney
-	}
-	if !deltaMoney.IsZero() {
-		if err := adjustUSDWalletBalance(ctx, tx, hold.UserID, deltaMoney); err != nil {
+	finalBreakdown := breakdown
+	if len(breakdown) == 0 {
+		deltaMoney, err := holdMoney.Sub(actualMoney)
+		if err != nil {
 			return nil, err
 		}
+		if !settle {
+			deltaMoney = holdMoney
+		}
+		if !deltaMoney.IsZero() {
+			if err := adjustUSDWalletBalance(ctx, tx, hold.UserID, deltaMoney); err != nil {
+				return nil, err
+			}
+		}
+	} else if !settle {
+		if err := applyBillingHoldBalanceDeltas(ctx, tx, hold.UserID, breakdown, 1); err != nil {
+			return nil, err
+		}
+		finalBreakdown = nil
+	} else if holdMoney.Cmp(actualMoney) >= 0 {
+		unusedMoney, err := holdMoney.Sub(actualMoney)
+		if err != nil {
+			return nil, err
+		}
+		refundParts := prorateBillingHoldBreakdown(breakdown, unusedMoney, holdMoney)
+		if err := applyBillingHoldBalanceDeltas(ctx, tx, hold.UserID, refundParts, 1); err != nil {
+			return nil, err
+		}
+		finalBreakdown, err = subtractBillingHoldBreakdown(breakdown, refundParts)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		extraMoney, err := actualMoney.Sub(holdMoney)
+		if err != nil {
+			return nil, err
+		}
+		extraParts, err := reserveConvertedWalletDebitParts(ctx, tx, hold.UserID, hold.Currency, extraMoney, hold.CurrencyConversion)
+		if err != nil {
+			return nil, err
+		}
+		if err := applyBillingHoldBalanceDeltas(ctx, tx, hold.UserID, extraParts, -1); err != nil {
+			return nil, err
+		}
+		finalBreakdown, err = addBillingHoldBreakdown(breakdown, extraParts)
+		if err != nil {
+			return nil, err
+		}
+	}
+	breakdownJSON, err := encodeBillingHoldBreakdown(finalBreakdown)
+	if err != nil {
+		return nil, err
 	}
 
 	newStatus := service.BillingHoldStatusReleased
@@ -242,9 +268,10 @@ func (r *billingHoldRepository) finish(ctx context.Context, requestID string, ap
 		SET actual_amount = $3,
 			status = $4,
 			settled_at = NOW(),
-			updated_at = NOW()
+			updated_at = NOW(),
+			conversion_breakdown = $6::jsonb
 		WHERE request_id = $1 AND api_key_id = $2 AND status = $5
-	`, requestID, apiKeyID, actualMoney.DBValue(), string(newStatus), string(service.BillingHoldStatusHeld))
+	`, requestID, apiKeyID, actualMoney.DBValue(), string(newStatus), string(service.BillingHoldStatusHeld), breakdownJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -260,6 +287,7 @@ func (r *billingHoldRepository) finish(ctx context.Context, requestID string, ap
 	}
 	tx = nil
 	hold.Status = newStatus
+	hold.ConversionBreakdown = billingHoldBreakdownFloatMap(finalBreakdown)
 	return &hold, nil
 }
 

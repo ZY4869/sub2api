@@ -95,9 +95,17 @@
 
     <div class="mt-auto overflow-hidden rounded-[14px] border border-slate-200/60 bg-[#F8FAFC] p-3.5 transition-colors group-hover/card:bg-[#F4F7FB] dark:border-dark-700 dark:bg-dark-800/70 dark:group-hover/card:bg-dark-800">
       <div class="mb-2.5 flex items-center justify-between px-1">
-        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
-          {{ pricingLabel }}
-        </span>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            {{ pricingLabel }}
+          </span>
+          <span
+            v-if="discountActive"
+            class="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
+          >
+            {{ discountLabel }}
+          </span>
+        </div>
         <span v-if="priceUnitSummary" class="hidden text-[10px] font-bold uppercase tracking-wider text-slate-400 sm:inline-block">
           {{ priceUnitSummary }}
         </span>
@@ -108,6 +116,7 @@
           :key="entry.id"
           :label="priceEntryLabel(entry.id)"
           :value="formatCatalogPrice(entry, item.raw.currency)"
+          :original-value="originalPriceValue(entry.id)"
           :theme="priceTheme(entry)"
           :testid="`public-model-primary-price-${item.raw.model}-${entry.id}`"
         />
@@ -168,6 +177,16 @@ const cardView = computed(() => buildPublicModelCardView(props.item.raw, props.h
 const healthLabelsMap = computed(() => healthLabels(props.t))
 const priceEntries = computed(() => props.item.primaryPrices.slice(0, 3))
 const priceUnitSummary = computed(() => priceDisplayUnitSummary(props.t, priceEntries.value))
+const discountActive = computed(() => !!props.item.raw.discount_status?.active)
+const discountLabel = computed(() => {
+  const percent = props.item.raw.discount_status?.reduction_percent || 0
+  return percent > 0 ? props.t('ui.modelCatalog.discountBadge', { percent: formatDiscountPercent(percent) }) : ''
+})
+const originalPriceEntries = computed(() => {
+  const display = props.item.raw.original_sale_price_display || props.item.raw.original_price_display
+  const entries = [...(display?.primary || []), ...(display?.secondary || [])]
+  return new Map(entries.map((entry) => [entry.id, entry]))
+})
 
 const healthIcon = computed(() => {
   switch (normalizeHealthStatus(props.health?.health_status || props.item.raw.health_status)) {
@@ -213,4 +232,14 @@ const contextClass = computed(() => {
   return 'border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600 dark:border-dark-700 dark:from-dark-800 dark:to-dark-800 dark:text-slate-300'
 })
 
+function originalPriceValue(entryID: string): string | undefined {
+  if (!discountActive.value) return undefined
+  const entry = originalPriceEntries.value.get(entryID)
+  if (!entry) return undefined
+  return props.formatCatalogPrice(entry, props.item.raw.currency)
+}
+
+function formatDiscountPercent(value: number): string {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value)
+}
 </script>

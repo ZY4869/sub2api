@@ -76,6 +76,16 @@ const (
 	FieldRateMultiplier = "rate_multiplier"
 	// FieldAccountRateMultiplier holds the string denoting the account_rate_multiplier field in the database.
 	FieldAccountRateMultiplier = "account_rate_multiplier"
+	// FieldDiscountApplied holds the string denoting the discount_applied field in the database.
+	FieldDiscountApplied = "discount_applied"
+	// FieldDiscountPercent holds the string denoting the discount_percent field in the database.
+	FieldDiscountPercent = "discount_percent"
+	// FieldDiscountWindowID holds the string denoting the discount_window_id field in the database.
+	FieldDiscountWindowID = "discount_window_id"
+	// FieldDiscountWindowType holds the string denoting the discount_window_type field in the database.
+	FieldDiscountWindowType = "discount_window_type"
+	// FieldDiscountCompletedAt holds the string denoting the discount_completed_at field in the database.
+	FieldDiscountCompletedAt = "discount_completed_at"
 	// FieldBillingType holds the string denoting the billing_type field in the database.
 	FieldBillingType = "billing_type"
 	// FieldStream holds the string denoting the stream field in the database.
@@ -179,6 +189,11 @@ var Columns = []string{
 	FieldThinkingEnabled,
 	FieldRateMultiplier,
 	FieldAccountRateMultiplier,
+	FieldDiscountApplied,
+	FieldDiscountPercent,
+	FieldDiscountWindowID,
+	FieldDiscountWindowType,
+	FieldDiscountCompletedAt,
 	FieldBillingType,
 	FieldStream,
 	FieldDurationMs,
@@ -250,6 +265,12 @@ var (
 	BillingExemptReasonValidator func(string) error
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
 	DefaultRateMultiplier float64
+	// DefaultDiscountApplied holds the default value on creation for the "discount_applied" field.
+	DefaultDiscountApplied bool
+	// DiscountWindowIDValidator is a validator for the "discount_window_id" field. It is called by the builders before save.
+	DiscountWindowIDValidator func(string) error
+	// DiscountWindowTypeValidator is a validator for the "discount_window_type" field. It is called by the builders before save.
+	DiscountWindowTypeValidator func(string) error
 	// DefaultBillingType holds the default value on creation for the "billing_type" field.
 	DefaultBillingType int8
 	// DefaultStream holds the default value on creation for the "stream" field.
@@ -429,6 +450,31 @@ func ByRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 // ByAccountRateMultiplier orders the results by the account_rate_multiplier field.
 func ByAccountRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountRateMultiplier, opts...).ToFunc()
+}
+
+// ByDiscountApplied orders the results by the discount_applied field.
+func ByDiscountApplied(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscountApplied, opts...).ToFunc()
+}
+
+// ByDiscountPercent orders the results by the discount_percent field.
+func ByDiscountPercent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscountPercent, opts...).ToFunc()
+}
+
+// ByDiscountWindowID orders the results by the discount_window_id field.
+func ByDiscountWindowID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscountWindowID, opts...).ToFunc()
+}
+
+// ByDiscountWindowType orders the results by the discount_window_type field.
+func ByDiscountWindowType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscountWindowType, opts...).ToFunc()
+}
+
+// ByDiscountCompletedAt orders the results by the discount_completed_at field.
+func ByDiscountCompletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscountCompletedAt, opts...).ToFunc()
 }
 
 // ByBillingType orders the results by the billing_type field.

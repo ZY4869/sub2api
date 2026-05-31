@@ -42,6 +42,12 @@ function mountCard() {
       'onUpdate:maxTopupAmount': vi.fn(),
       subscriptionPlans: [],
       'onUpdate:subscriptionPlans': vi.fn(),
+      currencyConversionEnabled: false,
+      'onUpdate:currencyConversionEnabled': vi.fn(),
+      cnyToUsdRate: 0.6,
+      'onUpdate:cnyToUsdRate': vi.fn(),
+      usdToCnyRate: 7,
+      'onUpdate:usdToCnyRate': vi.fn(),
       antigravityUserAgentVersion: '',
       'onUpdate:antigravityUserAgentVersion': vi.fn(),
       codexOauthUserAgentMode: 'default',
@@ -109,5 +115,20 @@ describe('PaymentSettingsCard', () => {
 
     const plan = (wrapper.props('subscriptionPlans') as Array<{ prices_by_currency: Record<string, number> }>)[0]
     expect(plan.prices_by_currency).toEqual({ USD: 12.5, HKD: 98 })
+  })
+
+  it('emits currency conversion toggle and rate updates', async () => {
+    const wrapper = mountCard()
+
+    await wrapper.findAll('input[type="checkbox"]')[3].setValue(true)
+    expect(wrapper.emitted('update:currencyConversionEnabled')?.at(-1)).toEqual([true])
+    await wrapper.setProps({ currencyConversionEnabled: true })
+
+    const rateInputs = wrapper.findAll('input[type="number"]')
+    await rateInputs[2].setValue('0.7')
+    await rateInputs[3].setValue('7.2')
+
+    expect(wrapper.emitted('update:cnyToUsdRate')?.at(-1)).toEqual([0.7])
+    expect(wrapper.emitted('update:usdToCnyRate')?.at(-1)).toEqual([7.2])
   })
 })

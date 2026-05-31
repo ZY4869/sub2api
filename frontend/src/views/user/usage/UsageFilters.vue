@@ -69,12 +69,6 @@
             :label-text="t('usage.modelDisplay')"
             @update:modelValue="$emit('update-usage-model-display-mode', $event)"
           />
-          <UsageContextBadgeDisplayModeToggle
-            :model-value="usageContextBadgeDisplayMode"
-            :disabled="updatingUsageContextBadgeDisplayMode"
-            :label-text="t('usage.contextBadgeDisplay')"
-            @update:modelValue="$emit('update-usage-context-badge-display-mode', $event)"
-          />
           <button @click="$emit('apply')" :disabled="loading" class="btn btn-secondary">
             {{ t("common.refresh") }}
           </button>
@@ -108,11 +102,9 @@ import { useI18n } from "vue-i18n";
 import Select from "@/components/common/Select.vue";
 import DateRangePicker from "@/components/common/DateRangePicker.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
-import UsageContextBadgeDisplayModeToggle from "@/components/common/UsageContextBadgeDisplayModeToggle.vue";
 import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import type {
-  UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
   UsageQueryParams,
 } from "@/types";
@@ -127,8 +119,6 @@ const props = defineProps<{
   exporting: boolean;
   usageModelDisplayMode: UsageModelDisplayMode;
   updatingUsageModelDisplayMode: boolean;
-  usageContextBadgeDisplayMode: UsageContextBadgeDisplayMode;
-  updatingUsageContextBadgeDisplayMode: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -140,7 +130,6 @@ const emit = defineEmits<{
   "update:endDate": [value: string];
   "date-range-change": [range: { startDate: string; endDate: string; preset: string | null }];
   "update-usage-model-display-mode": [mode: UsageModelDisplayMode];
-  "update-usage-context-badge-display-mode": [mode: UsageContextBadgeDisplayMode];
 }>();
 
 const { t } = useI18n();

@@ -4,7 +4,6 @@ import { mount } from '@vue/test-utils'
 import RequestDetailsSubjectUsageTable from '../RequestDetailsSubjectUsageTable.vue'
 
 const setUsageModelDisplayMode = vi.fn()
-const setUsageContextBadgeDisplayMode = vi.fn()
 
 const messages: Record<string, string> = {
   'admin.requestDetails.subject.ledger.title': 'Subject Usage',
@@ -15,7 +14,7 @@ const messages: Record<string, string> = {
   'admin.requestDetails.subject.ledger.columns.accountId': 'Account ID',
   'admin.requestDetails.subject.ledger.columns.groupId': 'Group ID',
   'admin.requestDetails.subject.ledger.columns.models': 'Models',
-  'admin.requestDetails.subject.ledger.columns.nativeContext': 'Native Context',
+  'admin.requestDetails.subject.ledger.columns.successRate': 'Success Rate',
   'admin.requestDetails.subject.ledger.columns.status': 'Status',
   'admin.requestDetails.subject.ledger.columns.totalTokens': 'Total Tokens',
   'admin.requestDetails.subject.ledger.columns.totalStandardCost': 'Standard Cost',
@@ -25,6 +24,10 @@ const messages: Record<string, string> = {
   'admin.requestDetails.subject.ledger.columns.actions': 'Actions',
   'admin.requestDetails.subject.ledger.empty': 'No subject usage',
   'usage.requestPreview.action': 'Request Details',
+  'usage.modelSuccessRateStatuses.healthy': 'Healthy {rate}',
+  'usage.modelSuccessRateStatuses.warning': 'Warning {rate}',
+  'usage.modelSuccessRateStatuses.error': 'Error {rate}',
+  'usage.modelSuccessRateStatuses.unknown': 'Unknown',
   'common.yes': 'Yes',
   'common.no': 'No',
 }
@@ -53,14 +56,6 @@ vi.mock('@/composables/useUsageModelDisplayModePreference', () => ({
   }),
 }))
 
-vi.mock('@/composables/useUsageContextBadgeDisplayModePreference', () => ({
-  useUsageContextBadgeDisplayModePreference: () => ({
-    usageContextBadgeDisplayMode: 'request_only',
-    updatingUsageContextBadgeDisplayMode: false,
-    setUsageContextBadgeDisplayMode,
-  }),
-}))
-
 vi.mock('@/api/admin/usage', () => ({
   default: {
     getRequestPreview: vi.fn(),
@@ -77,7 +72,7 @@ const DataTableStub = {
       <slot name="header-models" :column="{ key: 'models', label: 'Models' }" />
       <div v-for="(row, index) in data" :key="row.id ?? index">
         <slot name="cell-models" :row="row" />
-        <slot name="cell-native_context" :row="row" />
+        <slot name="cell-success_rate" :row="row" />
         <slot name="cell-preview_available" :value="row.preview_available" />
         <slot name="cell-actions" :row="row" />
       </div>
@@ -87,7 +82,7 @@ const DataTableStub = {
 }
 
 describe('RequestDetailsSubjectUsageTable', () => {
-  it('renders toggle and shared model cell with the current display mode', async () => {
+  it('renders model toggle, shared model cell, and success-rate cell', async () => {
     const wrapper = mount(RequestDetailsSubjectUsageTable, {
       props: {
         items: [
@@ -102,6 +97,8 @@ describe('RequestDetailsSubjectUsageTable', () => {
             actual_cost: 0.1,
             duration_ms: 220,
             preview_available: true,
+            model_success_rate_7d: 0.992,
+            model_success_status: 'healthy',
             created_at: '2026-05-06T12:00:00Z',
           },
         ],
@@ -131,34 +128,15 @@ describe('RequestDetailsSubjectUsageTable', () => {
               </button>
             `,
           },
-          UsageContextBadgeDisplayModeToggle: {
-            props: ['modelValue', 'disabled', 'showLabel', 'compact'],
-            template: `
-              <button
-                data-testid="context-mode-toggle"
-                @click="$emit('update:modelValue', 'native_only')"
-              >
-                {{ modelValue }}
-              </button>
-            `,
-          },
-          UsageContextBadgesCell: {
-            props: ['row', 'mode'],
-            template: '<div data-testid="native-context-badges">{{ row.model }}|{{ mode }}</div>',
-          },
         },
       },
     })
 
     expect(wrapper.get('[data-testid="usage-model-cell"]').text()).toContain('deepseek-v4-pro|display_and_model')
     expect(wrapper.findAll('[data-testid="usage-mode-toggle"]').length).toBeGreaterThan(0)
-    expect(wrapper.get('[data-testid="native-context-badges"]').text()).toBe('deepseek-v4-pro|request_only')
-    expect(wrapper.findAll('[data-testid="context-mode-toggle"]').length).toBeGreaterThan(0)
+    expect(wrapper.text()).toContain('99.2%')
 
     await wrapper.get('[data-testid="usage-mode-toggle"]').trigger('click')
     expect(setUsageModelDisplayMode).toHaveBeenCalledWith('display_only')
-
-    await wrapper.get('[data-testid="context-mode-toggle"]').trigger('click')
-    expect(setUsageContextBadgeDisplayMode).toHaveBeenCalledWith('native_only')
   })
 })

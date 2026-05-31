@@ -15,7 +15,6 @@ type AdminHandlers struct {
 	ChannelMonitorTemplate *admin.ChannelMonitorTemplateHandler
 	Account                *admin.AccountHandler
 	Affiliate              *admin.AffiliateHandler
-	Docs                   *admin.DocsHandler
 	EmailTemplate          *admin.EmailTemplateHandler
 	Announcement           *admin.AnnouncementHandler
 	DataManagement         *admin.DataManagementHandler
@@ -55,7 +54,6 @@ type Handlers struct {
 	Redeem           *RedeemHandler
 	Subscription     *SubscriptionHandler
 	Announcement     *AnnouncementHandler
-	Docs             *DocsHandler
 	Admin            *AdminHandlers
 	Gateway          *GatewayHandler
 	OpenAIGateway    *OpenAIGatewayHandler

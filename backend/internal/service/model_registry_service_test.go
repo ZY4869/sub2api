@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -382,6 +383,27 @@ func TestModelRegistryService_UpsertEntry_RejectsUnknownCapabilities(t *testing.
 		ExposedIn:    []string{"runtime"},
 	})
 	require.Error(t, err)
+}
+
+func TestModelRegistryService_UpsertEntry_RejectsInvalidTimeAccessPolicy(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	_, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:        "gpt-test-invalid-time-policy",
+		Platforms: []string{PlatformOpenAI},
+		ExposedIn: []string{"runtime"},
+		AccessTimePolicy: &TimeAccessPolicy{
+			Enabled:  true,
+			Timezone: "Mars/Base",
+		},
+	})
+
+	require.Error(t, err)
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(400), appErr.Code)
+	require.Equal(t, "TIME_ACCESS_POLICY_INVALID", appErr.Reason)
+	require.NotContains(t, appErr.Message, "Mars/Base")
 }
 
 func TestModelRegistryService_ManualAddEntry_CreatesAndActivatesModel(t *testing.T) {

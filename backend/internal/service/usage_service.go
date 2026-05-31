@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -422,7 +423,51 @@ func (s *UsageService) ListWithFilters(ctx context.Context, params pagination.Pa
 	if err != nil {
 		return nil, nil, fmt.Errorf("list usage logs with filters: %w", err)
 	}
+	if err := s.attachModelSuccessRates7d(ctx, logs); err != nil {
+		return nil, nil, fmt.Errorf("attach model success rates: %w", err)
+	}
 	return logs, result, nil
+}
+
+func (s *UsageService) attachModelSuccessRates7d(ctx context.Context, logs []UsageLog) error {
+	reader, ok := s.usageRepo.(UsageLogModelSuccessRateReader)
+	if !ok || len(logs) == 0 {
+		return nil
+	}
+	modelSet := map[string]struct{}{}
+	for i := range logs {
+		model := strings.TrimSpace(logs[i].RequestedModel)
+		if model == "" {
+			model = strings.TrimSpace(logs[i].Model)
+		}
+		if model != "" {
+			modelSet[model] = struct{}{}
+		}
+	}
+	if len(modelSet) == 0 {
+		return nil
+	}
+	models := make([]string, 0, len(modelSet))
+	for model := range modelSet {
+		models = append(models, model)
+	}
+	rates, err := reader.GetModelSuccessRates7d(ctx, models, time.Now())
+	if err != nil {
+		return err
+	}
+	for i := range logs {
+		model := strings.TrimSpace(logs[i].RequestedModel)
+		if model == "" {
+			model = strings.TrimSpace(logs[i].Model)
+		}
+		if snapshot, ok := rates[model]; ok {
+			logs[i].ModelSuccessRate7d = snapshot.Rate
+			logs[i].ModelSuccessStatus = snapshot.Status
+		} else {
+			logs[i].ModelSuccessStatus = "unknown"
+		}
+	}
+	return nil
 }
 
 // GetGlobalStats returns global usage stats for a time range.

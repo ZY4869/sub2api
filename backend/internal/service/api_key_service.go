@@ -19,6 +19,7 @@ type APIKeyService struct {
 	cache                 APIKeyCache
 	rateLimitCacheInvalid RateLimitCacheInvalidator // optional: invalidate Redis rate limit cache
 	billingCacheService   *BillingCacheService
+	settingService        *SettingService
 	cfg                   *config.Config
 	authCacheL1           *ristretto.Cache
 	authCfg               apiKeyAuthCacheConfig
@@ -60,6 +61,10 @@ func (s *APIKeyService) SetRateLimitCacheInvalidator(inv RateLimitCacheInvalidat
 
 func (s *APIKeyService) SetBillingCacheService(billingCacheService *BillingCacheService) {
 	s.billingCacheService = billingCacheService
+}
+
+func (s *APIKeyService) SetSettingService(settingService *SettingService) {
+	s.settingService = settingService
 }
 
 func (s *APIKeyService) SetModelCatalogService(modelCatalogService *ModelCatalogService) {

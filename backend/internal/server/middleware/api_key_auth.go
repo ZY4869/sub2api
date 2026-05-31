@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -111,6 +113,14 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// 检查用户状态
 		if !apiKey.User.IsActive() {
 			AbortWithError(c, 401, "USER_INACTIVE", "User account is not active")
+			return
+		}
+		timeAccessStart := time.Now()
+		eval := apiKey.EvaluateTimeAccess(timeAccessStart)
+		protocolruntime.RecordTimePolicyDecision("api_key", eval.Allowed, eval.Reason, time.Since(timeAccessStart).Milliseconds())
+		if !eval.Allowed {
+			logAPIKeyTimeAccessDenied(c, apiKey, eval, timeAccessStart)
+			abortAPIKeyTimeAccessDenied(c, eval)
 			return
 		}
 
@@ -330,4 +340,17 @@ func firstUsableAPIKeyBindingGroup(apiKey *service.APIKey) *service.Group {
 
 func isUsableAPIKeyGroup(group *service.Group) bool {
 	return service.IsGroupContextValid(group) && group.IsActive()
+}
+
+func abortAPIKeyTimeAccessDenied(c *gin.Context, eval service.TimeAccessEvaluation) {
+	switch eval.Reason {
+	case service.TimeAccessDecisionNotBefore:
+		AbortWithError(c, 403, "API_KEY_NOT_ACTIVE_YET", "API key 尚未到预定启用时间")
+	case service.TimeAccessDecisionNotAfter:
+		AbortWithError(c, 403, "API_KEY_EXPIRED", "API key 已过期")
+	case service.TimeAccessDecisionOutsideWindow:
+		AbortWithError(c, 403, "API_KEY_TIME_WINDOW_DENIED", "当前时间不在 API key 允许调用时间段内")
+	default:
+		AbortWithError(c, 403, "API_KEY_TIME_WINDOW_DENIED", "API key 当前不可用")
+	}
 }

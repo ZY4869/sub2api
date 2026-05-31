@@ -37,8 +37,7 @@ export default {
     buySubscription: 'Recharge / Subscription',
     paymentOrders: 'Payment Orders',
     affiliate: 'Affiliate',
-    docs: 'Docs',
-    apiDocs: 'API Docs'
+    docs: 'Docs'
   },
 
   // Auth,

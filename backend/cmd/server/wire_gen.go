@@ -64,7 +64,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	apiKeyRepository := repository.NewAPIKeyRepository(client, db)
 	userPlatformQuotaRepository := repository.NewUserPlatformQuotaRepository(client, db)
 	userPlatformQuotaService := service.NewUserPlatformQuotaService(userPlatformQuotaRepository)
-	billingCacheService := service.ProvideBillingCacheService(billingCache, userRepository, userSubscriptionRepository, apiKeyRepository, configConfig, userPlatformQuotaService)
+	billingCacheService := service.ProvideBillingCacheService(billingCache, userRepository, userSubscriptionRepository, apiKeyRepository, configConfig, userPlatformQuotaService, settingService)
 	userGroupRateRepository := repository.NewUserGroupRateRepository(db)
 	apiKeyCache := repository.NewAPIKeyCache(redisClient)
 	pricingRemoteClient := repository.ProvidePricingRemoteClient(configConfig)
@@ -73,20 +73,19 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		return nil, err
 	}
 	billingService := service.NewBillingService(configConfig, pricingService)
-	apiDocsService := service.NewAPIDocsService(settingRepository)
 	schedulerCache := repository.NewSchedulerCache(redisClient)
 	accountRepository := repository.NewAccountRepository(client, db, schedulerCache)
 	modelRegistryService := service.ProvideModelRegistryService(settingRepository, accountRepository)
+	channelMonitorRepository := repository.NewChannelMonitorRepository(db)
+	channelMonitorHistoryRepository := repository.NewChannelMonitorHistoryRepository(db)
+	channelMonitorRollupRepository := repository.NewChannelMonitorRollupRepository(db)
 	secretEncryptor, err := repository.NewAESEncryptor(configConfig)
 	if err != nil {
 		return nil, err
 	}
-	channelMonitorRepository := repository.NewChannelMonitorRepository(db)
-	channelMonitorHistoryRepository := repository.NewChannelMonitorHistoryRepository(db)
-	channelMonitorRollupRepository := repository.NewChannelMonitorRollupRepository(db)
 	channelMonitorService := service.NewChannelMonitorService(channelMonitorRepository, channelMonitorHistoryRepository, channelMonitorRollupRepository, settingService, secretEncryptor, configConfig)
-	modelCatalogService := service.ProvideModelCatalogService(settingRepository, apiKeyRepository, userPlatformQuotaService, billingService, pricingService, apiDocsService, modelRegistryService, channelMonitorService, configConfig)
-	apiKeyService := service.ProvideAPIKeyService(apiKeyRepository, userRepository, groupRepository, userSubscriptionRepository, userGroupRateRepository, apiKeyCache, billingCacheService, modelCatalogService, configConfig)
+	modelCatalogService := service.ProvideModelCatalogService(settingRepository, apiKeyRepository, userPlatformQuotaService, billingService, pricingService, modelRegistryService, channelMonitorService, configConfig)
+	apiKeyService := service.ProvideAPIKeyService(apiKeyRepository, userRepository, groupRepository, userSubscriptionRepository, userGroupRateRepository, apiKeyCache, billingCacheService, modelCatalogService, settingService, configConfig)
 	apiKeyAuthCacheInvalidator := service.ProvideAPIKeyAuthCacheInvalidator(apiKeyService, billingCacheService)
 	promoService := service.NewPromoService(promoCodeRepository, userRepository, billingCacheService, client, apiKeyAuthCacheInvalidator)
 	affiliateRepository := repository.NewAffiliateRepository(client, db)
@@ -111,11 +110,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
 	channelMonitorHandler := handler.NewChannelMonitorHandler(channelMonitorService)
 	usageLogRepository := repository.NewUsageLogRepository(client, db)
-	if trafficRepo, ok := usageLogRepository.(interface {
-		PublicModelCatalogTrafficHealth(context.Context, []service.PublicModelCatalogItem, time.Time, time.Time) (map[string]service.PublicModelCatalogStatusItem, error)
-	}); ok {
-		modelCatalogService.SetUsageHealthRepository(trafficRepo)
-	}
 	usageService := service.ProvideUsageService(usageLogRepository, userRepository, client, apiKeyAuthCacheInvalidator, emailService, emailTemplateService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService)
 	redeemHandler := handler.NewRedeemHandler(redeemService)
@@ -124,7 +118,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	announcementReadRepository := repository.NewAnnouncementReadRepository(client)
 	announcementService := service.NewAnnouncementService(announcementRepository, announcementReadRepository, userRepository, userSubscriptionRepository)
 	announcementHandler := handler.NewAnnouncementHandler(announcementService)
-	docsHandler := handler.NewDocsHandler(apiDocsService)
 	dashboardAggregationRepository := repository.NewDashboardAggregationRepository(db)
 	dashboardStatsCache := repository.NewDashboardCache(redisClient, configConfig)
 	dashboardService := service.NewDashboardService(usageLogRepository, dashboardAggregationRepository, dashboardStatsCache, configConfig)
@@ -203,7 +196,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	deferredService := service.ProvideDeferredService(accountRepository, timingWheelService)
 	digestSessionStore := service.NewDigestSessionStore()
 	gatewayService := service.ProvideGatewayService(accountRepository, groupRepository, usageLogRepository, usageBillingRepository, userRepository, userSubscriptionRepository, userGroupRateRepository, gatewayCache, configConfig, schedulerSnapshotService, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestSessionStore, settingService, modelRegistryService, modelCatalogService, apiKeyService, channelService, vertexUpstreamCatalogService, tlsFingerprintProfileService)
-	publicModelCatalogRevalidationRunner := service.ProvidePublicModelCatalogRevalidationRunner(modelCatalogService, gatewayService)
 	grokReverseClient := service.NewGrokReverseClient(httpUpstream, configConfig)
 	grokGatewayService := service.NewGrokGatewayService(gatewayService, httpUpstream, rateLimitService, grokReverseClient, configConfig)
 	openAIGatewayService := service.ProvideOpenAIGatewayService(accountRepository, usageLogRepository, usageBillingRepository, userRepository, userSubscriptionRepository, userGroupRateRepository, gatewayCache, configConfig, schedulerSnapshotService, concurrencyService, billingService, rateLimitService, billingCacheService, httpUpstream, deferredService, openAITokenProvider, settingService, modelRegistryService, modelCatalogService, channelService)
@@ -215,7 +207,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	opsService := service.NewOpsService(opsRepository, settingRepository, configConfig, accountRepository, userRepository, concurrencyService, gatewayService, openAIGatewayService, geminiMessagesCompatService, antigravityGatewayService, opsSystemLogSink)
 	accountHandler := handler.ProvideAdminAccountHandler(adminService, oAuthService, openAIOAuthService, kiroOAuthService, geminiOAuthService, antigravityOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, compositeTokenCacheInvalidator, accountModelImportService, accountModelDiagnosticsService, modelRegistryService, settingService, opsService)
 	affiliateHandler := admin.NewAffiliateHandler(affiliateService)
-	adminDocsHandler := admin.NewDocsHandler(apiDocsService)
 	emailTemplateHandler := admin.NewEmailTemplateHandler(emailTemplateService, emailService, settingService)
 	adminAnnouncementHandler := admin.NewAnnouncementHandler(announcementService)
 	dataManagementService := service.NewDataManagementService()
@@ -266,7 +257,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	httpAirwallexClient := service.NewHTTPAirwallexClient()
 	paymentService := service.ProvidePaymentService(paymentRepository, settingService, httpAirwallexClient, subscriptionService, affiliateService, emailService, emailTemplateService, userRepository, billingCacheService, apiKeyAuthCacheInvalidator)
 	adminPaymentHandler := handler.NewAdminPaymentHandler(paymentService)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, contentModerationAuditHandler, groupHandler, channelHandler, adminChannelMonitorHandler, channelMonitorTemplateHandler, accountHandler, affiliateHandler, adminDocsHandler, emailTemplateHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, kiroOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, adminAPIKeyHandler, modelCatalogHandler, modelRegistryHandler, scheduledTestHandler, tlsFingerprintProfileHandler, adminPaymentHandler)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, contentModerationAuditHandler, groupHandler, channelHandler, adminChannelMonitorHandler, channelMonitorTemplateHandler, accountHandler, affiliateHandler, emailTemplateHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, kiroOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, adminAPIKeyHandler, modelCatalogHandler, modelRegistryHandler, scheduledTestHandler, tlsFingerprintProfileHandler, adminPaymentHandler)
 	geminiNativeGatewayService := service.ProvideGeminiNativeGatewayService(geminiMessagesCompatService)
 	geminiCompatGatewayService := service.ProvideGeminiCompatGatewayService(geminiMessagesCompatService)
 	geminiLiveGatewayService := service.ProvideGeminiLiveGatewayService(geminiMessagesCompatService)
@@ -285,7 +276,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	paymentHandler := handler.NewPaymentHandler(paymentService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
-	handlers := handler.ProvideHandlers(authHandler, userHandler, metaHandler, apiKeyHandler, availableChannelHandler, channelMonitorHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, docsHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, grokGatewayHandler, documentAIHandler, handlerSettingHandler, totpHandler, paymentHandler, opsService, idempotencyCoordinator, idempotencyCleanupService)
+	handlers := handler.ProvideHandlers(authHandler, userHandler, metaHandler, apiKeyHandler, availableChannelHandler, channelMonitorHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, grokGatewayHandler, documentAIHandler, handlerSettingHandler, totpHandler, paymentHandler, opsService, idempotencyCoordinator, idempotencyCleanupService)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService)
 	adminAuthMiddleware := middleware.NewAdminAuthMiddleware(authService, userService, settingService)
 	apiKeyAuthMiddleware := middleware.NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, configConfig)
@@ -309,6 +300,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, accountRepository, telegramNotifierService, emailService, emailTemplateService, opsService, configConfig)
 	channelMonitorAggregationRepository := repository.NewChannelMonitorAggregationRepository(db)
 	channelMonitorRunnerService := service.ProvideChannelMonitorRunnerService(db, channelMonitorRepository, channelMonitorHistoryRepository, channelMonitorRollupRepository, channelMonitorAggregationRepository, settingService, secretEncryptor, configConfig)
+	publicModelCatalogRevalidationRunner := service.ProvidePublicModelCatalogRevalidationRunner(modelCatalogService, gatewayService)
 	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, openAIGPT55WhitelistBackfillService, accountExpiryService, accountDaily5HTriggerService, accountBlacklistCleanupService, accountRateLimitRecoveryProbeService, subscriptionExpiryService, usageCleanupService, usageRepairService, documentAIService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, channelMonitorRunnerService, publicModelCatalogRevalidationRunner, backupService)
 	application := &Application{
 		Server:  httpServer,

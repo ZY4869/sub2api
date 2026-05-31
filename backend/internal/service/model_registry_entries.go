@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -638,6 +639,7 @@ func (s *ModelRegistryService) adminDetails(ctx context.Context) ([]modelregistr
 		return nil, err
 	}
 	details := make([]modelregistry.AdminModelDetail, 0, len(entries)+len(tombstones))
+	now := time.Now()
 	for id, entry := range entries {
 		if isHardRemovedModelID(id) {
 			continue
@@ -645,12 +647,14 @@ func (s *ModelRegistryService) adminDetails(ctx context.Context) ([]modelregistr
 		_, isHidden := hidden[id]
 		_, isTombstoned := tombstones[id]
 		_, isAvailable := availableSet[id]
+		scheduleStatus := modelRegistryScheduleStatus(entry, now)
 		details = append(details, modelregistry.AdminModelDetail{
-			ModelEntry: entry,
-			Source:     sources[id],
-			Hidden:     isHidden,
-			Tombstoned: isTombstoned,
-			Available:  isAvailable && !isTombstoned,
+			ModelEntry:     entry,
+			Source:         sources[id],
+			Hidden:         isHidden,
+			Tombstoned:     isTombstoned,
+			Available:      isAvailable && !isTombstoned && scheduleStatus == ModelRegistryScheduleActive,
+			ScheduleStatus: scheduleStatus,
 		})
 	}
 	for id := range tombstones {

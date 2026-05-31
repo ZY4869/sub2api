@@ -41,6 +41,28 @@
         </select>
         <p class="input-hint">{{ t('admin.users.apiKeyModelBindingModeHint') }}</p>
       </div>
+      <div class="space-y-3">
+        <label class="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-dark-700 dark:bg-dark-900/30">
+          <input
+            v-model="form.enable_api_key_access_time_policy"
+            type="checkbox"
+            class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <div>
+            <div class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('admin.users.apiKeyAccessTimePolicy') }}
+            </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.users.apiKeyAccessTimePolicyHint') }}
+            </p>
+          </div>
+        </label>
+        <TimeAccessPolicyEditor
+          v-if="form.enable_api_key_access_time_policy"
+          v-model="form.api_key_access_time_policy"
+          :hint="t('admin.users.apiKeyAccessTimePolicyHint')"
+        />
+      </div>
       <div v-if="user?.role === 'admin'" class="rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-700/50 dark:bg-amber-900/10">
         <label class="flex items-start gap-3">
           <input v-model="form.admin_free_billing" type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500" />
@@ -73,10 +95,12 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
-import type { AdminUser, APIKeyModelBindingMode, UserAttributeValuesMap } from '@/types'
+import type { AdminUser, APIKeyModelBindingMode, TimeAccessPolicy, UserAttributeValuesMap } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import TimeAccessPolicyEditor from '@/components/common/TimeAccessPolicyEditor.vue'
 import UserAttributeForm from '@/components/user/UserAttributeForm.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { buildPresetTimeAccessPolicy, normalizeTimeAccessPolicy, policyToPayload } from '@/utils/timeAccessPolicy'
 
 const props = defineProps<{ show: boolean, user: AdminUser | null }>()
 const emit = defineEmits(['close', 'success'])
@@ -89,6 +113,8 @@ const form = reactive({
   username: '',
   notes: '',
   api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode,
+  enable_api_key_access_time_policy: false,
+  api_key_access_time_policy: buildPresetTimeAccessPolicy('daytime') as TimeAccessPolicy,
   admin_free_billing: false,
   concurrency: 1,
   customAttributes: {} as UserAttributeValuesMap
@@ -102,6 +128,8 @@ watch(() => props.user, (u) => {
       username: u.username || '',
       notes: u.notes || '',
       api_key_model_binding_mode: u.api_key_model_binding_mode || 'model_required',
+      enable_api_key_access_time_policy: !!u.api_key_access_time_policy?.enabled,
+      api_key_access_time_policy: normalizeTimeAccessPolicy(u.api_key_access_time_policy),
       admin_free_billing: !!u.admin_free_billing,
       concurrency: u.concurrency,
       customAttributes: {}
@@ -137,6 +165,9 @@ const handleUpdateUser = async () => {
       username: form.username,
       notes: form.notes,
       api_key_model_binding_mode: form.api_key_model_binding_mode,
+      ...(form.enable_api_key_access_time_policy
+        ? { api_key_access_time_policy: policyToPayload(form.api_key_access_time_policy) }
+        : { clear_api_key_access_time_policy: true }),
       admin_free_billing: props.user.role === 'admin' ? form.admin_free_billing : false,
       concurrency: form.concurrency
     }

@@ -263,6 +263,26 @@ func (_c *APIKeyCreate) SetNillableExpiresAt(v *time.Time) *APIKeyCreate {
 	return _c
 }
 
+// SetStartsAt sets the "starts_at" field.
+func (_c *APIKeyCreate) SetStartsAt(v time.Time) *APIKeyCreate {
+	_c.mutation.SetStartsAt(v)
+	return _c
+}
+
+// SetNillableStartsAt sets the "starts_at" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableStartsAt(v *time.Time) *APIKeyCreate {
+	if v != nil {
+		_c.SetStartsAt(*v)
+	}
+	return _c
+}
+
+// SetAccessTimePolicy sets the "access_time_policy" field.
+func (_c *APIKeyCreate) SetAccessTimePolicy(v map[string]interface{}) *APIKeyCreate {
+	_c.mutation.SetAccessTimePolicy(v)
+	return _c
+}
+
 // SetRateLimit5h sets the "rate_limit_5h" field.
 func (_c *APIKeyCreate) SetRateLimit5h(v float64) *APIKeyCreate {
 	_c.mutation.SetRateLimit5h(v)
@@ -741,6 +761,14 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ExpiresAt(); ok {
 		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
 		_node.ExpiresAt = &value
+	}
+	if value, ok := _c.mutation.StartsAt(); ok {
+		_spec.SetField(apikey.FieldStartsAt, field.TypeTime, value)
+		_node.StartsAt = &value
+	}
+	if value, ok := _c.mutation.AccessTimePolicy(); ok {
+		_spec.SetField(apikey.FieldAccessTimePolicy, field.TypeJSON, value)
+		_node.AccessTimePolicy = value
 	}
 	if value, ok := _c.mutation.RateLimit5h(); ok {
 		_spec.SetField(apikey.FieldRateLimit5h, field.TypeFloat64, value)
@@ -1221,6 +1249,42 @@ func (u *APIKeyUpsert) UpdateExpiresAt() *APIKeyUpsert {
 // ClearExpiresAt clears the value of the "expires_at" field.
 func (u *APIKeyUpsert) ClearExpiresAt() *APIKeyUpsert {
 	u.SetNull(apikey.FieldExpiresAt)
+	return u
+}
+
+// SetStartsAt sets the "starts_at" field.
+func (u *APIKeyUpsert) SetStartsAt(v time.Time) *APIKeyUpsert {
+	u.Set(apikey.FieldStartsAt, v)
+	return u
+}
+
+// UpdateStartsAt sets the "starts_at" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateStartsAt() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldStartsAt)
+	return u
+}
+
+// ClearStartsAt clears the value of the "starts_at" field.
+func (u *APIKeyUpsert) ClearStartsAt() *APIKeyUpsert {
+	u.SetNull(apikey.FieldStartsAt)
+	return u
+}
+
+// SetAccessTimePolicy sets the "access_time_policy" field.
+func (u *APIKeyUpsert) SetAccessTimePolicy(v map[string]interface{}) *APIKeyUpsert {
+	u.Set(apikey.FieldAccessTimePolicy, v)
+	return u
+}
+
+// UpdateAccessTimePolicy sets the "access_time_policy" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateAccessTimePolicy() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldAccessTimePolicy)
+	return u
+}
+
+// ClearAccessTimePolicy clears the value of the "access_time_policy" field.
+func (u *APIKeyUpsert) ClearAccessTimePolicy() *APIKeyUpsert {
+	u.SetNull(apikey.FieldAccessTimePolicy)
 	return u
 }
 
@@ -1846,6 +1910,48 @@ func (u *APIKeyUpsertOne) UpdateExpiresAt() *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) ClearExpiresAt() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearExpiresAt()
+	})
+}
+
+// SetStartsAt sets the "starts_at" field.
+func (u *APIKeyUpsertOne) SetStartsAt(v time.Time) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetStartsAt(v)
+	})
+}
+
+// UpdateStartsAt sets the "starts_at" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateStartsAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateStartsAt()
+	})
+}
+
+// ClearStartsAt clears the value of the "starts_at" field.
+func (u *APIKeyUpsertOne) ClearStartsAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearStartsAt()
+	})
+}
+
+// SetAccessTimePolicy sets the "access_time_policy" field.
+func (u *APIKeyUpsertOne) SetAccessTimePolicy(v map[string]interface{}) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetAccessTimePolicy(v)
+	})
+}
+
+// UpdateAccessTimePolicy sets the "access_time_policy" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateAccessTimePolicy() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateAccessTimePolicy()
+	})
+}
+
+// ClearAccessTimePolicy clears the value of the "access_time_policy" field.
+func (u *APIKeyUpsertOne) ClearAccessTimePolicy() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearAccessTimePolicy()
 	})
 }
 
@@ -2673,6 +2779,48 @@ func (u *APIKeyUpsertBulk) UpdateExpiresAt() *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) ClearExpiresAt() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearExpiresAt()
+	})
+}
+
+// SetStartsAt sets the "starts_at" field.
+func (u *APIKeyUpsertBulk) SetStartsAt(v time.Time) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetStartsAt(v)
+	})
+}
+
+// UpdateStartsAt sets the "starts_at" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateStartsAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateStartsAt()
+	})
+}
+
+// ClearStartsAt clears the value of the "starts_at" field.
+func (u *APIKeyUpsertBulk) ClearStartsAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearStartsAt()
+	})
+}
+
+// SetAccessTimePolicy sets the "access_time_policy" field.
+func (u *APIKeyUpsertBulk) SetAccessTimePolicy(v map[string]interface{}) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetAccessTimePolicy(v)
+	})
+}
+
+// UpdateAccessTimePolicy sets the "access_time_policy" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateAccessTimePolicy() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateAccessTimePolicy()
+	})
+}
+
+// ClearAccessTimePolicy clears the value of the "access_time_policy" field.
+func (u *APIKeyUpsertBulk) ClearAccessTimePolicy() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearAccessTimePolicy()
 	})
 }
 

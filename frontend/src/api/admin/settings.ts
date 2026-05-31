@@ -119,6 +119,9 @@ export interface SystemSettings {
   payment_min_topup_amount: number
   payment_max_topup_amount: number
   payment_subscription_plans: PaymentSubscriptionPlan[]
+  billing_currency_conversion_enabled: boolean
+  billing_currency_cny_to_usd_rate: number
+  billing_currency_usd_to_cny_rate: number
   antigravity_user_agent_version: string
   codex_oauth_user_agent_mode: 'default' | 'force' | 'custom' | string
   codex_oauth_user_agent_override: string
@@ -254,6 +257,9 @@ export interface UpdateSettingsRequest {
   payment_min_topup_amount?: number
   payment_max_topup_amount?: number
   payment_subscription_plans?: PaymentSubscriptionPlan[]
+  billing_currency_conversion_enabled?: boolean
+  billing_currency_cny_to_usd_rate?: number
+  billing_currency_usd_to_cny_rate?: number
   antigravity_user_agent_version?: string
   codex_oauth_user_agent_mode?: 'default' | 'force' | 'custom' | string
   codex_oauth_user_agent_override?: string

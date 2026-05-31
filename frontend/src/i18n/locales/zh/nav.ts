@@ -37,7 +37,6 @@ export default {
     buySubscription: '充值 / 订阅',
     paymentOrders: '支付订单',
     affiliate: '邀请返利',
-    docs: '文档',
-    apiDocs: 'API 文档'
+    docs: '文档'
   },
 }

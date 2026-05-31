@@ -14,6 +14,21 @@ export type GroupPlatform =
 
 export type APIKeyModelBindingMode = "model_required" | "group_allowed";
 
+export interface TimeAccessWindow {
+  days: number[];
+  start: string;
+  end: string;
+}
+
+export interface TimeAccessPolicy {
+  enabled: boolean;
+  timezone?: string;
+  not_before?: string | null;
+  not_after?: string | null;
+  weekly_windows?: TimeAccessWindow[];
+  daily_allowed_minutes?: number | null;
+}
+
 export type SubscriptionType = "standard" | "subscription";
 export type OpenAIImageProtocolMode = "native" | "compat";
 export type OpenAIGroupImageProtocolMode =
@@ -94,6 +109,8 @@ export interface ApiKey {
   image_count_used: number;
   image_count_weights: Record<string, number>;
   expires_at: string | null; // Expiration time (null = never expires)
+  starts_at?: string | null;
+  access_time_policy?: TimeAccessPolicy | null;
   created_at: string;
   updated_at: string;
   group?: Group;
@@ -155,6 +172,8 @@ export interface CreateApiKeyRequest {
   ip_blacklist?: string[];
   quota?: number; // Quota limit in USD (0 = unlimited)
   expires_in_days?: number; // Days until expiry (null = never expires)
+  starts_at?: string;
+  access_time_policy?: TimeAccessPolicy;
   rate_limit_5h?: number;
   rate_limit_1d?: number;
   rate_limit_7d?: number;
@@ -173,6 +192,9 @@ export interface UpdateApiKeyRequest {
   ip_blacklist?: string[];
   quota?: number; // Quota limit in USD (null = no change, 0 = unlimited)
   expires_at?: string | null; // Expiration time (null = no change)
+  starts_at?: string | null;
+  access_time_policy?: TimeAccessPolicy | null;
+  clear_access_time_policy?: boolean;
   reset_quota?: boolean; // Reset quota_used to 0
   rate_limit_5h?: number;
   rate_limit_1d?: number;

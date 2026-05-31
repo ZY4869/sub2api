@@ -100,6 +100,14 @@ func (APIKey) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Expiration time for this API key (null = never expires)"),
+		field.Time("starts_at").
+			Optional().
+			Nillable().
+			Comment("Scheduled activation time for this API key (null = active immediately)"),
+		field.JSON("access_time_policy", map[string]any{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Time access policy for this API key"),
 
 		// ========== Rate limit fields ==========
 		// Rate limit configuration (0 = unlimited)
@@ -184,5 +192,6 @@ func (APIKey) Indexes() []ent.Index {
 		// Index for quota queries
 		index.Fields("quota", "quota_used"),
 		index.Fields("expires_at"),
+		index.Fields("starts_at"),
 	}
 }

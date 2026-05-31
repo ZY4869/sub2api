@@ -3,6 +3,7 @@ import { buildApiKeyGroupBindingPayload } from "@/components/keys/apiKeyGroupBin
 import type { ApiKey } from "@/types";
 import type { Ref } from "vue";
 import { imageCountWeightTiers, type ApiKeyFormData, type ImageCountWeightTier } from "./types";
+import { policyToPayload } from "./timeAccess";
 
 interface SubmitApiKeyFormContext {
   formData: Ref<ApiKeyFormData>;
@@ -146,6 +147,14 @@ export async function submitApiKeyForm(ctx: SubmitApiKeyFormContext) {
   const imageCountWeights = normalizeImageCountWeights(
     formData.value.image_count_weights,
   );
+  const startsAt = formData.value.enable_starts_at && formData.value.starts_at
+    ? new Date(formData.value.starts_at).toISOString()
+    : showEditModal.value
+      ? ""
+      : undefined;
+  const accessTimePolicy = formData.value.enable_time_access
+    ? policyToPayload(formData.value.access_time_policy)
+    : undefined;
 
   submitting.value = true;
   try {
@@ -162,6 +171,10 @@ export async function submitApiKeyForm(ctx: SubmitApiKeyFormContext) {
         image_max_count: imageMaxCount,
         image_count_weights: imageCountWeights,
         expires_at: expiresAt,
+        starts_at: startsAt,
+        ...(accessTimePolicy
+          ? { access_time_policy: accessTimePolicy }
+          : { clear_access_time_policy: true }),
         rate_limit_5h: rateLimitData.rate_limit_5h,
         rate_limit_1d: rateLimitData.rate_limit_1d,
         rate_limit_7d: rateLimitData.rate_limit_7d,
@@ -185,6 +198,8 @@ export async function submitApiKeyForm(ctx: SubmitApiKeyFormContext) {
         ...(expiresInDays && expiresInDays > 0
           ? { expires_in_days: expiresInDays }
           : {}),
+        ...(startsAt ? { starts_at: startsAt } : {}),
+        ...(accessTimePolicy ? { access_time_policy: accessTimePolicy } : {}),
         ...rateLimitData,
       });
       appStore.showSuccess(t("keys.keyCreatedSuccess"));

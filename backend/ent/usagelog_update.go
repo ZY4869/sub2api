@@ -640,6 +640,107 @@ func (_u *UsageLogUpdate) ClearAccountRateMultiplier() *UsageLogUpdate {
 	return _u
 }
 
+// SetDiscountApplied sets the "discount_applied" field.
+func (_u *UsageLogUpdate) SetDiscountApplied(v bool) *UsageLogUpdate {
+	_u.mutation.SetDiscountApplied(v)
+	return _u
+}
+
+// SetNillableDiscountApplied sets the "discount_applied" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableDiscountApplied(v *bool) *UsageLogUpdate {
+	if v != nil {
+		_u.SetDiscountApplied(*v)
+	}
+	return _u
+}
+
+// SetDiscountPercent sets the "discount_percent" field.
+func (_u *UsageLogUpdate) SetDiscountPercent(v float64) *UsageLogUpdate {
+	_u.mutation.ResetDiscountPercent()
+	_u.mutation.SetDiscountPercent(v)
+	return _u
+}
+
+// SetNillableDiscountPercent sets the "discount_percent" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableDiscountPercent(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetDiscountPercent(*v)
+	}
+	return _u
+}
+
+// AddDiscountPercent adds value to the "discount_percent" field.
+func (_u *UsageLogUpdate) AddDiscountPercent(v float64) *UsageLogUpdate {
+	_u.mutation.AddDiscountPercent(v)
+	return _u
+}
+
+// ClearDiscountPercent clears the value of the "discount_percent" field.
+func (_u *UsageLogUpdate) ClearDiscountPercent() *UsageLogUpdate {
+	_u.mutation.ClearDiscountPercent()
+	return _u
+}
+
+// SetDiscountWindowID sets the "discount_window_id" field.
+func (_u *UsageLogUpdate) SetDiscountWindowID(v string) *UsageLogUpdate {
+	_u.mutation.SetDiscountWindowID(v)
+	return _u
+}
+
+// SetNillableDiscountWindowID sets the "discount_window_id" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableDiscountWindowID(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetDiscountWindowID(*v)
+	}
+	return _u
+}
+
+// ClearDiscountWindowID clears the value of the "discount_window_id" field.
+func (_u *UsageLogUpdate) ClearDiscountWindowID() *UsageLogUpdate {
+	_u.mutation.ClearDiscountWindowID()
+	return _u
+}
+
+// SetDiscountWindowType sets the "discount_window_type" field.
+func (_u *UsageLogUpdate) SetDiscountWindowType(v string) *UsageLogUpdate {
+	_u.mutation.SetDiscountWindowType(v)
+	return _u
+}
+
+// SetNillableDiscountWindowType sets the "discount_window_type" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableDiscountWindowType(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetDiscountWindowType(*v)
+	}
+	return _u
+}
+
+// ClearDiscountWindowType clears the value of the "discount_window_type" field.
+func (_u *UsageLogUpdate) ClearDiscountWindowType() *UsageLogUpdate {
+	_u.mutation.ClearDiscountWindowType()
+	return _u
+}
+
+// SetDiscountCompletedAt sets the "discount_completed_at" field.
+func (_u *UsageLogUpdate) SetDiscountCompletedAt(v time.Time) *UsageLogUpdate {
+	_u.mutation.SetDiscountCompletedAt(v)
+	return _u
+}
+
+// SetNillableDiscountCompletedAt sets the "discount_completed_at" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableDiscountCompletedAt(v *time.Time) *UsageLogUpdate {
+	if v != nil {
+		_u.SetDiscountCompletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDiscountCompletedAt clears the value of the "discount_completed_at" field.
+func (_u *UsageLogUpdate) ClearDiscountCompletedAt() *UsageLogUpdate {
+	_u.mutation.ClearDiscountCompletedAt()
+	return _u
+}
+
 // SetBillingType sets the "billing_type" field.
 func (_u *UsageLogUpdate) SetBillingType(v int8) *UsageLogUpdate {
 	_u.mutation.ResetBillingType()
@@ -948,6 +1049,16 @@ func (_u *UsageLogUpdate) check() error {
 			return &ValidationError{Name: "billing_exempt_reason", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_exempt_reason": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DiscountWindowID(); ok {
+		if err := usagelog.DiscountWindowIDValidator(v); err != nil {
+			return &ValidationError{Name: "discount_window_id", err: fmt.Errorf(`ent: validator failed for field "UsageLog.discount_window_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DiscountWindowType(); ok {
+		if err := usagelog.DiscountWindowTypeValidator(v); err != nil {
+			return &ValidationError{Name: "discount_window_type", err: fmt.Errorf(`ent: validator failed for field "UsageLog.discount_window_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -1136,6 +1247,36 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.AccountRateMultiplierCleared() {
 		_spec.ClearField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DiscountApplied(); ok {
+		_spec.SetField(usagelog.FieldDiscountApplied, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DiscountPercent(); ok {
+		_spec.SetField(usagelog.FieldDiscountPercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDiscountPercent(); ok {
+		_spec.AddField(usagelog.FieldDiscountPercent, field.TypeFloat64, value)
+	}
+	if _u.mutation.DiscountPercentCleared() {
+		_spec.ClearField(usagelog.FieldDiscountPercent, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DiscountWindowID(); ok {
+		_spec.SetField(usagelog.FieldDiscountWindowID, field.TypeString, value)
+	}
+	if _u.mutation.DiscountWindowIDCleared() {
+		_spec.ClearField(usagelog.FieldDiscountWindowID, field.TypeString)
+	}
+	if value, ok := _u.mutation.DiscountWindowType(); ok {
+		_spec.SetField(usagelog.FieldDiscountWindowType, field.TypeString, value)
+	}
+	if _u.mutation.DiscountWindowTypeCleared() {
+		_spec.ClearField(usagelog.FieldDiscountWindowType, field.TypeString)
+	}
+	if value, ok := _u.mutation.DiscountCompletedAt(); ok {
+		_spec.SetField(usagelog.FieldDiscountCompletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DiscountCompletedAtCleared() {
+		_spec.ClearField(usagelog.FieldDiscountCompletedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.BillingType(); ok {
 		_spec.SetField(usagelog.FieldBillingType, field.TypeInt8, value)
@@ -1963,6 +2104,107 @@ func (_u *UsageLogUpdateOne) ClearAccountRateMultiplier() *UsageLogUpdateOne {
 	return _u
 }
 
+// SetDiscountApplied sets the "discount_applied" field.
+func (_u *UsageLogUpdateOne) SetDiscountApplied(v bool) *UsageLogUpdateOne {
+	_u.mutation.SetDiscountApplied(v)
+	return _u
+}
+
+// SetNillableDiscountApplied sets the "discount_applied" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableDiscountApplied(v *bool) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetDiscountApplied(*v)
+	}
+	return _u
+}
+
+// SetDiscountPercent sets the "discount_percent" field.
+func (_u *UsageLogUpdateOne) SetDiscountPercent(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetDiscountPercent()
+	_u.mutation.SetDiscountPercent(v)
+	return _u
+}
+
+// SetNillableDiscountPercent sets the "discount_percent" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableDiscountPercent(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetDiscountPercent(*v)
+	}
+	return _u
+}
+
+// AddDiscountPercent adds value to the "discount_percent" field.
+func (_u *UsageLogUpdateOne) AddDiscountPercent(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddDiscountPercent(v)
+	return _u
+}
+
+// ClearDiscountPercent clears the value of the "discount_percent" field.
+func (_u *UsageLogUpdateOne) ClearDiscountPercent() *UsageLogUpdateOne {
+	_u.mutation.ClearDiscountPercent()
+	return _u
+}
+
+// SetDiscountWindowID sets the "discount_window_id" field.
+func (_u *UsageLogUpdateOne) SetDiscountWindowID(v string) *UsageLogUpdateOne {
+	_u.mutation.SetDiscountWindowID(v)
+	return _u
+}
+
+// SetNillableDiscountWindowID sets the "discount_window_id" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableDiscountWindowID(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetDiscountWindowID(*v)
+	}
+	return _u
+}
+
+// ClearDiscountWindowID clears the value of the "discount_window_id" field.
+func (_u *UsageLogUpdateOne) ClearDiscountWindowID() *UsageLogUpdateOne {
+	_u.mutation.ClearDiscountWindowID()
+	return _u
+}
+
+// SetDiscountWindowType sets the "discount_window_type" field.
+func (_u *UsageLogUpdateOne) SetDiscountWindowType(v string) *UsageLogUpdateOne {
+	_u.mutation.SetDiscountWindowType(v)
+	return _u
+}
+
+// SetNillableDiscountWindowType sets the "discount_window_type" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableDiscountWindowType(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetDiscountWindowType(*v)
+	}
+	return _u
+}
+
+// ClearDiscountWindowType clears the value of the "discount_window_type" field.
+func (_u *UsageLogUpdateOne) ClearDiscountWindowType() *UsageLogUpdateOne {
+	_u.mutation.ClearDiscountWindowType()
+	return _u
+}
+
+// SetDiscountCompletedAt sets the "discount_completed_at" field.
+func (_u *UsageLogUpdateOne) SetDiscountCompletedAt(v time.Time) *UsageLogUpdateOne {
+	_u.mutation.SetDiscountCompletedAt(v)
+	return _u
+}
+
+// SetNillableDiscountCompletedAt sets the "discount_completed_at" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableDiscountCompletedAt(v *time.Time) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetDiscountCompletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDiscountCompletedAt clears the value of the "discount_completed_at" field.
+func (_u *UsageLogUpdateOne) ClearDiscountCompletedAt() *UsageLogUpdateOne {
+	_u.mutation.ClearDiscountCompletedAt()
+	return _u
+}
+
 // SetBillingType sets the "billing_type" field.
 func (_u *UsageLogUpdateOne) SetBillingType(v int8) *UsageLogUpdateOne {
 	_u.mutation.ResetBillingType()
@@ -2284,6 +2526,16 @@ func (_u *UsageLogUpdateOne) check() error {
 			return &ValidationError{Name: "billing_exempt_reason", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_exempt_reason": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DiscountWindowID(); ok {
+		if err := usagelog.DiscountWindowIDValidator(v); err != nil {
+			return &ValidationError{Name: "discount_window_id", err: fmt.Errorf(`ent: validator failed for field "UsageLog.discount_window_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DiscountWindowType(); ok {
+		if err := usagelog.DiscountWindowTypeValidator(v); err != nil {
+			return &ValidationError{Name: "discount_window_type", err: fmt.Errorf(`ent: validator failed for field "UsageLog.discount_window_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -2489,6 +2741,36 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.AccountRateMultiplierCleared() {
 		_spec.ClearField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DiscountApplied(); ok {
+		_spec.SetField(usagelog.FieldDiscountApplied, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DiscountPercent(); ok {
+		_spec.SetField(usagelog.FieldDiscountPercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDiscountPercent(); ok {
+		_spec.AddField(usagelog.FieldDiscountPercent, field.TypeFloat64, value)
+	}
+	if _u.mutation.DiscountPercentCleared() {
+		_spec.ClearField(usagelog.FieldDiscountPercent, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DiscountWindowID(); ok {
+		_spec.SetField(usagelog.FieldDiscountWindowID, field.TypeString, value)
+	}
+	if _u.mutation.DiscountWindowIDCleared() {
+		_spec.ClearField(usagelog.FieldDiscountWindowID, field.TypeString)
+	}
+	if value, ok := _u.mutation.DiscountWindowType(); ok {
+		_spec.SetField(usagelog.FieldDiscountWindowType, field.TypeString, value)
+	}
+	if _u.mutation.DiscountWindowTypeCleared() {
+		_spec.ClearField(usagelog.FieldDiscountWindowType, field.TypeString)
+	}
+	if value, ok := _u.mutation.DiscountCompletedAt(); ok {
+		_spec.SetField(usagelog.FieldDiscountCompletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DiscountCompletedAtCleared() {
+		_spec.ClearField(usagelog.FieldDiscountCompletedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.BillingType(); ok {
 		_spec.SetField(usagelog.FieldBillingType, field.TypeInt8, value)

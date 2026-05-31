@@ -90,20 +90,23 @@ type CreateUserInput struct {
 	Concurrency            int
 	AllowedGroups          []int64
 	APIKeyModelBindingMode string
+	APIKeyAccessTimePolicy *TimeAccessPolicy
 }
 type UpdateUserInput struct {
-	Email                  string
-	Password               string
-	Username               *string
-	Notes                  *string
-	Balance                *float64
-	Concurrency            *int
-	AdminFreeBilling       *bool
-	RequestDetailsReview   *bool
-	Status                 string
-	AllowedGroups          *[]int64
-	GroupRates             map[int64]*float64
-	APIKeyModelBindingMode *string
+	Email                       string
+	Password                    string
+	Username                    *string
+	Notes                       *string
+	Balance                     *float64
+	Concurrency                 *int
+	AdminFreeBilling            *bool
+	RequestDetailsReview        *bool
+	Status                      string
+	AllowedGroups               *[]int64
+	GroupRates                  map[int64]*float64
+	APIKeyModelBindingMode      *string
+	APIKeyAccessTimePolicy      *TimeAccessPolicy
+	ClearAPIKeyAccessTimePolicy bool
 }
 type CreateGroupInput struct {
 	Name                            string

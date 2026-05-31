@@ -27,6 +27,8 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 		SetQuota(key.Quota).
 		SetQuotaUsed(key.QuotaUsed).
 		SetNillableExpiresAt(key.ExpiresAt).
+		SetNillableStartsAt(key.StartsAt).
+		SetAccessTimePolicy(timeAccessPolicyToMap(key.AccessTimePolicy)).
 		SetRateLimit5h(key.RateLimit5h).
 		SetRateLimit1d(key.RateLimit1d).
 		SetRateLimit7d(key.RateLimit7d)
@@ -100,6 +102,7 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) erro
 		SetImageCountWeights(service.NormalizeAPIKeyImageCountWeights(key.ImageCountWeights)).
 		SetQuota(key.Quota).
 		SetQuotaUsed(key.QuotaUsed).
+		SetAccessTimePolicy(timeAccessPolicyToMap(key.AccessTimePolicy)).
 		SetRateLimit5h(key.RateLimit5h).
 		SetRateLimit1d(key.RateLimit1d).
 		SetRateLimit7d(key.RateLimit7d).
@@ -130,6 +133,11 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) erro
 		builder.SetExpiresAt(*key.ExpiresAt)
 	} else {
 		builder.ClearExpiresAt()
+	}
+	if key.StartsAt != nil {
+		builder.SetStartsAt(*key.StartsAt)
+	} else {
+		builder.ClearStartsAt()
 	}
 
 	// Rate limit window start times

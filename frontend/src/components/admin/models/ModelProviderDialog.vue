@@ -93,6 +93,7 @@
             @deactivate="emit('deactivate', activeProvider, $event)"
             @hard-delete="emit('hard-delete', activeProvider, $event)"
             @move-provider="emit('move-provider', activeProvider, $event)"
+            @edit-schedule="emit('edit-schedule', activeProvider, $event)"
             @load-more="emit('load-more', activeProvider)"
           />
         </div>
@@ -147,6 +148,7 @@ const emit = defineEmits<{
   (e: 'deactivate', provider: string, modelIds: string[]): void
   (e: 'hard-delete', provider: string, modelIds: string[]): void
   (e: 'move-provider', provider: string, payload: { targetProvider: string; modelIds: string[] }): void
+  (e: 'edit-schedule', provider: string, model: ModelRegistryDetail): void
   (e: 'load-more', provider: string): void
 }>()
 

@@ -18,6 +18,7 @@ type gatewayRecordUsageQueryableRepoStub struct {
 	logs            []UsageLog
 	bestEffortCalls int
 	lastLog         *UsageLog
+	successRates    map[string]ModelSuccessRateSnapshot
 }
 
 func (s *gatewayRecordUsageQueryableRepoStub) CreateBestEffort(_ context.Context, log *UsageLog) error {
@@ -71,6 +72,16 @@ func (s *gatewayRecordUsageQueryableRepoStub) ListWithFilters(_ context.Context,
 		PageSize: pageSize,
 		Pages:    1,
 	}, nil
+}
+
+func (s *gatewayRecordUsageQueryableRepoStub) GetModelSuccessRates7d(_ context.Context, models []string, _ time.Time) (map[string]ModelSuccessRateSnapshot, error) {
+	out := map[string]ModelSuccessRateSnapshot{}
+	for _, model := range models {
+		if snapshot, ok := s.successRates[model]; ok {
+			out[model] = snapshot
+		}
+	}
+	return out, nil
 }
 
 func TestGatewayServiceRecordUsage_PersistsGeminiNativeUsageQueryableByAPIKeyAndDateRange(t *testing.T) {
@@ -181,4 +192,35 @@ func TestGatewayServiceRecordUsage_PersistsGeminiPassthroughUsageQueryableByAPIK
 	require.Equal(t, inboundEndpoint, *logs[0].InboundEndpoint)
 	require.NotNil(t, logs[0].UpstreamEndpoint)
 	require.Equal(t, upstreamEndpoint, *logs[0].UpstreamEndpoint)
+}
+
+func TestUsageServiceListWithFiltersAttachesModelSuccessRate7d(t *testing.T) {
+	rate := 0.995
+	usageRepo := &gatewayRecordUsageQueryableRepoStub{
+		logs: []UsageLog{
+			{
+				ID:             1,
+				RequestID:      "req-success-rate",
+				UserID:         601,
+				APIKeyID:       701,
+				Model:          "upstream-model",
+				RequestedModel: "display-model",
+				CreatedAt:      time.Now(),
+			},
+		},
+		successRates: map[string]ModelSuccessRateSnapshot{
+			"display-model": {Rate: &rate, Status: "healthy"},
+		},
+	}
+	usageSvc := NewUsageService(usageRepo, nil, nil, nil)
+
+	logs, _, err := usageSvc.ListWithFilters(context.Background(), pagination.PaginationParams{Page: 1, PageSize: 20}, usagestats.UsageLogFilters{
+		UserID:   601,
+		APIKeyID: 701,
+	})
+	require.NoError(t, err)
+	require.Len(t, logs, 1)
+	require.NotNil(t, logs[0].ModelSuccessRate7d)
+	require.InDelta(t, rate, *logs[0].ModelSuccessRate7d, 0.000001)
+	require.Equal(t, "healthy", logs[0].ModelSuccessStatus)
 }

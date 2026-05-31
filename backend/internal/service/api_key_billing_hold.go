@@ -27,6 +27,7 @@ func (s *APIKeyService) TryReserveRequestBillingHold(ctx context.Context, apiKey
 		UserID:             apiKey.User.ID,
 		Currency:           ModelPricingCurrencyUSD,
 		Amount:             amount,
+		CurrencyConversion: billingCurrencyConversionFromSettings(ctx, s.settingService),
 	})
 	if err != nil {
 		return nil, err

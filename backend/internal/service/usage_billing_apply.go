@@ -117,6 +117,9 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
 		BillingCurrency:    normalizeBillingCurrency(p.Cost.Currency),
 		USDToCNYRate:       p.Cost.USDToCNYRate,
+		CurrencyConversionEnabled: p.CurrencyConversion.Enabled,
+		CNYToUSDRate:              p.CurrencyConversion.CNYToUSDRate,
+		USDToCNYConversionRate:    p.CurrencyConversion.USDToCNYRate,
 		FXRateDate:         p.Cost.FXRateDate,
 		FXLockedAt:         cloneBillingTime(p.Cost.FXLockedAt),
 	}

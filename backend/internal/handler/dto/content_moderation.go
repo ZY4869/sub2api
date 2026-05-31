@@ -9,11 +9,12 @@ type ContentModerationAudit struct {
 	Provider        string `json:"provider"`
 	Model           string `json:"model"`
 	SourceEndpoint  string `json:"source_endpoint"`
-	ContentHash     string `json:"content_hash"`
-	ContentSummary  string `json:"content_summary"`
-	Hit             bool   `json:"hit"`
-	DedupeHit       bool   `json:"dedupe_hit"`
-	ErrorReason     string `json:"error_reason"`
-	LatencyMs       int    `json:"latency_ms"`
-	CreatedAt       string `json:"created_at"`
+	ContentHash     string   `json:"content_hash"`
+	ContentSummary  string   `json:"content_summary"`
+	Categories      []string `json:"categories"`
+	Hit             bool     `json:"hit"`
+	DedupeHit       bool     `json:"dedupe_hit"`
+	ErrorReason     string   `json:"error_reason"`
+	LatencyMs       int      `json:"latency_ms"`
+	CreatedAt       string   `json:"created_at"`
 }

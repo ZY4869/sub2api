@@ -252,21 +252,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/api-docs',
-    redirect: '/api-docs/common'
-  },
-  {
-    path: '/api-docs/:pageId(common|openai-native|openai|openrouter|anthropic|gemini|grok|deepseek|antigravity|vertex-batch|document-ai)',
-    name: 'ApiDocs',
-    component: () => import('@/views/user/ApiDocsView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'API Docs',
-      titleKey: 'ui.routeTitles.apiDocs'
-    }
-  },
-  {
     path: '/subscriptions',
     name: 'Subscriptions',
     component: () => import('@/views/user/SubscriptionsView.vue'),
@@ -683,22 +668,6 @@ const routes: RouteRecordRaw[] = [
         }
       }
     ]
-  },
-  {
-    path: '/admin/api-docs',
-    redirect: '/admin/api-docs/common'
-  },
-  {
-    path: '/admin/api-docs/:pageId(common|openai-native|openai|openrouter|anthropic|gemini|grok|deepseek|antigravity|vertex-batch|document-ai)',
-    name: 'AdminApiDocs',
-    component: () => import('@/views/admin/AdminApiDocsView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: 'Admin API Docs',
-      titleKey: 'admin.apiDocs.title',
-      descriptionKey: 'admin.apiDocs.description'
-    }
   },
   {
     path: '/admin/announcements',

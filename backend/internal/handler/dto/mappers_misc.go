@@ -10,6 +10,10 @@ func ContentModerationAuditFromService(audit *service.ContentModerationAudit) *C
 	if audit == nil {
 		return nil
 	}
+	categories := append([]string(nil), audit.Categories...)
+	if categories == nil {
+		categories = []string{}
+	}
 	return &ContentModerationAudit{
 		ID:              audit.ID,
 		RequestID:       audit.RequestID,
@@ -21,6 +25,7 @@ func ContentModerationAuditFromService(audit *service.ContentModerationAudit) *C
 		SourceEndpoint:  audit.SourceEndpoint,
 		ContentHash:     audit.ContentHash,
 		ContentSummary:  audit.ContentSummary,
+		Categories:      categories,
 		Hit:             audit.Hit,
 		DedupeHit:       audit.DedupeHit,
 		ErrorReason:     audit.ErrorReason,

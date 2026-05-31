@@ -69,7 +69,11 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 	return user, nil
 }
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
-	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: RoleUser, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups, APIKeyModelBindingMode: NormalizeAPIKeyModelBindingMode(input.APIKeyModelBindingMode)}
+	policy, err := NormalizeTimeAccessPolicy(input.APIKeyAccessTimePolicy)
+	if err != nil {
+		return nil, timeAccessPolicyInputError(err)
+	}
+	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: RoleUser, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups, APIKeyModelBindingMode: NormalizeAPIKeyModelBindingMode(input.APIKeyModelBindingMode), APIKeyAccessTimePolicy: policy}
 	if err := user.SetPassword(input.Password); err != nil {
 		return nil, err
 	}
@@ -104,6 +108,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	oldAdminFreeBilling := user.AdminFreeBilling
 	oldRequestDetailsReview := user.RequestDetailsReview
 	oldAPIKeyModelBindingMode := user.EffectiveAPIKeyModelBindingMode()
+	oldAPIKeyAccessTimePolicy := user.APIKeyAccessTimePolicy
 	if input.Email != "" {
 		user.Email = input.Email
 	}
@@ -140,6 +145,15 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if input.APIKeyModelBindingMode != nil {
 		user.APIKeyModelBindingMode = NormalizeAPIKeyModelBindingMode(*input.APIKeyModelBindingMode)
 	}
+	if input.ClearAPIKeyAccessTimePolicy {
+		user.APIKeyAccessTimePolicy = nil
+	} else if input.APIKeyAccessTimePolicy != nil {
+		policy, err := NormalizeTimeAccessPolicy(input.APIKeyAccessTimePolicy)
+		if err != nil {
+			return nil, timeAccessPolicyInputError(err)
+		}
+		user.APIKeyAccessTimePolicy = policy
+	}
 	if user.Role != RoleAdmin {
 		user.AdminFreeBilling = false
 	}
@@ -152,7 +166,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		}
 	}
 	if s.authCacheInvalidator != nil {
-		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.AdminFreeBilling != oldAdminFreeBilling || user.RequestDetailsReview != oldRequestDetailsReview || user.EffectiveAPIKeyModelBindingMode() != oldAPIKeyModelBindingMode {
+		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.AdminFreeBilling != oldAdminFreeBilling || user.RequestDetailsReview != oldRequestDetailsReview || user.EffectiveAPIKeyModelBindingMode() != oldAPIKeyModelBindingMode || !timeAccessPoliciesEqual(user.APIKeyAccessTimePolicy, oldAPIKeyAccessTimePolicy) {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
 	}
@@ -181,6 +195,12 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 			zap.String("before", oldAPIKeyModelBindingMode),
 			zap.String("after", user.EffectiveAPIKeyModelBindingMode()),
 		).Info("api key model binding mode updated")
+	}
+	if !timeAccessPoliciesEqual(user.APIKeyAccessTimePolicy, oldAPIKeyAccessTimePolicy) {
+		logger.With(
+			zap.String("component", "audit.api_key_access_time_policy"),
+			zap.Int64("user_id", user.ID),
+		).Info("api key access time policy updated")
 	}
 	concurrencyDiff := user.Concurrency - oldConcurrency
 	if concurrencyDiff != 0 {

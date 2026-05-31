@@ -78,6 +78,8 @@ type Group struct {
 	AllowMessagesDispatch bool `json:"allow_messages_dispatch,omitempty"`
 	// Default mapped model ID
 	DefaultMappedModel string `json:"default_mapped_model,omitempty"`
+	// Group-level public model visibility filter; empty means no extra filter
+	VisibleModelPatterns []string `json:"visible_model_patterns,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GroupQuery when eager-loading is set.
 	Edges        GroupEdges `json:"edges"`
@@ -206,7 +208,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case group.FieldModelRouting, group.FieldSupportedModelScopes:
+		case group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldVisibleModelPatterns:
 			values[i] = new([]byte)
 		case group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldGeminiMixedProtocolEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch:
 			values[i] = new(sql.NullBool)
@@ -433,6 +435,14 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.DefaultMappedModel = value.String
 			}
+		case group.FieldVisibleModelPatterns:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field visible_model_patterns", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.VisibleModelPatterns); err != nil {
+					return fmt.Errorf("unmarshal field visible_model_patterns: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -628,6 +638,9 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("default_mapped_model=")
 	builder.WriteString(_m.DefaultMappedModel)
+	builder.WriteString(", ")
+	builder.WriteString("visible_model_patterns=")
+	builder.WriteString(fmt.Sprintf("%v", _m.VisibleModelPatterns))
 	builder.WriteByte(')')
 	return builder.String()
 }

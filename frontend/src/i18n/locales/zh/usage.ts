@@ -137,6 +137,13 @@ export default {
     nativeContext: "\u539f\u751f\u4e0a\u4e0b\u6587",
     nativeContextTooltip: "\u539f\u751f\u4e0a\u4e0b\u6587\u7a97\u53e3 {context}",
     requestLength: "\u8bf7\u6c42\u957f\u5ea6",
+    modelSuccessRate: "成功率",
+    modelSuccessRateStatuses: {
+      healthy: "近 7 日成功率 {rate}，状态良好",
+      warning: "近 7 日成功率 {rate}，需要关注",
+      error: "近 7 日成功率 {rate}，异常偏高",
+      unknown: "近 7 日暂无可用成功率数据",
+    },
     cost: "\u8d39\u7528",
     firstToken: "\u9996 Token",
     duration: "\u8017\u65f6",

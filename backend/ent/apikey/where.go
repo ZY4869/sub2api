@@ -140,6 +140,11 @@ func ExpiresAt(v time.Time) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldExpiresAt, v))
 }
 
+// StartsAt applies equality check predicate on the "starts_at" field. It's identical to StartsAtEQ.
+func StartsAt(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldStartsAt, v))
+}
+
 // RateLimit5h applies equality check predicate on the "rate_limit_5h" field. It's identical to RateLimit5hEQ.
 func RateLimit5h(v float64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldRateLimit5h, v))
@@ -943,6 +948,66 @@ func ExpiresAtIsNil() predicate.APIKey {
 // ExpiresAtNotNil applies the NotNil predicate on the "expires_at" field.
 func ExpiresAtNotNil() predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotNull(FieldExpiresAt))
+}
+
+// StartsAtEQ applies the EQ predicate on the "starts_at" field.
+func StartsAtEQ(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldStartsAt, v))
+}
+
+// StartsAtNEQ applies the NEQ predicate on the "starts_at" field.
+func StartsAtNEQ(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldStartsAt, v))
+}
+
+// StartsAtIn applies the In predicate on the "starts_at" field.
+func StartsAtIn(vs ...time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldStartsAt, vs...))
+}
+
+// StartsAtNotIn applies the NotIn predicate on the "starts_at" field.
+func StartsAtNotIn(vs ...time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldStartsAt, vs...))
+}
+
+// StartsAtGT applies the GT predicate on the "starts_at" field.
+func StartsAtGT(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldStartsAt, v))
+}
+
+// StartsAtGTE applies the GTE predicate on the "starts_at" field.
+func StartsAtGTE(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldStartsAt, v))
+}
+
+// StartsAtLT applies the LT predicate on the "starts_at" field.
+func StartsAtLT(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldStartsAt, v))
+}
+
+// StartsAtLTE applies the LTE predicate on the "starts_at" field.
+func StartsAtLTE(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldStartsAt, v))
+}
+
+// StartsAtIsNil applies the IsNil predicate on the "starts_at" field.
+func StartsAtIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldStartsAt))
+}
+
+// StartsAtNotNil applies the NotNil predicate on the "starts_at" field.
+func StartsAtNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldStartsAt))
+}
+
+// AccessTimePolicyIsNil applies the IsNil predicate on the "access_time_policy" field.
+func AccessTimePolicyIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldAccessTimePolicy))
+}
+
+// AccessTimePolicyNotNil applies the NotNil predicate on the "access_time_policy" field.
+func AccessTimePolicyNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldAccessTimePolicy))
 }
 
 // RateLimit5hEQ applies the EQ predicate on the "rate_limit_5h" field.

@@ -28,6 +28,9 @@ func TestTrackedSourceFilesDoNotContainMojibake(t *testing.T) {
 		absPath := filepath.Join(repoRoot, relPath)
 		content, err := os.ReadFile(absPath)
 		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
 			findings = append(findings, relPath+": read failed: "+err.Error())
 			continue
 		}

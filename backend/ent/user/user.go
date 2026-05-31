@@ -55,6 +55,8 @@ const (
 	FieldUsageContextBadgeDisplayMode = "usage_context_badge_display_mode"
 	// FieldAPIKeyModelBindingMode holds the string denoting the api_key_model_binding_mode field in the database.
 	FieldAPIKeyModelBindingMode = "api_key_model_binding_mode"
+	// FieldAPIKeyAccessTimePolicy holds the string denoting the api_key_access_time_policy field in the database.
+	FieldAPIKeyAccessTimePolicy = "api_key_access_time_policy"
 	// FieldTotpSecretEncrypted holds the string denoting the totp_secret_encrypted field in the database.
 	FieldTotpSecretEncrypted = "totp_secret_encrypted"
 	// FieldTotpEnabled holds the string denoting the totp_enabled field in the database.
@@ -176,6 +178,7 @@ var Columns = []string{
 	FieldAccountVisualPresetOverride,
 	FieldUsageContextBadgeDisplayMode,
 	FieldAPIKeyModelBindingMode,
+	FieldAPIKeyAccessTimePolicy,
 	FieldTotpSecretEncrypted,
 	FieldTotpEnabled,
 	FieldTotpEnabledAt,

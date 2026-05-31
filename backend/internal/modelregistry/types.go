@@ -15,6 +15,9 @@ type ModelEntry struct {
 	UIPriority           int               `json:"ui_priority"`
 	ExposedIn            []string          `json:"exposed_in"`
 	Status               string            `json:"status,omitempty"`
+	AvailableFrom        string            `json:"available_from,omitempty"`
+	AvailableUntil       string            `json:"available_until,omitempty"`
+	AccessTimePolicy     map[string]any    `json:"access_time_policy,omitempty"`
 	DeprecatedAt         string            `json:"deprecated_at,omitempty"`
 	ReplacedBy           string            `json:"replaced_by,omitempty"`
 	DeprecationNotice    string            `json:"deprecation_notice,omitempty"`
@@ -38,10 +41,11 @@ type PublicSnapshot struct {
 
 type AdminModelDetail struct {
 	ModelEntry
-	Source     string `json:"source"`
-	Hidden     bool   `json:"hidden"`
-	Tombstoned bool   `json:"tombstoned"`
-	Available  bool   `json:"available"`
+	Source         string `json:"source"`
+	Hidden         bool   `json:"hidden"`
+	Tombstoned     bool   `json:"tombstoned"`
+	Available      bool   `json:"available"`
+	ScheduleStatus string `json:"schedule_status,omitempty"`
 }
 
 type Resolution struct {

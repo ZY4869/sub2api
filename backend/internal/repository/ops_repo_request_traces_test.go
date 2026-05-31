@@ -319,8 +319,8 @@ func TestOpsRepositoryGetUsageRequestPreviewReturnsLatestPreview(t *testing.T) {
 	repo := &opsRepository{db: db}
 	capturedAt := time.Date(2026, 4, 17, 10, 15, 0, 0, time.UTC)
 
-	mock.ExpectQuery(`(?s)SELECT\s+COALESCE\(t\.request_id, ''\),\s+t\.created_at,.*FROM ops_request_traces t\s+WHERE t\.user_id = \$1\s+AND t\.api_key_id = \$2\s+AND COALESCE\(t\.request_id, ''\) = \$3\s+ORDER BY t\.created_at DESC, t\.id DESC\s+LIMIT 1`).
-		WithArgs(int64(42), int64(8), "req-preview").
+	mock.ExpectQuery(`(?s)SELECT\s+COALESCE\(t\.request_id, ''\),\s+t\.created_at,.*FROM ops_request_traces t\s+WHERE t\.user_id = \$1\s+AND t\.api_key_id = \$2\s+AND \(\s+COALESCE\(t\.request_id, ''\) = \$3\s+OR COALESCE\(t\.client_request_id, ''\) = \$3\s+OR COALESCE\(t\.upstream_request_id, ''\) = \$3\s+OR \(\$4 <> '' AND COALESCE\(t\.client_request_id, ''\) = \$4\)\s+OR \(\$5 <> '' AND COALESCE\(t\.request_id, ''\) = \$5\)\s+OR \(\$5 <> '' AND COALESCE\(t\.upstream_request_id, ''\) = \$5\)\s+\)\s+ORDER BY t\.created_at DESC, t\.id DESC\s+LIMIT 1`).
+		WithArgs(int64(42), int64(8), "req-preview", "", "").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"request_id",
 			"created_at",
@@ -349,5 +349,93 @@ func TestOpsRepositoryGetUsageRequestPreviewReturnsLatestPreview(t *testing.T) {
 	require.Equal(t, "", preview.NormalizedRequestJSON)
 	require.Equal(t, "", preview.UpstreamResponseJSON)
 	require.Equal(t, "", preview.ToolTraceJSON)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestOpsRepositoryGetUsageRequestPreviewMatchesClientRequestIDPrefix(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newOpsSQLMock(t)
+	repo := &opsRepository{db: db}
+	capturedAt := time.Date(2026, 4, 17, 10, 15, 0, 0, time.UTC)
+
+	mock.ExpectQuery(`(?s)FROM ops_request_traces t\s+WHERE t\.user_id = \$1\s+AND t\.api_key_id = \$2\s+AND \(`).
+		WithArgs(int64(42), int64(8), "client:req-client", "req-client", "").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"request_id",
+			"created_at",
+			"inbound_request",
+			"normalized_request",
+			"upstream_request",
+			"upstream_response",
+			"gateway_response",
+			"tool_trace",
+		}).AddRow(
+			"local-req",
+			capturedAt,
+			`{"messages":[{"role":"user"}]}`,
+			"",
+			`{"target":"upstream"}`,
+			"",
+			`{"status":"ok"}`,
+			"",
+		))
+
+	preview, err := repo.GetUsageRequestPreview(context.Background(), 42, 8, "client:req-client")
+	require.NoError(t, err)
+	require.True(t, preview.Available)
+	require.Equal(t, "local-req", preview.RequestID)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestOpsRepositoryGetUsageRequestPreviewMatchesLocalRequestIDPrefix(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newOpsSQLMock(t)
+	repo := &opsRepository{db: db}
+	capturedAt := time.Date(2026, 4, 17, 10, 15, 0, 0, time.UTC)
+
+	mock.ExpectQuery(`(?s)FROM ops_request_traces t\s+WHERE t\.user_id = \$1\s+AND t\.api_key_id = \$2\s+AND \(`).
+		WithArgs(int64(42), int64(8), "local:req-local", "", "req-local").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"request_id",
+			"created_at",
+			"inbound_request",
+			"normalized_request",
+			"upstream_request",
+			"upstream_response",
+			"gateway_response",
+			"tool_trace",
+		}).AddRow(
+			"req-local",
+			capturedAt,
+			`{"messages":[{"role":"user"}]}`,
+			"",
+			`{"target":"upstream"}`,
+			"",
+			`{"status":"ok"}`,
+			"",
+		))
+
+	preview, err := repo.GetUsageRequestPreview(context.Background(), 42, 8, "local:req-local")
+	require.NoError(t, err)
+	require.True(t, preview.Available)
+	require.Equal(t, "req-local", preview.RequestID)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestOpsRepositoryGetUsageRequestPreviewNoTraceMatchKeepsScopedNoRows(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newOpsSQLMock(t)
+	repo := &opsRepository{db: db}
+
+	mock.ExpectQuery(`(?s)FROM ops_request_traces t\s+WHERE t\.user_id = \$1\s+AND t\.api_key_id = \$2\s+AND \(`).
+		WithArgs(int64(42), int64(8), "client:not-found", "not-found", "").
+		WillReturnError(sql.ErrNoRows)
+
+	preview, err := repo.GetUsageRequestPreview(context.Background(), 42, 8, "client:not-found")
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.Nil(t, preview)
 	require.NoError(t, mock.ExpectationsWereMet())
 }

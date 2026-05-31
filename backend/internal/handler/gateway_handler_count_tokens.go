@@ -55,12 +55,12 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 	h.resolveParsedRequestModel(c.Request.Context(), parsedReq)
 	publicRequestModel := parsedReq.Model
 	var publicCatalogEntry *service.PublishedPublicCatalogEntry
-	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, "", publicRequestModel); resolveErr != nil {
+	if entry, status, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(c.Request.Context(), apiKey, "", publicRequestModel); resolveErr != nil {
 		reqLog.Warn("gateway.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
-	} else if active && !matched {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+	} else if status == service.PublicCatalogResolutionNoMatch || status == service.PublicCatalogResolutionTimeWindowDenied {
+		h.publicCatalogUnavailableResponse(c, status)
 		return
-	} else if matched {
+	} else if status == service.PublicCatalogResolutionMatched {
 		publicCatalogEntry = entry
 		ctx := service.ApplyPublicCatalogEntryToParsedRequest(c.Request.Context(), parsedReq, entry)
 		c.Request = c.Request.WithContext(ctx)
@@ -75,7 +75,7 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 	setOpsRequestContext(c, parsedReq.Model, parsedReq.Stream, body)
 	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, "", publicRequestModel)
 	if selectionModel == "" {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+		h.publicCatalogUnavailableResponse(c, service.PublicCatalogResolutionNoMatch)
 		return
 	}
 	bindingSelectionModel := selectionModel

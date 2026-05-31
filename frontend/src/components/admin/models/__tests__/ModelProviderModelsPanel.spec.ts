@@ -13,9 +13,14 @@ const messages: Record<string, string> = {
   'admin.models.registry.lifecycleLabels.stable': '稳定',
   'admin.models.registry.lifecycleLabels.beta': '测试版',
   'admin.models.registry.lifecycleLabels.deprecated': '已废弃',
+  'admin.models.registry.scheduleStatuses.scheduled': '预启用',
+  'admin.models.registry.scheduleStatuses.expired': '已过期',
+  'admin.models.registry.scheduleStatuses.outOfWindow': '窗口外',
+  'admin.models.registry.scheduleStatuses.invalid': '时间策略异常',
   'admin.models.registry.actions.deactivate': '停用',
   'admin.models.registry.actions.activate': '启用',
   'admin.models.registry.actions.hardDelete': '彻底删除',
+  'admin.models.registry.actions.editSchedule': '编辑时间',
   'admin.models.registry.replacedByHint': '由 {model} 替代',
   'admin.models.registry.emptyTitle': '暂无注册表模型',
   'admin.models.registry.emptyDescription': '请调整筛选条件',
@@ -153,7 +158,29 @@ describe('ModelProviderModelsPanel', () => {
     expect(wrapper.text()).toContain('音频')
     expect(wrapper.text()).toContain('停用')
     expect(wrapper.text()).toContain('启用')
+    expect(wrapper.text()).toContain('编辑时间')
     expect(wrapper.text()).toContain('彻底删除')
+  })
+
+  it('emits edit-schedule for row schedule editing', async () => {
+    const model = createModel('future-model', false, { schedule_status: 'scheduled' })
+    const wrapper = mountPanel({ models: [model] })
+
+    await wrapper.get('[data-testid="registry-edit-schedule"]').trigger('click')
+
+    expect(wrapper.emitted('edit-schedule')).toEqual([[expect.objectContaining({ id: 'future-model' })]])
+  })
+
+  it('shows schedule status badges for scheduled models', () => {
+    const wrapper = mountPanel({
+      models: [
+        createModel('future-model', false, {
+          schedule_status: 'scheduled'
+        })
+      ]
+    })
+
+    expect(wrapper.text()).toContain('预启用')
   })
 
   it('emits bulk deactivate and hard delete actions after confirmation', async () => {

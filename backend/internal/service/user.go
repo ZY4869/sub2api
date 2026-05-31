@@ -26,6 +26,7 @@ type User struct {
 	VisualPresetPreference          string
 	AccountVisualPresetOverride     string
 	APIKeyModelBindingMode          string
+	APIKeyAccessTimePolicy          *TimeAccessPolicy
 	AllowedGroups                   []int64
 	TokenVersion                    int64 // Incremented on password change to invalidate existing tokens
 	CreatedAt                       time.Time

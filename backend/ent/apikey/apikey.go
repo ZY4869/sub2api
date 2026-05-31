@@ -57,6 +57,10 @@ const (
 	FieldQuotaUsedByCurrency = "quota_used_by_currency"
 	// FieldExpiresAt holds the string denoting the expires_at field in the database.
 	FieldExpiresAt = "expires_at"
+	// FieldStartsAt holds the string denoting the starts_at field in the database.
+	FieldStartsAt = "starts_at"
+	// FieldAccessTimePolicy holds the string denoting the access_time_policy field in the database.
+	FieldAccessTimePolicy = "access_time_policy"
 	// FieldRateLimit5h holds the string denoting the rate_limit_5h field in the database.
 	FieldRateLimit5h = "rate_limit_5h"
 	// FieldRateLimit1d holds the string denoting the rate_limit_1d field in the database.
@@ -152,6 +156,8 @@ var Columns = []string{
 	FieldQuotaUsed,
 	FieldQuotaUsedByCurrency,
 	FieldExpiresAt,
+	FieldStartsAt,
+	FieldAccessTimePolicy,
 	FieldRateLimit5h,
 	FieldRateLimit1d,
 	FieldRateLimit7d,
@@ -325,6 +331,11 @@ func ByQuotaUsed(opts ...sql.OrderTermOption) OrderOption {
 // ByExpiresAt orders the results by the expires_at field.
 func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
+}
+
+// ByStartsAt orders the results by the starts_at field.
+func ByStartsAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStartsAt, opts...).ToFunc()
 }
 
 // ByRateLimit5h orders the results by the rate_limit_5h field.

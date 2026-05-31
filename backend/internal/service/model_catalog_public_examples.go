@@ -34,16 +34,11 @@ func (s *ModelCatalogService) buildPublicModelCatalogDetailExample(
 	if spec.OverrideID != "" {
 		return publicModelCatalogExampleSourceOverride, spec.Protocol, spec.PageID, "", spec.OverrideID, PublicModelCatalogExampleValidationDryRunContract
 	}
-	if s == nil || s.docsService == nil || strings.TrimSpace(spec.PageID) == "" {
+	if strings.TrimSpace(spec.PageID) == "" {
 		return "", spec.Protocol, spec.PageID, "", "", ""
 	}
 
-	document, err := s.docsService.GetPageDocument(ctx, spec.PageID)
-	if err != nil || document == nil {
-		return "", spec.Protocol, spec.PageID, "", "", ""
-	}
-
-	selected := extractPublicModelCatalogExampleMarkdown(document.EffectiveContent, spec.PageID, spec.Keywords)
+	selected := publicModelCatalogExampleTemplateMarkdown(spec.PageID, spec.Keywords)
 	if strings.TrimSpace(selected) == "" {
 		return "", spec.Protocol, spec.PageID, "", "", ""
 	}
@@ -233,7 +228,7 @@ func publicModelCatalogPreferredExampleEndpointKeys(item PublicModelCatalogItem,
 }
 
 func extractPublicModelCatalogExampleMarkdown(markdown string, pageID string, keywords []string) string {
-	parsed := parseAPIDocsDocument(markdown)
+	parsed := parsePublicModelCatalogExampleDocument(markdown)
 	pageBody := strings.TrimSpace(parsed.Pages[pageID])
 	if pageBody == "" {
 		return ""
@@ -242,9 +237,9 @@ func extractPublicModelCatalogExampleMarkdown(markdown string, pageID string, ke
 	sections := splitPublicModelCatalogMarkdownSections(pageBody)
 	selected := selectPublicModelCatalogMarkdownSection(sections, keywords)
 	if strings.TrimSpace(selected.Content) == "" {
-		return buildAPIDocsPageSection(parsed.Title, pageID, pageBody)
+		return buildPublicModelCatalogExamplePageSection(parsed.Title, pageID, pageBody)
 	}
-	return buildAPIDocsPageSection(parsed.Title, pageID, selected.Content)
+	return buildPublicModelCatalogExamplePageSection(parsed.Title, pageID, selected.Content)
 }
 
 func splitPublicModelCatalogMarkdownSections(body string) []publicModelCatalogMarkdownSection {
@@ -269,11 +264,11 @@ func splitPublicModelCatalogMarkdownSections(body string) []publicModelCatalogMa
 	}
 
 	for _, line := range lines {
-		if fence := parseAPIDocsFence(line); fence != "" {
+		if fence := parsePublicModelCatalogExampleFence(line); fence != "" {
 			if !inFence {
 				inFence = true
 				fenceMarker = fence
-			} else if matchesAPIDocsFence(line, fenceMarker) {
+			} else if matchesPublicModelCatalogExampleFence(line, fenceMarker) {
 				inFence = false
 				fenceMarker = ""
 			}

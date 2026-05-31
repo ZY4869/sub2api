@@ -16,14 +16,11 @@
           :exporting="exporting"
           :usage-model-display-mode="usageModelDisplayMode"
           :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
-          :usage-context-badge-display-mode="usageContextBadgeDisplayMode"
-          :updating-usage-context-badge-display-mode="updatingUsageContextBadgeDisplayMode"
           @apply="applyFilters"
           @reset="resetFilters"
           @export="exportToCSV"
           @date-range-change="onDateRangeChange"
           @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
-          @update-usage-context-badge-display-mode="handleUsageContextBadgeDisplayModeChange"
         />
       </template>
 
@@ -42,7 +39,6 @@
           :usage-logs="usageLogs"
           :loading="loading"
           :usage-model-display-mode="usageModelDisplayMode"
-          :usage-context-badge-display-mode="usageContextBadgeDisplayMode"
           :format-currency-breakdown="formatCurrencyBreakdown"
           :format-tokens="formatTokens"
           :format-cache-tokens="formatCacheTokens"
@@ -114,7 +110,6 @@ import UsageStatsCards from "@/components/user/usage/UsageStatsCards.vue";
 import UsageRequestPreviewModal from "@/components/user/usage/UsageRequestPreviewModal.vue";
 import type {
   UsageLog,
-  UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
   UsageQueryParams,
   UsageStatsResponse,
@@ -124,7 +119,6 @@ import type { UsageFilterApiKey } from "@/api/usage";
 import type { Column } from "@/components/common/types";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
-import { useUsageContextBadgeDisplayModePreference } from "@/composables/useUsageContextBadgeDisplayModePreference";
 import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
 import {
   formatReasoningEffortPair,
@@ -162,12 +156,6 @@ const {
   updatingUsageModelDisplayMode,
   setUsageModelDisplayMode,
 } = useUsageModelDisplayModePreference();
-const {
-  usageContextBadgeDisplayMode,
-  updatingUsageContextBadgeDisplayMode,
-  setUsageContextBadgeDisplayMode,
-} = useUsageContextBadgeDisplayModePreference();
-
 const formatCurrencyBreakdown = (
   values: Record<string, number> | null | undefined,
   fallbackUSD: number | null | undefined,
@@ -205,7 +193,7 @@ const usageStats = ref<UsageStatsResponse | null>(null);
 const columns = computed<Column[]>(() => [
   { key: "api_key", label: t("usage.apiKeyFilter"), sortable: false },
   { key: "model", label: t("usage.model"), sortable: true },
-  { key: "native_context", label: t("usage.nativeContext"), sortable: false },
+  { key: "success_rate", label: t("usage.modelSuccessRate"), sortable: false },
   { key: "status", label: t("usage.status"), sortable: false },
   { key: "thinking_enabled", label: t("usage.thinkingMode"), sortable: false },
   {
@@ -213,7 +201,6 @@ const columns = computed<Column[]>(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
-  { key: "request_length", label: t("usage.requestLength"), sortable: false },
   {
     key: "request_protocol",
     label: t("usage.requestProtocol"),
@@ -581,10 +568,13 @@ const handleUsageModelDisplayModeChange = async (
   await setUsageModelDisplayMode(mode);
 };
 
-const handleUsageContextBadgeDisplayModeChange = async (
-  mode: UsageContextBadgeDisplayMode,
-) => {
-  await setUsageContextBadgeDisplayMode(mode);
+const formatModelSuccessRateExport = (
+  rate: number | null | undefined,
+): string => {
+  if (rate == null || !Number.isFinite(rate)) {
+    return "";
+  }
+  return `${(rate * 100).toFixed(1)}%`;
 };
 
 const openRequestPreview = (usageLog: UsageLog) => {
@@ -656,6 +646,7 @@ const exportToCSV = async () => {
       t("usage.apiKeyFilter"),
       t("usage.model"),
       t("usage.status"),
+      t("usage.modelSuccessRate"),
       t("usage.simulatedClient"),
       t("usage.thinkingMode"),
       t("usage.reasoningEffort"),
@@ -688,6 +679,7 @@ const exportToCSV = async () => {
         log.api_key?.name || "",
         log.model,
         getStatusLabel(log.status),
+        formatModelSuccessRateExport(log.model_success_rate_7d),
         log.simulated_client
           ? getSimulatedClientLabel(log.simulated_client)
           : "",

@@ -35,12 +35,12 @@ func normalizePublicModelCatalogPageSize(value int) int {
 	return value
 }
 
-func normalizePublicModelCatalogDraft(input *PublicModelCatalogDraft) PublicModelCatalogDraft {
+func normalizePublicModelCatalogDraft(input *PublicModelCatalogDraft) (PublicModelCatalogDraft, error) {
 	normalized := PublicModelCatalogDraft{
 		PageSize: normalizePublicModelCatalogPageSize(defaultPublicModelCatalogPageSize),
 	}
 	if input == nil {
-		return normalized
+		return normalized, nil
 	}
 	normalized.PageSize = normalizePublicModelCatalogPageSize(input.PageSize)
 	normalized.UpdatedAt = strings.TrimSpace(input.UpdatedAt)
@@ -58,7 +58,10 @@ func normalizePublicModelCatalogDraft(input *PublicModelCatalogDraft) PublicMode
 	}
 	entrySeen := map[string]struct{}{}
 	for _, entry := range input.SelectedEntries {
-		normalizedEntry := normalizePublicModelCatalogEntryDraft(entry)
+		normalizedEntry, err := normalizePublicModelCatalogEntryDraft(entry)
+		if err != nil {
+			return PublicModelCatalogDraft{}, err
+		}
 		if normalizedEntry.EntryID == "" {
 			continue
 		}
@@ -75,10 +78,10 @@ func normalizePublicModelCatalogDraft(input *PublicModelCatalogDraft) PublicMode
 			}
 		}
 	}
-	return normalized
+	return normalized, nil
 }
 
-func normalizePublicModelCatalogEntryDraft(entry PublicModelCatalogEntryDraft) PublicModelCatalogEntryDraft {
+func normalizePublicModelCatalogEntryDraft(entry PublicModelCatalogEntryDraft) (PublicModelCatalogEntryDraft, error) {
 	normalized := PublicModelCatalogEntryDraft{
 		EntryID:         strings.TrimSpace(entry.EntryID),
 		PublicModelID:   NormalizeModelCatalogModelID(entry.PublicModelID),
@@ -89,6 +92,46 @@ func normalizePublicModelCatalogEntryDraft(entry PublicModelCatalogEntryDraft) P
 		SourceProtocol:  strings.TrimSpace(strings.ToLower(entry.SourceProtocol)),
 	}
 	normalized.SalePriceDisplay = normalizePublicModelCatalogPriceDisplay(entry.SalePriceDisplay)
+	discountPolicy, err := normalizePublicModelCatalogDiscountPolicy(entry.DiscountPolicy)
+	if err != nil {
+		return PublicModelCatalogEntryDraft{}, publicModelCatalogDiscountPolicyInputError(err)
+	}
+	normalized.DiscountPolicy = discountPolicy
+	normalized.ImageFixedPricing = normalizePublicModelImageFixedPricing(entry.ImageFixedPricing)
+	normalized.AvailableFrom = normalizeRegistryOptionalRFC3339(entry.AvailableFrom)
+	normalized.AvailableUntil = normalizeRegistryOptionalRFC3339(entry.AvailableUntil)
+	if entry.AccessTimePolicy != nil {
+		policy, err := NormalizeTimeAccessPolicy(entry.AccessTimePolicy)
+		if err != nil {
+			return PublicModelCatalogEntryDraft{}, timeAccessPolicyInputError(err)
+		}
+		normalized.AccessTimePolicy = policy
+	}
+	return normalized, nil
+}
+
+func normalizePublicModelImageFixedPricing(input PublicModelImageFixedPricing) PublicModelImageFixedPricing {
+	normalized := PublicModelImageFixedPricing{
+		Enabled:     input.Enabled,
+		AlwaysFixed: input.AlwaysFixed,
+		Prices:      map[string]*float64{},
+	}
+	for _, key := range []string{"1K", "2K", "4K"} {
+		if input.Prices == nil || input.Prices[key] == nil {
+			continue
+		}
+		value := *input.Prices[key]
+		if value < 0 {
+			value = 0
+		}
+		normalized.Prices[key] = &value
+	}
+	if !normalized.Enabled {
+		normalized.AlwaysFixed = false
+	}
+	if len(normalized.Prices) == 0 {
+		normalized.Prices = nil
+	}
 	return normalized
 }
 
@@ -201,7 +244,15 @@ func loadPublicModelCatalogDraftBySetting(
 		)
 		return nil
 	}
-	normalized := normalizePublicModelCatalogDraft(&draft)
+	normalized, err := normalizePublicModelCatalogDraft(&draft)
+	if err != nil {
+		logger.FromContext(ctx).Warn(
+			"public model catalog: invalid draft policy",
+			zap.String("setting_key", settingKey),
+			zap.Error(err),
+		)
+		return nil
+	}
 	return &normalized
 }
 
@@ -214,7 +265,10 @@ func persistPublicModelCatalogDraftBySetting(
 	if settingRepo == nil {
 		return nil
 	}
-	normalized := normalizePublicModelCatalogDraft(draft)
+	normalized, err := normalizePublicModelCatalogDraft(draft)
+	if err != nil {
+		return err
+	}
 	if normalized.UpdatedAt == "" {
 		normalized.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
@@ -433,7 +487,10 @@ func selectPublicModelCatalogPublishEntryItems(entries []PublicModelCatalogEntry
 	selected := make([]PublicModelCatalogItem, 0, len(entries))
 	seenPublicIDs := map[string]struct{}{}
 	for _, draftEntry := range entries {
-		entry := normalizePublicModelCatalogEntryDraft(draftEntry)
+		entry, err := normalizePublicModelCatalogEntryDraft(draftEntry)
+		if err != nil {
+			return nil, err
+		}
 		item, ok := resolvePublicModelCatalogPublishItem(entry, itemsByEntryID, itemsBySource)
 		if !ok {
 			return nil, infraerrors.BadRequest("PUBLIC_MODEL_ENTRY_UNAVAILABLE", "selected public model entry is no longer available")
@@ -447,6 +504,9 @@ func selectPublicModelCatalogPublishEntryItems(entries []PublicModelCatalogEntry
 		}
 		seenPublicIDs[publicID] = struct{}{}
 		if err := validatePublicModelCatalogPriceDisplay(entry.SalePriceDisplay); err != nil {
+			return nil, err
+		}
+		if err := validatePublicModelImageFixedPricing(entry.ImageFixedPricing); err != nil {
 			return nil, err
 		}
 		next := clonePublicModelCatalogItem(item)
@@ -464,6 +524,9 @@ func selectPublicModelCatalogPublishEntryItems(entries []PublicModelCatalogEntry
 				Kind:    publicModelCatalogMultiplierDisabled,
 			}
 		}
+		next.DiscountPolicy = clonePublicModelCatalogDiscountPolicy(entry.DiscountPolicy)
+		next.ImageFixedPricing = normalizePublicModelImageFixedPricing(entry.ImageFixedPricing)
+		next = applyPublicModelCatalogDraftSchedule(next, entry)
 		selected = append(selected, next)
 	}
 	return selected, nil
@@ -473,6 +536,26 @@ func validatePublicModelCatalogPriceDisplay(display PublicModelCatalogPriceDispl
 	for _, entry := range append(append([]PublicModelCatalogPriceEntry(nil), display.Primary...), display.Secondary...) {
 		if entry.Value < 0 {
 			return infraerrors.BadRequest("PUBLIC_MODEL_PRICE_INVALID", "sale price must be non-negative")
+		}
+	}
+	return nil
+}
+
+func validatePublicModelImageFixedPricing(pricing PublicModelImageFixedPricing) error {
+	pricing = normalizePublicModelImageFixedPricing(pricing)
+	if !pricing.Enabled {
+		return nil
+	}
+	if !pricing.AlwaysFixed {
+		return nil
+	}
+	for _, key := range []string{"1K", "2K", "4K"} {
+		value := pricing.Prices[key]
+		if value == nil || *value <= 0 {
+			return infraerrors.BadRequest(
+				"PUBLIC_MODEL_IMAGE_FIXED_PRICE_INCOMPLETE",
+				"always fixed image pricing requires 1K, 2K, and 4K fixed prices",
+			).WithMetadata(map[string]string{"resolution": key})
 		}
 	}
 	return nil
@@ -624,6 +707,9 @@ func publicModelCatalogDraftEntryLogFields(entry PublicModelCatalogEntryDraft) [
 		zap.String("result", ""),
 		zap.Int("sale_primary_count", len(entry.SalePriceDisplay.Primary)),
 		zap.Int("sale_secondary_count", len(entry.SalePriceDisplay.Secondary)),
+		zap.Bool("discount_enabled", entry.DiscountPolicy != nil && entry.DiscountPolicy.Enabled),
+		zap.Float64("discount_reduction_percent", publicModelCatalogDiscountReductionForLog(entry.DiscountPolicy)),
+		zap.Int("discount_window_count", publicModelCatalogDiscountWindowCountForLog(entry.DiscountPolicy)),
 	}
 }
 
@@ -641,6 +727,9 @@ func publicModelCatalogItemLogFields(item PublicModelCatalogItem) []zap.Field {
 		zap.String("result", strings.TrimSpace(firstNonEmptyTrimmed(item.AvailabilityState, item.Status))),
 		zap.Int("sale_primary_count", len(item.SalePriceDisplay.Primary)),
 		zap.Int("sale_secondary_count", len(item.SalePriceDisplay.Secondary)),
+		zap.Bool("discount_enabled", item.DiscountPolicy != nil && item.DiscountPolicy.Enabled),
+		zap.Float64("discount_reduction_percent", publicModelCatalogDiscountReductionForLog(item.DiscountPolicy)),
+		zap.Int("discount_window_count", publicModelCatalogDiscountWindowCountForLog(item.DiscountPolicy)),
 	}
 }
 
@@ -674,7 +763,10 @@ func logPublicModelCatalogDraftSalePriceChanges(
 	previousEntries := map[string]PublicModelCatalogEntryDraft{}
 	if previous != nil {
 		for _, entry := range previous.SelectedEntries {
-			normalized := normalizePublicModelCatalogEntryDraft(entry)
+			normalized, err := normalizePublicModelCatalogEntryDraft(entry)
+			if err != nil {
+				continue
+			}
 			if normalized.EntryID != "" {
 				previousEntries[normalized.EntryID] = normalized
 			}
@@ -683,7 +775,9 @@ func logPublicModelCatalogDraftSalePriceChanges(
 	baseFields := publicModelCatalogAuditFields(ctx, actor)
 	for _, entry := range next.SelectedEntries {
 		previousEntry, existed := previousEntries[entry.EntryID]
-		if existed && reflect.DeepEqual(previousEntry.SalePriceDisplay, entry.SalePriceDisplay) {
+		if existed &&
+			reflect.DeepEqual(previousEntry.SalePriceDisplay, entry.SalePriceDisplay) &&
+			reflect.DeepEqual(previousEntry.DiscountPolicy, entry.DiscountPolicy) {
 			continue
 		}
 		fields := append([]zap.Field{}, baseFields...)
@@ -691,6 +785,20 @@ func logPublicModelCatalogDraftSalePriceChanges(
 		fields = append(fields, zap.Bool("new_entry", !existed))
 		logger.FromContext(ctx).Info("public model catalog draft sale price updated", fields...)
 	}
+}
+
+func publicModelCatalogDiscountReductionForLog(policy *PublicModelCatalogDiscountPolicy) float64 {
+	if policy == nil {
+		return 0
+	}
+	return policy.ReductionPercent
+}
+
+func publicModelCatalogDiscountWindowCountForLog(policy *PublicModelCatalogDiscountPolicy) int {
+	if policy == nil {
+		return 0
+	}
+	return len(policy.Windows)
 }
 
 func (s *ModelCatalogService) GetPublicModelCatalogDraftPayload(ctx context.Context, force bool) (*PublicModelCatalogDraftPayload, error) {
@@ -702,7 +810,10 @@ func (s *ModelCatalogService) GetPublicModelCatalogDraftPayloadWithOptions(
 	force bool,
 	options PublicModelCatalogReadOptions,
 ) (*PublicModelCatalogDraftPayload, error) {
-	draft := normalizePublicModelCatalogDraft(s.loadPublicModelCatalogDraft(ctx))
+	draft, err := normalizePublicModelCatalogDraft(s.loadPublicModelCatalogDraft(ctx))
+	if err != nil {
+		return nil, err
+	}
 	availableSnapshot, availableSource, err := s.publicModelCatalogDraftCandidateSnapshot(ctx, force)
 	if err != nil {
 		return nil, err
@@ -843,7 +954,15 @@ func publicModelCatalogSnapshotFresh(snapshot *PublicModelCatalogSnapshot, ttl t
 func (s *ModelCatalogService) SavePublicModelCatalogDraft(ctx context.Context, draft PublicModelCatalogDraft, actors ...ModelCatalogActor) (*PublicModelCatalogDraft, error) {
 	actor := publicModelCatalogActor(actors)
 	previous := s.loadPublicModelCatalogDraft(ctx)
-	normalized := normalizePublicModelCatalogDraft(&draft)
+	normalized, err := normalizePublicModelCatalogDraft(&draft)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range normalized.SelectedEntries {
+		if err := validatePublicModelImageFixedPricing(entry.ImageFixedPricing); err != nil {
+			return nil, err
+		}
+	}
 	normalized.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	if err := s.persistPublicModelCatalogDraft(ctx, &normalized); err != nil {
 		return nil, err
@@ -870,14 +989,20 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 	if s == nil {
 		return nil, infraerrors.ServiceUnavailable("MODEL_CATALOG_UNAVAILABLE", "model catalog service unavailable")
 	}
-	draft := normalizePublicModelCatalogDraft(draftInput)
+	draft, err := normalizePublicModelCatalogDraft(draftInput)
+	if err != nil {
+		return nil, err
+	}
 	if draftInput != nil {
 		draft.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 		if err := s.persistPublicModelCatalogDraft(ctx, &draft); err != nil {
 			return nil, err
 		}
 	} else {
-		draft = normalizePublicModelCatalogDraft(s.loadPublicModelCatalogDraft(ctx))
+		draft, err = normalizePublicModelCatalogDraft(s.loadPublicModelCatalogDraft(ctx))
+		if err != nil {
+			return nil, err
+		}
 	}
 	availableSnapshot, availableSource, err := s.publicModelCatalogPublishCandidateSnapshot(ctx)
 	if err != nil {

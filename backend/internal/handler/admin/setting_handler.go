@@ -332,6 +332,15 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if !equalPaymentSubscriptionPlans(before.PaymentSubscriptionPlans, after.PaymentSubscriptionPlans) {
 		changed = append(changed, "payment_subscription_plans")
 	}
+	if before.BillingCurrencyConversionEnabled != after.BillingCurrencyConversionEnabled {
+		changed = append(changed, "billing_currency_conversion_enabled")
+	}
+	if before.BillingCurrencyCNYToUSDRate != after.BillingCurrencyCNYToUSDRate {
+		changed = append(changed, "billing_currency_cny_to_usd_rate")
+	}
+	if before.BillingCurrencyUSDToCNYRate != after.BillingCurrencyUSDToCNYRate {
+		changed = append(changed, "billing_currency_usd_to_cny_rate")
+	}
 	if before.AntigravityUserAgentVersion != after.AntigravityUserAgentVersion {
 		changed = append(changed, "antigravity_user_agent_version")
 	}
@@ -493,6 +502,9 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		PaymentMinTopupAmount:                settings.PaymentMinTopupAmount,
 		PaymentMaxTopupAmount:                settings.PaymentMaxTopupAmount,
 		PaymentSubscriptionPlans:             buildPaymentSubscriptionPlanDTOs(settings.PaymentSubscriptionPlans),
+		BillingCurrencyConversionEnabled:      settings.BillingCurrencyConversionEnabled,
+		BillingCurrencyCNYToUSDRate:           settings.BillingCurrencyCNYToUSDRate,
+		BillingCurrencyUSDToCNYRate:           settings.BillingCurrencyUSDToCNYRate,
 		AntigravityUserAgentVersion:          settings.AntigravityUserAgentVersion,
 		CodexOAuthUserAgentMode:              settings.CodexOAuthUserAgentMode,
 		CodexOAuthUserAgentOverride:          settings.CodexOAuthUserAgentOverride,

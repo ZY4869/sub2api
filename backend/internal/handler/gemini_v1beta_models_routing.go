@@ -66,12 +66,12 @@ func (h *GatewayHandler) resolveGeminiModelRuntime(c *gin.Context, reqLog *zap.L
 		publicModelName:   modelName,
 		upstreamModelName: modelName,
 	}
-	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, selectionPlatform, modelName); resolveErr != nil {
+	if entry, status, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(c.Request.Context(), apiKey, selectionPlatform, modelName); resolveErr != nil {
 		reqLog.Warn("gemini.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
-	} else if active && !matched {
-		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.model_not_published", service.PublicCatalogModelUnavailableMessage)
+	} else if status == service.PublicCatalogResolutionNoMatch || status == service.PublicCatalogResolutionTimeWindowDenied {
+		googlePublicCatalogUnavailableResponse(c, status)
 		return geminiModelRuntime{}, false
-	} else if matched {
+	} else if status == service.PublicCatalogResolutionMatched {
 		runtime.publicCatalogEntry = entry
 		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
 			runtime.upstreamModelName = sourceModel
@@ -80,7 +80,7 @@ func (h *GatewayHandler) resolveGeminiModelRuntime(c *gin.Context, reqLog *zap.L
 	}
 	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, selectionPlatform, runtime.publicModelName)
 	if selectionModel == "" {
-		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.model_not_published", service.PublicCatalogModelUnavailableMessage)
+		googlePublicCatalogUnavailableResponse(c, service.PublicCatalogResolutionNoMatch)
 		return geminiModelRuntime{}, false
 	}
 	runtime.bindingSelectionModel = selectionModel

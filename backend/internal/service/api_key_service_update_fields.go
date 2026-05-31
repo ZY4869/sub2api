@@ -20,6 +20,7 @@ func (s *APIKeyService) applyAPIKeyUpdateFields(ctx context.Context, apiKey *API
 	}
 
 	applyAPIKeyUpdateQuotaFields(apiKey, req)
+	applyAPIKeyUpdateTimeAccessFields(apiKey, req)
 	applyAPIKeyUpdateImageFields(apiKey, req)
 	applyAPIKeyUpdateRateLimitFields(apiKey, req)
 
@@ -35,6 +36,19 @@ func (s *APIKeyService) applyAPIKeyUpdateFields(ctx context.Context, apiKey *API
 		apiKey.Window7dStart = nil
 	}
 	return resetRateLimit
+}
+
+func applyAPIKeyUpdateTimeAccessFields(apiKey *APIKey, req UpdateAPIKeyRequest) {
+	if req.ClearStartsAt {
+		apiKey.StartsAt = nil
+	} else if req.StartsAt != nil {
+		apiKey.StartsAt = req.StartsAt
+	}
+	if req.ClearAccessTimePolicy {
+		apiKey.AccessTimePolicy = nil
+	} else if req.AccessTimePolicy != nil {
+		apiKey.AccessTimePolicy = req.AccessTimePolicy
+	}
 }
 
 func applyAPIKeyUpdateQuotaFields(apiKey *APIKey, req UpdateAPIKeyRequest) {

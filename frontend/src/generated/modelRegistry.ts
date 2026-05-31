@@ -1,3 +1,5 @@
+import type { TimeAccessPolicy } from '../types/api-key-groups'
+
 export interface ModelRegistryEntry {
   id: string
   display_name: string
@@ -13,6 +15,9 @@ export interface ModelRegistryEntry {
   ui_priority: number
   exposed_in: string[]
   status?: string
+  available_from?: string
+  available_until?: string
+  access_time_policy?: TimeAccessPolicy | null
   deprecated_at?: string
   replaced_by?: string
   deprecation_notice?: string
@@ -35,11 +40,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-05-30T14:11:38Z"
+export const generatedModelRegistryBuiltAt = "2026-05-31T07:17:11Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
   "etag": "W/\"e7870275fe1e0ced336a39819280f6e6de695ea3963989561e8e094a0d639a56\"",
-  "updated_at": "2026-05-30T14:11:38Z",
+  "updated_at": "2026-05-31T07:17:11Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",

@@ -102,10 +102,10 @@ func (h *GatewayHandler) GeminiV1BetaOpenAICompat(c *gin.Context) {
 			c.Request.Body = ioNopCloserBytes(body)
 			modelHint := strings.TrimSpace(detectGeminiPassthroughRequestedModel(c.Request.URL.Path, body))
 			moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceGeminiOpenAICompat, service.PlatformGemini, modelHint, body)
-			if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+			if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 				requestLogger(c, "handler.gemini_v1beta.passthrough").Warn("gemini_passthrough.content_moderation_keyword_check_failed", zap.Error(err))
-			} else if blocked {
-				googleErrorWithReason(c, http.StatusForbidden, "content_policy_keyword_blocked", "gateway.gemini.content_policy_keyword_blocked", "Request blocked by local content policy keywords")
+			} else if decision != nil {
+				contentModerationGeminiBlockResponse(c, decision)
 				return
 			}
 			submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)

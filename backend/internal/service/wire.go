@@ -571,9 +571,11 @@ func ProvideBillingCacheService(
 	apiKeyRepo APIKeyRepository,
 	cfg *config.Config,
 	userPlatformQuotaService *UserPlatformQuotaService,
+	settingService *SettingService,
 ) *BillingCacheService {
 	svc := NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, cfg)
 	svc.SetUserPlatformQuotaService(userPlatformQuotaService)
+	svc.SetSettingService(settingService)
 	return svc
 }
 
@@ -599,11 +601,13 @@ func ProvideAPIKeyService(
 	cache APIKeyCache,
 	billingCacheService *BillingCacheService,
 	modelCatalogService *ModelCatalogService,
+	settingService *SettingService,
 	cfg *config.Config,
 ) *APIKeyService {
 	svc := NewAPIKeyService(apiKeyRepo, userRepo, groupRepo, userSubRepo, userGroupRateRepo, cache, cfg)
 	svc.SetBillingCacheService(billingCacheService)
 	svc.SetModelCatalogService(modelCatalogService)
+	svc.SetSettingService(settingService)
 	return svc
 }
 
@@ -613,7 +617,6 @@ func ProvideModelCatalogService(
 	userPlatformQuotaService *UserPlatformQuotaService,
 	billingService *BillingService,
 	pricingService *PricingService,
-	docsService *APIDocsService,
 	modelRegistryService *ModelRegistryService,
 	channelMonitorService *ChannelMonitorService,
 	cfg *config.Config,
@@ -624,7 +627,6 @@ func ProvideModelCatalogService(
 	svc := NewModelCatalogService(settingRepo, nil, billingService, pricingService, cfg)
 	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetChannelMonitorService(channelMonitorService)
-	svc.SetDocsService(docsService)
 	svc.SetCapacityDiagnosticsDependencies(apiKeyRepo, userPlatformQuotaService)
 	return svc
 }
@@ -882,7 +884,6 @@ var ProviderSet = wire.NewSet(
 	ProvideBillingCacheService,
 	NewUserPlatformQuotaService,
 	NewAnnouncementService,
-	NewAPIDocsService,
 	NewEmailTemplateService,
 	NewAdminService,
 	ProvideDocumentAIService,

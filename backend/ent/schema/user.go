@@ -88,6 +88,10 @@ func (User) Fields() []ent.Field {
 					return fmt.Errorf("invalid api key model binding mode %q", value)
 				}
 			}),
+		field.JSON("api_key_access_time_policy", map[string]any{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Hard upper time access policy for API keys owned by this user"),
 		field.String("totp_secret_encrypted").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Optional().

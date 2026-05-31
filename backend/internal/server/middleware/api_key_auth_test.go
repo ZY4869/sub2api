@@ -12,7 +12,9 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -493,6 +495,161 @@ func TestAPIKeyAuthTouchesLastUsedInStandardMode(t *testing.T) {
 	require.Equal(t, 1, touchCalls)
 }
 
+func TestAPIKeyAuthRejectsTimeAccessInStandardAndSimpleMode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	user := &service.User{
+		ID:          12,
+		Role:        service.RoleUser,
+		Status:      service.StatusActive,
+		Balance:     10,
+		Concurrency: 3,
+	}
+
+	t.Run("standard mode rejects not active yet key", func(t *testing.T) {
+		startsAt := time.Now().Add(time.Hour)
+		apiKey := &service.APIKey{
+			ID:       201,
+			UserID:   user.ID,
+			Key:      "future-key",
+			Status:   service.StatusActive,
+			User:     user,
+			StartsAt: &startsAt,
+		}
+		router := newAuthTestRouter(service.NewAPIKeyService(authRepoForKey(apiKey), nil, nil, nil, nil, nil, &config.Config{RunMode: config.RunModeStandard}), nil, &config.Config{RunMode: config.RunModeStandard})
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/t", nil)
+		req.Header.Set("x-api-key", apiKey.Key)
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusForbidden, w.Code)
+		require.Contains(t, w.Body.String(), "API_KEY_NOT_ACTIVE_YET")
+	})
+
+	t.Run("simple mode rejects api key window", func(t *testing.T) {
+		apiKey := &service.APIKey{
+			ID:     202,
+			UserID: user.ID,
+			Key:    "window-key",
+			Status: service.StatusActive,
+			User:   user,
+			AccessTimePolicy: &service.TimeAccessPolicy{
+				Enabled:  true,
+				Timezone: "Asia/Singapore",
+				WeeklyWindows: []service.TimeAccessWindow{{
+					Days:  []int{0, 1, 2, 3, 4, 5, 6},
+					Start: "00:00",
+					End:   "00:01",
+				}},
+			},
+		}
+		cfg := &config.Config{RunMode: config.RunModeSimple}
+		router := newAuthTestRouter(service.NewAPIKeyService(authRepoForKey(apiKey), nil, nil, nil, nil, nil, cfg), nil, cfg)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/t", nil)
+		req.Header.Set("x-api-key", apiKey.Key)
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusForbidden, w.Code)
+		require.Contains(t, w.Body.String(), "API_KEY_TIME_WINDOW_DENIED")
+	})
+
+	t.Run("simple mode rejects user hard limit window", func(t *testing.T) {
+		userLimited := *user
+		userLimited.APIKeyAccessTimePolicy = &service.TimeAccessPolicy{
+			Enabled:  true,
+			Timezone: "Asia/Singapore",
+			WeeklyWindows: []service.TimeAccessWindow{{
+				Days:  []int{0, 1, 2, 3, 4, 5, 6},
+				Start: "00:00",
+				End:   "00:01",
+			}},
+		}
+		apiKey := &service.APIKey{
+			ID:     203,
+			UserID: userLimited.ID,
+			Key:    "user-window-key",
+			Status: service.StatusActive,
+			User:   &userLimited,
+		}
+		cfg := &config.Config{RunMode: config.RunModeSimple}
+		router := newAuthTestRouter(service.NewAPIKeyService(authRepoForKey(apiKey), nil, nil, nil, nil, nil, cfg), nil, cfg)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/t", nil)
+		req.Header.Set("x-api-key", apiKey.Key)
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusForbidden, w.Code)
+		require.Contains(t, w.Body.String(), "API_KEY_TIME_WINDOW_DENIED")
+	})
+
+	snapshot := protocolruntime.Snapshot()
+	require.GreaterOrEqual(t, snapshot.TimePolicyDecisionTotal, int64(3))
+	require.GreaterOrEqual(t, snapshot.TimePolicyDenyTotal, int64(3))
+}
+
+func TestAPIKeyAuthTimeAccessDeniedWritesStructuredLog(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	sink := initMiddlewareTestLogger(t)
+
+	user := &service.User{
+		ID:          31,
+		Role:        service.RoleUser,
+		Status:      service.StatusActive,
+		Balance:     10,
+		Concurrency: 3,
+		APIKeyAccessTimePolicy: &service.TimeAccessPolicy{
+			Enabled:  true,
+			Timezone: "Asia/Singapore",
+			WeeklyWindows: []service.TimeAccessWindow{{
+				Days:  []int{0, 1, 2, 3, 4, 5, 6},
+				Start: "00:00",
+				End:   "00:01",
+			}},
+		},
+	}
+	apiKey := &service.APIKey{
+		ID:     301,
+		UserID: user.ID,
+		Key:    "secret-window-key",
+		Status: service.StatusActive,
+		User:   user,
+	}
+	cfg := &config.Config{RunMode: config.RunModeSimple}
+	router := newAuthTestRouter(service.NewAPIKeyService(authRepoForKey(apiKey), nil, nil, nil, nil, nil, cfg), nil, cfg)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/t", nil)
+	req.Header.Set("x-api-key", apiKey.Key)
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.RequestID, "rid-time-policy"))
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusForbidden, w.Code)
+	var found *logger.LogEvent
+	for _, event := range sink.list() {
+		if event != nil && event.Message == "api key time access denied" {
+			found = event
+			break
+		}
+	}
+	require.NotNil(t, found)
+	require.Equal(t, "audit.api_key_time_access", found.Fields["component"])
+	require.Equal(t, "user", found.Fields["scope"])
+	require.Equal(t, service.TimeAccessDecisionOutsideWindow, found.Fields["reason"])
+	require.Equal(t, int64(301), found.Fields["api_key_id"])
+	require.Equal(t, int64(31), found.Fields["user_id"])
+	require.Equal(t, "rid-time-policy", found.Fields["request_id"])
+	require.NotContains(t, w.Body.String(), apiKey.Key)
+	for _, value := range found.Fields {
+		require.NotEqual(t, apiKey.Key, value)
+	}
+}
+
 func newAuthTestRouter(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.HandlerFunc(NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, cfg)))
@@ -505,6 +662,18 @@ func newAuthTestRouter(apiKeyService *service.APIKeyService, subscriptionService
 type stubApiKeyRepo struct {
 	getByKey       func(ctx context.Context, key string) (*service.APIKey, error)
 	updateLastUsed func(ctx context.Context, id int64, usedAt time.Time) error
+}
+
+func authRepoForKey(apiKey *service.APIKey) *stubApiKeyRepo {
+	return &stubApiKeyRepo{
+		getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+			if apiKey == nil || key != apiKey.Key {
+				return nil, service.ErrAPIKeyNotFound
+			}
+			clone := *apiKey
+			return &clone, nil
+		},
+	}
 }
 
 func (r *stubApiKeyRepo) BillingHoldRepository() service.BillingHoldRepository {

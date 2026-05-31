@@ -78,6 +78,37 @@ export default {
     unknown: 'Unknown',
     tryAgainLater: 'Please try again later',
     minutes: 'min',
+    timeAccess: {
+      start: 'Start time',
+      end: 'End time',
+      timezone: 'Timezone',
+      notBefore: 'Not before',
+      notAfter: 'Not after',
+      dailyAllowedMinutes: 'Daily window limit (minutes)',
+      windowHint: 'Uses the site timezone Asia/Singapore. An end time earlier than the start time crosses midnight.',
+      policyHint: 'Leave not-before/not-after empty to avoid date limits. The daily limit validates configured window length only.',
+      weeklyWindows: 'Weekly windows',
+      windowTitle: 'Window {index}',
+      addWindow: 'Add window',
+      removeWindow: 'Remove window',
+      days: 'Days',
+      daysShort: {
+        sun: 'Sun',
+        mon: 'Mon',
+        tue: 'Tue',
+        wed: 'Wed',
+        thu: 'Thu',
+        fri: 'Fri',
+        sat: 'Sat'
+      },
+      presets: {
+        daytime: 'Daytime',
+        deep_night: 'Deep night',
+        eight_hours: '8 hours',
+        twelve_hours: '12 hours',
+        business_days_daytime: 'Weekday daytime'
+      }
+    },
     time: {
       never: 'Never',
       justNow: 'Just now',

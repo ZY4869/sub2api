@@ -8,8 +8,11 @@ import {
   listModelRegistryProviders,
   moveModelRegistryProvider,
   syncModelRegistryExposures,
+  upsertModelRegistryEntry,
   type ModelRegistryDetail
 } from '@/api/admin/modelRegistry'
+import type { TimeAccessPolicy } from '@/types/api-key-groups'
+import { buildModelRegistryScheduleUpsertPayload } from '@/utils/modelRegistrySchedule'
 import { useAppStore } from '@/stores/app'
 import { useModelInventoryStore } from '@/stores'
 import { ensureModelRegistryFresh, invalidateModelRegistry } from '@/stores/modelRegistry'
@@ -57,6 +60,7 @@ export function useAdminModelRegistryProviders() {
   const deactivatingIds = ref<Set<string>>(new Set())
   const deletingIds = ref<Set<string>>(new Set())
   const movingIds = ref<Set<string>>(new Set())
+  const schedulingIds = ref<Set<string>>(new Set())
   const syncingTestExposureIds = ref<Set<string>>(new Set())
   const items = ref<AdminModelRegistryProviderGroup[]>([])
   const pagination = reactive({
@@ -80,6 +84,7 @@ export function useAdminModelRegistryProviders() {
   const isDeactivating = (modelId: string) => deactivatingIds.value.has(modelId)
   const isDeleting = (modelId: string) => deletingIds.value.has(modelId)
   const isMoving = (modelId: string) => movingIds.value.has(modelId)
+  const isScheduling = (modelId: string) => schedulingIds.value.has(modelId)
   const isSyncingTestExposure = (modelId: string) => syncingTestExposureIds.value.has(modelId)
   const hasMoreProviders = computed(() => pagination.page < pagination.pages)
 
@@ -453,6 +458,33 @@ export function useAdminModelRegistryProviders() {
     }
   }
 
+  async function updateModelSchedule(
+    provider: string,
+    model: ModelRegistryDetail,
+    patch: {
+      available_from?: string
+      available_until?: string
+      access_time_policy?: TimeAccessPolicy | null
+    }
+  ) {
+    if (!model?.id || isScheduling(model.id)) {
+      return false
+    }
+    schedulingIds.value = addPendingId(schedulingIds.value, model.id)
+    try {
+      await upsertModelRegistryEntry(buildModelRegistryScheduleUpsertPayload(model, patch))
+      appStore.showSuccess(t('admin.models.registry.scheduleDialog.saveSuccess'))
+      await refreshProviderAfterMutation(provider || model.provider)
+      return true
+    } catch (error) {
+      console.error('[useAdminModelRegistryProviders] update schedule failed', error)
+      appStore.showError(t('admin.models.registry.scheduleDialog.saveFailed'))
+      return false
+    } finally {
+      schedulingIds.value = removePendingId(schedulingIds.value, model.id)
+    }
+  }
+
   async function refreshProviderAfterMutation(provider: string) {
     await refreshProvidersAfterMutation([provider])
   }
@@ -491,6 +523,7 @@ export function useAdminModelRegistryProviders() {
     isDeactivating,
     isDeleting,
     isMoving,
+    isScheduling,
     isSyncingTestExposure,
     loadAll,
     loadMoreProviders,
@@ -523,6 +556,7 @@ export function useAdminModelRegistryProviders() {
     activateModel,
     deactivateModels,
     hardDeleteModels,
+    updateModelSchedule,
     moveModelsToProvider,
     addModelsToTest: (provider: string, modelIds: string[]) => updateTestExposure(provider, modelIds, 'add'),
     removeModelsFromTest: (provider: string, modelIds: string[]) => updateTestExposure(provider, modelIds, 'remove')

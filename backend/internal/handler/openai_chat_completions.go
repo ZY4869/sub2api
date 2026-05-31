@@ -72,10 +72,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	}
 	modelHint := strings.TrimSpace(gjson.GetBytes(body, "model").String())
 	moderationInput := buildContentModerationRecordInput(c, service.ContentModerationSourceOpenAIChat, service.PlatformOpenAI, modelHint, body)
-	if blocked, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
+	if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		reqLog.Warn("openai_chat_completions.content_moderation_keyword_check_failed", zap.Error(err))
-	} else if blocked {
-		contentModerationOpenAIBlockResponse(c)
+	} else if decision != nil {
+		contentModerationOpenAIBlockResponse(c, decision)
 		return
 	}
 	submitContentModerationAudit(c.Request.Context(), h.contentModerationService, moderationInput)
@@ -93,12 +93,12 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	var publicCatalogEntry *service.PublishedPublicCatalogEntry
 	publicRequestModel := reqModel
 	runtimeRequestModel := reqModel
-	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), reqModel); resolveErr != nil {
+	if entry, status, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(c.Request.Context(), apiKey, service.OpenAIPlatformFromContext(c.Request.Context()), reqModel); resolveErr != nil {
 		reqLog.Warn("openai_chat_completions.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
-	} else if active && !matched {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+	} else if status == service.PublicCatalogResolutionNoMatch || status == service.PublicCatalogResolutionTimeWindowDenied {
+		h.publicCatalogUnavailableResponse(c, status)
 		return
-	} else if matched {
+	} else if status == service.PublicCatalogResolutionMatched {
 		publicCatalogEntry = entry
 		runtimeRequestModel = service.NormalizeModelCatalogModelID(firstNonEmptyHandlerString(entry.SourceModelID, reqModel))
 		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))

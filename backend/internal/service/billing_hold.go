@@ -29,13 +29,21 @@ const (
 )
 
 type BillingHold struct {
-	RequestID          string
-	APIKeyID           int64
-	UserID             int64
-	Currency           string
-	Amount             float64
-	Status             BillingHoldStatus
-	RequestFingerprint string
+	RequestID           string
+	APIKeyID            int64
+	UserID              int64
+	Currency            string
+	Amount              float64
+	Status              BillingHoldStatus
+	RequestFingerprint  string
+	CurrencyConversion  BillingCurrencyConversionSettings
+	ConversionBreakdown map[string]float64
+}
+
+type BillingCurrencyConversionSettings struct {
+	Enabled      bool
+	CNYToUSDRate float64
+	USDToCNYRate float64
 }
 
 type BillingHoldRepository interface {
@@ -82,6 +90,10 @@ func DeductBillingHoldFromUserSnapshot(user *User, hold *BillingHold) {
 	if user == nil || hold == nil || hold.Status != BillingHoldStatusHeld || hold.Amount <= 0 {
 		return
 	}
+	if len(hold.ConversionBreakdown) > 0 {
+		deductBillingHoldBreakdownFromUserSnapshot(user, hold.ConversionBreakdown)
+		return
+	}
 	holdMoney, err := NewPositiveBillingMoneyFromFloat(hold.Amount)
 	if err != nil {
 		return
@@ -99,6 +111,50 @@ func DeductBillingHoldFromUserSnapshot(user *User, hold *BillingHold) {
 		next, err := usdMoney.Sub(holdMoney)
 		if err == nil {
 			user.Balances[ModelPricingCurrencyUSD] = next.Float64()
+		}
+	}
+}
+
+func deductBillingHoldBreakdownFromUserSnapshot(user *User, breakdown map[string]float64) {
+	if user == nil || len(breakdown) == 0 {
+		return
+	}
+	if user.Balances == nil {
+		if rawUSD := breakdown[ModelPricingCurrencyUSD]; rawUSD > 0 {
+			if amount, err := NewPositiveBillingMoneyFromFloat(rawUSD); err == nil {
+				if current, err := NewBillingMoneyFromFloat(user.Balance); err == nil {
+					if next, err := current.Sub(amount); err == nil {
+						user.Balance = next.Float64()
+					}
+				}
+			}
+		}
+		return
+	}
+	for currency, rawAmount := range breakdown {
+		currency = NormalizeUsageBillingCurrency(currency)
+		amount, err := NewPositiveBillingMoneyFromFloat(rawAmount)
+		if err != nil {
+			continue
+		}
+		currentValue, ok := user.Balances[currency]
+		if !ok {
+			if currency != ModelPricingCurrencyUSD {
+				continue
+			}
+			currentValue = user.Balance
+		}
+		current, err := NewBillingMoneyFromFloat(currentValue)
+		if err != nil {
+			continue
+		}
+		next, err := current.Sub(amount)
+		if err != nil {
+			continue
+		}
+		user.Balances[currency] = next.Float64()
+		if currency == ModelPricingCurrencyUSD {
+			user.Balance = next.Float64()
 		}
 	}
 }

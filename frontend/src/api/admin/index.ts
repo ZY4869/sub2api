@@ -14,7 +14,6 @@ import redeemAPI from './redeem'
 import promoAPI from './promo'
 import announcementsAPI from './announcements'
 import affiliatesAPI from './affiliates'
-import docsAPI from './docs'
 import settingsAPI from './settings'
 import systemAPI from './system'
 import subscriptionsAPI from './subscriptions'
@@ -45,7 +44,6 @@ export const adminAPI = {
   channels: channelsAPI,
   channelMonitors: channelMonitorsAPI,
   accounts: accountsAPI,
-  docs: docsAPI,
   proxies: proxiesAPI,
   redeem: redeemAPI,
   promo: promoAPI,
@@ -84,7 +82,6 @@ export {
   promoAPI,
   announcementsAPI,
   affiliatesAPI,
-  docsAPI,
   settingsAPI,
   systemAPI,
   subscriptionsAPI,

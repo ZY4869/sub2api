@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/stretchr/testify/require"
@@ -78,6 +79,80 @@ func TestBillingRuntimeResolver_PublicCatalogIgnoresRuntimeRateMultiplier(t *tes
 	require.InDelta(t, 1.0, result.Cost.InputCost, 1e-9)
 	require.InDelta(t, 1.0, result.Cost.OutputCost, 1e-9)
 	require.InDelta(t, 2.0, result.Cost.TotalCost, 1e-9)
+}
+
+func TestBillingRuntimeResolver_PublicCatalogAppliesTimedDiscountToTextPrices(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	resolver := NewBillingRuntimeResolver(nil, nil)
+	result, err := resolver.Resolve(context.Background(), BillingRuntimeInput{
+		Model:                "gpt-5.4",
+		PublicCatalogEntryID: "entry-discount",
+		PublicCatalogSalePriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{
+				{ID: billingDiscountFieldInputPrice, Unit: BillingUnitInputToken, Value: 0.01},
+				{ID: billingDiscountFieldOutputPrice, Unit: BillingUnitOutputToken, Value: 0.02},
+			},
+		},
+		PublicCatalogDiscountPolicy: &PublicModelCatalogDiscountPolicy{
+			Enabled:          true,
+			ReductionPercent: 25,
+			Timezone:         "Asia/Singapore",
+			Windows: []PublicModelCatalogDiscountWindow{{
+				ID:      "promo",
+				Type:    PublicModelCatalogDiscountWindowOnce,
+				StartAt: "2026-06-01T00:00:00Z",
+				EndAt:   "2026-06-01T01:00:00Z",
+			}},
+		},
+		CompletedAt: time.Date(2026, 6, 1, 0, 30, 0, 0, time.UTC),
+		Tokens: UsageTokens{
+			InputTokens:  100,
+			OutputTokens: 50,
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.PublicCatalogDiscount)
+	require.True(t, result.PublicCatalogDiscount.Active)
+	require.Equal(t, "promo", result.PublicCatalogDiscount.WindowID)
+	require.InDelta(t, 0.75, result.Cost.InputCost, 1e-9)
+	require.InDelta(t, 0.75, result.Cost.OutputCost, 1e-9)
+	require.Equal(t, int64(1), protocolruntime.Snapshot().BillingDiscountByStatus["applied"])
+}
+
+func TestBillingRuntimeResolver_PublicCatalogSkipsExpiredDiscount(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	resolver := NewBillingRuntimeResolver(nil, nil)
+	result, err := resolver.Resolve(context.Background(), BillingRuntimeInput{
+		Model:                "gpt-5.4",
+		PublicCatalogEntryID: "entry-discount-expired",
+		PublicCatalogSalePriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{
+				{ID: billingDiscountFieldOutputPrice, Unit: BillingUnitOutputToken, Value: 0.02},
+			},
+		},
+		PublicCatalogDiscountPolicy: &PublicModelCatalogDiscountPolicy{
+			Enabled:          true,
+			ReductionPercent: 25,
+			Windows: []PublicModelCatalogDiscountWindow{{
+				Type:    PublicModelCatalogDiscountWindowOnce,
+				StartAt: "2026-06-01T00:00:00Z",
+				EndAt:   "2026-06-01T01:00:00Z",
+			}},
+		},
+		CompletedAt: time.Date(2026, 6, 1, 1, 0, 0, 0, time.UTC),
+		Tokens:      UsageTokens{OutputTokens: 50},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.PublicCatalogDiscount)
+	require.False(t, result.PublicCatalogDiscount.Active)
+	require.InDelta(t, 1.0, result.Cost.OutputCost, 1e-9)
+	require.Equal(t, int64(1), protocolruntime.Snapshot().BillingDiscountByStatus["skipped"])
 }
 
 func TestBillingRuntimeResolver_PublicCatalogSupportsCurrencyCacheBatchAndLongContext(t *testing.T) {
@@ -226,4 +301,172 @@ func TestBillingRuntimeResolver_PublicCatalogRequestSlotFailsClosedWhenMissing(t
 	})
 	require.NoError(t, err)
 	require.Equal(t, "public_catalog_entry_incomplete", result.PricingSource)
+}
+
+func TestBillingRuntimeResolver_PublicCatalogImageFixedPriceOverridesTokenPricing(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	resolver := NewBillingRuntimeResolver(nil, nil)
+	price2K := 0.25
+	result, err := resolver.Resolve(context.Background(), BillingRuntimeInput{
+		Model:                 "gpt-image-public",
+		PublicCatalogEntryID:  "entry-image-fixed",
+		PublicCatalogCurrency: ModelPricingCurrencyCNY,
+		PublicCatalogSalePriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{
+				{ID: billingDiscountFieldInputPrice, Unit: BillingUnitInputToken, Value: 99},
+				{ID: billingDiscountFieldOutputPrice, Unit: BillingUnitImage, Value: 9},
+			},
+		},
+		PublicCatalogImageFixedPricing: PublicModelImageFixedPricing{
+			Enabled: true,
+			Prices:  map[string]*float64{"2K": &price2K},
+		},
+		Tokens:     UsageTokens{InputTokens: 1000},
+		ImageCount: 2,
+		ImageSize:  "2k",
+		MediaType:  "image",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "public_catalog_entry", result.PricingSource)
+	require.Equal(t, ModelPricingCurrencyCNY, result.Cost.Currency)
+	require.InDelta(t, 0.5, result.Cost.ActualCost, 1e-9)
+	require.InDelta(t, 0, result.Cost.InputCost, 1e-9)
+	require.Equal(t, int64(1), protocolruntime.Snapshot().BillingResolverByPath["public_catalog_image_fixed"])
+}
+
+func TestBillingRuntimeResolver_PublicCatalogAppliesTimedDiscountToImageFixedPrice(t *testing.T) {
+	resolver := NewBillingRuntimeResolver(nil, nil)
+	price2K := 0.25
+	result, err := resolver.Resolve(context.Background(), BillingRuntimeInput{
+		Model:                "gpt-image-public",
+		PublicCatalogEntryID: "entry-image-fixed-discount",
+		PublicCatalogSalePriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{
+				{ID: billingDiscountFieldOutputPrice, Unit: BillingUnitImage, Value: 9},
+			},
+		},
+		PublicCatalogImageFixedPricing: PublicModelImageFixedPricing{
+			Enabled: true,
+			Prices:  map[string]*float64{"2K": &price2K},
+		},
+		PublicCatalogDiscountPolicy: &PublicModelCatalogDiscountPolicy{
+			Enabled:          true,
+			ReductionPercent: 20,
+			Windows: []PublicModelCatalogDiscountWindow{{
+				Type:    PublicModelCatalogDiscountWindowOnce,
+				StartAt: "2026-06-01T00:00:00Z",
+				EndAt:   "2026-06-01T01:00:00Z",
+			}},
+		},
+		CompletedAt: time.Date(2026, 6, 1, 0, 59, 59, 0, time.UTC),
+		ImageCount:  2,
+		ImageSize:   "2k",
+		MediaType:   "image",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.PublicCatalogDiscount)
+	require.True(t, result.PublicCatalogDiscount.Active)
+	require.InDelta(t, 0.4, result.Cost.ActualCost, 1e-9)
+}
+
+func TestBillingRuntimeResolver_PublicCatalogImageFixedPriceFallsBackWhenMissing(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	resolver := NewBillingRuntimeResolver(nil, nil)
+	price1K := 0.25
+	result, err := resolver.Resolve(context.Background(), BillingRuntimeInput{
+		Model:                "gpt-image-public",
+		PublicCatalogEntryID: "entry-image-fallback",
+		PublicCatalogSalePriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{
+				{ID: billingDiscountFieldOutputPrice, Unit: BillingUnitImage, Value: 0.7},
+			},
+		},
+		PublicCatalogImageFixedPricing: PublicModelImageFixedPricing{
+			Enabled: true,
+			Prices:  map[string]*float64{"1K": &price1K},
+		},
+		ImageCount: 3,
+		ImageSize:  "4K",
+		MediaType:  "image",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "public_catalog_entry", result.PricingSource)
+	require.InDelta(t, 2.1, result.Cost.ActualCost, 1e-9)
+	require.Equal(t, int64(1), protocolruntime.Snapshot().BillingResolverFallbackByReason["public_catalog_image_fixed_fallback_to_price_display"])
+}
+
+func TestBillingRuntimeResolver_PublicCatalogImageAlwaysFixedFailsClosedWhenMissing(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	resolver := NewBillingRuntimeResolver(nil, nil)
+	price1K := 0.25
+	result, err := resolver.Resolve(context.Background(), BillingRuntimeInput{
+		Model:                "gpt-image-public",
+		PublicCatalogEntryID: "entry-image-always-fixed",
+		PublicCatalogSalePriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{
+				{ID: billingDiscountFieldOutputPrice, Unit: BillingUnitImage, Value: 0.7},
+			},
+		},
+		PublicCatalogImageFixedPricing: PublicModelImageFixedPricing{
+			Enabled:     true,
+			AlwaysFixed: true,
+			Prices:      map[string]*float64{"1K": &price1K},
+		},
+		ImageCount: 1,
+		ImageSize:  "4K",
+		MediaType:  "image",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "public_catalog_entry_incomplete", result.PricingSource)
+	require.Equal(t, "public_catalog_price_incomplete", result.FallbackReason)
+	require.Zero(t, result.Cost.ActualCost)
+	require.Equal(t, int64(1), protocolruntime.Snapshot().BillingResolverFallbackByReason["public_catalog_image_fixed_missing"])
+}
+
+func TestValidatePublicModelImageFixedPricingRequiresAllPricesWhenAlwaysFixed(t *testing.T) {
+	price1K := 0.1
+	price2K := 0.2
+
+	err := validatePublicModelImageFixedPricing(PublicModelImageFixedPricing{
+		Enabled:     true,
+		AlwaysFixed: true,
+		Prices:      map[string]*float64{"1K": &price1K, "2K": &price2K},
+	})
+	require.Error(t, err)
+
+	price4K := 0.4
+	err = validatePublicModelImageFixedPricing(PublicModelImageFixedPricing{
+		Enabled:     true,
+		AlwaysFixed: true,
+		Prices:      map[string]*float64{"1K": &price1K, "2K": &price2K, "4K": &price4K},
+	})
+	require.NoError(t, err)
+}
+
+func TestModelCatalogServiceSavePublicModelCatalogDraftValidatesAlwaysFixedImagePrices(t *testing.T) {
+	svc := NewModelCatalogService(nil, nil, nil, nil, nil)
+	price1K := 0.1
+
+	_, err := svc.SavePublicModelCatalogDraft(context.Background(), PublicModelCatalogDraft{
+		SelectedEntries: []PublicModelCatalogEntryDraft{{
+			EntryID:       "entry-image",
+			PublicModelID: "image-public",
+			ImageFixedPricing: PublicModelImageFixedPricing{
+				Enabled:     true,
+				AlwaysFixed: true,
+				Prices:      map[string]*float64{"1K": &price1K},
+			},
+		}},
+	})
+	require.Error(t, err)
 }

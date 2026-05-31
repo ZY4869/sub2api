@@ -389,21 +389,6 @@ const ShieldCheckIcon = {
     )
 }
 
-const DocumentTextIcon = {
-  render: () =>
-    h(
-      'svg',
-      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
-      [
-        h('path', {
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          d: 'M19.5 14.25v-8.25A2.25 2.25 0 0017.25 3.75H6.75A2.25 2.25 0 004.5 6v12A2.25 2.25 0 006.75 20.25h5.25M16.5 8.25h-9m9 3h-9m5.25 3h-5.25m9 6l3-3m0 0l-3-3m3 3H12'
-        })
-      ]
-    )
-}
-
 const SunIcon = {
   render: () =>
     h(
@@ -496,7 +481,6 @@ const userNavItems = computed((): NavItem[] => {
           }
         ]
       : []),
-    { path: '/api-docs', label: t('nav.apiDocs'), icon: DocumentTextIcon },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     ...(appStore.cachedPublicSettings?.purchase_subscription_enabled
@@ -623,7 +607,6 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
     { path: '/admin/moderation', label: t('nav.moderation'), icon: ShieldCheckIcon },
-    { path: '/admin/api-docs', label: t('nav.apiDocs'), icon: DocumentTextIcon },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
     { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon }
   ]

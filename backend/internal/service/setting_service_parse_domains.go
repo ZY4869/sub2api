@@ -24,6 +24,9 @@ func (s *SettingService) applyParsedPaymentSettings(result *SystemSettings, sett
 	result.PaymentMinTopupAmount = paymentSettings.MinTopupAmount
 	result.PaymentMaxTopupAmount = paymentSettings.MaxTopupAmount
 	result.PaymentSubscriptionPlans = paymentSettings.SubscriptionPlans
+	result.BillingCurrencyConversionEnabled = settings[SettingKeyBillingCurrencyConversionEnabled] == "true"
+	result.BillingCurrencyCNYToUSDRate = parseClampedFloatSetting(settings[SettingKeyBillingCurrencyCNYToUSDRate], 0.6, 0.00000001, 0)
+	result.BillingCurrencyUSDToCNYRate = parseClampedFloatSetting(settings[SettingKeyBillingCurrencyUSDToCNYRate], 7, 0.00000001, 0)
 }
 
 func (s *SettingService) applyParsedOAuthSettings(result *SystemSettings, settings map[string]string) {

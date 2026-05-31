@@ -98,7 +98,7 @@ describe('AppSidebar', () => {
     })))
   })
 
-  it('shows the API docs entry for regular users', () => {
+  it('does not show the removed API docs entry for regular users', () => {
     mockState.routePath = '/api-docs/common'
 
     const wrapper = mount(AppSidebar, {
@@ -110,8 +110,8 @@ describe('AppSidebar', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('nav.apiDocs')
-    expect(wrapper.find('a[href="/api-docs"]').classes()).toContain('sidebar-link-active')
+    expect(wrapper.text()).not.toContain('nav.apiDocs')
+    expect(wrapper.find('a[href="/api-docs"]').exists()).toBe(false)
   })
 
   it('shows the models catalog entry for regular users', () => {
@@ -162,10 +162,10 @@ describe('AppSidebar', () => {
 
     expect(wrapper.text()).toContain('nav.modules')
     expect(wrapper.text()).toContain('nav.accounts')
-    expect(wrapper.text()).toContain('nav.apiDocs')
+    expect(wrapper.text()).not.toContain('nav.apiDocs')
     expect(wrapper.text()).not.toContain('nav.limitedAccounts')
     expect(wrapper.text()).not.toContain('nav.blacklist')
-    expect(wrapper.find('a[href="/admin/api-docs"]').classes()).toContain('sidebar-link-active')
+    expect(wrapper.find('a[href="/admin/api-docs"]').exists()).toBe(false)
     expect(mockState.adminSettingsStore.fetch).toHaveBeenCalled()
   })
 

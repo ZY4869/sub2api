@@ -7,6 +7,7 @@ const {
   deactivateModelRegistryEntries,
   hardDeleteModelRegistryEntries,
   moveModelRegistryProvider,
+  upsertModelRegistryEntry,
   showError,
   showSuccess,
   showWarning,
@@ -20,6 +21,7 @@ const {
   deactivateModelRegistryEntries: vi.fn(),
   hardDeleteModelRegistryEntries: vi.fn(),
   moveModelRegistryProvider: vi.fn(),
+  upsertModelRegistryEntry: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   showWarning: vi.fn(),
@@ -34,7 +36,8 @@ vi.mock('@/api/admin/modelRegistry', () => ({
   activateModelRegistryEntries,
   deactivateModelRegistryEntries,
   hardDeleteModelRegistryEntries,
-  moveModelRegistryProvider
+  moveModelRegistryProvider,
+  upsertModelRegistryEntry
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -93,6 +96,7 @@ describe('useAdminModelRegistryProviders', () => {
     deactivateModelRegistryEntries.mockReset()
     hardDeleteModelRegistryEntries.mockReset()
     moveModelRegistryProvider.mockReset()
+    upsertModelRegistryEntry.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
     showWarning.mockReset()
@@ -490,5 +494,76 @@ describe('useAdminModelRegistryProviders', () => {
       target_provider: 'grok'
     })
     expect(showSuccess).toHaveBeenCalledWith('admin.models.pages.all.bulk.moveProviderSuccess')
+  })
+
+  it('updates a model schedule through registry upsert payload', async () => {
+    listModelRegistryProviders
+      .mockResolvedValueOnce({
+        items: [{ provider: 'openai', total_count: 1, available_count: 1 }],
+        total: 1,
+        page: 1,
+        page_size: 24,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [{ provider: 'openai', total_count: 1, available_count: 1 }],
+        total: 1,
+        page: 1,
+        page_size: 24,
+        pages: 1
+      })
+
+    const model = createRegistryModel('gpt-5.4', 'openai', true)
+    listModelRegistry
+      .mockResolvedValueOnce({
+        items: [model],
+        total: 1,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [{
+          ...model,
+          available_from: '2026-06-01T00:00:00.000Z'
+        }],
+        total: 1,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+
+    upsertModelRegistryEntry.mockResolvedValue({
+      ...model,
+      available_from: '2026-06-01T00:00:00.000Z'
+    })
+
+    const subject = useAdminModelRegistryProviders()
+
+    await subject.loadAll()
+    await subject.ensureProviderModels('openai')
+    await subject.updateModelSchedule('openai', model, {
+      available_from: '2026-06-01T00:00:00.000Z',
+      access_time_policy: {
+        enabled: true,
+        timezone: 'Asia/Singapore',
+        weekly_windows: [{ days: [1, 2, 3, 4, 5], start: '08:00', end: '20:00' }],
+        daily_allowed_minutes: 720
+      }
+    })
+
+    expect(upsertModelRegistryEntry).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'gpt-5.4',
+      provider: 'openai',
+      available_from: '2026-06-01T00:00:00.000Z',
+      available_until: '',
+      access_time_policy: expect.objectContaining({
+        enabled: true,
+        timezone: 'Asia/Singapore'
+      })
+    }))
+    expect(showSuccess).toHaveBeenCalledWith('admin.models.registry.scheduleDialog.saveSuccess')
+    expect(invalidateModelRegistry).toHaveBeenCalled()
+    expect(modelInventoryInvalidate).toHaveBeenCalled()
   })
 })

@@ -90,6 +90,7 @@ type BillingCacheService struct {
 	apiKeyRateLimitLoader apiKeyRateLimitLoader
 	userPlatformQuotas    *UserPlatformQuotaService
 	billingHoldRepo       BillingHoldRepository
+	settingService        *SettingService
 	authCacheInvalidator  APIKeyAuthCacheInvalidator
 	cfg                   *config.Config
 	circuitBreaker        *billingCircuitBreaker
@@ -131,6 +132,13 @@ func (s *BillingCacheService) SetAuthCacheInvalidator(invalidator APIKeyAuthCach
 		return
 	}
 	s.authCacheInvalidator = invalidator
+}
+
+func (s *BillingCacheService) SetSettingService(settingService *SettingService) {
+	if s == nil {
+		return
+	}
+	s.settingService = settingService
 }
 
 func (s *BillingCacheService) SetUserPlatformQuotaService(quotaService *UserPlatformQuotaService) {
@@ -780,6 +788,7 @@ func (s *BillingCacheService) reserveBalanceEligibilityHold(ctx context.Context,
 		UserID:             user.ID,
 		Currency:           ModelPricingCurrencyUSD,
 		Amount:             amount,
+		CurrencyConversion: billingCurrencyConversionFromSettings(ctx, s.settingService),
 	})
 	if err != nil {
 		if s.circuitBreaker != nil {

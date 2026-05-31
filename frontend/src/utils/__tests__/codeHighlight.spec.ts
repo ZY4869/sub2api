@@ -1,22 +1,46 @@
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { highlightCode } from '../codeHighlight'
-import { DOCS_PAGE_ORDER, parseDocsMarkdown } from '../markdownDocs'
+import { parseDocsMarkdown } from '../markdownDocs'
 
-function readRepositoryDocsBaseline() {
-  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../')
-  const docsRoot = path.join(repoRoot, 'backend/internal/service/docs')
-  const parts = [
-    readFileSync(path.join(docsRoot, 'index.md'), 'utf8').trimEnd(),
-    ...DOCS_PAGE_ORDER.map((pageId) =>
-      readFileSync(path.join(docsRoot, 'pages', `${pageId}.md`), 'utf8').trimEnd(),
-    ),
-  ]
-
-  return `${parts.join('\n\n')}\n`
-}
+const modelExampleMarkdown = [
+  '# 模型库协议示例',
+  '## common',
+  '### OpenAI Responses',
+  '#### Python',
+  '```python',
+  'import requests',
+  '',
+  'base_url = "https://api.zyxai.de"',
+  'api_key = "sk-你的站内Key"',
+  '',
+  'response = requests.post(',
+  '    f"{base_url}/v1/responses",',
+  '    headers={"Authorization": f"Bearer {api_key}"},',
+  '    json={"model": "gpt-5.4", "input": "ping"},',
+  ')',
+  '```',
+  '#### REST',
+  '```bash',
+  'curl https://api.zyxai.de/v1/responses \\',
+  '  -H "Authorization: Bearer sk-你的站内Key" \\',
+  '  -H "Content-Type: application/json" \\',
+  "  -d '{",
+  '    "model": "gpt-5.4",',
+  '    "input": "ping"',
+  "  }'",
+  '```',
+  '## gemini',
+  '### generateContent',
+  '#### REST',
+  '```bash',
+  'curl https://api.zyxai.de/v1beta/models/gemini-2.5-pro:generateContent \\',
+  '  -H "Authorization: Bearer sk-你的站内Key" \\',
+  '  -H "Content-Type: application/json" \\',
+  "  -d '{",
+  '    "contents": [{ "role": "user", "parts": [{ "text": "hello" }] }]',
+  "  }'",
+  '```',
+].join('\n')
 
 describe('codeHighlight', () => {
   it('applies multi-color highlighting for REST requests', () => {
@@ -44,8 +68,8 @@ describe('codeHighlight', () => {
     expect(line.html).not.toMatch(/[\uE000-\uF8FF]/)
   })
 
-  it('does not leak placeholder glyphs across repository code examples', () => {
-    const document = parseDocsMarkdown(readRepositoryDocsBaseline())
+  it('does not leak placeholder glyphs across public model example code', () => {
+    const document = parseDocsMarkdown(modelExampleMarkdown)
     const leakedLines: string[] = []
 
     const scanBlocks = (blocks: Array<{ kind: string; group?: { tabs: Array<{ code: string; language: string; id: string }> } }>, pageId: string) => {

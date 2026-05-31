@@ -125,7 +125,17 @@ describe("PublicModelCatalogContent", () => {
             mode: "chat",
             currency: "USD",
             price_display: {
+              primary: [{ id: "input_price", unit: "input_token", value: 0.0000008 }],
+            },
+            original_sale_price_display: {
               primary: [{ id: "input_price", unit: "input_token", value: 0.000001 }],
+            },
+            discount_status: {
+              active: true,
+              reduction_percent: 20,
+              window_id: "launch",
+              window_type: "once",
+              timezone: "Asia/Singapore",
             },
             multiplier_summary: {
               enabled: true,
@@ -260,6 +270,9 @@ describe("PublicModelCatalogContent", () => {
     expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("Verified");
     expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("Inferred");
     expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("Demo data");
+    expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("ui.modelCatalog.discountBadge");
+    expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("$0.8");
+    expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("$1");
     expect(wrapper.find('[data-testid="public-model-primary-price-gpt-5.4-compat-cache_price"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="public-model-secondary-price-gpt-5.4-compat-cache_price"]').exists()).toBe(false);
     expect(wrapper.text()).toContain("ui.modelCatalog.health.error");

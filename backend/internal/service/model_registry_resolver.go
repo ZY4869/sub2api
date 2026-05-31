@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 )
@@ -65,11 +66,15 @@ func (s *ModelRegistryService) resolutionEntries(ctx context.Context) ([]modelre
 		return nil, err
 	}
 	items := make([]modelregistry.ModelEntry, 0, len(entries))
+	now := time.Now()
 	for id, entry := range entries {
 		if _, tombstoned := tombstones[id]; tombstoned {
 			continue
 		}
 		if _, available := availableSet[id]; !available {
+			continue
+		}
+		if !modelRegistryEntryCurrentlyAvailable(entry, now) {
 			continue
 		}
 		items = append(items, entry)

@@ -51,10 +51,12 @@
           class="mt-3"
           :official="officialPrice"
           :sale="salePrice"
+          :image-fixed-pricing="item.image_fixed_pricing"
           :currency="item.currency"
           :editable="mode === 'selected'"
           :testid-prefix="`price-${entryId}`"
           @update:sale="emit('update-sale-price', $event)"
+          @update:image-fixed-pricing="emit('update-image-fixed-pricing', $event)"
         />
 
         <PublicCatalogMoveButtons
@@ -90,7 +92,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { BillingPublicCatalogAdminEntry } from '@/api/admin/billing'
-import type { PublicModelCatalogPriceDisplay } from '@/api/meta'
+import type { PublicModelCatalogPriceDisplay, PublicModelImageFixedPricing } from '@/api/meta'
 import Icon from '@/components/icons/Icon.vue'
 import PublicCatalogCardHeader from './PublicCatalogCardHeader.vue'
 import PublicCatalogMoveButtons from './PublicCatalogMoveButtons.vue'
@@ -124,6 +126,7 @@ const emit = defineEmits<{
   (e: 'update-public-id', value: string): void
   (e: 'update-source-alias', value: string): void
   (e: 'update-sale-price', value: PublicModelCatalogPriceDisplay): void
+  (e: 'update-image-fixed-pricing', value: PublicModelImageFixedPricing): void
 }>()
 
 const { t } = useI18n()

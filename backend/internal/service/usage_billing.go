@@ -45,17 +45,20 @@ type UsageBillingCommand struct {
 	ImageCount           int
 	MediaType            string
 
-	BalanceCost          float64
-	SubscriptionCost     float64
-	APIKeyQuotaCost      float64
-	APIKeyGroupQuotaCost float64
-	APIKeyRateLimitCost  float64
-	AccountQuotaCost     float64
-	UserPlatformCost     float64
-	BillingCurrency      string
-	USDToCNYRate         float64
-	FXRateDate           string
-	FXLockedAt           *time.Time
+	BalanceCost               float64
+	SubscriptionCost          float64
+	APIKeyQuotaCost           float64
+	APIKeyGroupQuotaCost      float64
+	APIKeyRateLimitCost       float64
+	AccountQuotaCost          float64
+	UserPlatformCost          float64
+	BillingCurrency           string
+	USDToCNYRate              float64
+	CurrencyConversionEnabled bool
+	CNYToUSDRate              float64
+	USDToCNYConversionRate    float64
+	FXRateDate                string
+	FXLockedAt                *time.Time
 }
 
 func (c *UsageBillingCommand) Normalize() {
@@ -75,7 +78,7 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		return ""
 	}
 	raw := fmt.Sprintf(
-		"%d|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%s|%0.10f|%s",
+		"%d|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%s|%0.10f|%t|%0.10f|%0.10f|%s",
 		c.UserID,
 		c.AccountID,
 		c.APIKeyID,
@@ -110,6 +113,9 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		c.UserPlatformCost,
 		NormalizeUsageBillingCurrency(c.BillingCurrency),
 		c.USDToCNYRate,
+		c.CurrencyConversionEnabled,
+		c.CNYToUSDRate,
+		c.USDToCNYConversionRate,
 		strings.TrimSpace(c.FXRateDate),
 	)
 	if payloadHash := strings.TrimSpace(c.RequestPayloadHash); payloadHash != "" {

@@ -19,41 +19,16 @@ vi.mock('@/composables/useRoutePrefetch', () => ({
 import router from '@/router'
 
 describe('api docs routes', () => {
-  it('redirects the user and admin docs roots to the common protocol page', () => {
-    const userRoot = router.getRoutes().find((route) => route.path === '/api-docs')
-    const adminRoot = router.getRoutes().find((route) => route.path === '/admin/api-docs')
+  it('does not register standalone user or admin api docs routes', () => {
+    const routes = router.getRoutes()
+    expect(routes.find((route) => route.path === '/api-docs')).toBeUndefined()
+    expect(routes.find((route) => route.path === '/admin/api-docs')).toBeUndefined()
 
-    expect(userRoot?.redirect).toBe('/api-docs/common')
-    expect(adminRoot?.redirect).toBe('/admin/api-docs/common')
-  })
-
-  it('registers authenticated user and admin api docs protocol routes', () => {
     const userRoute = router.resolve('/api-docs/openai-native')
     const adminRoute = router.resolve('/admin/api-docs/openai-native')
 
-    expect(userRoute.name).toBe('ApiDocs')
-    expect(userRoute.params.pageId).toBe('openai-native')
-    expect(userRoute.meta.requiresAuth).toBe(true)
-    expect(userRoute.meta.requiresAdmin).toBe(false)
-    expect(userRoute.meta.titleKey).toBe('ui.routeTitles.apiDocs')
-
-    expect(adminRoute.name).toBe('AdminApiDocs')
-    expect(adminRoute.params.pageId).toBe('openai-native')
-    expect(adminRoute.meta.requiresAuth).toBe(true)
-    expect(adminRoute.meta.requiresAdmin).toBe(true)
-    expect(adminRoute.meta.titleKey).toBe('admin.apiDocs.title')
-  })
-
-  it('registers OpenRouter docs routes', () => {
-    const userRoute = router.resolve('/api-docs/openrouter')
-    const adminRoute = router.resolve('/admin/api-docs/openrouter')
-    const missingRoute = router.resolve('/api-docs/not-a-docs-page')
-
-    expect(userRoute.name).toBe('ApiDocs')
-    expect(userRoute.params.pageId).toBe('openrouter')
-    expect(adminRoute.name).toBe('AdminApiDocs')
-    expect(adminRoute.params.pageId).toBe('openrouter')
-    expect(missingRoute.name).not.toBe('ApiDocs')
+    expect(userRoute.name).not.toBe('ApiDocs')
+    expect(adminRoute.name).not.toBe('AdminApiDocs')
   })
 
   it('keeps limited and blacklist pages nested under the accounts parent layout', () => {

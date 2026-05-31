@@ -31,6 +31,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	requestID := strings.TrimSpace(log.RequestID)
 	log.RequestID = requestID
 	rateMultiplier := log.RateMultiplier
+	accountRateMultiplier := log.AccountRateMultiplier
 	log.SyncRequestTypeAndLegacyFields()
 	requestType := int16(log.RequestType)
 	query := `
@@ -69,6 +70,11 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			billing_exempt_reason,
 			rate_multiplier,
 			account_rate_multiplier,
+			discount_applied,
+			discount_percent,
+			discount_window_id,
+			discount_window_type,
+			discount_completed_at,
 			billing_type,
 			request_type,
 			status,
@@ -113,7 +119,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			$17, $18,
 			$19, $20, $21, $22, $23, $24,
 			$25, $26, $27, $28, $29, $30,
-			$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71
+			$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -153,6 +159,10 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	upstreamURL := nullString(log.UpstreamURL)
 	upstreamService := nullString(log.UpstreamService)
 	billingExemptReason := nullString(log.BillingExemptReason)
+	discountPercent := nullFloat(log.DiscountPercent)
+	discountWindowID := nullString(log.DiscountWindowID)
+	discountWindowType := nullString(log.DiscountWindowType)
+	discountCompletedAt := nullUsageLogTime(log.DiscountCompletedAt)
 	status := service.NormalizeUsageLogStatus(log.Status)
 	httpStatus := nullInt(log.HTTPStatus)
 	errorCode := nullString(log.ErrorCode)
@@ -177,7 +187,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	if requestID != "" {
 		requestIDArg = requestID
 	}
-	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, nullString(requestedModelPtr), upstreamModel, channelID, modelMappingChain, billingTier, billingMode, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingCurrency, totalCostUSDEquivalent, actualCostUSDEquivalent, log.USDToCNYRate, fxRateDate, fxLockedAt, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, imageOutputTokens, imageOutputCost, serviceTier, reasoningEffort, reasoningEffortRaw, reasoningEffortEffective, requestedModelRaw, requestedModelNormalized, requestContextLengthTokens, millionContextRequested, millionContextEffective, millionContextSource, millionContextBetaToken, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, createdAt}
+	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, nullString(requestedModelPtr), upstreamModel, channelID, modelMappingChain, billingTier, billingMode, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingCurrency, totalCostUSDEquivalent, actualCostUSDEquivalent, log.USDToCNYRate, fxRateDate, fxLockedAt, billingExemptReason, rateMultiplier, accountRateMultiplier, log.DiscountApplied, discountPercent, discountWindowID, discountWindowType, discountCompletedAt, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, imageOutputTokens, imageOutputCost, serviceTier, reasoningEffort, reasoningEffortRaw, reasoningEffortEffective, requestedModelRaw, requestedModelNormalized, requestContextLengthTokens, millionContextRequested, millionContextEffective, millionContextSource, millionContextBetaToken, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, createdAt}
 	if err := scanSingleRow(ctx, sqlq, query, args, &log.ID, &log.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) && requestID != "" {
 			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id = $2"
@@ -185,11 +195,13 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 				return false, err
 			}
 			log.RateMultiplier = rateMultiplier
+			log.AccountRateMultiplier = accountRateMultiplier
 			return false, nil
 		} else {
 			return false, err
 		}
 	}
 	log.RateMultiplier = rateMultiplier
+	log.AccountRateMultiplier = accountRateMultiplier
 	return true, nil
 }

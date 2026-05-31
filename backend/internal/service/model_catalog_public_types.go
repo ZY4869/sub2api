@@ -69,45 +69,54 @@ type PublicModelCatalogSnapshot struct {
 }
 
 type PublicModelCatalogItem struct {
-	EntryID              string                              `json:"entry_id,omitempty"`
-	PublicModelID        string                              `json:"public_model_id,omitempty"`
-	Model                string                              `json:"model"`
-	BaseModel            string                              `json:"base_model,omitempty"`
-	SourceModelID        string                              `json:"source_model_id,omitempty"`
-	SourceProtocol       string                              `json:"source_protocol,omitempty"`
-	SourceAlias          string                              `json:"source_alias,omitempty"`
-	SourceAccountID      int64                               `json:"source_account_id,omitempty"`
-	SourceAccountName    string                              `json:"source_account_name,omitempty"`
-	DisplayName          string                              `json:"display_name,omitempty"`
-	Provider             string                              `json:"provider,omitempty"`
-	ProviderIconKey      string                              `json:"provider_icon_key,omitempty"`
-	Status               string                              `json:"status,omitempty"`
-	AvailabilityState    string                              `json:"availability_state,omitempty"`
-	StaleState           string                              `json:"stale_state,omitempty"`
-	PublicationStatus    string                              `json:"publication_status,omitempty"`
-	HealthStatus         string                              `json:"health_status,omitempty"`
-	VerificationSource   string                              `json:"verification_source,omitempty"`
-	KeyAvailability      string                              `json:"key_availability,omitempty"`
-	UnavailableReason    string                              `json:"unavailable_reason,omitempty"`
-	LifecycleStatus      string                              `json:"lifecycle_status,omitempty"`
-	Lifecycle            PublicModelLifecycle                `json:"lifecycle,omitempty"`
-	ContextWindowTokens  int64                               `json:"context_window_tokens,omitempty"`
-	ContextWindow        PublicModelContextWindow            `json:"context_window,omitempty"`
-	Modalities           []string                            `json:"modalities,omitempty"`
-	Capabilities         []string                            `json:"capabilities,omitempty"`
-	CapabilityMatrix     []PublicModelCapabilityMatrixEntry  `json:"capability_matrix,omitempty"`
-	RequestProtocols     []string                            `json:"request_protocols,omitempty"`
-	ProtocolEndpoints    []PublicModelProtocolEndpoint       `json:"protocol_endpoints,omitempty"`
-	SourceIDs            []string                            `json:"source_ids,omitempty"`
-	IsDemo               bool                                `json:"is_demo,omitempty"`
-	CatalogEntrySource   string                              `json:"catalog_entry_source,omitempty"`
-	Mode                 string                              `json:"mode,omitempty"`
-	Currency             string                              `json:"currency"`
-	PriceDisplay         PublicModelCatalogPriceDisplay      `json:"price_display"`
-	OfficialPriceDisplay PublicModelCatalogPriceDisplay      `json:"official_price_display,omitempty"`
-	SalePriceDisplay     PublicModelCatalogPriceDisplay      `json:"sale_price_display,omitempty"`
-	MultiplierSummary    PublicModelCatalogMultiplierSummary `json:"multiplier_summary"`
-	RuntimePriceSpec     PublicModelCatalogRuntimePriceSpec  `json:"runtime_price_spec,omitempty"`
+	EntryID                  string                              `json:"entry_id,omitempty"`
+	PublicModelID            string                              `json:"public_model_id,omitempty"`
+	Model                    string                              `json:"model"`
+	BaseModel                string                              `json:"base_model,omitempty"`
+	SourceModelID            string                              `json:"source_model_id,omitempty"`
+	SourceProtocol           string                              `json:"source_protocol,omitempty"`
+	SourceAlias              string                              `json:"source_alias,omitempty"`
+	SourceAccountID          int64                               `json:"source_account_id,omitempty"`
+	SourceAccountName        string                              `json:"source_account_name,omitempty"`
+	DisplayName              string                              `json:"display_name,omitempty"`
+	Provider                 string                              `json:"provider,omitempty"`
+	ProviderIconKey          string                              `json:"provider_icon_key,omitempty"`
+	Status                   string                              `json:"status,omitempty"`
+	AvailabilityState        string                              `json:"availability_state,omitempty"`
+	StaleState               string                              `json:"stale_state,omitempty"`
+	PublicationStatus        string                              `json:"publication_status,omitempty"`
+	HealthStatus             string                              `json:"health_status,omitempty"`
+	VerificationSource       string                              `json:"verification_source,omitempty"`
+	KeyAvailability          string                              `json:"key_availability,omitempty"`
+	UnavailableReason        string                              `json:"unavailable_reason,omitempty"`
+	AvailableFrom            string                              `json:"available_from,omitempty"`
+	AvailableUntil           string                              `json:"available_until,omitempty"`
+	AccessTimePolicy         *TimeAccessPolicy                   `json:"access_time_policy,omitempty"`
+	ScheduleStatus           string                              `json:"schedule_status,omitempty"`
+	LifecycleStatus          string                              `json:"lifecycle_status,omitempty"`
+	Lifecycle                PublicModelLifecycle                `json:"lifecycle,omitempty"`
+	ContextWindowTokens      int64                               `json:"context_window_tokens,omitempty"`
+	ContextWindow            PublicModelContextWindow            `json:"context_window,omitempty"`
+	Modalities               []string                            `json:"modalities,omitempty"`
+	Capabilities             []string                            `json:"capabilities,omitempty"`
+	CapabilityMatrix         []PublicModelCapabilityMatrixEntry  `json:"capability_matrix,omitempty"`
+	RequestProtocols         []string                            `json:"request_protocols,omitempty"`
+	ProtocolEndpoints        []PublicModelProtocolEndpoint       `json:"protocol_endpoints,omitempty"`
+	SourceIDs                []string                            `json:"source_ids,omitempty"`
+	IsDemo                   bool                                `json:"is_demo,omitempty"`
+	CatalogEntrySource       string                              `json:"catalog_entry_source,omitempty"`
+	Mode                     string                              `json:"mode,omitempty"`
+	Currency                 string                              `json:"currency"`
+	PriceDisplay             PublicModelCatalogPriceDisplay      `json:"price_display"`
+	OfficialPriceDisplay     PublicModelCatalogPriceDisplay      `json:"official_price_display,omitempty"`
+	SalePriceDisplay         PublicModelCatalogPriceDisplay      `json:"sale_price_display,omitempty"`
+	OriginalPriceDisplay     PublicModelCatalogPriceDisplay      `json:"original_price_display,omitempty"`
+	OriginalSalePriceDisplay PublicModelCatalogPriceDisplay      `json:"original_sale_price_display,omitempty"`
+	DiscountPolicy           *PublicModelCatalogDiscountPolicy   `json:"discount_policy,omitempty"`
+	DiscountStatus           *PublicModelCatalogDiscountStatus   `json:"discount_status,omitempty"`
+	ImageFixedPricing        PublicModelImageFixedPricing        `json:"image_fixed_pricing,omitempty"`
+	MultiplierSummary        PublicModelCatalogMultiplierSummary `json:"multiplier_summary"`
+	RuntimePriceSpec         PublicModelCatalogRuntimePriceSpec  `json:"runtime_price_spec,omitempty"`
 }
 
 type PublicModelContextWindow struct {
@@ -164,6 +173,38 @@ type PublicModelCatalogPriceEntry struct {
 	SupportedUnpriced bool    `json:"supported_unpriced,omitempty"`
 }
 
+type PublicModelCatalogDiscountPolicy struct {
+	Enabled          bool                               `json:"enabled"`
+	ReductionPercent float64                            `json:"reduction_percent,omitempty"`
+	Timezone         string                             `json:"timezone,omitempty"`
+	Windows          []PublicModelCatalogDiscountWindow `json:"windows,omitempty"`
+}
+
+type PublicModelCatalogDiscountWindow struct {
+	ID        string `json:"id,omitempty"`
+	Type      string `json:"type"`
+	StartAt   string `json:"start_at,omitempty"`
+	EndAt     string `json:"end_at,omitempty"`
+	StartTime string `json:"start_time,omitempty"`
+	EndTime   string `json:"end_time,omitempty"`
+	Days      []int  `json:"days,omitempty"`
+}
+
+type PublicModelCatalogDiscountStatus struct {
+	Active           bool    `json:"active"`
+	ReductionPercent float64 `json:"reduction_percent,omitempty"`
+	WindowID         string  `json:"window_id,omitempty"`
+	WindowType       string  `json:"window_type,omitempty"`
+	Timezone         string  `json:"timezone,omitempty"`
+	CompletedAt      string  `json:"completed_at,omitempty"`
+}
+
+type PublicModelImageFixedPricing struct {
+	Enabled     bool                `json:"enabled"`
+	AlwaysFixed bool                `json:"always_fixed"`
+	Prices      map[string]*float64 `json:"prices,omitempty"`
+}
+
 type PublicModelCatalogMultiplierSummary struct {
 	Enabled bool     `json:"enabled"`
 	Kind    string   `json:"kind"`
@@ -193,14 +234,19 @@ type PublicModelCatalogDetail struct {
 }
 
 type PublicModelCatalogEntryDraft struct {
-	EntryID          string                         `json:"entry_id"`
-	PublicModelID    string                         `json:"public_model_id"`
-	SourceAccountID  int64                          `json:"source_account_id,omitempty"`
-	SourceAlias      string                         `json:"source_alias,omitempty"`
-	SourceModelID    string                         `json:"source_model_id,omitempty"`
-	BaseModel        string                         `json:"base_model,omitempty"`
-	SourceProtocol   string                         `json:"source_protocol,omitempty"`
-	SalePriceDisplay PublicModelCatalogPriceDisplay `json:"sale_price_display,omitempty"`
+	EntryID           string                            `json:"entry_id"`
+	PublicModelID     string                            `json:"public_model_id"`
+	SourceAccountID   int64                             `json:"source_account_id,omitempty"`
+	SourceAlias       string                            `json:"source_alias,omitempty"`
+	SourceModelID     string                            `json:"source_model_id,omitempty"`
+	BaseModel         string                            `json:"base_model,omitempty"`
+	SourceProtocol    string                            `json:"source_protocol,omitempty"`
+	SalePriceDisplay  PublicModelCatalogPriceDisplay    `json:"sale_price_display,omitempty"`
+	DiscountPolicy    *PublicModelCatalogDiscountPolicy `json:"discount_policy,omitempty"`
+	ImageFixedPricing PublicModelImageFixedPricing      `json:"image_fixed_pricing,omitempty"`
+	AvailableFrom     string                            `json:"available_from,omitempty"`
+	AvailableUntil    string                            `json:"available_until,omitempty"`
+	AccessTimePolicy  *TimeAccessPolicy                 `json:"access_time_policy,omitempty"`
 }
 
 type PublicModelCatalogDraft struct {

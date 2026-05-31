@@ -294,6 +294,12 @@ func (_c *UserCreate) SetNillableAPIKeyModelBindingMode(v *string) *UserCreate {
 	return _c
 }
 
+// SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
+func (_c *UserCreate) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserCreate {
+	_c.mutation.SetAPIKeyAccessTimePolicy(v)
+	return _c
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_c *UserCreate) SetTotpSecretEncrypted(v string) *UserCreate {
 	_c.mutation.SetTotpSecretEncrypted(v)
@@ -808,6 +814,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		_spec.SetField(user.FieldAPIKeyModelBindingMode, field.TypeString, value)
 		_node.APIKeyModelBindingMode = value
 	}
+	if value, ok := _c.mutation.APIKeyAccessTimePolicy(); ok {
+		_spec.SetField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON, value)
+		_node.APIKeyAccessTimePolicy = value
+	}
 	if value, ok := _c.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
 		_node.TotpSecretEncrypted = &value
@@ -1266,6 +1276,24 @@ func (u *UserUpsert) UpdateAPIKeyModelBindingMode() *UserUpsert {
 	return u
 }
 
+// SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
+func (u *UserUpsert) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserUpsert {
+	u.Set(user.FieldAPIKeyAccessTimePolicy, v)
+	return u
+}
+
+// UpdateAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field to the value that was provided on create.
+func (u *UserUpsert) UpdateAPIKeyAccessTimePolicy() *UserUpsert {
+	u.SetExcluded(user.FieldAPIKeyAccessTimePolicy)
+	return u
+}
+
+// ClearAPIKeyAccessTimePolicy clears the value of the "api_key_access_time_policy" field.
+func (u *UserUpsert) ClearAPIKeyAccessTimePolicy() *UserUpsert {
+	u.SetNull(user.FieldAPIKeyAccessTimePolicy)
+	return u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (u *UserUpsert) SetTotpSecretEncrypted(v string) *UserUpsert {
 	u.Set(user.FieldTotpSecretEncrypted, v)
@@ -1643,6 +1671,27 @@ func (u *UserUpsertOne) SetAPIKeyModelBindingMode(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateAPIKeyModelBindingMode() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAPIKeyModelBindingMode()
+	})
+}
+
+// SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
+func (u *UserUpsertOne) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAPIKeyAccessTimePolicy(v)
+	})
+}
+
+// UpdateAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateAPIKeyAccessTimePolicy() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAPIKeyAccessTimePolicy()
+	})
+}
+
+// ClearAPIKeyAccessTimePolicy clears the value of the "api_key_access_time_policy" field.
+func (u *UserUpsertOne) ClearAPIKeyAccessTimePolicy() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearAPIKeyAccessTimePolicy()
 	})
 }
 
@@ -2197,6 +2246,27 @@ func (u *UserUpsertBulk) SetAPIKeyModelBindingMode(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateAPIKeyModelBindingMode() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAPIKeyModelBindingMode()
+	})
+}
+
+// SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
+func (u *UserUpsertBulk) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAPIKeyAccessTimePolicy(v)
+	})
+}
+
+// UpdateAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateAPIKeyAccessTimePolicy() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAPIKeyAccessTimePolicy()
+	})
+}
+
+// ClearAPIKeyAccessTimePolicy clears the value of the "api_key_access_time_policy" field.
+func (u *UserUpsertBulk) ClearAPIKeyAccessTimePolicy() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearAPIKeyAccessTimePolicy()
 	})
 }
 

@@ -210,6 +210,31 @@ func AccountRateMultiplier(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateMultiplier, v))
 }
 
+// DiscountApplied applies equality check predicate on the "discount_applied" field. It's identical to DiscountAppliedEQ.
+func DiscountApplied(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountApplied, v))
+}
+
+// DiscountPercent applies equality check predicate on the "discount_percent" field. It's identical to DiscountPercentEQ.
+func DiscountPercent(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountPercent, v))
+}
+
+// DiscountWindowID applies equality check predicate on the "discount_window_id" field. It's identical to DiscountWindowIDEQ.
+func DiscountWindowID(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowType applies equality check predicate on the "discount_window_type" field. It's identical to DiscountWindowTypeEQ.
+func DiscountWindowType(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountWindowType, v))
+}
+
+// DiscountCompletedAt applies equality check predicate on the "discount_completed_at" field. It's identical to DiscountCompletedAtEQ.
+func DiscountCompletedAt(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountCompletedAt, v))
+}
+
 // BillingType applies equality check predicate on the "billing_type" field. It's identical to BillingTypeEQ.
 func BillingType(v int8) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldBillingType, v))
@@ -1633,6 +1658,266 @@ func AccountRateMultiplierIsNil() predicate.UsageLog {
 // AccountRateMultiplierNotNil applies the NotNil predicate on the "account_rate_multiplier" field.
 func AccountRateMultiplierNotNil() predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldNotNull(FieldAccountRateMultiplier))
+}
+
+// DiscountAppliedEQ applies the EQ predicate on the "discount_applied" field.
+func DiscountAppliedEQ(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountApplied, v))
+}
+
+// DiscountAppliedNEQ applies the NEQ predicate on the "discount_applied" field.
+func DiscountAppliedNEQ(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldDiscountApplied, v))
+}
+
+// DiscountPercentEQ applies the EQ predicate on the "discount_percent" field.
+func DiscountPercentEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountPercent, v))
+}
+
+// DiscountPercentNEQ applies the NEQ predicate on the "discount_percent" field.
+func DiscountPercentNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldDiscountPercent, v))
+}
+
+// DiscountPercentIn applies the In predicate on the "discount_percent" field.
+func DiscountPercentIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldDiscountPercent, vs...))
+}
+
+// DiscountPercentNotIn applies the NotIn predicate on the "discount_percent" field.
+func DiscountPercentNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldDiscountPercent, vs...))
+}
+
+// DiscountPercentGT applies the GT predicate on the "discount_percent" field.
+func DiscountPercentGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldDiscountPercent, v))
+}
+
+// DiscountPercentGTE applies the GTE predicate on the "discount_percent" field.
+func DiscountPercentGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldDiscountPercent, v))
+}
+
+// DiscountPercentLT applies the LT predicate on the "discount_percent" field.
+func DiscountPercentLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldDiscountPercent, v))
+}
+
+// DiscountPercentLTE applies the LTE predicate on the "discount_percent" field.
+func DiscountPercentLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldDiscountPercent, v))
+}
+
+// DiscountPercentIsNil applies the IsNil predicate on the "discount_percent" field.
+func DiscountPercentIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldDiscountPercent))
+}
+
+// DiscountPercentNotNil applies the NotNil predicate on the "discount_percent" field.
+func DiscountPercentNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldDiscountPercent))
+}
+
+// DiscountWindowIDEQ applies the EQ predicate on the "discount_window_id" field.
+func DiscountWindowIDEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDNEQ applies the NEQ predicate on the "discount_window_id" field.
+func DiscountWindowIDNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDIn applies the In predicate on the "discount_window_id" field.
+func DiscountWindowIDIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldDiscountWindowID, vs...))
+}
+
+// DiscountWindowIDNotIn applies the NotIn predicate on the "discount_window_id" field.
+func DiscountWindowIDNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldDiscountWindowID, vs...))
+}
+
+// DiscountWindowIDGT applies the GT predicate on the "discount_window_id" field.
+func DiscountWindowIDGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDGTE applies the GTE predicate on the "discount_window_id" field.
+func DiscountWindowIDGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDLT applies the LT predicate on the "discount_window_id" field.
+func DiscountWindowIDLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDLTE applies the LTE predicate on the "discount_window_id" field.
+func DiscountWindowIDLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDContains applies the Contains predicate on the "discount_window_id" field.
+func DiscountWindowIDContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDHasPrefix applies the HasPrefix predicate on the "discount_window_id" field.
+func DiscountWindowIDHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDHasSuffix applies the HasSuffix predicate on the "discount_window_id" field.
+func DiscountWindowIDHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDIsNil applies the IsNil predicate on the "discount_window_id" field.
+func DiscountWindowIDIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldDiscountWindowID))
+}
+
+// DiscountWindowIDNotNil applies the NotNil predicate on the "discount_window_id" field.
+func DiscountWindowIDNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldDiscountWindowID))
+}
+
+// DiscountWindowIDEqualFold applies the EqualFold predicate on the "discount_window_id" field.
+func DiscountWindowIDEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowIDContainsFold applies the ContainsFold predicate on the "discount_window_id" field.
+func DiscountWindowIDContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldDiscountWindowID, v))
+}
+
+// DiscountWindowTypeEQ applies the EQ predicate on the "discount_window_type" field.
+func DiscountWindowTypeEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeNEQ applies the NEQ predicate on the "discount_window_type" field.
+func DiscountWindowTypeNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeIn applies the In predicate on the "discount_window_type" field.
+func DiscountWindowTypeIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldDiscountWindowType, vs...))
+}
+
+// DiscountWindowTypeNotIn applies the NotIn predicate on the "discount_window_type" field.
+func DiscountWindowTypeNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldDiscountWindowType, vs...))
+}
+
+// DiscountWindowTypeGT applies the GT predicate on the "discount_window_type" field.
+func DiscountWindowTypeGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeGTE applies the GTE predicate on the "discount_window_type" field.
+func DiscountWindowTypeGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeLT applies the LT predicate on the "discount_window_type" field.
+func DiscountWindowTypeLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeLTE applies the LTE predicate on the "discount_window_type" field.
+func DiscountWindowTypeLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeContains applies the Contains predicate on the "discount_window_type" field.
+func DiscountWindowTypeContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeHasPrefix applies the HasPrefix predicate on the "discount_window_type" field.
+func DiscountWindowTypeHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeHasSuffix applies the HasSuffix predicate on the "discount_window_type" field.
+func DiscountWindowTypeHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeIsNil applies the IsNil predicate on the "discount_window_type" field.
+func DiscountWindowTypeIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldDiscountWindowType))
+}
+
+// DiscountWindowTypeNotNil applies the NotNil predicate on the "discount_window_type" field.
+func DiscountWindowTypeNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldDiscountWindowType))
+}
+
+// DiscountWindowTypeEqualFold applies the EqualFold predicate on the "discount_window_type" field.
+func DiscountWindowTypeEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldDiscountWindowType, v))
+}
+
+// DiscountWindowTypeContainsFold applies the ContainsFold predicate on the "discount_window_type" field.
+func DiscountWindowTypeContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldDiscountWindowType, v))
+}
+
+// DiscountCompletedAtEQ applies the EQ predicate on the "discount_completed_at" field.
+func DiscountCompletedAtEQ(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDiscountCompletedAt, v))
+}
+
+// DiscountCompletedAtNEQ applies the NEQ predicate on the "discount_completed_at" field.
+func DiscountCompletedAtNEQ(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldDiscountCompletedAt, v))
+}
+
+// DiscountCompletedAtIn applies the In predicate on the "discount_completed_at" field.
+func DiscountCompletedAtIn(vs ...time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldDiscountCompletedAt, vs...))
+}
+
+// DiscountCompletedAtNotIn applies the NotIn predicate on the "discount_completed_at" field.
+func DiscountCompletedAtNotIn(vs ...time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldDiscountCompletedAt, vs...))
+}
+
+// DiscountCompletedAtGT applies the GT predicate on the "discount_completed_at" field.
+func DiscountCompletedAtGT(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldDiscountCompletedAt, v))
+}
+
+// DiscountCompletedAtGTE applies the GTE predicate on the "discount_completed_at" field.
+func DiscountCompletedAtGTE(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldDiscountCompletedAt, v))
+}
+
+// DiscountCompletedAtLT applies the LT predicate on the "discount_completed_at" field.
+func DiscountCompletedAtLT(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldDiscountCompletedAt, v))
+}
+
+// DiscountCompletedAtLTE applies the LTE predicate on the "discount_completed_at" field.
+func DiscountCompletedAtLTE(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldDiscountCompletedAt, v))
+}
+
+// DiscountCompletedAtIsNil applies the IsNil predicate on the "discount_completed_at" field.
+func DiscountCompletedAtIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldDiscountCompletedAt))
+}
+
+// DiscountCompletedAtNotNil applies the NotNil predicate on the "discount_completed_at" field.
+func DiscountCompletedAtNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldDiscountCompletedAt))
 }
 
 // BillingTypeEQ applies the EQ predicate on the "billing_type" field.

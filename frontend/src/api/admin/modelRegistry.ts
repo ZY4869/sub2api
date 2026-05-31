@@ -7,6 +7,7 @@ export interface ModelRegistryDetail extends ModelRegistryEntry {
   hidden: boolean
   tombstoned: boolean
   available: boolean
+  schedule_status?: 'active' | 'scheduled' | 'expired' | 'out_of_window' | 'invalid' | string
 }
 
 export interface ModelRegistryProviderSummary {

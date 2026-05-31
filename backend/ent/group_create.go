@@ -424,6 +424,12 @@ func (_c *GroupCreate) SetNillableDefaultMappedModel(v *string) *GroupCreate {
 	return _c
 }
 
+// SetVisibleModelPatterns sets the "visible_model_patterns" field.
+func (_c *GroupCreate) SetVisibleModelPatterns(v []string) *GroupCreate {
+	_c.mutation.SetVisibleModelPatterns(v)
+	return _c
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by IDs.
 func (_c *GroupCreate) AddAPIKeyIDs(ids ...int64) *GroupCreate {
 	_c.mutation.AddAPIKeyIDs(ids...)
@@ -644,6 +650,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultDefaultMappedModel
 		_c.mutation.SetDefaultMappedModel(v)
 	}
+	if _, ok := _c.mutation.VisibleModelPatterns(); !ok {
+		v := group.DefaultVisibleModelPatterns
+		_c.mutation.SetVisibleModelPatterns(v)
+	}
 	return nil
 }
 
@@ -735,6 +745,9 @@ func (_c *GroupCreate) check() error {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.VisibleModelPatterns(); !ok {
+		return &ValidationError{Name: "visible_model_patterns", err: errors.New(`ent: missing required field "Group.visible_model_patterns"`)}
 	}
 	return nil
 }
@@ -882,6 +895,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DefaultMappedModel(); ok {
 		_spec.SetField(group.FieldDefaultMappedModel, field.TypeString, value)
 		_node.DefaultMappedModel = value
+	}
+	if value, ok := _c.mutation.VisibleModelPatterns(); ok {
+		_spec.SetField(group.FieldVisibleModelPatterns, field.TypeJSON, value)
+		_node.VisibleModelPatterns = value
 	}
 	if nodes := _c.mutation.APIKeysIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -1545,6 +1562,18 @@ func (u *GroupUpsert) UpdateDefaultMappedModel() *GroupUpsert {
 	return u
 }
 
+// SetVisibleModelPatterns sets the "visible_model_patterns" field.
+func (u *GroupUpsert) SetVisibleModelPatterns(v []string) *GroupUpsert {
+	u.Set(group.FieldVisibleModelPatterns, v)
+	return u
+}
+
+// UpdateVisibleModelPatterns sets the "visible_model_patterns" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateVisibleModelPatterns() *GroupUpsert {
+	u.SetExcluded(group.FieldVisibleModelPatterns)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -2154,6 +2183,20 @@ func (u *GroupUpsertOne) SetDefaultMappedModel(v string) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateDefaultMappedModel() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateDefaultMappedModel()
+	})
+}
+
+// SetVisibleModelPatterns sets the "visible_model_patterns" field.
+func (u *GroupUpsertOne) SetVisibleModelPatterns(v []string) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetVisibleModelPatterns(v)
+	})
+}
+
+// UpdateVisibleModelPatterns sets the "visible_model_patterns" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateVisibleModelPatterns() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateVisibleModelPatterns()
 	})
 }
 
@@ -2932,6 +2975,20 @@ func (u *GroupUpsertBulk) SetDefaultMappedModel(v string) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateDefaultMappedModel() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateDefaultMappedModel()
+	})
+}
+
+// SetVisibleModelPatterns sets the "visible_model_patterns" field.
+func (u *GroupUpsertBulk) SetVisibleModelPatterns(v []string) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetVisibleModelPatterns(v)
+	})
+}
+
+// UpdateVisibleModelPatterns sets the "visible_model_patterns" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateVisibleModelPatterns() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateVisibleModelPatterns()
 	})
 }
 

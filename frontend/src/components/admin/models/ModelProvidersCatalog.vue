@@ -61,7 +61,7 @@
           :is-deactivating="isDeactivating"
           :is-deleting="isDeleting"
           :is-moving="isMoving"
-          :is-syncing-test-exposure="isSyncingTestExposure"
+          :is-syncing-test-exposure="isModelMutating"
           @expand="ensureProviderModels"
           @update:search="handleProviderSearchInput"
           @search="handleProviderSearch"
@@ -77,6 +77,7 @@
           @deactivate="deactivateModels"
           @hard-delete="hardDeleteModels"
           @move-provider="moveModelsToProvider"
+          @edit-schedule="openScheduleDialog"
         />
 
         <div class="flex flex-col items-center gap-3 px-4 pb-6 pt-2">
@@ -116,7 +117,7 @@
     :is-deactivating="isDeactivating"
     :is-deleting="isDeleting"
     :is-moving="isMoving"
-    :is-syncing-test-exposure="isSyncingTestExposure"
+    :is-syncing-test-exposure="isModelMutating"
     @close="providerDialogOpen = false"
     @refresh="handleRefreshAll"
     @select-provider="selectProvider"
@@ -134,6 +135,15 @@
     @deactivate="deactivateModels"
     @hard-delete="hardDeleteModels"
     @move-provider="moveModelsToProvider"
+    @edit-schedule="openScheduleDialog"
+  />
+
+  <ModelRegistryScheduleDialog
+    :show="scheduleDialogOpen"
+    :model="scheduleModel"
+    :submitting="scheduleModel ? isScheduling(scheduleModel.id) : false"
+    @close="scheduleDialogOpen = false"
+    @submit="handleScheduleSubmit"
   />
 </template>
 
@@ -147,12 +157,18 @@ import { useAdminModelRegistryProviders } from '@/composables/useAdminModelRegis
 import ModelProviderDialog from '@/components/admin/models/ModelProviderDialog.vue'
 import ModelProvidersGrid from '@/components/admin/models/ModelProvidersGrid.vue'
 import ModelProvidersList from '@/components/admin/models/ModelProvidersList.vue'
+import ModelRegistryScheduleDialog from '@/components/admin/models/ModelRegistryScheduleDialog.vue'
+import type { ModelRegistryDetail } from '@/api/admin/modelRegistry'
+import type { TimeAccessPolicy } from '@/types/api-key-groups'
 
 const { t } = useI18n()
 
 const viewMode = ref<'grid' | 'list'>('grid')
 const providerDialogOpen = ref(false)
 const activeProvider = ref('')
+const scheduleDialogOpen = ref(false)
+const scheduleProvider = ref('')
+const scheduleModel = ref<ModelRegistryDetail | null>(null)
 const loadMoreSentinel = ref<HTMLElement | null>(null)
 let loadMoreObserver: IntersectionObserver | null = null
 
@@ -165,6 +181,7 @@ const {
   isDeactivating,
   isDeleting,
   isMoving,
+  isScheduling,
   isSyncingTestExposure,
   loadAll,
   loadMoreProviders,
@@ -190,6 +207,7 @@ const {
   activateModel,
   deactivateModels,
   hardDeleteModels,
+  updateModelSchedule,
   moveModelsToProvider
 } = useAdminModelRegistryProviders()
 
@@ -274,6 +292,30 @@ async function handleRefreshAll() {
     return
   }
   await ensureProviderModels(activeProvider.value)
+}
+
+function isModelMutating(modelId: string) {
+  return isSyncingTestExposure(modelId) || isScheduling(modelId)
+}
+
+function openScheduleDialog(provider: string, model: ModelRegistryDetail) {
+  scheduleProvider.value = provider
+  scheduleModel.value = model
+  scheduleDialogOpen.value = true
+}
+
+async function handleScheduleSubmit(
+  model: ModelRegistryDetail,
+  patch: {
+    available_from?: string
+    available_until?: string
+    access_time_policy?: TimeAccessPolicy | null
+  }
+) {
+  const saved = await updateModelSchedule(scheduleProvider.value || model.provider, model, patch)
+  if (saved) {
+    scheduleDialogOpen.value = false
+  }
 }
 
 watch(

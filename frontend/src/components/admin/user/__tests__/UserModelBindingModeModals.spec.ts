@@ -71,6 +71,7 @@ describe('user api key model binding mode modals', () => {
       global: {
         stubs: {
           BaseDialog: BaseDialogStub,
+          TimeAccessPolicyEditor: true,
           Icon: { template: '<span />' },
         },
       },
@@ -109,6 +110,7 @@ describe('user api key model binding mode modals', () => {
       global: {
         stubs: {
           BaseDialog: BaseDialogStub,
+          TimeAccessPolicyEditor: true,
           UserAttributeForm: { template: '<div />' },
           Icon: { template: '<span />' },
         },

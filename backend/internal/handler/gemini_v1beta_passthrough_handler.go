@@ -46,12 +46,12 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 	}
 	publicRequestedModel := input.RequestedModel
 	var publicCatalogEntry *service.PublishedPublicCatalogEntry
-	if entry, matched, active, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntime(c.Request.Context(), apiKey, service.PlatformGemini, publicRequestedModel); resolveErr != nil {
+	if entry, status, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(c.Request.Context(), apiKey, service.PlatformGemini, publicRequestedModel); resolveErr != nil {
 		requestLogger(c, "handler.gemini_v1beta.passthrough").Warn("gemini.passthrough.public_catalog_entry_resolve_failed", zap.Error(resolveErr))
-	} else if active && !matched {
-		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.model_not_published", service.PublicCatalogModelUnavailableMessage)
+	} else if status == service.PublicCatalogResolutionNoMatch || status == service.PublicCatalogResolutionTimeWindowDenied {
+		googlePublicCatalogUnavailableResponse(c, status)
 		return
-	} else if matched {
+	} else if status == service.PublicCatalogResolutionMatched {
 		publicCatalogEntry = entry
 		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {
 			input.RequestedModel = sourceModel

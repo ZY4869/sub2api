@@ -141,3 +141,11 @@ func (h *OpenAIGatewayHandler) errorResponseWithCode(c *gin.Context, status int,
 	}
 	c.JSON(status, gin.H{"error": errorPayload})
 }
+
+func (h *OpenAIGatewayHandler) publicCatalogUnavailableResponse(c *gin.Context, status service.PublicCatalogResolutionStatus) {
+	if status == service.PublicCatalogResolutionTimeWindowDenied {
+		h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "MODEL_TIME_WINDOW_DENIED", service.PublicCatalogModelTimeWindowDeniedMessage)
+		return
+	}
+	h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", service.PublicCatalogModelUnavailableMessage)
+}

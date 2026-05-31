@@ -8,6 +8,7 @@ import (
 	"math"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 )
@@ -15,6 +16,8 @@ import (
 const (
 	ContentModerationAPIKeysModeAppend  = "append"
 	ContentModerationAPIKeysModeReplace = "replace"
+	contentModerationMaxKeywords        = 500
+	contentModerationMaxKeywordRunes    = 120
 )
 
 var knownContentModerationCategories = []string{
@@ -150,12 +153,22 @@ func NormalizeContentModerationKeywordList(values []string) []string {
 		if keyword == "" {
 			continue
 		}
-		folded := strings.ToLower(keyword)
+		runes := []rune(keyword)
+		if len(runes) > contentModerationMaxKeywordRunes {
+			keyword = string(runes[:contentModerationMaxKeywordRunes])
+		}
+		folded := normalizeContentModerationKeywordComparable(keyword)
+		if folded == "" {
+			continue
+		}
 		if _, ok := seen[folded]; ok {
 			continue
 		}
 		seen[folded] = struct{}{}
 		out = append(out, keyword)
+		if len(out) >= contentModerationMaxKeywords {
+			break
+		}
 	}
 	return out
 }
@@ -264,6 +277,55 @@ func evaluateContentModerationCategoryThresholds(scores map[string]float64, thre
 	return false, ""
 }
 
+func moderationCategoriesForReason(reason string) []string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return nil
+	}
+	switch {
+	case strings.HasPrefix(reason, "keyword_blocked:"):
+		return []string{"keyword_blocked"}
+	case strings.HasPrefix(reason, "moderation_threshold:"):
+		category := strings.TrimSpace(strings.TrimPrefix(reason, "moderation_threshold:"))
+		if category == "" {
+			return []string{"moderation_threshold"}
+		}
+		return []string{"moderation_threshold:" + category}
+	case reason == ContentModerationReasonModerationFlagged:
+		return []string{ContentModerationReasonModerationFlagged}
+	case reason == ContentModerationReasonModerationUnavailable:
+		return []string{ContentModerationReasonModerationUnavailable}
+	default:
+		if strings.HasPrefix(reason, "moderation_") {
+			return []string{ContentModerationReasonModerationUnavailable}
+		}
+		return nil
+	}
+}
+
+func normalizeModerationCategories(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		category := strings.Join(strings.Fields(strings.TrimSpace(value)), "_")
+		if category == "" {
+			continue
+		}
+		if len(category) > 120 {
+			category = category[:120]
+		}
+		if _, ok := seen[category]; ok {
+			continue
+		}
+		seen[category] = struct{}{}
+		out = append(out, category)
+	}
+	return out
+}
+
 func normalizeContentModerationCategory(value string) string {
 	value = strings.TrimSpace(strings.ToLower(value))
 	if value == "" {
@@ -286,10 +348,10 @@ func EvaluateContentModerationKeywordBlock(settings *ContentModerationSettings, 
 	if len(keywords) == 0 {
 		return ContentModerationKeywordDecision{Content: content}
 	}
-	lowerContent := strings.ToLower(content)
+	normalizedContent := normalizeContentModerationKeywordComparable(content)
 	for _, keyword := range keywords {
-		normalizedKeyword := strings.ToLower(strings.TrimSpace(keyword))
-		if normalizedKeyword == "" || !strings.Contains(lowerContent, normalizedKeyword) {
+		normalizedKeyword := normalizeContentModerationKeywordComparable(keyword)
+		if normalizedKeyword == "" || !strings.Contains(normalizedContent, normalizedKeyword) {
 			continue
 		}
 		sum := sha256.Sum256([]byte(normalizedKeyword))
@@ -297,9 +359,43 @@ func EvaluateContentModerationKeywordBlock(settings *ContentModerationSettings, 
 			Blocked:     true,
 			Content:     content,
 			ErrorReason: fmt.Sprintf("keyword_blocked:%s", hex.EncodeToString(sum[:])[:12]),
+			Categories:  []string{"keyword_blocked"},
 		}
 	}
 	return ContentModerationKeywordDecision{Content: content}
+}
+
+func normalizeContentModerationKeywordComparable(value string) string {
+	var b strings.Builder
+	var lastSpace bool
+	for _, r := range strings.ToLower(strings.TrimSpace(value)) {
+		r = normalizeFullWidthASCII(r)
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+			lastSpace = false
+			continue
+		}
+		if unicode.IsSpace(r) || strings.ContainsRune("-_./\\|,，;；:：'\"`~!@#$%^&*()[]{}<>?？、", r) {
+			if !lastSpace && b.Len() > 0 {
+				b.WriteByte(' ')
+				lastSpace = true
+			}
+			continue
+		}
+		b.WriteRune(r)
+		lastSpace = false
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+func normalizeFullWidthASCII(r rune) rune {
+	if r >= '！' && r <= '～' {
+		return r - 0xFEE0
+	}
+	if r == '　' {
+		return ' '
+	}
+	return r
 }
 
 func parseContentModerationAPIKeys(raw string) []ContentModerationAPIKey {

@@ -59,6 +59,7 @@ func (s *ModelRegistryService) visibleSnapshotData(ctx context.Context) ([]model
 		return nil, nil, err
 	}
 	models := make([]modelregistry.ModelEntry, 0, len(entries))
+	now := time.Now()
 	for id, entry := range entries {
 		if _, isHidden := hidden[id]; isHidden {
 			continue
@@ -67,6 +68,9 @@ func (s *ModelRegistryService) visibleSnapshotData(ctx context.Context) ([]model
 			continue
 		}
 		if _, available := availableSet[id]; !available {
+			continue
+		}
+		if !modelRegistryEntryCurrentlyAvailable(entry, now) {
 			continue
 		}
 		models = append(models, entry)
@@ -95,6 +99,12 @@ func (s *ModelRegistryService) visibleSnapshotData(ctx context.Context) ([]model
 			continue
 		}
 		if _, availableTo := availableSet[normalizeRegistryID(preset.To)]; !availableTo {
+			continue
+		}
+		if fromEntry, ok := entries[normalizeRegistryID(preset.From)]; ok && !modelRegistryEntryCurrentlyAvailable(fromEntry, now) {
+			continue
+		}
+		if toEntry, ok := entries[normalizeRegistryID(preset.To)]; ok && !modelRegistryEntryCurrentlyAvailable(toEntry, now) {
 			continue
 		}
 		presets = append(presets, preset)

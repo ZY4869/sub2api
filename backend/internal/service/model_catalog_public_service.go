@@ -216,6 +216,9 @@ func (s *ModelCatalogService) filterPublicModelCatalogConfirmedItems(ctx context
 	}
 	filtered := make([]PublicModelCatalogItem, 0, len(items))
 	for _, item := range items {
+		if !publicModelCatalogItemCurrentlyAvailable(item, time.Now()) {
+			continue
+		}
 		if s.publicModelCatalogItemRouteConfirmed(ctx, item) {
 			filtered = append(filtered, item)
 		}
@@ -349,6 +352,7 @@ func buildPublicModelCatalogItem(
 	}
 
 	lifecycle := resolvePublicModelLifecycleStatus(entry.Status, entry.DisplayName, entry.ID)
+	accessPolicy := modelEntryTimeAccessPolicy(entry)
 	item := PublicModelCatalogItem{
 		EntryID:              publicModelCatalogEntryID(0, "", modelID),
 		PublicModelID:        modelID,
@@ -361,6 +365,10 @@ func buildPublicModelCatalogItem(
 		Status:               PublicModelStatusInfo,
 		AvailabilityState:    AccountModelAvailabilityUnknown,
 		StaleState:           AccountModelStaleStateUnverified,
+		AvailableFrom:        strings.TrimSpace(entry.AvailableFrom),
+		AvailableUntil:       strings.TrimSpace(entry.AvailableUntil),
+		AccessTimePolicy:     accessPolicy,
+		ScheduleStatus:       modelRegistryScheduleStatus(entry, time.Now()),
 		LifecycleStatus:      lifecycle.Status,
 		Lifecycle:            publicModelLifecycleFromResolution(lifecycle, PublicModelLifecycleSourceOfficialRegistry),
 		ContextWindowTokens:  entry.ContextWindowTokens,
@@ -752,6 +760,8 @@ func clonePublicModelCatalogItem(item PublicModelCatalogItem) PublicModelCatalog
 	cloned.Capabilities = append([]string(nil), item.Capabilities...)
 	cloned.RequestProtocols = append([]string(nil), item.RequestProtocols...)
 	cloned.SourceIDs = append([]string(nil), item.SourceIDs...)
+	cloned.AccessTimePolicy = cloneTimeAccessPolicy(item.AccessTimePolicy)
+	cloned.ScheduleStatus = publicModelCatalogItemScheduleStatus(cloned, time.Now())
 	cloned.PriceDisplay = PublicModelCatalogPriceDisplay{
 		Primary:   clonePublicModelCatalogPriceEntries(item.PriceDisplay.Primary),
 		Secondary: clonePublicModelCatalogPriceEntries(item.PriceDisplay.Secondary),
@@ -764,6 +774,17 @@ func clonePublicModelCatalogItem(item PublicModelCatalogItem) PublicModelCatalog
 		Primary:   clonePublicModelCatalogPriceEntries(item.SalePriceDisplay.Primary),
 		Secondary: clonePublicModelCatalogPriceEntries(item.SalePriceDisplay.Secondary),
 	}
+	cloned.OriginalPriceDisplay = PublicModelCatalogPriceDisplay{
+		Primary:   clonePublicModelCatalogPriceEntries(item.OriginalPriceDisplay.Primary),
+		Secondary: clonePublicModelCatalogPriceEntries(item.OriginalPriceDisplay.Secondary),
+	}
+	cloned.OriginalSalePriceDisplay = PublicModelCatalogPriceDisplay{
+		Primary:   clonePublicModelCatalogPriceEntries(item.OriginalSalePriceDisplay.Primary),
+		Secondary: clonePublicModelCatalogPriceEntries(item.OriginalSalePriceDisplay.Secondary),
+	}
+	cloned.DiscountPolicy = clonePublicModelCatalogDiscountPolicy(item.DiscountPolicy)
+	cloned.DiscountStatus = clonePublicModelCatalogDiscountStatus(item.DiscountStatus)
+	cloned.ImageFixedPricing = normalizePublicModelImageFixedPricing(item.ImageFixedPricing)
 	cloned.MultiplierSummary = PublicModelCatalogMultiplierSummary{
 		Enabled: item.MultiplierSummary.Enabled,
 		Kind:    item.MultiplierSummary.Kind,
@@ -801,6 +822,9 @@ func sanitizePublicModelCatalogItemsForPublicWithSource(items []PublicModelCatal
 	}
 	sanitized := make([]PublicModelCatalogItem, 0, len(items))
 	for _, item := range items {
+		if !publicModelCatalogItemCurrentlyAvailable(item, time.Now()) {
+			continue
+		}
 		sanitized = append(sanitized, sanitizePublicModelCatalogItemForPublicWithSource(item, catalogSource))
 	}
 	return sanitized
@@ -821,6 +845,12 @@ func sanitizePublicModelCatalogItemForPublicWithSource(item PublicModelCatalogIt
 	cloned.SourceAccountID = 0
 	cloned.SourceAccountName = ""
 	cloned.SourceIDs = nil
+	cloned.AvailableFrom = ""
+	cloned.AvailableUntil = ""
+	cloned.AccessTimePolicy = nil
+	cloned.ScheduleStatus = ""
+	cloned = applyPublicModelCatalogCurrentDiscount(cloned, time.Now())
+	cloned.DiscountPolicy = nil
 	cloned.RuntimePriceSpec = PublicModelCatalogRuntimePriceSpec{}
 	cloned = enrichPublicModelCatalogItemMetadata(cloned, publicModelCatalogMetadataSourceForPublished(""))
 	if cloned.PublicModelID == "" {
@@ -830,6 +860,25 @@ func sanitizePublicModelCatalogItemForPublicWithSource(item PublicModelCatalogIt
 		cloned.Model = cloned.PublicModelID
 	}
 	return cloned
+}
+
+func applyPublicModelCatalogCurrentDiscount(item PublicModelCatalogItem, now time.Time) PublicModelCatalogItem {
+	evaluation := evaluatePublicModelCatalogDiscount(item.DiscountPolicy, now)
+	if evaluation.Policy == nil {
+		item.DiscountStatus = nil
+		return item
+	}
+	status := evaluation.Status
+	item.DiscountStatus = &status
+	if !status.Active {
+		return item
+	}
+	item.OriginalPriceDisplay = clonePublicModelCatalogPriceDisplay(item.PriceDisplay)
+	item.OriginalSalePriceDisplay = clonePublicModelCatalogPriceDisplay(item.SalePriceDisplay)
+	item.PriceDisplay = applyPublicModelCatalogDiscountToPriceDisplay(item.PriceDisplay, status)
+	item.SalePriceDisplay = applyPublicModelCatalogDiscountToPriceDisplay(item.SalePriceDisplay, status)
+	item.ImageFixedPricing = applyPublicModelCatalogDiscountToImageFixedPricing(item.ImageFixedPricing, status)
+	return item
 }
 
 func publicModelPublicationStatusForCatalogSource(catalogSource string) string {

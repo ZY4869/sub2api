@@ -33,6 +33,8 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		QuotaUsed:                m.QuotaUsed,
 		QuotaUsedByCurrency:      service.CloneBillingCurrencyMap(m.QuotaUsedByCurrency),
 		ExpiresAt:                m.ExpiresAt,
+		StartsAt:                 m.StartsAt,
+		AccessTimePolicy:         timeAccessPolicyFromMap(m.AccessTimePolicy),
 		RateLimit5h:              m.RateLimit5h,
 		RateLimit1d:              m.RateLimit1d,
 		RateLimit7d:              m.RateLimit7d,
@@ -83,6 +85,7 @@ func userEntityToService(u *dbent.User) *service.User {
 		APIKeyModelBindingMode: service.NormalizeAPIKeyModelBindingMode(
 			u.APIKeyModelBindingMode,
 		),
+		APIKeyAccessTimePolicy: timeAccessPolicyFromMap(u.APIKeyAccessTimePolicy),
 		UsageModelDisplayMode: service.NormalizeUserUsageModelDisplayMode(
 			u.UsageModelDisplayMode,
 		),

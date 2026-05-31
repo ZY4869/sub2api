@@ -55,6 +55,7 @@ vi.mock("vue-i18n", async () => {
     'ui.modelCatalog.support.partial': 'Partial',
     'ui.modelCatalog.support.unsupported': 'Unsupported',
     'ui.modelCatalog.support.unknown': 'Unknown',
+    'ui.modelCatalog.discountBadge': '{percent}% off',
   };
   return {
     ...actual,
@@ -91,8 +92,17 @@ describe("PublicModelCatalogDetailDialog", () => {
         request_protocols: ["openai"],
         currency: "USD",
         price_display: {
-          primary: [{ id: "input_price", unit: "input_token", value: 0.00000013 }],
+          primary: [{ id: "input_price", unit: "input_token", value: 0.000000104 }],
           secondary: [{ id: "cache_price", unit: "input_token", value: 0.00000005 }],
+        },
+        original_sale_price_display: {
+          primary: [{ id: "input_price", unit: "input_token", value: 0.00000013 }],
+        },
+        discount_status: {
+          active: true,
+          reduction_percent: 20,
+          window_id: "launch",
+          window_type: "once",
         },
         multiplier_summary: {
           enabled: false,
@@ -138,8 +148,17 @@ describe("PublicModelCatalogDetailDialog", () => {
           request_protocols: ["openai"],
           currency: "USD",
           price_display: {
-            primary: [{ id: "input_price", unit: "input_token", value: 0.00000013 }],
+            primary: [{ id: "input_price", unit: "input_token", value: 0.000000104 }],
             secondary: [{ id: "cache_price", unit: "input_token", value: 0.00000005 }],
+          },
+          original_sale_price_display: {
+            primary: [{ id: "input_price", unit: "input_token", value: 0.00000013 }],
+          },
+          discount_status: {
+            active: true,
+            reduction_percent: 20,
+            window_id: "launch",
+            window_type: "once",
           },
           multiplier_summary: {
             enabled: false,
@@ -169,6 +188,9 @@ describe("PublicModelCatalogDetailDialog", () => {
     expect(document.body.textContent).toContain("120ms");
     expect(document.body.textContent).toContain("99.8%");
     expect(document.body.querySelector('[data-testid="detail-primary-price-cache_price"]')).toBeTruthy();
+    expect(document.body.textContent).toContain("20% off");
+    expect(document.body.textContent).toContain("$0.104");
+    expect(document.body.textContent).toContain("$0.13");
     await document.body.querySelector<HTMLElement>('[data-testid="public-model-detail-tab-routing"]')?.click();
     await flushPromises();
     expect(document.body.querySelector("[data-test='example-code']")?.textContent).toContain("sk-your-key");

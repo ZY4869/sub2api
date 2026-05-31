@@ -13,6 +13,7 @@ func ApplyUsageLogRequestContextLength(log *UsageLog) {
 		return
 	}
 	log.RequestContextLengthTokens = ResolveUsageLogRequestContextLengthTokens(log)
+	RecordUsageLogAbuseSignals(log)
 }
 
 func ResolveUsageLogRequestContextLengthTokens(log *UsageLog) *int {

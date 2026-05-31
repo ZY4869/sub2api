@@ -49,3 +49,15 @@ func TestUsageLogCreateQuery_UsesConflictDoNothing(t *testing.T) {
 	require.Contains(t, content, "ON CONFLICT (request_id, api_key_id) DO NOTHING")
 	require.NotContains(t, strings.ToUpper(content), "ON CONFLICT (REQUEST_ID, API_KEY_ID) DO UPDATE")
 }
+
+func TestUsageModelSuccessStatusThresholds(t *testing.T) {
+	healthyRate := usageModelSuccessRate(100, 98)
+	require.NotNil(t, healthyRate)
+	require.InDelta(t, 0.98, *healthyRate, 0.000001)
+	require.Equal(t, "healthy", usageModelSuccessStatus(100, 98))
+
+	require.Equal(t, "warning", usageModelSuccessStatus(100, 90))
+	require.Equal(t, "error", usageModelSuccessStatus(100, 89))
+	require.Equal(t, "unknown", usageModelSuccessStatus(0, 0))
+	require.Nil(t, usageModelSuccessRate(0, 0))
+}

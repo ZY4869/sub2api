@@ -4,21 +4,17 @@ import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import type {
   AdminUsageLog,
-  UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
 } from '@/types'
 import { adminUsageAPI } from '@/api/admin/usage'
 import { formatDateTime } from '@/utils/format'
 import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
-import { useUsageContextBadgeDisplayModePreference } from '@/composables/useUsageContextBadgeDisplayModePreference'
 import { useUsageModelDisplayModePreference } from '@/composables/useUsageModelDisplayModePreference'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Pagination from '@/components/common/Pagination.vue'
-import UsageContextBadgesCell from '@/components/common/UsageContextBadgesCell.vue'
-import UsageContextBadgeDisplayModeToggle from '@/components/common/UsageContextBadgeDisplayModeToggle.vue'
 import UsageModelCell from '@/components/common/UsageModelCell.vue'
-import UsageRequestLengthCell from '@/components/common/UsageRequestLengthCell.vue'
+import UsageSuccessRateCell from '@/components/common/UsageSuccessRateCell.vue'
 import UsageModelDisplayModeToggle from '@/components/common/UsageModelDisplayModeToggle.vue'
 import UsageRequestPreviewModal from '@/components/user/usage/UsageRequestPreviewModal.vue'
 
@@ -29,12 +25,6 @@ const {
   updatingUsageModelDisplayMode,
   setUsageModelDisplayMode,
 } = useUsageModelDisplayModePreference()
-const {
-  usageContextBadgeDisplayMode,
-  updatingUsageContextBadgeDisplayMode,
-  setUsageContextBadgeDisplayMode,
-} = useUsageContextBadgeDisplayModePreference()
-
 defineProps<{
   items: AdminUsageLog[]
   total: number
@@ -58,8 +48,7 @@ const columns = computed<Column[]>(() => [
   { key: 'account_id', label: t('admin.requestDetails.subject.ledger.columns.accountId') },
   { key: 'group_id', label: t('admin.requestDetails.subject.ledger.columns.groupId') },
   { key: 'models', label: t('admin.requestDetails.subject.ledger.columns.models') },
-  { key: 'native_context', label: t('admin.requestDetails.subject.ledger.columns.nativeContext') },
-  { key: 'request_length', label: t('admin.requestDetails.subject.ledger.columns.requestLength') },
+  { key: 'success_rate', label: t('admin.requestDetails.subject.ledger.columns.successRate') },
   { key: 'status', label: t('admin.requestDetails.subject.ledger.columns.status') },
   { key: 'total_tokens', label: t('admin.requestDetails.subject.ledger.columns.totalTokens') },
   { key: 'total_cost', label: t('admin.requestDetails.subject.ledger.columns.totalStandardCost') },
@@ -96,12 +85,6 @@ async function handleUsageModelDisplayModeChange(mode: UsageModelDisplayMode) {
   await setUsageModelDisplayMode(mode)
 }
 
-async function handleUsageContextBadgeDisplayModeChange(
-  mode: UsageContextBadgeDisplayMode,
-) {
-  await setUsageContextBadgeDisplayMode(mode)
-}
-
 </script>
 
 <template>
@@ -122,12 +105,6 @@ async function handleUsageContextBadgeDisplayModeChange(
           :label-text="t('usage.modelDisplay')"
           @update:modelValue="handleUsageModelDisplayModeChange"
         />
-        <UsageContextBadgeDisplayModeToggle
-          :model-value="usageContextBadgeDisplayMode"
-          :disabled="updatingUsageContextBadgeDisplayMode"
-          :label-text="t('usage.contextBadgeDisplay')"
-          @update:modelValue="handleUsageContextBadgeDisplayModeChange"
-        />
       </div>
     </div>
 
@@ -142,13 +119,6 @@ async function handleUsageContextBadgeDisplayModeChange(
               :show-label="false"
               compact
               @update:modelValue="handleUsageModelDisplayModeChange"
-            />
-            <UsageContextBadgeDisplayModeToggle
-              :model-value="usageContextBadgeDisplayMode"
-              :disabled="updatingUsageContextBadgeDisplayMode"
-              :show-label="false"
-              compact
-              @update:modelValue="handleUsageContextBadgeDisplayModeChange"
             />
           </div>
         </div>
@@ -185,15 +155,8 @@ async function handleUsageContextBadgeDisplayModeChange(
         />
       </template>
 
-      <template #cell-native_context="{ row }">
-        <UsageContextBadgesCell
-          :row="row"
-          :mode="usageContextBadgeDisplayMode"
-        />
-      </template>
-
-      <template #cell-request_length="{ row }">
-        <UsageRequestLengthCell :row="row" />
+      <template #cell-success_rate="{ row }">
+        <UsageSuccessRateCell :row="row" />
       </template>
 
       <template #cell-status="{ row }">

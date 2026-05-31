@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -83,6 +84,14 @@ func googleErrorBodyTooLarge(c *gin.Context, limit int64) {
 
 func googleErrorPendingRequests(c *gin.Context) {
 	googleErrorKey(c, http.StatusTooManyRequests, "gateway.gemini.pending_requests", "Too many pending requests, please retry later")
+}
+
+func googlePublicCatalogUnavailableResponse(c *gin.Context, status service.PublicCatalogResolutionStatus) {
+	if status == service.PublicCatalogResolutionTimeWindowDenied {
+		googleErrorKey(c, http.StatusForbidden, "gateway.gemini.model_time_window_denied", service.PublicCatalogModelTimeWindowDeniedMessage)
+		return
+	}
+	googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.model_not_published", service.PublicCatalogModelUnavailableMessage)
 }
 
 func googleNoAvailableAccountsError(c *gin.Context, err error) {

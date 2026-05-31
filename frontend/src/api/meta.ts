@@ -1,5 +1,6 @@
 import { apiClient } from './client'
 import type { ModelRegistrySnapshot } from '@/generated/modelRegistry'
+import type { TimeAccessPolicy } from '@/types/api-key-groups'
 
 export interface ExchangeRateInfo {
   base: string
@@ -31,6 +32,40 @@ export interface PublicModelCatalogPriceDisplay {
   secondary?: PublicModelCatalogPriceEntry[]
 }
 
+export interface PublicModelCatalogDiscountWindow {
+  id?: string
+  type: 'once' | 'daily' | string
+  start_at?: string
+  end_at?: string
+  start_time?: string
+  end_time?: string
+  days?: number[]
+}
+
+export interface PublicModelCatalogDiscountPolicy {
+  enabled: boolean
+  reduction_percent?: number
+  timezone?: string
+  windows?: PublicModelCatalogDiscountWindow[]
+}
+
+export interface PublicModelCatalogDiscountStatus {
+  active: boolean
+  reduction_percent?: number
+  window_id?: string
+  window_type?: string
+  timezone?: string
+  completed_at?: string
+}
+
+export type PublicModelImageResolution = '1K' | '2K' | '4K'
+
+export interface PublicModelImageFixedPricing {
+  enabled: boolean
+  always_fixed: boolean
+  prices: Record<PublicModelImageResolution, number | null>
+}
+
 export interface PublicModelCatalogMultiplierSummary {
   enabled: boolean
   kind: 'disabled' | 'uniform' | 'mixed'
@@ -41,6 +76,7 @@ export interface PublicModelCatalogMultiplierSummary {
 export type PublicModelPublicationStatus = 'published'
 export type PublicModelLifecycleStatus = 'stable' | 'beta' | 'deprecated'
 export type PublicModelHealthStatus = 'healthy' | 'warning' | 'error' | 'pending'
+export type PublicModelScheduleStatus = 'active' | 'scheduled' | 'expired' | 'out_of_window' | 'invalid' | string
 export type PublicModelVerificationSource = 'published_snapshot' | 'live_fallback'
 export type PublicModelKeyAvailability = 'available' | 'unavailable'
 export type PublicModelUnavailableReason =
@@ -125,11 +161,20 @@ export interface PublicModelCatalogItem {
   protocol_endpoints?: PublicModelProtocolEndpoint[]
   is_demo?: boolean
   catalog_entry_source?: 'real_account' | 'live_projection' | 'demo' | 'legacy_snapshot' | string
+  available_from?: string
+  available_until?: string
+  access_time_policy?: TimeAccessPolicy | null
+  schedule_status?: PublicModelScheduleStatus
   mode?: string
   currency: string
   price_display: PublicModelCatalogPriceDisplay
   official_price_display?: PublicModelCatalogPriceDisplay
   sale_price_display?: PublicModelCatalogPriceDisplay
+  original_price_display?: PublicModelCatalogPriceDisplay
+  original_sale_price_display?: PublicModelCatalogPriceDisplay
+  discount_policy?: PublicModelCatalogDiscountPolicy | null
+  discount_status?: PublicModelCatalogDiscountStatus | null
+  image_fixed_pricing?: PublicModelImageFixedPricing
   multiplier_summary: PublicModelCatalogMultiplierSummary
 }
 

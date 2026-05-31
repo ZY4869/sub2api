@@ -103,22 +103,25 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
-		Model:                         billingModel,
-		Provider:                      usageProvider,
-		Layer:                         BillingLayerSale,
-		PublicCatalogEntryID:          publicCatalogEntryIDFromContext(ctx),
-		PublicCatalogPublicModelID:    publicCatalogPublicModelIDFromContext(ctx),
-		PublicCatalogSourceAccountID:  publicCatalogSourceAccountIDFromContext(ctx),
-		PublicCatalogCurrency:         publicCatalogCurrencyFromContext(ctx),
-		PublicCatalogRuntimePriceSpec: publicCatalogRuntimePriceSpecFromContext(ctx),
-		PublicCatalogSalePriceDisplay: publicCatalogSalePriceDisplayFromContext(ctx),
-		InboundEndpoint:               input.InboundEndpoint,
-		Tokens:                        tokens,
-		ImageCount:                    result.ImageCount,
-		ImageSize:                     result.ImageSize,
-		MediaType:                     result.MediaType,
-		ServiceTier:                   serviceTier,
-		RateMultiplier:                multiplier,
+		Model:                          billingModel,
+		Provider:                       usageProvider,
+		Layer:                          BillingLayerSale,
+		PublicCatalogEntryID:           publicCatalogEntryIDFromContext(ctx),
+		PublicCatalogPublicModelID:     publicCatalogPublicModelIDFromContext(ctx),
+		PublicCatalogSourceAccountID:   publicCatalogSourceAccountIDFromContext(ctx),
+		PublicCatalogCurrency:          publicCatalogCurrencyFromContext(ctx),
+		PublicCatalogRuntimePriceSpec:  publicCatalogRuntimePriceSpecFromContext(ctx),
+		PublicCatalogSalePriceDisplay:  publicCatalogSalePriceDisplayFromContext(ctx),
+		PublicCatalogDiscountPolicy:    publicCatalogDiscountPolicyFromContext(ctx),
+		PublicCatalogImageFixedPricing: publicCatalogImageFixedPricingFromContext(ctx),
+		CompletedAt:                    time.Now(),
+		InboundEndpoint:                input.InboundEndpoint,
+		Tokens:                         tokens,
+		ImageCount:                     result.ImageCount,
+		ImageSize:                      result.ImageSize,
+		MediaType:                      result.MediaType,
+		ServiceTier:                    serviceTier,
+		RateMultiplier:                 multiplier,
 	})
 	if err != nil {
 		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
@@ -226,6 +229,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
+	applyPublicCatalogDiscountToUsageLog(usageLog, runtimeResult.PublicCatalogDiscount)
 	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
@@ -245,6 +249,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		IsSubscriptionBill:    isSubscriptionBilling,
 		AccountRateMultiplier: accountRateMultiplier,
 		APIKeyService:         input.APIKeyService,
+		CurrencyConversion:    billingCurrencyConversionFromSettings(ctx, s.settingService),
 	}, s.billingDeps(), s.usageBillingRepo); billingErr != nil {
 		return billingErr
 	}

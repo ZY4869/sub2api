@@ -115,6 +115,8 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 			apikey.FieldQuotaUsed,
 			apikey.FieldQuotaUsedByCurrency,
 			apikey.FieldExpiresAt,
+			apikey.FieldStartsAt,
+			apikey.FieldAccessTimePolicy,
 			apikey.FieldRateLimit5h,
 			apikey.FieldRateLimit1d,
 			apikey.FieldRateLimit7d,
@@ -126,6 +128,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				user.FieldRole,
 				user.FieldBalance,
 				user.FieldConcurrency,
+				user.FieldAPIKeyAccessTimePolicy,
 			)
 		}).
 		WithGroup(func(q *dbent.GroupQuery) {

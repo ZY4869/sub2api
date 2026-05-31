@@ -28,6 +28,8 @@ export default {
     apiKeyModelBindingModeRequired: "Require specific models",
     apiKeyModelBindingModeGroupAllowed: "Allow whole group",
     apiKeyModelBindingModeHint: "By default, regular users must pick concrete visible models when creating or editing keys.",
+    apiKeyAccessTimePolicy: "API key calling hard limit",
+    apiKeyAccessTimePolicyHint: "The maximum time boundary for all keys under this user. Individual keys can only narrow it.",
     generatePassword: "Generate random password",
     copyPassword: "Copy password",
     creating: "Creating...",

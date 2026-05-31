@@ -53,3 +53,17 @@ func publicCatalogRuntimePriceSpecFromContext(ctx context.Context) PublicModelCa
 	}
 	return PublicModelCatalogRuntimePriceSpec{}
 }
+
+func publicCatalogImageFixedPricingFromContext(ctx context.Context) PublicModelImageFixedPricing {
+	if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
+		return normalizePublicModelImageFixedPricing(entry.ImageFixedPricing)
+	}
+	return PublicModelImageFixedPricing{}
+}
+
+func publicCatalogDiscountPolicyFromContext(ctx context.Context) *PublicModelCatalogDiscountPolicy {
+	if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
+		return clonePublicModelCatalogDiscountPolicy(entry.DiscountPolicy)
+	}
+	return nil
+}

@@ -315,7 +315,7 @@ describe("admin UsageView distribution metric toggles", () => {
     expect(getSnapshotV2).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the display toggles in toolbar-left and forwards the selected modes", async () => {
+  it("renders the model display toggle in toolbar-left and forwards the selected mode", async () => {
     const wrapper = mountUsageView();
 
     vi.advanceTimersByTime(120);
@@ -326,28 +326,18 @@ describe("admin UsageView distribution metric toggles", () => {
     expect(toolbarLeft.find('[data-test="usage-model-display-toggle"]').text()).toBe(
       "display_and_model",
     );
-    expect(
-      toolbarLeft.find('[data-test="usage-context-badge-toggle"]').text(),
-    ).toBe("both");
     expect(wrapper.findAll('[data-test="usage-model-display-toggle"]')).toHaveLength(1);
-    expect(wrapper.findAll('[data-test="usage-context-badge-toggle"]')).toHaveLength(1);
     expect(wrapper.get('[data-test="usage-table-display-mode"]').text()).toBe(
       "display_and_model",
     );
-    expect(wrapper.get('[data-test="usage-table-badge-mode"]').text()).toBe(
-      "both",
-    );
+    expect(wrapper.findAll('[data-test="usage-context-badge-toggle"]')).toHaveLength(0);
 
     await toolbarLeft.get('[data-test="usage-model-display-toggle"]').trigger("click");
-    await toolbarLeft.get('[data-test="usage-context-badge-toggle"]').trigger("click");
     await flushPromises();
 
     expect(
       usageModelDisplayModeState.setUsageModelDisplayMode,
     ).toHaveBeenCalledWith("model_only");
-    expect(
-      usageContextBadgeDisplayModeState.setUsageContextBadgeDisplayMode,
-    ).toHaveBeenCalledWith("native_only");
   });
 
   it("keeps thinking mode and reasoning effort visible by default", async () => {
@@ -362,7 +352,10 @@ describe("admin UsageView distribution metric toggles", () => {
       .split(",");
     expect(renderedColumns).toContain("thinking_enabled");
     expect(renderedColumns).toContain("reasoning_effort");
+    expect(renderedColumns).toContain("success_rate");
     expect(renderedColumns).toContain("endpoint");
+    expect(renderedColumns).not.toContain("native_context");
+    expect(renderedColumns).not.toContain("request_length");
     expect(renderedColumns).not.toContain("user_agent");
   });
 

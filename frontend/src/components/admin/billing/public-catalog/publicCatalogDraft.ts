@@ -3,7 +3,9 @@ import type {
   BillingPublicCatalogDraft,
   BillingPublicCatalogEntryDraft,
 } from '@/api/admin/billing'
+import type { PublicModelImageFixedPricing } from '@/api/meta'
 import { clonePriceDisplay } from './publicCatalogPricing'
+import { discountPolicyToPayload, normalizeDiscountPolicy } from './publicCatalogDiscount'
 
 export type SelectedCatalogItem = BillingPublicCatalogAdminEntry & { missing?: boolean }
 
@@ -123,6 +125,11 @@ export function createDraftEntry(item: BillingPublicCatalogAdminEntry): BillingP
     base_model: normalizeModelID(item.base_model || item.source_model_id || item.model),
     source_protocol: item.source_protocol || item.request_protocols?.[0] || '',
     sale_price_display: clonePriceDisplay(item.sale_price_display || item.price_display),
+    image_fixed_pricing: cloneImageFixedPricing(item.image_fixed_pricing),
+    discount_policy: normalizeDiscountPolicy(item.discount_policy),
+    available_from: item.available_from || '',
+    available_until: item.available_until || '',
+    access_time_policy: item.access_time_policy || null,
   }
 }
 
@@ -139,6 +146,11 @@ export function mergeDraftEntryWithItem(
     base_model: entry.base_model || item.base_model,
     source_protocol: entry.source_protocol || item.source_protocol,
     sale_price_display: clonePriceDisplay(entry.sale_price_display || item.sale_price_display || item.price_display),
+    image_fixed_pricing: cloneImageFixedPricing(entry.image_fixed_pricing || item.image_fixed_pricing),
+    discount_policy: normalizeDiscountPolicy(entry.discount_policy || item.discount_policy),
+    available_from: entry.available_from || item.available_from,
+    available_until: entry.available_until || item.available_until,
+    access_time_policy: entry.access_time_policy || item.access_time_policy,
   }
 }
 
@@ -158,6 +170,11 @@ export function draftEntryToMissingItem(entry: BillingPublicCatalogEntryDraft): 
     price_display: clonePriceDisplay(entry.sale_price_display),
     sale_price_display: clonePriceDisplay(entry.sale_price_display),
     official_price_display: clonePriceDisplay(entry.sale_price_display),
+    image_fixed_pricing: cloneImageFixedPricing(entry.image_fixed_pricing),
+    discount_policy: normalizeDiscountPolicy(entry.discount_policy),
+    available_from: entry.available_from,
+    available_until: entry.available_until,
+    access_time_policy: entry.access_time_policy,
     multiplier_summary: { enabled: false, kind: 'disabled' },
     missing: true,
   }
@@ -176,6 +193,11 @@ export function normalizeDraftEntryForPayload(
     base_model: normalizeModelID(entry.base_model || source?.base_model || source?.source_model_id),
     source_protocol: String(entry.source_protocol || source?.source_protocol || '').trim(),
     sale_price_display: clonePriceDisplay(entry.sale_price_display || source?.sale_price_display || source?.price_display),
+    image_fixed_pricing: cloneImageFixedPricing(entry.image_fixed_pricing || source?.image_fixed_pricing),
+    discount_policy: discountPolicyToPayload(entry.discount_policy || source?.discount_policy),
+    available_from: entry.available_from || '',
+    available_until: entry.available_until || '',
+    access_time_policy: entry.access_time_policy || null,
   }
 }
 
@@ -186,4 +208,24 @@ export function uniqueSorted(values: string[]): string[] {
 
 function uniquePreserved(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
+}
+
+export function cloneImageFixedPricing(value?: PublicModelImageFixedPricing | null): PublicModelImageFixedPricing {
+  return {
+    enabled: Boolean(value?.enabled),
+    always_fixed: Boolean(value?.always_fixed),
+    prices: {
+      '1K': normalizeImageFixedPrice(value?.prices?.['1K']),
+      '2K': normalizeImageFixedPrice(value?.prices?.['2K']),
+      '4K': normalizeImageFixedPrice(value?.prices?.['4K']),
+    },
+  }
+}
+
+function normalizeImageFixedPrice(value: number | null | undefined): number | null {
+  const next = Number(value)
+  if (!Number.isFinite(next) || next <= 0) {
+    return null
+  }
+  return next
 }

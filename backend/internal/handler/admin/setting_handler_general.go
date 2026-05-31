@@ -102,6 +102,9 @@ type UpdateSettingsRequest struct {
 	PaymentMinTopupAmount                *float64                              `json:"payment_min_topup_amount"`
 	PaymentMaxTopupAmount                *float64                              `json:"payment_max_topup_amount"`
 	PaymentSubscriptionPlans             *[]dto.PaymentSubscriptionPlan        `json:"payment_subscription_plans"`
+	BillingCurrencyConversionEnabled     *bool                                 `json:"billing_currency_conversion_enabled"`
+	BillingCurrencyCNYToUSDRate          *float64                              `json:"billing_currency_cny_to_usd_rate"`
+	BillingCurrencyUSDToCNYRate          *float64                              `json:"billing_currency_usd_to_cny_rate"`
 	AntigravityUserAgentVersion          *string                               `json:"antigravity_user_agent_version"`
 	CodexOAuthUserAgentMode              *string                               `json:"codex_oauth_user_agent_mode"`
 	CodexOAuthUserAgentOverride          *string                               `json:"codex_oauth_user_agent_override"`
@@ -423,6 +426,17 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			})
 		}
 	}
+	currencyConversion := previousSettings.BillingCurrencyConversionSettings()
+	if req.BillingCurrencyConversionEnabled != nil {
+		currencyConversion.Enabled = *req.BillingCurrencyConversionEnabled
+	}
+	if req.BillingCurrencyCNYToUSDRate != nil {
+		currencyConversion.CNYToUSDRate = *req.BillingCurrencyCNYToUSDRate
+	}
+	if req.BillingCurrencyUSDToCNYRate != nil {
+		currencyConversion.USDToCNYRate = *req.BillingCurrencyUSDToCNYRate
+	}
+	currencyConversion = service.NormalizeBillingCurrencyConversionSettings(currencyConversion)
 	antigravityVersion := previousSettings.AntigravityUserAgentVersion
 	if req.AntigravityUserAgentVersion != nil {
 		var ok bool
@@ -790,7 +804,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return *req.ContentModerationFailOpen
 		}
 		return previousSettings.ContentModerationFailOpen
-	}(), ContentModerationKeywordBlockEnabled: contentModerationKeywordBlockEnabled, ContentModerationKeywords: contentModerationKeywords, ContentModerationModelFilter: contentModerationModelFilter, ContentModerationCategoryThresholds: contentModerationCategoryThresholds, SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, VisualPresetDefault: req.VisualPresetDefault, AccountAiryWhiteSurfaceEnabled: req.AccountAiryWhiteSurfaceEnabled, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, PaymentProviderAirwallexEnabled: paymentAirwallexEnabled, AirwallexEnv: airwallexEnv, AirwallexClientID: airwallexClientID, AirwallexAPIKey: airwallexAPIKey, AirwallexWebhookSecret: airwallexWebhookSecret, PaymentMobileForceQRCodeEnabled: paymentMobileForceQRCodeEnabled, PaymentAllowedCurrencies: paymentAllowedCurrencies, PaymentDefaultCurrency: paymentDefaultCurrency, PaymentMinTopupAmount: paymentMinTopupAmount, PaymentMaxTopupAmount: paymentMaxTopupAmount, PaymentSubscriptionPlans: paymentPlans, AntigravityUserAgentVersion: antigravityVersion, CodexOAuthUserAgentMode: codexUAPolicy.Mode, CodexOAuthUserAgentOverride: codexUAPolicy.Override, OpenAIAllowClaudeCodeCodexPlugin: openAIAllowClaudeCodeCodexPlugin, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
+	}(), ContentModerationKeywordBlockEnabled: contentModerationKeywordBlockEnabled, ContentModerationKeywords: contentModerationKeywords, ContentModerationModelFilter: contentModerationModelFilter, ContentModerationCategoryThresholds: contentModerationCategoryThresholds, SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, VisualPresetDefault: req.VisualPresetDefault, AccountAiryWhiteSurfaceEnabled: req.AccountAiryWhiteSurfaceEnabled, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, PaymentProviderAirwallexEnabled: paymentAirwallexEnabled, AirwallexEnv: airwallexEnv, AirwallexClientID: airwallexClientID, AirwallexAPIKey: airwallexAPIKey, AirwallexWebhookSecret: airwallexWebhookSecret, PaymentMobileForceQRCodeEnabled: paymentMobileForceQRCodeEnabled, PaymentAllowedCurrencies: paymentAllowedCurrencies, PaymentDefaultCurrency: paymentDefaultCurrency, PaymentMinTopupAmount: paymentMinTopupAmount, PaymentMaxTopupAmount: paymentMaxTopupAmount, PaymentSubscriptionPlans: paymentPlans, BillingCurrencyConversionEnabled: currencyConversion.Enabled, BillingCurrencyCNYToUSDRate: currencyConversion.CNYToUSDRate, BillingCurrencyUSDToCNYRate: currencyConversion.USDToCNYRate, AntigravityUserAgentVersion: antigravityVersion, CodexOAuthUserAgentMode: codexUAPolicy.Mode, CodexOAuthUserAgentOverride: codexUAPolicy.Override, OpenAIAllowClaudeCodeCodexPlugin: openAIAllowClaudeCodeCodexPlugin, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
 		if req.OpsMonitoringEnabled != nil {
 			return *req.OpsMonitoringEnabled
 		}

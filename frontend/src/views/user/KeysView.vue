@@ -202,6 +202,11 @@ import KeyFormDialog from "./keys/KeyFormDialog.vue";
 import CcsClientSelectDialog from "./keys/CcsClientSelectDialog.vue";
 import { imageCountWeightTiers, type ApiKeyFormData, type ImageCountWeightTier } from "./keys/types";
 import { submitApiKeyForm } from "./keys/submit";
+import {
+  buildPresetTimeAccessPolicy,
+  createDefaultTimeAccessPolicy,
+  normalizeTimeAccessPolicy,
+} from "./keys/timeAccess";
 
 // Helper to format date for datetime-local input
 const formatDateTimeLocal = (isoDate: string): string => {
@@ -314,6 +319,11 @@ const formData = ref<ApiKeyFormData>({
   enable_expiration: false,
   expiration_preset: "30" as "7" | "30" | "90" | "custom",
   expiration_date: "",
+  enable_starts_at: false,
+  starts_at: "",
+  enable_time_access: false,
+  time_access_preset: "daytime",
+  access_time_policy: createDefaultTimeAccessPolicy(),
 });
 
 // 自定义Key验证
@@ -664,6 +674,11 @@ const editKey = (key: ApiKey) => {
     enable_expiration: hasExpiration,
     expiration_preset: "custom",
     expiration_date: key.expires_at ? formatDateTimeLocal(key.expires_at) : "",
+    enable_starts_at: !!key.starts_at,
+    starts_at: key.starts_at ? formatDateTimeLocal(key.starts_at) : "",
+    enable_time_access: !!key.access_time_policy?.enabled,
+    time_access_preset: "custom",
+    access_time_policy: normalizeTimeAccessPolicy(key.access_time_policy),
   };
   showUnavailableModels.value = false;
   showEditModal.value = true;
@@ -816,6 +831,11 @@ const closeModals = () => {
     enable_expiration: false,
     expiration_preset: "30",
     expiration_date: "",
+    enable_starts_at: false,
+    starts_at: "",
+    enable_time_access: false,
+    time_access_preset: "daytime",
+    access_time_policy: buildPresetTimeAccessPolicy("daytime"),
   };
 };
 

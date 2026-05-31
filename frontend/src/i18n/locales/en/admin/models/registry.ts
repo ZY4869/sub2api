@@ -32,6 +32,7 @@ export default {
         platforms: "Platforms",
         source: "Source",
         status: "Status",
+        schedule: "Schedule",
     },
     fields: {
         id: "Model ID",
@@ -48,6 +49,9 @@ export default {
         deprecatedAt: "Deprecated At",
         preferredProtocolIds: "Preferred Protocol IDs",
         deprecationNotice: "Deprecation Notice",
+        availableFrom: "Available From",
+        availableUntil: "Available Until",
+        accessTimePolicy: "Calling Window",
         modalities: "Modalities",
         capabilities: "Capabilities",
         exposedIn: "Exposed In",
@@ -58,7 +62,15 @@ export default {
         syncPages: "Sync Pages",
         hide: "Hide",
         show: "Show",
+        editSchedule: "Edit Schedule",
         hardDelete: "Hard Delete",
+    },
+    scheduleDialog: {
+        title: "Edit Model Schedule",
+        hint: "The schedule controls public model visibility and runtime availability without changing account allowlists or internal routing.",
+        save: "Save Schedule",
+        saveSuccess: "Model schedule saved",
+        saveFailed: "Failed to save model schedule",
     },
     availabilityFilter: {
         all: "All",
@@ -104,6 +116,12 @@ export default {
         stable: "Stable",
         beta: "Beta",
         deprecated: "Deprecated",
+    },
+    scheduleStatuses: {
+        scheduled: "Scheduled",
+        expired: "Expired",
+        outOfWindow: "Out of window",
+        invalid: "Invalid schedule",
     },
     replacedByHint: "Replaced by {model}",
     sourceLabels: {

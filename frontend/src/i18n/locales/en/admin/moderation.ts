@@ -39,7 +39,8 @@ export default {
     contentHash: 'Content hash',
     summary: 'Redacted summary',
     latency: 'Latency',
-    errorReason: 'Error reason'
+    errorReason: 'Error reason',
+    categories: 'Categories'
   },
   empty: 'No audit records yet',
   loadFailed: 'Failed to load moderation audits',

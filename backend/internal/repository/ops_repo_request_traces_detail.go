@@ -7,8 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
+	"go.uber.org/zap"
 )
 
 func (r *opsRepository) GetUsageRequestPreview(ctx context.Context, userID, apiKeyID int64, requestID string) (*service.UsageRequestPreview, error) {
@@ -29,18 +31,30 @@ SELECT
 FROM ops_request_traces t
 WHERE t.user_id = $1
   AND t.api_key_id = $2
-  AND COALESCE(t.request_id, '') = $3
+  AND (
+    COALESCE(t.request_id, '') = $3
+    OR COALESCE(t.client_request_id, '') = $3
+    OR COALESCE(t.upstream_request_id, '') = $3
+    OR ($4 <> '' AND COALESCE(t.client_request_id, '') = $4)
+    OR ($5 <> '' AND COALESCE(t.request_id, '') = $5)
+    OR ($5 <> '' AND COALESCE(t.upstream_request_id, '') = $5)
+  )
 ORDER BY t.created_at DESC, t.id DESC
 LIMIT 1`
 
 	preview := &service.UsageRequestPreview{Available: true}
 	var capturedAt time.Time
+	trimmedRequestID := strings.TrimSpace(requestID)
+	clientCandidate := usagePreviewClientRequestID(requestID)
+	localCandidate := usagePreviewLocalRequestID(requestID)
 	err := r.db.QueryRowContext(
 		ctx,
 		query,
 		userID,
 		apiKeyID,
-		strings.TrimSpace(requestID),
+		trimmedRequestID,
+		clientCandidate,
+		localCandidate,
 	).Scan(
 		&preview.RequestID,
 		&capturedAt,
@@ -52,10 +66,53 @@ LIMIT 1`
 		&preview.ToolTraceJSON,
 	)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			logger.FromContext(ctx).Info(
+				"usage request preview trace match failed",
+				zap.String("request_id_kind", usagePreviewRequestIDKind(trimmedRequestID)),
+				zap.Bool("has_client_candidate", clientCandidate != ""),
+				zap.Bool("has_local_candidate", localCandidate != ""),
+				zap.Int64("user_id", userID),
+				zap.Int64("api_key_id", apiKeyID),
+				zap.String("reason", "no_trace_match"),
+			)
+		}
 		return nil, err
 	}
 	preview.CapturedAt = &capturedAt
 	return preview, nil
+}
+
+func usagePreviewClientRequestID(requestID string) string {
+	requestID = strings.TrimSpace(requestID)
+	if strings.HasPrefix(requestID, "client:") {
+		return strings.TrimSpace(strings.TrimPrefix(requestID, "client:"))
+	}
+	return ""
+}
+
+func usagePreviewLocalRequestID(requestID string) string {
+	requestID = strings.TrimSpace(requestID)
+	if strings.HasPrefix(requestID, "local:") {
+		return strings.TrimSpace(strings.TrimPrefix(requestID, "local:"))
+	}
+	return ""
+}
+
+func usagePreviewRequestIDKind(requestID string) string {
+	requestID = strings.TrimSpace(requestID)
+	switch {
+	case strings.HasPrefix(requestID, "client:"):
+		return "client"
+	case strings.HasPrefix(requestID, "local:"):
+		return "local"
+	case strings.HasPrefix(requestID, "generated:"):
+		return "generated"
+	case requestID == "":
+		return "empty"
+	default:
+		return "direct"
+	}
 }
 
 func (r *opsRepository) GetRequestTraceByID(ctx context.Context, id int64) (*service.OpsRequestTraceDetail, error) {

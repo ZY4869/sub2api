@@ -133,6 +133,13 @@ export default {
     nativeContext: "Native Context",
     nativeContextTooltip: "Native context window {context}",
     requestLength: "Request Length",
+    modelSuccessRate: "Success Rate",
+    modelSuccessRateStatuses: {
+      healthy: "7-day success rate {rate}, healthy",
+      warning: "7-day success rate {rate}, needs attention",
+      error: "7-day success rate {rate}, elevated failures",
+      unknown: "No 7-day success rate data",
+    },
     cost: "Cost",
     firstToken: "First Token",
     duration: "Duration",

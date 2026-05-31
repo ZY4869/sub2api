@@ -27,6 +27,8 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		QuotaUsed:                k.QuotaUsed,
 		QuotaUsedByCurrency:      cloneUsageCostByCurrency(k.QuotaUsedByCurrency),
 		ExpiresAt:                k.ExpiresAt,
+		StartsAt:                 k.StartsAt,
+		AccessTimePolicy:         k.AccessTimePolicy,
 		CreatedAt:                k.CreatedAt,
 		UpdatedAt:                k.UpdatedAt,
 		RateLimit5h:              k.RateLimit5h,

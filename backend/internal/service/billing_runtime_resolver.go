@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
@@ -10,32 +11,35 @@ import (
 )
 
 type BillingRuntimeInput struct {
-	Model                         string
-	Provider                      string
-	Layer                         string
-	PublicCatalogEntryID          string
-	PublicCatalogPublicModelID    string
-	PublicCatalogSourceAccountID  int64
-	PublicCatalogCurrency         string
-	PublicCatalogRuntimePriceSpec PublicModelCatalogRuntimePriceSpec
-	PublicCatalogSalePriceDisplay PublicModelCatalogPriceDisplay
-	InboundEndpoint               string
-	RawInboundPath                string
-	RequestBody                   []byte
-	Tokens                        UsageTokens
-	Charges                       BillingSimulationCharges
-	ImageCount                    int
-	ImageSize                     string
-	VideoRequests                 int
-	MediaType                     string
-	ServiceTier                   string
-	RequestedServiceTier          string
-	ResolvedServiceTier           string
-	BatchMode                     string
-	RateMultiplier                float64
-	ImagePriceConfig              *ImagePriceConfig
-	LongContextThreshold          int
-	LongContextMultiplier         float64
+	Model                          string
+	Provider                       string
+	Layer                          string
+	PublicCatalogEntryID           string
+	PublicCatalogPublicModelID     string
+	PublicCatalogSourceAccountID   int64
+	PublicCatalogCurrency          string
+	PublicCatalogRuntimePriceSpec  PublicModelCatalogRuntimePriceSpec
+	PublicCatalogSalePriceDisplay  PublicModelCatalogPriceDisplay
+	PublicCatalogDiscountPolicy    *PublicModelCatalogDiscountPolicy
+	PublicCatalogImageFixedPricing PublicModelImageFixedPricing
+	CompletedAt                    time.Time
+	InboundEndpoint                string
+	RawInboundPath                 string
+	RequestBody                    []byte
+	Tokens                         UsageTokens
+	Charges                        BillingSimulationCharges
+	ImageCount                     int
+	ImageSize                      string
+	VideoRequests                  int
+	MediaType                      string
+	ServiceTier                    string
+	RequestedServiceTier           string
+	ResolvedServiceTier            string
+	BatchMode                      string
+	RateMultiplier                 float64
+	ImagePriceConfig               *ImagePriceConfig
+	LongContextThreshold           int
+	LongContextMultiplier          float64
 }
 
 type BillingRuntimeResult struct {
@@ -46,6 +50,7 @@ type BillingRuntimeResult struct {
 	PricingSource          string
 	ResolverPath           string
 	ChannelOverrideApplied bool
+	PublicCatalogDiscount  *PublicModelCatalogDiscountStatus
 }
 
 type BillingRuntimeResolver struct {
@@ -113,6 +118,11 @@ func normalizeBillingRuntimeInput(input BillingRuntimeInput) BillingRuntimeInput
 		input.RateMultiplier = 1
 	}
 	input.PublicCatalogSalePriceDisplay = normalizePublicModelCatalogPriceDisplay(input.PublicCatalogSalePriceDisplay)
+	input.PublicCatalogDiscountPolicy = clonePublicModelCatalogDiscountPolicy(input.PublicCatalogDiscountPolicy)
+	input.PublicCatalogImageFixedPricing = normalizePublicModelImageFixedPricing(input.PublicCatalogImageFixedPricing)
+	if input.CompletedAt.IsZero() {
+		input.CompletedAt = time.Now()
+	}
 	return input
 }
 
@@ -136,16 +146,26 @@ func (r *BillingRuntimeResolver) resolvePublicCatalogEntryRuntime(ctx context.Co
 	if entryID == "" {
 		if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
 			entryID = entry.EntryID
+			input.PublicCatalogEntryID = entryID
 			display = entry.SalePriceDisplay
 			input.PublicCatalogPublicModelID = firstNonEmptyBillingRuntime(input.PublicCatalogPublicModelID, entry.PublicModelID)
 			input.PublicCatalogSourceAccountID = firstNonZeroInt64(input.PublicCatalogSourceAccountID, entry.SourceAccountID)
 			input.PublicCatalogCurrency = firstNonEmptyBillingRuntime(input.PublicCatalogCurrency, entry.Currency, entry.Item.Currency)
+			input.PublicCatalogDiscountPolicy = clonePublicModelCatalogDiscountPolicy(entry.DiscountPolicy)
+			input.PublicCatalogImageFixedPricing = normalizePublicModelImageFixedPricing(entry.ImageFixedPricing)
 			if input.PublicCatalogRuntimePriceSpec.Currency == "" {
 				input.PublicCatalogRuntimePriceSpec = entry.RuntimePriceSpec
 			}
 		}
 	}
 	input.PublicCatalogCurrency = firstNonEmptyBillingRuntime(input.PublicCatalogCurrency, input.PublicCatalogRuntimePriceSpec.Currency)
+	discountEval := evaluatePublicModelCatalogDiscount(input.PublicCatalogDiscountPolicy, input.CompletedAt)
+	if discountEval.Policy != nil {
+		display = applyPublicModelCatalogDiscountToPriceDisplay(display, discountEval.Status)
+		input.PublicCatalogImageFixedPricing = applyPublicModelCatalogDiscountToImageFixedPricing(input.PublicCatalogImageFixedPricing, discountEval.Status)
+		protocolruntime.RecordBillingDiscount(publicCatalogDiscountMetricStatus(discountEval.Status))
+		logPublicCatalogDiscountDecision(ctx, input, discountEval.Status)
+	}
 	var classification *GeminiRequestClassification
 	if entryID == "" || (len(display.Primary) == 0 && len(display.Secondary) == 0) {
 		if entryID != "" {
@@ -182,7 +202,7 @@ func (r *BillingRuntimeResolver) resolvePublicCatalogEntryRuntime(ctx context.Co
 	}
 	priceInput := input
 	priceInput.RateMultiplier = 1
-	cost := calculatePublicCatalogEntryRuntimeCost(display, priceInput)
+	cost := calculatePublicCatalogEntryRuntimeCost(ctx, display, priceInput)
 	if cost == nil {
 		protocolruntime.RecordBillingResolverFallback("public_catalog_price_incomplete")
 		protocolruntime.RecordBillingResolver("public_catalog_entry_incomplete")
@@ -202,12 +222,58 @@ func (r *BillingRuntimeResolver) resolvePublicCatalogEntryRuntime(ctx context.Co
 		zap.String("pricing_source", "public_catalog_entry"),
 	)
 	return &BillingRuntimeResult{
-		Cost:           cost,
-		Classification: classification,
-		MatchedItems:   []string{entryID},
-		PricingSource:  "public_catalog_entry",
-		ResolverPath:   "public_catalog_entry",
+		Cost:                  cost,
+		Classification:        classification,
+		MatchedItems:          []string{entryID},
+		PricingSource:         "public_catalog_entry",
+		ResolverPath:          "public_catalog_entry",
+		PublicCatalogDiscount: clonePublicModelCatalogDiscountStatus(publicCatalogDiscountResultStatus(discountEval)),
 	}
+}
+
+func publicCatalogDiscountResultStatus(
+	evaluation publicModelCatalogDiscountEvaluation,
+) *PublicModelCatalogDiscountStatus {
+	if evaluation.Policy == nil {
+		return nil
+	}
+	status := evaluation.Status
+	return &status
+}
+
+func publicCatalogDiscountMetricStatus(status PublicModelCatalogDiscountStatus) string {
+	if status.Active {
+		return "applied"
+	}
+	return "skipped"
+}
+
+func logPublicCatalogDiscountDecision(
+	ctx context.Context,
+	input BillingRuntimeInput,
+	status PublicModelCatalogDiscountStatus,
+) {
+	if status.Active {
+		logger.FromContext(ctx).Info(
+			"public model catalog discount applied",
+			zap.String("entry_id", input.PublicCatalogEntryID),
+			zap.String("public_model_id", input.PublicCatalogPublicModelID),
+			zap.String("model", input.Model),
+			zap.Float64("reduction_percent", status.ReductionPercent),
+			zap.String("window_id", status.WindowID),
+			zap.String("window_type", status.WindowType),
+			zap.String("completed_at", status.CompletedAt),
+		)
+		return
+	}
+	logger.FromContext(ctx).Info(
+		"public model catalog discount skipped",
+		zap.String("entry_id", input.PublicCatalogEntryID),
+		zap.String("public_model_id", input.PublicCatalogPublicModelID),
+		zap.String("model", input.Model),
+		zap.Float64("reduction_percent", status.ReductionPercent),
+		zap.String("completed_at", status.CompletedAt),
+	)
 }
 
 func publicCatalogIncompleteRuntimeResult(
@@ -225,7 +291,12 @@ func publicCatalogIncompleteRuntimeResult(
 	}
 }
 
-func calculatePublicCatalogEntryRuntimeCost(display PublicModelCatalogPriceDisplay, input BillingRuntimeInput) *CostBreakdown {
+func calculatePublicCatalogEntryRuntimeCost(ctx context.Context, display PublicModelCatalogPriceDisplay, input BillingRuntimeInput) *CostBreakdown {
+	if input.ImageCount > 0 || input.MediaType == "image" {
+		if cost, handled := calculatePublicCatalogFixedImageCost(ctx, input); handled {
+			return cost
+		}
+	}
 	priceByID := map[string]float64{}
 	for _, entry := range append(append([]PublicModelCatalogPriceEntry(nil), display.Primary...), display.Secondary...) {
 		entry = normalizePublicModelCatalogPriceEntryCompat(entry)
@@ -284,6 +355,109 @@ func calculatePublicCatalogEntryRuntimeCost(display PublicModelCatalogPriceDispl
 		protocolruntime.RecordBillingResolverFallback("public_catalog_legacy_cache_price_used")
 	}
 	return finalizeCostBreakdownCurrency(cost, &ModelPricing{Currency: defaultModelPricingCurrency(input.PublicCatalogCurrency)})
+}
+
+func calculatePublicCatalogFixedImageCost(ctx context.Context, input BillingRuntimeInput) (*CostBreakdown, bool) {
+	pricing := normalizePublicModelImageFixedPricing(input.PublicCatalogImageFixedPricing)
+	if !pricing.Enabled {
+		return nil, false
+	}
+	imageSize := normalizePublicCatalogImageSize(input.ImageSize)
+	price := publicCatalogFixedImagePrice(pricing, imageSize)
+	if price == nil {
+		if pricing.AlwaysFixed {
+			protocolruntime.RecordBillingResolverFallback("public_catalog_image_fixed_missing")
+			logger.FromContext(ctx).Warn(
+				"public model catalog fixed image price missing; billing fail-closed",
+				zap.String("entry_id", input.PublicCatalogEntryID),
+				zap.String("public_model_id", input.PublicCatalogPublicModelID),
+				zap.String("model", input.Model),
+				zap.String("image_size", imageSize),
+				zap.Int("image_count", input.ImageCount),
+			)
+			return nil, true
+		}
+		protocolruntime.RecordBillingResolverFallback("public_catalog_image_fixed_fallback_to_price_display")
+		logger.FromContext(ctx).Info(
+			"public model catalog fixed image price missing; falling back to price display",
+			zap.String("entry_id", input.PublicCatalogEntryID),
+			zap.String("public_model_id", input.PublicCatalogPublicModelID),
+			zap.String("model", input.Model),
+			zap.String("image_size", imageSize),
+			zap.Int("image_count", input.ImageCount),
+		)
+		return nil, false
+	}
+	count := input.ImageCount
+	if count <= 0 {
+		count = 1
+	}
+	total := *price * float64(count)
+	if total <= 0 {
+		if pricing.AlwaysFixed {
+			protocolruntime.RecordBillingResolverFallback("public_catalog_image_fixed_missing")
+			logger.FromContext(ctx).Warn(
+				"public model catalog fixed image price invalid; billing fail-closed",
+				zap.String("entry_id", input.PublicCatalogEntryID),
+				zap.String("public_model_id", input.PublicCatalogPublicModelID),
+				zap.String("model", input.Model),
+				zap.String("image_size", imageSize),
+				zap.Int("image_count", count),
+				zap.Float64("fixed_price", *price),
+			)
+			return nil, true
+		}
+		protocolruntime.RecordBillingResolverFallback("public_catalog_image_fixed_fallback_to_price_display")
+		logger.FromContext(ctx).Info(
+			"public model catalog fixed image price invalid; falling back to price display",
+			zap.String("entry_id", input.PublicCatalogEntryID),
+			zap.String("public_model_id", input.PublicCatalogPublicModelID),
+			zap.String("model", input.Model),
+			zap.String("image_size", imageSize),
+			zap.Int("image_count", count),
+			zap.Float64("fixed_price", *price),
+		)
+		return nil, false
+	}
+	protocolruntime.RecordBillingResolver("public_catalog_image_fixed")
+	logger.FromContext(ctx).Info(
+		"public model catalog fixed image price matched",
+		zap.String("entry_id", input.PublicCatalogEntryID),
+		zap.String("public_model_id", input.PublicCatalogPublicModelID),
+		zap.String("model", input.Model),
+		zap.String("image_size", imageSize),
+		zap.Int("image_count", count),
+		zap.Float64("fixed_price", *price),
+		zap.Float64("total_cost", total),
+	)
+	cost := &CostBreakdown{
+		OutputCost: total,
+		TotalCost:  total,
+		ActualCost: total,
+	}
+	return finalizeCostBreakdownCurrency(cost, &ModelPricing{Currency: defaultModelPricingCurrency(input.PublicCatalogCurrency)}), true
+}
+
+func publicCatalogFixedImagePrice(pricing PublicModelImageFixedPricing, imageSize string) *float64 {
+	if pricing.Prices == nil {
+		return nil
+	}
+	value := pricing.Prices[normalizePublicCatalogImageSize(imageSize)]
+	if value == nil || *value <= 0 {
+		return nil
+	}
+	return value
+}
+
+func normalizePublicCatalogImageSize(value string) string {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "4K":
+		return "4K"
+	case "2K":
+		return "2K"
+	default:
+		return "1K"
+	}
 }
 
 type publicCatalogCacheFieldIDs struct {

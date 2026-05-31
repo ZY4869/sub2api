@@ -68,6 +68,8 @@ type APIKey struct {
 	QuotaUsed           float64            // Used quota amount in USD
 	QuotaUsedByCurrency map[string]float64 // Used quota amount by source billing currency
 	ExpiresAt           *time.Time         // Expiration time (nil = never expires)
+	StartsAt            *time.Time         // Scheduled activation time (nil = active immediately)
+	AccessTimePolicy    *TimeAccessPolicy  // Time-window access policy for this key
 
 	// Rate limit fields
 	RateLimit5h       float64            // Rate limit in USD per 5h (0 = unlimited)
@@ -205,6 +207,27 @@ func (k *APIKey) IsExpired() bool {
 		return false
 	}
 	return time.Now().After(*k.ExpiresAt)
+}
+
+func (k *APIKey) IsNotStarted() bool {
+	if k == nil || k.StartsAt == nil {
+		return false
+	}
+	return time.Now().Before(*k.StartsAt)
+}
+
+func (k *APIKey) EvaluateTimeAccess(now time.Time) TimeAccessEvaluation {
+	if k == nil {
+		return TimeAccessEvaluation{Allowed: false, Reason: TimeAccessDecisionInvalidPolicy}
+	}
+	if k.StartsAt != nil && now.Before(*k.StartsAt) {
+		return TimeAccessEvaluation{Allowed: false, Reason: TimeAccessDecisionNotBefore}
+	}
+	var userPolicy *TimeAccessPolicy
+	if k.User != nil {
+		userPolicy = k.User.APIKeyAccessTimePolicy
+	}
+	return EvaluateEffectiveTimeAccess(now, userPolicy, k.AccessTimePolicy)
 }
 
 // IsQuotaExhausted checks if the API key quota is exhausted
