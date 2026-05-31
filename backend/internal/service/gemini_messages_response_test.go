@@ -84,7 +84,7 @@ func TestGeminiClaudeStreamEmitter_ClosesToolBlockBeforeText(t *testing.T) {
 	if toolStart < 0 || toolStop < 0 || textStart < 0 || textDelta < 0 {
 		t.Fatalf("expected tool start/stop and text events, got:\n%s", body)
 	}
-	if !(toolStart < toolStop && toolStop < textStart && textStart < textDelta) {
+	if toolStart >= toolStop || toolStop >= textStart || textStart >= textDelta {
 		t.Fatalf("expected tool block to close before text block starts, got:\n%s", body)
 	}
 }

@@ -211,7 +211,6 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx cont
 	}
 	ApplyClaudeCapabilityToHeader(req, capability)
 	if sanitized, changed := sanitizeAnthropicBodyForFinalBeta(body, req.Header.Get("anthropic-beta")); changed {
-		body = sanitized
 		resetRequestBody(req, sanitized)
 	}
 	return req, nil

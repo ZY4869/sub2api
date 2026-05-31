@@ -321,7 +321,6 @@ func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx c
 	}
 	ApplyClaudeCapabilityToHeader(req, capability)
 	if sanitized, changed := sanitizeAnthropicBodyForFinalBeta(body, req.Header.Get("anthropic-beta")); changed {
-		body = sanitized
 		resetRequestBody(req, sanitized)
 	}
 	return req, nil

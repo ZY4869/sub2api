@@ -161,23 +161,6 @@ func (s *ModelCatalogService) publicModelCatalogExampleCapability(ctx context.Co
 	}
 }
 
-func pickPublicModelCatalogExampleProtocol(item PublicModelCatalogItem) string {
-	if endpoint, ok := pickPublicModelCatalogExampleEndpoint(item, ""); ok {
-		return endpoint.Protocol
-	}
-	for _, protocol := range item.RequestProtocols {
-		normalized := strings.TrimSpace(protocol)
-		switch normalized {
-		case PlatformOpenAI, PlatformAnthropic, PlatformGemini, PlatformGrok, PlatformAntigravity, publicModelCatalogProtocolVertex:
-			return normalized
-		}
-	}
-	if normalized := publicModelCatalogProtocolFamily(item.Provider); normalized != "" {
-		return normalized
-	}
-	return ""
-}
-
 func pickPublicModelCatalogExampleEndpoint(item PublicModelCatalogItem, capability string) (PublicModelProtocolEndpoint, bool) {
 	endpoints := dedupePublicModelProtocolEndpoints(item.ProtocolEndpoints)
 	if len(endpoints) == 0 {

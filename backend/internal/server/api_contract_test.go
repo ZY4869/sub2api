@@ -1154,6 +1154,7 @@ func TestAPIContracts(t *testing.T) {
 					"maintenance_mode_enabled": false,
 					"min_claude_code_version": "",
 					"max_claude_code_version": "",
+					"openai_allow_claude_code_codex_plugin": false,
 					"openai_fast_policy_settings": {
 						"rules": [
 							{ "service_tier": "priority", "action": "filter", "scope": "all" },

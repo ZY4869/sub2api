@@ -671,10 +671,6 @@ func publicModelCatalogProtocolFamily(value string) string {
 	}
 }
 
-func computePublicModelCatalogETagWithPageSize(pageSize int, items []PublicModelCatalogItem) (string, error) {
-	return computePublicModelCatalogETagForPayload(pageSize, "", "", "", "", items)
-}
-
 func computePublicModelCatalogETag(snapshot *PublicModelCatalogSnapshot) (string, error) {
 	if snapshot == nil {
 		return "", nil
@@ -799,10 +795,6 @@ func sanitizePublicModelCatalogSnapshotForPublic(snapshot *PublicModelCatalogSna
 	return cloned
 }
 
-func sanitizePublicModelCatalogItemsForPublic(items []PublicModelCatalogItem) []PublicModelCatalogItem {
-	return sanitizePublicModelCatalogItemsForPublicWithSource(items, "")
-}
-
 func sanitizePublicModelCatalogItemsForPublicWithSource(items []PublicModelCatalogItem, catalogSource string) []PublicModelCatalogItem {
 	if len(items) == 0 {
 		return []PublicModelCatalogItem{}
@@ -812,10 +804,6 @@ func sanitizePublicModelCatalogItemsForPublicWithSource(items []PublicModelCatal
 		sanitized = append(sanitized, sanitizePublicModelCatalogItemForPublicWithSource(item, catalogSource))
 	}
 	return sanitized
-}
-
-func sanitizePublicModelCatalogItemForPublic(item PublicModelCatalogItem) PublicModelCatalogItem {
-	return sanitizePublicModelCatalogItemForPublicWithSource(item, "")
 }
 
 func sanitizePublicModelCatalogItemForPublicWithSource(item PublicModelCatalogItem, catalogSource string) PublicModelCatalogItem {
