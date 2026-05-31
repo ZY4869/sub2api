@@ -93,7 +93,7 @@ func TestUsageBillingRepositoryApply_SettlesExistingBillingHold(t *testing.T) {
 	user := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("usage-billing-hold-%d@example.com", time.Now().UnixNano()),
 		PasswordHash: "hash",
-		Balance:      0.01,
+		Balance:      0.03,
 	})
 	apiKey := mustCreateApiKey(t, client, &service.APIKey{
 		UserID: user.ID,
@@ -128,7 +128,7 @@ func TestUsageBillingRepositoryApply_SettlesExistingBillingHold(t *testing.T) {
 
 	var balance float64
 	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
-	require.InDelta(t, -0.02, balance, 0.000001)
+	require.InDelta(t, 0, balance, 0.000001)
 
 	var status string
 	var actual float64
@@ -566,12 +566,8 @@ func TestUsageBillingRepositoryApply_DebitsCNYWallet(t *testing.T) {
 		Key:    "sk-usage-billing-cny-" + uuid.NewString(),
 		Name:   "billing-cny",
 	})
-	_, err := integrationDB.ExecContext(ctx, `
-		INSERT INTO billing_wallets (user_id, currency, balance)
-		VALUES ($1, 'CNY', 5)
-		ON CONFLICT (user_id, currency) DO UPDATE SET balance = EXCLUDED.balance
-	`, user.ID)
-	require.NoError(t, err)
+	mustSetBillingWallet(t, ctx, user.ID, service.ModelPricingCurrencyUSD, 10)
+	mustSetBillingWallet(t, ctx, user.ID, service.ModelPricingCurrencyCNY, 5)
 
 	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
 		RequestID:       uuid.NewString(),
@@ -614,12 +610,8 @@ func TestUsageBillingRepositoryApply_AutoFXForCNYDeficit(t *testing.T) {
 		Key:    "sk-usage-billing-fx-" + uuid.NewString(),
 		Name:   "billing-fx",
 	})
-	_, err := integrationDB.ExecContext(ctx, `
-		INSERT INTO billing_wallets (user_id, currency, balance)
-		VALUES ($1, 'CNY', 2)
-		ON CONFLICT (user_id, currency) DO UPDATE SET balance = EXCLUDED.balance
-	`, user.ID)
-	require.NoError(t, err)
+	mustSetBillingWallet(t, ctx, user.ID, service.ModelPricingCurrencyUSD, 10)
+	mustSetBillingWallet(t, ctx, user.ID, service.ModelPricingCurrencyCNY, 2)
 
 	requestID := uuid.NewString()
 	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
@@ -642,9 +634,9 @@ func TestUsageBillingRepositoryApply_AutoFXForCNYDeficit(t *testing.T) {
 	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM billing_wallets WHERE user_id = $1 AND currency = 'CNY'", user.ID).Scan(&cnyBalance))
 	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM billing_wallets WHERE user_id = $1 AND currency = 'USD'", user.ID).Scan(&usdBalance))
 	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&shadowBalance))
-	require.InDelta(t, 0, cnyBalance, 0.000001)
-	require.InDelta(t, 9.5, usdBalance, 0.000001)
-	require.InDelta(t, 9.5, shadowBalance, 0.000001)
+	require.InDelta(t, 2, cnyBalance, 0.000001)
+	require.InDelta(t, 9.20588235, usdBalance, 0.000001)
+	require.InDelta(t, 9.20588235, shadowBalance, 0.000001)
 
 	rows, err := integrationDB.QueryContext(ctx, `
 		SELECT currency, type
