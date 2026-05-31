@@ -35,11 +35,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-05-23T13:49:17Z"
+export const generatedModelRegistryBuiltAt = "2026-05-30T14:11:38Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"cd27694027794cf6575d85c916040a4092e329f496cb4bb08121d2aba7bacf71\"",
-  "updated_at": "2026-05-23T13:49:17Z",
+  "etag": "W/\"e7870275fe1e0ced336a39819280f6e6de695ea3963989561e8e094a0d639a56\"",
+  "updated_at": "2026-05-30T14:11:38Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -48,7 +48,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     "gemini": "Google-Gemini",
     "grok": "xAI-Grok",
     "kiro": "Kiro",
-    "openai": "OpenAI-GPT"
+    "openai": "OpenAI-GPT",
+    "openrouter": "OpenRouter"
   },
   "models": [
     {
@@ -1022,6 +1023,37 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 2,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "claude-opus-4-8",
+      "display_name": "Claude Opus 4.8",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic",
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "claude-opus-4-8"
+      ],
+      "aliases": [
+        "claude-opus-4.8"
+      ],
+      "pricing_lookup_ids": [
+        "claude-opus-4-8"
+      ],
+      "context_window_tokens": 1000000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 2,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -6545,9 +6577,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "anthropic",
-      "label": "Opus 4.7",
-      "from": "claude-opus-4-7",
-      "to": "claude-opus-4-7",
+      "label": "Opus 4.8",
+      "from": "claude-opus-4-8",
+      "to": "claude-opus-4-8",
       "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
       "order": 6
     },
@@ -6558,6 +6590,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "to": "gpt-4o",
       "color": "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400",
       "order": 6
+    },
+    {
+      "platform": "anthropic",
+      "label": "Opus 4.7",
+      "from": "claude-opus-4-7",
+      "to": "claude-opus-4-7",
+      "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+      "order": 7
     },
     {
       "platform": "openai",
@@ -6870,6 +6910,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "to": "claude-opus-4-7",
       "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
       "order": 52
+    },
+    {
+      "platform": "antigravity",
+      "label": "Opus 4.8",
+      "from": "claude-opus-4-8",
+      "to": "claude-opus-4-8",
+      "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
+      "order": 53
     }
   ]
 }

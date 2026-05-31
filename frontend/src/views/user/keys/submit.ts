@@ -59,13 +59,7 @@ export async function submitApiKeyForm(ctx: SubmitApiKeyFormContext) {
     appStore.showError(t("keys.groupRequired"));
     return;
   }
-  if (
-    apiKeyModelSelectionRequired.value &&
-    groupBindingsPayload.some((binding) => !binding.model_patterns?.length)
-  ) {
-    appStore.showError(t("keys.modelSelectionRequired"));
-    return;
-  }
+  void apiKeyModelSelectionRequired;
 
   if (!showEditModal.value && formData.value.use_custom_key) {
     if (!formData.value.custom_key) {

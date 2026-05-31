@@ -765,6 +765,9 @@ func isTokenEvent(eventType string) bool {
 	if eventType == "" {
 		return false
 	}
+	if isTerminalEvent(eventType) {
+		return false
+	}
 	switch eventType {
 	case "response.created", "response.in_progress", "response.output_item.added", "response.output_item.done":
 		return false
@@ -778,7 +781,7 @@ func isTokenEvent(eventType string) bool {
 	if strings.HasPrefix(eventType, "response.output") {
 		return true
 	}
-	return eventType == "response.completed" || eventType == "response.done"
+	return false
 }
 
 func minDuration(a, b time.Duration) time.Duration {

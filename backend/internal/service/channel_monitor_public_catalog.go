@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const publicModelCatalogProbeHistoryTTL = 30 * time.Minute
+
 type publicCatalogHealthAggregate struct {
 	Model     string
 	Aliases   map[string]struct{}
@@ -16,6 +18,8 @@ type publicCatalogHealthAggregate struct {
 	Seven     ChannelMonitorDailyRollup
 	Today     ChannelMonitorDailyRollup
 	UpdatedAt time.Time
+	Enabled   bool
+	HasConfig bool
 }
 
 func (s *ChannelMonitorService) PublicModelCatalogHealth(ctx context.Context, items []PublicModelCatalogItem) (map[string]PublicModelCatalogStatusItem, error) {
@@ -25,18 +29,30 @@ func (s *ChannelMonitorService) PublicModelCatalogHealth(ctx context.Context, it
 		return out, nil
 	}
 	for _, modelID := range publicModelCatalogHealthModels(items) {
-		out[modelID] = pendingPublicModelCatalogStatus(modelID)
+		out[modelID] = pendingPublicModelCatalogStatusWithReason(modelID, nil, PublicModelHealthReasonChecking)
+	}
+	if s == nil {
+		for modelID := range out {
+			out[modelID] = pendingPublicModelCatalogStatusWithReason(modelID, nil, PublicModelHealthReasonMonitorDisabled)
+		}
+		return out, nil
 	}
 	enabled := true
 	if s.settingSvc != nil {
 		enabled = channelMonitorRequireEnabled(ctx, s.settingSvc)
 	}
-	if s == nil || s.repo == nil || s.historyRepo == nil || s.rollupRepo == nil || !enabled {
+	if s.repo == nil || s.historyRepo == nil || s.rollupRepo == nil || !enabled {
+		for modelID := range out {
+			out[modelID] = pendingPublicModelCatalogStatusWithReason(modelID, nil, PublicModelHealthReasonMonitorDisabled)
+		}
 		return out, nil
 	}
 	monitors, err := s.repo.ListEnabled(ctx)
 	if err != nil || len(monitors) == 0 {
 		if err != nil && errors.Is(err, ErrChannelMonitorNotFound) {
+			for modelID := range out {
+				out[modelID] = pendingPublicModelCatalogStatusWithReason(modelID, nil, PublicModelHealthReasonNoHistory)
+			}
 			return out, nil
 		}
 		return out, err
@@ -49,6 +65,9 @@ func (s *ChannelMonitorService) PublicModelCatalogHealth(ctx context.Context, it
 		monitorIDs = append(monitorIDs, monitor.ID)
 	}
 	if len(monitorIDs) == 0 {
+		for modelID := range out {
+			out[modelID] = pendingPublicModelCatalogStatusWithReason(modelID, nil, PublicModelHealthReasonNoHistory)
+		}
 		return out, nil
 	}
 
@@ -66,9 +85,11 @@ func (s *ChannelMonitorService) PublicModelCatalogHealth(ctx context.Context, it
 	aggregates := make(map[string]*publicCatalogHealthAggregate, len(out))
 	for modelID := range out {
 		aggregates[modelID] = &publicCatalogHealthAggregate{
-			Model:   modelID,
-			Aliases: map[string]struct{}{},
-			Daily:   map[string]*ChannelMonitorDailyRollup{},
+			Model:     modelID,
+			Aliases:   map[string]struct{}{},
+			Daily:     map[string]*ChannelMonitorDailyRollup{},
+			Enabled:   enabled,
+			HasConfig: len(monitorIDs) > 0,
 		}
 	}
 	for alias, modelID := range aliasIndex {
@@ -211,6 +232,8 @@ func buildPublicModelCatalogStatusFromAggregate(
 		return pendingPublicModelCatalogStatus("")
 	}
 	item := pendingPublicModelCatalogStatus(aggregate.Model)
+	item.HealthSource = PublicModelHealthSourceProbe
+	item.StatusReason = PublicModelHealthReasonProbeRecent
 	item.SuccessRateToday = availabilityRate(aggregate.Today.AvailableChecks, aggregate.Today.TotalChecks)
 	item.SuccessRate7d = availabilityRate(aggregate.Seven.AvailableChecks, aggregate.Seven.TotalChecks)
 	item.LatencyMs = publicModelCatalogLatestLatency(aggregate.Latest)
@@ -220,7 +243,51 @@ func buildPublicModelCatalogStatusFromAggregate(
 	item.Daily = buildPublicModelCatalogDailyStatuses(aggregate, startDay, now)
 	item.Trend = buildPublicModelCatalogTrend(item.Daily)
 	item.Status = publicModelCatalogHealthStatus(aggregate, item.SuccessRateToday, item.SuccessRate7d)
+	item.HealthStatus = item.Status
+	if publicModelCatalogProbeHistoryStale(aggregate, now) {
+		return stalePublicModelCatalogProbeStatus(item)
+	}
+	if !statusHasHealthHistory(item) {
+		item.HealthSource = PublicModelHealthSourceNone
+		item.StatusReason = publicModelCatalogProbePendingReason(aggregate)
+	}
 	return item
+}
+
+func publicModelCatalogProbeHistoryStale(aggregate *publicCatalogHealthAggregate, now time.Time) bool {
+	if aggregate == nil || aggregate.UpdatedAt.IsZero() {
+		return false
+	}
+	return now.UTC().Sub(aggregate.UpdatedAt.UTC()) > publicModelCatalogProbeHistoryTTL
+}
+
+func stalePublicModelCatalogProbeStatus(item PublicModelCatalogStatusItem) PublicModelCatalogStatusItem {
+	return PublicModelCatalogStatusItem{
+		PublicModelID: item.PublicModelID,
+		Model:         item.Model,
+		Aliases:       clonePublicModelStatusAliases(item.Aliases),
+		Status:        PublicModelHealthStatusPending,
+		HealthStatus:  PublicModelHealthStatusPending,
+		HealthSource:  PublicModelHealthSourceNone,
+		StatusReason:  PublicModelHealthReasonStaleHistory,
+		LastCheckedAt: item.LastCheckedAt,
+		RateLimit:     clonePublicModelCatalogRateLimitSummary(item.RateLimit),
+		Daily:         []PublicModelCatalogDailyStatus{},
+		Trend:         []PublicModelCatalogTrendPoint{},
+	}
+}
+
+func publicModelCatalogProbePendingReason(aggregate *publicCatalogHealthAggregate) string {
+	if aggregate == nil || !aggregate.Enabled {
+		return PublicModelHealthReasonMonitorDisabled
+	}
+	if !aggregate.HasConfig {
+		return PublicModelHealthReasonNoHistory
+	}
+	if aggregate.UpdatedAt.IsZero() {
+		return PublicModelHealthReasonChecking
+	}
+	return PublicModelHealthReasonStaleHistory
 }
 
 func publicModelCatalogLatestLatency(items []*ChannelMonitorHistory) *int64 {

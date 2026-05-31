@@ -155,6 +155,10 @@ func registerAdminBillingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		billing.PUT("/public-model-catalog/draft", h.Admin.ModelCatalog.SavePublicModelCatalogDraft)
 		billing.POST("/public-model-catalog/publish", h.Admin.ModelCatalog.PublishPublicModelCatalog)
 		billing.GET("/public-model-catalog/published", h.Admin.ModelCatalog.GetPublishedPublicModelCatalogSummary)
+		billing.GET("/public-model-catalog/diagnostics", h.Admin.ModelCatalog.GetPublicModelCatalogCapacityDiagnostics)
+		billing.POST("/public-model-catalog/revalidate", h.Admin.ModelCatalog.RevalidatePublishedPublicModelCatalog)
+		billing.GET("/public-model-catalog/revalidation", h.Admin.ModelCatalog.GetPublicModelCatalogRevalidationState)
+		billing.PUT("/public-model-catalog/revalidation", h.Admin.ModelCatalog.UpdatePublicModelCatalogRevalidationState)
 	}
 }
 

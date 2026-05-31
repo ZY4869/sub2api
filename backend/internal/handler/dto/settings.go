@@ -145,6 +145,7 @@ type SystemSettings struct {
 	AntigravityUserAgentVersion          string                    `json:"antigravity_user_agent_version"`
 	CodexOAuthUserAgentMode              string                    `json:"codex_oauth_user_agent_mode"`
 	CodexOAuthUserAgentOverride          string                    `json:"codex_oauth_user_agent_override"`
+	OpenAIAllowClaudeCodeCodexPlugin     bool                      `json:"openai_allow_claude_code_codex_plugin"`
 	CustomMenuItems                      []CustomMenuItem          `json:"custom_menu_items"`
 	LoginAgreementEnabled                bool                      `json:"login_agreement_enabled"`
 	LoginAgreementMode                   string                    `json:"login_agreement_mode"`

@@ -30,16 +30,31 @@ func (s *OpenAIGatewayService) SelectAccountWithScheduler(
 	excludedIDs map[int64]struct{},
 	requiredTransport OpenAIUpstreamTransport,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	return s.SelectAccountWithSchedulerForCapability(ctx, groupID, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, "")
+}
+
+func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
+	ctx context.Context,
+	groupID *int64,
+	previousResponseID string,
+	sessionHash string,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+	requiredTransport OpenAIUpstreamTransport,
+	requiredCapability OpenAIEndpointCapability,
+) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
 	decision := OpenAIAccountScheduleDecision{}
 	if pinned := s.publicCatalogPinnedAccount(ctx, groupID, requestedModel, excludedIDs); pinned != nil {
-		decision.Layer = "public_catalog_pinned"
-		decision.SelectedAccountID = pinned.ID
-		decision.SelectedAccountType = pinned.Type
-		return &AccountSelectionResult{Account: pinned}, decision, nil
+		if SupportsOpenAIEndpointCapability(pinned, requiredCapability) {
+			decision.Layer = "public_catalog_pinned"
+			decision.SelectedAccountID = pinned.ID
+			decision.SelectedAccountType = pinned.Type
+			return &AccountSelectionResult{Account: pinned}, decision, nil
+		}
 	}
 	scheduler := s.getOpenAIAccountScheduler()
 	if scheduler == nil {
-		selection, err := s.SelectAccountWithLoadAwareness(ctx, groupID, sessionHash, requestedModel, excludedIDs)
+		selection, err := s.SelectAccountWithLoadAwarenessForCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, requiredCapability)
 		decision.Layer = openAIAccountScheduleLayerLoadBalance
 		return selection, decision, err
 	}
@@ -58,6 +73,7 @@ func (s *OpenAIGatewayService) SelectAccountWithScheduler(
 		PreviousResponseID: previousResponseID,
 		RequestedModel:     requestedModel,
 		RequiredTransport:  requiredTransport,
+		RequiredCapability: requiredCapability,
 		ExcludedIDs:        excludedIDs,
 	})
 }

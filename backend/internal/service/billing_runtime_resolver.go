@@ -146,18 +146,20 @@ func (r *BillingRuntimeResolver) resolvePublicCatalogEntryRuntime(ctx context.Co
 		}
 	}
 	input.PublicCatalogCurrency = firstNonEmptyBillingRuntime(input.PublicCatalogCurrency, input.PublicCatalogRuntimePriceSpec.Currency)
+	var classification *GeminiRequestClassification
 	if entryID == "" || (len(display.Primary) == 0 && len(display.Secondary) == 0) {
 		if entryID != "" {
-			protocolruntime.RecordBillingResolverFallback("public_catalog_price_empty")
+			protocolruntime.RecordBillingResolverFallback("public_catalog_price_incomplete")
+			protocolruntime.RecordBillingResolver("public_catalog_entry_incomplete")
 			logger.FromContext(ctx).Warn(
-				"public model catalog sale price missing; falling back to legacy pricing",
+				"public model catalog sale price missing; billing fail-closed",
 				zap.String("entry_id", entryID),
 				zap.String("model", input.Model),
 			)
+			return publicCatalogIncompleteRuntimeResult(entryID, "public_catalog_price_empty", classification)
 		}
 		return nil
 	}
-	var classification *GeminiRequestClassification
 	if r != nil && r.billingCenterService != nil && (provider == PlatformGemini || isGeminiBillingEndpoint(input.InboundEndpoint)) {
 		calcInput := GeminiBillingCalculationInput{
 			Model:                input.Model,
@@ -178,15 +180,18 @@ func (r *BillingRuntimeResolver) resolvePublicCatalogEntryRuntime(ctx context.Co
 		input.BatchMode = firstNonEmptyBillingRuntime(classification.BatchMode, input.BatchMode)
 		input.ServiceTier = firstNonEmptyBillingRuntime(classification.ServiceTier, input.ServiceTier)
 	}
-	cost := calculatePublicCatalogEntryRuntimeCost(display, input)
+	priceInput := input
+	priceInput.RateMultiplier = 1
+	cost := calculatePublicCatalogEntryRuntimeCost(display, priceInput)
 	if cost == nil {
-		protocolruntime.RecordBillingResolverFallback("public_catalog_price_empty")
+		protocolruntime.RecordBillingResolverFallback("public_catalog_price_incomplete")
+		protocolruntime.RecordBillingResolver("public_catalog_entry_incomplete")
 		logger.FromContext(ctx).Warn(
-			"public model catalog sale price produced zero cost; falling back to legacy pricing",
+			"public model catalog sale price incomplete; billing fail-closed",
 			zap.String("entry_id", entryID),
 			zap.String("model", input.Model),
 		)
-		return nil
+		return publicCatalogIncompleteRuntimeResult(entryID, "public_catalog_price_incomplete", classification)
 	}
 	protocolruntime.RecordBillingResolver("public_catalog_entry")
 	logger.FromContext(ctx).Info(
@@ -205,10 +210,26 @@ func (r *BillingRuntimeResolver) resolvePublicCatalogEntryRuntime(ctx context.Co
 	}
 }
 
+func publicCatalogIncompleteRuntimeResult(
+	entryID string,
+	reason string,
+	classification *GeminiRequestClassification,
+) *BillingRuntimeResult {
+	return &BillingRuntimeResult{
+		Cost:           &CostBreakdown{},
+		Classification: classification,
+		MatchedItems:   []string{entryID},
+		FallbackReason: reason,
+		PricingSource:  "public_catalog_entry_incomplete",
+		ResolverPath:   "public_catalog_entry_incomplete",
+	}
+}
+
 func calculatePublicCatalogEntryRuntimeCost(display PublicModelCatalogPriceDisplay, input BillingRuntimeInput) *CostBreakdown {
 	priceByID := map[string]float64{}
 	for _, entry := range append(append([]PublicModelCatalogPriceEntry(nil), display.Primary...), display.Secondary...) {
-		if id := strings.TrimSpace(entry.ID); id != "" {
+		entry = normalizePublicModelCatalogPriceEntryCompat(entry)
+		if id := strings.TrimSpace(entry.ID); id != "" && entry.Configured {
 			priceByID[id] = entry.Value
 		}
 	}
@@ -218,14 +239,18 @@ func calculatePublicCatalogEntryRuntimeCost(display PublicModelCatalogPriceDispl
 	cost := &CostBreakdown{}
 	matched := false
 	missing := false
-	add := func(target *float64, fieldID string, units float64) {
+	usedLegacyCachePrice := false
+	add := func(target *float64, fieldID string, units float64, fallbackFieldIDs ...string) {
 		if units <= 0 {
 			return
 		}
-		price, ok := priceByID[fieldID]
+		price, legacyCacheUsed, ok := publicCatalogRuntimePriceForField(priceByID, fieldID, fallbackFieldIDs...)
 		if !ok {
 			missing = true
 			return
+		}
+		if legacyCacheUsed {
+			usedLegacyCachePrice = true
 		}
 		matched = true
 		*target += price * units * input.RateMultiplier
@@ -235,13 +260,16 @@ func calculatePublicCatalogEntryRuntimeCost(display PublicModelCatalogPriceDispl
 		add(&cost.OutputCost, publicCatalogOutputFieldID(input), float64(input.ImageCount))
 	case input.VideoRequests > 0 || input.MediaType == "video":
 		add(&cost.OutputCost, publicCatalogOutputFieldID(input), float64(input.VideoRequests))
+	case publicCatalogRequestLikeOutputDemand(input) > 0:
+		add(&cost.OutputCost, publicCatalogOutputFieldID(input), publicCatalogRequestLikeOutputDemand(input))
 	default:
-		inputField, outputField, cacheField := publicCatalogTextFieldIDs(input)
+		inputField, outputField, cacheFields := publicCatalogTextFieldIDs(input)
 		add(&cost.InputCost, inputField, float64(input.Tokens.InputTokens))
 		add(&cost.OutputCost, outputField, float64(input.Tokens.OutputTokens))
-		add(&cost.CacheCreationCost, cacheField, float64(input.Tokens.CacheCreationTokens+input.Tokens.CacheCreation5mTokens))
-		add(&cost.CacheCreationCost, cacheField, float64(input.Tokens.CacheCreation1hTokens))
-		add(&cost.CacheReadCost, cacheField, float64(input.Tokens.CacheReadTokens))
+		add(&cost.CacheCreationCost, cacheFields.creation, float64(input.Tokens.CacheCreationTokens), cacheFields.legacy)
+		add(&cost.CacheCreationCost, cacheFields.creation5m, float64(input.Tokens.CacheCreation5mTokens), cacheFields.creation, cacheFields.legacy)
+		add(&cost.CacheCreationCost, cacheFields.creation1h, float64(input.Tokens.CacheCreation1hTokens), cacheFields.legacy)
+		add(&cost.CacheReadCost, cacheFields.read, float64(input.Tokens.CacheReadTokens), cacheFields.legacy)
 		add(&cost.OutputCost, billingDiscountFieldGroundingSearch, input.Charges.GroundingSearchQueries)
 		add(&cost.OutputCost, billingDiscountFieldGroundingMaps, input.Charges.GroundingMapsQueries)
 		add(&cost.OutputCost, billingDiscountFieldFileSearchEmbedding, input.Charges.FileSearchEmbeddingTokens)
@@ -252,12 +280,42 @@ func calculatePublicCatalogEntryRuntimeCost(display PublicModelCatalogPriceDispl
 	if missing || !matched || cost.TotalCost == 0 {
 		return nil
 	}
+	if usedLegacyCachePrice {
+		protocolruntime.RecordBillingResolverFallback("public_catalog_legacy_cache_price_used")
+	}
 	return finalizeCostBreakdownCurrency(cost, &ModelPricing{Currency: defaultModelPricingCurrency(input.PublicCatalogCurrency)})
 }
 
-func publicCatalogTextFieldIDs(input BillingRuntimeInput) (string, string, string) {
+type publicCatalogCacheFieldIDs struct {
+	creation   string
+	read       string
+	creation5m string
+	creation1h string
+	legacy     string
+}
+
+func publicCatalogRuntimePriceForField(priceByID map[string]float64, fieldID string, fallbackFieldIDs ...string) (float64, bool, bool) {
+	for _, candidate := range append([]string{fieldID}, fallbackFieldIDs...) {
+		if strings.TrimSpace(candidate) == "" {
+			continue
+		}
+		price, ok := priceByID[candidate]
+		if ok {
+			return price, candidate == billingDiscountFieldCachePrice && candidate != fieldID, true
+		}
+	}
+	return 0, false, false
+}
+
+func publicCatalogTextFieldIDs(input BillingRuntimeInput) (string, string, publicCatalogCacheFieldIDs) {
 	if normalizeBillingActualBatchMode(input.BatchMode) == BillingBatchModeBatch {
-		return billingDiscountFieldBatchInputPrice, billingDiscountFieldBatchOutputPrice, billingDiscountFieldBatchCachePrice
+		return billingDiscountFieldBatchInputPrice, billingDiscountFieldBatchOutputPrice, publicCatalogCacheFieldIDs{
+			creation:   billingDiscountFieldBatchCachePrice,
+			read:       billingDiscountFieldBatchCachePrice,
+			creation5m: billingDiscountFieldBatchCachePrice,
+			creation1h: billingDiscountFieldBatchCachePrice,
+			legacy:     billingDiscountFieldBatchCachePrice,
+		}
 	}
 	spec := normalizePublicModelCatalogRuntimePriceSpec(input.PublicCatalogRuntimePriceSpec)
 	longContext := spec.LongContextInputTokenThreshold > 0 &&
@@ -270,7 +328,13 @@ func publicCatalogTextFieldIDs(input BillingRuntimeInput) (string, string, strin
 	if longContext && spec.LongContextOutputCostMultiplier > 1 {
 		outputField = billingDiscountFieldOutputPriceAboveThreshold
 	}
-	return inputField, outputField, billingDiscountFieldCachePrice
+	return inputField, outputField, publicCatalogCacheFieldIDs{
+		creation:   publicModelCatalogFieldCacheCreation,
+		read:       publicModelCatalogFieldCacheRead,
+		creation5m: publicModelCatalogFieldCache5m,
+		creation1h: publicModelCatalogFieldCache1h,
+		legacy:     billingDiscountFieldCachePrice,
+	}
 }
 
 func publicCatalogOutputFieldID(input BillingRuntimeInput) string {
@@ -278,6 +342,21 @@ func publicCatalogOutputFieldID(input BillingRuntimeInput) string {
 		return billingDiscountFieldBatchOutputPrice
 	}
 	return billingDiscountFieldOutputPrice
+}
+
+func publicCatalogRequestLikeOutputDemand(input BillingRuntimeInput) float64 {
+	switch normalizePublicModelCatalogRuntimePriceSpec(input.PublicCatalogRuntimePriceSpec).OutputChargeSlot {
+	case BillingChargeSlotGroundingSearchRequest:
+		return input.Charges.GroundingSearchQueries
+	case BillingChargeSlotGroundingMapsRequest:
+		return input.Charges.GroundingMapsQueries
+	case BillingChargeSlotFileSearchEmbeddingToken:
+		return input.Charges.FileSearchEmbeddingTokens
+	case BillingChargeSlotFileSearchRetrievalToken:
+		return input.Charges.FileSearchRetrievalTokens
+	default:
+		return 0
+	}
 }
 
 func (r *BillingRuntimeResolver) resolveGeminiRuntime(ctx context.Context, input BillingRuntimeInput) (*BillingRuntimeResult, error) {

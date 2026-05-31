@@ -241,6 +241,15 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 			}
 		}
 		s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
+		RecordPublicModelCatalogRuntimeFailureIfModelCapabilityError(
+			ctx,
+			s.modelCatalogService,
+			resp.StatusCode,
+			sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(respBody))),
+			PlatformGemini,
+			geminiEndpointKeyForAction(ProtocolCapabilityActionGenerateContent),
+			"text",
+		)
 		if resp.StatusCode == http.StatusBadRequest {
 			msg400 := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
 			if isGoogleProjectConfigError(msg400) {
@@ -525,6 +534,15 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 			evBody := unwrapIfNeeded(isOAuth, respBody)
 			upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(evBody))
 			upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
+			RecordPublicModelCatalogRuntimeFailureIfModelCapabilityError(
+				ctx,
+				s.modelCatalogService,
+				resp.StatusCode,
+				upstreamMsg,
+				PlatformGemini,
+				geminiEndpointKeyForAction(action),
+				geminiCapabilityForAction(action),
+			)
 			upstreamDetail := ""
 			if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
 				maxBytes := s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes
@@ -563,6 +581,15 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 			}
 		}
 		s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
+		RecordPublicModelCatalogRuntimeFailureIfModelCapabilityError(
+			ctx,
+			s.modelCatalogService,
+			resp.StatusCode,
+			sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(unwrapIfNeeded(isOAuth, respBody)))),
+			PlatformGemini,
+			geminiEndpointKeyForAction(action),
+			geminiCapabilityForAction(action),
+		)
 		if resp.StatusCode == http.StatusBadRequest {
 			msg400 := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
 			if isGoogleProjectConfigError(msg400) {
@@ -689,4 +716,26 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 	result := &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, RequestedServiceTier: requestedServiceTier, ServiceTier: resolvedServiceTier, SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}
 	applyClaudeCapabilityToForwardResult(result, claudeCapability)
 	return result, nil
+}
+
+func geminiEndpointKeyForAction(action string) string {
+	switch action {
+	case ProtocolCapabilityActionGeminiCountTokens:
+		return "gemini.countTokens"
+	case ProtocolCapabilityActionGeminiEmbedContent:
+		return "gemini.embedContent"
+	default:
+		return "gemini.generateContent"
+	}
+}
+
+func geminiCapabilityForAction(action string) string {
+	switch action {
+	case ProtocolCapabilityActionGeminiCountTokens:
+		return "count_tokens"
+	case ProtocolCapabilityActionGeminiEmbedContent:
+		return "embeddings"
+	default:
+		return "text"
+	}
 }

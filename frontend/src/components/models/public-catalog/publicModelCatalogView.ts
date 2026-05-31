@@ -9,14 +9,22 @@ export type Translate = (key: string, params?: Record<string, unknown>) => strin
 
 export interface PublicModelCardView {
   contextLabel: string
+  contextSourceLabel: string
   modalityLabel: string
   modalityIcon: 'document' | 'photo' | 'speakerWave' | 'videoCamera' | 'cube'
   modalityClass: string
   statusLabel: string
   statusBadgeClass: string
   statusDotClass: string
+  publishedStatusLabel: string
+  publishedStatusClass: string
+  healthSourceLabel: string
+  healthReasonLabel: string
+  hasHealthMetrics: boolean
   lifecycleLabel: string
   lifecycleClass: string
+  lifecycleSourceLabel: string
+  demoLabel: string
 }
 
 export function buildPublicModelCardView(
@@ -25,13 +33,21 @@ export function buildPublicModelCardView(
   t: Translate,
 ): PublicModelCardView {
   return {
-    contextLabel: formatContextWindow(item.context_window_tokens),
+    contextLabel: formatContextWindow(item.context_window?.tokens || item.context_window_tokens),
+    contextSourceLabel: sourceLabel(t, item.context_window?.source, item.context_window?.verified),
     ...modalityConfig(item.modalities || [], t),
-    statusLabel: healthStatusLabel(t, health?.status),
-    statusBadgeClass: healthBadgeClass(health?.status),
-    statusDotClass: healthDotClass(health?.status),
-    lifecycleLabel: lifecycleLabel(t, item.lifecycle_status),
-    lifecycleClass: lifecycleClass(item.lifecycle_status),
+    statusLabel: healthStatusLabel(t, health?.health_status || item.health_status),
+    statusBadgeClass: healthBadgeClass(health?.health_status || item.health_status),
+    statusDotClass: healthDotClass(health?.health_status || item.health_status),
+    publishedStatusLabel: publishedStatusLabel(t, item),
+    publishedStatusClass: publishedStatusClass(item),
+    healthSourceLabel: healthSourceLabel(t, health?.health_source),
+    healthReasonLabel: healthReasonLabel(t, health?.status_reason),
+    hasHealthMetrics: hasHealthMetrics(health),
+    lifecycleLabel: lifecycleLabel(t, item.lifecycle?.status || item.lifecycle_status),
+    lifecycleClass: lifecycleClass(item.lifecycle?.status || item.lifecycle_status),
+    lifecycleSourceLabel: lifecycleSourceLabel(t, item.lifecycle),
+    demoLabel: item.is_demo ? t('ui.modelCatalog.demo') : '',
   }
 }
 
@@ -105,6 +121,19 @@ export function normalizeHealthStatus(status?: string): PublicModelHealthStatus 
   return 'pending'
 }
 
+export function hasHealthMetrics(health?: PublicModelCatalogStatusItem): boolean {
+  if (!health) return false
+  if (
+    health.success_rate_today != null ||
+    health.success_rate_7d != null ||
+    health.latency_ms != null ||
+    (health.trend || []).length > 0
+  ) {
+    return true
+  }
+  return (health.daily || []).some((day) => day.success_rate != null || day.latency_ms != null || day.status !== 'pending')
+}
+
 export function healthStatusLabel(t: Translate, status?: string): string {
   switch (normalizeHealthStatus(status)) {
     case 'healthy':
@@ -116,6 +145,56 @@ export function healthStatusLabel(t: Translate, status?: string): string {
     default:
       return t('ui.modelCatalog.health.pending')
   }
+}
+
+export function healthSourceLabel(t: Translate, source?: string): string {
+  switch (source) {
+    case 'traffic':
+      return t('ui.modelCatalog.healthSource.traffic')
+    case 'probe':
+      return t('ui.modelCatalog.healthSource.probe')
+    default:
+      return t('ui.modelCatalog.healthSource.none')
+  }
+}
+
+export function healthReasonLabel(t: Translate, reason?: string): string {
+  switch (reason) {
+    case 'traffic_recent':
+      return t('ui.modelCatalog.healthReason.trafficRecent')
+    case 'probe_recent':
+      return t('ui.modelCatalog.healthReason.probeRecent')
+    case 'monitor_disabled':
+      return t('ui.modelCatalog.healthReason.monitorDisabled')
+    case 'no_history':
+      return t('ui.modelCatalog.healthReason.noHistory')
+    case 'stale_history':
+      return t('ui.modelCatalog.healthReason.staleHistory')
+    case 'checking':
+      return t('ui.modelCatalog.healthReason.checking')
+    default:
+      return t('ui.modelCatalog.healthReason.noHistory')
+  }
+}
+
+export function publishedStatusLabel(t: Translate, item: PublicModelCatalogItem): string {
+  if (item.publication_status === 'published') {
+    return t('ui.modelCatalog.publishStatus.published')
+  }
+  if (item.verification_source === 'live_fallback') {
+    return t('ui.modelCatalog.publishStatus.liveFallback')
+  }
+  return t('ui.modelCatalog.publishStatus.unknown')
+}
+
+export function publishedStatusClass(item: PublicModelCatalogItem): string {
+  if (item.publication_status === 'published') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
+  }
+  if (item.verification_source === 'live_fallback') {
+    return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200'
+  }
+  return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
 }
 
 export function healthLabels(t: Translate): Record<PublicModelHealthStatus, string> {
@@ -173,6 +252,49 @@ export function lifecycleClass(status?: string): string {
     default:
       return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
   }
+}
+
+export function supportLabel(t: Translate, support?: string): string {
+  switch (support) {
+    case 'supported':
+      return t('ui.modelCatalog.support.supported')
+    case 'partial':
+      return t('ui.modelCatalog.support.partial')
+    case 'unsupported':
+      return t('ui.modelCatalog.support.unsupported')
+    default:
+      return t('ui.modelCatalog.support.unknown')
+  }
+}
+
+export function sourceLabel(t: Translate, source?: string, verified?: boolean): string {
+  if (verified) {
+    return t('ui.modelCatalog.source.verified')
+  }
+  switch (source) {
+    case 'verified_probe':
+    case 'runtime_observed':
+    case 'account_probe':
+      return t('ui.modelCatalog.source.probe')
+    case 'official_registry':
+    case 'manual_config':
+      return t('ui.modelCatalog.source.declared')
+    case 'pricing_catalog':
+      return t('ui.modelCatalog.source.pricing')
+    case 'published_snapshot':
+      return t('ui.modelCatalog.source.snapshot')
+    case 'inferred':
+      return t('ui.modelCatalog.source.inferred')
+    default:
+      return t('ui.modelCatalog.source.unknown')
+  }
+}
+
+export function lifecycleSourceLabel(t: Translate, lifecycle?: PublicModelCatalogItem['lifecycle']): string {
+  if (lifecycle?.confidence === 'inferred' || lifecycle?.source === 'inferred') {
+    return t('ui.modelCatalog.source.inferred')
+  }
+  return sourceLabel(t, lifecycle?.source, lifecycle?.confidence === 'verified')
 }
 
 function modalityConfig(modalities: string[], t: Translate) {

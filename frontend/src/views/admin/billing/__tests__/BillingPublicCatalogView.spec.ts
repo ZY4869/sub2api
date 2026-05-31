@@ -6,7 +6,7 @@ import BillingPublicCatalogView from '../BillingPublicCatalogView.vue'
 const messages: Record<string, string> = {
   'admin.billing.publicCatalog.header.eyebrow': 'Public Catalog',
   'admin.billing.publicCatalog.header.title': '对外模型展示',
-  'admin.billing.publicCatalog.header.description': '按账号支持的模型实例维护公开目录。同一基础模型可以来自不同账号来源，发布后用户只调用唯一公开模型 ID，计费使用本条目的出售价格。',
+  'admin.billing.publicCatalog.header.description': '按账号支持的模型实例维护公开目录。同一基础模型可以来自不同账号来源，发布后用户只调用唯一公开模型 ID，计费使用本条目的售卖价。',
   'admin.billing.publicCatalog.header.loading': '加载中...',
   'admin.billing.publicCatalog.header.refresh': '同步当前可用模型',
   'admin.billing.publicCatalog.header.saving': '保存中...',
@@ -30,7 +30,7 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.header.publishedPageSizeTitle': '发布分页',
   'admin.billing.publicCatalog.header.publishedAt': '最近推送：{time}',
   'admin.billing.publicCatalog.header.sourceTitle': '候选来源',
-  'admin.billing.publicCatalog.header.sourceDescription': '{source}。官方成本来自模型定价快照，出售价格在本页随公开条目冻结。',
+  'admin.billing.publicCatalog.header.sourceDescription': '{source}。官方参考价来自模型定价快照，售卖价在本页随公开条目冻结。',
   'admin.billing.publicCatalog.controls.search': '搜索',
   'admin.billing.publicCatalog.controls.searchPlaceholder': '搜索展示名 / 模型 ID / 来源别名 / 厂商',
   'admin.billing.publicCatalog.controls.provider': '厂商',
@@ -50,8 +50,8 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.controls.scopes.selected': '右侧已选展示',
   'admin.billing.publicCatalog.controls.scopes.all': '双侧全部条目',
   'admin.billing.publicCatalog.controls.scopes.source': '仅来源：{alias}',
-  'admin.billing.publicCatalog.controls.applyOfficial': '按官方成本应用',
-  'admin.billing.publicCatalog.controls.batchHint': '只改草稿中的出售价格，官方成本仍在“官方成本/价格源管理”页维护。',
+  'admin.billing.publicCatalog.controls.applyOfficial': '按官方参考价应用',
+  'admin.billing.publicCatalog.controls.batchHint': '只改草稿中的售卖价，官方参考价仍在“官方成本/价格源管理”页维护。',
   'admin.billing.publicCatalog.controls.duplicate': '公开模型 ID 不能重复：{ids}',
   'admin.billing.publicCatalog.controls.listSeparator': '、',
   'admin.billing.publicCatalog.columns.availableTitle': '账号支持的模型库',
@@ -59,7 +59,7 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.columns.currentCount': '当前 {count} 个',
   'admin.billing.publicCatalog.columns.emptyAvailable': '当前筛选下没有账号支持模型。',
   'admin.billing.publicCatalog.columns.selectedTitle': '已选对外展示模型',
-  'admin.billing.publicCatalog.columns.selectedDescription': '顺序、公开 ID、来源别名和出售价格会随发布快照冻结。',
+  'admin.billing.publicCatalog.columns.selectedDescription': '顺序、公开 ID、来源别名和售卖价会随发布快照冻结。',
   'admin.billing.publicCatalog.columns.clear': '清空全部',
   'admin.billing.publicCatalog.columns.emptySelectedTitle': '展示列表为空',
   'admin.billing.publicCatalog.columns.emptySelected': '展示列表为空，请从左侧账号支持模型库添加。',
@@ -83,6 +83,8 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.card.account': '后台账号：{value}',
   'admin.billing.publicCatalog.card.missing': '当前条目已不在最新账号支持模型库中，发布时后端会阻止发布。',
   'admin.billing.publicCatalog.card.defaultSource': '默认来源',
+  'admin.billing.publicCatalog.card.demo': '演示数据',
+  'admin.billing.publicCatalog.card.contextSource': '上下文窗口来源',
   'admin.billing.publicCatalog.card.statuses.expired': '已失效',
   'admin.billing.publicCatalog.card.statuses.available': '可用',
   'admin.billing.publicCatalog.card.statuses.unavailable': '不可用',
@@ -96,18 +98,55 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.dialog.pricingTitle': '定价设置',
   'admin.billing.publicCatalog.dialog.cancel': '取消',
   'admin.billing.publicCatalog.dialog.save': '保存',
-  'admin.billing.publicCatalog.price.official': '官方成本',
-  'admin.billing.publicCatalog.price.unit': '/1M',
-  'admin.billing.publicCatalog.price.noOfficial': '暂无官方价格',
-  'admin.billing.publicCatalog.price.sale': '我的售价',
+  'admin.billing.publicCatalog.price.official': '官方参考价',
+  'admin.billing.publicCatalog.price.unit': '',
+  'admin.billing.publicCatalog.price.noOfficial': '未配置官方参考价',
+  'admin.billing.publicCatalog.price.sale': '售卖价',
   'admin.billing.publicCatalog.price.markup': '溢价',
   'admin.billing.publicCatalog.price.localRatio': '单卡快捷比例',
   'admin.billing.publicCatalog.price.applyLocalRatio': '应用单卡快捷比例',
   'admin.billing.publicCatalog.price.noSale': '暂无售价',
+  'admin.billing.publicCatalog.price.supportedUnpriced': '缓存支持，价格未配置',
+  'admin.billing.publicCatalog.price.units.perMillionTokens': '每百万 tokens',
+  'admin.billing.publicCatalog.price.units.perImage': '每张图片',
+  'admin.billing.publicCatalog.price.units.perRequest': '每次请求',
+  'admin.billing.publicCatalog.price.units.perVideo': '每段视频',
   'admin.billing.publicCatalog.price.labels.input_price': '输入',
   'admin.billing.publicCatalog.price.labels.output_price': '输出',
   'admin.billing.publicCatalog.price.labels.cache_price': '缓存',
+  'admin.billing.publicCatalog.price.labels.cache_creation': '缓存写入',
+  'admin.billing.publicCatalog.price.labels.cache_read': '缓存读取',
+  'admin.billing.publicCatalog.price.labels.cache_5m': '缓存写入 5 分钟',
+  'admin.billing.publicCatalog.price.labels.cache_1h': '缓存写入 1 小时',
   'admin.billing.publicCatalog.price.labels.search_unit_price': '搜索',
+  'ui.modelCatalog.support.supported': '支持',
+  'ui.modelCatalog.support.partial': '部分支持',
+  'ui.modelCatalog.support.unsupported': '不支持',
+  'ui.modelCatalog.support.unknown': '未验证',
+  'ui.modelCatalog.source.verified': '已验证',
+  'ui.modelCatalog.source.probe': '账号探测',
+  'ui.modelCatalog.source.declared': '声明配置',
+  'ui.modelCatalog.source.pricing': '价格目录',
+  'ui.modelCatalog.source.snapshot': '发布快照',
+  'ui.modelCatalog.source.inferred': '推断',
+  'ui.modelCatalog.source.unknown': '未知来源',
+  'admin.billing.publicCatalog.diagnostics.title': '模型健康度容量诊断',
+  'admin.billing.publicCatalog.diagnostics.description': '仅管理员可见。汇总公开模型背后的账号调度、冷却、配额与供应商限流来源，普通目录保持脱敏。',
+  'admin.billing.publicCatalog.diagnostics.refresh': '刷新诊断',
+  'admin.billing.publicCatalog.diagnostics.loading': '刷新中...',
+  'admin.billing.publicCatalog.diagnostics.total': '公开模型',
+  'admin.billing.publicCatalog.diagnostics.available': '可用',
+  'admin.billing.publicCatalog.diagnostics.limited': '受限',
+  'admin.billing.publicCatalog.diagnostics.unschedulable': '不可调度',
+  'admin.billing.publicCatalog.diagnostics.model': '模型',
+  'admin.billing.publicCatalog.diagnostics.availability': '可用性',
+  'admin.billing.publicCatalog.diagnostics.effectiveLimit': '有效限流',
+  'admin.billing.publicCatalog.diagnostics.sources': '来源',
+  'admin.billing.publicCatalog.diagnostics.empty': '暂无诊断数据',
+  'admin.billing.publicCatalog.diagnostics.availabilityLabels.available': '可用',
+  'admin.billing.publicCatalog.diagnostics.availabilityLabels.limited': '受限',
+  'admin.billing.publicCatalog.diagnostics.restrictions.account_rate_limited': '账号限流中',
+  'admin.billing.publicCatalog.diagnostics.restrictions.model_rate_limited': '模型限流中',
   'admin.billing.publicCatalog.source.persistedSnapshot': '已持久化候选快照',
   'admin.billing.publicCatalog.source.fallback': '候选快照',
   'admin.billing.publicCatalog.messages.loadFailed': '加载对外模型展示草稿失败',
@@ -115,6 +154,8 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.messages.saveFailed': '保存对外模型展示草稿失败',
   'admin.billing.publicCatalog.messages.published': '公开模型库已推送更新',
   'admin.billing.publicCatalog.messages.publishFailed': '推送公开模型库失败',
+  'admin.billing.publicCatalog.messages.diagnosticsLoadFailed': '加载模型健康度容量诊断失败',
+  'admin.billing.publicCatalog.messages.billingIncomplete': '发布被阻止：{models} 缺少售卖价字段 {fields}，请补齐后重新发布。',
   'admin.billing.publicCatalog.messages.invalidBatchRatio': '批量比例必须是非负数字',
   'admin.billing.publicCatalog.messages.duplicatePublicId': '公开模型 ID 不能重复：{ids}',
   'admin.billing.publicCatalog.messages.unavailableEntries': '已选条目已不可用，请移除后再保存或发布',
@@ -123,8 +164,12 @@ const messages: Record<string, string> = {
 
 const apiMocks = vi.hoisted(() => ({
   getBillingPublicCatalogDraft: vi.fn(),
+  getBillingPublicCatalogCapacityDiagnostics: vi.fn(),
+  getBillingPublicCatalogRevalidationState: vi.fn(),
   saveBillingPublicCatalogDraft: vi.fn(),
   publishBillingPublicCatalog: vi.fn(),
+  revalidateBillingPublicCatalog: vi.fn(),
+  updateBillingPublicCatalogRevalidationState: vi.fn(),
 }))
 
 const storeMocks = vi.hoisted(() => ({
@@ -136,8 +181,12 @@ let clipboardText = ''
 
 vi.mock('@/api/admin/billing', () => ({
   getBillingPublicCatalogDraft: apiMocks.getBillingPublicCatalogDraft,
+  getBillingPublicCatalogCapacityDiagnostics: apiMocks.getBillingPublicCatalogCapacityDiagnostics,
+  getBillingPublicCatalogRevalidationState: apiMocks.getBillingPublicCatalogRevalidationState,
   saveBillingPublicCatalogDraft: apiMocks.saveBillingPublicCatalogDraft,
   publishBillingPublicCatalog: apiMocks.publishBillingPublicCatalog,
+  revalidateBillingPublicCatalog: apiMocks.revalidateBillingPublicCatalog,
+  updateBillingPublicCatalogRevalidationState: apiMocks.updateBillingPublicCatalogRevalidationState,
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -212,6 +261,37 @@ function createCatalogEntry(
     provider: 'openai',
     provider_icon_key: 'openai',
     request_protocols: ['openai'],
+    context_window: {
+      tokens: 128000,
+      source: 'account_probe',
+      verified: true,
+    },
+    protocol_endpoints: [
+      {
+        key: 'openai.responses',
+        protocol: 'openai',
+        endpoint: '/v1/responses',
+        support: 'supported',
+        source: 'verified_probe',
+        verified: true,
+      },
+    ],
+    capability_matrix: [
+      {
+        capability: 'text',
+        protocol: 'openai',
+        endpoint: 'openai.responses',
+        support: 'supported',
+        source: 'verified_probe',
+        verified: true,
+      },
+    ],
+    lifecycle: {
+      status: 'stable',
+      source: 'official_registry',
+      confidence: 'declared',
+    },
+    catalog_entry_source: 'real_account',
     mode: 'chat',
     currency: 'USD',
     price_display: {
@@ -317,6 +397,45 @@ describe('BillingPublicCatalogView', () => {
         model_count: 1,
       },
     })
+    apiMocks.getBillingPublicCatalogRevalidationState.mockResolvedValue({ auto_enabled: false })
+    apiMocks.updateBillingPublicCatalogRevalidationState.mockResolvedValue({ auto_enabled: true })
+    apiMocks.revalidateBillingPublicCatalog.mockResolvedValue({
+      published: {
+        etag: 'W/"published-revalidated"',
+        updated_at: '2026-04-20T11:30:00Z',
+        page_size: 10,
+        model_count: 1,
+      },
+      checked_at: '2026-04-20T11:30:00Z',
+      model_count: 1,
+      stale_count: 0,
+      reasons: {},
+    })
+    apiMocks.getBillingPublicCatalogCapacityDiagnostics.mockResolvedValue({
+      updated_at: '2026-04-20T10:31:00Z',
+      summary: {
+        model_count: 1,
+        available_count: 0,
+        limited_count: 1,
+        unschedulable_count: 0,
+        restriction_counts: {
+          account_rate_limited: 1,
+        },
+      },
+      items: [
+        {
+          public_model_id: 'gpt-5.4@primary',
+          model: 'gpt-5.4@primary',
+          provider: 'openai',
+          source_protocol: 'openai',
+          source_account_id: 10,
+          availability: 'limited',
+          effective_rate_limit: { rpm: 60 },
+          restrictions: [{ kind: 'account_rate_limited', scope: 'account' }],
+          sources: [{ source: 'account_pool', scope: 'account' }],
+        },
+      ],
+    })
     apiMocks.saveBillingPublicCatalogDraft.mockImplementation(async (payload) => ({
       ...payload,
       updated_at: '2026-04-20T11:00:00Z',
@@ -339,6 +458,10 @@ describe('BillingPublicCatalogView', () => {
     expect(wrapper.text()).toContain('backup')
     expect(wrapper.text()).toContain('账号来源')
     expect(wrapper.text()).toContain('发布分页')
+    expect(wrapper.text()).toContain('128K')
+    expect(wrapper.text()).toContain('已验证')
+    expect(wrapper.text()).toContain('openai.responses')
+    expect(wrapper.text()).toContain('text')
 
     const reloadButton = wrapper.findAll('button').find((node) => node.text().includes('同步当前可用模型'))
     await reloadButton!.trigger('click')
@@ -367,6 +490,70 @@ describe('BillingPublicCatalogView', () => {
 
     expect(wrapper.get('[data-testid="billing-public-catalog-publish"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="billing-public-catalog-export"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('marks demo candidates in the admin draft list', async () => {
+    apiMocks.getBillingPublicCatalogDraft.mockResolvedValueOnce({
+      draft: {
+        selected_entries: [],
+        page_size: 10,
+        updated_at: '2026-04-20T10:00:00Z',
+      },
+      available_entries: [
+        createCatalogEntry('demo_a', 'demo-model', 'demo', 1e-6, {
+          is_demo: true,
+          catalog_entry_source: 'demo',
+        }),
+      ],
+      available_items: [],
+      available_updated_at: '2026-04-20T10:30:00Z',
+      available_source: 'persisted_snapshot',
+      published: null,
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('演示数据')
+  })
+
+  it('keeps legacy draft candidates usable when structured metadata is absent', async () => {
+    apiMocks.getBillingPublicCatalogDraft.mockResolvedValueOnce({
+      draft: {
+        selected_entries: [],
+        page_size: 10,
+        updated_at: '2026-04-20T10:00:00Z',
+      },
+      available_entries: [
+        createCatalogEntry('legacy_a', 'legacy-model', 'legacy', 1e-6, {
+          context_window: undefined,
+          context_window_tokens: 64000,
+          protocol_endpoints: undefined,
+          capability_matrix: undefined,
+          lifecycle: undefined,
+          lifecycle_status: 'beta',
+          capabilities: ['tools'],
+          request_protocols: ['openai'],
+        }),
+      ],
+      available_items: [],
+      available_updated_at: '2026-04-20T10:30:00Z',
+      available_source: 'persisted_snapshot',
+      published: null,
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('legacy-model')
+    expect(wrapper.text()).toContain('64K')
+
+    await wrapper.get('[data-testid="add-entry-legacy_a"]').trigger('click')
+    await wrapper.get('[data-testid="billing-public-catalog-save"]').trigger('click')
+    await flushPromises()
+
+    expect(savedEntry('legacy_a')).toMatchObject({
+      entry_id: 'legacy_a',
+      source_model_id: 'legacy-model',
+    })
   })
 
   it('adds duplicate base models as separate public entries and publishes selected_entries', async () => {
@@ -511,6 +698,36 @@ describe('BillingPublicCatalogView', () => {
     expect(storeMocks.showError).toHaveBeenCalledWith(expect.stringContaining('公开模型 ID 不能重复'))
   })
 
+  it('shows publish billing coverage errors with repairable fields', async () => {
+    apiMocks.publishBillingPublicCatalog.mockRejectedValueOnce({
+      reason: 'PUBLIC_MODEL_BILLING_INCOMPLETE',
+      message: 'public model billing price is incomplete',
+      metadata: {
+        public_model_ids: 'gpt-5.4@primary',
+        missing_fields: 'cache_creation,cache_read',
+      },
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="billing-public-catalog-publish"]').trigger('click')
+    await flushPromises()
+
+    expect(storeMocks.showError).toHaveBeenCalledWith(expect.stringContaining('gpt-5.4@primary'))
+    expect(storeMocks.showError).toHaveBeenCalledWith(expect.stringContaining('缓存写入'))
+    expect(storeMocks.showError).toHaveBeenCalledWith(expect.stringContaining('缓存读取'))
+  })
+
+  it('renders admin-only capacity diagnostics', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(apiMocks.getBillingPublicCatalogCapacityDiagnostics).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('模型健康度容量诊断')
+    expect(wrapper.text()).toContain('账号限流中')
+    expect(wrapper.text()).toContain('RPM 60')
+  })
+
   it('filters by provider chips and adds the filtered entries only', async () => {
     const wrapper = mountView()
     await flushPromises()
@@ -585,7 +802,7 @@ describe('BillingPublicCatalogView', () => {
     await wrapper.get('[data-testid="billing-public-catalog-batch-ratio"]').setValue('150')
     await wrapper.findAll('button').find((button) => button.text().includes('右侧已选展示'))!.trigger('click')
     await wrapper.findAll('button').find((button) => button.text().includes('仅来源：backup'))!.trigger('click')
-    await wrapper.findAll('button').find((button) => button.text().includes('按官方成本应用'))!.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('按官方参考价应用'))!.trigger('click')
     await wrapper.get('[data-testid="billing-public-catalog-save"]').trigger('click')
     await flushPromises()
 
@@ -620,7 +837,7 @@ describe('BillingPublicCatalogView', () => {
     await wrapper.get('[data-testid="add-entry-acct_c"]').trigger('click')
 
     await wrapper.get('[data-testid="billing-public-catalog-batch-ratio"]').setValue('110')
-    await wrapper.findAll('button').find((button) => button.text().includes('按官方成本应用'))!.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('按官方参考价应用'))!.trigger('click')
     await wrapper.get('[data-testid="billing-public-catalog-save"]').trigger('click')
     await flushPromises()
 
@@ -635,7 +852,7 @@ describe('BillingPublicCatalogView', () => {
     await wrapper.get('[data-testid="billing-public-catalog-batch-ratio"]').setValue('130')
     await wrapper.get('[data-testid="billing-public-catalog-scope"]').trigger('click')
     await wrapper.get('[data-testid="billing-public-catalog-scope-filtered"]').trigger('click')
-    await wrapper.findAll('button').find((button) => button.text().includes('按官方成本应用'))!.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('按官方参考价应用'))!.trigger('click')
     await wrapper.get('[data-testid="billing-public-catalog-save"]').trigger('click')
     await flushPromises()
 
@@ -649,7 +866,7 @@ describe('BillingPublicCatalogView', () => {
     await wrapper.get('[data-testid="billing-public-catalog-batch-ratio"]').setValue('140')
     await wrapper.get('[data-testid="billing-public-catalog-scope"]').trigger('click')
     await wrapper.get('[data-testid="billing-public-catalog-scope-all"]').trigger('click')
-    await wrapper.findAll('button').find((button) => button.text().includes('按官方成本应用'))!.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('按官方参考价应用'))!.trigger('click')
     await wrapper.get('[data-testid="billing-public-catalog-save"]').trigger('click')
     await flushPromises()
 

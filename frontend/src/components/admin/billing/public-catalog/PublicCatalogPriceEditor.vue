@@ -5,21 +5,22 @@
         <div class="mb-2 flex items-center justify-between gap-2">
           <div class="text-[11px] font-medium text-slate-400">
             {{ t('admin.billing.publicCatalog.price.official') }}
-            <span class="text-slate-300">{{ t('admin.billing.publicCatalog.price.unit') }}</span>
           </div>
         </div>
-        <div v-if="officialEntries.length === 0" class="text-xs text-slate-400 dark:text-slate-500">
+        <div v-if="officialConfiguredCount === 0" class="mb-2 text-xs text-slate-400 dark:text-slate-500">
           {{ t('admin.billing.publicCatalog.price.noOfficial') }}
         </div>
         <PublicCatalogPriceEntries
-          v-else
+          v-if="officialEntries.length > 0"
           :entries="officialEntries"
           :editable="false"
           accent="official"
           :testid-prefix="`${testidPrefix}-official`"
           :price-label="priceLabel"
           :format-price="formatPrice"
+          :format-unit="formatUnit"
           :format-input-value="formatInputValue"
+          :unpriced-label="t('admin.billing.publicCatalog.price.supportedUnpriced')"
         />
       </div>
 
@@ -27,7 +28,6 @@
         <div class="mb-2 flex items-center justify-between gap-2">
           <div class="flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-slate-400">
             <span>{{ t('admin.billing.publicCatalog.price.sale') }}</span>
-            <span class="text-slate-300">{{ t('admin.billing.publicCatalog.price.unit') }}</span>
             <span
               v-if="markup"
               class="rounded-sm bg-emerald-100 px-1 py-0.5 text-[10px] font-semibold leading-none text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200"
@@ -72,7 +72,9 @@
           :testid-prefix="testidPrefix"
           :price-label="priceLabel"
           :format-price="formatPrice"
+          :format-unit="formatUnit"
           :format-input-value="formatInputValue"
+          :unpriced-label="t('admin.billing.publicCatalog.price.supportedUnpriced')"
           @update-entry="updateEntry"
         />
       </div>
@@ -83,7 +85,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { PublicModelCatalogPriceDisplay } from '@/api/meta'
+import type { PublicModelCatalogPriceDisplay, PublicModelCatalogPriceEntry } from '@/api/meta'
+import { formatCatalogPrice } from '@/utils/publicModelCatalog'
 import { clonePriceDisplay, scalePriceDisplay } from './publicCatalogPricing'
 import PublicCatalogPriceEntries from './PublicCatalogPriceEntries.vue'
 
@@ -118,6 +121,9 @@ const saleDisplay = computed(() => {
 
 const officialEntries = computed(() => flattenPriceDisplay(officialDisplay.value))
 const saleEntries = computed(() => flattenPriceDisplay(saleDisplay.value))
+const officialConfiguredCount = computed(() =>
+  officialEntries.value.filter(({ entry }) => entry.configured !== false && !entry.supported_unpriced).length,
+)
 const markup = computed(() => saleEntries.value.some((saleEntry) => {
   const officialEntry = officialEntries.value.find((entry) => entry.entry.id === saleEntry.entry.id)
   return officialEntry ? saleEntry.entry.value > officialEntry.entry.value : false
@@ -133,7 +139,12 @@ function updateEntry(section: PriceSection, index: number, raw: string) {
   if (!entries[index]) {
     return
   }
-  entries[index] = { ...entries[index], value }
+  entries[index] = {
+    ...entries[index],
+    value,
+    configured: true,
+    supported_unpriced: false,
+  }
   next[section] = entries
   emit('update:sale', next)
 }
@@ -161,8 +172,8 @@ function priceLabel(id: string): string {
   return te(key) ? t(key) : id.replace(/_/g, ' ')
 }
 
-function formatPrice(value: number): string {
-  return `${currencySymbol()}${formatInputValue(value)}`
+function formatPrice(entry: PublicModelCatalogPriceEntry): string {
+  return formatCatalogPrice(t, entry, props.currency, null)
 }
 
 function formatInputValue(value: number): string {
@@ -170,7 +181,35 @@ function formatInputValue(value: number): string {
   return value.toFixed(digits).replace(/\.?0+$/, '')
 }
 
-function currencySymbol(): string {
-  return props.currency === 'CNY' ? '¥' : '$'
+function formatUnit(entry: PublicModelCatalogPriceEntry): string {
+  const unit = resolveDisplayUnit(entry)
+  return t(`admin.billing.publicCatalog.price.units.${unit}`)
+}
+
+function resolveDisplayUnit(entry: PublicModelCatalogPriceEntry): 'perMillionTokens' | 'perImage' | 'perRequest' | 'perVideo' {
+  switch (entry.display_unit) {
+    case 'per_million_tokens':
+      return 'perMillionTokens'
+    case 'per_image':
+      return 'perImage'
+    case 'per_video':
+      return 'perVideo'
+    case 'per_request':
+      return 'perRequest'
+  }
+  switch (entry.unit_kind) {
+    case 'token':
+      return 'perMillionTokens'
+    case 'image':
+      return 'perImage'
+    case 'video':
+      return 'perVideo'
+    case 'request':
+      return 'perRequest'
+  }
+  if (entry.unit === 'image') return 'perImage'
+  if (entry.unit === 'video_request') return 'perVideo'
+  if (String(entry.unit || '').includes('token')) return 'perMillionTokens'
+  return 'perRequest'
 }
 </script>

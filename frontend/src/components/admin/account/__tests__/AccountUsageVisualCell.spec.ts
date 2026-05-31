@@ -102,10 +102,10 @@ describe('AccountUsageVisualCell', () => {
           },
           extra: {
             codex_5h_used_percent: 44,
-            codex_5h_reset_at: '2026-05-22T17:00:00Z',
+            codex_5h_reset_at: '2099-05-22T17:00:00Z',
             codex_7d_used_percent: 12,
-            codex_7d_reset_at: '2026-05-29T12:00:00Z',
-            codex_usage_updated_at: '2026-05-22T12:00:00Z',
+            codex_7d_reset_at: '2099-05-29T12:00:00Z',
+            codex_usage_updated_at: '2099-05-22T12:00:00Z',
           },
         } as any,
       },

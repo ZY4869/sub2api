@@ -157,6 +157,7 @@ func (s *ModelCatalogService) buildPublicModelCatalogAccountEntryItems(
 					item.BaseModel = sourceModelID
 					item.SourceIDs = uniqueTrimmedStringsPreserveCase(append(item.SourceIDs, sourceModelID, model.ID))
 					item.RequestProtocols = uniqueTrimmedStringsPreserveCase(append(item.RequestProtocols, protocol))
+					item = enrichPublicModelCatalogItemMetadata(item, publicModelCatalogMetadataSourceForAccount(model.LastCheckedAt, model.ExposureSource, publicModelCatalogItemConfirmedAvailable(item)))
 					candidates = append(candidates, accountModelCandidate{
 						group:          &group,
 						account:        account,
@@ -228,8 +229,10 @@ func filterAvailableTestModelsForPublishedCatalogAccount(
 			Platform:          protocol,
 			AvailabilityState: firstNonEmptyTrimmed(model.AvailabilityState, AccountModelAvailabilityUnknown),
 			StaleState:        firstNonEmptyTrimmed(model.StaleState, AccountModelStaleStateUnverified),
-			LifecycleStatus:   normalizePublicModelLifecycleStatus(model.Status, model.DisplayName, model.ID, sourceID),
 		})
+		lifecycle := resolvePublicModelLifecycleStatus(model.Status, model.DisplayName, model.ID, sourceID)
+		entries[len(entries)-1].LifecycleStatus = lifecycle.Status
+		entries[len(entries)-1].LifecycleInferred = lifecycle.Inferred
 	}
 	if gateway != nil {
 		entries = gateway.filterPublicEntriesByActiveChannel(ctx, groupID, protocol, entries)
@@ -267,13 +270,14 @@ func buildPublicModelCatalogItemForAccountModel(
 	if sourceModelID == "" {
 		return PublicModelCatalogItem{}, false
 	}
+	lifecycle := resolvePublicModelLifecycleStatus(model.Status, model.DisplayName, model.ID, sourceModelID)
 	projection := PublicModelProjectionEntry{
 		PublicID:          NormalizeModelCatalogModelID(model.ID),
 		DisplayName:       strings.TrimSpace(model.DisplayName),
 		Platform:          firstNonEmptyTrimmed(model.SourceProtocol, RoutingPlatformForAccount(account)),
 		AvailabilityState: firstNonEmptyTrimmed(model.AvailabilityState, AccountModelAvailabilityUnknown),
 		StaleState:        firstNonEmptyTrimmed(model.StaleState, AccountModelStaleStateUnverified),
-		LifecycleStatus:   normalizePublicModelLifecycleStatus(model.Status, model.DisplayName, model.ID, sourceModelID),
+		LifecycleStatus:   lifecycle.Status,
 		SourceIDs:         []string{sourceModelID},
 		AliasIDs:          []string{NormalizeModelCatalogModelID(model.ID)},
 	}
@@ -294,5 +298,12 @@ func buildPublicModelCatalogItemForAccountModel(
 		item.Provider = NormalizeModelProvider(firstNonEmptyTrimmed(model.Provider, RoutingPlatformForAccount(account)))
 		item.ProviderIconKey = item.Provider
 	}
-	return item, true
+	item.ContextWindow = mergePublicModelContextWindow(item.ContextWindow, model.ContextWindow)
+	item.ContextWindowTokens = item.ContextWindow.Tokens
+	item.CapabilityMatrix = append(item.CapabilityMatrix, clonePublicModelCapabilityMatrix(model.CapabilityMatrix)...)
+	item.ProtocolEndpoints = append(item.ProtocolEndpoints, clonePublicModelProtocolEndpoints(model.ProtocolEndpoints)...)
+	if lifecycle.Inferred {
+		item.Lifecycle = publicModelLifecycleFromResolution(lifecycle, PublicModelLifecycleSourceManualConfig)
+	}
+	return enrichPublicModelCatalogItemMetadata(item, publicModelCatalogMetadataSourceForAccount(model.LastCheckedAt, model.ExposureSource, publicModelCatalogItemConfirmedAvailable(item))), true
 }

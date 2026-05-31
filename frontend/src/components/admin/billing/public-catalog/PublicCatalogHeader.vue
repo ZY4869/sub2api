@@ -19,6 +19,25 @@
           type="button"
           class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:bg-dark-700 dark:text-slate-200 dark:hover:bg-dark-600"
           :disabled="busy"
+          data-testid="billing-public-catalog-revalidate"
+          @click="emit('revalidate')"
+        >
+          <Icon name="sync" size="sm" :class="revalidating ? 'animate-spin' : ''" />
+          {{ revalidating ? t('admin.billing.publicCatalog.header.revalidating') : t('admin.billing.publicCatalog.header.revalidate') }}
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:bg-dark-700 dark:text-slate-200 dark:hover:bg-dark-600"
+          :disabled="busy"
+          @click="emit('update:revalidationAutoEnabled', !revalidationAutoEnabled)"
+        >
+          <Icon :name="revalidationAutoEnabled ? 'checkCircle' : 'xCircle'" size="sm" />
+          {{ t('admin.billing.publicCatalog.header.autoRevalidation') }}
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:bg-dark-700 dark:text-slate-200 dark:hover:bg-dark-600"
+          :disabled="busy"
           @click="emit('refresh')"
         >
           <Icon name="refresh" size="sm" :class="loading ? 'animate-spin' : ''" />
@@ -71,7 +90,12 @@
     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
       <span>{{ t('admin.billing.publicCatalog.header.draftSavedAt', { time: draftUpdatedAtLabel }) }}</span>
       <span>{{ t('admin.billing.publicCatalog.header.availableUpdatedAt', { time: availableUpdatedAtLabel }) }}</span>
-      <span>{{ t('admin.billing.publicCatalog.header.publishedAt', { time: publishedUpdatedAtLabel }) }}</span>
+      <span>{{ t('admin.billing.publicCatalog.header.publishedAt', { time: publishedAtLabel }) }}</span>
+      <span>{{ t('admin.billing.publicCatalog.header.lastRevalidatedAt', { time: lastRevalidatedAtLabel }) }}</span>
+      <span>{{ t('admin.billing.publicCatalog.header.revalidationAutoState', { state: revalidationAutoStateLabel }) }}</span>
+      <span v-if="staleReasonSummary" class="text-amber-600 dark:text-amber-300">
+        {{ t('admin.billing.publicCatalog.header.staleReason', { reason: staleReasonSummary }) }}
+      </span>
       <span>{{ t('admin.billing.publicCatalog.header.sourceDescription', { source: availableSourceLabel }) }}</span>
     </div>
   </section>
@@ -87,6 +111,8 @@ const props = defineProps<{
   loading: boolean
   saving: boolean
   publishing: boolean
+  revalidating: boolean
+  revalidationAutoEnabled: boolean
   selectedCount: number
   availableCount: number
   accountAliasCount: number
@@ -96,6 +122,9 @@ const props = defineProps<{
   publishedCount: number
   publishedPageSize: number
   publishedUpdatedAtLabel: string
+  publishedAtLabel: string
+  lastRevalidatedAtLabel: string
+  staleReasonSummary: string
   availableSourceLabel: string
 }>()
 
@@ -103,6 +132,8 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'save'): void
   (e: 'publish'): void
+  (e: 'revalidate'): void
+  (e: 'update:revalidationAutoEnabled', value: boolean): void
   (e: 'export'): void
 }>()
 
@@ -134,4 +165,10 @@ const statItems = computed(() => [
     value: t('admin.billing.publicCatalog.header.pageSizeValue', { count: props.publishedPageSize }),
   },
 ])
+
+const revalidationAutoStateLabel = computed(() =>
+  props.revalidationAutoEnabled
+    ? t('admin.billing.publicCatalog.header.autoEnabled')
+    : t('admin.billing.publicCatalog.header.autoDisabled'),
+)
 </script>

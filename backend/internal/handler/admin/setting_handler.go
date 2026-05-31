@@ -341,6 +341,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.CodexOAuthUserAgentOverride != after.CodexOAuthUserAgentOverride {
 		changed = append(changed, "codex_oauth_user_agent_override")
 	}
+	if before.OpenAIAllowClaudeCodeCodexPlugin != after.OpenAIAllowClaudeCodeCodexPlugin {
+		changed = append(changed, "openai_allow_claude_code_codex_plugin")
+	}
 	if before.LoginAgreementEnabled != after.LoginAgreementEnabled {
 		changed = append(changed, "login_agreement_enabled")
 	}
@@ -493,6 +496,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		AntigravityUserAgentVersion:          settings.AntigravityUserAgentVersion,
 		CodexOAuthUserAgentMode:              settings.CodexOAuthUserAgentMode,
 		CodexOAuthUserAgentOverride:          settings.CodexOAuthUserAgentOverride,
+		OpenAIAllowClaudeCodeCodexPlugin:     settings.OpenAIAllowClaudeCodeCodexPlugin,
 		CustomMenuItems:                      customMenuItems,
 		LoginAgreementEnabled:                settings.LoginAgreementEnabled,
 		LoginAgreementMode:                   settings.LoginAgreementMode,

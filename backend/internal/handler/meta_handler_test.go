@@ -84,9 +84,12 @@ func TestMetaHandler_ModelCatalogHonorsETag(t *testing.T) {
 	etag := firstRec.Header().Get("ETag")
 	require.NotEmpty(t, etag)
 	require.Contains(t, firstRec.Body.String(), "gpt-5.4")
-	require.Contains(t, firstRec.Body.String(), "\"status\":\"ok\"")
-	require.Contains(t, firstRec.Body.String(), "\"availability_state\":\"verified\"")
-	require.Contains(t, firstRec.Body.String(), "\"stale_state\":\"fresh\"")
+	require.Contains(t, firstRec.Body.String(), "\"publication_status\":\"published\"")
+	require.Contains(t, firstRec.Body.String(), "\"health_status\":\"healthy\"")
+	require.Contains(t, firstRec.Body.String(), "\"verification_source\":\"published_snapshot\"")
+	require.NotContains(t, firstRec.Body.String(), "\"status\":\"ok\"")
+	require.NotContains(t, firstRec.Body.String(), "\"availability_state\"")
+	require.NotContains(t, firstRec.Body.String(), "\"stale_state\"")
 	require.Contains(t, firstRec.Body.String(), "\"lifecycle_status\":\"stable\"")
 
 	secondReq := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog", nil)
@@ -167,8 +170,14 @@ func TestMetaHandler_ModelCatalogStatusReturnsSanitizedModelHealth(t *testing.T)
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Contains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
-	require.Contains(t, rec.Body.String(), "\"status\":\"pending\"")
+	require.Contains(t, rec.Body.String(), "\"public_model_id\":\"gpt-5.4\"")
+	require.Contains(t, rec.Body.String(), "\"health_source\":\"none\"")
+	require.Contains(t, rec.Body.String(), "\"status_reason\":\"checking\"")
+	require.Contains(t, rec.Body.String(), "\"health_status\":\"pending\"")
+	require.NotContains(t, rec.Body.String(), "\"status\":\"pending\"")
+	require.NotContains(t, rec.Body.String(), "rate_limit")
 	require.NotContains(t, rec.Body.String(), "source_account")
+	require.NotContains(t, rec.Body.String(), "source_model_id")
 	require.NotContains(t, rec.Body.String(), "gpt-5.4-source")
 }
 
@@ -278,10 +287,71 @@ func TestMetaHandler_ModelCatalogDetailReturnsModel(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "\"item\"")
 	require.Contains(t, rec.Body.String(), "\"catalog_source\":\"published\"")
 	require.Contains(t, rec.Body.String(), "\"example_source\":\"docs_section\"")
-	require.Contains(t, rec.Body.String(), "\"status\":\"ok\"")
-	require.Contains(t, rec.Body.String(), "\"availability_state\":\"verified\"")
-	require.Contains(t, rec.Body.String(), "\"stale_state\":\"fresh\"")
+	require.Contains(t, rec.Body.String(), "\"publication_status\":\"published\"")
+	require.Contains(t, rec.Body.String(), "\"health_status\":\"healthy\"")
+	require.Contains(t, rec.Body.String(), "\"verification_source\":\"published_snapshot\"")
+	require.NotContains(t, rec.Body.String(), "\"status\":\"ok\"")
+	require.NotContains(t, rec.Body.String(), "\"availability_state\"")
+	require.NotContains(t, rec.Body.String(), "\"stale_state\"")
 	require.Contains(t, rec.Body.String(), "\"lifecycle_status\":\"stable\"")
+}
+
+func TestMetaHandler_ModelCatalogDemoModeRequiresConfig(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &metaSettingRepoStub{values: map[string]string{}}
+	published := buildMetaPublishedSnapshot("W/\"demo-etag\"")
+	demoItem := published.Snapshot.Items[0]
+	demoItem.Model = "demo-model"
+	demoItem.PublicModelID = "demo-model"
+	demoItem.IsDemo = true
+	demoItem.CatalogEntrySource = service.PublicModelCatalogEntrySourceDemo
+	published.Snapshot.Items = append(published.Snapshot.Items, demoItem)
+	published.Details["demo-model"] = service.PublicModelCatalogDetail{Item: demoItem}
+	repo.values[service.SettingKeyPublicModelCatalogPublishedSnapshot] = mustMetaJSON(t, published)
+
+	disabledSvc := service.NewModelCatalogService(
+		repo,
+		nil,
+		service.NewBillingService(&config.Config{}, nil),
+		nil,
+		&config.Config{},
+	)
+	disabledHandler := NewMetaHandler(disabledSvc)
+	disabledRouter := gin.New()
+	disabledRouter.GET("/api/v1/meta/model-catalog", disabledHandler.ModelCatalog)
+
+	disabledReq := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog?catalog_mode=demo", nil)
+	disabledRec := httptest.NewRecorder()
+	disabledRouter.ServeHTTP(disabledRec, disabledReq)
+	require.Equal(t, http.StatusOK, disabledRec.Code)
+	require.Contains(t, disabledRec.Body.String(), "\"model\":\"gpt-5.4\"")
+	require.NotContains(t, disabledRec.Body.String(), "\"model\":\"demo-model\"")
+
+	enabledSvc := service.NewModelCatalogService(
+		repo,
+		nil,
+		service.NewBillingService(&config.Config{}, nil),
+		nil,
+		&config.Config{PublicModelCatalog: config.PublicModelCatalogConfig{DemoMode: true}},
+	)
+	enabledHandler := NewMetaHandler(enabledSvc)
+	enabledRouter := gin.New()
+	enabledRouter.GET("/api/v1/meta/model-catalog", enabledHandler.ModelCatalog)
+	enabledRouter.GET("/api/v1/meta/model-catalog/:model", enabledHandler.ModelCatalogDetail)
+
+	enabledReq := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog?catalog_mode=demo", nil)
+	enabledRec := httptest.NewRecorder()
+	enabledRouter.ServeHTTP(enabledRec, enabledReq)
+	require.Equal(t, http.StatusOK, enabledRec.Code)
+	require.Contains(t, enabledRec.Body.String(), "\"model\":\"demo-model\"")
+	require.NotContains(t, enabledRec.Body.String(), "\"model\":\"gpt-5.4\"")
+
+	detailReq := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog/demo-model?catalog_mode=demo", nil)
+	detailRec := httptest.NewRecorder()
+	enabledRouter.ServeHTTP(detailRec, detailReq)
+	require.Equal(t, http.StatusOK, detailRec.Code)
+	require.Contains(t, detailRec.Body.String(), "\"is_demo\":true")
 }
 
 func TestMetaHandler_ModelCatalogDoesNotExposeUnverifiedLiveSnapshotWhenNotPublished(t *testing.T) {

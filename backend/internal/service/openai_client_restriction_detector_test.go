@@ -106,6 +106,39 @@ func TestOpenAICodexClientRestrictionDetector_Detect(t *testing.T) {
 		require.Equal(t, CodexClientRestrictionReasonNotMatchedUA, result.Reason)
 	})
 
+	t.Run("账号允许 Claude Code Codex 插件时放行", func(t *testing.T) {
+		detector := NewOpenAICodexClientRestrictionDetector(nil)
+		account := &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Extra: map[string]any{
+				"codex_cli_only":                 true,
+				"codex_cli_only_allowed_clients": []string{"claude_code"},
+			},
+		}
+
+		result := detector.Detect(newCodexDetectorTestContext("Claude Code/1.2.3", "Claude Code"), account)
+		require.True(t, result.Enabled)
+		require.True(t, result.Matched)
+		require.Equal(t, CodexClientRestrictionReasonAllowedClientMatched, result.Reason)
+	})
+
+	t.Run("全局允许 Claude Code Codex 插件时放行", func(t *testing.T) {
+		repo := newAccountModelImportSettingRepoStub()
+		require.NoError(t, repo.Set(t.Context(), SettingKeyOpenAIAllowClaudeCodeCodexPlugin, "true"))
+		detector := NewOpenAICodexClientRestrictionDetectorWithSettings(nil, NewSettingService(repo, &config.Config{}))
+		account := &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Extra:    map[string]any{"codex_cli_only": true},
+		}
+
+		result := detector.Detect(newCodexDetectorTestContext("Claude Code/1.2.3", "Claude Code"), account)
+		require.True(t, result.Enabled)
+		require.True(t, result.Matched)
+		require.Equal(t, CodexClientRestrictionReasonGlobalAllowedClientMatched, result.Reason)
+	})
+
 	t.Run("开启 ForceCodexCLI 时允许通过", func(t *testing.T) {
 		detector := NewOpenAICodexClientRestrictionDetector(&config.Config{
 			Gateway: config.GatewayConfig{ForceCodexCLI: true},

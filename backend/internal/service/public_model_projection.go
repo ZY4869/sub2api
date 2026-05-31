@@ -14,6 +14,7 @@ type PublicModelProjectionEntry struct {
 	AvailabilityState string   `json:"availability_state,omitempty"`
 	StaleState        string   `json:"stale_state,omitempty"`
 	LifecycleStatus   string   `json:"lifecycle_status,omitempty"`
+	LifecycleInferred bool     `json:"lifecycle_inferred,omitempty"`
 	AliasIDs          []string `json:"alias_ids,omitempty"`
 	SourceIDs         []string `json:"source_ids,omitempty"`
 }
@@ -151,7 +152,9 @@ func appendPublicModelProjectionEntry(target map[string]PublicModelProjectionEnt
 	if replaceRepresentative || strings.TrimSpace(current.AvailabilityState) == "" {
 		current.AvailabilityState = firstNonEmptyTrimmed(entry.AvailabilityState, AccountModelAvailabilityUnknown)
 		current.StaleState = firstNonEmptyTrimmed(entry.StaleState, AccountModelStaleStateUnverified)
-		current.LifecycleStatus = normalizePublicModelLifecycleStatus(entry.LifecycleStatus, entry.DisplayName, entry.PublicID, entry.SourceID)
+		lifecycle := resolvePublicModelLifecycleStatus(entry.LifecycleStatus, entry.DisplayName, entry.PublicID, entry.SourceID)
+		current.LifecycleStatus = lifecycle.Status
+		current.LifecycleInferred = entry.LifecycleInferred || lifecycle.Inferred
 	}
 	current.AliasIDs = mergePublicModelProjectionStrings(current.AliasIDs, entry.AliasID)
 	current.SourceIDs = mergePublicModelProjectionStrings(current.SourceIDs, entry.SourceID)
@@ -182,7 +185,9 @@ func appendPublicModelProjectionAggregate(target map[string]PublicModelProjectio
 	if replaceRepresentative || strings.TrimSpace(current.AvailabilityState) == "" {
 		current.AvailabilityState = firstNonEmptyTrimmed(entry.AvailabilityState, AccountModelAvailabilityUnknown)
 		current.StaleState = firstNonEmptyTrimmed(entry.StaleState, AccountModelStaleStateUnverified)
-		current.LifecycleStatus = normalizePublicModelLifecycleStatus(entry.LifecycleStatus, entry.DisplayName, entry.PublicID)
+		lifecycle := resolvePublicModelLifecycleStatus(entry.LifecycleStatus, entry.DisplayName, entry.PublicID)
+		current.LifecycleStatus = lifecycle.Status
+		current.LifecycleInferred = entry.LifecycleInferred || lifecycle.Inferred
 	}
 	current.AliasIDs = mergePublicModelProjectionStrings(current.AliasIDs, entry.AliasIDs...)
 	current.SourceIDs = mergePublicModelProjectionStrings(current.SourceIDs, entry.SourceIDs...)

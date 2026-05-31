@@ -8,6 +8,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
 	"strings"
@@ -63,6 +64,15 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		body, reqModel = normalizeClaudeOAuthRequestBody(body, reqModel, normalizeOpts)
 	}
 	if account.Platform == PlatformAntigravity {
+		RecordPublicModelCatalogRuntimeFailureIfModelCapabilityError(
+			ctx,
+			s.modelCatalogService,
+			http.StatusNotFound,
+			"count_tokens endpoint is not supported for this platform",
+			PlatformAnthropic,
+			"anthropic.messages.countTokens",
+			"count_tokens",
+		)
 		s.countTokensError(c, http.StatusNotFound, "not_found_error", "count_tokens endpoint is not supported for this platform")
 		return nil
 	}
@@ -153,6 +163,15 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 			upstreamDetail = truncateString(string(respBody), maxBytes)
 		}
 		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
+		RecordPublicModelCatalogRuntimeFailureIfModelCapabilityError(
+			ctx,
+			s.modelCatalogService,
+			resp.StatusCode,
+			upstreamMsg,
+			PlatformAnthropic,
+			"anthropic.messages.countTokens",
+			"count_tokens",
+		)
 		if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
 			logger.LegacyPrintf("service.gateway", "count_tokens upstream error %d (account=%d platform=%s type=%s): %s", resp.StatusCode, account.ID, account.Platform, account.Type, truncateForLog(respBody, s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes))
 		}
@@ -219,6 +238,15 @@ func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx contex
 		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 		upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 		if isCountTokensUnsupported404(resp.StatusCode, respBody) {
+			RecordPublicModelCatalogRuntimeFailureIfModelCapabilityError(
+				ctx,
+				s.modelCatalogService,
+				resp.StatusCode,
+				upstreamMsg,
+				PlatformAnthropic,
+				"anthropic.messages.countTokens",
+				"count_tokens",
+			)
 			logger.LegacyPrintf("service.gateway", "[count_tokens] Upstream does not support count_tokens (404), returning 404: account=%d name=%s msg=%s", account.ID, account.Name, truncateString(upstreamMsg, 512))
 			s.countTokensError(c, http.StatusNotFound, "not_found_error", "count_tokens endpoint is not supported by upstream")
 			return nil
@@ -264,6 +292,7 @@ func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx c
 		}
 		targetURL = validatedURL + "/v1/messages/count_tokens?beta=true"
 	}
+	body = stripCountTokensGenerationFields(body)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -291,6 +320,10 @@ func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx c
 		req.Header.Set("anthropic-version", "2023-06-01")
 	}
 	ApplyClaudeCapabilityToHeader(req, capability)
+	if sanitized, changed := sanitizeAnthropicBodyForFinalBeta(body, req.Header.Get("anthropic-beta")); changed {
+		body = sanitized
+		resetRequestBody(req, sanitized)
+	}
 	return req, nil
 }
 func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, mimicClaudeCode bool, capability ClaudeRequestCapability) (*http.Request, error) {
@@ -298,6 +331,7 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 	if err != nil {
 		return nil, err
 	}
+	body = stripCountTokensGenerationFields(body)
 	clientHeaders := http.Header{}
 	if c != nil && c.Request != nil {
 		clientHeaders = c.Request.Header
@@ -385,9 +419,33 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {
 		c.Set(claudeMimicDebugInfoKey, buildClaudeMimicDebugLine(req, body, account, tokenType, mimicClaudeCode))
 	}
+	if sanitized, changed := sanitizeAnthropicBodyForFinalBeta(body, req.Header.Get("anthropic-beta")); changed {
+		body = sanitized
+		resetRequestBody(req, sanitized)
+	}
 	syncClaudeCodeSessionHeader(req, body)
 	if s.debugClaudeMimicEnabled() {
 		logClaudeMimicDebug(req, body, account, tokenType, mimicClaudeCode)
 	}
 	return req, nil
+}
+
+func stripCountTokensGenerationFields(body []byte) []byte {
+	out := body
+	for _, path := range []string{
+		"temperature",
+		"top_p",
+		"top_k",
+		"stream",
+		"stop_sequences",
+		"stop",
+	} {
+		if !gjson.GetBytes(out, path).Exists() {
+			continue
+		}
+		if next, err := sjson.DeleteBytes(out, path); err == nil {
+			out = next
+		}
+	}
+	return out
 }

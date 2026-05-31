@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -704,12 +705,55 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {
 		c.Set(claudeMimicDebugInfoKey, buildClaudeMimicDebugLine(req, body, account, tokenType, mimicClaudeCode))
 	}
+	if sanitized, changed := sanitizeAnthropicBodyForFinalBeta(body, req.Header.Get("anthropic-beta")); changed {
+		body = sanitized
+		resetRequestBody(req, sanitized)
+	}
 	syncClaudeCodeSessionHeader(req, body)
 	if s.debugClaudeMimicEnabled() {
 		logClaudeMimicDebug(req, body, account, tokenType, mimicClaudeCode)
 	}
 	return req, nil
 }
+
+func sanitizeAnthropicBodyForFinalBeta(body []byte, betaHeader string) ([]byte, bool) {
+	if len(body) == 0 || !gjson.GetBytes(body, "context_management").Exists() {
+		return body, false
+	}
+	if anthropicBetaHeaderContains(betaHeader, claude.BetaContextManagement) {
+		return body, false
+	}
+	next, err := sjson.DeleteBytes(body, "context_management")
+	if err != nil {
+		return body, false
+	}
+	return next, true
+}
+
+func anthropicBetaHeaderContains(header string, token string) bool {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return false
+	}
+	for _, part := range strings.Split(header, ",") {
+		if strings.TrimSpace(part) == token {
+			return true
+		}
+	}
+	return false
+}
+
+func resetRequestBody(req *http.Request, body []byte) {
+	if req == nil {
+		return
+	}
+	req.Body = io.NopCloser(bytes.NewReader(body))
+	req.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(body)), nil
+	}
+	req.ContentLength = int64(len(body))
+}
+
 func applyClaudeOAuthHeaderDefaults(req *http.Request, isStream bool) {
 	if req == nil {
 		return

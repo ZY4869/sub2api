@@ -46,6 +46,30 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"object": "list", "data": []claude.Model{}})
 }
+
+func (h *GatewayHandler) ModelCatalog(c *gin.Context) {
+	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
+	var platform string
+	if apiKey != nil && apiKey.Group != nil {
+		platform = apiKey.Group.Platform
+	}
+	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcedPlatform) != "" {
+		platform = forcedPlatform
+	}
+	snapshot, err := h.gatewayService.APIKeyModelCatalogSnapshot(c.Request.Context(), apiKey, service.APIKeyModelCatalogOptions{
+		IncludeUnavailable: parseBoolQuery(c.Query("include_unavailable")),
+		Platform:           platform,
+	})
+	if err != nil {
+		status := http.StatusBadGateway
+		if appErr := infraerrors.FromError(err); appErr != nil {
+			status = int(appErr.Code)
+		}
+		h.errorResponse(c, status, "upstream_error", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, snapshot)
+}
 func (h *GatewayHandler) AntigravityModels(c *gin.Context) {
 	entries := h.registryEntriesForPlatform(c.Request.Context(), service.PlatformAntigravity)
 	if len(entries) > 0 {

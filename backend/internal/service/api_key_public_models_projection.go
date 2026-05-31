@@ -65,6 +65,13 @@ func projectAccountModelProjectionToPublicEntries(
 		if candidate.VisibilityMode != AccountModelVisibilityModeAlias {
 			displayName = firstNonEmptyString(strings.TrimSpace(candidate.DisplayName), displayName)
 		}
+		lifecycle := resolvePublicModelLifecycleStatus(
+			candidate.Status,
+			candidate.DisplayName,
+			candidate.DisplayModelID,
+			candidate.TargetModelID,
+			candidate.RouteModelID,
+		)
 		projected[publicID] = APIKeyPublicModelEntry{
 			PublicID:          publicID,
 			AliasID:           publicID,
@@ -73,13 +80,8 @@ func projectAccountModelProjectionToPublicEntries(
 			Platform:          platform,
 			AvailabilityState: firstNonEmptyTrimmed(candidate.AvailabilityState, AccountModelAvailabilityUnknown),
 			StaleState:        firstNonEmptyTrimmed(candidate.StaleState, AccountModelStaleStateUnverified),
-			LifecycleStatus: normalizePublicModelLifecycleStatus(
-				candidate.Status,
-				candidate.DisplayName,
-				candidate.DisplayModelID,
-				candidate.TargetModelID,
-				candidate.RouteModelID,
-			),
+			LifecycleStatus:   lifecycle.Status,
+			LifecycleInferred: lifecycle.Inferred,
 		}
 	}
 

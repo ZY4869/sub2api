@@ -1,15 +1,26 @@
 <template>
   <div
-    class="flex flex-1 cursor-default items-center justify-between rounded-lg border bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] transition-all dark:bg-dark-900"
+    class="flex min-w-0 cursor-default flex-col rounded-xl border bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.01)] transition-all dark:bg-dark-900"
     :class="themeClass"
     :data-testid="testid"
   >
-    <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+    <span
+      class="max-w-full truncate whitespace-nowrap text-[11px] font-semibold leading-none text-slate-600 dark:text-slate-300"
+      :title="label"
+    >
       {{ label }}
     </span>
-    <span class="flex items-baseline gap-1 text-right font-mono text-[13px] tracking-tight">
-      <span class="font-black" :class="valueClass">{{ value }}</span>
-    </span>
+    <div class="mt-2 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-1 font-mono leading-none">
+      <span class="whitespace-nowrap text-[15px] font-black" :class="valueClass">
+        {{ priceParts.amount }}
+      </span>
+      <span
+        v-if="priceParts.unit"
+        class="whitespace-nowrap text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400"
+      >
+        {{ priceParts.unit }}
+      </span>
+    </div>
   </div>
 </template>
 
@@ -22,6 +33,15 @@ const props = defineProps<{
   theme: 'blue' | 'emerald' | 'amber'
   testid?: string
 }>()
+
+const priceParts = computed(() => {
+  const text = props.value.trim()
+  const match = text.match(/^([$¥]\S+)\s+(.+)$/)
+  return {
+    amount: match?.[1] || text,
+    unit: match?.[2] || '',
+  }
+})
 
 const themeClass = computed(() => {
   switch (props.theme) {

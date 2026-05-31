@@ -25,6 +25,9 @@ func isImageOnlyAllowedGatewayRequest(method, path string) bool {
 		if normalizedPath == "/v1/models" || strings.HasPrefix(normalizedPath, "/v1/models/") {
 			return true
 		}
+		if normalizedPath == "/v1/model-catalog" {
+			return true
+		}
 		if normalizedPath == "/grok/v1/models" || strings.HasPrefix(normalizedPath, "/grok/v1/models/") {
 			return true
 		}

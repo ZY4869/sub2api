@@ -118,7 +118,7 @@ func NewOpenAIGatewayService(accountRepo AccountRepository, usageLogRepo UsageLo
 		cache:                 cache,
 		cfg:                   cfg,
 		settingService:        settingService,
-		codexDetector:         NewOpenAICodexClientRestrictionDetector(cfg),
+		codexDetector:         NewOpenAICodexClientRestrictionDetectorWithSettings(cfg, settingService),
 		schedulerSnapshot:     schedulerSnapshot,
 		concurrencyService:    concurrencyService,
 		billingService:        billingService,

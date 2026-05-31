@@ -28,8 +28,15 @@ function scaleEntries(
   entries: PublicModelCatalogPriceEntry[] | undefined,
   ratio: number,
 ): PublicModelCatalogPriceEntry[] {
-  return (entries || []).map((entry) => ({
-    ...entry,
-    value: Number((entry.value * ratio).toPrecision(12)),
-  }))
+  return (entries || []).map((entry) => {
+    if (entry.supported_unpriced || entry.configured === false) {
+      return { ...entry }
+    }
+    return {
+      ...entry,
+      value: Number((entry.value * ratio).toPrecision(12)),
+      configured: true,
+      supported_unpriced: false,
+    }
+  })
 }

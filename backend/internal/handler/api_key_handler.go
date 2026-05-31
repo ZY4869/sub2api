@@ -153,6 +153,36 @@ func (h *APIKeyHandler) GetByID(c *gin.Context) {
 	response.Success(c, dto.APIKeyFromService(key))
 }
 
+// GetModelCatalog 获取当前用户指定 Key 的可用公开模型目录。
+// GET /api/v1/keys/:id/model-catalog?include_unavailable=0|1
+func (h *APIKeyHandler) GetModelCatalog(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	keyID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid key ID")
+		return
+	}
+
+	snapshot, err := h.apiKeyService.GetAPIKeyModelCatalogSnapshot(
+		c.Request.Context(),
+		subject.UserID,
+		keyID,
+		service.APIKeyModelCatalogOptions{
+			IncludeUnavailable: parseBoolQuery(c.Query("include_unavailable")),
+		},
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, snapshot)
+}
+
 // Create handles creating a new API key
 // POST /api/v1/api-keys
 func (h *APIKeyHandler) Create(c *gin.Context) {

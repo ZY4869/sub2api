@@ -52,8 +52,9 @@
           />
           <PublicModelDetailRouting
             v-else
-            :health="props.health"
             :labels="routingLabels"
+            :endpoints="sourceItem?.protocol_endpoints || []"
+            :t="t"
             :params="parameterRows"
           >
             <template #example>
@@ -153,7 +154,7 @@ const displayItem = computed<PublicModelCatalogDisplayItem | null>(() =>
 )
 const dialogTitle = computed(() => displayItem.value?.title || sourceItem.value?.model || t('nav.modelsCatalog'))
 const providerLabel = computed(() => formatProviderLabel(sourceItem.value?.provider || sourceItem.value?.provider_icon_key || ''))
-const statusDotClass = computed(() => healthDotClass(props.health?.status))
+const statusDotClass = computed(() => healthDotClass(props.health?.health_status || sourceItem.value?.health_status))
 const multiplierLabel = computed(() =>
   sourceItem.value ? multiplierSummaryLabel(t, sourceItem.value.multiplier_summary) : '-',
 )

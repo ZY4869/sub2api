@@ -15,6 +15,7 @@ type APIKeyPublicModelEntry struct {
 	AvailabilityState string
 	StaleState        string
 	LifecycleStatus   string
+	LifecycleInferred bool
 }
 
 func (s *GatewayService) GetAPIKeyPublicModels(

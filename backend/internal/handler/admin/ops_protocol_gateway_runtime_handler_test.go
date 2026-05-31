@@ -26,6 +26,9 @@ func TestOpsProtocolGatewayRuntimeHandler_GetSnapshot(t *testing.T) {
 	protocolruntime.RecordLocalizationFallback("message_key:en")
 	protocolruntime.RecordAccountTestResolutionFailed("TEST_TARGET_MODEL_INVALID")
 	protocolruntime.RecordAccountProbeResolutionFailed("TEST_PROBE_RESOLUTION_FAILED")
+	protocolruntime.RecordModelCapabilityVerification("success")
+	protocolruntime.RecordModelCapabilityVerification("unsupported")
+	protocolruntime.RecordModelCapabilityVerification("skipped")
 	t.Cleanup(protocolruntime.ResetForTest)
 
 	h := NewOpsHandler(newRuntimeOpsService(t))
@@ -70,6 +73,9 @@ func TestOpsProtocolGatewayRuntimeHandler_GetSnapshot(t *testing.T) {
 	if snapshot.AccountProbeResolutionFailedTotal != 1 {
 		t.Fatalf("account_probe_resolution_failed_total=%d, want 1", snapshot.AccountProbeResolutionFailedTotal)
 	}
+	if snapshot.ModelCapabilityVerificationTotal != 3 {
+		t.Fatalf("model_capability_verification_total=%d, want 3", snapshot.ModelCapabilityVerificationTotal)
+	}
 	if snapshot.RouteMismatchByKind["unknown_public_endpoint"] != 1 {
 		t.Fatalf("route_mismatch_by_kind=%v", snapshot.RouteMismatchByKind)
 	}
@@ -84,5 +90,10 @@ func TestOpsProtocolGatewayRuntimeHandler_GetSnapshot(t *testing.T) {
 	}
 	if snapshot.AccountProbeResolutionByReason["TEST_PROBE_RESOLUTION_FAILED"] != 1 {
 		t.Fatalf("account_probe_resolution_by_reason=%v", snapshot.AccountProbeResolutionByReason)
+	}
+	if snapshot.ModelCapabilityVerificationByResult["success"] != 1 ||
+		snapshot.ModelCapabilityVerificationByResult["failure"] != 1 ||
+		snapshot.ModelCapabilityVerificationByResult["skipped"] != 1 {
+		t.Fatalf("model_capability_verification_by_result=%v", snapshot.ModelCapabilityVerificationByResult)
 	}
 }

@@ -184,6 +184,7 @@ func TestIsBedrockClaude45OrNewer(t *testing.T) {
 		// 未来版本应自动支持
 		{"us.anthropic.claude-sonnet-5-0-v1", true},
 		{"us.anthropic.claude-opus-4-7-v1", true},
+		{"us.anthropic.claude-opus-4-8-v1", true},
 		// 旧版本
 		{"anthropic.claude-opus-4-1-v1", false},
 		{"anthropic.claude-sonnet-4-0-v1", false},

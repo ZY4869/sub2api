@@ -184,6 +184,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	codexUAPolicy := NormalizeCodexOAuthUserAgentPolicy(settings.CodexOAuthUserAgentMode, settings.CodexOAuthUserAgentOverride)
 	updates[SettingKeyCodexOAuthUserAgentMode] = codexUAPolicy.Mode
 	updates[SettingKeyCodexOAuthUserAgentOverride] = codexUAPolicy.Override
+	updates[SettingKeyOpenAIAllowClaudeCodeCodexPlugin] = strconv.FormatBool(settings.OpenAIAllowClaudeCodeCodexPlugin)
 	updates[SettingKeyCustomMenuItems] = settings.CustomMenuItems
 	updates[SettingKeyLoginAgreementEnabled] = strconv.FormatBool(settings.LoginAgreementEnabled)
 	updates[SettingKeyLoginAgreementMode] = NormalizeLoginAgreementMode(settings.LoginAgreementMode)

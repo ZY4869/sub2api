@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
 
@@ -177,6 +179,23 @@ type publicCatalogGroupRepoStub struct {
 	groups []Group
 }
 
+func (s *publicCatalogGroupRepoStub) GetByID(_ context.Context, id int64) (*Group, error) {
+	return s.GetByIDLite(context.Background(), id)
+}
+
+func (s *publicCatalogGroupRepoStub) GetByIDLite(_ context.Context, id int64) (*Group, error) {
+	if s == nil {
+		return nil, ErrGroupNotFound
+	}
+	for _, group := range s.groups {
+		if group.ID == id {
+			copied := group
+			return &copied, nil
+		}
+	}
+	return nil, ErrGroupNotFound
+}
+
 func (s *publicCatalogGroupRepoStub) ListActive(context.Context) ([]Group, error) {
 	out := make([]Group, len(s.groups))
 	copy(out, s.groups)
@@ -204,6 +223,16 @@ func (s publicCatalogUserSubRepoStub) ListActiveByUserID(context.Context, int64)
 	out := make([]UserSubscription, len(s.active))
 	copy(out, s.active)
 	return out, nil
+}
+
+func (s publicCatalogUserSubRepoStub) ListByGroupID(_ context.Context, groupID int64, _ pagination.PaginationParams) ([]UserSubscription, *pagination.PaginationResult, error) {
+	out := make([]UserSubscription, 0, len(s.active))
+	for _, sub := range s.active {
+		if sub.GroupID == groupID {
+			out = append(out, sub)
+		}
+	}
+	return out, &pagination.PaginationResult{Total: int64(len(out))}, nil
 }
 
 type failingPublicCatalogSettingRepo struct{}
@@ -327,11 +356,21 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesExpectedPrimaryPrice
 
 	items := publicCatalogItemsByModel(result.Items)
 	textItem := items["gpt-5.4"]
-	require.Equal(t, []string{billingDiscountFieldInputPrice, billingDiscountFieldOutputPrice, billingDiscountFieldCachePrice}, publicCatalogPriceEntryIDs(textItem.PriceDisplay.Primary))
+	require.Equal(t, []string{
+		billingDiscountFieldInputPrice,
+		billingDiscountFieldOutputPrice,
+		publicModelCatalogFieldCacheCreation,
+		publicModelCatalogFieldCacheRead,
+		publicModelCatalogFieldCache5m,
+		publicModelCatalogFieldCache1h,
+	}, publicCatalogPriceEntryIDs(textItem.PriceDisplay.Primary))
 	require.Equal(t, []string{billingDiscountFieldBatchOutputPrice}, publicCatalogPriceEntryIDs(textItem.PriceDisplay.Secondary))
 	require.Equal(t, BillingUnitInputToken, textItem.PriceDisplay.Primary[0].Unit)
 	require.Equal(t, BillingUnitOutputToken, textItem.PriceDisplay.Primary[1].Unit)
 	require.Equal(t, BillingUnitCacheCreateToken, textItem.PriceDisplay.Primary[2].Unit)
+	require.Equal(t, BillingUnitCacheReadToken, textItem.PriceDisplay.Primary[3].Unit)
+	require.Equal(t, BillingUnitCacheCreateToken, textItem.PriceDisplay.Primary[4].Unit)
+	require.Equal(t, BillingUnitCacheStorageTokenHour, textItem.PriceDisplay.Primary[5].Unit)
 
 	imageItem := items["gemini-2.5-flash-image"]
 	require.Equal(t, []string{billingDiscountFieldOutputPrice}, publicCatalogPriceEntryIDs(imageItem.PriceDisplay.Primary))
@@ -505,10 +544,13 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_FallsBackFieldByFieldToO
 	require.NoError(t, err)
 
 	item := publicCatalogItemsByModel(result.Items)["gpt-5.4"]
-	require.Len(t, item.PriceDisplay.Primary, 3)
+	require.Len(t, item.PriceDisplay.Primary, 6)
 	require.InDelta(t, 0.5e-6, item.PriceDisplay.Primary[0].Value, 1e-12)
 	require.InDelta(t, 8e-6, item.PriceDisplay.Primary[1].Value, 1e-12)
 	require.InDelta(t, 1e-6, item.PriceDisplay.Primary[2].Value, 1e-12)
+	require.InDelta(t, 1e-6, item.PriceDisplay.Primary[3].Value, 1e-12)
+	require.InDelta(t, 1e-6, item.PriceDisplay.Primary[4].Value, 1e-12)
+	require.InDelta(t, 1e-6, item.PriceDisplay.Primary[5].Value, 1e-12)
 }
 
 func TestModelCatalogService_PublicModelCatalogSnapshot_UsesScopedProjectionAndSkipsUnpricedModels(t *testing.T) {
@@ -766,6 +808,38 @@ func TestBuildPublicModelCatalogItemFromProjection_PrefersActualProviderOverProj
 	require.Equal(t, PublicModelStatusOK, item.Status)
 }
 
+func TestBuildPublicModelCatalogItemFromProjection_MarksInferredLifecycleSource(t *testing.T) {
+	item, ok := buildPublicModelCatalogItemFromProjection(
+		PublicModelProjectionEntry{
+			PublicID:          "gpt-next-preview",
+			DisplayName:       "GPT Next Preview",
+			Platform:          PlatformOpenAI,
+			AvailabilityState: AccountModelAvailabilityVerified,
+			StaleState:        AccountModelStaleStateFresh,
+			LifecycleStatus:   PublicModelLifecycleBeta,
+			LifecycleInferred: true,
+			SourceIDs:         []string{"gpt-next-preview"},
+		},
+		nil,
+		&BillingPricingCatalogSnapshot{
+			Models: []BillingPricingPersistedModel{
+				newPublicCatalogPersistedModel("gpt-next-preview", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+					InputPrice:     modelCatalogFloat64Ptr(1e-6),
+					OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+					Special:        BillingPricingSimpleSpecial{},
+					SpecialEnabled: false,
+				}),
+			},
+		},
+		nil,
+	)
+
+	require.True(t, ok)
+	require.Equal(t, PublicModelLifecycleBeta, item.LifecycleStatus)
+	require.Equal(t, PublicModelLifecycleSourceInferred, item.Lifecycle.Source)
+	require.Equal(t, PublicModelLifecycleConfidenceInferred, item.Lifecycle.Confidence)
+}
+
 func TestAppendPublicModelProjectionAggregate_PrefersBestRepresentativeStatus(t *testing.T) {
 	items := map[string]PublicModelProjectionEntry{}
 
@@ -1011,6 +1085,69 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_FallsBackToLiveWhenNotPu
 	require.Equal(t, "gpt-5.4", detail.Item.Model)
 }
 
+func TestModelCatalogService_PublicModelCatalogDetail_LiveFallbackRejectsSourceModelID(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(ctx, repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("real-model-1", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+	extra := mergePublicCatalogExtra(publicCatalogVerifiedProbeExtra("public-model-2"), map[string]any{
+		"model_scope_v2": (&AccountModelScopeV2{
+			PolicyMode: AccountModelPolicyModeMapping,
+			Entries: []AccountModelScopeEntry{{
+				DisplayModelID: "public-model-2",
+				TargetModelID:  "real-model-1",
+				Provider:       PlatformOpenAI,
+				SourceProtocol: PlatformOpenAI,
+				VisibilityMode: AccountModelVisibilityModeAlias,
+			}},
+		}).ToMap(),
+	})
+	gatewaySvc := &GatewayService{
+		accountRepo: groupAwarePublicCatalogAccountRepo(map[int64][]Account{
+			10: {{
+				ID:          42,
+				Name:        "source-account",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Extra:       extra,
+			}},
+		}),
+		groupRepo: &publicCatalogGroupRepoStub{
+			groups: []Group{{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive}},
+		},
+		cfg: &config.Config{},
+	}
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetGatewayService(gatewaySvc)
+
+	detail, err := svc.PublicModelCatalogDetail(ctx, "public-model-2")
+	require.NoError(t, err)
+	require.Equal(t, PublicModelCatalogSourceLiveFallback, detail.CatalogSource)
+	require.Equal(t, "public-model-2", detail.Item.PublicModelID)
+	require.Equal(t, "public-model-2", detail.Item.Model)
+
+	encoded := mustModelCatalogJSON(t, detail)
+	require.Contains(t, encoded, "public-model-2")
+	require.NotContains(t, encoded, "real-model-1")
+	require.NotContains(t, encoded, "source_model_id")
+	require.NotContains(t, encoded, "source_ids")
+	require.NotContains(t, encoded, "source_account")
+
+	_, err = svc.PublicModelCatalogDetail(ctx, "real-model-1")
+	require.Error(t, err)
+}
+
 func TestModelCatalogService_SavePublicModelCatalogDraft_DoesNotChangePublishedSnapshot(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
@@ -1113,7 +1250,113 @@ func TestModelCatalogService_PublishedPublicModelCatalogDetail_RemainsFrozenAfte
 	require.Equal(t, frozenBefore.ExampleMarkdown, frozenAfter.ExampleMarkdown)
 }
 
-func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesPublishedPrices(t *testing.T) {
+func TestModelCatalogService_PublishPublicModelCatalogRejectsIncompleteBillingCoverage(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{{
+			Model:                 "gpt-5.4",
+			DisplayName:           "GPT-5.4",
+			Provider:              PlatformOpenAI,
+			Mode:                  "chat",
+			Currency:              ModelPricingCurrencyUSD,
+			InputSupported:        true,
+			OutputChargeSlot:      BillingChargeSlotTextOutput,
+			SupportsPromptCaching: true,
+			SaleForm: BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				SpecialEnabled: false,
+				Special:        BillingPricingSimpleSpecial{},
+			},
+			OfficialForm: BillingPricingLayerForm{
+				SpecialEnabled: false,
+				Special:        BillingPricingSimpleSpecial{},
+			},
+		}},
+	}))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(context.Background(), repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	attachVerifiedPublicCatalogGateway(svc, "gpt-5.4")
+	_, err := svc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"gpt-5.4"},
+		PageSize:       10,
+	})
+
+	require.Error(t, err)
+	require.Equal(t, "PUBLIC_MODEL_BILLING_INCOMPLETE", infraerrors.Reason(err))
+	appErr := infraerrors.FromError(err)
+	require.Contains(t, appErr.Metadata["public_model_ids"], "gpt-5.4")
+	require.Contains(t, appErr.Metadata["missing_fields"], publicModelCatalogFieldCacheCreation)
+	require.Contains(t, appErr.Metadata["missing_fields"], publicModelCatalogFieldCacheRead)
+	require.Contains(t, appErr.Metadata["missing_fields"], publicModelCatalogFieldCache5m)
+	require.Contains(t, appErr.Metadata["missing_fields"], publicModelCatalogFieldCache1h)
+}
+
+func TestModelCatalogService_PublishPublicModelCatalogRejectsLegacyCacheOnlyCoverage(t *testing.T) {
+	item := PublicModelCatalogItem{
+		Model: "gpt-5.4",
+		SalePriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{
+				{ID: billingDiscountFieldInputPrice, Unit: BillingUnitInputToken, Value: 1e-6, Configured: true},
+				{ID: billingDiscountFieldOutputPrice, Unit: BillingUnitOutputToken, Value: 2e-6, Configured: true},
+				{ID: billingDiscountFieldCachePrice, Unit: BillingUnitCacheCreateToken, Value: 3e-6, Configured: true},
+			},
+		},
+		RuntimePriceSpec: PublicModelCatalogRuntimePriceSpec{
+			InputSupported:        true,
+			OutputChargeSlot:      BillingChargeSlotTextOutput,
+			SupportsPromptCaching: true,
+		},
+	}
+
+	missing := publicModelCatalogMissingBillingFields(item)
+	require.Contains(t, missing, publicModelCatalogFieldCacheCreation)
+	require.Contains(t, missing, publicModelCatalogFieldCacheRead)
+	require.Contains(t, missing, publicModelCatalogFieldCache5m)
+	require.Contains(t, missing, publicModelCatalogFieldCache1h)
+	require.NotContains(t, missing, billingDiscountFieldCachePrice)
+}
+
+func TestModelCatalogService_PublishPublicModelCatalogValidatesNonTokenUnits(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		mode string
+		slot string
+		unit string
+	}{
+		{name: "image", mode: "image", slot: BillingChargeSlotImageOutput, unit: BillingUnitImage},
+		{name: "video", mode: "video", slot: BillingChargeSlotVideoRequest, unit: BillingUnitVideoRequest},
+		{name: "request", mode: "chat", slot: BillingChargeSlotGroundingSearchRequest, unit: BillingUnitGroundingSearchRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			item := PublicModelCatalogItem{
+				Model: "priced-" + tc.name,
+				Mode:  tc.mode,
+				RuntimePriceSpec: PublicModelCatalogRuntimePriceSpec{
+					InputSupported:   false,
+					OutputChargeSlot: tc.slot,
+				},
+			}
+			require.Equal(t, []string{billingDiscountFieldOutputPrice}, publicModelCatalogMissingBillingFields(item))
+
+			item.SalePriceDisplay = PublicModelCatalogPriceDisplay{
+				Primary: []PublicModelCatalogPriceEntry{{
+					ID:          billingDiscountFieldOutputPrice,
+					Unit:        tc.unit,
+					UnitKind:    publicModelCatalogFieldUnitKind(billingPricingFormMetadata{OutputChargeSlot: tc.slot}, billingDiscountFieldOutputPrice),
+					DisplayUnit: publicModelCatalogFieldDisplayUnit(billingPricingFormMetadata{OutputChargeSlot: tc.slot}, billingDiscountFieldOutputPrice),
+					Value:       0.1,
+					Configured:  true,
+				}},
+			}
+			require.Empty(t, publicModelCatalogMissingBillingFields(item))
+		})
+	}
+}
+
+func TestAPIKeyService_GetGroupModelCatalogSnapshot_KeepsPublishedPricesFixed(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
 		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
@@ -1156,10 +1399,11 @@ func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesPublishedPrices(t *tes
 	require.NoError(t, err)
 	require.Len(t, snapshot.Items, 1)
 	require.Equal(t, PublicModelCatalogSourcePublished, snapshot.CatalogSource)
-	require.NotEqual(t, basePublished.ETag, snapshot.ETag)
+	require.Equal(t, basePublished.ETag, snapshot.ETag)
 	require.Equal(t, basePublished.UpdatedAt, snapshot.UpdatedAt)
-	require.InDelta(t, 1.5e-6, snapshot.Items[0].PriceDisplay.Primary[0].Value, 1e-12)
-	require.InDelta(t, 3e-6, snapshot.Items[0].PriceDisplay.Primary[1].Value, 1e-12)
+	require.Equal(t, basePublished.PublishedAt, snapshot.PublishedAt)
+	require.InDelta(t, 1e-6, snapshot.Items[0].PriceDisplay.Primary[0].Value, 1e-12)
+	require.InDelta(t, 2e-6, snapshot.Items[0].PriceDisplay.Primary[1].Value, 1e-12)
 }
 
 func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesLiveFallbackPrices(t *testing.T) {
@@ -1201,6 +1445,174 @@ func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesLiveFallbackPrices(t *
 	require.NotEmpty(t, snapshot.ETag)
 	require.InDelta(t, 1.5e-6, snapshot.Items[0].PriceDisplay.Primary[0].Value, 1e-12)
 	require.InDelta(t, 3e-6, snapshot.Items[0].PriceDisplay.Primary[1].Value, 1e-12)
+}
+
+func TestGatewayService_APIKeyModelCatalogSnapshot_NoModelBindingReturnsAllPublishedModels(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestPublishedAPIKeyModelCatalogGateway(t, []PublicModelCatalogItem{
+		testPublishedCatalogRouteItem("gpt-5.4", PlatformOpenAI, "chat", 42),
+		testPublishedCatalogRouteItem("gpt-image-2", PlatformOpenAI, "image", 42),
+	})
+	apiKey := &APIKey{
+		ID: 10,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 20,
+			Group:   &Group{ID: 20, Name: "openai", Platform: PlatformOpenAI, Status: StatusActive},
+		}},
+	}
+
+	snapshot, err := svc.APIKeyModelCatalogSnapshot(ctx, apiKey, APIKeyModelCatalogOptions{})
+	require.NoError(t, err)
+	require.Len(t, snapshot.Items, 2)
+	require.Equal(t, PublicModelKeyAvailabilityAvailable, publicCatalogItemsByModel(snapshot.Items)["gpt-5.4"].KeyAvailability)
+	require.Equal(t, PublicModelKeyAvailabilityAvailable, publicCatalogItemsByModel(snapshot.Items)["gpt-image-2"].KeyAvailability)
+
+	entries, err := svc.GetAPIKeyPublicModels(ctx, apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"gpt-5.4", "gpt-image-2"}, publicCatalogEntryIDs(entries))
+}
+
+func TestGatewayService_APIKeyModelCatalogSnapshot_ModelBindingNarrowsAndAnnotatesUnavailable(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestPublishedAPIKeyModelCatalogGateway(t, []PublicModelCatalogItem{
+		testPublishedCatalogRouteItem("gpt-5.4", PlatformOpenAI, "chat", 42),
+		testPublishedCatalogRouteItem("gpt-5.4-mini", PlatformOpenAI, "chat", 42),
+	})
+	apiKey := &APIKey{
+		ID: 10,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID:       20,
+			Group:         &Group{ID: 20, Name: "openai", Platform: PlatformOpenAI, Status: StatusActive},
+			ModelPatterns: []string{"gpt-5.4"},
+		}},
+	}
+
+	availableOnly, err := svc.APIKeyModelCatalogSnapshot(ctx, apiKey, APIKeyModelCatalogOptions{})
+	require.NoError(t, err)
+	require.Len(t, availableOnly.Items, 1)
+	require.Equal(t, "gpt-5.4", availableOnly.Items[0].Model)
+	require.Equal(t, PublicModelKeyAvailabilityAvailable, availableOnly.Items[0].KeyAvailability)
+
+	withUnavailable, err := svc.APIKeyModelCatalogSnapshot(ctx, apiKey, APIKeyModelCatalogOptions{IncludeUnavailable: true})
+	require.NoError(t, err)
+	require.Len(t, withUnavailable.Items, 2)
+	byModel := publicCatalogItemsByModel(withUnavailable.Items)
+	require.Equal(t, PublicModelKeyAvailabilityAvailable, byModel["gpt-5.4"].KeyAvailability)
+	require.Equal(t, PublicModelKeyAvailabilityUnavailable, byModel["gpt-5.4-mini"].KeyAvailability)
+	require.Equal(t, PublicModelUnavailableReasonNotSelectedByKey, byModel["gpt-5.4-mini"].UnavailableReason)
+}
+
+func TestGatewayService_APIKeyModelCatalogSnapshot_ImageOnlyKeyRestrictsNonImageModels(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestPublishedAPIKeyModelCatalogGateway(t, []PublicModelCatalogItem{
+		testPublishedCatalogRouteItem("gpt-5.4", PlatformOpenAI, "chat", 42),
+		testPublishedCatalogRouteItem("gpt-image-2", PlatformOpenAI, "image", 42),
+	})
+	apiKey := &APIKey{
+		ID:               10,
+		ImageOnlyEnabled: true,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 20,
+			Group:   &Group{ID: 20, Name: "openai", Platform: PlatformOpenAI, Status: StatusActive},
+		}},
+	}
+
+	availableOnly, err := svc.APIKeyModelCatalogSnapshot(ctx, apiKey, APIKeyModelCatalogOptions{})
+	require.NoError(t, err)
+	require.Len(t, availableOnly.Items, 1)
+	require.Equal(t, "gpt-image-2", availableOnly.Items[0].Model)
+
+	withUnavailable, err := svc.APIKeyModelCatalogSnapshot(ctx, apiKey, APIKeyModelCatalogOptions{IncludeUnavailable: true})
+	require.NoError(t, err)
+	byModel := publicCatalogItemsByModel(withUnavailable.Items)
+	require.Equal(t, PublicModelKeyAvailabilityUnavailable, byModel["gpt-5.4"].KeyAvailability)
+	require.Equal(t, PublicModelUnavailableReasonImageOnlyKeyRestricted, byModel["gpt-5.4"].UnavailableReason)
+	require.Equal(t, PublicModelKeyAvailabilityAvailable, byModel["gpt-image-2"].KeyAvailability)
+}
+
+func TestGatewayService_APIKeyModelCatalogSnapshot_UnavailableReasons(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestPublishedAPIKeyModelCatalogGateway(t, []PublicModelCatalogItem{
+		testPublishedCatalogRouteItem("gpt-5.4", PlatformOpenAI, "chat", 42),
+		testPublishedCatalogRouteItem("gpt-5.4-mini", PlatformOpenAI, "chat", 42),
+		testPublishedCatalogRouteItem("claude-sonnet-4", PlatformAnthropic, "chat", 42),
+	})
+
+	inactiveGroupKey := &APIKey{
+		ID: 10,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 20,
+			Group:   &Group{ID: 20, Name: "openai", Platform: PlatformOpenAI, Status: StatusDisabled},
+		}},
+	}
+	inactiveSnapshot, err := svc.APIKeyModelCatalogSnapshot(ctx, inactiveGroupKey, APIKeyModelCatalogOptions{IncludeUnavailable: true})
+	require.NoError(t, err)
+	require.Equal(t, PublicModelUnavailableReasonGroupUnavailable, publicCatalogItemsByModel(inactiveSnapshot.Items)["gpt-5.4"].UnavailableReason)
+
+	platformKey := &APIKey{
+		ID: 11,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 20,
+			Group:   &Group{ID: 20, Name: "openai", Platform: PlatformOpenAI, Status: StatusActive},
+		}},
+	}
+	platformSnapshot, err := svc.APIKeyModelCatalogSnapshot(ctx, platformKey, APIKeyModelCatalogOptions{IncludeUnavailable: true})
+	require.NoError(t, err)
+	require.Equal(t, PublicModelUnavailableReasonGroupUnavailable, publicCatalogItemsByModel(platformSnapshot.Items)["claude-sonnet-4"].UnavailableReason)
+
+	sourceUnavailableKey := &APIKey{
+		ID: 12,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 20,
+			Group:   &Group{ID: 20, Name: "openai", Platform: PlatformOpenAI, Status: StatusActive},
+		}},
+	}
+	svc.accountRepo = groupAwarePublicCatalogAccountRepo(map[int64][]Account{})
+	sourceSnapshot, err := svc.APIKeyModelCatalogSnapshot(ctx, sourceUnavailableKey, APIKeyModelCatalogOptions{IncludeUnavailable: true})
+	require.NoError(t, err)
+	require.Equal(t, PublicModelUnavailableReasonPublishedSourceUnavailable, publicCatalogItemsByModel(sourceSnapshot.Items)["gpt-5.4"].UnavailableReason)
+}
+
+func TestModelCatalogService_PublishAndRevalidatePublishedSnapshotTimestamps(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(ctx, repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-5.4")))
+	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	attachVerifiedPublicCatalogGateway(modelCatalogSvc, "gpt-5.4")
+
+	published, err := modelCatalogSvc.PublishPublicModelCatalog(ctx, ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"gpt-5.4"},
+		PageSize:       10,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, published.PublishedAt)
+	require.Equal(t, published.PublishedAt, published.LastRevalidatedAt)
+	require.Empty(t, published.StaleReason)
+
+	modelCatalogSvc.SetGatewayService(&GatewayService{
+		accountRepo: groupAwarePublicCatalogAccountRepo(map[int64][]Account{}),
+		cfg:         &config.Config{},
+	})
+	waitForNextRFC3339Second()
+	result, err := modelCatalogSvc.RevalidatePublishedPublicModelCatalog(ctx, ModelCatalogActor{UserID: 2, Email: "ops@test.com"})
+	require.NoError(t, err)
+	require.Equal(t, 1, result.ModelCount)
+	require.Equal(t, 1, result.StaleCount)
+	require.Equal(t, 1, result.Reasons[PublicModelUnavailableReasonPublishedSourceUnavailable])
+	require.Equal(t, PublicModelUnavailableReasonPublishedSourceUnavailable+":1", result.Published.StaleReason)
+	require.NotEqual(t, published.LastRevalidatedAt, result.Published.LastRevalidatedAt)
+	require.NotEqual(t, published.ETag, result.Published.ETag)
 }
 
 func TestAPIKeyService_GetAvailableGroupModelOptions_LiveFallbackUsesEffectiveCatalog(t *testing.T) {
@@ -1414,16 +1826,12 @@ func TestModelCatalogService_PublicModelCatalogStatusSnapshot_AttachesConfigured
 	require.NoError(t, err)
 	byModel := publicModelCatalogStatusesByModel(status.Items)
 
-	require.NotNil(t, byModel["claude-sonnet-4.5"].RateLimit)
-	require.Equal(t, int64(60), *byModel["claude-sonnet-4.5"].RateLimit.RPM)
-	require.Nil(t, byModel["claude-sonnet-4.5"].RateLimit.TPM)
-	require.Nil(t, byModel["claude-sonnet-4.5"].RateLimit.RPD)
-	require.NotNil(t, byModel["claude-sonnet-4.5@backup"].RateLimit)
-	require.Equal(t, int64(30), *byModel["claude-sonnet-4.5@backup"].RateLimit.RPM)
-	require.Nil(t, byModel["claude-sonnet-4.5@backup"].RateLimit.RPD)
+	require.Nil(t, byModel["claude-sonnet-4.5"].RateLimit)
+	require.Nil(t, byModel["claude-sonnet-4.5@backup"].RateLimit)
 	require.Nil(t, byModel["gpt-5.4"].RateLimit)
 
 	encoded := mustModelCatalogJSON(t, status)
+	require.NotContains(t, encoded, "rate_limit")
 	require.NotContains(t, encoded, "source_account")
 	require.NotContains(t, encoded, "source_model")
 	require.NotContains(t, encoded, "scoped-")
@@ -1451,6 +1859,125 @@ func TestModelCatalogService_PublicModelCatalogRateLimitSummaries_UsesSafeMinimu
 	require.Equal(t, int64(30), *summary.RPM)
 	require.Nil(t, summary.TPM)
 	require.Nil(t, summary.RPD)
+}
+
+func TestModelCatalogService_PublicModelCatalogCapacityDiagnosticsAggregatesAdminSources(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	ctx := context.Background()
+	resetAt := time.Now().UTC().Add(10 * time.Minute)
+	dailyLimit := 10.0
+	weeklyLimit := 50.0
+	monthlyLimit := 100.0
+	published := &PublicModelCatalogPublishedSnapshot{
+		Snapshot: PublicModelCatalogSnapshot{
+			ETag:      "etag-capacity",
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			PageSize:  10,
+			Items: []PublicModelCatalogItem{
+				publicCatalogPublishedRateLimitItem("claude-sonnet-4.5", 88),
+			},
+		},
+	}
+	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot, published))
+	account := publicCatalogRateLimitAccount(88, PlatformAnthropic, AccountTypeOAuth, "claude-sonnet-4.5", map[string]any{
+		"base_rpm": 60,
+		modelRateLimitsKey: map[string]any{
+			"claude-sonnet-4.5": map[string]any{"rate_limit_reset_at": resetAt.Format(time.RFC3339)},
+		},
+	})
+	account.GroupIDs = []int64{10}
+	account.Extra["quota_limit"] = 100.0
+	account.Extra["quota_used"] = 25.0
+	groupRepo := &publicCatalogGroupRepoStub{groups: []Group{{
+		ID:               10,
+		Name:             "Anthropic",
+		Platform:         PlatformAnthropic,
+		Status:           StatusActive,
+		SubscriptionType: SubscriptionTypeSubscription,
+		DailyLimitUSD:    &dailyLimit,
+		WeeklyLimitUSD:   &weeklyLimit,
+		MonthlyLimitUSD:  &monthlyLimit,
+	}}}
+	apiKeyRepo := &publicCatalogCapacityAPIKeyRepoStub{
+		keysByGroup: map[int64][]APIKey{10: {{
+			ID:          100,
+			UserID:      7,
+			Status:      StatusActive,
+			Quota:       20,
+			QuotaUsed:   10,
+			RateLimit5h: 5,
+			GroupBindings: []APIKeyGroupBinding{{
+				GroupID:   10,
+				Quota:     30,
+				QuotaUsed: 12,
+			}},
+		}}},
+		rateLimitByKey: map[int64]*APIKeyRateLimitData{100: {
+			Usage5h:       3,
+			Window5hStart: publicCatalogTimePtr(time.Now().UTC().Add(-time.Hour)),
+		}},
+	}
+	quotaRepo := &publicCatalogUserPlatformQuotaRepoStub{
+		itemsByUser: map[int64][]UserPlatformQuota{
+			7: {
+				{
+					UserID:           7,
+					Platform:         PlatformAnthropic,
+					DailyLimitUSD:    modelCatalogFloat64Ptr(15),
+					DailyUsageUSD:    4,
+					DailyWindowStart: publicCatalogTimePtr(time.Now().UTC().Add(-time.Hour)),
+				},
+			},
+		},
+	}
+	userSubRepo := publicCatalogUserSubRepoStub{
+		active: []UserSubscription{
+			{
+				ID:                 1,
+				UserID:             7,
+				GroupID:            10,
+				Status:             SubscriptionStatusActive,
+				ExpiresAt:          time.Now().UTC().Add(24 * time.Hour),
+				DailyUsageUSD:      3,
+				WeeklyUsageUSD:     6,
+				MonthlyUsageUSD:    9,
+				DailyWindowStart:   publicCatalogTimePtr(time.Now().UTC().Add(-time.Hour)),
+				WeeklyWindowStart:  publicCatalogTimePtr(time.Now().UTC().Add(-time.Hour)),
+				MonthlyWindowStart: publicCatalogTimePtr(time.Now().UTC().Add(-time.Hour)),
+			},
+		},
+	}
+	gateway := &GatewayService{
+		accountRepo: groupAwarePublicCatalogAccountRepo(map[int64][]Account{10: {account}}),
+		groupRepo:   groupRepo,
+		userSubRepo: userSubRepo,
+		cfg:         &config.Config{},
+	}
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetGatewayService(gateway)
+	svc.SetCapacityDiagnosticsDependencies(apiKeyRepo, NewUserPlatformQuotaService(quotaRepo))
+
+	diagnostics, err := svc.PublicModelCatalogCapacityDiagnostics(ctx)
+	require.NoError(t, err)
+	require.Len(t, diagnostics.Items, 1)
+	item := diagnostics.Items[0]
+	require.Equal(t, int64(10), item.BindingGroupID)
+	require.NotNil(t, item.EffectiveRateLimit)
+	require.Equal(t, int64(60), *item.EffectiveRateLimit.RPM)
+	require.Contains(t, publicCatalogCapacitySourceScopes(item.Sources), publicCatalogCapacityScopeAccount)
+	require.Contains(t, publicCatalogCapacitySourceScopes(item.Sources), publicCatalogCapacityScopeModel)
+	require.Contains(t, publicCatalogCapacitySourceScopes(item.Sources), publicCatalogCapacityScopeAPIKey)
+	require.Contains(t, publicCatalogCapacitySourceScopes(item.Sources), publicCatalogCapacityScopeGroup)
+	require.Contains(t, publicCatalogCapacitySourceScopes(item.Sources), publicCatalogCapacityScopeUserPlatform)
+	require.Contains(t, publicCatalogCapacitySourceScopes(item.Sources), publicCatalogCapacityScopeProviderQuota)
+	require.Contains(t, publicCatalogCapacityRestrictionScopes(item.Restrictions), publicCatalogCapacityScopeUserPlatform)
+	require.Contains(t, publicCatalogCapacityRestrictionKinds(item.Restrictions), "model_rate_limited")
+	require.Contains(t, publicCatalogCapacityRestrictionKinds(item.Restrictions), "api_key_rate_limit_5h_configured")
+	require.Contains(t, publicCatalogCapacityRestrictionKinds(item.Restrictions), "user_platform_daily_quota_configured")
+
+	encoded := mustModelCatalogJSON(t, diagnostics)
+	require.NotContains(t, encoded, "sk-")
+	require.NotContains(t, encoded, "api_key_secret")
 }
 
 func TestModelCatalogService_PublicModelCatalogStatusSnapshot_AttachesGeminiQuotaRateLimits(t *testing.T) {
@@ -1482,10 +2009,139 @@ func TestModelCatalogService_PublicModelCatalogStatusSnapshot_AttachesGeminiQuot
 	status, err := svc.PublicModelCatalogStatusSnapshot(ctx)
 	require.NoError(t, err)
 	summary := publicModelCatalogStatusesByModel(status.Items)["gemini-2.5-flash"].RateLimit
-	require.NotNil(t, summary)
-	require.Equal(t, int64(15), *summary.RPM)
-	require.Equal(t, int64(1500), *summary.RPD)
-	require.Nil(t, summary.TPM)
+	require.Nil(t, summary)
+
+	encoded := mustModelCatalogJSON(t, status)
+	require.NotContains(t, encoded, "rate_limit")
+}
+
+type publicModelCatalogTrafficHealthRepoStub struct {
+	statuses map[string]PublicModelCatalogStatusItem
+}
+
+func (s *publicModelCatalogTrafficHealthRepoStub) PublicModelCatalogTrafficHealth(_ context.Context, _ []PublicModelCatalogItem, _ time.Time, _ time.Time) (map[string]PublicModelCatalogStatusItem, error) {
+	return s.statuses, nil
+}
+
+func TestModelCatalogService_PublicModelCatalogStatusSnapshot_PrefersTrafficAndSanitizesSourceIDs(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	ctx := context.Background()
+	published := &PublicModelCatalogPublishedSnapshot{
+		Snapshot: PublicModelCatalogSnapshot{
+			ETag:      "etag-health-traffic",
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			PageSize:  10,
+			Items: []PublicModelCatalogItem{{
+				Model:             "public-model-2",
+				PublicModelID:     "public-model-2",
+				BaseModel:         "real-model-1",
+				SourceModelID:     "real-model-1",
+				SourceIDs:         []string{"real-model-1"},
+				SourceAccountID:   42,
+				DisplayName:       "Public Model 2",
+				Provider:          PlatformOpenAI,
+				ProviderIconKey:   PlatformOpenAI,
+				Status:            PublicModelStatusOK,
+				AvailabilityState: AccountModelAvailabilityVerified,
+				StaleState:        AccountModelStaleStateFresh,
+				LifecycleStatus:   PublicModelLifecycleStable,
+				RequestProtocols:  []string{PlatformOpenAI},
+				Currency:          ModelPricingCurrencyUSD,
+				PriceDisplay: PublicModelCatalogPriceDisplay{
+					Primary: []PublicModelCatalogPriceEntry{{ID: billingDiscountFieldInputPrice, Unit: "input_token", Value: 1}},
+				},
+				MultiplierSummary: PublicModelCatalogMultiplierSummary{Enabled: false, Kind: publicModelCatalogMultiplierDisabled},
+			}},
+		},
+	}
+	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot, published))
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetUsageHealthRepository(&publicModelCatalogTrafficHealthRepoStub{statuses: map[string]PublicModelCatalogStatusItem{
+		"public-model-2": {
+			Model:            "public-model-2",
+			PublicModelID:    "public-model-2",
+			Aliases:          []string{"public-model-2"},
+			Status:           PublicModelHealthStatusHealthy,
+			HealthSource:     PublicModelHealthSourceTraffic,
+			StatusReason:     PublicModelHealthReasonTrafficRecent,
+			SuccessRateToday: modelCatalogFloat64Ptr(1),
+			SuccessRate7d:    modelCatalogFloat64Ptr(1),
+			Daily:            []PublicModelCatalogDailyStatus{},
+			Trend:            []PublicModelCatalogTrendPoint{},
+		},
+	}})
+
+	status, err := svc.PublicModelCatalogStatusSnapshot(ctx)
+	require.NoError(t, err)
+	require.Len(t, status.Items, 1)
+	require.Equal(t, PublicModelHealthSourceTraffic, status.Items[0].HealthSource)
+	require.Equal(t, PublicModelHealthReasonTrafficRecent, status.Items[0].StatusReason)
+	require.Equal(t, "public-model-2", status.Items[0].PublicModelID)
+
+	encoded := mustModelCatalogJSON(t, status)
+	require.Contains(t, encoded, "public-model-2")
+	require.NotContains(t, encoded, "real-model-1")
+	require.NotContains(t, encoded, "source_model_id")
+	require.NotContains(t, encoded, "source_account")
+}
+
+type publicCatalogCapacityAPIKeyRepoStub struct {
+	APIKeyRepository
+	keysByGroup    map[int64][]APIKey
+	rateLimitByKey map[int64]*APIKeyRateLimitData
+}
+
+func (s *publicCatalogCapacityAPIKeyRepoStub) ListByGroupID(_ context.Context, groupID int64, _ pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
+	items := append([]APIKey(nil), s.keysByGroup[groupID]...)
+	return items, &pagination.PaginationResult{Total: int64(len(items))}, nil
+}
+
+func (s *publicCatalogCapacityAPIKeyRepoStub) GetRateLimitData(_ context.Context, id int64) (*APIKeyRateLimitData, error) {
+	if data := s.rateLimitByKey[id]; data != nil {
+		copied := *data
+		return &copied, nil
+	}
+	return &APIKeyRateLimitData{}, nil
+}
+
+type publicCatalogUserPlatformQuotaRepoStub struct {
+	itemsByUser map[int64][]UserPlatformQuota
+}
+
+func (s *publicCatalogUserPlatformQuotaRepoStub) ListByUser(_ context.Context, userID int64) ([]UserPlatformQuota, error) {
+	return append([]UserPlatformQuota(nil), s.itemsByUser[userID]...), nil
+}
+
+func (s *publicCatalogUserPlatformQuotaRepoStub) ReplaceForUser(_ context.Context, _ int64, _ []UserPlatformQuotaInput) ([]UserPlatformQuota, error) {
+	return nil, nil
+}
+
+func publicCatalogCapacitySourceScopes(sources []PublicModelCatalogCapacityDiagnosticSource) []string {
+	out := make([]string, 0, len(sources))
+	for _, source := range sources {
+		out = append(out, source.Scope)
+	}
+	return out
+}
+
+func publicCatalogCapacityRestrictionScopes(restrictions []PublicModelCatalogCapacityRestriction) []string {
+	out := make([]string, 0, len(restrictions))
+	for _, restriction := range restrictions {
+		out = append(out, restriction.Scope)
+	}
+	return out
+}
+
+func publicCatalogCapacityRestrictionKinds(restrictions []PublicModelCatalogCapacityRestriction) []string {
+	out := make([]string, 0, len(restrictions))
+	for _, restriction := range restrictions {
+		out = append(out, restriction.Kind)
+	}
+	return out
+}
+
+func publicCatalogTimePtr(value time.Time) *time.Time {
+	return &value
 }
 
 func newPublicCatalogPersistedModel(
@@ -1525,6 +2181,106 @@ func publicModelCatalogStatusesByModel(items []PublicModelCatalogStatusItem) map
 		result[item.Model] = item
 	}
 	return result
+}
+
+func publicCatalogEntryIDs(entries []APIKeyPublicModelEntry) []string {
+	result := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		result = append(result, entry.PublicID)
+	}
+	return result
+}
+
+func newTestPublishedAPIKeyModelCatalogGateway(t *testing.T, items []PublicModelCatalogItem) *GatewayService {
+	t.Helper()
+
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	published := &PublicModelCatalogPublishedSnapshot{
+		Snapshot: PublicModelCatalogSnapshot{
+			ETag:              "etag-key-catalog",
+			UpdatedAt:         "2026-05-01T00:00:00Z",
+			PublishedAt:       "2026-05-01T00:00:00Z",
+			LastRevalidatedAt: "2026-05-01T00:00:00Z",
+			PageSize:          10,
+			Items:             items,
+		},
+	}
+	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot, published))
+	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	gateway := &GatewayService{
+		modelCatalogService: modelCatalogSvc,
+		accountRepo: groupAwarePublicCatalogAccountRepo(map[int64][]Account{
+			20: {
+				testPublishedCatalogAccount(42, 20, PlatformOpenAI, "gpt-5.4", "gpt-5.4-mini", "gpt-image-2"),
+				testPublishedCatalogAccount(43, 20, PlatformAnthropic, "claude-sonnet-4"),
+			},
+		}),
+		cfg: &config.Config{},
+	}
+	modelCatalogSvc.SetGatewayService(gateway)
+	return gateway
+}
+
+func testPublishedCatalogRouteItem(modelID string, platform string, mode string, sourceAccountID int64) PublicModelCatalogItem {
+	return PublicModelCatalogItem{
+		Model:             modelID,
+		PublicModelID:     modelID,
+		BaseModel:         modelID,
+		SourceModelID:     modelID,
+		SourceProtocol:    platform,
+		SourceAccountID:   sourceAccountID,
+		DisplayName:       FormatModelCatalogDisplayName(modelID),
+		Provider:          platform,
+		ProviderIconKey:   platform,
+		Status:            PublicModelStatusOK,
+		AvailabilityState: AccountModelAvailabilityVerified,
+		StaleState:        AccountModelStaleStateFresh,
+		LifecycleStatus:   PublicModelLifecycleStable,
+		RequestProtocols:  []string{platform},
+		Mode:              mode,
+		Currency:          ModelPricingCurrencyUSD,
+		PriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{{ID: billingDiscountFieldInputPrice, Unit: BillingUnitInputToken, Value: 1e-6}},
+		},
+		SalePriceDisplay: PublicModelCatalogPriceDisplay{
+			Primary: []PublicModelCatalogPriceEntry{{ID: billingDiscountFieldInputPrice, Unit: BillingUnitInputToken, Value: 1e-6}},
+		},
+		MultiplierSummary: PublicModelCatalogMultiplierSummary{Enabled: false, Kind: publicModelCatalogMultiplierDisabled},
+		RuntimePriceSpec:  PublicModelCatalogRuntimePriceSpec{Currency: ModelPricingCurrencyUSD, OutputChargeSlot: BillingChargeSlotTextOutput},
+	}
+}
+
+func testPublishedCatalogAccount(id, groupID int64, platform string, models ...string) Account {
+	return Account{
+		ID:          id,
+		Name:        "account-" + platform,
+		Platform:    platform,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		GroupIDs:    []int64{groupID},
+		Extra: mergePublicCatalogExtra(publicCatalogVerifiedProbeExtra(models...), map[string]any{
+			"model_scope_v2": (&AccountModelScopeV2{
+				PolicyMode: AccountModelPolicyModeWhitelist,
+				Entries:    testPublishedCatalogScopeEntries(platform, models...),
+			}).ToMap(),
+		}),
+	}
+}
+
+func testPublishedCatalogScopeEntries(platform string, models ...string) []AccountModelScopeEntry {
+	entries := make([]AccountModelScopeEntry, 0, len(models))
+	for _, model := range models {
+		entries = append(entries, AccountModelScopeEntry{
+			DisplayModelID: model,
+			TargetModelID:  model,
+			Provider:       platform,
+			SourceProtocol: platform,
+			VisibilityMode: AccountModelVisibilityModeDirect,
+		})
+	}
+	return entries
 }
 
 func publicCatalogPublishedRateLimitItem(model string, sourceAccountID int64) PublicModelCatalogItem {

@@ -18,6 +18,8 @@ const (
 	NonceTemplate = "__CSP_NONCE__"
 	// CloudflareInsightsDomain is the domain for Cloudflare Web Analytics
 	CloudflareInsightsDomain = "https://static.cloudflareinsights.com"
+	AirwallexStaticDomain    = "https://static.airwallex.com"
+	AirwallexCheckoutDomain  = "https://checkout.airwallex.com"
 )
 
 // GenerateNonce generates a cryptographically secure random nonce.
@@ -106,11 +108,39 @@ func enhanceCSPPolicy(policy string) string {
 	}
 
 	// Add Cloudflare Insights domain to script-src if not present
-	if !strings.Contains(policy, CloudflareInsightsDomain) {
+	if !directiveHasValue(policy, "script-src", CloudflareInsightsDomain) {
 		policy = addToDirective(policy, "script-src", CloudflareInsightsDomain)
 	}
 
+	// Add payment provider domains required by Airwallex Elements SDK when enabled.
+	for _, domain := range []string{AirwallexStaticDomain, AirwallexCheckoutDomain} {
+		if !directiveHasValue(policy, "script-src", domain) {
+			policy = addToDirective(policy, "script-src", domain)
+		}
+		if !directiveHasValue(policy, "frame-src", domain) {
+			policy = addToDirective(policy, "frame-src", domain)
+		}
+	}
+
 	return policy
+}
+
+func directiveHasValue(policy, directive, value string) bool {
+	directivePrefix := directive + " "
+	idx := strings.Index(policy, directivePrefix)
+	if idx == -1 {
+		return false
+	}
+	segment := policy[idx:]
+	if endIdx := strings.Index(segment, ";"); endIdx != -1 {
+		segment = segment[:endIdx]
+	}
+	for _, token := range strings.Fields(strings.TrimSpace(strings.TrimPrefix(segment, directive))) {
+		if token == value {
+			return true
+		}
+	}
+	return false
 }
 
 // addToDirective adds a value to a specific CSP directive.

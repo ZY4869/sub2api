@@ -43,6 +43,9 @@ function cloneSnapshot(snapshot: PublicModelCatalogSnapshot | null): PublicModel
   return {
     etag: snapshot.etag,
     updated_at: snapshot.updated_at,
+    published_at: snapshot.published_at,
+    last_revalidated_at: snapshot.last_revalidated_at,
+    stale_reason: snapshot.stale_reason,
     page_size: snapshot.page_size,
     catalog_source: snapshot.catalog_source,
     items: snapshot.items.map(cloneItem)
@@ -55,6 +58,18 @@ function cloneItem(item: PublicModelCatalogItem): PublicModelCatalogItem {
     request_protocols: [...(item.request_protocols || [])],
     modalities: [...(item.modalities || [])],
     capabilities: [...(item.capabilities || [])],
+    context_window: item.context_window
+      ? { ...item.context_window, notes: [...(item.context_window.notes || [])] }
+      : undefined,
+    lifecycle: item.lifecycle ? { ...item.lifecycle } : undefined,
+    capability_matrix: item.capability_matrix?.map((entry) => ({
+      ...entry,
+      limitations: [...(entry.limitations || [])]
+    })),
+    protocol_endpoints: item.protocol_endpoints?.map((endpoint) => ({
+      ...endpoint,
+      limitations: [...(endpoint.limitations || [])]
+    })),
     price_display: {
       primary: item.price_display.primary.map((entry) => ({ ...entry })),
       secondary: item.price_display.secondary?.map((entry) => ({ ...entry }))
@@ -71,11 +86,32 @@ function cloneStatusSnapshot(snapshot: PublicModelCatalogStatusSnapshot | null):
     updated_at: snapshot.updated_at,
     items: snapshot.items.map((item) => ({
       ...item,
+      public_model_id: item.public_model_id || item.model,
+      health_status: item.health_status || 'pending',
+      aliases: [...(item.aliases || [])],
       daily: [...(item.daily || [])],
-      trend: [...(item.trend || [])],
-      rate_limit: item.rate_limit ? { ...item.rate_limit } : undefined
+      trend: [...(item.trend || [])]
     }))
   }
+}
+
+function publicModelStatusKeys(item: PublicModelCatalogStatusItem): string[] {
+  const values = [
+    item.public_model_id,
+    item.model,
+    ...(item.aliases || [])
+  ]
+  const seen = new Set<string>()
+  const keys: string[] = []
+  for (const value of values) {
+    const key = String(value || '').trim()
+    if (!key || seen.has(key)) {
+      continue
+    }
+    seen.add(key)
+    keys.push(key)
+  }
+  return keys
 }
 
 function resolveErrorMessage(error: unknown, fallback: string): string {
@@ -283,16 +319,16 @@ export function resetPublicModelCatalogStoreForTests() {
 export const usePublicModelCatalogStore = defineStore('publicModelCatalog', () => {
   const snapshot = computed(() => snapshotState.value)
   const statusSnapshot = computed(() => statusSnapshotState.value)
-  const statusByModel = computed<Record<string, PublicModelCatalogStatusItem>>(() => {
+  const statusByPublicModel = computed<Record<string, PublicModelCatalogStatusItem>>(() => {
     const items: Record<string, PublicModelCatalogStatusItem> = {}
     for (const item of statusSnapshotState.value?.items || []) {
-      const model = String(item.model || '').trim()
-      if (model) {
-        items[model] = item
+      for (const key of publicModelStatusKeys(item)) {
+        items[key] = item
       }
     }
     return items
   })
+  const statusByModel = statusByPublicModel
   const etag = computed(() => etagState.value)
   const loadedAt = computed(() => loadedAtState.value)
   const loading = computed(() => loadingState.value)
@@ -328,6 +364,7 @@ export const usePublicModelCatalogStore = defineStore('publicModelCatalog', () =
   return {
     snapshot,
     statusSnapshot,
+    statusByPublicModel,
     statusByModel,
     etag,
     loadedAt,

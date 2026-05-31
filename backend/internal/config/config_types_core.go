@@ -18,6 +18,7 @@ type Config struct {
 	Default                 DefaultConfig                 `mapstructure:"default"`
 	RateLimit               RateLimitConfig               `mapstructure:"rate_limit"`
 	Pricing                 PricingConfig                 `mapstructure:"pricing"`
+	PublicModelCatalog      PublicModelCatalogConfig      `mapstructure:"public_model_catalog"`
 	Gateway                 GatewayConfig                 `mapstructure:"gateway"`
 	APIKeyAuth              APIKeyAuthCacheConfig         `mapstructure:"api_key_auth_cache"`
 	SubscriptionCache       SubscriptionCacheConfig       `mapstructure:"subscription_cache"`
@@ -122,6 +123,9 @@ type PricingConfig struct {
 	FallbackFile             string `mapstructure:"fallback_file"`
 	UpdateIntervalHours      int    `mapstructure:"update_interval_hours"`
 	HashCheckIntervalMinutes int    `mapstructure:"hash_check_interval_minutes"`
+}
+type PublicModelCatalogConfig struct {
+	DemoMode bool `mapstructure:"demo_mode"`
 }
 type ServerConfig struct {
 	Host               string    `mapstructure:"host"`

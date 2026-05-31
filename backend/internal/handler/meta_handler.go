@@ -133,7 +133,8 @@ func (h *MetaHandler) ModelCatalog(c *gin.Context) {
 			return
 		}
 	}
-	snapshot, err := h.modelCatalogService.PublicModelCatalogSnapshot(c.Request.Context())
+	readOptions := service.PublicModelCatalogReadOptions{CatalogMode: c.Query("catalog_mode")}
+	snapshot, err := h.modelCatalogService.PublicModelCatalogSnapshotWithOptions(c.Request.Context(), readOptions)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -161,6 +162,7 @@ func (h *MetaHandler) ModelCatalog(c *gin.Context) {
 		zap.Bool("guest_allowed", guestAllowed),
 		zap.Bool("authenticated_request", authenticated),
 		zap.String("catalog_source", snapshot.CatalogSource),
+		zap.String("catalog_mode", readOptions.CatalogMode),
 		zap.Int("model_count", len(snapshot.Items)),
 	)
 	response.Success(c, snapshot)
@@ -203,7 +205,8 @@ func (h *MetaHandler) ModelCatalogDetail(c *gin.Context) {
 	}
 
 	modelID := strings.TrimSpace(c.Param("model"))
-	detail, err := h.modelCatalogService.PublicModelCatalogDetail(c.Request.Context(), modelID)
+	readOptions := service.PublicModelCatalogReadOptions{CatalogMode: c.Query("catalog_mode")}
+	detail, err := h.modelCatalogService.PublicModelCatalogDetailWithOptions(c.Request.Context(), modelID, readOptions)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -216,6 +219,7 @@ func (h *MetaHandler) ModelCatalogDetail(c *gin.Context) {
 		zap.Bool("authenticated_request", authenticated),
 		zap.String("catalog_source", detail.CatalogSource),
 		zap.String("example_source", detail.ExampleSource),
+		zap.String("catalog_mode", readOptions.CatalogMode),
 	)
 	response.Success(c, detail)
 }

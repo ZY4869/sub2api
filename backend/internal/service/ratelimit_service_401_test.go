@@ -87,8 +87,8 @@ func TestRateLimitService_HandleUpstreamError_OAuth401SetsTempUnschedulable(t *t
 		require.Equal(t, 0, repo.setErrorCalls)
 		require.Equal(t, 1, repo.tempCalls)
 		require.Equal(t, 0, repo.fullUpdateCalls)
-		require.Equal(t, 1, repo.updateCredentialsCalls)
-		require.NotEmpty(t, repo.lastCredentials["expires_at"])
+		require.Equal(t, 0, repo.updateCredentialsCalls)
+		require.Nil(t, repo.lastCredentials)
 		require.Len(t, invalidator.accounts, 1)
 	})
 
@@ -131,8 +131,8 @@ func TestRateLimitService_HandleUpstreamError_OAuth401InvalidatorError(t *testin
 	require.Equal(t, 0, repo.setErrorCalls)
 	require.Equal(t, 1, repo.tempCalls)
 	require.Equal(t, 0, repo.fullUpdateCalls)
-	require.Equal(t, 1, repo.updateCredentialsCalls)
-	require.NotEmpty(t, repo.lastCredentials["expires_at"])
+	require.Equal(t, 0, repo.updateCredentialsCalls)
+	require.Nil(t, repo.lastCredentials)
 	require.Len(t, invalidator.accounts, 1)
 }
 

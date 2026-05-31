@@ -33,6 +33,9 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAILoadBalanceCandidates(
 		if !s.isAccountTransportCompatible(account, req.RequiredTransport) {
 			continue
 		}
+		if !s.isAccountEndpointCapabilityCompatible(account, req.RequiredCapability) {
+			continue
+		}
 		filtered = append(filtered, account)
 		loadReq = append(loadReq, AccountWithConcurrency{
 			ID:             account.ID,

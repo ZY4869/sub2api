@@ -173,6 +173,7 @@ const (
 	SettingKeyAntigravityUserAgentVersion          = "antigravity_user_agent_version"
 	SettingKeyCodexOAuthUserAgentMode              = "codex_oauth_user_agent_mode"
 	SettingKeyCodexOAuthUserAgentOverride          = "codex_oauth_user_agent_override"
+	SettingKeyOpenAIAllowClaudeCodeCodexPlugin     = "openai_allow_claude_code_codex_plugin"
 	SettingKeyCustomMenuItems                      = "custom_menu_items"
 	SettingKeyLoginAgreementEnabled                = "login_agreement_enabled"
 	SettingKeyLoginAgreementMode                   = "login_agreement_mode"
@@ -194,6 +195,7 @@ const (
 	SettingKeyPublicModelCatalogDraft                        = "public_model_catalog_draft"
 	SettingKeyPublicModelCatalogDraftCandidateSnapshot       = "public_model_catalog_draft_candidate_snapshot"
 	SettingKeyPublicModelCatalogPublishedSnapshot            = "public_model_catalog_published_snapshot"
+	SettingKeyPublicModelCatalogAutoRevalidateEnabled        = "public_model_catalog_auto_revalidate_enabled"
 	SettingKeyModelPriceOverrides                            = "model_price_overrides"
 	SettingKeyModelOfficialPriceOverrides                    = "model_official_price_overrides"
 	SettingKeyModelPricingCurrencies                         = "model_pricing_currencies"
@@ -208,6 +210,7 @@ const (
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260328 = "model_registry_available_models_bootstrap_v20260328"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260416 = "model_registry_available_models_bootstrap_v20260416"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260417 = "model_registry_available_models_bootstrap_v20260417"
+	SettingKeyModelRegistryAvailableModelsBootstrapV20260529 = "model_registry_available_models_bootstrap_v20260529"
 
 	SettingKeyEnableIdentityPatch = "enable_identity_patch"
 	SettingKeyIdentityPatchPrompt = "identity_patch_prompt"

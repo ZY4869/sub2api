@@ -159,6 +159,12 @@ func (s *GatewayService) ResolvePublicImageRoute(
 
 	if len(unsupported) == 1 {
 		for provider, support := range unsupported {
+			if s != nil && s.modelCatalogService != nil {
+				catalogEntry := s.publicCatalogEntryForImageSupport(ctx, apiKey, requestedModel, inboundEndpoint)
+				if catalogEntry != nil {
+					s.modelCatalogService.RecordPublicModelCatalogRuntimeCapabilityFailure(ctx, catalogEntry, provider, publicModelEndpointKeyForImageEndpoint(provider, inboundEndpoint), "image_generation", PublicModelSupportUnsupported)
+				}
+			}
 			decision.StatusCode = http.StatusBadRequest
 			decision.ErrorType = "invalid_request_error"
 			decision.ErrorCode = GatewayReasonUnsupportedAction
@@ -252,6 +258,25 @@ func (s *GatewayService) resolvePublicImageCapability(ctx context.Context, entry
 	return inferModelMode(lookupID, "") == "image", false
 }
 
+func (s *GatewayService) publicCatalogEntryForImageSupport(
+	ctx context.Context,
+	apiKey *APIKey,
+	requestedModel string,
+	inboundEndpoint string,
+) *PublishedPublicCatalogEntry {
+	if s == nil || s.modelCatalogService == nil || apiKey == nil {
+		return nil
+	}
+	entry, matched, active, err := s.ResolveAPIKeyPublishedPublicCatalogRuntime(ctx, apiKey, "", requestedModel)
+	if err != nil || !active || !matched || entry == nil {
+		return nil
+	}
+	if !publicModelEndpointAllowed(entry.Item, publicModelEndpointKeyForImageEndpoint(entry.SourceProtocol, inboundEndpoint)) {
+		return nil
+	}
+	return entry
+}
+
 func resolveSinglePublicImageProvider(apiKey *APIKey, inboundEndpoint string) string {
 	bindings := apiKeyBindingsForSelection(apiKey)
 	if len(bindings) == 0 {
@@ -305,6 +330,28 @@ func normalizePublicImageProvider(platform string) string {
 func publicImageProviderSupportsAction(provider string, inboundEndpoint string) bool {
 	decision := DecideProtocolCapability(provider, inboundEndpoint, ProtocolCapabilityActionDefault)
 	return decision.Supported && decision.Mode == ProtocolCapabilityNativePassthrough
+}
+
+func publicModelEndpointKeyForImageEndpoint(provider string, inboundEndpoint string) string {
+	switch NormalizeInboundEndpoint(inboundEndpoint) {
+	case EndpointImagesEdits:
+		return strings.TrimSpace(strings.ToLower(provider)) + ".images.edits"
+	default:
+		return strings.TrimSpace(strings.ToLower(provider)) + ".images.generations"
+	}
+}
+
+func publicModelEndpointAllowed(item PublicModelCatalogItem, endpointKey string) bool {
+	endpointKey = strings.TrimSpace(endpointKey)
+	if endpointKey == "" {
+		return true
+	}
+	for _, endpoint := range item.ProtocolEndpoints {
+		if endpoint.Key == endpointKey && publicModelSupportAllowsSummary(endpoint.Support) {
+			return true
+		}
+	}
+	return false
 }
 
 func publicImageUpstreamEndpoint(provider string, inboundEndpoint string) string {

@@ -210,6 +210,10 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx cont
 		req.Header.Set("anthropic-version", "2023-06-01")
 	}
 	ApplyClaudeCapabilityToHeader(req, capability)
+	if sanitized, changed := sanitizeAnthropicBodyForFinalBeta(body, req.Header.Get("anthropic-beta")); changed {
+		body = sanitized
+		resetRequestBody(req, sanitized)
+	}
 	return req, nil
 }
 func (s *GatewayService) handleStreamingResponseAnthropicAPIKeyPassthrough(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, startTime time.Time, model string) (*streamingResult, error) {

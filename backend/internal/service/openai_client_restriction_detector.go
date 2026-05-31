@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
@@ -16,7 +18,9 @@ const (
 	// CodexClientRestrictionReasonNotMatchedUA 表示请求未命中官方客户端 UA 白名单。
 	CodexClientRestrictionReasonNotMatchedUA = "official_client_user_agent_not_matched"
 	// CodexClientRestrictionReasonForceCodexCLI 表示通过 ForceCodexCLI 配置兜底放行。
-	CodexClientRestrictionReasonForceCodexCLI = "force_codex_cli_enabled"
+	CodexClientRestrictionReasonForceCodexCLI              = "force_codex_cli_enabled"
+	CodexClientRestrictionReasonAllowedClientMatched       = "allowed_client_matched"
+	CodexClientRestrictionReasonGlobalAllowedClientMatched = "global_allowed_client_matched"
 )
 
 // CodexClientRestrictionDetectionResult 是 codex_cli_only 统一检测入口结果。
@@ -33,11 +37,16 @@ type CodexClientRestrictionDetector interface {
 
 // OpenAICodexClientRestrictionDetector 为 OpenAI OAuth codex_cli_only 的默认实现。
 type OpenAICodexClientRestrictionDetector struct {
-	cfg *config.Config
+	cfg            *config.Config
+	settingService *SettingService
 }
 
 func NewOpenAICodexClientRestrictionDetector(cfg *config.Config) *OpenAICodexClientRestrictionDetector {
 	return &OpenAICodexClientRestrictionDetector{cfg: cfg}
+}
+
+func NewOpenAICodexClientRestrictionDetectorWithSettings(cfg *config.Config, settingService *SettingService) *OpenAICodexClientRestrictionDetector {
+	return &OpenAICodexClientRestrictionDetector{cfg: cfg, settingService: settingService}
 }
 
 func (d *OpenAICodexClientRestrictionDetector) Detect(c *gin.Context, account *Account) CodexClientRestrictionDetectionResult {
@@ -77,10 +86,35 @@ func (d *OpenAICodexClientRestrictionDetector) Detect(c *gin.Context, account *A
 			Reason:  CodexClientRestrictionReasonMatchedOriginator,
 		}
 	}
+	if openai.MatchAllowedClients(userAgent, originator, account.GetCodexCLIOnlyAllowedClients()) {
+		return CodexClientRestrictionDetectionResult{
+			Enabled: true,
+			Matched: true,
+			Reason:  CodexClientRestrictionReasonAllowedClientMatched,
+		}
+	}
+	if openai.MatchAllowedClients(userAgent, originator, d.globalAllowedClients(c)) {
+		return CodexClientRestrictionDetectionResult{
+			Enabled: true,
+			Matched: true,
+			Reason:  CodexClientRestrictionReasonGlobalAllowedClientMatched,
+		}
+	}
 
 	return CodexClientRestrictionDetectionResult{
 		Enabled: true,
 		Matched: false,
 		Reason:  CodexClientRestrictionReasonNotMatchedUA,
 	}
+}
+
+func (d *OpenAICodexClientRestrictionDetector) globalAllowedClients(c *gin.Context) []string {
+	if d == nil || d.settingService == nil {
+		return nil
+	}
+	ctx := context.Background()
+	if c != nil && c.Request != nil {
+		ctx = c.Request.Context()
+	}
+	return d.settingService.GetOpenAIAllowedCodexClients(ctx)
 }

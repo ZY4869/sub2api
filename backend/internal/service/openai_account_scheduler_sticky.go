@@ -59,8 +59,16 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
 		return nil, nil, nil
 	}
+	if !s.isAccountEndpointCapabilityCompatible(account, req.RequiredCapability) {
+		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
+		return nil, nil, nil
+	}
 	account = s.service.recheckSelectedOpenAIAccountFromDB(ctx, account, req.RequestedModel)
 	if account == nil {
+		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
+		return nil, nil, nil
+	}
+	if !s.isAccountEndpointCapabilityCompatible(account, req.RequiredCapability) {
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
 		return nil, nil, nil
 	}
@@ -92,4 +100,8 @@ func (s *defaultOpenAIAccountScheduler) isAccountTransportCompatible(account *Ac
 		return false
 	}
 	return s.service.getOpenAIWSProtocolResolver().Resolve(account).Transport == requiredTransport
+}
+
+func (s *defaultOpenAIAccountScheduler) isAccountEndpointCapabilityCompatible(account *Account, requiredCapability OpenAIEndpointCapability) bool {
+	return SupportsOpenAIEndpointCapability(account, requiredCapability)
 }

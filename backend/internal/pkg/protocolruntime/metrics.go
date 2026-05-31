@@ -28,6 +28,7 @@ type MetricsSnapshot struct {
 	GeminiBillingFallbackMissTotal          int64            `json:"gemini_billing_fallback_miss_total"`
 	PublicModelProjectionTotal              int64            `json:"public_model_projection_total"`
 	PublicModelRestrictionHitTotal          int64            `json:"public_model_restriction_hit_total"`
+	ModelCapabilityVerificationTotal        int64            `json:"model_capability_verification_total"`
 	ImageRouteTotal                         int64            `json:"image_route_total"`
 	ImageRouteSuccessTotal                  int64            `json:"image_route_success_total"`
 	ImageRouteFailureTotal                  int64            `json:"image_route_failure_total"`
@@ -59,6 +60,7 @@ type MetricsSnapshot struct {
 	GeminiBillingFallbackMissByReason       map[string]int64 `json:"gemini_billing_fallback_miss_by_reason"`
 	PublicModelProjectionBySource           map[string]int64 `json:"public_model_projection_by_source"`
 	PublicModelRestrictionByReason          map[string]int64 `json:"public_model_restriction_by_reason"`
+	ModelCapabilityVerificationByResult     map[string]int64 `json:"model_capability_verification_by_result"`
 	ImageRouteByFamily                      map[string]int64 `json:"image_route_by_family"`
 	ImageRouteByProvider                    map[string]int64 `json:"image_route_by_provider"`
 	ImageRouteSuccessByFamily               map[string]int64 `json:"image_route_success_by_family"`
@@ -113,6 +115,7 @@ type metrics struct {
 	geminiBillingFallbackMissTotal     atomic.Int64
 	publicModelProjectionTotal         atomic.Int64
 	publicModelRestrictionHitTotal     atomic.Int64
+	modelCapabilityVerificationTotal   atomic.Int64
 	imageRouteTotal                    atomic.Int64
 	imageRouteSuccessTotal             atomic.Int64
 	imageRouteFailureTotal             atomic.Int64
@@ -145,6 +148,7 @@ type metrics struct {
 	geminiBillingFallbackMissByReason       sync.Map
 	publicModelProjectionBySource           sync.Map
 	publicModelRestrictionByReason          sync.Map
+	modelCapabilityVerificationByResult     sync.Map
 	imageRouteByFamily                      sync.Map
 	imageRouteByProvider                    sync.Map
 	imageRouteSuccessByFamily               sync.Map
@@ -202,6 +206,7 @@ func Snapshot() MetricsSnapshot {
 		GeminiBillingFallbackMissTotal:          defaultMetrics.geminiBillingFallbackMissTotal.Load(),
 		PublicModelProjectionTotal:              defaultMetrics.publicModelProjectionTotal.Load(),
 		PublicModelRestrictionHitTotal:          defaultMetrics.publicModelRestrictionHitTotal.Load(),
+		ModelCapabilityVerificationTotal:        defaultMetrics.modelCapabilityVerificationTotal.Load(),
 		ImageRouteTotal:                         defaultMetrics.imageRouteTotal.Load(),
 		ImageRouteSuccessTotal:                  defaultMetrics.imageRouteSuccessTotal.Load(),
 		ImageRouteFailureTotal:                  defaultMetrics.imageRouteFailureTotal.Load(),
@@ -233,6 +238,7 @@ func Snapshot() MetricsSnapshot {
 		GeminiBillingFallbackMissByReason:       snapshotCounterMap(&defaultMetrics.geminiBillingFallbackMissByReason),
 		PublicModelProjectionBySource:           snapshotCounterMap(&defaultMetrics.publicModelProjectionBySource),
 		PublicModelRestrictionByReason:          snapshotCounterMap(&defaultMetrics.publicModelRestrictionByReason),
+		ModelCapabilityVerificationByResult:     snapshotCounterMap(&defaultMetrics.modelCapabilityVerificationByResult),
 		ImageRouteByFamily:                      snapshotCounterMap(&defaultMetrics.imageRouteByFamily),
 		ImageRouteByProvider:                    snapshotCounterMap(&defaultMetrics.imageRouteByProvider),
 		ImageRouteSuccessByFamily:               snapshotCounterMap(&defaultMetrics.imageRouteSuccessByFamily),
@@ -366,6 +372,11 @@ func RecordPublicModelRestrictionHit(reason string) {
 	incrementCounterMap(&defaultMetrics.publicModelRestrictionByReason, reason)
 }
 
+func RecordModelCapabilityVerification(result string) {
+	defaultMetrics.modelCapabilityVerificationTotal.Add(1)
+	incrementCounterMap(&defaultMetrics.modelCapabilityVerificationByResult, normalizeModelCapabilityVerificationResult(result))
+}
+
 func RecordImageRoute(
 	family string,
 	provider string,
@@ -473,6 +484,7 @@ func ResetForTest() {
 	defaultMetrics.geminiBillingFallbackMissTotal.Store(0)
 	defaultMetrics.publicModelProjectionTotal.Store(0)
 	defaultMetrics.publicModelRestrictionHitTotal.Store(0)
+	defaultMetrics.modelCapabilityVerificationTotal.Store(0)
 	defaultMetrics.imageRouteTotal.Store(0)
 	defaultMetrics.imageRouteSuccessTotal.Store(0)
 	defaultMetrics.imageRouteFailureTotal.Store(0)
@@ -504,6 +516,7 @@ func ResetForTest() {
 	resetCounterMap(&defaultMetrics.geminiBillingFallbackMissByReason)
 	resetCounterMap(&defaultMetrics.publicModelProjectionBySource)
 	resetCounterMap(&defaultMetrics.publicModelRestrictionByReason)
+	resetCounterMap(&defaultMetrics.modelCapabilityVerificationByResult)
 	resetCounterMap(&defaultMetrics.imageRouteByFamily)
 	resetCounterMap(&defaultMetrics.imageRouteByProvider)
 	resetCounterMap(&defaultMetrics.imageRouteSuccessByFamily)
@@ -587,6 +600,19 @@ func normalizeMetricLabel(value string) string {
 		return "unknown"
 	}
 	return value
+}
+
+func normalizeModelCapabilityVerificationResult(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "success", "succeeded", "verified", "supported":
+		return "success"
+	case "failure", "failed", "rejected", "unsupported":
+		return "failure"
+	case "skip", "skipped", "ignored":
+		return "skipped"
+	default:
+		return "unknown"
+	}
 }
 
 func incrementCounterMap(target *sync.Map, key string) {

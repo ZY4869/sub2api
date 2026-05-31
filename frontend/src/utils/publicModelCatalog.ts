@@ -3,7 +3,6 @@ import type {
   PublicModelCatalogMultiplierSummary,
   PublicModelCatalogPriceDisplay,
   PublicModelCatalogPriceEntry,
-  PublicModelCatalogStatus,
   PublicModelHealthStatus,
 } from "@/api/meta";
 import { formatModelDisplayName } from "@/utils/modelDisplayName";
@@ -18,7 +17,14 @@ export const PUBLIC_MODEL_PROTOCOL_ORDER = [
   "vertex-batch",
 ] as const;
 
-const PUBLIC_MODEL_CACHE_PRIMARY_IDS = new Set(["cache_price", "batch_cache_price"]);
+const PUBLIC_MODEL_CACHE_PRIMARY_IDS = new Set([
+  "cache_creation",
+  "cache_read",
+  "cache_5m",
+  "cache_1h",
+  "cache_price",
+  "batch_cache_price",
+]);
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
@@ -28,7 +34,7 @@ export interface PublicModelCatalogDisplayItem {
   subtitle: string;
   primaryPrices: PublicModelCatalogPriceEntry[];
   secondaryPrices: PublicModelCatalogPriceEntry[];
-  status: PublicModelCatalogStatus;
+  healthStatus: PublicModelHealthStatus;
   searchText: string;
 }
 
@@ -44,7 +50,7 @@ export function buildPublicModelCatalogDisplayItem(
     subtitle: normalizedSubtitle,
     primaryPrices: normalizedPrices.primary,
     secondaryPrices: normalizedPrices.secondary || [],
-    status: item.status || "info",
+    healthStatus: item.health_status || "pending",
     searchText: [
       normalizedTitle,
       normalizedSubtitle,
@@ -118,24 +124,6 @@ export function normalizePublicModelPriceDisplay(
   };
 }
 
-export function publicModelStatusLabel(
-  t: Translate,
-  status?: PublicModelCatalogStatus,
-): string {
-  switch (status) {
-    case "ok":
-      return t("ui.modelCatalog.status.ok");
-    case "warning":
-      return t("ui.modelCatalog.status.warning");
-    case "maintenance":
-      return t("ui.modelCatalog.status.maintenance");
-    case "error":
-      return t("ui.modelCatalog.status.error");
-    default:
-      return t("ui.modelCatalog.status.info");
-  }
-}
-
 export function priceEntryLabel(t: Translate, fieldID: string): string {
   switch (fieldID) {
     case "input_price":
@@ -144,6 +132,14 @@ export function priceEntryLabel(t: Translate, fieldID: string): string {
       return t("ui.modelCatalog.priceFields.output");
     case "cache_price":
       return t("ui.modelCatalog.priceFields.cache");
+    case "cache_creation":
+      return t("ui.modelCatalog.priceFields.cacheCreation");
+    case "cache_read":
+      return t("ui.modelCatalog.priceFields.cacheRead");
+    case "cache_5m":
+      return t("ui.modelCatalog.priceFields.cache5m");
+    case "cache_1h":
+      return t("ui.modelCatalog.priceFields.cache1h");
     case "input_price_above_threshold":
       return t("ui.modelCatalog.priceFields.inputTier");
     case "output_price_above_threshold":
@@ -186,19 +182,33 @@ export function formatCatalogPrice(
   currency: string,
   _usdToCnyRate: number | null,
 ): string {
+  if (entry.supported_unpriced || entry.configured === false) {
+    return t("ui.modelCatalog.cacheSupportedUnpriced");
+  }
   const nextCurrency = currency === "CNY" ? "CNY" : "USD";
   const symbol = nextCurrency === "CNY" ? "¥" : "$";
-  const unit = resolveDisplayUnit(entry.unit);
+  const unit = resolveDisplayUnit(entry);
   const rawValue = entry.value;
   const displayValue =
     unit === "per_million_tokens" ? rawValue * 1_000_000 : rawValue;
-  const suffix =
-    unit === "per_million_tokens"
-      ? t("ui.modelCatalog.units.perMillionTokens")
-      : unit === "per_image"
-        ? t("ui.modelCatalog.units.perImage")
-        : t("ui.modelCatalog.units.perRequest");
+  const suffix = displayUnitLabel(t, unit);
   return `${symbol}${formatNumber(displayValue)} ${suffix}`;
+}
+
+export function priceDisplayUnitSummary(
+  t: Translate,
+  entries: PublicModelCatalogPriceEntry[],
+): string {
+  const units = new Set(
+    entries
+      .filter((entry) => !(entry.supported_unpriced || entry.configured === false))
+      .map((entry) => resolveDisplayUnit(entry)),
+  );
+  if (units.size !== 1) {
+    return "";
+  }
+  const [unit] = Array.from(units);
+  return displayUnitLabel(t, unit);
 }
 
 function sameModelSemantic(left?: string | null, right?: string | null): boolean {
@@ -228,21 +238,52 @@ function dedupePriceEntries(entries: PublicModelCatalogPriceEntry[]): PublicMode
   return result;
 }
 
-function resolveDisplayUnit(
-  unit?: string,
-): "per_million_tokens" | "per_request" | "per_image" {
-  switch (unit) {
+type DisplayUnit = "per_million_tokens" | "per_request" | "per_image" | "per_video";
+
+function resolveDisplayUnit(entry: PublicModelCatalogPriceEntry): DisplayUnit {
+  switch (entry.display_unit) {
+    case "per_million_tokens":
+    case "per_request":
+    case "per_image":
+    case "per_video":
+      return entry.display_unit;
+  }
+  switch (entry.unit_kind) {
+    case "token":
+      return "per_million_tokens";
+    case "image":
+      return "per_image";
+    case "video":
+      return "per_video";
+    case "request":
+      return "per_request";
+  }
+  switch (entry.unit) {
     case "image":
       return "per_image";
     case "video_request":
+      return "per_video";
     case "grounding_search_request":
     case "grounding_maps_request":
       return "per_request";
     default:
-      if (String(unit || "").includes("token")) {
+      if (String(entry.unit || "").includes("token")) {
         return "per_million_tokens";
       }
       return "per_request";
+  }
+}
+
+function displayUnitLabel(t: Translate, unit: DisplayUnit): string {
+  switch (unit) {
+    case "per_million_tokens":
+      return t("ui.modelCatalog.units.perMillionTokens");
+    case "per_image":
+      return t("ui.modelCatalog.units.perImage");
+    case "per_video":
+      return t("ui.modelCatalog.units.perVideo");
+    default:
+      return t("ui.modelCatalog.units.perRequest");
   }
 }
 

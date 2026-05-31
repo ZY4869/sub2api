@@ -4,6 +4,7 @@ import "strings"
 
 const (
 	openaiPlatformChatCompletionsURL = "https://api.openai.com/v1/chat/completions"
+	openaiPlatformEmbeddingsURL      = "https://api.openai.com/v1/embeddings"
 	openaiPlatformImagesURL          = "https://api.openai.com/v1/images"
 	deepseekDefaultAPIBaseURL        = "https://api.deepseek.com"
 	openRouterDefaultAPIBaseURL      = "https://openrouter.ai/api/v1"
@@ -34,6 +35,26 @@ func resolveOpenAIResponsesTargetURL(account *Account, validateBaseURL func(stri
 	}
 
 	return buildOpenAIResponsesURLForPlatform(baseURL, account.Platform), nil
+}
+
+func resolveOpenAIEmbeddingsTargetURL(account *Account, validateBaseURL func(string) (string, error)) (string, error) {
+	if account == nil {
+		return openaiPlatformEmbeddingsURL, nil
+	}
+
+	baseURL := strings.TrimSpace(resolveOpenAICompatibleBaseURL(account))
+	if baseURL == "" {
+		return openaiPlatformEmbeddingsURL, nil
+	}
+	if validateBaseURL != nil && baseURL != "" {
+		validatedURL, err := validateBaseURL(baseURL)
+		if err != nil {
+			return "", err
+		}
+		baseURL = validatedURL
+	}
+
+	return buildOpenAIEmbeddingsURLForPlatform(baseURL), nil
 }
 
 func resolveOpenAIChatCompletionsTargetURL(account *Account, validateBaseURL func(string) (string, error)) (string, error) {
@@ -106,6 +127,23 @@ func resolveOpenAIImagesTargetURL(account *Account, validateBaseURL func(string)
 		baseURL = validatedURL
 	}
 	return buildOpenAIImagesURLForPlatform(baseURL, account.Platform, action), nil
+}
+
+func buildOpenAIEmbeddingsURLForPlatform(baseURL string) string {
+	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if normalized == "" {
+		return openaiPlatformEmbeddingsURL
+	}
+	if strings.HasSuffix(normalized, "/embeddings") {
+		return normalized
+	}
+	if strings.HasSuffix(normalized, "/v1/embeddings") {
+		return normalized
+	}
+	if strings.HasSuffix(normalized, "/v1") {
+		return normalized + "/embeddings"
+	}
+	return normalized + "/v1/embeddings"
 }
 
 func buildOpenAIResponsesURLForPlatform(baseURL string, platform string) string {

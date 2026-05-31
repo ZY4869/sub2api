@@ -10,6 +10,7 @@ import type {
   UpdateApiKeyRequest,
   PaginatedResponse,
 } from "@/types";
+import type { PublicModelCatalogSnapshot } from "@/api/meta";
 
 /**
  * List all API keys for current user
@@ -146,9 +147,25 @@ export async function toggleStatus(
   return update(id, { status });
 }
 
+export async function getModelCatalog(
+  id: number,
+  includeUnavailable = false,
+): Promise<PublicModelCatalogSnapshot> {
+  const { data } = await apiClient.get<PublicModelCatalogSnapshot>(
+    `/keys/${id}/model-catalog`,
+    {
+      params: {
+        include_unavailable: includeUnavailable ? 1 : 0,
+      },
+    },
+  );
+  return data;
+}
+
 export const keysAPI = {
   list,
   getById,
+  getModelCatalog,
   create,
   createWithPayload,
   update,

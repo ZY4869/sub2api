@@ -42,7 +42,7 @@
       <circle cx="60" cy="60" r="42" fill="none" :stroke="`url(#${gradientId})`" stroke-width="1" opacity="0.2" />
 
       <path
-        v-if="status === 'ok'"
+        v-if="status === 'healthy'"
         d="M 38 62 L 52 76 L 82 44"
         fill="none"
         :stroke="`url(#${gradientId})`"
@@ -63,7 +63,7 @@
         :filter="`url(#${filterId})`"
       />
 
-      <g v-else-if="status === 'maintenance'" :filter="`url(#${filterId})`">
+      <g v-else-if="status === 'pending'" :filter="`url(#${filterId})`">
         <g :stroke="`url(#${gradientId})`" fill="none">
           <animateTransform attributeName="transform" type="rotate" from="0 60 60" to="360 60 60" dur="15s" repeatCount="indefinite" />
           <circle cx="60" cy="60" r="26" stroke-width="5" stroke-dasharray="10 10.4" stroke-linecap="round" />
@@ -87,14 +87,14 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { PublicModelCatalogStatus } from "@/api/meta";
+import type { PublicModelHealthStatus } from "@/api/meta";
 
 const props = withDefaults(defineProps<{
-  status?: PublicModelCatalogStatus;
+  status?: PublicModelHealthStatus;
   label: string;
   size?: number | string;
 }>(), {
-  status: "info",
+  status: "pending",
   size: 30,
 });
 
@@ -108,12 +108,10 @@ const filterId = `${uid}-filter`;
 
 const palette = computed(() => {
   switch (props.status) {
-    case "ok":
+    case "healthy":
       return ["#10b981", "#0ea5e9", "#8b5cf6"];
     case "error":
       return ["#f43f5e", "#f97316", "#f59e0b"];
-    case "maintenance":
-      return ["#3b82f6", "#8b5cf6", "#f59e0b"];
     case "warning":
       return ["#fcd34d", "#f59e0b", "#ef4444"];
     default:
@@ -122,9 +120,9 @@ const palette = computed(() => {
 });
 
 const rotateFrom = computed(() =>
-  props.status === "error" || props.status === "info" ? "360 60 60" : "0 60 60",
+  props.status === "error" || props.status === "pending" ? "360 60 60" : "0 60 60",
 );
 const rotateTo = computed(() =>
-  props.status === "error" || props.status === "info" ? "0 60 60" : "360 60 60",
+  props.status === "error" || props.status === "pending" ? "0 60 60" : "360 60 60",
 );
 </script>

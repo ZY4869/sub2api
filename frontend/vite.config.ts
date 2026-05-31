@@ -97,6 +97,11 @@ export default defineConfig(({ mode }) => {
               return 'vendor-i18n'
             }
 
+            // Payment SDKs must stay lazy-loaded so disabled providers do not run on unrelated pages.
+            if (id.includes('/@airwallex/')) {
+              return 'vendor-airwallex'
+            }
+
             // 其他小型第三方库合并
             return 'vendor-misc'
           }

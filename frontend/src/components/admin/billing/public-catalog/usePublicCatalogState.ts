@@ -1,6 +1,11 @@
 import { computed, ref } from 'vue'
 import type { ComposerTranslation } from 'vue-i18n'
-import type { BillingPublicCatalogAdminEntry, BillingPublicCatalogEntryDraft, BillingPublicCatalogPublishedSummary } from '@/api/admin/billing'
+import type {
+  BillingPublicCatalogAdminEntry,
+  BillingPublicCatalogCapacityDiagnosticsSnapshot,
+  BillingPublicCatalogEntryDraft,
+  BillingPublicCatalogPublishedSummary,
+} from '@/api/admin/billing'
 import {
   entryKey,
   uniqueSorted,
@@ -15,6 +20,9 @@ export function usePublicCatalogState(t: ComposerTranslation) {
   const loading = ref(false)
   const saving = ref(false)
   const publishing = ref(false)
+  const revalidating = ref(false)
+  const diagnosticsLoading = ref(false)
+  const revalidationAutoEnabled = ref(false)
   const search = ref('')
   const providerFilter = ref('')
   const accountFilter = ref('')
@@ -27,8 +35,9 @@ export function usePublicCatalogState(t: ComposerTranslation) {
   const availableSource = ref('')
   const availableEntries = ref<BillingPublicCatalogAdminEntry[]>([])
   const published = ref<BillingPublicCatalogPublishedSummary | null>(null)
+  const diagnostics = ref<BillingPublicCatalogCapacityDiagnosticsSnapshot | null>(null)
 
-  const busy = computed(() => loading.value || saving.value || publishing.value)
+  const busy = computed(() => loading.value || saving.value || publishing.value || revalidating.value || diagnosticsLoading.value)
   const availableEntryMap = computed(() => new Map(availableEntries.value.map((item) => [entryKey(item), item] as const)))
   const providers = computed(() => uniqueSorted(availableEntries.value.map((item) => item.provider || item.source_protocol || '').filter(Boolean)))
   const accountAliases = computed(() => uniqueSorted(availableEntries.value.map((item) => item.source_alias || '').filter(Boolean)))
@@ -46,6 +55,9 @@ export function usePublicCatalogState(t: ComposerTranslation) {
     loading,
     saving,
     publishing,
+    revalidating,
+    diagnosticsLoading,
+    revalidationAutoEnabled,
     search,
     providerFilter,
     accountFilter,
@@ -58,6 +70,7 @@ export function usePublicCatalogState(t: ComposerTranslation) {
     availableSource,
     availableEntries,
     published,
+    diagnostics,
     busy,
     availableEntryMap,
     providers,

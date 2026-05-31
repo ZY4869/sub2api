@@ -161,6 +161,38 @@ func TestChannelMonitorService_PublicModelCatalogHealthPendingWithoutMonitorData
 	require.Empty(t, statuses["gpt-5.4"].Daily)
 }
 
+func TestChannelMonitorService_PublicModelCatalogHealthStaleHistoryHidesMetrics(t *testing.T) {
+	stale := time.Now().UTC().Add(-(publicModelCatalogProbeHistoryTTL + time.Minute))
+	repo := &channelMonitorServiceRepoStub{
+		enabled: []*ChannelMonitor{{ID: 10, Enabled: true, PrimaryModelID: "gpt-5.4"}},
+	}
+	historyRepo := &channelMonitorHistoryRepoStub{
+		latest: []*ChannelMonitorHistory{
+			{MonitorID: 10, ModelID: "gpt-5.4", Status: ChannelMonitorStatusSuccess, LatencyMs: 320, CreatedAt: stale},
+		},
+	}
+	rollupRepo := &channelMonitorRollupRepoStub{
+		daily: []*ChannelMonitorDailyRollup{
+			{MonitorID: 10, ModelID: "gpt-5.4", Day: stale, TotalChecks: 10, AvailableChecks: 10, TotalLatencyMs: 3200},
+		},
+	}
+	svc := NewChannelMonitorService(repo, historyRepo, rollupRepo, nil, nil, &config.Config{})
+
+	statuses, err := svc.PublicModelCatalogHealth(context.Background(), []PublicModelCatalogItem{{Model: "gpt-5.4"}})
+
+	require.NoError(t, err)
+	status := statuses["gpt-5.4"]
+	require.Equal(t, PublicModelHealthStatusPending, status.Status)
+	require.Equal(t, PublicModelHealthSourceNone, status.HealthSource)
+	require.Equal(t, PublicModelHealthReasonStaleHistory, status.StatusReason)
+	require.NotEmpty(t, status.LastCheckedAt)
+	require.Nil(t, status.SuccessRateToday)
+	require.Nil(t, status.SuccessRate7d)
+	require.Nil(t, status.LatencyMs)
+	require.Empty(t, status.Daily)
+	require.Empty(t, status.Trend)
+}
+
 func newChannelMonitorServiceForCreateTest(repo ChannelMonitorRepository) *ChannelMonitorService {
 	settingRepo := &modelCatalogSettingRepoStub{values: map[string]string{
 		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",

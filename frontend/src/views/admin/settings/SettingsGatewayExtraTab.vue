@@ -10,7 +10,18 @@
               {{ t('admin.settings.claudeCode.description') }}
             </p>
           </div>
-          <div class="p-6">
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.claudeCode.allowCodexPlugin') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.claudeCode.allowCodexPluginHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.openai_allow_claude_code_codex_plugin" />
+            </div>
             <div>
               <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {{ t('admin.settings.claudeCode.minVersion') }}
@@ -25,7 +36,7 @@
                 {{ t('admin.settings.claudeCode.minVersionHint') }}
               </p>
             </div>
-            <div class="mt-4">
+            <div>
               <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {{ t('admin.settings.claudeCode.maxVersion') }}
               </label>

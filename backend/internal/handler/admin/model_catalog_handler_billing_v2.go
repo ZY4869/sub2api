@@ -102,7 +102,11 @@ func (h *ModelCatalogHandler) SaveBillingPricingLayer(c *gin.Context) {
 func (h *ModelCatalogHandler) GetPublicModelCatalogDraft(c *gin.Context) {
 	force := strings.TrimSpace(c.Query("force"))
 	forceRefresh := force == "1" || strings.EqualFold(force, "true")
-	payload, err := h.modelCatalogService.GetPublicModelCatalogDraftPayload(c.Request.Context(), forceRefresh)
+	payload, err := h.modelCatalogService.GetPublicModelCatalogDraftPayloadWithOptions(
+		c.Request.Context(),
+		forceRefresh,
+		service.PublicModelCatalogReadOptions{CatalogMode: c.Query("catalog_mode")},
+	)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -147,6 +151,42 @@ func (h *ModelCatalogHandler) PublishPublicModelCatalog(c *gin.Context) {
 
 func (h *ModelCatalogHandler) GetPublishedPublicModelCatalogSummary(c *gin.Context) {
 	result, err := h.modelCatalogService.GetPublishedPublicModelCatalogSummary(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *ModelCatalogHandler) GetPublicModelCatalogCapacityDiagnostics(c *gin.Context) {
+	result, err := h.modelCatalogService.PublicModelCatalogCapacityDiagnostics(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *ModelCatalogHandler) RevalidatePublishedPublicModelCatalog(c *gin.Context) {
+	result, err := h.modelCatalogService.RevalidatePublishedPublicModelCatalog(c.Request.Context(), h.resolveActor(c))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *ModelCatalogHandler) GetPublicModelCatalogRevalidationState(c *gin.Context) {
+	response.Success(c, h.modelCatalogService.GetPublicModelCatalogRevalidationState(c.Request.Context()))
+}
+
+func (h *ModelCatalogHandler) UpdatePublicModelCatalogRevalidationState(c *gin.Context) {
+	var req service.PublicModelCatalogRevalidationInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.modelCatalogService.UpdatePublicModelCatalogRevalidationState(c.Request.Context(), req, h.resolveActor(c))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

@@ -68,7 +68,9 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "openai images native passthrough", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointImagesGen, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini images generations native passthrough", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointImagesGen, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini images edits rejected", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointImagesEdits, wantMode: ProtocolCapabilityReject, wantOK: true},
-		{name: "unknown endpoint stays unknown", runtimePlatform: PlatformOpenAI, inboundEndpoint: "/v1/embeddings", wantOK: false},
+		{name: "openai embeddings native passthrough", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointEmbeddings, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "anthropic embeddings rejected", runtimePlatform: PlatformAnthropic, inboundEndpoint: EndpointEmbeddings, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "unknown endpoint stays unknown", runtimePlatform: PlatformOpenAI, inboundEndpoint: "/v1/not-real", wantOK: false},
 	}
 
 	for _, tt := range tests {

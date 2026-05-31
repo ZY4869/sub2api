@@ -11,6 +11,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"go.uber.org/zap"
 )
 
@@ -109,15 +110,32 @@ func normalizePublicModelCatalogPriceEntries(entries []PublicModelCatalogPriceEn
 			continue
 		}
 		normalized = append(normalized, PublicModelCatalogPriceEntry{
-			ID:    id,
-			Unit:  strings.TrimSpace(entry.Unit),
-			Value: entry.Value,
+			ID:                id,
+			Unit:              strings.TrimSpace(entry.Unit),
+			UnitKind:          strings.TrimSpace(entry.UnitKind),
+			DisplayUnit:       strings.TrimSpace(entry.DisplayUnit),
+			Value:             entry.Value,
+			Configured:        entry.Configured,
+			SupportedUnpriced: entry.SupportedUnpriced,
 		})
+		normalized[len(normalized)-1] = normalizePublicModelCatalogPriceEntryCompat(normalized[len(normalized)-1])
 	}
 	if len(normalized) == 0 {
 		return nil
 	}
 	return normalized
+}
+
+func normalizePublicModelCatalogPriceEntryCompat(entry PublicModelCatalogPriceEntry) PublicModelCatalogPriceEntry {
+	entry.ID = strings.TrimSpace(entry.ID)
+	entry.Unit = strings.TrimSpace(entry.Unit)
+	entry.UnitKind = strings.TrimSpace(entry.UnitKind)
+	entry.DisplayUnit = strings.TrimSpace(entry.DisplayUnit)
+	if entry.Configured || entry.SupportedUnpriced {
+		return entry
+	}
+	entry.Configured = true
+	return entry
 }
 
 func clonePublicModelCatalogDetail(detail PublicModelCatalogDetail) PublicModelCatalogDetail {
@@ -152,10 +170,13 @@ func publicModelCatalogPublishedSummary(snapshot *PublicModelCatalogPublishedSna
 		return nil
 	}
 	return &PublicModelCatalogPublishedSummary{
-		ETag:       snapshot.Snapshot.ETag,
-		UpdatedAt:  snapshot.Snapshot.UpdatedAt,
-		PageSize:   normalizePublicModelCatalogPageSize(snapshot.Snapshot.PageSize),
-		ModelCount: len(snapshot.Snapshot.Items),
+		ETag:              snapshot.Snapshot.ETag,
+		UpdatedAt:         snapshot.Snapshot.UpdatedAt,
+		PublishedAt:       snapshot.Snapshot.PublishedAt,
+		LastRevalidatedAt: snapshot.Snapshot.LastRevalidatedAt,
+		StaleReason:       snapshot.Snapshot.StaleReason,
+		PageSize:          normalizePublicModelCatalogPageSize(snapshot.Snapshot.PageSize),
+		ModelCount:        len(snapshot.Snapshot.Items),
 	}
 }
 
@@ -230,6 +251,7 @@ func loadPublicModelCatalogSnapshotBySetting(
 		return nil
 	}
 	normalized.PageSize = normalizePublicModelCatalogPageSize(normalized.PageSize)
+	normalizePublicModelCatalogSnapshotTimestamps(normalized)
 	return normalized
 }
 
@@ -250,6 +272,7 @@ func persistPublicModelCatalogSnapshotBySetting(
 	if normalized.UpdatedAt == "" {
 		normalized.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
+	normalizePublicModelCatalogSnapshotTimestamps(normalized)
 	payload, err := json.Marshal(normalized)
 	if err != nil {
 		return err
@@ -283,6 +306,7 @@ func loadPublicModelCatalogPublishedSnapshotBySetting(
 		return nil
 	}
 	normalized.Snapshot.PageSize = normalizePublicModelCatalogPageSize(normalized.Snapshot.PageSize)
+	normalizePublicModelCatalogSnapshotTimestamps(&normalized.Snapshot)
 	return normalized
 }
 
@@ -300,11 +324,29 @@ func persistPublicModelCatalogPublishedSnapshotBySetting(
 	}
 	normalized := clonePublicModelCatalogPublishedSnapshot(snapshot)
 	normalized.Snapshot.PageSize = normalizePublicModelCatalogPageSize(normalized.Snapshot.PageSize)
+	normalizePublicModelCatalogSnapshotTimestamps(&normalized.Snapshot)
+	if etag, err := computePublicModelCatalogETag(&normalized.Snapshot); err != nil {
+		return err
+	} else {
+		normalized.Snapshot.ETag = etag
+	}
 	payload, err := json.Marshal(normalized)
 	if err != nil {
 		return err
 	}
 	return settingRepo.Set(ctx, settingKey, string(payload))
+}
+
+func normalizePublicModelCatalogSnapshotTimestamps(snapshot *PublicModelCatalogSnapshot) {
+	if snapshot == nil {
+		return
+	}
+	if strings.TrimSpace(snapshot.PublishedAt) == "" {
+		snapshot.PublishedAt = strings.TrimSpace(snapshot.UpdatedAt)
+	}
+	if strings.TrimSpace(snapshot.LastRevalidatedAt) == "" {
+		snapshot.LastRevalidatedAt = firstNonEmptyTrimmed(snapshot.RefreshedAt, snapshot.PublishedAt, snapshot.UpdatedAt)
+	}
 }
 
 func (s *ModelCatalogService) loadPublicModelCatalogDraft(ctx context.Context) *PublicModelCatalogDraft {
@@ -436,6 +478,115 @@ func validatePublicModelCatalogPriceDisplay(display PublicModelCatalogPriceDispl
 	return nil
 }
 
+func validatePublicModelCatalogBillingCoverage(ctx context.Context, actor ModelCatalogActor, items []PublicModelCatalogItem) error {
+	missingByModel := map[string][]string{}
+	for _, item := range items {
+		publicID := NormalizeModelCatalogModelID(firstNonEmptyTrimmed(item.PublicModelID, item.Model))
+		if publicID == "" {
+			publicID = strings.TrimSpace(item.EntryID)
+		}
+		missing := publicModelCatalogMissingBillingFields(item)
+		if len(missing) == 0 {
+			continue
+		}
+		missingByModel[publicID] = missing
+		fields := publicModelCatalogAuditFields(ctx, actor)
+		fields = append(fields, publicModelCatalogItemLogFields(item)...)
+		fields = append(fields, zap.Strings("missing_fields", missing))
+		logger.FromContext(ctx).Warn("public model catalog publish billing coverage rejected", fields...)
+	}
+	if len(missingByModel) == 0 {
+		return nil
+	}
+	protocolruntime.RecordBillingResolverFallback("public_catalog_publish_billing_incomplete")
+	metadata := map[string]string{}
+	models := make([]string, 0, len(missingByModel))
+	for modelID := range missingByModel {
+		models = append(models, modelID)
+	}
+	sort.Strings(models)
+	allMissing := map[string]struct{}{}
+	for _, modelID := range models {
+		missing := append([]string(nil), missingByModel[modelID]...)
+		sort.Strings(missing)
+		metadata["missing_fields."+modelID] = strings.Join(missing, ",")
+		for _, fieldID := range missing {
+			allMissing[fieldID] = struct{}{}
+		}
+	}
+	allMissingList := make([]string, 0, len(allMissing))
+	for fieldID := range allMissing {
+		allMissingList = append(allMissingList, fieldID)
+	}
+	sort.Strings(allMissingList)
+	metadata["public_model_ids"] = strings.Join(models, ",")
+	metadata["missing_fields"] = strings.Join(allMissingList, ",")
+	return infraerrors.BadRequest(
+		"PUBLIC_MODEL_BILLING_INCOMPLETE",
+		"public model billing price is incomplete; complete the missing sale price fields before publishing",
+	).WithMetadata(metadata)
+}
+
+func publicModelCatalogMissingBillingFields(item PublicModelCatalogItem) []string {
+	spec := normalizePublicModelCatalogRuntimePriceSpec(item.RuntimePriceSpec)
+	display := normalizePublicModelCatalogPriceDisplay(item.SalePriceDisplay)
+	if len(display.Primary) == 0 && len(display.Secondary) == 0 {
+		display = normalizePublicModelCatalogPriceDisplay(item.PriceDisplay)
+	}
+	priceByID := publicModelCatalogConfiguredPriceIDs(display)
+	required := publicModelCatalogRequiredBillingFields(spec, item)
+	missing := make([]string, 0, len(required))
+	for _, fieldID := range required {
+		if _, ok := priceByID[fieldID]; !ok {
+			missing = append(missing, fieldID)
+		}
+	}
+	return missing
+}
+
+func publicModelCatalogRequiredBillingFields(spec PublicModelCatalogRuntimePriceSpec, item PublicModelCatalogItem) []string {
+	outputSlot := billingNormalizeOutputChargeSlot(spec.OutputChargeSlot, item.Mode)
+	if outputSlot == BillingChargeSlotTextOutput {
+		fields := []string{}
+		if spec.InputSupported {
+			fields = append(fields, billingDiscountFieldInputPrice)
+		}
+		fields = append(fields, billingDiscountFieldOutputPrice)
+		if spec.SupportsPromptCaching || publicModelCatalogItemSupportsPromptCaching(item) {
+			fields = append(fields,
+				publicModelCatalogFieldCacheCreation,
+				publicModelCatalogFieldCacheRead,
+				publicModelCatalogFieldCache5m,
+				publicModelCatalogFieldCache1h,
+			)
+		}
+		return fields
+	}
+	return []string{billingDiscountFieldOutputPrice}
+}
+
+func publicModelCatalogItemSupportsPromptCaching(item PublicModelCatalogItem) bool {
+	for _, capability := range item.Capabilities {
+		normalized := strings.ToLower(strings.TrimSpace(capability))
+		if strings.Contains(normalized, "cache") || strings.Contains(normalized, "prompt_caching") {
+			return true
+		}
+	}
+	return false
+}
+
+func publicModelCatalogConfiguredPriceIDs(display PublicModelCatalogPriceDisplay) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, entry := range append(append([]PublicModelCatalogPriceEntry(nil), display.Primary...), display.Secondary...) {
+		entry = normalizePublicModelCatalogPriceEntryCompat(entry)
+		if strings.TrimSpace(entry.ID) == "" || !entry.Configured {
+			continue
+		}
+		out[entry.ID] = struct{}{}
+	}
+	return out
+}
+
 func publicModelCatalogActor(actors []ModelCatalogActor) ModelCatalogActor {
 	if len(actors) == 0 {
 		return ModelCatalogActor{}
@@ -464,8 +615,13 @@ func publicModelCatalogDraftEntryLogFields(entry PublicModelCatalogEntryDraft) [
 		zap.String("entry_id", strings.TrimSpace(entry.EntryID)),
 		zap.String("public_model_id", strings.TrimSpace(entry.PublicModelID)),
 		zap.Int64("source_account_id", entry.SourceAccountID),
+		zap.Int64("account_id", entry.SourceAccountID),
 		zap.String("source_alias", strings.TrimSpace(entry.SourceAlias)),
+		zap.String("protocol", strings.TrimSpace(entry.SourceProtocol)),
 		zap.String("source_model_id", strings.TrimSpace(entry.SourceModelID)),
+		zap.String("endpoint", ""),
+		zap.String("capability", ""),
+		zap.String("result", ""),
 		zap.Int("sale_primary_count", len(entry.SalePriceDisplay.Primary)),
 		zap.Int("sale_secondary_count", len(entry.SalePriceDisplay.Secondary)),
 	}
@@ -476,11 +632,34 @@ func publicModelCatalogItemLogFields(item PublicModelCatalogItem) []zap.Field {
 		zap.String("entry_id", strings.TrimSpace(item.EntryID)),
 		zap.String("public_model_id", strings.TrimSpace(firstNonEmptyTrimmed(item.PublicModelID, item.Model))),
 		zap.Int64("source_account_id", item.SourceAccountID),
+		zap.Int64("account_id", item.SourceAccountID),
 		zap.String("source_alias", strings.TrimSpace(item.SourceAlias)),
+		zap.String("protocol", strings.TrimSpace(firstNonEmptyTrimmed(item.SourceProtocol, firstRegistryString(item.RequestProtocols...)))),
 		zap.String("source_model_id", strings.TrimSpace(item.SourceModelID)),
+		zap.String("endpoint", strings.TrimSpace(publicModelCatalogFirstEndpointKey(item.ProtocolEndpoints))),
+		zap.String("capability", strings.TrimSpace(publicModelCatalogFirstCapability(item.CapabilityMatrix))),
+		zap.String("result", strings.TrimSpace(firstNonEmptyTrimmed(item.AvailabilityState, item.Status))),
 		zap.Int("sale_primary_count", len(item.SalePriceDisplay.Primary)),
 		zap.Int("sale_secondary_count", len(item.SalePriceDisplay.Secondary)),
 	}
+}
+
+func publicModelCatalogFirstEndpointKey(endpoints []PublicModelProtocolEndpoint) string {
+	for _, endpoint := range endpoints {
+		if key := strings.TrimSpace(endpoint.Key); key != "" {
+			return key
+		}
+	}
+	return ""
+}
+
+func publicModelCatalogFirstCapability(matrix []PublicModelCapabilityMatrixEntry) string {
+	for _, entry := range matrix {
+		if capability := strings.TrimSpace(entry.Capability); capability != "" {
+			return capability
+		}
+	}
+	return ""
 }
 
 func logPublicModelCatalogDraftSalePriceChanges(
@@ -515,11 +694,20 @@ func logPublicModelCatalogDraftSalePriceChanges(
 }
 
 func (s *ModelCatalogService) GetPublicModelCatalogDraftPayload(ctx context.Context, force bool) (*PublicModelCatalogDraftPayload, error) {
+	return s.GetPublicModelCatalogDraftPayloadWithOptions(ctx, force, PublicModelCatalogReadOptions{})
+}
+
+func (s *ModelCatalogService) GetPublicModelCatalogDraftPayloadWithOptions(
+	ctx context.Context,
+	force bool,
+	options PublicModelCatalogReadOptions,
+) (*PublicModelCatalogDraftPayload, error) {
 	draft := normalizePublicModelCatalogDraft(s.loadPublicModelCatalogDraft(ctx))
 	availableSnapshot, availableSource, err := s.publicModelCatalogDraftCandidateSnapshot(ctx, force)
 	if err != nil {
 		return nil, err
 	}
+	availableSnapshot = filterPublicModelCatalogSnapshotByDemoMode(availableSnapshot, s.publicModelCatalogReadAllowsDemo(options))
 	return &PublicModelCatalogDraftPayload{
 		Draft:              draft,
 		AvailableItems:     append([]PublicModelCatalogItem(nil), availableSnapshot.Items...),
@@ -527,6 +715,7 @@ func (s *ModelCatalogService) GetPublicModelCatalogDraftPayload(ctx context.Cont
 		AvailableUpdatedAt: availableSnapshot.UpdatedAt,
 		AvailableSource:    availableSource,
 		Published:          publicModelCatalogPublishedSummary(s.loadPublishedPublicModelCatalogSnapshot(ctx)),
+		Revalidation:       s.GetPublicModelCatalogRevalidationState(ctx),
 	}, nil
 }
 
@@ -536,13 +725,23 @@ func (s *ModelCatalogService) publicModelCatalogDraftCandidateSnapshot(
 ) (*PublicModelCatalogSnapshot, string, error) {
 	if !force {
 		if persisted := s.loadPublicModelCatalogDraftCandidateSnapshot(ctx); persisted != nil {
+			if publicModelCatalogSnapshotFresh(persisted, publicModelCatalogDraftLiveTTL) {
+				logger.FromContext(ctx).Info(
+					"public model catalog draft candidate snapshot loaded",
+					zap.String("component", "service.model_catalog"),
+					zap.Int("model_count", len(persisted.Items)),
+					zap.String("updated_at", persisted.UpdatedAt),
+					zap.String("refreshed_at", persisted.RefreshedAt),
+				)
+				return persisted, publicModelCatalogDraftAvailableSourcePersisted, nil
+			}
 			logger.FromContext(ctx).Info(
-				"public model catalog draft candidate snapshot loaded",
+				"public model catalog draft candidate snapshot expired",
 				zap.String("component", "service.model_catalog"),
 				zap.Int("model_count", len(persisted.Items)),
 				zap.String("updated_at", persisted.UpdatedAt),
+				zap.String("refreshed_at", persisted.RefreshedAt),
 			)
-			return persisted, publicModelCatalogDraftAvailableSourcePersisted, nil
 		}
 		if cached, age, ok := s.getFreshPublicModelCatalogSnapshotWithTTL(publicModelCatalogDraftLiveTTL); ok {
 			logger.FromContext(ctx).Info(
@@ -575,6 +774,7 @@ func (s *ModelCatalogService) publicModelCatalogDraftCandidateSnapshot(
 	}
 	s.storePublicModelCatalogSnapshot(liveSnapshot)
 	liveSnapshot = clonePublicModelCatalogSnapshot(liveSnapshot)
+	liveSnapshot.RefreshedAt = time.Now().UTC().Format(time.RFC3339)
 	if err := s.persistPublicModelCatalogDraftCandidateSnapshot(ctx, liveSnapshot); err != nil {
 		return nil, "", err
 	}
@@ -594,6 +794,7 @@ func (s *ModelCatalogService) publicModelCatalogPublishCandidateSnapshot(ctx con
 	if err == nil && liveSnapshot != nil && len(liveSnapshot.Items) > 0 {
 		s.storePublicModelCatalogSnapshot(liveSnapshot)
 		liveSnapshot = clonePublicModelCatalogSnapshot(liveSnapshot)
+		liveSnapshot.RefreshedAt = time.Now().UTC().Format(time.RFC3339)
 		if persistErr := s.persistPublicModelCatalogDraftCandidateSnapshot(ctx, liveSnapshot); persistErr != nil {
 			return nil, "", persistErr
 		}
@@ -610,6 +811,7 @@ func (s *ModelCatalogService) publicModelCatalogPublishCandidateSnapshot(ctx con
 			zap.String("component", "service.model_catalog"),
 			zap.Int("model_count", len(persisted.Items)),
 			zap.String("updated_at", persisted.UpdatedAt),
+			zap.String("refreshed_at", persisted.RefreshedAt),
 		}
 		if err != nil {
 			fields = append(fields, zap.Error(err))
@@ -627,7 +829,11 @@ func publicModelCatalogSnapshotFresh(snapshot *PublicModelCatalogSnapshot, ttl t
 	if snapshot == nil || ttl <= 0 {
 		return false
 	}
-	updatedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(snapshot.UpdatedAt))
+	freshnessAt := strings.TrimSpace(snapshot.RefreshedAt)
+	if freshnessAt == "" {
+		freshnessAt = strings.TrimSpace(snapshot.UpdatedAt)
+	}
+	updatedAt, err := time.Parse(time.RFC3339, freshnessAt)
 	if err != nil {
 		return false
 	}
@@ -685,9 +891,18 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 		return nil, infraerrors.BadRequest("PUBLIC_MODEL_CATALOG_EMPTY", "no models selected for publish")
 	}
 	for _, item := range selectedItems {
+		if publicModelCatalogItemIsDemo(item) {
+			protocolruntime.RecordModelCapabilityVerification("skipped")
+			fields := publicModelCatalogAuditFields(ctx, actor)
+			fields = append(fields, publicModelCatalogItemLogFields(item)...)
+			fields = append(fields, zap.String("catalog_entry_source", item.CatalogEntrySource))
+			logger.FromContext(ctx).Warn("public model catalog publish rejected demo entry", fields...)
+			return nil, infraerrors.BadRequest("PUBLIC_MODEL_DEMO_ENTRY_FORBIDDEN", "demo public model entries cannot be published in real catalog mode")
+		}
 		if s.publicModelCatalogItemRouteConfirmed(ctx, item) {
 			continue
 		}
+		protocolruntime.RecordModelCapabilityVerification("failure")
 		fields := publicModelCatalogAuditFields(ctx, actor)
 		fields = append(fields, publicModelCatalogItemLogFields(item)...)
 		fields = append(fields,
@@ -697,9 +912,22 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 		logger.FromContext(ctx).Warn("public model catalog publish rejected unavailable entry", fields...)
 		return nil, infraerrors.BadRequest("PUBLIC_MODEL_NOT_VERIFIED", "selected public model must be verified and freshly routable")
 	}
+	if err := validatePublicModelCatalogBillingCoverage(ctx, actor, selectedItems); err != nil {
+		return nil, err
+	}
 	details := make(map[string]PublicModelCatalogDetail, len(selectedItems))
-	for _, item := range selectedItems {
-		exampleSource, exampleProtocol, examplePageID, exampleMarkdown, exampleOverrideID := s.buildPublicModelCatalogDetailExample(ctx, item)
+	for index, item := range selectedItems {
+		item = enrichPublicModelCatalogItemMetadata(item, publicModelCatalogMetadataSourceForPublished(time.Now().UTC().Format(time.RFC3339)))
+		selectedItems[index] = item
+		exampleSource, exampleProtocol, examplePageID, exampleMarkdown, exampleOverrideID, exampleValidation := s.buildPublicModelCatalogDetailExample(ctx, item)
+		if exampleProtocol != "" && exampleValidation == "" {
+			exampleValidation = PublicModelCatalogExampleValidationDryRunContract
+		}
+		if exampleValidation == PublicModelCatalogExampleValidationDryRunContract {
+			protocolruntime.RecordModelCapabilityVerification("success")
+		} else {
+			protocolruntime.RecordModelCapabilityVerification("skipped")
+		}
 		publicID := firstNonEmptyTrimmed(item.PublicModelID, item.Model)
 		details[publicID] = PublicModelCatalogDetail{
 			Item:              clonePublicModelCatalogItem(item),
@@ -708,18 +936,23 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 			ExamplePageID:     examplePageID,
 			ExampleMarkdown:   exampleMarkdown,
 			ExampleOverrideID: exampleOverrideID,
+			ExampleValidation: exampleValidation,
 		}
 	}
+	now := time.Now().UTC().Format(time.RFC3339)
 	published := &PublicModelCatalogPublishedSnapshot{
 		Snapshot: PublicModelCatalogSnapshot{
-			ETag:      availableSnapshot.ETag,
-			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
-			PageSize:  normalizePublicModelCatalogPageSize(draft.PageSize),
-			Items:     clonePublicModelCatalogItems(selectedItems),
+			ETag:              availableSnapshot.ETag,
+			UpdatedAt:         now,
+			PublishedAt:       now,
+			LastRevalidatedAt: now,
+			StaleReason:       "",
+			PageSize:          normalizePublicModelCatalogPageSize(draft.PageSize),
+			Items:             clonePublicModelCatalogItems(selectedItems),
 		},
 		Details: details,
 	}
-	etag, err := computePublicModelCatalogETagWithPageSize(published.Snapshot.PageSize, published.Snapshot.Items)
+	etag, err := computePublicModelCatalogETag(&published.Snapshot)
 	if err != nil {
 		return nil, err
 	}

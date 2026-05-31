@@ -87,7 +87,7 @@ func cloneBillingPricingPersistedModel(model BillingPricingPersistedModel) Billi
 	cloned.Currency = defaultModelPricingCurrency(model.Currency)
 	cloned.PricingStatus = normalizeBillingPricingStatus(model.PricingStatus)
 	cloned.PricingWarnings = compactStrings(model.PricingWarnings)
-	cloned.OutputChargeSlot = billingDefaultOutputChargeSlot(defaultString(model.OutputChargeSlot, model.Mode))
+	cloned.OutputChargeSlot = billingNormalizeOutputChargeSlot(model.OutputChargeSlot, model.Mode)
 	cloned.OfficialForm = cloneBillingPricingLayerForm(model.OfficialForm)
 	cloned.SaleForm = cloneBillingPricingLayerForm(model.SaleForm)
 	cloned.OfficialItems = cloneBillingPriceItems(model.OfficialItems)
@@ -124,11 +124,14 @@ func cloneBillingPriceItems(items []BillingPriceItem) []BillingPriceItem {
 func billingPricingMetadataForPersistedModel(model BillingPricingPersistedModel) billingPricingFormMetadata {
 	outputSlot := strings.TrimSpace(model.OutputChargeSlot)
 	if outputSlot == "" {
-		outputSlot = billingDefaultOutputChargeSlot(model.Mode)
+		outputSlot = billingNormalizeOutputChargeSlot("", model.Mode)
+	} else {
+		outputSlot = billingNormalizeOutputChargeSlot(outputSlot, model.Mode)
 	}
 	return billingPricingFormMetadata{
-		InputSupported:   model.InputSupported,
-		OutputChargeSlot: outputSlot,
+		InputSupported:        model.InputSupported,
+		OutputChargeSlot:      outputSlot,
+		SupportsPromptCaching: model.SupportsPromptCaching,
 	}
 }
 

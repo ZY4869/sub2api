@@ -39,6 +39,7 @@ vi.mock('vue-i18n', async () => {
 vi.mock('@/api', () => ({
   keysAPI: {
     list: mocks.listKeys,
+    getModelCatalog: vi.fn(),
     createWithPayload: mocks.createKey,
     update: mocks.updateKey,
     toggleStatus: vi.fn(),
@@ -216,13 +217,18 @@ describe('KeysView api key model binding policy', () => {
     vi.useRealTimers()
   })
 
-  it('blocks empty model selections in model_required mode', async () => {
+  it('allows whole-group payloads in model_required mode', async () => {
     const wrapper = await mountKeysView('model_required')
 
     await wrapper.get('form#key-form').trigger('submit.prevent')
 
-    expect(mocks.showError).toHaveBeenCalledWith('keys.modelSelectionRequired')
-    expect(mocks.createKey).not.toHaveBeenCalled()
+    expect(mocks.showError).not.toHaveBeenCalledWith('keys.modelSelectionRequired')
+    expect(mocks.createKey).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'narrow key',
+        groups: [{ group_id: 10 }],
+      }),
+    )
   })
 
   it('allows whole-group payloads in group_allowed mode', async () => {

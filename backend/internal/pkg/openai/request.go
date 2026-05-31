@@ -2,6 +2,10 @@ package openai
 
 import "strings"
 
+const (
+	AllowedClientClaudeCode = "claude_code"
+)
+
 // CodexCLIUserAgentPrefixes matches Codex CLI User-Agent patterns
 // Examples: "codex_vscode/1.0.0", "codex_cli_rs/0.1.2"
 var CodexCLIUserAgentPrefixes = []string{
@@ -62,6 +66,25 @@ func IsCodexOfficialClientOriginator(originator string) bool {
 // official Codex client family request.
 func IsCodexOfficialClientByHeaders(userAgent, originator string) bool {
 	return IsCodexOfficialClientRequest(userAgent) || IsCodexOfficialClientOriginator(originator)
+}
+
+func MatchAllowedClients(userAgent, originator string, ids []string) bool {
+	if len(ids) == 0 {
+		return false
+	}
+	for _, id := range ids {
+		switch normalizeCodexClientHeader(id) {
+		case AllowedClientClaudeCode:
+			if IsClaudeCodeCodexPluginByHeaders(userAgent, originator) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func IsClaudeCodeCodexPluginByHeaders(userAgent, originator string) bool {
+	return strings.TrimSpace(originator) == "Claude Code" && strings.Contains(userAgent, "Claude Code/")
 }
 
 func normalizeCodexClientHeader(value string) string {

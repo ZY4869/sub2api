@@ -52,6 +52,8 @@
         {{ badge.label }}
       </span>
     </div>
+
+    <PublicCatalogCapabilityBadges :item="item" />
   </div>
 </template>
 
@@ -60,6 +62,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { BillingPublicCatalogAdminEntry } from '@/api/admin/billing'
 import Icon from '@/components/icons/Icon.vue'
+import PublicCatalogCapabilityBadges from './PublicCatalogCapabilityBadges.vue'
 
 const props = withDefaults(defineProps<{
   item: BillingPublicCatalogAdminEntry

@@ -21,6 +21,9 @@ type ModelCatalogService struct {
 	modelRegistryService  *ModelRegistryService
 	gatewayService        *GatewayService
 	channelMonitorService *ChannelMonitorService
+	usageHealthRepo       publicModelCatalogTrafficHealthRepository
+	apiKeyRepo            APIKeyRepository
+	userPlatformQuotas    *UserPlatformQuotaService
 	docsService           *APIDocsService
 	publicCatalogCacheMu  sync.RWMutex
 	publicCatalogCache    *PublicModelCatalogSnapshot
@@ -64,6 +67,18 @@ func (s *ModelCatalogService) SetGatewayService(gatewayService *GatewayService) 
 
 func (s *ModelCatalogService) SetChannelMonitorService(channelMonitorService *ChannelMonitorService) {
 	s.channelMonitorService = channelMonitorService
+}
+
+func (s *ModelCatalogService) SetUsageHealthRepository(repo publicModelCatalogTrafficHealthRepository) {
+	s.usageHealthRepo = repo
+}
+
+func (s *ModelCatalogService) SetCapacityDiagnosticsDependencies(apiKeyRepo APIKeyRepository, quotaService *UserPlatformQuotaService) {
+	if s == nil {
+		return
+	}
+	s.apiKeyRepo = apiKeyRepo
+	s.userPlatformQuotas = quotaService
 }
 
 func (s *ModelCatalogService) SetDocsService(docsService *APIDocsService) {

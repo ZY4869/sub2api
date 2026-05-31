@@ -19,6 +19,7 @@ type OpenAIAccountScheduleRequest struct {
 	PreviousResponseID string
 	RequestedModel     string
 	RequiredTransport  OpenAIUpstreamTransport
+	RequiredCapability OpenAIEndpointCapability
 	ExcludedIDs        map[int64]struct{}
 }
 
@@ -96,6 +97,11 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		}
 		if selection != nil && selection.Account != nil {
 			if !s.isAccountTransportCompatible(selection.Account, req.RequiredTransport) {
+				selection = nil
+			}
+		}
+		if selection != nil && selection.Account != nil {
+			if !s.isAccountEndpointCapabilityCompatible(selection.Account, req.RequiredCapability) {
 				selection = nil
 			}
 		}

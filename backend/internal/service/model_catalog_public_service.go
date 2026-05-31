@@ -31,17 +31,22 @@ var publicModelCatalogProtocolOrder = map[string]int{
 }
 
 func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
-	return s.publicModelCatalogSnapshot(ctx, true)
+	return s.PublicModelCatalogSnapshotWithOptions(ctx, PublicModelCatalogReadOptions{})
+}
+
+func (s *ModelCatalogService) PublicModelCatalogSnapshotWithOptions(ctx context.Context, options PublicModelCatalogReadOptions) (*PublicModelCatalogSnapshot, error) {
+	return s.publicModelCatalogSnapshot(ctx, true, options)
 }
 
 func (s *ModelCatalogService) internalPublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
-	return s.publicModelCatalogSnapshot(ctx, false)
+	return s.publicModelCatalogSnapshot(ctx, false, PublicModelCatalogReadOptions{})
 }
 
-func (s *ModelCatalogService) publicModelCatalogSnapshot(ctx context.Context, sanitize bool) (*PublicModelCatalogSnapshot, error) {
+func (s *ModelCatalogService) publicModelCatalogSnapshot(ctx context.Context, sanitize bool, options PublicModelCatalogReadOptions) (*PublicModelCatalogSnapshot, error) {
+	allowDemo := s.publicModelCatalogReadAllowsDemo(options)
 	if rawPublished := s.loadPublishedPublicModelCatalogSnapshot(ctx); rawPublished != nil {
-		published := s.filterPublishedPublicModelCatalogSnapshot(ctx, rawPublished)
-		snapshot := clonePublicModelCatalogSnapshot(&published.Snapshot)
+		rawPublished = filterPublicModelCatalogPublishedSnapshotByDemoMode(rawPublished, allowDemo)
+		snapshot := clonePublicModelCatalogSnapshot(&rawPublished.Snapshot)
 		if sanitize {
 			snapshot = sanitizePublicModelCatalogSnapshotForPublic(snapshot)
 		}
@@ -49,6 +54,7 @@ func (s *ModelCatalogService) publicModelCatalogSnapshot(ctx context.Context, sa
 		return snapshot, nil
 	}
 	if snapshot, age, ok := s.getFreshPublicModelCatalogSnapshot(); ok {
+		snapshot = filterPublicModelCatalogSnapshotByDemoMode(snapshot, allowDemo)
 		snapshot.CatalogSource = PublicModelCatalogSourceLiveFallback
 		logger.FromContext(ctx).Info(
 			"public model catalog live fallback cache hit",
@@ -66,6 +72,7 @@ func (s *ModelCatalogService) publicModelCatalogSnapshot(ctx context.Context, sa
 	snapshot, err := s.buildLivePublicModelCatalogSnapshot(ctx)
 	if err != nil {
 		if fallback, age, ok := s.getAnyPublicModelCatalogSnapshot(); ok {
+			fallback = filterPublicModelCatalogSnapshotByDemoMode(fallback, allowDemo)
 			fallback.CatalogSource = PublicModelCatalogSourceLiveFallback
 			logger.FromContext(ctx).Warn(
 				"public model catalog live fallback stale cache",
@@ -85,6 +92,7 @@ func (s *ModelCatalogService) publicModelCatalogSnapshot(ctx context.Context, sa
 
 	s.storePublicModelCatalogSnapshot(snapshot)
 	liveSnapshot := clonePublicModelCatalogSnapshot(snapshot)
+	liveSnapshot = filterPublicModelCatalogSnapshotByDemoMode(liveSnapshot, allowDemo)
 	liveSnapshot.CatalogSource = PublicModelCatalogSourceLiveFallback
 	logger.FromContext(ctx).Info(
 		"public model catalog live fallback rebuilt",
@@ -107,8 +115,10 @@ func emptyPublishedPublicModelCatalogSnapshot() *PublicModelCatalogSnapshot {
 
 func (s *ModelCatalogService) PublishedPublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
 	if rawPublished := s.loadPublishedPublicModelCatalogSnapshot(ctx); rawPublished != nil {
-		published := s.filterPublishedPublicModelCatalogSnapshot(ctx, rawPublished)
-		return sanitizePublicModelCatalogSnapshotForPublic(&published.Snapshot), nil
+		rawPublished = filterPublicModelCatalogPublishedSnapshotByDemoMode(rawPublished, false)
+		snapshot := clonePublicModelCatalogSnapshot(&rawPublished.Snapshot)
+		snapshot.CatalogSource = PublicModelCatalogSourcePublished
+		return sanitizePublicModelCatalogSnapshotForPublic(snapshot), nil
 	}
 	return emptyPublishedPublicModelCatalogSnapshot(), nil
 }
@@ -172,12 +182,6 @@ func (s *ModelCatalogService) buildLivePublicModelCatalogSnapshot(ctx context.Co
 		multiplierBuckets[item.MultiplierSummary.Kind] = struct{}{}
 	}
 
-	pageSize := normalizePublicModelCatalogPageSize(defaultPublicModelCatalogPageSize)
-	etag, err := computePublicModelCatalogETagWithPageSize(pageSize, items)
-	if err != nil {
-		return nil, err
-	}
-
 	updatedAt := time.Now().UTC()
 	if pricingSnapshot != nil && !pricingSnapshot.UpdatedAt.IsZero() {
 		updatedAt = pricingSnapshot.UpdatedAt.UTC()
@@ -192,12 +196,18 @@ func (s *ModelCatalogService) buildLivePublicModelCatalogSnapshot(ctx context.Co
 		zap.Int("multiplier_bucket_count", len(multiplierBuckets)),
 	)
 
-	return &PublicModelCatalogSnapshot{
-		ETag:      etag,
-		UpdatedAt: updatedAt.Format(time.RFC3339),
-		PageSize:  pageSize,
-		Items:     items,
-	}, nil
+	snapshot := &PublicModelCatalogSnapshot{
+		UpdatedAt:         updatedAt.Format(time.RFC3339),
+		LastRevalidatedAt: updatedAt.Format(time.RFC3339),
+		PageSize:          normalizePublicModelCatalogPageSize(defaultPublicModelCatalogPageSize),
+		Items:             items,
+	}
+	etag, err := computePublicModelCatalogETag(snapshot)
+	if err != nil {
+		return nil, err
+	}
+	snapshot.ETag = etag
+	return snapshot, nil
 }
 
 func (s *ModelCatalogService) filterPublicModelCatalogConfirmedItems(ctx context.Context, items []PublicModelCatalogItem) []PublicModelCatalogItem {
@@ -338,24 +348,23 @@ func buildPublicModelCatalogItem(
 		mode = inferModelMode(modelID, "")
 	}
 
-	return PublicModelCatalogItem{
-		EntryID:           publicModelCatalogEntryID(0, "", modelID),
-		PublicModelID:     modelID,
-		Model:             modelID,
-		BaseModel:         modelID,
-		SourceModelID:     modelID,
-		DisplayName:       displayName,
-		Provider:          provider,
-		ProviderIconKey:   provider,
-		Status:            PublicModelStatusInfo,
-		AvailabilityState: AccountModelAvailabilityUnknown,
-		StaleState:        AccountModelStaleStateUnverified,
-		LifecycleStatus: normalizePublicModelLifecycleStatus(
-			entry.Status,
-			entry.DisplayName,
-			entry.ID,
-		),
+	lifecycle := resolvePublicModelLifecycleStatus(entry.Status, entry.DisplayName, entry.ID)
+	item := PublicModelCatalogItem{
+		EntryID:              publicModelCatalogEntryID(0, "", modelID),
+		PublicModelID:        modelID,
+		Model:                modelID,
+		BaseModel:            modelID,
+		SourceModelID:        modelID,
+		DisplayName:          displayName,
+		Provider:             provider,
+		ProviderIconKey:      provider,
+		Status:               PublicModelStatusInfo,
+		AvailabilityState:    AccountModelAvailabilityUnknown,
+		StaleState:           AccountModelStaleStateUnverified,
+		LifecycleStatus:      lifecycle.Status,
+		Lifecycle:            publicModelLifecycleFromResolution(lifecycle, PublicModelLifecycleSourceOfficialRegistry),
 		ContextWindowTokens:  entry.ContextWindowTokens,
+		ContextWindow:        publicModelContextWindowFromTokens(entry.ContextWindowTokens, PublicModelCapabilitySourcePricingCatalog),
 		Modalities:           append([]string(nil), entry.Modalities...),
 		Capabilities:         append([]string(nil), entry.Capabilities...),
 		RequestProtocols:     publicModelCatalogRequestProtocols(entry, provider),
@@ -366,18 +375,28 @@ func buildPublicModelCatalogItem(
 		SalePriceDisplay:     priceDisplay,
 		MultiplierSummary:    publicModelCatalogMultiplierSummaryFromForm(persisted.SaleForm),
 		RuntimePriceSpec:     publicModelCatalogRuntimePriceSpecFromPersisted(persisted),
-	}, true
+	}
+	return enrichPublicModelCatalogItemMetadata(item, publicModelCatalogMetadataSourceForRegistry()), true
 }
 
 func publicModelCatalogRuntimePriceSpecFromPersisted(persisted BillingPricingPersistedModel) PublicModelCatalogRuntimePriceSpec {
 	return PublicModelCatalogRuntimePriceSpec{
 		Currency:                        defaultModelPricingCurrency(persisted.Currency),
-		OutputChargeSlot:                billingDefaultOutputChargeSlot(defaultString(persisted.OutputChargeSlot, persisted.Mode)),
+		InputSupported:                  persisted.InputSupported,
+		OutputChargeSlot:                billingNormalizeOutputChargeSlot(persisted.OutputChargeSlot, persisted.Mode),
+		SupportsPromptCaching:           persisted.SupportsPromptCaching,
 		LongContextInputTokenThreshold:  persisted.LongContextInputTokenThreshold,
 		LongContextInputCostMultiplier:  persisted.LongContextInputCostMultiplier,
 		LongContextOutputCostMultiplier: persisted.LongContextOutputCostMultiplier,
 	}
 }
+
+const (
+	publicModelCatalogFieldCacheCreation = "cache_creation"
+	publicModelCatalogFieldCacheRead     = "cache_read"
+	publicModelCatalogFieldCache5m       = "cache_5m"
+	publicModelCatalogFieldCache1h       = "cache_1h"
+)
 
 func publicModelCatalogPriceDisplayFromForm(
 	metadata billingPricingFormMetadata,
@@ -386,7 +405,10 @@ func publicModelCatalogPriceDisplayFromForm(
 	form = normalizeBillingPricingLayerFormForLayer(form, BillingLayerSale)
 	primaryIDs := publicModelCatalogPrimaryFieldIDs(metadata)
 	secondaryIDs := []string{
-		billingDiscountFieldCachePrice,
+		publicModelCatalogFieldCacheCreation,
+		publicModelCatalogFieldCacheRead,
+		publicModelCatalogFieldCache5m,
+		publicModelCatalogFieldCache1h,
 		billingDiscountFieldInputPriceAboveThreshold,
 		billingDiscountFieldOutputPriceAboveThreshold,
 		billingDiscountFieldBatchInputPrice,
@@ -427,14 +449,18 @@ func publicModelCatalogPrimaryFieldIDs(metadata billingPricingFormMetadata) []st
 			return []string{
 				billingDiscountFieldInputPrice,
 				billingDiscountFieldOutputPrice,
-				billingDiscountFieldCachePrice,
-				billingDiscountFieldBatchCachePrice,
+				publicModelCatalogFieldCacheCreation,
+				publicModelCatalogFieldCacheRead,
+				publicModelCatalogFieldCache5m,
+				publicModelCatalogFieldCache1h,
 			}
 		}
 		return []string{
 			billingDiscountFieldOutputPrice,
-			billingDiscountFieldCachePrice,
-			billingDiscountFieldBatchCachePrice,
+			publicModelCatalogFieldCacheCreation,
+			publicModelCatalogFieldCacheRead,
+			publicModelCatalogFieldCache5m,
+			publicModelCatalogFieldCache1h,
 		}
 	}
 	return []string{billingDiscountFieldOutputPrice}
@@ -445,14 +471,29 @@ func publicModelCatalogPriceEntryForField(
 	form BillingPricingLayerForm,
 	fieldID string,
 ) (PublicModelCatalogPriceEntry, bool) {
-	value := billingPricingEffectiveFieldValue(form, fieldID)
+	legacyFieldID := publicModelCatalogLegacyBillingFieldID(fieldID)
+	value := billingPricingEffectiveFieldValue(form, legacyFieldID)
 	if value == nil {
+		if publicModelCatalogIsCacheFieldID(fieldID) && metadata.SupportsPromptCaching {
+			return PublicModelCatalogPriceEntry{
+				ID:                fieldID,
+				Unit:              publicModelCatalogFieldUnit(metadata, fieldID),
+				UnitKind:          publicModelCatalogFieldUnitKind(metadata, fieldID),
+				DisplayUnit:       publicModelCatalogFieldDisplayUnit(metadata, fieldID),
+				Value:             0,
+				Configured:        false,
+				SupportedUnpriced: true,
+			}, true
+		}
 		return PublicModelCatalogPriceEntry{}, false
 	}
 	return PublicModelCatalogPriceEntry{
-		ID:    fieldID,
-		Unit:  publicModelCatalogFieldUnit(metadata, fieldID),
-		Value: *value,
+		ID:          fieldID,
+		Unit:        publicModelCatalogFieldUnit(metadata, fieldID),
+		UnitKind:    publicModelCatalogFieldUnitKind(metadata, fieldID),
+		DisplayUnit: publicModelCatalogFieldDisplayUnit(metadata, fieldID),
+		Value:       *value,
+		Configured:  true,
 	}, true
 }
 
@@ -462,7 +503,13 @@ func publicModelCatalogFieldUnit(metadata billingPricingFormMetadata, fieldID st
 		return billingUnitForChargeSlot(BillingChargeSlotTextInput)
 	case billingDiscountFieldOutputPrice, billingDiscountFieldOutputPriceAboveThreshold, billingDiscountFieldBatchOutputPrice:
 		return billingUnitForChargeSlot(metadata.OutputChargeSlot)
-	case billingDiscountFieldCachePrice, billingDiscountFieldBatchCachePrice:
+	case billingDiscountFieldCachePrice, publicModelCatalogFieldCacheCreation, publicModelCatalogFieldCache5m:
+		return billingUnitForChargeSlot(BillingChargeSlotCacheCreate)
+	case publicModelCatalogFieldCacheRead:
+		return billingUnitForChargeSlot(BillingChargeSlotCacheRead)
+	case publicModelCatalogFieldCache1h:
+		return billingUnitForChargeSlot(BillingChargeSlotCacheStorageTokenHour)
+	case billingDiscountFieldBatchCachePrice:
 		return billingUnitForChargeSlot(BillingChargeSlotCacheCreate)
 	case billingDiscountFieldGroundingSearch:
 		return billingUnitForChargeSlot(BillingChargeSlotGroundingSearchRequest)
@@ -474,6 +521,55 @@ func publicModelCatalogFieldUnit(metadata billingPricingFormMetadata, fieldID st
 		return billingUnitForChargeSlot(BillingChargeSlotFileSearchRetrievalToken)
 	default:
 		return ""
+	}
+}
+
+func publicModelCatalogFieldUnitKind(metadata billingPricingFormMetadata, fieldID string) string {
+	switch publicModelCatalogFieldUnit(metadata, fieldID) {
+	case BillingUnitInputToken, BillingUnitOutputToken, BillingUnitCacheCreateToken, BillingUnitCacheReadToken, BillingUnitCacheStorageTokenHour, BillingUnitFileSearchEmbedding, BillingUnitFileSearchRetrieval:
+		return "token"
+	case BillingUnitImage:
+		return "image"
+	case BillingUnitVideoRequest:
+		return "video"
+	default:
+		return "request"
+	}
+}
+
+func publicModelCatalogFieldDisplayUnit(metadata billingPricingFormMetadata, fieldID string) string {
+	switch publicModelCatalogFieldUnitKind(metadata, fieldID) {
+	case "token":
+		return "per_million_tokens"
+	case "image":
+		return "per_image"
+	case "video":
+		return "per_video"
+	default:
+		return "per_request"
+	}
+}
+
+func publicModelCatalogLegacyBillingFieldID(fieldID string) string {
+	switch strings.TrimSpace(fieldID) {
+	case publicModelCatalogFieldCacheCreation, publicModelCatalogFieldCacheRead, publicModelCatalogFieldCache5m, publicModelCatalogFieldCache1h:
+		return billingDiscountFieldCachePrice
+	default:
+		return fieldID
+	}
+}
+
+func publicModelCatalogIsCacheFieldID(fieldID string) bool {
+	switch strings.TrimSpace(fieldID) {
+	case billingDiscountFieldCachePrice,
+		billingDiscountFieldBatchCachePrice,
+		publicModelCatalogFieldCacheCreation,
+		publicModelCatalogFieldCacheRead,
+		publicModelCatalogFieldCache5m,
+		publicModelCatalogFieldCache1h:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -576,12 +672,45 @@ func publicModelCatalogProtocolFamily(value string) string {
 }
 
 func computePublicModelCatalogETagWithPageSize(pageSize int, items []PublicModelCatalogItem) (string, error) {
+	return computePublicModelCatalogETagForPayload(pageSize, "", "", "", "", items)
+}
+
+func computePublicModelCatalogETag(snapshot *PublicModelCatalogSnapshot) (string, error) {
+	if snapshot == nil {
+		return "", nil
+	}
+	return computePublicModelCatalogETagForPayload(
+		normalizePublicModelCatalogPageSize(snapshot.PageSize),
+		snapshot.UpdatedAt,
+		snapshot.PublishedAt,
+		snapshot.LastRevalidatedAt,
+		snapshot.StaleReason,
+		snapshot.Items,
+	)
+}
+
+func computePublicModelCatalogETagForPayload(
+	pageSize int,
+	updatedAt string,
+	publishedAt string,
+	lastRevalidatedAt string,
+	staleReason string,
+	items []PublicModelCatalogItem,
+) (string, error) {
 	payload, err := json.Marshal(struct {
-		PageSize int                      `json:"page_size,omitempty"`
-		Items    []PublicModelCatalogItem `json:"items"`
+		PageSize          int                      `json:"page_size,omitempty"`
+		UpdatedAt         string                   `json:"updated_at,omitempty"`
+		PublishedAt       string                   `json:"published_at,omitempty"`
+		LastRevalidatedAt string                   `json:"last_revalidated_at,omitempty"`
+		StaleReason       string                   `json:"stale_reason,omitempty"`
+		Items             []PublicModelCatalogItem `json:"items"`
 	}{
-		PageSize: pageSize,
-		Items:    items,
+		PageSize:          pageSize,
+		UpdatedAt:         strings.TrimSpace(updatedAt),
+		PublishedAt:       strings.TrimSpace(publishedAt),
+		LastRevalidatedAt: strings.TrimSpace(lastRevalidatedAt),
+		StaleReason:       strings.TrimSpace(staleReason),
+		Items:             items,
 	})
 	if err != nil {
 		return "", err
@@ -595,11 +724,15 @@ func clonePublicModelCatalogSnapshot(snapshot *PublicModelCatalogSnapshot) *Publ
 		return nil
 	}
 	cloned := &PublicModelCatalogSnapshot{
-		ETag:          snapshot.ETag,
-		UpdatedAt:     snapshot.UpdatedAt,
-		PageSize:      snapshot.PageSize,
-		CatalogSource: snapshot.CatalogSource,
-		Items:         make([]PublicModelCatalogItem, 0, len(snapshot.Items)),
+		ETag:              snapshot.ETag,
+		UpdatedAt:         snapshot.UpdatedAt,
+		RefreshedAt:       snapshot.RefreshedAt,
+		PublishedAt:       snapshot.PublishedAt,
+		LastRevalidatedAt: snapshot.LastRevalidatedAt,
+		StaleReason:       snapshot.StaleReason,
+		PageSize:          snapshot.PageSize,
+		CatalogSource:     snapshot.CatalogSource,
+		Items:             make([]PublicModelCatalogItem, 0, len(snapshot.Items)),
 	}
 	for _, item := range snapshot.Items {
 		cloned.Items = append(cloned.Items, clonePublicModelCatalogItem(item))
@@ -609,6 +742,16 @@ func clonePublicModelCatalogSnapshot(snapshot *PublicModelCatalogSnapshot) *Publ
 
 func clonePublicModelCatalogItem(item PublicModelCatalogItem) PublicModelCatalogItem {
 	cloned := item
+	cloned.ContextWindow = PublicModelContextWindow{
+		Tokens:        item.ContextWindow.Tokens,
+		Source:        item.ContextWindow.Source,
+		Verified:      item.ContextWindow.Verified,
+		LastCheckedAt: item.ContextWindow.LastCheckedAt,
+		LimitKind:     item.ContextWindow.LimitKind,
+		Notes:         append([]string(nil), item.ContextWindow.Notes...),
+	}
+	cloned.CapabilityMatrix = clonePublicModelCapabilityMatrix(item.CapabilityMatrix)
+	cloned.ProtocolEndpoints = clonePublicModelProtocolEndpoints(item.ProtocolEndpoints)
 	cloned.Modalities = append([]string(nil), item.Modalities...)
 	cloned.Capabilities = append([]string(nil), item.Capabilities...)
 	cloned.RequestProtocols = append([]string(nil), item.RequestProtocols...)
@@ -651,23 +794,38 @@ func sanitizePublicModelCatalogSnapshotForPublic(snapshot *PublicModelCatalogSna
 	if cloned == nil {
 		return nil
 	}
-	cloned.Items = sanitizePublicModelCatalogItemsForPublic(cloned.Items)
+	cloned.RefreshedAt = ""
+	cloned.Items = sanitizePublicModelCatalogItemsForPublicWithSource(cloned.Items, cloned.CatalogSource)
 	return cloned
 }
 
 func sanitizePublicModelCatalogItemsForPublic(items []PublicModelCatalogItem) []PublicModelCatalogItem {
+	return sanitizePublicModelCatalogItemsForPublicWithSource(items, "")
+}
+
+func sanitizePublicModelCatalogItemsForPublicWithSource(items []PublicModelCatalogItem, catalogSource string) []PublicModelCatalogItem {
 	if len(items) == 0 {
 		return []PublicModelCatalogItem{}
 	}
 	sanitized := make([]PublicModelCatalogItem, 0, len(items))
 	for _, item := range items {
-		sanitized = append(sanitized, sanitizePublicModelCatalogItemForPublic(item))
+		sanitized = append(sanitized, sanitizePublicModelCatalogItemForPublicWithSource(item, catalogSource))
 	}
 	return sanitized
 }
 
 func sanitizePublicModelCatalogItemForPublic(item PublicModelCatalogItem) PublicModelCatalogItem {
+	return sanitizePublicModelCatalogItemForPublicWithSource(item, "")
+}
+
+func sanitizePublicModelCatalogItemForPublicWithSource(item PublicModelCatalogItem, catalogSource string) PublicModelCatalogItem {
 	cloned := clonePublicModelCatalogItem(item)
+	cloned.PublicationStatus = publicModelPublicationStatusForCatalogSource(catalogSource)
+	cloned.HealthStatus = publicModelHealthStatusFromInternalState(item.AvailabilityState, item.StaleState)
+	cloned.VerificationSource = publicModelVerificationSourceForCatalogSource(catalogSource)
+	cloned.Status = ""
+	cloned.AvailabilityState = ""
+	cloned.StaleState = ""
 	cloned.BaseModel = ""
 	cloned.SourceModelID = ""
 	cloned.SourceProtocol = ""
@@ -676,6 +834,7 @@ func sanitizePublicModelCatalogItemForPublic(item PublicModelCatalogItem) Public
 	cloned.SourceAccountName = ""
 	cloned.SourceIDs = nil
 	cloned.RuntimePriceSpec = PublicModelCatalogRuntimePriceSpec{}
+	cloned = enrichPublicModelCatalogItemMetadata(cloned, publicModelCatalogMetadataSourceForPublished(""))
 	if cloned.PublicModelID == "" {
 		cloned.PublicModelID = cloned.Model
 	}
@@ -685,9 +844,42 @@ func sanitizePublicModelCatalogItemForPublic(item PublicModelCatalogItem) Public
 	return cloned
 }
 
+func publicModelPublicationStatusForCatalogSource(catalogSource string) string {
+	switch strings.TrimSpace(catalogSource) {
+	case PublicModelCatalogSourcePublished:
+		return PublicModelPublicationStatusPublished
+	case PublicModelCatalogSourceLiveFallback:
+		return PublicModelCatalogSourceLiveFallback
+	default:
+		return PublicModelPublicationStatusPublished
+	}
+}
+
+func publicModelVerificationSourceForCatalogSource(catalogSource string) string {
+	switch strings.TrimSpace(catalogSource) {
+	case PublicModelCatalogSourceLiveFallback:
+		return PublicModelVerificationSourceLiveFallback
+	default:
+		return PublicModelVerificationSourcePublishedSnapshot
+	}
+}
+
+func publicModelHealthStatusFromInternalState(availabilityState string, staleState string) string {
+	switch {
+	case strings.EqualFold(availabilityState, AccountModelAvailabilityUnavailable):
+		return PublicModelHealthStatusError
+	case strings.EqualFold(availabilityState, AccountModelAvailabilityVerified) && strings.EqualFold(staleState, AccountModelStaleStateFresh):
+		return PublicModelHealthStatusHealthy
+	case strings.EqualFold(availabilityState, AccountModelAvailabilityVerified):
+		return PublicModelHealthStatusWarning
+	default:
+		return PublicModelHealthStatusPending
+	}
+}
+
 func normalizePublicModelCatalogRuntimePriceSpec(spec PublicModelCatalogRuntimePriceSpec) PublicModelCatalogRuntimePriceSpec {
 	spec.Currency = defaultModelPricingCurrency(spec.Currency)
-	spec.OutputChargeSlot = billingDefaultOutputChargeSlot(spec.OutputChargeSlot)
+	spec.OutputChargeSlot = billingNormalizeOutputChargeSlot(spec.OutputChargeSlot, "")
 	if spec.LongContextInputTokenThreshold < 0 {
 		spec.LongContextInputTokenThreshold = 0
 	}
@@ -706,6 +898,32 @@ func clonePublicModelCatalogPriceEntries(entries []PublicModelCatalogPriceEntry)
 	}
 	cloned := make([]PublicModelCatalogPriceEntry, len(entries))
 	copy(cloned, entries)
+	return cloned
+}
+
+func clonePublicModelCapabilityMatrix(entries []PublicModelCapabilityMatrixEntry) []PublicModelCapabilityMatrixEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	cloned := make([]PublicModelCapabilityMatrixEntry, 0, len(entries))
+	for _, entry := range entries {
+		next := entry
+		next.Limitations = append([]string(nil), entry.Limitations...)
+		cloned = append(cloned, next)
+	}
+	return cloned
+}
+
+func clonePublicModelProtocolEndpoints(endpoints []PublicModelProtocolEndpoint) []PublicModelProtocolEndpoint {
+	if len(endpoints) == 0 {
+		return nil
+	}
+	cloned := make([]PublicModelProtocolEndpoint, 0, len(endpoints))
+	for _, endpoint := range endpoints {
+		next := endpoint
+		next.Limitations = append([]string(nil), endpoint.Limitations...)
+		cloned = append(cloned, next)
+	}
 	return cloned
 }
 

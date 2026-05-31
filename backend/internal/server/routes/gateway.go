@@ -54,6 +54,7 @@ func RegisterGatewayRoutes(
 		gateway.POST("/messages", dispatchers.AnthropicMessages)
 		// /v1/messages/count_tokens: OpenAI groups get 404
 		gateway.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
+		gateway.GET("/model-catalog", h.Gateway.ModelCatalog)
 		gateway.GET("/usage", h.Gateway.Usage)
 		gateway.POST("/responses", dispatchers.OpenAIResponses)
 		gateway.POST("/responses/*subpath", dispatchers.OpenAIResponses)
@@ -62,6 +63,7 @@ func RegisterGatewayRoutes(
 		gateway.GET("/responses", dispatchers.OpenAIResponsesWebSocket)
 		gateway.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
 		gateway.POST("/completions", dispatchers.OpenAICompletions)
+		gateway.POST("/embeddings", dispatchers.OpenAIEmbeddings)
 		gateway.POST("/images/generations", dispatchers.PublicImagesGeneration)
 		gateway.POST("/images/edits", dispatchers.PublicImagesEdits)
 		gateway.POST("/videos", dispatchers.GrokVideosGeneration)
@@ -303,6 +305,7 @@ func RegisterGatewayRoutes(
 	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponsesWebSocket)
 	// OpenAI Chat Completions API（不带v1前缀的别名）
 	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIChatCompletions)
+	r.POST("/embeddings", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIEmbeddings)
 	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.PublicImagesGeneration)
 	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.PublicImagesEdits)
 	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosGeneration)

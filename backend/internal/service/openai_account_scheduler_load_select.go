@@ -87,8 +87,11 @@ func (s *defaultOpenAIAccountScheduler) resolveOpenAILoadBalanceFreshAccount(
 	if !s.isAccountTransportCompatible(fresh, req.RequiredTransport) {
 		return nil
 	}
+	if !s.isAccountEndpointCapabilityCompatible(fresh, req.RequiredCapability) {
+		return nil
+	}
 	fresh = s.service.recheckSelectedOpenAIAccountFromDB(ctx, fresh, req.RequestedModel)
-	if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) {
+	if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) || !s.isAccountEndpointCapabilityCompatible(fresh, req.RequiredCapability) {
 		return nil
 	}
 	return fresh

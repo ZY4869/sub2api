@@ -5,6 +5,8 @@
       :loading="loading"
       :saving="saving"
       :publishing="publishing"
+      :revalidating="revalidating"
+      :revalidation-auto-enabled="revalidationAutoEnabled"
       :selected-count="selectedEntries.length"
       :available-count="availableEntries.length"
       :account-alias-count="accountAliases.length"
@@ -14,10 +16,15 @@
       :published-count="published?.model_count ?? 0"
       :published-page-size="published?.page_size ?? 10"
       :published-updated-at-label="publishedUpdatedAtLabel"
+      :published-at-label="publishedAtLabel"
+      :last-revalidated-at-label="lastRevalidatedAtLabel"
+      :stale-reason-summary="staleReasonSummary"
       :available-source-label="availableSourceLabel"
       @refresh="loadDraft(true)"
       @save="saveDraftAction"
       @publish="publishAction"
+      @revalidate="revalidateAction"
+      @update:revalidation-auto-enabled="updateRevalidationAutoEnabled"
       @export="exportDraftSnapshot"
     />
 
@@ -35,6 +42,12 @@
       :duplicate-public-i-ds="duplicatePublicIDs"
       @add-filtered="addFilteredEntries"
       @apply-batch-ratio="applyBatchRatio"
+    />
+
+    <PublicCatalogDiagnosticsPanel
+      :diagnostics="diagnostics"
+      :loading="diagnosticsLoading"
+      @refresh="loadDiagnostics"
     />
 
     <PublicCatalogColumns
@@ -55,6 +68,7 @@
 import { onMounted } from 'vue'
 import PublicCatalogColumns from '@/components/admin/billing/public-catalog/PublicCatalogColumns.vue'
 import PublicCatalogControls from '@/components/admin/billing/public-catalog/PublicCatalogControls.vue'
+import PublicCatalogDiagnosticsPanel from '@/components/admin/billing/public-catalog/PublicCatalogDiagnosticsPanel.vue'
 import PublicCatalogHeader from '@/components/admin/billing/public-catalog/PublicCatalogHeader.vue'
 import { useBillingPublicCatalog } from './useBillingPublicCatalog'
 
@@ -62,6 +76,9 @@ const {
   loading,
   saving,
   publishing,
+  revalidating,
+  diagnosticsLoading,
+  revalidationAutoEnabled,
   search,
   providerFilter,
   accountFilter,
@@ -71,6 +88,7 @@ const {
   pageSize,
   availableEntries,
   published,
+  diagnostics,
   busy,
   providers,
   accountAliases,
@@ -82,9 +100,16 @@ const {
   draftUpdatedAtLabel,
   availableUpdatedAtLabel,
   publishedUpdatedAtLabel,
+  publishedAtLabel,
+  lastRevalidatedAtLabel,
+  staleReasonSummary,
   loadDraft,
+  loadDiagnostics,
+  loadRevalidationState,
   saveDraftAction,
   publishAction,
+  updateRevalidationAutoEnabled,
+  revalidateAction,
   addEntry,
   addFilteredEntries,
   removeEntry,
@@ -98,5 +123,6 @@ const {
 
 onMounted(async () => {
   await loadDraft()
+  await loadRevalidationState()
 })
 </script>

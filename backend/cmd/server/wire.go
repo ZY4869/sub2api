@@ -96,6 +96,7 @@ func provideCleanup(
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	channelMonitorRunner *service.ChannelMonitorRunnerService,
+	publicModelCatalogRevalidationRunner *service.PublicModelCatalogRevalidationRunner,
 	backupSvc *service.BackupService,
 ) func() {
 	return func() {
@@ -284,6 +285,12 @@ func provideCleanup(
 			{"ChannelMonitorRunnerService", func() error {
 				if channelMonitorRunner != nil {
 					channelMonitorRunner.Stop()
+				}
+				return nil
+			}},
+			{"PublicModelCatalogRevalidationRunner", func() error {
+				if publicModelCatalogRevalidationRunner != nil {
+					publicModelCatalogRevalidationRunner.Stop()
 				}
 				return nil
 			}},

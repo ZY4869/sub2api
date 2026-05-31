@@ -60,6 +60,19 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 	},
 	{
+		CanonicalEndpoint: EndpointEmbeddings,
+		SourceProtocol:    PlatformOpenAI,
+		HandlerFamily:     "openai_embeddings",
+		NormalizePrefixes: []string{"/openai"},
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1/embeddings"},
+			{Method: http.MethodPost, Pattern: "/embeddings"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointEmbeddings, RequestFormat: EndpointEmbeddings, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
 		CanonicalEndpoint: EndpointResponses,
 		SourceProtocol:    PlatformOpenAI,
 		HandlerFamily:     "openai_responses",

@@ -45,6 +45,8 @@ type AccountModelProjectionEntry struct {
 	ExposureSource    string
 	AvailabilityState string
 	StaleState        string
+	LastCheckedAt     string
+	ProbeSource       string
 	Mode              string
 	Status            string
 	DeprecatedAt      string
@@ -291,6 +293,10 @@ func buildAccountModelProjectionEntry(ctx context.Context, account *Account, reg
 		projected.RouteModelID = projected.TargetModelID
 	}
 	projected.AvailabilityState, projected.StaleState = accountModelProjectionSnapshotState(snapshot, projected)
+	if snapshotEntry, ok := accountModelProjectionSnapshotEntryState(snapshot, projected); ok {
+		projected.LastCheckedAt = strings.TrimSpace(snapshotEntry.UpdatedAt)
+		projected.ProbeSource = strings.TrimSpace(snapshotEntry.Source)
+	}
 	return projected
 }
 

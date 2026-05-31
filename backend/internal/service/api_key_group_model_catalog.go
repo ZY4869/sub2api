@@ -38,6 +38,9 @@ func (s *APIKeyService) GetGroupModelCatalogSnapshot(
 	if err != nil {
 		return nil, err
 	}
+	if snapshot != nil && snapshot.CatalogSource == PublicModelCatalogSourcePublished {
+		return clonePublicModelCatalogSnapshot(snapshot), nil
+	}
 	return scalePublicModelCatalogSnapshot(snapshot, normalizePublicModelCatalogGroupMultiplier(target.RateMultiplier))
 }
 
@@ -61,19 +64,21 @@ func scalePublicModelCatalogSnapshot(
 		items = append(items, scalePublicModelCatalogItem(item, multiplier))
 	}
 
-	pageSize := normalizePublicModelCatalogPageSize(snapshot.PageSize)
-	etag, err := computePublicModelCatalogETagWithPageSize(pageSize, items)
+	next := &PublicModelCatalogSnapshot{
+		UpdatedAt:         snapshot.UpdatedAt,
+		PublishedAt:       snapshot.PublishedAt,
+		LastRevalidatedAt: snapshot.LastRevalidatedAt,
+		StaleReason:       snapshot.StaleReason,
+		PageSize:          normalizePublicModelCatalogPageSize(snapshot.PageSize),
+		CatalogSource:     snapshot.CatalogSource,
+		Items:             items,
+	}
+	etag, err := computePublicModelCatalogETag(next)
 	if err != nil {
 		return nil, err
 	}
-
-	return &PublicModelCatalogSnapshot{
-		ETag:          etag,
-		UpdatedAt:     snapshot.UpdatedAt,
-		PageSize:      pageSize,
-		CatalogSource: snapshot.CatalogSource,
-		Items:         items,
-	}, nil
+	next.ETag = etag
+	return next, nil
 }
 
 func scalePublicModelCatalogItem(item PublicModelCatalogItem, multiplier float64) PublicModelCatalogItem {

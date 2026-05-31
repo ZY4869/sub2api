@@ -18,6 +18,7 @@ const (
 	EndpointMessages                       = service.EndpointMessages
 	EndpointChatCompletions                = service.EndpointChatCompletions
 	EndpointCompletions                    = service.EndpointCompletions
+	EndpointEmbeddings                     = service.EndpointEmbeddings
 	EndpointResponses                      = service.EndpointResponses
 	EndpointImagesGen                      = service.EndpointImagesGen
 	EndpointImagesEdits                    = service.EndpointImagesEdits
@@ -88,7 +89,7 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 	switch platform {
 	case service.PlatformOpenAI:
 		switch inbound {
-		case EndpointImagesGen, EndpointImagesEdits:
+		case EndpointEmbeddings, EndpointImagesGen, EndpointImagesEdits:
 			return inbound
 		default:
 			// OpenAI forwards text surfaces to the Responses API.
@@ -176,6 +177,7 @@ func gatewayProtocolHintForInboundEndpoint(inbound string) string {
 		return service.PlatformAnthropic
 	case EndpointChatCompletions,
 		EndpointCompletions,
+		EndpointEmbeddings,
 		EndpointResponses,
 		EndpointVideosCreate,
 		EndpointVideosGen,
@@ -231,6 +233,8 @@ func DeriveUpstreamEndpointForAccount(account *service.Account, inbound, rawRequ
 	platform := service.EffectiveProtocol(resolvedAccount)
 	if platform == service.PlatformOpenAI {
 		switch normalizedInbound {
+		case EndpointEmbeddings:
+			return EndpointEmbeddings
 		case EndpointChatCompletions, EndpointResponses:
 			requestFormat := service.ResolveOpenAITextRequestFormatForAccount(resolvedAccount, normalizedInbound)
 			if requestFormat == service.GatewayOpenAIRequestFormatChatCompletions {

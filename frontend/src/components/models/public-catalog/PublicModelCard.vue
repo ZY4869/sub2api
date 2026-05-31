@@ -28,20 +28,43 @@
         <Icon :name="healthIcon" size="xs" />
         {{ cardView.statusLabel }}
       </span>
+      <span class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold" :class="cardView.publishedStatusClass">
+        <Icon name="badge" size="xs" />
+        {{ cardView.publishedStatusLabel }}
+      </span>
       <span class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold" :class="cardView.lifecycleClass">
         <Icon name="badge" size="xs" />
         {{ cardView.lifecycleLabel }}
       </span>
+      <span
+        v-if="cardView.demoLabel"
+        class="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
+      >
+        <Icon name="infoCircle" size="xs" />
+        {{ cardView.demoLabel }}
+      </span>
+    </div>
+
+    <div class="mb-4 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2 text-xs text-slate-500 dark:border-dark-700 dark:bg-dark-800/60 dark:text-slate-300">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="font-bold text-slate-700 dark:text-slate-100">{{ cardView.healthSourceLabel }}</span>
+        <span>{{ cardView.healthReasonLabel }}</span>
+        <span v-if="cardView.contextSourceLabel">{{ cardView.contextSourceLabel }}</span>
+        <span v-if="cardView.lifecycleSourceLabel">{{ cardView.lifecycleSourceLabel }}</span>
+      </div>
+      <div v-if="health?.last_checked_at" class="mt-1 font-mono text-[11px] text-slate-400">
+        {{ health.last_checked_at }}
+      </div>
     </div>
 
     <div class="mb-5 grid grid-cols-2 gap-3">
       <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 dark:border-dark-700 dark:bg-dark-800/70">
         <div class="mb-2 flex items-center justify-between gap-2">
           <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">{{ todayLabel }}</span>
-          <PublicModelSuccessBars :rate="health?.success_rate_today" :label="todayLabel" />
+          <PublicModelSuccessBars :rate="cardView.hasHealthMetrics ? health?.success_rate_today : undefined" :label="todayLabel" />
         </div>
         <div class="font-mono text-lg font-black" :class="rateColor(health?.success_rate_today)">
-          {{ formatRate(health?.success_rate_today) }}
+          {{ cardView.hasHealthMetrics ? formatRate(health?.success_rate_today) : '-' }}
         </div>
       </div>
       <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 dark:border-dark-700 dark:bg-dark-800/70">
@@ -49,7 +72,7 @@
           {{ latencyLabel }}
         </div>
         <div class="font-mono text-lg font-black text-slate-800 dark:text-white">
-          {{ formatLatency(health?.latency_ms) }}
+          {{ cardView.hasHealthMetrics ? formatLatency(health?.latency_ms) : '-' }}
         </div>
       </div>
     </div>
@@ -60,11 +83,11 @@
           {{ weekLabel }}
         </div>
         <div class="mt-1 font-mono text-sm font-black" :class="rateColor(health?.success_rate_7d)">
-          {{ formatRate(health?.success_rate_7d) }}
+          {{ cardView.hasHealthMetrics ? formatRate(health?.success_rate_7d) : '-' }}
         </div>
       </div>
       <PublicModelUptimeMatrix
-        :days="health?.daily"
+        :days="cardView.hasHealthMetrics ? health?.daily : []"
         :label="matrixLabel"
         :labels="healthLabelsMap"
       />
@@ -75,11 +98,11 @@
         <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
           {{ pricingLabel }}
         </span>
-        <span class="hidden text-[10px] font-bold uppercase tracking-wider text-slate-400 sm:inline-block">
-          / 1M Tokens
+        <span v-if="priceUnitSummary" class="hidden text-[10px] font-bold uppercase tracking-wider text-slate-400 sm:inline-block">
+          {{ priceUnitSummary }}
         </span>
       </div>
-      <div class="relative z-10 flex flex-col gap-2 xl:flex-row">
+      <div class="relative z-10 grid grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))] gap-2.5">
         <PublicModelPriceRow
           v-for="entry in priceEntries"
           :key="entry.id"
@@ -103,6 +126,7 @@ import type {
 import ModelPlatformIcon from '@/components/common/ModelPlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import type { PublicModelCatalogDisplayItem } from '@/utils/publicModelCatalog'
+import { priceDisplayUnitSummary } from '@/utils/publicModelCatalog'
 import PublicModelCardHeader from './PublicModelCardHeader.vue'
 import PublicModelPriceRow from './PublicModelPriceRow.vue'
 import PublicModelSuccessBars from './PublicModelSuccessBars.vue'
@@ -143,9 +167,10 @@ const emit = defineEmits<{
 const cardView = computed(() => buildPublicModelCardView(props.item.raw, props.health, props.t))
 const healthLabelsMap = computed(() => healthLabels(props.t))
 const priceEntries = computed(() => props.item.primaryPrices.slice(0, 3))
+const priceUnitSummary = computed(() => priceDisplayUnitSummary(props.t, priceEntries.value))
 
 const healthIcon = computed(() => {
-  switch (normalizeHealthStatus(props.health?.status)) {
+  switch (normalizeHealthStatus(props.health?.health_status || props.item.raw.health_status)) {
     case 'healthy':
       return 'checkCircle'
     case 'warning':
@@ -172,7 +197,7 @@ const providerClass = computed(() => {
 })
 
 const contextClass = computed(() => {
-  const tokens = props.item.raw.context_window_tokens || 0
+  const tokens = props.item.raw.context_window?.tokens || props.item.raw.context_window_tokens || 0
   if (tokens >= 1_000_000 || tokens >= 512_000) {
     return 'border-amber-300 bg-gradient-to-br from-amber-50 to-orange-100 text-amber-700 dark:border-amber-500/40 dark:from-amber-500/10 dark:to-orange-500/10 dark:text-amber-200'
   }

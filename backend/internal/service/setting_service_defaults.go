@@ -52,6 +52,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAntigravityUserAgentVersion:          "",
 		SettingKeyCodexOAuthUserAgentMode:              CodexOAuthUAModeDefault,
 		SettingKeyCodexOAuthUserAgentOverride:          "",
+		SettingKeyOpenAIAllowClaudeCodeCodexPlugin:     "false",
 		SettingKeyCustomMenuItems:                      "[]",
 		SettingKeyLoginAgreementEnabled:                "false",
 		SettingKeyLoginAgreementMode:                   LoginAgreementModeCheckbox,

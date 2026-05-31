@@ -11,21 +11,39 @@ type pricingContextWindowEntry struct {
 	MaxInputTokens int64 `json:"max_input_tokens"`
 }
 
+const ContextWindowSourcePricingCatalog = "pricing_catalog"
+
+type ContextWindowResolution struct {
+	Tokens int64
+	Source string
+}
+
 var (
 	contextWindowLookupOnce sync.Once
-	contextWindowLookup     map[string]int64
+	contextWindowLookup     map[string]ContextWindowResolution
 )
 
-func ResolveContextWindowTokens(ids ...string) (int64, bool) {
+func ResolveContextWindow(ids ...string) (ContextWindowResolution, bool) {
 	lookup := loadContextWindowLookup()
 	for _, id := range ids {
 		for _, variant := range AlternateVersionVariants(id) {
-			if tokens, ok := lookup[variant]; ok && tokens > 0 {
-				return tokens, true
+			if resolution, ok := lookup[variant]; ok && resolution.Tokens > 0 {
+				if resolution.Source == "" {
+					resolution.Source = ContextWindowSourcePricingCatalog
+				}
+				return resolution, true
 			}
 		}
 	}
-	return 0, false
+	return ContextWindowResolution{}, false
+}
+
+func ResolveContextWindowTokens(ids ...string) (int64, bool) {
+	resolution, ok := ResolveContextWindow(ids...)
+	if !ok {
+		return 0, false
+	}
+	return resolution.Tokens, true
 }
 
 func hydrateContextWindowTokens(entry ModelEntry) ModelEntry {
@@ -37,9 +55,9 @@ func hydrateContextWindowTokens(entry ModelEntry) ModelEntry {
 	return entry
 }
 
-func loadContextWindowLookup() map[string]int64 {
+func loadContextWindowLookup() map[string]ContextWindowResolution {
 	contextWindowLookupOnce.Do(func() {
-		contextWindowLookup = make(map[string]int64)
+		contextWindowLookup = make(map[string]ContextWindowResolution)
 		if len(pricingbundle.FallbackPricingJSON) == 0 {
 			return
 		}
@@ -55,7 +73,10 @@ func loadContextWindowLookup() map[string]int64 {
 			if normalized == "" {
 				continue
 			}
-			contextWindowLookup[normalized] = value.MaxInputTokens
+			contextWindowLookup[normalized] = ContextWindowResolution{
+				Tokens: value.MaxInputTokens,
+				Source: ContextWindowSourcePricingCatalog,
+			}
 		}
 	})
 	return contextWindowLookup

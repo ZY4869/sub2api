@@ -129,6 +129,8 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.Contains(t, csp, "default-src 'self'")
 		assert.Contains(t, csp, "'nonce-")
 		assert.Contains(t, csp, CloudflareInsightsDomain)
+		assert.Contains(t, csp, AirwallexStaticDomain)
+		assert.Contains(t, csp, AirwallexCheckoutDomain)
 	})
 
 	t.Run("api_route_skips_csp_nonce_generation", func(t *testing.T) {
@@ -313,6 +315,32 @@ func TestEnhanceCSPPolicy(t *testing.T) {
 		assert.Equal(t, 1, count)
 	})
 
+	t.Run("adds_airwallex_domains_to_script_and_frame_src", func(t *testing.T) {
+		policy := "default-src 'self'; script-src 'self'; frame-src https://challenges.cloudflare.com"
+		enhanced := enhanceCSPPolicy(policy)
+
+		assert.Contains(t, enhanced, "script-src 'self'")
+		assert.Contains(t, enhanced, "frame-src https://challenges.cloudflare.com")
+		assert.Contains(t, enhanced, AirwallexStaticDomain)
+		assert.Contains(t, enhanced, AirwallexCheckoutDomain)
+	})
+
+	t.Run("does_not_duplicate_airwallex_domains", func(t *testing.T) {
+		policy := "default-src 'self'; script-src 'self' https://static.airwallex.com https://checkout.airwallex.com; frame-src https://static.airwallex.com https://checkout.airwallex.com"
+		enhanced := enhanceCSPPolicy(policy)
+
+		assert.Equal(t, 2, strings.Count(enhanced, AirwallexStaticDomain))
+		assert.Equal(t, 2, strings.Count(enhanced, AirwallexCheckoutDomain))
+	})
+
+	t.Run("adds_airwallex_to_frame_src_when_only_script_src_has_domain", func(t *testing.T) {
+		policy := "default-src 'self'; script-src 'self' https://static.airwallex.com"
+		enhanced := enhanceCSPPolicy(policy)
+
+		assert.Contains(t, enhanced, "frame-src")
+		assert.Equal(t, 2, strings.Count(enhanced, AirwallexStaticDomain))
+	})
+
 	t.Run("handles_policy_without_script_src", func(t *testing.T) {
 		policy := "default-src 'self'"
 		enhanced := enhanceCSPPolicy(policy)
@@ -320,6 +348,8 @@ func TestEnhanceCSPPolicy(t *testing.T) {
 		assert.Contains(t, enhanced, "script-src")
 		assert.Contains(t, enhanced, NonceTemplate)
 		assert.Contains(t, enhanced, CloudflareInsightsDomain)
+		assert.Contains(t, enhanced, AirwallexStaticDomain)
+		assert.Contains(t, enhanced, AirwallexCheckoutDomain)
 	})
 
 	t.Run("preserves_existing_nonce", func(t *testing.T) {
@@ -329,6 +359,26 @@ func TestEnhanceCSPPolicy(t *testing.T) {
 		// Should not add placeholder if nonce already exists
 		assert.NotContains(t, enhanced, NonceTemplate)
 		assert.Contains(t, enhanced, "'nonce-existing'")
+	})
+}
+
+func TestDirectiveHasValue(t *testing.T) {
+	t.Run("matches_exact_directive_value", func(t *testing.T) {
+		policy := "default-src 'self'; script-src 'self' https://static.airwallex.com"
+
+		assert.True(t, directiveHasValue(policy, "script-src", AirwallexStaticDomain))
+	})
+
+	t.Run("does_not_match_other_directives", func(t *testing.T) {
+		policy := "default-src 'self'; frame-src https://static.airwallex.com"
+
+		assert.False(t, directiveHasValue(policy, "script-src", AirwallexStaticDomain))
+	})
+
+	t.Run("does_not_match_substrings", func(t *testing.T) {
+		policy := "default-src 'self'; script-src 'self' https://static.airwallex.com.evil.test"
+
+		assert.False(t, directiveHasValue(policy, "script-src", AirwallexStaticDomain))
 	})
 }
 

@@ -34,10 +34,20 @@ vi.mock("@/stores/app", () => ({
 
 vi.mock("vue-i18n", async () => {
   const actual = await vi.importActual<typeof import("vue-i18n")>("vue-i18n");
+  const labels: Record<string, string> = {
+    'ui.modelCatalog.source.verified': 'Verified',
+    'ui.modelCatalog.source.probe': 'Probe',
+    'ui.modelCatalog.source.declared': 'Declared',
+    'ui.modelCatalog.source.pricing': 'Pricing catalog',
+    'ui.modelCatalog.source.snapshot': 'Published snapshot',
+    'ui.modelCatalog.source.inferred': 'Inferred',
+    'ui.modelCatalog.source.unknown': 'Unknown source',
+    'ui.modelCatalog.demo': 'Demo data',
+  }
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key,
+      t: (key: string) => labels[key] || key,
     }),
   };
 });
@@ -76,10 +86,42 @@ describe("PublicModelCatalogContent", () => {
             provider: "openai",
             provider_icon_key: "openai",
             status: "ok",
+            public_model_id: "gpt-5.4",
             request_protocols: ["openai"],
             context_window_tokens: 128000,
+            context_window: {
+              tokens: 128000,
+              source: "account_probe",
+              verified: true,
+            },
             modalities: ["text", "image"],
             capabilities: ["vision", "tools"],
+            capability_matrix: [
+              {
+                capability: "tools",
+                protocol: "openai",
+                endpoint: "openai.responses",
+                support: "supported",
+                source: "verified_probe",
+                verified: true,
+              },
+            ],
+            protocol_endpoints: [
+              {
+                key: "openai.responses",
+                protocol: "openai",
+                endpoint: "/v1/responses",
+                support: "supported",
+                source: "verified_probe",
+                verified: true,
+              },
+            ],
+            lifecycle: {
+              status: "beta",
+              source: "inferred",
+              confidence: "inferred",
+            },
+            is_demo: true,
             mode: "chat",
             currency: "USD",
             price_display: {
@@ -149,7 +191,11 @@ describe("PublicModelCatalogContent", () => {
       items: [
         {
           model: "gpt-5.4",
+          public_model_id: "gpt-5.4",
+          aliases: ["gpt-5.4-public"],
           status: "healthy",
+          health_source: "traffic",
+          status_reason: "traffic_recent",
           success_rate_today: 1,
           success_rate_7d: 0.999,
           latency_ms: 350,
@@ -160,7 +206,11 @@ describe("PublicModelCatalogContent", () => {
         },
         {
           model: "claude-sonnet-4.5",
+          public_model_id: "claude-sonnet-4.5",
+          aliases: [],
           status: "warning",
+          health_source: "probe",
+          status_reason: "probe_recent",
           success_rate_today: 0.91,
           success_rate_7d: 0.95,
           latency_ms: 420,
@@ -169,7 +219,11 @@ describe("PublicModelCatalogContent", () => {
         },
         {
           model: "gpt-5.4-compat",
+          public_model_id: "gpt-5.4-compat",
+          aliases: [],
           status: "error",
+          health_source: "traffic",
+          status_reason: "traffic_recent",
           success_rate_today: 0.2,
           success_rate_7d: 0.45,
           latency_ms: 800,
@@ -203,6 +257,9 @@ describe("PublicModelCatalogContent", () => {
     expect(wrapper.get('[data-testid="public-model-results"]').attributes("data-view-mode")).toBe("list");
     expect(wrapper.text()).toContain("GPT 5.4");
     expect(wrapper.text()).toContain("Claude Sonnet 4.5");
+    expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("Verified");
+    expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("Inferred");
+    expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).toContain("Demo data");
     expect(wrapper.find('[data-testid="public-model-primary-price-gpt-5.4-compat-cache_price"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="public-model-secondary-price-gpt-5.4-compat-cache_price"]').exists()).toBe(false);
     expect(wrapper.text()).toContain("ui.modelCatalog.health.error");
@@ -471,6 +528,73 @@ describe("PublicModelCatalogContent", () => {
     expect(card.text()).toContain("ui.modelCatalog.health.pending");
     expect(card.text()).toContain("-");
     expect(wrapper.text()).not.toContain("status unavailable");
+  });
+
+  it("matches health by public_model_id and aliases", async () => {
+    apiMocks.getModelCatalog.mockResolvedValueOnce({
+      notModified: false,
+      etag: 'W/"catalog-public-id"',
+      data: {
+        etag: 'W/"catalog-public-id"',
+        updated_at: "2026-04-18T00:00:00Z",
+        page_size: 10,
+        catalog_source: 'published',
+        items: [
+          {
+            model: "public-model-2",
+            public_model_id: "public-model-2",
+            display_name: "Public Model Two",
+            provider: "openai",
+            provider_icon_key: "openai",
+            request_protocols: ["openai"],
+            currency: "USD",
+            price_display: {
+              primary: [{ id: "input_price", unit: "input_token", value: 0.000001 }],
+            },
+            multiplier_summary: {
+              enabled: false,
+              kind: "disabled",
+            },
+          },
+        ],
+      },
+    });
+    apiMocks.getModelCatalogStatus.mockResolvedValueOnce({
+      updated_at: "2026-04-18T00:00:00Z",
+      items: [
+        {
+          model: "legacy-status-key",
+          public_model_id: "public-model-2",
+          aliases: ["public-model-2"],
+          status: "healthy",
+          health_source: "traffic",
+          status_reason: "traffic_recent",
+          success_rate_today: 1,
+          success_rate_7d: 1,
+          latency_ms: 123,
+          daily: [],
+          trend: [],
+        },
+      ],
+    });
+
+    const wrapper = mount(PublicModelCatalogContent, {
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          PublicModelCatalogDetailDialog: true,
+          ModelIcon: true,
+          ModelPlatformIcon: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const card = wrapper.get('[data-testid="public-model-card-public-model-2"]');
+    expect(card.text()).toContain("123ms");
+    expect(card.text()).toContain("100.0%");
+    expect(card.text()).toContain("ui.modelCatalog.healthSource.traffic");
   });
 
   it("shows a live fallback notice and empty-state copy when the catalog is unpublished", async () => {

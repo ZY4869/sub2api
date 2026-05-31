@@ -196,6 +196,7 @@ func ProvideGeminiMessagesCompatService(
 	usageBillingRepo UsageBillingRepository,
 	settingService *SettingService,
 	googleBatchArchiveStorage *GoogleBatchArchiveStorage,
+	modelCatalogService *ModelCatalogService,
 	httpUpstream HTTPUpstream,
 	antigravityGatewayService *AntigravityGatewayService,
 	cfg *config.Config,
@@ -210,6 +211,7 @@ func ProvideGeminiMessagesCompatService(
 	svc.SetUsageBillingRepository(usageBillingRepo)
 	svc.SetSettingService(settingService)
 	svc.SetGoogleBatchArchiveStorage(googleBatchArchiveStorage)
+	svc.SetModelCatalogService(modelCatalogService)
 	return svc
 }
 
@@ -607,6 +609,8 @@ func ProvideAPIKeyService(
 
 func ProvideModelCatalogService(
 	settingRepo SettingRepository,
+	apiKeyRepo APIKeyRepository,
+	userPlatformQuotaService *UserPlatformQuotaService,
 	billingService *BillingService,
 	pricingService *PricingService,
 	docsService *APIDocsService,
@@ -621,6 +625,7 @@ func ProvideModelCatalogService(
 	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetChannelMonitorService(channelMonitorService)
 	svc.SetDocsService(docsService)
+	svc.SetCapacityDiagnosticsDependencies(apiKeyRepo, userPlatformQuotaService)
 	return svc
 }
 
@@ -745,6 +750,9 @@ func ProvideGatewayService(
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
 	if modelCatalogService != nil {
 		modelCatalogService.SetGatewayService(svc)
+		if trafficRepo, ok := usageLogRepo.(publicModelCatalogTrafficHealthRepository); ok {
+			modelCatalogService.SetUsageHealthRepository(trafficRepo)
+		}
 	}
 	if apiKeyService != nil {
 		apiKeyService.SetGatewayService(svc)
@@ -880,6 +888,7 @@ var ProviderSet = wire.NewSet(
 	ProvideDocumentAIService,
 	ProvideModelRegistryService,
 	ProvideModelCatalogService,
+	ProvidePublicModelCatalogRevalidationRunner,
 	NewModelDebugService,
 	ProvideTLSFingerprintProfileService,
 	ProvideVertexUpstreamCatalogService,

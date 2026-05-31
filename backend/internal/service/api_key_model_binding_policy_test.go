@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAPIKeyService_ValidateUserAPIKeyModelBindings_ModelRequired(t *testing.T) {
+func TestAPIKeyService_ValidateUserAPIKeyModelBindings_EmptySelectionAllowsWholePublishedCatalog(t *testing.T) {
 	svc := &APIKeyService{
 		gatewayService: &GatewayService{
 			accountRepo: &mockAccountRepoForPlatform{
@@ -34,7 +34,7 @@ func TestAPIKeyService_ValidateUserAPIKeyModelBindings_ModelRequired(t *testing.
 	user := &User{ID: 7, APIKeyModelBindingMode: APIKeyModelBindingModeModelRequired}
 
 	err := svc.validateUserAPIKeyModelBindings(context.Background(), user, []APIKeyGroupBinding{{GroupID: group.ID, Group: group}})
-	require.ErrorIs(t, err, ErrAPIKeyModelSelectionRequired)
+	require.NoError(t, err)
 
 	err = svc.validateUserAPIKeyModelBindings(context.Background(), user, []APIKeyGroupBinding{{GroupID: group.ID, Group: group, ModelPatterns: []string{"public-gpt"}}})
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestAPIKeyService_ValidateUserAPIKeyModelBindings_GroupAllowed(t *testing.T
 	require.NoError(t, err)
 }
 
-func TestAPIKeyService_ValidateUserAPIKeyModelBindings_RequiresExplicitSelectionBeforeImageOnlyNormalization(t *testing.T) {
+func TestAPIKeyService_ValidateUserAPIKeyModelBindings_ImageOnlyEmptySelectionNormalizesToImages(t *testing.T) {
 	svc := &APIKeyService{
 		gatewayService: &GatewayService{
 			accountRepo: &mockAccountRepoForPlatform{
@@ -81,7 +81,7 @@ func TestAPIKeyService_ValidateUserAPIKeyModelBindings_RequiresExplicitSelection
 	bindings := []APIKeyGroupBinding{{GroupID: group.ID, Group: group}}
 
 	err := svc.validateUserAPIKeyModelBindings(context.Background(), user, bindings)
-	require.ErrorIs(t, err, ErrAPIKeyModelSelectionRequired)
+	require.NoError(t, err)
 
 	normalized, err := svc.normalizeImageOnlyGroupBindings(context.Background(), bindings)
 	require.NoError(t, err)

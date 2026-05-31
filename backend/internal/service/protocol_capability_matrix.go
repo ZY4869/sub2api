@@ -6,6 +6,7 @@ const (
 	EndpointMessages                       = "/v1/messages"
 	EndpointChatCompletions                = "/v1/chat/completions"
 	EndpointCompletions                    = "/v1/completions"
+	EndpointEmbeddings                     = "/v1/embeddings"
 	EndpointResponses                      = "/v1/responses"
 	EndpointImagesGen                      = "/v1/images/generations"
 	EndpointImagesEdits                    = "/v1/images/edits"

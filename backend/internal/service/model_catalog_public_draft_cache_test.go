@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,6 +48,7 @@ func TestModelCatalogService_PublicCatalogDraftCandidate_PersistedForceAndPublis
 	ctx := context.Background()
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	persisted := publicCatalogCandidateTestSnapshot("persisted-image")
+	persisted.RefreshedAt = time.Now().UTC().Format(time.RFC3339)
 	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, persisted))
 	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(ctx, repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
 		UpdatedAt: time.Date(2026, time.April, 28, 0, 0, 0, 0, time.UTC),
@@ -82,6 +84,23 @@ func TestModelCatalogService_PublicCatalogDraftCandidate_PersistedForceAndPublis
 	published := loadPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot)
 	require.NotNil(t, published)
 	require.Equal(t, []string{"gpt-image-2"}, publicCatalogItemModels(published.Snapshot.Items))
+}
+
+func TestModelCatalogService_GetPublicModelCatalogDraftPayload_SkipsExpiredPersistedCandidate(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	expired := publicCatalogCandidateTestSnapshot("stale-model")
+	expired.UpdatedAt = time.Now().Add(-publicModelCatalogDraftLiveTTL - time.Minute).UTC().Format(time.RFC3339)
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, expired))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, nil)
+	fresh := publicCatalogCandidateTestSnapshot("fresh-cache-model")
+	svc.storePublicModelCatalogSnapshot(fresh)
+
+	payload, err := svc.GetPublicModelCatalogDraftPayload(ctx, false)
+	require.NoError(t, err)
+	require.Equal(t, publicModelCatalogDraftAvailableSourceCache, payload.AvailableSource)
+	require.Equal(t, []string{"fresh-cache-model"}, publicCatalogItemModels(payload.AvailableItems))
 }
 
 func TestModelCatalogService_PublishedSnapshotKeepsInternalAccountIDButPublicViewsSanitize(t *testing.T) {
@@ -180,6 +199,134 @@ func TestModelCatalogService_PublishPublicModelCatalog_MatchesSelectedEntryBySta
 	require.Equal(t, "gpt-5.4-public", published.Snapshot.Items[0].Model)
 	require.Equal(t, int64(42), published.Snapshot.Items[0].SourceAccountID)
 	require.Equal(t, 9.0, published.Snapshot.Items[0].SalePriceDisplay.Primary[0].Value)
+}
+
+func TestModelCatalogService_PublishPublicModelCatalog_FreezesCapabilityMetadata(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	persisted := publicCatalogCandidateTestSnapshot("gpt-5.4")
+	persisted.Items[0].ContextWindowTokens = 128000
+	persisted.Items[0].Capabilities = []string{"text", "tools"}
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, persisted))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, nil)
+	_, err := svc.PublishPublicModelCatalog(ctx, ModelCatalogActor{UserID: 1, Email: "admin@example.test"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"gpt-5.4"},
+		PageSize:       10,
+	})
+	require.NoError(t, err)
+
+	published := loadPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot)
+	require.NotNil(t, published)
+	item := published.Snapshot.Items[0]
+	require.Equal(t, int64(128000), item.ContextWindow.Tokens)
+	require.Equal(t, PublicModelCapabilitySourcePublishedSnapshot, item.ContextWindow.Source)
+	require.NotEmpty(t, item.ProtocolEndpoints)
+	require.NotEmpty(t, item.CapabilityMatrix)
+	require.Contains(t, item.RequestProtocols, PlatformOpenAI)
+	require.Contains(t, item.Capabilities, "text")
+	require.Equal(t, PublicModelCatalogExampleValidationDryRunContract, published.Details["gpt-5.4"].ExampleValidation)
+}
+
+func TestSanitizePublicModelCatalogItemForPublic_RemovesSourceAccountAndKeepsCapabilityMetadata(t *testing.T) {
+	item := PublicModelCatalogItem{
+		Model:             "gpt-5.4-public",
+		PublicModelID:     "gpt-5.4-public",
+		SourceAccountID:   42,
+		SourceAccountName: "private-account",
+		SourceAlias:       "private-source",
+		SourceModelID:     "gpt-5.4",
+		SourceProtocol:    PlatformOpenAI,
+		ContextWindow: PublicModelContextWindow{
+			Tokens:   128000,
+			Source:   PublicModelCapabilitySourceVerifiedProbe,
+			Verified: true,
+		},
+		ProtocolEndpoints: []PublicModelProtocolEndpoint{{
+			Key:      "openai.responses",
+			Protocol: PlatformOpenAI,
+			Support:  PublicModelSupportSupported,
+			Source:   PublicModelCapabilitySourceVerifiedProbe,
+			Verified: true,
+		}},
+		CapabilityMatrix: []PublicModelCapabilityMatrixEntry{{
+			Capability: "text",
+			Protocol:   PlatformOpenAI,
+			Endpoint:   "openai.responses",
+			Support:    PublicModelSupportSupported,
+			Source:     PublicModelCapabilitySourceVerifiedProbe,
+			Verified:   true,
+		}},
+	}
+
+	sanitized := sanitizePublicModelCatalogItemForPublicWithSource(item, PublicModelCatalogSourcePublished)
+
+	require.Zero(t, sanitized.SourceAccountID)
+	require.Empty(t, sanitized.SourceAccountName)
+	require.Empty(t, sanitized.SourceAlias)
+	require.Empty(t, sanitized.SourceModelID)
+	require.Equal(t, int64(128000), sanitized.ContextWindow.Tokens)
+	require.Equal(t, PublicModelCapabilitySourceVerifiedProbe, sanitized.ContextWindow.Source)
+	require.NotEmpty(t, sanitized.ProtocolEndpoints)
+	require.NotEmpty(t, sanitized.CapabilityMatrix)
+}
+
+func TestModelCatalogService_PublishPublicModelCatalog_RejectsDemoEntry(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	persisted := publicCatalogCandidateTestSnapshot("demo-model")
+	persisted.Items[0].IsDemo = true
+	persisted.Items[0].CatalogEntrySource = PublicModelCatalogEntrySourceDemo
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, persisted))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, nil)
+	_, err := svc.PublishPublicModelCatalog(ctx, ModelCatalogActor{UserID: 1, Email: "admin@example.test"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"demo-model"},
+		PageSize:       10,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "PUBLIC_MODEL_DEMO_ENTRY_FORBIDDEN")
+}
+
+func TestModelCatalogService_PublicCatalogReadModesFilterDemoEntries(t *testing.T) {
+	ctx := context.Background()
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	persisted := publicCatalogCandidateTestSnapshot("real-model")
+	persisted.Items = append(persisted.Items, clonePublicModelCatalogItem(persisted.Items[0]))
+	persisted.Items[1].Model = "demo-model"
+	persisted.Items[1].PublicModelID = "demo-model"
+	persisted.Items[1].IsDemo = true
+	persisted.Items[1].CatalogEntrySource = PublicModelCatalogEntrySourceDemo
+	published := &PublicModelCatalogPublishedSnapshot{
+		Snapshot: *persisted,
+		Details: map[string]PublicModelCatalogDetail{
+			"real-model": {Item: persisted.Items[0]},
+			"demo-model": {Item: persisted.Items[1]},
+		},
+	}
+	require.NoError(t, persistPublicModelCatalogPublishedSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogPublishedSnapshot, published))
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, persisted))
+
+	disabledSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	realSnapshot, err := disabledSvc.PublicModelCatalogSnapshotWithOptions(ctx, PublicModelCatalogReadOptions{CatalogMode: PublicModelCatalogModeDemo})
+	require.NoError(t, err)
+	require.Equal(t, []string{"real-model"}, publicCatalogItemModels(realSnapshot.Items))
+	_, err = disabledSvc.PublicModelCatalogDetailWithOptions(ctx, "demo-model", PublicModelCatalogReadOptions{CatalogMode: PublicModelCatalogModeDemo})
+	require.Error(t, err)
+
+	enabledSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{
+		PublicModelCatalog: config.PublicModelCatalogConfig{DemoMode: true},
+	})
+	demoSnapshot, err := enabledSvc.PublicModelCatalogSnapshotWithOptions(ctx, PublicModelCatalogReadOptions{CatalogMode: PublicModelCatalogModeDemo})
+	require.NoError(t, err)
+	require.Equal(t, []string{"demo-model"}, publicCatalogItemModels(demoSnapshot.Items))
+	demoDetail, err := enabledSvc.PublicModelCatalogDetailWithOptions(ctx, "demo-model", PublicModelCatalogReadOptions{CatalogMode: PublicModelCatalogModeDemo})
+	require.NoError(t, err)
+	require.True(t, demoDetail.Item.IsDemo)
+
+	draft, err := enabledSvc.GetPublicModelCatalogDraftPayloadWithOptions(ctx, false, PublicModelCatalogReadOptions{CatalogMode: PublicModelCatalogModeDemo})
+	require.NoError(t, err)
+	require.Equal(t, []string{"demo-model"}, publicCatalogItemModels(draft.AvailableItems))
 }
 
 func TestModelCatalogService_PublishPublicModelCatalog_RejectsUnavailableSelectedEntry(t *testing.T) {

@@ -287,3 +287,21 @@ func TestSettingHandlerUpdateSettings_AccountAiryWhiteSurfaceEnabled(t *testing.
 	settings := decodeUpdatedSystemSettings(t, resp)
 	require.Equal(t, true, settings["account_airy_white_surface_enabled"])
 }
+
+func TestSettingHandlerUpdateSettings_OpenAIClaudeCodeCodexPluginRoundTrip(t *testing.T) {
+	repo := &adminSettingRepoStub{
+		values: map[string]string{
+			service.SettingKeyOpenAIAllowClaudeCodeCodexPlugin: "false",
+		},
+	}
+	handler := newAdminSettingTestHandler(repo)
+
+	resp := performAdminSettingsUpdate(t, handler, `{
+		"openai_allow_claude_code_codex_plugin": true
+	}`)
+
+	require.Equal(t, http.StatusOK, resp.Code)
+	require.Equal(t, "true", repo.values[service.SettingKeyOpenAIAllowClaudeCodeCodexPlugin])
+	settings := decodeUpdatedSystemSettings(t, resp)
+	require.Equal(t, true, settings["openai_allow_claude_code_codex_plugin"])
+}

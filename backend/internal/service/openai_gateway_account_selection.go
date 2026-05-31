@@ -201,8 +201,14 @@ func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account, requ
 	return compareOpenAIAccountsForSelection(candidate, current, requestedModel, time.Now()) < 0
 }
 func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*AccountSelectionResult, error) {
+	return s.SelectAccountWithLoadAwarenessForCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, "")
+}
+
+func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, requiredCapability OpenAIEndpointCapability) (*AccountSelectionResult, error) {
 	if pinned := s.publicCatalogPinnedAccount(ctx, groupID, requestedModel, excludedIDs); pinned != nil {
-		return &AccountSelectionResult{Account: pinned}, nil
+		if SupportsOpenAIEndpointCapability(pinned, requiredCapability) {
+			return &AccountSelectionResult{Account: pinned}, nil
+		}
 	}
 	cfg := s.schedulingConfig()
 	var stickyAccountID int64
@@ -224,6 +230,10 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 					return waitResult, nil
 				}
 				return nil, err
+			}
+			if !SupportsOpenAIEndpointCapability(account, requiredCapability) {
+				localExcluded[account.ID] = struct{}{}
+				continue
 			}
 			result, err := s.tryAcquireAccountSlot(ctx, account.ID, DeepSeekEffectiveAccountConcurrency(account, requestedModel))
 			if err == nil && result.Acquired {
@@ -276,7 +286,8 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 					account.IsSchedulable() &&
 					isOpenAITextRuntimeAccount(account) &&
 					(requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, account, requestedModel)) &&
-					account.IsSchedulableForModelWithContext(ctx, requestedModel) {
+					account.IsSchedulableForModelWithContext(ctx, requestedModel) &&
+					SupportsOpenAIEndpointCapability(account, requiredCapability) {
 					account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel)
 					if account == nil {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
@@ -310,6 +321,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		if !acc.IsSchedulableForModelWithContext(ctx, requestedModel) {
 			continue
 		}
+		if !SupportsOpenAIEndpointCapability(acc, requiredCapability) {
+			continue
+		}
 		candidates = append(candidates, acc)
 	}
 	if len(candidates) == 0 {
@@ -341,6 +355,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 			remaining = append(remaining[:bestIndex], remaining[bestIndex+1:]...)
 			fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, requestedModel)
 			if fresh == nil {
+				continue
+			}
+			if !SupportsOpenAIEndpointCapability(fresh, requiredCapability) {
 				continue
 			}
 			fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel)
@@ -377,6 +394,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 				if fresh == nil {
 					continue
 				}
+				if !SupportsOpenAIEndpointCapability(fresh, requiredCapability) {
+					continue
+				}
 				fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel)
 				if fresh == nil {
 					continue
@@ -405,6 +425,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		remaining = append(remaining[:bestIndex], remaining[bestIndex+1:]...)
 		fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, requestedModel)
 		if fresh == nil {
+			continue
+		}
+		if !SupportsOpenAIEndpointCapability(fresh, requiredCapability) {
 			continue
 		}
 		fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel)

@@ -134,6 +134,13 @@ func TestResolveContextWindowTokensUsesPricingLookupIDs(t *testing.T) {
 	require.EqualValues(t, 200000, tokens)
 }
 
+func TestResolveContextWindowReturnsPricingSource(t *testing.T) {
+	resolution, ok := ResolveContextWindow("claude-opus-4-1-20250805")
+	require.True(t, ok)
+	require.EqualValues(t, 200000, resolution.Tokens)
+	require.Equal(t, ContextWindowSourcePricingCatalog, resolution.Source)
+}
+
 func TestExplainSeedResolutionReportsDeprecatedReplacement(t *testing.T) {
 	resolution, ok := ExplainSeedResolution("claude-haiku-4-5-20251001")
 	require.True(t, ok)

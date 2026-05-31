@@ -36,7 +36,9 @@
           :admin-mode="isAdminMode"
           :image-only="formData.image_only_enabled"
           :model-selection-required="apiKeyModelSelectionRequired"
+          :show-unavailable-models="showUnavailableModels"
           @update:model-value="(value) => updateField('group_bindings', value)"
+          @update:show-unavailable-models="$emit('update:showUnavailableModels', $event)"
         />
       </div>
 
@@ -391,6 +393,7 @@ const props = defineProps<{
   groupModelOptionsLoading: boolean;
   isAdminMode: boolean;
   apiKeyModelSelectionRequired: boolean;
+  showUnavailableModels: boolean;
   customKeyError: string;
   statusOptions: Array<{ value: string; label: string }>;
 }>();
@@ -399,6 +402,7 @@ const emit = defineEmits<{
   close: [];
   submit: [];
   "update:formData": [value: ApiKeyFormData];
+  "update:showUnavailableModels": [value: boolean];
   "confirm-reset-quota": [];
   "confirm-reset-rate-limit": [];
   "set-expiration-days": [days: number];

@@ -94,9 +94,11 @@
       :group-model-options-loading="groupModelOptionsLoading"
       :is-admin-mode="isAdminMode"
       :api-key-model-selection-required="apiKeyModelSelectionRequired"
+      :show-unavailable-models="showUnavailableModels"
       :custom-key-error="customKeyError"
       :status-options="statusOptions"
       @update:form-data="updateFormData"
+      @update:show-unavailable-models="showUnavailableModels = $event"
       @close="closeModals"
       @submit="handleSubmit"
       @confirm-reset-quota="confirmResetQuota"
@@ -213,11 +215,7 @@ const authStore = useAuthStore();
 const onboardingStore = useOnboardingStore();
 const { copyToClipboard: clipboardCopy } = useClipboard();
 const isAdminMode = computed(() => authStore.isAdmin);
-const apiKeyModelSelectionRequired = computed(
-  () =>
-    !isAdminMode.value &&
-    authStore.user?.api_key_model_binding_mode !== "group_allowed",
-);
+const apiKeyModelSelectionRequired = computed(() => false);
 
 const columns = computed<Column[]>(() => [
   { key: "name", label: t("common.name"), sortable: true },
@@ -242,7 +240,9 @@ const usageStats = ref<Record<string, BatchApiKeyUsageStats>>({});
 const userGroupRates = ref<Record<number, number>>({});
 const groupModelOptions = ref<Record<number, UserGroupModelOption[]>>({});
 const groupModelCatalogItems = ref<Record<number, PublicModelCatalogItem[]>>({});
+const keyModelCatalogItems = ref<PublicModelCatalogItem[]>([]);
 const groupModelOptionsLoading = ref(false);
+const showUnavailableModels = ref(false);
 const groupMap = computed(
   () => new Map(groups.value.map((group) => [group.id, group] as const)),
 );
@@ -491,6 +491,9 @@ const loadGroupModelOptions = async () => {
     groupModelOptions.value = Object.fromEntries(
       response.map((group) => [group.group_id, group.models]),
     );
+    if (keyModelCatalogItems.value.length > 0) {
+      mergeKeyCatalogAnnotations();
+    }
     syncImageOnlyGroupBindings();
   } catch (error) {
     groupModelOptions.value = {};
@@ -510,6 +513,9 @@ const loadGroupModelCatalog = async (groupId: number) => {
       ...groupModelCatalogItems.value,
       [groupId]: snapshot.items || [],
     };
+    if (keyModelCatalogItems.value.length > 0) {
+      mergeKeyCatalogAnnotations();
+    }
     syncImageOnlyGroupBindings();
   } catch (error) {
     groupModelCatalogItems.value = {
@@ -659,8 +665,68 @@ const editKey = (key: ApiKey) => {
     expiration_preset: "custom",
     expiration_date: key.expires_at ? formatDateTimeLocal(key.expires_at) : "",
   };
+  showUnavailableModels.value = false;
   showEditModal.value = true;
+  void loadKeyModelCatalog(key.id);
 };
+
+const loadKeyModelCatalog = async (keyId: number) => {
+  if (isAdminMode.value || keyId <= 0) {
+    return;
+  }
+  try {
+    const snapshot = await keysAPI.getModelCatalog(keyId, true);
+    keyModelCatalogItems.value = snapshot.items || [];
+    mergeKeyCatalogAnnotations();
+  } catch (error) {
+    console.error("Failed to load key model catalog:", error);
+  }
+};
+
+function mergeKeyCatalogAnnotations() {
+  const byModel = new Map(
+    keyModelCatalogItems.value.map((item) => [
+      String(item.model || item.public_model_id || "").trim(),
+      item,
+    ]),
+  );
+  const nextCatalogItems: Record<number, PublicModelCatalogItem[]> = {};
+  const nextModelOptions: Record<number, UserGroupModelOption[]> = {};
+
+  for (const binding of formData.value.group_bindings) {
+    const groupID = Number(binding.group_id) || 0;
+    if (groupID <= 0) {
+      continue;
+    }
+    nextCatalogItems[groupID] = (groupModelCatalogItems.value[groupID] || []).map((item) => {
+      const annotated = byModel.get(String(item.model || item.public_model_id || "").trim());
+      return annotated ? { ...item, ...annotated } : item;
+    });
+    nextModelOptions[groupID] = (groupModelOptions.value[groupID] || []).map((option) => {
+      const annotated = byModel.get(String(option.public_id || "").trim());
+      return annotated
+        ? {
+            ...option,
+            display_name: annotated.display_name || option.display_name,
+            request_protocols: annotated.request_protocols || option.request_protocols,
+          }
+        : option;
+    });
+  }
+
+  if (Object.keys(nextCatalogItems).length > 0) {
+    groupModelCatalogItems.value = {
+      ...groupModelCatalogItems.value,
+      ...nextCatalogItems,
+    };
+  }
+  if (Object.keys(nextModelOptions).length > 0) {
+    groupModelOptions.value = {
+      ...groupModelOptions.value,
+      ...nextModelOptions,
+    };
+  }
+}
 
 const toggleKeyStatus = async (key: ApiKey) => {
   const newStatus = key.status === "active" ? "inactive" : "active";
@@ -725,6 +791,8 @@ const closeModals = () => {
   showCreateModal.value = false;
   showEditModal.value = false;
   selectedKey.value = null;
+  showUnavailableModels.value = false;
+  keyModelCatalogItems.value = [];
   groupModelCatalogItems.value = {};
   formData.value = {
     name: "",

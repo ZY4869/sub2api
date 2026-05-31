@@ -13,11 +13,7 @@ func (s *APIKeyService) validateUserAPIKeyModelBindings(
 	if user == nil {
 		return ErrAPIKeyModelSelectionRequired
 	}
-	mode := user.EffectiveAPIKeyModelBindingMode()
 	for _, binding := range bindings {
-		if mode == APIKeyModelBindingModeModelRequired && len(binding.ModelPatterns) == 0 {
-			return ErrAPIKeyModelSelectionRequired
-		}
 		if len(binding.ModelPatterns) == 0 {
 			continue
 		}

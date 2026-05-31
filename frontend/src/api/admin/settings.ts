@@ -122,6 +122,7 @@ export interface SystemSettings {
   antigravity_user_agent_version: string
   codex_oauth_user_agent_mode: 'default' | 'force' | 'custom' | string
   codex_oauth_user_agent_override: string
+  openai_allow_claude_code_codex_plugin: boolean
   backend_mode_enabled: boolean
   maintenance_mode_enabled: boolean
   custom_menu_items: CustomMenuItem[]
@@ -256,6 +257,7 @@ export interface UpdateSettingsRequest {
   antigravity_user_agent_version?: string
   codex_oauth_user_agent_mode?: 'default' | 'force' | 'custom' | string
   codex_oauth_user_agent_override?: string
+  openai_allow_claude_code_codex_plugin?: boolean
   backend_mode_enabled?: boolean
   maintenance_mode_enabled?: boolean
   custom_menu_items?: CustomMenuItem[]

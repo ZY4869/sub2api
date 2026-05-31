@@ -1,6 +1,15 @@
 package service
 
-import "testing"
+import (
+	"bytes"
+	"strings"
+	"testing"
+	"time"
+)
+
+type testGeminiStreamFlusher struct{}
+
+func (testGeminiStreamFlusher) Flush() {}
 
 func TestExtractGeminiUsage_InteractionsOfficialTotals(t *testing.T) {
 	t.Parallel()
@@ -35,5 +44,47 @@ func TestExtractGeminiUsage_InteractionsUnknownUsageFieldsAreIgnored(t *testing.
 	}
 	if usage.InputTokens != 18 || usage.OutputTokens != 10 || usage.CacheReadInputTokens != 6 {
 		t.Fatalf("unexpected usage: %+v", usage)
+	}
+}
+
+func TestGeminiClaudeStreamEmitter_ClosesToolBlockBeforeText(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	emitter := newGeminiClaudeStreamEmitter(&out, testGeminiStreamFlusher{}, time.Now(), "gemini-test")
+	emitter.consumeResponse(map[string]any{
+		"candidates": []any{
+			map[string]any{
+				"content": map[string]any{
+					"parts": []any{
+						map[string]any{
+							"functionCall": map[string]any{
+								"name": "lookup",
+								"args": map[string]any{"q": "status"},
+							},
+						},
+						map[string]any{"text": "done"},
+					},
+				},
+			},
+		},
+	}, nil)
+
+	body := out.String()
+	toolStart := strings.Index(body, `"type":"tool_use"`)
+	toolStop := -1
+	if toolStart >= 0 {
+		if offset := strings.Index(body[toolStart:], `"type":"content_block_stop"`); offset >= 0 {
+			toolStop = toolStart + offset
+		}
+	}
+	textStart := strings.Index(body, `"content_block":{"text":"","type":"text"}`)
+	textDelta := strings.Index(body, `"text":"done"`)
+
+	if toolStart < 0 || toolStop < 0 || textStart < 0 || textDelta < 0 {
+		t.Fatalf("expected tool start/stop and text events, got:\n%s", body)
+	}
+	if !(toolStart < toolStop && toolStop < textStart && textStart < textDelta) {
+		t.Fatalf("expected tool block to close before text block starts, got:\n%s", body)
 	}
 }

@@ -95,7 +95,7 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key"
 - `GET /v1/models`、`GET /v1beta/models`、`GET /v1/models/:model`、`GET /v1beta/models/:model` 都会先经过账号级白名单 / 模型映射投影，只暴露 display ID。
 - 如果账号把 `gemini-2.0-flash` 映射成 `friendly-flash`，那么列表与详情只会返回 `models/friendly-flash`；真实模型名不会再出现在返回体里，也不能再当作公开模型 ID 查询详情。
 - 这些 `models` 读路径只读取本地策略投影和本地 availability snapshot，不会在请求时同步触发 Vertex / Gemini 上游探测来扩充列表。
-- 当管理员发布“对外模型展示”目录后，Gemini `/v1/models`、`/v1beta/models`、详情与模型动作都以发布条目的 `public_model_id` 为唯一可调用 ID。`source_model_id`、`base_model`、内部 `target_model_id` 只用于展示、路由和诊断，不应拼进 `models/{model}:generateContent` 等运行时路径。
+- 当管理员发布“对外模型展示”目录后，Gemini `/v1/models`、`/v1beta/models`、详情与模型动作都以发布条目的 `public_model_id` 为唯一可调用 ID。公开目录是平台提供目录；模型枚举、Key 目录和运行时调用会继续按当前站内 Key、分组、账号绑定、生图专用限制与当前可路由状态收敛。`source_model_id`、`base_model`、内部 `target_model_id` 只用于展示、路由和诊断，不应拼进 `models/{model}:generateContent` 等运行时路径。
 
 Thinking 强度补充规则：
 

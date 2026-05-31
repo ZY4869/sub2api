@@ -40,11 +40,29 @@ vi.mock("@/stores/app", () => ({
 
 vi.mock("vue-i18n", async () => {
   const actual = await vi.importActual<typeof import("vue-i18n")>("vue-i18n");
+  const labels: Record<string, string> = {
+    'ui.modelCatalog.source.verified': 'Verified',
+    'ui.modelCatalog.source.probe': 'Probe',
+    'ui.modelCatalog.source.declared': 'Declared',
+    'ui.modelCatalog.source.pricing': 'Pricing catalog',
+    'ui.modelCatalog.source.snapshot': 'Published snapshot',
+    'ui.modelCatalog.source.inferred': 'Inferred',
+    'ui.modelCatalog.source.unknown': 'Unknown source',
+    'ui.modelCatalog.detail.verified': 'Verified',
+    'ui.modelCatalog.detail.declared': 'Declared',
+    'ui.modelCatalog.detail.inferred': 'Inferred',
+    'ui.modelCatalog.support.supported': 'Supported',
+    'ui.modelCatalog.support.partial': 'Partial',
+    'ui.modelCatalog.support.unsupported': 'Unsupported',
+    'ui.modelCatalog.support.unknown': 'Unknown',
+  };
   return {
     ...actual,
     useI18n: () => ({
       t: (key: string, params?: Record<string, unknown>) =>
-        params?.protocol
+        labels[key]
+          ? labels[key]
+          : params?.protocol
           ? `${key}:${String(params.protocol)}`
           : params?.name
             ? `${key}:${String(params.name)}`
@@ -97,13 +115,16 @@ describe("PublicModelCatalogDetailDialog", () => {
         model: "text-embedding-3-large",
         health: {
           model: "text-embedding-3-large",
+          public_model_id: "text-embedding-3-large",
+          aliases: [],
           status: "healthy",
+          health_source: "traffic",
+          status_reason: "traffic_recent",
           success_rate_today: 1,
           success_rate_7d: 0.998,
           latency_ms: 120,
           daily: [{ date: "2026-04-18", status: "healthy", success_rate: 1, latency_ms: 120 }],
           trend: [{ timestamp: "2026-04-18", success_rate: 1, latency_ms: 120 }],
-          rate_limit: { rpm: 60 },
         },
         catalogItem: {
           model: "text-embedding-3-large",
@@ -160,17 +181,79 @@ describe("PublicModelCatalogDetailDialog", () => {
     await flushPromises();
 
     expect(document.body.textContent).toContain("text-embedding-3-large");
-    expect(document.body.textContent).toContain("RPM 60");
+    expect(document.body.textContent).not.toContain("RPM 60");
 
     await document.body.querySelector<HTMLElement>('[data-testid="public-model-detail-tab-monitor"]')?.click();
     await flushPromises();
     expect(document.body.textContent).toContain("ui.modelCatalog.detail.dailyMatrix");
+    expect(document.body.textContent).toContain("ui.modelCatalog.detail.dailyMatrixCaptionTraffic");
+    expect(document.body.textContent).toContain("ui.modelCatalog.detail.successTrendCaptionTraffic");
     expect(document.body.textContent).toContain("2026-04-18");
 
     await document.body.querySelector<HTMLElement>('[data-testid="public-model-detail-tab-routing"]')?.click();
     await flushPromises();
     expect(document.body.textContent).toContain("Authorization: Bearer <TOKEN>");
+    expect(document.body.textContent).not.toContain("ui.modelCatalog.detail.rateLimits");
+    expect(document.body.textContent).not.toContain("RPM");
+    expect(document.body.textContent).not.toContain("TPM");
+    expect(document.body.textContent).not.toContain("RPD");
     expect(document.body.textContent).toContain("sk-your-key");
+    wrapper.unmount();
+  });
+
+  it("shows stale realtime health without SLA metric panels", async () => {
+    const wrapper = mount(PublicModelCatalogDetailDialog, {
+      attachTo: document.body,
+      props: {
+        show: true,
+        model: "text-embedding-3-large",
+        health: {
+          model: "text-embedding-3-large",
+          public_model_id: "text-embedding-3-large",
+          aliases: [],
+          status: "pending",
+          health_source: "none",
+          status_reason: "stale_history",
+          last_checked_at: "2026-04-08T10:00:00Z",
+          daily: [],
+          trend: [],
+        },
+        catalogItem: {
+          model: "text-embedding-3-large",
+          display_name: "Text Embedding 3 Large",
+          provider: "openai",
+          provider_icon_key: "openai",
+          status: "warning",
+          context_window_tokens: 8191,
+          modalities: ["text"],
+          capabilities: ["text"],
+          request_protocols: ["openai"],
+          currency: "USD",
+          price_display: {
+            primary: [{ id: "input_price", unit: "input_token", value: 0.00000013 }],
+          },
+          multiplier_summary: {
+            enabled: false,
+            kind: "disabled",
+          },
+        },
+      },
+      global: {
+        stubs: {
+          ModelIcon: { template: '<span data-test="model-icon" />' },
+          ModelPlatformIcon: { template: '<span data-test="platform-icon" />' },
+          DocsCodeTabs: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await document.body.querySelector<HTMLElement>('[data-testid="public-model-detail-tab-monitor"]')?.click();
+    await flushPromises();
+
+    expect(document.body.textContent).toContain("ui.modelCatalog.healthReason.staleHistory");
+    expect(document.body.textContent).not.toContain("ui.modelCatalog.detail.dailyMatrix");
+    expect(document.body.textContent).not.toContain("ui.modelCatalog.detail.successTrend");
     wrapper.unmount();
   });
 
@@ -221,5 +304,114 @@ describe("PublicModelCatalogDetailDialog", () => {
     const options = document.body.querySelectorAll("select option");
     expect(options).toHaveLength(2);
     wrapper.unmount();
+  });
+
+  it("shows structured capability metadata and falls back to legacy context tokens", async () => {
+    apiMocks.getModelCatalogDetail.mockResolvedValueOnce({
+      item: {
+        model: "gpt-next-preview",
+        display_name: "GPT Next Preview",
+        provider: "openai",
+        provider_icon_key: "openai",
+        status: "warning",
+        context_window_tokens: 128000,
+        context_window: {
+          tokens: 128000,
+          source: "account_probe",
+          verified: true,
+        },
+        modalities: ["text"],
+        capabilities: ["tools"],
+        capability_matrix: [
+          {
+            capability: "tools",
+            protocol: "openai",
+            endpoint: "openai.responses",
+            support: "supported",
+            source: "verified_probe",
+            verified: true,
+          },
+        ],
+        protocol_endpoints: [
+          {
+            key: "openai.responses",
+            protocol: "openai",
+            endpoint: "/v1/responses",
+            support: "supported",
+            source: "verified_probe",
+            verified: true,
+          },
+        ],
+        lifecycle: {
+          status: "beta",
+          source: "inferred",
+          confidence: "inferred",
+        },
+        request_protocols: ["openai"],
+        currency: "USD",
+        price_display: {
+          primary: [{ id: "input_price", unit: "input_token", value: 0.00000013 }],
+        },
+        multiplier_summary: {
+          enabled: false,
+          kind: "disabled",
+        },
+      },
+      example_source: "override_template",
+      example_protocol: "openai",
+      example_override_id: "responses",
+    });
+
+    const wrapper = mountDialog();
+    await flushPromises();
+
+    expect(document.body.textContent).toContain("128K");
+    expect(document.body.textContent).toContain("Verified");
+    expect(document.body.textContent).toContain("Inferred");
+    expect(document.body.textContent).toContain("Tools");
+    expect(document.body.textContent).toContain("Supported");
+    expect(document.body.textContent).toContain("openai.responses");
+    wrapper.unmount();
+
+    apiMocks.getModelCatalogDetail.mockResolvedValueOnce({
+      item: {
+        model: "legacy-context",
+        display_name: "Legacy Context",
+        provider: "openai",
+        provider_icon_key: "openai",
+        context_window_tokens: 8192,
+        modalities: ["text"],
+        capabilities: ["text"],
+        request_protocols: ["openai"],
+        currency: "USD",
+        price_display: {
+          primary: [{ id: "input_price", unit: "input_token", value: 0.00000013 }],
+        },
+        multiplier_summary: {
+          enabled: false,
+          kind: "disabled",
+        },
+      },
+    });
+
+    const legacyWrapper = mount(PublicModelCatalogDetailDialog, {
+      attachTo: document.body,
+      props: {
+        show: true,
+        model: "legacy-context",
+        catalogItem: null,
+      },
+      global: {
+        stubs: {
+          ModelIcon: { template: '<span data-test="model-icon" />' },
+          ModelPlatformIcon: { template: '<span data-test="platform-icon" />' },
+          DocsCodeTabs: true,
+        },
+      },
+    });
+    await flushPromises();
+
+    expect(document.body.textContent).toContain("8.2K");
+    legacyWrapper.unmount();
   });
 });

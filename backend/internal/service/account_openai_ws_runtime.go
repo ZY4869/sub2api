@@ -1,5 +1,7 @@
 package service
 
+import "strings"
+
 // IsOpenAIPassthroughEnabled 返回 OpenAI 账号是否启用“自动透传（仅替换认证）”。
 //
 // 新字段：accounts.extra.openai_passthrough。
@@ -88,4 +90,52 @@ func (a *Account) IsCodexCLIOnlyEnabled() bool {
 	}
 	enabled, ok := a.Extra["codex_cli_only"].(bool)
 	return ok && enabled
+}
+
+func (a *Account) GetCodexCLIOnlyAllowedClients() []string {
+	if a == nil || a.Extra == nil {
+		return nil
+	}
+	return normalizeCodexAllowedClientIDs(parseStringSliceCompat(a.Extra["codex_cli_only_allowed_clients"]))
+}
+
+func normalizeCodexAllowedClientIDs(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		normalized := strings.TrimSpace(strings.ToLower(value))
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		result = append(result, normalized)
+	}
+	return result
+}
+
+func parseStringSliceCompat(raw any) []string {
+	switch typed := raw.(type) {
+	case []string:
+		return append([]string(nil), typed...)
+	case []any:
+		result := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if value, ok := item.(string); ok {
+				result = append(result, value)
+			}
+		}
+		return result
+	case string:
+		return strings.FieldsFunc(typed, func(r rune) bool {
+			return r == ',' || r == ';' || r == '|' || r == ' '
+		})
+	default:
+		return nil
+	}
 }

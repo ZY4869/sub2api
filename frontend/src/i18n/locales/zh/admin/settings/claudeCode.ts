@@ -8,5 +8,7 @@ export default {
         maxVersion: "最高版本号",
         maxVersionPlaceholder: "例如 2.3.0",
         maxVersionHint: "拒绝高于此版本的 Claude Code 客户端请求（semver 格式）。留空则不检查版本。",
+        allowCodexPlugin: "允许 Claude Code Codex 插件",
+        allowCodexPluginHint: "默认关闭；开启后仅放行 originator 为 Claude Code 且 User-Agent 含 Claude Code/ 的 Codex 插件请求。",
     }
 }

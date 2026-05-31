@@ -10,6 +10,9 @@
       <span class="block truncate text-[11px] font-medium text-slate-400 dark:text-slate-500">
         {{ priceLabel(entry.entry.id) }}
       </span>
+      <span class="mt-1 block truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
+        {{ formatUnit(entry.entry) }}
+      </span>
       <input
         v-if="editable"
         :value="formatInputValue(entry.entry.value)"
@@ -22,11 +25,17 @@
         @input="emitUpdate(entry.section, entry.index, ($event.target as HTMLInputElement).value)"
       />
       <span
+        v-else-if="isUnpriced(entry.entry)"
+        class="mt-1 block text-xs font-semibold text-amber-600 dark:text-amber-300"
+      >
+        {{ unpricedLabel }}
+      </span>
+      <span
         v-else
         class="mt-1 block truncate font-mono text-sm font-semibold"
         :class="accent === 'sale' ? 'text-emerald-700 dark:text-emerald-200' : 'text-slate-800 dark:text-slate-100'"
       >
-        {{ formatPrice(entry.entry.value) }}
+        {{ formatPrice(entry.entry) }}
       </span>
     </component>
 
@@ -37,7 +46,10 @@
         :key="`compact-${entry.section}-${entry.index}-${entry.entry.id}`"
         class="flex items-center justify-between gap-2 text-xs"
       >
-        <span class="truncate text-slate-500 dark:text-slate-400">{{ priceLabel(entry.entry.id) }}</span>
+        <span class="min-w-0">
+          <span class="block truncate text-slate-500 dark:text-slate-400">{{ priceLabel(entry.entry.id) }}</span>
+          <span class="block truncate text-[10px] text-slate-400 dark:text-slate-500">{{ formatUnit(entry.entry) }}</span>
+        </span>
         <input
           v-if="editable"
           :value="formatInputValue(entry.entry.value)"
@@ -50,11 +62,17 @@
           @input="emitUpdate(entry.section, entry.index, ($event.target as HTMLInputElement).value)"
         />
         <span
+          v-else-if="isUnpriced(entry.entry)"
+          class="shrink-0 text-right font-sans text-xs font-semibold text-amber-600 dark:text-amber-300"
+        >
+          {{ unpricedLabel }}
+        </span>
+        <span
           v-else
           class="shrink-0 font-mono"
           :class="accent === 'sale' ? 'text-emerald-700 dark:text-emerald-200' : 'text-slate-700 dark:text-slate-100'"
         >
-          {{ formatPrice(entry.entry.value) }}
+          {{ formatPrice(entry.entry) }}
         </span>
       </component>
     </div>
@@ -78,8 +96,10 @@ const props = defineProps<{
   accent: 'official' | 'sale'
   testidPrefix: string
   priceLabel: (id: string) => string
-  formatPrice: (value: number) => string
+  formatPrice: (entry: PublicModelCatalogPriceEntry) => string
+  formatUnit: (entry: PublicModelCatalogPriceEntry) => string
   formatInputValue: (value: number) => string
+  unpricedLabel: string
 }>()
 
 const emit = defineEmits<{
@@ -88,6 +108,10 @@ const emit = defineEmits<{
 
 const featuredEntries = computed(() => props.entries.slice(0, 2))
 const compactEntries = computed(() => props.entries.slice(2))
+
+function isUnpriced(entry: PublicModelCatalogPriceEntry): boolean {
+  return entry.supported_unpriced || entry.configured === false
+}
 
 function emitUpdate(section: PriceSection, index: number, value: string) {
   emit('update-entry', section, index, value)

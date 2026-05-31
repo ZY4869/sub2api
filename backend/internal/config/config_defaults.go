@@ -138,6 +138,7 @@ func setDefaults() {
 	viper.SetDefault("pricing.fallback_file", "./resources/model-pricing/model_prices_and_context_window.json")
 	viper.SetDefault("pricing.update_interval_hours", 24)
 	viper.SetDefault("pricing.hash_check_interval_minutes", 10)
+	viper.SetDefault("public_model_catalog.demo_mode", false)
 	viper.SetDefault("timezone", "Asia/Shanghai")
 	viper.SetDefault("api_key_auth_cache.l1_size", 65535)
 	viper.SetDefault("api_key_auth_cache.l1_ttl_seconds", 15)

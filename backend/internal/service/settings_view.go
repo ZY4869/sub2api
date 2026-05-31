@@ -100,6 +100,7 @@ type SystemSettings struct {
 	AntigravityUserAgentVersion          string
 	CodexOAuthUserAgentMode              string
 	CodexOAuthUserAgentOverride          string
+	OpenAIAllowClaudeCodeCodexPlugin     bool
 	CustomMenuItems                      string // JSON array of custom menu items
 	LoginAgreementEnabled                bool
 	LoginAgreementMode                   string

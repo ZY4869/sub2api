@@ -125,6 +125,7 @@ func projectProbeSummaryToPublicEntries(
 				displayName = FormatModelCatalogDisplayName(projectedSourceID)
 			}
 		}
+		lifecycle := resolvePublicModelLifecycleStatus("", displayName, publicID, projectedSourceID)
 		projected[publicID] = APIKeyPublicModelEntry{
 			PublicID:          publicID,
 			AliasID:           candidate.AliasID,
@@ -133,7 +134,8 @@ func projectProbeSummaryToPublicEntries(
 			Platform:          platform,
 			AvailabilityState: AccountModelAvailabilityUnknown,
 			StaleState:        AccountModelStaleStateUnverified,
-			LifecycleStatus:   normalizePublicModelLifecycleStatus("", displayName, publicID, projectedSourceID),
+			LifecycleStatus:   lifecycle.Status,
+			LifecycleInferred: lifecycle.Inferred,
 		}
 		if candidate.ExposeAlias && projectedSourceID != "" {
 			hiddenSourceIDs[projectedSourceID] = struct{}{}

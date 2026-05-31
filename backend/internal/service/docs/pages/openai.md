@@ -29,7 +29,7 @@
 - 如果账号上游 `base_url` 不符合当前出站安全策略，保存阶段就会被拒绝，返回 `400 ACCOUNT_INVALID_BASE_URL`；保存成功后不会自动探测模型，需由管理员手动执行 Probe/Test。
 - 管理端单账号测试、手动 Probe 与运行态转发都不会跟随上游 `3xx`；命中重定向时会返回受控错误 `502 UPSTREAM_REDIRECT_NOT_ALLOWED`。
 - `service_tier`（priority/fast/flex）可能会被管理员策略过滤或阻断；默认 `priority/fast` 被过滤、`flex` 放行。命中阻断时返回 `403 forbidden_error`，错误码 `openai_fast_policy_blocked`。
-- 当管理员发布“对外模型展示”目录后，`/v1/models` 以及 OpenAI 兼容请求只接受目录里的 `public_model_id`（响应中的 `id` / 请求中的 `model`）。公开目录、枚举和运行时调用都会再次确认该条目仍是 `verified + fresh + routable`；未验证、过期、来源账号不可调度或分组不可路由的条目不会出现在列表里，也不会被实际调用接受。`source_model_id`、`base_model`、内部 `target_model_id` 只存在于内部路由和诊断链路，不是额外可调用模型名；直接请求基础模型 ID 会按当前 Key 可见性返回不可用。
+- 当管理员发布“对外模型展示”目录后，`/v1/models` 以及 OpenAI 兼容请求只接受目录里的 `public_model_id`（响应中的 `id` / 请求中的 `model`）。公开目录是平台提供目录；`/v1/models`、Key 目录和运行时调用会继续按当前站内 Key、分组、账号绑定、生图专用限制与当前可路由状态收敛。`source_model_id`、`base_model`、内部 `target_model_id` 只存在于内部路由和诊断链路，不是额外可调用模型名；直接请求基础模型 ID 会按当前 Key 可见性返回不可用。
 - OpenAI / Codex 上游转发默认使用 OpenAI HTTP upstream profile：优先 HTTP/2，OpenAI profile 默认关闭 response header timeout；只有代理兼容性错误达到阈值才会临时回退 HTTP/1，普通 header timeout 不触发回退。相关配置为 `gateway.openai_response_header_timeout` 与 `gateway.openai_http2.*`。
 
 Thinking / reasoning 强度补充规则：
@@ -170,6 +170,64 @@ console.table(urls);
 curl https://api.zyxai.de/chat/completions
 # 建议先迁到 /v1/chat/completions
 # 新项目再进一步迁到 /v1/responses
+```
+
+### embeddings 兼容入口
+
+Embeddings 入口遵循 OpenAI 兼容请求 / 响应结构：
+
+- `POST /v1/embeddings` 是推荐路径，`POST /embeddings` 是兼容别名。
+- 请求体 `model` 必填，`input` 按 OpenAI 兼容格式透传，支持字符串、字符串数组或 token 数组等上游可接受形态。
+- 当前首版只调度 OpenAI API-key 账号；OpenAI OAuth、DeepSeek、OpenRouter 或其它 OpenAI-compatible 文本账号不会参与 embeddings 调度。
+- 账号凭据里未配置 `openai_capabilities` 时保持历史兼容；显式配置后只允许列出的能力。Embeddings 需要包含 `embeddings`，聊天兼容入口需要包含 `chat_completions`。
+- 用量会从上游 `usage.input_tokens` 读取；缺失时兼容 `prompt_tokens` / `total_tokens`，并写入站内用量统计。
+
+#### Python
+```python focus=1-14
+import requests
+
+response = requests.post(
+    "https://api.zyxai.de/v1/embeddings",
+    headers={
+        "Authorization": "Bearer sk-你的站内Key",
+        "Content-Type": "application/json",
+    },
+    json={
+        "model": "text-embedding-3-small",
+        "input": "为这段文本生成向量。",
+    },
+    timeout=60,
+)
+
+print(response.json())
+```
+
+#### JavaScript
+```javascript focus=1-12
+const response = await fetch("https://api.zyxai.de/v1/embeddings", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer sk-你的站内Key",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "text-embedding-3-small",
+    input: ["第一段文本", "第二段文本"],
+  }),
+});
+
+console.log(await response.json());
+```
+
+#### REST
+```bash focus=1-6
+curl https://api.zyxai.de/v1/embeddings \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "text-embedding-3-small",
+    "input": "为这段文本生成向量。"
+  }'
 ```
 
 ### 图片双协议补充

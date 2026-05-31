@@ -26,6 +26,8 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		{"/v1/chat/completions", EndpointChatCompletions},
 		{"/v1/completions", EndpointCompletions},
 		{"/v1/responses", EndpointResponses},
+		{"/v1/embeddings", EndpointEmbeddings},
+		{"/embeddings", EndpointEmbeddings},
 		{"/v1/videos", EndpointVideosCreate},
 		{"/v1/videos/generations", EndpointVideosCreate},
 		{"/v1/models/gemini-2.5-pro:generateContent", EndpointGeminiModels},
@@ -138,6 +140,7 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 		{"openai responses nested", EndpointResponses, "/openai/v1/responses/compact/detail", service.PlatformOpenAI, "/v1/responses/compact/detail"},
 		{"openai from messages", EndpointMessages, "/v1/messages", service.PlatformOpenAI, EndpointResponses},
 		{"openai from completions", EndpointChatCompletions, "/v1/chat/completions", service.PlatformOpenAI, EndpointResponses},
+		{"openai embeddings", EndpointEmbeddings, "/v1/embeddings", service.PlatformOpenAI, EndpointEmbeddings},
 		{"deepseek native completions", EndpointCompletions, "/v1/completions", service.PlatformDeepSeek, EndpointCompletions},
 
 		// Antigravity — uses inbound to pick Claude vs Gemini upstream.

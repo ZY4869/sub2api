@@ -20,12 +20,16 @@ const (
 )
 
 type AccountModelProbeSnapshotEntry struct {
-	DisplayModelID    string `json:"display_model_id,omitempty"`
-	TargetModelID     string `json:"target_model_id,omitempty"`
-	AvailabilityState string `json:"availability_state,omitempty"`
-	StaleState        string `json:"stale_state,omitempty"`
-	UpdatedAt         string `json:"updated_at,omitempty"`
-	Source            string `json:"source,omitempty"`
+	DisplayModelID    string                             `json:"display_model_id,omitempty"`
+	TargetModelID     string                             `json:"target_model_id,omitempty"`
+	AvailabilityState string                             `json:"availability_state,omitempty"`
+	StaleState        string                             `json:"stale_state,omitempty"`
+	UpdatedAt         string                             `json:"updated_at,omitempty"`
+	Source            string                             `json:"source,omitempty"`
+	ContextWindow     PublicModelContextWindow           `json:"context_window,omitempty"`
+	CapabilityMatrix  []PublicModelCapabilityMatrixEntry `json:"capability_matrix,omitempty"`
+	ProtocolEndpoints []PublicModelProtocolEndpoint      `json:"protocol_endpoints,omitempty"`
+	LastCheckedAt     string                             `json:"last_checked_at,omitempty"`
 }
 
 type AccountModelProbeSnapshot struct {
@@ -476,6 +480,18 @@ func accountModelProbeSnapshotEntriesToAny(entries []AccountModelProbeSnapshotEn
 		if source := strings.TrimSpace(entry.Source); source != "" {
 			item["source"] = source
 		}
+		if contextWindow := normalizePublicModelContextWindow(entry.ContextWindow, 0, publicModelCatalogMetadataSource{}); contextWindow.Tokens > 0 || contextWindow.Source != "" {
+			item["context_window"] = contextWindow
+		}
+		if capabilityMatrix := dedupePublicModelCapabilityMatrix(entry.CapabilityMatrix); len(capabilityMatrix) > 0 {
+			item["capability_matrix"] = capabilityMatrix
+		}
+		if protocolEndpoints := dedupePublicModelProtocolEndpoints(entry.ProtocolEndpoints); len(protocolEndpoints) > 0 {
+			item["protocol_endpoints"] = protocolEndpoints
+		}
+		if lastCheckedAt := strings.TrimSpace(firstNonEmptyTrimmed(entry.LastCheckedAt, entry.UpdatedAt)); lastCheckedAt != "" {
+			item["last_checked_at"] = lastCheckedAt
+		}
 		if len(item) > 0 {
 			items = append(items, item)
 		}
@@ -516,6 +532,7 @@ func normalizeAccountModelProbeSnapshotEntriesAny(raw any) []AccountModelProbeSn
 		if targetModelID == "" {
 			targetModelID = displayModelID
 		}
+		checkedAt := strings.TrimSpace(firstNonEmptyTrimmed(stringValueFromAny(entryMap["last_checked_at"]), stringValueFromAny(entryMap["updated_at"])))
 		entries = append(entries, AccountModelProbeSnapshotEntry{
 			DisplayModelID:    displayModelID,
 			TargetModelID:     targetModelID,
@@ -523,6 +540,10 @@ func normalizeAccountModelProbeSnapshotEntriesAny(raw any) []AccountModelProbeSn
 			StaleState:        normalizeAccountModelStaleState(stringValueFromAny(entryMap["stale_state"])),
 			UpdatedAt:         strings.TrimSpace(stringValueFromAny(entryMap["updated_at"])),
 			Source:            strings.TrimSpace(stringValueFromAny(entryMap["source"])),
+			ContextWindow:     normalizePublicModelContextWindowAny(entryMap["context_window"]),
+			CapabilityMatrix:  normalizePublicModelCapabilityMatrixAny(entryMap["capability_matrix"]),
+			ProtocolEndpoints: normalizePublicModelProtocolEndpointsAny(entryMap["protocol_endpoints"]),
+			LastCheckedAt:     checkedAt,
 		})
 	}
 	return normalizeAccountModelProbeSnapshotEntries(entries)
@@ -558,6 +579,12 @@ func normalizeAccountModelProbeSnapshotEntries(entries []AccountModelProbeSnapsh
 			StaleState:        normalizeAccountModelStaleState(entry.StaleState),
 			UpdatedAt:         strings.TrimSpace(entry.UpdatedAt),
 			Source:            strings.TrimSpace(entry.Source),
+			ContextWindow: normalizePublicModelContextWindow(entry.ContextWindow, 0, publicModelCatalogMetadataSource{
+				LastCheckedAt: firstNonEmptyTrimmed(entry.LastCheckedAt, entry.UpdatedAt),
+			}),
+			CapabilityMatrix:  dedupePublicModelCapabilityMatrix(entry.CapabilityMatrix),
+			ProtocolEndpoints: dedupePublicModelProtocolEndpoints(entry.ProtocolEndpoints),
+			LastCheckedAt:     strings.TrimSpace(firstNonEmptyTrimmed(entry.LastCheckedAt, entry.UpdatedAt)),
 		})
 	}
 	if len(normalized) == 0 {

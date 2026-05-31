@@ -19,7 +19,11 @@ export interface ModelRegistryFetchResult {
 export interface PublicModelCatalogPriceEntry {
   id: string
   unit?: string
+  unit_kind?: 'token' | 'image' | 'request' | 'video' | string
+  display_unit?: 'per_million_tokens' | 'per_image' | 'per_request' | 'per_video' | string
   value: number
+  configured?: boolean
+  supported_unpriced?: boolean
 }
 
 export interface PublicModelCatalogPriceDisplay {
@@ -34,11 +38,65 @@ export interface PublicModelCatalogMultiplierSummary {
   value?: number
 }
 
-export type PublicModelCatalogStatus = 'ok' | 'error' | 'maintenance' | 'warning' | 'info'
-export type PublicModelAvailabilityState = 'verified' | 'unavailable' | 'unknown'
-export type PublicModelStaleState = 'fresh' | 'stale' | 'unverified'
+export type PublicModelPublicationStatus = 'published'
 export type PublicModelLifecycleStatus = 'stable' | 'beta' | 'deprecated'
 export type PublicModelHealthStatus = 'healthy' | 'warning' | 'error' | 'pending'
+export type PublicModelVerificationSource = 'published_snapshot' | 'live_fallback'
+export type PublicModelKeyAvailability = 'available' | 'unavailable'
+export type PublicModelUnavailableReason =
+  | 'not_selected_by_key'
+  | 'group_unavailable'
+  | 'image_only_key_restricted'
+  | 'published_source_unavailable'
+export type PublicModelHealthSource = 'traffic' | 'probe' | 'none'
+export type PublicModelHealthReason =
+  | 'traffic_recent'
+  | 'probe_recent'
+  | 'monitor_disabled'
+  | 'no_history'
+  | 'stale_history'
+  | 'checking'
+
+export type PublicModelSupport = 'supported' | 'partial' | 'unsupported' | 'unknown'
+
+export interface PublicModelContextWindow {
+  tokens?: number
+  source?: string
+  verified: boolean
+  last_checked_at?: string
+  limit_kind?: string
+  notes?: string[]
+}
+
+export interface PublicModelCapabilityMatrixEntry {
+  capability: string
+  protocol?: string
+  endpoint?: string
+  support: PublicModelSupport
+  mode?: string
+  source?: string
+  verified: boolean
+  last_checked_at?: string
+  limitations?: string[]
+}
+
+export interface PublicModelProtocolEndpoint {
+  key: string
+  protocol: string
+  endpoint: string
+  method?: string
+  support: PublicModelSupport
+  source?: string
+  verified: boolean
+  last_checked_at?: string
+  limitations?: string[]
+}
+
+export interface PublicModelLifecycle {
+  status?: PublicModelLifecycleStatus
+  source?: string
+  confidence?: 'verified' | 'declared' | 'inferred' | string
+}
 
 export interface PublicModelCatalogItem {
   entry_id?: string
@@ -51,14 +109,22 @@ export interface PublicModelCatalogItem {
   display_name?: string
   provider?: string
   provider_icon_key?: string
-  status?: PublicModelCatalogStatus
-  availability_state?: PublicModelAvailabilityState
-  stale_state?: PublicModelStaleState
+  publication_status?: PublicModelPublicationStatus
+  health_status?: PublicModelHealthStatus
+  verification_source?: PublicModelVerificationSource
+  key_availability?: PublicModelKeyAvailability
+  unavailable_reason?: PublicModelUnavailableReason
   lifecycle_status?: PublicModelLifecycleStatus
+  lifecycle?: PublicModelLifecycle
   context_window_tokens?: number
+  context_window?: PublicModelContextWindow
   modalities?: string[]
   capabilities?: string[]
+  capability_matrix?: PublicModelCapabilityMatrixEntry[]
   request_protocols?: string[]
+  protocol_endpoints?: PublicModelProtocolEndpoint[]
+  is_demo?: boolean
+  catalog_entry_source?: 'real_account' | 'live_projection' | 'demo' | 'legacy_snapshot' | string
   mode?: string
   currency: string
   price_display: PublicModelCatalogPriceDisplay
@@ -77,11 +143,15 @@ export interface PublicModelCatalogDetailResponse {
   example_page_id?: string
   example_markdown?: string
   example_override_id?: string
+  example_validation?: 'dry_run_contract' | string
 }
 
 export interface PublicModelCatalogSnapshot {
   etag: string
   updated_at: string
+  published_at?: string
+  last_revalidated_at?: string
+  stale_reason?: string
   page_size?: number
   catalog_source?: PublicModelCatalogSource
   items: PublicModelCatalogItem[]
@@ -91,6 +161,10 @@ export interface ModelCatalogFetchResult {
   notModified: boolean
   etag: string | null
   data: PublicModelCatalogSnapshot | null
+}
+
+export interface PublicModelCatalogRequestOptions {
+  catalogMode?: 'demo' | 'real'
 }
 
 export interface PublicModelCatalogDailyStatus {
@@ -106,22 +180,19 @@ export interface PublicModelCatalogTrendPoint {
   latency_ms?: number
 }
 
-export interface PublicModelCatalogRateLimitSummary {
-  rpm?: number
-  tpm?: number
-  rpd?: number
-}
-
 export interface PublicModelCatalogStatusItem {
+  public_model_id: string
   model: string
-  status: PublicModelHealthStatus
+  aliases: string[]
+  health_status: PublicModelHealthStatus
+  health_source: PublicModelHealthSource
+  status_reason: PublicModelHealthReason
   success_rate_today?: number
   success_rate_7d?: number
   latency_ms?: number
   last_checked_at?: string
   daily: PublicModelCatalogDailyStatus[]
   trend: PublicModelCatalogTrendPoint[]
-  rate_limit?: PublicModelCatalogRateLimitSummary
 }
 
 export interface PublicModelCatalogStatusSnapshot {
@@ -162,14 +233,19 @@ export async function getModelRegistry(etag?: string | null): Promise<ModelRegis
   }
 }
 
-export async function getModelCatalog(etag?: string | null): Promise<ModelCatalogFetchResult> {
+export async function getModelCatalog(
+  etag?: string | null,
+  options: PublicModelCatalogRequestOptions = {}
+): Promise<ModelCatalogFetchResult> {
   const headers: Record<string, string> = {}
   if (etag) {
     headers['If-None-Match'] = etag
   }
+  const params = options.catalogMode ? { catalog_mode: options.catalogMode } : undefined
 
   const response = await apiClient.get<PublicModelCatalogSnapshot>('/meta/model-catalog', {
     headers,
+    params,
     validateStatus: (status: number) => (status >= 200 && status < 300) || status === 304
   })
 
@@ -189,8 +265,15 @@ export async function getModelCatalog(etag?: string | null): Promise<ModelCatalo
   }
 }
 
-export async function getModelCatalogDetail(model: string): Promise<PublicModelCatalogDetailResponse> {
-  const { data } = await apiClient.get<PublicModelCatalogDetailResponse>(`/meta/model-catalog/${encodeURIComponent(model)}`)
+export async function getModelCatalogDetail(
+  model: string,
+  options: PublicModelCatalogRequestOptions = {}
+): Promise<PublicModelCatalogDetailResponse> {
+  const params = options.catalogMode ? { catalog_mode: options.catalogMode } : undefined
+  const { data } = await apiClient.get<PublicModelCatalogDetailResponse>(
+    `/meta/model-catalog/${encodeURIComponent(model)}`,
+    { params }
+  )
   return data
 }
 

@@ -4,7 +4,7 @@
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="max-w-3xl">
           <p class="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700 dark:text-sky-300">
-            {{ t("ui.modelCatalog.eyebrow") }}
+            {{ t("ui.modelCatalog.platformProvided") }}
           </p>
           <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
             {{ t("nav.modelsCatalog") }}
@@ -14,6 +14,9 @@
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+          <span class="rounded-full border border-emerald-200 bg-emerald-50/90 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+            {{ t("ui.modelCatalog.eyebrow") }}
+          </span>
           <span class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 dark:border-dark-700 dark:bg-dark-900/80 dark:text-slate-200">
             {{ modelCountLabel }}
           </span>
@@ -30,6 +33,13 @@
             {{ loading ? t("ui.modelCatalog.refreshing") : t("ui.modelCatalog.refresh") }}
           </button>
         </div>
+      </div>
+      <div class="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600 dark:text-slate-300">
+        <span>{{ t("ui.modelCatalog.publishedAt", { time: publishedAtLabel }) }}</span>
+        <span>{{ t("ui.modelCatalog.lastRevalidatedAt", { time: lastRevalidatedAtLabel }) }}</span>
+        <span v-if="staleReasonLabel" class="text-amber-700 dark:text-amber-200">
+          {{ t("ui.modelCatalog.staleReason", { reason: staleReasonLabel }) }}
+        </span>
       </div>
     </section>
 
@@ -279,7 +289,7 @@
             v-for="item in paginatedItems"
             :key="item.raw.model"
             :item="item"
-            :health="statusByModel[item.raw.model]"
+            :health="healthForItem(item.raw)"
             :provider-label="providerLabel(item.raw)"
             :detail-label="t('ui.modelCatalog.card.detail')"
             :detail-title="t('ui.modelCatalog.detailButton')"
@@ -339,7 +349,7 @@
       :show="showDetailDialog"
       :model="selectedItem?.model || null"
       :catalog-item="selectedItem"
-      :health="selectedItem ? statusByModel[selectedItem.model] : undefined"
+      :health="selectedItem ? healthForItem(selectedItem) : undefined"
       :usd-to-cny-rate="usdToCnyRate"
       @close="closeDetail"
     />
@@ -392,7 +402,7 @@ const appStore = useAppStore();
 const catalogStore = usePublicModelCatalogStore()
 const {
   snapshot: catalog,
-  statusByModel,
+  statusByPublicModel,
   loading,
   hardError,
   softStale,
@@ -424,6 +434,9 @@ const displayItems = computed<PublicModelCatalogDisplayItem[]>(() =>
 const modelCountLabel = computed(() =>
   t("ui.modelCatalog.modelCount", { count: catalog.value?.items.length || 0 }),
 );
+const publishedAtLabel = computed(() => formatCatalogTimestamp(catalog.value?.published_at))
+const lastRevalidatedAtLabel = computed(() => formatCatalogTimestamp(catalog.value?.last_revalidated_at))
+const staleReasonLabel = computed(() => String(catalog.value?.stale_reason || '').trim())
 
 const errorMessage = computed(() => hardError.value)
 const softNotice = computed(() => (softStale.value ? t('ui.modelCatalog.staleNotice') : ''))
@@ -663,6 +676,14 @@ function openDetail(item: PublicModelCatalogItem) {
   showDetailDialog.value = true;
 }
 
+function healthForItem(item: PublicModelCatalogItem) {
+  return statusByPublicModel.value[publicModelKey(item)]
+}
+
+function publicModelKey(item: PublicModelCatalogItem): string {
+  return String(item.public_model_id || item.model || '').trim()
+}
+
 function closeDetail() {
   showDetailDialog.value = false;
 }
@@ -754,6 +775,20 @@ function formatNumber(value: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: value >= 1 ? 3 : 6,
   }).format(value);
+}
+
+function formatCatalogTimestamp(value?: string): string {
+  if (!value) {
+    return t('ui.modelCatalog.notChecked')
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
 }
 
 function normalizePageSize(value?: number): number {

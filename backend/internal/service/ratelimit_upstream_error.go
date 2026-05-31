@@ -115,15 +115,6 @@ func (s *RateLimitService) handleUnauthorizedError(ctx context.Context, account 
 			slog.Warn("oauth_401_invalidate_cache_failed", "account_id", account.ID, "error", err)
 		}
 	}
-	if account.Credentials == nil {
-		account.Credentials = make(map[string]any)
-	}
-	account.Credentials["expires_at"] = time.Now().Format(time.RFC3339)
-	if err := persistAccountCredentials(ctx, s.accountRepo, account, account.Credentials); err != nil {
-		slog.Warn("oauth_401_force_refresh_update_failed", "account_id", account.ID, "error", err)
-	} else {
-		slog.Info("oauth_401_force_refresh_set", "account_id", account.ID, "platform", runtimePlatform)
-	}
 
 	msg := "Authentication failed (401): invalid or expired credentials"
 	if upstreamMsg != "" {

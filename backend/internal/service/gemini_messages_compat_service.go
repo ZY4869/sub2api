@@ -37,6 +37,7 @@ type GeminiMessagesCompatService struct {
 	usageBillingRepo                UsageBillingRepository
 	settingService                  *SettingService
 	googleBatchArchiveStorage       *GoogleBatchArchiveStorage
+	modelCatalogService             *ModelCatalogService
 	httpUpstream                    HTTPUpstream
 	antigravityGatewayService       *AntigravityGatewayService
 	cfg                             *config.Config
@@ -66,6 +67,10 @@ func (s *GeminiMessagesCompatService) SetGoogleBatchArchiveRepositories(jobRepo 
 
 func (s *GeminiMessagesCompatService) SetGoogleBatchArchiveStorage(storage *GoogleBatchArchiveStorage) {
 	s.googleBatchArchiveStorage = storage
+}
+
+func (s *GeminiMessagesCompatService) SetModelCatalogService(modelCatalogService *ModelCatalogService) {
+	s.modelCatalogService = modelCatalogService
 }
 
 func (s *GeminiMessagesCompatService) SetSettingService(settingService *SettingService) {

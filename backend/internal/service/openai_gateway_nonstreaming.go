@@ -32,6 +32,15 @@ func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *ht
 	}
 	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
 	logOpenAIInstructionsRequiredDebug(ctx, c, account, resp.StatusCode, upstreamMsg, requestBody, body)
+	RecordPublicModelCatalogRuntimeFailureIfModelCapabilityError(
+		ctx,
+		s.modelCatalogService,
+		resp.StatusCode,
+		upstreamMsg,
+		PlatformOpenAI,
+		EndpointResponses,
+		"text",
+	)
 	if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
 		logger.LegacyPrintf("service.openai_gateway", "OpenAI upstream error %d (account=%d platform=%s type=%s): %s", resp.StatusCode, account.ID, account.Platform, account.Type, truncateForLog(body, s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes))
 	}

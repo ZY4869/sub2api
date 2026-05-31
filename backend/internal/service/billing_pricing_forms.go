@@ -9,8 +9,9 @@ import (
 )
 
 type billingPricingFormMetadata struct {
-	InputSupported   bool
-	OutputChargeSlot string
+	InputSupported        bool
+	OutputChargeSlot      string
+	SupportsPromptCaching bool
 }
 
 const (
@@ -31,9 +32,11 @@ const (
 )
 
 func billingPricingMetadataForRecord(record *modelCatalogRecord, items []BillingPriceItem) billingPricingFormMetadata {
-	outputSlot := billingDefaultOutputChargeSlot("")
+	outputSlot := billingNormalizeOutputChargeSlot("", "")
+	supportsPromptCaching := false
 	if record != nil {
-		outputSlot = billingDefaultOutputChargeSlot(record.mode)
+		outputSlot = billingNormalizeOutputChargeSlot("", record.mode)
+		supportsPromptCaching = record.supportsPromptCaching
 	}
 	for _, raw := range items {
 		item := normalizeBillingPriceItem(raw)
@@ -43,9 +46,8 @@ func billingPricingMetadataForRecord(record *modelCatalogRecord, items []Billing
 		if billingPricingUsesLegacyTier(item) {
 			continue
 		}
-		switch item.ChargeSlot {
-		case BillingChargeSlotTextOutput, BillingChargeSlotImageOutput, BillingChargeSlotVideoRequest:
-			outputSlot = item.ChargeSlot
+		if slot, ok := billingRecognizedPrimaryOutputChargeSlot(item.ChargeSlot); ok {
+			outputSlot = slot
 		}
 	}
 	inputSupported := outputSlot != BillingChargeSlotVideoRequest
@@ -57,8 +59,9 @@ func billingPricingMetadataForRecord(record *modelCatalogRecord, items []Billing
 		}
 	}
 	return billingPricingFormMetadata{
-		InputSupported:   inputSupported,
-		OutputChargeSlot: outputSlot,
+		InputSupported:        inputSupported,
+		OutputChargeSlot:      outputSlot,
+		SupportsPromptCaching: supportsPromptCaching,
 	}
 }
 
@@ -71,6 +74,39 @@ func billingDefaultOutputChargeSlot(mode string) string {
 		return BillingChargeSlotImageOutput
 	default:
 		return BillingChargeSlotTextOutput
+	}
+}
+
+func billingNormalizeOutputChargeSlot(value string, mode string) string {
+	if slot, ok := billingRecognizedOutputChargeSlot(value); ok {
+		return slot
+	}
+	return billingDefaultOutputChargeSlot(firstNonEmptyTrimmed(mode, value))
+}
+
+func billingRecognizedOutputChargeSlot(value string) (string, bool) {
+	switch normalizeBillingDimension(value, "") {
+	case BillingChargeSlotTextOutput,
+		BillingChargeSlotImageOutput,
+		BillingChargeSlotVideoRequest,
+		BillingChargeSlotGroundingSearchRequest,
+		BillingChargeSlotGroundingMapsRequest,
+		BillingChargeSlotFileSearchEmbeddingToken,
+		BillingChargeSlotFileSearchRetrievalToken:
+		return normalizeBillingDimension(value, ""), true
+	default:
+		return "", false
+	}
+}
+
+func billingRecognizedPrimaryOutputChargeSlot(value string) (string, bool) {
+	switch normalizeBillingDimension(value, "") {
+	case BillingChargeSlotTextOutput,
+		BillingChargeSlotImageOutput,
+		BillingChargeSlotVideoRequest:
+		return normalizeBillingDimension(value, ""), true
+	default:
+		return "", false
 	}
 }
 

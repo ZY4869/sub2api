@@ -62,25 +62,25 @@ func (s *ModelCatalogService) findPublicModelCatalogProjection(
 		if NormalizeModelCatalogModelID(projection.PublicID) == normalizedModel {
 			return projection, true, nil
 		}
-		for _, candidate := range projection.SourceIDs {
-			if NormalizeModelCatalogModelID(candidate) == normalizedModel {
-				return projection, true, nil
-			}
-		}
 	}
 	return PublicModelProjectionEntry{}, false, nil
 }
 
 func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, model string) (*PublicModelCatalogDetail, error) {
+	return s.PublicModelCatalogDetailWithOptions(ctx, model, PublicModelCatalogReadOptions{})
+}
+
+func (s *ModelCatalogService) PublicModelCatalogDetailWithOptions(ctx context.Context, model string, options PublicModelCatalogReadOptions) (*PublicModelCatalogDetail, error) {
 	normalizedModel := NormalizeModelCatalogModelID(model)
 	if normalizedModel == "" {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
+	allowDemo := s.publicModelCatalogReadAllowsDemo(options)
 	if rawPublished := s.loadPublishedPublicModelCatalogSnapshot(ctx); rawPublished != nil {
-		published := s.filterPublishedPublicModelCatalogSnapshot(ctx, rawPublished)
-		if detail, ok := published.Details[normalizedModel]; ok {
+		rawPublished = filterPublicModelCatalogPublishedSnapshotByDemoMode(rawPublished, allowDemo)
+		if detail, ok := rawPublished.Details[normalizedModel]; ok {
 			cloned := clonePublicModelCatalogDetail(detail)
-			cloned.Item = sanitizePublicModelCatalogItemForPublic(cloned.Item)
+			cloned.Item = sanitizePublicModelCatalogItemForPublicWithSource(cloned.Item, PublicModelCatalogSourcePublished)
 			cloned.CatalogSource = PublicModelCatalogSourcePublished
 			return &cloned, nil
 		}
@@ -121,6 +121,9 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 		if !found {
 			return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 		}
+		if publicModelCatalogItemIsDemo(item) != allowDemo {
+			return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
+		}
 	} else {
 		record, ok := resolveModelCatalogRecord(records, normalizedModel)
 		if !ok || record == nil {
@@ -129,6 +132,9 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 		entry := modelregistryEntryFromRecord(record)
 		item, found = buildPublicModelCatalogItem(entry, records, pricingSnapshot, rules)
 		if !found {
+			return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
+		}
+		if publicModelCatalogItemIsDemo(item) != allowDemo {
 			return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 		}
 		projection = PublicModelProjectionEntry{
@@ -142,7 +148,10 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 		}
 	}
 
-	exampleSource, exampleProtocol, examplePageID, exampleMarkdown, exampleOverrideID := s.buildPublicModelCatalogDetailExample(ctx, item)
+	exampleSource, exampleProtocol, examplePageID, exampleMarkdown, exampleOverrideID, exampleValidation := s.buildPublicModelCatalogDetailExample(ctx, item)
+	if exampleProtocol != "" && exampleValidation == "" {
+		exampleValidation = PublicModelCatalogExampleValidationDryRunContract
+	}
 	if len(projection.SourceIDs) > 0 {
 		item.SourceIDs = append([]string(nil), projection.SourceIDs...)
 	}
@@ -150,13 +159,14 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 	}
 	return &PublicModelCatalogDetail{
-		Item:              sanitizePublicModelCatalogItemForPublic(item),
+		Item:              sanitizePublicModelCatalogItemForPublicWithSource(item, PublicModelCatalogSourceLiveFallback),
 		CatalogSource:     PublicModelCatalogSourceLiveFallback,
 		ExampleSource:     exampleSource,
 		ExampleProtocol:   exampleProtocol,
 		ExamplePageID:     examplePageID,
 		ExampleMarkdown:   exampleMarkdown,
 		ExampleOverrideID: exampleOverrideID,
+		ExampleValidation: exampleValidation,
 	}, nil
 }
 
@@ -169,13 +179,13 @@ func (s *ModelCatalogService) PublishedPublicModelCatalogDetail(ctx context.Cont
 	if rawPublished == nil {
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 	}
-	published := s.filterPublishedPublicModelCatalogSnapshot(ctx, rawPublished)
-	detail, ok := published.Details[normalizedModel]
+	rawPublished = filterPublicModelCatalogPublishedSnapshotByDemoMode(rawPublished, false)
+	detail, ok := rawPublished.Details[normalizedModel]
 	if !ok {
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 	}
 	cloned := clonePublicModelCatalogDetail(detail)
-	cloned.Item = sanitizePublicModelCatalogItemForPublic(cloned.Item)
+	cloned.Item = sanitizePublicModelCatalogItemForPublicWithSource(cloned.Item, PublicModelCatalogSourcePublished)
 	return &cloned, nil
 }
 
@@ -212,12 +222,13 @@ func buildPublicModelCatalogItemFromProjection(
 	if mode == "" {
 		mode = inferModelMode(firstNonEmptyTrimmed(firstRegistryString(projection.SourceIDs...), modelID), "")
 	}
-	lifecycleStatus := normalizePublicModelLifecycleStatus(
+	lifecycle := resolvePublicModelLifecycleStatus(
 		projection.LifecycleStatus,
 		projection.DisplayName,
 		projection.PublicID,
 		firstRegistryString(projection.SourceIDs...),
 	)
+	lifecycle.Inferred = lifecycle.Inferred || projection.LifecycleInferred
 	modelMetadata := publicModelCatalogMetadataForCandidates(
 		records,
 		record,
@@ -226,7 +237,7 @@ func buildPublicModelCatalogItemFromProjection(
 		persisted.Model,
 	)
 
-	return PublicModelCatalogItem{
+	item := PublicModelCatalogItem{
 		EntryID:              publicModelCatalogEntryID(0, projection.Platform, firstNonEmptyTrimmed(firstRegistryString(projection.SourceIDs...), modelID)),
 		PublicModelID:        modelID,
 		Model:                modelID,
@@ -236,11 +247,13 @@ func buildPublicModelCatalogItemFromProjection(
 		DisplayName:          displayName,
 		Provider:             provider,
 		ProviderIconKey:      provider,
-		Status:               publicModelStatusFromProjection(projection.AvailabilityState, projection.StaleState, lifecycleStatus),
+		Status:               publicModelStatusFromProjection(projection.AvailabilityState, projection.StaleState, lifecycle.Status),
 		AvailabilityState:    firstNonEmptyTrimmed(projection.AvailabilityState, AccountModelAvailabilityUnknown),
 		StaleState:           firstNonEmptyTrimmed(projection.StaleState, AccountModelStaleStateUnverified),
-		LifecycleStatus:      lifecycleStatus,
-		ContextWindowTokens:  modelMetadata.ContextWindowTokens,
+		LifecycleStatus:      lifecycle.Status,
+		Lifecycle:            publicModelLifecycleFromResolution(lifecycle, PublicModelLifecycleSourceManualConfig),
+		ContextWindowTokens:  modelMetadata.ContextWindow.Tokens,
+		ContextWindow:        modelMetadata.ContextWindow,
 		Modalities:           append([]string(nil), modelMetadata.Modalities...),
 		Capabilities:         append([]string(nil), modelMetadata.Capabilities...),
 		RequestProtocols:     publicModelCatalogRequestProtocolsForProjection(projection, records, provider),
@@ -252,7 +265,8 @@ func buildPublicModelCatalogItemFromProjection(
 		SalePriceDisplay:     priceDisplay,
 		MultiplierSummary:    publicModelCatalogMultiplierSummaryFromForm(persisted.SaleForm),
 		RuntimePriceSpec:     publicModelCatalogRuntimePriceSpecFromPersisted(persisted),
-	}, true
+	}
+	return enrichPublicModelCatalogItemMetadata(item, publicModelCatalogMetadataSourceForProjection()), true
 }
 
 func resolvePublicModelCatalogProjectionProvider(
@@ -398,9 +412,9 @@ func modelregistryEntryFromRecord(record *modelCatalogRecord) modelregistry.Mode
 }
 
 type publicModelCatalogMetadata struct {
-	ContextWindowTokens int64
-	Modalities          []string
-	Capabilities        []string
+	ContextWindow PublicModelContextWindow
+	Modalities    []string
+	Capabilities  []string
 }
 
 func publicModelCatalogMetadataForCandidates(
@@ -434,10 +448,14 @@ func publicModelCatalogMetadataForCandidates(
 }
 
 func publicModelCatalogMetadataFromEntry(entry modelregistry.ModelEntry) publicModelCatalogMetadata {
+	contextWindow := publicModelContextWindowFromTokens(entry.ContextWindowTokens, PublicModelCapabilitySourcePricingCatalog)
+	if resolved, ok := modelregistry.ResolveContextWindow(append(append([]string{}, entry.PricingLookupIDs...), entry.ID)...); ok {
+		contextWindow = publicModelContextWindowFromTokens(resolved.Tokens, resolved.Source)
+	}
 	return publicModelCatalogMetadata{
-		ContextWindowTokens: entry.ContextWindowTokens,
-		Modalities:          append([]string(nil), entry.Modalities...),
-		Capabilities:        append([]string(nil), entry.Capabilities...),
+		ContextWindow: contextWindow,
+		Modalities:    append([]string(nil), entry.Modalities...),
+		Capabilities:  append([]string(nil), entry.Capabilities...),
 	}
 }
 
@@ -450,8 +468,20 @@ func publicModelCatalogMetadataFromRecord(record *modelCatalogRecord) publicMode
 		Modalities:   defaultModalitiesForMode(mode),
 		Capabilities: defaultCapabilitiesForMode(mode),
 	}
-	if tokens, ok := modelregistry.ResolveContextWindowTokens(record.pricingLookupModelID, record.canonicalModelID, record.model); ok {
-		metadata.ContextWindowTokens = tokens
+	if resolved, ok := modelregistry.ResolveContextWindow(record.pricingLookupModelID, record.canonicalModelID, record.model); ok {
+		metadata.ContextWindow = publicModelContextWindowFromTokens(resolved.Tokens, resolved.Source)
 	}
 	return metadata
+}
+
+func publicModelContextWindowFromTokens(tokens int64, source string) PublicModelContextWindow {
+	if tokens <= 0 {
+		return PublicModelContextWindow{}
+	}
+	return PublicModelContextWindow{
+		Tokens:    tokens,
+		Source:    firstNonEmptyTrimmed(source, PublicModelCapabilitySourcePricingCatalog),
+		Verified:  false,
+		LimitKind: PublicModelContextLimitKindInput,
+	}
 }

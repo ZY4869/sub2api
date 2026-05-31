@@ -8,5 +8,7 @@ export default {
         maxVersion: "Maximum Version",
         maxVersionPlaceholder: "e.g. 2.3.0",
         maxVersionHint: "Reject Claude Code clients above this version (semver format). Leave empty to disable version check.",
+        allowCodexPlugin: "Allow Claude Code Codex plugin",
+        allowCodexPluginHint: "Off by default. When enabled, only Codex plugin requests with originator Claude Code and a Claude Code/ User-Agent are allowed.",
     }
 }

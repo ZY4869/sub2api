@@ -1,6 +1,10 @@
 import { apiClient } from '../client'
 import type { PaginatedResponse } from '@/types'
-import type { PublicModelCatalogItem, PublicModelCatalogPriceDisplay } from '@/api/meta'
+import type {
+  PublicModelCatalogItem,
+  PublicModelCatalogPriceDisplay,
+  PublicModelHealthStatus,
+} from '@/api/meta'
 
 export type BillingPricingCurrency = 'USD' | 'CNY'
 export type BillingPricingSortBy = 'display_name' | 'provider'
@@ -329,13 +333,82 @@ export interface BillingPublicCatalogEntryDraft {
 export interface BillingPublicCatalogAdminEntry extends PublicModelCatalogItem {
   source_account_id?: number
   source_account_name?: string
+  status?: 'ok' | 'error' | 'maintenance' | 'warning' | 'info'
+  availability_state?: 'verified' | 'unavailable' | 'unknown'
+  stale_state?: 'fresh' | 'stale' | 'unverified'
+  health_status?: PublicModelHealthStatus
 }
 
 export interface BillingPublicCatalogPublishedSummary {
   etag: string
   updated_at: string
+  published_at?: string
+  last_revalidated_at?: string
+  stale_reason?: string
   page_size: number
   model_count: number
+}
+
+export interface BillingPublicCatalogRevalidationState {
+  auto_enabled: boolean
+}
+
+export interface BillingPublicCatalogRevalidationResult {
+  published: BillingPublicCatalogPublishedSummary
+  checked_at: string
+  model_count: number
+  stale_count: number
+  reasons?: Record<string, number>
+}
+
+export interface BillingPublicCatalogCapacityDiagnosticsSummary {
+  model_count: number
+  available_count: number
+  limited_count: number
+  unschedulable_count: number
+  source_counts?: Record<string, number>
+  restriction_counts?: Record<string, number>
+  effective_limit_counts?: Record<string, number>
+}
+
+export interface BillingPublicCatalogCapacityDiagnosticRestriction {
+  kind: string
+  scope?: string
+  message?: string
+  until?: string
+  limit?: number
+  used?: number
+}
+
+export interface BillingPublicCatalogCapacityDiagnosticSource {
+  source: string
+  scope?: string
+  detail?: string
+}
+
+export interface BillingPublicCatalogCapacityDiagnosticItem {
+  public_model_id: string
+  model: string
+  entry_id?: string
+  provider?: string
+  source_protocol?: string
+  source_account_id?: number
+  binding_group_id?: number
+  scope?: string
+  availability: 'available' | 'limited' | 'unschedulable' | 'unknown' | string
+  effective_rate_limit?: {
+    rpm?: number
+    tpm?: number
+    rpd?: number
+  }
+  restrictions?: BillingPublicCatalogCapacityDiagnosticRestriction[]
+  sources?: BillingPublicCatalogCapacityDiagnosticSource[]
+}
+
+export interface BillingPublicCatalogCapacityDiagnosticsSnapshot {
+  updated_at: string
+  items: BillingPublicCatalogCapacityDiagnosticItem[]
+  summary: BillingPublicCatalogCapacityDiagnosticsSummary
 }
 
 export interface BillingPublicCatalogDraftPayload {
@@ -345,6 +418,7 @@ export interface BillingPublicCatalogDraftPayload {
   available_updated_at?: string
   available_source?: string
   published?: BillingPublicCatalogPublishedSummary | null
+  revalidation?: BillingPublicCatalogRevalidationState
 }
 
 export async function listBillingPricingProviders(): Promise<BillingPricingProviderGroup[]> {
@@ -403,10 +477,13 @@ export async function listBillingRules(): Promise<BillingRule[]> {
   return data
 }
 
-export async function getBillingPublicCatalogDraft(options: { force?: boolean } = {}): Promise<BillingPublicCatalogDraftPayload> {
-  const params = options.force ? { force: 1 } : undefined
+export async function getBillingPublicCatalogDraft(options: { force?: boolean; catalogMode?: 'demo' | 'real' } = {}): Promise<BillingPublicCatalogDraftPayload> {
+  const params = {
+    ...(options.force ? { force: 1 } : {}),
+    ...(options.catalogMode ? { catalog_mode: options.catalogMode } : {}),
+  }
   const { data } = await apiClient.get<BillingPublicCatalogDraftPayload>('/admin/billing/public-model-catalog/draft', {
-    params,
+    params: Object.keys(params).length > 0 ? params : undefined,
   })
   return data
 }
@@ -430,6 +507,33 @@ export async function publishBillingPublicCatalog(
 
 export async function getBillingPublicCatalogPublishedSummary(): Promise<BillingPublicCatalogPublishedSummary | null> {
   const { data } = await apiClient.get<BillingPublicCatalogPublishedSummary | null>('/admin/billing/public-model-catalog/published')
+  return data
+}
+
+export async function getBillingPublicCatalogCapacityDiagnostics(): Promise<BillingPublicCatalogCapacityDiagnosticsSnapshot> {
+  const { data } = await apiClient.get<BillingPublicCatalogCapacityDiagnosticsSnapshot>(
+    '/admin/billing/public-model-catalog/diagnostics',
+  )
+  return data
+}
+
+export async function getBillingPublicCatalogRevalidationState(): Promise<BillingPublicCatalogRevalidationState> {
+  const { data } = await apiClient.get<BillingPublicCatalogRevalidationState>('/admin/billing/public-model-catalog/revalidation')
+  return data
+}
+
+export async function updateBillingPublicCatalogRevalidationState(
+  payload: BillingPublicCatalogRevalidationState,
+): Promise<BillingPublicCatalogRevalidationState> {
+  const { data } = await apiClient.put<BillingPublicCatalogRevalidationState>(
+    '/admin/billing/public-model-catalog/revalidation',
+    payload,
+  )
+  return data
+}
+
+export async function revalidateBillingPublicCatalog(): Promise<BillingPublicCatalogRevalidationResult> {
+  const { data } = await apiClient.post<BillingPublicCatalogRevalidationResult>('/admin/billing/public-model-catalog/revalidate')
   return data
 }
 

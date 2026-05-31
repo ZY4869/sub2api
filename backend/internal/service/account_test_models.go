@@ -13,23 +13,27 @@ import (
 )
 
 type AvailableTestModel struct {
-	ID                string `json:"id"`
-	Type              string `json:"type"`
-	DisplayName       string `json:"display_name"`
-	CreatedAt         string `json:"created_at"`
-	CanonicalID       string `json:"canonical_id,omitempty"`
-	TargetModelID     string `json:"target_model_id,omitempty"`
-	Mode              string `json:"mode,omitempty"`
-	Provider          string `json:"provider,omitempty"`
-	ProviderLabel     string `json:"provider_label,omitempty"`
-	SourceProtocol    string `json:"source_protocol,omitempty"`
-	VisibilityMode    string `json:"visibility_mode,omitempty"`
-	AvailabilityState string `json:"availability_state,omitempty"`
-	StaleState        string `json:"stale_state,omitempty"`
-	ExposureSource    string `json:"exposure_source,omitempty"`
-	Status            string `json:"status,omitempty"`
-	DeprecatedAt      string `json:"deprecated_at,omitempty"`
-	ReplacedBy        string `json:"replaced_by,omitempty"`
+	ID                string                             `json:"id"`
+	Type              string                             `json:"type"`
+	DisplayName       string                             `json:"display_name"`
+	CreatedAt         string                             `json:"created_at"`
+	CanonicalID       string                             `json:"canonical_id,omitempty"`
+	TargetModelID     string                             `json:"target_model_id,omitempty"`
+	Mode              string                             `json:"mode,omitempty"`
+	Provider          string                             `json:"provider,omitempty"`
+	ProviderLabel     string                             `json:"provider_label,omitempty"`
+	SourceProtocol    string                             `json:"source_protocol,omitempty"`
+	VisibilityMode    string                             `json:"visibility_mode,omitempty"`
+	AvailabilityState string                             `json:"availability_state,omitempty"`
+	StaleState        string                             `json:"stale_state,omitempty"`
+	ExposureSource    string                             `json:"exposure_source,omitempty"`
+	LastCheckedAt     string                             `json:"last_checked_at,omitempty"`
+	Status            string                             `json:"status,omitempty"`
+	DeprecatedAt      string                             `json:"deprecated_at,omitempty"`
+	ReplacedBy        string                             `json:"replaced_by,omitempty"`
+	ContextWindow     PublicModelContextWindow           `json:"context_window,omitempty"`
+	CapabilityMatrix  []PublicModelCapabilityMatrixEntry `json:"capability_matrix,omitempty"`
+	ProtocolEndpoints []PublicModelProtocolEndpoint      `json:"protocol_endpoints,omitempty"`
 }
 
 type testModelCandidate struct {
@@ -78,6 +82,7 @@ func buildAvailableTestModelsFromProjection(ctx context.Context, account *Accoun
 	}
 
 	models := make([]AvailableTestModel, 0, len(projection.Entries))
+	snapshot, _ := AccountModelProbeSnapshotFromExtra(account.Extra)
 	for _, entry := range projection.Entries {
 		displayModelID := strings.TrimSpace(entry.DisplayModelID)
 		if displayModelID == "" {
@@ -101,10 +106,16 @@ func buildAvailableTestModelsFromProjection(ctx context.Context, account *Accoun
 			AvailabilityState: entry.AvailabilityState,
 			StaleState:        entry.StaleState,
 			ExposureSource:    entry.ExposureSource,
+			LastCheckedAt:     entry.LastCheckedAt,
 			Status:            firstNonEmptyTrimmed(entry.Status, "stable"),
 			DeprecatedAt:      entry.DeprecatedAt,
 			ReplacedBy:        entry.ReplacedBy,
 		})
+		if snapshotEntry, ok := accountModelProjectionSnapshotEntryState(snapshot, entry); ok {
+			models[len(models)-1].ContextWindow = snapshotEntry.ContextWindow
+			models[len(models)-1].CapabilityMatrix = clonePublicModelCapabilityMatrix(snapshotEntry.CapabilityMatrix)
+			models[len(models)-1].ProtocolEndpoints = clonePublicModelProtocolEndpoints(snapshotEntry.ProtocolEndpoints)
+		}
 	}
 	sort.SliceStable(models, func(i, j int) bool {
 		return compareAvailableTestModels(models[i], models[j]) < 0

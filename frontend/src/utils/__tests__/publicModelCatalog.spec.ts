@@ -4,6 +4,7 @@ import {
   buildPublicModelCatalogDisplayItem,
   formatCatalogPrice,
   normalizePublicModelPriceDisplay,
+  priceDisplayUnitSummary,
   resolvePublicModelSubtitle,
   resolvePublicModelTitle,
 } from '../publicModelCatalog'
@@ -13,6 +14,8 @@ const t = (key: string) => {
     'ui.modelCatalog.units.perMillionTokens': '/ M Tokens',
     'ui.modelCatalog.units.perImage': '/ Image',
     'ui.modelCatalog.units.perRequest': '/ Request',
+    'ui.modelCatalog.units.perVideo': '/ Video',
+    'ui.modelCatalog.cacheSupportedUnpriced': 'Cache supported, price not configured',
   }
   return labels[key] || key
 }
@@ -25,6 +28,38 @@ describe('publicModelCatalog', () => {
       'CNY',
       7.2,
     )).toBe('¥0.3 / M Tokens')
+  })
+
+  it('formats non-token units and unpriced supported cache rows', () => {
+    expect(formatCatalogPrice(
+      t,
+      { id: 'output_price', value: 0.08, unit_kind: 'image', display_unit: 'per_image', unit: 'image' },
+      'USD',
+      null,
+    )).toBe('$0.08 / Image')
+    expect(formatCatalogPrice(
+      t,
+      { id: 'output_price', value: 1.25, unit_kind: 'video', display_unit: 'per_video', unit: 'video_request' },
+      'USD',
+      null,
+    )).toBe('$1.25 / Video')
+    expect(formatCatalogPrice(
+      t,
+      { id: 'cache_creation', value: 0, unit: 'cache_create_token', configured: false, supported_unpriced: true },
+      'USD',
+      null,
+    )).toBe('Cache supported, price not configured')
+  })
+
+  it('hides unit summaries for mixed units', () => {
+    expect(priceDisplayUnitSummary(t, [
+      { id: 'input_price', value: 1e-6, unit_kind: 'token', display_unit: 'per_million_tokens' },
+      { id: 'output_price', value: 0.08, unit_kind: 'image', display_unit: 'per_image' },
+    ])).toBe('')
+    expect(priceDisplayUnitSummary(t, [
+      { id: 'input_price', value: 1e-6, unit_kind: 'token', display_unit: 'per_million_tokens' },
+      { id: 'output_price', value: 2e-6, unit_kind: 'token', display_unit: 'per_million_tokens' },
+    ])).toBe('/ M Tokens')
   })
 
   it('normalizes equivalent display names and hides duplicate subtitles', () => {
