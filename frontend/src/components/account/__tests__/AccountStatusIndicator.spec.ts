@@ -140,8 +140,8 @@ describe('AccountStatusIndicator', () => {
 
     expect(wrapper.text()).toContain('admin.accounts.status.usage7dAll')
     expect(wrapper.text()).toContain('admin.accounts.status.usage7dAllAutoResume')
-    expect(wrapper.text()).toContain('Codex 7d')
-    expect(wrapper.text()).toContain('Spark 7d')
+    expect(wrapper.text()).toContain('Codex 7D')
+    expect(wrapper.text()).toContain('Spark 7D')
     expect(wrapper.text()).not.toContain('7d×2')
   })
 
@@ -270,7 +270,7 @@ describe('AccountStatusIndicator', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('Spark 7d')
+    expect(wrapper.text()).toContain('Spark 7D')
     expect(wrapper.text()).not.toContain('admin.accounts.status.usage7d')
     expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
   })
@@ -301,7 +301,7 @@ describe('AccountStatusIndicator', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('Spark 5h')
+    expect(wrapper.text()).toContain('Spark 5H')
     expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
   })
 
@@ -338,7 +338,7 @@ describe('AccountStatusIndicator', () => {
     expect(limitContainer.classes()).toContain('grid-cols-1')
     expect(limitContainer.classes()).toContain('gap-2')
     expect(limitContainer.findAll('[data-test="account-status-limit-badge"]')).toHaveLength(1)
-    expect(limitContainer.text()).toContain('Codex 5h')
+    expect(limitContainer.text()).toContain('Codex 5H')
   })
 
   it('shows mixed pro codex and spark account limits as scoped badges', () => {
@@ -365,8 +365,8 @@ describe('AccountStatusIndicator', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('Codex 7d')
-    expect(wrapper.text()).toContain('Spark 5h')
+    expect(wrapper.text()).toContain('Codex 7D')
+    expect(wrapper.text()).toContain('Spark 5H')
     expect(wrapper.text()).not.toContain('7d×2')
     const limitContainer = wrapper.get('[data-test="account-limit-badges"]')
     expect(limitContainer.classes()).toContain('grid')

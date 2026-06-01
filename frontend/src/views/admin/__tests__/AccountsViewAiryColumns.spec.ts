@@ -151,7 +151,9 @@ describe('AccountsView airy columns', () => {
 
     expect(wrapper.get('.table-columns').text()).not.toContain('schedulable')
     expect(wrapper.get('.table-columns').text()).toContain('name:w-[236px]')
-    expect(wrapper.get('.table-columns').text()).toContain('capacity:w-[156px]')
+    expect(wrapper.get('.table-columns').text()).toContain(
+      'capacity:w-[184px] min-w-[172px] max-w-[184px]',
+    )
     expect(wrapper.get('.table-columns').text()).toContain('usage_reset_dates:w-[260px]')
   })
 })
