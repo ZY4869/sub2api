@@ -8,6 +8,7 @@ const mockState = vi.hoisted(() => ({
   summaryParamsSource: null as any,
   runtimeParamsSource: null as any,
   tableParams: null as any,
+  pagination: null as any,
   tableItems: [] as any[],
   routerPush: vi.fn(),
   debouncedReload: vi.fn(),
@@ -53,7 +54,9 @@ const mockState = vi.hoisted(() => ({
   getAllGroups: vi.fn(),
   getAllProxies: vi.fn(),
   getById: vi.fn(),
-  updateProfile: vi.fn()
+  updateProfile: vi.fn(),
+  closeMenu: vi.fn(),
+  clearSelection: vi.fn()
 }))
 
 vi.mock('@/api', () => ({
@@ -152,7 +155,7 @@ vi.mock('@/composables/useTableLoader', async () => {
         items: ref(mockState.tableItems),
         loading: ref(false),
         params,
-        pagination: reactive({
+        pagination: mockState.pagination = reactive({
           page: 1,
           page_size: 20,
           total: 0,
@@ -258,7 +261,7 @@ vi.mock('@/composables/useAccountActionMenu', async () => {
     useAccountActionMenu: vi.fn(() => ({
       menu: reactive({ show: false, acc: null, pos: { x: 0, y: 0 } }),
       openMenu: vi.fn(),
-      closeMenu: vi.fn(),
+      closeMenu: mockState.closeMenu,
       syncMenuAccount: vi.fn(),
       clearMenuAccount: vi.fn()
     }))
@@ -310,7 +313,7 @@ vi.mock('@/composables/useTableSelection', async () => {
       select: vi.fn(),
       deselect: vi.fn(),
       toggle: vi.fn(),
-      clear: vi.fn(),
+      clear: mockState.clearSelection,
       removeMany: vi.fn(),
       toggleVisible: vi.fn(),
       selectVisible: vi.fn()
@@ -375,8 +378,8 @@ const SummaryBarStub = defineComponent({
 
 const ToolbarStub = defineComponent({
   name: 'AccountsViewToolbar',
-  props: ['platformCountSortOrder', 'daily5HTriggerEnabled', 'daily5HTriggerBusy', 'accountRealtimeCountdownEnabled', 'accountVisualPresetOverride', 'visualStyle'],
-  emits: ['refresh-usage', 'update:platform-count-sort-order', 'toggle-daily-5h-trigger', 'toggle-account-realtime-countdown', 'set-account-visual-preset-override'],
+  props: ['filters', 'platformCountSortOrder', 'daily5HTriggerEnabled', 'daily5HTriggerBusy', 'accountRealtimeCountdownEnabled', 'accountVisualPresetOverride', 'visualStyle'],
+  emits: ['refresh-usage', 'update:filters', 'change', 'update:platform-count-sort-order', 'toggle-daily-5h-trigger', 'toggle-account-realtime-countdown', 'set-account-visual-preset-override'],
   template: `
     <div>
       <div class="toolbar-platform-sort">{{ platformCountSortOrder }}</div>
@@ -386,6 +389,10 @@ const ToolbarStub = defineComponent({
       <div class="toolbar-account-visual-preset-override">{{ String(accountVisualPresetOverride) }}</div>
       <div class="toolbar-visual-style">{{ String(visualStyle) }}</div>
       <button class="toolbar-refresh-usage" @click="$emit('refresh-usage')" />
+      <button
+        class="toolbar-status-filter"
+        @click="$emit('update:filters', { ...filters, status: 'error' }); $emit('change')"
+      />
       <button class="toolbar-daily5h-toggle" @click="$emit('toggle-daily-5h-trigger')" />
       <button class="toolbar-account-realtime-toggle" @click="$emit('toggle-account-realtime-countdown')" />
       <button class="toolbar-account-visual-preset-toggle" @click="$emit('set-account-visual-preset-override', 'airy')" />
@@ -483,6 +490,7 @@ describe('AccountsView', () => {
     mockState.summaryParamsSource = null
     mockState.runtimeParamsSource = null
     mockState.tableParams = null
+    mockState.pagination = null
     mockState.tableItems = [
       { id: 1, name: 'OpenAI-1', platform: 'openai', type: 'apikey', status: 'active', schedulable: true },
       { id: 2, name: 'Gemini-1', platform: 'gemini', type: 'apikey', status: 'active', schedulable: true },
@@ -524,6 +532,8 @@ describe('AccountsView', () => {
     mockState.getAllGroups.mockReset().mockResolvedValue([])
     mockState.getAllProxies.mockReset().mockResolvedValue([])
     mockState.getById.mockReset()
+    mockState.closeMenu.mockReset()
+    mockState.clearSelection.mockReset()
     vi.mocked(adminAPI.accounts.getDaily5HTriggerSettings).mockResolvedValue({
       settings: {
         enabled: true,
@@ -610,10 +620,14 @@ describe('AccountsView', () => {
   it('switches to available-only runtime view when remaining available is selected', async () => {
     const wrapper = mountView()
     await flushPromises()
+    mockState.pagination.page = 3
 
     await wrapper.get('.summary-remaining-available-button').trigger('click')
     await flushPromises()
 
+    expect(mockState.pagination.page).toBe(1)
+    expect(mockState.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mockState.closeMenu).toHaveBeenCalledTimes(1)
     expect(mockState.tableParams.runtime_view).toBe('available_only')
     expect(mockState.tableParams.status).toBe('')
     expect(toValue(mockState.summaryParamsSource)).toEqual({
@@ -672,6 +686,30 @@ describe('AccountsView', () => {
     expect(mockState.tableParams.status).toBe('active')
     expect(wrapper.get('.summary-active-status').text()).toBe('active')
     expect(wrapper.get('.summary-active-runtime').text()).toBe('all')
+
+    wrapper.unmount()
+  })
+
+  it('normalizes toolbar status filters against active runtime filters', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.summary-in-use-button').trigger('click')
+    await flushPromises()
+    mockState.pagination.page = 4
+    mockState.clearSelection.mockClear()
+    mockState.closeMenu.mockClear()
+    mockState.debouncedReload.mockClear()
+
+    await wrapper.get('.toolbar-status-filter').trigger('click')
+    await flushPromises()
+
+    expect(mockState.pagination.page).toBe(1)
+    expect(mockState.clearSelection).toHaveBeenCalledTimes(1)
+    expect(mockState.closeMenu).toHaveBeenCalledTimes(1)
+    expect(mockState.tableParams.status).toBe('error')
+    expect(mockState.tableParams.runtime_view).toBe('all')
+    expect(mockState.debouncedReload).toHaveBeenCalledTimes(1)
 
     wrapper.unmount()
   })

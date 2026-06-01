@@ -321,6 +321,34 @@ func (_c *AccountCreate) SetNillableAutoPauseOnExpired(v *bool) *AccountCreate {
 	return _c
 }
 
+// SetAutoRenewEnabled sets the "auto_renew_enabled" field.
+func (_c *AccountCreate) SetAutoRenewEnabled(v bool) *AccountCreate {
+	_c.mutation.SetAutoRenewEnabled(v)
+	return _c
+}
+
+// SetNillableAutoRenewEnabled sets the "auto_renew_enabled" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableAutoRenewEnabled(v *bool) *AccountCreate {
+	if v != nil {
+		_c.SetAutoRenewEnabled(*v)
+	}
+	return _c
+}
+
+// SetAutoRenewPeriod sets the "auto_renew_period" field.
+func (_c *AccountCreate) SetAutoRenewPeriod(v string) *AccountCreate {
+	_c.mutation.SetAutoRenewPeriod(v)
+	return _c
+}
+
+// SetNillableAutoRenewPeriod sets the "auto_renew_period" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableAutoRenewPeriod(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetAutoRenewPeriod(*v)
+	}
+	return _c
+}
+
 // SetSchedulable sets the "schedulable" field.
 func (_c *AccountCreate) SetSchedulable(v bool) *AccountCreate {
 	_c.mutation.SetSchedulable(v)
@@ -571,6 +599,14 @@ func (_c *AccountCreate) defaults() error {
 		v := account.DefaultAutoPauseOnExpired
 		_c.mutation.SetAutoPauseOnExpired(v)
 	}
+	if _, ok := _c.mutation.AutoRenewEnabled(); !ok {
+		v := account.DefaultAutoRenewEnabled
+		_c.mutation.SetAutoRenewEnabled(v)
+	}
+	if _, ok := _c.mutation.AutoRenewPeriod(); !ok {
+		v := account.DefaultAutoRenewPeriod
+		_c.mutation.SetAutoRenewPeriod(v)
+	}
 	if _, ok := _c.mutation.Schedulable(); !ok {
 		v := account.DefaultSchedulable
 		_c.mutation.SetSchedulable(v)
@@ -648,6 +684,17 @@ func (_c *AccountCreate) check() error {
 	}
 	if _, ok := _c.mutation.AutoPauseOnExpired(); !ok {
 		return &ValidationError{Name: "auto_pause_on_expired", err: errors.New(`ent: missing required field "Account.auto_pause_on_expired"`)}
+	}
+	if _, ok := _c.mutation.AutoRenewEnabled(); !ok {
+		return &ValidationError{Name: "auto_renew_enabled", err: errors.New(`ent: missing required field "Account.auto_renew_enabled"`)}
+	}
+	if _, ok := _c.mutation.AutoRenewPeriod(); !ok {
+		return &ValidationError{Name: "auto_renew_period", err: errors.New(`ent: missing required field "Account.auto_renew_period"`)}
+	}
+	if v, ok := _c.mutation.AutoRenewPeriod(); ok {
+		if err := account.AutoRenewPeriodValidator(v); err != nil {
+			return &ValidationError{Name: "auto_renew_period", err: fmt.Errorf(`ent: validator failed for field "Account.auto_renew_period": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Schedulable(); !ok {
 		return &ValidationError{Name: "schedulable", err: errors.New(`ent: missing required field "Account.schedulable"`)}
@@ -775,6 +822,14 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AutoPauseOnExpired(); ok {
 		_spec.SetField(account.FieldAutoPauseOnExpired, field.TypeBool, value)
 		_node.AutoPauseOnExpired = value
+	}
+	if value, ok := _c.mutation.AutoRenewEnabled(); ok {
+		_spec.SetField(account.FieldAutoRenewEnabled, field.TypeBool, value)
+		_node.AutoRenewEnabled = value
+	}
+	if value, ok := _c.mutation.AutoRenewPeriod(); ok {
+		_spec.SetField(account.FieldAutoRenewPeriod, field.TypeString, value)
+		_node.AutoRenewPeriod = value
 	}
 	if value, ok := _c.mutation.Schedulable(); ok {
 		_spec.SetField(account.FieldSchedulable, field.TypeBool, value)
@@ -1280,6 +1335,30 @@ func (u *AccountUpsert) SetAutoPauseOnExpired(v bool) *AccountUpsert {
 // UpdateAutoPauseOnExpired sets the "auto_pause_on_expired" field to the value that was provided on create.
 func (u *AccountUpsert) UpdateAutoPauseOnExpired() *AccountUpsert {
 	u.SetExcluded(account.FieldAutoPauseOnExpired)
+	return u
+}
+
+// SetAutoRenewEnabled sets the "auto_renew_enabled" field.
+func (u *AccountUpsert) SetAutoRenewEnabled(v bool) *AccountUpsert {
+	u.Set(account.FieldAutoRenewEnabled, v)
+	return u
+}
+
+// UpdateAutoRenewEnabled sets the "auto_renew_enabled" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateAutoRenewEnabled() *AccountUpsert {
+	u.SetExcluded(account.FieldAutoRenewEnabled)
+	return u
+}
+
+// SetAutoRenewPeriod sets the "auto_renew_period" field.
+func (u *AccountUpsert) SetAutoRenewPeriod(v string) *AccountUpsert {
+	u.Set(account.FieldAutoRenewPeriod, v)
+	return u
+}
+
+// UpdateAutoRenewPeriod sets the "auto_renew_period" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateAutoRenewPeriod() *AccountUpsert {
+	u.SetExcluded(account.FieldAutoRenewPeriod)
 	return u
 }
 
@@ -1908,6 +1987,34 @@ func (u *AccountUpsertOne) SetAutoPauseOnExpired(v bool) *AccountUpsertOne {
 func (u *AccountUpsertOne) UpdateAutoPauseOnExpired() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateAutoPauseOnExpired()
+	})
+}
+
+// SetAutoRenewEnabled sets the "auto_renew_enabled" field.
+func (u *AccountUpsertOne) SetAutoRenewEnabled(v bool) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetAutoRenewEnabled(v)
+	})
+}
+
+// UpdateAutoRenewEnabled sets the "auto_renew_enabled" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateAutoRenewEnabled() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateAutoRenewEnabled()
+	})
+}
+
+// SetAutoRenewPeriod sets the "auto_renew_period" field.
+func (u *AccountUpsertOne) SetAutoRenewPeriod(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetAutoRenewPeriod(v)
+	})
+}
+
+// UpdateAutoRenewPeriod sets the "auto_renew_period" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateAutoRenewPeriod() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateAutoRenewPeriod()
 	})
 }
 
@@ -2728,6 +2835,34 @@ func (u *AccountUpsertBulk) SetAutoPauseOnExpired(v bool) *AccountUpsertBulk {
 func (u *AccountUpsertBulk) UpdateAutoPauseOnExpired() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateAutoPauseOnExpired()
+	})
+}
+
+// SetAutoRenewEnabled sets the "auto_renew_enabled" field.
+func (u *AccountUpsertBulk) SetAutoRenewEnabled(v bool) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetAutoRenewEnabled(v)
+	})
+}
+
+// UpdateAutoRenewEnabled sets the "auto_renew_enabled" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateAutoRenewEnabled() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateAutoRenewEnabled()
+	})
+}
+
+// SetAutoRenewPeriod sets the "auto_renew_period" field.
+func (u *AccountUpsertBulk) SetAutoRenewPeriod(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetAutoRenewPeriod(v)
+	})
+}
+
+// UpdateAutoRenewPeriod sets the "auto_renew_period" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateAutoRenewPeriod() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateAutoRenewPeriod()
 	})
 }
 

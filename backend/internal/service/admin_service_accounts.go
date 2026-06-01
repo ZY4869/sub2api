@@ -167,6 +167,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	} else {
 		account.AutoPauseOnExpired = true
 	}
+	if err := applyAccountAutoRenewConfig(account, input.AutoRenewEnabled, input.AutoRenewPeriod, false); err != nil {
+		return nil, err
+	}
 	if input.RateMultiplier != nil {
 		if *input.RateMultiplier < 0 {
 			return nil, errors.New("rate_multiplier must be >= 0")
@@ -301,6 +304,10 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if input.AutoPauseOnExpired != nil {
 		account.AutoPauseOnExpired = *input.AutoPauseOnExpired
 	}
+	expirationCleared := input.ExpiresAt != nil && *input.ExpiresAt <= 0
+	if err := applyAccountAutoRenewConfig(account, input.AutoRenewEnabled, input.AutoRenewPeriod, expirationCleared); err != nil {
+		return nil, err
+	}
 	if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformGrok) {
 		account.Extra = normalizeGrokExtraForStorageByType(account.Type, account.Extra)
 		account.Credentials = normalizeGrokCredentialsForStorage(account.Type, account.Credentials, ResolveGrokTier(account.Extra))
@@ -354,6 +361,47 @@ func (s *adminServiceImpl) validateAccountBaseURL(credentials map[string]any) er
 		return err
 	}
 	credentials["base_url"] = normalized
+	return nil
+}
+
+func NormalizeAccountAutoRenewPeriod(period string) (string, error) {
+	switch strings.TrimSpace(strings.ToLower(period)) {
+	case "", AccountAutoRenewPeriodMonth:
+		return AccountAutoRenewPeriodMonth, nil
+	case AccountAutoRenewPeriodQuarter:
+		return AccountAutoRenewPeriodQuarter, nil
+	case AccountAutoRenewPeriodYear:
+		return AccountAutoRenewPeriodYear, nil
+	default:
+		return "", infraerrors.BadRequest("ACCOUNT_AUTO_RENEW_PERIOD_INVALID", "auto_renew_period must be month, quarter, or year")
+	}
+}
+
+func applyAccountAutoRenewConfig(account *Account, enabled *bool, period *string, expirationCleared bool) error {
+	if account == nil {
+		return nil
+	}
+
+	if period != nil {
+		normalized, err := NormalizeAccountAutoRenewPeriod(*period)
+		if err != nil {
+			return err
+		}
+		account.AutoRenewPeriod = normalized
+	}
+	if strings.TrimSpace(account.AutoRenewPeriod) == "" {
+		account.AutoRenewPeriod = AccountAutoRenewPeriodMonth
+	}
+	if enabled != nil {
+		account.AutoRenewEnabled = *enabled
+	}
+	if account.ExpiresAt == nil {
+		if account.AutoRenewEnabled && !expirationCleared {
+			account.AutoRenewEnabled = false
+			return infraerrors.BadRequest("ACCOUNT_AUTO_RENEW_REQUIRES_EXPIRATION", "auto renew requires an expiration time")
+		}
+		account.AutoRenewEnabled = false
+	}
 	return nil
 }
 func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error) {

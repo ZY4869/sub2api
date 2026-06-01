@@ -36,6 +36,7 @@ import type {
   AccountPlatform,
   AccountType,
   Account,
+  AccountAutoRenewPeriod,
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
@@ -241,6 +242,8 @@ const poolModeState = reactive(createDefaultAccountPoolModeState(DEFAULT_POOL_MO
 const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState())
 const interceptWarmupRequests = ref(false)
 const autoPauseOnExpired = ref(true)
+const autoRenewEnabled = ref(false)
+const autoRenewPeriod = ref<AccountAutoRenewPeriod>('month')
 const expiryProbeExtensionDays = ref(1)
 const openaiPassthroughEnabled = ref(false)
 const openAIImageProtocolMode = ref<OpenAIImageProtocolMode>('native')
@@ -799,6 +802,8 @@ const { resetForm } = useCreateAccountReset({
   customErrorCodesState,
   interceptWarmupRequests,
   autoPauseOnExpired,
+  autoRenewEnabled,
+  autoRenewPeriod,
   expiryProbeExtensionDays,
   openaiPassthroughEnabled,
   openAIImageProtocolMode,
@@ -964,7 +969,7 @@ const buildProbeExtra = (base?: Record<string, unknown>) =>
 const modalContext = {
   BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, accountCategory, addMethod, allowVertexBatchOverflow, allowedModels, anthropicPassthroughEnabled, antigravityAccountType, antigravityModelMappings,
   antigravityModelRestrictionMode, antigravityOAuth, antigravityWhitelistModels, apiKeyBaseUrl, apiKeyValue, appStore, applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyInterceptWarmup,
-  applyOpenAIImageProtocolDefaults, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra, applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, autoPauseOnExpired, baiduDocumentAIAccessToken, baiduDocumentAIAsyncBaseUrl, baiduDocumentAIDirectApiUrlsText,
+  applyOpenAIImageProtocolDefaults, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra, applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, baiduDocumentAIAccessToken, baiduDocumentAIAsyncBaseUrl, baiduDocumentAIDirectApiUrlsText,
   batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays, buildAnthropicExtra, buildLocalAccountModelProbeSnapshot, buildModelMappingObject, buildOpenAIExtra, buildTempUnschedPayload,
   claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled, codexCLIOnlyEnabled, computed, createAccountModelProbeSnapshotDraft, customErrorCodesState, deepSeekModelConcurrencyLimits, editQuotaDailyLimit, editQuotaDailyResetHour,
   editQuotaDailyResetMode, editQuotaLimit, editQuotaResetTimezone, editQuotaWeeklyLimit, editQuotaWeeklyResetDay, editQuotaWeeklyResetHour, editQuotaWeeklyResetMode, effectivePlatform, emit, ensureMixedChannelConfirmed,

@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import { buildModelMappingObject } from '@/composables/useModelWhitelist'
-import type { Account } from '@/types'
+import type { Account, AccountAutoRenewPeriod } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
 import {
   applyOpenAIOAuthDefaultModelState,
@@ -33,6 +33,8 @@ interface UseCreateAccountOpenAIRefreshTokenValidationOptions {
     expires_at: number | null
   }
   autoPauseOnExpired: Ref<boolean>
+  autoRenewEnabled: Ref<boolean>
+  autoRenewPeriod: Ref<AccountAutoRenewPeriod>
   isOpenAIModelRestrictionDisabled: ComputedRef<boolean>
   modelRestrictionEnabled: Ref<boolean>
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
@@ -139,7 +141,9 @@ export function useCreateAccountOpenAIRefreshTokenValidation(
             rate_multiplier: options.form.rate_multiplier,
             group_ids: options.form.group_ids,
             expires_at: options.form.expires_at,
-            auto_pause_on_expired: options.autoPauseOnExpired.value
+            auto_pause_on_expired: options.autoPauseOnExpired.value,
+            auto_renew_enabled: options.autoRenewEnabled.value,
+            auto_renew_period: options.autoRenewPeriod.value
           })
           createdAccounts.push(openaiAccount)
 

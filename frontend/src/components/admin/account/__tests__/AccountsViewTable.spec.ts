@@ -28,9 +28,10 @@ vi.mock('vue-i18n', async () => {
 })
 
 const DataTableStub = defineComponent({
-  props: ['data', 'columns', 'rowClass', 'rowStyle'],
+  props: ['data', 'columns', 'rowClass', 'rowStyle', 'virtualScroll'],
   template: `
     <div>
+      <div class="data-table-virtual-scroll">{{ String(virtualScroll) }}</div>
       <div class="header-select"><slot name="header-select" /></div>
       <div class="column-capacity">{{ columns?.find((column) => column.key === 'capacity')?.label }}</div>
       <div class="header-usage"><slot name="header-usage" :column="{ key: 'usage', label: 'Usage Windows' }" /></div>
@@ -285,7 +286,7 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.cell-platform').text()).toContain('ui.platformType.key')
     expect(wrapper.get('.cell-capacity').text()).toContain('01/03')
     expect(wrapper.get('.cell-capacity .account-airy-spaced-cell-capacity').exists()).toBe(true)
-    expect(wrapper.get('.cell-capacity .account-airy-spaced-cell-capacity').classes()).toContain('px-2')
+    expect(wrapper.get('.cell-capacity .account-airy-spaced-cell-capacity').classes()).not.toContain('px-2')
     expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-visual-variant')).toBe('glass')
     expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-white-surface-enabled')).toBe('false')
     expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-compact')).toBe('true')
@@ -302,6 +303,12 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.row-class').text()).toContain('account-visual-row')
     expect(wrapper.get('.row-style').text()).toContain('--account-row-bg')
     expect(countdownHookSpy).not.toHaveBeenCalled()
+  })
+
+  it('renders short account pages without virtual scrolling to avoid empty filtered tables', () => {
+    const wrapper = mountTable()
+
+    expect(wrapper.get('.data-table-virtual-scroll').text()).toBe('false')
   })
 
   it('switches airy row surfaces to white when the site setting is enabled', async () => {

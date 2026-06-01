@@ -11,6 +11,9 @@ vi.mock('vue-i18n', async () => {
         'admin.accounts.stats.requests': 'Req',
         'usage.accountBilled': 'Bill',
         'admin.accounts.status.active': 'Active',
+        'admin.accounts.status.window7d': '7d',
+        'common.total': 'Total',
+        'dates.today': 'Today',
       }[key] ?? key)
     })
   }
@@ -52,8 +55,9 @@ describe('AccountTodayStatsCell', () => {
     })
 
     const compactText = wrapper.get('[data-testid="account-today-stats-cell"]').text().replace(/\s/g, '')
-    expect(compactText).toContain('12/78/999')
-    expect(compactText).toContain('$1.20/$8.90/$42.00')
+    expect(compactText).toContain('Today12$1.20')
+    expect(compactText).toContain('7d78$8.90')
+    expect(compactText).toContain('Total999$42.00')
     expect(wrapper.text()).toContain('345T')
     expect(wrapper.text()).toContain('1.4s')
     expect(wrapper.text()).toContain('91.4%')

@@ -105,6 +105,8 @@ type CreateKiroAccountFromOAuthRequest struct {
 	GroupIDs                []int64  `json:"group_ids"`
 	ExpiresAt               *int64   `json:"expires_at"`
 	AutoPauseOnExpired      *bool    `json:"auto_pause_on_expired"`
+	AutoRenewEnabled        *bool    `json:"auto_renew_enabled"`
+	AutoRenewPeriod         *string  `json:"auto_renew_period"`
 	ConfirmMixedChannelRisk *bool    `json:"confirm_mixed_channel_risk"`
 }
 
@@ -148,6 +150,8 @@ func (h *KiroOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 		GroupIDs:              req.GroupIDs,
 		ExpiresAt:             req.ExpiresAt,
 		AutoPauseOnExpired:    req.AutoPauseOnExpired,
+		AutoRenewEnabled:      req.AutoRenewEnabled,
+		AutoRenewPeriod:       req.AutoRenewPeriod,
 		SkipMixedChannelCheck: req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk,
 	})
 	if err != nil {

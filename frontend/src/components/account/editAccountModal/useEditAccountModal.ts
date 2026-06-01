@@ -108,6 +108,7 @@ import {
   stringifyBaiduDocumentAIDirectApiUrls
 } from '@/utils/baiduDocumentAI'
 import type {
+  AccountAutoRenewPeriod,
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
@@ -181,6 +182,8 @@ const poolModeState = reactive(createDefaultAccountPoolModeState(DEFAULT_POOL_MO
 const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState())
 const interceptWarmupRequests = ref(false)
 const autoPauseOnExpired = ref(false)
+const autoRenewEnabled = ref(false)
+const autoRenewPeriod = ref<AccountAutoRenewPeriod>('month')
 const expiryProbeExtensionDays = ref(1)
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 const antigravityModelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
@@ -876,7 +879,7 @@ function buildProbeExtra(base?: Record<string, unknown>) {
 const modalContext = {
   props, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, allowVertexBatchOverflow, allowedModels, anthropicPassthroughEnabled, antigravityModelMappings, appStore,
   applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyGoogleBatchArchiveExtra, applyInterceptWarmup, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra,
-  applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, autoPauseOnExpired, batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays,
+  applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays,
   buildAccountModelScopeExtra, buildBaiduDocumentAICredentialsForUpdate, buildModelMappingObject, buildProbeExtra, buildScopedModelMapping, claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled,
   codexCLIOnlyEnabled, currentAccountCredentials, customErrorCodesState, deepSeekModelConcurrencyLimits, defaultBaseUrl, editApiKey, editBaseUrl, editGrokSSOToken,
   editGrokTier, editOpenRouterHTTPReferer, editOpenRouterTitle, editQuotaDailyLimit, editQuotaDailyResetHour, editQuotaDailyResetMode, editQuotaLimit, editQuotaResetTimezone,

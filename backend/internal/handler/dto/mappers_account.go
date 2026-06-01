@@ -70,6 +70,8 @@ func accountFromServiceBase(a *service.Account, now time.Time) *Account {
 		LastUsedAt:              a.LastUsedAt,
 		ExpiresAt:               timeToUnixSeconds(a.ExpiresAt),
 		AutoPauseOnExpired:      a.AutoPauseOnExpired,
+		AutoRenewEnabled:        a.AutoRenewEnabled,
+		AutoRenewPeriod:         a.AutoRenewPeriod,
 		CreatedAt:               a.CreatedAt,
 		UpdatedAt:               a.UpdatedAt,
 		BlacklistedAt:           a.BlacklistedAt,

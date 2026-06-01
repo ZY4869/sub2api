@@ -31,7 +31,9 @@ describe('AccountRuntimeSettingsEditor', () => {
         priority: 1,
         rateMultiplier: 1,
         expiresAtInput: '',
-        expiryProbeExtensionDays: 7
+        expiryProbeExtensionDays: 7,
+        autoRenewEnabled: false,
+        autoRenewPeriod: 'month'
       },
       global: {
         stubs: {
@@ -76,7 +78,9 @@ describe('AccountRuntimeSettingsEditor', () => {
         priority: 1,
         rateMultiplier: 1,
         expiresAtInput: '',
-        expiryProbeExtensionDays: 1
+        expiryProbeExtensionDays: 1,
+        autoRenewEnabled: false,
+        autoRenewPeriod: 'month'
       },
       global: {
         stubs: {
@@ -115,7 +119,9 @@ describe('AccountRuntimeSettingsEditor', () => {
         priority: 1,
         rateMultiplier: 1,
         expiresAtInput: '2026-06-01T12:30',
-        expiryProbeExtensionDays: 7
+        expiryProbeExtensionDays: 7,
+        autoRenewEnabled: true,
+        autoRenewPeriod: 'quarter'
       },
       global: {
         stubs: {
@@ -128,5 +134,35 @@ describe('AccountRuntimeSettingsEditor', () => {
     await checkbox.setValue(false)
 
     expect(wrapper.emitted('update:expiresAtInput')?.at(-1)).toEqual([''])
+    expect(wrapper.emitted('update:autoRenewEnabled')?.at(-1)).toEqual([false])
+  })
+
+  it('enables auto renew and emits the selected period', async () => {
+    const wrapper = mount(AccountRuntimeSettingsEditor, {
+      props: {
+        proxies: [],
+        proxyId: null,
+        concurrency: 1,
+        loadFactor: null,
+        priority: 1,
+        rateMultiplier: 1,
+        expiresAtInput: '2026-06-01T12:30',
+        expiryProbeExtensionDays: 7,
+        autoRenewEnabled: false,
+        autoRenewPeriod: 'month'
+      },
+      global: {
+        stubs: {
+          ProxySelector: proxySelectorStub
+        }
+      }
+    })
+
+    const checkboxes = wrapper.findAll('input[type="checkbox"]')
+    await checkboxes[1].setValue(true)
+    await wrapper.find('select').setValue('year')
+
+    expect(wrapper.emitted('update:autoRenewEnabled')?.at(-1)).toEqual([true])
+    expect(wrapper.emitted('update:autoRenewPeriod')?.at(-1)).toEqual(['year'])
   })
 })

@@ -283,12 +283,22 @@ func init() {
 	accountDescAutoPauseOnExpired := accountFields[20].Descriptor()
 	// account.DefaultAutoPauseOnExpired holds the default value on creation for the auto_pause_on_expired field.
 	account.DefaultAutoPauseOnExpired = accountDescAutoPauseOnExpired.Default.(bool)
+	// accountDescAutoRenewEnabled is the schema descriptor for auto_renew_enabled field.
+	accountDescAutoRenewEnabled := accountFields[21].Descriptor()
+	// account.DefaultAutoRenewEnabled holds the default value on creation for the auto_renew_enabled field.
+	account.DefaultAutoRenewEnabled = accountDescAutoRenewEnabled.Default.(bool)
+	// accountDescAutoRenewPeriod is the schema descriptor for auto_renew_period field.
+	accountDescAutoRenewPeriod := accountFields[22].Descriptor()
+	// account.DefaultAutoRenewPeriod holds the default value on creation for the auto_renew_period field.
+	account.DefaultAutoRenewPeriod = accountDescAutoRenewPeriod.Default.(string)
+	// account.AutoRenewPeriodValidator is a validator for the "auto_renew_period" field. It is called by the builders before save.
+	account.AutoRenewPeriodValidator = accountDescAutoRenewPeriod.Validators[0].(func(string) error)
 	// accountDescSchedulable is the schema descriptor for schedulable field.
-	accountDescSchedulable := accountFields[21].Descriptor()
+	accountDescSchedulable := accountFields[23].Descriptor()
 	// account.DefaultSchedulable holds the default value on creation for the schedulable field.
 	account.DefaultSchedulable = accountDescSchedulable.Default.(bool)
 	// accountDescSessionWindowStatus is the schema descriptor for session_window_status field.
-	accountDescSessionWindowStatus := accountFields[29].Descriptor()
+	accountDescSessionWindowStatus := accountFields[31].Descriptor()
 	// account.SessionWindowStatusValidator is a validator for the "session_window_status" field. It is called by the builders before save.
 	account.SessionWindowStatusValidator = accountDescSessionWindowStatus.Validators[0].(func(string) error)
 	accountgroupFields := schema.AccountGroup{}.Fields()

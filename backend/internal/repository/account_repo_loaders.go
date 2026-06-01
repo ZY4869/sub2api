@@ -181,6 +181,8 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		LastUsedAt:              m.LastUsedAt,
 		ExpiresAt:               m.ExpiresAt,
 		AutoPauseOnExpired:      m.AutoPauseOnExpired,
+		AutoRenewEnabled:        m.AutoRenewEnabled,
+		AutoRenewPeriod:         m.AutoRenewPeriod,
 		CreatedAt:               m.CreatedAt,
 		UpdatedAt:               m.UpdatedAt,
 		BlacklistedAt:           m.BlacklistedAt,

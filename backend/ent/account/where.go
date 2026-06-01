@@ -165,6 +165,16 @@ func AutoPauseOnExpired(v bool) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldAutoPauseOnExpired, v))
 }
 
+// AutoRenewEnabled applies equality check predicate on the "auto_renew_enabled" field. It's identical to AutoRenewEnabledEQ.
+func AutoRenewEnabled(v bool) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldAutoRenewEnabled, v))
+}
+
+// AutoRenewPeriod applies equality check predicate on the "auto_renew_period" field. It's identical to AutoRenewPeriodEQ.
+func AutoRenewPeriod(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldAutoRenewPeriod, v))
+}
+
 // Schedulable applies equality check predicate on the "schedulable" field. It's identical to SchedulableEQ.
 func Schedulable(v bool) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldSchedulable, v))
@@ -1373,6 +1383,81 @@ func AutoPauseOnExpiredEQ(v bool) predicate.Account {
 // AutoPauseOnExpiredNEQ applies the NEQ predicate on the "auto_pause_on_expired" field.
 func AutoPauseOnExpiredNEQ(v bool) predicate.Account {
 	return predicate.Account(sql.FieldNEQ(FieldAutoPauseOnExpired, v))
+}
+
+// AutoRenewEnabledEQ applies the EQ predicate on the "auto_renew_enabled" field.
+func AutoRenewEnabledEQ(v bool) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldAutoRenewEnabled, v))
+}
+
+// AutoRenewEnabledNEQ applies the NEQ predicate on the "auto_renew_enabled" field.
+func AutoRenewEnabledNEQ(v bool) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldAutoRenewEnabled, v))
+}
+
+// AutoRenewPeriodEQ applies the EQ predicate on the "auto_renew_period" field.
+func AutoRenewPeriodEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodNEQ applies the NEQ predicate on the "auto_renew_period" field.
+func AutoRenewPeriodNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodIn applies the In predicate on the "auto_renew_period" field.
+func AutoRenewPeriodIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldAutoRenewPeriod, vs...))
+}
+
+// AutoRenewPeriodNotIn applies the NotIn predicate on the "auto_renew_period" field.
+func AutoRenewPeriodNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldAutoRenewPeriod, vs...))
+}
+
+// AutoRenewPeriodGT applies the GT predicate on the "auto_renew_period" field.
+func AutoRenewPeriodGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodGTE applies the GTE predicate on the "auto_renew_period" field.
+func AutoRenewPeriodGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodLT applies the LT predicate on the "auto_renew_period" field.
+func AutoRenewPeriodLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodLTE applies the LTE predicate on the "auto_renew_period" field.
+func AutoRenewPeriodLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodContains applies the Contains predicate on the "auto_renew_period" field.
+func AutoRenewPeriodContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodHasPrefix applies the HasPrefix predicate on the "auto_renew_period" field.
+func AutoRenewPeriodHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodHasSuffix applies the HasSuffix predicate on the "auto_renew_period" field.
+func AutoRenewPeriodHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodEqualFold applies the EqualFold predicate on the "auto_renew_period" field.
+func AutoRenewPeriodEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldAutoRenewPeriod, v))
+}
+
+// AutoRenewPeriodContainsFold applies the ContainsFold predicate on the "auto_renew_period" field.
+func AutoRenewPeriodContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldAutoRenewPeriod, v))
 }
 
 // SchedulableEQ applies the EQ predicate on the "schedulable" field.

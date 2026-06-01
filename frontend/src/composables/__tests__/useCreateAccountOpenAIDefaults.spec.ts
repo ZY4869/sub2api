@@ -48,6 +48,8 @@ function createBaseOptions() {
       expires_at: null,
     },
     autoPauseOnExpired: ref(true),
+    autoRenewEnabled: ref(false),
+    autoRenewPeriod: ref('month'),
     isOpenAIModelRestrictionDisabled: computed(() => false),
     modelRestrictionEnabled: ref(true),
     modelRestrictionMode: ref<'whitelist' | 'mapping'>('whitelist'),

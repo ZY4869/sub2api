@@ -12,6 +12,12 @@ const (
 	accountExpiryProbeNextCheckAtKey    = "expiry_probe_next_check_at"
 	accountExpiryProbePriorityUntilKey  = "expiry_probe_priority_until"
 	accountExpiryProbeSummaryKey        = "expiry_probe_summary"
+	accountAutoRenewStatusKey           = "auto_renew_status"
+	accountAutoRenewLastRenewedAtKey    = "auto_renew_last_renewed_at"
+	accountAutoRenewPeriodKey           = "auto_renew_last_period"
+	accountAutoRenewPreviousExpiresKey  = "auto_renew_previous_expires_at"
+	accountAutoRenewNextExpiresKey      = "auto_renew_next_expires_at"
+	accountAutoRenewSummaryKey          = "auto_renew_summary"
 	accountDaily5HLastLocalDateKey      = "daily_5h_trigger_last_local_date"
 	accountDaily5HLastStatusKey         = "daily_5h_trigger_last_status"
 	accountDaily5HLastModelIDKey        = "daily_5h_trigger_last_model_id"
@@ -21,6 +27,8 @@ const (
 	AccountExpiryProbeStatusDisabled    = "disabled"
 	AccountExpiryProbeStatusBlacklisted = "blacklisted"
 	AccountExpiryProbeStatusFailed      = "failed"
+	AccountAutoRenewStatusSuccess       = "success"
+	AccountAutoRenewStatusFailed        = "failed"
 	AccountDaily5HTriggerStatusSuccess  = "success"
 	AccountDaily5HTriggerStatusSkipped  = "skipped"
 	AccountDaily5HTriggerStatusFailed   = "failed"
@@ -196,6 +204,29 @@ func BuildAccountExpiryProbeExtra(
 		out[accountExpiryProbePriorityUntilKey] = priorityUntil.UTC().Format(time.RFC3339)
 	} else {
 		out[accountExpiryProbePriorityUntilKey] = nil
+	}
+	return out
+}
+
+func BuildAccountAutoRenewExtra(
+	renewedAt time.Time,
+	status string,
+	period string,
+	previousExpiresAt time.Time,
+	nextExpiresAt *time.Time,
+	summary string,
+) map[string]any {
+	out := map[string]any{
+		accountAutoRenewStatusKey:          strings.TrimSpace(status),
+		accountAutoRenewLastRenewedAtKey:   renewedAt.UTC().Format(time.RFC3339),
+		accountAutoRenewPeriodKey:          strings.TrimSpace(period),
+		accountAutoRenewPreviousExpiresKey: previousExpiresAt.UTC().Format(time.RFC3339),
+		accountAutoRenewSummaryKey:         strings.TrimSpace(summary),
+	}
+	if nextExpiresAt != nil && !nextExpiresAt.IsZero() {
+		out[accountAutoRenewNextExpiresKey] = nextExpiresAt.UTC().Format(time.RFC3339)
+	} else {
+		out[accountAutoRenewNextExpiresKey] = nil
 	}
 	return out
 }

@@ -40,8 +40,10 @@ func isImageOnlyAllowedGatewayRequest(method, path string) bool {
 
 	inbound := service.NormalizeInboundEndpoint(path)
 	switch inbound {
-	case service.EndpointImagesGen, service.EndpointImagesEdits, service.EndpointResponses:
+	case service.EndpointImagesGen, service.EndpointImagesEdits:
 		return true
+	case service.EndpointResponses:
+		return method == http.MethodPost
 	default:
 		return false
 	}

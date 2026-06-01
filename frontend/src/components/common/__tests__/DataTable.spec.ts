@@ -196,4 +196,29 @@ describe('DataTable', () => {
     expect(wrapper.text()).toContain('Beta')
     expect(wrapper.text()).toContain('Alpha')
   })
+
+  it('ignores stale virtual rows that point outside the current filtered data', async () => {
+    virtualState.items = [{ index: 12, start: 672, end: 728 }]
+    virtualState.totalSize = 728
+
+    const wrapper = mount(DataTable, {
+      props: {
+        columns,
+        data: rows,
+        rowKey: 'id',
+        virtualScrollTarget: 'window'
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('tbody tr[data-row-id]')).toHaveLength(2)
+    expect(wrapper.text()).toContain('Beta')
+    expect(wrapper.text()).toContain('Alpha')
+  })
 })

@@ -10,22 +10,22 @@
     {{ presentation.error }}
   </div>
 
-  <div v-else-if="presentation.resetRows.length > 0" class="max-w-full space-y-1 overflow-hidden">
+  <div v-else-if="presentation.resetRows.length > 0" class="max-w-full space-y-1.5 overflow-hidden">
     <div
       v-for="row in presentation.resetRows"
       :key="row.key"
-      class="flex min-w-0 max-w-full items-center gap-1 text-[10px] tabular-nums"
+      class="flex min-w-0 max-w-full items-start gap-1.5 text-[10px] tabular-nums"
     >
       <span
         :title="row.label"
-        class="min-w-[32px] max-w-[64px] shrink-0 truncate rounded px-1 py-0 text-center font-medium text-gray-500 dark:text-gray-400"
+        class="min-w-[36px] max-w-[68px] shrink-0 truncate rounded px-1 py-0.5 text-center font-medium leading-none text-gray-500 dark:text-gray-400"
       >
         {{ row.label }}
       </span>
 
       <span
         v-if="formatResetValue(row.resetsAt, row.remainingSeconds)"
-        class="flex min-w-0 items-center gap-1.5 overflow-hidden text-gray-700 dark:text-gray-300"
+        class="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 overflow-hidden text-gray-700 dark:text-gray-300"
         :title="formatResetValue(row.resetsAt, row.remainingSeconds)?.tooltip || undefined"
       >
         <Icon
@@ -34,12 +34,12 @@
           class="shrink-0 text-gray-400 dark:text-gray-500"
         />
         <span
-          class="max-w-[56px] shrink-0 truncate rounded-full bg-gray-100 px-1.5 py-0.5 font-medium leading-none text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+          class="max-w-[72px] shrink-0 truncate rounded-full bg-gray-100 px-1.5 py-0.5 font-medium leading-none text-gray-700 dark:bg-gray-700 dark:text-gray-200"
         >
           {{ formatResetValue(row.resetsAt, row.remainingSeconds)?.countdown }}
         </span>
         <span class="shrink-0 text-gray-400 dark:text-gray-500">·</span>
-        <span class="min-w-0 truncate text-gray-500 dark:text-gray-400">
+        <span class="min-w-0 flex-1 truncate text-gray-500 dark:text-gray-400">
           {{ formatResetValue(row.resetsAt, row.remainingSeconds)?.absolute }}
         </span>
       </span>

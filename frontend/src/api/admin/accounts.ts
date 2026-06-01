@@ -503,6 +503,8 @@ export async function createKiroAccountFromOAuth(payload: {
   group_ids?: number[]
   expires_at?: number | null
   auto_pause_on_expired?: boolean
+  auto_renew_enabled?: boolean
+  auto_renew_period?: 'month' | 'quarter' | 'year'
   confirm_mixed_channel_risk?: boolean
 }): Promise<Account> {
   const { data } = await apiClient.post<Account>('/admin/kiro/create-from-oauth', payload)

@@ -684,7 +684,13 @@ const activeRowVirtualizer = computed(() =>
     : containerRowVirtualizer.value
 )
 
-const virtualItems = computed(() => activeRowVirtualizer.value.getVirtualItems())
+const virtualItems = computed(() => {
+  const rowCount = sortedData.value?.length ?? 0
+  if (rowCount <= 0) return []
+  return activeRowVirtualizer.value
+    .getVirtualItems()
+    .filter(item => item.index >= 0 && item.index < rowCount)
+})
 
 const shouldFallbackToDirectRows = computed(() => {
   return (

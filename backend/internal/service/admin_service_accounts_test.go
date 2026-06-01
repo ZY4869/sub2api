@@ -4,6 +4,7 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -44,4 +45,43 @@ func TestNormalizeGrokExtraForStorageByType_SSOKeepsTierAndCapabilities(t *testi
 	capabilities, ok := normalized["grok_capabilities"].(map[string]any)
 	require.True(t, ok)
 	require.NotEmpty(t, capabilities)
+}
+
+func TestApplyAccountAutoRenewConfig_RequiresExpiration(t *testing.T) {
+	enabled := true
+	account := &Account{}
+
+	err := applyAccountAutoRenewConfig(account, &enabled, nil, false)
+
+	require.Error(t, err)
+	require.False(t, account.AutoRenewEnabled)
+	require.Equal(t, AccountAutoRenewPeriodMonth, account.AutoRenewPeriod)
+}
+
+func TestApplyAccountAutoRenewConfig_ClearingExpirationDisablesAutoRenew(t *testing.T) {
+	enabled := true
+	period := AccountAutoRenewPeriodQuarter
+	expiresAt := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	account := &Account{
+		ExpiresAt:          &expiresAt,
+		AutoRenewEnabled:   true,
+		AutoRenewPeriod:    AccountAutoRenewPeriodYear,
+		AutoPauseOnExpired: true,
+	}
+	account.ExpiresAt = nil
+
+	err := applyAccountAutoRenewConfig(account, &enabled, &period, true)
+
+	require.NoError(t, err)
+	require.False(t, account.AutoRenewEnabled)
+	require.Equal(t, AccountAutoRenewPeriodQuarter, account.AutoRenewPeriod)
+}
+
+func TestNormalizeAccountAutoRenewPeriod(t *testing.T) {
+	period, err := NormalizeAccountAutoRenewPeriod(" QUARTER ")
+	require.NoError(t, err)
+	require.Equal(t, AccountAutoRenewPeriodQuarter, period)
+
+	_, err = NormalizeAccountAutoRenewPeriod("week")
+	require.Error(t, err)
 }

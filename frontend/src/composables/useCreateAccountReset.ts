@@ -4,6 +4,7 @@ import type { AddMethod } from '@/composables/useAccountOAuth'
 import type {
   AccountPlatform,
   AccountType,
+  AccountAutoRenewPeriod,
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
@@ -101,6 +102,8 @@ interface UseCreateAccountResetOptions {
   customErrorCodesState: AccountCustomErrorCodesState
   interceptWarmupRequests: Ref<boolean>
   autoPauseOnExpired: Ref<boolean>
+  autoRenewEnabled: Ref<boolean>
+  autoRenewPeriod: Ref<AccountAutoRenewPeriod>
   expiryProbeExtensionDays: Ref<number>
   openaiPassthroughEnabled: Ref<boolean>
   openAIImageProtocolMode: Ref<OpenAIImageProtocolMode>
@@ -204,6 +207,8 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     resetAccountCustomErrorCodesState(options.customErrorCodesState)
     options.interceptWarmupRequests.value = false
     options.autoPauseOnExpired.value = true
+    options.autoRenewEnabled.value = false
+    options.autoRenewPeriod.value = 'month'
     options.expiryProbeExtensionDays.value = 1
     options.openaiPassthroughEnabled.value = false
     options.openAIImageProtocolMode.value = 'native'

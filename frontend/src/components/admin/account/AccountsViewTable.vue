@@ -9,6 +9,7 @@
     :sort-storage-key="sortStorageKey"
     :preserve-input-order="preserveInputOrder"
     table-layout="fixed"
+    :virtual-scroll="accounts.length > 30"
     virtual-scroll-target="window"
     :row-class="visualStyle === 'airy' ? resolveRowClass : undefined"
     :row-style="visualStyle === 'airy' ? resolveRowStyle : undefined"
@@ -415,11 +416,11 @@ const resolveRowStyle = (row: Account) => {
 const airySpacedCellClass = (key: 'capacity' | 'status' | 'groups') => {
   if (props.visualStyle !== 'airy') return ''
   const widthClass = {
-    capacity: 'min-w-0 max-w-[120px]',
+    capacity: 'min-w-0 max-w-[136px]',
     status: 'min-w-0 max-w-[244px]',
     groups: 'min-w-0 max-w-[136px]'
   }[key]
-  const paddingClass = key === 'capacity' ? 'px-2' : 'px-1'
+  const paddingClass = key === 'capacity' ? '' : 'px-1'
   return `account-airy-spaced-cell account-airy-spaced-cell-${key} ${widthClass} overflow-hidden ${paddingClass}`
 }
 

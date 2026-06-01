@@ -18,6 +18,8 @@ export function createEditAccountSubmit(ctx: any) {
     applyProtocolGatewayOpenAIRequestFormatExtra,
     applyTempUnschedConfig,
     autoPauseOnExpired,
+    autoRenewEnabled,
+    autoRenewPeriod,
     batchArchiveAutoPrefetchEnabled,
     batchArchiveBillingMode,
     batchArchiveDownloadPriceUSD,
@@ -123,6 +125,8 @@ return async () => {
       updatePayload.load_factor = 0
     }
     updatePayload.auto_pause_on_expired = autoPauseOnExpired.value
+    updatePayload.auto_renew_enabled = autoRenewEnabled.value
+    updatePayload.auto_renew_period = autoRenewPeriod.value
 
     if (isGeminiVertexAccount.value) {
       const currentCredentials = (props.account.credentials as Record<string, unknown>) || {}

@@ -438,8 +438,27 @@ const {
   },
 });
 
+const normalizeAccountFilters = (nextFilters: Record<string, unknown>) => {
+  const normalized = { ...nextFilters };
+  if (
+    !limitedMode.value &&
+    typeof normalized.status !== "undefined" &&
+    String(normalized.status || "")
+  ) {
+    normalized.runtime_view = "all";
+  }
+  return normalized;
+};
+
+const resetVisibleTableState = () => {
+  clearSelection();
+  closeMenu();
+  pagination.page = 1;
+};
+
 const handleFilterUpdate = (newFilters: Record<string, unknown>) => {
-  Object.assign(params, newFilters);
+  Object.assign(params, normalizeAccountFilters(newFilters));
+  resetVisibleTableState();
 };
 
 const summaryParams = computed<AccountListRequestParams>(() => ({
@@ -795,6 +814,7 @@ const applyBoardSelection = (next: {
   status?: string;
   runtimeView?: string;
 }) => {
+  resetVisibleTableState();
   if (!limitedMode.value) {
     params.limited_view = hideLimitedAccounts.value ? "normal_only" : "all";
     params.limited_reason = "";
@@ -837,10 +857,12 @@ const handleRuntimeViewSelect = (runtimeView: AccountRuntimeView | string) => {
   });
 };
 const handleLimitedReasonSelect = (reason: AccountRateLimitReason | "") => {
+  resetVisibleTableState();
   params.limited_reason = activeLimitedReason.value === reason ? "" : reason;
   debouncedReload();
 };
 const toggleHideLimitedAccounts = () => {
+  resetVisibleTableState();
   const nextHidden = !hideLimitedAccounts.value;
   params.limited_view = nextHidden ? "normal_only" : "all";
   if (nextHidden && String(params.status || "") === "rate_limited") {

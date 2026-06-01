@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
-import type { Account, AccountPlatform } from '@/types'
+import type { Account, AccountAutoRenewPeriod, AccountPlatform } from '@/types'
 
 interface AccountOAuthClient {
   loading: Ref<boolean>
@@ -32,6 +32,8 @@ interface UseCreateAccountAnthropicCookieAuthOptions {
     expires_at: number | null
   }
   autoPauseOnExpired: Ref<boolean>
+  autoRenewEnabled: Ref<boolean>
+  autoRenewPeriod: Ref<AccountAutoRenewPeriod>
   interceptWarmupRequests: Ref<boolean>
   quotaControl: QuotaControlClient
   tempUnschedEnabled: Ref<boolean>
@@ -111,7 +113,9 @@ export function useCreateAccountAnthropicCookieAuth(options: UseCreateAccountAnt
             rate_multiplier: options.form.rate_multiplier,
             group_ids: options.form.group_ids,
             expires_at: options.form.expires_at,
-            auto_pause_on_expired: options.autoPauseOnExpired.value
+            auto_pause_on_expired: options.autoPauseOnExpired.value,
+            auto_renew_enabled: options.autoRenewEnabled.value,
+            auto_renew_period: options.autoRenewPeriod.value
           })
 
           createdAccounts.push(createdAccount)
@@ -150,4 +154,3 @@ export function useCreateAccountAnthropicCookieAuth(options: UseCreateAccountAnt
     handleCookieAuth
   }
 }
-

@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ type accountExpiryRepoStub struct {
 	accountsByID     map[int64]*Account
 	updateExtraCalls []expiryRepoUpdateExtraCall
 	updateCalls      []*Account
+	updateErr        error
 	markBlacklisted  []expiryRepoBlacklistCall
 }
 
@@ -55,6 +57,9 @@ func (r *accountExpiryRepoStub) ListCRSAccountIDs(context.Context) (map[string]i
 	panic("unexpected")
 }
 func (r *accountExpiryRepoStub) Update(_ context.Context, account *Account) error {
+	if r.updateErr != nil {
+		return r.updateErr
+	}
 	cloned := *account
 	cloned.Credentials = cloneStringAnyMap(account.Credentials)
 	cloned.Extra = cloneStringAnyMap(account.Extra)
@@ -334,6 +339,167 @@ func TestAccountExpiryService_RunOnce_BlacklistsWhenAdviceRequiresIt(t *testing.
 	require.Len(t, repo.updateExtraCalls, 1)
 	require.Equal(t, AccountExpiryProbeStatusBlacklisted, repo.updateExtraCalls[0].updates[accountExpiryProbeStatusKey])
 	require.Equal(t, "account is hard banned", repo.updateExtraCalls[0].updates[accountExpiryProbeSummaryKey])
+}
+
+func TestAccountExpiryService_RunOnce_AutoRenewsFromOriginalExpiry(t *testing.T) {
+	now := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+	previousExpiry := time.Date(2026, 5, 15, 8, 30, 0, 0, time.UTC)
+	cases := []struct {
+		name     string
+		period   string
+		expected time.Time
+	}{
+		{name: "month", period: AccountAutoRenewPeriodMonth, expected: time.Date(2026, 6, 15, 8, 30, 0, 0, time.UTC)},
+		{name: "quarter", period: AccountAutoRenewPeriodQuarter, expected: time.Date(2026, 8, 15, 8, 30, 0, 0, time.UTC)},
+		{name: "year", period: AccountAutoRenewPeriodYear, expected: time.Date(2027, 5, 15, 8, 30, 0, 0, time.UTC)},
+	}
+	for index, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			accountID := int64(20 + index)
+			account := Account{
+				ID:                 accountID,
+				Status:             StatusDisabled,
+				Schedulable:        false,
+				AutoPauseOnExpired: true,
+				AutoRenewEnabled:   true,
+				AutoRenewPeriod:    tc.period,
+				LifecycleState:     AccountLifecycleNormal,
+				ExpiresAt:          &previousExpiry,
+				Extra:              map[string]any{},
+			}
+			repo := &accountExpiryRepoStub{
+				accounts:     []Account{account},
+				accountsByID: map[int64]*Account{accountID: cloneAccountForBackgroundProbe(&account)},
+			}
+			executor := &accountExpiryProbeExecutorStub{}
+			svc := NewAccountExpiryService(repo, executor, time.Minute)
+			svc.SetNow(func() time.Time { return now })
+
+			svc.runOnce(context.Background())
+
+			require.Empty(t, executor.calls)
+			require.Len(t, repo.updateCalls, 1)
+			updated := repo.updateCalls[0]
+			require.NotNil(t, updated.ExpiresAt)
+			require.Equal(t, tc.expected, updated.ExpiresAt.UTC())
+			require.False(t, updated.Schedulable)
+			require.Equal(t, StatusDisabled, updated.Status)
+			require.Equal(t, AccountAutoRenewStatusSuccess, updated.Extra[accountAutoRenewStatusKey])
+			require.Equal(t, tc.period, updated.Extra[accountAutoRenewPeriodKey])
+			require.Equal(t, previousExpiry.Format(time.RFC3339), updated.Extra[accountAutoRenewPreviousExpiresKey])
+			require.Equal(t, tc.expected.Format(time.RFC3339), updated.Extra[accountAutoRenewNextExpiresKey])
+			require.Contains(t, updated.Extra[accountAutoRenewSummaryKey], "Auto renewed account")
+		})
+	}
+}
+
+func TestAccountExpiryService_RunOnce_AutoRenewsLongExpiredAccountToFuture(t *testing.T) {
+	now := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+	previousExpiry := time.Date(2026, 1, 15, 8, 30, 0, 0, time.UTC)
+	account := Account{
+		ID:                 29,
+		Status:             StatusActive,
+		Schedulable:        true,
+		AutoPauseOnExpired: true,
+		AutoRenewEnabled:   true,
+		AutoRenewPeriod:    AccountAutoRenewPeriodMonth,
+		LifecycleState:     AccountLifecycleNormal,
+		ExpiresAt:          &previousExpiry,
+		Extra:              map[string]any{},
+	}
+	repo := &accountExpiryRepoStub{
+		accounts:     []Account{account},
+		accountsByID: map[int64]*Account{29: cloneAccountForBackgroundProbe(&account)},
+	}
+	executor := &accountExpiryProbeExecutorStub{}
+	svc := NewAccountExpiryService(repo, executor, time.Minute)
+	svc.SetNow(func() time.Time { return now })
+
+	svc.runOnce(context.Background())
+
+	require.Empty(t, executor.calls)
+	require.Len(t, repo.updateCalls, 1)
+	updated := repo.updateCalls[0]
+	require.NotNil(t, updated.ExpiresAt)
+	require.True(t, updated.ExpiresAt.After(now), "auto renewal must produce a dispatchable future expiry")
+	require.Equal(t, time.Date(2026, 6, 15, 8, 30, 0, 0, time.UTC), updated.ExpiresAt.UTC())
+	require.True(t, updated.IsSchedulable())
+	require.Equal(t, AccountAutoRenewStatusSuccess, updated.Extra[accountAutoRenewStatusKey])
+	require.Equal(t, previousExpiry.Format(time.RFC3339), updated.Extra[accountAutoRenewPreviousExpiresKey])
+	require.Equal(t, updated.ExpiresAt.UTC().Format(time.RFC3339), updated.Extra[accountAutoRenewNextExpiresKey])
+}
+
+func TestAccountExpiryService_RunOnce_AutoRenewFailureWritesAuditOnly(t *testing.T) {
+	now := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+	previousExpiry := now.Add(-time.Hour)
+	account := Account{
+		ID:                 30,
+		Status:             StatusActive,
+		Schedulable:        true,
+		AutoPauseOnExpired: false,
+		AutoRenewEnabled:   true,
+		AutoRenewPeriod:    "weekly",
+		LifecycleState:     AccountLifecycleNormal,
+		ExpiresAt:          &previousExpiry,
+		Extra:              map[string]any{},
+	}
+	repo := &accountExpiryRepoStub{
+		accounts:     []Account{account},
+		accountsByID: map[int64]*Account{30: cloneAccountForBackgroundProbe(&account)},
+	}
+	executor := &accountExpiryProbeExecutorStub{}
+	svc := NewAccountExpiryService(repo, executor, time.Minute)
+	svc.SetNow(func() time.Time { return now })
+
+	svc.runOnce(context.Background())
+
+	require.Empty(t, executor.calls)
+	require.Empty(t, repo.updateCalls)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, int64(30), repo.updateExtraCalls[0].id)
+	require.Equal(t, AccountAutoRenewStatusFailed, repo.updateExtraCalls[0].updates[accountAutoRenewStatusKey])
+	require.Equal(t, "weekly", repo.updateExtraCalls[0].updates[accountAutoRenewPeriodKey])
+	require.Equal(t, previousExpiry.Format(time.RFC3339), repo.updateExtraCalls[0].updates[accountAutoRenewPreviousExpiresKey])
+	require.Nil(t, repo.updateExtraCalls[0].updates[accountAutoRenewNextExpiresKey])
+	require.Contains(t, repo.updateExtraCalls[0].updates[accountAutoRenewSummaryKey], "auto_renew_period")
+}
+
+func TestAccountExpiryService_RunOnce_AutoRenewUpdateFailureStillRunsProbe(t *testing.T) {
+	now := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+	previousExpiry := time.Date(2026, 5, 15, 8, 30, 0, 0, time.UTC)
+	account := Account{
+		ID:                 31,
+		Status:             StatusActive,
+		Schedulable:        true,
+		AutoPauseOnExpired: true,
+		AutoRenewEnabled:   true,
+		AutoRenewPeriod:    AccountAutoRenewPeriodMonth,
+		LifecycleState:     AccountLifecycleNormal,
+		ExpiresAt:          &previousExpiry,
+		Extra:              map[string]any{},
+	}
+	repo := &accountExpiryRepoStub{
+		accounts:     []Account{account},
+		accountsByID: map[int64]*Account{31: cloneAccountForBackgroundProbe(&account)},
+		updateErr:    errors.New("update failed"),
+	}
+	executor := &accountExpiryProbeExecutorStub{
+		result: &BackgroundAccountTestResult{
+			Status:       "failed",
+			ErrorMessage: "probe ran after auto renew update failure",
+		},
+	}
+	svc := NewAccountExpiryService(repo, executor, time.Minute)
+	svc.SetNow(func() time.Time { return now })
+
+	svc.runOnce(context.Background())
+
+	require.Len(t, executor.calls, 1)
+	require.Equal(t, int64(31), executor.calls[0].AccountID)
+	require.Empty(t, repo.updateCalls)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, AccountAutoRenewStatusFailed, repo.updateExtraCalls[0].updates[accountAutoRenewStatusKey])
+	require.Equal(t, previousExpiry, account.ExpiresAt.UTC())
 }
 
 func TestShouldRunAccountExpiryProbe_SkipsWhileTemporaryPriorityStillActive(t *testing.T) {

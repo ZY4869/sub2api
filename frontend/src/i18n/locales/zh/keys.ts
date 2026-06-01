@@ -62,6 +62,10 @@ export default {
     today: '今日',
     total: '累计',
     quota: '额度',
+    unlimited: '无限制',
+    groupPlatform: '平台',
+    groupPriority: '优先级',
+    groupRate: '倍率',
     lastUsedAt: '上次使用时间',
     useKey: '使用密钥',
     useKeyModal: {

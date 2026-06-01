@@ -3926,6 +3926,8 @@ type AccountMutation struct {
 	last_used_at              *time.Time
 	expires_at                *time.Time
 	auto_pause_on_expired     *bool
+	auto_renew_enabled        *bool
+	auto_renew_period         *string
 	schedulable               *bool
 	rate_limited_at           *time.Time
 	rate_limit_reset_at       *time.Time
@@ -5135,6 +5137,78 @@ func (m *AccountMutation) ResetAutoPauseOnExpired() {
 	m.auto_pause_on_expired = nil
 }
 
+// SetAutoRenewEnabled sets the "auto_renew_enabled" field.
+func (m *AccountMutation) SetAutoRenewEnabled(b bool) {
+	m.auto_renew_enabled = &b
+}
+
+// AutoRenewEnabled returns the value of the "auto_renew_enabled" field in the mutation.
+func (m *AccountMutation) AutoRenewEnabled() (r bool, exists bool) {
+	v := m.auto_renew_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoRenewEnabled returns the old "auto_renew_enabled" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldAutoRenewEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoRenewEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoRenewEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoRenewEnabled: %w", err)
+	}
+	return oldValue.AutoRenewEnabled, nil
+}
+
+// ResetAutoRenewEnabled resets all changes to the "auto_renew_enabled" field.
+func (m *AccountMutation) ResetAutoRenewEnabled() {
+	m.auto_renew_enabled = nil
+}
+
+// SetAutoRenewPeriod sets the "auto_renew_period" field.
+func (m *AccountMutation) SetAutoRenewPeriod(s string) {
+	m.auto_renew_period = &s
+}
+
+// AutoRenewPeriod returns the value of the "auto_renew_period" field in the mutation.
+func (m *AccountMutation) AutoRenewPeriod() (r string, exists bool) {
+	v := m.auto_renew_period
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoRenewPeriod returns the old "auto_renew_period" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldAutoRenewPeriod(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoRenewPeriod is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoRenewPeriod requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoRenewPeriod: %w", err)
+	}
+	return oldValue.AutoRenewPeriod, nil
+}
+
+// ResetAutoRenewPeriod resets all changes to the "auto_renew_period" field.
+func (m *AccountMutation) ResetAutoRenewPeriod() {
+	m.auto_renew_period = nil
+}
+
 // SetSchedulable sets the "schedulable" field.
 func (m *AccountMutation) SetSchedulable(b bool) {
 	m.schedulable = &b
@@ -5732,7 +5806,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 35)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -5804,6 +5878,12 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.auto_pause_on_expired != nil {
 		fields = append(fields, account.FieldAutoPauseOnExpired)
+	}
+	if m.auto_renew_enabled != nil {
+		fields = append(fields, account.FieldAutoRenewEnabled)
+	}
+	if m.auto_renew_period != nil {
+		fields = append(fields, account.FieldAutoRenewPeriod)
 	}
 	if m.schedulable != nil {
 		fields = append(fields, account.FieldSchedulable)
@@ -5888,6 +5968,10 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.ExpiresAt()
 	case account.FieldAutoPauseOnExpired:
 		return m.AutoPauseOnExpired()
+	case account.FieldAutoRenewEnabled:
+		return m.AutoRenewEnabled()
+	case account.FieldAutoRenewPeriod:
+		return m.AutoRenewPeriod()
 	case account.FieldSchedulable:
 		return m.Schedulable()
 	case account.FieldRateLimitedAt:
@@ -5963,6 +6047,10 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldExpiresAt(ctx)
 	case account.FieldAutoPauseOnExpired:
 		return m.OldAutoPauseOnExpired(ctx)
+	case account.FieldAutoRenewEnabled:
+		return m.OldAutoRenewEnabled(ctx)
+	case account.FieldAutoRenewPeriod:
+		return m.OldAutoRenewPeriod(ctx)
 	case account.FieldSchedulable:
 		return m.OldSchedulable(ctx)
 	case account.FieldRateLimitedAt:
@@ -6157,6 +6245,20 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAutoPauseOnExpired(v)
+		return nil
+	case account.FieldAutoRenewEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoRenewEnabled(v)
+		return nil
+	case account.FieldAutoRenewPeriod:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoRenewPeriod(v)
 		return nil
 	case account.FieldSchedulable:
 		v, ok := value.(bool)
@@ -6509,6 +6611,12 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldAutoPauseOnExpired:
 		m.ResetAutoPauseOnExpired()
+		return nil
+	case account.FieldAutoRenewEnabled:
+		m.ResetAutoRenewEnabled()
+		return nil
+	case account.FieldAutoRenewPeriod:
+		m.ResetAutoRenewPeriod()
 		return nil
 	case account.FieldSchedulable:
 		m.ResetSchedulable()

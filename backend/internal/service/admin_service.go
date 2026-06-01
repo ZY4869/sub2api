@@ -184,6 +184,8 @@ type CreateAccountInput struct {
 	LifecycleReasonMessage string
 	ExpiresAt              *int64
 	AutoPauseOnExpired     *bool
+	AutoRenewEnabled       *bool
+	AutoRenewPeriod        *string
 	SkipDefaultGroupBind   bool
 	SkipMixedChannelCheck  bool
 }
@@ -202,6 +204,8 @@ type UpdateAccountInput struct {
 	GroupIDs              *[]int64
 	ExpiresAt             *int64
 	AutoPauseOnExpired    *bool
+	AutoRenewEnabled      *bool
+	AutoRenewPeriod       *string
 	SkipMixedChannelCheck bool
 }
 type BulkUpdateAccountsInput struct {

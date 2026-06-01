@@ -192,6 +192,8 @@ type Account struct {
 	LastUsedAt             *time.Time     `json:"last_used_at"`
 	ExpiresAt              *int64         `json:"expires_at"`
 	AutoPauseOnExpired     bool           `json:"auto_pause_on_expired"`
+	AutoRenewEnabled       bool           `json:"auto_renew_enabled"`
+	AutoRenewPeriod        string         `json:"auto_renew_period"`
 	CreatedAt              time.Time      `json:"created_at"`
 	UpdatedAt              time.Time      `json:"updated_at"`
 	BlacklistedAt          *time.Time     `json:"blacklisted_at"`

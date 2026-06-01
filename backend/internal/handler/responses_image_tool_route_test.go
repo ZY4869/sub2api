@@ -35,6 +35,22 @@ func TestResponsesImageToolEndpointUnsupportedMessage(t *testing.T) {
 	require.Contains(t, message, "/v1/responses")
 }
 
+func TestDetectResponsesImageToolRequest(t *testing.T) {
+	toolModel, ok := detectResponsesImageToolRequest([]byte(`{
+		"model":"gpt-5.4-mini",
+		"tools":[{"type":"web_search"},{"type":"image_generation","model":"gpt-image-2"}]
+	}`))
+	require.True(t, ok)
+	require.Equal(t, "gpt-image-2", toolModel)
+
+	toolModel, ok = detectResponsesImageToolRequest([]byte(`{
+		"model":"gpt-5.4-mini",
+		"tools":[{"type":"web_search"}]
+	}`))
+	require.False(t, ok)
+	require.Empty(t, toolModel)
+}
+
 func TestResolveResponsesImageToolOpenAITargetModel(t *testing.T) {
 	account := &service.Account{
 		Credentials: map[string]any{

@@ -63,6 +63,10 @@ const (
 	FieldExpiresAt = "expires_at"
 	// FieldAutoPauseOnExpired holds the string denoting the auto_pause_on_expired field in the database.
 	FieldAutoPauseOnExpired = "auto_pause_on_expired"
+	// FieldAutoRenewEnabled holds the string denoting the auto_renew_enabled field in the database.
+	FieldAutoRenewEnabled = "auto_renew_enabled"
+	// FieldAutoRenewPeriod holds the string denoting the auto_renew_period field in the database.
+	FieldAutoRenewPeriod = "auto_renew_period"
 	// FieldSchedulable holds the string denoting the schedulable field in the database.
 	FieldSchedulable = "schedulable"
 	// FieldRateLimitedAt holds the string denoting the rate_limited_at field in the database.
@@ -146,6 +150,8 @@ var Columns = []string{
 	FieldLastUsedAt,
 	FieldExpiresAt,
 	FieldAutoPauseOnExpired,
+	FieldAutoRenewEnabled,
+	FieldAutoRenewPeriod,
 	FieldSchedulable,
 	FieldRateLimitedAt,
 	FieldRateLimitResetAt,
@@ -215,6 +221,12 @@ var (
 	LifecycleReasonCodeValidator func(string) error
 	// DefaultAutoPauseOnExpired holds the default value on creation for the "auto_pause_on_expired" field.
 	DefaultAutoPauseOnExpired bool
+	// DefaultAutoRenewEnabled holds the default value on creation for the "auto_renew_enabled" field.
+	DefaultAutoRenewEnabled bool
+	// DefaultAutoRenewPeriod holds the default value on creation for the "auto_renew_period" field.
+	DefaultAutoRenewPeriod string
+	// AutoRenewPeriodValidator is a validator for the "auto_renew_period" field. It is called by the builders before save.
+	AutoRenewPeriodValidator func(string) error
 	// DefaultSchedulable holds the default value on creation for the "schedulable" field.
 	DefaultSchedulable bool
 	// SessionWindowStatusValidator is a validator for the "session_window_status" field. It is called by the builders before save.
@@ -337,6 +349,16 @@ func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
 // ByAutoPauseOnExpired orders the results by the auto_pause_on_expired field.
 func ByAutoPauseOnExpired(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAutoPauseOnExpired, opts...).ToFunc()
+}
+
+// ByAutoRenewEnabled orders the results by the auto_renew_enabled field.
+func ByAutoRenewEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoRenewEnabled, opts...).ToFunc()
+}
+
+// ByAutoRenewPeriod orders the results by the auto_renew_period field.
+func ByAutoRenewPeriod(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoRenewPeriod, opts...).ToFunc()
 }
 
 // BySchedulable orders the results by the schedulable field.

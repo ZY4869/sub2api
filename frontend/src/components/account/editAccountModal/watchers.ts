@@ -18,6 +18,8 @@ export function useEditAccountModalWatchers(ctx: any) {
     antigravityWhitelistModels,
     applyModelRestrictionFromRecord,
     autoPauseOnExpired,
+    autoRenewEnabled,
+    autoRenewPeriod,
     baiduDocumentAIAccessToken,
     baiduDocumentAIAsyncBaseUrl,
     baiduDocumentAIDirectApiUrlsText,
@@ -186,6 +188,11 @@ watch(
       const credentials = newAccount.credentials as Record<string, unknown> | undefined
       interceptWarmupRequests.value = credentials?.intercept_warmup_requests === true
       autoPauseOnExpired.value = newAccount.auto_pause_on_expired === true
+      autoRenewEnabled.value = newAccount.auto_renew_enabled === true
+      autoRenewPeriod.value =
+        newAccount.auto_renew_period === 'quarter' || newAccount.auto_renew_period === 'year'
+          ? newAccount.auto_renew_period
+          : 'month'
 
       // Load mixed scheduling setting (only for antigravity accounts)
       const extra = newAccount.extra as Record<string, unknown> | undefined
@@ -500,6 +507,8 @@ watch(
       modelRestrictionMode.value = 'whitelist'
       openAIImageProtocolMode.value = 'native'
       openAIImageCompatAllowed.value = true
+      autoRenewEnabled.value = false
+      autoRenewPeriod.value = 'month'
       geminiOAuthType.value = 'code_assist'
       geminiVertexAuthMode.value = 'service_account'
       geminiVertexProjectId.value = ''

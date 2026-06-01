@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+const (
+	AccountAutoRenewPeriodMonth   = "month"
+	AccountAutoRenewPeriodQuarter = "quarter"
+	AccountAutoRenewPeriodYear    = "year"
+)
+
 type Account struct {
 	ID          int64
 	Name        string
@@ -28,6 +34,8 @@ type Account struct {
 	LastUsedAt             *time.Time
 	ExpiresAt              *time.Time
 	AutoPauseOnExpired     bool
+	AutoRenewEnabled       bool
+	AutoRenewPeriod        string
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
 	BlacklistedAt          *time.Time

@@ -88,6 +88,8 @@ type CreateAccountRequest struct {
 	GroupIDs                []int64        `json:"group_ids"`
 	ExpiresAt               *int64         `json:"expires_at"`
 	AutoPauseOnExpired      *bool          `json:"auto_pause_on_expired"`
+	AutoRenewEnabled        *bool          `json:"auto_renew_enabled"`
+	AutoRenewPeriod         *string        `json:"auto_renew_period"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"`
 }
 type ImportAccountModelsRequest struct {
@@ -110,6 +112,8 @@ type UpdateAccountRequest struct {
 	GroupIDs                *[]int64       `json:"group_ids"`
 	ExpiresAt               *int64         `json:"expires_at"`
 	AutoPauseOnExpired      *bool          `json:"auto_pause_on_expired"`
+	AutoRenewEnabled        *bool          `json:"auto_renew_enabled"`
+	AutoRenewPeriod         *string        `json:"auto_renew_period"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"`
 }
 type BulkUpdateAccountsRequest struct {

@@ -33,94 +33,18 @@
     </template>
 
     <template #cell-group="{ row }">
-      <div v-if="getDisplayBindings(row).length" class="space-y-1">
-        <div class="flex flex-wrap gap-1.5">
-          <div
-            v-for="binding in getDisplayBindings(row).slice(0, 2)"
-            :key="`${row.id}-${binding.group_id}`"
-            class="flex items-center gap-1.5"
-          >
-            <GroupBadge
-              :name="resolveGroup(binding.group_id)?.name || binding.group_name || `#${binding.group_id}`"
-              :platform="resolveGroup(binding.group_id)?.platform || binding.platform"
-              :subscription-type="resolveGroup(binding.group_id)?.subscription_type"
-              :rate-multiplier="resolveGroup(binding.group_id)?.rate_multiplier"
-              :user-rate-multiplier="resolveGroup(binding.group_id) ? userGroupRates[binding.group_id] : undefined"
-            />
-            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-dark-700 dark:text-gray-300">
-              P{{ binding.priority ?? resolveGroup(binding.group_id)?.priority ?? 1 }}
-            </span>
-          </div>
-          <span
-            v-if="getDisplayBindings(row).length > 2"
-            class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-dark-700 dark:text-gray-300"
-          >
-            +{{ getDisplayBindings(row).length - 2 }}
-          </span>
-        </div>
-        <button
-          type="button"
-          class="text-xs text-primary-600 transition-colors hover:text-primary-500 dark:text-primary-400"
-          @click="$emit('edit', row)"
-        >
-          {{ isAdminMode ? t("admin.users.editGroupBindings") : t("keys.editKey") }}
-        </button>
-      </div>
-      <button
-        v-else
-        type="button"
-        class="text-sm text-gray-400 transition-colors hover:text-primary-500 dark:text-dark-500"
-        @click="$emit('edit', row)"
-      >
-        {{ t("keys.noGroup") }}
-      </button>
+      <ApiKeyGroupSummary
+        :api-key="row"
+        :bindings="getDisplayBindings(row)"
+        :user-group-rates="userGroupRates"
+        :is-admin-mode="isAdminMode"
+        :resolve-group="resolveGroup"
+        @edit="$emit('edit', $event)"
+      />
     </template>
 
     <template #cell-usage="{ row }">
-      <div class="text-sm">
-        <div class="flex items-center gap-1.5">
-          <span class="text-gray-500 dark:text-gray-400">{{ t("keys.today") }}:</span>
-          <span class="font-medium text-gray-900 dark:text-white">
-            ${{ (usageStats[row.id]?.today_actual_cost ?? 0).toFixed(4) }}
-          </span>
-        </div>
-        <div class="mt-0.5 flex items-center gap-1.5">
-          <span class="text-gray-500 dark:text-gray-400">{{ t("keys.total") }}:</span>
-          <span class="font-medium text-gray-900 dark:text-white">
-            ${{ (usageStats[row.id]?.total_actual_cost ?? 0).toFixed(4) }}
-          </span>
-        </div>
-        <div v-if="row.quota > 0" class="mt-1.5">
-          <div class="flex items-center gap-1.5">
-            <span class="text-gray-500 dark:text-gray-400">{{ t("keys.quota") }}:</span>
-            <span
-              :class="[
-                'font-medium',
-                row.quota_used >= row.quota
-                  ? 'text-red-500'
-                  : row.quota_used >= row.quota * 0.8
-                    ? 'text-yellow-500'
-                    : 'text-gray-900 dark:text-white',
-              ]"
-            >
-              ${{ row.quota_used?.toFixed(2) || "0.00" }} / ${{ row.quota?.toFixed(2) }}
-            </span>
-          </div>
-          <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-            <div
-              :class="[
-                'h-full rounded-full transition-all',
-                row.quota_used >= row.quota
-                  ? 'bg-red-500'
-                  : row.quota_used >= row.quota * 0.8
-                    ? 'bg-yellow-500'
-                    : 'bg-primary-500',
-              ]"
-              :style="{ width: Math.min((row.quota_used / row.quota) * 100, 100) + '%' }"
-            />
-          </div>
-        </div>
-      </div>
+      <ApiKeyUsageSummary :api-key="row" :stats="usageStats[row.id]" />
     </template>
 
     <template #cell-rate_limit="{ row }">
@@ -268,14 +192,15 @@
 import { useI18n } from "vue-i18n";
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import GroupBadge from "@/components/common/GroupBadge.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type { BatchApiKeyUsageStats } from "@/api/usage";
 import type { Column } from "@/components/common/types";
 import type { ApiKey, Group } from "@/types";
 import { formatDateTime } from "@/utils/format";
 import type { ApiKeyGroup } from "@/types";
+import ApiKeyGroupSummary from "./ApiKeyGroupSummary.vue";
 import ApiKeyRateLimitWindow from "./ApiKeyRateLimitWindow.vue";
+import ApiKeyUsageSummary from "./ApiKeyUsageSummary.vue";
 
 defineProps<{
   columns: Column[];

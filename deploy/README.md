@@ -20,6 +20,7 @@ Builds from repository source use Node.js 24, pnpm 10.31.0, and Go 1.26.3. Docke
 | `docker-compose.yml` | Docker Compose configuration (named volumes) |
 | `docker-compose.local.yml` | Docker Compose configuration (local directories, easy migration) |
 | `docker-deploy.sh` | **One-click Docker deployment script (recommended)** |
+| `wsl-local-deploy.sh` | Local WSL Docker Compose start/update helper |
 | `.env.example` | Docker environment variables template |
 | `DOCKER.md` | Docker Hub documentation |
 | `install.sh` | One-click binary installation script |
@@ -85,6 +86,24 @@ For an existing Docker deployment, use the dedicated upgrade script. It stops th
 cd /opt/sub2api
 curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-upgrade.sh | bash
 ```
+
+### Method 1B: Local WSL Helper
+
+For a local WSL deployment from this repository, use the WSL helper. It checks Docker readiness, starts Docker through systemd when possible, detects existing local data directories, pulls the configured application image, recreates the app container, and verifies `/health`.
+
+```bash
+cd deploy
+bash ./wsl-local-deploy.sh
+```
+
+If Docker is stuck during WSL startup, collect diagnostics without waiting for Docker to become healthy:
+
+```bash
+cd deploy
+bash ./wsl-local-deploy.sh --diagnose
+```
+
+Use `--no-pull` when you only want to recreate with the image already available locally. The helper does not prune Docker data, remove volumes, or delete local data directories.
 
 ### Method 2: Manual Deployment
 

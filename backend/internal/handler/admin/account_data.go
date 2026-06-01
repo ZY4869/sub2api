@@ -56,6 +56,8 @@ type DataAccount struct {
 	RateMultiplier     *float64       `json:"rate_multiplier,omitempty"`
 	ExpiresAt          *int64         `json:"expires_at,omitempty"`
 	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired,omitempty"`
+	AutoRenewEnabled   *bool          `json:"auto_renew_enabled,omitempty"`
+	AutoRenewPeriod    string         `json:"auto_renew_period,omitempty"`
 }
 
 type DataImportRequest struct {
@@ -160,6 +162,8 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 			RateMultiplier:     acc.RateMultiplier,
 			ExpiresAt:          expiresAt,
 			AutoPauseOnExpired: &acc.AutoPauseOnExpired,
+			AutoRenewEnabled:   &acc.AutoRenewEnabled,
+			AutoRenewPeriod:    acc.AutoRenewPeriod,
 		})
 	}
 
@@ -320,6 +324,8 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			GroupIDs:             nil,
 			ExpiresAt:            item.ExpiresAt,
 			AutoPauseOnExpired:   item.AutoPauseOnExpired,
+			AutoRenewEnabled:     item.AutoRenewEnabled,
+			AutoRenewPeriod:      optionalStringPtr(item.AutoRenewPeriod),
 			SkipDefaultGroupBind: skipDefaultGroupBind,
 		}
 

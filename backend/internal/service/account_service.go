@@ -111,6 +111,8 @@ type CreateAccountRequest struct {
 	GroupIDs           []int64        `json:"group_ids"`
 	ExpiresAt          *time.Time     `json:"expires_at"`
 	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired"`
+	AutoRenewEnabled   *bool          `json:"auto_renew_enabled"`
+	AutoRenewPeriod    *string        `json:"auto_renew_period"`
 }
 
 // UpdateAccountRequest 更新账号请求
@@ -126,6 +128,8 @@ type UpdateAccountRequest struct {
 	GroupIDs           *[]int64        `json:"group_ids"`
 	ExpiresAt          *time.Time      `json:"expires_at"`
 	AutoPauseOnExpired *bool           `json:"auto_pause_on_expired"`
+	AutoRenewEnabled   *bool           `json:"auto_renew_enabled"`
+	AutoRenewPeriod    *string         `json:"auto_renew_period"`
 }
 
 // AccountService 账号管理服务
@@ -174,6 +178,9 @@ func (s *AccountService) Create(ctx context.Context, req CreateAccountRequest) (
 		account.AutoPauseOnExpired = *req.AutoPauseOnExpired
 	} else {
 		account.AutoPauseOnExpired = true
+	}
+	if err := applyAccountAutoRenewConfig(account, req.AutoRenewEnabled, req.AutoRenewPeriod, false); err != nil {
+		return nil, err
 	}
 
 	if err := s.accountRepo.Create(ctx, account); err != nil {
@@ -270,6 +277,10 @@ func (s *AccountService) Update(ctx context.Context, id int64, req UpdateAccount
 	}
 	if req.AutoPauseOnExpired != nil {
 		account.AutoPauseOnExpired = *req.AutoPauseOnExpired
+	}
+	expirationCleared := req.ExpiresAt != nil && req.ExpiresAt.IsZero()
+	if err := applyAccountAutoRenewConfig(account, req.AutoRenewEnabled, req.AutoRenewPeriod, expirationCleared); err != nil {
+		return nil, err
 	}
 
 	// 先验证分组是否存在（在任何写操作之前）

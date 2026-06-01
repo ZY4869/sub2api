@@ -42,6 +42,7 @@ export type AccountRateLimitReason =
   | "usage_7d_all";
 export type AccountViewMode = "table" | "card";
 export type AccountUsageDisplayMode = "used" | "remaining";
+export type AccountAutoRenewPeriod = "month" | "quarter" | "year";
 export type OAuthAddMethod = "oauth" | "setup-token";
 export type ProxyProtocol = "http" | "https" | "socks5" | "socks5h";
 
@@ -247,6 +248,8 @@ export interface Account {
   last_used_at: string | null;
   expires_at: number | null;
   auto_pause_on_expired: boolean;
+  auto_renew_enabled: boolean;
+  auto_renew_period: AccountAutoRenewPeriod;
   created_at: string;
   updated_at: string;
   proxy?: Proxy;
@@ -548,6 +551,8 @@ export interface CreateAccountRequest {
   group_ids?: number[];
   expires_at?: number | null;
   auto_pause_on_expired?: boolean;
+  auto_renew_enabled?: boolean;
+  auto_renew_period?: AccountAutoRenewPeriod;
   confirm_mixed_channel_risk?: boolean;
 }
 
@@ -610,6 +615,8 @@ export interface UpdateAccountRequest {
   group_ids?: number[];
   expires_at?: number | null;
   auto_pause_on_expired?: boolean;
+  auto_renew_enabled?: boolean;
+  auto_renew_period?: AccountAutoRenewPeriod;
   confirm_mixed_channel_risk?: boolean;
 }
 
@@ -685,6 +692,8 @@ export interface AdminDataAccount {
   rate_multiplier?: number | null;
   expires_at?: number | null;
   auto_pause_on_expired?: boolean;
+  auto_renew_enabled?: boolean;
+  auto_renew_period?: AccountAutoRenewPeriod;
 }
 
 export interface AdminDataImportError {

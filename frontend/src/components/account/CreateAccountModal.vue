@@ -479,6 +479,8 @@
         v-model:rate-multiplier="form.rate_multiplier"
         v-model:expires-at-input="expiresAtInput"
         v-model:expiry-probe-extension-days="expiryProbeExtensionDays"
+        v-model:auto-renew-enabled="autoRenewEnabled"
+        v-model:auto-renew-period="autoRenewPeriod"
         :proxies="proxies"
       />
 
@@ -672,6 +674,8 @@ const {
   customErrorCodesState,
   interceptWarmupRequests,
   autoPauseOnExpired,
+  autoRenewEnabled,
+  autoRenewPeriod,
   expiryProbeExtensionDays,
   openaiPassthroughEnabled,
   openAIImageProtocolMode,

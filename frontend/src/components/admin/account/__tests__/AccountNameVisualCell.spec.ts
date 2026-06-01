@@ -29,6 +29,8 @@ const makeAccount = (platform: Account['platform']): Account => ({
   last_used_at: null,
   expires_at: null,
   auto_pause_on_expired: false,
+  auto_renew_enabled: false,
+  auto_renew_period: 'month',
   created_at: '2026-05-22T00:00:00Z',
   updated_at: '2026-05-22T00:00:00Z',
   schedulable: true,

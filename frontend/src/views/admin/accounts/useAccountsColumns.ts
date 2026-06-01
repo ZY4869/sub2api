@@ -16,7 +16,7 @@ const allColumns = computed(() => {
       key: "name",
       label: t("admin.accounts.columns.name"),
       sortable: true,
-      class: "w-[360px] min-w-[240px] max-w-[360px]",
+      class: "w-[300px] min-w-[220px] max-w-[300px]",
     },
     {
       key: "platform_type",
@@ -33,8 +33,8 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[120px] min-w-[104px] max-w-[120px]"
-          : "w-[120px] max-w-[120px]",
+          ? "w-[136px] min-w-[128px] max-w-[136px]"
+          : "w-[128px] max-w-[128px]",
     },
     {
       key: "status",
@@ -54,6 +54,10 @@ const allColumns = computed(() => {
       key: "today_stats",
       label: t("admin.accounts.columns.todayStats"),
       sortable: false,
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[228px] min-w-[212px] max-w-[228px]"
+          : "w-[212px] max-w-[212px]",
     },
   ];
   if (!authStore.isSimpleMode) {
@@ -81,7 +85,7 @@ const allColumns = computed(() => {
       key: "usage_reset_dates",
       label: t("admin.accounts.columns.usageResetDates"),
       sortable: false,
-      class: "w-[168px] min-w-[148px] max-w-[168px]",
+      class: "w-[220px] min-w-[200px] max-w-[220px]",
     },
     { key: "proxy", label: t("admin.accounts.columns.proxy"), sortable: false },
     {

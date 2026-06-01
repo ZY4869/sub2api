@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Account, AccountType, CreateAccountRequest } from '@/types'
+import type { Account, AccountAutoRenewPeriod, AccountType, CreateAccountRequest } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
 import { buildModelMappingObject } from '@/composables/useModelWhitelist'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
@@ -38,6 +38,8 @@ interface UseCreateAccountAntigravityHandlersOptions {
     expires_at: number | null
   }
   autoPauseOnExpired: Ref<boolean>
+  autoRenewEnabled: Ref<boolean>
+  autoRenewPeriod: Ref<AccountAutoRenewPeriod>
   interceptWarmupRequests: Ref<boolean>
   antigravityModelMappings: Ref<ModelMapping[]>
   mixedScheduling: Ref<boolean>
@@ -108,7 +110,9 @@ export function useCreateAccountAntigravityHandlers(
             rate_multiplier: options.form.rate_multiplier,
             group_ids: options.form.group_ids,
             expires_at: options.form.expires_at,
-            auto_pause_on_expired: options.autoPauseOnExpired.value
+            auto_pause_on_expired: options.autoPauseOnExpired.value,
+            auto_renew_enabled: options.autoRenewEnabled.value,
+            auto_renew_period: options.autoRenewPeriod.value
           })
           const createdAccount = await adminAPI.accounts.create(createPayload)
           createdAccounts.push(createdAccount)
@@ -199,4 +203,3 @@ export function useCreateAccountAntigravityHandlers(
     handleAntigravityExchange
   }
 }
-

@@ -40,6 +40,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	if apiKey.Group != nil {
 		applyOpenAIPlatformContext(c, apiKey.Group.Platform)
 	}
+	if apiKey.ImageOnlyEnabled && c.Request != nil && strings.ToUpper(strings.TrimSpace(c.Request.Method)) != http.MethodPost {
+		h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "IMAGE_ONLY_KEY_REQUEST_NOT_IMAGE", "生图专用 Key 仅允许生图请求")
+		return
+	}
 
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -193,16 +197,25 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		routingRequestModel = service.NormalizeModelCatalogModelID(firstNonEmptyHandlerString(entry.SourceModelID, reqModel))
 		c.Request = c.Request.WithContext(service.AttachPublishedPublicCatalogEntry(c.Request.Context(), entry))
 	}
-	imageOnlyModel := firstNonEmptyHandlerString(routingRequestModel, reqModel)
-	imageOnlyModelAllowed := service.APIKeyAllowsConfiguredModel(apiKey, reqModel)
-	if routingRequestModel != reqModel {
-		imageOnlyModelAllowed = imageOnlyModelAllowed || service.APIKeyAllowsConfiguredModel(apiKey, routingRequestModel)
-	}
-	if apiKey.ImageOnlyEnabled && (!service.IsOpenAINativeImageModelID(imageOnlyModel) || !imageOnlyModelAllowed) {
-		h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "IMAGE_ONLY_KEY_MODEL_NOT_ALLOWED", "生图专用 Key 仅允许调用图片模型")
-		return
-	}
 	imageToolModel, hasImageTool := detectResponsesImageToolRequest(body)
+	if apiKey.ImageOnlyEnabled {
+		if !hasImageTool {
+			h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "IMAGE_ONLY_KEY_REQUEST_NOT_IMAGE", "生图专用 Key 仅允许生图请求，请使用 image_generation tool 或图片生成接口")
+			return
+		}
+		imageOnlyModel := firstNonEmptyHandlerString(imageToolModel, routingRequestModel, reqModel)
+		imageOnlyModelAllowed := service.APIKeyAllowsConfiguredModel(apiKey, imageOnlyModel)
+		if imageToolModel == "" {
+			imageOnlyModelAllowed = imageOnlyModelAllowed || service.APIKeyAllowsConfiguredModel(apiKey, reqModel)
+			if routingRequestModel != reqModel {
+				imageOnlyModelAllowed = imageOnlyModelAllowed || service.APIKeyAllowsConfiguredModel(apiKey, routingRequestModel)
+			}
+		}
+		if !service.IsOpenAINativeImageModelID(imageOnlyModel) || !imageOnlyModelAllowed {
+			h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "IMAGE_ONLY_KEY_MODEL_NOT_ALLOWED", "生图专用 Key 仅允许调用已授权的图片模型")
+			return
+		}
+	}
 	expectedImageCount := 1
 	imageSizeTier := service.OpenAIImageSizeTier2K
 	if hasImageTool {

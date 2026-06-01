@@ -226,6 +226,24 @@ cd /opt/sub2api
 curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-upgrade.sh | bash
 ```
 
+#### 本地 WSL 部署辅助
+
+在本仓库内进行本地 WSL 部署或更新时，可使用专用辅助脚本。它会检查 Docker 是否可用，必要时通过 systemd 保守启动 Docker，检测已有本地数据目录，拉取配置的应用镜像并重建应用容器，最后验证 `/health`。
+
+```bash
+cd deploy
+bash ./wsl-local-deploy.sh
+```
+
+如果 WSL 里的 Docker 启动卡住，可先收集诊断信息：
+
+```bash
+cd deploy
+bash ./wsl-local-deploy.sh --diagnose
+```
+
+使用 `--no-pull` 可以跳过拉取镜像，仅用本地已有镜像重建。该脚本不会清理 Docker 数据、删除卷或删除本地数据目录。
+
 #### 手动部署
 
 如果你希望手动配置：

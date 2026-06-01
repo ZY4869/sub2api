@@ -96,6 +96,9 @@ func (s *AccountExpiryService) runOnce(ctx context.Context) {
 	now := s.now().UTC()
 	for index := range accounts {
 		account := accounts[index]
+		if s.tryAutoRenewAccount(ctx, &account, now) {
+			continue
+		}
 		if !shouldRunAccountExpiryProbe(&account, now) {
 			continue
 		}
@@ -113,6 +116,147 @@ func (s *AccountExpiryService) listManagedAccounts(ctx context.Context) ([]Accou
 		return nil, err
 	}
 	return accounts, nil
+}
+
+func (s *AccountExpiryService) tryAutoRenewAccount(ctx context.Context, account *Account, now time.Time) bool {
+	if account == nil || !account.AutoRenewEnabled || account.ExpiresAt == nil {
+		return false
+	}
+	if !IsManagedRuntimeAccount(account) {
+		return false
+	}
+	previousExpiry := account.ExpiresAt.UTC()
+	if previousExpiry.After(now.UTC()) {
+		return false
+	}
+	period, err := NormalizeAccountAutoRenewPeriod(account.AutoRenewPeriod)
+	if err != nil {
+		s.logAutoRenewFailed(ctx, account, now, previousExpiry, strings.TrimSpace(account.AutoRenewPeriod), err)
+		return false
+	}
+	nextExpiry := nextAccountAutoRenewExpiry(previousExpiry, period, now)
+	if !nextExpiry.After(previousExpiry) {
+		s.logAutoRenewFailed(ctx, account, now, previousExpiry, period, fmt.Errorf("computed renewal is not after previous expiration"))
+		return false
+	}
+	if !nextExpiry.After(now.UTC()) {
+		s.logAutoRenewFailed(ctx, account, now, previousExpiry, period, fmt.Errorf("computed renewal is not after current time"))
+		return false
+	}
+	requestID := firstNonEmptyString(requestIDFromContext(ctx), "generated:"+generateRequestID())
+	slog.Info(
+		"account_auto_renew_started",
+		"request_id", requestID,
+		"account_id", account.ID,
+		"lifecycle_state", NormalizeAccountLifecycleInput(account.LifecycleState),
+		"period", period,
+		"previous_expires_at", previousExpiry,
+		"new_expires_at", nextExpiry,
+	)
+
+	updatedAccount := *account
+	updatedAccount.Credentials = cloneStringAnyMap(account.Credentials)
+	updatedAccount.Extra = cloneStringAnyMap(account.Extra)
+	updatedAccount.AutoRenewPeriod = period
+	updatedAccount.ExpiresAt = &nextExpiry
+	if updatedAccount.Extra == nil {
+		updatedAccount.Extra = map[string]any{}
+	}
+	summary := fmt.Sprintf("Auto renewed account from %s to %s by %s.", previousExpiry.Format(time.RFC3339), nextExpiry.Format(time.RFC3339), period)
+	for key, value := range BuildAccountAutoRenewExtra(now, AccountAutoRenewStatusSuccess, period, previousExpiry, &nextExpiry, summary) {
+		updatedAccount.Extra[key] = value
+	}
+	if err := s.accountRepo.Update(ctx, &updatedAccount); err != nil {
+		s.logAutoRenewFailed(ctx, account, now, previousExpiry, period, err)
+		return false
+	}
+	slog.Info(
+		"account_auto_renew_success",
+		"request_id", requestID,
+		"account_id", account.ID,
+		"lifecycle_state", NormalizeAccountLifecycleInput(account.LifecycleState),
+		"period", period,
+		"previous_expires_at", previousExpiry,
+		"new_expires_at", nextExpiry,
+		"summary", summary,
+	)
+	return true
+}
+
+func (s *AccountExpiryService) logAutoRenewFailed(ctx context.Context, account *Account, checkedAt time.Time, previousExpiry time.Time, period string, err error) {
+	if account == nil {
+		return
+	}
+	requestID := firstNonEmptyString(requestIDFromContext(ctx), "generated:"+generateRequestID())
+	slog.Warn(
+		"account_auto_renew_failed",
+		"request_id", requestID,
+		"account_id", account.ID,
+		"lifecycle_state", NormalizeAccountLifecycleInput(account.LifecycleState),
+		"period", strings.TrimSpace(period),
+		"previous_expires_at", previousExpiry,
+		"checked_at", checkedAt,
+		"error", err,
+	)
+	if s == nil || s.accountRepo == nil {
+		return
+	}
+	updates := BuildAccountAutoRenewExtra(
+		checkedAt,
+		AccountAutoRenewStatusFailed,
+		strings.TrimSpace(period),
+		previousExpiry,
+		nil,
+		firstNonEmptyString(strings.TrimSpace(accountAutoRenewErrString(err)), "Auto renew failed."),
+	)
+	if updateErr := s.accountRepo.UpdateExtra(ctx, account.ID, updates); updateErr != nil {
+		slog.Warn(
+			"account_auto_renew_failed_update_failed",
+			"request_id", requestID,
+			"account_id", account.ID,
+			"error", updateErr,
+		)
+	}
+}
+
+func addAccountAutoRenewPeriod(base time.Time, period string) time.Time {
+	switch period {
+	case AccountAutoRenewPeriodQuarter:
+		return base.AddDate(0, 3, 0)
+	case AccountAutoRenewPeriodYear:
+		return base.AddDate(1, 0, 0)
+	default:
+		return base.AddDate(0, 1, 0)
+	}
+}
+
+func nextAccountAutoRenewExpiry(previousExpiry time.Time, period string, now time.Time) time.Time {
+	now = now.UTC()
+	previousExpiry = previousExpiry.UTC()
+	monthsPerPeriod := 1
+	switch period {
+	case AccountAutoRenewPeriodQuarter:
+		monthsPerPeriod = 3
+	case AccountAutoRenewPeriodYear:
+		monthsPerPeriod = 12
+	}
+	elapsedMonths := (now.Year()-previousExpiry.Year())*12 + int(now.Month()) - int(previousExpiry.Month())
+	periods := elapsedMonths / monthsPerPeriod
+	if periods < 1 {
+		periods = 1
+	}
+	nextExpiry := previousExpiry.AddDate(0, periods*monthsPerPeriod, 0)
+	for !nextExpiry.After(now) {
+		nextExpiry = addAccountAutoRenewPeriod(nextExpiry, period)
+	}
+	return nextExpiry
+}
+
+func accountAutoRenewErrString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func shouldRunAccountExpiryProbe(account *Account, now time.Time) bool {

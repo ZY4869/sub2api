@@ -423,6 +423,34 @@ func (_u *AccountUpdate) SetNillableAutoPauseOnExpired(v *bool) *AccountUpdate {
 	return _u
 }
 
+// SetAutoRenewEnabled sets the "auto_renew_enabled" field.
+func (_u *AccountUpdate) SetAutoRenewEnabled(v bool) *AccountUpdate {
+	_u.mutation.SetAutoRenewEnabled(v)
+	return _u
+}
+
+// SetNillableAutoRenewEnabled sets the "auto_renew_enabled" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableAutoRenewEnabled(v *bool) *AccountUpdate {
+	if v != nil {
+		_u.SetAutoRenewEnabled(*v)
+	}
+	return _u
+}
+
+// SetAutoRenewPeriod sets the "auto_renew_period" field.
+func (_u *AccountUpdate) SetAutoRenewPeriod(v string) *AccountUpdate {
+	_u.mutation.SetAutoRenewPeriod(v)
+	return _u
+}
+
+// SetNillableAutoRenewPeriod sets the "auto_renew_period" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableAutoRenewPeriod(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetAutoRenewPeriod(*v)
+	}
+	return _u
+}
+
 // SetSchedulable sets the "schedulable" field.
 func (_u *AccountUpdate) SetSchedulable(v bool) *AccountUpdate {
 	_u.mutation.SetSchedulable(v)
@@ -759,6 +787,11 @@ func (_u *AccountUpdate) check() error {
 			return &ValidationError{Name: "lifecycle_reason_code", err: fmt.Errorf(`ent: validator failed for field "Account.lifecycle_reason_code": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AutoRenewPeriod(); ok {
+		if err := account.AutoRenewPeriodValidator(v); err != nil {
+			return &ValidationError{Name: "auto_renew_period", err: fmt.Errorf(`ent: validator failed for field "Account.auto_renew_period": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
 			return &ValidationError{Name: "session_window_status", err: fmt.Errorf(`ent: validator failed for field "Account.session_window_status": %w`, err)}
@@ -886,6 +919,12 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AutoPauseOnExpired(); ok {
 		_spec.SetField(account.FieldAutoPauseOnExpired, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AutoRenewEnabled(); ok {
+		_spec.SetField(account.FieldAutoRenewEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AutoRenewPeriod(); ok {
+		_spec.SetField(account.FieldAutoRenewPeriod, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Schedulable(); ok {
 		_spec.SetField(account.FieldSchedulable, field.TypeBool, value)
@@ -1481,6 +1520,34 @@ func (_u *AccountUpdateOne) SetNillableAutoPauseOnExpired(v *bool) *AccountUpdat
 	return _u
 }
 
+// SetAutoRenewEnabled sets the "auto_renew_enabled" field.
+func (_u *AccountUpdateOne) SetAutoRenewEnabled(v bool) *AccountUpdateOne {
+	_u.mutation.SetAutoRenewEnabled(v)
+	return _u
+}
+
+// SetNillableAutoRenewEnabled sets the "auto_renew_enabled" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableAutoRenewEnabled(v *bool) *AccountUpdateOne {
+	if v != nil {
+		_u.SetAutoRenewEnabled(*v)
+	}
+	return _u
+}
+
+// SetAutoRenewPeriod sets the "auto_renew_period" field.
+func (_u *AccountUpdateOne) SetAutoRenewPeriod(v string) *AccountUpdateOne {
+	_u.mutation.SetAutoRenewPeriod(v)
+	return _u
+}
+
+// SetNillableAutoRenewPeriod sets the "auto_renew_period" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableAutoRenewPeriod(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetAutoRenewPeriod(*v)
+	}
+	return _u
+}
+
 // SetSchedulable sets the "schedulable" field.
 func (_u *AccountUpdateOne) SetSchedulable(v bool) *AccountUpdateOne {
 	_u.mutation.SetSchedulable(v)
@@ -1830,6 +1897,11 @@ func (_u *AccountUpdateOne) check() error {
 			return &ValidationError{Name: "lifecycle_reason_code", err: fmt.Errorf(`ent: validator failed for field "Account.lifecycle_reason_code": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AutoRenewPeriod(); ok {
+		if err := account.AutoRenewPeriodValidator(v); err != nil {
+			return &ValidationError{Name: "auto_renew_period", err: fmt.Errorf(`ent: validator failed for field "Account.auto_renew_period": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
 			return &ValidationError{Name: "session_window_status", err: fmt.Errorf(`ent: validator failed for field "Account.session_window_status": %w`, err)}
@@ -1974,6 +2046,12 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.AutoPauseOnExpired(); ok {
 		_spec.SetField(account.FieldAutoPauseOnExpired, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AutoRenewEnabled(); ok {
+		_spec.SetField(account.FieldAutoRenewEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AutoRenewPeriod(); ok {
+		_spec.SetField(account.FieldAutoRenewPeriod, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Schedulable(); ok {
 		_spec.SetField(account.FieldSchedulable, field.TypeBool, value)

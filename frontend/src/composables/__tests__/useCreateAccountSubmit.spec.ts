@@ -83,6 +83,8 @@ describe('useCreateAccountSubmit', () => {
         expires_at: null
       },
       autoPauseOnExpired: ref(false),
+      autoRenewEnabled: ref(false),
+      autoRenewPeriod: ref('month'),
       expiryProbeExtensionDays: ref(7),
       editQuotaLimit: ref(null),
       editQuotaDailyLimit: ref(null),
@@ -163,6 +165,8 @@ describe('useCreateAccountSubmit', () => {
         expires_at: null
       },
       autoPauseOnExpired: ref(false),
+      autoRenewEnabled: ref(false),
+      autoRenewPeriod: ref('month'),
       expiryProbeExtensionDays: ref(7),
       editQuotaLimit: ref(null),
       editQuotaDailyLimit: ref(null),

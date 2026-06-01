@@ -4,6 +4,7 @@ import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import type {
   Account,
+  AccountAutoRenewPeriod,
   AccountPlatform,
   AccountType,
   CreateAccountRequest,
@@ -48,6 +49,8 @@ interface UseCreateAccountSubmitOptions {
     expires_at: number | null
   }
   autoPauseOnExpired: Ref<boolean>
+  autoRenewEnabled: Ref<boolean>
+  autoRenewPeriod: Ref<AccountAutoRenewPeriod>
   expiryProbeExtensionDays: Ref<number>
   editQuotaLimit: Ref<number | null>
   editQuotaDailyLimit: Ref<number | null>
@@ -235,7 +238,9 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
       rate_multiplier: options.form.rate_multiplier,
       group_ids: options.form.group_ids,
       expires_at: options.form.expires_at,
-      auto_pause_on_expired: options.autoPauseOnExpired.value
+      auto_pause_on_expired: options.autoPauseOnExpired.value,
+      auto_renew_enabled: options.autoRenewEnabled.value,
+      auto_renew_period: options.autoRenewPeriod.value
     })
   }
 

@@ -62,6 +62,10 @@ export default {
     today: 'Today',
     total: 'Total',
     quota: 'Quota',
+    unlimited: 'Unlimited',
+    groupPlatform: 'Platform',
+    groupPriority: 'Priority',
+    groupRate: 'Rate',
     lastUsedAt: 'Last Used',
     useKey: 'Use Key',
     useKeyModal: {
