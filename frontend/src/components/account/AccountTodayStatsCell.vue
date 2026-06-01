@@ -12,7 +12,7 @@
 
     <div
       v-else-if="props.stats"
-      class="flex min-w-[176px] max-w-[244px] select-none flex-col gap-1.5 font-mono text-[11px] leading-none text-slate-700 dark:text-slate-200"
+      :class="rootClass"
       data-testid="account-today-stats-cell"
     >
       <div class="grid gap-1" :class="statsGridClass">
@@ -169,6 +169,12 @@ const statColumnConfig = computed<Record<AccountTodayStatsWindow, StatColumn>>((
 const statColumns = computed<StatColumn[]>(() =>
   visibleWindows.value.map((key) => statColumnConfig.value[key]),
 )
+const rootClass = computed(() => [
+  'flex select-none flex-col gap-1.5 font-mono text-[11px] leading-none text-slate-700 dark:text-slate-200',
+  statColumns.value.length === 1
+    ? 'w-fit min-w-[96px] max-w-[144px]'
+    : 'min-w-[176px] max-w-[244px]',
+])
 const statsGridClass = computed(() => {
   if (statColumns.value.length === 1) return 'grid-cols-1'
   if (statColumns.value.length === 2) return 'grid-cols-2'

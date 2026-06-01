@@ -37,8 +37,8 @@ vi.mock("vue-i18n", async () => {
           "admin.accounts.usageWindow.gemini3Pro": "G3P",
           "admin.accounts.usageWindow.gemini3Flash": "G3F",
           "admin.accounts.usageWindow.claude": "Claude",
-          "admin.accounts.usageWindow.spark5h": "Spark 5h",
-          "admin.accounts.usageWindow.spark7d": "Spark 7d",
+          "admin.accounts.usageWindow.spark5h": "Spark 5H",
+          "admin.accounts.usageWindow.spark7d": "Spark 7D",
           "admin.accounts.gemini.rateLimit.unlimited": "Unlimited",
           "admin.accounts.protocolGateway.usageWindow.badge":
             "Protocol Gateway · {protocol}",
@@ -678,10 +678,10 @@ describe("AccountUsageCell", () => {
       source: undefined,
     });
     expect(wrapper.text()).toContain(
-      "5h|15|300",
+      "5H|15|300",
     );
     expect(wrapper.text()).toContain(
-      "7d|77|300",
+      "7D|77|300",
     );
   });
 
@@ -711,8 +711,41 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(getUsage).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain("5h|12|");
-    expect(wrapper.text()).toContain("7d|34|");
+    expect(wrapper.text()).toContain("5H|12|");
+    expect(wrapper.text()).toContain("7D|34|");
+  });
+
+  it("uses detected codex window minutes for local openai usage labels", async () => {
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 20011,
+          platform: "openai",
+          type: "oauth",
+          extra: {
+            codex_usage_updated_at: "2099-03-07T10:00:00Z",
+            codex_5h_used_percent: 12,
+            codex_5h_window_minutes: 300,
+            codex_5h_reset_at: "2099-03-07T12:00:00Z",
+            codex_7d_used_percent: 34,
+            codex_7d_window_minutes: 43200,
+            codex_7d_reset_at: "2099-04-06T12:00:00Z",
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(getUsage).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("5H|12|");
+    expect(wrapper.text()).toContain("30D|34|");
+    expect(wrapper.text()).not.toContain("7D|34|");
   });
 
   it("renders spark 5h and 7d usage rows for pro openai accounts", async () => {
@@ -794,16 +827,16 @@ describe("AccountUsageCell", () => {
     });
     expect(wrapper.findAll(".usage-bar")).toHaveLength(4);
     expect(wrapper.text()).toContain(
-      "5h|12|120",
+      "5H|12|120",
     );
     expect(wrapper.text()).toContain(
-      "7d|44|440",
+      "7D|44|440",
     );
     expect(wrapper.text()).toContain(
-      "Spark 5h|55|550",
+      "Spark 5H|55|550",
     );
     expect(wrapper.text()).toContain(
-      "Spark 7d|88|880",
+      "Spark 7D|88|880",
     );
   });
 
@@ -841,10 +874,10 @@ describe("AccountUsageCell", () => {
 
     expect(getUsage).not.toHaveBeenCalled();
     expect(wrapper.findAll(".usage-bar").map((row) => row.text())).toEqual([
-      "5h|11|",
-      "7d|22|",
-      "Spark 5h|33|",
-      "Spark 7d|44|",
+      "5H|11|",
+      "7D|22|",
+      "Spark 5H|33|",
+      "Spark 7D|44|",
     ]);
   });
 
@@ -886,16 +919,16 @@ describe("AccountUsageCell", () => {
     expect(usageRows).toHaveLength(4);
     expect(
       usageRows.some((row) =>
-        row.startsWith("5h|12|"),
+        row.startsWith("5H|12|"),
       ),
     ).toBe(true);
     expect(
       usageRows.some((row) =>
-        row.startsWith("7d|34|"),
+        row.startsWith("7D|34|"),
       ),
     ).toBe(true);
-    expect(usageRows.some((row) => row.startsWith("Spark 5h|0|"))).toBe(true);
-    expect(usageRows.some((row) => row.startsWith("Spark 7d|0|"))).toBe(true);
+    expect(usageRows.some((row) => row.startsWith("Spark 5H|0|"))).toBe(true);
+    expect(usageRows.some((row) => row.startsWith("Spark 7D|0|"))).toBe(true);
   });
 
   it("keeps non-pro openai accounts compatible when spark snapshots are absent", async () => {
@@ -928,10 +961,10 @@ describe("AccountUsageCell", () => {
 
     expect(getUsage).not.toHaveBeenCalled();
     expect(wrapper.findAll(".usage-bar")).toHaveLength(2);
-    expect(wrapper.text()).toContain("5h|12|");
-    expect(wrapper.text()).toContain("7d|34|");
-    expect(wrapper.text()).not.toContain("Spark 5h");
-    expect(wrapper.text()).not.toContain("Spark 7d");
+    expect(wrapper.text()).toContain("5H|12|");
+    expect(wrapper.text()).toContain("7D|34|");
+    expect(wrapper.text()).not.toContain("Spark 5H");
+    expect(wrapper.text()).not.toContain("Spark 7D");
   });
 
   it("keeps non-pro openai accounts on two rows even if stale spark snapshots still exist", async () => {
@@ -967,10 +1000,10 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(wrapper.findAll(".usage-bar")).toHaveLength(2);
-    expect(wrapper.text()).toContain("5h|12|");
-    expect(wrapper.text()).toContain("7d|34|");
-    expect(wrapper.text()).not.toContain("Spark 5h");
-    expect(wrapper.text()).not.toContain("Spark 7d");
+    expect(wrapper.text()).toContain("5H|12|");
+    expect(wrapper.text()).toContain("7D|34|");
+    expect(wrapper.text()).not.toContain("Spark 5H");
+    expect(wrapper.text()).not.toContain("Spark 7D");
   });
 
   it("passes the shared usage display mode down to progress bars", async () => {
@@ -1097,9 +1130,9 @@ describe("AccountUsageCell", () => {
       force: undefined,
       source: undefined,
     });
-    expect(wrapper.text()).toContain("5h|12|");
+    expect(wrapper.text()).toContain("5H|12|");
     expect(wrapper.text()).toContain(
-      "7d|66|900",
+      "7D|66|900",
     );
   });
 
@@ -1130,7 +1163,7 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(getUsage).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain("5h|12|");
+    expect(wrapper.text()).toContain("5H|12|");
 
     getUsage.mockResolvedValueOnce({
       five_hour: {
@@ -1175,10 +1208,10 @@ describe("AccountUsageCell", () => {
     });
     expect(getUsage).toHaveBeenCalledWith(2010, { force: true });
     expect(wrapper.text()).toContain(
-      "5h|88|800",
+      "5H|88|800",
     );
     expect(wrapper.text()).toContain(
-      "7d|66|900",
+      "7D|66|900",
     );
   });
 
@@ -1217,10 +1250,10 @@ describe("AccountUsageCell", () => {
 
     expect(getUsage).not.toHaveBeenCalled();
     expect(wrapper.findAll(".usage-bar")).toHaveLength(4);
-    expect(wrapper.text()).toContain("5h|12|");
-    expect(wrapper.text()).toContain("7d|34|");
-    expect(wrapper.text()).toContain("Spark 5h|56|");
-    expect(wrapper.text()).toContain("Spark 7d|78|");
+    expect(wrapper.text()).toContain("5H|12|");
+    expect(wrapper.text()).toContain("7D|34|");
+    expect(wrapper.text()).toContain("Spark 5H|56|");
+    expect(wrapper.text()).toContain("Spark 7D|78|");
 
     getUsage.mockResolvedValueOnce({
       updated_at: "2026-03-07T11:00:00Z",
@@ -1278,10 +1311,10 @@ describe("AccountUsageCell", () => {
     });
     expect(getUsage).toHaveBeenCalledWith(2014, { force: true });
     expect(wrapper.findAll(".usage-bar")).toHaveLength(4);
-    expect(wrapper.text()).toContain("5h|88|800");
-    expect(wrapper.text()).toContain("7d|66|900");
-    expect(wrapper.text()).toContain("Spark 5h|44|640");
-    expect(wrapper.text()).toContain("Spark 7d|78|");
+    expect(wrapper.text()).toContain("5H|88|800");
+    expect(wrapper.text()).toContain("7D|66|900");
+    expect(wrapper.text()).toContain("Spark 5H|44|640");
+    expect(wrapper.text()).toContain("Spark 7D|78|");
   });
 
   it("hides openai identity and model summaries but keeps snapshot update text", async () => {
@@ -1376,8 +1409,8 @@ describe("AccountUsageCell", () => {
       force: undefined,
       source: undefined,
     });
-    expect(wrapper.text()).toContain("5h|0|27700");
-    expect(wrapper.text()).toContain("7d|0|27700");
+    expect(wrapper.text()).toContain("5H|0|27700");
+    expect(wrapper.text()).toContain("7D|0|27700");
   });
 
   it("reloads openai usage when the row refresh key changes without a codex snapshot", async () => {
@@ -1432,7 +1465,7 @@ describe("AccountUsageCell", () => {
     });
 
     await flushPromises();
-    expect(wrapper.text()).toContain("5h|0|100");
+    expect(wrapper.text()).toContain("5H|0|100");
     expect(getUsage).toHaveBeenCalledTimes(1);
 
     await wrapper.setProps({
@@ -1449,7 +1482,7 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(getUsage).toHaveBeenCalledTimes(2);
-    expect(wrapper.text()).toContain("5h|0|200");
+    expect(wrapper.text()).toContain("5H|0|200");
   });
 
   it("reloads openai usage after a local codex window reaches its reset time", async () => {
@@ -1509,7 +1542,7 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(getUsage).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain("5h|12|");
+    expect(wrapper.text()).toContain("5H|12|");
 
     vi.advanceTimersByTime(65_000);
     await flushPromises();
@@ -1519,8 +1552,8 @@ describe("AccountUsageCell", () => {
       force: undefined,
       source: undefined,
     });
-    expect(wrapper.text()).toContain("5h|44|500");
-    expect(wrapper.text()).toContain("7d|12|900");
+    expect(wrapper.text()).toContain("5H|44|500");
+    expect(wrapper.text()).toContain("7D|12|900");
   });
 
   it("prefers fetched openai usage when the account is actively rate limited", async () => {
@@ -1579,12 +1612,12 @@ describe("AccountUsageCell", () => {
       source: undefined,
     });
     expect(wrapper.text()).toContain(
-      "5h|100|106540000",
+      "5H|100|106540000",
     );
     expect(wrapper.text()).toContain(
-      "7d|100|106540000",
+      "7D|100|106540000",
     );
-    expect(wrapper.text()).not.toContain("5h|0|");
+    expect(wrapper.text()).not.toContain("5H|0|");
   });
 
   it("forces active source for manual actual usage refresh when the platform supports live usage", async () => {

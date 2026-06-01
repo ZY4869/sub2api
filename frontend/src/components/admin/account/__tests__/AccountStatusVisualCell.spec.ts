@@ -137,8 +137,8 @@ describe('AccountStatusVisualCell', () => {
     expect(usage5h.text()).toContain('admin.accounts.status.usage5hAutoResume')
     expect(usage7d.text()).toContain('admin.accounts.status.usage7d')
     expect(usage7d.text()).toContain('admin.accounts.status.usage7dAll')
-    expect(usage7d.text()).toContain('Codex 7天')
-    expect(usage7d.text()).toContain('Spark 7天')
+    expect(usage7d.text()).toContain('Codex 7D')
+    expect(usage7d.text()).toContain('Spark 7D')
     expect(usage7d.text()).toContain('24小时0分')
     expect(usage7d.text()).not.toContain('Codex 7d')
     expect(usage7d.text()).not.toContain('Spark 7d')
@@ -212,6 +212,15 @@ describe('AccountStatusVisualCell', () => {
     expect(overdue.text()).not.toContain('quota exhausted, payment required')
     expect(offline.find('.error-info-trigger').exists()).toBe(true)
     expect(overdue.find('.error-info-trigger').exists()).toBe(true)
+  })
+
+  it('omits the duplicate degraded tag in airy status mode', () => {
+    const wrapper = mountVisual(makeAccount({
+      session_window_status: 'allowed_warning',
+    }))
+
+    expect(wrapper.text()).toContain('admin.accounts.status.visualDegradedTitle')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.visualDegradedTag')
   })
 
   it('covers the airy full status set from reliable reason signals', () => {

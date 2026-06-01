@@ -1,7 +1,7 @@
 import { computed, nextTick, onUnmounted, ref, type ComputedRef, type Ref } from 'vue'
 import type { Account } from '@/types'
 import { formatDateTime, formatTime } from '@/utils/format'
-import { resolveCodexUsageWindow, type CodexUsageScope } from '@/utils/codexUsage'
+import { resolveCodexUsageWindow, resolveCodexUsageWindowLabel, type CodexUsageScope } from '@/utils/codexUsage'
 
 export type AccountModelStatusItem = {
   kind: 'rate_limit' | 'credits_exhausted' | 'credits_active'
@@ -183,9 +183,9 @@ export const createAccountStatusPresentation = (
   }
 
   const codexScopeWindowLabel = (scope: CodexUsageScope, window: CodexUsageWindowKind): string => {
-    const windowLabel = window === '5h'
-      ? t('admin.accounts.status.window5h')
-      : t('admin.accounts.status.window7d')
+    const extra = account.value.extra as Record<string, unknown> | undefined
+    const progress = resolveCodexUsageWindow(extra, window, nowDate.value, scope)
+    const windowLabel = progress.label || resolveCodexUsageWindowLabel(null, window)
     return `${codexScopeName(scope)} ${windowLabel}`
   }
 

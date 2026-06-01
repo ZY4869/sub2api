@@ -37,7 +37,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[156px] min-w-[148px] max-w-[156px]"
+          ? "w-[184px] min-w-[172px] max-w-[184px]"
           : "w-[148px] max-w-[148px]",
     },
     {
@@ -60,7 +60,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[228px] min-w-[212px] max-w-[228px]"
+          ? "w-[192px] min-w-[128px] max-w-[228px]"
           : "w-[212px] max-w-[212px]",
     },
   ];

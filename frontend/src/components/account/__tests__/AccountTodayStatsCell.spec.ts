@@ -93,6 +93,8 @@ describe('AccountTodayStatsCell', () => {
     expect(weeklyOnly.text()).toContain('7d')
     expect(weeklyOnly.text()).not.toContain('Total')
     expect(weeklyOnly.text()).not.toContain('345T')
+    expect(weeklyOnly.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-fit')
+    expect(weeklyOnly.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[144px]')
     expect(weeklyOnly.get('[data-testid="account-today-stats-cell"] .grid').classes()).toContain('grid-cols-1')
 
     const todayAndTotal = mount(AccountTodayStatsCell, {
@@ -105,6 +107,7 @@ describe('AccountTodayStatsCell', () => {
     expect(todayAndTotal.text()).not.toContain('7d')
     expect(todayAndTotal.text()).toContain('Total')
     expect(todayAndTotal.text()).toContain('345T')
+    expect(todayAndTotal.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[244px]')
     expect(todayAndTotal.get('[data-testid="account-today-stats-cell"] .grid').classes()).toContain('grid-cols-2')
   })
 

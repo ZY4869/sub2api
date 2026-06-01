@@ -58,7 +58,7 @@ describe('AccountUsageResetCell', () => {
     vi.useRealTimers()
   })
 
-  it('renders separate reset rows for 5h and 7d windows', async () => {
+  it('renders separate reset rows with dynamic 5H and 30D window labels', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T12:29:00'))
 
@@ -71,8 +71,10 @@ describe('AccountUsageResetCell', () => {
           extra: {
             codex_usage_updated_at: '2099-03-07T10:00:00Z',
             codex_5h_used_percent: 78,
+            codex_5h_window_minutes: 300,
             codex_5h_reset_at: '2026-03-13T15:22:00',
             codex_7d_used_percent: 24,
+            codex_7d_window_minutes: 43200,
             codex_7d_reset_at: '2026-03-20T01:09:00',
           },
         } as any,
@@ -81,11 +83,11 @@ describe('AccountUsageResetCell', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('5h')
+    expect(wrapper.text()).toContain('5H')
     expect(wrapper.text()).toContain('2h 53m')
     expect(wrapper.text()).toContain('·')
     expect(wrapper.text()).toContain('Today 15:22:00')
-    expect(wrapper.text()).toContain('7d')
+    expect(wrapper.text()).toContain('30D')
     expect(wrapper.text()).toContain('6d 13h')
     expect(wrapper.text()).toContain('03-20 01:09:00')
 
@@ -107,12 +109,16 @@ describe('AccountUsageResetCell', () => {
           extra: {
             codex_usage_updated_at: '2099-03-07T10:00:00Z',
             codex_5h_used_percent: 11,
+            codex_5h_window_minutes: 300,
             codex_5h_reset_at: '2026-03-13T13:00:00',
             codex_7d_used_percent: 22,
+            codex_7d_window_minutes: 43200,
             codex_7d_reset_at: '2026-03-13T14:00:00',
             codex_spark_5h_used_percent: 33,
+            codex_spark_5h_window_minutes: 300,
             codex_spark_5h_reset_at: '2026-03-13T15:00:00',
             codex_spark_7d_used_percent: 44,
+            codex_spark_7d_window_minutes: 43200,
             codex_spark_7d_reset_at: '2026-03-13T16:00:00',
           },
         } as any,
@@ -122,16 +128,16 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     const text = wrapper.text()
-    expect(text).toContain('5h')
+    expect(text).toContain('5H')
     expect(text).toContain('1h')
     expect(text).toContain('Today 13:00:00')
-    expect(text).toContain('7d')
+    expect(text).toContain('30D')
     expect(text).toContain('2h')
     expect(text).toContain('Today 14:00:00')
-    expect(text).toContain('Spark 5h')
+    expect(text).toContain('Spark 5H')
     expect(text).toContain('3h')
     expect(text).toContain('Today 15:00:00')
-    expect(text).toContain('Spark 7d')
+    expect(text).toContain('Spark 30D')
     expect(text).toContain('4h')
     expect(text).toContain('Today 16:00:00')
   })

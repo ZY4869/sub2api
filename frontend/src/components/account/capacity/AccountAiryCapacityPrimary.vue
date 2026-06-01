@@ -83,7 +83,7 @@ const wrapperClass = computed(() => {
 
   return [
     props.compact
-      ? 'inline-flex w-[132px] items-center justify-center gap-2 rounded-[0.95rem] border px-2 py-[5px] transition-colors duration-300'
+      ? 'inline-flex min-w-[154px] items-center justify-center gap-2 rounded-[0.95rem] border px-2.5 py-[5px] transition-colors duration-300'
       : 'inline-flex items-center gap-2 rounded-[0.95rem] border px-2.5 py-[5px] shadow-[0_10px_24px_rgba(148,163,184,0.10)] transition-colors duration-300',
     resolvedTheme.value.chrome,
     surfaceClass

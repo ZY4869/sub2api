@@ -7,7 +7,7 @@
     ]"
     data-testid="account-status-visual-cell"
   >
-    <div class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+    <div class="flex min-w-0 items-center gap-1.5">
       <div class="flex min-w-0 items-center gap-1.5">
         <span
           :class="[
@@ -30,7 +30,7 @@
       </div>
 
       <button
-        v-if="isTempUnschedulable"
+        v-if="showStatusTag && isTempUnschedulable"
         type="button"
         :class="statusTagClass"
         :title="t('admin.accounts.status.viewTempUnschedDetails')"
@@ -38,7 +38,7 @@
       >
         <span class="min-w-0 truncate">{{ statusTagText }}</span>
       </button>
-      <span v-else :class="statusTagClass" :title="statusTagText">
+      <span v-else-if="showStatusTag" :class="statusTagClass" :title="statusTagText">
         <span class="min-w-0 truncate">{{ statusTagText }}</span>
       </span>
 
@@ -223,6 +223,8 @@ const statusTagText = computed(() => {
   if (airyStatus.value.kind === 'tempUnschedulable') return statusText.value
   return t(airyStatus.value.tagKey)
 })
+
+const showStatusTag = computed(() => airyStatus.value.kind !== 'degraded')
 
 const statusTagClass = computed(() => [
   'inline-flex max-w-[82px] shrink-0 items-center rounded-full border px-2 py-1 text-[10px] font-bold tracking-tight transition',

@@ -6,6 +6,7 @@ import type {
   AccountUsageRowColor,
   UsageProgress,
 } from "@/types";
+import { resolveCodexUsageWindowLabel } from "@/utils/codexUsage";
 import { parseEffectiveResetAt } from "@/utils/usageResetTime";
 import type { OpenAIUsageRowSpec, UsageRowOptions } from "./types";
 
@@ -115,14 +116,12 @@ export function resolveOpenAIUsageSpecs(
 
 export function resolveOpenAIUsageLabel(
   spec: OpenAIUsageRowSpec,
-  t: Translate,
+  _t: Translate,
 ): string {
   if (spec.scope === "spark") {
-    return spec.window === "5h"
-      ? t("admin.accounts.usageWindow.spark5h")
-      : t("admin.accounts.usageWindow.spark7d");
+    return `Spark ${resolveCodexUsageWindowLabel(null, spec.window)}`;
   }
-  return spec.window;
+  return resolveCodexUsageWindowLabel(null, spec.window);
 }
 
 export function resolveOpenAIUsageProgress(

@@ -228,7 +228,8 @@ describe('AccountCapacityCell', () => {
       },
     })
 
-    expect(wrapper.get('[data-testid="airy-capacity-cell"]').classes()).toContain('max-w-[148px]')
+    expect(wrapper.get('[data-testid="airy-capacity-cell"]').classes()).toContain('max-w-[176px]')
+    expect(wrapper.get('[data-testid="airy-capacity-primary"]').classes()).toContain('min-w-[154px]')
     expect(wrapper.find('[data-testid="airy-capacity-metrics"]').exists()).toBe(false)
     expect(wrapper.findAll('[data-testid="airy-capacity-bar"]')).toHaveLength(3)
     expect(wrapper.text()).toContain('1')

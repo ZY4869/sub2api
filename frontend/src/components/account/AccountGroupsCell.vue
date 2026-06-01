@@ -175,7 +175,7 @@ const iconTooltipClass = computed(() => {
     ? 'border-slate-200 bg-white text-slate-700 shadow-lg dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100'
     : 'border-gray-200 bg-white text-gray-700 shadow-lg dark:border-dark-600 dark:bg-dark-800 dark:text-gray-100'
   return [
-    'pointer-events-none absolute left-1/2 top-full z-30 mt-1 max-w-52 -translate-x-1/2 whitespace-normal break-words rounded-md border px-2 py-1 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
+    'pointer-events-none absolute left-1/2 top-full z-30 mt-1 max-w-[min(18rem,calc(100vw-1rem))] -translate-x-1/2 truncate whitespace-nowrap rounded-md border px-2 py-1 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
     chrome,
   ].join(' ')
 })

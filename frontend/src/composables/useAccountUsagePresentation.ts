@@ -137,7 +137,7 @@ export function useAccountUsagePresentation(
         ? null
         : buildUsageRow(
             "openai-5h",
-            "5h",
+            codex5hWindow.value.label,
             codex5hWindow.value.usedPercent,
             codex5hWindow.value.resetAt,
             "indigo",
@@ -150,7 +150,7 @@ export function useAccountUsagePresentation(
         ? null
         : buildUsageRow(
             "openai-7d",
-            "7d",
+            codex7dWindow.value.label,
             codex7dWindow.value.usedPercent,
             codex7dWindow.value.resetAt,
             "emerald",
@@ -164,7 +164,7 @@ export function useAccountUsagePresentation(
         ? null
         : buildUsageRow(
             "openai-spark-5h",
-            t("admin.accounts.usageWindow.spark5h"),
+            `Spark ${codexSpark5hWindow.value.label}`,
             codexSpark5hWindow.value.usedPercent,
             codexSpark5hWindow.value.resetAt,
             "purple",
@@ -178,7 +178,7 @@ export function useAccountUsagePresentation(
         ? null
         : buildUsageRow(
             "openai-spark-7d",
-            t("admin.accounts.usageWindow.spark7d"),
+            `Spark ${codexSpark7dWindow.value.label}`,
             codexSpark7dWindow.value.usedPercent,
             codexSpark7dWindow.value.resetAt,
             "amber",
