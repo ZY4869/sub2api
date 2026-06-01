@@ -11,3 +11,6 @@ export type UsageContextBadgeDisplayMode =
   | "request_only"
   | "native_only"
   | "both";
+
+export type AccountTodayStatsWindow = "today" | "weekly" | "total";
+export type AccountGroupDisplayMode = "full" | "icon";

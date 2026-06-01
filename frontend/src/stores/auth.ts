@@ -11,6 +11,8 @@ import type {
   LoginRequest,
   RegisterRequest,
   AuthResponse,
+  AccountGroupDisplayMode,
+  AccountTodayStatsWindow,
   UsageModelDisplayMode,
   VisualPreset,
   VisualPresetPreference,
@@ -22,6 +24,10 @@ import {
   normalizeVisualPresetPreference,
   resolveGlobalVisualPreset,
 } from '@/utils/visualPreset'
+import {
+  normalizeAccountGroupDisplayMode,
+  normalizeAccountTodayStatsWindows,
+} from '@/utils/accountDisplayPreferences'
 
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
@@ -348,6 +354,26 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  function setAccountTodayStatsWindows(windows: AccountTodayStatsWindow[]): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      account_today_stats_windows: normalizeAccountTodayStatsWindows(windows),
+    })
+  }
+
+  function setAccountGroupDisplayMode(mode: AccountGroupDisplayMode): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      account_group_display_mode: normalizeAccountGroupDisplayMode(mode),
+    })
+  }
+
   /**
    * User registration
    * @param userData - Registration data (username, email, password)
@@ -512,6 +538,8 @@ export const useAuthStore = defineStore('auth', () => {
     setAccountRealtimeCountdownEnabled,
     setVisualPresetPreference,
     setAccountVisualPresetOverride,
+    setAccountTodayStatsWindows,
+    setAccountGroupDisplayMode,
     logout,
     checkAuth,
     refreshUser

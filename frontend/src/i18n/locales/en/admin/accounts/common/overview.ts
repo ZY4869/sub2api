@@ -64,6 +64,23 @@ export default {
         stats: "{count} accounts",
         currentPageScope: "Grouped from current page results",
     },
+    displayOptimization: {
+        button: "Display",
+        title: "Display Optimization",
+        todayStats: "Today Stats",
+        groupDisplay: "Group Display",
+        windows: {
+            today: "Today",
+            weekly: "7d",
+            total: "Total",
+        },
+        groupModes: {
+            full: "Full",
+            icon: "Icon",
+        },
+        save: "Save",
+        saveFailed: "Failed to save display preferences",
+    },
     columns: {
         name: "Name",
         platformType: "Platform/Type",

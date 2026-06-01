@@ -3,6 +3,7 @@ import { computed } from 'vue'
 export function useAccountsColumns(ctx: any) {
   const {
     authStore,
+    accountGroupDisplayMode,
     hiddenColumns,
     resolvedAccountVisualPreset,
     t
@@ -16,7 +17,10 @@ const allColumns = computed(() => {
       key: "name",
       label: t("admin.accounts.columns.name"),
       sortable: true,
-      class: "w-[300px] min-w-[220px] max-w-[300px]",
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[236px] min-w-[196px] max-w-[236px]"
+          : "w-[240px] min-w-[192px] max-w-[240px]",
     },
     {
       key: "platform_type",
@@ -33,8 +37,8 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[136px] min-w-[128px] max-w-[136px]"
-          : "w-[128px] max-w-[128px]",
+          ? "w-[156px] min-w-[148px] max-w-[156px]"
+          : "w-[148px] max-w-[148px]",
     },
     {
       key: "status",
@@ -67,8 +71,12 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[136px] min-w-[120px] max-w-[136px]"
-          : undefined,
+          ? accountGroupDisplayMode?.value === "icon"
+            ? "w-[104px] min-w-[92px] max-w-[104px]"
+            : "w-[196px] min-w-[172px] max-w-[196px]"
+          : accountGroupDisplayMode?.value === "icon"
+            ? "w-[104px] max-w-[104px]"
+            : "w-[196px] max-w-[196px]",
     });
   }
   c.push(
@@ -85,7 +93,7 @@ const allColumns = computed(() => {
       key: "usage_reset_dates",
       label: t("admin.accounts.columns.usageResetDates"),
       sortable: false,
-      class: "w-[220px] min-w-[200px] max-w-[220px]",
+      class: "w-[260px] min-w-[240px] max-w-[260px]",
     },
     { key: "proxy", label: t("admin.accounts.columns.proxy"), sortable: false },
     {

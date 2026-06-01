@@ -51,6 +51,10 @@ const (
 	FieldVisualPresetPreference = "visual_preset_preference"
 	// FieldAccountVisualPresetOverride holds the string denoting the account_visual_preset_override field in the database.
 	FieldAccountVisualPresetOverride = "account_visual_preset_override"
+	// FieldAccountTodayStatsWindows holds the string denoting the account_today_stats_windows field in the database.
+	FieldAccountTodayStatsWindows = "account_today_stats_windows"
+	// FieldAccountGroupDisplayMode holds the string denoting the account_group_display_mode field in the database.
+	FieldAccountGroupDisplayMode = "account_group_display_mode"
 	// FieldUsageContextBadgeDisplayMode holds the string denoting the usage_context_badge_display_mode field in the database.
 	FieldUsageContextBadgeDisplayMode = "usage_context_badge_display_mode"
 	// FieldAPIKeyModelBindingMode holds the string denoting the api_key_model_binding_mode field in the database.
@@ -176,6 +180,8 @@ var Columns = []string{
 	FieldAccountRealtimeCountdownEnabled,
 	FieldVisualPresetPreference,
 	FieldAccountVisualPresetOverride,
+	FieldAccountTodayStatsWindows,
+	FieldAccountGroupDisplayMode,
 	FieldUsageContextBadgeDisplayMode,
 	FieldAPIKeyModelBindingMode,
 	FieldAPIKeyAccessTimePolicy,
@@ -256,6 +262,12 @@ var (
 	DefaultAccountVisualPresetOverride string
 	// AccountVisualPresetOverrideValidator is a validator for the "account_visual_preset_override" field. It is called by the builders before save.
 	AccountVisualPresetOverrideValidator func(string) error
+	// DefaultAccountTodayStatsWindows holds the default value on creation for the "account_today_stats_windows" field.
+	DefaultAccountTodayStatsWindows []string
+	// DefaultAccountGroupDisplayMode holds the default value on creation for the "account_group_display_mode" field.
+	DefaultAccountGroupDisplayMode string
+	// AccountGroupDisplayModeValidator is a validator for the "account_group_display_mode" field. It is called by the builders before save.
+	AccountGroupDisplayModeValidator func(string) error
 	// DefaultUsageContextBadgeDisplayMode holds the default value on creation for the "usage_context_badge_display_mode" field.
 	DefaultUsageContextBadgeDisplayMode string
 	// UsageContextBadgeDisplayModeValidator is a validator for the "usage_context_badge_display_mode" field. It is called by the builders before save.
@@ -364,6 +376,11 @@ func ByVisualPresetPreference(opts ...sql.OrderTermOption) OrderOption {
 // ByAccountVisualPresetOverride orders the results by the account_visual_preset_override field.
 func ByAccountVisualPresetOverride(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountVisualPresetOverride, opts...).ToFunc()
+}
+
+// ByAccountGroupDisplayMode orders the results by the account_group_display_mode field.
+func ByAccountGroupDisplayMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountGroupDisplayMode, opts...).ToFunc()
 }
 
 // ByUsageContextBadgeDisplayMode orders the results by the usage_context_badge_display_mode field.

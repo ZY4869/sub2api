@@ -214,7 +214,7 @@ describe('AccountCapacityCell', () => {
     expect(wrapper.html()).toContain('bg-white')
   })
 
-  it('keeps airy table capacity compact by hiding secondary metrics', () => {
+  it('keeps airy table capacity compact while leaving room for the main meter', () => {
     const wrapper = mount(AccountCapacityCell, {
       props: {
         account: anthroAccount,
@@ -228,7 +228,7 @@ describe('AccountCapacityCell', () => {
       },
     })
 
-    expect(wrapper.get('[data-testid="airy-capacity-cell"]').classes()).toContain('max-w-[120px]')
+    expect(wrapper.get('[data-testid="airy-capacity-cell"]').classes()).toContain('max-w-[148px]')
     expect(wrapper.find('[data-testid="airy-capacity-metrics"]').exists()).toBe(false)
     expect(wrapper.findAll('[data-testid="airy-capacity-bar"]')).toHaveLength(3)
     expect(wrapper.text()).toContain('1')

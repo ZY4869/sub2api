@@ -41,6 +41,9 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
       accountVisualPresetOverride: 'inherit',
       visualStyle: 'classic',
       accountVisualStyleUpdating: false,
+      accountTodayStatsWindows: ['today', 'weekly', 'total'],
+      accountGroupDisplayMode: 'full',
+      accountDisplayPreferencesUpdating: false,
       daily5HTriggerEnabled: true,
       toggleableColumns: [
         { key: "proxy", label: "Proxy", visible: true },
@@ -279,6 +282,43 @@ describe("AccountsViewToolbar", () => {
       ?.trigger("click");
 
     expect(wrapper.emitted("set-account-visual-preset-override")).toEqual([["airy"]]);
+  });
+
+  it("renders and emits display optimization preferences", async () => {
+    const wrapper = mountToolbar();
+
+    await wrapper.get('[data-account-display-optimization-button="true"]').trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).toContain("admin.accounts.displayOptimization.todayStats");
+    expect(wrapper.text()).toContain("admin.accounts.displayOptimization.groupDisplay");
+
+    const weeklyCheckbox = wrapper
+      .findAll('input[type="checkbox"]')
+      .find((input) =>
+        input.element.parentElement?.textContent?.includes(
+          "admin.accounts.displayOptimization.windows.weekly",
+        ),
+      );
+    await weeklyCheckbox?.trigger("change");
+
+    await wrapper
+      .findAll("button")
+      .find((button) =>
+        button.text().includes("admin.accounts.displayOptimization.groupModes.icon"),
+      )
+      ?.trigger("click");
+
+    await wrapper.get('[data-account-display-optimization-save="true"]').trigger("click");
+
+    expect(wrapper.emitted("save-account-display-preferences")).toEqual([
+      [
+        {
+          todayStatsWindows: ["today", "total"],
+          groupDisplayMode: "icon",
+        },
+      ],
+    ]);
   });
 
   it("renders limited account controls and forwards their actions", async () => {

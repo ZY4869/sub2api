@@ -25,6 +25,8 @@ type User struct {
 	AccountRealtimeCountdownEnabled bool
 	VisualPresetPreference          string
 	AccountVisualPresetOverride     string
+	AccountTodayStatsWindows        []string
+	AccountGroupDisplayMode         string
 	APIKeyModelBindingMode          string
 	APIKeyAccessTimePolicy          *TimeAccessPolicy
 	AllowedGroups                   []int64

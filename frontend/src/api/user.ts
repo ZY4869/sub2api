@@ -7,6 +7,8 @@ import { apiClient } from './client'
 import type {
   User,
   ChangePasswordRequest,
+  AccountGroupDisplayMode,
+  AccountTodayStatsWindow,
   UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
   VisualPresetPreference,
@@ -37,6 +39,8 @@ export async function updateProfile(profile: {
   account_realtime_countdown_enabled?: boolean
   visual_preset_preference?: VisualPresetPreference
   account_visual_preset_override?: VisualPresetPreference
+  account_today_stats_windows?: AccountTodayStatsWindow[]
+  account_group_display_mode?: AccountGroupDisplayMode
 }): Promise<User> {
   const { data } = await apiClient.put<User>('/user', profile)
   return data

@@ -145,6 +145,11 @@ func AccountVisualPresetOverride(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAccountVisualPresetOverride, v))
 }
 
+// AccountGroupDisplayMode applies equality check predicate on the "account_group_display_mode" field. It's identical to AccountGroupDisplayModeEQ.
+func AccountGroupDisplayMode(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountGroupDisplayMode, v))
+}
+
 // UsageContextBadgeDisplayMode applies equality check predicate on the "usage_context_badge_display_mode" field. It's identical to UsageContextBadgeDisplayModeEQ.
 func UsageContextBadgeDisplayMode(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldUsageContextBadgeDisplayMode, v))
@@ -1003,6 +1008,71 @@ func AccountVisualPresetOverrideEqualFold(v string) predicate.User {
 // AccountVisualPresetOverrideContainsFold applies the ContainsFold predicate on the "account_visual_preset_override" field.
 func AccountVisualPresetOverrideContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldAccountVisualPresetOverride, v))
+}
+
+// AccountGroupDisplayModeEQ applies the EQ predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeNEQ applies the NEQ predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeIn applies the In predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldAccountGroupDisplayMode, vs...))
+}
+
+// AccountGroupDisplayModeNotIn applies the NotIn predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldAccountGroupDisplayMode, vs...))
+}
+
+// AccountGroupDisplayModeGT applies the GT predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeGTE applies the GTE predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeLT applies the LT predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeLTE applies the LTE predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeContains applies the Contains predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeHasPrefix applies the HasPrefix predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeHasSuffix applies the HasSuffix predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeEqualFold applies the EqualFold predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountGroupDisplayModeContainsFold applies the ContainsFold predicate on the "account_group_display_mode" field.
+func AccountGroupDisplayModeContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldAccountGroupDisplayMode, v))
 }
 
 // UsageContextBadgeDisplayModeEQ applies the EQ predicate on the "usage_context_badge_display_mode" field.

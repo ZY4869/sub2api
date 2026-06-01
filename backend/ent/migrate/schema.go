@@ -998,6 +998,8 @@ var (
 		{Name: "account_realtime_countdown_enabled", Type: field.TypeBool, Default: true},
 		{Name: "visual_preset_preference", Type: field.TypeString, Size: 32, Default: "inherit"},
 		{Name: "account_visual_preset_override", Type: field.TypeString, Size: 32, Default: "inherit"},
+		{Name: "account_today_stats_windows", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "account_group_display_mode", Type: field.TypeString, Size: 32, Default: "full"},
 		{Name: "usage_context_badge_display_mode", Type: field.TypeString, Size: 32, Default: "request_only"},
 		{Name: "api_key_model_binding_mode", Type: field.TypeString, Size: 32, Default: "model_required"},
 		{Name: "api_key_access_time_policy", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},

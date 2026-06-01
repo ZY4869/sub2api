@@ -41,7 +41,12 @@
       />
       <div v-else class="flex flex-col gap-2">
         <div class="flex items-center gap-2">
-          <span class="font-medium text-gray-900 dark:text-white">{{ row.name }}</span>
+          <span
+            class="min-w-0 truncate font-medium text-gray-900 dark:text-white"
+            :title="row.name"
+          >
+            {{ row.name }}
+          </span>
           <span
             v-if="row.auto_recovery_probe?.status === 'success'"
             class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
@@ -55,7 +60,7 @@
         </div>
         <span
           v-if="row.extra?.email_address"
-          class="max-w-[200px] truncate text-xs text-gray-500 dark:text-gray-400"
+          class="max-w-[176px] truncate text-xs text-gray-500 dark:text-gray-400"
           :title="row.extra.email_address"
         >
           {{ row.extra.email_address }}
@@ -175,6 +180,7 @@
         :stats="todayStatsByAccountId[String(row.id)] ?? null"
         :loading="todayStatsLoading"
         :error="todayStatsError"
+        :visible-windows="accountTodayStatsWindows"
       />
     </template>
 
@@ -199,6 +205,7 @@
           :groups="row.groups"
           :max-display="4"
           :visual-variant="visualStyle === 'airy' ? 'airy' : 'default'"
+          :display-mode="accountGroupDisplayMode"
         />
       </div>
     </template>
@@ -322,7 +329,13 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
-import type { Account, AccountVisualStyle, WindowStats } from '@/types'
+import type {
+  Account,
+  AccountGroupDisplayMode,
+  AccountTodayStatsWindow,
+  AccountVisualStyle,
+  WindowStats,
+} from '@/types'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
@@ -359,6 +372,8 @@ const props = withDefaults(defineProps<{
   preserveInputOrder?: boolean
   visualStyle?: AccountVisualStyle
   whiteSurfaceEnabled?: boolean
+  accountTodayStatsWindows?: AccountTodayStatsWindow[]
+  accountGroupDisplayMode?: AccountGroupDisplayMode
   pagination: {
     total: number
     page: number
@@ -369,7 +384,8 @@ const props = withDefaults(defineProps<{
   preserveInputOrder: false,
   showPagination: true,
   visualStyle: 'airy',
-  whiteSurfaceEnabled: false
+  whiteSurfaceEnabled: false,
+  accountGroupDisplayMode: 'full'
 })
 
 const emit = defineEmits<{
@@ -416,12 +432,15 @@ const resolveRowStyle = (row: Account) => {
 const airySpacedCellClass = (key: 'capacity' | 'status' | 'groups') => {
   if (props.visualStyle !== 'airy') return ''
   const widthClass = {
-    capacity: 'min-w-0 max-w-[136px]',
+    capacity: 'min-w-0 max-w-[156px]',
     status: 'min-w-0 max-w-[244px]',
-    groups: 'min-w-0 max-w-[136px]'
+    groups: props.accountGroupDisplayMode === 'icon'
+      ? 'min-w-0 max-w-[104px]'
+      : 'min-w-0 max-w-[196px]'
   }[key]
   const paddingClass = key === 'capacity' ? '' : 'px-1'
-  return `account-airy-spaced-cell account-airy-spaced-cell-${key} ${widthClass} overflow-hidden ${paddingClass}`
+  const overflowClass = key === 'groups' ? 'overflow-visible' : 'overflow-hidden'
+  return `account-airy-spaced-cell account-airy-spaced-cell-${key} ${widthClass} ${overflowClass} ${paddingClass}`
 }
 
 const handleToggleSelectAllVisible = (event: Event) => {

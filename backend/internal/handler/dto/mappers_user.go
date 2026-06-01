@@ -20,6 +20,8 @@ func UserFromServiceShallow(u *service.User) *User {
 		UsageModelDisplayMode:           u.EffectiveUsageModelDisplayMode(),
 		VisualPresetPreference:          service.NormalizeVisualPresetPreference(u.VisualPresetPreference),
 		AccountVisualPresetOverride:     service.NormalizeVisualPresetPreference(u.AccountVisualPresetOverride),
+		AccountTodayStatsWindows:        service.NormalizeAccountTodayStatsWindows(u.AccountTodayStatsWindows),
+		AccountGroupDisplayMode:         service.NormalizeAccountGroupDisplayMode(u.AccountGroupDisplayMode),
 		APIKeyModelBindingMode:          u.EffectiveAPIKeyModelBindingMode(),
 		APIKeyAccessTimePolicy:          u.APIKeyAccessTimePolicy,
 		GlobalRealtimeCountdownEnabled:  u.GlobalRealtimeCountdownEnabled,

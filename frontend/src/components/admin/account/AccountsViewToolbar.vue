@@ -75,6 +75,22 @@
               </button>
             </div>
 
+            <div class="relative" ref="displayOptimizationDropdownRef">
+              <button
+                type="button"
+                class="btn btn-secondary px-2 md:px-3"
+                data-account-display-optimization-button="true"
+                :title="t('admin.accounts.displayOptimization.title')"
+                :disabled="accountDisplayPreferencesUpdating"
+                @click="toggleDisplayOptimizationDropdown"
+              >
+                <Icon name="eye" size="sm" />
+                <span class="hidden md:inline">
+                  {{ t("admin.accounts.displayOptimization.button") }}
+                </span>
+              </button>
+            </div>
+
             <AccountViewModeToggle
               :model-value="viewMode"
               @update:model-value="emit('update:view-mode', $event)"
@@ -286,6 +302,93 @@
   </Teleport>
 
   <Teleport to="body">
+    <div v-if="showDisplayOptimizationDropdown">
+      <div class="fixed inset-0 z-40" @click="closeFloatingMenus"></div>
+      <div
+        class="fixed z-50 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+        :style="floatingDisplayOptimizationStyle"
+        data-account-display-optimization-panel="true"
+        @click.stop
+      >
+        <div class="mb-3 flex items-center justify-between">
+          <div class="text-sm font-semibold text-gray-900 dark:text-white">
+            {{ t("admin.accounts.displayOptimization.title") }}
+          </div>
+          <button
+            type="button"
+            class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+            :aria-label="t('common.close')"
+            @click="showDisplayOptimizationDropdown = false"
+          >
+            <Icon name="x" size="xs" />
+          </button>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <div class="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              {{ t("admin.accounts.displayOptimization.todayStats") }}
+            </div>
+            <div class="grid grid-cols-3 gap-1.5">
+              <label
+                v-for="windowKey in accountTodayStatsWindowOptions"
+                :key="windowKey"
+                class="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-semibold transition"
+                :class="
+                  draftTodayStatsWindows.includes(windowKey)
+                    ? 'border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-400/30 dark:bg-primary-500/10 dark:text-primary-200'
+                    : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300 dark:hover:bg-gray-700'
+                "
+              >
+                <input
+                  type="checkbox"
+                  class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  :checked="draftTodayStatsWindows.includes(windowKey)"
+                  :disabled="isLastSelectedTodayStatsWindow(windowKey)"
+                  @change="toggleDraftTodayStatsWindow(windowKey)"
+                />
+                <span>{{ t(`admin.accounts.displayOptimization.windows.${windowKey}`) }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <div class="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              {{ t("admin.accounts.displayOptimization.groupDisplay") }}
+            </div>
+            <div class="inline-flex w-full rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-900/40">
+              <button
+                v-for="mode in accountGroupDisplayModeOptions"
+                :key="mode"
+                type="button"
+                class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition"
+                :class="
+                  draftGroupDisplayMode === mode
+                    ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white'
+                "
+                @click="draftGroupDisplayMode = mode"
+              >
+                {{ t(`admin.accounts.displayOptimization.groupModes.${mode}`) }}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary w-full justify-center"
+            data-account-display-optimization-save="true"
+            :disabled="accountDisplayPreferencesUpdating"
+            @click="saveDisplayOptimization"
+          >
+            {{ t("admin.accounts.displayOptimization.save") }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <Teleport to="body">
     <div v-if="showMoreActionsDropdown">
       <div class="fixed inset-0 z-40" @click="closeFloatingMenus"></div>
       <div
@@ -427,6 +530,8 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type {
   AdminGroup,
+  AccountGroupDisplayMode,
+  AccountTodayStatsWindow,
   VisualPreset,
   VisualPresetPreference,
   AccountPlatformCountSortOrder,
@@ -476,6 +581,9 @@ const props = defineProps<{
   accountVisualPresetOverride?: VisualPresetPreference;
   visualStyle?: VisualPreset;
   accountVisualStyleUpdating?: boolean;
+  accountTodayStatsWindows?: AccountTodayStatsWindow[];
+  accountGroupDisplayMode?: AccountGroupDisplayMode;
+  accountDisplayPreferencesUpdating?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -506,22 +614,54 @@ const emit = defineEmits<{
   openDaily5hSettings: [];
   "toggle-account-realtime-countdown": [];
   "set-account-visual-preset-override": [value: VisualPresetPreference];
+  "save-account-display-preferences": [value: {
+    todayStatsWindows: AccountTodayStatsWindow[];
+    groupDisplayMode: AccountGroupDisplayMode;
+  }];
 }>();
 
 const { t } = useI18n();
 
 const showAutoRefreshDropdown = ref(false);
+const showDisplayOptimizationDropdown = ref(false);
 const showColumnDropdown = ref(false);
 const showMoreActionsDropdown = ref(false);
 const autoRefreshDropdownRef = ref<HTMLElement | null>(null);
+const displayOptimizationDropdownRef = ref<HTMLElement | null>(null);
 const columnDropdownRef = ref<HTMLElement | null>(null);
 const moreActionsDropdownRef = ref<HTMLElement | null>(null);
 const AUTO_REFRESH_PANEL_WIDTH = 224;
 const AUTO_REFRESH_PANEL_HEIGHT = 240;
+const DISPLAY_OPTIMIZATION_PANEL_WIDTH = 288;
+const DISPLAY_OPTIMIZATION_PANEL_HEIGHT = 300;
 const MORE_ACTIONS_PANEL_WIDTH = 224;
 const MORE_ACTIONS_PANEL_HEIGHT = 360;
 const COLUMN_PANEL_WIDTH = 192;
 const COLUMN_PANEL_HEIGHT = 360;
+const accountTodayStatsWindowOptions: AccountTodayStatsWindow[] = [
+  "today",
+  "weekly",
+  "total",
+];
+const accountGroupDisplayModeOptions: AccountGroupDisplayMode[] = [
+  "full",
+  "icon",
+];
+const normalizeTodayStatsWindows = (
+  values?: AccountTodayStatsWindow[],
+): AccountTodayStatsWindow[] => {
+  const selected = new Set(values || []);
+  const normalized = accountTodayStatsWindowOptions.filter((value) =>
+    selected.has(value),
+  );
+  return normalized.length > 0 ? normalized : [...accountTodayStatsWindowOptions];
+};
+const draftTodayStatsWindows = ref<AccountTodayStatsWindow[]>(
+  normalizeTodayStatsWindows(props.accountTodayStatsWindows),
+);
+const draftGroupDisplayMode = ref<AccountGroupDisplayMode>(
+  props.accountGroupDisplayMode === "icon" ? "icon" : "full",
+);
 
 const nextPlatformCountSortOrder = computed<AccountPlatformCountSortOrder>(
   () =>
@@ -579,6 +719,23 @@ const autoRefreshIntervalLabel = (sec: number) => {
 
 const toggleAutoRefreshDropdown = () => {
   showAutoRefreshDropdown.value = !showAutoRefreshDropdown.value;
+  showDisplayOptimizationDropdown.value = false;
+  showColumnDropdown.value = false;
+  showMoreActionsDropdown.value = false;
+};
+
+const syncDisplayOptimizationDraft = () => {
+  draftTodayStatsWindows.value = normalizeTodayStatsWindows(
+    props.accountTodayStatsWindows,
+  );
+  draftGroupDisplayMode.value =
+    props.accountGroupDisplayMode === "icon" ? "icon" : "full";
+};
+
+const toggleDisplayOptimizationDropdown = () => {
+  syncDisplayOptimizationDraft();
+  showDisplayOptimizationDropdown.value = !showDisplayOptimizationDropdown.value;
+  showAutoRefreshDropdown.value = false;
   showColumnDropdown.value = false;
   showMoreActionsDropdown.value = false;
 };
@@ -586,12 +743,14 @@ const toggleAutoRefreshDropdown = () => {
 const toggleColumnDropdownFromMore = () => {
   showColumnDropdown.value = !showColumnDropdown.value;
   showAutoRefreshDropdown.value = false;
+  showDisplayOptimizationDropdown.value = false;
   showMoreActionsDropdown.value = false;
 };
 
 const toggleMoreActionsDropdown = () => {
   showMoreActionsDropdown.value = !showMoreActionsDropdown.value;
   showAutoRefreshDropdown.value = false;
+  showDisplayOptimizationDropdown.value = false;
   showColumnDropdown.value = false;
 };
 
@@ -602,8 +761,39 @@ const handleToggleAccountRealtimeCountdown = () => {
 
 const closeFloatingMenus = () => {
   showAutoRefreshDropdown.value = false;
+  showDisplayOptimizationDropdown.value = false;
   showMoreActionsDropdown.value = false;
   showColumnDropdown.value = false;
+};
+
+const isLastSelectedTodayStatsWindow = (windowKey: AccountTodayStatsWindow) =>
+  draftTodayStatsWindows.value.includes(windowKey) &&
+  draftTodayStatsWindows.value.length <= 1;
+
+const toggleDraftTodayStatsWindow = (windowKey: AccountTodayStatsWindow) => {
+  if (draftTodayStatsWindows.value.includes(windowKey)) {
+    if (draftTodayStatsWindows.value.length <= 1) {
+      return;
+    }
+    draftTodayStatsWindows.value = draftTodayStatsWindows.value.filter(
+      (value) => value !== windowKey,
+    );
+    return;
+  }
+  const selected = new Set([...draftTodayStatsWindows.value, windowKey]);
+  draftTodayStatsWindows.value = accountTodayStatsWindowOptions.filter((value) =>
+    selected.has(value),
+  );
+};
+
+const saveDisplayOptimization = () => {
+  emit("save-account-display-preferences", {
+    todayStatsWindows: normalizeTodayStatsWindows(
+      draftTodayStatsWindows.value,
+    ),
+    groupDisplayMode: draftGroupDisplayMode.value,
+  });
+  showDisplayOptimizationDropdown.value = false;
 };
 
 const floatingAutoRefreshStyle = computed(() => {
@@ -611,6 +801,18 @@ const floatingAutoRefreshStyle = computed(() => {
     target: autoRefreshDropdownRef.value,
     panelWidth: AUTO_REFRESH_PANEL_WIDTH,
     panelHeight: AUTO_REFRESH_PANEL_HEIGHT,
+  });
+  return {
+    top: `${position.top}px`,
+    left: `${position.left}px`,
+  };
+});
+
+const floatingDisplayOptimizationStyle = computed(() => {
+  const position = resolveToolbarDropdownPosition({
+    target: displayOptimizationDropdownRef.value,
+    panelWidth: DISPLAY_OPTIMIZATION_PANEL_WIDTH,
+    panelHeight: DISPLAY_OPTIMIZATION_PANEL_HEIGHT,
   });
   return {
     top: `${position.top}px`,

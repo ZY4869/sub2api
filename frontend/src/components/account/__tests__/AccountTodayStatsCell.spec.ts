@@ -64,6 +64,50 @@ describe('AccountTodayStatsCell', () => {
     expect(wrapper.find('.text-rose-600').exists()).toBe(true)
   })
 
+  it('renders selected stats windows and only shows quality footer when today is visible', () => {
+    const stats = {
+      requests: 12,
+      tokens: 345,
+      cost: 1.2,
+      success_rate: 99,
+      average_duration_ms: 500,
+      weekly: {
+        requests: 78,
+        tokens: 2000,
+        cost: 8.9,
+      },
+      total: {
+        requests: 999,
+        tokens: 5000,
+        cost: 42,
+      },
+    } as any
+
+    const weeklyOnly = mount(AccountTodayStatsCell, {
+      props: {
+        stats,
+        visibleWindows: ['weekly'],
+      },
+    })
+    expect(weeklyOnly.text()).not.toContain('Today')
+    expect(weeklyOnly.text()).toContain('7d')
+    expect(weeklyOnly.text()).not.toContain('Total')
+    expect(weeklyOnly.text()).not.toContain('345T')
+    expect(weeklyOnly.get('[data-testid="account-today-stats-cell"] .grid').classes()).toContain('grid-cols-1')
+
+    const todayAndTotal = mount(AccountTodayStatsCell, {
+      props: {
+        stats,
+        visibleWindows: ['today', 'total'],
+      },
+    })
+    expect(todayAndTotal.text()).toContain('Today')
+    expect(todayAndTotal.text()).not.toContain('7d')
+    expect(todayAndTotal.text()).toContain('Total')
+    expect(todayAndTotal.text()).toContain('345T')
+    expect(todayAndTotal.get('[data-testid="account-today-stats-cell"] .grid').classes()).toContain('grid-cols-2')
+  })
+
   it('keeps loading, error and empty states', () => {
     expect(mount(AccountTodayStatsCell, { props: { loading: true } }).find('.animate-pulse').exists()).toBe(true)
     expect(mount(AccountTodayStatsCell, { props: { error: 'failed' } }).text()).toContain('failed')

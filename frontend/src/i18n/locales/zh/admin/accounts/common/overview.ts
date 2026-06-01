@@ -65,6 +65,23 @@ export default {
         stats: "{count} 个账号",
         currentPageScope: "按当前页结果分组",
     },
+    displayOptimization: {
+        button: "显示优化",
+        title: "显示优化",
+        todayStats: "今日统计",
+        groupDisplay: "分组展示",
+        windows: {
+            today: "当天",
+            weekly: "7天",
+            total: "总计",
+        },
+        groupModes: {
+            full: "完整",
+            icon: "图标",
+        },
+        save: "保存",
+        saveFailed: "显示优化保存失败",
+    },
     columns: {
         name: "名称",
         platformType: "平台/类型",

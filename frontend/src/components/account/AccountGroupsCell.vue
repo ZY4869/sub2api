@@ -1,18 +1,39 @@
 <template>
-  <div v-if="groups && groups.length > 0" class="relative max-w-56">
+  <div v-if="groups && groups.length > 0" :class="rootClass">
     <!-- 分组容器：固定最大宽度，最多显示2行 -->
-    <div class="flex flex-wrap gap-1 max-h-14 overflow-hidden">
-      <GroupBadge
-        v-for="group in displayGroups"
-        :key="group.id"
-        :name="group.name"
-        :platform="group.platform"
-        :subscription-type="group.subscription_type"
-        :rate-multiplier="group.rate_multiplier"
-        :show-rate="false"
-        :visual-variant="visualVariant"
-        class="max-w-24"
-      />
+    <div :class="containerClass">
+      <template v-if="displayMode === 'icon'">
+        <span
+          v-for="group in displayGroups"
+          :key="group.id"
+          class="group relative inline-flex"
+        >
+          <button
+            type="button"
+            :class="iconBadgeClass"
+            :title="group.name"
+            :aria-label="group.name"
+          >
+            <span aria-hidden="true">{{ groupInitial(group.name) }}</span>
+          </button>
+          <span :class="iconTooltipClass" role="tooltip">
+            {{ group.name }}
+          </span>
+        </span>
+      </template>
+      <template v-else>
+        <GroupBadge
+          v-for="group in displayGroups"
+          :key="group.id"
+          :name="group.name"
+          :platform="group.platform"
+          :subscription-type="group.subscription_type"
+          :rate-multiplier="group.rate_multiplier"
+          :show-rate="false"
+          :visual-variant="visualVariant"
+          wrap
+        />
+      </template>
       <!-- 更多数量徽章 -->
       <button
         v-if="hiddenCount > 0"
@@ -83,17 +104,19 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GroupBadge from '@/components/common/GroupBadge.vue'
-import type { Group } from '@/types'
+import type { AccountGroupDisplayMode, Group } from '@/types'
 
 interface Props {
   groups: Group[] | null | undefined
   maxDisplay?: number
   visualVariant?: 'default' | 'airy'
+  displayMode?: AccountGroupDisplayMode
 }
 
 const props = withDefaults(defineProps<Props>(), {
   maxDisplay: 4,
-  visualVariant: 'default'
+  visualVariant: 'default',
+  displayMode: 'full'
 })
 
 const { t } = useI18n()
@@ -101,6 +124,7 @@ const { t } = useI18n()
 const moreButtonRef = ref<HTMLElement | null>(null)
 const popoverRef = ref<HTMLElement | null>(null)
 const showPopover = ref(false)
+const displayMode = computed(() => props.displayMode === 'icon' ? 'icon' : 'full')
 
 // 显示的分组（最多显示 maxDisplay 个）
 const displayGroups = computed(() => {
@@ -125,6 +149,41 @@ const moreButtonClass = computed(() => {
   }
   return 'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500'
 })
+
+const rootClass = computed(() =>
+  displayMode.value === 'icon'
+    ? 'relative max-w-[104px]'
+    : 'relative max-w-full'
+)
+
+const containerClass = computed(() =>
+  displayMode.value === 'icon'
+    ? 'flex max-h-14 flex-wrap gap-1 overflow-visible'
+    : 'flex max-h-none flex-wrap gap-1 overflow-visible'
+)
+
+const iconBadgeClass = computed(() => {
+  const base = 'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-black uppercase leading-none transition focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1'
+  if (props.visualVariant === 'airy') {
+    return `${base} border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700`
+  }
+  return `${base} border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600`
+})
+
+const iconTooltipClass = computed(() => {
+  const chrome = props.visualVariant === 'airy'
+    ? 'border-slate-200 bg-white text-slate-700 shadow-lg dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100'
+    : 'border-gray-200 bg-white text-gray-700 shadow-lg dark:border-dark-600 dark:bg-dark-800 dark:text-gray-100'
+  return [
+    'pointer-events-none absolute left-1/2 top-full z-30 mt-1 max-w-52 -translate-x-1/2 whitespace-normal break-words rounded-md border px-2 py-1 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
+    chrome,
+  ].join(' ')
+})
+
+const groupInitial = (name: string) => {
+  const trimmed = String(name || '').trim()
+  return trimmed ? Array.from(trimmed)[0] : '#'
+}
 
 // Popover 位置样式
 const popoverStyle = computed(() => {

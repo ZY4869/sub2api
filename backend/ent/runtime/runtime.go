@@ -1185,14 +1185,38 @@ func init() {
 	user.DefaultAccountVisualPresetOverride = userDescAccountVisualPresetOverride.Default.(string)
 	// user.AccountVisualPresetOverrideValidator is a validator for the "account_visual_preset_override" field. It is called by the builders before save.
 	user.AccountVisualPresetOverrideValidator = userDescAccountVisualPresetOverride.Validators[0].(func(string) error)
+	// userDescAccountTodayStatsWindows is the schema descriptor for account_today_stats_windows field.
+	userDescAccountTodayStatsWindows := userFields[15].Descriptor()
+	// user.DefaultAccountTodayStatsWindows holds the default value on creation for the account_today_stats_windows field.
+	user.DefaultAccountTodayStatsWindows = userDescAccountTodayStatsWindows.Default.([]string)
+	// userDescAccountGroupDisplayMode is the schema descriptor for account_group_display_mode field.
+	userDescAccountGroupDisplayMode := userFields[16].Descriptor()
+	// user.DefaultAccountGroupDisplayMode holds the default value on creation for the account_group_display_mode field.
+	user.DefaultAccountGroupDisplayMode = userDescAccountGroupDisplayMode.Default.(string)
+	// user.AccountGroupDisplayModeValidator is a validator for the "account_group_display_mode" field. It is called by the builders before save.
+	user.AccountGroupDisplayModeValidator = func() func(string) error {
+		validators := userDescAccountGroupDisplayMode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(account_group_display_mode string) error {
+			for _, fn := range fns {
+				if err := fn(account_group_display_mode); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// userDescUsageContextBadgeDisplayMode is the schema descriptor for usage_context_badge_display_mode field.
-	userDescUsageContextBadgeDisplayMode := userFields[15].Descriptor()
+	userDescUsageContextBadgeDisplayMode := userFields[17].Descriptor()
 	// user.DefaultUsageContextBadgeDisplayMode holds the default value on creation for the usage_context_badge_display_mode field.
 	user.DefaultUsageContextBadgeDisplayMode = userDescUsageContextBadgeDisplayMode.Default.(string)
 	// user.UsageContextBadgeDisplayModeValidator is a validator for the "usage_context_badge_display_mode" field. It is called by the builders before save.
 	user.UsageContextBadgeDisplayModeValidator = userDescUsageContextBadgeDisplayMode.Validators[0].(func(string) error)
 	// userDescAPIKeyModelBindingMode is the schema descriptor for api_key_model_binding_mode field.
-	userDescAPIKeyModelBindingMode := userFields[16].Descriptor()
+	userDescAPIKeyModelBindingMode := userFields[18].Descriptor()
 	// user.DefaultAPIKeyModelBindingMode holds the default value on creation for the api_key_model_binding_mode field.
 	user.DefaultAPIKeyModelBindingMode = userDescAPIKeyModelBindingMode.Default.(string)
 	// user.APIKeyModelBindingModeValidator is a validator for the "api_key_model_binding_mode" field. It is called by the builders before save.
@@ -1212,7 +1236,7 @@ func init() {
 		}
 	}()
 	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
-	userDescTotpEnabled := userFields[19].Descriptor()
+	userDescTotpEnabled := userFields[21].Descriptor()
 	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
 	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()

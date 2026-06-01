@@ -266,6 +266,26 @@ func (_c *UserCreate) SetNillableAccountVisualPresetOverride(v *string) *UserCre
 	return _c
 }
 
+// SetAccountTodayStatsWindows sets the "account_today_stats_windows" field.
+func (_c *UserCreate) SetAccountTodayStatsWindows(v []string) *UserCreate {
+	_c.mutation.SetAccountTodayStatsWindows(v)
+	return _c
+}
+
+// SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
+func (_c *UserCreate) SetAccountGroupDisplayMode(v string) *UserCreate {
+	_c.mutation.SetAccountGroupDisplayMode(v)
+	return _c
+}
+
+// SetNillableAccountGroupDisplayMode sets the "account_group_display_mode" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAccountGroupDisplayMode(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAccountGroupDisplayMode(*v)
+	}
+	return _c
+}
+
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
 func (_c *UserCreate) SetUsageContextBadgeDisplayMode(v string) *UserCreate {
 	_c.mutation.SetUsageContextBadgeDisplayMode(v)
@@ -580,6 +600,14 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultAccountVisualPresetOverride
 		_c.mutation.SetAccountVisualPresetOverride(v)
 	}
+	if _, ok := _c.mutation.AccountTodayStatsWindows(); !ok {
+		v := user.DefaultAccountTodayStatsWindows
+		_c.mutation.SetAccountTodayStatsWindows(v)
+	}
+	if _, ok := _c.mutation.AccountGroupDisplayMode(); !ok {
+		v := user.DefaultAccountGroupDisplayMode
+		_c.mutation.SetAccountGroupDisplayMode(v)
+	}
 	if _, ok := _c.mutation.UsageContextBadgeDisplayMode(); !ok {
 		v := user.DefaultUsageContextBadgeDisplayMode
 		_c.mutation.SetUsageContextBadgeDisplayMode(v)
@@ -686,6 +714,17 @@ func (_c *UserCreate) check() error {
 	if v, ok := _c.mutation.AccountVisualPresetOverride(); ok {
 		if err := user.AccountVisualPresetOverrideValidator(v); err != nil {
 			return &ValidationError{Name: "account_visual_preset_override", err: fmt.Errorf(`ent: validator failed for field "User.account_visual_preset_override": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AccountTodayStatsWindows(); !ok {
+		return &ValidationError{Name: "account_today_stats_windows", err: errors.New(`ent: missing required field "User.account_today_stats_windows"`)}
+	}
+	if _, ok := _c.mutation.AccountGroupDisplayMode(); !ok {
+		return &ValidationError{Name: "account_group_display_mode", err: errors.New(`ent: missing required field "User.account_group_display_mode"`)}
+	}
+	if v, ok := _c.mutation.AccountGroupDisplayMode(); ok {
+		if err := user.AccountGroupDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "account_group_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_group_display_mode": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.UsageContextBadgeDisplayMode(); !ok {
@@ -805,6 +844,14 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AccountVisualPresetOverride(); ok {
 		_spec.SetField(user.FieldAccountVisualPresetOverride, field.TypeString, value)
 		_node.AccountVisualPresetOverride = value
+	}
+	if value, ok := _c.mutation.AccountTodayStatsWindows(); ok {
+		_spec.SetField(user.FieldAccountTodayStatsWindows, field.TypeJSON, value)
+		_node.AccountTodayStatsWindows = value
+	}
+	if value, ok := _c.mutation.AccountGroupDisplayMode(); ok {
+		_spec.SetField(user.FieldAccountGroupDisplayMode, field.TypeString, value)
+		_node.AccountGroupDisplayMode = value
 	}
 	if value, ok := _c.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
@@ -1252,6 +1299,30 @@ func (u *UserUpsert) UpdateAccountVisualPresetOverride() *UserUpsert {
 	return u
 }
 
+// SetAccountTodayStatsWindows sets the "account_today_stats_windows" field.
+func (u *UserUpsert) SetAccountTodayStatsWindows(v []string) *UserUpsert {
+	u.Set(user.FieldAccountTodayStatsWindows, v)
+	return u
+}
+
+// UpdateAccountTodayStatsWindows sets the "account_today_stats_windows" field to the value that was provided on create.
+func (u *UserUpsert) UpdateAccountTodayStatsWindows() *UserUpsert {
+	u.SetExcluded(user.FieldAccountTodayStatsWindows)
+	return u
+}
+
+// SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
+func (u *UserUpsert) SetAccountGroupDisplayMode(v string) *UserUpsert {
+	u.Set(user.FieldAccountGroupDisplayMode, v)
+	return u
+}
+
+// UpdateAccountGroupDisplayMode sets the "account_group_display_mode" field to the value that was provided on create.
+func (u *UserUpsert) UpdateAccountGroupDisplayMode() *UserUpsert {
+	u.SetExcluded(user.FieldAccountGroupDisplayMode)
+	return u
+}
+
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
 func (u *UserUpsert) SetUsageContextBadgeDisplayMode(v string) *UserUpsert {
 	u.Set(user.FieldUsageContextBadgeDisplayMode, v)
@@ -1643,6 +1714,34 @@ func (u *UserUpsertOne) SetAccountVisualPresetOverride(v string) *UserUpsertOne 
 func (u *UserUpsertOne) UpdateAccountVisualPresetOverride() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAccountVisualPresetOverride()
+	})
+}
+
+// SetAccountTodayStatsWindows sets the "account_today_stats_windows" field.
+func (u *UserUpsertOne) SetAccountTodayStatsWindows(v []string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountTodayStatsWindows(v)
+	})
+}
+
+// UpdateAccountTodayStatsWindows sets the "account_today_stats_windows" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateAccountTodayStatsWindows() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountTodayStatsWindows()
+	})
+}
+
+// SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
+func (u *UserUpsertOne) SetAccountGroupDisplayMode(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountGroupDisplayMode(v)
+	})
+}
+
+// UpdateAccountGroupDisplayMode sets the "account_group_display_mode" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateAccountGroupDisplayMode() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountGroupDisplayMode()
 	})
 }
 
@@ -2218,6 +2317,34 @@ func (u *UserUpsertBulk) SetAccountVisualPresetOverride(v string) *UserUpsertBul
 func (u *UserUpsertBulk) UpdateAccountVisualPresetOverride() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAccountVisualPresetOverride()
+	})
+}
+
+// SetAccountTodayStatsWindows sets the "account_today_stats_windows" field.
+func (u *UserUpsertBulk) SetAccountTodayStatsWindows(v []string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountTodayStatsWindows(v)
+	})
+}
+
+// UpdateAccountTodayStatsWindows sets the "account_today_stats_windows" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateAccountTodayStatsWindows() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountTodayStatsWindows()
+	})
+}
+
+// SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
+func (u *UserUpsertBulk) SetAccountGroupDisplayMode(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountGroupDisplayMode(v)
+	})
+}
+
+// UpdateAccountGroupDisplayMode sets the "account_group_display_mode" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateAccountGroupDisplayMode() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountGroupDisplayMode()
 	})
 }
 

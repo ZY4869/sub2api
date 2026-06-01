@@ -61,6 +61,8 @@
         :preserve-input-order="preserveInputOrder"
         :visual-style="visualStyle"
         :white-surface-enabled="whiteSurfaceEnabled"
+        :account-today-stats-windows="accountTodayStatsWindows"
+        :account-group-display-mode="accountGroupDisplayMode"
         :pagination="pagination"
         :show-pagination="false"
         @toggle-select-all-visible="emit('toggle-section-selected', { ids: accountIds, checked: $event })"
@@ -98,7 +100,14 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
-import type { Account, AccountViewMode, AccountVisualStyle, WindowStats } from '@/types'
+import type {
+  Account,
+  AccountGroupDisplayMode,
+  AccountTodayStatsWindow,
+  AccountViewMode,
+  AccountVisualStyle,
+  WindowStats,
+} from '@/types'
 import AccountCardGrid from './AccountCardGrid.vue'
 import AccountsViewTable from './AccountsViewTable.vue'
 
@@ -118,6 +127,8 @@ const props = withDefaults(defineProps<{
   preserveInputOrder?: boolean
   visualStyle?: AccountVisualStyle
   whiteSurfaceEnabled?: boolean
+  accountTodayStatsWindows?: AccountTodayStatsWindow[]
+  accountGroupDisplayMode?: AccountGroupDisplayMode
 }>(), {
   visualStyle: 'airy',
   whiteSurfaceEnabled: false

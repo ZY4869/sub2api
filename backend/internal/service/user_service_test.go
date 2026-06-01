@@ -479,6 +479,144 @@ func TestUpdateProfile_VisualPreset_PartialUpdateDoesNotOverrideOtherPreferences
 	require.Equal(t, VisualPresetClassic, updated.EffectiveVisualPreset(VisualPresetClassic))
 }
 
+func TestUpdateProfile_AccountDisplayPreferences_DefaultFallback(t *testing.T) {
+	user := &User{
+		ID:                       1,
+		Email:                    "alice@example.com",
+		Username:                 "alice",
+		AccountTodayStatsWindows: nil,
+		AccountGroupDisplayMode:  "",
+	}
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			clone := *user
+			return &clone, nil
+		},
+		updateFn: func(_ context.Context, updated *User) error {
+			user.AccountTodayStatsWindows = updated.AccountTodayStatsWindows
+			user.AccountGroupDisplayMode = updated.AccountGroupDisplayMode
+			return nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		Username: ptrString("alice-2"),
+	})
+	require.NoError(t, err)
+	require.Equal(t, DefaultAccountTodayStatsWindows(), NormalizeAccountTodayStatsWindows(updated.AccountTodayStatsWindows))
+	require.Equal(t, AccountGroupDisplayModeFull, NormalizeAccountGroupDisplayMode(updated.AccountGroupDisplayMode))
+}
+
+func TestUpdateProfile_AccountDisplayPreferences_Success(t *testing.T) {
+	user := &User{
+		ID:                       1,
+		Email:                    "alice@example.com",
+		Username:                 "alice",
+		AccountTodayStatsWindows: DefaultAccountTodayStatsWindows(),
+		AccountGroupDisplayMode:  AccountGroupDisplayModeFull,
+	}
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			clone := *user
+			return &clone, nil
+		},
+		updateFn: func(_ context.Context, updated *User) error {
+			user.AccountTodayStatsWindows = updated.AccountTodayStatsWindows
+			user.AccountGroupDisplayMode = updated.AccountGroupDisplayMode
+			return nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		AccountTodayStatsWindows: []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal},
+		AccountGroupDisplayMode:  ptrString(AccountGroupDisplayModeIcon),
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal}, updated.AccountTodayStatsWindows)
+	require.Equal(t, AccountGroupDisplayModeIcon, updated.AccountGroupDisplayMode)
+	require.Equal(t, updated.AccountTodayStatsWindows, user.AccountTodayStatsWindows)
+	require.Equal(t, updated.AccountGroupDisplayMode, user.AccountGroupDisplayMode)
+}
+
+func TestUpdateProfile_AccountTodayStatsWindows_Invalid(t *testing.T) {
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			return &User{
+				ID:                       1,
+				Email:                    "alice@example.com",
+				Username:                 "alice",
+				AccountTodayStatsWindows: DefaultAccountTodayStatsWindows(),
+				AccountGroupDisplayMode:  AccountGroupDisplayModeFull,
+			}, nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	_, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		AccountTodayStatsWindows: []string{AccountTodayStatsWindowToday, "bad"},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "account_today_stats_windows")
+
+	_, err = svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		AccountTodayStatsWindows: []string{},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "account_today_stats_windows")
+}
+
+func TestUpdateProfile_AccountGroupDisplayMode_Invalid(t *testing.T) {
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			return &User{
+				ID:                       1,
+				Email:                    "alice@example.com",
+				Username:                 "alice",
+				AccountTodayStatsWindows: DefaultAccountTodayStatsWindows(),
+				AccountGroupDisplayMode:  AccountGroupDisplayModeFull,
+			}, nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	_, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		AccountGroupDisplayMode: ptrString("bad"),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "account_group_display_mode")
+}
+
+func TestUpdateProfile_AccountDisplayPreferences_PartialUpdateDoesNotOverrideOtherPreferences(t *testing.T) {
+	user := &User{
+		ID:                       1,
+		Email:                    "alice@example.com",
+		Username:                 "alice",
+		AccountTodayStatsWindows: []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal},
+		AccountGroupDisplayMode:  AccountGroupDisplayModeIcon,
+	}
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			clone := *user
+			return &clone, nil
+		},
+		updateFn: func(_ context.Context, updated *User) error {
+			user.AccountTodayStatsWindows = updated.AccountTodayStatsWindows
+			user.AccountGroupDisplayMode = updated.AccountGroupDisplayMode
+			return nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		AccountGroupDisplayMode: ptrString(AccountGroupDisplayModeFull),
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal}, updated.AccountTodayStatsWindows)
+	require.Equal(t, AccountGroupDisplayModeFull, updated.AccountGroupDisplayMode)
+}
+
 func ptrString(value string) *string {
 	return &value
 }

@@ -12,20 +12,20 @@
 
     <div
       v-else-if="props.stats"
-      class="flex min-w-[212px] max-w-[228px] select-none flex-col gap-1.5 font-mono text-[11px] leading-none text-slate-700 dark:text-slate-200"
+      class="flex min-w-[176px] max-w-[244px] select-none flex-col gap-1.5 font-mono text-[11px] leading-none text-slate-700 dark:text-slate-200"
       data-testid="account-today-stats-cell"
     >
-      <div class="grid grid-cols-3 gap-1">
+      <div class="grid gap-1" :class="statsGridClass">
         <div
           v-for="item in statColumns"
           :key="item.key"
-          class="min-w-0 rounded-md border border-slate-100 bg-white/60 px-1.5 py-1 dark:border-slate-700/70 dark:bg-slate-900/40"
+          class="min-w-0 rounded-lg border border-slate-200/80 bg-white/80 px-2 py-1.5 shadow-[0_4px_12px_rgba(15,23,42,0.04)] dark:border-slate-700/70 dark:bg-slate-900/50"
           :title="item.title"
         >
           <div class="truncate font-sans text-[9px] font-semibold text-slate-400 dark:text-slate-500">
             {{ item.label }}
           </div>
-          <div class="mt-0.5 truncate font-bold text-slate-800 dark:text-slate-100">
+          <div class="mt-1 truncate text-xs font-bold text-slate-800 dark:text-slate-100">
             {{ item.requests }}
           </div>
           <div class="mt-0.5 truncate text-[10px] font-bold" :class="item.costClass">
@@ -34,7 +34,10 @@
         </div>
       </div>
 
-      <div class="mt-0.5 flex items-center justify-between gap-1 border-t border-slate-100 pt-1.5 dark:border-slate-700/70">
+      <div
+        v-if="showTodayQualityFooter"
+        class="mt-0.5 flex items-center justify-between gap-1 border-t border-slate-100 pt-1.5 dark:border-slate-700/70"
+      >
         <span
           class="font-sans text-slate-400 dark:text-slate-500"
           :title="footerStatsTitle"
@@ -77,14 +80,16 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
-import type { AccountTodayStats, WindowStats } from '@/types'
+import type { AccountTodayStats, AccountTodayStatsWindow, WindowStats } from '@/types'
 import { formatNumber, formatCurrency } from '@/utils/format'
+import { normalizeAccountTodayStatsWindows } from '@/utils/accountDisplayPreferences'
 
 const props = withDefaults(
   defineProps<{
     stats?: AccountTodayStats | null
     loading?: boolean
     error?: string | null
+    visibleWindows?: AccountTodayStatsWindow[]
   }>(),
   {
     stats: null,
@@ -109,6 +114,9 @@ const emptyWindowStats = (): WindowStats => ({
 const dayStats = computed(() => props.stats ?? emptyWindowStats())
 const weeklyStats = computed(() => props.stats?.weekly ?? emptyWindowStats())
 const totalStats = computed(() => props.stats?.total ?? emptyWindowStats())
+const visibleWindows = computed(() =>
+  normalizeAccountTodayStatsWindows(props.visibleWindows),
+)
 
 type StatColumn = {
   key: string
@@ -137,26 +145,38 @@ const createStatColumn = (
   }
 }
 
-const statColumns = computed<StatColumn[]>(() => [
-  createStatColumn(
+const statColumnConfig = computed<Record<AccountTodayStatsWindow, StatColumn>>(() => ({
+  today: createStatColumn(
     'today',
     t('dates.today'),
     dayStats.value,
     'text-slate-700 dark:text-slate-200',
   ),
-  createStatColumn(
+  weekly: createStatColumn(
     'weekly',
     t('admin.accounts.status.window7d'),
     weeklyStats.value,
     'text-blue-600 dark:text-blue-300',
   ),
-  createStatColumn(
+  total: createStatColumn(
     'total',
     t('common.total'),
     totalStats.value,
     'text-indigo-600 dark:text-indigo-300',
   ),
-])
+}))
+
+const statColumns = computed<StatColumn[]>(() =>
+  visibleWindows.value.map((key) => statColumnConfig.value[key]),
+)
+const statsGridClass = computed(() => {
+  if (statColumns.value.length === 1) return 'grid-cols-1'
+  if (statColumns.value.length === 2) return 'grid-cols-2'
+  return 'grid-cols-3'
+})
+const showTodayQualityFooter = computed(() =>
+  visibleWindows.value.includes('today'),
+)
 
 const successRate = computed(() => {
   const value = dayStats.value.success_rate

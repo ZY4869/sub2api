@@ -42,6 +42,7 @@ const DataTableStub = defineComponent({
       <div class="cell-capacity"><slot name="cell-capacity" :row="data[0]" /></div>
       <div class="cell-select"><slot name="cell-select" :row="data[0]" /></div>
       <div class="cell-status"><slot name="cell-status" :row="data[0]" /></div>
+      <div class="cell-today-stats"><slot name="cell-today_stats" :row="data[0]" /></div>
       <div class="cell-groups"><slot name="cell-groups" :row="data[0]" /></div>
       <div class="cell-usage"><slot name="cell-usage" :row="data[0]" /></div>
       <div class="cell-actions"><slot name="cell-actions" :row="data[0]" /></div>
@@ -133,6 +134,8 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
       todayStatsByAccountId: {},
       todayStatsLoading: false,
       todayStatsError: null,
+      accountTodayStatsWindows: ['today', 'weekly', 'total'],
+      accountGroupDisplayMode: 'full',
       usageManualRefreshToken: 0,
       visualStyle: 'airy',
       sortStorageKey: 'account-table-sort',
@@ -165,10 +168,13 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
           props: ['account', 'visualVariant', 'whiteSurfaceEnabled', 'compact'],
           template: '<div class="capacity-stub" :data-visual-variant="visualVariant" :data-white-surface-enabled="String(whiteSurfaceEnabled)" :data-compact="String(compact)">{{ String(account.current_concurrency).padStart(2, "0") }}/{{ String(account.concurrency).padStart(2, "0") }}</div>'
         },
-        AccountTodayStatsCell: true,
+        AccountTodayStatsCell: {
+          props: ['visibleWindows'],
+          template: '<div class="today-stats-stub" :data-visible-windows="visibleWindows?.join(\',\')" />'
+        },
         AccountGroupsCell: {
-          props: ['groups', 'maxDisplay', 'visualVariant'],
-          template: '<div class="groups-stub" :data-visual-variant="visualVariant">{{ groups?.map((group) => group.name).join(",") }}</div>'
+          props: ['groups', 'maxDisplay', 'visualVariant', 'displayMode'],
+          template: '<div class="groups-stub" :data-visual-variant="visualVariant" :data-display-mode="displayMode">{{ groups?.map((group) => group.name).join(",") }}</div>'
         },
         AccountUsageCell: {
           template: '<div class="usage-classic-stub" />'
@@ -297,6 +303,8 @@ describe('AccountsViewTable', () => {
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(true)
     expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
     expect(wrapper.get('.groups-stub').attributes('data-visual-variant')).toBe('airy')
+    expect(wrapper.get('.groups-stub').attributes('data-display-mode')).toBe('full')
+    expect(wrapper.get('.today-stats-stub').attributes('data-visible-windows')).toBe('today,weekly,total')
     expect(wrapper.get('.cell-groups .account-airy-spaced-cell-groups').exists()).toBe(true)
     expect(wrapper.find('.airy-row-actions').exists()).toBe(true)
     expect(wrapper.find('.row-edit').exists()).toBe(false)
@@ -320,6 +328,19 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-white-surface-enabled')).toBe('true')
     expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('true')
     expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('true')
+  })
+
+  it('passes compact group and selected stats preferences to table cells', async () => {
+    const wrapper = mountTable()
+
+    await wrapper.setProps({
+      accountTodayStatsWindows: ['weekly', 'total'],
+      accountGroupDisplayMode: 'icon',
+    })
+
+    expect(wrapper.get('.today-stats-stub').attributes('data-visible-windows')).toBe('weekly,total')
+    expect(wrapper.get('.groups-stub').attributes('data-display-mode')).toBe('icon')
+    expect(wrapper.get('.cell-groups .account-airy-spaced-cell-groups').classes()).toContain('max-w-[104px]')
   })
 
   it('falls back to classic visuals without airy row styles', async () => {

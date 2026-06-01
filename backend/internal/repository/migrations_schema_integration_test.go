@@ -30,25 +30,33 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "users", "account_realtime_countdown_enabled", "boolean", 0, false)
 	requireColumn(t, tx, "users", "visual_preset_preference", "character varying", 32, false)
 	requireColumn(t, tx, "users", "account_visual_preset_override", "character varying", 32, false)
+	requireColumn(t, tx, "users", "account_today_stats_windows", "jsonb", 0, false)
+	requireColumn(t, tx, "users", "account_group_display_mode", "character varying", 32, false)
 	requireColumnDefaultContains(t, tx, "users", "global_realtime_countdown_enabled", "false")
 	requireColumnDefaultContains(t, tx, "users", "account_realtime_countdown_enabled", "true")
 	requireColumnDefaultContains(t, tx, "users", "visual_preset_preference", "inherit")
 	requireColumnDefaultContains(t, tx, "users", "account_visual_preset_override", "inherit")
+	requireColumnDefaultContains(t, tx, "users", "account_today_stats_windows", "today")
+	requireColumnDefaultContains(t, tx, "users", "account_group_display_mode", "full")
 	var globalRealtimeEnabled bool
 	var accountRealtimeEnabled bool
 	var visualPresetPreference string
 	var accountVisualPresetOverride string
+	var accountTodayStatsWindows string
+	var accountGroupDisplayMode string
 	require.NoError(t, tx.QueryRowContext(
 		context.Background(),
 		`INSERT INTO users (email, password_hash) VALUES ($1, $2)
-		 RETURNING global_realtime_countdown_enabled, account_realtime_countdown_enabled, visual_preset_preference, account_visual_preset_override`,
+		 RETURNING global_realtime_countdown_enabled, account_realtime_countdown_enabled, visual_preset_preference, account_visual_preset_override, account_today_stats_windows::text, account_group_display_mode`,
 		"migration-realtime-defaults@example.com",
 		"hash",
-	).Scan(&globalRealtimeEnabled, &accountRealtimeEnabled, &visualPresetPreference, &accountVisualPresetOverride))
+	).Scan(&globalRealtimeEnabled, &accountRealtimeEnabled, &visualPresetPreference, &accountVisualPresetOverride, &accountTodayStatsWindows, &accountGroupDisplayMode))
 	require.False(t, globalRealtimeEnabled)
 	require.True(t, accountRealtimeEnabled)
 	require.Equal(t, "inherit", visualPresetPreference)
 	require.Equal(t, "inherit", accountVisualPresetOverride)
+	require.JSONEq(t, `["today","weekly","total"]`, accountTodayStatsWindows)
+	require.Equal(t, "full", accountGroupDisplayMode)
 
 	// accounts: schedulable and rate-limit fields
 	requireColumn(t, tx, "accounts", "notes", "text", 0, true)

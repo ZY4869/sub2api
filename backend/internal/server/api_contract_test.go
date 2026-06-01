@@ -63,6 +63,8 @@ func TestAPIContracts(t *testing.T) {
 					"account_realtime_countdown_enabled": true,
 					"visual_preset_preference": "inherit",
 					"account_visual_preset_override": "inherit",
+					"account_today_stats_windows": ["today", "weekly", "total"],
+					"account_group_display_mode": "full",
 					"api_key_model_binding_mode": "model_required",
 					"api_key_access_time_policy": null,
 					"allowed_groups": null,
@@ -419,6 +421,8 @@ func TestAPIContracts(t *testing.T) {
 					"account_realtime_countdown_enabled": true,
 					"visual_preset_preference": "inherit",
 					"account_visual_preset_override": "inherit",
+					"account_today_stats_windows": ["today", "weekly", "total"],
+					"account_group_display_mode": "full",
 					"api_key_model_binding_mode": "model_required",
 					"api_key_access_time_policy": null,
 					"allowed_groups": null,
@@ -464,7 +468,7 @@ func TestAPIContracts(t *testing.T) {
 			name:   "PUT /api/v1/user",
 			method: http.MethodPut,
 			path:   "/api/v1/user",
-			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","global_realtime_countdown_enabled":true,"account_realtime_countdown_enabled":false,"visual_preset_preference":"airy","account_visual_preset_override":"classic"}`,
+			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","global_realtime_countdown_enabled":true,"account_realtime_countdown_enabled":false,"visual_preset_preference":"airy","account_visual_preset_override":"classic","account_today_stats_windows":["today","total"],"account_group_display_mode":"icon"}`,
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
@@ -485,6 +489,8 @@ func TestAPIContracts(t *testing.T) {
 					"account_realtime_countdown_enabled": false,
 					"visual_preset_preference": "airy",
 					"account_visual_preset_override": "classic",
+					"account_today_stats_windows": ["today", "total"],
+					"account_group_display_mode": "icon",
 					"api_key_model_binding_mode": "model_required",
 					"api_key_access_time_policy": null,
 					"allowed_groups": null,
@@ -538,6 +544,51 @@ func TestAPIContracts(t *testing.T) {
 				"code": 400,
 				"message": "account_visual_preset_override must be one of inherit, classic, airy",
 				"reason": "VISUAL_PRESET_PREFERENCE_INVALID"
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/user invalid account_today_stats_windows",
+			method: http.MethodPut,
+			path:   "/api/v1/user",
+			body:   `{"account_today_stats_windows":["today","bad"]}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "account_today_stats_windows must only contain today, weekly, total",
+				"reason": "ACCOUNT_TODAY_STATS_WINDOWS_INVALID"
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/user empty account_today_stats_windows",
+			method: http.MethodPut,
+			path:   "/api/v1/user",
+			body:   `{"account_today_stats_windows":[]}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "account_today_stats_windows must contain at least one of today, weekly, total",
+				"reason": "ACCOUNT_TODAY_STATS_WINDOWS_INVALID"
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/user invalid account_group_display_mode",
+			method: http.MethodPut,
+			path:   "/api/v1/user",
+			body:   `{"account_group_display_mode":"bad"}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "account_group_display_mode must be one of full, icon",
+				"reason": "ACCOUNT_GROUP_DISPLAY_MODE_INVALID"
 			}`,
 		},
 		{
@@ -1639,6 +1690,8 @@ func newContractDeps(t *testing.T) *contractDeps {
 				AccountRealtimeCountdownEnabled: true,
 				VisualPresetPreference:          service.VisualPresetPreferenceInherit,
 				AccountVisualPresetOverride:     service.VisualPresetPreferenceInherit,
+				AccountTodayStatsWindows:        service.DefaultAccountTodayStatsWindows(),
+				AccountGroupDisplayMode:         service.AccountGroupDisplayModeFull,
 				AllowedGroups:                   nil,
 				CreatedAt:                       now,
 				UpdatedAt:                       now,

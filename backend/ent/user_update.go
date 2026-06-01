@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
@@ -282,6 +283,32 @@ func (_u *UserUpdate) SetAccountVisualPresetOverride(v string) *UserUpdate {
 func (_u *UserUpdate) SetNillableAccountVisualPresetOverride(v *string) *UserUpdate {
 	if v != nil {
 		_u.SetAccountVisualPresetOverride(*v)
+	}
+	return _u
+}
+
+// SetAccountTodayStatsWindows sets the "account_today_stats_windows" field.
+func (_u *UserUpdate) SetAccountTodayStatsWindows(v []string) *UserUpdate {
+	_u.mutation.SetAccountTodayStatsWindows(v)
+	return _u
+}
+
+// AppendAccountTodayStatsWindows appends value to the "account_today_stats_windows" field.
+func (_u *UserUpdate) AppendAccountTodayStatsWindows(v []string) *UserUpdate {
+	_u.mutation.AppendAccountTodayStatsWindows(v)
+	return _u
+}
+
+// SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
+func (_u *UserUpdate) SetAccountGroupDisplayMode(v string) *UserUpdate {
+	_u.mutation.SetAccountGroupDisplayMode(v)
+	return _u
+}
+
+// SetNillableAccountGroupDisplayMode sets the "account_group_display_mode" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAccountGroupDisplayMode(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAccountGroupDisplayMode(*v)
 	}
 	return _u
 }
@@ -793,6 +820,11 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "account_visual_preset_override", err: fmt.Errorf(`ent: validator failed for field "User.account_visual_preset_override": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AccountGroupDisplayMode(); ok {
+		if err := user.AccountGroupDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "account_group_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_group_display_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		if err := user.UsageContextBadgeDisplayModeValidator(v); err != nil {
 			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
@@ -877,6 +909,17 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AccountVisualPresetOverride(); ok {
 		_spec.SetField(user.FieldAccountVisualPresetOverride, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AccountTodayStatsWindows(); ok {
+		_spec.SetField(user.FieldAccountTodayStatsWindows, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedAccountTodayStatsWindows(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, user.FieldAccountTodayStatsWindows, value)
+		})
+	}
+	if value, ok := _u.mutation.AccountGroupDisplayMode(); ok {
+		_spec.SetField(user.FieldAccountGroupDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
@@ -1592,6 +1635,32 @@ func (_u *UserUpdateOne) SetNillableAccountVisualPresetOverride(v *string) *User
 	return _u
 }
 
+// SetAccountTodayStatsWindows sets the "account_today_stats_windows" field.
+func (_u *UserUpdateOne) SetAccountTodayStatsWindows(v []string) *UserUpdateOne {
+	_u.mutation.SetAccountTodayStatsWindows(v)
+	return _u
+}
+
+// AppendAccountTodayStatsWindows appends value to the "account_today_stats_windows" field.
+func (_u *UserUpdateOne) AppendAccountTodayStatsWindows(v []string) *UserUpdateOne {
+	_u.mutation.AppendAccountTodayStatsWindows(v)
+	return _u
+}
+
+// SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
+func (_u *UserUpdateOne) SetAccountGroupDisplayMode(v string) *UserUpdateOne {
+	_u.mutation.SetAccountGroupDisplayMode(v)
+	return _u
+}
+
+// SetNillableAccountGroupDisplayMode sets the "account_group_display_mode" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAccountGroupDisplayMode(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAccountGroupDisplayMode(*v)
+	}
+	return _u
+}
+
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
 func (_u *UserUpdateOne) SetUsageContextBadgeDisplayMode(v string) *UserUpdateOne {
 	_u.mutation.SetUsageContextBadgeDisplayMode(v)
@@ -2112,6 +2181,11 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "account_visual_preset_override", err: fmt.Errorf(`ent: validator failed for field "User.account_visual_preset_override": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AccountGroupDisplayMode(); ok {
+		if err := user.AccountGroupDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "account_group_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_group_display_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		if err := user.UsageContextBadgeDisplayModeValidator(v); err != nil {
 			return &ValidationError{Name: "usage_context_badge_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.usage_context_badge_display_mode": %w`, err)}
@@ -2213,6 +2287,17 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.AccountVisualPresetOverride(); ok {
 		_spec.SetField(user.FieldAccountVisualPresetOverride, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AccountTodayStatsWindows(); ok {
+		_spec.SetField(user.FieldAccountTodayStatsWindows, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedAccountTodayStatsWindows(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, user.FieldAccountTodayStatsWindows, value)
+		})
+	}
+	if value, ok := _u.mutation.AccountGroupDisplayMode(); ok {
+		_spec.SetField(user.FieldAccountGroupDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)

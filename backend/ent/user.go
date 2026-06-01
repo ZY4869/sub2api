@@ -54,6 +54,10 @@ type User struct {
 	VisualPresetPreference string `json:"visual_preset_preference,omitempty"`
 	// AccountVisualPresetOverride holds the value of the "account_visual_preset_override" field.
 	AccountVisualPresetOverride string `json:"account_visual_preset_override,omitempty"`
+	// AccountTodayStatsWindows holds the value of the "account_today_stats_windows" field.
+	AccountTodayStatsWindows []string `json:"account_today_stats_windows,omitempty"`
+	// AccountGroupDisplayMode holds the value of the "account_group_display_mode" field.
+	AccountGroupDisplayMode string `json:"account_group_display_mode,omitempty"`
 	// UsageContextBadgeDisplayMode holds the value of the "usage_context_badge_display_mode" field.
 	UsageContextBadgeDisplayMode string `json:"usage_context_badge_display_mode,omitempty"`
 	// APIKeyModelBindingMode holds the value of the "api_key_model_binding_mode" field.
@@ -194,7 +198,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldAPIKeyAccessTimePolicy:
+		case user.FieldAccountTodayStatsWindows, user.FieldAPIKeyAccessTimePolicy:
 			values[i] = new([]byte)
 		case user.FieldAdminFreeBilling, user.FieldRequestDetailsReview, user.FieldGlobalRealtimeCountdownEnabled, user.FieldAccountRealtimeCountdownEnabled, user.FieldTotpEnabled:
 			values[i] = new(sql.NullBool)
@@ -202,7 +206,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case user.FieldID, user.FieldConcurrency:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldVisualPresetPreference, user.FieldAccountVisualPresetOverride, user.FieldUsageContextBadgeDisplayMode, user.FieldAPIKeyModelBindingMode, user.FieldTotpSecretEncrypted:
+		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldVisualPresetPreference, user.FieldAccountVisualPresetOverride, user.FieldAccountGroupDisplayMode, user.FieldUsageContextBadgeDisplayMode, user.FieldAPIKeyModelBindingMode, user.FieldTotpSecretEncrypted:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt, user.FieldTotpEnabledAt:
 			values[i] = new(sql.NullTime)
@@ -335,6 +339,20 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field account_visual_preset_override", values[i])
 			} else if value.Valid {
 				_m.AccountVisualPresetOverride = value.String
+			}
+		case user.FieldAccountTodayStatsWindows:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field account_today_stats_windows", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.AccountTodayStatsWindows); err != nil {
+					return fmt.Errorf("unmarshal field account_today_stats_windows: %w", err)
+				}
+			}
+		case user.FieldAccountGroupDisplayMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field account_group_display_mode", values[i])
+			} else if value.Valid {
+				_m.AccountGroupDisplayMode = value.String
 			}
 		case user.FieldUsageContextBadgeDisplayMode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -517,6 +535,12 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("account_visual_preset_override=")
 	builder.WriteString(_m.AccountVisualPresetOverride)
+	builder.WriteString(", ")
+	builder.WriteString("account_today_stats_windows=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AccountTodayStatsWindows))
+	builder.WriteString(", ")
+	builder.WriteString("account_group_display_mode=")
+	builder.WriteString(_m.AccountGroupDisplayMode)
 	builder.WriteString(", ")
 	builder.WriteString("usage_context_badge_display_mode=")
 	builder.WriteString(_m.UsageContextBadgeDisplayMode)

@@ -25713,6 +25713,9 @@ type UserMutation struct {
 	account_realtime_countdown_enabled *bool
 	visual_preset_preference           *string
 	account_visual_preset_override     *string
+	account_today_stats_windows        *[]string
+	appendaccount_today_stats_windows  []string
+	account_group_display_mode         *string
 	usage_context_badge_display_mode   *string
 	api_key_model_binding_mode         *string
 	api_key_access_time_policy         *map[string]interface{}
@@ -26551,6 +26554,93 @@ func (m *UserMutation) ResetAccountVisualPresetOverride() {
 	m.account_visual_preset_override = nil
 }
 
+// SetAccountTodayStatsWindows sets the "account_today_stats_windows" field.
+func (m *UserMutation) SetAccountTodayStatsWindows(s []string) {
+	m.account_today_stats_windows = &s
+	m.appendaccount_today_stats_windows = nil
+}
+
+// AccountTodayStatsWindows returns the value of the "account_today_stats_windows" field in the mutation.
+func (m *UserMutation) AccountTodayStatsWindows() (r []string, exists bool) {
+	v := m.account_today_stats_windows
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountTodayStatsWindows returns the old "account_today_stats_windows" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAccountTodayStatsWindows(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountTodayStatsWindows is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountTodayStatsWindows requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountTodayStatsWindows: %w", err)
+	}
+	return oldValue.AccountTodayStatsWindows, nil
+}
+
+// AppendAccountTodayStatsWindows adds s to the "account_today_stats_windows" field.
+func (m *UserMutation) AppendAccountTodayStatsWindows(s []string) {
+	m.appendaccount_today_stats_windows = append(m.appendaccount_today_stats_windows, s...)
+}
+
+// AppendedAccountTodayStatsWindows returns the list of values that were appended to the "account_today_stats_windows" field in this mutation.
+func (m *UserMutation) AppendedAccountTodayStatsWindows() ([]string, bool) {
+	if len(m.appendaccount_today_stats_windows) == 0 {
+		return nil, false
+	}
+	return m.appendaccount_today_stats_windows, true
+}
+
+// ResetAccountTodayStatsWindows resets all changes to the "account_today_stats_windows" field.
+func (m *UserMutation) ResetAccountTodayStatsWindows() {
+	m.account_today_stats_windows = nil
+	m.appendaccount_today_stats_windows = nil
+}
+
+// SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
+func (m *UserMutation) SetAccountGroupDisplayMode(s string) {
+	m.account_group_display_mode = &s
+}
+
+// AccountGroupDisplayMode returns the value of the "account_group_display_mode" field in the mutation.
+func (m *UserMutation) AccountGroupDisplayMode() (r string, exists bool) {
+	v := m.account_group_display_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountGroupDisplayMode returns the old "account_group_display_mode" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAccountGroupDisplayMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountGroupDisplayMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountGroupDisplayMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountGroupDisplayMode: %w", err)
+	}
+	return oldValue.AccountGroupDisplayMode, nil
+}
+
+// ResetAccountGroupDisplayMode resets all changes to the "account_group_display_mode" field.
+func (m *UserMutation) ResetAccountGroupDisplayMode() {
+	m.account_group_display_mode = nil
+}
+
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
 func (m *UserMutation) SetUsageContextBadgeDisplayMode(s string) {
 	m.usage_context_badge_display_mode = &s
@@ -27326,7 +27416,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 26)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -27380,6 +27470,12 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.account_visual_preset_override != nil {
 		fields = append(fields, user.FieldAccountVisualPresetOverride)
+	}
+	if m.account_today_stats_windows != nil {
+		fields = append(fields, user.FieldAccountTodayStatsWindows)
+	}
+	if m.account_group_display_mode != nil {
+		fields = append(fields, user.FieldAccountGroupDisplayMode)
 	}
 	if m.usage_context_badge_display_mode != nil {
 		fields = append(fields, user.FieldUsageContextBadgeDisplayMode)
@@ -27443,6 +27539,10 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.VisualPresetPreference()
 	case user.FieldAccountVisualPresetOverride:
 		return m.AccountVisualPresetOverride()
+	case user.FieldAccountTodayStatsWindows:
+		return m.AccountTodayStatsWindows()
+	case user.FieldAccountGroupDisplayMode:
+		return m.AccountGroupDisplayMode()
 	case user.FieldUsageContextBadgeDisplayMode:
 		return m.UsageContextBadgeDisplayMode()
 	case user.FieldAPIKeyModelBindingMode:
@@ -27500,6 +27600,10 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldVisualPresetPreference(ctx)
 	case user.FieldAccountVisualPresetOverride:
 		return m.OldAccountVisualPresetOverride(ctx)
+	case user.FieldAccountTodayStatsWindows:
+		return m.OldAccountTodayStatsWindows(ctx)
+	case user.FieldAccountGroupDisplayMode:
+		return m.OldAccountGroupDisplayMode(ctx)
 	case user.FieldUsageContextBadgeDisplayMode:
 		return m.OldUsageContextBadgeDisplayMode(ctx)
 	case user.FieldAPIKeyModelBindingMode:
@@ -27646,6 +27750,20 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAccountVisualPresetOverride(v)
+		return nil
+	case user.FieldAccountTodayStatsWindows:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountTodayStatsWindows(v)
+		return nil
+	case user.FieldAccountGroupDisplayMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountGroupDisplayMode(v)
 		return nil
 	case user.FieldUsageContextBadgeDisplayMode:
 		v, ok := value.(string)
@@ -27845,6 +27963,12 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldAccountVisualPresetOverride:
 		m.ResetAccountVisualPresetOverride()
+		return nil
+	case user.FieldAccountTodayStatsWindows:
+		m.ResetAccountTodayStatsWindows()
+		return nil
+	case user.FieldAccountGroupDisplayMode:
+		m.ResetAccountGroupDisplayMode()
 		return nil
 	case user.FieldUsageContextBadgeDisplayMode:
 		m.ResetUsageContextBadgeDisplayMode()

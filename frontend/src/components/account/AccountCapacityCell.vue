@@ -2,7 +2,7 @@
   <div
     v-if="isGlassVariant"
     :class="[
-      compact ? 'inline-flex max-w-[120px]' : 'flex flex-col gap-2.5'
+      compact ? 'inline-flex max-w-[148px]' : 'flex flex-col gap-2.5'
     ]"
     data-testid="airy-capacity-cell"
   >

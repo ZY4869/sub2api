@@ -84,6 +84,15 @@ vi.mock('@/composables/useAccountVisualStylePreference', () => ({
   }),
 }))
 
+vi.mock('@/composables/useAccountDisplayPreferences', () => ({
+  useAccountDisplayPreferences: () => ({
+    accountTodayStatsWindows: ref(['today', 'weekly', 'total']),
+    accountGroupDisplayMode: ref('full'),
+    updatingAccountDisplayPreferences: ref(false),
+    setAccountDisplayPreferences: vi.fn(),
+  }),
+}))
+
 const TablePageLayoutStub = defineComponent({
   template: `
     <div>
@@ -100,7 +109,7 @@ const ToolbarStub = defineComponent({
 
 const AccountsViewTableStub = defineComponent({
   props: ['columns'],
-  template: '<div class="table-columns">{{ columns.map((column) => column.key).join(",") }}</div>',
+  template: '<div class="table-columns">{{ columns.map((column) => `${column.key}:${column.class || ""}`).join("|") }}</div>',
 })
 
 describe('AccountsView airy columns', () => {
@@ -141,5 +150,8 @@ describe('AccountsView airy columns', () => {
     await vi.dynamicImportSettled()
 
     expect(wrapper.get('.table-columns').text()).not.toContain('schedulable')
+    expect(wrapper.get('.table-columns').text()).toContain('name:w-[236px]')
+    expect(wrapper.get('.table-columns').text()).toContain('capacity:w-[156px]')
+    expect(wrapper.get('.table-columns').text()).toContain('usage_reset_dates:w-[260px]')
   })
 })

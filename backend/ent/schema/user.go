@@ -74,6 +74,20 @@ func (User) Fields() []ent.Field {
 		field.String("account_visual_preset_override").
 			MaxLen(32).
 			Default("inherit"),
+		field.JSON("account_today_stats_windows", []string{"today", "weekly", "total"}).
+			Default([]string{"today", "weekly", "total"}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.String("account_group_display_mode").
+			MaxLen(32).
+			Default("full").
+			Validate(func(value string) error {
+				switch value {
+				case "full", "icon":
+					return nil
+				default:
+					return fmt.Errorf("invalid account group display mode %q", value)
+				}
+			}),
 		field.String("usage_context_badge_display_mode").
 			MaxLen(32).
 			Default("request_only"),

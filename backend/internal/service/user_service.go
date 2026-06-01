@@ -58,14 +58,16 @@ type UserRepository interface {
 
 // UpdateProfileRequest 更新用户资料请求
 type UpdateProfileRequest struct {
-	Email                           *string `json:"email"`
-	Username                        *string `json:"username"`
-	Concurrency                     *int    `json:"concurrency"`
-	UsageModelDisplayMode           *string `json:"usage_model_display_mode"`
-	GlobalRealtimeCountdownEnabled  *bool   `json:"global_realtime_countdown_enabled"`
-	AccountRealtimeCountdownEnabled *bool   `json:"account_realtime_countdown_enabled"`
-	VisualPresetPreference          *string `json:"visual_preset_preference"`
-	AccountVisualPresetOverride     *string `json:"account_visual_preset_override"`
+	Email                           *string  `json:"email"`
+	Username                        *string  `json:"username"`
+	Concurrency                     *int     `json:"concurrency"`
+	UsageModelDisplayMode           *string  `json:"usage_model_display_mode"`
+	GlobalRealtimeCountdownEnabled  *bool    `json:"global_realtime_countdown_enabled"`
+	AccountRealtimeCountdownEnabled *bool    `json:"account_realtime_countdown_enabled"`
+	VisualPresetPreference          *string  `json:"visual_preset_preference"`
+	AccountVisualPresetOverride     *string  `json:"account_visual_preset_override"`
+	AccountTodayStatsWindows        []string `json:"account_today_stats_windows"`
+	AccountGroupDisplayMode         *string  `json:"account_group_display_mode"`
 }
 
 // ChangePasswordRequest 修改密码请求
@@ -167,6 +169,22 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int64, req Updat
 			return nil, err
 		}
 		user.AccountVisualPresetOverride = override
+	}
+
+	if req.AccountTodayStatsWindows != nil {
+		windows, err := ValidateAccountTodayStatsWindows(req.AccountTodayStatsWindows)
+		if err != nil {
+			return nil, err
+		}
+		user.AccountTodayStatsWindows = windows
+	}
+
+	if req.AccountGroupDisplayMode != nil {
+		mode, err := ValidateAccountGroupDisplayMode(*req.AccountGroupDisplayMode)
+		if err != nil {
+			return nil, err
+		}
+		user.AccountGroupDisplayMode = mode
 	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {

@@ -27,6 +27,9 @@
         :account-visual-preset-override="accountVisualPresetOverride"
         :visual-style="resolvedAccountVisualPreset"
         :account-visual-style-updating="updatingAccountVisualStyle"
+        :account-today-stats-windows="accountTodayStatsWindows"
+        :account-group-display-mode="accountGroupDisplayMode"
+        :account-display-preferences-updating="updatingAccountDisplayPreferences"
         @update:filters="handleFilterUpdate"
         @update:search-query="handleSearchQueryUpdate"
         @update:view-mode="viewMode = $event"
@@ -52,6 +55,7 @@
         @open-daily-5h-settings="handleOpenDaily5HTriggerSettings"
         @toggle-account-realtime-countdown="handleToggleAccountRealtimeCountdown"
         @set-account-visual-preset-override="setAccountVisualPresetOverride"
+        @save-account-display-preferences="setAccountDisplayPreferences"
       />
     </template>
     <template #table>
@@ -115,6 +119,8 @@
             :preserve-input-order="true"
             :visual-style="resolvedAccountVisualPreset"
             :white-surface-enabled="airyWhiteSurfaceEnabled"
+            :account-today-stats-windows="accountTodayStatsWindows"
+            :account-group-display-mode="accountGroupDisplayMode"
             @toggle-selected="toggleSel"
             @toggle-section-selected="handleToggleSectionSelected"
             @show-temp-unsched="handleShowTempUnsched"
@@ -159,6 +165,8 @@
             :preserve-input-order="true"
             :visual-style="resolvedAccountVisualPreset"
             :white-surface-enabled="airyWhiteSurfaceEnabled"
+            :account-today-stats-windows="accountTodayStatsWindows"
+            :account-group-display-mode="accountGroupDisplayMode"
             :pagination="pagination"
             @toggle-select-all-visible="toggleSelectAllVisible"
             @toggle-selected="toggleSel"
@@ -305,6 +313,7 @@ import { useTableLoader } from "@/composables/useTableLoader";
 import { useSwipeSelect } from "@/composables/useSwipeSelect";
 import { useTableSelection } from "@/composables/useTableSelection";
 import { useAccountVisualStylePreference } from "@/composables/useAccountVisualStylePreference";
+import { useAccountDisplayPreferences } from "@/composables/useAccountDisplayPreferences";
 import TablePageLayout from "@/components/layout/TablePageLayout.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import AccountCardGrid from "@/components/admin/account/AccountCardGrid.vue";
@@ -373,6 +382,12 @@ const {
   updatingAccountVisualStyle,
   setAccountVisualPresetOverride,
 } = useAccountVisualStylePreference();
+const {
+  accountTodayStatsWindows,
+  accountGroupDisplayMode,
+  updatingAccountDisplayPreferences,
+  setAccountDisplayPreferences,
+} = useAccountDisplayPreferences();
 const airyWhiteSurfaceEnabled = computed(
   () => resolvedAccountVisualPreset.value === "airy" && appStore.accountAiryWhiteSurfaceEnabled,
 );
@@ -753,7 +768,7 @@ const handleSyncPendingListChanges = async () => {
 };
 
 const { toggleableColumns, cols } = useAccountsColumns({
-  t, authStore, hiddenColumns, resolvedAccountVisualPreset,
+  t, authStore, hiddenColumns, resolvedAccountVisualPreset, accountGroupDisplayMode,
 });
 const { patchAccountInList } = useAccountsViewListPatching({
   accounts,

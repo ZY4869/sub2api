@@ -82,6 +82,12 @@ func userEntityToService(u *dbent.User) *service.User {
 		AccountVisualPresetOverride: service.NormalizeVisualPresetPreference(
 			u.AccountVisualPresetOverride,
 		),
+		AccountTodayStatsWindows: service.NormalizeAccountTodayStatsWindows(
+			u.AccountTodayStatsWindows,
+		),
+		AccountGroupDisplayMode: service.NormalizeAccountGroupDisplayMode(
+			u.AccountGroupDisplayMode,
+		),
 		APIKeyModelBindingMode: service.NormalizeAPIKeyModelBindingMode(
 			u.APIKeyModelBindingMode,
 		),

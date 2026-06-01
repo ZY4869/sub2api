@@ -2,6 +2,7 @@
   <span
     :class="[
       'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium transition-colors',
+      wrap ? 'max-w-full whitespace-normal' : '',
       badgeClass
     ]"
     :title="name"
@@ -17,7 +18,7 @@
     <!-- Platform logo -->
     <PlatformIcon v-else-if="platform" :platform="platform" size="sm" />
     <!-- Group name -->
-    <span class="truncate">{{ name }}</span>
+    <span :class="wrap ? 'min-w-0 whitespace-normal break-words leading-snug' : 'truncate'">{{ name }}</span>
     <!-- Right side label -->
     <span v-if="showLabel" :class="labelClass">
       <template v-if="hasCustomRate">
@@ -47,6 +48,7 @@ interface Props {
   showRate?: boolean
   daysRemaining?: number | null // 剩余天数（订阅类型时使用）
   visualVariant?: 'default' | 'airy'
+  wrap?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -54,7 +56,8 @@ const props = withDefaults(defineProps<Props>(), {
   showRate: true,
   daysRemaining: null,
   userRateMultiplier: null,
-  visualVariant: 'default'
+  visualVariant: 'default',
+  wrap: false
 })
 
 const { t } = useI18n()
