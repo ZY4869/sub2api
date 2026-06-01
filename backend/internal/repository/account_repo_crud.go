@@ -18,6 +18,9 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 	if account == nil {
 		return service.ErrAccountNilInput
 	}
+	if err := normalizeAccountAutoRenewPeriodForWrite(account); err != nil {
+		return err
+	}
 	builder := r.client.Account.Create().SetName(account.Name).SetNillableNotes(account.Notes).SetPlatform(account.Platform).SetType(account.Type).SetCredentials(normalizeJSONMap(account.Credentials)).SetExtra(normalizeJSONMap(account.Extra)).SetConcurrency(account.Concurrency).SetPriority(account.Priority).SetStatus(account.Status).SetErrorMessage(account.ErrorMessage).SetSchedulable(account.Schedulable).SetAutoPauseOnExpired(account.AutoPauseOnExpired).SetAutoRenewEnabled(account.AutoRenewEnabled).SetAutoRenewPeriod(account.AutoRenewPeriod)
 	lifecycleState := service.NormalizeAccountLifecycleInput(account.LifecycleState)
 	if lifecycleState == service.AccountLifecycleAll {
@@ -225,6 +228,9 @@ func (r *accountRepository) ListCRSAccountIDs(ctx context.Context) (map[string]i
 func (r *accountRepository) Update(ctx context.Context, account *service.Account) error {
 	if account == nil {
 		return nil
+	}
+	if err := normalizeAccountAutoRenewPeriodForWrite(account); err != nil {
+		return err
 	}
 	builder := r.client.Account.UpdateOneID(account.ID).SetName(account.Name).SetNillableNotes(account.Notes).SetPlatform(account.Platform).SetType(account.Type).SetCredentials(normalizeJSONMap(account.Credentials)).SetExtra(normalizeJSONMap(account.Extra)).SetConcurrency(account.Concurrency).SetPriority(account.Priority).SetStatus(account.Status).SetErrorMessage(account.ErrorMessage).SetSchedulable(account.Schedulable).SetAutoPauseOnExpired(account.AutoPauseOnExpired).SetAutoRenewEnabled(account.AutoRenewEnabled).SetAutoRenewPeriod(account.AutoRenewPeriod)
 	lifecycleState := service.NormalizeAccountLifecycleInput(account.LifecycleState)

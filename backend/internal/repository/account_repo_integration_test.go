@@ -113,6 +113,7 @@ func (s *AccountRepoSuite) TestCreate() {
 	got, err := s.repo.GetByID(s.ctx, account.ID)
 	s.Require().NoError(err, "GetByID")
 	s.Require().Equal("test-create", got.Name)
+	s.Require().Equal(service.AccountAutoRenewPeriodMonth, got.AutoRenewPeriod)
 }
 
 func (s *AccountRepoSuite) TestGetByID_NotFound() {
@@ -130,6 +131,7 @@ func (s *AccountRepoSuite) TestUpdate() {
 	got, err := s.repo.GetByID(s.ctx, account.ID)
 	s.Require().NoError(err, "GetByID after update")
 	s.Require().Equal("updated", got.Name)
+	s.Require().Equal(service.AccountAutoRenewPeriodMonth, got.AutoRenewPeriod)
 }
 
 func (s *AccountRepoSuite) TestUpdate_SyncSchedulerSnapshotOnDisabled() {

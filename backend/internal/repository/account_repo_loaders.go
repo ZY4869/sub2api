@@ -204,6 +204,19 @@ func normalizeJSONMap(in map[string]any) map[string]any {
 	}
 	return in
 }
+
+func normalizeAccountAutoRenewPeriodForWrite(account *service.Account) error {
+	if account == nil {
+		return nil
+	}
+	period, err := service.NormalizeAccountAutoRenewPeriod(account.AutoRenewPeriod)
+	if err != nil {
+		return err
+	}
+	account.AutoRenewPeriod = period
+	return nil
+}
+
 func copyJSONMap(in map[string]any) map[string]any {
 	if in == nil {
 		return nil
