@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRecordContentModerationRepeatedPromptSignal_DetectsSameAndSimilarWithinSubject(t *testing.T) {
+func TestRecordContentModerationRepeatedPromptSignal_ThresholdAndCooldownWithinSubject(t *testing.T) {
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)
 	resetContentModerationPromptSignalsForTest()
@@ -29,9 +29,25 @@ func TestRecordContentModerationRepeatedPromptSignal_DetectsSameAndSimilarWithin
 
 	RecordContentModerationRepeatedPromptSignal(input, prompt, now)
 	RecordContentModerationRepeatedPromptSignal(input, prompt, now.Add(time.Minute))
-	RecordContentModerationRepeatedPromptSignal(input, nearPrompt, now.Add(2*time.Minute))
 
 	snapshot := protocolruntime.Snapshot()
+	require.Zero(t, snapshot.AbuseSignalByType[contentModerationRepeatedPromptSignalType])
+
+	RecordContentModerationRepeatedPromptSignal(input, nearPrompt, now.Add(2*time.Minute))
+
+	snapshot = protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.AbuseSignalByType[contentModerationRepeatedPromptSignalType])
+
+	RecordContentModerationRepeatedPromptSignal(input, prompt, now.Add(3*time.Minute))
+
+	snapshot = protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.AbuseSignalByType[contentModerationRepeatedPromptSignalType])
+
+	RecordContentModerationRepeatedPromptSignal(input, prompt, now.Add(contentModerationPromptSignalCooldown+time.Minute))
+	RecordContentModerationRepeatedPromptSignal(input, prompt, now.Add(contentModerationPromptSignalCooldown+2*time.Minute))
+	RecordContentModerationRepeatedPromptSignal(input, nearPrompt, now.Add(contentModerationPromptSignalCooldown+3*time.Minute))
+
+	snapshot = protocolruntime.Snapshot()
 	require.Equal(t, int64(2), snapshot.AbuseSignalByType[contentModerationRepeatedPromptSignalType])
 }
 
@@ -91,6 +107,7 @@ func TestRecordContentModerationRepeatedPromptSignal_ExpiresByTTL(t *testing.T) 
 
 	RecordContentModerationRepeatedPromptSignal(input, prompt, now)
 	RecordContentModerationRepeatedPromptSignal(input, prompt, now.Add(contentModerationPromptSignalTTL+time.Minute))
+	RecordContentModerationRepeatedPromptSignal(input, prompt, now.Add(contentModerationPromptSignalTTL+2*time.Minute))
 
 	snapshot := protocolruntime.Snapshot()
 	require.Zero(t, snapshot.AbuseSignalByType[contentModerationRepeatedPromptSignalType])

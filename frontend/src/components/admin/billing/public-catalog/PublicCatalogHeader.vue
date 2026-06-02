@@ -45,6 +45,16 @@
         </button>
         <button
           type="button"
+          class="inline-flex items-center gap-2 rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-medium text-sky-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-500/30 dark:bg-dark-700 dark:text-sky-200 dark:hover:bg-sky-500/10"
+          :disabled="busy || availableCount === 0"
+          data-testid="billing-public-catalog-sync-available"
+          @click="emit('syncAvailable')"
+        >
+          <Icon name="plus" size="sm" />
+          {{ t('admin.billing.publicCatalog.header.syncAvailable') }}
+        </button>
+        <button
+          type="button"
           class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:bg-dark-700 dark:text-slate-200 dark:hover:bg-dark-600"
           :disabled="selectedCount === 0"
           data-testid="billing-public-catalog-export"
@@ -130,6 +140,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'refresh'): void
+  (e: 'syncAvailable'): void
   (e: 'save'): void
   (e: 'publish'): void
   (e: 'revalidate'): void

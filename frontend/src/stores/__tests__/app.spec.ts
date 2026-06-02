@@ -17,6 +17,7 @@ describe('useAppStore', () => {
     vi.useFakeTimers()
     // 清除 window.__APP_CONFIG__
     delete (window as any).__APP_CONFIG__
+    document.getElementById('__APP_CONFIG__')?.remove()
   })
 
   afterEach(() => {
@@ -276,6 +277,30 @@ describe('useAppStore', () => {
       expect(store.accountAiryWhiteSurfaceEnabled).toBe(true)
       expect(document.documentElement.getAttribute('data-visual-preset')).toBe('airy')
       expect(store.publicSettingsLoaded).toBe(true)
+    })
+
+    it('优先从 JSON 注入脚本初始化', () => {
+      document.documentElement.removeAttribute('data-visual-preset')
+      const script = document.createElement('script')
+      script.id = '__APP_CONFIG__'
+      script.type = 'application/json'
+      script.textContent = JSON.stringify({
+        site_name: 'JsonSite',
+        site_logo: '/json-logo.png',
+        version: '2.0.0',
+        visual_preset_default: 'airy',
+      })
+      document.head.appendChild(script)
+      ;(window as any).__APP_CONFIG__ = { site_name: 'LegacySite' }
+
+      const store = useAppStore()
+      const result = store.initFromInjectedConfig()
+
+      expect(result).toBe(true)
+      expect(store.siteName).toBe('JsonSite')
+      expect(store.siteLogo).toBe('/json-logo.png')
+      expect(store.siteVersion).toBe('2.0.0')
+      expect(document.documentElement.getAttribute('data-visual-preset')).toBe('airy')
     })
 
     it('无注入配置时返回 false', () => {

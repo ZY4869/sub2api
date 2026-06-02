@@ -300,6 +300,7 @@ type AccountDaily5HTriggerSettings struct {
 	Enabled               bool                               `json:"enabled"`
 	SelectedAccountTypes  []string                           `json:"selected_account_types"`
 	IncludePausedAccounts bool                               `json:"include_paused_accounts"`
+	IgnoreFreeAccounts    bool                               `json:"ignore_free_accounts"`
 	OpenAIModelMode       AccountDaily5HTriggerModelSettings `json:"openai_model_mode"`
 	AnthropicModelMode    AccountDaily5HTriggerModelSettings `json:"anthropic_model_mode"`
 	GeminiModelMode       AccountDaily5HTriggerModelSettings `json:"gemini_model_mode"`

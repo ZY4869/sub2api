@@ -336,3 +336,31 @@ func TestPricingService_Initialize_UsesEmbeddedFallbackWhenFallbackFileMissing(t
 	require.NotNil(t, pricing)
 	require.Greater(t, pricing.InputCostPerToken, 0.0)
 }
+
+func TestPricingService_Initialize_UsesCurrentDeepSeekOfficialPricing(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Pricing.DataDir = t.TempDir()
+	cfg.Pricing.FallbackFile = filepath.Join(cfg.Pricing.DataDir, "missing_fallback.json")
+
+	svc := NewPricingService(cfg, pricingRemoteClientStub{})
+	t.Cleanup(svc.Stop)
+
+	require.NoError(t, svc.Initialize())
+
+	flashModels := []string{"deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner"}
+	for _, model := range flashModels {
+		t.Run(model, func(t *testing.T) {
+			pricing := svc.GetModelPricing(model)
+			require.NotNil(t, pricing)
+			require.InDelta(t, 2.8e-9, pricing.CacheReadInputTokenCost, 1e-12)
+			require.InDelta(t, 1.4e-7, pricing.InputCostPerToken, 1e-12)
+			require.InDelta(t, 2.8e-7, pricing.OutputCostPerToken, 1e-12)
+		})
+	}
+
+	pro := svc.GetModelPricing("deepseek-v4-pro")
+	require.NotNil(t, pro)
+	require.InDelta(t, 3.625e-9, pro.CacheReadInputTokenCost, 1e-12)
+	require.InDelta(t, 4.35e-7, pro.InputCostPerToken, 1e-12)
+	require.InDelta(t, 8.7e-7, pro.OutputCostPerToken, 1e-12)
+}

@@ -174,9 +174,9 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 }
 
 func (s *FrontendServer) injectSettings(settingsJSON []byte) []byte {
-	// Create the script tag to inject with nonce placeholder
+	// Create a JSON data script so CSP does not need to allow executable inline JS.
 	// The placeholder will be replaced with actual nonce at request time
-	script := []byte(`<script nonce="` + NonceHTMLPlaceholder + `">window.__APP_CONFIG__=` + string(settingsJSON) + `;</script>`)
+	script := []byte(`<script id="__APP_CONFIG__" type="application/json" nonce="` + NonceHTMLPlaceholder + `">` + string(settingsJSON) + `</script>`)
 
 	// Inject before </head>
 	headClose := []byte("</head>")

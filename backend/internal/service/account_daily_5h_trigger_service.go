@@ -221,6 +221,9 @@ func (s *AccountDaily5HTriggerService) shouldRunForAccount(settings *AccountDail
 	if !containsAccountDaily5HType(settings.SelectedAccountTypes, accountDaily5HAccountType(account)) {
 		return false, AccountDaily5HSkipReasonAccountType, "Account type is not selected for the daily 5H trigger."
 	}
+	if settings.IgnoreFreeAccounts && isAccountDaily5HOpenAIFree(account) {
+		return false, AccountDaily5HSkipReasonFreeExcluded, "OpenAI Free account is excluded from the daily 5H trigger."
+	}
 	if account.RateLimitResetAt != nil && now.Before(account.RateLimitResetAt.UTC()) {
 		return false, AccountDaily5HSkipReasonRateLimited, "Account is still rate-limited and is skipped for the daily 5H trigger."
 	}
@@ -237,6 +240,11 @@ func (s *AccountDaily5HTriggerService) shouldRunForAccount(settings *AccountDail
 		return false, AccountDaily5HSkipReasonPausedExcluded, "Paused accounts are excluded from the daily 5H trigger."
 	}
 	return true, "", ""
+}
+
+func isAccountDaily5HOpenAIFree(account *Account) bool {
+	return accountDaily5HAccountType(account) == AccountDaily5HTypeOpenAI &&
+		normalizeOpenAIPlanType(account.GetCredential("plan_type")) == "free"
 }
 
 func (s *AccountDaily5HTriggerService) SetNow(now func() time.Time) {

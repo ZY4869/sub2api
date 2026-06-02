@@ -587,7 +587,6 @@ const adminNavItems = computed((): NavItem[] => {
       relatedPaths: [
         '/admin/affiliates',
         '/admin/channels',
-        '/admin/channel-monitors',
         '/admin/subscriptions',
         '/admin/payment/orders',
         '/admin/proxies',
@@ -606,6 +605,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
+    { path: '/admin/channel-monitors', label: t('nav.channelMonitors'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/admin/moderation', label: t('nav.moderation'), icon: ShieldCheckIcon },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
     { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon }

@@ -1387,6 +1387,7 @@ func TestAPIContracts(t *testing.T) {
 						"enabled": true,
 						"selected_account_types": ["chatgpt_oauth", "google_oauth", "unknown"],
 						"include_paused_accounts": true,
+						"ignore_free_accounts": true,
 						"openai_model_mode": {"mode": "fixed", "fixed_model_id": "gpt-5.4-mini"},
 						"anthropic_model_mode": {"mode": "invalid", "fixed_model_id": "claude-3.5-haiku"},
 						"gemini_model_mode": {"mode": "auto", "fixed_model_id": ""}
@@ -1405,6 +1406,7 @@ func TestAPIContracts(t *testing.T) {
 						"enabled": true,
 						"selected_account_types": ["chatgpt_oauth", "google_oauth"],
 						"include_paused_accounts": true,
+						"ignore_free_accounts": true,
 						"openai_model_mode": {
 							"mode": "fixed",
 							"fixed_model_id": "gpt-5.4-mini"
@@ -1429,6 +1431,7 @@ func TestAPIContracts(t *testing.T) {
 				"enabled": true,
 				"selected_account_types": ["chatgpt_oauth", "google_oauth", "unknown", "chatgpt_oauth"],
 				"include_paused_accounts": false,
+				"ignore_free_accounts": true,
 				"openai_model_mode": {"mode": "fixed", "fixed_model_id": "gpt-5.4-mini"},
 				"anthropic_model_mode": {"mode": "invalid", "fixed_model_id": "claude-3.5-haiku"},
 				"gemini_model_mode": {"mode": "fixed", "fixed_model_id": "gemini-2.5-flash"}
@@ -1446,6 +1449,7 @@ func TestAPIContracts(t *testing.T) {
 						"enabled": true,
 						"selected_account_types": ["chatgpt_oauth", "google_oauth"],
 						"include_paused_accounts": false,
+						"ignore_free_accounts": true,
 						"openai_model_mode": {
 							"mode": "fixed",
 							"fixed_model_id": "gpt-5.4-mini"

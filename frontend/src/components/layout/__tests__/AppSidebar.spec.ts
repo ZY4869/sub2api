@@ -162,14 +162,16 @@ describe('AppSidebar', () => {
 
     expect(wrapper.text()).toContain('nav.modules')
     expect(wrapper.text()).toContain('nav.accounts')
+    expect(wrapper.text()).toContain('nav.channelMonitors')
     expect(wrapper.text()).not.toContain('nav.apiDocs')
     expect(wrapper.text()).not.toContain('nav.limitedAccounts')
     expect(wrapper.text()).not.toContain('nav.blacklist')
     expect(wrapper.find('a[href="/admin/api-docs"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/admin/channel-monitors"]').exists()).toBe(true)
     expect(mockState.adminSettingsStore.fetch).toHaveBeenCalled()
   })
 
-  it('moves module-managed admin entries out of the first-level navigation', () => {
+  it('keeps channel monitors first-level while module-managed admin entries stay nested', () => {
     mockState.authStore.isAdmin = true
 
     const wrapper = mount(AppSidebar, {
@@ -187,7 +189,7 @@ describe('AppSidebar', () => {
     expect(wrapper.find('a[href="/admin/proxies"]').exists()).toBe(false)
     expect(wrapper.find('a[href="/admin/subscriptions"]').exists()).toBe(false)
     expect(wrapper.find('a[href="/admin/channels"]').exists()).toBe(false)
-    expect(wrapper.find('a[href="/admin/channel-monitors"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/admin/channel-monitors"]').exists()).toBe(true)
     expect(wrapper.find('a[href="/admin/settings"]').exists()).toBe(false)
   })
 

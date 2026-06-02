@@ -168,6 +168,11 @@ export function useBillingPublicCatalog() {
     state.selectedEntries.value = addFilteredCatalogEntries(state.selectedEntries.value, state.filteredAvailableEntries.value)
   }
 
+  function syncAvailableEntriesToDraft() {
+    state.selectedEntries.value = addFilteredCatalogEntries(state.selectedEntries.value, state.availableEntries.value)
+    appStore.showSuccess(t('admin.billing.publicCatalog.messages.availableSyncedToDraft'))
+  }
+
   function removeEntry(entryID: string) {
     state.selectedEntries.value = state.selectedEntries.value.filter((entry) => entry.entry_id !== entryID)
   }
@@ -262,6 +267,7 @@ export function useBillingPublicCatalog() {
     revalidateAction,
     addEntry,
     addFilteredEntries,
+    syncAvailableEntriesToDraft,
     removeEntry,
     clearSelection,
     moveEntry,

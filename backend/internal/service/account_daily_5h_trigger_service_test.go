@@ -308,6 +308,59 @@ func TestAccountDaily5HTriggerService_IncludePausedAccountsHonorsWindowFiltering
 	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSkipped])
 }
 
+func TestAccountDaily5HTriggerService_RunOnce_IgnoreFreeAccountsSkipsOnlyOpenAIFree(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+	now := time.Date(2026, 5, 8, 7, 12, 0, 0, time.UTC)
+	buildOpenAIAccount := func(id int64, plan string) Account {
+		return Account{
+			ID:             id,
+			Platform:       PlatformOpenAI,
+			Type:           AccountTypeOAuth,
+			Status:         StatusActive,
+			Schedulable:    true,
+			LifecycleState: AccountLifecycleNormal,
+			Credentials:    map[string]any{"plan_type": plan},
+			Extra: map[string]any{
+				"manual_models": []any{
+					map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
+				},
+			},
+		}
+	}
+	repo := &accountDaily5HRepoStub{accounts: []Account{
+		buildOpenAIAccount(31, "free"),
+		buildOpenAIAccount(32, "plus"),
+		buildOpenAIAccount(33, "pro"),
+	}}
+	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
+	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
+	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
+	svc.SetNow(func() time.Time { return now })
+	svc.SetLocation(time.UTC)
+	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
+		Enabled:              true,
+		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
+		IgnoreFreeAccounts:   true,
+	})
+
+	svc.runOnce(context.Background())
+
+	require.Len(t, executor.calls, 2)
+	require.Equal(t, int64(32), executor.calls[0].AccountID)
+	require.Equal(t, int64(33), executor.calls[1].AccountID)
+	require.Len(t, repo.updateExtraCalls, 3)
+	require.Equal(t, int64(31), repo.updateExtraCalls[0].id)
+	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
+	require.Equal(t, "OpenAI Free account is excluded from the daily 5H trigger.", repo.updateExtraCalls[0].updates[accountDaily5HLastSummaryKey])
+	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[1].updates[accountDaily5HLastStatusKey])
+	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[2].updates[accountDaily5HLastStatusKey])
+	snapshot := protocolruntime.Snapshot()
+	require.EqualValues(t, 3, snapshot.RecoveryProbeResultByReason["daily_5h_trigger"])
+	require.EqualValues(t, 2, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSuccess])
+	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSkipped])
+}
+
 func TestAccountDaily5HTriggerService_SelectModelForAccount_FixedModelMustStayVisible(t *testing.T) {
 	account := &Account{
 		ID:       15,

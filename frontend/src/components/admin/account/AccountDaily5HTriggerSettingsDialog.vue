@@ -47,6 +47,22 @@
             <span :class="toggleThumbClass(localSettings.include_paused_accounts)" />
           </button>
         </div>
+
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.daily5h.ignoreFreeLabel') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.daily5h.ignoreFreeHint') }}
+            </p>
+          </div>
+          <button
+            type="button"
+            :class="toggleButtonClass(localSettings.ignore_free_accounts)"
+            @click="localSettings.ignore_free_accounts = !localSettings.ignore_free_accounts"
+          >
+            <span :class="toggleThumbClass(localSettings.ignore_free_accounts)" />
+          </button>
+        </div>
       </div>
 
       <div class="space-y-3">
@@ -303,6 +319,7 @@ function createLocalSettings(settings: AccountDaily5HTriggerSettings): AccountDa
     enabled: settings?.enabled === true,
     selected_account_types: [...(settings?.selected_account_types || ['chatgpt_oauth'])],
     include_paused_accounts: settings?.include_paused_accounts === true,
+    ignore_free_accounts: settings?.ignore_free_accounts === true,
     openai_model_mode: {
       mode: settings?.openai_model_mode?.mode === 'fixed' ? 'fixed' : 'auto',
       fixed_model_id: settings?.openai_model_mode?.fixed_model_id || ''

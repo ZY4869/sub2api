@@ -61,11 +61,11 @@
 ## 6. 价格补全与未确认清单
 
 - `billing_pricing_patch_20260427_122653.json` 用于批量导入缺价模型补丁
-- `MODEL_PRICING_UNRESOLVED_20260427.md` 记录无法公开确认的模型和原因，等待人工决定是否删除或继续查价
+- `docs/model-pricing/MODEL_PRICING_UNRESOLVED_*.md` 记录无法公开确认的模型和原因，等待人工决定是否删除或继续查价
 - 仓库新增离线产物脚本：`tools/build_billing_pricing_artifacts.py`
   - 输入：当前 `billing_pricing_patch_*.json` 问题工作清单
   - 输出 1：`billing_pricing_patch_confirmed_*.json`，只复用 `current.official/current.sale` 中已经存在的可确认字段，不猜未知价格
-  - 输出 2：`MODEL_PRICING_UNRESOLVED_*.md`，收集“当前官方/售价都无可确认字段且 patch 仍为空”的模型，并附带 `pricing_status`、`pricing_warnings`、`currency`
+  - 输出 2：`docs/model-pricing/MODEL_PRICING_UNRESOLVED_*.md`，收集“当前官方/售价都无可确认字段且 patch 仍为空”的模型，并附带 `pricing_status`、`pricing_warnings`、`currency`
 - `backend/resources/model-pricing/model_prices_and_context_window.json` 是运行时 fallback 基线；新增 CNY 价格必须保留 `currency: "CNY"`
 - 每个补价模型应尽量带上 `source_url`、`source_type`、`checked_at`
 - 官方 CNY 来源不得只因为后台需要 USD 视图而改写成 USD；参考等值和自动换汇使用锁定汇率另算

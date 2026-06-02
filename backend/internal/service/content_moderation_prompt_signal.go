@@ -19,18 +19,28 @@ import (
 const (
 	contentModerationRepeatedPromptSignalType = "repeated_similar_prompt"
 	contentModerationPromptSignalTTL          = 10 * time.Minute
+	contentModerationPromptSignalCooldown     = 30 * time.Minute
 	contentModerationPromptSignalMaxEntries   = 8
+	contentModerationPromptSignalThreshold    = 3
 	contentModerationPromptSignalMinTokens    = 3
 	contentModerationPromptSignalHammingLimit = 6
 )
 
 var contentModerationPromptSignals sync.Map
+var contentModerationPromptSignalCooldowns sync.Map
 
 type contentModerationPromptSignalState struct {
 	ExactHash [32]byte
 	SimHash   uint64
 	TokenSet  []uint64
 	SeenAt    time.Time
+}
+
+type contentModerationPromptSignalCooldownState struct {
+	ExactHash [32]byte
+	SimHash   uint64
+	TokenSet  []uint64
+	AlertedAt time.Time
 }
 
 func RecordContentModerationRepeatedPromptSignal(input *ContentModerationRecordInput, content string, now time.Time) {
@@ -59,7 +69,7 @@ func RecordContentModerationRepeatedPromptSignal(input *ContentModerationRecordI
 	}
 
 	current := make([]contentModerationPromptSignalState, 0, contentModerationPromptSignalMaxEntries)
-	repeated := false
+	similarObservationCount := 1
 	if raw, ok := contentModerationPromptSignals.Load(subjectKey); ok {
 		if previous, ok := raw.([]contentModerationPromptSignalState); ok {
 			cutoff := now.Add(-contentModerationPromptSignalTTL)
@@ -67,10 +77,8 @@ func RecordContentModerationRepeatedPromptSignal(input *ContentModerationRecordI
 				if item.SeenAt.Before(cutoff) {
 					continue
 				}
-				if item.ExactHash == state.ExactHash ||
-					bits.OnesCount64(item.SimHash^state.SimHash) <= contentModerationPromptSignalHammingLimit ||
-					contentModerationPromptSignalTokenOverlap(item.TokenSet, state.TokenSet) {
-					repeated = true
+				if contentModerationPromptSignalStatesSimilar(item, state) {
+					similarObservationCount++
 				}
 				current = append(current, item)
 			}
@@ -82,13 +90,19 @@ func RecordContentModerationRepeatedPromptSignal(input *ContentModerationRecordI
 	}
 	contentModerationPromptSignals.Store(subjectKey, current)
 
-	if repeated {
-		protocolruntime.RecordAbuseSignal(contentModerationRepeatedPromptSignalType)
-		logger.L().Warn(
-			"content moderation abuse signal: repeated similar prompt",
-			contentModerationPromptSignalLogFields(input)...,
-		)
+	if similarObservationCount < contentModerationPromptSignalThreshold {
+		return
 	}
+	cooldownSuppressed := contentModerationPromptSignalCooldownSuppressed(subjectKey, state, now)
+	if cooldownSuppressed {
+		return
+	}
+	contentModerationPromptSignalStoreCooldown(subjectKey, state, now)
+	protocolruntime.RecordAbuseSignal(contentModerationRepeatedPromptSignalType)
+	logger.L().Warn(
+		"content moderation abuse signal: repeated similar prompt",
+		contentModerationPromptSignalLogFields(input, similarObservationCount, cooldownSuppressed)...,
+	)
 }
 
 func contentModerationPromptSignalSubjectKey(input *ContentModerationRecordInput) string {
@@ -199,11 +213,92 @@ func contentModerationPromptSignalTokenOverlap(a, b []uint64) bool {
 	return matches*100 >= smaller*85
 }
 
-func contentModerationPromptSignalLogFields(input *ContentModerationRecordInput) []zap.Field {
+func contentModerationPromptSignalStatesSimilar(a, b contentModerationPromptSignalState) bool {
+	return a.ExactHash == b.ExactHash ||
+		bits.OnesCount64(a.SimHash^b.SimHash) <= contentModerationPromptSignalHammingLimit ||
+		contentModerationPromptSignalTokenOverlap(a.TokenSet, b.TokenSet)
+}
+
+func contentModerationPromptSignalCooldownSimilar(
+	item contentModerationPromptSignalCooldownState,
+	state contentModerationPromptSignalState,
+) bool {
+	return item.ExactHash == state.ExactHash ||
+		bits.OnesCount64(item.SimHash^state.SimHash) <= contentModerationPromptSignalHammingLimit ||
+		contentModerationPromptSignalTokenOverlap(item.TokenSet, state.TokenSet)
+}
+
+func contentModerationPromptSignalCooldownSuppressed(
+	subjectKey string,
+	state contentModerationPromptSignalState,
+	now time.Time,
+) bool {
+	current, suppressed := contentModerationPromptSignalPrunedCooldowns(subjectKey, state, now)
+	if len(current) > 0 {
+		contentModerationPromptSignalCooldowns.Store(subjectKey, current)
+	} else {
+		contentModerationPromptSignalCooldowns.Delete(subjectKey)
+	}
+	return suppressed
+}
+
+func contentModerationPromptSignalStoreCooldown(
+	subjectKey string,
+	state contentModerationPromptSignalState,
+	now time.Time,
+) {
+	current, _ := contentModerationPromptSignalPrunedCooldowns(subjectKey, state, now)
+	current = append(current, contentModerationPromptSignalCooldownState{
+		ExactHash: state.ExactHash,
+		SimHash:   state.SimHash,
+		TokenSet:  state.TokenSet,
+		AlertedAt: now.UTC(),
+	})
+	if len(current) > contentModerationPromptSignalMaxEntries {
+		current = current[len(current)-contentModerationPromptSignalMaxEntries:]
+	}
+	contentModerationPromptSignalCooldowns.Store(subjectKey, current)
+}
+
+func contentModerationPromptSignalPrunedCooldowns(
+	subjectKey string,
+	state contentModerationPromptSignalState,
+	now time.Time,
+) ([]contentModerationPromptSignalCooldownState, bool) {
+	current := make([]contentModerationPromptSignalCooldownState, 0, contentModerationPromptSignalMaxEntries)
+	suppressed := false
+	raw, ok := contentModerationPromptSignalCooldowns.Load(subjectKey)
+	if !ok {
+		return current, false
+	}
+	previous, ok := raw.([]contentModerationPromptSignalCooldownState)
+	if !ok {
+		return current, false
+	}
+	cutoff := now.Add(-contentModerationPromptSignalCooldown)
+	for _, item := range previous {
+		if item.AlertedAt.Before(cutoff) {
+			continue
+		}
+		if contentModerationPromptSignalCooldownSimilar(item, state) {
+			suppressed = true
+		}
+		current = append(current, item)
+	}
+	return current, suppressed
+}
+
+func contentModerationPromptSignalLogFields(
+	input *ContentModerationRecordInput,
+	similarObservationCount int,
+	cooldownSuppressed bool,
+) []zap.Field {
 	fields := []zap.Field{
 		zap.String("component", "service.content_moderation"),
 		zap.String("signal_scope", "observation_only"),
 		zap.String("signal_type", contentModerationRepeatedPromptSignalType),
+		zap.Int("similar_observation_count", similarObservationCount),
+		zap.Bool("cooldown_suppressed", cooldownSuppressed),
 		zap.String("model", NormalizeModelCatalogModelID(input.Model)),
 		zap.String("source_endpoint", strings.TrimSpace(input.SourceEndpoint)),
 	}
@@ -221,4 +316,5 @@ func contentModerationPromptSignalLogFields(input *ContentModerationRecordInput)
 
 func resetContentModerationPromptSignalsForTest() {
 	contentModerationPromptSignals = sync.Map{}
+	contentModerationPromptSignalCooldowns = sync.Map{}
 }

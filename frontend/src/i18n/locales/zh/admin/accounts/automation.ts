@@ -32,6 +32,9 @@ export default {
     includePausedLabel: "包含暂停调用账号",
     includePausedHint:
       "开启后，停用或不可调度但当前未进入限流窗口的账号也会被纳入；黑名单和正在限流的账号仍会跳过。",
+    ignoreFreeLabel: "忽略 Free 账号",
+    ignoreFreeHint:
+      "开启后，ChatGPT Free 账号不会参与每日 5H 自动触发；周/月额度刷新账号建议开启。",
     accountTypesLabel: "触发账号类型",
     accountTypesHint: "仅对这里勾选的账号类型执行每日 5H 触发。默认只启用 ChatGPT OAuth。",
     accountTypeOpenAI: "ChatGPT OAuth",

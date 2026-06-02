@@ -171,9 +171,10 @@ func TestFrontendServer_InjectSettings(t *testing.T) {
 		settingsJSON := []byte(`{"test":"data"}`)
 		result := server.injectSettings(settingsJSON)
 
-		// Should contain the script with nonce placeholder
-		assert.Contains(t, string(result), `<script nonce="__CSP_NONCE_VALUE__">`)
-		assert.Contains(t, string(result), `window.__APP_CONFIG__={"test":"data"};`)
+		// Should contain a JSON data script with nonce placeholder
+		assert.Contains(t, string(result), `<script id="__APP_CONFIG__" type="application/json" nonce="__CSP_NONCE_VALUE__">`)
+		assert.Contains(t, string(result), `>{"test":"data"}</script>`)
+		assert.NotContains(t, string(result), `window.__APP_CONFIG__=`)
 		assert.Contains(t, string(result), `</script></head>`)
 	})
 
@@ -190,7 +191,7 @@ func TestFrontendServer_InjectSettings(t *testing.T) {
 
 		// Script should be injected before </head>
 		headCloseIndex := bytes.Index(result, []byte("</head>"))
-		scriptIndex := bytes.Index(result, []byte(`<script nonce="`))
+		scriptIndex := bytes.Index(result, []byte(`<script id="__APP_CONFIG__"`))
 
 		assert.True(t, scriptIndex < headCloseIndex, "script should be before </head>")
 	})
@@ -210,7 +211,8 @@ func TestFrontendServer_InjectSettings(t *testing.T) {
 		settingsJSON := []byte(`{"nested":{"array":[1,2,3]},"special":"<>&"}`)
 		result := server.injectSettings(settingsJSON)
 
-		assert.Contains(t, string(result), `window.__APP_CONFIG__={"nested":{"array":[1,2,3]},"special":"<>&"};`)
+		assert.Contains(t, string(result), `<script id="__APP_CONFIG__" type="application/json" nonce="__CSP_NONCE_VALUE__">{"nested":{"array":[1,2,3]},"special":"<>&"}</script>`)
+		assert.NotContains(t, string(result), `window.__APP_CONFIG__=`)
 	})
 }
 
@@ -734,7 +736,7 @@ func TestHTMLCache(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkReplaceNoncePlaceholder(b *testing.B) {
-	html := []byte(`<!DOCTYPE html><html><head><script nonce="__CSP_NONCE_VALUE__">window.__APP_CONFIG__={"test":"data"};</script></head><body></body></html>`)
+	html := []byte(`<!DOCTYPE html><html><head><script id="__APP_CONFIG__" type="application/json" nonce="__CSP_NONCE_VALUE__">{"test":"data"}</script></head><body></body></html>`)
 	nonce := "abcdefghijklmnop123456=="
 
 	b.ResetTimer()

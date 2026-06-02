@@ -12,7 +12,8 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.header.title': '对外模型展示',
   'admin.billing.publicCatalog.header.description': '按账号支持的模型实例维护公开目录。同一基础模型可以来自不同账号来源，发布后用户只调用唯一公开模型 ID，计费使用本条目的售卖价。',
   'admin.billing.publicCatalog.header.loading': '加载中...',
-  'admin.billing.publicCatalog.header.refresh': '同步当前可用模型',
+  'admin.billing.publicCatalog.header.refresh': '刷新候选',
+  'admin.billing.publicCatalog.header.syncAvailable': '同步当前可用模型',
   'admin.billing.publicCatalog.header.saving': '保存中...',
   'admin.billing.publicCatalog.header.save': '保存草稿',
   'admin.billing.publicCatalog.header.publishing': '推送中...',
@@ -183,6 +184,7 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.messages.invalidBatchRatio': '批量比例必须是非负数字',
   'admin.billing.publicCatalog.messages.duplicatePublicId': '公开模型 ID 不能重复：{ids}',
   'admin.billing.publicCatalog.messages.unavailableEntries': '已选条目已不可用，请移除后再保存或发布',
+  'admin.billing.publicCatalog.messages.availableSyncedToDraft': '已加入草稿，请保存并发布',
   'admin.billing.publicCatalog.messages.unsaved': '未保存',
 }
 
@@ -487,11 +489,49 @@ describe('BillingPublicCatalogView', () => {
     expect(wrapper.text()).toContain('openai.responses')
     expect(wrapper.text()).toContain('text')
 
-    const reloadButton = wrapper.findAll('button').find((node) => node.text().includes('同步当前可用模型'))
-    await reloadButton!.trigger('click')
+    await wrapper.findAll('button').find((node) => node.text().includes('刷新候选'))!.trigger('click')
     await flushPromises()
 
     expect(apiMocks.getBillingPublicCatalogDraft).toHaveBeenLastCalledWith({ force: true })
+  })
+
+  it('syncs all currently available entries into the draft without saving or publishing', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="billing-public-catalog-sync-available"]').trigger('click')
+    await flushPromises()
+
+    expect(apiMocks.saveBillingPublicCatalogDraft).not.toHaveBeenCalled()
+    expect(apiMocks.publishBillingPublicCatalog).not.toHaveBeenCalled()
+    expect(storeMocks.showSuccess).toHaveBeenCalledWith('已加入草稿，请保存并发布')
+
+    await wrapper.get('[data-testid="billing-public-catalog-save"]').trigger('click')
+    await flushPromises()
+
+    expect(lastSavedEntries()).toEqual([
+      expect.objectContaining({
+        entry_id: 'acct_a',
+        sale_price_display: expect.objectContaining({
+          primary: expect.arrayContaining([
+            expect.objectContaining({ id: 'input_price', value: 1.2e-6 }),
+          ]),
+        }),
+      }),
+      expect.objectContaining({
+        entry_id: 'acct_b',
+        public_model_id: 'gpt-5.4@backup',
+        sale_price_display: expect.objectContaining({
+          primary: expect.arrayContaining([
+            expect.objectContaining({ id: 'input_price', value: 1.1e-6 }),
+          ]),
+        }),
+      }),
+      expect.objectContaining({
+        entry_id: 'acct_c',
+        public_model_id: 'claude-3-haiku@bedrock',
+      }),
+    ])
   })
 
   it('keeps export and publish disabled when no entries are selected', async () => {

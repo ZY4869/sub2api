@@ -46,6 +46,7 @@ const (
 	AccountDaily5HSkipReasonLifecycleExcluded = "lifecycle_excluded"
 	AccountDaily5HSkipReasonAccountType       = "account_type_not_selected"
 	AccountDaily5HSkipReasonPausedExcluded    = "paused_excluded"
+	AccountDaily5HSkipReasonFreeExcluded      = "free_account_excluded"
 	AccountDaily5HSkipReasonRateLimited       = "rate_limited"
 	AccountDaily5HSkipReasonTempUnsched       = "temp_unschedulable"
 	AccountDaily5HSkipReasonOverloaded        = "overloaded"
@@ -70,6 +71,7 @@ type AccountDaily5HTriggerSettings struct {
 	Enabled               bool                               `json:"enabled"`
 	SelectedAccountTypes  []string                           `json:"selected_account_types"`
 	IncludePausedAccounts bool                               `json:"include_paused_accounts"`
+	IgnoreFreeAccounts    bool                               `json:"ignore_free_accounts"`
 	OpenAIModel           AccountDaily5HTriggerModelSettings `json:"openai_model_mode"`
 	AnthropicModel        AccountDaily5HTriggerModelSettings `json:"anthropic_model_mode"`
 	GeminiModel           AccountDaily5HTriggerModelSettings `json:"gemini_model_mode"`

@@ -1,13 +1,13 @@
 <template>
   <div
     :class="[
-      'account-status-visual flex min-w-0 max-w-full flex-col justify-center whitespace-normal rounded-[1rem] border select-none',
+      'account-status-visual inline-flex w-fit min-w-0 max-w-full flex-col items-start justify-center whitespace-normal rounded-[1rem] border select-none',
       compact ? 'gap-1.5 px-3 py-3' : 'gap-2.5 px-4 py-3.5',
       whiteSurfaceEnabled ? whiteSurfaceClass : toneStyles.surfaceClass
     ]"
     data-testid="account-status-visual-cell"
   >
-    <div class="flex min-w-0 items-center gap-1.5">
+    <div class="flex min-w-0 max-w-full items-center gap-1.5">
       <div class="flex min-w-0 items-center gap-1.5">
         <span
           :class="[

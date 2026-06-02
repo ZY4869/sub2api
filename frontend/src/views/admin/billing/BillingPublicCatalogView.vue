@@ -21,6 +21,7 @@
       :stale-reason-summary="staleReasonSummary"
       :available-source-label="availableSourceLabel"
       @refresh="loadDraft(true)"
+      @sync-available="syncAvailableEntriesToDraft"
       @save="saveDraftAction"
       @publish="publishAction"
       @revalidate="revalidateAction"
@@ -112,6 +113,7 @@ const {
   revalidateAction,
   addEntry,
   addFilteredEntries,
+  syncAvailableEntriesToDraft,
   removeEntry,
   clearSelection,
   moveEntry,

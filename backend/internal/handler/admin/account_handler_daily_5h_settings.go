@@ -55,6 +55,7 @@ func accountDaily5HSettingsDTO(settings *service.AccountDaily5HTriggerSettings) 
 		Enabled:               settings.Enabled,
 		SelectedAccountTypes:  append([]string(nil), settings.SelectedAccountTypes...),
 		IncludePausedAccounts: settings.IncludePausedAccounts,
+		IgnoreFreeAccounts:    settings.IgnoreFreeAccounts,
 		OpenAIModelMode:       accountDaily5HModelSettingsDTO(settings.OpenAIModel),
 		AnthropicModelMode:    accountDaily5HModelSettingsDTO(settings.AnthropicModel),
 		GeminiModelMode:       accountDaily5HModelSettingsDTO(settings.GeminiModel),
@@ -73,6 +74,7 @@ func accountDaily5HSettingsFromDTO(req dto.AccountDaily5HTriggerSettings) *servi
 		Enabled:               req.Enabled,
 		SelectedAccountTypes:  append([]string(nil), req.SelectedAccountTypes...),
 		IncludePausedAccounts: req.IncludePausedAccounts,
+		IgnoreFreeAccounts:    req.IgnoreFreeAccounts,
 		OpenAIModel: service.AccountDaily5HTriggerModelSettings{
 			Mode:         req.OpenAIModelMode.Mode,
 			FixedModelID: req.OpenAIModelMode.FixedModelID,

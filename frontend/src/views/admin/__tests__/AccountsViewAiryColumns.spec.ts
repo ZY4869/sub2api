@@ -20,6 +20,7 @@ vi.mock('@/api/admin', () => ({
           enabled: false,
           selected_account_types: [],
           include_paused_accounts: false,
+          ignore_free_accounts: false,
           openai_model_mode: { mode: 'auto' },
           anthropic_model_mode: { mode: 'auto' },
           gemini_model_mode: { mode: 'auto' },

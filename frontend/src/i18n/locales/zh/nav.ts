@@ -10,6 +10,7 @@ export default {
     apiKeys: 'API 密钥',
     availableChannels: '可用渠道',
     channelStatus: '渠道状态',
+    channelMonitors: '渠道监控',
     usage: '使用记录',
     redeem: '兑换',
     profile: '个人资料',

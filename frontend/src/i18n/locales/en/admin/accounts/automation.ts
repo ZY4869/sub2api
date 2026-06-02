@@ -38,6 +38,9 @@ export default {
     includePausedLabel: "Include paused accounts",
     includePausedHint:
       "When enabled, disabled or unschedulable accounts that are not currently rate limited are included too. Blacklisted and currently limited accounts are still skipped.",
+    ignoreFreeLabel: "Ignore Free accounts",
+    ignoreFreeHint:
+      "When enabled, ChatGPT Free accounts do not participate in the daily 5H trigger. Recommended for accounts whose quotas refresh weekly or monthly.",
     accountTypesLabel: "Account types to trigger",
     accountTypesHint:
       "Only the selected account types will participate in the daily 5H trigger. ChatGPT OAuth is enabled by default.",

@@ -342,6 +342,7 @@ export interface AccountDaily5HTriggerSettings {
   enabled: boolean;
   selected_account_types: AccountDaily5HTriggerAccountType[];
   include_paused_accounts: boolean;
+  ignore_free_accounts: boolean;
   openai_model_mode: AccountDaily5HTriggerModelSettings;
   anthropic_model_mode: AccountDaily5HTriggerModelSettings;
   gemini_model_mode: AccountDaily5HTriggerModelSettings;

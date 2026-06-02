@@ -122,6 +122,7 @@ vi.mock('@/api/admin', () => ({
             enabled: true,
             selected_account_types: ['chatgpt_oauth'],
             include_paused_accounts: false,
+            ignore_free_accounts: false,
             openai_model_mode: { mode: 'auto', fixed_model_id: '' },
             anthropic_model_mode: { mode: 'auto', fixed_model_id: '' },
             gemini_model_mode: { mode: 'auto', fixed_model_id: '' }
@@ -539,6 +540,7 @@ describe('AccountsView', () => {
         enabled: true,
         selected_account_types: ['chatgpt_oauth'],
         include_paused_accounts: false,
+        ignore_free_accounts: false,
         openai_model_mode: { mode: 'auto', fixed_model_id: '' },
         anthropic_model_mode: { mode: 'auto', fixed_model_id: '' },
         gemini_model_mode: { mode: 'auto', fixed_model_id: '' }

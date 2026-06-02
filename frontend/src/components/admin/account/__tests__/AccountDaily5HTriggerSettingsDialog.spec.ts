@@ -35,6 +35,7 @@ function mountDialog() {
         enabled: true,
         selected_account_types: ["chatgpt_oauth"],
         include_paused_accounts: false,
+        ignore_free_accounts: false,
         openai_model_mode: { mode: "auto", fixed_model_id: "" },
         anthropic_model_mode: { mode: "auto", fixed_model_id: "" },
         gemini_model_mode: { mode: "auto", fixed_model_id: "" },
@@ -119,9 +120,10 @@ describe("AccountDaily5HTriggerSettingsDialog", () => {
     expect((checkboxes[0].element as HTMLInputElement).checked).toBe(true);
     expect((checkboxes[1].element as HTMLInputElement).checked).toBe(false);
     expect((checkboxes[2].element as HTMLInputElement).checked).toBe(false);
+    expect(wrapper.text()).toContain("admin.accounts.daily5h.ignoreFreeLabel");
   });
 
-  it("emits normalized settings after toggling account types and fixed model mode", async () => {
+  it("emits normalized settings after toggling account types, free skip, and fixed model mode", async () => {
     const wrapper = mountDialog();
 
     const fixedButtons = wrapper
@@ -134,6 +136,10 @@ describe("AccountDaily5HTriggerSettingsDialog", () => {
 
     const checkboxes = wrapper.findAll('input[type="checkbox"]');
     await checkboxes[1].setValue(true);
+
+    const ignoreFreeButton = wrapper.findAll("button")[2];
+    expect(ignoreFreeButton).toBeTruthy();
+    await ignoreFreeButton.trigger("click");
 
     const saveButton = wrapper
       .findAll("button")
@@ -150,6 +156,7 @@ describe("AccountDaily5HTriggerSettingsDialog", () => {
             "claude_code_oauth_setup_token",
           ],
           include_paused_accounts: false,
+          ignore_free_accounts: true,
           openai_model_mode: {
             mode: "fixed",
             fixed_model_id: "gpt-5.4-mini",

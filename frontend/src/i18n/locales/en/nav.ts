@@ -10,6 +10,7 @@ export default {
     apiKeys: 'API Keys',
     availableChannels: 'Available Channels',
     channelStatus: 'Channel Status',
+    channelMonitors: 'Channel Monitors',
     usage: 'Usage',
     redeem: 'Redeem',
     profile: 'Profile',
