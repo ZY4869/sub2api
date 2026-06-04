@@ -16,6 +16,7 @@ const props = defineProps<{
   allowMultiple: boolean
   showCookieOption: boolean
   showRefreshTokenOption: boolean
+  showRefreshTokenSubmitButton?: boolean
   platform: AccountPlatform
   showProjectId: boolean
 }>()
@@ -24,6 +25,12 @@ const emit = defineEmits<{
   generateUrl: []
   cookieAuth: [sessionKey: string]
   validateRefreshToken: [refreshToken: string]
+  updateInputMethod: [method: OAuthFlowExposed['inputMethod']]
+  updateAuthCode: [code: string]
+  updateOauthState: [state: string]
+  updateProjectId: [projectId: string]
+  updateSessionKey: [sessionKey: string]
+  updateRefreshToken: [refreshToken: string]
 }>()
 
 const flowRef = ref<OAuthFlowExposed | null>(null)
@@ -60,11 +67,18 @@ defineExpose({
       :allow-multiple="props.allowMultiple"
       :show-cookie-option="props.showCookieOption"
       :show-refresh-token-option="props.showRefreshTokenOption"
+      :show-refresh-token-submit-button="props.showRefreshTokenSubmitButton"
       :platform="props.platform"
       :show-project-id="props.showProjectId"
       @generate-url="emit('generateUrl')"
       @cookie-auth="emit('cookieAuth', $event)"
       @validate-refresh-token="emit('validateRefreshToken', $event)"
+      @update:input-method="emit('updateInputMethod', $event)"
+      @update:auth-code="emit('updateAuthCode', $event)"
+      @update:oauth-state="emit('updateOauthState', $event)"
+      @update:project-id="emit('updateProjectId', $event)"
+      @update:session-key="emit('updateSessionKey', $event)"
+      @update:refresh-token="emit('updateRefreshToken', $event)"
     />
   </div>
 </template>

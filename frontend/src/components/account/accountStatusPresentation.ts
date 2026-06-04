@@ -19,6 +19,10 @@ export type AccountStatusLimitBadgeItem = {
   modelDisplayName?: string
 }
 
+export type AccountStatusPresentationOptions = {
+  showGenericRateLimitBadges?: boolean
+}
+
 type CodexUsageWindowKind = '5h' | '7d'
 
 type CodexScopeLimitInfo = {
@@ -55,7 +59,10 @@ export const createAccountStatusPresentation = (
   t: (key: string, params?: Record<string, unknown>) => string,
   nowMs: Ref<number>,
   nowDate: ComputedRef<Date>,
+  options: AccountStatusPresentationOptions = {},
 ) => {
+  const showGenericRateLimitBadges = options.showGenericRateLimitBadges !== false
+
   const formatCountdownFromNow = (targetDate: string | Date | null | undefined): string | null => {
     if (!targetDate) return null
 
@@ -394,6 +401,21 @@ export const createAccountStatusPresentation = (
     }
   })
 
+  const genericRateLimitBadgeLabel = () => {
+    switch (account.value.rate_limit_reason) {
+      case 'usage_5h':
+        return '5H'
+      case 'usage_7d':
+        return resolveCodexUsageWindow(
+          account.value.extra,
+          '7d',
+          nowDate.value,
+        ).label || resolveCodexUsageWindowLabel(null, '7d')
+      default:
+        return '429'
+    }
+  }
+
   const accountRateLimitBadges = computed<AccountStatusLimitBadgeItem[]>(() => {
     if (!isRateLimited.value) return []
 
@@ -440,14 +462,12 @@ export const createAccountStatusPresentation = (
       return codexScopedBadges
     }
 
+    if (!showGenericRateLimitBadges) return []
+
     return [{
       key: `account-${account.value.rate_limit_reason || '429'}`,
       tone: 'amber',
-      label: account.value.rate_limit_reason === 'usage_5h'
-        ? t('admin.accounts.status.window5h')
-        : account.value.rate_limit_reason === 'usage_7d'
-          ? t('admin.accounts.status.window7d')
-          : '429',
+      label: genericRateLimitBadgeLabel(),
       tooltip: fallbackTooltip,
     }]
   })

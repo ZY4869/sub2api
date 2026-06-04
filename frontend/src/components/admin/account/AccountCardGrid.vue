@@ -26,6 +26,7 @@
           :usage-manual-refresh-token="usageManualRefreshToken"
           :visual-style="visualStyle"
           :white-surface-enabled="whiteSurfaceEnabled"
+          :account-group-display-mode="accountGroupDisplayMode"
           @toggle-selected="emit('toggle-selected', $event)"
           @show-temp-unsched="emit('show-temp-unsched', $event)"
           @toggle-schedulable="emit('toggle-schedulable', $event)"
@@ -60,6 +61,7 @@
             :usage-manual-refresh-token="usageManualRefreshToken"
             :visual-style="visualStyle"
             :white-surface-enabled="whiteSurfaceEnabled"
+            :account-group-display-mode="accountGroupDisplayMode"
             @toggle-selected="emit('toggle-selected', $event)"
             @show-temp-unsched="emit('show-temp-unsched', $event)"
             @toggle-schedulable="emit('toggle-schedulable', $event)"
@@ -76,7 +78,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { Account, AccountVisualStyle, WindowStats } from '@/types'
+import type {
+  Account,
+  AccountGroupDisplayMode,
+  AccountVisualStyle,
+  WindowStats,
+} from '@/types'
 import AccountCard from './AccountCard.vue'
 import { useVirtualAccountCardRows } from './useVirtualAccountCardRows'
 
@@ -91,10 +98,12 @@ const props = withDefaults(defineProps<{
   emptyText?: string
   visualStyle?: AccountVisualStyle
   whiteSurfaceEnabled?: boolean
+  accountGroupDisplayMode?: AccountGroupDisplayMode
 }>(), {
   emptyText: '',
   visualStyle: 'airy',
-  whiteSurfaceEnabled: false
+  whiteSurfaceEnabled: false,
+  accountGroupDisplayMode: 'full'
 })
 
 const emit = defineEmits<{

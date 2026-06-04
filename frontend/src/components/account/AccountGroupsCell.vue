@@ -4,20 +4,25 @@
     <div :class="containerClass">
       <template v-if="displayMode === 'icon'">
         <span
-          v-for="group in displayGroups"
-          :key="group.id"
+          v-for="item in displayGroupIcons"
+          :key="item.group.id"
           class="group relative inline-flex"
         >
           <button
             type="button"
-            :class="iconBadgeClass"
-            :title="group.name"
-            :aria-label="group.name"
+            :class="[iconBadgeBaseClass, item.paletteClass]"
+            :title="item.group.name"
+            :aria-label="item.group.name"
           >
-            <span aria-hidden="true">{{ groupInitial(group.name) }}</span>
+            <PlatformIcon
+              :platform="item.group.platform"
+              size="xs"
+              aria-hidden="true"
+            />
+            <span aria-hidden="true" class="min-w-0 truncate">{{ item.abbreviation }}</span>
           </button>
           <span :class="iconTooltipClass" role="tooltip">
-            {{ group.name }}
+            {{ item.group.name }}
           </span>
         </span>
       </template>
@@ -57,7 +62,6 @@
       >
         <div
           v-if="showPopover"
-          ref="popoverRef"
           class="fixed z-50 min-w-48 max-w-96 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-dark-600 dark:bg-dark-800"
           :style="popoverStyle"
         >
@@ -74,7 +78,7 @@
               </svg>
             </button>
           </div>
-          <div class="flex flex-wrap gap-1.5 max-h-64 overflow-y-auto">
+          <div class="flex max-h-64 flex-wrap gap-1.5 overflow-y-auto">
             <GroupBadge
               v-for="group in groups"
               :key="group.id"
@@ -101,10 +105,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GroupBadge from '@/components/common/GroupBadge.vue'
+import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import type { AccountGroupDisplayMode, Group } from '@/types'
+import { createAccountGroupIconDisplay } from './accountGroupIconDisplay'
+import { useAccountGroupsPopover } from './useAccountGroupsPopover'
 
 interface Props {
   groups: Group[] | null | undefined
@@ -121,9 +128,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { t } = useI18n()
 
-const moreButtonRef = ref<HTMLElement | null>(null)
-const popoverRef = ref<HTMLElement | null>(null)
-const showPopover = ref(false)
+const { moreButtonRef, showPopover, popoverStyle } = useAccountGroupsPopover()
 const displayMode = computed(() => props.displayMode === 'icon' ? 'icon' : 'full')
 
 // 显示的分组（最多显示 maxDisplay 个）
@@ -143,6 +148,8 @@ const hiddenCount = computed(() => {
   return props.groups.length - (props.maxDisplay - 1)
 })
 
+const displayGroupIcons = computed(() => createAccountGroupIconDisplay(displayGroups.value))
+
 const moreButtonClass = computed(() => {
   if (props.visualVariant === 'airy') {
     return 'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap rounded border border-slate-200 bg-slate-100 px-1.5 py-[2.5px] text-[9px] font-extrabold text-slate-700 transition-colors hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
@@ -152,7 +159,7 @@ const moreButtonClass = computed(() => {
 
 const rootClass = computed(() =>
   displayMode.value === 'icon'
-    ? 'relative max-w-[104px]'
+    ? 'relative max-w-[132px]'
     : 'relative max-w-full'
 )
 
@@ -162,67 +169,18 @@ const containerClass = computed(() =>
     : 'flex max-h-none flex-wrap gap-1 overflow-visible'
 )
 
-const iconBadgeClass = computed(() => {
-  const base = 'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-black uppercase leading-none transition focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1'
-  if (props.visualVariant === 'airy') {
-    return `${base} border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700`
-  }
-  return `${base} border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600`
-})
+const iconBadgeBaseClass = computed(() =>
+  'inline-flex h-6 max-w-[58px] shrink-0 items-center justify-center gap-1 rounded-full border px-1.5 text-[10px] font-black uppercase leading-none transition hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1'
+)
 
 const iconTooltipClass = computed(() => {
   const chrome = props.visualVariant === 'airy'
     ? 'border-slate-200 bg-white text-slate-700 shadow-lg dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100'
     : 'border-gray-200 bg-white text-gray-700 shadow-lg dark:border-dark-600 dark:bg-dark-800 dark:text-gray-100'
   return [
-    'pointer-events-none absolute left-1/2 top-full z-30 mt-1 max-w-[min(18rem,calc(100vw-1rem))] -translate-x-1/2 truncate whitespace-nowrap rounded-md border px-2 py-1 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
+    'pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 max-w-[min(18rem,calc(100vw-1rem))] -translate-x-1/2 truncate whitespace-nowrap rounded-md border px-2 py-1 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
     chrome,
   ].join(' ')
 })
 
-const groupInitial = (name: string) => {
-  const trimmed = String(name || '').trim()
-  return trimmed ? Array.from(trimmed)[0] : '#'
-}
-
-// Popover 位置样式
-const popoverStyle = computed(() => {
-  if (!moreButtonRef.value) return {}
-  const rect = moreButtonRef.value.getBoundingClientRect()
-  const viewportHeight = window.innerHeight
-  const viewportWidth = window.innerWidth
-
-  let top = rect.bottom + 8
-  let left = rect.left
-
-  // 如果下方空间不足，显示在上方
-  if (top + 280 > viewportHeight) {
-    top = Math.max(8, rect.top - 280)
-  }
-
-  // 如果右侧空间不足，向左偏移
-  if (left + 384 > viewportWidth) {
-    left = Math.max(8, viewportWidth - 392)
-  }
-
-  return {
-    top: `${top}px`,
-    left: `${left}px`
-  }
-})
-
-// 关闭 popover 的键盘事件
-const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') {
-    showPopover.value = false
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-})
 </script>

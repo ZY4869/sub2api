@@ -60,7 +60,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[192px] min-w-[128px] max-w-[228px]"
+          ? "w-[132px] min-w-[124px] max-w-[140px]"
           : "w-[212px] max-w-[212px]",
     },
   ];
@@ -72,10 +72,10 @@ const allColumns = computed(() => {
       class:
         resolvedAccountVisualPreset.value === "airy"
           ? accountGroupDisplayMode?.value === "icon"
-            ? "w-[104px] min-w-[92px] max-w-[104px]"
+            ? "w-[132px] min-w-[120px] max-w-[132px]"
             : "w-[196px] min-w-[172px] max-w-[196px]"
           : accountGroupDisplayMode?.value === "icon"
-            ? "w-[104px] max-w-[104px]"
+            ? "w-[132px] max-w-[132px]"
             : "w-[196px] max-w-[196px]",
     });
   }

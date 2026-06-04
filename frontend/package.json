@@ -1,7 +1,7 @@
 {
   "name": "sub2api-frontend",
   "private": true,
-  "version": "0.1.333",
+  "version": "0.1.334",
   "type": "module",
   "packageManager": "pnpm@10.31.0",
   "engines": {

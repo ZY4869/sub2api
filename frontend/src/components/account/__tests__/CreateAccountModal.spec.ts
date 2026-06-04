@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { flushPromises, mount } from '@vue/test-utils'
-import { defineComponent } from 'vue'
+import { computed, defineComponent, ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
 const source = readFileSync(
@@ -20,12 +20,20 @@ const modalWatchersSource = readFileSync(
 
 const {
   createMock,
+  exchangeCodeMock,
+  generateAuthUrlMock,
+  refreshOpenAITokenMock,
+  refreshAntigravityTokenMock,
   checkMixedChannelRiskMock,
   invalidateModelRegistryMock,
   invalidateInventoryMock,
   modelRegistrySnapshot
 } = vi.hoisted(() => ({
   createMock: vi.fn(),
+  exchangeCodeMock: vi.fn(),
+  generateAuthUrlMock: vi.fn(),
+  refreshOpenAITokenMock: vi.fn(),
+  refreshAntigravityTokenMock: vi.fn(),
   checkMixedChannelRiskMock: vi.fn(),
   invalidateModelRegistryMock: vi.fn(),
   invalidateInventoryMock: vi.fn(),
@@ -99,13 +107,21 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
       create: createMock,
+      exchangeCode: exchangeCodeMock,
+      generateAuthUrl: generateAuthUrlMock,
+      refreshOpenAIToken: refreshOpenAITokenMock,
       checkMixedChannelRisk: checkMixedChannelRiskMock
+    },
+    antigravity: {
+      generateAuthUrl: generateAuthUrlMock,
+      exchangeCode: exchangeCodeMock,
+      refreshAntigravityToken: refreshAntigravityTokenMock
     }
   }
 }))
 
 vi.mock('@/api/admin/accounts', () => ({
-  getAntigravityDefaultModelMapping: vi.fn()
+  getAntigravityDefaultModelMapping: vi.fn().mockResolvedValue({})
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -185,6 +201,13 @@ const AccountCreatePlatformSelectorStub = defineComponent({
       </button>
       <button
         type="button"
+        data-testid="select-antigravity"
+        @click="$emit('update:platform', 'antigravity')"
+      >
+        select antigravity
+      </button>
+      <button
+        type="button"
         data-testid="select-anthropic"
         @click="$emit('update:platform', 'anthropic')"
       >
@@ -196,7 +219,7 @@ const AccountCreatePlatformSelectorStub = defineComponent({
 
 const AccountCreatePlatformTypeEditorStub = defineComponent({
   name: 'AccountCreatePlatformTypeEditor',
-  emits: ['update:account-category', 'update:gateway-protocol'],
+  emits: ['update:account-category', 'update:gateway-protocol', 'update:antigravity-account-type'],
   template: `
     <div>
       <button
@@ -212,7 +235,10 @@ const AccountCreatePlatformTypeEditorStub = defineComponent({
       <button
         type="button"
         data-testid="set-oauth-based-mode"
-        @click="$emit('update:account-category', 'oauth-based')"
+        @click="
+          $emit('update:account-category', 'oauth-based');
+          $emit('update:antigravity-account-type', 'oauth')
+        "
       >
         set oauth based mode
       </button>
@@ -232,6 +258,192 @@ const AccountCreatePlatformTypeEditorStub = defineComponent({
         @click="$emit('update:account-category', 'apikey')"
       >
         set apikey mode
+      </button>
+    </div>
+  `
+})
+
+const OAuthAuthorizationFlowStub = defineComponent({
+  name: 'OAuthAuthorizationFlow',
+  props: {
+    showRefreshTokenSubmitButton: {
+      type: Boolean,
+      default: true
+    },
+    showCookieOption: {
+      type: Boolean,
+      default: false
+    },
+    showRefreshTokenOption: {
+      type: Boolean,
+      default: false
+    },
+    platform: {
+      type: String,
+      default: 'anthropic'
+    }
+  },
+  emits: [
+    'generate-url',
+    'cookie-auth',
+    'validate-refresh-token',
+    'update:input-method',
+    'update:auth-code',
+    'update:oauth-state',
+    'update:project-id',
+    'update:session-key',
+    'update:refresh-token'
+  ],
+  setup(props, { emit, expose }) {
+    const inputMethod = ref<'manual' | 'cookie' | 'refresh_token'>('manual')
+    const authCode = ref('')
+    const oauthState = ref('')
+    const projectId = ref('')
+    const sessionKey = ref('')
+    const refreshToken = ref('')
+    const exposedAuthCode = computed(() => authCode.value)
+    const exposedOAuthState = computed(() => oauthState.value)
+    const exposedProjectId = computed(() => projectId.value)
+    const exposedSessionKey = computed(() => sessionKey.value)
+    const exposedRefreshToken = computed(() => refreshToken.value)
+    const exposedInputMethod = computed(() => inputMethod.value)
+
+    const setInputMethod = (method: 'manual' | 'cookie' | 'refresh_token') => {
+      inputMethod.value = method
+      emit('update:input-method', method)
+    }
+
+    expose({
+      authCode: exposedAuthCode,
+      oauthState: exposedOAuthState,
+      projectId: exposedProjectId,
+      sessionKey: exposedSessionKey,
+      refreshToken: exposedRefreshToken,
+      inputMethod: exposedInputMethod,
+      reset: () => {
+        inputMethod.value = 'manual'
+        authCode.value = ''
+        oauthState.value = ''
+        projectId.value = ''
+        sessionKey.value = ''
+        refreshToken.value = ''
+      }
+    })
+
+    return {
+      props,
+      inputMethod,
+      authCode,
+      oauthState,
+      sessionKey,
+      refreshToken,
+      setInputMethod,
+      emit
+    }
+  },
+  template: `
+    <div data-testid="account-create-oauth-step">
+      <span data-testid="oauth-platform">{{ props.platform }}</span>
+      <span data-testid="oauth-rt-inline">{{ String(props.showRefreshTokenSubmitButton) }}</span>
+      <button type="button" data-testid="oauth-generate" @click="emit('generate-url')" />
+      <button
+        type="button"
+        data-testid="oauth-set-manual"
+        @click="setInputMethod('manual')"
+      />
+      <button
+        v-if="props.showRefreshTokenOption"
+        type="button"
+        data-testid="oauth-set-rt"
+        @click="setInputMethod('refresh_token')"
+      />
+      <button
+        v-if="props.showCookieOption"
+        type="button"
+        data-testid="oauth-set-cookie"
+        @click="setInputMethod('cookie')"
+      />
+      <input
+        data-testid="oauth-auth-code"
+        v-model="authCode"
+        @input="emit('update:auth-code', authCode)"
+      />
+      <input
+        data-testid="oauth-state"
+        v-model="oauthState"
+        @input="emit('update:oauth-state', oauthState)"
+      />
+      <input
+        data-testid="oauth-session-key"
+        v-model="sessionKey"
+        @input="emit('update:session-key', sessionKey)"
+      />
+      <textarea
+        data-testid="oauth-refresh-token"
+        v-model="refreshToken"
+        @input="emit('update:refresh-token', refreshToken)"
+      />
+      <button
+        type="button"
+        data-testid="oauth-cookie-submit"
+        @click="emit('cookie-auth', sessionKey)"
+      />
+      <button
+        v-if="props.showRefreshTokenSubmitButton"
+        type="button"
+        data-testid="oauth-rt-inline-submit"
+        @click="emit('validate-refresh-token', refreshToken)"
+      />
+    </div>
+  `
+})
+
+const AccountCreateFooterActionsStub = defineComponent({
+  name: 'AccountCreateFooterActions',
+  props: {
+    step: {
+      type: Number,
+      required: true
+    },
+    showCompleteAuthAction: {
+      type: Boolean,
+      default: undefined
+    },
+    canCompleteAuth: {
+      type: Boolean,
+      default: undefined
+    },
+    isManualInputMethod: {
+      type: Boolean,
+      default: false
+    },
+    canExchangeCode: {
+      type: Boolean,
+      default: false
+    }
+  },
+  emits: ['close', 'back', 'completeAuth'],
+  setup(props) {
+    const showComplete = computed(() => props.showCompleteAuthAction ?? props.isManualInputMethod)
+    const canComplete = computed(() => props.canCompleteAuth ?? props.canExchangeCode)
+    return {
+      props,
+      showComplete,
+      canComplete
+    }
+  },
+  template: `
+    <div data-testid="account-create-footer">
+      <button type="button" data-testid="footer-close" @click="$emit('close')" />
+      <button v-if="props.step === 2" type="button" data-testid="footer-back" @click="$emit('back')" />
+      <button
+        v-if="props.step === 2 && showComplete"
+        type="button"
+        data-testid="footer-complete-auth"
+        :disabled="!canComplete"
+        @click="$emit('completeAuth')"
+      >
+        admin.accounts.oauth.completeAuth
       </button>
     </div>
   `
@@ -588,8 +800,8 @@ function mountModal(stubOverrides: Record<string, any> = {}) {
         AccountApiKeyModelProbeEditor: AccountApiKeyModelProbeEditorStub,
         AccountAntigravityModelMappingEditor: true,
         AccountAutoPauseToggle: true,
-        AccountCreateFooterActions: true,
-        AccountCreateOAuthStep: true,
+        AccountCreateFooterActions: AccountCreateFooterActionsStub,
+        OAuthAuthorizationFlow: OAuthAuthorizationFlowStub,
         AccountCustomErrorCodesEditor: true,
         AccountGatewaySettingsEditor: true,
         AccountGoogleBatchArchiveEditor: true,
@@ -611,6 +823,31 @@ function mountModal(stubOverrides: Record<string, any> = {}) {
       }
     }
   })
+}
+
+async function setExposedOAuthFlow(
+  wrapper: ReturnType<typeof mountModal>,
+  flowState: Partial<{
+    inputMethod: 'manual' | 'cookie' | 'refresh_token'
+    authCode: string
+    oauthState: string
+    projectId: string
+    sessionKey: string
+    refreshToken: string
+  }>
+) {
+  const vm = wrapper.vm as any
+  vm.oauthFlowRef = {
+    inputMethod: 'manual',
+    authCode: '',
+    oauthState: '',
+    projectId: '',
+    sessionKey: '',
+    refreshToken: '',
+    reset: vi.fn(),
+    ...flowState
+  }
+  await wrapper.vm.$nextTick()
 }
 
 describe('CreateAccountModal', () => {
@@ -635,6 +872,272 @@ describe('CreateAccountModal', () => {
     expect(modalLogicSource).toContain("const showOAuthFinalizeStep = computed(() =>")
     expect(`${source}\n${modalLogicSource}\n${modalWatchersSource}`).not.toContain("form.platform === 'copilot'")
     expect(source).toContain("<AccountKiroAuthPanel")
+  })
+
+  it('routes manual and refresh-token OAuth completion through the modal footer', () => {
+    expect(source).toContain(':show-refresh-token-submit-button="false"')
+    expect(source).toContain(':show-complete-auth-action="showCompleteAuthAction"')
+    expect(source).toContain(':can-complete-auth="canCompleteAuth"')
+    expect(source).toContain('@complete-auth="handleCompleteAuth"')
+    expect(modalLogicSource).toContain("currentOAuthInputMethod.value === 'refresh_token'")
+    expect(modalLogicSource).toContain("return handleValidateRefreshToken(oauthInputDraft.refreshToken || oauthFlowRef.value?.refreshToken || '')")
+    expect(modalLogicSource).toContain('return handleExchangeCode()')
+  })
+
+  it('creates an OpenAI OAuth account from refresh token through the footer completion action', async () => {
+    createMock.mockReset()
+    refreshOpenAITokenMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    refreshOpenAITokenMock.mockResolvedValue({
+      access_token: 'openai-access',
+      refresh_token: 'openai-refresh-new',
+      token_type: 'Bearer',
+      expires_at: 1800000000,
+      email: 'openai@example.com',
+      plan_type: 'plus'
+    })
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 30,
+      name: 'OpenAI OAuth RT',
+      platform: 'openai',
+      type: 'oauth',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-openai"]').trigger('click')
+    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('OpenAI OAuth RT')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapper.get('[data-testid="oauth-set-rt"]').trigger('click')
+    await wrapper.get('[data-testid="oauth-refresh-token"]').setValue('openai-refresh-original')
+    await flushPromises()
+    await setExposedOAuthFlow(wrapper, {
+      inputMethod: 'refresh_token',
+      refreshToken: 'openai-refresh-original'
+    })
+
+    expect(wrapper.get('[data-testid="oauth-rt-inline"]').text()).toBe('false')
+    expect(wrapper.get('[data-testid="footer-complete-auth"]').attributes('disabled')).toBeUndefined()
+
+    await wrapper.get('[data-testid="footer-complete-auth"]').trigger('click')
+    await flushPromises()
+
+    expect(refreshOpenAITokenMock).toHaveBeenCalledWith(
+      'openai-refresh-original',
+      null,
+      '/admin/openai/refresh-token'
+    )
+    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'OpenAI OAuth RT',
+      platform: 'openai',
+      type: 'oauth',
+      credentials: expect.objectContaining({
+        access_token: 'openai-access',
+        refresh_token: 'openai-refresh-new',
+        plan_type: 'plus'
+      }),
+      extra: expect.objectContaining({
+        email: 'openai@example.com'
+      })
+    }))
+  })
+
+  it('creates an Antigravity OAuth account from refresh token through the footer completion action', async () => {
+    createMock.mockReset()
+    refreshAntigravityTokenMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    refreshAntigravityTokenMock.mockResolvedValue({
+      access_token: 'ag-access',
+      refresh_token: 'ag-refresh-new',
+      token_type: 'Bearer',
+      expires_at: 1800000000,
+      project_id: 'ag-project',
+      email: 'ag@example.com'
+    })
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 31,
+      name: 'Antigravity OAuth RT',
+      platform: 'antigravity',
+      type: 'oauth',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-antigravity"]').trigger('click')
+    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Antigravity OAuth RT')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapper.get('[data-testid="oauth-set-rt"]').trigger('click')
+    await wrapper.get('[data-testid="oauth-refresh-token"]').setValue('ag-refresh-original')
+    await flushPromises()
+    await setExposedOAuthFlow(wrapper, {
+      inputMethod: 'refresh_token',
+      refreshToken: 'ag-refresh-original'
+    })
+
+    expect(wrapper.get('[data-testid="oauth-rt-inline"]').text()).toBe('false')
+    expect(wrapper.get('[data-testid="footer-complete-auth"]').attributes('disabled')).toBeUndefined()
+
+    await wrapper.get('[data-testid="footer-complete-auth"]').trigger('click')
+    await flushPromises()
+
+    expect(refreshAntigravityTokenMock).toHaveBeenCalledWith('ag-refresh-original', null)
+    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Antigravity OAuth RT',
+      platform: 'antigravity',
+      type: 'oauth',
+      credentials: expect.objectContaining({
+        access_token: 'ag-access',
+        refresh_token: 'ag-refresh-new',
+        project_id: 'ag-project',
+        email: 'ag@example.com'
+      })
+    }))
+  })
+
+  it('exchanges manual OAuth code through the footer completion action', async () => {
+    createMock.mockReset()
+    exchangeCodeMock.mockReset()
+    generateAuthUrlMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    generateAuthUrlMock.mockResolvedValue({
+      auth_url: 'https://auth.example.com/callback?state=manual-state',
+      session_id: 'manual-session'
+    })
+    exchangeCodeMock.mockResolvedValue({
+      access_token: 'manual-access',
+      refresh_token: 'manual-refresh',
+      token_type: 'Bearer',
+      expires_at: 1800000000,
+      email: 'manual@example.com',
+      plan_type: 'plus'
+    })
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 32,
+      name: 'OpenAI Manual OAuth',
+      platform: 'openai',
+      type: 'oauth',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-openai"]').trigger('click')
+    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('OpenAI Manual OAuth')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapper.get('[data-testid="oauth-generate"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="oauth-set-manual"]').trigger('click')
+    await wrapper.get('[data-testid="oauth-auth-code"]').setValue('manual-code')
+    await wrapper.get('[data-testid="oauth-state"]').setValue('manual-state')
+    await flushPromises()
+    await setExposedOAuthFlow(wrapper, {
+      inputMethod: 'manual',
+      authCode: 'manual-code',
+      oauthState: 'manual-state'
+    })
+
+    expect(wrapper.get('[data-testid="footer-complete-auth"]').attributes('disabled')).toBeUndefined()
+
+    await wrapper.get('[data-testid="footer-complete-auth"]').trigger('click')
+    await flushPromises()
+
+    expect(exchangeCodeMock).toHaveBeenCalledWith('/admin/openai/exchange-code', {
+      session_id: 'manual-session',
+      code: 'manual-code',
+      state: 'manual-state'
+    })
+    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'OpenAI Manual OAuth',
+      platform: 'openai',
+      type: 'oauth',
+      credentials: expect.objectContaining({
+        access_token: 'manual-access',
+        refresh_token: 'manual-refresh'
+      })
+    }))
+  })
+
+  it('keeps Anthropic cookie auth on the inline action instead of the footer completion action', async () => {
+    createMock.mockReset()
+    exchangeCodeMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    exchangeCodeMock.mockResolvedValue({
+      access_token: 'cookie-access',
+      refresh_token: 'cookie-refresh',
+      org_uuid: 'org-1',
+      account_uuid: 'account-1',
+      email_address: 'claude@example.com'
+    })
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 33,
+      name: 'Anthropic Cookie',
+      platform: 'anthropic',
+      type: 'oauth',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-anthropic"]').trigger('click')
+    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Anthropic Cookie')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapper.get('[data-testid="oauth-set-cookie"]').trigger('click')
+    await wrapper.get('[data-testid="oauth-session-key"]').setValue('session-key-value')
+    await flushPromises()
+    await setExposedOAuthFlow(wrapper, {
+      inputMethod: 'cookie',
+      sessionKey: 'session-key-value'
+    })
+
+    expect(wrapper.find('[data-testid="footer-complete-auth"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="oauth-cookie-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(exchangeCodeMock).toHaveBeenCalledWith('/admin/accounts/cookie-auth', {
+      session_id: '',
+      code: 'session-key-value'
+    })
+    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Anthropic Cookie',
+      platform: 'anthropic',
+      type: 'oauth',
+      credentials: expect.objectContaining({
+        access_token: 'cookie-access',
+        refresh_token: 'cookie-refresh'
+      }),
+      extra: expect.objectContaining({
+        org_uuid: 'org-1',
+        account_uuid: 'account-1',
+        email_address: 'claude@example.com'
+      })
+    }))
   })
 
   it('resets the kiro auth panel when platform changes or the flow goes back', () => {

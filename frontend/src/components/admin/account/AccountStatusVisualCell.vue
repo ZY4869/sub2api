@@ -29,19 +29,6 @@
         </span>
       </div>
 
-      <button
-        v-if="showStatusTag && isTempUnschedulable"
-        type="button"
-        :class="statusTagClass"
-        :title="t('admin.accounts.status.viewTempUnschedDetails')"
-        @click="emit('show-temp-unsched', account)"
-      >
-        <span class="min-w-0 truncate">{{ statusTagText }}</span>
-      </button>
-      <span v-else-if="showStatusTag" :class="statusTagClass" :title="statusTagText">
-        <span class="min-w-0 truncate">{{ statusTagText }}</span>
-      </span>
-
       <AccountErrorTooltipButton
         v-if="issueDetailText"
         :message="issueDetailText"
@@ -70,9 +57,6 @@
         />
       </span>
       <AccountSegmentedCountdown :reset-at="countdownResetAt" :tone="visualTone" />
-      <span :class="['text-[10px] font-bold opacity-70', toneStyles.helperTextClass]">
-        {{ countdownSuffix }}
-      </span>
     </div>
 
     <div
@@ -117,11 +101,8 @@ import Icon from '@/components/icons/Icon.vue'
 import { useRealtimeCountdownNow } from '@/composables/useRealtimeCountdownNow'
 import AccountSegmentedCountdown from './AccountSegmentedCountdown.vue'
 import { resolveAccountAiryStatus } from './accountAiryStatus'
-import type { AiryStatusKind } from './accountAiryStatusTypes'
-import {
-  resolveAccountGlassToneStyles,
-  type AccountGlassTone,
-} from './accountVisualGlass'
+import type { AccountGlassTone } from './accountVisualGlass'
+import { useAccountStatusVisualDisplay } from './useAccountStatusVisualDisplay'
 
 const props = withDefaults(defineProps<{
   account: Account
@@ -134,7 +115,7 @@ const props = withDefaults(defineProps<{
   compact: false
 })
 
-const emit = defineEmits<{
+defineEmits<{
   'show-temp-unsched': [account: Account]
 }>()
 
@@ -146,12 +127,13 @@ const {
   isOverloaded,
   isTempUnschedulable,
   hasError,
-  statusText,
   rateLimitResumeText,
   overloadCountdown,
   visibleLimitBadges,
   limitBadgeLayoutClass,
-} = createAccountStatusPresentation(accountRef, t, nowMs, nowDate)
+} = createAccountStatusPresentation(accountRef, t, nowMs, nowDate, {
+  showGenericRateLimitBadges: false,
+})
 
 const airyStatus = computed(() => resolveAccountAiryStatus(props.account, {
   nowMs: nowMs.value,
@@ -164,95 +146,25 @@ const airyStatus = computed(() => resolveAccountAiryStatus(props.account, {
 
 const visualTone = computed<AccountGlassTone>(() => airyStatus.value.tone)
 
-const toneStyles = computed(() => resolveAccountGlassToneStyles(visualTone.value))
-const whiteSurfaceClass = computed(() => {
-  switch (visualTone.value) {
-    case 'red':
-      return 'border-rose-200/80 bg-white dark:border-rose-400/20 dark:bg-slate-900'
-    case 'orange':
-    case 'amber':
-      return 'border-amber-200/80 bg-white dark:border-amber-400/20 dark:bg-slate-900'
-    case 'indigo':
-    case 'sky':
-    case 'purple':
-    case 'teal':
-      return 'border-sky-200/80 bg-white dark:border-sky-400/20 dark:bg-slate-900'
-    case 'emerald':
-      return 'border-emerald-200/80 bg-white dark:border-emerald-400/20 dark:bg-slate-900'
-    default:
-      return 'border-slate-200/85 bg-white dark:border-slate-700/80 dark:bg-slate-900'
-  }
-})
-
 const statusIconName = computed(() => airyStatus.value.iconName)
 
-const statusTitle = computed(() => {
-  return t(airyStatus.value.titleKey)
-})
-
-const issueDetailStatusKinds = new Set<AiryStatusKind>([
-  'banned',
-  'locked',
-  'maintenance',
-  'offline',
-  'overdue',
-  'degraded',
-  'captcha',
-  'syncing',
-  'error',
-])
-
-const firstText = (...values: Array<unknown>) => {
-  for (const value of values) {
-    const text = String(value || '').trim()
-    if (text) return text
-  }
-  return ''
-}
-
-const issueDetailText = computed(() => {
-  if (!issueDetailStatusKinds.has(airyStatus.value.kind)) return ''
-  if (airyStatus.value.helperKey) return t(airyStatus.value.helperKey)
-  return firstText(
-    airyStatus.value.helper,
-  )
-})
-
-const statusTagText = computed(() => {
-  if (airyStatus.value.tagFallback) return airyStatus.value.tagFallback
-  if (airyStatus.value.kind === 'tempUnschedulable') return statusText.value
-  return t(airyStatus.value.tagKey)
-})
-
-const showStatusTag = computed(() => airyStatus.value.kind !== 'degraded')
-
-const statusTagClass = computed(() => [
-  'inline-flex max-w-[82px] shrink-0 items-center rounded-full border px-2 py-1 text-[10px] font-bold tracking-tight transition',
-  toneStyles.value.statusBadgeClass
-])
-
-const countdownResetAt = computed(() => {
-  if (isRateLimited.value && props.account.rate_limit_reset_at) return props.account.rate_limit_reset_at
-  if (isOverloaded.value && props.account.overload_until) return props.account.overload_until
-  return null
-})
-
-const countdownSuffix = computed(() => {
-  if (isRateLimited.value) return t('admin.accounts.status.visualAfterResume')
-  if (isOverloaded.value) return t('admin.accounts.status.visualAfterRelease')
-  return ''
-})
-
-const helperText = computed(() => {
-  if (isRateLimited.value) return rateLimitResumeText.value
-  if (isOverloaded.value) return overloadCountdown.value || ''
-  if (airyStatus.value.helperKey) return t(airyStatus.value.helperKey)
-  return airyStatus.value.helper || ''
-})
-
-const visibleHelperText = computed(() => {
-  if (issueDetailText.value) return ''
-  return helperText.value
+const {
+  toneStyles,
+  whiteSurfaceClass,
+  statusTitle,
+  issueDetailText,
+  countdownResetAt,
+  visibleHelperText,
+} = useAccountStatusVisualDisplay({
+  account: accountRef,
+  airyStatus,
+  visualTone,
+  nowDate,
+  isRateLimited,
+  isOverloaded,
+  rateLimitResumeText,
+  overloadCountdown,
+  t,
 })
 </script>
 

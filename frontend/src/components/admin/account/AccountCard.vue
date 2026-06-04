@@ -150,6 +150,7 @@
           :groups="account.groups"
           :max-display="4"
           :visual-variant="visualStyle === 'airy' ? 'airy' : 'default'"
+          :display-mode="accountGroupDisplayMode"
         />
       </div>
 
@@ -200,7 +201,7 @@ import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
-import type { Account, AccountVisualStyle, WindowStats } from '@/types'
+import type { Account, AccountGroupDisplayMode, AccountVisualStyle, WindowStats } from '@/types'
 import { formatRelativeTime } from '@/utils/format'
 import AccountAutoRecoveryProbeNotice from './AccountAutoRecoveryProbeNotice.vue'
 import AccountsViewAiryRowActions from './AccountsViewAiryRowActions.vue'
@@ -220,9 +221,11 @@ const props = withDefaults(defineProps<{
   usageManualRefreshToken: number
   visualStyle?: AccountVisualStyle
   whiteSurfaceEnabled?: boolean
+  accountGroupDisplayMode?: AccountGroupDisplayMode
 }>(), {
   visualStyle: 'airy',
-  whiteSurfaceEnabled: false
+  whiteSurfaceEnabled: false,
+  accountGroupDisplayMode: 'full'
 })
 
 const emit = defineEmits<{

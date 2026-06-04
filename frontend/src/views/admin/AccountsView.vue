@@ -141,6 +141,7 @@
             :usage-manual-refresh-token="usageManualRefreshToken"
             :visual-style="resolvedAccountVisualPreset"
             :white-surface-enabled="airyWhiteSurfaceEnabled"
+            :account-group-display-mode="accountGroupDisplayMode"
             @toggle-selected="toggleSel"
             @show-temp-unsched="handleShowTempUnsched"
             @toggle-schedulable="handleToggleSchedulable"

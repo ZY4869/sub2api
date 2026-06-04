@@ -104,6 +104,7 @@ export function createCreateAccountSubmit(ctx: any) {
     modelRestrictionMode,
     normalizeGeminiAIStudioTier,
     oauth,
+    oauthInputDraft,
     oauthDraftCredentials,
     oauthDraftExtra,
     oauthDraftProbeReady,
@@ -345,7 +346,7 @@ const { handleCookieAuth } = useCreateAccountAnthropicCookieAuth({
 })
 
 const getOpenAIOAuthState = () =>
-  (oauthFlowRef.value?.oauthState || openaiOAuth.oauthState.value || '').trim()
+  (oauthInputDraft.oauthState || oauthFlowRef.value?.oauthState || openaiOAuth.oauthState.value || '').trim()
 
 const { handleOpenAIExchange } = useCreateAccountOpenAIExchange({
   oauthClient: computed(() => openaiOAuth),
@@ -388,7 +389,7 @@ const { handleOpenAIValidateRT } = useCreateAccountOpenAIRefreshTokenValidation(
 })
 
 const getAntigravityOAuthState = () =>
-  (oauthFlowRef.value?.oauthState || antigravityOAuth.state.value || '').trim()
+  (oauthInputDraft.oauthState || oauthFlowRef.value?.oauthState || antigravityOAuth.state.value || '').trim()
 
 const { handleAntigravityValidateRT, handleAntigravityExchange } = useCreateAccountAntigravityHandlers({
   oauthClient: antigravityOAuth,

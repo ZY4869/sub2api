@@ -90,7 +90,7 @@ describe('AccountUsageVisualCell', () => {
     expect(wrapper.find('[data-testid="account-usage-visual-cell"]').exists()).toBe(true)
   })
 
-  it('shows only the 7d track for OpenAI Free accounts', async () => {
+  it('shows only the dynamic long-window track for OpenAI Free accounts', async () => {
     const wrapper = mount(AccountUsageVisualCell, {
       props: {
         account: {
@@ -104,6 +104,7 @@ describe('AccountUsageVisualCell', () => {
             codex_5h_used_percent: 44,
             codex_5h_reset_at: '2099-05-22T17:00:00Z',
             codex_7d_used_percent: 12,
+            codex_7d_window_minutes: 43200,
             codex_7d_reset_at: '2099-05-29T12:00:00Z',
             codex_usage_updated_at: '2099-05-22T12:00:00Z',
           },
@@ -117,8 +118,11 @@ describe('AccountUsageVisualCell', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('5h')
-    expect(wrapper.text()).toContain('7d')
+    expect(wrapper.text()).toContain('30D')
+    expect(wrapper.text()).not.toContain('7d')
     expect(wrapper.text()).toContain('12%')
+    const rowLabel = wrapper.get('span.w-7')
+    expect(rowLabel.classes()).toContain('bg-emerald-100')
   })
 
   it('follows the shared remaining display mode', async () => {

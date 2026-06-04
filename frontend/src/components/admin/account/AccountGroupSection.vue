@@ -85,6 +85,7 @@
         :usage-manual-refresh-token="usageManualRefreshToken"
         :visual-style="visualStyle"
         :white-surface-enabled="whiteSurfaceEnabled"
+        :account-group-display-mode="accountGroupDisplayMode"
         @toggle-selected="emit('toggle-selected', $event)"
         @show-temp-unsched="emit('show-temp-unsched', $event)"
         @toggle-schedulable="emit('toggle-schedulable', $event)"

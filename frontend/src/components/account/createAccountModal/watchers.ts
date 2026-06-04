@@ -85,6 +85,7 @@ export function useCreateAccountModalWatchers(ctx: any) {
     openaiPassthroughEnabled,
     props,
     protocolGatewayProbeModels,
+    resetOAuthInputDraft,
     resetForm,
     resetOpenAIOAuthDefaultSelection,
     resetProtocolGatewayClaudeMimicState,
@@ -307,6 +308,7 @@ watch(
     openaiOAuth.resetState()
     geminiOAuth.resetState()
     antigravityOAuth.resetState()
+    resetOAuthInputDraft()
     kiroAuthRef.value?.reset()
   }
 )

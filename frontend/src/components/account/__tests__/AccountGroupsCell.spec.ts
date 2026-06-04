@@ -25,10 +25,20 @@ vi.mock('@/components/common/GroupBadge.vue', () => ({
   },
 }))
 
+vi.mock('@/components/common/PlatformIcon.vue', () => ({
+  default: {
+    props: {
+      platform: String,
+      size: String,
+    },
+    template: '<span class="platform-icon-stub" :data-platform="platform" :data-size="size" />',
+  },
+}))
+
 const groups = [
-  { id: 1, name: 'VeryLongProductionGroupName' },
-  { id: 2, name: '审核组' },
-  { id: 3, name: 'Edge' },
+  { id: 1, name: 'GPT-免费', platform: 'openai' },
+  { id: 2, name: '审核组', platform: 'gemini' },
+  { id: 3, name: 'Edge', platform: 'anthropic' },
 ] as any
 
 describe('AccountGroupsCell', () => {
@@ -41,11 +51,11 @@ describe('AccountGroupsCell', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('VeryLongProductionGroupName')
+    expect(wrapper.text()).toContain('GPT-免费')
     expect(wrapper.get('.group-badge-stub').attributes('data-wrap')).toBe('true')
   })
 
-  it('renders compact accessible icons in icon mode', () => {
+  it('renders platform icons, abbreviations, and top tooltips in icon mode', () => {
     const wrapper = mount(AccountGroupsCell, {
       props: {
         groups,
@@ -55,16 +65,38 @@ describe('AccountGroupsCell', () => {
     })
 
     const buttons = wrapper.findAll('button[aria-label]')
-    expect(buttons[0].attributes('aria-label')).toBe('VeryLongProductionGroupName')
-    expect(buttons[0].attributes('title')).toBe('VeryLongProductionGroupName')
-    expect(buttons[0].text()).toBe('V')
+    expect(buttons[0].attributes('aria-label')).toBe('GPT-免费')
+    expect(buttons[0].attributes('title')).toBe('GPT-免费')
+    expect(buttons[0].text()).toBe('GPT')
+    expect(buttons[0].find('.platform-icon-stub').attributes('data-platform')).toBe('openai')
     const tooltip = wrapper.find('[role="tooltip"]')
-    expect(tooltip.text()).toBe('VeryLongProductionGroupName')
+    expect(tooltip.text()).toBe('GPT-免费')
+    expect(tooltip.classes()).toContain('bottom-full')
+    expect(tooltip.classes()).not.toContain('top-full')
     expect(tooltip.classes()).toContain('whitespace-nowrap')
     expect(tooltip.classes()).toContain('truncate')
     expect(tooltip.classes()).not.toContain('break-words')
     expect(buttons[1].attributes('aria-label')).toBe('审核组')
-    expect(buttons[1].text()).toBe('审')
+    expect(buttons[1].text()).toBe('审核')
+    expect(buttons[1].find('.platform-icon-stub').attributes('data-platform')).toBe('gemini')
+  })
+
+  it('assigns different palettes to duplicated abbreviations', () => {
+    const wrapper = mount(AccountGroupsCell, {
+      props: {
+        groups: [
+          { id: 10, name: 'GPT-免费', platform: 'openai' },
+          { id: 11, name: 'GPT-生图', platform: 'openai' },
+        ] as any,
+        maxDisplay: 2,
+        displayMode: 'icon',
+      },
+    })
+
+    const buttons = wrapper.findAll('button[aria-label]')
+    expect(buttons.map((button) => button.text())).toEqual(['GPT', 'GPT'])
+    const bgClass = (classes: string[]) => classes.find((className) => className.startsWith('bg-'))
+    expect(bgClass(buttons[0].classes())).not.toBe(bgClass(buttons[1].classes()))
   })
 
   it('keeps the +N popover affordance for hidden groups', async () => {

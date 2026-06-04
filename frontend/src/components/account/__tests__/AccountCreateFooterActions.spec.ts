@@ -57,4 +57,50 @@ describe('AccountCreateFooterActions', () => {
     expect(wrapper.emitted('back')).toEqual([[]])
     expect(wrapper.emitted('exchangeCode')).toEqual([[]])
   })
+
+  it('supports the generic complete authorization action', async () => {
+    const disabledWrapper = mount(AccountCreateFooterActions, {
+      props: {
+        step: 2,
+        submitting: false,
+        isOAuthFlow: true,
+        isManualInputMethod: false,
+        currentOAuthLoading: false,
+        canExchangeCode: false,
+        showCompleteAuthAction: true,
+        canCompleteAuth: false,
+        autoImportModels: false
+      }
+    })
+
+    const disabledButton = disabledWrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.accounts.oauth.completeAuth'))
+
+    expect(disabledButton?.exists()).toBe(true)
+    expect(disabledButton?.attributes('disabled')).toBeDefined()
+
+    const wrapper = mount(AccountCreateFooterActions, {
+      props: {
+        step: 2,
+        submitting: false,
+        isOAuthFlow: true,
+        isManualInputMethod: false,
+        currentOAuthLoading: false,
+        canExchangeCode: false,
+        showCompleteAuthAction: true,
+        canCompleteAuth: true,
+        autoImportModels: false
+      }
+    })
+
+    const completeButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.accounts.oauth.completeAuth'))
+
+    await completeButton?.trigger('click')
+
+    expect(wrapper.emitted('completeAuth')).toEqual([[]])
+    expect(wrapper.emitted('exchangeCode')).toBeUndefined()
+  })
 })

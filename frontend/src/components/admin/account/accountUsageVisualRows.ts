@@ -14,9 +14,12 @@ const normalizePercent = (value: number) => Math.max(0, Math.min(value, 100))
 const shortLabelForRow = (row: AccountUsagePresentationRow) => {
   const key = row.key.toLowerCase()
   const label = row.label.toLowerCase()
-  if (key.includes('5h') || label.includes('5h')) return '5h'
-  if (key.includes('7d') || label.includes('7d')) return '7d'
-  if (key.includes('daily') || label === '1d') return '1d'
+  const explicitLabel = row.label.match(/\b\d+\s*[dhm]\b/i)?.[0]?.replace(/\s+/g, '')
+  if (explicitLabel) return explicitLabel
+  if (label === '1d') return '1d'
+  if (key.includes('5h')) return '5h'
+  if (key.includes('7d')) return row.label
+  if (key.includes('daily')) return '1d'
   if (key.includes('weekly')) return '7d'
   return row.label
 }
@@ -54,6 +57,9 @@ export const rowTagClass = (row: VisualUsageRow) => {
     return 'bg-indigo-100 border-indigo-300 text-indigo-800 dark:bg-indigo-500/15 dark:border-indigo-400/30 dark:text-indigo-200'
   }
   if (label === '7d') {
+    return 'bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-500/15 dark:border-emerald-400/30 dark:text-emerald-200'
+  }
+  if (/^\d+d$/.test(label)) {
     return 'bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-500/15 dark:border-emerald-400/30 dark:text-emerald-200'
   }
   return 'bg-slate-100 border-slate-300 text-slate-700 dark:bg-slate-700/60 dark:border-slate-500 dark:text-slate-200'

@@ -100,6 +100,7 @@
 
             <!-- Validate Button -->
             <button
+              v-if="showRefreshTokenSubmitButton"
               type="button"
               class="btn btn-primary w-full"
               :disabled="loading || !refreshTokenInput.trim()"
@@ -525,6 +526,7 @@ interface Props {
   methodLabel?: string
   showCookieOption?: boolean // Whether to show cookie auto-auth option
   showRefreshTokenOption?: boolean // Whether to show refresh token input option (OpenAI only)
+  showRefreshTokenSubmitButton?: boolean // Whether to show the inline refresh token submit button
   platform?: AccountPlatform // Platform type for different UI/text
   showProjectId?: boolean // New prop to control project ID visibility
 }
@@ -540,6 +542,7 @@ const props = withDefaults(defineProps<Props>(), {
   methodLabel: 'Authorization Method',
   showCookieOption: true,
   showRefreshTokenOption: false,
+  showRefreshTokenSubmitButton: true,
   platform: 'anthropic',
   showProjectId: true
 })
@@ -550,6 +553,11 @@ const emit = defineEmits<{
   'cookie-auth': [sessionKey: string]
   'validate-refresh-token': [refreshToken: string]
   'update:inputMethod': [method: AuthInputMethod]
+  'update:authCode': [code: string]
+  'update:oauthState': [state: string]
+  'update:projectId': [projectId: string]
+  'update:sessionKey': [sessionKey: string]
+  'update:refreshToken': [refreshToken: string]
 }>()
 
 const { t } = useI18n()
@@ -616,6 +624,26 @@ const parsedRefreshTokenCount = computed(() => {
 // Watchers
 watch(inputMethod, (newVal) => {
   emit('update:inputMethod', newVal)
+})
+
+watch(authCodeInput, (newVal) => {
+  emit('update:authCode', newVal)
+})
+
+watch(oauthState, (newVal) => {
+  emit('update:oauthState', newVal)
+})
+
+watch(projectId, (newVal) => {
+  emit('update:projectId', newVal)
+})
+
+watch(sessionKeyInput, (newVal) => {
+  emit('update:sessionKey', newVal)
+})
+
+watch(refreshTokenInput, (newVal) => {
+  emit('update:refreshToken', newVal)
 })
 
 // Auto-extract code from callback URL (OpenAI/Gemini/Antigravity)

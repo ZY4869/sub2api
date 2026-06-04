@@ -164,6 +164,8 @@
         :show-help="isAnthropic"
         :show-proxy-warning="isAnthropic"
         :show-cookie-option="isAnthropic"
+        :show-refresh-token-option="isOpenAI || isAntigravity"
+        :show-refresh-token-submit-button="false"
         :allow-multiple="false"
         :method-label="t('admin.accounts.inputMethod')"
         :platform="isOpenAI ? 'openai' : isGemini ? 'gemini' : isAntigravity ? 'antigravity' : 'anthropic'"
@@ -180,11 +182,11 @@
           {{ t('common.cancel') }}
         </button>
         <button
-          v-if="!isKiro && !isGeminiVertexAccount && isManualInputMethod"
+          v-if="showCompleteAuthAction"
           type="button"
-          :disabled="!canExchangeCode"
+          :disabled="!canCompleteAuth"
           class="btn btn-primary"
-          @click="handleExchangeCode"
+          @click="handleCompleteAuth"
         >
           <svg
             v-if="currentLoading"
@@ -251,6 +253,7 @@ interface OAuthFlowExposed {
   oauthState: string
   projectId: string
   sessionKey: string
+  refreshToken: string
   inputMethod: AuthInputMethod
   reset: () => void
 }
@@ -318,14 +321,15 @@ const currentError = computed(() => {
 })
 
 // Computed
-const isManualInputMethod = computed(() => {
-  // OpenAI/Gemini/Antigravity always use manual input (no cookie auth option)
-  return (
-    isOpenAI.value ||
-    (isGemini.value && !isGeminiVertexAccount.value) ||
-    isAntigravity.value ||
-    oauthFlowRef.value?.inputMethod === 'manual'
-  )
+const currentOAuthInputMethod = computed<AuthInputMethod>(
+  () => oauthFlowRef.value?.inputMethod || 'manual'
+)
+
+const showCompleteAuthAction = computed(() => {
+  if (isKiro.value || isGeminiVertexAccount.value) {
+    return false
+  }
+  return currentOAuthInputMethod.value === 'manual' || currentOAuthInputMethod.value === 'refresh_token'
 })
 
 const canExchangeCode = computed(() => {
@@ -333,6 +337,16 @@ const canExchangeCode = computed(() => {
   const sessionId = currentSessionId.value
   const loading = currentLoading.value
   return Boolean(authCode.trim() && sessionId && !loading)
+})
+
+const canCompleteAuth = computed(() => {
+  if (!showCompleteAuthAction.value) {
+    return false
+  }
+  if (currentOAuthInputMethod.value === 'refresh_token') {
+    return Boolean((oauthFlowRef.value?.refreshToken || '').trim() && !currentLoading.value)
+  }
+  return canExchangeCode.value
 })
 
 // Watchers
@@ -354,7 +368,8 @@ watch(
     } else {
       resetState()
     }
-  }
+  },
+  { immediate: true }
 )
 
 // Methods
@@ -585,6 +600,78 @@ const handleExchangeCode = async () => {
       claudeOAuth.loading.value = false
     }
   }
+}
+
+const handleRefreshTokenReauthorize = async () => {
+  if (!props.account) return
+
+  const refreshToken = (oauthFlowRef.value?.refreshToken || '').trim()
+  if (!refreshToken) return
+
+  if (isOpenAI.value) {
+    const tokenInfo = await openaiOAuth.validateRefreshToken(refreshToken, props.account.proxy_id)
+    if (!tokenInfo) {
+      return
+    }
+
+    const credentials = openaiOAuth.buildCredentials(tokenInfo)
+    const extra = ensureOpenAIOAuthGatewayTestDefaults({
+      ...((props.account.extra || {}) as Record<string, unknown>),
+      ...(openaiOAuth.buildExtraInfo(tokenInfo) || {})
+    })
+
+    try {
+      openaiOAuth.loading.value = true
+      await adminAPI.accounts.update(props.account.id, {
+        type: 'oauth',
+        credentials,
+        extra
+      })
+      const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
+      handleReauthorizedSuccess(updatedAccount)
+    } catch (error: any) {
+      openaiOAuth.error.value = error.response?.data?.detail || t('admin.accounts.oauth.authFailed')
+      appStore.showError(openaiOAuth.error.value)
+    } finally {
+      openaiOAuth.loading.value = false
+    }
+    return
+  }
+
+  if (isAntigravity.value) {
+    const tokenInfo = await antigravityOAuth.validateRefreshToken(refreshToken, props.account.proxy_id)
+    if (!tokenInfo) {
+      if (antigravityOAuth.error.value) {
+        appStore.showError(antigravityOAuth.error.value)
+      }
+      return
+    }
+
+    const credentials = antigravityOAuth.buildCredentials(tokenInfo)
+
+    try {
+      antigravityOAuth.loading.value = true
+      await adminAPI.accounts.update(props.account.id, {
+        type: 'oauth',
+        credentials
+      })
+      const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
+      handleReauthorizedSuccess(updatedAccount)
+    } catch (error: any) {
+      antigravityOAuth.error.value =
+        error.response?.data?.detail || t('admin.accounts.oauth.authFailed')
+      appStore.showError(antigravityOAuth.error.value)
+    } finally {
+      antigravityOAuth.loading.value = false
+    }
+  }
+}
+
+const handleCompleteAuth = async () => {
+  if (currentOAuthInputMethod.value === 'refresh_token') {
+    return handleRefreshTokenReauthorize()
+  }
+  return handleExchangeCode()
 }
 
 const handleCookieAuth = async (sessionKey: string) => {

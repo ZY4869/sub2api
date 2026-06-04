@@ -18,13 +18,15 @@ const oauthFlowStub = defineComponent({
     'allowMultiple',
     'showCookieOption',
     'showRefreshTokenOption',
+    'showRefreshTokenSubmitButton',
     'platform',
     'showProjectId'
   ],
   emits: [
     'generate-url',
     'cookie-auth',
-    'validate-refresh-token'
+    'validate-refresh-token',
+    'update:inputMethod'
   ],
   setup(props, { emit, expose }) {
     expose({
@@ -41,9 +43,11 @@ const oauthFlowStub = defineComponent({
       h('div', { 'data-testid': 'oauth-step-stub' }, [
         h('span', { 'data-testid': 'auth-url' }, String(props.authUrl)),
         h('span', { 'data-testid': 'platform' }, String(props.platform)),
+        h('span', { 'data-testid': 'show-rt-submit' }, String(props.showRefreshTokenSubmitButton)),
         h('button', { 'data-testid': 'emit-generate', onClick: () => emit('generate-url') }),
         h('button', { 'data-testid': 'emit-cookie', onClick: () => emit('cookie-auth', 'cookie-value') }),
-        h('button', { 'data-testid': 'emit-refresh', onClick: () => emit('validate-refresh-token', 'rt-value') })
+        h('button', { 'data-testid': 'emit-refresh', onClick: () => emit('validate-refresh-token', 'rt-value') }),
+        h('button', { 'data-testid': 'emit-input-method', onClick: () => emit('update:inputMethod', 'refresh_token') })
       ])
   }
 })
@@ -61,6 +65,7 @@ const createWrapper = () =>
       allowMultiple: true,
       showCookieOption: true,
       showRefreshTokenOption: true,
+      showRefreshTokenSubmitButton: false,
       platform: 'anthropic',
       showProjectId: false
     },
@@ -78,14 +83,17 @@ describe('AccountCreateOAuthStep', () => {
 
     expect(wrapper.get('[data-testid="auth-url"]').text()).toBe('https://example.com/auth')
     expect(wrapper.get('[data-testid="platform"]').text()).toBe('anthropic')
+    expect(wrapper.get('[data-testid="show-rt-submit"]').text()).toBe('false')
 
     await wrapper.get('[data-testid="emit-generate"]').trigger('click')
     await wrapper.get('[data-testid="emit-cookie"]').trigger('click')
     await wrapper.get('[data-testid="emit-refresh"]').trigger('click')
+    await wrapper.get('[data-testid="emit-input-method"]').trigger('click')
 
     expect(wrapper.emitted('generateUrl')).toEqual([[]])
     expect(wrapper.emitted('cookieAuth')).toEqual([['cookie-value']])
     expect(wrapper.emitted('validateRefreshToken')).toEqual([['rt-value']])
+    expect(wrapper.emitted('updateInputMethod')).toEqual([['refresh_token']])
 
     const vm = wrapper.vm as unknown as {
       authCode: string

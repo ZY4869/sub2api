@@ -10,10 +10,14 @@ const props = withDefaults(
     isManualInputMethod: boolean
     currentOAuthLoading: boolean
     canExchangeCode: boolean
+    showCompleteAuthAction?: boolean
+    canCompleteAuth?: boolean
     showAutoImport?: boolean
     formId?: string
   }>(),
   {
+    showCompleteAuthAction: undefined,
+    canCompleteAuth: undefined,
     showAutoImport: false,
     formId: 'create-account-form'
   }
@@ -25,6 +29,7 @@ const emit = defineEmits<{
   close: []
   back: []
   exchangeCode: []
+  completeAuth: []
 }>()
 
 const { t } = useI18n()
@@ -41,6 +46,21 @@ const submitLabel = computed(() => {
 const exchangeLabel = computed(() =>
   props.currentOAuthLoading ? t('admin.accounts.oauth.verifying') : t('admin.accounts.oauth.completeAuth')
 )
+
+const shouldShowCompleteAuthAction = computed(() =>
+  props.showCompleteAuthAction ?? props.isManualInputMethod
+)
+
+const completeAuthDisabled = computed(() =>
+  !(props.canCompleteAuth ?? props.canExchangeCode)
+)
+
+const handleCompleteAuth = () => {
+  emit('completeAuth')
+  if (props.showCompleteAuthAction === undefined && props.canCompleteAuth === undefined) {
+    emit('exchangeCode')
+  }
+}
 </script>
 
 <template>
@@ -106,11 +126,11 @@ const exchangeLabel = computed(() =>
         {{ t('common.back') }}
       </button>
       <button
-        v-if="isManualInputMethod"
+        v-if="shouldShowCompleteAuthAction"
         type="button"
-        :disabled="!canExchangeCode"
+        :disabled="completeAuthDisabled"
         class="btn btn-primary"
-        @click="emit('exchangeCode')"
+        @click="handleCompleteAuth"
       >
         <svg
           v-if="currentOAuthLoading"

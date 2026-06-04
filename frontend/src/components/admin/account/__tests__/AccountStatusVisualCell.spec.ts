@@ -22,6 +22,7 @@ vi.mock('vue-i18n', async () => {
         if (key === 'admin.accounts.status.visualAvailableTitle') return '可用'
         if (key === 'admin.accounts.status.visualAvailableTag') return '可调度'
         if (key === 'admin.accounts.status.visualBannedTitle') return '账号封禁'
+        if (key === 'admin.accounts.status.visualUsage7dTitle') return '7D 恢复中'
         if (key === 'admin.accounts.status.window5h') return '5小时'
         if (key === 'admin.accounts.status.window7d') return '7天'
         if (key === 'admin.accounts.status.issueSummaries.offline') return '连接上游或代理超时，请检查网络与代理配置。'
@@ -93,11 +94,11 @@ describe('AccountStatusVisualCell', () => {
 
     expect(wrapper.get('[data-testid="account-status-visual-cell"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('可用')
-    expect(wrapper.text()).toContain('可调度')
+    expect(wrapper.text()).not.toContain('可调度')
     expect(wrapper.find('[data-testid="account-status-visual-countdown"]').exists()).toBe(false)
   })
 
-  it('renders 429 limits with segmented countdown and resume copy', () => {
+  it('renders 429 limits with segmented countdown and no status tag suffix', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-22T12:00:00Z'))
 
@@ -108,13 +109,13 @@ describe('AccountStatusVisualCell', () => {
     }))
 
     expect(wrapper.text()).toContain('admin.accounts.status.rateLimited')
-    expect(wrapper.text()).toContain('429')
     expect(wrapper.get('[data-testid="account-status-visual-countdown"]').text()).toContain('00')
-    expect(wrapper.text()).toContain('admin.accounts.status.visualAfterResume')
+    expect(wrapper.text()).not.toContain('429')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.visualAfterResume')
     expect(wrapper.text()).toContain('admin.accounts.status.rateLimitedAutoResume')
   })
 
-  it('renders 5h and 7d usage limits with scoped labels', () => {
+  it('renders 5h and dynamic long-window usage limits with scoped labels', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-22T12:00:00Z'))
 
@@ -128,17 +129,19 @@ describe('AccountStatusVisualCell', () => {
       rate_limit_reset_at: '2026-05-23T12:00:00Z',
       rate_limit_reason: 'usage_7d_all',
       extra: {
+        codex_7d_window_minutes: 43200,
         codex_7d_reset_at: '2026-05-23T12:00:00Z',
+        codex_spark_7d_window_minutes: 43200,
         codex_spark_7d_reset_at: '2026-05-24T12:00:00Z',
       },
     }))
 
     expect(usage5h.text()).toContain('admin.accounts.status.usage5h')
     expect(usage5h.text()).toContain('admin.accounts.status.usage5hAutoResume')
-    expect(usage7d.text()).toContain('admin.accounts.status.usage7d')
+    expect(usage7d.text()).toContain('30D 恢复中')
     expect(usage7d.text()).toContain('admin.accounts.status.usage7dAll')
-    expect(usage7d.text()).toContain('Codex 7D')
-    expect(usage7d.text()).toContain('Spark 7D')
+    expect(usage7d.text()).toContain('Codex 30D')
+    expect(usage7d.text()).toContain('Spark 30D')
     expect(usage7d.text()).toContain('24小时0分')
     expect(usage7d.text()).not.toContain('Codex 7d')
     expect(usage7d.text()).not.toContain('Spark 7d')
@@ -151,7 +154,7 @@ describe('AccountStatusVisualCell', () => {
     expect(badges[0].find('span.inline-flex').classes()).toContain('w-full')
   })
 
-  it('renders overload with 529 countdown and release copy', () => {
+  it('renders overload with countdown and no release suffix tag', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-22T12:00:00Z'))
 
@@ -160,12 +163,12 @@ describe('AccountStatusVisualCell', () => {
     }))
 
     expect(wrapper.text()).toContain('admin.accounts.status.overloaded')
-    expect(wrapper.text()).toContain('529')
-    expect(wrapper.text()).toContain('admin.accounts.status.visualAfterRelease')
+    expect(wrapper.text()).not.toContain('529')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.visualAfterRelease')
     expect(wrapper.text()).toContain('20分钟 后解除')
   })
 
-  it('keeps temp unschedulable clickable', async () => {
+  it('renders temp unschedulable without a secondary clickable tag', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-22T12:00:00Z'))
 
@@ -173,10 +176,9 @@ describe('AccountStatusVisualCell', () => {
       temp_unschedulable_until: '2026-05-22T12:45:00Z',
     }))
 
-    await wrapper.get('button[type="button"]').trigger('click')
-
     expect(wrapper.text()).toContain('admin.accounts.status.tempUnschedulable')
-    expect(wrapper.emitted('show-temp-unsched')).toEqual([[expect.objectContaining({ id: 1 })]])
+    expect(wrapper.find('button[type="button"]').exists()).toBe(false)
+    expect(wrapper.emitted('show-temp-unsched')).toBeUndefined()
   })
 
   it('renders paused and error states while preserving the error tooltip trigger', async () => {

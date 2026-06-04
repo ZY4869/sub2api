@@ -16,7 +16,8 @@ import type {
 } from '@/api/admin/accounts'
 import {
   useAccountOAuth,
-  type AddMethod
+  type AddMethod,
+  type AuthInputMethod
 } from '@/composables/useAccountOAuth'
 import { useOpenAIOAuth } from '@/composables/useOpenAIOAuth'
 import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
@@ -186,6 +187,27 @@ const currentOAuthError = computed(() => {
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
 const kiroAuthRef = ref<{ reset: () => void } | null>(null)
+const oauthInputDraft = reactive({
+  inputMethod: 'manual' as AuthInputMethod,
+  authCode: '',
+  oauthState: '',
+  projectId: '',
+  sessionKey: '',
+  refreshToken: ''
+})
+
+const resetOAuthInputDraft = () => {
+  oauthInputDraft.inputMethod = 'manual'
+  oauthInputDraft.authCode = ''
+  oauthInputDraft.oauthState = ''
+  oauthInputDraft.projectId = ''
+  oauthInputDraft.sessionKey = ''
+  oauthInputDraft.refreshToken = ''
+}
+
+const handleOAuthInputMethodUpdate = (method: AuthInputMethod) => {
+  oauthInputDraft.inputMethod = method
+}
 
 // State
 const step = ref(1)
@@ -570,11 +592,20 @@ const isOAuthFlow = computed(() => {
   return accountCategory.value === 'oauth-based'
 })
 
+const currentOAuthInputMethod = computed(() => oauthInputDraft.inputMethod)
+
 const isManualInputMethod = computed(() => {
   if (form.platform === 'kiro') {
     return false
   }
-  return oauthFlowRef.value?.inputMethod === 'manual'
+  return currentOAuthInputMethod.value === 'manual'
+})
+
+const showCompleteAuthAction = computed(() => {
+  if (!isOAuthFlow.value || form.platform === 'kiro') {
+    return false
+  }
+  return currentOAuthInputMethod.value === 'manual' || currentOAuthInputMethod.value === 'refresh_token'
 })
 
 const expiresAtInput = computed({
@@ -585,7 +616,7 @@ const expiresAtInput = computed({
 })
 
 const canExchangeCode = computed(() => {
-  const authCode = oauthFlowRef.value?.authCode || ''
+  const authCode = oauthInputDraft.authCode || oauthFlowRef.value?.authCode || ''
   if (form.platform === 'kiro') {
     return false
   }
@@ -599,6 +630,17 @@ const canExchangeCode = computed(() => {
     return Boolean(authCode.trim() && antigravityOAuth.sessionId.value && !antigravityOAuth.loading.value)
   }
   return Boolean(authCode.trim() && oauth.sessionId.value && !oauth.loading.value)
+})
+
+const canCompleteAuth = computed(() => {
+  if (!showCompleteAuthAction.value) {
+    return false
+  }
+  if (currentOAuthInputMethod.value === 'refresh_token') {
+    const refreshToken = oauthInputDraft.refreshToken || oauthFlowRef.value?.refreshToken || ''
+    return Boolean(refreshToken.trim() && !currentOAuthLoading.value)
+  }
+  return canExchangeCode.value
 })
 
 const loadAntigravityDefaultMappings = async () => {
@@ -837,7 +879,10 @@ const { resetForm } = useCreateAccountReset({
   openaiOAuthReset: () => openaiOAuth.resetState(),
   geminiOAuthReset: () => geminiOAuth.resetState(),
   antigravityOAuthReset: () => antigravityOAuth.resetState(),
-  oauthFlowReset: () => oauthFlowRef.value?.reset(),
+  oauthFlowReset: () => {
+    resetOAuthInputDraft()
+    oauthFlowRef.value?.reset()
+  },
   kiroImportReset: () => kiroAuthRef.value?.reset(),
   resetMixedChannelRisk
 })
@@ -858,6 +903,7 @@ const goBackToBasicInfo = () => {
   openaiOAuth.resetState()
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
+  resetOAuthInputDraft()
   oauthFlowRef.value?.reset?.()
   kiroAuthRef.value?.reset?.()
 }
@@ -878,7 +924,7 @@ const handleGenerateUrl = async () => {
   } else if (form.platform === 'gemini') {
     await geminiOAuth.generateAuthUrl(
       form.proxy_id,
-      oauthFlowRef.value?.projectId,
+      oauthInputDraft.projectId || oauthFlowRef.value?.projectId,
       geminiOAuthType.value as GeminiBrowserOAuthType,
       geminiSelectedTier.value
     )
@@ -907,7 +953,7 @@ const handleGeminiExchange = async (authCode: string) => {
   geminiOAuth.error.value = ''
 
   try {
-    const stateFromInput = oauthFlowRef.value?.oauthState || ''
+    const stateFromInput = oauthInputDraft.oauthState || oauthFlowRef.value?.oauthState || ''
     const stateToUse = stateFromInput || geminiOAuth.state.value
     if (!stateToUse) {
       geminiOAuth.error.value = t('admin.accounts.oauth.authFailed')
@@ -937,7 +983,7 @@ const handleGeminiExchange = async (authCode: string) => {
 }
 
 const handleExchangeCode = async () => {
-  const authCode = oauthFlowRef.value?.authCode || ''
+  const authCode = oauthInputDraft.authCode || oauthFlowRef.value?.authCode || ''
 
   switch (form.platform) {
     case 'openai':
@@ -949,6 +995,13 @@ const handleExchangeCode = async () => {
     default:
       return handleAnthropicExchange(authCode)
   }
+}
+
+const handleCompleteAuth = async () => {
+  if (currentOAuthInputMethod.value === 'refresh_token') {
+    return handleValidateRefreshToken(oauthInputDraft.refreshToken || oauthFlowRef.value?.refreshToken || '')
+  }
+  return handleExchangeCode()
 }
 
 const probeExtraForEditor = computed(() => buildProbeExtra())
@@ -977,7 +1030,7 @@ const modalContext = {
   gatewayTestProvider, geminiTierAIStudio, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexLocation, geminiVertexProjectId, geminiVertexServiceAccountJson, grokSSOToken, grokTier,
   handleClose, hasCustomizedOpenAIOAuthDefaults, interceptWarmupRequests, isBaiduDocumentAISelected, isOAuthFlow, isOpenAIModelRestrictionDisabled, isProtocolGatewayPlatform, manualModels, maybeImportCreatedAccounts, mergeAccountManualModelsIntoExtra,
   mergeAccountModelProbeSnapshotIntoExtra, mergeResolvedUpstreamDraftIntoExtra, mixedScheduling, modelMappings, modelProbeSnapshot, modelRestrictionEnabled, modelRestrictionMode, normalizeGeminiAIStudioTier, oauth, oauthDraftCredentials,
-  oauthDraftExtra, oauthDraftProbeReady, oauthFlowRef, openAIImageCompatAllowed, openAIImageProtocolMode, openMixedChannelDialog, openRouterHTTPReferer, openRouterTitle, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuth,
+  oauthDraftExtra, oauthDraftProbeReady, oauthFlowRef, oauthInputDraft, openAIImageCompatAllowed, openAIImageProtocolMode, openMixedChannelDialog, openRouterHTTPReferer, openRouterTitle, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuth,
   openaiOAuthResponsesWebSocketV2Mode, openaiPassthroughEnabled, parseBaiduDocumentAIDirectApiUrlsInput, poolModeState, quotaControl, requiresMixedChannelCheck, resolveAccountApiKeyDefaultBaseUrl, resolveVertexAuthBaseUrl, resolveVertexBaseUrl, resolvedUpstream,
   shouldPersistGeminiTierId, showOAuthFinalizeStep, step, t, tempUnschedEnabled, toRef, upstreamApiKey, upstreamBaseUrl, useCreateAccountAnthropicCookieAuth, useCreateAccountAnthropicExchange,
   useCreateAccountAntigravityHandlers, useCreateAccountOpenAIExchange, useCreateAccountOpenAIRefreshTokenValidation, useCreateAccountSubmit, withConfirmFlag, DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE, DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT, OPENAI_WS_MODE_OFF, actualModelLocked, applyOpenAIOAuthPresetModels,
@@ -988,8 +1041,8 @@ const modalContext = {
   showStandaloneModelScopeEditor, showQuotaLimitSection, showGeminiAIStudioBatchArchiveEditor, showGeminiVertexBatchArchiveEditor, showOAuthFinalizeProbeEditor, antigravityPresetMappings, getModelMappingKey, getAntigravityModelMappingKey, showAdvancedOAuth, showGeminiHelpDialog,
   quotaControlState, umqModeOptions, geminiTierGoogleOne, geminiTierGcp, effectiveGroupPlatforms, protocolGatewayBatchRequestFormats, openAIWSModeOptions, openaiResponsesWebSocketV2Mode, openAIWSModeConcurrencyHintKey, commonErrorCodeOptions,
   geminiHelpLinks, presetMappings, tempUnschedRules, tempUnschedPresets, getTempUnschedRuleKey, addTempUnschedRule, removeTempUnschedRule, moveTempUnschedRule, showMixedChannelWarning, mixedChannelWarningMessageText,
-  handleMixedChannelConfirm, handleMixedChannelCancel, isManualInputMethod, expiresAtInput, canExchangeCode, handleOpenAIImageProtocolModeChange, addModelMapping, removeModelMapping, addPresetMapping, addAntigravityModelMapping,
-  removeAntigravityModelMapping, addAntigravityPresetMapping, handleGrokImportCompleted, goBackToBasicInfo, handleGenerateUrl, handleValidateRefreshToken, handleExchangeCode, probeExtraForEditor, buildProbeExtra, DEFAULT_POOL_MODE_RETRY_COUNT,
+  handleMixedChannelConfirm, handleMixedChannelCancel, isManualInputMethod, currentOAuthInputMethod, showCompleteAuthAction, expiresAtInput, canExchangeCode, canCompleteAuth, handleOAuthInputMethodUpdate, resetOAuthInputDraft, handleOpenAIImageProtocolModeChange, addModelMapping, removeModelMapping, addPresetMapping, addAntigravityModelMapping,
+  removeAntigravityModelMapping, addAntigravityPresetMapping, handleGrokImportCompleted, goBackToBasicInfo, handleGenerateUrl, handleValidateRefreshToken, handleExchangeCode, handleCompleteAuth, probeExtraForEditor, buildProbeExtra, DEFAULT_POOL_MODE_RETRY_COUNT,
   MAX_POOL_MODE_RETRY_COUNT
 }
 const submitBindings = createCreateAccountSubmit(modalContext)

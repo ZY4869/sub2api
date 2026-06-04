@@ -541,11 +541,18 @@
         :allow-multiple="form.platform === 'anthropic'"
         :show-cookie-option="form.platform === 'anthropic'"
         :show-refresh-token-option="form.platform === 'openai' || form.platform === 'antigravity'"
+        :show-refresh-token-submit-button="false"
         :platform="form.platform"
         :show-project-id="geminiOAuthType === 'code_assist'"
         @generate-url="handleGenerateUrl"
         @cookie-auth="handleCookieAuth"
         @validate-refresh-token="handleValidateRefreshToken"
+        @update-input-method="handleOAuthInputMethodUpdate"
+        @update-auth-code="oauthInputDraft.authCode = $event"
+        @update-oauth-state="oauthInputDraft.oauthState = $event"
+        @update-project-id="oauthInputDraft.projectId = $event"
+        @update-session-key="oauthInputDraft.sessionKey = $event"
+        @update-refresh-token="oauthInputDraft.refreshToken = $event"
       />
     </div>
 
@@ -558,9 +565,11 @@
         :is-manual-input-method="isManualInputMethod"
         :current-o-auth-loading="currentOAuthLoading"
         :can-exchange-code="canExchangeCode"
+        :show-complete-auth-action="showCompleteAuthAction"
+        :can-complete-auth="canCompleteAuth"
         @close="handleClose"
         @back="goBackToBasicInfo"
-        @exchange-code="handleExchangeCode"
+        @complete-auth="handleCompleteAuth"
       />
     </template>
   </BaseDialog>
@@ -758,8 +767,12 @@ const {
   handleMixedChannelCancel,
   isOAuthFlow,
   isManualInputMethod,
+  oauthInputDraft,
+  showCompleteAuthAction,
   expiresAtInput,
   canExchangeCode,
+  canCompleteAuth,
+  handleOAuthInputMethodUpdate,
   handleOpenAIImageProtocolModeChange,
   addModelMapping,
   removeModelMapping,
@@ -775,7 +788,7 @@ const {
   goBackToBasicInfo,
   handleGenerateUrl,
   handleValidateRefreshToken,
-  handleExchangeCode,
+  handleCompleteAuth,
   probeExtraForEditor,
   buildProbeExtra,
   DEFAULT_POOL_MODE_RETRY_COUNT,
