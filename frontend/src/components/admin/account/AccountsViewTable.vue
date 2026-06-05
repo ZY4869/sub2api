@@ -181,6 +181,7 @@
         :loading="todayStatsLoading"
         :error="todayStatsError"
         :visible-windows="accountTodayStatsWindows"
+        :visual-variant="visualStyle === 'airy' ? 'airy' : 'default'"
       />
     </template>
 
@@ -255,40 +256,42 @@
     </template>
 
     <template #cell-last_used_at="{ value }">
-      <span class="text-sm text-gray-500 dark:text-dark-400">{{ formatRelativeTime(value) }}</span>
+      <span class="whitespace-nowrap text-sm text-gray-500 dark:text-dark-400">
+        {{ formatRelativeTime(value) }}
+      </span>
     </template>
 
     <template #cell-created_at="{ value }">
-      <span class="text-sm text-gray-500 dark:text-dark-400" :title="formatCreatedAt(value)">
+      <span class="whitespace-nowrap text-sm text-gray-500 dark:text-dark-400" :title="formatCreatedAt(value)">
         {{ formatCreatedAt(value) }}
       </span>
     </template>
 
     <template #cell-expires_at="{ row, value }">
-      <div class="flex max-w-full flex-col items-start gap-1 overflow-hidden">
+      <div class="flex max-w-full flex-col items-start gap-1">
         <span
-          class="max-w-full truncate text-sm text-gray-500 dark:text-dark-400"
+          class="whitespace-nowrap text-sm text-gray-500 dark:text-dark-400"
           :title="formatExpiresAt(value)"
         >
           {{ formatExpiresAt(value) }}
         </span>
         <div
           v-if="isExpired(value) || (row.auto_pause_on_expired && value)"
-          class="flex max-w-full items-center gap-1 overflow-hidden"
+          class="flex max-w-full items-center gap-1"
         >
           <span
             v-if="isExpired(value)"
-            class="inline-flex max-w-full items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            class="inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
             :title="t('admin.accounts.expired')"
           >
-            <span class="truncate">{{ t('admin.accounts.expired') }}</span>
+            <span>{{ t('admin.accounts.expired') }}</span>
           </span>
           <span
             v-if="row.auto_pause_on_expired && value"
-            class="inline-flex max-w-full items-center rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+            class="inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
             :title="t('admin.accounts.autoPauseOnExpired')"
           >
-            <span class="truncate">{{ t('admin.accounts.autoPauseOnExpired') }}</span>
+            <span>{{ t('admin.accounts.autoPauseOnExpired') }}</span>
           </span>
         </div>
       </div>

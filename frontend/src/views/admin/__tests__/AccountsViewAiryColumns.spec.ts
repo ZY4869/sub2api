@@ -155,6 +155,15 @@ describe('AccountsView airy columns', () => {
     expect(wrapper.get('.table-columns').text()).toContain(
       'capacity:w-[184px] min-w-[172px] max-w-[184px]',
     )
+    expect(wrapper.get('.table-columns').text()).toContain(
+      'last_used_at:w-[120px] min-w-[120px] max-w-[128px] whitespace-nowrap',
+    )
+    expect(wrapper.get('.table-columns').text()).toContain(
+      'created_at:w-[156px] min-w-[156px] max-w-[164px] whitespace-nowrap',
+    )
+    expect(wrapper.get('.table-columns').text()).toContain(
+      'expires_at:w-[192px] min-w-[192px] max-w-[204px] whitespace-nowrap',
+    )
     expect(wrapper.get('.table-columns').text()).toContain('usage_reset_dates:w-[260px]')
   })
 })

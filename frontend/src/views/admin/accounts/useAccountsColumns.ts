@@ -60,7 +60,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[132px] min-w-[124px] max-w-[140px]"
+          ? "w-[152px] min-w-[144px] max-w-[160px]"
           : "w-[212px] max-w-[212px]",
     },
   ];
@@ -110,19 +110,19 @@ const allColumns = computed(() => {
       key: "last_used_at",
       label: t("admin.accounts.columns.lastUsed"),
       sortable: true,
-      class: "w-[104px] min-w-[88px] max-w-[104px]",
+      class: "w-[120px] min-w-[120px] max-w-[128px] whitespace-nowrap",
     },
     {
       key: "created_at",
       label: t("admin.accounts.columns.createdAt"),
       sortable: true,
-      class: "w-[112px] min-w-[96px] max-w-[112px]",
+      class: "w-[156px] min-w-[156px] max-w-[164px] whitespace-nowrap",
     },
     {
       key: "expires_at",
       label: t("admin.accounts.columns.expiresAt"),
       sortable: true,
-      class: "w-[112px] min-w-[96px] max-w-[112px]",
+      class: "w-[192px] min-w-[192px] max-w-[204px] whitespace-nowrap",
     },
     { key: "notes", label: t("admin.accounts.columns.notes"), sortable: false },
     {

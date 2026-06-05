@@ -45,6 +45,7 @@ const DataTableStub = defineComponent({
       <div class="cell-today-stats"><slot name="cell-today_stats" :row="data[0]" /></div>
       <div class="cell-groups"><slot name="cell-groups" :row="data[0]" /></div>
       <div class="cell-usage"><slot name="cell-usage" :row="data[0]" /></div>
+      <div class="cell-expires-at"><slot name="cell-expires_at" :row="data[0]" :value="data[0].expires_at" /></div>
       <div class="cell-actions"><slot name="cell-actions" :row="data[0]" /></div>
     </div>
   `
@@ -106,6 +107,8 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
           concurrency: 3,
           current_concurrency: 1,
           lifecycle_state: 'normal',
+          expires_at: null,
+          auto_pause_on_expired: false,
           extra: {},
           credentials: {
             plan_type: 'plus'
@@ -169,8 +172,8 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
           template: '<div class="capacity-stub" :data-visual-variant="visualVariant" :data-white-surface-enabled="String(whiteSurfaceEnabled)" :data-compact="String(compact)">{{ String(account.current_concurrency).padStart(2, "0") }}/{{ String(account.concurrency).padStart(2, "0") }}</div>'
         },
         AccountTodayStatsCell: {
-          props: ['visibleWindows'],
-          template: '<div class="today-stats-stub" :data-visible-windows="visibleWindows?.join(\',\')" />'
+          props: ['visibleWindows', 'visualVariant'],
+          template: '<div class="today-stats-stub" :data-visible-windows="visibleWindows?.join(\',\')" :data-visual-variant="visualVariant" />'
         },
         AccountGroupsCell: {
           props: ['groups', 'maxDisplay', 'visualVariant', 'displayMode'],
@@ -305,6 +308,7 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.groups-stub').attributes('data-visual-variant')).toBe('airy')
     expect(wrapper.get('.groups-stub').attributes('data-display-mode')).toBe('full')
     expect(wrapper.get('.today-stats-stub').attributes('data-visible-windows')).toBe('today,weekly,total')
+    expect(wrapper.get('.today-stats-stub').attributes('data-visual-variant')).toBe('airy')
     expect(wrapper.get('.cell-groups .account-airy-spaced-cell-groups').exists()).toBe(true)
     expect(wrapper.find('.airy-row-actions').exists()).toBe(true)
     expect(wrapper.find('.row-edit').exists()).toBe(false)
@@ -343,6 +347,31 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.cell-groups .account-airy-spaced-cell-groups').classes()).toContain('max-w-[104px]')
   })
 
+  it('renders expiration date and badges without truncation classes', () => {
+    const wrapper = mountTable({
+      expires_at: 1,
+      auto_pause_on_expired: true,
+    })
+
+    const expiresCell = wrapper.get('.cell-expires-at')
+    const dateSpan = expiresCell.get('div.flex.flex-col > span[title]')
+    const badges = expiresCell.findAll('.inline-flex')
+
+    expect(dateSpan.text()).toBe(dateSpan.attributes('title'))
+    expect(dateSpan.text()).toMatch(/^1970-01-01 \d{2}:\d{2}$/)
+    expect(expiresCell.text()).toContain('admin.accounts.expired')
+    expect(expiresCell.text()).toContain('admin.accounts.autoPauseOnExpired')
+    expect(expiresCell.find('.overflow-hidden').exists()).toBe(false)
+    expect(dateSpan.classes()).toContain('whitespace-nowrap')
+    expect(badges).toHaveLength(2)
+    for (const badge of badges) {
+      expect(badge.classes()).toContain('shrink-0')
+      expect(badge.classes()).toContain('whitespace-nowrap')
+      expect(badge.classes()).not.toContain('truncate')
+      expect(badge.find('.truncate').exists()).toBe(false)
+    }
+  })
+
   it('falls back to classic visuals without airy row styles', async () => {
     const wrapper = mountTable({
       extra: {
@@ -361,6 +390,7 @@ describe('AccountsViewTable', () => {
     expect(wrapper.find('.status-classic-stub').exists()).toBe(true)
     expect(wrapper.find('.usage-classic-stub').exists()).toBe(true)
     expect(wrapper.get('.groups-stub').attributes('data-visual-variant')).toBe('default')
+    expect(wrapper.get('.today-stats-stub').attributes('data-visual-variant')).toBe('default')
     expect(wrapper.find('.row-edit').exists()).toBe(true)
     expect(wrapper.find('.airy-row-actions').exists()).toBe(false)
     expect(wrapper.find('.status-visual-stub').exists()).toBe(false)
