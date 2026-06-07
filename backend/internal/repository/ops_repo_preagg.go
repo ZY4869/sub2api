@@ -65,7 +65,8 @@ usage_agg AS (
     percentile_cont(0.95) WITHIN GROUP (ORDER BY first_token_ms) FILTER (WHERE first_token_ms IS NOT NULL) AS ttft_p95_ms,
     percentile_cont(0.99) WITHIN GROUP (ORDER BY first_token_ms) FILTER (WHERE first_token_ms IS NOT NULL) AS ttft_p99_ms,
     AVG(first_token_ms) FILTER (WHERE first_token_ms IS NOT NULL) AS ttft_avg_ms,
-    MAX(first_token_ms) AS ttft_max_ms
+    MAX(first_token_ms) AS ttft_max_ms,
+    COUNT(first_token_ms) AS ttft_sample_count
   FROM usage_base
   GROUP BY GROUPING SETS (
     (bucket_start),
@@ -148,7 +149,8 @@ combined AS (
     u.ttft_p95_ms,
     u.ttft_p99_ms,
     u.ttft_avg_ms,
-    u.ttft_max_ms
+    u.ttft_max_ms,
+    COALESCE(u.ttft_sample_count, 0) AS ttft_sample_count
   FROM usage_agg u
   FULL OUTER JOIN error_agg e
     ON u.bucket_start = e.bucket_start
@@ -181,6 +183,7 @@ INSERT INTO ops_metrics_hourly (
   ttft_p99_ms,
   ttft_avg_ms,
   ttft_max_ms,
+  ttft_sample_count,
   computed_at
 )
 SELECT
@@ -208,6 +211,7 @@ SELECT
   ttft_p99_ms::int,
   ttft_avg_ms,
   ttft_max_ms::int,
+  ttft_sample_count,
   NOW()
 FROM combined
 WHERE bucket_start IS NOT NULL
@@ -235,6 +239,7 @@ ON CONFLICT (bucket_start, COALESCE(platform, ''), COALESCE(group_id, 0), COALES
   ttft_p99_ms = EXCLUDED.ttft_p99_ms,
   ttft_avg_ms = EXCLUDED.ttft_avg_ms,
   ttft_max_ms = EXCLUDED.ttft_max_ms,
+  ttft_sample_count = EXCLUDED.ttft_sample_count,
 
   computed_at = NOW()
 `
@@ -280,6 +285,7 @@ INSERT INTO ops_metrics_daily (
   ttft_p99_ms,
   ttft_avg_ms,
   ttft_max_ms,
+  ttft_sample_count,
   computed_at
 )
 SELECT
@@ -308,15 +314,16 @@ SELECT
     / NULLIF(SUM(success_count) FILTER (WHERE duration_avg_ms IS NOT NULL), 0) AS duration_avg_ms,
   MAX(duration_max_ms) AS duration_max_ms,
 
-  ROUND(SUM(ttft_p50_ms::double precision * success_count) FILTER (WHERE ttft_p50_ms IS NOT NULL)
-    / NULLIF(SUM(success_count) FILTER (WHERE ttft_p50_ms IS NOT NULL), 0))::int AS ttft_p50_ms,
-  ROUND(SUM(ttft_p90_ms::double precision * success_count) FILTER (WHERE ttft_p90_ms IS NOT NULL)
-    / NULLIF(SUM(success_count) FILTER (WHERE ttft_p90_ms IS NOT NULL), 0))::int AS ttft_p90_ms,
+  ROUND(SUM(ttft_p50_ms::double precision * ttft_sample_count) FILTER (WHERE ttft_p50_ms IS NOT NULL)
+    / NULLIF(SUM(ttft_sample_count) FILTER (WHERE ttft_p50_ms IS NOT NULL), 0))::int AS ttft_p50_ms,
+  ROUND(SUM(ttft_p90_ms::double precision * ttft_sample_count) FILTER (WHERE ttft_p90_ms IS NOT NULL)
+    / NULLIF(SUM(ttft_sample_count) FILTER (WHERE ttft_p90_ms IS NOT NULL), 0))::int AS ttft_p90_ms,
   MAX(ttft_p95_ms) AS ttft_p95_ms,
   MAX(ttft_p99_ms) AS ttft_p99_ms,
-  SUM(ttft_avg_ms * success_count) FILTER (WHERE ttft_avg_ms IS NOT NULL)
-    / NULLIF(SUM(success_count) FILTER (WHERE ttft_avg_ms IS NOT NULL), 0) AS ttft_avg_ms,
+  SUM(ttft_avg_ms * ttft_sample_count) FILTER (WHERE ttft_avg_ms IS NOT NULL)
+    / NULLIF(SUM(ttft_sample_count) FILTER (WHERE ttft_avg_ms IS NOT NULL), 0) AS ttft_avg_ms,
   MAX(ttft_max_ms) AS ttft_max_ms,
+  COALESCE(SUM(ttft_sample_count), 0) AS ttft_sample_count,
 
   NOW()
 FROM ops_metrics_hourly
@@ -345,6 +352,7 @@ ON CONFLICT (bucket_date, COALESCE(platform, ''), COALESCE(group_id, 0), COALESC
   ttft_p99_ms = EXCLUDED.ttft_p99_ms,
   ttft_avg_ms = EXCLUDED.ttft_avg_ms,
   ttft_max_ms = EXCLUDED.ttft_max_ms,
+  ttft_sample_count = EXCLUDED.ttft_sample_count,
 
   computed_at = NOW()
 `

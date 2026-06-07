@@ -108,3 +108,14 @@ func TestIsCodexOfficialClientByHeaders(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeAllowedClientIDs(t *testing.T) {
+	got := NormalizeAllowedClientIDs([]string{" CLAUDE_CODE ", "unknown", "claude_code", ""})
+	if len(got) != 1 || got[0] != AllowedClientClaudeCode {
+		t.Fatalf("NormalizeAllowedClientIDs returned %#v, want [%q]", got, AllowedClientClaudeCode)
+	}
+
+	if got := NormalizeAllowedClientIDs([]string{"unknown"}); len(got) != 0 {
+		t.Fatalf("NormalizeAllowedClientIDs returned %#v, want empty", got)
+	}
+}

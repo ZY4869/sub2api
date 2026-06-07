@@ -321,6 +321,103 @@ func (s *redeemRepoStub) SumPositiveBalanceByUser(ctx context.Context, userID in
 	panic("unexpected SumPositiveBalanceByUser call")
 }
 
+type deleteUserAPIKeyRepoStub struct {
+	keys       []APIKey
+	deleteErr  error
+	deletedIDs []int64
+}
+
+func (s *deleteUserAPIKeyRepoStub) Create(context.Context, *APIKey) error {
+	panic("unexpected Create call")
+}
+func (s *deleteUserAPIKeyRepoStub) GetByID(context.Context, int64) (*APIKey, error) {
+	panic("unexpected GetByID call")
+}
+func (s *deleteUserAPIKeyRepoStub) GetKeyAndOwnerID(context.Context, int64) (string, int64, error) {
+	panic("unexpected GetKeyAndOwnerID call")
+}
+func (s *deleteUserAPIKeyRepoStub) GetByKey(context.Context, string) (*APIKey, error) {
+	panic("unexpected GetByKey call")
+}
+func (s *deleteUserAPIKeyRepoStub) GetByKeyForAuth(context.Context, string) (*APIKey, error) {
+	panic("unexpected GetByKeyForAuth call")
+}
+func (s *deleteUserAPIKeyRepoStub) Update(context.Context, *APIKey) error {
+	panic("unexpected Update call")
+}
+func (s *deleteUserAPIKeyRepoStub) Delete(_ context.Context, id int64) error {
+	s.deletedIDs = append(s.deletedIDs, id)
+	return s.deleteErr
+}
+func (s *deleteUserAPIKeyRepoStub) ListByUserID(context.Context, int64, pagination.PaginationParams, APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
+	if len(s.keys) == 0 {
+		return nil, &pagination.PaginationResult{Total: 0, Page: 1, PageSize: 100}, nil
+	}
+	keys := append([]APIKey(nil), s.keys...)
+	s.keys = nil
+	return keys, &pagination.PaginationResult{Total: int64(len(keys)), Page: 1, PageSize: 100}, nil
+}
+func (s *deleteUserAPIKeyRepoStub) VerifyOwnership(context.Context, int64, []int64) ([]int64, error) {
+	panic("unexpected VerifyOwnership call")
+}
+func (s *deleteUserAPIKeyRepoStub) CountByUserID(context.Context, int64) (int64, error) {
+	panic("unexpected CountByUserID call")
+}
+func (s *deleteUserAPIKeyRepoStub) ExistsByKey(context.Context, string) (bool, error) {
+	panic("unexpected ExistsByKey call")
+}
+func (s *deleteUserAPIKeyRepoStub) ListByGroupID(context.Context, int64, pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
+	panic("unexpected ListByGroupID call")
+}
+func (s *deleteUserAPIKeyRepoStub) SearchAPIKeys(context.Context, int64, string, int) ([]APIKey, error) {
+	panic("unexpected SearchAPIKeys call")
+}
+func (s *deleteUserAPIKeyRepoStub) ClearGroupIDByGroupID(context.Context, int64) (int64, error) {
+	panic("unexpected ClearGroupIDByGroupID call")
+}
+func (s *deleteUserAPIKeyRepoStub) UpdateGroupIDByUserAndGroup(context.Context, int64, int64, int64) (int64, error) {
+	panic("unexpected UpdateGroupIDByUserAndGroup call")
+}
+func (s *deleteUserAPIKeyRepoStub) CountByGroupID(context.Context, int64) (int64, error) {
+	panic("unexpected CountByGroupID call")
+}
+func (s *deleteUserAPIKeyRepoStub) ListKeysByUserID(context.Context, int64) ([]string, error) {
+	panic("unexpected ListKeysByUserID call")
+}
+func (s *deleteUserAPIKeyRepoStub) ListKeysByGroupID(context.Context, int64) ([]string, error) {
+	panic("unexpected ListKeysByGroupID call")
+}
+func (s *deleteUserAPIKeyRepoStub) GetAPIKeyGroups(context.Context, int64) ([]APIKeyGroupBinding, error) {
+	panic("unexpected GetAPIKeyGroups call")
+}
+func (s *deleteUserAPIKeyRepoStub) SetAPIKeyGroups(context.Context, int64, []APIKeyGroupBinding) error {
+	panic("unexpected SetAPIKeyGroups call")
+}
+func (s *deleteUserAPIKeyRepoStub) IncrementAPIKeyGroupQuotaUsed(context.Context, int64, int64, float64) error {
+	panic("unexpected IncrementAPIKeyGroupQuotaUsed call")
+}
+func (s *deleteUserAPIKeyRepoStub) IncrementQuotaUsed(context.Context, int64, float64) (float64, error) {
+	panic("unexpected IncrementQuotaUsed call")
+}
+func (s *deleteUserAPIKeyRepoStub) UpdateLastUsed(context.Context, int64, time.Time) error {
+	panic("unexpected UpdateLastUsed call")
+}
+func (s *deleteUserAPIKeyRepoStub) TryReserveImageCount(context.Context, int64, int) (bool, error) {
+	panic("unexpected TryReserveImageCount call")
+}
+func (s *deleteUserAPIKeyRepoStub) RollbackImageCount(context.Context, int64, int) error {
+	panic("unexpected RollbackImageCount call")
+}
+func (s *deleteUserAPIKeyRepoStub) IncrementRateLimitUsage(context.Context, int64, float64) error {
+	panic("unexpected IncrementRateLimitUsage call")
+}
+func (s *deleteUserAPIKeyRepoStub) ResetRateLimitWindows(context.Context, int64) error {
+	panic("unexpected ResetRateLimitWindows call")
+}
+func (s *deleteUserAPIKeyRepoStub) GetRateLimitData(context.Context, int64) (*APIKeyRateLimitData, error) {
+	panic("unexpected GetRateLimitData call")
+}
+
 type subscriptionInvalidateCall struct {
 	userID  int64
 	groupID int64
@@ -402,6 +499,27 @@ func TestAdminService_DeleteUser_Success(t *testing.T) {
 	err := svc.DeleteUser(context.Background(), 7)
 	require.NoError(t, err)
 	require.Equal(t, []int64{7}, repo.deletedIDs)
+}
+
+func TestAdminService_DeleteUser_DeletesAPIKeysAndInvalidatesCaches(t *testing.T) {
+	repo := &userRepoStub{user: &User{ID: 7, Role: RoleUser}}
+	apiKeys := &deleteUserAPIKeyRepoStub{keys: []APIKey{
+		{ID: 11, UserID: 7, Key: "sk-one"},
+		{ID: 12, UserID: 7, Key: "sk-two"},
+	}}
+	invalidator := &authCacheInvalidatorStub{}
+	svc := &adminServiceImpl{
+		userRepo:             repo,
+		apiKeyRepo:           apiKeys,
+		authCacheInvalidator: invalidator,
+	}
+
+	err := svc.DeleteUser(context.Background(), 7)
+	require.NoError(t, err)
+	require.Equal(t, []int64{11, 12}, apiKeys.deletedIDs)
+	require.Equal(t, []int64{7}, repo.deletedIDs)
+	require.ElementsMatch(t, []string{"sk-one", "sk-two"}, invalidator.keys)
+	require.Equal(t, []int64{7}, invalidator.userIDs)
 }
 
 func TestAdminService_DeleteUser_NotFound(t *testing.T) {

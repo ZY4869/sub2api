@@ -97,7 +97,7 @@ vi.mock('@/composables/useAccountDisplayPreferences', () => ({
 const TablePageLayoutStub = defineComponent({
   template: `
     <div>
-      <slot name="toolbar" />
+      <slot name="filters" />
       <slot name="table" />
     </div>
   `,
@@ -151,19 +151,20 @@ describe('AccountsView airy columns', () => {
     await vi.dynamicImportSettled()
 
     expect(wrapper.get('.table-columns').text()).not.toContain('schedulable')
-    expect(wrapper.get('.table-columns').text()).toContain('name:w-[236px]')
+    expect(wrapper.get('.table-columns').text()).toContain('name:w-[220px]')
     expect(wrapper.get('.table-columns').text()).toContain(
-      'capacity:w-[184px] min-w-[172px] max-w-[184px]',
+      'capacity:w-[168px] min-w-[156px] max-w-[168px]',
     )
     expect(wrapper.get('.table-columns').text()).toContain(
-      'last_used_at:w-[120px] min-w-[120px] max-w-[128px] whitespace-nowrap',
+      'last_used_at:w-[112px] min-w-[112px] max-w-[120px] whitespace-nowrap',
     )
     expect(wrapper.get('.table-columns').text()).toContain(
-      'created_at:w-[156px] min-w-[156px] max-w-[164px] whitespace-nowrap',
+      'created_at:w-[144px] min-w-[144px] max-w-[152px] whitespace-nowrap',
     )
     expect(wrapper.get('.table-columns').text()).toContain(
-      'expires_at:w-[192px] min-w-[192px] max-w-[204px] whitespace-nowrap',
+      'expires_at:w-[176px] min-w-[176px] max-w-[188px] whitespace-nowrap',
     )
-    expect(wrapper.get('.table-columns').text()).toContain('usage_reset_dates:w-[260px]')
+    expect(wrapper.get('.table-columns').text()).toContain('usage_reset_dates:w-[232px]')
+    expect(wrapper.get('.toolbar-columns').text()).toContain('usage_reset_dates')
   })
 })

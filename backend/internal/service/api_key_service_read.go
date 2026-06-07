@@ -37,6 +37,18 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 	return apiKey, nil
 }
 
+func (s *APIKeyService) GetByIDForUser(ctx context.Context, id int64, userID int64) (*APIKey, error) {
+	apiKey, err := s.apiKeyRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get api key: %w", err)
+	}
+	if apiKey.UserID != userID {
+		return nil, ErrAPIKeyNotFound
+	}
+	s.compileAPIKeyIPRules(apiKey)
+	return apiKey, nil
+}
+
 func (s *APIKeyService) GetByIDAllowDeleted(ctx context.Context, id int64) (*APIKey, error) {
 	if reader, ok := s.apiKeyRepo.(apiKeyDeletedReader); ok {
 		apiKey, err := reader.GetByIDAllowDeleted(ctx, id)

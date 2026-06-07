@@ -3,6 +3,8 @@ package service
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseCodexRateLimitsFromWSMessage_PayloadNestedRateLimits(t *testing.T) {
@@ -11,9 +13,7 @@ func TestParseCodexRateLimitsFromWSMessage_PayloadNestedRateLimits(t *testing.T)
 	now := time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC)
 	msg := []byte(`{"type":"codex.rate_limits","payload":{"rate_limits":{"rate_limits":{"primary":{"used_percent":12.5,"window_minutes":300,"resets_in_seconds":1800},"secondary":{"used_percent":88.0,"window_minutes":10080,"resets_in_seconds":604800}}}}}`)
 	snapshot := parseCodexRateLimitsFromWSMessage(msg, now)
-	if snapshot == nil {
-		t.Fatal("expected snapshot to be parsed from nested payload.rate_limits.rate_limits")
-	}
+	require.NotNil(t, snapshot)
 	if snapshot.PrimaryUsedPercent == nil || *snapshot.PrimaryUsedPercent != 12.5 {
 		t.Fatalf("PrimaryUsedPercent = %v, want 12.5", snapshot.PrimaryUsedPercent)
 	}

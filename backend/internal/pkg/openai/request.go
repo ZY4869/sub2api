@@ -6,6 +6,37 @@ const (
 	AllowedClientClaudeCode = "claude_code"
 )
 
+var supportedAllowedClientIDs = map[string]struct{}{
+	AllowedClientClaudeCode: {},
+}
+
+func SupportedAllowedClientIDs() []string {
+	return []string{AllowedClientClaudeCode}
+}
+
+func NormalizeAllowedClientIDs(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		normalized := normalizeCodexClientHeader(value)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := supportedAllowedClientIDs[normalized]; !ok {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		result = append(result, normalized)
+	}
+	return result
+}
+
 // CodexCLIUserAgentPrefixes matches Codex CLI User-Agent patterns
 // Examples: "codex_vscode/1.0.0", "codex_cli_rs/0.1.2"
 var CodexCLIUserAgentPrefixes = []string{

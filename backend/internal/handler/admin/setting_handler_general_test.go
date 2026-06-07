@@ -292,16 +292,20 @@ func TestSettingHandlerUpdateSettings_OpenAIClaudeCodeCodexPluginRoundTrip(t *te
 	repo := &adminSettingRepoStub{
 		values: map[string]string{
 			service.SettingKeyOpenAIAllowClaudeCodeCodexPlugin: "false",
+			service.SettingKeyOpenAIAllowedCodexClients:        "[]",
 		},
 	}
 	handler := newAdminSettingTestHandler(repo)
 
 	resp := performAdminSettingsUpdate(t, handler, `{
-		"openai_allow_claude_code_codex_plugin": true
+		"openai_allow_claude_code_codex_plugin": true,
+		"openai_allowed_codex_clients": ["claude_code", "unknown"]
 	}`)
 
 	require.Equal(t, http.StatusOK, resp.Code)
 	require.Equal(t, "true", repo.values[service.SettingKeyOpenAIAllowClaudeCodeCodexPlugin])
+	require.Equal(t, `["claude_code"]`, repo.values[service.SettingKeyOpenAIAllowedCodexClients])
 	settings := decodeUpdatedSystemSettings(t, resp)
 	require.Equal(t, true, settings["openai_allow_claude_code_codex_plugin"])
+	require.Equal(t, []any{"claude_code"}, settings["openai_allowed_codex_clients"])
 }

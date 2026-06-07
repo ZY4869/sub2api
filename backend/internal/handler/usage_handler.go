@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ type usageFilterAPIKeyItem struct {
 type UsageHandler struct {
 	usageService  *service.UsageService
 	apiKeyService *service.APIKeyService
+	opsService    *service.OpsService
 }
 
 // NewUsageHandler creates a new UsageHandler
@@ -34,6 +36,12 @@ func NewUsageHandler(usageService *service.UsageService, apiKeyService *service.
 	return &UsageHandler{
 		usageService:  usageService,
 		apiKeyService: apiKeyService,
+	}
+}
+
+func (h *UsageHandler) SetOpsService(opsService *service.OpsService) {
+	if h != nil {
+		h.opsService = opsService
 	}
 }
 
@@ -206,6 +214,146 @@ func (h *UsageHandler) FilterAPIKeys(c *gin.Context) {
 		len(items),
 	)
 	response.Success(c, items)
+}
+
+type userFailedRequestItem struct {
+	ID               int64     `json:"id"`
+	CreatedAt        time.Time `json:"created_at"`
+	RequestID        string    `json:"request_id"`
+	ClientRequestID  string    `json:"client_request_id"`
+	Platform         string    `json:"platform"`
+	Model            string    `json:"model"`
+	RequestedModel   string    `json:"requested_model"`
+	StatusCode       int       `json:"status_code"`
+	Phase            string    `json:"phase"`
+	Source           string    `json:"error_source"`
+	Owner            string    `json:"error_owner"`
+	Message          string    `json:"message"`
+	RequestPath      string    `json:"request_path"`
+	InboundEndpoint  string    `json:"inbound_endpoint"`
+	UpstreamEndpoint string    `json:"upstream_endpoint"`
+	APIKeyID         *int64    `json:"api_key_id,omitempty"`
+}
+
+// ListFailedRequests lists gateway-level failed requests for the current user.
+// GET /api/v1/usage/failed-requests
+func (h *UsageHandler) ListFailedRequests(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.opsService == nil {
+		page, pageSize := response.ParsePagination(c)
+		response.Paginated(c, []userFailedRequestItem{}, 0, page, pageSize)
+		return
+	}
+
+	page, pageSize := response.ParsePagination(c)
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	startTime, endTime, err := parseUsageQueryTimeRange(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	var apiKeyID *int64
+	if apiKeyIDStr := strings.TrimSpace(c.Query("api_key_id")); apiKeyIDStr != "" {
+		id, err := strconv.ParseInt(apiKeyIDStr, 10, 64)
+		if err != nil || id <= 0 {
+			response.BadRequest(c, "Invalid api_key_id")
+			return
+		}
+		apiKey, err := h.apiKeyService.GetByIDAllowDeleted(c.Request.Context(), id)
+		if err != nil || apiKey == nil || apiKey.UserID != subject.UserID {
+			response.NotFound(c, "API key not found")
+			return
+		}
+		apiKeyID = &id
+	}
+
+	filter := &service.OpsErrorLogFilter{
+		Page:      page,
+		PageSize:  pageSize,
+		UserID:    &subject.UserID,
+		APIKeyID:  apiKeyID,
+		Platform:  strings.TrimSpace(c.Query("platform")),
+		StartTime: startTime,
+		EndTime:   endTime,
+		View:      "all",
+	}
+	result, err := h.opsService.GetErrorLogs(c.Request.Context(), filter)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	items := make([]userFailedRequestItem, 0, len(result.Errors))
+	for _, item := range result.Errors {
+		if item == nil {
+			continue
+		}
+		items = append(items, userFailedRequestFromOps(item))
+	}
+	response.Paginated(c, items, int64(result.Total), result.Page, result.PageSize)
+}
+
+func parseUsageQueryTimeRange(c *gin.Context) (*time.Time, *time.Time, error) {
+	userTZ := c.Query("timezone")
+	now := timezone.NowInUserLocation(userTZ)
+	start := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, -6), userTZ)
+	end := timezone.StartOfDayInUserLocation(now, userTZ).AddDate(0, 0, 1)
+
+	if startDateStr := strings.TrimSpace(c.Query("start_date")); startDateStr != "" {
+		t, err := timezone.ParseInUserLocation("2006-01-02", startDateStr, userTZ)
+		if err != nil {
+			return nil, nil, err
+		}
+		start = t
+	}
+	if endDateStr := strings.TrimSpace(c.Query("end_date")); endDateStr != "" {
+		t, err := timezone.ParseInUserLocation("2006-01-02", endDateStr, userTZ)
+		if err != nil {
+			return nil, nil, err
+		}
+		end = t.AddDate(0, 0, 1)
+	}
+	if end.Before(start) {
+		return nil, nil, fmt.Errorf("invalid date range: end_date must be on or after start_date")
+	}
+	return &start, &end, nil
+}
+
+func userFailedRequestFromOps(item *service.OpsErrorLog) userFailedRequestItem {
+	return userFailedRequestItem{
+		ID:               item.ID,
+		CreatedAt:        item.CreatedAt,
+		RequestID:        item.RequestID,
+		ClientRequestID:  item.ClientRequestID,
+		Platform:         item.Platform,
+		Model:            item.Model,
+		RequestedModel:   item.RequestedModel,
+		StatusCode:       item.StatusCode,
+		Phase:            item.Phase,
+		Source:           item.Source,
+		Owner:            item.Owner,
+		Message:          truncateUserFailedRequestMessage(item.Message),
+		RequestPath:      item.RequestPath,
+		InboundEndpoint:  item.InboundEndpoint,
+		UpstreamEndpoint: item.UpstreamEndpoint,
+		APIKeyID:         item.APIKeyID,
+	}
+}
+
+func truncateUserFailedRequestMessage(message string) string {
+	message = strings.TrimSpace(message)
+	const maxLen = 512
+	if len(message) <= maxLen {
+		return message
+	}
+	return message[:maxLen-3] + "..."
 }
 
 // GetByID handles getting a single usage record

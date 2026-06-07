@@ -10,5 +10,9 @@ export default {
         maxVersionHint: "拒绝高于此版本的 Claude Code 客户端请求（semver 格式）。留空则不检查版本。",
         allowCodexPlugin: "允许 Claude Code Codex 插件",
         allowCodexPluginHint: "默认关闭；开启后仅放行 originator 为 Claude Code 且 User-Agent 含 Claude Code/ 的 Codex 插件请求。",
+        allowedClients: "允许的客户端",
+        allowedClientsHint: "只允许已知且受支持的例外客户端；未识别的客户端不会被保存或放行。",
+        allowedClientClaudeCodeLabel: "Claude Code",
+        allowedClientClaudeCode: "允许 Claude Code Codex 插件在开启 codex_cli_only 的 OpenAI 账号上通过。",
     }
 }

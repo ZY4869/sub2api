@@ -20,6 +20,7 @@ func applyOpsAPIKeyAndClientIP(c *gin.Context, apiKey *service.APIKey, entry *se
 	}
 	if apiKey != nil {
 		entry.APIKeyID = &apiKey.ID
+		entry.APIKeyPrefix = safeOpsAPIKeyPrefix(apiKey.Key)
 		if apiKey.User != nil {
 			entry.UserID = &apiKey.User.ID
 		}
@@ -37,6 +38,18 @@ func applyOpsAPIKeyAndClientIP(c *gin.Context, apiKey *service.APIKey, entry *se
 		clientIP = ip
 		entry.ClientIP = &clientIP
 	}
+}
+
+func safeOpsAPIKeyPrefix(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+	const maxPrefixLen = 12
+	if len(key) <= maxPrefixLen {
+		return key
+	}
+	return key[:maxPrefixLen]
 }
 
 // isCountTokensRequest checks if the request is a count_tokens request

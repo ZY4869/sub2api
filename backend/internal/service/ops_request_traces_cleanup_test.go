@@ -7,6 +7,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCleanupRequestTraces_FilterRequiresAtLeastOneCondition(t *testing.T) {
@@ -48,9 +49,7 @@ func TestCleanupRequestTraces_FilterAllowsTimeRangeOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CleanupRequestTraces() error = %v", err)
 	}
-	if res == nil {
-		t.Fatalf("expected result, got nil")
-	}
+	require.NotNil(t, res)
 	if res.Mode != OpsRequestTraceCleanupModeFilter {
 		t.Fatalf("Mode = %q, want %q", res.Mode, OpsRequestTraceCleanupModeFilter)
 	}

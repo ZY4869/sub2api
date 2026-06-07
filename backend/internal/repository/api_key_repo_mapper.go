@@ -72,6 +72,7 @@ func userEntityToService(u *dbent.User) *service.User {
 		Balances:                        map[string]float64{service.ModelPricingCurrencyUSD: u.Balance},
 		Concurrency:                     u.Concurrency,
 		Status:                          u.Status,
+		Deleted:                         u.DeletedAt != nil,
 		AdminFreeBilling:                u.AdminFreeBilling,
 		RequestDetailsReview:            u.RequestDetailsReview,
 		GlobalRealtimeCountdownEnabled:  u.GlobalRealtimeCountdownEnabled,

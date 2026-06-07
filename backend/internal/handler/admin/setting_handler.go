@@ -353,6 +353,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.OpenAIAllowClaudeCodeCodexPlugin != after.OpenAIAllowClaudeCodeCodexPlugin {
 		changed = append(changed, "openai_allow_claude_code_codex_plugin")
 	}
+	if !equalStringSlice(before.OpenAIAllowedCodexClients, after.OpenAIAllowedCodexClients) {
+		changed = append(changed, "openai_allowed_codex_clients")
+	}
 	if before.LoginAgreementEnabled != after.LoginAgreementEnabled {
 		changed = append(changed, "login_agreement_enabled")
 	}
@@ -509,6 +512,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		CodexOAuthUserAgentMode:              settings.CodexOAuthUserAgentMode,
 		CodexOAuthUserAgentOverride:          settings.CodexOAuthUserAgentOverride,
 		OpenAIAllowClaudeCodeCodexPlugin:     settings.OpenAIAllowClaudeCodeCodexPlugin,
+		OpenAIAllowedCodexClients:            cloneStringSliceForJSON(settings.OpenAIAllowedCodexClients),
 		CustomMenuItems:                      customMenuItems,
 		LoginAgreementEnabled:                settings.LoginAgreementEnabled,
 		LoginAgreementMode:                   settings.LoginAgreementMode,
@@ -572,6 +576,13 @@ func equalStringSlice(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func cloneStringSliceForJSON(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return append([]string(nil), values...)
 }
 
 func equalFloatMap(a, b map[string]float64) bool {

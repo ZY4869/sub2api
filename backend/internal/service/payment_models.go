@@ -201,6 +201,7 @@ type PaymentRepository interface {
 	CreateOrder(ctx context.Context, order *PaymentOrder) error
 	UpdateOrderProviderIntent(ctx context.Context, orderNo string, providerIntentID string, status string) error
 	GetOrderByOrderNo(ctx context.Context, orderNo string) (*PaymentOrder, error)
+	GetOrderByOrderNoForUpdate(ctx context.Context, orderNo string) (*PaymentOrder, error)
 	GetOrderByUserIdempotencyHash(ctx context.Context, userID int64, idempotencyKeyHash string) (*PaymentOrder, error)
 	GetOrderByResumeTokenHash(ctx context.Context, tokenHash string) (*PaymentOrder, error)
 	GetOrderByProviderIntent(ctx context.Context, provider, providerIntentID string) (*PaymentOrder, error)

@@ -228,12 +228,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	reservedImageUnits := 0
 	imageCountSettled := false
 
-	streamResult := gjson.GetBytes(body, "stream")
-	if streamResult.Exists() && streamResult.Type != gjson.True && streamResult.Type != gjson.False {
+	reqStream, ok := parseOpenAIStreamFlag(body)
+	if !ok {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "invalid stream field type")
 		return
 	}
-	reqStream := streamResult.Bool()
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
 	previousResponseID := strings.TrimSpace(gjson.GetBytes(body, "previous_response_id").String())
 	if previousResponseID != "" {

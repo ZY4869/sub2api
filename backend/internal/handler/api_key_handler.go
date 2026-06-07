@@ -143,15 +143,9 @@ func (h *APIKeyHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	key, err := h.apiKeyService.GetByID(c.Request.Context(), keyID)
+	key, err := h.apiKeyService.GetByIDForUser(c.Request.Context(), keyID, subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
-		return
-	}
-
-	// 验证所有权
-	if key.UserID != subject.UserID {
-		response.Forbidden(c, "Not authorized to access this key")
 		return
 	}
 

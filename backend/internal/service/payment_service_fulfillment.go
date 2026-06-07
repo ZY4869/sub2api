@@ -15,46 +15,59 @@ func (s *PaymentService) markOrderPaid(ctx context.Context, order *PaymentOrder)
 	}
 	now := time.Now()
 	err := s.repo.RunInTx(ctx, func(txCtx context.Context) error {
-		if order.ProductType == PaymentProductBalanceTopup {
-			amount, err := NormalizeAndValidatePositiveBillingAmount(PaymentMinorToAmount(order.AmountMinor, order.Currency))
+		locked, err := s.repo.GetOrderByOrderNoForUpdate(txCtx, order.OrderNo)
+		if err != nil {
+			return err
+		}
+		if locked.Status == PaymentStatusPaid {
+			order.Status = PaymentStatusPaid
+			order.PaidAt = locked.PaidAt
+			order.UpdatedAt = locked.UpdatedAt
+			return nil
+		}
+		if locked.ProductType == PaymentProductBalanceTopup {
+			amount, err := NormalizeAndValidatePositiveBillingAmount(PaymentMinorToAmount(locked.AmountMinor, locked.Currency))
 			if err != nil {
 				return err
 			}
-			if err := s.repo.AddWalletBalance(txCtx, order.UserID, order.Currency, amount); err != nil {
+			if err := s.repo.AddWalletBalance(txCtx, locked.UserID, locked.Currency, amount); err != nil {
 				return err
 			}
 			if s.affiliateService != nil {
-				s.affiliateService.AccruePaymentTopupRebateBestEffort(txCtx, order.ID, order.UserID, amount)
+				s.affiliateService.AccruePaymentTopupRebateBestEffort(txCtx, locked.ID, locked.UserID, amount)
 			}
 		}
-		if order.ProductType == PaymentProductSubscription {
+		if locked.ProductType == PaymentProductSubscription {
 			var snap paymentOrderSnapshot
-			_ = json.Unmarshal(order.SnapshotJSON, &snap)
+			_ = json.Unmarshal(locked.SnapshotJSON, &snap)
 			if snap.GroupID <= 0 || snap.ValidityDays <= 0 {
 				return ErrPaymentInvalidProduct
 			}
 			if s.subscriptionSvc != nil {
-				s.subscriptionSvc.InvalidateSubCache(order.UserID, snap.GroupID)
+				s.subscriptionSvc.InvalidateSubCache(locked.UserID, snap.GroupID)
 			}
 			if err := s.repo.AssignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
-				UserID:       order.UserID,
+				UserID:       locked.UserID,
 				GroupID:      snap.GroupID,
 				ValidityDays: snap.ValidityDays,
-				Notes:        "payment order " + order.OrderNo,
+				Notes:        "payment order " + locked.OrderNo,
 			}); err != nil {
 				return err
 			}
 		}
-		if order.ProductType != PaymentProductBalanceTopup && order.ProductType != PaymentProductSubscription {
+		if locked.ProductType != PaymentProductBalanceTopup && locked.ProductType != PaymentProductSubscription {
 			return ErrPaymentInvalidProduct
 		}
-		if err := s.repo.UpdateOrderStatus(txCtx, order.OrderNo, PaymentStatusPaid, &now, nil); err != nil {
+		if err := s.repo.UpdateOrderStatus(txCtx, locked.OrderNo, PaymentStatusPaid, &now, nil); err != nil {
 			return err
 		}
+		order.Status = PaymentStatusPaid
+		order.PaidAt = &now
+		order.UpdatedAt = now
 		s.logInfo(ctx, "payment.order.fulfilled",
-			zap.String("order_no", order.OrderNo),
-			zap.Int64("user_id", order.UserID),
-			zap.String("provider", order.Provider),
+			zap.String("order_no", locked.OrderNo),
+			zap.Int64("user_id", locked.UserID),
+			zap.String("provider", locked.Provider),
 			zap.String("status", PaymentStatusPaid),
 		)
 		return nil

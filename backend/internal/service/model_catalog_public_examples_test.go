@@ -33,6 +33,20 @@ func TestSelectPublicModelCatalogExampleSpec_UsesNativeImageExampleForGeminiImag
 	require.Equal(t, PlatformGemini, spec.Protocol)
 }
 
+func TestSelectPublicModelCatalogExampleSpec_UsesEmbeddingsOverride(t *testing.T) {
+	spec, ok := selectPublicModelCatalogExampleSpec(PublicModelCatalogItem{
+		Model:            "text-embedding-3-small",
+		Provider:         PlatformOpenAI,
+		RequestProtocols: []string{PlatformOpenAI},
+		Mode:             "embedding",
+	}, "")
+
+	require.True(t, ok)
+	require.Equal(t, "embeddings", spec.OverrideID)
+	require.Equal(t, PlatformOpenAI, spec.Protocol)
+	require.Equal(t, "openai.embeddings", spec.EndpointKey)
+}
+
 func TestSelectPublicModelCatalogExampleSpec_ReturnsFalseWithoutSupportedEndpoint(t *testing.T) {
 	_, ok := selectPublicModelCatalogExampleSpec(PublicModelCatalogItem{
 		Model: "blocked-model",

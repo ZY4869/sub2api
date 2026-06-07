@@ -104,6 +104,7 @@ type SystemSettings struct {
 	CodexOAuthUserAgentMode              string
 	CodexOAuthUserAgentOverride          string
 	OpenAIAllowClaudeCodeCodexPlugin     bool
+	OpenAIAllowedCodexClients            []string
 	CustomMenuItems                      string // JSON array of custom menu items
 	LoginAgreementEnabled                bool
 	LoginAgreementMode                   string

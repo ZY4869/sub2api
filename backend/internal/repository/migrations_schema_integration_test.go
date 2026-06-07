@@ -243,6 +243,25 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireIndex(t, tx, "ops_request_traces", "idx_ops_request_traces_gemini_surface_time")
 	requireIndex(t, tx, "ops_request_traces", "idx_ops_request_traces_billing_rule_id")
 	requireIndex(t, tx, "ops_request_traces", "idx_ops_request_traces_probe_action_time")
+
+	// ops/deleted-key attribution added after local migration 133.
+	requireTable(t, tx, "deleted_api_key_audits")
+	requireColumn(t, tx, "deleted_api_key_audits", "api_key_id", "bigint", 0, false)
+	requireColumn(t, tx, "deleted_api_key_audits", "user_id", "bigint", 0, false)
+	requireColumn(t, tx, "deleted_api_key_audits", "name", "text", 0, false)
+	requireColumn(t, tx, "deleted_api_key_audits", "key_prefix", "character varying", 32, false)
+	requireColumn(t, tx, "deleted_api_key_audits", "deleted_at", "timestamp with time zone", 0, false)
+	requireColumn(t, tx, "deleted_api_key_audits", "created_at", "timestamp with time zone", 0, false)
+	requireIndex(t, tx, "deleted_api_key_audits", "idx_deleted_api_key_audits_user_deleted")
+	requireIndex(t, tx, "deleted_api_key_audits", "idx_deleted_api_key_audits_key_prefix")
+
+	requireColumn(t, tx, "ops_system_metrics", "ttft_sample_count", "bigint", 0, false)
+	requireColumn(t, tx, "ops_metrics_hourly", "ttft_sample_count", "bigint", 0, false)
+	requireColumn(t, tx, "ops_metrics_daily", "ttft_sample_count", "bigint", 0, false)
+	requireColumn(t, tx, "ops_error_logs", "api_key_prefix", "character varying", 32, true)
+	requireIndex(t, tx, "ops_error_logs", "idx_ops_error_logs_api_key_prefix_time")
+	requireIndex(t, tx, "ops_error_logs", "idx_ops_error_logs_user_time")
+	requireIndex(t, tx, "ops_error_logs", "idx_ops_error_logs_api_key_time")
 }
 
 func requireIndex(t *testing.T, tx *sql.Tx, table, index string) {

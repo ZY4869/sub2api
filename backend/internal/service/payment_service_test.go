@@ -77,6 +77,10 @@ func (r *paymentRepoStub) GetOrderByOrderNo(_ context.Context, orderNo string) (
 	return nil, ErrPaymentOrderNotFound
 }
 
+func (r *paymentRepoStub) GetOrderByOrderNoForUpdate(ctx context.Context, orderNo string) (*PaymentOrder, error) {
+	return r.GetOrderByOrderNo(ctx, orderNo)
+}
+
 func (r *paymentRepoStub) GetOrderByUserIdempotencyHash(_ context.Context, _ int64, hash string) (*PaymentOrder, error) {
 	if order := r.ordersByIdempotency[hash]; order != nil {
 		return order, nil
@@ -190,12 +194,13 @@ func (r *paymentRepoStub) AssignOrExtendSubscription(context.Context, *AssignSub
 }
 
 type airwallexStub struct {
-	intentReq  AirwallexPaymentIntentRequest
-	refundReq  AirwallexRefundRequest
-	failIntent error
-	failRefund error
-	creates    int
-	retrieves  int
+	intentReq      AirwallexPaymentIntentRequest
+	refundReq      AirwallexRefundRequest
+	failIntent     error
+	failRefund     error
+	retrieveStatus string
+	creates        int
+	retrieves      int
 }
 
 func (a *airwallexStub) CreatePaymentIntent(_ context.Context, _ PaymentSettings, req AirwallexPaymentIntentRequest) (*AirwallexPaymentIntentResponse, error) {
@@ -209,7 +214,7 @@ func (a *airwallexStub) CreatePaymentIntent(_ context.Context, _ PaymentSettings
 
 func (a *airwallexStub) RetrievePaymentIntent(context.Context, PaymentSettings, string) (*AirwallexPaymentIntentResponse, error) {
 	a.retrieves++
-	return &AirwallexPaymentIntentResponse{ID: "int_123", ClientSecret: "secret2"}, nil
+	return &AirwallexPaymentIntentResponse{ID: "int_123", ClientSecret: "secret2", Status: a.retrieveStatus}, nil
 }
 
 func (a *airwallexStub) CreateRefund(_ context.Context, _ PaymentSettings, req AirwallexRefundRequest) (*AirwallexRefundResponse, error) {
@@ -409,6 +414,59 @@ func TestPaymentServiceResumeOrderByOrderNoChecksOwnerAndReturnsClientSecret(t *
 
 	_, err = svc.ResumeOrderByOrderNo(context.Background(), order.OrderNo, 8)
 	require.ErrorIs(t, err, ErrPaymentOrderForbidden)
+}
+
+func TestPaymentServiceResumeOrderSyncsSucceededIntentAndFulfills(t *testing.T) {
+	repo := newPaymentRepoStub()
+	order := &PaymentOrder{
+		ID: 3, OrderNo: "pay_1", UserID: 7, ProductType: PaymentProductBalanceTopup,
+		Status: PaymentStatusPending, Provider: PaymentProviderAirwallex, ProviderIntentID: "int_123",
+		AmountMinor: 1500, Currency: "USD",
+	}
+	repo.orders[order.OrderNo] = order
+	air := &airwallexStub{retrieveStatus: "SUCCEEDED"}
+	svc := newPaymentServiceTestSubject(repo, air)
+
+	result, err := svc.ResumeOrderByOrderNo(context.Background(), order.OrderNo, 7)
+
+	require.NoError(t, err)
+	require.Equal(t, "secret2", result.ClientSecret)
+	require.Equal(t, 1, air.retrieves)
+	require.Equal(t, 1, repo.txRuns)
+	require.Equal(t, 1, repo.walletAdds)
+	require.Equal(t, 15.0, repo.lastWalletAmount)
+	require.Equal(t, PaymentStatusPaid, order.Status)
+	require.NotNil(t, order.PaidAt)
+}
+
+func TestPaymentServiceResumeOrderSyncsTerminalProviderStatus(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		provider string
+		expected string
+	}{
+		{name: "cancelled", provider: "CANCELLED", expected: PaymentStatusCancelled},
+		{name: "expired", provider: "EXPIRED", expected: PaymentStatusExpired},
+		{name: "failed", provider: "FAILED", expected: PaymentStatusFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := newPaymentRepoStub()
+			order := &PaymentOrder{
+				OrderNo: "pay_1", UserID: 7, ProductType: PaymentProductBalanceTopup,
+				Status: PaymentStatusPending, Provider: PaymentProviderAirwallex, ProviderIntentID: "int_123",
+				AmountMinor: 1500, Currency: "USD",
+			}
+			repo.orders[order.OrderNo] = order
+			svc := newPaymentServiceTestSubject(repo, &airwallexStub{retrieveStatus: tc.provider})
+
+			_, err := svc.ResumeOrderByOrderNo(context.Background(), order.OrderNo, 7)
+
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, order.Status)
+			require.Equal(t, []string{tc.expected}, repo.statusUpdates)
+			require.Zero(t, repo.walletAdds)
+		})
+	}
 }
 
 func TestPaymentServiceWebhookPaidRedactsPayloadAndFulfillsInTransaction(t *testing.T) {

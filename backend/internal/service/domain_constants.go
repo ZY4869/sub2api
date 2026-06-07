@@ -177,6 +177,7 @@ const (
 	SettingKeyCodexOAuthUserAgentMode              = "codex_oauth_user_agent_mode"
 	SettingKeyCodexOAuthUserAgentOverride          = "codex_oauth_user_agent_override"
 	SettingKeyOpenAIAllowClaudeCodeCodexPlugin     = "openai_allow_claude_code_codex_plugin"
+	SettingKeyOpenAIAllowedCodexClients            = "openai_allowed_codex_clients"
 	SettingKeyCustomMenuItems                      = "custom_menu_items"
 	SettingKeyLoginAgreementEnabled                = "login_agreement_enabled"
 	SettingKeyLoginAgreementMode                   = "login_agreement_mode"

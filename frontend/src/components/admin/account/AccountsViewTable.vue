@@ -9,6 +9,7 @@
     :sort-storage-key="sortStorageKey"
     :preserve-input-order="preserveInputOrder"
     table-layout="fixed"
+    horizontal-scrollbar="subtle"
     :virtual-scroll="accounts.length > 30"
     virtual-scroll-target="window"
     :row-class="visualStyle === 'airy' ? resolveRowClass : undefined"

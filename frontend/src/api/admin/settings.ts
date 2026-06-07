@@ -126,6 +126,7 @@ export interface SystemSettings {
   codex_oauth_user_agent_mode: 'default' | 'force' | 'custom' | string
   codex_oauth_user_agent_override: string
   openai_allow_claude_code_codex_plugin: boolean
+  openai_allowed_codex_clients: string[]
   backend_mode_enabled: boolean
   maintenance_mode_enabled: boolean
   custom_menu_items: CustomMenuItem[]
@@ -264,6 +265,7 @@ export interface UpdateSettingsRequest {
   codex_oauth_user_agent_mode?: 'default' | 'force' | 'custom' | string
   codex_oauth_user_agent_override?: string
   openai_allow_claude_code_codex_plugin?: boolean
+  openai_allowed_codex_clients?: string[]
   backend_mode_enabled?: boolean
   maintenance_mode_enabled?: boolean
   custom_menu_items?: CustomMenuItem[]

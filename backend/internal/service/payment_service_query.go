@@ -99,6 +99,9 @@ func (s *PaymentService) resumeExistingOrder(ctx context.Context, order *Payment
 	}
 	if intent != nil {
 		result.ClientSecret = intent.ClientSecret
+		if err := s.syncRetrievedPaymentIntentStatus(ctx, order, intent); err != nil {
+			return nil, err
+		}
 	}
 	return result, nil
 }
@@ -131,5 +134,8 @@ func (s *PaymentService) rebuildCreateOrderResult(ctx context.Context, settings 
 		return result, nil
 	}
 	result.ClientSecret = intent.ClientSecret
+	if err := s.syncRetrievedPaymentIntentStatus(ctx, order, intent); err != nil {
+		return nil, err
+	}
 	return result, nil
 }

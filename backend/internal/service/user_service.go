@@ -23,6 +23,9 @@ type UserListFilters struct {
 	Search     string           // Search in email, username
 	GroupName  string           // Filter by allowed group name (fuzzy match)
 	Attributes map[int64]string // Custom attribute filters: attributeID -> value
+	// IncludeDeleted is only for admin/ops historical lookup flows. Normal user lists
+	// keep the default soft-delete filter.
+	IncludeDeleted bool
 	// IncludeSubscriptions controls whether ListWithFilters should load active subscriptions.
 	// For large datasets this can be expensive; admin list pages should enable it on demand.
 	// nil means not specified (default: load subscriptions for backward compatibility).

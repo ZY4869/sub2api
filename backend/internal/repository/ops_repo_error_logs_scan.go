@@ -51,6 +51,7 @@ func scanOpsErrorLogListRow(row opsErrorLogRow) (*service.OpsErrorLog, error) {
 		&userID,
 		&userEmail,
 		&apiKeyID,
+		&item.APIKeyPrefix,
 		&accountID,
 		&accountName,
 		&groupID,

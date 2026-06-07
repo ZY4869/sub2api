@@ -15,6 +15,7 @@ export default {
     searchApiKeyPlaceholder: "Search API key by name...",
     searchAccountPlaceholder: "Search account by name...",
     selectedUser: "Selected",
+    deletedUserSuffix: "Deleted",
     user: "User",
     account: "Account",
     group: "Group",

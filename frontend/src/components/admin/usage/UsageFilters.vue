@@ -35,7 +35,7 @@
               @click="selectUser(u)"
               class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-              <span>{{ u.email }}</span>
+              <span>{{ formatUserLabel(u) }}</span>
               <span class="ml-2 text-xs text-gray-400">#{{ u.id }}</span>
             </button>
           </div>
@@ -292,6 +292,11 @@ const formatApiKeyLabel = (key: SimpleApiKey): string => {
   return key.deleted ? `${base} (${t('usage.deletedApiKeySuffix')})` : base
 }
 
+const formatUserLabel = (user: SimpleUser): string => {
+  const base = user.email || `#${user.id}`
+  return user.deleted ? `${base} (${t('admin.usage.deletedUserSuffix')})` : base
+}
+
 const debounceUserSearch = () => {
   if (userSearchTimeout) clearTimeout(userSearchTimeout)
   userSearchTimeout = setTimeout(async () => {
@@ -322,7 +327,7 @@ const debounceApiKeySearch = () => {
 }
 
 const selectUser = async (u: SimpleUser) => {
-  userKeyword.value = u.email
+  userKeyword.value = formatUserLabel(u)
   showUserDropdown.value = false
   filters.value.user_id = u.id
   clearApiKey()

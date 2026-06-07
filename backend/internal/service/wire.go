@@ -252,8 +252,9 @@ func ProvideUsageRepairService(repo UsageRepairRepository, timingWheel *TimingWh
 }
 
 // ProvideAccountExpiryService creates and starts AccountExpiryService.
-func ProvideAccountExpiryService(accountRepo AccountRepository, accountTestService *AccountTestService) *AccountExpiryService {
+func ProvideAccountExpiryService(accountRepo AccountRepository, accountTestService *AccountTestService, leaderGate PeriodicJobLeaderGate) *AccountExpiryService {
 	svc := NewAccountExpiryService(accountRepo, accountTestService, time.Minute)
+	svc.SetLeaderGate(leaderGate)
 	svc.Start()
 	return svc
 }
@@ -264,14 +265,17 @@ func ProvideAccountDaily5HTriggerService(
 	accountTestService *AccountTestService,
 	settingService *SettingService,
 	modelRegistryService *ModelRegistryService,
+	leaderGate PeriodicJobLeaderGate,
 ) *AccountDaily5HTriggerService {
 	svc := NewAccountDaily5HTriggerService(accountRepo, accountTestService, settingService, modelRegistryService, time.Minute)
+	svc.SetLeaderGate(leaderGate)
 	svc.Start()
 	return svc
 }
 
-func ProvideAccountBlacklistCleanupService(accountRepo AccountRepository) *AccountBlacklistCleanupService {
+func ProvideAccountBlacklistCleanupService(accountRepo AccountRepository, leaderGate PeriodicJobLeaderGate) *AccountBlacklistCleanupService {
 	svc := NewAccountBlacklistCleanupService(accountRepo, time.Hour)
+	svc.SetLeaderGate(leaderGate)
 	svc.Start()
 	return svc
 }
@@ -280,8 +284,10 @@ func ProvideAccountRateLimitRecoveryProbeService(
 	accountRepo AccountRepository,
 	accountTestService *AccountTestService,
 	rateLimitService *RateLimitService,
+	leaderGate PeriodicJobLeaderGate,
 ) *AccountRateLimitRecoveryProbeService {
 	svc := NewAccountRateLimitRecoveryProbeService(accountRepo, accountTestService, rateLimitService, time.Minute)
+	svc.SetLeaderGate(leaderGate)
 	svc.Start()
 	return svc
 }
@@ -293,9 +299,11 @@ func ProvideSubscriptionExpiryService(
 	templates *EmailTemplateService,
 	userRepo UserRepository,
 	settingService *SettingService,
+	leaderGate PeriodicJobLeaderGate,
 ) *SubscriptionExpiryService {
 	svc := NewSubscriptionExpiryService(userSubRepo, time.Minute)
 	svc.SetNotificationServices(emailService, templates, userRepo, settingService)
+	svc.SetLeaderGate(leaderGate)
 	svc.Start()
 	return svc
 }

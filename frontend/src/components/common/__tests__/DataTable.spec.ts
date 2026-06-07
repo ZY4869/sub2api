@@ -197,6 +197,49 @@ describe('DataTable', () => {
     expect(wrapper.text()).toContain('Alpha')
   })
 
+  it('uses the default horizontal scrollbar treatment unless subtle mode is requested', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        columns,
+        data: rows,
+        rowKey: 'id'
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.table-wrapper').classes()).not.toContain(
+      'table-wrapper-scrollbar-subtle'
+    )
+  })
+
+  it('adds the subtle horizontal scrollbar class when requested', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        columns,
+        data: rows,
+        rowKey: 'id',
+        horizontalScrollbar: 'subtle'
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.table-wrapper').classes()).toContain(
+      'table-wrapper-scrollbar-subtle'
+    )
+  })
+
   it('ignores stale virtual rows that point outside the current filtered data', async () => {
     virtualState.items = [{ index: 12, start: 672, end: 728 }]
     virtualState.totalSize = 728

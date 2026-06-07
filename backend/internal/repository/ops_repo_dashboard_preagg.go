@@ -22,8 +22,9 @@ type opsDashboardPartial struct {
 
 	tokenConsumed int64
 
-	duration service.OpsPercentiles
-	ttft     service.OpsPercentiles
+	ttftSampleCount int64
+	duration        service.OpsPercentiles
+	ttft            service.OpsPercentiles
 }
 
 func (r *opsRepository) getDashboardOverviewPreaggregated(ctx context.Context, filter *service.OpsDashboardFilter) (*service.OpsDashboardOverview, error) {
@@ -97,9 +98,9 @@ func (r *opsRepository) getDashboardOverviewPreaggregated(ctx context.Context, f
 		{weight: tail.successCount, p: tail.duration},
 	})
 	ttft := combineApproxPercentiles([]opsPercentileSegment{
-		{weight: preagg.successCount, p: preagg.ttft},
-		{weight: head.successCount, p: head.ttft},
-		{weight: tail.successCount, p: tail.ttft},
+		{weight: preagg.ttftSampleCount, p: preagg.ttft},
+		{weight: head.ttftSampleCount, p: head.ttft},
+		{weight: tail.ttftSampleCount, p: tail.ttft},
 	})
 
 	windowSeconds := end.Sub(start).Seconds()
@@ -198,12 +199,13 @@ func (r *opsRepository) queryRawPartial(ctx context.Context, filter *service.Ops
 	}
 
 	latencyCtx, cancelLatency := context.WithTimeout(ctx, opsRawLatencyQueryTimeout)
-	duration, ttft, err := r.queryUsageLatency(latencyCtx, filter, start, end)
+	duration, ttft, ttftSampleCount, err := r.queryUsageLatency(latencyCtx, filter, start, end)
 	cancelLatency()
 	if err != nil {
 		if isQueryTimeoutErr(err) {
 			duration = service.OpsPercentiles{}
 			ttft = service.OpsPercentiles{}
+			ttftSampleCount = 0
 		} else {
 			return nil, err
 		}
@@ -223,6 +225,7 @@ func (r *opsRepository) queryRawPartial(ctx context.Context, filter *service.Ops
 		upstream429Count:             upstream429,
 		upstream529Count:             upstream529,
 		tokenConsumed:                tokenConsumed,
+		ttftSampleCount:              ttftSampleCount,
 		duration:                     duration,
 		ttft:                         ttft,
 	}, nil

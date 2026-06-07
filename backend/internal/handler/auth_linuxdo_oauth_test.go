@@ -48,6 +48,15 @@ func TestLinuxDoParseUserInfoParsesIDAndUsername(t *testing.T) {
 	require.Equal(t, "linuxdo-123@linuxdo-connect.invalid", email)
 }
 
+func TestLinuxDoLocalAccountEmailPrefersSyntheticSubject(t *testing.T) {
+	require.Equal(
+		t,
+		"linuxdo-123@linuxdo-connect.invalid",
+		linuxDoLocalAccountEmail("owner@example.com", "123"),
+	)
+	require.Equal(t, "owner@example.com", linuxDoLocalAccountEmail(" owner@example.com ", ""))
+}
+
 func TestLinuxDoParseUserInfoDefaultsUsername(t *testing.T) {
 	cfg := config.LinuxDoConnectConfig{
 		UserInfoURL: "https://connect.linux.do/api/user",

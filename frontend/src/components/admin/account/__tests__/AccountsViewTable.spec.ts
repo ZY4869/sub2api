@@ -28,10 +28,11 @@ vi.mock('vue-i18n', async () => {
 })
 
 const DataTableStub = defineComponent({
-  props: ['data', 'columns', 'rowClass', 'rowStyle', 'virtualScroll'],
+  props: ['data', 'columns', 'rowClass', 'rowStyle', 'virtualScroll', 'horizontalScrollbar'],
   template: `
     <div>
       <div class="data-table-virtual-scroll">{{ String(virtualScroll) }}</div>
+      <div class="data-table-horizontal-scrollbar">{{ String(horizontalScrollbar) }}</div>
       <div class="header-select"><slot name="header-select" /></div>
       <div class="column-capacity">{{ columns?.find((column) => column.key === 'capacity')?.label }}</div>
       <div class="header-usage"><slot name="header-usage" :column="{ key: 'usage', label: 'Usage Windows' }" /></div>
@@ -203,6 +204,7 @@ describe('AccountsViewTable', () => {
     const wrapper = mountTable()
 
     expect(localStorage.getItem('account-usage-display-mode')).toBe('used')
+    expect(wrapper.get('.data-table-horizontal-scrollbar').text()).toBe('subtle')
 
     await wrapper.get('[data-testid="usage-display-mode-toggle"]').trigger('click')
 

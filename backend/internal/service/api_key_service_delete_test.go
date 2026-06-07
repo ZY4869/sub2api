@@ -227,11 +227,11 @@ func (s *apiKeyCacheStub) SubscribeAuthCacheInvalidation(ctx context.Context, ha
 	return nil
 }
 
-// TestApiKeyService_Delete_OwnerMismatch 测试非所有者尝试删除时返回权限错误。
+// TestApiKeyService_Delete_OwnerMismatch 测试非所有者尝试删除时返回不可枚举的 not found 错误。
 // 预期行为：
 //   - GetKeyAndOwnerID 返回所有者 ID 为 1
 //   - 调用者 userID 为 2（不匹配）
-//   - 返回 ErrInsufficientPerms 错误
+//   - 返回 ErrAPIKeyNotFound 错误，避免暴露 key 是否存在
 //   - Delete 方法不被调用
 //   - 缓存不被清除
 func TestApiKeyService_Delete_OwnerMismatch(t *testing.T) {
@@ -242,10 +242,45 @@ func TestApiKeyService_Delete_OwnerMismatch(t *testing.T) {
 	svc := &APIKeyService{apiKeyRepo: repo, cache: cache}
 
 	err := svc.Delete(context.Background(), 10, 2) // API Key ID=10, 调用者 userID=2
-	require.ErrorIs(t, err, ErrInsufficientPerms)
+	require.ErrorIs(t, err, ErrAPIKeyNotFound)
 	require.Empty(t, repo.deletedIDs)   // 验证删除操作未被调用
 	require.Empty(t, cache.invalidated) // 验证缓存未被清除
 	require.Empty(t, cache.deleteAuthKeys)
+}
+
+func TestApiKeyService_GetByIDForUser_OwnerMismatchIsNotFound(t *testing.T) {
+	repo := &apiKeyRepoStub{
+		apiKey: &APIKey{ID: 10, UserID: 1, Key: "k"},
+	}
+	svc := &APIKeyService{apiKeyRepo: repo}
+
+	key, err := svc.GetByIDForUser(context.Background(), 10, 2)
+	require.Nil(t, key)
+	require.ErrorIs(t, err, ErrAPIKeyNotFound)
+}
+
+func TestApiKeyService_GetByIDForUser_Success(t *testing.T) {
+	repo := &apiKeyRepoStub{
+		apiKey: &APIKey{ID: 10, UserID: 2, Key: "k"},
+	}
+	svc := &APIKeyService{apiKeyRepo: repo}
+
+	key, err := svc.GetByIDForUser(context.Background(), 10, 2)
+	require.NoError(t, err)
+	require.NotNil(t, key)
+	require.Equal(t, int64(2), key.UserID)
+}
+
+func TestApiKeyService_Update_OwnerMismatchIsNotFound(t *testing.T) {
+	repo := &apiKeyRepoStub{
+		apiKey: &APIKey{ID: 10, UserID: 1, Key: "k"},
+	}
+	svc := &APIKeyService{apiKeyRepo: repo}
+
+	name := "new"
+	key, err := svc.Update(context.Background(), 10, 2, UpdateAPIKeyRequest{Name: &name})
+	require.Nil(t, key)
+	require.ErrorIs(t, err, ErrAPIKeyNotFound)
 }
 
 // TestApiKeyService_Delete_Success 测试所有者成功删除 API Key 的场景。

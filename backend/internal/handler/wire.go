@@ -310,6 +310,9 @@ func ProvideHandlers(
 	if usageHandler != nil && usageHandler.usageService != nil {
 		usageHandler.usageService.SetRequestPreviewReader(opsService)
 	}
+	if usageHandler != nil {
+		usageHandler.SetOpsService(opsService)
+	}
 	return &Handlers{
 		Auth:             authHandler,
 		User:             userHandler,

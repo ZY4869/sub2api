@@ -189,6 +189,11 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyCodexOAuthUserAgentMode] = codexUAPolicy.Mode
 	updates[SettingKeyCodexOAuthUserAgentOverride] = codexUAPolicy.Override
 	updates[SettingKeyOpenAIAllowClaudeCodeCodexPlugin] = strconv.FormatBool(settings.OpenAIAllowClaudeCodeCodexPlugin)
+	allowedCodexClientsJSON, err := MarshalOpenAIAllowedCodexClients(settings.OpenAIAllowedCodexClients)
+	if err != nil {
+		return err
+	}
+	updates[SettingKeyOpenAIAllowedCodexClients] = allowedCodexClientsJSON
 	updates[SettingKeyCustomMenuItems] = settings.CustomMenuItems
 	updates[SettingKeyLoginAgreementEnabled] = strconv.FormatBool(settings.LoginAgreementEnabled)
 	updates[SettingKeyLoginAgreementMode] = NormalizeLoginAgreementMode(settings.LoginAgreementMode)

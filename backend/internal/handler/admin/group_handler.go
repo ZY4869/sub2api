@@ -27,6 +27,28 @@ type optionalLimitField struct {
 	value *float64
 }
 
+type optionalStringField struct {
+	set   bool
+	value string
+}
+
+func (f *optionalStringField) UnmarshalJSON(data []byte) error {
+	f.set = true
+
+	trimmed := bytes.TrimSpace(data)
+	if bytes.Equal(trimmed, []byte("null")) {
+		f.value = ""
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(trimmed, &text); err != nil {
+		return fmt.Errorf("invalid string value: %s", string(trimmed))
+	}
+	f.value = text
+	return nil
+}
+
 func (f *optionalLimitField) UnmarshalJSON(data []byte) error {
 	f.set = true
 
@@ -118,17 +140,17 @@ type CreateGroupRequest struct {
 
 // UpdateGroupRequest represents update group request
 type UpdateGroupRequest struct {
-	Name             string             `json:"name"`
-	Description      string             `json:"description"`
-	Platform         string             `json:"platform" binding:"omitempty"`
-	Priority         *int               `json:"priority"`
-	RateMultiplier   *float64           `json:"rate_multiplier"`
-	IsExclusive      *bool              `json:"is_exclusive"`
-	Status           string             `json:"status" binding:"omitempty,oneof=active inactive"`
-	SubscriptionType string             `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
-	DailyLimitUSD    optionalLimitField `json:"daily_limit_usd"`
-	WeeklyLimitUSD   optionalLimitField `json:"weekly_limit_usd"`
-	MonthlyLimitUSD  optionalLimitField `json:"monthly_limit_usd"`
+	Name             string              `json:"name"`
+	Description      optionalStringField `json:"description"`
+	Platform         string              `json:"platform" binding:"omitempty"`
+	Priority         *int                `json:"priority"`
+	RateMultiplier   *float64            `json:"rate_multiplier"`
+	IsExclusive      *bool               `json:"is_exclusive"`
+	Status           string              `json:"status" binding:"omitempty,oneof=active inactive"`
+	SubscriptionType string              `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
+	DailyLimitUSD    optionalLimitField  `json:"daily_limit_usd"`
+	WeeklyLimitUSD   optionalLimitField  `json:"weekly_limit_usd"`
+	MonthlyLimitUSD  optionalLimitField  `json:"monthly_limit_usd"`
 	// 图片生成计费配置（antigravity 和 gemini 平台使用，负数表示清除配置）
 	ImagePrice1K                    *float64 `json:"image_price_1k"`
 	ImagePrice2K                    *float64 `json:"image_price_2k"`
@@ -292,7 +314,8 @@ func (h *GroupHandler) Update(c *gin.Context) {
 
 	group, err := h.adminService.UpdateGroup(c.Request.Context(), groupID, &service.UpdateGroupInput{
 		Name:                            req.Name,
-		Description:                     req.Description,
+		Description:                     req.Description.value,
+		DescriptionSet:                  req.Description.set,
 		Platform:                        req.Platform,
 		Priority:                        req.Priority,
 		RateMultiplier:                  req.RateMultiplier,

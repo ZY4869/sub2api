@@ -203,7 +203,7 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.Name != "" {
 		group.Name = input.Name
 	}
-	if input.Description != "" {
+	if input.DescriptionSet || input.Description != "" {
 		group.Description = input.Description
 	}
 	if input.Platform != "" {

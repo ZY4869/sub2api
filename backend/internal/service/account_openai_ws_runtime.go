@@ -1,6 +1,10 @@
 package service
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+)
 
 // IsOpenAIPassthroughEnabled 返回 OpenAI 账号是否启用“自动透传（仅替换认证）”。
 //
@@ -100,23 +104,7 @@ func (a *Account) GetCodexCLIOnlyAllowedClients() []string {
 }
 
 func normalizeCodexAllowedClientIDs(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	seen := make(map[string]struct{}, len(values))
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		normalized := strings.TrimSpace(strings.ToLower(value))
-		if normalized == "" {
-			continue
-		}
-		if _, ok := seen[normalized]; ok {
-			continue
-		}
-		seen[normalized] = struct{}{}
-		result = append(result, normalized)
-	}
-	return result
+	return openai.NormalizeAllowedClientIDs(values)
 }
 
 func parseStringSliceCompat(raw any) []string {

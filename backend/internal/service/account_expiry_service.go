@@ -14,12 +14,14 @@ import (
 )
 
 const defaultAccountExpiryProbeTimeout = 45 * time.Second
+const accountExpiryJobName = "account_expiry_probe"
 
 type AccountExpiryService struct {
 	accountRepo       AccountRepository
 	accountTestRunner interface {
 		RunTestBackgroundDetailed(ctx context.Context, input ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error)
 	}
+	leaderGate  PeriodicJobLeaderGate
 	interval    time.Duration
 	testTimeout time.Duration
 	now         func() time.Time
@@ -55,6 +57,13 @@ func (s *AccountExpiryService) SetNow(now func() time.Time) {
 	s.now = now
 }
 
+func (s *AccountExpiryService) SetLeaderGate(gate PeriodicJobLeaderGate) {
+	if s == nil {
+		return
+	}
+	s.leaderGate = gate
+}
+
 func (s *AccountExpiryService) Start() {
 	if s == nil || s.accountRepo == nil || s.accountTestRunner == nil || s.interval <= 0 {
 		return
@@ -65,11 +74,11 @@ func (s *AccountExpiryService) Start() {
 		ticker := time.NewTicker(s.interval)
 		defer ticker.Stop()
 
-		s.runOnce(context.Background())
+		s.runLeaderOnce(context.Background())
 		for {
 			select {
 			case <-ticker.C:
-				s.runOnce(context.Background())
+				s.runLeaderOnce(context.Background())
 			case <-s.stopCh:
 				return
 			}
@@ -85,6 +94,17 @@ func (s *AccountExpiryService) Stop() {
 		close(s.stopCh)
 	})
 	s.wg.Wait()
+}
+
+func (s *AccountExpiryService) runLeaderOnce(ctx context.Context) bool {
+	if s == nil {
+		return false
+	}
+	if s.leaderGate == nil {
+		s.runOnce(ctx)
+		return true
+	}
+	return s.leaderGate.RunIfLeader(ctx, accountExpiryJobName, periodicJobLeaderTTL(s.interval), s.runOnce)
 }
 
 func (s *AccountExpiryService) runOnce(ctx context.Context) {

@@ -1,6 +1,10 @@
 package dto
 
-import "github.com/Wei-Shaw/sub2api/internal/service"
+import (
+	"html"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
+)
 
 func APIKeyFromService(k *service.APIKey) *APIKey {
 	if k == nil {
@@ -10,7 +14,7 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		ID:                       k.ID,
 		UserID:                   k.UserID,
 		Key:                      k.Key,
-		Name:                     k.Name,
+		Name:                     html.EscapeString(k.Name),
 		Deleted:                  k.Deleted,
 		ModelDisplayMode:         k.EffectiveModelDisplayMode(),
 		GroupID:                  k.GroupID,

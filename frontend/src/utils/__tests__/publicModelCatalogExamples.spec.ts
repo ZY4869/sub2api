@@ -7,14 +7,18 @@ import { buildPublicModelExample } from '../publicModelCatalogExamples'
 function buildDetail(
   model: string,
   protocol: string,
-  overrideID: 'image-generation' | 'image-generation-tool'
+  overrideID: 'embeddings' | 'image-generation' | 'image-generation-tool'
 ): PublicModelCatalogDetailResponse {
   return {
     item: {
       model,
       provider: protocol,
       request_protocols: [protocol],
-      mode: overrideID === 'image-generation-tool' ? 'chat' : 'image',
+      mode: overrideID === 'image-generation-tool'
+        ? 'chat'
+        : overrideID === 'embeddings'
+          ? 'embedding'
+          : 'image',
       currency: 'USD',
       price_display: { primary: [] },
       multiplier_summary: { enabled: false, kind: 'disabled' }
@@ -60,5 +64,13 @@ describe('publicModelCatalogExamples', () => {
     expect(code).toContain('/v1/responses')
     expect(code).toContain('image_generation')
     expect(code).toContain('gpt-image-2')
+  })
+
+  it('uses the OpenAI embeddings endpoint for embedding models', () => {
+    const code = getTabCode(buildDetail('text-embedding-3-small', 'openai', 'embeddings'), 'REST')
+
+    expect(code).toContain('/v1/embeddings')
+    expect(code).toContain('"model": "text-embedding-3-small"')
+    expect(code).not.toContain('/v1/responses')
   })
 })

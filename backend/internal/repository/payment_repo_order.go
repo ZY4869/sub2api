@@ -57,6 +57,10 @@ func (r *paymentRepository) GetOrderByOrderNo(ctx context.Context, orderNo strin
 	return r.getOrder(ctx, `WHERE order_no = $1`, strings.TrimSpace(orderNo))
 }
 
+func (r *paymentRepository) GetOrderByOrderNoForUpdate(ctx context.Context, orderNo string) (*service.PaymentOrder, error) {
+	return r.getOrder(ctx, `WHERE order_no = $1 FOR UPDATE`, strings.TrimSpace(orderNo))
+}
+
 func (r *paymentRepository) GetOrderByUserIdempotencyHash(ctx context.Context, userID int64, idempotencyKeyHash string) (*service.PaymentOrder, error) {
 	idempotencyKeyHash = strings.TrimSpace(idempotencyKeyHash)
 	if userID <= 0 || idempotencyKeyHash == "" {

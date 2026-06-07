@@ -29,7 +29,7 @@ FROM usage_logs ul
 	return successCount, tokenConsumed, nil
 }
 
-func (r *opsRepository) queryUsageLatency(ctx context.Context, filter *service.OpsDashboardFilter, start, end time.Time) (duration service.OpsPercentiles, ttft service.OpsPercentiles, err error) {
+func (r *opsRepository) queryUsageLatency(ctx context.Context, filter *service.OpsDashboardFilter, start, end time.Time) (duration service.OpsPercentiles, ttft service.OpsPercentiles, ttftSampleCount int64, err error) {
 	join, where, args, _ := buildUsageWhere(filter, start, end, 1)
 	q := `
 SELECT
@@ -44,7 +44,8 @@ SELECT
   percentile_cont(0.95) WITHIN GROUP (ORDER BY first_token_ms) FILTER (WHERE first_token_ms IS NOT NULL) AS ttft_p95,
   percentile_cont(0.99) WITHIN GROUP (ORDER BY first_token_ms) FILTER (WHERE first_token_ms IS NOT NULL) AS ttft_p99,
   AVG(first_token_ms) FILTER (WHERE first_token_ms IS NOT NULL) AS ttft_avg,
-  MAX(first_token_ms) AS ttft_max
+  MAX(first_token_ms) AS ttft_max,
+  COALESCE(COUNT(first_token_ms), 0) AS ttft_sample_count
 FROM usage_logs ul
 ` + join + `
 ` + where
@@ -58,8 +59,9 @@ FROM usage_logs ul
 	if err := r.db.QueryRowContext(ctx, q, args...).Scan(
 		&dP50, &dP90, &dP95, &dP99, &dAvg, &dMax,
 		&tP50, &tP90, &tP95, &tP99, &tAvg, &tMax,
+		&ttftSampleCount,
 	); err != nil {
-		return service.OpsPercentiles{}, service.OpsPercentiles{}, err
+		return service.OpsPercentiles{}, service.OpsPercentiles{}, 0, err
 	}
 
 	duration.P50 = floatToIntPtr(dP50)
@@ -82,7 +84,7 @@ FROM usage_logs ul
 		ttft.Max = &v
 	}
 
-	return duration, ttft, nil
+	return duration, ttft, ttftSampleCount, nil
 }
 
 func (r *opsRepository) queryErrorCounts(ctx context.Context, filter *service.OpsDashboardFilter, start, end time.Time) (

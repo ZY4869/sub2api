@@ -15,6 +15,7 @@ import (
 type accountExpiryRepoStub struct {
 	accounts         []Account
 	accountsByID     map[int64]*Account
+	listFilterCalls  int
 	updateExtraCalls []expiryRepoUpdateExtraCall
 	updateCalls      []*Account
 	updateErr        error
@@ -75,6 +76,7 @@ func (r *accountExpiryRepoStub) List(context.Context, pagination.PaginationParam
 	panic("unexpected")
 }
 func (r *accountExpiryRepoStub) ListWithFilters(_ context.Context, _ pagination.PaginationParams, _, _, _, _ string, _ int64, lifecycle, _ string) ([]Account, *pagination.PaginationResult, error) {
+	r.listFilterCalls++
 	if NormalizeAccountLifecycleInput(lifecycle) == AccountLifecycleAll {
 		return append([]Account(nil), r.accounts...), nil, nil
 	}
@@ -199,6 +201,49 @@ type accountExpiryProbeExecutorStub struct {
 func (s *accountExpiryProbeExecutorStub) RunTestBackgroundDetailed(_ context.Context, input ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error) {
 	s.calls = append(s.calls, input)
 	return s.result, s.err
+}
+
+type periodicJobLeaderGateStub struct {
+	allow bool
+	calls int
+	jobs  []string
+}
+
+func (g *periodicJobLeaderGateStub) RunIfLeader(ctx context.Context, jobName string, _ time.Duration, run func(context.Context)) bool {
+	g.calls++
+	g.jobs = append(g.jobs, jobName)
+	if !g.allow {
+		return false
+	}
+	run(ctx)
+	return true
+}
+
+func TestAccountExpiryService_RunLeaderOnce_SkipsWhenNotLeader(t *testing.T) {
+	repo := &accountExpiryRepoStub{}
+	svc := NewAccountExpiryService(repo, &accountExpiryProbeExecutorStub{}, time.Minute)
+	gate := &periodicJobLeaderGateStub{}
+	svc.SetLeaderGate(gate)
+
+	ok := svc.runLeaderOnce(context.Background())
+
+	require.False(t, ok)
+	require.Equal(t, 1, gate.calls)
+	require.Equal(t, []string{accountExpiryJobName}, gate.jobs)
+	require.Zero(t, repo.listFilterCalls)
+}
+
+func TestAccountExpiryService_RunLeaderOnce_RunsWhenLeader(t *testing.T) {
+	repo := &accountExpiryRepoStub{}
+	svc := NewAccountExpiryService(repo, &accountExpiryProbeExecutorStub{}, time.Minute)
+	gate := &periodicJobLeaderGateStub{allow: true}
+	svc.SetLeaderGate(gate)
+
+	ok := svc.runLeaderOnce(context.Background())
+
+	require.True(t, ok)
+	require.Equal(t, 1, gate.calls)
+	require.Equal(t, 1, repo.listFilterCalls)
 }
 
 func TestAccountExpiryService_RunOnce_WaitsUntilBlockingWindowEnds(t *testing.T) {

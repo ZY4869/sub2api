@@ -79,12 +79,13 @@ type OpsInsertErrorLogInput struct {
 	RequestID       string
 	ClientRequestID string
 
-	UserID    *int64
-	APIKeyID  *int64
-	AccountID *int64
-	GroupID   *int64
-	ChannelID *int64
-	ClientIP  *string
+	UserID       *int64
+	APIKeyID     *int64
+	APIKeyPrefix string
+	AccountID    *int64
+	GroupID      *int64
+	ChannelID    *int64
+	ClientIP     *string
 
 	Platform         string
 	Model            string
@@ -204,12 +205,13 @@ type OpsInsertSystemMetricsInput struct {
 	DurationAvgMs *float64
 	DurationMaxMs *int
 
-	TTFTP50Ms *int
-	TTFTP90Ms *int
-	TTFTP95Ms *int
-	TTFTP99Ms *int
-	TTFTAvgMs *float64
-	TTFTMaxMs *int
+	TTFTP50Ms       *int
+	TTFTP90Ms       *int
+	TTFTP95Ms       *int
+	TTFTP99Ms       *int
+	TTFTAvgMs       *float64
+	TTFTMaxMs       *int
+	TTFTSampleCount int64
 
 	CPUUsagePercent    *float64
 	MemoryUsedMB       *int64

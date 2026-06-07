@@ -18,6 +18,7 @@ type User struct {
 	Balances                        map[string]float64
 	Concurrency                     int
 	Status                          string
+	Deleted                         bool
 	AdminFreeBilling                bool
 	RequestDetailsReview            bool
 	UsageModelDisplayMode           string

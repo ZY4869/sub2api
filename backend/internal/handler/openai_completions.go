@@ -77,7 +77,11 @@ func (h *OpenAIGatewayHandler) Completions(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
-	reqStream := gjson.GetBytes(body, "stream").Bool()
+	reqStream, ok := parseOpenAIStreamFlag(body)
+	if !ok {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "invalid stream field type")
+		return
+	}
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
 	setOpsRequestContext(c, reqModel, reqStream, body)
 	requestPayloadHash := service.HashUsageRequestPayload(body)

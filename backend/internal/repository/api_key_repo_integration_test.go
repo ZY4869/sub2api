@@ -169,6 +169,42 @@ func (s *APIKeyRepoSuite) TestDelete() {
 	s.Require().Error(err, "expected error after delete")
 }
 
+func (s *APIKeyRepoSuite) TestDeleteRecordsAuditWithoutFullKey() {
+	user := s.mustCreateUser("delete-audit@test.com")
+	key := &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-delete-audit-secret",
+		Name:   "Audit Key",
+		Status: service.StatusActive,
+	}
+	s.Require().NoError(s.repo.Create(s.ctx, key))
+
+	s.Require().NoError(s.repo.Delete(s.ctx, key.ID))
+
+	var (
+		userID    int64
+		name      string
+		keyPrefix string
+		deletedAt time.Time
+	)
+	err := scanSingleRow(
+		s.ctx,
+		s.repo.sql,
+		`SELECT user_id, name, key_prefix, deleted_at FROM deleted_api_key_audits WHERE api_key_id = $1`,
+		[]any{key.ID},
+		&userID,
+		&name,
+		&keyPrefix,
+		&deletedAt,
+	)
+	s.Require().NoError(err)
+	s.Require().Equal(user.ID, userID)
+	s.Require().Equal("Audit Key", name)
+	s.Require().Equal(safeDeletedAPIKeyAuditPrefix(key.Key), keyPrefix)
+	s.Require().NotEqual(key.Key, keyPrefix)
+	s.Require().False(deletedAt.IsZero())
+}
+
 func (s *APIKeyRepoSuite) TestCreate_AfterSoftDelete_AllowsSameKey() {
 	user := s.mustCreateUser("recreate-after-soft-delete@test.com")
 	const reusedKey = "sk-reuse-after-soft-delete"

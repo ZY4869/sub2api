@@ -80,12 +80,32 @@ func TestSettingServiceOpenAIAllowedCodexClients_DefaultsAndRoundTrip(t *testing
 	err := svc.UpdateSettings(ctx, &SystemSettings{OpenAIAllowClaudeCodeCodexPlugin: true})
 	require.NoError(t, err)
 	require.Equal(t, "true", repo.values[SettingKeyOpenAIAllowClaudeCodeCodexPlugin])
+	require.Equal(t, "[]", repo.values[SettingKeyOpenAIAllowedCodexClients])
 	require.True(t, svc.IsOpenAIClaudeCodeCodexPluginAllowed(ctx))
 	require.Equal(t, []string{openai.AllowedClientClaudeCode}, svc.GetOpenAIAllowedCodexClients(ctx))
 
 	settings, err := svc.GetAllSettings(ctx)
 	require.NoError(t, err)
 	require.True(t, settings.OpenAIAllowClaudeCodeCodexPlugin)
+	require.Equal(t, []string{openai.AllowedClientClaudeCode}, settings.OpenAIAllowedCodexClients)
+}
+
+func TestSettingServiceOpenAIAllowedCodexClients_ExplicitList(t *testing.T) {
+	ctx := context.Background()
+	repo := &openAIAllowedClientsSettingRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(ctx, &SystemSettings{
+		OpenAIAllowClaudeCodeCodexPlugin: true,
+		OpenAIAllowedCodexClients:        []string{"CLAUDE_CODE", "unknown", "claude_code"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `["claude_code"]`, repo.values[SettingKeyOpenAIAllowedCodexClients])
+	require.Equal(t, []string{openai.AllowedClientClaudeCode}, svc.GetOpenAIAllowedCodexClients(ctx))
+
+	settings, err := svc.GetAllSettings(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []string{openai.AllowedClientClaudeCode}, settings.OpenAIAllowedCodexClients)
 }
 
 func TestSettingServiceOpenAIAllowedCodexClients_ReadErrorFallsBackClosed(t *testing.T) {

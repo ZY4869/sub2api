@@ -28,6 +28,7 @@ type stubAdminService struct {
 	updatedProxies       []*service.UpdateProxyInput
 	testedProxyIDs       []int64
 	lastBulkUpdateInput  *service.BulkUpdateAccountsInput
+	lastUpdateGroupInput *service.UpdateGroupInput
 	createAccountErr     error
 	updateAccountErr     error
 	bulkUpdateAccountErr error
@@ -212,6 +213,7 @@ func (s *stubAdminService) CreateGroup(ctx context.Context, input *service.Creat
 }
 
 func (s *stubAdminService) UpdateGroup(ctx context.Context, id int64, input *service.UpdateGroupInput) (*service.Group, error) {
+	s.lastUpdateGroupInput = input
 	group := service.Group{ID: id, Name: input.Name, Platform: service.PlatformAnthropic, Status: service.StatusActive}
 	for i := range s.groups {
 		if s.groups[i].ID == id {
@@ -232,6 +234,9 @@ func (s *stubAdminService) UpdateGroup(ctx context.Context, id int64, input *ser
 	}
 	if input.Name != "" {
 		group.Name = input.Name
+	}
+	if input.DescriptionSet {
+		group.Description = input.Description
 	}
 	return &group, nil
 }

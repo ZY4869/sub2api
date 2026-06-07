@@ -9,9 +9,11 @@ import (
 
 const defaultAccountBlacklistCleanupInterval = time.Hour
 const defaultAccountBlacklistCleanupBatchSize = 100
+const accountBlacklistCleanupJobName = "account_blacklist_cleanup"
 
 type AccountBlacklistCleanupService struct {
 	accountRepo AccountRepository
+	leaderGate  PeriodicJobLeaderGate
 	interval    time.Duration
 	stopCh      chan struct{}
 	stopOnce    sync.Once
@@ -26,6 +28,13 @@ func NewAccountBlacklistCleanupService(accountRepo AccountRepository, interval t
 		interval:    interval,
 		stopCh:      make(chan struct{}),
 	}
+}
+
+func (s *AccountBlacklistCleanupService) SetLeaderGate(gate PeriodicJobLeaderGate) {
+	if s == nil {
+		return
+	}
+	s.leaderGate = gate
 }
 
 func (s *AccountBlacklistCleanupService) Start() {
@@ -49,13 +58,24 @@ func (s *AccountBlacklistCleanupService) loop() {
 	defer ticker.Stop()
 
 	for {
-		s.runOnce(context.Background())
+		s.runLeaderOnce(context.Background())
 		select {
 		case <-ticker.C:
 		case <-s.stopCh:
 			return
 		}
 	}
+}
+
+func (s *AccountBlacklistCleanupService) runLeaderOnce(ctx context.Context) bool {
+	if s == nil {
+		return false
+	}
+	if s.leaderGate == nil {
+		s.runOnce(ctx)
+		return true
+	}
+	return s.leaderGate.RunIfLeader(ctx, accountBlacklistCleanupJobName, periodicJobLeaderTTL(s.interval), s.runOnce)
 }
 
 func (s *AccountBlacklistCleanupService) runOnce(ctx context.Context) {

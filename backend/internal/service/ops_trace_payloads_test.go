@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSetOpsTraceGatewayResponseCompactsLargePayload(t *testing.T) {
@@ -16,9 +17,7 @@ func TestSetOpsTraceGatewayResponseCompactsLargePayload(t *testing.T) {
 	SetOpsTraceGatewayResponse(c, "image_response", body, "application/json", false)
 
 	got := GetOpsTraceGatewayResponseJSON(c)
-	if got == nil {
-		t.Fatalf("expected compacted trace payload")
-	}
+	require.NotNil(t, got)
 	if strings.Contains(*got, strings.Repeat("A", 128)) {
 		t.Fatalf("large base64 payload was not omitted")
 	}
@@ -37,9 +36,7 @@ func TestBuildOpsTracePayloadEnvelopeJSONCompactsLargeStrings(t *testing.T) {
 
 	got := BuildOpsTracePayloadEnvelopeJSON(OpsTracePayloadStateCaptured, "large_text", payload, "application/json", false)
 
-	if got == nil {
-		t.Fatalf("expected trace payload")
-	}
+	require.NotNil(t, got)
 	if strings.Contains(*got, strings.Repeat("x", 128)) {
 		t.Fatalf("large string payload was not omitted")
 	}
@@ -62,9 +59,7 @@ func TestSetOpsTraceGatewayResponseUsesConfiguredPreviewLimit(t *testing.T) {
 	)
 
 	got := GetOpsTraceGatewayResponseJSON(c)
-	if got == nil {
-		t.Fatalf("expected trace payload")
-	}
+	require.NotNil(t, got)
 	if !strings.Contains(*got, `"preview_limit_bytes":32`) {
 		t.Fatalf("expected configured preview limit to be applied: %s", *got)
 	}

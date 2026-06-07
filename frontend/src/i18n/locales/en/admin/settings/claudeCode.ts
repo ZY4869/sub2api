@@ -10,5 +10,9 @@ export default {
         maxVersionHint: "Reject Claude Code clients above this version (semver format). Leave empty to disable version check.",
         allowCodexPlugin: "Allow Claude Code Codex plugin",
         allowCodexPluginHint: "Off by default. When enabled, only Codex plugin requests with originator Claude Code and a Claude Code/ User-Agent are allowed.",
+        allowedClients: "Allowed clients",
+        allowedClientsHint: "Only known and supported exception clients are saved or allowed.",
+        allowedClientClaudeCodeLabel: "Claude Code",
+        allowedClientClaudeCode: "Allow the Claude Code Codex plugin to pass on OpenAI accounts with codex_cli_only enabled.",
     }
 }

@@ -35,6 +35,10 @@ func (s *SettingService) applyParsedOAuthSettings(result *SystemSettings, settin
 	result.CodexOAuthUserAgentMode = codexUAPolicy.Mode
 	result.CodexOAuthUserAgentOverride = codexUAPolicy.Override
 	result.OpenAIAllowClaudeCodeCodexPlugin = settings[SettingKeyOpenAIAllowClaudeCodeCodexPlugin] == "true"
+	result.OpenAIAllowedCodexClients = ParseOpenAIAllowedCodexClients(
+		settings[SettingKeyOpenAIAllowedCodexClients],
+		result.OpenAIAllowClaudeCodeCodexPlugin,
+	)
 	result.SMTPPassword = settings[SettingKeySMTPPassword]
 	result.TelegramBotToken = strings.TrimSpace(settings[SettingKeyTelegramBotToken])
 	result.TelegramBotTokenConfigured = result.TelegramBotToken != ""

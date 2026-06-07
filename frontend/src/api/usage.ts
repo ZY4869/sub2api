@@ -71,6 +71,34 @@ export interface UsageFilterApiKey {
   deleted: boolean;
 }
 
+export interface UserFailedRequest {
+  id: number;
+  created_at: string;
+  request_id: string;
+  client_request_id: string;
+  platform: string;
+  model: string;
+  requested_model: string;
+  status_code: number;
+  phase: string;
+  error_source: string;
+  error_owner: string;
+  message: string;
+  request_path: string;
+  inbound_endpoint: string;
+  upstream_endpoint: string;
+  api_key_id?: number;
+}
+
+export interface UserFailedRequestQueryParams {
+  page?: number;
+  page_size?: number;
+  api_key_id?: number;
+  platform?: string | null;
+  start_date?: string;
+  end_date?: string;
+}
+
 /**
  * List usage logs with optional filters
  * @param page - Page number (default: 1)
@@ -230,6 +258,20 @@ export async function listFilterApiKeys(params?: {
   return data;
 }
 
+export async function listFailedRequests(
+  params: UserFailedRequestQueryParams = {},
+  config: { signal?: AbortSignal } = {},
+): Promise<PaginatedResponse<UserFailedRequest>> {
+  const { data } = await apiClient.get<PaginatedResponse<UserFailedRequest>>(
+    "/usage/failed-requests",
+    {
+      ...config,
+      params,
+    },
+  );
+  return data;
+}
+
 // ==================== Dashboard API ====================
 
 /**
@@ -337,6 +379,7 @@ export const usageAPI = {
   getById,
   getRequestPreview,
   listFilterApiKeys,
+  listFailedRequests,
   // Dashboard
   getDashboardStats,
   getDashboardTrend,

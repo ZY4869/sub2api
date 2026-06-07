@@ -61,7 +61,8 @@
     class="table-wrapper"
     :class="{
       'actions-expanded': actionsExpanded,
-      'is-scrollable': isScrollable
+      'is-scrollable': isScrollable,
+      'table-wrapper-scrollbar-subtle': horizontalScrollbar === 'subtle'
     }"
   >
     <table
@@ -420,6 +421,8 @@ interface Props {
   rowStyle?: TableRowStyleResolver
   /** Table layout mode. Fixed layout keeps dense tables from growing with long text. */
   tableLayout?: 'auto' | 'fixed'
+  /** Horizontal scrollbar visual treatment. */
+  horizontalScrollbar?: 'default' | 'subtle'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -432,7 +435,8 @@ const props = withDefaults(defineProps<Props>(), {
   serverSideSort: false,
   virtualScroll: true,
   virtualScrollTarget: 'container',
-  tableLayout: 'auto'
+  tableLayout: 'auto',
+  horizontalScrollbar: 'default'
 })
 
 const sortKey = ref<string>('')
@@ -443,6 +447,7 @@ const tableLayoutClass = computed(() =>
     ? 'w-full table-fixed'
     : 'min-w-full table-auto'
 )
+const horizontalScrollbar = computed(() => props.horizontalScrollbar)
 
 type PersistedSortState = {
   key: string
@@ -868,6 +873,31 @@ defineExpose({
   flex: 1;
   min-height: 0;
   isolation: isolate;
+}
+
+.table-wrapper.table-wrapper-scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.table-wrapper.table-wrapper-scrollbar-subtle:hover,
+.table-wrapper.table-wrapper-scrollbar-subtle:focus-within {
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+.table-wrapper.table-wrapper-scrollbar-subtle::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.table-wrapper.table-wrapper-scrollbar-subtle::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: transparent;
+}
+
+.table-wrapper.table-wrapper-scrollbar-subtle:hover::-webkit-scrollbar-thumb,
+.table-wrapper.table-wrapper-scrollbar-subtle:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.45);
 }
 
 /* 表头容器，确保在滚动时覆盖表体内容 */

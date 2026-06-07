@@ -10,6 +10,7 @@ describe('settings Claude Code Codex plugin control', () => {
   it('renders the switch and updates the form field', async () => {
     const form = reactive({
       openai_allow_claude_code_codex_plugin: false,
+      openai_allowed_codex_clients: [] as string[],
       min_claude_code_version: '',
       max_claude_code_version: '',
       allow_ungrouped_key_scheduling: false,
@@ -31,20 +32,32 @@ describe('settings Claude Code Codex plugin control', () => {
     await switches[0].trigger('click')
 
     expect(form.openai_allow_claude_code_codex_plugin).toBe(true)
+    const clientCheckbox = wrapper.find('input[type="checkbox"][value="claude_code"]')
+    expect(clientCheckbox.exists()).toBe(true)
+
+    await clientCheckbox.setValue(true)
+
+    expect(form.openai_allowed_codex_clients).toEqual(['claude_code'])
   })
 
   it('keeps i18n labels for both supported locales', () => {
     expect(zhClaudeCode.claudeCode.allowCodexPlugin).toBeTruthy()
     expect(zhClaudeCode.claudeCode.allowCodexPluginHint).toContain('Claude Code')
+    expect(zhClaudeCode.claudeCode.allowedClients).toBeTruthy()
+    expect(zhClaudeCode.claudeCode.allowedClientClaudeCode).toContain('Claude Code')
     expect(enClaudeCode.claudeCode.allowCodexPlugin).toBeTruthy()
     expect(enClaudeCode.claudeCode.allowCodexPluginHint).toContain('Claude Code')
+    expect(enClaudeCode.claudeCode.allowedClients).toBeTruthy()
+    expect(enClaudeCode.claudeCode.allowedClientClaudeCode).toContain('Claude Code')
   })
 
   it('allows the save payload field in the typed settings request', () => {
     const payload: UpdateSettingsRequest = {
-      openai_allow_claude_code_codex_plugin: true
+      openai_allow_claude_code_codex_plugin: true,
+      openai_allowed_codex_clients: ['claude_code']
     }
 
     expect(payload.openai_allow_claude_code_codex_plugin).toBe(true)
+    expect(payload.openai_allowed_codex_clients).toEqual(['claude_code'])
   })
 })

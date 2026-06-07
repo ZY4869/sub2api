@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +12,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
 
+const subscriptionExpiryJobName = "subscription_expiry"
+
 // SubscriptionExpiryService periodically updates expired subscription status.
 type SubscriptionExpiryService struct {
 	userSubRepo    UserSubscriptionRepository
@@ -18,6 +21,7 @@ type SubscriptionExpiryService struct {
 	emailService   *EmailService
 	emailTemplates *EmailTemplateService
 	settingService *SettingService
+	leaderGate     PeriodicJobLeaderGate
 	interval       time.Duration
 	stopCh         chan struct{}
 	stopOnce       sync.Once
@@ -39,6 +43,13 @@ func (s *SubscriptionExpiryService) SetNotificationServices(emailService *EmailS
 	s.settingService = settings
 }
 
+func (s *SubscriptionExpiryService) SetLeaderGate(gate PeriodicJobLeaderGate) {
+	if s == nil {
+		return
+	}
+	s.leaderGate = gate
+}
+
 func (s *SubscriptionExpiryService) Start() {
 	if s == nil || s.userSubRepo == nil || s.interval <= 0 {
 		return
@@ -49,11 +60,11 @@ func (s *SubscriptionExpiryService) Start() {
 		ticker := time.NewTicker(s.interval)
 		defer ticker.Stop()
 
-		s.runOnce()
+		s.runLeaderOnce()
 		for {
 			select {
 			case <-ticker.C:
-				s.runOnce()
+				s.runLeaderOnce()
 			case <-s.stopCh:
 				return
 			}
@@ -71,13 +82,35 @@ func (s *SubscriptionExpiryService) Stop() {
 	s.wg.Wait()
 }
 
+func (s *SubscriptionExpiryService) runLeaderOnce() bool {
+	if s == nil {
+		return false
+	}
+	if s.leaderGate == nil {
+		s.runOnce()
+		return true
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return s.leaderGate.RunIfLeader(ctx, subscriptionExpiryJobName, periodicJobLeaderTTL(s.interval), func(ctx context.Context) {
+		s.runOnceWithContext(ctx)
+	})
+}
+
 func (s *SubscriptionExpiryService) runOnce() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	s.runOnceWithContext(ctx)
+}
+
+func (s *SubscriptionExpiryService) runOnceWithContext(ctx context.Context) {
+	if s == nil || s.userSubRepo == nil {
+		return
+	}
 	updated, err := s.userSubRepo.BatchUpdateExpiredStatus(ctx)
 	if err != nil {
-		log.Printf("[SubscriptionExpiry] Update expired subscriptions failed: %v", err)
+		slog.Warn("subscription_expiry_update_failed", "error", err)
 		return
 	}
 	if updated > 0 {

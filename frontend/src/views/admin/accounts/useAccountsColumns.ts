@@ -19,7 +19,7 @@ const allColumns = computed(() => {
       sortable: true,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[236px] min-w-[196px] max-w-[236px]"
+          ? "w-[220px] min-w-[184px] max-w-[220px]"
           : "w-[240px] min-w-[192px] max-w-[240px]",
     },
     {
@@ -28,7 +28,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[160px] min-w-[140px] max-w-[160px]"
+          ? "w-[148px] min-w-[132px] max-w-[148px]"
           : "w-[140px] max-w-[140px]",
     },
     {
@@ -37,7 +37,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[184px] min-w-[172px] max-w-[184px]"
+          ? "w-[168px] min-w-[156px] max-w-[168px]"
           : "w-[148px] max-w-[148px]",
     },
     {
@@ -46,7 +46,7 @@ const allColumns = computed(() => {
       sortable: true,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[244px] min-w-[220px] max-w-[244px]"
+          ? "w-[220px] min-w-[196px] max-w-[220px]"
           : "w-[240px] max-w-[240px]",
     },
     {
@@ -60,7 +60,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[152px] min-w-[144px] max-w-[160px]"
+          ? "w-[144px] min-w-[136px] max-w-[152px]"
           : "w-[212px] max-w-[212px]",
     },
   ];
@@ -72,8 +72,8 @@ const allColumns = computed(() => {
       class:
         resolvedAccountVisualPreset.value === "airy"
           ? accountGroupDisplayMode?.value === "icon"
-            ? "w-[132px] min-w-[120px] max-w-[132px]"
-            : "w-[196px] min-w-[172px] max-w-[196px]"
+            ? "w-[120px] min-w-[112px] max-w-[120px]"
+            : "w-[176px] min-w-[156px] max-w-[176px]"
           : accountGroupDisplayMode?.value === "icon"
             ? "w-[132px] max-w-[132px]"
             : "w-[196px] max-w-[196px]",
@@ -86,14 +86,17 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[184px] min-w-[168px] max-w-[184px]"
+          ? "w-[168px] min-w-[156px] max-w-[168px]"
           : undefined,
     },
     {
       key: "usage_reset_dates",
       label: t("admin.accounts.columns.usageResetDates"),
       sortable: false,
-      class: "w-[260px] min-w-[240px] max-w-[260px]",
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[232px] min-w-[216px] max-w-[232px]"
+          : "w-[260px] min-w-[240px] max-w-[260px]",
     },
     { key: "proxy", label: t("admin.accounts.columns.proxy"), sortable: false },
     {
@@ -110,19 +113,28 @@ const allColumns = computed(() => {
       key: "last_used_at",
       label: t("admin.accounts.columns.lastUsed"),
       sortable: true,
-      class: "w-[120px] min-w-[120px] max-w-[128px] whitespace-nowrap",
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[112px] min-w-[112px] max-w-[120px] whitespace-nowrap"
+          : "w-[120px] min-w-[120px] max-w-[128px] whitespace-nowrap",
     },
     {
       key: "created_at",
       label: t("admin.accounts.columns.createdAt"),
       sortable: true,
-      class: "w-[156px] min-w-[156px] max-w-[164px] whitespace-nowrap",
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[144px] min-w-[144px] max-w-[152px] whitespace-nowrap"
+          : "w-[156px] min-w-[156px] max-w-[164px] whitespace-nowrap",
     },
     {
       key: "expires_at",
       label: t("admin.accounts.columns.expiresAt"),
       sortable: true,
-      class: "w-[192px] min-w-[192px] max-w-[204px] whitespace-nowrap",
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[176px] min-w-[176px] max-w-[188px] whitespace-nowrap"
+          : "w-[192px] min-w-[192px] max-w-[204px] whitespace-nowrap",
     },
     { key: "notes", label: t("admin.accounts.columns.notes"), sortable: false },
     {

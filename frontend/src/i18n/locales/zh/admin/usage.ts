@@ -15,6 +15,7 @@ export default {
     searchApiKeyPlaceholder: "按名称搜索 API 密钥...",
     searchAccountPlaceholder: "按名称搜索账号...",
     selectedUser: "已选择",
+    deletedUserSuffix: "已删除",
     user: "用户",
     account: "账户",
     group: "分组",

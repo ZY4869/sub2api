@@ -46,6 +46,7 @@ func aggregateHourlyRows(rows []opsHourlyMetricsRow) opsDashboardPartial {
 		out.upstream529Count += row.upstream529Count
 
 		out.tokenConsumed += row.tokenConsumed
+		out.ttftSampleCount += row.ttftSampleCount
 
 		if row.successCount > 0 {
 			if row.durationP50.Valid {
@@ -60,17 +61,19 @@ func aggregateHourlyRows(rows []opsHourlyMetricsRow) opsDashboardPartial {
 				avgSum += row.durationAvg.Float64 * float64(row.successCount)
 				avgW += row.successCount
 			}
+		}
+		if row.ttftSampleCount > 0 {
 			if row.ttftP50.Valid {
-				ttftP50Sum += float64(row.ttftP50.Int64) * float64(row.successCount)
-				ttftP50W += row.successCount
+				ttftP50Sum += float64(row.ttftP50.Int64) * float64(row.ttftSampleCount)
+				ttftP50W += row.ttftSampleCount
 			}
 			if row.ttftP90.Valid {
-				ttftP90Sum += float64(row.ttftP90.Int64) * float64(row.successCount)
-				ttftP90W += row.successCount
+				ttftP90Sum += float64(row.ttftP90.Int64) * float64(row.ttftSampleCount)
+				ttftP90W += row.ttftSampleCount
 			}
 			if row.ttftAvg.Valid {
-				ttftAvgSum += row.ttftAvg.Float64 * float64(row.successCount)
-				ttftAvgW += row.successCount
+				ttftAvgSum += row.ttftAvg.Float64 * float64(row.ttftSampleCount)
+				ttftAvgW += row.ttftSampleCount
 			}
 		}
 

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"time"
 
 	"go.uber.org/zap"
 )
@@ -226,14 +228,87 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 	if user.Role == "admin" {
 		return errors.New("cannot delete admin user")
 	}
-	if err := s.userRepo.Delete(ctx, id); err != nil {
+	deletedKeys, err := s.deleteUserAndAPIKeys(ctx, id)
+	if err != nil {
 		logger.LegacyPrintf("service.admin", "delete user failed: user_id=%d err=%v", id, err)
 		return err
 	}
 	if s.authCacheInvalidator != nil {
+		for _, key := range deletedKeys {
+			s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, key)
+		}
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, id)
 	}
 	return nil
+}
+
+type apiKeyUserDeleter interface {
+	DeleteByUserID(ctx context.Context, userID int64) ([]string, error)
+}
+
+func (s *adminServiceImpl) deleteUserAndAPIKeys(ctx context.Context, userID int64) ([]string, error) {
+	if s.entClient == nil {
+		return s.deleteUserAndAPIKeysWithoutTx(ctx, userID)
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	opCtx := dbent.NewTxContext(ctx, tx)
+	deletedKeys, err := s.deleteUserAPIKeys(opCtx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.userRepo.Delete(opCtx, userID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+	return deletedKeys, nil
+}
+
+func (s *adminServiceImpl) deleteUserAndAPIKeysWithoutTx(ctx context.Context, userID int64) ([]string, error) {
+	deletedKeys, err := s.deleteUserAPIKeys(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.userRepo.Delete(ctx, userID); err != nil {
+		return nil, err
+	}
+	return deletedKeys, nil
+}
+
+func (s *adminServiceImpl) deleteUserAPIKeys(ctx context.Context, userID int64) ([]string, error) {
+	if deleter, ok := s.apiKeyRepo.(apiKeyUserDeleter); ok {
+		keys, err := deleter.DeleteByUserID(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("delete user api keys: %w", err)
+		}
+		return keys, nil
+	}
+	if s.apiKeyRepo == nil {
+		return nil, nil
+	}
+
+	deletedKeys := make([]string, 0)
+	for {
+		keys, _, err := s.apiKeyRepo.ListByUserID(ctx, userID, pagination.PaginationParams{Page: 1, PageSize: 100}, APIKeyListFilters{})
+		if err != nil {
+			return nil, fmt.Errorf("list user api keys: %w", err)
+		}
+		if len(keys) == 0 {
+			return deletedKeys, nil
+		}
+		for _, key := range keys {
+			if err := s.apiKeyRepo.Delete(ctx, key.ID); err != nil {
+				return nil, fmt.Errorf("delete user api key: %w", err)
+			}
+			deletedKeys = append(deletedKeys, key.Key)
+		}
+	}
 }
 func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error) {
 	balance, err := NormalizeAndValidateBillingAmount(balance)

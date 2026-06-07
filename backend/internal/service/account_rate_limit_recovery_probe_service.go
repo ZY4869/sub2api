@@ -16,6 +16,7 @@ const (
 	defaultAccountRateLimitRecoveryProbeRetry    = 30 * time.Minute
 	defaultAccountRateLimitRecoveryProbeTimeout  = 45 * time.Second
 	accountRateLimitRecoveryProbeReasonCode      = "auto_recovery_probe_failed"
+	accountRateLimitRecoveryProbeJobName         = "account_rate_limit_recovery_probe"
 )
 
 type accountRateLimitRecoveryProbeExecutor interface {
@@ -30,6 +31,7 @@ type AccountRateLimitRecoveryProbeService struct {
 	accountRepo       AccountRepository
 	accountTestRunner accountRateLimitRecoveryProbeExecutor
 	recoverer         accountRateLimitRecoveryProbeRecoverer
+	leaderGate        PeriodicJobLeaderGate
 	interval          time.Duration
 	retryDelay        time.Duration
 	testTimeout       time.Duration
@@ -60,6 +62,13 @@ func NewAccountRateLimitRecoveryProbeService(
 	}
 }
 
+func (s *AccountRateLimitRecoveryProbeService) SetLeaderGate(gate PeriodicJobLeaderGate) {
+	if s == nil {
+		return
+	}
+	s.leaderGate = gate
+}
+
 func (s *AccountRateLimitRecoveryProbeService) Start() {
 	if s == nil || s.accountRepo == nil || s.accountTestRunner == nil || s.recoverer == nil {
 		return
@@ -70,11 +79,11 @@ func (s *AccountRateLimitRecoveryProbeService) Start() {
 		ticker := time.NewTicker(s.interval)
 		defer ticker.Stop()
 
-		s.runOnce(context.Background())
+		s.runLeaderOnce(context.Background())
 		for {
 			select {
 			case <-ticker.C:
-				s.runOnce(context.Background())
+				s.runLeaderOnce(context.Background())
 			case <-s.stopCh:
 				return
 			}
@@ -90,6 +99,17 @@ func (s *AccountRateLimitRecoveryProbeService) Stop() {
 		close(s.stopCh)
 	})
 	s.wg.Wait()
+}
+
+func (s *AccountRateLimitRecoveryProbeService) runLeaderOnce(ctx context.Context) bool {
+	if s == nil {
+		return false
+	}
+	if s.leaderGate == nil {
+		s.runOnce(ctx)
+		return true
+	}
+	return s.leaderGate.RunIfLeader(ctx, accountRateLimitRecoveryProbeJobName, periodicJobLeaderTTL(s.interval), s.runOnce)
 }
 
 func (s *AccountRateLimitRecoveryProbeService) runOnce(ctx context.Context) {

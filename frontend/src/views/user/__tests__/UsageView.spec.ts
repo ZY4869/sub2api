@@ -8,6 +8,7 @@ const {
   query,
   getStatsByDateRange,
   listFilterApiKeys,
+  listFailedRequests,
   getDashboardApiKeyDailyUsage,
   getRequestPreview,
   showError,
@@ -18,6 +19,7 @@ const {
   query: vi.fn(),
   getStatsByDateRange: vi.fn(),
   listFilterApiKeys: vi.fn(),
+  listFailedRequests: vi.fn(),
   getDashboardApiKeyDailyUsage: vi.fn(),
   getRequestPreview: vi.fn(),
   showError: vi.fn(),
@@ -132,6 +134,13 @@ const messages: Record<string, string> = {
     "No gateway response content is available for this request.",
   "usage.requestPreview.emptyStates.tools":
     "No tool or thinking trace was captured for this request.",
+  "usage.failedRequests.title": "Recent Failed Requests",
+  "usage.failedRequests.description": "Gateway failures for the selected filters",
+  "usage.failedRequests.refresh": "Refresh failed requests",
+  "usage.failedRequests.empty": "No failed requests found for the selected filters.",
+  "usage.failedRequests.failed": "Failed",
+  "usage.failedRequests.failedToLoad": "Failed to load failed requests. Retry or adjust the filters.",
+  "usage.failedRequests.phase": "Phase",
 };
 
 vi.mock("@/api", () => ({
@@ -139,6 +148,7 @@ vi.mock("@/api", () => ({
     query,
     getStatsByDateRange,
     listFilterApiKeys,
+    listFailedRequests,
     getDashboardApiKeyDailyUsage,
     getRequestPreview,
   },
@@ -177,6 +187,14 @@ describe("user UsageView tooltip", () => {
     query.mockReset();
     getStatsByDateRange.mockReset();
     listFilterApiKeys.mockReset();
+    listFailedRequests.mockReset();
+    listFailedRequests.mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 5,
+      pages: 1,
+    });
     getDashboardApiKeyDailyUsage.mockReset();
     getDashboardApiKeyDailyUsage.mockResolvedValue({
       daily_details: [],
@@ -1499,5 +1517,119 @@ describe("user UsageView tooltip", () => {
 
     expect(wrapper.text()).toContain("Cache Hit");
     expect(wrapper.text()).toContain("Cache Miss");
+  });
+
+  it("renders recent failed requests for the selected filters", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+    listFailedRequests.mockResolvedValue({
+      items: [
+        {
+          id: 77,
+          created_at: "2026-03-08T00:00:00Z",
+          request_id: "req-failed-visible",
+          client_request_id: "client-req",
+          platform: "openai",
+          model: "gpt-5.4",
+          requested_model: "gpt-5.4",
+          status_code: 502,
+          phase: "upstream",
+          error_source: "upstream_http",
+          error_owner: "provider",
+          message: "Upstream request failed",
+          request_path: "/v1/chat/completions",
+          inbound_endpoint: "/v1/chat/completions",
+          upstream_endpoint: "/chat/completions",
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 5,
+      pages: 1,
+    });
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(listFailedRequests).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 1,
+        page_size: 5,
+      }),
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(wrapper.find('[data-testid="failed-requests-panel"]').exists()).toBe(true);
+    const row = wrapper.get('[data-testid="failed-request-row"]');
+    expect(row.text()).toContain("gpt-5.4");
+    expect(row.text()).toContain("502");
+    expect(row.text()).toContain("upstream");
+    expect(row.text()).toContain("Upstream request failed");
+  });
+
+  it("shows failed requests empty and error states without breaking the usage table", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+    listFailedRequests.mockRejectedValue(new Error("network error"));
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.text()).toContain("Failed to load failed requests");
+    expect(wrapper.text()).toContain("Recent Failed Requests");
+    expect(showError).not.toHaveBeenCalledWith("Failed to load failed requests. Retry or adjust the filters.");
   });
 });

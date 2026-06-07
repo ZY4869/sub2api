@@ -13,7 +13,7 @@ func (s *APIKeyService) Delete(ctx context.Context, id int64, userID int64) erro
 
 	// 验证当前用户是否为该 API Key 的所有者
 	if ownerID != userID {
-		return ErrInsufficientPerms
+		return ErrAPIKeyNotFound
 	}
 
 	// 清除Redis缓存（使用 userID 而非 apiKey.UserID）

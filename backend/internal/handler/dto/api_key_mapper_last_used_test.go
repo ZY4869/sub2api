@@ -38,3 +38,16 @@ func TestAPIKeyFromService_MapsNilLastUsedAt(t *testing.T) {
 	require.NotNil(t, out)
 	require.Nil(t, out.LastUsedAt)
 }
+
+func TestAPIKeyFromService_EscapesNameForJSONDisplay(t *testing.T) {
+	out := APIKeyFromService(&service.APIKey{
+		ID:     3,
+		UserID: 7,
+		Key:    "sk-test",
+		Name:   `<img src=x onerror=alert(1)>`,
+		Status: service.StatusActive,
+	})
+
+	require.NotNil(t, out)
+	require.Equal(t, `&lt;img src=x onerror=alert(1)&gt;`, out.Name)
+}

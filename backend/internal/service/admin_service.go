@@ -139,6 +139,7 @@ type CreateGroupInput struct {
 type UpdateGroupInput struct {
 	Name                            string
 	Description                     string
+	DescriptionSet                  bool
 	Platform                        string
 	Priority                        *int
 	RateMultiplier                  *float64

@@ -32,12 +32,13 @@ type opsHourlyMetricsRow struct {
 	durationAvg sql.NullFloat64
 	durationMax sql.NullInt64
 
-	ttftP50 sql.NullInt64
-	ttftP90 sql.NullInt64
-	ttftP95 sql.NullInt64
-	ttftP99 sql.NullInt64
-	ttftAvg sql.NullFloat64
-	ttftMax sql.NullInt64
+	ttftP50         sql.NullInt64
+	ttftP90         sql.NullInt64
+	ttftP95         sql.NullInt64
+	ttftP99         sql.NullInt64
+	ttftAvg         sql.NullFloat64
+	ttftMax         sql.NullInt64
+	ttftSampleCount int64
 }
 
 func (r *opsRepository) listHourlyMetricsRows(ctx context.Context, filter *service.OpsDashboardFilter, start, end time.Time) ([]opsHourlyMetricsRow, error) {
@@ -124,7 +125,8 @@ SELECT
   ttft_p95_ms,
   ttft_p99_ms,
   ttft_avg_ms,
-  ttft_max_ms
+  ttft_max_ms,
+  COALESCE(ttft_sample_count, 0)
 FROM ops_metrics_hourly
 WHERE ` + where + `
 ORDER BY bucket_start ASC`
@@ -161,6 +163,7 @@ ORDER BY bucket_start ASC`
 			&row.ttftP99,
 			&row.ttftAvg,
 			&row.ttftMax,
+			&row.ttftSampleCount,
 		); err != nil {
 			return nil, err
 		}

@@ -1,14 +1,16 @@
 package service
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestBuildBlacklistAdviceRecommendsBlacklistForTopLevelUnauthorizedDetail(t *testing.T) {
 	t.Parallel()
 
 	advice := BuildBlacklistAdvice(nil, 401, []byte(`{"detail":"Unauthorized"}`))
-	if advice == nil {
-		t.Fatal("expected blacklist advice, got nil")
-	}
+	require.NotNil(t, advice)
 	if advice.Decision != BlacklistAdviceRecommendBlacklist {
 		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceRecommendBlacklist)
 	}
@@ -24,9 +26,7 @@ func TestBuildBlacklistAdviceRecommendsBlacklistForNestedUnauthorizedMessage(t *
 	t.Parallel()
 
 	advice := BuildBlacklistAdvice(nil, 401, []byte(`{"error":{"message":"Unauthorized"}}`))
-	if advice == nil {
-		t.Fatal("expected blacklist advice, got nil")
-	}
+	require.NotNil(t, advice)
 	if advice.Decision != BlacklistAdviceRecommendBlacklist {
 		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceRecommendBlacklist)
 	}
@@ -39,9 +39,7 @@ func TestBuildBlacklistAdviceRecommendsBlacklistForPlainUnauthorizedText(t *test
 	t.Parallel()
 
 	advice := BuildBlacklistAdvice(nil, 401, []byte(`unauthorized`))
-	if advice == nil {
-		t.Fatal("expected blacklist advice, got nil")
-	}
+	require.NotNil(t, advice)
 	if advice.Decision != BlacklistAdviceRecommendBlacklist {
 		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceRecommendBlacklist)
 	}
@@ -54,9 +52,7 @@ func TestBuildBlacklistAdviceRecommendsBlacklistForFailoverWrappedUnauthorizedTe
 	t.Parallel()
 
 	advice := BuildBlacklistAdvice(nil, 401, []byte(`upstream error: 401 (failover) unauthorized`))
-	if advice == nil {
-		t.Fatal("expected blacklist advice, got nil")
-	}
+	require.NotNil(t, advice)
 	if advice.Decision != BlacklistAdviceRecommendBlacklist {
 		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceRecommendBlacklist)
 	}
@@ -69,9 +65,7 @@ func TestBuildBlacklistAdviceKeepsRateLimitFailuresNotRecommended(t *testing.T) 
 	t.Parallel()
 
 	advice := BuildBlacklistAdvice(nil, 429, []byte(`{"error":{"message":"Rate limited. Please try again later."}}`))
-	if advice == nil {
-		t.Fatal("expected blacklist advice, got nil")
-	}
+	require.NotNil(t, advice)
 	if advice.Decision != BlacklistAdviceNotRecommended {
 		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceNotRecommended)
 	}
@@ -84,9 +78,7 @@ func TestDetectHardBannedAccountMatchesDeactivatedDetailMessage(t *testing.T) {
 	t.Parallel()
 
 	match := DetectHardBannedAccount(401, []byte(`{"detail":"Your OpenAI account has been deactivated. Please contact help.openai.com."}`))
-	if match == nil {
-		t.Fatal("expected hard ban match, got nil")
-	}
+	require.NotNil(t, match)
 	if match.ReasonCode != "account_deactivated" {
 		t.Fatalf("ReasonCode = %q, want %q", match.ReasonCode, "account_deactivated")
 	}
@@ -97,14 +89,10 @@ func TestBuildBlacklistAdviceDoesNotAutoBlacklist503HelpPageErrors(t *testing.T)
 
 	body := []byte(`{"error":{"message":"Your OpenAI account has been deactivated. Please contact help.openai.com."}}`)
 	match := DetectHardBannedAccount(503, body)
-	if match != nil {
-		t.Fatalf("expected no hard ban match for 503, got %+v", match)
-	}
+	require.Nil(t, match)
 
 	advice := BuildBlacklistAdvice(nil, 503, body)
-	if advice == nil {
-		t.Fatal("expected blacklist advice, got nil")
-	}
+	require.NotNil(t, advice)
 	if advice.Decision != BlacklistAdviceNotRecommended {
 		t.Fatalf("Decision = %q, want %q", advice.Decision, BlacklistAdviceNotRecommended)
 	}

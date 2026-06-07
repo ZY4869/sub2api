@@ -22,6 +22,39 @@
               </div>
               <Toggle v-model="form.openai_allow_claude_code_codex_plugin" />
             </div>
+            <div
+              v-if="form.openai_allow_claude_code_codex_plugin"
+              class="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-800/60"
+            >
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('admin.settings.claudeCode.allowedClients') }}
+              </p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.settings.claudeCode.allowedClientsHint') }}
+              </p>
+              <div class="mt-3 space-y-2">
+                <label
+                  v-for="client in openAIAllowedCodexClientOptions"
+                  :key="client.value"
+                  class="flex items-start gap-3 rounded-md border border-gray-100 bg-white px-3 py-2 dark:border-dark-700 dark:bg-dark-900"
+                >
+                  <input
+                    v-model="form.openai_allowed_codex_clients"
+                    type="checkbox"
+                    class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
+                    :value="client.value"
+                  />
+                  <span>
+                    <span class="block text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {{ t(client.labelKey) }}
+                    </span>
+                    <span class="block text-xs text-gray-500 dark:text-gray-400">
+                      {{ t(client.descriptionKey) }}
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
             <div>
               <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {{ t('admin.settings.claudeCode.minVersion') }}
@@ -117,5 +150,13 @@ const {
   t,
   form,
 } = props.ctx
+
+const openAIAllowedCodexClientOptions = [
+  {
+    value: 'claude_code',
+    labelKey: 'admin.settings.claudeCode.allowedClientClaudeCodeLabel',
+    descriptionKey: 'admin.settings.claudeCode.allowedClientClaudeCode'
+  }
+]
 </script>
 

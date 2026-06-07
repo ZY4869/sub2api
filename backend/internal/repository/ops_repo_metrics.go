@@ -60,6 +60,7 @@ INSERT INTO ops_system_metrics (
   ttft_p99_ms,
   ttft_avg_ms,
   ttft_max_ms,
+  ttft_sample_count,
 
   cpu_usage_percent,
   memory_used_mb,
@@ -84,12 +85,12 @@ INSERT INTO ops_system_metrics (
   $9,$10,$11,
   $12,$13,$14,$15,
   $16,$17,$18,$19,$20,$21,
-  $22,$23,$24,$25,$26,$27,
-  $28,$29,$30,$31,
-  $32,$33,
-  $34,$35,
-  $36,$37,$38,
-  $39,$40
+  $22,$23,$24,$25,$26,$27,$28,
+  $29,$30,$31,$32,
+  $33,$34,
+  $35,$36,
+  $37,$38,$39,
+  $40,$41
 )`
 
 	_, err := r.db.ExecContext(
@@ -127,6 +128,7 @@ INSERT INTO ops_system_metrics (
 		opsNullInt(input.TTFTP99Ms),
 		opsNullFloat64(input.TTFTAvgMs),
 		opsNullInt(input.TTFTMaxMs),
+		input.TTFTSampleCount,
 
 		opsNullFloat64(input.CPUUsagePercent),
 		opsNullInt(input.MemoryUsedMB),

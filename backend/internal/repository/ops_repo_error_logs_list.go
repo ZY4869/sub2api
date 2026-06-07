@@ -62,6 +62,7 @@ SELECT
   e.user_id,
   COALESCE(u.email, ''),
   e.api_key_id,
+  COALESCE(e.api_key_prefix, ''),
   e.account_id,
   COALESCE(a.name, ''),
   e.group_id,

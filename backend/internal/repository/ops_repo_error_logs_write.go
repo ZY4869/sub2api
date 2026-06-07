@@ -13,6 +13,7 @@ INSERT INTO ops_error_logs (
   client_request_id,
   user_id,
   api_key_id,
+  api_key_prefix,
   account_id,
   group_id,
   channel_id,
@@ -58,7 +59,7 @@ INSERT INTO ops_error_logs (
   retry_count,
   created_at
 ) VALUES (
-  $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48
+  $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49
 )`
 
 func (r *opsRepository) InsertErrorLog(ctx context.Context, input *service.OpsInsertErrorLogInput) (int64, error) {
@@ -130,6 +131,7 @@ func opsInsertErrorLogArgs(input *service.OpsInsertErrorLogInput) []any {
 		opsNullString(input.ClientRequestID),
 		opsNullInt64(input.UserID),
 		opsNullInt64(input.APIKeyID),
+		opsNullString(input.APIKeyPrefix),
 		opsNullInt64(input.AccountID),
 		opsNullInt64(input.GroupID),
 		opsNullInt64(input.ChannelID),

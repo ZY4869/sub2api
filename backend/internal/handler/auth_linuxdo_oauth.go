@@ -218,9 +218,7 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 
 	// 安全考虑：不要把第三方返回的 email 直接映射到本地账号（可能与本地邮箱用户冲突导致账号被接管）。
 	// 统一使用基于 subject 的稳定合成邮箱来做账号绑定。
-	if subject != "" {
-		email = linuxDoSyntheticEmail(subject)
-	}
+	email = linuxDoLocalAccountEmail(email, subject)
 
 	// 传入空邀请码；如果需要邀请码，服务层返回 ErrOAuthInvitationRequired
 	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, "", affCode)
@@ -769,4 +767,11 @@ func linuxDoSyntheticEmail(subject string) string {
 		return ""
 	}
 	return "linuxdo-" + subject + service.LinuxDoConnectSyntheticEmailDomain
+}
+
+func linuxDoLocalAccountEmail(providerEmail string, subject string) string {
+	if synthetic := linuxDoSyntheticEmail(subject); synthetic != "" {
+		return synthetic
+	}
+	return strings.TrimSpace(providerEmail)
 }

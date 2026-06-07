@@ -14,6 +14,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 )
 
+const accountDaily5HTriggerJobName = "account_daily_5h_trigger"
+
 type AccountDaily5HTriggerService struct {
 	accountRepo       AccountRepository
 	accountTestRunner interface {
@@ -21,6 +23,7 @@ type AccountDaily5HTriggerService struct {
 	}
 	settingService       *SettingService
 	modelRegistryService *ModelRegistryService
+	leaderGate           PeriodicJobLeaderGate
 	interval             time.Duration
 	now                  func() time.Time
 	location             *time.Location
@@ -53,6 +56,13 @@ func NewAccountDaily5HTriggerService(
 	}
 }
 
+func (s *AccountDaily5HTriggerService) SetLeaderGate(gate PeriodicJobLeaderGate) {
+	if s == nil {
+		return
+	}
+	s.leaderGate = gate
+}
+
 func (s *AccountDaily5HTriggerService) Start() {
 	if s == nil || s.accountRepo == nil || s.accountTestRunner == nil || s.settingService == nil {
 		return
@@ -64,11 +74,11 @@ func (s *AccountDaily5HTriggerService) Start() {
 		ticker := time.NewTicker(s.interval)
 		defer ticker.Stop()
 
-		s.runOnce(context.Background())
+		s.runLeaderOnce(context.Background())
 		for {
 			select {
 			case <-ticker.C:
-				s.runOnce(context.Background())
+				s.runLeaderOnce(context.Background())
 			case <-s.stopCh:
 				return
 			}
@@ -84,6 +94,17 @@ func (s *AccountDaily5HTriggerService) Stop() {
 		close(s.stopCh)
 	})
 	s.wg.Wait()
+}
+
+func (s *AccountDaily5HTriggerService) runLeaderOnce(ctx context.Context) bool {
+	if s == nil {
+		return false
+	}
+	if s.leaderGate == nil {
+		s.runOnce(ctx)
+		return true
+	}
+	return s.leaderGate.RunIfLeader(ctx, accountDaily5HTriggerJobName, periodicJobLeaderTTL(s.interval), s.runOnce)
 }
 
 func (s *AccountDaily5HTriggerService) ListDaily5HTriggerCandidates(ctx context.Context) []AccountDaily5HTriggerAccountTypeSummary {

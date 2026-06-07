@@ -161,6 +161,21 @@ func TestGroupHandlerEndpoints(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 
+func TestGroupHandlerUpdate_PreservesExplicitEmptyDescription(t *testing.T) {
+	router, adminSvc := setupAdminRouter()
+
+	body, _ := json.Marshal(map[string]any{"description": ""})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/groups/2", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, adminSvc.lastUpdateGroupInput)
+	require.True(t, adminSvc.lastUpdateGroupInput.DescriptionSet)
+	require.Equal(t, "", adminSvc.lastUpdateGroupInput.Description)
+}
+
 func TestGroupHandlerEndpoints_AcceptsKiroAndRejectsCopilotPlatform(t *testing.T) {
 	router, _ := setupAdminRouter()
 
