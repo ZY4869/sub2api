@@ -8,6 +8,10 @@ import {
 } from '@/composables/useAccountUsagePresentation'
 import { adminAPI } from '@/api/admin'
 
+interface OpenBulkEditFilteredModalOptions {
+  excludeGrouped?: boolean
+}
+
 export function useAccountsBulkActions(ctx: any) {
   const {
     accounts,
@@ -19,7 +23,6 @@ export function useAccountsBulkActions(ctx: any) {
     bulkEditFiltersTotal,
     clearSelection,
     load,
-    pagination,
     params,
     reload,
     selIds,
@@ -80,13 +83,38 @@ const openBulkEditSelectedModal = () => {
   showBulkEdit.value = true;
 };
 
-const openBulkEditFilteredModal = () => {
-  if (pagination.total <= 0) {
+const resolveFilteredBulkEditTotal = async (filters: BulkUpdateAccountsFilters) => {
+  const response = await adminAPI.accounts.list(1, 1, filters)
+  return Number(response.total || 0)
+}
+
+const openBulkEditFilteredModal = async (
+  options: OpenBulkEditFilteredModalOptions = {},
+) => {
+  const filters = buildBulkEditFiltersFromParams();
+  if (options.excludeGrouped) {
+    if (filters.group && filters.group !== "ungrouped") {
+      appStore.showWarning(t("admin.accounts.bulkEdit.excludeGroupedSpecificGroupDisabled"));
+    } else {
+      filters.group = "ungrouped";
+    }
+  }
+
+  let targetTotal = 0;
+  try {
+    targetTotal = await resolveFilteredBulkEditTotal(filters);
+  } catch (error) {
+    console.error("Failed to resolve filtered bulk edit targets:", error);
+    appStore.showError(t("admin.accounts.bulkEdit.resolveTargetsFailed"));
+    return;
+  }
+
+  if (targetTotal <= 0) {
     appStore.showWarning(t("admin.accounts.bulkEdit.noFilteredTargets"));
     return;
   }
-  bulkEditFilters.value = buildBulkEditFiltersFromParams();
-  bulkEditFiltersTotal.value = pagination.total;
+  bulkEditFilters.value = filters;
+  bulkEditFiltersTotal.value = targetTotal;
   showBulkEdit.value = true;
 };
 

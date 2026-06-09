@@ -1702,9 +1702,9 @@ func TestOpenAIGatewayServiceForwardTransportErrorReturnsFailover(t *testing.T) 
 	gin.SetMode(gin.TestMode)
 	upstream := &httpUpstreamRecorder{err: errors.New("proxy connect tcp 127.0.0.1:9: connection refused")}
 	svc := &OpenAIGatewayService{
-		httpUpstream:         upstream,
-		toolCorrector:        NewCodexToolCorrector(),
-		openaiWSResolver:     NewOpenAIWSProtocolResolver(&config.Config{}),
+		httpUpstream:          upstream,
+		toolCorrector:         NewCodexToolCorrector(),
+		openaiWSResolver:      NewOpenAIWSProtocolResolver(&config.Config{}),
 		codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
 	}
 

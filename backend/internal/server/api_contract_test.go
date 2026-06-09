@@ -942,16 +942,22 @@ func TestAPIContracts(t *testing.T) {
 					"total_input_tokens": 15,
 					"total_output_tokens": 35,
 					"total_cache_tokens": 3,
+					"total_cache_creation_tokens": 0,
+					"total_cache_read_tokens": 0,
 					"total_tokens": 53,
 					"total_cost": 0.75,
 					"total_actual_cost": 0.75,
+					"cache_hit_rate": 0,
 					"today_requests": 2,
 					"today_input_tokens": 15,
 					"today_output_tokens": 35,
 					"today_cache_tokens": 3,
+					"today_cache_creation_tokens": 0,
+					"today_cache_read_tokens": 0,
 					"today_tokens": 53,
 					"today_cost": 0.75,
 					"today_actual_cost": 0.75,
+					"today_cache_hit_rate": 0,
 					"average_duration_ms": 200,
 					"today_average_duration_ms": 200,
 					"admin_free_requests": 0,
@@ -1831,6 +1837,10 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1Admin.GET("/settings", adminSettingHandler.GetSettings)
 	v1Admin.GET("/accounts/daily-5h-trigger-settings", adminAccountHandler.GetDaily5HTriggerSettings)
 	v1Admin.PUT("/accounts/daily-5h-trigger-settings", adminAccountHandler.UpdateDaily5HTriggerSettings)
+	v1Admin.POST("/accounts/data/import-jobs", adminAccountHandler.CreateImportJob)
+	v1Admin.GET("/accounts/data/import-jobs/:job_id", adminAccountHandler.GetImportJob)
+	v1Admin.POST("/accounts/data/import-jobs/:job_id/cancel", adminAccountHandler.CancelImportJob)
+	v1Admin.POST("/accounts/data/import-jobs/:job_id/group-bindings", adminAccountHandler.BindImportJobGroups)
 	v1Admin.POST("/accounts/bulk-update", adminAccountHandler.BulkUpdate)
 	v1Admin.POST("/users/batch-concurrency", adminUserHandler.BatchUpdateConcurrency)
 	v1Admin.GET("/moderation/audits", adminModerationHandler.List)

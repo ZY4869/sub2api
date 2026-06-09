@@ -38,6 +38,12 @@ export default {
     dataImportFile: "Data file",
     dataImportButton: "Start Import",
     dataImporting: "Importing...",
+    dataImportProgress: "{processed}/{total}",
+    dataImportJobStatus: "Job status: {status}",
+    dataImportCancel: "Cancel Import",
+    dataImportCancelling: "Cancelling...",
+    dataImportCancelled: "Import cancelled",
+    dataImportCancelFailed: "Failed to cancel import",
     dataImportSelectFile: "Please select a data file",
     dataImportParseFailed: "Failed to parse data file",
     dataImportFailed: "Data import failed",
@@ -45,5 +51,17 @@ export default {
     dataImportResultSummary: "Proxies created {proxy_created}, reused {proxy_reused}, failed {proxy_failed}; Accounts created {account_created}, failed {account_failed}",
     dataImportErrors: "Error Details",
     dataImportSuccess: "Import completed: accounts {account_created}, failed {account_failed}",
-    dataImportCompletedWithErrors: "Import completed with errors: account failed {account_failed}, proxy failed {proxy_failed}"
+    dataImportCompletedWithErrors: "Import completed with errors: account failed {account_failed}, proxy failed {proxy_failed}",
+    importGroupBinding: {
+        title: "Bind Imported Account Groups",
+        description: "This import created {count} accounts. Select groups for each account class.",
+        sectionCount: "{count} accounts",
+        submit: "Save Group Bindings",
+        submitting: "Saving...",
+        noGroupsSelected: "Select at least one group for one account class",
+        missingJob: "Import job is missing. Import again before binding groups.",
+        success: "Bound groups for {count} imported accounts",
+        partialSuccess: "Group binding partially completed: {success} succeeded, {failed} failed",
+        failed: "Failed to bind imported account groups"
+    }
 }

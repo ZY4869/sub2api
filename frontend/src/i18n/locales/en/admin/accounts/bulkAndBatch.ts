@@ -122,6 +122,11 @@ export default {
     bulkEdit: {
         title: "Bulk Edit Accounts",
         editFiltered: "Bulk edit filtered",
+        editCurrentCategory: "Edit All in Current Category",
+        currentCategoryTargets: "{count} account(s) in the current category can be edited by filters",
+        excludeGrouped: "Exclude accounts already in any group",
+        excludeGroupedSpecificGroupDisabled: "A specific group is selected, so grouped accounts cannot be excluded at the same time",
+        resolveTargetsFailed: "Failed to query bulk edit targets. Please try again later",
         selectionInfo: "{count} account(s) selected. Only checked or filled fields will be updated; others stay unchanged.",
         filtersInfo: "{count} account(s) match the current filters. Targets are resolved server-side from filters; only checked or filled fields will be updated; others stay unchanged.",
         filtersInfoUnknown: "Accounts will be updated using the current filters. Targets are resolved server-side; only checked or filled fields will be updated; others stay unchanged.",

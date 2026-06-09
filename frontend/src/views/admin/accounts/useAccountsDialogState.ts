@@ -1,6 +1,12 @@
 import { computed, ref } from 'vue'
 import type { Ref } from 'vue'
-import type { Account, AccountPlatform, AccountType, SelectOption } from '@/types'
+import type {
+  Account,
+  AccountPlatform,
+  AccountType,
+  AdminDataImportCreatedAccount,
+  SelectOption
+} from '@/types'
 import type {
   AccountModelDiagnosticsResponse,
   BulkUpdateAccountsFilters
@@ -16,6 +22,9 @@ export function useAccountsDialogState(
   const editLoading = ref(false)
   const showSync = ref(false)
   const showImportData = ref(false)
+  const showImportGroupBinding = ref(false)
+  const importGroupBindingJobId = ref('')
+  const importGroupBindingAccounts = ref<AdminDataImportCreatedAccount[]>([])
   const showExportDataDialog = ref(false)
   const includeProxyOnExport = ref(true)
   const showBulkEdit = ref(false)
@@ -74,7 +83,8 @@ export function useAccountsDialogState(
 
   return {
     showCreate, showArchiveSelected, showEdit, editLoading, showSync,
-    showImportData, showExportDataDialog, includeProxyOnExport, showBulkEdit,
+    showImportData, showImportGroupBinding, importGroupBindingJobId, importGroupBindingAccounts,
+    showExportDataDialog, includeProxyOnExport, showBulkEdit,
     bulkEditFilters, bulkEditFiltersTotal, showTempUnsched, showDeleteDialog,
     showReAuth, showTest, showBatchTest, showStats, showModelDiagnostics,
     showErrorPassthrough, showTLSFingerprintProfiles, showDaily5HTriggerSettings,

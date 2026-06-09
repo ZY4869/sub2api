@@ -79,11 +79,6 @@ func (s *AccountUsageService) buildUsageInfo(resp *ClaudeUsageResponse, updatedA
 	return info
 }
 
-// estimateSetupTokenUsage 根据session_window推算Setup Token账号的使用量
-func (s *AccountUsageService) estimateSetupTokenUsage(account *Account) *UsageInfo {
-	return s.estimateSetupTokenUsageWithContext(context.Background(), account)
-}
-
 func (s *AccountUsageService) estimateSetupTokenUsageWithContext(ctx context.Context, account *Account) *UsageInfo {
 	info := &UsageInfo{}
 	now := time.Now()

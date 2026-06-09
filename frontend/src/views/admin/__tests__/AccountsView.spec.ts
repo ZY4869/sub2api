@@ -466,6 +466,7 @@ const mountView = () =>
         AccountStatusSummaryBar: SummaryBarStub,
         AccountLimitedSummaryBar: true,
         AccountBulkActionsBar: true,
+        AccountFilteredBulkEditBar: true,
         AccountGroupedView: true,
         AccountCardGrid: true,
         AccountsViewTable: AccountsViewTableStub,

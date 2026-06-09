@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -16,6 +17,26 @@ import (
 type dataResponse struct {
 	Code int         `json:"code"`
 	Data dataPayload `json:"data"`
+}
+
+type dataImportResponse struct {
+	Code int              `json:"code"`
+	Data DataImportResult `json:"data"`
+}
+
+type importJobCreateResponse struct {
+	Code int                            `json:"code"`
+	Data CreateAccountImportJobResponse `json:"data"`
+}
+
+type importJobSnapshotResponse struct {
+	Code int                      `json:"code"`
+	Data AccountImportJobSnapshot `json:"data"`
+}
+
+type importJobGroupBindingResponse struct {
+	Code int                             `json:"code"`
+	Data AccountImportGroupBindingResult `json:"data"`
 }
 
 type dataPayload struct {
@@ -73,7 +94,34 @@ func setupAccountDataRouter() (*gin.Engine, *stubAdminService) {
 
 	router.GET("/api/v1/admin/accounts/data", h.ExportData)
 	router.POST("/api/v1/admin/accounts/data", h.ImportData)
+	router.POST("/api/v1/admin/accounts/data/import-jobs", h.CreateImportJob)
+	router.GET("/api/v1/admin/accounts/data/import-jobs/:job_id", h.GetImportJob)
+	router.POST("/api/v1/admin/accounts/data/import-jobs/:job_id/cancel", h.CancelImportJob)
+	router.POST("/api/v1/admin/accounts/data/import-jobs/:job_id/group-bindings", h.BindImportJobGroups)
 	return router, adminSvc
+}
+
+func waitImportJobStatus(t *testing.T, router *gin.Engine, jobID string, statuses ...string) AccountImportJobSnapshot {
+	t.Helper()
+	want := map[string]struct{}{}
+	for _, status := range statuses {
+		want[status] = struct{}{}
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/data/import-jobs/"+jobID, nil)
+		router.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+		var resp importJobSnapshotResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		if _, ok := want[resp.Data.Status]; ok {
+			return resp.Data
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("import job %s did not reach statuses %v", jobID, statuses)
+	return AccountImportJobSnapshot{}
 }
 
 func TestExportDataRedactsAccountSecrets(t *testing.T) {
@@ -279,7 +327,7 @@ func TestImportDataReusesProxyAndSkipsDefaultGroup(t *testing.T) {
 					"name":        "acc",
 					"platform":    service.PlatformOpenAI,
 					"type":        service.AccountTypeOAuth,
-					"credentials": map[string]any{"token": "x"},
+					"credentials": map[string]any{"token": "super-secret-token"},
 					"proxy_key":   "socks5|1.2.3.4|1080|u|p",
 					"concurrency": 3,
 					"priority":    50,
@@ -299,6 +347,174 @@ func TestImportDataReusesProxyAndSkipsDefaultGroup(t *testing.T) {
 	require.Len(t, adminSvc.createdProxies, 0)
 	require.Len(t, adminSvc.createdAccounts, 1)
 	require.True(t, adminSvc.createdAccounts[0].SkipDefaultGroupBind)
+
+	var resp dataImportResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Len(t, resp.Data.CreatedAccounts, 1)
+	require.Equal(t, int64(300), resp.Data.CreatedAccounts[0].AccountID)
+	require.Equal(t, "acc", resp.Data.CreatedAccounts[0].Name)
+	require.Equal(t, service.PlatformOpenAI, resp.Data.CreatedAccounts[0].Platform)
+	require.Equal(t, service.AccountTypeOAuth, resp.Data.CreatedAccounts[0].Type)
+	require.NotContains(t, rec.Body.String(), "super-secret-token")
+	require.NotContains(t, rec.Body.String(), "credentials")
+}
+
+func TestImportDataJobCreatesAndPollsSummaryWithoutSecrets(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	accounts := make([]map[string]any, 0, 3)
+	for i := 0; i < 3; i++ {
+		accounts = append(accounts, map[string]any{
+			"name":        "job-acc-" + strconv.Itoa(i+1),
+			"platform":    service.PlatformOpenAI,
+			"type":        service.AccountTypeAPIKey,
+			"credentials": map[string]any{"token": "job-secret-token-" + strconv.Itoa(i+1)},
+			"concurrency": 3,
+			"priority":    50,
+		})
+	}
+	payload := map[string]any{
+		"data": map[string]any{
+			"type":     dataType,
+			"version":  dataVersion,
+			"proxies":  []map[string]any{},
+			"accounts": accounts,
+		},
+		"skip_default_group_bind": true,
+	}
+
+	body, _ := json.Marshal(payload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data/import-jobs", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "test-import-job-create")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var created importJobCreateResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+	require.NotEmpty(t, created.Data.JobID)
+
+	snapshot := waitImportJobStatus(t, router, created.Data.JobID, accountImportJobStatusSucceeded)
+	require.Equal(t, accountImportJobStatusSucceeded, snapshot.Status)
+	require.Equal(t, 3, snapshot.Progress.Total)
+	require.Equal(t, 3, snapshot.Progress.Processed)
+	require.Equal(t, 3, snapshot.Result.AccountCreated)
+	require.Len(t, snapshot.CreatedAccountsSummary, 3)
+	require.Equal(t, int64(300), snapshot.CreatedAccountsSummary[0].AccountID)
+	require.Equal(t, int64(302), snapshot.CreatedAccountsSummary[2].AccountID)
+	require.NotContains(t, rec.Body.String(), "job-secret-token")
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/data/import-jobs/"+created.Data.JobID, nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotContains(t, rec.Body.String(), "job-secret-token")
+	require.NotContains(t, rec.Body.String(), "credentials")
+	require.Len(t, adminSvc.createdAccounts, 3)
+}
+
+func TestImportDataJobCancelStopsRemainingAccounts(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+	adminSvc.createAccountDelay = 20 * time.Millisecond
+
+	accounts := make([]map[string]any, 0, 8)
+	for i := 0; i < 8; i++ {
+		accounts = append(accounts, map[string]any{
+			"name":        "cancel-acc-" + strconv.Itoa(i+1),
+			"platform":    service.PlatformOpenAI,
+			"type":        service.AccountTypeAPIKey,
+			"credentials": map[string]any{"token": "cancel-secret"},
+			"concurrency": 3,
+			"priority":    50,
+		})
+	}
+	payload := map[string]any{
+		"data": map[string]any{
+			"type":     dataType,
+			"version":  dataVersion,
+			"proxies":  []map[string]any{},
+			"accounts": accounts,
+		},
+		"skip_default_group_bind": true,
+	}
+	body, _ := json.Marshal(payload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data/import-jobs", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "test-import-job-cancel")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var created importJobCreateResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+
+	waitImportJobStatus(t, router, created.Data.JobID, accountImportJobStatusRunning)
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data/import-jobs/"+created.Data.JobID+"/cancel", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	snapshot := waitImportJobStatus(t, router, created.Data.JobID, accountImportJobStatusCancelled)
+	require.Equal(t, accountImportJobStatusCancelled, snapshot.Status)
+	require.Less(t, snapshot.Progress.Processed, snapshot.Progress.Total)
+	require.Less(t, len(adminSvc.createdAccounts), len(accounts))
+}
+
+func TestImportDataJobGroupBindingBatchesByPlatformAndType(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+	createdAccounts := make([]DataImportCreatedAccount, 0, accountImportGroupBindingBatchSize+2)
+	for i := 0; i < accountImportGroupBindingBatchSize+1; i++ {
+		createdAccounts = append(createdAccounts, DataImportCreatedAccount{
+			AccountID: int64(1000 + i),
+			Name:      "openai-" + strconv.Itoa(i),
+			Platform:  service.PlatformOpenAI,
+			Type:      service.AccountTypeAPIKey,
+		})
+	}
+	createdAccounts = append(createdAccounts, DataImportCreatedAccount{
+		AccountID: 2000,
+		Name:      "anthropic",
+		Platform:  service.PlatformAnthropic,
+		Type:      service.AccountTypeAPIKey,
+	})
+	job, err := defaultAccountImportJobs.create(0)
+	require.NoError(t, err)
+	now := time.Now().UTC()
+	job.mu.Lock()
+	job.status = accountImportJobStatusSucceeded
+	job.result = DataImportResult{
+		AccountCreated:  len(createdAccounts),
+		CreatedAccounts: createdAccounts,
+	}
+	job.finishedAt = &now
+	job.updatedAt = now
+	job.mu.Unlock()
+
+	payload := map[string]any{
+		"sections": []map[string]any{
+			{
+				"platform":  service.PlatformOpenAI,
+				"type":      service.AccountTypeAPIKey,
+				"group_ids": []int64{9, 8, 8},
+			},
+		},
+	}
+	body, _ := json.Marshal(payload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data/import-jobs/"+job.jobID+"/group-bindings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp importJobGroupBindingResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, accountImportGroupBindingBatchSize+1, resp.Data.Success)
+	require.Equal(t, accountImportGroupBindingBatchSize+1, resp.Data.BoundCount)
+	require.Len(t, adminSvc.bulkUpdateInputs, 2)
+	require.Len(t, adminSvc.bulkUpdateInputs[0].AccountIDs, accountImportGroupBindingBatchSize)
+	require.Len(t, adminSvc.bulkUpdateInputs[1].AccountIDs, 1)
+	require.Equal(t, []int64{8, 9}, *adminSvc.bulkUpdateInputs[0].GroupIDs)
 }
 
 func TestImportDataReusedProxyUpdatesLifecycleAndFallback(t *testing.T) {

@@ -69,12 +69,20 @@ type DataImportRequest struct {
 }
 
 type DataImportResult struct {
-	ProxyCreated   int               `json:"proxy_created"`
-	ProxyReused    int               `json:"proxy_reused"`
-	ProxyFailed    int               `json:"proxy_failed"`
-	AccountCreated int               `json:"account_created"`
-	AccountFailed  int               `json:"account_failed"`
-	Errors         []DataImportError `json:"errors,omitempty"`
+	ProxyCreated    int                        `json:"proxy_created"`
+	ProxyReused     int                        `json:"proxy_reused"`
+	ProxyFailed     int                        `json:"proxy_failed"`
+	AccountCreated  int                        `json:"account_created"`
+	AccountFailed   int                        `json:"account_failed"`
+	CreatedAccounts []DataImportCreatedAccount `json:"created_accounts,omitempty"`
+	Errors          []DataImportError          `json:"errors,omitempty"`
+}
+
+type DataImportCreatedAccount struct {
+	AccountID int64  `json:"account_id"`
+	Name      string `json:"name"`
+	Platform  string `json:"platform"`
+	Type      string `json:"type"`
 }
 
 type DataImportError struct {
@@ -83,6 +91,8 @@ type DataImportError struct {
 	ProxyKey string `json:"proxy_key,omitempty"`
 	Message  string `json:"message"`
 }
+
+type dataImportProgressHook func(processed int, result DataImportResult) bool
 
 func buildProxyKey(protocol, host string, port int, username, password string) string {
 	return fmt.Sprintf("%s|%s|%d|%s|%s", strings.TrimSpace(protocol), strings.TrimSpace(host), port, strings.TrimSpace(username), strings.TrimSpace(password))
@@ -211,6 +221,10 @@ func (h *AccountHandler) ImportData(c *gin.Context) {
 }
 
 func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) (DataImportResult, error) {
+	return h.importDataWithProgress(ctx, req, nil)
+}
+
+func (h *AccountHandler) importDataWithProgress(ctx context.Context, req DataImportRequest, hook dataImportProgressHook) (DataImportResult, error) {
 	skipDefaultGroupBind := true
 	if req.SkipDefaultGroupBind != nil {
 		skipDefaultGroupBind = *req.SkipDefaultGroupBind
@@ -218,6 +232,14 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 
 	dataPayload := req.Data
 	result := DataImportResult{}
+	processedItems := 0
+	advance := func() bool {
+		processedItems++
+		if hook == nil {
+			return true
+		}
+		return hook(processedItems, result)
+	}
 
 	existingProxies, err := h.listAllProxies(ctx)
 	if err != nil {
@@ -232,6 +254,9 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 	}
 
 	for i := range dataPayload.Proxies {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
 		item := dataPayload.Proxies[i]
 		key := item.ProxyKey
 		if key == "" {
@@ -245,6 +270,9 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 				ProxyKey: key,
 				Message:  err.Error(),
 			})
+			if !advance() {
+				return result, context.Canceled
+			}
 			continue
 		}
 		normalizedStatus := normalizeProxyStatus(item.Status)
@@ -272,6 +300,9 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 					})
 				}
 			}
+			if !advance() {
+				return result, context.Canceled
+			}
 			continue
 		}
 
@@ -293,6 +324,9 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 				ProxyKey: key,
 				Message:  createErr.Error(),
 			})
+			if !advance() {
+				return result, context.Canceled
+			}
 			continue
 		}
 		proxyKeyToID[key] = created.ID
@@ -303,9 +337,15 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 				Status: normalizedStatus,
 			})
 		}
+		if !advance() {
+			return result, context.Canceled
+		}
 	}
 
 	for i := range dataPayload.Proxies {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
 		item := dataPayload.Proxies[i]
 		if strings.TrimSpace(item.FallbackProxyKey) == "" {
 			continue
@@ -342,6 +382,9 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 	}
 
 	for i := range dataPayload.Accounts {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
 		item := dataPayload.Accounts[i]
 		if err := validateDataAccount(item); err != nil {
 			result.AccountFailed++
@@ -350,6 +393,9 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 				Name:    item.Name,
 				Message: err.Error(),
 			})
+			if !advance() {
+				return result, context.Canceled
+			}
 			continue
 		}
 
@@ -365,6 +411,9 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 					ProxyKey: *item.ProxyKey,
 					Message:  "proxy_key not found",
 				})
+				if !advance() {
+					return result, context.Canceled
+				}
 				continue
 			}
 		}
@@ -390,17 +439,43 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			SkipDefaultGroupBind: skipDefaultGroupBind,
 		}
 
-		if _, err := h.adminService.CreateAccount(ctx, accountInput); err != nil {
+		createdAccount, err := h.adminService.CreateAccount(ctx, accountInput)
+		if err != nil {
 			result.AccountFailed++
 			result.Errors = append(result.Errors, DataImportError{
 				Kind:    "account",
 				Name:    item.Name,
 				Message: err.Error(),
 			})
+			if !advance() {
+				return result, context.Canceled
+			}
 			continue
 		}
 		result.AccountCreated++
+		if createdAccount != nil {
+			result.CreatedAccounts = append(result.CreatedAccounts, DataImportCreatedAccount{
+				AccountID: createdAccount.ID,
+				Name:      createdAccount.Name,
+				Platform:  createdAccount.Platform,
+				Type:      createdAccount.Type,
+			})
+		}
+		if !advance() {
+			return result, context.Canceled
+		}
 	}
+
+	slog.Info("admin_account_data_import_completed",
+		"proxy_created", result.ProxyCreated,
+		"proxy_reused", result.ProxyReused,
+		"proxy_failed", result.ProxyFailed,
+		"account_created", result.AccountCreated,
+		"account_failed", result.AccountFailed,
+		"created_account_count", len(result.CreatedAccounts),
+		"error_count", len(result.Errors),
+		"skip_default_group_bind", skipDefaultGroupBind,
+	)
 
 	return result, nil
 }

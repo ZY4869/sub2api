@@ -28,8 +28,10 @@ type stubAdminService struct {
 	updatedProxies       []*service.UpdateProxyInput
 	testedProxyIDs       []int64
 	lastBulkUpdateInput  *service.BulkUpdateAccountsInput
+	bulkUpdateInputs     []*service.BulkUpdateAccountsInput
 	lastUpdateGroupInput *service.UpdateGroupInput
 	createAccountErr     error
+	createAccountDelay   time.Duration
 	updateAccountErr     error
 	bulkUpdateAccountErr error
 	unarchiveErr         error
@@ -580,6 +582,13 @@ func (s *stubAdminService) GetAccountsByIDs(ctx context.Context, ids []int64) ([
 }
 
 func (s *stubAdminService) CreateAccount(ctx context.Context, input *service.CreateAccountInput) (*service.Account, error) {
+	if s.createAccountDelay > 0 {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(s.createAccountDelay):
+		}
+	}
 	s.mu.Lock()
 	s.createdAccounts = append(s.createdAccounts, input)
 	defer s.mu.Unlock()
@@ -592,7 +601,7 @@ func (s *stubAdminService) CreateAccount(ctx context.Context, input *service.Cre
 	}
 	now := time.Now().UTC()
 	account := service.Account{
-		ID:          300,
+		ID:          int64(300 + len(s.createdAccounts) - 1),
 		Name:        input.Name,
 		Notes:       input.Notes,
 		Platform:    input.Platform,
@@ -841,6 +850,7 @@ func (s *stubAdminService) BulkUpdateAccounts(ctx context.Context, input *servic
 			copied.GroupIDs = &groupIDs
 		}
 		s.lastBulkUpdateInput = &copied
+		s.bulkUpdateInputs = append(s.bulkUpdateInputs, &copied)
 	} else {
 		s.lastBulkUpdateInput = nil
 	}

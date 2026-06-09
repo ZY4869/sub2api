@@ -98,7 +98,15 @@
   <ImportDataModal
     :show="showImportData"
     @close="emit('close-import-data')"
-    @imported="emit('data-imported')"
+    @imported="emit('data-imported', $event)"
+  />
+  <ImportAccountGroupBindingModal
+    :show="showImportGroupBinding"
+    :job-id="importGroupBindingJobId"
+    :accounts="importGroupBindingAccounts"
+    :groups="groups"
+    @close="emit('close-import-group-binding')"
+    @updated="emit('import-group-binding-updated')"
   />
   <BulkEditAccountModal
     :show="showBulkEdit"
@@ -170,6 +178,8 @@ import type {
   Account,
   AccountPlatform,
   AccountType,
+  AdminDataImportCreatedAccount,
+  AdminAccountImportJob,
   AdminGroup,
   BatchArchiveAccountsResult,
   Proxy
@@ -188,6 +198,7 @@ import ModelImportExposureSyncDialog from '@/components/admin/models/ModelImport
 import AccountActionMenu from './AccountActionMenu.vue'
 import ArchiveAccountsModal from './ArchiveAccountsModal.vue'
 import ImportDataModal from './ImportDataModal.vue'
+import ImportAccountGroupBindingModal from './ImportAccountGroupBindingModal.vue'
 import AccountBatchTestModal from './AccountBatchTestModal.vue'
 import ReAuthAccountModal from './ReAuthAccountModal.vue'
 import AccountTestModal from './AccountTestModal.vue'
@@ -202,6 +213,7 @@ defineProps<{
   editLoading: boolean
   showSync: boolean
   showImportData: boolean
+  showImportGroupBinding: boolean
   showExportDataDialog: boolean
   showBulkEdit: boolean
   showTempUnsched: boolean
@@ -216,6 +228,8 @@ defineProps<{
   showSchedulePanel: boolean
   proxies: Proxy[]
   groups: AdminGroup[]
+  importGroupBindingJobId: string
+  importGroupBindingAccounts: AdminDataImportCreatedAccount[]
   bulkEditFilters: BulkUpdateAccountsFilters | null
   bulkEditFiltersTotal: number | null
   selectedIds: number[]
@@ -281,7 +295,9 @@ const emit = defineEmits<{
   'close-sync': []
   reload: []
   'close-import-data': []
-  'data-imported': []
+  'data-imported': [job: AdminAccountImportJob]
+  'close-import-group-binding': []
+  'import-group-binding-updated': []
   'close-bulk-edit': []
   'bulk-updated': []
   'close-temp-unsched': []

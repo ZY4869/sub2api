@@ -135,6 +135,7 @@ describe('AccountsView airy columns', () => {
           AccountGroupedView: true,
           AccountCardGrid: true,
           AccountBulkActionsBar: true,
+          AccountFilteredBulkEditBar: true,
           Pagination: true,
           AccountsViewDialogsHost: true,
           AccountLimitedSummaryBar: true,

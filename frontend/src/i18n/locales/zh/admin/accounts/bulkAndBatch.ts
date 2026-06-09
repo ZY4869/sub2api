@@ -122,6 +122,11 @@ export default {
     bulkEdit: {
         title: "批量编辑账号",
         editFiltered: "按筛选结果批量编辑",
+        editCurrentCategory: "编辑当前分类全部账号",
+        currentCategoryTargets: "当前分类共 {count} 个账号，可按筛选条件批量编辑",
+        excludeGrouped: "排除已有分组账号",
+        excludeGroupedSpecificGroupDisabled: "当前已筛选具体分组，不能同时排除已有分组账号",
+        resolveTargetsFailed: "查询批量编辑目标失败，请稍后重试",
         selectionInfo: "已选择 {count} 个账号。只更新您勾选或填写的字段，未勾选的字段保持不变。",
         filtersInfo: "当前筛选命中 {count} 个账号。批量更新会由服务端基于筛选条件解析真实目标；只更新您勾选或填写的字段，未勾选的字段保持不变。",
         filtersInfoUnknown: "将按当前筛选条件批量更新账号。目标由服务端解析；只更新您勾选或填写的字段，未勾选的字段保持不变。",

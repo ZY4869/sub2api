@@ -38,6 +38,12 @@ export default {
     dataImportFile: "数据文件",
     dataImportButton: "开始导入",
     dataImporting: "导入中...",
+    dataImportProgress: "{processed}/{total}",
+    dataImportJobStatus: "任务状态：{status}",
+    dataImportCancel: "取消导入",
+    dataImportCancelling: "取消中...",
+    dataImportCancelled: "导入已取消",
+    dataImportCancelFailed: "取消导入失败",
     dataImportSelectFile: "请选择数据文件",
     dataImportParseFailed: "数据解析失败",
     dataImportFailed: "数据导入失败",
@@ -45,5 +51,17 @@ export default {
     dataImportResultSummary: "代理创建 {proxy_created}，复用 {proxy_reused}，失败 {proxy_failed}；账号创建 {account_created}，失败 {account_failed}",
     dataImportErrors: "失败详情",
     dataImportSuccess: "导入完成：账号 {account_created}，失败 {account_failed}",
-    dataImportCompletedWithErrors: "导入完成但有错误：账号失败 {account_failed}，代理失败 {proxy_failed}"
+    dataImportCompletedWithErrors: "导入完成但有错误：账号失败 {account_failed}，代理失败 {proxy_failed}",
+    importGroupBinding: {
+        title: "绑定导入账号分组",
+        description: "本次导入创建了 {count} 个账号。请按同类账号选择要绑定的分组。",
+        sectionCount: "{count} 个账号",
+        submit: "保存分组绑定",
+        submitting: "保存中...",
+        noGroupsSelected: "请至少为一类账号选择一个分组",
+        missingJob: "导入任务不存在，请重新导入后再绑定分组",
+        success: "已为 {count} 个导入账号绑定分组",
+        partialSuccess: "分组绑定部分完成：成功 {success}，失败 {failed}",
+        failed: "分组绑定失败"
+    }
 }

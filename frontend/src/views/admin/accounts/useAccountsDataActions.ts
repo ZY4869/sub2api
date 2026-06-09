@@ -1,8 +1,11 @@
+import type { AdminAccountImportJob } from '@/types'
+
 export function useAccountsDataActions(ctx: any) {
   const {
     adminAPI, appStore, t, groups, reload, refreshArchivedPanel,
     showImportData, showCreate, showArchiveSelected, clearSelection,
-    includeProxyOnExport, showExportDataDialog, exportingData, selIds, params
+    includeProxyOnExport, showExportDataDialog, exportingData, selIds, params,
+    showImportGroupBinding, importGroupBindingJobId, importGroupBindingAccounts
   } = ctx
 
   const refreshGroups = async () => {
@@ -19,8 +22,24 @@ export function useAccountsDataActions(ctx: any) {
   const handleReloadRequested = async () => {
     await refreshListAndArchivedPanel()
   }
-  const handleDataImported = async () => {
+  const clearImportGroupBindingState = () => {
+    importGroupBindingJobId.value = ''
+    importGroupBindingAccounts.value = []
+    showImportGroupBinding.value = false
+  }
+  const closeImportGroupBinding = () => {
+    clearImportGroupBindingState()
+  }
+  const handleDataImported = async (job: AdminAccountImportJob) => {
     showImportData.value = false
+    importGroupBindingJobId.value = job.job_id
+    importGroupBindingAccounts.value = job.created_accounts_summary || []
+    showImportGroupBinding.value = importGroupBindingAccounts.value.length > 0
+    await refreshGroups()
+    await refreshListAndArchivedPanel()
+  }
+  const handleImportGroupBindingUpdated = async () => {
+    clearImportGroupBindingState()
     await refreshGroups()
     await refreshListAndArchivedPanel()
   }
@@ -78,7 +97,8 @@ export function useAccountsDataActions(ctx: any) {
 
   return {
     refreshGroups, refreshListAndArchivedPanel, handleReloadRequested,
-    handleDataImported, handleCreated, handleArchivedAccounts,
+    handleDataImported, closeImportGroupBinding, handleImportGroupBindingUpdated,
+    handleCreated, handleArchivedAccounts,
     openExportDataDialog, handleExportData
   }
 }

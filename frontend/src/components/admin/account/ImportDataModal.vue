@@ -50,6 +50,15 @@
         <div class="text-sm text-gray-700 dark:text-dark-300">
           {{ t('admin.accounts.dataImportResultSummary', result) }}
         </div>
+        <div v-if="job" class="mt-3">
+          <div class="mb-1 flex items-center justify-between text-xs text-gray-500 dark:text-dark-400">
+            <span>{{ t('admin.accounts.dataImportJobStatus', { status: job.status }) }}</span>
+            <span>{{ progressText }}</span>
+          </div>
+          <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-800">
+            <div class="h-full bg-primary-600 transition-all" :style="{ width: `${progressPercent}%` }" />
+          </div>
+        </div>
 
         <div v-if="errorItems.length" class="mt-2">
           <div class="text-sm font-medium text-red-600 dark:text-red-400">
@@ -72,6 +81,15 @@
           {{ t('common.cancel') }}
         </button>
         <button
+          v-if="canCancelJob"
+          class="btn btn-secondary"
+          type="button"
+          :disabled="cancelling"
+          @click="handleCancelJob"
+        >
+          {{ cancelling ? t('admin.accounts.dataImportCancelling') : t('admin.accounts.dataImportCancel') }}
+        </button>
+        <button
           class="btn btn-primary"
           type="submit"
           form="import-data-form"
@@ -90,7 +108,8 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import type { AdminDataImportResult } from '@/types'
+import type { AdminAccountImportJob } from '@/types'
+import { useAccountImportJobPolling } from './useAccountImportJobPolling'
 
 interface Props {
   show: boolean
@@ -98,7 +117,7 @@ interface Props {
 
 interface Emits {
   (e: 'close'): void
-  (e: 'imported'): void
+  (e: 'imported', job: AdminAccountImportJob): void
 }
 
 const props = defineProps<Props>()
@@ -108,23 +127,47 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const importing = ref(false)
+const cancelling = ref(false)
 const file = ref<File | null>(null)
-const result = ref<AdminDataImportResult | null>(null)
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileName = computed(() => file.value?.name || '')
+const {
+  job,
+  result,
+  canCancelJob: canCancelActiveJob,
+  progressPercent,
+  resetImportJob,
+  updateFromJob,
+  pollImportJob,
+  clearPollTimer
+} = useAccountImportJobPolling()
 
 const errorItems = computed(() => result.value?.errors || [])
+const canCancelJob = computed(() =>
+  Boolean(importing.value && canCancelActiveJob.value)
+)
+const progressText = computed(() => {
+  const progress = job.value?.progress
+  if (!progress) return ''
+  return t('admin.accounts.dataImportProgress', {
+    processed: progress.processed,
+    total: progress.total
+  })
+})
 
 watch(
   () => props.show,
   (open) => {
     if (open) {
       file.value = null
-      result.value = null
+      resetImportJob()
+      cancelling.value = false
       if (fileInput.value) {
         fileInput.value.value = ''
       }
+    } else {
+      clearPollTimer()
     }
   }
 )
@@ -172,12 +215,14 @@ const handleImport = async () => {
     const text = await readFileAsText(file.value)
     const dataPayload = JSON.parse(text)
 
-    const res = await adminAPI.accounts.importData({
+    const createdJob = await adminAPI.accounts.createImportJob({
       data: dataPayload,
       skip_default_group_bind: true
     })
+    const finalJob = await pollImportJob(createdJob.job_id)
+    const res = finalJob.result
 
-    result.value = res
+    updateFromJob(finalJob)
 
     const msgParams: Record<string, unknown> = {
       account_created: res.account_created,
@@ -186,11 +231,17 @@ const handleImport = async () => {
       proxy_reused: res.proxy_reused,
       proxy_failed: res.proxy_failed,
     }
-    if (res.account_failed > 0 || res.proxy_failed > 0) {
+    if (finalJob.status === 'cancelled') {
+      appStore.showError(t('admin.accounts.dataImportCancelled'))
+    } else if (finalJob.status === 'failed') {
+      appStore.showError(finalJob.error || t('admin.accounts.dataImportFailed'))
+    } else if (res.account_failed > 0 || res.proxy_failed > 0) {
       appStore.showError(t('admin.accounts.dataImportCompletedWithErrors', msgParams))
     } else {
       appStore.showSuccess(t('admin.accounts.dataImportSuccess', msgParams))
-      emit('imported')
+    }
+    if ((finalJob.created_accounts_summary?.length ?? 0) > 0 && finalJob.status !== 'cancelled') {
+      emit('imported', finalJob)
     }
   } catch (error: any) {
     if (error instanceof SyntaxError) {
@@ -200,6 +251,19 @@ const handleImport = async () => {
     }
   } finally {
     importing.value = false
+  }
+}
+
+const handleCancelJob = async () => {
+  if (!job.value || cancelling.value) return
+  cancelling.value = true
+  try {
+    const nextJob = await adminAPI.accounts.cancelImportJob(job.value.job_id)
+    updateFromJob(nextJob)
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.dataImportCancelFailed'))
+  } finally {
+    cancelling.value = false
   }
 }
 </script>

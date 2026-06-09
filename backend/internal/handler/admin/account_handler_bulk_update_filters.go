@@ -17,7 +17,6 @@ import (
 
 const (
 	bulkUpdateAccountsFiltersPageSize = 1000
-	bulkUpdateAccountsFiltersMaxPages = 10000
 )
 
 func (h *AccountHandler) resolveBulkUpdateAccountIDsByFilters(c *gin.Context, filters *BulkUpdateAccountsFilters) ([]int64, error) {
@@ -94,9 +93,6 @@ func (h *AccountHandler) resolveBulkUpdateAccountIDsByFilters(c *gin.Context, fi
 			break
 		}
 		page++
-		if page > bulkUpdateAccountsFiltersMaxPages {
-			return nil, fmt.Errorf("too many pages while resolving bulk update targets")
-		}
 	}
 
 	logger.FromContext(c.Request.Context()).With(

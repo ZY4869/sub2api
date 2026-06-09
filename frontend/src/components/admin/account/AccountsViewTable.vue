@@ -10,8 +10,7 @@
     :preserve-input-order="preserveInputOrder"
     table-layout="fixed"
     horizontal-scrollbar="subtle"
-    :virtual-scroll="accounts.length > 30"
-    virtual-scroll-target="window"
+    :virtual-scroll="false"
     :row-class="visualStyle === 'airy' ? resolveRowClass : undefined"
     :row-style="visualStyle === 'airy' ? resolveRowStyle : undefined"
   >

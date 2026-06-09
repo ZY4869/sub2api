@@ -86,7 +86,42 @@ const AiryRowActionsStub = defineComponent({
   `
 })
 
-function mountTable(accountOverrides: Record<string, unknown> = {}) {
+function createAccount(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    name: 'Primary',
+    platform: 'openai',
+    type: 'apikey',
+    status: 'active',
+    schedulable: true,
+    concurrency: 3,
+    current_concurrency: 1,
+    lifecycle_state: 'normal',
+    expires_at: null,
+    auto_pause_on_expired: false,
+    extra: {},
+    credentials: {
+      plan_type: 'plus'
+    },
+    groups: [
+      {
+        id: 7,
+        name: 'Admin',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1
+      }
+    ],
+    auto_recovery_probe: {
+      status: 'retry_scheduled',
+      summary: 'Temporary gateway error',
+      checked_at: '2026-04-09T00:00:00Z'
+    },
+    ...overrides
+  }
+}
+
+function mountTable(accountOverrides: Record<string, unknown> = {}, accountsOverride?: any[]) {
   return mount(AccountsViewTable, {
     props: {
       columns: [
@@ -97,40 +132,7 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
         { key: 'status', label: 'Status' },
         { key: 'actions', label: 'Actions' }
       ],
-      accounts: [
-        {
-          id: 1,
-          name: 'Primary',
-          platform: 'openai',
-          type: 'apikey',
-          status: 'active',
-          schedulable: true,
-          concurrency: 3,
-          current_concurrency: 1,
-          lifecycle_state: 'normal',
-          expires_at: null,
-          auto_pause_on_expired: false,
-          extra: {},
-          credentials: {
-            plan_type: 'plus'
-          },
-          groups: [
-            {
-              id: 7,
-              name: 'Admin',
-              platform: 'openai',
-              subscription_type: 'standard',
-              rate_multiplier: 1
-            }
-          ],
-          auto_recovery_probe: {
-            status: 'retry_scheduled',
-            summary: 'Temporary gateway error',
-            checked_at: '2026-04-09T00:00:00Z'
-          },
-          ...accountOverrides
-        }
-      ],
+      accounts: accountsOverride ?? [createAccount(accountOverrides)],
       loading: false,
       allVisibleSelected: true,
       selectedIds: [1],
@@ -321,6 +323,18 @@ describe('AccountsViewTable', () => {
 
   it('renders short account pages without virtual scrolling to avoid empty filtered tables', () => {
     const wrapper = mountTable()
+
+    expect(wrapper.get('.data-table-virtual-scroll').text()).toBe('false')
+  })
+
+  it('renders 100-account pages without window virtual scrolling', () => {
+    const accounts = Array.from({ length: 100 }, (_, index) =>
+      createAccount({
+        id: index + 1,
+        name: `Account ${index + 1}`
+      })
+    )
+    const wrapper = mountTable({}, accounts)
 
     expect(wrapper.get('.data-table-virtual-scroll').text()).toBe('false')
   })

@@ -50,7 +50,7 @@
         @toggle-group-view="groupViewEnabled = !groupViewEnabled"
         @toggle-hide-limited="toggleHideLimitedAccounts"
         @open-limited-page="openLimitedAccountsPage"
-        @bulk-edit-filtered="openBulkEditFilteredModal"
+        @bulk-edit-filtered="handleFilteredBulkEdit"
         @toggle-daily-5h-trigger="handleToggleDaily5HTrigger"
         @open-daily-5h-settings="handleOpenDaily5HTriggerSettings"
         @toggle-account-realtime-countdown="handleToggleAccountRealtimeCountdown"
@@ -98,6 +98,15 @@
           @clear="clearSelection"
           @select-page="selectPage"
           @toggle-schedulable="handleBulkToggleSchedulable"
+        />
+
+        <AccountFilteredBulkEditBar
+          :total="pagination.total"
+          :loading="loading"
+          :exclude-grouped="effectiveFilteredBulkEditExcludeGrouped"
+          :exclude-grouped-disabled="filteredBulkEditExcludeGroupedDisabled"
+          @update:exclude-grouped="filteredBulkEditExcludeGrouped = $event"
+          @edit="handleFilteredBulkEdit"
         />
 
         <div ref="accountTableRef">
@@ -200,6 +209,7 @@
     :edit-loading="editLoading"
     :show-sync="showSync"
     :show-import-data="showImportData"
+    :show-import-group-binding="showImportGroupBinding"
     :show-export-data-dialog="showExportDataDialog"
     :show-bulk-edit="showBulkEdit"
     :show-temp-unsched="showTempUnsched"
@@ -214,6 +224,8 @@
     :show-schedule-panel="showSchedulePanel"
     :proxies="proxies"
     :groups="groups"
+    :import-group-binding-job-id="importGroupBindingJobId"
+    :import-group-binding-accounts="importGroupBindingAccounts"
     :bulk-edit-filters="bulkEditFilters"
     :bulk-edit-filters-total="bulkEditFiltersTotal"
     :selected-ids="selIds"
@@ -275,6 +287,8 @@
     @reload="handleReloadRequested"
     @close-import-data="showImportData = false"
     @data-imported="handleDataImported"
+    @close-import-group-binding="closeImportGroupBinding"
+    @import-group-binding-updated="handleImportGroupBindingUpdated"
     @close-bulk-edit="closeBulkEditModal"
     @bulk-updated="handleBulkUpdated"
     @close-temp-unsched="showTempUnsched = false"
@@ -320,6 +334,7 @@ import TablePageLayout from "@/components/layout/TablePageLayout.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import AccountCardGrid from "@/components/admin/account/AccountCardGrid.vue";
 import AccountBulkActionsBar from "@/components/admin/account/AccountBulkActionsBar.vue";
+import AccountFilteredBulkEditBar from "@/components/admin/account/AccountFilteredBulkEditBar.vue";
 import AccountGroupedView from "@/components/admin/account/AccountGroupedView.vue";
 import AccountLimitedSummaryBar from "@/components/admin/account/AccountLimitedSummaryBar.vue";
 import AccountPlatformTabs from "@/components/admin/account/AccountPlatformTabs.vue";
@@ -526,7 +541,8 @@ const {
 
 const {
   showCreate, showArchiveSelected, showEdit, editLoading, showSync,
-  showImportData, showExportDataDialog, includeProxyOnExport, showBulkEdit,
+  showImportData, showImportGroupBinding, importGroupBindingJobId, importGroupBindingAccounts,
+  showExportDataDialog, includeProxyOnExport, showBulkEdit,
   bulkEditFilters, bulkEditFiltersTotal, showTempUnsched, showDeleteDialog,
   showReAuth, showTest, showBatchTest, showStats, showModelDiagnostics,
   showErrorPassthrough, showTLSFingerprintProfiles, showDaily5HTriggerSettings,
@@ -546,6 +562,16 @@ const handleSearchQueryUpdate = (value: string) => {
   debouncedReload();
 };
 
+const filteredBulkEditExcludeGrouped = ref(true);
+const activeGroupFilter = computed(() => String(params.group || ""));
+const filteredBulkEditExcludeGroupedDisabled = computed(() =>
+  Boolean(activeGroupFilter.value && activeGroupFilter.value !== "ungrouped"),
+);
+const effectiveFilteredBulkEditExcludeGrouped = computed(() =>
+  activeGroupFilter.value === "ungrouped" ||
+  (filteredBulkEditExcludeGrouped.value && !filteredBulkEditExcludeGroupedDisabled.value),
+);
+
 useSwipeSelect(accountTableRef, {
   isSelected,
   select,
@@ -559,6 +585,7 @@ const isAnyModalOpen = computed(() => {
     showEdit.value ||
     showSync.value ||
     showImportData.value ||
+    showImportGroupBinding.value ||
     showExportDataDialog.value ||
     showBulkEdit.value ||
     showTempUnsched.value ||
@@ -908,6 +935,12 @@ const {
   usageManualRefreshToken, canAccountFetchUsage, resolveActualUsageRefreshLoadOptions,
 });
 
+const handleFilteredBulkEdit = () => {
+  openBulkEditFilteredModal({
+    excludeGrouped: effectiveFilteredBulkEditExcludeGrouped.value,
+  });
+};
+
 const refreshListAndArchivedPanel = async () => {
   refreshArchivedPanel();
   await reload();
@@ -935,9 +968,11 @@ const handleAccountUpdated = (updatedAccount: Account) => {
 };
 const {
   handleReloadRequested, handleDataImported, handleCreated,
+  closeImportGroupBinding, handleImportGroupBindingUpdated,
   handleArchivedAccounts, openExportDataDialog, handleExportData,
 } = useAccountsDataActions({
   adminAPI, appStore, t, groups, reload, refreshArchivedPanel, showImportData,
+  showImportGroupBinding, importGroupBindingJobId, importGroupBindingAccounts,
   showCreate, showArchiveSelected, clearSelection, includeProxyOnExport,
   showExportDataDialog, exportingData, selIds, params,
 });

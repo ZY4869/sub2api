@@ -732,5 +732,62 @@ export interface AdminDataImportResult {
   proxy_failed: number;
   account_created: number;
   account_failed: number;
+  created_accounts?: AdminDataImportCreatedAccount[];
   errors?: AdminDataImportError[];
+}
+
+export interface AdminDataImportCreatedAccount {
+  account_id: number;
+  name: string;
+  platform: AccountPlatform;
+  type: AccountType;
+}
+
+export type AdminAccountImportJobStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "partial_failed"
+  | "failed"
+  | "cancelled";
+
+export interface AdminAccountImportJobProgress {
+  total: number;
+  processed: number;
+}
+
+export interface AdminAccountImportJob {
+  job_id: string;
+  status: AdminAccountImportJobStatus;
+  progress: AdminAccountImportJobProgress;
+  result: AdminDataImportResult;
+  created_accounts_summary: AdminDataImportCreatedAccount[];
+  error?: string;
+  cancel_requested: boolean;
+  started_at?: string;
+  finished_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminAccountImportJobCreateResult {
+  job_id: string;
+}
+
+export interface AdminAccountImportGroupBindingSection {
+  platform: AccountPlatform;
+  type: AccountType;
+  group_ids: number[];
+}
+
+export interface AdminAccountImportGroupBindingRequest {
+  sections: AdminAccountImportGroupBindingSection[];
+}
+
+export interface AdminAccountImportGroupBindingResult {
+  success: number;
+  failed: number;
+  bound_count: number;
+  skipped: number;
+  errors?: string[];
 }

@@ -2,6 +2,10 @@ import { apiClient } from '../client'
 import type {
   Account,
   AccountTodayStats,
+  AdminAccountImportGroupBindingRequest,
+  AdminAccountImportGroupBindingResult,
+  AdminAccountImportJob,
+  AdminAccountImportJobCreateResult,
   AdminAccountModelOption,
   AdminDataImportResult,
   AdminDataPayload,
@@ -565,6 +569,38 @@ export async function importData(payload: {
     data: payload.data,
     skip_default_group_bind: payload.skip_default_group_bind
   })
+  return data
+}
+
+export async function createImportJob(payload: {
+  data: AdminDataPayload
+  skip_default_group_bind?: boolean
+}): Promise<AdminAccountImportJobCreateResult> {
+  const { data } = await apiClient.post<AdminAccountImportJobCreateResult>('/admin/accounts/data/import-jobs', {
+    data: payload.data,
+    skip_default_group_bind: payload.skip_default_group_bind
+  })
+  return data
+}
+
+export async function getImportJob(jobId: string): Promise<AdminAccountImportJob> {
+  const { data } = await apiClient.get<AdminAccountImportJob>(`/admin/accounts/data/import-jobs/${jobId}`)
+  return data
+}
+
+export async function cancelImportJob(jobId: string): Promise<AdminAccountImportJob> {
+  const { data } = await apiClient.post<AdminAccountImportJob>(`/admin/accounts/data/import-jobs/${jobId}/cancel`)
+  return data
+}
+
+export async function bindImportJobGroups(
+  jobId: string,
+  payload: AdminAccountImportGroupBindingRequest
+): Promise<AdminAccountImportGroupBindingResult> {
+  const { data } = await apiClient.post<AdminAccountImportGroupBindingResult>(
+    `/admin/accounts/data/import-jobs/${jobId}/group-bindings`,
+    payload
+  )
   return data
 }
 

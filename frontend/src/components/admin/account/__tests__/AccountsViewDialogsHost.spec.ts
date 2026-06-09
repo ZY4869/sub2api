@@ -20,6 +20,7 @@ function createProps() {
     editLoading: false,
     showSync: false,
     showImportData: false,
+    showImportGroupBinding: false,
     showExportDataDialog: false,
     showBulkEdit: false,
     showTempUnsched: false,
@@ -35,6 +36,8 @@ function createProps() {
     includeProxyOnExport: true,
     proxies: [],
     groups: [],
+    importGroupBindingJobId: '',
+    importGroupBindingAccounts: [],
     bulkEditFilters: null,
     bulkEditFiltersTotal: null,
     selectedIds: [1, 2],
@@ -78,6 +81,7 @@ function createStubs(overrides: Record<string, unknown> = {}) {
     AccountActionMenu: true,
     SyncFromCrsModal: true,
     ImportDataModal: true,
+    ImportAccountGroupBindingModal: true,
     BulkEditAccountModal: true,
     TempUnschedStatusModal: true,
     ConfirmDialog: true,
@@ -179,6 +183,72 @@ describe('AccountsViewDialogsHost', () => {
     expect(wrapper.emitted('archived')).toEqual([
       [{ archived_count: 2, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' }]
     ])
+  })
+
+  it('forwards data import and import group binding events', async () => {
+    const importJob = {
+      job_id: 'job-1',
+      status: 'succeeded',
+      progress: { total: 1, processed: 1 },
+      result: {
+      account_created: 2,
+      account_failed: 0,
+      proxy_created: 0,
+      proxy_reused: 0,
+        proxy_failed: 0
+      },
+      created_accounts_summary: [
+        { account_id: 1, name: 'acc-1', platform: 'openai', type: 'apikey' }
+      ],
+      cancel_requested: false,
+      created_at: '2026-06-09T00:00:00Z',
+      updated_at: '2026-06-09T00:00:01Z'
+    }
+    const wrapper = mount(AccountsViewDialogsHost, {
+      props: {
+        ...createProps(),
+        showCreate: false,
+        showImportData: true,
+        showImportGroupBinding: true,
+        importGroupBindingJobId: importJob.job_id,
+        importGroupBindingAccounts: importJob.created_accounts_summary
+      },
+      global: {
+        stubs: createStubs({
+          ImportDataModal: {
+            emits: ['close', 'imported'],
+            setup() {
+              return { importJob }
+            },
+            template: `
+              <div>
+                <button class="import-data-close" @click="$emit('close')" />
+                <button class="import-data-done" @click="$emit('imported', importJob)" />
+              </div>
+            `
+          },
+          ImportAccountGroupBindingModal: {
+            emits: ['close', 'updated'],
+            template: `
+              <div>
+                <button class="import-group-close" @click="$emit('close')" />
+                <button class="import-group-updated" @click="$emit('updated')" />
+              </div>
+            `
+          }
+        })
+      }
+    })
+
+    await wrapper.get('.import-data-close').trigger('click')
+    await wrapper.get('.import-data-done').trigger('click')
+    await wrapper.get('.import-group-close').trigger('click')
+    await wrapper.get('.import-group-updated').trigger('click')
+
+    expect(wrapper.emitted('close-import-data')).toEqual([[]])
+    expect(wrapper.emitted('data-imported')).toEqual([[importJob]])
+    expect(wrapper.emitted('close-import-group-binding')).toEqual([[]])
+    expect(wrapper.emitted('import-group-binding-updated')).toEqual([[]])
   })
 
   it('does not render an archive current group modal', async () => {
