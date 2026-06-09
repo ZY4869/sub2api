@@ -87,7 +87,7 @@ func (s *OpenAIGatewayService) ForwardCompatImages(
 	}
 	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 	if err != nil {
-		return nil, fmt.Errorf("upstream request failed: %w", err)
+		return nil, newOpenAITransportFailoverError(c, account, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= http.StatusBadRequest {

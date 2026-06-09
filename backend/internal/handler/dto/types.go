@@ -182,6 +182,8 @@ type Account struct {
 	Credentials            map[string]any `json:"credentials"`
 	Extra                  map[string]any `json:"extra"`
 	ProxyID                *int64         `json:"proxy_id"`
+	OriginalProxyID        *int64         `json:"original_proxy_id,omitempty"`
+	OriginalProxyName      *string        `json:"original_proxy_name,omitempty"`
 	Concurrency            int            `json:"concurrency"`
 	LoadFactor             *int           `json:"load_factor,omitempty"`
 	Priority               int            `json:"priority"`
@@ -314,16 +316,19 @@ type AccountGroup struct {
 }
 
 type Proxy struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	Protocol  string    `json:"protocol"`
-	Host      string    `json:"host"`
-	Port      int       `json:"port"`
-	Username  string    `json:"username"`
-	Password  string    `json:"-"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID               int64      `json:"id"`
+	Name             string     `json:"name"`
+	Protocol         string     `json:"protocol"`
+	Host             string     `json:"host"`
+	Port             int        `json:"port"`
+	Username         string     `json:"username"`
+	Password         string     `json:"-"`
+	Status           string     `json:"status"`
+	ExpiresAt        *time.Time `json:"expires_at,omitempty"`
+	ExpiryRemindDays int        `json:"expiry_remind_days"`
+	FallbackProxyID  *int64     `json:"fallback_proxy_id,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 type ProxyWithAccountCount struct {
@@ -377,6 +382,14 @@ type ProxyAccountSummary struct {
 	GatewayProtocol string  `json:"gateway_protocol,omitempty"`
 	Type            string  `json:"type"`
 	Notes           *string `json:"notes,omitempty"`
+}
+
+type AccountProxyRestoreResult struct {
+	AccountID            int64  `json:"account_id"`
+	RestoredProxyID      int64  `json:"restored_proxy_id"`
+	RestoredProxyName    string `json:"restored_proxy_name"`
+	PreviousFallbackID   *int64 `json:"previous_fallback_id,omitempty"`
+	PreviousFallbackName string `json:"previous_fallback_name,omitempty"`
 }
 
 type RedeemCode struct {

@@ -26,7 +26,15 @@ var _ GatewayCache = (*stubGatewayCache)(nil)
 
 type stubOpenAIAccountRepo struct {
 	AccountRepository
-	accounts []Account
+	accounts         []Account
+	tempUnschedTrace *tempUnschedTrace
+}
+
+type tempUnschedTrace struct {
+	calls     int
+	accountID int64
+	until     time.Time
+	reason    string
 }
 
 type snapshotUpdateAccountRepo struct {
@@ -63,6 +71,16 @@ func (r stubOpenAIAccountRepo) SetModelRateLimit(ctx context.Context, id int64, 
 }
 
 func (r stubOpenAIAccountRepo) ClearRateLimit(ctx context.Context, id int64) error {
+	return nil
+}
+
+func (r stubOpenAIAccountRepo) SetTempUnschedulable(ctx context.Context, id int64, until time.Time, reason string) error {
+	if r.tempUnschedTrace != nil {
+		r.tempUnschedTrace.calls++
+		r.tempUnschedTrace.accountID = id
+		r.tempUnschedTrace.until = until
+		r.tempUnschedTrace.reason = reason
+	}
 	return nil
 }
 
@@ -1620,7 +1638,7 @@ func TestOpenAIStreamingTooLong(t *testing.T) {
 	}
 }
 
-func TestOpenAINonStreamingContentTypePassThrough(t *testing.T) {
+func TestOpenAINonStreamingContentTypeIsFixedJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{
 		Security: config.SecurityConfig{
@@ -1645,8 +1663,8 @@ func TestOpenAINonStreamingContentTypePassThrough(t *testing.T) {
 		t.Fatalf("handleNonStreamingResponse error: %v", err)
 	}
 
-	if !strings.Contains(rec.Header().Get("Content-Type"), "application/vnd.test+json") {
-		t.Fatalf("expected Content-Type passthrough, got %q", rec.Header().Get("Content-Type"))
+	if got := rec.Header().Get("Content-Type"); got != "application/json; charset=utf-8" {
+		t.Fatalf("expected fixed JSON Content-Type, got %q", got)
 	}
 }
 
@@ -1678,6 +1696,60 @@ func TestOpenAINonStreamingContentTypeDefault(t *testing.T) {
 	if !strings.Contains(rec.Header().Get("Content-Type"), "application/json") {
 		t.Fatalf("expected default Content-Type, got %q", rec.Header().Get("Content-Type"))
 	}
+}
+
+func TestOpenAIGatewayServiceForwardTransportErrorReturnsFailover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	upstream := &httpUpstreamRecorder{err: errors.New("proxy connect tcp 127.0.0.1:9: connection refused")}
+	svc := &OpenAIGatewayService{
+		httpUpstream:         upstream,
+		toolCorrector:        NewCodexToolCorrector(),
+		openaiWSResolver:     NewOpenAIWSProtocolResolver(&config.Config{}),
+		codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
+	}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"gpt-5","input":"hi"}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	account := &Account{
+		ID:          42,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{"api_key": "sk-test"},
+	}
+
+	_, err := svc.Forward(c.Request.Context(), c, account, []byte(`{"model":"gpt-5","input":"hi"}`))
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.True(t, failoverErr.TempUnscheduleAccount)
+	require.False(t, failoverErr.RetryableOnSameAccount)
+	require.False(t, rec.Result().Header.Get("Content-Type") != "" || rec.Body.Len() > 0, "transport failover should not write the client response before handler retries")
+}
+
+func TestOpenAIGatewayServiceTempUnscheduleFailoverError(t *testing.T) {
+	trace := &tempUnschedTrace{}
+	repo := stubOpenAIAccountRepo{tempUnschedTrace: trace}
+	svc := &OpenAIGatewayService{accountRepo: repo}
+	account := &Account{ID: 77, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	failoverErr := &UpstreamFailoverError{
+		StatusCode:            http.StatusBadGateway,
+		ResponseBody:          []byte(`{"error":{"message":"Upstream request failed"}}`),
+		TempUnscheduleAccount: true,
+	}
+
+	before := time.Now()
+	svc.TempUnscheduleFailoverError(context.Background(), account, failoverErr)
+
+	require.Equal(t, 1, trace.calls)
+	require.Equal(t, int64(77), trace.accountID)
+	require.True(t, trace.until.After(before.Add(4*time.Minute)))
+	require.Contains(t, trace.reason, "openai_transport_error")
+	require.Contains(t, trace.reason, "Upstream request failed")
 }
 
 func TestOpenAIStreamingHeadersOverride(t *testing.T) {

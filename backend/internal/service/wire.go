@@ -958,6 +958,7 @@ var ProviderSet = wire.NewSet(
 	ProvideTokenRefreshService,
 	ProvideOpenAIGPT55WhitelistBackfillService,
 	ProvideAccountExpiryService,
+	ProvideProxyExpiryService,
 	ProvideAccountDaily5HTriggerService,
 	ProvideAccountBlacklistCleanupService,
 	ProvideAccountRateLimitRecoveryProbeService,

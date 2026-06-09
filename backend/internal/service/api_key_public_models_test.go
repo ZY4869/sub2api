@@ -77,6 +77,68 @@ func TestGatewayService_ResolveAPIKeySelectionModel_SourceOnlyUsesAlias(t *testi
 	require.Equal(t, "claude-sonnet-4-20250514", got)
 }
 
+func TestSelectGroupBindingForRequestSkipsExclusiveGroupWithoutUserGrant(t *testing.T) {
+	t.Parallel()
+
+	user := &User{ID: 7, AllowedGroups: []int64{22}}
+	apiKey := &APIKey{
+		ID:   10,
+		User: user,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 11,
+				Group: &Group{
+					ID:          11,
+					Name:        "exclusive-denied",
+					Platform:    PlatformOpenAI,
+					Status:      StatusActive,
+					IsExclusive: true,
+				},
+			},
+			{
+				GroupID: 22,
+				Group: &Group{
+					ID:          22,
+					Name:        "exclusive-allowed",
+					Platform:    PlatformOpenAI,
+					Status:      StatusActive,
+					IsExclusive: true,
+				},
+			},
+		},
+	}
+
+	selected, err := SelectGroupBindingForRequest(context.Background(), apiKey, PlatformOpenAI, "gpt-5.4", nil, nil)
+
+	require.NoError(t, err)
+	require.NotNil(t, selected)
+	require.Equal(t, int64(22), selected.GroupID)
+}
+
+func TestSelectGroupBindingForRequestRejectsOnlyUnauthorizedExclusiveGroups(t *testing.T) {
+	t.Parallel()
+
+	apiKey := &APIKey{
+		ID:   10,
+		User: &User{ID: 7},
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 11,
+			Group: &Group{
+				ID:          11,
+				Name:        "exclusive-denied",
+				Platform:    PlatformOpenAI,
+				Status:      StatusActive,
+				IsExclusive: true,
+			},
+		}},
+	}
+
+	selected, err := SelectGroupBindingForRequest(context.Background(), apiKey, PlatformOpenAI, "gpt-5.4", nil, nil)
+
+	require.Nil(t, selected)
+	require.ErrorIs(t, err, ErrNoAvailableGroup)
+}
+
 func TestGatewayService_ResolveAPIKeySelectionModel_PublishedCatalogUsesSourceModel(t *testing.T) {
 	ctx := context.Background()
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}

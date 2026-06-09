@@ -39,6 +39,10 @@ func (s *OpsAlertEvaluatorService) computeOpsAlertAvailabilityMetric(
 		return s.countOpsAlertAvailabilityAccounts(ctx, platform, groupID, evalCache, func(acc *AccountAvailability) bool {
 			return acc.HasError && acc.TempUnschedulableUntil == nil
 		})
+	case "account_temp_unscheduled_count":
+		return s.countOpsAlertAvailabilityAccounts(ctx, platform, groupID, evalCache, func(acc *AccountAvailability) bool {
+			return acc.TempUnschedulableUntil != nil
+		})
 	case "group_rate_limit_ratio":
 		if groupID == nil || *groupID <= 0 || s == nil || s.opsService == nil {
 			return 0, false

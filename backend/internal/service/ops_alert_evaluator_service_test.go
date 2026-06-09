@@ -185,6 +185,13 @@ func TestComputeRuleMetricNewIndicators(t *testing.T) {
 			wantOK:     true,
 		},
 		{
+			name:       "account_temp_unscheduled_count",
+			metricType: "account_temp_unscheduled_count",
+			groupID:    nil,
+			wantValue:  1,
+			wantOK:     true,
+		},
+		{
 			name:       "group_available_accounts without group_id returns false",
 			metricType: "group_available_accounts",
 			groupID:    nil,

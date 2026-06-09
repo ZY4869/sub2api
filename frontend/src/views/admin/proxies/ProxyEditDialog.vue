@@ -89,6 +89,11 @@
           @update:model-value="(value) => updateEditFormField('status', value)"
         />
       </div>
+      <ProxyLifecycleFields
+        :form="editForm"
+        :fallback-proxy-options="fallbackProxyOptions"
+        @update="(value) => emit('update:editForm', { ...editForm, ...value })"
+      />
     </form>
 
     <template #footer>
@@ -136,8 +141,10 @@ import type { Proxy, ProxyProtocol } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import ProxyLifecycleFields from './ProxyLifecycleFields.vue'
+import type { ProxyLifecycleFormFields } from './utils'
 
-interface ProxyEditForm {
+interface ProxyEditForm extends ProxyLifecycleFormFields {
   name: string
   protocol: ProxyProtocol
   host: string
@@ -153,6 +160,7 @@ const props = defineProps<{
   editForm: ProxyEditForm
   protocolSelectOptions: Array<{ value: string; label: string }>
   editStatusOptions: Array<{ value: string; label: string }>
+  fallbackProxyOptions: Array<{ value: number | null; label: string }>
   editPasswordVisible: boolean
   submitting: boolean
 }>()

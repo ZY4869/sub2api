@@ -236,8 +236,11 @@ export interface UsageStatsResponse {
   total_requests: number;
   total_input_tokens: number;
   total_output_tokens: number;
+  total_cache_creation_tokens: number;
+  total_cache_read_tokens: number;
   total_cache_tokens: number;
   total_tokens: number;
+  cache_hit_rate: number;
   total_cost: number;
   total_actual_cost: number;
   cost_by_currency?: Record<string, number>;
@@ -248,8 +251,11 @@ export interface UsageStatsResponse {
   today_requests: number;
   today_input_tokens: number;
   today_output_tokens: number;
+  today_cache_creation_tokens: number;
+  today_cache_read_tokens: number;
   today_cache_tokens: number;
   today_tokens: number;
+  today_cache_hit_rate: number;
   today_cost: number;
   today_actual_cost: number;
   today_cost_by_currency?: Record<string, number>;

@@ -12,7 +12,8 @@ func (r *usageLogRepository) GetGlobalStats(ctx context.Context, startTime, endT
 			COUNT(*) as total_requests,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
@@ -22,10 +23,10 @@ func (r *usageLogRepository) GetGlobalStats(ctx context.Context, startTime, endT
 		WHERE created_at >= $1 AND created_at <= $2
 	`
 	stats := &UsageStats{}
-	if err := scanSingleRow(ctx, r.sql, query, []any{startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
+	if err := scanSingleRow(ctx, r.sql, query, []any{startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
 		return nil, err
 	}
-	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+	normalizeUsageStatsCacheTotals(stats)
 	costByCurrency, actualCostByCurrency, err := queryUsageCostByCurrency(ctx, r.sql, "WHERE created_at >= $1 AND created_at <= $2", []any{startTime, endTime})
 	if err != nil {
 		return nil, err
@@ -83,13 +84,25 @@ func cloneUsageStatsFilters(conditions []string, args []any) ([]string, []any) {
 	return append([]string(nil), conditions...), append([]any(nil), args...)
 }
 
+func normalizeUsageStatsCacheTotals(stats *UsageStats) {
+	if stats == nil {
+		return
+	}
+	stats.TotalCacheTokens = stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
+	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+	if stats.TotalCacheTokens > 0 {
+		stats.CacheHitRate = float64(stats.TotalCacheReadTokens) / float64(stats.TotalCacheTokens)
+	}
+}
+
 func (r *usageLogRepository) queryUsageStatsFromWithConditions(ctx context.Context, fromClause, columnPrefix string, conditions []string, args []any, includeAccountCost bool) (*UsageStats, *float64, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*) as total_requests,
 			COALESCE(SUM(%[3]sinput_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(%[3]soutput_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(%[3]scache_creation_tokens + %[3]scache_read_tokens), 0) as total_cache_tokens,
+			COALESCE(SUM(%[3]scache_creation_tokens), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(%[3]scache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(%[3]stotal_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(%[3]sactual_cost_usd_equivalent), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE %[3]sbilling_exempt_reason = 'admin_free') as admin_free_requests,
@@ -110,7 +123,8 @@ func (r *usageLogRepository) queryUsageStatsFromWithConditions(ctx context.Conte
 		&stats.TotalRequests,
 		&stats.TotalInputTokens,
 		&stats.TotalOutputTokens,
-		&stats.TotalCacheTokens,
+		&stats.TotalCacheCreationTokens,
+		&stats.TotalCacheReadTokens,
 		&stats.TotalCost,
 		&stats.TotalActualCost,
 		&stats.AdminFreeRequests,
@@ -120,7 +134,7 @@ func (r *usageLogRepository) queryUsageStatsFromWithConditions(ctx context.Conte
 	); err != nil {
 		return nil, nil, err
 	}
-	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+	normalizeUsageStatsCacheTotals(stats)
 
 	costByCurrency, actualCostByCurrency, err := queryUsageCostByCurrencyFrom(ctx, r.sql, fromClause, columnPrefix, buildWhere(conditions), args)
 	if err != nil {
@@ -170,8 +184,11 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 		stats.TodayRequests = todayStats.TotalRequests
 		stats.TodayInputTokens = todayStats.TotalInputTokens
 		stats.TodayOutputTokens = todayStats.TotalOutputTokens
+		stats.TodayCacheCreationTokens = todayStats.TotalCacheCreationTokens
+		stats.TodayCacheReadTokens = todayStats.TotalCacheReadTokens
 		stats.TodayCacheTokens = todayStats.TotalCacheTokens
 		stats.TodayTokens = todayStats.TotalTokens
+		stats.TodayCacheHitRate = todayStats.CacheHitRate
 		stats.TodayCost = todayStats.TotalCost
 		stats.TodayActualCost = todayStats.TotalActualCost
 		stats.TodayCostByCurrency = todayStats.CostByCurrency

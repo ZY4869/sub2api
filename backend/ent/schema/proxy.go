@@ -4,6 +4,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
@@ -52,6 +53,16 @@ func (Proxy) Fields() []ent.Field {
 		field.String("status").
 			MaxLen(20).
 			Default("active"),
+		field.Time("expires_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Int("expiry_remind_days").
+			Default(0).
+			NonNegative(),
+		field.Int64("fallback_proxy_id").
+			Optional().
+			Nillable(),
 	}
 }
 
@@ -68,5 +79,7 @@ func (Proxy) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("status"),
 		index.Fields("deleted_at"),
+		index.Fields("expires_at"),
+		index.Fields("fallback_proxy_id"),
 	}
 }

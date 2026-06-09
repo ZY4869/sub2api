@@ -74,11 +74,7 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(ctx context.Context, c *gin.Con
 	resp, err := s.httpUpstream.Do(MarkOpenAIHTTPUpstreamRequest(req), proxyURL, account.ID, account.Concurrency)
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
 	if err != nil {
-		safeErr := sanitizeUpstreamErrorMessage(err.Error())
-		setOpsUpstreamError(c, 0, safeErr, "")
-		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: 0, Kind: "request_error", Message: safeErr})
-		c.JSON(http.StatusBadGateway, gin.H{"error": gin.H{"type": "upstream_error", "message": "Upstream request failed"}})
-		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
+		return nil, newOpenAITransportFailoverError(c, account, err)
 	}
 	defer func() {
 		_ = resp.Body.Close()

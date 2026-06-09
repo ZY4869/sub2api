@@ -77,6 +77,9 @@ export interface Proxy {
   username: string | null;
   password?: string | null;
   status: "active" | "inactive";
+  expires_at?: string | null;
+  expiry_remind_days?: number;
+  fallback_proxy_id?: number | null;
   account_count?: number; // Number of accounts using this proxy
   latency_ms?: number;
   latency_status?: "success" | "failed";
@@ -238,6 +241,8 @@ export interface Account {
     deepseek_model_concurrency_limits?: Record<string, number>;
   } & Record<string, unknown>;
   proxy_id: number | null;
+  original_proxy_id?: number | null;
+  original_proxy_name?: string | null;
   concurrency: number;
   load_factor?: number | null;
   current_concurrency?: number; // Real-time concurrency count from Redis
@@ -649,6 +654,9 @@ export interface CreateProxyRequest {
   port: number;
   username?: string | null;
   password?: string | null;
+  expires_at?: string | null;
+  expiry_remind_days?: number;
+  fallback_proxy_id?: number | null;
 }
 
 export interface UpdateProxyRequest {
@@ -659,6 +667,17 @@ export interface UpdateProxyRequest {
   username?: string | null;
   password?: string | null;
   status?: "active" | "inactive";
+  expires_at?: string | null;
+  expiry_remind_days?: number;
+  fallback_proxy_id?: number | null;
+}
+
+export interface AccountProxyRestoreResult {
+  account_id: number;
+  restored_proxy_id: number;
+  restored_proxy_name: string;
+  previous_fallback_id?: number | null;
+  previous_fallback_name?: string;
 }
 
 export interface AdminDataPayload {
@@ -678,6 +697,9 @@ export interface AdminDataProxy {
   username?: string | null;
   password?: string | null;
   status: "active" | "inactive";
+  expires_at?: string | null;
+  expiry_remind_days?: number;
+  fallback_proxy_key?: string | null;
 }
 
 export interface AdminDataAccount {

@@ -610,14 +610,15 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 			"total_requests",
 			"total_input_tokens",
 			"total_output_tokens",
-			"total_cache_tokens",
+			"total_cache_creation_tokens",
+			"total_cache_read_tokens",
 			"total_cost",
 			"total_actual_cost",
 			"admin_free_requests",
 			"admin_free_standard_cost",
 			"total_account_cost",
 			"avg_duration_ms",
-		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, int64(0), 0.0, 1.2, 20.0))
+		}).AddRow(int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, int64(0), 0.0, 1.2, 20.0))
 	mock.ExpectQuery("jsonb_object_agg\\(currency, total_amount\\)").
 		WithArgs(requestType).
 		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
@@ -628,6 +629,10 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, int64(1), stats.TotalRequests)
 	require.Equal(t, int64(9), stats.TotalTokens)
+	require.Equal(t, int64(1), stats.TotalCacheCreationTokens)
+	require.Equal(t, int64(3), stats.TotalCacheReadTokens)
+	require.Equal(t, int64(4), stats.TotalCacheTokens)
+	require.Equal(t, 0.75, stats.CacheHitRate)
 	require.Equal(t, map[string]float64{"USD": 1.2, "CNY": 8}, stats.CostByCurrency)
 	require.Equal(t, map[string]float64{"USD": 1, "CNY": 7}, stats.ActualCostByCurrency)
 	require.Len(t, stats.PlatformBreakdown, 1)
@@ -654,14 +659,15 @@ func TestUsageLogRepositoryGetStatsWithFilters_UserAndAPIKeyUsesHalfOpenEndTime(
 			"total_requests",
 			"total_input_tokens",
 			"total_output_tokens",
-			"total_cache_tokens",
+			"total_cache_creation_tokens",
+			"total_cache_read_tokens",
 			"total_cost",
 			"total_actual_cost",
 			"admin_free_requests",
 			"admin_free_standard_cost",
 			"total_account_cost",
 			"avg_duration_ms",
-		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, int64(0), 0.0, 1.2, 20.0))
+		}).AddRow(int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, int64(0), 0.0, 1.2, 20.0))
 	mock.ExpectQuery("jsonb_object_agg\\(currency, total_amount\\)").
 		WithArgs(int64(42), int64(7), start, end).
 		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
@@ -672,6 +678,10 @@ func TestUsageLogRepositoryGetStatsWithFilters_UserAndAPIKeyUsesHalfOpenEndTime(
 	require.NoError(t, err)
 	require.Equal(t, int64(1), stats.TotalRequests)
 	require.Equal(t, int64(9), stats.TotalTokens)
+	require.Equal(t, int64(1), stats.TotalCacheCreationTokens)
+	require.Equal(t, int64(3), stats.TotalCacheReadTokens)
+	require.Equal(t, int64(4), stats.TotalCacheTokens)
+	require.Equal(t, 0.75, stats.CacheHitRate)
 	require.Equal(t, map[string]float64{"USD": 1.2}, stats.CostByCurrency)
 	require.Equal(t, map[string]float64{"USD": 1}, stats.ActualCostByCurrency)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -700,14 +710,15 @@ func TestUsageLogRepositoryGetStatsWithFilters_AlsoAggregatesTodayWindow(t *test
 			"total_requests",
 			"total_input_tokens",
 			"total_output_tokens",
-			"total_cache_tokens",
+			"total_cache_creation_tokens",
+			"total_cache_read_tokens",
 			"total_cost",
 			"total_actual_cost",
 			"admin_free_requests",
 			"admin_free_standard_cost",
 			"total_account_cost",
 			"avg_duration_ms",
-		}).AddRow(int64(2), int64(5), int64(7), int64(3), 1.5, 1.2, int64(0), 0.0, 1.5, 25.0))
+		}).AddRow(int64(2), int64(5), int64(7), int64(1), int64(2), 1.5, 1.2, int64(0), 0.0, 1.5, 25.0))
 	mock.ExpectQuery("jsonb_object_agg\\(currency, total_amount\\)").
 		WithArgs(int64(42), int64(7), start, end).
 		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
@@ -718,14 +729,15 @@ func TestUsageLogRepositoryGetStatsWithFilters_AlsoAggregatesTodayWindow(t *test
 			"total_requests",
 			"total_input_tokens",
 			"total_output_tokens",
-			"total_cache_tokens",
+			"total_cache_creation_tokens",
+			"total_cache_read_tokens",
 			"total_cost",
 			"total_actual_cost",
 			"admin_free_requests",
 			"admin_free_standard_cost",
 			"total_account_cost",
 			"avg_duration_ms",
-		}).AddRow(int64(1), int64(2), int64(3), int64(4), 0.5, 0.4, int64(0), 0.0, 0.5, 50.0))
+		}).AddRow(int64(1), int64(2), int64(3), int64(1), int64(3), 0.5, 0.4, int64(0), 0.0, 0.5, 50.0))
 	mock.ExpectQuery("jsonb_object_agg\\(currency, total_amount\\)").
 		WithArgs(int64(42), int64(7), todayStart, todayEnd).
 		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
@@ -736,11 +748,18 @@ func TestUsageLogRepositoryGetStatsWithFilters_AlsoAggregatesTodayWindow(t *test
 	require.NoError(t, err)
 	require.Equal(t, int64(2), stats.TotalRequests)
 	require.Equal(t, int64(15), stats.TotalTokens)
+	require.Equal(t, int64(1), stats.TotalCacheCreationTokens)
+	require.Equal(t, int64(2), stats.TotalCacheReadTokens)
+	require.Equal(t, int64(3), stats.TotalCacheTokens)
+	require.InDelta(t, 2.0/3.0, stats.CacheHitRate, 0.000001)
 	require.Equal(t, int64(1), stats.TodayRequests)
 	require.Equal(t, int64(2), stats.TodayInputTokens)
 	require.Equal(t, int64(3), stats.TodayOutputTokens)
+	require.Equal(t, int64(1), stats.TodayCacheCreationTokens)
+	require.Equal(t, int64(3), stats.TodayCacheReadTokens)
 	require.Equal(t, int64(4), stats.TodayCacheTokens)
 	require.Equal(t, int64(9), stats.TodayTokens)
+	require.Equal(t, 0.75, stats.TodayCacheHitRate)
 	require.Equal(t, 0.5, stats.TodayCost)
 	require.Equal(t, 0.4, stats.TodayActualCost)
 	require.Equal(t, 50.0, stats.TodayAverageDurationMs)

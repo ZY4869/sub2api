@@ -5,9 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
-	"strings"
+	"go.uber.org/zap"
 )
 
 func (s *OpenAIGatewayService) isOpenAIWSStoreRecoveryAllowed(account *Account) bool {
@@ -432,6 +436,11 @@ func (s *OpenAIGatewayService) SelectAccountByPreviousResponseID(ctx context.Con
 		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 		return nil, nil
 	}
+	if !accountBoundToGroupID(account, groupID) {
+		recordPreviousResponseGroupMismatch(ctx, derefGroupID(groupID), account.ID, responseID)
+		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+		return nil, nil
+	}
 	if s.getOpenAIWSProtocolResolver().Resolve(account).Transport != OpenAIUpstreamTransportResponsesWebsocketV2 {
 		return nil, nil
 	}
@@ -457,4 +466,15 @@ func (s *OpenAIGatewayService) SelectAccountByPreviousResponseID(ctx context.Con
 		return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: accountID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 	}
 	return nil, nil
+}
+
+func recordPreviousResponseGroupMismatch(ctx context.Context, groupID int64, accountID int64, responseID string) {
+	requestID, _ := ctx.Value(ctxkey.RequestID).(string)
+	logger.FromContext(ctx).Warn(
+		"openai previous_response_id group mismatch",
+		zap.String("request_id", strings.TrimSpace(requestID)),
+		zap.Int64("group_id", groupID),
+		zap.Int64("account_id", accountID),
+		zap.String("previous_response_id", truncateOpenAIWSLogValue(responseID, openAIWSIDValueMaxLen)),
+	)
 }

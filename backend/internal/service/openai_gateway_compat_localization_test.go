@@ -102,7 +102,7 @@ func TestForwardAsChatCompletions_WritesRuntimeRegistryMissingCompatError(t *tes
 	})
 }
 
-func TestForwardAsChatCompletions_WritesUpstreamRequestFailureReason(t *testing.T) {
+func TestForwardAsChatCompletions_TransportErrorReturnsFailover(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	body := []byte(`{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}]}`)
@@ -115,9 +115,13 @@ func TestForwardAsChatCompletions_WritesUpstreamRequestFailureReason(t *testing.
 	result, err := svc.ForwardAsChatCompletions(context.Background(), c, newCompatForwardAccount(), body, "", "")
 	require.Error(t, err)
 	require.Nil(t, result)
-	require.Equal(t, http.StatusBadGateway, recorder.Code)
-	require.Equal(t, apicompat.CompatReasonUpstreamRequestFailed, gjson.GetBytes(recorder.Body.Bytes(), "error.reason").String())
-	require.Equal(t, apicompat.CompatReasonUpstreamRequestFailed, gjson.GetBytes(recorder.Body.Bytes(), "error.code").String())
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.True(t, failoverErr.TempUnscheduleAccount)
+	require.False(t, failoverErr.RetryableOnSameAccount)
+	require.Empty(t, recorder.Body.String())
+	require.Empty(t, recorder.Result().Header.Get("Content-Type"))
 }
 
 func TestHandleChatBufferedStreamingResponse_WritesTerminalEventMissingReason(t *testing.T) {
@@ -161,7 +165,7 @@ func TestHandleChatBufferedStreamingResponse_ReconstructsOutputFromDeltaWhenTerm
 	require.Contains(t, recorder.Body.String(), `"Hello world"`)
 }
 
-func TestForwardAsAnthropic_WritesUpstreamRequestFailureReason(t *testing.T) {
+func TestForwardAsAnthropic_TransportErrorReturnsFailover(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	body := []byte(`{"model":"gpt-5.4","max_tokens":32,"messages":[{"role":"user","content":"hello"}],"stream":false}`)
@@ -174,9 +178,13 @@ func TestForwardAsAnthropic_WritesUpstreamRequestFailureReason(t *testing.T) {
 	result, err := svc.ForwardAsAnthropic(context.Background(), c, newCompatForwardAccount(), body, "", "")
 	require.Error(t, err)
 	require.Nil(t, result)
-	require.Equal(t, http.StatusBadGateway, recorder.Code)
-	require.Equal(t, apicompat.CompatReasonUpstreamRequestFailed, gjson.GetBytes(recorder.Body.Bytes(), "error.reason").String())
-	require.Equal(t, apicompat.CompatReasonUpstreamRequestFailed, gjson.GetBytes(recorder.Body.Bytes(), "error.code").String())
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.True(t, failoverErr.TempUnscheduleAccount)
+	require.False(t, failoverErr.RetryableOnSameAccount)
+	require.Empty(t, recorder.Body.String())
+	require.Empty(t, recorder.Result().Header.Get("Content-Type"))
 }
 
 func TestHandleAnthropicBufferedStreamingResponse_WritesTerminalEventMissingReason(t *testing.T) {

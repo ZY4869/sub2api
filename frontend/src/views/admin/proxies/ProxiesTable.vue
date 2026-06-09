@@ -145,6 +145,25 @@
         </div>
       </template>
 
+      <template #cell-expiry="{ row }">
+        <div class="flex flex-col gap-1">
+          <span
+            v-if="proxyExpiryState(row) !== 'none'"
+            :class="['badge', expiryBadgeClass(row)]"
+            :title="formatProxyExpiryLabel(row, locale)"
+          >
+            {{ expiryBadgeLabel(row) }}
+          </span>
+          <span v-else class="text-sm text-gray-400">-</span>
+          <span
+            v-if="row.fallback_proxy_id"
+            class="text-xs text-gray-500 dark:text-gray-400"
+          >
+            {{ t('admin.proxies.fallbackProxyShort', { id: row.fallback_proxy_id }) }}
+          </span>
+        </div>
+      </template>
+
       <template #cell-status="{ value }">
         <span :class="['badge', value === 'active' ? 'badge-success' : 'badge-danger']">
           {{ t('admin.accounts.status.' + value) }}
@@ -246,6 +265,10 @@ import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { flagUrl, getCopyFormats } from './utils'
+import {
+  formatProxyExpiryLabel,
+  proxyExpiryState
+} from './utils'
 
 defineProps<{
   columns: Column[]
@@ -278,4 +301,18 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const expiryBadgeClass = (proxy: Proxy) => {
+  const state = proxyExpiryState(proxy)
+  if (state === 'expired') return 'badge-danger'
+  if (state === 'expiring') return 'badge-warning'
+  return 'badge-success'
+}
+
+const expiryBadgeLabel = (proxy: Proxy) => {
+  const state = proxyExpiryState(proxy)
+  if (state === 'expired') return t('admin.proxies.expired')
+  if (state === 'expiring') return t('admin.proxies.expiringSoon')
+  return t('admin.proxies.expiryActive')
+}
 </script>

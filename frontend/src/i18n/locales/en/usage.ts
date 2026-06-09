@@ -20,6 +20,8 @@ export default {
     todayCost: "Today Cost",
     todayAvgDuration: "Today's Avg Duration",
     cacheTokens: "Cache",
+    cacheSplit: "Write {write} / Read {read}",
+    cacheHitRate: "Hit rate",
     userBilled: "User billed",
     accountBilled: "Account billed",
     accountMultiplier: "Account rate",

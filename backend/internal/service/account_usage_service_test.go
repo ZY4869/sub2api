@@ -131,6 +131,41 @@ func TestAccountUsageServiceGetTodayStatsReturnsBreakdown(t *testing.T) {
 	}
 }
 
+func TestEstimateSetupTokenUsageClearsExpiredSessionWindow(t *testing.T) {
+	repo := &sessionWindowMockRepo{}
+	svc := &AccountUsageService{accountRepo: repo}
+	expiredEnd := time.Now().Add(-time.Minute)
+	expiredStart := expiredEnd.Add(-5 * time.Hour)
+	account := &Account{
+		ID:                  42,
+		Type:                AccountTypeSetupToken,
+		SessionWindowStart:  &expiredStart,
+		SessionWindowEnd:    &expiredEnd,
+		SessionWindowStatus: "rejected",
+		Extra: map[string]any{
+			"session_window_utilization": 1.0,
+		},
+	}
+
+	usage := svc.estimateSetupTokenUsageWithContext(context.Background(), account)
+
+	require.NotNil(t, usage)
+	require.NotNil(t, usage.FiveHour)
+	require.Zero(t, usage.FiveHour.Utilization)
+	require.Nil(t, usage.FiveHour.ResetsAt)
+	require.Zero(t, usage.FiveHour.RemainingSeconds)
+	require.Nil(t, account.SessionWindowStart)
+	require.Nil(t, account.SessionWindowEnd)
+	require.Empty(t, account.SessionWindowStatus)
+	require.Len(t, repo.sessionWindowCalls, 1)
+	require.Nil(t, repo.sessionWindowCalls[0].Start)
+	require.Nil(t, repo.sessionWindowCalls[0].End)
+	require.Empty(t, repo.sessionWindowCalls[0].Status)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Contains(t, repo.updateExtraCalls[0].Updates, "session_window_utilization")
+	require.Nil(t, repo.updateExtraCalls[0].Updates["session_window_utilization"])
+}
+
 func TestShouldRefreshOpenAICodexSnapshot(t *testing.T) {
 	t.Parallel()
 

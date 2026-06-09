@@ -294,6 +294,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	openAIGPT55WhitelistBackfillService := service.ProvideOpenAIGPT55WhitelistBackfillService(settingRepository, accountRepository)
 	periodicJobLeaderGate := repository.NewPeriodicJobLeaderGate(redisClient, configConfig)
 	accountExpiryService := service.ProvideAccountExpiryService(accountRepository, accountTestService, periodicJobLeaderGate)
+	proxyExpiryService := service.ProvideProxyExpiryService(proxyRepository, accountRepository, periodicJobLeaderGate)
 	accountDaily5HTriggerService := service.ProvideAccountDaily5HTriggerService(accountRepository, accountTestService, settingService, modelRegistryService, periodicJobLeaderGate)
 	accountBlacklistCleanupService := service.ProvideAccountBlacklistCleanupService(accountRepository, periodicJobLeaderGate)
 	accountRateLimitRecoveryProbeService := service.ProvideAccountRateLimitRecoveryProbeService(accountRepository, accountTestService, rateLimitService, periodicJobLeaderGate)
@@ -302,7 +303,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	channelMonitorAggregationRepository := repository.NewChannelMonitorAggregationRepository(db)
 	channelMonitorRunnerService := service.ProvideChannelMonitorRunnerService(db, channelMonitorRepository, channelMonitorHistoryRepository, channelMonitorRollupRepository, channelMonitorAggregationRepository, settingService, secretEncryptor, configConfig)
 	publicModelCatalogRevalidationRunner := service.ProvidePublicModelCatalogRevalidationRunner(modelCatalogService, gatewayService)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, openAIGPT55WhitelistBackfillService, accountExpiryService, accountDaily5HTriggerService, accountBlacklistCleanupService, accountRateLimitRecoveryProbeService, subscriptionExpiryService, usageCleanupService, usageRepairService, documentAIService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, channelMonitorRunnerService, publicModelCatalogRevalidationRunner, backupService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, openAIGPT55WhitelistBackfillService, accountExpiryService, proxyExpiryService, accountDaily5HTriggerService, accountBlacklistCleanupService, accountRateLimitRecoveryProbeService, subscriptionExpiryService, usageCleanupService, usageRepairService, documentAIService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, channelMonitorRunnerService, publicModelCatalogRevalidationRunner, backupService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -340,6 +341,7 @@ func provideCleanup(
 	tokenRefresh *service.TokenRefreshService,
 	openAIGPT55WhitelistBackfill *service.OpenAIGPT55WhitelistBackfillService,
 	accountExpiry *service.AccountExpiryService,
+	proxyExpiry *service.ProxyExpiryService,
 	accountDaily5HTrigger *service.AccountDaily5HTriggerService,
 	accountBlacklistCleanup *service.AccountBlacklistCleanupService,
 	accountRateLimitRecoveryProbe *service.AccountRateLimitRecoveryProbeService,
@@ -469,6 +471,12 @@ func provideCleanup(
 			}},
 			{"AccountExpiryService", func() error {
 				accountExpiry.Stop()
+				return nil
+			}},
+			{"ProxyExpiryService", func() error {
+				if proxyExpiry != nil {
+					proxyExpiry.Stop()
+				}
 				return nil
 			}},
 			{"AccountDaily5HTriggerService", func() error {

@@ -65,6 +65,25 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "accounts", "rate_limit_reset_at", "timestamp with time zone", 0, true)
 	requireColumn(t, tx, "accounts", "overload_until", "timestamp with time zone", 0, true)
 	requireColumn(t, tx, "accounts", "session_window_status", "character varying", 20, true)
+	requireColumn(t, tx, "accounts", "original_proxy_id", "bigint", 0, true)
+	requireColumn(t, tx, "accounts", "original_proxy_name", "text", 0, true)
+	requireIndex(t, tx, "accounts", "idx_accounts_original_proxy_id")
+
+	// proxies: lifecycle metadata for expiry fallback recovery.
+	requireColumn(t, tx, "proxies", "expires_at", "timestamp with time zone", 0, true)
+	requireColumn(t, tx, "proxies", "expiry_remind_days", "integer", 0, false)
+	requireColumn(t, tx, "proxies", "fallback_proxy_id", "bigint", 0, true)
+	requireColumnDefaultContains(t, tx, "proxies", "expiry_remind_days", "0")
+	requireIndex(t, tx, "proxies", "idx_proxies_expires_at")
+	requireIndex(t, tx, "proxies", "idx_proxies_fallback_proxy_id")
+
+	var proxyExpiryMigrationChecksum sql.NullString
+	require.NoError(t, tx.QueryRowContext(
+		context.Background(),
+		"SELECT checksum FROM schema_migrations WHERE filename = $1",
+		"138_proxy_expiry_fallback.sql",
+	).Scan(&proxyExpiryMigrationChecksum))
+	require.True(t, proxyExpiryMigrationChecksum.Valid, "expected migration 138_proxy_expiry_fallback.sql to be recorded")
 
 	// api_keys: key length should be 128
 	requireColumn(t, tx, "api_keys", "key", "character varying", 128, false)

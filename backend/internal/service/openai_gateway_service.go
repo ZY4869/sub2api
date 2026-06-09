@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -9,9 +10,11 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"go.uber.org/zap"
 )
 
 const (
@@ -28,6 +31,7 @@ const (
 	openAICompactSessionSeedKey           = "openai_compact_session_seed"
 	codexCLIVersion                       = "0.104.0"
 	openAICodexSnapshotPersistMinInterval = 30 * time.Second
+	openAITransportTempUnschedDuration    = 5 * time.Minute
 )
 
 var openaiAllowedHeaders = map[string]bool{
@@ -191,6 +195,52 @@ func (s *OpenAIGatewayService) shouldFailoverOpenAIUpstreamResponse(statusCode i
 func (s *OpenAIGatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
+}
+
+func (s *OpenAIGatewayService) TempUnscheduleFailoverError(ctx context.Context, account *Account, failoverErr *UpstreamFailoverError) {
+	if s == nil || s.accountRepo == nil || account == nil || failoverErr == nil || !failoverErr.TempUnscheduleAccount {
+		return
+	}
+	now := time.Now()
+	until := now.Add(openAITransportTempUnschedDuration)
+	state := &TempUnschedState{
+		UntilUnix:       until.Unix(),
+		TriggeredAtUnix: now.Unix(),
+		StatusCode:      failoverErr.StatusCode,
+		MatchedKeyword:  "openai_transport_error",
+		RuleIndex:       -1,
+		ErrorMessage:    truncateTempUnschedMessage(failoverErr.ResponseBody, tempUnschedMessageMaxBytes),
+	}
+	reason := strings.TrimSpace(state.ErrorMessage)
+	if raw, err := json.Marshal(state); err == nil {
+		reason = string(raw)
+	}
+	if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); err != nil {
+		logger.FromContext(ctx).Warn(
+			"openai.transport_temp_unschedule_failed",
+			zap.Int64("account_id", account.ID),
+			zap.Error(err),
+		)
+		return
+	}
+	if s.schedulerSnapshot != nil {
+		fresh := *account
+		fresh.TempUnschedulableUntil = &until
+		fresh.TempUnschedulableReason = reason
+		if err := s.schedulerSnapshot.UpdateAccountInCache(ctx, &fresh); err != nil {
+			logger.FromContext(ctx).Warn(
+				"openai.transport_temp_unschedule_cache_update_failed",
+				zap.Int64("account_id", account.ID),
+				zap.Error(err),
+			)
+		}
+	}
+	logger.FromContext(ctx).Warn(
+		"openai.transport_temp_unscheduled",
+		zap.Int64("account_id", account.ID),
+		zap.Int("status_code", failoverErr.StatusCode),
+		zap.Time("until", until),
+	)
 }
 
 func (s *OpenAIGatewayService) replaceModelInResponseBody(body []byte, fromModel, toModel string) []byte {

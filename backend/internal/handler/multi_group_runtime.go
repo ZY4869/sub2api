@@ -94,6 +94,9 @@ func enforcePublicCatalogBindingGroup(ctx context.Context, apiKey *service.APIKe
 		if binding.GroupID != entry.BindingGroupID {
 			continue
 		}
+		if !apiKey.UserCanAccessGroup(binding.Group) {
+			return nil, true, infraerrors.Forbidden("GROUP_ACCESS_DENIED", "api key is not allowed to access this group")
+		}
 		selectedAPIKey := service.CloneAPIKeyWithSelectedGroup(apiKey, &binding)
 		return selectedAPIKey, true, nil
 	}

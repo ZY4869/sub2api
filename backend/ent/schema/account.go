@@ -91,6 +91,13 @@ func (Account) Fields() []ent.Field {
 		field.Int64("proxy_id").
 			Optional().
 			Nillable(),
+		field.Int64("original_proxy_id").
+			Optional().
+			Nillable(),
+		field.String("original_proxy_name").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "text"}),
 
 		// concurrency: 账户最大并发请求数
 		// 用于限制同一时间对该账户发起的请求数量
@@ -253,6 +260,7 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("type"),                // 按认证类型筛选
 		index.Fields("status"),              // 按状态筛选
 		index.Fields("proxy_id"),            // 按代理筛选
+		index.Fields("original_proxy_id"),   // 按原始代理筛选
 		index.Fields("priority"),            // 按优先级排序
 		index.Fields("last_used_at"),        // 按最后使用时间排序
 		index.Fields("schedulable"),         // 筛选可调度账户

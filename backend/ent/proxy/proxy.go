@@ -35,6 +35,12 @@ const (
 	FieldPassword = "password"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldExpiresAt holds the string denoting the expires_at field in the database.
+	FieldExpiresAt = "expires_at"
+	// FieldExpiryRemindDays holds the string denoting the expiry_remind_days field in the database.
+	FieldExpiryRemindDays = "expiry_remind_days"
+	// FieldFallbackProxyID holds the string denoting the fallback_proxy_id field in the database.
+	FieldFallbackProxyID = "fallback_proxy_id"
 	// EdgeAccounts holds the string denoting the accounts edge name in mutations.
 	EdgeAccounts = "accounts"
 	// Table holds the table name of the proxy in the database.
@@ -61,6 +67,9 @@ var Columns = []string{
 	FieldUsername,
 	FieldPassword,
 	FieldStatus,
+	FieldExpiresAt,
+	FieldExpiryRemindDays,
+	FieldFallbackProxyID,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -101,6 +110,10 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// DefaultExpiryRemindDays holds the default value on creation for the "expiry_remind_days" field.
+	DefaultExpiryRemindDays int
+	// ExpiryRemindDaysValidator is a validator for the "expiry_remind_days" field. It is called by the builders before save.
+	ExpiryRemindDaysValidator func(int) error
 )
 
 // OrderOption defines the ordering options for the Proxy queries.
@@ -159,6 +172,21 @@ func ByPassword(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByExpiresAt orders the results by the expires_at field.
+func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
+}
+
+// ByExpiryRemindDays orders the results by the expiry_remind_days field.
+func ByExpiryRemindDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiryRemindDays, opts...).ToFunc()
+}
+
+// ByFallbackProxyID orders the results by the fallback_proxy_id field.
+func ByFallbackProxyID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFallbackProxyID, opts...).ToFunc()
 }
 
 // ByAccountsCount orders the results by accounts count.

@@ -29,7 +29,7 @@ func (s *AccountUsageService) buildPassiveUsageInfo(ctx context.Context, account
 	}
 
 	// 复用 estimateSetupTokenUsage 构建 5h 窗口（OAuth 和 SetupToken 逻辑一致）
-	info := s.estimateSetupTokenUsage(account)
+	info := s.estimateSetupTokenUsageWithContext(ctx, account)
 	info.Source = "passive"
 
 	// 设置采样时间

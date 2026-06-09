@@ -76,12 +76,14 @@
       :show-create-modal="showCreateModal"
       :create-form="createForm"
       :protocol-select-options="protocolSelectOptions"
+      :fallback-proxy-options="fallbackProxyOptions"
       :batch-parse-result="batchParseResult"
       :submitting="submitting"
       :show-edit-modal="showEditModal"
       :editing-proxy="editingProxy"
       :edit-form="editForm"
       :edit-status-options="editStatusOptions"
+      :edit-fallback-proxy-options="editFallbackProxyOptions"
       :show-delete-dialog="showDeleteDialog"
       :deleting-proxy="deletingProxy"
       :show-batch-delete-dialog="showBatchDeleteDialog"
@@ -140,12 +142,14 @@ import ProxiesToolbar from './proxies/ProxiesToolbar.vue'
 import {
   buildProxyUrl,
   formatProxyExportTimestamp,
+  fromDatetimeLocalValue,
   parseProxyBatchInput,
   qualityOverallClass,
   qualityOverallLabel as getQualityOverallLabel,
   qualityStatusClass,
   qualityStatusLabel as getQualityStatusLabel,
-  qualityTargetLabel as getQualityTargetLabel
+  qualityTargetLabel as getQualityTargetLabel,
+  toDatetimeLocalValue
 } from './proxies/utils'
 
 const { t, locale } = useI18n()
@@ -161,6 +165,7 @@ const columns = computed<Column[]>(() => [
   { key: 'location', label: t('admin.proxies.columns.location'), sortable: false },
   { key: 'account_count', label: t('admin.proxies.columns.accounts'), sortable: true },
   { key: 'latency', label: t('admin.proxies.columns.latency'), sortable: false },
+  { key: 'expiry', label: t('admin.proxies.columns.expiry'), sortable: false },
   { key: 'status', label: t('admin.proxies.columns.status'), sortable: true },
   { key: 'actions', label: t('admin.proxies.columns.actions'), sortable: false }
 ])
@@ -194,6 +199,21 @@ const editStatusOptions = computed(() => [
 ])
 
 const proxies = ref<Proxy[]>([])
+
+const fallbackProxyOptions = computed(() => [
+  { value: null, label: t('admin.proxies.noFallback') },
+  ...proxies.value
+    .filter((proxy) => proxy.status === 'active')
+    .map((proxy) => ({ value: proxy.id, label: `${proxy.name} (${proxy.host}:${proxy.port})` }))
+])
+
+const editFallbackProxyOptions = computed(() => [
+  { value: null, label: t('admin.proxies.noFallback') },
+  ...proxies.value
+    .filter((proxy) => proxy.status === 'active' && proxy.id !== editingProxy.value?.id)
+    .map((proxy) => ({ value: proxy.id, label: `${proxy.name} (${proxy.host}:${proxy.port})` }))
+])
+
 const visiblePasswordIds = reactive(new Set<number>())
 const copyMenuProxyId = ref<number | null>(null)
 const loading = ref(false)
@@ -277,7 +297,10 @@ const createForm = reactive({
   host: '',
   port: 8080,
   username: '',
-  password: ''
+  password: '',
+  expires_at: '',
+  expiry_remind_days: 0,
+  fallback_proxy_id: null as number | null
 })
 
 const editForm = reactive({
@@ -287,7 +310,10 @@ const editForm = reactive({
   port: 8080,
   username: '',
   password: '',
-  status: 'active' as 'active' | 'inactive'
+  status: 'active' as 'active' | 'inactive',
+  expires_at: '',
+  expiry_remind_days: 0,
+  fallback_proxy_id: null as number | null
 })
 
 let abortController: AbortController | null = null
@@ -374,6 +400,9 @@ const closeCreateModal = () => {
   createForm.port = 8080
   createForm.username = ''
   createForm.password = ''
+  createForm.expires_at = ''
+  createForm.expiry_remind_days = 0
+  createForm.fallback_proxy_id = null
   createPasswordVisible.value = false
   batchInput.value = ''
   batchParseResult.total = 0
@@ -443,7 +472,10 @@ const handleCreateProxy = async () => {
       host: createForm.host.trim(),
       port: createForm.port,
       username: createForm.username.trim() || null,
-      password: createForm.password.trim() || null
+      password: createForm.password.trim() || null,
+      expires_at: fromDatetimeLocalValue(createForm.expires_at),
+      expiry_remind_days: Math.max(0, Number(createForm.expiry_remind_days || 0)),
+      fallback_proxy_id: createForm.fallback_proxy_id || null
     })
     appStore.showSuccess(t('admin.proxies.proxyCreated'))
     closeCreateModal()
@@ -465,6 +497,9 @@ const handleEdit = (proxy: Proxy) => {
   editForm.username = proxy.username || ''
   editForm.password = proxy.password || ''
   editForm.status = proxy.status
+  editForm.expires_at = toDatetimeLocalValue(proxy.expires_at)
+  editForm.expiry_remind_days = Math.max(0, Number(proxy.expiry_remind_days || 0))
+  editForm.fallback_proxy_id = proxy.fallback_proxy_id || null
   editPasswordVisible.value = false
   editPasswordDirty.value = false
   showEditModal.value = true
@@ -500,7 +535,10 @@ const handleUpdateProxy = async () => {
       host: editForm.host.trim(),
       port: editForm.port,
       username: editForm.username.trim() || null,
-      status: editForm.status
+      status: editForm.status,
+      expires_at: fromDatetimeLocalValue(editForm.expires_at),
+      expiry_remind_days: Math.max(0, Number(editForm.expiry_remind_days || 0)),
+      fallback_proxy_id: editForm.fallback_proxy_id || null
     }
 
     // Only include password if user actually modified the field

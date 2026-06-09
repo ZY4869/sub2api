@@ -16,7 +16,8 @@ func (r *usageLogRepository) GetUserStatsAggregated(ctx context.Context, userID 
 			COUNT(*) as total_requests,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
@@ -26,10 +27,10 @@ func (r *usageLogRepository) GetUserStatsAggregated(ctx context.Context, userID 
 		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
 	`
 	var stats usagestats.UsageStats
-	if err := scanSingleRow(ctx, r.sql, query, []any{userID, startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
+	if err := scanSingleRow(ctx, r.sql, query, []any{userID, startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
 		return nil, err
 	}
-	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+	normalizeUsageStatsCacheTotals(&stats)
 	costByCurrency, actualCostByCurrency, costErr := queryUsageCostByCurrency(ctx, r.sql, "WHERE user_id = $1 AND created_at >= $2 AND created_at < $3", []any{userID, startTime, endTime})
 	if costErr != nil {
 		return nil, costErr
@@ -44,7 +45,8 @@ func (r *usageLogRepository) GetAPIKeyStatsAggregated(ctx context.Context, apiKe
 			COUNT(*) as total_requests,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
@@ -54,10 +56,10 @@ func (r *usageLogRepository) GetAPIKeyStatsAggregated(ctx context.Context, apiKe
 		WHERE api_key_id = $1 AND created_at >= $2 AND created_at < $3
 	`
 	var stats usagestats.UsageStats
-	if err := scanSingleRow(ctx, r.sql, query, []any{apiKeyID, startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
+	if err := scanSingleRow(ctx, r.sql, query, []any{apiKeyID, startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
 		return nil, err
 	}
-	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+	normalizeUsageStatsCacheTotals(&stats)
 	costByCurrency, actualCostByCurrency, costErr := queryUsageCostByCurrency(ctx, r.sql, "WHERE api_key_id = $1 AND created_at >= $2 AND created_at < $3", []any{apiKeyID, startTime, endTime})
 	if costErr != nil {
 		return nil, costErr
@@ -72,7 +74,8 @@ func (r *usageLogRepository) GetAccountStatsAggregated(ctx context.Context, acco
 			COUNT(*) as total_requests,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
@@ -82,10 +85,10 @@ func (r *usageLogRepository) GetAccountStatsAggregated(ctx context.Context, acco
 		WHERE account_id = $1 AND created_at >= $2 AND created_at < $3
 	`
 	var stats usagestats.UsageStats
-	if err := scanSingleRow(ctx, r.sql, query, []any{accountID, startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
+	if err := scanSingleRow(ctx, r.sql, query, []any{accountID, startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
 		return nil, err
 	}
-	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+	normalizeUsageStatsCacheTotals(&stats)
 	costByCurrency, actualCostByCurrency, costErr := queryUsageCostByCurrency(ctx, r.sql, "WHERE account_id = $1 AND created_at >= $2 AND created_at < $3", []any{accountID, startTime, endTime})
 	if costErr != nil {
 		return nil, costErr
@@ -100,7 +103,8 @@ func (r *usageLogRepository) GetModelStatsAggregated(ctx context.Context, modelN
 			COUNT(*) as total_requests,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
@@ -110,10 +114,10 @@ func (r *usageLogRepository) GetModelStatsAggregated(ctx context.Context, modelN
 		WHERE model = $1 AND created_at >= $2 AND created_at < $3
 	`
 	var stats usagestats.UsageStats
-	if err := scanSingleRow(ctx, r.sql, query, []any{modelName, startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
+	if err := scanSingleRow(ctx, r.sql, query, []any{modelName, startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
 		return nil, err
 	}
-	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+	normalizeUsageStatsCacheTotals(&stats)
 	costByCurrency, actualCostByCurrency, costErr := queryUsageCostByCurrency(ctx, r.sql, "WHERE model = $1 AND created_at >= $2 AND created_at < $3", []any{modelName, startTime, endTime})
 	if costErr != nil {
 		return nil, costErr

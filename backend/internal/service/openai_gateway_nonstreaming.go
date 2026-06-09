@@ -212,13 +212,9 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(_ context.Context, res
 	}
 	setOpenAIResponsesImageOutputCount(c, body)
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
-	contentType := "application/json"
-	if s.cfg != nil && !s.cfg.Security.ResponseHeaders.Enabled {
-		if upstreamType := resp.Header.Get("Content-Type"); upstreamType != "" {
-			contentType = upstreamType
-		}
-	}
+	contentType := "application/json; charset=utf-8"
 	SetOpsTraceGatewayResponse(c, "openai_gateway_response", body, contentType, false)
+	c.Writer.Header().Set("Content-Type", contentType)
 	c.Data(resp.StatusCode, contentType, body)
 	return usage, nil
 }
@@ -270,6 +266,7 @@ func (s *OpenAIGatewayService) handleOAuthSSEToJSON(resp *http.Response, c *gin.
 		}
 	}
 	SetOpsTraceGatewayResponse(c, "openai_gateway_response", body, contentType, false)
+	c.Writer.Header().Set("Content-Type", contentType)
 	c.Data(resp.StatusCode, contentType, body)
 	return usage, nil
 }

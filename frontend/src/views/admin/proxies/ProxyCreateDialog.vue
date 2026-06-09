@@ -126,6 +126,11 @@
           </button>
         </div>
       </div>
+      <ProxyLifecycleFields
+        :form="createForm"
+        :fallback-proxy-options="fallbackProxyOptions"
+        @update="(value) => emit('update:createForm', { ...createForm, ...value })"
+      />
     </form>
 
     <div v-else class="space-y-5">
@@ -263,8 +268,10 @@ import type { ProxyProtocol } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import ProxyLifecycleFields from './ProxyLifecycleFields.vue'
+import type { ProxyLifecycleFormFields } from './utils'
 
-interface ProxyForm {
+interface ProxyForm extends ProxyLifecycleFormFields {
   name: string
   protocol: ProxyProtocol
   host: string
@@ -285,6 +292,7 @@ const props = defineProps<{
   createMode: 'standard' | 'batch'
   createForm: ProxyForm
   protocolSelectOptions: Array<{ value: string; label: string }>
+  fallbackProxyOptions: Array<{ value: number | null; label: string }>
   createPasswordVisible: boolean
   batchInput: string
   batchParseResult: BatchParseResult

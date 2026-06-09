@@ -175,6 +175,19 @@ func (k *APIKey) GroupBindingByID(groupID int64) *APIKeyGroupBinding {
 	return nil
 }
 
+func (k *APIKey) UserCanAccessGroup(group *Group) bool {
+	if group == nil {
+		return false
+	}
+	if !group.IsExclusive {
+		return true
+	}
+	if k == nil || k.User == nil {
+		return false
+	}
+	return k.User.CanBindGroup(group.ID, group.IsExclusive)
+}
+
 func (k *APIKey) SyncLegacyGroupShadow() {
 	if k == nil {
 		return

@@ -6,6 +6,7 @@
     v-model:batch-input="batchInputModel"
     :create-form="createForm"
     :protocol-select-options="protocolSelectOptions"
+    :fallback-proxy-options="fallbackProxyOptions"
     :batch-parse-result="batchParseResult"
     :submitting="submitting"
     @update:create-form="(value) => emit('update:createForm', value)"
@@ -22,6 +23,7 @@
     :edit-form="editForm"
     :protocol-select-options="protocolSelectOptions"
     :edit-status-options="editStatusOptions"
+    :fallback-proxy-options="editFallbackProxyOptions"
     :submitting="submitting"
     @update:edit-form="(value) => emit('update:editForm', value)"
     @close="emit('close-edit')"
@@ -96,9 +98,10 @@ import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
 import ProxyAccountsDialog from './ProxyAccountsDialog.vue'
 import ProxyCreateDialog from './ProxyCreateDialog.vue'
 import ProxyEditDialog from './ProxyEditDialog.vue'
+import type { ProxyLifecycleFormFields } from './utils'
 import ProxyQualityReportDialog from './ProxyQualityReportDialog.vue'
 
-interface ProxyForm {
+interface ProxyForm extends ProxyLifecycleFormFields {
   name: string
   protocol: ProxyProtocol
   host: string
@@ -125,6 +128,7 @@ const props = defineProps<{
   batchInput: string
   createForm: ProxyForm
   protocolSelectOptions: Array<{ value: string; label: string }>
+  fallbackProxyOptions: Array<{ value: number | null; label: string }>
   batchParseResult: BatchParseResult
   submitting: boolean
   showEditModal: boolean
@@ -132,6 +136,7 @@ const props = defineProps<{
   editingProxy: Proxy | null
   editForm: ProxyEditForm
   editStatusOptions: Array<{ value: string; label: string }>
+  editFallbackProxyOptions: Array<{ value: number | null; label: string }>
   showDeleteDialog: boolean
   deletingProxy: Proxy | null
   showBatchDeleteDialog: boolean

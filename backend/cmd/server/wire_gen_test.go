@@ -67,6 +67,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		tokenRefreshSvc,
 		nil, // openAIGPT55WhitelistBackfill
 		accountExpirySvc,
+		nil, // proxyExpiry
 		accountDaily5HTriggerSvc,
 		accountBlacklistCleanupSvc,
 		accountRateLimitRecoveryProbeSvc,

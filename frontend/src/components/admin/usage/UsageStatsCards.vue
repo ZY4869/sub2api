@@ -24,6 +24,10 @@
             {{ t('usage.in') }}: {{ formatTokens(stats?.total_input_tokens || 0) }} /
             {{ t('usage.out') }}: {{ formatTokens(stats?.total_output_tokens || 0) }}
           </p>
+          <p class="text-xs text-gray-500">
+            {{ formatCacheSplit(stats?.total_cache_creation_tokens || 0, stats?.total_cache_read_tokens || 0) }}
+            · {{ t('usage.cacheHitRate') }}: {{ formatPercent(stats?.cache_hit_rate || 0) }}
+          </p>
         </div>
       </div>
       <div class="card flex items-center gap-3 p-4">
@@ -80,6 +84,10 @@
             {{ t('usage.in') }}: {{ formatTokens(stats?.today_input_tokens || 0) }} /
             {{ t('usage.cacheTokens') }}: {{ formatTokens(stats?.today_cache_tokens || 0) }} /
             {{ t('usage.out') }}: {{ formatTokens(stats?.today_output_tokens || 0) }}
+          </p>
+          <p class="text-xs text-gray-500">
+            {{ formatCacheSplit(stats?.today_cache_creation_tokens || 0, stats?.today_cache_read_tokens || 0) }}
+            · {{ t('usage.cacheHitRate') }}: {{ formatPercent(stats?.today_cache_hit_rate || 0) }}
           </p>
         </div>
         <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
@@ -165,6 +173,17 @@ const formatDuration = (ms: number) =>
   ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(2)}s`
 
 const formatTokens = (value: number) => formatTokenDisplay(value)
+
+const formatCacheSplit = (write: number, read: number) =>
+  t('usage.cacheSplit', {
+    write: formatTokens(write),
+    read: formatTokens(read),
+  })
+
+const formatPercent = (value: number) => {
+  const normalized = value <= 1 ? value * 100 : value
+  return `${normalized.toFixed(1)}%`
+}
 
 const formatCurrencyAmount = (currency: string, value: number) => {
   const normalized = currency.toUpperCase()

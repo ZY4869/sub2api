@@ -93,7 +93,7 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 
 	// Setup Token账号：根据session_window推算（没有profile scope，无法调用usage API）
 	if account.Type == AccountTypeSetupToken {
-		usage := s.estimateSetupTokenUsage(account)
+		usage := s.estimateSetupTokenUsageWithContext(ctx, account)
 		// 添加窗口统计
 		s.addWindowStats(ctx, account, usage, force)
 		return usage, nil

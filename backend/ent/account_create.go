@@ -125,6 +125,34 @@ func (_c *AccountCreate) SetNillableProxyID(v *int64) *AccountCreate {
 	return _c
 }
 
+// SetOriginalProxyID sets the "original_proxy_id" field.
+func (_c *AccountCreate) SetOriginalProxyID(v int64) *AccountCreate {
+	_c.mutation.SetOriginalProxyID(v)
+	return _c
+}
+
+// SetNillableOriginalProxyID sets the "original_proxy_id" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableOriginalProxyID(v *int64) *AccountCreate {
+	if v != nil {
+		_c.SetOriginalProxyID(*v)
+	}
+	return _c
+}
+
+// SetOriginalProxyName sets the "original_proxy_name" field.
+func (_c *AccountCreate) SetOriginalProxyName(v string) *AccountCreate {
+	_c.mutation.SetOriginalProxyName(v)
+	return _c
+}
+
+// SetNillableOriginalProxyName sets the "original_proxy_name" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableOriginalProxyName(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetOriginalProxyName(*v)
+	}
+	return _c
+}
+
 // SetConcurrency sets the "concurrency" field.
 func (_c *AccountCreate) SetConcurrency(v int) *AccountCreate {
 	_c.mutation.SetConcurrency(v)
@@ -767,6 +795,14 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 		_spec.SetField(account.FieldExtra, field.TypeJSON, value)
 		_node.Extra = value
 	}
+	if value, ok := _c.mutation.OriginalProxyID(); ok {
+		_spec.SetField(account.FieldOriginalProxyID, field.TypeInt64, value)
+		_node.OriginalProxyID = &value
+	}
+	if value, ok := _c.mutation.OriginalProxyName(); ok {
+		_spec.SetField(account.FieldOriginalProxyName, field.TypeString, value)
+		_node.OriginalProxyName = &value
+	}
 	if value, ok := _c.mutation.Concurrency(); ok {
 		_spec.SetField(account.FieldConcurrency, field.TypeInt, value)
 		_node.Concurrency = value
@@ -1095,6 +1131,48 @@ func (u *AccountUpsert) UpdateProxyID() *AccountUpsert {
 // ClearProxyID clears the value of the "proxy_id" field.
 func (u *AccountUpsert) ClearProxyID() *AccountUpsert {
 	u.SetNull(account.FieldProxyID)
+	return u
+}
+
+// SetOriginalProxyID sets the "original_proxy_id" field.
+func (u *AccountUpsert) SetOriginalProxyID(v int64) *AccountUpsert {
+	u.Set(account.FieldOriginalProxyID, v)
+	return u
+}
+
+// UpdateOriginalProxyID sets the "original_proxy_id" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateOriginalProxyID() *AccountUpsert {
+	u.SetExcluded(account.FieldOriginalProxyID)
+	return u
+}
+
+// AddOriginalProxyID adds v to the "original_proxy_id" field.
+func (u *AccountUpsert) AddOriginalProxyID(v int64) *AccountUpsert {
+	u.Add(account.FieldOriginalProxyID, v)
+	return u
+}
+
+// ClearOriginalProxyID clears the value of the "original_proxy_id" field.
+func (u *AccountUpsert) ClearOriginalProxyID() *AccountUpsert {
+	u.SetNull(account.FieldOriginalProxyID)
+	return u
+}
+
+// SetOriginalProxyName sets the "original_proxy_name" field.
+func (u *AccountUpsert) SetOriginalProxyName(v string) *AccountUpsert {
+	u.Set(account.FieldOriginalProxyName, v)
+	return u
+}
+
+// UpdateOriginalProxyName sets the "original_proxy_name" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateOriginalProxyName() *AccountUpsert {
+	u.SetExcluded(account.FieldOriginalProxyName)
+	return u
+}
+
+// ClearOriginalProxyName clears the value of the "original_proxy_name" field.
+func (u *AccountUpsert) ClearOriginalProxyName() *AccountUpsert {
+	u.SetNull(account.FieldOriginalProxyName)
 	return u
 }
 
@@ -1707,6 +1785,55 @@ func (u *AccountUpsertOne) UpdateProxyID() *AccountUpsertOne {
 func (u *AccountUpsertOne) ClearProxyID() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearProxyID()
+	})
+}
+
+// SetOriginalProxyID sets the "original_proxy_id" field.
+func (u *AccountUpsertOne) SetOriginalProxyID(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetOriginalProxyID(v)
+	})
+}
+
+// AddOriginalProxyID adds v to the "original_proxy_id" field.
+func (u *AccountUpsertOne) AddOriginalProxyID(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddOriginalProxyID(v)
+	})
+}
+
+// UpdateOriginalProxyID sets the "original_proxy_id" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateOriginalProxyID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateOriginalProxyID()
+	})
+}
+
+// ClearOriginalProxyID clears the value of the "original_proxy_id" field.
+func (u *AccountUpsertOne) ClearOriginalProxyID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearOriginalProxyID()
+	})
+}
+
+// SetOriginalProxyName sets the "original_proxy_name" field.
+func (u *AccountUpsertOne) SetOriginalProxyName(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetOriginalProxyName(v)
+	})
+}
+
+// UpdateOriginalProxyName sets the "original_proxy_name" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateOriginalProxyName() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateOriginalProxyName()
+	})
+}
+
+// ClearOriginalProxyName clears the value of the "original_proxy_name" field.
+func (u *AccountUpsertOne) ClearOriginalProxyName() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearOriginalProxyName()
 	})
 }
 
@@ -2555,6 +2682,55 @@ func (u *AccountUpsertBulk) UpdateProxyID() *AccountUpsertBulk {
 func (u *AccountUpsertBulk) ClearProxyID() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearProxyID()
+	})
+}
+
+// SetOriginalProxyID sets the "original_proxy_id" field.
+func (u *AccountUpsertBulk) SetOriginalProxyID(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetOriginalProxyID(v)
+	})
+}
+
+// AddOriginalProxyID adds v to the "original_proxy_id" field.
+func (u *AccountUpsertBulk) AddOriginalProxyID(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddOriginalProxyID(v)
+	})
+}
+
+// UpdateOriginalProxyID sets the "original_proxy_id" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateOriginalProxyID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateOriginalProxyID()
+	})
+}
+
+// ClearOriginalProxyID clears the value of the "original_proxy_id" field.
+func (u *AccountUpsertBulk) ClearOriginalProxyID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearOriginalProxyID()
+	})
+}
+
+// SetOriginalProxyName sets the "original_proxy_name" field.
+func (u *AccountUpsertBulk) SetOriginalProxyName(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetOriginalProxyName(v)
+	})
+}
+
+// UpdateOriginalProxyName sets the "original_proxy_name" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateOriginalProxyName() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateOriginalProxyName()
+	})
+}
+
+// ClearOriginalProxyName clears the value of the "original_proxy_name" field.
+func (u *AccountUpsertBulk) ClearOriginalProxyName() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearOriginalProxyName()
 	})
 }
 

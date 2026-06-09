@@ -432,6 +432,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.POST("/:id/recover-state", h.Admin.Account.RecoverState)
 		accounts.POST("/:id/refresh", h.Admin.Account.Refresh)
 		accounts.POST("/:id/set-privacy", h.Admin.Account.SetPrivacy)
+		accounts.POST("/:id/restore-original-proxy", h.Admin.Account.RestoreOriginalProxy)
 		accounts.POST("/:id/refresh-tier", h.Admin.Account.RefreshTier)
 		accounts.POST("/:id/model-diagnostics", h.Admin.Account.DiagnoseModels)
 		accounts.GET("/:id/stats", h.Admin.Account.GetStats)

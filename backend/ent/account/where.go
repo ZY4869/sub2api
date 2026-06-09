@@ -95,6 +95,16 @@ func ProxyID(v int64) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldProxyID, v))
 }
 
+// OriginalProxyID applies equality check predicate on the "original_proxy_id" field. It's identical to OriginalProxyIDEQ.
+func OriginalProxyID(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldOriginalProxyID, v))
+}
+
+// OriginalProxyName applies equality check predicate on the "original_proxy_name" field. It's identical to OriginalProxyNameEQ.
+func OriginalProxyName(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldOriginalProxyName, v))
+}
+
 // Concurrency applies equality check predicate on the "concurrency" field. It's identical to ConcurrencyEQ.
 func Concurrency(v int) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldConcurrency, v))
@@ -648,6 +658,131 @@ func ProxyIDIsNil() predicate.Account {
 // ProxyIDNotNil applies the NotNil predicate on the "proxy_id" field.
 func ProxyIDNotNil() predicate.Account {
 	return predicate.Account(sql.FieldNotNull(FieldProxyID))
+}
+
+// OriginalProxyIDEQ applies the EQ predicate on the "original_proxy_id" field.
+func OriginalProxyIDEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldOriginalProxyID, v))
+}
+
+// OriginalProxyIDNEQ applies the NEQ predicate on the "original_proxy_id" field.
+func OriginalProxyIDNEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldOriginalProxyID, v))
+}
+
+// OriginalProxyIDIn applies the In predicate on the "original_proxy_id" field.
+func OriginalProxyIDIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldOriginalProxyID, vs...))
+}
+
+// OriginalProxyIDNotIn applies the NotIn predicate on the "original_proxy_id" field.
+func OriginalProxyIDNotIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldOriginalProxyID, vs...))
+}
+
+// OriginalProxyIDGT applies the GT predicate on the "original_proxy_id" field.
+func OriginalProxyIDGT(v int64) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldOriginalProxyID, v))
+}
+
+// OriginalProxyIDGTE applies the GTE predicate on the "original_proxy_id" field.
+func OriginalProxyIDGTE(v int64) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldOriginalProxyID, v))
+}
+
+// OriginalProxyIDLT applies the LT predicate on the "original_proxy_id" field.
+func OriginalProxyIDLT(v int64) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldOriginalProxyID, v))
+}
+
+// OriginalProxyIDLTE applies the LTE predicate on the "original_proxy_id" field.
+func OriginalProxyIDLTE(v int64) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldOriginalProxyID, v))
+}
+
+// OriginalProxyIDIsNil applies the IsNil predicate on the "original_proxy_id" field.
+func OriginalProxyIDIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldOriginalProxyID))
+}
+
+// OriginalProxyIDNotNil applies the NotNil predicate on the "original_proxy_id" field.
+func OriginalProxyIDNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldOriginalProxyID))
+}
+
+// OriginalProxyNameEQ applies the EQ predicate on the "original_proxy_name" field.
+func OriginalProxyNameEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameNEQ applies the NEQ predicate on the "original_proxy_name" field.
+func OriginalProxyNameNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameIn applies the In predicate on the "original_proxy_name" field.
+func OriginalProxyNameIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldOriginalProxyName, vs...))
+}
+
+// OriginalProxyNameNotIn applies the NotIn predicate on the "original_proxy_name" field.
+func OriginalProxyNameNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldOriginalProxyName, vs...))
+}
+
+// OriginalProxyNameGT applies the GT predicate on the "original_proxy_name" field.
+func OriginalProxyNameGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameGTE applies the GTE predicate on the "original_proxy_name" field.
+func OriginalProxyNameGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameLT applies the LT predicate on the "original_proxy_name" field.
+func OriginalProxyNameLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameLTE applies the LTE predicate on the "original_proxy_name" field.
+func OriginalProxyNameLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameContains applies the Contains predicate on the "original_proxy_name" field.
+func OriginalProxyNameContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameHasPrefix applies the HasPrefix predicate on the "original_proxy_name" field.
+func OriginalProxyNameHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameHasSuffix applies the HasSuffix predicate on the "original_proxy_name" field.
+func OriginalProxyNameHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameIsNil applies the IsNil predicate on the "original_proxy_name" field.
+func OriginalProxyNameIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldOriginalProxyName))
+}
+
+// OriginalProxyNameNotNil applies the NotNil predicate on the "original_proxy_name" field.
+func OriginalProxyNameNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldOriginalProxyName))
+}
+
+// OriginalProxyNameEqualFold applies the EqualFold predicate on the "original_proxy_name" field.
+func OriginalProxyNameEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldOriginalProxyName, v))
+}
+
+// OriginalProxyNameContainsFold applies the ContainsFold predicate on the "original_proxy_name" field.
+func OriginalProxyNameContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldOriginalProxyName, v))
 }
 
 // ConcurrencyEQ applies the EQ predicate on the "concurrency" field.

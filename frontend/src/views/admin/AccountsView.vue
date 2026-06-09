@@ -267,6 +267,7 @@
     @set-privacy="handleSetPrivacy"
     @recover-state="handleRecoverState"
     @reset-quota="handleResetQuota"
+    @restore-original-proxy="handleRestoreOriginalProxy"
     @blacklist="handleBlacklistAccount"
     @test-blacklist="handleTestBlacklistAccount"
     @import-models="handleImportModels"
@@ -943,7 +944,7 @@ const {
 const {
   closeTestModal, closeBatchTestModal, closeStatsModal, closeModelDiagnostics, closeReAuthModal, handleTest, handleQuickTest,
   handleBatchTestCompleted, handleViewStats, handleDiagnoseModels, refreshModelDiagnostics, handleSchedule, closeSchedulePanel,
-  handleReAuth, handleRefresh, handleSetPrivacy, handleRecoverState, handleImportModels, handleResetQuota, handleBlacklistAccount,
+  handleReAuth, handleRefresh, handleSetPrivacy, handleRecoverState, handleImportModels, handleResetQuota, handleRestoreOriginalProxy, handleBlacklistAccount,
   handleTestBlacklistAccount, handleDelete, confirmDelete, handleToggleSchedulable, handleShowTempUnsched, handleTempUnschedReset,
 } = useAccountsRowActions({
   t, appStore, adminAPI, modelInventoryStore, invalidateModelRegistry, buildProviderDisplayName,

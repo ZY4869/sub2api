@@ -8,6 +8,8 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"go.uber.org/zap"
 )
 
 var (
@@ -188,6 +190,10 @@ func candidateGroupBindingsForAllowedPlatforms(ctx context.Context, apiKey *APIK
 		if group == nil || !group.IsActive() {
 			continue
 		}
+		if !apiKey.UserCanAccessGroup(group) {
+			recordGroupAccessDenied(ctx, apiKey, group)
+			continue
+		}
 		requestPlatform := ""
 		if len(allowed) > 0 {
 			matchedPlatform, ok := bindingRequestPlatformForAllowed(group.Platform, allowed)
@@ -245,6 +251,24 @@ func groupBindingForRequestPlatform(binding APIKeyGroupBinding, requestPlatform 
 	groupCopy.Platform = requestPlatform
 	binding.Group = &groupCopy
 	return binding
+}
+
+func recordGroupAccessDenied(ctx context.Context, apiKey *APIKey, group *Group) {
+	if apiKey == nil || group == nil {
+		return
+	}
+	requestID, _ := ctx.Value(ctxkey.RequestID).(string)
+	fields := []zap.Field{
+		zap.String("request_id", strings.TrimSpace(requestID)),
+		zap.Int64("api_key_id", apiKey.ID),
+		zap.Int64("group_id", group.ID),
+		zap.String("group_name", group.Name),
+		zap.Bool("group_exclusive", group.IsExclusive),
+	}
+	if apiKey.User != nil {
+		fields = append(fields, zap.Int64("user_id", apiKey.User.ID))
+	}
+	logger.FromContext(ctx).Warn("api key group access denied", fields...)
 }
 
 func bindingRequestPlatformForAllowed(groupPlatform string, allowed map[string]struct{}) (string, bool) {

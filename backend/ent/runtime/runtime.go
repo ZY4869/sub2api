@@ -252,53 +252,53 @@ func init() {
 	// account.DefaultExtra holds the default value on creation for the extra field.
 	account.DefaultExtra = accountDescExtra.Default.(func() map[string]interface{})
 	// accountDescConcurrency is the schema descriptor for concurrency field.
-	accountDescConcurrency := accountFields[7].Descriptor()
+	accountDescConcurrency := accountFields[9].Descriptor()
 	// account.DefaultConcurrency holds the default value on creation for the concurrency field.
 	account.DefaultConcurrency = accountDescConcurrency.Default.(int)
 	// accountDescPriority is the schema descriptor for priority field.
-	accountDescPriority := accountFields[9].Descriptor()
+	accountDescPriority := accountFields[11].Descriptor()
 	// account.DefaultPriority holds the default value on creation for the priority field.
 	account.DefaultPriority = accountDescPriority.Default.(int)
 	// accountDescRateMultiplier is the schema descriptor for rate_multiplier field.
-	accountDescRateMultiplier := accountFields[10].Descriptor()
+	accountDescRateMultiplier := accountFields[12].Descriptor()
 	// account.DefaultRateMultiplier holds the default value on creation for the rate_multiplier field.
 	account.DefaultRateMultiplier = accountDescRateMultiplier.Default.(float64)
 	// accountDescStatus is the schema descriptor for status field.
-	accountDescStatus := accountFields[11].Descriptor()
+	accountDescStatus := accountFields[13].Descriptor()
 	// account.DefaultStatus holds the default value on creation for the status field.
 	account.DefaultStatus = accountDescStatus.Default.(string)
 	// account.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	account.StatusValidator = accountDescStatus.Validators[0].(func(string) error)
 	// accountDescLifecycleState is the schema descriptor for lifecycle_state field.
-	accountDescLifecycleState := accountFields[12].Descriptor()
+	accountDescLifecycleState := accountFields[14].Descriptor()
 	// account.DefaultLifecycleState holds the default value on creation for the lifecycle_state field.
 	account.DefaultLifecycleState = accountDescLifecycleState.Default.(string)
 	// account.LifecycleStateValidator is a validator for the "lifecycle_state" field. It is called by the builders before save.
 	account.LifecycleStateValidator = accountDescLifecycleState.Validators[0].(func(string) error)
 	// accountDescLifecycleReasonCode is the schema descriptor for lifecycle_reason_code field.
-	accountDescLifecycleReasonCode := accountFields[13].Descriptor()
+	accountDescLifecycleReasonCode := accountFields[15].Descriptor()
 	// account.LifecycleReasonCodeValidator is a validator for the "lifecycle_reason_code" field. It is called by the builders before save.
 	account.LifecycleReasonCodeValidator = accountDescLifecycleReasonCode.Validators[0].(func(string) error)
 	// accountDescAutoPauseOnExpired is the schema descriptor for auto_pause_on_expired field.
-	accountDescAutoPauseOnExpired := accountFields[20].Descriptor()
+	accountDescAutoPauseOnExpired := accountFields[22].Descriptor()
 	// account.DefaultAutoPauseOnExpired holds the default value on creation for the auto_pause_on_expired field.
 	account.DefaultAutoPauseOnExpired = accountDescAutoPauseOnExpired.Default.(bool)
 	// accountDescAutoRenewEnabled is the schema descriptor for auto_renew_enabled field.
-	accountDescAutoRenewEnabled := accountFields[21].Descriptor()
+	accountDescAutoRenewEnabled := accountFields[23].Descriptor()
 	// account.DefaultAutoRenewEnabled holds the default value on creation for the auto_renew_enabled field.
 	account.DefaultAutoRenewEnabled = accountDescAutoRenewEnabled.Default.(bool)
 	// accountDescAutoRenewPeriod is the schema descriptor for auto_renew_period field.
-	accountDescAutoRenewPeriod := accountFields[22].Descriptor()
+	accountDescAutoRenewPeriod := accountFields[24].Descriptor()
 	// account.DefaultAutoRenewPeriod holds the default value on creation for the auto_renew_period field.
 	account.DefaultAutoRenewPeriod = accountDescAutoRenewPeriod.Default.(string)
 	// account.AutoRenewPeriodValidator is a validator for the "auto_renew_period" field. It is called by the builders before save.
 	account.AutoRenewPeriodValidator = accountDescAutoRenewPeriod.Validators[0].(func(string) error)
 	// accountDescSchedulable is the schema descriptor for schedulable field.
-	accountDescSchedulable := accountFields[23].Descriptor()
+	accountDescSchedulable := accountFields[25].Descriptor()
 	// account.DefaultSchedulable holds the default value on creation for the schedulable field.
 	account.DefaultSchedulable = accountDescSchedulable.Default.(bool)
 	// accountDescSessionWindowStatus is the schema descriptor for session_window_status field.
-	accountDescSessionWindowStatus := accountFields[31].Descriptor()
+	accountDescSessionWindowStatus := accountFields[33].Descriptor()
 	// account.SessionWindowStatusValidator is a validator for the "session_window_status" field. It is called by the builders before save.
 	account.SessionWindowStatusValidator = accountDescSessionWindowStatus.Validators[0].(func(string) error)
 	accountgroupFields := schema.AccountGroup{}.Fields()
@@ -717,6 +717,12 @@ func init() {
 	proxy.DefaultStatus = proxyDescStatus.Default.(string)
 	// proxy.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	proxy.StatusValidator = proxyDescStatus.Validators[0].(func(string) error)
+	// proxyDescExpiryRemindDays is the schema descriptor for expiry_remind_days field.
+	proxyDescExpiryRemindDays := proxyFields[8].Descriptor()
+	// proxy.DefaultExpiryRemindDays holds the default value on creation for the expiry_remind_days field.
+	proxy.DefaultExpiryRemindDays = proxyDescExpiryRemindDays.Default.(int)
+	// proxy.ExpiryRemindDaysValidator is a validator for the "expiry_remind_days" field. It is called by the builders before save.
+	proxy.ExpiryRemindDaysValidator = proxyDescExpiryRemindDays.Validators[0].(func(int) error)
 	redeemcodeFields := schema.RedeemCode{}.Fields()
 	_ = redeemcodeFields
 	// redeemcodeDescCode is the schema descriptor for code field.

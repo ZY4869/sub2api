@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,41 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
+
+func TestForwardNativeChatCompletions_TransportErrorReturnsFailover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	body := []byte(`{"model":"gpt-5.4","messages":[{"role":"user","content":"hi"}]}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
+
+	svc := &OpenAIGatewayService{
+		httpUpstream:  &httpUpstreamRecorder{err: errors.New("proxy connect failed")},
+		cfg:           &config.Config{},
+		toolCorrector: NewCodexToolCorrector(),
+	}
+	account := &Account{
+		ID:          1001,
+		Name:        "openai-native-chat",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key": "test-token",
+		},
+	}
+
+	result, err := svc.ForwardNativeChatCompletions(context.Background(), c, account, body, "")
+	require.Error(t, err)
+	require.Nil(t, result)
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.True(t, failoverErr.TempUnscheduleAccount)
+	require.False(t, failoverErr.RetryableOnSameAccount)
+	require.Empty(t, recorder.Body.String())
+	require.Empty(t, recorder.Result().Header.Get("Content-Type"))
+}
 
 func TestForwardAsChatCompletions_ProtocolGatewayChatPreferenceUsesNativeChatUpstream(t *testing.T) {
 	gin.SetMode(gin.TestMode)

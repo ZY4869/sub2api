@@ -57,6 +57,10 @@
               <Icon name="refresh" size="sm" />
               {{ t('admin.accounts.resetQuota') }}
             </button>
+            <button v-if="hasOriginalProxy" @click="$emit('restore-original-proxy', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-cyan-600 hover:bg-gray-100 dark:hover:bg-dark-700">
+              <Icon name="refresh" size="sm" />
+              {{ t('admin.accounts.restoreOriginalProxy') }}
+            </button>
             <div v-if="showBlacklistAction" class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
             <button v-if="showBlacklistAction" @click="$emit('blacklist', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-gray-100 dark:hover:bg-dark-700">
               <Icon name="ban" size="sm" />
@@ -90,6 +94,7 @@ const emit = defineEmits<{
   'set-privacy': [account: Account]
   'recover-state': [account: Account]
   'reset-quota': [account: Account]
+  'restore-original-proxy': [account: Account]
   blacklist: [account: Account]
 }>()
 const { t } = useI18n()
@@ -146,6 +151,7 @@ const hasQuotaLimit = computed(() => {
     (props.account?.quota_weekly_limit ?? 0) > 0
   )
 })
+const hasOriginalProxy = computed(() => Boolean(props.account?.original_proxy_id))
 const supportsPrivacy = computed(() => props.account?.platform === 'openai' && props.account?.type === 'oauth')
 const showBlacklistAction = computed(() => props.account?.lifecycle_state !== 'blacklisted')
 

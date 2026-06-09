@@ -105,6 +105,21 @@ func Status(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldStatus, v))
 }
 
+// ExpiresAt applies equality check predicate on the "expires_at" field. It's identical to ExpiresAtEQ.
+func ExpiresAt(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExpiresAt, v))
+}
+
+// ExpiryRemindDays applies equality check predicate on the "expiry_remind_days" field. It's identical to ExpiryRemindDaysEQ.
+func ExpiryRemindDays(v int) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExpiryRemindDays, v))
+}
+
+// FallbackProxyID applies equality check predicate on the "fallback_proxy_id" field. It's identical to FallbackProxyIDEQ.
+func FallbackProxyID(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldFallbackProxyID, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldCreatedAt, v))
@@ -683,6 +698,146 @@ func StatusEqualFold(v string) predicate.Proxy {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// ExpiresAtEQ applies the EQ predicate on the "expires_at" field.
+func ExpiresAtEQ(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtNEQ applies the NEQ predicate on the "expires_at" field.
+func ExpiresAtNEQ(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtIn applies the In predicate on the "expires_at" field.
+func ExpiresAtIn(vs ...time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtNotIn applies the NotIn predicate on the "expires_at" field.
+func ExpiresAtNotIn(vs ...time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtGT applies the GT predicate on the "expires_at" field.
+func ExpiresAtGT(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldExpiresAt, v))
+}
+
+// ExpiresAtGTE applies the GTE predicate on the "expires_at" field.
+func ExpiresAtGTE(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtLT applies the LT predicate on the "expires_at" field.
+func ExpiresAtLT(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldExpiresAt, v))
+}
+
+// ExpiresAtLTE applies the LTE predicate on the "expires_at" field.
+func ExpiresAtLTE(v time.Time) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtIsNil applies the IsNil predicate on the "expires_at" field.
+func ExpiresAtIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldExpiresAt))
+}
+
+// ExpiresAtNotNil applies the NotNil predicate on the "expires_at" field.
+func ExpiresAtNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldExpiresAt))
+}
+
+// ExpiryRemindDaysEQ applies the EQ predicate on the "expiry_remind_days" field.
+func ExpiryRemindDaysEQ(v int) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldExpiryRemindDays, v))
+}
+
+// ExpiryRemindDaysNEQ applies the NEQ predicate on the "expiry_remind_days" field.
+func ExpiryRemindDaysNEQ(v int) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldExpiryRemindDays, v))
+}
+
+// ExpiryRemindDaysIn applies the In predicate on the "expiry_remind_days" field.
+func ExpiryRemindDaysIn(vs ...int) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldExpiryRemindDays, vs...))
+}
+
+// ExpiryRemindDaysNotIn applies the NotIn predicate on the "expiry_remind_days" field.
+func ExpiryRemindDaysNotIn(vs ...int) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldExpiryRemindDays, vs...))
+}
+
+// ExpiryRemindDaysGT applies the GT predicate on the "expiry_remind_days" field.
+func ExpiryRemindDaysGT(v int) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldExpiryRemindDays, v))
+}
+
+// ExpiryRemindDaysGTE applies the GTE predicate on the "expiry_remind_days" field.
+func ExpiryRemindDaysGTE(v int) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldExpiryRemindDays, v))
+}
+
+// ExpiryRemindDaysLT applies the LT predicate on the "expiry_remind_days" field.
+func ExpiryRemindDaysLT(v int) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldExpiryRemindDays, v))
+}
+
+// ExpiryRemindDaysLTE applies the LTE predicate on the "expiry_remind_days" field.
+func ExpiryRemindDaysLTE(v int) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldExpiryRemindDays, v))
+}
+
+// FallbackProxyIDEQ applies the EQ predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDEQ(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldFallbackProxyID, v))
+}
+
+// FallbackProxyIDNEQ applies the NEQ predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDNEQ(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldFallbackProxyID, v))
+}
+
+// FallbackProxyIDIn applies the In predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDIn(vs ...int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldFallbackProxyID, vs...))
+}
+
+// FallbackProxyIDNotIn applies the NotIn predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDNotIn(vs ...int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldFallbackProxyID, vs...))
+}
+
+// FallbackProxyIDGT applies the GT predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDGT(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldFallbackProxyID, v))
+}
+
+// FallbackProxyIDGTE applies the GTE predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDGTE(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldFallbackProxyID, v))
+}
+
+// FallbackProxyIDLT applies the LT predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDLT(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldFallbackProxyID, v))
+}
+
+// FallbackProxyIDLTE applies the LTE predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDLTE(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldFallbackProxyID, v))
+}
+
+// FallbackProxyIDIsNil applies the IsNil predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldFallbackProxyID))
+}
+
+// FallbackProxyIDNotNil applies the NotNil predicate on the "fallback_proxy_id" field.
+func FallbackProxyIDNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldFallbackProxyID))
 }
 
 // HasAccounts applies the HasEdge predicate on the "accounts" edge.

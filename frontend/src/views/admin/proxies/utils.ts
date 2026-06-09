@@ -87,6 +87,64 @@ export function formatProxyExportTimestamp(date = new Date()) {
   return `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}${pad2(date.getHours())}${pad2(date.getMinutes())}${pad2(date.getSeconds())}`
 }
 
+export type ProxyExpiryState = 'none' | 'active' | 'expiring' | 'expired'
+
+export interface ProxyLifecycleFormFields {
+  expires_at: string
+  expiry_remind_days: number
+  fallback_proxy_id: number | null
+}
+
+export function proxyExpiryState(proxy: Pick<Proxy, 'expires_at' | 'expiry_remind_days'>, now = new Date()): ProxyExpiryState {
+  if (!proxy.expires_at) return 'none'
+  const expiresAt = new Date(proxy.expires_at)
+  if (Number.isNaN(expiresAt.getTime())) return 'none'
+  if (expiresAt.getTime() <= now.getTime()) return 'expired'
+
+  const remindDays = Math.max(0, Number(proxy.expiry_remind_days || 0))
+  if (remindDays > 0) {
+    const remindAt = expiresAt.getTime() - remindDays * 24 * 60 * 60 * 1000
+    if (now.getTime() >= remindAt) return 'expiring'
+  }
+  return 'active'
+}
+
+export function formatProxyExpiryLabel(
+  proxy: Pick<Proxy, 'expires_at' | 'expiry_remind_days'>,
+  locale: string
+): string {
+  if (!proxy.expires_at) return '-'
+  const expiresAt = new Date(proxy.expires_at)
+  if (Number.isNaN(expiresAt.getTime())) return '-'
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(expiresAt)
+}
+
+export function toDatetimeLocalValue(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad2 = (part: number) => String(part).padStart(2, '0')
+  return [
+    date.getFullYear(),
+    pad2(date.getMonth() + 1),
+    pad2(date.getDate())
+  ].join('-') + `T${pad2(date.getHours())}:${pad2(date.getMinutes())}`
+}
+
+export function fromDatetimeLocalValue(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const date = new Date(trimmed)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString()
+}
+
 export function qualityStatusClass(status: string) {
   if (status === 'pass') return 'badge-success'
   if (status === 'warn') return 'badge-warning'

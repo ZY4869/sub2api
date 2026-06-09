@@ -195,6 +195,7 @@ type UpstreamFailoverError struct {
 	ResponseHeaders        http.Header
 	ForceCacheBilling      bool
 	RetryableOnSameAccount bool
+	TempUnscheduleAccount  bool
 }
 
 func (e *UpstreamFailoverError) Error() string {

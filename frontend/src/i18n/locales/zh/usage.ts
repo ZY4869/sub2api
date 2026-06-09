@@ -21,6 +21,8 @@ export default {
     todayCost: "\u4eca\u65e5\u6d88\u8d39",
     todayAvgDuration: "\u4eca\u65e5\u5e73\u5747\u8017\u65f6",
     cacheTokens: "\u7f13\u5b58",
+    cacheSplit: "\u5199\u5165 {write} / \u8bfb\u53d6 {read}",
+    cacheHitRate: "\u547d\u4e2d\u7387",
     userBilled: "\u7528\u6237\u6263\u8d39",
     accountBilled: "\u8d26\u53f7\u8ba1\u8d39",
     accountMultiplier: "\u8d26\u53f7\u500d\u7387",

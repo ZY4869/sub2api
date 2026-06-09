@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 )
 
@@ -79,14 +81,27 @@ func (s *AccountUsageService) buildUsageInfo(resp *ClaudeUsageResponse, updatedA
 
 // estimateSetupTokenUsage 根据session_window推算Setup Token账号的使用量
 func (s *AccountUsageService) estimateSetupTokenUsage(account *Account) *UsageInfo {
+	return s.estimateSetupTokenUsageWithContext(context.Background(), account)
+}
+
+func (s *AccountUsageService) estimateSetupTokenUsageWithContext(ctx context.Context, account *Account) *UsageInfo {
 	info := &UsageInfo{}
+	now := time.Now()
 
 	// 如果有session_window信息
 	if account.SessionWindowEnd != nil {
-		remaining := int(time.Until(*account.SessionWindowEnd).Seconds())
-		if remaining < 0 {
-			remaining = 0
+		if !now.Before(*account.SessionWindowEnd) {
+			s.clearExpiredSessionWindow(ctx, account)
+			account.SessionWindowStart = nil
+			account.SessionWindowEnd = nil
+			account.SessionWindowStatus = ""
+			info.FiveHour = &UsageProgress{
+				Utilization:      0,
+				RemainingSeconds: 0,
+			}
+			return info
 		}
+		remaining := int(account.SessionWindowEnd.Sub(now).Seconds())
 
 		// 优先使用响应头中存储的真实 utilization 值（0-1 小数，转为 0-100 百分比）
 		var utilization float64
@@ -129,4 +144,18 @@ func (s *AccountUsageService) estimateSetupTokenUsage(account *Account) *UsageIn
 
 	// Setup Token无法获取7d数据
 	return info
+}
+
+func (s *AccountUsageService) clearExpiredSessionWindow(ctx context.Context, account *Account) {
+	if s == nil || s.accountRepo == nil || account == nil || account.ID <= 0 {
+		return
+	}
+	if err := s.accountRepo.UpdateSessionWindow(ctx, account.ID, nil, nil, ""); err != nil {
+		slog.Warn("account_usage_clear_expired_session_window_failed", "account_id", account.ID, "error", err)
+	}
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{
+		"session_window_utilization": nil,
+	}); err != nil {
+		slog.Warn("account_usage_clear_expired_session_window_extra_failed", "account_id", account.ID, "error", err)
+	}
 }

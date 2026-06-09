@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,47 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
+
+func TestForwardResponsesAsChatCompletions_TransportErrorReturnsFailover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	body := []byte(`{"model":"gpt-4o","input":"hi","stream":false}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(string(body)))
+
+	svc := &OpenAIGatewayService{
+		httpUpstream:         &httpUpstreamRecorder{err: errors.New("proxy connect failed")},
+		cfg:                  &config.Config{},
+		toolCorrector:        NewCodexToolCorrector(),
+		responseHeaderFilter: compileResponseHeaderFilter(&config.Config{}),
+	}
+	account := &Account{
+		ID:          3001,
+		Name:        "protocol-gateway-openai-chat",
+		Platform:    PlatformProtocolGateway,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://api.openai.com",
+		},
+		Extra: map[string]any{
+			"gateway_protocol":              GatewayProtocolOpenAI,
+			"gateway_openai_request_format": GatewayOpenAIRequestFormatChatCompletions,
+		},
+	}
+
+	result, err := svc.ForwardResponsesAsChatCompletions(context.Background(), c, account, body, "")
+	require.Error(t, err)
+	require.Nil(t, result)
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.True(t, failoverErr.TempUnscheduleAccount)
+	require.False(t, failoverErr.RetryableOnSameAccount)
+	require.Empty(t, rec.Body.String())
+	require.Empty(t, rec.Result().Header.Get("Content-Type"))
+}
 
 func TestForwardResponsesAsChatCompletions_UsesChatUpstreamAndReturnsResponses(t *testing.T) {
 	gin.SetMode(gin.TestMode)

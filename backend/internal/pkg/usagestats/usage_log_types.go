@@ -278,8 +278,11 @@ type UsageStats struct {
 	TotalRequests             int64               `json:"total_requests"`
 	TotalInputTokens          int64               `json:"total_input_tokens"`
 	TotalOutputTokens         int64               `json:"total_output_tokens"`
+	TotalCacheCreationTokens  int64               `json:"total_cache_creation_tokens"`
+	TotalCacheReadTokens      int64               `json:"total_cache_read_tokens"`
 	TotalCacheTokens          int64               `json:"total_cache_tokens"`
 	TotalTokens               int64               `json:"total_tokens"`
+	CacheHitRate              float64             `json:"cache_hit_rate"`
 	TotalCost                 float64             `json:"total_cost"`
 	TotalActualCost           float64             `json:"total_actual_cost"`
 	CostByCurrency            map[string]float64  `json:"cost_by_currency,omitempty"`
@@ -289,8 +292,11 @@ type UsageStats struct {
 	TodayRequests             int64               `json:"today_requests"`
 	TodayInputTokens          int64               `json:"today_input_tokens"`
 	TodayOutputTokens         int64               `json:"today_output_tokens"`
+	TodayCacheCreationTokens  int64               `json:"today_cache_creation_tokens"`
+	TodayCacheReadTokens      int64               `json:"today_cache_read_tokens"`
 	TodayCacheTokens          int64               `json:"today_cache_tokens"`
 	TodayTokens               int64               `json:"today_tokens"`
+	TodayCacheHitRate         float64             `json:"today_cache_hit_rate"`
 	TodayCost                 float64             `json:"today_cost"`
 	TodayActualCost           float64             `json:"today_actual_cost"`
 	TodayCostByCurrency       map[string]float64  `json:"today_cost_by_currency,omitempty"`

@@ -2,9 +2,11 @@ package admin
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
@@ -32,23 +34,29 @@ func NewProxyHandler(adminService service.AdminService) *ProxyHandler {
 
 // CreateProxyRequest represents create proxy request
 type CreateProxyRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Protocol string `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
-	Host     string `json:"host" binding:"required"`
-	Port     int    `json:"port" binding:"required,min=1,max=65535"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Name             string     `json:"name" binding:"required"`
+	Protocol         string     `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
+	Host             string     `json:"host" binding:"required"`
+	Port             int        `json:"port" binding:"required,min=1,max=65535"`
+	Username         string     `json:"username"`
+	Password         string     `json:"password"`
+	ExpiresAt        *time.Time `json:"expires_at"`
+	ExpiryRemindDays int        `json:"expiry_remind_days" binding:"omitempty,min=0,max=3650"`
+	FallbackProxyID  *int64     `json:"fallback_proxy_id"`
 }
 
 // UpdateProxyRequest represents update proxy request
 type UpdateProxyRequest struct {
-	Name     string `json:"name"`
-	Protocol string `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
-	Host     string `json:"host"`
-	Port     int    `json:"port" binding:"omitempty,min=1,max=65535"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Status   string `json:"status" binding:"omitempty,oneof=active inactive"`
+	Name             string          `json:"name"`
+	Protocol         string          `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
+	Host             string          `json:"host"`
+	Port             int             `json:"port" binding:"omitempty,min=1,max=65535"`
+	Username         string          `json:"username"`
+	Password         string          `json:"password"`
+	Status           string          `json:"status" binding:"omitempty,oneof=active inactive"`
+	ExpiresAt        json.RawMessage `json:"expires_at"`
+	ExpiryRemindDays *int            `json:"expiry_remind_days" binding:"omitempty,min=0,max=3650"`
+	FallbackProxyID  json.RawMessage `json:"fallback_proxy_id"`
 }
 
 // List handles listing all proxies with pagination
@@ -139,12 +147,15 @@ func (h *ProxyHandler) Create(c *gin.Context) {
 
 	executeAdminIdempotentJSON(c, "admin.proxies.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		proxy, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
-			Name:     strings.TrimSpace(req.Name),
-			Protocol: strings.TrimSpace(req.Protocol),
-			Host:     strings.TrimSpace(req.Host),
-			Port:     req.Port,
-			Username: strings.TrimSpace(req.Username),
-			Password: strings.TrimSpace(req.Password),
+			Name:             strings.TrimSpace(req.Name),
+			Protocol:         strings.TrimSpace(req.Protocol),
+			Host:             strings.TrimSpace(req.Host),
+			Port:             req.Port,
+			Username:         strings.TrimSpace(req.Username),
+			Password:         strings.TrimSpace(req.Password),
+			ExpiresAt:        req.ExpiresAt,
+			ExpiryRemindDays: req.ExpiryRemindDays,
+			FallbackProxyID:  req.FallbackProxyID,
 		})
 		if err != nil {
 			return nil, err
@@ -168,14 +179,30 @@ func (h *ProxyHandler) Update(c *gin.Context) {
 		return
 	}
 
+	expiresAt, expiresAtSet, err := parseNullableTimeField(req.ExpiresAt)
+	if err != nil {
+		response.BadRequest(c, "Invalid expires_at")
+		return
+	}
+	fallbackProxyID, fallbackProxySet, err := parseNullableInt64Field(req.FallbackProxyID)
+	if err != nil {
+		response.BadRequest(c, "Invalid fallback_proxy_id")
+		return
+	}
+
 	proxy, err := h.adminService.UpdateProxy(c.Request.Context(), proxyID, &service.UpdateProxyInput{
-		Name:     strings.TrimSpace(req.Name),
-		Protocol: strings.TrimSpace(req.Protocol),
-		Host:     strings.TrimSpace(req.Host),
-		Port:     req.Port,
-		Username: strings.TrimSpace(req.Username),
-		Password: strings.TrimSpace(req.Password),
-		Status:   strings.TrimSpace(req.Status),
+		Name:             strings.TrimSpace(req.Name),
+		Protocol:         strings.TrimSpace(req.Protocol),
+		Host:             strings.TrimSpace(req.Host),
+		Port:             req.Port,
+		Username:         strings.TrimSpace(req.Username),
+		Password:         strings.TrimSpace(req.Password),
+		Status:           strings.TrimSpace(req.Status),
+		ExpiresAt:        expiresAt,
+		ExpiresAtSet:     expiresAtSet,
+		ExpiryRemindDays: req.ExpiryRemindDays,
+		FallbackProxyID:  fallbackProxyID,
+		FallbackProxySet: fallbackProxySet,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -183,6 +210,54 @@ func (h *ProxyHandler) Update(c *gin.Context) {
 	}
 
 	response.Success(c, dto.ProxyFromServiceAdmin(proxy))
+}
+
+func parseNullableTimeField(raw json.RawMessage) (*time.Time, bool, error) {
+	if len(raw) == 0 {
+		return nil, false, nil
+	}
+	if strings.EqualFold(strings.TrimSpace(string(raw)), "null") {
+		return nil, true, nil
+	}
+	var value time.Time
+	if err := json.Unmarshal(raw, &value); err != nil {
+		var text string
+		if textErr := json.Unmarshal(raw, &text); textErr != nil {
+			return nil, true, err
+		}
+		if strings.TrimSpace(text) == "" {
+			return nil, true, nil
+		}
+		parsed, parseErr := time.Parse(time.RFC3339, strings.TrimSpace(text))
+		if parseErr != nil {
+			return nil, true, parseErr
+		}
+		value = parsed
+	}
+	utc := value.UTC()
+	return &utc, true, nil
+}
+
+func parseNullableInt64Field(raw json.RawMessage) (*int64, bool, error) {
+	if len(raw) == 0 {
+		return nil, false, nil
+	}
+	if strings.EqualFold(strings.TrimSpace(string(raw)), "null") {
+		return nil, true, nil
+	}
+	var value int64
+	if err := json.Unmarshal(raw, &value); err != nil {
+		var text string
+		if textErr := json.Unmarshal(raw, &text); textErr != nil {
+			return nil, true, err
+		}
+		parsed, parseErr := strconv.ParseInt(strings.TrimSpace(text), 10, 64)
+		if parseErr != nil {
+			return nil, true, parseErr
+		}
+		value = parsed
+	}
+	return &value, true, nil
 }
 
 // Delete handles deleting a proxy

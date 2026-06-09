@@ -934,3 +934,22 @@ func (s *adminServiceImpl) SetAccountSchedulable(ctx context.Context, id int64, 
 	}
 	return updated, nil
 }
+
+func (s *adminServiceImpl) RestoreAccountOriginalProxy(ctx context.Context, id int64) (*AccountProxyRestoreResult, error) {
+	repo, ok := s.accountRepo.(AccountProxyFallbackRepository)
+	if !ok || repo == nil {
+		return nil, ErrProxyOriginalNotFound
+	}
+	result, err := repo.RestoreAccountOriginalProxy(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	logger.LegacyPrintf(
+		"service.admin.account",
+		"restore original proxy account=%d restored_proxy=%d previous_fallback=%v",
+		id,
+		result.RestoredProxyID,
+		result.PreviousFallbackID,
+	)
+	return result, nil
+}

@@ -43,20 +43,33 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 			return
 		}
 	}
+	proxies, err = h.expandFallbackExportProxies(ctx, proxies)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 
 	dataProxies := make([]DataProxy, 0, len(proxies))
+	proxyKeyByID := make(map[int64]string, len(proxies))
 	for i := range proxies {
 		p := proxies[i]
-		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
+		proxyKeyByID[p.ID] = buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
+	}
+	for i := range proxies {
+		p := proxies[i]
+		key := proxyKeyByID[p.ID]
 		dataProxies = append(dataProxies, DataProxy{
-			ProxyKey: key,
-			Name:     p.Name,
-			Protocol: p.Protocol,
-			Host:     p.Host,
-			Port:     p.Port,
-			Username: p.Username,
-			Password: p.Password,
-			Status:   p.Status,
+			ProxyKey:         key,
+			Name:             p.Name,
+			Protocol:         p.Protocol,
+			Host:             p.Host,
+			Port:             p.Port,
+			Username:         p.Username,
+			Password:         p.Password,
+			Status:           p.Status,
+			ExpiresAt:        p.ExpiresAt,
+			ExpiryRemindDays: p.ExpiryRemindDays,
+			FallbackProxyKey: proxyFallbackKey(p.FallbackProxyID, proxyKeyByID),
 		})
 	}
 
@@ -67,6 +80,37 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 	}
 
 	response.Success(c, payload)
+}
+
+func (h *ProxyHandler) expandFallbackExportProxies(ctx context.Context, proxies []service.Proxy) ([]service.Proxy, error) {
+	seen := make(map[int64]struct{}, len(proxies))
+	for i := range proxies {
+		if proxies[i].ID > 0 {
+			seen[proxies[i].ID] = struct{}{}
+		}
+	}
+	for {
+		ids := make([]int64, 0)
+		for i := range proxies {
+			fallbackID := proxies[i].FallbackProxyID
+			if fallbackID == nil || *fallbackID <= 0 {
+				continue
+			}
+			if _, ok := seen[*fallbackID]; ok {
+				continue
+			}
+			seen[*fallbackID] = struct{}{}
+			ids = append(ids, *fallbackID)
+		}
+		if len(ids) == 0 {
+			return proxies, nil
+		}
+		batch, err := h.getProxiesByIDs(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		proxies = append(proxies, batch...)
+	}
 }
 
 // ImportData imports proxy-only data for migration.
@@ -134,17 +178,33 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 					})
 				}
 			}
+			if item.ExpiresAt != nil || item.ExpiryRemindDays > 0 {
+				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, &service.UpdateProxyInput{
+					ExpiresAt:        item.ExpiresAt,
+					ExpiresAtSet:     item.ExpiresAt != nil,
+					ExpiryRemindDays: &item.ExpiryRemindDays,
+				}); err != nil {
+					result.Errors = append(result.Errors, DataImportError{
+						Kind:     "proxy",
+						Name:     item.Name,
+						ProxyKey: key,
+						Message:  "update expiry failed: " + err.Error(),
+					})
+				}
+			}
 			latencyProbeIDs = append(latencyProbeIDs, existing.ID)
 			continue
 		}
 
 		created, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
-			Name:     defaultProxyName(item.Name),
-			Protocol: item.Protocol,
-			Host:     item.Host,
-			Port:     item.Port,
-			Username: item.Username,
-			Password: item.Password,
+			Name:             defaultProxyName(item.Name),
+			Protocol:         item.Protocol,
+			Host:             item.Host,
+			Port:             item.Port,
+			Username:         item.Username,
+			Password:         item.Password,
+			ExpiresAt:        item.ExpiresAt,
+			ExpiryRemindDays: item.ExpiryRemindDays,
 		})
 		if err != nil {
 			result.ProxyFailed++
@@ -170,6 +230,42 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 			}
 		}
 		// CreateProxy already triggers a latency probe, avoid double probing here.
+	}
+
+	for i := range req.Data.Proxies {
+		item := req.Data.Proxies[i]
+		if strings.TrimSpace(item.FallbackProxyKey) == "" {
+			continue
+		}
+		key := item.ProxyKey
+		if key == "" {
+			key = buildProxyKey(item.Protocol, item.Host, item.Port, item.Username, item.Password)
+		}
+		proxy, ok := proxyByKey[key]
+		if !ok {
+			continue
+		}
+		fallback, ok := proxyByKey[strings.TrimSpace(item.FallbackProxyKey)]
+		if !ok {
+			result.Errors = append(result.Errors, DataImportError{
+				Kind:     "proxy",
+				Name:     item.Name,
+				ProxyKey: key,
+				Message:  "fallback_proxy_key not found",
+			})
+			continue
+		}
+		if _, err := h.adminService.UpdateProxy(ctx, proxy.ID, &service.UpdateProxyInput{
+			FallbackProxyID:  &fallback.ID,
+			FallbackProxySet: true,
+		}); err != nil {
+			result.Errors = append(result.Errors, DataImportError{
+				Kind:     "proxy",
+				Name:     item.Name,
+				ProxyKey: key,
+				Message:  "update fallback failed: " + err.Error(),
+			})
+		}
 	}
 
 	if len(latencyProbeIDs) > 0 {

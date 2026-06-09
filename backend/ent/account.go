@@ -39,6 +39,10 @@ type Account struct {
 	Extra map[string]interface{} `json:"extra,omitempty"`
 	// ProxyID holds the value of the "proxy_id" field.
 	ProxyID *int64 `json:"proxy_id,omitempty"`
+	// OriginalProxyID holds the value of the "original_proxy_id" field.
+	OriginalProxyID *int64 `json:"original_proxy_id,omitempty"`
+	// OriginalProxyName holds the value of the "original_proxy_name" field.
+	OriginalProxyName *string `json:"original_proxy_name,omitempty"`
 	// Concurrency holds the value of the "concurrency" field.
 	Concurrency int `json:"concurrency,omitempty"`
 	// LoadFactor holds the value of the "load_factor" field.
@@ -159,9 +163,9 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case account.FieldRateMultiplier:
 			values[i] = new(sql.NullFloat64)
-		case account.FieldID, account.FieldProxyID, account.FieldConcurrency, account.FieldLoadFactor, account.FieldPriority:
+		case account.FieldID, account.FieldProxyID, account.FieldOriginalProxyID, account.FieldConcurrency, account.FieldLoadFactor, account.FieldPriority:
 			values[i] = new(sql.NullInt64)
-		case account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldStatus, account.FieldLifecycleState, account.FieldLifecycleReasonCode, account.FieldLifecycleReasonMessage, account.FieldErrorMessage, account.FieldAutoRenewPeriod, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus:
+		case account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldOriginalProxyName, account.FieldStatus, account.FieldLifecycleState, account.FieldLifecycleReasonCode, account.FieldLifecycleReasonMessage, account.FieldErrorMessage, account.FieldAutoRenewPeriod, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus:
 			values[i] = new(sql.NullString)
 		case account.FieldCreatedAt, account.FieldUpdatedAt, account.FieldDeletedAt, account.FieldBlacklistedAt, account.FieldBlacklistPurgeAt, account.FieldLastUsedAt, account.FieldExpiresAt, account.FieldRateLimitedAt, account.FieldRateLimitResetAt, account.FieldOverloadUntil, account.FieldTempUnschedulableUntil, account.FieldSessionWindowStart, account.FieldSessionWindowEnd:
 			values[i] = new(sql.NullTime)
@@ -252,6 +256,20 @@ func (_m *Account) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ProxyID = new(int64)
 				*_m.ProxyID = value.Int64
+			}
+		case account.FieldOriginalProxyID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field original_proxy_id", values[i])
+			} else if value.Valid {
+				_m.OriginalProxyID = new(int64)
+				*_m.OriginalProxyID = value.Int64
+			}
+		case account.FieldOriginalProxyName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field original_proxy_name", values[i])
+			} else if value.Valid {
+				_m.OriginalProxyName = new(string)
+				*_m.OriginalProxyName = value.String
 			}
 		case account.FieldConcurrency:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -509,6 +527,16 @@ func (_m *Account) String() string {
 	if v := _m.ProxyID; v != nil {
 		builder.WriteString("proxy_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.OriginalProxyID; v != nil {
+		builder.WriteString("original_proxy_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.OriginalProxyName; v != nil {
+		builder.WriteString("original_proxy_name=")
+		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
 	builder.WriteString("concurrency=")

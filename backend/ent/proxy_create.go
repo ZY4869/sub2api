@@ -131,6 +131,48 @@ func (_c *ProxyCreate) SetNillableStatus(v *string) *ProxyCreate {
 	return _c
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (_c *ProxyCreate) SetExpiresAt(v time.Time) *ProxyCreate {
+	_c.mutation.SetExpiresAt(v)
+	return _c
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableExpiresAt(v *time.Time) *ProxyCreate {
+	if v != nil {
+		_c.SetExpiresAt(*v)
+	}
+	return _c
+}
+
+// SetExpiryRemindDays sets the "expiry_remind_days" field.
+func (_c *ProxyCreate) SetExpiryRemindDays(v int) *ProxyCreate {
+	_c.mutation.SetExpiryRemindDays(v)
+	return _c
+}
+
+// SetNillableExpiryRemindDays sets the "expiry_remind_days" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableExpiryRemindDays(v *int) *ProxyCreate {
+	if v != nil {
+		_c.SetExpiryRemindDays(*v)
+	}
+	return _c
+}
+
+// SetFallbackProxyID sets the "fallback_proxy_id" field.
+func (_c *ProxyCreate) SetFallbackProxyID(v int64) *ProxyCreate {
+	_c.mutation.SetFallbackProxyID(v)
+	return _c
+}
+
+// SetNillableFallbackProxyID sets the "fallback_proxy_id" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableFallbackProxyID(v *int64) *ProxyCreate {
+	if v != nil {
+		_c.SetFallbackProxyID(*v)
+	}
+	return _c
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
 func (_c *ProxyCreate) AddAccountIDs(ids ...int64) *ProxyCreate {
 	_c.mutation.AddAccountIDs(ids...)
@@ -201,6 +243,10 @@ func (_c *ProxyCreate) defaults() error {
 		v := proxy.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.ExpiryRemindDays(); !ok {
+		v := proxy.DefaultExpiryRemindDays
+		_c.mutation.SetExpiryRemindDays(v)
+	}
 	return nil
 }
 
@@ -255,6 +301,14 @@ func (_c *ProxyCreate) check() error {
 	if v, ok := _c.mutation.Status(); ok {
 		if err := proxy.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Proxy.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ExpiryRemindDays(); !ok {
+		return &ValidationError{Name: "expiry_remind_days", err: errors.New(`ent: missing required field "Proxy.expiry_remind_days"`)}
+	}
+	if v, ok := _c.mutation.ExpiryRemindDays(); ok {
+		if err := proxy.ExpiryRemindDaysValidator(v); err != nil {
+			return &ValidationError{Name: "expiry_remind_days", err: fmt.Errorf(`ent: validator failed for field "Proxy.expiry_remind_days": %w`, err)}
 		}
 	}
 	return nil
@@ -323,6 +377,18 @@ func (_c *ProxyCreate) createSpec() (*Proxy, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(proxy.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.ExpiresAt(); ok {
+		_spec.SetField(proxy.FieldExpiresAt, field.TypeTime, value)
+		_node.ExpiresAt = &value
+	}
+	if value, ok := _c.mutation.ExpiryRemindDays(); ok {
+		_spec.SetField(proxy.FieldExpiryRemindDays, field.TypeInt, value)
+		_node.ExpiryRemindDays = value
+	}
+	if value, ok := _c.mutation.FallbackProxyID(); ok {
+		_spec.SetField(proxy.FieldFallbackProxyID, field.TypeInt64, value)
+		_node.FallbackProxyID = &value
 	}
 	if nodes := _c.mutation.AccountsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -524,6 +590,66 @@ func (u *ProxyUpsert) UpdateStatus() *ProxyUpsert {
 	return u
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (u *ProxyUpsert) SetExpiresAt(v time.Time) *ProxyUpsert {
+	u.Set(proxy.FieldExpiresAt, v)
+	return u
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateExpiresAt() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldExpiresAt)
+	return u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *ProxyUpsert) ClearExpiresAt() *ProxyUpsert {
+	u.SetNull(proxy.FieldExpiresAt)
+	return u
+}
+
+// SetExpiryRemindDays sets the "expiry_remind_days" field.
+func (u *ProxyUpsert) SetExpiryRemindDays(v int) *ProxyUpsert {
+	u.Set(proxy.FieldExpiryRemindDays, v)
+	return u
+}
+
+// UpdateExpiryRemindDays sets the "expiry_remind_days" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateExpiryRemindDays() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldExpiryRemindDays)
+	return u
+}
+
+// AddExpiryRemindDays adds v to the "expiry_remind_days" field.
+func (u *ProxyUpsert) AddExpiryRemindDays(v int) *ProxyUpsert {
+	u.Add(proxy.FieldExpiryRemindDays, v)
+	return u
+}
+
+// SetFallbackProxyID sets the "fallback_proxy_id" field.
+func (u *ProxyUpsert) SetFallbackProxyID(v int64) *ProxyUpsert {
+	u.Set(proxy.FieldFallbackProxyID, v)
+	return u
+}
+
+// UpdateFallbackProxyID sets the "fallback_proxy_id" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateFallbackProxyID() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldFallbackProxyID)
+	return u
+}
+
+// AddFallbackProxyID adds v to the "fallback_proxy_id" field.
+func (u *ProxyUpsert) AddFallbackProxyID(v int64) *ProxyUpsert {
+	u.Add(proxy.FieldFallbackProxyID, v)
+	return u
+}
+
+// ClearFallbackProxyID clears the value of the "fallback_proxy_id" field.
+func (u *ProxyUpsert) ClearFallbackProxyID() *ProxyUpsert {
+	u.SetNull(proxy.FieldFallbackProxyID)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -720,6 +846,76 @@ func (u *ProxyUpsertOne) SetStatus(v string) *ProxyUpsertOne {
 func (u *ProxyUpsertOne) UpdateStatus() *ProxyUpsertOne {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (u *ProxyUpsertOne) SetExpiresAt(v time.Time) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExpiresAt(v)
+	})
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateExpiresAt() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExpiresAt()
+	})
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *ProxyUpsertOne) ClearExpiresAt() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearExpiresAt()
+	})
+}
+
+// SetExpiryRemindDays sets the "expiry_remind_days" field.
+func (u *ProxyUpsertOne) SetExpiryRemindDays(v int) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExpiryRemindDays(v)
+	})
+}
+
+// AddExpiryRemindDays adds v to the "expiry_remind_days" field.
+func (u *ProxyUpsertOne) AddExpiryRemindDays(v int) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.AddExpiryRemindDays(v)
+	})
+}
+
+// UpdateExpiryRemindDays sets the "expiry_remind_days" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateExpiryRemindDays() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExpiryRemindDays()
+	})
+}
+
+// SetFallbackProxyID sets the "fallback_proxy_id" field.
+func (u *ProxyUpsertOne) SetFallbackProxyID(v int64) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetFallbackProxyID(v)
+	})
+}
+
+// AddFallbackProxyID adds v to the "fallback_proxy_id" field.
+func (u *ProxyUpsertOne) AddFallbackProxyID(v int64) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.AddFallbackProxyID(v)
+	})
+}
+
+// UpdateFallbackProxyID sets the "fallback_proxy_id" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateFallbackProxyID() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateFallbackProxyID()
+	})
+}
+
+// ClearFallbackProxyID clears the value of the "fallback_proxy_id" field.
+func (u *ProxyUpsertOne) ClearFallbackProxyID() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearFallbackProxyID()
 	})
 }
 
@@ -1085,6 +1281,76 @@ func (u *ProxyUpsertBulk) SetStatus(v string) *ProxyUpsertBulk {
 func (u *ProxyUpsertBulk) UpdateStatus() *ProxyUpsertBulk {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (u *ProxyUpsertBulk) SetExpiresAt(v time.Time) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExpiresAt(v)
+	})
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateExpiresAt() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExpiresAt()
+	})
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *ProxyUpsertBulk) ClearExpiresAt() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearExpiresAt()
+	})
+}
+
+// SetExpiryRemindDays sets the "expiry_remind_days" field.
+func (u *ProxyUpsertBulk) SetExpiryRemindDays(v int) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetExpiryRemindDays(v)
+	})
+}
+
+// AddExpiryRemindDays adds v to the "expiry_remind_days" field.
+func (u *ProxyUpsertBulk) AddExpiryRemindDays(v int) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.AddExpiryRemindDays(v)
+	})
+}
+
+// UpdateExpiryRemindDays sets the "expiry_remind_days" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateExpiryRemindDays() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateExpiryRemindDays()
+	})
+}
+
+// SetFallbackProxyID sets the "fallback_proxy_id" field.
+func (u *ProxyUpsertBulk) SetFallbackProxyID(v int64) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetFallbackProxyID(v)
+	})
+}
+
+// AddFallbackProxyID adds v to the "fallback_proxy_id" field.
+func (u *ProxyUpsertBulk) AddFallbackProxyID(v int64) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.AddFallbackProxyID(v)
+	})
+}
+
+// UpdateFallbackProxyID sets the "fallback_proxy_id" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateFallbackProxyID() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateFallbackProxyID()
+	})
+}
+
+// ClearFallbackProxyID clears the value of the "fallback_proxy_id" field.
+func (u *ProxyUpsertBulk) ClearFallbackProxyID() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.ClearFallbackProxyID()
 	})
 }
 

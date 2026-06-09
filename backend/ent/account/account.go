@@ -35,6 +35,10 @@ const (
 	FieldExtra = "extra"
 	// FieldProxyID holds the string denoting the proxy_id field in the database.
 	FieldProxyID = "proxy_id"
+	// FieldOriginalProxyID holds the string denoting the original_proxy_id field in the database.
+	FieldOriginalProxyID = "original_proxy_id"
+	// FieldOriginalProxyName holds the string denoting the original_proxy_name field in the database.
+	FieldOriginalProxyName = "original_proxy_name"
 	// FieldConcurrency holds the string denoting the concurrency field in the database.
 	FieldConcurrency = "concurrency"
 	// FieldLoadFactor holds the string denoting the load_factor field in the database.
@@ -136,6 +140,8 @@ var Columns = []string{
 	FieldCredentials,
 	FieldExtra,
 	FieldProxyID,
+	FieldOriginalProxyID,
+	FieldOriginalProxyName,
 	FieldConcurrency,
 	FieldLoadFactor,
 	FieldPriority,
@@ -279,6 +285,16 @@ func ByType(opts ...sql.OrderTermOption) OrderOption {
 // ByProxyID orders the results by the proxy_id field.
 func ByProxyID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProxyID, opts...).ToFunc()
+}
+
+// ByOriginalProxyID orders the results by the original_proxy_id field.
+func ByOriginalProxyID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOriginalProxyID, opts...).ToFunc()
+}
+
+// ByOriginalProxyName orders the results by the original_proxy_name field.
+func ByOriginalProxyName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOriginalProxyName, opts...).ToFunc()
 }
 
 // ByConcurrency orders the results by the concurrency field.

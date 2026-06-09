@@ -122,6 +122,39 @@ func TestResolveSelectedAPIKey_PublicCatalogEntryPinsMatchedGroup(t *testing.T) 
 	}
 }
 
+func TestEnforcePublicCatalogBindingGroupRejectsUnauthorizedExclusiveGroup(t *testing.T) {
+	t.Parallel()
+
+	ctx := service.AttachPublishedPublicCatalogEntry(context.Background(), &service.PublishedPublicCatalogEntry{
+		EntryID:        "entry-exclusive",
+		PublicModelID:  "gpt-5.4@team-a",
+		BindingGroupID: 20,
+	})
+	apiKey := &service.APIKey{
+		ID:     7,
+		UserID: 9,
+		User:   &service.User{ID: 9, AllowedGroups: []int64{99}},
+		GroupBindings: []service.APIKeyGroupBinding{{
+			GroupID: 20,
+			Group: &service.Group{
+				ID:          20,
+				Name:        "exclusive-team-a",
+				Platform:    service.PlatformOpenAI,
+				Status:      service.StatusActive,
+				IsExclusive: true,
+			},
+		}},
+	}
+
+	selected, handled, err := enforcePublicCatalogBindingGroup(ctx, apiKey, nil)
+
+	require.Nil(t, selected)
+	require.True(t, handled)
+	require.Error(t, err)
+	require.True(t, infraerrors.IsForbidden(err))
+	require.Equal(t, "GROUP_ACCESS_DENIED", infraerrors.Reason(err))
+}
+
 func (s multiGroupRuntimeSettingRepoStub) GetValue(_ context.Context, key string) (string, error) {
 	if key == service.SettingKeyMultiGroupRoutingEnabled {
 		return s.value, nil

@@ -48,6 +48,7 @@ type AdminService interface {
 	ClearAccountError(ctx context.Context, id int64) (*Account, error)
 	SetAccountError(ctx context.Context, id int64, errorMsg string) error
 	SetAccountSchedulable(ctx context.Context, id int64, schedulable bool) (*Account, error)
+	RestoreAccountOriginalProxy(ctx context.Context, id int64) (*AccountProxyRestoreResult, error)
 	EnsureOpenAIPrivacy(ctx context.Context, account *Account) string
 	EnsureAntigravityPrivacy(ctx context.Context, account *Account) string
 	ForceOpenAIPrivacy(ctx context.Context, account *Account) string
@@ -269,21 +270,29 @@ type BulkUpdateAccountsResult struct {
 	Results    []BulkUpdateAccountResult `json:"results"`
 }
 type CreateProxyInput struct {
-	Name     string
-	Protocol string
-	Host     string
-	Port     int
-	Username string
-	Password string
+	Name             string
+	Protocol         string
+	Host             string
+	Port             int
+	Username         string
+	Password         string
+	ExpiresAt        *time.Time
+	ExpiryRemindDays int
+	FallbackProxyID  *int64
 }
 type UpdateProxyInput struct {
-	Name     string
-	Protocol string
-	Host     string
-	Port     int
-	Username string
-	Password string
-	Status   string
+	Name             string
+	Protocol         string
+	Host             string
+	Port             int
+	Username         string
+	Password         string
+	Status           string
+	ExpiresAt        *time.Time
+	ExpiresAtSet     bool
+	ExpiryRemindDays *int
+	FallbackProxyID  *int64
+	FallbackProxySet bool
 }
 type GenerateRedeemCodesInput struct {
 	Count        int

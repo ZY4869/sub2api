@@ -151,6 +151,53 @@ func (_u *AccountUpdate) ClearProxyID() *AccountUpdate {
 	return _u
 }
 
+// SetOriginalProxyID sets the "original_proxy_id" field.
+func (_u *AccountUpdate) SetOriginalProxyID(v int64) *AccountUpdate {
+	_u.mutation.ResetOriginalProxyID()
+	_u.mutation.SetOriginalProxyID(v)
+	return _u
+}
+
+// SetNillableOriginalProxyID sets the "original_proxy_id" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableOriginalProxyID(v *int64) *AccountUpdate {
+	if v != nil {
+		_u.SetOriginalProxyID(*v)
+	}
+	return _u
+}
+
+// AddOriginalProxyID adds value to the "original_proxy_id" field.
+func (_u *AccountUpdate) AddOriginalProxyID(v int64) *AccountUpdate {
+	_u.mutation.AddOriginalProxyID(v)
+	return _u
+}
+
+// ClearOriginalProxyID clears the value of the "original_proxy_id" field.
+func (_u *AccountUpdate) ClearOriginalProxyID() *AccountUpdate {
+	_u.mutation.ClearOriginalProxyID()
+	return _u
+}
+
+// SetOriginalProxyName sets the "original_proxy_name" field.
+func (_u *AccountUpdate) SetOriginalProxyName(v string) *AccountUpdate {
+	_u.mutation.SetOriginalProxyName(v)
+	return _u
+}
+
+// SetNillableOriginalProxyName sets the "original_proxy_name" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableOriginalProxyName(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetOriginalProxyName(*v)
+	}
+	return _u
+}
+
+// ClearOriginalProxyName clears the value of the "original_proxy_name" field.
+func (_u *AccountUpdate) ClearOriginalProxyName() *AccountUpdate {
+	_u.mutation.ClearOriginalProxyName()
+	return _u
+}
+
 // SetConcurrency sets the "concurrency" field.
 func (_u *AccountUpdate) SetConcurrency(v int) *AccountUpdate {
 	_u.mutation.ResetConcurrency()
@@ -842,6 +889,21 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Extra(); ok {
 		_spec.SetField(account.FieldExtra, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.OriginalProxyID(); ok {
+		_spec.SetField(account.FieldOriginalProxyID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedOriginalProxyID(); ok {
+		_spec.AddField(account.FieldOriginalProxyID, field.TypeInt64, value)
+	}
+	if _u.mutation.OriginalProxyIDCleared() {
+		_spec.ClearField(account.FieldOriginalProxyID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.OriginalProxyName(); ok {
+		_spec.SetField(account.FieldOriginalProxyName, field.TypeString, value)
+	}
+	if _u.mutation.OriginalProxyNameCleared() {
+		_spec.ClearField(account.FieldOriginalProxyName, field.TypeString)
+	}
 	if value, ok := _u.mutation.Concurrency(); ok {
 		_spec.SetField(account.FieldConcurrency, field.TypeInt, value)
 	}
@@ -1245,6 +1307,53 @@ func (_u *AccountUpdateOne) SetNillableProxyID(v *int64) *AccountUpdateOne {
 // ClearProxyID clears the value of the "proxy_id" field.
 func (_u *AccountUpdateOne) ClearProxyID() *AccountUpdateOne {
 	_u.mutation.ClearProxyID()
+	return _u
+}
+
+// SetOriginalProxyID sets the "original_proxy_id" field.
+func (_u *AccountUpdateOne) SetOriginalProxyID(v int64) *AccountUpdateOne {
+	_u.mutation.ResetOriginalProxyID()
+	_u.mutation.SetOriginalProxyID(v)
+	return _u
+}
+
+// SetNillableOriginalProxyID sets the "original_proxy_id" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableOriginalProxyID(v *int64) *AccountUpdateOne {
+	if v != nil {
+		_u.SetOriginalProxyID(*v)
+	}
+	return _u
+}
+
+// AddOriginalProxyID adds value to the "original_proxy_id" field.
+func (_u *AccountUpdateOne) AddOriginalProxyID(v int64) *AccountUpdateOne {
+	_u.mutation.AddOriginalProxyID(v)
+	return _u
+}
+
+// ClearOriginalProxyID clears the value of the "original_proxy_id" field.
+func (_u *AccountUpdateOne) ClearOriginalProxyID() *AccountUpdateOne {
+	_u.mutation.ClearOriginalProxyID()
+	return _u
+}
+
+// SetOriginalProxyName sets the "original_proxy_name" field.
+func (_u *AccountUpdateOne) SetOriginalProxyName(v string) *AccountUpdateOne {
+	_u.mutation.SetOriginalProxyName(v)
+	return _u
+}
+
+// SetNillableOriginalProxyName sets the "original_proxy_name" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableOriginalProxyName(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetOriginalProxyName(*v)
+	}
+	return _u
+}
+
+// ClearOriginalProxyName clears the value of the "original_proxy_name" field.
+func (_u *AccountUpdateOne) ClearOriginalProxyName() *AccountUpdateOne {
+	_u.mutation.ClearOriginalProxyName()
 	return _u
 }
 
@@ -1968,6 +2077,21 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.Extra(); ok {
 		_spec.SetField(account.FieldExtra, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.OriginalProxyID(); ok {
+		_spec.SetField(account.FieldOriginalProxyID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedOriginalProxyID(); ok {
+		_spec.AddField(account.FieldOriginalProxyID, field.TypeInt64, value)
+	}
+	if _u.mutation.OriginalProxyIDCleared() {
+		_spec.ClearField(account.FieldOriginalProxyID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.OriginalProxyName(); ok {
+		_spec.SetField(account.FieldOriginalProxyName, field.TypeString, value)
+	}
+	if _u.mutation.OriginalProxyNameCleared() {
+		_spec.ClearField(account.FieldOriginalProxyName, field.TypeString)
 	}
 	if value, ok := _u.mutation.Concurrency(); ok {
 		_spec.SetField(account.FieldConcurrency, field.TypeInt, value)

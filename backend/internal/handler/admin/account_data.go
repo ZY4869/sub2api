@@ -33,14 +33,17 @@ type DataPayload struct {
 }
 
 type DataProxy struct {
-	ProxyKey string `json:"proxy_key"`
-	Name     string `json:"name"`
-	Protocol string `json:"protocol"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Status   string `json:"status"`
+	ProxyKey         string     `json:"proxy_key"`
+	Name             string     `json:"name"`
+	Protocol         string     `json:"protocol"`
+	Host             string     `json:"host"`
+	Port             int        `json:"port"`
+	Username         string     `json:"username,omitempty"`
+	Password         string     `json:"password,omitempty"`
+	Status           string     `json:"status"`
+	ExpiresAt        *time.Time `json:"expires_at,omitempty"`
+	ExpiryRemindDays int        `json:"expiry_remind_days,omitempty"`
+	FallbackProxyKey string     `json:"fallback_proxy_key,omitempty"`
 }
 
 type DataAccount struct {
@@ -121,17 +124,23 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 	dataProxies := make([]DataProxy, 0, len(proxies))
 	for i := range proxies {
 		p := proxies[i]
-		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
-		proxyKeyByID[p.ID] = key
+		proxyKeyByID[p.ID] = buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
+	}
+	for i := range proxies {
+		p := proxies[i]
+		key := proxyKeyByID[p.ID]
 		dataProxies = append(dataProxies, DataProxy{
-			ProxyKey: key,
-			Name:     p.Name,
-			Protocol: p.Protocol,
-			Host:     p.Host,
-			Port:     p.Port,
-			Username: p.Username,
-			Password: p.Password,
-			Status:   p.Status,
+			ProxyKey:         key,
+			Name:             p.Name,
+			Protocol:         p.Protocol,
+			Host:             p.Host,
+			Port:             p.Port,
+			Username:         p.Username,
+			Password:         p.Password,
+			Status:           p.Status,
+			ExpiresAt:        p.ExpiresAt,
+			ExpiryRemindDays: p.ExpiryRemindDays,
+			FallbackProxyKey: proxyFallbackKey(p.FallbackProxyID, proxyKeyByID),
 		})
 	}
 
@@ -249,16 +258,32 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 					})
 				}
 			}
+			if item.ExpiresAt != nil || item.ExpiryRemindDays > 0 {
+				if _, err := h.adminService.UpdateProxy(ctx, existingID, &service.UpdateProxyInput{
+					ExpiresAt:        item.ExpiresAt,
+					ExpiresAtSet:     item.ExpiresAt != nil,
+					ExpiryRemindDays: &item.ExpiryRemindDays,
+				}); err != nil {
+					result.Errors = append(result.Errors, DataImportError{
+						Kind:     "proxy",
+						Name:     item.Name,
+						ProxyKey: key,
+						Message:  "update expiry failed: " + err.Error(),
+					})
+				}
+			}
 			continue
 		}
 
 		created, createErr := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
-			Name:     defaultProxyName(item.Name),
-			Protocol: item.Protocol,
-			Host:     item.Host,
-			Port:     item.Port,
-			Username: item.Username,
-			Password: item.Password,
+			Name:             defaultProxyName(item.Name),
+			Protocol:         item.Protocol,
+			Host:             item.Host,
+			Port:             item.Port,
+			Username:         item.Username,
+			Password:         item.Password,
+			ExpiresAt:        item.ExpiresAt,
+			ExpiryRemindDays: item.ExpiryRemindDays,
 		})
 		if createErr != nil {
 			result.ProxyFailed++
@@ -276,6 +301,42 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		if normalizedStatus != "" && normalizedStatus != created.Status {
 			_, _ = h.adminService.UpdateProxy(ctx, created.ID, &service.UpdateProxyInput{
 				Status: normalizedStatus,
+			})
+		}
+	}
+
+	for i := range dataPayload.Proxies {
+		item := dataPayload.Proxies[i]
+		if strings.TrimSpace(item.FallbackProxyKey) == "" {
+			continue
+		}
+		key := item.ProxyKey
+		if key == "" {
+			key = buildProxyKey(item.Protocol, item.Host, item.Port, item.Username, item.Password)
+		}
+		proxyID, ok := proxyKeyToID[key]
+		if !ok {
+			continue
+		}
+		fallbackID, ok := proxyKeyToID[strings.TrimSpace(item.FallbackProxyKey)]
+		if !ok {
+			result.Errors = append(result.Errors, DataImportError{
+				Kind:     "proxy",
+				Name:     item.Name,
+				ProxyKey: key,
+				Message:  "fallback_proxy_key not found",
+			})
+			continue
+		}
+		if _, err := h.adminService.UpdateProxy(ctx, proxyID, &service.UpdateProxyInput{
+			FallbackProxyID:  &fallbackID,
+			FallbackProxySet: true,
+		}); err != nil {
+			result.Errors = append(result.Errors, DataImportError{
+				Kind:     "proxy",
+				Name:     item.Name,
+				ProxyKey: key,
+				Message:  "update fallback failed: " + err.Error(),
 			})
 		}
 	}
@@ -437,7 +498,27 @@ func (h *AccountHandler) resolveExportProxies(ctx context.Context, accounts []se
 		return []service.Proxy{}, nil
 	}
 
-	return h.adminService.GetProxiesByIDs(ctx, ids)
+	proxies := make([]service.Proxy, 0, len(ids))
+	for len(ids) > 0 {
+		batch, err := h.adminService.GetProxiesByIDs(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		ids = ids[:0]
+		for i := range batch {
+			p := batch[i]
+			proxies = append(proxies, p)
+			if p.FallbackProxyID == nil || *p.FallbackProxyID <= 0 {
+				continue
+			}
+			if _, ok := seen[*p.FallbackProxyID]; ok {
+				continue
+			}
+			seen[*p.FallbackProxyID] = struct{}{}
+			ids = append(ids, *p.FallbackProxyID)
+		}
+	}
+	return proxies, nil
 }
 
 func parseAccountIDs(c *gin.Context) ([]int64, error) {
@@ -520,6 +601,9 @@ func validateDataProxy(item DataProxy) error {
 		if normalizedStatus != service.StatusActive && normalizedStatus != "inactive" {
 			return fmt.Errorf("proxy status is invalid: %s", item.Status)
 		}
+	}
+	if item.ExpiryRemindDays < 0 || item.ExpiryRemindDays > 3650 {
+		return errors.New("proxy expiry_remind_days must be between 0 and 3650")
 	}
 	return nil
 }
@@ -636,4 +720,11 @@ func normalizeProxyStatus(status string) string {
 	default:
 		return normalized
 	}
+}
+
+func proxyFallbackKey(fallbackProxyID *int64, proxyKeyByID map[int64]string) string {
+	if fallbackProxyID == nil || proxyKeyByID == nil {
+		return ""
+	}
+	return proxyKeyByID[*fallbackProxyID]
 }

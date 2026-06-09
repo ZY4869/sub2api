@@ -284,7 +284,7 @@ func setAPIKeyGroupContext(c *gin.Context, apiKey *service.APIKey) {
 	if len(apiKey.GroupBindings) > 0 {
 		groups := make([]*service.Group, 0, len(apiKey.GroupBindings))
 		for _, binding := range apiKey.GroupBindings {
-			if isUsableAPIKeyGroup(binding.Group) {
+			if isUsableAPIKeyGroupForAPIKey(apiKey, binding.Group) {
 				groups = append(groups, binding.Group)
 			}
 		}
@@ -294,10 +294,10 @@ func setAPIKeyGroupContext(c *gin.Context, apiKey *service.APIKey) {
 	}
 
 	group := apiKey.Group
-	if !isUsableAPIKeyGroup(group) && len(apiKey.GroupBindings) > 0 {
+	if !isUsableAPIKeyGroupForAPIKey(apiKey, group) && len(apiKey.GroupBindings) > 0 {
 		group = firstUsableAPIKeyBindingGroup(apiKey)
 	}
-	if isUsableAPIKeyGroup(group) {
+	if isUsableAPIKeyGroupForAPIKey(apiKey, group) {
 		ctx = context.WithValue(ctx, ctxkey.Group, group)
 	}
 	c.Request = c.Request.WithContext(ctx)
@@ -311,11 +311,11 @@ func apiKeyHasUsableGroup(apiKey *service.APIKey) bool {
 	if apiKey == nil {
 		return false
 	}
-	if isUsableAPIKeyGroup(apiKey.Group) {
+	if isUsableAPIKeyGroupForAPIKey(apiKey, apiKey.Group) {
 		return true
 	}
 	for _, binding := range apiKey.GroupBindings {
-		if isUsableAPIKeyGroup(binding.Group) {
+		if isUsableAPIKeyGroupForAPIKey(apiKey, binding.Group) {
 			return true
 		}
 	}
@@ -331,11 +331,15 @@ func firstUsableAPIKeyBindingGroup(apiKey *service.APIKey) *service.Group {
 		return nil
 	}
 	for _, binding := range apiKey.GroupBindings {
-		if isUsableAPIKeyGroup(binding.Group) {
+		if isUsableAPIKeyGroupForAPIKey(apiKey, binding.Group) {
 			return binding.Group
 		}
 	}
 	return nil
+}
+
+func isUsableAPIKeyGroupForAPIKey(apiKey *service.APIKey, group *service.Group) bool {
+	return isUsableAPIKeyGroup(group) && apiKey.UserCanAccessGroup(group)
 }
 
 func isUsableAPIKeyGroup(group *service.Group) bool {

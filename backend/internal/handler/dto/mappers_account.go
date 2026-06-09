@@ -58,6 +58,8 @@ func accountFromServiceBase(a *service.Account, now time.Time) *Account {
 		Credentials:             credentials,
 		Extra:                   a.Extra,
 		ProxyID:                 a.ProxyID,
+		OriginalProxyID:         a.OriginalProxyID,
+		OriginalProxyName:       a.OriginalProxyName,
 		Concurrency:             a.Concurrency,
 		LoadFactor:              a.LoadFactor,
 		Priority:                a.Priority,

@@ -37,6 +37,12 @@ type Proxy struct {
 	Password *string `json:"password,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// ExpiresAt holds the value of the "expires_at" field.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// ExpiryRemindDays holds the value of the "expiry_remind_days" field.
+	ExpiryRemindDays int `json:"expiry_remind_days,omitempty"`
+	// FallbackProxyID holds the value of the "fallback_proxy_id" field.
+	FallbackProxyID *int64 `json:"fallback_proxy_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ProxyQuery when eager-loading is set.
 	Edges        ProxyEdges `json:"edges"`
@@ -66,11 +72,11 @@ func (*Proxy) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case proxy.FieldID, proxy.FieldPort:
+		case proxy.FieldID, proxy.FieldPort, proxy.FieldExpiryRemindDays, proxy.FieldFallbackProxyID:
 			values[i] = new(sql.NullInt64)
 		case proxy.FieldName, proxy.FieldProtocol, proxy.FieldHost, proxy.FieldUsername, proxy.FieldPassword, proxy.FieldStatus:
 			values[i] = new(sql.NullString)
-		case proxy.FieldCreatedAt, proxy.FieldUpdatedAt, proxy.FieldDeletedAt:
+		case proxy.FieldCreatedAt, proxy.FieldUpdatedAt, proxy.FieldDeletedAt, proxy.FieldExpiresAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -156,6 +162,26 @@ func (_m *Proxy) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Status = value.String
 			}
+		case proxy.FieldExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expires_at", values[i])
+			} else if value.Valid {
+				_m.ExpiresAt = new(time.Time)
+				*_m.ExpiresAt = value.Time
+			}
+		case proxy.FieldExpiryRemindDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field expiry_remind_days", values[i])
+			} else if value.Valid {
+				_m.ExpiryRemindDays = int(value.Int64)
+			}
+		case proxy.FieldFallbackProxyID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field fallback_proxy_id", values[i])
+			} else if value.Valid {
+				_m.FallbackProxyID = new(int64)
+				*_m.FallbackProxyID = value.Int64
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -232,6 +258,19 @@ func (_m *Proxy) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	if v := _m.ExpiresAt; v != nil {
+		builder.WriteString("expires_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("expiry_remind_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ExpiryRemindDays))
+	builder.WriteString(", ")
+	if v := _m.FallbackProxyID; v != nil {
+		builder.WriteString("fallback_proxy_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

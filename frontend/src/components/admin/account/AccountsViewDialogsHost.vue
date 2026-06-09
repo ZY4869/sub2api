@@ -78,6 +78,7 @@
     @set-privacy="emit('set-privacy', $event)"
     @recover-state="emit('recover-state', $event)"
     @reset-quota="emit('reset-quota', $event)"
+    @restore-original-proxy="emit('restore-original-proxy', $event)"
     @import-models="emit('import-models', $event)"
     @blacklist="emit('blacklist', $event)"
   />
@@ -273,6 +274,7 @@ const emit = defineEmits<{
   'set-privacy': [account: Account]
   'recover-state': [account: Account]
   'reset-quota': [account: Account]
+  'restore-original-proxy': [account: Account]
   'import-models': [account: Account]
   blacklist: [account: Account]
   'test-blacklist': [payload: { account: Account; source: 'test_modal'; feedback?: BlacklistFeedbackPayload }]

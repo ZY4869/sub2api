@@ -169,6 +169,8 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		Credentials:             copyJSONMap(m.Credentials),
 		Extra:                   copyJSONMap(m.Extra),
 		ProxyID:                 m.ProxyID,
+		OriginalProxyID:         m.OriginalProxyID,
+		OriginalProxyName:       m.OriginalProxyName,
 		Concurrency:             m.Concurrency,
 		Priority:                m.Priority,
 		RateMultiplier:          &rateMultiplier,
@@ -198,6 +200,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		SessionWindowStatus:     derefString(m.SessionWindowStatus),
 	}
 }
+
 func normalizeJSONMap(in map[string]any) map[string]any {
 	if in == nil {
 		return map[string]any{}

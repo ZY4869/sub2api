@@ -1,0 +1,3 @@
+display_name: Sub2API Admin
+short_description: Operate Sub2API through the authenticated admin HTTP API.
+default_prompt: Check the Sub2API admin API health and summarize any safe next steps.

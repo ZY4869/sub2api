@@ -280,6 +280,24 @@ const handleResetQuota = async (a: Account) => {
     console.error("Failed to reset quota:", error);
   }
 };
+const handleRestoreOriginalProxy = async (a: Account) => {
+  try {
+    const result = await adminAPI.accounts.restoreOriginalProxy(a.id);
+    appStore.showSuccess(
+      t("admin.accounts.restoreOriginalProxySuccess", {
+        name: result.restored_proxy_name,
+      }),
+    );
+    await refreshListAndArchivedPanel();
+    refreshAccountSummarySafe();
+    enterAutoRefreshSilentWindow();
+  } catch (error: any) {
+    console.error("Failed to restore original proxy:", error);
+    appStore.showError(
+      error?.message || t("admin.accounts.restoreOriginalProxyFailed"),
+    );
+  }
+};
 const handleBlacklistAccount = async (a: Account) => {
   if (
     !window.confirm(t("admin.accounts.blacklist.addConfirm", { name: a.name }))
@@ -402,6 +420,7 @@ const handleTempUnschedReset = async (updated: Account) => {
     handleRecoverState,
     handleImportModels,
     handleResetQuota,
+    handleRestoreOriginalProxy,
     handleBlacklistAccount,
     handleTestBlacklistAccount,
     handleDelete,

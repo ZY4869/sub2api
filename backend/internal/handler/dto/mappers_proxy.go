@@ -7,15 +7,18 @@ func ProxyFromService(p *service.Proxy) *Proxy {
 		return nil
 	}
 	return &Proxy{
-		ID:        p.ID,
-		Name:      p.Name,
-		Protocol:  p.Protocol,
-		Host:      p.Host,
-		Port:      p.Port,
-		Username:  p.Username,
-		Status:    p.Status,
-		CreatedAt: p.CreatedAt,
-		UpdatedAt: p.UpdatedAt,
+		ID:               p.ID,
+		Name:             p.Name,
+		Protocol:         p.Protocol,
+		Host:             p.Host,
+		Port:             p.Port,
+		Username:         p.Username,
+		Status:           p.Status,
+		ExpiresAt:        p.ExpiresAt,
+		ExpiryRemindDays: p.ExpiryRemindDays,
+		FallbackProxyID:  p.FallbackProxyID,
+		CreatedAt:        p.CreatedAt,
+		UpdatedAt:        p.UpdatedAt,
 	}
 }
 
@@ -39,6 +42,19 @@ func ProxyWithAccountCountFromService(p *service.ProxyWithAccountCount) *ProxyWi
 		QualityGrade:   p.QualityGrade,
 		QualitySummary: p.QualitySummary,
 		QualityChecked: p.QualityChecked,
+	}
+}
+
+func AccountProxyRestoreResultFromService(result *service.AccountProxyRestoreResult) *AccountProxyRestoreResult {
+	if result == nil {
+		return nil
+	}
+	return &AccountProxyRestoreResult{
+		AccountID:            result.AccountID,
+		RestoredProxyID:      result.RestoredProxyID,
+		RestoredProxyName:    result.RestoredProxyName,
+		PreviousFallbackID:   result.PreviousFallbackID,
+		PreviousFallbackName: result.PreviousFallbackName,
 	}
 }
 

@@ -60,7 +60,21 @@ func (s *adminServiceImpl) CreateProxy(ctx context.Context, input *CreateProxyIn
 	if err := s.ValidateProxyEndpoint(ctx, input.Protocol, input.Host, input.Port); err != nil {
 		return nil, err
 	}
-	proxy := &Proxy{Name: input.Name, Protocol: input.Protocol, Host: input.Host, Port: input.Port, Username: input.Username, Password: input.Password, Status: StatusActive}
+	proxy := &Proxy{
+		Name:             input.Name,
+		Protocol:         input.Protocol,
+		Host:             input.Host,
+		Port:             input.Port,
+		Username:         input.Username,
+		Password:         input.Password,
+		Status:           StatusActive,
+		ExpiresAt:        normalizedProxyExpiryTime(input.ExpiresAt),
+		ExpiryRemindDays: input.ExpiryRemindDays,
+		FallbackProxyID:  normalizeProxyFallbackID(input.FallbackProxyID),
+	}
+	if err := s.validateProxyLifecycleConfig(ctx, proxy); err != nil {
+		return nil, err
+	}
 	if err := s.proxyRepo.Create(ctx, proxy); err != nil {
 		return nil, err
 	}
@@ -93,13 +107,61 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	if input.Status != "" {
 		proxy.Status = input.Status
 	}
+	if input.ExpiresAtSet {
+		proxy.ExpiresAt = normalizedProxyExpiryTime(input.ExpiresAt)
+	}
+	if input.ExpiryRemindDays != nil {
+		proxy.ExpiryRemindDays = *input.ExpiryRemindDays
+	}
+	if input.FallbackProxySet {
+		proxy.FallbackProxyID = normalizeProxyFallbackID(input.FallbackProxyID)
+	}
 	if err := ValidateProxyEndpointWithConfig(s.cfg, proxy.Protocol, proxy.Host, proxy.Port); err != nil {
+		return nil, err
+	}
+	if err := s.validateProxyLifecycleConfig(ctx, proxy); err != nil {
 		return nil, err
 	}
 	if err := s.proxyRepo.Update(ctx, proxy); err != nil {
 		return nil, err
 	}
 	return proxy, nil
+}
+
+func (s *adminServiceImpl) validateProxyLifecycleConfig(ctx context.Context, proxy *Proxy) error {
+	if err := validateProxyExpiry(proxy); err != nil {
+		return err
+	}
+	if proxy == nil || proxy.FallbackProxyID == nil {
+		return nil
+	}
+	if proxy.ID > 0 && *proxy.FallbackProxyID == proxy.ID {
+		return ErrProxyInvalidFallback
+	}
+	fallback, err := s.proxyRepo.GetByID(ctx, *proxy.FallbackProxyID)
+	if err != nil {
+		return ErrProxyInvalidFallback
+	}
+	if fallback == nil || fallback.Status != StatusActive {
+		return ErrProxyInvalidFallback
+	}
+	return nil
+}
+
+func normalizedProxyExpiryTime(value *time.Time) *time.Time {
+	if value == nil || value.IsZero() {
+		return nil
+	}
+	utc := value.UTC()
+	return &utc
+}
+
+func normalizeProxyFallbackID(value *int64) *int64 {
+	if value == nil || *value <= 0 {
+		return nil
+	}
+	v := *value
+	return &v
 }
 func (s *adminServiceImpl) DeleteProxy(ctx context.Context, id int64) error {
 	count, err := s.proxyRepo.CountAccountsByProxyID(ctx, id)

@@ -75,18 +75,7 @@ func (s *OpenAIGatewayService) forwardDeepSeekNativeChatCompletions(
 	}
 	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, DeepSeekEffectiveAccountConcurrency(account, prepared.mappedModel))
 	if err != nil {
-		safeErr := sanitizeUpstreamErrorMessage(err.Error())
-		setOpsUpstreamError(c, 0, safeErr, "")
-		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-			Platform:           RoutingPlatformForAccount(account),
-			AccountID:          account.ID,
-			AccountName:        account.Name,
-			UpstreamStatusCode: 0,
-			Kind:               "request_error",
-			Message:            safeErr,
-		})
-		writeChatCompletionsError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed", "")
-		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
+		return nil, newOpenAITransportFailoverError(c, account, err)
 	}
 	defer func() {
 		if resp != nil && resp.Body != nil {
@@ -236,18 +225,7 @@ func (s *OpenAIGatewayService) ForwardDeepSeekCompletions(
 	}
 	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, upstreamConcurrency)
 	if err != nil {
-		safeErr := sanitizeUpstreamErrorMessage(err.Error())
-		setOpsUpstreamError(c, 0, safeErr, "")
-		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-			Platform:           RoutingPlatformForAccount(account),
-			AccountID:          account.ID,
-			AccountName:        account.Name,
-			UpstreamStatusCode: 0,
-			Kind:               "request_error",
-			Message:            safeErr,
-		})
-		writeChatCompletionsError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed", "")
-		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
+		return nil, newOpenAITransportFailoverError(c, account, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 

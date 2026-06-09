@@ -8,6 +8,7 @@ import type {
   Account,
   AccountRuntimeSummary,
   AccountStatusSummary,
+  AccountProxyRestoreResult,
   ArchivedAccountGroupSummary,
   BatchArchiveAccountsRequest,
   BatchArchiveAccountsResult,
@@ -253,6 +254,13 @@ export async function create(accountData: CreateAccountRequest): Promise<Account
  */
 export async function update(id: number, updates: UpdateAccountRequest): Promise<Account> {
   const { data } = await apiClient.put<Account>(`/admin/accounts/${id}`, updates)
+  return data
+}
+
+export async function restoreOriginalProxy(id: number): Promise<AccountProxyRestoreResult> {
+  const { data } = await apiClient.post<AccountProxyRestoreResult>(
+    `/admin/accounts/${id}/restore-original-proxy`
+  )
   return data
 }
 
@@ -814,6 +822,7 @@ export const accountsAPI = {
   getById,
   create,
   update,
+  restoreOriginalProxy,
   getDaily5HTriggerSettings,
   updateDaily5HTriggerSettings,
   checkMixedChannelRisk,
