@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	AccountTodayStatsWindowToday  = "today"
-	AccountTodayStatsWindowWeekly = "weekly"
+	AccountTodayStatsWindowToday   = "today"
+	AccountTodayStatsWindowWeekly  = "weekly"
 	AccountTodayStatsWindowMonthly = "monthly"
-	AccountTodayStatsWindowTotal  = "total"
+	AccountTodayStatsWindowTotal   = "total"
 
 	AccountTodayStatsCycleModeCalendar = "calendar"
 	AccountTodayStatsCycleModeFixed    = "fixed"

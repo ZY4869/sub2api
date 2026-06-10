@@ -88,13 +88,13 @@ func (r *accountRepository) SyncMonthlyUsagePeriod(ctx context.Context, account 
 		result.OldResetAt = usagePeriodTimePtr(oldEnd)
 		if endAt == nil || !oldEnd.Equal(*endAt) {
 			res, err := r.sql.ExecContext(ctx, `
-				UPDATE account_usage_periods
-				SET end_at = $2,
-					updated_at = NOW()
-				WHERE account_id = $1
-					AND window_type = $3
-					AND end_at IS NULL
-					AND start_at < $2
+			UPDATE account_usage_periods
+			SET end_at = $2::timestamptz,
+				updated_at = NOW()
+			WHERE account_id = $1
+				AND window_type = $3::varchar
+				AND end_at IS NULL
+				AND start_at < $2::timestamptz
 			`, account.ID, oldEnd, service.AccountUsagePeriodWindowMonthly)
 			if err != nil {
 				return nil, err
@@ -109,15 +109,14 @@ func (r *accountRepository) SyncMonthlyUsagePeriod(ctx context.Context, account 
 	if oldExpiresAt == nil && endAt != nil {
 		res, err := r.sql.ExecContext(ctx, `
 			UPDATE account_usage_periods
-			SET end_at = $4,
-				reset_at = $4,
-				source = $5,
+			SET end_at = $4::timestamptz,
+				reset_at = $4::timestamptz,
+				source = $5::varchar,
 				updated_at = NOW()
 			WHERE account_id = $1
-				AND window_type = $2
+				AND window_type = $2::varchar
 				AND end_at IS NULL
-				AND start_at = $3
-		}
+				AND start_at = $3::timestamptz
 		`, account.ID, service.AccountUsagePeriodWindowMonthly, startAt, *endAt, source)
 		if err != nil {
 			return nil, err
@@ -128,13 +127,12 @@ func (r *accountRepository) SyncMonthlyUsagePeriod(ctx context.Context, account 
 		}
 		res, err = r.sql.ExecContext(ctx, `
 			UPDATE account_usage_periods
-			SET end_at = $3,
+			SET end_at = $3::timestamptz,
 				updated_at = NOW()
 			WHERE account_id = $1
-				AND window_type = $2
+				AND window_type = $2::varchar
 				AND end_at IS NULL
-				AND start_at < $3
-		}
+				AND start_at < $3::timestamptz
 		`, account.ID, service.AccountUsagePeriodWindowMonthly, startAt)
 		if err != nil {
 			return nil, err
@@ -143,13 +141,13 @@ func (r *accountRepository) SyncMonthlyUsagePeriod(ctx context.Context, account 
 	}
 	res, err := r.sql.ExecContext(ctx, `
 		INSERT INTO account_usage_periods (account_id, window_type, start_at, end_at, reset_at, source)
-		SELECT $1, $2, $3, $4, $4, $5
+		SELECT $1::bigint, $2::varchar, $3::timestamptz, $4::timestamptz, $4::timestamptz, $5::varchar
 		WHERE NOT EXISTS (
 			SELECT 1
 			FROM account_usage_periods
 			WHERE account_id = $1
-				AND window_type = $2
-				AND start_at = $3
+				AND window_type = $2::varchar
+				AND start_at = $3::timestamptz
 				AND COALESCE(end_at, 'infinity'::timestamptz) = COALESCE($4::timestamptz, 'infinity'::timestamptz)
 		)
 	`, account.ID, service.AccountUsagePeriodWindowMonthly, startAt, nullableTime(endAt), source)

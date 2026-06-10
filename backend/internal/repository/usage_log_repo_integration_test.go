@@ -759,6 +759,11 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStatsBreakdownBatch() {
 
 	todayStart := timezone.Today()
 	weekStart := todayStart.AddDate(0, 0, -6)
+	monthStart := timezone.StartOfMonth(todayStart)
+	oldCreatedAt := weekStart.Add(-24 * time.Hour)
+	if !oldCreatedAt.Before(monthStart) {
+		oldCreatedAt = monthStart.Add(-24 * time.Hour)
+	}
 	durationToday := 100
 	durationWeek := 200
 	durationOld := 300
@@ -805,7 +810,7 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStatsBreakdownBatch() {
 		ActualCost:   0.25,
 		Status:       service.UsageLogStatusSucceeded,
 		DurationMs:   &durationOld,
-		CreatedAt:    weekStart.Add(-24 * time.Hour),
+		CreatedAt:    oldCreatedAt,
 	})
 	s.Require().NoError(err)
 
