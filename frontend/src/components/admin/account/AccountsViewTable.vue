@@ -140,6 +140,7 @@
           :account="row"
           :visual-style="visualStyle"
           :white-surface-enabled="whiteSurfaceEnabled"
+          :display-mode="accountStatusDisplayMode"
           compact
           @show-temp-unsched="emit('show-temp-unsched', row)"
         />
@@ -335,6 +336,7 @@ import type { Column } from '@/components/common/types'
 import type {
   Account,
   AccountGroupDisplayMode,
+  AccountStatusDisplayMode,
   AccountTodayStatsWindow,
   AccountVisualStyle,
   WindowStats,
@@ -377,6 +379,7 @@ const props = withDefaults(defineProps<{
   whiteSurfaceEnabled?: boolean
   accountTodayStatsWindows?: AccountTodayStatsWindow[]
   accountGroupDisplayMode?: AccountGroupDisplayMode
+  accountStatusDisplayMode?: AccountStatusDisplayMode
   pagination: {
     total: number
     page: number
@@ -388,7 +391,8 @@ const props = withDefaults(defineProps<{
   showPagination: true,
   visualStyle: 'airy',
   whiteSurfaceEnabled: false,
-  accountGroupDisplayMode: 'full'
+  accountGroupDisplayMode: 'full',
+  accountStatusDisplayMode: 'detailed'
 })
 
 const emit = defineEmits<{

@@ -54,6 +54,7 @@ export default {
         todayOverview: "Today Overview",
         cost: "Cost",
         requests: "Requests",
+        monthlyUsage: "Monthly",
         tokens: "Tokens",
         highestCostDay: "Highest Cost Day",
         highestRequestDay: "Highest Request Day",

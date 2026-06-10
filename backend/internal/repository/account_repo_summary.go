@@ -30,10 +30,10 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		return summary, nil
 	}
 
-	baseWhere := []string{"a.deleted_at IS NULL", "a.platform <> ALL($9)"}
+	baseWhere := []string{"a.deleted_at IS NULL", "a.platform <> ALL($10)"}
 	baseArgs := make([]any, 0, 6)
 	baseArgs = append(baseArgs, pq.Array(service.UnsupportedPrimaryAccountPredicateValues()))
-	baseWhere, baseArgs, _ = appendAdminAccountFilterWhereClauses(baseWhere, baseArgs, 10, normalized, "a", true)
+	baseWhere, baseArgs, _ = appendAdminAccountFilterWhereClauses(baseWhere, baseArgs, 11, normalized, "a", true)
 	reasonExpr := accountRateLimitReasonSQL(accountLimitedSQLColumns{
 		Platform:         "f.platform",
 		Credentials:      "f.credentials",
@@ -106,7 +106,8 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 			COUNT(*) FILTER (WHERE rate_limit_reason = $5) AS limited_rate_429,
 			COUNT(*) FILTER (WHERE rate_limit_reason = $6) AS limited_usage_5h,
 			COUNT(*) FILTER (WHERE rate_limit_reason = $7) AS limited_usage_7d,
-			COUNT(*) FILTER (WHERE rate_limit_reason = $8) AS limited_usage_7d_all
+			COUNT(*) FILTER (WHERE rate_limit_reason = $8) AS limited_usage_7d_all,
+			COUNT(*) FILTER (WHERE rate_limit_reason = $9) AS limited_quota_monthly
 		FROM classified
 	`
 	aggregateArgs := append([]any{
@@ -118,6 +119,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		service.AccountRateLimitReasonUsage5h,
 		service.AccountRateLimitReasonUsage7d,
 		service.AccountRateLimitReasonUsage7dAll,
+		service.AccountRateLimitReasonQuotaMonthly,
 	}, baseArgs...)
 	var activeCount int64
 	var inactiveCount int64
@@ -137,6 +139,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		&summary.LimitedBreakdown.Usage5h,
 		&summary.LimitedBreakdown.Usage7d,
 		&summary.LimitedBreakdown.Usage7dAll,
+		&summary.LimitedBreakdown.QuotaMonthly,
 	); err != nil {
 		return nil, err
 	}

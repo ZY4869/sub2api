@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
-import type { UsageContextBadgeDisplayMode } from '@/types'
+import type { AccountStatusDisplayMode, UsageContextBadgeDisplayMode } from '@/types'
 
 // Mock authAPI
 const mockLogin = vi.fn()
@@ -41,6 +41,9 @@ const fakeUser = {
   account_realtime_countdown_enabled: true,
   visual_preset_preference: 'inherit' as const,
   account_visual_preset_override: 'inherit' as const,
+  account_today_stats_windows: ['today', 'weekly', 'total'] as const,
+  account_group_display_mode: 'full' as const,
+  account_status_display_mode: 'detailed' as const,
   balance: 100,
   concurrency: 5,
   status: 'active' as const,
@@ -400,6 +403,18 @@ describe('useAuthStore', () => {
       expect(store.user?.account_visual_preset_override).toBe('airy')
       expect(JSON.parse(localStorage.getItem('auth_user') || '{}').account_visual_preset_override).toBe(
         'airy'
+      )
+    })
+
+    it('setAccountStatusDisplayMode updates the in-memory and persisted preference', () => {
+      const store = useAuthStore()
+      store.setCurrentUser(fakeUser)
+
+      store.setAccountStatusDisplayMode('simple' satisfies AccountStatusDisplayMode)
+
+      expect(store.user?.account_status_display_mode).toBe('simple')
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}').account_status_display_mode).toBe(
+        'simple'
       )
     })
   })

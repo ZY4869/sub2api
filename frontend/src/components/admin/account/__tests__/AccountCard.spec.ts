@@ -79,8 +79,8 @@ function mountCard(autoRecoveryProbe: Record<string, unknown>, accountOverrides:
           template: '<div class="status-classic-stub" />'
         },
         AccountStatusVisualCell: defineComponent({
-          props: ['visualStyle', 'whiteSurfaceEnabled'],
-          template: '<div class="status-visual-stub" :data-visual-style="visualStyle" :data-white-surface-enabled="String(whiteSurfaceEnabled)" />'
+          props: ['visualStyle', 'whiteSurfaceEnabled', 'displayMode'],
+          template: '<div class="status-visual-stub" :data-visual-style="visualStyle" :data-white-surface-enabled="String(whiteSurfaceEnabled)" :data-display-mode="displayMode" />'
         }),
         AccountUsageCell: {
           template: '<div class="usage-classic-stub" />'
@@ -184,6 +184,7 @@ describe('AccountCard', () => {
     expect(wrapper.find('.status-visual-stub').exists()).toBe(true)
     expect(wrapper.get('.status-visual-stub').attributes('data-visual-style')).toBe('airy')
     expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
+    expect(wrapper.get('.status-visual-stub').attributes('data-display-mode')).toBe('detailed')
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(true)
     expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
     expect(wrapper.find('.airy-row-actions').exists()).toBe(true)
@@ -213,6 +214,18 @@ describe('AccountCard', () => {
     expect(wrapper.get('.capacity-stub').attributes('data-white-surface-enabled')).toBe('true')
     expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('true')
     expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('true')
+  })
+
+  it('passes the status display preference to the airy status card', async () => {
+    const wrapper = mountCard({
+      status: 'retry_scheduled',
+      summary: 'Temporary gateway error',
+      checked_at: '2026-04-09T00:00:00Z'
+    })
+
+    await wrapper.setProps({ accountStatusDisplayMode: 'simple' })
+
+    expect(wrapper.get('.status-visual-stub').attributes('data-display-mode')).toBe('simple')
   })
 
   it('uses classic card styling without airy row tone background', async () => {

@@ -64,7 +64,7 @@ func codexScopeActiveSQL(extra, usedPercentKey, resetAtKey, resetAfterKey, scope
 func accountDisplayRateLimitSQL(cols accountLimitedSQLColumns) string {
 	persisted := activeAccountLimitedSQL(cols.RateLimitResetAt)
 	if cols.Platform == "" || cols.Credentials == "" {
-		return persisted
+		return fmt.Sprintf("(%s OR %s)", persisted, accountQuotaMonthlyExceededSQL(cols.Extra))
 	}
 
 	isOpenAI := openAIFamilySQL(cols.Platform)
@@ -92,11 +92,13 @@ func accountDisplayRateLimitSQL(cols accountLimitedSQLColumns) string {
 	proPersistedActive := fmt.Sprintf("(%s AND %s AND %s AND NOT %s)", persisted, isOpenAI, isPro, proPersistedSuppress)
 	nonProPersistedActive := fmt.Sprintf("(%s AND NOT (%s AND %s))", persisted, isOpenAI, isPro)
 	nonProProjectedActive := fmt.Sprintf("(%s AND NOT %s AND %s)", isOpenAI, isPro, normalActive)
-	return fmt.Sprintf(`(%s OR %s OR %s OR %s)`,
+	quotaMonthlyExceeded := accountQuotaMonthlyExceededSQL(cols.Extra)
+	return fmt.Sprintf(`(%s OR %s OR %s OR %s OR %s)`,
 		nonProPersistedActive,
 		proPersistedActive,
 		proScopedActive,
 		nonProProjectedActive,
+		quotaMonthlyExceeded,
 	)
 }
 
@@ -112,9 +114,11 @@ func accountRateLimitReasonSQL(cols accountLimitedSQLColumns) string {
 	spark5h := codexScopeActiveSQL(cols.Extra, "codex_spark_5h_used_percent", "codex_spark_5h_reset_at", "codex_spark_5h_reset_after_seconds", "gpt-5.3-codex-spark")
 	passive7d := fmt.Sprintf("COALESCE((%s->>'passive_usage_7d_utilization')::double precision, 0)", cols.Extra)
 	session5h := fmt.Sprintf("COALESCE((%s->>'session_window_utilization')::double precision, 0)", cols.Extra)
+	quotaMonthlyExceeded := accountQuotaMonthlyExceededSQL(cols.Extra)
 
 	return fmt.Sprintf(`CASE
 WHEN NOT %s THEN ''
+WHEN %s THEN '%s'
 WHEN %s THEN CASE
 	WHEN %s IN ('%s', '%s', '%s', '%s') THEN %s
 	WHEN %s AND %s AND %s AND %s THEN '%s'
@@ -132,6 +136,8 @@ WHEN %s AND NOT %s AND (%s OR %s) THEN '%s'
 ELSE '%s'
 END`,
 		displayLimited,
+		quotaMonthlyExceeded,
+		service.AccountRateLimitReasonQuotaMonthly,
 		persistedLimited,
 		storedReason,
 		service.AccountRateLimitReason429,
@@ -180,6 +186,13 @@ END`,
 		service.AccountRateLimitReasonUsage5h,
 		service.AccountRateLimitReason429,
 	)
+}
+
+func accountQuotaMonthlyExceededSQL(extra string) string {
+	limit := fmt.Sprintf("COALESCE((%s->>'quota_monthly_limit')::numeric, 0)", extra)
+	used := fmt.Sprintf("COALESCE((%s->>'quota_monthly_used')::numeric, 0)", extra)
+	start := fmt.Sprintf("COALESCE((%s->>'quota_monthly_start')::timestamptz, '1970-01-01'::timestamptz)", extra)
+	return fmt.Sprintf("(%s > 0 AND %s >= %s AND %s + '720 hours'::interval > NOW())", limit, used, limit, start)
 }
 
 func limitedAccountPredicate(filters adminAccountListFilters) dbpredicate.Account {

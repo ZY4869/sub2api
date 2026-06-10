@@ -6,7 +6,7 @@ import AccountAiryQuotaCard from './capacity/AccountAiryQuotaCard.vue'
 const props = withDefaults(defineProps<{
   used: number
   limit: number
-  kind?: 'daily' | 'weekly' | 'total'
+  kind?: 'daily' | 'weekly' | 'monthly' | 'total'
   label?: string
   visualVariant?: 'default' | 'glass'
   whiteSurfaceEnabled?: boolean
@@ -30,6 +30,8 @@ const resolvedLabel = computed(() => {
       return 'D'
     case 'weekly':
       return 'W'
+    case 'monthly':
+      return 'M'
     default:
       return 'T'
   }

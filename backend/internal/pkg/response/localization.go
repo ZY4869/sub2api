@@ -134,6 +134,50 @@ var localizedReasonMessages = map[string]localizedMessageMap{
 		"en": "upstream model import request failed",
 		"zh": "上游模型导入请求失败。",
 	},
+	"CHANNEL_MONITOR_REQUEST_INVALID": {
+		"en": "The channel monitor request body is invalid. Please check the JSON and try again.",
+		"zh": "渠道监控请求体无效，请检查 JSON 后重试。",
+	},
+	"CHANNEL_MONITOR_INVALID_PROVIDER": {
+		"en": "The selected provider is not supported.",
+		"zh": "所选 Provider 不受支持，请重新选择。",
+	},
+	"CHANNEL_MONITOR_INVALID_ENDPOINT": {
+		"en": "The endpoint URL is invalid.",
+		"zh": "Endpoint 地址无效，请填写完整的 HTTP/HTTPS URL。",
+	},
+	"CHANNEL_MONITOR_ENDPOINT_NOT_ALLOWED": {
+		"en": "The endpoint host is not allowed by the URL allowlist.",
+		"zh": "Endpoint 域名不在 URL 白名单内，请检查系统安全配置。",
+	},
+	"CHANNEL_MONITOR_INVALID_INTERVAL": {
+		"en": "The interval must be between 15 and 3600 seconds.",
+		"zh": "监控间隔必须在 15 到 3600 秒之间。",
+	},
+	"CHANNEL_MONITOR_API_KEY_REQUIRED": {
+		"en": "Enabled monitors require an API key.",
+		"zh": "启用监控时必须填写 API Key；禁用状态可暂不填写。",
+	},
+	"CHANNEL_MONITOR_EXTRA_HEADERS_INVALID": {
+		"en": "Extra headers must be a JSON object whose values are strings.",
+		"zh": "额外请求头必须是 JSON 对象，且每个 header 值都必须是字符串。",
+	},
+	"CHANNEL_MONITOR_BODY_OVERRIDE_INVALID": {
+		"en": "Body override must be a JSON object. Replace mode requires a non-empty object.",
+		"zh": "请求体覆盖必须是 JSON 对象；replace 模式需要填写非空对象。",
+	},
+	"CHANNEL_MONITOR_BODY_OVERRIDE_MODE_INVALID": {
+		"en": "Body override mode must be off, merge, or replace.",
+		"zh": "请求体覆盖模式只能是 off、merge 或 replace。",
+	},
+	"CHANNEL_MONITOR_OPENAI_API_MODE_INVALID": {
+		"en": "OpenAI API mode must be chat_completions or responses.",
+		"zh": "OpenAI API 模式只能是 chat_completions 或 responses。",
+	},
+	"CHANNEL_MONITOR_TEMPLATE_ID_INVALID": {
+		"en": "Template ID must be a positive number or null.",
+		"zh": "模板 ID 必须是正整数或 null。",
+	},
 	"MODEL_IMPORT_UPSTREAM_FORBIDDEN": {
 		"en": "upstream rejected the model import request",
 		"zh": "上游拒绝了模型导入请求。",

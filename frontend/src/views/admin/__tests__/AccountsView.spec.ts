@@ -201,7 +201,8 @@ vi.mock('@/composables/useAccountStatusSummary', async () => {
             rate_429: 2,
             usage_5h: 2,
             usage_7d: 1,
-            usage_7d_all: 0
+            usage_7d_all: 0,
+            quota_monthly: 0
           }
         }),
         loading: ref(false),
@@ -466,7 +467,6 @@ const mountView = () =>
         AccountStatusSummaryBar: SummaryBarStub,
         AccountLimitedSummaryBar: true,
         AccountBulkActionsBar: true,
-        AccountFilteredBulkEditBar: true,
         AccountGroupedView: true,
         AccountCardGrid: true,
         AccountsViewTable: AccountsViewTableStub,

@@ -329,7 +329,7 @@
             <div class="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
               {{ t("admin.accounts.displayOptimization.todayStats") }}
             </div>
-            <div class="grid grid-cols-3 gap-1.5">
+            <div class="grid grid-cols-4 gap-1.5">
               <label
                 v-for="windowKey in accountTodayStatsWindowOptions"
                 :key="windowKey"
@@ -354,6 +354,28 @@
 
           <div>
             <div class="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              {{ t("admin.accounts.displayOptimization.todayStatsCycleMode") }}
+            </div>
+            <div class="inline-flex w-full rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-900/40">
+              <button
+                v-for="mode in accountTodayStatsCycleModeOptions"
+                :key="mode"
+                type="button"
+                class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition"
+                :class="
+                  draftTodayStatsCycleMode === mode
+                    ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white'
+                "
+                @click="draftTodayStatsCycleMode = mode"
+              >
+                {{ t(`admin.accounts.displayOptimization.cycleModes.${mode}`) }}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
               {{ t("admin.accounts.displayOptimization.groupDisplay") }}
             </div>
             <div class="inline-flex w-full rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-900/40">
@@ -370,6 +392,28 @@
                 @click="draftGroupDisplayMode = mode"
               >
                 {{ t(`admin.accounts.displayOptimization.groupModes.${mode}`) }}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              {{ t("admin.accounts.displayOptimization.statusDisplay") }}
+            </div>
+            <div class="inline-flex w-full rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-900/40">
+              <button
+                v-for="mode in accountStatusDisplayModeOptions"
+                :key="mode"
+                type="button"
+                class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition"
+                :class="
+                  draftStatusDisplayMode === mode
+                    ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white'
+                "
+                @click="draftStatusDisplayMode = mode"
+              >
+                {{ t(`admin.accounts.displayOptimization.statusModes.${mode}`) }}
               </button>
             </div>
           </div>
@@ -488,8 +532,27 @@
             class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
             @click="handleMoreAction('bulk-edit-filtered')"
           >
-            <span>{{ t("admin.accounts.bulkEdit.editFiltered") }}</span>
+            <span>{{ t("admin.accounts.bulkEdit.editCurrentCategory") }}</span>
+            <span class="text-xs text-gray-400 dark:text-gray-500">
+              {{ filteredBulkEditTotal }}
+            </span>
           </button>
+          <label
+            v-if="!selectedCount"
+            class="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            :class="[filteredBulkEditExcludeGroupedDisabled ? 'cursor-not-allowed opacity-60' : '']"
+            :title="filteredBulkEditExcludeGroupedDisabled ? t('admin.accounts.bulkEdit.excludeGroupedSpecificGroupDisabled') : ''"
+          >
+            <span>{{ t("admin.accounts.bulkEdit.excludeGrouped") }}</span>
+            <input
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:cursor-not-allowed"
+              :checked="filteredBulkEditExcludeGrouped"
+              :disabled="filteredBulkEditExcludeGroupedDisabled"
+              data-account-filtered-bulk-edit-exclude-grouped="true"
+              @change="handleFilteredBulkEditExcludeGroupedChange"
+            />
+          </label>
         </div>
       </div>
     </div>
@@ -531,6 +594,8 @@ import { useI18n } from "vue-i18n";
 import type {
   AdminGroup,
   AccountGroupDisplayMode,
+  AccountStatusDisplayMode,
+  AccountTodayStatsCycleMode,
   AccountTodayStatsWindow,
   VisualPreset,
   VisualPresetPreference,
@@ -582,8 +647,13 @@ const props = defineProps<{
   visualStyle?: VisualPreset;
   accountVisualStyleUpdating?: boolean;
   accountTodayStatsWindows?: AccountTodayStatsWindow[];
+  accountTodayStatsCycleMode?: AccountTodayStatsCycleMode;
   accountGroupDisplayMode?: AccountGroupDisplayMode;
+  accountStatusDisplayMode?: AccountStatusDisplayMode;
   accountDisplayPreferencesUpdating?: boolean;
+  filteredBulkEditTotal?: number;
+  filteredBulkEditExcludeGrouped?: boolean;
+  filteredBulkEditExcludeGroupedDisabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -593,6 +663,7 @@ const emit = defineEmits<{
   refresh: [];
   "refresh-usage": [];
   "bulk-edit-filtered": [];
+  "update:filtered-bulk-edit-exclude-grouped": [value: boolean];
   sync: [];
   create: [];
   "import-data": [];
@@ -616,7 +687,9 @@ const emit = defineEmits<{
   "set-account-visual-preset-override": [value: VisualPresetPreference];
   "save-account-display-preferences": [value: {
     todayStatsWindows: AccountTodayStatsWindow[];
+    todayStatsCycleMode: AccountTodayStatsCycleMode;
     groupDisplayMode: AccountGroupDisplayMode;
+    statusDisplayMode: AccountStatusDisplayMode;
   }];
 }>();
 
@@ -633,19 +706,28 @@ const moreActionsDropdownRef = ref<HTMLElement | null>(null);
 const AUTO_REFRESH_PANEL_WIDTH = 224;
 const AUTO_REFRESH_PANEL_HEIGHT = 240;
 const DISPLAY_OPTIMIZATION_PANEL_WIDTH = 288;
-const DISPLAY_OPTIMIZATION_PANEL_HEIGHT = 300;
+const DISPLAY_OPTIMIZATION_PANEL_HEIGHT = 432;
 const MORE_ACTIONS_PANEL_WIDTH = 224;
-const MORE_ACTIONS_PANEL_HEIGHT = 360;
+const MORE_ACTIONS_PANEL_HEIGHT = 408;
 const COLUMN_PANEL_WIDTH = 192;
 const COLUMN_PANEL_HEIGHT = 360;
 const accountTodayStatsWindowOptions: AccountTodayStatsWindow[] = [
   "today",
   "weekly",
+  "monthly",
   "total",
+];
+const accountTodayStatsCycleModeOptions: AccountTodayStatsCycleMode[] = [
+  "calendar",
+  "fixed",
 ];
 const accountGroupDisplayModeOptions: AccountGroupDisplayMode[] = [
   "full",
   "icon",
+];
+const accountStatusDisplayModeOptions: AccountStatusDisplayMode[] = [
+  "simple",
+  "detailed",
 ];
 const normalizeTodayStatsWindows = (
   values?: AccountTodayStatsWindow[],
@@ -659,8 +741,14 @@ const normalizeTodayStatsWindows = (
 const draftTodayStatsWindows = ref<AccountTodayStatsWindow[]>(
   normalizeTodayStatsWindows(props.accountTodayStatsWindows),
 );
+const draftTodayStatsCycleMode = ref<AccountTodayStatsCycleMode>(
+  props.accountTodayStatsCycleMode === "fixed" ? "fixed" : "calendar",
+);
 const draftGroupDisplayMode = ref<AccountGroupDisplayMode>(
   props.accountGroupDisplayMode === "icon" ? "icon" : "full",
+);
+const draftStatusDisplayMode = ref<AccountStatusDisplayMode>(
+  props.accountStatusDisplayMode === "simple" ? "simple" : "detailed",
 );
 
 const nextPlatformCountSortOrder = computed<AccountPlatformCountSortOrder>(
@@ -730,6 +818,10 @@ const syncDisplayOptimizationDraft = () => {
   );
   draftGroupDisplayMode.value =
     props.accountGroupDisplayMode === "icon" ? "icon" : "full";
+  draftTodayStatsCycleMode.value =
+    props.accountTodayStatsCycleMode === "fixed" ? "fixed" : "calendar";
+  draftStatusDisplayMode.value =
+    props.accountStatusDisplayMode === "simple" ? "simple" : "detailed";
 };
 
 const toggleDisplayOptimizationDropdown = () => {
@@ -786,12 +878,21 @@ const toggleDraftTodayStatsWindow = (windowKey: AccountTodayStatsWindow) => {
   );
 };
 
+const handleFilteredBulkEditExcludeGroupedChange = (event: Event) => {
+  emit(
+    "update:filtered-bulk-edit-exclude-grouped",
+    (event.target as HTMLInputElement).checked,
+  );
+};
+
 const saveDisplayOptimization = () => {
   emit("save-account-display-preferences", {
     todayStatsWindows: normalizeTodayStatsWindows(
       draftTodayStatsWindows.value,
     ),
+    todayStatsCycleMode: draftTodayStatsCycleMode.value,
     groupDisplayMode: draftGroupDisplayMode.value,
+    statusDisplayMode: draftStatusDisplayMode.value,
   });
   showDisplayOptimizationDropdown.value = false;
 };

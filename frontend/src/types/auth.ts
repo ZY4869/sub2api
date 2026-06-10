@@ -2,6 +2,8 @@ import type { APIKeyModelBindingMode, TimeAccessPolicy } from './api-key-groups'
 import type { PaymentSubscriptionPlan } from './payments'
 import type {
   AccountGroupDisplayMode,
+  AccountStatusDisplayMode,
+  AccountTodayStatsCycleMode,
   AccountTodayStatsWindow,
   UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
@@ -27,7 +29,9 @@ export interface User {
   visual_preset_preference?: VisualPresetPreference;
   account_visual_preset_override?: VisualPresetPreference;
   account_today_stats_windows?: AccountTodayStatsWindow[];
+  account_today_stats_cycle_mode?: AccountTodayStatsCycleMode;
   account_group_display_mode?: AccountGroupDisplayMode;
+  account_status_display_mode?: AccountStatusDisplayMode;
   balance: number; // User balance for API usage
   balances?: Record<string, number>; // Wallet balances by billing currency
   concurrency: number; // Allowed concurrent requests

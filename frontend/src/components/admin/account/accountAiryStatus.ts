@@ -124,7 +124,7 @@ export const resolveAccountAiryStatus = (
         tagKey: account.rate_limit_reason === 'usage_7d_all'
           ? 'admin.accounts.status.visualUsage7dAllTag'
           : 'admin.accounts.status.visualUsage7dTag',
-        tone: 'emerald',
+        tone: 'amber',
         iconName: 'clock',
       }
     }

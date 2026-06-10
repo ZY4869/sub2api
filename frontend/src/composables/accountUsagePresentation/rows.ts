@@ -14,9 +14,9 @@ type Translate = (key: string) => string;
 
 const OPENAI_USAGE_ROW_SPECS: OpenAIUsageRowSpec[] = [
   { key: "openai-5h", scope: "normal", window: "5h", color: "indigo" },
-  { key: "openai-7d", scope: "normal", window: "7d", color: "emerald" },
-  { key: "openai-spark-5h", scope: "spark", window: "5h", color: "purple" },
-  { key: "openai-spark-7d", scope: "spark", window: "7d", color: "amber" },
+  { key: "openai-7d", scope: "normal", window: "7d", color: "orange" },
+  { key: "openai-spark-5h", scope: "spark", window: "5h", color: "indigo" },
+  { key: "openai-spark-7d", scope: "spark", window: "7d", color: "orange" },
 ];
 
 export function buildUsageRow(

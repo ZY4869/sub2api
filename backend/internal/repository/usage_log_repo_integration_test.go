@@ -822,6 +822,9 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStatsBreakdownBatch() {
 	s.Require().Equal(int64(40), stats.Weekly.Tokens)
 	s.Require().InEpsilon(50.0, stats.Weekly.SuccessRate, 0.0001)
 	s.Require().InEpsilon(100.0, stats.Weekly.AverageDurationMs, 0.0001)
+	s.Require().GreaterOrEqual(stats.Monthly.Requests, stats.Weekly.Requests)
+	s.Require().GreaterOrEqual(stats.Monthly.Tokens, stats.Weekly.Tokens)
+	s.Require().InEpsilon(100.0, stats.Monthly.AverageDurationMs, 0.0001)
 	s.Require().Equal(int64(3), stats.Total.Requests)
 	s.Require().Equal(int64(45), stats.Total.Tokens)
 	s.Require().InEpsilon(66.666, stats.Total.SuccessRate, 0.01)
@@ -833,6 +836,8 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStatsBreakdownBatch() {
 	s.Require().InEpsilon(100.0, emptyStats.Today.SuccessRate, 0.0001)
 	s.Require().Equal(int64(0), emptyStats.Weekly.Requests)
 	s.Require().InEpsilon(100.0, emptyStats.Weekly.SuccessRate, 0.0001)
+	s.Require().Equal(int64(0), emptyStats.Monthly.Requests)
+	s.Require().InEpsilon(100.0, emptyStats.Monthly.SuccessRate, 0.0001)
 	s.Require().Equal(int64(0), emptyStats.Total.Requests)
 	s.Require().InEpsilon(100.0, emptyStats.Total.SuccessRate, 0.0001)
 }

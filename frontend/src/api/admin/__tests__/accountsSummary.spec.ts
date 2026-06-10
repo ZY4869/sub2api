@@ -37,7 +37,8 @@ describe('admin accounts summary api', () => {
           rate_429: 1,
           usage_5h: 1,
           usage_7d: 1,
-          usage_7d_all: 2
+          usage_7d_all: 2,
+          quota_monthly: 1
         }
       }
     })
@@ -67,7 +68,8 @@ describe('admin accounts summary api', () => {
         rate_429: 1,
         usage_5h: 1,
         usage_7d: 1,
-        usage_7d_all: 2
+        usage_7d_all: 2,
+        quota_monthly: 1
       }
     })
   })

@@ -26162,7 +26162,9 @@ type UserMutation struct {
 	account_visual_preset_override     *string
 	account_today_stats_windows        *[]string
 	appendaccount_today_stats_windows  []string
+	account_today_stats_cycle_mode     *string
 	account_group_display_mode         *string
+	account_status_display_mode        *string
 	usage_context_badge_display_mode   *string
 	api_key_model_binding_mode         *string
 	api_key_access_time_policy         *map[string]interface{}
@@ -27052,6 +27054,42 @@ func (m *UserMutation) ResetAccountTodayStatsWindows() {
 	m.appendaccount_today_stats_windows = nil
 }
 
+// SetAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field.
+func (m *UserMutation) SetAccountTodayStatsCycleMode(s string) {
+	m.account_today_stats_cycle_mode = &s
+}
+
+// AccountTodayStatsCycleMode returns the value of the "account_today_stats_cycle_mode" field in the mutation.
+func (m *UserMutation) AccountTodayStatsCycleMode() (r string, exists bool) {
+	v := m.account_today_stats_cycle_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountTodayStatsCycleMode returns the old "account_today_stats_cycle_mode" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAccountTodayStatsCycleMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountTodayStatsCycleMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountTodayStatsCycleMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountTodayStatsCycleMode: %w", err)
+	}
+	return oldValue.AccountTodayStatsCycleMode, nil
+}
+
+// ResetAccountTodayStatsCycleMode resets all changes to the "account_today_stats_cycle_mode" field.
+func (m *UserMutation) ResetAccountTodayStatsCycleMode() {
+	m.account_today_stats_cycle_mode = nil
+}
+
 // SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
 func (m *UserMutation) SetAccountGroupDisplayMode(s string) {
 	m.account_group_display_mode = &s
@@ -27086,6 +27124,42 @@ func (m *UserMutation) OldAccountGroupDisplayMode(ctx context.Context) (v string
 // ResetAccountGroupDisplayMode resets all changes to the "account_group_display_mode" field.
 func (m *UserMutation) ResetAccountGroupDisplayMode() {
 	m.account_group_display_mode = nil
+}
+
+// SetAccountStatusDisplayMode sets the "account_status_display_mode" field.
+func (m *UserMutation) SetAccountStatusDisplayMode(s string) {
+	m.account_status_display_mode = &s
+}
+
+// AccountStatusDisplayMode returns the value of the "account_status_display_mode" field in the mutation.
+func (m *UserMutation) AccountStatusDisplayMode() (r string, exists bool) {
+	v := m.account_status_display_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountStatusDisplayMode returns the old "account_status_display_mode" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAccountStatusDisplayMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountStatusDisplayMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountStatusDisplayMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountStatusDisplayMode: %w", err)
+	}
+	return oldValue.AccountStatusDisplayMode, nil
+}
+
+// ResetAccountStatusDisplayMode resets all changes to the "account_status_display_mode" field.
+func (m *UserMutation) ResetAccountStatusDisplayMode() {
+	m.account_status_display_mode = nil
 }
 
 // SetUsageContextBadgeDisplayMode sets the "usage_context_badge_display_mode" field.
@@ -27863,7 +27937,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 26)
+	fields := make([]string, 0, 28)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -27921,8 +27995,14 @@ func (m *UserMutation) Fields() []string {
 	if m.account_today_stats_windows != nil {
 		fields = append(fields, user.FieldAccountTodayStatsWindows)
 	}
+	if m.account_today_stats_cycle_mode != nil {
+		fields = append(fields, user.FieldAccountTodayStatsCycleMode)
+	}
 	if m.account_group_display_mode != nil {
 		fields = append(fields, user.FieldAccountGroupDisplayMode)
+	}
+	if m.account_status_display_mode != nil {
+		fields = append(fields, user.FieldAccountStatusDisplayMode)
 	}
 	if m.usage_context_badge_display_mode != nil {
 		fields = append(fields, user.FieldUsageContextBadgeDisplayMode)
@@ -27988,8 +28068,12 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.AccountVisualPresetOverride()
 	case user.FieldAccountTodayStatsWindows:
 		return m.AccountTodayStatsWindows()
+	case user.FieldAccountTodayStatsCycleMode:
+		return m.AccountTodayStatsCycleMode()
 	case user.FieldAccountGroupDisplayMode:
 		return m.AccountGroupDisplayMode()
+	case user.FieldAccountStatusDisplayMode:
+		return m.AccountStatusDisplayMode()
 	case user.FieldUsageContextBadgeDisplayMode:
 		return m.UsageContextBadgeDisplayMode()
 	case user.FieldAPIKeyModelBindingMode:
@@ -28049,8 +28133,12 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldAccountVisualPresetOverride(ctx)
 	case user.FieldAccountTodayStatsWindows:
 		return m.OldAccountTodayStatsWindows(ctx)
+	case user.FieldAccountTodayStatsCycleMode:
+		return m.OldAccountTodayStatsCycleMode(ctx)
 	case user.FieldAccountGroupDisplayMode:
 		return m.OldAccountGroupDisplayMode(ctx)
+	case user.FieldAccountStatusDisplayMode:
+		return m.OldAccountStatusDisplayMode(ctx)
 	case user.FieldUsageContextBadgeDisplayMode:
 		return m.OldUsageContextBadgeDisplayMode(ctx)
 	case user.FieldAPIKeyModelBindingMode:
@@ -28205,12 +28293,26 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAccountTodayStatsWindows(v)
 		return nil
+	case user.FieldAccountTodayStatsCycleMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountTodayStatsCycleMode(v)
+		return nil
 	case user.FieldAccountGroupDisplayMode:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAccountGroupDisplayMode(v)
+		return nil
+	case user.FieldAccountStatusDisplayMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountStatusDisplayMode(v)
 		return nil
 	case user.FieldUsageContextBadgeDisplayMode:
 		v, ok := value.(string)
@@ -28414,8 +28516,14 @@ func (m *UserMutation) ResetField(name string) error {
 	case user.FieldAccountTodayStatsWindows:
 		m.ResetAccountTodayStatsWindows()
 		return nil
+	case user.FieldAccountTodayStatsCycleMode:
+		m.ResetAccountTodayStatsCycleMode()
+		return nil
 	case user.FieldAccountGroupDisplayMode:
 		m.ResetAccountGroupDisplayMode()
+		return nil
+	case user.FieldAccountStatusDisplayMode:
+		m.ResetAccountStatusDisplayMode()
 		return nil
 	case user.FieldUsageContextBadgeDisplayMode:
 		m.ResetUsageContextBadgeDisplayMode()

@@ -164,9 +164,9 @@ function mountTable(accountOverrides: Record<string, unknown> = {}, accountsOver
           template: '<span class="platform-icon-stub" :data-platform="platform" :data-size="size" />'
         },
         AccountStatusVisualCell: defineComponent({
-          props: ['visualStyle', 'whiteSurfaceEnabled'],
+          props: ['visualStyle', 'whiteSurfaceEnabled', 'displayMode'],
           emits: ['show-temp-unsched'],
-          template: '<button class="show-temp-unsched status-visual-stub" :data-visual-style="visualStyle" :data-white-surface-enabled="String(whiteSurfaceEnabled)" @click="$emit(\'show-temp-unsched\')" />'
+          template: '<button class="show-temp-unsched status-visual-stub" :data-visual-style="visualStyle" :data-white-surface-enabled="String(whiteSurfaceEnabled)" :data-display-mode="displayMode" @click="$emit(\'show-temp-unsched\')" />'
         }),
         AccountsViewRowActions: RowActionsStub,
         AccountsViewAiryRowActions: AiryRowActionsStub,
@@ -307,6 +307,7 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.cell-status .account-airy-spaced-cell-status').exists()).toBe(true)
     expect(wrapper.get('.status-visual-stub').attributes('data-visual-style')).toBe('airy')
     expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
+    expect(wrapper.get('.status-visual-stub').attributes('data-display-mode')).toBe('detailed')
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(true)
     expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
     expect(wrapper.get('.groups-stub').attributes('data-visual-variant')).toBe('airy')
@@ -356,10 +357,12 @@ describe('AccountsViewTable', () => {
     await wrapper.setProps({
       accountTodayStatsWindows: ['weekly', 'total'],
       accountGroupDisplayMode: 'icon',
+      accountStatusDisplayMode: 'simple',
     })
 
     expect(wrapper.get('.today-stats-stub').attributes('data-visible-windows')).toBe('weekly,total')
     expect(wrapper.get('.groups-stub').attributes('data-display-mode')).toBe('icon')
+    expect(wrapper.get('.status-visual-stub').attributes('data-display-mode')).toBe('simple')
     expect(wrapper.get('.cell-groups .account-airy-spaced-cell-groups').classes()).toContain('max-w-[104px]')
   })
 

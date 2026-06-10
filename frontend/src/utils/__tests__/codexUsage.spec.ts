@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveCodexUsageWindow, resolveCodexUsageWindowLabel } from '../codexUsage'
+import { resolveCodexUsageWindow, resolveCodexUsageWindowLabel, resolveUsageWindowColor } from '../codexUsage'
 
 describe('codexUsage', () => {
   it('formats canonical codex window labels from minutes', () => {
@@ -8,6 +8,12 @@ describe('codexUsage', () => {
     expect(resolveCodexUsageWindowLabel(43200, '7d')).toBe('30D')
     expect(resolveCodexUsageWindowLabel(null, '5h')).toBe('5H')
     expect(resolveCodexUsageWindowLabel(undefined, '7d')).toBe('7D')
+  })
+
+  it('resolves local window colors from display labels', () => {
+    expect(resolveUsageWindowColor('5H')).toBe('indigo')
+    expect(resolveUsageWindowColor('7D')).toBe('orange')
+    expect(resolveUsageWindowColor('30D')).toBe('green')
   })
 
   it('returns canonical window minutes and label with the usage snapshot', () => {

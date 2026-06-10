@@ -14,7 +14,7 @@ import type {
   AccountUsageRowColor,
 } from "@/types";
 import { buildOpenAIUsageRefreshKey } from "@/utils/accountUsageRefresh";
-import { resolveCodexUsageWindow } from "@/utils/codexUsage";
+import { resolveCodexUsageWindow, resolveUsageWindowColor } from "@/utils/codexUsage";
 import {
   formatLocalAbsoluteTime,
   formatLocalTimestamp,
@@ -140,7 +140,7 @@ export function useAccountUsagePresentation(
             codex5hWindow.value.label,
             codex5hWindow.value.usedPercent,
             codex5hWindow.value.resetAt,
-            "indigo",
+            resolveUsageWindowColor(codex5hWindow.value.label),
             {
               inlineRemaining: true,
               detailedReset: true,
@@ -153,7 +153,7 @@ export function useAccountUsagePresentation(
             codex7dWindow.value.label,
             codex7dWindow.value.usedPercent,
             codex7dWindow.value.resetAt,
-            "emerald",
+            resolveUsageWindowColor(codex7dWindow.value.label),
             {
               inlineRemaining: true,
               detailedReset: true,
@@ -167,7 +167,7 @@ export function useAccountUsagePresentation(
             `Spark ${codexSpark5hWindow.value.label}`,
             codexSpark5hWindow.value.usedPercent,
             codexSpark5hWindow.value.resetAt,
-            "purple",
+            resolveUsageWindowColor(codexSpark5hWindow.value.label),
             {
               inlineRemaining: true,
               detailedReset: true,
@@ -181,7 +181,7 @@ export function useAccountUsagePresentation(
             `Spark ${codexSpark7dWindow.value.label}`,
             codexSpark7dWindow.value.usedPercent,
             codexSpark7dWindow.value.resetAt,
-            "amber",
+            resolveUsageWindowColor(codexSpark7dWindow.value.label),
             {
               inlineRemaining: true,
               detailedReset: true,
@@ -638,7 +638,7 @@ export function useAccountUsagePresentation(
         resolveUsageWindowLabel("7d", t),
         account.value.quota_weekly_used ?? 0,
         account.value.quota_weekly_limit ?? 0,
-        "emerald",
+        "orange",
         "quota_weekly_start",
       ),
       makeQuotaRow(
@@ -663,13 +663,13 @@ export function useAccountUsagePresentation(
         "anthropic-7d",
         "7d",
         usageInfo.value?.seven_day,
-        "emerald",
+        "orange",
       ),
       buildProgressRow(
         "anthropic-7d-sonnet",
         "7d S",
         usageInfo.value?.seven_day_sonnet,
-        "purple",
+        "orange",
       ),
     ),
   );

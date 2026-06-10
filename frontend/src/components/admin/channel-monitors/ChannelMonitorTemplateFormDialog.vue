@@ -139,6 +139,16 @@ function parseJsonRecord(text: string, fallback: Record<string, any> = {}): Reco
   throw new Error('invalid_json_object')
 }
 
+function parseHeaderRecord(text: string): Record<string, string> {
+  const record = parseJsonRecord(text, {})
+  for (const value of Object.values(record)) {
+    if (typeof value !== 'string') {
+      throw new Error('invalid_header_value')
+    }
+  }
+  return record as Record<string, string>
+}
+
 function resolveSaveErrorMessage(err: any): string {
   return err?.response?.data?.detail ||
     err?.response?.data?.message ||
@@ -190,13 +200,22 @@ async function handleSubmit() {
     return
   }
 
-  let extraHeaders: Record<string, any> = {}
+  let extraHeaders: Record<string, string> = {}
   let bodyOverride: Record<string, any> = {}
   try {
-    extraHeaders = parseJsonRecord(extraHeadersText.value, {})
+    extraHeaders = parseHeaderRecord(extraHeadersText.value)
     bodyOverride = parseJsonRecord(bodyOverrideText.value, {})
-  } catch (err) {
-    appStore.showError(t('admin.channelMonitors.validation.invalidJson'))
+  } catch (err: any) {
+    appStore.showError(
+      err?.message === 'invalid_header_value'
+        ? t('admin.channelMonitors.validation.invalidHeaders')
+        : t('admin.channelMonitors.validation.invalidJson')
+    )
+    return
+  }
+
+  if (form.body_override_mode === 'replace' && Object.keys(bodyOverride).length === 0) {
+    appStore.showError(t('admin.channelMonitors.validation.bodyOverrideRequired'))
     return
   }
 

@@ -12,5 +12,7 @@ export type UsageContextBadgeDisplayMode =
   | "native_only"
   | "both";
 
-export type AccountTodayStatsWindow = "today" | "weekly" | "total";
+export type AccountTodayStatsWindow = "today" | "weekly" | "monthly" | "total";
+export type AccountTodayStatsCycleMode = "calendar" | "fixed";
 export type AccountGroupDisplayMode = "full" | "icon";
+export type AccountStatusDisplayMode = "simple" | "detailed";

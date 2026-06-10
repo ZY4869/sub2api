@@ -2,7 +2,7 @@
   <div
     v-if="isGlassVariant"
     :class="[
-      compact ? 'inline-flex max-w-[176px]' : 'flex flex-col gap-2.5'
+      compact ? 'inline-flex max-w-full' : 'flex flex-col gap-2.5'
     ]"
     data-testid="airy-capacity-cell"
   >
@@ -79,6 +79,14 @@
         :used="account.quota_weekly_used ?? 0"
         :limit="account.quota_weekly_limit!"
         kind="weekly"
+        visual-variant="glass"
+        :white-surface-enabled="whiteSurfaceEnabled"
+      />
+      <QuotaBadge
+        v-if="showMonthlyQuota"
+        :used="account.quota_monthly_used ?? 0"
+        :limit="account.quota_monthly_limit!"
+        kind="monthly"
         visual-variant="glass"
         :white-surface-enabled="whiteSurfaceEnabled"
       />
@@ -176,6 +184,7 @@
 
     <QuotaBadge v-if="showDailyQuota" :used="account.quota_daily_used ?? 0" :limit="account.quota_daily_limit!" kind="daily" visual-variant="default" />
     <QuotaBadge v-if="showWeeklyQuota" :used="account.quota_weekly_used ?? 0" :limit="account.quota_weekly_limit!" kind="weekly" visual-variant="default" />
+    <QuotaBadge v-if="showMonthlyQuota" :used="account.quota_monthly_used ?? 0" :limit="account.quota_monthly_limit!" kind="monthly" visual-variant="default" />
     <QuotaBadge v-if="showTotalQuota" :used="account.quota_used ?? 0" :limit="account.quota_limit!" kind="total" visual-variant="default" />
   </div>
 </template>
@@ -447,12 +456,16 @@ const showWeeklyQuota = computed(() => {
   return isQuotaEligible.value && (props.account.quota_weekly_limit ?? 0) > 0
 })
 
+const showMonthlyQuota = computed(() => {
+  return isQuotaEligible.value && (props.account.quota_monthly_limit ?? 0) > 0
+})
+
 const showTotalQuota = computed(() => {
   return isQuotaEligible.value && (props.account.quota_limit ?? 0) > 0
 })
 
 const hasAirySecondaryMetrics = computed(() => {
-  return airyMetrics.value.length > 0 || showDailyQuota.value || showWeeklyQuota.value || showTotalQuota.value
+  return airyMetrics.value.length > 0 || showDailyQuota.value || showWeeklyQuota.value || showMonthlyQuota.value || showTotalQuota.value
 })
 
 const formatCost = (value: number | null | undefined) => {

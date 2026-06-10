@@ -1,14 +1,15 @@
 import { ref, type Ref } from 'vue'
 import { adminAPI } from '@/api/admin'
 import { buildDefaultTodayStats } from '@/utils/accountListSync'
-import type { Account, AccountTodayStats } from '@/types'
+import type { Account, AccountTodayStats, AccountTodayStatsCycleMode } from '@/types'
 
 interface UseAccountsTodayStatsOptions {
   accounts: Ref<Account[]>
   hiddenColumns: Pick<Set<string>, 'has'>
+  cycleMode?: Ref<AccountTodayStatsCycleMode>
 }
 
-export function useAccountsTodayStats({ accounts, hiddenColumns }: UseAccountsTodayStatsOptions) {
+export function useAccountsTodayStats({ accounts, hiddenColumns, cycleMode }: UseAccountsTodayStatsOptions) {
   const todayStatsByAccountId = ref<Record<string, AccountTodayStats>>({})
   const todayStatsLoading = ref(false)
   const todayStatsError = ref<string | null>(null)
@@ -34,7 +35,7 @@ export function useAccountsTodayStats({ accounts, hiddenColumns }: UseAccountsTo
     todayStatsError.value = null
 
     try {
-      const result = await adminAPI.accounts.getBatchTodayStats(accountIDs)
+      const result = await adminAPI.accounts.getBatchTodayStats(accountIDs, cycleMode?.value)
       if (reqSeq !== todayStatsReqSeq.value) return
 
       const serverStats = result.stats ?? {}

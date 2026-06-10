@@ -90,6 +90,10 @@ describe('AccountUsageResetCell', () => {
     expect(wrapper.text()).toContain('30D')
     expect(wrapper.text()).toContain('6d 13h')
     expect(wrapper.text()).toContain('03-20 01:09:00')
+    const labels = wrapper.findAll('[data-testid="account-usage-reset-window-label"]')
+    expect(labels[0].classes()).toContain('bg-indigo-50')
+    expect(labels[1].classes()).toContain('bg-green-50')
+    expect(wrapper.text()).not.toContain('30D · 03-20')
 
   })
 

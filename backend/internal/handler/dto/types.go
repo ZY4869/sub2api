@@ -15,7 +15,9 @@ type User struct {
 	VisualPresetPreference          string             `json:"visual_preset_preference"`
 	AccountVisualPresetOverride     string             `json:"account_visual_preset_override"`
 	AccountTodayStatsWindows        []string           `json:"account_today_stats_windows"`
+	AccountTodayStatsCycleMode      string             `json:"account_today_stats_cycle_mode"`
 	AccountGroupDisplayMode         string             `json:"account_group_display_mode"`
+	AccountStatusDisplayMode        string             `json:"account_status_display_mode"`
 	APIKeyModelBindingMode          string             `json:"api_key_model_binding_mode"`
 	APIKeyAccessTimePolicy          any                `json:"api_key_access_time_policy,omitempty"`
 	Balance                         float64            `json:"balance"`
@@ -258,18 +260,22 @@ type Account struct {
 	CustomBaseURL        *string `json:"custom_base_url,omitempty"`
 
 	// API Key 账号配额限制
-	QuotaLimit                 *float64           `json:"quota_limit,omitempty"`
-	QuotaUsed                  *float64           `json:"quota_used,omitempty"`
-	QuotaLimitByCurrency       map[string]float64 `json:"quota_limit_by_currency,omitempty"`
-	QuotaUsedByCurrency        map[string]float64 `json:"quota_used_by_currency,omitempty"`
-	QuotaDailyLimit            *float64           `json:"quota_daily_limit,omitempty"`
-	QuotaDailyUsed             *float64           `json:"quota_daily_used,omitempty"`
-	QuotaDailyLimitByCurrency  map[string]float64 `json:"quota_daily_limit_by_currency,omitempty"`
-	QuotaDailyUsedByCurrency   map[string]float64 `json:"quota_daily_used_by_currency,omitempty"`
-	QuotaWeeklyLimit           *float64           `json:"quota_weekly_limit,omitempty"`
-	QuotaWeeklyUsed            *float64           `json:"quota_weekly_used,omitempty"`
-	QuotaWeeklyLimitByCurrency map[string]float64 `json:"quota_weekly_limit_by_currency,omitempty"`
-	QuotaWeeklyUsedByCurrency  map[string]float64 `json:"quota_weekly_used_by_currency,omitempty"`
+	QuotaLimit                  *float64           `json:"quota_limit,omitempty"`
+	QuotaUsed                   *float64           `json:"quota_used,omitempty"`
+	QuotaLimitByCurrency        map[string]float64 `json:"quota_limit_by_currency,omitempty"`
+	QuotaUsedByCurrency         map[string]float64 `json:"quota_used_by_currency,omitempty"`
+	QuotaDailyLimit             *float64           `json:"quota_daily_limit,omitempty"`
+	QuotaDailyUsed              *float64           `json:"quota_daily_used,omitempty"`
+	QuotaDailyLimitByCurrency   map[string]float64 `json:"quota_daily_limit_by_currency,omitempty"`
+	QuotaDailyUsedByCurrency    map[string]float64 `json:"quota_daily_used_by_currency,omitempty"`
+	QuotaWeeklyLimit            *float64           `json:"quota_weekly_limit,omitempty"`
+	QuotaWeeklyUsed             *float64           `json:"quota_weekly_used,omitempty"`
+	QuotaWeeklyLimitByCurrency  map[string]float64 `json:"quota_weekly_limit_by_currency,omitempty"`
+	QuotaWeeklyUsedByCurrency   map[string]float64 `json:"quota_weekly_used_by_currency,omitempty"`
+	QuotaMonthlyLimit           *float64           `json:"quota_monthly_limit,omitempty"`
+	QuotaMonthlyUsed            *float64           `json:"quota_monthly_used,omitempty"`
+	QuotaMonthlyLimitByCurrency map[string]float64 `json:"quota_monthly_limit_by_currency,omitempty"`
+	QuotaMonthlyUsedByCurrency  map[string]float64 `json:"quota_monthly_used_by_currency,omitempty"`
 
 	// 配额固定时间重置配置
 	QuotaDailyResetMode  *string `json:"quota_daily_reset_mode,omitempty"`
@@ -280,6 +286,7 @@ type Account struct {
 	QuotaResetTimezone   *string `json:"quota_reset_timezone,omitempty"`
 	QuotaDailyResetAt    *string `json:"quota_daily_reset_at,omitempty"`
 	QuotaWeeklyResetAt   *string `json:"quota_weekly_reset_at,omitempty"`
+	QuotaMonthlyResetAt  *string `json:"quota_monthly_reset_at,omitempty"`
 
 	BatchArchiveEnabled             *bool    `json:"batch_archive_enabled,omitempty"`
 	BatchArchiveAutoPrefetchEnabled *bool    `json:"batch_archive_auto_prefetch_enabled,omitempty"`

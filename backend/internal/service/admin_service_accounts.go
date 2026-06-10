@@ -191,6 +191,7 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err := s.accountRepo.Create(ctx, account); err != nil {
 		return nil, err
 	}
+	syncAccountMonthlyUsagePeriod(ctx, s.accountRepo, account, nil, AccountUsagePeriodSourceExpiry)
 	if len(groupIDs) > 0 {
 		if err := s.accountRepo.BindGroups(ctx, account.ID, groupIDs); err != nil {
 			return nil, err
@@ -208,6 +209,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err := EnsureSupportedAccountPlatform(account); err != nil {
 		return nil, err
 	}
+	oldExpiresAt := cloneTimePtr(account.ExpiresAt)
 	if err := ensureBlacklistedAccountNotRestored(account, input.Status, nil); err != nil {
 		return nil, err
 	}
@@ -236,7 +238,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		return nil, err
 	}
 	if input.Extra != nil {
-		for _, key := range []string{"quota_used", "quota_daily_used", "quota_daily_start", "quota_weekly_used", "quota_weekly_start"} {
+		for _, key := range []string{"quota_used", "quota_daily_used", "quota_daily_start", "quota_weekly_used", "quota_weekly_start", "quota_monthly_used", "quota_monthly_start"} {
 			if v, ok := account.Extra[key]; ok {
 				input.Extra[key] = v
 			}
@@ -335,6 +337,10 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err := s.accountRepo.Update(ctx, account); err != nil {
 		return nil, err
 	}
+	if input.ExpiresAt != nil {
+		logAccountExpiresAtChanged(ctx, account.ID, oldExpiresAt, account.ExpiresAt, "manual")
+		syncAccountMonthlyUsagePeriod(ctx, s.accountRepo, account, oldExpiresAt, AccountUsagePeriodSourceExpiry)
+	}
 	if input.GroupIDs != nil {
 		if err := s.accountRepo.BindGroups(ctx, account.ID, *input.GroupIDs); err != nil {
 			return nil, err
@@ -403,6 +409,14 @@ func applyAccountAutoRenewConfig(account *Account, enabled *bool, period *string
 		account.AutoRenewEnabled = false
 	}
 	return nil
+}
+
+func cloneTimePtr(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	cloned := value.UTC()
+	return &cloned
 }
 func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error) {
 	result := &BulkUpdateAccountsResult{SuccessIDs: make([]int64, 0, len(input.AccountIDs)), FailedIDs: make([]int64, 0, len(input.AccountIDs)), Results: make([]BulkUpdateAccountResult, 0, len(input.AccountIDs))}

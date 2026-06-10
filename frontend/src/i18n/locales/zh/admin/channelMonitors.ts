@@ -111,5 +111,7 @@ export default {
         primaryModelRequired: "请输入主模型 ID",
         apiKeyRequired: "请填写 API Key",
         invalidJson: "JSON 格式不正确（必须是对象）",
+        invalidHeaders: "额外请求头必须是 JSON 对象，且每个值都必须是字符串",
+        bodyOverrideRequired: "replace 模式需要填写非空的请求体覆盖对象",
     },
 }

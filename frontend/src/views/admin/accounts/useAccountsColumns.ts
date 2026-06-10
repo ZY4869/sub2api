@@ -28,7 +28,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[148px] min-w-[132px] max-w-[148px]"
+          ? "w-[168px] min-w-[156px] max-w-[176px]"
           : "w-[140px] max-w-[140px]",
     },
     {
@@ -37,7 +37,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[168px] min-w-[156px] max-w-[168px]"
+          ? "w-[184px] min-w-[172px] max-w-[192px]"
           : "w-[148px] max-w-[148px]",
     },
     {
@@ -46,7 +46,7 @@ const allColumns = computed(() => {
       sortable: true,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[220px] min-w-[196px] max-w-[220px]"
+          ? "w-[248px] min-w-[224px] max-w-[256px]"
           : "w-[240px] max-w-[240px]",
     },
     {
@@ -95,7 +95,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[232px] min-w-[216px] max-w-[232px]"
+          ? "w-[248px] min-w-[232px] max-w-[256px]"
           : "w-[260px] min-w-[240px] max-w-[260px]",
     },
     { key: "proxy", label: t("admin.accounts.columns.proxy"), sortable: false },

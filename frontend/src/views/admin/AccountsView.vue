@@ -28,8 +28,13 @@
         :visual-style="resolvedAccountVisualPreset"
         :account-visual-style-updating="updatingAccountVisualStyle"
         :account-today-stats-windows="accountTodayStatsWindows"
+        :account-today-stats-cycle-mode="accountTodayStatsCycleMode"
         :account-group-display-mode="accountGroupDisplayMode"
+        :account-status-display-mode="accountStatusDisplayMode"
         :account-display-preferences-updating="updatingAccountDisplayPreferences"
+        :filtered-bulk-edit-total="pagination.total"
+        :filtered-bulk-edit-exclude-grouped="effectiveFilteredBulkEditExcludeGrouped"
+        :filtered-bulk-edit-exclude-grouped-disabled="filteredBulkEditExcludeGroupedDisabled"
         @update:filters="handleFilterUpdate"
         @update:search-query="handleSearchQueryUpdate"
         @update:view-mode="viewMode = $event"
@@ -51,6 +56,7 @@
         @toggle-hide-limited="toggleHideLimitedAccounts"
         @open-limited-page="openLimitedAccountsPage"
         @bulk-edit-filtered="handleFilteredBulkEdit"
+        @update:filtered-bulk-edit-exclude-grouped="filteredBulkEditExcludeGrouped = $event"
         @toggle-daily-5h-trigger="handleToggleDaily5HTrigger"
         @open-daily-5h-settings="handleOpenDaily5HTriggerSettings"
         @toggle-account-realtime-countdown="handleToggleAccountRealtimeCountdown"
@@ -100,15 +106,6 @@
           @toggle-schedulable="handleBulkToggleSchedulable"
         />
 
-        <AccountFilteredBulkEditBar
-          :total="pagination.total"
-          :loading="loading"
-          :exclude-grouped="effectiveFilteredBulkEditExcludeGrouped"
-          :exclude-grouped-disabled="filteredBulkEditExcludeGroupedDisabled"
-          @update:exclude-grouped="filteredBulkEditExcludeGrouped = $event"
-          @edit="handleFilteredBulkEdit"
-        />
-
         <div ref="accountTableRef">
           <AccountGroupedView
             v-if="groupViewEnabled"
@@ -130,6 +127,7 @@
             :white-surface-enabled="airyWhiteSurfaceEnabled"
             :account-today-stats-windows="accountTodayStatsWindows"
             :account-group-display-mode="accountGroupDisplayMode"
+            :account-status-display-mode="accountStatusDisplayMode"
             @toggle-selected="toggleSel"
             @toggle-section-selected="handleToggleSectionSelected"
             @show-temp-unsched="handleShowTempUnsched"
@@ -151,6 +149,7 @@
             :visual-style="resolvedAccountVisualPreset"
             :white-surface-enabled="airyWhiteSurfaceEnabled"
             :account-group-display-mode="accountGroupDisplayMode"
+            :account-status-display-mode="accountStatusDisplayMode"
             @toggle-selected="toggleSel"
             @show-temp-unsched="handleShowTempUnsched"
             @toggle-schedulable="handleToggleSchedulable"
@@ -177,6 +176,7 @@
             :white-surface-enabled="airyWhiteSurfaceEnabled"
             :account-today-stats-windows="accountTodayStatsWindows"
             :account-group-display-mode="accountGroupDisplayMode"
+            :account-status-display-mode="accountStatusDisplayMode"
             :pagination="pagination"
             @toggle-select-all-visible="toggleSelectAllVisible"
             @toggle-selected="toggleSel"
@@ -334,7 +334,6 @@ import TablePageLayout from "@/components/layout/TablePageLayout.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import AccountCardGrid from "@/components/admin/account/AccountCardGrid.vue";
 import AccountBulkActionsBar from "@/components/admin/account/AccountBulkActionsBar.vue";
-import AccountFilteredBulkEditBar from "@/components/admin/account/AccountFilteredBulkEditBar.vue";
 import AccountGroupedView from "@/components/admin/account/AccountGroupedView.vue";
 import AccountLimitedSummaryBar from "@/components/admin/account/AccountLimitedSummaryBar.vue";
 import AccountPlatformTabs from "@/components/admin/account/AccountPlatformTabs.vue";
@@ -401,7 +400,9 @@ const {
 } = useAccountVisualStylePreference();
 const {
   accountTodayStatsWindows,
+  accountTodayStatsCycleMode,
   accountGroupDisplayMode,
+  accountStatusDisplayMode,
   updatingAccountDisplayPreferences,
   setAccountDisplayPreferences,
 } = useAccountDisplayPreferences();
@@ -517,7 +518,8 @@ const activeLimitedReason = computed<AccountRateLimitReason | "">(() => {
   return value === "rate_429" ||
     value === "usage_5h" ||
     value === "usage_7d" ||
-    value === "usage_7d_all"
+    value === "usage_7d_all" ||
+    value === "quota_monthly"
     ? value
     : "";
 });
@@ -650,6 +652,7 @@ const {
   params,
   pagination,
   hiddenColumns,
+  accountTodayStatsCycleMode,
   baseLoad,
   baseReload,
   baseDebouncedReload,
@@ -780,6 +783,12 @@ watch(isLiveSyncBlocked, (blocked, wasBlocked) => {
       );
     });
   }
+});
+
+watch(accountTodayStatsCycleMode, () => {
+  refreshTodayStats().catch((error) => {
+    console.error("Failed to refresh account today stats after cycle mode change:", error);
+  });
 });
 
 const handleManualRefresh = async () => {

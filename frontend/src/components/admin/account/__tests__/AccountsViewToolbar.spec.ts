@@ -41,9 +41,13 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
       accountVisualPresetOverride: 'inherit',
       visualStyle: 'classic',
       accountVisualStyleUpdating: false,
-      accountTodayStatsWindows: ['today', 'weekly', 'total'],
+      accountTodayStatsWindows: ['today', 'weekly', 'monthly', 'total'],
+      accountTodayStatsCycleMode: 'calendar',
       accountGroupDisplayMode: 'full',
       accountDisplayPreferencesUpdating: false,
+      filteredBulkEditTotal: 6,
+      filteredBulkEditExcludeGrouped: false,
+      filteredBulkEditExcludeGroupedDisabled: false,
       daily5HTriggerEnabled: true,
       toggleableColumns: [
         { key: "proxy", label: "Proxy", visible: true },
@@ -291,7 +295,9 @@ describe("AccountsViewToolbar", () => {
     await nextTick();
 
     expect(wrapper.text()).toContain("admin.accounts.displayOptimization.todayStats");
+    expect(wrapper.text()).toContain("admin.accounts.displayOptimization.todayStatsCycleMode");
     expect(wrapper.text()).toContain("admin.accounts.displayOptimization.groupDisplay");
+    expect(wrapper.text()).toContain("admin.accounts.displayOptimization.statusDisplay");
 
     const weeklyCheckbox = wrapper
       .findAll('input[type="checkbox"]')
@@ -301,11 +307,31 @@ describe("AccountsViewToolbar", () => {
         ),
       );
     await weeklyCheckbox?.trigger("change");
+    const monthlyCheckbox = wrapper
+      .findAll('input[type="checkbox"]')
+      .find((input) =>
+        input.element.parentElement?.textContent?.includes(
+          "admin.accounts.displayOptimization.windows.monthly",
+        ),
+      );
+    await monthlyCheckbox?.trigger("change");
 
     await wrapper
       .findAll("button")
       .find((button) =>
+        button.text().includes("admin.accounts.displayOptimization.cycleModes.fixed"),
+      )
+      ?.trigger("click");
+    await wrapper
+      .findAll("button")
+      .find((button) =>
         button.text().includes("admin.accounts.displayOptimization.groupModes.icon"),
+      )
+      ?.trigger("click");
+    await wrapper
+      .findAll("button")
+      .find((button) =>
+        button.text().includes("admin.accounts.displayOptimization.statusModes.simple"),
       )
       ?.trigger("click");
 
@@ -315,7 +341,9 @@ describe("AccountsViewToolbar", () => {
       [
         {
           todayStatsWindows: ["today", "total"],
+          todayStatsCycleMode: "fixed",
           groupDisplayMode: "icon",
+          statusDisplayMode: "simple",
         },
       ],
     ]);
@@ -369,5 +397,33 @@ describe("AccountsViewToolbar", () => {
     expect(wrapper.emitted("update:platform-count-sort-order")).toEqual([
       ["count_desc"],
     ]);
+  });
+
+  it("moves filtered bulk edit controls into More", async () => {
+    const wrapper = mountToolbar({
+      selectedCount: 0,
+      filteredBulkEditTotal: 12,
+    });
+
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).toContain("admin.accounts.bulkEdit.editCurrentCategory");
+    expect(wrapper.text()).toContain("12");
+
+    await wrapper
+      .findAll("button")
+      .find((button) =>
+        button.text().includes("admin.accounts.bulkEdit.editCurrentCategory"),
+      )
+      ?.trigger("click");
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
+    await wrapper
+      .get('[data-account-filtered-bulk-edit-exclude-grouped="true"]')
+      .setValue(true);
+
+    expect(wrapper.emitted("bulk-edit-filtered")).toEqual([[]]);
+    expect(wrapper.emitted("update:filtered-bulk-edit-exclude-grouped")).toEqual([[true]]);
   });
 });

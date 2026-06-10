@@ -72,7 +72,9 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
 		SetAccountVisualPresetOverride(service.NormalizeVisualPresetPreference(userIn.AccountVisualPresetOverride)).
 		SetAccountTodayStatsWindows(service.NormalizeAccountTodayStatsWindows(userIn.AccountTodayStatsWindows)).
+		SetAccountTodayStatsCycleMode(service.NormalizeAccountTodayStatsCycleMode(userIn.AccountTodayStatsCycleMode)).
 		SetAccountGroupDisplayMode(service.NormalizeAccountGroupDisplayMode(userIn.AccountGroupDisplayMode)).
+		SetAccountStatusDisplayMode(service.NormalizeAccountStatusDisplayMode(userIn.AccountStatusDisplayMode)).
 		SetAPIKeyModelBindingMode(userIn.EffectiveAPIKeyModelBindingMode()).
 		SetAPIKeyAccessTimePolicy(timeAccessPolicyToMap(userIn.APIKeyAccessTimePolicy)).
 		SetPasswordHash(userIn.PasswordHash).
@@ -183,7 +185,9 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
 		SetAccountVisualPresetOverride(service.NormalizeVisualPresetPreference(userIn.AccountVisualPresetOverride)).
 		SetAccountTodayStatsWindows(service.NormalizeAccountTodayStatsWindows(userIn.AccountTodayStatsWindows)).
+		SetAccountTodayStatsCycleMode(service.NormalizeAccountTodayStatsCycleMode(userIn.AccountTodayStatsCycleMode)).
 		SetAccountGroupDisplayMode(service.NormalizeAccountGroupDisplayMode(userIn.AccountGroupDisplayMode)).
+		SetAccountStatusDisplayMode(service.NormalizeAccountStatusDisplayMode(userIn.AccountStatusDisplayMode)).
 		SetAPIKeyModelBindingMode(userIn.EffectiveAPIKeyModelBindingMode()).
 		SetAPIKeyAccessTimePolicy(timeAccessPolicyToMap(userIn.APIKeyAccessTimePolicy)).
 		SetPasswordHash(userIn.PasswordHash).
@@ -743,7 +747,9 @@ func applyUserEntityToService(dst *service.User, src *dbent.User) {
 	dst.VisualPresetPreference = service.NormalizeVisualPresetPreference(src.VisualPresetPreference)
 	dst.AccountVisualPresetOverride = service.NormalizeVisualPresetPreference(src.AccountVisualPresetOverride)
 	dst.AccountTodayStatsWindows = service.NormalizeAccountTodayStatsWindows(src.AccountTodayStatsWindows)
+	dst.AccountTodayStatsCycleMode = service.NormalizeAccountTodayStatsCycleMode(src.AccountTodayStatsCycleMode)
 	dst.AccountGroupDisplayMode = service.NormalizeAccountGroupDisplayMode(src.AccountGroupDisplayMode)
+	dst.AccountStatusDisplayMode = service.NormalizeAccountStatusDisplayMode(src.AccountStatusDisplayMode)
 	dst.APIKeyModelBindingMode = service.NormalizeAPIKeyModelBindingMode(src.APIKeyModelBindingMode)
 	dst.APIKeyAccessTimePolicy = timeAccessPolicyFromMap(src.APIKeyAccessTimePolicy)
 	dst.CreatedAt = src.CreatedAt

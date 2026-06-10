@@ -16,7 +16,8 @@ type AccountStats struct {
 }
 
 type AccountTodayStatsBreakdown struct {
-	Today  AccountStats `json:"today"`
-	Weekly AccountStats `json:"weekly"`
-	Total  AccountStats `json:"total"`
+	Today   AccountStats `json:"today"`
+	Weekly  AccountStats `json:"weekly"`
+	Monthly AccountStats `json:"monthly"`
+	Total   AccountStats `json:"total"`
 }

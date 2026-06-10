@@ -34,6 +34,22 @@ func (s *channelMonitorHandlerRepoStub) Create(_ context.Context, monitor *servi
 	return &clone, nil
 }
 
+type channelMonitorTemplateHandlerRepoStub struct {
+	service.ChannelMonitorTemplateRepository
+	createErr error
+}
+
+func (s *channelMonitorTemplateHandlerRepoStub) Create(_ context.Context, tpl *service.ChannelMonitorRequestTemplate) (*service.ChannelMonitorRequestTemplate, error) {
+	if s.createErr != nil {
+		return nil, s.createErr
+	}
+	clone := *tpl
+	clone.ID = 99
+	clone.CreatedAt = time.Now().UTC()
+	clone.UpdatedAt = clone.CreatedAt
+	return &clone, nil
+}
+
 type channelMonitorHandlerEncryptorStub struct{}
 
 func (channelMonitorHandlerEncryptorStub) Encrypt(plaintext string) (string, error) {
@@ -132,6 +148,44 @@ func TestChannelMonitorHandler_Create_EnabledWithoutKeyReturnsVisibleError(t *te
 	require.Contains(t, rec.Body.String(), "CHANNEL_MONITOR_API_KEY_REQUIRED")
 }
 
+func TestChannelMonitorHandler_Create_InvalidHeaderValueReturnsFriendlyError(t *testing.T) {
+	router := newChannelMonitorHandlerTestRouter(&channelMonitorHandlerRepoStub{})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/admin/channel-monitors", bytes.NewBufferString(`{
+		"name":"OpenAI health",
+		"provider":"openai",
+		"endpoint":"https://api.openai.example/v1/responses",
+		"enabled":false,
+		"primary_model_id":"gpt-5.4",
+		"extra_headers":{"x-debug":true}
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "CHANNEL_MONITOR_EXTRA_HEADERS_INVALID")
+}
+
+func TestChannelMonitorHandler_Create_InvalidTemplateIDReturnsFriendlyError(t *testing.T) {
+	router := newChannelMonitorHandlerTestRouter(&channelMonitorHandlerRepoStub{})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/admin/channel-monitors", bytes.NewBufferString(`{
+		"name":"OpenAI health",
+		"provider":"openai",
+		"endpoint":"https://api.openai.example/v1/responses",
+		"enabled":false,
+		"primary_model_id":"gpt-5.4",
+		"template_id":"bad"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "CHANNEL_MONITOR_TEMPLATE_ID_INVALID")
+}
+
 func TestChannelMonitorHandler_Create_LogsCreateFailure(t *testing.T) {
 	router := newChannelMonitorHandlerTestRouter(&channelMonitorHandlerRepoStub{
 		createErr: errors.New("db down"),
@@ -156,6 +210,27 @@ func TestChannelMonitorHandler_Create_LogsCreateFailure(t *testing.T) {
 	require.NotContains(t, rec.Body.String(), "sk-secret")
 }
 
+func TestChannelMonitorTemplateHandler_Create_LogsCreateFailure(t *testing.T) {
+	router := newChannelMonitorTemplateHandlerTestRouter(&channelMonitorTemplateHandlerRepoStub{
+		createErr: errors.New("db down"),
+	})
+	core, logs := observer.New(zap.WarnLevel)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/admin/channel-monitor-templates", bytes.NewBufferString(`{
+		"name":"OpenAI template",
+		"provider":"openai",
+		"extra_headers":{"x-debug":"1"}
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(logger.IntoContext(req.Context(), zap.New(core)))
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	require.Equal(t, 1, logs.FilterMessage("channel_monitor_template_create_failed").Len())
+	require.NotContains(t, rec.Body.String(), "x-debug")
+}
+
 func newChannelMonitorHandlerTestRouter(repo service.ChannelMonitorRepository) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	settingRepo := &channelMonitorHandlerSettingRepoStub{values: map[string]string{
@@ -171,5 +246,13 @@ func newChannelMonitorHandlerTestRouter(repo service.ChannelMonitorRepository) *
 	)
 	router := gin.New()
 	router.POST("/admin/channel-monitors", NewChannelMonitorHandler(monitorSvc).Create)
+	return router
+}
+
+func newChannelMonitorTemplateHandlerTestRouter(repo service.ChannelMonitorTemplateRepository) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	templateSvc := service.NewChannelMonitorTemplateService(repo, nil)
+	router := gin.New()
+	router.POST("/admin/channel-monitor-templates", NewChannelMonitorTemplateHandler(templateSvc, nil).Create)
 	return router
 }

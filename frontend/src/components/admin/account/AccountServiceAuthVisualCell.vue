@@ -10,7 +10,7 @@
         :title="planLabel"
       >
         <PlatformIcon :platform="platform" size="xs" />
-        <span class="min-w-0 truncate text-[11px] font-bold leading-none tracking-tight">
+        <span class="min-w-[2.6rem] max-w-[5.5rem] truncate text-[11px] font-bold leading-none tracking-tight">
           {{ planLabel }}
         </span>
       </div>

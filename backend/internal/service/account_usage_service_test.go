@@ -59,7 +59,8 @@ type openAICodexProbeQueueDialer struct {
 
 type accountUsageTodayStatsRepo struct {
 	UsageLogRepository
-	breakdown map[int64]*usagestats.AccountTodayStatsBreakdown
+	breakdown       map[int64]*usagestats.AccountTodayStatsBreakdown
+	capturedWindows []AccountStatsWindowStart
 }
 
 func (r *accountUsageTodayStatsRepo) GetAccountTodayStatsBreakdownBatch(_ context.Context, accountIDs []int64, _ time.Time, _ time.Time) (map[int64]*usagestats.AccountTodayStatsBreakdown, error) {
@@ -68,6 +69,77 @@ func (r *accountUsageTodayStatsRepo) GetAccountTodayStatsBreakdownBatch(_ contex
 		out[id] = r.breakdown[id]
 	}
 	return out, nil
+}
+
+func (r *accountUsageTodayStatsRepo) GetAccountTodayStatsBreakdownBatchByWindows(_ context.Context, windows []AccountStatsWindowStart) (map[int64]*usagestats.AccountTodayStatsBreakdown, error) {
+	r.capturedWindows = append([]AccountStatsWindowStart(nil), windows...)
+	out := make(map[int64]*usagestats.AccountTodayStatsBreakdown, len(windows))
+	for _, window := range windows {
+		out[window.AccountID] = r.breakdown[window.AccountID]
+	}
+	return out, nil
+}
+
+type accountUsageStatsAccountRepo struct {
+	AccountRepository
+	accounts    []*Account
+	periods     map[int64]*AccountUsagePeriod
+	weeklySyncs []time.Time
+}
+
+func (r *accountUsageStatsAccountRepo) GetByIDs(_ context.Context, ids []int64) ([]*Account, error) {
+	wanted := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	out := make([]*Account, 0, len(r.accounts))
+	for _, account := range r.accounts {
+		if account == nil {
+			continue
+		}
+		if _, ok := wanted[account.ID]; ok {
+			out = append(out, account)
+		}
+	}
+	return out, nil
+}
+
+func (r *accountUsageStatsAccountRepo) GetActiveUsagePeriods(_ context.Context, accountIDs []int64, windowType string, _ time.Time) (map[int64]*AccountUsagePeriod, error) {
+	out := make(map[int64]*AccountUsagePeriod, len(accountIDs))
+	if windowType != AccountUsagePeriodWindowMonthly {
+		return out, nil
+	}
+	for _, accountID := range accountIDs {
+		if period := r.periods[accountID]; period != nil {
+			out[accountID] = period
+		}
+	}
+	return out, nil
+}
+
+func (r *accountUsageStatsAccountRepo) SyncMonthlyUsagePeriod(_ context.Context, account *Account, _ *time.Time, source string) (*AccountUsagePeriodSyncResult, error) {
+	if account == nil {
+		return nil, nil
+	}
+	return &AccountUsagePeriodSyncResult{
+		AccountID:  account.ID,
+		WindowType: AccountUsagePeriodWindowMonthly,
+		Source:     source,
+	}, nil
+}
+
+func (r *accountUsageStatsAccountRepo) SyncWeeklyUsagePeriod(_ context.Context, account *Account, resetAt time.Time, source string) (*AccountUsagePeriodSyncResult, error) {
+	r.weeklySyncs = append(r.weeklySyncs, resetAt)
+	if account == nil {
+		return nil, nil
+	}
+	return &AccountUsagePeriodSyncResult{
+		AccountID:  account.ID,
+		WindowType: AccountUsagePeriodWindowWeekly,
+		Source:     source,
+		Inserted:   true,
+		NewResetAt: &resetAt,
+	}, nil
 }
 
 func (d *openAICodexProbeQueueDialer) Dial(_ context.Context, _ string, _ http.Header, _ string) (openAIWSClientConn, int, http.Header, error) {
@@ -86,9 +158,10 @@ func TestAccountUsageServiceGetTodayStatsReturnsBreakdown(t *testing.T) {
 	repo := &accountUsageTodayStatsRepo{
 		breakdown: map[int64]*usagestats.AccountTodayStatsBreakdown{
 			10: {
-				Today:  usagestats.AccountStats{Requests: 2, Tokens: 30, Cost: 1.2, SuccessRate: 50, AverageDurationMs: 123},
-				Weekly: usagestats.AccountStats{Requests: 5, Tokens: 90, Cost: 4.8, SuccessRate: 80, AverageDurationMs: 160},
-				Total:  usagestats.AccountStats{Requests: 8, Tokens: 120, Cost: 8.4, SuccessRate: 75, AverageDurationMs: 180},
+				Today:   usagestats.AccountStats{Requests: 2, Tokens: 30, Cost: 1.2, SuccessRate: 50, AverageDurationMs: 123},
+				Weekly:  usagestats.AccountStats{Requests: 5, Tokens: 90, Cost: 4.8, SuccessRate: 80, AverageDurationMs: 160},
+				Monthly: usagestats.AccountStats{Requests: 7, Tokens: 110, Cost: 6.2, SuccessRate: 85, AverageDurationMs: 170},
+				Total:   usagestats.AccountStats{Requests: 8, Tokens: 120, Cost: 8.4, SuccessRate: 75, AverageDurationMs: 180},
 			},
 		},
 	}
@@ -98,11 +171,11 @@ func TestAccountUsageServiceGetTodayStatsReturnsBreakdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetTodayStats() error = %v", err)
 	}
-	if singleStats == nil || singleStats.Weekly == nil || singleStats.Total == nil {
-		t.Fatalf("expected single stats with weekly and total breakdown, got %#v", singleStats)
+	if singleStats == nil || singleStats.Weekly == nil || singleStats.Monthly == nil || singleStats.Total == nil {
+		t.Fatalf("expected single stats with weekly, monthly and total breakdown, got %#v", singleStats)
 	}
-	if singleStats.Requests != 2 || singleStats.Weekly.Requests != 5 || singleStats.Total.Requests != 8 {
-		t.Fatalf("unexpected single request breakdown: today=%d weekly=%d total=%d", singleStats.Requests, singleStats.Weekly.Requests, singleStats.Total.Requests)
+	if singleStats.Requests != 2 || singleStats.Weekly.Requests != 5 || singleStats.Monthly.Requests != 7 || singleStats.Total.Requests != 8 {
+		t.Fatalf("unexpected single request breakdown: today=%d weekly=%d monthly=%d total=%d", singleStats.Requests, singleStats.Weekly.Requests, singleStats.Monthly.Requests, singleStats.Total.Requests)
 	}
 
 	statsByAccount, err := svc.GetTodayStatsBatch(context.Background(), []int64{10, 10, -1, 20})
@@ -113,22 +186,117 @@ func TestAccountUsageServiceGetTodayStatsReturnsBreakdown(t *testing.T) {
 		t.Fatalf("stats len = %d, want 2", len(statsByAccount))
 	}
 	stats := statsByAccount[10]
-	if stats == nil || stats.Weekly == nil || stats.Total == nil {
-		t.Fatalf("expected today stats with weekly and total breakdown, got %#v", stats)
+	if stats == nil || stats.Weekly == nil || stats.Monthly == nil || stats.Total == nil {
+		t.Fatalf("expected today stats with weekly, monthly and total breakdown, got %#v", stats)
 	}
-	if stats.Requests != 2 || stats.Weekly.Requests != 5 || stats.Total.Requests != 8 {
-		t.Fatalf("unexpected request breakdown: today=%d weekly=%d total=%d", stats.Requests, stats.Weekly.Requests, stats.Total.Requests)
+	if stats.Requests != 2 || stats.Weekly.Requests != 5 || stats.Monthly.Requests != 7 || stats.Total.Requests != 8 {
+		t.Fatalf("unexpected request breakdown: today=%d weekly=%d monthly=%d total=%d", stats.Requests, stats.Weekly.Requests, stats.Monthly.Requests, stats.Total.Requests)
 	}
-	if stats.SuccessRate != 50 || stats.Weekly.SuccessRate != 80 || stats.Total.SuccessRate != 75 {
-		t.Fatalf("unexpected success rates: today=%v weekly=%v total=%v", stats.SuccessRate, stats.Weekly.SuccessRate, stats.Total.SuccessRate)
+	if stats.SuccessRate != 50 || stats.Weekly.SuccessRate != 80 || stats.Monthly.SuccessRate != 85 || stats.Total.SuccessRate != 75 {
+		t.Fatalf("unexpected success rates: today=%v weekly=%v monthly=%v total=%v", stats.SuccessRate, stats.Weekly.SuccessRate, stats.Monthly.SuccessRate, stats.Total.SuccessRate)
 	}
 	empty := statsByAccount[20]
-	if empty == nil || empty.Weekly == nil || empty.Total == nil {
+	if empty == nil || empty.Weekly == nil || empty.Monthly == nil || empty.Total == nil {
 		t.Fatalf("expected empty account breakdown, got %#v", empty)
 	}
-	if empty.Requests != 0 || empty.SuccessRate != 100 || empty.Weekly.SuccessRate != 100 || empty.Total.SuccessRate != 100 {
+	if empty.Requests != 0 || empty.SuccessRate != 100 || empty.Weekly.SuccessRate != 100 || empty.Monthly.SuccessRate != 100 || empty.Total.SuccessRate != 100 {
 		t.Fatalf("unexpected empty breakdown: %#v", empty)
 	}
+}
+
+func TestAccountUsageServiceGetTodayStatsFixedCycleUsesLocalBoundaries(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	createdAt := now.AddDate(0, 0, -12)
+	expiresAt := now.AddDate(0, 0, 18)
+	resetAt := now.AddDate(0, 0, 3)
+	repo := &accountUsageTodayStatsRepo{breakdown: map[int64]*usagestats.AccountTodayStatsBreakdown{}}
+	svc := &AccountUsageService{
+		accountRepo: &accountUsageStatsAccountRepo{accounts: []*Account{{
+			ID:        10,
+			CreatedAt: createdAt,
+			ExpiresAt: &expiresAt,
+			Extra: map[string]any{
+				"codex_7d_reset_at": resetAt.Format(time.RFC3339),
+			},
+		}}},
+		usageLogRepo: repo,
+	}
+
+	_, err := svc.GetTodayStatsBatchWithCycleMode(context.Background(), []int64{10}, AccountTodayStatsCycleModeFixed)
+	require.NoError(t, err)
+	require.Len(t, repo.capturedWindows, 1)
+	require.WithinDuration(t, resetAt.AddDate(0, 0, -7), repo.capturedWindows[0].WeeklyStart, time.Second)
+	require.Equal(t, createdAt, repo.capturedWindows[0].MonthlyStart)
+}
+
+func TestAccountUsageServiceGetTodayStatsFixedCycleUsesMonthlyPeriodHistory(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	createdAt := now.AddDate(0, -2, 0)
+	expiresAt := now.AddDate(0, 1, 0)
+	periodStart := now.AddDate(0, 0, -3)
+	repo := &accountUsageTodayStatsRepo{breakdown: map[int64]*usagestats.AccountTodayStatsBreakdown{}}
+	accountRepo := &accountUsageStatsAccountRepo{
+		accounts: []*Account{{
+			ID:        10,
+			CreatedAt: createdAt,
+			ExpiresAt: &expiresAt,
+		}},
+		periods: map[int64]*AccountUsagePeriod{
+			10: {
+				AccountID:  10,
+				WindowType: AccountUsagePeriodWindowMonthly,
+				StartAt:    periodStart,
+				EndAt:      &expiresAt,
+				Source:     AccountUsagePeriodSourceExpiry,
+			},
+		},
+	}
+	svc := &AccountUsageService{
+		accountRepo:  accountRepo,
+		usageLogRepo: repo,
+	}
+
+	_, err := svc.GetTodayStatsBatchWithCycleMode(context.Background(), []int64{10}, AccountTodayStatsCycleModeFixed)
+	require.NoError(t, err)
+	require.Len(t, repo.capturedWindows, 1)
+	require.Equal(t, periodStart, repo.capturedWindows[0].MonthlyStart)
+}
+
+func TestAccountUsageServiceGetTodayStatsFixedCycleUsesThirtyDayAnchorForFallbackPeriod(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	createdAt := now.Add(-45 * 24 * time.Hour)
+	fallbackPeriodStart := createdAt
+	expectedMonthlyStart := createdAt.Add(30 * 24 * time.Hour)
+	repo := &accountUsageTodayStatsRepo{breakdown: map[int64]*usagestats.AccountTodayStatsBreakdown{}}
+	accountRepo := &accountUsageStatsAccountRepo{
+		accounts: []*Account{{
+			ID:        10,
+			CreatedAt: createdAt,
+		}},
+		periods: map[int64]*AccountUsagePeriod{
+			10: {
+				AccountID:  10,
+				WindowType: AccountUsagePeriodWindowMonthly,
+				StartAt:    fallbackPeriodStart,
+				Source:     AccountUsagePeriodSourceFallback30D,
+			},
+		},
+	}
+	svc := &AccountUsageService{
+		accountRepo:  accountRepo,
+		usageLogRepo: repo,
+	}
+
+	_, err := svc.GetTodayStatsBatchWithCycleMode(context.Background(), []int64{10}, AccountTodayStatsCycleModeFixed)
+	require.NoError(t, err)
+	require.Len(t, repo.capturedWindows, 1)
+	require.WithinDuration(t, expectedMonthlyStart, repo.capturedWindows[0].MonthlyStart, time.Second)
 }
 
 func TestEstimateSetupTokenUsageClearsExpiredSessionWindow(t *testing.T) {

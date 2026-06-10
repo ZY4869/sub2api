@@ -18,7 +18,11 @@
     >
       <span
         :title="row.label"
-        class="min-w-[42px] max-w-[82px] shrink-0 rounded px-1 py-1 text-center font-medium leading-none text-gray-500 dark:text-gray-400"
+        data-testid="account-usage-reset-window-label"
+        :class="[
+          'min-w-[42px] max-w-[82px] shrink-0 rounded-full border px-1.5 py-1 text-center font-bold leading-none',
+          resetLabelClass(row.label)
+        ]"
       >
         {{ row.label }}
       </span>
@@ -39,7 +43,7 @@
           {{ formatResetValue(row.resetsAt, row.remainingSeconds)?.countdown }}
         </span>
         <span class="shrink-0 text-gray-400 dark:text-gray-500">·</span>
-        <span class="min-w-[112px] flex-1 whitespace-normal break-words leading-snug text-gray-500 dark:text-gray-400">
+        <span class="min-w-[112px] flex-1 whitespace-normal break-words font-semibold leading-snug text-gray-700 dark:text-gray-200">
           {{ formatResetValue(row.resetsAt, row.remainingSeconds)?.absolute }}
         </span>
       </span>
@@ -99,5 +103,19 @@ function formatResetValue(
     }),
     tooltip: formatLocalTimestamp(effectiveResetAt),
   }
+}
+
+function resetLabelClass(label: string): string {
+  const normalized = label.trim().toUpperCase()
+  if (normalized.includes('5H')) {
+    return 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-400/25 dark:bg-indigo-400/10 dark:text-indigo-100'
+  }
+  if (normalized.includes('30D')) {
+    return 'border-green-200 bg-green-50 text-green-700 dark:border-green-400/25 dark:bg-green-400/10 dark:text-green-100'
+  }
+  if (normalized.includes('7D')) {
+    return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-100'
+  }
+  return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
 }
 </script>

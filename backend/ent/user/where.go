@@ -145,9 +145,19 @@ func AccountVisualPresetOverride(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAccountVisualPresetOverride, v))
 }
 
+// AccountTodayStatsCycleMode applies equality check predicate on the "account_today_stats_cycle_mode" field. It's identical to AccountTodayStatsCycleModeEQ.
+func AccountTodayStatsCycleMode(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountTodayStatsCycleMode, v))
+}
+
 // AccountGroupDisplayMode applies equality check predicate on the "account_group_display_mode" field. It's identical to AccountGroupDisplayModeEQ.
 func AccountGroupDisplayMode(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountStatusDisplayMode applies equality check predicate on the "account_status_display_mode" field. It's identical to AccountStatusDisplayModeEQ.
+func AccountStatusDisplayMode(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountStatusDisplayMode, v))
 }
 
 // UsageContextBadgeDisplayMode applies equality check predicate on the "usage_context_badge_display_mode" field. It's identical to UsageContextBadgeDisplayModeEQ.
@@ -1010,6 +1020,71 @@ func AccountVisualPresetOverrideContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldAccountVisualPresetOverride, v))
 }
 
+// AccountTodayStatsCycleModeEQ applies the EQ predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeNEQ applies the NEQ predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeIn applies the In predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldAccountTodayStatsCycleMode, vs...))
+}
+
+// AccountTodayStatsCycleModeNotIn applies the NotIn predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldAccountTodayStatsCycleMode, vs...))
+}
+
+// AccountTodayStatsCycleModeGT applies the GT predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeGTE applies the GTE predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeLT applies the LT predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeLTE applies the LTE predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeContains applies the Contains predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeHasPrefix applies the HasPrefix predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeHasSuffix applies the HasSuffix predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeEqualFold applies the EqualFold predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldAccountTodayStatsCycleMode, v))
+}
+
+// AccountTodayStatsCycleModeContainsFold applies the ContainsFold predicate on the "account_today_stats_cycle_mode" field.
+func AccountTodayStatsCycleModeContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldAccountTodayStatsCycleMode, v))
+}
+
 // AccountGroupDisplayModeEQ applies the EQ predicate on the "account_group_display_mode" field.
 func AccountGroupDisplayModeEQ(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAccountGroupDisplayMode, v))
@@ -1073,6 +1148,71 @@ func AccountGroupDisplayModeEqualFold(v string) predicate.User {
 // AccountGroupDisplayModeContainsFold applies the ContainsFold predicate on the "account_group_display_mode" field.
 func AccountGroupDisplayModeContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldAccountGroupDisplayMode, v))
+}
+
+// AccountStatusDisplayModeEQ applies the EQ predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeNEQ applies the NEQ predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeIn applies the In predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldAccountStatusDisplayMode, vs...))
+}
+
+// AccountStatusDisplayModeNotIn applies the NotIn predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldAccountStatusDisplayMode, vs...))
+}
+
+// AccountStatusDisplayModeGT applies the GT predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeGTE applies the GTE predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeLT applies the LT predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeLTE applies the LTE predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeContains applies the Contains predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeHasPrefix applies the HasPrefix predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeHasSuffix applies the HasSuffix predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeEqualFold applies the EqualFold predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldAccountStatusDisplayMode, v))
+}
+
+// AccountStatusDisplayModeContainsFold applies the ContainsFold predicate on the "account_status_display_mode" field.
+func AccountStatusDisplayModeContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldAccountStatusDisplayMode, v))
 }
 
 // UsageContextBadgeDisplayModeEQ applies the EQ predicate on the "usage_context_badge_display_mode" field.

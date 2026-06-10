@@ -299,6 +299,20 @@ func (_u *UserUpdate) AppendAccountTodayStatsWindows(v []string) *UserUpdate {
 	return _u
 }
 
+// SetAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field.
+func (_u *UserUpdate) SetAccountTodayStatsCycleMode(v string) *UserUpdate {
+	_u.mutation.SetAccountTodayStatsCycleMode(v)
+	return _u
+}
+
+// SetNillableAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAccountTodayStatsCycleMode(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAccountTodayStatsCycleMode(*v)
+	}
+	return _u
+}
+
 // SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
 func (_u *UserUpdate) SetAccountGroupDisplayMode(v string) *UserUpdate {
 	_u.mutation.SetAccountGroupDisplayMode(v)
@@ -309,6 +323,20 @@ func (_u *UserUpdate) SetAccountGroupDisplayMode(v string) *UserUpdate {
 func (_u *UserUpdate) SetNillableAccountGroupDisplayMode(v *string) *UserUpdate {
 	if v != nil {
 		_u.SetAccountGroupDisplayMode(*v)
+	}
+	return _u
+}
+
+// SetAccountStatusDisplayMode sets the "account_status_display_mode" field.
+func (_u *UserUpdate) SetAccountStatusDisplayMode(v string) *UserUpdate {
+	_u.mutation.SetAccountStatusDisplayMode(v)
+	return _u
+}
+
+// SetNillableAccountStatusDisplayMode sets the "account_status_display_mode" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAccountStatusDisplayMode(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAccountStatusDisplayMode(*v)
 	}
 	return _u
 }
@@ -820,9 +848,19 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "account_visual_preset_override", err: fmt.Errorf(`ent: validator failed for field "User.account_visual_preset_override": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AccountTodayStatsCycleMode(); ok {
+		if err := user.AccountTodayStatsCycleModeValidator(v); err != nil {
+			return &ValidationError{Name: "account_today_stats_cycle_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_today_stats_cycle_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.AccountGroupDisplayMode(); ok {
 		if err := user.AccountGroupDisplayModeValidator(v); err != nil {
 			return &ValidationError{Name: "account_group_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_group_display_mode": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.AccountStatusDisplayMode(); ok {
+		if err := user.AccountStatusDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "account_status_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_status_display_mode": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
@@ -918,8 +956,14 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			sqljson.Append(u, user.FieldAccountTodayStatsWindows, value)
 		})
 	}
+	if value, ok := _u.mutation.AccountTodayStatsCycleMode(); ok {
+		_spec.SetField(user.FieldAccountTodayStatsCycleMode, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.AccountGroupDisplayMode(); ok {
 		_spec.SetField(user.FieldAccountGroupDisplayMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AccountStatusDisplayMode(); ok {
+		_spec.SetField(user.FieldAccountStatusDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
@@ -1647,6 +1691,20 @@ func (_u *UserUpdateOne) AppendAccountTodayStatsWindows(v []string) *UserUpdateO
 	return _u
 }
 
+// SetAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field.
+func (_u *UserUpdateOne) SetAccountTodayStatsCycleMode(v string) *UserUpdateOne {
+	_u.mutation.SetAccountTodayStatsCycleMode(v)
+	return _u
+}
+
+// SetNillableAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAccountTodayStatsCycleMode(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAccountTodayStatsCycleMode(*v)
+	}
+	return _u
+}
+
 // SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
 func (_u *UserUpdateOne) SetAccountGroupDisplayMode(v string) *UserUpdateOne {
 	_u.mutation.SetAccountGroupDisplayMode(v)
@@ -1657,6 +1715,20 @@ func (_u *UserUpdateOne) SetAccountGroupDisplayMode(v string) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillableAccountGroupDisplayMode(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetAccountGroupDisplayMode(*v)
+	}
+	return _u
+}
+
+// SetAccountStatusDisplayMode sets the "account_status_display_mode" field.
+func (_u *UserUpdateOne) SetAccountStatusDisplayMode(v string) *UserUpdateOne {
+	_u.mutation.SetAccountStatusDisplayMode(v)
+	return _u
+}
+
+// SetNillableAccountStatusDisplayMode sets the "account_status_display_mode" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAccountStatusDisplayMode(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAccountStatusDisplayMode(*v)
 	}
 	return _u
 }
@@ -2181,9 +2253,19 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "account_visual_preset_override", err: fmt.Errorf(`ent: validator failed for field "User.account_visual_preset_override": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AccountTodayStatsCycleMode(); ok {
+		if err := user.AccountTodayStatsCycleModeValidator(v); err != nil {
+			return &ValidationError{Name: "account_today_stats_cycle_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_today_stats_cycle_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.AccountGroupDisplayMode(); ok {
 		if err := user.AccountGroupDisplayModeValidator(v); err != nil {
 			return &ValidationError{Name: "account_group_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_group_display_mode": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.AccountStatusDisplayMode(); ok {
+		if err := user.AccountStatusDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "account_status_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_status_display_mode": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
@@ -2296,8 +2378,14 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			sqljson.Append(u, user.FieldAccountTodayStatsWindows, value)
 		})
 	}
+	if value, ok := _u.mutation.AccountTodayStatsCycleMode(); ok {
+		_spec.SetField(user.FieldAccountTodayStatsCycleMode, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.AccountGroupDisplayMode(); ok {
 		_spec.SetField(user.FieldAccountGroupDisplayMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AccountStatusDisplayMode(); ok {
+		_spec.SetField(user.FieldAccountStatusDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)

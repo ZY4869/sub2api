@@ -54,6 +54,7 @@ export default {
         todayOverview: "今日概览",
         cost: "费用",
         requests: "请求",
+        monthlyUsage: "月用量",
         tokens: "Token",
         highestCostDay: "最高费用日",
         highestRequestDay: "最高请求日",

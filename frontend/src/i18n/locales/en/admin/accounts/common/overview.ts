@@ -55,6 +55,7 @@ export default {
             usage5h: "5h Cap",
             usage7d: "7d Cap",
             usage7dAll: "Dual 7d",
+            quotaMonthly: "Monthly Quota",
         },
     },
     groupView: {
@@ -68,15 +69,26 @@ export default {
         button: "Display",
         title: "Display Optimization",
         todayStats: "Today Stats",
+        todayStatsCycleMode: "Stats Cycle",
         groupDisplay: "Group Display",
+        statusDisplay: "Status Column",
         windows: {
             today: "Today",
             weekly: "7d",
+            monthly: "Monthly",
             total: "Total",
+        },
+        cycleModes: {
+            calendar: "Calendar",
+            fixed: "Fixed Cycle",
         },
         groupModes: {
             full: "Full",
             icon: "Icon",
+        },
+        statusModes: {
+            simple: "Simple",
+            detailed: "Detailed",
         },
         save: "Save",
         saveFailed: "Failed to save display preferences",
@@ -132,6 +144,8 @@ export default {
             dailyNormal: "Daily quota is healthy for this upstream account.",
             weeklyExceeded: "Weekly quota exhausted. Only this upstream account is paused.",
             weeklyNormal: "Weekly quota is healthy for this upstream account.",
+            monthlyExceeded: "Monthly quota exhausted. Only this upstream account is paused.",
+            monthlyNormal: "Monthly quota is healthy for this upstream account.",
             totalExceeded: "Total quota exhausted. Only this upstream account is paused.",
             totalNormal: "Total quota is healthy for this upstream account.",
         },

@@ -148,7 +148,8 @@ const hasQuotaLimit = computed(() => {
   return (props.account?.type === 'apikey' || props.account?.type === 'bedrock') && (
     (props.account?.quota_limit ?? 0) > 0 ||
     (props.account?.quota_daily_limit ?? 0) > 0 ||
-    (props.account?.quota_weekly_limit ?? 0) > 0
+    (props.account?.quota_weekly_limit ?? 0) > 0 ||
+    (props.account?.quota_monthly_limit ?? 0) > 0
   )
 })
 const hasOriginalProxy = computed(() => Boolean(props.account?.original_proxy_id))

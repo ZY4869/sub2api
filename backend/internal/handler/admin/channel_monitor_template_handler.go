@@ -1,11 +1,14 @@
 package admin
 
 import (
+	"encoding/json"
 	"strconv"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type ChannelMonitorTemplateHandler struct {
@@ -21,13 +24,13 @@ func NewChannelMonitorTemplateHandler(templateService *service.ChannelMonitorTem
 }
 
 type createChannelMonitorTemplateRequest struct {
-	Name             string            `json:"name" binding:"required"`
-	Provider         string            `json:"provider" binding:"required"`
-	Description      *string           `json:"description"`
-	ExtraHeaders     map[string]string `json:"extra_headers"`
-	BodyOverrideMode string            `json:"body_override_mode"`
-	BodyOverride     map[string]any    `json:"body_override"`
-	OpenAIAPIMode    string            `json:"openai_api_mode"`
+	Name             string          `json:"name" binding:"required"`
+	Provider         string          `json:"provider" binding:"required"`
+	Description      *string         `json:"description"`
+	ExtraHeaders     json.RawMessage `json:"extra_headers"`
+	BodyOverrideMode json.RawMessage `json:"body_override_mode"`
+	BodyOverride     json.RawMessage `json:"body_override"`
+	OpenAIAPIMode    json.RawMessage `json:"openai_api_mode"`
 }
 
 func (h *ChannelMonitorTemplateHandler) List(c *gin.Context) {
@@ -58,19 +61,46 @@ func (h *ChannelMonitorTemplateHandler) GetByID(c *gin.Context) {
 func (h *ChannelMonitorTemplateHandler) Create(c *gin.Context) {
 	var req createChannelMonitorTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.ErrorFrom(c, service.ErrChannelMonitorInvalidRequest)
+		return
+	}
+	extraHeaders, _, err := parseChannelMonitorHeaders(req.ExtraHeaders)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	bodyOverride, _, err := parseChannelMonitorBodyOverride(req.BodyOverride)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	bodyOverrideMode, _, err := parseChannelMonitorMode(req.BodyOverrideMode, service.ErrChannelMonitorInvalidOverrideMode)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	openAIAPIMode, _, err := parseChannelMonitorMode(req.OpenAIAPIMode, service.ErrChannelMonitorInvalidOpenAIAPIMode)
+	if err != nil {
+		response.ErrorFrom(c, err)
 		return
 	}
 	item, err := h.templateService.Create(c.Request.Context(), &service.ChannelMonitorRequestTemplate{
 		Name:             req.Name,
 		Provider:         req.Provider,
 		Description:      req.Description,
-		ExtraHeaders:     req.ExtraHeaders,
-		BodyOverrideMode: req.BodyOverrideMode,
-		BodyOverride:     req.BodyOverride,
-		OpenAIAPIMode:    req.OpenAIAPIMode,
+		ExtraHeaders:     extraHeaders,
+		BodyOverrideMode: bodyOverrideMode,
+		BodyOverride:     bodyOverride,
+		OpenAIAPIMode:    openAIAPIMode,
 	})
 	if err != nil {
+		logger.FromContext(c.Request.Context()).Warn(
+			"channel_monitor_template_create_failed",
+			zap.String("component", "handler.admin.channel_monitor_template"),
+			zap.String("provider", req.Provider),
+			zap.Bool("has_name", req.Name != ""),
+			zap.Error(err),
+		)
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -78,13 +108,13 @@ func (h *ChannelMonitorTemplateHandler) Create(c *gin.Context) {
 }
 
 type updateChannelMonitorTemplateRequest struct {
-	Name             *string            `json:"name"`
-	Provider         *string            `json:"provider"`
-	Description      **string           `json:"description"`
-	ExtraHeaders     *map[string]string `json:"extra_headers"`
-	BodyOverrideMode *string            `json:"body_override_mode"`
-	BodyOverride     *map[string]any    `json:"body_override"`
-	OpenAIAPIMode    *string            `json:"openai_api_mode"`
+	Name             *string         `json:"name"`
+	Provider         *string         `json:"provider"`
+	Description      **string        `json:"description"`
+	ExtraHeaders     json.RawMessage `json:"extra_headers"`
+	BodyOverrideMode json.RawMessage `json:"body_override_mode"`
+	BodyOverride     json.RawMessage `json:"body_override"`
+	OpenAIAPIMode    json.RawMessage `json:"openai_api_mode"`
 }
 
 func (h *ChannelMonitorTemplateHandler) Update(c *gin.Context) {
@@ -94,7 +124,7 @@ func (h *ChannelMonitorTemplateHandler) Update(c *gin.Context) {
 	}
 	var req updateChannelMonitorTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.ErrorFrom(c, service.ErrChannelMonitorInvalidRequest)
 		return
 	}
 	existing, err := h.templateService.GetByID(c.Request.Context(), templateID)
@@ -111,17 +141,29 @@ func (h *ChannelMonitorTemplateHandler) Update(c *gin.Context) {
 	if req.Description != nil {
 		existing.Description = *req.Description
 	}
-	if req.ExtraHeaders != nil {
-		existing.ExtraHeaders = *req.ExtraHeaders
+	if extraHeaders, present, err := parseChannelMonitorHeaders(req.ExtraHeaders); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	} else if present {
+		existing.ExtraHeaders = extraHeaders
 	}
-	if req.BodyOverrideMode != nil {
-		existing.BodyOverrideMode = *req.BodyOverrideMode
+	if bodyOverrideMode, present, err := parseChannelMonitorMode(req.BodyOverrideMode, service.ErrChannelMonitorInvalidOverrideMode); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	} else if present {
+		existing.BodyOverrideMode = bodyOverrideMode
 	}
-	if req.BodyOverride != nil {
-		existing.BodyOverride = *req.BodyOverride
+	if bodyOverride, present, err := parseChannelMonitorBodyOverride(req.BodyOverride); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	} else if present {
+		existing.BodyOverride = bodyOverride
 	}
-	if req.OpenAIAPIMode != nil {
-		existing.OpenAIAPIMode = *req.OpenAIAPIMode
+	if openAIAPIMode, present, err := parseChannelMonitorMode(req.OpenAIAPIMode, service.ErrChannelMonitorInvalidOpenAIAPIMode); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	} else if present {
+		existing.OpenAIAPIMode = openAIAPIMode
 	}
 	updated, err := h.templateService.Update(c.Request.Context(), existing)
 	if err != nil {

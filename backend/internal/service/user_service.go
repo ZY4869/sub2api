@@ -70,7 +70,9 @@ type UpdateProfileRequest struct {
 	VisualPresetPreference          *string  `json:"visual_preset_preference"`
 	AccountVisualPresetOverride     *string  `json:"account_visual_preset_override"`
 	AccountTodayStatsWindows        []string `json:"account_today_stats_windows"`
+	AccountTodayStatsCycleMode      *string  `json:"account_today_stats_cycle_mode"`
 	AccountGroupDisplayMode         *string  `json:"account_group_display_mode"`
+	AccountStatusDisplayMode        *string  `json:"account_status_display_mode"`
 }
 
 // ChangePasswordRequest 修改密码请求
@@ -182,12 +184,28 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int64, req Updat
 		user.AccountTodayStatsWindows = windows
 	}
 
+	if req.AccountTodayStatsCycleMode != nil {
+		mode, err := ValidateAccountTodayStatsCycleMode(*req.AccountTodayStatsCycleMode)
+		if err != nil {
+			return nil, err
+		}
+		user.AccountTodayStatsCycleMode = mode
+	}
+
 	if req.AccountGroupDisplayMode != nil {
 		mode, err := ValidateAccountGroupDisplayMode(*req.AccountGroupDisplayMode)
 		if err != nil {
 			return nil, err
 		}
 		user.AccountGroupDisplayMode = mode
+	}
+
+	if req.AccountStatusDisplayMode != nil {
+		mode, err := ValidateAccountStatusDisplayMode(*req.AccountStatusDisplayMode)
+		if err != nil {
+			return nil, err
+		}
+		user.AccountStatusDisplayMode = mode
 	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {

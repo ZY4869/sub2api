@@ -105,7 +105,7 @@ func normalizeChannelMonitorTemplate(tpl *ChannelMonitorRequestTemplate) (*Chann
 		return nil, ErrChannelMonitorInvalidOverrideMode
 	}
 	if !isValidChannelMonitorOpenAIAPIMode(out.Provider, out.OpenAIAPIMode) {
-		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_OPENAI_API_MODE_INVALID", "invalid OpenAI API mode")
+		return nil, ErrChannelMonitorInvalidOpenAIAPIMode
 	}
 
 	out.ExtraHeaders = normalizeChannelMonitorHeaders(out.ExtraHeaders)

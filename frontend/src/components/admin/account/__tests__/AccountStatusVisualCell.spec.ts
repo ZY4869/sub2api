@@ -74,8 +74,8 @@ const makeAccount = (overrides: Partial<Account> = {}): Account => ({
   ...overrides,
 } as Account)
 
-const mountVisual = (account: Account) => mount(AccountStatusVisualCell, {
-  props: { account },
+const mountVisual = (account: Account, props: Record<string, unknown> = {}) => mount(AccountStatusVisualCell, {
+  props: { account, ...props },
   global: {
     plugins: [createPinia()],
     stubs,
@@ -152,6 +152,29 @@ describe('AccountStatusVisualCell', () => {
     const badges = usage7d.findAll('[data-test="account-status-limit-badge"]')
     expect(badges).toHaveLength(2)
     expect(badges[0].find('span.inline-flex').classes()).toContain('w-full')
+  })
+
+  it('collapses helper text and limit badges into icons in simple mode', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-22T12:00:00Z'))
+
+    const wrapper = mountVisual(makeAccount({
+      rate_limited_at: '2026-05-20T12:00:00Z',
+      rate_limit_reset_at: '2026-05-23T12:00:00Z',
+      rate_limit_reason: 'usage_7d_all',
+      extra: {
+        codex_7d_window_minutes: 43200,
+        codex_7d_reset_at: '2026-05-23T12:00:00Z',
+        codex_spark_7d_window_minutes: 43200,
+        codex_spark_7d_reset_at: '2026-05-24T12:00:00Z',
+      },
+    }), { displayMode: 'simple' })
+
+    expect(wrapper.find('[data-testid="account-status-visual-simple-icons"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('30D 恢复中')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.usage7dAllAutoResume')
+    expect(wrapper.findAll('[data-test="account-status-limit-badge"]')).toHaveLength(2)
+    expect(wrapper.findAll('[data-test="account-status-limit-badge"] span[title]').length).toBe(2)
   })
 
   it('renders overload with countdown and no release suffix tag', () => {

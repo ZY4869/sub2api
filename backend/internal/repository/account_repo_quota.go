@@ -43,6 +43,21 @@ func (r *accountRepository) IncrementQuotaUsed(ctx context.Context, id int64, am
 					ELSE COALESCE(extra->>'quota_weekly_start', `+nowUTC+`) END
 				)
 			ELSE '{}'::jsonb END
+			-- 月额度：仅在 quota_monthly_limit > 0 时处理
+			|| CASE WHEN COALESCE((extra->>'quota_monthly_limit')::numeric, 0) > 0 THEN
+				jsonb_build_object(
+					'quota_monthly_used',
+					CASE WHEN COALESCE((extra->>'quota_monthly_start')::timestamptz, '1970-01-01'::timestamptz)
+						+ '720 hours'::interval <= NOW()
+					THEN $1
+					ELSE COALESCE((extra->>'quota_monthly_used')::numeric, 0) + $1 END,
+					'quota_monthly_start',
+					CASE WHEN COALESCE((extra->>'quota_monthly_start')::timestamptz, '1970-01-01'::timestamptz)
+						+ '720 hours'::interval <= NOW()
+					THEN `+nowUTC+`
+					ELSE COALESCE(extra->>'quota_monthly_start', `+nowUTC+`) END
+				)
+			ELSE '{}'::jsonb END
 		), updated_at = NOW()
 		WHERE id = $2 AND deleted_at IS NULL
 		RETURNING

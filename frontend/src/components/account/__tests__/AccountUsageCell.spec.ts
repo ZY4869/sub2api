@@ -84,7 +84,7 @@ const usageBarStub = {
     "visualVariant",
   ],
   template:
-    '<div class="usage-bar" :data-display-mode="displayMode" :data-detailed-reset="String(!!detailedReset)" :data-has-reset="String(!!resetsAt || remainingSeconds != null)" :data-visual-variant="visualVariant">{{ label }}|{{ utilization }}|{{ windowStats?.tokens }}</div>',
+    '<div class="usage-bar" :data-color="color" :data-display-mode="displayMode" :data-detailed-reset="String(!!detailedReset)" :data-has-reset="String(!!resetsAt || remainingSeconds != null)" :data-visual-variant="visualVariant">{{ label }}|{{ utilization }}|{{ windowStats?.tokens }}</div>',
 };
 
 const passiveUsageResponse = {
@@ -743,8 +743,9 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(getUsage).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain("5H|12|");
-    expect(wrapper.text()).toContain("30D|34|");
+    const rows = wrapper.findAll(".usage-bar");
+    expect(rows.map((row) => row.text())).toEqual(["5H|12|", "30D|34|"]);
+    expect(rows.map((row) => row.attributes("data-color"))).toEqual(["indigo", "green"]);
     expect(wrapper.text()).not.toContain("7D|34|");
   });
 
@@ -826,6 +827,12 @@ describe("AccountUsageCell", () => {
       source: undefined,
     });
     expect(wrapper.findAll(".usage-bar")).toHaveLength(4);
+    expect(wrapper.findAll(".usage-bar").map((row) => row.attributes("data-color"))).toEqual([
+      "indigo",
+      "orange",
+      "indigo",
+      "orange",
+    ]);
     expect(wrapper.text()).toContain(
       "5H|12|120",
     );
@@ -878,6 +885,12 @@ describe("AccountUsageCell", () => {
       "7D|22|",
       "Spark 5H|33|",
       "Spark 7D|44|",
+    ]);
+    expect(wrapper.findAll(".usage-bar").map((row) => row.attributes("data-color"))).toEqual([
+      "indigo",
+      "orange",
+      "indigo",
+      "orange",
     ]);
   });
 

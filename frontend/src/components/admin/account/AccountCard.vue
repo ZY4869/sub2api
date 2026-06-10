@@ -85,6 +85,7 @@
           :account="account"
           :visual-style="visualStyle"
           :white-surface-enabled="whiteSurfaceEnabled"
+          :display-mode="accountStatusDisplayMode"
           @show-temp-unsched="emit('show-temp-unsched', account)"
         />
         <AccountStatusIndicator
@@ -201,7 +202,7 @@ import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
-import type { Account, AccountGroupDisplayMode, AccountVisualStyle, WindowStats } from '@/types'
+import type { Account, AccountGroupDisplayMode, AccountStatusDisplayMode, AccountVisualStyle, WindowStats } from '@/types'
 import { formatRelativeTime } from '@/utils/format'
 import AccountAutoRecoveryProbeNotice from './AccountAutoRecoveryProbeNotice.vue'
 import AccountsViewAiryRowActions from './AccountsViewAiryRowActions.vue'
@@ -222,10 +223,12 @@ const props = withDefaults(defineProps<{
   visualStyle?: AccountVisualStyle
   whiteSurfaceEnabled?: boolean
   accountGroupDisplayMode?: AccountGroupDisplayMode
+  accountStatusDisplayMode?: AccountStatusDisplayMode
 }>(), {
   visualStyle: 'airy',
   whiteSurfaceEnabled: false,
-  accountGroupDisplayMode: 'full'
+  accountGroupDisplayMode: 'full',
+  accountStatusDisplayMode: 'detailed'
 })
 
 const emit = defineEmits<{

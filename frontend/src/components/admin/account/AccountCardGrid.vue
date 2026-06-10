@@ -27,6 +27,7 @@
           :visual-style="visualStyle"
           :white-surface-enabled="whiteSurfaceEnabled"
           :account-group-display-mode="accountGroupDisplayMode"
+          :account-status-display-mode="accountStatusDisplayMode"
           @toggle-selected="emit('toggle-selected', $event)"
           @show-temp-unsched="emit('show-temp-unsched', $event)"
           @toggle-schedulable="emit('toggle-schedulable', $event)"
@@ -62,6 +63,7 @@
             :visual-style="visualStyle"
             :white-surface-enabled="whiteSurfaceEnabled"
             :account-group-display-mode="accountGroupDisplayMode"
+            :account-status-display-mode="accountStatusDisplayMode"
             @toggle-selected="emit('toggle-selected', $event)"
             @show-temp-unsched="emit('show-temp-unsched', $event)"
             @toggle-schedulable="emit('toggle-schedulable', $event)"
@@ -81,6 +83,7 @@ import { useI18n } from 'vue-i18n'
 import type {
   Account,
   AccountGroupDisplayMode,
+  AccountStatusDisplayMode,
   AccountVisualStyle,
   WindowStats,
 } from '@/types'
@@ -99,11 +102,13 @@ const props = withDefaults(defineProps<{
   visualStyle?: AccountVisualStyle
   whiteSurfaceEnabled?: boolean
   accountGroupDisplayMode?: AccountGroupDisplayMode
+  accountStatusDisplayMode?: AccountStatusDisplayMode
 }>(), {
   emptyText: '',
   visualStyle: 'airy',
   whiteSurfaceEnabled: false,
-  accountGroupDisplayMode: 'full'
+  accountGroupDisplayMode: 'full',
+  accountStatusDisplayMode: 'detailed'
 })
 
 const emit = defineEmits<{

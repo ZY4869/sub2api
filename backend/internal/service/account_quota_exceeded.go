@@ -42,6 +42,13 @@ func (a *Account) IsQuotaExceeded() bool {
 			return true
 		}
 	}
+	// 月额度
+	if limit := a.GetQuotaMonthlyLimit(); limit > 0 {
+		start := a.getExtraTime("quota_monthly_start")
+		if !isPeriodExpired(start, 30*24*time.Hour) && a.GetQuotaMonthlyUsed() >= limit {
+			return true
+		}
+	}
 	if isQuotaCurrencyMapExceeded(a.GetQuotaLimitByCurrency(), a.GetQuotaUsedByCurrency()) {
 		return true
 	}
@@ -49,6 +56,9 @@ func (a *Account) IsQuotaExceeded() bool {
 		return true
 	}
 	if isQuotaCurrencyMapExceeded(a.GetQuotaWeeklyLimitByCurrency(), a.GetQuotaWeeklyUsedByCurrency()) {
+		return true
+	}
+	if isQuotaCurrencyMapExceeded(a.GetQuotaMonthlyLimitByCurrency(), a.GetQuotaMonthlyUsedByCurrency()) {
 		return true
 	}
 	return false

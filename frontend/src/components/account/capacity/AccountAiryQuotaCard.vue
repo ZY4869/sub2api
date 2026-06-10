@@ -24,7 +24,7 @@ import { formatQuotaCurrency } from './presentation'
 const props = withDefaults(defineProps<{
   used: number
   limit: number
-  kind?: 'daily' | 'weekly' | 'total'
+  kind?: 'daily' | 'weekly' | 'monthly' | 'total'
   label?: string
   whiteSurfaceEnabled?: boolean
 }>(), {
@@ -45,6 +45,8 @@ const resolvedLabel = computed(() => {
       return 'D'
     case 'weekly':
       return 'W'
+    case 'monthly':
+      return 'M'
     default:
       return 'T'
   }

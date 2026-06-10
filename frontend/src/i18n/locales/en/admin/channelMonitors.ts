@@ -111,5 +111,7 @@ export default {
         primaryModelRequired: "Please enter a primary model ID",
         apiKeyRequired: "Please enter an API key",
         invalidJson: "Invalid JSON (must be an object)",
+        invalidHeaders: "Extra headers must be a JSON object with string values",
+        bodyOverrideRequired: "Replace mode requires a non-empty body override object",
     },
 }

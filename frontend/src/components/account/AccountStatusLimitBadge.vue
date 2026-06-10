@@ -5,19 +5,20 @@
         badgeBaseClass,
         toneClass,
       ]"
+      :title="visualVariant === 'icon' ? tooltip || label : undefined"
     >
       <ModelIcon
         v-if="model"
         :model="model"
         :display-name="modelDisplayName || label"
-        size="12px"
+        :size="visualVariant === 'icon' ? '16px' : '12px'"
       />
       <Icon v-else name="exclamationTriangle" size="xs" :stroke-width="2" />
-      <span class="min-w-0 truncate">{{ label }}</span>
-      <span v-if="countdown" class="shrink-0 text-[10px] opacity-70">{{ countdown }}</span>
+      <span v-if="visualVariant !== 'icon'" class="min-w-0 truncate">{{ label }}</span>
+      <span v-if="visualVariant !== 'icon' && countdown" class="shrink-0 text-[10px] opacity-70">{{ countdown }}</span>
     </span>
     <div
-      v-if="tooltip"
+      v-if="tooltip && visualVariant !== 'icon'"
       :class="tooltipClass"
     >
       {{ tooltip }}
@@ -41,7 +42,7 @@ const props = withDefaults(
     tooltip?: string | null
     model?: string | null
     modelDisplayName?: string | null
-    visualVariant?: 'default' | 'glass'
+    visualVariant?: 'default' | 'glass' | 'icon'
   }>(),
   {
     countdown: null,
@@ -53,6 +54,9 @@ const props = withDefaults(
 )
 
 const badgeBaseClass = computed(() => {
+  if (props.visualVariant === 'icon') {
+    return 'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border'
+  }
   if (props.visualVariant === 'glass') {
     return 'inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-full border px-2.5 py-1.5 text-[10px] font-semibold tracking-tight'
   }
@@ -60,6 +64,16 @@ const badgeBaseClass = computed(() => {
 })
 
 const toneClass = computed(() => {
+  if (props.visualVariant === 'icon') {
+    switch (props.tone) {
+      case 'amber':
+        return 'border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100'
+      case 'red':
+        return 'border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-100'
+      default:
+        return 'border-indigo-200/80 bg-indigo-50 text-indigo-700 dark:border-indigo-400/25 dark:bg-indigo-400/10 dark:text-indigo-100'
+    }
+  }
   if (props.visualVariant === 'glass') {
     switch (props.tone) {
       case 'amber':

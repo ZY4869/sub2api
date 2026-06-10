@@ -2,7 +2,7 @@
   <div class="space-y-2">
     <div
       v-if="loading"
-      class="grid grid-cols-2 gap-2 sm:grid-cols-5"
+      class="grid grid-cols-2 gap-2 sm:grid-cols-6"
     >
       <div
         v-for="item in 5"
@@ -13,7 +13,7 @@
 
     <div
       v-else
-      class="grid grid-cols-2 gap-2 sm:grid-cols-5"
+      class="grid grid-cols-2 gap-2 sm:grid-cols-6"
     >
       <button
         v-for="card in cards"
@@ -103,6 +103,13 @@ const cards = computed<LimitedReasonCard[]>(() => [
     count: props.summary.limited_breakdown.usage_7d_all,
     reasonValue: 'usage_7d_all' as const,
     eyebrowClass: 'text-fuchsia-600 dark:text-fuchsia-400'
+  },
+  {
+    key: 'quota_monthly',
+    label: t('admin.accounts.limited.summary.quotaMonthly'),
+    count: props.summary.limited_breakdown.quota_monthly,
+    reasonValue: 'quota_monthly' as const,
+    eyebrowClass: 'text-rose-600 dark:text-rose-400'
   }
 ])
 

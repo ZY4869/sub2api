@@ -28,6 +28,7 @@ const rankRow = (row: AccountUsagePresentationRow) => {
   const label = shortLabelForRow(row)
   if (label === '5h') return 0
   if (label === '7d') return 1
+  if (label === '30d') return 2
   if (label === '1d') return 2
   return 3
 }
@@ -57,10 +58,13 @@ export const rowTagClass = (row: VisualUsageRow) => {
     return 'bg-indigo-100 border-indigo-300 text-indigo-800 dark:bg-indigo-500/15 dark:border-indigo-400/30 dark:text-indigo-200'
   }
   if (label === '7d') {
-    return 'bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-500/15 dark:border-emerald-400/30 dark:text-emerald-200'
+    return 'bg-orange-100 border-orange-300 text-orange-800 dark:bg-orange-500/15 dark:border-orange-400/30 dark:text-orange-200'
+  }
+  if (label === '30d') {
+    return 'bg-green-100 border-green-300 text-green-800 dark:bg-green-500/15 dark:border-green-400/30 dark:text-green-200'
   }
   if (/^\d+d$/.test(label)) {
-    return 'bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-500/15 dark:border-emerald-400/30 dark:text-emerald-200'
+    return 'bg-orange-100 border-orange-300 text-orange-800 dark:bg-orange-500/15 dark:border-orange-400/30 dark:text-orange-200'
   }
   return 'bg-slate-100 border-slate-300 text-slate-700 dark:bg-slate-700/60 dark:border-slate-500 dark:text-slate-200'
 }

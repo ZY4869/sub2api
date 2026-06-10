@@ -45,7 +45,32 @@ describe('accountListSync', () => {
       tokens: 0,
       cost: 0,
       standard_cost: 0,
-      user_cost: 0
+      user_cost: 0,
+      success_rate: 100,
+      weekly: {
+        requests: 0,
+        tokens: 0,
+        cost: 0,
+        standard_cost: 0,
+        user_cost: 0,
+        success_rate: 100
+      },
+      monthly: {
+        requests: 0,
+        tokens: 0,
+        cost: 0,
+        standard_cost: 0,
+        user_cost: 0,
+        success_rate: 100
+      },
+      total: {
+        requests: 0,
+        tokens: 0,
+        cost: 0,
+        standard_cost: 0,
+        user_cost: 0,
+        success_rate: 100
+      }
     })
   })
 

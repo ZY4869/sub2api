@@ -39,7 +39,8 @@ export type AccountRateLimitReason =
   | "rate_429"
   | "usage_5h"
   | "usage_7d"
-  | "usage_7d_all";
+  | "usage_7d_all"
+  | "quota_monthly";
 export type AccountViewMode = "table" | "card";
 export type AccountUsageDisplayMode = "used" | "remaining";
 export type AccountAutoRenewPeriod = "month" | "quarter" | "year";
@@ -310,6 +311,11 @@ export interface Account {
   quota_weekly_used?: number | null;
   quota_weekly_limit_by_currency?: Record<string, number>;
   quota_weekly_used_by_currency?: Record<string, number>;
+  quota_monthly_limit?: number | null;
+  quota_monthly_used?: number | null;
+  quota_monthly_limit_by_currency?: Record<string, number>;
+  quota_monthly_used_by_currency?: Record<string, number>;
+  quota_monthly_reset_at?: string | null;
 
   // Runtime snapshots captured for account-level usage widgets.
   current_window_cost?: number | null; // Runtime snapshot of the current 5-hour window cost.
@@ -378,6 +384,7 @@ export interface AccountStatusSummary {
     usage_5h: number;
     usage_7d: number;
     usage_7d_all: number;
+    quota_monthly: number;
   };
 }
 
@@ -395,6 +402,7 @@ export interface WindowStats {
   success_rate?: number;
   average_duration_ms?: number;
   weekly?: WindowStats | null;
+  monthly?: WindowStats | null;
   total?: WindowStats | null;
 }
 
@@ -410,7 +418,13 @@ export interface UsageProgress {
 }
 
 // Color palette keys used for account usage rows.
-export type AccountUsageRowColor = "indigo" | "emerald" | "purple" | "amber";
+export type AccountUsageRowColor =
+  | "indigo"
+  | "emerald"
+  | "purple"
+  | "amber"
+  | "orange"
+  | "green";
 
 export interface AccountUsageResetRow {
   key: string;

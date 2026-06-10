@@ -27,7 +27,9 @@ type User struct {
 	VisualPresetPreference          string
 	AccountVisualPresetOverride     string
 	AccountTodayStatsWindows        []string
+	AccountTodayStatsCycleMode      string
 	AccountGroupDisplayMode         string
+	AccountStatusDisplayMode        string
 	APIKeyModelBindingMode          string
 	APIKeyAccessTimePolicy          *TimeAccessPolicy
 	AllowedGroups                   []int64

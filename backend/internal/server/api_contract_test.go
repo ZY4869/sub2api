@@ -63,8 +63,10 @@ func TestAPIContracts(t *testing.T) {
 					"account_realtime_countdown_enabled": true,
 					"visual_preset_preference": "inherit",
 					"account_visual_preset_override": "inherit",
-					"account_today_stats_windows": ["today", "weekly", "total"],
+					"account_today_stats_windows": ["today", "weekly", "monthly", "total"],
+					"account_today_stats_cycle_mode": "calendar",
 					"account_group_display_mode": "full",
+					"account_status_display_mode": "detailed",
 					"api_key_model_binding_mode": "model_required",
 					"api_key_access_time_policy": null,
 					"allowed_groups": null,
@@ -421,8 +423,10 @@ func TestAPIContracts(t *testing.T) {
 					"account_realtime_countdown_enabled": true,
 					"visual_preset_preference": "inherit",
 					"account_visual_preset_override": "inherit",
-					"account_today_stats_windows": ["today", "weekly", "total"],
+					"account_today_stats_windows": ["today", "weekly", "monthly", "total"],
+					"account_today_stats_cycle_mode": "calendar",
 					"account_group_display_mode": "full",
+					"account_status_display_mode": "detailed",
 					"api_key_model_binding_mode": "model_required",
 					"api_key_access_time_policy": null,
 					"allowed_groups": null,
@@ -468,7 +472,7 @@ func TestAPIContracts(t *testing.T) {
 			name:   "PUT /api/v1/user",
 			method: http.MethodPut,
 			path:   "/api/v1/user",
-			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","global_realtime_countdown_enabled":true,"account_realtime_countdown_enabled":false,"visual_preset_preference":"airy","account_visual_preset_override":"classic","account_today_stats_windows":["today","total"],"account_group_display_mode":"icon"}`,
+			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","global_realtime_countdown_enabled":true,"account_realtime_countdown_enabled":false,"visual_preset_preference":"airy","account_visual_preset_override":"classic","account_today_stats_windows":["today","total"],"account_today_stats_cycle_mode":"fixed","account_group_display_mode":"icon","account_status_display_mode":"simple"}`,
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
@@ -490,7 +494,9 @@ func TestAPIContracts(t *testing.T) {
 					"visual_preset_preference": "airy",
 					"account_visual_preset_override": "classic",
 					"account_today_stats_windows": ["today", "total"],
+					"account_today_stats_cycle_mode": "fixed",
 					"account_group_display_mode": "icon",
+					"account_status_display_mode": "simple",
 					"api_key_model_binding_mode": "model_required",
 					"api_key_access_time_policy": null,
 					"allowed_groups": null,
@@ -557,7 +563,7 @@ func TestAPIContracts(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 			wantJSON: `{
 				"code": 400,
-				"message": "account_today_stats_windows must only contain today, weekly, total",
+				"message": "account_today_stats_windows must only contain today, weekly, monthly, total",
 				"reason": "ACCOUNT_TODAY_STATS_WINDOWS_INVALID"
 			}`,
 		},
@@ -572,8 +578,23 @@ func TestAPIContracts(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 			wantJSON: `{
 				"code": 400,
-				"message": "account_today_stats_windows must contain at least one of today, weekly, total",
+				"message": "account_today_stats_windows must contain at least one of today, weekly, monthly, total",
 				"reason": "ACCOUNT_TODAY_STATS_WINDOWS_INVALID"
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/user invalid account_today_stats_cycle_mode",
+			method: http.MethodPut,
+			path:   "/api/v1/user",
+			body:   `{"account_today_stats_cycle_mode":"billing-cycle"}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "account_today_stats_cycle_mode must be one of calendar, fixed",
+				"reason": "ACCOUNT_TODAY_STATS_CYCLE_MODE_INVALID"
 			}`,
 		},
 		{
@@ -589,6 +610,21 @@ func TestAPIContracts(t *testing.T) {
 				"code": 400,
 				"message": "account_group_display_mode must be one of full, icon",
 				"reason": "ACCOUNT_GROUP_DISPLAY_MODE_INVALID"
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/user invalid account_status_display_mode",
+			method: http.MethodPut,
+			path:   "/api/v1/user",
+			body:   `{"account_status_display_mode":"bad"}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusBadRequest,
+			wantJSON: `{
+				"code": 400,
+				"message": "account_status_display_mode must be one of simple, detailed",
+				"reason": "ACCOUNT_STATUS_DISPLAY_MODE_INVALID"
 			}`,
 		},
 		{
@@ -1703,6 +1739,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 				AccountVisualPresetOverride:     service.VisualPresetPreferenceInherit,
 				AccountTodayStatsWindows:        service.DefaultAccountTodayStatsWindows(),
 				AccountGroupDisplayMode:         service.AccountGroupDisplayModeFull,
+				AccountStatusDisplayMode:        service.AccountStatusDisplayModeDetailed,
 				AllowedGroups:                   nil,
 				CreatedAt:                       now,
 				UpdatedAt:                       now,

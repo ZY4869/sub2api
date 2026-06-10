@@ -122,7 +122,36 @@ describe('AccountUsageVisualCell', () => {
     expect(wrapper.text()).not.toContain('7d')
     expect(wrapper.text()).toContain('12%')
     const rowLabel = wrapper.get('span.w-7')
-    expect(rowLabel.classes()).toContain('bg-emerald-100')
+    expect(rowLabel.classes()).toContain('bg-green-100')
+  })
+
+  it('uses the orange local tag for 7d rows', async () => {
+    const wrapper = mount(AccountUsageVisualCell, {
+      props: {
+        account: {
+          id: 91,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: {
+            plan_type: 'free',
+          },
+          extra: {
+            codex_7d_used_percent: 33,
+            codex_7d_window_minutes: 10080,
+            codex_7d_reset_at: '2099-05-29T12:00:00Z',
+            codex_usage_updated_at: '2099-05-22T12:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        plugins: [createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('7D')
+    expect(wrapper.get('span.w-7').classes()).toContain('bg-orange-100')
   })
 
   it('follows the shared remaining display mode', async () => {

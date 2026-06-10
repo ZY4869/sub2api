@@ -247,7 +247,8 @@ func accountMatchesRuntimeSummaryFilters(account *service.Account, filters servi
 	}
 
 	displayRateLimit := service.AccountDisplayRateLimitState(account, now)
-	isLimited := displayRateLimit.Limited
+	quotaMonthlyLimited := accountMonthlyQuotaLimited(account, now)
+	isLimited := displayRateLimit.Limited || quotaMonthlyLimited
 	switch service.NormalizeAccountLimitedViewInput(filters.LimitedView) {
 	case service.AccountLimitedViewNormalOnly:
 		if isLimited {
@@ -259,12 +260,24 @@ func accountMatchesRuntimeSummaryFilters(account *service.Account, filters servi
 		}
 	}
 	if reason := service.NormalizeAccountRateLimitReasonInput(filters.LimitedReason); reason != "" {
-		if !isLimited || displayRateLimit.Reason != reason {
+		actualReason := displayRateLimit.Reason
+		if quotaMonthlyLimited {
+			actualReason = service.AccountRateLimitReasonQuotaMonthly
+		}
+		if !isLimited || actualReason != reason {
 			return false
 		}
 	}
 
 	return true
+}
+
+func accountMonthlyQuotaLimited(account *service.Account, now time.Time) bool {
+	if account == nil || account.GetQuotaMonthlyLimit() <= 0 || account.GetQuotaMonthlyUsed() < account.GetQuotaMonthlyLimit() {
+		return false
+	}
+	start := account.GetExtraTime("quota_monthly_start")
+	return !start.IsZero() && start.Add(30*24*time.Hour).After(now)
 }
 
 func accountMatchesRuntimeDispatchableState(account *service.Account, now time.Time) bool {

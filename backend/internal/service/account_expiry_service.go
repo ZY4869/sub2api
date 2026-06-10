@@ -190,6 +190,7 @@ func (s *AccountExpiryService) tryAutoRenewAccount(ctx context.Context, account 
 		s.logAutoRenewFailed(ctx, account, now, previousExpiry, period, err)
 		return false
 	}
+	syncAccountMonthlyUsagePeriod(ctx, s.accountRepo, &updatedAccount, &previousExpiry, AccountUsagePeriodSourceExpiry)
 	slog.Info(
 		"account_auto_renew_success",
 		"request_id", requestID,
@@ -398,6 +399,7 @@ func (s *AccountExpiryService) handleSuccessfulProbe(ctx context.Context, accoun
 		return
 	}
 	base := checkedAt
+	oldExpiresAt := cloneTimePtr(account.ExpiresAt)
 	if account.ExpiresAt != nil && account.ExpiresAt.After(base) {
 		base = account.ExpiresAt.UTC()
 	}
@@ -432,6 +434,7 @@ func (s *AccountExpiryService) handleSuccessfulProbe(ctx context.Context, accoun
 		)
 		return
 	}
+	syncAccountMonthlyUsagePeriod(ctx, s.accountRepo, account, oldExpiresAt, AccountUsagePeriodSourceExpiry)
 	protocolruntime.RecordRecoveryProbeSuccess("expiry_probe")
 	protocolruntime.RecordRecoveryProbeResult("expiry_probe", AccountExpiryProbeStatusSuccess, time.Since(startedAt).Milliseconds())
 	slog.Info(

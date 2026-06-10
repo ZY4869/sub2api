@@ -56,6 +56,7 @@ export default {
             usage5h: "5h 上限",
             usage7d: "7d 上限",
             usage7dAll: "双 7d",
+            quotaMonthly: "月限额",
         },
     },
     groupView: {
@@ -69,15 +70,26 @@ export default {
         button: "显示优化",
         title: "显示优化",
         todayStats: "今日统计",
+        todayStatsCycleMode: "统计口径",
         groupDisplay: "分组展示",
+        statusDisplay: "状态列",
         windows: {
             today: "当天",
             weekly: "7天",
+            monthly: "月用量",
             total: "总计",
+        },
+        cycleModes: {
+            calendar: "自然日",
+            fixed: "固定周期",
         },
         groupModes: {
             full: "完整",
             icon: "图标",
+        },
+        statusModes: {
+            simple: "简约",
+            detailed: "详细",
         },
         save: "保存",
         saveFailed: "显示优化保存失败",
@@ -133,6 +145,8 @@ export default {
             dailyNormal: "当前上游账号日额度正常",
             weeklyExceeded: "周额度已用完，仅当前上游账号暂停调度",
             weeklyNormal: "当前上游账号周额度正常",
+            monthlyExceeded: "月额度已用完，仅当前上游账号暂停调度",
+            monthlyNormal: "当前上游账号月额度正常",
             totalExceeded: "总额度已用完，仅当前上游账号暂停调度",
             totalNormal: "当前上游账号总额度正常",
         },

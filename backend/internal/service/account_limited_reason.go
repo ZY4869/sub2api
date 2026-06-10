@@ -12,10 +12,11 @@ const (
 	AccountLimitedViewNormalOnly  = "normal_only"
 	AccountLimitedViewLimitedOnly = "limited_only"
 
-	AccountRateLimitReason429        = "rate_429"
-	AccountRateLimitReasonUsage5h    = "usage_5h"
-	AccountRateLimitReasonUsage7d    = "usage_7d"
-	AccountRateLimitReasonUsage7dAll = "usage_7d_all"
+	AccountRateLimitReason429          = "rate_429"
+	AccountRateLimitReasonUsage5h      = "usage_5h"
+	AccountRateLimitReasonUsage7d      = "usage_7d"
+	AccountRateLimitReasonUsage7dAll   = "usage_7d_all"
+	AccountRateLimitReasonQuotaMonthly = "quota_monthly"
 )
 
 type accountLimitedFiltersContextKey struct{}
@@ -48,6 +49,8 @@ func NormalizeAccountRateLimitReasonInput(raw string) string {
 		return AccountRateLimitReasonUsage7d
 	case AccountRateLimitReasonUsage7dAll:
 		return AccountRateLimitReasonUsage7dAll
+	case AccountRateLimitReasonQuotaMonthly:
+		return AccountRateLimitReasonQuotaMonthly
 	default:
 		return ""
 	}

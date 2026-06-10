@@ -53,8 +53,12 @@ const (
 	FieldAccountVisualPresetOverride = "account_visual_preset_override"
 	// FieldAccountTodayStatsWindows holds the string denoting the account_today_stats_windows field in the database.
 	FieldAccountTodayStatsWindows = "account_today_stats_windows"
+	// FieldAccountTodayStatsCycleMode holds the string denoting the account_today_stats_cycle_mode field in the database.
+	FieldAccountTodayStatsCycleMode = "account_today_stats_cycle_mode"
 	// FieldAccountGroupDisplayMode holds the string denoting the account_group_display_mode field in the database.
 	FieldAccountGroupDisplayMode = "account_group_display_mode"
+	// FieldAccountStatusDisplayMode holds the string denoting the account_status_display_mode field in the database.
+	FieldAccountStatusDisplayMode = "account_status_display_mode"
 	// FieldUsageContextBadgeDisplayMode holds the string denoting the usage_context_badge_display_mode field in the database.
 	FieldUsageContextBadgeDisplayMode = "usage_context_badge_display_mode"
 	// FieldAPIKeyModelBindingMode holds the string denoting the api_key_model_binding_mode field in the database.
@@ -181,7 +185,9 @@ var Columns = []string{
 	FieldVisualPresetPreference,
 	FieldAccountVisualPresetOverride,
 	FieldAccountTodayStatsWindows,
+	FieldAccountTodayStatsCycleMode,
 	FieldAccountGroupDisplayMode,
+	FieldAccountStatusDisplayMode,
 	FieldUsageContextBadgeDisplayMode,
 	FieldAPIKeyModelBindingMode,
 	FieldAPIKeyAccessTimePolicy,
@@ -264,10 +270,18 @@ var (
 	AccountVisualPresetOverrideValidator func(string) error
 	// DefaultAccountTodayStatsWindows holds the default value on creation for the "account_today_stats_windows" field.
 	DefaultAccountTodayStatsWindows []string
+	// DefaultAccountTodayStatsCycleMode holds the default value on creation for the "account_today_stats_cycle_mode" field.
+	DefaultAccountTodayStatsCycleMode string
+	// AccountTodayStatsCycleModeValidator is a validator for the "account_today_stats_cycle_mode" field. It is called by the builders before save.
+	AccountTodayStatsCycleModeValidator func(string) error
 	// DefaultAccountGroupDisplayMode holds the default value on creation for the "account_group_display_mode" field.
 	DefaultAccountGroupDisplayMode string
 	// AccountGroupDisplayModeValidator is a validator for the "account_group_display_mode" field. It is called by the builders before save.
 	AccountGroupDisplayModeValidator func(string) error
+	// DefaultAccountStatusDisplayMode holds the default value on creation for the "account_status_display_mode" field.
+	DefaultAccountStatusDisplayMode string
+	// AccountStatusDisplayModeValidator is a validator for the "account_status_display_mode" field. It is called by the builders before save.
+	AccountStatusDisplayModeValidator func(string) error
 	// DefaultUsageContextBadgeDisplayMode holds the default value on creation for the "usage_context_badge_display_mode" field.
 	DefaultUsageContextBadgeDisplayMode string
 	// UsageContextBadgeDisplayModeValidator is a validator for the "usage_context_badge_display_mode" field. It is called by the builders before save.
@@ -378,9 +392,19 @@ func ByAccountVisualPresetOverride(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountVisualPresetOverride, opts...).ToFunc()
 }
 
+// ByAccountTodayStatsCycleMode orders the results by the account_today_stats_cycle_mode field.
+func ByAccountTodayStatsCycleMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountTodayStatsCycleMode, opts...).ToFunc()
+}
+
 // ByAccountGroupDisplayMode orders the results by the account_group_display_mode field.
 func ByAccountGroupDisplayMode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountGroupDisplayMode, opts...).ToFunc()
+}
+
+// ByAccountStatusDisplayMode orders the results by the account_status_display_mode field.
+func ByAccountStatusDisplayMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountStatusDisplayMode, opts...).ToFunc()
 }
 
 // ByUsageContextBadgeDisplayMode orders the results by the usage_context_badge_display_mode field.

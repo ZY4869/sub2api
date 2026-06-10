@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 
@@ -79,19 +80,19 @@ func (h *ChannelMonitorHandler) GetByID(c *gin.Context) {
 }
 
 type createChannelMonitorRequest struct {
-	Name               string            `json:"name" binding:"required"`
-	Provider           string            `json:"provider" binding:"required"`
-	Endpoint           string            `json:"endpoint" binding:"required"`
-	APIKey             *string           `json:"api_key"`
-	IntervalSeconds    int               `json:"interval_seconds"`
-	Enabled            bool              `json:"enabled"`
-	PrimaryModelID     string            `json:"primary_model_id" binding:"required"`
-	AdditionalModelIDs []string          `json:"additional_model_ids"`
-	TemplateID         *int64            `json:"template_id"`
-	ExtraHeaders       map[string]string `json:"extra_headers"`
-	BodyOverrideMode   string            `json:"body_override_mode"`
-	BodyOverride       map[string]any    `json:"body_override"`
-	OpenAIAPIMode      string            `json:"openai_api_mode"`
+	Name               string          `json:"name" binding:"required"`
+	Provider           string          `json:"provider" binding:"required"`
+	Endpoint           string          `json:"endpoint" binding:"required"`
+	APIKey             *string         `json:"api_key"`
+	IntervalSeconds    int             `json:"interval_seconds"`
+	Enabled            bool            `json:"enabled"`
+	PrimaryModelID     string          `json:"primary_model_id" binding:"required"`
+	AdditionalModelIDs []string        `json:"additional_model_ids"`
+	TemplateID         json.RawMessage `json:"template_id"`
+	ExtraHeaders       json.RawMessage `json:"extra_headers"`
+	BodyOverrideMode   json.RawMessage `json:"body_override_mode"`
+	BodyOverride       json.RawMessage `json:"body_override"`
+	OpenAIAPIMode      json.RawMessage `json:"openai_api_mode"`
 }
 
 // Create creates a monitor.
@@ -99,7 +100,32 @@ type createChannelMonitorRequest struct {
 func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 	var req createChannelMonitorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.ErrorFrom(c, service.ErrChannelMonitorInvalidRequest)
+		return
+	}
+	templateID, _, err := parseChannelMonitorTemplateIDField(req.TemplateID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	extraHeaders, _, err := parseChannelMonitorHeaders(req.ExtraHeaders)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	bodyOverride, _, err := parseChannelMonitorBodyOverride(req.BodyOverride)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	bodyOverrideMode, _, err := parseChannelMonitorMode(req.BodyOverrideMode, service.ErrChannelMonitorInvalidOverrideMode)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	openAIAPIMode, _, err := parseChannelMonitorMode(req.OpenAIAPIMode, service.ErrChannelMonitorInvalidOpenAIAPIMode)
+	if err != nil {
+		response.ErrorFrom(c, err)
 		return
 	}
 	m, err := h.monitorService.Create(c.Request.Context(), &service.ChannelMonitor{
@@ -110,11 +136,11 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 		Enabled:            req.Enabled,
 		PrimaryModelID:     req.PrimaryModelID,
 		AdditionalModelIDs: req.AdditionalModelIDs,
-		TemplateID:         req.TemplateID,
-		ExtraHeaders:       req.ExtraHeaders,
-		BodyOverrideMode:   req.BodyOverrideMode,
-		BodyOverride:       req.BodyOverride,
-		OpenAIAPIMode:      req.OpenAIAPIMode,
+		TemplateID:         templateID,
+		ExtraHeaders:       extraHeaders,
+		BodyOverrideMode:   bodyOverrideMode,
+		BodyOverride:       bodyOverride,
+		OpenAIAPIMode:      openAIAPIMode,
 	}, req.APIKey)
 	if err != nil {
 		logger.FromContext(c.Request.Context()).Warn(
@@ -131,19 +157,19 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 }
 
 type updateChannelMonitorRequest struct {
-	Name               *string            `json:"name"`
-	Provider           *string            `json:"provider"`
-	Endpoint           *string            `json:"endpoint"`
-	APIKey             *string            `json:"api_key"`
-	IntervalSeconds    *int               `json:"interval_seconds"`
-	Enabled            *bool              `json:"enabled"`
-	PrimaryModelID     *string            `json:"primary_model_id"`
-	AdditionalModelIDs *[]string          `json:"additional_model_ids"`
-	TemplateID         **int64            `json:"template_id"`
-	ExtraHeaders       *map[string]string `json:"extra_headers"`
-	BodyOverrideMode   *string            `json:"body_override_mode"`
-	BodyOverride       *map[string]any    `json:"body_override"`
-	OpenAIAPIMode      *string            `json:"openai_api_mode"`
+	Name               *string         `json:"name"`
+	Provider           *string         `json:"provider"`
+	Endpoint           *string         `json:"endpoint"`
+	APIKey             *string         `json:"api_key"`
+	IntervalSeconds    *int            `json:"interval_seconds"`
+	Enabled            *bool           `json:"enabled"`
+	PrimaryModelID     *string         `json:"primary_model_id"`
+	AdditionalModelIDs *[]string       `json:"additional_model_ids"`
+	TemplateID         json.RawMessage `json:"template_id"`
+	ExtraHeaders       json.RawMessage `json:"extra_headers"`
+	BodyOverrideMode   json.RawMessage `json:"body_override_mode"`
+	BodyOverride       json.RawMessage `json:"body_override"`
+	OpenAIAPIMode      json.RawMessage `json:"openai_api_mode"`
 }
 
 // Update updates a monitor.
@@ -155,7 +181,7 @@ func (h *ChannelMonitorHandler) Update(c *gin.Context) {
 	}
 	var req updateChannelMonitorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.ErrorFrom(c, service.ErrChannelMonitorInvalidRequest)
 		return
 	}
 	existing, err := h.monitorService.GetByID(c.Request.Context(), monitorID)
@@ -185,20 +211,35 @@ func (h *ChannelMonitorHandler) Update(c *gin.Context) {
 	if req.AdditionalModelIDs != nil {
 		existing.AdditionalModelIDs = *req.AdditionalModelIDs
 	}
-	if req.TemplateID != nil {
-		existing.TemplateID = *req.TemplateID
+	if templateID, present, err := parseChannelMonitorTemplateIDField(req.TemplateID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	} else if present {
+		existing.TemplateID = templateID
 	}
-	if req.ExtraHeaders != nil {
-		existing.ExtraHeaders = *req.ExtraHeaders
+	if extraHeaders, present, err := parseChannelMonitorHeaders(req.ExtraHeaders); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	} else if present {
+		existing.ExtraHeaders = extraHeaders
 	}
-	if req.BodyOverrideMode != nil {
-		existing.BodyOverrideMode = *req.BodyOverrideMode
+	if bodyOverrideMode, present, err := parseChannelMonitorMode(req.BodyOverrideMode, service.ErrChannelMonitorInvalidOverrideMode); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	} else if present {
+		existing.BodyOverrideMode = bodyOverrideMode
 	}
-	if req.BodyOverride != nil {
-		existing.BodyOverride = *req.BodyOverride
+	if bodyOverride, present, err := parseChannelMonitorBodyOverride(req.BodyOverride); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	} else if present {
+		existing.BodyOverride = bodyOverride
 	}
-	if req.OpenAIAPIMode != nil {
-		existing.OpenAIAPIMode = *req.OpenAIAPIMode
+	if openAIAPIMode, present, err := parseChannelMonitorMode(req.OpenAIAPIMode, service.ErrChannelMonitorInvalidOpenAIAPIMode); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	} else if present {
+		existing.OpenAIAPIMode = openAIAPIMode
 	}
 
 	updated, err := h.monitorService.Update(c.Request.Context(), existing, req.APIKey)

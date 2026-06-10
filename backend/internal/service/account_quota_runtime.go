@@ -31,6 +31,16 @@ func (a *Account) GetQuotaWeeklyUsed() float64 {
 	return a.getExtraFloat64("quota_weekly_used")
 }
 
+// GetQuotaMonthlyLimit 获取月额度限制（美元），0 表示未启用
+func (a *Account) GetQuotaMonthlyLimit() float64 {
+	return a.getExtraFloat64("quota_monthly_limit")
+}
+
+// GetQuotaMonthlyUsed 获取本月周期已用额度（美元）
+func (a *Account) GetQuotaMonthlyUsed() float64 {
+	return a.getExtraFloat64("quota_monthly_used")
+}
+
 func (a *Account) GetQuotaLimitByCurrency() map[string]float64 {
 	return a.getExtraCurrencyMap("quota_limit_by_currency")
 }
@@ -53,6 +63,14 @@ func (a *Account) GetQuotaWeeklyLimitByCurrency() map[string]float64 {
 
 func (a *Account) GetQuotaWeeklyUsedByCurrency() map[string]float64 {
 	return a.getExtraCurrencyMap("quota_weekly_used_by_currency")
+}
+
+func (a *Account) GetQuotaMonthlyLimitByCurrency() map[string]float64 {
+	return a.getExtraCurrencyMap("quota_monthly_limit_by_currency")
+}
+
+func (a *Account) GetQuotaMonthlyUsedByCurrency() map[string]float64 {
+	return a.getExtraCurrencyMap("quota_monthly_used_by_currency")
 }
 
 // GetQuotaDailyResetMode 获取日额度重置模式："rolling"（默认）或 "fixed"
@@ -105,7 +123,9 @@ func (a *Account) HasAnyQuotaLimit() bool {
 	return a.GetQuotaLimit() > 0 ||
 		a.GetQuotaDailyLimit() > 0 ||
 		a.GetQuotaWeeklyLimit() > 0 ||
+		a.GetQuotaMonthlyLimit() > 0 ||
 		len(a.GetQuotaLimitByCurrency()) > 0 ||
 		len(a.GetQuotaDailyLimitByCurrency()) > 0 ||
-		len(a.GetQuotaWeeklyLimitByCurrency()) > 0
+		len(a.GetQuotaWeeklyLimitByCurrency()) > 0 ||
+		len(a.GetQuotaMonthlyLimitByCurrency()) > 0
 }

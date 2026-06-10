@@ -26,6 +26,7 @@
       :white-surface-enabled="whiteSurfaceEnabled"
       :account-today-stats-windows="accountTodayStatsWindows"
       :account-group-display-mode="accountGroupDisplayMode"
+      :account-status-display-mode="accountStatusDisplayMode"
       @toggle-selected="emit('toggle-selected', $event)"
       @toggle-section-selected="emit('toggle-section-selected', $event)"
       @show-temp-unsched="emit('show-temp-unsched', $event)"
@@ -44,6 +45,7 @@ import type { Column } from '@/components/common/types'
 import type {
   Account,
   AccountGroupDisplayMode,
+  AccountStatusDisplayMode,
   AccountTodayStatsWindow,
   AccountViewMode,
   AccountVisualStyle,
@@ -77,6 +79,7 @@ const props = defineProps<{
   whiteSurfaceEnabled?: boolean
   accountTodayStatsWindows?: AccountTodayStatsWindow[]
   accountGroupDisplayMode?: AccountGroupDisplayMode
+  accountStatusDisplayMode?: AccountStatusDisplayMode
 }>()
 
 const emit = defineEmits<{

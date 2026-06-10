@@ -12,6 +12,8 @@ import type {
   RegisterRequest,
   AuthResponse,
   AccountGroupDisplayMode,
+  AccountStatusDisplayMode,
+  AccountTodayStatsCycleMode,
   AccountTodayStatsWindow,
   UsageModelDisplayMode,
   VisualPreset,
@@ -26,6 +28,8 @@ import {
 } from '@/utils/visualPreset'
 import {
   normalizeAccountGroupDisplayMode,
+  normalizeAccountStatusDisplayMode,
+  normalizeAccountTodayStatsCycleMode,
   normalizeAccountTodayStatsWindows,
 } from '@/utils/accountDisplayPreferences'
 
@@ -364,6 +368,16 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  function setAccountTodayStatsCycleMode(mode: AccountTodayStatsCycleMode): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      account_today_stats_cycle_mode: normalizeAccountTodayStatsCycleMode(mode),
+    })
+  }
+
   function setAccountGroupDisplayMode(mode: AccountGroupDisplayMode): void {
     if (!user.value) {
       return
@@ -371,6 +385,16 @@ export const useAuthStore = defineStore('auth', () => {
     setCurrentUser({
       ...user.value,
       account_group_display_mode: normalizeAccountGroupDisplayMode(mode),
+    })
+  }
+
+  function setAccountStatusDisplayMode(mode: AccountStatusDisplayMode): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      account_status_display_mode: normalizeAccountStatusDisplayMode(mode),
     })
   }
 
@@ -539,7 +563,9 @@ export const useAuthStore = defineStore('auth', () => {
     setVisualPresetPreference,
     setAccountVisualPresetOverride,
     setAccountTodayStatsWindows,
+    setAccountTodayStatsCycleMode,
     setAccountGroupDisplayMode,
+    setAccountStatusDisplayMode,
     logout,
     checkAuth,
     refreshUser

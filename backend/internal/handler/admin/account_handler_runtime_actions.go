@@ -26,6 +26,7 @@ type syncFromCRSRequest struct {
 
 type batchTodayStatsRequest struct {
 	AccountIDs []int64 `json:"account_ids" binding:"required,min=1"`
+	CycleMode  string  `json:"cycle_mode"`
 }
 
 type setSchedulableRequest struct {
@@ -391,7 +392,27 @@ func (h *AccountHandler) GetBatchTodayStats(c *gin.Context) {
 		return
 	}
 
-	statsByAccount, err := h.accountUsageService.GetTodayStatsBatch(c.Request.Context(), req.AccountIDs)
+	cycleMode := service.NormalizeAccountTodayStatsCycleMode(req.CycleMode)
+	if strings.TrimSpace(req.CycleMode) != "" {
+		var err error
+		cycleMode, err = service.ValidateAccountTodayStatsCycleMode(req.CycleMode)
+		if err != nil {
+			response.BadRequestKey(c, "admin.account.invalid_today_stats_cycle_mode", "Invalid cycle mode")
+			return
+		}
+	}
+
+	accountIDs := req.AccountIDs
+	if h.adminService != nil {
+		accounts, err := h.adminService.GetAccountsByIDs(c.Request.Context(), req.AccountIDs)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		accountIDs = filterVisibleBatchStatsAccountIDs(req.AccountIDs, accounts)
+	}
+
+	statsByAccount, err := h.accountUsageService.GetTodayStatsBatchWithCycleMode(c.Request.Context(), accountIDs, cycleMode)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -403,6 +424,34 @@ func (h *AccountHandler) GetBatchTodayStats(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"stats": payload})
+}
+
+func filterVisibleBatchStatsAccountIDs(requested []int64, accounts []*service.Account) []int64 {
+	if len(requested) == 0 || len(accounts) == 0 {
+		return []int64{}
+	}
+	visible := make(map[int64]struct{}, len(accounts))
+	for _, account := range accounts {
+		if account != nil && account.ID > 0 {
+			visible[account.ID] = struct{}{}
+		}
+	}
+	filtered := make([]int64, 0, len(visible))
+	seen := make(map[int64]struct{}, len(visible))
+	for _, accountID := range requested {
+		if accountID <= 0 {
+			continue
+		}
+		if _, ok := visible[accountID]; !ok {
+			continue
+		}
+		if _, exists := seen[accountID]; exists {
+			continue
+		}
+		seen[accountID] = struct{}{}
+		filtered = append(filtered, accountID)
+	}
+	return filtered
 }
 
 func (h *AccountHandler) ClearRateLimit(c *gin.Context) {

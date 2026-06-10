@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/migrations"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,32 +32,41 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "users", "visual_preset_preference", "character varying", 32, false)
 	requireColumn(t, tx, "users", "account_visual_preset_override", "character varying", 32, false)
 	requireColumn(t, tx, "users", "account_today_stats_windows", "jsonb", 0, false)
+	requireColumn(t, tx, "users", "account_today_stats_cycle_mode", "character varying", 32, false)
 	requireColumn(t, tx, "users", "account_group_display_mode", "character varying", 32, false)
+	requireColumn(t, tx, "users", "account_status_display_mode", "character varying", 32, false)
 	requireColumnDefaultContains(t, tx, "users", "global_realtime_countdown_enabled", "false")
 	requireColumnDefaultContains(t, tx, "users", "account_realtime_countdown_enabled", "true")
 	requireColumnDefaultContains(t, tx, "users", "visual_preset_preference", "inherit")
 	requireColumnDefaultContains(t, tx, "users", "account_visual_preset_override", "inherit")
 	requireColumnDefaultContains(t, tx, "users", "account_today_stats_windows", "today")
+	requireColumnDefaultContains(t, tx, "users", "account_today_stats_windows", "monthly")
+	requireColumnDefaultContains(t, tx, "users", "account_today_stats_cycle_mode", "calendar")
 	requireColumnDefaultContains(t, tx, "users", "account_group_display_mode", "full")
+	requireColumnDefaultContains(t, tx, "users", "account_status_display_mode", "detailed")
 	var globalRealtimeEnabled bool
 	var accountRealtimeEnabled bool
 	var visualPresetPreference string
 	var accountVisualPresetOverride string
 	var accountTodayStatsWindows string
+	var accountTodayStatsCycleMode string
 	var accountGroupDisplayMode string
+	var accountStatusDisplayMode string
 	require.NoError(t, tx.QueryRowContext(
 		context.Background(),
 		`INSERT INTO users (email, password_hash) VALUES ($1, $2)
-		 RETURNING global_realtime_countdown_enabled, account_realtime_countdown_enabled, visual_preset_preference, account_visual_preset_override, account_today_stats_windows::text, account_group_display_mode`,
+		 RETURNING global_realtime_countdown_enabled, account_realtime_countdown_enabled, visual_preset_preference, account_visual_preset_override, account_today_stats_windows::text, account_today_stats_cycle_mode, account_group_display_mode, account_status_display_mode`,
 		"migration-realtime-defaults@example.com",
 		"hash",
-	).Scan(&globalRealtimeEnabled, &accountRealtimeEnabled, &visualPresetPreference, &accountVisualPresetOverride, &accountTodayStatsWindows, &accountGroupDisplayMode))
+	).Scan(&globalRealtimeEnabled, &accountRealtimeEnabled, &visualPresetPreference, &accountVisualPresetOverride, &accountTodayStatsWindows, &accountTodayStatsCycleMode, &accountGroupDisplayMode, &accountStatusDisplayMode))
 	require.False(t, globalRealtimeEnabled)
 	require.True(t, accountRealtimeEnabled)
 	require.Equal(t, "inherit", visualPresetPreference)
 	require.Equal(t, "inherit", accountVisualPresetOverride)
-	require.JSONEq(t, `["today","weekly","total"]`, accountTodayStatsWindows)
+	require.JSONEq(t, `["today","weekly","monthly","total"]`, accountTodayStatsWindows)
+	require.Equal(t, "calendar", accountTodayStatsCycleMode)
 	require.Equal(t, "full", accountGroupDisplayMode)
+	require.Equal(t, "detailed", accountStatusDisplayMode)
 
 	// accounts: schedulable and rate-limit fields
 	requireColumn(t, tx, "accounts", "notes", "text", 0, true)
@@ -68,6 +78,27 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "accounts", "original_proxy_id", "bigint", 0, true)
 	requireColumn(t, tx, "accounts", "original_proxy_name", "text", 0, true)
 	requireIndex(t, tx, "accounts", "idx_accounts_original_proxy_id")
+
+	// account_usage_periods: fixed-cycle account statistics period history.
+	requireTable(t, tx, "account_usage_periods")
+	requireColumn(t, tx, "account_usage_periods", "account_id", "bigint", 0, false)
+	requireColumn(t, tx, "account_usage_periods", "window_type", "character varying", 32, false)
+	requireColumn(t, tx, "account_usage_periods", "start_at", "timestamp with time zone", 0, false)
+	requireColumn(t, tx, "account_usage_periods", "end_at", "timestamp with time zone", 0, true)
+	requireColumn(t, tx, "account_usage_periods", "reset_at", "timestamp with time zone", 0, true)
+	requireColumn(t, tx, "account_usage_periods", "source", "character varying", 32, false)
+	requireColumn(t, tx, "account_usage_periods", "created_at", "timestamp with time zone", 0, false)
+	requireColumn(t, tx, "account_usage_periods", "updated_at", "timestamp with time zone", 0, false)
+	requireIndex(t, tx, "account_usage_periods", "idx_account_usage_periods_account_window_start")
+	requireIndex(t, tx, "account_usage_periods", "idx_account_usage_periods_account_window_open")
+
+	var usagePeriodBackfillChecksum sql.NullString
+	require.NoError(t, tx.QueryRowContext(
+		context.Background(),
+		"SELECT checksum FROM schema_migrations WHERE filename = $1",
+		"142_backfill_account_usage_periods.sql",
+	).Scan(&usagePeriodBackfillChecksum))
+	require.True(t, usagePeriodBackfillChecksum.Valid, "expected migration 142_backfill_account_usage_periods.sql to be recorded")
 
 	// proxies: lifecycle metadata for expiry fallback recovery.
 	requireColumn(t, tx, "proxies", "expires_at", "timestamp with time zone", 0, true)
@@ -281,6 +312,79 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireIndex(t, tx, "ops_error_logs", "idx_ops_error_logs_api_key_prefix_time")
 	requireIndex(t, tx, "ops_error_logs", "idx_ops_error_logs_user_time")
 	requireIndex(t, tx, "ops_error_logs", "idx_ops_error_logs_api_key_time")
+}
+
+func TestMigration142BackfillsLegacyAccountUsagePeriodsIdempotently(t *testing.T) {
+	tx := testTx(t)
+	ctx := context.Background()
+	migrationBody, err := migrations.FS.ReadFile("142_backfill_account_usage_periods.sql")
+	require.NoError(t, err)
+
+	createdWithExpiry := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	expiresAt := createdWithExpiry.AddDate(0, 1, 0)
+	createdWithoutExpiry := time.Date(2026, 2, 3, 4, 5, 6, 0, time.UTC)
+
+	var expiryAccountID int64
+	require.NoError(t, tx.QueryRowContext(ctx, `
+		INSERT INTO accounts (name, platform, type, status, created_at, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id
+	`, "legacy-expiry", "anthropic", "oauth", "active", createdWithExpiry, expiresAt).Scan(&expiryAccountID))
+
+	var fallbackAccountID int64
+	require.NoError(t, tx.QueryRowContext(ctx, `
+		INSERT INTO accounts (name, platform, type, status, created_at)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`, "legacy-fallback", "anthropic", "oauth", "active", createdWithoutExpiry).Scan(&fallbackAccountID))
+
+	require.NoError(t, execMigrationSQLTwice(ctx, tx, string(migrationBody)))
+
+	var expiryStart time.Time
+	var expiryEnd sql.NullTime
+	var expiryReset sql.NullTime
+	var expirySource string
+	require.NoError(t, tx.QueryRowContext(ctx, `
+		SELECT start_at, end_at, reset_at, source
+		FROM account_usage_periods
+		WHERE account_id = $1 AND window_type = 'monthly'
+	`, expiryAccountID).Scan(&expiryStart, &expiryEnd, &expiryReset, &expirySource))
+	require.WithinDuration(t, createdWithExpiry, expiryStart, time.Second)
+	require.True(t, expiryEnd.Valid)
+	require.WithinDuration(t, expiresAt, expiryEnd.Time, time.Second)
+	require.True(t, expiryReset.Valid)
+	require.WithinDuration(t, expiresAt, expiryReset.Time, time.Second)
+	require.Equal(t, "expiry", expirySource)
+
+	var fallbackStart time.Time
+	var fallbackEnd sql.NullTime
+	var fallbackReset sql.NullTime
+	var fallbackSource string
+	require.NoError(t, tx.QueryRowContext(ctx, `
+		SELECT start_at, end_at, reset_at, source
+		FROM account_usage_periods
+		WHERE account_id = $1 AND window_type = 'monthly'
+	`, fallbackAccountID).Scan(&fallbackStart, &fallbackEnd, &fallbackReset, &fallbackSource))
+	require.WithinDuration(t, createdWithoutExpiry, fallbackStart, time.Second)
+	require.False(t, fallbackEnd.Valid)
+	require.False(t, fallbackReset.Valid)
+	require.Equal(t, "fallback_30d", fallbackSource)
+
+	var periodCount int
+	require.NoError(t, tx.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM account_usage_periods
+		WHERE account_id IN ($1, $2) AND window_type = 'monthly'
+	`, expiryAccountID, fallbackAccountID).Scan(&periodCount))
+	require.Equal(t, 2, periodCount)
+}
+
+func execMigrationSQLTwice(ctx context.Context, tx *sql.Tx, body string) error {
+	if _, err := tx.ExecContext(ctx, body); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, body)
+	return err
 }
 
 func requireIndex(t *testing.T, tx *sql.Tx, table, index string) {

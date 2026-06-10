@@ -272,6 +272,20 @@ func (_c *UserCreate) SetAccountTodayStatsWindows(v []string) *UserCreate {
 	return _c
 }
 
+// SetAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field.
+func (_c *UserCreate) SetAccountTodayStatsCycleMode(v string) *UserCreate {
+	_c.mutation.SetAccountTodayStatsCycleMode(v)
+	return _c
+}
+
+// SetNillableAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAccountTodayStatsCycleMode(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAccountTodayStatsCycleMode(*v)
+	}
+	return _c
+}
+
 // SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
 func (_c *UserCreate) SetAccountGroupDisplayMode(v string) *UserCreate {
 	_c.mutation.SetAccountGroupDisplayMode(v)
@@ -282,6 +296,20 @@ func (_c *UserCreate) SetAccountGroupDisplayMode(v string) *UserCreate {
 func (_c *UserCreate) SetNillableAccountGroupDisplayMode(v *string) *UserCreate {
 	if v != nil {
 		_c.SetAccountGroupDisplayMode(*v)
+	}
+	return _c
+}
+
+// SetAccountStatusDisplayMode sets the "account_status_display_mode" field.
+func (_c *UserCreate) SetAccountStatusDisplayMode(v string) *UserCreate {
+	_c.mutation.SetAccountStatusDisplayMode(v)
+	return _c
+}
+
+// SetNillableAccountStatusDisplayMode sets the "account_status_display_mode" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAccountStatusDisplayMode(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAccountStatusDisplayMode(*v)
 	}
 	return _c
 }
@@ -604,9 +632,17 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultAccountTodayStatsWindows
 		_c.mutation.SetAccountTodayStatsWindows(v)
 	}
+	if _, ok := _c.mutation.AccountTodayStatsCycleMode(); !ok {
+		v := user.DefaultAccountTodayStatsCycleMode
+		_c.mutation.SetAccountTodayStatsCycleMode(v)
+	}
 	if _, ok := _c.mutation.AccountGroupDisplayMode(); !ok {
 		v := user.DefaultAccountGroupDisplayMode
 		_c.mutation.SetAccountGroupDisplayMode(v)
+	}
+	if _, ok := _c.mutation.AccountStatusDisplayMode(); !ok {
+		v := user.DefaultAccountStatusDisplayMode
+		_c.mutation.SetAccountStatusDisplayMode(v)
 	}
 	if _, ok := _c.mutation.UsageContextBadgeDisplayMode(); !ok {
 		v := user.DefaultUsageContextBadgeDisplayMode
@@ -719,12 +755,28 @@ func (_c *UserCreate) check() error {
 	if _, ok := _c.mutation.AccountTodayStatsWindows(); !ok {
 		return &ValidationError{Name: "account_today_stats_windows", err: errors.New(`ent: missing required field "User.account_today_stats_windows"`)}
 	}
+	if _, ok := _c.mutation.AccountTodayStatsCycleMode(); !ok {
+		return &ValidationError{Name: "account_today_stats_cycle_mode", err: errors.New(`ent: missing required field "User.account_today_stats_cycle_mode"`)}
+	}
+	if v, ok := _c.mutation.AccountTodayStatsCycleMode(); ok {
+		if err := user.AccountTodayStatsCycleModeValidator(v); err != nil {
+			return &ValidationError{Name: "account_today_stats_cycle_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_today_stats_cycle_mode": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.AccountGroupDisplayMode(); !ok {
 		return &ValidationError{Name: "account_group_display_mode", err: errors.New(`ent: missing required field "User.account_group_display_mode"`)}
 	}
 	if v, ok := _c.mutation.AccountGroupDisplayMode(); ok {
 		if err := user.AccountGroupDisplayModeValidator(v); err != nil {
 			return &ValidationError{Name: "account_group_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_group_display_mode": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AccountStatusDisplayMode(); !ok {
+		return &ValidationError{Name: "account_status_display_mode", err: errors.New(`ent: missing required field "User.account_status_display_mode"`)}
+	}
+	if v, ok := _c.mutation.AccountStatusDisplayMode(); ok {
+		if err := user.AccountStatusDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "account_status_display_mode", err: fmt.Errorf(`ent: validator failed for field "User.account_status_display_mode": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.UsageContextBadgeDisplayMode(); !ok {
@@ -849,9 +901,17 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		_spec.SetField(user.FieldAccountTodayStatsWindows, field.TypeJSON, value)
 		_node.AccountTodayStatsWindows = value
 	}
+	if value, ok := _c.mutation.AccountTodayStatsCycleMode(); ok {
+		_spec.SetField(user.FieldAccountTodayStatsCycleMode, field.TypeString, value)
+		_node.AccountTodayStatsCycleMode = value
+	}
 	if value, ok := _c.mutation.AccountGroupDisplayMode(); ok {
 		_spec.SetField(user.FieldAccountGroupDisplayMode, field.TypeString, value)
 		_node.AccountGroupDisplayMode = value
+	}
+	if value, ok := _c.mutation.AccountStatusDisplayMode(); ok {
+		_spec.SetField(user.FieldAccountStatusDisplayMode, field.TypeString, value)
+		_node.AccountStatusDisplayMode = value
 	}
 	if value, ok := _c.mutation.UsageContextBadgeDisplayMode(); ok {
 		_spec.SetField(user.FieldUsageContextBadgeDisplayMode, field.TypeString, value)
@@ -1311,6 +1371,18 @@ func (u *UserUpsert) UpdateAccountTodayStatsWindows() *UserUpsert {
 	return u
 }
 
+// SetAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field.
+func (u *UserUpsert) SetAccountTodayStatsCycleMode(v string) *UserUpsert {
+	u.Set(user.FieldAccountTodayStatsCycleMode, v)
+	return u
+}
+
+// UpdateAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field to the value that was provided on create.
+func (u *UserUpsert) UpdateAccountTodayStatsCycleMode() *UserUpsert {
+	u.SetExcluded(user.FieldAccountTodayStatsCycleMode)
+	return u
+}
+
 // SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
 func (u *UserUpsert) SetAccountGroupDisplayMode(v string) *UserUpsert {
 	u.Set(user.FieldAccountGroupDisplayMode, v)
@@ -1320,6 +1392,18 @@ func (u *UserUpsert) SetAccountGroupDisplayMode(v string) *UserUpsert {
 // UpdateAccountGroupDisplayMode sets the "account_group_display_mode" field to the value that was provided on create.
 func (u *UserUpsert) UpdateAccountGroupDisplayMode() *UserUpsert {
 	u.SetExcluded(user.FieldAccountGroupDisplayMode)
+	return u
+}
+
+// SetAccountStatusDisplayMode sets the "account_status_display_mode" field.
+func (u *UserUpsert) SetAccountStatusDisplayMode(v string) *UserUpsert {
+	u.Set(user.FieldAccountStatusDisplayMode, v)
+	return u
+}
+
+// UpdateAccountStatusDisplayMode sets the "account_status_display_mode" field to the value that was provided on create.
+func (u *UserUpsert) UpdateAccountStatusDisplayMode() *UserUpsert {
+	u.SetExcluded(user.FieldAccountStatusDisplayMode)
 	return u
 }
 
@@ -1731,6 +1815,20 @@ func (u *UserUpsertOne) UpdateAccountTodayStatsWindows() *UserUpsertOne {
 	})
 }
 
+// SetAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field.
+func (u *UserUpsertOne) SetAccountTodayStatsCycleMode(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountTodayStatsCycleMode(v)
+	})
+}
+
+// UpdateAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateAccountTodayStatsCycleMode() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountTodayStatsCycleMode()
+	})
+}
+
 // SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
 func (u *UserUpsertOne) SetAccountGroupDisplayMode(v string) *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
@@ -1742,6 +1840,20 @@ func (u *UserUpsertOne) SetAccountGroupDisplayMode(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateAccountGroupDisplayMode() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAccountGroupDisplayMode()
+	})
+}
+
+// SetAccountStatusDisplayMode sets the "account_status_display_mode" field.
+func (u *UserUpsertOne) SetAccountStatusDisplayMode(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountStatusDisplayMode(v)
+	})
+}
+
+// UpdateAccountStatusDisplayMode sets the "account_status_display_mode" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateAccountStatusDisplayMode() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountStatusDisplayMode()
 	})
 }
 
@@ -2334,6 +2446,20 @@ func (u *UserUpsertBulk) UpdateAccountTodayStatsWindows() *UserUpsertBulk {
 	})
 }
 
+// SetAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field.
+func (u *UserUpsertBulk) SetAccountTodayStatsCycleMode(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountTodayStatsCycleMode(v)
+	})
+}
+
+// UpdateAccountTodayStatsCycleMode sets the "account_today_stats_cycle_mode" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateAccountTodayStatsCycleMode() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountTodayStatsCycleMode()
+	})
+}
+
 // SetAccountGroupDisplayMode sets the "account_group_display_mode" field.
 func (u *UserUpsertBulk) SetAccountGroupDisplayMode(v string) *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
@@ -2345,6 +2471,20 @@ func (u *UserUpsertBulk) SetAccountGroupDisplayMode(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateAccountGroupDisplayMode() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAccountGroupDisplayMode()
+	})
+}
+
+// SetAccountStatusDisplayMode sets the "account_status_display_mode" field.
+func (u *UserUpsertBulk) SetAccountStatusDisplayMode(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAccountStatusDisplayMode(v)
+	})
+}
+
+// UpdateAccountStatusDisplayMode sets the "account_status_display_mode" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateAccountStatusDisplayMode() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAccountStatusDisplayMode()
 	})
 }
 

@@ -94,6 +94,13 @@ func applyAccountQuota(a *service.Account, out *Account) {
 	}
 	out.QuotaWeeklyLimitByCurrency = cloneUsageCostByCurrency(a.GetQuotaWeeklyLimitByCurrency())
 	out.QuotaWeeklyUsedByCurrency = cloneUsageCostByCurrency(a.GetQuotaWeeklyUsedByCurrency())
+	if limit := a.GetQuotaMonthlyLimit(); limit > 0 {
+		out.QuotaMonthlyLimit = &limit
+		used := a.GetQuotaMonthlyUsed()
+		out.QuotaMonthlyUsed = &used
+	}
+	out.QuotaMonthlyLimitByCurrency = cloneUsageCostByCurrency(a.GetQuotaMonthlyLimitByCurrency())
+	out.QuotaMonthlyUsedByCurrency = cloneUsageCostByCurrency(a.GetQuotaMonthlyUsedByCurrency())
 	if mode := a.GetQuotaDailyResetMode(); mode == "fixed" {
 		out.QuotaDailyResetMode = &mode
 		hour := a.GetQuotaDailyResetHour()
@@ -116,6 +123,9 @@ func applyAccountQuota(a *service.Account, out *Account) {
 		}
 		if v, ok := a.Extra["quota_weekly_reset_at"].(string); ok && v != "" {
 			out.QuotaWeeklyResetAt = &v
+		}
+		if v, ok := a.Extra["quota_monthly_reset_at"].(string); ok && v != "" {
+			out.QuotaMonthlyResetAt = &v
 		}
 	}
 }

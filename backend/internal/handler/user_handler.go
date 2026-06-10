@@ -60,7 +60,9 @@ type UpdateProfileRequest struct {
 	VisualPresetPreference          *string  `json:"visual_preset_preference"`
 	AccountVisualPresetOverride     *string  `json:"account_visual_preset_override"`
 	AccountTodayStatsWindows        []string `json:"account_today_stats_windows"`
+	AccountTodayStatsCycleMode      *string  `json:"account_today_stats_cycle_mode"`
 	AccountGroupDisplayMode         *string  `json:"account_group_display_mode"`
+	AccountStatusDisplayMode        *string  `json:"account_status_display_mode"`
 }
 
 // GetProfile handles getting user profile
@@ -150,7 +152,9 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		VisualPresetPreference:          req.VisualPresetPreference,
 		AccountVisualPresetOverride:     req.AccountVisualPresetOverride,
 		AccountTodayStatsWindows:        req.AccountTodayStatsWindows,
+		AccountTodayStatsCycleMode:      req.AccountTodayStatsCycleMode,
 		AccountGroupDisplayMode:         req.AccountGroupDisplayMode,
+		AccountStatusDisplayMode:        req.AccountStatusDisplayMode,
 	}
 	updatedUser, err := h.userService.UpdateProfile(c.Request.Context(), subject.UserID, svcReq)
 	if err != nil {

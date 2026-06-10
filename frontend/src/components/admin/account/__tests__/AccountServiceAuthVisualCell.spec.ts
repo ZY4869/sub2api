@@ -42,6 +42,15 @@ describe('AccountServiceAuthVisualCell', () => {
     }
   })
 
+  it('keeps short plan labels such as Team readable in compact airy columns', () => {
+    const wrapper = mountCell({ planType: 'team', compact: true })
+    const label = wrapper.find('.platform-icon-stub').element.nextElementSibling
+
+    expect(label?.textContent).toBe('Team')
+    expect(label?.classList.contains('min-w-[2.6rem]')).toBe(true)
+    expect(label?.classList.contains('truncate')).toBe(true)
+  })
+
   it('maps Pro and Pro20x to cyan and black-gold palettes', () => {
     const pro = mountCell({ planType: 'pro', proMultiplier: 5 })
     const pro20 = mountCell({ planType: 'pro', proMultiplier: 20 })

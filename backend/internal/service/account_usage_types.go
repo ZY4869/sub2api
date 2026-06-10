@@ -21,6 +21,7 @@ type WindowStats struct {
 	SuccessRate       float64      `json:"success_rate,omitempty"`
 	AverageDurationMs float64      `json:"average_duration_ms,omitempty"`
 	Weekly            *WindowStats `json:"weekly,omitempty"`
+	Monthly           *WindowStats `json:"monthly,omitempty"`
 	Total             *WindowStats `json:"total,omitempty"`
 }
 

@@ -80,3 +80,14 @@ type accountWindowStatsBatchReader interface {
 type accountTodayStatsBreakdownBatchReader interface {
 	GetAccountTodayStatsBreakdownBatch(ctx context.Context, accountIDs []int64, todayStart, weekStart time.Time) (map[int64]*usagestats.AccountTodayStatsBreakdown, error)
 }
+
+type AccountStatsWindowStart struct {
+	AccountID    int64
+	TodayStart   time.Time
+	WeeklyStart  time.Time
+	MonthlyStart time.Time
+}
+
+type accountTodayStatsBreakdownBatchByWindowReader interface {
+	GetAccountTodayStatsBreakdownBatchByWindows(ctx context.Context, windows []AccountStatsWindowStart) (map[int64]*usagestats.AccountTodayStatsBreakdown, error)
+}

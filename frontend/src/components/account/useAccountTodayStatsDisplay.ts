@@ -17,6 +17,7 @@ export type TodayStatColumn = {
 export function useAccountTodayStatsDisplay(options: {
   dayStats: ComputedRef<WindowStats>
   weeklyStats: ComputedRef<WindowStats>
+  monthlyStats: ComputedRef<WindowStats>
   totalStats: ComputedRef<WindowStats>
   visibleWindows: ComputedRef<AccountTodayStatsWindow[]>
   formatTokenDisplay: FormatTokenDisplay
@@ -52,6 +53,12 @@ export function useAccountTodayStatsDisplay(options: {
       options.t('admin.accounts.status.window7d'),
       options.weeklyStats.value,
       'text-blue-600 dark:text-blue-300',
+    ),
+    monthly: createStatColumn(
+      'monthly',
+      options.t('admin.accounts.stats.monthlyUsage'),
+      options.monthlyStats.value,
+      'text-emerald-600 dark:text-emerald-300',
     ),
     total: createStatColumn(
       'total',

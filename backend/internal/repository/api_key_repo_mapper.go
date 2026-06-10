@@ -86,8 +86,14 @@ func userEntityToService(u *dbent.User) *service.User {
 		AccountTodayStatsWindows: service.NormalizeAccountTodayStatsWindows(
 			u.AccountTodayStatsWindows,
 		),
+		AccountTodayStatsCycleMode: service.NormalizeAccountTodayStatsCycleMode(
+			u.AccountTodayStatsCycleMode,
+		),
 		AccountGroupDisplayMode: service.NormalizeAccountGroupDisplayMode(
 			u.AccountGroupDisplayMode,
+		),
+		AccountStatusDisplayMode: service.NormalizeAccountStatusDisplayMode(
+			u.AccountStatusDisplayMode,
 		),
 		APIKeyModelBindingMode: service.NormalizeAPIKeyModelBindingMode(
 			u.APIKeyModelBindingMode,

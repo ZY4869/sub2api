@@ -1,8 +1,10 @@
 <template>
   <div
     :class="[
-      'account-status-visual inline-flex w-fit min-w-0 max-w-full flex-col items-start justify-center whitespace-normal rounded-[1rem] border select-none',
-      compact ? 'gap-1.5 px-3 py-3' : 'gap-2.5 px-4 py-3.5',
+      'account-status-visual inline-flex min-w-0 max-w-full flex-col items-start justify-center whitespace-normal rounded-[1rem] border select-none',
+      isSimpleMode ? 'w-full gap-1.5 px-2.5 py-2.5' : 'w-fit',
+      compact && !isSimpleMode ? 'gap-1.5 px-3 py-3' : '',
+      !compact && !isSimpleMode ? 'gap-2.5 px-4 py-3.5' : '',
       whiteSurfaceEnabled ? whiteSurfaceClass : toneStyles.surfaceClass
     ]"
     data-testid="account-status-visual-cell"
@@ -27,6 +29,24 @@
         >
           {{ statusTitle }}
         </span>
+      </div>
+
+      <div
+        v-if="isSimpleMode && visibleLimitBadges.length > 0"
+        class="flex shrink-0 items-center gap-1"
+        data-testid="account-status-visual-simple-icons"
+      >
+        <AccountStatusLimitBadge
+          v-for="item in visibleLimitBadges"
+          :key="item.key"
+          :tone="item.tone"
+          :label="item.label"
+          :countdown="item.countdown"
+          :tooltip="item.tooltip"
+          :model="item.model"
+          :model-display-name="item.modelDisplayName"
+          visual-variant="icon"
+        />
       </div>
 
       <AccountErrorTooltipButton
@@ -60,7 +80,7 @@
     </div>
 
     <div
-      v-if="visibleHelperText"
+      v-if="!isSimpleMode && visibleHelperText"
       :class="[
         'break-words text-[11px] font-bold leading-5',
         toneStyles.helperTextClass
@@ -71,7 +91,7 @@
     </div>
 
     <div
-      v-if="visibleLimitBadges.length > 0"
+      v-if="!isSimpleMode && visibleLimitBadges.length > 0"
       data-test="account-limit-badges"
       :class="limitBadgeLayoutClass"
     >
@@ -94,6 +114,7 @@
 import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account, AccountVisualStyle } from '@/types'
+import type { AccountStatusDisplayMode } from '@/types'
 import AccountErrorTooltipButton from '@/components/account/AccountErrorTooltipButton.vue'
 import AccountStatusLimitBadge from '@/components/account/AccountStatusLimitBadge.vue'
 import { createAccountStatusPresentation } from '@/components/account/accountStatusPresentation'
@@ -109,10 +130,12 @@ const props = withDefaults(defineProps<{
   visualStyle?: AccountVisualStyle
   whiteSurfaceEnabled?: boolean
   compact?: boolean
+  displayMode?: AccountStatusDisplayMode
 }>(), {
   visualStyle: 'airy',
   whiteSurfaceEnabled: false,
-  compact: false
+  compact: false,
+  displayMode: 'detailed'
 })
 
 defineEmits<{
@@ -145,6 +168,7 @@ const airyStatus = computed(() => resolveAccountAiryStatus(props.account, {
 }))
 
 const visualTone = computed<AccountGlassTone>(() => airyStatus.value.tone)
+const isSimpleMode = computed(() => props.displayMode === 'simple')
 
 const statusIconName = computed(() => airyStatus.value.iconName)
 

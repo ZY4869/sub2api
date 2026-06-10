@@ -1,11 +1,14 @@
 import type {
   AccountGroupDisplayMode,
+  AccountStatusDisplayMode,
+  AccountTodayStatsCycleMode,
   AccountTodayStatsWindow,
 } from "@/types";
 
 export const ACCOUNT_TODAY_STATS_WINDOWS: AccountTodayStatsWindow[] = [
   "today",
   "weekly",
+  "monthly",
   "total",
 ];
 
@@ -31,3 +34,10 @@ export const normalizeAccountGroupDisplayMode = (
   value?: string | null,
 ): AccountGroupDisplayMode => (value === "icon" ? "icon" : "full");
 
+export const normalizeAccountStatusDisplayMode = (
+  value?: string | null,
+): AccountStatusDisplayMode => (value === "simple" ? "simple" : "detailed");
+
+export const normalizeAccountTodayStatsCycleMode = (
+  value?: string | null,
+): AccountTodayStatsCycleMode => (value === "fixed" ? "fixed" : "calendar");

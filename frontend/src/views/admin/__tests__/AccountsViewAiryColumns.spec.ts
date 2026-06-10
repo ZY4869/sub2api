@@ -135,7 +135,6 @@ describe('AccountsView airy columns', () => {
           AccountGroupedView: true,
           AccountCardGrid: true,
           AccountBulkActionsBar: true,
-          AccountFilteredBulkEditBar: true,
           Pagination: true,
           AccountsViewDialogsHost: true,
           AccountLimitedSummaryBar: true,
@@ -154,7 +153,7 @@ describe('AccountsView airy columns', () => {
     expect(wrapper.get('.table-columns').text()).not.toContain('schedulable')
     expect(wrapper.get('.table-columns').text()).toContain('name:w-[220px]')
     expect(wrapper.get('.table-columns').text()).toContain(
-      'capacity:w-[168px] min-w-[156px] max-w-[168px]',
+      'capacity:w-[184px] min-w-[172px] max-w-[192px]',
     )
     expect(wrapper.get('.table-columns').text()).toContain(
       'last_used_at:w-[112px] min-w-[112px] max-w-[120px] whitespace-nowrap',
@@ -165,7 +164,7 @@ describe('AccountsView airy columns', () => {
     expect(wrapper.get('.table-columns').text()).toContain(
       'expires_at:w-[176px] min-w-[176px] max-w-[188px] whitespace-nowrap',
     )
-    expect(wrapper.get('.table-columns').text()).toContain('usage_reset_dates:w-[232px]')
+    expect(wrapper.get('.table-columns').text()).toContain('usage_reset_dates:w-[248px]')
     expect(wrapper.get('.toolbar-columns').text()).toContain('usage_reset_dates')
   })
 })

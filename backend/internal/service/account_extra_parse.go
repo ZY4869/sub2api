@@ -58,6 +58,14 @@ func (a *Account) getExtraTime(key string) time.Time {
 	return time.Time{}
 }
 
+// GetExtraTime returns a RFC3339/RFC3339Nano timestamp from Extra.
+func (a *Account) GetExtraTime(key string) time.Time {
+	if a == nil {
+		return time.Time{}
+	}
+	return a.getExtraTime(key)
+}
+
 // getExtraString 从 Extra 中读取指定 key 的字符串值
 func (a *Account) getExtraString(key string) string {
 	if a.Extra == nil {

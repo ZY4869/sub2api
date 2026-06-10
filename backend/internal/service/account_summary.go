@@ -13,11 +13,12 @@ type AccountStatusSummaryFilters struct {
 }
 
 type AccountLimitedBreakdown struct {
-	Total      int64 `json:"total"`
-	Rate429    int64 `json:"rate_429"`
-	Usage5h    int64 `json:"usage_5h"`
-	Usage7d    int64 `json:"usage_7d"`
-	Usage7dAll int64 `json:"usage_7d_all"`
+	Total        int64 `json:"total"`
+	Rate429      int64 `json:"rate_429"`
+	Usage5h      int64 `json:"usage_5h"`
+	Usage7d      int64 `json:"usage_7d"`
+	Usage7dAll   int64 `json:"usage_7d_all"`
+	QuotaMonthly int64 `json:"quota_monthly"`
 }
 
 type AccountStatusSummary struct {

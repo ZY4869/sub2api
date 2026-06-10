@@ -74,9 +74,20 @@ func (User) Fields() []ent.Field {
 		field.String("account_visual_preset_override").
 			MaxLen(32).
 			Default("inherit"),
-		field.JSON("account_today_stats_windows", []string{"today", "weekly", "total"}).
-			Default([]string{"today", "weekly", "total"}).
+		field.JSON("account_today_stats_windows", []string{"today", "weekly", "monthly", "total"}).
+			Default([]string{"today", "weekly", "monthly", "total"}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.String("account_today_stats_cycle_mode").
+			MaxLen(32).
+			Default("calendar").
+			Validate(func(value string) error {
+				switch value {
+				case "calendar", "fixed":
+					return nil
+				default:
+					return fmt.Errorf("invalid account today stats cycle mode %q", value)
+				}
+			}),
 		field.String("account_group_display_mode").
 			MaxLen(32).
 			Default("full").
@@ -86,6 +97,17 @@ func (User) Fields() []ent.Field {
 					return nil
 				default:
 					return fmt.Errorf("invalid account group display mode %q", value)
+				}
+			}),
+		field.String("account_status_display_mode").
+			MaxLen(32).
+			Default("detailed").
+			Validate(func(value string) error {
+				switch value {
+				case "simple", "detailed":
+					return nil
+				default:
+					return fmt.Errorf("invalid account status display mode %q", value)
 				}
 			}),
 		field.String("usage_context_badge_display_mode").

@@ -122,7 +122,7 @@ const props = withDefaults(
     utilization: number;
     resetsAt?: string | null;
     remainingSeconds?: number | null;
-    color: "indigo" | "emerald" | "purple" | "amber";
+    color: "indigo" | "emerald" | "purple" | "amber" | "orange" | "green";
     windowStats?: WindowStats | null;
     detailedReset?: boolean;
     inlineReset?: boolean;
@@ -150,6 +150,10 @@ const labelClass = computed(() => {
       "border border-violet-200/70 bg-violet-50 text-violet-700 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-100",
     amber:
       "border border-amber-200/70 bg-amber-50 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100",
+    orange:
+      "border border-orange-200/70 bg-orange-50 text-orange-700 dark:border-orange-400/20 dark:bg-orange-400/10 dark:text-orange-100",
+    green:
+      "border border-green-200/70 bg-green-50 text-green-700 dark:border-green-400/20 dark:bg-green-400/10 dark:text-green-100",
   };
   const colors = {
     indigo:
@@ -160,6 +164,10 @@ const labelClass = computed(() => {
       "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
     amber:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    orange:
+      "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+    green:
+      "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
   };
   return props.visualVariant === "glass" ? glassColors[props.color] : colors[props.color];
 });

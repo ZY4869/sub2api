@@ -77,6 +77,11 @@ func (s *AccountUsageService) GetTodayStats(ctx context.Context, accountID int64
 
 // GetTodayStatsBatch 批量获取账号今日统计，优先走批量 SQL，失败时回退单账号查询。
 func (s *AccountUsageService) GetTodayStatsBatch(ctx context.Context, accountIDs []int64) (map[int64]*WindowStats, error) {
+	return s.GetTodayStatsBatchWithCycleMode(ctx, accountIDs, AccountTodayStatsCycleModeCalendar)
+}
+
+// GetTodayStatsBatchWithCycleMode 批量获取账号统计，支持自然日和固定周期口径。
+func (s *AccountUsageService) GetTodayStatsBatchWithCycleMode(ctx context.Context, accountIDs []int64, cycleMode string) (map[int64]*WindowStats, error) {
 	uniqueIDs := make([]int64, 0, len(accountIDs))
 	seen := make(map[int64]struct{}, len(accountIDs))
 	for _, accountID := range accountIDs {
@@ -95,7 +100,22 @@ func (s *AccountUsageService) GetTodayStatsBatch(ctx context.Context, accountIDs
 		return result, nil
 	}
 
-	startTime := timezone.Today()
+	cycleMode = NormalizeAccountTodayStatsCycleMode(cycleMode)
+	now := timezone.Now()
+	accounts := s.accountsByIDForStats(ctx, uniqueIDs, cycleMode)
+	periods := s.activeMonthlyUsagePeriodsForStats(ctx, uniqueIDs, cycleMode, now)
+	windows := buildAccountStatsWindowStarts(ctx, s.accountRepo, accounts, uniqueIDs, cycleMode, now, periods)
+	if breakdownReader, ok := s.usageLogRepo.(accountTodayStatsBreakdownBatchByWindowReader); ok {
+		breakdownByAccount, err := breakdownReader.GetAccountTodayStatsBreakdownBatchByWindows(ctx, windows)
+		if err == nil {
+			for _, accountID := range uniqueIDs {
+				result[accountID] = windowStatsFromTodayBreakdown(breakdownByAccount[accountID])
+			}
+			return result, nil
+		}
+	}
+
+	startTime := timezone.StartOfDay(now)
 	weekStart := startTime.AddDate(0, 0, -6)
 	if breakdownReader, ok := s.usageLogRepo.(accountTodayStatsBreakdownBatchReader); ok {
 		breakdownByAccount, err := breakdownReader.GetAccountTodayStatsBreakdownBatch(ctx, uniqueIDs, startTime, weekStart)
@@ -145,16 +165,50 @@ func (s *AccountUsageService) GetTodayStatsBatch(ctx context.Context, accountIDs
 	return result, nil
 }
 
+func (s *AccountUsageService) accountsByIDForStats(ctx context.Context, accountIDs []int64, cycleMode string) map[int64]*Account {
+	if cycleMode != AccountTodayStatsCycleModeFixed || s.accountRepo == nil {
+		return nil
+	}
+	accounts, err := s.accountRepo.GetByIDs(ctx, accountIDs)
+	if err != nil {
+		return nil
+	}
+	result := make(map[int64]*Account, len(accounts))
+	for _, account := range accounts {
+		if account != nil && account.ID > 0 {
+			result[account.ID] = account
+		}
+	}
+	return result
+}
+
+func (s *AccountUsageService) activeMonthlyUsagePeriodsForStats(ctx context.Context, accountIDs []int64, cycleMode string, now time.Time) map[int64]*AccountUsagePeriod {
+	if cycleMode != AccountTodayStatsCycleModeFixed || s.accountRepo == nil {
+		return nil
+	}
+	periodRepo, ok := s.accountRepo.(AccountUsagePeriodRepository)
+	if !ok || periodRepo == nil {
+		return nil
+	}
+	periods, err := periodRepo.GetActiveUsagePeriods(ctx, accountIDs, AccountUsagePeriodWindowMonthly, now)
+	if err != nil {
+		return nil
+	}
+	return periods
+}
+
 func windowStatsFromTodayBreakdown(stats *usagestats.AccountTodayStatsBreakdown) *WindowStats {
 	if stats == nil {
 		return &WindowStats{
 			SuccessRate: 100,
 			Weekly:      &WindowStats{SuccessRate: 100},
+			Monthly:     &WindowStats{SuccessRate: 100},
 			Total:       &WindowStats{SuccessRate: 100},
 		}
 	}
 	today := windowStatsFromAccountStats(&stats.Today)
 	today.Weekly = windowStatsFromAccountStats(&stats.Weekly)
+	today.Monthly = windowStatsFromAccountStats(&stats.Monthly)
 	today.Total = windowStatsFromAccountStats(&stats.Total)
 	return today
 }

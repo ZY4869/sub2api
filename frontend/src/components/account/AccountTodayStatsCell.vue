@@ -143,6 +143,7 @@ const emptyWindowStats = (): WindowStats => ({
 
 const dayStats = computed(() => props.stats ?? emptyWindowStats())
 const weeklyStats = computed(() => props.stats?.weekly ?? emptyWindowStats())
+const monthlyStats = computed(() => props.stats?.monthly ?? emptyWindowStats())
 const totalStats = computed(() => props.stats?.total ?? emptyWindowStats())
 const visibleWindows = computed(() =>
   normalizeAccountTodayStatsWindows(props.visibleWindows),
@@ -158,6 +159,7 @@ const {
 } = useAccountTodayStatsDisplay({
   dayStats,
   weeklyStats,
+  monthlyStats,
   totalStats,
   visibleWindows,
   formatTokenDisplay,

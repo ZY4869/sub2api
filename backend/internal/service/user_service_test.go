@@ -481,11 +481,13 @@ func TestUpdateProfile_VisualPreset_PartialUpdateDoesNotOverrideOtherPreferences
 
 func TestUpdateProfile_AccountDisplayPreferences_DefaultFallback(t *testing.T) {
 	user := &User{
-		ID:                       1,
-		Email:                    "alice@example.com",
-		Username:                 "alice",
-		AccountTodayStatsWindows: nil,
-		AccountGroupDisplayMode:  "",
+		ID:                         1,
+		Email:                      "alice@example.com",
+		Username:                   "alice",
+		AccountTodayStatsWindows:   nil,
+		AccountTodayStatsCycleMode: "",
+		AccountGroupDisplayMode:    "",
+		AccountStatusDisplayMode:   "",
 	}
 	repo := &mockUserRepo{
 		getByIDFn: func(context.Context, int64) (*User, error) {
@@ -494,7 +496,9 @@ func TestUpdateProfile_AccountDisplayPreferences_DefaultFallback(t *testing.T) {
 		},
 		updateFn: func(_ context.Context, updated *User) error {
 			user.AccountTodayStatsWindows = updated.AccountTodayStatsWindows
+			user.AccountTodayStatsCycleMode = updated.AccountTodayStatsCycleMode
 			user.AccountGroupDisplayMode = updated.AccountGroupDisplayMode
+			user.AccountStatusDisplayMode = updated.AccountStatusDisplayMode
 			return nil
 		},
 	}
@@ -505,16 +509,20 @@ func TestUpdateProfile_AccountDisplayPreferences_DefaultFallback(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, DefaultAccountTodayStatsWindows(), NormalizeAccountTodayStatsWindows(updated.AccountTodayStatsWindows))
+	require.Equal(t, AccountTodayStatsCycleModeCalendar, NormalizeAccountTodayStatsCycleMode(updated.AccountTodayStatsCycleMode))
 	require.Equal(t, AccountGroupDisplayModeFull, NormalizeAccountGroupDisplayMode(updated.AccountGroupDisplayMode))
+	require.Equal(t, AccountStatusDisplayModeDetailed, NormalizeAccountStatusDisplayMode(updated.AccountStatusDisplayMode))
 }
 
 func TestUpdateProfile_AccountDisplayPreferences_Success(t *testing.T) {
 	user := &User{
-		ID:                       1,
-		Email:                    "alice@example.com",
-		Username:                 "alice",
-		AccountTodayStatsWindows: DefaultAccountTodayStatsWindows(),
-		AccountGroupDisplayMode:  AccountGroupDisplayModeFull,
+		ID:                         1,
+		Email:                      "alice@example.com",
+		Username:                   "alice",
+		AccountTodayStatsWindows:   DefaultAccountTodayStatsWindows(),
+		AccountTodayStatsCycleMode: AccountTodayStatsCycleModeCalendar,
+		AccountGroupDisplayMode:    AccountGroupDisplayModeFull,
+		AccountStatusDisplayMode:   AccountStatusDisplayModeDetailed,
 	}
 	repo := &mockUserRepo{
 		getByIDFn: func(context.Context, int64) (*User, error) {
@@ -523,21 +531,29 @@ func TestUpdateProfile_AccountDisplayPreferences_Success(t *testing.T) {
 		},
 		updateFn: func(_ context.Context, updated *User) error {
 			user.AccountTodayStatsWindows = updated.AccountTodayStatsWindows
+			user.AccountTodayStatsCycleMode = updated.AccountTodayStatsCycleMode
 			user.AccountGroupDisplayMode = updated.AccountGroupDisplayMode
+			user.AccountStatusDisplayMode = updated.AccountStatusDisplayMode
 			return nil
 		},
 	}
 	svc := NewUserService(repo, nil, nil)
 
 	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
-		AccountTodayStatsWindows: []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal},
-		AccountGroupDisplayMode:  ptrString(AccountGroupDisplayModeIcon),
+		AccountTodayStatsWindows:   []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal},
+		AccountTodayStatsCycleMode: ptrString(AccountTodayStatsCycleModeFixed),
+		AccountGroupDisplayMode:    ptrString(AccountGroupDisplayModeIcon),
+		AccountStatusDisplayMode:   ptrString(AccountStatusDisplayModeSimple),
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal}, updated.AccountTodayStatsWindows)
+	require.Equal(t, AccountTodayStatsCycleModeFixed, updated.AccountTodayStatsCycleMode)
 	require.Equal(t, AccountGroupDisplayModeIcon, updated.AccountGroupDisplayMode)
+	require.Equal(t, AccountStatusDisplayModeSimple, updated.AccountStatusDisplayMode)
 	require.Equal(t, updated.AccountTodayStatsWindows, user.AccountTodayStatsWindows)
+	require.Equal(t, updated.AccountTodayStatsCycleMode, user.AccountTodayStatsCycleMode)
 	require.Equal(t, updated.AccountGroupDisplayMode, user.AccountGroupDisplayMode)
+	require.Equal(t, updated.AccountStatusDisplayMode, user.AccountStatusDisplayMode)
 }
 
 func TestUpdateProfile_AccountTodayStatsWindows_Invalid(t *testing.T) {
@@ -549,6 +565,7 @@ func TestUpdateProfile_AccountTodayStatsWindows_Invalid(t *testing.T) {
 				Username:                 "alice",
 				AccountTodayStatsWindows: DefaultAccountTodayStatsWindows(),
 				AccountGroupDisplayMode:  AccountGroupDisplayModeFull,
+				AccountStatusDisplayMode: AccountStatusDisplayModeDetailed,
 			}, nil
 		},
 	}
@@ -567,6 +584,29 @@ func TestUpdateProfile_AccountTodayStatsWindows_Invalid(t *testing.T) {
 	require.Contains(t, err.Error(), "account_today_stats_windows")
 }
 
+func TestUpdateProfile_AccountTodayStatsCycleMode_Invalid(t *testing.T) {
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			return &User{
+				ID:                         1,
+				Email:                      "alice@example.com",
+				Username:                   "alice",
+				AccountTodayStatsWindows:   DefaultAccountTodayStatsWindows(),
+				AccountTodayStatsCycleMode: AccountTodayStatsCycleModeCalendar,
+				AccountGroupDisplayMode:    AccountGroupDisplayModeFull,
+				AccountStatusDisplayMode:   AccountStatusDisplayModeDetailed,
+			}, nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	_, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		AccountTodayStatsCycleMode: ptrString("billing-cycle"),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "account_today_stats_cycle_mode")
+}
+
 func TestUpdateProfile_AccountGroupDisplayMode_Invalid(t *testing.T) {
 	repo := &mockUserRepo{
 		getByIDFn: func(context.Context, int64) (*User, error) {
@@ -576,6 +616,7 @@ func TestUpdateProfile_AccountGroupDisplayMode_Invalid(t *testing.T) {
 				Username:                 "alice",
 				AccountTodayStatsWindows: DefaultAccountTodayStatsWindows(),
 				AccountGroupDisplayMode:  AccountGroupDisplayModeFull,
+				AccountStatusDisplayMode: AccountStatusDisplayModeDetailed,
 			}, nil
 		},
 	}
@@ -588,13 +629,37 @@ func TestUpdateProfile_AccountGroupDisplayMode_Invalid(t *testing.T) {
 	require.Contains(t, err.Error(), "account_group_display_mode")
 }
 
+func TestUpdateProfile_AccountStatusDisplayMode_Invalid(t *testing.T) {
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			return &User{
+				ID:                       1,
+				Email:                    "alice@example.com",
+				Username:                 "alice",
+				AccountTodayStatsWindows: DefaultAccountTodayStatsWindows(),
+				AccountGroupDisplayMode:  AccountGroupDisplayModeFull,
+				AccountStatusDisplayMode: AccountStatusDisplayModeDetailed,
+			}, nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	_, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		AccountStatusDisplayMode: ptrString("bad"),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "account_status_display_mode")
+}
+
 func TestUpdateProfile_AccountDisplayPreferences_PartialUpdateDoesNotOverrideOtherPreferences(t *testing.T) {
 	user := &User{
-		ID:                       1,
-		Email:                    "alice@example.com",
-		Username:                 "alice",
-		AccountTodayStatsWindows: []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal},
-		AccountGroupDisplayMode:  AccountGroupDisplayModeIcon,
+		ID:                         1,
+		Email:                      "alice@example.com",
+		Username:                   "alice",
+		AccountTodayStatsWindows:   []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal},
+		AccountTodayStatsCycleMode: AccountTodayStatsCycleModeFixed,
+		AccountGroupDisplayMode:    AccountGroupDisplayModeIcon,
+		AccountStatusDisplayMode:   AccountStatusDisplayModeSimple,
 	}
 	repo := &mockUserRepo{
 		getByIDFn: func(context.Context, int64) (*User, error) {
@@ -603,7 +668,9 @@ func TestUpdateProfile_AccountDisplayPreferences_PartialUpdateDoesNotOverrideOth
 		},
 		updateFn: func(_ context.Context, updated *User) error {
 			user.AccountTodayStatsWindows = updated.AccountTodayStatsWindows
+			user.AccountTodayStatsCycleMode = updated.AccountTodayStatsCycleMode
 			user.AccountGroupDisplayMode = updated.AccountGroupDisplayMode
+			user.AccountStatusDisplayMode = updated.AccountStatusDisplayMode
 			return nil
 		},
 	}
@@ -614,7 +681,9 @@ func TestUpdateProfile_AccountDisplayPreferences_PartialUpdateDoesNotOverrideOth
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{AccountTodayStatsWindowToday, AccountTodayStatsWindowTotal}, updated.AccountTodayStatsWindows)
+	require.Equal(t, AccountTodayStatsCycleModeFixed, updated.AccountTodayStatsCycleMode)
 	require.Equal(t, AccountGroupDisplayModeFull, updated.AccountGroupDisplayMode)
+	require.Equal(t, AccountStatusDisplayModeSimple, updated.AccountStatusDisplayMode)
 }
 
 func ptrString(value string) *string {

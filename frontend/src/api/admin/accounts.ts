@@ -803,7 +803,8 @@ function normalizeAccountStatusSummary(raw: any): AccountStatusSummary {
       rate_429: Number(raw?.limited_breakdown?.rate_429 ?? raw?.LimitedBreakdown?.rate_429 ?? 0),
       usage_5h: Number(raw?.limited_breakdown?.usage_5h ?? raw?.LimitedBreakdown?.usage_5h ?? 0),
       usage_7d: Number(raw?.limited_breakdown?.usage_7d ?? raw?.LimitedBreakdown?.usage_7d ?? 0),
-      usage_7d_all: Number(raw?.limited_breakdown?.usage_7d_all ?? raw?.LimitedBreakdown?.usage_7d_all ?? 0)
+      usage_7d_all: Number(raw?.limited_breakdown?.usage_7d_all ?? raw?.LimitedBreakdown?.usage_7d_all ?? 0),
+      quota_monthly: Number(raw?.limited_breakdown?.quota_monthly ?? raw?.LimitedBreakdown?.quota_monthly ?? 0)
     }
   }
 }

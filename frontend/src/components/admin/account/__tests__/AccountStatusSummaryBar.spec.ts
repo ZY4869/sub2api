@@ -33,7 +33,8 @@ const summary = {
     rate_429: 2,
     usage_5h: 2,
     usage_7d: 1,
-    usage_7d_all: 0
+    usage_7d_all: 0,
+    quota_monthly: 0
   }
 }
 

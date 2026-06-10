@@ -12,6 +12,7 @@ vi.mock('vue-i18n', async () => {
         'usage.accountBilled': 'Bill',
         'admin.accounts.status.active': 'Active',
         'admin.accounts.status.window7d': '7d',
+        'admin.accounts.stats.monthlyUsage': 'Month',
         'common.total': 'Total',
         'dates.today': 'Today',
       }[key] ?? key)
@@ -41,6 +42,11 @@ const statsFixture = {
     tokens: 2000,
     cost: 8.9,
   },
+  monthly: {
+    requests: 150,
+    tokens: 3200,
+    cost: 16.5,
+  },
   total: {
     requests: 999,
     tokens: 5000,
@@ -59,6 +65,7 @@ describe('AccountTodayStatsCell', () => {
     const compactText = wrapper.get('[data-testid="account-today-stats-cell"]').text().replace(/\s/g, '')
     expect(compactText).toContain('Today12$1.20')
     expect(compactText).toContain('7d78$8.90')
+    expect(compactText).toContain('Month150$16.50')
     expect(compactText).toContain('Total999$42.00')
     expect(wrapper.text()).toContain('345T')
     expect(wrapper.text()).toContain('1.4s')
@@ -83,13 +90,14 @@ describe('AccountTodayStatsCell', () => {
 
     expect(compactText).toContain('Today12$1.20')
     expect(compactText).toContain('7d78$8.90')
+    expect(compactText).toContain('Month150$16.50')
     expect(compactText).toContain('Total999$42.00')
     expect(wrapper.text()).toContain('345T')
     expect(wrapper.text()).toContain('1.4s')
     expect(wrapper.text()).toContain('91.4%')
     expect(wrapper.find('.text-rose-600').exists()).toBe(true)
     expect(panel.classes()).toContain('divide-y')
-    expect(wrapper.findAll('[data-testid="account-today-stats-row"]')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid="account-today-stats-row"]')).toHaveLength(4)
     expect(panel.find('[data-testid="account-today-stats-footer"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="account-today-stats-cell"] .grid').exists()).toBe(false)
     expect(wrapper.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-[136px]')

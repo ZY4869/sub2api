@@ -4,7 +4,7 @@ import { useAccountsAutoRefresh } from '@/composables/useAccountsAutoRefresh'
 import { useAccountsTodayStats } from '@/composables/useAccountsTodayStats'
 import { useAccountsPagePrefetch } from '@/composables/useAccountsPagePrefetch'
 import { shouldReplaceAutoRefreshRow, type AccountListRequestParams } from '@/utils/accountListSync'
-import type { Account } from '@/types'
+import type { Account, AccountTodayStatsCycleMode } from '@/types'
 
 interface PaginationState {
   page: number
@@ -19,6 +19,7 @@ interface UseAccountsViewLiveSyncOptions {
   params: AccountListRequestParams
   pagination: PaginationState
   hiddenColumns: Pick<Set<string>, 'has'>
+  accountTodayStatsCycleMode?: Ref<AccountTodayStatsCycleMode>
   baseLoad: () => Promise<void>
   baseReload: () => Promise<void>
   baseDebouncedReload: () => void
@@ -36,6 +37,7 @@ export function useAccountsViewLiveSync({
   params,
   pagination,
   hiddenColumns,
+  accountTodayStatsCycleMode,
   baseLoad,
   baseReload,
   baseDebouncedReload,
@@ -59,7 +61,8 @@ export function useAccountsViewLiveSync({
     refreshTodayStats
   } = useAccountsTodayStats({
     accounts,
-    hiddenColumns
+    hiddenColumns,
+    cycleMode: accountTodayStatsCycleMode
   })
 
   const resetAutoRefreshCache = () => {

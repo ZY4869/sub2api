@@ -214,9 +214,10 @@ func TestAccountHandlerGetBatchTodayStatsIncludesBreakdown(t *testing.T) {
 
 	breakdown := map[int64]*usagestats.AccountTodayStatsBreakdown{
 		41: {
-			Today:  usagestats.AccountStats{Requests: 1, Tokens: 30, Cost: 1.2, SuccessRate: 100, AverageDurationMs: 120},
-			Weekly: usagestats.AccountStats{Requests: 3, Tokens: 90, Cost: 3.6, SuccessRate: 66.666, AverageDurationMs: 180},
-			Total:  usagestats.AccountStats{Requests: 4, Tokens: 120, Cost: 4.8, SuccessRate: 75, AverageDurationMs: 200},
+			Today:   usagestats.AccountStats{Requests: 1, Tokens: 30, Cost: 1.2, SuccessRate: 100, AverageDurationMs: 120},
+			Weekly:  usagestats.AccountStats{Requests: 3, Tokens: 90, Cost: 3.6, SuccessRate: 66.666, AverageDurationMs: 180},
+			Monthly: usagestats.AccountStats{Requests: 4, Tokens: 110, Cost: 4.2, SuccessRate: 75, AverageDurationMs: 190},
+			Total:   usagestats.AccountStats{Requests: 5, Tokens: 140, Cost: 5.4, SuccessRate: 80, AverageDurationMs: 200},
 		},
 	}
 	usageService := service.NewAccountUsageService(
@@ -250,10 +251,12 @@ func TestAccountHandlerGetBatchTodayStatsIncludesBreakdown(t *testing.T) {
 	require.Equal(t, int64(1), singleResp.Data.Requests)
 	require.NotNil(t, singleResp.Data.Weekly)
 	require.Equal(t, int64(3), singleResp.Data.Weekly.Requests)
+	require.NotNil(t, singleResp.Data.Monthly)
+	require.Equal(t, int64(4), singleResp.Data.Monthly.Requests)
 	require.NotNil(t, singleResp.Data.Total)
-	require.Equal(t, int64(4), singleResp.Data.Total.Requests)
+	require.Equal(t, int64(5), singleResp.Data.Total.Requests)
 
-	body := bytes.NewBufferString(`{"account_ids":[41,42]}`)
+	body := bytes.NewBufferString(`{"account_ids":[41,42],"cycle_mode":"fixed"}`)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/today-stats/batch", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -272,9 +275,81 @@ func TestAccountHandlerGetBatchTodayStatsIncludesBreakdown(t *testing.T) {
 	require.Equal(t, int64(1), resp.Data.Stats["41"].Requests)
 	require.NotNil(t, resp.Data.Stats["41"].Weekly)
 	require.Equal(t, int64(3), resp.Data.Stats["41"].Weekly.Requests)
+	require.NotNil(t, resp.Data.Stats["41"].Monthly)
+	require.Equal(t, int64(4), resp.Data.Stats["41"].Monthly.Requests)
 	require.NotNil(t, resp.Data.Stats["41"].Total)
-	require.Equal(t, int64(4), resp.Data.Stats["41"].Total.Requests)
+	require.Equal(t, int64(5), resp.Data.Stats["41"].Total.Requests)
 	require.NotNil(t, resp.Data.Stats["42"])
 	require.Equal(t, int64(0), resp.Data.Stats["42"].Requests)
 	require.InEpsilon(t, 100, resp.Data.Stats["42"].SuccessRate, 0.0001)
+	require.NotNil(t, resp.Data.Stats["42"].Monthly)
+	require.InEpsilon(t, 100, resp.Data.Stats["42"].Monthly.SuccessRate, 0.0001)
+
+	invalidBody := bytes.NewBufferString(`{"account_ids":[41],"cycle_mode":"bogus"}`)
+	invalidRec := httptest.NewRecorder()
+	invalidReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/today-stats/batch", invalidBody)
+	invalidReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(invalidRec, invalidReq)
+	require.Equal(t, http.StatusBadRequest, invalidRec.Code)
+}
+
+func TestAccountHandlerGetBatchTodayStatsFiltersUnavailableAccounts(t *testing.T) {
+	t.Parallel()
+
+	breakdown := map[int64]*usagestats.AccountTodayStatsBreakdown{
+		41: {
+			Today:   usagestats.AccountStats{Requests: 2, Tokens: 60, Cost: 2.4, SuccessRate: 100, AverageDurationMs: 130},
+			Weekly:  usagestats.AccountStats{Requests: 4, Tokens: 120, Cost: 4.8, SuccessRate: 100, AverageDurationMs: 150},
+			Monthly: usagestats.AccountStats{Requests: 5, Tokens: 150, Cost: 6.0, SuccessRate: 100, AverageDurationMs: 160},
+			Total:   usagestats.AccountStats{Requests: 6, Tokens: 180, Cost: 7.2, SuccessRate: 100, AverageDurationMs: 170},
+		},
+		42: {
+			Today: usagestats.AccountStats{Requests: 99, Tokens: 990, Cost: 99},
+		},
+	}
+	usageRepo := &usageQueryLogRepoStub{breakdown: breakdown}
+	usageService := service.NewAccountUsageService(
+		nil,
+		usageRepo,
+		nil,
+		nil,
+		nil,
+		service.NewUsageCache(),
+		nil,
+	)
+	adminSvc := newStubAdminService()
+	adminSvc.strictAccountLookup = true
+	adminSvc.accounts = []service.Account{{
+		ID:        41,
+		Name:      "visible",
+		Platform:  service.PlatformAnthropic,
+		Type:      service.AccountTypeOAuth,
+		Status:    service.StatusActive,
+		CreatedAt: time.Now().UTC(),
+	}}
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, usageService, nil, nil, nil, nil, nil, nil)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/api/v1/admin/accounts/today-stats/batch", handler.GetBatchTodayStats)
+
+	body := bytes.NewBufferString(`{"account_ids":[41,42,999,41],"cycle_mode":"calendar"}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/today-stats/batch", body)
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			Stats map[string]*service.WindowStats `json:"stats"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Contains(t, resp.Data.Stats, "41")
+	require.NotContains(t, resp.Data.Stats, "42")
+	require.NotContains(t, resp.Data.Stats, "999")
+	require.Equal(t, int64(2), resp.Data.Stats["41"].Requests)
 }

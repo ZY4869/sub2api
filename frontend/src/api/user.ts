@@ -8,6 +8,8 @@ import type {
   User,
   ChangePasswordRequest,
   AccountGroupDisplayMode,
+  AccountStatusDisplayMode,
+  AccountTodayStatsCycleMode,
   AccountTodayStatsWindow,
   UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
@@ -40,7 +42,9 @@ export async function updateProfile(profile: {
   visual_preset_preference?: VisualPresetPreference
   account_visual_preset_override?: VisualPresetPreference
   account_today_stats_windows?: AccountTodayStatsWindow[]
+  account_today_stats_cycle_mode?: AccountTodayStatsCycleMode
   account_group_display_mode?: AccountGroupDisplayMode
+  account_status_display_mode?: AccountStatusDisplayMode
 }): Promise<User> {
   const { data } = await apiClient.put<User>('/user', profile)
   return data

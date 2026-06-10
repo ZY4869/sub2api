@@ -148,6 +148,158 @@ func (s *AccountRepoSuite) TestUpdate_SyncSchedulerSnapshotOnDisabled() {
 	s.Require().Equal(service.StatusDisabled, cacheRecorder.setAccounts[0].Status)
 }
 
+func (s *AccountRepoSuite) TestSyncMonthlyUsagePeriodClosesOldExpiryPeriod() {
+	createdAt := time.Now().UTC().AddDate(0, -1, 0).Truncate(time.Second)
+	firstExpiry := createdAt.AddDate(0, 1, 0)
+	nextExpiry := firstExpiry.AddDate(0, 1, 0)
+	account := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "usage-period",
+		Status:      service.StatusActive,
+		Schedulable: true,
+		ExpiresAt:   &firstExpiry,
+	})
+	account.CreatedAt = createdAt
+	account.ExpiresAt = &firstExpiry
+
+	initialResult, err := s.repo.SyncMonthlyUsagePeriod(s.ctx, account, nil, service.AccountUsagePeriodSourceExpiry)
+	s.Require().NoError(err)
+	s.Require().NotNil(initialResult)
+	s.Require().True(initialResult.Inserted)
+
+	account.ExpiresAt = &nextExpiry
+	renewResult, err := s.repo.SyncMonthlyUsagePeriod(s.ctx, account, &firstExpiry, service.AccountUsagePeriodSourceExpiry)
+	s.Require().NoError(err)
+	s.Require().NotNil(renewResult)
+	s.Require().True(renewResult.Inserted)
+	s.Require().NotNil(renewResult.OldEndAt)
+	s.Require().WithinDuration(firstExpiry, *renewResult.OldEndAt, time.Second)
+	s.Require().NotNil(renewResult.NewStartAt)
+	s.Require().WithinDuration(firstExpiry, *renewResult.NewStartAt, time.Second)
+
+	rows, err := s.repo.sql.QueryContext(s.ctx, `
+		SELECT start_at, end_at
+		FROM account_usage_periods
+		WHERE account_id = $1
+			AND window_type = $2
+		ORDER BY start_at
+	`, account.ID, service.AccountUsagePeriodWindowMonthly)
+	s.Require().NoError(err)
+	defer func() { _ = rows.Close() }()
+
+	var periods []service.AccountUsagePeriod
+	for rows.Next() {
+		var period service.AccountUsagePeriod
+		var endAt time.Time
+		s.Require().NoError(rows.Scan(&period.StartAt, &endAt))
+		period.EndAt = &endAt
+		periods = append(periods, period)
+	}
+	s.Require().NoError(rows.Err())
+	s.Require().Len(periods, 2)
+	s.Require().WithinDuration(createdAt, periods[0].StartAt, time.Second)
+	s.Require().WithinDuration(firstExpiry, *periods[0].EndAt, time.Second)
+	s.Require().WithinDuration(firstExpiry, periods[1].StartAt, time.Second)
+	s.Require().WithinDuration(nextExpiry, *periods[1].EndAt, time.Second)
+}
+
+func (s *AccountRepoSuite) TestSyncMonthlyUsagePeriodUpdatesFallbackWhenExpiryAdded() {
+	createdAt := time.Now().UTC().AddDate(0, -1, 0).Truncate(time.Second)
+	expiresAt := createdAt.AddDate(0, 1, 0)
+	account := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "usage-period-expiry-added",
+		Status:      service.StatusActive,
+		Schedulable: true,
+	})
+	account.CreatedAt = createdAt
+	account.ExpiresAt = nil
+
+	fallbackResult, err := s.repo.SyncMonthlyUsagePeriod(s.ctx, account, nil, service.AccountUsagePeriodSourceFallback30D)
+	s.Require().NoError(err)
+	s.Require().NotNil(fallbackResult)
+	s.Require().True(fallbackResult.Inserted)
+
+	account.ExpiresAt = &expiresAt
+	expiryResult, err := s.repo.SyncMonthlyUsagePeriod(s.ctx, account, nil, service.AccountUsagePeriodSourceExpiry)
+	s.Require().NoError(err)
+	s.Require().NotNil(expiryResult)
+	s.Require().True(expiryResult.Updated)
+
+	rows, err := s.repo.sql.QueryContext(s.ctx, `
+		SELECT start_at, end_at, source
+		FROM account_usage_periods
+		WHERE account_id = $1
+			AND window_type = $2
+		ORDER BY start_at
+	`, account.ID, service.AccountUsagePeriodWindowMonthly)
+	s.Require().NoError(err)
+	defer func() { _ = rows.Close() }()
+
+	var periods []service.AccountUsagePeriod
+	for rows.Next() {
+		var period service.AccountUsagePeriod
+		var endAt time.Time
+		s.Require().NoError(rows.Scan(&period.StartAt, &endAt, &period.Source))
+		period.EndAt = &endAt
+		periods = append(periods, period)
+	}
+	s.Require().NoError(rows.Err())
+	s.Require().Len(periods, 1)
+	s.Require().WithinDuration(createdAt, periods[0].StartAt, time.Second)
+	s.Require().WithinDuration(expiresAt, *periods[0].EndAt, time.Second)
+	s.Require().Equal(service.AccountUsagePeriodSourceExpiry, periods[0].Source)
+}
+
+func (s *AccountRepoSuite) TestSyncWeeklyUsagePeriodClosesEarlyResetPeriod() {
+	now := time.Now().UTC().Truncate(time.Second)
+	firstReset := now.AddDate(0, 0, 7)
+	earlyReset := now.AddDate(0, 0, 3)
+	account := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "usage-period-weekly-reset",
+		Status:      service.StatusActive,
+		Schedulable: true,
+	})
+
+	firstResult, err := s.repo.SyncWeeklyUsagePeriod(s.ctx, account, firstReset, service.AccountUsagePeriodSourceUpstreamReset)
+	s.Require().NoError(err)
+	s.Require().NotNil(firstResult)
+	s.Require().True(firstResult.Inserted)
+	s.Require().False(firstResult.Closed)
+
+	earlyResult, err := s.repo.SyncWeeklyUsagePeriod(s.ctx, account, earlyReset, service.AccountUsagePeriodSourceUpstreamReset)
+	s.Require().NoError(err)
+	s.Require().NotNil(earlyResult)
+	s.Require().True(earlyResult.Inserted)
+	s.Require().True(earlyResult.Closed)
+	s.Require().NotNil(earlyResult.OldResetAt)
+	s.Require().WithinDuration(firstReset, *earlyResult.OldResetAt, time.Second)
+
+	rows, err := s.repo.sql.QueryContext(s.ctx, `
+		SELECT start_at, end_at, reset_at
+		FROM account_usage_periods
+		WHERE account_id = $1
+			AND window_type = $2
+		ORDER BY reset_at
+	`, account.ID, service.AccountUsagePeriodWindowWeekly)
+	s.Require().NoError(err)
+	defer func() { _ = rows.Close() }()
+
+	var periods []service.AccountUsagePeriod
+	for rows.Next() {
+		var period service.AccountUsagePeriod
+		var endAt time.Time
+		var resetAt time.Time
+		s.Require().NoError(rows.Scan(&period.StartAt, &endAt, &resetAt))
+		period.EndAt = &endAt
+		period.ResetAt = &resetAt
+		periods = append(periods, period)
+	}
+	s.Require().NoError(rows.Err())
+	s.Require().Len(periods, 2)
+	s.Require().WithinDuration(earlyReset, *periods[0].ResetAt, time.Second)
+	s.Require().WithinDuration(firstReset, *periods[1].ResetAt, time.Second)
+	s.Require().WithinDuration(earlyReset, *periods[1].EndAt, time.Second)
+}
+
 func (s *AccountRepoSuite) TestUpdate_SyncSchedulerSnapshotOnCredentialsChange() {
 	account := mustCreateAccount(s.T(), s.client, &service.Account{
 		Name:        "sync-credentials-update",

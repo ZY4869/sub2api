@@ -56,8 +56,12 @@ type User struct {
 	AccountVisualPresetOverride string `json:"account_visual_preset_override,omitempty"`
 	// AccountTodayStatsWindows holds the value of the "account_today_stats_windows" field.
 	AccountTodayStatsWindows []string `json:"account_today_stats_windows,omitempty"`
+	// AccountTodayStatsCycleMode holds the value of the "account_today_stats_cycle_mode" field.
+	AccountTodayStatsCycleMode string `json:"account_today_stats_cycle_mode,omitempty"`
 	// AccountGroupDisplayMode holds the value of the "account_group_display_mode" field.
 	AccountGroupDisplayMode string `json:"account_group_display_mode,omitempty"`
+	// AccountStatusDisplayMode holds the value of the "account_status_display_mode" field.
+	AccountStatusDisplayMode string `json:"account_status_display_mode,omitempty"`
 	// UsageContextBadgeDisplayMode holds the value of the "usage_context_badge_display_mode" field.
 	UsageContextBadgeDisplayMode string `json:"usage_context_badge_display_mode,omitempty"`
 	// APIKeyModelBindingMode holds the value of the "api_key_model_binding_mode" field.
@@ -206,7 +210,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case user.FieldID, user.FieldConcurrency:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldVisualPresetPreference, user.FieldAccountVisualPresetOverride, user.FieldAccountGroupDisplayMode, user.FieldUsageContextBadgeDisplayMode, user.FieldAPIKeyModelBindingMode, user.FieldTotpSecretEncrypted:
+		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldVisualPresetPreference, user.FieldAccountVisualPresetOverride, user.FieldAccountTodayStatsCycleMode, user.FieldAccountGroupDisplayMode, user.FieldAccountStatusDisplayMode, user.FieldUsageContextBadgeDisplayMode, user.FieldAPIKeyModelBindingMode, user.FieldTotpSecretEncrypted:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt, user.FieldTotpEnabledAt:
 			values[i] = new(sql.NullTime)
@@ -348,11 +352,23 @@ func (_m *User) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field account_today_stats_windows: %w", err)
 				}
 			}
+		case user.FieldAccountTodayStatsCycleMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field account_today_stats_cycle_mode", values[i])
+			} else if value.Valid {
+				_m.AccountTodayStatsCycleMode = value.String
+			}
 		case user.FieldAccountGroupDisplayMode:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field account_group_display_mode", values[i])
 			} else if value.Valid {
 				_m.AccountGroupDisplayMode = value.String
+			}
+		case user.FieldAccountStatusDisplayMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field account_status_display_mode", values[i])
+			} else if value.Valid {
+				_m.AccountStatusDisplayMode = value.String
 			}
 		case user.FieldUsageContextBadgeDisplayMode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -539,8 +555,14 @@ func (_m *User) String() string {
 	builder.WriteString("account_today_stats_windows=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AccountTodayStatsWindows))
 	builder.WriteString(", ")
+	builder.WriteString("account_today_stats_cycle_mode=")
+	builder.WriteString(_m.AccountTodayStatsCycleMode)
+	builder.WriteString(", ")
 	builder.WriteString("account_group_display_mode=")
 	builder.WriteString(_m.AccountGroupDisplayMode)
+	builder.WriteString(", ")
+	builder.WriteString("account_status_display_mode=")
+	builder.WriteString(_m.AccountStatusDisplayMode)
 	builder.WriteString(", ")
 	builder.WriteString("usage_context_badge_display_mode=")
 	builder.WriteString(_m.UsageContextBadgeDisplayMode)
