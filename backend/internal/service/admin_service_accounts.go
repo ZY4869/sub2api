@@ -240,6 +240,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		return nil, err
 	}
 	credentialsChanged := len(input.Credentials) > 0
+	explicitEmptyExtraPayload := input.Extra != nil && len(input.Extra) == 0
 	if input.Extra != nil {
 		for _, key := range []string{"quota_used", "quota_daily_used", "quota_daily_start", "quota_weekly_used", "quota_weekly_start", "quota_monthly_used", "quota_monthly_start"} {
 			if v, ok := account.Extra[key]; ok {
@@ -255,6 +256,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		account.Extra = normalizeAccountExtraForStorage(account.Platform, account.Type, account.Credentials, account.Extra)
 	}
 	account.Extra = NormalizeAccountTierExtra(account.Platform, account.Type, account.Extra)
+	if explicitEmptyExtraPayload && account.Extra == nil {
+		account.Extra = map[string]any{}
+	}
 	if input.Concurrency != nil && *input.Concurrency <= 0 {
 		if capacity := DefaultAccountTierConcurrency(account.Platform, AccountTierFromExtra(account.Platform, account.Extra)); capacity > 0 {
 			*input.Concurrency = capacity
