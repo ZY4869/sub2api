@@ -174,6 +174,7 @@ func TestAPIContracts(t *testing.T) {
 					"dingtalk_oauth_enabled": false,
 					"backend_mode_enabled": false,
 					"maintenance_mode_enabled": false,
+					"admin_compliance_enabled": false,
 					"version": "0.0.0-test"
 				}
 			}`,
@@ -245,6 +246,7 @@ func TestAPIContracts(t *testing.T) {
 					"dingtalk_oauth_enabled": false,
 					"backend_mode_enabled": false,
 					"maintenance_mode_enabled": false,
+					"admin_compliance_enabled": false,
 					"version": "0.0.0-test"
 				}
 			}`,
@@ -1268,6 +1270,7 @@ func TestAPIContracts(t *testing.T) {
 					},
 					"allow_ungrouped_key_scheduling": false,
 					"backend_mode_enabled": false,
+					"admin_compliance_enabled": false,
 					"affiliate_enabled": false,
 					"affiliate_transfer_enabled": true,
 					"affiliate_rebate_on_usage_enabled": true,
