@@ -139,10 +139,10 @@ function createAccount(platform: Account['platform'], overrides: Partial<Account
   } as Account
 }
 
-function mountModal(account: Account) {
+function mountModal(account: Account | null, show = true) {
   return mount(ReAuthAccountModal, {
     props: {
-      show: true,
+      show,
       account
     },
     global: {
@@ -167,6 +167,16 @@ beforeEach(() => {
 })
 
 describe('admin ReAuthAccountModal', () => {
+  it('mounts hidden and resets initial state without throwing', () => {
+    expect(() => {
+      const wrapper = mountModal(null, false)
+      wrapper.unmount()
+    }).not.toThrow()
+
+    expect(updateMock).not.toHaveBeenCalled()
+    expect(clearErrorMock).not.toHaveBeenCalled()
+  })
+
   it('reauthorizes OpenAI accounts from a refresh token', async () => {
     const updatedAccount = createAccount('openai', { status: 'active', error_message: null })
     refreshOpenAITokenMock.mockResolvedValue({

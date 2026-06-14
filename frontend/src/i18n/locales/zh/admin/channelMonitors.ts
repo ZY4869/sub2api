@@ -40,7 +40,7 @@ export default {
         openaiApiMode: "OpenAI API 模式",
         extraHeaders: "额外请求头 (JSON)",
         bodyOverride: "请求体覆盖 (JSON)",
-        jsonHint: "必须是 JSON 对象，例如：{\"x-foo\":\"bar\"}",
+        jsonHint: "必须是 JSON 对象，例如：{'{'}\"x-foo\":\"bar\"{'}'}",
         bodyOverrideHint: "与上方模式配合使用：off/merge/replace。",
     },
     templateFields: {

@@ -359,7 +359,7 @@ watch(
 )
 
 // Methods
-const resetState = () => {
+function resetState() {
   addMethod.value = 'oauth'
   geminiOAuthType.value = 'code_assist'
   platformSubmitLoading.value = false
