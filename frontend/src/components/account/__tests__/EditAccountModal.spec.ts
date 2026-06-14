@@ -144,6 +144,52 @@ const SelectStub = defineComponent({
   `
 })
 
+const AccountTierSelectorStub = defineComponent({
+  name: 'AccountTierSelector',
+  props: {
+    tier: {
+      type: String,
+      default: ''
+    },
+    platform: {
+      type: String,
+      default: ''
+    }
+  },
+  emits: ['update:tier', 'apply-capacity'],
+  template: `
+    <div data-testid="account-tier-selector">
+      <span data-testid="account-tier-platform">{{ platform }}</span>
+      <span data-testid="account-tier-value">{{ tier }}</span>
+      <button type="button" data-testid="select-pro20x-tier" @click="$emit('update:tier', 'pro_20x')">
+        pro20x
+      </button>
+      <button type="button" data-testid="apply-tier-capacity" @click="$emit('apply-capacity')">
+        apply
+      </button>
+    </div>
+  `
+})
+
+const AccountRuntimeSettingsEditorStub = defineComponent({
+  name: 'AccountRuntimeSettingsEditor',
+  props: {
+    concurrency: {
+      type: Number,
+      default: 0
+    }
+  },
+  emits: ['update:concurrency'],
+  template: `
+    <div data-testid="runtime-settings">
+      <span data-testid="runtime-concurrency">{{ concurrency }}</span>
+      <button type="button" data-testid="set-runtime-concurrency-3" @click="$emit('update:concurrency', 3)">
+        set concurrency
+      </button>
+    </div>
+  `
+})
+
 const AccountApiKeyBasicSettingsEditorStub = defineComponent({
   name: 'AccountApiKeyBasicSettingsEditor',
   props: {
@@ -719,8 +765,9 @@ function mountModal(account = buildAccount()) {
         AccountProtocolGatewayOpenAIRequestFormatEditor: AccountProtocolGatewayOpenAIRequestFormatEditorStub,
         AccountProtocolGatewayBatchEditor: true,
         AccountGeminiVertexCredentialsEditor: true,
+        AccountTierSelector: AccountTierSelectorStub,
+        AccountRuntimeSettingsEditor: AccountRuntimeSettingsEditorStub,
         AccountModelScopeEditor: true,
-        AccountRuntimeSettingsEditor: true,
         AccountGatewaySettingsEditor: true,
         AccountGroupSettingsEditor: true,
         AccountAutoPauseToggle: true,
@@ -930,6 +977,40 @@ describe('EditAccountModal', () => {
       probe_source: 'model_scope_preview'
     })
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_probe_snapshot?.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it('rehydrates account tier and applies default capacity on edit', async () => {
+    const account = buildOpenAIOAuthAccount()
+    account.concurrency = 2
+    account.extra.account_tier = 'plus'
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="account-tier-value"]').text()).toBe('plus')
+    expect(wrapper.get('[data-testid="runtime-concurrency"]').text()).toBe('2')
+
+    await wrapper.get('[data-testid="select-pro20x-tier"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-testid="account-tier-value"]').text()).toBe('pro_20x')
+
+    await wrapper.get('[data-testid="apply-tier-capacity"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-testid="runtime-concurrency"]').text()).toBe('10')
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]).toMatchObject({
+      concurrency: 10,
+      extra: expect.objectContaining({
+        account_tier: 'pro_20x'
+      })
+    })
   })
 
   it('keeps upstream quota fields when editing a vertex express account', async () => {

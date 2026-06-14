@@ -43,6 +43,18 @@
     @close="emit('close-batch-test')"
     @completed="emit('batch-test-completed')"
   />
+  <AccountBatchTestModal
+    :show="showOneClickBatchTest"
+    :accounts="[]"
+    :filters="oneClickBatchTestFilters"
+    :filters-total="oneClickBatchTestTotal"
+    default-test-mode="real_forward"
+    default-model-strategy="auto"
+    default-execution-mode="concurrent"
+    :default-concurrency="4"
+    @close="emit('close-one-click-batch-test')"
+    @completed="emit('batch-test-completed')"
+  />
   <AccountStatsModal
     :show="showStats"
     :account="statsAccount"
@@ -221,6 +233,7 @@ defineProps<{
   showReAuth: boolean
   showTest: boolean
   showBatchTest: boolean
+  showOneClickBatchTest: boolean
   showStats: boolean
   showModelDiagnostics: boolean
   showErrorPassthrough: boolean
@@ -241,6 +254,8 @@ defineProps<{
   reAuthAccount: Account | null
   testingAccount: Account | null
   batchTestAccounts: Account[]
+  oneClickBatchTestFilters: BulkUpdateAccountsFilters | null
+  oneClickBatchTestTotal: number | null
   batchTestDefaultTestMode: 'real_forward' | 'health_check'
   batchTestDefaultModelStrategy: 'auto' | 'specified'
   statsAccount: Account | null
@@ -272,6 +287,7 @@ const emit = defineEmits<{
   'close-reauth': []
   'close-test': []
   'close-batch-test': []
+  'close-one-click-batch-test': []
   'batch-test-completed': []
   'close-stats': []
   'close-model-diagnostics': []

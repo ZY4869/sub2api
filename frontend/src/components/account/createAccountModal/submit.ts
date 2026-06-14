@@ -7,6 +7,7 @@ export function createCreateAccountSubmit(ctx: any) {
     GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS,
     acceptAIStudioBatchOverflow,
     accountCategory,
+    accountTier,
     addMethod,
     allowVertexBatchOverflow,
     allowedModels,
@@ -21,6 +22,7 @@ export function createCreateAccountSubmit(ctx: any) {
     appStore,
     applyAccountCustomErrorCodesStateToCredentials,
     applyAccountPoolModeStateToCredentials,
+    applyAccountTierToExtra,
     applyDeepSeekModelConcurrencyLimitsExtra,
     applyInterceptWarmup,
     applyOpenAIImageProtocolDefaults,
@@ -236,16 +238,20 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     deepSeekModelConcurrencyLimits.value
   )
 
-  return mergeResolvedUpstreamDraftIntoExtra(
-    mergeAccountModelProbeSnapshotIntoExtra(
-      mergeAccountManualModelsIntoExtra(
-        extraWithDeepSeek,
-        manualModels.value,
-        isProtocolGatewayPlatform(form.platform)
+  return applyAccountTierToExtra(
+    mergeResolvedUpstreamDraftIntoExtra(
+      mergeAccountModelProbeSnapshotIntoExtra(
+        mergeAccountManualModelsIntoExtra(
+          extraWithDeepSeek,
+          manualModels.value,
+          isProtocolGatewayPlatform(form.platform)
+        ),
+        resolveConfiguredModelProbeSnapshot()
       ),
-      resolveConfiguredModelProbeSnapshot()
+      resolvedUpstream.value
     ),
-    resolvedUpstream.value
+    form.platform,
+    accountCategory.value === 'oauth-based' ? accountTier.value : ''
   )
 }
 

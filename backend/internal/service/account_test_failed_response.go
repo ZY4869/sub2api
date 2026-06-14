@@ -49,6 +49,16 @@ func (s *AccountTestService) formatFailedTestResponse(ctx context.Context, accou
 	if advice != nil &&
 		(statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden) &&
 		advice.Decision == BlacklistAdviceRecommendBlacklist {
+		if ShouldAccountNeedReauth(account, advice.ReasonCode) {
+			_, expired := MarkAccountNeedsReauth(ctx, s.accountRepo, account, firstNonEmptyHardBanString(advice.ReasonMessage, message), time.Now())
+			if expired {
+				advice.Decision = BlacklistAdviceAutoBlacklisted
+				advice.ReasonCode = AccountReauthDeadlineExpiredCode
+				advice.AlreadyBlacklisted = true
+				advice.CollectFeedback = false
+			}
+			return message, advice
+		}
 		s.tryAutoBlacklistFailedTest(ctx, account, advice, advice.ReasonCode, advice.ReasonMessage, body)
 		return message, advice
 	}

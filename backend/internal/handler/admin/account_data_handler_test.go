@@ -360,6 +360,54 @@ func TestImportDataReusesProxyAndSkipsDefaultGroup(t *testing.T) {
 	require.NotContains(t, rec.Body.String(), "credentials")
 }
 
+func TestImportDataAppliesAccountDefaultTiersWhenItemHasNoTier(t *testing.T) {
+	router, adminSvc := setupAccountDataRouter()
+
+	dataPayload := map[string]any{
+		"data": map[string]any{
+			"type":    dataType,
+			"version": dataVersion,
+			"proxies": []map[string]any{},
+			"accounts": []map[string]any{
+				{
+					"name":        "openai-default",
+					"platform":    service.PlatformOpenAI,
+					"type":        service.AccountTypeOAuth,
+					"credentials": map[string]any{"token": "secret"},
+					"concurrency": 0,
+					"priority":    50,
+				},
+				{
+					"name":        "claude-keeps-tier",
+					"platform":    service.PlatformAnthropic,
+					"type":        service.AccountTypeOAuth,
+					"credentials": map[string]any{"token": "secret"},
+					"extra":       map[string]any{service.AccountExtraKeyAccountTier: service.ClaudeAccountTierPro},
+					"concurrency": 7,
+					"priority":    50,
+				},
+			},
+		},
+		"account_defaults": map[string]any{
+			"openai_tier": service.OpenAIAccountTierPro20x,
+			"claude_tier": service.ClaudeAccountTierMax20x,
+		},
+		"skip_default_group_bind": true,
+	}
+
+	body, _ := json.Marshal(dataPayload)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/data", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, adminSvc.createdAccounts, 2)
+	require.Equal(t, service.OpenAIAccountTierPro20x, adminSvc.createdAccounts[0].Extra[service.AccountExtraKeyAccountTier])
+	require.Equal(t, service.ClaudeAccountTierPro, adminSvc.createdAccounts[1].Extra[service.AccountExtraKeyAccountTier])
+	require.Equal(t, 7, adminSvc.createdAccounts[1].Concurrency)
+}
+
 func TestImportDataJobCreatesAndPollsSummaryWithoutSecrets(t *testing.T) {
 	router, adminSvc := setupAccountDataRouter()
 

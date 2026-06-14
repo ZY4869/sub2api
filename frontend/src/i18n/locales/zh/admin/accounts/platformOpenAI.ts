@@ -28,6 +28,7 @@ export default {
             label: "图片协议模式",
             description: "控制当前 OpenAI 账号默认走原生图片链路还是兼容图片链路；分组若强制指定，将优先覆盖这里。",
             compatUnavailableHint: "当前账号计划默认不开放兼容生图，请先升级计划或改用原生生图。",
+            allowCompat: "允许兼容生图",
             options: {
                 native: "原生生图",
                 compat: "兼容生图",

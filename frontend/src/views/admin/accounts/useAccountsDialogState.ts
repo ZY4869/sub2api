@@ -35,6 +35,7 @@ export function useAccountsDialogState(
   const showReAuth = ref(false)
   const showTest = ref(false)
   const showBatchTest = ref(false)
+  const showOneClickBatchTest = ref(false)
   const showStats = ref(false)
   const showModelDiagnostics = ref(false)
   const showErrorPassthrough = ref(false)
@@ -47,6 +48,8 @@ export function useAccountsDialogState(
   const reAuthAcc = ref<Account | null>(null)
   const testingAcc = ref<Account | null>(null)
   const batchTestAccounts = ref<Account[]>([])
+  const oneClickBatchTestFilters = ref<BulkUpdateAccountsFilters | null>(null)
+  const oneClickBatchTestTotal = ref<number | null>(null)
   const batchTestDefaultTestMode = ref<'real_forward' | 'health_check'>('health_check')
   const batchTestDefaultModelStrategy = ref<'auto' | 'specified'>('auto')
   const statsAcc = ref<Account | null>(null)
@@ -86,10 +89,10 @@ export function useAccountsDialogState(
     showImportData, showImportGroupBinding, importGroupBindingJobId, importGroupBindingAccounts,
     showExportDataDialog, includeProxyOnExport, showBulkEdit,
     bulkEditFilters, bulkEditFiltersTotal, showTempUnsched, showDeleteDialog,
-    showReAuth, showTest, showBatchTest, showStats, showModelDiagnostics,
+    showReAuth, showTest, showBatchTest, showOneClickBatchTest, showStats, showModelDiagnostics,
     showErrorPassthrough, showTLSFingerprintProfiles, showDaily5HTriggerSettings,
     edAcc, tempUnschedAcc, deletingAcc, reAuthAcc, testingAcc,
-    batchTestAccounts, batchTestDefaultTestMode, batchTestDefaultModelStrategy,
+    batchTestAccounts, oneClickBatchTestFilters, oneClickBatchTestTotal, batchTestDefaultTestMode, batchTestDefaultModelStrategy,
     statsAcc, diagnosticsAccount, diagnosticsResult, diagnosticsLoading,
     showSchedulePanel, scheduleAcc, scheduleModelOptions, activeEditRequestToken,
     activeEditAbortController,

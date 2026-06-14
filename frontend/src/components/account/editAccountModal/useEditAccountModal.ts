@@ -7,7 +7,7 @@ import { useAnthropicQuotaControl } from '@/composables/useAnthropicQuotaControl
 import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
 import { useAccountTempUnschedRules } from '@/composables/useAccountTempUnschedRules'
 import type { AccountManualModel } from '@/api/admin/accounts'
-import type { AccountPlatform, GatewayProtocol, GroupPlatform } from '@/types'
+import type { AccountPlatform, AccountTier, GatewayProtocol, GroupPlatform } from '@/types'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
@@ -94,6 +94,12 @@ import {
   type GeminiOAuthType
 } from '@/utils/geminiAccount'
 import { resolveOpenAIImageProtocolState } from '@/utils/openaiAccountDefaults'
+import {
+  applyAccountTierToExtra,
+  defaultAccountTierForPlatform,
+  normalizeAccountTier,
+  resolveAccountTierCapacity
+} from '@/utils/accountTier'
 import {
   applyGoogleBatchArchiveExtra,
   createDefaultGoogleBatchArchiveFormState,
@@ -222,6 +228,7 @@ const allowVertexBatchOverflow = ref(defaultGoogleBatchArchiveState.allowVertexB
 const acceptAIStudioBatchOverflow = ref(defaultGoogleBatchArchiveState.acceptAIStudioBatchOverflow)
 const geminiOAuthType = ref<GeminiOAuthType>('code_assist')
 const geminiTierAIStudio = ref<GeminiAIStudioTier>('aistudio_free')
+const accountTier = ref<AccountTier | ''>('')
 const geminiVertexAuthMode = ref<VertexAuthMode>('service_account')
 const geminiVertexProjectId = ref('')
 const geminiVertexLocation = ref('')
@@ -360,6 +367,16 @@ const isGeminiVertexLegacyMode = computed(() => {
     !String(credentials.vertex_service_account_json || '').trim() &&
     Boolean(String(credentials.access_token || '').trim())
   )
+})
+const showAccountTierSelector = computed(() => {
+  if (!props.account) {
+    return false
+  }
+  if (props.account.platform === 'openai') {
+    return props.account.type === 'oauth'
+  }
+  return props.account.platform === 'anthropic' &&
+    (props.account.type === 'oauth' || props.account.type === 'setup-token')
 })
 const showCommonApiKeySection = computed(() =>
   props.account?.type === 'apikey' &&
@@ -768,6 +785,13 @@ const handleOpenAIImageProtocolModeChange = (value: OpenAIImageProtocolMode) => 
   openAIImageProtocolMode.value = value
 }
 
+const applyAccountTierCapacity = (capacity?: number) => {
+  const nextCapacity = capacity || resolveAccountTierCapacity(props.account?.platform, accountTier.value)
+  if (nextCapacity > 0) {
+    form.concurrency = nextCapacity
+  }
+}
+
 // Model mapping helpers
 const addModelMapping = () => {
   modelMappings.value.push({ from: '', to: '' })
@@ -879,7 +903,7 @@ function buildProbeExtra(base?: Record<string, unknown>) {
 const modalContext = {
   props, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, allowVertexBatchOverflow, allowedModels, anthropicPassthroughEnabled, antigravityModelMappings, appStore,
   applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyGoogleBatchArchiveExtra, applyInterceptWarmup, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra,
-  applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays,
+  applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, applyAccountTierToExtra, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays,
   buildAccountModelScopeExtra, buildBaiduDocumentAICredentialsForUpdate, buildModelMappingObject, buildProbeExtra, buildScopedModelMapping, claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled,
   codexCLIOnlyEnabled, currentAccountCredentials, customErrorCodesState, deepSeekModelConcurrencyLimits, defaultBaseUrl, editApiKey, editBaseUrl, editGrokSSOToken,
   editGrokTier, editOpenRouterHTTPReferer, editOpenRouterTitle, editQuotaDailyLimit, editQuotaDailyResetHour, editQuotaDailyResetMode, editQuotaLimit, editQuotaResetTimezone,
@@ -903,7 +927,8 @@ const modalContext = {
   isGatewayProtocolOption, openAIWSModeOptions, openaiResponsesWebSocketV2Mode, openAIWSModeConcurrencyHintKey, isOpenAIModelRestrictionDisabled, presetMappings, commonErrorCodeOptions, applyDefaultGrokCapabilityMapping,
   tempUnschedEnabled, tempUnschedRules, tempUnschedPresets, getTempUnschedRuleKey, addTempUnschedRule, removeTempUnschedRule, moveTempUnschedRule, showMixedChannelWarning,
   mixedChannelWarningMessageText, handleMixedChannelConfirm, handleMixedChannelCancel, statusOptions, expiresAtInput, handleOpenAIImageProtocolModeChange, addModelMapping, removeModelMapping,
-  addPresetMapping, addAntigravityModelMapping, removeAntigravityModelMapping, addAntigravityPresetMapping, handleClose, probeExtraForEditor, MAX_POOL_MODE_RETRY_COUNT
+  addPresetMapping, addAntigravityModelMapping, removeAntigravityModelMapping, addAntigravityPresetMapping, handleClose, probeExtraForEditor, MAX_POOL_MODE_RETRY_COUNT,
+  accountTier, showAccountTierSelector, applyAccountTierCapacity, defaultAccountTierForPlatform, normalizeAccountTier, resolveAccountTierCapacity
 }
 const handleSubmit = createEditAccountSubmit(modalContext)
 

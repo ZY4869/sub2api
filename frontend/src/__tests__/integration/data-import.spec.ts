@@ -136,7 +136,11 @@ describe('ImportDataModal', () => {
         proxies: [],
         accounts: []
       },
-      skip_default_group_bind: true
+      skip_default_group_bind: true,
+      account_defaults: {
+        openai_tier: 'pro_5x',
+        claude_tier: 'pro'
+      }
     })
     expect(adminAPI.accounts.getImportJob).toHaveBeenCalledWith('job-1')
     expect(wrapper.emitted('imported')).toEqual([[importJob]])

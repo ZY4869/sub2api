@@ -11,6 +11,7 @@ const props = defineProps<{
   showOpenAiImageProtocolMode: boolean
   openAiImageProtocolMode: OpenAIImageProtocolMode
   openAiImageProtocolCompatAllowed: boolean
+  showOpenAiImageProtocolCompatToggle?: boolean
   showOpenAiWsMode: boolean
   openAiWsMode: OpenAIWSMode
   openAiWsModeOptions: SelectOption[]
@@ -24,6 +25,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:openAiPassthroughEnabled': [value: boolean]
   'update:openAiImageProtocolMode': [value: OpenAIImageProtocolMode]
+  'update:openAiImageProtocolCompatAllowed': [value: boolean]
   'update:openAiWsMode': [value: OpenAIWSMode]
   'update:anthropicPassthroughEnabled': [value: boolean]
   'update:codexCliOnlyEnabled': [value: boolean]
@@ -62,12 +64,24 @@ const openAIImageProtocolOptions = computed<SelectOption[]>(() => [
           {{ t('admin.accounts.openai.imageProtocol.compatUnavailableHint') }}
         </p>
       </div>
-      <div class="w-52">
+      <div class="flex w-52 flex-col gap-2">
         <Select
           :model-value="openAiImageProtocolMode"
           :options="openAIImageProtocolOptions"
           @update:model-value="emit('update:openAiImageProtocolMode', $event as OpenAIImageProtocolMode)"
         />
+        <label
+          v-if="showOpenAiImageProtocolCompatToggle"
+          class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300"
+        >
+          <span>{{ t('admin.accounts.openai.imageProtocol.allowCompat') }}</span>
+          <input
+            type="checkbox"
+            class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            :checked="openAiImageProtocolCompatAllowed"
+            @change="emit('update:openAiImageProtocolCompatAllowed', ($event.target as HTMLInputElement).checked)"
+          />
+        </label>
       </div>
     </div>
   </div>

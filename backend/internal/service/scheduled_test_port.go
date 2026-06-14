@@ -73,6 +73,10 @@ type BackgroundAccountTestResult struct {
 	ResolvedSourceProtocol  string    `json:"resolved_source_protocol,omitempty"`
 	BlacklistAdviceDecision string    `json:"blacklist_advice_decision,omitempty"`
 	CurrentLifecycleState   string    `json:"current_lifecycle_state,omitempty"`
+	LifecycleReasonCode     string    `json:"lifecycle_reason_code,omitempty"`
+	LifecycleReasonMessage  string    `json:"lifecycle_reason_message,omitempty"`
+	NeedsReauth             bool      `json:"needs_reauth,omitempty"`
+	ReauthDeadlineAt        string    `json:"reauth_deadline_at,omitempty"`
 }
 
 type ScheduledTestExecutionInput struct {

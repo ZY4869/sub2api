@@ -62,9 +62,27 @@ func (s *AccountTestService) RunTestBackgroundDetailed(ctx context.Context, inpu
 	}
 
 	currentLifecycleState := ""
+	lifecycleReasonCode := ""
+	lifecycleReasonMessage := ""
+	needsReauth := false
+	reauthDeadlineAt := ""
 	if s != nil && s.accountRepo != nil {
 		if account, err := s.accountRepo.GetByID(ctx, input.AccountID); err == nil && account != nil {
+			if status == "success" {
+				ClearAccountReauthState(ctx, s.accountRepo, account)
+				if refreshed, refreshErr := s.accountRepo.GetByID(ctx, input.AccountID); refreshErr == nil && refreshed != nil {
+					account = refreshed
+				}
+			}
 			currentLifecycleState = account.LifecycleState
+			lifecycleReasonCode = account.LifecycleReasonCode
+			lifecycleReasonMessage = account.LifecycleReasonMessage
+			if reauth := AccountReauthStatusFromExtra(account.Extra); reauth != nil {
+				needsReauth = true
+				if !reauth.DeadlineAt.IsZero() {
+					reauthDeadlineAt = reauth.DeadlineAt.UTC().Format(time.RFC3339)
+				}
+			}
 		}
 	}
 
@@ -80,6 +98,10 @@ func (s *AccountTestService) RunTestBackgroundDetailed(ctx context.Context, inpu
 		ResolvedSourceProtocol:  parsed.ResolvedSourceProtocol,
 		BlacklistAdviceDecision: parsed.BlacklistAdviceDecision,
 		CurrentLifecycleState:   currentLifecycleState,
+		LifecycleReasonCode:     lifecycleReasonCode,
+		LifecycleReasonMessage:  lifecycleReasonMessage,
+		NeedsReauth:             needsReauth,
+		ReauthDeadlineAt:        reauthDeadlineAt,
 	}
 	return result, nil
 }

@@ -295,6 +295,13 @@
         @move-rule="moveTempUnschedRule($event.index, $event.direction)"
       />
 
+      <AccountTierSelector
+        v-if="showAccountTierSelector"
+        v-model:tier="accountTier"
+        :platform="account.platform"
+        @apply-capacity="applyAccountTierCapacity"
+      />
+
       <!-- Intercept Warmup Requests (Anthropic/Antigravity) -->
       <div
         v-if="effectivePlatform === 'anthropic' || account?.platform === 'antigravity'"
@@ -346,6 +353,7 @@
         :show-open-ai-image-protocol-mode="account?.platform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
         :open-ai-image-protocol-mode="openAIImageProtocolMode"
         :open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed"
+        :show-open-ai-image-protocol-compat-toggle="account?.type === 'oauth'"
         :show-open-ai-ws-mode="effectivePlatform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
         :open-ai-ws-mode="openaiResponsesWebSocketV2Mode"
         :open-ai-ws-mode-options="openAIWSModeOptions"
@@ -356,6 +364,7 @@
         :codex-cli-only-enabled="codexCLIOnlyEnabled"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
         @update:open-ai-image-protocol-mode="handleOpenAIImageProtocolModeChange"
+        @update:open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed = $event"
         @update:open-ai-ws-mode="openaiResponsesWebSocketV2Mode = $event"
         @update:anthropic-passthrough-enabled="anthropicPassthroughEnabled = $event"
         @update:codex-cli-only-enabled="codexCLIOnlyEnabled = $event"
@@ -527,6 +536,7 @@ import AccountProtocolGatewayModelProbeEditor from '@/components/account/Account
 import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlEditor.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
 import AccountTempUnschedRulesEditor from '@/components/account/AccountTempUnschedRulesEditor.vue'
+import AccountTierSelector from '@/components/account/AccountTierSelector.vue'
 import AccountUpstreamSettingsEditor from '@/components/account/AccountUpstreamSettingsEditor.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { useEditAccountModal } from './editAccountModal/useEditAccountModal'
@@ -634,6 +644,7 @@ const {
   unifiedProbeCredentials,
   unifiedProbeReady,
   showQuotaLimitSection,
+  showAccountTierSelector,
   shouldPersistGeminiTierId,
   showGeminiAIStudioBatchArchiveEditor,
   showGeminiVertexBatchArchiveEditor,
@@ -665,8 +676,10 @@ const {
   handleMixedChannelConfirm,
   handleMixedChannelCancel,
   statusOptions,
+  accountTier,
   expiresAtInput,
   handleOpenAIImageProtocolModeChange,
+  applyAccountTierCapacity,
   addModelMapping,
   removeModelMapping,
   addPresetMapping,

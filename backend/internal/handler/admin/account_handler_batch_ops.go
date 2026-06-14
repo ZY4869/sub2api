@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -23,20 +24,24 @@ const (
 )
 
 type batchAccountTestModelsRequest struct {
-	AccountIDs []int64 `json:"account_ids" binding:"required,min=1"`
+	AccountIDs []int64                    `json:"account_ids"`
+	Filters    *BulkUpdateAccountsFilters `json:"filters,omitempty"`
 }
 
 type batchAccountTestRequest struct {
-	AccountIDs     []int64 `json:"account_ids" binding:"required,min=1"`
-	ModelID        string  `json:"model_id"`
-	Model          string  `json:"model"`
-	ModelInputMode string  `json:"model_input_mode"`
-	ManualModelID  string  `json:"manual_model_id"`
-	SourceProtocol string  `json:"source_protocol"`
-	TargetProvider string  `json:"target_provider"`
-	TargetModelID  string  `json:"target_model_id"`
-	Prompt         string  `json:"prompt"`
-	TestMode       string  `json:"test_mode"`
+	AccountIDs     []int64                    `json:"account_ids"`
+	Filters        *BulkUpdateAccountsFilters `json:"filters,omitempty"`
+	ExecutionMode  string                     `json:"execution_mode"`
+	Concurrency    int                        `json:"concurrency"`
+	ModelID        string                     `json:"model_id"`
+	Model          string                     `json:"model"`
+	ModelInputMode string                     `json:"model_input_mode"`
+	ManualModelID  string                     `json:"manual_model_id"`
+	SourceProtocol string                     `json:"source_protocol"`
+	TargetProvider string                     `json:"target_provider"`
+	TargetModelID  string                     `json:"target_model_id"`
+	Prompt         string                     `json:"prompt"`
+	TestMode       string                     `json:"test_mode"`
 }
 
 type batchAccountTestResult struct {
@@ -52,10 +57,18 @@ type batchAccountTestResult struct {
 	ResolvedSourceProtocol  string `json:"resolved_source_protocol,omitempty"`
 	BlacklistAdviceDecision string `json:"blacklist_advice_decision,omitempty"`
 	CurrentLifecycleState   string `json:"current_lifecycle_state,omitempty"`
+	LifecycleReasonCode     string `json:"lifecycle_reason_code,omitempty"`
+	LifecycleReasonMessage  string `json:"lifecycle_reason_message,omitempty"`
+	NeedsReauth             bool   `json:"needs_reauth,omitempty"`
+	ReauthDeadlineAt        string `json:"reauth_deadline_at,omitempty"`
 }
 
 type batchAccountTestResponse struct {
-	Results []batchAccountTestResult `json:"results"`
+	Results              []batchAccountTestResult `json:"results"`
+	SuccessCount         int                      `json:"success_count"`
+	FailedCount          int                      `json:"failed_count"`
+	NeedsReauthCount     int                      `json:"needs_reauth_count"`
+	AutoBlacklistedCount int                      `json:"auto_blacklisted_count"`
 }
 
 func normalizeBatchAccountTestModelInputMode(value string) string {
@@ -78,6 +91,28 @@ func normalizeBatchTestSourceProtocol(value string) string {
 	}
 }
 
+func normalizeBatchAccountTestExecutionMode(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "sequential":
+		return "sequential"
+	default:
+		return "concurrent"
+	}
+}
+
+func normalizeBatchAccountTestConcurrency(executionMode string, requested int) int {
+	if executionMode == "sequential" {
+		return 1
+	}
+	if requested <= 0 {
+		return 4
+	}
+	if requested > 10 {
+		return 10
+	}
+	return requested
+}
+
 func uniqueAccountIDsPreserveOrder(ids []int64) []int64 {
 	if len(ids) == 0 {
 		return nil
@@ -97,6 +132,23 @@ func uniqueAccountIDsPreserveOrder(ids []int64) []int64 {
 	return unique
 }
 
+func (h *AccountHandler) resolveBatchTestAccountIDs(c *gin.Context, accountIDs []int64, filters *BulkUpdateAccountsFilters) ([]int64, error) {
+	if len(accountIDs) > 0 && filters != nil {
+		return nil, infraerrors.BadRequest("ADMIN_ACCOUNT_BATCH_TEST_TARGET_CONFLICT", "Provide either account_ids or filters, not both")
+	}
+	if len(accountIDs) > 0 {
+		return uniqueAccountIDsPreserveOrder(accountIDs), nil
+	}
+	if filters == nil {
+		return nil, infraerrors.BadRequest("ADMIN_ACCOUNT_BATCH_TEST_TARGET_REQUIRED", "account_ids or filters is required")
+	}
+	ids, err := h.resolveBulkUpdateAccountIDsByFilters(c, filters)
+	if err != nil {
+		return nil, err
+	}
+	return uniqueAccountIDsPreserveOrder(ids), nil
+}
+
 func (h *AccountHandler) GetBatchTestModels(c *gin.Context) {
 	var req batchAccountTestModelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -104,7 +156,11 @@ func (h *AccountHandler) GetBatchTestModels(c *gin.Context) {
 		return
 	}
 
-	accountIDs := uniqueAccountIDsPreserveOrder(req.AccountIDs)
+	accountIDs, err := h.resolveBatchTestAccountIDs(c, req.AccountIDs, req.Filters)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	if len(accountIDs) == 0 {
 		response.BadRequestKey(c, "admin.account.account_ids_required", "account_ids is required")
 		return
@@ -147,7 +203,11 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 		return
 	}
 
-	accountIDs := uniqueAccountIDsPreserveOrder(req.AccountIDs)
+	accountIDs, err := h.resolveBatchTestAccountIDs(c, req.AccountIDs, req.Filters)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	if len(accountIDs) == 0 {
 		response.BadRequestKey(c, "admin.account.account_ids_required", "account_ids is required")
 		return
@@ -175,17 +235,21 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 	if testMode == "" {
 		testMode = string(service.AccountTestModeHealthCheck)
 	}
+	executionMode := normalizeBatchAccountTestExecutionMode(req.ExecutionMode)
+	concurrency := normalizeBatchAccountTestConcurrency(executionMode, req.Concurrency)
 	slog.Info(
 		"admin_account_batch_test_start",
 		"account_count", len(accountIDs),
 		"test_mode", testMode,
 		"model_input_mode", modelInputMode,
+		"execution_mode", executionMode,
+		"concurrency", concurrency,
 	)
 
 	results := make([]batchAccountTestResult, len(accountIDs))
 	startedAt := time.Now()
 	g, gctx := errgroup.WithContext(c.Request.Context())
-	g.SetLimit(4)
+	g.SetLimit(concurrency)
 	var mu sync.Mutex
 
 	for idx, accountID := range accountIDs {
@@ -217,6 +281,10 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 						result.ResolvedSourceProtocol = detail.ResolvedSourceProtocol
 						result.BlacklistAdviceDecision = detail.BlacklistAdviceDecision
 						result.CurrentLifecycleState = detail.CurrentLifecycleState
+						result.LifecycleReasonCode = detail.LifecycleReasonCode
+						result.LifecycleReasonMessage = detail.LifecycleReasonMessage
+						result.NeedsReauth = detail.NeedsReauth
+						result.ReauthDeadlineAt = detail.ReauthDeadlineAt
 					}
 					if runErr != nil && result.ErrorMessage == "" {
 						result.ErrorMessage = runErr.Error()
@@ -229,6 +297,12 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 					}
 					if result.CurrentLifecycleState == "" {
 						result.CurrentLifecycleState = account.LifecycleState
+					}
+					if result.LifecycleReasonCode == "" {
+						result.LifecycleReasonCode = account.LifecycleReasonCode
+					}
+					if result.LifecycleReasonMessage == "" {
+						result.LifecycleReasonMessage = account.LifecycleReasonMessage
 					}
 				}
 			}
@@ -244,9 +318,13 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 
 	successCount := 0
 	autoBlacklistedCount := 0
+	needsReauthCount := 0
 	for _, item := range results {
 		if item.Status == "success" {
 			successCount++
+		}
+		if item.NeedsReauth || item.LifecycleReasonCode == service.AccountReauthReasonCode {
+			needsReauthCount++
 		}
 		if item.BlacklistAdviceDecision == string(service.BlacklistAdviceAutoBlacklisted) || item.CurrentLifecycleState == service.AccountLifecycleBlacklisted {
 			autoBlacklistedCount++
@@ -257,9 +335,12 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 		"account_count", len(results),
 		"success_count", successCount,
 		"failed_count", len(results)-successCount,
+		"needs_reauth_count", needsReauthCount,
 		"auto_blacklisted_count", autoBlacklistedCount,
 		"test_mode", testMode,
 		"model_input_mode", modelInputMode,
+		"execution_mode", executionMode,
+		"concurrency", concurrency,
 	)
 
 	duration := time.Since(startedAt)
@@ -289,12 +370,16 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 		"target_model_id":    strings.TrimSpace(req.TargetModelID),
 		"prompt_len":         len(strings.TrimSpace(req.Prompt)),
 		"prompt_preview":     promptPreview,
+		"execution_mode":     executionMode,
+		"concurrency":        concurrency,
+		"filters_sha256":     hashBulkUpdateAccountsFilters(req.Filters),
 	}
 
 	gatewayResponse := map[string]any{
 		"success":                status == "success",
 		"success_count":          successCount,
 		"failed_count":           failedCount,
+		"needs_reauth_count":     needsReauthCount,
 		"auto_blacklisted_count": autoBlacklistedCount,
 	}
 
@@ -334,10 +419,11 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 		}
 	}
 	upstreamGatewayResponse := map[string]any{
-		"success":        status == "success",
-		"success_count":  successCount,
-		"failed_count":   failedCount,
-		"failure_sample": failureSamples,
+		"success":            status == "success",
+		"success_count":      successCount,
+		"failed_count":       failedCount,
+		"needs_reauth_count": needsReauthCount,
+		"failure_sample":     failureSamples,
 	}
 	recordProbeActionTrace(
 		c,
@@ -359,7 +445,13 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 		duration,
 	)
 
-	response.Success(c, batchAccountTestResponse{Results: results})
+	response.Success(c, batchAccountTestResponse{
+		Results:              results,
+		SuccessCount:         successCount,
+		FailedCount:          failedCount,
+		NeedsReauthCount:     needsReauthCount,
+		AutoBlacklistedCount: autoBlacklistedCount,
+	})
 }
 
 func limitInt64Slice(items []int64, limit int) []int64 {

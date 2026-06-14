@@ -12,6 +12,10 @@ func persistAccountCredentials(ctx context.Context, repo AccountRepository, acco
 	}
 
 	account.Credentials = cloneAccountCredentialsMap(credentials)
+	if AccountReauthStatusFromExtra(account.Extra) != nil {
+		clearAccountReauthStateInMemory(account)
+		return repo.Update(ctx, account)
+	}
 	if updater, ok := any(repo).(accountCredentialsUpdater); ok {
 		return updater.UpdateCredentials(ctx, account.ID, account.Credentials)
 	}

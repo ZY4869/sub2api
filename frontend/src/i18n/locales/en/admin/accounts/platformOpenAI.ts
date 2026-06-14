@@ -28,6 +28,7 @@ export default {
             label: "Image Protocol Mode",
             description: "Controls whether this OpenAI account defaults to the native image chain or the compat image chain. Group-level overrides take precedence.",
             compatUnavailableHint: "Compat image generation is not enabled for the current plan. Upgrade the plan or switch back to native image generation.",
+            allowCompat: "Allow compat images",
             options: {
                 native: "Native Images",
                 compat: "Compat Images",

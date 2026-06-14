@@ -35,6 +35,7 @@ export default {
     dataImportTitle: "Import Data",
     dataImportHint: "Upload the exported JSON file to import accounts and proxies.",
     dataImportWarning: "Import will create new accounts/proxies; groups must be bound manually. Ensure existing data does not conflict.",
+    dataImportDefaultsHint: "When an imported account has no capacity, the selected default tier fills it automatically. Existing positive capacity is preserved.",
     dataImportFile: "Data file",
     dataImportButton: "Start Import",
     dataImporting: "Importing...",

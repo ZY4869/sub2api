@@ -153,22 +153,26 @@ func NormalizeOpenAIAccountImageExtra(platform string, accountType string, crede
 		mode := NormalizeOpenAIImageProtocolMode(stringAny(nextExtra[openAIImageProtocolModeExtraKey]))
 		if accountType == AccountTypeOAuth {
 			allowance := resolveOpenAIImageCompatAllowance(credentials)
-			if !allowance.Allowed && mode == OpenAIImageProtocolModeCompat {
+			allowed := allowance.Allowed
+			if rawAllowed, exists := nextExtra[openAIImageCompatAllowedExtraKey]; exists {
+				allowed = parseExtraBool(rawAllowed)
+			}
+			if !allowed && mode == OpenAIImageProtocolModeCompat {
 				mode = OpenAIImageProtocolModeNative
 			}
 			if mode == "" {
-				if allowance.Allowed {
+				if allowed {
 					mode = OpenAIImageProtocolModeCompat
 				} else {
 					mode = OpenAIImageProtocolModeNative
 				}
 			}
-			nextExtra[openAIImageCompatAllowedExtraKey] = allowance.Allowed
-			if allowance.UnknownPlan {
+			nextExtra[openAIImageCompatAllowedExtraKey] = allowed
+			if allowance.UnknownPlan && allowed == allowance.Allowed {
 				logger.L().Warn(
 					"service.openai_image_protocol_mode.oauth_plan_unknown",
 					zap.String("plan_type", allowance.PlanType),
-					zap.Bool("compat_allowed", allowance.Allowed),
+					zap.Bool("compat_allowed", allowed),
 				)
 			}
 		} else {

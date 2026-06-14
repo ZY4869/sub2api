@@ -72,7 +72,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err := s.validateAccountBaseURL(input.Credentials); err != nil {
 		return nil, err
 	}
+	input.Extra, input.Concurrency = ApplyAccountTierDefaults(input.Platform, input.Type, input.Extra, input.Concurrency)
 	input.Extra = normalizeAccountExtraForStorage(input.Platform, input.Type, input.Credentials, input.Extra)
+	input.Extra = NormalizeAccountTierExtra(input.Platform, input.Type, input.Extra)
 	if err := validateProtocolGatewayAccountInput(input.Platform, input.Type, input.Extra); err != nil {
 		return nil, err
 	}
@@ -237,18 +239,29 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err := s.validateAccountBaseURL(account.Credentials); err != nil {
 		return nil, err
 	}
+	credentialsChanged := len(input.Credentials) > 0
 	if input.Extra != nil {
 		for _, key := range []string{"quota_used", "quota_daily_used", "quota_daily_start", "quota_weekly_used", "quota_weekly_start", "quota_monthly_used", "quota_monthly_start"} {
 			if v, ok := account.Extra[key]; ok {
 				input.Extra[key] = v
 			}
 		}
+		input.Extra = NormalizeAccountTierExtra(account.Platform, account.Type, input.Extra)
 		account.Extra = normalizeAccountExtraForStorage(account.Platform, account.Type, account.Credentials, input.Extra)
 		if account.Extra == nil && len(input.Extra) == 0 {
 			account.Extra = map[string]any{}
 		}
 	} else {
 		account.Extra = normalizeAccountExtraForStorage(account.Platform, account.Type, account.Credentials, account.Extra)
+	}
+	account.Extra = NormalizeAccountTierExtra(account.Platform, account.Type, account.Extra)
+	if input.Concurrency != nil && *input.Concurrency <= 0 {
+		if capacity := DefaultAccountTierConcurrency(account.Platform, AccountTierFromExtra(account.Platform, account.Extra)); capacity > 0 {
+			*input.Concurrency = capacity
+		}
+	}
+	if credentialsChanged {
+		clearAccountReauthStateInMemory(account)
 	}
 	sanitizeAntigravityOveragesExtra(account.Platform, account.Extra)
 	if err := validateProtocolGatewayAccountInput(account.Platform, account.Type, account.Extra); err != nil {

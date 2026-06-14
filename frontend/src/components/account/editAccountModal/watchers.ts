@@ -9,6 +9,7 @@ export function useEditAccountModalWatchers(ctx: any) {
     GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS,
     OPENAI_WS_MODE_OFF,
     acceptAIStudioBatchOverflow,
+    accountTier,
     actualModelLocked,
     allowVertexBatchOverflow,
     allowedModels,
@@ -99,6 +100,7 @@ export function useEditAccountModalWatchers(ctx: any) {
     normalizeGeminiAIStudioTier,
     normalizeGeminiOAuthType,
     normalizeGrokTier,
+    normalizeAccountTier,
     openAIImageCompatAllowed,
     openAIImageProtocolMode,
     openaiAPIKeyResponsesWebSocketV2Mode,
@@ -196,6 +198,7 @@ watch(
 
       // Load mixed scheduling setting (only for antigravity accounts)
       const extra = newAccount.extra as Record<string, unknown> | undefined
+      accountTier.value = normalizeAccountTier(newAccount.platform, extra?.account_tier)
       deepSeekModelConcurrencyLimits.value = readDeepSeekModelConcurrencyLimitDraft(extra)
       expiryProbeExtensionDays.value = Math.max(
         1,
@@ -521,6 +524,7 @@ watch(
       baiduDocumentAIAccessToken.value = ''
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
       baiduDocumentAIDirectApiUrlsText.value = ''
+      accountTier.value = ''
     }
   },
   { immediate: true }

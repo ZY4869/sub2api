@@ -780,6 +780,55 @@ const AccountDeepSeekConcurrencyLimitsEditorStub = defineComponent({
   `
 })
 
+const AccountTierSelectorStub = defineComponent({
+  name: 'AccountTierSelector',
+  props: {
+    tier: {
+      type: String,
+      default: ''
+    },
+    platform: {
+      type: String,
+      default: ''
+    }
+  },
+  emits: ['update:tier', 'apply-capacity'],
+  template: `
+    <div data-testid="account-tier-selector">
+      <span data-testid="account-tier-platform">{{ platform }}</span>
+      <span data-testid="account-tier-value">{{ tier }}</span>
+      <button type="button" data-testid="select-free-tier" @click="$emit('update:tier', 'free')">
+        free
+      </button>
+      <button type="button" data-testid="select-pro20x-tier" @click="$emit('update:tier', 'pro_20x')">
+        pro20x
+      </button>
+      <button type="button" data-testid="apply-tier-capacity" @click="$emit('apply-capacity', 10)">
+        apply
+      </button>
+    </div>
+  `
+})
+
+const AccountRuntimeSettingsEditorStub = defineComponent({
+  name: 'AccountRuntimeSettingsEditor',
+  props: {
+    concurrency: {
+      type: Number,
+      default: 0
+    }
+  },
+  emits: ['update:concurrency'],
+  template: `
+    <div data-testid="runtime-settings">
+      <span data-testid="runtime-concurrency">{{ concurrency }}</span>
+      <button type="button" data-testid="set-runtime-concurrency-3" @click="$emit('update:concurrency', 3)">
+        set concurrency
+      </button>
+    </div>
+  `
+})
+
 function mountModal(stubOverrides: Record<string, any> = {}) {
   return mount(CreateAccountModal, {
     props: {
@@ -794,6 +843,8 @@ function mountModal(stubOverrides: Record<string, any> = {}) {
         AccountCreatePlatformTypeEditor: AccountCreatePlatformTypeEditorStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
         AccountDeepSeekConcurrencyLimitsEditor: AccountDeepSeekConcurrencyLimitsEditorStub,
+        AccountTierSelector: AccountTierSelectorStub,
+        AccountRuntimeSettingsEditor: AccountRuntimeSettingsEditorStub,
         AccountBaiduDocumentAICredentialsEditor: AccountBaiduDocumentAICredentialsEditorStub,
         AccountProtocolGatewayModelProbeEditor: AccountProtocolGatewayModelProbeEditorStub,
         AccountProtocolGatewayOpenAIRequestFormatEditor: AccountProtocolGatewayOpenAIRequestFormatEditorStub,
@@ -816,7 +867,6 @@ function mountModal(stubOverrides: Record<string, any> = {}) {
         AccountProtocolGatewayClaudeMimicEditor: true,
         AccountProtocolGatewayBatchEditor: true,
         AccountQuotaControlEditor: true,
-        AccountRuntimeSettingsEditor: true,
         AccountTempUnschedRulesEditor: true,
         QuotaLimitCard: true,
         ...stubOverrides
@@ -945,6 +995,72 @@ describe('CreateAccountModal', () => {
       }),
       extra: expect.objectContaining({
         email: 'openai@example.com'
+      })
+    }))
+  })
+
+  it('syncs OpenAI OAuth tier capacity and submits Free image defaults', async () => {
+    createMock.mockReset()
+    refreshOpenAITokenMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    refreshOpenAITokenMock.mockResolvedValue({
+      access_token: 'openai-access',
+      refresh_token: 'openai-refresh-new',
+      token_type: 'Bearer',
+      expires_at: 1800000000,
+      email: 'free@example.com',
+      plan_type: 'plus'
+    })
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 31,
+      name: 'OpenAI Free OAuth',
+      platform: 'openai',
+      type: 'oauth',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-openai"]').trigger('click')
+    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="account-tier-value"]').text()).toBe('pro_5x')
+    expect(wrapper.get('[data-testid="runtime-concurrency"]').text()).toBe('5')
+
+    await wrapper.get('[data-testid="select-free-tier"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="account-tier-value"]').text()).toBe('free')
+    expect(wrapper.get('[data-testid="runtime-concurrency"]').text()).toBe('1')
+
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('OpenAI Free OAuth')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapper.get('[data-testid="oauth-set-rt"]').trigger('click')
+    await wrapper.get('[data-testid="oauth-refresh-token"]').setValue('openai-refresh-original')
+    await flushPromises()
+    await setExposedOAuthFlow(wrapper, {
+      inputMethod: 'refresh_token',
+      refreshToken: 'openai-refresh-original'
+    })
+
+    await wrapper.get('[data-testid="footer-complete-auth"]').trigger('click')
+    await flushPromises()
+
+    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'OpenAI Free OAuth',
+      platform: 'openai',
+      type: 'oauth',
+      concurrency: 1,
+      extra: expect.objectContaining({
+        account_tier: 'free',
+        image_protocol_mode: 'native',
+        image_compat_allowed: false
       })
     }))
   })

@@ -123,6 +123,13 @@
           @open-gemini-help="showGeminiHelpDialog = true"
         />
 
+        <AccountTierSelector
+          v-if="accountCategory === 'oauth-based' && (form.platform === 'openai' || form.platform === 'anthropic')"
+          v-model:tier="accountTier"
+          :platform="form.platform"
+          @apply-capacity="applyAccountTierCapacity"
+        />
+
         <AccountBaiduDocumentAICredentialsEditor
           v-if="isBaiduDocumentAISelected"
           v-model:access-token="baiduDocumentAIAccessToken"
@@ -490,6 +497,7 @@
         :show-open-ai-image-protocol-mode="form.platform === 'openai' && (accountCategory === 'oauth-based' || accountCategory === 'apikey')"
         :open-ai-image-protocol-mode="openAIImageProtocolMode"
         :open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed"
+        :show-open-ai-image-protocol-compat-toggle="accountCategory === 'oauth-based'"
         :show-open-ai-ws-mode="effectivePlatform === 'openai' && (accountCategory === 'oauth-based' || accountCategory === 'apikey')"
         :open-ai-ws-mode="openaiResponsesWebSocketV2Mode"
         :open-ai-ws-mode-options="openAIWSModeOptions"
@@ -500,6 +508,7 @@
         :codex-cli-only-enabled="codexCLIOnlyEnabled"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
         @update:open-ai-image-protocol-mode="handleOpenAIImageProtocolModeChange"
+        @update:open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed = $event"
         @update:open-ai-ws-mode="openaiResponsesWebSocketV2Mode = $event"
         @update:anthropic-passthrough-enabled="anthropicPassthroughEnabled = $event"
         @update:codex-cli-only-enabled="codexCLIOnlyEnabled = $event"
@@ -615,6 +624,7 @@ import AccountProtocolGatewayModelProbeEditor from '@/components/account/Account
 import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlEditor.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
 import AccountTempUnschedRulesEditor from '@/components/account/AccountTempUnschedRulesEditor.vue'
+import AccountTierSelector from '@/components/account/AccountTierSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { useCreateAccountModal } from './createAccountModal/useCreateAccountModal'
 import type { CreateAccountModalEmits, CreateAccountModalProps } from './createAccountModal/types'
@@ -738,6 +748,7 @@ const {
   geminiTierGoogleOne,
   geminiTierGcp,
   geminiTierAIStudio,
+  accountTier,
   effectivePlatform,
   effectiveGroupPlatforms,
   showProtocolGatewayClaudeMimicEditor,
@@ -774,6 +785,7 @@ const {
   canCompleteAuth,
   handleOAuthInputMethodUpdate,
   handleOpenAIImageProtocolModeChange,
+  applyAccountTierCapacity,
   addModelMapping,
   removeModelMapping,
   addPresetMapping,

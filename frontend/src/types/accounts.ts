@@ -46,6 +46,9 @@ export type AccountUsageDisplayMode = "used" | "remaining";
 export type AccountAutoRenewPeriod = "month" | "quarter" | "year";
 export type OAuthAddMethod = "oauth" | "setup-token";
 export type ProxyProtocol = "http" | "https" | "socks5" | "socks5h";
+export type OpenAIAccountTier = "pro_20x" | "pro_5x" | "plus" | "team" | "free";
+export type ClaudeAccountTier = "max_20x" | "max_5x" | "pro";
+export type AccountTier = OpenAIAccountTier | ClaudeAccountTier;
 
 // Claude Model type (returned by /v1/models and account models API)
 export interface ClaudeModel {
@@ -205,6 +208,13 @@ export interface AccountAutoRecoveryProbeSummary {
   error_code?: string;
 }
 
+export interface AccountReauthStatus {
+  required_since?: string;
+  deadline_at?: string;
+  reason_code?: string;
+  message?: string;
+}
+
 export interface Account {
   id: number;
   name: string;
@@ -235,6 +245,8 @@ export interface Account {
     >;
     image_protocol_mode?: OpenAIImageProtocolMode;
     image_compat_allowed?: boolean;
+    account_tier?: AccountTier | string;
+    reauth_status?: AccountReauthStatus;
     gateway_protocol?: GatewayProtocol;
     gateway_accepted_protocols?: GatewayAcceptedProtocol[];
     gateway_openai_request_format?: GatewayOpenAIRequestFormat;

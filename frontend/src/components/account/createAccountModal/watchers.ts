@@ -15,6 +15,7 @@ export function useCreateAccountModalWatchers(ctx: any) {
     DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT,
     OPENAI_WS_MODE_OFF,
     accountCategory,
+    accountTier,
     actualModelLocked,
     addMethod,
     allowedModels,
@@ -23,6 +24,7 @@ export function useCreateAccountModalWatchers(ctx: any) {
     antigravityModelMappings,
     antigravityOAuth,
     apiKeyBaseUrl,
+    applyAccountTierCapacity,
     applyOpenAIImageProtocolDefaults,
     applyOpenAIOAuthPresetModels,
     autoImportModels,
@@ -129,6 +131,8 @@ watch(
         antigravityModelMappings.value = []
       }
       openAIImageProtocolTouched.value = false
+      accountTier.value = ctx.defaultAccountTierForPlatform(form.platform)
+      applyAccountTierCapacity()
       applyOpenAIImageProtocolDefaults(undefined, true)
       applyOpenAIOAuthPresetModels(undefined, null, true)
     } else {
@@ -185,6 +189,10 @@ watch(
   () => form.platform,
   (newPlatform: AccountPlatform, previousPlatform: AccountPlatform) => {
     resetOpenAIOAuthDefaultSelection()
+    accountTier.value = ctx.defaultAccountTierForPlatform(newPlatform)
+    if (accountTier.value) {
+      applyAccountTierCapacity()
+    }
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     actualModelLocked.value = true
     modelRestrictionEnabled.value = true
@@ -353,10 +361,30 @@ watch(
       openAIImageProtocolTouched.value = false
       applyOpenAIImageProtocolDefaults(undefined, true)
       if (accountCategory.value === 'oauth-based') {
+        accountTier.value = ctx.normalizeAccountTier('openai', accountTier.value) || ctx.defaultAccountTierForPlatform('openai')
+        applyAccountTierCapacity()
         applyOpenAIOAuthPresetModels(undefined, null, true)
       } else {
         resetOpenAIOAuthDefaultSelection()
       }
+    }
+  }
+)
+
+watch(
+  accountTier,
+  () => {
+    if (form.platform !== 'openai' && form.platform !== 'anthropic') {
+      return
+    }
+    const normalized = ctx.normalizeAccountTier(form.platform, accountTier.value)
+    if (!normalized) {
+      accountTier.value = ctx.defaultAccountTierForPlatform(form.platform)
+      return
+    }
+    applyAccountTierCapacity()
+    if (form.platform === 'openai' && accountCategory.value === 'oauth-based') {
+      applyOpenAIImageProtocolDefaults(undefined, true)
     }
   }
 )

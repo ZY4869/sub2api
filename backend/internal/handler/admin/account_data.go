@@ -64,8 +64,14 @@ type DataAccount struct {
 }
 
 type DataImportRequest struct {
-	Data                 DataPayload `json:"data"`
-	SkipDefaultGroupBind *bool       `json:"skip_default_group_bind"`
+	Data                 DataPayload               `json:"data"`
+	SkipDefaultGroupBind *bool                     `json:"skip_default_group_bind"`
+	AccountDefaults      DataImportAccountDefaults `json:"account_defaults"`
+}
+
+type DataImportAccountDefaults struct {
+	OpenAITier string `json:"openai_tier,omitempty"`
+	ClaudeTier string `json:"claude_tier,omitempty"`
 }
 
 type DataImportResult struct {
@@ -214,6 +220,10 @@ func (h *AccountHandler) ImportData(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
+	if err := validateDataImportAccountDefaults(req.AccountDefaults); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	executeAdminIdempotentJSON(c, "admin.accounts.import_data", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		return h.importData(ctx, req)
@@ -230,8 +240,11 @@ func (h *AccountHandler) importDataWithProgress(ctx context.Context, req DataImp
 		skipDefaultGroupBind = *req.SkipDefaultGroupBind
 	}
 
-	dataPayload := req.Data
 	result := DataImportResult{}
+	if err := validateDataImportAccountDefaults(req.AccountDefaults); err != nil {
+		return result, err
+	}
+	dataPayload := req.Data
 	processedItems := 0
 	advance := func() bool {
 		processedItems++
@@ -420,13 +433,14 @@ func (h *AccountHandler) importDataWithProgress(ctx context.Context, req DataImp
 
 		enrichCredentialsFromIDToken(&item)
 
+		extra := applyDataImportAccountDefaults(item.Platform, item.Extra, req.AccountDefaults)
 		accountInput := &service.CreateAccountInput{
 			Name:                 item.Name,
 			Notes:                item.Notes,
 			Platform:             item.Platform,
 			Type:                 item.Type,
 			Credentials:          item.Credentials,
-			Extra:                item.Extra,
+			Extra:                extra,
 			ProxyID:              proxyID,
 			Concurrency:          item.Concurrency,
 			Priority:             item.Priority,
@@ -711,6 +725,40 @@ func validateDataAccount(item DataAccount) error {
 		return errors.New("priority must be >= 0")
 	}
 	return nil
+}
+
+func validateDataImportAccountDefaults(defaults DataImportAccountDefaults) error {
+	if strings.TrimSpace(defaults.OpenAITier) != "" && service.NormalizeOpenAIAccountTier(defaults.OpenAITier) == "" {
+		return fmt.Errorf("openai_tier is invalid: %s", defaults.OpenAITier)
+	}
+	if strings.TrimSpace(defaults.ClaudeTier) != "" && service.NormalizeClaudeAccountTier(defaults.ClaudeTier) == "" {
+		return fmt.Errorf("claude_tier is invalid: %s", defaults.ClaudeTier)
+	}
+	return nil
+}
+
+func applyDataImportAccountDefaults(platform string, extra map[string]any, defaults DataImportAccountDefaults) map[string]any {
+	normalizedPlatform := service.CanonicalizePlatformValue(platform)
+	if service.AccountTierFromExtra(normalizedPlatform, extra) != "" {
+		return extra
+	}
+
+	tier := ""
+	switch {
+	case service.IsOpenAIFamily(normalizedPlatform):
+		tier = service.NormalizeOpenAIAccountTier(defaults.OpenAITier)
+	case service.IsAnthropicFamily(normalizedPlatform):
+		tier = service.NormalizeClaudeAccountTier(defaults.ClaudeTier)
+	}
+	if tier == "" {
+		return extra
+	}
+	nextExtra := cloneStringAnyMap(extra)
+	if nextExtra == nil {
+		nextExtra = map[string]any{}
+	}
+	nextExtra[service.AccountExtraKeyAccountTier] = tier
+	return nextExtra
 }
 
 func defaultProxyName(name string) string {

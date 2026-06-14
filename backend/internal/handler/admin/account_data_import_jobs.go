@@ -44,6 +44,10 @@ func (h *AccountHandler) CreateImportJob(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
+	if err := validateDataImportAccountDefaults(req.AccountDefaults); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	executeAdminIdempotentJSON(c, "admin.accounts.import_data_job", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		job, err := defaultAccountImportJobs.create(len(req.Data.Proxies) + len(req.Data.Accounts))

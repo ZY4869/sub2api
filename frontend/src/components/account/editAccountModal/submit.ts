@@ -2,6 +2,7 @@ export function createEditAccountSubmit(ctx: any) {
   const {
     GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS,
     acceptAIStudioBatchOverflow,
+    accountTier,
     allowVertexBatchOverflow,
     allowedModels,
     anthropicPassthroughEnabled,
@@ -9,6 +10,7 @@ export function createEditAccountSubmit(ctx: any) {
     appStore,
     applyAccountCustomErrorCodesStateToCredentials,
     applyAccountPoolModeStateToCredentials,
+    applyAccountTierToExtra,
     applyDeepSeekModelConcurrencyLimitsExtra,
     applyGoogleBatchArchiveExtra,
     applyInterceptWarmup,
@@ -97,6 +99,7 @@ export function createEditAccountSubmit(ctx: any) {
     resolveVertexAuthBaseUrl,
     resolveVertexBaseUrl,
     shouldPersistGeminiTierId,
+    showAccountTierSelector,
     submitUpdateAccount,
     t,
     props
@@ -647,6 +650,14 @@ return async () => {
       runtimePlatform,
       deepSeekModelConcurrencyLimits.value
     )
+
+    if (showAccountTierSelector.value) {
+      updatePayload.extra = applyAccountTierToExtra(
+        updatePayload.extra as Record<string, unknown> | undefined,
+        props.account.platform,
+        accountTier.value
+      )
+    }
 
     const canContinue = await ensureMixedChannelConfirmed(async () => {
       await submitUpdateAccount(accountID, updatePayload)

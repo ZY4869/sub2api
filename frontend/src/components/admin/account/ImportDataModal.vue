@@ -16,6 +16,22 @@
         {{ t('admin.accounts.dataImportWarning') }}
       </div>
 
+      <div class="grid gap-3 sm:grid-cols-2">
+        <AccountTierSelector
+          v-model:tier="openAIImportTier"
+          platform="openai"
+          :show-apply-capacity="false"
+        />
+        <AccountTierSelector
+          v-model:tier="claudeImportTier"
+          platform="anthropic"
+          :show-apply-capacity="false"
+        />
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400">
+        {{ t('admin.accounts.dataImportDefaultsHint') }}
+      </p>
+
       <div>
         <label class="input-label">{{ t('admin.accounts.dataImportFile') }}</label>
         <div
@@ -106,9 +122,16 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import AccountTierSelector from '@/components/account/AccountTierSelector.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import type { AdminAccountImportJob } from '@/types'
+import type { AccountTier, AdminAccountImportJob, ClaudeAccountTier, OpenAIAccountTier } from '@/types'
+import {
+  DEFAULT_CLAUDE_ACCOUNT_TIER,
+  DEFAULT_OPENAI_ACCOUNT_TIER,
+  isClaudeAccountTier,
+  isOpenAIAccountTier
+} from '@/utils/accountTier'
 import { useAccountImportJobPolling } from './useAccountImportJobPolling'
 
 interface Props {
@@ -129,6 +152,8 @@ const appStore = useAppStore()
 const importing = ref(false)
 const cancelling = ref(false)
 const file = ref<File | null>(null)
+const openAIImportTier = ref<AccountTier | ''>(DEFAULT_OPENAI_ACCOUNT_TIER)
+const claudeImportTier = ref<AccountTier | ''>(DEFAULT_CLAUDE_ACCOUNT_TIER)
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileName = computed(() => file.value?.name || '')
@@ -161,6 +186,8 @@ watch(
   (open) => {
     if (open) {
       file.value = null
+      openAIImportTier.value = DEFAULT_OPENAI_ACCOUNT_TIER
+      claudeImportTier.value = DEFAULT_CLAUDE_ACCOUNT_TIER
       resetImportJob()
       cancelling.value = false
       if (fileInput.value) {
@@ -217,7 +244,15 @@ const handleImport = async () => {
 
     const createdJob = await adminAPI.accounts.createImportJob({
       data: dataPayload,
-      skip_default_group_bind: true
+      skip_default_group_bind: true,
+      account_defaults: {
+        openai_tier: isOpenAIAccountTier(openAIImportTier.value)
+          ? openAIImportTier.value as OpenAIAccountTier
+          : undefined,
+        claude_tier: isClaudeAccountTier(claudeImportTier.value)
+          ? claudeImportTier.value as ClaudeAccountTier
+          : undefined
+      }
     })
     const finalJob = await pollImportJob(createdJob.job_id)
     const res = finalJob.result

@@ -37,6 +37,7 @@ import type {
   AccountPlatform,
   AccountType,
   Account,
+  AccountTier,
   AccountAutoRenewPeriod,
   GatewayAcceptedProtocol,
   GatewayClientProfile,
@@ -78,6 +79,12 @@ import {
 import {
   resolveOpenAIImageProtocolState
 } from '@/utils/openaiAccountDefaults'
+import {
+  applyAccountTierToExtra,
+  defaultAccountTierForPlatform,
+  normalizeAccountTier,
+  resolveAccountTierCapacity
+} from '@/utils/accountTier'
 import {
   resolveOpenAIOAuthDefaultAllowedModels
 } from '@/utils/openaiOAuthDefaults'
@@ -420,6 +427,7 @@ const umqModeOptions = quotaControl.umqModeOptions
 const geminiTierGoogleOne = ref<'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'>('google_one_free')
 const geminiTierGcp = ref<'gcp_standard' | 'gcp_enterprise'>('gcp_standard')
 const geminiTierAIStudio = ref<GeminiAIStudioTier>('aistudio_free')
+const accountTier = ref<AccountTier | ''>(defaultAccountTierForPlatform('anthropic'))
 const effectivePlatform = computed<GroupPlatform>(() => {
   const platform = resolveEffectiveAccountPlatform(form.platform, gatewayProtocol.value)
   return platform === 'protocol_gateway' ? 'openai' : platform
@@ -671,6 +679,12 @@ const applyOpenAIImageProtocolDefaults = (planType?: string | null, force = fals
     return
   }
 
+  if (accountCategory.value === 'oauth-based' && accountTier.value === 'free') {
+    openAIImageProtocolMode.value = 'native'
+    openAIImageCompatAllowed.value = false
+    return
+  }
+
   const nextState = resolveOpenAIImageProtocolState({
     accountCategory: accountCategory.value,
     planType
@@ -682,6 +696,13 @@ const applyOpenAIImageProtocolDefaults = (planType?: string | null, force = fals
   }
   if (force || !openAIImageProtocolTouched.value) {
     openAIImageProtocolMode.value = nextState.mode
+  }
+}
+
+const applyAccountTierCapacity = (capacity?: number) => {
+  const nextCapacity = capacity || resolveAccountTierCapacity(form.platform, accountTier.value)
+  if (nextCapacity > 0) {
+    form.concurrency = nextCapacity
   }
 }
 
@@ -875,6 +896,7 @@ const { resetForm } = useCreateAccountReset({
   geminiTierGoogleOne,
   geminiTierGcp,
   geminiTierAIStudio,
+  accountTier,
   oauthReset: () => oauth.resetState(),
   openaiOAuthReset: () => openaiOAuth.resetState(),
   geminiOAuthReset: () => geminiOAuth.resetState(),
@@ -1043,7 +1065,7 @@ const modalContext = {
   geminiHelpLinks, presetMappings, tempUnschedRules, tempUnschedPresets, getTempUnschedRuleKey, addTempUnschedRule, removeTempUnschedRule, moveTempUnschedRule, showMixedChannelWarning, mixedChannelWarningMessageText,
   handleMixedChannelConfirm, handleMixedChannelCancel, isManualInputMethod, currentOAuthInputMethod, showCompleteAuthAction, expiresAtInput, canExchangeCode, canCompleteAuth, handleOAuthInputMethodUpdate, resetOAuthInputDraft, handleOpenAIImageProtocolModeChange, addModelMapping, removeModelMapping, addPresetMapping, addAntigravityModelMapping,
   removeAntigravityModelMapping, addAntigravityPresetMapping, handleGrokImportCompleted, goBackToBasicInfo, handleGenerateUrl, handleValidateRefreshToken, handleExchangeCode, handleCompleteAuth, probeExtraForEditor, buildProbeExtra, DEFAULT_POOL_MODE_RETRY_COUNT,
-  MAX_POOL_MODE_RETRY_COUNT
+  MAX_POOL_MODE_RETRY_COUNT, accountTier, applyAccountTierCapacity, applyAccountTierToExtra, defaultAccountTierForPlatform, normalizeAccountTier, resolveAccountTierCapacity
 }
 const submitBindings = createCreateAccountSubmit(modalContext)
 const { createAccountAndFinish, handleAnthropicExchange, handleOpenAIExchange, handleOpenAIValidateRT, handleAntigravityValidateRT, handleAntigravityExchange } = submitBindings

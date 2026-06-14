@@ -1,6 +1,8 @@
 import { apiClient } from '../client'
 import type {
   Account,
+  ClaudeAccountTier,
+  OpenAIAccountTier,
   AccountTodayStats,
   AccountTodayStatsCycleMode,
   AdminAccountImportGroupBindingRequest,
@@ -51,7 +53,10 @@ export interface BlacklistRetestRequestPayload {
 export type BatchAccountTestModelInputMode = 'auto' | AccountTestModelInputMode
 
 export interface BatchAccountTestRequestPayload {
-  account_ids: number[]
+  account_ids?: number[]
+  filters?: BulkUpdateAccountsFilters
+  execution_mode?: 'sequential' | 'concurrent'
+  concurrency?: number
   model_id?: string
   model?: string
   model_input_mode?: BatchAccountTestModelInputMode
@@ -77,10 +82,17 @@ export interface BatchAccountTestResult {
   blacklist_advice_decision?: BlacklistAdviceDecision
   current_lifecycle_state?: string
   lifecycle_reason_code?: string
+  lifecycle_reason_message?: string
+  needs_reauth?: boolean
+  reauth_deadline_at?: string
 }
 
 export interface BatchAccountTestResponse {
   results: BatchAccountTestResult[]
+  success_count?: number
+  failed_count?: number
+  needs_reauth_count?: number
+  auto_blacklisted_count?: number
 }
 
 export async function retestBlacklistedAccounts(
@@ -99,9 +111,14 @@ export async function getBlacklistRetestModels(accountIds: number[]): Promise<Ad
   return Array.isArray(data) ? data : []
 }
 
-export async function getBatchTestModels(accountIds: number[]): Promise<AdminAccountModelOption[]> {
+export type BatchAccountTestTarget =
+  | number[]
+  | { account_ids?: number[]; filters?: BulkUpdateAccountsFilters }
+
+export async function getBatchTestModels(target: BatchAccountTestTarget): Promise<AdminAccountModelOption[]> {
+  const payload = Array.isArray(target) ? { account_ids: target } : target
   const { data } = await apiClient.post<AdminAccountModelOption[]>('/admin/accounts/batch-test-models', {
-    account_ids: accountIds
+    ...payload
   })
   return Array.isArray(data) ? data : []
 }
@@ -566,13 +583,20 @@ export async function exportData(options?: {
   return data
 }
 
+export interface AdminDataImportAccountDefaults {
+  openai_tier?: OpenAIAccountTier
+  claude_tier?: ClaudeAccountTier
+}
+
 export async function importData(payload: {
   data: AdminDataPayload
   skip_default_group_bind?: boolean
+  account_defaults?: AdminDataImportAccountDefaults
 }): Promise<AdminDataImportResult> {
   const { data } = await apiClient.post<AdminDataImportResult>('/admin/accounts/data', {
     data: payload.data,
-    skip_default_group_bind: payload.skip_default_group_bind
+    skip_default_group_bind: payload.skip_default_group_bind,
+    account_defaults: payload.account_defaults
   })
   return data
 }
@@ -580,10 +604,12 @@ export async function importData(payload: {
 export async function createImportJob(payload: {
   data: AdminDataPayload
   skip_default_group_bind?: boolean
+  account_defaults?: AdminDataImportAccountDefaults
 }): Promise<AdminAccountImportJobCreateResult> {
   const { data } = await apiClient.post<AdminAccountImportJobCreateResult>('/admin/accounts/data/import-jobs', {
     data: payload.data,
-    skip_default_group_bind: payload.skip_default_group_bind
+    skip_default_group_bind: payload.skip_default_group_bind,
+    account_defaults: payload.account_defaults
   })
   return data
 }

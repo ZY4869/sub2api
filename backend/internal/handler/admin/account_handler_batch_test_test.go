@@ -22,6 +22,22 @@ func decodeBatchTestModelsResponse(t *testing.T, rec *httptest.ResponseRecorder)
 	return payload.Data
 }
 
+func decodeBatchTestResponse(t *testing.T, rec *httptest.ResponseRecorder) batchAccountTestResponse {
+	t.Helper()
+	var payload struct {
+		Data batchAccountTestResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	return payload.Data
+}
+
+func TestNormalizeBatchAccountTestConcurrency(t *testing.T) {
+	require.Equal(t, 1, normalizeBatchAccountTestConcurrency("sequential", 8))
+	require.Equal(t, 4, normalizeBatchAccountTestConcurrency("concurrent", 0))
+	require.Equal(t, 10, normalizeBatchAccountTestConcurrency("concurrent", 99))
+	require.Equal(t, 3, normalizeBatchAccountTestConcurrency("concurrent", 3))
+}
+
 func TestAccountHandlerGetBatchTestModelsReturnsIntersection(t *testing.T) {
 	adminSvc := newStubAdminService()
 	adminSvc.strictAccountLookup = true
@@ -115,10 +131,63 @@ func TestAccountHandlerBatchTestPassesPromptAndReturnsBlacklistState(t *testing.
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
+	response := decodeBatchTestResponse(t, rec)
 	require.Equal(t, "claude-sonnet-4-5", accountTestSvc.lastInput.ModelID)
 	require.Equal(t, "anthropic", accountTestSvc.lastInput.SourceProtocol)
 	require.Equal(t, "hello", accountTestSvc.lastInput.Prompt)
 	require.Equal(t, string(service.AccountTestModeRealForward), accountTestSvc.lastInput.TestMode)
-	require.Contains(t, rec.Body.String(), `"blacklist_advice_decision":"auto_blacklisted"`)
-	require.Contains(t, rec.Body.String(), `"current_lifecycle_state":"blacklisted"`)
+	require.Equal(t, 0, response.SuccessCount)
+	require.Equal(t, 1, response.FailedCount)
+	require.Equal(t, 0, response.NeedsReauthCount)
+	require.Equal(t, 1, response.AutoBlacklistedCount)
+	require.Len(t, response.Results, 1)
+	require.Equal(t, string(service.BlacklistAdviceAutoBlacklisted), response.Results[0].BlacklistAdviceDecision)
+	require.Equal(t, service.AccountLifecycleBlacklisted, response.Results[0].CurrentLifecycleState)
+}
+
+func TestAccountHandlerBatchTestFiltersReturnReauthState(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.strictAccountLookup = true
+	adminSvc.accounts = []service.Account{
+		{ID: 201, Name: "openai-201", Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth, Status: service.StatusActive},
+		{ID: 202, Name: "openai-202", Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth, Status: service.StatusActive},
+		{ID: 203, Name: "claude-203", Platform: service.PlatformAnthropic, Type: service.AccountTypeOAuth, Status: service.StatusActive},
+	}
+	accountTestSvc := &stubAccountTestService{
+		detailed: &service.BackgroundAccountTestResult{
+			Status:                 "failed",
+			ErrorMessage:           "upstream error: 401 (failover)",
+			LifecycleReasonCode:    service.AccountReauthReasonCode,
+			LifecycleReasonMessage: "need login",
+			NeedsReauth:            true,
+			ReauthDeadlineAt:       "2026-06-17T00:00:00Z",
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, accountTestSvc, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/batch-test", handler.BatchTest)
+
+	body := []byte(`{"filters":{"platform":"openai"},"model_input_mode":"auto","test_mode":"health_check","execution_mode":"concurrent","concurrency":99}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/batch-test", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	response := decodeBatchTestResponse(t, rec)
+	require.Len(t, response.Results, 2)
+	require.Equal(t, 0, response.SuccessCount)
+	require.Equal(t, 2, response.FailedCount)
+	require.Equal(t, 2, response.NeedsReauthCount)
+	require.Equal(t, 0, response.AutoBlacklistedCount)
+	require.Equal(t, int64(201), response.Results[0].AccountID)
+	require.Equal(t, int64(202), response.Results[1].AccountID)
+	for _, result := range response.Results {
+		require.True(t, result.NeedsReauth)
+		require.Equal(t, service.AccountReauthReasonCode, result.LifecycleReasonCode)
+		require.Equal(t, "need login", result.LifecycleReasonMessage)
+		require.Equal(t, "2026-06-17T00:00:00Z", result.ReauthDeadlineAt)
+	}
 }

@@ -4,6 +4,7 @@ import type { AddMethod } from '@/composables/useAccountOAuth'
 import type {
   AccountPlatform,
   AccountType,
+  AccountTier,
   AccountAutoRenewPeriod,
   GatewayAcceptedProtocol,
   GatewayClientProfile,
@@ -133,6 +134,7 @@ interface UseCreateAccountResetOptions {
   geminiTierGoogleOne: Ref<'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'>
   geminiTierGcp: Ref<'gcp_standard' | 'gcp_enterprise'>
   geminiTierAIStudio: Ref<GeminiAIStudioTier>
+  accountTier: Ref<AccountTier | ''>
   oauthReset: () => void
   openaiOAuthReset: () => void
   geminiOAuthReset: () => void
@@ -238,6 +240,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.geminiTierGoogleOne.value = 'google_one_free'
     options.geminiTierGcp.value = 'gcp_standard'
     options.geminiTierAIStudio.value = 'aistudio_free'
+    options.accountTier.value = 'pro'
     options.oauthReset()
     options.openaiOAuthReset()
     options.geminiOAuthReset()

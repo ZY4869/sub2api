@@ -122,6 +122,17 @@
             <button
               type="button"
               class="btn btn-secondary"
+              :disabled="loading"
+              data-one-click-detect-button="true"
+              @click="emit('one-click-detect')"
+            >
+              <Icon name="play" size="sm" />
+              <span>{{ t("admin.accounts.batchTest.oneClickDetect") }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-secondary"
               data-actual-usage-button="true"
               :title="t('admin.accounts.refreshActualUsageTitle')"
               :aria-label="t('admin.accounts.refreshActualUsageTitle')"
@@ -663,6 +674,7 @@ const emit = defineEmits<{
   refresh: [];
   "refresh-usage": [];
   "bulk-edit-filtered": [];
+  "one-click-detect": [];
   "update:filtered-bulk-edit-exclude-grouped": [value: boolean];
   sync: [];
   create: [];

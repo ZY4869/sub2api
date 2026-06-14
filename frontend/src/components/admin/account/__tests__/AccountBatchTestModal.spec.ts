@@ -2,9 +2,10 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountBatchTestModal from '../AccountBatchTestModal.vue'
 
-const { getBatchTestModels, batchTestAccounts, showSuccess, showError } = vi.hoisted(() => ({
+const { getBatchTestModels, batchTestAccounts, listAccounts, showSuccess, showError } = vi.hoisted(() => ({
   getBatchTestModels: vi.fn(),
   batchTestAccounts: vi.fn(),
+  listAccounts: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn()
 }))
@@ -13,7 +14,8 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
       getBatchTestModels,
-      batchTestAccounts
+      batchTestAccounts,
+      list: listAccounts
     }
   }
 }))
@@ -36,6 +38,18 @@ vi.mock('vue-i18n', async () => {
         }
         if (key === 'admin.accounts.batchTest.targetBatch') {
           return `batch-${params?.count || 0}`
+        }
+        if (key === 'admin.accounts.batchTest.summary.success') {
+          return `summary-success-${params?.count || 0}`
+        }
+        if (key === 'admin.accounts.batchTest.summary.failed') {
+          return `summary-failed-${params?.count || 0}`
+        }
+        if (key === 'admin.accounts.batchTest.summary.autoBlacklisted') {
+          return `summary-auto-blacklisted-${params?.count || 0}`
+        }
+        if (key === 'admin.accounts.batchTest.summary.needsReauth') {
+          return `summary-needs-reauth-${params?.count || 0}`
         }
         return key
       }
@@ -82,12 +96,18 @@ describe('AccountBatchTestModal', () => {
   beforeEach(() => {
     getBatchTestModels.mockReset()
     batchTestAccounts.mockReset()
+    listAccounts.mockReset()
     showSuccess.mockReset()
     showError.mockReset()
+    listAccounts.mockResolvedValue({ total: 0, items: [] })
   })
 
   it('defaults to health_check and auto model strategy', async () => {
     batchTestAccounts.mockResolvedValueOnce({
+      success_count: 7,
+      failed_count: 8,
+      auto_blacklisted_count: 9,
+      needs_reauth_count: 10,
       results: [
         {
           account_id: 101,
@@ -105,7 +125,9 @@ describe('AccountBatchTestModal', () => {
     expect(batchTestAccounts).toHaveBeenCalledWith({
       account_ids: [101],
       model_input_mode: 'auto',
-      test_mode: 'health_check'
+      test_mode: 'health_check',
+      execution_mode: 'concurrent',
+      concurrency: 4
     })
   })
 
@@ -158,7 +180,7 @@ describe('AccountBatchTestModal', () => {
     await wrapper.get('[data-test="batch-model-strategy-specified"]').trigger('click')
     await flushPromises()
 
-    expect(getBatchTestModels).toHaveBeenCalledWith([101])
+    expect(getBatchTestModels).toHaveBeenCalledWith({ account_ids: [101] })
 
     await wrapper.get('[data-test="batch-test-submit"]').trigger('click')
 
@@ -169,7 +191,9 @@ describe('AccountBatchTestModal', () => {
       source_protocol: 'anthropic',
       target_provider: 'anthropic',
       target_model_id: 'claude-sonnet-4.5',
-      test_mode: 'health_check'
+      test_mode: 'health_check',
+      execution_mode: 'concurrent',
+      concurrency: 4
     })
   })
 
@@ -231,12 +255,69 @@ describe('AccountBatchTestModal', () => {
       source_protocol: 'openai',
       target_provider: 'openai',
       target_model_id: 'gpt-5.4',
-      test_mode: 'health_check'
+      test_mode: 'health_check',
+      execution_mode: 'concurrent',
+      concurrency: 4
+    })
+  })
+
+  it('uses filters for one-click current preview and can clear platform scope', async () => {
+    listAccounts.mockResolvedValue({ total: 2, items: [] })
+    batchTestAccounts.mockResolvedValueOnce({
+      results: [
+        {
+          account_id: 201,
+          account_name: 'OpenAI 201',
+          platform: 'openai',
+          status: 'success'
+        }
+      ]
+    })
+
+    const wrapper = mountModal({
+      accounts: [],
+      filters: {
+        platform: 'openai',
+        status: 'active',
+        search: ''
+      },
+      filtersTotal: 2,
+      defaultTestMode: 'real_forward'
+    })
+    await flushPromises()
+
+    const scopeButtons = wrapper.findAll('button')
+    const allPlatformsButton = scopeButtons.find((button) =>
+      button.text().includes('admin.accounts.batchTest.scopeAllPlatforms')
+    )
+    expect(allPlatformsButton).toBeTruthy()
+    await allPlatformsButton?.trigger('click')
+    await flushPromises()
+
+    expect(listAccounts).toHaveBeenLastCalledWith(1, 1, {
+      status: 'active'
+    })
+
+    await wrapper.get('[data-test="batch-test-submit"]').trigger('click')
+
+    expect(batchTestAccounts).toHaveBeenCalledWith({
+      filters: {
+        status: 'active'
+      },
+      model_input_mode: 'auto',
+      test_mode: 'real_forward',
+      execution_mode: 'concurrent',
+      concurrency: 4,
+      prompt: 'Output exactly: OK'
     })
   })
 
   it('renders healthy and auto-blacklisted results after completion', async () => {
     batchTestAccounts.mockResolvedValueOnce({
+      success_count: 7,
+      failed_count: 8,
+      auto_blacklisted_count: 9,
+      needs_reauth_count: 10,
       results: [
         {
           account_id: 101,
@@ -284,5 +365,9 @@ describe('AccountBatchTestModal', () => {
     expect(wrapper.text()).toContain('OpenAI 102')
     expect(wrapper.text()).toContain('admin.accounts.batchTest.resultLabels.healthy')
     expect(wrapper.text()).toContain('admin.accounts.status.needsReauth')
+    expect(wrapper.text()).toContain('summary-success-7')
+    expect(wrapper.text()).toContain('summary-failed-8')
+    expect(wrapper.text()).toContain('summary-auto-blacklisted-9')
+    expect(wrapper.text()).toContain('summary-needs-reauth-10')
   })
 })

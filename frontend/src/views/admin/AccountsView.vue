@@ -42,6 +42,7 @@
         @change="debouncedReload"
         @refresh="handleManualRefresh"
         @refresh-usage="handleRefreshActualUsage"
+        @one-click-detect="handleOpenOneClickBatchTest"
         @sync="showSync = true"
         @create="showCreate = true"
         @import-data="showImportData = true"
@@ -217,6 +218,7 @@
     :show-re-auth="showReAuth"
     :show-test="showTest"
     :show-batch-test="showBatchTest"
+    :show-one-click-batch-test="showOneClickBatchTest"
     :show-stats="showStats"
     :show-model-diagnostics="showModelDiagnostics"
     :show-error-passthrough="showErrorPassthrough"
@@ -237,6 +239,8 @@
     :re-auth-account="reAuthAcc"
     :testing-account="testingAcc"
     :batch-test-accounts="batchTestAccounts"
+    :one-click-batch-test-filters="oneClickBatchTestFilters"
+    :one-click-batch-test-total="oneClickBatchTestTotal"
     :batch-test-default-test-mode="batchTestDefaultTestMode"
     :batch-test-default-model-strategy="batchTestDefaultModelStrategy"
     :stats-account="statsAcc"
@@ -263,6 +267,7 @@
     @close-reauth="closeReAuthModal"
     @close-test="closeTestModal"
     @close-batch-test="closeBatchTestModal"
+    @close-one-click-batch-test="closeOneClickBatchTestModal"
     @batch-test-completed="handleBatchTestCompleted"
     @close-stats="closeStatsModal"
     @close-model-diagnostics="closeModelDiagnostics"
@@ -546,10 +551,10 @@ const {
   showImportData, showImportGroupBinding, importGroupBindingJobId, importGroupBindingAccounts,
   showExportDataDialog, includeProxyOnExport, showBulkEdit,
   bulkEditFilters, bulkEditFiltersTotal, showTempUnsched, showDeleteDialog,
-  showReAuth, showTest, showBatchTest, showStats, showModelDiagnostics,
+  showReAuth, showTest, showBatchTest, showOneClickBatchTest, showStats, showModelDiagnostics,
   showErrorPassthrough, showTLSFingerprintProfiles, showDaily5HTriggerSettings,
   edAcc, tempUnschedAcc, deletingAcc, reAuthAcc, testingAcc,
-  batchTestAccounts, batchTestDefaultTestMode, batchTestDefaultModelStrategy,
+  batchTestAccounts, oneClickBatchTestFilters, oneClickBatchTestTotal, batchTestDefaultTestMode, batchTestDefaultModelStrategy,
   statsAcc, diagnosticsAccount, diagnosticsResult, diagnosticsLoading,
   showSchedulePanel, scheduleAcc, scheduleModelOptions, togglingSchedulable,
   activeEditRequestToken, activeEditAbortController,
@@ -595,6 +600,7 @@ const isAnyModalOpen = computed(() => {
     showReAuth.value ||
     showTest.value ||
     showBatchTest.value ||
+    showOneClickBatchTest.value ||
     showStats.value ||
     showModelDiagnostics.value ||
     showSchedulePanel.value ||
@@ -948,6 +954,38 @@ const handleFilteredBulkEdit = () => {
   openBulkEditFilteredModal({
     excludeGrouped: effectiveFilteredBulkEditExcludeGrouped.value,
   });
+};
+
+const buildAccountFiltersFromParams = () => {
+  const toOptionalString = (value: unknown) => {
+    const next = String(value || "").trim();
+    return next ? next : undefined;
+  };
+  return {
+    platform: toOptionalString(params.platform),
+    type: toOptionalString(params.type),
+    status: toOptionalString(params.status),
+    group: toOptionalString(params.group),
+    search: toOptionalString(params.search),
+    lifecycle: toOptionalString(params.lifecycle),
+    privacy_mode: toOptionalString(params.privacy_mode),
+    limited_view: toOptionalString(params.limited_view),
+    limited_reason: toOptionalString(params.limited_reason),
+    runtime_view: toOptionalString(params.runtime_view),
+  };
+};
+
+const handleOpenOneClickBatchTest = () => {
+  oneClickBatchTestFilters.value = buildAccountFiltersFromParams();
+  oneClickBatchTestTotal.value = pagination.total;
+  showOneClickBatchTest.value = true;
+};
+
+const closeOneClickBatchTestModal = async () => {
+  showOneClickBatchTest.value = false;
+  oneClickBatchTestFilters.value = null;
+  oneClickBatchTestTotal.value = null;
+  await refreshListAndArchivedPanel();
 };
 
 const refreshListAndArchivedPanel = async () => {
