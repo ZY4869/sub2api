@@ -24,6 +24,7 @@ import errorPassthrough from './errorPassthrough'
 import requestDetails from './requestDetails'
 import tlsFingerprintProfiles from './tlsFingerprintProfiles'
 import payment from './payment'
+import compliance from './compliance'
 
 export default {
   admin: {
@@ -53,5 +54,6 @@ export default {
     requestDetails,
     tlsFingerprintProfiles,
     payment,
+    compliance,
   },
 }

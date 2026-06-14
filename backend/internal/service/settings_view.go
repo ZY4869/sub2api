@@ -157,6 +157,7 @@ type SystemSettings struct {
 	// Backend 模式：禁用用户注册和自助服务，仅管理员可登录
 	BackendModeEnabled     bool
 	MaintenanceModeEnabled bool
+	AdminComplianceEnabled bool
 }
 
 type DefaultSubscriptionSetting struct {
@@ -236,6 +237,7 @@ type PublicSettings struct {
 	DingTalkOAuthEnabled   bool
 	BackendModeEnabled     bool
 	MaintenanceModeEnabled bool
+	AdminComplianceEnabled bool
 	Version                string
 }
 

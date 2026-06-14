@@ -134,6 +134,7 @@ type UpdateSettingsRequest struct {
 	AllowUngroupedKeyScheduling          bool                                  `json:"allow_ungrouped_key_scheduling"`
 	BackendModeEnabled                   bool                                  `json:"backend_mode_enabled"`
 	MaintenanceModeEnabled               bool                                  `json:"maintenance_mode_enabled"`
+	AdminComplianceEnabled               bool                                  `json:"admin_compliance_enabled"`
 
 	AffiliateEnabled              *bool    `json:"affiliate_enabled"`
 	AffiliateTransferEnabled      *bool    `json:"affiliate_transfer_enabled"`
@@ -847,6 +848,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	settings.LoginAgreementMode = loginAgreementMode
 	settings.LoginAgreementUpdatedAt = loginAgreementUpdatedAt
 	settings.LoginAgreementDocuments = loginAgreementDocuments
+	settings.AdminComplianceEnabled = req.AdminComplianceEnabled
 	if err := h.settingService.UpdateSettings(c.Request.Context(), settings); err != nil {
 		response.ErrorFrom(c, err)
 		return

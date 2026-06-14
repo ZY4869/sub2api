@@ -22,6 +22,13 @@ export default {
         enabledHint: "开启后，仅管理员后台与管理员 API Key 调用继续可用，其他请求统一返回维护提示。",
         scopeHint: "公开页面仍可浏览，但普通用户接口、自助认证流与普通 API Key 网关调用会统一返回 503 维护提示。",
     },
+    adminCompliance: {
+        title: "管理员合规确认",
+        description: "要求管理员在使用后台操作前完成合规确认。",
+        enabled: "要求管理员确认",
+        enabledHint: "开启后，管理员必须完成当前确认版本，其他后台接口才会放行。",
+        scopeHint: "登录与合规确认接口会保持可用；确认记录按管理员与确认版本存储。",
+    },
     streamTimeout: {
         title: "流超时处理",
         description: "配置上游响应超时时的账户处理策略，避免问题账户持续被选中",

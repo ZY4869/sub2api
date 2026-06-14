@@ -22,6 +22,13 @@ export default {
         enabledHint: "When enabled, only admin dashboard traffic and admin-owned API Key calls remain available. All other requests return the maintenance response.",
         scopeHint: "Public pages remain viewable, but end-user APIs, self-service auth flows, and regular API Key gateway calls will return the unified 503 maintenance response.",
     },
+    adminCompliance: {
+        title: "Admin Compliance",
+        description: "Require administrators to acknowledge operational compliance before using admin console actions.",
+        enabled: "Require Admin Acknowledgement",
+        enabledHint: "When enabled, administrators must confirm the current acknowledgement before other admin API calls are allowed.",
+        scopeHint: "Login and acknowledgement endpoints remain available. Existing acknowledgements are stored per administrator and document version.",
+    },
     streamTimeout: {
         title: "Stream Timeout Handling",
         description: "Configure account handling strategy when upstream response times out",

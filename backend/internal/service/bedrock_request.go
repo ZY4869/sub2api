@@ -176,7 +176,7 @@ func BuildBedrockURL(region, modelID string, stream bool) string {
 // PrepareBedrockRequestBody 处理请求体以适配 Bedrock API
 //  1. 注入 anthropic_version
 //  2. 注入 anthropic_beta（从客户端 anthropic-beta 头解析）
-//  3. 移除 Bedrock 不支持的字段（model, stream, output_format, output_config）
+//  3. 移除 Bedrock 不支持的字段（model, stream, provider, metadata, output_format, output_config）
 //  4. 移除工具定义中的 custom 字段（Claude Code 会发送 custom: {defer_loading: true}）
 //  5. 清理 cache_control 中 Bedrock 不支持的字段（scope, ttl）
 func PrepareBedrockRequestBody(body []byte, modelID string, betaHeader string) ([]byte, error) {
@@ -217,6 +217,14 @@ func PrepareBedrockRequestBodyWithTokens(body []byte, modelID string, betaTokens
 		return nil, fmt.Errorf("remove stream field: %w", err)
 	}
 
+	// 移除 Bedrock 不支持的顶层兼容字段。
+	for _, field := range []string{"provider", "metadata"} {
+		body, err = sjson.DeleteBytes(body, field)
+		if err != nil {
+			return nil, fmt.Errorf("remove %s field: %w", field, err)
+		}
+	}
+
 	// 转换 output_format（Bedrock Invoke 不支持此字段，但可将 schema 内联到最后一条 user message）
 	// 参考 litellm: _convert_output_format_to_inline_schema()
 	body = convertOutputFormatToInlineSchema(body)
@@ -234,6 +242,7 @@ func PrepareBedrockRequestBodyWithTokens(body []byte, modelID string, betaTokens
 
 	// 清理 cache_control 中 Bedrock 不支持的字段
 	body = sanitizeBedrockCacheControl(body, modelID)
+	body = removeEmptyBedrockAnthropicBeta(body)
 
 	return body, nil
 }
@@ -243,6 +252,25 @@ func ResolveBedrockBetaTokens(betaHeader string, body []byte, modelID string) []
 	betaTokens := parseAnthropicBetaHeader(betaHeader)
 	betaTokens = autoInjectBedrockBetaTokens(betaTokens, body, modelID)
 	return filterBedrockBetaTokens(betaTokens)
+}
+
+func removeEmptyBedrockAnthropicBeta(body []byte) []byte {
+	beta := gjson.GetBytes(body, "anthropic_beta")
+	if !beta.Exists() {
+		return body
+	}
+	if beta.IsArray() && len(beta.Array()) == 0 {
+		body, _ = sjson.DeleteBytes(body, "anthropic_beta")
+		return body
+	}
+	if beta.Type == gjson.String && strings.TrimSpace(beta.String()) == "" {
+		body, _ = sjson.DeleteBytes(body, "anthropic_beta")
+		return body
+	}
+	if beta.Raw == "null" {
+		body, _ = sjson.DeleteBytes(body, "anthropic_beta")
+	}
+	return body
 }
 
 // convertOutputFormatToInlineSchema 将 output_format 中的 JSON schema 内联到最后一条 user message
@@ -447,14 +475,15 @@ func parseAnthropicBetaHeader(header string) []string {
 // 参考: litellm/litellm/llms/bedrock/common_utils.py (anthropic_beta_headers_config.json)
 // 更新策略: 当 AWS Bedrock 新增支持的 beta token 时需同步更新此白名单
 var bedrockSupportedBetaTokens = map[string]bool{
-	"computer-use-2025-01-24":         true,
-	"computer-use-2025-11-24":         true,
-	"context-1m-2025-08-07":           true,
-	"context-management-2025-06-27":   true,
-	"compact-2026-01-12":              true,
-	"interleaved-thinking-2025-05-14": true,
-	"tool-search-tool-2025-10-19":     true,
-	"tool-examples-2025-10-29":        true,
+	"computer-use-2025-01-24":                true,
+	"computer-use-2025-11-24":                true,
+	"context-1m-2025-08-07":                  true,
+	"context-management-2025-06-27":          true,
+	"compact-2026-01-12":                     true,
+	"fine-grained-tool-streaming-2025-05-14": true,
+	"interleaved-thinking-2025-05-14":        true,
+	"tool-search-tool-2025-10-19":            true,
+	"tool-examples-2025-10-29":               true,
 }
 
 // bedrockBetaTokenTransforms 定义 Bedrock Invoke 特有的 beta 头转换规则

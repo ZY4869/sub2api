@@ -54,6 +54,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		DingTalkOAuthEnabled             bool                      `json:"dingtalk_oauth_enabled"`
 		BackendModeEnabled               bool                      `json:"backend_mode_enabled"`
 		MaintenanceModeEnabled           bool                      `json:"maintenance_mode_enabled"`
+		AdminComplianceEnabled           bool                      `json:"admin_compliance_enabled"`
 		Version                          string                    `json:"version,omitempty"`
 	}{
 		RegistrationEnabled:              settings.RegistrationEnabled,
@@ -98,6 +99,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		DingTalkOAuthEnabled:             settings.DingTalkOAuthEnabled,
 		BackendModeEnabled:               settings.BackendModeEnabled,
 		MaintenanceModeEnabled:           settings.MaintenanceModeEnabled,
+		AdminComplianceEnabled:           settings.AdminComplianceEnabled,
 		Version:                          s.version,
 	}, nil
 }

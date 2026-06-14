@@ -33,6 +33,7 @@ import modelRegistryAPI from './modelRegistry'
 import tlsFingerprintProfilesAPI from './tlsFingerprintProfile'
 import moderationAPI from './moderation'
 import paymentAPI from './payment'
+import complianceAPI from './compliance'
 
 /**
  * Unified admin API object for convenient access
@@ -67,7 +68,8 @@ export const adminAPI = {
   moderation: moderationAPI,
   scheduledTests: scheduledTestsAPI,
   tlsFingerprintProfiles: tlsFingerprintProfilesAPI,
-  payment: paymentAPI
+  payment: paymentAPI,
+  compliance: complianceAPI
 }
 
 export {
@@ -100,7 +102,8 @@ export {
   moderationAPI,
   scheduledTestsAPI,
   tlsFingerprintProfilesAPI,
-  paymentAPI
+  paymentAPI,
+  complianceAPI
 }
 
 export default adminAPI
@@ -120,3 +123,4 @@ export type {
   CreateTLSFingerprintProfileRequest,
   UpdateTLSFingerprintProfileRequest
 } from './tlsFingerprintProfile'
+export type { AdminComplianceStatus } from './compliance'

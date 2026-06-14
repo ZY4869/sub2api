@@ -245,6 +245,7 @@ const (
 	SettingKeyMultiGroupRoutingEnabled    = "multi_group_routing_enabled"
 	SettingKeyBackendModeEnabled          = "backend_mode_enabled"
 	SettingKeyMaintenanceModeEnabled      = "maintenance_mode_enabled"
+	SettingKeyAdminComplianceEnabled      = "admin_compliance_enabled"
 	SettingKeyDocumentAIEnabled           = "document_ai_enabled"
 	SettingKeyOpenAIBackfillGPT55Done     = "openai_backfill_gpt_5_5_done"
 

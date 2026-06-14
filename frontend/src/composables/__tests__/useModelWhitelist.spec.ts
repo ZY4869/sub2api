@@ -33,9 +33,16 @@ describe("useModelWhitelist", () => {
   it("keeps antigravity thinking ids selectable without legacy blocklists", () => {
     const models = getModelsByPlatform("antigravity", "test");
 
+    expect(models).toContain("claude-fable-5");
     expect(models).toContain("claude-opus-4-5-thinking");
     expect(models).toContain("claude-sonnet-4-5-thinking");
     expect(models).toContain("claude-opus-4-6-thinking");
+  });
+
+  it("exposes Claude Fable 5 through anthropic whitelist selections", () => {
+    const models = getModelsByPlatform("anthropic", "whitelist");
+
+    expect(models).toContain("claude-fable-5");
   });
 
   it("openai models include GPT-5.4 mini/nano and GPT-5.4 official snapshots", () => {

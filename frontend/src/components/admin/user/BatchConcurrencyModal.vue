@@ -51,6 +51,7 @@ const props = defineProps<{
   role?: 'admin' | 'user' | ''
   status?: 'active' | 'disabled' | ''
   groupName?: string
+  apiKeyGroupId?: string
   attributes?: Record<number, string>
 }>()
 
@@ -118,6 +119,7 @@ async function handleSubmit() {
       role: props.role || '',
       status: props.status || '',
       group_name: props.groupName || undefined,
+      api_key_group_id: props.apiKeyGroupId || undefined,
       attributes: props.attributes && Object.keys(props.attributes).length > 0 ? props.attributes : undefined,
     }, idempotencyKey)
 

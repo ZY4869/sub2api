@@ -75,6 +75,7 @@ const (
 
 // DefaultAntigravityModelMapping is used when account model_mapping is unset.
 var DefaultAntigravityModelMapping = map[string]string{
+	"claude-fable-5":                 "claude-fable-5",
 	"claude-opus-4-8":                "claude-opus-4-8",
 	"claude-opus-4-7":                "claude-opus-4-7",
 	"claude-opus-4-6-thinking":       "claude-opus-4-6-thinking",
@@ -113,6 +114,7 @@ var DefaultAntigravityModelMapping = map[string]string{
 
 // DefaultBedrockModelMapping maps Anthropic model ids to Bedrock model ids.
 var DefaultBedrockModelMapping = map[string]string{
+	"claude-fable-5":             "us.anthropic.claude-fable-5-v1:0",
 	"claude-opus-4-8":            "us.anthropic.claude-opus-4-8",
 	"claude-opus-4-7":            "us.anthropic.claude-opus-4-7-v1",
 	"claude-opus-4-6-thinking":   "us.anthropic.claude-opus-4-6-v1",

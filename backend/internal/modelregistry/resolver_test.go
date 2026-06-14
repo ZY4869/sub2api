@@ -38,6 +38,11 @@ func TestResolveToCanonicalIDVariants(t *testing.T) {
 			expected: "claude-sonnet-4-6",
 		},
 		{
+			name:     "fable stays canonical",
+			input:    "claude-fable-5",
+			expected: "claude-fable-5",
+		},
+		{
 			name:     "gemini models prefix",
 			input:    "models/gemini-2.5-pro",
 			expected: "gemini-2.5-pro",

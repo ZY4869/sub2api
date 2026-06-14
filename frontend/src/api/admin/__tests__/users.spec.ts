@@ -53,6 +53,36 @@ describe('admin users api', () => {
     )
   })
 
+  it('passes API key group filters when listing users', async () => {
+    getMock.mockResolvedValue({
+      data: {
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 20,
+        pages: 1,
+      },
+    })
+
+    const { list } = await import('../users')
+    await list(1, 20, {
+      search: 'demo',
+      group_name: 'allowed',
+      api_key_group_id: '42',
+    })
+
+    expect(getMock).toHaveBeenCalledWith('/admin/users', {
+      params: expect.objectContaining({
+        page: 1,
+        page_size: 20,
+        search: 'demo',
+        group_name: 'allowed',
+        api_key_group_id: '42',
+      }),
+      signal: undefined,
+    })
+  })
+
   it('reads and updates user platform quotas', async () => {
     getMock.mockResolvedValue({ data: [{ platform: 'openai' }] })
     putMock.mockResolvedValue({ data: [{ platform: 'gemini' }] })

@@ -129,6 +129,7 @@ export interface SystemSettings {
   openai_allowed_codex_clients: string[]
   backend_mode_enabled: boolean
   maintenance_mode_enabled: boolean
+  admin_compliance_enabled: boolean
   custom_menu_items: CustomMenuItem[]
   login_agreement_enabled: boolean
   login_agreement_mode: 'checkbox' | string
@@ -268,6 +269,7 @@ export interface UpdateSettingsRequest {
   openai_allowed_codex_clients?: string[]
   backend_mode_enabled?: boolean
   maintenance_mode_enabled?: boolean
+  admin_compliance_enabled?: boolean
   custom_menu_items?: CustomMenuItem[]
   login_agreement_enabled?: boolean
   login_agreement_mode?: 'checkbox' | string

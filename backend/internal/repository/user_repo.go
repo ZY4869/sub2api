@@ -11,6 +11,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeygroup"
 	dbgroup "github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
 	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
@@ -262,6 +263,13 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 	if filters.GroupName != "" {
 		q = q.Where(dbuser.HasAllowedGroupsWith(
 			dbgroup.NameContainsFold(filters.GroupName),
+		))
+	}
+	if filters.APIKeyGroupID > 0 {
+		q = q.Where(dbuser.HasAPIKeysWith(
+			apikey.HasAPIKeyGroupsWith(
+				apikeygroup.GroupIDEQ(filters.APIKeyGroupID),
+			),
 		))
 	}
 

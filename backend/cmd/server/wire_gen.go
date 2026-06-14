@@ -127,6 +127,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	}
 	dashboardAggregationService := service.ProvideDashboardAggregationService(dashboardAggregationRepository, timingWheelService, configConfig)
 	dashboardHandler := admin.NewDashboardHandler(dashboardService, dashboardAggregationService)
+	complianceHandler := admin.NewComplianceHandler(settingService)
 	proxyRepository := repository.NewProxyRepository(client, db)
 	proxyExitInfoProber := repository.NewProxyExitInfoProber(configConfig)
 	proxyLatencyCache := repository.NewProxyLatencyCache(redisClient)
@@ -257,7 +258,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	httpAirwallexClient := service.NewHTTPAirwallexClient()
 	paymentService := service.ProvidePaymentService(paymentRepository, settingService, httpAirwallexClient, subscriptionService, affiliateService, emailService, emailTemplateService, userRepository, billingCacheService, apiKeyAuthCacheInvalidator)
 	adminPaymentHandler := handler.NewAdminPaymentHandler(paymentService)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, contentModerationAuditHandler, groupHandler, channelHandler, adminChannelMonitorHandler, channelMonitorTemplateHandler, accountHandler, affiliateHandler, emailTemplateHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, kiroOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, adminAPIKeyHandler, modelCatalogHandler, modelRegistryHandler, scheduledTestHandler, tlsFingerprintProfileHandler, adminPaymentHandler)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, complianceHandler, adminUserHandler, contentModerationAuditHandler, groupHandler, channelHandler, adminChannelMonitorHandler, channelMonitorTemplateHandler, accountHandler, affiliateHandler, emailTemplateHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, kiroOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, adminAPIKeyHandler, modelCatalogHandler, modelRegistryHandler, scheduledTestHandler, tlsFingerprintProfileHandler, adminPaymentHandler)
 	geminiNativeGatewayService := service.ProvideGeminiNativeGatewayService(geminiMessagesCompatService)
 	geminiCompatGatewayService := service.ProvideGeminiCompatGatewayService(geminiMessagesCompatService)
 	geminiLiveGatewayService := service.ProvideGeminiLiveGatewayService(geminiMessagesCompatService)

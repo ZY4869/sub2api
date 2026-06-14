@@ -44,6 +44,16 @@
         />
       </div>
 
+      <div v-if="visibleFilters.has('apiKeyGroup')" class="w-full sm:w-48">
+        <Select
+          :model-value="filters.apiKeyGroupId"
+          :options="apiKeyGroupFilterOptions"
+          searchable
+          :search-placeholder="t('admin.users.searchApiKeyGroups')"
+          @update:model-value="(value) => updateFilter('apiKeyGroupId', value)"
+        />
+      </div>
+
       <template v-for="(value, attrId) in activeAttributeFilters" :key="attrId">
         <div
           v-if="visibleFilters.has(`attr_${attrId}`)"
@@ -219,6 +229,7 @@ interface UserFilters {
   role: string
   status: string
   group: string
+  apiKeyGroupId: string
 }
 
 type BuiltInFilter = {
@@ -232,6 +243,7 @@ const props = defineProps<{
   filters: UserFilters
   visibleFilters: Set<string>
   groupFilterOptions: Array<{ value: string; label: string }>
+  apiKeyGroupFilterOptions: Array<{ value: string; label: string }>
   activeAttributeFilters: Record<number, string>
   getAttributeDefinition: (attrId: number) => UserAttributeDefinition | undefined
   getAttributeDefinitionName: (attrId: number) => string

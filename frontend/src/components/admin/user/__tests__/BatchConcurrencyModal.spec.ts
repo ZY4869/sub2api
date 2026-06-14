@@ -115,6 +115,7 @@ describe('BatchConcurrencyModal', () => {
         search: 'demo',
         role: 'user',
         status: 'active',
+        apiKeyGroupId: '17',
       },
       global: {
         stubs: {
@@ -134,6 +135,7 @@ describe('BatchConcurrencyModal', () => {
         role: 'user',
         status: 'active',
         group_name: undefined,
+        api_key_group_id: '17',
         attributes: undefined,
       },
       'users-batch-concurrency-fixed-uuid',

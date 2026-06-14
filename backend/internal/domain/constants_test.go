@@ -29,6 +29,7 @@ func TestDefaultAntigravityModelMapping_ClaudePublicAliases(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]string{
+		"claude-fable-5":            "claude-fable-5",
 		"claude-opus-4-8":           "claude-opus-4-8",
 		"claude-sonnet-4.5":         "claude-sonnet-4-5",
 		"claude-haiku-4.5":          "claude-sonnet-4-5",
@@ -46,14 +47,21 @@ func TestDefaultAntigravityModelMapping_ClaudePublicAliases(t *testing.T) {
 	}
 }
 
-func TestDefaultBedrockModelMapping_ContainsOpus48(t *testing.T) {
+func TestDefaultBedrockModelMapping_ContainsExpectedAnthropicModels(t *testing.T) {
 	t.Parallel()
 
-	got, ok := DefaultBedrockModelMapping["claude-opus-4-8"]
-	if !ok {
-		t.Fatal("expected Bedrock mapping for claude-opus-4-8 to exist")
+	cases := map[string]string{
+		"claude-fable-5":  "us.anthropic.claude-fable-5-v1:0",
+		"claude-opus-4-8": "us.anthropic.claude-opus-4-8",
 	}
-	if got != "us.anthropic.claude-opus-4-8" {
-		t.Fatalf("unexpected Bedrock claude-opus-4-8 mapping: got %q", got)
+
+	for from, want := range cases {
+		got, ok := DefaultBedrockModelMapping[from]
+		if !ok {
+			t.Fatalf("expected Bedrock mapping for %q to exist", from)
+		}
+		if got != want {
+			t.Fatalf("unexpected Bedrock mapping for %q: got %q want %q", from, got, want)
+		}
 	}
 }

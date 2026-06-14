@@ -84,6 +84,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyMultiGroupRoutingEnabled:             "true",
 		SettingKeyBackendModeEnabled:                   "false",
 		SettingKeyMaintenanceModeEnabled:               "false",
+		SettingKeyAdminComplianceEnabled:               "false",
 		SettingKeyDocumentAIEnabled:                    "false",
 		SettingKeyTelegramChatID:                       "",
 		SettingKeyGitHubOAuthEnabled:                   "false",

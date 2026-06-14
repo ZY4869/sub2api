@@ -85,12 +85,13 @@ type UpdateBalanceRequest struct {
 }
 
 type BatchUpdateConcurrencyRequest struct {
-	Concurrency int              `json:"concurrency" binding:"required,min=1"`
-	Search      string           `json:"search"`
-	Role        string           `json:"role"`
-	Status      string           `json:"status"`
-	GroupName   string           `json:"group_name"`
-	Attributes  map[int64]string `json:"attributes"`
+	Concurrency   int              `json:"concurrency" binding:"required,min=1"`
+	Search        string           `json:"search"`
+	Role          string           `json:"role"`
+	Status        string           `json:"status"`
+	GroupName     string           `json:"group_name"`
+	APIKeyGroupID int64            `json:"api_key_group_id"`
+	Attributes    map[int64]string `json:"attributes"`
 }
 
 type BatchUpdateConcurrencyItemResult struct {
@@ -112,6 +113,7 @@ type PlatformQuotaUpdateRequest struct {
 //   - search: search in email, username
 //   - attr[{id}]: filter by custom attribute value, e.g. attr[1]=company
 //   - group_name: fuzzy filter by allowed group name
+//   - api_key_group_id: filter by users that own an API key bound to this group
 func (h *UserHandler) List(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 
@@ -122,12 +124,18 @@ func (h *UserHandler) List(c *gin.Context) {
 		search = string(runes[:100])
 	}
 
+	apiKeyGroupID, err := parsePositiveInt64Query(c, "api_key_group_id")
+	if err != nil {
+		response.BadRequest(c, "Invalid api_key_group_id")
+		return
+	}
 	filters := service.UserListFilters{
-		Status:     c.Query("status"),
-		Role:       c.Query("role"),
-		Search:     search,
-		GroupName:  strings.TrimSpace(c.Query("group_name")),
-		Attributes: parseAttributeFilters(c),
+		Status:        c.Query("status"),
+		Role:          c.Query("role"),
+		Search:        search,
+		GroupName:     strings.TrimSpace(c.Query("group_name")),
+		APIKeyGroupID: apiKeyGroupID,
+		Attributes:    parseAttributeFilters(c),
 	}
 	if raw, ok := c.GetQuery("include_subscriptions"); ok {
 		includeSubscriptions := parseBoolQueryWithDefault(raw, true)
@@ -188,6 +196,18 @@ func parseAttributeFilters(c *gin.Context) map[int64]string {
 	}
 
 	return result
+}
+
+func parsePositiveInt64Query(c *gin.Context, key string) (int64, error) {
+	raw := strings.TrimSpace(c.Query(key))
+	if raw == "" {
+		return 0, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || value <= 0 {
+		return 0, strconv.ErrSyntax
+	}
+	return value, nil
 }
 
 // GetByID handles getting a user by ID
@@ -491,13 +511,18 @@ func (h *UserHandler) BatchUpdateConcurrency(c *gin.Context) {
 
 	req.Search = strings.TrimSpace(req.Search)
 	req.GroupName = strings.TrimSpace(req.GroupName)
+	if req.APIKeyGroupID < 0 {
+		response.BadRequest(c, "Invalid api_key_group_id")
+		return
+	}
 
 	filters := service.UserListFilters{
-		Status:     req.Status,
-		Role:       req.Role,
-		Search:     req.Search,
-		GroupName:  req.GroupName,
-		Attributes: normalizeAttributeFilters(req.Attributes),
+		Status:        req.Status,
+		Role:          req.Role,
+		Search:        req.Search,
+		GroupName:     req.GroupName,
+		APIKeyGroupID: req.APIKeyGroupID,
+		Attributes:    normalizeAttributeFilters(req.Attributes),
 	}
 
 	idempotencyPayload := struct {
@@ -552,6 +577,7 @@ func (h *UserHandler) BatchUpdateConcurrency(c *gin.Context) {
 				zap.String("role", req.Role),
 				zap.String("status", req.Status),
 				zap.String("group_name", req.GroupName),
+				zap.Int64("api_key_group_id", req.APIKeyGroupID),
 				zap.Int("attribute_filter_count", len(filters.Attributes)),
 			).Info("admin batch concurrency updated")
 		}

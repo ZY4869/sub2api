@@ -40,11 +40,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-05-31T07:17:11Z"
+export const generatedModelRegistryBuiltAt = "2026-06-14T12:17:33Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"e7870275fe1e0ced336a39819280f6e6de695ea3963989561e8e094a0d639a56\"",
-  "updated_at": "2026-05-31T07:17:11Z",
+  "etag": "W/\"d3d1d6aec6d51972ab5c62e86248223c09cf3cbeae752b897bff8bcefed9f6d5\"",
+  "updated_at": "2026-06-14T12:17:33Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -1862,6 +1862,34 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 4,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "claude-fable-5",
+      "display_name": "Claude Fable 5",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic",
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "claude-fable-5"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "claude-fable-5"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 4,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },

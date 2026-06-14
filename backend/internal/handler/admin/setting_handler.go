@@ -546,6 +546,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		AllowUngroupedKeyScheduling:          settings.AllowUngroupedKeyScheduling,
 		BackendModeEnabled:                   settings.BackendModeEnabled,
 		MaintenanceModeEnabled:               settings.MaintenanceModeEnabled,
+		AdminComplianceEnabled:               settings.AdminComplianceEnabled,
 		OpenAIFastPolicySettings:             openAIFastPolicy,
 		EnableAnthropicCacheTTL1hInjection:   settings.EnableAnthropicCacheTTL1hInjection,
 	}

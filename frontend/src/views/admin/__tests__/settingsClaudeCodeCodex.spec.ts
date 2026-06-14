@@ -14,7 +14,8 @@ describe('settings Claude Code Codex plugin control', () => {
       min_claude_code_version: '',
       max_claude_code_version: '',
       allow_ungrouped_key_scheduling: false,
-      maintenance_mode_enabled: false
+      maintenance_mode_enabled: false,
+      admin_compliance_enabled: false
     })
     const wrapper = mount(SettingsGatewayExtraTab, {
       props: {
@@ -54,10 +55,12 @@ describe('settings Claude Code Codex plugin control', () => {
   it('allows the save payload field in the typed settings request', () => {
     const payload: UpdateSettingsRequest = {
       openai_allow_claude_code_codex_plugin: true,
-      openai_allowed_codex_clients: ['claude_code']
+      openai_allowed_codex_clients: ['claude_code'],
+      admin_compliance_enabled: true
     }
 
     expect(payload.openai_allow_claude_code_codex_plugin).toBe(true)
     expect(payload.openai_allowed_codex_clients).toEqual(['claude_code'])
+    expect(payload.admin_compliance_enabled).toBe(true)
   })
 })

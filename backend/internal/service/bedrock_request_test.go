@@ -9,15 +9,18 @@ import (
 )
 
 func TestPrepareBedrockRequestBody_BasicFields(t *testing.T) {
-	input := `{"model":"claude-opus-4-6","stream":true,"max_tokens":1024,"messages":[{"role":"user","content":"hi"}]}`
+	input := `{"model":"claude-opus-4-6","stream":true,"provider":"anthropic","metadata":{"trace_id":"x"},"anthropic_beta":[],"max_tokens":1024,"messages":[{"role":"user","content":"hi"}]}`
 	result, err := PrepareBedrockRequestBody([]byte(input), "us.anthropic.claude-opus-4-6-v1", "")
 	require.NoError(t, err)
 
 	// anthropic_version 应被注入
 	assert.Equal(t, "bedrock-2023-05-31", gjson.GetBytes(result, "anthropic_version").String())
-	// model 和 stream 应被移除
+	// Bedrock 不支持的顶层字段应被移除
 	assert.False(t, gjson.GetBytes(result, "model").Exists())
 	assert.False(t, gjson.GetBytes(result, "stream").Exists())
+	assert.False(t, gjson.GetBytes(result, "provider").Exists())
+	assert.False(t, gjson.GetBytes(result, "metadata").Exists())
+	assert.False(t, gjson.GetBytes(result, "anthropic_beta").Exists())
 	// max_tokens 应保留
 	assert.Equal(t, int64(1024), gjson.GetBytes(result, "max_tokens").Int())
 }
@@ -303,7 +306,7 @@ func TestParseAnthropicBetaHeader(t *testing.T) {
 
 func TestFilterBedrockBetaTokens(t *testing.T) {
 	t.Run("supported tokens pass through", func(t *testing.T) {
-		tokens := []string{"interleaved-thinking-2025-05-14", "context-1m-2025-08-07", "compact-2026-01-12"}
+		tokens := []string{"interleaved-thinking-2025-05-14", "context-1m-2025-08-07", "context-management-2025-06-27", "fine-grained-tool-streaming-2025-05-14", "compact-2026-01-12"}
 		result := filterBedrockBetaTokens(tokens)
 		assert.Equal(t, tokens, result)
 	})

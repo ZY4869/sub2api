@@ -18,11 +18,12 @@ var (
 
 // UserListFilters contains all filter options for listing users
 type UserListFilters struct {
-	Status     string           // User status filter
-	Role       string           // User role filter
-	Search     string           // Search in email, username
-	GroupName  string           // Filter by allowed group name (fuzzy match)
-	Attributes map[int64]string // Custom attribute filters: attributeID -> value
+	Status        string           // User status filter
+	Role          string           // User role filter
+	Search        string           // Search in email, username
+	GroupName     string           // Filter by allowed group name (fuzzy match)
+	APIKeyGroupID int64            // Filter by users that own an API key bound to this group
+	Attributes    map[int64]string // Custom attribute filters: attributeID -> value
 	// IncludeDeleted is only for admin/ops historical lookup flows. Normal user lists
 	// keep the default soft-delete filter.
 	IncludeDeleted bool

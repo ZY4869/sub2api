@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -792,6 +793,7 @@ func TestIdempotencyCoordinator_HelperBranches(t *testing.T) {
 	body, err := c.marshalStoredResponse(map[string]any{"long": "abcdefghijklmnopqrstuvwxyz"})
 	require.NoError(t, err)
 	require.Contains(t, body, "...(truncated)")
+	require.True(t, utf8.ValidString(body))
 
 	// decodeStoredResponse empty and invalid json.
 	out, err := c.decodeStoredResponse(nil)
@@ -802,4 +804,20 @@ func TestIdempotencyCoordinator_HelperBranches(t *testing.T) {
 	invalid := "{invalid"
 	_, err = c.decodeStoredResponse(&invalid)
 	require.Error(t, err)
+}
+
+func TestIdempotencyCoordinator_MarshalStoredResponseTruncatesUTF8Safely(t *testing.T) {
+	c := NewIdempotencyCoordinator(newInMemoryIdempotencyRepo(), IdempotencyConfig{
+		DefaultTTL:           time.Hour,
+		SystemOperationTTL:   time.Hour,
+		ProcessingTimeout:    time.Second,
+		FailedRetryBackoff:   time.Second,
+		MaxStoredResponseLen: 16,
+		ObserveOnly:          false,
+	})
+
+	body, err := c.marshalStoredResponse(map[string]any{"message": "你好🙂你好🙂你好🙂"})
+	require.NoError(t, err)
+	require.Contains(t, body, "...(truncated)")
+	require.True(t, utf8.ValidString(body), "stored response must remain valid UTF-8")
 }

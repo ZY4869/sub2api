@@ -18,6 +18,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 // 编译期接口断言
@@ -1729,6 +1730,49 @@ func TestOpenAIGatewayServiceForwardTransportErrorReturnsFailover(t *testing.T) 
 	require.True(t, failoverErr.TempUnscheduleAccount)
 	require.False(t, failoverErr.RetryableOnSameAccount)
 	require.False(t, rec.Result().Header.Get("Content-Type") != "" || rec.Body.Len() > 0, "transport failover should not write the client response before handler retries")
+}
+
+func TestOpenAIGatewayServiceForwardRewritesMappedModelInUpstreamBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":"resp_1","model":"gpt-fallback-target","usage":{"input_tokens":1,"output_tokens":2,"input_tokens_details":{"cached_tokens":0}}}`)),
+	}}
+	svc := &OpenAIGatewayService{
+		httpUpstream:          upstream,
+		toolCorrector:         NewCodexToolCorrector(),
+		openaiWSResolver:      NewOpenAIWSProtocolResolver(&config.Config{}),
+		codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
+	}
+
+	body := []byte(`{"model":"gpt-original","input":"hi","stream":false}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	account := &Account{
+		ID:          43,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{
+			"api_key": "sk-test",
+			"model_mapping": map[string]any{
+				"gpt-original": "gpt-fallback-target",
+			},
+		},
+	}
+
+	result, err := svc.Forward(c.Request.Context(), c, account, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "gpt-original", result.Model)
+	require.Equal(t, "gpt-fallback-target", result.UpstreamModel)
+	require.Equal(t, "gpt-fallback-target", gjson.GetBytes(upstream.lastBody, "model").String())
 }
 
 func TestOpenAIGatewayServiceTempUnscheduleFailoverError(t *testing.T) {

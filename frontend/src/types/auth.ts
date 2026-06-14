@@ -151,6 +151,7 @@ export interface PublicSettings {
   dingtalk_oauth_enabled: boolean;
   backend_mode_enabled: boolean;
   maintenance_mode_enabled: boolean;
+  admin_compliance_enabled?: boolean;
   version: string;
 }
 

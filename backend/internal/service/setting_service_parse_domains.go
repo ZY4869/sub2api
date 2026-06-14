@@ -135,6 +135,7 @@ func (s *SettingService) applyParsedOpsRuntimeSettings(result *SystemSettings, s
 	result.AllowUngroupedKeyScheduling = settings[SettingKeyAllowUngroupedKeyScheduling] == "true"
 	result.BackendModeEnabled = settings[SettingKeyBackendModeEnabled] == "true"
 	result.MaintenanceModeEnabled = settings[SettingKeyMaintenanceModeEnabled] == "true"
+	result.AdminComplianceEnabled = settings[SettingKeyAdminComplianceEnabled] == "true"
 }
 
 func applyParsedAffiliateSettings(result *SystemSettings, settings map[string]string) {

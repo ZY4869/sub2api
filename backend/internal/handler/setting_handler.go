@@ -77,6 +77,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		DingTalkOAuthEnabled:             settings.DingTalkOAuthEnabled,
 		BackendModeEnabled:               settings.BackendModeEnabled,
 		MaintenanceModeEnabled:           settings.MaintenanceModeEnabled,
+		AdminComplianceEnabled:           settings.AdminComplianceEnabled,
 		Version:                          h.version,
 	})
 }

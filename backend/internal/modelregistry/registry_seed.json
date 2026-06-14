@@ -400,6 +400,34 @@
     ]
   },
   {
+    "id": "claude-fable-5",
+    "display_name": "Claude Fable 5",
+    "provider": "anthropic",
+    "platforms": [
+      "anthropic",
+      "antigravity"
+    ],
+    "protocol_ids": [
+      "claude-fable-5"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "claude-fable-5"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "reasoning"
+    ],
+    "ui_priority": 4,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "tab_flash_lite_preview",
     "display_name": "Tab_flash_lite_preview",
     "provider": "antigravity",

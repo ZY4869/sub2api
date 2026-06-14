@@ -69,6 +69,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyDingTalkOAuthEnabled,
 		SettingKeyBackendModeEnabled,
 		SettingKeyMaintenanceModeEnabled,
+		SettingKeyAdminComplianceEnabled,
 	}
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
@@ -131,6 +132,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		DingTalkOAuthEnabled:             dingtalkEnabled,
 		BackendModeEnabled:               settings[SettingKeyBackendModeEnabled] == "true",
 		MaintenanceModeEnabled:           settings[SettingKeyMaintenanceModeEnabled] == "true",
+		AdminComplianceEnabled:           settings[SettingKeyAdminComplianceEnabled] == "true",
 	}, nil
 }
 
