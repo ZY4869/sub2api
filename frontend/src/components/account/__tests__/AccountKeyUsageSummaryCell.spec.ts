@@ -59,6 +59,8 @@ describe('AccountKeyUsageSummaryCell', () => {
     expect(wrapper.text()).toContain('Req')
     expect(wrapper.text()).toContain('12')
     expect(wrapper.text()).toContain('345T')
+    expect(wrapper.get('[data-testid="account-key-usage-today-row"]').text()).toContain('Req')
+    expect(wrapper.get('[data-testid="account-key-usage-quota-row"]').text()).toContain('Unlimited')
     expect(wrapper.get('[data-testid="account-key-usage-discounted-cost"]').text()).toContain('$0.40')
     expect(wrapper.get('[data-testid="account-key-usage-standard-cost"]').text()).toContain('$5.00')
     expect(wrapper.get('[data-testid="account-key-usage-saved"]').text()).toContain('$4.60 / 92%')
@@ -94,6 +96,8 @@ describe('AccountKeyUsageSummaryCell', () => {
     })
 
     expect(quotaWrapper.find('[data-testid="account-key-usage-unlimited"]').exists()).toBe(false)
+    expect(quotaWrapper.get('[data-testid="account-key-usage-today-row"]').text()).toContain('Req')
+    expect(quotaWrapper.get('[data-testid="account-key-usage-quota-row"]').text()).toContain('1D')
     expect(quotaWrapper.get('[data-testid="account-key-quota-daily"]').text()).toContain('1D')
     expect(quotaWrapper.get('[data-testid="account-key-quota-weekly"]').text()).toContain('7D')
     expect(quotaWrapper.get('[data-testid="account-key-quota-monthly"]').text()).toContain('30D')

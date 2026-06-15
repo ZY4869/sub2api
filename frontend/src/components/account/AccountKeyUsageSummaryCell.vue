@@ -1,14 +1,16 @@
 <template>
-  <div
-    class="flex min-w-[520px] max-w-full flex-wrap items-center gap-2 text-[11px] leading-none"
-    data-testid="account-key-usage-summary-cell"
-  >
+  <div class="min-w-[520px] max-w-full space-y-1.5 text-[11px] leading-none" data-testid="account-key-usage-summary-cell">
     <template v-if="loading && !stats">
-      <span
-        v-for="index in 6"
-        :key="index"
-        class="h-6 w-20 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800"
-      />
+      <div class="flex flex-wrap items-center gap-2" data-testid="account-key-usage-today-row">
+        <span
+          v-for="index in 5"
+          :key="index"
+          class="h-6 w-20 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800"
+        />
+      </div>
+      <div class="flex flex-wrap items-center gap-2" data-testid="account-key-usage-quota-row">
+        <span class="h-6 w-24 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800" />
+      </div>
     </template>
 
     <span v-else-if="error && !stats" class="text-xs text-rose-500">
@@ -16,53 +18,55 @@
     </span>
 
     <template v-else>
-      <span
-        v-for="item in todayItems"
-        :key="item.key"
-        :class="[
-          'inline-flex min-w-0 items-center gap-1 rounded-full border px-2 py-1 font-semibold',
-          item.className
-        ]"
-        :title="item.title"
-        :data-testid="`account-key-usage-${item.key}`"
-      >
-        <Icon :name="item.icon" size="xs" :stroke-width="2" class="shrink-0" />
-        <span class="shrink-0 text-slate-500 dark:text-slate-300">{{ item.label }}</span>
-        <span class="min-w-0 truncate text-left tabular-nums">{{ item.value }}</span>
-      </span>
-
-      <span class="h-5 w-px bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
-
-      <span
-        v-if="quotaItems.length === 0"
-        class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100"
-        :title="t('admin.accounts.keyUsage.unlimited')"
-        data-testid="account-key-usage-unlimited"
-      >
-        <Icon name="checkCircle" size="xs" :stroke-width="2" />
-        {{ t('admin.accounts.keyUsage.unlimited') }}
-      </span>
-
-      <span
-        v-for="quota in quotaItems"
-        :key="quota.key"
-        class="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-        :title="quota.title"
-        :data-testid="`account-key-quota-${quota.key}`"
-      >
+      <div class="flex flex-wrap items-center gap-2" data-testid="account-key-usage-today-row">
         <span
+          v-for="item in todayItems"
+          :key="item.key"
           :class="[
-            'rounded-full border px-1.5 py-0.5 text-[9px] font-black leading-none',
-            resolveUsageWindowCapsuleClass(quota.label)
+            'inline-flex min-w-0 items-center gap-1 rounded-full border px-2 py-1 font-semibold',
+            item.className
           ]"
+          :title="item.title"
+          :data-testid="`account-key-usage-${item.key}`"
         >
-          {{ quota.label }}
+          <Icon :name="item.icon" size="xs" :stroke-width="2" class="shrink-0" />
+          <span class="shrink-0 text-slate-500 dark:text-slate-300">{{ item.label }}</span>
+          <span class="min-w-0 truncate text-left tabular-nums">{{ item.value }}</span>
         </span>
-        <span class="tabular-nums">{{ quota.value }}</span>
-        <span v-if="quota.resetText" class="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-          {{ quota.resetText }}
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2" data-testid="account-key-usage-quota-row">
+        <span
+          v-if="quotaItems.length === 0"
+          class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100"
+          :title="t('admin.accounts.keyUsage.unlimited')"
+          data-testid="account-key-usage-unlimited"
+        >
+          <Icon name="checkCircle" size="xs" :stroke-width="2" />
+          {{ t('admin.accounts.keyUsage.unlimited') }}
         </span>
-      </span>
+
+        <span
+          v-for="quota in quotaItems"
+          :key="quota.key"
+          class="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          :title="quota.title"
+          :data-testid="`account-key-quota-${quota.key}`"
+        >
+          <span
+            :class="[
+              'rounded-full border px-1.5 py-0.5 text-[9px] font-black leading-none',
+              resolveUsageWindowCapsuleClass(quota.label)
+            ]"
+          >
+            {{ quota.label }}
+          </span>
+          <span class="tabular-nums">{{ quota.value }}</span>
+          <span v-if="quota.resetText" class="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+            {{ quota.resetText }}
+          </span>
+        </span>
+      </div>
     </template>
   </div>
 </template>

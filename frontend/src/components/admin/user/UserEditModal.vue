@@ -2,7 +2,7 @@
   <BaseDialog
     :show="show"
     :title="t('admin.users.editUser')"
-    width="normal"
+    width="wide"
     @close="$emit('close')"
   >
     <form v-if="user" id="edit-user-form" @submit.prevent="handleUpdateUser" class="space-y-5">

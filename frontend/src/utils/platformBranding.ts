@@ -41,7 +41,7 @@ const PLATFORM_BRANDING: Record<AccountPlatform, PlatformBranding> = {
   kiro: { badge: 'Ki', iconKey: 'kiro', englishName: 'Kiro' },
   openai: { badge: 'OA', iconKey: 'openai', englishName: 'OpenAI' },
   openrouter: { badge: 'OR', iconKey: 'openrouter', englishName: 'OpenRouter' },
-  protocol_gateway: { badge: 'PG', iconKey: 'gateway', englishName: 'Protocol Gateway' }
+  protocol_gateway: { badge: 'PG', iconKey: 'newapi', englishName: 'Protocol Gateway' }
 }
 
 export function getPlatformIconSources(platform?: PlatformKey | string | null): string[] {

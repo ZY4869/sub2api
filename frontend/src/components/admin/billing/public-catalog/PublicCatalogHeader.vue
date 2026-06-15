@@ -12,6 +12,9 @@
         <p class="mt-2 max-w-4xl text-sm leading-6 text-slate-500 dark:text-slate-300">
           {{ t('admin.billing.publicCatalog.header.description') }}
         </p>
+        <p class="mt-1 max-w-4xl text-xs leading-5 text-amber-600 dark:text-amber-300">
+          {{ t('admin.billing.publicCatalog.header.flowHint') }}
+        </p>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">

@@ -28,6 +28,7 @@ export default {
             eyebrow: "Public Catalog",
             title: "Public Model Catalog",
             description: "Maintain the public catalog by account-supported model instances. The same base model can appear from different account sources; after publishing, users call only the unique public model ID and billing uses that entry's sale price.",
+            flowHint: "Refreshing candidates only updates the account-supported model library. To show models publicly, sync them to the draft, save the draft, then publish the update.",
             loading: "Loading...",
             refresh: "Refresh Candidates",
             syncAvailable: "Sync Current Models",

@@ -28,6 +28,7 @@ export default {
             eyebrow: "Public Catalog",
             title: "对外模型展示",
             description: "按账号支持的模型实例维护公开目录。同一基础模型可以来自不同账号来源，发布后用户只调用唯一公开模型 ID，计费使用本条目的售卖价。",
+            flowHint: "刷新候选只更新左侧账号支持模型库；模型要对外出现，需要先同步到草稿、保存草稿，再推送更新。",
             loading: "加载中...",
             refresh: "刷新候选",
             syncAvailable: "同步当前可用模型",

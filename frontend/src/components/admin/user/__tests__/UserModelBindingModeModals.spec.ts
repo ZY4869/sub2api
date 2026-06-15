@@ -47,9 +47,9 @@ vi.mock('@/composables/useClipboard', () => ({
 }))
 
 const BaseDialogStub = {
-  props: ['show', 'title'],
+  props: ['show', 'title', 'width'],
   template: `
-    <section v-if="show">
+    <section v-if="show" data-testid="base-dialog" :data-width="width">
       <slot />
       <slot name="footer" />
     </section>
@@ -126,5 +126,33 @@ describe('user api key model binding mode modals', () => {
         api_key_model_binding_mode: 'group_allowed',
       }),
     )
+  })
+
+  it('uses a wide dialog for editing user details', () => {
+    const wrapper = mount(UserEditModal, {
+      props: {
+        show: true,
+        user: {
+          id: 7,
+          email: 'old@example.com',
+          username: 'old',
+          notes: '',
+          role: 'user',
+          status: 'active',
+          concurrency: 1,
+          api_key_model_binding_mode: 'model_required',
+        },
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          TimeAccessPolicyEditor: true,
+          UserAttributeForm: { template: '<div />' },
+          Icon: { template: '<span />' },
+        },
+      },
+    })
+
+    expect(wrapper.get('[data-testid="base-dialog"]').attributes('data-width')).toBe('wide')
   })
 })
