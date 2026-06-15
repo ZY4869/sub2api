@@ -1,15 +1,22 @@
 import { computed, type ComputedRef } from 'vue'
 import type { AccountTodayStatsWindow, WindowStats } from '@/types'
-import { formatCurrency, formatNumber } from '@/utils/format'
+import { formatNumber } from '@/utils/format'
+import { formatDiscountPercent, formatUsdAmount } from '@/utils/accountBillingDisplay'
 
 type Translate = (key: string) => string
 type FormatTokenDisplay = (value: number) => string
+type IconName = 'clock' | 'calendar' | 'chart' | 'database'
 
 export type TodayStatColumn = {
   key: string
   label: string
+  iconName: IconName
   requests: string
   cost: string
+  standardCost: string
+  savedCost: string
+  savedPercent: string
+  hasSavings: boolean
   title: string
   costClass: string
 }
@@ -26,17 +33,34 @@ export function useAccountTodayStatsDisplay(options: {
   const createStatColumn = (
     key: string,
     label: string,
+    iconName: IconName,
     stats: WindowStats,
     costClass: string,
   ): TodayStatColumn => {
     const requests = formatNumber(stats.requests || 0)
-    const cost = formatCurrency(stats.cost || 0)
+    const costValue = stats.cost || 0
+    const standardCostValue = typeof stats.standard_cost === 'number' ? stats.standard_cost : costValue
+    const savedValue = Math.max(0, standardCostValue - costValue)
+    const savedPercentValue = standardCostValue > 0 ? (1 - costValue / standardCostValue) * 100 : 0
+    const cost = formatUsdAmount(costValue)
+    const standardCost = formatUsdAmount(standardCostValue)
+    const savedCost = formatUsdAmount(savedValue)
+    const savedPercent = formatDiscountPercent(savedPercentValue)
+    const hasSavings = savedValue > 0.000001
+    const costTitle = hasSavings
+      ? `${options.t('admin.accounts.keyUsage.discountedCost')}: ${cost} · ${options.t('admin.accounts.keyUsage.standardCost')}: ${standardCost} · ${options.t('admin.accounts.keyUsage.saved')}: ${savedCost} (${savedPercent})`
+      : `${options.t('usage.accountBilled')}: ${cost}`
     return {
       key,
       label,
+      iconName,
       requests,
       cost,
-      title: `${label} ${options.t('admin.accounts.stats.requests')}: ${requests} · ${options.t('usage.accountBilled')}: ${cost}`,
+      standardCost,
+      savedCost,
+      savedPercent,
+      hasSavings,
+      title: `${label} ${options.t('admin.accounts.stats.requests')}: ${requests} · ${costTitle}`,
       costClass,
     }
   }
@@ -45,24 +69,28 @@ export function useAccountTodayStatsDisplay(options: {
     today: createStatColumn(
       'today',
       options.t('dates.today'),
+      'clock',
       options.dayStats.value,
       'text-slate-700 dark:text-slate-200',
     ),
     weekly: createStatColumn(
       'weekly',
       options.t('admin.accounts.status.window7d'),
+      'calendar',
       options.weeklyStats.value,
       'text-blue-600 dark:text-blue-300',
     ),
     monthly: createStatColumn(
       'monthly',
       options.t('admin.accounts.stats.monthlyUsage'),
+      'chart',
       options.monthlyStats.value,
       'text-emerald-600 dark:text-emerald-300',
     ),
     total: createStatColumn(
       'total',
       options.t('common.total'),
+      'database',
       options.totalStats.value,
       'text-indigo-600 dark:text-indigo-300',
     ),

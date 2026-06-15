@@ -1,4 +1,5 @@
 import type { AccountUsageRowColor, CodexUsageSnapshot } from '@/types'
+import { resolveUsageWindowColorByLabel } from './accountUsageWindowDisplay'
 
 export interface ResolvedCodexUsageWindow {
   usedPercent: number | null
@@ -62,11 +63,7 @@ export function resolveCodexUsageWindowLabel(
 }
 
 export function resolveUsageWindowColor(label: string): AccountUsageRowColor {
-  const normalized = label.trim().toUpperCase()
-  if (normalized === '5H') return 'indigo'
-  if (normalized === '30D') return 'green'
-  if (normalized === '7D') return 'orange'
-  return 'emerald'
+  return resolveUsageWindowColorByLabel(label)
 }
 
 function resolveLegacy5h(snapshot: Record<string, unknown>): { used: number | null; resetAfterSeconds: number | null; windowMinutes: number | null } {

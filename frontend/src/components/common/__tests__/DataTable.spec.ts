@@ -240,6 +240,40 @@ describe('DataTable', () => {
     )
   })
 
+  it('supports desktop cell colspan and skipped cells', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [
+          { key: 'name', label: 'Name' },
+          { key: 'today_stats', label: 'Today' },
+          { key: 'usage', label: 'Usage' },
+          { key: 'usage_reset_dates', label: 'Reset' },
+        ],
+        data: [{ id: 1, name: 'Key Row', today_stats: 'summary' }],
+        rowKey: 'id',
+        virtualScroll: false,
+        cellSpan: (_row, column) => {
+          if (column.key === 'today_stats') return { colspan: 3 }
+          if (column.key === 'usage' || column.key === 'usage_reset_dates') return { skip: true }
+          return undefined
+        },
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    const cells = wrapper.findAll('tbody tr[data-row-id="1"] td')
+    expect(cells).toHaveLength(2)
+    expect(cells[1].attributes('colspan')).toBe('3')
+    expect(wrapper.text()).toContain('summary')
+    expect(wrapper.text()).not.toContain('undefined')
+  })
+
   it('ignores stale virtual rows that point outside the current filtered data', async () => {
     virtualState.items = [{ index: 12, start: 672, end: 728 }]
     virtualState.totalSize = 728

@@ -323,6 +323,8 @@ export interface Account {
   quota_weekly_used?: number | null;
   quota_weekly_limit_by_currency?: Record<string, number>;
   quota_weekly_used_by_currency?: Record<string, number>;
+  quota_daily_reset_at?: string | null;
+  quota_weekly_reset_at?: string | null;
   quota_monthly_limit?: number | null;
   quota_monthly_used?: number | null;
   quota_monthly_limit_by_currency?: Record<string, number>;

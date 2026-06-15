@@ -593,9 +593,17 @@ export function useAccountUsagePresentation(
     return (
       (account.value.quota_daily_limit ?? 0) > 0 ||
       (account.value.quota_weekly_limit ?? 0) > 0 ||
+      (account.value.quota_monthly_limit ?? 0) > 0 ||
       (account.value.quota_limit ?? 0) > 0
     );
   });
+
+  const normalizeResetAt = (value: unknown): string | null => {
+    if (typeof value !== "string" || value.trim() === "") return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString();
+  };
 
   const makeQuotaRow = (
     key: string,
@@ -603,19 +611,22 @@ export function useAccountUsagePresentation(
     used: number,
     limit: number,
     color: AccountUsageRowColor,
-    startKey?: string,
+    options: {
+      resetAt?: string | null;
+      startKey?: string;
+      periodMs?: number;
+    } = {},
   ): AccountUsagePresentationRow | null => {
     if (limit <= 0) return null;
 
-    let resetsAt: string | null = null;
-    if (startKey) {
-      const startStr = account.value.extra?.[startKey] as string | undefined;
+    let resetsAt: string | null = normalizeResetAt(options.resetAt);
+    if (!resetsAt && options.startKey && options.periodMs) {
+      const startStr = account.value.extra?.[options.startKey] as string | undefined;
       if (startStr) {
         const startDate = new Date(startStr);
-        const periodMs = startKey.includes("daily")
-          ? 24 * 60 * 60 * 1000
-          : 7 * 24 * 60 * 60 * 1000;
-        resetsAt = new Date(startDate.getTime() + periodMs).toISOString();
+        if (!Number.isNaN(startDate.getTime())) {
+          resetsAt = new Date(startDate.getTime() + options.periodMs).toISOString();
+        }
       }
     }
 
@@ -631,7 +642,11 @@ export function useAccountUsagePresentation(
         account.value.quota_daily_used ?? 0,
         account.value.quota_daily_limit ?? 0,
         "indigo",
-        "quota_daily_start",
+        {
+          resetAt: account.value.quota_daily_reset_at,
+          startKey: "quota_daily_start",
+          periodMs: 24 * 60 * 60 * 1000,
+        },
       ),
       makeQuotaRow(
         "apikey-weekly",
@@ -639,7 +654,23 @@ export function useAccountUsagePresentation(
         account.value.quota_weekly_used ?? 0,
         account.value.quota_weekly_limit ?? 0,
         "orange",
-        "quota_weekly_start",
+        {
+          resetAt: account.value.quota_weekly_reset_at,
+          startKey: "quota_weekly_start",
+          periodMs: 7 * 24 * 60 * 60 * 1000,
+        },
+      ),
+      makeQuotaRow(
+        "apikey-monthly",
+        "30D",
+        account.value.quota_monthly_used ?? 0,
+        account.value.quota_monthly_limit ?? 0,
+        "green",
+        {
+          resetAt: account.value.quota_monthly_reset_at,
+          startKey: "quota_monthly_start",
+          periodMs: 30 * 24 * 60 * 60 * 1000,
+        },
       ),
       makeQuotaRow(
         "apikey-total",

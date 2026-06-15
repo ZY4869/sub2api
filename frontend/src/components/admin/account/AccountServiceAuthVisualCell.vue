@@ -9,7 +9,8 @@
         ]"
         :title="planLabel"
       >
-        <PlatformIcon :platform="platform" size="xs" />
+        <Icon v-if="isApiKeyAccount" name="key" size="xs" :stroke-width="2.2" />
+        <PlatformIcon v-else :platform="platform" size="xs" />
         <span class="min-w-[2.6rem] max-w-[5.5rem] truncate text-[11px] font-bold leading-none tracking-tight">
           {{ planLabel }}
         </span>
@@ -86,6 +87,9 @@
       <span :class="metaBadgeClass" :title="typeLabel">
         {{ typeLabel }}
       </span>
+      <span v-if="isApiKeyAccount && keyTierDisplay.tierLabel" :class="metaBadgeClass" :title="keyTierDisplay.tierLabel">
+        {{ keyTierDisplay.tierLabel }}
+      </span>
       <span v-if="gatewayProtocolLabel" :class="metaBadgeClass" :title="gatewayProtocolLabel">
         {{ gatewayProtocolLabel }}
       </span>
@@ -102,6 +106,8 @@ import { useI18n } from 'vue-i18n'
 import type { AccountPlatform, AccountType, GatewayProtocol } from '@/types'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import { isProtocolGatewayPlatform, resolveGatewayProtocolLabel } from '@/utils/accountProtocolGateway'
+import Icon from '@/components/icons/Icon.vue'
+import { resolveAccountKeyTierDisplay } from '@/utils/accountKeyTierDisplay'
 
 const props = defineProps<{
   platform: AccountPlatform
@@ -110,6 +116,7 @@ const props = defineProps<{
   planType?: string
   planTypeLabel?: string
   proMultiplier?: number | null
+  extra?: Record<string, unknown>
   privacyMode?: string
   subscriptionExpiresAt?: string
   compact?: boolean
@@ -118,6 +125,20 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const platformLabel = computed(() => t(`admin.accounts.platforms.${props.platform}`))
+const isApiKeyAccount = computed(() => props.type === 'apikey')
+
+const keyTierDisplay = computed(() =>
+  resolveAccountKeyTierDisplay({
+    platform: props.platform,
+    type: props.type,
+    credentials: {
+      plan_type: props.planType,
+      plan_type_label: props.planTypeLabel,
+      pro_multiplier: props.proMultiplier,
+    },
+    extra: props.extra,
+  })
+)
 
 const typeLabel = computed(() => {
   switch (props.type) {
@@ -144,6 +165,7 @@ const gatewayProtocolLabel = computed(() => {
 })
 
 const planLabel = computed<string>(() => {
+  if (isApiKeyAccount.value) return keyTierDisplay.value.primaryLabel
   const lower = String(props.planType || '').trim().toLowerCase()
   if (lower === 'pro' || lower === 'chatgptpro') {
     return typeof props.proMultiplier === 'number' && props.proMultiplier > 0
@@ -177,6 +199,7 @@ const expiresLabel = computed(() => {
 })
 
 const planBadgeClass = computed(() => {
+  if (isApiKeyAccount.value) return keyTierDisplay.value.className
   if (planLabel.value === 'Free') {
     return 'border-slate-300/80 bg-slate-100 text-slate-600'
   }

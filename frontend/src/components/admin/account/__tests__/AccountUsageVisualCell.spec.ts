@@ -122,7 +122,7 @@ describe('AccountUsageVisualCell', () => {
     expect(wrapper.text()).not.toContain('7d')
     expect(wrapper.text()).toContain('12%')
     const rowLabel = wrapper.get('span.w-7')
-    expect(rowLabel.classes()).toContain('bg-green-100')
+    expect(rowLabel.classes()).toContain('bg-green-50')
   })
 
   it('uses the orange local tag for 7d rows', async () => {
@@ -151,7 +151,60 @@ describe('AccountUsageVisualCell', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('7D')
-    expect(wrapper.get('span.w-7').classes()).toContain('bg-orange-100')
+    expect(wrapper.get('span.w-7').classes()).toContain('bg-orange-50')
+  })
+
+  it('treats 31D as the monthly green window in visual rows', async () => {
+    const wrapper = mount(AccountUsageVisualCell, {
+      props: {
+        account: {
+          id: 92,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: {
+            plan_type: 'free',
+          },
+          extra: {
+            codex_7d_used_percent: 41,
+            codex_7d_window_minutes: 44640,
+            codex_7d_reset_at: '2099-05-29T12:00:00Z',
+            codex_usage_updated_at: '2099-05-22T12:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        plugins: [createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('31D')
+    expect(wrapper.get('span.w-7').classes()).toContain('bg-green-50')
+  })
+
+  it('shows API Key monthly quota rows with green monthly labels', async () => {
+    const wrapper = mount(AccountUsageVisualCell, {
+      props: {
+        account: {
+          id: 93,
+          platform: 'openai',
+          type: 'apikey',
+          quota_monthly_used: 25,
+          quota_monthly_limit: 100,
+          quota_monthly_reset_at: '2099-05-29T12:00:00Z',
+          extra: {},
+        } as any,
+      },
+      global: {
+        plugins: [createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('30D')
+    expect(wrapper.get('span.w-7').classes()).toContain('bg-green-50')
   })
 
   it('follows the shared remaining display mode', async () => {

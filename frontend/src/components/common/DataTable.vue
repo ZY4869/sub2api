@@ -156,25 +156,27 @@
               :class="resolveDesktopRowClass(row, rowIndex)"
               :style="resolveDesktopRowStyle(row, rowIndex)"
             >
-              <td
-                v-for="(column, colIndex) in columns"
-                :key="column.key"
-                :class="[
-                  'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
-                  getAdaptivePaddingClass(),
-                  getStickyColumnClass(column, colIndex),
-                  column.class
-                ]"
-              >
-                <slot :name="`cell-${column.key}`"
-                      :row="row"
-                      :value="row[column.key]"
-                      :expanded="actionsExpanded">
-                  {{ column.formatter
-                     ? column.formatter(row[column.key], row)
-                     : row[column.key] }}
-                </slot>
-              </td>
+              <template v-for="(column, colIndex) in columns" :key="column.key">
+                <td
+                  v-if="!resolveCellSpan(row, column, colIndex).skip"
+                  :colspan="resolveCellSpan(row, column, colIndex).colspan"
+                  :class="[
+                    'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
+                    getAdaptivePaddingClass(),
+                    getStickyColumnClass(column, colIndex),
+                    column.class
+                  ]"
+                >
+                  <slot :name="`cell-${column.key}`"
+                        :row="row"
+                        :value="row[column.key]"
+                        :expanded="actionsExpanded">
+                    {{ column.formatter
+                       ? column.formatter(row[column.key], row)
+                       : row[column.key] }}
+                  </slot>
+                </td>
+              </template>
             </tr>
           </template>
           <template v-else>
@@ -192,25 +194,27 @@
               :class="resolveDesktopRowClass(sortedData[virtualRow.index], virtualRow.index)"
               :style="resolveDesktopRowStyle(sortedData[virtualRow.index], virtualRow.index)"
             >
-              <td
-                v-for="(column, colIndex) in columns"
-                :key="column.key"
-                :class="[
-                  'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
-                  getAdaptivePaddingClass(),
-                  getStickyColumnClass(column, colIndex),
-                  column.class
-                ]"
-              >
-                <slot :name="`cell-${column.key}`"
-                      :row="sortedData[virtualRow.index]"
-                      :value="sortedData[virtualRow.index][column.key]"
-                      :expanded="actionsExpanded">
-                  {{ column.formatter
-                     ? column.formatter(sortedData[virtualRow.index][column.key], sortedData[virtualRow.index])
-                     : sortedData[virtualRow.index][column.key] }}
-                </slot>
-              </td>
+              <template v-for="(column, colIndex) in columns" :key="column.key">
+                <td
+                  v-if="!resolveCellSpan(sortedData[virtualRow.index], column, colIndex).skip"
+                  :colspan="resolveCellSpan(sortedData[virtualRow.index], column, colIndex).colspan"
+                  :class="[
+                    'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
+                    getAdaptivePaddingClass(),
+                    getStickyColumnClass(column, colIndex),
+                    column.class
+                  ]"
+                >
+                  <slot :name="`cell-${column.key}`"
+                        :row="sortedData[virtualRow.index]"
+                        :value="sortedData[virtualRow.index][column.key]"
+                        :expanded="actionsExpanded">
+                    {{ column.formatter
+                       ? column.formatter(sortedData[virtualRow.index][column.key], sortedData[virtualRow.index])
+                       : sortedData[virtualRow.index][column.key] }}
+                  </slot>
+                </td>
+              </template>
             </tr>
             <tr v-if="virtualPaddingBottom > 0" aria-hidden="true">
               <td :colspan="columns.length"
@@ -227,7 +231,12 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useVirtualizer, useWindowVirtualizer } from '@tanstack/vue-virtual'
-import type { Column, TableRowClassResolver, TableRowStyleResolver } from './types'
+import type {
+  Column,
+  TableCellSpanResolver,
+  TableRowClassResolver,
+  TableRowStyleResolver,
+} from './types'
 import DataTableEmptyState from './DataTableEmptyState.vue'
 
 const desktopViewportQuery = '(min-width: 768px)'
@@ -419,6 +428,8 @@ interface Props {
   rowClass?: TableRowClassResolver
   /** Resolve per-row inline styles for desktop and mobile renderers */
   rowStyle?: TableRowStyleResolver
+  /** Resolve desktop cell colspan or skipped cells */
+  cellSpan?: TableCellSpanResolver
   /** Table layout mode. Fixed layout keeps dense tables from growing with long text. */
   tableLayout?: 'auto' | 'fixed'
   /** Horizontal scrollbar visual treatment. */
@@ -797,6 +808,17 @@ const resolveDesktopRowStyle = (row: any, index: number) => props.rowStyle?.(row
 const resolveMobileRowClass = (row: any, index: number) => resolveRowClassList(row, index)
 
 const resolveMobileRowStyle = (row: any, index: number) => props.rowStyle?.(row, index)
+
+const resolveCellSpan = (row: any, column: Column, colIndex: number) => {
+  const resolved = props.cellSpan?.(row, column, colIndex, props.columns)
+  if (typeof resolved === 'number') {
+    return { colspan: Math.max(1, Math.floor(resolved)), skip: false }
+  }
+  return {
+    colspan: Math.max(1, Math.floor(resolved?.colspan ?? 1)),
+    skip: resolved?.skip === true,
+  }
+}
 
 // Init + keep persisted sort state consistent with current columns
 const didInitSort = ref(false)

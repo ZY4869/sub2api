@@ -100,7 +100,7 @@ export default {
     priority: "Priority",
     priorityHint: "Lower value accounts are used first",
     billingRateMultiplier: "Billing Rate Multiplier",
-    billingRateMultiplierHint: "0 = free, affects account billing only",
+    billingRateMultiplierHint: "Account cost is standard model price multiplied by this rate; e.g. 0.08 bills 8% of standard cost, 0 means free.",
     expiresAt: "Expires At",
     expiresAtHint: "Leave empty for no expiration",
     expirationEnabled: "Enable expiration",

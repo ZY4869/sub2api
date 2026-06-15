@@ -54,15 +54,6 @@ const allColumns = computed(() => {
       label: t("admin.accounts.columns.schedulable"),
       sortable: true,
     },
-    {
-      key: "today_stats",
-      label: t("admin.accounts.columns.todayStats"),
-      sortable: false,
-      class:
-        resolvedAccountVisualPreset.value === "airy"
-          ? "w-[144px] min-w-[136px] max-w-[152px]"
-          : "w-[212px] max-w-[212px]",
-    },
   ];
   if (!authStore.isSimpleMode) {
     c.push({
@@ -76,10 +67,19 @@ const allColumns = computed(() => {
             : "w-[176px] min-w-[156px] max-w-[176px]"
           : accountGroupDisplayMode?.value === "icon"
             ? "w-[132px] max-w-[132px]"
-            : "w-[196px] max-w-[196px]",
+          : "w-[196px] max-w-[196px]",
     });
   }
   c.push(
+    {
+      key: "today_stats",
+      label: t("admin.accounts.columns.todayStats"),
+      sortable: false,
+      class:
+        resolvedAccountVisualPreset.value === "airy"
+          ? "w-[176px] min-w-[164px] max-w-[184px]"
+          : "w-[172px] max-w-[180px]",
+    },
     {
       key: "usage",
       label: t("admin.accounts.columns.usageWindows"),

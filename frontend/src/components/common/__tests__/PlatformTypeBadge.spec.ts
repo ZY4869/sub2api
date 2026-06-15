@@ -22,6 +22,7 @@ vi.mock('vue-i18n', async () => {
         'admin.accounts.privacyTrainingOff': '已关闭训练数据共享',
         'admin.accounts.privacyCfBlocked': '被 Cloudflare 拦截',
         'admin.accounts.privacyFailed': '关闭失败',
+        'admin.accounts.keyUsage.keyAccountTooltip': 'Key 账号',
       }[key] || key)
     })
   }
@@ -36,11 +37,12 @@ const IconStub = defineComponent({
 })
 
 describe('PlatformTypeBadge', () => {
-  it('renders localized key and privacy failure labels', () => {
+  it('renders API Key accounts with Key as the primary label and platform as secondary text', () => {
     const keyWrapper = mount(PlatformTypeBadge, {
       props: {
         platform: 'openai',
-        type: 'apikey'
+        type: 'apikey',
+        planType: 'plus'
       } as any,
       global: {
         stubs: {
@@ -65,7 +67,10 @@ describe('PlatformTypeBadge', () => {
     })
 
     expect(keyWrapper.text()).toContain('OpenAI')
-    expect(keyWrapper.text()).toContain('密钥')
+    expect(keyWrapper.text()).toContain('Key')
+    expect(keyWrapper.text()).toContain('Plus')
+    expect(keyWrapper.text()).not.toContain('密钥')
+    expect(keyWrapper.find('[title="Key 账号"]').exists()).toBe(true)
     expect(privacyWrapper.text()).toContain('OpenAI')
     expect(privacyWrapper.text()).toContain('OAuth')
     expect(privacyWrapper.text()).toContain('失败')
@@ -165,6 +170,40 @@ describe('PlatformTypeBadge', () => {
 
     expect(wrapper.text()).toContain('协议网关')
     expect(wrapper.text()).toContain('混合')
-    expect(wrapper.text()).toContain('密钥')
+    expect(wrapper.text()).toContain('Key')
+    expect(wrapper.text()).not.toContain('密钥')
+  })
+
+  it('colors API Key tier badges by plan and Gemini tier', () => {
+    const plus = mount(PlatformTypeBadge, {
+      props: {
+        platform: 'openai',
+        type: 'apikey',
+        planType: 'plus'
+      } as any,
+      global: {
+        stubs: {
+          PlatformIcon: PlatformIconStub,
+          Icon: IconStub
+        }
+      }
+    })
+    const ultra = mount(PlatformTypeBadge, {
+      props: {
+        platform: 'gemini',
+        type: 'apikey',
+        extra: { account_tier: 'google_ai_ultra' }
+      } as any,
+      global: {
+        stubs: {
+          PlatformIcon: PlatformIconStub,
+          Icon: IconStub
+        }
+      }
+    })
+
+    expect(plus.find('[title="Key 账号"]').classes()).toContain('bg-emerald-50')
+    expect(ultra.find('[title="Key 账号"]').classes()).toContain('bg-slate-800')
+    expect(ultra.text()).toContain('Ultra')
   })
 })

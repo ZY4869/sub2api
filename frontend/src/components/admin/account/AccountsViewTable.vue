@@ -13,6 +13,7 @@
     :virtual-scroll="false"
     :row-class="visualStyle === 'airy' ? resolveRowClass : undefined"
     :row-style="visualStyle === 'airy' ? resolveRowStyle : undefined"
+    :cell-span="resolveCellSpan"
   >
     <template #header-select>
       <input
@@ -97,6 +98,7 @@
             ? row.credentials.pro_multiplier
             : undefined
         "
+        :extra="row.extra"
         :privacy-mode="String(row.extra?.privacy_mode || '') || undefined"
         :subscription-expires-at="
           String(row.credentials?.subscription_expires_at || '') || undefined
@@ -115,6 +117,7 @@
             ? row.credentials.pro_multiplier
             : undefined
         "
+        :extra="row.extra"
         :privacy-mode="String(row.extra?.privacy_mode || '') || undefined"
         :subscription-expires-at="
           String(row.credentials?.subscription_expires_at || '') || undefined
@@ -177,7 +180,15 @@
     </template>
 
     <template #cell-today_stats="{ row }">
+      <AccountKeyUsageSummaryCell
+        v-if="isApiKeyAccount(row)"
+        :account="row"
+        :stats="todayStatsByAccountId[String(row.id)] ?? null"
+        :loading="todayStatsLoading"
+        :error="todayStatsError"
+      />
       <AccountTodayStatsCell
+        v-else
         :stats="todayStatsByAccountId[String(row.id)] ?? null"
         :loading="todayStatsLoading"
         :error="todayStatsError"
@@ -346,6 +357,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
+import AccountKeyUsageSummaryCell from '@/components/account/AccountKeyUsageSummaryCell.vue'
 import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountUsageResetCell from '@/components/account/AccountUsageResetCell.vue'
@@ -421,6 +433,30 @@ const usageDisplayModeTitle = computed(() => {
 })
 
 const resolveRowClass = (row: Account) => resolveAccountRowVisualState(row).className
+const isApiKeyAccount = (row: Account) => row.type === 'apikey'
+
+const resolveCellSpan = (row: Account, column: Column, _colIndex: number, columns: Column[]) => {
+  if (!isApiKeyAccount(row)) return undefined
+  const start = columns.findIndex((item) => item.key === 'today_stats')
+  if (start < 0) return undefined
+
+  let colspan = 1
+  for (const key of ['usage', 'usage_reset_dates']) {
+    const index = columns.findIndex((item) => item.key === key)
+    if (index === start + colspan) {
+      colspan += 1
+    }
+  }
+
+  if (column.key === 'usage' || column.key === 'usage_reset_dates') {
+    const currentIndex = columns.findIndex((item) => item.key === column.key)
+    return currentIndex > start && currentIndex < start + colspan
+      ? { skip: true }
+      : undefined
+  }
+  if (column.key !== 'today_stats') return undefined
+  return { colspan }
+}
 const resolveRowStyle = (row: Account) => {
   const style = resolveAccountRowVisualState(row).style
   if (!props.whiteSurfaceEnabled) {

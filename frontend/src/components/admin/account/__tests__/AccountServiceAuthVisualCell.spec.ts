@@ -60,4 +60,37 @@ describe('AccountServiceAuthVisualCell', () => {
     expect(pro20.find('.platform-icon-stub').element.parentElement?.classList.contains('bg-slate-800')).toBe(true)
     expect(pro20.find('.platform-icon-stub').element.parentElement?.classList.contains('text-amber-400')).toBe(true)
   })
+
+  it('uses Key as the main label for API Key accounts and colors by tier', () => {
+    const wrapper = mountCell({
+      type: 'apikey',
+      planType: 'plus',
+      extra: {
+        account_tier: 'plus',
+      },
+    })
+
+    const mainBadge = wrapper.find('svg').element.parentElement
+    expect(wrapper.text()).toContain('Key')
+    expect(wrapper.text()).toContain('Plus')
+    expect(wrapper.text()).toContain('admin.accounts.platforms.openai')
+    expect(mainBadge?.classList.contains('bg-emerald-50')).toBe(true)
+    expect(mainBadge?.classList.contains('text-emerald-700')).toBe(true)
+  })
+
+  it('maps Gemini Ultra API Key tier to the high-tier palette', () => {
+    const wrapper = mountCell({
+      platform: 'gemini',
+      type: 'apikey',
+      extra: {
+        account_tier: 'google_ai_ultra',
+      },
+    })
+
+    const mainBadge = wrapper.find('svg').element.parentElement
+    expect(wrapper.text()).toContain('Key')
+    expect(wrapper.text()).toContain('Ultra')
+    expect(mainBadge?.classList.contains('bg-slate-800')).toBe(true)
+    expect(mainBadge?.classList.contains('text-amber-400')).toBe(true)
+  })
 })

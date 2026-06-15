@@ -27,13 +27,17 @@
           :title="item.title"
           data-testid="account-today-stats-row"
         >
-          <span class="w-6 shrink-0 truncate font-sans text-[9px] font-semibold text-slate-400 dark:text-slate-500">
-            {{ item.label }}
+          <span
+            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+            :title="item.label"
+            data-testid="account-today-stats-window-icon"
+          >
+            <Icon :name="item.iconName" size="xs" :stroke-width="2" />
           </span>
           <span class="min-w-0 flex-1 truncate text-[11px] font-bold text-slate-800 dark:text-slate-100">
             {{ item.requests }}
           </span>
-          <span class="shrink-0 truncate text-[10px] font-bold" :class="item.costClass">
+          <span class="w-[66px] shrink-0 truncate text-left text-[10px] font-bold" :class="item.costClass">
             {{ item.cost }}
           </span>
         </div>
@@ -59,22 +63,27 @@
       </div>
 
       <template v-else>
-        <div class="grid gap-1" :class="statsGridClass">
+        <div class="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200/80 bg-white/80 dark:divide-slate-700/60 dark:border-slate-700/70 dark:bg-slate-900/50">
           <div
             v-for="item in statColumns"
             :key="item.key"
-            class="min-w-0 rounded-lg border border-slate-200/80 bg-white/80 px-2 py-1.5 shadow-[0_4px_12px_rgba(15,23,42,0.04)] dark:border-slate-700/70 dark:bg-slate-900/50"
+            class="flex min-w-0 items-center gap-1.5 px-2 py-1"
             :title="item.title"
+            data-testid="account-today-stats-row"
           >
-            <div class="truncate font-sans text-[9px] font-semibold text-slate-400 dark:text-slate-500">
-              {{ item.label }}
-            </div>
-            <div class="mt-1 truncate text-xs font-bold text-slate-800 dark:text-slate-100">
+            <span
+              class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+              :title="item.label"
+              data-testid="account-today-stats-window-icon"
+            >
+              <Icon :name="item.iconName" size="xs" :stroke-width="2" />
+            </span>
+            <span class="min-w-0 flex-1 truncate text-xs font-bold text-slate-800 dark:text-slate-100">
               {{ item.requests }}
-            </div>
-            <div class="mt-0.5 truncate text-[10px] font-bold" :class="item.costClass">
+            </span>
+            <span class="w-[72px] shrink-0 truncate text-left text-[10px] font-bold" :class="item.costClass">
               {{ item.cost }}
-            </div>
+            </span>
           </div>
         </div>
 
@@ -111,6 +120,7 @@ import type { AccountTodayStats, AccountTodayStatsWindow, WindowStats } from '@/
 import { normalizeAccountTodayStatsWindows } from '@/utils/accountDisplayPreferences'
 import AccountTodayStatsQualityIcon from './AccountTodayStatsQualityIcon.vue'
 import { useAccountTodayStatsDisplay } from './useAccountTodayStatsDisplay'
+import Icon from '@/components/icons/Icon.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -170,12 +180,11 @@ const rootClass = computed(() => [
   'flex select-none flex-col font-mono text-[11px] leading-none text-slate-700 dark:text-slate-200',
   isAiryVariant.value ? '' : 'gap-1.5',
   isAiryVariant.value
-    ? 'w-[136px] min-w-[104px] max-w-[152px]'
+    ? 'w-[168px] min-w-[148px] max-w-[184px]'
     : statColumns.value.length === 1
-      ? 'w-[104px] min-w-[104px] max-w-[120px]'
-      : 'w-[120px] min-w-[120px] max-w-[132px]',
+      ? 'w-[128px] min-w-[128px] max-w-[144px]'
+      : 'w-[156px] min-w-[148px] max-w-[168px]',
 ])
-const statsGridClass = computed(() => 'grid-cols-1')
 const showTodayQualityFooter = computed(() =>
   visibleWindows.value.includes('today'),
 )

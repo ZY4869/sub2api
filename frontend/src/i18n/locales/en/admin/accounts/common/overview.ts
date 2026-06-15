@@ -116,6 +116,16 @@ export default {
         expiresAt: "Expires At",
         actions: "Actions",
     },
+    keyUsage: {
+        keyAccountTooltip: "Key account · Platform: {platform} · Tier: {tier}",
+        requests: "Req",
+        tokens: "Tokens",
+        discountedCost: "Discounted",
+        standardCost: "Standard",
+        saved: "Saved",
+        unlimited: "Unlimited",
+        callQuota: "Callable quota",
+    },
     // Capacity status tooltips
     capacity: {
         windowCost: {

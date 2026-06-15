@@ -100,7 +100,7 @@ export default {
     priority: "优先级",
     priorityHint: "优先级越小的账号优先使用",
     billingRateMultiplier: "账号计费倍率",
-    billingRateMultiplierHint: "0 表示不计费，仅影响账号计费",
+    billingRateMultiplierHint: "按模型标准价格乘以此倍率计入账号成本；例如 0.08 表示按 8% 折扣调用，0 表示不计费。",
     expiresAt: "过期时间",
     expiresAtHint: "留空表示不过期",
     expirationEnabled: "启用过期",

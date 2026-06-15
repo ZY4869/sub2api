@@ -67,6 +67,7 @@ import {
 import type { Account } from '@/types'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import { resolveUsageWindowCapsuleClass } from '@/utils/accountUsageWindowDisplay'
 
 const props = defineProps<{
   account: Account
@@ -106,16 +107,6 @@ function formatResetValue(
 }
 
 function resetLabelClass(label: string): string {
-  const normalized = label.trim().toUpperCase()
-  if (normalized.includes('5H')) {
-    return 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-400/25 dark:bg-indigo-400/10 dark:text-indigo-100'
-  }
-  if (normalized.includes('30D')) {
-    return 'border-green-200 bg-green-50 text-green-700 dark:border-green-400/25 dark:bg-green-400/10 dark:text-green-100'
-  }
-  if (normalized.includes('7D')) {
-    return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-100'
-  }
-  return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+  return resolveUsageWindowCapsuleClass(label)
 }
 </script>

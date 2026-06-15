@@ -28,7 +28,20 @@ vi.mock('vue-i18n', async () => {
 })
 
 const DataTableStub = defineComponent({
-  props: ['data', 'columns', 'rowClass', 'rowStyle', 'virtualScroll', 'horizontalScrollbar'],
+  props: ['data', 'columns', 'rowClass', 'rowStyle', 'virtualScroll', 'horizontalScrollbar', 'cellSpan'],
+  methods: {
+    hasColumn(key: string) {
+      return ((this as any).columns || []).some((item: any) => item.key === key)
+    },
+    spanState(key: string) {
+      const columns = (this as any).columns || []
+      const column = columns.find((item: any) => item.key === key) || { key }
+      const index = columns.findIndex((item: any) => item.key === key)
+      const resolved = (this as any).cellSpan?.((this as any).data[0], column, index, columns)
+      if (typeof resolved === 'number') return { colspan: resolved, skip: false }
+      return { colspan: resolved?.colspan ?? 1, skip: resolved?.skip === true }
+    }
+  },
   template: `
     <div>
       <div class="data-table-virtual-scroll">{{ String(virtualScroll) }}</div>
@@ -43,9 +56,14 @@ const DataTableStub = defineComponent({
       <div class="cell-capacity"><slot name="cell-capacity" :row="data[0]" /></div>
       <div class="cell-select"><slot name="cell-select" :row="data[0]" /></div>
       <div class="cell-status"><slot name="cell-status" :row="data[0]" /></div>
-      <div class="cell-today-stats"><slot name="cell-today_stats" :row="data[0]" /></div>
-      <div class="cell-groups"><slot name="cell-groups" :row="data[0]" /></div>
-      <div class="cell-usage"><slot name="cell-usage" :row="data[0]" /></div>
+      <div
+        v-if="hasColumn('today_stats') && !spanState('today_stats').skip"
+        class="cell-today-stats"
+        :data-colspan="spanState('today_stats').colspan"
+      ><slot name="cell-today_stats" :row="data[0]" /></div>
+      <div v-if="hasColumn('groups')" class="cell-groups"><slot name="cell-groups" :row="data[0]" /></div>
+      <div v-if="hasColumn('usage') && !spanState('usage').skip" class="cell-usage"><slot name="cell-usage" :row="data[0]" /></div>
+      <div v-if="hasColumn('usage_reset_dates') && !spanState('usage_reset_dates').skip" class="cell-usage-reset"><slot name="cell-usage_reset_dates" :row="data[0]" /></div>
       <div class="cell-expires-at"><slot name="cell-expires_at" :row="data[0]" :value="data[0].expires_at" /></div>
       <div class="cell-actions"><slot name="cell-actions" :row="data[0]" /></div>
     </div>
@@ -121,15 +139,20 @@ function createAccount(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function mountTable(accountOverrides: Record<string, unknown> = {}, accountsOverride?: any[]) {
+function mountTable(accountOverrides: Record<string, unknown> = {}, accountsOverride?: any[], columnOverride?: any[]) {
   return mount(AccountsViewTable, {
     props: {
-      columns: [
+      columns: columnOverride ?? [
         { key: 'select', label: '' },
         { key: 'name', label: '名称' },
         { key: 'platform_type', label: '平台/类型' },
         { key: 'capacity', label: '容量' },
         { key: 'status', label: 'Status' },
+        { key: 'groups', label: 'Groups' },
+        { key: 'today_stats', label: 'Today' },
+        { key: 'usage', label: 'Usage' },
+        { key: 'usage_reset_dates', label: 'Reset' },
+        { key: 'expires_at', label: 'Expires' },
         { key: 'actions', label: 'Actions' }
       ],
       accounts: accountsOverride ?? [createAccount(accountOverrides)],
@@ -177,6 +200,10 @@ function mountTable(accountOverrides: Record<string, unknown> = {}, accountsOver
         AccountTodayStatsCell: {
           props: ['visibleWindows', 'visualVariant'],
           template: '<div class="today-stats-stub" :data-visible-windows="visibleWindows?.join(\',\')" :data-visual-variant="visualVariant" />'
+        },
+        AccountKeyUsageSummaryCell: {
+          props: ['account', 'stats', 'loading', 'error'],
+          template: '<div class="key-usage-summary-stub" :data-account-id="account.id" :data-loading="String(loading)" :data-error="error || \'\'">{{ stats?.requests ?? 0 }}</div>'
         },
         AccountGroupsCell: {
           props: ['groups', 'maxDisplay', 'visualVariant', 'displayMode'],
@@ -308,12 +335,14 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.status-visual-stub').attributes('data-visual-style')).toBe('airy')
     expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
     expect(wrapper.get('.status-visual-stub').attributes('data-display-mode')).toBe('detailed')
-    expect(wrapper.find('.usage-visual-stub').exists()).toBe(true)
-    expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('false')
+    expect(wrapper.find('.usage-visual-stub').exists()).toBe(false)
+    expect(wrapper.find('.cell-usage').exists()).toBe(false)
+    expect(wrapper.find('.cell-usage-reset').exists()).toBe(false)
+    expect(wrapper.get('.cell-today-stats').attributes('data-colspan')).toBe('3')
     expect(wrapper.get('.groups-stub').attributes('data-visual-variant')).toBe('airy')
     expect(wrapper.get('.groups-stub').attributes('data-display-mode')).toBe('full')
-    expect(wrapper.get('.today-stats-stub').attributes('data-visible-windows')).toBe('today,weekly,total')
-    expect(wrapper.get('.today-stats-stub').attributes('data-visual-variant')).toBe('airy')
+    expect(wrapper.get('.key-usage-summary-stub').attributes('data-account-id')).toBe('1')
+    expect(wrapper.find('.today-stats-stub').exists()).toBe(false)
     expect(wrapper.get('.cell-groups .account-airy-spaced-cell-groups').exists()).toBe(true)
     expect(wrapper.find('.airy-row-actions').exists()).toBe(true)
     expect(wrapper.find('.row-edit').exists()).toBe(false)
@@ -348,11 +377,11 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.row-style').text()).toContain('"--account-row-bg":"#FFFFFF"')
     expect(wrapper.get('.cell-capacity .capacity-stub').attributes('data-white-surface-enabled')).toBe('true')
     expect(wrapper.get('.status-visual-stub').attributes('data-white-surface-enabled')).toBe('true')
-    expect(wrapper.get('.usage-visual-stub').attributes('data-white-surface-enabled')).toBe('true')
+    expect(wrapper.find('.usage-visual-stub').exists()).toBe(false)
   })
 
   it('passes compact group and selected stats preferences to table cells', async () => {
-    const wrapper = mountTable()
+    const wrapper = mountTable({ type: 'oauth' })
 
     await wrapper.setProps({
       accountTodayStatsWindows: ['weekly', 'total'],
@@ -393,6 +422,7 @@ describe('AccountsViewTable', () => {
 
   it('falls back to classic visuals without airy row styles', async () => {
     const wrapper = mountTable({
+      type: 'oauth',
       extra: {
         email_address: 'owner@example.com'
       }
@@ -415,5 +445,39 @@ describe('AccountsViewTable', () => {
     expect(wrapper.find('.status-visual-stub').exists()).toBe(false)
     expect(wrapper.find('.cell-status .account-airy-spaced-cell-status').exists()).toBe(false)
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(false)
+  })
+
+  it('keeps non-Key accounts in separate today, usage and reset cells', () => {
+    const wrapper = mountTable({ type: 'oauth' })
+
+    expect(wrapper.get('.cell-today-stats').attributes('data-colspan')).toBe('1')
+    expect(wrapper.find('.today-stats-stub').exists()).toBe(true)
+    expect(wrapper.find('.key-usage-summary-stub').exists()).toBe(false)
+    expect(wrapper.find('.cell-usage').exists()).toBe(true)
+    expect(wrapper.find('.usage-visual-stub').exists()).toBe(true)
+    expect(wrapper.find('.cell-usage-reset').exists()).toBe(true)
+  })
+
+  it('does not skip usage cells for Key rows when today stats is hidden', () => {
+    const wrapper = mountTable(
+      {},
+      undefined,
+      [
+        { key: 'select', label: '' },
+        { key: 'name', label: '名称' },
+        { key: 'platform_type', label: '平台/类型' },
+        { key: 'capacity', label: '容量' },
+        { key: 'status', label: 'Status' },
+        { key: 'groups', label: 'Groups' },
+        { key: 'usage', label: 'Usage' },
+        { key: 'usage_reset_dates', label: 'Reset' },
+        { key: 'expires_at', label: 'Expires' },
+        { key: 'actions', label: 'Actions' },
+      ],
+    )
+
+    expect(wrapper.find('.cell-today-stats').exists()).toBe(false)
+    expect(wrapper.find('.cell-usage').exists()).toBe(true)
+    expect(wrapper.find('.cell-usage-reset').exists()).toBe(true)
   })
 })

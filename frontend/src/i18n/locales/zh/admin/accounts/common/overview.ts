@@ -117,6 +117,16 @@ export default {
         expiresAt: "过期时间",
         actions: "操作",
     },
+    keyUsage: {
+        keyAccountTooltip: "Key 账号 · 平台：{platform} · 等级：{tier}",
+        requests: "请求",
+        tokens: "Token",
+        discountedCost: "折扣价",
+        standardCost: "标准价",
+        saved: "节省",
+        unlimited: "不受限",
+        callQuota: "可调用额度",
+    },
     // 容量状态提示
     capacity: {
         windowCost: {

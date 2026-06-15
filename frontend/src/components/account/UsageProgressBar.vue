@@ -115,6 +115,7 @@ import {
   formatResetCountdown,
   parseEffectiveResetAt,
 } from "@/utils/usageResetTime";
+import { resolveUsageWindowCapsuleClass } from "@/utils/accountUsageWindowDisplay";
 
 const props = withDefaults(
   defineProps<{
@@ -141,6 +142,8 @@ const { formatTokenDisplay } = useTokenDisplayMode();
 const statsTooltipVisible = ref(false);
 
 const labelClass = computed(() => {
+  const capsuleClass = resolveUsageWindowCapsuleClass(props.label);
+  if (!capsuleClass.includes("slate")) return capsuleClass;
   const glassColors = {
     indigo:
       "border border-indigo-200/70 bg-indigo-50 text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-400/10 dark:text-indigo-100",

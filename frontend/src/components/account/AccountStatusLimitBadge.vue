@@ -33,6 +33,10 @@
 import { computed } from 'vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
+import {
+  resolveAccountUsageWindowKind,
+  resolveUsageWindowCapsuleClass,
+} from '@/utils/accountUsageWindowDisplay'
 
 const props = withDefaults(
   defineProps<{
@@ -64,6 +68,10 @@ const badgeBaseClass = computed(() => {
 })
 
 const toneClass = computed(() => {
+  const windowKind = resolveAccountUsageWindowKind(props.label)
+  if (windowKind !== 'other' && props.tone !== 'red') {
+    return resolveUsageWindowCapsuleClass(props.label)
+  }
   if (props.visualVariant === 'icon') {
     switch (props.tone) {
       case 'amber':

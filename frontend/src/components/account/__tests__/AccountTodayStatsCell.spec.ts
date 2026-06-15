@@ -10,6 +10,9 @@ vi.mock('vue-i18n', async () => {
       t: (key: string) => ({
         'admin.accounts.stats.requests': 'Req',
         'usage.accountBilled': 'Bill',
+        'admin.accounts.keyUsage.discountedCost': 'Discount',
+        'admin.accounts.keyUsage.standardCost': 'Standard',
+        'admin.accounts.keyUsage.saved': 'Saved',
         'admin.accounts.status.active': 'Active',
         'admin.accounts.status.window7d': '7d',
         'admin.accounts.stats.monthlyUsage': 'Month',
@@ -28,13 +31,13 @@ vi.mock('@/composables/useTokenDisplayMode', () => ({
 
 vi.mock('@/utils/format', () => ({
   formatNumber: (value: number) => String(value),
-  formatCurrency: (value: number) => `$${value.toFixed(2)}`,
 }))
 
 const statsFixture = {
   requests: 12,
   tokens: 345,
   cost: 1.2,
+  standard_cost: 2.4,
   success_rate: 91.4,
   average_duration_ms: 1450,
   weekly: {
@@ -55,7 +58,7 @@ const statsFixture = {
 } as any
 
 describe('AccountTodayStatsCell', () => {
-  it('keeps the default card stack layout for classic usage', () => {
+  it('renders classic usage as compact icon-prefixed rows without currency locale prefixes', () => {
     const wrapper = mount(AccountTodayStatsCell, {
       props: {
         stats: statsFixture,
@@ -63,18 +66,27 @@ describe('AccountTodayStatsCell', () => {
     })
 
     const compactText = wrapper.get('[data-testid="account-today-stats-cell"]').text().replace(/\s/g, '')
-    expect(compactText).toContain('Today12$1.20')
-    expect(compactText).toContain('7d78$8.90')
-    expect(compactText).toContain('Month150$16.50')
-    expect(compactText).toContain('Total999$42.00')
+    expect(compactText).toContain('12$1.20')
+    expect(compactText).toContain('78$8.90')
+    expect(compactText).toContain('150$16.50')
+    expect(compactText).toContain('999$42.00')
+    expect(wrapper.text()).not.toContain('US')
+    expect(wrapper.text()).not.toContain('Today')
+    expect(wrapper.findAll('[data-testid="account-today-stats-window-icon"]')).toHaveLength(4)
     expect(wrapper.text()).toContain('345T')
     expect(wrapper.text()).toContain('1.4s')
     expect(wrapper.text()).toContain('91.4%')
     expect(wrapper.find('.text-rose-600').exists()).toBe(true)
     expect(wrapper.find('[data-testid="account-today-stats-airy-panel"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="account-today-stats-cell"] .grid').classes()).toContain('grid-cols-1')
-    expect(wrapper.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-[120px]')
-    expect(wrapper.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[132px]')
+    expect(wrapper.find('[data-testid="account-today-stats-cell"] .grid').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-[156px]')
+    expect(wrapper.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[168px]')
+
+    const firstRow = wrapper.findAll('[data-testid="account-today-stats-row"]')[0]
+    expect(firstRow.attributes('title')).toContain('Discount: $1.20')
+    expect(firstRow.attributes('title')).toContain('Standard: $2.40')
+    expect(firstRow.attributes('title')).toContain('Saved: $1.20 (50%)')
+    expect(firstRow.findAll('span').at(-1)?.classes()).toContain('text-left')
   })
 
   it('renders the airy stats as one divided compact panel', () => {
@@ -88,20 +100,23 @@ describe('AccountTodayStatsCell', () => {
     const panel = wrapper.get('[data-testid="account-today-stats-airy-panel"]')
     const compactText = wrapper.get('[data-testid="account-today-stats-cell"]').text().replace(/\s/g, '')
 
-    expect(compactText).toContain('Today12$1.20')
-    expect(compactText).toContain('7d78$8.90')
-    expect(compactText).toContain('Month150$16.50')
-    expect(compactText).toContain('Total999$42.00')
+    expect(compactText).toContain('12$1.20')
+    expect(compactText).toContain('78$8.90')
+    expect(compactText).toContain('150$16.50')
+    expect(compactText).toContain('999$42.00')
+    expect(wrapper.text()).not.toContain('Today')
+    expect(wrapper.text()).not.toContain('US')
     expect(wrapper.text()).toContain('345T')
     expect(wrapper.text()).toContain('1.4s')
     expect(wrapper.text()).toContain('91.4%')
     expect(wrapper.find('.text-rose-600').exists()).toBe(true)
     expect(panel.classes()).toContain('divide-y')
     expect(wrapper.findAll('[data-testid="account-today-stats-row"]')).toHaveLength(4)
+    expect(wrapper.findAll('[data-testid="account-today-stats-window-icon"]')).toHaveLength(4)
     expect(panel.find('[data-testid="account-today-stats-footer"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="account-today-stats-cell"] .grid').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-[136px]')
-    expect(wrapper.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[152px]')
+    expect(wrapper.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-[168px]')
+    expect(wrapper.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[184px]')
   })
 
   it('renders selected stats windows and only shows quality footer when today is visible', () => {
@@ -114,12 +129,12 @@ describe('AccountTodayStatsCell', () => {
       },
     })
     expect(weeklyOnly.text()).not.toContain('Today')
-    expect(weeklyOnly.text()).toContain('7d')
+    expect(weeklyOnly.find('[data-testid="account-today-stats-window-icon"]').attributes('title')).toBe('7d')
     expect(weeklyOnly.text()).not.toContain('Total')
     expect(weeklyOnly.text()).not.toContain('345T')
-    expect(weeklyOnly.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-[104px]')
-    expect(weeklyOnly.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[120px]')
-    expect(weeklyOnly.get('[data-testid="account-today-stats-cell"] .grid').classes()).toContain('grid-cols-1')
+    expect(weeklyOnly.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-[128px]')
+    expect(weeklyOnly.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[144px]')
+    expect(weeklyOnly.find('[data-testid="account-today-stats-cell"] .grid').exists()).toBe(false)
 
     const todayAndTotal = mount(AccountTodayStatsCell, {
       props: {
@@ -127,13 +142,16 @@ describe('AccountTodayStatsCell', () => {
         visibleWindows: ['today', 'total'],
       },
     })
-    expect(todayAndTotal.text()).toContain('Today')
+    expect(todayAndTotal.text()).not.toContain('Today')
     expect(todayAndTotal.text()).not.toContain('7d')
-    expect(todayAndTotal.text()).toContain('Total')
+    const iconTitles = todayAndTotal
+      .findAll('[data-testid="account-today-stats-window-icon"]')
+      .map((icon) => icon.attributes('title'))
+    expect(iconTitles).toEqual(['Today', 'Total'])
     expect(todayAndTotal.text()).toContain('345T')
-    expect(todayAndTotal.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-[120px]')
-    expect(todayAndTotal.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[132px]')
-    expect(todayAndTotal.get('[data-testid="account-today-stats-cell"] .grid').classes()).toContain('grid-cols-1')
+    expect(todayAndTotal.get('[data-testid="account-today-stats-cell"]').classes()).toContain('w-[156px]')
+    expect(todayAndTotal.get('[data-testid="account-today-stats-cell"]').classes()).toContain('max-w-[168px]')
+    expect(todayAndTotal.find('[data-testid="account-today-stats-cell"] .grid').exists()).toBe(false)
   })
 
   it('renders selected airy windows and keeps footer tied to today visibility', () => {
@@ -147,7 +165,7 @@ describe('AccountTodayStatsCell', () => {
     })
 
     expect(weeklyOnly.text()).not.toContain('Today')
-    expect(weeklyOnly.text()).toContain('7d')
+    expect(weeklyOnly.find('[data-testid="account-today-stats-window-icon"]').attributes('title')).toBe('7d')
     expect(weeklyOnly.text()).not.toContain('Total')
     expect(weeklyOnly.text()).not.toContain('345T')
     expect(weeklyOnly.findAll('[data-testid="account-today-stats-row"]')).toHaveLength(1)
@@ -161,9 +179,12 @@ describe('AccountTodayStatsCell', () => {
       },
     })
 
-    expect(todayAndTotal.text()).toContain('Today')
+    expect(todayAndTotal.text()).not.toContain('Today')
     expect(todayAndTotal.text()).not.toContain('7d')
-    expect(todayAndTotal.text()).toContain('Total')
+    const iconTitles = todayAndTotal
+      .findAll('[data-testid="account-today-stats-window-icon"]')
+      .map((icon) => icon.attributes('title'))
+    expect(iconTitles).toEqual(['Today', 'Total'])
     expect(todayAndTotal.text()).toContain('345T')
     expect(todayAndTotal.findAll('[data-testid="account-today-stats-row"]')).toHaveLength(2)
     expect(todayAndTotal.get('[data-testid="account-today-stats-footer"]').exists()).toBe(true)

@@ -2,7 +2,15 @@
   <div class="inline-flex flex-col gap-0.5 text-xs font-medium">
     <!-- Row 1: Platform + Type -->
     <div class="inline-flex items-center overflow-hidden rounded-md">
-      <span :class="['inline-flex items-center gap-1 px-2 py-1', platformClass]">
+      <span
+        v-if="isApiKeyAccount"
+        :class="['inline-flex items-center gap-1 px-2 py-1', keyTierDisplay.className]"
+        :title="keyAccountTitle"
+      >
+        <Icon name="key" size="xs" />
+        <span>{{ keyTierDisplay.primaryLabel }}</span>
+      </span>
+      <span v-else :class="['inline-flex items-center gap-1 px-2 py-1', platformClass]">
         <PlatformIcon :platform="platform" size="xs" />
         <span>{{ platformLabel }}</span>
       </span>
@@ -25,8 +33,9 @@
         <!-- Setup Token icon -->
         <Icon v-else-if="type === 'setup-token'" name="shield" size="xs" />
         <!-- API Key icon -->
-        <Icon v-else name="key" size="xs" />
-        <span>{{ typeLabel }}</span>
+        <Icon v-else-if="!isApiKeyAccount" name="key" size="xs" />
+        <PlatformIcon v-if="isApiKeyAccount" :platform="platform" size="xs" />
+        <span>{{ isApiKeyAccount ? platformLabel : typeLabel }}</span>
       </span>
     </div>
     <!-- Row 2: Gateway protocol + Plan type + Privacy mode -->
@@ -40,7 +49,10 @@
       >
         <span>{{ gatewayProtocolBadge.label }}</span>
       </span>
-      <span v-if="planLabel" :class="['inline-flex items-center gap-1 px-1.5 py-1', typeClass]">
+      <span
+        v-if="planLabel"
+        :class="['inline-flex items-center gap-1 px-1.5 py-1', isApiKeyAccount ? keyTierDisplay.className : typeClass]"
+      >
         <span>{{ planLabel }}</span>
       </span>
       <span
@@ -72,6 +84,7 @@ import {
   isProtocolGatewayPlatform,
   resolveGatewayProtocolLabel
 } from '@/utils/accountProtocolGateway'
+import { resolveAccountKeyTierDisplay } from '@/utils/accountKeyTierDisplay'
 import PlatformIcon from './PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 
@@ -84,6 +97,7 @@ interface Props {
   planType?: string
   planTypeLabel?: string
   proMultiplier?: number | null
+  extra?: Record<string, unknown>
   privacyMode?: string
   subscriptionExpiresAt?: string
 }
@@ -93,6 +107,28 @@ const props = defineProps<Props>()
 const platformLabel = computed(() => {
   return t(`admin.accounts.platforms.${props.platform}`)
 })
+
+const isApiKeyAccount = computed(() => props.type === 'apikey')
+
+const keyTierDisplay = computed(() =>
+  resolveAccountKeyTierDisplay({
+    platform: props.platform,
+    type: props.type,
+    credentials: {
+      plan_type: props.planType,
+      plan_type_label: props.planTypeLabel,
+      pro_multiplier: props.proMultiplier,
+    },
+    extra: props.extra,
+  })
+)
+
+const keyAccountTitle = computed(() =>
+  t('admin.accounts.keyUsage.keyAccountTooltip', {
+    platform: platformLabel.value,
+    tier: keyTierDisplay.value.tierLabel || '-',
+  })
+)
 
 const gatewayProtocolBadge = computed(() => {
   if (!isProtocolGatewayPlatform(props.platform)) return null
@@ -134,6 +170,7 @@ const typeLabel = computed(() => {
 })
 
 const planLabel = computed(() => {
+  if (isApiKeyAccount.value) return keyTierDisplay.value.tierLabel
   const lower = String(props.planType || '').trim().toLowerCase()
   if (lower === 'pro' || lower === 'chatgptpro') {
     return typeof props.proMultiplier === 'number' && props.proMultiplier > 0

@@ -146,6 +146,34 @@ describe('AccountUsageResetCell', () => {
     expect(text).toContain('Today 16:00:00')
   })
 
+  it('treats 31D reset labels as monthly green capsules', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00'))
+
+    const wrapper = mount(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3006,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_7d_used_percent: 24,
+            codex_7d_window_minutes: 44640,
+            codex_7d_reset_at: '2026-03-20T01:09:00',
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('31D')
+    const label = wrapper.get('[data-testid="account-usage-reset-window-label"]')
+    expect(label.classes()).toContain('bg-green-50')
+    expect(label.classes()).not.toContain('bg-orange-50')
+  })
+
   it('updates day labels when the shared clock crosses midnight', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T23:59:00'))
