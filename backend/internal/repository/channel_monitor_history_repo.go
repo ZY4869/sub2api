@@ -31,6 +31,9 @@ func (r *channelMonitorHistoryRepository) Create(ctx context.Context, history *s
 	row := r.db.QueryRowContext(ctx, `
 INSERT INTO channel_monitor_histories (
 	monitor_id,
+	account_id,
+	account_name_snapshot,
+	probe_mode,
 	model_id,
 	status,
 	response_text,
@@ -41,12 +44,15 @@ INSERT INTO channel_monitor_histories (
 	finished_at,
 	created_at
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
 RETURNING
 	id,
 	created_at
 `,
 		history.MonitorID,
+		nullableHistoryAccountID(history.AccountID),
+		history.AccountNameSnapshot,
+		normalizeHistoryProbeMode(history.ProbeMode),
 		history.ModelID,
 		history.Status,
 		history.ResponseText,
@@ -70,6 +76,9 @@ func (r *channelMonitorHistoryRepository) ListByMonitorID(ctx context.Context, m
 SELECT
 	id,
 	monitor_id,
+	account_id,
+	account_name_snapshot,
+	COALESCE(probe_mode, 'direct'),
 	model_id,
 	status,
 	response_text,
@@ -99,6 +108,9 @@ func (r *channelMonitorHistoryRepository) ListLatestByMonitorIDs(ctx context.Con
 SELECT DISTINCT ON (monitor_id, model_id)
 	id,
 	monitor_id,
+	account_id,
+	account_name_snapshot,
+	COALESCE(probe_mode, 'direct'),
 	model_id,
 	status,
 	response_text,
@@ -130,6 +142,9 @@ func (r *channelMonitorHistoryRepository) ListPrimaryTimelineByMonitorIDs(ctx co
 SELECT
 	id,
 	monitor_id,
+	account_id,
+	account_name_snapshot,
+	COALESCE(probe_mode, 'direct'),
 	model_id,
 	status,
 	response_text,
@@ -164,6 +179,9 @@ func (r *channelMonitorHistoryRepository) ListLatestByMonitorID(ctx context.Cont
 SELECT DISTINCT ON (model_id)
 	id,
 	monitor_id,
+	account_id,
+	account_name_snapshot,
+	COALESCE(probe_mode, 'direct'),
 	model_id,
 	status,
 	response_text,
@@ -192,6 +210,9 @@ func (r *channelMonitorHistoryRepository) ListForAggregation(ctx context.Context
 SELECT
 	id,
 	monitor_id,
+	account_id,
+	account_name_snapshot,
+	COALESCE(probe_mode, 'direct'),
 	model_id,
 	status,
 	response_text,
@@ -233,9 +254,13 @@ func scanChannelMonitorHistoryRows(rows *sql.Rows) ([]*service.ChannelMonitorHis
 	for rows.Next() {
 		h := &service.ChannelMonitorHistory{}
 		var httpStatus sql.NullInt64
+		var accountID sql.NullInt64
 		if err := rows.Scan(
 			&h.ID,
 			&h.MonitorID,
+			&accountID,
+			&h.AccountNameSnapshot,
+			&h.ProbeMode,
 			&h.ModelID,
 			&h.Status,
 			&h.ResponseText,
@@ -252,9 +277,29 @@ func scanChannelMonitorHistoryRows(rows *sql.Rows) ([]*service.ChannelMonitorHis
 			v := int(httpStatus.Int64)
 			h.HTTPStatus = &v
 		}
+		if accountID.Valid && accountID.Int64 > 0 {
+			v := accountID.Int64
+			h.AccountID = &v
+		}
 		out = append(out, h)
 	}
 	return out, rows.Err()
+}
+
+func nullableHistoryAccountID(v *int64) any {
+	if v == nil || *v <= 0 {
+		return nil
+	}
+	return *v
+}
+
+func normalizeHistoryProbeMode(mode string) string {
+	switch mode {
+	case service.ChannelMonitorProbeModeAccountPool:
+		return service.ChannelMonitorProbeModeAccountPool
+	default:
+		return service.ChannelMonitorProbeModeDirect
+	}
 }
 
 func nullInt64Value(v sql.NullInt64) any {

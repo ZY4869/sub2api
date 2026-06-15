@@ -6,16 +6,25 @@ import { apiClient } from '../client'
 
 export type ChannelMonitorBodyOverrideMode = 'off' | 'merge' | 'replace'
 export type ChannelMonitorOpenAIAPIMode = 'chat_completions' | 'responses'
+export type ChannelMonitorProbeMode = 'direct' | 'account_pool'
+export type ChannelMonitorRequestProtocol = 'openai' | 'anthropic' | 'gemini'
+export type ChannelMonitorModelProbeStrategy = 'primary_only' | 'all_selected'
 
 export interface AdminChannelMonitor {
   id: number
   name: string
   provider: string
+  probe_mode: ChannelMonitorProbeMode | string
+  request_protocol: ChannelMonitorRequestProtocol | string
   endpoint: string
   interval_seconds: number
   enabled: boolean
+  account_ids: number[]
   primary_model_id: string
   additional_model_ids: string[]
+  model_source_protocols?: Record<string, ChannelMonitorRequestProtocol | string>
+  model_probe_strategy: ChannelMonitorModelProbeStrategy | string
+  test_prompt_template: string
   template_id?: number
   extra_headers: Record<string, string>
   body_override_mode: ChannelMonitorBodyOverrideMode | string
@@ -30,6 +39,9 @@ export interface AdminChannelMonitor {
 export interface AdminChannelMonitorHistory {
   id: number
   monitor_id: number
+  account_id?: number
+  account_name_snapshot?: string
+  probe_mode?: ChannelMonitorProbeMode | string
   model_id: string
   status: string
   response_text: string
@@ -45,11 +57,13 @@ export interface AdminChannelMonitorTemplate {
   id: number
   name: string
   provider: string
+  request_protocol: ChannelMonitorRequestProtocol | string
   description?: string
   extra_headers: Record<string, string>
   body_override_mode: ChannelMonitorBodyOverrideMode | string
   body_override: Record<string, any>
   openai_api_mode: ChannelMonitorOpenAIAPIMode | string
+  test_prompt_template: string
   created_at: string
   updated_at: string
 }
@@ -57,28 +71,42 @@ export interface AdminChannelMonitorTemplate {
 export interface CreateChannelMonitorRequest {
   name: string
   provider: string
-  endpoint: string
+  probe_mode?: ChannelMonitorProbeMode
+  request_protocol?: ChannelMonitorRequestProtocol
+  endpoint?: string
   api_key?: string
   interval_seconds?: number
   enabled?: boolean
+  account_ids?: number[]
   primary_model_id: string
   additional_model_ids?: string[]
+  model_source_protocols?: Record<string, ChannelMonitorRequestProtocol | string>
+  model_probe_strategy?: ChannelMonitorModelProbeStrategy
+  test_prompt_template?: string
   template_id?: number | null
   extra_headers?: Record<string, string>
   body_override_mode?: ChannelMonitorBodyOverrideMode
   body_override?: Record<string, any>
   openai_api_mode?: ChannelMonitorOpenAIAPIMode
+  save_as_template?: boolean
+  template_name?: string
 }
 
 export interface UpdateChannelMonitorRequest {
   name?: string
   provider?: string
+  probe_mode?: ChannelMonitorProbeMode
+  request_protocol?: ChannelMonitorRequestProtocol
   endpoint?: string
   api_key?: string | null
   interval_seconds?: number
   enabled?: boolean
+  account_ids?: number[]
   primary_model_id?: string
   additional_model_ids?: string[]
+  model_source_protocols?: Record<string, ChannelMonitorRequestProtocol | string>
+  model_probe_strategy?: ChannelMonitorModelProbeStrategy
+  test_prompt_template?: string
   template_id?: number | null
   extra_headers?: Record<string, string>
   body_override_mode?: ChannelMonitorBodyOverrideMode
@@ -89,21 +117,25 @@ export interface UpdateChannelMonitorRequest {
 export interface CreateChannelMonitorTemplateRequest {
   name: string
   provider: string
+  request_protocol?: ChannelMonitorRequestProtocol
   description?: string | null
   extra_headers?: Record<string, string>
   body_override_mode?: ChannelMonitorBodyOverrideMode
   body_override?: Record<string, any>
   openai_api_mode?: ChannelMonitorOpenAIAPIMode
+  test_prompt_template?: string
 }
 
 export interface UpdateChannelMonitorTemplateRequest {
   name?: string
   provider?: string
+  request_protocol?: ChannelMonitorRequestProtocol
   description?: string | null
   extra_headers?: Record<string, string>
   body_override_mode?: ChannelMonitorBodyOverrideMode
   body_override?: Record<string, any>
   openai_api_mode?: ChannelMonitorOpenAIAPIMode
+  test_prompt_template?: string
 }
 
 export async function listMonitors(): Promise<AdminChannelMonitor[]> {

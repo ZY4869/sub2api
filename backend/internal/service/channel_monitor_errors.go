@@ -12,6 +12,10 @@ var (
 	ErrChannelMonitorTemplateAlreadyExists = infraerrors.Conflict("CHANNEL_MONITOR_TEMPLATE_ALREADY_EXISTS", "channel monitor template already exists")
 
 	ErrChannelMonitorInvalidProvider      = infraerrors.BadRequest("CHANNEL_MONITOR_INVALID_PROVIDER", "invalid provider")
+	ErrChannelMonitorInvalidProbeMode     = infraerrors.BadRequest("CHANNEL_MONITOR_PROBE_MODE_INVALID", "invalid probe mode")
+	ErrChannelMonitorInvalidProtocol      = infraerrors.BadRequest("CHANNEL_MONITOR_REQUEST_PROTOCOL_INVALID", "invalid request protocol")
+	ErrChannelMonitorInvalidStrategy      = infraerrors.BadRequest("CHANNEL_MONITOR_MODEL_PROBE_STRATEGY_INVALID", "invalid model probe strategy")
+	ErrChannelMonitorAccountRequired      = infraerrors.BadRequest("CHANNEL_MONITOR_ACCOUNT_REQUIRED", "account_ids is required")
 	ErrChannelMonitorInvalidEndpoint      = infraerrors.BadRequest("CHANNEL_MONITOR_INVALID_ENDPOINT", "invalid endpoint")
 	ErrChannelMonitorEndpointNotAllowed   = infraerrors.BadRequest("CHANNEL_MONITOR_ENDPOINT_NOT_ALLOWED", "endpoint is not allowed")
 	ErrChannelMonitorInvalidInterval      = infraerrors.BadRequest("CHANNEL_MONITOR_INVALID_INTERVAL", "invalid interval")

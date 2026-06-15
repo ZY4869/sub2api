@@ -65,10 +65,14 @@ func normalizeChannelMonitor(m *ChannelMonitor) (*ChannelMonitor, error) {
 	out := *m
 	out.Name = strings.TrimSpace(out.Name)
 	out.Provider = strings.TrimSpace(strings.ToLower(out.Provider))
+	out.ProbeMode = strings.TrimSpace(strings.ToLower(out.ProbeMode))
+	out.RequestProtocol = strings.TrimSpace(strings.ToLower(out.RequestProtocol))
 	out.Endpoint = strings.TrimSpace(out.Endpoint)
 	out.PrimaryModelID = strings.TrimSpace(out.PrimaryModelID)
+	out.ModelProbeStrategy = strings.TrimSpace(strings.ToLower(out.ModelProbeStrategy))
+	out.TestPromptTemplate = strings.TrimSpace(out.TestPromptTemplate)
 	out.BodyOverrideMode = strings.TrimSpace(strings.ToLower(out.BodyOverrideMode))
-	out.OpenAIAPIMode = normalizeChannelMonitorOpenAIAPIMode(out.Provider, out.OpenAIAPIMode)
+	out.OpenAIAPIMode = strings.TrimSpace(strings.ToLower(out.OpenAIAPIMode))
 
 	if out.Name == "" || len(out.Name) > 100 {
 		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_NAME_INVALID", "invalid name")
@@ -76,6 +80,19 @@ func normalizeChannelMonitor(m *ChannelMonitor) (*ChannelMonitor, error) {
 	if !isValidChannelMonitorProvider(out.Provider) {
 		return nil, ErrChannelMonitorInvalidProvider
 	}
+	if out.ProbeMode == "" {
+		out.ProbeMode = ChannelMonitorProbeModeDirect
+	}
+	if !isValidChannelMonitorProbeMode(out.ProbeMode) {
+		return nil, ErrChannelMonitorInvalidProbeMode
+	}
+	if out.RequestProtocol == "" {
+		out.RequestProtocol = inferChannelMonitorRequestProtocol(out.Provider)
+	}
+	if !isValidChannelMonitorRequestProtocol(out.RequestProtocol) {
+		return nil, ErrChannelMonitorInvalidProtocol
+	}
+	out.OpenAIAPIMode = normalizeChannelMonitorOpenAIAPIMode(out.RequestProtocol, out.OpenAIAPIMode)
 
 	if out.IntervalSeconds < channelMonitorMinIntervalSeconds || out.IntervalSeconds > channelMonitorMaxIntervalSeconds {
 		return nil, ErrChannelMonitorInvalidInterval
@@ -91,8 +108,31 @@ func normalizeChannelMonitor(m *ChannelMonitor) (*ChannelMonitor, error) {
 	if !isValidChannelMonitorBodyOverrideMode(out.BodyOverrideMode) {
 		return nil, ErrChannelMonitorInvalidOverrideMode
 	}
-	if !isValidChannelMonitorOpenAIAPIMode(out.Provider, out.OpenAIAPIMode) {
+	if !isValidChannelMonitorOpenAIAPIMode(out.RequestProtocol, out.OpenAIAPIMode) {
 		return nil, ErrChannelMonitorInvalidOpenAIAPIMode
+	}
+
+	out.AccountIDs = normalizeAccountIDList(out.AccountIDs)
+	if out.ProbeMode == ChannelMonitorProbeModeAccountPool && len(out.AccountIDs) == 0 {
+		return nil, ErrChannelMonitorAccountRequired
+	}
+	if out.ProbeMode != ChannelMonitorProbeModeAccountPool {
+		out.AccountIDs = nil
+	}
+	if out.ModelProbeStrategy == "" {
+		if out.ProbeMode == ChannelMonitorProbeModeAccountPool {
+			out.ModelProbeStrategy = ChannelMonitorModelProbeStrategyPrimaryOnly
+		} else {
+			out.ModelProbeStrategy = ChannelMonitorModelProbeStrategyAllSelected
+		}
+	}
+	if !isValidChannelMonitorModelProbeStrategy(out.ModelProbeStrategy) {
+		return nil, ErrChannelMonitorInvalidStrategy
+	}
+
+	out.ModelSourceProtocols = normalizeModelSourceProtocols(out.ModelSourceProtocols, append([]string{out.PrimaryModelID}, out.AdditionalModelIDs...))
+	if out.ProbeMode != ChannelMonitorProbeModeAccountPool {
+		out.ModelSourceProtocols = map[string]string{}
 	}
 
 	out.ExtraHeaders = normalizeChannelMonitorHeaders(out.ExtraHeaders)
@@ -103,6 +143,26 @@ func normalizeChannelMonitor(m *ChannelMonitor) (*ChannelMonitor, error) {
 
 	out.AdditionalModelIDs = normalizeModelIDList(out.AdditionalModelIDs, out.PrimaryModelID)
 	return &out, nil
+}
+
+func normalizeAccountIDList(values []int64) []int64 {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[int64]struct{}{}
+	out := make([]int64, 0, len(values))
+	for _, v := range values {
+		if v <= 0 {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }
 
 func normalizeModelIDList(values []string, primary string) []string {
@@ -120,6 +180,35 @@ func normalizeModelIDList(values []string, primary string) []string {
 		out = append(out, v)
 	}
 	sort.Strings(out)
+	return out
+}
+
+func normalizeModelSourceProtocols(values map[string]string, models []string) map[string]string {
+	if len(values) == 0 || len(models) == 0 {
+		return map[string]string{}
+	}
+	allowedModels := map[string]struct{}{}
+	for _, raw := range models {
+		model := strings.TrimSpace(raw)
+		if model != "" {
+			allowedModels[model] = struct{}{}
+		}
+	}
+	out := map[string]string{}
+	for rawModel, rawProtocol := range values {
+		model := strings.TrimSpace(rawModel)
+		protocol := strings.TrimSpace(strings.ToLower(rawProtocol))
+		if model == "" {
+			continue
+		}
+		if _, ok := allowedModels[model]; !ok {
+			continue
+		}
+		if !isValidChannelMonitorRequestProtocol(protocol) {
+			continue
+		}
+		out[model] = protocol
+	}
 	return out
 }
 
@@ -149,11 +238,66 @@ func isValidChannelMonitorProvider(provider string) bool {
 	case ChannelMonitorProviderOpenAI,
 		ChannelMonitorProviderAnthropic,
 		ChannelMonitorProviderGemini,
+		ChannelMonitorProviderGoogle,
 		ChannelMonitorProviderGrok,
-		ChannelMonitorProviderAntigravity:
+		ChannelMonitorProviderXAI,
+		ChannelMonitorProviderAntigravity,
+		ChannelMonitorProviderDeepSeek,
+		ChannelMonitorProviderOpenRouter,
+		ChannelMonitorProviderQwen,
+		ChannelMonitorProviderAlibaba,
+		ChannelMonitorProviderDoubao,
+		ChannelMonitorProviderByteDance,
+		ChannelMonitorProviderMoonshot,
+		ChannelMonitorProviderKimi,
+		ChannelMonitorProviderZhipu,
+		ChannelMonitorProviderMistral,
+		ChannelMonitorProviderCohere,
+		ChannelMonitorProviderPerplexity:
 		return true
 	default:
 		return false
+	}
+}
+
+func isValidChannelMonitorProbeMode(mode string) bool {
+	switch mode {
+	case ChannelMonitorProbeModeDirect, ChannelMonitorProbeModeAccountPool:
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidChannelMonitorRequestProtocol(protocol string) bool {
+	switch protocol {
+	case ChannelMonitorRequestProtocolOpenAI,
+		ChannelMonitorRequestProtocolAnthropic,
+		ChannelMonitorRequestProtocolGemini:
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidChannelMonitorModelProbeStrategy(strategy string) bool {
+	switch strategy {
+	case ChannelMonitorModelProbeStrategyPrimaryOnly,
+		ChannelMonitorModelProbeStrategyAllSelected:
+		return true
+	default:
+		return false
+	}
+}
+
+func inferChannelMonitorRequestProtocol(provider string) string {
+	switch strings.TrimSpace(strings.ToLower(provider)) {
+	case ChannelMonitorProviderAnthropic, ChannelMonitorProviderAntigravity:
+		return ChannelMonitorRequestProtocolAnthropic
+	case ChannelMonitorProviderGemini, ChannelMonitorProviderGoogle:
+		return ChannelMonitorRequestProtocolGemini
+	default:
+		return ChannelMonitorRequestProtocolOpenAI
 	}
 }
 
@@ -168,8 +312,8 @@ func isValidChannelMonitorBodyOverrideMode(mode string) bool {
 	}
 }
 
-func normalizeChannelMonitorOpenAIAPIMode(provider string, mode string) string {
-	if strings.TrimSpace(strings.ToLower(provider)) != ChannelMonitorProviderOpenAI {
+func normalizeChannelMonitorOpenAIAPIMode(protocol string, mode string) string {
+	if strings.TrimSpace(strings.ToLower(protocol)) != ChannelMonitorRequestProtocolOpenAI {
 		return ChannelMonitorOpenAIAPIModeChatCompletions
 	}
 	v := strings.TrimSpace(strings.ToLower(mode))
@@ -179,8 +323,8 @@ func normalizeChannelMonitorOpenAIAPIMode(provider string, mode string) string {
 	return v
 }
 
-func isValidChannelMonitorOpenAIAPIMode(provider string, mode string) bool {
-	if strings.TrimSpace(strings.ToLower(provider)) != ChannelMonitorProviderOpenAI {
+func isValidChannelMonitorOpenAIAPIMode(protocol string, mode string) bool {
+	if strings.TrimSpace(strings.ToLower(protocol)) != ChannelMonitorRequestProtocolOpenAI {
 		return mode == "" || mode == ChannelMonitorOpenAIAPIModeChatCompletions
 	}
 	switch mode {

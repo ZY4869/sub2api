@@ -15,10 +15,22 @@
 
         <div>
           <label class="input-label">{{ t('admin.channelMonitors.templateFields.provider') }} <span class="text-red-500">*</span></label>
-          <Select v-model="form.provider" :options="providerOptions" />
+          <Select v-model="form.provider" :options="providerOptions" searchable>
+            <template #selected="{ option }">
+              <ChannelMonitorProviderOption :option="option || undefined" />
+            </template>
+            <template #option="{ option }">
+              <ChannelMonitorProviderOption :option="option || undefined" />
+            </template>
+          </Select>
         </div>
 
-        <div v-if="form.provider === 'openai'">
+        <div>
+          <label class="input-label">{{ t('admin.channelMonitors.fields.requestProtocol') }}</label>
+          <Select v-model="form.request_protocol" :options="requestProtocolOptions" />
+        </div>
+
+        <div v-if="form.request_protocol === 'openai'">
           <label class="input-label">{{ t('admin.channelMonitors.fields.openaiApiMode') }}</label>
           <Select v-model="form.openai_api_mode" :options="openAIApiModeOptions" />
         </div>
@@ -27,6 +39,19 @@
           <label class="input-label">{{ t('admin.channelMonitors.templateFields.description') }}</label>
           <input v-model="form.description" type="text" class="input" />
         </div>
+      </div>
+
+      <div>
+        <label class="input-label">{{ t('admin.channelMonitors.fields.testPromptTemplate') }}</label>
+        <textarea
+          v-model="form.test_prompt_template"
+          rows="3"
+          class="input"
+          :placeholder="t('admin.channelMonitors.fields.testPromptTemplatePlaceholder')"
+        ></textarea>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.channelMonitors.fields.testPromptTemplateHint') }}
+        </p>
       </div>
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -69,6 +94,7 @@ import { adminAPI } from '@/api/admin'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Select from '@/components/common/Select.vue'
+import ChannelMonitorProviderOption from './ChannelMonitorProviderOption.vue'
 import type {
   AdminChannelMonitorTemplate,
   ChannelMonitorBodyOverrideMode,
@@ -76,6 +102,17 @@ import type {
   CreateChannelMonitorTemplateRequest,
   UpdateChannelMonitorTemplateRequest
 } from '@/api/admin/channelMonitors'
+import {
+  getChannelMonitorBodyOverrideModeOptions,
+  getChannelMonitorProviderOptions,
+  getChannelMonitorRequestProtocolOptions
+} from '@/utils/channelMonitorPresentation'
+import {
+  inferChannelMonitorProtocol,
+  parseHeaderRecord,
+  parseJsonRecord,
+  resolveChannelMonitorSaveErrorMessage
+} from './channelMonitorFormHelpers'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -96,7 +133,9 @@ const submitting = ref(false)
 const form = reactive({
   name: '',
   provider: 'openai',
+  request_protocol: 'openai' as 'openai' | 'anthropic' | 'gemini',
   description: '',
+  test_prompt_template: '',
   body_override_mode: 'off' as ChannelMonitorBodyOverrideMode,
   openai_api_mode: 'chat_completions' as ChannelMonitorOpenAIAPIMode
 })
@@ -110,56 +149,22 @@ const dialogTitle = computed(() =>
     : t('admin.channelMonitors.actions.createTemplate')
 )
 
-const providerOptions = computed(() => [
-  { value: 'openai', label: 'openai' },
-  { value: 'anthropic', label: 'anthropic' },
-  { value: 'gemini', label: 'gemini' },
-  { value: 'grok', label: 'grok' },
-  { value: 'antigravity', label: 'antigravity' }
-])
+const providerOptions = computed(() => getChannelMonitorProviderOptions())
+const requestProtocolOptions = computed(() => getChannelMonitorRequestProtocolOptions())
 
-const bodyOverrideModeOptions = computed(() => [
-  { value: 'off', label: 'off' },
-  { value: 'merge', label: 'merge' },
-  { value: 'replace', label: 'replace' }
-])
+const bodyOverrideModeOptions = computed(() => getChannelMonitorBodyOverrideModeOptions())
 
 const openAIApiModeOptions = computed(() => [
   { value: 'chat_completions', label: 'Chat Completions' },
   { value: 'responses', label: 'Responses' }
 ])
 
-function parseJsonRecord(text: string, fallback: Record<string, any> = {}): Record<string, any> {
-  const trimmed = String(text || '').trim()
-  if (!trimmed) return fallback
-  const parsed = JSON.parse(trimmed)
-  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-    return parsed as Record<string, any>
-  }
-  throw new Error('invalid_json_object')
-}
-
-function parseHeaderRecord(text: string): Record<string, string> {
-  const record = parseJsonRecord(text, {})
-  for (const value of Object.values(record)) {
-    if (typeof value !== 'string') {
-      throw new Error('invalid_header_value')
-    }
-  }
-  return record as Record<string, string>
-}
-
-function resolveSaveErrorMessage(err: any): string {
-  return err?.response?.data?.detail ||
-    err?.response?.data?.message ||
-    err?.message ||
-    t('admin.channelMonitors.messages.saveFailed')
-}
-
 function resetForm() {
   form.name = ''
   form.provider = 'openai'
+  form.request_protocol = 'openai'
   form.description = ''
+  form.test_prompt_template = ''
   form.body_override_mode = 'off'
   form.openai_api_mode = 'chat_completions'
   extraHeadersText.value = '{}'
@@ -169,7 +174,9 @@ function resetForm() {
 function hydrateFromTemplate(tpl: AdminChannelMonitorTemplate) {
   form.name = tpl.name
   form.provider = tpl.provider
+  form.request_protocol = (tpl.request_protocol || inferChannelMonitorProtocol(tpl.provider)) as 'openai' | 'anthropic' | 'gemini'
   form.description = tpl.description || ''
+  form.test_prompt_template = tpl.test_prompt_template || ''
   form.body_override_mode = (tpl.body_override_mode || 'off') as ChannelMonitorBodyOverrideMode
   form.openai_api_mode = (tpl.openai_api_mode || 'chat_completions') as ChannelMonitorOpenAIAPIMode
   extraHeadersText.value = JSON.stringify(tpl.extra_headers || {}, null, 2)
@@ -187,6 +194,15 @@ watch(
     hydrateFromTemplate(tpl)
   },
   { immediate: true }
+)
+
+watch(
+  () => form.provider,
+  (provider, previous) => {
+    if (!previous || form.request_protocol === inferChannelMonitorProtocol(previous)) {
+      form.request_protocol = inferChannelMonitorProtocol(provider)
+    }
+  }
 )
 
 async function handleSubmit() {
@@ -219,14 +235,16 @@ async function handleSubmit() {
     return
   }
 
-  const openAIApiMode = form.provider === 'openai' ? form.openai_api_mode : 'chat_completions'
+  const openAIApiMode = form.request_protocol === 'openai' ? form.openai_api_mode : 'chat_completions'
   submitting.value = true
   try {
     if (!isEditMode.value) {
       const payload: CreateChannelMonitorTemplateRequest = {
         name: form.name.trim(),
         provider: form.provider,
+        request_protocol: form.request_protocol,
         description: form.description.trim() || null,
+        test_prompt_template: form.test_prompt_template.trim(),
         extra_headers: extraHeaders,
         body_override_mode: form.body_override_mode,
         body_override: bodyOverride,
@@ -242,7 +260,9 @@ async function handleSubmit() {
     const payload: UpdateChannelMonitorTemplateRequest = {
       name: form.name.trim(),
       provider: form.provider,
+      request_protocol: form.request_protocol,
       description: form.description.trim() || null,
+      test_prompt_template: form.test_prompt_template.trim(),
       extra_headers: extraHeaders,
       body_override_mode: form.body_override_mode,
       body_override: bodyOverride,
@@ -253,7 +273,7 @@ async function handleSubmit() {
     appStore.showSuccess(t('admin.channelMonitors.messages.saved'))
     emit('saved')
   } catch (err: any) {
-    appStore.showError(resolveSaveErrorMessage(err))
+    appStore.showError(resolveChannelMonitorSaveErrorMessage(err, t('admin.channelMonitors.messages.saveFailed')))
   } finally {
     submitting.value = false
   }

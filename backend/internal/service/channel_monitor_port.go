@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -9,8 +10,38 @@ const (
 	ChannelMonitorProviderOpenAI      = "openai"
 	ChannelMonitorProviderAnthropic   = "anthropic"
 	ChannelMonitorProviderGemini      = "gemini"
+	ChannelMonitorProviderGoogle      = "google"
 	ChannelMonitorProviderGrok        = "grok"
+	ChannelMonitorProviderXAI         = "xai"
 	ChannelMonitorProviderAntigravity = "antigravity"
+	ChannelMonitorProviderDeepSeek    = "deepseek"
+	ChannelMonitorProviderOpenRouter  = "openrouter"
+	ChannelMonitorProviderQwen        = "qwen"
+	ChannelMonitorProviderAlibaba     = "alibaba"
+	ChannelMonitorProviderDoubao      = "doubao"
+	ChannelMonitorProviderByteDance   = "bytedance"
+	ChannelMonitorProviderMoonshot    = "moonshot"
+	ChannelMonitorProviderKimi        = "kimi"
+	ChannelMonitorProviderZhipu       = "zhipu"
+	ChannelMonitorProviderMistral     = "mistral"
+	ChannelMonitorProviderCohere      = "cohere"
+	ChannelMonitorProviderPerplexity  = "perplexity"
+)
+
+const (
+	ChannelMonitorProbeModeDirect      = "direct"
+	ChannelMonitorProbeModeAccountPool = "account_pool"
+)
+
+const (
+	ChannelMonitorRequestProtocolOpenAI    = "openai"
+	ChannelMonitorRequestProtocolAnthropic = "anthropic"
+	ChannelMonitorRequestProtocolGemini    = "gemini"
+)
+
+const (
+	ChannelMonitorModelProbeStrategyPrimaryOnly = "primary_only"
+	ChannelMonitorModelProbeStrategyAllSelected = "all_selected"
 )
 
 const (
@@ -31,15 +62,21 @@ const (
 )
 
 type ChannelMonitor struct {
-	ID                 int64    `json:"id"`
-	Name               string   `json:"name"`
-	Provider           string   `json:"provider"`
-	Endpoint           string   `json:"endpoint"`
-	APIKeyEncrypted    *string  `json:"-"`
-	IntervalSeconds    int      `json:"interval_seconds"`
-	Enabled            bool     `json:"enabled"`
-	PrimaryModelID     string   `json:"primary_model_id"`
-	AdditionalModelIDs []string `json:"additional_model_ids"`
+	ID                   int64             `json:"id"`
+	Name                 string            `json:"name"`
+	Provider             string            `json:"provider"`
+	ProbeMode            string            `json:"probe_mode"`
+	RequestProtocol      string            `json:"request_protocol"`
+	Endpoint             string            `json:"endpoint"`
+	APIKeyEncrypted      *string           `json:"-"`
+	IntervalSeconds      int               `json:"interval_seconds"`
+	Enabled              bool              `json:"enabled"`
+	AccountIDs           []int64           `json:"account_ids"`
+	PrimaryModelID       string            `json:"primary_model_id"`
+	AdditionalModelIDs   []string          `json:"additional_model_ids"`
+	ModelSourceProtocols map[string]string `json:"model_source_protocols"`
+	ModelProbeStrategy   string            `json:"model_probe_strategy"`
+	TestPromptTemplate   string            `json:"test_prompt_template"`
 
 	TemplateID       *int64            `json:"template_id,omitempty"`
 	ExtraHeaders     map[string]string `json:"extra_headers"`
@@ -54,30 +91,35 @@ type ChannelMonitor struct {
 }
 
 type ChannelMonitorHistory struct {
-	ID           int64     `json:"id"`
-	MonitorID    int64     `json:"monitor_id"`
-	ModelID      string    `json:"model_id"`
-	Status       string    `json:"status"`
-	ResponseText string    `json:"response_text"`
-	ErrorMessage string    `json:"error_message"`
-	HTTPStatus   *int      `json:"http_status,omitempty"`
-	LatencyMs    int64     `json:"latency_ms"`
-	StartedAt    time.Time `json:"started_at"`
-	FinishedAt   time.Time `json:"finished_at"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID                  int64     `json:"id"`
+	MonitorID           int64     `json:"monitor_id"`
+	AccountID           *int64    `json:"account_id,omitempty"`
+	AccountNameSnapshot string    `json:"account_name_snapshot,omitempty"`
+	ProbeMode           string    `json:"probe_mode"`
+	ModelID             string    `json:"model_id"`
+	Status              string    `json:"status"`
+	ResponseText        string    `json:"response_text"`
+	ErrorMessage        string    `json:"error_message"`
+	HTTPStatus          *int      `json:"http_status,omitempty"`
+	LatencyMs           int64     `json:"latency_ms"`
+	StartedAt           time.Time `json:"started_at"`
+	FinishedAt          time.Time `json:"finished_at"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 type ChannelMonitorRequestTemplate struct {
-	ID               int64             `json:"id"`
-	Name             string            `json:"name"`
-	Provider         string            `json:"provider"`
-	Description      *string           `json:"description,omitempty"`
-	ExtraHeaders     map[string]string `json:"extra_headers"`
-	BodyOverrideMode string            `json:"body_override_mode"`
-	BodyOverride     map[string]any    `json:"body_override"`
-	OpenAIAPIMode    string            `json:"openai_api_mode"`
-	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
+	ID                 int64             `json:"id"`
+	Name               string            `json:"name"`
+	Provider           string            `json:"provider"`
+	RequestProtocol    string            `json:"request_protocol"`
+	Description        *string           `json:"description,omitempty"`
+	ExtraHeaders       map[string]string `json:"extra_headers"`
+	BodyOverrideMode   string            `json:"body_override_mode"`
+	BodyOverride       map[string]any    `json:"body_override"`
+	OpenAIAPIMode      string            `json:"openai_api_mode"`
+	TestPromptTemplate string            `json:"test_prompt_template"`
+	CreatedAt          time.Time         `json:"created_at"`
+	UpdatedAt          time.Time         `json:"updated_at"`
 }
 
 type ChannelMonitorDailyRollup struct {
@@ -113,6 +155,10 @@ type ChannelMonitorRepository interface {
 	Delete(ctx context.Context, id int64) error
 }
 
+type ChannelMonitorRepositoryTxCreator interface {
+	CreateWithTx(ctx context.Context, tx *sql.Tx, monitor *ChannelMonitor) (*ChannelMonitor, error)
+}
+
 type ChannelMonitorHistoryRepository interface {
 	Create(ctx context.Context, history *ChannelMonitorHistory) (*ChannelMonitorHistory, error)
 	ListByMonitorID(ctx context.Context, monitorID int64, limit int) ([]*ChannelMonitorHistory, error)
@@ -143,4 +189,8 @@ type ChannelMonitorTemplateRepository interface {
 	Update(ctx context.Context, tpl *ChannelMonitorRequestTemplate) (*ChannelMonitorRequestTemplate, error)
 	Delete(ctx context.Context, id int64) error
 	ListAssociatedMonitors(ctx context.Context, templateID int64) ([]*ChannelMonitor, error)
+}
+
+type ChannelMonitorTemplateRepositoryTxCreator interface {
+	CreateWithTx(ctx context.Context, tx *sql.Tx, tpl *ChannelMonitorRequestTemplate) (*ChannelMonitorRequestTemplate, error)
 }

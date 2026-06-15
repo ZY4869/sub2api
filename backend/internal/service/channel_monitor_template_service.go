@@ -78,7 +78,9 @@ func (s *ChannelMonitorTemplateService) ApplyToMonitor(ctx context.Context, temp
 	monitor.ExtraHeaders = tpl.ExtraHeaders
 	monitor.BodyOverrideMode = tpl.BodyOverrideMode
 	monitor.BodyOverride = tpl.BodyOverride
+	monitor.RequestProtocol = tpl.RequestProtocol
 	monitor.OpenAIAPIMode = tpl.OpenAIAPIMode
+	monitor.TestPromptTemplate = tpl.TestPromptTemplate
 	return s.monitorRepo.Update(ctx, monitor)
 }
 
@@ -89,8 +91,10 @@ func normalizeChannelMonitorTemplate(tpl *ChannelMonitorRequestTemplate) (*Chann
 	out := *tpl
 	out.Name = strings.TrimSpace(out.Name)
 	out.Provider = strings.TrimSpace(strings.ToLower(out.Provider))
+	out.RequestProtocol = strings.TrimSpace(strings.ToLower(out.RequestProtocol))
 	out.BodyOverrideMode = strings.TrimSpace(strings.ToLower(out.BodyOverrideMode))
-	out.OpenAIAPIMode = normalizeChannelMonitorOpenAIAPIMode(out.Provider, out.OpenAIAPIMode)
+	out.OpenAIAPIMode = strings.TrimSpace(strings.ToLower(out.OpenAIAPIMode))
+	out.TestPromptTemplate = strings.TrimSpace(out.TestPromptTemplate)
 
 	if out.Name == "" || len(out.Name) > 100 {
 		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_TEMPLATE_NAME_INVALID", "invalid name")
@@ -98,13 +102,20 @@ func normalizeChannelMonitorTemplate(tpl *ChannelMonitorRequestTemplate) (*Chann
 	if !isValidChannelMonitorProvider(out.Provider) {
 		return nil, ErrChannelMonitorInvalidProvider
 	}
+	if out.RequestProtocol == "" {
+		out.RequestProtocol = inferChannelMonitorRequestProtocol(out.Provider)
+	}
+	if !isValidChannelMonitorRequestProtocol(out.RequestProtocol) {
+		return nil, ErrChannelMonitorInvalidProtocol
+	}
+	out.OpenAIAPIMode = normalizeChannelMonitorOpenAIAPIMode(out.RequestProtocol, out.OpenAIAPIMode)
 	if out.BodyOverrideMode == "" {
 		out.BodyOverrideMode = ChannelMonitorBodyOverrideModeOff
 	}
 	if !isValidChannelMonitorBodyOverrideMode(out.BodyOverrideMode) {
 		return nil, ErrChannelMonitorInvalidOverrideMode
 	}
-	if !isValidChannelMonitorOpenAIAPIMode(out.Provider, out.OpenAIAPIMode) {
+	if !isValidChannelMonitorOpenAIAPIMode(out.RequestProtocol, out.OpenAIAPIMode) {
 		return nil, ErrChannelMonitorInvalidOpenAIAPIMode
 	}
 

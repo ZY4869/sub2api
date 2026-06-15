@@ -10,33 +10,30 @@ func buildChannelMonitorRequest(monitor *ChannelMonitor, modelID string, challen
 	if monitor == nil {
 		return "", nil, false, errors.New("monitor is required")
 	}
-	provider := monitor.Provider
+	protocol := strings.TrimSpace(strings.ToLower(monitor.RequestProtocol))
+	if protocol == "" {
+		protocol = inferChannelMonitorRequestProtocol(monitor.Provider)
+	}
 	mode := monitor.BodyOverrideMode
 	override := monitor.BodyOverride
 	if mode == "" {
 		mode = ChannelMonitorBodyOverrideModeOff
 	}
 
-	prompt := "Please reply with exactly: " + challenge
+	prompt := buildChannelMonitorPrompt(monitor.TestPromptTemplate, challenge)
 
-	switch provider {
-	case ChannelMonitorProviderOpenAI, ChannelMonitorProviderGrok:
+	switch protocol {
+	case ChannelMonitorRequestProtocolOpenAI:
 		path = "/v1/chat/completions"
-		if provider == ChannelMonitorProviderGrok {
-			path = "/grok/v1/chat/completions"
-		}
 		base := buildOpenAIStyleChannelMonitorPayload(modelID, prompt, false)
-		if provider == ChannelMonitorProviderOpenAI && normalizeChannelMonitorOpenAIAPIMode(provider, monitor.OpenAIAPIMode) == ChannelMonitorOpenAIAPIModeResponses {
+		if normalizeChannelMonitorOpenAIAPIMode(protocol, monitor.OpenAIAPIMode) == ChannelMonitorOpenAIAPIModeResponses {
 			path = "/v1/responses"
 			base = buildOpenAIStyleChannelMonitorPayload(modelID, prompt, true)
 		}
-		payload, requireChallenge, err = applyBodyOverride(provider, mode, base, override)
+		payload, requireChallenge, err = applyBodyOverride(protocol, mode, base, override)
 		return path, payload, requireChallenge, err
-	case ChannelMonitorProviderAnthropic, ChannelMonitorProviderAntigravity:
+	case ChannelMonitorRequestProtocolAnthropic:
 		path = "/v1/messages"
-		if provider == ChannelMonitorProviderAntigravity {
-			path = "/antigravity/v1/messages"
-		}
 		base := map[string]any{
 			"model":      modelID,
 			"max_tokens": 32,
@@ -45,9 +42,9 @@ func buildChannelMonitorRequest(monitor *ChannelMonitor, modelID string, challen
 			},
 			"temperature": 0,
 		}
-		payload, requireChallenge, err = applyBodyOverride(provider, mode, base, override)
+		payload, requireChallenge, err = applyBodyOverride(protocol, mode, base, override)
 		return path, payload, requireChallenge, err
-	case ChannelMonitorProviderGemini:
+	case ChannelMonitorRequestProtocolGemini:
 		escaped := url.PathEscape(modelID)
 		path = "/v1beta/models/" + escaped + ":generateContent"
 		base := map[string]any{
@@ -64,11 +61,23 @@ func buildChannelMonitorRequest(monitor *ChannelMonitor, modelID string, challen
 				"maxOutputTokens": 32,
 			},
 		}
-		payload, requireChallenge, err = applyBodyOverride(provider, mode, base, override)
+		payload, requireChallenge, err = applyBodyOverride(protocol, mode, base, override)
 		return path, payload, requireChallenge, err
 	default:
-		return "", nil, false, errors.New("invalid provider")
+		return "", nil, false, errors.New("invalid request protocol")
 	}
+}
+
+func buildChannelMonitorPrompt(template string, challenge string) string {
+	challenge = strings.TrimSpace(challenge)
+	tpl := strings.TrimSpace(template)
+	if tpl == "" {
+		return "Please reply with exactly: " + challenge
+	}
+	if strings.Contains(tpl, "{{challenge}}") {
+		return strings.ReplaceAll(tpl, "{{challenge}}", challenge)
+	}
+	return tpl + "\n\nPlease reply with exactly: " + challenge
 }
 
 func buildOpenAIStyleChannelMonitorPayload(modelID string, prompt string, responses bool) map[string]any {
@@ -92,7 +101,7 @@ func buildOpenAIStyleChannelMonitorPayload(modelID string, prompt string, respon
 	}
 }
 
-func applyBodyOverride(provider string, mode string, base map[string]any, override map[string]any) (map[string]any, bool, error) {
+func applyBodyOverride(protocol string, mode string, base map[string]any, override map[string]any) (map[string]any, bool, error) {
 	switch mode {
 	case ChannelMonitorBodyOverrideModeOff:
 		return base, true, nil
@@ -102,7 +111,7 @@ func applyBodyOverride(provider string, mode string, base map[string]any, overri
 			merged[k] = v
 		}
 		for k, v := range override {
-			if isChannelMonitorBodyOverrideKeyBlocked(provider, k) {
+			if isChannelMonitorBodyOverrideKeyBlocked(protocol, k) {
 				continue
 			}
 			merged[k] = v
@@ -118,17 +127,17 @@ func applyBodyOverride(provider string, mode string, base map[string]any, overri
 	}
 }
 
-func isChannelMonitorBodyOverrideKeyBlocked(provider string, key string) bool {
+func isChannelMonitorBodyOverrideKeyBlocked(protocol string, key string) bool {
 	k := strings.ToLower(strings.TrimSpace(key))
 	if k == "" {
 		return true
 	}
-	switch provider {
-	case ChannelMonitorProviderOpenAI, ChannelMonitorProviderGrok:
+	switch protocol {
+	case ChannelMonitorRequestProtocolOpenAI:
 		return k == "model" || k == "messages" || k == "input" || k == "stream"
-	case ChannelMonitorProviderAnthropic, ChannelMonitorProviderAntigravity:
+	case ChannelMonitorRequestProtocolAnthropic:
 		return k == "model" || k == "messages"
-	case ChannelMonitorProviderGemini:
+	case ChannelMonitorRequestProtocolGemini:
 		return k == "contents"
 	default:
 		return true

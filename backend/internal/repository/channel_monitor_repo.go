@@ -17,11 +17,25 @@ type channelMonitorRepository struct {
 	db *sql.DB
 }
 
+type channelMonitorSQLExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 func NewChannelMonitorRepository(db *sql.DB) service.ChannelMonitorRepository {
 	return &channelMonitorRepository{db: db}
 }
 
 func (r *channelMonitorRepository) Create(ctx context.Context, monitor *service.ChannelMonitor) (*service.ChannelMonitor, error) {
+	return r.createWithExecutor(ctx, r.db, monitor)
+}
+
+func (r *channelMonitorRepository) CreateWithTx(ctx context.Context, tx *sql.Tx, monitor *service.ChannelMonitor) (*service.ChannelMonitor, error) {
+	return r.createWithExecutor(ctx, tx, monitor)
+}
+
+func (r *channelMonitorRepository) createWithExecutor(ctx context.Context, exec channelMonitorSQLExecutor, monitor *service.ChannelMonitor) (*service.ChannelMonitor, error) {
 	if monitor == nil {
 		return nil, errors.New("nil monitor")
 	}
@@ -34,6 +48,10 @@ func (r *channelMonitorRepository) Create(ctx context.Context, monitor *service.
 	if err != nil {
 		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_BODY_OVERRIDE_INVALID", "invalid body override")
 	}
+	modelProtocols, err := json.Marshal(orEmptyStringMap(monitor.ModelSourceProtocols))
+	if err != nil {
+		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_MODEL_SOURCE_PROTOCOLS_INVALID", "invalid model source protocols")
+	}
 
 	var apiKeyEncrypted sql.NullString
 	if monitor.APIKeyEncrypted != nil && *monitor.APIKeyEncrypted != "" {
@@ -45,16 +63,22 @@ func (r *channelMonitorRepository) Create(ctx context.Context, monitor *service.
 		templateID = sql.NullInt64{Int64: *monitor.TemplateID, Valid: true}
 	}
 
-	row := r.db.QueryRowContext(ctx, `
+	row := exec.QueryRowContext(ctx, `
 INSERT INTO channel_monitors (
 	name,
 	provider,
 	endpoint,
+	probe_mode,
+	request_protocol,
 	api_key_encrypted,
 	interval_seconds,
 	enabled,
+	account_ids,
 	primary_model_id,
 	additional_model_ids,
+	model_source_protocols,
+	model_probe_strategy,
+	test_prompt_template,
 	template_id,
 	extra_headers,
 	body_override_mode,
@@ -65,7 +89,7 @@ INSERT INTO channel_monitors (
 	created_at,
 	updated_at
 )
-VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8, $9, $10::jsonb, $11, $12::jsonb, $13, $14, $15, NOW(), NOW())
+VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16::jsonb, $17, $18::jsonb, $19, $20, $21, NOW(), NOW())
 RETURNING
 	id,
 	created_at,
@@ -74,11 +98,17 @@ RETURNING
 		monitor.Name,
 		monitor.Provider,
 		monitor.Endpoint,
+		monitor.ProbeMode,
+		monitor.RequestProtocol,
 		apiKeyEncrypted.String,
 		monitor.IntervalSeconds,
 		monitor.Enabled,
+		pq.Array(orEmptyInt64Slice(monitor.AccountIDs)),
 		monitor.PrimaryModelID,
 		pq.Array(monitor.AdditionalModelIDs),
+		string(modelProtocols),
+		monitor.ModelProbeStrategy,
+		monitor.TestPromptTemplate,
 		nullInt64Ptr(templateID),
 		string(extraHeaders),
 		monitor.BodyOverrideMode,
@@ -90,11 +120,15 @@ RETURNING
 	if err := row.Scan(&monitor.ID, &monitor.CreatedAt, &monitor.UpdatedAt); err != nil {
 		return nil, translateChannelMonitorSQLError(err)
 	}
-	return r.GetByID(ctx, monitor.ID)
+	return r.getByIDWithExecutor(ctx, exec, monitor.ID)
 }
 
 func (r *channelMonitorRepository) GetByID(ctx context.Context, id int64) (*service.ChannelMonitor, error) {
-	row := r.db.QueryRowContext(ctx, monitorSelectSQL()+` WHERE id = $1`, id)
+	return r.getByIDWithExecutor(ctx, r.db, id)
+}
+
+func (r *channelMonitorRepository) getByIDWithExecutor(ctx context.Context, exec channelMonitorSQLExecutor, id int64) (*service.ChannelMonitor, error) {
+	row := exec.QueryRowContext(ctx, monitorSelectSQL()+` WHERE id = $1`, id)
 	out, err := scanChannelMonitorRow(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -149,11 +183,17 @@ RETURNING
 	m.name,
 	m.provider,
 	m.endpoint,
+	COALESCE(m.probe_mode, 'direct'),
+	COALESCE(m.request_protocol, 'openai'),
 	m.api_key_encrypted,
 	m.interval_seconds,
 	m.enabled,
+	COALESCE(m.account_ids, ARRAY[]::bigint[]),
 	m.primary_model_id,
 	m.additional_model_ids,
+	COALESCE(m.model_source_protocols, '{}'::jsonb),
+	COALESCE(m.model_probe_strategy, 'all_selected'),
+	COALESCE(m.test_prompt_template, ''),
 	m.template_id,
 	m.extra_headers,
 	m.body_override_mode,
@@ -184,6 +224,10 @@ func (r *channelMonitorRepository) Update(ctx context.Context, monitor *service.
 	if err != nil {
 		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_BODY_OVERRIDE_INVALID", "invalid body override")
 	}
+	modelProtocols, err := json.Marshal(orEmptyStringMap(monitor.ModelSourceProtocols))
+	if err != nil {
+		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_MODEL_SOURCE_PROTOCOLS_INVALID", "invalid model source protocols")
+	}
 
 	var apiKeyEncrypted sql.NullString
 	if monitor.APIKeyEncrypted != nil && *monitor.APIKeyEncrypted != "" {
@@ -201,18 +245,24 @@ SET
 	name = $2,
 	provider = $3,
 	endpoint = $4,
-	api_key_encrypted = NULLIF($5, ''),
-	interval_seconds = $6,
-	enabled = $7,
-	primary_model_id = $8,
-	additional_model_ids = $9,
-	template_id = $10,
-	extra_headers = $11::jsonb,
-	body_override_mode = $12,
-	body_override = $13::jsonb,
-	openai_api_mode = $14,
-	last_run_at = $15,
-	next_run_at = $16,
+	probe_mode = $5,
+	request_protocol = $6,
+	api_key_encrypted = NULLIF($7, ''),
+	interval_seconds = $8,
+	enabled = $9,
+	account_ids = $10,
+	primary_model_id = $11,
+	additional_model_ids = $12,
+	model_source_protocols = $13::jsonb,
+	model_probe_strategy = $14,
+	test_prompt_template = $15,
+	template_id = $16,
+	extra_headers = $17::jsonb,
+	body_override_mode = $18,
+	body_override = $19::jsonb,
+	openai_api_mode = $20,
+	last_run_at = $21,
+	next_run_at = $22,
 	updated_at = NOW()
 WHERE id = $1
 `,
@@ -220,11 +270,17 @@ WHERE id = $1
 		monitor.Name,
 		monitor.Provider,
 		monitor.Endpoint,
+		monitor.ProbeMode,
+		monitor.RequestProtocol,
 		apiKeyEncrypted.String,
 		monitor.IntervalSeconds,
 		monitor.Enabled,
+		pq.Array(orEmptyInt64Slice(monitor.AccountIDs)),
 		monitor.PrimaryModelID,
 		pq.Array(monitor.AdditionalModelIDs),
+		string(modelProtocols),
+		monitor.ModelProbeStrategy,
+		monitor.TestPromptTemplate,
 		nullInt64Ptr(templateID),
 		string(extraHeaders),
 		monitor.BodyOverrideMode,
@@ -268,11 +324,17 @@ SELECT
 	name,
 	provider,
 	endpoint,
+	COALESCE(probe_mode, 'direct'),
+	COALESCE(request_protocol, 'openai'),
 	api_key_encrypted,
 	interval_seconds,
 	enabled,
+	COALESCE(account_ids, ARRAY[]::bigint[]),
 	primary_model_id,
 	additional_model_ids,
+	COALESCE(model_source_protocols, '{}'::jsonb),
+	COALESCE(model_probe_strategy, 'all_selected'),
+	COALESCE(test_prompt_template, ''),
 	template_id,
 	COALESCE(extra_headers, '{}'::jsonb),
 	COALESCE(body_override_mode, 'off'),
@@ -292,13 +354,15 @@ type rowScanner interface {
 
 func scanChannelMonitorRow(row rowScanner) (*service.ChannelMonitor, error) {
 	var (
-		apiKeyEncrypted sql.NullString
-		templateID      sql.NullInt64
-		additional      []string
-		extraHeadersRaw []byte
-		bodyOverrideRaw []byte
-		lastRunAt       sql.NullTime
-		nextRunAt       sql.NullTime
+		apiKeyEncrypted   sql.NullString
+		templateID        sql.NullInt64
+		accountIDs        []int64
+		additional        []string
+		modelProtocolsRaw []byte
+		extraHeadersRaw   []byte
+		bodyOverrideRaw   []byte
+		lastRunAt         sql.NullTime
+		nextRunAt         sql.NullTime
 	)
 
 	m := &service.ChannelMonitor{}
@@ -307,11 +371,17 @@ func scanChannelMonitorRow(row rowScanner) (*service.ChannelMonitor, error) {
 		&m.Name,
 		&m.Provider,
 		&m.Endpoint,
+		&m.ProbeMode,
+		&m.RequestProtocol,
 		&apiKeyEncrypted,
 		&m.IntervalSeconds,
 		&m.Enabled,
+		pq.Array(&accountIDs),
 		&m.PrimaryModelID,
 		pq.Array(&additional),
+		&modelProtocolsRaw,
+		&m.ModelProbeStrategy,
+		&m.TestPromptTemplate,
 		&templateID,
 		&extraHeadersRaw,
 		&m.BodyOverrideMode,
@@ -333,7 +403,17 @@ func scanChannelMonitorRow(row rowScanner) (*service.ChannelMonitor, error) {
 		v := templateID.Int64
 		m.TemplateID = &v
 	}
+	m.AccountIDs = accountIDs
 	m.AdditionalModelIDs = additional
+	if len(modelProtocolsRaw) > 0 {
+		var parsed map[string]string
+		if err := json.Unmarshal(modelProtocolsRaw, &parsed); err == nil {
+			m.ModelSourceProtocols = parsed
+		}
+	}
+	if m.ModelSourceProtocols == nil {
+		m.ModelSourceProtocols = map[string]string{}
+	}
 	if len(extraHeadersRaw) > 0 {
 		var parsed map[string]string
 		if err := json.Unmarshal(extraHeadersRaw, &parsed); err == nil {
@@ -391,6 +471,12 @@ func translateChannelMonitorSQLError(err error) error {
 				return service.ErrChannelMonitorInvalidInterval
 			case "channel_monitors_provider_check":
 				return service.ErrChannelMonitorInvalidProvider
+			case "channel_monitors_probe_mode_check":
+				return service.ErrChannelMonitorInvalidProbeMode
+			case "channel_monitors_request_protocol_check":
+				return service.ErrChannelMonitorInvalidProtocol
+			case "channel_monitors_model_probe_strategy_check":
+				return service.ErrChannelMonitorInvalidStrategy
 			case "channel_monitors_body_override_mode_check":
 				return service.ErrChannelMonitorInvalidOverrideMode
 			case "channel_monitors_openai_api_mode_check":
@@ -417,6 +503,13 @@ func orEmptyStringMap(v map[string]string) map[string]string {
 func orEmptyAnyMap(v map[string]any) map[string]any {
 	if v == nil {
 		return map[string]any{}
+	}
+	return v
+}
+
+func orEmptyInt64Slice(v []int64) []int64 {
+	if v == nil {
+		return []int64{}
 	}
 	return v
 }

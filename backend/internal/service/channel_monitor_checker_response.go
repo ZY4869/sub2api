@@ -2,23 +2,29 @@ package service
 
 import "github.com/tidwall/gjson"
 
-func extractChannelMonitorResponseText(provider string, _ string, raw []byte) string {
-	switch provider {
-	case ChannelMonitorProviderOpenAI, ChannelMonitorProviderGrok:
+func extractChannelMonitorResponseText(protocol string, _ string, raw []byte) string {
+	switch protocol {
+	case ChannelMonitorRequestProtocolOpenAI:
 		if v := gjson.GetBytes(raw, "choices.0.message.content"); v.Exists() {
 			return v.String()
 		}
 		if v := gjson.GetBytes(raw, "choices.0.text"); v.Exists() {
 			return v.String()
 		}
-	case ChannelMonitorProviderAnthropic, ChannelMonitorProviderAntigravity:
+		if v := gjson.GetBytes(raw, "output_text"); v.Exists() {
+			return v.String()
+		}
+		if v := gjson.GetBytes(raw, "output.0.content.0.text"); v.Exists() {
+			return v.String()
+		}
+	case ChannelMonitorRequestProtocolAnthropic:
 		if v := gjson.GetBytes(raw, "content.0.text"); v.Exists() {
 			return v.String()
 		}
 		if v := gjson.GetBytes(raw, "completion"); v.Exists() {
 			return v.String()
 		}
-	case ChannelMonitorProviderGemini:
+	case ChannelMonitorRequestProtocolGemini:
 		if v := gjson.GetBytes(raw, "candidates.0.content.parts.0.text"); v.Exists() {
 			return v.String()
 		}

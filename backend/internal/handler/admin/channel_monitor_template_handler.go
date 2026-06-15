@@ -24,13 +24,15 @@ func NewChannelMonitorTemplateHandler(templateService *service.ChannelMonitorTem
 }
 
 type createChannelMonitorTemplateRequest struct {
-	Name             string          `json:"name" binding:"required"`
-	Provider         string          `json:"provider" binding:"required"`
-	Description      *string         `json:"description"`
-	ExtraHeaders     json.RawMessage `json:"extra_headers"`
-	BodyOverrideMode json.RawMessage `json:"body_override_mode"`
-	BodyOverride     json.RawMessage `json:"body_override"`
-	OpenAIAPIMode    json.RawMessage `json:"openai_api_mode"`
+	Name               string          `json:"name" binding:"required"`
+	Provider           string          `json:"provider" binding:"required"`
+	RequestProtocol    string          `json:"request_protocol"`
+	Description        *string         `json:"description"`
+	ExtraHeaders       json.RawMessage `json:"extra_headers"`
+	BodyOverrideMode   json.RawMessage `json:"body_override_mode"`
+	BodyOverride       json.RawMessage `json:"body_override"`
+	OpenAIAPIMode      json.RawMessage `json:"openai_api_mode"`
+	TestPromptTemplate string          `json:"test_prompt_template"`
 }
 
 func (h *ChannelMonitorTemplateHandler) List(c *gin.Context) {
@@ -85,13 +87,15 @@ func (h *ChannelMonitorTemplateHandler) Create(c *gin.Context) {
 		return
 	}
 	item, err := h.templateService.Create(c.Request.Context(), &service.ChannelMonitorRequestTemplate{
-		Name:             req.Name,
-		Provider:         req.Provider,
-		Description:      req.Description,
-		ExtraHeaders:     extraHeaders,
-		BodyOverrideMode: bodyOverrideMode,
-		BodyOverride:     bodyOverride,
-		OpenAIAPIMode:    openAIAPIMode,
+		Name:               req.Name,
+		Provider:           req.Provider,
+		RequestProtocol:    req.RequestProtocol,
+		Description:        req.Description,
+		ExtraHeaders:       extraHeaders,
+		BodyOverrideMode:   bodyOverrideMode,
+		BodyOverride:       bodyOverride,
+		OpenAIAPIMode:      openAIAPIMode,
+		TestPromptTemplate: req.TestPromptTemplate,
 	})
 	if err != nil {
 		logger.FromContext(c.Request.Context()).Warn(
@@ -108,13 +112,15 @@ func (h *ChannelMonitorTemplateHandler) Create(c *gin.Context) {
 }
 
 type updateChannelMonitorTemplateRequest struct {
-	Name             *string         `json:"name"`
-	Provider         *string         `json:"provider"`
-	Description      **string        `json:"description"`
-	ExtraHeaders     json.RawMessage `json:"extra_headers"`
-	BodyOverrideMode json.RawMessage `json:"body_override_mode"`
-	BodyOverride     json.RawMessage `json:"body_override"`
-	OpenAIAPIMode    json.RawMessage `json:"openai_api_mode"`
+	Name               *string         `json:"name"`
+	Provider           *string         `json:"provider"`
+	RequestProtocol    *string         `json:"request_protocol"`
+	Description        **string        `json:"description"`
+	ExtraHeaders       json.RawMessage `json:"extra_headers"`
+	BodyOverrideMode   json.RawMessage `json:"body_override_mode"`
+	BodyOverride       json.RawMessage `json:"body_override"`
+	OpenAIAPIMode      json.RawMessage `json:"openai_api_mode"`
+	TestPromptTemplate *string         `json:"test_prompt_template"`
 }
 
 func (h *ChannelMonitorTemplateHandler) Update(c *gin.Context) {
@@ -138,8 +144,14 @@ func (h *ChannelMonitorTemplateHandler) Update(c *gin.Context) {
 	if req.Provider != nil {
 		existing.Provider = *req.Provider
 	}
+	if req.RequestProtocol != nil {
+		existing.RequestProtocol = *req.RequestProtocol
+	}
 	if req.Description != nil {
 		existing.Description = *req.Description
+	}
+	if req.TestPromptTemplate != nil {
+		existing.TestPromptTemplate = *req.TestPromptTemplate
 	}
 	if extraHeaders, present, err := parseChannelMonitorHeaders(req.ExtraHeaders); err != nil {
 		response.ErrorFrom(c, err)

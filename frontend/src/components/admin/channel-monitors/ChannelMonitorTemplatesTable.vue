@@ -12,12 +12,15 @@
     <template #cell-provider="{ row }">
       <div class="flex items-center gap-2">
         <ModelPlatformIcon :platform="row.provider" size="sm" />
-        <span class="text-sm text-gray-700 dark:text-gray-200">{{ row.provider }}</span>
+        <span class="text-sm text-gray-700 dark:text-gray-200">{{ providerLabel(row.provider) }}</span>
+      </div>
+      <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        {{ protocolLabel(row.request_protocol) }}
       </div>
     </template>
 
     <template #cell-body_override_mode="{ value }">
-      <span class="font-mono text-xs text-gray-700 dark:text-gray-200">{{ value || '-' }}</span>
+      <span class="font-mono text-xs text-gray-700 dark:text-gray-200">{{ bodyModeLabel(value) }}</span>
     </template>
 
     <template #cell-updated_at="{ value }">
@@ -78,6 +81,11 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ModelPlatformIcon from '@/components/common/ModelPlatformIcon.vue'
 import type { AdminChannelMonitorTemplate } from '@/api/admin/channelMonitors'
+import {
+  getChannelMonitorBodyOverrideModeLabel,
+  getChannelMonitorProviderLabel,
+  getChannelMonitorRequestProtocolLabel
+} from '@/utils/channelMonitorPresentation'
 
 const { t } = useI18n()
 
@@ -107,5 +115,16 @@ function formatDateTime(value?: string): string {
   if (Number.isNaN(d.getTime())) return String(value)
   return d.toLocaleString()
 }
-</script>
 
+function providerLabel(provider?: string): string {
+  return getChannelMonitorProviderLabel(provider)
+}
+
+function protocolLabel(protocol?: string): string {
+  return getChannelMonitorRequestProtocolLabel(protocol)
+}
+
+function bodyModeLabel(mode?: string): string {
+  return getChannelMonitorBodyOverrideModeLabel(mode)
+}
+</script>

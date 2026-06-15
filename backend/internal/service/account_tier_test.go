@@ -116,7 +116,11 @@ func TestAdminServiceCreateAccountAppliesTierDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAccount returned error: %v", err)
 	}
-	if account == nil || repo.created == nil {
+	if account == nil {
+		t.Fatal("expected account to be created")
+		return
+	}
+	if repo.created == nil {
 		t.Fatal("expected account to be created")
 	}
 	if account.Concurrency != 1 {
@@ -158,7 +162,11 @@ func TestAdminServiceUpdateAccountAppliesTierCapacityWhenRequestedConcurrencyIsZ
 	if err != nil {
 		t.Fatalf("UpdateAccount returned error: %v", err)
 	}
-	if account == nil || repo.updated == nil {
+	if account == nil {
+		t.Fatal("expected account to be updated")
+		return
+	}
+	if repo.updated == nil {
 		t.Fatal("expected account to be updated")
 	}
 	if account.Concurrency != 10 {

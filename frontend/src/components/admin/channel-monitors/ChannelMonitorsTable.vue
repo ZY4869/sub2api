@@ -13,13 +13,16 @@
     <template #cell-provider="{ row }">
       <div class="flex items-center gap-2">
         <ModelPlatformIcon :platform="row.provider" size="sm" />
-        <span class="text-sm text-gray-700 dark:text-gray-200">{{ row.provider }}</span>
+        <span class="text-sm text-gray-700 dark:text-gray-200">{{ providerLabel(row.provider) }}</span>
+      </div>
+      <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        {{ probeModeLabel(row.probe_mode) }} / {{ protocolLabel(row.request_protocol) }}
       </div>
     </template>
 
-    <template #cell-endpoint="{ value }">
-      <span class="block max-w-[340px] truncate font-mono text-xs text-gray-600 dark:text-gray-300" :title="String(value || '')">
-        {{ value || '-' }}
+    <template #cell-endpoint="{ row }">
+      <span class="block max-w-[340px] truncate font-mono text-xs text-gray-600 dark:text-gray-300" :title="monitorTarget(row)">
+        {{ monitorTarget(row) }}
       </span>
     </template>
 
@@ -52,10 +55,14 @@
 
     <template #cell-api_key_status="{ row }">
       <span
+        v-if="row.probe_mode !== 'account_pool'"
         class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
         :class="apiKeyBadgeClass(row)"
       >
         {{ apiKeyBadgeText(row) }}
+      </span>
+      <span v-else class="text-xs text-gray-500 dark:text-gray-400">
+        {{ strategyLabel(row.model_probe_strategy) }}
       </span>
     </template>
 
@@ -115,6 +122,12 @@ import Toggle from '@/components/common/Toggle.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import ModelPlatformIcon from '@/components/common/ModelPlatformIcon.vue'
 import type { AdminChannelMonitor, AdminChannelMonitorTemplate } from '@/api/admin/channelMonitors'
+import {
+  getChannelMonitorModelProbeStrategyLabel,
+  getChannelMonitorProbeModeLabel,
+  getChannelMonitorProviderLabel,
+  getChannelMonitorRequestProtocolLabel
+} from '@/utils/channelMonitorPresentation'
 
 const { t } = useI18n()
 
@@ -159,6 +172,30 @@ function formatDateTime(value?: string): string {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return String(value)
   return d.toLocaleString()
+}
+
+function providerLabel(provider?: string): string {
+  return getChannelMonitorProviderLabel(provider)
+}
+
+function protocolLabel(protocol?: string): string {
+  return getChannelMonitorRequestProtocolLabel(protocol)
+}
+
+function probeModeLabel(mode?: string): string {
+  return getChannelMonitorProbeModeLabel(mode)
+}
+
+function strategyLabel(strategy?: string): string {
+  return getChannelMonitorModelProbeStrategyLabel(strategy)
+}
+
+function monitorTarget(m: AdminChannelMonitor): string {
+  if (m.probe_mode === 'account_pool') {
+    const count = Array.isArray(m.account_ids) ? m.account_ids.length : 0
+    return t('admin.channelMonitors.fields.accountPoolTarget', { count })
+  }
+  return m.endpoint || '-'
 }
 
 function apiKeyBadgeText(m: AdminChannelMonitor): string {

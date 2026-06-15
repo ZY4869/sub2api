@@ -13,7 +13,7 @@
             {{ monitor?.name || '-' }}
           </div>
           <div class="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
-            {{ monitor?.endpoint || '-' }}
+            {{ monitorTarget }}
           </div>
         </div>
 
@@ -36,7 +36,13 @@
       <DataTable :columns="columns" :data="histories" :loading="loading" row-key="id">
         <template #cell-status="{ value }">
           <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium" :class="statusClass(value)">
-            {{ value || '-' }}
+            {{ statusLabel(value) }}
+          </span>
+        </template>
+
+        <template #cell-account="{ row }">
+          <span class="text-xs text-gray-600 dark:text-gray-300">
+            {{ row.account_name_snapshot || row.account_id || '-' }}
           </span>
         </template>
 
@@ -78,6 +84,10 @@ import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import type { AdminChannelMonitor, AdminChannelMonitorHistory } from '@/api/admin/channelMonitors'
+import {
+  getChannelMonitorStatusClass,
+  getChannelMonitorStatusLabel
+} from '@/utils/channelMonitorPresentation'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -93,6 +103,14 @@ const emit = defineEmits<{
 }>()
 
 const title = computed(() => t('admin.channelMonitors.history.title'))
+const monitorTarget = computed(() => {
+  if (!props.monitor) return '-'
+  if (props.monitor.probe_mode === 'account_pool') {
+    const count = Array.isArray(props.monitor.account_ids) ? props.monitor.account_ids.length : 0
+    return t('admin.channelMonitors.fields.accountPoolTarget', { count })
+  }
+  return props.monitor.endpoint || '-'
+})
 
 const histories = ref<AdminChannelMonitorHistory[]>([])
 const loading = ref(false)
@@ -101,6 +119,7 @@ const limit = ref(50)
 
 const columns = computed(() => [
   { key: 'created_at', label: t('admin.channelMonitors.history.fields.createdAt') },
+  { key: 'account', label: t('admin.channelMonitors.history.fields.account') },
   { key: 'model_id', label: t('admin.channelMonitors.history.fields.model') },
   { key: 'status', label: t('admin.channelMonitors.history.fields.status') },
   { key: 'http_status', label: t('admin.channelMonitors.history.fields.httpStatus') },
@@ -116,10 +135,11 @@ function formatDateTime(value?: string): string {
 }
 
 function statusClass(status?: string): string {
-  if (status === 'success') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-  if (status === 'degraded') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-  if (status === 'failure') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-  return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
+  return getChannelMonitorStatusClass(status)
+}
+
+function statusLabel(status?: string): string {
+  return getChannelMonitorStatusLabel(status)
 }
 
 async function loadHistories() {

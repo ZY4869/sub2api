@@ -154,6 +154,14 @@ func ProvideAdminAccountHandler(
 	return handler
 }
 
+func ProvideAdminChannelMonitorHandler(
+	monitorService *service.ChannelMonitorService,
+	templateService *service.ChannelMonitorTemplateService,
+	_ service.ChannelMonitorAccountDependencyBinding,
+) *admin.ChannelMonitorHandler {
+	return admin.NewChannelMonitorHandler(monitorService, templateService)
+}
+
 func ProvideOpenAIOAuthHandler(
 	openaiOAuthService *service.OpenAIOAuthService,
 	adminService service.AdminService,
@@ -365,7 +373,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewContentModerationAuditHandler,
 	admin.NewGroupHandler,
 	admin.NewChannelHandler,
-	admin.NewChannelMonitorHandler,
+	ProvideAdminChannelMonitorHandler,
 	admin.NewChannelMonitorTemplateHandler,
 	ProvideAdminAccountHandler,
 	admin.NewAffiliateHandler,

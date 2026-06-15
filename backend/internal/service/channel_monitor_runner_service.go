@@ -55,6 +55,14 @@ func NewChannelMonitorRunnerService(
 	}
 }
 
+func (s *ChannelMonitorRunnerService) SetAccountMonitorDependencies(accountRepo AccountRepository, testRunner channelMonitorAccountTestRunner) {
+	if s == nil || s.executor == nil {
+		return
+	}
+	s.executor.accountRepo = accountRepo
+	s.executor.testRunner = testRunner
+}
+
 func (s *ChannelMonitorRunnerService) Start() {
 	go s.run()
 }

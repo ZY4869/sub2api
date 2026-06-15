@@ -13,29 +13,36 @@ import (
 )
 
 type ChannelMonitorHandler struct {
-	monitorService *service.ChannelMonitorService
+	monitorService  *service.ChannelMonitorService
+	templateService *service.ChannelMonitorTemplateService
 }
 
-func NewChannelMonitorHandler(monitorService *service.ChannelMonitorService) *ChannelMonitorHandler {
-	return &ChannelMonitorHandler{monitorService: monitorService}
+func NewChannelMonitorHandler(monitorService *service.ChannelMonitorService, templateService *service.ChannelMonitorTemplateService) *ChannelMonitorHandler {
+	return &ChannelMonitorHandler{monitorService: monitorService, templateService: templateService}
 }
 
 type adminChannelMonitorView struct {
-	ID                 int64             `json:"id"`
-	Name               string            `json:"name"`
-	Provider           string            `json:"provider"`
-	Endpoint           string            `json:"endpoint"`
-	IntervalSeconds    int               `json:"interval_seconds"`
-	Enabled            bool              `json:"enabled"`
-	PrimaryModelID     string            `json:"primary_model_id"`
-	AdditionalModelIDs []string          `json:"additional_model_ids"`
-	TemplateID         *int64            `json:"template_id,omitempty"`
-	ExtraHeaders       map[string]string `json:"extra_headers"`
-	BodyOverrideMode   string            `json:"body_override_mode"`
-	BodyOverride       map[string]any    `json:"body_override"`
-	OpenAIAPIMode      string            `json:"openai_api_mode"`
-	LastRunAt          *time.Time        `json:"last_run_at,omitempty"`
-	NextRunAt          *time.Time        `json:"next_run_at,omitempty"`
+	ID                   int64             `json:"id"`
+	Name                 string            `json:"name"`
+	Provider             string            `json:"provider"`
+	ProbeMode            string            `json:"probe_mode"`
+	RequestProtocol      string            `json:"request_protocol"`
+	Endpoint             string            `json:"endpoint"`
+	IntervalSeconds      int               `json:"interval_seconds"`
+	Enabled              bool              `json:"enabled"`
+	AccountIDs           []int64           `json:"account_ids"`
+	PrimaryModelID       string            `json:"primary_model_id"`
+	AdditionalModelIDs   []string          `json:"additional_model_ids"`
+	ModelSourceProtocols map[string]string `json:"model_source_protocols"`
+	ModelProbeStrategy   string            `json:"model_probe_strategy"`
+	TestPromptTemplate   string            `json:"test_prompt_template"`
+	TemplateID           *int64            `json:"template_id,omitempty"`
+	ExtraHeaders         map[string]string `json:"extra_headers"`
+	BodyOverrideMode     string            `json:"body_override_mode"`
+	BodyOverride         map[string]any    `json:"body_override"`
+	OpenAIAPIMode        string            `json:"openai_api_mode"`
+	LastRunAt            *time.Time        `json:"last_run_at,omitempty"`
+	NextRunAt            *time.Time        `json:"next_run_at,omitempty"`
 
 	APIKeyConfigured    bool `json:"api_key_configured"`
 	APIKeyDecryptFailed bool `json:"api_key_decrypt_failed"`
@@ -80,19 +87,27 @@ func (h *ChannelMonitorHandler) GetByID(c *gin.Context) {
 }
 
 type createChannelMonitorRequest struct {
-	Name               string          `json:"name" binding:"required"`
-	Provider           string          `json:"provider" binding:"required"`
-	Endpoint           string          `json:"endpoint" binding:"required"`
-	APIKey             *string         `json:"api_key"`
-	IntervalSeconds    int             `json:"interval_seconds"`
-	Enabled            bool            `json:"enabled"`
-	PrimaryModelID     string          `json:"primary_model_id" binding:"required"`
-	AdditionalModelIDs []string        `json:"additional_model_ids"`
-	TemplateID         json.RawMessage `json:"template_id"`
-	ExtraHeaders       json.RawMessage `json:"extra_headers"`
-	BodyOverrideMode   json.RawMessage `json:"body_override_mode"`
-	BodyOverride       json.RawMessage `json:"body_override"`
-	OpenAIAPIMode      json.RawMessage `json:"openai_api_mode"`
+	Name                 string            `json:"name" binding:"required"`
+	Provider             string            `json:"provider" binding:"required"`
+	ProbeMode            string            `json:"probe_mode"`
+	RequestProtocol      string            `json:"request_protocol"`
+	Endpoint             string            `json:"endpoint"`
+	APIKey               *string           `json:"api_key"`
+	IntervalSeconds      int               `json:"interval_seconds"`
+	Enabled              bool              `json:"enabled"`
+	AccountIDs           []int64           `json:"account_ids"`
+	PrimaryModelID       string            `json:"primary_model_id" binding:"required"`
+	AdditionalModelIDs   []string          `json:"additional_model_ids"`
+	ModelSourceProtocols map[string]string `json:"model_source_protocols"`
+	ModelProbeStrategy   string            `json:"model_probe_strategy"`
+	TestPromptTemplate   string            `json:"test_prompt_template"`
+	TemplateID           json.RawMessage   `json:"template_id"`
+	ExtraHeaders         json.RawMessage   `json:"extra_headers"`
+	BodyOverrideMode     json.RawMessage   `json:"body_override_mode"`
+	BodyOverride         json.RawMessage   `json:"body_override"`
+	OpenAIAPIMode        json.RawMessage   `json:"openai_api_mode"`
+	SaveAsTemplate       bool              `json:"save_as_template"`
+	TemplateName         string            `json:"template_name"`
 }
 
 // Create creates a monitor.
@@ -128,20 +143,30 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	m, err := h.monitorService.Create(c.Request.Context(), &service.ChannelMonitor{
-		Name:               req.Name,
-		Provider:           req.Provider,
-		Endpoint:           req.Endpoint,
-		IntervalSeconds:    req.IntervalSeconds,
-		Enabled:            req.Enabled,
-		PrimaryModelID:     req.PrimaryModelID,
-		AdditionalModelIDs: req.AdditionalModelIDs,
-		TemplateID:         templateID,
-		ExtraHeaders:       extraHeaders,
-		BodyOverrideMode:   bodyOverrideMode,
-		BodyOverride:       bodyOverride,
-		OpenAIAPIMode:      openAIAPIMode,
-	}, req.APIKey)
+	monitor := &service.ChannelMonitor{
+		Name:                 req.Name,
+		Provider:             req.Provider,
+		ProbeMode:            req.ProbeMode,
+		RequestProtocol:      req.RequestProtocol,
+		Endpoint:             req.Endpoint,
+		IntervalSeconds:      req.IntervalSeconds,
+		Enabled:              req.Enabled,
+		AccountIDs:           req.AccountIDs,
+		PrimaryModelID:       req.PrimaryModelID,
+		AdditionalModelIDs:   req.AdditionalModelIDs,
+		ModelSourceProtocols: req.ModelSourceProtocols,
+		ModelProbeStrategy:   req.ModelProbeStrategy,
+		TestPromptTemplate:   req.TestPromptTemplate,
+		TemplateID:           templateID,
+		ExtraHeaders:         extraHeaders,
+		BodyOverrideMode:     bodyOverrideMode,
+		BodyOverride:         bodyOverride,
+		OpenAIAPIMode:        openAIAPIMode,
+	}
+	m, err := h.monitorService.CreateWithOptionalTemplate(c.Request.Context(), monitor, req.APIKey, service.ChannelMonitorTemplateCreateInput{
+		Save: req.SaveAsTemplate,
+		Name: req.TemplateName,
+	})
 	if err != nil {
 		logger.FromContext(c.Request.Context()).Warn(
 			"channel_monitor_create_failed",
@@ -157,19 +182,25 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 }
 
 type updateChannelMonitorRequest struct {
-	Name               *string         `json:"name"`
-	Provider           *string         `json:"provider"`
-	Endpoint           *string         `json:"endpoint"`
-	APIKey             *string         `json:"api_key"`
-	IntervalSeconds    *int            `json:"interval_seconds"`
-	Enabled            *bool           `json:"enabled"`
-	PrimaryModelID     *string         `json:"primary_model_id"`
-	AdditionalModelIDs *[]string       `json:"additional_model_ids"`
-	TemplateID         json.RawMessage `json:"template_id"`
-	ExtraHeaders       json.RawMessage `json:"extra_headers"`
-	BodyOverrideMode   json.RawMessage `json:"body_override_mode"`
-	BodyOverride       json.RawMessage `json:"body_override"`
-	OpenAIAPIMode      json.RawMessage `json:"openai_api_mode"`
+	Name                 *string           `json:"name"`
+	Provider             *string           `json:"provider"`
+	ProbeMode            *string           `json:"probe_mode"`
+	RequestProtocol      *string           `json:"request_protocol"`
+	Endpoint             *string           `json:"endpoint"`
+	APIKey               *string           `json:"api_key"`
+	IntervalSeconds      *int              `json:"interval_seconds"`
+	Enabled              *bool             `json:"enabled"`
+	AccountIDs           *[]int64          `json:"account_ids"`
+	PrimaryModelID       *string           `json:"primary_model_id"`
+	AdditionalModelIDs   *[]string         `json:"additional_model_ids"`
+	ModelSourceProtocols map[string]string `json:"model_source_protocols"`
+	ModelProbeStrategy   *string           `json:"model_probe_strategy"`
+	TestPromptTemplate   *string           `json:"test_prompt_template"`
+	TemplateID           json.RawMessage   `json:"template_id"`
+	ExtraHeaders         json.RawMessage   `json:"extra_headers"`
+	BodyOverrideMode     json.RawMessage   `json:"body_override_mode"`
+	BodyOverride         json.RawMessage   `json:"body_override"`
+	OpenAIAPIMode        json.RawMessage   `json:"openai_api_mode"`
 }
 
 // Update updates a monitor.
@@ -196,6 +227,12 @@ func (h *ChannelMonitorHandler) Update(c *gin.Context) {
 	if req.Provider != nil {
 		existing.Provider = *req.Provider
 	}
+	if req.ProbeMode != nil {
+		existing.ProbeMode = *req.ProbeMode
+	}
+	if req.RequestProtocol != nil {
+		existing.RequestProtocol = *req.RequestProtocol
+	}
 	if req.Endpoint != nil {
 		existing.Endpoint = *req.Endpoint
 	}
@@ -205,11 +242,23 @@ func (h *ChannelMonitorHandler) Update(c *gin.Context) {
 	if req.Enabled != nil {
 		existing.Enabled = *req.Enabled
 	}
+	if req.AccountIDs != nil {
+		existing.AccountIDs = *req.AccountIDs
+	}
 	if req.PrimaryModelID != nil {
 		existing.PrimaryModelID = *req.PrimaryModelID
 	}
 	if req.AdditionalModelIDs != nil {
 		existing.AdditionalModelIDs = *req.AdditionalModelIDs
+	}
+	if req.ModelSourceProtocols != nil {
+		existing.ModelSourceProtocols = req.ModelSourceProtocols
+	}
+	if req.ModelProbeStrategy != nil {
+		existing.ModelProbeStrategy = *req.ModelProbeStrategy
+	}
+	if req.TestPromptTemplate != nil {
+		existing.TestPromptTemplate = *req.TestPromptTemplate
 	}
 	if templateID, present, err := parseChannelMonitorTemplateIDField(req.TemplateID); err != nil {
 		response.ErrorFrom(c, err)
@@ -273,6 +322,17 @@ func (h *ChannelMonitorHandler) Run(c *gin.Context) {
 	}
 	results, err := h.monitorService.RunCheckNow(c.Request.Context(), monitorID)
 	if err != nil {
+		probeMode := ""
+		if monitor, getErr := h.monitorService.GetByID(c.Request.Context(), monitorID); getErr == nil && monitor != nil {
+			probeMode = monitor.ProbeMode
+		}
+		logger.FromContext(c.Request.Context()).Warn(
+			"channel_monitor_run_failed",
+			zap.String("component", "handler.admin.channel_monitor"),
+			zap.Int64("monitor_id", monitorID),
+			zap.String("probe_mode", probeMode),
+			zap.Error(err),
+		)
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -314,22 +374,28 @@ func toAdminChannelMonitorView(svc *service.ChannelMonitorService, m *service.Ch
 		return nil
 	}
 	view := &adminChannelMonitorView{
-		ID:                 m.ID,
-		Name:               m.Name,
-		Provider:           m.Provider,
-		Endpoint:           m.Endpoint,
-		IntervalSeconds:    m.IntervalSeconds,
-		Enabled:            m.Enabled,
-		PrimaryModelID:     m.PrimaryModelID,
-		AdditionalModelIDs: m.AdditionalModelIDs,
-		TemplateID:         m.TemplateID,
-		ExtraHeaders:       m.ExtraHeaders,
-		BodyOverrideMode:   m.BodyOverrideMode,
-		BodyOverride:       m.BodyOverride,
-		OpenAIAPIMode:      m.OpenAIAPIMode,
-		LastRunAt:          m.LastRunAt,
-		NextRunAt:          m.NextRunAt,
-		APIKeyConfigured:   m.APIKeyEncrypted != nil && *m.APIKeyEncrypted != "",
+		ID:                   m.ID,
+		Name:                 m.Name,
+		Provider:             m.Provider,
+		ProbeMode:            m.ProbeMode,
+		RequestProtocol:      m.RequestProtocol,
+		Endpoint:             m.Endpoint,
+		IntervalSeconds:      m.IntervalSeconds,
+		Enabled:              m.Enabled,
+		AccountIDs:           m.AccountIDs,
+		PrimaryModelID:       m.PrimaryModelID,
+		AdditionalModelIDs:   m.AdditionalModelIDs,
+		ModelSourceProtocols: m.ModelSourceProtocols,
+		ModelProbeStrategy:   m.ModelProbeStrategy,
+		TestPromptTemplate:   m.TestPromptTemplate,
+		TemplateID:           m.TemplateID,
+		ExtraHeaders:         m.ExtraHeaders,
+		BodyOverrideMode:     m.BodyOverrideMode,
+		BodyOverride:         m.BodyOverride,
+		OpenAIAPIMode:        m.OpenAIAPIMode,
+		LastRunAt:            m.LastRunAt,
+		NextRunAt:            m.NextRunAt,
+		APIKeyConfigured:     m.APIKeyEncrypted != nil && *m.APIKeyEncrypted != "",
 	}
 	if svc != nil {
 		view.APIKeyDecryptFailed = svc.IsAPIKeyDecryptFailed(m)

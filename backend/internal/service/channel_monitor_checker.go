@@ -85,6 +85,11 @@ func (c *channelMonitorHTTPChecker) Check(ctx context.Context, monitor *ChannelM
 		return result
 	}
 
+	protocol := strings.TrimSpace(strings.ToLower(monitor.RequestProtocol))
+	if protocol == "" {
+		protocol = inferChannelMonitorRequestProtocol(monitor.Provider)
+	}
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Sub2API-ChannelMonitor/1.0")
@@ -96,7 +101,7 @@ func (c *channelMonitorHTTPChecker) Check(ctx context.Context, monitor *ChannelM
 		}
 		req.Header.Set(k, v)
 	}
-	if monitor.Provider == ChannelMonitorProviderAnthropic || monitor.Provider == ChannelMonitorProviderAntigravity {
+	if protocol == ChannelMonitorRequestProtocolAnthropic {
 		if req.Header.Get("anthropic-version") == "" {
 			req.Header.Set("anthropic-version", "2023-06-01")
 		}
@@ -122,7 +127,7 @@ func (c *channelMonitorHTTPChecker) Check(ctx context.Context, monitor *ChannelM
 		return result
 	}
 
-	text := extractChannelMonitorResponseText(monitor.Provider, modelID, raw)
+	text := extractChannelMonitorResponseText(protocol, modelID, raw)
 	if httpStatus < 200 || httpStatus >= 300 {
 		if text == "" {
 			text = extractChannelMonitorErrorMessage(raw)

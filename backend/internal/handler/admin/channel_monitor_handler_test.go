@@ -21,6 +21,8 @@ import (
 type channelMonitorHandlerRepoStub struct {
 	service.ChannelMonitorRepository
 	createErr error
+	byID      *service.ChannelMonitor
+	updateErr error
 }
 
 func (s *channelMonitorHandlerRepoStub) Create(_ context.Context, monitor *service.ChannelMonitor) (*service.ChannelMonitor, error) {
@@ -31,6 +33,23 @@ func (s *channelMonitorHandlerRepoStub) Create(_ context.Context, monitor *servi
 	clone.ID = 88
 	clone.CreatedAt = time.Now().UTC()
 	clone.UpdatedAt = clone.CreatedAt
+	return &clone, nil
+}
+
+func (s *channelMonitorHandlerRepoStub) GetByID(_ context.Context, id int64) (*service.ChannelMonitor, error) {
+	if s.byID == nil || s.byID.ID != id {
+		return nil, service.ErrChannelMonitorNotFound
+	}
+	clone := *s.byID
+	return &clone, nil
+}
+
+func (s *channelMonitorHandlerRepoStub) Update(_ context.Context, monitor *service.ChannelMonitor) (*service.ChannelMonitor, error) {
+	if s.updateErr != nil {
+		return nil, s.updateErr
+	}
+	clone := *monitor
+	s.byID = &clone
 	return &clone, nil
 }
 
@@ -231,6 +250,34 @@ func TestChannelMonitorTemplateHandler_Create_LogsCreateFailure(t *testing.T) {
 	require.NotContains(t, rec.Body.String(), "x-debug")
 }
 
+func TestChannelMonitorHandler_Run_LogsFailureWithMonitorContext(t *testing.T) {
+	router := newChannelMonitorHandlerTestRouter(&channelMonitorHandlerRepoStub{
+		byID: &service.ChannelMonitor{
+			ID:                 77,
+			Provider:           service.ChannelMonitorProviderOpenAI,
+			ProbeMode:          service.ChannelMonitorProbeModeAccountPool,
+			RequestProtocol:    service.ChannelMonitorRequestProtocolOpenAI,
+			IntervalSeconds:    60,
+			Enabled:            true,
+			AccountIDs:         []int64{101},
+			PrimaryModelID:     "main",
+			ModelProbeStrategy: service.ChannelMonitorModelProbeStrategyPrimaryOnly,
+		},
+	})
+	core, logs := observer.New(zap.WarnLevel)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/admin/channel-monitors/77/run", nil)
+	req = req.WithContext(logger.IntoContext(req.Context(), zap.New(core)))
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	entry := logs.FilterMessage("channel_monitor_run_failed").TakeAll()
+	require.Len(t, entry, 1)
+	require.Equal(t, int64(77), entry[0].ContextMap()["monitor_id"])
+	require.Equal(t, service.ChannelMonitorProbeModeAccountPool, entry[0].ContextMap()["probe_mode"])
+}
+
 func newChannelMonitorHandlerTestRouter(repo service.ChannelMonitorRepository) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	settingRepo := &channelMonitorHandlerSettingRepoStub{values: map[string]string{
@@ -245,7 +292,8 @@ func newChannelMonitorHandlerTestRouter(repo service.ChannelMonitorRepository) *
 		&config.Config{},
 	)
 	router := gin.New()
-	router.POST("/admin/channel-monitors", NewChannelMonitorHandler(monitorSvc).Create)
+	router.POST("/admin/channel-monitors", NewChannelMonitorHandler(monitorSvc, nil).Create)
+	router.POST("/admin/channel-monitors/:id/run", NewChannelMonitorHandler(monitorSvc, nil).Run)
 	return router
 }
 

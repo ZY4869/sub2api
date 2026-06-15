@@ -21,6 +21,14 @@ func NewChannelMonitorTemplateRepository(db *sql.DB) service.ChannelMonitorTempl
 }
 
 func (r *channelMonitorTemplateRepository) Create(ctx context.Context, tpl *service.ChannelMonitorRequestTemplate) (*service.ChannelMonitorRequestTemplate, error) {
+	return r.createWithExecutor(ctx, r.db, tpl)
+}
+
+func (r *channelMonitorTemplateRepository) CreateWithTx(ctx context.Context, tx *sql.Tx, tpl *service.ChannelMonitorRequestTemplate) (*service.ChannelMonitorRequestTemplate, error) {
+	return r.createWithExecutor(ctx, tx, tpl)
+}
+
+func (r *channelMonitorTemplateRepository) createWithExecutor(ctx context.Context, exec channelMonitorSQLExecutor, tpl *service.ChannelMonitorRequestTemplate) (*service.ChannelMonitorRequestTemplate, error) {
 	if tpl == nil {
 		return nil, errors.New("nil template")
 	}
@@ -33,29 +41,35 @@ func (r *channelMonitorTemplateRepository) Create(ctx context.Context, tpl *serv
 		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_BODY_OVERRIDE_INVALID", "invalid body override")
 	}
 
-	row := r.db.QueryRowContext(ctx, `
+	row := exec.QueryRowContext(ctx, `
 INSERT INTO channel_monitor_request_templates (
 	name,
 	provider,
+	request_protocol,
 	description,
 	extra_headers,
 	body_override_mode,
 	body_override,
 	openai_api_mode,
+	test_prompt_template,
 	created_at,
 	updated_at
 )
-VALUES ($1, $2, NULLIF($3, ''), $4::jsonb, $5, $6::jsonb, $7, NOW(), NOW())
+VALUES ($1, $2, $3, NULLIF($4, ''), $5::jsonb, $6, $7::jsonb, $8, $9, NOW(), NOW())
 RETURNING id, created_at, updated_at
-`, tpl.Name, tpl.Provider, optionalStringValue(tpl.Description), string(headers), tpl.BodyOverrideMode, string(body), tpl.OpenAIAPIMode)
+`, tpl.Name, tpl.Provider, tpl.RequestProtocol, optionalStringValue(tpl.Description), string(headers), tpl.BodyOverrideMode, string(body), tpl.OpenAIAPIMode, tpl.TestPromptTemplate)
 	if err := row.Scan(&tpl.ID, &tpl.CreatedAt, &tpl.UpdatedAt); err != nil {
 		return nil, translateChannelMonitorTemplateSQLError(err)
 	}
-	return r.GetByID(ctx, tpl.ID)
+	return r.getByIDWithExecutor(ctx, exec, tpl.ID)
 }
 
 func (r *channelMonitorTemplateRepository) GetByID(ctx context.Context, id int64) (*service.ChannelMonitorRequestTemplate, error) {
-	row := r.db.QueryRowContext(ctx, templateSelectSQL()+` WHERE id = $1`, id)
+	return r.getByIDWithExecutor(ctx, r.db, id)
+}
+
+func (r *channelMonitorTemplateRepository) getByIDWithExecutor(ctx context.Context, exec channelMonitorSQLExecutor, id int64) (*service.ChannelMonitorRequestTemplate, error) {
+	row := exec.QueryRowContext(ctx, templateSelectSQL()+` WHERE id = $1`, id)
 	out, err := scanChannelMonitorTemplateRow(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -93,14 +107,16 @@ UPDATE channel_monitor_request_templates
 SET
 	name = $2,
 	provider = $3,
-	description = NULLIF($4, ''),
-	extra_headers = $5::jsonb,
-	body_override_mode = $6,
-	body_override = $7::jsonb,
-	openai_api_mode = $8,
+	request_protocol = $4,
+	description = NULLIF($5, ''),
+	extra_headers = $6::jsonb,
+	body_override_mode = $7,
+	body_override = $8::jsonb,
+	openai_api_mode = $9,
+	test_prompt_template = $10,
 	updated_at = NOW()
 WHERE id = $1
-`, tpl.ID, tpl.Name, tpl.Provider, optionalStringValue(tpl.Description), string(headers), tpl.BodyOverrideMode, string(body), tpl.OpenAIAPIMode)
+`, tpl.ID, tpl.Name, tpl.Provider, tpl.RequestProtocol, optionalStringValue(tpl.Description), string(headers), tpl.BodyOverrideMode, string(body), tpl.OpenAIAPIMode, tpl.TestPromptTemplate)
 	if err != nil {
 		return nil, translateChannelMonitorTemplateSQLError(err)
 	}
@@ -144,11 +160,13 @@ SELECT
 	id,
 	name,
 	provider,
+	COALESCE(request_protocol, 'openai'),
 	description,
 	COALESCE(extra_headers, '{}'::jsonb),
 	COALESCE(body_override_mode, 'off'),
 	COALESCE(body_override, '{}'::jsonb),
 	COALESCE(openai_api_mode, 'chat_completions'),
+	COALESCE(test_prompt_template, ''),
 	created_at,
 	updated_at
 FROM channel_monitor_request_templates
@@ -170,11 +188,13 @@ func scanChannelMonitorTemplateRow(row templateRowScanner) (*service.ChannelMoni
 		&t.ID,
 		&t.Name,
 		&t.Provider,
+		&t.RequestProtocol,
 		&desc,
 		&extraHeadersRaw,
 		&t.BodyOverrideMode,
 		&bodyOverrideRaw,
 		&t.OpenAIAPIMode,
+		&t.TestPromptTemplate,
 		&t.CreatedAt,
 		&t.UpdatedAt,
 	); err != nil {
@@ -234,6 +254,9 @@ func translateChannelMonitorTemplateSQLError(err error) error {
 			}
 			if pqErr.Constraint == "channel_monitor_request_templates_openai_api_mode_check" {
 				return infraerrors.BadRequest("CHANNEL_MONITOR_OPENAI_API_MODE_INVALID", "invalid OpenAI API mode")
+			}
+			if pqErr.Constraint == "channel_monitor_request_templates_request_protocol_check" {
+				return service.ErrChannelMonitorInvalidProtocol
 			}
 		}
 	}
