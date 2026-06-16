@@ -342,6 +342,20 @@ func (_c *UserCreate) SetNillableAPIKeyModelBindingMode(v *string) *UserCreate {
 	return _c
 }
 
+// SetExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field.
+func (_c *UserCreate) SetExternalModelCatalogViewMode(v string) *UserCreate {
+	_c.mutation.SetExternalModelCatalogViewMode(v)
+	return _c
+}
+
+// SetNillableExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field if the given value is not nil.
+func (_c *UserCreate) SetNillableExternalModelCatalogViewMode(v *string) *UserCreate {
+	if v != nil {
+		_c.SetExternalModelCatalogViewMode(*v)
+	}
+	return _c
+}
+
 // SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
 func (_c *UserCreate) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserCreate {
 	_c.mutation.SetAPIKeyAccessTimePolicy(v)
@@ -652,6 +666,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultAPIKeyModelBindingMode
 		_c.mutation.SetAPIKeyModelBindingMode(v)
 	}
+	if _, ok := _c.mutation.ExternalModelCatalogViewMode(); !ok {
+		v := user.DefaultExternalModelCatalogViewMode
+		_c.mutation.SetExternalModelCatalogViewMode(v)
+	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
 		v := user.DefaultTotpEnabled
 		_c.mutation.SetTotpEnabled(v)
@@ -795,6 +813,14 @@ func (_c *UserCreate) check() error {
 			return &ValidationError{Name: "api_key_model_binding_mode", err: fmt.Errorf(`ent: validator failed for field "User.api_key_model_binding_mode": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.ExternalModelCatalogViewMode(); !ok {
+		return &ValidationError{Name: "external_model_catalog_view_mode", err: errors.New(`ent: missing required field "User.external_model_catalog_view_mode"`)}
+	}
+	if v, ok := _c.mutation.ExternalModelCatalogViewMode(); ok {
+		if err := user.ExternalModelCatalogViewModeValidator(v); err != nil {
+			return &ValidationError{Name: "external_model_catalog_view_mode", err: fmt.Errorf(`ent: validator failed for field "User.external_model_catalog_view_mode": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
 		return &ValidationError{Name: "totp_enabled", err: errors.New(`ent: missing required field "User.totp_enabled"`)}
 	}
@@ -920,6 +946,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.APIKeyModelBindingMode(); ok {
 		_spec.SetField(user.FieldAPIKeyModelBindingMode, field.TypeString, value)
 		_node.APIKeyModelBindingMode = value
+	}
+	if value, ok := _c.mutation.ExternalModelCatalogViewMode(); ok {
+		_spec.SetField(user.FieldExternalModelCatalogViewMode, field.TypeString, value)
+		_node.ExternalModelCatalogViewMode = value
 	}
 	if value, ok := _c.mutation.APIKeyAccessTimePolicy(); ok {
 		_spec.SetField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON, value)
@@ -1431,6 +1461,18 @@ func (u *UserUpsert) UpdateAPIKeyModelBindingMode() *UserUpsert {
 	return u
 }
 
+// SetExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field.
+func (u *UserUpsert) SetExternalModelCatalogViewMode(v string) *UserUpsert {
+	u.Set(user.FieldExternalModelCatalogViewMode, v)
+	return u
+}
+
+// UpdateExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field to the value that was provided on create.
+func (u *UserUpsert) UpdateExternalModelCatalogViewMode() *UserUpsert {
+	u.SetExcluded(user.FieldExternalModelCatalogViewMode)
+	return u
+}
+
 // SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
 func (u *UserUpsert) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserUpsert {
 	u.Set(user.FieldAPIKeyAccessTimePolicy, v)
@@ -1882,6 +1924,20 @@ func (u *UserUpsertOne) SetAPIKeyModelBindingMode(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateAPIKeyModelBindingMode() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAPIKeyModelBindingMode()
+	})
+}
+
+// SetExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field.
+func (u *UserUpsertOne) SetExternalModelCatalogViewMode(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetExternalModelCatalogViewMode(v)
+	})
+}
+
+// UpdateExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateExternalModelCatalogViewMode() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateExternalModelCatalogViewMode()
 	})
 }
 
@@ -2513,6 +2569,20 @@ func (u *UserUpsertBulk) SetAPIKeyModelBindingMode(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateAPIKeyModelBindingMode() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAPIKeyModelBindingMode()
+	})
+}
+
+// SetExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field.
+func (u *UserUpsertBulk) SetExternalModelCatalogViewMode(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetExternalModelCatalogViewMode(v)
+	})
+}
+
+// UpdateExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateExternalModelCatalogViewMode() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateExternalModelCatalogViewMode()
 	})
 }
 

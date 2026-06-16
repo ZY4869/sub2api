@@ -355,6 +355,7 @@ export interface BillingPublicCatalogPublishedSummary {
   stale_reason?: string
   page_size: number
   model_count: number
+  changed_count?: number
 }
 
 export interface BillingPublicCatalogRevalidationState {

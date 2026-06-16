@@ -5,6 +5,8 @@ import type {
   AccountStatusDisplayMode,
   AccountTodayStatsCycleMode,
   AccountTodayStatsWindow,
+  EffectiveExternalModelCatalogViewMode,
+  ExternalModelCatalogViewMode,
   UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
   VisualPreset,
@@ -19,6 +21,8 @@ export interface User {
   email: string;
   role: "admin" | "user"; // User role for authorization
   api_key_model_binding_mode?: APIKeyModelBindingMode;
+  external_model_catalog_view_mode?: ExternalModelCatalogViewMode;
+  effective_external_model_catalog_view_mode?: EffectiveExternalModelCatalogViewMode;
   api_key_access_time_policy?: TimeAccessPolicy | null;
   request_details_review?: boolean;
   admin_free_billing?: boolean;

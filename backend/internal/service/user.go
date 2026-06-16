@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -31,6 +32,7 @@ type User struct {
 	AccountGroupDisplayMode         string
 	AccountStatusDisplayMode        string
 	APIKeyModelBindingMode          string
+	ExternalModelCatalogViewMode    string
 	APIKeyAccessTimePolicy          *TimeAccessPolicy
 	AllowedGroups                   []int64
 	TokenVersion                    int64 // Incremented on password change to invalidate existing tokens
@@ -97,6 +99,12 @@ const (
 	APIKeyModelBindingModeGroupAllowed  = "group_allowed"
 )
 
+const (
+	ExternalModelCatalogViewModeFollowKeyBinding = "follow_key_binding"
+	ExternalModelCatalogViewModeGroupFirst       = "group_first"
+	ExternalModelCatalogViewModeModelOnly        = "model_only"
+)
+
 func NormalizeAPIKeyModelBindingMode(value string) string {
 	switch strings.TrimSpace(value) {
 	case APIKeyModelBindingModeGroupAllowed:
@@ -111,6 +119,55 @@ func (u *User) EffectiveAPIKeyModelBindingMode() string {
 		return APIKeyModelBindingModeModelRequired
 	}
 	return NormalizeAPIKeyModelBindingMode(u.APIKeyModelBindingMode)
+}
+
+func NormalizeExternalModelCatalogViewMode(value string) string {
+	switch strings.TrimSpace(value) {
+	case ExternalModelCatalogViewModeGroupFirst:
+		return ExternalModelCatalogViewModeGroupFirst
+	case ExternalModelCatalogViewModeModelOnly:
+		return ExternalModelCatalogViewModeModelOnly
+	default:
+		return ExternalModelCatalogViewModeFollowKeyBinding
+	}
+}
+
+func ValidateExternalModelCatalogViewMode(value string) error {
+	switch strings.TrimSpace(value) {
+	case ExternalModelCatalogViewModeFollowKeyBinding,
+		ExternalModelCatalogViewModeGroupFirst,
+		ExternalModelCatalogViewModeModelOnly:
+		return nil
+	default:
+		return infraerrors.BadRequest(
+			"EXTERNAL_MODEL_CATALOG_VIEW_MODE_INVALID",
+			"external_model_catalog_view_mode must be follow_key_binding, group_first, or model_only",
+		)
+	}
+}
+
+func (u *User) EffectiveExternalModelCatalogViewMode() string {
+	if u == nil {
+		return ExternalModelCatalogViewModeModelOnly
+	}
+	switch NormalizeExternalModelCatalogViewMode(u.ExternalModelCatalogViewMode) {
+	case ExternalModelCatalogViewModeGroupFirst:
+		return ExternalModelCatalogViewModeGroupFirst
+	case ExternalModelCatalogViewModeModelOnly:
+		return ExternalModelCatalogViewModeModelOnly
+	default:
+		if u.EffectiveAPIKeyModelBindingMode() == APIKeyModelBindingModeGroupAllowed {
+			return ExternalModelCatalogViewModeGroupFirst
+		}
+		return ExternalModelCatalogViewModeModelOnly
+	}
+}
+
+func EffectiveExternalModelCatalogViewMode(user *User) string {
+	if user == nil {
+		return ExternalModelCatalogViewModeModelOnly
+	}
+	return user.EffectiveExternalModelCatalogViewMode()
 }
 
 // CanBindGroup checks whether a user can bind to a given group.

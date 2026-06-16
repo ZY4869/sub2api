@@ -68,6 +68,8 @@ func TestAPIContracts(t *testing.T) {
 					"account_group_display_mode": "full",
 					"account_status_display_mode": "detailed",
 					"api_key_model_binding_mode": "model_required",
+					"external_model_catalog_view_mode": "follow_key_binding",
+					"effective_external_model_catalog_view_mode": "model_only",
 					"api_key_access_time_policy": null,
 					"allowed_groups": null,
  					"created_at": "2025-01-02T03:04:05Z",
@@ -430,12 +432,61 @@ func TestAPIContracts(t *testing.T) {
 					"account_group_display_mode": "full",
 					"account_status_display_mode": "detailed",
 					"api_key_model_binding_mode": "model_required",
+					"external_model_catalog_view_mode": "follow_key_binding",
+					"effective_external_model_catalog_view_mode": "model_only",
 					"api_key_access_time_policy": null,
 					"allowed_groups": null,
 					"created_at": "2025-01-02T03:04:05Z",
 					"updated_at": "2025-01-02T03:04:05Z",
 					"admin_free_billing": false,
 					"request_details_review": false
+				}
+			}`,
+		},
+		{
+			name: "GET /api/v1/user/external-model-catalog",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.settingRepo.SetAll(map[string]string{
+					service.SettingKeyPublicModelCatalogPublishedSnapshot: `{
+						"snapshot": {
+							"etag": "etag-contract-catalog",
+							"updated_at": "2026-05-01T00:00:00Z",
+							"published_at": "2026-05-01T00:00:00Z",
+							"last_revalidated_at": "2026-05-01T00:00:00Z",
+							"page_size": 10,
+							"items": [
+								{
+									"model": "gpt-5.4",
+									"public_model_id": "gpt-5.4",
+									"display_name": "GPT-5.4",
+									"provider": "openai",
+									"currency": "USD",
+									"price_display": {"primary": [{"id": "input_price", "value": 0.000001, "configured": true}]},
+									"multiplier_summary": {"enabled": false, "kind": "disabled"}
+								}
+							]
+						}
+					}`,
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/user/external-model-catalog",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"external_model_catalog_view_mode": "follow_key_binding",
+					"effective_external_model_catalog_view_mode": "model_only",
+					"etag": "W/\"2cf0f44db30d8cb57ad4c37910db51d5b33ce30f9cf6c2bd5101fc252fc8fd2e\"",
+					"updated_at": "2026-05-01T00:00:00Z",
+					"published_at": "2026-05-01T00:00:00Z",
+					"last_revalidated_at": "2026-05-01T00:00:00Z",
+					"page_size": 10,
+					"catalog_source": "published",
+					"groups": [],
+					"items": []
 				}
 			}`,
 		},
@@ -500,6 +551,8 @@ func TestAPIContracts(t *testing.T) {
 					"account_group_display_mode": "icon",
 					"account_status_display_mode": "simple",
 					"api_key_model_binding_mode": "model_required",
+					"external_model_catalog_view_mode": "follow_key_binding",
+					"effective_external_model_catalog_view_mode": "model_only",
 					"api_key_access_time_policy": null,
 					"allowed_groups": null,
 					"created_at": "2025-01-02T03:04:05Z",
@@ -1779,6 +1832,8 @@ func newContractDeps(t *testing.T) *contractDeps {
 
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
+	modelCatalogService := service.NewModelCatalogService(settingRepo, nil, nil, nil, cfg)
+	apiKeyService.SetModelCatalogService(modelCatalogService)
 	settingHandler := handler.NewSettingHandler(settingService, "0.0.0-test")
 	authIdentityRepo := newStubAuthIdentityRepo()
 	moderationRepo := newStubContentModerationAuditRepo()
@@ -1869,6 +1924,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1User.PUT("", userHandler.UpdateProfile)
 	v1User.GET("/auth-identities", userHandler.ListAuthIdentities)
 	v1User.DELETE("/auth-identities/:provider", userHandler.DeleteAuthIdentity)
+	v1User.GET("/external-model-catalog", apiKeyHandler.GetExternalModelCatalog)
 	v1User.GET("/aff", userHandler.GetAffiliate)
 	v1User.POST("/aff/transfer", userHandler.TransferAffiliate)
 

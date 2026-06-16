@@ -26167,6 +26167,7 @@ type UserMutation struct {
 	account_status_display_mode        *string
 	usage_context_badge_display_mode   *string
 	api_key_model_binding_mode         *string
+	external_model_catalog_view_mode   *string
 	api_key_access_time_policy         *map[string]interface{}
 	totp_secret_encrypted              *string
 	totp_enabled                       *bool
@@ -27234,6 +27235,42 @@ func (m *UserMutation) ResetAPIKeyModelBindingMode() {
 	m.api_key_model_binding_mode = nil
 }
 
+// SetExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field.
+func (m *UserMutation) SetExternalModelCatalogViewMode(s string) {
+	m.external_model_catalog_view_mode = &s
+}
+
+// ExternalModelCatalogViewMode returns the value of the "external_model_catalog_view_mode" field in the mutation.
+func (m *UserMutation) ExternalModelCatalogViewMode() (r string, exists bool) {
+	v := m.external_model_catalog_view_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalModelCatalogViewMode returns the old "external_model_catalog_view_mode" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldExternalModelCatalogViewMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalModelCatalogViewMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalModelCatalogViewMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalModelCatalogViewMode: %w", err)
+	}
+	return oldValue.ExternalModelCatalogViewMode, nil
+}
+
+// ResetExternalModelCatalogViewMode resets all changes to the "external_model_catalog_view_mode" field.
+func (m *UserMutation) ResetExternalModelCatalogViewMode() {
+	m.external_model_catalog_view_mode = nil
+}
+
 // SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
 func (m *UserMutation) SetAPIKeyAccessTimePolicy(value map[string]interface{}) {
 	m.api_key_access_time_policy = &value
@@ -27937,7 +27974,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 29)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -28010,6 +28047,9 @@ func (m *UserMutation) Fields() []string {
 	if m.api_key_model_binding_mode != nil {
 		fields = append(fields, user.FieldAPIKeyModelBindingMode)
 	}
+	if m.external_model_catalog_view_mode != nil {
+		fields = append(fields, user.FieldExternalModelCatalogViewMode)
+	}
 	if m.api_key_access_time_policy != nil {
 		fields = append(fields, user.FieldAPIKeyAccessTimePolicy)
 	}
@@ -28078,6 +28118,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.UsageContextBadgeDisplayMode()
 	case user.FieldAPIKeyModelBindingMode:
 		return m.APIKeyModelBindingMode()
+	case user.FieldExternalModelCatalogViewMode:
+		return m.ExternalModelCatalogViewMode()
 	case user.FieldAPIKeyAccessTimePolicy:
 		return m.APIKeyAccessTimePolicy()
 	case user.FieldTotpSecretEncrypted:
@@ -28143,6 +28185,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUsageContextBadgeDisplayMode(ctx)
 	case user.FieldAPIKeyModelBindingMode:
 		return m.OldAPIKeyModelBindingMode(ctx)
+	case user.FieldExternalModelCatalogViewMode:
+		return m.OldExternalModelCatalogViewMode(ctx)
 	case user.FieldAPIKeyAccessTimePolicy:
 		return m.OldAPIKeyAccessTimePolicy(ctx)
 	case user.FieldTotpSecretEncrypted:
@@ -28327,6 +28371,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAPIKeyModelBindingMode(v)
+		return nil
+	case user.FieldExternalModelCatalogViewMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalModelCatalogViewMode(v)
 		return nil
 	case user.FieldAPIKeyAccessTimePolicy:
 		v, ok := value.(map[string]interface{})
@@ -28530,6 +28581,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldAPIKeyModelBindingMode:
 		m.ResetAPIKeyModelBindingMode()
+		return nil
+	case user.FieldExternalModelCatalogViewMode:
+		m.ResetExternalModelCatalogViewMode()
 		return nil
 	case user.FieldAPIKeyAccessTimePolicy:
 		m.ResetAPIKeyAccessTimePolicy()

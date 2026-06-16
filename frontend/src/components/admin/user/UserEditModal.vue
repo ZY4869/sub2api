@@ -41,6 +41,15 @@
         </select>
         <p class="input-hint">{{ t('admin.users.apiKeyModelBindingModeHint') }}</p>
       </div>
+      <div>
+        <label class="input-label">{{ t('admin.users.externalModelCatalogViewMode') }}</label>
+        <select v-model="form.external_model_catalog_view_mode" class="input">
+          <option value="follow_key_binding">{{ t('admin.users.externalModelCatalogViewModeFollow') }}</option>
+          <option value="group_first">{{ t('admin.users.externalModelCatalogViewModeGroupFirst') }}</option>
+          <option value="model_only">{{ t('admin.users.externalModelCatalogViewModeModelOnly') }}</option>
+        </select>
+        <p class="input-hint">{{ t('admin.users.externalModelCatalogViewModeHint') }}</p>
+      </div>
       <div class="space-y-3">
         <label class="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-dark-700 dark:bg-dark-900/30">
           <input
@@ -95,7 +104,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
-import type { AdminUser, APIKeyModelBindingMode, TimeAccessPolicy, UserAttributeValuesMap } from '@/types'
+import type { AdminUser, APIKeyModelBindingMode, ExternalModelCatalogViewMode, TimeAccessPolicy, UserAttributeValuesMap } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import TimeAccessPolicyEditor from '@/components/common/TimeAccessPolicyEditor.vue'
 import UserAttributeForm from '@/components/user/UserAttributeForm.vue'
@@ -113,6 +122,7 @@ const form = reactive({
   username: '',
   notes: '',
   api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode,
+  external_model_catalog_view_mode: 'follow_key_binding' as ExternalModelCatalogViewMode,
   enable_api_key_access_time_policy: false,
   api_key_access_time_policy: buildPresetTimeAccessPolicy('daytime') as TimeAccessPolicy,
   admin_free_billing: false,
@@ -128,6 +138,7 @@ watch(() => props.user, (u) => {
       username: u.username || '',
       notes: u.notes || '',
       api_key_model_binding_mode: u.api_key_model_binding_mode || 'model_required',
+      external_model_catalog_view_mode: u.external_model_catalog_view_mode || 'follow_key_binding',
       enable_api_key_access_time_policy: !!u.api_key_access_time_policy?.enabled,
       api_key_access_time_policy: normalizeTimeAccessPolicy(u.api_key_access_time_policy),
       admin_free_billing: !!u.admin_free_billing,
@@ -165,6 +176,7 @@ const handleUpdateUser = async () => {
       username: form.username,
       notes: form.notes,
       api_key_model_binding_mode: form.api_key_model_binding_mode,
+      external_model_catalog_view_mode: form.external_model_catalog_view_mode,
       ...(form.enable_api_key_access_time_policy
         ? { api_key_access_time_policy: policyToPayload(form.api_key_access_time_policy) }
         : { clear_api_key_access_time_policy: true }),

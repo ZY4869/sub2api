@@ -63,6 +63,8 @@ const (
 	FieldUsageContextBadgeDisplayMode = "usage_context_badge_display_mode"
 	// FieldAPIKeyModelBindingMode holds the string denoting the api_key_model_binding_mode field in the database.
 	FieldAPIKeyModelBindingMode = "api_key_model_binding_mode"
+	// FieldExternalModelCatalogViewMode holds the string denoting the external_model_catalog_view_mode field in the database.
+	FieldExternalModelCatalogViewMode = "external_model_catalog_view_mode"
 	// FieldAPIKeyAccessTimePolicy holds the string denoting the api_key_access_time_policy field in the database.
 	FieldAPIKeyAccessTimePolicy = "api_key_access_time_policy"
 	// FieldTotpSecretEncrypted holds the string denoting the totp_secret_encrypted field in the database.
@@ -190,6 +192,7 @@ var Columns = []string{
 	FieldAccountStatusDisplayMode,
 	FieldUsageContextBadgeDisplayMode,
 	FieldAPIKeyModelBindingMode,
+	FieldExternalModelCatalogViewMode,
 	FieldAPIKeyAccessTimePolicy,
 	FieldTotpSecretEncrypted,
 	FieldTotpEnabled,
@@ -290,6 +293,10 @@ var (
 	DefaultAPIKeyModelBindingMode string
 	// APIKeyModelBindingModeValidator is a validator for the "api_key_model_binding_mode" field. It is called by the builders before save.
 	APIKeyModelBindingModeValidator func(string) error
+	// DefaultExternalModelCatalogViewMode holds the default value on creation for the "external_model_catalog_view_mode" field.
+	DefaultExternalModelCatalogViewMode string
+	// ExternalModelCatalogViewModeValidator is a validator for the "external_model_catalog_view_mode" field. It is called by the builders before save.
+	ExternalModelCatalogViewModeValidator func(string) error
 	// DefaultTotpEnabled holds the default value on creation for the "totp_enabled" field.
 	DefaultTotpEnabled bool
 )
@@ -415,6 +422,11 @@ func ByUsageContextBadgeDisplayMode(opts ...sql.OrderTermOption) OrderOption {
 // ByAPIKeyModelBindingMode orders the results by the api_key_model_binding_mode field.
 func ByAPIKeyModelBindingMode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAPIKeyModelBindingMode, opts...).ToFunc()
+}
+
+// ByExternalModelCatalogViewMode orders the results by the external_model_catalog_view_mode field.
+func ByExternalModelCatalogViewMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExternalModelCatalogViewMode, opts...).ToFunc()
 }
 
 // ByTotpSecretEncrypted orders the results by the totp_secret_encrypted field.

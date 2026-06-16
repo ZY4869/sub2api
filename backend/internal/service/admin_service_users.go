@@ -75,7 +75,12 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 	if err != nil {
 		return nil, timeAccessPolicyInputError(err)
 	}
-	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: RoleUser, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups, APIKeyModelBindingMode: NormalizeAPIKeyModelBindingMode(input.APIKeyModelBindingMode), APIKeyAccessTimePolicy: policy}
+	if input.ExternalModelCatalogViewMode != "" {
+		if err := ValidateExternalModelCatalogViewMode(input.ExternalModelCatalogViewMode); err != nil {
+			return nil, err
+		}
+	}
+	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: RoleUser, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups, APIKeyModelBindingMode: NormalizeAPIKeyModelBindingMode(input.APIKeyModelBindingMode), ExternalModelCatalogViewMode: NormalizeExternalModelCatalogViewMode(input.ExternalModelCatalogViewMode), APIKeyAccessTimePolicy: policy}
 	if err := user.SetPassword(input.Password); err != nil {
 		return nil, err
 	}
@@ -110,6 +115,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	oldAdminFreeBilling := user.AdminFreeBilling
 	oldRequestDetailsReview := user.RequestDetailsReview
 	oldAPIKeyModelBindingMode := user.EffectiveAPIKeyModelBindingMode()
+	oldExternalModelCatalogViewMode := NormalizeExternalModelCatalogViewMode(user.ExternalModelCatalogViewMode)
 	oldAPIKeyAccessTimePolicy := user.APIKeyAccessTimePolicy
 	if input.Email != "" {
 		user.Email = input.Email
@@ -147,6 +153,12 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if input.APIKeyModelBindingMode != nil {
 		user.APIKeyModelBindingMode = NormalizeAPIKeyModelBindingMode(*input.APIKeyModelBindingMode)
 	}
+	if input.ExternalModelCatalogViewMode != nil {
+		if err := ValidateExternalModelCatalogViewMode(*input.ExternalModelCatalogViewMode); err != nil {
+			return nil, err
+		}
+		user.ExternalModelCatalogViewMode = NormalizeExternalModelCatalogViewMode(*input.ExternalModelCatalogViewMode)
+	}
 	if input.ClearAPIKeyAccessTimePolicy {
 		user.APIKeyAccessTimePolicy = nil
 	} else if input.APIKeyAccessTimePolicy != nil {
@@ -168,7 +180,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		}
 	}
 	if s.authCacheInvalidator != nil {
-		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.AdminFreeBilling != oldAdminFreeBilling || user.RequestDetailsReview != oldRequestDetailsReview || user.EffectiveAPIKeyModelBindingMode() != oldAPIKeyModelBindingMode || !timeAccessPoliciesEqual(user.APIKeyAccessTimePolicy, oldAPIKeyAccessTimePolicy) {
+		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.AdminFreeBilling != oldAdminFreeBilling || user.RequestDetailsReview != oldRequestDetailsReview || user.EffectiveAPIKeyModelBindingMode() != oldAPIKeyModelBindingMode || NormalizeExternalModelCatalogViewMode(user.ExternalModelCatalogViewMode) != oldExternalModelCatalogViewMode || !timeAccessPoliciesEqual(user.APIKeyAccessTimePolicy, oldAPIKeyAccessTimePolicy) {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
 	}
@@ -197,6 +209,15 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 			zap.String("before", oldAPIKeyModelBindingMode),
 			zap.String("after", user.EffectiveAPIKeyModelBindingMode()),
 		).Info("api key model binding mode updated")
+	}
+	if NormalizeExternalModelCatalogViewMode(user.ExternalModelCatalogViewMode) != oldExternalModelCatalogViewMode {
+		logger.With(
+			zap.String("component", "audit.external_model_catalog_view_mode"),
+			zap.Int64("user_id", user.ID),
+			zap.String("before", oldExternalModelCatalogViewMode),
+			zap.String("after", NormalizeExternalModelCatalogViewMode(user.ExternalModelCatalogViewMode)),
+			zap.String("effective", user.EffectiveExternalModelCatalogViewMode()),
+		).Info("external model catalog view mode updated")
 	}
 	if !timeAccessPoliciesEqual(user.APIKeyAccessTimePolicy, oldAPIKeyAccessTimePolicy) {
 		logger.With(

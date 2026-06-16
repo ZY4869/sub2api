@@ -5,7 +5,38 @@
 
 import { apiClient } from './client'
 import type { PublicModelCatalogSnapshot } from '@/api/meta'
-import type { Group, UserGroupModelOptionGroup } from '@/types'
+import type {
+  EffectiveExternalModelCatalogViewMode,
+  ExternalModelCatalogViewMode,
+  Group,
+  GroupPlatform,
+  UserGroupModelOptionGroup
+} from '@/types'
+import type { PublicModelCatalogItem, PublicModelCatalogSource } from '@/api/meta'
+
+export interface ExternalModelCatalogGroupSummary {
+  id: number
+  name: string
+  description?: string | null
+  platform: GroupPlatform | string
+  priority: number
+  model_count: number
+}
+
+export interface ExternalModelCatalogView {
+  external_model_catalog_view_mode: ExternalModelCatalogViewMode
+  effective_external_model_catalog_view_mode: EffectiveExternalModelCatalogViewMode
+  etag?: string
+  updated_at?: string
+  published_at?: string
+  last_revalidated_at?: string
+  stale_reason?: string
+  page_size?: number
+  catalog_source?: PublicModelCatalogSource
+  groups: ExternalModelCatalogGroupSummary[]
+  items: PublicModelCatalogItem[]
+  group_catalogs?: Record<string, PublicModelCatalogItem[]>
+}
 
 /**
  * Get available groups that the current user can bind to API keys
@@ -40,8 +71,14 @@ export async function getModelCatalog(groupId: number): Promise<PublicModelCatal
   return data
 }
 
+export async function getExternalModelCatalog(): Promise<ExternalModelCatalogView> {
+  const { data } = await apiClient.get<ExternalModelCatalogView>('/user/external-model-catalog')
+  return data
+}
+
 export const userGroupsAPI = {
   getAvailable,
+  getExternalModelCatalog,
   getModelCatalog,
   getModelOptions,
   getUserGroupRates

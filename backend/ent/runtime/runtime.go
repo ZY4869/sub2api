@@ -1281,8 +1281,28 @@ func init() {
 			return nil
 		}
 	}()
+	// userDescExternalModelCatalogViewMode is the schema descriptor for external_model_catalog_view_mode field.
+	userDescExternalModelCatalogViewMode := userFields[21].Descriptor()
+	// user.DefaultExternalModelCatalogViewMode holds the default value on creation for the external_model_catalog_view_mode field.
+	user.DefaultExternalModelCatalogViewMode = userDescExternalModelCatalogViewMode.Default.(string)
+	// user.ExternalModelCatalogViewModeValidator is a validator for the "external_model_catalog_view_mode" field. It is called by the builders before save.
+	user.ExternalModelCatalogViewModeValidator = func() func(string) error {
+		validators := userDescExternalModelCatalogViewMode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(external_model_catalog_view_mode string) error {
+			for _, fn := range fns {
+				if err := fn(external_model_catalog_view_mode); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
-	userDescTotpEnabled := userFields[23].Descriptor()
+	userDescTotpEnabled := userFields[24].Descriptor()
 	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
 	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()

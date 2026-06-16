@@ -1,5 +1,6 @@
 import type { APIKeyModelBindingMode, Group, TimeAccessPolicy } from './api-key-groups'
 import type { User } from './auth'
+import type { ExternalModelCatalogViewMode } from './preferences'
 // ==================== Admin User Management ====================
 
 export interface UpdateUserRequest {
@@ -9,6 +10,7 @@ export interface UpdateUserRequest {
   notes?: string;
   role?: "admin" | "user";
   api_key_model_binding_mode?: APIKeyModelBindingMode;
+  external_model_catalog_view_mode?: ExternalModelCatalogViewMode;
   api_key_access_time_policy?: TimeAccessPolicy | null;
   clear_api_key_access_time_policy?: boolean;
   request_details_review?: boolean;

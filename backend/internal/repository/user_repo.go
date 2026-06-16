@@ -77,6 +77,7 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetAccountGroupDisplayMode(service.NormalizeAccountGroupDisplayMode(userIn.AccountGroupDisplayMode)).
 		SetAccountStatusDisplayMode(service.NormalizeAccountStatusDisplayMode(userIn.AccountStatusDisplayMode)).
 		SetAPIKeyModelBindingMode(userIn.EffectiveAPIKeyModelBindingMode()).
+		SetExternalModelCatalogViewMode(service.NormalizeExternalModelCatalogViewMode(userIn.ExternalModelCatalogViewMode)).
 		SetAPIKeyAccessTimePolicy(timeAccessPolicyToMap(userIn.APIKeyAccessTimePolicy)).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
@@ -190,6 +191,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetAccountGroupDisplayMode(service.NormalizeAccountGroupDisplayMode(userIn.AccountGroupDisplayMode)).
 		SetAccountStatusDisplayMode(service.NormalizeAccountStatusDisplayMode(userIn.AccountStatusDisplayMode)).
 		SetAPIKeyModelBindingMode(userIn.EffectiveAPIKeyModelBindingMode()).
+		SetExternalModelCatalogViewMode(service.NormalizeExternalModelCatalogViewMode(userIn.ExternalModelCatalogViewMode)).
 		SetAPIKeyAccessTimePolicy(timeAccessPolicyToMap(userIn.APIKeyAccessTimePolicy)).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
@@ -759,6 +761,7 @@ func applyUserEntityToService(dst *service.User, src *dbent.User) {
 	dst.AccountGroupDisplayMode = service.NormalizeAccountGroupDisplayMode(src.AccountGroupDisplayMode)
 	dst.AccountStatusDisplayMode = service.NormalizeAccountStatusDisplayMode(src.AccountStatusDisplayMode)
 	dst.APIKeyModelBindingMode = service.NormalizeAPIKeyModelBindingMode(src.APIKeyModelBindingMode)
+	dst.ExternalModelCatalogViewMode = service.NormalizeExternalModelCatalogViewMode(src.ExternalModelCatalogViewMode)
 	dst.APIKeyAccessTimePolicy = timeAccessPolicyFromMap(src.APIKeyAccessTimePolicy)
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt

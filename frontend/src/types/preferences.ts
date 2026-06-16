@@ -16,3 +16,10 @@ export type AccountTodayStatsWindow = "today" | "weekly" | "monthly" | "total";
 export type AccountTodayStatsCycleMode = "calendar" | "fixed";
 export type AccountGroupDisplayMode = "full" | "icon";
 export type AccountStatusDisplayMode = "simple" | "detailed";
+export type ExternalModelCatalogViewMode =
+  | "follow_key_binding"
+  | "group_first"
+  | "model_only";
+export type EffectiveExternalModelCatalogViewMode =
+  | "group_first"
+  | "model_only";

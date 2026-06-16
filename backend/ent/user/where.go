@@ -170,6 +170,11 @@ func APIKeyModelBindingMode(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAPIKeyModelBindingMode, v))
 }
 
+// ExternalModelCatalogViewMode applies equality check predicate on the "external_model_catalog_view_mode" field. It's identical to ExternalModelCatalogViewModeEQ.
+func ExternalModelCatalogViewMode(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldExternalModelCatalogViewMode, v))
+}
+
 // TotpSecretEncrypted applies equality check predicate on the "totp_secret_encrypted" field. It's identical to TotpSecretEncryptedEQ.
 func TotpSecretEncrypted(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldTotpSecretEncrypted, v))
@@ -1343,6 +1348,71 @@ func APIKeyModelBindingModeEqualFold(v string) predicate.User {
 // APIKeyModelBindingModeContainsFold applies the ContainsFold predicate on the "api_key_model_binding_mode" field.
 func APIKeyModelBindingModeContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldAPIKeyModelBindingMode, v))
+}
+
+// ExternalModelCatalogViewModeEQ applies the EQ predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeNEQ applies the NEQ predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeIn applies the In predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldExternalModelCatalogViewMode, vs...))
+}
+
+// ExternalModelCatalogViewModeNotIn applies the NotIn predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldExternalModelCatalogViewMode, vs...))
+}
+
+// ExternalModelCatalogViewModeGT applies the GT predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeGTE applies the GTE predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeLT applies the LT predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeLTE applies the LTE predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeContains applies the Contains predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeHasPrefix applies the HasPrefix predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeHasSuffix applies the HasSuffix predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeEqualFold applies the EqualFold predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldExternalModelCatalogViewMode, v))
+}
+
+// ExternalModelCatalogViewModeContainsFold applies the ContainsFold predicate on the "external_model_catalog_view_mode" field.
+func ExternalModelCatalogViewModeContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldExternalModelCatalogViewMode, v))
 }
 
 // APIKeyAccessTimePolicyIsNil applies the IsNil predicate on the "api_key_access_time_policy" field.

@@ -3,6 +3,9 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -430,6 +433,73 @@ func (h *APIKeyHandler) GetGroupModelCatalog(c *gin.Context) {
 		return
 	}
 	response.Success(c, snapshot)
+}
+
+// GetExternalModelCatalog 获取当前登录用户的外部模型库页面视图。
+// GET /api/v1/user/external-model-catalog
+func (h *APIKeyHandler) GetExternalModelCatalog(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	view, err := h.apiKeyService.GetExternalModelCatalogView(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, view)
+}
+
+// StreamModelCatalogEvents streams lightweight model catalog publication events.
+// GET /api/v1/model-catalog/events
+func (h *APIKeyHandler) StreamModelCatalogEvents(c *gin.Context) {
+	if _, ok := middleware2.GetAuthSubjectFromContext(c); !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	events, err := h.apiKeyService.SubscribePublicModelCatalogEvents(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		response.InternalError(c, "streaming is not supported")
+		return
+	}
+
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+	c.Status(http.StatusOK)
+	_, _ = c.Writer.Write([]byte(": connected\n\n"))
+	flusher.Flush()
+
+	for {
+		select {
+		case <-c.Request.Context().Done():
+			return
+		case event, ok := <-events:
+			if !ok {
+				return
+			}
+			if event.Name != service.PublicModelCatalogPublishedEventName {
+				continue
+			}
+			payload, err := json.Marshal(event.Payload)
+			if err != nil {
+				continue
+			}
+			if _, err := fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event.Name, payload); err != nil {
+				return
+			}
+			flusher.Flush()
+		}
+	}
 }
 
 // GetUserGroupRates 获取当前用户的专属分组倍率配置

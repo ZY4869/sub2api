@@ -43,6 +43,15 @@
         </select>
         <p class="input-hint">{{ t('admin.users.apiKeyModelBindingModeHint') }}</p>
       </div>
+      <div>
+        <label class="input-label">{{ t('admin.users.externalModelCatalogViewMode') }}</label>
+        <select v-model="form.external_model_catalog_view_mode" class="input">
+          <option value="follow_key_binding">{{ t('admin.users.externalModelCatalogViewModeFollow') }}</option>
+          <option value="group_first">{{ t('admin.users.externalModelCatalogViewModeGroupFirst') }}</option>
+          <option value="model_only">{{ t('admin.users.externalModelCatalogViewModeModelOnly') }}</option>
+        </select>
+        <p class="input-hint">{{ t('admin.users.externalModelCatalogViewModeHint') }}</p>
+      </div>
       <div class="space-y-3">
         <label class="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-dark-700 dark:bg-dark-900/30">
           <input
@@ -84,7 +93,7 @@ import { useForm } from '@/composables/useForm'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import TimeAccessPolicyEditor from '@/components/common/TimeAccessPolicyEditor.vue'
 import Icon from '@/components/icons/Icon.vue'
-import type { APIKeyModelBindingMode, TimeAccessPolicy } from '@/types'
+import type { APIKeyModelBindingMode, ExternalModelCatalogViewMode, TimeAccessPolicy } from '@/types'
 import { buildPresetTimeAccessPolicy, policyToPayload } from '@/utils/timeAccessPolicy'
 
 const props = defineProps<{ show: boolean }>()
@@ -98,6 +107,7 @@ const form = reactive({
   balance: 0,
   concurrency: 1,
   api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode,
+  external_model_catalog_view_mode: 'follow_key_binding' as ExternalModelCatalogViewMode,
   enable_api_key_access_time_policy: false,
   api_key_access_time_policy: buildPresetTimeAccessPolicy('daytime') as TimeAccessPolicy
 })
@@ -127,6 +137,7 @@ watch(() => props.show, (v) => {
     balance: 0,
     concurrency: 1,
     api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode,
+    external_model_catalog_view_mode: 'follow_key_binding' as ExternalModelCatalogViewMode,
     enable_api_key_access_time_policy: false,
     api_key_access_time_policy: buildPresetTimeAccessPolicy('daytime')
   })

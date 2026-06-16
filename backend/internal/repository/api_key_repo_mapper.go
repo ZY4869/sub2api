@@ -98,6 +98,9 @@ func userEntityToService(u *dbent.User) *service.User {
 		APIKeyModelBindingMode: service.NormalizeAPIKeyModelBindingMode(
 			u.APIKeyModelBindingMode,
 		),
+		ExternalModelCatalogViewMode: service.NormalizeExternalModelCatalogViewMode(
+			u.ExternalModelCatalogViewMode,
+		),
 		APIKeyAccessTimePolicy: timeAccessPolicyFromMap(u.APIKeyAccessTimePolicy),
 		UsageModelDisplayMode: service.NormalizeUserUsageModelDisplayMode(
 			u.UsageModelDisplayMode,

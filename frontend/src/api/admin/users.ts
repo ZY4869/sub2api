@@ -4,7 +4,7 @@
  */
 
 import { apiClient } from '../client'
-import type { AdminUser, UpdateUserRequest, PaginatedResponse, ApiKey, APIKeyModelBindingMode, TimeAccessPolicy } from '@/types'
+import type { AdminUser, UpdateUserRequest, PaginatedResponse, ApiKey, APIKeyModelBindingMode, ExternalModelCatalogViewMode, TimeAccessPolicy } from '@/types'
 
 /**
  * List all users with pagination
@@ -81,6 +81,7 @@ export async function create(userData: {
   concurrency?: number
   allowed_groups?: number[] | null
   api_key_model_binding_mode?: APIKeyModelBindingMode
+  external_model_catalog_view_mode?: ExternalModelCatalogViewMode
   api_key_access_time_policy?: TimeAccessPolicy | null
 }): Promise<AdminUser> {
   const { data } = await apiClient.post<AdminUser>('/admin/users', userData)

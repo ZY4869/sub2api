@@ -220,6 +220,7 @@ func publicModelCatalogPublishedSummary(snapshot *PublicModelCatalogPublishedSna
 		StaleReason:       snapshot.Snapshot.StaleReason,
 		PageSize:          normalizePublicModelCatalogPageSize(snapshot.Snapshot.PageSize),
 		ModelCount:        len(snapshot.Snapshot.Items),
+		ChangedCount:      0,
 	}
 }
 
@@ -1040,6 +1041,7 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 	if err := validatePublicModelCatalogBillingCoverage(ctx, actor, selectedItems); err != nil {
 		return nil, err
 	}
+	previousPublished := s.loadPublishedPublicModelCatalogSnapshot(ctx)
 	details := make(map[string]PublicModelCatalogDetail, len(selectedItems))
 	for index, item := range selectedItems {
 		item = enrichPublicModelCatalogItemMetadata(item, publicModelCatalogMetadataSourceForPublished(time.Now().UTC().Format(time.RFC3339)))
@@ -1086,10 +1088,12 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 		return nil, err
 	}
 	summary := publicModelCatalogPublishedSummary(published)
+	summary.ChangedCount = publicModelCatalogChangedModelCount(previousPublished, published)
 	fields := publicModelCatalogAuditFields(ctx, actor)
 	fields = append(fields,
 		zap.String("etag", summary.ETag),
 		zap.Int("model_count", summary.ModelCount),
+		zap.Int("changed_count", summary.ChangedCount),
 		zap.Int("entry_count", len(draft.SelectedEntries)),
 		zap.Int("page_size", summary.PageSize),
 		zap.String("available_source", availableSource),
@@ -1099,6 +1103,17 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 		"public model catalog published",
 		fields...,
 	)
+	event := publicModelCatalogPublishedEventFromSummary(summary)
+	subscriberCount := s.PublishPublicModelCatalogEvent(event)
+	eventFields := publicModelCatalogAuditFields(ctx, actor)
+	eventFields = append(eventFields,
+		zap.String("event_name", PublicModelCatalogPublishedEventName),
+		zap.String("etag", event.ETag),
+		zap.Int("model_count", event.ModelCount),
+		zap.Int("changed_count", event.ChangedCount),
+		zap.Int("subscriber_count", subscriberCount),
+	)
+	logger.FromContext(ctx).Info("public model catalog published event dispatched", eventFields...)
 	publishEntryFields := publicModelCatalogAuditFields(ctx, actor)
 	for _, item := range selectedItems {
 		fields := append([]zap.Field{}, publishEntryFields...)
@@ -1106,6 +1121,41 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 		logger.FromContext(ctx).Info("public model catalog published entry", fields...)
 	}
 	return summary, nil
+}
+
+func publicModelCatalogChangedModelCount(previous, next *PublicModelCatalogPublishedSnapshot) int {
+	if next == nil {
+		return 0
+	}
+	if previous == nil {
+		return len(next.Snapshot.Items)
+	}
+	previousIDs := publicModelCatalogPublicIDSet(previous.Snapshot.Items)
+	nextIDs := publicModelCatalogPublicIDSet(next.Snapshot.Items)
+	changed := 0
+	for id := range nextIDs {
+		if _, ok := previousIDs[id]; !ok {
+			changed++
+		}
+	}
+	for id := range previousIDs {
+		if _, ok := nextIDs[id]; !ok {
+			changed++
+		}
+	}
+	return changed
+}
+
+func publicModelCatalogPublicIDSet(items []PublicModelCatalogItem) map[string]struct{} {
+	out := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		id := NormalizeModelCatalogModelID(firstNonEmptyTrimmed(item.PublicModelID, item.Model))
+		if id == "" {
+			continue
+		}
+		out[id] = struct{}{}
+	}
+	return out
 }
 
 func (s *ModelCatalogService) GetPublishedPublicModelCatalogSummary(ctx context.Context) (*PublicModelCatalogPublishedSummary, error) {

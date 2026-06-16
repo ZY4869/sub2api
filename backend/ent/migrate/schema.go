@@ -1024,6 +1024,7 @@ var (
 		{Name: "account_status_display_mode", Type: field.TypeString, Size: 32, Default: "detailed"},
 		{Name: "usage_context_badge_display_mode", Type: field.TypeString, Size: 32, Default: "request_only"},
 		{Name: "api_key_model_binding_mode", Type: field.TypeString, Size: 32, Default: "model_required"},
+		{Name: "external_model_catalog_view_mode", Type: field.TypeString, Size: 32, Default: "follow_key_binding"},
 		{Name: "api_key_access_time_policy", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "totp_secret_encrypted", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "totp_enabled", Type: field.TypeBool, Default: false},

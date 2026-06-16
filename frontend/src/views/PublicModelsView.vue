@@ -1,6 +1,6 @@
 <template>
   <AppLayout v-if="isAuthenticated">
-    <PublicModelCatalogContent />
+    <UserExternalModelCatalogContent />
   </AppLayout>
 
   <div
@@ -39,6 +39,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import PublicModelCatalogContent from '@/components/models/PublicModelCatalogContent.vue'
+import UserExternalModelCatalogContent from '@/components/models/UserExternalModelCatalogContent.vue'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 

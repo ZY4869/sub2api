@@ -51,6 +51,7 @@ function mountView() {
       stubs: {
         AppLayout: { template: '<div data-test="app-layout"><slot /></div>' },
         PublicModelCatalogContent: { template: '<div data-test="catalog-content" />' },
+        UserExternalModelCatalogContent: { template: '<div data-test="user-catalog-content" />' },
         'router-link': { template: '<a data-test="login-link"><slot /></a>' },
       },
     },
@@ -81,13 +82,14 @@ describe('PublicModelsView', () => {
     expect(mockState.router.replace).not.toHaveBeenCalled()
   })
 
-  it('renders the shared catalog content inside AppLayout for authenticated users', () => {
+  it('renders the user catalog content inside AppLayout for authenticated users', () => {
     mockState.authStore.isAuthenticated = true
 
     const wrapper = mountView()
 
     expect(wrapper.find('[data-test="app-layout"]').exists()).toBe(true)
-    expect(wrapper.find('[data-test="catalog-content"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="user-catalog-content"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="catalog-content"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="login-link"]').exists()).toBe(false)
     expect(mockState.router.replace).not.toHaveBeenCalled()
   })

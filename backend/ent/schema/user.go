@@ -124,6 +124,17 @@ func (User) Fields() []ent.Field {
 					return fmt.Errorf("invalid api key model binding mode %q", value)
 				}
 			}),
+		field.String("external_model_catalog_view_mode").
+			MaxLen(32).
+			Default("follow_key_binding").
+			Validate(func(value string) error {
+				switch value {
+				case "follow_key_binding", "group_first", "model_only":
+					return nil
+				default:
+					return fmt.Errorf("invalid external model catalog view mode %q", value)
+				}
+			}),
 		field.JSON("api_key_access_time_policy", map[string]any{}).
 			Optional().
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).

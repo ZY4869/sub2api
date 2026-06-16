@@ -34,6 +34,7 @@ func RegisterUserRoutes(
 			user.GET("/notification-preferences", h.User.GetNotificationPreferences)
 			user.PUT("/notification-preferences/:category", h.User.UpdateNotificationPreference)
 			user.GET("/platform-quotas", h.User.GetPlatformQuotas)
+			user.GET("/external-model-catalog", h.APIKey.GetExternalModelCatalog)
 			user.GET("/aff", h.User.GetAffiliate)
 			user.POST("/aff/transfer", h.User.TransferAffiliate)
 
@@ -64,6 +65,11 @@ func RegisterUserRoutes(
 			groups.GET("/model-catalog", h.APIKey.GetGroupModelCatalog)
 			groups.GET("/model-options", h.APIKey.GetGroupModelOptions)
 			groups.GET("/rates", h.APIKey.GetUserGroupRates)
+		}
+
+		modelCatalog := authenticated.Group("/model-catalog")
+		{
+			modelCatalog.GET("/events", h.APIKey.StreamModelCatalogEvents)
 		}
 
 		channels := authenticated.Group("/channels")

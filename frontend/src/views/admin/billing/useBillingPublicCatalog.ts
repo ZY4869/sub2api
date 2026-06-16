@@ -36,6 +36,7 @@ import {
   resolveErrorMessage,
 } from '@/components/admin/billing/public-catalog/publicCatalogViewHelpers'
 import { usePublicCatalogState } from '@/components/admin/billing/public-catalog/usePublicCatalogState'
+import { emitModelCatalogPublished } from '@/utils/modelCatalogPublishedEvent'
 
 type Translate = (key: string, params?: Record<string, unknown>) => string
 
@@ -100,6 +101,12 @@ export function useBillingPublicCatalog() {
     state.publishing.value = true
     try {
       state.published.value = await publishBillingPublicCatalog(payload)
+      emitModelCatalogPublished({
+        etag: state.published.value.etag,
+        published_at: state.published.value.published_at,
+        model_count: state.published.value.model_count,
+        changed_count: state.published.value.changed_count ?? state.published.value.model_count,
+      })
       state.draftUpdatedAt.value = state.published.value?.updated_at || state.draftUpdatedAt.value
       await loadDiagnostics()
       appStore.showSuccess(t('admin.billing.publicCatalog.messages.published'))

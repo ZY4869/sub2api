@@ -3,30 +3,32 @@ package dto
 import "time"
 
 type User struct {
-	ID                              int64              `json:"id"`
-	Email                           string             `json:"email"`
-	Username                        string             `json:"username"`
-	Role                            string             `json:"role"`
-	AdminFreeBilling                bool               `json:"admin_free_billing"`
-	RequestDetailsReview            bool               `json:"request_details_review"`
-	UsageModelDisplayMode           string             `json:"usage_model_display_mode"`
-	GlobalRealtimeCountdownEnabled  bool               `json:"global_realtime_countdown_enabled"`
-	AccountRealtimeCountdownEnabled bool               `json:"account_realtime_countdown_enabled"`
-	VisualPresetPreference          string             `json:"visual_preset_preference"`
-	AccountVisualPresetOverride     string             `json:"account_visual_preset_override"`
-	AccountTodayStatsWindows        []string           `json:"account_today_stats_windows"`
-	AccountTodayStatsCycleMode      string             `json:"account_today_stats_cycle_mode"`
-	AccountGroupDisplayMode         string             `json:"account_group_display_mode"`
-	AccountStatusDisplayMode        string             `json:"account_status_display_mode"`
-	APIKeyModelBindingMode          string             `json:"api_key_model_binding_mode"`
-	APIKeyAccessTimePolicy          any                `json:"api_key_access_time_policy,omitempty"`
-	Balance                         float64            `json:"balance"`
-	Balances                        map[string]float64 `json:"balances,omitempty"`
-	Concurrency                     int                `json:"concurrency"`
-	Status                          string             `json:"status"`
-	AllowedGroups                   []int64            `json:"allowed_groups"`
-	CreatedAt                       time.Time          `json:"created_at"`
-	UpdatedAt                       time.Time          `json:"updated_at"`
+	ID                                    int64              `json:"id"`
+	Email                                 string             `json:"email"`
+	Username                              string             `json:"username"`
+	Role                                  string             `json:"role"`
+	AdminFreeBilling                      bool               `json:"admin_free_billing"`
+	RequestDetailsReview                  bool               `json:"request_details_review"`
+	UsageModelDisplayMode                 string             `json:"usage_model_display_mode"`
+	GlobalRealtimeCountdownEnabled        bool               `json:"global_realtime_countdown_enabled"`
+	AccountRealtimeCountdownEnabled       bool               `json:"account_realtime_countdown_enabled"`
+	VisualPresetPreference                string             `json:"visual_preset_preference"`
+	AccountVisualPresetOverride           string             `json:"account_visual_preset_override"`
+	AccountTodayStatsWindows              []string           `json:"account_today_stats_windows"`
+	AccountTodayStatsCycleMode            string             `json:"account_today_stats_cycle_mode"`
+	AccountGroupDisplayMode               string             `json:"account_group_display_mode"`
+	AccountStatusDisplayMode              string             `json:"account_status_display_mode"`
+	APIKeyModelBindingMode                string             `json:"api_key_model_binding_mode"`
+	ExternalModelCatalogViewMode          string             `json:"external_model_catalog_view_mode"`
+	EffectiveExternalModelCatalogViewMode string             `json:"effective_external_model_catalog_view_mode"`
+	APIKeyAccessTimePolicy                any                `json:"api_key_access_time_policy,omitempty"`
+	Balance                               float64            `json:"balance"`
+	Balances                              map[string]float64 `json:"balances,omitempty"`
+	Concurrency                           int                `json:"concurrency"`
+	Status                                string             `json:"status"`
+	AllowedGroups                         []int64            `json:"allowed_groups"`
+	CreatedAt                             time.Time          `json:"created_at"`
+	UpdatedAt                             time.Time          `json:"updated_at"`
 
 	APIKeys       []APIKey           `json:"api_keys,omitempty"`
 	Subscriptions []UserSubscription `json:"subscriptions,omitempty"`

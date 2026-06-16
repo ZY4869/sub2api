@@ -369,6 +369,20 @@ func (_u *UserUpdate) SetNillableAPIKeyModelBindingMode(v *string) *UserUpdate {
 	return _u
 }
 
+// SetExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field.
+func (_u *UserUpdate) SetExternalModelCatalogViewMode(v string) *UserUpdate {
+	_u.mutation.SetExternalModelCatalogViewMode(v)
+	return _u
+}
+
+// SetNillableExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableExternalModelCatalogViewMode(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetExternalModelCatalogViewMode(*v)
+	}
+	return _u
+}
+
 // SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
 func (_u *UserUpdate) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserUpdate {
 	_u.mutation.SetAPIKeyAccessTimePolicy(v)
@@ -873,6 +887,11 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "api_key_model_binding_mode", err: fmt.Errorf(`ent: validator failed for field "User.api_key_model_binding_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ExternalModelCatalogViewMode(); ok {
+		if err := user.ExternalModelCatalogViewModeValidator(v); err != nil {
+			return &ValidationError{Name: "external_model_catalog_view_mode", err: fmt.Errorf(`ent: validator failed for field "User.external_model_catalog_view_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -970,6 +989,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.APIKeyModelBindingMode(); ok {
 		_spec.SetField(user.FieldAPIKeyModelBindingMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ExternalModelCatalogViewMode(); ok {
+		_spec.SetField(user.FieldExternalModelCatalogViewMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.APIKeyAccessTimePolicy(); ok {
 		_spec.SetField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON, value)
@@ -1761,6 +1783,20 @@ func (_u *UserUpdateOne) SetNillableAPIKeyModelBindingMode(v *string) *UserUpdat
 	return _u
 }
 
+// SetExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field.
+func (_u *UserUpdateOne) SetExternalModelCatalogViewMode(v string) *UserUpdateOne {
+	_u.mutation.SetExternalModelCatalogViewMode(v)
+	return _u
+}
+
+// SetNillableExternalModelCatalogViewMode sets the "external_model_catalog_view_mode" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableExternalModelCatalogViewMode(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetExternalModelCatalogViewMode(*v)
+	}
+	return _u
+}
+
 // SetAPIKeyAccessTimePolicy sets the "api_key_access_time_policy" field.
 func (_u *UserUpdateOne) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserUpdateOne {
 	_u.mutation.SetAPIKeyAccessTimePolicy(v)
@@ -2278,6 +2314,11 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "api_key_model_binding_mode", err: fmt.Errorf(`ent: validator failed for field "User.api_key_model_binding_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ExternalModelCatalogViewMode(); ok {
+		if err := user.ExternalModelCatalogViewModeValidator(v); err != nil {
+			return &ValidationError{Name: "external_model_catalog_view_mode", err: fmt.Errorf(`ent: validator failed for field "User.external_model_catalog_view_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -2392,6 +2433,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.APIKeyModelBindingMode(); ok {
 		_spec.SetField(user.FieldAPIKeyModelBindingMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ExternalModelCatalogViewMode(); ok {
+		_spec.SetField(user.FieldExternalModelCatalogViewMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.APIKeyAccessTimePolicy(); ok {
 		_spec.SetField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON, value)

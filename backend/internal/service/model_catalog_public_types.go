@@ -269,6 +269,7 @@ type PublicModelCatalogPublishedSummary struct {
 	StaleReason       string `json:"stale_reason,omitempty"`
 	PageSize          int    `json:"page_size"`
 	ModelCount        int    `json:"model_count"`
+	ChangedCount      int    `json:"changed_count"`
 }
 
 type PublicModelCatalogDraftPayload struct {

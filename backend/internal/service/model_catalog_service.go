@@ -24,6 +24,8 @@ type ModelCatalogService struct {
 	usageHealthRepo       publicModelCatalogTrafficHealthRepository
 	apiKeyRepo            APIKeyRepository
 	userPlatformQuotas    *UserPlatformQuotaService
+	publicCatalogEventMu  sync.Mutex
+	publicCatalogEvents   *PublicModelCatalogEventBroker
 	publicCatalogCacheMu  sync.RWMutex
 	publicCatalogCache    *PublicModelCatalogSnapshot
 	publicCatalogBuiltAt  time.Time
@@ -44,6 +46,7 @@ func NewModelCatalogService(
 		billingService:      billingService,
 		pricingService:      pricingService,
 		exchangeRateService: newModelCatalogExchangeRateService(nil),
+		publicCatalogEvents: NewPublicModelCatalogEventBroker(),
 		publicCatalogTTL:    60 * time.Second,
 		cfg:                 cfg,
 	}
