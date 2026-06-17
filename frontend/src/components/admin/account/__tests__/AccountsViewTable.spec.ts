@@ -394,7 +394,7 @@ describe('AccountsViewTable', () => {
     expect(wrapper.get('.today-stats-stub').attributes('data-visible-windows')).toBe('weekly,total')
     expect(wrapper.get('.groups-stub').attributes('data-display-mode')).toBe('icon')
     expect(wrapper.get('.status-visual-stub').attributes('data-display-mode')).toBe('simple')
-    expect(wrapper.get('.cell-groups .account-airy-spaced-cell-groups').classes()).toContain('max-w-[104px]')
+    expect(wrapper.get('.cell-groups .account-airy-spaced-cell-groups').classes()).toContain('max-w-[72px]')
   })
 
   it('renders expiration date and badges without truncation classes', () => {

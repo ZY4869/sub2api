@@ -66,6 +66,15 @@ const stats = {
   today_cost: 0.45,
   today_actual_cost: 0.4,
   today_average_duration_ms: 120,
+  platform_breakdown: [
+    {
+      platform: "openai",
+      requests: 2,
+      total_tokens: 128,
+      actual_cost: 0.1,
+      actual_cost_by_currency: { USD: 0.1 },
+    },
+  ],
 };
 
 describe("user UsageStatsCards", () => {
@@ -86,6 +95,7 @@ describe("user UsageStatsCards", () => {
     expect(cacheCard.text()).toContain("命中率");
     expect(cacheCard.text()).toContain("89.6%");
     expect(cacheCard.text()).toContain("写入 12,500 / 读取 34,000");
+    expect(wrapper.find('[data-testid="user-usage-platform-breakdown"]').exists()).toBe(false);
   });
 
   it("keeps today usage metrics visible", () => {

@@ -487,7 +487,7 @@ const airySpacedCellClass = (key: 'capacity' | 'status' | 'groups') => {
     capacity: 'min-w-0 max-w-[184px]',
     status: 'min-w-0 max-w-[244px]',
     groups: props.accountGroupDisplayMode === 'icon'
-      ? 'min-w-0 max-w-[104px]'
+      ? 'min-w-0 max-w-[72px]'
       : 'min-w-0 max-w-[196px]'
   }[key]
   const paddingClass = key === 'capacity' ? '' : 'px-1'

@@ -34,12 +34,6 @@
           :format-tokens="formatTokens"
           :format-currency-breakdown="formatCurrencyBreakdown"
         />
-        <FailedRequestsPanel
-          :rows="failedRequests"
-          :loading="failedRequestsLoading"
-          :error="failedRequestsError"
-          @refresh="loadFailedRequests"
-        />
         <UsageTable
           :columns="columns"
           :usage-logs="usageLogs"
@@ -122,7 +116,6 @@ import type {
   TrendDataPoint,
 } from "@/types";
 import type { UsageFilterApiKey } from "@/api/usage";
-import type { UserFailedRequest } from "@/api/usage";
 import type { Column } from "@/components/common/types";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
@@ -150,7 +143,6 @@ import {
 } from "@/utils/usageCost";
 import { FILTER_PLATFORM_ORDER, getPlatformEnglishName } from "@/utils/platformBranding";
 import ApiKeyDailyUsageCard from "./usage/ApiKeyDailyUsageCard.vue";
-import FailedRequestsPanel from "./usage/FailedRequestsPanel.vue";
 import UsageCostTooltip from "./usage/UsageCostTooltip.vue";
 import UsageFilters from "./usage/UsageFilters.vue";
 import UsageTable from "./usage/UsageTable.vue";
@@ -184,7 +176,6 @@ const formatCurrencyBreakdown = (
 };
 
 let abortController: AbortController | null = null;
-let failedRequestsAbortController: AbortController | null = null;
 
 // Tooltip state
 const tooltipVisible = ref(false);
@@ -229,10 +220,7 @@ const columns = computed<Column[]>(() => [
 const usageLogs = ref<UsageLog[]>([]);
 const apiKeys = ref<UsageFilterApiKey[]>([]);
 const apiKeyDailyRows = ref<TrendDataPoint[]>([]);
-const failedRequests = ref<UserFailedRequest[]>([]);
 const apiKeyDailyLoading = ref(false);
-const failedRequestsLoading = ref(false);
-const failedRequestsError = ref(false);
 const loading = ref(false);
 const exporting = ref(false);
 const requestPreviewOpen = ref(false);
@@ -468,49 +456,6 @@ const loadUsageLogs = async () => {
   }
 };
 
-const loadFailedRequests = async () => {
-  if (failedRequestsAbortController) {
-    failedRequestsAbortController.abort();
-  }
-  const currentAbortController = new AbortController();
-  failedRequestsAbortController = currentAbortController;
-  const { signal } = currentAbortController;
-  failedRequestsLoading.value = true;
-  failedRequestsError.value = false;
-  try {
-    const params = {
-      page: 1,
-      page_size: 5,
-      api_key_id: selectedApiKeyID.value || undefined,
-      platform: filters.value.platform,
-      start_date: filters.value.start_date || startDate.value,
-      end_date: filters.value.end_date || endDate.value,
-    };
-    const response = await usageAPI.listFailedRequests(params, { signal });
-    if (signal.aborted) {
-      return;
-    }
-    failedRequests.value = response.items || [];
-  } catch (error) {
-    if (signal.aborted) {
-      return;
-    }
-    const abortError = error as { name?: string; code?: string };
-    if (
-      abortError?.name === "AbortError" ||
-      abortError?.code === "ERR_CANCELED"
-    ) {
-      return;
-    }
-    failedRequests.value = [];
-    failedRequestsError.value = true;
-  } finally {
-    if (failedRequestsAbortController === currentAbortController) {
-      failedRequestsLoading.value = false;
-    }
-  }
-};
-
 const loadApiKeys = async () => {
   try {
     const currentSelectedID = filters.value.api_key_id
@@ -580,7 +525,6 @@ const applyFilters = () => {
   pagination.page = 1;
   loadApiKeys();
   loadUsageLogs();
-  loadFailedRequests();
   loadUsageStats();
   loadApiKeyDailyUsage();
 };
@@ -603,7 +547,6 @@ const resetFilters = () => {
   pagination.page = 1;
   loadApiKeys();
   loadUsageLogs();
-  loadFailedRequests();
   loadUsageStats();
   loadApiKeyDailyUsage();
 };
@@ -828,7 +771,6 @@ const hideTokenTooltip = () => {
 onMounted(() => {
   loadApiKeys();
   loadUsageLogs();
-  loadFailedRequests();
   loadUsageStats();
   loadApiKeyDailyUsage();
 });

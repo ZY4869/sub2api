@@ -19,6 +19,7 @@ export default {
         activeQuery: "当前展示的是主动查询结果。",
         resetQuota: "重置 OpenAI 额度",
         resettingQuota: "重置中",
+        resetQuotaRemaining: "可重置 {count} 次",
         resetQuotaSuccess: "OpenAI 额度已重置",
         resetQuotaFailed: "OpenAI 额度重置失败，请重试",
         displayMode: {

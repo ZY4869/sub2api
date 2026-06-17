@@ -190,75 +190,23 @@
         </div>
       </div>
     </div>
-
-    <div
-      v-if="platformBreakdown.length > 0"
-      class="card p-4"
-      data-testid="user-usage-platform-breakdown"
-    >
-      <div class="mb-3">
-        <p class="text-sm font-semibold text-gray-900 dark:text-white">
-          {{ t("usage.platformBreakdown") }}
-        </p>
-        <p class="text-xs text-gray-500 dark:text-gray-400">
-          {{ t("usage.platformBreakdownHint") }}
-        </p>
-      </div>
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div
-          v-for="item in platformBreakdown"
-          :key="item.platform"
-          class="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-dark-700 dark:bg-dark-900/70"
-        >
-          <div class="mb-2 flex items-center gap-2">
-            <PlatformIcon
-              v-if="item.platform !== 'unknown'"
-              :platform="item.platform"
-              size="sm"
-              class="shrink-0"
-            />
-            <span class="truncate text-sm font-semibold text-gray-900 dark:text-white">
-              {{ formatPlatformLabel(item.platform) }}
-            </span>
-          </div>
-          <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
-            <span>{{ t("usage.totalRequests") }}</span>
-            <span class="text-right text-gray-800 dark:text-gray-100">
-              {{ item.requests.toLocaleString() }}
-            </span>
-            <span>{{ t("usage.totalTokens") }}</span>
-            <span class="text-right text-gray-800 dark:text-gray-100">
-              {{ formatTokens(item.total_tokens || 0) }}
-            </span>
-            <span>{{ t("usage.actualCost") }}</span>
-            <span class="text-right text-gray-800 dark:text-gray-100">
-              {{ formatCurrencyBreakdown(item.actual_cost_by_currency, item.actual_cost, 4) }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import type { UsageStatsResponse } from "@/types";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import { formatUsageAmount } from "@/utils/usageCost";
 import Icon from "@/components/icons/Icon.vue";
-import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import CacheStatsCard from "@/components/usage/CacheStatsCard.vue";
-import { getPlatformEnglishName } from "@/utils/platformBranding";
 
-const props = defineProps<{
+defineProps<{
   stats: UsageStatsResponse | null;
 }>();
 
 const { t } = useI18n();
 const { formatTokenDisplay } = useTokenDisplayMode();
-const platformBreakdown = computed(() => props.stats?.platform_breakdown || []);
 
 const formatDuration = (ms: number): string => {
   if (ms < 1000) return `${ms.toFixed(0)}ms`;
@@ -297,6 +245,4 @@ const formatCurrencyBreakdown = (
     .join(" / ");
 };
 
-const formatPlatformLabel = (platform: string): string =>
-  platform === "unknown" ? t("usage.unknownPlatform") : getPlatformEnglishName(platform);
 </script>

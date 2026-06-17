@@ -1,14 +1,14 @@
 <template>
   <div class="min-w-[520px] max-w-full space-y-1.5 text-[11px] leading-none" data-testid="account-key-usage-summary-cell">
     <template v-if="loading && !stats">
-      <div class="flex flex-wrap items-center gap-2" data-testid="account-key-usage-today-row">
+      <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap" data-testid="account-key-usage-today-row">
         <span
           v-for="index in 5"
           :key="index"
           class="h-6 w-20 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800"
         />
       </div>
-      <div class="flex flex-wrap items-center gap-2" data-testid="account-key-usage-quota-row">
+      <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap" data-testid="account-key-usage-quota-row">
         <span class="h-6 w-24 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800" />
       </div>
     </template>
@@ -18,7 +18,7 @@
     </span>
 
     <template v-else>
-      <div class="flex flex-wrap items-center gap-2" data-testid="account-key-usage-today-row">
+      <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap" data-testid="account-key-usage-today-row">
         <span
           v-for="item in todayItems"
           :key="item.key"
@@ -35,7 +35,7 @@
         </span>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2" data-testid="account-key-usage-quota-row">
+      <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap" data-testid="account-key-usage-quota-row">
         <span
           v-if="quotaItems.length === 0"
           class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100"

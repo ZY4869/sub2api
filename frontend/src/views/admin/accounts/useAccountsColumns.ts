@@ -69,10 +69,10 @@ const allColumns = computed(() => {
       class:
         resolvedAccountVisualPreset.value === "airy"
           ? accountGroupDisplayMode?.value === "icon"
-            ? "w-[120px] min-w-[112px] max-w-[120px]"
+            ? "w-[88px] min-w-[80px] max-w-[88px]"
             : "w-[176px] min-w-[156px] max-w-[176px]"
           : accountGroupDisplayMode?.value === "icon"
-            ? "w-[132px] max-w-[132px]"
+            ? "w-[88px] max-w-[88px]"
           : "w-[196px] max-w-[196px]",
     });
   }

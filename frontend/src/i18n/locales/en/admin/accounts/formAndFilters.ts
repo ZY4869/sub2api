@@ -19,6 +19,7 @@ export default {
         activeQuery: "This view reflects an active live query.",
         resetQuota: "Reset OpenAI quota",
         resettingQuota: "Resetting",
+        resetQuotaRemaining: "{count} resets left",
         resetQuotaSuccess: "OpenAI quota reset",
         resetQuotaFailed: "Failed to reset OpenAI quota. Please retry.",
         displayMode: {

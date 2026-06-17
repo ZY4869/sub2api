@@ -50,7 +50,7 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => {
+      t: (key: string, params?: Record<string, unknown>) => {
         const dict: Record<string, string> = {
           'dates.today': 'Today',
           'dates.tomorrow': 'Tomorrow',
@@ -61,11 +61,16 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.spark7d': 'Spark 7d',
           'admin.accounts.usageWindow.resetQuota': 'Reset quota',
           'admin.accounts.usageWindow.resettingQuota': 'Resetting',
+          'admin.accounts.usageWindow.resetQuotaRemaining': '{count} resets left',
           'admin.accounts.usageWindow.resetQuotaSuccess': 'Quota reset',
           'admin.accounts.usageWindow.resetQuotaFailed': 'Quota reset failed',
           'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
         }
-        return dict[key] ?? key
+        let message = dict[key] ?? key
+        for (const [name, value] of Object.entries(params || {})) {
+          message = message.replace(`{${name}}`, String(value))
+        }
+        return message
       },
     }),
   }
@@ -363,5 +368,50 @@ describe('AccountUsageResetCell', () => {
     expect(resetAccountQuota).toHaveBeenCalledWith(3007)
     expect(getUsage).toHaveBeenCalledWith(3007, { force: true, source: 'active' })
     expect(showSuccess).toHaveBeenCalledWith('Quota reset')
+  })
+
+  it('shows the openai quota reset remaining count from account extra', async () => {
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3008,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 10,
+            codex_5h_reset_at: '2026-03-13T15:22:00',
+            openai_quota_reset_remaining: '3',
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('3 resets left')
+    expect(wrapper.get('button').text()).toContain('Reset quota')
+  })
+
+  it('hides the openai quota reset remaining count when account extra has no valid count', async () => {
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3009,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 10,
+            codex_5h_reset_at: '2026-03-13T15:22:00',
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').exists()).toBe(false)
+    expect(wrapper.get('button').text()).toContain('Reset quota')
   })
 })

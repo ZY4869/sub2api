@@ -1519,7 +1519,7 @@ describe("user UsageView tooltip", () => {
     expect(wrapper.text()).toContain("Cache Miss");
   });
 
-  it("renders recent failed requests for the selected filters", async () => {
+  it("does not render or request recent failed requests", async () => {
     query.mockResolvedValue({
       items: [],
       total: 0,
@@ -1532,31 +1532,6 @@ describe("user UsageView tooltip", () => {
       avg_duration_ms: 0,
     });
     listFilterApiKeys.mockResolvedValue([]);
-    listFailedRequests.mockResolvedValue({
-      items: [
-        {
-          id: 77,
-          created_at: "2026-03-08T00:00:00Z",
-          request_id: "req-failed-visible",
-          client_request_id: "client-req",
-          platform: "openai",
-          model: "gpt-5.4",
-          requested_model: "gpt-5.4",
-          status_code: 502,
-          phase: "upstream",
-          error_source: "upstream_http",
-          error_owner: "provider",
-          message: "Upstream request failed",
-          request_path: "/v1/chat/completions",
-          inbound_endpoint: "/v1/chat/completions",
-          upstream_endpoint: "/chat/completions",
-        },
-      ],
-      total: 1,
-      page: 1,
-      page_size: 5,
-      pages: 1,
-    });
 
     const wrapper = mount(UsageView, {
       global: {
@@ -1577,24 +1552,12 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
     await nextTick();
 
-    expect(listFailedRequests).toHaveBeenCalledWith(
-      expect.objectContaining({
-        page: 1,
-        page_size: 5,
-      }),
-      expect.objectContaining({
-        signal: expect.any(AbortSignal),
-      }),
-    );
-    expect(wrapper.find('[data-testid="failed-requests-panel"]').exists()).toBe(true);
-    const row = wrapper.get('[data-testid="failed-request-row"]');
-    expect(row.text()).toContain("gpt-5.4");
-    expect(row.text()).toContain("502");
-    expect(row.text()).toContain("upstream");
-    expect(row.text()).toContain("Upstream request failed");
+    expect(listFailedRequests).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="failed-requests-panel"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Recent Failed Requests");
   });
 
-  it("shows failed requests empty and error states without breaking the usage table", async () => {
+  it("does not surface failed request errors on the usage page", async () => {
     query.mockResolvedValue({
       items: [],
       total: 0,
@@ -1628,8 +1591,9 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.text()).toContain("Failed to load failed requests");
-    expect(wrapper.text()).toContain("Recent Failed Requests");
+    expect(listFailedRequests).not.toHaveBeenCalled();
+    expect(wrapper.text()).not.toContain("Failed to load failed requests");
+    expect(wrapper.text()).not.toContain("Recent Failed Requests");
     expect(showError).not.toHaveBeenCalledWith("Failed to load failed requests. Retry or adjust the filters.");
   });
 });

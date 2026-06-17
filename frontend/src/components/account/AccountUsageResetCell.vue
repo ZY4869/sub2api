@@ -50,20 +50,31 @@
 
       <span v-else class="text-gray-400 dark:text-gray-500">-</span>
     </div>
-    <button
+    <div
       v-if="canResetOpenAIQuota"
-      type="button"
-      class="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-[10px] font-medium text-gray-600 transition hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-300"
-      :disabled="resetting"
-      @click="resetOpenAIQuota"
+      class="flex flex-wrap items-center gap-1.5"
     >
-      <Icon
-        name="refresh"
-        size="xs"
-        :class="resetting ? 'animate-spin' : ''"
-      />
-      {{ resetting ? t('admin.accounts.usageWindow.resettingQuota') : t('admin.accounts.usageWindow.resetQuota') }}
-    </button>
+      <button
+        type="button"
+        class="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-[10px] font-medium text-gray-600 transition hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-300"
+        :disabled="resetting"
+        @click="resetOpenAIQuota"
+      >
+        <Icon
+          name="refresh"
+          size="xs"
+          :class="resetting ? 'animate-spin' : ''"
+        />
+        {{ resetting ? t('admin.accounts.usageWindow.resettingQuota') : t('admin.accounts.usageWindow.resetQuota') }}
+      </button>
+      <span
+        v-if="openAIQuotaResetRemaining !== null"
+        class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold leading-none text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100"
+        data-testid="account-usage-reset-quota-remaining"
+      >
+        {{ t('admin.accounts.usageWindow.resetQuotaRemaining', { count: openAIQuotaResetRemaining }) }}
+      </span>
+    </div>
   </div>
 
   <div v-else class="text-xs text-gray-400">-</div>
@@ -103,6 +114,38 @@ const resetting = ref(false)
 const canResetOpenAIQuota = computed(() => {
   return props.account.platform === 'openai' && props.account.type === 'oauth'
 })
+
+const OPENAI_QUOTA_RESET_REMAINING_KEYS = [
+  'openai_quota_reset_remaining',
+  'openai_quota_resets_remaining',
+  'quota_reset_remaining',
+  'reset_quota_remaining',
+  'openai_reset_remaining',
+]
+
+const openAIQuotaResetRemaining = computed(() => {
+  const extra = props.account.extra
+  if (!extra) return null
+
+  for (const key of OPENAI_QUOTA_RESET_REMAINING_KEYS) {
+    const count = normalizeQuotaResetRemaining(extra[key])
+    if (count !== null) return count
+  }
+  return null
+})
+
+function normalizeQuotaResetRemaining(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+    return Math.floor(value)
+  }
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.trim()
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return null
+
+  const numeric = Number(trimmed)
+  return Number.isFinite(numeric) ? Math.floor(numeric) : null
+}
 
 async function resetOpenAIQuota() {
   if (!canResetOpenAIQuota.value || resetting.value) return

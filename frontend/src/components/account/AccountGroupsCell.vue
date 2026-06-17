@@ -19,7 +19,6 @@
               size="xs"
               aria-hidden="true"
             />
-            <span aria-hidden="true" class="min-w-0 truncate">{{ item.abbreviation }}</span>
           </button>
           <span :class="iconTooltipClass" role="tooltip">
             {{ item.group.name }}
@@ -159,18 +158,18 @@ const moreButtonClass = computed(() => {
 
 const rootClass = computed(() =>
   displayMode.value === 'icon'
-    ? 'relative max-w-[132px]'
+    ? 'relative max-w-[64px]'
     : 'relative max-w-full'
 )
 
 const containerClass = computed(() =>
   displayMode.value === 'icon'
-    ? 'flex max-h-14 flex-wrap gap-1 overflow-visible'
+    ? 'grid max-h-14 grid-cols-2 gap-1 overflow-visible'
     : 'flex max-h-none flex-wrap gap-1 overflow-visible'
 )
 
 const iconBadgeBaseClass = computed(() =>
-  'inline-flex h-6 max-w-[58px] shrink-0 items-center justify-center gap-1 rounded-full border px-1.5 text-[10px] font-black uppercase leading-none transition hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1'
+  'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border p-0 text-[10px] font-black uppercase leading-none transition hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1'
 )
 
 const iconTooltipClass = computed(() => {

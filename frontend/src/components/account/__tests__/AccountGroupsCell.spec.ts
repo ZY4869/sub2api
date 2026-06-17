@@ -55,7 +55,7 @@ describe('AccountGroupsCell', () => {
     expect(wrapper.get('.group-badge-stub').attributes('data-wrap')).toBe('true')
   })
 
-  it('renders platform icons, abbreviations, and top tooltips in icon mode', () => {
+  it('renders platform-only icons with top tooltips in icon mode', () => {
     const wrapper = mount(AccountGroupsCell, {
       props: {
         groups,
@@ -65,9 +65,12 @@ describe('AccountGroupsCell', () => {
     })
 
     const buttons = wrapper.findAll('button[aria-label]')
+    const iconGrid = wrapper.get('.grid')
+    expect(iconGrid.classes()).toEqual(expect.arrayContaining(['grid-cols-2', 'gap-1']))
     expect(buttons[0].attributes('aria-label')).toBe('GPT-免费')
     expect(buttons[0].attributes('title')).toBe('GPT-免费')
-    expect(buttons[0].text()).toBe('GPT')
+    expect(buttons[0].text()).toBe('')
+    expect(buttons[0].classes()).toEqual(expect.arrayContaining(['h-6', 'w-6', 'p-0']))
     expect(buttons[0].find('.platform-icon-stub').attributes('data-platform')).toBe('openai')
     const tooltip = wrapper.find('[role="tooltip"]')
     expect(tooltip.text()).toBe('GPT-免费')
@@ -77,7 +80,7 @@ describe('AccountGroupsCell', () => {
     expect(tooltip.classes()).toContain('truncate')
     expect(tooltip.classes()).not.toContain('break-words')
     expect(buttons[1].attributes('aria-label')).toBe('审核组')
-    expect(buttons[1].text()).toBe('审核')
+    expect(buttons[1].text()).toBe('')
     expect(buttons[1].find('.platform-icon-stub').attributes('data-platform')).toBe('gemini')
   })
 
@@ -94,7 +97,7 @@ describe('AccountGroupsCell', () => {
     })
 
     const buttons = wrapper.findAll('button[aria-label]')
-    expect(buttons.map((button) => button.text())).toEqual(['GPT', 'GPT'])
+    expect(buttons.map((button) => button.text())).toEqual(['', ''])
     const bgClass = (classes: string[]) => classes.find((className) => className.startsWith('bg-'))
     expect(bgClass(buttons[0].classes())).not.toBe(bgClass(buttons[1].classes()))
   })
