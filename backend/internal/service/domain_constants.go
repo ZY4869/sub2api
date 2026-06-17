@@ -240,8 +240,8 @@ const (
 	SettingKeyGoogleBatchGCSProfiles        = "google_batch_gcs_profiles"
 	SettingKeyAccountDaily5HTriggerSettings = "account_daily_5h_trigger_settings"
 
-	SettingKeyMinClaudeCodeVersion = "min_claude_code_version"
-	SettingKeyMaxClaudeCodeVersion = "max_claude_code_version"
+	SettingKeyMinClaudeCodeVersion                 = "min_claude_code_version"
+	SettingKeyMaxClaudeCodeVersion                 = "max_claude_code_version"
 	SettingKeyClaudeOAuthSystemPromptBlocksEnabled = "claude_oauth_system_prompt_blocks_enabled"
 	SettingKeyClaudeOAuthSystemPromptBlocks        = "claude_oauth_system_prompt_blocks"
 

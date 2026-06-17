@@ -276,8 +276,14 @@ func TestNormalizeClaudeOAuthRequestBody_SystemPromptBlocks(t *testing.T) {
 	system, ok := parsed["system"].([]any)
 	require.True(t, ok)
 	require.Len(t, system, 2)
-	require.Equal(t, "Existing", system[0].(map[string]any)["text"])
-	require.Equal(t, "Security block", system[1].(map[string]any)["text"])
+
+	first, ok := system[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "Existing", first["text"])
+
+	second, ok := system[1].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "Security block", second["text"])
 }
 
 func TestNormalizeClaudeOAuthRequestBody_SystemPromptBlocksDisabled(t *testing.T) {
@@ -304,7 +310,10 @@ func TestNormalizeClaudeOAuthRequestBody_SystemPromptBlocksCreateSystem(t *testi
 	system, ok := parsed["system"].([]any)
 	require.True(t, ok)
 	require.Len(t, system, 1)
-	require.Equal(t, "Security block", system[0].(map[string]any)["text"])
+
+	first, ok := system[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "Security block", first["text"])
 }
 
 func TestRewriteSystemForNonClaudeCode(t *testing.T) {

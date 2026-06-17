@@ -1241,6 +1241,25 @@ func TestAPIContracts(t *testing.T) {
 						"content_moderation_timeout_ms": 1500,
 						"content_moderation_dedupe_window_seconds": 300,
 						"content_moderation_fail_open": true,
+						"content_moderation_cyber_policy_enabled": false,
+						"content_moderation_cyber_categories": [
+							{
+								"id": "credential_theft",
+								"keywords": ["credential stuffing", "steal api key", "phishing kit"]
+							},
+							{
+								"id": "malware",
+								"keywords": ["malware payload", "ransomware", "keylogger"]
+							},
+							{
+								"id": "exploit",
+								"keywords": ["zero day exploit", "privilege escalation", "remote code execution"]
+							},
+							{
+								"id": "exfiltration",
+								"keywords": ["data exfiltration", "dump database", "bypass dlp"]
+							}
+						],
 						"content_moderation_category_thresholds": {
 							"harassment": 1,
 							"harassment/threatening": 1,
@@ -1312,6 +1331,8 @@ func TestAPIContracts(t *testing.T) {
 					"maintenance_mode_enabled": false,
 					"min_claude_code_version": "",
 					"max_claude_code_version": "",
+					"claude_oauth_system_prompt_blocks_enabled": false,
+					"claude_oauth_system_prompt_blocks": "",
 					"openai_allow_claude_code_codex_plugin": false,
 					"openai_allowed_codex_clients": [],
 					"openai_fast_policy_settings": {
