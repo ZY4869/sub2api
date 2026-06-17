@@ -126,11 +126,17 @@ func buildContentModerationRecordInput(c *gin.Context, sourceEndpoint, provider,
 	if c == nil || len(body) == 0 {
 		return nil
 	}
+	ctx := context.Background()
+	if c.Request != nil {
+		ctx = c.Request.Context()
+	}
 	record := &service.ContentModerationRecordInput{
-		SourceEndpoint: strings.TrimSpace(sourceEndpoint),
-		Provider:       strings.TrimSpace(provider),
-		Model:          firstNonEmptyHandlerString(model, gjson.GetBytes(body, "model").String()),
-		Content:        string(body),
+		SourceEndpoint:  strings.TrimSpace(sourceEndpoint),
+		Provider:        strings.TrimSpace(provider),
+		Model:           firstNonEmptyHandlerString(model, gjson.GetBytes(body, "model").String()),
+		Content:         string(body),
+		RequestID:       service.ContentModerationRequestIDFromContext(ctx),
+		ClientRequestID: service.ContentModerationClientRequestIDFromContext(ctx),
 	}
 	if subject, ok := middleware2.GetAuthSubjectFromContext(c); ok && subject.UserID > 0 {
 		userID := subject.UserID

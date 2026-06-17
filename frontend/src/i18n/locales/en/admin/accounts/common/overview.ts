@@ -94,6 +94,7 @@ export default {
         saveFailed: "Failed to save display preferences",
     },
     columns: {
+        accountId: "Account ID",
         name: "Name",
         platformType: "Platform/Type",
         platform: "Platform",

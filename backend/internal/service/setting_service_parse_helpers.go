@@ -26,6 +26,14 @@ func mustMarshalDefaultContentModerationThresholds() string {
 	return string(data)
 }
 
+func mustMarshalDefaultContentModerationCyberCategories() string {
+	data, err := MarshalContentModerationCyberCategories(DefaultContentModerationCyberCategories())
+	if err != nil {
+		return "[]"
+	}
+	return data
+}
+
 func isFalseSettingValue(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "false", "0", "off", "disabled":

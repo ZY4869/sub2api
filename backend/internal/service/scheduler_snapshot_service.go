@@ -278,6 +278,11 @@ func (s *SchedulerSnapshotService) pollOutbox() {
 		logger.LegacyPrintf("service.scheduler_snapshot", "[Scheduler] outbox watermark write failed: %v", wmErr)
 	} else {
 		watermarkForCheck = lastID
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if cleanupErr := s.outboxRepo.DeleteThrough(cleanupCtx, lastID); cleanupErr != nil {
+			logger.LegacyPrintf("service.scheduler_snapshot", "[Scheduler] outbox cleanup failed: watermark=%d err=%v", lastID, cleanupErr)
+		}
+		cleanupCancel()
 	}
 
 	s.checkOutboxLag(ctx, events[0], watermarkForCheck)

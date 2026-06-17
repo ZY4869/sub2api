@@ -34,6 +34,15 @@
       />
     </template>
 
+    <template #cell-id="{ value }">
+      <span
+        class="font-mono text-xs font-semibold text-gray-500 dark:text-dark-300"
+        :title="`account_id: ${value}`"
+      >
+        #{{ value }}
+      </span>
+    </template>
+
     <template #cell-name="{ row }">
       <AccountNameVisualCell
         v-if="visualStyle === 'airy'"

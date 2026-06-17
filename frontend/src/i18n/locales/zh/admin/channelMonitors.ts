@@ -35,6 +35,8 @@ export default {
         enabled: "启用",
         intervalSeconds: "间隔 (秒)",
         intervalHint: "允许范围：15–3600 秒。",
+        jitterSeconds: "随机抖动 (秒)",
+        jitterHint: "每次调度在间隔基础上正负随机偏移，0 表示固定间隔；最短实际间隔不会低于 15 秒。",
         primaryModel: "主模型",
         additionalModels: "附加模型",
         additionalModelsPlaceholder: "逗号分隔，例如：gpt-4.1, gpt-4o-mini",

@@ -50,13 +50,32 @@
 
       <span v-else class="text-gray-400 dark:text-gray-500">-</span>
     </div>
+    <button
+      v-if="canResetOpenAIQuota"
+      type="button"
+      class="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-[10px] font-medium text-gray-600 transition hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-300"
+      :disabled="resetting"
+      @click="resetOpenAIQuota"
+    >
+      <Icon
+        name="refresh"
+        size="xs"
+        :class="resetting ? 'animate-spin' : ''"
+      />
+      {{ resetting ? t('admin.accounts.usageWindow.resettingQuota') : t('admin.accounts.usageWindow.resetQuota') }}
+    </button>
   </div>
 
   <div v-else class="text-xs text-gray-400">-</div>
 </template>
 
 <script setup lang="ts">
-import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
+import { computed, ref } from 'vue'
+import {
+  invalidateAccountUsagePresentationCache,
+  refreshAccountUsagePresentation,
+  useAccountUsagePresentation,
+} from '@/composables/useAccountUsagePresentation'
 import { useRealtimeCountdownNow } from '@/composables/useRealtimeCountdownNow'
 import {
   formatLocalAbsoluteTime,
@@ -68,14 +87,41 @@ import type { Account } from '@/types'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { resolveUsageWindowCapsuleClass } from '@/utils/accountUsageWindowDisplay'
+import { adminAPI } from '@/api'
+import { useAppStore } from '@/stores'
 
 const props = defineProps<{
   account: Account
 }>()
 
 const { t } = useI18n()
+const appStore = useAppStore()
 const { nowDate } = useRealtimeCountdownNow('accounts')
 const { presentation } = useAccountUsagePresentation(() => props.account)
+const resetting = ref(false)
+
+const canResetOpenAIQuota = computed(() => {
+  return props.account.platform === 'openai' && props.account.type === 'oauth'
+})
+
+async function resetOpenAIQuota() {
+  if (!canResetOpenAIQuota.value || resetting.value) return
+  resetting.value = true
+  try {
+    await adminAPI.accounts.resetAccountQuota(props.account.id)
+    invalidateAccountUsagePresentationCache([props.account.id])
+    await refreshAccountUsagePresentation([props.account], { force: true, source: 'active' })
+    appStore.showSuccess(t('admin.accounts.usageWindow.resetQuotaSuccess'))
+  } catch (error: any) {
+    appStore.showError(
+      error?.response?.data?.detail ||
+        error?.message ||
+        t('admin.accounts.usageWindow.resetQuotaFailed')
+    )
+  } finally {
+    resetting.value = false
+  }
+}
 
 function formatResetValue(
   resetsAt: string | null,

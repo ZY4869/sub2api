@@ -197,6 +197,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if !equalFloatMap(before.ContentModerationCategoryThresholds, after.ContentModerationCategoryThresholds) {
 		changed = append(changed, "content_moderation_category_thresholds")
 	}
+	if before.ContentModerationCyberPolicyEnabled != after.ContentModerationCyberPolicyEnabled {
+		changed = append(changed, "content_moderation_cyber_policy_enabled")
+	}
+	if !equalContentModerationCyberCategories(before.ContentModerationCyberCategories, after.ContentModerationCyberCategories) {
+		changed = append(changed, "content_moderation_cyber_categories")
+	}
 	if before.SiteName != after.SiteName {
 		changed = append(changed, "site_name")
 	}
@@ -265,6 +271,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.IdentityPatchPrompt != after.IdentityPatchPrompt {
 		changed = append(changed, "identity_patch_prompt")
+	}
+	if before.ClaudeOAuthSystemPromptBlocksEnabled != after.ClaudeOAuthSystemPromptBlocksEnabled {
+		changed = append(changed, "claude_oauth_system_prompt_blocks_enabled")
+	}
+	if before.ClaudeOAuthSystemPromptBlocks != after.ClaudeOAuthSystemPromptBlocks {
+		changed = append(changed, "claude_oauth_system_prompt_blocks")
 	}
 	if before.OpsMonitoringEnabled != after.OpsMonitoringEnabled {
 		changed = append(changed, "ops_monitoring_enabled")
@@ -477,6 +489,8 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		ContentModerationKeywords:            settings.ContentModerationKeywords,
 		ContentModerationModelFilter:         settings.ContentModerationModelFilter,
 		ContentModerationCategoryThresholds:  settings.ContentModerationCategoryThresholds,
+		ContentModerationCyberPolicyEnabled:  settings.ContentModerationCyberPolicyEnabled,
+		ContentModerationCyberCategories:     settings.ContentModerationCyberCategories,
 		SiteName:                             settings.SiteName,
 		SiteLogo:                             settings.SiteLogo,
 		SiteSubtitle:                         settings.SiteSubtitle,
@@ -537,6 +551,8 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		FallbackModelAntigravity:             settings.FallbackModelAntigravity,
 		EnableIdentityPatch:                  settings.EnableIdentityPatch,
 		IdentityPatchPrompt:                  settings.IdentityPatchPrompt,
+		ClaudeOAuthSystemPromptBlocksEnabled: settings.ClaudeOAuthSystemPromptBlocksEnabled,
+		ClaudeOAuthSystemPromptBlocks:        settings.ClaudeOAuthSystemPromptBlocks,
 		OpsMonitoringEnabled:                 settings.OpsMonitoringEnabled,
 		OpsRealtimeMonitoringEnabled:         settings.OpsRealtimeMonitoringEnabled,
 		OpsQueryModeDefault:                  settings.OpsQueryModeDefault,
@@ -592,6 +608,18 @@ func equalFloatMap(a, b map[string]float64) bool {
 	}
 	for key, value := range a {
 		if b[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+func equalContentModerationCyberCategories(a, b []service.ContentModerationCyberCategory) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].ID != b[i].ID || !equalStringSlice(a[i].Keywords, b[i].Keywords) {
 			return false
 		}
 	}

@@ -75,6 +75,14 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		reqLog.Warn("openai_chat_completions.content_moderation_keyword_check_failed", zap.Error(err))
 	} else if decision != nil {
+		h.submitContentModerationFailedUsageRecordTask(
+			"handler.openai_gateway.chat_completions",
+			c,
+			apiKey,
+			modelHint,
+			gjson.GetBytes(body, "stream").Bool(),
+			decision,
+		)
 		contentModerationOpenAIBlockResponse(c, decision)
 		return
 	}

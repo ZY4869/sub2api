@@ -70,6 +70,7 @@ type ChannelMonitor struct {
 	Endpoint             string            `json:"endpoint"`
 	APIKeyEncrypted      *string           `json:"-"`
 	IntervalSeconds      int               `json:"interval_seconds"`
+	JitterSeconds        int               `json:"jitter_seconds"`
 	Enabled              bool              `json:"enabled"`
 	AccountIDs           []int64           `json:"account_ids"`
 	PrimaryModelID       string            `json:"primary_model_id"`

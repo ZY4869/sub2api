@@ -1,20 +1,48 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount, type MountingOptions } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import AccountUsageCell from '../AccountUsageCell.vue'
 import AccountUsageResetCell from '../AccountUsageResetCell.vue'
 import { resetAccountUsagePresentationCache } from '@/composables/useAccountUsagePresentation'
 import { resetUiNowForTests } from '@/composables/useUiNow'
 
-const { getUsage } = vi.hoisted(() => ({
+const { getUsage, resetAccountQuota, showSuccess, showError } = vi.hoisted(() => ({
   getUsage: vi.fn(),
+  resetAccountQuota: vi.fn(),
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
 }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
       getUsage,
+      resetAccountQuota,
     },
   },
+}))
+
+vi.mock('@/api', () => ({
+  adminAPI: {
+    accounts: {
+      getUsage,
+      resetAccountQuota,
+    },
+  },
+}))
+
+vi.mock('@/stores', () => ({
+  useAppStore: () => ({
+    showSuccess,
+    showError,
+  }),
+}))
+
+vi.mock('@/stores/app', () => ({
+  useAppStore: () => ({
+    showSuccess,
+    showError,
+  }),
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -31,6 +59,10 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.now': 'Now',
           'admin.accounts.usageWindow.spark5h': 'Spark 5h',
           'admin.accounts.usageWindow.spark7d': 'Spark 7d',
+          'admin.accounts.usageWindow.resetQuota': 'Reset quota',
+          'admin.accounts.usageWindow.resettingQuota': 'Resetting',
+          'admin.accounts.usageWindow.resetQuotaSuccess': 'Quota reset',
+          'admin.accounts.usageWindow.resetQuotaFailed': 'Quota reset failed',
           'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
         }
         return dict[key] ?? key
@@ -44,11 +76,24 @@ const usageBarStub = {
   template: '<div>{{ label }}|{{ utilization }}</div>',
 }
 
+function mountWithPinia(component: any, options: MountingOptions<any>) {
+  return mount(component, {
+    ...options,
+    global: {
+      ...(options.global ?? {}),
+      plugins: [createPinia(), ...((options.global?.plugins ?? []) as any[])],
+    },
+  })
+}
+
 enableAutoUnmount(afterEach)
 
 describe('AccountUsageResetCell', () => {
   beforeEach(() => {
     getUsage.mockReset()
+    resetAccountQuota.mockReset()
+    showSuccess.mockReset()
+    showError.mockReset()
     resetAccountUsagePresentationCache()
     resetUiNowForTests()
   })
@@ -62,7 +107,7 @@ describe('AccountUsageResetCell', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T12:29:00'))
 
-    const wrapper = mount(AccountUsageResetCell, {
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
         account: {
           id: 3001,
@@ -101,7 +146,7 @@ describe('AccountUsageResetCell', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T12:00:00'))
 
-    const wrapper = mount(AccountUsageResetCell, {
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
         account: {
           id: 3005,
@@ -150,7 +195,7 @@ describe('AccountUsageResetCell', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T12:00:00'))
 
-    const wrapper = mount(AccountUsageResetCell, {
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
         account: {
           id: 3006,
@@ -179,7 +224,7 @@ describe('AccountUsageResetCell', () => {
     vi.setSystemTime(new Date('2026-03-13T23:59:00'))
     getUsage.mockResolvedValue({})
 
-    const wrapper = mount(AccountUsageResetCell, {
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
         account: {
           id: 3004,
@@ -208,7 +253,7 @@ describe('AccountUsageResetCell', () => {
   it('falls back to a dash when no reset rows are available', async () => {
     getUsage.mockResolvedValue({})
 
-    const wrapper = mount(AccountUsageResetCell, {
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
         account: {
           id: 3002,
@@ -259,7 +304,7 @@ describe('AccountUsageResetCell', () => {
       extra: {},
     } as any
 
-    mount(AccountUsageCell, {
+    mountWithPinia(AccountUsageCell, {
       props: { account },
       global: {
         stubs: {
@@ -268,7 +313,7 @@ describe('AccountUsageResetCell', () => {
       },
     })
 
-    mount(AccountUsageResetCell, {
+    mountWithPinia(AccountUsageResetCell, {
       props: { account },
     })
 
@@ -276,5 +321,47 @@ describe('AccountUsageResetCell', () => {
 
     expect(getUsage).toHaveBeenCalledTimes(1)
     expect(getUsage).toHaveBeenCalledWith(3003, { force: undefined, source: undefined })
+  })
+
+  it('resets openai quota from the usage reset cell and reloads active usage', async () => {
+    resetAccountQuota.mockResolvedValue({})
+    getUsage.mockResolvedValueOnce({
+      five_hour: {
+        utilization: 90,
+        resets_at: '2026-03-13T15:22:00Z',
+      },
+    })
+    getUsage.mockResolvedValueOnce({
+      five_hour: {
+        utilization: 0,
+        resets_at: '2026-03-13T15:22:00Z',
+      },
+    })
+
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3007,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 90,
+            codex_5h_reset_at: '2026-03-13T15:22:00',
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+    const button = wrapper.find('button')
+    expect(button.text()).toContain('Reset quota')
+
+    await button.trigger('click')
+    await flushPromises()
+
+    expect(resetAccountQuota).toHaveBeenCalledWith(3007)
+    expect(getUsage).toHaveBeenCalledWith(3007, { force: true, source: 'active' })
+    expect(showSuccess).toHaveBeenCalledWith('Quota reset')
   })
 })

@@ -80,6 +80,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOpsMetricsIntervalSeconds:            "60",
 		SettingKeyMinClaudeCodeVersion:                 "",
 		SettingKeyMaxClaudeCodeVersion:                 "",
+		SettingKeyClaudeOAuthSystemPromptBlocksEnabled: "false",
+		SettingKeyClaudeOAuthSystemPromptBlocks:        "",
 		SettingKeyAllowUngroupedKeyScheduling:          "false",
 		SettingKeyMultiGroupRoutingEnabled:             "true",
 		SettingKeyBackendModeEnabled:                   "false",
@@ -112,6 +114,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyContentModerationKeywords:            "[]",
 		SettingKeyContentModerationModelFilter:         `{"type":"all","models":[]}`,
 		SettingKeyContentModerationCategoryThresholds:  mustMarshalDefaultContentModerationThresholds(),
+		SettingKeyContentModerationCyberPolicyEnabled:  "false",
+		SettingKeyContentModerationCyberCategories:     mustMarshalDefaultContentModerationCyberCategories(),
 		SettingKeyVisualPresetDefault:                  VisualPresetClassic,
 		SettingKeyAccountAiryWhiteSurfaceEnabled:       "false",
 	}

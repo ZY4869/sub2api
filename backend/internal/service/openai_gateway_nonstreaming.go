@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -18,7 +17,7 @@ import (
 )
 
 func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, requestBody []byte) (*OpenAIForwardResult, error) {
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	body, _ := readUpstreamResponseBodyLimitedFromResponse(resp, 2<<20)
 	SetOpsTraceUpstreamResponse(c, "openai_upstream_error_response", body, resp.Header.Get("Content-Type"), false)
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
@@ -108,7 +107,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *ht
 type compatErrorWriter func(c *gin.Context, statusCode int, errType, message, reason string)
 
 func (s *OpenAIGatewayService) handleCompatErrorResponse(resp *http.Response, c *gin.Context, account *Account, writeError compatErrorWriter) (*OpenAIForwardResult, error) {
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	body, _ := readUpstreamResponseBodyLimitedFromResponse(resp, 2<<20)
 	SetOpsTraceUpstreamResponse(c, "openai_compat_upstream_error_response", body, resp.Header.Get("Content-Type"), false)
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	if upstreamMsg == "" {
@@ -187,7 +186,7 @@ func extractOpenAIUsageFromJSONBytes(body []byte) (OpenAIUsage, bool) {
 
 func (s *OpenAIGatewayService) handleNonStreamingResponse(_ context.Context, resp *http.Response, c *gin.Context, account *Account, originalModel, mappedModel string) (*OpenAIUsage, error) {
 	maxBytes := resolveUpstreamResponseReadLimit(s.cfg)
-	body, err := readUpstreamResponseBodyLimited(resp.Body, maxBytes)
+	body, err := readUpstreamResponseBodyLimitedFromResponse(resp, maxBytes)
 	if err != nil {
 		if errors.Is(err, ErrUpstreamResponseBodyTooLarge) {
 			setOpsUpstreamError(c, http.StatusBadGateway, "upstream response too large", "")
@@ -204,7 +203,24 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(_ context.Context, res
 	}
 	usageValue, usageOK := extractOpenAIUsageFromJSONBytes(body)
 	if !usageOK {
-		return nil, fmt.Errorf("parse response: invalid json response")
+		msg := "Upstream returned non-JSON success response"
+		setOpsUpstreamError(c, http.StatusBadGateway, msg, "")
+		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			Platform:           RoutingPlatformForAccount(account),
+			AccountID:          account.ID,
+			AccountName:        account.Name,
+			UpstreamStatusCode: resp.StatusCode,
+			UpstreamRequestID:  resp.Header.Get("x-request-id"),
+			Kind:               "failover",
+			Message:            msg,
+		})
+		return nil, &UpstreamFailoverError{
+			StatusCode:             http.StatusBadGateway,
+			ResponseBody:           buildOpenAINonJSONSuccessFailoverBody(),
+			ResponseHeaders:        resp.Header.Clone(),
+			RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
+			TempUnscheduleAccount:  false,
+		}
 	}
 	usage := &usageValue
 	if originalModel != mappedModel {

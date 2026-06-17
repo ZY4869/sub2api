@@ -35,6 +35,8 @@ export default {
         enabled: "Enabled",
         intervalSeconds: "Interval (seconds)",
         intervalHint: "Allowed range: 15–3600 seconds.",
+        jitterSeconds: "Jitter (seconds)",
+        jitterHint: "Adds a random +/- offset to each scheduled run. 0 keeps a fixed interval; the shortest effective interval stays at least 15 seconds.",
         primaryModel: "Primary model",
         additionalModels: "Additional models",
         additionalModelsPlaceholder: "Comma-separated, e.g. gpt-4.1, gpt-4o-mini",

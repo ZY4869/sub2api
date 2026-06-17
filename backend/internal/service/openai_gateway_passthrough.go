@@ -381,6 +381,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(ctx context.Co
 	var firstTokenMs *int
 	clientDisconnected := false
 	sawDone := false
+	upstreamErrorForwarded := false
 	upstreamRequestID := strings.TrimSpace(resp.Header.Get("x-request-id"))
 	scanner := bufio.NewScanner(resp.Body)
 	maxLineSize := defaultMaxLineSize
@@ -392,6 +393,9 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(ctx context.Co
 	defer putSSEScannerBuf64K(scanBuf)
 	for scanner.Scan() {
 		line := scanner.Text()
+		if isOpenAIUpstreamSSEErrorLine(line) {
+			upstreamErrorForwarded = true
+		}
 		if data, ok := extractOpenAISSEDataLine(line); ok {
 			dataBytes := []byte(data)
 			trimmedData := strings.TrimSpace(data)
@@ -420,6 +424,10 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(ctx context.Co
 		}
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			logger.LegacyPrintf("service.openai_gateway", "[OpenAI passthrough] 流读取被取消，可能发生断流: account=%d request_id=%s err=%v ctx_err=%v", account.ID, upstreamRequestID, err, ctx.Err())
+			return &openaiStreamingResultPassthrough{usage: usage, firstTokenMs: firstTokenMs}, nil
+		}
+		if upstreamErrorForwarded {
+			logger.LegacyPrintf("service.openai_gateway", "[OpenAI passthrough] upstream read error after upstream SSE error was forwarded: account=%d request_id=%s err=%v", account.ID, upstreamRequestID, err)
 			return &openaiStreamingResultPassthrough{usage: usage, firstTokenMs: firstTokenMs}, nil
 		}
 		if errors.Is(err, bufio.ErrTooLong) {

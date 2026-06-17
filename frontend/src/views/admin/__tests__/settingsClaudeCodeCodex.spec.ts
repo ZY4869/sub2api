@@ -11,6 +11,8 @@ describe('settings Claude Code Codex plugin control', () => {
     const form = reactive({
       openai_allow_claude_code_codex_plugin: false,
       openai_allowed_codex_clients: [] as string[],
+      claude_oauth_system_prompt_blocks_enabled: false,
+      claude_oauth_system_prompt_blocks: '',
       min_claude_code_version: '',
       max_claude_code_version: '',
       allow_ungrouped_key_scheduling: false,
@@ -39,6 +41,15 @@ describe('settings Claude Code Codex plugin control', () => {
     await clientCheckbox.setValue(true)
 
     expect(form.openai_allowed_codex_clients).toEqual(['claude_code'])
+
+    const promptBlockSwitch = switches.at(1)
+    expect(promptBlockSwitch).toBeTruthy()
+    await promptBlockSwitch!.trigger('click')
+
+    expect(form.claude_oauth_system_prompt_blocks_enabled).toBe(true)
+    const promptTextarea = wrapper.find('textarea')
+    await promptTextarea.setValue('Site safety block')
+    expect(form.claude_oauth_system_prompt_blocks).toBe('Site safety block')
   })
 
   it('keeps i18n labels for both supported locales', () => {
@@ -46,21 +57,33 @@ describe('settings Claude Code Codex plugin control', () => {
     expect(zhClaudeCode.claudeCode.allowCodexPluginHint).toContain('Claude Code')
     expect(zhClaudeCode.claudeCode.allowedClients).toBeTruthy()
     expect(zhClaudeCode.claudeCode.allowedClientClaudeCode).toContain('Claude Code')
+    expect(zhClaudeCode.claudeCode.oauthPromptBlocks).toBeTruthy()
+    expect(zhClaudeCode.claudeCode.oauthPromptBlocksPriorityHint).toContain('安全')
     expect(enClaudeCode.claudeCode.allowCodexPlugin).toBeTruthy()
     expect(enClaudeCode.claudeCode.allowCodexPluginHint).toContain('Claude Code')
     expect(enClaudeCode.claudeCode.allowedClients).toBeTruthy()
     expect(enClaudeCode.claudeCode.allowedClientClaudeCode).toContain('Claude Code')
+    expect(enClaudeCode.claudeCode.oauthPromptBlocks).toBeTruthy()
+    expect(enClaudeCode.claudeCode.oauthPromptBlocksPriorityHint).toContain('lower priority')
   })
 
   it('allows the save payload field in the typed settings request', () => {
     const payload: UpdateSettingsRequest = {
       openai_allow_claude_code_codex_plugin: true,
       openai_allowed_codex_clients: ['claude_code'],
+      claude_oauth_system_prompt_blocks_enabled: true,
+      claude_oauth_system_prompt_blocks: 'Site safety block',
+      content_moderation_cyber_policy_enabled: true,
+      content_moderation_cyber_categories: [
+        { id: 'credential_theft', keywords: ['steal api key'] }
+      ],
       admin_compliance_enabled: true
     }
 
     expect(payload.openai_allow_claude_code_codex_plugin).toBe(true)
     expect(payload.openai_allowed_codex_clients).toEqual(['claude_code'])
+    expect(payload.claude_oauth_system_prompt_blocks).toBe('Site safety block')
+    expect(payload.content_moderation_cyber_categories?.[0].id).toBe('credential_theft')
     expect(payload.admin_compliance_enabled).toBe(true)
   })
 })

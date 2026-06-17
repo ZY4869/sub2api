@@ -17,6 +17,10 @@ export default {
         passiveSampled: "This view is based on passive sampling snapshots and may lag behind real-time usage briefly.",
         sampledBadge: "Sampled",
         activeQuery: "This view reflects an active live query.",
+        resetQuota: "Reset OpenAI quota",
+        resettingQuota: "Resetting",
+        resetQuotaSuccess: "OpenAI quota reset",
+        resetQuotaFailed: "Failed to reset OpenAI quota. Please retry.",
         displayMode: {
             used: "Used",
             remaining: "Left",

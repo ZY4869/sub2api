@@ -12,7 +12,8 @@ const (
 )
 
 const (
-	BillingExemptReasonAdminFree = "admin_free"
+	BillingExemptReasonAdminFree                = "admin_free"
+	BillingExemptReasonContentModerationBlocked = "content_moderation_blocked"
 )
 
 const (

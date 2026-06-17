@@ -30,6 +30,7 @@ type OpenAIRecordFailedUsageInput struct {
 	HTTPStatus               int
 	ErrorCode                string
 	ErrorMessage             string
+	BillingExemptReason      string
 	SimulatedClient          string
 	Stream                   bool
 	OpenAIWSMode             bool
@@ -63,6 +64,7 @@ type RecordFailedUsageInput struct {
 	HTTPStatus               int
 	ErrorCode                string
 	ErrorMessage             string
+	BillingExemptReason      string
 	SimulatedClient          string
 	Stream                   bool
 	OpenAIWSMode             bool
@@ -209,6 +211,7 @@ func buildFailedUsageLogBase(
 		HTTPStatus:               optionalIntPtr(input.HTTPStatus),
 		ErrorCode:                optionalTruncatedTrimmedStringPtr(input.ErrorCode, failedUsageErrorCodeMaxLen),
 		ErrorMessage:             sanitizeUsageFailureErrorMessage(input.ErrorMessage),
+		BillingExemptReason:      BillingExemptReasonPtr(input.BillingExemptReason),
 		SimulatedClient:          NormalizeUsageLogSimulatedClient(input.SimulatedClient),
 		ImageCount:               input.ImageCount,
 		ImageSize:                optionalImageSizePtr(input.ImageSize),
@@ -259,6 +262,7 @@ func (s *OpenAIGatewayService) RecordFailedUsage(ctx context.Context, input *Ope
 		HTTPStatus:               input.HTTPStatus,
 		ErrorCode:                input.ErrorCode,
 		ErrorMessage:             input.ErrorMessage,
+		BillingExemptReason:      input.BillingExemptReason,
 		SimulatedClient:          input.SimulatedClient,
 		Stream:                   input.Stream,
 		OpenAIWSMode:             input.OpenAIWSMode,

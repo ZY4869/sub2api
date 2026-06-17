@@ -24,6 +24,7 @@ export function useChannelMonitorForm(props: Readonly<UseChannelMonitorFormProps
     request_protocol: 'openai',
     endpoint: '',
     interval_seconds: 60,
+    jitter_seconds: 0,
     enabled: false,
     account_ids: [] as number[],
     primary_model_id: '',
@@ -108,6 +109,7 @@ export function useChannelMonitorForm(props: Readonly<UseChannelMonitorFormProps
     form.request_protocol = 'openai'
     form.endpoint = ''
     form.interval_seconds = 60
+    form.jitter_seconds = 0
     form.enabled = false
     form.account_ids = []
     form.primary_model_id = ''
@@ -133,6 +135,7 @@ export function useChannelMonitorForm(props: Readonly<UseChannelMonitorFormProps
     form.request_protocol = (monitor.request_protocol || inferChannelMonitorProtocol(form.provider)) as ChannelMonitorFormState['request_protocol']
     form.endpoint = monitor.endpoint || ''
     form.interval_seconds = monitor.interval_seconds
+    form.jitter_seconds = monitor.jitter_seconds || 0
     form.enabled = monitor.enabled
     form.account_ids = Array.isArray(monitor.account_ids) ? [...monitor.account_ids] : []
     form.primary_model_id = monitor.primary_model_id

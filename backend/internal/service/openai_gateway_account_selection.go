@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -56,6 +57,79 @@ func (s *OpenAIGatewayService) GenerateSessionHashWithFallback(c *gin.Context, b
 	currentHash, legacyHash := deriveOpenAISessionHashes(seed)
 	attachOpenAILegacySessionHashToGin(c, legacyHash)
 	return currentHash
+}
+
+func (s *OpenAIGatewayService) ResolveSessionHashWithSource(c *gin.Context, body []byte, fallbackSeed string) (string, string, int) {
+	if seed, source := resolveOpenAIResponsesSessionSeed(c, body); seed != "" {
+		currentHash, legacyHash := deriveOpenAISessionHashes(seed)
+		attachOpenAILegacySessionHashToGin(c, legacyHash)
+		return currentHash, source, len(seed)
+	}
+	seed := strings.TrimSpace(fallbackSeed)
+	if seed == "" {
+		return "", "", 0
+	}
+	currentHash, legacyHash := deriveOpenAISessionHashes(seed)
+	attachOpenAILegacySessionHashToGin(c, legacyHash)
+	return currentHash, "fallback_seed", len(seed)
+}
+
+func resolveOpenAIResponsesSessionSeed(c *gin.Context, body []byte) (string, string) {
+	if c == nil {
+		return "", ""
+	}
+	if sessionID := strings.TrimSpace(c.GetHeader("session_id")); sessionID != "" {
+		return sessionID, "session_id"
+	}
+	if conversationID := strings.TrimSpace(c.GetHeader("conversation_id")); conversationID != "" {
+		return conversationID, "conversation_id"
+	}
+	if len(body) == 0 {
+		return "", ""
+	}
+	if promptCacheKey := strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String()); promptCacheKey != "" {
+		return promptCacheKey, "prompt_cache_key"
+	}
+	if previousResponseID := strings.TrimSpace(gjson.GetBytes(body, "previous_response_id").String()); previousResponseID != "" {
+		if ClassifyOpenAIPreviousResponseIDKind(previousResponseID) == OpenAIPreviousResponseIDKindResponseID {
+			return previousResponseID, "previous_response_id"
+		}
+	}
+	if inputSeed := canonicalOpenAIResponsesInputSessionSeed(body); inputSeed != "" {
+		return inputSeed, "input"
+	}
+	return "", ""
+}
+
+func canonicalOpenAIResponsesInputSessionSeed(body []byte) string {
+	items, exists, err := openAIWSExtractNormalizedInputSequence(body)
+	if err != nil || !exists || len(items) == 0 {
+		return ""
+	}
+	normalized := make([]json.RawMessage, 0, len(items))
+	for _, item := range items {
+		raw := strings.TrimSpace(string(item))
+		if raw == "" || raw == "null" {
+			continue
+		}
+		var decoded any
+		if err := json.Unmarshal([]byte(raw), &decoded); err != nil {
+			return ""
+		}
+		encoded, err := json.Marshal(decoded)
+		if err != nil {
+			return ""
+		}
+		normalized = append(normalized, json.RawMessage(encoded))
+	}
+	if len(normalized) == 0 {
+		return ""
+	}
+	encoded, err := json.Marshal(normalized)
+	if err != nil {
+		return ""
+	}
+	return "responses:input:" + string(encoded)
 }
 func resolveOpenAIUpstreamOriginator(c *gin.Context, isOfficialClient bool) string {
 	if c != nil {

@@ -14,5 +14,9 @@ export default {
         allowedClientsHint: "Only known and supported exception clients are saved or allowed.",
         allowedClientClaudeCodeLabel: "Claude Code",
         allowedClientClaudeCode: "Allow the Claude Code Codex plugin to pass on OpenAI accounts with codex_cli_only enabled.",
+        oauthPromptBlocks: "Claude OAuth System Prompt Blocks",
+        oauthPromptBlocksHint: "Append site-level system text blocks to Claude OAuth forwarded requests. Disabled by default.",
+        oauthPromptBlocksPlaceholder: "One system prompt block per line",
+        oauthPromptBlocksPriorityHint: "These blocks are appended after existing system content and remain lower priority than local forced safety prompts and Claude Code normalization.",
     }
 }

@@ -17,6 +17,10 @@ export default {
         passiveSampled: "当前展示的是被动采样快照，可能与实时用量存在短暂延迟。",
         sampledBadge: "采样",
         activeQuery: "当前展示的是主动查询结果。",
+        resetQuota: "重置 OpenAI 额度",
+        resettingQuota: "重置中",
+        resetQuotaSuccess: "OpenAI 额度已重置",
+        resetQuotaFailed: "OpenAI 额度重置失败，请重试",
         displayMode: {
             used: "已用",
             remaining: "余量",

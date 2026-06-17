@@ -29,6 +29,7 @@ type adminChannelMonitorView struct {
 	RequestProtocol      string            `json:"request_protocol"`
 	Endpoint             string            `json:"endpoint"`
 	IntervalSeconds      int               `json:"interval_seconds"`
+	JitterSeconds        int               `json:"jitter_seconds"`
 	Enabled              bool              `json:"enabled"`
 	AccountIDs           []int64           `json:"account_ids"`
 	PrimaryModelID       string            `json:"primary_model_id"`
@@ -94,6 +95,7 @@ type createChannelMonitorRequest struct {
 	Endpoint             string            `json:"endpoint"`
 	APIKey               *string           `json:"api_key"`
 	IntervalSeconds      int               `json:"interval_seconds"`
+	JitterSeconds        int               `json:"jitter_seconds"`
 	Enabled              bool              `json:"enabled"`
 	AccountIDs           []int64           `json:"account_ids"`
 	PrimaryModelID       string            `json:"primary_model_id" binding:"required"`
@@ -150,6 +152,7 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 		RequestProtocol:      req.RequestProtocol,
 		Endpoint:             req.Endpoint,
 		IntervalSeconds:      req.IntervalSeconds,
+		JitterSeconds:        req.JitterSeconds,
 		Enabled:              req.Enabled,
 		AccountIDs:           req.AccountIDs,
 		PrimaryModelID:       req.PrimaryModelID,
@@ -189,6 +192,7 @@ type updateChannelMonitorRequest struct {
 	Endpoint             *string           `json:"endpoint"`
 	APIKey               *string           `json:"api_key"`
 	IntervalSeconds      *int              `json:"interval_seconds"`
+	JitterSeconds        *int              `json:"jitter_seconds"`
 	Enabled              *bool             `json:"enabled"`
 	AccountIDs           *[]int64          `json:"account_ids"`
 	PrimaryModelID       *string           `json:"primary_model_id"`
@@ -238,6 +242,9 @@ func (h *ChannelMonitorHandler) Update(c *gin.Context) {
 	}
 	if req.IntervalSeconds != nil {
 		existing.IntervalSeconds = *req.IntervalSeconds
+	}
+	if req.JitterSeconds != nil {
+		existing.JitterSeconds = *req.JitterSeconds
 	}
 	if req.Enabled != nil {
 		existing.Enabled = *req.Enabled
@@ -381,6 +388,7 @@ func toAdminChannelMonitorView(svc *service.ChannelMonitorService, m *service.Ch
 		RequestProtocol:      m.RequestProtocol,
 		Endpoint:             m.Endpoint,
 		IntervalSeconds:      m.IntervalSeconds,
+		JitterSeconds:        m.JitterSeconds,
 		Enabled:              m.Enabled,
 		AccountIDs:           m.AccountIDs,
 		PrimaryModelID:       m.PrimaryModelID,

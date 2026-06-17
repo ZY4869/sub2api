@@ -692,6 +692,44 @@
                 </div>
               </div>
               <div class="md:col-span-2">
+                <div class="rounded-2xl border border-gray-100 p-4 dark:border-dark-700">
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <label class="font-medium text-gray-900 dark:text-white">
+                        {{ t('admin.settings.moderation.cyberPolicy') }}
+                      </label>
+                      <p class="text-sm text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.moderation.cyberPolicyHint') }}
+                      </p>
+                    </div>
+                    <Toggle v-model="form.content_moderation_cyber_policy_enabled" />
+                  </div>
+                  <div
+                    v-if="form.content_moderation_cyber_policy_enabled"
+                    class="mt-4 space-y-3"
+                  >
+                    <textarea
+                      v-model="contentModerationCyberCategoriesText"
+                      rows="8"
+                      class="input font-mono text-sm"
+                      :placeholder="t('admin.settings.moderation.cyberCategoriesPlaceholder')"
+                    />
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.moderation.cyberCategoriesHint') }}
+                      </p>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        @click="restoreDefaultContentModerationCyberCategories"
+                      >
+                        {{ t('admin.settings.moderation.restoreCyberDefaults') }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('admin.settings.moderation.modelFilterType') }}
                 </label>
@@ -764,6 +802,8 @@ const {
   contentModerationModelFilterOptions,
   contentModerationKeywordsText,
   contentModerationModelFilterModelsText,
+  contentModerationCyberCategoriesText,
+  restoreDefaultContentModerationCyberCategories,
   deleteContentModerationKey,
 } = props.ctx
 </script>

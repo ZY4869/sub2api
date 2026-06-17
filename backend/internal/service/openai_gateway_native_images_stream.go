@@ -53,7 +53,12 @@ func (s *OpenAIGatewayService) forwardNativeImagesStream(
 		return nil
 	}
 
-	scanner := bufio.NewScanner(resp.Body)
+	reader, cleanup, err := upstreamResponseBodyReader(resp)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+	scanner := bufio.NewScanner(reader)
 	maxLineSize := defaultMaxLineSize
 	if s.cfg != nil && s.cfg.Gateway.MaxLineSize > 0 {
 		maxLineSize = s.cfg.Gateway.MaxLineSize

@@ -109,9 +109,11 @@ func (s *GatewayService) replaceModelInBody(body []byte, newModel string) []byte
 }
 
 type claudeOAuthNormalizeOptions struct {
-	injectMetadata          bool
-	metadataUserID          string
-	stripSystemCacheControl bool
+	injectMetadata            bool
+	metadataUserID            string
+	stripSystemCacheControl   bool
+	systemPromptBlocksEnabled bool
+	systemPromptBlocks        string
 }
 
 func sanitizeSystemText(text string) string {
@@ -155,6 +157,7 @@ func normalizeClaudeOAuthRequestBody(body []byte, modelID string, opts claudeOAu
 		switch {
 		case system.Type == gjson.String:
 			sanitized := sanitizeSystemText(system.String())
+			sanitized = applyClaudeOAuthSystemPromptBlocksToText(sanitized, opts.systemPromptBlocksEnabled, opts.systemPromptBlocks)
 			if sanitized != system.String() {
 				if next, err := sjson.SetBytes(normalized, "system", sanitized); err == nil {
 					normalized = next
@@ -182,12 +185,24 @@ func normalizeClaudeOAuthRequestBody(body []byte, modelID string, opts claudeOAu
 						changed = true
 					}
 				}
+				if nextBlocks, blocksChanged := applyClaudeOAuthSystemPromptBlocksToSystemBlocks(blocks, opts.systemPromptBlocksEnabled, opts.systemPromptBlocks); blocksChanged {
+					blocks = nextBlocks
+					changed = true
+				}
 				if changed {
 					if next, err := sjson.SetBytes(normalized, "system", blocks); err == nil {
 						normalized = next
 					}
 				}
 			}
+		}
+	} else if blocks := normalizeClaudeOAuthSystemPromptBlocks(opts.systemPromptBlocksEnabled, opts.systemPromptBlocks); len(blocks) > 0 {
+		systemBlocks := make([]any, 0, len(blocks))
+		for _, block := range blocks {
+			systemBlocks = append(systemBlocks, map[string]any{"type": "text", "text": block})
+		}
+		if next, err := sjson.SetBytes(normalized, "system", systemBlocks); err == nil {
+			normalized = next
 		}
 	}
 
@@ -212,6 +227,103 @@ func normalizeClaudeOAuthRequestBody(body []byte, modelID string, opts claudeOAu
 		}
 	}
 	return normalized, normalizedModelID
+}
+
+func applyClaudeOAuthSystemPromptBlocksToText(text string, enabled bool, rawBlocks string) string {
+	blocks := normalizeClaudeOAuthSystemPromptBlocks(enabled, rawBlocks)
+	if len(blocks) == 0 {
+		return text
+	}
+	existing := strings.TrimSpace(text)
+	for _, block := range blocks {
+		if block == "" {
+			continue
+		}
+		if strings.Contains(existing, block) {
+			continue
+		}
+		if existing == "" {
+			existing = block
+			continue
+		}
+		existing += "\n\n" + block
+	}
+	return existing
+}
+
+func applyClaudeOAuthSystemPromptBlocksToSystemBlocks(blocks []any, enabled bool, rawBlocks string) ([]any, bool) {
+	systemPromptBlocks := normalizeClaudeOAuthSystemPromptBlocks(enabled, rawBlocks)
+	if len(systemPromptBlocks) == 0 {
+		return blocks, false
+	}
+	changed := false
+	existingText := make(map[string]struct{}, len(blocks))
+	for _, item := range blocks {
+		block, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if blockType, _ := block["type"].(string); blockType != "text" {
+			continue
+		}
+		if text, ok := block["text"].(string); ok {
+			existingText[strings.TrimSpace(text)] = struct{}{}
+		}
+	}
+	for _, promptBlock := range systemPromptBlocks {
+		if promptBlock == "" {
+			continue
+		}
+		if _, ok := existingText[strings.TrimSpace(promptBlock)]; ok {
+			continue
+		}
+		blocks = append(blocks, map[string]any{
+			"type": "text",
+			"text": promptBlock,
+		})
+		changed = true
+	}
+	return blocks, changed
+}
+
+func normalizeClaudeOAuthSystemPromptBlocks(enabled bool, rawBlocks string) []string {
+	if !enabled {
+		return nil
+	}
+	rawBlocks = strings.TrimSpace(rawBlocks)
+	if rawBlocks == "" {
+		return nil
+	}
+	var blocks []string
+	if err := json.Unmarshal([]byte(rawBlocks), &blocks); err == nil {
+		return normalizeClaudeOAuthSystemPromptBlockList(blocks)
+	}
+	parts := strings.FieldsFunc(rawBlocks, func(r rune) bool {
+		switch r {
+		case '\n', '\r', '\u2028', '\u2029':
+			return true
+		default:
+			return false
+		}
+	})
+	return normalizeClaudeOAuthSystemPromptBlockList(parts)
+}
+
+func normalizeClaudeOAuthSystemPromptBlockList(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		block := strings.TrimSpace(value)
+		if block == "" {
+			continue
+		}
+		if _, ok := seen[block]; ok {
+			continue
+		}
+		seen[block] = struct{}{}
+		out = append(out, block)
+	}
+	return out
 }
 func (s *GatewayService) buildOAuthMetadataUserID(parsed *ParsedRequest, account *Account, fp *Fingerprint) string {
 	if parsed == nil || account == nil {

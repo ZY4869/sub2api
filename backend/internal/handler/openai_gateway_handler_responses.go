@@ -172,6 +172,14 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		reqLog.Warn("openai.content_moderation_keyword_check_failed", zap.Error(err))
 	} else if decision != nil {
+		h.submitContentModerationFailedUsageRecordTask(
+			"handler.openai_gateway.responses",
+			c,
+			apiKey,
+			modelHint,
+			gjson.GetBytes(body, "stream").Bool(),
+			decision,
+		)
 		contentModerationOpenAIBlockResponse(c, decision)
 		return
 	}
@@ -307,8 +315,16 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		}()
 	}
 
-	// Generate session hash (header first; fallback to prompt_cache_key)
-	sessionHash := h.gatewayService.GenerateSessionHash(c, sessionHashBody)
+	// Generate session hash from stable, non-body-logging anchors.
+	sessionHash, sessionHashSource, sessionHashSeedLen := h.gatewayService.ResolveSessionHashWithSource(c, sessionHashBody, "")
+	if sessionHash != "" {
+		reqLog.Debug(
+			"openai.responses.session_hash_resolved",
+			zap.String("source", sessionHashSource),
+			zap.Int("seed_len", sessionHashSeedLen),
+			zap.String("session_hash", sessionHash),
+		)
+	}
 	excludedGroupIDs := make(map[int64]struct{})
 	maxAccountSwitches := h.maxAccountSwitches
 	sawQuotaOnlyGroupFailure := false

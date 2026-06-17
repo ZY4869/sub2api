@@ -72,6 +72,7 @@ INSERT INTO channel_monitors (
 	request_protocol,
 	api_key_encrypted,
 	interval_seconds,
+	jitter_seconds,
 	enabled,
 	account_ids,
 	primary_model_id,
@@ -89,7 +90,7 @@ INSERT INTO channel_monitors (
 	created_at,
 	updated_at
 )
-VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16::jsonb, $17, $18::jsonb, $19, $20, $21, NOW(), NOW())
+VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, $17::jsonb, $18, $19::jsonb, $20, $21, $22, NOW(), NOW())
 RETURNING
 	id,
 	created_at,
@@ -102,6 +103,7 @@ RETURNING
 		monitor.RequestProtocol,
 		apiKeyEncrypted.String,
 		monitor.IntervalSeconds,
+		monitor.JitterSeconds,
 		monitor.Enabled,
 		pq.Array(orEmptyInt64Slice(monitor.AccountIDs)),
 		monitor.PrimaryModelID,
@@ -174,7 +176,15 @@ WITH due AS (
 UPDATE channel_monitors m
 SET
 	last_run_at = $1,
-	next_run_at = $1 + (m.interval_seconds * INTERVAL '1 second'),
+	next_run_at = $1 + (
+		(
+			m.interval_seconds
+			+ CASE
+				WHEN COALESCE(m.jitter_seconds, 0) <= 0 THEN 0
+				ELSE (FLOOR(random() * (COALESCE(m.jitter_seconds, 0) * 2 + 1))::int - COALESCE(m.jitter_seconds, 0))
+			  END
+		) * INTERVAL '1 second'
+	),
 	updated_at = NOW()
 FROM due
 WHERE m.id = due.id
@@ -187,6 +197,7 @@ RETURNING
 	COALESCE(m.request_protocol, 'openai'),
 	m.api_key_encrypted,
 	m.interval_seconds,
+	COALESCE(m.jitter_seconds, 0),
 	m.enabled,
 	COALESCE(m.account_ids, ARRAY[]::bigint[]),
 	m.primary_model_id,
@@ -249,20 +260,21 @@ SET
 	request_protocol = $6,
 	api_key_encrypted = NULLIF($7, ''),
 	interval_seconds = $8,
-	enabled = $9,
-	account_ids = $10,
-	primary_model_id = $11,
-	additional_model_ids = $12,
-	model_source_protocols = $13::jsonb,
-	model_probe_strategy = $14,
-	test_prompt_template = $15,
-	template_id = $16,
-	extra_headers = $17::jsonb,
-	body_override_mode = $18,
-	body_override = $19::jsonb,
-	openai_api_mode = $20,
-	last_run_at = $21,
-	next_run_at = $22,
+	jitter_seconds = $9,
+	enabled = $10,
+	account_ids = $11,
+	primary_model_id = $12,
+	additional_model_ids = $13,
+	model_source_protocols = $14::jsonb,
+	model_probe_strategy = $15,
+	test_prompt_template = $16,
+	template_id = $17,
+	extra_headers = $18::jsonb,
+	body_override_mode = $19,
+	body_override = $20::jsonb,
+	openai_api_mode = $21,
+	last_run_at = $22,
+	next_run_at = $23,
 	updated_at = NOW()
 WHERE id = $1
 `,
@@ -274,6 +286,7 @@ WHERE id = $1
 		monitor.RequestProtocol,
 		apiKeyEncrypted.String,
 		monitor.IntervalSeconds,
+		monitor.JitterSeconds,
 		monitor.Enabled,
 		pq.Array(orEmptyInt64Slice(monitor.AccountIDs)),
 		monitor.PrimaryModelID,
@@ -328,6 +341,7 @@ SELECT
 	COALESCE(request_protocol, 'openai'),
 	api_key_encrypted,
 	interval_seconds,
+	COALESCE(jitter_seconds, 0),
 	enabled,
 	COALESCE(account_ids, ARRAY[]::bigint[]),
 	primary_model_id,
@@ -375,6 +389,7 @@ func scanChannelMonitorRow(row rowScanner) (*service.ChannelMonitor, error) {
 		&m.RequestProtocol,
 		&apiKeyEncrypted,
 		&m.IntervalSeconds,
+		&m.JitterSeconds,
 		&m.Enabled,
 		pq.Array(&accountIDs),
 		&m.PrimaryModelID,

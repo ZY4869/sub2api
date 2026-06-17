@@ -115,7 +115,7 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+		respBody, _ := readUpstreamResponseBodyLimitedFromResponse(resp, 2<<20)
 		_ = resp.Body.Close()
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
@@ -215,12 +215,18 @@ func (s *OpenAIGatewayService) handleNativeImagesNonStreamingResponse(
 	imageSize string,
 ) (*OpenAIForwardResult, error) {
 	maxBytes := resolveUpstreamResponseReadLimit(s.cfg)
-	body, err := readUpstreamResponseBodyLimited(resp.Body, maxBytes)
+	body, err := readUpstreamResponseBodyLimitedFromResponse(resp, maxBytes)
 	if err != nil {
 		return nil, err
 	}
 	if !gjson.ValidBytes(body) {
-		return nil, fmt.Errorf("parse native image response: invalid json response")
+		return nil, &UpstreamFailoverError{
+			StatusCode:             http.StatusBadGateway,
+			ResponseBody:           buildOpenAINonJSONSuccessFailoverBody(),
+			ResponseHeaders:        resp.Header.Clone(),
+			RetryableOnSameAccount: true,
+			TempUnscheduleAccount:  false,
+		}
 	}
 	if mappedModel != "" && mappedModel != originalModel {
 		body = s.replaceModelInResponseBody(body, mappedModel, originalModel)

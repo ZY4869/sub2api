@@ -263,6 +263,50 @@ func TestInjectClaudeCodePrompt_JSONRawMessage(t *testing.T) {
 	require.Equal(t, claudePrefix+"\n\nCustom prompt", second["text"])
 }
 
+func TestNormalizeClaudeOAuthRequestBody_SystemPromptBlocks(t *testing.T) {
+	body := []byte(`{"model":"claude-3","system":[{"type":"text","text":"Existing"}],"messages":[]}`)
+
+	result, _ := normalizeClaudeOAuthRequestBody(body, "claude-3", claudeOAuthNormalizeOptions{
+		systemPromptBlocksEnabled: true,
+		systemPromptBlocks:        `["Security block","Existing"]`,
+	})
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(result, &parsed))
+	system, ok := parsed["system"].([]any)
+	require.True(t, ok)
+	require.Len(t, system, 2)
+	require.Equal(t, "Existing", system[0].(map[string]any)["text"])
+	require.Equal(t, "Security block", system[1].(map[string]any)["text"])
+}
+
+func TestNormalizeClaudeOAuthRequestBody_SystemPromptBlocksDisabled(t *testing.T) {
+	body := []byte(`{"model":"claude-3","system":"Existing","messages":[]}`)
+
+	result, _ := normalizeClaudeOAuthRequestBody(body, "claude-3", claudeOAuthNormalizeOptions{
+		systemPromptBlocksEnabled: false,
+		systemPromptBlocks:        `["Security block"]`,
+	})
+
+	require.JSONEq(t, `{"model":"claude-3","system":"Existing","messages":[],"tools":[]}`, string(result))
+}
+
+func TestNormalizeClaudeOAuthRequestBody_SystemPromptBlocksCreateSystem(t *testing.T) {
+	body := []byte(`{"model":"claude-3","messages":[]}`)
+
+	result, _ := normalizeClaudeOAuthRequestBody(body, "claude-3", claudeOAuthNormalizeOptions{
+		systemPromptBlocksEnabled: true,
+		systemPromptBlocks:        "Security block",
+	})
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(result, &parsed))
+	system, ok := parsed["system"].([]any)
+	require.True(t, ok)
+	require.Len(t, system, 1)
+	require.Equal(t, "Security block", system[0].(map[string]any)["text"])
+}
+
 func TestRewriteSystemForNonClaudeCode(t *testing.T) {
 	tests := []struct {
 		name             string

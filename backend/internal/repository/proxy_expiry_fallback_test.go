@@ -101,7 +101,7 @@ func TestAccountRepositorySwitchExpiredProxyAccountsRecordsOriginalProxy(t *test
 		WithArgs(expired.ID, fallback.ID, expired.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(101)).AddRow(int64(102)))
 	mock.ExpectExec("INSERT INTO scheduler_outbox").
-		WithArgs(service.SchedulerOutboxEventAccountBulkChanged, nil, nil, sqlmock.AnyArg()).
+		WithArgs(service.SchedulerOutboxEventAccountBulkChanged, nil, nil, sqlmock.AnyArg(), nil).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	ids, err := repo.SwitchExpiredProxyAccounts(context.Background(), expired, fallback, switchedAt)

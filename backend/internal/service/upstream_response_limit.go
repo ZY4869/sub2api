@@ -4,8 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/klauspost/compress/zstd"
 )
 
 var ErrUpstreamResponseBodyTooLarge = errors.New("upstream response body too large")
@@ -35,4 +38,33 @@ func readUpstreamResponseBodyLimited(reader io.Reader, maxBytes int64) ([]byte, 
 		return nil, fmt.Errorf("%w: limit=%d", ErrUpstreamResponseBodyTooLarge, maxBytes)
 	}
 	return body, nil
+}
+
+func upstreamResponseBodyReader(resp *http.Response) (io.Reader, func(), error) {
+	if resp == nil || resp.Body == nil {
+		return nil, nil, errors.New("response body is nil")
+	}
+	encoding := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Encoding")))
+	if encoding == "" || encoding == "identity" {
+		return resp.Body, func() {}, nil
+	}
+	switch encoding {
+	case "zstd", "zstandard":
+		decoder, err := zstd.NewReader(resp.Body)
+		if err != nil {
+			return nil, nil, fmt.Errorf("decode zstd upstream response: %w", err)
+		}
+		return decoder, decoder.Close, nil
+	default:
+		return resp.Body, func() {}, nil
+	}
+}
+
+func readUpstreamResponseBodyLimitedFromResponse(resp *http.Response, maxBytes int64) ([]byte, error) {
+	reader, cleanup, err := upstreamResponseBodyReader(resp)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+	return readUpstreamResponseBodyLimited(reader, maxBytes)
 }

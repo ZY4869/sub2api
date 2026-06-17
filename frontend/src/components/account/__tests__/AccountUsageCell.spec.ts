@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
+import {
+  enableAutoUnmount,
+  flushPromises,
+  mount as baseMount,
+  type MountingOptions,
+} from "@vue/test-utils";
+import { createPinia } from "pinia";
 import AccountUsageCell from "../AccountUsageCell.vue";
 import {
   invalidateAccountUsagePresentationCache,
@@ -127,6 +133,16 @@ const createMatchMediaMock = (matches: boolean) => {
     dispatchEvent: vi.fn(),
   }));
 };
+
+function mount(component: any, options: MountingOptions<any>) {
+  return baseMount(component, {
+    ...options,
+    global: {
+      ...(options.global ?? {}),
+      plugins: [createPinia(), ...((options.global?.plugins ?? []) as any[])],
+    },
+  });
+}
 
 enableAutoUnmount(afterEach);
 

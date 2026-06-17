@@ -1,9 +1,12 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCalculateAnthropic429ResetTime_Only5hExceeded(t *testing.T) {
@@ -35,6 +38,31 @@ func TestCalculateAnthropic429ResetTime_Only7dExceeded(t *testing.T) {
 	if result.fiveHourReset == nil || !result.fiveHourReset.Equal(time.Unix(1770998400, 0)) {
 		t.Errorf("expected fiveHourReset=1770998400, got %v", result.fiveHourReset)
 	}
+}
+
+func TestHandle429Anthropic7dPreservesFiveHourSessionWindow(t *testing.T) {
+	repo := &anthropic429RepoStub{}
+	svc := NewRateLimitService(repo, nil, nil, nil, nil)
+	account := &Account{ID: 42, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+
+	headers := http.Header{}
+	headers.Set("anthropic-ratelimit-unified-5h-utilization", "0.50")
+	headers.Set("anthropic-ratelimit-unified-5h-reset", "1770998400")
+	headers.Set("anthropic-ratelimit-unified-7d-utilization", "1.05")
+	headers.Set("anthropic-ratelimit-unified-7d-reset", "1771549200")
+
+	svc.handle429(context.Background(), account, headers, nil)
+
+	require.Equal(t, int64(42), repo.rateLimitedID)
+	require.Equal(t, time.Unix(1771549200, 0), repo.rateLimitResetAt)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, AccountRateLimitReasonUsage7d, repo.updateExtraCalls[0]["rate_limit_reason"])
+	require.Len(t, repo.sessionWindowCalls, 1)
+	require.NotNil(t, repo.sessionWindowCalls[0].start)
+	require.NotNil(t, repo.sessionWindowCalls[0].end)
+	require.Equal(t, time.Unix(1770998400, 0).Add(-5*time.Hour), *repo.sessionWindowCalls[0].start)
+	require.Equal(t, time.Unix(1770998400, 0), *repo.sessionWindowCalls[0].end)
+	require.Equal(t, "rejected", repo.sessionWindowCalls[0].status)
 }
 
 func TestCalculateAnthropic429ResetTime_BothExceeded(t *testing.T) {
@@ -199,4 +227,40 @@ func makeHeader(key, value string) http.Header {
 	h := http.Header{}
 	h.Set(key, value)
 	return h
+}
+
+type anthropic429RepoStub struct {
+	stubOpenAIAccountRepo
+	rateLimitedID      int64
+	rateLimitResetAt   time.Time
+	updateExtraCalls   []map[string]any
+	sessionWindowCalls []struct {
+		start  *time.Time
+		end    *time.Time
+		status string
+	}
+}
+
+func (r *anthropic429RepoStub) SetRateLimited(_ context.Context, id int64, resetAt time.Time) error {
+	r.rateLimitedID = id
+	r.rateLimitResetAt = resetAt
+	return nil
+}
+
+func (r *anthropic429RepoStub) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+	copied := make(map[string]any, len(updates))
+	for key, value := range updates {
+		copied[key] = value
+	}
+	r.updateExtraCalls = append(r.updateExtraCalls, copied)
+	return nil
+}
+
+func (r *anthropic429RepoStub) UpdateSessionWindow(_ context.Context, _ int64, start, end *time.Time, status string) error {
+	r.sessionWindowCalls = append(r.sessionWindowCalls, struct {
+		start  *time.Time
+		end    *time.Time
+		status string
+	}{start: start, end: end, status: status})
+	return nil
 }

@@ -535,6 +535,8 @@ func TestIsNonRetryableRefreshError(t *testing.T) {
 		{name: "nil_error", err: nil, expected: false},
 		{name: "network_error", err: errors.New("network timeout"), expected: false},
 		{name: "invalid_grant", err: errors.New("invalid_grant"), expected: true},
+		{name: "invalid_refresh_token", err: errors.New(`provider_error_code="invalid_refresh_token"`), expected: true},
+		{name: "app_session_terminated", err: errors.New("app_session_terminated: login session ended"), expected: true},
 		{name: "invalid_client", err: errors.New("invalid_client"), expected: true},
 		{name: "unauthorized_client", err: errors.New("unauthorized_client"), expected: true},
 		{name: "access_denied", err: errors.New("access_denied"), expected: true},

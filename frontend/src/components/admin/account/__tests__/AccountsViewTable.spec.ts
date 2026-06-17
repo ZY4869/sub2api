@@ -55,6 +55,7 @@ const DataTableStub = defineComponent({
       <div class="cell-platform"><slot name="cell-platform_type" :row="data[0]" /></div>
       <div class="cell-capacity"><slot name="cell-capacity" :row="data[0]" /></div>
       <div class="cell-select"><slot name="cell-select" :row="data[0]" /></div>
+      <div v-if="hasColumn('id')" class="cell-id"><slot name="cell-id" :row="data[0]" :value="data[0].id" /></div>
       <div class="cell-status"><slot name="cell-status" :row="data[0]" /></div>
       <div
         v-if="hasColumn('today_stats') && !spanState('today_stats').skip"
@@ -144,6 +145,7 @@ function mountTable(accountOverrides: Record<string, unknown> = {}, accountsOver
     props: {
       columns: columnOverride ?? [
         { key: 'select', label: '' },
+        { key: 'id', label: '账号 ID' },
         { key: 'name', label: '名称' },
         { key: 'platform_type', label: '平台/类型' },
         { key: 'capacity', label: '容量' },

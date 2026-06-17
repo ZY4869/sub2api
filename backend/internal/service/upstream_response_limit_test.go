@@ -3,9 +3,12 @@ package service
 import (
 	"bytes"
 	"errors"
+	"io"
+	"net/http"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,4 +37,22 @@ func TestReadUpstreamResponseBodyLimited(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, errors.Is(err, ErrUpstreamResponseBodyTooLarge))
 	})
+}
+
+func TestReadUpstreamResponseBodyLimitedFromResponse_Zstd(t *testing.T) {
+	var encoded bytes.Buffer
+	zw, err := zstd.NewWriter(&encoded)
+	require.NoError(t, err)
+	_, err = zw.Write([]byte("zstd-ok"))
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+
+	resp := &http.Response{
+		Body:   io.NopCloser(bytes.NewReader(encoded.Bytes())),
+		Header: http.Header{"Content-Encoding": []string{"zstd"}},
+	}
+
+	body, err := readUpstreamResponseBodyLimitedFromResponse(resp, 32)
+	require.NoError(t, err)
+	require.Equal(t, []byte("zstd-ok"), body)
 }

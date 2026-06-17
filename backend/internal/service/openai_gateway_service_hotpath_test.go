@@ -72,6 +72,13 @@ func TestExtractOpenAIReasoningEffortFromBody(t *testing.T) {
 			wantValue: "xhigh",
 		},
 		{
+			name:      "maps max reasoning_effort alias to xhigh",
+			body:      []byte(`{"reasoning_effort":"max"}`),
+			model:     "",
+			wantNil:   false,
+			wantValue: "xhigh",
+		},
+		{
 			name:      "normalizes minimal to none",
 			body:      []byte(`{"reasoning":{"effort":"minimal"}}`),
 			model:     "gpt-5-high",

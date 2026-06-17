@@ -42,6 +42,11 @@ export interface ContentModerationModelFilter {
   models: string[]
 }
 
+export interface ContentModerationCyberCategory {
+  id: string
+  keywords: string[]
+}
+
 export interface EmailTemplate {
   id: number
   key: string
@@ -181,6 +186,8 @@ export interface SystemSettings {
   content_moderation_keywords: string[]
   content_moderation_model_filter: ContentModerationModelFilter
   content_moderation_category_thresholds: Record<string, number>
+  content_moderation_cyber_policy_enabled: boolean
+  content_moderation_cyber_categories: ContentModerationCyberCategory[]
 
   // Model fallback configuration
   enable_model_fallback: boolean
@@ -192,6 +199,8 @@ export interface SystemSettings {
   // Identity patch configuration (Claude -> Gemini)
   enable_identity_patch: boolean
   identity_patch_prompt: string
+  claude_oauth_system_prompt_blocks_enabled: boolean
+  claude_oauth_system_prompt_blocks: string
 
   // Ops Monitoring (vNext)
   ops_monitoring_enabled: boolean
@@ -318,6 +327,8 @@ export interface UpdateSettingsRequest {
   content_moderation_keywords?: string[]
   content_moderation_model_filter?: ContentModerationModelFilter
   content_moderation_category_thresholds?: Record<string, number>
+  content_moderation_cyber_policy_enabled?: boolean
+  content_moderation_cyber_categories?: ContentModerationCyberCategory[]
   enable_model_fallback?: boolean
   fallback_model_anthropic?: string
   fallback_model_openai?: string
@@ -325,6 +336,8 @@ export interface UpdateSettingsRequest {
   fallback_model_antigravity?: string
   enable_identity_patch?: boolean
   identity_patch_prompt?: string
+  claude_oauth_system_prompt_blocks_enabled?: boolean
+  claude_oauth_system_prompt_blocks?: string
   ops_monitoring_enabled?: boolean
   ops_realtime_monitoring_enabled?: boolean
   ops_query_mode_default?: 'auto' | 'raw' | 'preagg' | string

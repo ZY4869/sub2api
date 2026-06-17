@@ -104,6 +104,21 @@
     </div>
 
     <div>
+      <label class="input-label">{{ t('admin.channelMonitors.fields.jitterSeconds') }}</label>
+      <input
+        :value="form.jitter_seconds"
+        type="number"
+        class="input"
+        min="0"
+        :max="Math.max(0, form.interval_seconds - 15)"
+        @input="emitFormField('jitter_seconds', Number(($event.target as HTMLInputElement).value))"
+      />
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        {{ t('admin.channelMonitors.fields.jitterHint') }}
+      </p>
+    </div>
+
+    <div>
       <label class="input-label">{{ t('admin.channelMonitors.fields.enabled') }}</label>
       <div class="flex items-center gap-2">
         <Toggle

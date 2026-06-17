@@ -71,6 +71,7 @@ import type {
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
   ContentModerationAPIKeyStatus,
+  ContentModerationCyberCategory,
   ContentModerationModelFilterType
 } from '@/api/admin/settings'
 import type { AdminGroup, CustomMenuItem, LoginAgreementDocument } from '@/types'
@@ -277,6 +278,8 @@ const form = reactive<SettingsForm>({
     models: []
   },
   content_moderation_category_thresholds: {},
+  content_moderation_cyber_policy_enabled: false,
+  content_moderation_cyber_categories: [],
   // Model fallback
   enable_model_fallback: false,
   fallback_model_anthropic: 'claude-3-5-sonnet-20241022',
@@ -286,6 +289,8 @@ const form = reactive<SettingsForm>({
   // Identity patch (Claude -> Gemini)
   enable_identity_patch: true,
   identity_patch_prompt: '',
+  claude_oauth_system_prompt_blocks_enabled: false,
+  claude_oauth_system_prompt_blocks: '',
   // Ops monitoring (vNext)
   ops_monitoring_enabled: true,
   ops_realtime_monitoring_enabled: true,
@@ -329,19 +334,21 @@ const contentModerationModelFilterOptions = computed(() => [
   { value: 'exclude', label: t('admin.settings.moderation.modelFilterExclude') }
 ])
 
-const normalizeContentModerationModelNames = (value: string) => {
-  const seen = new Set<string>()
-  return value
-    .split(/[\n,，;；]+/)
+const normalizeDelimitedUniqueLines = (value: string) => {
+	const seen = new Set<string>()
+	return value
+		.split(/[\n,，;；]+/)
     .map((item) => item.trim())
     .filter((item) => {
       if (!item) return false
       const key = item.toLowerCase()
       if (seen.has(key)) return false
       seen.add(key)
-      return true
-    })
+			return true
+		})
 }
+
+const normalizeContentModerationModelNames = normalizeDelimitedUniqueLines
 
 const ensureContentModerationModelFilter = () => {
   const filter = form.content_moderation_model_filter
@@ -414,6 +421,64 @@ const contentModerationModelFilterModelsText = computed({
     form.content_moderation_model_filter.models = normalizeContentModerationModelNames(value)
   }
 })
+
+const defaultContentModerationCyberCategories = (): ContentModerationCyberCategory[] => [
+  {
+    id: 'credential_theft',
+    keywords: ['credential stuffing', 'steal api key', 'phishing kit']
+  },
+  {
+    id: 'malware',
+    keywords: ['malware payload', 'ransomware', 'keylogger']
+  },
+  {
+    id: 'exploit',
+    keywords: ['zero day exploit', 'privilege escalation', 'remote code execution']
+  },
+  {
+    id: 'exfiltration',
+    keywords: ['data exfiltration', 'dump database', 'bypass dlp']
+  }
+]
+
+const normalizeContentModerationCyberCategories = (
+  value: ContentModerationCyberCategory[] | undefined
+): ContentModerationCyberCategory[] => {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  return value
+    .map((item) => ({
+      id: String(item?.id || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, '_')
+        .replace(/[^a-z0-9_]/g, '')
+        .replace(/^_+|_+$/g, ''),
+      keywords: normalizeDelimitedUniqueLines((item?.keywords || []).join('\n'))
+    }))
+    .filter((item) => {
+      if (!item.id || item.keywords.length === 0 || seen.has(item.id)) return false
+      seen.add(item.id)
+      return true
+    })
+}
+
+const contentModerationCyberCategoriesText = computed({
+  get: () => JSON.stringify(form.content_moderation_cyber_categories, null, 2),
+  set: (value: string) => {
+    try {
+      form.content_moderation_cyber_categories = normalizeContentModerationCyberCategories(
+        JSON.parse(value)
+      )
+    } catch {
+      // Keep the last valid configuration while the admin is editing partial JSON.
+    }
+  }
+})
+
+function restoreDefaultContentModerationCyberCategories() {
+  form.content_moderation_cyber_categories = defaultContentModerationCyberCategories()
+}
 
 const loginAgreementModeOptions = computed(() => [
   { value: 'checkbox', label: t('admin.settings.loginAgreement.checkboxMode') }
@@ -519,6 +584,9 @@ async function loadSettings() {
     Object.assign(form, settings)
     ensureContentModerationModelFilter()
     ensureContentModerationCategoryThresholds()
+    form.content_moderation_cyber_categories = normalizeContentModerationCyberCategories(
+      settings.content_moderation_cyber_categories
+    )
     form.default_subscriptions = Array.isArray(settings.default_subscriptions)
       ? settings.default_subscriptions
           .filter((item) => item.group_id > 0 && item.validity_days > 0)
@@ -782,6 +850,10 @@ async function saveSettings() {
       content_moderation_category_thresholds: normalizeContentModerationThresholds(
         form.content_moderation_category_thresholds
       ),
+      content_moderation_cyber_policy_enabled: form.content_moderation_cyber_policy_enabled,
+      content_moderation_cyber_categories: normalizeContentModerationCyberCategories(
+        form.content_moderation_cyber_categories
+      ),
       enable_model_fallback: form.enable_model_fallback,
       fallback_model_anthropic: form.fallback_model_anthropic,
       fallback_model_openai: form.fallback_model_openai,
@@ -789,6 +861,9 @@ async function saveSettings() {
       fallback_model_antigravity: form.fallback_model_antigravity,
       enable_identity_patch: form.enable_identity_patch,
       identity_patch_prompt: form.identity_patch_prompt,
+      claude_oauth_system_prompt_blocks_enabled:
+        form.claude_oauth_system_prompt_blocks_enabled,
+      claude_oauth_system_prompt_blocks: form.claude_oauth_system_prompt_blocks,
       min_claude_code_version: form.min_claude_code_version,
       max_claude_code_version: form.max_claude_code_version,
       allow_ungrouped_key_scheduling: form.allow_ungrouped_key_scheduling,
@@ -799,6 +874,9 @@ async function saveSettings() {
     Object.assign(form, updated)
     ensureContentModerationModelFilter()
     ensureContentModerationCategoryThresholds()
+    form.content_moderation_cyber_categories = normalizeContentModerationCyberCategories(
+      updated.content_moderation_cyber_categories
+    )
     registrationEmailSuffixWhitelistTags.value = normalizeRegistrationEmailSuffixDomains(
       updated.registration_email_suffix_whitelist
     )
@@ -863,6 +941,8 @@ const settingsViewContext = {
   contentModerationModelFilterOptions,
   contentModerationKeywordsText,
   contentModerationModelFilterModelsText,
+  contentModerationCyberCategoriesText,
+  restoreDefaultContentModerationCyberCategories,
   contentModerationThresholdCategories,
   deleteContentModerationKey,
   subscriptionGroups,

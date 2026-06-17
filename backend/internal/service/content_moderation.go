@@ -107,6 +107,8 @@ type ContentModerationSettings struct {
 	Keywords            []string
 	ModelFilter         ContentModerationModelFilter
 	CategoryThresholds  map[string]float64
+	CyberPolicyEnabled  bool
+	CyberCategories     []ContentModerationCyberCategory
 }
 
 type ContentModerationModelFilter struct {
@@ -159,6 +161,8 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 		SettingKeyContentModerationKeywords,
 		SettingKeyContentModerationModelFilter,
 		SettingKeyContentModerationCategoryThresholds,
+		SettingKeyContentModerationCyberPolicyEnabled,
+		SettingKeyContentModerationCyberCategories,
 	}
 	values, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
@@ -178,6 +182,8 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 		Keywords:            NormalizeContentModerationKeywords(values[SettingKeyContentModerationKeywords]),
 		ModelFilter:         NormalizeContentModerationModelFilter(values[SettingKeyContentModerationModelFilter]),
 		CategoryThresholds:  NormalizeContentModerationCategoryThresholds(values[SettingKeyContentModerationCategoryThresholds]),
+		CyberPolicyEnabled:  values[SettingKeyContentModerationCyberPolicyEnabled] == "true",
+		CyberCategories:     NormalizeContentModerationCyberCategories(values[SettingKeyContentModerationCyberCategories]),
 	}
 	if len(settings.CategoryThresholds) == 0 {
 		settings.CategoryThresholds = DefaultContentModerationCategoryThresholds()
@@ -241,8 +247,15 @@ func (s *ContentModerationService) CheckBlock(ctx context.Context, input *Conten
 		return &ContentModerationKeywordDecision{Content: strings.TrimSpace(input.Content)}, nil
 	}
 	decision := EvaluateContentModerationKeywordBlock(settings, input.Content)
+	if !decision.Blocked {
+		decision = EvaluateContentModerationCyberPolicy(settings, input.Content)
+	}
 	if decision.Blocked {
-		metricResult = "keyword_block"
+		if strings.HasPrefix(decision.ErrorReason, "cyber_policy:") {
+			metricResult = "cyber_policy_block"
+		} else {
+			metricResult = "keyword_block"
+		}
 		metricReason = decision.ErrorReason
 		if s.repo != nil {
 			recordInput := *input
@@ -355,7 +368,11 @@ func (s *ContentModerationService) recordAuditWithSettings(
 	}
 
 	keywordResult := EvaluateContentModerationKeywordBlock(settings, normalizedContent)
-	if forcedErrorReason == "" && !keywordResult.Blocked && settings.DedupeWindowSeconds > 0 {
+	cyberResult := ContentModerationKeywordDecision{Content: normalizedContent}
+	if !keywordResult.Blocked {
+		cyberResult = EvaluateContentModerationCyberPolicy(settings, normalizedContent)
+	}
+	if forcedErrorReason == "" && !keywordResult.Blocked && !cyberResult.Blocked && settings.DedupeWindowSeconds > 0 {
 		since := now.Add(-time.Duration(settings.DedupeWindowSeconds) * time.Second)
 		if previous, findErr := s.repo.FindRecentContentModerationAuditByHash(ctx, contentHash, since); findErr == nil && previous != nil {
 			result.Hit = previous.Hit
@@ -377,6 +394,10 @@ func (s *ContentModerationService) recordAuditWithSettings(
 			result.Hit = true
 			result.ErrorReason = keywordResult.ErrorReason
 			result.Categories = normalizeModerationCategories(keywordResult.Categories)
+		} else if cyberResult.Blocked {
+			result.Hit = true
+			result.ErrorReason = cyberResult.ErrorReason
+			result.Categories = normalizeModerationCategories(cyberResult.Categories)
 		} else {
 			evaluated := evaluateContentModeration(ctx, settings, input, normalizedContent)
 			result.Hit = evaluated.Hit

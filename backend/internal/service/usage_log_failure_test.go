@@ -37,16 +37,17 @@ func TestBuildFailedUsageLogBase_SanitizesAndMarksFailed(t *testing.T) {
 		&UserSubscription{ID: subscriptionID},
 		1.25,
 		&RecordFailedUsageInput{
-			Model:            " gemini-2.5-pro ",
-			UpstreamModel:    " gemini-2.5-pro-preview ",
-			InboundEndpoint:  " /v1/messages ",
-			UpstreamEndpoint: " /v1beta/models/gemini-2.5-pro:generateContent ",
-			HTTPStatus:       429,
-			ErrorCode:        strings.Repeat("x", failedUsageErrorCodeMaxLen+8),
-			ErrorMessage:     `authorization=Bearer-secret-token x-api-key=super-secret`,
-			SimulatedClient:  GatewayClientProfileGeminiCLI,
-			Stream:           true,
-			Duration:         1500 * time.Millisecond,
+			Model:               " gemini-2.5-pro ",
+			UpstreamModel:       " gemini-2.5-pro-preview ",
+			InboundEndpoint:     " /v1/messages ",
+			UpstreamEndpoint:    " /v1beta/models/gemini-2.5-pro:generateContent ",
+			HTTPStatus:          429,
+			ErrorCode:           strings.Repeat("x", failedUsageErrorCodeMaxLen+8),
+			ErrorMessage:        `authorization=Bearer-secret-token x-api-key=super-secret`,
+			BillingExemptReason: BillingExemptReasonContentModerationBlocked,
+			SimulatedClient:     GatewayClientProfileGeminiCLI,
+			Stream:              true,
+			Duration:            1500 * time.Millisecond,
 		},
 	)
 
@@ -67,6 +68,8 @@ func TestBuildFailedUsageLogBase_SanitizesAndMarksFailed(t *testing.T) {
 	require.NotNil(t, log.ErrorMessage)
 	require.NotContains(t, *log.ErrorMessage, "Bearer-secret-token")
 	require.NotContains(t, *log.ErrorMessage, "super-secret")
+	require.NotNil(t, log.BillingExemptReason)
+	require.Equal(t, BillingExemptReasonContentModerationBlocked, *log.BillingExemptReason)
 	require.NotNil(t, log.SimulatedClient)
 	require.Equal(t, GatewayClientProfileGeminiCLI, *log.SimulatedClient)
 	require.Equal(t, RequestTypeStream, log.RequestType)
@@ -90,18 +93,19 @@ func TestGatewayServiceRecordFailedUsage_WritesBestEffortUsageLog(t *testing.T) 
 		APIKey: &APIKey{
 			ID: 11,
 		},
-		User:            &User{ID: 12},
-		Account:         &Account{ID: 13},
-		RequestID:       "upstream-failed-1",
-		Model:           "gemini-2.5-pro",
-		UpstreamModel:   "gemini-2.5-pro-preview",
-		InboundEndpoint: "/v1/messages",
-		HTTPStatus:      502,
-		ErrorCode:       "upstream_error",
-		ErrorMessage:    "authorization=Bearer-secret-token",
-		SimulatedClient: GatewayClientProfileGeminiCLI,
-		Stream:          true,
-		Duration:        2 * time.Second,
+		User:                &User{ID: 12},
+		Account:             &Account{ID: 13},
+		RequestID:           "upstream-failed-1",
+		Model:               "gemini-2.5-pro",
+		UpstreamModel:       "gemini-2.5-pro-preview",
+		InboundEndpoint:     "/v1/messages",
+		HTTPStatus:          502,
+		ErrorCode:           "upstream_error",
+		ErrorMessage:        "authorization=Bearer-secret-token",
+		BillingExemptReason: BillingExemptReasonContentModerationBlocked,
+		SimulatedClient:     GatewayClientProfileGeminiCLI,
+		Stream:              true,
+		Duration:            2 * time.Second,
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, repo.bestEffortCalls)
@@ -115,6 +119,45 @@ func TestGatewayServiceRecordFailedUsage_WritesBestEffortUsageLog(t *testing.T) 
 	require.Equal(t, 502, *repo.lastLog.HTTPStatus)
 	require.NotNil(t, repo.lastLog.ErrorMessage)
 	require.NotContains(t, *repo.lastLog.ErrorMessage, "Bearer-secret-token")
+	require.NotNil(t, repo.lastLog.BillingExemptReason)
+	require.Equal(t, BillingExemptReasonContentModerationBlocked, *repo.lastLog.BillingExemptReason)
+	require.Equal(t, 0.0, repo.lastLog.TotalCost)
+	require.Equal(t, 0.0, repo.lastLog.ActualCost)
+}
+
+func TestOpenAIGatewayServiceRecordFailedUsage_PreservesBillingExemptReason(t *testing.T) {
+	repo := &usageLogFailureRepoStub{}
+	svc := &OpenAIGatewayService{usageLogRepo: repo}
+	ctx := context.WithValue(context.Background(), ctxkey.ClientRequestID, "client-moderation-block")
+
+	err := svc.RecordFailedUsage(ctx, &OpenAIRecordFailedUsageInput{
+		APIKey: &APIKey{
+			ID: 21,
+		},
+		User:                &User{ID: 22},
+		Account:             &Account{ID: 23},
+		Model:               "gpt-5.1",
+		InboundEndpoint:     "/v1/responses",
+		HTTPStatus:          403,
+		ErrorCode:           "content_policy_blocked",
+		ErrorMessage:        "Request blocked by content policy authorization=sk-secret-token",
+		BillingExemptReason: BillingExemptReasonContentModerationBlocked,
+		Stream:              false,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, repo.bestEffortCalls)
+	require.NotNil(t, repo.lastLog)
+	require.Equal(t, UsageLogStatusFailed, repo.lastLog.Status)
+	require.Equal(t, "client:client-moderation-block", repo.lastLog.RequestID)
+	require.NotNil(t, repo.lastLog.HTTPStatus)
+	require.Equal(t, 403, *repo.lastLog.HTTPStatus)
+	require.NotNil(t, repo.lastLog.ErrorCode)
+	require.Equal(t, "content_policy_blocked", *repo.lastLog.ErrorCode)
+	require.NotNil(t, repo.lastLog.BillingExemptReason)
+	require.Equal(t, BillingExemptReasonContentModerationBlocked, *repo.lastLog.BillingExemptReason)
+	require.NotNil(t, repo.lastLog.ErrorMessage)
+	require.NotContains(t, *repo.lastLog.ErrorMessage, "sk-secret-token")
 	require.Equal(t, 0.0, repo.lastLog.TotalCost)
 	require.Equal(t, 0.0, repo.lastLog.ActualCost)
 }

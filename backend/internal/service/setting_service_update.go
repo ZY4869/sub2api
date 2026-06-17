@@ -121,6 +121,12 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		return fmt.Errorf("marshal content moderation category thresholds: %w", err)
 	}
 	updates[SettingKeyContentModerationCategoryThresholds] = moderationThresholdsJSON
+	updates[SettingKeyContentModerationCyberPolicyEnabled] = strconv.FormatBool(settings.ContentModerationCyberPolicyEnabled)
+	moderationCyberCategoriesJSON, err := MarshalContentModerationCyberCategories(settings.ContentModerationCyberCategories)
+	if err != nil {
+		return fmt.Errorf("marshal content moderation cyber categories: %w", err)
+	}
+	updates[SettingKeyContentModerationCyberCategories] = moderationCyberCategoriesJSON
 	updates[SettingKeySiteName] = settings.SiteName
 	updates[SettingKeySiteLogo] = settings.SiteLogo
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle
@@ -217,6 +223,8 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyFallbackModelAntigravity] = settings.FallbackModelAntigravity
 	updates[SettingKeyEnableIdentityPatch] = strconv.FormatBool(settings.EnableIdentityPatch)
 	updates[SettingKeyIdentityPatchPrompt] = settings.IdentityPatchPrompt
+	updates[SettingKeyClaudeOAuthSystemPromptBlocksEnabled] = strconv.FormatBool(settings.ClaudeOAuthSystemPromptBlocksEnabled)
+	updates[SettingKeyClaudeOAuthSystemPromptBlocks] = strings.TrimSpace(settings.ClaudeOAuthSystemPromptBlocks)
 	updates[SettingKeyOpsMonitoringEnabled] = strconv.FormatBool(settings.OpsMonitoringEnabled)
 	updates[SettingKeyOpsRealtimeMonitoringEnabled] = strconv.FormatBool(settings.OpsRealtimeMonitoringEnabled)
 	updates[SettingKeyOpsQueryModeDefault] = string(ParseOpsQueryMode(settings.OpsQueryModeDefault))
@@ -258,6 +266,12 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		versionBoundsCache.Store(&cachedVersionBounds{
 			min:       settings.MinClaudeCodeVersion,
 			max:       settings.MaxClaudeCodeVersion,
+			expiresAt: time.Now().Add(versionBoundsCacheTTL).UnixNano(),
+		})
+		claudeOAuthSystemPromptBlocksSF.Forget("claude_oauth_prompt_blocks")
+		claudeOAuthSystemPromptBlocksCache.Store(&cachedClaudeOAuthSystemPromptBlocks{
+			enabled:   settings.ClaudeOAuthSystemPromptBlocksEnabled,
+			blocks:    strings.TrimSpace(settings.ClaudeOAuthSystemPromptBlocks),
 			expiresAt: time.Now().Add(versionBoundsCacheTTL).UnixNano(),
 		})
 		backendModeSF.Forget("backend_mode_enabled")

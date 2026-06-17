@@ -18,6 +18,7 @@ export interface AdminChannelMonitor {
   request_protocol: ChannelMonitorRequestProtocol | string
   endpoint: string
   interval_seconds: number
+  jitter_seconds: number
   enabled: boolean
   account_ids: number[]
   primary_model_id: string
@@ -76,6 +77,7 @@ export interface CreateChannelMonitorRequest {
   endpoint?: string
   api_key?: string
   interval_seconds?: number
+  jitter_seconds?: number
   enabled?: boolean
   account_ids?: number[]
   primary_model_id: string
@@ -100,6 +102,7 @@ export interface UpdateChannelMonitorRequest {
   endpoint?: string
   api_key?: string | null
   interval_seconds?: number
+  jitter_seconds?: number
   enabled?: boolean
   account_ids?: number[]
   primary_model_id?: string

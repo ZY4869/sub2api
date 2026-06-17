@@ -10,6 +10,7 @@ import (
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 )
 
@@ -48,6 +49,16 @@ func (h *GatewayHandler) prepareGatewayMessagesRequest(c *gin.Context, req *gate
 	if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		req.reqLog.Warn("gateway.content_moderation_keyword_check_failed", zap.Error(err))
 	} else if decision != nil {
+		h.submitContentModerationFailedUsageRecordTask(
+			"handler.gateway.messages",
+			c,
+			req.apiKey,
+			strings.TrimSpace(gjson.GetBytes(body, "model").String()),
+			gjson.GetBytes(body, "stream").Bool(),
+			service.PlatformAnthropic,
+			gatewayCompatiblePlatforms,
+			decision,
+		)
 		contentModerationAnthropicBlockResponse(c, decision)
 		return false
 	}

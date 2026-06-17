@@ -187,6 +187,25 @@ type cancelReadCloser struct{}
 func (c cancelReadCloser) Read(p []byte) (int, error) { return 0, context.Canceled }
 func (c cancelReadCloser) Close() error               { return nil }
 
+type errorAfterReadCloser struct {
+	reader *strings.Reader
+	err    error
+}
+
+func newErrorAfterReadCloser(payload string, err error) *errorAfterReadCloser {
+	return &errorAfterReadCloser{reader: strings.NewReader(payload), err: err}
+}
+
+func (r *errorAfterReadCloser) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if err == io.EOF {
+		return 0, r.err
+	}
+	return n, err
+}
+
+func (r *errorAfterReadCloser) Close() error { return nil }
+
 type failingGinWriter struct {
 	gin.ResponseWriter
 	failAfter int
@@ -277,7 +296,12 @@ func TestOpenAIGatewayService_GenerateSessionHash_Priority(t *testing.T) {
 		t.Fatalf("expected different hashes for different keys")
 	}
 
-	// 4) empty when no signals
+	// 4) the generic helper keeps legacy semantics; previous_response_id/input
+	// anchors are only used by the Responses-specific resolver.
+	hPrev := svc.GenerateSessionHash(c, []byte(`{"previous_response_id":"resp_abc123","input":"hello"}`))
+	require.Empty(t, hPrev)
+
+	// 5) empty when no signals
 	h4 := svc.GenerateSessionHash(c, []byte(`{}`))
 	if h4 != "" {
 		t.Fatalf("expected empty hash when no signals")
@@ -330,6 +354,55 @@ func TestOpenAIGatewayService_GenerateSessionHashWithFallback(t *testing.T) {
 
 	empty := svc.GenerateSessionHashWithFallback(c, []byte(`{}`), "   ")
 	require.Equal(t, "", empty)
+}
+
+func TestOpenAIGatewayService_ResolveSessionHashWithSource(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
+
+	svc := &OpenAIGatewayService{}
+
+	c.Request.Header.Set("session_id", "sess-123")
+	c.Request.Header.Set("conversation_id", "conv-456")
+	sessionHash, source, seedLen := svc.ResolveSessionHashWithSource(c, []byte(`{"prompt_cache_key":"pc-1","previous_response_id":"resp_1","input":"hello"}`), "")
+	require.Equal(t, "session_id", source)
+	require.Equal(t, len("sess-123"), seedLen)
+	require.Equal(t, DeriveSessionHashFromSeed("sess-123"), sessionHash)
+
+	c.Request.Header.Del("session_id")
+	sessionHash, source, seedLen = svc.ResolveSessionHashWithSource(c, []byte(`{"prompt_cache_key":"pc-1","previous_response_id":"resp_1","input":"hello"}`), "")
+	require.Equal(t, "conversation_id", source)
+	require.Equal(t, len("conv-456"), seedLen)
+	require.Equal(t, DeriveSessionHashFromSeed("conv-456"), sessionHash)
+
+	c.Request.Header.Del("conversation_id")
+	sessionHash, source, seedLen = svc.ResolveSessionHashWithSource(c, []byte(`{"prompt_cache_key":"pc-1","previous_response_id":"resp_1","input":"hello"}`), "")
+	require.Equal(t, "prompt_cache_key", source)
+	require.Equal(t, len("pc-1"), seedLen)
+	require.Equal(t, DeriveSessionHashFromSeed("pc-1"), sessionHash)
+
+	sessionHash, source, seedLen = svc.ResolveSessionHashWithSource(c, []byte(`{"previous_response_id":"resp_1","input":"hello"}`), "")
+	require.Equal(t, "previous_response_id", source)
+	require.Equal(t, len("resp_1"), seedLen)
+	require.Equal(t, DeriveSessionHashFromSeed("resp_1"), sessionHash)
+
+	inputBody := []byte(`{"previous_response_id":"msg_1","input":[{"type":"input_text","text":"hello"}]}`)
+	sessionHash, source, seedLen = svc.ResolveSessionHashWithSource(c, inputBody, "")
+	inputSeed := `responses:input:[{"text":"hello","type":"input_text"}]`
+	require.Equal(t, "input", source)
+	require.Equal(t, len(inputSeed), seedLen)
+	require.Equal(t, DeriveSessionHashFromSeed(inputSeed), sessionHash)
+
+	objectInputHash, objectSource, _ := svc.ResolveSessionHashWithSource(c, []byte(`{"input":{"text":"hello","type":"input_text"}}`), "")
+	require.Equal(t, "input", objectSource)
+	require.Equal(t, sessionHash, objectInputHash)
+
+	sessionHash, source, seedLen = svc.ResolveSessionHashWithSource(c, []byte(`{}`), "manual-fallback")
+	require.Equal(t, "fallback_seed", source)
+	require.Equal(t, len("manual-fallback"), seedLen)
+	require.Equal(t, DeriveSessionHashFromSeed("manual-fallback"), sessionHash)
 }
 
 func (c stubConcurrencyCache) GetAccountWaitingCount(ctx context.Context, accountID int64) (int, error) {
@@ -1455,6 +1528,64 @@ func TestOpenAIStreamingContextCanceledReturnsIncompleteErrorWithoutInjectingErr
 	}
 }
 
+func TestOpenAIStreamingUpstreamErrorSSEPreservesOriginalErrorBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		Gateway: config.GatewayConfig{
+			StreamDataIntervalTimeout: 0,
+			StreamKeepaliveInterval:   0,
+			MaxLineSize:               defaultMaxLineSize,
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg, toolCorrector: NewCodexToolCorrector()}
+
+	tests := []struct {
+		name     string
+		payload  string
+		contains []string
+	}{
+		{
+			name: "event error",
+			payload: "event: error\n" +
+				"data: {\"error\":{\"type\":\"rate_limit_error\",\"message\":\"real upstream failure\",\"code\":\"rate_limit_exceeded\"}}\n\n",
+			contains: []string{"event: error", "rate_limit_error", "real upstream failure", "rate_limit_exceeded"},
+		},
+		{
+			name:    "data error object",
+			payload: "data: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"bad input\"}}\n\n",
+			contains: []string{
+				`"type":"error"`,
+				"invalid_request_error",
+				"bad input",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+			resp := &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       newErrorAfterReadCloser(tt.payload, io.ErrUnexpectedEOF),
+				Header:     http.Header{},
+			}
+
+			result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			body := rec.Body.String()
+			for _, want := range tt.contains {
+				require.Contains(t, body, want)
+			}
+			require.NotContains(t, body, "stream_read_error")
+			require.NotContains(t, body, "response_too_large")
+		})
+	}
+}
+
 func TestOpenAIStreamingClientDisconnectDrainsUpstreamUsage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{
@@ -1562,6 +1693,39 @@ func TestOpenAIStreamingPassthroughMissingTerminalEventReturnsIncompleteError(t 
 	_ = pr.Close()
 	require.NoError(t, err)
 	require.NotNil(t, result)
+}
+
+func TestOpenAIStreamingPassthroughUpstreamErrorSSEPreservesOriginalErrorBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		Gateway: config.GatewayConfig{
+			MaxLineSize: defaultMaxLineSize,
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: newErrorAfterReadCloser(
+			"event: error\n"+
+				"data: {\"error\":{\"type\":\"server_error\",\"message\":\"upstream exploded\"}}\n\n",
+			io.ErrUnexpectedEOF,
+		),
+		Header: http.Header{},
+	}
+
+	result, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	body := rec.Body.String()
+	require.Contains(t, body, "event: error")
+	require.Contains(t, body, "server_error")
+	require.Contains(t, body, "upstream exploded")
+	require.NotContains(t, body, "stream_read_error")
 }
 
 func TestOpenAIStreamingPassthroughResponseDoneWithoutDoneMarkerStillSucceeds(t *testing.T) {
@@ -1697,6 +1861,42 @@ func TestOpenAINonStreamingContentTypeDefault(t *testing.T) {
 	if !strings.Contains(rec.Header().Get("Content-Type"), "application/json") {
 		t.Fatalf("expected default Content-Type, got %q", rec.Header().Get("Content-Type"))
 	}
+}
+
+func TestOpenAINonStreamingNonJSONSuccessReturnsFailover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &OpenAIGatewayService{}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewReader([]byte("<html>temporarily unavailable</html>"))),
+		Header:     http.Header{"Content-Type": []string{"text/html"}, "x-request-id": []string{"req-non-json"}},
+	}
+	account := &Account{
+		ID:       77,
+		Name:     "openai-non-json",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"pool_mode": true,
+		},
+		Extra: map[string]any{
+			"pool_mode_enabled": true,
+		},
+	}
+
+	_, err := svc.handleNonStreamingResponse(c.Request.Context(), resp, c, account, "model", "model")
+
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.False(t, failoverErr.RetryableOnSameAccount)
+	require.Contains(t, string(failoverErr.ResponseBody), "non-JSON")
+	require.Empty(t, rec.Body.String(), "failover should not write a client response before handler retries")
 }
 
 func TestOpenAIGatewayServiceForwardTransportErrorReturnsFailover(t *testing.T) {

@@ -84,35 +84,37 @@ type SystemSettings struct {
 	TurnstileSiteKey             string `json:"turnstile_site_key"`
 	TurnstileSecretKeyConfigured bool   `json:"turnstile_secret_key_configured"`
 
-	LinuxDoConnectEnabled                bool                                 `json:"linuxdo_connect_enabled"`
-	LinuxDoConnectClientID               string                               `json:"linuxdo_connect_client_id"`
-	LinuxDoConnectClientSecretConfigured bool                                 `json:"linuxdo_connect_client_secret_configured"`
-	LinuxDoConnectRedirectURL            string                               `json:"linuxdo_connect_redirect_url"`
-	GitHubOAuthEnabled                   bool                                 `json:"github_oauth_enabled"`
-	GitHubOAuthClientID                  string                               `json:"github_oauth_client_id"`
-	GitHubOAuthClientSecretConfigured    bool                                 `json:"github_oauth_client_secret_configured"`
-	GitHubOAuthRedirectURL               string                               `json:"github_oauth_redirect_url"`
-	GoogleOAuthEnabled                   bool                                 `json:"google_oauth_enabled"`
-	GoogleOAuthClientID                  string                               `json:"google_oauth_client_id"`
-	GoogleOAuthClientSecretConfigured    bool                                 `json:"google_oauth_client_secret_configured"`
-	GoogleOAuthRedirectURL               string                               `json:"google_oauth_redirect_url"`
-	DingTalkOAuthEnabled                 bool                                 `json:"dingtalk_oauth_enabled"`
-	DingTalkOAuthClientID                string                               `json:"dingtalk_oauth_client_id"`
-	DingTalkOAuthClientSecretConfigured  bool                                 `json:"dingtalk_oauth_client_secret_configured"`
-	DingTalkOAuthRedirectURL             string                               `json:"dingtalk_oauth_redirect_url"`
-	ContentModerationEnabled             bool                                 `json:"content_moderation_enabled"`
-	ContentModerationProvider            string                               `json:"content_moderation_provider"`
-	ContentModerationBaseURL             string                               `json:"content_moderation_base_url"`
-	ContentModerationAPIKeyConfigured    bool                                 `json:"content_moderation_api_key_configured"`
-	ContentModerationAPIKeyStatuses      []ContentModerationAPIKeyStatus      `json:"content_moderation_api_key_statuses"`
-	ContentModerationModel               string                               `json:"content_moderation_model"`
-	ContentModerationTimeoutMs           int                                  `json:"content_moderation_timeout_ms"`
-	ContentModerationDedupeWindowSeconds int                                  `json:"content_moderation_dedupe_window_seconds"`
-	ContentModerationFailOpen            bool                                 `json:"content_moderation_fail_open"`
-	ContentModerationKeywordBlockEnabled bool                                 `json:"content_moderation_keyword_block_enabled"`
-	ContentModerationKeywords            []string                             `json:"content_moderation_keywords"`
-	ContentModerationModelFilter         service.ContentModerationModelFilter `json:"content_moderation_model_filter"`
-	ContentModerationCategoryThresholds  map[string]float64                   `json:"content_moderation_category_thresholds"`
+	LinuxDoConnectEnabled                bool                                     `json:"linuxdo_connect_enabled"`
+	LinuxDoConnectClientID               string                                   `json:"linuxdo_connect_client_id"`
+	LinuxDoConnectClientSecretConfigured bool                                     `json:"linuxdo_connect_client_secret_configured"`
+	LinuxDoConnectRedirectURL            string                                   `json:"linuxdo_connect_redirect_url"`
+	GitHubOAuthEnabled                   bool                                     `json:"github_oauth_enabled"`
+	GitHubOAuthClientID                  string                                   `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecretConfigured    bool                                     `json:"github_oauth_client_secret_configured"`
+	GitHubOAuthRedirectURL               string                                   `json:"github_oauth_redirect_url"`
+	GoogleOAuthEnabled                   bool                                     `json:"google_oauth_enabled"`
+	GoogleOAuthClientID                  string                                   `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecretConfigured    bool                                     `json:"google_oauth_client_secret_configured"`
+	GoogleOAuthRedirectURL               string                                   `json:"google_oauth_redirect_url"`
+	DingTalkOAuthEnabled                 bool                                     `json:"dingtalk_oauth_enabled"`
+	DingTalkOAuthClientID                string                                   `json:"dingtalk_oauth_client_id"`
+	DingTalkOAuthClientSecretConfigured  bool                                     `json:"dingtalk_oauth_client_secret_configured"`
+	DingTalkOAuthRedirectURL             string                                   `json:"dingtalk_oauth_redirect_url"`
+	ContentModerationEnabled             bool                                     `json:"content_moderation_enabled"`
+	ContentModerationProvider            string                                   `json:"content_moderation_provider"`
+	ContentModerationBaseURL             string                                   `json:"content_moderation_base_url"`
+	ContentModerationAPIKeyConfigured    bool                                     `json:"content_moderation_api_key_configured"`
+	ContentModerationAPIKeyStatuses      []ContentModerationAPIKeyStatus          `json:"content_moderation_api_key_statuses"`
+	ContentModerationModel               string                                   `json:"content_moderation_model"`
+	ContentModerationTimeoutMs           int                                      `json:"content_moderation_timeout_ms"`
+	ContentModerationDedupeWindowSeconds int                                      `json:"content_moderation_dedupe_window_seconds"`
+	ContentModerationFailOpen            bool                                     `json:"content_moderation_fail_open"`
+	ContentModerationKeywordBlockEnabled bool                                     `json:"content_moderation_keyword_block_enabled"`
+	ContentModerationKeywords            []string                                 `json:"content_moderation_keywords"`
+	ContentModerationModelFilter         service.ContentModerationModelFilter     `json:"content_moderation_model_filter"`
+	ContentModerationCategoryThresholds  map[string]float64                       `json:"content_moderation_category_thresholds"`
+	ContentModerationCyberPolicyEnabled  bool                                     `json:"content_moderation_cyber_policy_enabled"`
+	ContentModerationCyberCategories     []service.ContentModerationCyberCategory `json:"content_moderation_cyber_categories"`
 
 	SiteName                             string                    `json:"site_name"`
 	SiteLogo                             string                    `json:"site_logo"`
@@ -178,8 +180,10 @@ type SystemSettings struct {
 	FallbackModelAntigravity string `json:"fallback_model_antigravity"`
 
 	// Identity patch configuration (Claude -> Gemini)
-	EnableIdentityPatch bool   `json:"enable_identity_patch"`
-	IdentityPatchPrompt string `json:"identity_patch_prompt"`
+	EnableIdentityPatch                  bool   `json:"enable_identity_patch"`
+	IdentityPatchPrompt                  string `json:"identity_patch_prompt"`
+	ClaudeOAuthSystemPromptBlocksEnabled bool   `json:"claude_oauth_system_prompt_blocks_enabled"`
+	ClaudeOAuthSystemPromptBlocks        string `json:"claude_oauth_system_prompt_blocks"`
 
 	// Ops monitoring (vNext)
 	OpsMonitoringEnabled         bool   `json:"ops_monitoring_enabled"`

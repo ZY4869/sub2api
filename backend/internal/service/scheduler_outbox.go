@@ -18,4 +18,5 @@ type SchedulerOutboxEvent struct {
 type SchedulerOutboxRepository interface {
 	ListAfter(ctx context.Context, afterID int64, limit int) ([]SchedulerOutboxEvent, error)
 	MaxID(ctx context.Context) (int64, error)
+	DeleteThrough(ctx context.Context, maxID int64) error
 }

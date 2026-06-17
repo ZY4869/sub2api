@@ -142,6 +142,8 @@ const (
 	SettingKeyContentModerationKeywords            = "content_moderation_keywords"
 	SettingKeyContentModerationModelFilter         = "content_moderation_model_filter"
 	SettingKeyContentModerationCategoryThresholds  = "content_moderation_category_thresholds"
+	SettingKeyContentModerationCyberPolicyEnabled  = "content_moderation_cyber_policy_enabled"
+	SettingKeyContentModerationCyberCategories     = "content_moderation_cyber_categories"
 
 	SettingKeySiteName                             = "site_name"
 	SettingKeySiteLogo                             = "site_logo"
@@ -240,6 +242,8 @@ const (
 
 	SettingKeyMinClaudeCodeVersion = "min_claude_code_version"
 	SettingKeyMaxClaudeCodeVersion = "max_claude_code_version"
+	SettingKeyClaudeOAuthSystemPromptBlocksEnabled = "claude_oauth_system_prompt_blocks_enabled"
+	SettingKeyClaudeOAuthSystemPromptBlocks        = "claude_oauth_system_prompt_blocks"
 
 	SettingKeyAllowUngroupedKeyScheduling = "allow_ungrouped_key_scheduling"
 	SettingKeyMultiGroupRoutingEnabled    = "multi_group_routing_enabled"

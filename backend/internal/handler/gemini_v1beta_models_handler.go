@@ -95,6 +95,16 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		reqLog.Warn("gemini.content_moderation_keyword_check_failed", zap.Error(err))
 	} else if decision != nil {
+		h.submitContentModerationFailedUsageRecordTask(
+			"handler.gemini_v1beta.models",
+			c,
+			apiKey,
+			modelRuntime.publicModelName,
+			stream,
+			service.PlatformGemini,
+			geminiCompatiblePlatforms,
+			decision,
+		)
 		contentModerationGeminiBlockResponse(c, decision)
 		return
 	}

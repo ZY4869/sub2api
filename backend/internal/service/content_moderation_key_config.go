@@ -18,6 +18,7 @@ const (
 	ContentModerationAPIKeysModeReplace = "replace"
 	contentModerationMaxKeywords        = 500
 	contentModerationMaxKeywordRunes    = 120
+	contentModerationMaxCyberCategories = 20
 )
 
 var knownContentModerationCategories = []string{
@@ -48,6 +49,11 @@ type ContentModerationAPIKeyUpdate struct {
 	Mode         string
 	DeleteHashes []string
 	Now          time.Time
+}
+
+type ContentModerationCyberCategory struct {
+	ID       string   `json:"id"`
+	Keywords []string `json:"keywords"`
 }
 
 func NormalizeContentModerationAPIKeys(legacyKey, rawList string) []ContentModerationAPIKey {
@@ -188,6 +194,105 @@ func DefaultContentModerationCategoryThresholds() map[string]float64 {
 		out[category] = 1.0
 	}
 	return out
+}
+
+func DefaultContentModerationCyberCategories() []ContentModerationCyberCategory {
+	return []ContentModerationCyberCategory{
+		{ID: "credential_theft", Keywords: []string{"credential stuffing", "steal api key", "phishing kit"}},
+		{ID: "malware", Keywords: []string{"malware payload", "ransomware", "keylogger"}},
+		{ID: "exploit", Keywords: []string{"zero day exploit", "privilege escalation", "remote code execution"}},
+		{ID: "exfiltration", Keywords: []string{"data exfiltration", "dump database", "bypass dlp"}},
+	}
+}
+
+func NormalizeContentModerationCyberCategories(raw string) []ContentModerationCyberCategory {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return DefaultContentModerationCyberCategories()
+	}
+	if raw == "[]" {
+		return []ContentModerationCyberCategory{}
+	}
+	var parsed []ContentModerationCyberCategory
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		return DefaultContentModerationCyberCategories()
+	}
+	return NormalizeContentModerationCyberCategoryList(parsed)
+}
+
+func MarshalContentModerationCyberCategories(values []ContentModerationCyberCategory) (string, error) {
+	normalized := NormalizeContentModerationCyberCategoryList(values)
+	data, err := json.Marshal(normalized)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func NormalizeContentModerationCyberCategoryList(values []ContentModerationCyberCategory) []ContentModerationCyberCategory {
+	if len(values) == 0 {
+		return []ContentModerationCyberCategory{}
+	}
+	seen := make(map[string]struct{}, len(values))
+	out := make([]ContentModerationCyberCategory, 0, len(values))
+	for _, item := range values {
+		id := normalizeCyberPolicyCategoryID(item.ID)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		keywords := NormalizeContentModerationKeywordList(item.Keywords)
+		if len(keywords) == 0 {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, ContentModerationCyberCategory{ID: id, Keywords: keywords})
+		if len(out) >= contentModerationMaxCyberCategories {
+			break
+		}
+	}
+	return out
+}
+
+func normalizeCyberPolicyCategoryID(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range value {
+		switch {
+		case unicode.IsLetter(r), unicode.IsDigit(r):
+			_, _ = b.WriteRune(r)
+		case r == '-' || r == '_' || unicode.IsSpace(r):
+			_ = b.WriteByte('_')
+		}
+	}
+	return strings.Trim(b.String(), "_")
+}
+
+func EvaluateContentModerationCyberPolicy(settings *ContentModerationSettings, rawContent string) ContentModerationKeywordDecision {
+	content := strings.TrimSpace(rawContent)
+	if settings == nil || !settings.Enabled || !settings.CyberPolicyEnabled || content == "" {
+		return ContentModerationKeywordDecision{Content: content}
+	}
+	normalizedContent := normalizeContentModerationKeywordComparable(content)
+	for _, category := range NormalizeContentModerationCyberCategoryList(settings.CyberCategories) {
+		for _, keyword := range NormalizeContentModerationKeywordList(category.Keywords) {
+			if normalizedKeyword := normalizeContentModerationKeywordComparable(keyword); normalizedKeyword != "" && strings.Contains(normalizedContent, normalizedKeyword) {
+				reason := "cyber_policy:" + category.ID
+				return ContentModerationKeywordDecision{
+					Blocked:     true,
+					Content:     content,
+					ErrorReason: reason,
+					Categories:  []string{reason},
+				}
+			}
+		}
+	}
+	return ContentModerationKeywordDecision{Content: content}
 }
 
 func NormalizeContentModerationCategoryThresholds(raw string) map[string]float64 {

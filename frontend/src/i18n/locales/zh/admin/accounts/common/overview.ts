@@ -95,6 +95,7 @@ export default {
         saveFailed: "显示优化保存失败",
     },
     columns: {
+        accountId: "账号 ID",
         name: "名称",
         platformType: "平台/类型",
         platform: "平台",

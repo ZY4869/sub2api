@@ -14,5 +14,9 @@ export default {
         allowedClientsHint: "只允许已知且受支持的例外客户端；未识别的客户端不会被保存或放行。",
         allowedClientClaudeCodeLabel: "Claude Code",
         allowedClientClaudeCode: "允许 Claude Code Codex 插件在开启 codex_cli_only 的 OpenAI 账号上通过。",
+        oauthPromptBlocks: "Claude OAuth System Prompt Blocks",
+        oauthPromptBlocksHint: "为 Claude OAuth 转发请求追加站点级 system 文本块，默认关闭。",
+        oauthPromptBlocksPlaceholder: "每行一个 system prompt block",
+        oauthPromptBlocksPriorityHint: "这些文本块会追加到现有 system 后面，优先级低于本地强制安全提示与 Claude Code 规范化规则。",
     }
 }

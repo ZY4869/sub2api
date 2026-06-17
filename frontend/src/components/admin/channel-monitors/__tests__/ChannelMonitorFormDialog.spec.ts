@@ -155,7 +155,7 @@ describe('ChannelMonitorFormDialog', () => {
     const inputs = wrapper.findAll('input.input')
     await inputs[0].setValue('Primary OpenAI monitor')
     await inputs[1].setValue('https://example.test/v1/chat/completions')
-    await inputs[3].setValue('gpt-5.4')
+    await inputs[4].setValue('gpt-5.4')
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()
@@ -170,7 +170,7 @@ describe('ChannelMonitorFormDialog', () => {
     const inputs = wrapper.findAll('input.input')
     await inputs[0].setValue('Primary OpenAI monitor')
     await inputs[1].setValue('https://example.test/v1/chat/completions')
-    await inputs[3].setValue('gpt-5.4')
+    await inputs[4].setValue('gpt-5.4')
 
     wrapper.find('button[type="submit"][form="channel-monitor-form"]').element.click()
     await flushPromises()
@@ -180,6 +180,7 @@ describe('ChannelMonitorFormDialog', () => {
       probe_mode: 'direct',
       endpoint: 'https://example.test/v1/chat/completions',
       primary_model_id: 'gpt-5.4',
+      jitter_seconds: 0,
       model_probe_strategy: 'all_selected',
       model_source_protocols: {},
       enabled: false,

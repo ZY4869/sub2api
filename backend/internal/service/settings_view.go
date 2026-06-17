@@ -66,6 +66,8 @@ type SystemSettings struct {
 	ContentModerationKeywords            []string
 	ContentModerationModelFilter         ContentModerationModelFilter
 	ContentModerationCategoryThresholds  map[string]float64
+	ContentModerationCyberPolicyEnabled  bool
+	ContentModerationCyberCategories     []ContentModerationCyberCategory
 
 	SiteName                             string
 	SiteLogo                             string
@@ -134,8 +136,10 @@ type SystemSettings struct {
 	FallbackModelAntigravity string `json:"fallback_model_antigravity"`
 
 	// Identity patch configuration (Claude -> Gemini)
-	EnableIdentityPatch bool   `json:"enable_identity_patch"`
-	IdentityPatchPrompt string `json:"identity_patch_prompt"`
+	EnableIdentityPatch                  bool   `json:"enable_identity_patch"`
+	IdentityPatchPrompt                  string `json:"identity_patch_prompt"`
+	ClaudeOAuthSystemPromptBlocksEnabled bool   `json:"claude_oauth_system_prompt_blocks_enabled"`
+	ClaudeOAuthSystemPromptBlocks        string `json:"claude_oauth_system_prompt_blocks"`
 
 	// Ops monitoring (vNext)
 	OpsMonitoringEnabled         bool

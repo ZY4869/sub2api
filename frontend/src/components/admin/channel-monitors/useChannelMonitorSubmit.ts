@@ -84,6 +84,7 @@ export function useChannelMonitorSubmit(options: SubmitOptions) {
       request_protocol: form.request_protocol,
       endpoint: options.isDirectMode.value ? form.endpoint.trim() : '',
       interval_seconds: form.interval_seconds,
+      jitter_seconds: form.jitter_seconds || 0,
       enabled: form.enabled,
       account_ids: options.isAccountMode.value ? form.account_ids : [],
       primary_model_id: form.primary_model_id.trim(),

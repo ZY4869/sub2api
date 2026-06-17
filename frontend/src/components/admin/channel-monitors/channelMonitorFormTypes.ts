@@ -13,6 +13,7 @@ export interface ChannelMonitorFormState {
   request_protocol: ChannelMonitorRequestProtocol
   endpoint: string
   interval_seconds: number
+  jitter_seconds: number
   enabled: boolean
   account_ids: number[]
   primary_model_id: string

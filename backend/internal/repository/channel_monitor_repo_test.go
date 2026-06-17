@@ -28,6 +28,7 @@ func TestChannelMonitorRepositoryCreatePersistsDualModeFields(t *testing.T) {
 			service.ChannelMonitorRequestProtocolOpenAI,
 			"",
 			60,
+			12,
 			true,
 			sqlmock.AnyArg(),
 			"shared-main",
@@ -56,6 +57,7 @@ func TestChannelMonitorRepositoryCreatePersistsDualModeFields(t *testing.T) {
 			"request_protocol",
 			"api_key_encrypted",
 			"interval_seconds",
+			"jitter_seconds",
 			"enabled",
 			"account_ids",
 			"primary_model_id",
@@ -81,6 +83,7 @@ func TestChannelMonitorRepositoryCreatePersistsDualModeFields(t *testing.T) {
 			service.ChannelMonitorRequestProtocolOpenAI,
 			nil,
 			60,
+			12,
 			true,
 			"{101,102}",
 			"shared-main",
@@ -108,6 +111,7 @@ func TestChannelMonitorRepositoryCreatePersistsDualModeFields(t *testing.T) {
 		ProbeMode:            service.ChannelMonitorProbeModeAccountPool,
 		RequestProtocol:      service.ChannelMonitorRequestProtocolOpenAI,
 		IntervalSeconds:      60,
+		JitterSeconds:        12,
 		Enabled:              true,
 		AccountIDs:           []int64{101, 102},
 		PrimaryModelID:       "shared-main",
@@ -125,6 +129,7 @@ func TestChannelMonitorRepositoryCreatePersistsDualModeFields(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, int64(7), created.ID)
+	require.Equal(t, 12, created.JitterSeconds)
 	require.Equal(t, map[string]string{"shared-main": "anthropic", "shared-side": "gemini"}, created.ModelSourceProtocols)
 	require.NoError(t, mock.ExpectationsWereMet())
 }

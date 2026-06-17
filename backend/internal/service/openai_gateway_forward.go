@@ -530,7 +530,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			return nil, newOpenAITransportFailoverError(c, account, err)
 		}
 		if resp.StatusCode >= 400 {
-			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+			respBody, _ := readUpstreamResponseBodyLimitedFromResponse(resp, 2<<20)
 			_ = resp.Body.Close()
 			resp.Body = io.NopCloser(bytes.NewReader(respBody))
 			upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))

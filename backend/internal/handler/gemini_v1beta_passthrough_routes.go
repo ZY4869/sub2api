@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -105,6 +106,18 @@ func (h *GatewayHandler) GeminiV1BetaOpenAICompat(c *gin.Context) {
 			if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 				requestLogger(c, "handler.gemini_v1beta.passthrough").Warn("gemini_passthrough.content_moderation_keyword_check_failed", zap.Error(err))
 			} else if decision != nil {
+				if apiKey, ok := middleware.GetAPIKeyFromContext(c); ok && apiKey != nil {
+					h.submitContentModerationFailedUsageRecordTask(
+						"handler.gemini_v1beta.passthrough",
+						c,
+						apiKey,
+						modelHint,
+						false,
+						service.PlatformGemini,
+						geminiCompatiblePlatforms,
+						decision,
+					)
+				}
 				contentModerationGeminiBlockResponse(c, decision)
 				return
 			}

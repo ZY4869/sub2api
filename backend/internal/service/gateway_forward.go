@@ -90,6 +90,9 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			body = rewriteSystemForNonClaudeCode(body, parsed.System)
 		}
 		normalizeOpts := claudeOAuthNormalizeOptions{stripSystemCacheControl: true}
+		if s.settingService != nil {
+			normalizeOpts.systemPromptBlocksEnabled, normalizeOpts.systemPromptBlocks = s.settingService.GetClaudeOAuthSystemPromptBlocks(ctx)
+		}
 		if s.identityService != nil {
 			fp, err := s.identityService.GetOrCreateFingerprint(ctx, account.ID, c.Request.Header)
 			if err == nil && fp != nil {
@@ -100,6 +103,12 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			}
 		}
 		body, reqModel = normalizeClaudeOAuthRequestBody(body, reqModel, normalizeOpts)
+	} else if account.IsOAuth() && s.settingService != nil {
+		blocksEnabled, blocks := s.settingService.GetClaudeOAuthSystemPromptBlocks(ctx)
+		body, _ = normalizeClaudeOAuthRequestBody(body, reqModel, claudeOAuthNormalizeOptions{
+			systemPromptBlocksEnabled: blocksEnabled,
+			systemPromptBlocks:        blocks,
+		})
 	}
 	if account.IsOAuth() {
 		body = filterSystemBlocksByPrefix(body)

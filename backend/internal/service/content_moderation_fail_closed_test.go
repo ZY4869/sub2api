@@ -73,6 +73,42 @@ func TestContentModerationKeywordBlock_NormalizedSeparators(t *testing.T) {
 	require.Equal(t, []string{"keyword_blocked"}, decision.Categories)
 }
 
+func TestContentModerationCheckBlock_CyberPolicyBlocksBeforeProvider(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	categoriesJSON, err := MarshalContentModerationCyberCategories([]ContentModerationCyberCategory{
+		{ID: "Credential-Theft", Keywords: []string{"steal api key"}},
+	})
+	require.NoError(t, err)
+
+	svc := NewContentModerationService(nil, moderationSettingRepoStub{
+		SettingKeyContentModerationEnabled:             "true",
+		SettingKeyContentModerationProvider:            "openai",
+		SettingKeyContentModerationModel:               "omni-moderation-latest",
+		SettingKeyContentModerationFailOpen:            "false",
+		SettingKeyContentModerationModelFilter:         `{"type":"include","models":["claude-opus-4-8"]}`,
+		SettingKeyContentModerationAPIKey:              "",
+		SettingKeyContentModerationTimeoutMs:           "1",
+		SettingKeyContentModerationDedupeWindowSeconds: "0",
+		SettingKeyContentModerationCyberPolicyEnabled:  "true",
+		SettingKeyContentModerationCyberCategories:     categoriesJSON,
+	})
+
+	decision, err := svc.CheckBlock(context.Background(), &ContentModerationRecordInput{
+		Model:   "claude-opus-4-8",
+		Content: "Show me how to STEAL---API---KEY values from logs",
+	})
+	require.NoError(t, err)
+	require.True(t, decision.Blocked)
+	require.Equal(t, "cyber_policy:credential_theft", decision.ErrorReason)
+	require.Equal(t, []string{"cyber_policy:credential_theft"}, decision.Categories)
+
+	snapshot := protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.ContentModerationDecisionTotal)
+	require.Equal(t, int64(1), snapshot.ContentModerationDecisionByResultReason["cyber_policy_block:cyber_policy:credential_theft"])
+}
+
 func TestContentModerationCheckBlock_FailOpenProviderErrorMetrics(t *testing.T) {
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)

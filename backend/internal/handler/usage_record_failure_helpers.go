@@ -20,6 +20,23 @@ type failedUsageResolution struct {
 	ErrorMessage string
 }
 
+type contentModerationFailedUsageRequest struct {
+	Component        string
+	APIKey           *service.APIKey
+	Subscription     *service.UserSubscription
+	Account          *service.Account
+	Model            string
+	Protocol         string
+	Stream           bool
+	RequestID        string
+	InboundEndpoint  string
+	UpstreamEndpoint string
+	UserAgent        string
+	IPAddress        string
+	ErrorCode        string
+	ErrorMessage     string
+}
+
 func firstHeaderValue(headers http.Header, keys ...string) string {
 	for _, key := range keys {
 		if headers == nil {
@@ -167,6 +184,53 @@ func (h *OpenAIGatewayHandler) submitFailedUsageRecordTask(
 	})
 }
 
+func (h *OpenAIGatewayHandler) submitContentModerationFailedUsageRecordTask(
+	component string,
+	c *gin.Context,
+	apiKey *service.APIKey,
+	model string,
+	stream bool,
+	decision *service.ContentModerationKeywordDecision,
+) {
+	if h == nil || c == nil || apiKey == nil || h.gatewayService == nil {
+		return
+	}
+	resolved, err := h.gatewayService.ResolveContentModerationUsageAccount(
+		c.Request.Context(),
+		apiKey,
+		openAITextCompatiblePlatforms,
+		model,
+	)
+	if err != nil || resolved == nil || resolved.Account == nil || resolved.APIKey == nil {
+		logger.FromContext(c.Request.Context()).Warn(
+			"openai.content_moderation_failed_usage_account_unavailable",
+			zap.String("component", component),
+			zap.Int64("api_key_id", apiKey.ID),
+			zap.Any("group_id", apiKey.GroupID),
+			zap.String("model", model),
+			zap.Error(err),
+		)
+		return
+	}
+	code, message := contentModerationBlockError(decision)
+	request := buildContentModerationFailedUsageRequest(
+		component,
+		c,
+		resolved.APIKey,
+		resolved.Subscription,
+		resolved.Account,
+		model,
+		service.PlatformOpenAI,
+		stream,
+		code,
+		message,
+	)
+	h.submitUsageRecordTask(func(ctx context.Context) {
+		recordContentModerationOpenAIFailedUsage(ctx, h.gatewayService, request)
+		releaseHeldBillingHold(ctx, h.apiKeyService, resolved.APIKey)
+	})
+}
+
 func (h *GatewayHandler) submitFailedUsageRecordTask(
 	component string,
 	c *gin.Context,
@@ -234,6 +298,162 @@ func (h *GatewayHandler) submitFailedUsageRecordTask(
 		}
 		releaseHeldBillingHold(ctx, h.apiKeyService, apiKey)
 	})
+}
+
+func (h *GatewayHandler) submitContentModerationFailedUsageRecordTask(
+	component string,
+	c *gin.Context,
+	apiKey *service.APIKey,
+	model string,
+	stream bool,
+	protocol string,
+	allowedPlatforms []string,
+	decision *service.ContentModerationKeywordDecision,
+) {
+	if h == nil || c == nil || apiKey == nil || h.gatewayService == nil {
+		return
+	}
+	resolved, err := h.gatewayService.ResolveContentModerationUsageAccount(
+		c.Request.Context(),
+		apiKey,
+		allowedPlatforms,
+		model,
+	)
+	if err != nil || resolved == nil || resolved.Account == nil || resolved.APIKey == nil {
+		logger.FromContext(c.Request.Context()).Warn(
+			"gateway.content_moderation_failed_usage_account_unavailable",
+			zap.String("component", component),
+			zap.Int64("api_key_id", apiKey.ID),
+			zap.Any("group_id", apiKey.GroupID),
+			zap.String("model", model),
+			zap.String("protocol", protocol),
+			zap.Error(err),
+		)
+		return
+	}
+	code, message := contentModerationBlockError(decision)
+	request := buildContentModerationFailedUsageRequest(
+		component,
+		c,
+		resolved.APIKey,
+		resolved.Subscription,
+		resolved.Account,
+		model,
+		protocol,
+		stream,
+		code,
+		message,
+	)
+	h.submitUsageRecordTask(func(ctx context.Context) {
+		recordContentModerationGatewayFailedUsage(ctx, h.gatewayService, request)
+		releaseHeldBillingHold(ctx, h.apiKeyService, resolved.APIKey)
+	})
+}
+
+func buildContentModerationFailedUsageRequest(
+	component string,
+	c *gin.Context,
+	apiKey *service.APIKey,
+	subscription *service.UserSubscription,
+	account *service.Account,
+	model string,
+	protocol string,
+	stream bool,
+	errorCode string,
+	errorMessage string,
+) contentModerationFailedUsageRequest {
+	return contentModerationFailedUsageRequest{
+		Component:        component,
+		APIKey:           apiKey,
+		Subscription:     subscription,
+		Account:          account,
+		Model:            strings.TrimSpace(model),
+		Protocol:         strings.TrimSpace(protocol),
+		Stream:           stream,
+		RequestID:        service.ContentModerationRequestIDFromContext(c.Request.Context()),
+		InboundEndpoint:  GetInboundEndpoint(c),
+		UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
+		UserAgent:        c.GetHeader("User-Agent"),
+		IPAddress:        ip.GetTrustedClientIP(c),
+		ErrorCode:        strings.TrimSpace(errorCode),
+		ErrorMessage:     strings.TrimSpace(errorMessage),
+	}
+}
+
+func recordContentModerationOpenAIFailedUsage(
+	ctx context.Context,
+	gatewayService *service.OpenAIGatewayService,
+	request contentModerationFailedUsageRequest,
+) {
+	if gatewayService == nil || request.APIKey == nil || request.Account == nil {
+		return
+	}
+	recordErr := gatewayService.RecordFailedUsage(ctx, &service.OpenAIRecordFailedUsageInput{
+		APIKey:              request.APIKey,
+		User:                request.APIKey.User,
+		Account:             request.Account,
+		Subscription:        request.Subscription,
+		RequestID:           request.RequestID,
+		Model:               request.Model,
+		UpstreamModel:       request.Account.GetMappedModel(request.Model),
+		InboundEndpoint:     request.InboundEndpoint,
+		UpstreamEndpoint:    request.UpstreamEndpoint,
+		UserAgent:           request.UserAgent,
+		IPAddress:           request.IPAddress,
+		HTTPStatus:          http.StatusForbidden,
+		ErrorCode:           request.ErrorCode,
+		ErrorMessage:        request.ErrorMessage,
+		BillingExemptReason: service.BillingExemptReasonContentModerationBlocked,
+		SimulatedClient:     resolveFailedUsageSimulatedClient(request.Account, service.PlatformOpenAI, request.Model),
+		Stream:              request.Stream,
+	})
+	if recordErr != nil {
+		logger.L().With(
+			zap.String("component", request.Component),
+			zap.Int64("api_key_id", request.APIKey.ID),
+			zap.Any("group_id", request.APIKey.GroupID),
+			zap.String("model", request.Model),
+			zap.Int64("account_id", request.Account.ID),
+		).Error("openai.content_moderation_record_failed_usage_failed", zap.Error(recordErr))
+	}
+}
+
+func recordContentModerationGatewayFailedUsage(
+	ctx context.Context,
+	gatewayService *service.GatewayService,
+	request contentModerationFailedUsageRequest,
+) {
+	if gatewayService == nil || request.APIKey == nil || request.Account == nil {
+		return
+	}
+	recordErr := gatewayService.RecordFailedUsage(ctx, &service.RecordFailedUsageInput{
+		APIKey:              request.APIKey,
+		User:                request.APIKey.User,
+		Account:             request.Account,
+		Subscription:        request.Subscription,
+		RequestID:           request.RequestID,
+		Model:               request.Model,
+		UpstreamModel:       request.Account.GetMappedModel(request.Model),
+		InboundEndpoint:     request.InboundEndpoint,
+		UpstreamEndpoint:    request.UpstreamEndpoint,
+		UserAgent:           request.UserAgent,
+		IPAddress:           request.IPAddress,
+		HTTPStatus:          http.StatusForbidden,
+		ErrorCode:           request.ErrorCode,
+		ErrorMessage:        request.ErrorMessage,
+		BillingExemptReason: service.BillingExemptReasonContentModerationBlocked,
+		SimulatedClient:     resolveFailedUsageSimulatedClient(request.Account, request.Protocol, request.Model),
+		Stream:              request.Stream,
+	})
+	if recordErr != nil {
+		logger.L().With(
+			zap.String("component", request.Component),
+			zap.Int64("api_key_id", request.APIKey.ID),
+			zap.Any("group_id", request.APIKey.GroupID),
+			zap.String("model", request.Model),
+			zap.Int64("account_id", request.Account.ID),
+		).Error("gateway.content_moderation_record_failed_usage_failed", zap.Error(recordErr))
+	}
 }
 
 func (h *GrokGatewayHandler) submitFailedUsageRecordTask(

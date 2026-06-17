@@ -79,7 +79,12 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 		SetImageOutputCountMetadata(ctx, outputCount)
 	}
 	defer finalizeImageOutputCount()
-	scanner := bufio.NewScanner(resp.Body)
+	reader, cleanup, err := upstreamResponseBodyReader(resp)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+	scanner := bufio.NewScanner(reader)
 	maxLineSize := defaultMaxLineSize
 	if s.cfg != nil && s.cfg.Gateway.MaxLineSize > 0 {
 		maxLineSize = s.cfg.Gateway.MaxLineSize
@@ -115,6 +120,7 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 	lastDataAt := time.Now()
 	errorEventSent := false
 	clientDisconnected := false
+	upstreamErrorForwarded := false
 	sendErrorEvent := func(reason string) {
 		if errorEventSent || clientDisconnected {
 			return
@@ -158,6 +164,10 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 			logger.LegacyPrintf("service.openai_gateway", "Upstream read error after client disconnect: %v, returning collected usage", scanErr)
 			return resultWithUsage(), nil, true
 		}
+		if upstreamErrorForwarded {
+			logger.LegacyPrintf("service.openai_gateway", "Upstream read error after upstream SSE error was forwarded: account=%d error=%v", account.ID, scanErr)
+			return resultWithUsage(), nil, true
+		}
 		if errors.Is(scanErr, bufio.ErrTooLong) {
 			logger.LegacyPrintf("service.openai_gateway", "SSE line too long: account=%d max_size=%d error=%v", account.ID, maxLineSize, scanErr)
 			sendErrorEvent("response_too_large")
@@ -168,6 +178,9 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 	}
 	processSSELine := func(line string, queueDrained bool) {
 		lastDataAt = time.Now()
+		if isOpenAIUpstreamSSEErrorLine(line) {
+			upstreamErrorForwarded = true
+		}
 		if data, ok := extractOpenAISSEDataLine(line); ok {
 			if needModelReplace && mappedModel != "" && strings.Contains(data, mappedModel) {
 				line = s.replaceModelInSSELine(line, mappedModel, originalModel)
@@ -327,6 +340,42 @@ func extractOpenAISSEDataLine(line string) (string, bool) {
 		start++
 	}
 	return line[start:], true
+}
+
+func isOpenAIUpstreamSSEErrorLine(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return false
+	}
+	if strings.HasPrefix(strings.ToLower(trimmed), "event:") {
+		eventName := strings.TrimSpace(trimmed[len("event:"):])
+		return strings.EqualFold(eventName, "error")
+	}
+	data, ok := extractOpenAISSEDataLine(trimmed)
+	if !ok {
+		return false
+	}
+	data = strings.TrimSpace(data)
+	if data == "" || data == "[DONE]" || !gjson.Valid(data) {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(gjson.Get(data, "type").String()), "error") {
+		return true
+	}
+	if strings.EqualFold(strings.TrimSpace(gjson.Get(data, "type").String()), "response.failed") &&
+		gjson.Get(data, "response.error").Exists() {
+		return true
+	}
+	errObj := gjson.Get(data, "error")
+	if !errObj.Exists() || errObj.Type == gjson.Null {
+		return false
+	}
+	if errObj.IsObject() {
+		return gjson.Get(data, "error.message").Exists() ||
+			gjson.Get(data, "error.type").Exists() ||
+			gjson.Get(data, "error.code").Exists()
+	}
+	return errObj.String() != ""
 }
 
 func (s *OpenAIGatewayService) replaceModelInSSELine(line, fromModel, toModel string) string {

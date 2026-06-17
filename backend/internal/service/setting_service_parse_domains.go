@@ -106,6 +106,8 @@ func (s *SettingService) applyParsedContentModerationSettings(result *SystemSett
 	result.ContentModerationKeywords = NormalizeContentModerationKeywords(settings[SettingKeyContentModerationKeywords])
 	result.ContentModerationModelFilter = NormalizeContentModerationModelFilter(settings[SettingKeyContentModerationModelFilter])
 	result.ContentModerationCategoryThresholds = NormalizeContentModerationCategoryThresholds(settings[SettingKeyContentModerationCategoryThresholds])
+	result.ContentModerationCyberPolicyEnabled = settings[SettingKeyContentModerationCyberPolicyEnabled] == "true"
+	result.ContentModerationCyberCategories = NormalizeContentModerationCyberCategories(settings[SettingKeyContentModerationCyberCategories])
 }
 
 func (s *SettingService) applyParsedOpsRuntimeSettings(result *SystemSettings, settings map[string]string) {
@@ -132,6 +134,8 @@ func (s *SettingService) applyParsedOpsRuntimeSettings(result *SystemSettings, s
 	result.ChannelMonitorDefaultIntervalSeconds = parseClampedIntSetting(settings[SettingKeyChannelMonitorDefaultIntervalSeconds], 60, 15, 3600)
 	result.MinClaudeCodeVersion = settings[SettingKeyMinClaudeCodeVersion]
 	result.MaxClaudeCodeVersion = settings[SettingKeyMaxClaudeCodeVersion]
+	result.ClaudeOAuthSystemPromptBlocksEnabled = settings[SettingKeyClaudeOAuthSystemPromptBlocksEnabled] == "true"
+	result.ClaudeOAuthSystemPromptBlocks = strings.TrimSpace(settings[SettingKeyClaudeOAuthSystemPromptBlocks])
 	result.AllowUngroupedKeyScheduling = settings[SettingKeyAllowUngroupedKeyScheduling] == "true"
 	result.BackendModeEnabled = settings[SettingKeyBackendModeEnabled] == "true"
 	result.MaintenanceModeEnabled = settings[SettingKeyMaintenanceModeEnabled] == "true"

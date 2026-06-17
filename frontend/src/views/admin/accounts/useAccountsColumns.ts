@@ -14,6 +14,12 @@ const allColumns = computed(() => {
   const c = [
     { key: "select", label: "", sortable: false, class: "w-[36px] min-w-[36px] max-w-[36px]" },
     {
+      key: "id",
+      label: t("admin.accounts.columns.accountId"),
+      sortable: true,
+      class: "w-[88px] min-w-[80px] max-w-[96px] whitespace-nowrap",
+    },
+    {
       key: "name",
       label: t("admin.accounts.columns.name"),
       sortable: true,

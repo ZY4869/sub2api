@@ -531,16 +531,63 @@ func (r *accountRepository) FindByExtraField(ctx context.Context, key string, va
 	return r.accountsToService(ctx, accounts)
 }
 func (r *accountRepository) ResetQuotaUsed(ctx context.Context, id int64) error {
-	_, err := r.sql.ExecContext(ctx, `UPDATE accounts SET extra = (
-			COALESCE(extra, '{}'::jsonb)
-			|| '{"quota_used": 0, "quota_daily_used": 0, "quota_weekly_used": 0}'::jsonb
-		) - 'quota_daily_start' - 'quota_weekly_start', updated_at = NOW()
-		WHERE id = $1 AND deleted_at IS NULL`, id)
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET rate_limited_at = NULL,
+			rate_limit_reset_at = NULL,
+			extra = (
+				COALESCE(extra, '{}'::jsonb)
+				|| '{
+					"quota_used": 0,
+					"quota_daily_used": 0,
+					"quota_weekly_used": 0,
+					"quota_monthly_used": 0,
+					"quota_used_by_currency": {},
+					"quota_daily_used_by_currency": {},
+					"quota_weekly_used_by_currency": {},
+					"quota_monthly_used_by_currency": {}
+				}'::jsonb
+			)
+			- 'quota_daily_start'
+			- 'quota_weekly_start'
+			- 'quota_monthly_start'
+			- 'codex_usage_updated_at'
+			- 'codex_5h_used_percent'
+			- 'codex_5h_reset_after_seconds'
+			- 'codex_5h_reset_at'
+			- 'codex_5h_window_minutes'
+			- 'codex_7d_used_percent'
+			- 'codex_7d_reset_after_seconds'
+			- 'codex_7d_reset_at'
+			- 'codex_7d_window_minutes'
+			- 'codex_primary_used_percent'
+			- 'codex_primary_reset_after_seconds'
+			- 'codex_primary_window_minutes'
+			- 'codex_secondary_used_percent'
+			- 'codex_secondary_reset_after_seconds'
+			- 'codex_secondary_window_minutes'
+			- 'codex_primary_over_secondary_percent'
+			- 'codex_spark_usage_updated_at'
+			- 'codex_spark_5h_used_percent'
+			- 'codex_spark_5h_reset_after_seconds'
+			- 'codex_spark_5h_reset_at'
+			- 'codex_spark_5h_window_minutes'
+			- 'codex_spark_7d_used_percent'
+			- 'codex_spark_7d_reset_after_seconds'
+			- 'codex_spark_7d_reset_at'
+			- 'codex_spark_7d_window_minutes'
+			- 'codex_account_7d_all_exhausted'
+			- 'model_rate_limits'
+			- 'rate_limit_reason',
+			updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+	`, id)
 	if err != nil {
 		return err
 	}
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue quota reset failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }

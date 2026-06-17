@@ -11,7 +11,8 @@ import (
 )
 
 type schedulerOutboxRepoStub struct {
-	events []SchedulerOutboxEvent
+	events        []SchedulerOutboxEvent
+	deleteThrough []int64
 }
 
 func (r *schedulerOutboxRepoStub) ListAfter(context.Context, int64, int) ([]SchedulerOutboxEvent, error) {
@@ -23,6 +24,11 @@ func (r *schedulerOutboxRepoStub) MaxID(context.Context) (int64, error) {
 		return 0, nil
 	}
 	return r.events[len(r.events)-1].ID, nil
+}
+
+func (r *schedulerOutboxRepoStub) DeleteThrough(_ context.Context, maxID int64) error {
+	r.deleteThrough = append(r.deleteThrough, maxID)
+	return nil
 }
 
 type schedulerSnapshotCacheSpy struct {
@@ -113,6 +119,7 @@ func TestSchedulerSnapshotService_PollOutboxDeduplicatesGroupPlatformRebuilds(t 
 		{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced},
 	}, cache.snapshotBuckets)
 	require.Equal(t, int64(2), cache.lastWatermark)
+	require.Equal(t, []int64{2}, outbox.deleteThrough)
 }
 
 func TestSchedulerSnapshotService_PollOutboxUsesFreshContextForWatermarkRetries(t *testing.T) {
@@ -128,7 +135,24 @@ func TestSchedulerSnapshotService_PollOutboxUsesFreshContextForWatermarkRetries(
 
 	require.Equal(t, 3, cache.watermarkCalls)
 	require.Equal(t, int64(9), cache.lastWatermark)
+	require.Equal(t, []int64{9}, outbox.deleteThrough)
 	require.Len(t, cache.watermarkDeadlines, 3)
 	require.False(t, cache.watermarkDeadlines[0].Equal(cache.watermarkDeadlines[1]))
 	require.False(t, cache.watermarkDeadlines[1].Equal(cache.watermarkDeadlines[2]))
+}
+
+func TestSchedulerSnapshotService_PollOutboxSkipsCleanupWhenWatermarkFails(t *testing.T) {
+	cache := &schedulerSnapshotCacheSpy{watermarkSucceedOn: 4}
+	outbox := &schedulerOutboxRepoStub{
+		events: []SchedulerOutboxEvent{
+			{ID: 11, EventType: "noop", CreatedAt: time.Now()},
+		},
+	}
+
+	svc := NewSchedulerSnapshotService(cache, outbox, nil, nil, nil)
+	svc.pollOutbox()
+
+	require.Equal(t, 3, cache.watermarkCalls)
+	require.Zero(t, cache.lastWatermark)
+	require.Empty(t, outbox.deleteThrough)
 }

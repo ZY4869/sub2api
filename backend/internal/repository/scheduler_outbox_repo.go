@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -79,6 +80,14 @@ func (r *schedulerOutboxRepository) MaxID(ctx context.Context) (int64, error) {
 	return maxID, nil
 }
 
+func (r *schedulerOutboxRepository) DeleteThrough(ctx context.Context, maxID int64) error {
+	if maxID <= 0 {
+		return nil
+	}
+	_, err := r.db.ExecContext(ctx, "DELETE FROM scheduler_outbox WHERE id <= $1", maxID)
+	return err
+}
+
 func enqueueSchedulerOutbox(ctx context.Context, exec sqlExecutor, eventType string, accountID *int64, groupID *int64, payload any) error {
 	if exec == nil {
 		return nil
@@ -92,32 +101,61 @@ func enqueueSchedulerOutbox(ctx context.Context, exec sqlExecutor, eventType str
 		payloadArg = encoded
 	}
 	query := `
-		INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload, dedup_key)
+		VALUES ($1, $2, $3, $4, $5)
 	`
-	args := []any{eventType, accountID, groupID, payloadArg}
+	dedupKey := schedulerOutboxDedupKey(eventType, accountID, groupID)
+	args := []any{eventType, accountID, groupID, payloadArg, dedupKey}
 	if schedulerOutboxEventSupportsDedup(eventType) {
 		query = `
-			INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
-			SELECT $1, $2, $3, $4
+			INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload, dedup_key)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (dedup_key) WHERE dedup_key IS NOT NULL DO NOTHING
+		`
+		if dedupKey == nil {
+			query = `
+			INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload, dedup_key)
+			SELECT $1, $2, $3, $4, $5
 			WHERE NOT EXISTS (
 				SELECT 1
 				FROM scheduler_outbox
 				WHERE event_type = $1
 					AND account_id IS NOT DISTINCT FROM $2
 					AND group_id IS NOT DISTINCT FROM $3
-					AND created_at >= NOW() - make_interval(secs => $5)
+					AND created_at >= NOW() - make_interval(secs => $6)
 			)
 		`
-		args = append(args, schedulerOutboxDedupWindow.Seconds())
+			args = append(args, schedulerOutboxDedupWindow.Seconds())
+		}
 	}
 	_, err := exec.ExecContext(ctx, query, args...)
 	return err
 }
 
+func schedulerOutboxDedupKey(eventType string, accountID *int64, groupID *int64) any {
+	if !schedulerOutboxEventSupportsDedup(eventType) {
+		return nil
+	}
+	switch eventType {
+	case service.SchedulerOutboxEventAccountChanged,
+		service.SchedulerOutboxEventAccountGroupsChanged:
+		if accountID != nil && *accountID > 0 {
+			return fmt.Sprintf("%s:account:%d", eventType, *accountID)
+		}
+	case service.SchedulerOutboxEventGroupChanged:
+		if groupID != nil && *groupID > 0 {
+			return fmt.Sprintf("%s:group:%d", eventType, *groupID)
+		}
+	case service.SchedulerOutboxEventFullRebuild:
+		return eventType
+	}
+	return nil
+}
+
 func schedulerOutboxEventSupportsDedup(eventType string) bool {
 	switch eventType {
 	case service.SchedulerOutboxEventAccountChanged,
+		service.SchedulerOutboxEventAccountGroupsChanged,
 		service.SchedulerOutboxEventGroupChanged,
 		service.SchedulerOutboxEventFullRebuild:
 		return true

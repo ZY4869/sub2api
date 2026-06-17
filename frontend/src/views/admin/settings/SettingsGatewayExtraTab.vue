@@ -83,6 +83,33 @@
                 {{ t('admin.settings.claudeCode.maxVersionHint') }}
               </p>
             </div>
+            <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-800/60">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.claudeCode.oauthPromptBlocks') }}
+                  </label>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.claudeCode.oauthPromptBlocksHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.claude_oauth_system_prompt_blocks_enabled" />
+              </div>
+              <div
+                v-if="form.claude_oauth_system_prompt_blocks_enabled"
+                class="mt-4"
+              >
+                <textarea
+                  v-model="form.claude_oauth_system_prompt_blocks"
+                  rows="5"
+                  class="input font-mono text-sm"
+                  :placeholder="t('admin.settings.claudeCode.oauthPromptBlocksPlaceholder')"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.claudeCode.oauthPromptBlocksPriorityHint') }}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 

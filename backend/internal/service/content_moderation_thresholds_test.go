@@ -40,6 +40,24 @@ func TestContentModerationCategoryThresholds(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestContentModerationCyberCategoriesNormalizeAndMarshal(t *testing.T) {
+	normalized := NormalizeContentModerationCyberCategoryList([]ContentModerationCyberCategory{
+		{ID: " Credential-Theft ", Keywords: []string{"steal api key", "steal---api---key"}},
+		{ID: "Credential Theft", Keywords: []string{"duplicate id ignored"}},
+		{ID: "No Keywords", Keywords: []string{}},
+	})
+
+	require.Equal(t, []ContentModerationCyberCategory{
+		{ID: "credential_theft", Keywords: []string{"steal api key"}},
+	}, normalized)
+
+	raw, err := MarshalContentModerationCyberCategories(normalized)
+	require.NoError(t, err)
+	require.JSONEq(t, `[{"id":"credential_theft","keywords":["steal api key"]}]`, raw)
+	require.Empty(t, NormalizeContentModerationCyberCategories("[]"))
+	require.NotEmpty(t, NormalizeContentModerationCyberCategories(""))
+}
+
 func TestEvaluateContentModerationCategoryThresholds(t *testing.T) {
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)

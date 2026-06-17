@@ -97,6 +97,9 @@ func normalizeChannelMonitor(m *ChannelMonitor) (*ChannelMonitor, error) {
 	if out.IntervalSeconds < channelMonitorMinIntervalSeconds || out.IntervalSeconds > channelMonitorMaxIntervalSeconds {
 		return nil, ErrChannelMonitorInvalidInterval
 	}
+	if out.JitterSeconds < 0 || out.JitterSeconds > channelMonitorMaxJitterSeconds || out.IntervalSeconds-out.JitterSeconds < channelMonitorMinIntervalSeconds {
+		return nil, ErrChannelMonitorInvalidInterval
+	}
 
 	if out.PrimaryModelID == "" {
 		return nil, infraerrors.BadRequest("CHANNEL_MONITOR_PRIMARY_MODEL_REQUIRED", "primary_model_id is required")

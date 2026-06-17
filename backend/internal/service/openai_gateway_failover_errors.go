@@ -7,6 +7,11 @@ import (
 )
 
 var openAITransportFailoverResponseBody = []byte(`{"error":{"type":"upstream_error","message":"Upstream request failed"}}`)
+var openAINonJSONSuccessFailoverResponseBody = []byte(`{"error":{"type":"upstream_error","message":"Upstream returned non-JSON success response"}}`)
+
+func buildOpenAINonJSONSuccessFailoverBody() []byte {
+	return append([]byte(nil), openAINonJSONSuccessFailoverResponseBody...)
+}
 
 func newOpenAITransportFailoverError(c *gin.Context, account *Account, err error) *UpstreamFailoverError {
 	return newOpenAITransportFailoverErrorWithPassthrough(c, account, err, false)

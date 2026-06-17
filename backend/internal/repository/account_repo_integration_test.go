@@ -1008,6 +1008,138 @@ func (s *AccountRepoSuite) TestClearRateLimit() {
 	s.Require().False(exists)
 }
 
+func (s *AccountRepoSuite) TestResetQuotaUsedClearsCodexQuotaAndRateLimitState() {
+	resetAt := time.Now().Add(2 * time.Hour).UTC().Truncate(time.Second)
+	account := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:     "acc-reset-quota-codex",
+		Platform: service.PlatformOpenAI,
+		Type:     service.AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		RateLimitedAt:    timePtr(resetAt.Add(-30 * time.Minute)),
+		RateLimitResetAt: &resetAt,
+		Extra: map[string]any{
+			"quota_used":                           11.5,
+			"quota_daily_used":                     3.25,
+			"quota_weekly_used":                    7.75,
+			"quota_monthly_used":                   9.5,
+			"quota_used_by_currency":               map[string]any{"USD": 11.5},
+			"quota_daily_used_by_currency":         map[string]any{"USD": 3.25},
+			"quota_weekly_used_by_currency":        map[string]any{"USD": 7.75},
+			"quota_monthly_used_by_currency":       map[string]any{"USD": 9.5},
+			"quota_daily_start":                    resetAt.Add(-24 * time.Hour).Format(time.RFC3339),
+			"quota_weekly_start":                   resetAt.Add(-7 * 24 * time.Hour).Format(time.RFC3339),
+			"quota_monthly_start":                  resetAt.Add(-30 * 24 * time.Hour).Format(time.RFC3339),
+			"codex_usage_updated_at":               resetAt.Format(time.RFC3339),
+			"codex_5h_used_percent":                100.0,
+			"codex_5h_reset_after_seconds":         7200,
+			"codex_5h_reset_at":                    resetAt.Format(time.RFC3339),
+			"codex_5h_window_minutes":              300,
+			"codex_7d_used_percent":                100.0,
+			"codex_7d_reset_after_seconds":         604800,
+			"codex_7d_reset_at":                    resetAt.Add(24 * time.Hour).Format(time.RFC3339),
+			"codex_7d_window_minutes":              43200,
+			"codex_primary_used_percent":           91.0,
+			"codex_primary_reset_after_seconds":    7200,
+			"codex_primary_window_minutes":         300,
+			"codex_secondary_used_percent":         88.0,
+			"codex_secondary_reset_after_seconds":  604800,
+			"codex_secondary_window_minutes":       43200,
+			"codex_primary_over_secondary_percent": 103.0,
+			"codex_spark_usage_updated_at":         resetAt.Format(time.RFC3339),
+			"codex_spark_5h_used_percent":          100.0,
+			"codex_spark_5h_reset_after_seconds":   7200,
+			"codex_spark_5h_reset_at":              resetAt.Format(time.RFC3339),
+			"codex_spark_5h_window_minutes":        300,
+			"codex_spark_7d_used_percent":          100.0,
+			"codex_spark_7d_reset_after_seconds":   604800,
+			"codex_spark_7d_reset_at":              resetAt.Add(24 * time.Hour).Format(time.RFC3339),
+			"codex_spark_7d_window_minutes":        43200,
+			"codex_account_7d_all_exhausted":       true,
+			"model_rate_limits": map[string]any{
+				"gpt-5.3-codex": map[string]any{"rate_limit_reset_at": resetAt.Format(time.RFC3339)},
+			},
+			"rate_limit_reason": service.AccountRateLimitReasonUsage7dAll,
+		},
+	})
+	cacheRecorder := &schedulerCacheRecorder{}
+	s.repo.schedulerCache = cacheRecorder
+
+	s.Require().NoError(s.repo.ResetQuotaUsed(s.ctx, account.ID))
+
+	got, err := s.repo.GetByID(s.ctx, account.ID)
+	s.Require().NoError(err)
+	s.Require().Nil(got.RateLimitedAt)
+	s.Require().Nil(got.RateLimitResetAt)
+	for _, key := range []string{
+		"quota_used",
+		"quota_daily_used",
+		"quota_weekly_used",
+		"quota_monthly_used",
+	} {
+		s.Require().Equal(float64(0), got.Extra[key], "expected %s to reset", key)
+	}
+	for _, key := range []string{
+		"quota_used_by_currency",
+		"quota_daily_used_by_currency",
+		"quota_weekly_used_by_currency",
+		"quota_monthly_used_by_currency",
+	} {
+		s.Require().Empty(got.Extra[key], "expected %s to reset", key)
+	}
+	for _, key := range resetQuotaClearedExtraKeysForTest() {
+		s.Require().NotContains(got.Extra, key, "expected %s to be cleared", key)
+	}
+	s.Require().Len(cacheRecorder.setAccounts, 1)
+	snapshot := cacheRecorder.setAccounts[0]
+	s.Require().Nil(snapshot.RateLimitedAt)
+	s.Require().Nil(snapshot.RateLimitResetAt)
+	s.Require().Equal(float64(0), snapshot.Extra["quota_monthly_used"])
+	s.Require().NotContains(snapshot.Extra, "codex_spark_7d_used_percent")
+	s.Require().NotContains(snapshot.Extra, "model_rate_limits")
+}
+
+func timePtr(t time.Time) *time.Time {
+	return &t
+}
+
+func resetQuotaClearedExtraKeysForTest() []string {
+	return []string{
+		"quota_daily_start",
+		"quota_weekly_start",
+		"quota_monthly_start",
+		"codex_usage_updated_at",
+		"codex_5h_used_percent",
+		"codex_5h_reset_after_seconds",
+		"codex_5h_reset_at",
+		"codex_5h_window_minutes",
+		"codex_7d_used_percent",
+		"codex_7d_reset_after_seconds",
+		"codex_7d_reset_at",
+		"codex_7d_window_minutes",
+		"codex_primary_used_percent",
+		"codex_primary_reset_after_seconds",
+		"codex_primary_window_minutes",
+		"codex_secondary_used_percent",
+		"codex_secondary_reset_after_seconds",
+		"codex_secondary_window_minutes",
+		"codex_primary_over_secondary_percent",
+		"codex_spark_usage_updated_at",
+		"codex_spark_5h_used_percent",
+		"codex_spark_5h_reset_after_seconds",
+		"codex_spark_5h_reset_at",
+		"codex_spark_5h_window_minutes",
+		"codex_spark_7d_used_percent",
+		"codex_spark_7d_reset_after_seconds",
+		"codex_spark_7d_reset_at",
+		"codex_spark_7d_window_minutes",
+		"codex_account_7d_all_exhausted",
+		"model_rate_limits",
+		"rate_limit_reason",
+	}
+}
+
 func (s *AccountRepoSuite) TestRuntimeSchedulingStateSyncsSchedulerAccountSnapshot() {
 	account := mustCreateAccount(s.T(), s.client, &service.Account{
 		Name:  "acc-runtime-snapshot",

@@ -74,6 +74,14 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	if decision, err := checkContentModerationKeywordBlock(c.Request.Context(), h.contentModerationService, moderationInput); err != nil {
 		reqLog.Warn("openai_messages.content_moderation_keyword_check_failed", zap.Error(err))
 	} else if decision != nil {
+		h.submitContentModerationFailedUsageRecordTask(
+			"handler.openai_gateway.messages",
+			c,
+			apiKey,
+			modelHint,
+			gjson.GetBytes(body, "stream").Bool(),
+			decision,
+		)
 		contentModerationAnthropicBlockResponse(c, decision)
 		return
 	}

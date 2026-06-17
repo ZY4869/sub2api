@@ -126,6 +126,43 @@ func (s *BillingService) initFallbackPricing() {
 	}
 	// Codex Spark fallback pricing uses GPT-5.4 as the baseline (billing-only fallback).
 	s.fallbackPrices["gpt-5.3-codex-spark"] = s.fallbackPrices["gpt-5.4"]
+
+	// Chinese provider fallback pricing. Dynamic pricing remains preferred; these
+	// values keep billing available when the external pricing catalog is absent.
+	s.fallbackPrices["deepseek-v4-flash"] = &ModelPricing{
+		InputPricePerToken:     1.4e-7,
+		OutputPricePerToken:    2.8e-7,
+		CacheReadPricePerToken: 2.8e-9,
+		SupportsCacheBreakdown: false,
+	}
+	s.fallbackPrices["deepseek-v4-pro"] = &ModelPricing{
+		InputPricePerToken:     4.35e-7,
+		OutputPricePerToken:    8.7e-7,
+		CacheReadPricePerToken: 3.625e-9,
+		SupportsCacheBreakdown: false,
+	}
+	s.fallbackPrices["deepseek-chat"] = s.fallbackPrices["deepseek-v4-flash"]
+	s.fallbackPrices["deepseek-reasoner"] = s.fallbackPrices["deepseek-v4-flash"]
+	s.fallbackPrices["doubao"] = &ModelPricing{
+		InputPricePerToken:     8e-7,
+		OutputPricePerToken:    2e-6,
+		SupportsCacheBreakdown: false,
+	}
+	s.fallbackPrices["kimi"] = &ModelPricing{
+		InputPricePerToken:     2e-6,
+		OutputPricePerToken:    1e-5,
+		SupportsCacheBreakdown: false,
+	}
+	s.fallbackPrices["minimax"] = &ModelPricing{
+		InputPricePerToken:     1e-6,
+		OutputPricePerToken:    8e-6,
+		SupportsCacheBreakdown: false,
+	}
+	s.fallbackPrices["glm"] = &ModelPricing{
+		InputPricePerToken:     5e-7,
+		OutputPricePerToken:    5e-7,
+		SupportsCacheBreakdown: false,
+	}
 }
 
 // getFallbackPricing returns fallback pricing by model family.
@@ -163,6 +200,25 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	}
 	if strings.Contains(modelLower, "gemini-3.1-pro") || strings.Contains(modelLower, "gemini-3-1-pro") {
 		return s.fallbackPrices["gemini-3.1-pro"]
+	}
+	switch {
+	case strings.Contains(modelLower, "deepseek-v4-pro"):
+		return s.fallbackPrices["deepseek-v4-pro"]
+	case strings.Contains(modelLower, "deepseek-v4-flash"),
+		strings.Contains(modelLower, "deepseek-chat"),
+		strings.Contains(modelLower, "deepseek-reasoner"):
+		return s.fallbackPrices["deepseek-v4-flash"]
+	case strings.Contains(modelLower, "doubao"):
+		return s.fallbackPrices["doubao"]
+	case strings.Contains(modelLower, "kimi"):
+		return s.fallbackPrices["kimi"]
+	case strings.Contains(modelLower, "minimax"),
+		strings.Contains(modelLower, "abab"):
+		return s.fallbackPrices["minimax"]
+	case strings.Contains(modelLower, "glm"),
+		strings.Contains(modelLower, "chatglm"),
+		strings.Contains(modelLower, "zhipu"):
+		return s.fallbackPrices["glm"]
 	}
 
 	// Only match known GPT-5/Codex families to avoid mispricing unknown OpenAI models.
