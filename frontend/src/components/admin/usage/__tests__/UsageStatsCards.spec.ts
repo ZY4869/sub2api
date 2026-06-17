@@ -16,6 +16,8 @@ const messages: Record<string, string> = {
   'usage.todaySoFar': '从今日 00:00 到当前',
   'usage.todayAvgDuration': '今日平均耗时',
   'usage.cacheTokens': '缓存',
+  'usage.cacheSplit': '写入 {write} / 读取 {read}',
+  'usage.cacheHitRate': '命中率',
   'admin.usage.todayStats': '今日统计',
   'admin.usage.todayRequests': '今日请求',
   'admin.usage.todayTokens': '今日 Token',
@@ -27,35 +29,49 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => messages[key] ?? key,
+      t: (key: string, params?: Record<string, unknown>) => {
+        let message = messages[key] ?? key
+        Object.entries(params || {}).forEach(([name, value]) => {
+          message = message.replace(`{${name}}`, String(value))
+        })
+        return message
+      },
     }),
   }
 })
+
+const stats = {
+  total_requests: 8,
+  total_input_tokens: 120,
+  total_output_tokens: 240,
+  total_cache_creation_tokens: 12500,
+  total_cache_read_tokens: 34000,
+  total_cache_tokens: 46500,
+  total_tokens: 396,
+  cache_hit_rate: 0.896,
+  total_cost: 1.2,
+  total_actual_cost: 1.1,
+  admin_free_requests: 0,
+  admin_free_standard_cost: 0,
+  average_duration_ms: 150,
+  today_requests: 3,
+  today_input_tokens: 30,
+  today_output_tokens: 60,
+  today_cache_creation_tokens: 200,
+  today_cache_read_tokens: 700,
+  today_cache_tokens: 900,
+  today_tokens: 99,
+  today_cache_hit_rate: 75,
+  today_cost: 0.45,
+  today_actual_cost: 0.4,
+  today_average_duration_ms: 120,
+}
 
 describe('admin UsageStatsCards', () => {
   it('renders today usage metrics alongside selected-range totals', () => {
     const wrapper = mount(UsageStatsCards, {
       props: {
-        stats: {
-          total_requests: 8,
-          total_input_tokens: 120,
-          total_output_tokens: 240,
-          total_cache_tokens: 36,
-          total_tokens: 396,
-          total_cost: 1.2,
-          total_actual_cost: 1.1,
-          admin_free_requests: 0,
-          admin_free_standard_cost: 0,
-          average_duration_ms: 150,
-          today_requests: 3,
-          today_input_tokens: 30,
-          today_output_tokens: 60,
-          today_cache_tokens: 9,
-          today_tokens: 99,
-          today_cost: 0.45,
-          today_actual_cost: 0.4,
-          today_average_duration_ms: 120,
-        },
+        stats,
       },
       global: {
         stubs: {
@@ -71,5 +87,24 @@ describe('admin UsageStatsCards', () => {
     expect(text).toContain('今日 Token')
     expect(text).toContain('今日费用')
     expect(text).toContain('今日平均耗时')
+    expect(text).toContain('75.0%')
+  })
+
+  it('renders cache hit rate as a standalone selected-range card', () => {
+    const wrapper = mount(UsageStatsCards, {
+      props: {
+        stats,
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    const cacheCard = wrapper.get('[data-testid="usage-cache-stats-card"]')
+    expect(cacheCard.text()).toContain('命中率')
+    expect(cacheCard.text()).toContain('89.6%')
+    expect(cacheCard.text()).toContain('写入 12,500 / 读取 34,000')
   })
 })

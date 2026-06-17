@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <div class="card p-4">
         <div class="flex items-center gap-3">
           <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
@@ -46,14 +46,15 @@
               {{ t("usage.out") }}:
               {{ formatTokens(stats?.total_output_tokens || 0) }}
             </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ formatCacheSplit(stats?.total_cache_creation_tokens || 0, stats?.total_cache_read_tokens || 0) }}
-              · {{ t("usage.cacheHitRate") }}:
-              {{ formatPercent(stats?.cache_hit_rate || 0) }}
-            </p>
           </div>
         </div>
       </div>
+
+      <CacheStatsCard
+        :cache-hit-rate="stats?.cache_hit_rate"
+        :cache-creation-tokens="stats?.total_cache_creation_tokens"
+        :cache-read-tokens="stats?.total_cache_read_tokens"
+      />
 
       <div class="card p-4">
         <div class="flex items-center gap-3">
@@ -248,6 +249,7 @@ import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import { formatUsageAmount } from "@/utils/usageCost";
 import Icon from "@/components/icons/Icon.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
+import CacheStatsCard from "@/components/usage/CacheStatsCard.vue";
 import { getPlatformEnglishName } from "@/utils/platformBranding";
 
 const props = defineProps<{

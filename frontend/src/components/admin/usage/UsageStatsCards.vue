@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <div class="card flex items-center gap-3 p-4">
         <div class="rounded-lg bg-blue-100 p-2 text-blue-600 dark:bg-blue-900/30">
           <Icon name="document" size="md" />
@@ -24,12 +24,13 @@
             {{ t('usage.in') }}: {{ formatTokens(stats?.total_input_tokens || 0) }} /
             {{ t('usage.out') }}: {{ formatTokens(stats?.total_output_tokens || 0) }}
           </p>
-          <p class="text-xs text-gray-500">
-            {{ formatCacheSplit(stats?.total_cache_creation_tokens || 0, stats?.total_cache_read_tokens || 0) }}
-            · {{ t('usage.cacheHitRate') }}: {{ formatPercent(stats?.cache_hit_rate || 0) }}
-          </p>
         </div>
       </div>
+      <CacheStatsCard
+        :cache-hit-rate="stats?.cache_hit_rate"
+        :cache-creation-tokens="stats?.total_cache_creation_tokens"
+        :cache-read-tokens="stats?.total_cache_read_tokens"
+      />
       <div class="card flex items-center gap-3 p-4">
         <div class="rounded-lg bg-green-100 p-2 text-green-600 dark:bg-green-900/30">
           <Icon name="dollar" size="md" />
@@ -160,6 +161,7 @@ import type { AdminUsageStatsResponse } from '@/api/admin/usage'
 import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
+import CacheStatsCard from '@/components/usage/CacheStatsCard.vue'
 import { getPlatformEnglishName } from '@/utils/platformBranding'
 
 const props = defineProps<{ stats: AdminUsageStatsResponse | null }>()
