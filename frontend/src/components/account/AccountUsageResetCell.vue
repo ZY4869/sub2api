@@ -68,11 +68,11 @@
         {{ resetting ? t('admin.accounts.usageWindow.resettingQuota') : t('admin.accounts.usageWindow.resetQuota') }}
       </button>
       <span
-        v-if="openAIQuotaResetRemaining !== null"
+        v-if="canResetOpenAIQuota"
         class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold leading-none text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100"
         data-testid="account-usage-reset-quota-remaining"
       >
-        {{ t('admin.accounts.usageWindow.resetQuotaRemaining', { count: openAIQuotaResetRemaining }) }}
+        {{ t('admin.accounts.usageWindow.resetQuotaRemaining', { count: formatOpenAIQuotaResetRemaining(openAIQuotaResetRemaining) }) }}
       </span>
     </div>
   </div>
@@ -125,13 +125,13 @@ const OPENAI_QUOTA_RESET_REMAINING_KEYS = [
 
 const openAIQuotaResetRemaining = computed(() => {
   const extra = props.account.extra
-  if (!extra) return null
+  if (!extra) return 0
 
   for (const key of OPENAI_QUOTA_RESET_REMAINING_KEYS) {
     const count = normalizeQuotaResetRemaining(extra[key])
     if (count !== null) return count
   }
-  return null
+  return 0
 })
 
 function normalizeQuotaResetRemaining(value: unknown): number | null {
@@ -145,6 +145,11 @@ function normalizeQuotaResetRemaining(value: unknown): number | null {
 
   const numeric = Number(trimmed)
   return Number.isFinite(numeric) ? Math.floor(numeric) : null
+}
+
+function formatOpenAIQuotaResetRemaining(value: number | null): string {
+  const normalized = Number.isFinite(Number(value)) ? Math.max(0, Math.floor(Number(value))) : 0
+  return String(normalized).padStart(2, '0')
 }
 
 async function resetOpenAIQuota() {

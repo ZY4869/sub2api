@@ -389,11 +389,11 @@ describe('AccountUsageResetCell', () => {
 
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('3 resets left')
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('03 resets left')
     expect(wrapper.get('button').text()).toContain('Reset quota')
   })
 
-  it('hides the openai quota reset remaining count when account extra has no valid count', async () => {
+  it('shows zero-padded openai quota reset remaining count when account extra has no valid count', async () => {
     const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
         account: {
@@ -411,7 +411,7 @@ describe('AccountUsageResetCell', () => {
 
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('00 resets left')
     expect(wrapper.get('button').text()).toContain('Reset quota')
   })
 })

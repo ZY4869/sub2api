@@ -90,8 +90,9 @@ func normalizeUsageStatsCacheTotals(stats *UsageStats) {
 	}
 	stats.TotalCacheTokens = stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
-	if stats.TotalCacheTokens > 0 {
-		stats.CacheHitRate = float64(stats.TotalCacheReadTokens) / float64(stats.TotalCacheTokens)
+	totalInputSideTokens := stats.TotalInputTokens + stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
+	if totalInputSideTokens > 0 {
+		stats.CacheHitRate = float64(stats.TotalCacheReadTokens) / float64(totalInputSideTokens)
 	}
 }
 
