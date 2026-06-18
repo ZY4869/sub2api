@@ -111,6 +111,8 @@ jobs:
           node-version: "24"
           cache: "pnpm"
           cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Run frontend type checks
+        run: bash scripts/verify-ci.sh frontend-typecheck
       - name: Run frontend build checks
         run: bash scripts/verify-ci.sh frontend-build
       - name: Run frontend test checks

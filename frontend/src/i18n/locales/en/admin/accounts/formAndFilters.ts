@@ -20,8 +20,12 @@ export default {
         resetQuota: "Reset OpenAI quota",
         resettingQuota: "Resetting",
         resetQuotaRemaining: "{count} resets left",
+        resetQuotaUnsupported: "This Codex app-server does not support official OpenAI resets",
+        resetQuotaConfirm: "This uses an official OpenAI reset and consumes one available reset credit. Continue?",
         resetQuotaSuccess: "OpenAI quota reset",
         resetQuotaFailed: "Failed to reset OpenAI quota. Please retry.",
+        resetQuotaNoCredit: "No OpenAI reset credits are available. Refresh and try again later.",
+        resetQuotaNothingToReset: "There is no OpenAI quota window to reset right now. Try again later.",
         displayMode: {
             used: "Used",
             remaining: "Left",

@@ -95,6 +95,8 @@ func main() {
 }
 
 func runSetupServer() {
+	setup.EnableWebSetupMode()
+
 	r := gin.New()
 	r.Use(middleware.Recovery())
 	r.Use(middleware.CORS(config.CORSConfig{}))

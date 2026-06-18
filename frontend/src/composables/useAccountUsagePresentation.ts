@@ -63,6 +63,38 @@ export {
 
 const EXPIRED_OPENAI_USAGE_REFRESH_COOLDOWN_MS = 60 * 1000;
 
+function normalizeOpenAIResetCreditsCount(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return Math.floor(value);
+  }
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return null;
+
+  const numeric = Number(trimmed);
+  return Number.isFinite(numeric) && numeric >= 0
+    ? Math.floor(numeric)
+    : null;
+}
+
+function normalizeOpenAIResetCreditsStatus(value: unknown): string {
+  if (typeof value !== "string") return "unknown_or_unsupported";
+  const trimmed = value.trim();
+  if (
+    trimmed === "available" ||
+    trimmed === "unknown_or_unsupported" ||
+    trimmed === "unsupported"
+  ) {
+    return trimmed;
+  }
+  return "unknown_or_unsupported";
+}
+
+function normalizeOpenAIResetCreditsReason(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export function useAccountUsagePresentation(
   accountSource: MaybeRefOrGetter<Account>,
   options: UseAccountUsagePresentationOptions = {},
@@ -387,6 +419,95 @@ export function useAccountUsagePresentation(
   const openAISnapshotUpdatedAtTooltip = computed(() => {
     if (!snapshotUpdatedAt.value) return "";
     return formatLocalTimestamp(snapshotUpdatedAt.value);
+  });
+  const openAIResetCredits = computed(() => {
+    if (
+      getRuntimePlatform(account.value) !== "openai" ||
+      account.value.type !== "oauth"
+    ) {
+      return {
+        known: false,
+        count: null,
+        status: "unknown_or_unsupported",
+        unsupportedReason: "",
+      };
+    }
+
+    const usageStatus = normalizeOpenAIResetCreditsStatus(
+      usageInfo.value?.openai_reset_credits?.status,
+    );
+    const usageReason = normalizeOpenAIResetCreditsReason(
+      usageInfo.value?.openai_reset_credits?.unsupported_reason,
+    );
+    const hasUsageResetCredits = usageInfo.value?.openai_reset_credits != null;
+    const usageCount = normalizeOpenAIResetCreditsCount(
+      usageInfo.value?.openai_reset_credits?.available_count,
+    );
+    if (usageCount !== null) {
+      return {
+        known: true,
+        count: usageCount,
+        status: "available",
+        unsupportedReason: "",
+      };
+    }
+    if (usageStatus === "unsupported") {
+      return {
+        known: false,
+        count: null,
+        status: usageStatus,
+        unsupportedReason: usageReason,
+      };
+    }
+    if (hasUsageResetCredits) {
+      return {
+        known: false,
+        count: null,
+        status: usageStatus,
+        unsupportedReason: "",
+      };
+    }
+
+    const extraStatusRaw = account.value.extra?.openai_rate_limit_reset_credits_status;
+    const hasExtraStatus = typeof extraStatusRaw === "string" && extraStatusRaw.trim() !== "";
+    const extraStatus = normalizeOpenAIResetCreditsStatus(extraStatusRaw);
+    const extraReason = normalizeOpenAIResetCreditsReason(
+      account.value.extra?.openai_rate_limit_reset_credits_unsupported_reason,
+    );
+    const extraCount = normalizeOpenAIResetCreditsCount(
+      account.value.extra?.openai_rate_limit_reset_credits_available_count,
+    );
+    if (extraStatus === "unsupported") {
+      return {
+        known: false,
+        count: null,
+        status: extraStatus,
+        unsupportedReason: extraReason,
+      };
+    }
+    if (hasExtraStatus && extraStatus === "unknown_or_unsupported") {
+      return {
+        known: false,
+        count: null,
+        status: extraStatus,
+        unsupportedReason: "",
+      };
+    }
+    if (extraCount !== null) {
+      return {
+        known: true,
+        count: extraCount,
+        status: "available",
+        unsupportedReason: "",
+      };
+    }
+
+    return {
+      known: false,
+      count: null,
+      status: usageStatus || extraStatus,
+      unsupportedReason: "",
+    };
   });
   const fetchedSnapshotUpdatedAt = computed(() => {
     const updatedAtRaw = usageInfo.value?.updated_at;
@@ -860,6 +981,10 @@ export function useAccountUsagePresentation(
       getRuntimePlatform(account.value) === "openai" &&
       account.value.type === "oauth"
     ) {
+      meta.openAIResetCreditsAvailableCount = openAIResetCredits.value.count;
+      meta.openAIResetCreditsKnown = openAIResetCredits.value.known;
+      meta.openAIResetCreditsStatus = openAIResetCredits.value.status;
+      meta.openAIResetCreditsUnsupportedReason = openAIResetCredits.value.unsupportedReason;
       meta.snapshotUpdatedAtText = shouldPreferFetchedOpenAIMeta.value
         ? fetchedSnapshotUpdatedAtText.value ||
           openAISnapshotUpdatedAtText.value ||

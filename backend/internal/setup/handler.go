@@ -18,6 +18,8 @@ import (
 // installMutex prevents concurrent installation attempts (TOCTOU protection)
 var installMutex sync.Mutex
 
+const setupClosedMessage = "Setup is not allowed: the setup window is closed or the installation has already completed"
+
 // RegisterRoutes registers setup wizard routes
 func RegisterRoutes(r *gin.Engine) {
 	r.GET("/health", func(c *gin.Context) {
@@ -58,7 +60,7 @@ func getStatus(c *gin.Context) {
 func setupGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !SetupWindowOpen() {
-			response.Error(c, http.StatusForbidden, "Setup is not allowed: auto setup is disabled or the installation window is already closed")
+			response.Error(c, http.StatusForbidden, setupClosedMessage)
 			c.Abort()
 			return
 		}
@@ -248,7 +250,7 @@ func install(c *gin.Context) {
 
 	// Double-check after acquiring lock
 	if !SetupWindowOpen() {
-		response.Error(c, http.StatusForbidden, "Setup is not allowed: auto setup is disabled or the installation window is already closed")
+		response.Error(c, http.StatusForbidden, setupClosedMessage)
 		return
 	}
 

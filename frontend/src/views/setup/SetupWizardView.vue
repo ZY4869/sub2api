@@ -573,6 +573,23 @@ const canProceed = computed(() => {
   }
 })
 
+function setupErrorMessage(error: unknown, fallbackKey: string): string {
+  const err = error as { response?: { status?: number; data?: { message?: string } }; message?: string }
+  const status = err.response?.status
+  const serverMessage = err.response?.data?.message || ''
+
+  if (status === 403 || serverMessage.includes('Setup is not allowed')) {
+    return t('setup.errors.setupClosed')
+  }
+  if (status === 400) {
+    return t(fallbackKey)
+  }
+  if (err.message === 'Network Error') {
+    return t('setup.errors.network')
+  }
+  return t(fallbackKey)
+}
+
 async function testDatabaseConnection() {
   testingDb.value = true
   errorMessage.value = ''
@@ -582,9 +599,7 @@ async function testDatabaseConnection() {
     await testDatabase(formData.database)
     dbConnected.value = true
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
-    errorMessage.value =
-      err.response?.data?.detail || err.response?.data?.message || err.message || 'Connection failed'
+    errorMessage.value = setupErrorMessage(error, 'setup.errors.databaseConnection')
   } finally {
     testingDb.value = false
   }
@@ -599,9 +614,7 @@ async function testRedisConnection() {
     await testRedis(formData.redis)
     redisConnected.value = true
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
-    errorMessage.value =
-      err.response?.data?.detail || err.response?.data?.message || err.message || 'Connection failed'
+    errorMessage.value = setupErrorMessage(error, 'setup.errors.redisConnection')
   } finally {
     testingRedis.value = false
   }
@@ -624,9 +637,7 @@ async function performInstall() {
     // Start polling for service restart
     waitForServiceRestart()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
-    errorMessage.value =
-      err.response?.data?.detail || err.response?.data?.message || err.message || 'Installation failed'
+    errorMessage.value = setupErrorMessage(error, 'setup.errors.installation')
   } finally {
     installing.value = false
   }

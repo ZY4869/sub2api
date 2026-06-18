@@ -57,6 +57,13 @@ export default {
       redirecting: 'Redirecting to login page...',
       restarting: 'Service is restarting, please wait...',
       timeout: 'Service restart is taking longer than expected. Please refresh the page manually.'
+    },
+    errors: {
+      setupClosed: 'The setup window is closed. Please confirm this instance is still on first install.',
+      network: 'Network connection failed. Please check whether the service is reachable.',
+      databaseConnection: 'Database connection failed. Please check the host, port, credentials, and database name.',
+      redisConnection: 'Redis connection failed. Please check the host, port, and authentication details.',
+      installation: 'Installation failed. Please review the configuration and try again.'
     }
   },
 

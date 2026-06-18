@@ -6,6 +6,8 @@ import AccountUsageResetCell from '../AccountUsageResetCell.vue'
 import { resetAccountUsagePresentationCache } from '@/composables/useAccountUsagePresentation'
 import { resetUiNowForTests } from '@/composables/useUiNow'
 
+let confirmSpy: ReturnType<typeof vi.spyOn>
+
 const { getUsage, resetAccountQuota, showSuccess, showError } = vi.hoisted(() => ({
   getUsage: vi.fn(),
   resetAccountQuota: vi.fn(),
@@ -62,8 +64,12 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.resetQuota': 'Reset quota',
           'admin.accounts.usageWindow.resettingQuota': 'Resetting',
           'admin.accounts.usageWindow.resetQuotaRemaining': '{count} resets left',
+          'admin.accounts.usageWindow.resetQuotaUnsupported': 'Real reset unsupported',
+          'admin.accounts.usageWindow.resetQuotaConfirm': 'Use real reset?',
           'admin.accounts.usageWindow.resetQuotaSuccess': 'Quota reset',
           'admin.accounts.usageWindow.resetQuotaFailed': 'Quota reset failed',
+          'admin.accounts.usageWindow.resetQuotaNoCredit': 'No reset credits available',
+          'admin.accounts.usageWindow.resetQuotaNothingToReset': 'Nothing to reset',
           'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
         }
         let message = dict[key] ?? key
@@ -99,6 +105,7 @@ describe('AccountUsageResetCell', () => {
     resetAccountQuota.mockReset()
     showSuccess.mockReset()
     showError.mockReset()
+    confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     resetAccountUsagePresentationCache()
     resetUiNowForTests()
   })
@@ -106,6 +113,7 @@ describe('AccountUsageResetCell', () => {
   afterEach(() => {
     resetUiNowForTests()
     vi.useRealTimers()
+    confirmSpy?.mockRestore()
   })
 
   it('renders separate reset rows with dynamic 5H and 30D window labels', async () => {
@@ -353,6 +361,7 @@ describe('AccountUsageResetCell', () => {
             codex_usage_updated_at: '2099-03-07T10:00:00Z',
             codex_5h_used_percent: 90,
             codex_5h_reset_at: '2026-03-13T15:22:00',
+            openai_rate_limit_reset_credits_available_count: 1,
           },
         } as any,
       },
@@ -365,6 +374,7 @@ describe('AccountUsageResetCell', () => {
     await button.trigger('click')
     await flushPromises()
 
+    expect(window.confirm).toHaveBeenCalledWith('Use real reset?')
     expect(resetAccountQuota).toHaveBeenCalledWith(3007)
     expect(getUsage).toHaveBeenCalledWith(3007, { force: true, source: 'active' })
     expect(showSuccess).toHaveBeenCalledWith('Quota reset')
@@ -381,7 +391,7 @@ describe('AccountUsageResetCell', () => {
             codex_usage_updated_at: '2099-03-07T10:00:00Z',
             codex_5h_used_percent: 10,
             codex_5h_reset_at: '2026-03-13T15:22:00',
-            openai_quota_reset_remaining: '3',
+            openai_rate_limit_reset_credits_available_count: '3',
           },
         } as any,
       },
@@ -393,7 +403,7 @@ describe('AccountUsageResetCell', () => {
     expect(wrapper.get('button').text()).toContain('Reset quota')
   })
 
-  it('shows zero-padded openai quota reset remaining count when account extra has no valid count', async () => {
+  it('shows unknown openai quota reset remaining count when no real count exists', async () => {
     const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
         account: {
@@ -411,7 +421,183 @@ describe('AccountUsageResetCell', () => {
 
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('00 resets left')
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('-- resets left')
     expect(wrapper.get('button').text()).toContain('Reset quota')
+  })
+
+  it('keeps usage unknown authoritative over stale account extra reset credits', async () => {
+    getUsage.mockResolvedValue({
+      openai_reset_credits: {
+        available_count: null,
+        status: 'unknown_or_unsupported',
+        source: 'codex_app_server',
+      },
+      five_hour: {
+        utilization: 10,
+        resets_at: '2026-03-13T15:22:00Z',
+      },
+    })
+
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3011,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2020-03-07T10:00:00Z',
+            codex_5h_used_percent: 10,
+            codex_5h_reset_at: '2026-03-13T15:22:00',
+            openai_rate_limit_reset_credits_available_count: 3,
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+
+    expect(getUsage).toHaveBeenCalledWith(3011, { force: undefined, source: undefined })
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('-- resets left')
+  })
+
+  it('shows unknown when active usage refresh fails with stale reset credit extra', async () => {
+    getUsage.mockRejectedValue(new Error('Codex app-server unavailable'))
+
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3012,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2020-03-07T10:00:00Z',
+            codex_5h_used_percent: 10,
+            codex_5h_reset_at: '2026-03-13T15:22:00',
+            openai_rate_limit_reset_credits_available_count: 3,
+            openai_rate_limit_reset_credits_status: 'unknown_or_unsupported',
+            openai_rate_limit_reset_credits_updated_at: null,
+            openai_rate_limits_app_server_updated_at: '2026-03-13T15:00:00Z',
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+
+    expect(getUsage).toHaveBeenCalledWith(3012, { force: undefined, source: undefined })
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('-- resets left')
+  })
+
+  it('shows friendly no-credit reset error and refreshes usage', async () => {
+    resetAccountQuota.mockRejectedValue({
+      response: {
+        data: {
+          reason: 'OPENAI_RESET_CREDITS_NO_CREDIT',
+          message: 'raw backend message',
+        },
+      },
+    })
+    getUsage.mockResolvedValue({
+      five_hour: {
+        utilization: 10,
+        resets_at: '2026-03-13T15:22:00Z',
+      },
+    })
+
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3012,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 10,
+            codex_5h_reset_at: '2026-03-13T15:22:00',
+            openai_rate_limit_reset_credits_available_count: 1,
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(resetAccountQuota).toHaveBeenCalledWith(3012)
+    expect(getUsage).toHaveBeenCalledWith(3012, { force: true, source: 'active' })
+    expect(showError).toHaveBeenCalledWith('No reset credits available')
+  })
+
+  it('shows friendly nothing-to-reset error and refreshes usage', async () => {
+    resetAccountQuota.mockRejectedValue({
+      response: {
+        data: {
+          error: 'OPENAI_RESET_CREDITS_NOTHING_TO_RESET',
+          message: 'raw backend message',
+        },
+      },
+    })
+    getUsage.mockResolvedValue({
+      five_hour: {
+        utilization: 10,
+        resets_at: '2026-03-13T15:22:00Z',
+      },
+    })
+
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3013,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 10,
+            codex_5h_reset_at: '2026-03-13T15:22:00',
+            openai_rate_limit_reset_credits_available_count: 1,
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(resetAccountQuota).toHaveBeenCalledWith(3013)
+    expect(getUsage).toHaveBeenCalledWith(3013, { force: true, source: 'active' })
+    expect(showError).toHaveBeenCalledWith('Nothing to reset')
+  })
+
+  it('disables openai quota reset when app-server reports unsupported reset credits', async () => {
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3010,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 10,
+            codex_5h_reset_at: '2026-03-13T15:22:00',
+            openai_rate_limit_reset_credits_status: 'unsupported',
+            openai_rate_limit_reset_credits_unsupported_reason: 'This Codex app-server cannot reset',
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe(
+      'This Codex app-server cannot reset',
+    )
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('button').trigger('click')
+
+    expect(resetAccountQuota).not.toHaveBeenCalled()
+    expect(window.confirm).not.toHaveBeenCalled()
   })
 })

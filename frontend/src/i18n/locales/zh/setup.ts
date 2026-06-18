@@ -57,6 +57,13 @@ export default {
       redirecting: '正在跳转到登录页面...',
       restarting: '服务正在重启，请稍候...',
       timeout: '服务重启时间超出预期，请手动刷新页面。'
+    },
+    errors: {
+      setupClosed: '安装窗口已关闭，请确认当前实例仍处于首次安装状态。',
+      network: '网络连接失败，请检查服务是否可访问。',
+      databaseConnection: '数据库连接失败，请检查主机、端口、账号和数据库名。',
+      redisConnection: 'Redis 连接失败，请检查主机、端口和认证信息。',
+      installation: '安装失败，请检查配置后重试。'
     }
   },
 

@@ -20,6 +20,7 @@ type Config struct {
 	Pricing                 PricingConfig                 `mapstructure:"pricing"`
 	PublicModelCatalog      PublicModelCatalogConfig      `mapstructure:"public_model_catalog"`
 	Gateway                 GatewayConfig                 `mapstructure:"gateway"`
+	OpenAICodex             OpenAICodexConfig             `mapstructure:"openai_codex"`
 	APIKeyAuth              APIKeyAuthCacheConfig         `mapstructure:"api_key_auth_cache"`
 	SubscriptionCache       SubscriptionCacheConfig       `mapstructure:"subscription_cache"`
 	SubscriptionMaintenance SubscriptionMaintenanceConfig `mapstructure:"subscription_maintenance"`
@@ -92,6 +93,11 @@ type IdempotencyConfig struct {
 	MaxStoredResponseLen      int  `mapstructure:"max_stored_response_len"`
 	CleanupIntervalSeconds    int  `mapstructure:"cleanup_interval_seconds"`
 	CleanupBatchSize          int  `mapstructure:"cleanup_batch_size"`
+}
+type OpenAICodexConfig struct {
+	AppServerBin            string `mapstructure:"app_server_bin"`
+	AppServerTimeoutSeconds int    `mapstructure:"app_server_timeout_seconds"`
+	ResetCreditsEnabled     bool   `mapstructure:"reset_credits_enabled"`
 }
 type LinuxDoConnectConfig struct {
 	Enabled              bool   `mapstructure:"enabled"`

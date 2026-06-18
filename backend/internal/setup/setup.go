@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -26,9 +27,25 @@ import (
 const (
 	ConfigFileName             = "config.yaml"
 	InstallLockFile            = ".installed"
+	postgresMaintenanceDBName  = "postgres"
 	defaultUserConcurrency     = 5
 	simpleModeAdminConcurrency = 30
 )
+
+var webSetupMode atomic.Bool
+
+var openPostgres = func(dsn string) (*sql.DB, error) {
+	return sql.Open("postgres", dsn)
+}
+
+// EnableWebSetupMode marks the current process as the temporary web setup server.
+func EnableWebSetupMode() {
+	webSetupMode.Store(true)
+}
+
+func setWebSetupModeForTest(enabled bool) {
+	webSetupMode.Store(enabled)
+}
 
 func setupDefaultAdminConcurrency() int {
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("RUN_MODE")), config.RunModeSimple) {
@@ -160,17 +177,49 @@ func NeedsSetup() bool {
 	return true
 }
 
+func isSafeDatabaseName(name string) bool {
+	if len(name) == 0 || len(name) > 63 {
+		return false
+	}
+	for i, r := range name {
+		isLetter := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z'
+		isDigit := r >= '0' && r <= '9'
+		if i == 0 && !isLetter {
+			return false
+		}
+		if !isLetter && !isDigit && r != '_' {
+			return false
+		}
+	}
+	return true
+}
+
+func postgresDSN(cfg *DatabaseConfig, dbName string) string {
+	return fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, dbName, cfg.SSLMode,
+	)
+}
+
+func postgresSetupDSNs(cfg *DatabaseConfig) (maintenanceDSN string, targetDSN string) {
+	return postgresDSN(cfg, postgresMaintenanceDBName), postgresDSN(cfg, cfg.DBName)
+}
+
 // TestDatabaseConnection tests the database connection and creates database if not exists
 func TestDatabaseConnection(cfg *DatabaseConfig) error {
-	// First, connect to the default 'postgres' database to check/create target database
-	defaultDSN := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode,
-	)
+	if cfg == nil {
+		return fmt.Errorf("database config is required")
+	}
+	if !isSafeDatabaseName(cfg.DBName) {
+		return fmt.Errorf("invalid database name")
+	}
 
-	db, err := sql.Open("postgres", defaultDSN)
+	// Connect to the maintenance database first so a missing target database
+	// can still be created during first-time installation.
+	maintenanceDSN, targetDSN := postgresSetupDSNs(cfg)
+	db, err := openPostgres(maintenanceDSN)
 	if err != nil {
-		return fmt.Errorf("failed to connect to PostgreSQL: %w", err)
+		return fmt.Errorf("failed to open PostgreSQL maintenance connection: %w", err)
 	}
 
 	defer func() {
@@ -186,7 +235,7 @@ func TestDatabaseConnection(cfg *DatabaseConfig) error {
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
-		return fmt.Errorf("ping failed: %w", err)
+		return fmt.Errorf("failed to connect to PostgreSQL maintenance database '%s': %w", postgresMaintenanceDBName, err)
 	}
 
 	// Check if target database exists
@@ -214,12 +263,7 @@ func TestDatabaseConnection(cfg *DatabaseConfig) error {
 	}
 	db = nil
 
-	targetDSN := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode,
-	)
-
-	targetDB, err := sql.Open("postgres", targetDSN)
+	targetDB, err := openPostgres(targetDSN)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database '%s': %w", cfg.DBName, err)
 	}
@@ -508,7 +552,7 @@ func AutoSetupEnabled() bool {
 }
 
 func SetupWindowOpen() bool {
-	if !AutoSetupEnabled() {
+	if !webSetupMode.Load() {
 		return false
 	}
 	return NeedsSetup()

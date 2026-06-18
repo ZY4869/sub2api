@@ -44,6 +44,8 @@ type stubAdminService struct {
 	lastBackfillPageSize int
 	strictAccountLookup  bool
 	checkMixedErr        error
+	resetAccountQuotaErr error
+	resetAccountQuotaIDs []int64
 	lastUnarchiveInput   *service.UnarchiveAccountsInput
 	lastBlacklistedID    int64
 	lastBlacklistInput   *service.BlacklistAccountInput
@@ -1065,7 +1067,10 @@ func (s *stubAdminService) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 }
 
 func (s *stubAdminService) ResetAccountQuota(ctx context.Context, id int64) error {
-	return nil
+	s.mu.Lock()
+	s.resetAccountQuotaIDs = append(s.resetAccountQuotaIDs, id)
+	s.mu.Unlock()
+	return s.resetAccountQuotaErr
 }
 
 func (s *stubAdminService) EnsureOpenAIPrivacy(ctx context.Context, account *service.Account) string {

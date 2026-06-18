@@ -57,7 +57,7 @@
       <button
         type="button"
         class="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-[10px] font-medium text-gray-600 transition hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-300"
-        :disabled="resetting"
+        :disabled="resetButtonDisabled"
         @click="resetOpenAIQuota"
       >
         <Icon
@@ -69,10 +69,15 @@
       </button>
       <span
         v-if="canResetOpenAIQuota"
-        class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold leading-none text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100"
+        :class="[
+          'inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold leading-none',
+          resetCreditsUnsupported
+            ? 'border-gray-200 bg-gray-50 text-gray-600 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300'
+            : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100'
+        ]"
         data-testid="account-usage-reset-quota-remaining"
       >
-        {{ t('admin.accounts.usageWindow.resetQuotaRemaining', { count: formatOpenAIQuotaResetRemaining(openAIQuotaResetRemaining) }) }}
+        {{ resetCreditsStatusLabel }}
       </span>
     </div>
   </div>
@@ -100,6 +105,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { resolveUsageWindowCapsuleClass } from '@/utils/accountUsageWindowDisplay'
 import { adminAPI } from '@/api'
 import { useAppStore } from '@/stores'
+import { getRuntimePlatform } from '@/composables/accountUsagePresentation/support'
 
 const props = defineProps<{
   account: Account
@@ -112,48 +118,43 @@ const { presentation } = useAccountUsagePresentation(() => props.account)
 const resetting = ref(false)
 
 const canResetOpenAIQuota = computed(() => {
-  return props.account.platform === 'openai' && props.account.type === 'oauth'
+  return getRuntimePlatform(props.account) === 'openai' && props.account.type === 'oauth'
 })
-
-const OPENAI_QUOTA_RESET_REMAINING_KEYS = [
-  'openai_quota_reset_remaining',
-  'openai_quota_resets_remaining',
-  'quota_reset_remaining',
-  'reset_quota_remaining',
-  'openai_reset_remaining',
-]
 
 const openAIQuotaResetRemaining = computed(() => {
-  const extra = props.account.extra
-  if (!extra) return 0
-
-  for (const key of OPENAI_QUOTA_RESET_REMAINING_KEYS) {
-    const count = normalizeQuotaResetRemaining(extra[key])
-    if (count !== null) return count
-  }
-  return 0
+  return presentation.value.meta.openAIResetCreditsAvailableCount ?? null
 })
 
-function normalizeQuotaResetRemaining(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
-    return Math.floor(value)
+const resetCreditsUnsupported = computed(() => {
+  return presentation.value.meta.openAIResetCreditsStatus === 'unsupported'
+})
+
+const resetButtonDisabled = computed(() => {
+  return resetting.value || resetCreditsUnsupported.value
+})
+
+const resetCreditsStatusLabel = computed(() => {
+  if (resetCreditsUnsupported.value) {
+    return (
+      presentation.value.meta.openAIResetCreditsUnsupportedReason ||
+      t('admin.accounts.usageWindow.resetQuotaUnsupported')
+    )
   }
-  if (typeof value !== 'string') return null
-
-  const trimmed = value.trim()
-  if (!/^\d+(\.\d+)?$/.test(trimmed)) return null
-
-  const numeric = Number(trimmed)
-  return Number.isFinite(numeric) ? Math.floor(numeric) : null
-}
+  return t('admin.accounts.usageWindow.resetQuotaRemaining', {
+    count: formatOpenAIQuotaResetRemaining(openAIQuotaResetRemaining.value),
+  })
+})
 
 function formatOpenAIQuotaResetRemaining(value: number | null): string {
-  const normalized = Number.isFinite(Number(value)) ? Math.max(0, Math.floor(Number(value))) : 0
+  if (value === null) return '--'
+  const normalized = Number.isFinite(Number(value)) ? Math.max(0, Math.floor(Number(value))) : null
+  if (normalized === null) return '--'
   return String(normalized).padStart(2, '0')
 }
 
 async function resetOpenAIQuota() {
-  if (!canResetOpenAIQuota.value || resetting.value) return
+  if (!canResetOpenAIQuota.value || resetButtonDisabled.value) return
+  if (!window.confirm(t('admin.accounts.usageWindow.resetQuotaConfirm'))) return
   resetting.value = true
   try {
     await adminAPI.accounts.resetAccountQuota(props.account.id)
@@ -161,14 +162,37 @@ async function resetOpenAIQuota() {
     await refreshAccountUsagePresentation([props.account], { force: true, source: 'active' })
     appStore.showSuccess(t('admin.accounts.usageWindow.resetQuotaSuccess'))
   } catch (error: any) {
-    appStore.showError(
-      error?.response?.data?.detail ||
-        error?.message ||
-        t('admin.accounts.usageWindow.resetQuotaFailed')
-    )
+    invalidateAccountUsagePresentationCache([props.account.id])
+    await refreshAccountUsagePresentation([props.account], { force: true, source: 'active' }).catch(() => {})
+    appStore.showError(resolveResetQuotaErrorMessage(error))
   } finally {
     resetting.value = false
   }
+}
+
+function resolveResetQuotaErrorMessage(error: any): string {
+  const responseData = error?.response?.data ?? {}
+  const reason = String(
+    responseData.reason ||
+      responseData.error ||
+      responseData.code ||
+      responseData.error_code ||
+      '',
+  )
+
+  if (reason === 'OPENAI_RESET_CREDITS_NO_CREDIT') {
+    return t('admin.accounts.usageWindow.resetQuotaNoCredit')
+  }
+  if (reason === 'OPENAI_RESET_CREDITS_NOTHING_TO_RESET') {
+    return t('admin.accounts.usageWindow.resetQuotaNothingToReset')
+  }
+
+  return (
+    responseData.detail ||
+    responseData.message ||
+    error?.message ||
+    t('admin.accounts.usageWindow.resetQuotaFailed')
+  )
 }
 
 function formatResetValue(

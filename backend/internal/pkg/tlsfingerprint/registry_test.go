@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewRegistry(t *testing.T) {
@@ -16,9 +17,7 @@ func TestNewRegistry(t *testing.T) {
 
 	// Should have the default profile
 	profile := r.GetDefaultProfile()
-	if profile == nil {
-		t.Error("expected default profile to exist")
-	}
+	require.NotNil(t, profile, "expected default profile to exist")
 
 	// Default profile name should be in the list
 	names := r.ProfileNames()
@@ -44,9 +43,7 @@ func TestRegisterProfile(t *testing.T) {
 
 	// Should be able to retrieve the custom profile
 	retrieved := r.GetProfile("custom")
-	if retrieved == nil {
-		t.Fatal("expected custom profile to exist")
-	}
+	require.NotNil(t, retrieved, "expected custom profile to exist")
 	if retrieved.Name != "Custom Profile" {
 		t.Errorf("expected profile name 'Custom Profile', got '%s'", retrieved.Name)
 	}
@@ -60,9 +57,7 @@ func TestGetProfile(t *testing.T) {
 
 	// Get existing profile
 	profile := r.GetProfile(DefaultProfileName)
-	if profile == nil {
-		t.Error("expected default profile to exist")
-	}
+	require.NotNil(t, profile, "expected default profile to exist")
 
 	// Get non-existing profile
 	nonExistent := r.GetProfile("nonexistent")
@@ -97,9 +92,7 @@ func TestGetProfileByAccountID(t *testing.T) {
 	}
 
 	defaultProfile := r.GetDefaultProfile()
-	if defaultProfile == nil {
-		t.Fatal("expected default profile to exist")
-	}
+	require.NotNil(t, defaultProfile, "expected default profile to exist")
 
 	// Test modulo selection
 	// Account ID 0 % 3 = 0 -> default profile

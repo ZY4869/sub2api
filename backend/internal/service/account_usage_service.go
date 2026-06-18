@@ -22,6 +22,7 @@ type AccountUsageService struct {
 	openAICodexScopeProbeHTTP             func(ctx context.Context, account *Account, modelID string) (map[string]any, *time.Time, error)
 	openAICodexWSProbeDialer              openAIWSClientDialer
 	openAICodexWSProbeReadTimeoutOverride time.Duration
+	openAIResetCreditService              OpenAICodexResetCreditReader
 	tlsFingerprintProfileService          *TLSFingerprintProfileService
 }
 
@@ -48,6 +49,10 @@ func NewAccountUsageService(
 
 func (s *AccountUsageService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
 	s.tlsFingerprintProfileService = tlsFingerprintProfileService
+}
+
+func (s *AccountUsageService) SetOpenAIResetCreditService(resetCreditService OpenAICodexResetCreditReader) {
+	s.openAIResetCreditService = resetCreditService
 }
 
 // GetUsage 获取账号使用量

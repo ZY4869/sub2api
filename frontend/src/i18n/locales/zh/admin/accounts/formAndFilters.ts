@@ -20,8 +20,12 @@ export default {
         resetQuota: "重置 OpenAI 额度",
         resettingQuota: "重置中",
         resetQuotaRemaining: "可重置 {count} 次",
+        resetQuotaUnsupported: "当前 Codex app-server 不支持 OpenAI 官方真实重置",
+        resetQuotaConfirm: "这是 OpenAI 官方真实重置，会消耗一次可用重置次数。确定继续吗？",
         resetQuotaSuccess: "OpenAI 额度已重置",
         resetQuotaFailed: "OpenAI 额度重置失败，请重试",
+        resetQuotaNoCredit: "没有可用的 OpenAI 真实重置次数，请稍后刷新后再试",
+        resetQuotaNothingToReset: "当前没有可重置的 OpenAI 限额窗口，请稍后再试",
         displayMode: {
             used: "已用",
             remaining: "余量",

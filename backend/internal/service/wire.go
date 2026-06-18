@@ -807,9 +807,11 @@ func ProvideAccountUsageService(
 	antigravityQuotaFetcher *AntigravityQuotaFetcher,
 	cache *UsageCache,
 	identityCache IdentityCache,
+	openAIResetCreditService *OpenAICodexResetCreditService,
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
 ) *AccountUsageService {
 	svc := NewAccountUsageService(accountRepo, usageLogRepo, usageFetcher, geminiQuotaService, antigravityQuotaFetcher, cache, identityCache)
+	svc.SetOpenAIResetCreditService(openAIResetCreditService)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
 	return svc
 }
@@ -896,6 +898,11 @@ var ProviderSet = wire.NewSet(
 	NewAnnouncementService,
 	NewEmailTemplateService,
 	NewAdminService,
+	NewOpenAICodexAppServerClient,
+	wire.Bind(new(OpenAICodexAppServerRateLimitClient), new(*OpenAICodexAppServerClient)),
+	NewOpenAICodexResetCreditService,
+	wire.Bind(new(OpenAICodexResetCreditReader), new(*OpenAICodexResetCreditService)),
+	wire.Bind(new(OpenAICodexResetCreditConsumer), new(*OpenAICodexResetCreditService)),
 	ProvideDocumentAIService,
 	ProvideModelRegistryService,
 	ProvideModelCatalogService,

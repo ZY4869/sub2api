@@ -62,19 +62,20 @@ type AICredit struct {
 
 // UsageInfo 账号使用量信息
 type UsageInfo struct {
-	Source             string         `json:"source,omitempty"`               // "passive" or "active"
-	UpdatedAt          *time.Time     `json:"updated_at,omitempty"`           // 更新时间
-	FiveHour           *UsageProgress `json:"five_hour"`                      // 5小时窗口
-	SevenDay           *UsageProgress `json:"seven_day,omitempty"`            // 7天窗口
-	SparkFiveHour      *UsageProgress `json:"spark_five_hour,omitempty"`      // Spark 5小时窗口
-	SparkSevenDay      *UsageProgress `json:"spark_seven_day,omitempty"`      // Spark 7天窗口
-	SevenDaySonnet     *UsageProgress `json:"seven_day_sonnet,omitempty"`     // 7天Sonnet窗口
-	GeminiSharedDaily  *UsageProgress `json:"gemini_shared_daily,omitempty"`  // Gemini shared pool RPD (Google One / Code Assist)
-	GeminiProDaily     *UsageProgress `json:"gemini_pro_daily,omitempty"`     // Gemini Pro 日配额
-	GeminiFlashDaily   *UsageProgress `json:"gemini_flash_daily,omitempty"`   // Gemini Flash 日配额
-	GeminiSharedMinute *UsageProgress `json:"gemini_shared_minute,omitempty"` // Gemini shared pool RPM (Google One / Code Assist)
-	GeminiProMinute    *UsageProgress `json:"gemini_pro_minute,omitempty"`    // Gemini Pro RPM
-	GeminiFlashMinute  *UsageProgress `json:"gemini_flash_minute,omitempty"`  // Gemini Flash RPM
+	Source             string                  `json:"source,omitempty"`               // "passive" or "active"
+	UpdatedAt          *time.Time              `json:"updated_at,omitempty"`           // 更新时间
+	FiveHour           *UsageProgress          `json:"five_hour"`                      // 5小时窗口
+	SevenDay           *UsageProgress          `json:"seven_day,omitempty"`            // 7天窗口
+	SparkFiveHour      *UsageProgress          `json:"spark_five_hour,omitempty"`      // Spark 5小时窗口
+	SparkSevenDay      *UsageProgress          `json:"spark_seven_day,omitempty"`      // Spark 7天窗口
+	SevenDaySonnet     *UsageProgress          `json:"seven_day_sonnet,omitempty"`     // 7天Sonnet窗口
+	OpenAIResetCredits *OpenAIResetCreditsInfo `json:"openai_reset_credits,omitempty"` // OpenAI 官方真实重置次数
+	GeminiSharedDaily  *UsageProgress          `json:"gemini_shared_daily,omitempty"`  // Gemini shared pool RPD (Google One / Code Assist)
+	GeminiProDaily     *UsageProgress          `json:"gemini_pro_daily,omitempty"`     // Gemini Pro 日配额
+	GeminiFlashDaily   *UsageProgress          `json:"gemini_flash_daily,omitempty"`   // Gemini Flash 日配额
+	GeminiSharedMinute *UsageProgress          `json:"gemini_shared_minute,omitempty"` // Gemini shared pool RPM (Google One / Code Assist)
+	GeminiProMinute    *UsageProgress          `json:"gemini_pro_minute,omitempty"`    // Gemini Pro RPM
+	GeminiFlashMinute  *UsageProgress          `json:"gemini_flash_minute,omitempty"`  // Gemini Flash RPM
 
 	// Antigravity 多模型配额
 	AntigravityQuota map[string]*AntigravityModelQuota `json:"antigravity_quota,omitempty"`
@@ -108,6 +109,14 @@ type UsageInfo struct {
 
 	// 获取 usage 时的错误信息（降级返回，而非 500）
 	Error string `json:"error,omitempty"`
+}
+
+type OpenAIResetCreditsInfo struct {
+	AvailableCount    *int       `json:"available_count,omitempty"`
+	UpdatedAt         *time.Time `json:"updated_at,omitempty"`
+	Source            string     `json:"source,omitempty"`
+	Status            string     `json:"status,omitempty"`
+	UnsupportedReason string     `json:"unsupported_reason,omitempty"`
 }
 
 // ClaudeUsageResponse Anthropic API返回的usage结构

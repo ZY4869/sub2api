@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 )
 
@@ -16,6 +18,7 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 	syncOpenAICodexRateLimitFromExtra(ctx, s.accountRepo, account, now)
 	isPro := isOpenAIProPlan(account)
 	applyOpenAIUsageProgressFromExtra(usage, account.Extra, now, isPro)
+	applyOpenAIResetCreditsFromExtra(usage, account.Extra)
 
 	shouldProbe := force || shouldRefreshOpenAICodexSnapshot(account, usage, now)
 	if shouldProbe && (force || s.shouldProbeOpenAICodexSnapshot(account.ID, now)) {
@@ -33,6 +36,9 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 			}
 			applyOpenAIUsageProgressFromExtra(usage, account.Extra, now, isPro)
 		}
+	}
+	if force || shouldRefreshOpenAIResetCreditsSnapshot(account, now) {
+		s.readOpenAIResetCredits(ctx, account, usage)
 	}
 
 	if s.usageLogRepo == nil {
@@ -54,6 +60,123 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 	}
 
 	return usage, nil
+}
+
+func (s *AccountUsageService) readOpenAIResetCredits(ctx context.Context, account *Account, usage *UsageInfo) {
+	if s == nil || s.openAIResetCreditService == nil || account == nil || usage == nil {
+		return
+	}
+	snapshot, err := s.openAIResetCreditService.ReadResetCredits(ctx, account)
+	if err != nil {
+		slog.Warn("openai_reset_credits_usage_read_failed", "account_id", account.ID, "error", err.Error())
+		s.applyOpenAIResetCreditsUnknown(ctx, account, usage, time.Now().UTC())
+		return
+	}
+	if snapshot == nil {
+		return
+	}
+	usage.OpenAIResetCredits = &OpenAIResetCreditsInfo{
+		AvailableCount:    snapshot.AvailableCount,
+		UpdatedAt:         &snapshot.UpdatedAt,
+		Source:            snapshot.Source,
+		Status:            snapshot.Status,
+		UnsupportedReason: snapshot.UnsupportedReason,
+	}
+}
+
+func (s *AccountUsageService) applyOpenAIResetCreditsUnknown(ctx context.Context, account *Account, usage *UsageInfo, now time.Time) {
+	if account == nil || usage == nil {
+		return
+	}
+	snapshot := openAICodexUnknownResetCreditsSnapshot(now)
+	usage.OpenAIResetCredits = &OpenAIResetCreditsInfo{
+		UpdatedAt: &snapshot.UpdatedAt,
+		Source:    snapshot.Source,
+		Status:    snapshot.Status,
+	}
+	updates := openAICodexUnknownResetCreditsExtra(snapshot)
+	mergeAccountExtra(account, updates)
+	if s == nil || s.accountRepo == nil || account.ID <= 0 {
+		return
+	}
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
+		slog.Warn("openai_reset_credits_unknown_persist_failed", "account_id", account.ID, "error", err.Error())
+	}
+}
+
+func applyOpenAIResetCreditsFromExtra(usage *UsageInfo, extra map[string]any) {
+	if usage == nil || len(extra) == 0 {
+		return
+	}
+	info := &OpenAIResetCreditsInfo{
+		Source: openAIResetCreditsSourceCodexAppServer,
+	}
+	count, ok := parseOpenAIResetCreditsExtraCount(extra[openAIResetCreditsAvailableCountExtraKey])
+	if ok {
+		info.AvailableCount = &count
+	}
+	if updatedAt, ok := parseOpenAIResetCreditsExtraUpdatedAt(extra[openAIResetCreditsUpdatedAtExtraKey]); ok {
+		info.UpdatedAt = &updatedAt
+	}
+	if updatedAt, ok := parseOpenAIResetCreditsExtraUpdatedAt(extra[openAIRateLimitsAppServerUpdatedAtExtraKey]); ok && info.UpdatedAt == nil {
+		info.UpdatedAt = &updatedAt
+	}
+	info.Status = parseOpenAIResetCreditsExtraStatus(extra, info.AvailableCount != nil)
+	info.UnsupportedReason = parseOpenAIResetCreditsExtraUnsupportedReason(extra[openAIResetCreditsUnsupportedReasonExtraKey])
+	usage.OpenAIResetCredits = info
+}
+
+func shouldRefreshOpenAIResetCreditsSnapshot(account *Account, now time.Time) bool {
+	if account == nil || !account.IsOpenAIOAuth() {
+		return false
+	}
+	if account.Extra == nil {
+		return true
+	}
+	if ts, ok := parseOpenAIResetCreditsExtraUpdatedAt(account.Extra[openAIResetCreditsUpdatedAtExtraKey]); ok {
+		return now.Sub(ts) >= openAIProbeCacheTTL
+	}
+	if ts, ok := parseOpenAIResetCreditsExtraUpdatedAt(account.Extra[openAIRateLimitsAppServerUpdatedAtExtraKey]); ok {
+		return now.Sub(ts) >= openAIProbeCacheTTL
+	}
+	return true
+}
+
+func parseOpenAIResetCreditsExtraCount(value any) (int, bool) {
+	count, ok := parseOpenAIResetCreditsAvailableCount(value)
+	return count, ok
+}
+
+func parseOpenAIResetCreditsExtraUpdatedAt(value any) (time.Time, bool) {
+	if value == nil {
+		return time.Time{}, false
+	}
+	ts, err := parseTime(fmt.Sprint(value))
+	if err != nil {
+		return time.Time{}, false
+	}
+	return ts, true
+}
+
+func parseOpenAIResetCreditsExtraStatus(extra map[string]any, hasCount bool) string {
+	raw := strings.TrimSpace(fmt.Sprint(extra[openAIResetCreditsStatusExtraKey]))
+	switch raw {
+	case openAIResetCreditsStatusAvailable,
+		openAIResetCreditsStatusUnknownOrUnsupported,
+		openAIResetCreditsStatusUnsupported:
+		return raw
+	}
+	if hasCount {
+		return openAIResetCreditsStatusAvailable
+	}
+	return openAIResetCreditsStatusUnknownOrUnsupported
+}
+
+func parseOpenAIResetCreditsExtraUnsupportedReason(value any) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
 }
 
 func applyOpenAIUsageProgressFromExtra(usage *UsageInfo, extra map[string]any, now time.Time, includeSpark bool) {

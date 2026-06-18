@@ -453,7 +453,12 @@ def backend_build() -> None:
 
 def frontend_build() -> None:
     ensure_frontend_deps()
-    run_pnpm(["run", "build"])
+    run_pnpm(["exec", "vite", "build"])
+
+
+def frontend_typecheck() -> None:
+    ensure_frontend_deps()
+    run_pnpm(["run", "typecheck"])
 
 
 def frontend_test() -> None:
@@ -636,6 +641,7 @@ def full() -> None:
     backend_integration()
     backend_lint()
     backend_build()
+    frontend_typecheck()
     frontend_build()
     frontend_test()
     frontend_lint()
@@ -653,6 +659,7 @@ def release_gate() -> None:
     backend_integration()
     backend_lint()
     backend_build()
+    frontend_typecheck()
     frontend_build()
     frontend_test()
     frontend_lint()
@@ -665,6 +672,7 @@ MODES: dict[str, callable] = {
     "backend-lint": backend_lint,
     "backend-build": backend_build,
     "frontend-build": frontend_build,
+    "frontend-typecheck": frontend_typecheck,
     "frontend-test": frontend_test,
     "frontend-lint": frontend_lint,
     "security": security,

@@ -359,6 +359,16 @@ func (c *Config) Validate() error {
 	if c.Idempotency.CleanupBatchSize <= 0 {
 		return fmt.Errorf("idempotency.cleanup_batch_size must be positive")
 	}
+	if c.OpenAICodex.ResetCreditsEnabled {
+		if strings.TrimSpace(c.OpenAICodex.AppServerBin) == "" {
+			return fmt.Errorf("openai_codex.app_server_bin is required when openai_codex.reset_credits_enabled=true")
+		}
+		if c.OpenAICodex.AppServerTimeoutSeconds <= 0 {
+			return fmt.Errorf("openai_codex.app_server_timeout_seconds must be positive when openai_codex.reset_credits_enabled=true")
+		}
+	} else if c.OpenAICodex.AppServerTimeoutSeconds < 0 {
+		return fmt.Errorf("openai_codex.app_server_timeout_seconds must be non-negative")
+	}
 	if c.Gateway.MaxBodySize <= 0 {
 		return fmt.Errorf("gateway.max_body_size must be positive")
 	}

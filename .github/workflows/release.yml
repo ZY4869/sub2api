@@ -159,6 +159,8 @@ jobs:
           node-version: "24"
           cache: "pnpm"
           cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Typecheck frontend release assets
+        run: bash scripts/verify-ci.sh frontend-typecheck
       - name: Build frontend release assets
         run: bash scripts/verify-ci.sh frontend-build
       - name: Set up QEMU

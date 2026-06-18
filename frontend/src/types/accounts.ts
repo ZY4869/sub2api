@@ -472,6 +472,10 @@ export interface AccountUsagePresentationMeta {
   geminiQuotaPolicyChannel?: string;
   geminiQuotaPolicyLimits?: string;
   geminiQuotaPolicyDocsUrl?: string;
+  openAIResetCreditsAvailableCount?: number | null;
+  openAIResetCreditsKnown?: boolean;
+  openAIResetCreditsStatus?: OpenAIResetCreditsStatus;
+  openAIResetCreditsUnsupportedReason?: string;
 }
 
 export interface AccountUsagePresentation {
@@ -502,6 +506,7 @@ export interface AccountUsageInfo {
   gemini_shared_minute?: UsageProgress | null;
   gemini_pro_minute?: UsageProgress | null;
   gemini_flash_minute?: UsageProgress | null;
+  openai_reset_credits?: OpenAIResetCreditsInfo | null;
   antigravity_quota?: Record<string, AntigravityModelQuota> | null;
   ai_credits?: Array<{
     credit_type?: string;
@@ -518,6 +523,20 @@ export interface AccountUsageInfo {
   error_code?: string;
   error?: string;
 }
+
+export interface OpenAIResetCreditsInfo {
+  available_count?: number | null;
+  updated_at?: string | null;
+  source?: string;
+  status?: OpenAIResetCreditsStatus;
+  unsupported_reason?: string;
+}
+
+export type OpenAIResetCreditsStatus =
+  | "available"
+  | "unknown_or_unsupported"
+  | "unsupported"
+  | string;
 
 // OpenAI Codex usage snapshot (from response headers)
 export interface CodexUsageSnapshot {
@@ -549,6 +568,11 @@ export interface CodexUsageSnapshot {
   codex_spark_7d_reset_at?: string; // Spark 7-day window absolute reset time (RFC3339)
   codex_spark_7d_window_minutes?: number; // Spark 7d window in minutes (should be ~10080)
   codex_account_7d_all_exhausted?: boolean; // Whether both Codex 7d windows are exhausted
+  openai_rate_limit_reset_credits_available_count?: number;
+  openai_rate_limit_reset_credits_updated_at?: string;
+  openai_rate_limits_app_server_updated_at?: string;
+  openai_rate_limit_reset_credits_status?: OpenAIResetCreditsStatus;
+  openai_rate_limit_reset_credits_unsupported_reason?: string;
 
   codex_usage_updated_at?: string; // Last update timestamp
   openai_known_models?: string[];

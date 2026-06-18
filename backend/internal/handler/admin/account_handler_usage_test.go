@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,7 +18,8 @@ import (
 
 type usageQueryAccountRepoStub struct {
 	service.AccountRepository
-	account *service.Account
+	account          *service.Account
+	updateExtraCalls []map[string]any
 }
 
 func (s *usageQueryAccountRepoStub) GetByID(_ context.Context, id int64) (*service.Account, error) {
@@ -28,6 +30,31 @@ func (s *usageQueryAccountRepoStub) GetByID(_ context.Context, id int64) (*servi
 	account.Credentials = cloneAnyMap(s.account.Credentials)
 	account.Extra = cloneAnyMap(s.account.Extra)
 	return &account, nil
+}
+
+func (s *usageQueryAccountRepoStub) UpdateExtra(_ context.Context, id int64, updates map[string]any) error {
+	if s.account == nil || s.account.ID != id {
+		return service.ErrAccountNotFound
+	}
+	copied := cloneAnyMap(updates)
+	s.updateExtraCalls = append(s.updateExtraCalls, copied)
+	if s.account.Extra == nil {
+		s.account.Extra = map[string]any{}
+	}
+	for key, value := range copied {
+		s.account.Extra[key] = value
+	}
+	return nil
+}
+
+type usageQueryResetCreditReaderStub struct {
+	err   error
+	calls int
+}
+
+func (s *usageQueryResetCreditReaderStub) ReadResetCredits(context.Context, *service.Account) (*service.OpenAICodexResetCreditsSnapshot, error) {
+	s.calls++
+	return nil, s.err
 }
 
 type usageQueryLogRepoStub struct {
@@ -207,6 +234,139 @@ func TestAccountHandlerGetUsageSupportsSourceQuery(t *testing.T) {
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
+}
+
+func TestAccountHandlerGetUsageReturnsOpenAIResetCreditStatus(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	account := &service.Account{
+		ID:       43,
+		Name:     "OpenAI OAuth",
+		Platform: service.PlatformOpenAI,
+		Type:     service.AccountTypeOAuth,
+		Status:   service.StatusActive,
+		Credentials: map[string]any{
+			"access_token":       "token",
+			"chatgpt_account_id": "acct",
+		},
+		Extra: map[string]any{
+			"codex_usage_updated_at":                             now.Format(time.RFC3339),
+			"codex_5h_used_percent":                              10,
+			"codex_5h_reset_at":                                  now.Add(time.Hour).Format(time.RFC3339),
+			"codex_7d_used_percent":                              20,
+			"codex_7d_reset_at":                                  now.Add(24 * time.Hour).Format(time.RFC3339),
+			"openai_rate_limits_app_server_updated_at":           now.Format(time.RFC3339),
+			"openai_rate_limit_reset_credits_status":             "unsupported",
+			"openai_rate_limit_reset_credits_unsupported_reason": "当前 Codex app-server 不支持 OpenAI 官方真实重置",
+		},
+	}
+	usageService := service.NewAccountUsageService(
+		&usageQueryAccountRepoStub{account: account},
+		&usageQueryLogRepoStub{},
+		nil,
+		nil,
+		nil,
+		service.NewUsageCache(),
+		nil,
+	)
+	handler := NewAccountHandler(newStubAdminService(), nil, nil, nil, nil, nil, usageService, nil, nil, nil, nil, nil, nil)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/api/v1/admin/accounts/:id/usage", handler.GetUsage)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/43/usage?source=active", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			OpenAIResetCredits *struct {
+				AvailableCount    *int   `json:"available_count"`
+				Status            string `json:"status"`
+				UnsupportedReason string `json:"unsupported_reason"`
+			} `json:"openai_reset_credits"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.NotNil(t, resp.Data.OpenAIResetCredits)
+	require.Nil(t, resp.Data.OpenAIResetCredits.AvailableCount)
+	require.Equal(t, "unsupported", resp.Data.OpenAIResetCredits.Status)
+	require.Contains(t, resp.Data.OpenAIResetCredits.UnsupportedReason, "不支持")
+}
+
+func TestAccountHandlerGetUsageResetCreditsReadFailureDoesNotReturnStaleCount(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	account := &service.Account{
+		ID:       44,
+		Name:     "OpenAI OAuth",
+		Platform: service.PlatformOpenAI,
+		Type:     service.AccountTypeOAuth,
+		Status:   service.StatusActive,
+		Credentials: map[string]any{
+			"access_token":       "token",
+			"chatgpt_account_id": "acct",
+		},
+		Extra: map[string]any{
+			"codex_usage_updated_at":                             now.Format(time.RFC3339),
+			"codex_5h_used_percent":                              10,
+			"codex_5h_reset_at":                                  now.Add(time.Hour).Format(time.RFC3339),
+			"codex_7d_used_percent":                              20,
+			"codex_7d_reset_at":                                  now.Add(24 * time.Hour).Format(time.RFC3339),
+			"openai_rate_limit_reset_credits_available_count":    3,
+			"openai_rate_limit_reset_credits_updated_at":         now.Add(-11 * time.Minute).Format(time.RFC3339),
+			"openai_rate_limits_app_server_updated_at":           now.Add(-11 * time.Minute).Format(time.RFC3339),
+			"openai_rate_limit_reset_credits_status":             "available",
+			"openai_rate_limit_reset_credits_unsupported_reason": "stale",
+		},
+	}
+	repo := &usageQueryAccountRepoStub{account: account}
+	reader := &usageQueryResetCreditReaderStub{err: errors.New("Codex app-server unavailable")}
+	usageService := service.NewAccountUsageService(
+		repo,
+		&usageQueryLogRepoStub{},
+		nil,
+		nil,
+		nil,
+		service.NewUsageCache(),
+		nil,
+	)
+	usageService.SetOpenAIResetCreditService(reader)
+	handler := NewAccountHandler(newStubAdminService(), nil, nil, nil, nil, nil, usageService, nil, nil, nil, nil, nil, nil)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/api/v1/admin/accounts/:id/usage", handler.GetUsage)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/44/usage?source=active", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			OpenAIResetCredits *struct {
+				AvailableCount *int   `json:"available_count"`
+				Status         string `json:"status"`
+			} `json:"openai_reset_credits"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Equal(t, 1, reader.calls)
+	require.NotNil(t, resp.Data.OpenAIResetCredits)
+	require.Nil(t, resp.Data.OpenAIResetCredits.AvailableCount)
+	require.Equal(t, "unknown_or_unsupported", resp.Data.OpenAIResetCredits.Status)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Contains(t, repo.updateExtraCalls[0], "openai_rate_limit_reset_credits_available_count")
+	require.Nil(t, repo.updateExtraCalls[0]["openai_rate_limit_reset_credits_available_count"])
 }
 
 func TestAccountHandlerGetBatchTodayStatsIncludesBreakdown(t *testing.T) {
