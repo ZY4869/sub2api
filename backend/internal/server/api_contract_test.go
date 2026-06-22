@@ -1289,6 +1289,7 @@ func TestAPIContracts(t *testing.T) {
 					"doc_url": "https://docs.example.com",
 					"default_concurrency": 5,
 					"default_balance": 1.25,
+					"default_api_key_model_binding_mode": "group_allowed",
 					"default_subscriptions": [],
 					"enable_model_fallback": false,
 					"fallback_model_anthropic": "claude-3-5-sonnet-20241022",
@@ -1537,7 +1538,8 @@ func TestAPIContracts(t *testing.T) {
 						},
 						"gemini_model_mode": {
 							"mode": "auto"
-						}
+						},
+						"skip_cn_holidays_and_weekends": false
 					},
 					"candidates": []
 				}
@@ -1581,7 +1583,8 @@ func TestAPIContracts(t *testing.T) {
 						"gemini_model_mode": {
 							"mode": "fixed",
 							"fixed_model_id": "gemini-2.5-flash"
-						}
+						},
+						"skip_cn_holidays_and_weekends": false
 					},
 					"candidates": []
 				}
