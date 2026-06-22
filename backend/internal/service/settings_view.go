@@ -124,9 +124,10 @@ type SystemSettings struct {
 	AffiliateRebatePerInviteeCap  float64
 	AffiliateAffCodeLength        int
 
-	DefaultConcurrency   int
-	DefaultBalance       float64
-	DefaultSubscriptions []DefaultSubscriptionSetting
+	DefaultConcurrency            int
+	DefaultBalance                float64
+	DefaultSubscriptions          []DefaultSubscriptionSetting
+	DefaultAPIKeyModelBindingMode string
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`

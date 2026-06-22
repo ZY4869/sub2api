@@ -105,3 +105,11 @@ func (s *SettingService) GetDefaultSubscriptions(ctx context.Context) []DefaultS
 	}
 	return parseDefaultSubscriptions(value)
 }
+
+func (s *SettingService) GetDefaultAPIKeyModelBindingMode(ctx context.Context) string {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyDefaultAPIKeyModelBindingMode)
+	if err != nil {
+		return APIKeyModelBindingModeGroupAllowed
+	}
+	return NormalizeAPIKeyModelBindingMode(firstNonEmptyString(value, APIKeyModelBindingModeGroupAllowed))
+}

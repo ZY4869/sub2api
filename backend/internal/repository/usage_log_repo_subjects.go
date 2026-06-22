@@ -163,11 +163,12 @@ func (r *usageLogRepository) getUsageSubjectReference(ctx context.Context, scope
 }
 
 func (r *usageLogRepository) getUsageSubjectAggregate(ctx context.Context, scope usageSubjectScope, subjectID int64, startTime, endTime time.Time) (resp *usageSubjectAggregate, err error) {
+	totalTokensExpr := usageTotalTokensSQL("")
 	query := fmt.Sprintf(`
 		SELECT
 			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
 			COUNT(*) AS requests,
-			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) AS tokens,
+			COALESCE(SUM(%s), 0) AS tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) AS standard_cost,
 			COALESCE(SUM(total_cost_usd_equivalent * COALESCE(account_rate_multiplier, 1)), 0) AS account_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) AS user_cost
@@ -175,7 +176,7 @@ func (r *usageLogRepository) getUsageSubjectAggregate(ctx context.Context, scope
 		WHERE %s = $1 AND created_at >= $2 AND created_at < $3
 		GROUP BY date
 		ORDER BY date ASC
-	`, scope.column)
+	`, totalTokensExpr, scope.column)
 
 	rows, err := r.sql.QueryContext(ctx, query, subjectID, startTime, endTime)
 	if err != nil {

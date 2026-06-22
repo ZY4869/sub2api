@@ -35,6 +35,9 @@ export default {
     ignoreFreeLabel: "忽略 Free 账号",
     ignoreFreeHint:
       "开启后，ChatGPT Free 账号不会参与每日 5H 自动触发；周/月额度刷新账号建议开启。",
+    skipNonWorkdaysLabel: "节假日和周末不自动刷新",
+    skipNonWorkdaysHint:
+      "开启后，中国大陆法定节假日和周六、周日会跳过整轮每日 5H 自动触发。",
     accountTypesLabel: "触发账号类型",
     accountTypesHint: "仅对这里勾选的账号类型执行每日 5H 触发。默认只启用 ChatGPT OAuth。",
     accountTypeOpenAI: "ChatGPT OAuth",

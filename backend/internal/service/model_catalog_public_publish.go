@@ -820,6 +820,7 @@ func (s *ModelCatalogService) GetPublicModelCatalogDraftPayloadWithOptions(
 		return nil, err
 	}
 	availableSnapshot = filterPublicModelCatalogSnapshotByDemoMode(availableSnapshot, s.publicModelCatalogReadAllowsDemo(options))
+	availableSnapshot.Items = ensurePublicModelCatalogDraftDiagnostics(availableSnapshot.Items)
 	return &PublicModelCatalogDraftPayload{
 		Draft:              draft,
 		AvailableItems:     append([]PublicModelCatalogItem(nil), availableSnapshot.Items...),
@@ -856,6 +857,7 @@ func (s *ModelCatalogService) publicModelCatalogDraftCandidateSnapshot(
 			)
 		}
 		if cached, age, ok := s.getFreshPublicModelCatalogSnapshotWithTTL(publicModelCatalogDraftLiveTTL); ok {
+			cached.RefreshedAt = time.Now().UTC().Format(time.RFC3339)
 			logger.FromContext(ctx).Info(
 				"public model catalog draft candidate cache hit",
 				zap.String("component", "service.model_catalog"),
@@ -870,21 +872,10 @@ func (s *ModelCatalogService) publicModelCatalogDraftCandidateSnapshot(
 	if !force {
 		availableSource = publicModelCatalogDraftAvailableSourceBootstrap
 	}
-	liveSnapshot, err := s.buildLivePublicModelCatalogSnapshot(ctx)
+	liveSnapshot, err := s.buildDraftPublicModelCatalogCandidateSnapshot(ctx)
 	if err != nil {
-		if fallback, age, ok := s.getFreshPublicModelCatalogSnapshotWithTTL(publicModelCatalogDraftLiveTTL); ok {
-			logger.FromContext(ctx).Warn(
-				"public model catalog draft candidate cache fallback",
-				zap.String("component", "service.model_catalog"),
-				zap.Duration("cache_age", age),
-				zap.Int("model_count", len(fallback.Items)),
-				zap.Error(err),
-			)
-			return fallback, publicModelCatalogDraftAvailableSourceCache, nil
-		}
 		return nil, "", err
 	}
-	s.storePublicModelCatalogSnapshot(liveSnapshot)
 	liveSnapshot = clonePublicModelCatalogSnapshot(liveSnapshot)
 	liveSnapshot.RefreshedAt = time.Now().UTC().Format(time.RFC3339)
 	if err := s.persistPublicModelCatalogDraftCandidateSnapshot(ctx, liveSnapshot); err != nil {

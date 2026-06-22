@@ -63,6 +63,22 @@
             <span :class="toggleThumbClass(localSettings.ignore_free_accounts)" />
           </button>
         </div>
+
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.daily5h.skipNonWorkdaysLabel') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.daily5h.skipNonWorkdaysHint') }}
+            </p>
+          </div>
+          <button
+            type="button"
+            :class="toggleButtonClass(localSettings.skip_cn_holidays_and_weekends)"
+            @click="localSettings.skip_cn_holidays_and_weekends = !localSettings.skip_cn_holidays_and_weekends"
+          >
+            <span :class="toggleThumbClass(localSettings.skip_cn_holidays_and_weekends)" />
+          </button>
+        </div>
       </div>
 
       <div class="space-y-3">
@@ -320,6 +336,7 @@ function createLocalSettings(settings: AccountDaily5HTriggerSettings): AccountDa
     selected_account_types: [...(settings?.selected_account_types || ['chatgpt_oauth'])],
     include_paused_accounts: settings?.include_paused_accounts === true,
     ignore_free_accounts: settings?.ignore_free_accounts === true,
+    skip_cn_holidays_and_weekends: settings?.skip_cn_holidays_and_weekends === true,
     openai_model_mode: {
       mode: settings?.openai_model_mode?.mode === 'fixed' ? 'fixed' : 'auto',
       fixed_model_id: settings?.openai_model_mode?.fixed_model_id || ''

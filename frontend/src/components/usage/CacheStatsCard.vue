@@ -16,20 +16,32 @@
         <p class="text-xl font-bold text-teal-600 dark:text-teal-400">
           {{ formatPercent(cacheHitRate) }}
         </p>
-        <p class="truncate text-xs text-gray-500 dark:text-gray-400">
-          {{ formatCacheSplit(cacheCreationTokens, cacheReadTokens) }}
-        </p>
+        <div class="mt-1 grid grid-cols-3 gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+          <div>
+            <span class="block">{{ t("usage.cacheWrite") }}</span>
+            <span class="font-semibold text-gray-800 dark:text-gray-100">{{ formatTokens(cacheCreationTokens) }}</span>
+          </div>
+          <div>
+            <span class="block">{{ t("usage.cacheRead") }}</span>
+            <span class="font-semibold text-gray-800 dark:text-gray-100">{{ formatTokens(cacheReadTokens) }}</span>
+          </div>
+          <div>
+            <span class="block">{{ t("common.total") }}</span>
+            <span class="font-semibold text-gray-800 dark:text-gray-100">{{ formatTokens(cacheTotalTokens) }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Icon from "@/components/icons/Icon.vue";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 
-defineProps<{
+const props = defineProps<{
   cacheHitRate?: number | null;
   cacheCreationTokens?: number | null;
   cacheReadTokens?: number | null;
@@ -41,14 +53,9 @@ const { formatTokenDisplay } = useTokenDisplayMode();
 const formatTokens = (value: number | null | undefined): string =>
   formatTokenDisplay(value || 0);
 
-const formatCacheSplit = (
-  write: number | null | undefined,
-  read: number | null | undefined,
-): string =>
-  t("usage.cacheSplit", {
-    write: formatTokens(write),
-    read: formatTokens(read),
-  });
+const cacheTotalTokens = computed(
+  () => (props.cacheCreationTokens || 0) + (props.cacheReadTokens || 0),
+);
 
 const formatPercent = (value: number | null | undefined): string => {
   const numeric = Number.isFinite(Number(value)) ? Number(value) : 0;

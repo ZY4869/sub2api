@@ -123,6 +123,8 @@ export default {
             mode: "Mode: {value}",
             account: "Admin account: {value}",
             missing: "This entry is no longer in the latest account-supported model library. Publishing will be blocked by the backend.",
+            routeUnconfirmed: "Account route is not confirmed, so this entry cannot be published yet.",
+            notPublishable: "This model has not passed publish validation and cannot be published yet.",
             defaultSource: "Default Source",
             demo: "Demo data",
             contextSource: "Context window source",

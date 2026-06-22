@@ -14,20 +14,22 @@ func (r *usageLogRepository) GetUsageTrendWithFilters(ctx context.Context, start
 		}
 	}
 	dateFormat := safeDateFormat(granularity)
+	cacheCreationExpr := usageCacheCreationSQL("")
+	totalTokensExpr := usageTotalTokensSQL("")
 	query := fmt.Sprintf(`
 		SELECT
-			TO_CHAR(created_at, '%s') as date,
+			TO_CHAR(created_at, '%[1]s') as date,
 			COUNT(*) as requests,
 			COALESCE(SUM(input_tokens), 0) as input_tokens,
 			COALESCE(SUM(output_tokens), 0) as output_tokens,
-			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens,
+			COALESCE(SUM(%[2]s), 0) as cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
-			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as total_tokens,
+			COALESCE(SUM(%[3]s), 0) as total_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as actual_cost
 		FROM usage_logs
 		WHERE created_at >= $1 AND created_at < $2
-	`, dateFormat)
+	`, dateFormat, cacheCreationExpr, totalTokensExpr)
 	args := []any{startTime, endTime}
 	if userID > 0 {
 		query += fmt.Sprintf(" AND user_id = $%d", len(args)+1)

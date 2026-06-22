@@ -2,20 +2,22 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
 
 func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (resp *usagestats.UserSpendingRankingResponse, err error) {
-	query := `
+	totalTokensExpr := usageTotalTokensSQL("ul.")
+	query := fmt.Sprintf(`
 		WITH user_spend AS (
 			SELECT
 				ul.user_id,
 				u.email,
 				COALESCE(SUM(ul.actual_cost_usd_equivalent), 0) as actual_cost_usd,
 				COUNT(*) as requests,
-				COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) as tokens
+				COALESCE(SUM(%s), 0) as tokens
 			FROM usage_logs ul
 			JOIN users u ON u.id = ul.user_id
 			WHERE ul.created_at >= $1 AND ul.created_at <= $2
@@ -41,7 +43,7 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 		CROSS JOIN totals t
 		ORDER BY us.actual_cost_usd DESC, us.requests DESC, us.user_id DESC
 		LIMIT $3
-	`
+	`, totalTokensExpr)
 
 	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit)
 	if err != nil {

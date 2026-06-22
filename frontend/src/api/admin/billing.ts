@@ -344,6 +344,7 @@ export interface BillingPublicCatalogAdminEntry extends PublicModelCatalogItem {
   status?: 'ok' | 'error' | 'maintenance' | 'warning' | 'info'
   availability_state?: 'verified' | 'unavailable' | 'unknown'
   stale_state?: 'fresh' | 'stale' | 'unverified'
+  route_confirmed?: boolean
   health_status?: PublicModelHealthStatus
 }
 

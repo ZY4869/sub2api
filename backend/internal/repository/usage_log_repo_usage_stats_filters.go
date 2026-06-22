@@ -7,12 +7,13 @@ import (
 )
 
 func (r *usageLogRepository) GetGlobalStats(ctx context.Context, startTime, endTime time.Time) (*UsageStats, error) {
-	query := `
+	cacheCreationExpr := usageCacheCreationSQL("")
+	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*) as total_requests,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(%[1]s), 0) as total_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_actual_cost,
@@ -21,7 +22,7 @@ func (r *usageLogRepository) GetGlobalStats(ctx context.Context, startTime, endT
 			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE created_at >= $1 AND created_at <= $2
-	`
+	`, cacheCreationExpr)
 	stats := &UsageStats{}
 	if err := scanSingleRow(ctx, r.sql, query, []any{startTime, endTime}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &stats.AverageDurationMs); err != nil {
 		return nil, err
@@ -96,13 +97,29 @@ func normalizeUsageStatsCacheTotals(stats *UsageStats) {
 	}
 }
 
+func usageCacheCreationSQL(prefix string) string {
+	return fmt.Sprintf(
+		"COALESCE(%[1]scache_creation_tokens, 0) + COALESCE(%[1]scache_creation_5m_tokens, 0) + COALESCE(%[1]scache_creation_1h_tokens, 0)",
+		prefix,
+	)
+}
+
+func usageTotalTokensSQL(prefix string) string {
+	return fmt.Sprintf(
+		"COALESCE(%[1]sinput_tokens, 0) + COALESCE(%[1]soutput_tokens, 0) + %[2]s + COALESCE(%[1]scache_read_tokens, 0)",
+		prefix,
+		usageCacheCreationSQL(prefix),
+	)
+}
+
 func (r *usageLogRepository) queryUsageStatsFromWithConditions(ctx context.Context, fromClause, columnPrefix string, conditions []string, args []any, includeAccountCost bool) (*UsageStats, *float64, error) {
+	cacheCreationExpr := usageCacheCreationSQL(columnPrefix)
 	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*) as total_requests,
 			COALESCE(SUM(%[3]sinput_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(%[3]soutput_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(%[3]scache_creation_tokens), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(%[4]s), 0) as total_cache_creation_tokens,
 			COALESCE(SUM(%[3]scache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(%[3]stotal_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(%[3]sactual_cost_usd_equivalent), 0) as total_actual_cost,
@@ -112,7 +129,7 @@ func (r *usageLogRepository) queryUsageStatsFromWithConditions(ctx context.Conte
 			COALESCE(AVG(%[3]sduration_ms) FILTER (WHERE %[3]sstatus = 'succeeded'), 0) as avg_duration_ms
 		FROM %[1]s
 		%[2]s
-	`, fromClause, buildWhere(conditions), columnPrefix)
+	`, fromClause, buildWhere(conditions), columnPrefix, cacheCreationExpr)
 
 	stats := &UsageStats{}
 	var totalAccountCost float64

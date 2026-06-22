@@ -128,6 +128,18 @@ func (s *AccountDaily5HTriggerService) runOnce(ctx context.Context) {
 		return
 	}
 	localDate := now.Format("2006-01-02")
+	if settings.SkipCNHolidaysAndWeekends && accountDaily5HShouldSkipCNNonWorkday(now) {
+		requestID := firstNonEmptyString(requestIDFromContext(ctx), "generated:"+generateRequestID())
+		slog.Info(
+			"account_daily_5h_trigger_non_workday_skipped",
+			"request_id", requestID,
+			"local_date", localDate,
+			"holiday_region", "CN",
+			"skip_reason", "cn_holiday_or_weekend",
+		)
+		protocolruntime.RecordRecoveryProbeResult("daily_5h_trigger", AccountDaily5HTriggerStatusSkipped, 0)
+		return
+	}
 	accounts, err := s.listManagedAccounts(ctx)
 	if err != nil {
 		slog.Warn("account_daily_5h_trigger_list_failed", "error", err)

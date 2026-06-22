@@ -123,6 +123,8 @@ export default {
             mode: "模式：{value}",
             account: "后台账号：{value}",
             missing: "当前条目已不在最新账号支持模型库中，发布时后端会阻止发布。",
+            routeUnconfirmed: "账号路由暂未确认，当前不可发布。",
+            notPublishable: "模型尚未通过发布校验，当前不可发布。",
             defaultSource: "默认来源",
             demo: "演示数据",
             contextSource: "上下文窗口来源",

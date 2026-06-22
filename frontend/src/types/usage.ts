@@ -209,7 +209,9 @@ export interface DashboardStats {
   total_output_tokens: number;
   total_cache_creation_tokens: number;
   total_cache_read_tokens: number;
+  total_cache_tokens: number;
   total_tokens: number;
+  cache_hit_rate: number;
   total_cost: number; // Standard cost before final billing adjustments.
   total_actual_cost: number; // Actual billed cost.
   cost_by_currency?: Record<string, number>;
@@ -220,7 +222,9 @@ export interface DashboardStats {
   today_output_tokens: number;
   today_cache_creation_tokens: number;
   today_cache_read_tokens: number;
+  today_cache_tokens: number;
   today_tokens: number;
+  today_cache_hit_rate: number;
   today_cost: number; // Standard cost before final billing adjustments.
   today_actual_cost: number; // Actual billed cost.
   today_cost_by_currency?: Record<string, number>;

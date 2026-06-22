@@ -188,6 +188,7 @@ const (
 	SettingKeyDefaultConcurrency                   = "default_concurrency"
 	SettingKeyDefaultBalance                       = "default_balance"
 	SettingKeyDefaultSubscriptions                 = "default_subscriptions"
+	SettingKeyDefaultAPIKeyModelBindingMode        = "default_api_key_model_binding_mode"
 	SettingKeyAdminAPIKey                          = "admin_api_key"
 	SettingKeyGeminiQuotaPolicy                    = "gemini_quota_policy"
 

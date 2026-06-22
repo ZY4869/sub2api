@@ -520,19 +520,21 @@ func (s *UsageLogRepoSuite) TestDashboardStats_TodayTotalsAndPerformance() {
 
 	d1, d2, d3 := 100, 200, 300
 	logToday := &service.UsageLog{
-		UserID:              userToday.ID,
-		APIKeyID:            apiKey1.ID,
-		AccountID:           accNormal.ID,
-		Model:               "claude-3",
-		GroupID:             &group.ID,
-		InputTokens:         10,
-		OutputTokens:        20,
-		CacheCreationTokens: 3,
-		CacheReadTokens:     4,
-		TotalCost:           1.5,
-		ActualCost:          1.2,
-		DurationMs:          &d1,
-		CreatedAt:           testMaxTime(todayStart.Add(2*time.Minute), now.Add(-2*time.Minute)),
+		UserID:                userToday.ID,
+		APIKeyID:              apiKey1.ID,
+		AccountID:             accNormal.ID,
+		Model:                 "claude-3",
+		GroupID:               &group.ID,
+		InputTokens:           10,
+		OutputTokens:          20,
+		CacheCreationTokens:   3,
+		CacheCreation5mTokens: 5,
+		CacheCreation1hTokens: 6,
+		CacheReadTokens:       4,
+		TotalCost:             1.5,
+		ActualCost:            1.2,
+		DurationMs:            &d1,
+		CreatedAt:             testMaxTime(todayStart.Add(2*time.Minute), now.Add(-2*time.Minute)),
 	}
 	_, err = s.repo.Create(s.ctx, logToday)
 	s.Require().NoError(err, "Create logToday")
@@ -588,9 +590,10 @@ func (s *UsageLogRepoSuite) TestDashboardStats_TodayTotalsAndPerformance() {
 	s.Require().Equal(baseStats.TotalRequests+3, stats.TotalRequests, "TotalRequests mismatch")
 	s.Require().Equal(baseStats.TotalInputTokens+int64(16), stats.TotalInputTokens, "TotalInputTokens mismatch")
 	s.Require().Equal(baseStats.TotalOutputTokens+int64(28), stats.TotalOutputTokens, "TotalOutputTokens mismatch")
-	s.Require().Equal(baseStats.TotalCacheCreationTokens+int64(3), stats.TotalCacheCreationTokens, "TotalCacheCreationTokens mismatch")
+	s.Require().Equal(baseStats.TotalCacheCreationTokens+int64(14), stats.TotalCacheCreationTokens, "TotalCacheCreationTokens mismatch")
 	s.Require().Equal(baseStats.TotalCacheReadTokens+int64(4), stats.TotalCacheReadTokens, "TotalCacheReadTokens mismatch")
-	s.Require().Equal(baseStats.TotalTokens+int64(51), stats.TotalTokens, "TotalTokens mismatch")
+	s.Require().Equal(baseStats.TotalCacheTokens+int64(18), stats.TotalCacheTokens, "TotalCacheTokens mismatch")
+	s.Require().Equal(baseStats.TotalTokens+int64(62), stats.TotalTokens, "TotalTokens mismatch")
 	s.Require().Equal(baseStats.TotalCost+2.3, stats.TotalCost, "TotalCost mismatch")
 	s.Require().Equal(baseStats.TotalActualCost+2.0, stats.TotalActualCost, "TotalActualCost mismatch")
 	s.Require().GreaterOrEqual(stats.TodayRequests, int64(1), "expected TodayRequests >= 1")
@@ -631,18 +634,20 @@ func (s *UsageLogRepoSuite) TestDashboardStatsWithRange_Fallback() {
 	s.Require().NoError(err)
 
 	logRange := &service.UsageLog{
-		UserID:              user1.ID,
-		APIKeyID:            apiKey1.ID,
-		AccountID:           account.ID,
-		Model:               "claude-3",
-		InputTokens:         10,
-		OutputTokens:        20,
-		CacheCreationTokens: 1,
-		CacheReadTokens:     2,
-		TotalCost:           1.0,
-		ActualCost:          0.9,
-		DurationMs:          &d1,
-		CreatedAt:           rangeStart.Add(2 * time.Hour),
+		UserID:                user1.ID,
+		APIKeyID:              apiKey1.ID,
+		AccountID:             account.ID,
+		Model:                 "claude-3",
+		InputTokens:           10,
+		OutputTokens:          20,
+		CacheCreationTokens:   1,
+		CacheCreation5mTokens: 5,
+		CacheCreation1hTokens: 6,
+		CacheReadTokens:       2,
+		TotalCost:             1.0,
+		ActualCost:            0.9,
+		DurationMs:            &d1,
+		CreatedAt:             rangeStart.Add(2 * time.Hour),
 	}
 	_, err = s.repo.Create(s.ctx, logRange)
 	s.Require().NoError(err)
@@ -668,9 +673,10 @@ func (s *UsageLogRepoSuite) TestDashboardStatsWithRange_Fallback() {
 	s.Require().Equal(int64(2), stats.TotalRequests)
 	s.Require().Equal(int64(15), stats.TotalInputTokens)
 	s.Require().Equal(int64(26), stats.TotalOutputTokens)
-	s.Require().Equal(int64(1), stats.TotalCacheCreationTokens)
+	s.Require().Equal(int64(12), stats.TotalCacheCreationTokens)
 	s.Require().Equal(int64(3), stats.TotalCacheReadTokens)
-	s.Require().Equal(int64(45), stats.TotalTokens)
+	s.Require().Equal(int64(15), stats.TotalCacheTokens)
+	s.Require().Equal(int64(56), stats.TotalTokens)
 	s.Require().Equal(1.5, stats.TotalCost)
 	s.Require().Equal(1.4, stats.TotalActualCost)
 	s.Require().InEpsilon(150.0, stats.AverageDurationMs, 0.0001)
@@ -683,12 +689,34 @@ func (s *UsageLogRepoSuite) TestGetUserDashboardStats() {
 	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-userdash", Name: "k"})
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-userdash"})
 
-	s.createUsageLog(user, apiKey, account, 10, 20, 0.5, time.Now())
+	now := time.Now()
+	_, err := s.repo.Create(s.ctx, &service.UsageLog{
+		UserID:                user.ID,
+		APIKeyID:              apiKey.ID,
+		AccountID:             account.ID,
+		RequestID:             uuid.New().String(),
+		Model:                 "claude-3",
+		InputTokens:           10,
+		OutputTokens:          20,
+		CacheCreationTokens:   3,
+		CacheCreation5mTokens: 5,
+		CacheCreation1hTokens: 6,
+		CacheReadTokens:       4,
+		TotalCost:             0.5,
+		ActualCost:            0.5,
+		CreatedAt:             now,
+	})
+	s.Require().NoError(err)
 
 	stats, err := s.repo.GetUserDashboardStats(s.ctx, user.ID)
 	s.Require().NoError(err, "GetUserDashboardStats")
 	s.Require().Equal(int64(1), stats.TotalAPIKeys)
 	s.Require().Equal(int64(1), stats.TotalRequests)
+	s.Require().Equal(int64(14), stats.TotalCacheCreationTokens)
+	s.Require().Equal(int64(4), stats.TotalCacheReadTokens)
+	s.Require().Equal(int64(18), stats.TotalCacheTokens)
+	s.Require().Equal(int64(48), stats.TotalTokens)
+	s.Require().InDelta(4.0/28.0, stats.CacheHitRate, 0.000001)
 }
 
 // --- GetAccountTodayStats ---
@@ -869,18 +897,20 @@ func (s *UsageLogRepoSuite) TestDashboardAggregationConsistency() {
 
 	d1, d2, d3 := 100, 200, 150
 	log1 := &service.UsageLog{
-		UserID:              user1.ID,
-		APIKeyID:            apiKey1.ID,
-		AccountID:           account.ID,
-		Model:               "claude-3",
-		InputTokens:         10,
-		OutputTokens:        20,
-		CacheCreationTokens: 2,
-		CacheReadTokens:     1,
-		TotalCost:           1.0,
-		ActualCost:          0.9,
-		DurationMs:          &d1,
-		CreatedAt:           hour1.Add(5 * time.Minute),
+		UserID:                user1.ID,
+		APIKeyID:              apiKey1.ID,
+		AccountID:             account.ID,
+		Model:                 "claude-3",
+		InputTokens:           10,
+		OutputTokens:          20,
+		CacheCreationTokens:   2,
+		CacheCreation5mTokens: 5,
+		CacheCreation1hTokens: 6,
+		CacheReadTokens:       1,
+		TotalCost:             1.0,
+		ActualCost:            0.9,
+		DurationMs:            &d1,
+		CreatedAt:             hour1.Add(5 * time.Minute),
 	}
 	_, err := s.repo.Create(s.ctx, log1)
 	s.Require().NoError(err)
@@ -950,7 +980,7 @@ func (s *UsageLogRepoSuite) TestDashboardAggregationConsistency() {
 	s.Require().Equal(int64(2), hour1Row.totalRequests)
 	s.Require().Equal(int64(15), hour1Row.inputTokens)
 	s.Require().Equal(int64(25), hour1Row.outputTokens)
-	s.Require().Equal(int64(2), hour1Row.cacheCreationTokens)
+	s.Require().Equal(int64(13), hour1Row.cacheCreationTokens)
 	s.Require().Equal(int64(1), hour1Row.cacheReadTokens)
 	s.Require().Equal(1.5, hour1Row.totalCost)
 	s.Require().Equal(1.4, hour1Row.actualCost)
@@ -992,7 +1022,7 @@ func (s *UsageLogRepoSuite) TestDashboardAggregationConsistency() {
 	s.Require().Equal(int64(3), daily.totalRequests)
 	s.Require().Equal(int64(22), daily.inputTokens)
 	s.Require().Equal(int64(33), daily.outputTokens)
-	s.Require().Equal(int64(2), daily.cacheCreationTokens)
+	s.Require().Equal(int64(13), daily.cacheCreationTokens)
 	s.Require().Equal(int64(1), daily.cacheReadTokens)
 	s.Require().Equal(2.2, daily.totalCost)
 	s.Require().Equal(2.1, daily.actualCost)
@@ -1216,7 +1246,23 @@ func (s *UsageLogRepoSuite) TestGetUserUsageTrendByUserID() {
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-usertrend"})
 
 	base := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
-	s.createUsageLog(user, apiKey, account, 10, 20, 0.5, base)
+	_, err := s.repo.Create(s.ctx, &service.UsageLog{
+		UserID:                user.ID,
+		APIKeyID:              apiKey.ID,
+		AccountID:             account.ID,
+		RequestID:             uuid.New().String(),
+		Model:                 "claude-3",
+		InputTokens:           5,
+		OutputTokens:          5,
+		CacheCreationTokens:   3,
+		CacheCreation5mTokens: 5,
+		CacheCreation1hTokens: 6,
+		CacheReadTokens:       4,
+		TotalCost:             0.5,
+		ActualCost:            0.5,
+		CreatedAt:             base,
+	})
+	s.Require().NoError(err)
 	s.createUsageLog(user, apiKey, account, 15, 25, 0.6, base.Add(1*time.Hour))
 	s.createUsageLog(user, apiKey, account, 20, 30, 0.7, base.Add(24*time.Hour)) // next day
 
@@ -1225,6 +1271,9 @@ func (s *UsageLogRepoSuite) TestGetUserUsageTrendByUserID() {
 	trend, err := s.repo.GetUserUsageTrendByUserID(s.ctx, user.ID, startTime, endTime, "day")
 	s.Require().NoError(err, "GetUserUsageTrendByUserID")
 	s.Require().Len(trend, 2) // 2 different days
+	s.Require().Equal(int64(14), trend[0].CacheCreationTokens)
+	s.Require().Equal(int64(4), trend[0].CacheReadTokens)
+	s.Require().Equal(int64(68), trend[0].TotalTokens)
 }
 
 func (s *UsageLogRepoSuite) TestGetUserUsageTrendByUserID_HourlyGranularity() {

@@ -10,11 +10,12 @@ import (
 
 func (r *opsRepository) queryUsageCounts(ctx context.Context, filter *service.OpsDashboardFilter, start, end time.Time) (successCount int64, tokenConsumed int64, err error) {
 	join, where, args, _ := buildUsageWhere(filter, start, end, 1)
+	totalTokensExpr := usageTotalTokensSQL("ul.")
 
 	q := `
 SELECT
   COALESCE(COUNT(*), 0) AS success_count,
-  COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) AS token_consumed
+  COALESCE(SUM(` + totalTokensExpr + `), 0) AS token_consumed
 FROM usage_logs ul
 ` + join + `
 ` + where
@@ -142,13 +143,14 @@ func (r *opsRepository) queryCurrentRates(ctx context.Context, filter *service.O
 func (r *opsRepository) queryPeakRates(ctx context.Context, filter *service.OpsDashboardFilter, start, end time.Time) (qpsPeak float64, tpsPeak float64, err error) {
 	usageJoin, usageWhere, usageArgs, next := buildUsageWhere(filter, start, end, 1)
 	errorWhere, errorArgs, _ := buildErrorWhere(filter, start, end, next)
+	totalTokensExpr := usageTotalTokensSQL("ul.")
 
 	q := `
 WITH usage_buckets AS (
   SELECT
     date_trunc('minute', ul.created_at) AS bucket,
     COUNT(*) AS req_cnt,
-    COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) AS token_cnt
+    COALESCE(SUM(` + totalTokensExpr + `), 0) AS token_cnt
   FROM usage_logs ul
   ` + usageJoin + `
   ` + usageWhere + `

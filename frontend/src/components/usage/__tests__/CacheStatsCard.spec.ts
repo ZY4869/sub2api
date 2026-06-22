@@ -5,7 +5,9 @@ import CacheStatsCard from "../CacheStatsCard.vue";
 
 const messages: Record<string, string> = {
   "usage.cacheHitRate": "命中率",
-  "usage.cacheSplit": "写入 {write} / 读取 {read}",
+  "usage.cacheWrite": "写入",
+  "usage.cacheRead": "读取",
+  "common.total": "总计",
 };
 
 vi.mock("vue-i18n", async () => {
@@ -44,7 +46,11 @@ describe("CacheStatsCard", () => {
 
     expect(wrapper.text()).toContain("命中率");
     expect(wrapper.text()).toContain("89.6%");
-    expect(wrapper.text()).toContain("写入 12,500 / 读取 34,000");
+    expect(wrapper.text()).toContain("写入");
+    expect(wrapper.text()).toContain("12,500");
+    expect(wrapper.text()).toContain("读取");
+    expect(wrapper.text()).toContain("34,000");
+    expect(wrapper.text()).toContain("46,500");
   });
 
   it("keeps whole-number cache hit rates as percentages", () => {
@@ -55,7 +61,9 @@ describe("CacheStatsCard", () => {
     });
 
     expect(wrapper.text()).toContain("75.0%");
-    expect(wrapper.text()).toContain("写入 200 / 读取 700");
+    expect(wrapper.text()).toContain("200");
+    expect(wrapper.text()).toContain("700");
+    expect(wrapper.text()).toContain("900");
   });
 
   it("falls back to zero when cache fields are missing", () => {
@@ -66,6 +74,7 @@ describe("CacheStatsCard", () => {
     });
 
     expect(wrapper.text()).toContain("0.0%");
-    expect(wrapper.text()).toContain("写入 0 / 读取 0");
+    expect(wrapper.text()).toContain("写入");
+    expect(wrapper.text()).toContain("读取");
   });
 });

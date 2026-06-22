@@ -11,6 +11,7 @@ export function addCatalogEntry(
   selected: BillingPublicCatalogEntryDraft[],
   item: BillingPublicCatalogAdminEntry,
 ): BillingPublicCatalogEntryDraft[] {
+  if (!isPublicCatalogEntryPublishable(item)) return selected
   const key = entryKey(item)
   return selected.some((entry) => entry.entry_id === key)
     ? selected
@@ -24,8 +25,16 @@ export function addFilteredCatalogEntries(
   const existing = new Set(selected.map((entry) => entry.entry_id))
   return [
     ...selected,
-    ...filtered.filter((item) => !existing.has(entryKey(item))).map(createDraftEntry),
+    ...filtered.filter((item) => isPublicCatalogEntryPublishable(item) && !existing.has(entryKey(item))).map(createDraftEntry),
   ]
+}
+
+export function isPublicCatalogEntryPublishable(item: BillingPublicCatalogAdminEntry): boolean {
+  if (item.unavailable_reason) return false
+  if (item.route_confirmed === false) return false
+  if (item.availability_state && item.availability_state !== 'verified') return false
+  if (item.stale_state && item.stale_state !== 'fresh') return false
+  return true
 }
 
 export function moveCatalogEntry(

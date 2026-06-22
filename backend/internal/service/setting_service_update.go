@@ -216,6 +216,10 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		return fmt.Errorf("marshal default subscriptions: %w", err)
 	}
 	updates[SettingKeyDefaultSubscriptions] = string(defaultSubsJSON)
+	updates[SettingKeyDefaultAPIKeyModelBindingMode] = NormalizeAPIKeyModelBindingMode(firstNonEmptyString(
+		settings.DefaultAPIKeyModelBindingMode,
+		APIKeyModelBindingModeGroupAllowed,
+	))
 	updates[SettingKeyEnableModelFallback] = strconv.FormatBool(settings.EnableModelFallback)
 	updates[SettingKeyFallbackModelAnthropic] = settings.FallbackModelAnthropic
 	updates[SettingKeyFallbackModelOpenAI] = settings.FallbackModelOpenAI

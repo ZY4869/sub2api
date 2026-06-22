@@ -19,6 +19,7 @@ const createDefaultDaily5HTriggerSettings =
     selected_account_types: ["chatgpt_oauth"],
     include_paused_accounts: false,
     ignore_free_accounts: false,
+    skip_cn_holidays_and_weekends: false,
     openai_model_mode: { mode: "auto", fixed_model_id: "" },
     anthropic_model_mode: { mode: "auto", fixed_model_id: "" },
     gemini_model_mode: { mode: "auto", fixed_model_id: "" },

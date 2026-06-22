@@ -251,6 +251,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if !equalDefaultSubscriptions(before.DefaultSubscriptions, after.DefaultSubscriptions) {
 		changed = append(changed, "default_subscriptions")
 	}
+	if before.DefaultAPIKeyModelBindingMode != after.DefaultAPIKeyModelBindingMode {
+		changed = append(changed, "default_api_key_model_binding_mode")
+	}
 	if before.EnableModelFallback != after.EnableModelFallback {
 		changed = append(changed, "enable_model_fallback")
 	}
@@ -544,6 +547,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		DefaultConcurrency:                   settings.DefaultConcurrency,
 		DefaultBalance:                       settings.DefaultBalance,
 		DefaultSubscriptions:                 defaultSubscriptions,
+		DefaultAPIKeyModelBindingMode:        settings.DefaultAPIKeyModelBindingMode,
 		EnableModelFallback:                  settings.EnableModelFallback,
 		FallbackModelAnthropic:               settings.FallbackModelAnthropic,
 		FallbackModelOpenAI:                  settings.FallbackModelOpenAI,

@@ -24,7 +24,9 @@ export interface UserDashboardStats {
   total_output_tokens: number;
   total_cache_creation_tokens: number;
   total_cache_read_tokens: number;
+  total_cache_tokens: number;
   total_tokens: number;
+  cache_hit_rate: number;
   total_cost: number; // Standard billed cost
   total_actual_cost: number; // Actual deducted cost
   cost_by_currency?: Record<string, number>;
@@ -36,7 +38,9 @@ export interface UserDashboardStats {
   today_output_tokens: number;
   today_cache_creation_tokens: number;
   today_cache_read_tokens: number;
+  today_cache_tokens: number;
   today_tokens: number;
+  today_cache_hit_rate: number;
   today_cost: number; // Today's standard billed cost
   today_actual_cost: number; // Today's actual deducted cost
   today_cost_by_currency?: Record<string, number>;

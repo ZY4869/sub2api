@@ -66,6 +66,48 @@ type defaultSubscriptionAssignerStub struct {
 	err   error
 }
 
+type authRefreshTokenCacheStub struct{}
+
+func (authRefreshTokenCacheStub) StoreRefreshToken(ctx context.Context, tokenHash string, data *RefreshTokenData, ttl time.Duration) error {
+	return nil
+}
+
+func (authRefreshTokenCacheStub) GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshTokenData, error) {
+	return nil, ErrRefreshTokenNotFound
+}
+
+func (authRefreshTokenCacheStub) DeleteRefreshToken(ctx context.Context, tokenHash string) error {
+	return nil
+}
+
+func (authRefreshTokenCacheStub) DeleteUserRefreshTokens(ctx context.Context, userID int64) error {
+	return nil
+}
+
+func (authRefreshTokenCacheStub) DeleteTokenFamily(ctx context.Context, familyID string) error {
+	return nil
+}
+
+func (authRefreshTokenCacheStub) AddToUserTokenSet(ctx context.Context, userID int64, tokenHash string, ttl time.Duration) error {
+	return nil
+}
+
+func (authRefreshTokenCacheStub) AddToFamilyTokenSet(ctx context.Context, familyID string, tokenHash string, ttl time.Duration) error {
+	return nil
+}
+
+func (authRefreshTokenCacheStub) GetUserTokenHashes(ctx context.Context, userID int64) ([]string, error) {
+	return nil, nil
+}
+
+func (authRefreshTokenCacheStub) GetFamilyTokenHashes(ctx context.Context, familyID string) ([]string, error) {
+	return nil, nil
+}
+
+func (authRefreshTokenCacheStub) IsTokenInFamily(ctx context.Context, familyID string, tokenHash string) (bool, error) {
+	return false, nil
+}
+
 func (s *defaultSubscriptionAssignerStub) AssignOrExtendSubscription(_ context.Context, input *AssignSubscriptionInput) (*UserSubscription, bool, error) {
 	if input != nil {
 		s.calls = append(s.calls, *input)
@@ -322,6 +364,75 @@ func TestAuthService_Register_Success(t *testing.T) {
 	require.Equal(t, 2, user.Concurrency)
 	require.Len(t, repo.created, 1)
 	require.True(t, user.CheckPassword("password"))
+}
+
+func TestAuthService_Register_UsesDefaultAPIKeyModelBindingMode(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		mode string
+	}{
+		{name: "group_allowed", mode: APIKeyModelBindingModeGroupAllowed},
+		{name: "model_required", mode: APIKeyModelBindingModeModelRequired},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &userRepoStub{nextID: 51}
+			service := newAuthService(repo, map[string]string{
+				SettingKeyRegistrationEnabled:           "true",
+				SettingKeyDefaultAPIKeyModelBindingMode: tc.mode,
+			}, nil)
+
+			_, user, err := service.Register(context.Background(), "default-mode-"+tc.name+"@test.com", "password")
+			require.NoError(t, err)
+			require.NotNil(t, user)
+			require.Equal(t, tc.mode, user.APIKeyModelBindingMode)
+			require.Len(t, repo.created, 1)
+			require.Equal(t, tc.mode, repo.created[0].APIKeyModelBindingMode)
+		})
+	}
+}
+
+func TestAuthService_LoginOrRegisterOAuth_UsesDefaultAPIKeyModelBindingMode(t *testing.T) {
+	repo := &userRepoStub{
+		nextID:          61,
+		allowGetByEmail: true,
+		getByEmailErr:   ErrUserNotFound,
+	}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled:           "true",
+		SettingKeyDefaultAPIKeyModelBindingMode: APIKeyModelBindingModeModelRequired,
+	}, nil)
+
+	token, user, err := service.LoginOrRegisterOAuth(context.Background(), "linuxdo-user@test.com", "LinuxDo User")
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+	require.NotNil(t, user)
+	require.Equal(t, APIKeyModelBindingModeModelRequired, user.APIKeyModelBindingMode)
+	require.Len(t, repo.created, 1)
+	require.Equal(t, APIKeyModelBindingModeModelRequired, repo.created[0].APIKeyModelBindingMode)
+}
+
+func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesDefaultAPIKeyModelBindingMode(t *testing.T) {
+	repo := &userRepoStub{
+		nextID:          71,
+		allowGetByEmail: true,
+		getByEmailErr:   ErrUserNotFound,
+	}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled:           "true",
+		SettingKeyDefaultAPIKeyModelBindingMode: APIKeyModelBindingModeModelRequired,
+	}, nil)
+	service.refreshTokenCache = authRefreshTokenCacheStub{}
+	service.cfg.JWT.RefreshTokenExpireDays = 7
+
+	tokenPair, user, err := service.LoginOrRegisterOAuthWithTokenPair(context.Background(), "oauth-user@test.com", "OAuth User", "", "")
+	require.NoError(t, err)
+	require.NotNil(t, tokenPair)
+	require.NotEmpty(t, tokenPair.AccessToken)
+	require.NotEmpty(t, tokenPair.RefreshToken)
+	require.NotNil(t, user)
+	require.Equal(t, APIKeyModelBindingModeModelRequired, user.APIKeyModelBindingMode)
+	require.Len(t, repo.created, 1)
+	require.Equal(t, APIKeyModelBindingModeModelRequired, repo.created[0].APIKeyModelBindingMode)
 }
 
 func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {

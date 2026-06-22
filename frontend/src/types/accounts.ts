@@ -368,6 +368,7 @@ export interface AccountDaily5HTriggerSettings {
   selected_account_types: AccountDaily5HTriggerAccountType[];
   include_paused_accounts: boolean;
   ignore_free_accounts: boolean;
+  skip_cn_holidays_and_weekends: boolean;
   openai_model_mode: AccountDaily5HTriggerModelSettings;
   anthropic_model_mode: AccountDaily5HTriggerModelSettings;
   gemini_model_mode: AccountDaily5HTriggerModelSettings;
@@ -410,6 +411,12 @@ export interface AccountRuntimeSummary {
 export interface WindowStats {
   requests: number;
   tokens: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_tokens?: number;
+  cache_read_tokens?: number;
+  cache_tokens?: number;
+  cache_hit_rate?: number;
   cost: number; // Standard cost before final billing adjustments.
   standard_cost?: number;
   user_cost?: number;

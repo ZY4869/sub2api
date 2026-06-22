@@ -62,6 +62,13 @@
       </span>
     </div>
 
+    <div
+      v-if="availabilityReason"
+      class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+    >
+      {{ availabilityReason }}
+    </div>
+
     <PublicCatalogCapabilityBadges :item="item" />
   </div>
 </template>
@@ -88,6 +95,10 @@ const publicModelLabel = computed(() => props.item.public_model_id || props.item
 const sourceAliasLabel = computed(() => props.item.source_alias || t('admin.billing.publicCatalog.card.defaultSource'))
 const protocolLabel = computed(() => props.item.source_protocol || props.item.request_protocols?.[0] || '-')
 const providerLabel = computed(() => formatProviderName(props.item.provider || protocolLabel.value))
+const availabilityReason = computed(() =>
+  props.item.unavailable_reason ||
+  (props.item.route_confirmed === false ? t('admin.billing.publicCatalog.card.routeUnconfirmed') : '')
+)
 
 const lifecycleLabel = computed(() => {
   if (props.item.lifecycle_status === 'deprecated') return t('admin.billing.publicCatalog.card.lifecycle.deprecated')
@@ -114,10 +125,16 @@ const lifecycleClass = computed(() => {
 
 const healthLabel = computed(() => {
   if (props.missing) return t('admin.billing.publicCatalog.card.statuses.expired')
+  if (props.item.route_confirmed === false) {
+    return t('admin.billing.publicCatalog.card.statuses.pending')
+  }
   if (props.item.availability_state === 'unavailable' || props.item.status === 'error') {
     return t('admin.billing.publicCatalog.card.statuses.unavailable')
   }
   if (props.item.status === 'warning' || props.item.stale_state === 'stale') {
+    return t('admin.billing.publicCatalog.card.statuses.pending')
+  }
+  if (props.item.stale_state === 'unverified' || props.item.availability_state === 'unknown') {
     return t('admin.billing.publicCatalog.card.statuses.pending')
   }
   return t('admin.billing.publicCatalog.card.statuses.available')
@@ -127,7 +144,13 @@ const healthClass = computed(() => {
   if (props.missing || props.item.availability_state === 'unavailable' || props.item.status === 'error') {
     return 'border-rose-100 bg-rose-50 text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200'
   }
+  if (props.item.route_confirmed === false) {
+    return 'border-amber-100 bg-amber-50 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200'
+  }
   if (props.item.status === 'warning' || props.item.stale_state === 'stale') {
+    return 'border-amber-100 bg-amber-50 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200'
+  }
+  if (props.item.stale_state === 'unverified' || props.item.availability_state === 'unknown') {
     return 'border-amber-100 bg-amber-50 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200'
   }
   return 'border-emerald-100 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200'
@@ -135,7 +158,9 @@ const healthClass = computed(() => {
 
 const healthDotClass = computed(() => {
   if (props.missing || props.item.availability_state === 'unavailable' || props.item.status === 'error') return 'bg-rose-500'
+  if (props.item.route_confirmed === false) return 'bg-amber-500'
   if (props.item.status === 'warning' || props.item.stale_state === 'stale') return 'bg-amber-500'
+  if (props.item.stale_state === 'unverified' || props.item.availability_state === 'unknown') return 'bg-amber-500'
   return 'bg-emerald-500'
 })
 

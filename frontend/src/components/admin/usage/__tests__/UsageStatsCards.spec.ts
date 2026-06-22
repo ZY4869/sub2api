@@ -16,8 +16,10 @@ const messages: Record<string, string> = {
   'usage.todaySoFar': '从今日 00:00 到当前',
   'usage.todayAvgDuration': '今日平均耗时',
   'usage.cacheTokens': '缓存',
-  'usage.cacheSplit': '写入 {write} / 读取 {read}',
+  'usage.cacheWrite': '写入',
+  'usage.cacheRead': '读取',
   'usage.cacheHitRate': '命中率',
+  'common.total': '总计',
   'admin.usage.todayStats': '今日统计',
   'admin.usage.todayRequests': '今日请求',
   'admin.usage.todayTokens': '今日 Token',
@@ -105,6 +107,10 @@ describe('admin UsageStatsCards', () => {
     const cacheCard = wrapper.get('[data-testid="usage-cache-stats-card"]')
     expect(cacheCard.text()).toContain('命中率')
     expect(cacheCard.text()).toContain('89.6%')
-    expect(cacheCard.text()).toContain('写入 12,500 / 读取 34,000')
+    expect(cacheCard.text()).toContain('写入')
+    expect(cacheCard.text()).toContain('12,500')
+    expect(cacheCard.text()).toContain('读取')
+    expect(cacheCard.text()).toContain('34,000')
+    expect(cacheCard.text()).toContain('46,500')
   })
 })

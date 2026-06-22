@@ -52,13 +52,14 @@ func accountDaily5HSettingsDTO(settings *service.AccountDaily5HTriggerSettings) 
 		settings = service.DefaultAccountDaily5HTriggerSettings()
 	}
 	return dto.AccountDaily5HTriggerSettings{
-		Enabled:               settings.Enabled,
-		SelectedAccountTypes:  append([]string(nil), settings.SelectedAccountTypes...),
-		IncludePausedAccounts: settings.IncludePausedAccounts,
-		IgnoreFreeAccounts:    settings.IgnoreFreeAccounts,
-		OpenAIModelMode:       accountDaily5HModelSettingsDTO(settings.OpenAIModel),
-		AnthropicModelMode:    accountDaily5HModelSettingsDTO(settings.AnthropicModel),
-		GeminiModelMode:       accountDaily5HModelSettingsDTO(settings.GeminiModel),
+		Enabled:                   settings.Enabled,
+		SelectedAccountTypes:      append([]string(nil), settings.SelectedAccountTypes...),
+		IncludePausedAccounts:     settings.IncludePausedAccounts,
+		IgnoreFreeAccounts:        settings.IgnoreFreeAccounts,
+		SkipCNHolidaysAndWeekends: settings.SkipCNHolidaysAndWeekends,
+		OpenAIModelMode:           accountDaily5HModelSettingsDTO(settings.OpenAIModel),
+		AnthropicModelMode:        accountDaily5HModelSettingsDTO(settings.AnthropicModel),
+		GeminiModelMode:           accountDaily5HModelSettingsDTO(settings.GeminiModel),
 	}
 }
 
@@ -71,10 +72,11 @@ func accountDaily5HModelSettingsDTO(settings service.AccountDaily5HTriggerModelS
 
 func accountDaily5HSettingsFromDTO(req dto.AccountDaily5HTriggerSettings) *service.AccountDaily5HTriggerSettings {
 	return &service.AccountDaily5HTriggerSettings{
-		Enabled:               req.Enabled,
-		SelectedAccountTypes:  append([]string(nil), req.SelectedAccountTypes...),
-		IncludePausedAccounts: req.IncludePausedAccounts,
-		IgnoreFreeAccounts:    req.IgnoreFreeAccounts,
+		Enabled:                   req.Enabled,
+		SelectedAccountTypes:      append([]string(nil), req.SelectedAccountTypes...),
+		IncludePausedAccounts:     req.IncludePausedAccounts,
+		IgnoreFreeAccounts:        req.IgnoreFreeAccounts,
+		SkipCNHolidaysAndWeekends: req.SkipCNHolidaysAndWeekends,
 		OpenAIModel: service.AccountDaily5HTriggerModelSettings{
 			Mode:         req.OpenAIModelMode.Mode,
 			FixedModelID: req.OpenAIModelMode.FixedModelID,

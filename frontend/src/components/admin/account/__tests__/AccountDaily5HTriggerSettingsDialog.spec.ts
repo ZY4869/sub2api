@@ -36,6 +36,7 @@ function mountDialog() {
         selected_account_types: ["chatgpt_oauth"],
         include_paused_accounts: false,
         ignore_free_accounts: false,
+        skip_cn_holidays_and_weekends: false,
         openai_model_mode: { mode: "auto", fixed_model_id: "" },
         anthropic_model_mode: { mode: "auto", fixed_model_id: "" },
         gemini_model_mode: { mode: "auto", fixed_model_id: "" },
@@ -157,6 +158,7 @@ describe("AccountDaily5HTriggerSettingsDialog", () => {
           ],
           include_paused_accounts: false,
           ignore_free_accounts: true,
+          skip_cn_holidays_and_weekends: false,
           openai_model_mode: {
             mode: "fixed",
             fixed_model_id: "gpt-5.4-mini",
@@ -166,5 +168,30 @@ describe("AccountDaily5HTriggerSettingsDialog", () => {
         },
       ],
     ]);
+  });
+
+  it("emits the non-workday skip flag when enabled", async () => {
+    const wrapper = mountDialog();
+
+    expect(wrapper.text()).toContain("admin.accounts.daily5h.skipNonWorkdaysLabel");
+
+    const skipNonWorkdayButton = wrapper
+      .findAll("button")
+      .filter((button) => button.classes().includes("relative"))[3];
+    expect(skipNonWorkdayButton).toBeTruthy();
+    await skipNonWorkdayButton!.trigger("click");
+
+    const saveButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().includes("save"));
+    expect(saveButton).toBeTruthy();
+    await saveButton!.trigger("click");
+
+    expect(wrapper.emitted("save")?.[0]?.[0]).toMatchObject({
+      enabled: true,
+      selected_account_types: ["chatgpt_oauth"],
+      ignore_free_accounts: false,
+      skip_cn_holidays_and_weekends: true,
+    });
   });
 });

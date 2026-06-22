@@ -46,6 +46,47 @@
             </div>
 
             <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+              <label class="font-medium text-gray-900 dark:text-white">
+                {{ t('admin.settings.defaults.defaultApiKeyModelBindingMode') }}
+              </label>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t('admin.settings.defaults.defaultApiKeyModelBindingModeHint') }}
+              </p>
+              <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <button
+                  type="button"
+                  class="rounded-lg border px-4 py-3 text-left transition"
+                  :class="form.default_api_key_model_binding_mode === 'group_allowed'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/20 dark:text-primary-200'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200'"
+                  @click="form.default_api_key_model_binding_mode = 'group_allowed'"
+                >
+                  <div class="text-sm font-semibold">
+                    {{ t('admin.settings.defaults.defaultApiKeyModeGroup') }}
+                  </div>
+                  <p class="mt-1 text-xs opacity-80">
+                    {{ t('admin.settings.defaults.defaultApiKeyModeGroupHint') }}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg border px-4 py-3 text-left transition"
+                  :class="form.default_api_key_model_binding_mode === 'model_required'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/20 dark:text-primary-200'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200'"
+                  @click="form.default_api_key_model_binding_mode = 'model_required'"
+                >
+                  <div class="text-sm font-semibold">
+                    {{ t('admin.settings.defaults.defaultApiKeyModePublicModel') }}
+                  </div>
+                  <p class="mt-1 text-xs opacity-80">
+                    {{ t('admin.settings.defaults.defaultApiKeyModePublicModelHint') }}
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
               <div class="mb-3 flex items-center justify-between">
                 <div>
                   <label class="font-medium text-gray-900 dark:text-white">

@@ -9,22 +9,24 @@ import (
 )
 
 func (r *usageLogRepository) GetUserModelStats(ctx context.Context, userID int64, startTime, endTime time.Time) (results []ModelStat, err error) {
-	query := `
+	cacheCreationExpr := usageCacheCreationSQL("")
+	totalTokensExpr := usageTotalTokensSQL("")
+	query := fmt.Sprintf(`
 		SELECT
 			model,
 			COUNT(*) as requests,
 			COALESCE(SUM(input_tokens), 0) as input_tokens,
 			COALESCE(SUM(output_tokens), 0) as output_tokens,
-			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens,
+			COALESCE(SUM(%[1]s), 0) as cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
-			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as total_tokens,
+			COALESCE(SUM(%[2]s), 0) as total_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as actual_cost
 		FROM usage_logs
 		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
 		GROUP BY model
 		ORDER BY total_tokens DESC
-	`
+	`, cacheCreationExpr, totalTokensExpr)
 	rows, err := r.sql.QueryContext(ctx, query, userID, startTime, endTime)
 	if err != nil {
 		return nil, err
@@ -56,20 +58,22 @@ func (r *usageLogRepository) getModelStatsWithFiltersBySource(ctx context.Contex
 		actualCostExpr = "COALESCE(SUM(total_cost_usd_equivalent * COALESCE(account_rate_multiplier, 1)), 0) as actual_cost"
 	}
 	modelExpr := resolveModelDimensionExpression(source)
+	cacheCreationExpr := usageCacheCreationSQL("")
+	totalTokensExpr := usageTotalTokensSQL("")
 	query := fmt.Sprintf(`
 		SELECT
 			%s as model,
 			COUNT(*) as requests,
 			COALESCE(SUM(input_tokens), 0) as input_tokens,
 			COALESCE(SUM(output_tokens), 0) as output_tokens,
-			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens,
+			COALESCE(SUM(%s), 0) as cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
-			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as total_tokens,
+			COALESCE(SUM(%s), 0) as total_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as cost,
 			%s
 		FROM usage_logs
 		WHERE created_at >= $1 AND created_at < $2
-	`, modelExpr, actualCostExpr)
+	`, modelExpr, cacheCreationExpr, totalTokensExpr, actualCostExpr)
 	args := []any{startTime, endTime}
 	if userID > 0 {
 		query += fmt.Sprintf(" AND user_id = $%d", len(args)+1)
@@ -126,18 +130,19 @@ func resolveModelDimensionExpression(modelType string) string {
 	}
 }
 func (r *usageLogRepository) GetGroupStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID, channelID int64, requestType *int16, stream *bool, billingType *int8) (results []usagestats.GroupStat, err error) {
-	query := `
+	totalTokensExpr := usageTotalTokensSQL("ul.")
+	query := fmt.Sprintf(`
 		SELECT
 			COALESCE(ul.group_id, 0) as group_id,
 			COALESCE(g.name, '') as group_name,
 			COUNT(*) as requests,
-			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) as total_tokens,
+			COALESCE(SUM(%s), 0) as total_tokens,
 			COALESCE(SUM(ul.total_cost_usd_equivalent), 0) as cost,
 			COALESCE(SUM(ul.actual_cost_usd_equivalent), 0) as actual_cost
 		FROM usage_logs ul
 		LEFT JOIN groups g ON g.id = ul.group_id
 		WHERE ul.created_at >= $1 AND ul.created_at < $2
-	`
+	`, totalTokensExpr)
 	args := []any{startTime, endTime}
 	if userID > 0 {
 		query += fmt.Sprintf(" AND ul.user_id = $%d", len(args)+1)

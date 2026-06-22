@@ -84,6 +84,7 @@ type PublicModelCatalogItem struct {
 	Status                   string                              `json:"status,omitempty"`
 	AvailabilityState        string                              `json:"availability_state,omitempty"`
 	StaleState               string                              `json:"stale_state,omitempty"`
+	RouteConfirmed           *bool                               `json:"route_confirmed,omitempty"`
 	PublicationStatus        string                              `json:"publication_status,omitempty"`
 	HealthStatus             string                              `json:"health_status,omitempty"`
 	VerificationSource       string                              `json:"verification_source,omitempty"`

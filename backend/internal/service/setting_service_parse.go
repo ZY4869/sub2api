@@ -66,6 +66,10 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.DefaultBalance = s.cfg.Default.UserBalance
 	}
 	result.DefaultSubscriptions = parseDefaultSubscriptions(settings[SettingKeyDefaultSubscriptions])
+	result.DefaultAPIKeyModelBindingMode = NormalizeAPIKeyModelBindingMode(firstNonEmptyString(
+		settings[SettingKeyDefaultAPIKeyModelBindingMode],
+		APIKeyModelBindingModeGroupAllowed,
+	))
 	s.applyParsedPaymentSettings(result, settings)
 	s.applyParsedOAuthSettings(result, settings)
 	s.applyParsedContentModerationSettings(result, settings)

@@ -114,10 +114,10 @@ export function useAccountTodayStatsDisplay(options: {
     return `${Math.round(value)}ms`
   })
   const footerStatsTitle = computed(() =>
-    `${String(options.dayStats.value.tokens || 0)} tokens · ${latencyLabel.value}`
+    `${buildTokenBreakdownTitle(options.dayStats.value, options.formatTokenDisplay)} · ${latencyLabel.value}`
   )
   const tokenLabel = computed(() =>
-    options.formatTokenDisplay(options.dayStats.value.tokens || 0)
+    buildTokenBreakdownLabel(options.dayStats.value, options.formatTokenDisplay)
   )
 
   return {
@@ -128,4 +128,39 @@ export function useAccountTodayStatsDisplay(options: {
     footerStatsTitle,
     tokenLabel,
   }
+}
+
+function buildTokenBreakdownLabel(stats: WindowStats, formatTokenDisplay: FormatTokenDisplay): string {
+  const cacheTokens = stats.cache_tokens ?? ((stats.cache_creation_tokens || 0) + (stats.cache_read_tokens || 0))
+  if (!stats.input_tokens && !stats.output_tokens && !cacheTokens) {
+    return formatTokenDisplay(stats.tokens || 0)
+  }
+  return [
+    `I ${formatTokenDisplay(stats.input_tokens || 0)}`,
+    `O ${formatTokenDisplay(stats.output_tokens || 0)}`,
+    `C ${formatTokenDisplay(cacheTokens || 0)}`,
+  ].join(' ')
+}
+
+function buildTokenBreakdownTitle(stats: WindowStats, formatTokenDisplay: FormatTokenDisplay): string {
+  const cacheWrite = stats.cache_creation_tokens || 0
+  const cacheRead = stats.cache_read_tokens || 0
+  const cacheTokens = stats.cache_tokens ?? (cacheWrite + cacheRead)
+  if (!stats.input_tokens && !stats.output_tokens && !cacheTokens) {
+    return `${String(stats.tokens || 0)} tokens`
+  }
+  const hitRate = typeof stats.cache_hit_rate === 'number'
+    ? ` · hit ${formatCacheHitRate(stats.cache_hit_rate)}`
+    : ''
+  return [
+    `input ${formatTokenDisplay(stats.input_tokens || 0)}`,
+    `output ${formatTokenDisplay(stats.output_tokens || 0)}`,
+    `cache write ${formatTokenDisplay(cacheWrite)}`,
+    `cache read ${formatTokenDisplay(cacheRead)}`,
+  ].join(' · ') + hitRate
+}
+
+function formatCacheHitRate(value: number): string {
+  const normalized = value <= 1 ? value * 100 : value
+  return `${normalized.toFixed(1)}%`
 }

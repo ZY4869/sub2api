@@ -5,6 +5,7 @@
 
 import { apiClient } from '../client'
 import type {
+  APIKeyModelBindingMode,
   CustomMenuItem,
   LoginAgreementDocument,
   PaymentSubscriptionPlan,
@@ -85,6 +86,7 @@ export interface SystemSettings {
   default_balance: number
   default_concurrency: number
   default_subscriptions: DefaultSubscriptionSetting[]
+  default_api_key_model_binding_mode: APIKeyModelBindingMode
   // OEM settings
   site_name: string
   site_logo: string
@@ -232,6 +234,7 @@ export interface UpdateSettingsRequest {
   default_balance?: number
   default_concurrency?: number
   default_subscriptions?: DefaultSubscriptionSetting[]
+  default_api_key_model_binding_mode?: APIKeyModelBindingMode
   site_name?: string
   site_logo?: string
   site_subtitle?: string

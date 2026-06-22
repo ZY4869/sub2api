@@ -76,9 +76,10 @@
       <button
         type="button"
         class="rounded-full p-2.5 shadow-sm transition"
-        :class="alreadySelected ? 'cursor-default bg-slate-100 text-slate-400 dark:bg-dark-700' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white'"
-        :disabled="alreadySelected"
-        :aria-label="alreadySelected ? t('admin.billing.publicCatalog.card.added') : t('admin.billing.publicCatalog.card.add')"
+        :class="addButtonClass"
+        :disabled="addDisabled"
+        :aria-label="addButtonLabel"
+        :title="addButtonTitle"
         :data-testid="`add-entry-${entryId}`"
         @click="emit('add')"
       >
@@ -139,6 +140,30 @@ const sourceAliasLabel = computed(() => props.item.source_alias || t('admin.bill
 const officialPrice = computed(() => props.item.official_price_display || props.item.price_display)
 const salePrice = computed(() => props.item.sale_price_display || props.item.price_display)
 const sourceContextLabel = computed(() => props.item.source_account_name || props.item.source_alias || '')
+const addBlockedReason = computed(() => {
+  if (props.alreadySelected) return ''
+  if (props.item.unavailable_reason) return props.item.unavailable_reason
+  if (props.item.route_confirmed === false) {
+    return t('admin.billing.publicCatalog.card.routeUnconfirmed')
+  }
+  if (props.item.availability_state && props.item.availability_state !== 'verified') {
+    return t('admin.billing.publicCatalog.card.notPublishable')
+  }
+  if (props.item.stale_state && props.item.stale_state !== 'fresh') {
+    return t('admin.billing.publicCatalog.card.notPublishable')
+  }
+  return ''
+})
+const addDisabled = computed(() => props.alreadySelected || addBlockedReason.value !== '')
+const addButtonLabel = computed(() =>
+  props.alreadySelected ? t('admin.billing.publicCatalog.card.added') : t('admin.billing.publicCatalog.card.add')
+)
+const addButtonTitle = computed(() => addBlockedReason.value || addButtonLabel.value)
+const addButtonClass = computed(() => {
+  if (props.alreadySelected) return 'cursor-default bg-slate-100 text-slate-400 dark:bg-dark-700'
+  if (addBlockedReason.value) return 'cursor-not-allowed bg-amber-50 text-amber-500 dark:bg-amber-500/10 dark:text-amber-200'
+  return 'bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white'
+})
 
 const cardClass = computed(() => {
   if (props.missing) {

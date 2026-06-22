@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var publicCatalogSlugInvalidChars = regexp.MustCompile(`[^a-z0-9]+`)
@@ -91,6 +92,25 @@ func (s *ModelCatalogService) buildPublicModelCatalogAccountEntryItems(
 	pricingSnapshot *BillingPricingCatalogSnapshot,
 	rules []BillingRule,
 ) ([]PublicModelCatalogItem, bool, error) {
+	return s.buildPublicModelCatalogAccountEntryItemsWithOptions(ctx, records, pricingSnapshot, rules, true)
+}
+
+func (s *ModelCatalogService) buildPublicModelCatalogAccountEntryItemsForDraft(
+	ctx context.Context,
+	records map[string]*modelCatalogRecord,
+	pricingSnapshot *BillingPricingCatalogSnapshot,
+	rules []BillingRule,
+) ([]PublicModelCatalogItem, bool, error) {
+	return s.buildPublicModelCatalogAccountEntryItemsWithOptions(ctx, records, pricingSnapshot, rules, false)
+}
+
+func (s *ModelCatalogService) buildPublicModelCatalogAccountEntryItemsWithOptions(
+	ctx context.Context,
+	records map[string]*modelCatalogRecord,
+	pricingSnapshot *BillingPricingCatalogSnapshot,
+	rules []BillingRule,
+	confirmedOnly bool,
+) ([]PublicModelCatalogItem, bool, error) {
 	if s == nil || s.gatewayService == nil || s.gatewayService.groupRepo == nil || s.gatewayService.accountRepo == nil {
 		return nil, false, nil
 	}
@@ -132,7 +152,11 @@ func (s *ModelCatalogService) buildPublicModelCatalogAccountEntryItems(
 					continue
 				}
 				models := BuildAvailableTestModels(ctx, accountForProjection, s.modelRegistryService)
-				models = filterAvailableTestModelsForPublishedCatalogAccount(ctx, s.gatewayService, group.ID, protocol, accountForProjection, models)
+				if confirmedOnly {
+					models = filterAvailableTestModelsForPublishedCatalogAccount(ctx, s.gatewayService, group.ID, protocol, accountForProjection, models)
+				} else {
+					models = annotateAvailableTestModelsForPublishedCatalogAccount(ctx, s.gatewayService, group.ID, protocol, accountForProjection, models)
+				}
 				for _, model := range models {
 					sourceModelID := NormalizeModelCatalogModelID(firstNonEmptyTrimmed(model.TargetModelID, model.CanonicalID, model.ID))
 					if sourceModelID == "" {
@@ -158,6 +182,9 @@ func (s *ModelCatalogService) buildPublicModelCatalogAccountEntryItems(
 					item.SourceIDs = uniqueTrimmedStringsPreserveCase(append(item.SourceIDs, sourceModelID, model.ID))
 					item.RequestProtocols = uniqueTrimmedStringsPreserveCase(append(item.RequestProtocols, protocol))
 					item = enrichPublicModelCatalogItemMetadata(item, publicModelCatalogMetadataSourceForAccount(model.LastCheckedAt, model.ExposureSource, publicModelCatalogItemConfirmedAvailable(item)))
+					if !confirmedOnly {
+						item = annotatePublicModelCatalogDraftAvailability(ctx, s.gatewayService, group.ID, protocol, accountForProjection, item)
+					}
 					candidates = append(candidates, accountModelCandidate{
 						group:          &group,
 						account:        account,
@@ -203,6 +230,30 @@ func (s *ModelCatalogService) buildPublicModelCatalogAccountEntryItems(
 	return items, true, nil
 }
 
+func annotateAvailableTestModelsForPublishedCatalogAccount(
+	ctx context.Context,
+	gateway *GatewayService,
+	groupID int64,
+	protocol string,
+	account *Account,
+	models []AvailableTestModel,
+) []AvailableTestModel {
+	if len(models) == 0 {
+		return nil
+	}
+	entriesByPublicID := publicCatalogPolicyEntriesByPublicID(ctx, gateway, groupID, protocol, account, models)
+	out := make([]AvailableTestModel, 0, len(models))
+	for _, model := range models {
+		publicID := NormalizeModelCatalogModelID(model.ID)
+		if entry, ok := entriesByPublicID[publicID]; ok {
+			model.AvailabilityState = firstNonEmptyTrimmed(entry.AvailabilityState, model.AvailabilityState)
+			model.StaleState = firstNonEmptyTrimmed(entry.StaleState, model.StaleState)
+		}
+		out = append(out, model)
+	}
+	return out
+}
+
 func filterAvailableTestModelsForPublishedCatalogAccount(
 	ctx context.Context,
 	gateway *GatewayService,
@@ -214,6 +265,25 @@ func filterAvailableTestModelsForPublishedCatalogAccount(
 	if len(models) == 0 {
 		return nil
 	}
+	entriesByPublicID := publicCatalogPolicyEntriesByPublicID(ctx, gateway, groupID, protocol, account, models)
+	filtered := make([]AvailableTestModel, 0, len(entriesByPublicID))
+	for _, model := range models {
+		publicID := NormalizeModelCatalogModelID(model.ID)
+		if entry, ok := entriesByPublicID[publicID]; ok && publicModelCatalogEntryConfirmedAvailable(entry) {
+			filtered = append(filtered, model)
+		}
+	}
+	return filtered
+}
+
+func publicCatalogPolicyEntriesByPublicID(
+	ctx context.Context,
+	gateway *GatewayService,
+	groupID int64,
+	protocol string,
+	account *Account,
+	models []AvailableTestModel,
+) map[string]APIKeyPublicModelEntry {
 	entries := make([]APIKeyPublicModelEntry, 0, len(models))
 	for _, model := range models {
 		publicID := NormalizeModelCatalogModelID(model.ID)
@@ -221,7 +291,7 @@ func filterAvailableTestModelsForPublishedCatalogAccount(
 			continue
 		}
 		sourceID := NormalizeModelCatalogModelID(firstNonEmptyTrimmed(model.TargetModelID, model.CanonicalID, model.ID))
-		entries = append(entries, APIKeyPublicModelEntry{
+		entry := APIKeyPublicModelEntry{
 			PublicID:          publicID,
 			AliasID:           publicID,
 			SourceID:          sourceID,
@@ -229,29 +299,69 @@ func filterAvailableTestModelsForPublishedCatalogAccount(
 			Platform:          protocol,
 			AvailabilityState: firstNonEmptyTrimmed(model.AvailabilityState, AccountModelAvailabilityUnknown),
 			StaleState:        firstNonEmptyTrimmed(model.StaleState, AccountModelStaleStateUnverified),
-		})
+		}
 		lifecycle := resolvePublicModelLifecycleStatus(model.Status, model.DisplayName, model.ID, sourceID)
-		entries[len(entries)-1].LifecycleStatus = lifecycle.Status
-		entries[len(entries)-1].LifecycleInferred = lifecycle.Inferred
+		entry.LifecycleStatus = lifecycle.Status
+		entry.LifecycleInferred = lifecycle.Inferred
+		entries = append(entries, entry)
 	}
 	if gateway != nil {
 		entries = gateway.filterPublicEntriesByActiveChannel(ctx, groupID, protocol, entries)
 		entries = filterOpenAIAPIKeyPublicEntriesForRuntimeQuota(account, entries)
 	}
-	filtered := make([]AvailableTestModel, 0, len(entries))
-	confirmedByPublicID := make(map[string]struct{}, len(entries))
+	byID := make(map[string]APIKeyPublicModelEntry, len(entries))
 	for _, entry := range entries {
-		if publicModelCatalogEntryConfirmedAvailable(entry) {
-			confirmedByPublicID[entry.PublicID] = struct{}{}
+		publicID := NormalizeModelCatalogModelID(entry.PublicID)
+		if publicID != "" {
+			byID[publicID] = entry
 		}
 	}
-	for _, model := range models {
-		publicID := NormalizeModelCatalogModelID(model.ID)
-		if _, ok := confirmedByPublicID[publicID]; ok {
-			filtered = append(filtered, model)
-		}
+	return byID
+}
+
+func annotatePublicModelCatalogDraftAvailability(
+	ctx context.Context,
+	gateway *GatewayService,
+	groupID int64,
+	protocol string,
+	account *Account,
+	item PublicModelCatalogItem,
+) PublicModelCatalogItem {
+	reasons := make([]string, 0, 3)
+	routeConfirmed := publicModelCatalogItemConfirmedAvailable(item)
+	if !publicModelCatalogItemConfirmedAvailable(item) {
+		reasons = append(reasons, "model availability is not verified and fresh")
 	}
-	return filtered
+	if !publicModelCatalogItemCurrentlyAvailable(item, time.Now()) {
+		routeConfirmed = false
+		reasons = append(reasons, "model is outside its configured availability window")
+	}
+	if gateway != nil && !publishedCatalogAccountUsableForBinding(ctx, gateway.modelRegistryService, account, groupID, protocol, item) {
+		routeConfirmed = false
+		reasons = append(reasons, "account route is not currently usable for this model")
+	}
+	item.RouteConfirmed = &routeConfirmed
+	if len(reasons) > 0 && strings.TrimSpace(item.UnavailableReason) == "" {
+		item.UnavailableReason = strings.Join(reasons, "; ")
+	}
+	return item
+}
+
+func ensurePublicModelCatalogDraftDiagnostics(items []PublicModelCatalogItem) []PublicModelCatalogItem {
+	out := make([]PublicModelCatalogItem, 0, len(items))
+	for _, item := range items {
+		routeConfirmed := publicModelCatalogItemConfirmedAvailable(item)
+		if item.RouteConfirmed == nil {
+			item.RouteConfirmed = &routeConfirmed
+		} else {
+			routeConfirmed = *item.RouteConfirmed
+		}
+		if !routeConfirmed && strings.TrimSpace(item.UnavailableReason) == "" {
+			item.UnavailableReason = "model availability is not verified and fresh"
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 func publicModelCatalogEntryConfirmedAvailable(entry APIKeyPublicModelEntry) bool {

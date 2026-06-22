@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -117,6 +118,11 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 		return err
 	}
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
+	stats.TotalCacheTokens = stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
+	totalInputSideTokens := stats.TotalInputTokens + stats.TotalCacheTokens
+	if totalInputSideTokens > 0 {
+		stats.CacheHitRate = float64(stats.TotalCacheReadTokens) / float64(totalInputSideTokens)
+	}
 	if stats.TotalRequests > 0 {
 		stats.AverageDurationMs = float64(totalDurationMs) / float64(stats.TotalRequests)
 	}
@@ -145,6 +151,11 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 		}
 	}
 	stats.TodayTokens = stats.TodayInputTokens + stats.TodayOutputTokens + stats.TodayCacheCreationTokens + stats.TodayCacheReadTokens
+	stats.TodayCacheTokens = stats.TodayCacheCreationTokens + stats.TodayCacheReadTokens
+	todayInputSideTokens := stats.TodayInputTokens + stats.TodayCacheTokens
+	if todayInputSideTokens > 0 {
+		stats.TodayCacheHitRate = float64(stats.TodayCacheReadTokens) / float64(todayInputSideTokens)
+	}
 	todayCostByCurrency, todayActualCostByCurrency, err := queryUsageCostByCurrency(ctx, r.sql, "WHERE created_at >= $1", []any{todayUTC})
 	if err != nil {
 		return err
@@ -166,13 +177,14 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 }
 func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Context, stats *DashboardStats, startUTC, endUTC, todayUTC, now time.Time) error {
 	todayEnd := todayUTC.Add(24 * time.Hour)
-	combinedStatsQuery := `
+	cacheCreationExpr := usageCacheCreationSQL("")
+	combinedStatsQuery := fmt.Sprintf(`
 		WITH scoped AS (
 			SELECT
 				created_at,
 				input_tokens,
 				output_tokens,
-				cache_creation_tokens,
+				%s AS cache_creation_tokens,
 				cache_read_tokens,
 				billing_exempt_reason,
 				total_cost_usd_equivalent AS total_cost_usd,
@@ -201,12 +213,17 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 			COALESCE(SUM(total_cost_usd) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_cost,
 			COALESCE(SUM(actual_cost_usd) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_actual_cost
 		FROM scoped
-	`
+	`, cacheCreationExpr)
 	var totalDurationMs int64
 	if err := scanSingleRow(ctx, r.sql, combinedStatsQuery, []any{startUTC, endUTC, todayUTC, todayEnd}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &totalDurationMs, &stats.TodayRequests, &stats.TodayInputTokens, &stats.TodayOutputTokens, &stats.TodayCacheCreationTokens, &stats.TodayCacheReadTokens, &stats.TodayCost, &stats.TodayActualCost); err != nil {
 		return err
 	}
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
+	stats.TotalCacheTokens = stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
+	totalInputSideTokens := stats.TotalInputTokens + stats.TotalCacheTokens
+	if totalInputSideTokens > 0 {
+		stats.CacheHitRate = float64(stats.TotalCacheReadTokens) / float64(totalInputSideTokens)
+	}
 	if stats.TotalRequests > 0 {
 		stats.AverageDurationMs = float64(totalDurationMs) / float64(stats.TotalRequests)
 	}
@@ -217,6 +234,11 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 	stats.CostByCurrency = costByCurrency
 	stats.ActualCostByCurrency = actualCostByCurrency
 	stats.TodayTokens = stats.TodayInputTokens + stats.TodayOutputTokens + stats.TodayCacheCreationTokens + stats.TodayCacheReadTokens
+	stats.TodayCacheTokens = stats.TodayCacheCreationTokens + stats.TodayCacheReadTokens
+	todayInputSideTokens := stats.TodayInputTokens + stats.TodayCacheTokens
+	if todayInputSideTokens > 0 {
+		stats.TodayCacheHitRate = float64(stats.TodayCacheReadTokens) / float64(todayInputSideTokens)
+	}
 	todayCostByCurrency, todayActualCostByCurrency, err := queryUsageCostByCurrency(ctx, r.sql, "WHERE created_at >= $1 AND created_at < $2", []any{todayUTC, todayEnd})
 	if err != nil {
 		return err

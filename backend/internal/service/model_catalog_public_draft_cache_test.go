@@ -68,13 +68,29 @@ func TestModelCatalogService_PublicCatalogDraftCandidate_PersistedForceAndPublis
 	payload, err = svc.GetPublicModelCatalogDraftPayload(ctx, true)
 	require.NoError(t, err)
 	require.Equal(t, publicModelCatalogDraftAvailableSourceRefreshed, payload.AvailableSource)
-	require.Empty(t, payload.AvailableItems)
+	require.Equal(t, []string{"gpt-image-2"}, publicCatalogItemModels(payload.AvailableItems))
+	require.NotNil(t, payload.AvailableItems[0].RouteConfirmed)
+	require.False(t, *payload.AvailableItems[0].RouteConfirmed)
+	require.Equal(t, AccountModelAvailabilityUnknown, payload.AvailableItems[0].AvailabilityState)
+	require.Equal(t, AccountModelStaleStateUnverified, payload.AvailableItems[0].StaleState)
 
 	overwritten := loadPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot)
 	require.NotNil(t, overwritten)
-	require.Empty(t, overwritten.Items)
+	require.Equal(t, []string{"gpt-image-2"}, publicCatalogItemModels(overwritten.Items))
 
-	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, publicCatalogCandidateTestSnapshot("gpt-image-2")))
+	unverified := publicCatalogCandidateTestSnapshot("gpt-image-2")
+	unverified.Items[0].AvailabilityState = AccountModelAvailabilityUnknown
+	unverified.Items[0].StaleState = AccountModelStaleStateUnverified
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, unverified))
+	_, err = svc.PublishPublicModelCatalog(ctx, ModelCatalogActor{UserID: 1, Email: "admin@example.test"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"gpt-image-2"},
+		PageSize:       10,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "PUBLIC_MODEL_NOT_VERIFIED")
+
+	verified := publicCatalogCandidateTestSnapshot("gpt-image-2")
+	require.NoError(t, persistPublicModelCatalogSnapshotBySetting(ctx, repo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, verified))
 	summary, err := svc.PublishPublicModelCatalog(ctx, ModelCatalogActor{UserID: 1, Email: "admin@example.test"}, &PublicModelCatalogDraft{
 		SelectedModels: []string{"gpt-image-2"},
 		PageSize:       10,
@@ -346,6 +362,31 @@ func TestModelCatalogService_PublishPublicModelCatalog_RejectsUnavailableSelecte
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "PUBLIC_MODEL_ENTRY_UNAVAILABLE")
+}
+
+func TestAnnotatePublicModelCatalogDraftAvailability_ExposesRouteConfirmedDiagnostic(t *testing.T) {
+	ctx := context.Background()
+	account := &Account{
+		ID:          42,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+	item := publicCatalogCandidateTestSnapshot("gpt-5.4").Items[0]
+	item.SourceAccountID = account.ID
+	item.SourceProtocol = PlatformOpenAI
+	item.AvailabilityState = AccountModelAvailabilityUnknown
+	item.StaleState = AccountModelStaleStateStale
+
+	annotated := annotatePublicModelCatalogDraftAvailability(ctx, nil, 1, PlatformOpenAI, account, item)
+
+	require.NotNil(t, annotated.RouteConfirmed)
+	require.False(t, *annotated.RouteConfirmed)
+	require.Contains(t, annotated.UnavailableReason, "model availability is not verified and fresh")
+
+	sanitized := sanitizePublicModelCatalogItemForPublicWithSource(annotated, PublicModelCatalogSourcePublished)
+	require.Nil(t, sanitized.RouteConfirmed)
 }
 
 func TestModelCatalogService_PublishPublicModelCatalog_RejectsStalePersistedCandidate(t *testing.T) {

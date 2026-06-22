@@ -68,13 +68,14 @@ type AccountDaily5HTriggerModelSettings struct {
 }
 
 type AccountDaily5HTriggerSettings struct {
-	Enabled               bool                               `json:"enabled"`
-	SelectedAccountTypes  []string                           `json:"selected_account_types"`
-	IncludePausedAccounts bool                               `json:"include_paused_accounts"`
-	IgnoreFreeAccounts    bool                               `json:"ignore_free_accounts"`
-	OpenAIModel           AccountDaily5HTriggerModelSettings `json:"openai_model_mode"`
-	AnthropicModel        AccountDaily5HTriggerModelSettings `json:"anthropic_model_mode"`
-	GeminiModel           AccountDaily5HTriggerModelSettings `json:"gemini_model_mode"`
+	Enabled                   bool                               `json:"enabled"`
+	SelectedAccountTypes      []string                           `json:"selected_account_types"`
+	IncludePausedAccounts     bool                               `json:"include_paused_accounts"`
+	IgnoreFreeAccounts        bool                               `json:"ignore_free_accounts"`
+	SkipCNHolidaysAndWeekends bool                               `json:"skip_cn_holidays_and_weekends"`
+	OpenAIModel               AccountDaily5HTriggerModelSettings `json:"openai_model_mode"`
+	AnthropicModel            AccountDaily5HTriggerModelSettings `json:"anthropic_model_mode"`
+	GeminiModel               AccountDaily5HTriggerModelSettings `json:"gemini_model_mode"`
 }
 
 type AccountDaily5HTriggerModelOption struct {

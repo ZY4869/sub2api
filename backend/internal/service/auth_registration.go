@@ -85,19 +85,22 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	// 获取默认配置
 	defaultBalance := s.cfg.Default.UserBalance
 	defaultConcurrency := s.cfg.Default.UserConcurrency
+	defaultAPIKeyModelBindingMode := APIKeyModelBindingModeGroupAllowed
 	if s.settingService != nil {
 		defaultBalance = s.settingService.GetDefaultBalance(ctx)
 		defaultConcurrency = s.settingService.GetDefaultConcurrency(ctx)
+		defaultAPIKeyModelBindingMode = s.settingService.GetDefaultAPIKeyModelBindingMode(ctx)
 	}
 
 	// 创建用户
 	user := &User{
-		Email:        email,
-		PasswordHash: hashedPassword,
-		Role:         RoleUser,
-		Balance:      defaultBalance,
-		Concurrency:  defaultConcurrency,
-		Status:       StatusActive,
+		Email:                  email,
+		PasswordHash:           hashedPassword,
+		Role:                   RoleUser,
+		Balance:                defaultBalance,
+		Concurrency:            defaultConcurrency,
+		Status:                 StatusActive,
+		APIKeyModelBindingMode: defaultAPIKeyModelBindingMode,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {

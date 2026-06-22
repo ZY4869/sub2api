@@ -168,9 +168,10 @@ type SystemSettings struct {
 	AffiliateRebatePerInviteeCap  float64 `json:"affiliate_rebate_per_invitee_cap"`
 	AffiliateAffCodeLength        int     `json:"affiliate_aff_code_length"`
 
-	DefaultConcurrency   int                          `json:"default_concurrency"`
-	DefaultBalance       float64                      `json:"default_balance"`
-	DefaultSubscriptions []DefaultSubscriptionSetting `json:"default_subscriptions"`
+	DefaultConcurrency            int                          `json:"default_concurrency"`
+	DefaultBalance                float64                      `json:"default_balance"`
+	DefaultSubscriptions          []DefaultSubscriptionSetting `json:"default_subscriptions"`
+	DefaultAPIKeyModelBindingMode string                       `json:"default_api_key_model_binding_mode"`
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`
@@ -304,13 +305,14 @@ type AccountDaily5HTriggerModelSettings struct {
 }
 
 type AccountDaily5HTriggerSettings struct {
-	Enabled               bool                               `json:"enabled"`
-	SelectedAccountTypes  []string                           `json:"selected_account_types"`
-	IncludePausedAccounts bool                               `json:"include_paused_accounts"`
-	IgnoreFreeAccounts    bool                               `json:"ignore_free_accounts"`
-	OpenAIModelMode       AccountDaily5HTriggerModelSettings `json:"openai_model_mode"`
-	AnthropicModelMode    AccountDaily5HTriggerModelSettings `json:"anthropic_model_mode"`
-	GeminiModelMode       AccountDaily5HTriggerModelSettings `json:"gemini_model_mode"`
+	Enabled                   bool                               `json:"enabled"`
+	SelectedAccountTypes      []string                           `json:"selected_account_types"`
+	IncludePausedAccounts     bool                               `json:"include_paused_accounts"`
+	IgnoreFreeAccounts        bool                               `json:"ignore_free_accounts"`
+	SkipCNHolidaysAndWeekends bool                               `json:"skip_cn_holidays_and_weekends"`
+	OpenAIModelMode           AccountDaily5HTriggerModelSettings `json:"openai_model_mode"`
+	AnthropicModelMode        AccountDaily5HTriggerModelSettings `json:"anthropic_model_mode"`
+	GeminiModelMode           AccountDaily5HTriggerModelSettings `json:"gemini_model_mode"`
 }
 
 type AccountDaily5HTriggerModelOption struct {

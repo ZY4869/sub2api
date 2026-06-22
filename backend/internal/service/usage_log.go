@@ -267,7 +267,7 @@ type UsageLog struct {
 }
 
 func (u *UsageLog) TotalTokens() int {
-	return u.InputTokens + u.OutputTokens + u.CacheCreationTokens + u.CacheReadTokens
+	return u.InputTokens + u.OutputTokens + u.CacheCreationTokens + u.CacheCreation5mTokens + u.CacheCreation1hTokens + u.CacheReadTokens
 }
 
 func (u *UsageLog) EffectiveRequestType() RequestType {

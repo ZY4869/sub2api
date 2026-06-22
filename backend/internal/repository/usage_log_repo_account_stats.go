@@ -12,10 +12,14 @@ import (
 
 func (r *usageLogRepository) GetAccountTodayStats(ctx context.Context, accountID int64) (*usagestats.AccountStats, error) {
 	today := timezone.Today()
+	cacheCreationExpr := usageCacheCreationSQL("")
 	query := `
 		SELECT
 			COUNT(*) as requests,
-			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as tokens,
+			COALESCE(SUM(input_tokens), 0) as input_tokens,
+			COALESCE(SUM(output_tokens), 0) as output_tokens,
+			COALESCE(SUM(` + cacheCreationExpr + `), 0) as cache_creation_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent * COALESCE(account_rate_multiplier, 1)), 0) as cost,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as standard_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as user_cost,
@@ -25,16 +29,21 @@ func (r *usageLogRepository) GetAccountTodayStats(ctx context.Context, accountID
 		WHERE account_id = $1 AND created_at >= $2
 	`
 	stats := &usagestats.AccountStats{}
-	if err := scanSingleRow(ctx, r.sql, query, []any{accountID, today}, &stats.Requests, &stats.Tokens, &stats.Cost, &stats.StandardCost, &stats.UserCost, &stats.SuccessRate, &stats.AverageDurationMs); err != nil {
+	if err := scanSingleRow(ctx, r.sql, query, []any{accountID, today}, &stats.Requests, &stats.InputTokens, &stats.OutputTokens, &stats.CacheCreationTokens, &stats.CacheReadTokens, &stats.Cost, &stats.StandardCost, &stats.UserCost, &stats.SuccessRate, &stats.AverageDurationMs); err != nil {
 		return nil, err
 	}
+	normalizeAccountStatsTokenBreakdown(stats)
 	return stats, nil
 }
 func (r *usageLogRepository) GetAccountWindowStats(ctx context.Context, accountID int64, startTime time.Time) (*usagestats.AccountStats, error) {
+	cacheCreationExpr := usageCacheCreationSQL("")
 	query := `
 		SELECT
 			COUNT(*) as requests,
-			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as tokens,
+			COALESCE(SUM(input_tokens), 0) as input_tokens,
+			COALESCE(SUM(output_tokens), 0) as output_tokens,
+			COALESCE(SUM(` + cacheCreationExpr + `), 0) as cache_creation_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent * COALESCE(account_rate_multiplier, 1)), 0) as cost,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as standard_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as user_cost,
@@ -44,9 +53,10 @@ func (r *usageLogRepository) GetAccountWindowStats(ctx context.Context, accountI
 		WHERE account_id = $1 AND created_at >= $2
 	`
 	stats := &usagestats.AccountStats{}
-	if err := scanSingleRow(ctx, r.sql, query, []any{accountID, startTime}, &stats.Requests, &stats.Tokens, &stats.Cost, &stats.StandardCost, &stats.UserCost, &stats.SuccessRate, &stats.AverageDurationMs); err != nil {
+	if err := scanSingleRow(ctx, r.sql, query, []any{accountID, startTime}, &stats.Requests, &stats.InputTokens, &stats.OutputTokens, &stats.CacheCreationTokens, &stats.CacheReadTokens, &stats.Cost, &stats.StandardCost, &stats.UserCost, &stats.SuccessRate, &stats.AverageDurationMs); err != nil {
 		return nil, err
 	}
+	normalizeAccountStatsTokenBreakdown(stats)
 	return stats, nil
 }
 func (r *usageLogRepository) GetAccountWindowStatsBatch(ctx context.Context, accountIDs []int64, startTime time.Time) (map[int64]*usagestats.AccountStats, error) {
@@ -54,11 +64,15 @@ func (r *usageLogRepository) GetAccountWindowStatsBatch(ctx context.Context, acc
 	if len(accountIDs) == 0 {
 		return result, nil
 	}
+	cacheCreationExpr := usageCacheCreationSQL("")
 	query := `
 		SELECT
 			account_id,
 			COUNT(*) as requests,
-			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as tokens,
+			COALESCE(SUM(input_tokens), 0) as input_tokens,
+			COALESCE(SUM(output_tokens), 0) as output_tokens,
+			COALESCE(SUM(` + cacheCreationExpr + `), 0) as cache_creation_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent * COALESCE(account_rate_multiplier, 1)), 0) as cost,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as standard_cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as user_cost,
@@ -78,9 +92,10 @@ func (r *usageLogRepository) GetAccountWindowStatsBatch(ctx context.Context, acc
 	for rows.Next() {
 		var accountID int64
 		stats := &usagestats.AccountStats{}
-		if err := rows.Scan(&accountID, &stats.Requests, &stats.Tokens, &stats.Cost, &stats.StandardCost, &stats.UserCost, &stats.SuccessRate, &stats.AverageDurationMs); err != nil {
+		if err := rows.Scan(&accountID, &stats.Requests, &stats.InputTokens, &stats.OutputTokens, &stats.CacheCreationTokens, &stats.CacheReadTokens, &stats.Cost, &stats.StandardCost, &stats.UserCost, &stats.SuccessRate, &stats.AverageDurationMs); err != nil {
 			return nil, err
 		}
+		normalizeAccountStatsTokenBreakdown(stats)
 		result[accountID] = stats
 	}
 	if err := rows.Err(); err != nil {
@@ -123,6 +138,7 @@ func (r *usageLogRepository) GetAccountTodayStatsBreakdownBatchByWindows(ctx con
 		weeklyStarts = append(weeklyStarts, window.WeeklyStart)
 		monthlyStarts = append(monthlyStarts, window.MonthlyStart)
 	}
+	cacheCreationExpr := usageCacheCreationSQL("l.")
 	query := `
 		WITH windows AS (
 			SELECT *
@@ -132,28 +148,40 @@ func (r *usageLogRepository) GetAccountTodayStatsBreakdownBatchByWindows(ctx con
 		SELECT
 			w.account_id,
 			COUNT(l.id) FILTER (WHERE l.created_at >= w.today_start) as today_requests,
-			COALESCE(SUM(l.input_tokens + l.output_tokens + l.cache_creation_tokens + l.cache_read_tokens) FILTER (WHERE l.created_at >= w.today_start), 0) as today_tokens,
+			COALESCE(SUM(l.input_tokens) FILTER (WHERE l.created_at >= w.today_start), 0) as today_input_tokens,
+			COALESCE(SUM(l.output_tokens) FILTER (WHERE l.created_at >= w.today_start), 0) as today_output_tokens,
+			COALESCE(SUM(` + cacheCreationExpr + `) FILTER (WHERE l.created_at >= w.today_start), 0) as today_cache_creation_tokens,
+			COALESCE(SUM(l.cache_read_tokens) FILTER (WHERE l.created_at >= w.today_start), 0) as today_cache_read_tokens,
 			COALESCE(SUM(l.total_cost_usd_equivalent * COALESCE(l.account_rate_multiplier, 1)) FILTER (WHERE l.created_at >= w.today_start), 0) as today_cost,
 			COALESCE(SUM(l.total_cost_usd_equivalent) FILTER (WHERE l.created_at >= w.today_start), 0) as today_standard_cost,
 			COALESCE(SUM(l.actual_cost_usd_equivalent) FILTER (WHERE l.created_at >= w.today_start), 0) as today_user_cost,
 			CASE WHEN COUNT(l.id) FILTER (WHERE l.created_at >= w.today_start) = 0 THEN 100 ELSE ((COUNT(l.id) FILTER (WHERE l.created_at >= w.today_start AND l.status = 'succeeded'))::float / (COUNT(l.id) FILTER (WHERE l.created_at >= w.today_start))::float) * 100 END as today_success_rate,
 			COALESCE(AVG(l.duration_ms) FILTER (WHERE l.created_at >= w.today_start AND l.status = 'succeeded' AND l.duration_ms IS NOT NULL), 0) as today_average_duration_ms,
 			COUNT(l.id) FILTER (WHERE l.created_at >= w.weekly_start) as weekly_requests,
-			COALESCE(SUM(l.input_tokens + l.output_tokens + l.cache_creation_tokens + l.cache_read_tokens) FILTER (WHERE l.created_at >= w.weekly_start), 0) as weekly_tokens,
+			COALESCE(SUM(l.input_tokens) FILTER (WHERE l.created_at >= w.weekly_start), 0) as weekly_input_tokens,
+			COALESCE(SUM(l.output_tokens) FILTER (WHERE l.created_at >= w.weekly_start), 0) as weekly_output_tokens,
+			COALESCE(SUM(` + cacheCreationExpr + `) FILTER (WHERE l.created_at >= w.weekly_start), 0) as weekly_cache_creation_tokens,
+			COALESCE(SUM(l.cache_read_tokens) FILTER (WHERE l.created_at >= w.weekly_start), 0) as weekly_cache_read_tokens,
 			COALESCE(SUM(l.total_cost_usd_equivalent * COALESCE(l.account_rate_multiplier, 1)) FILTER (WHERE l.created_at >= w.weekly_start), 0) as weekly_cost,
 			COALESCE(SUM(l.total_cost_usd_equivalent) FILTER (WHERE l.created_at >= w.weekly_start), 0) as weekly_standard_cost,
 			COALESCE(SUM(l.actual_cost_usd_equivalent) FILTER (WHERE l.created_at >= w.weekly_start), 0) as weekly_user_cost,
 			CASE WHEN COUNT(l.id) FILTER (WHERE l.created_at >= w.weekly_start) = 0 THEN 100 ELSE ((COUNT(l.id) FILTER (WHERE l.created_at >= w.weekly_start AND l.status = 'succeeded'))::float / (COUNT(l.id) FILTER (WHERE l.created_at >= w.weekly_start))::float) * 100 END as weekly_success_rate,
 			COALESCE(AVG(l.duration_ms) FILTER (WHERE l.created_at >= w.weekly_start AND l.status = 'succeeded' AND l.duration_ms IS NOT NULL), 0) as weekly_average_duration_ms,
 			COUNT(l.id) FILTER (WHERE l.created_at >= w.monthly_start) as monthly_requests,
-			COALESCE(SUM(l.input_tokens + l.output_tokens + l.cache_creation_tokens + l.cache_read_tokens) FILTER (WHERE l.created_at >= w.monthly_start), 0) as monthly_tokens,
+			COALESCE(SUM(l.input_tokens) FILTER (WHERE l.created_at >= w.monthly_start), 0) as monthly_input_tokens,
+			COALESCE(SUM(l.output_tokens) FILTER (WHERE l.created_at >= w.monthly_start), 0) as monthly_output_tokens,
+			COALESCE(SUM(` + cacheCreationExpr + `) FILTER (WHERE l.created_at >= w.monthly_start), 0) as monthly_cache_creation_tokens,
+			COALESCE(SUM(l.cache_read_tokens) FILTER (WHERE l.created_at >= w.monthly_start), 0) as monthly_cache_read_tokens,
 			COALESCE(SUM(l.total_cost_usd_equivalent * COALESCE(l.account_rate_multiplier, 1)) FILTER (WHERE l.created_at >= w.monthly_start), 0) as monthly_cost,
 			COALESCE(SUM(l.total_cost_usd_equivalent) FILTER (WHERE l.created_at >= w.monthly_start), 0) as monthly_standard_cost,
 			COALESCE(SUM(l.actual_cost_usd_equivalent) FILTER (WHERE l.created_at >= w.monthly_start), 0) as monthly_user_cost,
 			CASE WHEN COUNT(l.id) FILTER (WHERE l.created_at >= w.monthly_start) = 0 THEN 100 ELSE ((COUNT(l.id) FILTER (WHERE l.created_at >= w.monthly_start AND l.status = 'succeeded'))::float / (COUNT(l.id) FILTER (WHERE l.created_at >= w.monthly_start))::float) * 100 END as monthly_success_rate,
 			COALESCE(AVG(l.duration_ms) FILTER (WHERE l.created_at >= w.monthly_start AND l.status = 'succeeded' AND l.duration_ms IS NOT NULL), 0) as monthly_average_duration_ms,
 			COUNT(l.id) as total_requests,
-			COALESCE(SUM(l.input_tokens + l.output_tokens + l.cache_creation_tokens + l.cache_read_tokens), 0) as total_tokens,
+			COALESCE(SUM(l.input_tokens), 0) as total_input_tokens,
+			COALESCE(SUM(l.output_tokens), 0) as total_output_tokens,
+			COALESCE(SUM(` + cacheCreationExpr + `), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(l.cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(l.total_cost_usd_equivalent * COALESCE(l.account_rate_multiplier, 1)), 0) as total_cost,
 			COALESCE(SUM(l.total_cost_usd_equivalent), 0) as total_standard_cost,
 			COALESCE(SUM(l.actual_cost_usd_equivalent), 0) as total_user_cost,
@@ -176,28 +204,40 @@ func (r *usageLogRepository) GetAccountTodayStatsBreakdownBatchByWindows(ctx con
 		if err := rows.Scan(
 			&accountID,
 			&stats.Today.Requests,
-			&stats.Today.Tokens,
+			&stats.Today.InputTokens,
+			&stats.Today.OutputTokens,
+			&stats.Today.CacheCreationTokens,
+			&stats.Today.CacheReadTokens,
 			&stats.Today.Cost,
 			&stats.Today.StandardCost,
 			&stats.Today.UserCost,
 			&stats.Today.SuccessRate,
 			&stats.Today.AverageDurationMs,
 			&stats.Weekly.Requests,
-			&stats.Weekly.Tokens,
+			&stats.Weekly.InputTokens,
+			&stats.Weekly.OutputTokens,
+			&stats.Weekly.CacheCreationTokens,
+			&stats.Weekly.CacheReadTokens,
 			&stats.Weekly.Cost,
 			&stats.Weekly.StandardCost,
 			&stats.Weekly.UserCost,
 			&stats.Weekly.SuccessRate,
 			&stats.Weekly.AverageDurationMs,
 			&stats.Monthly.Requests,
-			&stats.Monthly.Tokens,
+			&stats.Monthly.InputTokens,
+			&stats.Monthly.OutputTokens,
+			&stats.Monthly.CacheCreationTokens,
+			&stats.Monthly.CacheReadTokens,
 			&stats.Monthly.Cost,
 			&stats.Monthly.StandardCost,
 			&stats.Monthly.UserCost,
 			&stats.Monthly.SuccessRate,
 			&stats.Monthly.AverageDurationMs,
 			&stats.Total.Requests,
-			&stats.Total.Tokens,
+			&stats.Total.InputTokens,
+			&stats.Total.OutputTokens,
+			&stats.Total.CacheCreationTokens,
+			&stats.Total.CacheReadTokens,
 			&stats.Total.Cost,
 			&stats.Total.StandardCost,
 			&stats.Total.UserCost,
@@ -206,6 +246,7 @@ func (r *usageLogRepository) GetAccountTodayStatsBreakdownBatchByWindows(ctx con
 		); err != nil {
 			return nil, err
 		}
+		normalizeAccountStatsBreakdown(stats)
 		result[accountID] = stats
 	}
 	if err := rows.Err(); err != nil {
@@ -225,5 +266,27 @@ func emptyAccountTodayStatsBreakdown() *usagestats.AccountTodayStatsBreakdown {
 		Weekly:  usagestats.AccountStats{SuccessRate: 100},
 		Monthly: usagestats.AccountStats{SuccessRate: 100},
 		Total:   usagestats.AccountStats{SuccessRate: 100},
+	}
+}
+
+func normalizeAccountStatsBreakdown(stats *usagestats.AccountTodayStatsBreakdown) {
+	if stats == nil {
+		return
+	}
+	normalizeAccountStatsTokenBreakdown(&stats.Today)
+	normalizeAccountStatsTokenBreakdown(&stats.Weekly)
+	normalizeAccountStatsTokenBreakdown(&stats.Monthly)
+	normalizeAccountStatsTokenBreakdown(&stats.Total)
+}
+
+func normalizeAccountStatsTokenBreakdown(stats *usagestats.AccountStats) {
+	if stats == nil {
+		return
+	}
+	stats.CacheTokens = stats.CacheCreationTokens + stats.CacheReadTokens
+	stats.Tokens = stats.InputTokens + stats.OutputTokens + stats.CacheTokens
+	inputSideTokens := stats.InputTokens + stats.CacheCreationTokens + stats.CacheReadTokens
+	if inputSideTokens > 0 {
+		stats.CacheHitRate = float64(stats.CacheReadTokens) / float64(inputSideTokens)
 	}
 }

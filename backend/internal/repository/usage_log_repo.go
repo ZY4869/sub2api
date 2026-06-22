@@ -72,12 +72,14 @@ func newUsageLogRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor) *usage
 }
 func (r *usageLogRepository) getPerformanceStats(ctx context.Context, userID int64) (rpm, tpm int64, err error) {
 	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
-	query := `
+	totalTokensExpr := usageTotalTokensSQL("")
+	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*) as request_count,
-			COALESCE(SUM(input_tokens + output_tokens), 0) as token_count
+			COALESCE(SUM(%[1]s), 0) as token_count
 		FROM usage_logs
-		WHERE created_at >= $1`
+		WHERE created_at >= $1
+	`, totalTokensExpr)
 	args := []any{fiveMinutesAgo}
 	if userID > 0 {
 		query += " AND user_id = $2"
@@ -104,17 +106,18 @@ type UserStats struct {
 }
 
 func (r *usageLogRepository) GetUserStats(ctx context.Context, userID int64, startTime, endTime time.Time) (*UserStats, error) {
-	query := `
+	totalTokensExpr := usageTotalTokensSQL("")
+	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*) as total_requests,
-			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as total_tokens,
+			COALESCE(SUM(%[1]s), 0) as total_tokens,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(input_tokens), 0) as input_tokens,
 			COALESCE(SUM(output_tokens), 0) as output_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens
 		FROM usage_logs
 		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
-	`
+	`, totalTokensExpr)
 	stats := &UserStats{}
 	if err := scanSingleRow(ctx, r.sql, query, []any{userID, startTime, endTime}, &stats.TotalRequests, &stats.TotalTokens, &stats.TotalCost, &stats.InputTokens, &stats.OutputTokens, &stats.CacheReadTokens); err != nil {
 		return nil, err
@@ -220,18 +223,19 @@ func (r *usageLogRepository) GetAccountUsageStats(ctx context.Context, accountID
 
 // GetUserBreakdownStats returns per-user usage breakdown within a specific dimension.
 func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTime, endTime time.Time, dim usagestats.UserBreakdownDimension, limit int) (results []usagestats.UserBreakdownItem, err error) {
-	query := `
+	totalTokensExpr := usageTotalTokensSQL("ul.")
+	query := fmt.Sprintf(`
 		SELECT
 			COALESCE(ul.user_id, 0) as user_id,
 			COALESCE(u.email, '') as email,
 			COUNT(*) as requests,
-			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) as total_tokens,
+			COALESCE(SUM(%[1]s), 0) as total_tokens,
 			COALESCE(SUM(ul.total_cost_usd_equivalent), 0) as cost,
 			COALESCE(SUM(ul.actual_cost_usd_equivalent), 0) as actual_cost
 		FROM usage_logs ul
 		LEFT JOIN users u ON u.id = ul.user_id
 		WHERE ul.created_at >= $1 AND ul.created_at < $2
-	`
+	`, totalTokensExpr)
 	args := []any{startTime, endTime}
 
 	if dim.GroupID > 0 {

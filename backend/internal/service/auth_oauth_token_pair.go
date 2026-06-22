@@ -75,19 +75,22 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 
 			defaultBalance := s.cfg.Default.UserBalance
 			defaultConcurrency := s.cfg.Default.UserConcurrency
+			defaultAPIKeyModelBindingMode := APIKeyModelBindingModeGroupAllowed
 			if s.settingService != nil {
 				defaultBalance = s.settingService.GetDefaultBalance(ctx)
 				defaultConcurrency = s.settingService.GetDefaultConcurrency(ctx)
+				defaultAPIKeyModelBindingMode = s.settingService.GetDefaultAPIKeyModelBindingMode(ctx)
 			}
 
 			newUser := &User{
-				Email:        email,
-				Username:     username,
-				PasswordHash: hashedPassword,
-				Role:         RoleUser,
-				Balance:      defaultBalance,
-				Concurrency:  defaultConcurrency,
-				Status:       StatusActive,
+				Email:                  email,
+				Username:               username,
+				PasswordHash:           hashedPassword,
+				Role:                   RoleUser,
+				Balance:                defaultBalance,
+				Concurrency:            defaultConcurrency,
+				Status:                 StatusActive,
+				APIKeyModelBindingMode: defaultAPIKeyModelBindingMode,
 			}
 
 			if s.entClient != nil && invitationRedeemCode != nil {

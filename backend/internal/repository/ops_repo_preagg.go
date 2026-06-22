@@ -17,6 +17,7 @@ func (r *opsRepository) UpsertHourlyMetrics(ctx context.Context, startTime, endT
 
 	start := startTime.UTC()
 	end := endTime.UTC()
+	totalTokensExpr := usageTotalTokensSQL("ul.")
 
 	// NOTE:
 	// - We aggregate usage_logs + ops_error_logs into ops_metrics_hourly.
@@ -39,7 +40,7 @@ WITH usage_base AS (
     ul.channel_id AS channel_id,
     ul.duration_ms AS duration_ms,
     ul.first_token_ms AS first_token_ms,
-    (ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens) AS tokens
+    (` + totalTokensExpr + `) AS tokens
   FROM usage_logs ul
   JOIN groups g ON g.id = ul.group_id
   WHERE ul.created_at >= $1 AND ul.created_at < $2

@@ -41,6 +41,9 @@ export default {
     ignoreFreeLabel: "Ignore Free accounts",
     ignoreFreeHint:
       "When enabled, ChatGPT Free accounts do not participate in the daily 5H trigger. Recommended for accounts whose quotas refresh weekly or monthly.",
+    skipNonWorkdaysLabel: "Skip holidays and weekends",
+    skipNonWorkdaysHint:
+      "When enabled, Mainland China statutory holidays and Saturdays/Sundays skip the entire daily 5H trigger run.",
     accountTypesLabel: "Account types to trigger",
     accountTypesHint:
       "Only the selected account types will participate in the daily 5H trigger. ChatGPT OAuth is enabled by default.",

@@ -124,6 +124,14 @@ func (s *ModelCatalogService) PublishedPublicModelCatalogSnapshot(ctx context.Co
 }
 
 func (s *ModelCatalogService) buildLivePublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
+	return s.buildPublicModelCatalogSnapshot(ctx, true)
+}
+
+func (s *ModelCatalogService) buildDraftPublicModelCatalogCandidateSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
+	return s.buildPublicModelCatalogSnapshot(ctx, false)
+}
+
+func (s *ModelCatalogService) buildPublicModelCatalogSnapshot(ctx context.Context, confirmedOnly bool) (*PublicModelCatalogSnapshot, error) {
 	records, err := s.buildCatalogRecords(ctx)
 	if err != nil {
 		return nil, err
@@ -147,7 +155,11 @@ func (s *ModelCatalogService) buildLivePublicModelCatalogSnapshot(ctx context.Co
 	multiplierBuckets := map[string]struct{}{}
 	if s != nil && s.gatewayService != nil {
 		var built bool
-		items, built, err = s.buildPublicModelCatalogAccountEntryItems(ctx, records, pricingSnapshot, rules)
+		if confirmedOnly {
+			items, built, err = s.buildPublicModelCatalogAccountEntryItems(ctx, records, pricingSnapshot, rules)
+		} else {
+			items, built, err = s.buildPublicModelCatalogAccountEntryItemsForDraft(ctx, records, pricingSnapshot, rules)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +183,9 @@ func (s *ModelCatalogService) buildLivePublicModelCatalogSnapshot(ctx context.Co
 			items = append(items, item)
 		}
 	}
-	items = s.filterPublicModelCatalogConfirmedItems(ctx, items)
+	if confirmedOnly {
+		items = s.filterPublicModelCatalogConfirmedItems(ctx, items)
+	}
 	for _, item := range items {
 		if item.Provider != "" {
 			providerBuckets[item.Provider] = struct{}{}
@@ -838,6 +852,7 @@ func sanitizePublicModelCatalogItemForPublicWithSource(item PublicModelCatalogIt
 	cloned.Status = ""
 	cloned.AvailabilityState = ""
 	cloned.StaleState = ""
+	cloned.RouteConfirmed = nil
 	cloned.BaseModel = ""
 	cloned.SourceModelID = ""
 	cloned.SourceProtocol = ""

@@ -88,6 +88,8 @@ const messages: Record<string, string> = {
   'admin.billing.publicCatalog.card.mode': '模式：{value}',
   'admin.billing.publicCatalog.card.account': '后台账号：{value}',
   'admin.billing.publicCatalog.card.missing': '当前条目已不在最新账号支持模型库中，发布时后端会阻止发布。',
+  'admin.billing.publicCatalog.card.routeUnconfirmed': '账号路由暂未确认，当前不可发布。',
+  'admin.billing.publicCatalog.card.notPublishable': '模型尚未通过发布校验，当前不可发布。',
   'admin.billing.publicCatalog.card.defaultSource': '默认来源',
   'admin.billing.publicCatalog.card.demo': '演示数据',
   'admin.billing.publicCatalog.card.contextSource': '上下文窗口来源',
@@ -620,6 +622,50 @@ describe('BillingPublicCatalogView', () => {
       entry_id: 'legacy_a',
       source_model_id: 'legacy-model',
     })
+  })
+
+  it('shows route diagnostics and blocks unconfirmed candidates from being added', async () => {
+    apiMocks.getBillingPublicCatalogDraft.mockResolvedValueOnce({
+      draft: {
+        selected_entries: [],
+        page_size: 10,
+        updated_at: '2026-04-20T10:00:00Z',
+      },
+      available_entries: [
+        createCatalogEntry('acct_unrouted', 'gpt-5.4', 'unrouted', 1e-6, {
+          route_confirmed: false,
+          availability_state: 'verified',
+          stale_state: 'fresh',
+        }),
+        createCatalogEntry('acct_verified', 'gpt-5.4', 'verified', 1e-6, {
+          route_confirmed: true,
+          availability_state: 'verified',
+          stale_state: 'fresh',
+        }),
+      ],
+      available_items: [],
+      available_updated_at: '2026-04-20T10:30:00Z',
+      available_source: 'persisted_snapshot',
+      published: null,
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('待验证')
+    expect(wrapper.text()).toContain('账号路由暂未确认，当前不可发布。')
+    expect(wrapper.get('[data-testid="add-entry-acct_unrouted"]').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('[data-testid="add-entry-acct_unrouted"]').trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('全部添加'))!.trigger('click')
+    await wrapper.get('[data-testid="billing-public-catalog-sync-available"]').trigger('click')
+    await wrapper.get('[data-testid="billing-public-catalog-save"]').trigger('click')
+    await flushPromises()
+
+    expect(savedEntry('acct_unrouted')).toBeUndefined()
+    expect(savedEntry('acct_verified')).toEqual(expect.objectContaining({
+      entry_id: 'acct_verified',
+      public_model_id: 'gpt-5.4@verified',
+    }))
   })
 
   it('adds duplicate base models as separate public entries and publishes selected_entries', async () => {
