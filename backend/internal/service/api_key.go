@@ -114,7 +114,12 @@ func (k *APIKey) IsImageOnly() bool {
 //
 // When disabled (default), the gateway falls back to the existing token/USD billing logic.
 func (k *APIKey) EffectiveImageCountBillingEnabled() bool {
-	return k != nil && k.ImageOnlyEnabled && k.ImageCountBillingEnabled && k.ImageMaxCount > 0
+	return k != nil &&
+		k.User != nil &&
+		k.User.IsAdmin() &&
+		k.ImageOnlyEnabled &&
+		k.ImageCountBillingEnabled &&
+		k.ImageMaxCount > 0
 }
 
 func NormalizeAPIKeyModelDisplayMode(value string) string {

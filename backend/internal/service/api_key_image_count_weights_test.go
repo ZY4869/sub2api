@@ -24,3 +24,19 @@ func TestAPIKey_ImageCountUnitsForTier_UsesConfiguredWeights(t *testing.T) {
 	require.Equal(t, 4, key.ImageCountUnitsForTier(2, "auto"))
 	require.Equal(t, 0, key.ImageCountUnitsForTier(0, "4K"))
 }
+
+func TestAPIKey_EffectiveImageCountBillingRequiresAdminOwner(t *testing.T) {
+	base := APIKey{
+		ImageOnlyEnabled:         true,
+		ImageCountBillingEnabled: true,
+		ImageMaxCount:            10,
+	}
+
+	userKey := base
+	userKey.User = &User{ID: 7, Role: RoleUser}
+	require.False(t, userKey.EffectiveImageCountBillingEnabled())
+
+	adminKey := base
+	adminKey.User = &User{ID: 1, Role: RoleAdmin}
+	require.True(t, adminKey.EffectiveImageCountBillingEnabled())
+}

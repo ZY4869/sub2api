@@ -44,7 +44,7 @@
     </template>
 
     <template #cell-usage="{ row }">
-      <ApiKeyUsageSummary :api-key="row" :stats="usageStats[row.id]" />
+      <ApiKeyUsageSummary :api-key="row" :stats="usageStats[row.id]" :is-admin-mode="isAdminMode" />
     </template>
 
     <template #cell-rate_limit="{ row }">

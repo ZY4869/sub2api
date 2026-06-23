@@ -411,5 +411,6 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 	}
 	apiKey.SyncLegacyGroupShadow()
 	s.compileAPIKeyIPRules(apiKey)
+	sanitizeAPIKeyImageCountBillingForActor(apiKey, apiKey.User)
 	return apiKey
 }

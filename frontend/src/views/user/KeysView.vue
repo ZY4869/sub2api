@@ -353,10 +353,25 @@ watch(
   (enabled) => {
     if (enabled) {
       syncImageOnlyGroupBindings();
+      if (!isAdminMode.value) {
+        formData.value.image_count_billing_enabled = false;
+        formData.value.image_max_count = null;
+        formData.value.image_count_weights = defaultImageCountWeights();
+      }
       return;
     }
     formData.value.image_count_billing_enabled = false;
     formData.value.image_max_count = null;
+  },
+);
+
+watch(
+  isAdminMode,
+  (adminMode) => {
+    if (adminMode) return;
+    formData.value.image_count_billing_enabled = false;
+    formData.value.image_max_count = null;
+    formData.value.image_count_weights = defaultImageCountWeights();
   },
 );
 
@@ -672,14 +687,17 @@ const editKey = (key: ApiKey) => {
     quota: key.quota > 0 ? key.quota : null,
     image_only_enabled: !!key.image_only_enabled,
     image_count_billing_enabled:
-      !!key.image_only_enabled && !!key.image_count_billing_enabled,
+      isAdminMode.value && !!key.image_only_enabled && !!key.image_count_billing_enabled,
     image_max_count:
+      isAdminMode.value &&
       !!key.image_only_enabled &&
       !!key.image_count_billing_enabled &&
       (key.image_max_count || 0) > 0
         ? key.image_max_count
         : null,
-    image_count_weights: normalizeImageCountWeights(key.image_count_weights),
+    image_count_weights: isAdminMode.value
+      ? normalizeImageCountWeights(key.image_count_weights)
+      : defaultImageCountWeights(),
     enable_rate_limit:
       key.rate_limit_5h > 0 || key.rate_limit_1d > 0 || key.rate_limit_7d > 0,
     rate_limit_5h: key.rate_limit_5h || null,

@@ -119,6 +119,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		RateLimit1d:              req.RateLimit1d,
 		RateLimit7d:              req.RateLimit7d,
 	}
+	sanitizeAPIKeyImageCountBillingForActor(apiKey, user)
 
 	if req.ExpiresInDays != nil && *req.ExpiresInDays > 0 {
 		expiresAt := time.Now().AddDate(0, 0, *req.ExpiresInDays)

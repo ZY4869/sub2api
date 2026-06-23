@@ -74,10 +74,27 @@ const group = (id: number, name: string, priority = id): Group => ({
 })
 
 describe('ApiKey summaries', () => {
-  it('renders image quota inside the usage summary', () => {
+  it('hides image quota for normal users', () => {
     const wrapper = mount(ApiKeyUsageSummary, {
       props: {
         apiKey: baseApiKey(),
+        stats: {
+          api_key_id: 7,
+          today_actual_cost: 0.125,
+          total_actual_cost: 3.5
+        }
+      }
+    })
+
+    expect(wrapper.text()).not.toContain('keys.imageCountUsage:')
+    expect(wrapper.text()).not.toContain('25 / 100')
+  })
+
+  it('renders image quota inside the admin usage summary', () => {
+    const wrapper = mount(ApiKeyUsageSummary, {
+      props: {
+        apiKey: baseApiKey(),
+        isAdminMode: true,
         stats: {
           api_key_id: 7,
           today_actual_cost: 0.125,
@@ -98,7 +115,8 @@ describe('ApiKey summaries', () => {
         apiKey: baseApiKey({
           image_count_used: 100,
           image_max_count: 100
-        })
+        }),
+        isAdminMode: true
       }
     })
 

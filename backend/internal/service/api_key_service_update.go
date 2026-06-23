@@ -58,6 +58,7 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	defer rollback()
 
 	resetRateLimit := s.applyAPIKeyUpdateFields(opCtx, apiKey, req)
+	sanitizeAPIKeyImageCountBillingForActor(apiKey, user)
 	if err := ValidateTimeAccessSubset(apiKey.AccessTimePolicy, user.APIKeyAccessTimePolicy); err != nil {
 		return nil, timeAccessPolicyInputError(err)
 	}

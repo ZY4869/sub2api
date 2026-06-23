@@ -279,4 +279,13 @@ describe('KeysView api key model binding policy', () => {
     )
     expect(payload.groups[0]).not.toHaveProperty('model_patterns')
   })
+
+  it('does not render image count billing controls for normal users', async () => {
+    const wrapper = await mountKeysView('group_allowed')
+
+    await enableImageOnlyKey(wrapper)
+
+    expect(wrapper.text()).not.toContain('keys.imageCountBilling')
+    expect(wrapper.text()).not.toContain('keys.imageCountWeights')
+  })
 })

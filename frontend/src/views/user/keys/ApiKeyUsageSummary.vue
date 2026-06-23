@@ -7,12 +7,16 @@ import type { ApiKey } from "@/types";
 const props = defineProps<{
   apiKey: ApiKey;
   stats?: BatchApiKeyUsageStats;
+  isAdminMode?: boolean;
 }>();
 
 const { t } = useI18n();
 
 const imageQuotaEnabled = computed(
-  () => props.apiKey.image_only_enabled && props.apiKey.image_count_billing_enabled,
+  () =>
+    !!props.isAdminMode &&
+    props.apiKey.image_only_enabled &&
+    props.apiKey.image_count_billing_enabled,
 );
 const imageUsed = computed(() => Math.max(0, Number(props.apiKey.image_count_used || 0)));
 const imageMax = computed(() => Math.max(0, Number(props.apiKey.image_max_count || 0)));

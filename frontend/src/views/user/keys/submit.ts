@@ -122,8 +122,9 @@ export async function submitApiKeyForm(ctx: SubmitApiKeyFormContext) {
     : { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 };
 
   const imageOnlyEnabled = !!formData.value.image_only_enabled;
+  const canManageImageCountBilling = isAdminMode.value;
   const imageCountBillingEnabled =
-    imageOnlyEnabled && !!formData.value.image_count_billing_enabled;
+    canManageImageCountBilling && imageOnlyEnabled && !!formData.value.image_count_billing_enabled;
   const parsedImageMaxCount = Number(formData.value.image_max_count ?? 0);
   const imageMaxCount =
     imageCountBillingEnabled && Number.isFinite(parsedImageMaxCount) && parsedImageMaxCount > 0
@@ -144,9 +145,18 @@ export async function submitApiKeyForm(ctx: SubmitApiKeyFormContext) {
     appStore.showError(t("keys.imageCountWeightInvalid"));
     return;
   }
-  const imageCountWeights = normalizeImageCountWeights(
-    formData.value.image_count_weights,
-  );
+  const imageCountPayload = canManageImageCountBilling
+    ? {
+        image_count_billing_enabled: imageCountBillingEnabled,
+        image_max_count: imageMaxCount,
+        image_count_weights: normalizeImageCountWeights(
+          formData.value.image_count_weights,
+        ),
+      }
+    : {
+        image_count_billing_enabled: false,
+        image_max_count: 0,
+      };
   const startsAt = formData.value.enable_starts_at && formData.value.starts_at
     ? new Date(formData.value.starts_at).toISOString()
     : showEditModal.value
@@ -167,9 +177,7 @@ export async function submitApiKeyForm(ctx: SubmitApiKeyFormContext) {
         ip_blacklist: ipBlacklist,
         quota,
         image_only_enabled: imageOnlyEnabled,
-        image_count_billing_enabled: imageCountBillingEnabled,
-        image_max_count: imageMaxCount,
-        image_count_weights: imageCountWeights,
+        ...imageCountPayload,
         expires_at: expiresAt,
         starts_at: startsAt,
         ...(accessTimePolicy
@@ -188,9 +196,7 @@ export async function submitApiKeyForm(ctx: SubmitApiKeyFormContext) {
         name: formData.value.name,
         groups: groupBindingsPayload,
         image_only_enabled: imageOnlyEnabled,
-        image_count_billing_enabled: imageCountBillingEnabled,
-        image_max_count: imageMaxCount,
-        image_count_weights: imageCountWeights,
+        ...imageCountPayload,
         ...(customKey ? { custom_key: customKey } : {}),
         ...(ipWhitelist.length ? { ip_whitelist: ipWhitelist } : {}),
         ...(ipBlacklist.length ? { ip_blacklist: ipBlacklist } : {}),

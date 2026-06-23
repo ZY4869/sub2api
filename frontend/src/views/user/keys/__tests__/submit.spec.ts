@@ -61,13 +61,14 @@ function context(overrides: Partial<{
   formData: ApiKeyFormData
   showEditModal: boolean
   selectedKey: any
+  isAdminMode: boolean
 }> = {}) {
   return {
     formData: ref(overrides.formData || baseForm()),
     selectedKey: ref(overrides.selectedKey || null),
     showEditModal: ref(!!overrides.showEditModal),
     submitting: ref(false),
-    isAdminMode: ref(false),
+    isAdminMode: ref(!!overrides.isAdminMode),
     apiKeyModelSelectionRequired: ref(false),
     customKeyError: ref(''),
     t: (key: string) => key,
@@ -87,6 +88,43 @@ function context(overrides: Partial<{
 }
 
 describe('submitApiKeyForm time access payloads', () => {
+  it('clears image count billing payloads for normal users', async () => {
+    mocks.createWithPayload.mockResolvedValueOnce({})
+    const formData = baseForm()
+    formData.image_only_enabled = true
+    formData.image_count_billing_enabled = true
+    formData.image_max_count = 100
+    formData.image_count_weights = { '1K': 2, '2K': 3, '4K': 4 }
+
+    await submitApiKeyForm(context({ formData }))
+
+    const payload = mocks.createWithPayload.mock.calls[0][0]
+    expect(payload).toEqual(expect.objectContaining({
+      image_only_enabled: true,
+      image_count_billing_enabled: false,
+      image_max_count: 0,
+    }))
+    expect(payload).not.toHaveProperty('image_count_weights')
+  })
+
+  it('keeps image count billing payloads for admins', async () => {
+    mocks.createWithPayload.mockResolvedValueOnce({})
+    const formData = baseForm()
+    formData.image_only_enabled = true
+    formData.image_count_billing_enabled = true
+    formData.image_max_count = 100
+    formData.image_count_weights = { '1K': 2, '2K': 3, '4K': 4 }
+
+    await submitApiKeyForm(context({ formData, isAdminMode: true }))
+
+    expect(mocks.createWithPayload).toHaveBeenCalledWith(expect.objectContaining({
+      image_only_enabled: true,
+      image_count_billing_enabled: true,
+      image_max_count: 100,
+      image_count_weights: { '1K': 2, '2K': 3, '4K': 4 },
+    }))
+  })
+
   it('sends multi-window time policy payloads on create', async () => {
     mocks.createWithPayload.mockResolvedValueOnce({})
     const ctx = context()

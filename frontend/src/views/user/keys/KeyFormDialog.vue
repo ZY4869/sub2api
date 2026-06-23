@@ -157,7 +157,7 @@
           align-start
           @update:model-value="(value) => updateField('image_only_enabled', value)"
         />
-        <div v-if="formData.image_only_enabled" class="space-y-4 pt-2">
+        <div v-if="isAdminMode && formData.image_only_enabled" class="space-y-4 pt-2">
           <ToggleField
             :label="t('keys.imageCountBilling')"
             :hint="t('keys.imageCountBillingHint')"
