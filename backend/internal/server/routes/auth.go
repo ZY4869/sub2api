@@ -12,6 +12,14 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// RegisterAuthCompatRoutes registers public compatibility auth probes outside /api/v1.
+func RegisterAuthCompatRoutes(r *gin.Engine, h *handler.Handlers) {
+	if r == nil || h == nil || h.Auth == nil {
+		return
+	}
+	r.GET("/api/auth/session", h.Auth.SessionCompat)
+}
+
 // RegisterAuthRoutes 注册认证相关路由
 func RegisterAuthRoutes(
 	v1 *gin.RouterGroup,

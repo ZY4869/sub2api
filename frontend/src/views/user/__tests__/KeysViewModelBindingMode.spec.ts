@@ -158,8 +158,15 @@ function resetMocks(mode: 'model_required' | 'group_allowed') {
       name: 'OpenAI',
       platform: 'openai',
       priority: 1,
-      model_count: 1,
-      models: [{ public_id: 'gpt-5.4', display_name: 'GPT 5.4' }],
+      model_count: 101,
+      models: [
+        { public_id: 'gpt-5.4', display_name: 'GPT 5.4', request_protocols: ['chat'] },
+        ...Array.from({ length: 100 }, (_, index) => ({
+          public_id: `gpt-image-${index}`,
+          display_name: `GPT Image ${index}`,
+          request_protocols: ['images'],
+        })),
+      ],
     },
   ])
   mocks.getModelCatalog.mockResolvedValue({ items: [] })
@@ -212,6 +219,17 @@ async function mountKeysView(mode: 'model_required' | 'group_allowed') {
   return wrapper
 }
 
+async function enableImageOnlyKey(wrapper: Awaited<ReturnType<typeof mountKeysView>>) {
+  const imageOnlyToggle = wrapper
+    .findAllComponents({ name: 'ToggleField' })
+    .find((component) => component.props('label') === 'keys.imageOnlyKey')
+  if (!imageOnlyToggle) {
+    throw new Error('image-only toggle was not rendered')
+  }
+  await imageOnlyToggle.find('button').trigger('click')
+  await flushPromises()
+}
+
 describe('KeysView api key model binding policy', () => {
   beforeEach(() => {
     vi.useRealTimers()
@@ -243,5 +261,22 @@ describe('KeysView api key model binding policy', () => {
         groups: [{ group_id: 10 }],
       }),
     )
+  })
+
+  it('keeps image-only create payload as whole-group when no model is selected', async () => {
+    const wrapper = await mountKeysView('group_allowed')
+
+    await enableImageOnlyKey(wrapper)
+    await wrapper.get('form#key-form').trigger('submit.prevent')
+
+    const payload = mocks.createKey.mock.calls[0]?.[0]
+    expect(payload).toEqual(
+      expect.objectContaining({
+        name: 'narrow key',
+        image_only_enabled: true,
+        groups: [{ group_id: 10 }],
+      }),
+    )
+    expect(payload.groups[0]).not.toHaveProperty('model_patterns')
   })
 })

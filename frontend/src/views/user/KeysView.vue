@@ -193,6 +193,7 @@ import {
   bindingToEditableDraft,
   createEmptyEditableBinding,
   getDisplayApiKeyGroups,
+  parseModelPatterns,
   type EditableApiKeyGroupBinding,
 } from "@/components/keys/apiKeyGroupBindings";
 import type { Column } from "@/components/common/types";
@@ -574,24 +575,36 @@ function syncImageOnlyGroupBindings() {
   if (!formData.value.image_only_enabled || isAdminMode.value) {
     return;
   }
-  formData.value.group_bindings = formData.value.group_bindings.map((binding) => {
+  let changed = false;
+  const nextBindings = formData.value.group_bindings.map((binding) => {
     const imageModels = imageModelIdsForBinding(binding);
     if (imageModels.length === 0) {
       return binding;
     }
-    if (
-      binding.model_selection_dirty &&
-      arraysEqual(binding.selected_models, imageModels)
-    ) {
+    const selectedModels = binding.model_selection_dirty
+      ? binding.selected_models
+      : parseModelPatterns(binding.model_patterns_text);
+    if (selectedModels.length === 0) {
       return binding;
     }
+    const imageModelSet = new Set(imageModels);
+    const selectedImageModels = selectedModels.filter((modelID) =>
+      imageModelSet.has(modelID),
+    );
+    if (arraysEqual(selectedModels, selectedImageModels)) {
+      return binding;
+    }
+    changed = true;
     return {
       ...binding,
-      selected_models: imageModels,
-      model_patterns_text: imageModels.join("\n"),
+      selected_models: selectedImageModels,
+      model_patterns_text: selectedImageModels.join("\n"),
       model_selection_dirty: true,
     };
   });
+  if (changed) {
+    formData.value.group_bindings = nextBindings;
+  }
 }
 
 function arraysEqual(left: string[], right: string[]): boolean {

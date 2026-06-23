@@ -160,6 +160,31 @@ describe("APIKeyGroupBindingsEditor", () => {
     expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(2);
   });
 
+  it("keeps large image-only model lists filtered to image-capable models", () => {
+    const wrapper = mountEditor(true, false, {
+      groupModelOptions: {
+        1: [
+          ...Array.from({ length: 300 }, (_, index) => ({
+            public_id: `chat-${index}`,
+            display_name: `Chat ${index}`,
+            request_protocols: ["chat"],
+          })),
+          ...Array.from({ length: 4 }, (_, index) => ({
+            public_id: `image-${index}`,
+            display_name: `Image ${index}`,
+            request_protocols: ["images"],
+          })),
+        ],
+      },
+      groupModelCatalogItems: { 1: [] },
+    });
+
+    expect(wrapper.text()).toContain("Image 0");
+    expect(wrapper.text()).toContain("Image 3");
+    expect(wrapper.text()).not.toContain("Chat 299");
+    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(4);
+  });
+
   it("emits only image model selections in image-only mode", async () => {
     const wrapper = mountEditor(true);
 

@@ -95,6 +95,23 @@ type AuthResponse struct {
 	User         *dto.User `json:"user"`
 }
 
+type SessionCompatResponse struct {
+	User          any     `json:"user"`
+	Expires       *string `json:"expires"`
+	Authenticated bool    `json:"authenticated"`
+}
+
+// SessionCompat returns a minimal NextAuth-like anonymous session payload.
+// It exists only so external scripts probing /api/auth/session receive JSON.
+func (h *AuthHandler) SessionCompat(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, SessionCompatResponse{
+		User:          nil,
+		Expires:       nil,
+		Authenticated: false,
+	})
+}
+
 // respondWithTokenPair 生成 Token 对并返回认证响应
 // 如果 Token 对生成失败，回退到只返回 Access Token（向后兼容）
 func (h *AuthHandler) respondWithTokenPair(c *gin.Context, user *service.User) {

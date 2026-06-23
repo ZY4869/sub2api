@@ -65,20 +65,20 @@
         </div>
 
         <div
-          v-if="groupModelOptionsLoading && modelsForBinding(binding).length === 0"
+          v-if="groupModelOptionsLoading && bindingView(binding).models.length === 0"
           class="rounded-xl border border-dashed border-gray-200 px-3 py-4 text-sm text-gray-500 dark:border-dark-600 dark:text-gray-400"
         >
           {{ t("keys.modelScopeLoading") }}
         </div>
 
         <div
-          v-else-if="modelsForBinding(binding).length"
+          v-else-if="bindingView(binding).models.length"
           class="space-y-2"
         >
           <p class="text-xs text-gray-500 dark:text-gray-400">
             {{
-              selectedModelCount(binding) > 0
-                ? t("keys.modelScopeSelected", { count: selectedModelCount(binding) })
+              bindingView(binding).selectedCount > 0
+                ? t("keys.modelScopeSelected", { count: bindingView(binding).selectedCount })
                 : modelSelectionRequired
                   ? t("keys.modelScopeRequiredHint")
                 : imageOnly
@@ -88,21 +88,21 @@
           </p>
 
           <p
-            v-if="unmatchedModelPatterns(binding).length"
+            v-if="bindingView(binding).unmatchedPatterns.length"
             class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
           >
             {{ t("keys.modelScopeLegacyHint") }}
           </p>
 
           <p
-            v-if="modelSelectionRequired && selectedModelCount(binding) === 0"
+            v-if="modelSelectionRequired && bindingView(binding).selectedCount === 0"
             class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
           >
             {{ t("keys.modelSelectionRequired") }}
           </p>
 
           <label
-            v-if="hasUnavailableModels(binding)"
+            v-if="bindingView(binding).hasUnavailableModels"
             class="inline-flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300"
           >
             <input
@@ -116,42 +116,42 @@
 
           <div class="max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 dark:border-dark-600 dark:bg-dark-900">
             <label
-              v-for="model in modelsForBinding(binding)"
-              :key="`${binding.group_id}-${model.public_id}`"
+              v-for="modelView in bindingView(binding).models"
+              :key="`${binding.group_id}-${modelView.model.public_id}`"
               class="flex items-start gap-3 rounded-lg px-2 py-2 transition"
-              :class="isModelSelectionDisabled(binding, model.public_id) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-800'"
+              :class="modelView.selectionDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-800'"
             >
               <input
                 type="checkbox"
                 class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-500"
-                :checked="isModelSelected(binding, model.public_id)"
-                :disabled="isModelSelectionDisabled(binding, model.public_id)"
-                @change="toggleModelSelection(index, model.public_id)"
+                :checked="modelView.selected"
+                :disabled="modelView.selectionDisabled"
+                @change="toggleModelSelection(index, modelView.model.public_id)"
               />
               <ModelIcon
-                :model="model.public_id"
-                :provider="catalogItemForBinding(binding, model.public_id)?.provider"
-                :display-name="catalogItemForBinding(binding, model.public_id)?.display_name || model.display_name || model.public_id"
+                :model="modelView.model.public_id"
+                :provider="modelView.catalogItem?.provider"
+                :display-name="modelView.displayName"
                 size="18px"
               />
               <div class="min-w-0 flex-1">
                 <div class="truncate text-sm font-medium text-gray-900 dark:text-white">
-                  {{ catalogItemForBinding(binding, model.public_id)?.display_name || model.display_name || model.public_id }}
+                  {{ modelView.displayName }}
                 </div>
                 <div class="truncate text-xs text-gray-500 dark:text-gray-400">
-                  {{ model.public_id }}
+                  {{ modelView.model.public_id }}
                 </div>
                 <div
-                  v-if="modelPriceSummary(binding, model.public_id)"
+                  v-if="modelView.priceSummary"
                   class="mt-1 text-xs text-emerald-700 dark:text-emerald-300"
                 >
-                  {{ modelPriceSummary(binding, model.public_id) }}
+                  {{ modelView.priceSummary }}
                 </div>
                 <div
-                  v-if="unavailableReasonLabel(binding, model.public_id)"
+                  v-if="modelView.unavailableReasonLabel"
                   class="mt-1 text-xs text-amber-700 dark:text-amber-300"
                 >
-                  {{ unavailableReasonLabel(binding, model.public_id) }}
+                  {{ modelView.unavailableReasonLabel }}
                 </div>
               </div>
             </label>
@@ -241,6 +241,24 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
+interface ModelOptionView {
+  model: UserGroupModelOption;
+  catalogItem?: PublicModelCatalogItem;
+  displayName: string;
+  selected: boolean;
+  unavailable: boolean;
+  selectionDisabled: boolean;
+  unavailableReasonLabel: string;
+  priceSummary: string;
+}
+
+interface BindingView {
+  models: ModelOptionView[];
+  selectedCount: number;
+  unmatchedPatterns: string[];
+  hasUnavailableModels: boolean;
+}
+
 const rows = computed(() => props.modelValue || []);
 const sortedGroups = computed(() =>
   [...props.groups].sort((a, b) => {
@@ -298,36 +316,71 @@ const onModelPatternsInput = (index: number, event: Event) => {
   updateRow(index, { model_patterns_text: target.value });
 };
 
-const modelsForBinding = (
-  binding: EditableApiKeyGroupBinding,
-): UserGroupModelOption[] => {
+const buildBindingView = (binding: EditableApiKeyGroupBinding): BindingView => {
   const models = props.groupModelOptions?.[binding.group_id] || [];
-  const visibleModels = props.showUnavailableModels
-    ? models
-    : models.filter((model) => !isModelUnavailable(binding, model.public_id));
-  if (!props.imageOnly) {
-    return visibleModels;
-  }
   const catalogByModel = new Map(
     catalogItemsForBinding(binding).map((item) => [item.model, item]),
   );
-  return visibleModels.filter((model) => {
+  const selectedPatterns = effectiveModelPatterns(binding);
+  const selectedSet = new Set(selectedPatterns);
+  const visibleModels: ModelOptionView[] = [];
+  let hasUnavailableModels = false;
+
+  for (const model of models) {
     const item = catalogByModel.get(model.public_id);
-    return isModelUnavailable(binding, model.public_id) || isImageModelOption(model, item);
-  });
+    const unavailable = item?.key_availability === "unavailable";
+    hasUnavailableModels = hasUnavailableModels || unavailable;
+    if (!props.showUnavailableModels && unavailable) {
+      continue;
+    }
+    if (props.imageOnly && !unavailable && !isImageModelOption(model, item)) {
+      continue;
+    }
+    const unavailableReason = item?.unavailable_reason || "";
+    visibleModels.push({
+      model,
+      catalogItem: item,
+      displayName: item?.display_name || model.display_name || model.public_id,
+      selected: selectedSet.has(model.public_id),
+      unavailable,
+      selectionDisabled: unavailable && unavailableReason !== "not_selected_by_key",
+      unavailableReasonLabel: unavailableReason
+        ? t(`keys.modelUnavailableReasons.${unavailableReason}`)
+        : "",
+      priceSummary: modelPriceSummary(item),
+    });
+  }
+
+  const available = new Set(visibleModels.map((item) => item.model.public_id));
+  const unmatchedPatterns = selectedPatterns.filter(
+    (pattern) => !available.has(pattern),
+  );
+  const selectedCount = selectedPatterns.filter((pattern) =>
+    available.has(pattern),
+  ).length;
+  return {
+    models: visibleModels,
+    selectedCount,
+    unmatchedPatterns,
+    hasUnavailableModels,
+  };
 };
+
+const bindingViews = computed(() => {
+  const views = new Map<EditableApiKeyGroupBinding, BindingView>();
+  rows.value.forEach((binding) => {
+    views.set(binding, buildBindingView(binding));
+  });
+  return views;
+});
+
+const bindingView = (binding: EditableApiKeyGroupBinding): BindingView =>
+  bindingViews.value.get(binding) ?? buildBindingView(binding);
 
 const catalogItemsForBinding = (
   binding: EditableApiKeyGroupBinding,
 ): PublicModelCatalogItem[] => {
   return props.groupModelCatalogItems?.[binding.group_id] || [];
-};
-
-const catalogItemForBinding = (
-  binding: EditableApiKeyGroupBinding,
-  modelID: string,
-): PublicModelCatalogItem | undefined => {
-  return catalogItemsForBinding(binding).find((item) => item.model === modelID);
 };
 
 const isImageModelOption = (
@@ -341,53 +394,13 @@ const isImageModelOption = (
   return protocols.some((protocol) => String(protocol).toLowerCase().includes("image"));
 };
 
-const modelPriceSummary = (
-  binding: EditableApiKeyGroupBinding,
-  modelID: string,
-): string => {
-  const item = catalogItemForBinding(binding, modelID);
+const modelPriceSummary = (item?: PublicModelCatalogItem): string => {
   if (!item || !item.currency || !item.price_display?.primary?.length) {
     return "";
   }
   return item.price_display.primary
     .map((entry) => `${priceEntryLabel(t, entry.id)} ${formatCatalogPrice(t, entry, item.currency, null)}`)
     .join(" · ");
-};
-
-const hasUnavailableModels = (
-  binding: EditableApiKeyGroupBinding,
-): boolean => {
-  return (props.groupModelOptions?.[binding.group_id] || []).some((model) =>
-    isModelUnavailable(binding, model.public_id),
-  );
-};
-
-const isModelUnavailable = (
-  binding: EditableApiKeyGroupBinding,
-  modelID: string,
-): boolean => {
-  const item = catalogItemForBinding(binding, modelID);
-  return item?.key_availability === "unavailable";
-};
-
-const isModelSelectionDisabled = (
-  binding: EditableApiKeyGroupBinding,
-  modelID: string,
-): boolean => {
-  const item = catalogItemForBinding(binding, modelID);
-  return item?.key_availability === "unavailable" &&
-    item.unavailable_reason !== "not_selected_by_key";
-};
-
-const unavailableReasonLabel = (
-  binding: EditableApiKeyGroupBinding,
-  modelID: string,
-): string => {
-  const reason = catalogItemForBinding(binding, modelID)?.unavailable_reason;
-  if (!reason) {
-    return "";
-  }
-  return t(`keys.modelUnavailableReasons.${reason}`);
 };
 
 const effectiveModelPatterns = (
@@ -398,36 +411,17 @@ const effectiveModelPatterns = (
     : parseModelPatterns(binding.model_patterns_text);
 };
 
-const unmatchedModelPatterns = (
-  binding: EditableApiKeyGroupBinding,
-): string[] => {
-  const available = new Set(modelsForBinding(binding).map((item) => item.public_id));
-  return effectiveModelPatterns(binding).filter((pattern) => !available.has(pattern));
-};
-
-const selectedModelCount = (
-  binding: EditableApiKeyGroupBinding,
-): number => {
-  const available = new Set(modelsForBinding(binding).map((item) => item.public_id));
-  return effectiveModelPatterns(binding).filter((pattern) => available.has(pattern)).length;
-};
-
-const isModelSelected = (
-  binding: EditableApiKeyGroupBinding,
-  modelID: string,
-): boolean => {
-  return effectiveModelPatterns(binding).includes(modelID);
-};
-
 const toggleModelSelection = (index: number, modelID: string) => {
   const binding = rows.value[index];
   if (!binding) {
     return;
   }
-  if (isModelSelectionDisabled(binding, modelID)) {
+  const view = bindingView(binding);
+  const target = view.models.find((item) => item.model.public_id === modelID);
+  if (!target || target.selectionDisabled) {
     return;
   }
-  const available = new Set(modelsForBinding(binding).map((item) => item.public_id));
+  const available = new Set(view.models.map((item) => item.model.public_id));
   const current = effectiveModelPatterns(binding).filter((pattern) => available.has(pattern));
   const next = current.includes(modelID)
     ? current.filter((item) => item !== modelID)

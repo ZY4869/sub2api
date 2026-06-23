@@ -61,6 +61,11 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.now': 'Now',
           'admin.accounts.usageWindow.spark5h': 'Spark 5h',
           'admin.accounts.usageWindow.spark7d': 'Spark 7d',
+          'admin.accounts.usageWindow.refreshResetCredits': 'Refresh count',
+          'admin.accounts.usageWindow.refreshingResetCredits': 'Refreshing',
+          'admin.accounts.usageWindow.refreshResetCreditsTitle': 'Refresh OpenAI reset credits',
+          'admin.accounts.usageWindow.refreshResetCreditsSuccess': 'Reset credits refreshed',
+          'admin.accounts.usageWindow.refreshResetCreditsFailed': 'Reset credits refresh failed',
           'admin.accounts.usageWindow.resetQuota': 'Reset quota',
           'admin.accounts.usageWindow.resettingQuota': 'Resetting',
           'admin.accounts.usageWindow.resetQuotaRemaining': '{count} resets left',
@@ -368,7 +373,7 @@ describe('AccountUsageResetCell', () => {
     })
 
     await flushPromises()
-    const button = wrapper.find('button')
+    const button = wrapper.get('[data-testid="account-usage-reset-quota-button"]')
     expect(button.text()).toContain('Reset quota')
 
     await button.trigger('click')
@@ -378,6 +383,46 @@ describe('AccountUsageResetCell', () => {
     expect(resetAccountQuota).toHaveBeenCalledWith(3007)
     expect(getUsage).toHaveBeenCalledWith(3007, { force: true, source: 'active' })
     expect(showSuccess).toHaveBeenCalledWith('Quota reset')
+  })
+
+  it('refreshes openai reset credits without consuming a reset credit', async () => {
+    getUsage.mockResolvedValue({
+      openai_reset_credits: {
+        available_count: 2,
+        status: 'available',
+        source: 'codex_app_server',
+      },
+      five_hour: {
+        utilization: 10,
+        resets_at: '2026-03-13T15:22:00Z',
+      },
+    })
+
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3014,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 10,
+            codex_5h_reset_at: '2026-03-13T15:22:00',
+            openai_rate_limit_reset_credits_available_count: 1,
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="account-usage-reset-credits-refresh"]').trigger('click')
+    await flushPromises()
+
+    expect(resetAccountQuota).not.toHaveBeenCalled()
+    expect(window.confirm).not.toHaveBeenCalled()
+    expect(getUsage).toHaveBeenCalledWith(3014, { force: true, source: 'active' })
+    expect(showSuccess).toHaveBeenCalledWith('Reset credits refreshed')
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('02 resets left')
   })
 
   it('shows the openai quota reset remaining count from account extra', async () => {
@@ -400,7 +445,7 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('03 resets left')
-    expect(wrapper.get('button').text()).toContain('Reset quota')
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-button"]').text()).toContain('Reset quota')
   })
 
   it('shows unknown openai quota reset remaining count when no real count exists', async () => {
@@ -422,7 +467,7 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('-- resets left')
-    expect(wrapper.get('button').text()).toContain('Reset quota')
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-button"]').text()).toContain('Reset quota')
   })
 
   it('keeps usage unknown authoritative over stale account extra reset credits', async () => {
@@ -521,7 +566,7 @@ describe('AccountUsageResetCell', () => {
     })
 
     await flushPromises()
-    await wrapper.get('button').trigger('click')
+    await wrapper.get('[data-testid="account-usage-reset-quota-button"]').trigger('click')
     await flushPromises()
 
     expect(resetAccountQuota).toHaveBeenCalledWith(3012)
@@ -562,7 +607,7 @@ describe('AccountUsageResetCell', () => {
     })
 
     await flushPromises()
-    await wrapper.get('button').trigger('click')
+    await wrapper.get('[data-testid="account-usage-reset-quota-button"]').trigger('click')
     await flushPromises()
 
     expect(resetAccountQuota).toHaveBeenCalledWith(3013)
@@ -593,9 +638,10 @@ describe('AccountUsageResetCell', () => {
     expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe(
       'This Codex app-server cannot reset',
     )
-    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-button"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="account-usage-reset-credits-refresh"]').attributes('disabled')).toBeUndefined()
 
-    await wrapper.get('button').trigger('click')
+    await wrapper.get('[data-testid="account-usage-reset-quota-button"]').trigger('click')
 
     expect(resetAccountQuota).not.toHaveBeenCalled()
     expect(window.confirm).not.toHaveBeenCalled()
