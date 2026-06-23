@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import GroupBadge from "@/components/common/GroupBadge.vue";
+import ApiKeyGroupPill from "@/components/keys/ApiKeyGroupPill.vue";
 import type { ApiKey, ApiKeyGroup, Group } from "@/types";
 
 const props = defineProps<{
@@ -66,7 +66,7 @@ const tooltipText = computed(() =>
         :key="`${apiKey.id}-${binding.id}`"
         class="flex min-w-0 items-center gap-1.5"
       >
-        <GroupBadge
+        <ApiKeyGroupPill
           class="max-w-[8rem]"
           :name="binding.name"
           :platform="binding.platform"
@@ -74,9 +74,6 @@ const tooltipText = computed(() =>
           :rate-multiplier="binding.rateMultiplier"
           :user-rate-multiplier="binding.userRateMultiplier"
         />
-        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-dark-700 dark:text-gray-300">
-          P{{ binding.priority }}
-        </span>
       </div>
       <span
         v-if="hiddenCount > 0"

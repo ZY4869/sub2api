@@ -7,7 +7,7 @@
       :disabled="disabled"
       :aria-expanded="isOpen"
       :aria-haspopup="true"
-      aria-label="Select option"
+      :aria-label="ariaLabelText"
       :class="[
         'select-trigger',
         isOpen && 'select-trigger-open',
@@ -135,6 +135,7 @@ interface Props {
   labelKey?: string
   creatable?: boolean
   creatablePrefix?: string
+  ariaLabel?: string
 }
 
 interface Emits {
@@ -169,6 +170,7 @@ const triggerRect = ref<DOMRect | null>(null)
 const placeholderText = computed(() => props.placeholder ?? t('common.selectOption'))
 const searchPlaceholderText = computed(() => props.searchPlaceholder ?? t('common.searchPlaceholder'))
 const emptyTextDisplay = computed(() => props.emptyText ?? t('common.noOptionsFound'))
+const ariaLabelText = computed(() => props.ariaLabel ?? t('common.selectOption'))
 
 // Computed style for teleported dropdown
 const dropdownStyle = computed(() => {

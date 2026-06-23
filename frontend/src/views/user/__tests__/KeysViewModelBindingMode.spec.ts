@@ -200,7 +200,7 @@ async function mountKeysView(mode: 'model_required' | 'group_allowed') {
         SearchInput: { template: '<input />' },
         Icon: { template: '<span />' },
         UseKeyModal: { template: '<div />' },
-        GroupBadge: { template: '<span />' },
+        ApiKeyGroupPill: { template: '<span />' },
         APIKeyGroupBindingsEditor: APIKeyGroupBindingsEditorStub,
       },
     },

@@ -33,6 +33,7 @@
           :group-model-catalog-items="groupModelCatalogItems"
           :group-model-options="groupModelOptions"
           :group-model-options-loading="groupModelOptionsLoading"
+          :user-group-rates="userGroupRates"
           :admin-mode="isAdminMode"
           :image-only="formData.image_only_enabled"
           :model-selection-required="apiKeyModelSelectionRequired"
@@ -428,6 +429,7 @@ const props = defineProps<{
   groupModelCatalogItems: Record<number, PublicModelCatalogItem[]>;
   groupModelOptions: Record<number, UserGroupModelOption[]>;
   groupModelOptionsLoading: boolean;
+  userGroupRates?: Record<number, number>;
   isAdminMode: boolean;
   apiKeyModelSelectionRequired: boolean;
   showUnavailableModels: boolean;

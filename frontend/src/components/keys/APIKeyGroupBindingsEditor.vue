@@ -16,23 +16,13 @@
           <label class="input-label">{{
             adminMode ? t("admin.users.group") : t("keys.groupLabel")
           }}</label>
-          <select
-            class="input"
-            :value="binding.group_id"
-            @change="onGroupChange(index, $event)"
-          >
-            <option :value="0">{{ t("keys.selectGroup") }}</option>
-            <option
-              v-for="group in sortedGroups"
-              :key="group.id"
-              :value="group.id"
-              :disabled="isGroupSelectedInOtherBinding(group.id, index)"
-            >
-              {{ group.name }} · {{ group.platform }} · P{{
-                group.priority ?? 1
-              }}
-            </option>
-          </select>
+          <ApiKeyGroupSelect
+            :model-value="binding.group_id"
+            :groups="sortedGroups"
+            :disabled-group-ids="selectedGroupIdsForOtherBindings(index)"
+            :user-group-rates="userGroupRates"
+            @update:model-value="(groupId) => onGroupChange(index, groupId)"
+          />
         </div>
 
         <div v-if="adminMode">
@@ -205,6 +195,7 @@ import { useI18n } from "vue-i18n";
 import type { PublicModelCatalogItem } from "@/api/meta";
 import ModelIcon from "@/components/common/ModelIcon.vue";
 import type { UserGroupModelOption } from "@/types";
+import ApiKeyGroupSelect from "./ApiKeyGroupSelect.vue";
 import type {
   BindableGroup,
   EditableApiKeyGroupBinding,
@@ -229,6 +220,7 @@ const props = withDefaults(
     imageOnly?: boolean;
     modelSelectionRequired?: boolean;
     showUnavailableModels?: boolean;
+    userGroupRates?: Record<number, number>;
   }>(),
   {
     adminMode: false,
@@ -238,6 +230,7 @@ const props = withDefaults(
     groupModelOptions: () => ({}),
     groupModelOptionsLoading: false,
     showUnavailableModels: false,
+    userGroupRates: () => ({}),
   },
 );
 
@@ -280,19 +273,15 @@ const removeRow = (index: number) => {
   updateRows(rows.value.filter((_, currentIndex) => currentIndex !== index));
 };
 
-const isGroupSelectedInOtherBinding = (
-  groupId: number,
-  currentIndex: number,
-): boolean => {
-  return rows.value.some(
-    (binding, index) => index !== currentIndex && binding.group_id === groupId,
-  );
+const selectedGroupIdsForOtherBindings = (currentIndex: number): number[] => {
+  return rows.value
+    .filter((binding, index) => index !== currentIndex && binding.group_id > 0)
+    .map((binding) => binding.group_id);
 };
 
-const onGroupChange = (index: number, event: Event) => {
-  const target = event.target as HTMLSelectElement;
+const onGroupChange = (index: number, groupId: number) => {
   updateRow(index, {
-    group_id: Number(target.value) || 0,
+    group_id: groupId || 0,
     model_patterns_text: "",
     selected_models: [],
     model_selection_dirty: true,

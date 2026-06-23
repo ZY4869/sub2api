@@ -128,16 +128,18 @@ describe('ApiKey summaries', () => {
       },
       global: {
         stubs: {
-          GroupBadge: {
+          ApiKeyGroupPill: {
             props: ['name'],
-            template: '<span class="group-badge">{{ name }}</span>'
+            template: '<span class="group-pill">{{ name }}</span>'
           }
         }
       }
     })
 
-    expect(wrapper.findAll('.group-badge')).toHaveLength(2)
+    expect(wrapper.findAll('.group-pill')).toHaveLength(2)
     expect(wrapper.text()).toContain('+1')
+    expect(wrapper.text()).not.toContain('P1')
+    expect(wrapper.text()).not.toContain('P2')
     expect(wrapper.attributes('aria-label')).toBeUndefined()
     const focusable = wrapper.find('[tabindex="0"]')
     expect(focusable.attributes('aria-label')).toContain('OpenAI Primary')

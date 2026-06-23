@@ -92,6 +92,7 @@
       :group-model-catalog-items="groupModelCatalogItems"
       :group-model-options="groupModelOptions"
       :group-model-options-loading="groupModelOptionsLoading"
+      :user-group-rates="userGroupRates"
       :is-admin-mode="isAdminMode"
       :api-key-model-selection-required="apiKeyModelSelectionRequired"
       :show-unavailable-models="showUnavailableModels"

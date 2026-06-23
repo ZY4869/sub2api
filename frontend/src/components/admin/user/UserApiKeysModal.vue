@@ -124,7 +124,7 @@
                 class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-dark-500 dark:bg-dark-700"
               >
                 <div class="flex flex-wrap items-center gap-2">
-                  <GroupBadge
+                  <ApiKeyGroupPill
                     v-if="resolveGroup(binding.group_id)"
                     :name="resolveGroup(binding.group_id)!.name"
                     :platform="resolveGroup(binding.group_id)!.platform"
@@ -134,21 +134,13 @@
                     :rate-multiplier="
                       resolveGroup(binding.group_id)!.rate_multiplier
                     "
+                    :user-rate-multiplier="props.user?.group_rates?.[binding.group_id]"
                   />
                   <span
                     v-else
                     class="font-medium text-gray-800 dark:text-gray-100"
                   >
                     {{ binding.group_name || `#${binding.group_id}` }}
-                  </span>
-                  <span
-                    class="rounded-full bg-white px-2 py-0.5 text-xs text-gray-500 dark:bg-dark-800"
-                  >
-                    P{{
-                      binding.priority ??
-                      resolveGroup(binding.group_id)?.priority ??
-                      1
-                    }}
                   </span>
                 </div>
                 <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
@@ -182,6 +174,7 @@
             <APIKeyGroupBindingsEditor
               :model-value="draftBindingsByKeyId[key.id] || []"
               :groups="sortedGroups"
+              :user-group-rates="props.user?.group_rates || {}"
               admin-mode
               @update:model-value="updateDraftBindings(key.id, $event)"
             />
@@ -265,8 +258,8 @@ import { formatDateTime } from "@/utils/format";
 import type { AdminGroup, AdminUser, ApiKey, ApiKeyGroup } from "@/types";
 import BaseDialog from "@/components/common/BaseDialog.vue";
 import Select from "@/components/common/Select.vue";
-import GroupBadge from "@/components/common/GroupBadge.vue";
 import APIKeyGroupBindingsEditor from "@/components/keys/APIKeyGroupBindingsEditor.vue";
+import ApiKeyGroupPill from "@/components/keys/ApiKeyGroupPill.vue";
 import {
   buildApiKeyGroupBindingPayload,
   bindingToEditableDraft,
