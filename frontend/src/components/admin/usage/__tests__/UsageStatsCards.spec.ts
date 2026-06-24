@@ -19,6 +19,10 @@ const messages: Record<string, string> = {
   'usage.cacheWrite': '写入',
   'usage.cacheRead': '读取',
   'usage.cacheHitRate': '命中率',
+  'usage.inputTokens': '输入 Token',
+  'usage.outputTokens': '输出 Token',
+  'usage.cacheCreationTokens': '缓存写入 Token',
+  'usage.cacheReadTokens': '缓存读取 Token',
   'common.total': '总计',
   'admin.usage.todayStats': '今日统计',
   'admin.usage.todayRequests': '今日请求',
@@ -90,6 +94,10 @@ describe('admin UsageStatsCards', () => {
     expect(text).toContain('今日费用')
     expect(text).toContain('今日平均耗时')
     expect(text).toContain('75.0%')
+    expect(text).toContain('输入 Token')
+    expect(text).toContain('缓存写入 Token')
+    expect(text).toContain('缓存读取 Token')
+    expect(text).toContain('输出 Token')
   })
 
   it('renders cache hit rate as a standalone selected-range card', () => {
@@ -112,5 +120,45 @@ describe('admin UsageStatsCards', () => {
     expect(cacheCard.text()).toContain('读取')
     expect(cacheCard.text()).toContain('34,000')
     expect(cacheCard.text()).toContain('46,500')
+  })
+
+  it('keeps cache and today token zero values visible', () => {
+    const zeroStats = {
+      ...stats,
+      total_cache_creation_tokens: 0,
+      total_cache_read_tokens: 0,
+      total_cache_tokens: 0,
+      cache_hit_rate: 0,
+      today_input_tokens: 0,
+      today_output_tokens: 0,
+      today_cache_creation_tokens: 0,
+      today_cache_read_tokens: 0,
+      today_cache_tokens: 0,
+      today_cache_hit_rate: 0,
+    }
+
+    const wrapper = mount(UsageStatsCards, {
+      props: {
+        stats: zeroStats,
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('输入 Token')
+    expect(text).toContain('缓存写入 Token')
+    expect(text).toContain('缓存读取 Token')
+    expect(text).toContain('输出 Token')
+    expect(text).toContain('0.0%')
+
+    const cacheCard = wrapper.get('[data-testid="usage-cache-stats-card"]')
+    expect(cacheCard.text()).toContain('写入')
+    expect(cacheCard.text()).toContain('读取')
+    expect(cacheCard.text()).toContain('总计')
+    expect(cacheCard.text()).toContain('0.0%')
   })
 })

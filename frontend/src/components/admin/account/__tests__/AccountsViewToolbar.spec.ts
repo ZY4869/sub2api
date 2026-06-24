@@ -261,20 +261,26 @@ describe("AccountsViewToolbar", () => {
     );
   });
 
-  it("renders and emits the account visual style toggle", async () => {
+  it("renders account visual style choices inside display optimization", async () => {
     const wrapper = mountToolbar({
       accountVisualPresetOverride: "inherit",
       visualStyle: "classic",
     });
 
-    const visualStyleToggle = wrapper.get('[data-account-visual-style-toggle="true"]');
-    expect(visualStyleToggle.text()).toContain(
+    expect(wrapper.find('[data-account-visual-style-toggle="true"]').exists()).toBe(false);
+
+    await wrapper.get('[data-account-display-optimization-button="true"]').trigger("click");
+    await nextTick();
+
+    const panel = wrapper.get('[data-account-display-optimization-panel="true"]');
+    expect(panel.text()).toContain("admin.accounts.accountVisualStyle");
+    expect(panel.text()).toContain(
       "admin.accounts.accountVisualStyleInherit",
     );
-    expect(visualStyleToggle.text()).toContain(
+    expect(panel.text()).toContain(
       "admin.accounts.accountVisualStyleClassic",
     );
-    expect(visualStyleToggle.text()).toContain(
+    expect(panel.text()).toContain(
       "admin.accounts.accountVisualStyleAiry",
     );
 
@@ -284,8 +290,12 @@ describe("AccountsViewToolbar", () => {
         button.text().includes("admin.accounts.accountVisualStyleAiry"),
       )
       ?.trigger("click");
+    await wrapper.get('[data-account-display-optimization-save="true"]').trigger("click");
 
-    expect(wrapper.emitted("set-account-visual-preset-override")).toEqual([["airy"]]);
+    expect(wrapper.emitted("set-account-visual-preset-override")).toBeUndefined();
+    expect(wrapper.emitted("save-account-display-preferences")?.[0]?.[0]).toMatchObject({
+      accountVisualPresetOverride: "airy",
+    });
   });
 
   it("renders and emits display optimization preferences", async () => {
@@ -294,6 +304,7 @@ describe("AccountsViewToolbar", () => {
     await wrapper.get('[data-account-display-optimization-button="true"]').trigger("click");
     await nextTick();
 
+    expect(wrapper.text()).toContain("admin.accounts.accountVisualStyle");
     expect(wrapper.text()).toContain("admin.accounts.displayOptimization.todayStats");
     expect(wrapper.text()).toContain("admin.accounts.displayOptimization.todayStatsCycleMode");
     expect(wrapper.text()).toContain("admin.accounts.displayOptimization.groupDisplay");
@@ -340,6 +351,7 @@ describe("AccountsViewToolbar", () => {
     expect(wrapper.emitted("save-account-display-preferences")).toEqual([
       [
         {
+          accountVisualPresetOverride: "inherit",
           todayStatsWindows: ["today", "total"],
           todayStatsCycleMode: "fixed",
           groupDisplayMode: "icon",

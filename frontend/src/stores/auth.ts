@@ -16,6 +16,7 @@ import type {
   AccountTodayStatsCycleMode,
   AccountTodayStatsWindow,
   UsageModelDisplayMode,
+  UsageViewPreferences,
   VisualPreset,
   VisualPresetPreference,
   UsageContextBadgeDisplayMode,
@@ -308,6 +309,16 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  function setUsageViewPreferences(preferences: UsageViewPreferences): void {
+    if (!user.value) {
+      return
+    }
+    setCurrentUser({
+      ...user.value,
+      usage_view_preferences: preferences,
+    })
+  }
+
   function setUsageContextBadgeDisplayMode(mode: UsageContextBadgeDisplayMode): void {
     if (!user.value) {
       return
@@ -557,6 +568,7 @@ export const useAuthStore = defineStore('auth', () => {
     setToken,
     setCurrentUser,
     setUsageModelDisplayMode,
+    setUsageViewPreferences,
     setUsageContextBadgeDisplayMode,
     setGlobalRealtimeCountdownEnabled,
     setAccountRealtimeCountdownEnabled,

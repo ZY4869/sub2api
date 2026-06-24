@@ -23,3 +23,20 @@ export type ExternalModelCatalogViewMode =
 export type EffectiveExternalModelCatalogViewMode =
   | "group_first"
   | "model_only";
+
+export type UsageViewPage = "admin" | "user";
+export type UsageViewTokenDisplayMode = "full" | "compact";
+export type UsageViewTableDensity = "comfortable" | "compact";
+export type UsageViewStatsCardStyle = "balanced" | "accent";
+
+export interface UsageViewPagePreferences {
+  hidden_columns: string[];
+  token_display_mode: UsageViewTokenDisplayMode;
+  table_density: UsageViewTableDensity;
+  stats_card_style: UsageViewStatsCardStyle;
+}
+
+export interface UsageViewPreferences {
+  admin: UsageViewPagePreferences;
+  user: UsageViewPagePreferences;
+}

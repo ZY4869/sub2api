@@ -22,6 +22,24 @@ const { list, getStats, getSnapshotV2, getModelStats, getById } = vi.hoisted(() 
 const authState = vi.hoisted(() => ({
   isAdmin: true,
   canReviewRequestDetails: true,
+  user: {
+    usage_view_preferences: {
+      admin: {
+        hidden_columns: ["user_agent"],
+        token_display_mode: "full",
+        table_density: "comfortable",
+        stats_card_style: "balanced",
+      },
+      user: {
+        hidden_columns: [],
+        token_display_mode: "full",
+        table_density: "comfortable",
+        stats_card_style: "balanced",
+      },
+    },
+  },
+  setUsageViewPreferences: vi.fn(),
+  setCurrentUser: vi.fn(),
 }));
 
 const routeState = vi.hoisted(() => ({
@@ -185,6 +203,48 @@ const UsageContextBadgeDisplayModeToggleStub = {
     </button>
   `,
 };
+const UsageDisplaySettingsMenuStub = {
+  props: [
+    "preferences",
+    "hiddenColumns",
+    "columns",
+    "alwaysVisibleColumns",
+    "usageModelDisplayMode",
+    "updatingUsageModelDisplayMode",
+    "disabled",
+  ],
+  emits: [
+    "update-preference",
+    "toggle-column",
+    "update-usage-model-display-mode",
+  ],
+  template: `
+    <div data-test="usage-display-settings-menu">
+      <span data-test="usage-settings-token-mode">{{ preferences.token_display_mode }}</span>
+      <span data-test="usage-settings-density">{{ preferences.table_density }}</span>
+      <span data-test="usage-settings-card-style">{{ preferences.stats_card_style }}</span>
+      <span data-test="usage-settings-columns">{{ columns.map(column => column.key).join(",") }}</span>
+      <button
+        data-test="usage-model-display-toggle"
+        @click="$emit('update-usage-model-display-mode', 'model_only')"
+      >
+        {{ usageModelDisplayMode }}
+      </button>
+      <button
+        data-test="usage-column-toggle"
+        @click="$emit('toggle-column', 'cache_hit')"
+      >
+        column
+      </button>
+      <button
+        data-test="usage-density-toggle"
+        @click="$emit('update-preference', 'table_density', 'compact')"
+      >
+        density
+      </button>
+    </div>
+  `,
+};
 const ModelDistributionChartStub = {
   props: ["metric"],
   emits: ["update:metric", "ranking-click"],
@@ -222,6 +282,7 @@ function mountUsageView(extraStubs: Record<string, unknown> = {}) {
         DateRangePicker: true,
         Icon: true,
         TokenDisplayModeToggle: true,
+        UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
         TokenUsageTrend: true,
         UsageModelDisplayModeToggle: UsageModelDisplayModeToggleStub,
         UsageContextBadgeDisplayModeToggle:
@@ -315,15 +376,15 @@ describe("admin UsageView distribution metric toggles", () => {
     expect(getSnapshotV2).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the model display toggle in toolbar-left and forwards the selected mode", async () => {
+  it("renders the model display toggle inside display settings and forwards the selected mode", async () => {
     const wrapper = mountUsageView();
 
     vi.advanceTimersByTime(120);
     await flushPromises();
 
-    const toolbarLeft = wrapper.get('[data-test="toolbar-left"]');
+    const displaySettings = wrapper.get('[data-test="usage-display-settings-menu"]');
 
-    expect(toolbarLeft.find('[data-test="usage-model-display-toggle"]').text()).toBe(
+    expect(displaySettings.find('[data-test="usage-model-display-toggle"]').text()).toBe(
       "display_and_model",
     );
     expect(wrapper.findAll('[data-test="usage-model-display-toggle"]')).toHaveLength(1);
@@ -332,7 +393,7 @@ describe("admin UsageView distribution metric toggles", () => {
     );
     expect(wrapper.findAll('[data-test="usage-context-badge-toggle"]')).toHaveLength(0);
 
-    await toolbarLeft.get('[data-test="usage-model-display-toggle"]').trigger("click");
+    await displaySettings.get('[data-test="usage-model-display-toggle"]').trigger("click");
     await flushPromises();
 
     expect(

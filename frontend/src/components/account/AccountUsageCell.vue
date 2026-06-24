@@ -158,6 +158,19 @@
       >
         * {{ presentation.meta.noteText }}
       </p>
+      <AccountOpenAIResetCreditsControls
+        v-if="canResetOpenAIQuota"
+        :reset-status-label="resetCreditsStatusLabel"
+        :reset-unsupported="resetCreditsUnsupported"
+        :reset-unknown="resetCreditsUnknown"
+        :reset-zero="resetCreditsZero"
+        :resetting="resetting"
+        :refreshing="refreshingResetCredits"
+        :reset-disabled="resetButtonDisabled"
+        :show-reset="false"
+        @refresh="refreshOpenAIResetCredits"
+        @reset="resetOpenAIQuota"
+      />
     </div>
 
     <div
@@ -231,8 +244,10 @@ import { useI18n } from "vue-i18n";
 import type { Account, WindowStats } from "@/types";
 import { useAccountUsagePresentation } from "@/composables/useAccountUsagePresentation";
 import { useAccountUsageDisplayMode } from "@/composables/useAccountUsageDisplayMode";
+import { useOpenAIResetCreditsControls } from "@/composables/useOpenAIResetCreditsControls";
 import { useFloatingTooltip } from "@/composables/useFloatingTooltip";
 import { useViewportAutoLoadGate } from "@/composables/useViewportAutoLoadGate";
+import AccountOpenAIResetCreditsControls from "./AccountOpenAIResetCreditsControls.vue";
 import UsageProgressBar from "./UsageProgressBar.vue";
 
 const props = withDefaults(
@@ -260,6 +275,21 @@ const { presentation, requestAutoLoad, shouldFetchUsage } =
   useAccountUsagePresentation(() => props.account, {
     autoLoadEnabled,
   });
+const {
+  canResetOpenAIQuota,
+  resetCreditsStatusLabel,
+  resetCreditsUnsupported,
+  resetCreditsUnknown,
+  resetCreditsZero,
+  resetting,
+  refreshingResetCredits,
+  resetButtonDisabled,
+  resetOpenAIQuota,
+  refreshOpenAIResetCredits,
+} = useOpenAIResetCreditsControls(
+  () => props.account,
+  () => presentation.value,
+);
 const {
   tooltipVisible,
   tooltipRef,

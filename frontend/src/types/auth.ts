@@ -8,6 +8,7 @@ import type {
   EffectiveExternalModelCatalogViewMode,
   ExternalModelCatalogViewMode,
   UsageContextBadgeDisplayMode,
+  UsageViewPreferences,
   UsageModelDisplayMode,
   VisualPreset,
   VisualPresetPreference
@@ -27,6 +28,7 @@ export interface User {
   request_details_review?: boolean;
   admin_free_billing?: boolean;
   usage_model_display_mode?: UsageModelDisplayMode;
+  usage_view_preferences?: UsageViewPreferences;
   usage_context_badge_display_mode?: UsageContextBadgeDisplayMode;
   global_realtime_countdown_enabled?: boolean;
   account_realtime_countdown_enabled?: boolean;

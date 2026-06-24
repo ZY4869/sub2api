@@ -62,7 +62,7 @@
         @open-daily-5h-settings="handleOpenDaily5HTriggerSettings"
         @toggle-account-realtime-countdown="handleToggleAccountRealtimeCountdown"
         @set-account-visual-preset-override="setAccountVisualPresetOverride"
-        @save-account-display-preferences="setAccountDisplayPreferences"
+        @save-account-display-preferences="handleSaveAccountDisplayPreferences"
       />
     </template>
     <template #table>
@@ -375,12 +375,25 @@ import type {
   AccountRuntimeView,
   Proxy as AccountProxy,
   AdminGroup,
+  AccountGroupDisplayMode,
+  AccountStatusDisplayMode,
+  AccountTodayStatsCycleMode,
+  AccountTodayStatsWindow,
+  VisualPresetPreference,
 } from "@/types";
 
 type ActualUsageRefreshSummary = {
   total: number;
   live: number;
   fallback: number;
+};
+
+type AccountDisplayPreferencesPayload = {
+  accountVisualPresetOverride: VisualPresetPreference;
+  todayStatsWindows: AccountTodayStatsWindow[];
+  todayStatsCycleMode: AccountTodayStatsCycleMode;
+  groupDisplayMode: AccountGroupDisplayMode;
+  statusDisplayMode: AccountStatusDisplayMode;
 };
 
 const props = withDefaults(
@@ -497,6 +510,18 @@ const resetVisibleTableState = () => {
 const handleFilterUpdate = (newFilters: Record<string, unknown>) => {
   Object.assign(params, normalizeAccountFilters(newFilters));
   resetVisibleTableState();
+};
+
+const handleSaveAccountDisplayPreferences = async (
+  next: AccountDisplayPreferencesPayload,
+) => {
+  await setAccountDisplayPreferences({
+    todayStatsWindows: next.todayStatsWindows,
+    todayStatsCycleMode: next.todayStatsCycleMode,
+    groupDisplayMode: next.groupDisplayMode,
+    statusDisplayMode: next.statusDisplayMode,
+  });
+  await setAccountVisualPresetOverride(next.accountVisualPresetOverride);
 };
 
 const summaryParams = computed<AccountListRequestParams>(() => ({

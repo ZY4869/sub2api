@@ -70,6 +70,7 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetUsername(userIn.Username).
 		SetNotes(userIn.Notes).
 		SetUsageModelDisplayMode(userIn.EffectiveUsageModelDisplayMode()).
+		SetUsageViewPreferences(usageViewPreferencesToMap(userIn.UsageViewPreferences)).
 		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
 		SetAccountVisualPresetOverride(service.NormalizeVisualPresetPreference(userIn.AccountVisualPresetOverride)).
 		SetAccountTodayStatsWindows(service.NormalizeAccountTodayStatsWindows(userIn.AccountTodayStatsWindows)).
@@ -182,6 +183,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetUsername(userIn.Username).
 		SetNotes(userIn.Notes).
 		SetUsageModelDisplayMode(userIn.EffectiveUsageModelDisplayMode()).
+		SetUsageViewPreferences(usageViewPreferencesToMap(userIn.UsageViewPreferences)).
 		SetGlobalRealtimeCountdownEnabled(userIn.GlobalRealtimeCountdownEnabled).
 		SetAccountRealtimeCountdownEnabled(userIn.AccountRealtimeCountdownEnabled).
 		SetVisualPresetPreference(service.NormalizeVisualPresetPreference(userIn.VisualPresetPreference)).
@@ -763,6 +765,7 @@ func applyUserEntityToService(dst *service.User, src *dbent.User) {
 	dst.APIKeyModelBindingMode = service.NormalizeAPIKeyModelBindingMode(src.APIKeyModelBindingMode)
 	dst.ExternalModelCatalogViewMode = service.NormalizeExternalModelCatalogViewMode(src.ExternalModelCatalogViewMode)
 	dst.APIKeyAccessTimePolicy = timeAccessPolicyFromMap(src.APIKeyAccessTimePolicy)
+	dst.UsageViewPreferences = usageViewPreferencesFromMap(src.UsageViewPreferences)
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
 }

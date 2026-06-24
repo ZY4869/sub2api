@@ -23,6 +23,7 @@ type User struct {
 	AdminFreeBilling                bool
 	RequestDetailsReview            bool
 	UsageModelDisplayMode           string
+	UsageViewPreferences            UsageViewPreferences
 	GlobalRealtimeCountdownEnabled  bool
 	AccountRealtimeCountdownEnabled bool
 	VisualPresetPreference          string

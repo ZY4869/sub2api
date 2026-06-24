@@ -70,6 +70,8 @@ type User struct {
 	ExternalModelCatalogViewMode string `json:"external_model_catalog_view_mode,omitempty"`
 	// Hard upper time access policy for API keys owned by this user
 	APIKeyAccessTimePolicy map[string]interface{} `json:"api_key_access_time_policy,omitempty"`
+	// Usage records page display preferences keyed by admin/user page
+	UsageViewPreferences map[string]interface{} `json:"usage_view_preferences,omitempty"`
 	// TotpSecretEncrypted holds the value of the "totp_secret_encrypted" field.
 	TotpSecretEncrypted *string `json:"totp_secret_encrypted,omitempty"`
 	// TotpEnabled holds the value of the "totp_enabled" field.
@@ -204,7 +206,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldAccountTodayStatsWindows, user.FieldAPIKeyAccessTimePolicy:
+		case user.FieldAccountTodayStatsWindows, user.FieldAPIKeyAccessTimePolicy, user.FieldUsageViewPreferences:
 			values[i] = new([]byte)
 		case user.FieldAdminFreeBilling, user.FieldRequestDetailsReview, user.FieldGlobalRealtimeCountdownEnabled, user.FieldAccountRealtimeCountdownEnabled, user.FieldTotpEnabled:
 			values[i] = new(sql.NullBool)
@@ -398,6 +400,14 @@ func (_m *User) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field api_key_access_time_policy: %w", err)
 				}
 			}
+		case user.FieldUsageViewPreferences:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field usage_view_preferences", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.UsageViewPreferences); err != nil {
+					return fmt.Errorf("unmarshal field usage_view_preferences: %w", err)
+				}
+			}
 		case user.FieldTotpSecretEncrypted:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field totp_secret_encrypted", values[i])
@@ -583,6 +593,9 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("api_key_access_time_policy=")
 	builder.WriteString(fmt.Sprintf("%v", _m.APIKeyAccessTimePolicy))
+	builder.WriteString(", ")
+	builder.WriteString("usage_view_preferences=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UsageViewPreferences))
 	builder.WriteString(", ")
 	if v := _m.TotpSecretEncrypted; v != nil {
 		builder.WriteString("totp_secret_encrypted=")

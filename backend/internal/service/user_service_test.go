@@ -301,6 +301,68 @@ func TestUpdateProfile_UsageModelDisplayMode_Invalid(t *testing.T) {
 	require.Contains(t, err.Error(), "usage_model_display_mode")
 }
 
+func TestUpdateProfile_UsageViewPreferences_NormalizesAndPersists(t *testing.T) {
+	user := &User{
+		ID:                   1,
+		Email:                "alice@example.com",
+		Username:             "alice",
+		UsageViewPreferences: DefaultUsageViewPreferences(),
+	}
+	repo := &mockUserRepo{
+		getByIDFn: func(context.Context, int64) (*User, error) {
+			clone := *user
+			return &clone, nil
+		},
+		updateFn: func(_ context.Context, updated *User) error {
+			user.UsageViewPreferences = updated.UsageViewPreferences
+			return nil
+		},
+	}
+	svc := NewUserService(repo, nil, nil)
+
+	updated, err := svc.UpdateProfile(context.Background(), 1, UpdateProfileRequest{
+		UsageViewPreferences: &UsageViewPreferences{
+			Admin: UsageViewPagePreferences{
+				HiddenColumns:  []string{"user_agent", "cache_hit", "cache_hit", "bad_column"},
+				TokenDisplay:   "bad-token-mode",
+				TableDensity:   UsageViewTableDensityCompact,
+				StatsCardStyle: UsageViewStatsCardStyleAccent,
+			},
+			User: UsageViewPagePreferences{
+				HiddenColumns:  []string{"cache_hit", "ip_address", " "},
+				TokenDisplay:   UsageViewTokenDisplayCompact,
+				TableDensity:   "bad-density",
+				StatsCardStyle: "bad-card-style",
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"user_agent", "cache_hit"}, updated.UsageViewPreferences.Admin.HiddenColumns)
+	require.Equal(t, UsageViewTokenDisplayFull, updated.UsageViewPreferences.Admin.TokenDisplay)
+	require.Equal(t, UsageViewTableDensityCompact, updated.UsageViewPreferences.Admin.TableDensity)
+	require.Equal(t, UsageViewStatsCardStyleAccent, updated.UsageViewPreferences.Admin.StatsCardStyle)
+	require.Equal(t, []string{"cache_hit"}, updated.UsageViewPreferences.User.HiddenColumns)
+	require.Equal(t, UsageViewTokenDisplayCompact, updated.UsageViewPreferences.User.TokenDisplay)
+	require.Equal(t, UsageViewTableDensityComfortable, updated.UsageViewPreferences.User.TableDensity)
+	require.Equal(t, UsageViewStatsCardStyleBalanced, updated.UsageViewPreferences.User.StatsCardStyle)
+	require.Equal(t, updated.UsageViewPreferences, user.UsageViewPreferences)
+}
+
+func TestNormalizeUsageViewPreferences_DefaultsAndAllowedColumns(t *testing.T) {
+	normalized := NormalizeUsageViewPreferences(UsageViewPreferences{
+		Admin: UsageViewPagePreferences{},
+		User: UsageViewPagePreferences{
+			HiddenColumns: []string{"account", "cache_hit", "thinking_enabled"},
+		},
+	})
+
+	require.Equal(t, []string{"user_agent"}, normalized.Admin.HiddenColumns)
+	require.Equal(t, UsageViewTokenDisplayFull, normalized.Admin.TokenDisplay)
+	require.Equal(t, UsageViewTableDensityComfortable, normalized.Admin.TableDensity)
+	require.Equal(t, UsageViewStatsCardStyleBalanced, normalized.Admin.StatsCardStyle)
+	require.Equal(t, []string{"cache_hit", "thinking_enabled"}, normalized.User.HiddenColumns)
+}
+
 func TestUpdateProfile_RealtimeCountdownPreferences_PartialUpdate(t *testing.T) {
 	user := &User{
 		ID:                              1,

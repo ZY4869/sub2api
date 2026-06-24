@@ -28,6 +28,13 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.displayMode.used': 'Used',
           'admin.accounts.usageWindow.displayMode.remaining': 'Remaining',
           'admin.accounts.usageWindow.sampledBadge': 'Sampled',
+          'admin.accounts.usageWindow.refreshResetCredits': 'Refresh count',
+          'admin.accounts.usageWindow.refreshingResetCredits': 'Refreshing',
+          'admin.accounts.usageWindow.refreshResetCreditsTitle': 'Refresh OpenAI reset credits',
+          'admin.accounts.usageWindow.resetQuota': 'Reset quota',
+          'admin.accounts.usageWindow.resettingQuota': 'Resetting',
+          'admin.accounts.usageWindow.resetQuotaRemaining': '{count} resets left',
+          'admin.accounts.usageWindow.resetQuotaUnsupported': 'Real reset unsupported',
           'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
           'common.error': 'Error',
         }
@@ -123,6 +130,87 @@ describe('AccountUsageVisualCell', () => {
     expect(wrapper.text()).toContain('12%')
     const rowLabel = wrapper.get('span.w-7')
     expect(rowLabel.classes()).toContain('bg-green-50')
+  })
+
+  it('shows fallback 30D labels and reset credit chips in the usage window column', async () => {
+    getUsage.mockResolvedValue({
+      openai_reset_credits: {
+        available_count: 0,
+        status: 'available',
+      },
+      seven_day: {
+        utilization: 57,
+        resets_at: '2026-04-06T12:00:00Z',
+        remaining_seconds: 23 * 24 * 60 * 60,
+      },
+    })
+
+    const wrapper = mount(AccountUsageVisualCell, {
+      props: {
+        account: {
+          id: 9001,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: {
+            plan_type: 'free',
+          },
+          active_usage_available: true,
+          extra: {
+            codex_usage_updated_at: '2026-03-07T10:00:00Z',
+            codex_7d_window_minutes: 43200,
+          },
+        } as any,
+      },
+      global: {
+        plugins: [createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('30D')
+    expect(wrapper.text()).toContain('57%')
+    expect(wrapper.text()).toContain('00 resets left')
+    expect(wrapper.text()).toContain('Refresh count')
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').classes()).toContain('bg-orange-50')
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-button"]').exists()).toBe(false)
+  })
+
+  it('shows unknown reset credit chips as gray in the visual usage window column', async () => {
+    getUsage.mockResolvedValue({
+      openai_reset_credits: {
+        status: 'unknown_or_unsupported',
+      },
+      five_hour: {
+        utilization: 20,
+        resets_at: '2026-04-06T12:00:00Z',
+      },
+    })
+
+    const wrapper = mount(AccountUsageVisualCell, {
+      props: {
+        account: {
+          id: 9002,
+          platform: 'openai',
+          type: 'oauth',
+          active_usage_available: true,
+          extra: {
+            codex_usage_updated_at: '2020-03-07T10:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        plugins: [createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    const remaining = wrapper.get('[data-testid="account-usage-reset-quota-remaining"]')
+    expect(remaining.text()).toBe('-- resets left')
+    expect(remaining.classes()).toContain('bg-gray-50')
+    expect(remaining.classes()).not.toContain('bg-teal-50')
+    expect(wrapper.get('[data-testid="account-usage-reset-credits-refresh"]').exists()).toBe(true)
   })
 
   it('uses the orange local tag for 7d rows', async () => {

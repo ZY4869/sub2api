@@ -1301,8 +1301,12 @@ func init() {
 			return nil
 		}
 	}()
+	// userDescUsageViewPreferences is the schema descriptor for usage_view_preferences field.
+	userDescUsageViewPreferences := userFields[23].Descriptor()
+	// user.DefaultUsageViewPreferences holds the default value on creation for the usage_view_preferences field.
+	user.DefaultUsageViewPreferences = userDescUsageViewPreferences.Default.(func() map[string]interface{})
 	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
-	userDescTotpEnabled := userFields[24].Descriptor()
+	userDescTotpEnabled := userFields[25].Descriptor()
 	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
 	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()

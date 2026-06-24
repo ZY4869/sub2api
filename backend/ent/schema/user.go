@@ -139,6 +139,10 @@ func (User) Fields() []ent.Field {
 			Optional().
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
 			Comment("Hard upper time access policy for API keys owned by this user"),
+		field.JSON("usage_view_preferences", map[string]any{}).
+			Default(func() map[string]any { return map[string]any{} }).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Usage records page display preferences keyed by admin/user page"),
 		field.String("totp_secret_encrypted").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Optional().

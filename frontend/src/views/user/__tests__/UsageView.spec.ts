@@ -11,6 +11,7 @@ const {
   listFailedRequests,
   getDashboardApiKeyDailyUsage,
   getRequestPreview,
+  updateProfile,
   showError,
   showWarning,
   showSuccess,
@@ -22,10 +23,32 @@ const {
   listFailedRequests: vi.fn(),
   getDashboardApiKeyDailyUsage: vi.fn(),
   getRequestPreview: vi.fn(),
+  updateProfile: vi.fn(),
   showError: vi.fn(),
   showWarning: vi.fn(),
   showSuccess: vi.fn(),
   showInfo: vi.fn(),
+}));
+
+const authState = vi.hoisted(() => ({
+  user: {
+    usage_view_preferences: {
+      admin: {
+        hidden_columns: ["user_agent"],
+        token_display_mode: "full",
+        table_density: "comfortable",
+        stats_card_style: "balanced",
+      },
+      user: {
+        hidden_columns: [],
+        token_display_mode: "full",
+        table_density: "comfortable",
+        stats_card_style: "balanced",
+      },
+    },
+  },
+  setUsageViewPreferences: vi.fn(),
+  setCurrentUser: vi.fn(),
 }));
 
 const messages: Record<string, string> = {
@@ -152,10 +175,17 @@ vi.mock("@/api", () => ({
     getDashboardApiKeyDailyUsage,
     getRequestPreview,
   },
+  userAPI: {
+    updateProfile,
+  },
 }));
 
 vi.mock("@/stores/app", () => ({
   useAppStore: () => ({ showError, showWarning, showSuccess, showInfo }),
+}));
+
+vi.mock("@/stores/auth", () => ({
+  useAuthStore: () => authState,
 }));
 
 vi.mock("@/composables/useUsageModelDisplayModePreference", () => ({
@@ -180,6 +210,48 @@ const AppLayoutStub = { template: "<div><slot /></div>" };
 const TablePageLayoutStub = {
   template:
     '<div><slot name="actions" /><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>',
+};
+const UsageDisplaySettingsMenuStub = {
+  props: [
+    "preferences",
+    "hiddenColumns",
+    "columns",
+    "alwaysVisibleColumns",
+    "usageModelDisplayMode",
+    "updatingUsageModelDisplayMode",
+    "disabled",
+  ],
+  emits: [
+    "update-preference",
+    "toggle-column",
+    "update-usage-model-display-mode",
+  ],
+  template: `
+    <div data-testid="usage-display-settings-menu">
+      <span data-testid="usage-settings-token-mode">{{ preferences.token_display_mode }}</span>
+      <span data-testid="usage-settings-density">{{ preferences.table_density }}</span>
+      <span data-testid="usage-settings-card-style">{{ preferences.stats_card_style }}</span>
+      <span data-testid="usage-settings-columns">{{ columns.map(column => column.key).join(",") }}</span>
+      <button
+        data-testid="usage-model-toggle"
+        @click="$emit('update-usage-model-display-mode', 'display_and_model')"
+      >
+        usage.modelDisplay|{{ usageModelDisplayMode }}
+      </button>
+      <button
+        data-testid="usage-column-toggle"
+        @click="$emit('toggle-column', 'cache_hit')"
+      >
+        column
+      </button>
+      <button
+        data-testid="usage-density-toggle"
+        @click="$emit('update-preference', 'table_density', 'compact')"
+      >
+        density
+      </button>
+    </div>
+  `,
 };
 
 describe("user UsageView tooltip", () => {
@@ -277,6 +349,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -291,7 +364,7 @@ describe("user UsageView tooltip", () => {
     await nextTick();
 
     const setupState = (wrapper.vm as any).$?.setupState;
-    const columns = setupState.columns.value ?? setupState.columns;
+    const columns = setupState.allColumns.value ?? setupState.allColumns;
     expect(columns.map((column: { key: string }) => column.key)).toContain(
       "thinking_enabled",
     );
@@ -413,6 +486,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -532,6 +606,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -546,7 +621,7 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
 
     const setupState = (wrapper.vm as any).$?.setupState;
-    const columns = setupState.columns.value ?? setupState.columns;
+    const columns = setupState.allColumns.value ?? setupState.allColumns;
     expect(columns.map((column: { key: string }) => column.key)).toContain(
       "request_protocol",
     );
@@ -621,6 +696,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -701,6 +777,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -721,11 +798,11 @@ describe("user UsageView tooltip", () => {
 
     expect(setupState.formatDuration(null)).toBe("-");
     expect(row.exists()).toBe(true);
-    expect(rowCells).toHaveLength(16);
+    expect(rowCells).toHaveLength(17);
     expect(row.text()).toContain("null-duration-key");
     expect(row.text()).toContain("gemini-3-flash-preview");
     expect(row.text()).toContain("Failed");
-    expect(rowCells[11].text()).toBe("-");
+    expect(rowCells[12].text()).toBe("-");
   });
 
   it("renders usage rows when query data is returned", async () => {
@@ -784,6 +861,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -828,6 +906,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: true,
           UsageModelDisplayModeToggle: true,
           Teleport: true,
@@ -839,13 +918,13 @@ describe("user UsageView tooltip", () => {
     await nextTick();
 
     const setupState = (wrapper.vm as any).$?.setupState;
-    const columns = setupState.columns.value ?? setupState.columns;
-    expect(columns.map((column: { key: string }) => column.key)).toContain(
-      "success_rate",
-    );
+    const columns = setupState.allColumns.value ?? setupState.allColumns;
+    const columnKeys = columns.map((column: { key: string }) => column.key);
+    expect(columnKeys).toContain("success_rate");
+    expect(columnKeys).toContain("cache_hit");
   });
 
-  it("keeps the usage model display toggle in the filter area", async () => {
+  it("keeps usage display settings in the filter area with model display controls", async () => {
     query.mockResolvedValue({
       items: [],
       total: 0,
@@ -870,6 +949,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: true,
           UsageModelDisplayModeToggle: {
             props: ['modelValue', 'disabled', 'showLabel', 'compact', 'labelText'],
@@ -883,7 +963,8 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
     await nextTick();
 
-    const modelToggles = wrapper.findAll('[data-testid="usage-model-toggle"]');
+    const displaySettings = wrapper.get('[data-testid="usage-display-settings-menu"]');
+    const modelToggles = displaySettings.findAll('[data-testid="usage-model-toggle"]');
     const toolbarRow = wrapper.get('[data-testid="usage-filter-toolbar-row"]');
     expect(modelToggles).toHaveLength(1);
     expect(modelToggles[0]?.text()).toContain('usage.modelDisplay');
@@ -982,6 +1063,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -1062,6 +1144,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -1146,6 +1229,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -1246,6 +1330,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -1343,6 +1428,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -1420,6 +1506,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           Teleport: true,
         },
       },
@@ -1493,6 +1580,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           Teleport: true,
         },
       },
@@ -1544,6 +1632,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           Teleport: true,
         },
       },
@@ -1583,6 +1672,7 @@ describe("user UsageView tooltip", () => {
           DateRangePicker: true,
           Icon: true,
           TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
           Teleport: true,
         },
       },

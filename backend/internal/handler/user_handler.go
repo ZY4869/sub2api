@@ -53,16 +53,17 @@ type ChangePasswordRequest struct {
 
 // UpdateProfileRequest represents the update profile request payload
 type UpdateProfileRequest struct {
-	Username                        *string  `json:"username"`
-	UsageModelDisplayMode           *string  `json:"usage_model_display_mode"`
-	GlobalRealtimeCountdownEnabled  *bool    `json:"global_realtime_countdown_enabled"`
-	AccountRealtimeCountdownEnabled *bool    `json:"account_realtime_countdown_enabled"`
-	VisualPresetPreference          *string  `json:"visual_preset_preference"`
-	AccountVisualPresetOverride     *string  `json:"account_visual_preset_override"`
-	AccountTodayStatsWindows        []string `json:"account_today_stats_windows"`
-	AccountTodayStatsCycleMode      *string  `json:"account_today_stats_cycle_mode"`
-	AccountGroupDisplayMode         *string  `json:"account_group_display_mode"`
-	AccountStatusDisplayMode        *string  `json:"account_status_display_mode"`
+	Username                        *string                       `json:"username"`
+	UsageModelDisplayMode           *string                       `json:"usage_model_display_mode"`
+	UsageViewPreferences            *service.UsageViewPreferences `json:"usage_view_preferences"`
+	GlobalRealtimeCountdownEnabled  *bool                         `json:"global_realtime_countdown_enabled"`
+	AccountRealtimeCountdownEnabled *bool                         `json:"account_realtime_countdown_enabled"`
+	VisualPresetPreference          *string                       `json:"visual_preset_preference"`
+	AccountVisualPresetOverride     *string                       `json:"account_visual_preset_override"`
+	AccountTodayStatsWindows        []string                      `json:"account_today_stats_windows"`
+	AccountTodayStatsCycleMode      *string                       `json:"account_today_stats_cycle_mode"`
+	AccountGroupDisplayMode         *string                       `json:"account_group_display_mode"`
+	AccountStatusDisplayMode        *string                       `json:"account_status_display_mode"`
 }
 
 // GetProfile handles getting user profile
@@ -147,6 +148,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	svcReq := service.UpdateProfileRequest{
 		Username:                        req.Username,
 		UsageModelDisplayMode:           req.UsageModelDisplayMode,
+		UsageViewPreferences:            req.UsageViewPreferences,
 		GlobalRealtimeCountdownEnabled:  req.GlobalRealtimeCountdownEnabled,
 		AccountRealtimeCountdownEnabled: req.AccountRealtimeCountdownEnabled,
 		VisualPresetPreference:          req.VisualPresetPreference,

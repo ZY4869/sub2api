@@ -47,7 +47,10 @@
       />
 
       <template v-else>
-        <UsageStatsCards :stats="usageStats" />
+        <UsageStatsCards
+          :stats="usageStats"
+          :stats-card-style="pagePreferences.stats_card_style"
+        />
 
         <!-- Charts Section -->
         <div v-if="activeTab === 'leaderboard'" class="space-y-4">
@@ -104,64 +107,19 @@
             @cleanup="openCleanupDialog"
             @export="exportToExcel"
           >
-            <template #toolbar-left>
-              <div class="flex flex-wrap items-center gap-3">
-                <UsageModelDisplayModeToggle
-                  :model-value="usageModelDisplayMode"
-                  :disabled="updatingUsageModelDisplayMode"
-                  :label-text="t('usage.modelDisplay')"
-                  @update:modelValue="handleUsageModelDisplayModeChange"
-                />
-              </div>
-            </template>
             <template #after-reset>
-              <div class="flex items-center gap-3">
-                <TokenDisplayModeToggle />
-                <div class="relative" ref="columnDropdownRef">
-                  <button
-                    @click="showColumnDropdown = !showColumnDropdown"
-                    class="btn btn-secondary px-2 md:px-3"
-                    :title="t('admin.users.columnSettings')"
-                  >
-                    <svg
-                      class="h-4 w-4 md:mr-1.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      stroke-width="1.5"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
-                      />
-                    </svg>
-                    <span class="hidden md:inline">{{
-                      t("admin.users.columnSettings")
-                    }}</span>
-                  </button>
-                  <div
-                    v-if="showColumnDropdown"
-                    class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
-                  >
-                    <button
-                      v-for="col in toggleableColumns"
-                      :key="col.key"
-                      @click="toggleColumn(col.key)"
-                      class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
-                    >
-                      <span>{{ col.label }}</span>
-                      <Icon
-                        v-if="isColumnVisible(col.key)"
-                        name="check"
-                        size="sm"
-                        class="text-primary-500"
-                        :stroke-width="2"
-                      />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <UsageDisplaySettingsMenu
+                :preferences="pagePreferences"
+                :hidden-columns="hiddenColumns"
+                :columns="allColumns"
+                :always-visible-columns="ALWAYS_VISIBLE"
+                :usage-model-display-mode="usageModelDisplayMode"
+                :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
+                :disabled="updatingUsageViewPreferences"
+                @update-preference="handleUsageViewPreferenceChange"
+                @toggle-column="toggleUsageColumn"
+                @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
+              />
             </template>
           </UsageFilters>
           <UsageTable
@@ -169,6 +127,7 @@
             :loading="loading"
             :columns="visibleColumns"
             :usage-model-display-mode="usageModelDisplayMode"
+            :table-density="pagePreferences.table_density"
             @userClick="handleUserClick"
           />
           <Pagination
@@ -241,11 +200,10 @@ import UserBalanceHistoryModal from "@/components/admin/user/UserBalanceHistoryM
 import ModelDistributionChart from "@/components/charts/ModelDistributionChart.vue";
 import GroupDistributionChart from "@/components/charts/GroupDistributionChart.vue";
 import TokenUsageTrend from "@/components/charts/TokenUsageTrend.vue";
-import Icon from "@/components/icons/Icon.vue";
-import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
-import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
+import UsageDisplaySettingsMenu from "@/components/usage/UsageDisplaySettingsMenu.vue";
 import RequestDetailsTraceTab from "./request-details/components/RequestDetailsTraceTab.vue";
 import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
+import { useUsageViewPreferences } from "@/composables/useUsageViewPreferences";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import type {
   AdminUsageLog,
@@ -269,6 +227,13 @@ const {
   updatingUsageModelDisplayMode,
   setUsageModelDisplayMode,
 } = useUsageModelDisplayModePreference();
+const {
+  pagePreferences,
+  hiddenColumns,
+  updatingUsageViewPreferences,
+  patchPagePreferences,
+  toggleColumn: toggleUsageColumn,
+} = useUsageViewPreferences("admin");
 const canReviewRequestDetails = computed(() => authStore.isAdmin === true);
 
 type UsageViewTab = "records" | "request_details" | "leaderboard";
@@ -379,6 +344,13 @@ const handleUsageModelDisplayModeChange = async (
   mode: "model_only" | "display_only" | "display_and_model",
 ) => {
   await setUsageModelDisplayMode(mode);
+};
+
+const handleUsageViewPreferenceChange = async (
+  key: "hidden_columns" | "token_display_mode" | "table_density" | "stats_card_style",
+  value: string,
+) => {
+  await patchPagePreferences({ [key]: value } as any);
 };
 
 const granularityOptions = computed(() => [
@@ -648,6 +620,16 @@ const formatModelSuccessRateExport = (
   return `${(rate * 100).toFixed(1)}%`;
 };
 
+const getCacheCreationTotal = (
+  log: Pick<
+    AdminUsageLog,
+    "cache_creation_tokens" | "cache_creation_5m_tokens" | "cache_creation_1h_tokens"
+  >,
+): number =>
+  (log.cache_creation_tokens || 0) +
+  (log.cache_creation_5m_tokens || 0) +
+  (log.cache_creation_1h_tokens || 0);
+
 const exportToExcel = async () => {
   if (exporting.value) return;
   exporting.value = true;
@@ -749,7 +731,7 @@ const exportToExcel = async () => {
         log.input_tokens,
         log.output_tokens,
         log.cache_read_tokens,
-        log.cache_creation_tokens,
+        getCacheCreationTotal(log),
         formatUsageAmount(log.input_cost),
         formatUsageAmount(log.output_cost),
         formatUsageAmount(log.cache_read_cost),
@@ -804,8 +786,6 @@ const exportToExcel = async () => {
 
 // Column visibility
 const ALWAYS_VISIBLE = ["user", "created_at"];
-const DEFAULT_HIDDEN_COLUMNS = ["user_agent"];
-const HIDDEN_COLUMNS_KEY = "usage-hidden-columns";
 
 const allColumns = computed(() => [
   { key: "user", label: t("admin.usage.user"), sortable: false },
@@ -825,6 +805,7 @@ const allColumns = computed(() => [
   { key: "group", label: t("admin.usage.group"), sortable: false },
   { key: "stream", label: t("usage.type"), sortable: false },
   { key: "tokens", label: t("usage.tokens"), sortable: false },
+  { key: "cache_hit", label: t("usage.cacheHit"), sortable: false },
   { key: "cost", label: t("usage.cost"), sortable: false },
   { key: "first_token", label: t("usage.firstToken"), sortable: false },
   { key: "duration", label: t("usage.duration"), sortable: false },
@@ -833,60 +814,11 @@ const allColumns = computed(() => [
   { key: "ip_address", label: t("admin.usage.ipAddress"), sortable: false },
 ]);
 
-const hiddenColumns = reactive<Set<string>>(new Set());
-
-const toggleableColumns = computed(() =>
-  allColumns.value.filter((col) => !ALWAYS_VISIBLE.includes(col.key)),
-);
-
 const visibleColumns = computed(() =>
   allColumns.value.filter(
-    (col) => ALWAYS_VISIBLE.includes(col.key) || !hiddenColumns.has(col.key),
+    (col) => ALWAYS_VISIBLE.includes(col.key) || !hiddenColumns.value.has(col.key),
   ),
 );
-
-const isColumnVisible = (key: string) => !hiddenColumns.has(key);
-
-const toggleColumn = (key: string) => {
-  if (hiddenColumns.has(key)) {
-    hiddenColumns.delete(key);
-  } else {
-    hiddenColumns.add(key);
-  }
-  try {
-    localStorage.setItem(
-      HIDDEN_COLUMNS_KEY,
-      JSON.stringify([...hiddenColumns]),
-    );
-  } catch (e) {
-    console.error("Failed to save columns:", e);
-  }
-};
-
-const loadSavedColumns = () => {
-  try {
-    const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY);
-    if (saved) {
-      (JSON.parse(saved) as string[]).forEach((key) => hiddenColumns.add(key));
-    } else {
-      DEFAULT_HIDDEN_COLUMNS.forEach((key) => hiddenColumns.add(key));
-    }
-  } catch {
-    DEFAULT_HIDDEN_COLUMNS.forEach((key) => hiddenColumns.add(key));
-  }
-};
-
-const showColumnDropdown = ref(false);
-const columnDropdownRef = ref<HTMLElement | null>(null);
-
-const handleColumnClickOutside = (event: MouseEvent) => {
-  if (
-    columnDropdownRef.value &&
-    !columnDropdownRef.value.contains(event.target as HTMLElement)
-  ) {
-    showColumnDropdown.value = false;
-  }
-};
 
 onMounted(() => {
   loadLogs();
@@ -895,13 +827,10 @@ onMounted(() => {
   window.setTimeout(() => {
     void loadChartData();
   }, 120);
-  loadSavedColumns();
-  document.addEventListener("click", handleColumnClickOutside);
 });
 onUnmounted(() => {
   abortController?.abort();
   exportAbortController?.abort();
-  document.removeEventListener("click", handleColumnClickOutside);
 });
 
 watch(modelDistributionSource, (source) => {

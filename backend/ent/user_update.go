@@ -395,6 +395,12 @@ func (_u *UserUpdate) ClearAPIKeyAccessTimePolicy() *UserUpdate {
 	return _u
 }
 
+// SetUsageViewPreferences sets the "usage_view_preferences" field.
+func (_u *UserUpdate) SetUsageViewPreferences(v map[string]interface{}) *UserUpdate {
+	_u.mutation.SetUsageViewPreferences(v)
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdate) SetTotpSecretEncrypted(v string) *UserUpdate {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -998,6 +1004,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.APIKeyAccessTimePolicyCleared() {
 		_spec.ClearField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.UsageViewPreferences(); ok {
+		_spec.SetField(user.FieldUsageViewPreferences, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
@@ -1809,6 +1818,12 @@ func (_u *UserUpdateOne) ClearAPIKeyAccessTimePolicy() *UserUpdateOne {
 	return _u
 }
 
+// SetUsageViewPreferences sets the "usage_view_preferences" field.
+func (_u *UserUpdateOne) SetUsageViewPreferences(v map[string]interface{}) *UserUpdateOne {
+	_u.mutation.SetUsageViewPreferences(v)
+	return _u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_u *UserUpdateOne) SetTotpSecretEncrypted(v string) *UserUpdateOne {
 	_u.mutation.SetTotpSecretEncrypted(v)
@@ -2442,6 +2457,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if _u.mutation.APIKeyAccessTimePolicyCleared() {
 		_spec.ClearField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.UsageViewPreferences(); ok {
+		_spec.SetField(user.FieldUsageViewPreferences, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)

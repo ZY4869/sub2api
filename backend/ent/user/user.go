@@ -67,6 +67,8 @@ const (
 	FieldExternalModelCatalogViewMode = "external_model_catalog_view_mode"
 	// FieldAPIKeyAccessTimePolicy holds the string denoting the api_key_access_time_policy field in the database.
 	FieldAPIKeyAccessTimePolicy = "api_key_access_time_policy"
+	// FieldUsageViewPreferences holds the string denoting the usage_view_preferences field in the database.
+	FieldUsageViewPreferences = "usage_view_preferences"
 	// FieldTotpSecretEncrypted holds the string denoting the totp_secret_encrypted field in the database.
 	FieldTotpSecretEncrypted = "totp_secret_encrypted"
 	// FieldTotpEnabled holds the string denoting the totp_enabled field in the database.
@@ -194,6 +196,7 @@ var Columns = []string{
 	FieldAPIKeyModelBindingMode,
 	FieldExternalModelCatalogViewMode,
 	FieldAPIKeyAccessTimePolicy,
+	FieldUsageViewPreferences,
 	FieldTotpSecretEncrypted,
 	FieldTotpEnabled,
 	FieldTotpEnabledAt,
@@ -297,6 +300,8 @@ var (
 	DefaultExternalModelCatalogViewMode string
 	// ExternalModelCatalogViewModeValidator is a validator for the "external_model_catalog_view_mode" field. It is called by the builders before save.
 	ExternalModelCatalogViewModeValidator func(string) error
+	// DefaultUsageViewPreferences holds the default value on creation for the "usage_view_preferences" field.
+	DefaultUsageViewPreferences func() map[string]interface{}
 	// DefaultTotpEnabled holds the default value on creation for the "totp_enabled" field.
 	DefaultTotpEnabled bool
 )

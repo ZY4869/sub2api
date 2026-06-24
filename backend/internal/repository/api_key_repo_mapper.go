@@ -105,11 +105,12 @@ func userEntityToService(u *dbent.User) *service.User {
 		UsageModelDisplayMode: service.NormalizeUserUsageModelDisplayMode(
 			u.UsageModelDisplayMode,
 		),
-		TotpSecretEncrypted: u.TotpSecretEncrypted,
-		TotpEnabled:         u.TotpEnabled,
-		TotpEnabledAt:       u.TotpEnabledAt,
-		CreatedAt:           u.CreatedAt,
-		UpdatedAt:           u.UpdatedAt,
+		UsageViewPreferences: usageViewPreferencesFromMap(u.UsageViewPreferences),
+		TotpSecretEncrypted:  u.TotpSecretEncrypted,
+		TotpEnabled:          u.TotpEnabled,
+		TotpEnabledAt:        u.TotpEnabledAt,
+		CreatedAt:            u.CreatedAt,
+		UpdatedAt:            u.UpdatedAt,
 	}
 }
 

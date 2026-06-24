@@ -35,6 +35,7 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "users", "account_today_stats_cycle_mode", "character varying", 32, false)
 	requireColumn(t, tx, "users", "account_group_display_mode", "character varying", 32, false)
 	requireColumn(t, tx, "users", "account_status_display_mode", "character varying", 32, false)
+	requireColumn(t, tx, "users", "usage_view_preferences", "jsonb", 0, false)
 	requireColumnDefaultContains(t, tx, "users", "global_realtime_countdown_enabled", "false")
 	requireColumnDefaultContains(t, tx, "users", "account_realtime_countdown_enabled", "true")
 	requireColumnDefaultContains(t, tx, "users", "visual_preset_preference", "inherit")
@@ -44,6 +45,7 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumnDefaultContains(t, tx, "users", "account_today_stats_cycle_mode", "calendar")
 	requireColumnDefaultContains(t, tx, "users", "account_group_display_mode", "full")
 	requireColumnDefaultContains(t, tx, "users", "account_status_display_mode", "detailed")
+	requireColumnDefaultContains(t, tx, "users", "usage_view_preferences", "{}")
 	var globalRealtimeEnabled bool
 	var accountRealtimeEnabled bool
 	var visualPresetPreference string
@@ -52,13 +54,14 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	var accountTodayStatsCycleMode string
 	var accountGroupDisplayMode string
 	var accountStatusDisplayMode string
+	var usageViewPreferences string
 	require.NoError(t, tx.QueryRowContext(
 		context.Background(),
 		`INSERT INTO users (email, password_hash) VALUES ($1, $2)
-		 RETURNING global_realtime_countdown_enabled, account_realtime_countdown_enabled, visual_preset_preference, account_visual_preset_override, account_today_stats_windows::text, account_today_stats_cycle_mode, account_group_display_mode, account_status_display_mode`,
+		 RETURNING global_realtime_countdown_enabled, account_realtime_countdown_enabled, visual_preset_preference, account_visual_preset_override, account_today_stats_windows::text, account_today_stats_cycle_mode, account_group_display_mode, account_status_display_mode, usage_view_preferences::text`,
 		"migration-realtime-defaults@example.com",
 		"hash",
-	).Scan(&globalRealtimeEnabled, &accountRealtimeEnabled, &visualPresetPreference, &accountVisualPresetOverride, &accountTodayStatsWindows, &accountTodayStatsCycleMode, &accountGroupDisplayMode, &accountStatusDisplayMode))
+	).Scan(&globalRealtimeEnabled, &accountRealtimeEnabled, &visualPresetPreference, &accountVisualPresetOverride, &accountTodayStatsWindows, &accountTodayStatsCycleMode, &accountGroupDisplayMode, &accountStatusDisplayMode, &usageViewPreferences))
 	require.False(t, globalRealtimeEnabled)
 	require.True(t, accountRealtimeEnabled)
 	require.Equal(t, "inherit", visualPresetPreference)
@@ -67,6 +70,7 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	require.Equal(t, "calendar", accountTodayStatsCycleMode)
 	require.Equal(t, "full", accountGroupDisplayMode)
 	require.Equal(t, "detailed", accountStatusDisplayMode)
+	require.JSONEq(t, `{}`, usageViewPreferences)
 
 	// accounts: schedulable and rate-limit fields
 	requireColumn(t, tx, "accounts", "notes", "text", 0, true)

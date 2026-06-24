@@ -1026,6 +1026,7 @@ var (
 		{Name: "api_key_model_binding_mode", Type: field.TypeString, Size: 32, Default: "model_required"},
 		{Name: "external_model_catalog_view_mode", Type: field.TypeString, Size: 32, Default: "follow_key_binding"},
 		{Name: "api_key_access_time_policy", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "usage_view_preferences", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "totp_secret_encrypted", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "totp_enabled", Type: field.TypeBool, Default: false},
 		{Name: "totp_enabled_at", Type: field.TypeTime, Nullable: true},

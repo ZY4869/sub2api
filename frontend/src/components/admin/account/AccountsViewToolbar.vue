@@ -27,61 +27,13 @@
           @create="emit('create')"
         >
           <template #after>
-            <div
-              :class="visualStyleToggleClass"
-              data-account-visual-style-toggle="true"
-            >
-              <span :class="visualStyleLabelClass">
-                {{ t("admin.accounts.accountVisualStyle") }}
-              </span>
-              <button
-                type="button"
-                class="rounded-full px-3 py-1 text-xs font-semibold transition"
-                :class="
-                  accountVisualPresetOverride === 'inherit'
-                    ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700'
-                "
-                :disabled="accountVisualStyleUpdating"
-                @click="emit('set-account-visual-preset-override', 'inherit')"
-              >
-                {{ t("admin.accounts.accountVisualStyleInherit") }}
-              </button>
-              <button
-                type="button"
-                class="rounded-full px-3 py-1 text-xs font-semibold transition"
-                :class="
-                  accountVisualPresetOverride === 'classic'
-                    ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700'
-                "
-                :disabled="accountVisualStyleUpdating"
-                @click="emit('set-account-visual-preset-override', 'classic')"
-              >
-                {{ t("admin.accounts.accountVisualStyleClassic") }}
-              </button>
-              <button
-                type="button"
-                class="rounded-full px-3 py-1 text-xs font-semibold transition"
-                :class="
-                  accountVisualPresetOverride === 'airy'
-                    ? 'bg-primary-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700'
-                "
-                :disabled="accountVisualStyleUpdating"
-                @click="emit('set-account-visual-preset-override', 'airy')"
-              >
-                {{ t("admin.accounts.accountVisualStyleAiry") }}
-              </button>
-            </div>
-
             <div class="relative" ref="displayOptimizationDropdownRef">
               <button
                 type="button"
                 class="btn btn-secondary px-2 md:px-3"
                 data-account-display-optimization-button="true"
                 :title="t('admin.accounts.displayOptimization.title')"
-                :disabled="accountDisplayPreferencesUpdating"
+                :disabled="accountDisplayPreferencesUpdating || accountVisualStyleUpdating"
                 @click="toggleDisplayOptimizationDropdown"
               >
                 <Icon name="eye" size="sm" />
@@ -336,6 +288,28 @@
         </div>
 
         <div class="space-y-4">
+          <div>
+            <div class="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              {{ t("admin.accounts.accountVisualStyle") }}
+            </div>
+            <div class="inline-flex w-full rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-900/40">
+              <button
+                v-for="option in accountVisualPresetOptions"
+                :key="option"
+                type="button"
+                class="flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition"
+                :class="
+                  draftAccountVisualPresetOverride === option
+                    ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white'
+                "
+                @click="draftAccountVisualPresetOverride = option"
+              >
+                {{ accountVisualPresetLabel(option) }}
+              </button>
+            </div>
+          </div>
+
           <div>
             <div class="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
               {{ t("admin.accounts.displayOptimization.todayStats") }}
@@ -698,6 +672,7 @@ const emit = defineEmits<{
   "toggle-account-realtime-countdown": [];
   "set-account-visual-preset-override": [value: VisualPresetPreference];
   "save-account-display-preferences": [value: {
+    accountVisualPresetOverride: VisualPresetPreference;
     todayStatsWindows: AccountTodayStatsWindow[];
     todayStatsCycleMode: AccountTodayStatsCycleMode;
     groupDisplayMode: AccountGroupDisplayMode;
@@ -718,11 +693,16 @@ const moreActionsDropdownRef = ref<HTMLElement | null>(null);
 const AUTO_REFRESH_PANEL_WIDTH = 224;
 const AUTO_REFRESH_PANEL_HEIGHT = 240;
 const DISPLAY_OPTIMIZATION_PANEL_WIDTH = 288;
-const DISPLAY_OPTIMIZATION_PANEL_HEIGHT = 432;
+const DISPLAY_OPTIMIZATION_PANEL_HEIGHT = 520;
 const MORE_ACTIONS_PANEL_WIDTH = 224;
 const MORE_ACTIONS_PANEL_HEIGHT = 408;
 const COLUMN_PANEL_WIDTH = 192;
 const COLUMN_PANEL_HEIGHT = 360;
+const accountVisualPresetOptions: VisualPresetPreference[] = [
+  "inherit",
+  "classic",
+  "airy",
+];
 const accountTodayStatsWindowOptions: AccountTodayStatsWindow[] = [
   "today",
   "weekly",
@@ -741,6 +721,12 @@ const accountStatusDisplayModeOptions: AccountStatusDisplayMode[] = [
   "simple",
   "detailed",
 ];
+const normalizeAccountVisualPresetOverride = (
+  value?: VisualPresetPreference,
+): VisualPresetPreference =>
+  accountVisualPresetOptions.includes(value || "inherit")
+    ? (value || "inherit")
+    : "inherit";
 const normalizeTodayStatsWindows = (
   values?: AccountTodayStatsWindow[],
 ): AccountTodayStatsWindow[] => {
@@ -752,6 +738,9 @@ const normalizeTodayStatsWindows = (
 };
 const draftTodayStatsWindows = ref<AccountTodayStatsWindow[]>(
   normalizeTodayStatsWindows(props.accountTodayStatsWindows),
+);
+const draftAccountVisualPresetOverride = ref<VisualPresetPreference>(
+  normalizeAccountVisualPresetOverride(props.accountVisualPresetOverride),
 );
 const draftTodayStatsCycleMode = ref<AccountTodayStatsCycleMode>(
   props.accountTodayStatsCycleMode === "fixed" ? "fixed" : "calendar",
@@ -785,21 +774,17 @@ const toolbarShellClass = computed(() =>
 const actionsViewportClass = computed(() =>
   props.visualStyle === "airy" ? "-mx-1 px-1" : "",
 );
-const visualStyleToggleClass = computed(() =>
-  props.visualStyle === "airy"
-    ? "inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-slate-50/95 p-1 dark:border-slate-700/80 dark:bg-slate-800/80"
-    : "inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-900/60",
-);
-const visualStyleLabelClass = computed(() =>
-  props.visualStyle === "airy"
-    ? "px-2 text-xs font-medium text-slate-600 dark:text-slate-200"
-    : "px-2 text-xs font-medium text-gray-500 dark:text-gray-300",
-);
 const daily5HToggleClass = computed(() =>
   props.visualStyle === "airy"
     ? "flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/95 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/80"
     : "flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 dark:border-dark-600 dark:bg-dark-800",
 );
+
+const accountVisualPresetLabel = (option: VisualPresetPreference) => {
+  if (option === "classic") return t("admin.accounts.accountVisualStyleClassic");
+  if (option === "airy") return t("admin.accounts.accountVisualStyleAiry");
+  return t("admin.accounts.accountVisualStyleInherit");
+};
 
 const handleFiltersUpdate = (value: Record<string, unknown>) => {
   emit("update:filters", value);
@@ -825,6 +810,9 @@ const toggleAutoRefreshDropdown = () => {
 };
 
 const syncDisplayOptimizationDraft = () => {
+  draftAccountVisualPresetOverride.value = normalizeAccountVisualPresetOverride(
+    props.accountVisualPresetOverride,
+  );
   draftTodayStatsWindows.value = normalizeTodayStatsWindows(
     props.accountTodayStatsWindows,
   );
@@ -899,6 +887,7 @@ const handleFilteredBulkEditExcludeGroupedChange = (event: Event) => {
 
 const saveDisplayOptimization = () => {
   emit("save-account-display-preferences", {
+    accountVisualPresetOverride: draftAccountVisualPresetOverride.value,
     todayStatsWindows: normalizeTodayStatsWindows(
       draftTodayStatsWindows.value,
     ),

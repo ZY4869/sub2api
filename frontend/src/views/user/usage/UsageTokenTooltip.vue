@@ -19,8 +19,12 @@
               <span class="text-gray-400">{{ t("admin.usage.outputTokens") }}</span>
               <span class="font-medium text-white">{{ data.output_tokens.toLocaleString() }}</span>
             </div>
-            <div v-if="data && data.cache_creation_tokens > 0">
+            <div v-if="data && getCacheCreationTotal(data) > 0">
               <template v-if="data.cache_creation_5m_tokens > 0 || data.cache_creation_1h_tokens > 0">
+                <div v-if="data.cache_creation_tokens > 0" class="flex items-center justify-between gap-4">
+                  <span class="text-gray-400">{{ getCacheCreationLabel(data) }}</span>
+                  <span class="font-medium text-white">{{ data.cache_creation_tokens.toLocaleString() }}</span>
+                </div>
                 <div v-if="data.cache_creation_5m_tokens > 0" class="flex items-center justify-between gap-4">
                   <span class="text-gray-400 flex items-center gap-1.5">
                     {{ t("admin.usage.cacheCreation5mTokens") }}
@@ -38,7 +42,7 @@
               </template>
               <div v-else class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{ getCacheCreationLabel(data) }}</span>
-                <span class="font-medium text-white">{{ data.cache_creation_tokens.toLocaleString() }}</span>
+                <span class="font-medium text-white">{{ getCacheCreationTotal(data).toLocaleString() }}</span>
               </div>
             </div>
             <div v-if="data && data.cache_ttl_overridden" class="flex items-center justify-between gap-4">
@@ -64,7 +68,7 @@
                 (
                   (data?.input_tokens || 0) +
                   (data?.output_tokens || 0) +
-                  (data?.cache_creation_tokens || 0) +
+                  getCacheCreationTotal(data) +
                   (data?.cache_read_tokens || 0)
                 ).toLocaleString()
               }}
@@ -90,4 +94,14 @@ defineProps<{
 }>();
 
 const { t } = useI18n();
+
+const getCacheCreationTotal = (
+  row: Pick<
+    UsageLog,
+    "cache_creation_tokens" | "cache_creation_5m_tokens" | "cache_creation_1h_tokens"
+  > | null | undefined,
+): number =>
+  (row?.cache_creation_tokens || 0) +
+  (row?.cache_creation_5m_tokens || 0) +
+  (row?.cache_creation_1h_tokens || 0);
 </script>

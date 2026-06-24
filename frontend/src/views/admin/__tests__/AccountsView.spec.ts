@@ -35,10 +35,38 @@ const mockState = vi.hoisted(() => ({
     role: 'admin',
     visual_preset_preference: 'inherit',
     account_visual_preset_override: 'inherit',
+    account_today_stats_windows: ['today', 'weekly', 'monthly', 'total'],
+    account_today_stats_cycle_mode: 'calendar',
+    account_group_display_mode: 'full',
+    account_status_display_mode: 'detailed',
     account_realtime_countdown_enabled: true,
     global_realtime_countdown_enabled: false
   } as any,
   setCurrentUser: vi.fn(),
+  setAccountTodayStatsWindows: vi.fn((windows: string[]) => {
+    mockState.authUser = {
+      ...mockState.authUser,
+      account_today_stats_windows: windows
+    }
+  }),
+  setAccountTodayStatsCycleMode: vi.fn((mode: string) => {
+    mockState.authUser = {
+      ...mockState.authUser,
+      account_today_stats_cycle_mode: mode
+    }
+  }),
+  setAccountGroupDisplayMode: vi.fn((mode: string) => {
+    mockState.authUser = {
+      ...mockState.authUser,
+      account_group_display_mode: mode
+    }
+  }),
+  setAccountStatusDisplayMode: vi.fn((mode: string) => {
+    mockState.authUser = {
+      ...mockState.authUser,
+      account_status_display_mode: mode
+    }
+  }),
   setAccountVisualPresetOverride: vi.fn((preset: string) => {
     mockState.authUser = {
       ...mockState.authUser,
@@ -96,6 +124,10 @@ vi.mock('@/stores/auth', () => ({
     isSimpleMode: false,
     user: mockState.authUser,
     setCurrentUser: mockState.setCurrentUser,
+    setAccountTodayStatsWindows: mockState.setAccountTodayStatsWindows,
+    setAccountTodayStatsCycleMode: mockState.setAccountTodayStatsCycleMode,
+    setAccountGroupDisplayMode: mockState.setAccountGroupDisplayMode,
+    setAccountStatusDisplayMode: mockState.setAccountStatusDisplayMode,
     setAccountVisualPresetOverride: mockState.setAccountVisualPresetOverride,
     setAccountRealtimeCountdownEnabled: mockState.setAccountRealtimeCountdownEnabled
   })
@@ -381,7 +413,7 @@ const SummaryBarStub = defineComponent({
 const ToolbarStub = defineComponent({
   name: 'AccountsViewToolbar',
   props: ['filters', 'platformCountSortOrder', 'daily5HTriggerEnabled', 'daily5HTriggerBusy', 'accountRealtimeCountdownEnabled', 'accountVisualPresetOverride', 'visualStyle'],
-  emits: ['refresh-usage', 'update:filters', 'change', 'update:platform-count-sort-order', 'toggle-daily-5h-trigger', 'toggle-account-realtime-countdown', 'set-account-visual-preset-override'],
+  emits: ['refresh-usage', 'update:filters', 'change', 'update:platform-count-sort-order', 'toggle-daily-5h-trigger', 'toggle-account-realtime-countdown', 'set-account-visual-preset-override', 'save-account-display-preferences'],
   template: `
     <div>
       <div class="toolbar-platform-sort">{{ platformCountSortOrder }}</div>
@@ -398,6 +430,16 @@ const ToolbarStub = defineComponent({
       <button class="toolbar-daily5h-toggle" @click="$emit('toggle-daily-5h-trigger')" />
       <button class="toolbar-account-realtime-toggle" @click="$emit('toggle-account-realtime-countdown')" />
       <button class="toolbar-account-visual-preset-toggle" @click="$emit('set-account-visual-preset-override', 'airy')" />
+      <button
+        class="toolbar-display-preferences-save"
+        @click="$emit('save-account-display-preferences', {
+          accountVisualPresetOverride: 'airy',
+          todayStatsWindows: ['today', 'total'],
+          todayStatsCycleMode: 'fixed',
+          groupDisplayMode: 'icon',
+          statusDisplayMode: 'simple'
+        })"
+      />
       <button
         class="toolbar-platform-sort-toggle"
         @click="$emit('update:platform-count-sort-order', 'count_desc')"
@@ -524,10 +566,18 @@ describe('AccountsView', () => {
       role: 'admin',
       visual_preset_preference: 'inherit',
       account_visual_preset_override: 'inherit',
+      account_today_stats_windows: ['today', 'weekly', 'monthly', 'total'],
+      account_today_stats_cycle_mode: 'calendar',
+      account_group_display_mode: 'full',
+      account_status_display_mode: 'detailed',
       account_realtime_countdown_enabled: true,
       global_realtime_countdown_enabled: false
     }
     mockState.setCurrentUser.mockReset()
+    mockState.setAccountTodayStatsWindows.mockClear()
+    mockState.setAccountTodayStatsCycleMode.mockClear()
+    mockState.setAccountGroupDisplayMode.mockClear()
+    mockState.setAccountStatusDisplayMode.mockClear()
     mockState.setAccountVisualPresetOverride.mockClear()
     mockState.setAccountRealtimeCountdownEnabled.mockClear()
     mockState.updateProfile.mockReset()
@@ -1128,6 +1178,42 @@ describe('AccountsView', () => {
     await wrapper.get('.toolbar-account-visual-preset-toggle').trigger('click')
     await flushPromises()
 
+    expect(mockState.setAccountVisualPresetOverride).toHaveBeenCalledWith('airy')
+
+    wrapper.unmount()
+  })
+
+  it('saves display optimization preferences together with the account visual preset', async () => {
+    mockState.updateProfile
+      .mockResolvedValueOnce({
+        ...mockState.authUser,
+        account_today_stats_windows: ['today', 'total'],
+        account_today_stats_cycle_mode: 'fixed',
+        account_group_display_mode: 'icon',
+        account_status_display_mode: 'simple'
+      })
+      .mockResolvedValueOnce({
+        ...mockState.authUser,
+        account_visual_preset_override: 'airy'
+      })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.toolbar-display-preferences-save').trigger('click')
+    await flushPromises()
+
+    expect(userAPI.updateProfile).toHaveBeenNthCalledWith(1, {
+      account_today_stats_windows: ['today', 'total'],
+      account_today_stats_cycle_mode: 'fixed',
+      account_group_display_mode: 'icon',
+      account_status_display_mode: 'simple'
+    })
+    expect(userAPI.updateProfile).toHaveBeenCalledTimes(1)
+    expect(mockState.setAccountTodayStatsWindows).toHaveBeenCalledWith(['today', 'total'])
+    expect(mockState.setAccountTodayStatsCycleMode).toHaveBeenCalledWith('fixed')
+    expect(mockState.setAccountGroupDisplayMode).toHaveBeenCalledWith('icon')
+    expect(mockState.setAccountStatusDisplayMode).toHaveBeenCalledWith('simple')
     expect(mockState.setAccountVisualPresetOverride).toHaveBeenCalledWith('airy')
 
     wrapper.unmount()

@@ -54,6 +54,7 @@
         :cache-hit-rate="stats?.cache_hit_rate"
         :cache-creation-tokens="stats?.total_cache_creation_tokens"
         :cache-read-tokens="stats?.total_cache_read_tokens"
+        :stats-card-style="statsCardStyle"
       />
 
       <div class="card p-4">
@@ -139,26 +140,30 @@
           </p>
         </div>
 
-        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
-          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-            {{ t("usage.todayTokens") }}
-          </p>
-          <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
-            {{ formatTokens(stats?.today_tokens || 0) }}
-          </p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">
-            {{ t("usage.in") }}:
-            {{ formatTokens(stats?.today_input_tokens || 0) }} /
-            {{ t("usage.cacheTokens") }}:
-            {{ formatTokens(stats?.today_cache_tokens || 0) }} /
-            {{ t("usage.out") }}:
-            {{ formatTokens(stats?.today_output_tokens || 0) }}
-          </p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">
-            {{ formatCacheSplit(stats?.today_cache_creation_tokens || 0, stats?.today_cache_read_tokens || 0) }}
-            · {{ t("usage.cacheHitRate") }}:
-            {{ formatPercent(stats?.today_cache_hit_rate || 0) }}
-          </p>
+        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70 md:col-span-2 xl:col-span-2">
+          <div class="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t("usage.todayTokens") }}
+              </p>
+              <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                {{ formatTokens(stats?.today_tokens || 0) }}
+              </p>
+            </div>
+            <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+              {{ formatPercent(stats?.today_cache_hit_rate || 0) }}
+            </span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 lg:grid-cols-5">
+            <div
+              v-for="item in todayTokenItems"
+              :key="item.key"
+              class="rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-2 dark:border-dark-700 dark:bg-dark-800/70"
+            >
+              <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ item.label }}</p>
+              <p class="mt-1 text-sm font-semibold" :class="item.className">{{ item.value }}</p>
+            </div>
+          </div>
         </div>
 
         <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
@@ -194,6 +199,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import type { UsageStatsResponse } from "@/types";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
@@ -201,9 +207,12 @@ import { formatUsageAmount } from "@/utils/usageCost";
 import Icon from "@/components/icons/Icon.vue";
 import CacheStatsCard from "@/components/usage/CacheStatsCard.vue";
 
-defineProps<{
+const props = withDefaults(defineProps<{
   stats: UsageStatsResponse | null;
-}>();
+  statsCardStyle?: "balanced" | "accent";
+}>(), {
+  statsCardStyle: "balanced",
+});
 
 const { t } = useI18n();
 const { formatTokenDisplay } = useTokenDisplayMode();
@@ -215,16 +224,43 @@ const formatDuration = (ms: number): string => {
 
 const formatTokens = (value: number): string => formatTokenDisplay(value);
 
-const formatCacheSplit = (write: number, read: number): string =>
-  t("usage.cacheSplit", {
-    write: formatTokens(write),
-    read: formatTokens(read),
-  });
-
 const formatPercent = (value: number): string => {
   const normalized = value <= 1 ? value * 100 : value;
   return `${normalized.toFixed(1)}%`;
 };
+
+const todayTokenItems = computed(() => [
+  {
+    key: "input",
+    label: t("usage.inputTokens"),
+    value: formatTokens(props.stats?.today_input_tokens || 0),
+    className: "text-emerald-600 dark:text-emerald-400",
+  },
+  {
+    key: "cache_write",
+    label: t("usage.cacheCreationTokens"),
+    value: formatTokens(props.stats?.today_cache_creation_tokens || 0),
+    className: "text-amber-600 dark:text-amber-400",
+  },
+  {
+    key: "cache_read",
+    label: t("usage.cacheReadTokens"),
+    value: formatTokens(props.stats?.today_cache_read_tokens || 0),
+    className: "text-sky-600 dark:text-sky-400",
+  },
+  {
+    key: "output",
+    label: t("usage.outputTokens"),
+    value: formatTokens(props.stats?.today_output_tokens || 0),
+    className: "text-violet-600 dark:text-violet-400",
+  },
+  {
+    key: "hit_rate",
+    label: t("usage.cacheHitRate"),
+    value: formatPercent(props.stats?.today_cache_hit_rate || 0),
+    className: "text-teal-600 dark:text-teal-400",
+  },
+]);
 
 const formatCurrencyBreakdown = (
   values: Record<string, number> | null | undefined,

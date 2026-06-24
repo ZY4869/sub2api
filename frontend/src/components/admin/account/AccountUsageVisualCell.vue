@@ -63,6 +63,19 @@
           {{ Math.round(row.displayPercent) }}%
         </span>
       </div>
+      <AccountOpenAIResetCreditsControls
+        v-if="canResetOpenAIQuota"
+        :reset-status-label="resetCreditsStatusLabel"
+        :reset-unsupported="resetCreditsUnsupported"
+        :reset-unknown="resetCreditsUnknown"
+        :reset-zero="resetCreditsZero"
+        :resetting="resetting"
+        :refreshing="refreshingResetCredits"
+        :reset-disabled="resetButtonDisabled"
+        :show-reset="false"
+        @refresh="refreshOpenAIResetCredits"
+        @reset="resetOpenAIQuota"
+      />
     </div>
 
     <div v-else-if="presentation.state === 'unlimited'" class="text-xs font-semibold text-slate-500 dark:text-slate-300">
@@ -87,7 +100,9 @@ import { useI18n } from 'vue-i18n'
 import type { Account, AccountVisualStyle, WindowStats } from '@/types'
 import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
 import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
+import { useOpenAIResetCreditsControls } from '@/composables/useOpenAIResetCreditsControls'
 import { useViewportAutoLoadGate } from '@/composables/useViewportAutoLoadGate'
+import AccountOpenAIResetCreditsControls from '@/components/account/AccountOpenAIResetCreditsControls.vue'
 import {
   createVisualUsageRows,
   rowFillClass,
@@ -120,6 +135,21 @@ const { presentation, requestAutoLoad, shouldFetchUsage } =
   useAccountUsagePresentation(() => props.account, {
     autoLoadEnabled,
   })
+const {
+  canResetOpenAIQuota,
+  resetCreditsStatusLabel,
+  resetCreditsUnsupported,
+  resetCreditsUnknown,
+  resetCreditsZero,
+  resetting,
+  refreshingResetCredits,
+  resetButtonDisabled,
+  resetOpenAIQuota,
+  refreshOpenAIResetCredits,
+} = useOpenAIResetCreditsControls(
+  () => props.account,
+  () => presentation.value,
+)
 
 const skeletonRows = computed(() =>
   Array.from(

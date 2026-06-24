@@ -12,9 +12,14 @@ import type {
   AccountUsagePresentation,
   AccountUsagePresentationRow,
   AccountUsageRowColor,
+  UsageProgress,
 } from "@/types";
 import { buildOpenAIUsageRefreshKey } from "@/utils/accountUsageRefresh";
-import { resolveCodexUsageWindow, resolveUsageWindowColor } from "@/utils/codexUsage";
+import {
+  resolveCodexUsageWindow,
+  resolveCodexUsageWindowLabel,
+  resolveUsageWindowColor,
+} from "@/utils/codexUsage";
 import {
   formatLocalAbsoluteTime,
   formatLocalTimestamp,
@@ -40,7 +45,6 @@ import {
   isOpenAIFreeAccount,
   isOpenAIProAccount,
   mergeOpenAIUsageRows,
-  resolveOpenAIUsageLabel,
   resolveOpenAIUsageProgress,
   resolveOpenAIUsageSpecs,
 } from "./accountUsagePresentation/rows";
@@ -50,6 +54,7 @@ import {
 } from "./accountUsagePresentation/support";
 import type {
   LoadUsageOptions,
+  OpenAIUsageRowSpec,
   UseAccountUsagePresentationOptions,
 } from "./accountUsagePresentation/types";
 
@@ -62,6 +67,7 @@ export {
 };
 
 const EXPIRED_OPENAI_USAGE_REFRESH_COOLDOWN_MS = 60 * 1000;
+const SEVEN_DAYS_SECONDS = 7 * 24 * 60 * 60;
 
 function normalizeOpenAIResetCreditsCount(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
@@ -93,6 +99,21 @@ function normalizeOpenAIResetCreditsStatus(value: unknown): string {
 
 function normalizeOpenAIResetCreditsReason(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function resolveLongOpenAIUsageFallbackLabel(
+  window: "5h" | "7d",
+  progress: UsageProgress | null | undefined,
+): string {
+  if (
+    window === "7d" &&
+    typeof progress?.remaining_seconds === "number" &&
+    Number.isFinite(progress.remaining_seconds) &&
+    progress.remaining_seconds > SEVEN_DAYS_SECONDS
+  ) {
+    return resolveCodexUsageWindowLabel(30 * 24 * 60, window);
+  }
+  return resolveCodexUsageWindowLabel(null, window);
 }
 
 export function useAccountUsagePresentation(
@@ -161,6 +182,23 @@ export function useAccountUsagePresentation(
   const codexSpark7dWindow = computed(() =>
     resolveCodexUsageWindow(account.value.extra, "7d", nowDate.value, "spark"),
   );
+
+  const resolveOpenAIFetchedUsageLabel = (
+    spec: OpenAIUsageRowSpec,
+    progress: UsageProgress | null | undefined,
+  ) => {
+    const snapshotWindow = resolveCodexUsageWindow(
+      account.value.extra,
+      spec.window,
+      nowDate.value,
+      spec.scope,
+    );
+    const baseLabel =
+      snapshotWindow.windowMinutes != null
+        ? snapshotWindow.label
+        : resolveLongOpenAIUsageFallbackLabel(spec.window, progress);
+    return spec.scope === "spark" ? `Spark ${baseLabel}` : baseLabel;
+  };
 
   const codexRows = computed(() =>
     buildRows(
@@ -239,15 +277,19 @@ export function useAccountUsagePresentation(
       ...resolveOpenAIUsageSpecs(
         shouldShowOpenAISparkUsage.value,
         shouldShowOnlyOpenAI7dUsage.value,
-      ).map((spec) =>
+      ).map((spec) => {
+        const progress = resolveOpenAIUsageProgress(usageInfo.value, spec);
+        const label = resolveOpenAIFetchedUsageLabel(spec, progress);
+        return (
           buildProgressRow(
             spec.key,
-            resolveOpenAIUsageLabel(spec, t),
-            resolveOpenAIUsageProgress(usageInfo.value, spec),
-            spec.color,
+            label,
+            progress,
+            resolveUsageWindowColor(label),
             { inlineRemaining: true, detailedReset: true },
-          ),
-        ),
+          )
+        );
+      }),
     ),
   );
 

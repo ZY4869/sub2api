@@ -2,7 +2,10 @@
   <AppLayout>
     <TablePageLayout>
       <template #actions>
-        <UsageStatsCards :stats="usageStats" />
+        <UsageStatsCards
+          :stats="usageStats"
+          :stats-card-style="pagePreferences.stats_card_style"
+        />
       </template>
 
       <template #filters>
@@ -14,14 +17,26 @@
           :platform-options="platformOptions"
           :loading="loading"
           :exporting="exporting"
-          :usage-model-display-mode="usageModelDisplayMode"
-          :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
           @apply="applyFilters"
           @reset="resetFilters"
           @export="exportToCSV"
           @date-range-change="onDateRangeChange"
-          @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
-        />
+        >
+          <template #display-settings>
+            <UsageDisplaySettingsMenu
+              :preferences="pagePreferences"
+              :hidden-columns="hiddenColumns"
+              :columns="allColumns"
+              :always-visible-columns="ALWAYS_VISIBLE"
+              :usage-model-display-mode="usageModelDisplayMode"
+              :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
+              :disabled="updatingUsageViewPreferences"
+              @update-preference="handleUsageViewPreferenceChange"
+              @toggle-column="toggleUsageColumn"
+              @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
+            />
+          </template>
+        </UsageFilters>
       </template>
 
       <template #table>
@@ -35,10 +50,11 @@
           :format-currency-breakdown="formatCurrencyBreakdown"
         />
         <UsageTable
-          :columns="columns"
+          :columns="visibleColumns"
           :usage-logs="usageLogs"
           :loading="loading"
           :usage-model-display-mode="usageModelDisplayMode"
+          :table-density="pagePreferences.table_density"
           :format-currency-breakdown="formatCurrencyBreakdown"
           :format-tokens="formatTokens"
           :format-cache-tokens="formatCacheTokens"
@@ -108,6 +124,7 @@ import TablePageLayout from "@/components/layout/TablePageLayout.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import UsageStatsCards from "@/components/user/usage/UsageStatsCards.vue";
 import UsageRequestPreviewModal from "@/components/user/usage/UsageRequestPreviewModal.vue";
+import UsageDisplaySettingsMenu from "@/components/usage/UsageDisplaySettingsMenu.vue";
 import type {
   UsageLog,
   UsageModelDisplayMode,
@@ -120,6 +137,7 @@ import type { Column } from "@/components/common/types";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
+import { useUsageViewPreferences } from "@/composables/useUsageViewPreferences";
 import {
   formatReasoningEffortPair,
   formatThinkingEnabled,
@@ -156,6 +174,13 @@ const {
   updatingUsageModelDisplayMode,
   setUsageModelDisplayMode,
 } = useUsageModelDisplayModePreference();
+const {
+  pagePreferences,
+  hiddenColumns,
+  updatingUsageViewPreferences,
+  patchPagePreferences,
+  toggleColumn: toggleUsageColumn,
+} = useUsageViewPreferences("user");
 const formatCurrencyBreakdown = (
   values: Record<string, number> | null | undefined,
   fallbackUSD: number | null | undefined,
@@ -190,7 +215,9 @@ const tokenTooltipData = ref<UsageLog | null>(null);
 // Usage stats from API
 const usageStats = ref<UsageStatsResponse | null>(null);
 
-const columns = computed<Column[]>(() => [
+const ALWAYS_VISIBLE = ["created_at"];
+
+const allColumns = computed<Column[]>(() => [
   { key: "api_key", label: t("usage.apiKeyFilter"), sortable: false },
   { key: "model", label: t("usage.model"), sortable: true },
   { key: "success_rate", label: t("usage.modelSuccessRate"), sortable: false },
@@ -209,6 +236,7 @@ const columns = computed<Column[]>(() => [
   { key: "endpoint", label: t("usage.endpoint"), sortable: false },
   { key: "stream", label: t("usage.type"), sortable: false },
   { key: "tokens", label: t("usage.tokens"), sortable: false },
+  { key: "cache_hit", label: t("usage.cacheHit"), sortable: false },
   { key: "cost", label: t("usage.cost"), sortable: false },
   { key: "first_token", label: t("usage.firstToken"), sortable: false },
   { key: "duration", label: t("usage.duration"), sortable: false },
@@ -216,6 +244,12 @@ const columns = computed<Column[]>(() => [
   { key: "user_agent", label: t("usage.userAgent"), sortable: false },
   { key: "actions", label: t("common.actions"), sortable: false },
 ]);
+
+const visibleColumns = computed<Column[]>(() =>
+  allColumns.value.filter(
+    (column) => ALWAYS_VISIBLE.includes(column.key) || !hiddenColumns.value.has(column.key),
+  ),
+);
 
 const usageLogs = ref<UsageLog[]>([]);
 const apiKeys = ref<UsageFilterApiKey[]>([]);
@@ -415,6 +449,16 @@ const formatCacheTokens = (value: number): string => {
   return formatTokenDisplay(value);
 };
 
+const getCacheCreationTotal = (
+  log: Pick<
+    UsageLog,
+    "cache_creation_tokens" | "cache_creation_5m_tokens" | "cache_creation_1h_tokens"
+  >,
+): number =>
+  (log.cache_creation_tokens || 0) +
+  (log.cache_creation_5m_tokens || 0) +
+  (log.cache_creation_1h_tokens || 0);
+
 const loadUsageLogs = async () => {
   if (abortController) {
     abortController.abort();
@@ -568,6 +612,13 @@ const handleUsageModelDisplayModeChange = async (
   await setUsageModelDisplayMode(mode);
 };
 
+const handleUsageViewPreferenceChange = async (
+  key: "hidden_columns" | "token_display_mode" | "table_density" | "stats_card_style",
+  value: string,
+) => {
+  await patchPagePreferences({ [key]: value } as any);
+};
+
 const formatModelSuccessRateExport = (
   rate: number | null | undefined,
 ): string => {
@@ -701,7 +752,7 @@ const exportToCSV = async () => {
         log.input_tokens,
         log.output_tokens,
         log.cache_read_tokens,
-        log.cache_creation_tokens,
+        getCacheCreationTotal(log),
         formatUsageMultiplier(log.rate_multiplier),
         formatUsageAmount(log.actual_cost, 8),
         formatUsageAmount(log.total_cost, 8),

@@ -18,6 +18,7 @@ func UserFromServiceShallow(u *service.User) *User {
 		AdminFreeBilling:                      u.AdminFreeBilling,
 		RequestDetailsReview:                  u.CanReviewRequestDetails(),
 		UsageModelDisplayMode:                 u.EffectiveUsageModelDisplayMode(),
+		UsageViewPreferences:                  service.NormalizeUsageViewPreferences(u.UsageViewPreferences),
 		VisualPresetPreference:                service.NormalizeVisualPresetPreference(u.VisualPresetPreference),
 		AccountVisualPresetOverride:           service.NormalizeVisualPresetPreference(u.AccountVisualPresetOverride),
 		AccountTodayStatsWindows:              service.NormalizeAccountTodayStatsWindows(u.AccountTodayStatsWindows),

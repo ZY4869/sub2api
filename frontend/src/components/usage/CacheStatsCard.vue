@@ -1,29 +1,35 @@
 <template>
-  <div class="card p-4" data-testid="usage-cache-stats-card">
+  <div
+    class="card p-4"
+    :class="styleClass"
+    data-testid="usage-cache-stats-card"
+  >
     <div class="flex items-center gap-3">
-      <div class="rounded-lg bg-teal-100 p-2 dark:bg-teal-900/30">
+      <div class="rounded-lg bg-teal-100 p-2 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400">
         <Icon
           name="sync"
           size="md"
-          class="text-teal-600 dark:text-teal-400"
           :stroke-width="2"
         />
       </div>
-      <div class="min-w-0">
+      <div class="min-w-0 flex-1">
         <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
           {{ t("usage.cacheHitRate") }}
         </p>
-        <p class="text-xl font-bold text-teal-600 dark:text-teal-400">
-          {{ formatPercent(cacheHitRate) }}
-        </p>
-        <div class="mt-1 grid grid-cols-3 gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+        <div class="mt-1 flex items-baseline justify-between gap-3">
+          <span class="text-xs text-gray-500 dark:text-gray-400">{{ t("usage.cacheHitRate") }}</span>
+          <span class="text-xl font-bold text-teal-600 dark:text-teal-400">
+            {{ formatPercent(cacheHitRate) }}
+          </span>
+        </div>
+        <div class="mt-2 grid grid-cols-3 gap-2 text-[11px] text-gray-500 dark:text-gray-400">
           <div>
             <span class="block">{{ t("usage.cacheWrite") }}</span>
-            <span class="font-semibold text-gray-800 dark:text-gray-100">{{ formatTokens(cacheCreationTokens) }}</span>
+            <span class="font-semibold text-amber-600 dark:text-amber-400">{{ formatTokens(cacheCreationTokens) }}</span>
           </div>
           <div>
             <span class="block">{{ t("usage.cacheRead") }}</span>
-            <span class="font-semibold text-gray-800 dark:text-gray-100">{{ formatTokens(cacheReadTokens) }}</span>
+            <span class="font-semibold text-sky-600 dark:text-sky-400">{{ formatTokens(cacheReadTokens) }}</span>
           </div>
           <div>
             <span class="block">{{ t("common.total") }}</span>
@@ -45,6 +51,7 @@ const props = defineProps<{
   cacheHitRate?: number | null;
   cacheCreationTokens?: number | null;
   cacheReadTokens?: number | null;
+  statsCardStyle?: "balanced" | "accent";
 }>();
 
 const { t } = useI18n();
@@ -55,6 +62,12 @@ const formatTokens = (value: number | null | undefined): string =>
 
 const cacheTotalTokens = computed(
   () => (props.cacheCreationTokens || 0) + (props.cacheReadTokens || 0),
+);
+
+const styleClass = computed(() =>
+  props.statsCardStyle === "accent"
+    ? "border-teal-200/80 bg-teal-50/40 dark:border-teal-500/20 dark:bg-teal-500/5"
+    : "",
 );
 
 const formatPercent = (value: number | null | undefined): string => {

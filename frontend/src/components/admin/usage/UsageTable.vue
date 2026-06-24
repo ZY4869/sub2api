@@ -1,5 +1,5 @@
 <template>
-  <div class="card overflow-hidden">
+  <div class="card overflow-hidden" :class="tableDensityClass">
     <div class="overflow-auto">
       <DataTable :columns="columns" :data="data" :loading="loading" row-key="id">
         <template #cell-user="{ row }">
@@ -127,8 +127,17 @@
         </template>
 
         <template #cell-thinking_enabled="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">
-            {{ formatThinkingEnabled(row.thinking_enabled) }}
+          <span
+            class="inline-flex w-full justify-center"
+            :title="formatThinkingEnabled(row.thinking_enabled)"
+            :aria-label="formatThinkingEnabled(row.thinking_enabled)"
+          >
+            <Icon
+              :name="row.thinking_enabled === true ? 'checkCircle' : 'xCircle'"
+              size="sm"
+              :class="row.thinking_enabled === true ? 'text-emerald-500' : 'text-gray-400 dark:text-gray-500'"
+              :stroke-width="2"
+            />
           </span>
         </template>
 
@@ -246,35 +255,12 @@
               </div>
               <div
                 v-if="
-                  row.cache_read_tokens > 0 || row.cache_creation_tokens > 0
+                  getCacheCreationTotal(row) > 0
                 "
                 class="flex items-center gap-2"
               >
                 <div
-                  v-if="row.cache_read_tokens > 0"
-                  class="inline-flex items-center gap-1"
-                >
-                  <svg
-                    class="h-3.5 w-3.5 text-sky-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-                    />
-                  </svg>
-                  <span
-                    class="font-medium text-sky-600 dark:text-sky-400"
-                    :title="row.cache_read_tokens?.toLocaleString() || '0'"
-                    >{{ formatCacheTokens(row.cache_read_tokens) }}</span
-                  >
-                </div>
-                <div
-                  v-if="row.cache_creation_tokens > 0"
+                  v-if="getCacheCreationTotal(row) > 0"
                   class="inline-flex items-center gap-1"
                 >
                   <svg
@@ -292,8 +278,8 @@
                   </svg>
                   <span
                     class="font-medium text-amber-600 dark:text-amber-400"
-                    :title="row.cache_creation_tokens?.toLocaleString() || '0'"
-                    >{{ formatCacheTokens(row.cache_creation_tokens) }}</span
+                    :title="getCacheCreationTotal(row).toLocaleString()"
+                    >{{ formatCacheTokens(getCacheCreationTotal(row)) }}</span
                   >
                   <span
                     v-if="row.cache_creation_1h_tokens > 0"
@@ -324,6 +310,23 @@
                   class="text-gray-400 group-hover:text-blue-500 dark:text-gray-500 dark:group-hover:text-blue-400"
                 />
               </div>
+            </div>
+          </div>
+        </template>
+
+        <template #cell-cache_hit="{ row }">
+          <div class="min-w-[5.5rem] space-y-0.5 text-sm">
+            <div class="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400">
+              <Icon name="inbox" size="sm" :stroke-width="2" />
+              <span
+                class="font-semibold"
+                :title="(row.cache_read_tokens || 0).toLocaleString()"
+              >
+                {{ formatCacheTokens(row.cache_read_tokens || 0) }}
+              </span>
+            </div>
+            <div class="text-[11px] font-medium text-teal-600 dark:text-teal-400">
+              {{ formatRowCacheHitRate(row) }}
             </div>
           </div>
         </template>
@@ -473,7 +476,7 @@
             </div>
             <div
               v-if="
-                tokenTooltipData && tokenTooltipData.cache_creation_tokens > 0
+                tokenTooltipData && getCacheCreationTotal(tokenTooltipData) > 0
               "
             >
               <!-- 有 5m/1h 明细时，展开显示 -->
@@ -483,6 +486,17 @@
                   tokenTooltipData.cache_creation_1h_tokens > 0
                 "
               >
+                <div
+                  v-if="tokenTooltipData.cache_creation_tokens > 0"
+                  class="flex items-center justify-between gap-4"
+                >
+                  <span class="text-gray-400">{{
+                    getCacheCreationLabel(tokenTooltipData)
+                  }}</span>
+                  <span class="font-medium text-white">{{
+                    tokenTooltipData.cache_creation_tokens.toLocaleString()
+                  }}</span>
+                </div>
                 <div
                   v-if="tokenTooltipData.cache_creation_5m_tokens > 0"
                   class="flex items-center justify-between gap-4"
@@ -520,7 +534,7 @@
                   getCacheCreationLabel(tokenTooltipData)
                 }}</span>
                 <span class="font-medium text-white">{{
-                  tokenTooltipData.cache_creation_tokens.toLocaleString()
+                  getCacheCreationTotal(tokenTooltipData).toLocaleString()
                 }}</span>
               </div>
             </div>
@@ -563,7 +577,7 @@
               (
                 (tokenTooltipData?.input_tokens || 0) +
                 (tokenTooltipData?.output_tokens || 0) +
-                (tokenTooltipData?.cache_creation_tokens || 0) +
+                getCacheCreationTotal(tokenTooltipData) +
                 (tokenTooltipData?.cache_read_tokens || 0)
               ).toLocaleString()
             }}</span>
@@ -753,7 +767,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useClipboard } from "@/composables/useClipboard";
 import {
@@ -794,16 +808,22 @@ import type {
   UsageModelDisplayMode,
 } from "@/types";
 
-defineProps<{
-  data: AdminUsageLog[];
-  loading: boolean;
-  columns: Array<{ key: string; label: string; sortable?: boolean }>;
-  usageModelDisplayMode: UsageModelDisplayMode;
-}>();
 defineEmits(["userClick"]);
 const { t } = useI18n();
 const { formatTokenDisplay } = useTokenDisplayMode();
 const { copyToClipboard } = useClipboard();
+
+const props = defineProps<{
+  data: AdminUsageLog[];
+  loading: boolean;
+  columns: Array<{ key: string; label: string; sortable?: boolean }>;
+  usageModelDisplayMode: UsageModelDisplayMode;
+  tableDensity?: "comfortable" | "compact";
+}>();
+
+const tableDensityClass = computed(() =>
+  props.tableDensity === "compact" ? "usage-table--compact" : "usage-table--comfortable",
+);
 
 const formatCurrencyBreakdown = (
   values: Record<string, number> | null | undefined,
@@ -912,6 +932,33 @@ const getChargeBadgeClass = (row: AdminUsageLog): string =>
 const formatTokens = (tokens: number | null | undefined): string =>
   formatTokenDisplay(tokens);
 
+const getCacheCreationTotal = (
+  row: Pick<
+    AdminUsageLog,
+    "cache_creation_tokens" | "cache_creation_5m_tokens" | "cache_creation_1h_tokens"
+  > | null | undefined,
+): number =>
+  (row?.cache_creation_tokens || 0) +
+  (row?.cache_creation_5m_tokens || 0) +
+  (row?.cache_creation_1h_tokens || 0);
+
+const formatRowCacheHitRate = (
+  row: Pick<
+    AdminUsageLog,
+    | "cache_read_tokens"
+    | "cache_creation_tokens"
+    | "cache_creation_5m_tokens"
+    | "cache_creation_1h_tokens"
+  >,
+): string => {
+  const read = row.cache_read_tokens || 0;
+  const total = read + getCacheCreationTotal(row);
+  if (total <= 0) {
+    return "0.0%";
+  }
+  return `${((read / total) * 100).toFixed(1)}%`;
+};
+
 const isDeepSeekUsageRow = (
   row: Pick<AdminUsageLog, "upstream_service"> | null | undefined,
 ): boolean => String(row?.upstream_service || "").trim().toLowerCase() === "deepseek";
@@ -961,3 +1008,11 @@ const hideTokenTooltip = () => {
 };
 
 </script>
+
+<style scoped>
+.usage-table--compact :deep(th),
+.usage-table--compact :deep(td) {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+</style>

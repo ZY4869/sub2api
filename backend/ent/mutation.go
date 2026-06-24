@@ -26169,6 +26169,7 @@ type UserMutation struct {
 	api_key_model_binding_mode         *string
 	external_model_catalog_view_mode   *string
 	api_key_access_time_policy         *map[string]interface{}
+	usage_view_preferences             *map[string]interface{}
 	totp_secret_encrypted              *string
 	totp_enabled                       *bool
 	totp_enabled_at                    *time.Time
@@ -27320,6 +27321,42 @@ func (m *UserMutation) ResetAPIKeyAccessTimePolicy() {
 	delete(m.clearedFields, user.FieldAPIKeyAccessTimePolicy)
 }
 
+// SetUsageViewPreferences sets the "usage_view_preferences" field.
+func (m *UserMutation) SetUsageViewPreferences(value map[string]interface{}) {
+	m.usage_view_preferences = &value
+}
+
+// UsageViewPreferences returns the value of the "usage_view_preferences" field in the mutation.
+func (m *UserMutation) UsageViewPreferences() (r map[string]interface{}, exists bool) {
+	v := m.usage_view_preferences
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsageViewPreferences returns the old "usage_view_preferences" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldUsageViewPreferences(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsageViewPreferences is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsageViewPreferences requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsageViewPreferences: %w", err)
+	}
+	return oldValue.UsageViewPreferences, nil
+}
+
+// ResetUsageViewPreferences resets all changes to the "usage_view_preferences" field.
+func (m *UserMutation) ResetUsageViewPreferences() {
+	m.usage_view_preferences = nil
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (m *UserMutation) SetTotpSecretEncrypted(s string) {
 	m.totp_secret_encrypted = &s
@@ -27974,7 +28011,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 29)
+	fields := make([]string, 0, 30)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -28053,6 +28090,9 @@ func (m *UserMutation) Fields() []string {
 	if m.api_key_access_time_policy != nil {
 		fields = append(fields, user.FieldAPIKeyAccessTimePolicy)
 	}
+	if m.usage_view_preferences != nil {
+		fields = append(fields, user.FieldUsageViewPreferences)
+	}
 	if m.totp_secret_encrypted != nil {
 		fields = append(fields, user.FieldTotpSecretEncrypted)
 	}
@@ -28122,6 +28162,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.ExternalModelCatalogViewMode()
 	case user.FieldAPIKeyAccessTimePolicy:
 		return m.APIKeyAccessTimePolicy()
+	case user.FieldUsageViewPreferences:
+		return m.UsageViewPreferences()
 	case user.FieldTotpSecretEncrypted:
 		return m.TotpSecretEncrypted()
 	case user.FieldTotpEnabled:
@@ -28189,6 +28231,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldExternalModelCatalogViewMode(ctx)
 	case user.FieldAPIKeyAccessTimePolicy:
 		return m.OldAPIKeyAccessTimePolicy(ctx)
+	case user.FieldUsageViewPreferences:
+		return m.OldUsageViewPreferences(ctx)
 	case user.FieldTotpSecretEncrypted:
 		return m.OldTotpSecretEncrypted(ctx)
 	case user.FieldTotpEnabled:
@@ -28385,6 +28429,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAPIKeyAccessTimePolicy(v)
+		return nil
+	case user.FieldUsageViewPreferences:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsageViewPreferences(v)
 		return nil
 	case user.FieldTotpSecretEncrypted:
 		v, ok := value.(string)
@@ -28587,6 +28638,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldAPIKeyAccessTimePolicy:
 		m.ResetAPIKeyAccessTimePolicy()
+		return nil
+	case user.FieldUsageViewPreferences:
+		m.ResetUsageViewPreferences()
 		return nil
 	case user.FieldTotpSecretEncrypted:
 		m.ResetTotpSecretEncrypted()

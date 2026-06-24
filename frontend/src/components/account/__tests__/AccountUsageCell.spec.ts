@@ -16,16 +16,36 @@ import {
 import { useAccountUsageDisplayMode } from "@/composables/useAccountUsageDisplayMode";
 import { resetUiNowForTests } from "@/composables/useUiNow";
 
-const { getUsage } = vi.hoisted(() => ({
+const { getUsage, resetAccountQuota, showSuccess, showError } = vi.hoisted(() => ({
   getUsage: vi.fn(),
+  resetAccountQuota: vi.fn(),
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
 }));
 
 vi.mock("@/api/admin", () => ({
   adminAPI: {
     accounts: {
       getUsage,
+      resetAccountQuota,
     },
   },
+}));
+
+vi.mock("@/api", () => ({
+  adminAPI: {
+    accounts: {
+      getUsage,
+      resetAccountQuota,
+    },
+  },
+}));
+
+vi.mock("@/stores", () => ({
+  useAppStore: () => ({
+    showSuccess,
+    showError,
+  }),
 }));
 
 vi.mock("vue-i18n", async () => {
@@ -45,6 +65,26 @@ vi.mock("vue-i18n", async () => {
           "admin.accounts.usageWindow.claude": "Claude",
           "admin.accounts.usageWindow.spark5h": "Spark 5H",
           "admin.accounts.usageWindow.spark7d": "Spark 7D",
+          "admin.accounts.usageWindow.refreshResetCredits": "Refresh count",
+          "admin.accounts.usageWindow.refreshingResetCredits": "Refreshing",
+          "admin.accounts.usageWindow.refreshResetCreditsTitle":
+            "Refresh OpenAI reset credits",
+          "admin.accounts.usageWindow.refreshResetCreditsSuccess":
+            "Reset credits refreshed",
+          "admin.accounts.usageWindow.refreshResetCreditsFailed":
+            "Reset credits refresh failed",
+          "admin.accounts.usageWindow.resetQuota": "Reset quota",
+          "admin.accounts.usageWindow.resettingQuota": "Resetting",
+          "admin.accounts.usageWindow.resetQuotaRemaining": "{count} resets left",
+          "admin.accounts.usageWindow.resetQuotaUnsupported":
+            "Real reset unsupported",
+          "admin.accounts.usageWindow.resetQuotaConfirm": "Use real reset?",
+          "admin.accounts.usageWindow.resetQuotaSuccess": "Quota reset",
+          "admin.accounts.usageWindow.resetQuotaFailed": "Quota reset failed",
+          "admin.accounts.usageWindow.resetQuotaNoCredit":
+            "No reset credits available",
+          "admin.accounts.usageWindow.resetQuotaNothingToReset":
+            "Nothing to reset",
           "admin.accounts.gemini.rateLimit.unlimited": "Unlimited",
           "admin.accounts.protocolGateway.usageWindow.badge":
             "Protocol Gateway · {protocol}",
@@ -150,6 +190,9 @@ describe("AccountUsageCell", () => {
   beforeEach(() => {
     getUsage.mockReset();
     getUsage.mockResolvedValue({});
+    resetAccountQuota.mockReset();
+    showSuccess.mockReset();
+    showError.mockReset();
     localStorage.clear();
     useAccountUsageDisplayMode().setAccountUsageDisplayMode("used");
     resetAccountUsagePresentationCache();
@@ -699,6 +742,147 @@ describe("AccountUsageCell", () => {
     expect(wrapper.text()).toContain(
       "7D|77|300",
     );
+  });
+
+  it("uses account codex window minutes for stale openai fallback labels", async () => {
+    getUsage.mockResolvedValue({
+      seven_day: {
+        utilization: 57,
+        resets_at: "2026-04-06T12:00:00Z",
+        remaining_seconds: 23 * 24 * 60 * 60,
+        window_stats: {
+          requests: 7,
+          tokens: 570,
+          cost: 0.07,
+          standard_cost: 0.07,
+          user_cost: 0.07,
+        },
+      },
+    });
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 20001,
+          platform: "openai",
+          type: "oauth",
+          credentials: {
+            plan_type: "free",
+          },
+          active_usage_available: true,
+          extra: {
+            codex_usage_updated_at: "2026-03-07T00:00:00Z",
+            codex_7d_window_minutes: 43200,
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(getUsage).toHaveBeenCalledWith(20001, {
+      force: undefined,
+      source: undefined,
+    });
+    expect(wrapper.text()).toContain("30D|57|570");
+    expect(wrapper.text()).not.toContain("7D|57|570");
+    expect(wrapper.find(".usage-bar").attributes("data-color")).toBe("green");
+  });
+
+  it("shows openai reset credits and refreshes the count from the usage window cell", async () => {
+    getUsage.mockResolvedValue({
+      openai_reset_credits: {
+        available_count: 2,
+        status: "available",
+        source: "codex_app_server",
+      },
+      five_hour: {
+        utilization: 10,
+        resets_at: "2026-03-13T15:22:00Z",
+      },
+    });
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 20002,
+          platform: "openai",
+          type: "oauth",
+          active_usage_available: true,
+          extra: {
+            codex_usage_updated_at: "2020-03-07T10:00:00Z",
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe(
+      "02 resets left",
+    );
+    await wrapper
+      .get('[data-testid="account-usage-reset-credits-refresh"]')
+      .trigger("click");
+    await flushPromises();
+
+    expect(resetAccountQuota).not.toHaveBeenCalled();
+    expect(getUsage).toHaveBeenLastCalledWith(20002, {
+      force: true,
+      source: "active",
+    });
+    expect(showSuccess).toHaveBeenCalledWith("Reset credits refreshed");
+  });
+
+  it("shows unknown openai reset credits as gray in the usage window cell", async () => {
+    getUsage.mockResolvedValue({
+      openai_reset_credits: {
+        status: "unknown_or_unsupported",
+      },
+      five_hour: {
+        utilization: 10,
+        resets_at: "2026-03-13T15:22:00Z",
+      },
+    });
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 20003,
+          platform: "openai",
+          type: "oauth",
+          active_usage_available: true,
+          extra: {
+            codex_usage_updated_at: "2020-03-07T10:00:00Z",
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const remaining = wrapper.get(
+      '[data-testid="account-usage-reset-quota-remaining"]',
+    );
+    expect(remaining.text()).toBe("-- resets left");
+    expect(remaining.classes()).toContain("bg-gray-50");
+    expect(remaining.classes()).not.toContain("bg-teal-50");
+    expect(wrapper.get('[data-testid="account-usage-reset-credits-refresh"]').exists()).toBe(true);
   });
 
   it("keeps using local openai snapshots when they are still fresh", async () => {

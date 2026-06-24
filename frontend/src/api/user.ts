@@ -13,6 +13,7 @@ import type {
   AccountTodayStatsWindow,
   UsageContextBadgeDisplayMode,
   UsageModelDisplayMode,
+  UsageViewPreferences,
   VisualPresetPreference,
   AuthIdentity,
   SocialOAuthProvider,
@@ -36,6 +37,7 @@ export async function getProfile(): Promise<User> {
 export async function updateProfile(profile: {
   username?: string
   usage_model_display_mode?: UsageModelDisplayMode
+  usage_view_preferences?: UsageViewPreferences
   usage_context_badge_display_mode?: UsageContextBadgeDisplayMode
   global_realtime_countdown_enabled?: boolean
   account_realtime_countdown_enabled?: boolean

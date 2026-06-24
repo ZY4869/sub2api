@@ -1,5 +1,5 @@
 <template>
-  <div class="min-w-[520px] max-w-full space-y-1.5 text-[11px] leading-none" data-testid="account-key-usage-summary-cell">
+  <div class="min-w-[360px] max-w-full space-y-1.5 text-[11px] leading-none" data-testid="account-key-usage-summary-cell">
     <template v-if="loading && !stats">
       <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap" data-testid="account-key-usage-today-row">
         <span
@@ -23,15 +23,15 @@
           v-for="item in todayItems"
           :key="item.key"
           :class="[
-            'inline-flex min-w-0 items-center gap-1 rounded-full border px-2 py-1 font-semibold',
+            'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 font-semibold',
             item.className
           ]"
           :title="item.title"
+          :aria-label="item.title"
           :data-testid="`account-key-usage-${item.key}`"
         >
           <Icon :name="item.icon" size="xs" :stroke-width="2" class="shrink-0" />
-          <span class="shrink-0 text-slate-500 dark:text-slate-300">{{ item.label }}</span>
-          <span class="min-w-0 truncate text-left tabular-nums">{{ item.value }}</span>
+          <span class="shrink-0 text-left tabular-nums">{{ item.value }}</span>
         </span>
       </div>
 
@@ -148,7 +148,6 @@ const todayItems = computed(() => [
     formatTokenDisplay(currentStats.value.tokens || 0),
     'database',
     'border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100',
-    `${currentStats.value.tokens || 0} tokens`,
   ),
   createTodayItem(
     'discounted-cost',

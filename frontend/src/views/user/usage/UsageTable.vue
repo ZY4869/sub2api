@@ -1,4 +1,5 @@
 <template>
+<div :class="tableDensityClass">
 <DataTable
   :columns="columns"
   :data="usageLogs"
@@ -96,8 +97,17 @@
   </template>
 
   <template #cell-thinking_enabled="{ row }">
-    <span class="text-sm text-gray-900 dark:text-white">
-      {{ formatThinkingEnabled(row.thinking_enabled) }}
+    <span
+      class="inline-flex w-full justify-center"
+      :title="formatThinkingEnabled(row.thinking_enabled)"
+      :aria-label="formatThinkingEnabled(row.thinking_enabled)"
+    >
+      <Icon
+        :name="row.thinking_enabled === true ? 'checkCircle' : 'xCircle'"
+        size="sm"
+        :class="row.thinking_enabled === true ? 'text-emerald-500' : 'text-gray-400 dark:text-gray-500'"
+        :stroke-width="2"
+      />
     </span>
   </template>
 
@@ -185,35 +195,21 @@
             >
           </div>
         </div>
-        <!-- Cache Tokens (Read + Write) -->
+        <!-- Cache Write Tokens -->
         <div
-          v-if="
-            row.cache_read_tokens > 0 || row.cache_creation_tokens > 0
-          "
+          v-if="getCacheCreationTotal(row) > 0"
           class="flex items-center gap-2"
         >
-          <!-- Cache Read -->
-          <div
-            v-if="row.cache_read_tokens > 0"
-            class="inline-flex items-center gap-1"
-          >
-            <Icon name="inbox" size="sm" class="text-sky-500" />
-            <span
-              class="font-medium text-sky-600 dark:text-sky-400"
-              :title="row.cache_read_tokens.toLocaleString()"
-              >{{ formatCacheTokens(row.cache_read_tokens) }}</span
-            >
-          </div>
           <!-- Cache Write -->
           <div
-            v-if="row.cache_creation_tokens > 0"
+            v-if="getCacheCreationTotal(row) > 0"
             class="inline-flex items-center gap-1"
           >
             <Icon name="edit" size="sm" class="text-amber-500" />
             <span
               class="font-medium text-amber-600 dark:text-amber-400"
-              :title="row.cache_creation_tokens.toLocaleString()"
-              >{{ formatCacheTokens(row.cache_creation_tokens) }}</span
+              :title="getCacheCreationTotal(row).toLocaleString()"
+              >{{ formatCacheTokens(getCacheCreationTotal(row)) }}</span
             >
             <span
               v-if="row.cache_creation_1h_tokens > 0"
@@ -244,6 +240,23 @@
             class="text-gray-400 group-hover:text-blue-500 dark:text-gray-500 dark:group-hover:text-blue-400"
           />
         </div>
+      </div>
+    </div>
+  </template>
+
+  <template #cell-cache_hit="{ row }">
+    <div class="min-w-[5.5rem] space-y-0.5 text-sm">
+      <div class="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400">
+        <Icon name="inbox" size="sm" :stroke-width="2" />
+        <span
+          class="font-semibold"
+          :title="(row.cache_read_tokens || 0).toLocaleString()"
+        >
+          {{ formatCacheTokens(row.cache_read_tokens || 0) }}
+        </span>
+      </div>
+      <div class="text-[11px] font-medium text-teal-600 dark:text-teal-400">
+        {{ formatRowCacheHitRate(row) }}
       </div>
     </div>
   </template>
@@ -337,9 +350,11 @@
     <EmptyState :message="t('usage.noRecords')" />
   </template>
 </DataTable>
+</div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -358,11 +373,12 @@ import type {
 } from "@/utils/usageDisplay";
 import { formatDateTime } from "@/utils/format";
 
-defineProps<{
+const props = defineProps<{
   columns: Column[];
   usageLogs: UsageLog[];
   loading: boolean;
   usageModelDisplayMode: UsageModelDisplayMode;
+  tableDensity?: "comfortable" | "compact";
   formatCurrencyBreakdown: (
     values: Record<string, number> | null | undefined,
     fallbackUSD: number | null | undefined,
@@ -395,4 +411,43 @@ defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+const tableDensityClass = computed(() =>
+  props.tableDensity === "compact" ? "usage-table--compact" : "usage-table--comfortable",
+);
+
+const getCacheCreationTotal = (
+  row: Pick<
+    UsageLog,
+    "cache_creation_tokens" | "cache_creation_5m_tokens" | "cache_creation_1h_tokens"
+  > | null | undefined,
+): number =>
+  (row?.cache_creation_tokens || 0) +
+  (row?.cache_creation_5m_tokens || 0) +
+  (row?.cache_creation_1h_tokens || 0);
+
+const formatRowCacheHitRate = (
+  row: Pick<
+    UsageLog,
+    | "cache_read_tokens"
+    | "cache_creation_tokens"
+    | "cache_creation_5m_tokens"
+    | "cache_creation_1h_tokens"
+  >,
+): string => {
+  const read = row.cache_read_tokens || 0;
+  const total = read + getCacheCreationTotal(row);
+  if (total <= 0) {
+    return "0.0%";
+  }
+  return `${((read / total) * 100).toFixed(1)}%`;
+};
 </script>
+
+<style scoped>
+.usage-table--compact :deep(th),
+.usage-table--compact :deep(td) {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+</style>

@@ -385,19 +385,7 @@ describe('AccountUsageResetCell', () => {
     expect(showSuccess).toHaveBeenCalledWith('Quota reset')
   })
 
-  it('refreshes openai reset credits without consuming a reset credit', async () => {
-    getUsage.mockResolvedValue({
-      openai_reset_credits: {
-        available_count: 2,
-        status: 'available',
-        source: 'codex_app_server',
-      },
-      five_hour: {
-        utilization: 10,
-        resets_at: '2026-03-13T15:22:00Z',
-      },
-    })
-
+  it('keeps reset credit count and refresh controls out of the reset date column', async () => {
     const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
         account: {
@@ -408,21 +396,17 @@ describe('AccountUsageResetCell', () => {
             codex_usage_updated_at: '2099-03-07T10:00:00Z',
             codex_5h_used_percent: 10,
             codex_5h_reset_at: '2026-03-13T15:22:00',
-            openai_rate_limit_reset_credits_available_count: 1,
+            openai_rate_limit_reset_credits_available_count: 2,
           },
         } as any,
       },
     })
 
     await flushPromises()
-    await wrapper.get('[data-testid="account-usage-reset-credits-refresh"]').trigger('click')
-    await flushPromises()
 
-    expect(resetAccountQuota).not.toHaveBeenCalled()
-    expect(window.confirm).not.toHaveBeenCalled()
-    expect(getUsage).toHaveBeenCalledWith(3014, { force: true, source: 'active' })
-    expect(showSuccess).toHaveBeenCalledWith('Reset credits refreshed')
-    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('02 resets left')
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-button"]').text()).toContain('Reset quota')
+    expect(wrapper.find('[data-testid="account-usage-reset-credits-refresh"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').exists()).toBe(false)
   })
 
   it('shows the openai quota reset remaining count from account extra', async () => {
@@ -444,8 +428,8 @@ describe('AccountUsageResetCell', () => {
 
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('03 resets left')
     expect(wrapper.get('[data-testid="account-usage-reset-quota-button"]').text()).toContain('Reset quota')
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').exists()).toBe(false)
   })
 
   it('shows unknown openai quota reset remaining count when no real count exists', async () => {
@@ -466,8 +450,8 @@ describe('AccountUsageResetCell', () => {
 
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('-- resets left')
     expect(wrapper.get('[data-testid="account-usage-reset-quota-button"]').text()).toContain('Reset quota')
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').exists()).toBe(false)
   })
 
   it('keeps usage unknown authoritative over stale account extra reset credits', async () => {
@@ -502,7 +486,7 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(getUsage).toHaveBeenCalledWith(3011, { force: undefined, source: undefined })
-    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('-- resets left')
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').exists()).toBe(false)
   })
 
   it('shows unknown when active usage refresh fails with stale reset credit extra', async () => {
@@ -530,7 +514,7 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(getUsage).toHaveBeenCalledWith(3012, { force: undefined, source: undefined })
-    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe('-- resets left')
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').exists()).toBe(false)
   })
 
   it('shows friendly no-credit reset error and refreshes usage', async () => {
@@ -635,11 +619,9 @@ describe('AccountUsageResetCell', () => {
 
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe(
-      'This Codex app-server cannot reset',
-    )
     expect(wrapper.get('[data-testid="account-usage-reset-quota-button"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('[data-testid="account-usage-reset-credits-refresh"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="account-usage-reset-credits-refresh"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="account-usage-reset-quota-button"]').trigger('click')
 

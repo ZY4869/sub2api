@@ -125,11 +125,18 @@ const DataTableStub = {
         <slot name="cell-reasoning_effort" :row="row" />
         <slot name="cell-request_protocol" :row="row" />
         <slot name="cell-stream" :row="row" />
-        <slot name="cell-tokens" :row="row" />
+        <div data-test="token-cell"><slot name="cell-tokens" :row="row" /></div>
+        <div data-test="cache-hit-cell"><slot name="cell-cache_hit" :row="row" /></div>
+        <div data-test="thinking-cell"><slot name="cell-thinking_enabled" :row="row" /></div>
         <slot name="cell-cost" :row="row" />
       </div>
     </div>
   `,
+}
+
+const IconStub = {
+  props: ['name'],
+  template: '<span :data-icon="name"><slot /></span>',
 }
 
 function mountUsageTable(
@@ -151,7 +158,7 @@ function mountUsageTable(
       stubs: {
         DataTable: DataTableStub,
         EmptyState: true,
-        Icon: true,
+        Icon: IconStub,
         AccountErrorTooltipButton: false,
         ModelIcon: true,
         Teleport: true,
@@ -319,6 +326,71 @@ describe('admin UsageTable tooltip', () => {
 
     expect(wrapper.text()).toContain('Cache Hit')
     expect(wrapper.text()).toContain('Cache Miss')
+  })
+
+  it('renders cache hit separately from compact token groups', () => {
+    const row = {
+      id: 40,
+      request_id: 'req-admin-cache-hit-column',
+      input_tokens: 100,
+      output_tokens: 200,
+      cache_creation_tokens: 10,
+      cache_creation_5m_tokens: 20,
+      cache_creation_1h_tokens: 30,
+      cache_read_tokens: 70,
+      cache_ttl_overridden: false,
+      image_count: 0,
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+    }
+
+    const wrapper = mountUsageTable([row])
+    const tokenText = wrapper.get('[data-test="token-cell"]').text()
+    const cacheHitText = wrapper.get('[data-test="cache-hit-cell"]').text()
+
+    expect(tokenText).toContain('100')
+    expect(tokenText).toContain('200')
+    expect(tokenText).toContain('60')
+    expect(tokenText).not.toContain('70')
+    expect(cacheHitText).toContain('70')
+    expect(cacheHitText).toContain('53.8%')
+  })
+
+  it('renders thinking mode as accessible icons', () => {
+    const wrapper = mountUsageTable([
+      {
+        id: 41,
+        request_id: 'req-admin-thinking-on',
+        thinking_enabled: true,
+        input_tokens: 0,
+        output_tokens: 0,
+        actual_cost: 0,
+        total_cost: 0,
+      },
+      {
+        id: 42,
+        request_id: 'req-admin-thinking-off',
+        thinking_enabled: false,
+        input_tokens: 0,
+        output_tokens: 0,
+        actual_cost: 0,
+        total_cost: 0,
+      },
+    ])
+
+    const iconNames = wrapper.findAll('[data-icon]').map((item) => item.attributes('data-icon'))
+    expect(iconNames).toContain('checkCircle')
+    expect(iconNames).toContain('xCircle')
+    expect(wrapper.find('[aria-label="Enabled"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Disabled"]').exists()).toBe(true)
+    expect(wrapper.find('[title="Enabled"]').exists()).toBe(true)
+    expect(wrapper.find('[title="Disabled"]').exists()).toBe(true)
   })
 
   it('does not render 1M capability lines in the reasoning effort cell anymore', () => {

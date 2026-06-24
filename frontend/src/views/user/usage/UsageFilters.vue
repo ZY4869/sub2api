@@ -62,13 +62,7 @@
           class="ml-auto flex flex-1 flex-wrap items-center justify-end gap-3"
           data-testid="usage-filter-toolbar-row"
         >
-          <TokenDisplayModeToggle />
-          <UsageModelDisplayModeToggle
-            :model-value="usageModelDisplayMode"
-            :disabled="updatingUsageModelDisplayMode"
-            :label-text="t('usage.modelDisplay')"
-            @update:modelValue="$emit('update-usage-model-display-mode', $event)"
-          />
+          <slot name="display-settings" />
           <button @click="$emit('apply')" :disabled="loading" class="btn btn-secondary">
             {{ t("common.refresh") }}
           </button>
@@ -101,13 +95,8 @@
 import { useI18n } from "vue-i18n";
 import Select from "@/components/common/Select.vue";
 import DateRangePicker from "@/components/common/DateRangePicker.vue";
-import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
-import UsageModelDisplayModeToggle from "@/components/common/UsageModelDisplayModeToggle.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
-import type {
-  UsageModelDisplayMode,
-  UsageQueryParams,
-} from "@/types";
+import type { UsageQueryParams } from "@/types";
 
 const props = defineProps<{
   filters: UsageQueryParams;
@@ -117,8 +106,6 @@ const props = defineProps<{
   endDate: string;
   loading: boolean;
   exporting: boolean;
-  usageModelDisplayMode: UsageModelDisplayMode;
-  updatingUsageModelDisplayMode: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -129,7 +116,6 @@ const emit = defineEmits<{
   "update:startDate": [value: string];
   "update:endDate": [value: string];
   "date-range-change": [range: { startDate: string; endDate: string; preset: string | null }];
-  "update-usage-model-display-mode": [mode: UsageModelDisplayMode];
 }>();
 
 const { t } = useI18n();

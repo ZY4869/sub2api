@@ -62,10 +62,11 @@ type UserRepository interface {
 
 // UpdateProfileRequest 更新用户资料请求
 type UpdateProfileRequest struct {
-	Email                           *string  `json:"email"`
-	Username                        *string  `json:"username"`
-	Concurrency                     *int     `json:"concurrency"`
-	UsageModelDisplayMode           *string  `json:"usage_model_display_mode"`
+	Email                           *string `json:"email"`
+	Username                        *string `json:"username"`
+	Concurrency                     *int    `json:"concurrency"`
+	UsageModelDisplayMode           *string `json:"usage_model_display_mode"`
+	UsageViewPreferences            *UsageViewPreferences
 	GlobalRealtimeCountdownEnabled  *bool    `json:"global_realtime_countdown_enabled"`
 	AccountRealtimeCountdownEnabled *bool    `json:"account_realtime_countdown_enabled"`
 	VisualPresetPreference          *string  `json:"visual_preset_preference"`
@@ -151,6 +152,10 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int64, req Updat
 			return nil, err
 		}
 		user.UsageModelDisplayMode = mode
+	}
+
+	if req.UsageViewPreferences != nil {
+		user.UsageViewPreferences = NormalizeUsageViewPreferences(*req.UsageViewPreferences)
 	}
 
 	if req.GlobalRealtimeCountdownEnabled != nil {

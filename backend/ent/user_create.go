@@ -362,6 +362,12 @@ func (_c *UserCreate) SetAPIKeyAccessTimePolicy(v map[string]interface{}) *UserC
 	return _c
 }
 
+// SetUsageViewPreferences sets the "usage_view_preferences" field.
+func (_c *UserCreate) SetUsageViewPreferences(v map[string]interface{}) *UserCreate {
+	_c.mutation.SetUsageViewPreferences(v)
+	return _c
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (_c *UserCreate) SetTotpSecretEncrypted(v string) *UserCreate {
 	_c.mutation.SetTotpSecretEncrypted(v)
@@ -670,6 +676,13 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultExternalModelCatalogViewMode
 		_c.mutation.SetExternalModelCatalogViewMode(v)
 	}
+	if _, ok := _c.mutation.UsageViewPreferences(); !ok {
+		if user.DefaultUsageViewPreferences == nil {
+			return fmt.Errorf("ent: uninitialized user.DefaultUsageViewPreferences (forgotten import ent/runtime?)")
+		}
+		v := user.DefaultUsageViewPreferences()
+		_c.mutation.SetUsageViewPreferences(v)
+	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
 		v := user.DefaultTotpEnabled
 		_c.mutation.SetTotpEnabled(v)
@@ -821,6 +834,9 @@ func (_c *UserCreate) check() error {
 			return &ValidationError{Name: "external_model_catalog_view_mode", err: fmt.Errorf(`ent: validator failed for field "User.external_model_catalog_view_mode": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.UsageViewPreferences(); !ok {
+		return &ValidationError{Name: "usage_view_preferences", err: errors.New(`ent: missing required field "User.usage_view_preferences"`)}
+	}
 	if _, ok := _c.mutation.TotpEnabled(); !ok {
 		return &ValidationError{Name: "totp_enabled", err: errors.New(`ent: missing required field "User.totp_enabled"`)}
 	}
@@ -954,6 +970,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.APIKeyAccessTimePolicy(); ok {
 		_spec.SetField(user.FieldAPIKeyAccessTimePolicy, field.TypeJSON, value)
 		_node.APIKeyAccessTimePolicy = value
+	}
+	if value, ok := _c.mutation.UsageViewPreferences(); ok {
+		_spec.SetField(user.FieldUsageViewPreferences, field.TypeJSON, value)
+		_node.UsageViewPreferences = value
 	}
 	if value, ok := _c.mutation.TotpSecretEncrypted(); ok {
 		_spec.SetField(user.FieldTotpSecretEncrypted, field.TypeString, value)
@@ -1491,6 +1511,18 @@ func (u *UserUpsert) ClearAPIKeyAccessTimePolicy() *UserUpsert {
 	return u
 }
 
+// SetUsageViewPreferences sets the "usage_view_preferences" field.
+func (u *UserUpsert) SetUsageViewPreferences(v map[string]interface{}) *UserUpsert {
+	u.Set(user.FieldUsageViewPreferences, v)
+	return u
+}
+
+// UpdateUsageViewPreferences sets the "usage_view_preferences" field to the value that was provided on create.
+func (u *UserUpsert) UpdateUsageViewPreferences() *UserUpsert {
+	u.SetExcluded(user.FieldUsageViewPreferences)
+	return u
+}
+
 // SetTotpSecretEncrypted sets the "totp_secret_encrypted" field.
 func (u *UserUpsert) SetTotpSecretEncrypted(v string) *UserUpsert {
 	u.Set(user.FieldTotpSecretEncrypted, v)
@@ -1959,6 +1991,20 @@ func (u *UserUpsertOne) UpdateAPIKeyAccessTimePolicy() *UserUpsertOne {
 func (u *UserUpsertOne) ClearAPIKeyAccessTimePolicy() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.ClearAPIKeyAccessTimePolicy()
+	})
+}
+
+// SetUsageViewPreferences sets the "usage_view_preferences" field.
+func (u *UserUpsertOne) SetUsageViewPreferences(v map[string]interface{}) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetUsageViewPreferences(v)
+	})
+}
+
+// UpdateUsageViewPreferences sets the "usage_view_preferences" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateUsageViewPreferences() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateUsageViewPreferences()
 	})
 }
 
@@ -2604,6 +2650,20 @@ func (u *UserUpsertBulk) UpdateAPIKeyAccessTimePolicy() *UserUpsertBulk {
 func (u *UserUpsertBulk) ClearAPIKeyAccessTimePolicy() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.ClearAPIKeyAccessTimePolicy()
+	})
+}
+
+// SetUsageViewPreferences sets the "usage_view_preferences" field.
+func (u *UserUpsertBulk) SetUsageViewPreferences(v map[string]interface{}) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetUsageViewPreferences(v)
+	})
+}
+
+// UpdateUsageViewPreferences sets the "usage_view_preferences" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateUsageViewPreferences() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateUsageViewPreferences()
 	})
 }
 
