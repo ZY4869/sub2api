@@ -57,7 +57,7 @@ export function useOpenAIResetCreditsControls(
   presentation: () => AccountUsagePresentation,
 ) {
   const { t } = useI18n();
-  const appStore = useAppStore();
+  const getAppStore = () => useAppStore();
   const resetting = ref(false);
   const refreshingResetCredits = ref(false);
 
@@ -121,6 +121,7 @@ export function useOpenAIResetCreditsControls(
         force: true,
         source: "active",
       });
+      const appStore = getAppStore();
       appStore.showSuccess(t("admin.accounts.usageWindow.resetQuotaSuccess"));
     } catch (error: any) {
       invalidateAccountUsagePresentationCache([currentAccount.id]);
@@ -128,6 +129,7 @@ export function useOpenAIResetCreditsControls(
         force: true,
         source: "active",
       }).catch(() => {});
+      const appStore = getAppStore();
       appStore.showError(resolveResetQuotaErrorMessage(error, t));
     } finally {
       resetting.value = false;
@@ -152,15 +154,18 @@ export function useOpenAIResetCreditsControls(
         source: "active",
       });
       if (result.failed > 0) {
+        const appStore = getAppStore();
         appStore.showError(
           t("admin.accounts.usageWindow.refreshResetCreditsFailed"),
         );
         return;
       }
+      const appStore = getAppStore();
       appStore.showSuccess(
         t("admin.accounts.usageWindow.refreshResetCreditsSuccess"),
       );
     } catch (error: any) {
+      const appStore = getAppStore();
       appStore.showError(
         resolveRefreshResetCreditsErrorMessage(
           error,
