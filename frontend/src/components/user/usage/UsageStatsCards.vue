@@ -1,9 +1,9 @@
 <template>
-  <div class="space-y-4">
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-      <div class="card p-4">
-        <div class="flex items-center gap-3">
-          <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
+  <div class="space-y-3">
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div class="card p-3">
+        <div class="flex items-center gap-2.5">
+          <div class="rounded-md bg-blue-100 p-1.5 dark:bg-blue-900/30">
             <Icon
               name="document"
               size="md"
@@ -14,7 +14,7 @@
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
               {{ t("usage.totalRequests") }}
             </p>
-            <p class="text-xl font-bold text-gray-900 dark:text-white">
+            <p class="text-lg font-bold leading-tight text-gray-900 dark:text-white">
               {{ stats?.total_requests?.toLocaleString() || "0" }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -24,9 +24,9 @@
         </div>
       </div>
 
-      <div class="card p-4">
-        <div class="flex items-center gap-3">
-          <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
+      <div class="card p-3">
+        <div class="flex items-center gap-2.5">
+          <div class="rounded-md bg-amber-100 p-1.5 dark:bg-amber-900/30">
             <Icon
               name="cube"
               size="md"
@@ -37,7 +37,7 @@
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
               {{ t("usage.totalTokens") }}
             </p>
-            <p class="text-xl font-bold text-gray-900 dark:text-white">
+            <p class="text-lg font-bold leading-tight text-gray-900 dark:text-white">
               {{ formatTokens(stats?.total_tokens || 0) }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -57,9 +57,9 @@
         :stats-card-style="statsCardStyle"
       />
 
-      <div class="card p-4">
-        <div class="flex items-center gap-3">
-          <div class="rounded-lg bg-green-100 p-2 dark:bg-green-900/30">
+      <div class="card p-3">
+        <div class="flex items-center gap-2.5">
+          <div class="rounded-md bg-green-100 p-1.5 dark:bg-green-900/30">
             <Icon
               name="dollar"
               size="md"
@@ -70,7 +70,7 @@
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
               {{ t("usage.totalCost") }}
             </p>
-            <p class="text-xl font-bold text-green-600 dark:text-green-400">
+            <p class="text-lg font-bold leading-tight text-green-600 dark:text-green-400">
               {{ formatCurrencyBreakdown(stats?.actual_cost_by_currency, stats?.total_actual_cost, 4) }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -94,9 +94,9 @@
         </div>
       </div>
 
-      <div class="card p-4">
-        <div class="flex items-center gap-3">
-          <div class="rounded-lg bg-purple-100 p-2 dark:bg-purple-900/30">
+      <div class="card p-3">
+        <div class="flex items-center gap-2.5">
+          <div class="rounded-md bg-purple-100 p-1.5 dark:bg-purple-900/30">
             <Icon
               name="clock"
               size="md"
@@ -107,7 +107,7 @@
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
               {{ t("usage.avgDuration") }}
             </p>
-            <p class="text-xl font-bold text-gray-900 dark:text-white">
+            <p class="text-lg font-bold leading-tight text-gray-900 dark:text-white">
               {{ formatDuration(stats?.average_duration_ms || 0) }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -118,8 +118,8 @@
       </div>
     </div>
 
-    <div class="card border border-dashed border-primary-200/80 bg-primary-50/40 p-4 dark:border-primary-500/20 dark:bg-primary-500/5">
-      <div class="mb-3 flex items-center justify-between gap-3">
+    <div class="card border border-dashed border-primary-200/80 bg-primary-50/40 p-3 dark:border-primary-500/20 dark:bg-primary-500/5">
+      <div class="mb-2 flex items-center justify-between gap-3">
         <div>
           <p class="text-sm font-semibold text-gray-900 dark:text-white">
             {{ t("usage.todayStats") }}
@@ -130,23 +130,23 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-4 xl:grid-cols-6">
+        <div class="rounded-lg bg-white/80 p-3 shadow-sm dark:bg-dark-900/70">
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
             {{ t("usage.todayRequests") }}
           </p>
-          <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+          <p class="mt-1 text-lg font-bold leading-tight text-gray-900 dark:text-white">
             {{ stats?.today_requests?.toLocaleString() || "0" }}
           </p>
         </div>
 
-        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70 md:col-span-2 xl:col-span-2">
-          <div class="mb-3 flex items-start justify-between gap-3">
+        <div class="rounded-lg bg-white/80 p-3 shadow-sm dark:bg-dark-900/70 md:col-span-2 xl:col-span-3">
+          <div class="mb-2 flex items-start justify-between gap-3">
             <div>
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
                 {{ t("usage.todayTokens") }}
               </p>
-              <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+              <p class="mt-1 text-lg font-bold leading-tight text-gray-900 dark:text-white">
                 {{ formatTokens(stats?.today_tokens || 0) }}
               </p>
             </div>
@@ -154,11 +154,11 @@
               {{ formatPercent(stats?.today_cache_hit_rate || 0) }}
             </span>
           </div>
-          <div class="grid grid-cols-2 gap-2 lg:grid-cols-5">
+          <div class="grid grid-cols-2 gap-1.5 lg:grid-cols-5">
             <div
               v-for="item in todayTokenItems"
               :key="item.key"
-              class="rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-2 dark:border-dark-700 dark:bg-dark-800/70"
+              class="rounded-md border border-gray-100 bg-gray-50/80 px-2.5 py-1.5 dark:border-dark-700 dark:bg-dark-800/70"
             >
               <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ item.label }}</p>
               <p class="mt-1 text-sm font-semibold" :class="item.className">{{ item.value }}</p>
@@ -166,11 +166,11 @@
           </div>
         </div>
 
-        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
+        <div class="rounded-lg bg-white/80 p-3 shadow-sm dark:bg-dark-900/70">
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
             {{ t("usage.todayCost") }}
           </p>
-          <p class="mt-1 text-xl font-bold text-green-600 dark:text-green-400">
+          <p class="mt-1 text-lg font-bold leading-tight text-green-600 dark:text-green-400">
             {{ formatCurrencyBreakdown(stats?.today_actual_cost_by_currency, stats?.today_actual_cost, 4) }}
           </p>
           <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -182,11 +182,11 @@
           </p>
         </div>
 
-        <div class="rounded-xl bg-white/80 p-4 shadow-sm dark:bg-dark-900/70">
+        <div class="rounded-lg bg-white/80 p-3 shadow-sm dark:bg-dark-900/70">
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
             {{ t("usage.todayAvgDuration") }}
           </p>
-          <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+          <p class="mt-1 text-lg font-bold leading-tight text-gray-900 dark:text-white">
             {{ formatDuration(stats?.today_average_duration_ms || 0) }}
           </p>
           <p class="text-xs text-gray-500 dark:text-gray-400">

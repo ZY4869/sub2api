@@ -332,12 +332,12 @@ describe('admin UsageTable tooltip', () => {
     const row = {
       id: 40,
       request_id: 'req-admin-cache-hit-column',
-      input_tokens: 100,
-      output_tokens: 200,
-      cache_creation_tokens: 10,
-      cache_creation_5m_tokens: 20,
-      cache_creation_1h_tokens: 30,
-      cache_read_tokens: 70,
+      input_tokens: 1_000_000,
+      output_tokens: 2_000_000,
+      cache_creation_tokens: 100_000,
+      cache_creation_5m_tokens: 200_000,
+      cache_creation_1h_tokens: 300_000,
+      cache_read_tokens: 700_000,
       cache_ttl_overridden: false,
       image_count: 0,
       actual_cost: 0,
@@ -354,12 +354,12 @@ describe('admin UsageTable tooltip', () => {
     const tokenText = wrapper.get('[data-test="token-cell"]').text()
     const cacheHitText = wrapper.get('[data-test="cache-hit-cell"]').text()
 
-    expect(tokenText).toContain('100')
-    expect(tokenText).toContain('200')
-    expect(tokenText).toContain('60')
-    expect(tokenText).not.toContain('70')
-    expect(cacheHitText).toContain('70')
-    expect(cacheHitText).toContain('53.8%')
+    expect(tokenText).toContain('1M')
+    expect(tokenText).toContain('2M')
+    expect(tokenText).toContain('0.6M')
+    expect(tokenText).toContain('0.7M')
+    expect(cacheHitText).toContain('0.7M')
+    expect(cacheHitText).toContain('30.4%')
   })
 
   it('renders thinking mode as accessible icons', () => {

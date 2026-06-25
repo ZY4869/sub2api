@@ -719,6 +719,57 @@ func (s *UsageLogRepoSuite) TestGetUserDashboardStats() {
 	s.Require().InDelta(4.0/28.0, stats.CacheHitRate, 0.000001)
 }
 
+func (s *UsageLogRepoSuite) TestGetStatsWithFilters_TTLCacheCreationBreakdownsFromRows() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "ttl-cache-stats@test.com"})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-ttl-cache-stats", Name: "k"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-ttl-cache-stats"})
+
+	now := time.Now().UTC()
+	_, err := s.repo.Create(s.ctx, &service.UsageLog{
+		UserID:                user.ID,
+		APIKeyID:              apiKey.ID,
+		AccountID:             account.ID,
+		RequestID:             uuid.New().String(),
+		Model:                 "claude-3",
+		InputTokens:           95,
+		OutputTokens:          5,
+		CacheCreationTokens:   0,
+		CacheCreation5mTokens: 30,
+		CacheCreation1hTokens: 40,
+		CacheReadTokens:       35,
+		TotalCost:             1,
+		ActualCost:            1,
+		CreatedAt:             now,
+	})
+	s.Require().NoError(err)
+
+	start := now.Add(-1 * time.Hour)
+	end := now.Add(1 * time.Hour)
+	userStats, err := s.repo.GetStatsWithFilters(s.ctx, usagestats.UsageLogFilters{
+		UserID:     user.ID,
+		StartTime:  &start,
+		EndTime:    &end,
+		TodayStart: &start,
+		TodayEnd:   &end,
+	})
+	s.Require().NoError(err)
+	adminStats, err := s.repo.GetStatsWithFilters(s.ctx, usagestats.UsageLogFilters{
+		StartTime:  &start,
+		EndTime:    &end,
+		TodayStart: &start,
+		TodayEnd:   &end,
+	})
+	s.Require().NoError(err)
+
+	for _, stats := range []*usagestats.UsageStats{userStats, adminStats} {
+		s.Require().Equal(int64(70), stats.TotalCacheCreationTokens)
+		s.Require().Equal(int64(70), stats.TodayCacheCreationTokens)
+		s.Require().Equal(int64(35), stats.TotalCacheReadTokens)
+		s.Require().Equal(int64(205), stats.TotalTokens)
+		s.Require().InDelta(35.0/200.0, stats.CacheHitRate, 0.000001)
+	}
+}
+
 // --- GetAccountTodayStats ---
 
 func (s *UsageLogRepoSuite) TestGetAccountTodayStats() {

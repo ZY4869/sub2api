@@ -10,25 +10,37 @@
         type="button"
         class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
         :class="
-          tokenDisplayMode === 'full'
+          tokenDisplayMode === 'natural'
             ? 'bg-primary-500 text-white'
             : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700'
         "
-        @click="setTokenDisplayMode('full')"
+        @click="setTokenDisplayMode('natural')"
       >
-        {{ t("usage.tokenDisplayFull") }}
+        {{ t("usage.tokenDisplayNatural") }}
       </button>
       <button
         type="button"
         class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
         :class="
-          tokenDisplayMode === 'compact'
+          tokenDisplayMode === 'k'
             ? 'bg-primary-500 text-white'
             : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700'
         "
-        @click="setTokenDisplayMode('compact')"
+        @click="setTokenDisplayMode('k')"
       >
-        {{ t("usage.tokenDisplayCompact") }}
+        {{ t("usage.tokenDisplayK") }}
+      </button>
+      <button
+        type="button"
+        class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+        :class="
+          tokenDisplayMode === 'm'
+            ? 'bg-primary-500 text-white'
+            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700'
+        "
+        @click="setTokenDisplayMode('m')"
+      >
+        {{ t("usage.tokenDisplayM") }}
       </button>
     </div>
   </div>

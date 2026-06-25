@@ -768,6 +768,102 @@ func TestUsageLogRepositoryGetStatsWithFilters_AlsoAggregatesTodayWindow(t *test
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetStatsWithFilters_TTLCacheCreationTotalsAndHitRate(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	todayStart := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
+	todayEnd := todayStart.Add(24 * time.Hour)
+	filters := usagestats.UsageLogFilters{
+		UserID:     42,
+		StartTime:  &start,
+		EndTime:    &end,
+		TodayStart: &todayStart,
+		TodayEnd:   &todayEnd,
+	}
+	expectUsageStatsRowsWithTTLCacheCreation(mock, int64(42), start, end, usageStatsRow{
+		inputTokens:         95,
+		outputTokens:        5,
+		cacheCreationTokens: 70,
+		cacheReadTokens:     35,
+		cost:                1.2,
+		actualCost:          1,
+		avgDurationMs:       20,
+	})
+	expectUsageStatsRowsWithTTLCacheCreation(mock, int64(42), todayStart, todayEnd, usageStatsRow{
+		inputTokens:         20,
+		outputTokens:        5,
+		cacheCreationTokens: 50,
+		cacheReadTokens:     25,
+		cost:                0.8,
+		actualCost:          0.7,
+		avgDurationMs:       15,
+	})
+	expectPlatformBreakdownRows(mock, int64(42), start, end)
+
+	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
+	require.NoError(t, err)
+	require.Equal(t, int64(70), stats.TotalCacheCreationTokens)
+	require.Equal(t, int64(35), stats.TotalCacheReadTokens)
+	require.Equal(t, int64(105), stats.TotalCacheTokens)
+	require.Equal(t, int64(205), stats.TotalTokens)
+	require.InDelta(t, 35.0/200.0, stats.CacheHitRate, 0.000001)
+	require.Equal(t, int64(50), stats.TodayCacheCreationTokens)
+	require.Equal(t, int64(25), stats.TodayCacheReadTokens)
+	require.Equal(t, int64(75), stats.TodayCacheTokens)
+	require.Equal(t, int64(100), stats.TodayTokens)
+	require.InDelta(t, 25.0/95.0, stats.TodayCacheHitRate, 0.000001)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+type usageStatsRow struct {
+	inputTokens         int64
+	outputTokens        int64
+	cacheCreationTokens int64
+	cacheReadTokens     int64
+	cost                float64
+	actualCost          float64
+	avgDurationMs       float64
+}
+
+func expectUsageStatsRowsWithTTLCacheCreation(mock sqlmock.Sqlmock, userID int64, start, end time.Time, row usageStatsRow) {
+	const cacheCreationSumPattern = `COALESCE\(SUM\(COALESCE\(cache_creation_tokens, 0\) \+ COALESCE\(cache_creation_5m_tokens, 0\) \+ COALESCE\(cache_creation_1h_tokens, 0\)\), 0\)`
+	mock.ExpectQuery(`(?s)`+cacheCreationSumPattern+`.*FROM usage_logs\s+WHERE user_id = \$1 AND created_at >= \$2 AND created_at < \$3`).
+		WithArgs(userID, start, end).
+		WillReturnRows(sqlmock.NewRows(usageStatsQueryColumns()).
+			AddRow(int64(1), row.inputTokens, row.outputTokens, row.cacheCreationTokens, row.cacheReadTokens, row.cost, row.actualCost, int64(0), 0.0, row.cost, row.avgDurationMs))
+	mock.ExpectQuery("jsonb_object_agg\\(currency, total_amount\\)").
+		WithArgs(userID, start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
+			AddRow([]byte(`{"USD":1}`), []byte(`{"USD":1}`)))
+}
+
+func usageStatsQueryColumns() []string {
+	return []string{
+		"total_requests",
+		"total_input_tokens",
+		"total_output_tokens",
+		"total_cache_creation_tokens",
+		"total_cache_read_tokens",
+		"total_cost",
+		"total_actual_cost",
+		"admin_free_requests",
+		"admin_free_standard_cost",
+		"total_account_cost",
+		"avg_duration_ms",
+	}
+}
+
+func TestUsageCacheCreationSQLIncludesTTLBreakdowns(t *testing.T) {
+	expr := usageCacheCreationSQL("ul.")
+
+	require.Contains(t, expr, "ul.cache_creation_tokens")
+	require.Contains(t, expr, "ul.cache_creation_5m_tokens")
+	require.Contains(t, expr, "ul.cache_creation_1h_tokens")
+}
+
 func expectPlatformBreakdownRows(mock sqlmock.Sqlmock, args ...any) {
 	driverArgs := make([]driver.Value, 0, len(args))
 	for _, arg := range args {

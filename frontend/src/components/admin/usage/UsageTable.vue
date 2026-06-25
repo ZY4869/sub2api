@@ -254,11 +254,20 @@
                 </div>
               </div>
               <div
-                v-if="
-                  getCacheCreationTotal(row) > 0
-                "
+                v-if="row.cache_read_tokens > 0 || getCacheCreationTotal(row) > 0"
                 class="flex items-center gap-2"
               >
+                <div
+                  v-if="row.cache_read_tokens > 0"
+                  class="inline-flex items-center gap-1"
+                >
+                  <Icon name="inbox" size="sm" class="h-3.5 w-3.5 text-sky-500" :stroke-width="2" />
+                  <span
+                    class="font-medium text-sky-600 dark:text-sky-400"
+                    :title="row.cache_read_tokens.toLocaleString()"
+                    >{{ formatCacheTokens(row.cache_read_tokens) }}</span
+                  >
+                </div>
                 <div
                   v-if="getCacheCreationTotal(row) > 0"
                   class="inline-flex items-center gap-1"
@@ -945,6 +954,7 @@ const getCacheCreationTotal = (
 const formatRowCacheHitRate = (
   row: Pick<
     AdminUsageLog,
+    | "input_tokens"
     | "cache_read_tokens"
     | "cache_creation_tokens"
     | "cache_creation_5m_tokens"
@@ -952,7 +962,7 @@ const formatRowCacheHitRate = (
   >,
 ): string => {
   const read = row.cache_read_tokens || 0;
-  const total = read + getCacheCreationTotal(row);
+  const total = (row.input_tokens || 0) + read + getCacheCreationTotal(row);
   if (total <= 0) {
     return "0.0%";
   }

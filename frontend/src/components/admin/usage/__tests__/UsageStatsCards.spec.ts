@@ -50,10 +50,10 @@ const stats = {
   total_requests: 8,
   total_input_tokens: 120,
   total_output_tokens: 240,
-  total_cache_creation_tokens: 12500,
-  total_cache_read_tokens: 34000,
-  total_cache_tokens: 46500,
-  total_tokens: 396,
+  total_cache_creation_tokens: 1_250_000,
+  total_cache_read_tokens: 3_400_000,
+  total_cache_tokens: 4_650_000,
+  total_tokens: 1_663_471,
   cache_hit_rate: 0.896,
   total_cost: 1.2,
   total_actual_cost: 1.1,
@@ -63,10 +63,10 @@ const stats = {
   today_requests: 3,
   today_input_tokens: 30,
   today_output_tokens: 60,
-  today_cache_creation_tokens: 200,
-  today_cache_read_tokens: 700,
-  today_cache_tokens: 900,
-  today_tokens: 99,
+  today_cache_creation_tokens: 200_000,
+  today_cache_read_tokens: 700_000,
+  today_cache_tokens: 900_000,
+  today_tokens: 990_000,
   today_cache_hit_rate: 75,
   today_cost: 0.45,
   today_actual_cost: 0.4,
@@ -116,10 +116,11 @@ describe('admin UsageStatsCards', () => {
     expect(cacheCard.text()).toContain('命中率')
     expect(cacheCard.text()).toContain('89.6%')
     expect(cacheCard.text()).toContain('写入')
-    expect(cacheCard.text()).toContain('12,500')
+    expect(cacheCard.text()).toContain('1.3M')
     expect(cacheCard.text()).toContain('读取')
-    expect(cacheCard.text()).toContain('34,000')
-    expect(cacheCard.text()).toContain('46,500')
+    expect(cacheCard.text()).toContain('3.4M')
+    expect(cacheCard.text()).toContain('4.7M')
+    expect(wrapper.text()).toContain('1.7M')
   })
 
   it('keeps cache and today token zero values visible', () => {

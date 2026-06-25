@@ -1,11 +1,11 @@
 <template>
   <div
-    class="card p-4"
+    class="card p-3"
     :class="styleClass"
     data-testid="usage-cache-stats-card"
   >
-    <div class="flex items-center gap-3">
-      <div class="rounded-lg bg-teal-100 p-2 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400">
+    <div class="flex items-center gap-2.5">
+      <div class="rounded-md bg-teal-100 p-1.5 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400">
         <Icon
           name="sync"
           size="md"
@@ -16,13 +16,13 @@
         <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
           {{ t("usage.cacheHitRate") }}
         </p>
-        <div class="mt-1 flex items-baseline justify-between gap-3">
+        <div class="mt-0.5 flex items-baseline justify-between gap-3">
           <span class="text-xs text-gray-500 dark:text-gray-400">{{ t("usage.cacheHitRate") }}</span>
-          <span class="text-xl font-bold text-teal-600 dark:text-teal-400">
+          <span class="text-lg font-bold text-teal-600 dark:text-teal-400">
             {{ formatPercent(cacheHitRate) }}
           </span>
         </div>
-        <div class="mt-2 grid grid-cols-3 gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+        <div class="mt-1.5 grid grid-cols-3 gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
           <div>
             <span class="block">{{ t("usage.cacheWrite") }}</span>
             <span class="font-semibold text-amber-600 dark:text-amber-400">{{ formatTokens(cacheCreationTokens) }}</span>

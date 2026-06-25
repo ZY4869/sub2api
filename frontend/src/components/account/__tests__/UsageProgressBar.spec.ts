@@ -127,7 +127,8 @@ describe("UsageProgressBar", () => {
       wrapper.find('[data-testid="usage-progress-tooltip"]').exists(),
     ).toBe(true);
     expect(wrapper.text()).toContain("208 req");
-    expect(wrapper.text()).toContain("25,700,000");
+    expect(wrapper.text()).toContain("25.7M");
+    expect(wrapper.get('[title="25,700,000"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("A $15.72");
     expect(wrapper.text()).toContain("U $15.72");
   });

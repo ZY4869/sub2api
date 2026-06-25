@@ -436,7 +436,14 @@ func (c *OpsMetricsCollector) queryUsageCounts(ctx context.Context, start, end t
 	q := `
 SELECT
   COALESCE(COUNT(*), 0) AS success_count,
-  COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) AS token_consumed
+  COALESCE(SUM(
+    COALESCE(input_tokens, 0) +
+    COALESCE(output_tokens, 0) +
+    COALESCE(cache_creation_tokens, 0) +
+    COALESCE(cache_creation_5m_tokens, 0) +
+    COALESCE(cache_creation_1h_tokens, 0) +
+    COALESCE(cache_read_tokens, 0)
+  ), 0) AS token_consumed
 FROM usage_logs
 WHERE created_at >= $1 AND created_at < $2`
 

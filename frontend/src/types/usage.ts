@@ -12,7 +12,7 @@ export type RedeemCodeType =
 export type UsageRequestType = "unknown" | "sync" | "stream" | "ws_v2";
 export type UsageLogStatus = "succeeded" | "failed";
 export type UsageLogSimulatedClient = "codex" | "gemini_cli";
-export type TokenDisplayMode = "full" | "compact";
+export type TokenDisplayMode = "natural" | "k" | "m";
 
 export interface UsageLog {
   id: number;

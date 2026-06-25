@@ -62,13 +62,13 @@ func TestAPIContracts(t *testing.T) {
 					"usage_view_preferences": {
 						"admin": {
 							"hidden_columns": ["user_agent"],
-							"token_display_mode": "full",
+							"token_display_mode": "m",
 							"table_density": "comfortable",
 							"stats_card_style": "balanced"
 						},
 						"user": {
 							"hidden_columns": [],
-							"token_display_mode": "full",
+							"token_display_mode": "m",
 							"table_density": "comfortable",
 							"stats_card_style": "balanced"
 						}
@@ -440,13 +440,13 @@ func TestAPIContracts(t *testing.T) {
 					"usage_view_preferences": {
 						"admin": {
 							"hidden_columns": ["user_agent"],
-							"token_display_mode": "full",
+							"token_display_mode": "m",
 							"table_density": "comfortable",
 							"stats_card_style": "balanced"
 						},
 						"user": {
 							"hidden_columns": [],
-							"token_display_mode": "full",
+							"token_display_mode": "m",
 							"table_density": "comfortable",
 							"stats_card_style": "balanced"
 						}
@@ -553,7 +553,7 @@ func TestAPIContracts(t *testing.T) {
 			name:   "PUT /api/v1/user",
 			method: http.MethodPut,
 			path:   "/api/v1/user",
-			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","usage_view_preferences":{"admin":{"hidden_columns":["user_agent","cache_hit"],"token_display_mode":"compact","table_density":"compact","stats_card_style":"accent"},"user":{"hidden_columns":["cache_hit"],"token_display_mode":"compact","table_density":"comfortable","stats_card_style":"balanced"}},"global_realtime_countdown_enabled":true,"account_realtime_countdown_enabled":false,"visual_preset_preference":"airy","account_visual_preset_override":"classic","account_today_stats_windows":["today","total"],"account_today_stats_cycle_mode":"fixed","account_group_display_mode":"icon","account_status_display_mode":"simple"}`,
+			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","usage_view_preferences":{"admin":{"hidden_columns":["user_agent","cache_hit"],"token_display_mode":"k","table_density":"compact","stats_card_style":"accent"},"user":{"hidden_columns":["cache_hit"],"token_display_mode":"k","table_density":"comfortable","stats_card_style":"balanced"}},"global_realtime_countdown_enabled":true,"account_realtime_countdown_enabled":false,"visual_preset_preference":"airy","account_visual_preset_override":"classic","account_today_stats_windows":["today","total"],"account_today_stats_cycle_mode":"fixed","account_group_display_mode":"icon","account_status_display_mode":"simple"}`,
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
@@ -573,13 +573,13 @@ func TestAPIContracts(t *testing.T) {
 					"usage_view_preferences": {
 						"admin": {
 							"hidden_columns": ["user_agent", "cache_hit"],
-							"token_display_mode": "compact",
+							"token_display_mode": "k",
 							"table_density": "compact",
 							"stats_card_style": "accent"
 						},
 						"user": {
 							"hidden_columns": ["cache_hit"],
-							"token_display_mode": "compact",
+							"token_display_mode": "k",
 							"table_density": "comfortable",
 							"stats_card_style": "balanced"
 						}

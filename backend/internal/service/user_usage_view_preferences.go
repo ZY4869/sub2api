@@ -8,8 +8,12 @@ const (
 	UsageViewPageAdmin = "admin"
 	UsageViewPageUser  = "user"
 
-	UsageViewTokenDisplayFull    = "full"
-	UsageViewTokenDisplayCompact = "compact"
+	UsageViewTokenDisplayNatural = "natural"
+	UsageViewTokenDisplayK       = "k"
+	UsageViewTokenDisplayM       = "m"
+
+	usageViewTokenDisplayLegacyFull    = "full"
+	usageViewTokenDisplayLegacyCompact = "compact"
 
 	UsageViewTableDensityComfortable = "comfortable"
 	UsageViewTableDensityCompact     = "compact"
@@ -81,7 +85,7 @@ func defaultUsageViewPagePreferences(page string) UsageViewPagePreferences {
 	}
 	return UsageViewPagePreferences{
 		HiddenColumns:  hidden,
-		TokenDisplay:   UsageViewTokenDisplayFull,
+		TokenDisplay:   UsageViewTokenDisplayM,
 		TableDensity:   UsageViewTableDensityComfortable,
 		StatsCardStyle: UsageViewStatsCardStyleBalanced,
 	}
@@ -118,10 +122,12 @@ func allowedUsageViewColumns(page string) map[string]struct{} {
 
 func normalizeUsageViewTokenDisplay(value, fallback string) string {
 	switch strings.TrimSpace(value) {
-	case UsageViewTokenDisplayCompact:
-		return UsageViewTokenDisplayCompact
-	case UsageViewTokenDisplayFull:
-		return UsageViewTokenDisplayFull
+	case UsageViewTokenDisplayNatural, UsageViewTokenDisplayK, UsageViewTokenDisplayM:
+		return strings.TrimSpace(value)
+	case usageViewTokenDisplayLegacyFull:
+		return UsageViewTokenDisplayNatural
+	case usageViewTokenDisplayLegacyCompact:
+		return UsageViewTokenDisplayM
 	default:
 		return fallback
 	}

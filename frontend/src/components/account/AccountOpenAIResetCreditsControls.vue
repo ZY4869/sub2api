@@ -1,9 +1,9 @@
 <template>
-  <div class="flex flex-wrap items-center gap-1.5">
+  <div class="inline-flex max-w-full w-max flex-nowrap items-center gap-1 whitespace-nowrap">
     <button
       v-if="showRefresh"
       type="button"
-      class="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-[10px] font-medium text-gray-600 transition hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-300"
+      class="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-200 px-1.5 py-1 text-[10px] font-medium text-gray-600 transition hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-300"
       :disabled="refreshDisabled"
       :title="t('admin.accounts.usageWindow.refreshResetCreditsTitle')"
       :aria-label="t('admin.accounts.usageWindow.refreshResetCreditsTitle')"
@@ -25,7 +25,7 @@
     <button
       v-if="showReset"
       type="button"
-      class="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-[10px] font-medium text-gray-600 transition hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-300"
+      class="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-200 px-1.5 py-1 text-[10px] font-medium text-gray-600 transition hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-300"
       :disabled="resetDisabled"
       data-testid="account-usage-reset-quota-button"
       @click="emit('reset')"
@@ -45,7 +45,7 @@
     <span
       v-if="showRemaining"
       :class="[
-        'inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold leading-none',
+        'inline-flex shrink-0 items-center rounded-full border px-1.5 py-1 text-[10px] font-semibold leading-none',
         resetUnsupported || resetUnknown
           ? 'border-gray-200 bg-gray-50 text-gray-600 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300'
           : resetZero

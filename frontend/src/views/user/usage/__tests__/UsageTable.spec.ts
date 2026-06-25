@@ -101,9 +101,9 @@ describe("user usage UsageTable", () => {
     expect(tokenText).toContain("100");
     expect(tokenText).toContain("200");
     expect(tokenText).toContain("60");
-    expect(tokenText).not.toContain("70");
+    expect(tokenText).toContain("70");
     expect(cacheHitText).toContain("70");
-    expect(cacheHitText).toContain("53.8%");
+    expect(cacheHitText).toContain("30.4%");
   });
 
   it("renders thinking mode as accessible icons", () => {

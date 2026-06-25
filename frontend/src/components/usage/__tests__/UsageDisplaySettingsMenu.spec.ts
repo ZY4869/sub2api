@@ -8,8 +8,9 @@ const messages: Record<string, string> = {
   "usage.displaySettingsAppearance": "Appearance",
   "usage.displaySettingsColumns": "Columns",
   "usage.tokenDisplay": "Token display",
-  "usage.tokenDisplayFull": "Full",
-  "usage.tokenDisplayCompact": "Compact",
+  "usage.tokenDisplayNatural": "Natural",
+  "usage.tokenDisplayK": "K",
+  "usage.tokenDisplayM": "M",
   "usage.modelDisplay": "Model display",
   "usage.tableDensity": "Density",
   "usage.tableDensityComfortable": "Comfortable",
@@ -54,7 +55,7 @@ function mountMenu(overrides: Record<string, unknown> = {}) {
     props: {
       preferences: {
         hidden_columns: ["user_agent"],
-        token_display_mode: "full",
+        token_display_mode: "m",
         table_density: "comfortable",
         stats_card_style: "balanced",
       },
@@ -101,14 +102,14 @@ describe("UsageDisplaySettingsMenu", () => {
     ]);
 
     const buttons = wrapper.findAll("button");
-    await buttons.find((button) => button.text() === "Compact")!.trigger("click");
+    await buttons.find((button) => button.text() === "K")!.trigger("click");
     await buttons.find((button) => button.text() === "Compact density")!.trigger("click");
     await buttons.find((button) => button.text() === "Accent")!.trigger("click");
     await buttons.find((button) => button.text().includes("Cache hit"))!.trigger("click");
 
     expect(wrapper.emitted("update-preference")).toContainEqual([
       "token_display_mode",
-      "compact",
+      "k",
     ]);
     expect(wrapper.emitted("update-preference")).toContainEqual([
       "table_density",

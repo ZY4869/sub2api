@@ -19,10 +19,21 @@ const DEFAULT_ADMIN_HIDDEN_COLUMNS = ["user_agent"];
 
 const defaultPagePreferences = (page: UsageViewPage): UsageViewPagePreferences => ({
   hidden_columns: page === "admin" ? [...DEFAULT_ADMIN_HIDDEN_COLUMNS] : [],
-  token_display_mode: "full",
+  token_display_mode: "m",
   table_density: "comfortable",
   stats_card_style: "balanced",
 });
+
+function normalizeUsageViewTokenDisplayMode(
+  value: unknown,
+): UsageViewPagePreferences["token_display_mode"] | null {
+  if (value === "natural" || value === "k" || value === "m") {
+    return value;
+  }
+  if (value === "full") return "natural";
+  if (value === "compact") return "m";
+  return null;
+}
 
 function normalizePagePreferences(
   page: UsageViewPage,
@@ -33,9 +44,9 @@ function normalizePagePreferences(
     hidden_columns: Array.isArray(input?.hidden_columns)
       ? [...new Set(input.hidden_columns.filter((key) => typeof key === "string" && key.trim()).map((key) => key.trim()))]
       : defaults.hidden_columns,
-    token_display_mode: input?.token_display_mode === "compact" || input?.token_display_mode === "full"
-      ? input.token_display_mode
-      : defaults.token_display_mode,
+    token_display_mode:
+      normalizeUsageViewTokenDisplayMode(input?.token_display_mode) ??
+      defaults.token_display_mode,
     table_density: input?.table_density === "compact" || input?.table_density === "comfortable"
       ? input.table_density
       : defaults.table_density,

@@ -315,7 +315,7 @@ export function formatCostFixed(
  * @returns 格式化后的字符串，如 "950", "1.2K", "3.5M"
  */
 export function formatTokensK(tokens: number): string {
-  return formatTokenCount(tokens, { mode: "compact" });
+  return formatTokenCount(tokens, { mode: "k" });
 }
 
 /**
@@ -347,10 +347,20 @@ export function formatTokenCount(
 ): string {
   if (value === null || value === undefined) return "0";
 
-  if (options?.mode === "compact") {
-    return formatCompactNumber(value, {
-      allowBillions: options.allowBillions !== false,
-    });
+  const stripTrailingZero = (input: number): string => {
+    const rounded = input.toFixed(1);
+    return rounded.endsWith(".0") ? rounded.slice(0, -2) : rounded;
+  };
+
+  if (options?.mode === "k") {
+    return `${stripTrailingZero(value / 1_000)}K`;
+  }
+
+  if (options?.mode === "m") {
+    if (Math.abs(value) < 100_000) {
+      return value.toLocaleString();
+    }
+    return `${stripTrailingZero(value / 1_000_000)}M`;
   }
 
   return value.toLocaleString();

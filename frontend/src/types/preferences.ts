@@ -25,7 +25,7 @@ export type EffectiveExternalModelCatalogViewMode =
   | "model_only";
 
 export type UsageViewPage = "admin" | "user";
-export type UsageViewTokenDisplayMode = "full" | "compact";
+export type UsageViewTokenDisplayMode = "natural" | "k" | "m";
 export type UsageViewTableDensity = "comfortable" | "compact";
 export type UsageViewStatsCardStyle = "balanced" | "accent";
 

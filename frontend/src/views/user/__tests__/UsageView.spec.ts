@@ -35,13 +35,13 @@ const authState = vi.hoisted(() => ({
     usage_view_preferences: {
       admin: {
         hidden_columns: ["user_agent"],
-        token_display_mode: "full",
+        token_display_mode: "m",
         table_density: "comfortable",
         stats_card_style: "balanced",
       },
       user: {
         hidden_columns: [],
-        token_display_mode: "full",
+        token_display_mode: "m",
         table_density: "comfortable",
         stats_card_style: "balanced",
       },

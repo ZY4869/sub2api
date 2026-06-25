@@ -25,15 +25,15 @@ describe("useTokenDisplayMode", () => {
     const tokenModule = await import("../useTokenDisplayMode");
     const state = tokenModule.useTokenDisplayMode();
 
-    expect(state.tokenDisplayMode.value).toBe("full");
+    expect(state.tokenDisplayMode.value).toBe("m");
 
-    state.setTokenDisplayMode("compact");
+    state.setTokenDisplayMode("k");
 
-    expect(storage.get("token-display-mode")).toBe("compact");
-    expect(state.tokenDisplayMode.value).toBe("compact");
+    expect(storage.get("token-display-mode")).toBe("k");
+    expect(state.tokenDisplayMode.value).toBe("k");
 
     const secondState = tokenModule.useTokenDisplayMode();
-    expect(secondState.tokenDisplayMode.value).toBe("compact");
+    expect(secondState.tokenDisplayMode.value).toBe("k");
   });
 
   it("restores persisted mode for new imports", async () => {
@@ -42,8 +42,8 @@ describe("useTokenDisplayMode", () => {
     const tokenModule = await import("../useTokenDisplayMode");
     const state = tokenModule.useTokenDisplayMode();
 
-    expect(tokenModule.getPersistedTokenDisplayMode()).toBe("compact");
-    expect(state.tokenDisplayMode.value).toBe("compact");
-    expect(state.formatTokenDisplay(171_600)).toBe("171.6K");
+    expect(tokenModule.getPersistedTokenDisplayMode()).toBe("m");
+    expect(state.tokenDisplayMode.value).toBe("m");
+    expect(state.formatTokenDisplay(1_663_471)).toBe("1.7M");
   });
 });

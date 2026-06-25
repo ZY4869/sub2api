@@ -3,12 +3,17 @@ import type { TokenDisplayMode } from "@/types";
 import { formatTokenCount } from "@/utils/format";
 
 const TOKEN_DISPLAY_MODE_STORAGE_KEY = "token-display-mode";
-const DEFAULT_TOKEN_DISPLAY_MODE: TokenDisplayMode = "full";
+const DEFAULT_TOKEN_DISPLAY_MODE: TokenDisplayMode = "m";
 
 function normalizeTokenDisplayMode(
   value: string | null | undefined,
 ): TokenDisplayMode {
-  return value === "compact" ? "compact" : DEFAULT_TOKEN_DISPLAY_MODE;
+  if (value === "natural" || value === "k" || value === "m") {
+    return value;
+  }
+  if (value === "full") return "natural";
+  if (value === "compact") return "m";
+  return DEFAULT_TOKEN_DISPLAY_MODE;
 }
 
 export function getPersistedTokenDisplayMode(): TokenDisplayMode {
@@ -36,7 +41,7 @@ const tokenDisplayModeState = ref<TokenDisplayMode>(
 export function useTokenDisplayMode() {
   const tokenDisplayMode = computed(() => tokenDisplayModeState.value);
   const isCompactTokenDisplay = computed(
-    () => tokenDisplayModeState.value === "compact",
+    () => tokenDisplayModeState.value !== "natural",
   );
 
   const setTokenDisplayMode = (mode: TokenDisplayMode) => {
@@ -45,9 +50,7 @@ export function useTokenDisplayMode() {
   };
 
   const toggleTokenDisplayMode = () => {
-    setTokenDisplayMode(
-      tokenDisplayModeState.value === "compact" ? "full" : "compact",
-    );
+    setTokenDisplayMode(tokenDisplayModeState.value === "natural" ? "m" : "natural");
   };
 
   const formatTokenDisplay = (

@@ -109,8 +109,9 @@ const open = ref(false);
 const menuRef = ref<HTMLElement | null>(null);
 
 const tokenDisplayOptions = computed<Option[]>(() => [
-  { value: "full", label: t("usage.tokenDisplayFull") },
-  { value: "compact", label: t("usage.tokenDisplayCompact") },
+  { value: "natural", label: t("usage.tokenDisplayNatural") },
+  { value: "k", label: t("usage.tokenDisplayK") },
+  { value: "m", label: t("usage.tokenDisplayM") },
 ]);
 
 const densityOptions = computed<Option[]>(() => [

@@ -330,7 +330,7 @@ func TestUpdateProfile_UsageViewPreferences_NormalizesAndPersists(t *testing.T) 
 			},
 			User: UsageViewPagePreferences{
 				HiddenColumns:  []string{"cache_hit", "ip_address", " "},
-				TokenDisplay:   UsageViewTokenDisplayCompact,
+				TokenDisplay:   UsageViewTokenDisplayK,
 				TableDensity:   "bad-density",
 				StatsCardStyle: "bad-card-style",
 			},
@@ -338,14 +338,28 @@ func TestUpdateProfile_UsageViewPreferences_NormalizesAndPersists(t *testing.T) 
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"user_agent", "cache_hit"}, updated.UsageViewPreferences.Admin.HiddenColumns)
-	require.Equal(t, UsageViewTokenDisplayFull, updated.UsageViewPreferences.Admin.TokenDisplay)
+	require.Equal(t, UsageViewTokenDisplayM, updated.UsageViewPreferences.Admin.TokenDisplay)
 	require.Equal(t, UsageViewTableDensityCompact, updated.UsageViewPreferences.Admin.TableDensity)
 	require.Equal(t, UsageViewStatsCardStyleAccent, updated.UsageViewPreferences.Admin.StatsCardStyle)
 	require.Equal(t, []string{"cache_hit"}, updated.UsageViewPreferences.User.HiddenColumns)
-	require.Equal(t, UsageViewTokenDisplayCompact, updated.UsageViewPreferences.User.TokenDisplay)
+	require.Equal(t, UsageViewTokenDisplayK, updated.UsageViewPreferences.User.TokenDisplay)
 	require.Equal(t, UsageViewTableDensityComfortable, updated.UsageViewPreferences.User.TableDensity)
 	require.Equal(t, UsageViewStatsCardStyleBalanced, updated.UsageViewPreferences.User.StatsCardStyle)
 	require.Equal(t, updated.UsageViewPreferences, user.UsageViewPreferences)
+}
+
+func TestNormalizeUsageViewPreferences_MapsLegacyTokenDisplayModes(t *testing.T) {
+	normalized := NormalizeUsageViewPreferences(UsageViewPreferences{
+		Admin: UsageViewPagePreferences{
+			TokenDisplay: "full",
+		},
+		User: UsageViewPagePreferences{
+			TokenDisplay: "compact",
+		},
+	})
+
+	require.Equal(t, UsageViewTokenDisplayNatural, normalized.Admin.TokenDisplay)
+	require.Equal(t, UsageViewTokenDisplayM, normalized.User.TokenDisplay)
 }
 
 func TestNormalizeUsageViewPreferences_DefaultsAndAllowedColumns(t *testing.T) {
@@ -357,7 +371,7 @@ func TestNormalizeUsageViewPreferences_DefaultsAndAllowedColumns(t *testing.T) {
 	})
 
 	require.Equal(t, []string{"user_agent"}, normalized.Admin.HiddenColumns)
-	require.Equal(t, UsageViewTokenDisplayFull, normalized.Admin.TokenDisplay)
+	require.Equal(t, UsageViewTokenDisplayM, normalized.Admin.TokenDisplay)
 	require.Equal(t, UsageViewTableDensityComfortable, normalized.Admin.TableDensity)
 	require.Equal(t, UsageViewStatsCardStyleBalanced, normalized.Admin.StatsCardStyle)
 	require.Equal(t, []string{"cache_hit", "thinking_enabled"}, normalized.User.HiddenColumns)
