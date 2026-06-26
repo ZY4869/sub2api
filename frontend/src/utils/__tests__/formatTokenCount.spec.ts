@@ -16,10 +16,9 @@ describe("formatTokenCount", () => {
     expect(formatTokenCount(1_250_000, { mode: "k" })).toBe("1250K");
   });
 
-  it("formats fixed M mode", () => {
+  it("formats adaptive K/M mode", () => {
     expect(formatTokenCount(999, { mode: "m" })).toBe("999");
-    expect(formatTokenCount(15_735, { mode: "m" })).toBe("15,735");
-    expect(formatTokenCount(171_600, { mode: "m" })).toBe("0.2M");
+    expect(formatTokenCount(94_026, { mode: "m" })).toBe("94K");
     expect(formatTokenCount(1_250_000, { mode: "m" })).toBe("1.3M");
   });
 });

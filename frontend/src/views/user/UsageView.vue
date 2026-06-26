@@ -23,18 +23,23 @@
           @date-range-change="onDateRangeChange"
         >
           <template #display-settings>
-            <UsageDisplaySettingsMenu
-              :preferences="pagePreferences"
-              :hidden-columns="hiddenColumns"
-              :columns="allColumns"
-              :always-visible-columns="ALWAYS_VISIBLE"
-              :usage-model-display-mode="usageModelDisplayMode"
-              :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
-              :disabled="updatingUsageViewPreferences"
-              @update-preference="handleUsageViewPreferenceChange"
-              @toggle-column="toggleUsageColumn"
-              @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
-            />
+            <div class="flex items-center gap-2">
+              <UsageDisplaySettingsMenu
+                :preferences="pagePreferences"
+                :usage-model-display-mode="usageModelDisplayMode"
+                :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
+                :disabled="updatingUsageViewPreferences"
+                @update-preference="handleUsageViewPreferenceChange"
+                @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
+              />
+              <UsageColumnSettingsMenu
+                :hidden-columns="hiddenColumns"
+                :columns="allColumns"
+                :always-visible-columns="ALWAYS_VISIBLE"
+                :disabled="updatingUsageViewPreferences"
+                @toggle-column="toggleUsageColumn"
+              />
+            </div>
           </template>
         </UsageFilters>
       </template>
@@ -55,6 +60,8 @@
           :loading="loading"
           :usage-model-display-mode="usageModelDisplayMode"
           :table-density="pagePreferences.table_density"
+          :show-million-context-lines="pagePreferences.show_million_context_lines"
+          :user-agent-display-mode="pagePreferences.user_agent_display_mode"
           :format-currency-breakdown="formatCurrencyBreakdown"
           :format-tokens="formatTokens"
           :format-cache-tokens="formatCacheTokens"
@@ -67,7 +74,6 @@
           :format-reasoning-effort-pair="formatReasoningEffortPair"
           :format-usage-million-context-lines="formatUsageMillionContextLines"
           :format-thinking-enabled="formatThinkingEnabled"
-          :format-usage-endpoints="formatUsageEndpoints"
           :get-request-type-badge-class="getRequestTypeBadgeClass"
           :get-request-type-label="getRequestTypeLabel"
           :get-charge-label="getChargeLabel"
@@ -76,7 +82,6 @@
           @hide-token-tooltip="hideTokenTooltip"
           @show-cost-tooltip="showTooltip"
           @hide-cost-tooltip="hideTooltip"
-          @open-request-preview="openRequestPreview"
         />
       </template>
 
@@ -92,12 +97,6 @@
       </template>
     </TablePageLayout>
   </AppLayout>
-
-  <UsageRequestPreviewModal
-    :show="requestPreviewOpen"
-    :usage-log="selectedPreviewUsage"
-    @close="closeRequestPreview"
-  />
 
   <UsageTokenTooltip
     :visible="tokenTooltipVisible"
@@ -123,8 +122,8 @@ import AppLayout from "@/components/layout/AppLayout.vue";
 import TablePageLayout from "@/components/layout/TablePageLayout.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import UsageStatsCards from "@/components/user/usage/UsageStatsCards.vue";
-import UsageRequestPreviewModal from "@/components/user/usage/UsageRequestPreviewModal.vue";
 import UsageDisplaySettingsMenu from "@/components/usage/UsageDisplaySettingsMenu.vue";
+import UsageColumnSettingsMenu from "@/components/usage/UsageColumnSettingsMenu.vue";
 import type {
   UsageLog,
   UsageModelDisplayMode,
@@ -143,7 +142,6 @@ import {
   formatThinkingEnabled,
 } from "@/utils/format";
 import {
-  formatUsageEndpointDisplay,
   formatUsageMillionContextDisplay,
   formatUsageMillionContextExportFields,
   formatUsageUserAgentDisplay,
@@ -234,6 +232,7 @@ const allColumns = computed<Column[]>(() => [
     sortable: false,
   },
   { key: "endpoint", label: t("usage.endpoint"), sortable: false },
+  { key: "group", label: t("usage.callGroup"), sortable: false },
   { key: "stream", label: t("usage.type"), sortable: false },
   { key: "tokens", label: t("usage.tokens"), sortable: false },
   { key: "cache_hit", label: t("usage.cacheHit"), sortable: false },
@@ -242,7 +241,6 @@ const allColumns = computed<Column[]>(() => [
   { key: "duration", label: t("usage.duration"), sortable: false },
   { key: "created_at", label: t("usage.time"), sortable: true },
   { key: "user_agent", label: t("usage.userAgent"), sortable: false },
-  { key: "actions", label: t("common.actions"), sortable: false },
 ]);
 
 const visibleColumns = computed<Column[]>(() =>
@@ -257,8 +255,6 @@ const apiKeyDailyRows = ref<TrendDataPoint[]>([]);
 const apiKeyDailyLoading = ref(false);
 const loading = ref(false);
 const exporting = ref(false);
-const requestPreviewOpen = ref(false);
-const selectedPreviewUsage = ref<UsageLog | null>(null);
 
 const apiKeyOptions = computed(() => {
   return [
@@ -427,10 +423,6 @@ const getRequestTypeExportText = (log: UsageLog): string => {
     }
   }
 };
-
-const formatUsageEndpoints = (
-  log: Pick<UsageLog, "inbound_endpoint" | "upstream_endpoint">,
-) => formatUsageEndpointDisplay(log);
 
 const formatUsageMillionContextLines = (
   row: Pick<
@@ -613,8 +605,8 @@ const handleUsageModelDisplayModeChange = async (
 };
 
 const handleUsageViewPreferenceChange = async (
-  key: "hidden_columns" | "token_display_mode" | "table_density" | "stats_card_style",
-  value: string,
+  key: keyof typeof pagePreferences.value,
+  value: string | boolean,
 ) => {
   await patchPagePreferences({ [key]: value } as any);
 };
@@ -626,19 +618,6 @@ const formatModelSuccessRateExport = (
     return "";
   }
   return `${(rate * 100).toFixed(1)}%`;
-};
-
-const openRequestPreview = (usageLog: UsageLog) => {
-  if (!usageLog.id) {
-    return;
-  }
-  selectedPreviewUsage.value = usageLog;
-  requestPreviewOpen.value = true;
-};
-
-const closeRequestPreview = () => {
-  requestPreviewOpen.value = false;
-  selectedPreviewUsage.value = null;
 };
 
 /**

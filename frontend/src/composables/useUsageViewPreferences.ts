@@ -22,6 +22,8 @@ const defaultPagePreferences = (page: UsageViewPage): UsageViewPagePreferences =
   token_display_mode: "m",
   table_density: "comfortable",
   stats_card_style: "balanced",
+  show_million_context_lines: true,
+  user_agent_display_mode: "compact",
 });
 
 function normalizeUsageViewTokenDisplayMode(
@@ -40,9 +42,35 @@ function normalizePagePreferences(
   input?: Partial<UsageViewPagePreferences>,
 ): UsageViewPagePreferences {
   const defaults = defaultPagePreferences(page);
+  const allowedColumns = new Set([
+    "api_key",
+    "model",
+    "success_rate",
+    "status",
+    "thinking_enabled",
+    "reasoning_effort",
+    "request_protocol",
+    "endpoint",
+    "group",
+    "stream",
+    "tokens",
+    "cache_hit",
+    "cost",
+    "first_token",
+    "duration",
+    "user_agent",
+    ...(page === "admin" ? ["account", "ip_address"] : []),
+  ]);
   return {
     hidden_columns: Array.isArray(input?.hidden_columns)
-      ? [...new Set(input.hidden_columns.filter((key) => typeof key === "string" && key.trim()).map((key) => key.trim()))]
+      ? [
+          ...new Set(
+            input.hidden_columns
+              .filter((key) => typeof key === "string" && key.trim())
+              .map((key) => key.trim())
+              .filter((key) => allowedColumns.has(key)),
+          ),
+        ]
       : defaults.hidden_columns,
     token_display_mode:
       normalizeUsageViewTokenDisplayMode(input?.token_display_mode) ??
@@ -53,6 +81,15 @@ function normalizePagePreferences(
     stats_card_style: input?.stats_card_style === "accent" || input?.stats_card_style === "balanced"
       ? input.stats_card_style
       : defaults.stats_card_style,
+    show_million_context_lines:
+      typeof input?.show_million_context_lines === "boolean"
+        ? input.show_million_context_lines
+        : defaults.show_million_context_lines,
+    user_agent_display_mode:
+      input?.user_agent_display_mode === "full" ||
+      input?.user_agent_display_mode === "compact"
+        ? input.user_agent_display_mode
+        : defaults.user_agent_display_mode,
   };
 }
 

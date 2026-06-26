@@ -62,18 +62,22 @@ vi.mock("@/composables/useTokenDisplayMode", () => ({
 
 const defaultPreferences = (): UsageViewPreferences => ({
   admin: {
-    hidden_columns: ["user_agent"],
-    token_display_mode: "m",
-    table_density: "comfortable",
-    stats_card_style: "balanced",
-  },
-  user: {
-    hidden_columns: [],
-    token_display_mode: "m",
-    table_density: "comfortable",
-    stats_card_style: "balanced",
-  },
-});
+      hidden_columns: ["user_agent"],
+      token_display_mode: "m",
+      table_density: "comfortable",
+      stats_card_style: "balanced",
+      show_million_context_lines: true,
+      user_agent_display_mode: "compact",
+    },
+    user: {
+      hidden_columns: [],
+      token_display_mode: "m",
+      table_density: "comfortable",
+      stats_card_style: "balanced",
+      show_million_context_lines: true,
+      user_agent_display_mode: "compact",
+    },
+  });
 
 function mountHarness(page: "admin" | "user") {
   const state = {} as ReturnType<typeof useUsageViewPreferences>;
@@ -118,12 +122,16 @@ describe("useUsageViewPreferences", () => {
           token_display_mode: "natural",
           table_density: "comfortable",
           stats_card_style: "balanced",
+          show_million_context_lines: true,
+          user_agent_display_mode: "compact",
         },
         user: {
-          hidden_columns: ["cache_hit"],
+          hidden_columns: ["cache_hit", "actions", "group"],
           token_display_mode: "k",
           table_density: "compact",
           stats_card_style: "accent",
+          show_million_context_lines: false,
+          user_agent_display_mode: "full",
         },
       },
     };
@@ -133,7 +141,7 @@ describe("useUsageViewPreferences", () => {
 
     expect(admin.wrapper.get('[data-test="hidden"]').text()).toBe("user_agent");
     expect(admin.wrapper.get('[data-test="token-mode"]').text()).toBe("natural");
-    expect(user.wrapper.get('[data-test="hidden"]').text()).toBe("cache_hit");
+    expect(user.wrapper.get('[data-test="hidden"]').text()).toBe("cache_hit,group");
     expect(user.wrapper.get('[data-test="token-mode"]').text()).toBe("k");
     expect(user.wrapper.get('[data-test="density"]').text()).toBe("compact");
     expect(user.wrapper.get('[data-test="style"]').text()).toBe("accent");
@@ -182,6 +190,8 @@ describe("useUsageViewPreferences", () => {
         hidden_columns: ["user_agent", "cache_hit"],
         token_display_mode: "k" as const,
         table_density: "compact" as const,
+        show_million_context_lines: false,
+        user_agent_display_mode: "full" as const,
       },
     };
     testState.updateProfile.mockResolvedValueOnce({ usage_view_preferences: saved });
@@ -191,6 +201,8 @@ describe("useUsageViewPreferences", () => {
       hidden_columns: ["user_agent", "cache_hit"],
       token_display_mode: "k",
       table_density: "compact",
+      show_million_context_lines: false,
+      user_agent_display_mode: "full",
     });
 
     expect(testState.updateProfile).toHaveBeenCalledWith({
@@ -202,6 +214,8 @@ describe("useUsageViewPreferences", () => {
     });
     expect(testState.tokenDisplay.setTokenDisplayMode).toHaveBeenLastCalledWith("k");
     expect(testState.auth.user?.usage_view_preferences?.user.hidden_columns).toEqual([]);
+    expect(testState.auth.user?.usage_view_preferences?.admin.show_million_context_lines).toBe(false);
+    expect(testState.auth.user?.usage_view_preferences?.admin.user_agent_display_mode).toBe("full");
   });
 
   it("rolls back and reports an error when saving fails", async () => {

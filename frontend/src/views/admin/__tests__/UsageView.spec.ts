@@ -29,12 +29,16 @@ const authState = vi.hoisted(() => ({
         token_display_mode: "m",
         table_density: "comfortable",
         stats_card_style: "balanced",
+        show_million_context_lines: true,
+        user_agent_display_mode: "compact",
       },
       user: {
         hidden_columns: [],
         token_display_mode: "m",
         table_density: "comfortable",
         stats_card_style: "balanced",
+        show_million_context_lines: true,
+        user_agent_display_mode: "compact",
       },
     },
   },
@@ -66,6 +70,7 @@ const messages: Record<string, string> = {
   "usage.thinkingMode": "Thinking Mode",
   "usage.reasoningEffort": "Reasoning Effort",
   "usage.endpoint": "Endpoint",
+  "usage.callGroup": "Call Group",
   "usage.model": "Model",
   "usage.apiKeyFilter": "API Key",
   "admin.usage.account": "Account",
@@ -206,24 +211,16 @@ const UsageContextBadgeDisplayModeToggleStub = {
 const UsageDisplaySettingsMenuStub = {
   props: [
     "preferences",
-    "hiddenColumns",
-    "columns",
-    "alwaysVisibleColumns",
     "usageModelDisplayMode",
     "updatingUsageModelDisplayMode",
     "disabled",
   ],
-  emits: [
-    "update-preference",
-    "toggle-column",
-    "update-usage-model-display-mode",
-  ],
+  emits: ["update-preference", "update-usage-model-display-mode"],
   template: `
     <div data-test="usage-display-settings-menu">
       <span data-test="usage-settings-token-mode">{{ preferences.token_display_mode }}</span>
       <span data-test="usage-settings-density">{{ preferences.table_density }}</span>
       <span data-test="usage-settings-card-style">{{ preferences.stats_card_style }}</span>
-      <span data-test="usage-settings-columns">{{ columns.map(column => column.key).join(",") }}</span>
       <button
         data-test="usage-model-display-toggle"
         @click="$emit('update-usage-model-display-mode', 'model_only')"
@@ -231,16 +228,25 @@ const UsageDisplaySettingsMenuStub = {
         {{ usageModelDisplayMode }}
       </button>
       <button
-        data-test="usage-column-toggle"
-        @click="$emit('toggle-column', 'cache_hit')"
-      >
-        column
-      </button>
-      <button
         data-test="usage-density-toggle"
         @click="$emit('update-preference', 'table_density', 'compact')"
       >
         density
+      </button>
+    </div>
+  `,
+};
+const UsageColumnSettingsMenuStub = {
+  props: ["hiddenColumns", "columns", "alwaysVisibleColumns", "disabled"],
+  emits: ["toggle-column"],
+  template: `
+    <div data-test="usage-column-settings-menu">
+      <span data-test="usage-column-settings-columns">{{ columns.map(column => column.key).join(",") }}</span>
+      <button
+        data-test="usage-column-toggle"
+        @click="$emit('toggle-column', 'cache_hit')"
+      >
+        column
       </button>
     </div>
   `,
@@ -283,6 +289,7 @@ function mountUsageView(extraStubs: Record<string, unknown> = {}) {
         Icon: true,
         TokenDisplayModeToggle: true,
         UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+        UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
         TokenUsageTrend: true,
         UsageModelDisplayModeToggle: UsageModelDisplayModeToggleStub,
         UsageContextBadgeDisplayModeToggle:

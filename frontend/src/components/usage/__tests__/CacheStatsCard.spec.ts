@@ -47,10 +47,10 @@ describe("CacheStatsCard", () => {
     expect(wrapper.text()).toContain("命中率");
     expect(wrapper.text()).toContain("89.6%");
     expect(wrapper.text()).toContain("写入");
-    expect(wrapper.text()).toContain("12,500");
+    expect(wrapper.text()).toContain("12.5K");
     expect(wrapper.text()).toContain("读取");
-    expect(wrapper.text()).toContain("34,000");
-    expect(wrapper.text()).toContain("46,500");
+    expect(wrapper.text()).toContain("34K");
+    expect(wrapper.text()).toContain("46.5K");
   });
 
   it("keeps whole-number cache hit rates as percentages", () => {

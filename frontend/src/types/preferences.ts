@@ -28,12 +28,15 @@ export type UsageViewPage = "admin" | "user";
 export type UsageViewTokenDisplayMode = "natural" | "k" | "m";
 export type UsageViewTableDensity = "comfortable" | "compact";
 export type UsageViewStatsCardStyle = "balanced" | "accent";
+export type UsageViewUserAgentDisplayMode = "compact" | "full";
 
 export interface UsageViewPagePreferences {
   hidden_columns: string[];
   token_display_mode: UsageViewTokenDisplayMode;
   table_density: UsageViewTableDensity;
   stats_card_style: UsageViewStatsCardStyle;
+  show_million_context_lines: boolean;
+  user_agent_display_mode: UsageViewUserAgentDisplayMode;
 }
 
 export interface UsageViewPreferences {

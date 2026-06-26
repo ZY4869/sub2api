@@ -357,10 +357,14 @@ export function formatTokenCount(
   }
 
   if (options?.mode === "m") {
-    if (Math.abs(value) < 100_000) {
-      return value.toLocaleString();
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000) {
+      return `${stripTrailingZero(value / 1_000_000)}M`;
     }
-    return `${stripTrailingZero(value / 1_000_000)}M`;
+    if (abs >= 1_000) {
+      return `${stripTrailingZero(value / 1_000)}K`;
+    }
+    return value.toLocaleString();
   }
 
   return value.toLocaleString();

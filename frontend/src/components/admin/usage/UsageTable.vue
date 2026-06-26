@@ -142,8 +142,26 @@
         </template>
 
         <template #cell-reasoning_effort="{ row }">
-          <div class="text-sm text-gray-900 dark:text-white">
-            {{ formatUsageCapabilityPair(row) }}
+          <div class="space-y-1">
+            <div class="text-sm text-gray-900 dark:text-white">
+              {{ formatUsageCapabilityPair(row) }}
+            </div>
+            <div
+              v-if="showMillionContextLines && formatUsageMillionContextLines(row).length > 0"
+              class="space-y-0.5 text-xs text-gray-500 dark:text-gray-400"
+            >
+              <span
+                v-for="line in formatUsageMillionContextLines(row)"
+                :key="`${row.id}-${line.key}`"
+                class="block break-all"
+                :title="line.raw"
+              >
+                <span class="font-medium text-gray-400 dark:text-gray-500"
+                  >{{ t(line.labelKey) }}:</span
+                >
+                <span class="ml-1">{{ line.display }}</span>
+              </span>
+            </div>
           </div>
         </template>
 
@@ -155,32 +173,19 @@
         </template>
 
         <template #cell-endpoint="{ row }">
-          <div class="max-w-[320px] space-y-1 text-xs">
-            <div
-              v-for="line in formatUsageEndpoints(row)"
-              :key="`${row.id}-${line.key}`"
-              class="break-all text-gray-700 dark:text-gray-300"
-            >
-              <span class="font-medium text-gray-500 dark:text-gray-400"
-                >{{ t(line.labelKey) }}:</span
-              >
-              <span class="ml-1" :title="line.raw">{{ line.display }}</span>
-            </div>
-            <div
-              v-if="formatUsageEndpoints(row).length === 0"
-              class="text-sm text-gray-400 dark:text-gray-500"
-              >
-              -
-            </div>
-          </div>
+          <UsageEndpointIconCell
+            :inbound-path="row.inbound_endpoint"
+            :upstream-path="row.upstream_endpoint"
+          />
         </template>
 
         <template #cell-group="{ row }">
           <span
-            v-if="row.group"
-            class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
+            v-if="row.group?.name"
+            class="inline-flex max-w-[9rem] items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
+            :title="row.group.name"
           >
-            {{ row.group.name }}
+            <span class="truncate">{{ row.group.name }}</span>
           </span>
           <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
         </template>
@@ -409,13 +414,11 @@
         </template>
 
         <template #cell-user_agent="{ row }">
-          <span
-            v-if="row.user_agent"
-            class="block max-w-[320px] whitespace-normal break-all text-sm text-gray-600 dark:text-gray-400"
-            :title="row.user_agent"
-            >{{ formatUserAgent(row.user_agent) }}</span
-          >
-          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          <UsageUserAgentCell
+            :user-agent="row.user_agent"
+            :display-mode="userAgentDisplayMode"
+            :format-user-agent="formatUserAgent"
+          />
         </template>
 
         <template #cell-ip_address="{ row }">
@@ -788,10 +791,12 @@ import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import { formatTokenPricePerMillion } from "@/utils/usagePricing";
 import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
 import {
-  formatUsageEndpointDisplay,
+  formatUsageMillionContextDisplay,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
+import UsageEndpointIconCell from "@/components/usage/UsageEndpointIconCell.vue";
+import UsageUserAgentCell from "@/components/usage/UsageUserAgentCell.vue";
 import {
   getUsageChargeBadgeClass,
   getUsageChargeLabel,
@@ -815,6 +820,7 @@ import Icon from "@/components/icons/Icon.vue";
 import type {
   AdminUsageLog,
   UsageModelDisplayMode,
+  UsageViewUserAgentDisplayMode,
 } from "@/types";
 
 defineEmits(["userClick"]);
@@ -822,13 +828,19 @@ const { t } = useI18n();
 const { formatTokenDisplay } = useTokenDisplayMode();
 const { copyToClipboard } = useClipboard();
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   data: AdminUsageLog[];
   loading: boolean;
   columns: Array<{ key: string; label: string; sortable?: boolean }>;
   usageModelDisplayMode: UsageModelDisplayMode;
   tableDensity?: "comfortable" | "compact";
-}>();
+  showMillionContextLines?: boolean;
+  userAgentDisplayMode?: UsageViewUserAgentDisplayMode;
+}>(), {
+  tableDensity: "comfortable",
+  showMillionContextLines: true,
+  userAgentDisplayMode: "compact",
+});
 
 const tableDensityClass = computed(() =>
   props.tableDensity === "compact" ? "usage-table--compact" : "usage-table--comfortable",
@@ -921,9 +933,8 @@ const formatUserAgent = (ua: string): string => {
   return formatUsageUserAgentDisplay(ua);
 };
 
-const formatUsageEndpoints = (
-  row: Pick<AdminUsageLog, "inbound_endpoint" | "upstream_endpoint">,
-) => formatUsageEndpointDisplay(row);
+const formatUsageMillionContextLines = (row: AdminUsageLog) =>
+  formatUsageMillionContextDisplay(row);
 
 const formatUsageCapabilityPair = (row: AdminUsageLog): string =>
   formatReasoningEffortPair(

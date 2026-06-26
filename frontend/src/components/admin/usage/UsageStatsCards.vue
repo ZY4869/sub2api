@@ -1,25 +1,23 @@
 <template>
-  <div class="space-y-3">
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-      <div class="card flex items-center gap-2.5 p-3">
-        <div class="rounded-md bg-blue-100 p-1.5 text-blue-600 dark:bg-blue-900/30">
-          <Icon name="document" size="md" />
+  <div class="space-y-2">
+    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div class="card flex items-center gap-2 p-2">
+        <div class="rounded-md bg-blue-100 p-1 text-blue-600 dark:bg-blue-900/30">
+          <Icon name="document" size="sm" />
         </div>
         <div>
           <p class="text-xs font-medium text-gray-500">{{ t('usage.totalRequests') }}</p>
-          <p class="text-lg font-bold leading-tight">{{ stats?.total_requests?.toLocaleString() || '0' }}</p>
+          <p class="text-base font-bold leading-tight">{{ stats?.total_requests?.toLocaleString() || '0' }}</p>
           <p class="text-xs text-gray-400">{{ t('usage.inSelectedRange') }}</p>
         </div>
       </div>
-      <div class="card flex items-center gap-2.5 p-3">
-        <div class="rounded-md bg-amber-100 p-1.5 text-amber-600 dark:bg-amber-900/30">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
-          </svg>
+      <div class="card flex items-center gap-2 p-2">
+        <div class="rounded-md bg-amber-100 p-1 text-amber-600 dark:bg-amber-900/30">
+          <Icon name="cube" size="sm" />
         </div>
         <div>
           <p class="text-xs font-medium text-gray-500">{{ t('usage.totalTokens') }}</p>
-          <p class="text-lg font-bold leading-tight">{{ formatTokens(stats?.total_tokens || 0) }}</p>
+          <p class="text-base font-bold leading-tight">{{ formatTokens(stats?.total_tokens || 0) }}</p>
           <p class="text-xs text-gray-500">
             {{ t('usage.in') }}: {{ formatTokens(stats?.total_input_tokens || 0) }} /
             {{ t('usage.out') }}: {{ formatTokens(stats?.total_output_tokens || 0) }}
@@ -32,13 +30,13 @@
         :cache-read-tokens="stats?.total_cache_read_tokens"
         :stats-card-style="statsCardStyle"
       />
-      <div class="card flex items-center gap-2.5 p-3">
-        <div class="rounded-md bg-green-100 p-1.5 text-green-600 dark:bg-green-900/30">
-          <Icon name="dollar" size="md" />
+      <div class="card flex items-center gap-2 p-2">
+        <div class="rounded-md bg-green-100 p-1 text-green-600 dark:bg-green-900/30">
+          <Icon name="dollar" size="sm" />
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-xs font-medium text-gray-500">{{ t('usage.totalCost') }}</p>
-          <p class="text-lg font-bold leading-tight text-green-600">
+          <p class="text-base font-bold leading-tight text-green-600">
             {{ formatPrimaryCost(stats) }}
           </p>
           <p v-if="stats?.total_account_cost != null" class="text-xs text-gray-400">
@@ -58,32 +56,32 @@
           </p>
         </div>
       </div>
-      <div class="card flex items-center gap-2.5 p-3">
-        <div class="rounded-md bg-purple-100 p-1.5 text-purple-600 dark:bg-purple-900/30">
-          <Icon name="clock" size="md" />
+      <div class="card flex items-center gap-2 p-2">
+        <div class="rounded-md bg-purple-100 p-1 text-purple-600 dark:bg-purple-900/30">
+          <Icon name="clock" size="sm" />
         </div>
         <div>
           <p class="text-xs font-medium text-gray-500">{{ t('usage.avgDuration') }}</p>
-          <p class="text-lg font-bold leading-tight">{{ formatDuration(stats?.average_duration_ms || 0) }}</p>
+          <p class="text-base font-bold leading-tight">{{ formatDuration(stats?.average_duration_ms || 0) }}</p>
         </div>
       </div>
     </div>
 
-    <div class="card border border-dashed border-primary-200/80 bg-primary-50/40 p-3 dark:border-primary-500/20 dark:bg-primary-500/5">
-      <div class="mb-2">
+    <div class="card border border-dashed border-primary-200/80 bg-primary-50/40 p-2 dark:border-primary-500/20 dark:bg-primary-500/5">
+      <div class="mb-1.5">
         <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.usage.todayStats') }}</p>
         <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('usage.todaySoFar') }}</p>
       </div>
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-4 xl:grid-cols-6">
-        <div class="rounded-lg bg-white/80 p-3 shadow-sm dark:bg-dark-900/70">
+      <div class="grid grid-cols-1 gap-2 md:grid-cols-4 xl:grid-cols-6">
+        <div class="rounded-md bg-white/80 p-2 shadow-sm dark:bg-dark-900/70">
           <p class="text-xs font-medium text-gray-500">{{ t('admin.usage.todayRequests') }}</p>
-          <p class="mt-1 text-lg font-bold leading-tight">{{ stats?.today_requests?.toLocaleString() || '0' }}</p>
+          <p class="mt-0.5 text-base font-bold leading-tight">{{ stats?.today_requests?.toLocaleString() || '0' }}</p>
         </div>
-        <div class="rounded-lg bg-white/80 p-3 shadow-sm dark:bg-dark-900/70 md:col-span-2 xl:col-span-3">
-          <div class="mb-2 flex items-start justify-between gap-3">
+        <div class="rounded-md bg-white/80 p-2 shadow-sm dark:bg-dark-900/70 md:col-span-2 xl:col-span-3">
+          <div class="mb-1.5 flex items-start justify-between gap-2">
             <div>
               <p class="text-xs font-medium text-gray-500">{{ t('admin.usage.todayTokens') }}</p>
-              <p class="mt-1 text-lg font-bold leading-tight">{{ formatTokens(stats?.today_tokens || 0) }}</p>
+              <p class="mt-0.5 text-base font-bold leading-tight">{{ formatTokens(stats?.today_tokens || 0) }}</p>
             </div>
             <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
               {{ formatPercent(stats?.today_cache_hit_rate || 0) }}
@@ -93,16 +91,16 @@
             <div
               v-for="item in todayTokenItems"
               :key="item.key"
-              class="rounded-md border border-gray-100 bg-gray-50/80 px-2.5 py-1.5 dark:border-dark-700 dark:bg-dark-800/70"
+              class="rounded-md border border-gray-100 bg-gray-50/80 px-2 py-1 dark:border-dark-700 dark:bg-dark-800/70"
             >
               <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ item.label }}</p>
               <p class="mt-1 text-sm font-semibold" :class="item.className">{{ item.value }}</p>
             </div>
           </div>
         </div>
-        <div class="rounded-lg bg-white/80 p-3 shadow-sm dark:bg-dark-900/70">
+        <div class="rounded-md bg-white/80 p-2 shadow-sm dark:bg-dark-900/70">
           <p class="text-xs font-medium text-gray-500">{{ t('admin.usage.todayCost') }}</p>
-          <p class="mt-1 text-lg font-bold leading-tight text-green-600">
+          <p class="mt-0.5 text-base font-bold leading-tight text-green-600">
             {{ formatCurrencyBreakdown(stats?.today_actual_cost_by_currency, stats?.today_actual_cost || 0) }}
           </p>
           <p class="text-xs text-gray-400">
@@ -112,9 +110,9 @@
             <span class="line-through">{{ formatCurrencyBreakdown(stats?.today_cost_by_currency, stats?.today_cost || 0) }}</span>
           </p>
         </div>
-        <div class="rounded-lg bg-white/80 p-3 shadow-sm dark:bg-dark-900/70">
+        <div class="rounded-md bg-white/80 p-2 shadow-sm dark:bg-dark-900/70">
           <p class="text-xs font-medium text-gray-500">{{ t('usage.todayAvgDuration') }}</p>
-          <p class="mt-1 text-lg font-bold leading-tight">{{ formatDuration(stats?.today_average_duration_ms || 0) }}</p>
+          <p class="mt-0.5 text-base font-bold leading-tight">{{ formatDuration(stats?.today_average_duration_ms || 0) }}</p>
         </div>
       </div>
     </div>

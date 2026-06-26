@@ -108,18 +108,23 @@
             @export="exportToExcel"
           >
             <template #after-reset>
-              <UsageDisplaySettingsMenu
-                :preferences="pagePreferences"
-                :hidden-columns="hiddenColumns"
-                :columns="allColumns"
-                :always-visible-columns="ALWAYS_VISIBLE"
-                :usage-model-display-mode="usageModelDisplayMode"
-                :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
-                :disabled="updatingUsageViewPreferences"
-                @update-preference="handleUsageViewPreferenceChange"
-                @toggle-column="toggleUsageColumn"
-                @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
-              />
+              <div class="flex items-center gap-2">
+                <UsageDisplaySettingsMenu
+                  :preferences="pagePreferences"
+                  :usage-model-display-mode="usageModelDisplayMode"
+                  :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
+                  :disabled="updatingUsageViewPreferences"
+                  @update-preference="handleUsageViewPreferenceChange"
+                  @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
+                />
+                <UsageColumnSettingsMenu
+                  :hidden-columns="hiddenColumns"
+                  :columns="allColumns"
+                  :always-visible-columns="ALWAYS_VISIBLE"
+                  :disabled="updatingUsageViewPreferences"
+                  @toggle-column="toggleUsageColumn"
+                />
+              </div>
             </template>
           </UsageFilters>
           <UsageTable
@@ -128,6 +133,8 @@
             :columns="visibleColumns"
             :usage-model-display-mode="usageModelDisplayMode"
             :table-density="pagePreferences.table_density"
+            :show-million-context-lines="pagePreferences.show_million_context_lines"
+            :user-agent-display-mode="pagePreferences.user_agent_display_mode"
             @userClick="handleUserClick"
           />
           <Pagination
@@ -201,6 +208,7 @@ import ModelDistributionChart from "@/components/charts/ModelDistributionChart.v
 import GroupDistributionChart from "@/components/charts/GroupDistributionChart.vue";
 import TokenUsageTrend from "@/components/charts/TokenUsageTrend.vue";
 import UsageDisplaySettingsMenu from "@/components/usage/UsageDisplaySettingsMenu.vue";
+import UsageColumnSettingsMenu from "@/components/usage/UsageColumnSettingsMenu.vue";
 import RequestDetailsTraceTab from "./request-details/components/RequestDetailsTraceTab.vue";
 import { useUsageModelDisplayModePreference } from "@/composables/useUsageModelDisplayModePreference";
 import { useUsageViewPreferences } from "@/composables/useUsageViewPreferences";
@@ -347,8 +355,8 @@ const handleUsageModelDisplayModeChange = async (
 };
 
 const handleUsageViewPreferenceChange = async (
-  key: "hidden_columns" | "token_display_mode" | "table_density" | "stats_card_style",
-  value: string,
+  key: keyof typeof pagePreferences.value,
+  value: string | boolean,
 ) => {
   await patchPagePreferences({ [key]: value } as any);
 };
@@ -802,7 +810,7 @@ const allColumns = computed(() => [
   },
   { key: "request_protocol", label: t("usage.requestProtocol"), sortable: false },
   { key: "endpoint", label: t("usage.endpoint"), sortable: false },
-  { key: "group", label: t("admin.usage.group"), sortable: false },
+  { key: "group", label: t("usage.callGroup"), sortable: false },
   { key: "stream", label: t("usage.type"), sortable: false },
   { key: "tokens", label: t("usage.tokens"), sortable: false },
   { key: "cache_hit", label: t("usage.cacheHit"), sortable: false },

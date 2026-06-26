@@ -64,13 +64,17 @@ func TestAPIContracts(t *testing.T) {
 							"hidden_columns": ["user_agent"],
 							"token_display_mode": "m",
 							"table_density": "comfortable",
-							"stats_card_style": "balanced"
+							"stats_card_style": "balanced",
+							"show_million_context_lines": true,
+							"user_agent_display_mode": "compact"
 						},
 						"user": {
 							"hidden_columns": [],
 							"token_display_mode": "m",
 							"table_density": "comfortable",
-							"stats_card_style": "balanced"
+							"stats_card_style": "balanced",
+							"show_million_context_lines": true,
+							"user_agent_display_mode": "compact"
 						}
 					},
 					"global_realtime_countdown_enabled": false,
@@ -442,13 +446,17 @@ func TestAPIContracts(t *testing.T) {
 							"hidden_columns": ["user_agent"],
 							"token_display_mode": "m",
 							"table_density": "comfortable",
-							"stats_card_style": "balanced"
+							"stats_card_style": "balanced",
+							"show_million_context_lines": true,
+							"user_agent_display_mode": "compact"
 						},
 						"user": {
 							"hidden_columns": [],
 							"token_display_mode": "m",
 							"table_density": "comfortable",
-							"stats_card_style": "balanced"
+							"stats_card_style": "balanced",
+							"show_million_context_lines": true,
+							"user_agent_display_mode": "compact"
 						}
 					},
 					"global_realtime_countdown_enabled": false,
@@ -575,13 +583,17 @@ func TestAPIContracts(t *testing.T) {
 							"hidden_columns": ["user_agent", "cache_hit"],
 							"token_display_mode": "k",
 							"table_density": "compact",
-							"stats_card_style": "accent"
+							"stats_card_style": "accent",
+							"show_million_context_lines": true,
+							"user_agent_display_mode": "compact"
 						},
 						"user": {
 							"hidden_columns": ["cache_hit"],
 							"token_display_mode": "k",
 							"table_density": "comfortable",
-							"stats_card_style": "balanced"
+							"stats_card_style": "balanced",
+							"show_million_context_lines": true,
+							"user_agent_display_mode": "compact"
 						}
 					},
 					"global_realtime_countdown_enabled": true,

@@ -20,13 +20,18 @@ const (
 
 	UsageViewStatsCardStyleBalanced = "balanced"
 	UsageViewStatsCardStyleAccent   = "accent"
+
+	UsageViewUserAgentDisplayCompact = "compact"
+	UsageViewUserAgentDisplayFull    = "full"
 )
 
 type UsageViewPagePreferences struct {
-	HiddenColumns  []string `json:"hidden_columns"`
-	TokenDisplay   string   `json:"token_display_mode"`
-	TableDensity   string   `json:"table_density"`
-	StatsCardStyle string   `json:"stats_card_style"`
+	HiddenColumns           []string `json:"hidden_columns"`
+	TokenDisplay            string   `json:"token_display_mode"`
+	TableDensity            string   `json:"table_density"`
+	StatsCardStyle          string   `json:"stats_card_style"`
+	ShowMillionContextLines *bool    `json:"show_million_context_lines"`
+	UserAgentDisplayMode    string   `json:"user_agent_display_mode"`
 }
 
 type UsageViewPreferences struct {
@@ -71,10 +76,12 @@ func NormalizeUsageViewPagePreferences(page string, input UsageViewPagePreferenc
 		}
 	}
 	return UsageViewPagePreferences{
-		HiddenColumns:  hidden,
-		TokenDisplay:   normalizeUsageViewTokenDisplay(input.TokenDisplay, defaults.TokenDisplay),
-		TableDensity:   normalizeUsageViewTableDensity(input.TableDensity, defaults.TableDensity),
-		StatsCardStyle: normalizeUsageViewStatsCardStyle(input.StatsCardStyle, defaults.StatsCardStyle),
+		HiddenColumns:           hidden,
+		TokenDisplay:            normalizeUsageViewTokenDisplay(input.TokenDisplay, defaults.TokenDisplay),
+		TableDensity:            normalizeUsageViewTableDensity(input.TableDensity, defaults.TableDensity),
+		StatsCardStyle:          normalizeUsageViewStatsCardStyle(input.StatsCardStyle, defaults.StatsCardStyle),
+		ShowMillionContextLines: normalizeUsageViewBool(input.ShowMillionContextLines, defaults.ShowMillionContextLines),
+		UserAgentDisplayMode:    normalizeUsageViewUserAgentDisplay(input.UserAgentDisplayMode, defaults.UserAgentDisplayMode),
 	}
 }
 
@@ -84,10 +91,12 @@ func defaultUsageViewPagePreferences(page string) UsageViewPagePreferences {
 		hidden = []string{"user_agent"}
 	}
 	return UsageViewPagePreferences{
-		HiddenColumns:  hidden,
-		TokenDisplay:   UsageViewTokenDisplayM,
-		TableDensity:   UsageViewTableDensityComfortable,
-		StatsCardStyle: UsageViewStatsCardStyleBalanced,
+		HiddenColumns:           hidden,
+		TokenDisplay:            UsageViewTokenDisplayM,
+		TableDensity:            UsageViewTableDensityComfortable,
+		StatsCardStyle:          UsageViewStatsCardStyleBalanced,
+		ShowMillionContextLines: usageViewBoolPtr(true),
+		UserAgentDisplayMode:    UsageViewUserAgentDisplayCompact,
 	}
 }
 
@@ -101,6 +110,7 @@ func allowedUsageViewColumns(page string) map[string]struct{} {
 		"reasoning_effort",
 		"request_protocol",
 		"endpoint",
+		"group",
 		"stream",
 		"tokens",
 		"cache_hit",
@@ -108,10 +118,9 @@ func allowedUsageViewColumns(page string) map[string]struct{} {
 		"first_token",
 		"duration",
 		"user_agent",
-		"actions",
 	}
 	if page == UsageViewPageAdmin {
-		common = append(common, "account", "group", "ip_address")
+		common = append(common, "account", "ip_address")
 	}
 	out := make(map[string]struct{}, len(common))
 	for _, key := range common {
@@ -153,4 +162,29 @@ func normalizeUsageViewStatsCardStyle(value, fallback string) string {
 	default:
 		return fallback
 	}
+}
+
+func normalizeUsageViewBool(value, fallback *bool) *bool {
+	if value != nil {
+		return usageViewBoolPtr(*value)
+	}
+	if fallback != nil {
+		return usageViewBoolPtr(*fallback)
+	}
+	return usageViewBoolPtr(false)
+}
+
+func normalizeUsageViewUserAgentDisplay(value, fallback string) string {
+	switch strings.TrimSpace(value) {
+	case UsageViewUserAgentDisplayFull:
+		return UsageViewUserAgentDisplayFull
+	case UsageViewUserAgentDisplayCompact:
+		return UsageViewUserAgentDisplayCompact
+	default:
+		return fallback
+	}
+}
+
+func usageViewBoolPtr(value bool) *bool {
+	return &value
 }

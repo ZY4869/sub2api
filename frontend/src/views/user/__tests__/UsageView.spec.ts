@@ -38,12 +38,16 @@ const authState = vi.hoisted(() => ({
         token_display_mode: "m",
         table_density: "comfortable",
         stats_card_style: "balanced",
+        show_million_context_lines: true,
+        user_agent_display_mode: "compact",
       },
       user: {
         hidden_columns: [],
         token_display_mode: "m",
         table_density: "comfortable",
         stats_card_style: "balanced",
+        show_million_context_lines: true,
+        user_agent_display_mode: "compact",
       },
     },
   },
@@ -214,24 +218,16 @@ const TablePageLayoutStub = {
 const UsageDisplaySettingsMenuStub = {
   props: [
     "preferences",
-    "hiddenColumns",
-    "columns",
-    "alwaysVisibleColumns",
     "usageModelDisplayMode",
     "updatingUsageModelDisplayMode",
     "disabled",
   ],
-  emits: [
-    "update-preference",
-    "toggle-column",
-    "update-usage-model-display-mode",
-  ],
+  emits: ["update-preference", "update-usage-model-display-mode"],
   template: `
     <div data-testid="usage-display-settings-menu">
       <span data-testid="usage-settings-token-mode">{{ preferences.token_display_mode }}</span>
       <span data-testid="usage-settings-density">{{ preferences.table_density }}</span>
       <span data-testid="usage-settings-card-style">{{ preferences.stats_card_style }}</span>
-      <span data-testid="usage-settings-columns">{{ columns.map(column => column.key).join(",") }}</span>
       <button
         data-testid="usage-model-toggle"
         @click="$emit('update-usage-model-display-mode', 'display_and_model')"
@@ -239,16 +235,25 @@ const UsageDisplaySettingsMenuStub = {
         usage.modelDisplay|{{ usageModelDisplayMode }}
       </button>
       <button
-        data-testid="usage-column-toggle"
-        @click="$emit('toggle-column', 'cache_hit')"
-      >
-        column
-      </button>
-      <button
         data-testid="usage-density-toggle"
         @click="$emit('update-preference', 'table_density', 'compact')"
       >
         density
+      </button>
+    </div>
+  `,
+};
+const UsageColumnSettingsMenuStub = {
+  props: ["hiddenColumns", "columns", "alwaysVisibleColumns", "disabled"],
+  emits: ["toggle-column"],
+  template: `
+    <div data-testid="usage-column-settings-menu">
+      <span data-testid="usage-column-settings-columns">{{ columns.map(column => column.key).join(",") }}</span>
+      <button
+        data-testid="usage-column-toggle"
+        @click="$emit('toggle-column', 'cache_hit')"
+      >
+        column
       </button>
     </div>
   `,
@@ -350,6 +355,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -487,6 +493,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -607,6 +614,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -697,6 +705,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -778,6 +787,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -802,7 +812,8 @@ describe("user UsageView tooltip", () => {
     expect(row.text()).toContain("null-duration-key");
     expect(row.text()).toContain("gemini-3-flash-preview");
     expect(row.text()).toContain("Failed");
-    expect(rowCells[12].text()).toBe("-");
+    expect(rowCells[14].text()).toBe("-");
+    expect(row.text()).not.toContain("Request Details");
   });
 
   it("renders usage rows when query data is returned", async () => {
@@ -862,6 +873,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -907,6 +919,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: true,
           UsageModelDisplayModeToggle: true,
           Teleport: true,
@@ -950,6 +963,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: true,
           UsageModelDisplayModeToggle: {
             props: ['modelValue', 'disabled', 'showLabel', 'compact', 'labelText'],
@@ -1064,6 +1078,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -1145,6 +1160,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -1230,6 +1246,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -1267,12 +1284,12 @@ describe("user UsageView tooltip", () => {
     expect(wrapper.text()).toContain("daily-key");
   });
 
-  it("opens request preview modal and renders captured panels", async () => {
+  it("does not render the user actions column or request preview entry", async () => {
     query.mockResolvedValue({
       items: [
         {
           id: 6,
-          request_id: "req-preview-visible",
+          request_id: "req-no-actions",
           model: "gpt-5.4",
           status: "succeeded",
           thinking_enabled: false,
@@ -1307,17 +1324,6 @@ describe("user UsageView tooltip", () => {
       avg_duration_ms: 40,
     });
     listFilterApiKeys.mockResolvedValue([]);
-    getRequestPreview.mockResolvedValue({
-      available: true,
-      request_id: "req-preview-visible",
-      captured_at: "2026-03-08T00:00:10Z",
-      inbound_request_json: '{"messages":[{"role":"user","content":"hello"}]}',
-      normalized_request_json: '{"normalized":true}',
-      upstream_request_json: '{"target":"upstream"}',
-      upstream_response_json: '{"status":"ok"}',
-      gateway_response_json: '{"gateway":"ok"}',
-      tool_trace_json: '{"tools":["search"]}',
-    });
 
     const wrapper = mount(UsageView, {
       global: {
@@ -1331,6 +1337,7 @@ describe("user UsageView tooltip", () => {
           Icon: true,
           TokenDisplayModeToggle: true,
           UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
           UsageModelCell: {
             props: ["row"],
             template: '<div>{{ row.model }}</div>',
@@ -1345,184 +1352,13 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
     await nextTick();
 
-    const previewButton = wrapper
-      .findAll("button")
-      .find((button) => button.text() === "Request Details");
-    expect(previewButton).toBeDefined();
+    const columns = ((wrapper.vm as any).$?.setupState.allColumns.value ??
+      (wrapper.vm as any).$?.setupState.allColumns) as Array<{ key: string }>;
 
-    await previewButton!.trigger("click");
-    await flushPromises();
-    await nextTick();
-
-    expect(getRequestPreview).toHaveBeenCalledWith(
-      6,
-      expect.objectContaining({
-        signal: expect.any(AbortSignal),
-      }),
-    );
-    expect(wrapper.text()).toContain("Inbound Request");
-    expect(wrapper.text()).toContain("hello");
-    expect(wrapper.text()).toContain("Tools / Thinking");
-  });
-
-  it("shows a clear empty state when request preview is unavailable", async () => {
-    query.mockResolvedValue({
-      items: [
-        {
-          id: 7,
-          request_id: "req-preview-missing",
-          model: "gpt-5.4",
-          status: "succeeded",
-          thinking_enabled: false,
-          reasoning_effort: null,
-          actual_cost: 0.01,
-          total_cost: 0.01,
-          input_cost: 0.004,
-          output_cost: 0.006,
-          cache_creation_cost: 0,
-          cache_read_cost: 0,
-          input_tokens: 100,
-          output_tokens: 200,
-          cache_creation_tokens: 0,
-          cache_read_tokens: 0,
-          cache_creation_5m_tokens: 0,
-          cache_creation_1h_tokens: 0,
-          image_count: 0,
-          image_size: null,
-          first_token_ms: 20,
-          duration_ms: 40,
-          created_at: "2026-03-08T00:00:00Z",
-          api_key: { name: "preview-key" },
-        },
-      ],
-      total: 1,
-      pages: 1,
-    });
-    getStatsByDateRange.mockResolvedValue({
-      total_requests: 1,
-      total_tokens: 300,
-      total_cost: 0.01,
-      avg_duration_ms: 40,
-    });
-    listFilterApiKeys.mockResolvedValue([]);
-    getRequestPreview.mockResolvedValue({
-      available: false,
-      request_id: "req-preview-missing",
-      captured_at: null,
-      inbound_request_json: "",
-      normalized_request_json: "",
-      upstream_request_json: "",
-      upstream_response_json: "",
-      gateway_response_json: "",
-      tool_trace_json: "",
-    });
-
-    const wrapper = mount(UsageView, {
-      global: {
-        stubs: {
-          AppLayout: AppLayoutStub,
-          TablePageLayout: TablePageLayoutStub,
-          Pagination: true,
-          EmptyState: true,
-          Select: true,
-          DateRangePicker: true,
-          Icon: true,
-          TokenDisplayModeToggle: true,
-          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
-          UsageModelCell: {
-            props: ["row"],
-            template: '<div>{{ row.model }}</div>',
-          },
-          UsageModelDisplayModeToggle: true,
-          UsageContextBadgeDisplayModeToggle: true,
-          Teleport: true,
-        },
-      },
-    });
-
-    await flushPromises();
-    await nextTick();
-
-    const previewButton = wrapper
-      .findAll("button")
-      .find((button) => button.text() === "Request Details");
-    await previewButton!.trigger("click");
-    await flushPromises();
-    await nextTick();
-
-    expect(wrapper.text()).toContain("No request details captured");
-  });
-
-  it("shows a friendly error when request preview loading fails", async () => {
-    query.mockResolvedValue({
-      items: [
-        {
-          id: 8,
-          request_id: "req-preview-error",
-          model: "gpt-5.4",
-          status: "succeeded",
-          thinking_enabled: false,
-          reasoning_effort: null,
-          actual_cost: 0.01,
-          total_cost: 0.01,
-          input_cost: 0.004,
-          output_cost: 0.006,
-          cache_creation_cost: 0,
-          cache_read_cost: 0,
-          input_tokens: 100,
-          output_tokens: 200,
-          cache_creation_tokens: 0,
-          cache_read_tokens: 0,
-          cache_creation_5m_tokens: 0,
-          cache_creation_1h_tokens: 0,
-          image_count: 0,
-          image_size: null,
-          first_token_ms: 20,
-          duration_ms: 40,
-          created_at: "2026-03-08T00:00:00Z",
-          api_key: { name: "preview-key" },
-        },
-      ],
-      total: 1,
-      pages: 1,
-    });
-    getStatsByDateRange.mockResolvedValue({
-      total_requests: 1,
-      total_tokens: 300,
-      total_cost: 0.01,
-      avg_duration_ms: 40,
-    });
-    listFilterApiKeys.mockResolvedValue([]);
-    getRequestPreview.mockRejectedValue(new Error("network error"));
-
-    const wrapper = mount(UsageView, {
-      global: {
-        stubs: {
-          AppLayout: AppLayoutStub,
-          TablePageLayout: TablePageLayoutStub,
-          Pagination: true,
-          EmptyState: true,
-          Select: true,
-          DateRangePicker: true,
-          Icon: true,
-          TokenDisplayModeToggle: true,
-          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
-          Teleport: true,
-        },
-      },
-    });
-
-    await flushPromises();
-    await nextTick();
-
-    const previewButton = wrapper
-      .findAll("button")
-      .find((button) => button.text() === "Request Details");
-    await previewButton!.trigger("click");
-    await flushPromises();
-    await nextTick();
-
-    expect(wrapper.text()).toContain("Failed to load request details");
+    expect(columns.map((column) => column.key)).not.toContain("actions");
+    expect(wrapper.findAll("button").some((button) => button.text() === "Request Details")).toBe(false);
+    expect(wrapper.text()).not.toContain("Request Details");
+    expect(getRequestPreview).not.toHaveBeenCalled();
   });
 
   it("uses Cache Hit and Cache Miss labels for DeepSeek token tooltips", async () => {

@@ -78,7 +78,7 @@
         {{ formatReasoningEffortPair(row.reasoning_effort_raw, row.reasoning_effort_effective, row.reasoning_effort) }}
       </div>
       <div
-        v-if="formatUsageMillionContextLines(row).length > 0"
+        v-if="showMillionContextLines && formatUsageMillionContextLines(row).length > 0"
         class="space-y-0.5 text-xs text-gray-500 dark:text-gray-400"
       >
         <span
@@ -119,26 +119,21 @@
   </template>
 
   <template #cell-endpoint="{ row }">
-    <div
-      class="block max-w-[320px] space-y-1 text-sm text-gray-600 dark:text-gray-300"
+    <UsageEndpointIconCell
+      :inbound-path="row.inbound_endpoint"
+      :upstream-path="row.upstream_endpoint"
+    />
+  </template>
+
+  <template #cell-group="{ row }">
+    <span
+      v-if="row.group?.name"
+      class="inline-flex max-w-[9rem] items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
+      :title="row.group.name"
     >
-      <div
-        v-for="line in formatUsageEndpoints(row)"
-        :key="`${row.id}-${line.key}`"
-        class="whitespace-normal break-all"
-      >
-        <span class="font-medium text-gray-500 dark:text-gray-400"
-          >{{ t(line.labelKey) }}:</span
-        >
-        <span class="ml-1" :title="line.raw">{{ line.display }}</span>
-      </div>
-      <div
-        v-if="formatUsageEndpoints(row).length === 0"
-        class="text-sm text-gray-400 dark:text-gray-500"
-      >
-        -
-      </div>
-    </div>
+      <span class="truncate">{{ row.group.name }}</span>
+    </span>
+    <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
   </template>
 
   <template #cell-stream="{ row }">
@@ -336,26 +331,11 @@
   </template>
 
   <template #cell-user_agent="{ row }">
-    <span
-      v-if="row.user_agent"
-      class="text-sm text-gray-600 dark:text-gray-400 block max-w-[320px] whitespace-normal break-all"
-      :title="row.user_agent"
-      >{{ formatUserAgent(row.user_agent) }}</span
-    >
-    <span v-else class="text-sm text-gray-400 dark:text-gray-500"
-      >-</span
-    >
-  </template>
-
-  <template #cell-actions="{ row }">
-    <button
-      class="btn btn-secondary btn-sm"
-      type="button"
-      :disabled="!row.id"
-      @click="$emit('open-request-preview', row)"
-    >
-      {{ t("usage.requestPreview.action") }}
-    </button>
+    <UsageUserAgentCell
+      :user-agent="row.user_agent"
+      :display-mode="userAgentDisplayMode"
+      :format-user-agent="formatUserAgent"
+    />
   </template>
 
   <template #empty>
@@ -373,24 +353,28 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import UsageModelCell from "@/components/common/UsageModelCell.vue";
 import UsageSuccessRateCell from "@/components/common/UsageSuccessRateCell.vue";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
+import UsageEndpointIconCell from "@/components/usage/UsageEndpointIconCell.vue";
+import UsageUserAgentCell from "@/components/usage/UsageUserAgentCell.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type {
   UsageLog,
   UsageModelDisplayMode,
+  UsageViewUserAgentDisplayMode,
 } from "@/types";
 import type { Column } from "@/components/common/types";
 import type {
-  UsageEndpointDisplayLine,
   UsageMillionContextDisplayLine,
 } from "@/utils/usageDisplay";
 import { formatDateTime } from "@/utils/format";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   columns: Column[];
   usageLogs: UsageLog[];
   loading: boolean;
   usageModelDisplayMode: UsageModelDisplayMode;
   tableDensity?: "comfortable" | "compact";
+  showMillionContextLines?: boolean;
+  userAgentDisplayMode?: UsageViewUserAgentDisplayMode;
   formatCurrencyBreakdown: (
     values: Record<string, number> | null | undefined,
     fallbackUSD: number | null | undefined,
@@ -407,19 +391,21 @@ const props = defineProps<{
   formatReasoningEffortPair: (raw?: string | null, effective?: string | null, legacy?: string | null) => string;
   formatUsageMillionContextLines: (row: UsageLog) => UsageMillionContextDisplayLine[];
   formatThinkingEnabled: (value: boolean | null | undefined) => string;
-  formatUsageEndpoints: (row: UsageLog) => UsageEndpointDisplayLine[];
   getRequestTypeBadgeClass: (log: UsageLog) => string;
   getRequestTypeLabel: (log: UsageLog) => string;
   getChargeLabel: (row: UsageLog) => string | null;
   getChargeBadgeClass: (row: UsageLog) => string;
-}>();
+}>(), {
+  tableDensity: "comfortable",
+  showMillionContextLines: true,
+  userAgentDisplayMode: "compact",
+});
 
 defineEmits<{
   "show-token-tooltip": [event: MouseEvent, row: UsageLog];
   "hide-token-tooltip": [];
   "show-cost-tooltip": [event: MouseEvent, row: UsageLog];
   "hide-cost-tooltip": [];
-  "open-request-preview": [row: UsageLog];
 }>();
 
 const { t } = useI18n();

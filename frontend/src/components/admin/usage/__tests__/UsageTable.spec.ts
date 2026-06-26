@@ -124,6 +124,8 @@ const DataTableStub = {
         <slot name="cell-status" :row="row" />
         <slot name="cell-reasoning_effort" :row="row" />
         <slot name="cell-request_protocol" :row="row" />
+        <div data-test="endpoint-cell"><slot name="cell-endpoint" :row="row" /></div>
+        <div data-test="group-cell"><slot name="cell-group" :row="row" /></div>
         <slot name="cell-stream" :row="row" />
         <div data-test="token-cell"><slot name="cell-tokens" :row="row" /></div>
         <div data-test="cache-hit-cell"><slot name="cell-cache_hit" :row="row" /></div>
@@ -159,6 +161,10 @@ function mountUsageTable(
         DataTable: DataTableStub,
         EmptyState: true,
         Icon: IconStub,
+        PlatformIcon: {
+          props: ['platform'],
+          template: '<span data-test="platform-icon" :data-platform="platform" />',
+        },
         AccountErrorTooltipButton: false,
         ModelIcon: true,
         Teleport: true,
@@ -356,9 +362,9 @@ describe('admin UsageTable tooltip', () => {
 
     expect(tokenText).toContain('1M')
     expect(tokenText).toContain('2M')
-    expect(tokenText).toContain('0.6M')
-    expect(tokenText).toContain('0.7M')
-    expect(cacheHitText).toContain('0.7M')
+    expect(tokenText).toContain('600K')
+    expect(tokenText).toContain('700K')
+    expect(cacheHitText).toContain('700K')
     expect(cacheHitText).toContain('30.4%')
   })
 
@@ -393,7 +399,7 @@ describe('admin UsageTable tooltip', () => {
     expect(wrapper.find('[title="Disabled"]').exists()).toBe(true)
   })
 
-  it('does not render 1M capability lines in the reasoning effort cell anymore', () => {
+  it('renders 1M capability lines only when the display preference is enabled', () => {
     const row = {
       id: 5,
       request_id: 'req-admin-1m',
@@ -416,13 +422,48 @@ describe('admin UsageTable tooltip', () => {
       output_tokens: 0,
     }
 
+    const hidden = mountUsageTable([row], {
+      props: {
+        showMillionContextLines: false,
+      },
+    })
+
+    expect(hidden.text()).toContain('Max -> Xhigh')
+    expect(hidden.text()).not.toContain('1M Requested')
+    expect(hidden.text()).not.toContain('1M Effective')
+    expect(hidden.text()).not.toContain('1M Source')
+
+    const visible = mountUsageTable([row])
+    expect(visible.text()).toContain('1M Requested')
+    expect(visible.text()).toContain('1M Effective')
+    expect(visible.text()).toContain('1M Source')
+  })
+
+  it('renders call group and endpoint icon cells', () => {
+    const row = {
+      id: 8,
+      request_id: 'req-admin-group-endpoint',
+      inbound_endpoint: '/v1/chat/completions',
+      upstream_endpoint: '/v1/responses',
+      group: { id: 12, name: 'Priority Group' },
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    }
+
     const wrapper = mountUsageTable([row])
 
-    const text = wrapper.text()
-    expect(text).toContain('Max -> Xhigh')
-    expect(text).not.toContain('1M Requested')
-    expect(text).not.toContain('1M Effective')
-    expect(text).not.toContain('1M Source')
+    expect(wrapper.get('[data-test="group-cell"]').text()).toContain('Priority Group')
+    expect(wrapper.get('[data-test="endpoint-cell"]').findAll('[data-test="platform-icon"]')).toHaveLength(2)
+    expect(wrapper.get('[title="usage.inbound: Chat Completions (/v1/chat/completions)"]').exists()).toBe(true)
+    expect(wrapper.get('[title="usage.upstream: Responses API (/v1/responses)"]').exists()).toBe(true)
   })
 
   it('renders system operation badge alongside transport label', () => {
