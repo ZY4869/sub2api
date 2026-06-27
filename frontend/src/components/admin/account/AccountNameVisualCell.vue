@@ -22,12 +22,17 @@
         v-if="showHealthyDot"
         class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500"
       ></span>
-      <span
+      <AccountErrorTooltipButton
         v-else-if="showErrorDot"
-        class="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-white bg-rose-500"
+        :message="errorDotMessage"
+        :ariaLabel="t('admin.accounts.status.viewIssueDetails')"
+        wrapper-class="absolute -bottom-0.5 -right-0.5"
+        button-class="relative flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-white bg-rose-500 text-white shadow-sm transition hover:bg-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/70"
+        icon-name="exclamationCircle"
+        icon-size="xs"
       >
         <span class="h-full w-full animate-ping rounded-full bg-rose-500 opacity-60"></span>
-      </span>
+      </AccountErrorTooltipButton>
     </div>
 
     <div class="flex min-w-0 flex-1 flex-col justify-center">
@@ -113,6 +118,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account } from '@/types'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
+import AccountErrorTooltipButton from '@/components/account/AccountErrorTooltipButton.vue'
 import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
 import { getPlatformEnglishName } from '@/utils/platformBranding'
 
@@ -266,6 +272,20 @@ const showHealthyDot = computed(() => {
 })
 const showErrorDot = computed(() => {
   return props.account.status === 'error' || props.account.lifecycle_state === 'blacklisted'
+})
+const errorDotMessage = computed(() => {
+  const candidates = [
+    props.account.error_message,
+    props.account.lifecycle_reason_message,
+    props.account.auto_recovery_probe?.summary,
+    props.account.auto_recovery_probe?.error_code,
+    props.account.lifecycle_reason_code,
+  ]
+  for (const value of candidates) {
+    const text = String(value || '').trim()
+    if (text) return text
+  }
+  return t('admin.accounts.status.issueSummaries.error')
 })
 const avatarClass = computed(() => platformTheme.value.avatar)
 const nameClass = computed(() => platformTheme.value.name)

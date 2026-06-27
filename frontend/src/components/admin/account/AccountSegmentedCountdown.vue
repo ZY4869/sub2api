@@ -1,5 +1,12 @@
 <template>
   <div data-test="account-segmented-countdown" class="flex items-center gap-[3px]">
+    <span
+      v-if="prefix"
+      :class="prefixClass"
+      data-test="account-segmented-countdown-prefix"
+    >
+      {{ prefix }}
+    </span>
     <template v-if="days > 0">
       <div :class="blockClass">{{ days }}</div>
       <span :class="accentClass">d</span>
@@ -23,6 +30,7 @@ import {
 const props = defineProps<{
   resetAt: string
   tone: AccountGlassTone
+  prefix?: string
 }>()
 
 const { nowMs } = useRealtimeCountdownNow('accounts')
@@ -48,6 +56,10 @@ const seconds = computed(() =>
 const toneStyles = computed(() => resolveAccountGlassToneStyles(props.tone))
 const blockClass = computed(() => [
   'flex min-w-[24px] items-center justify-center rounded-md border px-1 py-[1.5px] font-mono text-[12px] font-black tracking-tight',
+  toneStyles.value.timerBlockClass
+])
+const prefixClass = computed(() => [
+  'inline-flex min-w-[24px] items-center justify-center rounded-full border px-1.5 py-[1.5px] text-[11px] font-black leading-none tracking-normal',
   toneStyles.value.timerBlockClass
 ])
 const accentClass = computed(() => [

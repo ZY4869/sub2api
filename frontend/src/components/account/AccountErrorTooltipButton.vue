@@ -1,5 +1,5 @@
 <template>
-  <div class="relative">
+  <div :class="wrapperClass">
     <button
       ref="triggerRef"
       type="button"
@@ -9,8 +9,11 @@
       @mouseleave="hideTooltip"
       @focus="showTooltip"
       @blur="hideTooltip"
+      @click.stop="copyMessage"
     >
-      <Icon name="questionCircle" size="sm" :stroke-width="2" />
+      <slot>
+        <Icon :name="iconName" :size="iconSize" :stroke-width="2" />
+      </slot>
     </button>
     <Teleport to="body">
       <div
@@ -35,14 +38,21 @@
 <script setup lang="ts">
 import { nextTick, onUnmounted, ref } from 'vue'
 import Icon from '@/components/icons/Icon.vue'
+import { useClipboard } from '@/composables/useClipboard'
 
 const props = withDefaults(defineProps<{
   message: string
   ariaLabel: string
+  wrapperClass?: string
   buttonClass?: string
+  iconName?: 'questionCircle' | 'infoCircle' | 'exclamationCircle'
+  iconSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 }>(), {
+  wrapperClass: 'relative',
   buttonClass:
-    'text-red-500 transition-colors hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 dark:text-red-400 dark:hover:text-red-300'
+    'text-red-500 transition-colors hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 dark:text-red-400 dark:hover:text-red-300',
+  iconName: 'questionCircle',
+  iconSize: 'sm'
 })
 
 const tooltipVisible = ref(false)
@@ -50,6 +60,7 @@ const triggerRef = ref<HTMLElement | null>(null)
 const tooltipRef = ref<HTMLElement | null>(null)
 const tooltipStyle = ref<Record<string, string>>({})
 const tooltipArrowStyle = ref<Record<string, string>>({})
+const { copyToClipboard } = useClipboard()
 
 const TOOLTIP_MARGIN = 12
 const TOOLTIP_OFFSET = 10
@@ -128,6 +139,10 @@ const showTooltip = async () => {
 const hideTooltip = () => {
   tooltipVisible.value = false
   detachListeners()
+}
+
+const copyMessage = async () => {
+  await copyToClipboard(props.message)
 }
 
 onUnmounted(() => {

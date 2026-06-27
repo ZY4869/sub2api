@@ -70,13 +70,21 @@ describe('AccountServiceAuthVisualCell', () => {
       },
     })
 
-    const mainBadge = wrapper.find('svg').element.parentElement
+    const mainBadge = wrapper.get('[data-test="account-service-plan-badge"]')
+    const keyIcon = wrapper.get('[data-test="account-key-type-icon"]')
+    const authTypeIcon = wrapper.get('[data-test="account-auth-type-icon"]')
     expect(wrapper.text()).toContain('Key')
     expect(wrapper.text()).toContain('Plus')
     expect(wrapper.text()).toContain('admin.accounts.platforms.openai')
-    expect(mainBadge?.classList.contains('bg-emerald-50')).toBe(true)
-    expect(mainBadge?.classList.contains('text-emerald-700')).toBe(true)
-    expect(mainBadge?.classList.contains('w-fit')).toBe(true)
+    expect(keyIcon.classes()).toContain('bg-emerald-100')
+    expect(keyIcon.classes()).toContain('text-emerald-700')
+    expect(authTypeIcon.classes()).toContain('bg-amber-50')
+    expect(authTypeIcon.classes()).toContain('text-amber-600')
+    expect(wrapper.html()).toContain('bg-emerald-50/90')
+    expect(wrapper.html()).toContain('bg-amber-50/90')
+    expect(mainBadge.classes()).toContain('bg-emerald-50')
+    expect(mainBadge.classes()).toContain('text-emerald-700')
+    expect(mainBadge.classes()).toContain('w-fit')
   })
 
   it('maps Gemini Ultra API Key tier to the high-tier palette', () => {
@@ -88,10 +96,10 @@ describe('AccountServiceAuthVisualCell', () => {
       },
     })
 
-    const mainBadge = wrapper.find('svg').element.parentElement
+    const mainBadge = wrapper.get('[data-test="account-service-plan-badge"]')
     expect(wrapper.text()).toContain('Key')
     expect(wrapper.text()).toContain('Ultra')
-    expect(mainBadge?.classList.contains('bg-slate-800')).toBe(true)
-    expect(mainBadge?.classList.contains('text-amber-400')).toBe(true)
+    expect(mainBadge.classes()).toContain('bg-slate-800')
+    expect(mainBadge.classes()).toContain('text-amber-400')
   })
 })

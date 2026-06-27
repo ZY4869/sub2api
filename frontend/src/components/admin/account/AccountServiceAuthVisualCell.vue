@@ -8,8 +8,15 @@
           planBadgeClass
         ]"
         :title="planLabel"
+        data-test="account-service-plan-badge"
       >
-        <Icon v-if="isApiKeyAccount" name="fingerprint" size="xs" :stroke-width="2.2" />
+        <span
+          v-if="isApiKeyAccount"
+          :class="['flex h-4 w-4 shrink-0 items-center justify-center rounded-full', keyIconClass]"
+          data-test="account-key-type-icon"
+        >
+          <Icon name="key" size="xs" :stroke-width="2.4" />
+        </span>
         <PlatformIcon v-else :platform="platform" size="xs" />
         <span class="min-w-0 max-w-[5.5rem] truncate text-[11px] font-bold leading-none tracking-tight">
           {{ planLabel }}
@@ -18,8 +25,12 @@
 
       <div class="flex shrink-0 items-center gap-1">
         <div
-          class="flex h-6 w-6 items-center justify-center rounded-full border border-gray-200/80 bg-white text-gray-400 dark:border-slate-700 dark:bg-slate-900/70"
+          :class="[
+            'flex h-6 w-6 items-center justify-center rounded-full border',
+            authTypeIconClass
+          ]"
           :title="typeTitle"
+          data-test="account-auth-type-icon"
         >
           <svg
             v-if="type === 'oauth'"
@@ -81,19 +92,23 @@
     </div>
 
     <div class="flex min-w-0 flex-wrap items-center gap-1">
-      <span :class="metaBadgeClass" :title="platformLabel">
+      <span :class="[metaBadgeClass, platformMetaBadgeClass]" :title="platformLabel">
         {{ platformLabel }}
       </span>
-      <span :class="metaBadgeClass" :title="typeLabel">
+      <span :class="[metaBadgeClass, typeMetaBadgeClass]" :title="typeLabel">
         {{ typeLabel }}
       </span>
-      <span v-if="isApiKeyAccount && keyTierDisplay.tierLabel" :class="metaBadgeClass" :title="keyTierDisplay.tierLabel">
+      <span
+        v-if="isApiKeyAccount && keyTierDisplay.tierLabel"
+        :class="[metaBadgeClass, tierMetaBadgeClass]"
+        :title="keyTierDisplay.tierLabel"
+      >
         {{ keyTierDisplay.tierLabel }}
       </span>
-      <span v-if="gatewayProtocolLabel" :class="metaBadgeClass" :title="gatewayProtocolLabel">
+      <span v-if="gatewayProtocolLabel" :class="[metaBadgeClass, platformMetaBadgeClass]" :title="gatewayProtocolLabel">
         {{ gatewayProtocolLabel }}
       </span>
-      <span v-if="expiresLabel" :class="metaBadgeClass" :title="expiresLabel">
+      <span v-if="expiresLabel" :class="[metaBadgeClass, tierMetaBadgeClass]" :title="expiresLabel">
         {{ expiresLabel }}
       </span>
     </div>
@@ -158,6 +173,7 @@ const typeLabel = computed(() => {
 })
 
 const typeTitle = computed(() => `${platformLabel.value} / ${typeLabel.value}`)
+const normalizedPlatform = computed(() => String(props.platform || '').trim().toLowerCase())
 
 const gatewayProtocolLabel = computed(() => {
   if (!isProtocolGatewayPlatform(props.platform)) return ''
@@ -231,7 +247,70 @@ const planBadgeClass = computed(() => {
 })
 
 const metaBadgeClass =
-  'inline-flex max-w-[76px] items-center rounded border border-slate-200/75 bg-slate-50/92 px-1.5 py-[2px] text-[10px] font-medium text-gray-600 dark:border-slate-700/80 dark:bg-slate-800/70 dark:text-slate-200 truncate'
+  'inline-flex max-w-[76px] items-center rounded px-1.5 py-[2px] text-[10px] font-semibold truncate'
+
+const keyIconClass = computed(() => {
+  if (keyTierDisplay.value.className.includes('bg-slate-800')) {
+    return 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-300/40'
+  }
+  if (keyTierDisplay.value.className.includes('emerald')) {
+    return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200'
+  }
+  if (keyTierDisplay.value.className.includes('blue')) {
+    return 'bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200'
+  }
+  return 'bg-sky-100 text-sky-700 dark:bg-sky-400/15 dark:text-sky-200'
+})
+
+const authTypeIconClass = computed(() => {
+  switch (props.type) {
+    case 'oauth':
+      return 'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200'
+    case 'setup-token':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200'
+    case 'apikey':
+      return 'border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200'
+    case 'sso':
+      return 'border-violet-200 bg-violet-50 text-violet-600 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-200'
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-200'
+  }
+})
+
+const platformMetaBadgeClass = computed(() => {
+  switch (normalizedPlatform.value) {
+    case 'openai':
+      return 'border border-emerald-200/80 bg-emerald-50/90 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-100'
+    case 'anthropic':
+      return 'border border-orange-200/80 bg-orange-50/90 text-orange-700 dark:border-orange-400/20 dark:bg-orange-400/10 dark:text-orange-100'
+    case 'gemini':
+      return 'border border-blue-200/80 bg-blue-50/90 text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-100'
+    case 'antigravity':
+      return 'border border-violet-200/80 bg-violet-50/90 text-violet-700 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-100'
+    default:
+      return 'border border-slate-200/80 bg-slate-50/90 text-slate-700 dark:border-slate-600/40 dark:bg-slate-700/40 dark:text-slate-100'
+  }
+})
+
+const typeMetaBadgeClass = computed(() => {
+  switch (props.type) {
+    case 'oauth':
+      return 'border border-blue-200/80 bg-blue-50/90 text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-100'
+    case 'apikey':
+      return 'border border-amber-200/80 bg-amber-50/90 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100'
+    case 'setup-token':
+      return 'border border-emerald-200/80 bg-emerald-50/90 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-100'
+    default:
+      return 'border border-slate-200/80 bg-slate-50/90 text-slate-700 dark:border-slate-600/40 dark:bg-slate-700/40 dark:text-slate-100'
+  }
+})
+
+const tierMetaBadgeClass = computed(() => {
+  if (keyTierDisplay.value.className.includes('bg-slate-800')) {
+    return 'border border-slate-700 bg-slate-800 text-amber-300 dark:border-amber-400/20'
+  }
+  return typeMetaBadgeClass.value
+})
 
 const privacyBadge = computed(() => {
   if (props.platform !== 'openai' || props.type !== 'oauth' || !props.privacyMode) return null

@@ -106,16 +106,6 @@
               >
                 {{ getSimulatedClientLabel(row.simulated_client) }}
               </span>
-              <button
-                v-if="row.status === 'failed'"
-                type="button"
-                class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 transition hover:bg-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25"
-                :title="t('common.copy')"
-                @click.stop="copyUsageFailure(row)"
-              >
-                <Icon name="link" size="xs" class="h-3 w-3" />
-                <span>{{ t('common.copy') }}</span>
-              </button>
               <AccountErrorTooltipButton
                 v-if="row.status === 'failed' && hasUsageFailureDetail(row)"
                 :message="buildUsageFailureSummary(row)"
@@ -781,7 +771,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useClipboard } from "@/composables/useClipboard";
 import {
   formatDateTime,
   formatReasoningEffortPair,
@@ -826,7 +815,6 @@ import type {
 defineEmits(["userClick"]);
 const { t } = useI18n();
 const { formatTokenDisplay } = useTokenDisplayMode();
-const { copyToClipboard } = useClipboard();
 
 const props = withDefaults(defineProps<{
   data: AdminUsageLog[];
@@ -873,10 +861,6 @@ const buildUsageFailureSummary = (row: AdminUsageLog): string => {
     `error_code: ${errorCode || "-"}`,
     `error_message: ${errorMessage || "-"}`,
   ].join("\n");
-};
-
-const copyUsageFailure = async (row: AdminUsageLog) => {
-  await copyToClipboard(buildUsageFailureSummary(row));
 };
 
 const hasUsageFailureDetail = (row: AdminUsageLog): boolean =>

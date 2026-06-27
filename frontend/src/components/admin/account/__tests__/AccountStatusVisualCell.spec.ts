@@ -1,10 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import AccountStatusVisualCell from '../AccountStatusVisualCell.vue'
 import type { Account } from '@/types'
 
 enableAutoUnmount(afterEach)
+
+const clipboardState = vi.hoisted(() => ({
+  copyToClipboard: vi.fn(),
+}))
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -34,6 +38,12 @@ vi.mock('vue-i18n', async () => {
     })
   }
 })
+
+vi.mock('@/composables/useClipboard', () => ({
+  useClipboard: () => ({
+    copyToClipboard: clipboardState.copyToClipboard,
+  }),
+}))
 
 const stubs = {
   ModelIcon: {
@@ -83,6 +93,11 @@ const mountVisual = (account: Account, props: Record<string, unknown> = {}) => m
 })
 
 describe('AccountStatusVisualCell', () => {
+  beforeEach(() => {
+    clipboardState.copyToClipboard.mockReset()
+    clipboardState.copyToClipboard.mockResolvedValue(true)
+  })
+
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
@@ -102,7 +117,7 @@ describe('AccountStatusVisualCell', () => {
     expect(wrapper.get('[data-testid="account-status-visual-title"]').classes()).toContain('bg-emerald-50/78')
   })
 
-  it('renders 429 limits with segmented countdown and no status tag suffix', () => {
+  it('renders 429 limits with segmented countdown and copies the hidden resume detail', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-22T12:00:00Z'))
 
@@ -116,10 +131,22 @@ describe('AccountStatusVisualCell', () => {
     expect(wrapper.get('[data-testid="account-status-visual-countdown"]').text()).toContain('00')
     expect(wrapper.text()).not.toContain('429')
     expect(wrapper.text()).not.toContain('admin.accounts.status.visualAfterResume')
-    expect(wrapper.text()).toContain('admin.accounts.status.rateLimitedAutoResume')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimitedAutoResume')
+    expect(wrapper.find('[data-testid="account-status-visual-helper"]').exists()).toBe(false)
+
+    const trigger = wrapper.get('.error-info-trigger')
+    await trigger.trigger('mouseenter')
+
+    expect(document.body.textContent).toContain('admin.accounts.status.rateLimitedAutoResume')
+
+    await trigger.trigger('click')
+
+    expect(clipboardState.copyToClipboard).toHaveBeenCalledWith(
+      'admin.accounts.status.rateLimitedAutoResume',
+    )
   })
 
-  it('renders 5h and dynamic long-window usage limits with scoped labels', () => {
+  it('renders 5h and dynamic long-window usage limits with scoped labels', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-22T12:00:00Z'))
 
@@ -140,13 +167,18 @@ describe('AccountStatusVisualCell', () => {
       },
     }))
 
-    expect(usage5h.text()).toContain('admin.accounts.status.usage5h')
-    expect(usage5h.text()).toContain('admin.accounts.status.usage5hAutoResume')
+    expect(usage5h.text()).toContain('admin.accounts.status.visualUsage5hTitle')
+    expect(usage5h.text()).not.toContain('admin.accounts.status.usage5hAutoResume')
+    await usage5h.get('.error-info-trigger').trigger('mouseenter')
+    expect(document.body.textContent).toContain('admin.accounts.status.usage5hAutoResume')
     expect(usage7d.text()).toContain('30D 恢复中')
-    expect(usage7d.text()).toContain('admin.accounts.status.usage7dAll')
+    expect(usage7d.text()).not.toContain('admin.accounts.status.usage7dAllAutoResume')
+    await usage7d.get('.error-info-trigger').trigger('mouseenter')
+    expect(document.body.textContent).toContain('admin.accounts.status.usage7dAllAutoResume')
     expect(usage7d.text()).toContain('Codex 30D')
     expect(usage7d.text()).toContain('Spark 30D')
     expect(usage7d.text()).toContain('24小时0分')
+    expect(usage7d.get('[data-test="account-segmented-countdown-prefix"]').text()).toBe('30D')
     expect(usage7d.text()).not.toContain('Codex 7d')
     expect(usage7d.text()).not.toContain('Spark 7d')
 
@@ -181,7 +213,7 @@ describe('AccountStatusVisualCell', () => {
     expect(wrapper.findAll('[data-test="account-status-limit-badge"] span[title]').length).toBe(2)
   })
 
-  it('renders overload with countdown and no release suffix tag', () => {
+  it('renders overload with countdown and tooltip-only release detail', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-22T12:00:00Z'))
 
@@ -192,7 +224,12 @@ describe('AccountStatusVisualCell', () => {
     expect(wrapper.text()).toContain('admin.accounts.status.overloaded')
     expect(wrapper.text()).not.toContain('529')
     expect(wrapper.text()).not.toContain('admin.accounts.status.visualAfterRelease')
-    expect(wrapper.text()).toContain('20分钟 后解除')
+    expect(wrapper.text()).not.toContain('20分钟 后解除')
+
+    const trigger = wrapper.get('.error-info-trigger')
+    await trigger.trigger('mouseenter')
+
+    expect(document.body.textContent).toContain('20分钟 后解除')
   })
 
   it('renders temp unschedulable without a secondary clickable tag', async () => {

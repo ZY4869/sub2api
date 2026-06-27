@@ -25,8 +25,8 @@ const allColumns = computed(() => {
       sortable: true,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[220px] min-w-[184px] max-w-[220px]"
-          : "w-[240px] min-w-[192px] max-w-[240px]",
+          ? "w-[clamp(184px,18vw,220px)] min-w-[184px] max-w-[220px]"
+          : "w-[clamp(192px,20vw,240px)] min-w-[192px] max-w-[240px]",
     },
     {
       key: "platform_type",
@@ -34,8 +34,8 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[168px] min-w-[156px] max-w-[176px]"
-          : "w-[140px] max-w-[140px]",
+          ? "w-[clamp(144px,13vw,168px)] min-w-[140px] max-w-[172px]"
+          : "w-[clamp(128px,12vw,148px)] min-w-[124px] max-w-[152px]",
     },
     {
       key: "capacity",
@@ -43,8 +43,8 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[184px] min-w-[172px] max-w-[192px]"
-          : "w-[148px] max-w-[148px]",
+          ? "w-[clamp(164px,14vw,184px)] min-w-[156px] max-w-[188px]"
+          : "w-[clamp(132px,12vw,148px)] min-w-[128px] max-w-[152px]",
     },
     {
       key: "status",
@@ -52,8 +52,8 @@ const allColumns = computed(() => {
       sortable: true,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[248px] min-w-[224px] max-w-[256px]"
-          : "w-[240px] max-w-[240px]",
+          ? "w-[clamp(176px,14vw,192px)] min-w-[168px] max-w-[196px]"
+          : "w-[clamp(184px,16vw,216px)] min-w-[176px] max-w-[224px]",
     },
     {
       key: "schedulable",
@@ -70,10 +70,10 @@ const allColumns = computed(() => {
         resolvedAccountVisualPreset.value === "airy"
           ? accountGroupDisplayMode?.value === "icon"
             ? "w-[88px] min-w-[80px] max-w-[88px]"
-            : "w-[176px] min-w-[156px] max-w-[176px]"
+            : "w-[clamp(144px,12vw,176px)] min-w-[136px] max-w-[180px]"
           : accountGroupDisplayMode?.value === "icon"
             ? "w-[88px] max-w-[88px]"
-          : "w-[196px] max-w-[196px]",
+          : "w-[clamp(156px,14vw,196px)] min-w-[148px] max-w-[200px]",
     });
   }
   c.push(
@@ -83,8 +83,8 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[176px] min-w-[164px] max-w-[184px]"
-          : "w-[172px] max-w-[180px]",
+          ? "w-[clamp(156px,13vw,176px)] min-w-[148px] max-w-[180px]"
+          : "w-[clamp(156px,13vw,180px)] min-w-[148px] max-w-[184px]",
     },
     {
       key: "usage",
@@ -92,7 +92,7 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[168px] min-w-[156px] max-w-[168px]"
+          ? "w-[clamp(148px,12vw,168px)] min-w-[140px] max-w-[172px]"
           : undefined,
     },
     {
@@ -101,19 +101,26 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[248px] min-w-[232px] max-w-[256px]"
-          : "w-[260px] min-w-[240px] max-w-[260px]",
+          ? "w-[clamp(216px,18vw,248px)] min-w-[204px] max-w-[252px]"
+          : "w-[clamp(228px,18vw,260px)] min-w-[216px] max-w-[264px]",
     },
-    { key: "proxy", label: t("admin.accounts.columns.proxy"), sortable: false },
+    {
+      key: "proxy",
+      label: t("admin.accounts.columns.proxy"),
+      sortable: false,
+      class: "w-[clamp(112px,10vw,160px)] min-w-[104px] max-w-[176px]",
+    },
     {
       key: "priority",
       label: t("admin.accounts.columns.priority"),
       sortable: true,
+      class: "w-[72px] min-w-[64px] max-w-[80px]",
     },
     {
       key: "rate_multiplier",
       label: t("admin.accounts.columns.billingRateMultiplier"),
       sortable: true,
+      class: "w-[96px] min-w-[84px] max-w-[108px]",
     },
     {
       key: "last_used_at",
@@ -121,8 +128,8 @@ const allColumns = computed(() => {
       sortable: true,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[112px] min-w-[112px] max-w-[120px] whitespace-nowrap"
-          : "w-[120px] min-w-[120px] max-w-[128px] whitespace-nowrap",
+          ? "w-[112px] min-w-[104px] max-w-[120px] whitespace-nowrap"
+          : "w-[120px] min-w-[112px] max-w-[128px] whitespace-nowrap",
     },
     {
       key: "created_at",
@@ -130,8 +137,8 @@ const allColumns = computed(() => {
       sortable: true,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[144px] min-w-[144px] max-w-[152px] whitespace-nowrap"
-          : "w-[156px] min-w-[156px] max-w-[164px] whitespace-nowrap",
+          ? "w-[clamp(136px,12vw,152px)] min-w-[132px] max-w-[156px] whitespace-nowrap"
+          : "w-[clamp(148px,12vw,164px)] min-w-[144px] max-w-[168px] whitespace-nowrap",
     },
     {
       key: "expires_at",
@@ -139,10 +146,15 @@ const allColumns = computed(() => {
       sortable: true,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[176px] min-w-[176px] max-w-[188px] whitespace-nowrap"
-          : "w-[192px] min-w-[192px] max-w-[204px] whitespace-nowrap",
+          ? "w-[clamp(164px,13vw,184px)] min-w-[156px] max-w-[188px] whitespace-nowrap"
+          : "w-[clamp(176px,14vw,204px)] min-w-[168px] max-w-[208px] whitespace-nowrap",
     },
-    { key: "notes", label: t("admin.accounts.columns.notes"), sortable: false },
+    {
+      key: "notes",
+      label: t("admin.accounts.columns.notes"),
+      sortable: false,
+      class: "w-[clamp(128px,14vw,220px)] min-w-[112px] max-w-[240px]",
+    },
     {
       key: "actions",
       label: t("admin.accounts.columns.actions"),

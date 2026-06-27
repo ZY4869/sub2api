@@ -1,8 +1,19 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
+import { createPinia } from 'pinia'
 import AccountNameVisualCell from '../AccountNameVisualCell.vue'
 import type { Account } from '@/types'
+
+const clipboardState = vi.hoisted(() => ({
+  copyToClipboard: vi.fn(),
+}))
+
+vi.mock('@/composables/useClipboard', () => ({
+  useClipboard: () => ({
+    copyToClipboard: clipboardState.copyToClipboard,
+  }),
+}))
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -44,6 +55,11 @@ const makeAccount = (platform: Account['platform']): Account => ({
 } as Account)
 
 describe('AccountNameVisualCell', () => {
+  beforeEach(() => {
+    clipboardState.copyToClipboard.mockReset()
+    clipboardState.copyToClipboard.mockResolvedValue(true)
+  })
+
   it('keeps airy platform names in brand casing', () => {
     const openai = mount(AccountNameVisualCell, {
       props: { account: makeAccount('openai') },
@@ -66,5 +82,45 @@ describe('AccountNameVisualCell', () => {
     expect(openai.text()).not.toContain('OPENAI')
     expect(deepseek.text()).toContain('DeepSeek')
     expect(deepseek.text()).not.toContain('DEEPSEEK')
+  })
+
+  it('shows and copies the red error dot detail without expanding the cell', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 20,
+      left: 20,
+      right: 40,
+      bottom: 40,
+      width: 20,
+      height: 20,
+      toJSON: () => ({}),
+    } as DOMRect)
+
+    const account = makeAccount('anthropic')
+    account.status = 'error'
+    account.error_message = 'upstream token expired'
+
+    const wrapper = mount(AccountNameVisualCell, {
+      props: { account },
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          PlatformIcon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    expect(wrapper.text()).not.toContain('upstream token expired')
+
+    const trigger = wrapper.get('.error-info-trigger')
+    await trigger.trigger('mouseenter')
+
+    expect(wrapper.text()).toContain('upstream token expired')
+
+    await trigger.trigger('click')
+
+    expect(clipboardState.copyToClipboard).toHaveBeenCalledWith('upstream token expired')
   })
 })

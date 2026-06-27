@@ -65,6 +65,7 @@ const DataTableStub = defineComponent({
       <div v-if="hasColumn('groups')" class="cell-groups"><slot name="cell-groups" :row="data[0]" /></div>
       <div v-if="hasColumn('usage') && !spanState('usage').skip" class="cell-usage"><slot name="cell-usage" :row="data[0]" /></div>
       <div v-if="hasColumn('usage_reset_dates') && !spanState('usage_reset_dates').skip" class="cell-usage-reset"><slot name="cell-usage_reset_dates" :row="data[0]" /></div>
+      <div v-if="hasColumn('proxy')" class="cell-proxy"><slot name="cell-proxy" :row="data[0]" /></div>
       <div class="cell-expires-at"><slot name="cell-expires_at" :row="data[0]" :value="data[0].expires_at" /></div>
       <div class="cell-actions"><slot name="cell-actions" :row="data[0]" /></div>
     </div>
@@ -154,6 +155,7 @@ function mountTable(accountOverrides: Record<string, unknown> = {}, accountsOver
         { key: 'today_stats', label: 'Today' },
         { key: 'usage', label: 'Usage' },
         { key: 'usage_reset_dates', label: 'Reset' },
+        { key: 'proxy', label: 'Proxy' },
         { key: 'expires_at', label: 'Expires' },
         { key: 'actions', label: 'Actions' }
       ],
@@ -420,6 +422,34 @@ describe('AccountsViewTable', () => {
       expect(badge.classes()).not.toContain('truncate')
       expect(badge.find('.truncate').exists()).toBe(false)
     }
+  })
+
+  it('keeps long proxy names and country labels truncated with full titles', () => {
+    const proxyName = 'Residential Proxy Pool With A Very Long Operational Name'
+    const wrapper = mountTable({
+      proxy: {
+        id: 3,
+        name: proxyName,
+        type: 'http',
+        host: '127.0.0.1',
+        port: 8080,
+        country: 'United States',
+        country_code: 'US',
+      },
+    })
+
+    const proxyCell = wrapper.get('.cell-proxy')
+    const proxyContainer = proxyCell.get('div.flex')
+    const name = proxyCell.get(`span[title="${proxyName}"]`)
+    const country = proxyCell.get('span[title="美国（US）"]')
+
+    expect(proxyContainer.classes()).toContain('min-w-0')
+    expect(proxyContainer.classes()).toContain('overflow-hidden')
+    expect(proxyContainer.attributes('title')).toBe(`${proxyName} 美国（US）`)
+    expect(name.classes()).toContain('min-w-0')
+    expect(name.classes()).toContain('truncate')
+    expect(country.classes()).toContain('truncate')
+    expect(country.classes()).toContain('shrink-0')
   })
 
   it('falls back to classic visuals without airy row styles', async () => {

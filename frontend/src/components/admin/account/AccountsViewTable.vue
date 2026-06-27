@@ -257,10 +257,23 @@
     </template>
 
     <template #cell-proxy="{ row }">
-      <div v-if="row.proxy" class="flex items-center gap-2">
-        <span class="text-sm text-gray-700 dark:text-gray-300">{{ row.proxy.name }}</span>
-        <span v-if="row.proxy.country_code" class="text-xs text-gray-500 dark:text-gray-400">
-          ({{ formatCountryLabel(row.proxy.country_code, row.proxy.country, locale) }})
+      <div
+        v-if="row.proxy"
+        class="flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden"
+        :title="formatProxyTitle(row.proxy)"
+      >
+        <span
+          class="min-w-0 truncate text-sm text-gray-700 dark:text-gray-300"
+          :title="row.proxy.name"
+        >
+          {{ row.proxy.name }}
+        </span>
+        <span
+          v-if="formatProxyCountry(row.proxy)"
+          class="max-w-[5.5rem] shrink-0 truncate text-xs text-gray-500 dark:text-gray-400"
+          :title="formatProxyCountry(row.proxy)"
+        >
+          ({{ formatProxyCountry(row.proxy) }})
         </span>
       </div>
       <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
@@ -485,7 +498,7 @@ const airySpacedCellClass = (key: 'capacity' | 'status' | 'groups') => {
   if (props.visualStyle !== 'airy') return ''
   const widthClass = {
     capacity: 'min-w-0 max-w-[184px]',
-    status: 'min-w-0 max-w-[244px]',
+    status: 'min-w-0 max-w-[196px]',
     groups: props.accountGroupDisplayMode === 'icon'
       ? 'min-w-0 max-w-[72px]'
       : 'min-w-0 max-w-[196px]'
@@ -497,6 +510,16 @@ const airySpacedCellClass = (key: 'capacity' | 'status' | 'groups') => {
 
 const handleToggleSelectAllVisible = (event: Event) => {
   emit('toggle-select-all-visible', (event.target as HTMLInputElement).checked)
+}
+
+const formatProxyCountry = (proxy: Account['proxy']) => {
+  if (!proxy?.country_code) return ''
+  return formatCountryLabel(proxy.country_code, proxy.country, locale.value)
+}
+
+const formatProxyTitle = (proxy: Account['proxy']) => {
+  if (!proxy) return ''
+  return [proxy.name, formatProxyCountry(proxy)].filter(Boolean).join(' ')
 }
 
 const formatExpiresAt = (value: number | null) => {

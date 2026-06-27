@@ -9,7 +9,7 @@ import {
 
 type Translate = (key: string, params?: Record<string, unknown>) => string
 
-const ISSUE_DETAIL_STATUS_KINDS = new Set<AiryStatusKind>([
+const DETAIL_STATUS_KINDS = new Set<AiryStatusKind>([
   'banned',
   'locked',
   'maintenance',
@@ -19,6 +19,7 @@ const ISSUE_DETAIL_STATUS_KINDS = new Set<AiryStatusKind>([
   'captcha',
   'syncing',
   'error',
+  'tempUnschedulable',
 ])
 
 const firstText = (...values: Array<unknown>) => {
@@ -71,12 +72,18 @@ export function useAccountStatusVisualDisplay(options: {
     ).label
     return title.replace(/7D/gi, label)
   })
-  const issueDetailText = computed(() => {
-    if (!ISSUE_DETAIL_STATUS_KINDS.has(options.airyStatus.value.kind)) return ''
+  const helperDetailText = computed(() => {
+    if (!DETAIL_STATUS_KINDS.has(options.airyStatus.value.kind)) return ''
     if (options.airyStatus.value.helperKey) {
       return options.t(options.airyStatus.value.helperKey)
     }
     return firstText(options.airyStatus.value.helper)
+  })
+  const statusDetailText = computed(() => {
+    if (helperDetailText.value) return helperDetailText.value
+    if (options.isRateLimited.value) return options.rateLimitResumeText.value
+    if (options.isOverloaded.value) return options.overloadCountdown.value || ''
+    return ''
   })
   const countdownResetAt = computed(() => {
     if (options.isRateLimited.value) {
@@ -87,22 +94,30 @@ export function useAccountStatusVisualDisplay(options: {
     }
     return null
   })
-  const visibleHelperText = computed(() => {
-    if (issueDetailText.value) return ''
-    if (options.isRateLimited.value) return options.rateLimitResumeText.value
-    if (options.isOverloaded.value) return options.overloadCountdown.value || ''
-    if (options.airyStatus.value.helperKey) {
-      return options.t(options.airyStatus.value.helperKey)
+  const countdownPrefix = computed(() => {
+    if (options.airyStatus.value.kind === 'usage7d') {
+      return resolveCodexUsageWindow(
+        options.account.value.extra,
+        '7d',
+        options.nowDate.value,
+      ).label
     }
-    return options.airyStatus.value.helper || ''
+    if (options.airyStatus.value.kind === 'usage5h') {
+      if (options.account.value.rate_limit_reason !== 'usage_5h') return ''
+      return resolveCodexUsageWindow(
+        options.account.value.extra,
+        '5h',
+        options.nowDate.value,
+      ).label
+    }
+    return ''
   })
-
   return {
     toneStyles,
     whiteSurfaceClass,
     statusTitle,
-    issueDetailText,
+    statusDetailText,
     countdownResetAt,
-    visibleHelperText,
+    countdownPrefix,
   }
 }

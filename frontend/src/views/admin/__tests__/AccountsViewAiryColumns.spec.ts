@@ -151,20 +151,26 @@ describe('AccountsView airy columns', () => {
     await vi.dynamicImportSettled()
 
     expect(wrapper.get('.table-columns').text()).not.toContain('schedulable')
-    expect(wrapper.get('.table-columns').text()).toContain('name:w-[220px]')
+    expect(wrapper.get('.table-columns').text()).toContain('name:w-[clamp(184px,18vw,220px)]')
     expect(wrapper.get('.table-columns').text()).toContain(
-      'capacity:w-[184px] min-w-[172px] max-w-[192px]',
+      'platform_type:w-[clamp(144px,13vw,168px)] min-w-[140px] max-w-[172px]',
     )
     expect(wrapper.get('.table-columns').text()).toContain(
-      'last_used_at:w-[112px] min-w-[112px] max-w-[120px] whitespace-nowrap',
+      'capacity:w-[clamp(164px,14vw,184px)] min-w-[156px] max-w-[188px]',
     )
     expect(wrapper.get('.table-columns').text()).toContain(
-      'created_at:w-[144px] min-w-[144px] max-w-[152px] whitespace-nowrap',
+      'status:w-[clamp(176px,14vw,192px)] min-w-[168px] max-w-[196px]',
     )
     expect(wrapper.get('.table-columns').text()).toContain(
-      'expires_at:w-[176px] min-w-[176px] max-w-[188px] whitespace-nowrap',
+      'last_used_at:w-[112px] min-w-[104px] max-w-[120px] whitespace-nowrap',
     )
-    expect(wrapper.get('.table-columns').text()).toContain('usage_reset_dates:w-[248px]')
+    expect(wrapper.get('.table-columns').text()).toContain(
+      'created_at:w-[clamp(136px,12vw,152px)] min-w-[132px] max-w-[156px] whitespace-nowrap',
+    )
+    expect(wrapper.get('.table-columns').text()).toContain(
+      'expires_at:w-[clamp(164px,13vw,184px)] min-w-[156px] max-w-[188px] whitespace-nowrap',
+    )
+    expect(wrapper.get('.table-columns').text()).toContain('usage_reset_dates:w-[clamp(216px,18vw,248px)]')
     expect(wrapper.get('.toolbar-columns').text()).toContain('usage_reset_dates')
   })
 })

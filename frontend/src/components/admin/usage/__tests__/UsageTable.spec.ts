@@ -4,6 +4,10 @@ import { nextTick } from 'vue'
 
 import UsageTable from '../UsageTable.vue'
 
+const clipboardState = vi.hoisted(() => ({
+  copyToClipboard: vi.fn(),
+}))
+
 const messages: Record<string, string> = {
   'usage.costDetails': 'Cost Breakdown',
   'usage.contextBadgeRequested1M': 'Requested 1M',
@@ -57,6 +61,12 @@ vi.mock('vue-i18n', async () => {
     }),
   }
 })
+
+vi.mock('@/composables/useClipboard', () => ({
+  useClipboard: () => ({
+    copyToClipboard: clipboardState.copyToClipboard,
+  }),
+}))
 
 vi.mock('@/stores/modelRegistry', () => ({
   getModelRegistrySnapshot: () => ({
@@ -176,6 +186,8 @@ function mountUsageTable(
 
 describe('admin UsageTable tooltip', () => {
   beforeEach(() => {
+    clipboardState.copyToClipboard.mockReset()
+    clipboardState.copyToClipboard.mockResolvedValue(true)
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       x: 0,
       y: 0,
@@ -251,7 +263,7 @@ describe('admin UsageTable tooltip', () => {
     const text = wrapper.text()
     expect(text).toContain('Failed')
     expect(text).toContain('Codex')
-    expect(text).toContain('Copy')
+    expect(text).not.toContain('Copy')
     expect(text).not.toContain('HTTP Status')
     expect(text).not.toContain('rate_limited')
     expect(text).not.toContain('Rate limit exceeded for this account')
@@ -262,6 +274,17 @@ describe('admin UsageTable tooltip', () => {
     expect(wrapper.text()).toContain('http_status: 429')
     expect(wrapper.text()).toContain('error_code: rate_limited')
     expect(wrapper.text()).toContain('error_message: Rate limit exceeded for this account')
+
+    await wrapper.get('.error-info-trigger').trigger('click')
+
+    expect(clipboardState.copyToClipboard).toHaveBeenCalledWith(
+      [
+        'request_id: req-admin-failed',
+        'http_status: 429',
+        'error_code: rate_limited',
+        'error_message: Rate limit exceeded for this account',
+      ].join('\n'),
+    )
   })
 
   it('renders the request protocol cell with badge text and normalized path', () => {

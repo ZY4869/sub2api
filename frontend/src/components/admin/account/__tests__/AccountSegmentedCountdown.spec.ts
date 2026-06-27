@@ -19,14 +19,16 @@ describe('AccountSegmentedCountdown', () => {
     const wrapper = mount(AccountSegmentedCountdown, {
       props: {
         resetAt: '2026-03-13T12:00:03Z',
-        tone: 'amber'
+        tone: 'amber',
+        prefix: '7D'
       },
       global: {
         plugins: [createPinia()]
       },
     })
 
-    expect(wrapper.text()).toContain('00:00:03')
+    expect(wrapper.text()).toContain('7D00:00:03')
+    expect(wrapper.get('[data-test="account-segmented-countdown-prefix"]').text()).toBe('7D')
     expect(wrapper.html()).not.toContain('backdrop-blur')
     expect(wrapper.html()).not.toContain('shadow-[')
 

@@ -25,7 +25,7 @@
   </template>
 
   <template #cell-status="{ row }">
-    <div class="max-w-[280px] space-y-1">
+    <div class="max-w-[180px]">
       <div class="flex flex-wrap items-center gap-1.5">
         <span
           class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
@@ -39,35 +39,12 @@
         >
           {{ getSimulatedClientLabel(row.simulated_client) }}
         </span>
-      </div>
-      <div
-        v-if="row.status === 'failed'"
-        class="space-y-1 text-xs text-rose-600 dark:text-rose-300"
-      >
-        <div class="flex flex-wrap gap-x-3 gap-y-1">
-          <span v-if="row.http_status != null">
-            <span class="font-medium"
-              >{{ t("usage.httpStatus") }}:</span
-            >
-            {{ row.http_status }}
-          </span>
-          <span v-if="row.error_code">
-            <span class="font-medium">{{ t("usage.errorCode") }}:</span>
-            {{ row.error_code }}
-          </span>
-        </div>
-        <div
-          v-if="row.error_message"
-          :title="row.error_message"
-          class="truncate"
-        >
-          <span class="font-medium"
-            >{{ t("usage.errorMessage") }}:</span
-          >
-          <span class="ml-1">{{
-            truncateUsageErrorMessage(row.error_message)
-          }}</span>
-        </div>
+        <AccountErrorTooltipButton
+          v-if="row.status === 'failed' && hasUsageFailureDetail(row)"
+          :message="buildUsageFailureSummary(row)"
+          :ariaLabel="t('usage.errorMessage')"
+          button-class="rounded-full border border-rose-200/80 bg-rose-50 px-1.5 py-1 text-rose-600 transition hover:bg-rose-100 hover:text-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:bg-rose-500/20 dark:hover:text-rose-100"
+        />
       </div>
     </div>
   </template>
@@ -356,6 +333,7 @@ import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import UsageEndpointIconCell from "@/components/usage/UsageEndpointIconCell.vue";
 import UsageUserAgentCell from "@/components/usage/UsageUserAgentCell.vue";
 import Icon from "@/components/icons/Icon.vue";
+import AccountErrorTooltipButton from "@/components/account/AccountErrorTooltipButton.vue";
 import type {
   UsageLog,
   UsageModelDisplayMode,
@@ -387,7 +365,7 @@ const props = withDefaults(defineProps<{
   getStatusBadgeClass: (status: UsageLog["status"]) => string;
   getStatusLabel: (status: UsageLog["status"]) => string;
   getSimulatedClientLabel: (client: UsageLog["simulated_client"]) => string;
-  truncateUsageErrorMessage: (message: string) => string;
+  truncateUsageErrorMessage?: (message: string) => string;
   formatReasoningEffortPair: (raw?: string | null, effective?: string | null, legacy?: string | null) => string;
   formatUsageMillionContextLines: (row: UsageLog) => UsageMillionContextDisplayLine[];
   formatThinkingEnabled: (value: boolean | null | undefined) => string;
@@ -441,6 +419,25 @@ const formatRowCacheHitRate = (
   }
   return `${((read / total) * 100).toFixed(1)}%`;
 };
+
+const buildUsageFailureSummary = (row: UsageLog): string => {
+  const requestID = String(row.request_id || "").trim();
+  const httpStatus = row.http_status == null ? "" : String(row.http_status);
+  const errorCode = String(row.error_code || "").trim();
+  const errorMessage = String(row.error_message || "").trim();
+
+  return [
+    `request_id: ${requestID || "-"}`,
+    `http_status: ${httpStatus || "-"}`,
+    `error_code: ${errorCode || "-"}`,
+    `error_message: ${errorMessage || "-"}`,
+  ].join("\n");
+};
+
+const hasUsageFailureDetail = (row: UsageLog): boolean =>
+  row.http_status != null ||
+  Boolean(String(row.error_code || "").trim()) ||
+  Boolean(String(row.error_message || "").trim());
 </script>
 
 <style scoped>

@@ -51,8 +51,8 @@
       </div>
 
       <AccountErrorTooltipButton
-        v-if="issueDetailText"
-        :message="issueDetailText"
+        v-if="statusDetailText"
+        :message="statusDetailText"
         :ariaLabel="t('admin.accounts.status.viewIssueDetails')"
         button-class="rounded-full border border-rose-200/80 bg-white px-1.5 py-1 text-rose-500 transition hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:text-rose-100"
       />
@@ -77,18 +77,11 @@
           class="absolute account-status-visual-pulse"
         />
       </span>
-      <AccountSegmentedCountdown :reset-at="countdownResetAt" :tone="visualTone" />
-    </div>
-
-    <div
-      v-if="!isSimpleMode && visibleHelperText"
-      :class="[
-        'break-words text-[11px] font-bold leading-5',
-        toneStyles.helperTextClass
-      ]"
-      data-testid="account-status-visual-helper"
-    >
-      {{ visibleHelperText }}
+      <AccountSegmentedCountdown
+        :reset-at="countdownResetAt"
+        :tone="visualTone"
+        :prefix="countdownPrefix"
+      />
     </div>
 
     <div
@@ -176,9 +169,9 @@ const statusIconName = computed(() => airyStatus.value.iconName)
 const {
   toneStyles,
   statusTitle,
-  issueDetailText,
+  statusDetailText,
   countdownResetAt,
-  visibleHelperText,
+  countdownPrefix,
 } = useAccountStatusVisualDisplay({
   account: accountRef,
   airyStatus,

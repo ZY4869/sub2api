@@ -46,6 +46,7 @@ const DataTableStub = {
       <div v-for="(row, index) in data" :key="row.id || index">
         <div data-test="token-cell"><slot name="cell-tokens" :row="row" /></div>
         <div data-test="cache-hit-cell"><slot name="cell-cache_hit" :row="row" /></div>
+        <div data-test="status-cell"><slot name="cell-status" :row="row" /></div>
         <div data-test="reasoning-cell"><slot name="cell-reasoning_effort" :row="row" /></div>
         <div data-test="endpoint-cell"><slot name="cell-endpoint" :row="row" /></div>
         <div data-test="group-cell"><slot name="cell-group" :row="row" /></div>
@@ -103,6 +104,7 @@ function mountUsageTable(
           template: '<span data-test="platform-icon" :data-platform="platform" />',
         },
         Icon: IconStub,
+        Teleport: true,
       },
     },
   });
@@ -227,5 +229,52 @@ describe("user usage UsageTable", () => {
     });
 
     expect(wrapper.get('[data-test="reasoning-cell"]').text()).not.toContain("1M Requested");
+  });
+
+  it("keeps failed status compact and copies full failure detail from the tooltip trigger", async () => {
+    const wrapper = mountUsageTable({
+      id: 6,
+      request_id: "req-user-failed",
+      status: "failed",
+      simulated_client: "codex",
+      http_status: 503,
+      error_code: "upstream_unavailable",
+      error_message: "upstream error: 503 Service temporarily unavailable",
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_creation_tokens: 0,
+      cache_creation_5m_tokens: 0,
+      cache_creation_1h_tokens: 0,
+      cache_read_tokens: 0,
+      image_count: 0,
+      thinking_enabled: false,
+    }, {
+      getStatusLabel: () => "Failed",
+    });
+
+    const statusCell = wrapper.get('[data-test="status-cell"]');
+    expect(statusCell.text()).toContain("Failed");
+    expect(statusCell.text()).toContain("Codex");
+    expect(statusCell.text()).not.toContain("HTTP Status");
+    expect(statusCell.text()).not.toContain("upstream_unavailable");
+    expect(statusCell.text()).not.toContain("upstream error: 503");
+
+    const trigger = statusCell.get(".error-info-trigger");
+    await trigger.trigger("mouseenter");
+
+    expect(wrapper.text()).toContain("http_status: 503");
+    expect(wrapper.text()).toContain("error_code: upstream_unavailable");
+    expect(wrapper.text()).toContain("error_message: upstream error: 503 Service temporarily unavailable");
+
+    await trigger.trigger("click");
+
+    expect(clipboardState.copyToClipboard).toHaveBeenCalledWith(
+      [
+        "request_id: req-user-failed",
+        "http_status: 503",
+        "error_code: upstream_unavailable",
+        "error_message: upstream error: 503 Service temporarily unavailable",
+      ].join("\n"),
+    );
   });
 });
