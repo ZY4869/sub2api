@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -130,6 +131,53 @@ func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamSnapshot(t *testing.T) {
 	require.Equal(t, 5, repo.updateExtraCalls[0][openAIResetCreditsAvailableCountExtraKey])
 	require.Equal(t, openAIResetCreditsStatusAvailable, repo.updateExtraCalls[0][openAIResetCreditsStatusExtraKey])
 	require.NotEmpty(t, repo.updateExtraCalls[0][openAIQuotaUsageUpdatedAtExtraKey])
+}
+
+func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamWindows(t *testing.T) {
+	t.Parallel()
+
+	reset5h := time.Now().Add(5 * time.Hour).UTC().Unix()
+	reset7d := time.Now().Add(7 * 24 * time.Hour).UTC().Unix()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/backend-api/wham/usage", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(fmt.Sprintf(`{
+			"rate_limit": {
+				"primary_window": {
+					"used_percent": 0,
+					"limit_window_seconds": 18000,
+					"reset_after_seconds": 18000,
+					"reset_at": %d
+				},
+				"secondary_window": {
+					"used_percent": 4,
+					"limit_window_seconds": 604800,
+					"reset_after_seconds": 604800,
+					"reset_at": %d
+				}
+			},
+			"rate_limit_reset_credits": {"available_count": 2}
+		}`, reset5h, reset7d)))
+	}))
+	defer server.Close()
+
+	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+
+	snapshot, err := svc.ReadResetCredits(context.Background(), repo.account)
+
+	require.NoError(t, err)
+	require.NotNil(t, snapshot)
+	require.NotNil(t, snapshot.FiveHour)
+	require.NotNil(t, snapshot.SevenDay)
+	require.NotNil(t, snapshot.FiveHour.Progress)
+	require.NotNil(t, snapshot.SevenDay.Progress)
+	require.InDelta(t, 0, snapshot.FiveHour.Progress.Utilization, 0.001)
+	require.InDelta(t, 4, snapshot.SevenDay.Progress.Utilization, 0.001)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, 0.0, repo.updateExtraCalls[0]["codex_5h_used_percent"])
+	require.Equal(t, 4.0, repo.updateExtraCalls[0]["codex_7d_used_percent"])
+	require.Equal(t, 300, repo.updateExtraCalls[0]["codex_primary_window_minutes"])
+	require.Equal(t, 10080, repo.updateExtraCalls[0]["codex_secondary_window_minutes"])
 }
 
 func TestOpenAIQuotaService_UpstreamStatusMapping(t *testing.T) {

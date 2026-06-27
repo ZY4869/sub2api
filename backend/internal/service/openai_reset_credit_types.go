@@ -25,6 +25,13 @@ type OpenAIResetCreditsSnapshot struct {
 	Source            string
 	Status            string
 	UnsupportedReason string
+	FiveHour          *OpenAIQuotaWindowSnapshot
+	SevenDay          *OpenAIQuotaWindowSnapshot
+}
+
+type OpenAIQuotaWindowSnapshot struct {
+	Progress           *UsageProgress
+	LimitWindowSeconds int64
 }
 
 type OpenAIResetCreditReader interface {

@@ -47,14 +47,19 @@ func (s *usageQueryAccountRepoStub) UpdateExtra(_ context.Context, id int64, upd
 	return nil
 }
 
+func (s *usageQueryAccountRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time) error {
+	return nil
+}
+
 type usageQueryResetCreditReaderStub struct {
-	err   error
-	calls int
+	snapshot *service.OpenAIResetCreditsSnapshot
+	err      error
+	calls    int
 }
 
 func (s *usageQueryResetCreditReaderStub) ReadResetCredits(context.Context, *service.Account) (*service.OpenAIResetCreditsSnapshot, error) {
 	s.calls++
-	return nil, s.err
+	return s.snapshot, s.err
 }
 
 type usageQueryLogRepoStub struct {
@@ -87,6 +92,10 @@ func cloneAnyMap(source map[string]any) map[string]any {
 		cloned[key] = value
 	}
 	return cloned
+}
+
+func ptrTime(value time.Time) *time.Time {
+	return &value
 }
 
 func TestAccountHandlerGetUsageSupportsSourceQuery(t *testing.T) {
@@ -297,6 +306,101 @@ func TestAccountHandlerGetUsageReturnsOpenAIResetCreditStatus(t *testing.T) {
 	require.Nil(t, resp.Data.OpenAIResetCredits.AvailableCount)
 	require.Equal(t, "unsupported", resp.Data.OpenAIResetCredits.Status)
 	require.Contains(t, resp.Data.OpenAIResetCredits.UnsupportedReason, "OpenAI quota")
+}
+
+func TestAccountHandlerGetUsageUsesOpenAIQuotaWindowsAfterReset(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	count := 2
+	account := &service.Account{
+		ID:       45,
+		Name:     "OpenAI OAuth",
+		Platform: service.PlatformOpenAI,
+		Type:     service.AccountTypeOAuth,
+		Status:   service.StatusActive,
+		Credentials: map[string]any{
+			"access_token":       "token",
+			"chatgpt_account_id": "acct",
+		},
+		Extra: map[string]any{
+			"codex_usage_updated_at": now.Add(-time.Minute).Format(time.RFC3339),
+			"codex_5h_used_percent":  100,
+			"codex_5h_reset_at":      now.Add(2 * time.Hour).Format(time.RFC3339),
+			"codex_7d_used_percent":  100,
+			"codex_7d_reset_at":      now.Add(48 * time.Hour).Format(time.RFC3339),
+		},
+	}
+	repo := &usageQueryAccountRepoStub{account: account}
+	reader := &usageQueryResetCreditReaderStub{
+		snapshot: &service.OpenAIResetCreditsSnapshot{
+			AvailableCount: &count,
+			UpdatedAt:      now,
+			Source:         "chatgpt_wham",
+			Status:         "available",
+			FiveHour: &service.OpenAIQuotaWindowSnapshot{
+				Progress: &service.UsageProgress{
+					Utilization:      0,
+					ResetsAt:         ptrTime(now.Add(5 * time.Hour)),
+					RemainingSeconds: 5 * 60 * 60,
+				},
+				LimitWindowSeconds: 5 * 60 * 60,
+			},
+			SevenDay: &service.OpenAIQuotaWindowSnapshot{
+				Progress: &service.UsageProgress{
+					Utilization:      4,
+					ResetsAt:         ptrTime(now.Add(7 * 24 * time.Hour)),
+					RemainingSeconds: 7 * 24 * 60 * 60,
+				},
+				LimitWindowSeconds: 7 * 24 * 60 * 60,
+			},
+		},
+	}
+	usageService := service.NewAccountUsageService(
+		repo,
+		&usageQueryLogRepoStub{},
+		nil,
+		nil,
+		nil,
+		service.NewUsageCache(),
+		nil,
+	)
+	usageService.SetOpenAIResetCreditService(reader)
+	handler := NewAccountHandler(newStubAdminService(), nil, nil, nil, nil, nil, usageService, nil, nil, nil, nil, nil, nil)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/api/v1/admin/accounts/:id/usage", handler.GetUsage)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/45/usage?force=1&source=active", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			FiveHour *struct {
+				Utilization float64 `json:"utilization"`
+			} `json:"five_hour"`
+			SevenDay *struct {
+				Utilization float64 `json:"utilization"`
+			} `json:"seven_day"`
+			OpenAIResetCredits *struct {
+				AvailableCount *int `json:"available_count"`
+			} `json:"openai_reset_credits"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Equal(t, 1, reader.calls)
+	require.NotNil(t, resp.Data.FiveHour)
+	require.NotNil(t, resp.Data.SevenDay)
+	require.InDelta(t, 0, resp.Data.FiveHour.Utilization, 0.001)
+	require.InDelta(t, 4, resp.Data.SevenDay.Utilization, 0.001)
+	require.NotNil(t, resp.Data.OpenAIResetCredits)
+	require.NotNil(t, resp.Data.OpenAIResetCredits.AvailableCount)
+	require.Equal(t, 2, *resp.Data.OpenAIResetCredits.AvailableCount)
 }
 
 func TestAccountHandlerGetUsageResetCreditsReadFailureDoesNotReturnStaleCount(t *testing.T) {
