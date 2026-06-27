@@ -171,8 +171,11 @@ describe('AccountUsageVisualCell', () => {
     expect(wrapper.text()).toContain('30D')
     expect(wrapper.text()).toContain('57%')
     expect(wrapper.text()).toContain('00 resets left')
-    expect(wrapper.text()).toContain('Refresh count')
-    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').classes()).toContain('bg-orange-50')
+    const refreshButton = wrapper.get('[data-testid="account-usage-reset-credits-refresh"]')
+    expect(refreshButton.text()).toBe('')
+    expect(refreshButton.attributes('aria-label')).toBe('Refresh OpenAI reset credits')
+    expect(refreshButton.attributes('title')).toBe('Refresh OpenAI reset credits')
+    expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').classes()).toContain('bg-rose-50')
     expect(wrapper.find('[data-testid="account-usage-reset-quota-button"]').exists()).toBe(false)
   })
 
