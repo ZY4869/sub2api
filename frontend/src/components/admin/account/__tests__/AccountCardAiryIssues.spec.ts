@@ -169,7 +169,7 @@ describe('AccountCard airy issue visibility', () => {
       expect(wrapper.text()).toContain(item.title)
       expect(wrapper.text()).not.toContain(item.detail)
       expect(wrapper.text()).not.toContain(item.raw)
-      const trigger = wrapper.get('.error-info-trigger')
+      const trigger = wrapper.get('[data-testid="account-status-visual-cell"] .error-info-trigger')
       expect(trigger.attributes('aria-label')).toBe('查看账号问题详情')
       expect(trigger.attributes('class')).toContain('text-rose-500')
       expect(wrapper.find('[data-testid="account-status-visual-cell"]').exists()).toBe(true)
