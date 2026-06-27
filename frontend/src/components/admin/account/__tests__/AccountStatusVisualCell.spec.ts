@@ -96,6 +96,10 @@ describe('AccountStatusVisualCell', () => {
     expect(wrapper.text()).toContain('可用')
     expect(wrapper.text()).not.toContain('可调度')
     expect(wrapper.find('[data-testid="account-status-visual-countdown"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="account-status-visual-cell"]').classes()).toContain('bg-transparent')
+    expect(wrapper.get('[data-testid="account-status-visual-cell"]').classes()).not.toContain('bg-[linear-gradient(135deg,rgba(236,253,245,0.94),rgba(220,252,231,0.9))]')
+    expect(wrapper.get('[data-testid="account-status-visual-title"]').classes()).toContain('rounded-full')
+    expect(wrapper.get('[data-testid="account-status-visual-title"]').classes()).toContain('bg-emerald-50/78')
   })
 
   it('renders 429 limits with segmented countdown and no status tag suffix', () => {

@@ -69,6 +69,7 @@
         :reset-unsupported="resetCreditsUnsupported"
         :reset-unknown="resetCreditsUnknown"
         :reset-zero="resetCreditsZero"
+        :reset-credits-low="resetCreditsLow"
         :resetting="resetting"
         :refreshing="refreshingResetCredits"
         :reset-disabled="resetButtonDisabled"
@@ -141,6 +142,7 @@ const {
   resetCreditsUnsupported,
   resetCreditsUnknown,
   resetCreditsZero,
+  resetCreditsLow,
   resetting,
   refreshingResetCredits,
   resetButtonDisabled,

@@ -11,6 +11,7 @@ export interface UsageCacheEntry {
   loading: boolean;
   error: string | null;
   usageInfo: AccountUsageInfo | null;
+  loadedAtMs: number | null;
   preferOpenAIFetchedUsage: boolean;
   request: Promise<void> | null;
 }

@@ -17,21 +17,26 @@
 
     <span
       v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)"
-      class="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 overflow-visible text-gray-700 dark:text-gray-300"
+      class="flex min-w-0 flex-1 flex-nowrap items-center gap-x-1.5 overflow-visible text-gray-700 dark:text-gray-300"
       :title="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.tooltip || undefined"
     >
       <Icon
+        v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.showCountdown"
         name="clock"
         size="xs"
         class="shrink-0 text-gray-400 dark:text-gray-500"
       />
       <span
+        v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.showCountdown"
         class="shrink-0 whitespace-nowrap rounded-full bg-gray-100 px-1.5 py-0.5 font-medium leading-none text-gray-700 dark:bg-gray-700 dark:text-gray-200"
       >
         {{ formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.countdown }}
       </span>
-      <span class="shrink-0 text-gray-400 dark:text-gray-500">·</span>
-      <span class="min-w-[112px] flex-1 whitespace-normal break-words font-semibold leading-snug text-gray-700 dark:text-gray-200">
+      <span
+        v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.showCountdown"
+        class="shrink-0 text-gray-400 dark:text-gray-500"
+      >·</span>
+      <span class="min-w-0 shrink-0 whitespace-nowrap font-semibold leading-snug text-gray-700 dark:text-gray-200">
         {{ formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.absolute }}
       </span>
     </span>
@@ -44,7 +49,6 @@
 import { useI18n } from 'vue-i18n'
 import type { AccountUsageResetRow } from '@/types'
 import {
-  formatLocalAbsoluteTime,
   formatLocalTimestamp,
   formatResetCountdown,
   parseEffectiveResetAt,
@@ -58,12 +62,38 @@ defineProps<{
 }>()
 
 const { t } = useI18n()
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
+
+const pad = (value: number): string => String(value).padStart(2, '0')
+
+const formatLocalTime = (date: Date): string =>
+  `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+
+const formatAbsoluteDateTime = (date: Date, nowDate: Date): string => {
+  const timePart = formatLocalTime(date)
+  const datePart = `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  if (date.getFullYear() === nowDate.getFullYear()) {
+    return `${datePart} ${timePart}`
+  }
+  return `${date.getFullYear()}-${datePart} ${timePart}`
+}
+
+const formatCompactShortCountdown = (date: Date, nowDate: Date): string => {
+  const totalMinutes = Math.max(
+    0,
+    Math.ceil((date.getTime() - nowDate.getTime()) / 60000),
+  )
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return `${pad(hours)}h:${pad(minutes)}m`
+}
 
 function formatResetValue(
   resetsAt: string | null,
   remainingSeconds: number | null | undefined,
   nowDate: Date,
 ): {
+  showCountdown: boolean
   countdown: string
   absolute: string
   tooltip: string
@@ -75,16 +105,21 @@ function formatResetValue(
   )
   if (!effectiveResetAt) return null
 
+  const diffMs = effectiveResetAt.getTime() - nowDate.getTime()
+  const showCountdown = diffMs > 0 && diffMs < ONE_DAY_MS
+
   return {
-    countdown: formatResetCountdown(
-      effectiveResetAt,
-      nowDate,
-      t('admin.accounts.usageWindow.now'),
-    ),
-    absolute: formatLocalAbsoluteTime(effectiveResetAt, nowDate, {
-      today: t('dates.today'),
-      tomorrow: t('dates.tomorrow'),
-    }),
+    showCountdown,
+    countdown: showCountdown
+      ? formatCompactShortCountdown(effectiveResetAt, nowDate)
+      : formatResetCountdown(
+        effectiveResetAt,
+        nowDate,
+        t('admin.accounts.usageWindow.now'),
+      ),
+    absolute: showCountdown
+      ? formatLocalTime(effectiveResetAt)
+      : formatAbsoluteDateTime(effectiveResetAt, nowDate),
     tooltip: formatLocalTimestamp(effectiveResetAt),
   }
 }

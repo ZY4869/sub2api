@@ -8,6 +8,7 @@ function createUsageCacheEntry(): UsageCacheEntry {
     loading: false,
     error: null,
     usageInfo: null,
+    loadedAtMs: null,
     preferOpenAIFetchedUsage: false,
     request: null,
   }) as UsageCacheEntry;
@@ -26,6 +27,7 @@ export function resetUsageCacheEntry(entry: UsageCacheEntry): void {
   entry.loading = false;
   entry.error = null;
   entry.usageInfo = null;
+  entry.loadedAtMs = null;
   entry.preferOpenAIFetchedUsage = false;
   entry.request = null;
 }

@@ -2,10 +2,10 @@
   <div
     :class="[
       'account-status-visual inline-flex min-w-0 max-w-full flex-col items-start justify-center whitespace-normal rounded-[1rem] border select-none',
-      isSimpleMode ? 'w-full gap-1.5 px-2.5 py-2.5' : 'w-fit',
-      compact && !isSimpleMode ? 'gap-1.5 px-3 py-3' : '',
-      !compact && !isSimpleMode ? 'gap-2.5 px-4 py-3.5' : '',
-      whiteSurfaceEnabled ? whiteSurfaceClass : toneStyles.surfaceClass
+      isSimpleMode ? 'w-fit gap-1.5 px-0 py-0' : 'w-fit',
+      compact && !isSimpleMode ? 'gap-1.5 px-0 py-0' : '',
+      !compact && !isSimpleMode ? 'gap-2.5 px-0 py-0' : '',
+      'border-transparent bg-transparent'
     ]"
     data-testid="account-status-visual-cell"
   >
@@ -22,10 +22,11 @@
         </span>
         <span
           :class="[
-            'min-w-0 truncate text-[13px] font-extrabold tracking-tight',
-            toneStyles.titleClass
+            'inline-flex min-w-0 max-w-full items-center truncate rounded-full border px-2.5 py-1 text-[13px] font-extrabold tracking-tight',
+            toneStyles.statusBadgeClass
           ]"
           :title="statusTitle"
+          data-testid="account-status-visual-title"
         >
           {{ statusTitle }}
         </span>
@@ -174,7 +175,6 @@ const statusIconName = computed(() => airyStatus.value.iconName)
 
 const {
   toneStyles,
-  whiteSurfaceClass,
   statusTitle,
   issueDetailText,
   countdownResetAt,

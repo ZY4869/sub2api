@@ -147,12 +147,13 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('5H')
-    expect(wrapper.text()).toContain('2h 53m')
+    expect(wrapper.text()).toContain('02h:53m')
     expect(wrapper.text()).toContain('·')
-    expect(wrapper.text()).toContain('Today 15:22:00')
+    expect(wrapper.text()).toContain('15:22:00')
+    expect(wrapper.text()).not.toContain('Today 15:22:00')
     expect(wrapper.text()).toContain('30D')
-    expect(wrapper.text()).toContain('6d 13h')
     expect(wrapper.text()).toContain('03-20 01:09:00')
+    expect(wrapper.text()).not.toContain('6d 13h')
     const labels = wrapper.findAll('[data-testid="account-usage-reset-window-label"]')
     expect(labels[0].classes()).toContain('bg-indigo-50')
     expect(labels[1].classes()).toContain('bg-green-50')
@@ -196,17 +197,21 @@ describe('AccountUsageResetCell', () => {
 
     const text = wrapper.text()
     expect(text).toContain('5H')
-    expect(text).toContain('1h')
-    expect(text).toContain('Today 13:00:00')
+    expect(text).toContain('01h:00m')
+    expect(text).toContain('13:00:00')
+    expect(text).not.toContain('Today 13:00:00')
     expect(text).toContain('30D')
-    expect(text).toContain('2h')
-    expect(text).toContain('Today 14:00:00')
+    expect(text).toContain('02h:00m')
+    expect(text).toContain('14:00:00')
+    expect(text).not.toContain('Today 14:00:00')
     expect(text).toContain('Spark 5H')
-    expect(text).toContain('3h')
-    expect(text).toContain('Today 15:00:00')
+    expect(text).toContain('03h:00m')
+    expect(text).toContain('15:00:00')
+    expect(text).not.toContain('Today 15:00:00')
     expect(text).toContain('Spark 30D')
-    expect(text).toContain('4h')
-    expect(text).toContain('Today 16:00:00')
+    expect(text).toContain('04h:00m')
+    expect(text).toContain('16:00:00')
+    expect(text).not.toContain('Today 16:00:00')
   })
 
   it('treats 31D reset labels as monthly green capsules', async () => {
@@ -258,14 +263,46 @@ describe('AccountUsageResetCell', () => {
     })
 
     await flushPromises()
-    expect(wrapper.text()).toContain('2m')
-    expect(wrapper.text()).toContain('Tomorrow 00:01:00')
+    expect(wrapper.text()).toContain('00h:02m')
+    expect(wrapper.text()).toContain('00:01:00')
+    expect(wrapper.text()).not.toContain('Tomorrow 00:01:00')
 
     vi.advanceTimersByTime(2 * 60 * 1000)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Now')
-    expect(wrapper.text()).toContain('Today 00:01:00')
+    expect(wrapper.text()).toContain('03-14 00:01:00')
+    expect(wrapper.text()).not.toContain('Today 00:01:00')
+  })
+
+  it('anchors API remaining_seconds so reset countdown ticks down in realtime', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+    getUsage.mockResolvedValue({
+      five_hour: {
+        utilization: 50,
+        resets_at: null,
+        remaining_seconds: 180,
+      },
+    })
+
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3015,
+          platform: 'anthropic',
+          type: 'oauth',
+          extra: {},
+        } as any,
+      },
+    })
+
+    await flushPromises()
+    expect(wrapper.text()).toContain('00h:03m')
+
+    await vi.advanceTimersByTimeAsync(61 * 1000)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('00h:02m')
   })
 
   it('falls back to a dash when no reset rows are available', async () => {

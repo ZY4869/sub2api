@@ -19,6 +19,7 @@ describe("AccountOpenAIResetCreditsControls", () => {
       props: {
         resetStatusLabel: "3 resets left",
         resetUnsupported: false,
+        resetCreditsLow: false,
         resetting: false,
         refreshing: false,
         resetDisabled: false,
@@ -50,5 +51,33 @@ describe("AccountOpenAIResetCreditsControls", () => {
     expect(refresh.classes()).toContain("shrink-0");
     expect(reset.classes()).toContain("shrink-0");
     expect(remaining.classes()).toContain("shrink-0");
+  });
+
+  it("renders refresh as an accessible icon-only button and warns at one remaining credit", () => {
+    const wrapper = mount(AccountOpenAIResetCreditsControls, {
+      props: {
+        resetStatusLabel: "1 resets left",
+        resetUnsupported: false,
+        resetCreditsLow: true,
+        resetting: false,
+        refreshing: false,
+        resetDisabled: false,
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    });
+
+    const refresh = wrapper.get('[data-testid="account-usage-reset-credits-refresh"]');
+    const remaining = wrapper.get('[data-testid="account-usage-reset-quota-remaining"]');
+
+    expect(refresh.text()).toBe("");
+    expect(refresh.attributes("aria-label")).toBe(
+      "admin.accounts.usageWindow.refreshResetCreditsTitle",
+    );
+    expect(remaining.classes()).toContain("bg-amber-50");
+    expect(remaining.classes()).toContain("text-amber-700");
   });
 });

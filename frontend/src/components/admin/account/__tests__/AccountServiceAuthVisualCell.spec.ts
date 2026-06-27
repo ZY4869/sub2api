@@ -47,7 +47,7 @@ describe('AccountServiceAuthVisualCell', () => {
     const label = wrapper.find('.platform-icon-stub').element.nextElementSibling
 
     expect(label?.textContent).toBe('Team')
-    expect(label?.classList.contains('min-w-[2.6rem]')).toBe(true)
+    expect(label?.classList.contains('min-w-0')).toBe(true)
     expect(label?.classList.contains('truncate')).toBe(true)
   })
 
@@ -76,6 +76,7 @@ describe('AccountServiceAuthVisualCell', () => {
     expect(wrapper.text()).toContain('admin.accounts.platforms.openai')
     expect(mainBadge?.classList.contains('bg-emerald-50')).toBe(true)
     expect(mainBadge?.classList.contains('text-emerald-700')).toBe(true)
+    expect(mainBadge?.classList.contains('w-fit')).toBe(true)
   })
 
   it('maps Gemini Ultra API Key tier to the high-tier palette', () => {

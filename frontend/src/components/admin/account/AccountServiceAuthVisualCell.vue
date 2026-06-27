@@ -3,15 +3,15 @@
     <div class="flex min-w-0 items-center gap-1.5">
       <div
         :class="[
-          'inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full border py-[3px]',
+          'inline-flex w-fit min-w-0 max-w-full items-center gap-1.5 rounded-full border py-[3px]',
           compact ? 'px-2' : 'px-2.5',
           planBadgeClass
         ]"
         :title="planLabel"
       >
-        <Icon v-if="isApiKeyAccount" name="key" size="xs" :stroke-width="2.2" />
+        <Icon v-if="isApiKeyAccount" name="fingerprint" size="xs" :stroke-width="2.2" />
         <PlatformIcon v-else :platform="platform" size="xs" />
-        <span class="min-w-[2.6rem] max-w-[5.5rem] truncate text-[11px] font-bold leading-none tracking-tight">
+        <span class="min-w-0 max-w-[5.5rem] truncate text-[11px] font-bold leading-none tracking-tight">
           {{ planLabel }}
         </span>
       </div>

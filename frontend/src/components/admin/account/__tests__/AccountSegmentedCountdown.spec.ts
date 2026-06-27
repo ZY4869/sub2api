@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { resetUiNowForTests } from '@/composables/useUiNow'
 import AccountSegmentedCountdown from '../AccountSegmentedCountdown.vue'
 
@@ -19,7 +20,10 @@ describe('AccountSegmentedCountdown', () => {
       props: {
         resetAt: '2026-03-13T12:00:03Z',
         tone: 'amber'
-      }
+      },
+      global: {
+        plugins: [createPinia()]
+      },
     })
 
     expect(wrapper.text()).toContain('00:00:03')

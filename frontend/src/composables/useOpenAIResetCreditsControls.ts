@@ -91,6 +91,7 @@ export function useOpenAIResetCreditsControls(
   });
 
   const resetCreditsZero = computed(() => openAIQuotaResetRemaining.value === 0);
+  const resetCreditsLow = computed(() => openAIQuotaResetRemaining.value === 1);
 
   const resetButtonDisabled = computed(() => {
     return (
@@ -189,6 +190,7 @@ export function useOpenAIResetCreditsControls(
     resetCreditsUnsupported,
     resetCreditsUnknown,
     resetCreditsZero,
+    resetCreditsLow,
     resetting,
     refreshingResetCredits,
     resetButtonDisabled,

@@ -20,6 +20,7 @@
       :reset-status-label="resetCreditsStatusLabel"
       :reset-unsupported="resetCreditsUnsupported"
       :reset-zero="resetCreditsZero"
+      :reset-credits-low="resetCreditsLow"
       :resetting="resetting"
       :refreshing="refreshingResetCredits"
       :reset-disabled="resetButtonDisabled"
@@ -51,6 +52,7 @@ const {
   resetCreditsStatusLabel,
   resetCreditsUnsupported,
   resetCreditsZero,
+  resetCreditsLow,
   resetting,
   refreshingResetCredits,
   resetButtonDisabled,
