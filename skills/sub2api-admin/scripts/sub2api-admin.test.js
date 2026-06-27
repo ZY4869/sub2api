@@ -20,6 +20,7 @@ function runCLI(args, env = {}) {
         USERPROFILE: process.env.USERPROFILE,
         SUB2API_ADMIN_BASE_URL: "",
         SUB2API_ADMIN_TOKEN: "",
+        SUB2API_JWT: "",
         SUB2API_ADMIN_DRY_RUN: "",
         ...env,
       },
@@ -115,6 +116,49 @@ test("restore-original-proxy executes write when dry-run is disabled", async () 
   }
 });
 
+test("SUB2API_JWT is used as fallback when admin token is absent", async () => {
+  const server = await startServer((req, res) => {
+    assert.equal(req.method, "GET");
+    assert.equal(req.url, "/api/v1/admin/health");
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+  });
+  try {
+    const result = await runCLI(["health"], {
+      SUB2API_ADMIN_BASE_URL: server.baseURL,
+      SUB2API_JWT: "jwt-fallback-token",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(server.requests.length, 1);
+    assert.equal(server.requests[0].authorization, "Bearer jwt-fallback-token");
+    assert.doesNotMatch(result.stdout + result.stderr, /jwt-fallback-token/);
+  } finally {
+    await server.close();
+  }
+});
+
+test("SUB2API_ADMIN_TOKEN takes priority over SUB2API_JWT", async () => {
+  const server = await startServer((_req, res) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+  });
+  try {
+    const result = await runCLI(["health"], {
+      SUB2API_ADMIN_BASE_URL: server.baseURL,
+      SUB2API_ADMIN_TOKEN: "admin-token",
+      SUB2API_JWT: "jwt-fallback-token",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(server.requests.length, 1);
+    assert.equal(server.requests[0].authorization, "Bearer admin-token");
+    assert.doesNotMatch(result.stdout + result.stderr, /admin-token|jwt-fallback-token/);
+  } finally {
+    await server.close();
+  }
+});
+
 test("configuration errors are explicit and do not print token values", async () => {
   const missingBase = await runCLI(["health"], { SUB2API_ADMIN_TOKEN: "admin-token" });
   assert.notEqual(missingBase.status, 0);
@@ -123,7 +167,7 @@ test("configuration errors are explicit and do not print token values", async ()
 
   const missingToken = await runCLI(["health"], { SUB2API_ADMIN_BASE_URL: "http://127.0.0.1:1" });
   assert.notEqual(missingToken.status, 0);
-  assert.match(missingToken.stderr, /SUB2API_ADMIN_TOKEN is required/);
+  assert.match(missingToken.stderr, /SUB2API_ADMIN_TOKEN or SUB2API_JWT is required/);
 });
 
 test("non-2xx errors are summarized with sensitive fields redacted", async () => {

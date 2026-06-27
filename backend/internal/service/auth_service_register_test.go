@@ -411,6 +411,25 @@ func TestAuthService_LoginOrRegisterOAuth_UsesDefaultAPIKeyModelBindingMode(t *t
 	require.Equal(t, APIKeyModelBindingModeModelRequired, repo.created[0].APIKeyModelBindingMode)
 }
 
+func TestAuthService_LoginOrRegisterOAuth_EmailConflictLookupFailureReturnsServiceUnavailable(t *testing.T) {
+	repo := &userRepoStub{
+		allowGetByEmail: true,
+		getByEmailErr:   ErrUserNotFound,
+		createErr:       ErrEmailExists,
+	}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil)
+
+	token, user, err := service.LoginOrRegisterOAuth(context.Background(), "race-linuxdo@test.com", "Race LinuxDo")
+
+	require.ErrorIs(t, err, ErrServiceUnavailable)
+	require.ErrorIs(t, err, ErrEmailExists)
+	require.Empty(t, token)
+	require.Nil(t, user)
+	require.Empty(t, repo.created)
+}
+
 func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesDefaultAPIKeyModelBindingMode(t *testing.T) {
 	repo := &userRepoStub{
 		nextID:          71,
@@ -433,6 +452,27 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesDefaultAPIKeyModelBin
 	require.Equal(t, APIKeyModelBindingModeModelRequired, user.APIKeyModelBindingMode)
 	require.Len(t, repo.created, 1)
 	require.Equal(t, APIKeyModelBindingModeModelRequired, repo.created[0].APIKeyModelBindingMode)
+}
+
+func TestAuthService_LoginOrRegisterOAuthWithTokenPair_EmailConflictLookupFailureReturnsServiceUnavailable(t *testing.T) {
+	repo := &userRepoStub{
+		allowGetByEmail: true,
+		getByEmailErr:   ErrUserNotFound,
+		createErr:       ErrEmailExists,
+	}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil)
+	service.refreshTokenCache = authRefreshTokenCacheStub{}
+	service.cfg.JWT.RefreshTokenExpireDays = 7
+
+	tokenPair, user, err := service.LoginOrRegisterOAuthWithTokenPair(context.Background(), "race-oauth@test.com", "Race OAuth", "", "")
+
+	require.ErrorIs(t, err, ErrServiceUnavailable)
+	require.ErrorIs(t, err, ErrEmailExists)
+	require.Nil(t, tokenPair)
+	require.Nil(t, user)
+	require.Empty(t, repo.created)
 }
 
 func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {

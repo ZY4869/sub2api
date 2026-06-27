@@ -130,4 +130,59 @@ describe('AccountActionMenu', () => {
     expect(wrapper.emitted('quick-test')?.[0]?.[0]).toMatchObject({ id: 1, name: 'openai-1' })
     expect(wrapper.emitted('close')).toEqual([[]])
   })
+
+  it('hides generic quota reset for openai accounts', () => {
+    const wrapper = mount(AccountActionMenu, {
+      props: {
+        show: true,
+        account: makeAccount({
+          platform: 'openai',
+          type: 'apikey',
+          quota_limit: 100
+        }),
+        position: { top: 12, left: 34 }
+      },
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).not.toContain('admin.accounts.resetQuota')
+  })
+
+  it('keeps generic quota reset for non-openai local quota accounts', async () => {
+    const wrapper = mount(AccountActionMenu, {
+      props: {
+        show: true,
+        account: makeAccount({
+          platform: 'anthropic',
+          type: 'apikey',
+          quota_limit: 100
+        }),
+        position: { top: 12, left: 34 }
+      },
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+
+    const resetButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.resetQuota')
+    )
+
+    expect(resetButton).toBeTruthy()
+
+    await resetButton!.trigger('click')
+
+    expect(wrapper.emitted('reset-quota')?.[0]?.[0]).toMatchObject({ platform: 'anthropic' })
+    expect(wrapper.emitted('close')).toEqual([[]])
+  })
 })

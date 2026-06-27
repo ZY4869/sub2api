@@ -16,9 +16,9 @@ import {
 import { useAccountUsageDisplayMode } from "@/composables/useAccountUsageDisplayMode";
 import { resetUiNowForTests } from "@/composables/useUiNow";
 
-const { getUsage, resetAccountQuota, showSuccess, showError } = vi.hoisted(() => ({
+const { getUsage, resetOpenAIQuota, showSuccess, showError } = vi.hoisted(() => ({
   getUsage: vi.fn(),
-  resetAccountQuota: vi.fn(),
+  resetOpenAIQuota: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn(),
 }));
@@ -27,7 +27,7 @@ vi.mock("@/api/admin", () => ({
   adminAPI: {
     accounts: {
       getUsage,
-      resetAccountQuota,
+      resetOpenAIQuota,
     },
   },
 }));
@@ -36,7 +36,7 @@ vi.mock("@/api", () => ({
   adminAPI: {
     accounts: {
       getUsage,
-      resetAccountQuota,
+      resetOpenAIQuota,
     },
   },
 }));
@@ -190,7 +190,7 @@ describe("AccountUsageCell", () => {
   beforeEach(() => {
     getUsage.mockReset();
     getUsage.mockResolvedValue({});
-    resetAccountQuota.mockReset();
+    resetOpenAIQuota.mockReset();
     showSuccess.mockReset();
     showError.mockReset();
     localStorage.clear();
@@ -799,7 +799,7 @@ describe("AccountUsageCell", () => {
       openai_reset_credits: {
         available_count: 2,
         status: "available",
-        source: "codex_app_server",
+        source: "chatgpt_wham",
       },
       five_hour: {
         utilization: 10,
@@ -836,7 +836,7 @@ describe("AccountUsageCell", () => {
       .trigger("click");
     await flushPromises();
 
-    expect(resetAccountQuota).not.toHaveBeenCalled();
+    expect(resetOpenAIQuota).not.toHaveBeenCalled();
     expect(getUsage).toHaveBeenLastCalledWith(20002, {
       force: true,
       source: "active",

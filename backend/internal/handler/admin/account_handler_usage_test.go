@@ -52,7 +52,7 @@ type usageQueryResetCreditReaderStub struct {
 	calls int
 }
 
-func (s *usageQueryResetCreditReaderStub) ReadResetCredits(context.Context, *service.Account) (*service.OpenAICodexResetCreditsSnapshot, error) {
+func (s *usageQueryResetCreditReaderStub) ReadResetCredits(context.Context, *service.Account) (*service.OpenAIResetCreditsSnapshot, error) {
 	s.calls++
 	return nil, s.err
 }
@@ -256,9 +256,9 @@ func TestAccountHandlerGetUsageReturnsOpenAIResetCreditStatus(t *testing.T) {
 			"codex_5h_reset_at":                                  now.Add(time.Hour).Format(time.RFC3339),
 			"codex_7d_used_percent":                              20,
 			"codex_7d_reset_at":                                  now.Add(24 * time.Hour).Format(time.RFC3339),
-			"openai_rate_limits_app_server_updated_at":           now.Format(time.RFC3339),
+			"openai_quota_usage_updated_at":                      now.Format(time.RFC3339),
 			"openai_rate_limit_reset_credits_status":             "unsupported",
-			"openai_rate_limit_reset_credits_unsupported_reason": "当前 Codex app-server 不支持 OpenAI 官方真实重置",
+			"openai_rate_limit_reset_credits_unsupported_reason": "OpenAI quota usage did not include reset credits",
 		},
 	}
 	usageService := service.NewAccountUsageService(
@@ -296,7 +296,7 @@ func TestAccountHandlerGetUsageReturnsOpenAIResetCreditStatus(t *testing.T) {
 	require.NotNil(t, resp.Data.OpenAIResetCredits)
 	require.Nil(t, resp.Data.OpenAIResetCredits.AvailableCount)
 	require.Equal(t, "unsupported", resp.Data.OpenAIResetCredits.Status)
-	require.Contains(t, resp.Data.OpenAIResetCredits.UnsupportedReason, "不支持")
+	require.Contains(t, resp.Data.OpenAIResetCredits.UnsupportedReason, "OpenAI quota")
 }
 
 func TestAccountHandlerGetUsageResetCreditsReadFailureDoesNotReturnStaleCount(t *testing.T) {
@@ -321,13 +321,13 @@ func TestAccountHandlerGetUsageResetCreditsReadFailureDoesNotReturnStaleCount(t 
 			"codex_7d_reset_at":                                  now.Add(24 * time.Hour).Format(time.RFC3339),
 			"openai_rate_limit_reset_credits_available_count":    3,
 			"openai_rate_limit_reset_credits_updated_at":         now.Add(-11 * time.Minute).Format(time.RFC3339),
-			"openai_rate_limits_app_server_updated_at":           now.Add(-11 * time.Minute).Format(time.RFC3339),
+			"openai_quota_usage_updated_at":                      now.Add(-11 * time.Minute).Format(time.RFC3339),
 			"openai_rate_limit_reset_credits_status":             "available",
 			"openai_rate_limit_reset_credits_unsupported_reason": "stale",
 		},
 	}
 	repo := &usageQueryAccountRepoStub{account: account}
-	reader := &usageQueryResetCreditReaderStub{err: errors.New("Codex app-server unavailable")}
+	reader := &usageQueryResetCreditReaderStub{err: errors.New("OpenAI quota unavailable")}
 	usageService := service.NewAccountUsageService(
 		repo,
 		&usageQueryLogRepoStub{},

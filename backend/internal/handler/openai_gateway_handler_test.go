@@ -501,6 +501,101 @@ func TestOpenAIResponses_RuntimeQuotaOnlySelectionFailureReturns429(t *testing.T
 	require.Equal(t, openAIRuntimeQuotaCooldownMessage, errorObj["message"])
 }
 
+func TestOpenAIResponses_ModelUnsupportedSelectionFailureReturns404ModelNotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	groupID := int64(4101)
+	accountRepo := &openAIRuntimeQuotaAccountRepoStub{
+		accounts: []service.Account{
+			{
+				ID:          2101,
+				Name:        "openai-supports-other-model",
+				Platform:    service.PlatformOpenAI,
+				Type:        service.AccountTypeAPIKey,
+				Status:      service.StatusActive,
+				Schedulable: true,
+				Concurrency: 1,
+				Credentials: map[string]any{
+					"api_key": "sk-test",
+				},
+				Extra: map[string]any{
+					"model_scope_v2": map[string]any{
+						"policy_mode": service.AccountModelPolicyModeWhitelist,
+						"entries": []any{
+							map[string]any{
+								"display_model_id": "gpt-5.4",
+								"target_model_id":  "gpt-5.4",
+							},
+						},
+					},
+				},
+				AccountGroups: []service.AccountGroup{{AccountID: 2101, GroupID: groupID}},
+			},
+		},
+	}
+	cache := &concurrencyCacheMock{
+		acquireUserSlotFn: func(ctx context.Context, userID int64, maxConcurrency int, requestID string) (bool, error) {
+			return true, nil
+		},
+	}
+	concurrencySvc := service.NewConcurrencyService(cache)
+	gatewaySvc := service.NewOpenAIGatewayService(
+		accountRepo,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		concurrencySvc,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	h := &OpenAIGatewayHandler{
+		gatewayService:      gatewaySvc,
+		billingCacheService: service.NewBillingCacheService(nil, nil, nil, nil, &config.Config{RunMode: config.RunModeSimple}),
+		apiKeyService:       &service.APIKeyService{},
+		concurrencyHelper:   NewConcurrencyHelper(concurrencySvc, SSEPingFormatNone, time.Second),
+		maxAccountSwitches:  1,
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"gpt-5.5","stream":false}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
+		ID:      3101,
+		GroupID: &groupID,
+		Group:   &service.Group{ID: groupID, Platform: service.PlatformOpenAI, Status: service.StatusActive},
+		User:    &service.User{ID: 1},
+	})
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
+		UserID:      1,
+		Concurrency: 1,
+	})
+
+	h.Responses(c)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+
+	var parsed map[string]any
+	err := json.Unmarshal(w.Body.Bytes(), &parsed)
+	require.NoError(t, err)
+
+	errorObj, ok := parsed["error"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "invalid_request_error", errorObj["type"])
+	require.Equal(t, "model_not_found", errorObj["code"])
+	require.Contains(t, errorObj["message"], "gpt-5.5")
+}
+
 func TestOpenAIResponses_SetsClientTransportHTTP(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

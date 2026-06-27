@@ -577,7 +577,7 @@ export interface CodexUsageSnapshot {
   codex_account_7d_all_exhausted?: boolean; // Whether both Codex 7d windows are exhausted
   openai_rate_limit_reset_credits_available_count?: number;
   openai_rate_limit_reset_credits_updated_at?: string;
-  openai_rate_limits_app_server_updated_at?: string;
+  openai_quota_usage_updated_at?: string;
   openai_rate_limit_reset_credits_status?: OpenAIResetCreditsStatus;
   openai_rate_limit_reset_credits_unsupported_reason?: string;
 

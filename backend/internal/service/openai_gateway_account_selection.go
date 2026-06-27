@@ -174,6 +174,9 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 	}
 	selected := s.selectBestAccount(ctx, accounts, requestedModel, excludedIDs)
 	if selected == nil {
+		if s.openAISelectionFailureIsModelUnsupported(ctx, accounts, requestedModel, excludedIDs) {
+			return nil, fmt.Errorf("%w: %s", ErrOpenAIModelNotFound, requestedModel)
+		}
 		if requestedModel != "" {
 			return nil, fmt.Errorf("no available OpenAI accounts supporting model: %s", requestedModel)
 		}
@@ -404,7 +407,10 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx c
 		if stickyWaitResult != nil {
 			return stickyWaitResult, nil
 		}
-		return nil, errors.New("no available accounts")
+		if s.openAISelectionFailureIsModelUnsupported(ctx, accounts, requestedModel, excludedIDs) {
+			return nil, fmt.Errorf("%w: %s", ErrOpenAIModelNotFound, requestedModel)
+		}
+		return nil, ErrNoAvailableAccounts
 	}
 	accountLoads := make([]AccountWithConcurrency, 0, len(candidates))
 	for _, acc := range candidates {
@@ -517,7 +523,34 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx c
 	if stickyWaitResult != nil {
 		return stickyWaitResult, nil
 	}
-	return nil, errors.New("no available accounts")
+	return nil, ErrNoAvailableAccounts
+}
+
+func (s *OpenAIGatewayService) openAISelectionFailureIsModelUnsupported(ctx context.Context, accounts []Account, requestedModel string, excludedIDs map[int64]struct{}) bool {
+	if strings.TrimSpace(requestedModel) == "" || len(accounts) == 0 {
+		return false
+	}
+	eligible := 0
+	unsupported := 0
+	for i := range accounts {
+		account := &accounts[i]
+		if account == nil {
+			continue
+		}
+		if excludedIDs != nil {
+			if _, excluded := excludedIDs[account.ID]; excluded {
+				continue
+			}
+		}
+		if !account.IsSchedulable() || !isOpenAITextRuntimeAccount(account) {
+			continue
+		}
+		eligible++
+		if !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
+			unsupported++
+		}
+	}
+	return eligible > 0 && eligible == unsupported
 }
 
 func (s *OpenAIGatewayService) buildOpenAIStickyWaitSelection(

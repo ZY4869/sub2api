@@ -170,3 +170,37 @@ func TestOpenAIGatewayService_SelectAccountWithSchedulerForCapability_PinnedCata
 	require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
 	require.Equal(t, 1, decision.CandidateCount)
 }
+
+func TestOpenAIGatewayService_SelectAccountWithScheduler_ModelUnsupportedReturnsModelNotFound(t *testing.T) {
+	groupID := int64(9901)
+	unsupported := openAICapabilityTestAccount(50501, nil, 0)
+	unsupported.Extra = map[string]any{
+		"model_scope_v2": map[string]any{
+			"policy_mode": AccountModelPolicyModeWhitelist,
+			"entries": []any{
+				map[string]any{
+					"display_model_id": "gpt-5.4",
+					"target_model_id":  "gpt-5.4",
+				},
+			},
+		},
+	}
+	svc := &OpenAIGatewayService{
+		accountRepo:        stubOpenAIAccountRepo{accounts: []Account{unsupported}},
+		cfg:                &config.Config{},
+		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
+	}
+
+	selection, _, err := svc.SelectAccountWithScheduler(
+		context.Background(),
+		&groupID,
+		"",
+		"",
+		"gpt-5.5",
+		nil,
+		OpenAIUpstreamTransportAny,
+	)
+
+	require.ErrorIs(t, err, ErrOpenAIModelNotFound)
+	require.Nil(t, selection)
+}

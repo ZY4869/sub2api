@@ -5,7 +5,8 @@ This reference is intentionally narrow. It documents only the authenticated HTTP
 ## Environment
 
 - `SUB2API_ADMIN_BASE_URL`: Base URL for the Sub2API server, for example `http://localhost:8080`.
-- `SUB2API_ADMIN_TOKEN`: Admin bearer token.
+- `SUB2API_ADMIN_TOKEN`: Admin bearer token. Takes priority when both token env vars are set.
+- `SUB2API_JWT`: Fallback admin bearer token when `SUB2API_ADMIN_TOKEN` is unset.
 - `SUB2API_ADMIN_DRY_RUN`: Optional. Defaults to dry-run mode. Set to `0`, `false`, or `no` only after explicit approval.
 
 ## Authentication

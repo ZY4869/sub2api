@@ -43,6 +43,9 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAILoadBalanceCandidates(
 		})
 	}
 	if len(filtered) == 0 {
+		if s.service.openAISelectionFailureIsModelUnsupported(ctx, accounts, req.RequestedModel, req.ExcludedIDs) {
+			return nil, 0, ErrOpenAIModelNotFound
+		}
 		return nil, 0, errors.New("no available OpenAI accounts")
 	}
 

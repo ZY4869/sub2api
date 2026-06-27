@@ -58,12 +58,12 @@ type openAICodexProbeQueueDialer struct {
 }
 
 type accountUsageResetCreditReaderStub struct {
-	snapshot *OpenAICodexResetCreditsSnapshot
+	snapshot *OpenAIResetCreditsSnapshot
 	err      error
 	calls    int
 }
 
-func (s *accountUsageResetCreditReaderStub) ReadResetCredits(_ context.Context, _ *Account) (*OpenAICodexResetCreditsSnapshot, error) {
+func (s *accountUsageResetCreditReaderStub) ReadResetCredits(_ context.Context, _ *Account) (*OpenAIResetCreditsSnapshot, error) {
 	s.calls++
 	return s.snapshot, s.err
 }
@@ -650,10 +650,10 @@ func TestAccountUsageService_GetOpenAIUsage_ReadsRealResetCredits(t *testing.T) 
 	count := 3
 	updatedAt := time.Date(2026, 6, 18, 10, 0, 0, 0, time.UTC)
 	reader := &accountUsageResetCreditReaderStub{
-		snapshot: &OpenAICodexResetCreditsSnapshot{
+		snapshot: &OpenAIResetCreditsSnapshot{
 			AvailableCount: &count,
 			UpdatedAt:      updatedAt,
-			Source:         openAIResetCreditsSourceCodexAppServer,
+			Source:         openAIResetCreditsSourceWham,
 			Status:         openAIResetCreditsStatusAvailable,
 		},
 	}
@@ -680,7 +680,7 @@ func TestAccountUsageService_GetOpenAIUsage_ReadsRealResetCredits(t *testing.T) 
 	require.NotNil(t, usage.OpenAIResetCredits)
 	require.NotNil(t, usage.OpenAIResetCredits.AvailableCount)
 	require.Equal(t, 3, *usage.OpenAIResetCredits.AvailableCount)
-	require.Equal(t, openAIResetCreditsSourceCodexAppServer, usage.OpenAIResetCredits.Source)
+	require.Equal(t, openAIResetCreditsSourceWham, usage.OpenAIResetCredits.Source)
 	require.Equal(t, openAIResetCreditsStatusAvailable, usage.OpenAIResetCredits.Status)
 }
 
@@ -718,7 +718,7 @@ func TestAccountUsageService_GetOpenAIUsage_ResetCreditsReadFailureClearsStaleCo
 	require.NotNil(t, usage.OpenAIResetCredits)
 	require.Nil(t, usage.OpenAIResetCredits.AvailableCount)
 	require.Equal(t, openAIResetCreditsStatusUnknownOrUnsupported, usage.OpenAIResetCredits.Status)
-	require.Equal(t, openAIResetCreditsSourceCodexAppServer, usage.OpenAIResetCredits.Source)
+	require.Equal(t, openAIResetCreditsSourceWham, usage.OpenAIResetCredits.Source)
 	require.Nil(t, account.Extra[openAIResetCreditsAvailableCountExtraKey])
 	require.Nil(t, account.Extra[openAIResetCreditsUpdatedAtExtraKey])
 	require.Equal(t, openAIResetCreditsStatusUnknownOrUnsupported, account.Extra[openAIResetCreditsStatusExtraKey])
@@ -729,10 +729,10 @@ func TestAccountUsageService_GetOpenAIUsage_ResetCreditsReadFailureClearsStaleCo
 	require.Contains(t, updates, openAIResetCreditsUpdatedAtExtraKey)
 	require.Nil(t, updates[openAIResetCreditsUpdatedAtExtraKey])
 	require.Equal(t, openAIResetCreditsStatusUnknownOrUnsupported, updates[openAIResetCreditsStatusExtraKey])
-	require.NotEmpty(t, updates[openAIRateLimitsAppServerUpdatedAtExtraKey])
+	require.NotEmpty(t, updates[openAIQuotaUsageUpdatedAtExtraKey])
 }
 
-func TestShouldRefreshOpenAIResetCreditsSnapshot_UsesAppServerTimestampForUnknownTTL(t *testing.T) {
+func TestShouldRefreshOpenAIResetCreditsSnapshot_UsesQuotaTimestampForUnknownTTL(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().UTC().Truncate(time.Second)
@@ -740,23 +740,23 @@ func TestShouldRefreshOpenAIResetCreditsSnapshot_UsesAppServerTimestampForUnknow
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Extra: map[string]any{
-			openAIResetCreditsStatusExtraKey:           openAIResetCreditsStatusUnknownOrUnsupported,
-			openAIResetCreditsAvailableCountExtraKey:   nil,
-			openAIResetCreditsUpdatedAtExtraKey:        nil,
-			openAIRateLimitsAppServerUpdatedAtExtraKey: now.Add(-time.Minute).Format(time.RFC3339),
+			openAIResetCreditsStatusExtraKey:         openAIResetCreditsStatusUnknownOrUnsupported,
+			openAIResetCreditsAvailableCountExtraKey: nil,
+			openAIResetCreditsUpdatedAtExtraKey:      nil,
+			openAIQuotaUsageUpdatedAtExtraKey:        now.Add(-time.Minute).Format(time.RFC3339),
 		},
 	}
 
 	require.False(t, shouldRefreshOpenAIResetCreditsSnapshot(account, now))
 
-	account.Extra[openAIRateLimitsAppServerUpdatedAtExtraKey] = now.Add(-(openAIProbeCacheTTL + time.Minute)).Format(time.RFC3339)
+	account.Extra[openAIQuotaUsageUpdatedAtExtraKey] = now.Add(-(openAIProbeCacheTTL + time.Minute)).Format(time.RFC3339)
 	require.True(t, shouldRefreshOpenAIResetCreditsSnapshot(account, now))
 }
 
 func TestApplyOpenAIResetCreditsFromExtra_MissingCountRemainsUnknown(t *testing.T) {
 	usage := &UsageInfo{}
 	applyOpenAIResetCreditsFromExtra(usage, map[string]any{
-		openAIRateLimitsAppServerUpdatedAtExtraKey: time.Now().UTC().Format(time.RFC3339),
+		openAIQuotaUsageUpdatedAtExtraKey: time.Now().UTC().Format(time.RFC3339),
 	})
 	require.NotNil(t, usage.OpenAIResetCredits)
 	require.Nil(t, usage.OpenAIResetCredits.AvailableCount)
@@ -778,14 +778,14 @@ func TestApplyOpenAIResetCreditsFromExtra_UsesCanonicalCount(t *testing.T) {
 func TestApplyOpenAIResetCreditsFromExtra_UsesUnsupportedStatus(t *testing.T) {
 	usage := &UsageInfo{}
 	applyOpenAIResetCreditsFromExtra(usage, map[string]any{
-		openAIRateLimitsAppServerUpdatedAtExtraKey:  "2026-06-18T10:00:00Z",
+		openAIQuotaUsageUpdatedAtExtraKey:           "2026-06-18T10:00:00Z",
 		openAIResetCreditsStatusExtraKey:            openAIResetCreditsStatusUnsupported,
-		openAIResetCreditsUnsupportedReasonExtraKey: "当前 Codex app-server 不支持 OpenAI 官方真实重置",
+		openAIResetCreditsUnsupportedReasonExtraKey: "OpenAI quota usage did not include reset credits",
 	})
 	require.NotNil(t, usage.OpenAIResetCredits)
 	require.Nil(t, usage.OpenAIResetCredits.AvailableCount)
 	require.Equal(t, openAIResetCreditsStatusUnsupported, usage.OpenAIResetCredits.Status)
-	require.Contains(t, usage.OpenAIResetCredits.UnsupportedReason, "不支持")
+	require.Contains(t, usage.OpenAIResetCredits.UnsupportedReason, "OpenAI quota")
 }
 
 func TestShouldRefreshOpenAICodexSnapshot_ProRefreshesWhenSparkWindowsMissing(t *testing.T) {

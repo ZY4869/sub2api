@@ -22,7 +22,7 @@ type AccountUsageService struct {
 	openAICodexScopeProbeHTTP             func(ctx context.Context, account *Account, modelID string) (map[string]any, *time.Time, error)
 	openAICodexWSProbeDialer              openAIWSClientDialer
 	openAICodexWSProbeReadTimeoutOverride time.Duration
-	openAIResetCreditService              OpenAICodexResetCreditReader
+	openAIResetCreditService              OpenAIResetCreditReader
 	tlsFingerprintProfileService          *TLSFingerprintProfileService
 }
 
@@ -51,7 +51,7 @@ func (s *AccountUsageService) SetTLSFingerprintProfileService(tlsFingerprintProf
 	s.tlsFingerprintProfileService = tlsFingerprintProfileService
 }
 
-func (s *AccountUsageService) SetOpenAIResetCreditService(resetCreditService OpenAICodexResetCreditReader) {
+func (s *AccountUsageService) SetOpenAIResetCreditService(resetCreditService OpenAIResetCreditReader) {
 	s.openAIResetCreditService = resetCreditService
 }
 

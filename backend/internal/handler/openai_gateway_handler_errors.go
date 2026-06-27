@@ -142,6 +142,21 @@ func (h *OpenAIGatewayHandler) errorResponseWithCode(c *gin.Context, status int,
 	c.JSON(status, gin.H{"error": errorPayload})
 }
 
+func (h *OpenAIGatewayHandler) handleOpenAIModelNotFound(c *gin.Context, model string, streamStarted bool) {
+	message := "The requested model is not available"
+	if model = strings.TrimSpace(model); model != "" {
+		message = fmt.Sprintf("The model %q does not exist or is not available", model)
+	}
+	if canAppendResponsesFailedEvent(c, streamStarted) && writeResponsesFailedEvent(c, "invalid_request_error", message) {
+		return
+	}
+	if streamStarted {
+		h.handleStreamingAwareError(c, http.StatusNotFound, "invalid_request_error", message, true)
+		return
+	}
+	h.errorResponseWithCode(c, http.StatusNotFound, "invalid_request_error", "model_not_found", message)
+}
+
 func (h *OpenAIGatewayHandler) publicCatalogUnavailableResponse(c *gin.Context, status service.PublicCatalogResolutionStatus) {
 	if status == service.PublicCatalogResolutionTimeWindowDenied {
 		h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "MODEL_TIME_WINDOW_DENIED", service.PublicCatalogModelTimeWindowDeniedMessage)

@@ -8,9 +8,9 @@ import { resetUiNowForTests } from '@/composables/useUiNow'
 
 let confirmSpy: ReturnType<typeof vi.spyOn>
 
-const { getUsage, resetAccountQuota, showSuccess, showError } = vi.hoisted(() => ({
+const { getUsage, resetOpenAIQuota, showSuccess, showError } = vi.hoisted(() => ({
   getUsage: vi.fn(),
-  resetAccountQuota: vi.fn(),
+  resetOpenAIQuota: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn(),
 }))
@@ -19,7 +19,7 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
       getUsage,
-      resetAccountQuota,
+      resetOpenAIQuota,
     },
   },
 }))
@@ -28,7 +28,7 @@ vi.mock('@/api', () => ({
   adminAPI: {
     accounts: {
       getUsage,
-      resetAccountQuota,
+      resetOpenAIQuota,
     },
   },
 }))
@@ -107,7 +107,7 @@ enableAutoUnmount(afterEach)
 describe('AccountUsageResetCell', () => {
   beforeEach(() => {
     getUsage.mockReset()
-    resetAccountQuota.mockReset()
+    resetOpenAIQuota.mockReset()
     showSuccess.mockReset()
     showError.mockReset()
     confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -342,7 +342,7 @@ describe('AccountUsageResetCell', () => {
   })
 
   it('resets openai quota from the usage reset cell and reloads active usage', async () => {
-    resetAccountQuota.mockResolvedValue({})
+    resetOpenAIQuota.mockResolvedValue({})
     getUsage.mockResolvedValueOnce({
       five_hour: {
         utilization: 90,
@@ -380,7 +380,7 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(window.confirm).toHaveBeenCalledWith('Use real reset?')
-    expect(resetAccountQuota).toHaveBeenCalledWith(3007)
+    expect(resetOpenAIQuota).toHaveBeenCalledWith(3007)
     expect(getUsage).toHaveBeenCalledWith(3007, { force: true, source: 'active' })
     expect(showSuccess).toHaveBeenCalledWith('Quota reset')
   })
@@ -459,7 +459,7 @@ describe('AccountUsageResetCell', () => {
       openai_reset_credits: {
         available_count: null,
         status: 'unknown_or_unsupported',
-        source: 'codex_app_server',
+        source: 'chatgpt_wham',
       },
       five_hour: {
         utilization: 10,
@@ -490,7 +490,7 @@ describe('AccountUsageResetCell', () => {
   })
 
   it('shows unknown when active usage refresh fails with stale reset credit extra', async () => {
-    getUsage.mockRejectedValue(new Error('Codex app-server unavailable'))
+    getUsage.mockRejectedValue(new Error('OpenAI quota unavailable'))
 
     const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
@@ -505,7 +505,7 @@ describe('AccountUsageResetCell', () => {
             openai_rate_limit_reset_credits_available_count: 3,
             openai_rate_limit_reset_credits_status: 'unknown_or_unsupported',
             openai_rate_limit_reset_credits_updated_at: null,
-            openai_rate_limits_app_server_updated_at: '2026-03-13T15:00:00Z',
+            openai_quota_usage_updated_at: '2026-03-13T15:00:00Z',
           },
         } as any,
       },
@@ -518,10 +518,10 @@ describe('AccountUsageResetCell', () => {
   })
 
   it('shows friendly no-credit reset error and refreshes usage', async () => {
-    resetAccountQuota.mockRejectedValue({
+    resetOpenAIQuota.mockRejectedValue({
       response: {
         data: {
-          reason: 'OPENAI_RESET_CREDITS_NO_CREDIT',
+          reason: 'OPENAI_QUOTA_RESET_NO_CREDIT',
           message: 'raw backend message',
         },
       },
@@ -553,16 +553,16 @@ describe('AccountUsageResetCell', () => {
     await wrapper.get('[data-testid="account-usage-reset-quota-button"]').trigger('click')
     await flushPromises()
 
-    expect(resetAccountQuota).toHaveBeenCalledWith(3012)
+    expect(resetOpenAIQuota).toHaveBeenCalledWith(3012)
     expect(getUsage).toHaveBeenCalledWith(3012, { force: true, source: 'active' })
     expect(showError).toHaveBeenCalledWith('No reset credits available')
   })
 
   it('shows friendly nothing-to-reset error and refreshes usage', async () => {
-    resetAccountQuota.mockRejectedValue({
+    resetOpenAIQuota.mockRejectedValue({
       response: {
         data: {
-          error: 'OPENAI_RESET_CREDITS_NOTHING_TO_RESET',
+          error: 'OPENAI_QUOTA_RESET_NOTHING_TO_RESET',
           message: 'raw backend message',
         },
       },
@@ -594,12 +594,12 @@ describe('AccountUsageResetCell', () => {
     await wrapper.get('[data-testid="account-usage-reset-quota-button"]').trigger('click')
     await flushPromises()
 
-    expect(resetAccountQuota).toHaveBeenCalledWith(3013)
+    expect(resetOpenAIQuota).toHaveBeenCalledWith(3013)
     expect(getUsage).toHaveBeenCalledWith(3013, { force: true, source: 'active' })
     expect(showError).toHaveBeenCalledWith('Nothing to reset')
   })
 
-  it('disables openai quota reset when app-server reports unsupported reset credits', async () => {
+  it('disables openai quota reset when OpenAI quota usage reports unsupported reset credits', async () => {
     const wrapper = mountWithPinia(AccountUsageResetCell, {
       props: {
         account: {
@@ -611,7 +611,7 @@ describe('AccountUsageResetCell', () => {
             codex_5h_used_percent: 10,
             codex_5h_reset_at: '2026-03-13T15:22:00',
             openai_rate_limit_reset_credits_status: 'unsupported',
-            openai_rate_limit_reset_credits_unsupported_reason: 'This Codex app-server cannot reset',
+            openai_rate_limit_reset_credits_unsupported_reason: 'OpenAI quota usage did not include reset credits',
           },
         } as any,
       },
@@ -625,7 +625,7 @@ describe('AccountUsageResetCell', () => {
 
     await wrapper.get('[data-testid="account-usage-reset-quota-button"]').trigger('click')
 
-    expect(resetAccountQuota).not.toHaveBeenCalled()
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
     expect(window.confirm).not.toHaveBeenCalled()
   })
 })

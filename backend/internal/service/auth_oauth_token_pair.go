@@ -102,15 +102,16 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				defer func() { _ = tx.Rollback() }()
 				txCtx := dbent.NewTxContext(ctx, tx)
 
-				if err := s.userRepo.Create(txCtx, newUser); err != nil {
-					if errors.Is(err, ErrEmailExists) {
-						user, err = s.userRepo.GetByEmail(ctx, email)
-						if err != nil {
-							logger.LegacyPrintf("service.auth", "[Auth] Database error getting user after conflict: %v", err)
-							return nil, nil, ErrServiceUnavailable
+				if createErr := s.userRepo.Create(txCtx, newUser); createErr != nil {
+					if errors.Is(createErr, ErrEmailExists) {
+						conflictUser, lookupErr := s.userRepo.GetByEmail(ctx, email)
+						if lookupErr != nil {
+							logger.LegacyPrintf("service.auth", "[Auth] Database error getting user after oauth create conflict: create_err=%v lookup_err=%v", createErr, lookupErr)
+							return nil, nil, oauthCreateConflictRecoveryError(createErr, lookupErr)
 						}
+						user = conflictUser
 					} else {
-						logger.LegacyPrintf("service.auth", "[Auth] Database error creating oauth user: %v", err)
+						logger.LegacyPrintf("service.auth", "[Auth] Database error creating oauth user: %v", createErr)
 						return nil, nil, ErrServiceUnavailable
 					}
 				} else {
@@ -126,15 +127,16 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					s.assignDefaultSubscriptions(ctx, user.ID)
 				}
 			} else {
-				if err := s.userRepo.Create(ctx, newUser); err != nil {
-					if errors.Is(err, ErrEmailExists) {
-						user, err = s.userRepo.GetByEmail(ctx, email)
-						if err != nil {
-							logger.LegacyPrintf("service.auth", "[Auth] Database error getting user after conflict: %v", err)
-							return nil, nil, ErrServiceUnavailable
+				if createErr := s.userRepo.Create(ctx, newUser); createErr != nil {
+					if errors.Is(createErr, ErrEmailExists) {
+						conflictUser, lookupErr := s.userRepo.GetByEmail(ctx, email)
+						if lookupErr != nil {
+							logger.LegacyPrintf("service.auth", "[Auth] Database error getting user after oauth create conflict: create_err=%v lookup_err=%v", createErr, lookupErr)
+							return nil, nil, oauthCreateConflictRecoveryError(createErr, lookupErr)
 						}
+						user = conflictUser
 					} else {
-						logger.LegacyPrintf("service.auth", "[Auth] Database error creating oauth user: %v", err)
+						logger.LegacyPrintf("service.auth", "[Auth] Database error creating oauth user: %v", createErr)
 						return nil, nil, ErrServiceUnavailable
 					}
 				} else {
@@ -183,4 +185,8 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 		return nil, nil, fmt.Errorf("generate token pair: %w", err)
 	}
 	return tokenPair, user, nil
+}
+
+func oauthCreateConflictRecoveryError(createErr error, lookupErr error) error {
+	return ErrServiceUnavailable.WithCause(fmt.Errorf("oauth create conflict recovery failed: create_err=%w lookup_err=%v", createErr, lookupErr))
 }

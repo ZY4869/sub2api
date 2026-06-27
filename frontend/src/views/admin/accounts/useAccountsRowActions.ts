@@ -264,6 +264,10 @@ const handleImportModels = async (
 };
 
 const handleResetQuota = async (a: Account) => {
+  if (a.platform === "openai") {
+    appStore.showError(t("admin.accounts.usageWindow.resetQuotaUnsupported"));
+    return;
+  }
   try {
     const updated = await adminAPI.accounts.resetAccountQuota(a.id);
     patchAccountInList(updated);

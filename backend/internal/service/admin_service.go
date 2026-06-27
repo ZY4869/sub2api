@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -417,25 +418,24 @@ const (
 )
 
 type adminServiceImpl struct {
-	userRepo                 UserRepository
-	groupRepo                GroupRepository
-	accountRepo              AccountRepository
-	proxyRepo                ProxyRepository
-	apiKeyRepo               APIKeyRepository
-	redeemCodeRepo           RedeemCodeRepository
-	userGroupRateRepo        UserGroupRateRepository
-	billingCacheService      *BillingCacheService
-	proxyProber              ProxyExitInfoProber
-	proxyLatencyCache        ProxyLatencyCache
-	authCacheInvalidator     APIKeyAuthCacheInvalidator
-	privacyClientFactory     PrivacyClientFactory
-	entClient                *dbent.Client
-	settingService           *SettingService
-	defaultSubAssigner       DefaultSubscriptionAssigner
-	userSubRepo              UserSubscriptionRepository
-	affiliateService         *AffiliateService
-	openAIResetCreditService OpenAICodexResetCreditConsumer
-	cfg                      *config.Config
+	userRepo             UserRepository
+	groupRepo            GroupRepository
+	accountRepo          AccountRepository
+	proxyRepo            ProxyRepository
+	apiKeyRepo           APIKeyRepository
+	redeemCodeRepo       RedeemCodeRepository
+	userGroupRateRepo    UserGroupRateRepository
+	billingCacheService  *BillingCacheService
+	proxyProber          ProxyExitInfoProber
+	proxyLatencyCache    ProxyLatencyCache
+	authCacheInvalidator APIKeyAuthCacheInvalidator
+	privacyClientFactory PrivacyClientFactory
+	entClient            *dbent.Client
+	settingService       *SettingService
+	defaultSubAssigner   DefaultSubscriptionAssigner
+	userSubRepo          UserSubscriptionRepository
+	affiliateService     *AffiliateService
+	cfg                  *config.Config
 }
 type userGroupRateBatchReader interface {
 	GetByUserIDs(ctx context.Context, userIDs []int64) (map[int64]map[int64]float64, error)
@@ -444,8 +444,8 @@ type groupExistenceBatchReader interface {
 	ExistsByIDs(ctx context.Context, ids []int64) (map[int64]bool, error)
 }
 
-func NewAdminService(userRepo UserRepository, groupRepo GroupRepository, accountRepo AccountRepository, proxyRepo ProxyRepository, apiKeyRepo APIKeyRepository, redeemCodeRepo RedeemCodeRepository, userGroupRateRepo UserGroupRateRepository, billingCacheService *BillingCacheService, proxyProber ProxyExitInfoProber, proxyLatencyCache ProxyLatencyCache, authCacheInvalidator APIKeyAuthCacheInvalidator, privacyClientFactory PrivacyClientFactory, entClient *dbent.Client, settingService *SettingService, defaultSubAssigner DefaultSubscriptionAssigner, userSubRepo UserSubscriptionRepository, affiliateService *AffiliateService, openAIResetCreditService OpenAICodexResetCreditConsumer, cfg *config.Config) AdminService {
-	return &adminServiceImpl{userRepo: userRepo, groupRepo: groupRepo, accountRepo: accountRepo, proxyRepo: proxyRepo, apiKeyRepo: apiKeyRepo, redeemCodeRepo: redeemCodeRepo, userGroupRateRepo: userGroupRateRepo, billingCacheService: billingCacheService, proxyProber: proxyProber, proxyLatencyCache: proxyLatencyCache, authCacheInvalidator: authCacheInvalidator, privacyClientFactory: privacyClientFactory, entClient: entClient, settingService: settingService, defaultSubAssigner: defaultSubAssigner, userSubRepo: userSubRepo, affiliateService: affiliateService, openAIResetCreditService: openAIResetCreditService, cfg: cfg}
+func NewAdminService(userRepo UserRepository, groupRepo GroupRepository, accountRepo AccountRepository, proxyRepo ProxyRepository, apiKeyRepo APIKeyRepository, redeemCodeRepo RedeemCodeRepository, userGroupRateRepo UserGroupRateRepository, billingCacheService *BillingCacheService, proxyProber ProxyExitInfoProber, proxyLatencyCache ProxyLatencyCache, authCacheInvalidator APIKeyAuthCacheInvalidator, privacyClientFactory PrivacyClientFactory, entClient *dbent.Client, settingService *SettingService, defaultSubAssigner DefaultSubscriptionAssigner, userSubRepo UserSubscriptionRepository, affiliateService *AffiliateService, cfg *config.Config) AdminService {
+	return &adminServiceImpl{userRepo: userRepo, groupRepo: groupRepo, accountRepo: accountRepo, proxyRepo: proxyRepo, apiKeyRepo: apiKeyRepo, redeemCodeRepo: redeemCodeRepo, userGroupRateRepo: userGroupRateRepo, billingCacheService: billingCacheService, proxyProber: proxyProber, proxyLatencyCache: proxyLatencyCache, authCacheInvalidator: authCacheInvalidator, privacyClientFactory: privacyClientFactory, entClient: entClient, settingService: settingService, defaultSubAssigner: defaultSubAssigner, userSubRepo: userSubRepo, affiliateService: affiliateService, cfg: cfg}
 }
 func (s *adminServiceImpl) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {
 	return s.proxyRepo.ExistsByHostPortAuth(ctx, host, port, username, password)
@@ -472,12 +472,11 @@ func (s *adminServiceImpl) ResetAccountQuota(ctx context.Context, id int64) erro
 	if err != nil {
 		return err
 	}
-	if account != nil && account.IsOpenAIOAuth() {
-		if s.openAIResetCreditService == nil {
-			return infraerrors.ServiceUnavailable("OPENAI_CODEX_APP_SERVER_NOT_CONFIGURED", "Codex app-server 未配置")
-		}
-		_, err := s.openAIResetCreditService.ConsumeResetCredit(ctx, account, "")
-		return err
+	if account == nil {
+		return ErrAccountNotFound
+	}
+	if account.IsOpenAI() {
+		return infraerrors.BadRequest("ACCOUNT_QUOTA_RESET_UNSUPPORTED_PLATFORM", "OpenAI account quota reset must use the dedicated OpenAI quota endpoint")
 	}
 	return s.accountRepo.ResetQuotaUsed(ctx, id)
 }

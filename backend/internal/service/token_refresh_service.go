@@ -416,8 +416,9 @@ func isNonRetryableRefreshError(err error) bool {
 	}
 	msg := strings.ToLower(err.Error())
 	nonRetryable := []string{
-		"invalid_grant",          // refresh_token 已失效
-		"invalid_refresh_token",  // refresh_token 已失效或被撤销
+		"invalid_grant",         // refresh_token 已失效
+		"invalid_refresh_token", // refresh_token 已失效或被撤销
+		"refresh_token_invalidated",
 		"app_session_terminated", // 上游会话已终止，需要重新授权
 		"refresh_token_reused",   // refresh_token 已被并发刷新路径消费
 		"invalid_client",         // 客户端配置错误

@@ -37,10 +37,16 @@ function resolveResetQuotaErrorMessage(error: any, t: (key: string) => string) {
       "",
   );
 
-  if (reason === "OPENAI_RESET_CREDITS_NO_CREDIT") {
+  if (
+    reason === "OPENAI_QUOTA_RESET_NO_CREDIT" ||
+    reason === "OPENAI_QUOTA_RESET_CREDIT_UNAVAILABLE"
+  ) {
     return t("admin.accounts.usageWindow.resetQuotaNoCredit");
   }
-  if (reason === "OPENAI_RESET_CREDITS_NOTHING_TO_RESET") {
+  if (
+    reason === "OPENAI_QUOTA_RESET_NOTHING_TO_RESET" ||
+    reason === "OPENAI_QUOTA_RESET_NO_WINDOW"
+  ) {
     return t("admin.accounts.usageWindow.resetQuotaNothingToReset");
   }
 
@@ -115,7 +121,7 @@ export function useOpenAIResetCreditsControls(
 
     resetting.value = true;
     try {
-      await adminAPI.accounts.resetAccountQuota(currentAccount.id);
+      await adminAPI.accounts.resetOpenAIQuota(currentAccount.id);
       invalidateAccountUsagePresentationCache([currentAccount.id]);
       await refreshAccountUsagePresentation([currentAccount], {
         force: true,

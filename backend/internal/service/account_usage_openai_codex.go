@@ -88,13 +88,17 @@ func (s *AccountUsageService) applyOpenAIResetCreditsUnknown(ctx context.Context
 	if account == nil || usage == nil {
 		return
 	}
-	snapshot := openAICodexUnknownResetCreditsSnapshot(now)
+	snapshot := &OpenAIResetCreditsSnapshot{
+		UpdatedAt: now.UTC(),
+		Source:    openAIResetCreditsSourceWham,
+		Status:    openAIResetCreditsStatusUnknownOrUnsupported,
+	}
 	usage.OpenAIResetCredits = &OpenAIResetCreditsInfo{
 		UpdatedAt: &snapshot.UpdatedAt,
 		Source:    snapshot.Source,
 		Status:    snapshot.Status,
 	}
-	updates := openAICodexUnknownResetCreditsExtra(snapshot)
+	updates := openAIResetCreditsExtraFromSnapshot(snapshot)
 	mergeAccountExtra(account, updates)
 	if s == nil || s.accountRepo == nil || account.ID <= 0 {
 		return
@@ -109,7 +113,7 @@ func applyOpenAIResetCreditsFromExtra(usage *UsageInfo, extra map[string]any) {
 		return
 	}
 	info := &OpenAIResetCreditsInfo{
-		Source: openAIResetCreditsSourceCodexAppServer,
+		Source: openAIResetCreditsSourceWham,
 	}
 	count, ok := parseOpenAIResetCreditsExtraCount(extra[openAIResetCreditsAvailableCountExtraKey])
 	if ok {
@@ -118,7 +122,7 @@ func applyOpenAIResetCreditsFromExtra(usage *UsageInfo, extra map[string]any) {
 	if updatedAt, ok := parseOpenAIResetCreditsExtraUpdatedAt(extra[openAIResetCreditsUpdatedAtExtraKey]); ok {
 		info.UpdatedAt = &updatedAt
 	}
-	if updatedAt, ok := parseOpenAIResetCreditsExtraUpdatedAt(extra[openAIRateLimitsAppServerUpdatedAtExtraKey]); ok && info.UpdatedAt == nil {
+	if updatedAt, ok := parseOpenAIResetCreditsExtraUpdatedAt(extra[openAIQuotaUsageUpdatedAtExtraKey]); ok && info.UpdatedAt == nil {
 		info.UpdatedAt = &updatedAt
 	}
 	info.Status = parseOpenAIResetCreditsExtraStatus(extra, info.AvailableCount != nil)
@@ -136,7 +140,7 @@ func shouldRefreshOpenAIResetCreditsSnapshot(account *Account, now time.Time) bo
 	if ts, ok := parseOpenAIResetCreditsExtraUpdatedAt(account.Extra[openAIResetCreditsUpdatedAtExtraKey]); ok {
 		return now.Sub(ts) >= openAIProbeCacheTTL
 	}
-	if ts, ok := parseOpenAIResetCreditsExtraUpdatedAt(account.Extra[openAIRateLimitsAppServerUpdatedAtExtraKey]); ok {
+	if ts, ok := parseOpenAIResetCreditsExtraUpdatedAt(account.Extra[openAIQuotaUsageUpdatedAtExtraKey]); ok {
 		return now.Sub(ts) >= openAIProbeCacheTTL
 	}
 	return true

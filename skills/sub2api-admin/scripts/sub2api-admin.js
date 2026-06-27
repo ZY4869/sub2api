@@ -23,7 +23,8 @@ function usage() {
     "",
     "Environment:",
     "  SUB2API_ADMIN_BASE_URL  Required admin API base URL",
-    "  SUB2API_ADMIN_TOKEN     Required admin bearer token",
+    "  SUB2API_ADMIN_TOKEN     Admin bearer token; takes priority over SUB2API_JWT",
+    "  SUB2API_JWT             Fallback admin bearer token",
     "  SUB2API_ADMIN_DRY_RUN   Defaults to dry-run; set 0/false/no to execute writes",
   ].join("\n");
 }
@@ -54,12 +55,12 @@ function isDryRun() {
 
 function requireConfig() {
   const baseURL = String(process.env.SUB2API_ADMIN_BASE_URL || "").trim().replace(/\/+$/, "");
-  const token = String(process.env.SUB2API_ADMIN_TOKEN || "").trim();
+  const token = String(process.env.SUB2API_ADMIN_TOKEN || process.env.SUB2API_JWT || "").trim();
   if (!baseURL) {
     throw new Error("SUB2API_ADMIN_BASE_URL is required");
   }
   if (!token) {
-    throw new Error("SUB2API_ADMIN_TOKEN is required");
+    throw new Error("SUB2API_ADMIN_TOKEN or SUB2API_JWT is required");
   }
   return { baseURL, token };
 }

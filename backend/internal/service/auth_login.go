@@ -102,16 +102,17 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				APIKeyModelBindingMode: defaultAPIKeyModelBindingMode,
 			}
 
-			if err := s.userRepo.Create(ctx, newUser); err != nil {
-				if errors.Is(err, ErrEmailExists) {
+			if createErr := s.userRepo.Create(ctx, newUser); createErr != nil {
+				if errors.Is(createErr, ErrEmailExists) {
 					// 并发场景：GetByEmail 与 Create 之间用户被创建。
-					user, err = s.userRepo.GetByEmail(ctx, email)
-					if err != nil {
-						logger.LegacyPrintf("service.auth", "[Auth] Database error getting user after conflict: %v", err)
-						return "", nil, ErrServiceUnavailable
+					conflictUser, lookupErr := s.userRepo.GetByEmail(ctx, email)
+					if lookupErr != nil {
+						logger.LegacyPrintf("service.auth", "[Auth] Database error getting user after oauth create conflict: create_err=%v lookup_err=%v", createErr, lookupErr)
+						return "", nil, oauthCreateConflictRecoveryError(createErr, lookupErr)
 					}
+					user = conflictUser
 				} else {
-					logger.LegacyPrintf("service.auth", "[Auth] Database error creating oauth user: %v", err)
+					logger.LegacyPrintf("service.auth", "[Auth] Database error creating oauth user: %v", createErr)
 					return "", nil, ErrServiceUnavailable
 				}
 			} else {

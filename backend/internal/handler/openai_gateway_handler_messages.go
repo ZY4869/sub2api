@@ -263,15 +263,21 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						return
 					}
 					if err != nil {
+						if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+							releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+							h.handleAnthropicOpenAIRuntimeQuotaUnavailable(c, streamStarted)
+							return
+						}
+						if errors.Is(err, service.ErrOpenAIModelNotFound) {
+							releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+							h.anthropicStreamingAwareError(c, http.StatusNotFound, "invalid_request_error", "The requested model does not exist or is not available", streamStarted)
+							return
+						}
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 							break
 						}
 						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
-						if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
-							h.handleAnthropicOpenAIRuntimeQuotaUnavailable(c, streamStarted)
-							return
-						}
 						h.anthropicStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "Service temporarily unavailable", streamStarted)
 						return
 					}
@@ -300,15 +306,21 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				} else {
 					sawNonQuotaGroupFailure = true
 				}
+				if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+					h.handleAnthropicOpenAIRuntimeQuotaUnavailable(c, streamStarted)
+					return
+				}
+				if h.gatewayService.IsModelUnavailableBecauseUnsupported(c.Request.Context(), currentAPIKey.GroupID, runtimeSelectionModel, nil) {
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+					h.anthropicStreamingAwareError(c, http.StatusNotFound, "invalid_request_error", "The requested model does not exist or is not available", streamStarted)
+					return
+				}
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 					releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					break
 				}
 				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
-				if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
-					h.handleAnthropicOpenAIRuntimeQuotaUnavailable(c, streamStarted)
-					return
-				}
 				h.anthropicStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
 				return
 			}

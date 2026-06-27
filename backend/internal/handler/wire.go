@@ -165,8 +165,9 @@ func ProvideAdminChannelMonitorHandler(
 func ProvideOpenAIOAuthHandler(
 	openaiOAuthService *service.OpenAIOAuthService,
 	adminService service.AdminService,
+	openAIQuotaService *service.OpenAIQuotaService,
 ) *admin.OpenAIOAuthHandler {
-	return admin.NewOpenAIOAuthHandler(openaiOAuthService, adminService)
+	return admin.NewOpenAIOAuthHandler(openaiOAuthService, adminService, openAIQuotaService)
 }
 
 func ProvideAdminModelCatalogHandler(

@@ -88,6 +88,7 @@ func (h *OpenAIGatewayHandler) tryEmbeddingsAccounts(c *gin.Context, input openA
 	switchCount := 0
 	failedAccountIDs := make(map[int64]struct{})
 	var lastFailoverErr *service.UpstreamFailoverError
+	var lastSelectionErr error
 
 	for {
 		selection, _, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
@@ -101,7 +102,8 @@ func (h *OpenAIGatewayHandler) tryEmbeddingsAccounts(c *gin.Context, input openA
 			service.OpenAIEndpointCapabilityEmbeddings,
 		)
 		if err != nil || selection == nil || selection.Account == nil {
-			return h.handleEmbeddingsSelectionExhausted(c, input, lastFailoverErr)
+			lastSelectionErr = err
+			return h.handleEmbeddingsSelectionExhausted(c, input, lastFailoverErr, lastSelectionErr)
 		}
 		result, account, forwardDuration, err := h.forwardEmbeddingsWithAccount(c, input, selection)
 		if err != nil {
@@ -119,7 +121,13 @@ func (h *OpenAIGatewayHandler) handleEmbeddingsSelectionExhausted(
 	c *gin.Context,
 	input openAIEmbeddingsForwardInput,
 	lastFailoverErr *service.UpstreamFailoverError,
+	lastSelectionErr error,
 ) bool {
+	if errors.Is(lastSelectionErr, service.ErrOpenAIModelNotFound) || h.gatewayService.IsModelUnavailableBecauseUnsupported(c.Request.Context(), input.currentAPIKey.GroupID, input.runtimeSelectionModel, nil) {
+		releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, input.currentAPIKey)
+		h.handleOpenAIModelNotFound(c, input.req.publicRequestModel, false)
+		return true
+	}
 	if excludeSelectedGroup(input.excludedGroupIDs, input.currentAPIKey) {
 		releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, input.currentAPIKey)
 		return false

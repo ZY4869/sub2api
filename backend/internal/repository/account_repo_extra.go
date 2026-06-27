@@ -88,7 +88,7 @@ func isSchedulerNeutralAccountExtraKey(key string) bool {
 		"daily_5h_trigger_last_summary",
 		"openai_rate_limit_reset_credits_available_count",
 		"openai_rate_limit_reset_credits_updated_at",
-		"openai_rate_limits_app_server_updated_at",
+		"openai_quota_usage_updated_at",
 		"openai_rate_limit_reset_credits_status",
 		"openai_rate_limit_reset_credits_unsupported_reason",
 		"openai_rate_limit_reset_credit_last_consume_status",

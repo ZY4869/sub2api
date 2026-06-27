@@ -180,6 +180,11 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 			service.OpenAIUpstreamTransportHTTPSSE,
 		)
 		if err != nil || selection == nil || selection.Account == nil {
+			if errors.Is(err, service.ErrOpenAIModelNotFound) || h.gatewayService.IsModelUnavailableBecauseUnsupported(c.Request.Context(), currentAPIKey.GroupID, runtimeSelectionModel, nil) {
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+				h.handleOpenAIModelNotFound(c, publicRequestModel, false)
+				return
+			}
 			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 				releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 				continue

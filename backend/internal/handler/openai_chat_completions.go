@@ -260,15 +260,21 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						return
 					}
 					if err != nil {
+						if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+							releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+							h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
+							return
+						}
+						if errors.Is(err, service.ErrOpenAIModelNotFound) {
+							releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+							h.handleOpenAIModelNotFound(c, publicRequestModel, streamStarted)
+							return
+						}
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 							releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 							break
 						}
 						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
-						if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
-							h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
-							return
-						}
 						h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "Service temporarily unavailable", streamStarted)
 						return
 					}
@@ -297,15 +303,21 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				} else {
 					sawNonQuotaGroupFailure = true
 				}
+				if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+					h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
+					return
+				}
+				if h.gatewayService.IsModelUnavailableBecauseUnsupported(c.Request.Context(), currentAPIKey.GroupID, runtimeSelectionModel, nil) {
+					releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+					h.handleOpenAIModelNotFound(c, publicRequestModel, streamStarted)
+					return
+				}
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 					releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, currentAPIKey)
 					break
 				}
 				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
-				if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
-					h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
-					return
-				}
 				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
 				return
 			}

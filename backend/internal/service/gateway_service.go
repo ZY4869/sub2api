@@ -69,6 +69,7 @@ var (
 var systemBlockFilterPrefixes = []string{"x-anthropic-billing-header"}
 var ErrClaudeCodeOnly = errors.New("this group only allows Claude Code clients")
 var ErrNoAvailableAccounts = errors.New("no available accounts")
+var ErrOpenAIModelNotFound = errors.New("openai model not found")
 var allowedHeaders = map[string]bool{
 	"accept":                                    true,
 	"x-stainless-retry-count":                   true,

@@ -10,7 +10,7 @@ Use this skill for operational admin tasks against a running Sub2API deployment.
 ## Safety Rules
 
 - Use only the HTTP admin API. Do not connect to the database, edit runtime config files, or bypass authentication.
-- Read `SUB2API_ADMIN_BASE_URL` and `SUB2API_ADMIN_TOKEN` from the environment.
+- Read `SUB2API_ADMIN_BASE_URL` and `SUB2API_ADMIN_TOKEN` from the environment; `SUB2API_JWT` is accepted only as a fallback when `SUB2API_ADMIN_TOKEN` is absent.
 - Default to dry-run behavior for write-like operations. Require an explicit dry-run override before making changes.
 - Never print admin tokens, account credentials, proxy passwords, API keys, or full upstream error bodies.
 - Prefer resource IDs and redacted names in logs.
