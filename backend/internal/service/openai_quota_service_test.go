@@ -141,7 +141,7 @@ func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamWindows(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/backend-api/wham/usage", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(fmt.Sprintf(`{
+		_, _ = fmt.Fprintf(w, `{
 			"rate_limit": {
 				"primary_window": {
 					"used_percent": 0,
@@ -157,7 +157,7 @@ func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamWindows(t *testing.T) {
 				}
 			},
 			"rate_limit_reset_credits": {"available_count": 2}
-		}`, reset5h, reset7d)))
+		}`, reset5h, reset7d)
 	}))
 	defer server.Close()
 
