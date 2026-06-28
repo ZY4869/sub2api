@@ -85,7 +85,17 @@ const formatCompactShortCountdown = (date: Date, nowDate: Date): string => {
   )
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-  return `${pad(hours)}h:${pad(minutes)}m`
+  return `${pad(hours)}H:${pad(minutes)}M`
+}
+
+const formatCompactLongCountdown = (date: Date, nowDate: Date): string => {
+  const totalHours = Math.max(
+    0,
+    Math.ceil((date.getTime() - nowDate.getTime()) / (60 * 60 * 1000)),
+  )
+  const days = Math.floor(totalHours / 24)
+  const hours = totalHours % 24
+  return `${pad(days)}D:${pad(hours)}H`
 }
 
 function formatResetValue(
@@ -106,18 +116,21 @@ function formatResetValue(
   if (!effectiveResetAt) return null
 
   const diffMs = effectiveResetAt.getTime() - nowDate.getTime()
-  const showCountdown = diffMs > 0 && diffMs < ONE_DAY_MS
+  const showCountdown = diffMs > 0
+  const showShortCountdown = diffMs > 0 && diffMs < ONE_DAY_MS
 
   return {
     showCountdown,
-    countdown: showCountdown
+    countdown: showShortCountdown
       ? formatCompactShortCountdown(effectiveResetAt, nowDate)
+      : diffMs > 0
+        ? formatCompactLongCountdown(effectiveResetAt, nowDate)
       : formatResetCountdown(
         effectiveResetAt,
         nowDate,
         t('admin.accounts.usageWindow.now'),
       ),
-    absolute: showCountdown
+    absolute: showShortCountdown
       ? formatLocalTime(effectiveResetAt)
       : formatAbsoluteDateTime(effectiveResetAt, nowDate),
     tooltip: formatLocalTimestamp(effectiveResetAt),

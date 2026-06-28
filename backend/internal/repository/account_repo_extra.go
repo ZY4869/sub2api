@@ -83,6 +83,8 @@ func isSchedulerNeutralAccountExtraKey(key string) bool {
 		"auto_renew_next_expires_at",
 		"auto_renew_summary",
 		"daily_5h_trigger_last_local_date",
+		"daily_5h_trigger_last_checked_at",
+		"daily_5h_trigger_last_skip_reason",
 		"daily_5h_trigger_last_status",
 		"daily_5h_trigger_last_model_id",
 		"daily_5h_trigger_last_summary",

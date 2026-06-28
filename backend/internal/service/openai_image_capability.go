@@ -153,8 +153,8 @@ func ValidateOpenAIImageCapabilities(req *NormalizedImageRequest, protocolMode s
 	if !profile.CustomResolutionEnabled {
 		return profile, newOpenAIImageRequestError("image_size_not_supported", fmt.Sprintf("size %q is not supported for model %q", strings.TrimSpace(req.Size), profile.TargetModelID))
 	}
-	if width > 3840 || height > 3840 {
-		return profile, newOpenAIImageRequestError("image_size_too_large", "custom image size cannot exceed 3840px on either side")
+	if errCode, errMessage := validateOpenAIImageSizeDimensions(width, height); errCode != "" {
+		return profile, newOpenAIImageRequestError(errCode, errMessage)
 	}
 	return profile, nil
 }

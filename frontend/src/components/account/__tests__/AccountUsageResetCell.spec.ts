@@ -147,11 +147,12 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('5H')
-    expect(wrapper.text()).toContain('02h:53m')
+    expect(wrapper.text()).toContain('02H:53M')
     expect(wrapper.text()).toContain('·')
     expect(wrapper.text()).toContain('15:22:00')
     expect(wrapper.text()).not.toContain('Today 15:22:00')
     expect(wrapper.text()).toContain('30D')
+    expect(wrapper.text()).toContain('06D:13H')
     expect(wrapper.text()).toContain('03-20 01:09:00')
     expect(wrapper.text()).not.toContain('6d 13h')
     const labels = wrapper.findAll('[data-testid="account-usage-reset-window-label"]')
@@ -197,19 +198,19 @@ describe('AccountUsageResetCell', () => {
 
     const text = wrapper.text()
     expect(text).toContain('5H')
-    expect(text).toContain('01h:00m')
+    expect(text).toContain('01H:00M')
     expect(text).toContain('13:00:00')
     expect(text).not.toContain('Today 13:00:00')
     expect(text).toContain('30D')
-    expect(text).toContain('02h:00m')
+    expect(text).toContain('02H:00M')
     expect(text).toContain('14:00:00')
     expect(text).not.toContain('Today 14:00:00')
     expect(text).toContain('Spark 5H')
-    expect(text).toContain('03h:00m')
+    expect(text).toContain('03H:00M')
     expect(text).toContain('15:00:00')
     expect(text).not.toContain('Today 15:00:00')
     expect(text).toContain('Spark 30D')
-    expect(text).toContain('04h:00m')
+    expect(text).toContain('04H:00M')
     expect(text).toContain('16:00:00')
     expect(text).not.toContain('Today 16:00:00')
   })
@@ -237,9 +238,38 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('31D')
+    expect(wrapper.text()).toContain('06D:14H')
     const label = wrapper.get('[data-testid="account-usage-reset-window-label"]')
     expect(label.classes()).toContain('bg-green-50')
     expect(label.classes()).not.toContain('bg-orange-50')
+  })
+
+  it('keeps cross-year long reset countdown and full tooltip readable', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-12-31T12:00:00'))
+
+    const wrapper = mountWithPinia(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3016,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_7d_used_percent: 24,
+            codex_7d_window_minutes: 10080,
+            codex_7d_reset_at: '2027-01-02T01:15:00',
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('7D')
+    expect(wrapper.text()).toContain('01D:14H')
+    expect(wrapper.text()).toContain('2027-01-02 01:15:00')
+    expect(wrapper.get('[title="2027-01-02 01:15:00"]').exists()).toBe(true)
   })
 
   it('updates day labels when the shared clock crosses midnight', async () => {
@@ -263,7 +293,7 @@ describe('AccountUsageResetCell', () => {
     })
 
     await flushPromises()
-    expect(wrapper.text()).toContain('00h:02m')
+    expect(wrapper.text()).toContain('00H:02M')
     expect(wrapper.text()).toContain('00:01:00')
     expect(wrapper.text()).not.toContain('Tomorrow 00:01:00')
 
@@ -297,12 +327,12 @@ describe('AccountUsageResetCell', () => {
     })
 
     await flushPromises()
-    expect(wrapper.text()).toContain('00h:03m')
+    expect(wrapper.text()).toContain('00H:03M')
 
     await vi.advanceTimersByTimeAsync(61 * 1000)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('00h:02m')
+    expect(wrapper.text()).toContain('00H:02M')
   })
 
   it('falls back to a dash when no reset rows are available', async () => {

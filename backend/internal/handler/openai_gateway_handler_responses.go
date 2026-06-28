@@ -231,7 +231,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if n > 0 {
 			expectedImageCount = n
 		}
-		imageSizeTier = service.ResolveOpenAIResponsesImageToolSizeTier(body)
+		if normalizedImageToolRequest, err := service.NormalizeOpenAIResponsesImageToolRequest(body); err == nil && normalizedImageToolRequest != nil {
+			imageSizeTier = service.ResolveOpenAIImageSizeTier(normalizedImageToolRequest.Size)
+		} else {
+			imageSizeTier = service.ResolveOpenAIResponsesImageToolSizeTier(body)
+		}
 	}
 	reservedImageUnits := 0
 	imageCountSettled := false
@@ -582,6 +586,15 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				}
 				if compatResult == nil || !compatResult.Metadata.Enabled {
 					service.SetOpenAIImageNormalizedTracePayload(c, "openai_responses_image_tool", normalizedImageToolRequest, capabilityProfile.ID)
+				}
+				if strings.TrimSpace(normalizedImageToolRequest.Size) != "" {
+					body, err = service.RewriteOpenAIResponsesImageToolSize(body, normalizedImageToolRequest.Size)
+					if err != nil {
+						h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize image_generation tool request")
+						releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+						return
+					}
+					setOpsRequestContext(c, reqModel, reqStream, body)
 				}
 				if imageProtocolMode == service.OpenAIImageProtocolModeCompat {
 					body, err = service.ForceOpenAIResponsesImageToolModel(body, service.OpenAICompatImageTargetModel)

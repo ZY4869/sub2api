@@ -379,10 +379,63 @@ func TestAccountDaily5HTriggerService_IncludePausedAccountsHonorsWindowFiltering
 	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
 	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[1].updates[accountDaily5HLastStatusKey])
 	require.Equal(t, "Account is temporarily unschedulable and is skipped for the daily 5H trigger.", repo.updateExtraCalls[1].updates[accountDaily5HLastSummaryKey])
+	require.Nil(t, repo.updateExtraCalls[1].updates[accountDaily5HLastLocalDateKey])
+	require.Equal(t, AccountDaily5HSkipReasonTempUnsched, repo.updateExtraCalls[1].updates[accountDaily5HLastSkipReasonKey])
 	snapshot := protocolruntime.Snapshot()
 	require.EqualValues(t, 2, snapshot.RecoveryProbeResultByReason["daily_5h_trigger"])
 	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSuccess])
 	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSkipped])
+}
+
+func TestAccountDaily5HTriggerService_RunOnce_PausedSkipDoesNotBlockSameDayRetry(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+	now := time.Date(2026, 5, 8, 7, 12, 0, 0, time.UTC)
+	account := Account{
+		ID:             25,
+		Platform:       PlatformOpenAI,
+		Type:           AccountTypeOAuth,
+		Status:         StatusDisabled,
+		Schedulable:    false,
+		LifecycleState: AccountLifecycleNormal,
+		Extra: map[string]any{
+			"manual_models": []any{
+				map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
+			},
+		},
+	}
+	repo := &accountDaily5HRepoStub{accounts: []Account{account}}
+	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
+	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
+	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
+	svc.SetNow(func() time.Time { return now })
+	svc.SetLocation(time.UTC)
+	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
+		Enabled:              true,
+		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
+	})
+
+	svc.runOnce(context.Background())
+
+	require.Empty(t, executor.calls)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
+	require.Equal(t, AccountDaily5HSkipReasonPausedExcluded, repo.updateExtraCalls[0].updates[accountDaily5HLastSkipReasonKey])
+	require.Nil(t, repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
+	require.Empty(t, AccountDaily5HLastLocalDate(repo.accounts[0].Extra))
+
+	repo.accounts[0].Status = StatusActive
+	repo.accounts[0].Schedulable = true
+	svc.runOnce(context.Background())
+
+	require.Len(t, executor.calls, 1)
+	require.Equal(t, int64(25), executor.calls[0].AccountID)
+	require.Len(t, repo.updateExtraCalls, 2)
+	require.Equal(t, "2026-05-08", repo.updateExtraCalls[1].updates[accountDaily5HLastLocalDateKey])
+	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[1].updates[accountDaily5HLastStatusKey])
+
+	svc.runOnce(context.Background())
+	require.Len(t, executor.calls, 1)
 }
 
 func TestAccountDaily5HTriggerService_RunOnce_IgnoreFreeAccountsSkipsOnlyOpenAIFree(t *testing.T) {
@@ -429,6 +482,8 @@ func TestAccountDaily5HTriggerService_RunOnce_IgnoreFreeAccountsSkipsOnlyOpenAIF
 	require.Len(t, repo.updateExtraCalls, 3)
 	require.Equal(t, int64(31), repo.updateExtraCalls[0].id)
 	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
+	require.Equal(t, "2026-05-08", repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
+	require.Equal(t, AccountDaily5HSkipReasonFreeExcluded, repo.updateExtraCalls[0].updates[accountDaily5HLastSkipReasonKey])
 	require.Equal(t, "OpenAI Free account is excluded from the daily 5H trigger.", repo.updateExtraCalls[0].updates[accountDaily5HLastSummaryKey])
 	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[1].updates[accountDaily5HLastStatusKey])
 	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[2].updates[accountDaily5HLastStatusKey])
@@ -634,6 +689,8 @@ func TestAccountDaily5HTriggerService_RunOnce_SkipsWhenFixedModelIsNoLongerVisib
 	require.Empty(t, executor.calls)
 	require.Len(t, repo.updateExtraCalls, 1)
 	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
+	require.Nil(t, repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
+	require.Equal(t, AccountDaily5HSkipReasonFixedModelHidden, repo.updateExtraCalls[0].updates[accountDaily5HLastSkipReasonKey])
 	require.Equal(t, "The configured fixed model is no longer visible to this account.", repo.updateExtraCalls[0].updates[accountDaily5HLastSummaryKey])
 }
 
@@ -678,6 +735,8 @@ func TestAccountDaily5HTriggerService_RunOnce_SkipsWhenNoFamilyModelIsAvailable(
 	require.Empty(t, executor.calls)
 	require.Len(t, repo.updateExtraCalls, 1)
 	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
+	require.Nil(t, repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
+	require.Equal(t, AccountDaily5HSkipReasonNoFamilyModel, repo.updateExtraCalls[0].updates[accountDaily5HLastSkipReasonKey])
 	require.Equal(t, "No visible model in the required family is available for this account.", repo.updateExtraCalls[0].updates[accountDaily5HLastSummaryKey])
 }
 

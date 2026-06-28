@@ -14,6 +14,44 @@ func RewriteOpenAIResponsesImageToolModel(body []byte, targetModel string) ([]by
 	return rewriteOpenAIResponsesImageToolModel(body, targetModel, false)
 }
 
+func RewriteOpenAIResponsesImageToolSize(body []byte, normalizedSize string) ([]byte, error) {
+	normalizedSize = strings.TrimSpace(normalizedSize)
+	if len(body) == 0 || !json.Valid(body) || normalizedSize == "" {
+		return body, nil
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil || payload == nil {
+		return nil, fmt.Errorf("invalid json body")
+	}
+	tools, ok := payload["tools"].([]any)
+	if !ok || len(tools) == 0 {
+		return body, nil
+	}
+	modified := false
+	for _, raw := range tools {
+		tool, ok := raw.(map[string]any)
+		if !ok || strings.TrimSpace(stringValueFromAny(tool["type"])) != "image_generation" {
+			continue
+		}
+		if strings.TrimSpace(stringValueFromAny(tool["size"])) != normalizedSize {
+			tool["size"] = normalizedSize
+			modified = true
+		}
+		if _, exists := tool["image_size"]; exists {
+			delete(tool, "image_size")
+			modified = true
+		}
+		if _, exists := tool["aspect_ratio"]; exists {
+			delete(tool, "aspect_ratio")
+			modified = true
+		}
+	}
+	if !modified {
+		return body, nil
+	}
+	return json.Marshal(payload)
+}
+
 func rewriteOpenAIResponsesImageToolModel(body []byte, targetModel string, stripInputFidelity bool) ([]byte, error) {
 	if len(body) == 0 || !json.Valid(body) || strings.TrimSpace(targetModel) == "" {
 		return body, nil
@@ -80,6 +118,15 @@ func NormalizeOpenAIResponsesImageToolRequest(body []byte) (*NormalizedImageRequ
 	req.OutputCompression = optionalIntFromAny(tool["output_compression"])
 	req.PartialImages = optionalIntFromAny(tool["partial_images"])
 	req.N = optionalIntFromAny(tool["n"])
+	if normalizedSize, _, errCode, errMessage := normalizeOpenAIImageSizeWithAspect(
+		req.Size,
+		stringValueFromAny(tool["image_size"]),
+		stringValueFromAny(tool["aspect_ratio"]),
+	); errCode != "" {
+		return nil, newOpenAIImageRequestError(errCode, errMessage)
+	} else if strings.TrimSpace(normalizedSize) != "" {
+		req.Size = normalizedSize
+	}
 	return req, nil
 }
 

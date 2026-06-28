@@ -153,7 +153,8 @@ func (s *AccountDaily5HTriggerService) runOnce(ctx context.Context) {
 		shouldRun, skipReason, skipSummary := s.shouldRunForAccount(settings, &account, now.UTC())
 		requestID := firstNonEmptyString(requestIDFromContext(ctx), "generated:"+generateRequestID())
 		if !shouldRun {
-			_ = s.accountRepo.UpdateExtra(ctx, account.ID, BuildAccountDaily5HTriggerExtra(localDate, AccountDaily5HTriggerStatusSkipped, "", skipSummary))
+			consumesLocalDate := accountDaily5HSkipConsumesLocalDate(skipReason)
+			_ = s.accountRepo.UpdateExtra(ctx, account.ID, BuildAccountDaily5HTriggerSkipExtra(localDate, skipReason, skipSummary))
 			slog.Info(
 				"account_daily_5h_trigger_skipped",
 				"request_id", requestID,
@@ -161,6 +162,7 @@ func (s *AccountDaily5HTriggerService) runOnce(ctx context.Context) {
 				"account_type", accountDaily5HAccountType(&account),
 				"local_date", localDate,
 				"skip_reason", skipReason,
+				"consumes_local_date", consumesLocalDate,
 				"summary", skipSummary,
 			)
 			protocolruntime.RecordRecoveryProbeResult("daily_5h_trigger", AccountDaily5HTriggerStatusSkipped, 0)
@@ -168,7 +170,8 @@ func (s *AccountDaily5HTriggerService) runOnce(ctx context.Context) {
 		}
 		modelID, modelSkipReason, modelSkipSummary := s.selectModelForAccount(ctx, settings, &account)
 		if strings.TrimSpace(modelID) == "" {
-			_ = s.accountRepo.UpdateExtra(ctx, account.ID, BuildAccountDaily5HTriggerExtra(localDate, AccountDaily5HTriggerStatusSkipped, "", modelSkipSummary))
+			consumesLocalDate := accountDaily5HSkipConsumesLocalDate(modelSkipReason)
+			_ = s.accountRepo.UpdateExtra(ctx, account.ID, BuildAccountDaily5HTriggerSkipExtra(localDate, modelSkipReason, modelSkipSummary))
 			slog.Info(
 				"account_daily_5h_trigger_skipped",
 				"request_id", requestID,
@@ -176,6 +179,7 @@ func (s *AccountDaily5HTriggerService) runOnce(ctx context.Context) {
 				"account_type", accountDaily5HAccountType(&account),
 				"local_date", localDate,
 				"skip_reason", modelSkipReason,
+				"consumes_local_date", consumesLocalDate,
 				"summary", modelSkipSummary,
 			)
 			protocolruntime.RecordRecoveryProbeResult("daily_5h_trigger", AccountDaily5HTriggerStatusSkipped, 0)

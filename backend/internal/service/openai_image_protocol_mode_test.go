@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -142,6 +144,117 @@ func TestNormalizeOpenAIImageRequest_GenerationNormalizesSizeParts(t *testing.T)
 	require.NoError(t, err)
 	require.Equal(t, "2048x1152", req.Size)
 	require.Equal(t, OpenAIImageSizeTier2K, ResolveOpenAIImageSizeTier(req.Size))
+}
+
+func TestNormalizeOpenAIImageRequest_GenerationNormalizesOfficialSizeShorthands(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		body     string
+		expected string
+	}{
+		{
+			name: "bare 4k defaults to landscape",
+			body: `{
+				"model":"gpt-image-2",
+				"prompt":"a poster",
+				"size":"4K"
+			}`,
+			expected: "3840x2160",
+		},
+		{
+			name: "4k square fits official pixel limit",
+			body: `{
+				"model":"gpt-image-2",
+				"prompt":"a poster",
+				"image_size":"4K",
+				"aspect_ratio":"1:1"
+			}`,
+			expected: "2880x2880",
+		},
+		{
+			name: "4k portrait",
+			body: `{
+				"model":"gpt-image-2",
+				"prompt":"a poster",
+				"image_size":"4K",
+				"aspect_ratio":"9:16"
+			}`,
+			expected: "2160x3840",
+		},
+		{
+			name: "1k non-square reaches official minimum pixels",
+			body: `{
+				"model":"gpt-image-2",
+				"prompt":"a poster",
+				"size":"1K 16:9"
+			}`,
+			expected: "1536x864",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req, err := NormalizeOpenAIImageRequest([]byte(tt.body), "application/json", "generations")
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, req.Size)
+		})
+	}
+}
+
+func TestNormalizeOpenAIImageRequest_MultipartNormalizesAndDropsSizeParts(t *testing.T) {
+	t.Parallel()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("model", "gpt-image-2"))
+	require.NoError(t, writer.WriteField("prompt", "a poster"))
+	require.NoError(t, writer.WriteField("image_size", "4K"))
+	require.NoError(t, writer.WriteField("aspect_ratio", "16:9"))
+	require.NoError(t, writer.Close())
+
+	rewritten, rewrittenType, normalizedSize, err := RewriteOpenAIImageRequestSizeAndDropExtras(body.Bytes(), writer.FormDataContentType())
+	require.NoError(t, err)
+	require.Equal(t, "3840x2160", normalizedSize)
+	require.Equal(t, "3840x2160", DetectOpenAIImageRequestSize(rewritten, rewrittenType))
+
+	req, err := NormalizeOpenAIImageRequest(rewritten, rewrittenType, "generations")
+	require.NoError(t, err)
+	require.Equal(t, "3840x2160", req.Size)
+}
+
+func TestValidateOpenAIImageCapabilities_RejectsOfficialSizeConstraintViolations(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		size string
+		code string
+	}{
+		{size: "3840x3840", code: "image_size_too_large"},
+		{size: "1000x1000", code: "image_size_invalid"},
+		{size: "4096x2160", code: "image_size_too_large"},
+		{size: "3840x1024", code: "image_aspect_ratio_invalid"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.size, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := ValidateOpenAIImageCapabilities(&NormalizedImageRequest{
+				Operation: "generation",
+				Prompt:    "poster",
+				Size:      tt.size,
+			}, OpenAIImageProtocolModeCompat, OpenAICompatImageTargetModel)
+			var requestErr *OpenAIImageRequestError
+			require.ErrorAs(t, err, &requestErr)
+			require.Equal(t, tt.code, requestErr.Code)
+		})
+	}
 }
 
 func TestBuildOpenAIImageCompatResponsesBody_EditCarriesMaskAndAction(t *testing.T) {

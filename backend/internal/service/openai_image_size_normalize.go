@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+const (
+	openAIImageMaxEdge   = 3840
+	openAIImageMinPixels = 655360
+	openAIImageMaxPixels = 8294400
+)
+
 type openAIImageSizeShorthand struct {
 	ImageSizeTier string
 	AspectRatio   string
@@ -39,10 +45,10 @@ func normalizeOpenAIImageSizeWithAspect(sizeRaw string, imageSizeRaw string, asp
 		imageSizeRaw = OpenAIImageSizeTier2K
 	}
 	if aspectRatioRaw == "" {
-		aspectRatioRaw = "1:1"
+		aspectRatioRaw = defaultOpenAIImageAspectRatioForTier(imageSizeRaw)
 	}
 
-	maxSide, ok := parseOpenAIImageSizeTierMaxSide(imageSizeRaw)
+	_, ok := parseOpenAIImageSizeTierMaxSide(imageSizeRaw)
 	if !ok {
 		return "", false, "image_size_invalid", "image_size must be 1K, 2K, or 4K"
 	}
@@ -51,12 +57,10 @@ func normalizeOpenAIImageSizeWithAspect(sizeRaw string, imageSizeRaw string, asp
 		return "", false, "image_aspect_ratio_invalid", "aspect_ratio must be in the form W:H, e.g. 16:9"
 	}
 
+	maxSide := resolveOpenAIImageSizeTierLongEdge(imageSizeRaw, ratioW, ratioH)
 	width, height := resolveOpenAIImageSizeForAspect(maxSide, ratioW, ratioH)
-	if width <= 0 || height <= 0 {
-		return "", false, "image_size_invalid", "resolved size dimensions must be positive integers"
-	}
-	if width > 3840 || height > 3840 {
-		return "", false, "image_size_too_large", "custom image size cannot exceed 3840px on either side"
+	if errCode, errMessage := validateOpenAIImageSizeDimensions(width, height); errCode != "" {
+		return "", false, errCode, errMessage
 	}
 	normalized := fmt.Sprintf("%dx%d", width, height)
 	return normalized, normalized != sizeRaw, "", ""
@@ -86,7 +90,7 @@ func parseOpenAIImageSizeShorthand(value string) (openAIImageSizeShorthand, bool
 	switch len(parts) {
 	case 1:
 		if _, ok := parseOpenAIImageSizeTierMaxSide(parts[0]); ok {
-			return openAIImageSizeShorthand{ImageSizeTier: parts[0], AspectRatio: "1:1"}, true
+			return openAIImageSizeShorthand{ImageSizeTier: parts[0], AspectRatio: defaultOpenAIImageAspectRatioForTier(parts[0])}, true
 		}
 		if _, _, ok := parseOpenAIImageAspectRatio(parts[0]); ok {
 			return openAIImageSizeShorthand{ImageSizeTier: OpenAIImageSizeTier2K, AspectRatio: parts[0]}, true
@@ -130,6 +134,23 @@ func parseOpenAIImageSizeTierMaxSide(value string) (int, bool) {
 	}
 }
 
+func resolveOpenAIImageSizeTierLongEdge(value string, ratioW int, ratioH int) int {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	switch normalized {
+	case "1k":
+		if ratioW == ratioH {
+			return 1024
+		}
+		return 1536
+	case "2k":
+		return 2048
+	case "4k":
+		return 3840
+	default:
+		return 2048
+	}
+}
+
 func parseOpenAIImageAspectRatio(value string) (int, int, bool) {
 	normalized := strings.TrimSpace(value)
 	if normalized == "" {
@@ -153,21 +174,84 @@ func parseOpenAIImageAspectRatio(value string) (int, int, bool) {
 }
 
 func resolveOpenAIImageSizeForAspect(maxSide int, ratioW int, ratioH int) (int, int) {
-	maxSide = max(maxSide, 1)
+	maxSide = max(maxSide, 16)
 	if ratioW <= 0 || ratioH <= 0 {
 		return maxSide, maxSide
 	}
+	maxSide = resolveOpenAIImageMaxSideForPixelLimit(maxSide, ratioW, ratioH)
 
 	if ratioW >= ratioH {
-		height := int(math.Round(float64(maxSide) * float64(ratioH) / float64(ratioW)))
+		height := roundOpenAIImageDimensionToMultipleOf16(float64(maxSide) * float64(ratioH) / float64(ratioW))
 		if height <= 0 {
-			height = 1
+			height = 16
 		}
 		return maxSide, height
 	}
-	width := int(math.Round(float64(maxSide) * float64(ratioW) / float64(ratioH)))
+	width := roundOpenAIImageDimensionToMultipleOf16(float64(maxSide) * float64(ratioW) / float64(ratioH))
 	if width <= 0 {
-		width = 1
+		width = 16
 	}
 	return width, maxSide
+}
+
+func defaultOpenAIImageAspectRatioForTier(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), OpenAIImageSizeTier4K) {
+		return "16:9"
+	}
+	return "1:1"
+}
+
+func validateOpenAIImageSizeDimensions(width int, height int) (string, string) {
+	if width <= 0 || height <= 0 {
+		return "image_size_invalid", "size dimensions must be positive integers"
+	}
+	if width > openAIImageMaxEdge || height > openAIImageMaxEdge {
+		return "image_size_too_large", "custom image size cannot exceed 3840px on either side"
+	}
+	if width%16 != 0 || height%16 != 0 {
+		return "image_size_invalid", "size width and height must both be divisible by 16"
+	}
+	longEdge := max(width, height)
+	shortEdge := min(width, height)
+	if longEdge > shortEdge*3 {
+		return "image_aspect_ratio_invalid", "image size aspect ratio must be between 1:3 and 3:1"
+	}
+	pixels := width * height
+	if pixels < openAIImageMinPixels {
+		return "image_size_invalid", "image size must be at least 655360 total pixels"
+	}
+	if pixels > openAIImageMaxPixels {
+		return "image_size_too_large", "image size cannot exceed 8294400 total pixels"
+	}
+	return "", ""
+}
+
+func resolveOpenAIImageMaxSideForPixelLimit(maxSide int, ratioW int, ratioH int) int {
+	if maxSide <= 0 || ratioW <= 0 || ratioH <= 0 {
+		return maxSide
+	}
+	longRatio := max(ratioW, ratioH)
+	shortRatio := min(ratioW, ratioH)
+	if longRatio <= 0 || shortRatio <= 0 {
+		return maxSide
+	}
+	pixelLimited := math.Sqrt(float64(openAIImageMaxPixels) * float64(longRatio) / float64(shortRatio))
+	if pixelLimited <= 0 || pixelLimited >= float64(maxSide) {
+		return floorOpenAIImageDimensionToMultipleOf16(maxSide)
+	}
+	return floorOpenAIImageDimensionToMultipleOf16(int(math.Floor(pixelLimited)))
+}
+
+func roundOpenAIImageDimensionToMultipleOf16(value float64) int {
+	if value <= 0 {
+		return 0
+	}
+	return max(16, int(math.Round(value/16))*16)
+}
+
+func floorOpenAIImageDimensionToMultipleOf16(value int) int {
+	if value <= 0 {
+		return 0
+	}
+	return max(16, (value/16)*16)
 }

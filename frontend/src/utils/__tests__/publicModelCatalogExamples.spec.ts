@@ -41,6 +41,7 @@ describe('publicModelCatalogExamples', () => {
     const code = getTabCode(buildDetail('gpt-image-2', 'openai', 'image-generation'), 'REST')
 
     expect(code).toContain('/v1/images/generations')
+    expect(code).toContain('"size": "3840x2160"')
     expect(code).not.toContain('/grok/v1/images/generations')
   })
 
@@ -64,6 +65,7 @@ describe('publicModelCatalogExamples', () => {
     expect(code).toContain('/v1/responses')
     expect(code).toContain('image_generation')
     expect(code).toContain('gpt-image-2')
+    expect(code).toContain('size: "3840x2160"')
   })
 
   it('uses the OpenAI embeddings endpoint for embedding models', () => {

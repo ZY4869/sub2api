@@ -196,3 +196,29 @@ func TestNormalizeOpenAIResponsesImageToolRequestAndForceCompat(t *testing.T) {
 	_, hasInputFidelity := tool["input_fidelity"]
 	require.False(t, hasInputFidelity)
 }
+
+func TestNormalizeOpenAIResponsesImageToolRequestNormalizesAndRewritesSize(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{
+		"model":"gpt-5.4-mini",
+		"input":"create a poster",
+		"tools":[{
+			"type":"image_generation",
+			"model":"gpt-image-2",
+			"image_size":"4K",
+			"aspect_ratio":"16:9"
+		}]
+	}`)
+
+	req, err := NormalizeOpenAIResponsesImageToolRequest(body)
+	require.NoError(t, err)
+	require.Equal(t, "3840x2160", req.Size)
+
+	rewritten, err := RewriteOpenAIResponsesImageToolSize(body, req.Size)
+	require.NoError(t, err)
+	tool := firstOpenAIResponsesImageTool(rewritten)
+	require.Equal(t, "3840x2160", tool["size"])
+	require.NotContains(t, tool, "image_size")
+	require.NotContains(t, tool, "aspect_ratio")
+}

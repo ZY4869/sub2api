@@ -92,6 +92,60 @@ func TestNormalizeOpenAIResponsesImageGenCompat_JSONShorthandNormalizesSizeParts
 	require.Equal(t, "2048x1152", tool["size"])
 }
 
+func TestNormalizeOpenAIResponsesImageGenCompat_JSONShorthandNormalizesOfficial4KSizes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		imageGeneration map[string]any
+		expected        string
+	}{
+		{
+			name:            "bare size shorthand",
+			imageGeneration: map[string]any{"size": "4K"},
+			expected:        "3840x2160",
+		},
+		{
+			name:            "bare image_size shorthand",
+			imageGeneration: map[string]any{"image_size": "4K"},
+			expected:        "3840x2160",
+		},
+		{
+			name:            "portrait aspect",
+			imageGeneration: map[string]any{"image_size": "4K", "aspect_ratio": "9:16"},
+			expected:        "2160x3840",
+		},
+		{
+			name:            "square aspect fits pixel limit",
+			imageGeneration: map[string]any{"image_size": "4K", "aspect_ratio": "1:1"},
+			expected:        "2880x2880",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := mustMarshalCompatJSON(t, map[string]any{
+				"model":            "gpt-5.4-mini",
+				"input":            "$imagegen test",
+				"image_generation": tt.imageGeneration,
+			})
+
+			result, err := NormalizeOpenAIResponsesImageGenCompat(body, "application/json")
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.Equal(t, tt.expected, result.Metadata.ImageGenerationSize)
+
+			tool := firstCompatTool(t, result.ParsedBody)
+			require.Equal(t, tt.expected, tool["size"])
+			require.NotContains(t, tool, "image_size")
+			require.NotContains(t, tool, "aspect_ratio")
+		})
+	}
+}
+
 func TestNormalizeOpenAIResponsesImageGenCompat_JSONShorthandNormalizesIntOptions(t *testing.T) {
 	t.Parallel()
 
@@ -507,6 +561,28 @@ func TestNormalizeOpenAIResponsesImageGenCompat_MultipartBuildsStandardJSON(t *t
 	tool := firstCompatTool(t, result.ParsedBody)
 	require.Equal(t, "1536x1024", tool["size"])
 	require.Equal(t, map[string]any{"type": "image_generation"}, result.ParsedBody["tool_choice"])
+}
+
+func TestNormalizeOpenAIResponsesImageGenCompat_MultipartNormalizesOfficial4KSize(t *testing.T) {
+	t.Parallel()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("model", "gpt-5.4-mini"))
+	require.NoError(t, writer.WriteField("input", "$imagegen matte poster"))
+	require.NoError(t, writer.WriteField("image_size", "4K"))
+	require.NoError(t, writer.WriteField("aspect_ratio", "16:9"))
+	require.NoError(t, writer.Close())
+
+	result, err := NormalizeOpenAIResponsesImageGenCompat(body.Bytes(), writer.FormDataContentType())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "3840x2160", result.Metadata.ImageGenerationSize)
+
+	tool := firstCompatTool(t, result.ParsedBody)
+	require.Equal(t, "3840x2160", tool["size"])
+	require.NotContains(t, tool, "image_size")
+	require.NotContains(t, tool, "aspect_ratio")
 }
 
 func TestNormalizeOpenAIResponsesImageGenCompat_MultipartStreamUnsupported(t *testing.T) {

@@ -19,6 +19,8 @@ const (
 	accountAutoRenewNextExpiresKey      = "auto_renew_next_expires_at"
 	accountAutoRenewSummaryKey          = "auto_renew_summary"
 	accountDaily5HLastLocalDateKey      = "daily_5h_trigger_last_local_date"
+	accountDaily5HLastCheckedAtKey      = "daily_5h_trigger_last_checked_at"
+	accountDaily5HLastSkipReasonKey     = "daily_5h_trigger_last_skip_reason"
 	accountDaily5HLastStatusKey         = "daily_5h_trigger_last_status"
 	accountDaily5HLastModelIDKey        = "daily_5h_trigger_last_model_id"
 	accountDaily5HLastSummaryKey        = "daily_5h_trigger_last_summary"
@@ -235,11 +237,36 @@ func BuildAccountAutoRenewExtra(
 }
 
 func BuildAccountDaily5HTriggerExtra(localDate string, status string, modelID string, summary string) map[string]any {
-	return map[string]any{
-		accountDaily5HLastLocalDateKey: strings.TrimSpace(localDate),
-		accountDaily5HLastStatusKey:    strings.TrimSpace(status),
-		accountDaily5HLastModelIDKey:   strings.TrimSpace(modelID),
-		accountDaily5HLastSummaryKey:   strings.TrimSpace(summary),
+	out := map[string]any{
+		accountDaily5HLastCheckedAtKey:  time.Now().UTC().Format(time.RFC3339),
+		accountDaily5HLastStatusKey:     strings.TrimSpace(status),
+		accountDaily5HLastModelIDKey:    strings.TrimSpace(modelID),
+		accountDaily5HLastSummaryKey:    strings.TrimSpace(summary),
+		accountDaily5HLastSkipReasonKey: nil,
+	}
+	if strings.TrimSpace(localDate) != "" {
+		out[accountDaily5HLastLocalDateKey] = strings.TrimSpace(localDate)
+	}
+	return out
+}
+
+func BuildAccountDaily5HTriggerSkipExtra(localDate string, skipReason string, summary string) map[string]any {
+	out := BuildAccountDaily5HTriggerExtra("", AccountDaily5HTriggerStatusSkipped, "", summary)
+	out[accountDaily5HLastSkipReasonKey] = strings.TrimSpace(skipReason)
+	if accountDaily5HSkipConsumesLocalDate(skipReason) {
+		out[accountDaily5HLastLocalDateKey] = strings.TrimSpace(localDate)
+	} else {
+		out[accountDaily5HLastLocalDateKey] = nil
+	}
+	return out
+}
+
+func accountDaily5HSkipConsumesLocalDate(reason string) bool {
+	switch strings.TrimSpace(reason) {
+	case AccountDaily5HSkipReasonFreeExcluded:
+		return true
+	default:
+		return false
 	}
 }
 
