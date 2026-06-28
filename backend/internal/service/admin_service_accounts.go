@@ -653,9 +653,9 @@ func validateGrokAccountInput(platform string, accountType string, credentials m
 		return nil
 	}
 	switch strings.TrimSpace(strings.ToLower(accountType)) {
-	case AccountTypeAPIKey, AccountTypeSSO:
+	case AccountTypeAPIKey, AccountTypeOAuth, AccountTypeSSO:
 	default:
-		return errors.New("grok accounts only support apikey or sso type")
+		return errors.New("grok accounts only support apikey, oauth, or sso type")
 	}
 	if len(credentials) == 0 {
 		return errors.New("grok accounts require credentials")
@@ -670,6 +670,12 @@ func validateGrokAccountInput(platform string, accountType string, credentials m
 		ssoToken, _ := credentials["sso_token"].(string)
 		if strings.TrimSpace(ssoToken) == "" {
 			return errors.New("grok sso accounts require credentials.sso_token")
+		}
+	}
+	if strings.TrimSpace(strings.ToLower(accountType)) == AccountTypeOAuth {
+		accessToken, _ := credentials["access_token"].(string)
+		if strings.TrimSpace(accessToken) == "" {
+			return errors.New("grok oauth accounts require credentials.access_token")
 		}
 	}
 	if strings.TrimSpace(strings.ToLower(accountType)) == AccountTypeSSO && len(extra) > 0 {
@@ -810,6 +816,23 @@ func normalizeGrokCredentialsForStorage(accountType string, credentials map[stri
 		baseURL = strings.TrimSpace(baseURL)
 		if baseURL == "" {
 			normalized["base_url"] = "https://api.x.ai"
+		} else {
+			normalized["base_url"] = strings.TrimRight(baseURL, "/")
+		}
+		if rawMapping, ok := normalized["model_mapping"].(map[string]any); ok {
+			if nextMapping := normalizeGrokModelMappingForStorage(AccountTypeAPIKey, rawMapping, tier); len(nextMapping) > 0 {
+				normalized["model_mapping"] = nextMapping
+			} else {
+				delete(normalized, "model_mapping")
+			}
+		}
+	case AccountTypeOAuth:
+		accessToken, _ := normalized["access_token"].(string)
+		normalized["access_token"] = strings.TrimSpace(accessToken)
+		baseURL, _ := normalized["base_url"].(string)
+		baseURL = strings.TrimSpace(baseURL)
+		if baseURL == "" {
+			normalized["base_url"] = "https://api.x.ai/v1"
 		} else {
 			normalized["base_url"] = strings.TrimRight(baseURL, "/")
 		}

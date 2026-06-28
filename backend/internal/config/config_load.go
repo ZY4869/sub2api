@@ -67,6 +67,13 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	cfg.Log.StacktraceLevel = strings.ToLower(strings.TrimSpace(cfg.Log.StacktraceLevel))
 	cfg.Log.Output.FilePath = strings.TrimSpace(cfg.Log.Output.FilePath)
 	cfg.OpenAICodex.AppServerBin = strings.TrimSpace(cfg.OpenAICodex.AppServerBin)
+	cfg.Grok.OAuth.AuthorizeURL = strings.TrimSpace(cfg.Grok.OAuth.AuthorizeURL)
+	cfg.Grok.OAuth.TokenURL = strings.TrimSpace(cfg.Grok.OAuth.TokenURL)
+	cfg.Grok.OAuth.UserInfoURL = strings.TrimSpace(cfg.Grok.OAuth.UserInfoURL)
+	cfg.Grok.OAuth.ClientID = strings.TrimSpace(cfg.Grok.OAuth.ClientID)
+	cfg.Grok.OAuth.Scopes = strings.TrimSpace(cfg.Grok.OAuth.Scopes)
+	cfg.Grok.OAuth.RedirectURI = strings.TrimSpace(cfg.Grok.OAuth.RedirectURI)
+	cfg.Grok.OAuth.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.Grok.OAuth.BaseURL), "/")
 	if cfg.Gateway.OpenAIWS.StickyResponseIDTTLSeconds <= 0 && cfg.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds > 0 {
 		cfg.Gateway.OpenAIWS.StickyResponseIDTTLSeconds = cfg.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds
 	}

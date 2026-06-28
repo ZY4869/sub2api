@@ -340,12 +340,15 @@ func (s *GrokGatewayService) proxyAPIKeyStream(resp *http.Response, c *gin.Conte
 }
 
 func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context, account *Account, method string, endpoint string, body []byte) (*http.Response, error) {
-	if account == nil || !account.IsGrokAPIKey() {
-		return nil, fmt.Errorf("grok apikey account is required")
+	if account == nil || (!account.IsGrokAPIKey() && !account.IsGrokOAuth()) {
+		return nil, fmt.Errorf("grok official api account is required")
 	}
 	token := strings.TrimSpace(account.GetGrokAPIKey())
+	if token == "" && account.IsGrokOAuth() {
+		token = strings.TrimSpace(account.GetGrokOAuthAccessToken())
+	}
 	if token == "" {
-		return nil, fmt.Errorf("grok api key is missing")
+		return nil, fmt.Errorf("grok official api token is missing")
 	}
 	baseURL, err := s.validatedBaseURL(account.GetBaseURL(), defaultGrokAPIBaseURL)
 	if err != nil {
@@ -398,7 +401,7 @@ func grokApplyMappedModel(account *Account, requestedModel string, body []byte) 
 	mappedModel := strings.TrimSpace(requestedModel)
 	if account != nil && requestedModel != "" {
 		mappedModel = account.GetMappedModel(requestedModel)
-		if mappedModel == requestedModel && account.IsGrokAPIKey() {
+		if mappedModel == requestedModel && (account.IsGrokAPIKey() || account.IsGrokOAuth()) {
 			if resolved := GrokAPIKeyResolvedUpstreamModel(requestedModel); resolved != "" {
 				mappedModel = resolved
 			}

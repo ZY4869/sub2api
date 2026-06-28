@@ -29,7 +29,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	require.NotContains(t, thirdParty, "LGPL")
 	require.NotContains(t, thirdParty, "GPL")
 
-	require.Equal(t, "0.1.368", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	require.Equal(t, "0.1.369", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 
 	var pkg struct {
 		Version string `json:"version"`
@@ -38,7 +38,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 		} `json:"pnpm"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(readRepoFile(t, root, "frontend", "package.json")), &pkg))
-	require.Equal(t, "0.1.368", pkg.Version)
+	require.Equal(t, "0.1.369", pkg.Version)
 	require.Equal(t, "4.0.6", pkg.PNPM.Overrides["form-data"])
 
 	assertNoAPIDocsRoutes(t, root)
@@ -57,6 +57,43 @@ func TestMigration146147Guards(t *testing.T) {
 	require.Contains(t, outbox, "CREATE UNIQUE INDEX IF NOT EXISTS idx_scheduler_outbox_dedup_key")
 	require.Contains(t, outbox, "WHERE dedup_key IS NOT NULL")
 	require.Contains(t, outbox, "CREATE INDEX IF NOT EXISTS idx_scheduler_outbox_id_created_at")
+}
+
+func TestUpstream137To139CleanroomMatrixGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "上游v0.1.137-v0.1.139_洁净重写同步矩阵_20260628.md")
+	for _, expected := range []string{
+		"eba9bea959dad0c6db30994870c60085965e2fd5",
+		"6936687870e9f5f21ec814ec8c7fcec9d7b37c10",
+		"9a0fbcc87dc14c3ad4f87c3fad951a320f109050",
+		"本地基线：`0.1.368`",
+		"不执行 `git pull`、merge、rebase、cherry-pick",
+		"不复制 upstream LGPL",
+		"SUB2API_JWT",
+		"jitter_seconds",
+		"content_moderation_cyber_policy_enabled",
+		"claude_oauth_system_prompt_blocks",
+		"affiliate_rebate",
+		"refresh_token_invalidated",
+		"app_session_terminated",
+		"CLAUDE_CODE_ATTRIBUTION_HEADER",
+		"form-data",
+		"SELinux",
+		"model_not_found",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+
+	cli := readRepoFile(t, root, "skills", "sub2api-admin", "scripts", "sub2api-admin.js")
+	require.Contains(t, cli, "process.env.SUB2API_ADMIN_TOKEN || process.env.SUB2API_JWT")
+
+	keyModal := readRepoFile(t, root, "frontend", "src", "components", "keys", "UseKeyModal.vue")
+	require.Contains(t, keyModal, "CLAUDE_CODE_ATTRIBUTION_HEADER: '0'")
+
+	envExample := readRepoFile(t, root, "deploy", ".env.example")
+	require.Contains(t, envExample, "SELINUX_VOLUME_LABEL")
+	require.Contains(t, envExample, ":Z")
 }
 
 func repositoryTestRepoRoot(t *testing.T) string {

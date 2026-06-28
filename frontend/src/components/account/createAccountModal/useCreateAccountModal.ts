@@ -136,6 +136,7 @@ import type { OAuthFlowExposed } from '../oauthFlow.types'
 import { useCreateAccountModalWatchers } from './watchers'
 import { createCreateAccountSubmit } from './submit'
 import { syncProtocolGatewaySelectedModels } from './protocolGatewayImport'
+import type { AccountCategory } from './accountCategory'
 import type { CreateAccountModalEmit, CreateAccountModalProps } from './types'
 
 export function useCreateAccountModal(props: CreateAccountModalProps, emit: CreateAccountModalEmit) {
@@ -194,6 +195,7 @@ const currentOAuthError = computed(() => {
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
 const kiroAuthRef = ref<{ reset: () => void } | null>(null)
+const grokOAuthRef = ref<{ reset: () => void } | null>(null)
 const oauthInputDraft = reactive({
   inputMethod: 'manual' as AuthInputMethod,
   authCode: '',
@@ -219,7 +221,7 @@ const handleOAuthInputMethodUpdate = (method: AuthInputMethod) => {
 // State
 const step = ref(1)
 const autoImportModels = ref(false)
-const accountCategory = ref<'oauth-based' | 'apikey' | 'vertex_ai'>('oauth-based') // UI selection for account category
+const accountCategory = ref<AccountCategory>('oauth-based') // UI selection for account category
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const gatewayProtocol = ref<GatewayProtocol>('openai')
 const apiKeyBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
@@ -391,7 +393,7 @@ const showStandaloneModelScopeEditor = computed(() => {
     return false
   }
   if (form.platform === 'grok') {
-    return form.type === 'sso'
+    return form.type === 'sso' || form.type === 'oauth'
   }
   return accountCategory.value === 'oauth-based' || accountCategory.value === 'vertex_ai'
 })
@@ -901,6 +903,7 @@ const { resetForm } = useCreateAccountReset({
   openaiOAuthReset: () => openaiOAuth.resetState(),
   geminiOAuthReset: () => geminiOAuth.resetState(),
   antigravityOAuthReset: () => antigravityOAuth.resetState(),
+  grokOAuthReset: () => grokOAuthRef.value?.reset?.(),
   oauthFlowReset: () => {
     resetOAuthInputDraft()
     oauthFlowRef.value?.reset()
@@ -925,6 +928,7 @@ const goBackToBasicInfo = () => {
   openaiOAuth.resetState()
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
+  grokOAuthRef.value?.reset?.()
   resetOAuthInputDraft()
   oauthFlowRef.value?.reset?.()
   kiroAuthRef.value?.reset?.()
@@ -1050,7 +1054,7 @@ const modalContext = {
   editQuotaDailyResetMode, editQuotaLimit, editQuotaResetTimezone, editQuotaWeeklyLimit, editQuotaWeeklyResetDay, editQuotaWeeklyResetHour, editQuotaWeeklyResetMode, effectivePlatform, emit, ensureMixedChannelConfirmed,
   expiryProbeExtensionDays, form, gatewayAcceptedProtocols, gatewayBatchEnabled, gatewayClientProfiles, gatewayClientRoutes, gatewayOpenAIImageProtocolMode, gatewayOpenAIRequestFormat, gatewayProtocol, gatewayTestModelId,
   gatewayTestProvider, geminiTierAIStudio, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexLocation, geminiVertexProjectId, geminiVertexServiceAccountJson, grokSSOToken, grokTier,
-  handleClose, hasCustomizedOpenAIOAuthDefaults, interceptWarmupRequests, isBaiduDocumentAISelected, isOAuthFlow, isOpenAIModelRestrictionDisabled, isProtocolGatewayPlatform, manualModels, maybeImportCreatedAccounts, mergeAccountManualModelsIntoExtra,
+  grokOAuthRef, handleClose, hasCustomizedOpenAIOAuthDefaults, interceptWarmupRequests, isBaiduDocumentAISelected, isOAuthFlow, isOpenAIModelRestrictionDisabled, isProtocolGatewayPlatform, manualModels, maybeImportCreatedAccounts, mergeAccountManualModelsIntoExtra,
   mergeAccountModelProbeSnapshotIntoExtra, mergeResolvedUpstreamDraftIntoExtra, mixedScheduling, modelMappings, modelProbeSnapshot, modelRestrictionEnabled, modelRestrictionMode, normalizeGeminiAIStudioTier, oauth, oauthDraftCredentials,
   oauthDraftExtra, oauthDraftProbeReady, oauthFlowRef, oauthInputDraft, openAIImageCompatAllowed, openAIImageProtocolMode, openMixedChannelDialog, openRouterHTTPReferer, openRouterTitle, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuth,
   openaiOAuthResponsesWebSocketV2Mode, openaiPassthroughEnabled, parseBaiduDocumentAIDirectApiUrlsInput, poolModeState, quotaControl, requiresMixedChannelCheck, resolveAccountApiKeyDefaultBaseUrl, resolveVertexAuthBaseUrl, resolveVertexBaseUrl, resolvedUpstream,

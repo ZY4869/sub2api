@@ -32,6 +32,7 @@ type Config struct {
 	RunMode                 string                        `mapstructure:"run_mode" yaml:"run_mode"`
 	Timezone                string                        `mapstructure:"timezone"`
 	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
+	Grok                    GrokConfig                    `mapstructure:"grok"`
 	Update                  UpdateConfig                  `mapstructure:"update"`
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
 }
@@ -83,6 +84,18 @@ type GeminiTierQuotaConfig struct {
 }
 type UpdateConfig struct {
 	ProxyURL string `mapstructure:"proxy_url"`
+}
+type GrokConfig struct {
+	OAuth GrokOAuthConfig `mapstructure:"oauth"`
+}
+type GrokOAuthConfig struct {
+	AuthorizeURL string `mapstructure:"authorize_url"`
+	TokenURL     string `mapstructure:"token_url"`
+	UserInfoURL  string `mapstructure:"userinfo_url"`
+	ClientID     string `mapstructure:"client_id"`
+	Scopes       string `mapstructure:"scopes"`
+	RedirectURI  string `mapstructure:"redirect_uri"`
+	BaseURL      string `mapstructure:"base_url"`
 }
 type IdempotencyConfig struct {
 	ObserveOnly               bool `mapstructure:"observe_only"`

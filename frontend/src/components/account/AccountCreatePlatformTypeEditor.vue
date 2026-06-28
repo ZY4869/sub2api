@@ -14,8 +14,8 @@ import AccountUpstreamSettingsEditor from './AccountUpstreamSettingsEditor.vue'
 import Select from '@/components/common/Select.vue'
 import PlatformLabel from '@/components/common/PlatformLabel.vue'
 import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
+import type { AccountCategory, GeminiAccountCategory } from './createAccountModal/accountCategory'
 
-type AccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
 type AntigravityAccountType = 'oauth' | 'upstream'
 type GeminiGoogleOneTier = 'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'
 type GeminiGcpTier = 'gcp_standard' | 'gcp_enterprise'
@@ -132,11 +132,19 @@ const baiduDocumentAIOptions = computed<TypeOption[]>(() => [
 const grokOptions = computed<TypeOption[]>(() => [
   {
     key: 'oauth-based',
+    title: t('admin.accounts.types.grokOauth'),
+    description: t('admin.accounts.types.grokOauthHint'),
+    icon: 'link',
+    accent: 'green',
+    active: accountCategory.value === 'oauth-based'
+  },
+  {
+    key: 'sso',
     title: t('admin.accounts.types.grokSso'),
     description: t('admin.accounts.types.grokSsoHint'),
     icon: 'sparkles',
-    accent: 'green',
-    active: accountCategory.value === 'oauth-based'
+    accent: 'orange',
+    active: accountCategory.value === 'sso'
   },
   {
     key: 'apikey',
@@ -310,7 +318,8 @@ function handleAntigravitySelect(key: string) {
 
     <AccountGeminiAccountTypeEditor
       v-else-if="platform === 'gemini'"
-      v-model:account-category="accountCategory"
+      :account-category="accountCategory as GeminiAccountCategory"
+      @update:account-category="accountCategory = $event"
       v-model:oauth-type="geminiOAuthType"
       v-model:show-advanced="showAdvanced"
       v-model:tier-google-one="geminiTierGoogleOne"

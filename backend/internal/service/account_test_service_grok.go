@@ -22,7 +22,7 @@ func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *
 
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: requestedModel})
 
-	if account.IsGrokAPIKey() {
+	if account.IsGrokAPIKey() || account.IsGrokOAuth() {
 		return s.testGrokAPIKeyConnection(c, account, requestedModel)
 	}
 	if account.IsGrokSSO() {

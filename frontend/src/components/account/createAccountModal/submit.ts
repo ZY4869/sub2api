@@ -1,4 +1,5 @@
 import type { AccountModelProbeSnapshotDraft } from '@/utils/accountProbeDraft'
+import type { ParsedGrokOAuthPayload } from '@/utils/grokOAuth'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 
 export function createCreateAccountSubmit(ctx: any) {
@@ -85,6 +86,7 @@ export function createCreateAccountSubmit(ctx: any) {
     geminiVertexLocation,
     geminiVertexProjectId,
     geminiVertexServiceAccountJson,
+    grokOAuthRef,
     grokSSOToken,
     grokTier,
     handleClose,
@@ -423,6 +425,31 @@ const handleCreateKiroAccount = async (payload: ParsedKiroTokenImport) => {
   step.value = 3
 }
 
+const handleCreateGrokOAuthAccount = async (payload: ParsedGrokOAuthPayload) => {
+  const fallbackName = payload.suggestedName?.trim()
+  if (!form.name.trim() && fallbackName) {
+    form.name = fallbackName
+  }
+  if (!form.name.trim()) {
+    appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
+    return
+  }
+  if (!payload.credentials?.access_token) {
+    appStore.showError(t('admin.accounts.grokOauth.accessTokenMissing'))
+    return
+  }
+
+  const account = await createAccountAndFinish(
+    'grok',
+    'oauth',
+    { ...(payload.credentials || {}) },
+    buildAccountExtra(payload.extra)
+  )
+  if (account) {
+    grokOAuthRef.value?.reset?.()
+  }
+}
+
 
 const handleSubmit = async () => {
   // For OAuth-based type, handle OAuth flow (goes to step 2)
@@ -659,6 +686,7 @@ return {
   handleAntigravityValidateRT,
   handleAntigravityExchange,
   handleCreateKiroAccount,
+  handleCreateGrokOAuthAccount,
   handleSubmit
 }
 }

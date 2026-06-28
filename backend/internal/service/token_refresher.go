@@ -165,3 +165,48 @@ func (r *OpenAITokenRefresher) Refresh(ctx context.Context, account *Account) (m
 
 	return newCredentials, nil
 }
+
+type GrokTokenRefresher struct {
+	grokOAuthService *GrokOAuthService
+}
+
+func NewGrokTokenRefresher(grokOAuthService *GrokOAuthService) *GrokTokenRefresher {
+	return &GrokTokenRefresher{grokOAuthService: grokOAuthService}
+}
+
+func (r *GrokTokenRefresher) CacheKey(account *Account) string {
+	return GrokTokenCacheKey(account)
+}
+
+func (r *GrokTokenRefresher) CanRefresh(account *Account) bool {
+	return r != nil &&
+		r.grokOAuthService != nil &&
+		account != nil &&
+		account.Platform == PlatformGrok &&
+		account.Type == AccountTypeOAuth &&
+		strings.TrimSpace(account.GetCredential("refresh_token")) != ""
+}
+
+func (r *GrokTokenRefresher) NeedsRefresh(account *Account, refreshWindow time.Duration) bool {
+	if !r.CanRefresh(account) {
+		return false
+	}
+	expiresAt := account.GetCredentialAsTime("expires_at")
+	if expiresAt == nil {
+		return true
+	}
+	return time.Until(*expiresAt) < refreshWindow
+}
+
+func (r *GrokTokenRefresher) Refresh(ctx context.Context, account *Account) (map[string]any, error) {
+	if r == nil || r.grokOAuthService == nil {
+		return nil, errors.New("grok oauth service is unavailable")
+	}
+	tokenInfo, err := r.grokOAuthService.RefreshAccountToken(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	newCredentials := r.grokOAuthService.BuildAccountCredentials(tokenInfo)
+	newCredentials = MergeCredentials(account.Credentials, newCredentials)
+	return newCredentials, nil
+}

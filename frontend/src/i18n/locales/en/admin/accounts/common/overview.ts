@@ -192,6 +192,8 @@ export default {
         baiduDocumentAIApikey: "Connect with async token or direct token",
         deepseekApiKey: "Connect with an official DeepSeek API Key",
         openrouterApiKey: "Connect with an OpenRouter API Key",
+        grokOauth: "Grok Login",
+        grokOauthHint: "Sign in with xAI OAuth and save access and refresh tokens",
         grokSso: "SSO Token",
         grokSsoHint: "Paste a normalized Grok SSO token. The Bearer prefix will be normalized on save.",
         upstream: "Upstream",

@@ -13,10 +13,13 @@ func (s *AccountModelImportService) detectGrokModels(ctx context.Context, accoun
 	if account == nil {
 		return nil, infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
 	}
-	if account.IsGrokAPIKey() {
+	if account.IsGrokAPIKey() || account.IsGrokOAuth() {
 		apiKey := strings.TrimSpace(account.GetGrokAPIKey())
+		if apiKey == "" && account.IsGrokOAuth() {
+			apiKey = strings.TrimSpace(account.GetGrokOAuthAccessToken())
+		}
 		if apiKey == "" {
-			return nil, infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing Grok API key for model import")
+			return nil, infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing Grok API token for model import")
 		}
 		baseURL := strings.TrimSpace(account.GetBaseURL())
 		if baseURL == "" {

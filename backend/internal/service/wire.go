@@ -53,6 +53,7 @@ func ProvideTokenRefreshService(
 	openaiOAuthService *OpenAIOAuthService,
 	geminiOAuthService *GeminiOAuthService,
 	antigravityOAuthService *AntigravityOAuthService,
+	grokOAuthService *GrokOAuthService,
 	cacheInvalidator TokenCacheInvalidator,
 	schedulerCache SchedulerCache,
 	cfg *config.Config,
@@ -61,7 +62,7 @@ func ProvideTokenRefreshService(
 	proxyRepo ProxyRepository,
 	refreshAPI *OAuthRefreshAPI,
 ) *TokenRefreshService {
-	svc := NewTokenRefreshService(accountRepo, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, cacheInvalidator, schedulerCache, cfg, tempUnschedCache, kiroOAuthService)
+	svc := NewTokenRefreshService(accountRepo, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, cacheInvalidator, schedulerCache, cfg, tempUnschedCache, kiroOAuthService)
 	// 注入 OpenAI privacy opt-out 依赖
 	svc.SetPrivacyDeps(privacyClientFactory, proxyRepo)
 	// 注入统一 OAuth 刷新 API（消除 TokenRefreshService 与 TokenProvider 之间的竞争条件）
@@ -924,6 +925,7 @@ var ProviderSet = wire.NewSet(
 	NewGeminiQuotaService,
 	NewCompositeTokenCacheInvalidator,
 	wire.Bind(new(TokenCacheInvalidator), new(*CompositeTokenCacheInvalidator)),
+	NewGrokOAuthService,
 	NewAntigravityOAuthService,
 	ProvideOAuthRefreshAPI,
 	ProvideGeminiTokenProvider,

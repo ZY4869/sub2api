@@ -18,3 +18,8 @@ func ClaudeTokenCacheKey(account *Account) string {
 func KiroTokenCacheKey(account *Account) string {
 	return "kiro:account:" + strconv.FormatInt(account.ID, 10)
 }
+
+// GrokTokenCacheKey generates the cache key for Grok OAuth accounts.
+func GrokTokenCacheKey(account *Account) string {
+	return "grok:account:" + strconv.FormatInt(account.ID, 10)
+}

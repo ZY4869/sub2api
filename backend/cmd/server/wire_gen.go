@@ -176,7 +176,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	openAIOAuthClient := repository.NewOpenAIOAuthClient()
 	openAIOAuthService := service.NewOpenAIOAuthService(proxyRepository, openAIOAuthClient)
 	openAITokenProvider := service.ProvideOpenAITokenProvider(accountRepository, geminiTokenCache, openAIOAuthService, oAuthRefreshAPI)
-	openAIQuotaService := service.ProvideOpenAIQuotaService(accountRepository, proxyRepository, openAITokenProvider, privacyClientFactory)
 	claudeOAuthClient := repository.NewClaudeOAuthClient()
 	oAuthService := service.NewOAuthService(proxyRepository, claudeOAuthClient)
 	kiroOAuthClient := repository.NewKiroOAuthClient()
@@ -202,6 +201,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	claudeUsageFetcher := repository.NewClaudeUsageFetcher(httpUpstream)
 	antigravityQuotaFetcher := service.NewAntigravityQuotaFetcher(proxyRepository)
 	usageCache := service.NewUsageCache()
+	openAIQuotaService := service.ProvideOpenAIQuotaService(accountRepository, proxyRepository, openAITokenProvider, privacyClientFactory)
 	accountUsageService := service.ProvideAccountUsageService(accountRepository, usageLogRepository, claudeUsageFetcher, geminiQuotaService, antigravityQuotaFetcher, usageCache, identityCache, openAIQuotaService, tlsFingerprintProfileService)
 	crsSyncService := service.NewCRSSyncService(accountRepository, proxyRepository, oAuthService, openAIOAuthService, geminiOAuthService, configConfig)
 	accountModelDiagnosticsService := service.ProvideAccountModelDiagnosticsService(accountRepository, apiKeyRepository, groupRepository, accountModelImportService)
@@ -222,6 +222,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	openAIOAuthHandler := handler.ProvideOpenAIOAuthHandler(openAIOAuthService, adminService, openAIQuotaService)
 	kiroOAuthHandler := admin.NewKiroOAuthHandler(kiroOAuthService, adminService)
 	geminiOAuthHandler := admin.NewGeminiOAuthHandler(geminiOAuthService)
+	grokOAuthClient := repository.NewGrokOAuthClient()
+	grokOAuthService := service.NewGrokOAuthService(proxyRepository, grokOAuthClient, configConfig)
+	grokOAuthHandler := admin.NewGrokOAuthHandler(grokOAuthService, adminService)
 	antigravityOAuthHandler := admin.NewAntigravityOAuthHandler(antigravityOAuthService)
 	proxyHandler := admin.NewProxyHandler(adminService)
 	adminRedeemHandler := admin.NewRedeemHandler(adminService, redeemService)
@@ -260,7 +263,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	httpAirwallexClient := service.NewHTTPAirwallexClient()
 	paymentService := service.ProvidePaymentService(paymentRepository, settingService, httpAirwallexClient, subscriptionService, affiliateService, emailService, emailTemplateService, userRepository, billingCacheService, apiKeyAuthCacheInvalidator)
 	adminPaymentHandler := handler.NewAdminPaymentHandler(paymentService)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, complianceHandler, adminUserHandler, contentModerationAuditHandler, groupHandler, channelHandler, adminChannelMonitorHandler, channelMonitorTemplateHandler, accountHandler, affiliateHandler, emailTemplateHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, kiroOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, adminAPIKeyHandler, modelCatalogHandler, modelRegistryHandler, scheduledTestHandler, tlsFingerprintProfileHandler, adminPaymentHandler)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, complianceHandler, adminUserHandler, contentModerationAuditHandler, groupHandler, channelHandler, adminChannelMonitorHandler, channelMonitorTemplateHandler, accountHandler, affiliateHandler, emailTemplateHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, kiroOAuthHandler, geminiOAuthHandler, grokOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, adminAPIKeyHandler, modelCatalogHandler, modelRegistryHandler, scheduledTestHandler, tlsFingerprintProfileHandler, adminPaymentHandler)
 	geminiNativeGatewayService := service.ProvideGeminiNativeGatewayService(geminiMessagesCompatService)
 	geminiCompatGatewayService := service.ProvideGeminiCompatGatewayService(geminiMessagesCompatService)
 	geminiLiveGatewayService := service.ProvideGeminiLiveGatewayService(geminiMessagesCompatService)
@@ -293,7 +296,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	googleBatchArchivePollerService := service.ProvideGoogleBatchArchivePollerService(googleBatchArchiveJobRepository, geminiMessagesCompatService, settingService)
 	googleBatchArchivePrefetchService := service.ProvideGoogleBatchArchivePrefetchService(googleBatchArchiveJobRepository, googleBatchArchiveObjectRepository, geminiMessagesCompatService, settingService)
 	googleBatchArchiveCleanupService := service.ProvideGoogleBatchArchiveCleanupService(googleBatchArchiveJobRepository, googleBatchArchiveObjectRepository, geminiMessagesCompatService, settingService)
-	tokenRefreshService := service.ProvideTokenRefreshService(accountRepository, oAuthService, kiroOAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, compositeTokenCacheInvalidator, schedulerCache, configConfig, tempUnschedCache, privacyClientFactory, proxyRepository, oAuthRefreshAPI)
+	tokenRefreshService := service.ProvideTokenRefreshService(accountRepository, oAuthService, kiroOAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, compositeTokenCacheInvalidator, schedulerCache, configConfig, tempUnschedCache, privacyClientFactory, proxyRepository, oAuthRefreshAPI)
 	openAIGPT55WhitelistBackfillService := service.ProvideOpenAIGPT55WhitelistBackfillService(settingRepository, accountRepository)
 	periodicJobLeaderGate := repository.NewPeriodicJobLeaderGate(redisClient, configConfig)
 	accountExpiryService := service.ProvideAccountExpiryService(accountRepository, accountTestService, periodicJobLeaderGate)
@@ -306,7 +309,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	channelMonitorAggregationRepository := repository.NewChannelMonitorAggregationRepository(db)
 	channelMonitorRunnerService := service.ProvideChannelMonitorRunnerService(db, channelMonitorRepository, channelMonitorHistoryRepository, channelMonitorRollupRepository, channelMonitorAggregationRepository, settingService, secretEncryptor, configConfig, accountRepository, accountTestService)
 	publicModelCatalogRevalidationRunner := service.ProvidePublicModelCatalogRevalidationRunner(modelCatalogService, gatewayService)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, openAIGPT55WhitelistBackfillService, accountExpiryService, proxyExpiryService, accountDaily5HTriggerService, accountBlacklistCleanupService, accountRateLimitRecoveryProbeService, subscriptionExpiryService, usageCleanupService, usageRepairService, documentAIService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, channelMonitorRunnerService, publicModelCatalogRevalidationRunner, backupService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, openAIGPT55WhitelistBackfillService, accountExpiryService, proxyExpiryService, accountDaily5HTriggerService, accountBlacklistCleanupService, accountRateLimitRecoveryProbeService, subscriptionExpiryService, usageCleanupService, usageRepairService, documentAIService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, channelMonitorRunnerService, publicModelCatalogRevalidationRunner, backupService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -362,6 +365,7 @@ func provideCleanup(
 	openaiOAuth *service.OpenAIOAuthService,
 	geminiOAuth *service.GeminiOAuthService,
 	antigravityOAuth *service.AntigravityOAuthService,
+	grokOAuth *service.GrokOAuthService,
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	channelMonitorRunner *service.ChannelMonitorRunnerService,
@@ -542,6 +546,12 @@ func provideCleanup(
 			}},
 			{"AntigravityOAuthService", func() error {
 				antigravityOAuth.Stop()
+				return nil
+			}},
+			{"GrokOAuthService", func() error {
+				if grokOAuth != nil {
+					grokOAuth.Stop()
+				}
 				return nil
 			}},
 			{"OpenAIWSPool", func() error {

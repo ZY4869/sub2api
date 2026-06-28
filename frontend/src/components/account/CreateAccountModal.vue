@@ -187,6 +187,15 @@
           v-if="form.platform === 'grok'"
           class="space-y-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/30"
         >
+          <AccountGrokOAuthPanel
+            v-if="form.type === 'oauth'"
+            ref="grokOAuthRef"
+            :proxy-id="form.proxy_id"
+            :submit-label="t('common.create')"
+            :submitting="submitting"
+            @submit="handleCreateGrokOAuthAccount"
+          />
+
           <div v-if="form.type === 'sso'">
             <label class="input-label">{{ t('admin.accounts.grokToken') }}</label>
             <textarea
@@ -611,6 +620,7 @@ import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySet
 import AccountGoogleBatchArchiveEditor from '@/components/account/AccountGoogleBatchArchiveEditor.vue'
 import AccountGeminiHelpDialog from '@/components/account/AccountGeminiHelpDialog.vue'
 import AccountGeminiVertexCredentialsEditor from '@/components/account/AccountGeminiVertexCredentialsEditor.vue'
+import AccountGrokOAuthPanel from '@/components/account/AccountGrokOAuthPanel.vue'
 import AccountGrokImportPanel from '@/components/account/AccountGrokImportPanel.vue'
 import AccountGroupSettingsEditor from '@/components/account/AccountGroupSettingsEditor.vue'
 import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
@@ -654,6 +664,7 @@ const {
   deepSeekModelConcurrencyLimits,
   grokSSOToken,
   grokTier,
+  grokOAuthRef,
   editQuotaLimit,
   editQuotaDailyLimit,
   editQuotaWeeklyLimit,
@@ -796,6 +807,7 @@ const {
   submitting,
   handleCookieAuth,
   handleCreateKiroAccount,
+  handleCreateGrokOAuthAccount,
   handleGrokImportCompleted,
   goBackToBasicInfo,
   handleGenerateUrl,

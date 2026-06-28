@@ -132,13 +132,22 @@ describe('AccountCreatePlatformTypeEditor', () => {
     expect(wrapper.emitted('update:accountCategory')).toContainEqual(['apikey'])
   })
 
-  it('switches grok account types between sso and apikey', async () => {
+  it('switches grok account types between oauth, sso, and apikey', async () => {
     const wrapper = createWrapper({
       platform: 'grok',
       accountCategory: 'oauth-based'
     })
 
+    expect(wrapper.text()).toContain('admin.accounts.types.grokOauth')
     expect(wrapper.text()).toContain('admin.accounts.types.grokSso')
+
+    const ssoButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.types.grokSso')
+    )
+    expect(ssoButton).toBeTruthy()
+
+    await ssoButton!.trigger('click')
+    expect(wrapper.emitted('update:accountCategory')).toContainEqual(['sso'])
 
     const apiKeyButton = wrapper.findAll('button').find((button) =>
       button.text().includes('API Key')

@@ -1,7 +1,6 @@
 import type { AccountPlatform, OpenAIImageProtocolMode } from '@/types'
+import type { AccountCategory } from '@/components/account/createAccountModal/accountCategory'
 import { isOpenAIWSModeEnabled, type OpenAIWSMode } from '@/utils/openaiWsMode'
-
-export type AccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
 
 export function buildOpenAIExtra(options: {
   platform: AccountPlatform

@@ -7,6 +7,7 @@ import type {
 } from '@/types'
 import type { AddMethod } from '@/composables/useAccountOAuth'
 import type { VertexAuthMode } from '@/utils/vertexAi'
+import type { AccountCategory } from './accountCategory'
 
 export function useCreateAccountModalWatchers(ctx: any) {
   const {
@@ -61,6 +62,7 @@ export function useCreateAccountModalWatchers(ctx: any) {
     geminiVertexProjectId,
     geminiVertexServiceAccountJson,
     grokSSOToken,
+    grokOAuthRef,
     grokTier,
     interceptWarmupRequests,
     isBaiduDocumentAIPlatform,
@@ -145,7 +147,7 @@ watch(
 watch(
   [accountCategory, addMethod, antigravityAccountType, gatewayProtocol, geminiVertexAuthMode],
   ([category, method, agType, _gatewayProtocol, vertexAuthMode]: [
-    'oauth-based' | 'apikey' | 'vertex_ai',
+    AccountCategory,
     AddMethod,
     'oauth' | 'upstream',
     GatewayProtocol,
@@ -160,7 +162,13 @@ watch(
       return
     }
     if (form.platform === 'grok') {
-      form.type = category === 'oauth-based' ? 'sso' : 'apikey'
+      if (category === 'oauth-based') {
+        form.type = 'oauth'
+      } else if (category === 'sso') {
+        form.type = 'sso'
+      } else {
+        form.type = 'apikey'
+      }
       return
     }
     if (form.platform === 'deepseek') {
@@ -217,7 +225,7 @@ watch(
       addMethod.value = 'oauth'
     }
     if (newPlatform !== 'gemini') {
-      if (accountCategory.value === 'vertex_ai') {
+      if (accountCategory.value === 'vertex_ai' || accountCategory.value === 'sso') {
         accountCategory.value = 'oauth-based'
       }
       geminiVertexAuthMode.value = 'service_account'
@@ -266,9 +274,11 @@ watch(
       accountCategory.value = 'apikey'
       form.type = 'apikey'
       grokSSOToken.value = ''
+      grokOAuthRef.value?.reset?.()
       grokTier.value = 'basic'
     } else {
       grokSSOToken.value = ''
+      grokOAuthRef.value?.reset?.()
       grokTier.value = 'basic'
     }
     if (newPlatform === 'deepseek') {
@@ -433,7 +443,7 @@ watch(
 // Gemini AI Studio OAuth availability (requires operator-configured OAuth client)
 watch(
   [accountCategory, effectivePlatform],
-  ([category, platform]: ['oauth-based' | 'apikey' | 'vertex_ai', GroupPlatform]) => {
+  ([category, platform]: [AccountCategory, GroupPlatform]) => {
     if (platform === 'openai' && category !== 'oauth-based') {
       codexCLIOnlyEnabled.value = false
     }
@@ -445,7 +455,7 @@ watch(
 
 watch(
   [() => props.show, effectivePlatform, accountCategory],
-  async ([show, platform, category]: [boolean, GroupPlatform, 'oauth-based' | 'apikey' | 'vertex_ai']) => {
+  async ([show, platform, category]: [boolean, GroupPlatform, AccountCategory]) => {
     if (!show || platform !== 'gemini' || category !== 'oauth-based') {
       geminiAIStudioOAuthEnabled.value = false
       return

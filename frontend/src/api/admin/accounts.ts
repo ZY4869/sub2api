@@ -394,6 +394,29 @@ export interface GrokImportResult {
   results: GrokImportResultItem[]
 }
 
+export interface GrokAuthUrlResult {
+  auth_url: string
+  session_id: string
+  redirect_uri: string
+  state: string
+}
+
+export interface GrokExchangeCodeResult {
+  access_token: string
+  refresh_token?: string
+  id_token?: string
+  token_type?: string
+  expires_in?: number
+  expires_at?: number
+  scope?: string
+  client_id?: string
+  base_url?: string
+  email?: string
+  subject?: string
+  name?: string
+  email_verified?: boolean
+}
+
 export async function testAccount(id: number, payload: AccountTestRequestPayload = {}): Promise<{
   success: boolean
   message: string
@@ -420,6 +443,68 @@ export async function importGrok(payload: {
   skip_default_group_bind?: boolean
 }): Promise<GrokImportResult> {
   const { data } = await apiClient.post<GrokImportResult>('/admin/grok/import', payload)
+  return data
+}
+
+export async function generateGrokAuthUrl(payload: {
+  proxy_id?: number | null
+  redirect_uri?: string
+  base_url?: string
+} = {}): Promise<GrokAuthUrlResult> {
+  const { data } = await apiClient.post<GrokAuthUrlResult>('/admin/grok/oauth/auth-url', payload)
+  return data
+}
+
+export async function exchangeGrokAuthCode(payload: {
+  session_id: string
+  code: string
+  state: string
+  redirect_uri?: string
+  proxy_id?: number | null
+}): Promise<GrokExchangeCodeResult> {
+  const { data } = await apiClient.post<GrokExchangeCodeResult>('/admin/grok/oauth/exchange-code', payload)
+  return data
+}
+
+export async function createGrokAccountFromOAuth(payload: {
+  session_id: string
+  code: string
+  state: string
+  redirect_uri?: string
+  proxy_id?: number | null
+  name: string
+  notes?: string | null
+  concurrency?: number
+  load_factor?: number | null
+  priority?: number
+  rate_multiplier?: number
+  group_ids?: number[]
+  expires_at?: number | null
+  auto_pause_on_expired?: boolean
+  auto_renew_enabled?: boolean
+  auto_renew_period?: 'month' | 'quarter' | 'year'
+  confirm_mixed_channel_risk?: boolean
+}): Promise<Account> {
+  const { data } = await apiClient.post<Account>('/admin/grok/create-from-oauth', payload)
+  return data
+}
+
+export async function reauthorizeGrokAccountFromOAuth(
+  id: number,
+  payload: {
+    session_id: string
+    code: string
+    state: string
+    redirect_uri?: string
+    proxy_id?: number | null
+  }
+): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/grok/accounts/${id}/reauthorize-from-oauth`, payload)
+  return data
+}
+
+export async function refreshGrokAccount(id: number): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/grok/accounts/${id}/refresh`)
   return data
 }
 
@@ -903,6 +988,11 @@ export const accountsAPI = {
   testAccount,
   previewGrokImport,
   importGrok,
+  generateGrokAuthUrl,
+  exchangeGrokAuthCode,
+  createGrokAccountFromOAuth,
+  reauthorizeGrokAccountFromOAuth,
+  refreshGrokAccount,
   testGrokAccount,
   refreshCredentials,
   setPrivacy,

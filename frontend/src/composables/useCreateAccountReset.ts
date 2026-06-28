@@ -35,6 +35,7 @@ import type {
   AccountResolvedUpstreamDraft
 } from '@/utils/accountProbeDraft'
 import type { GoogleBatchArchiveBillingMode } from '@/utils/accountGoogleBatchArchive'
+import type { AccountCategory } from '@/components/account/createAccountModal/accountCategory'
 
 interface CreateAccountFormShape {
   name: string
@@ -55,7 +56,7 @@ interface UseCreateAccountResetOptions {
   step: Ref<number>
   form: CreateAccountFormShape
   autoImportModels: Ref<boolean>
-  accountCategory: Ref<'oauth-based' | 'apikey' | 'vertex_ai'>
+  accountCategory: Ref<AccountCategory>
   addMethod: Ref<AddMethod>
   gatewayProtocol: Ref<GatewayProtocol>
   apiKeyBaseUrl: Ref<string>
@@ -139,6 +140,7 @@ interface UseCreateAccountResetOptions {
   openaiOAuthReset: () => void
   geminiOAuthReset: () => void
   antigravityOAuthReset: () => void
+  grokOAuthReset?: () => void
   oauthFlowReset: () => void
   kiroImportReset?: () => void
   resetMixedChannelRisk: () => void
@@ -245,6 +247,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.openaiOAuthReset()
     options.geminiOAuthReset()
     options.antigravityOAuthReset()
+    options.grokOAuthReset?.()
     options.oauthFlowReset()
     options.kiroImportReset?.()
     options.resetMixedChannelRisk()

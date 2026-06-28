@@ -77,6 +77,9 @@ func (c *Config) Validate() error {
 	if (geminiClientID == "") != (geminiClientSecret == "") {
 		return fmt.Errorf("gemini.oauth.client_id and gemini.oauth.client_secret must be both set or both empty")
 	}
+	if err := validateGrokOAuthConfig(c.Grok.OAuth); err != nil {
+		return err
+	}
 	if strings.TrimSpace(c.Server.FrontendURL) != "" {
 		if err := ValidateAbsoluteHTTPURL(c.Server.FrontendURL); err != nil {
 			return fmt.Errorf("server.frontend_url invalid: %w", err)
@@ -666,6 +669,31 @@ func (c *Config) Validate() error {
 	}
 	if c.Concurrency.PingInterval < 5 || c.Concurrency.PingInterval > 30 {
 		return fmt.Errorf("concurrency.ping_interval must be between 5-30 seconds")
+	}
+	return nil
+}
+
+func validateGrokOAuthConfig(cfg GrokOAuthConfig) error {
+	fields := map[string]string{
+		"grok.oauth.authorize_url": cfg.AuthorizeURL,
+		"grok.oauth.token_url":     cfg.TokenURL,
+		"grok.oauth.userinfo_url":  cfg.UserInfoURL,
+		"grok.oauth.redirect_uri":  cfg.RedirectURI,
+		"grok.oauth.base_url":      cfg.BaseURL,
+	}
+	for field, value := range fields {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%s is required", field)
+		}
+		if err := ValidateAbsoluteHTTPURL(value); err != nil {
+			return fmt.Errorf("%s invalid: %w", field, err)
+		}
+	}
+	if strings.TrimSpace(cfg.ClientID) == "" {
+		return fmt.Errorf("grok.oauth.client_id is required")
+	}
+	if strings.TrimSpace(cfg.Scopes) == "" {
+		return fmt.Errorf("grok.oauth.scopes is required")
 	}
 	return nil
 }

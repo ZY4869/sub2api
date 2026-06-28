@@ -31,6 +31,10 @@ func (a *Account) IsGrokAPIKey() bool {
 	return a.IsGrok() && a.Type == AccountTypeAPIKey
 }
 
+func (a *Account) IsGrokOAuth() bool {
+	return a.IsGrok() && a.Type == AccountTypeOAuth
+}
+
 func (a *Account) IsDeepSeek() bool {
 	return EffectiveProtocol(a) == PlatformDeepSeek
 }
@@ -117,6 +121,13 @@ func (a *Account) GetGrokAPIKey() string {
 		return ""
 	}
 	return a.GetCredential("api_key")
+}
+
+func (a *Account) GetGrokOAuthAccessToken() string {
+	if !a.IsGrokOAuth() {
+		return ""
+	}
+	return a.GetCredential("access_token")
 }
 
 func (a *Account) GetGrokSSOToken() string {

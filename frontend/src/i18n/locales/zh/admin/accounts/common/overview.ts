@@ -193,6 +193,8 @@ export default {
         baiduDocumentAIApikey: "通过异步 Token 或直连 Token 连接",
         deepseekApiKey: "通过 DeepSeek 官方 API Key 连接",
         openrouterApiKey: "通过 OpenRouter API Key 连接",
+        grokOauth: "Grok 登录",
+        grokOauthHint: "通过 xAI 官方 OAuth 登录，保存 access token 与 refresh token",
         grokSso: "SSO Token",
         grokSsoHint: "粘贴标准化后的 Grok SSO token，保存时会自动规范化 Bearer 前缀",
         upstream: "对接上游",

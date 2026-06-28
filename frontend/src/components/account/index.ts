@@ -25,6 +25,7 @@ export { default as AccountCreateTypeCardGroup } from './AccountCreateTypeCardGr
 export { default as AccountGatewaySettingsEditor } from './AccountGatewaySettingsEditor.vue'
 export { default as AccountGeminiHelpDialog } from './AccountGeminiHelpDialog.vue'
 export { default as AccountGeminiAccountTypeEditor } from './AccountGeminiAccountTypeEditor.vue'
+export { default as AccountGrokOAuthPanel } from './AccountGrokOAuthPanel.vue'
 export { default as AccountGroupSettingsEditor } from './AccountGroupSettingsEditor.vue'
 export { default as AccountKiroTokenImportPanel } from './AccountKiroTokenImportPanel.vue'
 export { default as AccountModelScopeEditor } from './AccountModelScopeEditor.vue'

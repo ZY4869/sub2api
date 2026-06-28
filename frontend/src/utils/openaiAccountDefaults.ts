@@ -1,4 +1,5 @@
 import type { OpenAIImageProtocolMode } from '@/types'
+import type { AccountCategory } from '@/components/account/createAccountModal/accountCategory'
 
 const OPENAI_IMAGE_COMPAT_ALLOWED_PLANS = new Set(['plus', 'team', 'pro', 'business', 'enterprise', 'edu'])
 
@@ -59,7 +60,7 @@ export function getDefaultOpenAIImageProtocolMode(planType?: string | null): Ope
 }
 
 export function resolveOpenAIImageProtocolState(options: {
-  accountCategory: 'oauth-based' | 'apikey' | 'vertex_ai'
+  accountCategory: AccountCategory
   planType?: string | null
   storedMode?: string | null
   storedCompatAllowed?: unknown

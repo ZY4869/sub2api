@@ -25,6 +25,8 @@ const {
   refreshOpenAITokenMock,
   refreshAntigravityTokenMock,
   checkMixedChannelRiskMock,
+  exchangeGrokAuthCodeMock,
+  generateGrokAuthUrlMock,
   invalidateModelRegistryMock,
   invalidateInventoryMock,
   modelRegistrySnapshot
@@ -35,6 +37,8 @@ const {
   refreshOpenAITokenMock: vi.fn(),
   refreshAntigravityTokenMock: vi.fn(),
   checkMixedChannelRiskMock: vi.fn(),
+  exchangeGrokAuthCodeMock: vi.fn(),
+  generateGrokAuthUrlMock: vi.fn(),
   invalidateModelRegistryMock: vi.fn(),
   invalidateInventoryMock: vi.fn(),
   modelRegistrySnapshot: {
@@ -106,9 +110,11 @@ vi.mock('@/stores/auth', () => ({
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
-      create: createMock,
-      exchangeCode: exchangeCodeMock,
-      generateAuthUrl: generateAuthUrlMock,
+        create: createMock,
+        exchangeCode: exchangeCodeMock,
+        exchangeGrokAuthCode: exchangeGrokAuthCodeMock,
+        generateGrokAuthUrl: generateGrokAuthUrlMock,
+        generateAuthUrl: generateAuthUrlMock,
       refreshOpenAIToken: refreshOpenAITokenMock,
       checkMixedChannelRisk: checkMixedChannelRiskMock
     },
@@ -241,6 +247,13 @@ const AccountCreatePlatformTypeEditorStub = defineComponent({
         "
       >
         set oauth based mode
+      </button>
+      <button
+        type="button"
+        data-testid="set-grok-sso-mode"
+        @click="$emit('update:account-category', 'sso')"
+      >
+        set grok sso mode
       </button>
       <button
         type="button"
@@ -569,6 +582,37 @@ const AccountApiKeyModelProbeEditorStub = defineComponent({
   `
 })
 
+const AccountGrokOAuthPanelStub = defineComponent({
+  name: 'AccountGrokOAuthPanel',
+  emits: ['submit'],
+  setup(_props, { expose }) {
+    expose({ reset: vi.fn() })
+  },
+  template: `
+    <div data-testid="grok-oauth-panel">
+      <button
+        type="button"
+        data-testid="submit-grok-oauth"
+        @click="$emit('submit', {
+          credentials: {
+            access_token: 'grok-access',
+            refresh_token: 'grok-refresh',
+            base_url: 'https://api.x.ai/v1'
+          },
+          extra: {
+            provider: 'xai',
+            source: 'grok_browser_oauth',
+            email: 'grok@example.com'
+          },
+          suggestedName: 'grok@example.com'
+        })"
+      >
+        submit grok oauth
+      </button>
+    </div>
+  `
+})
+
 const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
   name: 'AccountProtocolGatewayModelProbeEditor',
   props: {
@@ -859,6 +903,7 @@ function mountModal(stubOverrides: Record<string, any> = {}) {
         AccountGeminiHelpDialog: true,
         AccountGeminiVertexCredentialsEditor: true,
         AccountGrokImportPanel: true,
+        AccountGrokOAuthPanel: AccountGrokOAuthPanelStub,
         AccountGroupSettingsEditor: true,
         AccountKiroAuthPanel: true,
         AccountMixedChannelWarningDialog: true,
@@ -1272,6 +1317,7 @@ describe('CreateAccountModal', () => {
     expect(modalWatchersSource).toContain("accountCategory.value = 'apikey'")
     expect(modalWatchersSource).toContain("form.type = 'apikey'")
     expect(source).toContain("form.platform === 'grok'")
+    expect(source).toContain("form.type === 'oauth'")
     expect(source).toContain("form.type === 'sso'")
   })
 
@@ -1284,10 +1330,56 @@ describe('CreateAccountModal', () => {
     expect(wrapper.get('[data-testid="skip-model-scope-editor-prop"]').text()).toBe('false')
     expect(wrapper.find('[data-testid="oauth-allowed-models-prop"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+    await wrapper.get('[data-testid="set-grok-sso-mode"]').trigger('click')
 
     expect(wrapper.find('[data-testid="set-api-key"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="oauth-allowed-models-prop"]').exists()).toBe(true)
+  })
+
+  it('creates a Grok OAuth account through the local unified create flow', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 19,
+      name: 'Grok Login',
+      platform: 'grok',
+      type: 'oauth',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-grok"]').trigger('click')
+    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Grok Login')
+    await wrapper.get('[data-testid="enable-oauth-model-restriction"]').trigger('click')
+    await wrapper.get('[data-testid="set-openai-custom-whitelist"]').trigger('click')
+    await wrapper.get('[data-testid="submit-grok-oauth"]').trigger('click')
+    await flushPromises()
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]).toMatchObject({
+      name: 'Grok Login',
+      platform: 'grok',
+      type: 'oauth',
+      credentials: {
+        access_token: 'grok-access',
+        refresh_token: 'grok-refresh',
+        base_url: 'https://api.x.ai/v1'
+      },
+      extra: {
+        provider: 'xai',
+        source: 'grok_browser_oauth',
+        email: 'grok@example.com',
+        model_scope_v2: {
+          policy_mode: 'whitelist'
+        }
+      }
+    })
   })
 
   it('submits DeepSeek model concurrency limits from API key creation', async () => {
@@ -1411,7 +1503,7 @@ describe('CreateAccountModal', () => {
     const wrapper = mountModal()
 
     await wrapper.get('[data-testid="select-grok"]').trigger('click')
-    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+    await wrapper.get('[data-testid="set-grok-sso-mode"]').trigger('click')
     await wrapper.get('textarea[placeholder="admin.accounts.grokTokenPlaceholder"]').setValue('grok-sso-token')
     await wrapper.get('[data-testid="enable-oauth-model-restriction"]').trigger('click')
     await wrapper.get('[data-testid="set-openai-custom-whitelist"]').trigger('click')

@@ -504,6 +504,11 @@ func registerGrokRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		grok.POST("/import/preview", h.Admin.Account.PreviewGrokImport)
 		grok.POST("/import", h.Admin.Account.ImportGrok)
 		grok.POST("/accounts/:id/test", h.Admin.Account.TestGrokAccount)
+		grok.POST("/oauth/auth-url", h.Admin.GrokOAuth.GenerateAuthURL)
+		grok.POST("/oauth/exchange-code", h.Admin.GrokOAuth.ExchangeCode)
+		grok.POST("/create-from-oauth", h.Admin.GrokOAuth.CreateAccountFromOAuth)
+		grok.POST("/accounts/:id/reauthorize-from-oauth", h.Admin.GrokOAuth.ReauthorizeAccountFromOAuth)
+		grok.POST("/accounts/:id/refresh", h.Admin.GrokOAuth.RefreshAccount)
 	}
 }
 
