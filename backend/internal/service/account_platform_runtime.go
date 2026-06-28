@@ -5,7 +5,8 @@ import (
 )
 
 func (a *Account) GetBaseURL() string {
-	if a.Type != AccountTypeAPIKey && !(a.Platform == PlatformGrok && a.Type == AccountTypeOAuth) {
+	allowBaseURL := a.Type == AccountTypeAPIKey || (a.Platform == PlatformGrok && a.Type == AccountTypeOAuth)
+	if !allowBaseURL {
 		return ""
 	}
 	baseURL := a.GetCredential("base_url")
