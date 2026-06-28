@@ -29,7 +29,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	require.NotContains(t, thirdParty, "LGPL")
 	require.NotContains(t, thirdParty, "GPL")
 
-	require.Equal(t, "0.1.367", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	require.Equal(t, "0.1.368", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 
 	var pkg struct {
 		Version string `json:"version"`
@@ -38,7 +38,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 		} `json:"pnpm"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(readRepoFile(t, root, "frontend", "package.json")), &pkg))
-	require.Equal(t, "0.1.367", pkg.Version)
+	require.Equal(t, "0.1.368", pkg.Version)
 	require.Equal(t, "4.0.6", pkg.PNPM.Overrides["form-data"])
 
 	assertNoAPIDocsRoutes(t, root)
