@@ -156,8 +156,15 @@ describe('AccountUsageResetCell', () => {
     expect(wrapper.text()).toContain('03-20 01:09:00')
     expect(wrapper.text()).not.toContain('6d 13h')
     const labels = wrapper.findAll('[data-testid="account-usage-reset-window-label"]')
-    expect(labels[0].classes()).toContain('bg-indigo-50')
-    expect(labels[1].classes()).toContain('bg-green-50')
+    expect(labels[0].classes()).toContain('bg-indigo-100')
+    expect(labels[0].classes()).toContain('font-black')
+    expect(labels[0].classes()).toContain('ring-1')
+    expect(labels[1].classes()).toContain('bg-green-100')
+    expect(labels[1].classes()).toContain('font-black')
+    const countdowns = wrapper.findAll('[data-testid="account-usage-reset-countdown"]')
+    expect(countdowns[0].classes()).toContain('bg-indigo-100')
+    expect(countdowns[0].classes()).toContain('font-bold')
+    expect(countdowns[1].classes()).toContain('bg-green-100')
     expect(wrapper.text()).not.toContain('30D · 03-20')
 
   })
@@ -240,8 +247,8 @@ describe('AccountUsageResetCell', () => {
     expect(wrapper.text()).toContain('31D')
     expect(wrapper.text()).toContain('06D:14H')
     const label = wrapper.get('[data-testid="account-usage-reset-window-label"]')
-    expect(label.classes()).toContain('bg-green-50')
-    expect(label.classes()).not.toContain('bg-orange-50')
+    expect(label.classes()).toContain('bg-green-100')
+    expect(label.classes()).not.toContain('bg-orange-100')
   })
 
   it('keeps cross-year long reset countdown and full tooltip readable', async () => {

@@ -263,7 +263,16 @@ func BuildAccountDaily5HTriggerSkipExtra(localDate string, skipReason string, su
 
 func accountDaily5HSkipConsumesLocalDate(reason string) bool {
 	switch strings.TrimSpace(reason) {
-	case AccountDaily5HSkipReasonFreeExcluded:
+	case AccountDaily5HSkipReasonLifecycleExcluded,
+		AccountDaily5HSkipReasonAccountType,
+		AccountDaily5HSkipReasonPausedExcluded,
+		AccountDaily5HSkipReasonFreeExcluded,
+		AccountDaily5HSkipReasonRateLimited,
+		AccountDaily5HSkipReasonTempUnsched,
+		AccountDaily5HSkipReasonOverloaded,
+		AccountDaily5HSkipReasonSessionWindow,
+		AccountDaily5HSkipReasonFixedModelHidden,
+		AccountDaily5HSkipReasonNoFamilyModel:
 		return true
 	default:
 		return false

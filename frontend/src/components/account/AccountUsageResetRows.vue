@@ -2,13 +2,13 @@
   <div
     v-for="row in rows"
     :key="row.key"
-    class="grid min-w-0 max-w-full grid-cols-[minmax(42px,auto)_1fr] items-start gap-x-2 gap-y-1 text-[10px] tabular-nums"
+    class="grid min-w-0 max-w-full grid-cols-[minmax(48px,auto)_minmax(0,1fr)] items-start gap-x-2 gap-y-1 text-[10px] tabular-nums"
   >
     <span
       :title="row.label"
       data-testid="account-usage-reset-window-label"
       :class="[
-        'min-w-[42px] max-w-[82px] shrink-0 rounded-full border px-1.5 py-1 text-center font-bold leading-none',
+        'min-w-[48px] max-w-[92px] shrink-0 rounded-full border px-2 py-1 text-center font-black leading-none ring-1',
         resetLabelClass(row.label)
       ]"
     >
@@ -24,11 +24,15 @@
         v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.showCountdown"
         name="clock"
         size="xs"
-        class="shrink-0 text-gray-400 dark:text-gray-500"
+        :class="['shrink-0', resetIconClass(row.label)]"
       />
       <span
         v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.showCountdown"
-        class="shrink-0 whitespace-nowrap rounded-full bg-gray-100 px-1.5 py-0.5 font-medium leading-none text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+        data-testid="account-usage-reset-countdown"
+        :class="[
+          'shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 font-bold leading-none ring-1',
+          resetCountdownClass(row.label)
+        ]"
       >
         {{ formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.countdown }}
       </span>
@@ -53,7 +57,11 @@ import {
   formatResetCountdown,
   parseEffectiveResetAt,
 } from '@/utils/usageResetTime'
-import { resolveUsageWindowCapsuleClass } from '@/utils/accountUsageWindowDisplay'
+import {
+  resolveUsageResetCountdownClass,
+  resolveUsageResetIconClass,
+  resolveUsageResetWindowLabelClass,
+} from '@/utils/accountUsageWindowDisplay'
 import Icon from '@/components/icons/Icon.vue'
 
 defineProps<{
@@ -138,6 +146,14 @@ function formatResetValue(
 }
 
 function resetLabelClass(label: string): string {
-  return resolveUsageWindowCapsuleClass(label)
+  return resolveUsageResetWindowLabelClass(label)
+}
+
+function resetCountdownClass(label: string): string {
+  return resolveUsageResetCountdownClass(label)
+}
+
+function resetIconClass(label: string): string {
+  return resolveUsageResetIconClass(label)
 }
 </script>
