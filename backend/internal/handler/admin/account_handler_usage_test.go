@@ -308,7 +308,7 @@ func TestAccountHandlerGetUsageReturnsOpenAIResetCreditStatus(t *testing.T) {
 	require.Contains(t, resp.Data.OpenAIResetCredits.UnsupportedReason, "OpenAI quota")
 }
 
-func TestAccountHandlerGetUsageUsesOpenAIQuotaWindowsAfterReset(t *testing.T) {
+func TestAccountHandlerGetUsageDoesNotUseOpenAIQuotaWindowsAfterResetCreditsRead(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().UTC().Truncate(time.Second)
@@ -373,7 +373,7 @@ func TestAccountHandlerGetUsageUsesOpenAIQuotaWindowsAfterReset(t *testing.T) {
 	router.GET("/api/v1/admin/accounts/:id/usage", handler.GetUsage)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/45/usage?force=1&source=active", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/45/usage?source=active", nil)
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -381,10 +381,12 @@ func TestAccountHandlerGetUsageUsesOpenAIQuotaWindowsAfterReset(t *testing.T) {
 		Code int `json:"code"`
 		Data struct {
 			FiveHour *struct {
-				Utilization float64 `json:"utilization"`
+				Utilization float64    `json:"utilization"`
+				ResetsAt    *time.Time `json:"resets_at"`
 			} `json:"five_hour"`
 			SevenDay *struct {
-				Utilization float64 `json:"utilization"`
+				Utilization float64    `json:"utilization"`
+				ResetsAt    *time.Time `json:"resets_at"`
 			} `json:"seven_day"`
 			OpenAIResetCredits *struct {
 				AvailableCount *int `json:"available_count"`
@@ -396,8 +398,12 @@ func TestAccountHandlerGetUsageUsesOpenAIQuotaWindowsAfterReset(t *testing.T) {
 	require.Equal(t, 1, reader.calls)
 	require.NotNil(t, resp.Data.FiveHour)
 	require.NotNil(t, resp.Data.SevenDay)
-	require.InDelta(t, 0, resp.Data.FiveHour.Utilization, 0.001)
-	require.InDelta(t, 4, resp.Data.SevenDay.Utilization, 0.001)
+	require.InDelta(t, 100, resp.Data.FiveHour.Utilization, 0.001)
+	require.InDelta(t, 100, resp.Data.SevenDay.Utilization, 0.001)
+	require.NotNil(t, resp.Data.FiveHour.ResetsAt)
+	require.NotNil(t, resp.Data.SevenDay.ResetsAt)
+	require.WithinDuration(t, now.Add(2*time.Hour), *resp.Data.FiveHour.ResetsAt, time.Second)
+	require.WithinDuration(t, now.Add(48*time.Hour), *resp.Data.SevenDay.ResetsAt, time.Second)
 	require.NotNil(t, resp.Data.OpenAIResetCredits)
 	require.NotNil(t, resp.Data.OpenAIResetCredits.AvailableCount)
 	require.Equal(t, 2, *resp.Data.OpenAIResetCredits.AvailableCount)

@@ -333,13 +333,6 @@ func openAIResetCreditsExtraFromSnapshot(snapshot *OpenAIResetCreditsSnapshot) m
 	return updates
 }
 
-func maxInt64(value, minimum int64) int64 {
-	if value < minimum {
-		return minimum
-	}
-	return value
-}
-
 func generateOpenAIQuotaRedeemRequestID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
