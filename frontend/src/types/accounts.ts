@@ -452,6 +452,7 @@ export interface AccountUsageResetRow {
   label: string;
   resetsAt: string | null;
   remainingSeconds?: number | null;
+  remainingAnchorMs?: number | null;
 }
 
 export interface AccountUsagePresentationRow extends AccountUsageResetRow {

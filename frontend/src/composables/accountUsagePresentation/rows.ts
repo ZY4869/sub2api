@@ -7,7 +7,6 @@ import type {
   UsageProgress,
 } from "@/types";
 import { resolveCodexUsageWindowLabel } from "@/utils/codexUsage";
-import { parseEffectiveResetAt } from "@/utils/usageResetTime";
 import type { OpenAIUsageRowSpec, UsageRowOptions } from "./types";
 
 type Translate = (key: string) => string;
@@ -29,19 +28,14 @@ export function buildUsageRow(
 ): AccountUsagePresentationRow {
   const normalizedResetAt =
     typeof resetsAt === "string" && resetsAt.trim() !== "" ? resetsAt : null;
-  const effectiveResetAt =
-    normalizedResetAt === null && (options.remainingSeconds ?? 0) > 0
-      ? parseEffectiveResetAt(null, options.remainingSeconds ?? null)
-      : null;
 
   return {
     key,
     label,
     utilization,
-    resetsAt:
-      normalizedResetAt ??
-      (effectiveResetAt ? effectiveResetAt.toISOString() : null),
+    resetsAt: normalizedResetAt,
     remainingSeconds: options.remainingSeconds ?? null,
+    remainingAnchorMs: options.remainingAnchorMs ?? null,
     windowStats: options.windowStats ?? null,
     color,
     inlineRemaining: options.inlineRemaining ?? false,
@@ -67,6 +61,7 @@ export function buildProgressRow(
     {
       windowStats: progress.window_stats,
       remainingSeconds: progress.remaining_seconds,
+      remainingAnchorMs: options.remainingAnchorMs,
       inlineRemaining: options.inlineRemaining,
       detailedReset: options.detailedReset,
     },

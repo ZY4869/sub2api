@@ -82,7 +82,6 @@ func (s *AccountUsageService) readOpenAIResetCredits(ctx context.Context, accoun
 		Status:            snapshot.Status,
 		UnsupportedReason: snapshot.UnsupportedReason,
 	}
-	applyOpenAIQuotaWindowSnapshotToUsage(usage, snapshot)
 }
 
 func (s *AccountUsageService) applyOpenAIResetCreditsUnknown(ctx context.Context, account *Account, usage *UsageInfo, now time.Time) {
@@ -129,18 +128,6 @@ func applyOpenAIResetCreditsFromExtra(usage *UsageInfo, extra map[string]any) {
 	info.Status = parseOpenAIResetCreditsExtraStatus(extra, info.AvailableCount != nil)
 	info.UnsupportedReason = parseOpenAIResetCreditsExtraUnsupportedReason(extra[openAIResetCreditsUnsupportedReasonExtraKey])
 	usage.OpenAIResetCredits = info
-}
-
-func applyOpenAIQuotaWindowSnapshotToUsage(usage *UsageInfo, snapshot *OpenAIResetCreditsSnapshot) {
-	if usage == nil || snapshot == nil {
-		return
-	}
-	if snapshot.FiveHour != nil && snapshot.FiveHour.Progress != nil {
-		usage.FiveHour = snapshot.FiveHour.Progress
-	}
-	if snapshot.SevenDay != nil && snapshot.SevenDay.Progress != nil {
-		usage.SevenDay = snapshot.SevenDay.Progress
-	}
 }
 
 func shouldRefreshOpenAIResetCreditsSnapshot(account *Account, now time.Time) bool {

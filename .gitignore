@@ -156,6 +156,8 @@ frontend/coverage/
 aicodex
 output/
 trim-karma-489315-e9-193e4336c8d4.json
+body-model.json
+headers-model.txt
 /上游更新同步报告_20260316.md
 /超长代码拆分重构计划.md
 

@@ -123,6 +123,7 @@ const props = withDefaults(
     utilization: number;
     resetsAt?: string | null;
     remainingSeconds?: number | null;
+    remainingAnchorMs?: number | null;
     color: "indigo" | "emerald" | "purple" | "amber" | "orange" | "green";
     windowStats?: WindowStats | null;
     detailedReset?: boolean;
@@ -140,6 +141,7 @@ const { t } = useI18n();
 const { nowDate } = useRealtimeCountdownNow("accounts");
 const { formatTokenDisplay } = useTokenDisplayMode();
 const statsTooltipVisible = ref(false);
+const fallbackRemainingAnchorMs = Date.now();
 
 const labelClass = computed(() => {
   const capsuleClass = resolveUsageWindowCapsuleClass(props.label);
@@ -275,9 +277,22 @@ const displayPercent = computed(() => {
   return percent > 999 ? ">999%" : `${percent}%`;
 });
 
-const effectiveResetAt = computed(() =>
-  parseEffectiveResetAt(props.resetsAt ?? null, props.remainingSeconds ?? null),
+const hasAbsoluteResetAt = computed(
+  () => typeof props.resetsAt === "string" && props.resetsAt.trim() !== "",
 );
+
+const effectiveResetAt = computed(() => {
+  const anchorMs = props.remainingAnchorMs;
+  const baseTime =
+    typeof anchorMs === "number" && Number.isFinite(anchorMs)
+      ? new Date(anchorMs)
+      : new Date(fallbackRemainingAnchorMs);
+  return parseEffectiveResetAt(
+    props.resetsAt ?? null,
+    props.remainingSeconds ?? null,
+    baseTime,
+  );
+});
 
 const compactResetText = computed(() => {
   if (!effectiveResetAt.value) return "-";
@@ -298,7 +313,7 @@ const resetCountdownText = computed(() => {
 });
 
 const resetAbsoluteText = computed(() => {
-  if (!effectiveResetAt.value) return "-";
+  if (!effectiveResetAt.value || !hasAbsoluteResetAt.value) return "-";
   return formatLocalAbsoluteTime(effectiveResetAt.value, nowDate.value, {
     today: t("dates.today"),
     tomorrow: t("dates.tomorrow"),
@@ -306,7 +321,7 @@ const resetAbsoluteText = computed(() => {
 });
 
 const resetTooltip = computed(() => {
-  if (!effectiveResetAt.value) return "";
+  if (!effectiveResetAt.value || !hasAbsoluteResetAt.value) return "";
   return formatLocalTimestamp(effectiveResetAt.value);
 });
 

@@ -19,6 +19,7 @@ export interface UsageCacheEntry {
 export interface UsageRowOptions {
   windowStats?: WindowStats | null;
   remainingSeconds?: number | null;
+  remainingAnchorMs?: number | null;
   inlineRemaining?: boolean;
   detailedReset?: boolean;
 }

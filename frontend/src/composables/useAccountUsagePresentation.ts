@@ -125,6 +125,12 @@ export function useAccountUsagePresentation(
   const account = computed(() => toValue(accountSource));
   const cacheEntry = computed(() => getUsageCacheEntry(account.value.id));
   const usageInfo = computed(() => cacheEntry.value.usageInfo);
+  const usageRemainingAnchorMs = computed(() => {
+    const loadedAtMs = cacheEntry.value.loadedAtMs;
+    return typeof loadedAtMs === "number" && Number.isFinite(loadedAtMs)
+      ? loadedAtMs
+      : null;
+  });
   const lastExpiredOpenAIUsageRefresh = ref<{
     key: string;
     requestedAt: number;
@@ -169,6 +175,20 @@ export function useAccountUsagePresentation(
   const shouldFetchUsage = computed(() => {
     return canAccountFetchUsage(account.value);
   });
+
+  const parseRowEffectiveResetAt = (
+    row: Pick<
+      AccountUsagePresentationRow,
+      "resetsAt" | "remainingSeconds" | "remainingAnchorMs"
+    >,
+  ): Date | null => {
+    const anchorMs = row.remainingAnchorMs;
+    const baseTime =
+      typeof anchorMs === "number" && Number.isFinite(anchorMs)
+        ? new Date(anchorMs)
+        : nowDate.value;
+    return parseEffectiveResetAt(row.resetsAt, row.remainingSeconds, baseTime);
+  };
 
   const codex5hWindow = computed(() =>
     resolveCodexUsageWindow(account.value.extra, "5h", nowDate.value),
@@ -286,7 +306,11 @@ export function useAccountUsagePresentation(
             label,
             progress,
             resolveUsageWindowColor(label),
-            { inlineRemaining: true, detailedReset: true },
+            {
+              remainingAnchorMs: usageRemainingAnchorMs.value,
+              inlineRemaining: true,
+              detailedReset: true,
+            },
           )
         );
       }),
@@ -336,10 +360,7 @@ export function useAccountUsagePresentation(
     let earliestResetMs = Number.POSITIVE_INFINITY;
 
     for (const row of codexRows.value) {
-      const effectiveResetAt = parseEffectiveResetAt(
-        row.resetsAt,
-        row.remainingSeconds,
-      );
+      const effectiveResetAt = parseRowEffectiveResetAt(row);
       if (!effectiveResetAt) continue;
 
       const resetMs = effectiveResetAt.getTime();
@@ -750,7 +771,12 @@ export function useAccountUsagePresentation(
     protocolGatewayBadgeLabel,
     protocolGatewayBadgeClass,
     geminiRows,
-  } = useGeminiUsagePresentationState(account, usageInfo, t);
+  } = useGeminiUsagePresentationState(
+    account,
+    usageInfo,
+    usageRemainingAnchorMs,
+    t,
+  );
 
   const hasAccountQuota = computed(() => {
     return (
@@ -852,18 +878,21 @@ export function useAccountUsagePresentation(
         "5h",
         usageInfo.value?.five_hour,
         "indigo",
+        { remainingAnchorMs: usageRemainingAnchorMs.value },
       ),
       buildProgressRow(
         "anthropic-7d",
         "7d",
         usageInfo.value?.seven_day,
         "orange",
+        { remainingAnchorMs: usageRemainingAnchorMs.value },
       ),
       buildProgressRow(
         "anthropic-7d-sonnet",
         "7d S",
         usageInfo.value?.seven_day_sonnet,
         "orange",
+        { remainingAnchorMs: usageRemainingAnchorMs.value },
       ),
     ),
   );
@@ -888,10 +917,7 @@ export function useAccountUsagePresentation(
     let earliestResetMs = Number.POSITIVE_INFINITY;
 
     for (const row of openAIRefreshRows.value) {
-      const effectiveResetAt = parseEffectiveResetAt(
-        row.resetsAt,
-        row.remainingSeconds,
-      );
+      const effectiveResetAt = parseRowEffectiveResetAt(row);
       if (!effectiveResetAt) continue;
 
       const resetMs = effectiveResetAt.getTime();
@@ -1136,15 +1162,14 @@ export function useAccountUsagePresentation(
       state === "bars"
         ? windowRows
             .filter(
-              (row) =>
-                parseEffectiveResetAt(row.resetsAt, row.remainingSeconds) !==
-                null,
+              (row) => parseRowEffectiveResetAt(row) !== null,
             )
             .map((row) => ({
               key: row.key,
               label: row.label,
               resetsAt: row.resetsAt,
               remainingSeconds: row.remainingSeconds,
+              remainingAnchorMs: row.remainingAnchorMs,
             }))
         : [];
 

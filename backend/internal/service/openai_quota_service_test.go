@@ -133,7 +133,7 @@ func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamSnapshot(t *testing.T) {
 	require.NotEmpty(t, repo.updateExtraCalls[0][openAIQuotaUsageUpdatedAtExtraKey])
 }
 
-func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamWindows(t *testing.T) {
+func TestOpenAIQuotaService_ReadResetCreditsDoesNotPersistWhamWindowsAsCodexResets(t *testing.T) {
 	t.Parallel()
 
 	reset5h := time.Now().Add(5 * time.Hour).UTC().Unix()
@@ -167,17 +167,18 @@ func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamWindows(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, snapshot)
-	require.NotNil(t, snapshot.FiveHour)
-	require.NotNil(t, snapshot.SevenDay)
-	require.NotNil(t, snapshot.FiveHour.Progress)
-	require.NotNil(t, snapshot.SevenDay.Progress)
-	require.InDelta(t, 0, snapshot.FiveHour.Progress.Utilization, 0.001)
-	require.InDelta(t, 4, snapshot.SevenDay.Progress.Utilization, 0.001)
+	require.Nil(t, snapshot.FiveHour)
+	require.Nil(t, snapshot.SevenDay)
 	require.Len(t, repo.updateExtraCalls, 1)
-	require.Equal(t, 0.0, repo.updateExtraCalls[0]["codex_5h_used_percent"])
-	require.Equal(t, 4.0, repo.updateExtraCalls[0]["codex_7d_used_percent"])
-	require.Equal(t, 300, repo.updateExtraCalls[0]["codex_primary_window_minutes"])
-	require.Equal(t, 10080, repo.updateExtraCalls[0]["codex_secondary_window_minutes"])
+	require.Equal(t, 2, repo.updateExtraCalls[0][openAIResetCreditsAvailableCountExtraKey])
+	require.NotContains(t, repo.updateExtraCalls[0], "codex_5h_used_percent")
+	require.NotContains(t, repo.updateExtraCalls[0], "codex_5h_reset_after_seconds")
+	require.NotContains(t, repo.updateExtraCalls[0], "codex_5h_reset_at")
+	require.NotContains(t, repo.updateExtraCalls[0], "codex_7d_used_percent")
+	require.NotContains(t, repo.updateExtraCalls[0], "codex_7d_reset_after_seconds")
+	require.NotContains(t, repo.updateExtraCalls[0], "codex_7d_reset_at")
+	require.NotContains(t, repo.updateExtraCalls[0], "codex_primary_window_minutes")
+	require.NotContains(t, repo.updateExtraCalls[0], "codex_secondary_window_minutes")
 }
 
 func TestOpenAIQuotaService_UpstreamStatusMapping(t *testing.T) {

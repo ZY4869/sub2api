@@ -16,32 +16,40 @@
     </span>
 
     <span
-      v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)"
+      v-if="formatRowResetValue(row, nowDate)"
       class="flex min-w-0 flex-1 flex-nowrap items-center gap-x-1.5 overflow-visible text-gray-700 dark:text-gray-300"
-      :title="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.tooltip || undefined"
+      :title="formatRowResetValue(row, nowDate)?.tooltip || undefined"
     >
       <Icon
-        v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.showCountdown"
+        v-if="formatRowResetValue(row, nowDate)?.segments.length"
         name="clock"
         size="xs"
         :class="['shrink-0', resetIconClass(row.label)]"
       />
       <span
-        v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.showCountdown"
+        v-if="formatRowResetValue(row, nowDate)?.segments.length"
         data-testid="account-usage-reset-countdown"
-        :class="[
-          'shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 font-bold leading-none ring-1',
-          resetCountdownClass(row.label)
-        ]"
+        :aria-label="formatRowResetValue(row, nowDate)?.countdownText"
+        class="flex shrink-0 items-center gap-1 whitespace-nowrap"
       >
-        {{ formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.countdown }}
+        <span
+          v-for="segment in formatRowResetValue(row, nowDate)?.segments"
+          :key="segment.unit"
+          data-testid="account-usage-reset-countdown-segment"
+          :class="[
+            'rounded-full px-1.5 py-0.5 font-bold leading-none ring-1',
+            resetCountdownSegmentClass(segment.unit)
+          ]"
+        >
+          {{ segment.text }}
+        </span>
       </span>
       <span
-        v-if="formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.showCountdown"
+        v-if="formatRowResetValue(row, nowDate)?.segments.length"
         class="shrink-0 text-gray-400 dark:text-gray-500"
       >·</span>
       <span class="min-w-0 shrink-0 whitespace-nowrap font-semibold leading-snug text-gray-700 dark:text-gray-200">
-        {{ formatResetValue(row.resetsAt, row.remainingSeconds, nowDate)?.absolute }}
+        {{ formatRowResetValue(row, nowDate)?.absolute || '-' }}
       </span>
     </span>
 
@@ -50,15 +58,12 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
 import type { AccountUsageResetRow } from '@/types'
 import {
   formatLocalTimestamp,
-  formatResetCountdown,
   parseEffectiveResetAt,
 } from '@/utils/usageResetTime'
 import {
-  resolveUsageResetCountdownClass,
   resolveUsageResetIconClass,
   resolveUsageResetWindowLabelClass,
 } from '@/utils/accountUsageWindowDisplay'
@@ -69,8 +74,8 @@ defineProps<{
   nowDate: Date
 }>()
 
-const { t } = useI18n()
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
+const fallbackRemainingAnchorMs = Date.now()
 
 const pad = (value: number): string => String(value).padStart(2, '0')
 
@@ -86,71 +91,105 @@ const formatAbsoluteDateTime = (date: Date, nowDate: Date): string => {
   return `${date.getFullYear()}-${datePart} ${timePart}`
 }
 
-const formatCompactShortCountdown = (date: Date, nowDate: Date): string => {
+type CountdownUnit = 'D' | 'H' | 'M' | 'S'
+
+interface CountdownSegment {
+  text: string
+  unit: CountdownUnit
+}
+
+const makeCountdownSegment = (value: number, unit: CountdownUnit): CountdownSegment => ({
+  text: `${pad(value)}${unit}`,
+  unit,
+})
+
+const formatCompactShortCountdown = (date: Date, nowDate: Date): CountdownSegment[] => {
   const totalMinutes = Math.max(
     0,
     Math.ceil((date.getTime() - nowDate.getTime()) / 60000),
   )
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-  return `${pad(hours)}H:${pad(minutes)}M`
+  return [makeCountdownSegment(hours, 'H'), makeCountdownSegment(minutes, 'M')]
 }
 
-const formatCompactLongCountdown = (date: Date, nowDate: Date): string => {
+const formatCompactLongCountdown = (date: Date, nowDate: Date): CountdownSegment[] => {
   const totalHours = Math.max(
     0,
     Math.ceil((date.getTime() - nowDate.getTime()) / (60 * 60 * 1000)),
   )
   const days = Math.floor(totalHours / 24)
   const hours = totalHours % 24
-  return `${pad(days)}D:${pad(hours)}H`
+  return [makeCountdownSegment(days, 'D'), makeCountdownSegment(hours, 'H')]
 }
 
 function formatResetValue(
   resetsAt: string | null,
   remainingSeconds: number | null | undefined,
+  remainingAnchorMs: number | null | undefined,
   nowDate: Date,
 ): {
-  showCountdown: boolean
-  countdown: string
+  segments: CountdownSegment[]
+  countdownText: string
   absolute: string
   tooltip: string
 } | null {
+  const anchorDate =
+    typeof remainingAnchorMs === 'number' && Number.isFinite(remainingAnchorMs)
+      ? new Date(remainingAnchorMs)
+      : new Date(fallbackRemainingAnchorMs)
   const effectiveResetAt = parseEffectiveResetAt(
     resetsAt,
     remainingSeconds ?? null,
-    nowDate,
+    anchorDate,
   )
   if (!effectiveResetAt) return null
 
+  const hasAbsoluteResetAt = typeof resetsAt === 'string' && resetsAt.trim() !== ''
   const diffMs = effectiveResetAt.getTime() - nowDate.getTime()
-  const showCountdown = diffMs > 0
   const showShortCountdown = diffMs > 0 && diffMs < ONE_DAY_MS
+  const segments = showShortCountdown
+    ? formatCompactShortCountdown(effectiveResetAt, nowDate)
+    : diffMs > 0
+      ? formatCompactLongCountdown(effectiveResetAt, nowDate)
+      : []
 
   return {
-    showCountdown,
-    countdown: showShortCountdown
-      ? formatCompactShortCountdown(effectiveResetAt, nowDate)
-      : diffMs > 0
-        ? formatCompactLongCountdown(effectiveResetAt, nowDate)
-      : formatResetCountdown(
-        effectiveResetAt,
-        nowDate,
-        t('admin.accounts.usageWindow.now'),
-      ),
-    absolute: showShortCountdown
-      ? formatLocalTime(effectiveResetAt)
-      : formatAbsoluteDateTime(effectiveResetAt, nowDate),
-    tooltip: formatLocalTimestamp(effectiveResetAt),
+    segments,
+    countdownText: segments.map((segment) => segment.text).join(' '),
+    absolute: hasAbsoluteResetAt
+      ? showShortCountdown
+        ? formatLocalTime(effectiveResetAt)
+        : formatAbsoluteDateTime(effectiveResetAt, nowDate)
+      : '',
+    tooltip: hasAbsoluteResetAt ? formatLocalTimestamp(effectiveResetAt) : '',
   }
+}
+
+function formatRowResetValue(row: AccountUsageResetRow, nowDate: Date) {
+  return formatResetValue(
+    row.resetsAt,
+    row.remainingSeconds,
+    row.remainingAnchorMs,
+    nowDate,
+  )
 }
 
 function resetLabelClass(label: string): string {
   return resolveUsageResetWindowLabelClass(label)
 }
 
-function resetCountdownClass(label: string): string {
-  return resolveUsageResetCountdownClass(label)
+function resetCountdownSegmentClass(unit: CountdownUnit): string {
+  switch (unit) {
+    case 'D':
+      return 'bg-emerald-100 text-emerald-800 ring-emerald-200 dark:bg-emerald-400/20 dark:text-emerald-50 dark:ring-emerald-300/20'
+    case 'H':
+      return 'bg-indigo-100 text-indigo-800 ring-indigo-200 dark:bg-indigo-400/20 dark:text-indigo-50 dark:ring-indigo-300/20'
+    case 'M':
+      return 'bg-sky-100 text-sky-800 ring-sky-200 dark:bg-sky-400/20 dark:text-sky-50 dark:ring-sky-300/20'
+    case 'S':
+      return 'bg-rose-100 text-rose-800 ring-rose-200 dark:bg-rose-400/20 dark:text-rose-50 dark:ring-rose-300/20'
+  }
 }
 
 function resetIconClass(label: string): string {

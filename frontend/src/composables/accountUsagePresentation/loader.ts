@@ -1,5 +1,5 @@
 import { adminAPI } from "@/api/admin";
-import type { Account, AccountUsageInfo, UsageProgress } from "@/types";
+import type { Account } from "@/types";
 import { createAsyncTaskLimiter } from "@/utils/asyncTaskLimiter";
 import { getUsageCacheEntry } from "./cache";
 import {
@@ -21,47 +21,6 @@ const AUTO_USAGE_LOAD_CONCURRENCY = 3;
 const autoUsageLoadLimiter = createAsyncTaskLimiter(
   AUTO_USAGE_LOAD_CONCURRENCY,
 );
-
-function normalizeUsageProgressResetAnchor<T extends UsageProgress | null | undefined>(
-  progress: T,
-  anchorMs: number,
-): T {
-  if (!progress) return progress;
-  const resetsAt = typeof progress.resets_at === "string"
-    ? progress.resets_at.trim()
-    : "";
-  if (resetsAt) return progress;
-
-  const remainingSeconds = progress.remaining_seconds;
-  if (!Number.isFinite(remainingSeconds)) return progress;
-
-  return {
-    ...progress,
-    resets_at: new Date(anchorMs + Math.max(0, remainingSeconds) * 1000).toISOString(),
-  } as T;
-}
-
-function normalizeUsageInfoResetAnchors(
-  usageInfo: AccountUsageInfo | null | undefined,
-  anchorMs: number,
-): AccountUsageInfo | null {
-  if (!usageInfo) return null;
-
-  return {
-    ...usageInfo,
-    five_hour: normalizeUsageProgressResetAnchor(usageInfo.five_hour, anchorMs),
-    seven_day: normalizeUsageProgressResetAnchor(usageInfo.seven_day, anchorMs),
-    spark_five_hour: normalizeUsageProgressResetAnchor(usageInfo.spark_five_hour, anchorMs),
-    spark_seven_day: normalizeUsageProgressResetAnchor(usageInfo.spark_seven_day, anchorMs),
-    seven_day_sonnet: normalizeUsageProgressResetAnchor(usageInfo.seven_day_sonnet, anchorMs),
-    gemini_shared_daily: normalizeUsageProgressResetAnchor(usageInfo.gemini_shared_daily, anchorMs),
-    gemini_pro_daily: normalizeUsageProgressResetAnchor(usageInfo.gemini_pro_daily, anchorMs),
-    gemini_flash_daily: normalizeUsageProgressResetAnchor(usageInfo.gemini_flash_daily, anchorMs),
-    gemini_shared_minute: normalizeUsageProgressResetAnchor(usageInfo.gemini_shared_minute, anchorMs),
-    gemini_pro_minute: normalizeUsageProgressResetAnchor(usageInfo.gemini_pro_minute, anchorMs),
-    gemini_flash_minute: normalizeUsageProgressResetAnchor(usageInfo.gemini_flash_minute, anchorMs),
-  };
-}
 
 export async function performUsageLoad(
   account: Account,
@@ -107,10 +66,7 @@ export async function performUsageLoad(
 
     const loadedAtMs = Date.now();
     entry.loadedAtMs = loadedAtMs;
-    entry.usageInfo = normalizeUsageInfoResetAnchors(
-      resolvedUsageInfo,
-      loadedAtMs,
-    );
+    entry.usageInfo = resolvedUsageInfo;
     entry.preferOpenAIFetchedUsage = Boolean(
       options.force &&
       getRuntimePlatform(account) === "openai" &&

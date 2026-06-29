@@ -299,8 +299,6 @@ func openAIResetCreditsSnapshotFromQuotaUsage(usage *OpenAIQuotaUsage, now time.
 		UpdatedAt: now.UTC(),
 		Source:    openAIResetCreditsSourceWham,
 		Status:    openAIResetCreditsStatusUnknownOrUnsupported,
-		FiveHour:  openAIQuotaWindowSnapshotFromRateLimitWindow(usage.RateLimit, true, now),
-		SevenDay:  openAIQuotaWindowSnapshotFromRateLimitWindow(usage.RateLimit, false, now),
 	}
 	if usage.RateLimitResetCredits != nil {
 		count := usage.RateLimitResetCredits.AvailableCount
@@ -332,82 +330,7 @@ func openAIResetCreditsExtraFromSnapshot(snapshot *OpenAIResetCreditsSnapshot) m
 		updates[openAIResetCreditsAvailableCountExtraKey] = *snapshot.AvailableCount
 		updates[openAIResetCreditsUpdatedAtExtraKey] = updatedAt.Format(time.RFC3339)
 	}
-	mergeOpenAIQuotaWindowExtraUpdates(updates, snapshot.FiveHour, "5h", updatedAt)
-	mergeOpenAIQuotaWindowExtraUpdates(updates, snapshot.SevenDay, "7d", updatedAt)
 	return updates
-}
-
-func openAIQuotaWindowSnapshotFromRateLimitWindow(rateLimit *OpenAIRateLimit, primary bool, now time.Time) *OpenAIQuotaWindowSnapshot {
-	if rateLimit == nil {
-		return nil
-	}
-	window := rateLimit.SecondaryWindow
-	if primary {
-		window = rateLimit.PrimaryWindow
-	}
-	if window == nil {
-		return nil
-	}
-	resetAt := openAIQuotaWindowResetAt(window, now)
-	progress := &UsageProgress{
-		Utilization:      window.UsedPercent,
-		RemainingSeconds: int(maxInt64(window.ResetAfterSeconds, 0)),
-	}
-	if resetAt != nil {
-		progress.ResetsAt = resetAt
-		progress.RemainingSeconds = int(maxInt64(int64(resetAt.Sub(now.UTC()).Seconds()), 0))
-	}
-	return &OpenAIQuotaWindowSnapshot{
-		Progress:           progress,
-		LimitWindowSeconds: window.LimitWindowSeconds,
-	}
-}
-
-func openAIQuotaWindowResetAt(window *OpenAIRateLimitWindow, now time.Time) *time.Time {
-	if window == nil {
-		return nil
-	}
-	if window.ResetAt > 0 {
-		resetAt := time.Unix(window.ResetAt, 0).UTC()
-		return &resetAt
-	}
-	if window.ResetAfterSeconds > 0 {
-		resetAt := now.UTC().Add(time.Duration(window.ResetAfterSeconds) * time.Second)
-		return &resetAt
-	}
-	return nil
-}
-
-func mergeOpenAIQuotaWindowExtraUpdates(updates map[string]any, snapshot *OpenAIQuotaWindowSnapshot, window string, updatedAt time.Time) {
-	if len(updates) == 0 || snapshot == nil || snapshot.Progress == nil {
-		return
-	}
-	var usedPercentKey, resetAfterKey, resetAtKey, windowMinutesKey string
-	switch window {
-	case "5h":
-		usedPercentKey = "codex_5h_used_percent"
-		resetAfterKey = "codex_5h_reset_after_seconds"
-		resetAtKey = "codex_5h_reset_at"
-		windowMinutesKey = "codex_primary_window_minutes"
-	case "7d":
-		usedPercentKey = "codex_7d_used_percent"
-		resetAfterKey = "codex_7d_reset_after_seconds"
-		resetAtKey = "codex_7d_reset_at"
-		windowMinutesKey = "codex_secondary_window_minutes"
-	default:
-		return
-	}
-	updates["codex_usage_updated_at"] = updatedAt.UTC().Format(time.RFC3339)
-	updates[usedPercentKey] = snapshot.Progress.Utilization
-	if snapshot.Progress.RemainingSeconds > 0 {
-		updates[resetAfterKey] = snapshot.Progress.RemainingSeconds
-	}
-	if snapshot.Progress.ResetsAt != nil {
-		updates[resetAtKey] = snapshot.Progress.ResetsAt.UTC().Format(time.RFC3339)
-	}
-	if snapshot.LimitWindowSeconds > 0 {
-		updates[windowMinutesKey] = int(snapshot.LimitWindowSeconds / 60)
-	}
 }
 
 func maxInt64(value, minimum int64) int64 {

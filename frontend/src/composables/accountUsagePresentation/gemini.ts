@@ -25,6 +25,7 @@ import { getRuntimePlatform } from "./support";
 export function useGeminiUsagePresentationState(
   account: ComputedRef<Account>,
   usageInfo: ComputedRef<AccountUsageInfo | null>,
+  remainingAnchorMs: ComputedRef<number | null>,
   t: ComposerTranslation,
 ) {
   const geminiTier = computed(() => {
@@ -146,6 +147,7 @@ export function useGeminiUsagePresentationState(
           "1d",
           usageInfo.value.gemini_shared_daily,
           "indigo",
+          { remainingAnchorMs: remainingAnchorMs.value },
         ),
       );
     }
@@ -156,12 +158,14 @@ export function useGeminiUsagePresentationState(
         "pro",
         usageInfo.value.gemini_pro_daily,
         "indigo",
+        { remainingAnchorMs: remainingAnchorMs.value },
       ),
       buildProgressRow(
         "gemini-flash-daily",
         "flash",
         usageInfo.value.gemini_flash_daily,
         "emerald",
+        { remainingAnchorMs: remainingAnchorMs.value },
       ),
     );
   });

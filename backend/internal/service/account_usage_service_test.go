@@ -648,13 +648,23 @@ func TestAccountUsageService_GetOpenAIUsage_ReadsRealResetCredits(t *testing.T) 
 	t.Parallel()
 
 	count := 3
-	updatedAt := time.Date(2026, 6, 18, 10, 0, 0, 0, time.UTC)
+	updatedAt := time.Now().UTC()
+	codexResetAt := updatedAt.Add(2 * time.Hour)
+	whamResetAt := updatedAt.Add(5 * time.Hour)
 	reader := &accountUsageResetCreditReaderStub{
 		snapshot: &OpenAIResetCreditsSnapshot{
 			AvailableCount: &count,
 			UpdatedAt:      updatedAt,
 			Source:         openAIResetCreditsSourceWham,
 			Status:         openAIResetCreditsStatusAvailable,
+			FiveHour: &OpenAIQuotaWindowSnapshot{
+				Progress: &UsageProgress{
+					Utilization:      99,
+					ResetsAt:         &whamResetAt,
+					RemainingSeconds: 18000,
+				},
+				LimitWindowSeconds: 18000,
+			},
 		},
 	}
 	svc := &AccountUsageService{
@@ -672,7 +682,10 @@ func TestAccountUsageService_GetOpenAIUsage_ReadsRealResetCredits(t *testing.T) 
 			"access_token":       "token",
 			"chatgpt_account_id": "acct",
 		},
-		Extra: map[string]any{},
+		Extra: map[string]any{
+			"codex_5h_used_percent": 12.0,
+			"codex_5h_reset_at":     codexResetAt.Format(time.RFC3339),
+		},
 	}, true)
 
 	require.NoError(t, err)
@@ -682,6 +695,10 @@ func TestAccountUsageService_GetOpenAIUsage_ReadsRealResetCredits(t *testing.T) 
 	require.Equal(t, 3, *usage.OpenAIResetCredits.AvailableCount)
 	require.Equal(t, openAIResetCreditsSourceWham, usage.OpenAIResetCredits.Source)
 	require.Equal(t, openAIResetCreditsStatusAvailable, usage.OpenAIResetCredits.Status)
+	require.NotNil(t, usage.FiveHour)
+	require.Equal(t, 12.0, usage.FiveHour.Utilization)
+	require.NotNil(t, usage.FiveHour.ResetsAt)
+	require.WithinDuration(t, codexResetAt, *usage.FiveHour.ResetsAt, time.Second)
 }
 
 func TestAccountUsageService_GetOpenAIUsage_ResetCreditsReadFailureClearsStaleCount(t *testing.T) {

@@ -54,27 +54,30 @@ describe("UsageProgressBar", () => {
   it("keeps detailed reset mode backward compatible", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-13T08:00:00"));
+    const remainingAnchorMs = Date.now();
 
     const wrapper = mount(UsageProgressBar, {
       props: {
         label: "7d",
         utilization: 80,
         remainingSeconds: 1800,
+        remainingAnchorMs,
         color: "emerald",
         detailedReset: true,
       },
     });
 
     expect(wrapper.text()).toContain("Remaining 30m");
-    expect(wrapper.text()).toContain("Reset at Today 08:30");
+    expect(wrapper.text()).toContain("Reset at -");
+    expect(wrapper.text()).not.toContain("Today 08:30");
     expect(wrapper.text().match(/Remaining/g)?.length).toBe(1);
-    expect(wrapper.find('[title="2026-03-13 08:30:00"]').exists()).toBe(true);
+    expect(wrapper.find('[title="2026-03-13 08:30:00"]').exists()).toBe(false);
 
     vi.advanceTimersByTime(60_000);
     await Promise.resolve();
 
     expect(wrapper.text()).toContain("Remaining 29m");
-    expect(wrapper.text()).toContain("Reset at Today 08:30");
+    expect(wrapper.text()).toContain("Reset at -");
   });
 
   it("updates inline reset text after the shared clock crosses the reset boundary", async () => {
