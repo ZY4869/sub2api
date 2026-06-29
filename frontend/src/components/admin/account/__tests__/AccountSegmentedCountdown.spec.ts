@@ -27,13 +27,18 @@ describe('AccountSegmentedCountdown', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('7D00:00:03')
+    expect(wrapper.text()).toContain('7D00M03S')
+    expect(wrapper.get('[data-test="account-segmented-countdown"]').attributes('aria-label')).toBe('7D 00M 03S')
+    expect(wrapper.get('[data-test="account-segmented-countdown"]').attributes('title')).toBe('7D 00H 00M 03S')
     expect(wrapper.get('[data-test="account-segmented-countdown-prefix"]').text()).toBe('7D')
+    expect(wrapper.get('[data-unit="M"]').classes()).toContain('bg-sky-100')
+    expect(wrapper.get('[data-unit="S"]').classes()).toContain('bg-rose-100')
+    expect(wrapper.text()).not.toContain(':')
     expect(wrapper.html()).not.toContain('backdrop-blur')
     expect(wrapper.html()).not.toContain('shadow-[')
 
     await vi.advanceTimersByTimeAsync(1000)
 
-    expect(wrapper.text()).toContain('00:00:02')
+    expect(wrapper.text()).toContain('00M02S')
   })
 })

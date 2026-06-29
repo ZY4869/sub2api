@@ -1,5 +1,11 @@
 import { computed } from 'vue'
 
+const withTopAlignedCells = <T extends { class?: string }>(columns: T[]): T[] =>
+  columns.map((column) => ({
+    ...column,
+    class: [column.class, 'align-top'].filter(Boolean).join(' '),
+  }))
+
 export function useAccountsColumns(ctx: any) {
   const {
     authStore,
@@ -165,7 +171,7 @@ const allColumns = computed(() => {
           : undefined,
     },
   );
-  return c;
+  return withTopAlignedCells(c);
 });
 
 // Columns that can be toggled (exclude select, name, and actions)

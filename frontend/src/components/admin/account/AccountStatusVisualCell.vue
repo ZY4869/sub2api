@@ -10,7 +10,12 @@
     data-testid="account-status-visual-cell"
   >
     <div class="flex min-w-0 max-w-full items-center gap-1.5">
-      <div class="flex min-w-0 items-center gap-1.5">
+      <div
+        :class="[
+          'flex min-w-0 items-center',
+          isUsageRecoveryStatus ? 'gap-1' : 'gap-1.5'
+        ]"
+      >
         <span
           :class="[
             'flex shrink-0 items-center justify-center rounded-xl',
@@ -22,7 +27,10 @@
         </span>
         <span
           :class="[
-            'inline-flex min-w-0 max-w-full items-center truncate rounded-full border px-2.5 py-1 text-[13px] font-extrabold tracking-tight',
+            'inline-flex items-center rounded-full border py-1 font-extrabold tracking-tight',
+            isUsageRecoveryStatus
+              ? 'shrink-0 whitespace-nowrap px-2 text-[12px] leading-none'
+              : 'min-w-0 max-w-full truncate px-2.5 text-[13px]',
             toneStyles.statusBadgeClass
           ]"
           :title="statusTitle"
@@ -163,6 +171,9 @@ const airyStatus = computed(() => resolveAccountAiryStatus(props.account, {
 
 const visualTone = computed<AccountGlassTone>(() => airyStatus.value.tone)
 const isSimpleMode = computed(() => props.displayMode === 'simple')
+const isUsageRecoveryStatus = computed(() =>
+  airyStatus.value.kind === 'usage5h' || airyStatus.value.kind === 'usage7d'
+)
 
 const statusIconName = computed(() => airyStatus.value.iconName)
 

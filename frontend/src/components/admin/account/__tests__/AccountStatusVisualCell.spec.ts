@@ -26,6 +26,7 @@ vi.mock('vue-i18n', async () => {
         if (key === 'admin.accounts.status.visualAvailableTitle') return '可用'
         if (key === 'admin.accounts.status.visualAvailableTag') return '可调度'
         if (key === 'admin.accounts.status.visualBannedTitle') return '账号封禁'
+        if (key === 'admin.accounts.status.visualUsage5hTitle') return '5H 恢复中'
         if (key === 'admin.accounts.status.visualUsage7dTitle') return '7D 恢复中'
         if (key === 'admin.accounts.status.window5h') return '5小时'
         if (key === 'admin.accounts.status.window7d') return '7天'
@@ -128,7 +129,11 @@ describe('AccountStatusVisualCell', () => {
     }))
 
     expect(wrapper.text()).toContain('admin.accounts.status.rateLimited')
-    expect(wrapper.get('[data-testid="account-status-visual-countdown"]').text()).toContain('00')
+    const countdown = wrapper.get('[data-testid="account-status-visual-countdown"]')
+    expect(countdown.text()).toContain('20M45S')
+    expect(countdown.text()).not.toContain(':')
+    expect(countdown.get('[data-unit="M"]').classes()).toContain('bg-sky-100')
+    expect(countdown.get('[data-unit="S"]').classes()).toContain('bg-rose-100')
     expect(wrapper.text()).not.toContain('429')
     expect(wrapper.text()).not.toContain('admin.accounts.status.visualAfterResume')
     expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimitedAutoResume')
@@ -167,7 +172,10 @@ describe('AccountStatusVisualCell', () => {
       },
     }))
 
-    expect(usage5h.text()).toContain('admin.accounts.status.visualUsage5hTitle')
+    const usage5hTitle = usage5h.get('[data-testid="account-status-visual-title"]')
+    expect(usage5hTitle.text()).toBe('5H 恢复中')
+    expect(usage5hTitle.classes()).toContain('whitespace-nowrap')
+    expect(usage5hTitle.classes()).not.toContain('truncate')
     expect(usage5h.text()).not.toContain('admin.accounts.status.usage5hAutoResume')
     await usage5h.get('.error-info-trigger').trigger('mouseenter')
     expect(document.body.textContent).toContain('admin.accounts.status.usage5hAutoResume')
