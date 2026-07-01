@@ -836,7 +836,7 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStatsBreakdownBatch() {
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-today-breakdown"})
 	emptyAccount := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-today-breakdown-empty"})
 
-	todayStart := timezone.Today()
+	todayStart := timezone.StartOfMonth(timezone.Today()).AddDate(0, -1, 14)
 	weekStart := todayStart.AddDate(0, 0, -6)
 	monthStart := timezone.StartOfMonth(todayStart)
 	oldCreatedAt := weekStart.Add(-24 * time.Hour)
