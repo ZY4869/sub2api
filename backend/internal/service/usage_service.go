@@ -373,6 +373,15 @@ func (s *UsageService) GetUserUsageTrendByUserID(ctx context.Context, userID int
 	return trend, nil
 }
 
+// GetUserUsageTrend returns per-user usage trend with optional API key filtering.
+func (s *UsageService) GetUserUsageTrend(ctx context.Context, userID, apiKeyID int64, startTime, endTime time.Time, granularity string) ([]usagestats.TrendDataPoint, error) {
+	trend, err := s.usageRepo.GetUsageTrendWithFilters(ctx, startTime, endTime, granularity, userID, apiKeyID, 0, 0, 0, "", nil, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get user filtered usage trend: %w", err)
+	}
+	return trend, nil
+}
+
 // GetUserModelStats returns per-user model usage stats.
 func (s *UsageService) GetUserModelStats(ctx context.Context, userID int64, startTime, endTime time.Time) ([]usagestats.ModelStat, error) {
 	stats, err := s.usageRepo.GetUserModelStats(ctx, userID, startTime, endTime)
@@ -380,6 +389,37 @@ func (s *UsageService) GetUserModelStats(ctx context.Context, userID int64, star
 		return nil, fmt.Errorf("get user model stats: %w", err)
 	}
 	return stats, nil
+}
+
+// GetUserModelStatsWithFilter returns per-user model usage stats with optional API key filtering.
+func (s *UsageService) GetUserModelStatsWithFilter(ctx context.Context, userID, apiKeyID int64, startTime, endTime time.Time) ([]usagestats.ModelStat, error) {
+	stats, err := s.usageRepo.GetModelStatsWithFilters(ctx, startTime, endTime, userID, apiKeyID, 0, 0, 0, nil, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get user filtered model stats: %w", err)
+	}
+	return stats, nil
+}
+
+// GetUserGroupStats returns per-user group usage stats.
+func (s *UsageService) GetUserGroupStats(ctx context.Context, userID, apiKeyID int64, startTime, endTime time.Time) ([]usagestats.GroupStat, error) {
+	stats, err := s.usageRepo.GetGroupStatsWithFilters(ctx, startTime, endTime, userID, apiKeyID, 0, 0, 0, nil, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get user group stats: %w", err)
+	}
+	return stats, nil
+}
+
+// GetUserEndpointStats returns per-user inbound/upstream endpoint usage stats.
+func (s *UsageService) GetUserEndpointStats(ctx context.Context, userID, apiKeyID int64, startTime, endTime time.Time) ([]usagestats.EndpointStat, []usagestats.EndpointStat, error) {
+	inbound, err := s.usageRepo.GetEndpointStatsWithFilters(ctx, startTime, endTime, userID, apiKeyID, 0, 0, "", nil, nil, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get user endpoint stats: %w", err)
+	}
+	upstream, err := s.usageRepo.GetUpstreamEndpointStatsWithFilters(ctx, startTime, endTime, userID, apiKeyID, 0, 0, "", nil, nil, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get user upstream endpoint stats: %w", err)
+	}
+	return inbound, upstream, nil
 }
 
 // GetAPIKeyModelStats returns per-model usage stats for a specific API Key.

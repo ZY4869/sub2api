@@ -372,6 +372,7 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import TokenDisplayModeToggle from '@/components/common/TokenDisplayModeToggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
+import { buildBackendRootUrl } from '@/api/url'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
@@ -790,7 +791,7 @@ function formatDate(iso: string | null | undefined): string {
 
 async function fetchUsage(key: string) {
   const dateParams = getDateParams()
-  const url = '/v1/usage' + (dateParams ? '?' + dateParams : '')
+  const url = buildBackendRootUrl('/v1/usage') + (dateParams ? '?' + dateParams : '')
   const res = await fetch(url, {
     headers: { 'Authorization': 'Bearer ' + key },
   })

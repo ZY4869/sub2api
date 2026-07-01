@@ -316,6 +316,19 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireIndex(t, tx, "ops_error_logs", "idx_ops_error_logs_api_key_prefix_time")
 	requireIndex(t, tx, "ops_error_logs", "idx_ops_error_logs_user_time")
 	requireIndex(t, tx, "ops_error_logs", "idx_ops_error_logs_api_key_time")
+
+	// Clean-room upstream closure migrations: API key log correlation, matched keyword audit,
+	// and Grok monitor protocol support are additive local migrations.
+	requireColumn(t, tx, "ops_system_logs", "api_key_id", "bigint", 0, true)
+	requireIndex(t, tx, "ops_system_logs", "idx_ops_system_logs_api_key_id_created_at")
+	requireColumn(t, tx, "content_moderation_audits", "matched_keyword", "text", 0, false)
+	requireColumnDefaultContains(t, tx, "content_moderation_audits", "matched_keyword", "''")
+	requireIndex(t, tx, "content_moderation_audits", "idx_content_moderation_audits_matched_keyword")
+	requireCheckConstraintContains(t, tx, "channel_monitors", "channel_monitors_request_protocol_check", "'grok'")
+	requireCheckConstraintContains(t, tx, "channel_monitor_request_templates", "channel_monitor_request_templates_request_protocol_check", "'grok'")
+	requireMigrationRecorded(t, tx, "150_add_ops_system_logs_api_key_id.sql")
+	requireMigrationRecorded(t, tx, "151_add_content_moderation_audits_matched_keyword.sql")
+	requireMigrationRecorded(t, tx, "152_allow_grok_channel_monitor_request_protocol.sql")
 }
 
 func TestMigration142BackfillsLegacyAccountUsagePeriodsIdempotently(t *testing.T) {
@@ -464,4 +477,35 @@ WHERE table_schema = 'public'
 	require.NoError(t, err, "query default for %s.%s", table, column)
 	require.True(t, columnDefault.Valid, "expected default for %s.%s", table, column)
 	require.Contains(t, strings.ToLower(columnDefault.String), strings.ToLower(fragment), "default mismatch for %s.%s", table, column)
+}
+
+func requireCheckConstraintContains(t *testing.T, tx *sql.Tx, table, constraint, fragment string) {
+	t.Helper()
+
+	var definition sql.NullString
+	err := tx.QueryRowContext(context.Background(), `
+SELECT pg_get_constraintdef(c.oid)
+FROM pg_constraint c
+JOIN pg_class rel ON rel.oid = c.conrelid
+JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+WHERE nsp.nspname = 'public'
+  AND rel.relname = $1
+  AND c.conname = $2
+  AND c.contype = 'c'
+`, table, constraint).Scan(&definition)
+	require.NoError(t, err, "query check constraint %s.%s", table, constraint)
+	require.True(t, definition.Valid, "expected check constraint %s on %s", constraint, table)
+	require.Contains(t, strings.ToLower(definition.String), strings.ToLower(fragment), "constraint mismatch for %s.%s", table, constraint)
+}
+
+func requireMigrationRecorded(t *testing.T, tx *sql.Tx, filename string) {
+	t.Helper()
+
+	var checksum sql.NullString
+	require.NoError(t, tx.QueryRowContext(
+		context.Background(),
+		"SELECT checksum FROM schema_migrations WHERE filename = $1",
+		filename,
+	).Scan(&checksum))
+	require.True(t, checksum.Valid, "expected migration %s to be recorded", filename)
 }

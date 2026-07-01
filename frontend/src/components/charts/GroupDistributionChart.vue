@@ -52,8 +52,8 @@
             <template v-for="group in displayGroupStats" :key="group.group_id">
               <tr
                 class="border-t border-gray-100 transition-colors dark:border-gray-700"
-                :class="group.group_id > 0 ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/40' : ''"
-                @click="group.group_id > 0 && toggleBreakdown('group', group.group_id)"
+                :class="enableBreakdown && group.group_id > 0 ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/40' : ''"
+                @click="enableBreakdown && group.group_id > 0 && toggleBreakdown('group', group.group_id)"
               >
                 <td
                   class="max-w-[100px] truncate py-1.5 font-medium"
@@ -61,8 +61,8 @@
                   :title="group.group_name || String(group.group_id)"
                 >
                   <span class="inline-flex items-center gap-1">
-                    <svg v-if="group.group_id > 0 && expandedKey === `group-${group.group_id}`" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    <svg v-else-if="group.group_id > 0" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    <svg v-if="enableBreakdown && group.group_id > 0 && expandedKey === `group-${group.group_id}`" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    <svg v-else-if="enableBreakdown && group.group_id > 0" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     {{ group.group_name || t('admin.dashboard.noGroup') }}
                   </span>
                 </td>
@@ -80,7 +80,7 @@
                 </td>
               </tr>
               <!-- User breakdown sub-rows -->
-              <tr v-if="expandedKey === `group-${group.group_id}`">
+              <tr v-if="enableBreakdown && expandedKey === `group-${group.group_id}`">
                 <td colspan="5" class="p-0">
                   <UserBreakdownSubTable
                     :items="breakdownItems"
@@ -125,12 +125,14 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   metric?: DistributionMetric
   showMetricToggle?: boolean
+  enableBreakdown?: boolean
   startDate?: string
   endDate?: string
 }>(), {
   loading: false,
   metric: 'tokens',
   showMetricToggle: false,
+  enableBreakdown: true,
 })
 
 const emit = defineEmits<{
@@ -138,6 +140,7 @@ const emit = defineEmits<{
 }>()
 
 const expandedKey = ref<string | null>(null)
+const enableBreakdown = computed(() => props.enableBreakdown)
 const breakdownItems = ref<UserBreakdownItem[]>([])
 const breakdownLoading = ref(false)
 

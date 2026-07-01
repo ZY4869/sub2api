@@ -11,6 +11,7 @@ type ContentModerationAudit struct {
 	SourceEndpoint  string   `json:"source_endpoint"`
 	ContentHash     string   `json:"content_hash"`
 	ContentSummary  string   `json:"content_summary"`
+	MatchedKeyword  string   `json:"matched_keyword"`
 	Categories      []string `json:"categories"`
 	Hit             bool     `json:"hit"`
 	DedupeHit       bool     `json:"dedupe_hit"`

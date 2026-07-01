@@ -194,6 +194,9 @@ func applyCodexOAuthTransform(reqBody map[string]any, isCodexCLI bool, isCompact
 	if normalizeCodexTools(reqBody) {
 		result.Modified = true
 	}
+	if defaultCodexImageToolChoice(reqBody) {
+		result.Modified = true
+	}
 
 	if v, ok := reqBody["prompt_cache_key"].(string); ok {
 		result.PromptCacheKey = strings.TrimSpace(v)
@@ -630,4 +633,33 @@ func normalizeCodexTools(reqBody map[string]any) bool {
 	}
 
 	return modified
+}
+
+func defaultCodexImageToolChoice(reqBody map[string]any) bool {
+	if !codexHasImageGenerationTool(reqBody) || hasToolChoiceSignal(reqBody) {
+		return false
+	}
+	reqBody["tool_choice"] = "auto"
+	return true
+}
+
+func codexHasImageGenerationTool(reqBody map[string]any) bool {
+	rawTools, ok := reqBody["tools"]
+	if !ok || rawTools == nil {
+		return false
+	}
+	tools, ok := rawTools.([]any)
+	if !ok {
+		return false
+	}
+	for _, tool := range tools {
+		toolMap, ok := tool.(map[string]any)
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(stringValueFromAny(toolMap["type"])) == "image_generation" {
+			return true
+		}
+	}
+	return false
 }

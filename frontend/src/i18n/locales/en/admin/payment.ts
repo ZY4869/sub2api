@@ -23,6 +23,7 @@ export default {
     balance_topup: 'Balance top-up',
     subscription: 'Subscription'
   },
+  convertedAmount: 'Converted {amount}',
   refund: {
     action: 'Refund',
     title: 'Create refund',

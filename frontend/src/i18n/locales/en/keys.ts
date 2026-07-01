@@ -67,6 +67,8 @@ export default {
     groupPriority: 'Priority',
     groupRate: 'Rate',
     lastUsedAt: 'Last Used',
+    columnSettings: 'Columns',
+    displaySettingsColumns: 'Visible columns',
     useKey: 'Use Key',
     useKeyModal: {
       title: 'Use API Key',

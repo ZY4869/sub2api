@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../client'
+import { buildApiUrl } from '@/api/url'
 import type {
   Account,
   AccountRuntimeSummary,
@@ -508,12 +509,6 @@ export async function refreshGrokAccount(id: number): Promise<Account> {
   return data
 }
 
-function buildAdminStreamUrl(path: string): string {
-  const base = String(apiClient.defaults.baseURL || '').replace(/\/+$/, '')
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  return `${base}${normalizedPath}`
-}
-
 export async function testGrokAccount(
   id: number,
   payload: AccountTestRequestPayload = {},
@@ -521,7 +516,7 @@ export async function testGrokAccount(
     signal?: AbortSignal
   }
 ): Promise<Response> {
-  return fetch(buildAdminStreamUrl(`/admin/grok/accounts/${id}/test`), {
+  return fetch(buildApiUrl(`/admin/grok/accounts/${id}/test`, String(apiClient.defaults.baseURL || '')), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,

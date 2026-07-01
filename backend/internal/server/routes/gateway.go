@@ -90,6 +90,8 @@ func RegisterGatewayRoutes(
 	grokV1.Use(requireGroupAnthropic)
 	{
 		grokV1.GET("/models", h.Gateway.Models)
+		grokV1.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
+		grokV1.POST("/messages", dispatchers.AnthropicMessages)
 		grokV1.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
 		grokV1.POST("/responses", dispatchers.OpenAIResponses)
 		grokV1.POST("/responses/*subpath", dispatchers.OpenAIResponses)
@@ -388,23 +390,48 @@ func isGrokGroup(c *gin.Context) bool {
 	return service.IsGrokPlatform(getGroupPlatform(c))
 }
 
-func dispatchMessagesRoute(c *gin.Context, nativeHandler gin.HandlerFunc, compatHandler gin.HandlerFunc) {
+func dispatchMessagesRoute(c *gin.Context, nativeHandler gin.HandlerFunc, openAICompatHandler gin.HandlerFunc, grokCompatHandler gin.HandlerFunc) {
 	decision := service.DecideProtocolCapability(getGroupPlatform(c), service.EndpointMessages, service.ProtocolCapabilityActionDefault)
 	switch decision.Mode {
 	case service.ProtocolCapabilityNativePassthrough:
 		nativeHandler(c)
 	case service.ProtocolCapabilityCompatTranslate:
-		compatHandler(c)
+		if isGrokGroup(c) {
+			if grokCompatHandler != nil {
+				grokCompatHandler(c)
+				return
+			}
+		} else if openAICompatHandler != nil {
+			openAICompatHandler(c)
+			return
+		}
+		writeOpenAIGatewayCapabilityError(c, service.PublicEndpointUnsupportedDecision(service.EndpointMessages, service.ProtocolCapabilityActionDefault), "invalid_request_error")
 	default:
-		writeOpenAIGatewayCapabilityError(c, service.GrokMessagesUnsupportedDecision(), "invalid_request_error")
+		writeOpenAIGatewayCapabilityError(c, decision, "invalid_request_error")
 	}
 }
 
-func dispatchCountTokensRoute(c *gin.Context, nativeHandler gin.HandlerFunc) {
+func dispatchCountTokensRoute(c *gin.Context, nativeHandler gin.HandlerFunc, openAICompatHandler gin.HandlerFunc, grokCompatHandler gin.HandlerFunc) {
 	decision := service.DecideProtocolCapability(getGroupPlatform(c), service.EndpointMessages, service.ProtocolCapabilityActionCountTokens)
-	if decision.Supported && decision.Mode == service.ProtocolCapabilityNativePassthrough {
+	if !decision.Supported {
+		decision.MessageKey = "gateway.count_tokens.unsupported_platform"
+		writeOpenAIGatewayCapabilityError(c, decision, "not_found_error")
+		return
+	}
+	switch decision.Mode {
+	case service.ProtocolCapabilityNativePassthrough:
 		nativeHandler(c)
 		return
+	case service.ProtocolCapabilityCompatTranslate:
+		if isGrokGroup(c) {
+			if grokCompatHandler != nil {
+				grokCompatHandler(c)
+				return
+			}
+		} else if openAICompatHandler != nil {
+			openAICompatHandler(c)
+			return
+		}
 	}
 	decision.MessageKey = "gateway.count_tokens.unsupported_platform"
 	writeOpenAIGatewayCapabilityError(c, decision, "not_found_error")

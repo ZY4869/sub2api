@@ -47,6 +47,53 @@ func TestSelectPublicModelCatalogExampleSpec_UsesEmbeddingsOverride(t *testing.T
 	require.Equal(t, "openai.embeddings", spec.EndpointKey)
 }
 
+func TestSelectPublicModelCatalogExampleSpec_UsesGrokMessagesExample(t *testing.T) {
+	spec, ok := selectPublicModelCatalogExampleSpec(PublicModelCatalogItem{
+		Model:            "grok-4",
+		Provider:         PlatformGrok,
+		RequestProtocols: []string{PlatformGrok},
+		ProtocolEndpoints: []PublicModelProtocolEndpoint{{
+			Key:      "grok.messages",
+			Protocol: PlatformGrok,
+			Endpoint: "/grok/v1/messages",
+			Support:  PublicModelSupportSupported,
+		}},
+	}, "")
+
+	require.True(t, ok)
+	require.Equal(t, "grok", spec.PageID)
+	require.Equal(t, PlatformGrok, spec.Protocol)
+	require.Equal(t, "grok.messages", spec.EndpointKey)
+	require.Contains(t, spec.Keywords, "/grok/v1/messages")
+
+	markdown := publicModelCatalogExampleTemplateMarkdown(spec.PageID, spec.Keywords)
+	require.Contains(t, markdown, "/grok/v1/messages")
+	require.NotContains(t, markdown, "/grok/v1/responses")
+}
+
+func TestSelectPublicModelCatalogExampleSpec_UsesGrokCountTokensExample(t *testing.T) {
+	spec, ok := selectPublicModelCatalogExampleSpec(PublicModelCatalogItem{
+		Model:    "grok-4",
+		Provider: PlatformGrok,
+		ProtocolEndpoints: []PublicModelProtocolEndpoint{{
+			Key:      "grok.messages.countTokens",
+			Protocol: PlatformGrok,
+			Endpoint: "/grok/v1/messages/count_tokens",
+			Support:  PublicModelSupportSupported,
+		}},
+	}, "")
+
+	require.True(t, ok)
+	require.Equal(t, "grok", spec.PageID)
+	require.Equal(t, PlatformGrok, spec.Protocol)
+	require.Equal(t, "grok.messages.countTokens", spec.EndpointKey)
+	require.Contains(t, spec.Keywords, "/grok/v1/messages/count_tokens")
+
+	markdown := publicModelCatalogExampleTemplateMarkdown(spec.PageID, spec.Keywords)
+	require.Contains(t, markdown, "/grok/v1/messages/count_tokens")
+	require.NotContains(t, markdown, "/grok/v1/responses")
+}
+
 func TestSelectPublicModelCatalogExampleSpec_ReturnsFalseWithoutSupportedEndpoint(t *testing.T) {
 	_, ok := selectPublicModelCatalogExampleSpec(PublicModelCatalogItem{
 		Model: "blocked-model",

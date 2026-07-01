@@ -111,10 +111,17 @@ func selectPublicModelCatalogExampleSpec(item PublicModelCatalogItem, capability
 			EndpointKey: endpoint.Key,
 		}, true
 	case PlatformGrok:
+		keywords := []string{"/grok/v1", "/grok/v1/responses"}
+		switch endpoint.Key {
+		case "grok.messages":
+			keywords = []string{"/grok/v1/messages", "anthropic-version"}
+		case "grok.messages.countTokens":
+			keywords = []string{"/grok/v1/messages/count_tokens", "count tokens"}
+		}
 		return publicModelCatalogExampleSpec{
 			PageID:      "grok",
 			Protocol:    protocol,
-			Keywords:    []string{"/grok/v1", "/v1/responses"},
+			Keywords:    keywords,
 			EndpointKey: endpoint.Key,
 		}, true
 	case PlatformAntigravity:
@@ -223,7 +230,7 @@ func publicModelCatalogPreferredExampleEndpointKeys(item PublicModelCatalogItem,
 	case strings.Contains(modelID, "embedding") || strings.Contains(modelID, "embed"):
 		return []string{"openai.embeddings", "gemini.embedContent"}
 	default:
-		return []string{"openai.responses", "openai.chat.completions", "anthropic.messages", "gemini.generateContent", "grok.responses"}
+		return []string{"openai.responses", "openai.chat.completions", "anthropic.messages", "gemini.generateContent", "grok.responses", "grok.messages"}
 	}
 }
 

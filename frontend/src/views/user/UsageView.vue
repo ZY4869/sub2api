@@ -54,6 +54,19 @@
           :format-tokens="formatTokens"
           :format-currency-breakdown="formatCurrencyBreakdown"
         />
+        <UsageAnalyticsPanel
+          :trend-data="trendData"
+          :model-stats="modelStats"
+          :group-stats="groupStats"
+          :endpoint-stats="endpointStats"
+          :upstream-endpoint-stats="upstreamEndpointStats"
+          :trend-loading="analyticsLoading"
+          :model-loading="analyticsLoading"
+          :group-loading="analyticsLoading"
+          :endpoint-loading="analyticsLoading"
+          :start-date="filters.start_date || startDate"
+          :end-date="filters.end_date || endDate"
+        />
         <UsageTable
           :columns="visibleColumns"
           :usage-logs="usageLogs"
@@ -130,6 +143,9 @@ import type {
   UsageQueryParams,
   UsageStatsResponse,
   TrendDataPoint,
+  ModelStat,
+  GroupStat,
+  EndpointStat,
 } from "@/types";
 import type { UsageFilterApiKey } from "@/api/usage";
 import type { Column } from "@/components/common/types";
@@ -159,6 +175,7 @@ import {
 } from "@/utils/usageCost";
 import { FILTER_PLATFORM_ORDER, getPlatformEnglishName } from "@/utils/platformBranding";
 import ApiKeyDailyUsageCard from "./usage/ApiKeyDailyUsageCard.vue";
+import UsageAnalyticsPanel from "./usage/UsageAnalyticsPanel.vue";
 import UsageCostTooltip from "./usage/UsageCostTooltip.vue";
 import UsageFilters from "./usage/UsageFilters.vue";
 import UsageTable from "./usage/UsageTable.vue";
@@ -252,7 +269,13 @@ const visibleColumns = computed<Column[]>(() =>
 const usageLogs = ref<UsageLog[]>([]);
 const apiKeys = ref<UsageFilterApiKey[]>([]);
 const apiKeyDailyRows = ref<TrendDataPoint[]>([]);
+const trendData = ref<TrendDataPoint[]>([]);
+const modelStats = ref<ModelStat[]>([]);
+const groupStats = ref<GroupStat[]>([]);
+const endpointStats = ref<EndpointStat[]>([]);
+const upstreamEndpointStats = ref<EndpointStat[]>([]);
 const apiKeyDailyLoading = ref(false);
+const analyticsLoading = ref(false);
 const loading = ref(false);
 const exporting = ref(false);
 
@@ -557,12 +580,74 @@ const loadApiKeyDailyUsage = async () => {
   }
 };
 
+const getGranularityForRange = (rangeStartDate: string, rangeEndDate: string): "day" | "hour" => {
+  const start = new Date(rangeStartDate);
+  const end = new Date(rangeEndDate);
+  const daysDiff = Math.ceil(
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  return daysDiff <= 1 ? "hour" : "day";
+};
+
+let analyticsRequestSeq = 0;
+const loadUsageAnalytics = async () => {
+  const seq = ++analyticsRequestSeq;
+  analyticsLoading.value = true;
+  const start = filters.value.start_date || startDate.value;
+  const end = filters.value.end_date || endDate.value;
+  const apiKeyId = selectedApiKeyID.value || undefined;
+  try {
+    const [trend, models, groups, endpoints] = await Promise.all([
+      usageAPI.getDashboardTrend({
+        start_date: start,
+        end_date: end,
+        granularity: getGranularityForRange(start, end),
+        api_key_id: apiKeyId,
+      }),
+      usageAPI.getDashboardModels({
+        start_date: start,
+        end_date: end,
+        api_key_id: apiKeyId,
+      }),
+      usageAPI.getDashboardGroups({
+        start_date: start,
+        end_date: end,
+        api_key_id: apiKeyId,
+      }),
+      usageAPI.getDashboardEndpoints({
+        start_date: start,
+        end_date: end,
+        api_key_id: apiKeyId,
+      }),
+    ]);
+    if (seq !== analyticsRequestSeq) return;
+    trendData.value = trend.trend || [];
+    modelStats.value = models.models || [];
+    groupStats.value = groups.groups || [];
+    endpointStats.value = endpoints.endpoints || [];
+    upstreamEndpointStats.value = endpoints.upstream_endpoints || [];
+  } catch (error) {
+    if (seq !== analyticsRequestSeq) return;
+    console.error("Failed to load usage analytics:", error);
+    trendData.value = [];
+    modelStats.value = [];
+    groupStats.value = [];
+    endpointStats.value = [];
+    upstreamEndpointStats.value = [];
+  } finally {
+    if (seq === analyticsRequestSeq) {
+      analyticsLoading.value = false;
+    }
+  }
+};
+
 const applyFilters = () => {
   pagination.page = 1;
   loadApiKeys();
   loadUsageLogs();
   loadUsageStats();
   loadApiKeyDailyUsage();
+  loadUsageAnalytics();
 };
 
 const resetFilters = () => {
@@ -585,6 +670,7 @@ const resetFilters = () => {
   loadUsageLogs();
   loadUsageStats();
   loadApiKeyDailyUsage();
+  loadUsageAnalytics();
 };
 
 const handlePageChange = (page: number) => {
@@ -803,5 +889,6 @@ onMounted(() => {
   loadUsageLogs();
   loadUsageStats();
   loadApiKeyDailyUsage();
+  loadUsageAnalytics();
 });
 </script>

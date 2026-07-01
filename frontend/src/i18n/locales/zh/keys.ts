@@ -67,6 +67,8 @@ export default {
     groupPriority: '优先级',
     groupRate: '倍率',
     lastUsedAt: '上次使用时间',
+    columnSettings: '列设置',
+    displaySettingsColumns: '显示列',
     useKey: '使用密钥',
     useKeyModal: {
       title: '使用 API 密钥',

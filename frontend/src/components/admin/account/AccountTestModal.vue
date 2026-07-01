@@ -7,6 +7,7 @@ import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
+import { buildApiUrl } from '@/api/url'
 import type {
   BlacklistAdvicePayload,
   BlacklistFeedbackPayload
@@ -581,7 +582,7 @@ const startTest = async () => {
       ? await adminAPI.accounts.testGrokAccount(props.account.id, resolveTestRequestBody(), {
           signal: abortController.signal
         })
-      : await fetch(`/api/v1/admin/accounts/${props.account.id}/test`, {
+      : await fetch(buildApiUrl(`/admin/accounts/${props.account.id}/test`), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${localStorage.getItem('auth_token')}`,

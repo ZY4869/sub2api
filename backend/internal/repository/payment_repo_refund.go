@@ -80,7 +80,7 @@ func (r *paymentRepository) SumSuccessfulRefundAmount(ctx context.Context, order
 	err := scanSingleRow(ctx, paymentExec(ctx, r.db), `
 		SELECT COALESCE(SUM(amount_minor), 0)
 		FROM payment_refunds
-		WHERE order_no = $1 AND status IN ($2, $3)
-	`, []any{strings.TrimSpace(orderNo), service.PaymentRefundStatusAccepted, service.PaymentRefundStatusSettled}, &total)
+		WHERE order_no = $1 AND status = $2
+	`, []any{strings.TrimSpace(orderNo), service.PaymentRefundStatusSettled}, &total)
 	return total, err
 }

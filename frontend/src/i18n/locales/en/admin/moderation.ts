@@ -20,6 +20,7 @@ export default {
     provider: 'Provider / Model',
     sourceEndpoint: 'Source',
     summary: 'Redacted summary',
+    matchedKeyword: 'Matched keyword',
     request: 'Request link',
     status: 'Result',
     latency: 'Latency'
@@ -40,6 +41,7 @@ export default {
     summary: 'Redacted summary',
     latency: 'Latency',
     errorReason: 'Error reason',
+    matchedKeyword: 'Matched keyword',
     categories: 'Categories'
   },
   empty: 'No audit records yet',

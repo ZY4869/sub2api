@@ -84,7 +84,7 @@ func (r *paymentRepository) getOrder(ctx context.Context, where string, args ...
 			COALESCE((
 				SELECT SUM(amount_minor)
 				FROM payment_refunds
-				WHERE order_no = payment_orders.order_no AND status IN ('accepted', 'settled')
+				WHERE order_no = payment_orders.order_no AND status = 'settled'
 			), 0) AS refunded_amount_minor,
 			currency, COALESCE(country_code,''), COALESCE(provider_intent_id,''),
 			resume_token_hash, COALESCE(idempotency_key_hash,''), snapshot_json,
@@ -169,7 +169,7 @@ func (r *paymentRepository) ListOrders(ctx context.Context, params pagination.Pa
 			COALESCE((
 				SELECT SUM(amount_minor)
 				FROM payment_refunds
-				WHERE order_no = payment_orders.order_no AND status IN ('accepted', 'settled')
+				WHERE order_no = payment_orders.order_no AND status = 'settled'
 			), 0) AS refunded_amount_minor,
 			currency, COALESCE(country_code,''), COALESCE(provider_intent_id,''),
 			resume_token_hash, COALESCE(idempotency_key_hash,''), snapshot_json,

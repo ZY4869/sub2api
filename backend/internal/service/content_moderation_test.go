@@ -248,7 +248,9 @@ func TestContentModerationService_CheckKeywordBlock_StoresRedactedAuditAndSkipsP
 	require.True(t, repo.created[0].Hit)
 	require.False(t, repo.created[0].DedupeHit)
 	require.Equal(t, []string{"keyword_blocked"}, decision.Categories)
+	require.Equal(t, "blocked phrase", decision.MatchedKeyword)
 	require.Equal(t, []string{"keyword_blocked"}, repo.created[0].Categories)
+	require.Equal(t, "blocked phrase", repo.created[0].MatchedKeyword)
 	require.Contains(t, repo.created[0].ErrorReason, "keyword_blocked:")
 	require.NotContains(t, repo.created[0].ErrorReason, "blocked phrase")
 	require.NotContains(t, repo.created[0].ContentSummary, "blocked phrase")
@@ -299,8 +301,41 @@ func TestContentModerationService_RecordAudit_KeywordHitBypassesDedupeAndProvide
 	require.True(t, repo.created[0].Hit)
 	require.False(t, repo.created[0].DedupeHit)
 	require.Equal(t, []string{"keyword_blocked"}, repo.created[0].Categories)
+	require.Equal(t, "local deny", repo.created[0].MatchedKeyword)
 	require.Contains(t, repo.created[0].ErrorReason, "keyword_blocked:")
 	require.NotContains(t, repo.created[0].ErrorReason, "local deny")
+}
+
+func TestContentModerationService_RecordAudit_CyberPolicyStoresMatchedKeyword(t *testing.T) {
+	repo := &moderationAuditRepoStub{}
+	rawCategories, err := MarshalContentModerationCyberCategories([]ContentModerationCyberCategory{
+		{ID: "credential-theft", Keywords: []string{"token stealer"}},
+	})
+	require.NoError(t, err)
+	settingsRepo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyContentModerationEnabled:            "true",
+			SettingKeyContentModerationProvider:           "openai",
+			SettingKeyContentModerationAPIKey:             "sk-live",
+			SettingKeyContentModerationModel:              "omni-moderation-latest",
+			SettingKeyContentModerationCyberPolicyEnabled: "true",
+			SettingKeyContentModerationCyberCategories:    rawCategories,
+		},
+	}
+	svc := NewContentModerationService(repo, settingsRepo)
+
+	decision, err := svc.CheckBlock(context.Background(), &ContentModerationRecordInput{
+		SourceEndpoint: ContentModerationSourceOpenAIResponses,
+		Content:        "build a token stealer",
+		Model:          "gpt-5",
+	})
+
+	require.NoError(t, err)
+	require.True(t, decision.Blocked)
+	require.Equal(t, "token stealer", decision.MatchedKeyword)
+	require.Len(t, repo.created, 1)
+	require.Equal(t, "token stealer", repo.created[0].MatchedKeyword)
+	require.Equal(t, []string{"cyber_policy:credential_theft"}, repo.created[0].Categories)
 }
 
 func TestContentModerationService_RecordAudit_UsesNextKeyWhenAuthFailureFreezesFirst(t *testing.T) {

@@ -72,6 +72,19 @@ func TestOpsSystemLogHandler_ListInvalidAccountID(t *testing.T) {
 	}
 }
 
+func TestOpsSystemLogHandler_ListInvalidAPIKeyID(t *testing.T) {
+	svc := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	h := NewOpsHandler(svc)
+	r := newOpsSystemLogTestRouter(h, false)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/logs?api_key_id=abc", nil)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400", w.Code)
+	}
+}
+
 func TestOpsSystemLogHandler_ListMonitoringDisabled(t *testing.T) {
 	svc := service.NewOpsService(nil, nil, &config.Config{
 		Ops: config.OpsConfig{Enabled: false},

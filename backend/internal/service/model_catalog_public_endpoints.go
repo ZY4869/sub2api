@@ -47,6 +47,8 @@ func defaultPublicModelProtocolEndpoints(protocol string, source publicModelCata
 	case PlatformGrok:
 		return []PublicModelProtocolEndpoint{
 			newPublicModelProtocolEndpoint("grok.chat.completions", PlatformGrok, "/grok/v1/chat/completions", http.MethodPost, PublicModelSupportSupported, source),
+			newPublicModelProtocolEndpoint("grok.messages", PlatformGrok, "/grok/v1/messages", http.MethodPost, PublicModelSupportPartial, source),
+			newPublicModelProtocolEndpoint("grok.messages.countTokens", PlatformGrok, "/grok/v1/messages/count_tokens", http.MethodPost, PublicModelSupportPartial, source),
 			newPublicModelProtocolEndpoint("grok.responses", PlatformGrok, "/grok/v1/responses", http.MethodPost, PublicModelSupportPartial, source),
 			newPublicModelProtocolEndpoint("grok.images.generations", PlatformGrok, "/grok/v1/images/generations", http.MethodPost, PublicModelSupportPartial, source),
 		}
@@ -144,6 +146,12 @@ func publicModelEndpointKeyForCapability(targetProtocol string, capability Publi
 			return "vertex.generateContent"
 		}
 	case PlatformGrok:
+		if NormalizeInboundEndpoint(capability.InboundEndpoint) == EndpointMessages {
+			if action == ProtocolCapabilityActionCountTokens {
+				return "grok.messages.countTokens"
+			}
+			return "grok.messages"
+		}
 		switch NormalizeInboundEndpoint(capability.InboundEndpoint) {
 		case EndpointChatCompletions:
 			return "grok.chat.completions"

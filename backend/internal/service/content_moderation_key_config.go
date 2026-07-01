@@ -284,10 +284,11 @@ func EvaluateContentModerationCyberPolicy(settings *ContentModerationSettings, r
 			if normalizedKeyword := normalizeContentModerationKeywordComparable(keyword); normalizedKeyword != "" && strings.Contains(normalizedContent, normalizedKeyword) {
 				reason := "cyber_policy:" + category.ID
 				return ContentModerationKeywordDecision{
-					Blocked:     true,
-					Content:     content,
-					ErrorReason: reason,
-					Categories:  []string{reason},
+					Blocked:        true,
+					Content:        content,
+					ErrorReason:    reason,
+					MatchedKeyword: keyword,
+					Categories:     []string{reason},
 				}
 			}
 		}
@@ -390,6 +391,8 @@ func moderationCategoriesForReason(reason string) []string {
 	switch {
 	case strings.HasPrefix(reason, "keyword_blocked:"):
 		return []string{"keyword_blocked"}
+	case strings.HasPrefix(reason, "cyber_policy:"):
+		return []string{reason}
 	case strings.HasPrefix(reason, "moderation_threshold:"):
 		category := strings.TrimSpace(strings.TrimPrefix(reason, "moderation_threshold:"))
 		if category == "" {
@@ -461,13 +464,26 @@ func EvaluateContentModerationKeywordBlock(settings *ContentModerationSettings, 
 		}
 		sum := sha256.Sum256([]byte(normalizedKeyword))
 		return ContentModerationKeywordDecision{
-			Blocked:     true,
-			Content:     content,
-			ErrorReason: fmt.Sprintf("keyword_blocked:%s", hex.EncodeToString(sum[:])[:12]),
-			Categories:  []string{"keyword_blocked"},
+			Blocked:        true,
+			Content:        content,
+			ErrorReason:    fmt.Sprintf("keyword_blocked:%s", hex.EncodeToString(sum[:])[:12]),
+			MatchedKeyword: keyword,
+			Categories:     []string{"keyword_blocked"},
 		}
 	}
 	return ContentModerationKeywordDecision{Content: content}
+}
+
+func normalizeContentModerationMatchedKeyword(value string) string {
+	value = strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+	if value == "" {
+		return ""
+	}
+	if len([]rune(value)) <= 120 {
+		return value
+	}
+	runes := []rune(value)
+	return string(runes[:120])
 }
 
 func normalizeContentModerationKeywordComparable(value string) string {

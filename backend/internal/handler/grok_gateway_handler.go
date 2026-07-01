@@ -23,6 +23,7 @@ type grokAction string
 
 const (
 	grokActionChat        grokAction = "chat"
+	grokActionMessages    grokAction = "messages"
 	grokActionResponses   grokAction = "responses"
 	grokActionImagesGen   grokAction = "images_generation"
 	grokActionImagesEdits grokAction = "images_edits"
@@ -77,8 +78,115 @@ func (h *GrokGatewayHandler) ChatCompletions(c *gin.Context) {
 	h.handleRequest(c, grokActionChat)
 }
 
+func (h *GrokGatewayHandler) Messages(c *gin.Context) {
+	h.handleRequest(c, grokActionMessages)
+}
+
 func (h *GrokGatewayHandler) Responses(c *gin.Context) {
 	h.handleRequest(c, grokActionResponses)
+}
+
+func (h *GrokGatewayHandler) CountTokens(c *gin.Context) {
+	requestStart := time.Now()
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	if !ok {
+		h.anthropicErrorResponse(c, http.StatusUnauthorized, "authentication_error", "Invalid API key")
+		return
+	}
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		h.anthropicErrorResponse(c, http.StatusInternalServerError, "api_error", "User context not found")
+		return
+	}
+	reqLog := requestLogger(
+		c,
+		"handler.grok_gateway.count_tokens",
+		zap.Int64("user_id", subject.UserID),
+		zap.Int64("api_key_id", apiKey.ID),
+		zap.Any("group_id", apiKey.GroupID),
+	)
+	body, err := pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
+	if err != nil {
+		if maxErr, ok := extractMaxBytesError(err); ok {
+			h.anthropicErrorResponse(c, http.StatusRequestEntityTooLarge, "invalid_request_error", buildBodyTooLargeMessage(maxErr.Limit))
+			return
+		}
+		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to read request body")
+		return
+	}
+	if len(body) == 0 {
+		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Request body is empty")
+		return
+	}
+	if !gjson.ValidBytes(body) {
+		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
+		return
+	}
+	reqModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	if reqModel == "" {
+		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "model is required")
+		return
+	}
+	setOpsRequestContext(c, reqModel, false, body)
+	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
+	subscription, _ := middleware2.GetSubscriptionFromContext(c)
+	currentAPIKey, _, err := resolveSelectedGatewayAPIKey(
+		c,
+		h.settingService,
+		h.gatewayService,
+		h.billingCacheService,
+		apiKey,
+		subscription,
+		reqModel,
+		grokCompatiblePlatforms,
+		nil,
+	)
+	if err != nil {
+		reqLog.Info("grok_count_tokens.group_selection_failed", zap.Error(err))
+		status, code, message := groupSelectionErrorDetails(err)
+		h.anthropicErrorResponse(c, status, code, message)
+		return
+	}
+	defer releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+	runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
+	if err != nil {
+		if errors.Is(err, service.ErrChannelModelNotAllowed) {
+			h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel")
+			return
+		}
+		if errors.Is(err, service.ErrModelHardRemoved) {
+			h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Requested model is no longer available")
+			return
+		}
+		h.anthropicErrorResponse(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing")
+		return
+	}
+	routingStart := time.Now()
+	selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, "", runtimeSelectionModel, nil, "")
+	if err != nil {
+		reqLog.Warn("grok_count_tokens.account_select_failed", zap.Error(err))
+		h.anthropicErrorResponse(c, http.StatusServiceUnavailable, "api_error", "No available Grok accounts")
+		return
+	}
+	if selection == nil || selection.Account == nil {
+		h.anthropicErrorResponse(c, http.StatusServiceUnavailable, "api_error", "No available Grok accounts")
+		return
+	}
+	if selection.ReleaseFunc != nil {
+		selection.ReleaseFunc()
+	}
+	account := selection.Account
+	ctx := reattachGatewayChannelState(c.Request.Context(), channelState)
+	c.Request = c.Request.WithContext(ctx)
+	setOpsSelectedAccountDetails(c, account)
+	setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeSync)
+	service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
+	_, err = h.grokGatewayService.ForwardAnthropicCountTokensCompat(c.Request.Context(), c, account, body)
+	if err != nil {
+		reqLog.Warn("grok_count_tokens.forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+		return
+	}
+	reqLog.Debug("grok_count_tokens.request_completed", zap.Int64("account_id", account.ID))
 }
 
 func (h *GrokGatewayHandler) ImagesGeneration(c *gin.Context) {
@@ -456,6 +564,8 @@ func (h *GrokGatewayHandler) forwardAction(ctx context.Context, c *gin.Context, 
 	switch action {
 	case grokActionChat:
 		return h.grokGatewayService.ForwardChatCompletions(ctx, c, account, body)
+	case grokActionMessages:
+		return h.grokGatewayService.ForwardMessagesCompat(ctx, c, account, body)
 	case grokActionResponses:
 		return h.grokGatewayService.ForwardResponses(ctx, c, account, body, c.Request.Method, c.Param("subpath"))
 	case grokActionImagesGen:
@@ -487,6 +597,16 @@ func (h *GrokGatewayHandler) submitUsageRecordTask(task service.UsageRecordTask)
 
 func (h *GrokGatewayHandler) errorResponse(c *gin.Context, status int, errType string, message string) {
 	c.JSON(status, gin.H{"error": gin.H{"type": errType, "message": message}})
+}
+
+func (h *GrokGatewayHandler) anthropicErrorResponse(c *gin.Context, status int, errType string, message string) {
+	c.JSON(status, gin.H{
+		"type": "error",
+		"error": gin.H{
+			"type":    errType,
+			"message": message,
+		},
+	})
 }
 
 func (h *GrokGatewayHandler) handleStreamingAwareError(c *gin.Context, status int, errType string, message string, streamStarted bool) {

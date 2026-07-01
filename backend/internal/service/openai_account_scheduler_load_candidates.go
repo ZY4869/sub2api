@@ -84,6 +84,7 @@ func (s *defaultOpenAIAccountScheduler) collectOpenAILoadBalanceCandidateStats(
 	loadRateSum := 0.0
 	loadRateSumSquares := 0.0
 	now := time.Now()
+	weights := s.service.openAIWSSchedulerWeights()
 	candidates := make([]openAIAccountCandidateScore, 0, len(filtered))
 
 	for _, account := range filtered {
@@ -98,17 +99,21 @@ func (s *defaultOpenAIAccountScheduler) collectOpenAILoadBalanceCandidateStats(
 		loadRateSum += loadRate
 		loadRateSumSquares += loadRate * loadRate
 		pressure := buildOpenAIAccountUsagePressure(account, req.RequestedModel, now)
+		quotaHeadroom, quotaHeadroomKnown := resolveOpenAIQuotaHeadroomFactor(account, req.RequestedModel, now)
 		candidates = append(candidates, openAIAccountCandidateScore{
-			account:       account,
-			loadInfo:      loadInfo,
-			pressure:      pressure,
-			pressureScope: resolveOpenAIAccountUsagePressureScope(account, req.RequestedModel),
-			expiryBoost:   AccountHasActiveExpiryProbePriority(account, now),
-			planType:      openAIAccountPlanType(account),
-			planRank:      resolveOpenAIAccountPlanRankForLog(account),
-			errorRate:     errorRate,
-			ttft:          ttft,
-			hasTTFT:       hasTTFT,
+			account:             account,
+			loadInfo:            loadInfo,
+			pressure:            pressure,
+			pressureScope:       resolveOpenAIAccountUsagePressureScope(account, req.RequestedModel),
+			quotaHeadroom:       quotaHeadroom,
+			quotaHeadroomKnown:  quotaHeadroomKnown,
+			quotaHeadroomWeight: weights.QuotaHeadroom,
+			expiryBoost:         AccountHasActiveExpiryProbePriority(account, now),
+			planType:            openAIAccountPlanType(account),
+			planRank:            resolveOpenAIAccountPlanRankForLog(account),
+			errorRate:           errorRate,
+			ttft:                ttft,
+			hasTTFT:             hasTTFT,
 		})
 		if pressure != nil && strings.TrimSpace(pressure.scope) != "" {
 			candidates[len(candidates)-1].pressureScope = pressure.scope
@@ -168,12 +173,17 @@ func (s *defaultOpenAIAccountScheduler) scoreOpenAILoadBalanceCandidates(
 		if item.hasTTFT && factors.hasTTFTSample && factors.maxTTFT > factors.minTTFT {
 			ttftFactor = 1 - clamp01((item.ttft-factors.minTTFT)/(factors.maxTTFT-factors.minTTFT))
 		}
+		quotaHeadroomFactor := 0.5
+		if item.quotaHeadroomKnown {
+			quotaHeadroomFactor = clamp01(item.quotaHeadroom)
+		}
 
 		item.score = weights.Priority*priorityFactor +
 			weights.Load*loadFactor +
 			weights.Queue*queueFactor +
 			weights.ErrorRate*errorFactor +
-			weights.TTFT*ttftFactor
+			weights.TTFT*ttftFactor +
+			weights.QuotaHeadroom*quotaHeadroomFactor
 	}
 }
 

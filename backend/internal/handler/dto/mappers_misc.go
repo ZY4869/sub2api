@@ -25,6 +25,7 @@ func ContentModerationAuditFromService(audit *service.ContentModerationAudit) *C
 		SourceEndpoint:  audit.SourceEndpoint,
 		ContentHash:     audit.ContentHash,
 		ContentSummary:  audit.ContentSummary,
+		MatchedKeyword:  audit.MatchedKeyword,
 		Categories:      categories,
 		Hit:             audit.Hit,
 		DedupeHit:       audit.DedupeHit,

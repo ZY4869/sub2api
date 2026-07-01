@@ -12,6 +12,8 @@ import type {
   PaginatedResponse,
   TrendDataPoint,
   ModelStat,
+  GroupStat,
+  EndpointStat,
 } from "@/types";
 
 // ==================== Dashboard Types ====================
@@ -54,6 +56,7 @@ export interface TrendParams {
   start_date?: string;
   end_date?: string;
   granularity?: "day" | "hour";
+  api_key_id?: number;
 }
 
 export interface TrendResponse {
@@ -65,6 +68,19 @@ export interface TrendResponse {
 
 export interface ModelStatsResponse {
   models: ModelStat[];
+  start_date: string;
+  end_date: string;
+}
+
+export interface GroupStatsResponse {
+  groups: GroupStat[];
+  start_date: string;
+  end_date: string;
+}
+
+export interface EndpointStatsResponse {
+  endpoints: EndpointStat[];
+  upstream_endpoints: EndpointStat[];
   start_date: string;
   end_date: string;
 }
@@ -312,9 +328,34 @@ export async function getDashboardTrend(
 export async function getDashboardModels(params?: {
   start_date?: string;
   end_date?: string;
+  api_key_id?: number;
 }): Promise<ModelStatsResponse> {
   const { data } = await apiClient.get<ModelStatsResponse>(
     "/usage/dashboard/models",
+    { params },
+  );
+  return data;
+}
+
+export async function getDashboardGroups(params?: {
+  start_date?: string;
+  end_date?: string;
+  api_key_id?: number;
+}): Promise<GroupStatsResponse> {
+  const { data } = await apiClient.get<GroupStatsResponse>(
+    "/usage/dashboard/groups",
+    { params },
+  );
+  return data;
+}
+
+export async function getDashboardEndpoints(params?: {
+  start_date?: string;
+  end_date?: string;
+  api_key_id?: number;
+}): Promise<EndpointStatsResponse> {
+  const { data } = await apiClient.get<EndpointStatsResponse>(
+    "/usage/dashboard/endpoints",
     { params },
   );
   return data;
@@ -388,6 +429,8 @@ export const usageAPI = {
   getDashboardStats,
   getDashboardTrend,
   getDashboardModels,
+  getDashboardGroups,
+  getDashboardEndpoints,
   getDashboardApiKeysUsage,
   getDashboardApiKeyDailyUsage,
 };

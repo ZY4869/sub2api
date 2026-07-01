@@ -48,6 +48,11 @@ func buildOpsSystemLogsWhere(filter *service.OpsSystemLogFilter) (string, []any,
 			clauses = append(clauses, "l.user_id = $"+itoa(len(args)))
 			hasConstraint = true
 		}
+		if filter.APIKeyID != nil && *filter.APIKeyID > 0 {
+			args = append(args, *filter.APIKeyID)
+			clauses = append(clauses, "l.api_key_id = $"+itoa(len(args)))
+			hasConstraint = true
+		}
 		if filter.AccountID != nil && *filter.AccountID > 0 {
 			args = append(args, *filter.AccountID)
 			clauses = append(clauses, "l.account_id = $"+itoa(len(args)))
@@ -87,6 +92,7 @@ func buildOpsSystemLogsCleanupWhere(filter *service.OpsSystemLogCleanupFilter) (
 		RequestID:       filter.RequestID,
 		ClientRequestID: filter.ClientRequestID,
 		UserID:          filter.UserID,
+		APIKeyID:        filter.APIKeyID,
 		AccountID:       filter.AccountID,
 		Platform:        filter.Platform,
 		Model:           filter.Model,

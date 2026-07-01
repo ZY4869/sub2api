@@ -35,7 +35,12 @@
             {{ productLabel(row.product_type) }}
           </template>
           <template #cell-amount="{ row }">
-            <span class="font-semibold">{{ formatAmount(row.amount, row.currency) }}</span>
+            <div>
+              <span class="font-semibold">{{ formatAmount(row.amount, row.currency) }}</span>
+              <p v-if="convertedAmountText(row)" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                {{ t('admin.payment.convertedAmount', { amount: convertedAmountText(row) }) }}
+              </p>
+            </div>
           </template>
           <template #cell-refund="{ row }">
             <div class="text-sm">
@@ -286,6 +291,18 @@ function formatAmount(amount: number, currency: string): string {
 function formatMinor(amountMinor: number, currency: string): string {
   const amount = amountMinor / minorUnitFactor(currency)
   return formatAmount(amount, currency)
+}
+
+function convertedAmountText(order: PaymentOrder): string {
+  if (!order || order.product_type !== 'subscription') return ''
+  const currency = String(order.currency || '').trim().toUpperCase()
+  if (currency === 'CNY') return ''
+  const snapshot = order.snapshot || {}
+  const prices = snapshot.prices_by_currency
+  if (!prices || typeof prices !== 'object') return ''
+  const amount = Number((prices as Record<string, unknown>).CNY)
+  if (!Number.isFinite(amount) || amount <= 0) return ''
+  return formatAmount(amount, 'CNY')
 }
 
 function minorUnitFactor(currency: string): number {

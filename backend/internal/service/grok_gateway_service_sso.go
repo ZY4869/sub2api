@@ -187,6 +187,73 @@ func (s *GrokGatewayService) forwardSSOResponses(ctx context.Context, c *gin.Con
 	}, nil
 }
 
+func (s *GrokGatewayService) forwardSSOMessagesCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
+	var req apicompat.AnthropicRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		writeAnthropicError(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body", "")
+		return nil, fmt.Errorf("parse grok messages request: %w", err)
+	}
+	responsesReq, _, err := ConvertAnthropicMessagesToResponsesRuntime(&req)
+	if err != nil {
+		writeAnthropicError(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body", "")
+		return nil, fmt.Errorf("convert grok messages request: %w", err)
+	}
+	prompt := grokResponsesPrompt(responsesReq.Input)
+	modeID := strings.TrimSpace(gjson.GetBytes(body, "mode_id").String())
+	validation, err := s.validateSSORequest(account, req.Model, "chat", body)
+	if err != nil {
+		writeAnthropicError(c, http.StatusBadRequest, "invalid_request_error", err.Error(), "")
+		return nil, err
+	}
+	exec, err := s.executeSSOReverseRequest(ctx, account, validation.MappedModel, modeID, prompt, nil)
+	if err != nil {
+		return nil, err
+	}
+	exec.Message = grokBuildChatLikeOutput(exec)
+	startTime := time.Now()
+	if req.Stream {
+		firstTokenMs, writeErr := s.writeSSOMessagesCompatStream(c, req.Model, exec, startTime)
+		if writeErr != nil {
+			return nil, writeErr
+		}
+		return &GrokGatewayForwardResult{
+			Result: &ForwardResult{
+				RequestID:     exec.ResponseID,
+				Model:         req.Model,
+				UpstreamModel: validation.MappedModel,
+				Stream:        true,
+				Duration:      time.Since(startTime),
+				FirstTokenMs:  firstTokenMs,
+				MediaType:     grokMediaTypeForExec(exec),
+				ImageCount:    len(exec.ImageURLs),
+				MediaURL:      firstMediaURL(exec.ImageURLs),
+			},
+			RouteMode:         GrokRouteModeSSO,
+			Endpoint:          grokEndpointResponses,
+			MediaType:         grokMediaTypeForExec(exec),
+			UpstreamRequestID: exec.ResponseID,
+		}, nil
+	}
+	resp := grokBuildResponsesResponse(exec, req.Model)
+	c.JSON(http.StatusOK, apicompat.ResponsesToAnthropic(resp, req.Model))
+	return &GrokGatewayForwardResult{
+		Result: &ForwardResult{
+			RequestID:     exec.ResponseID,
+			Model:         req.Model,
+			UpstreamModel: validation.MappedModel,
+			Stream:        false,
+			Duration:      time.Since(startTime),
+			MediaType:     grokMediaTypeForExec(exec),
+			ImageCount:    len(exec.ImageURLs),
+			MediaURL:      firstMediaURL(exec.ImageURLs),
+		},
+		RouteMode:         GrokRouteModeSSO,
+		Endpoint:          grokEndpointResponses,
+		MediaType:         grokMediaTypeForExec(exec),
+		UpstreamRequestID: exec.ResponseID,
+	}, nil
+}
+
 func (s *GrokGatewayService) forwardSSOImagesGeneration(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
 	return s.forwardSSOImageWorkflow(ctx, c, account, body, grokEndpointImagesGen)
 }
@@ -630,6 +697,59 @@ func (s *GrokGatewayService) writeSSOResponsesStream(c *gin.Context, model strin
 		return firstTokenMs, nil
 	}
 	_, _ = io.WriteString(c.Writer, "data: [DONE]\n\n")
+	flusher.Flush()
+	return firstTokenMs, nil
+}
+
+func (s *GrokGatewayService) writeSSOMessagesCompatStream(c *gin.Context, model string, exec *grokReverseExecution, startTime time.Time) (*int, error) {
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		return nil, fmt.Errorf("streaming not supported")
+	}
+	state := apicompat.NewResponsesEventToAnthropicState()
+	state.Model = model
+	writeEvent := func(event apicompat.ResponsesStreamEvent) error {
+		for _, anthropicEvent := range apicompat.ResponsesEventToAnthropicEvents(&event, state) {
+			sse, err := apicompat.ResponsesAnthropicEventToSSE(anthropicEvent)
+			if err != nil {
+				continue
+			}
+			if _, err := io.WriteString(c.Writer, sse); err != nil {
+				return err
+			}
+		}
+		flusher.Flush()
+		return nil
+	}
+	if err := writeEvent(apicompat.ResponsesStreamEvent{
+		Type:     "response.created",
+		Response: &apicompat.ResponsesResponse{ID: exec.ResponseID, Object: "response", Model: model, Status: "in_progress"},
+	}); err != nil {
+		return nil, nil
+	}
+	var firstTokenMs *int
+	for _, token := range grokStreamTokens(exec) {
+		if firstTokenMs == nil {
+			ms := int(time.Since(startTime).Milliseconds())
+			firstTokenMs = &ms
+		}
+		if err := writeEvent(apicompat.ResponsesStreamEvent{Type: "response.output_text.delta", OutputIndex: 0, Delta: token}); err != nil {
+			return firstTokenMs, nil
+		}
+	}
+	if err := writeEvent(apicompat.ResponsesStreamEvent{Type: "response.completed", Response: grokBuildResponsesResponse(exec, model)}); err != nil {
+		return firstTokenMs, nil
+	}
+	for _, anthropicEvent := range apicompat.FinalizeResponsesAnthropicStream(state) {
+		sse, err := apicompat.ResponsesAnthropicEventToSSE(anthropicEvent)
+		if err == nil {
+			_, _ = io.WriteString(c.Writer, sse)
+		}
+	}
 	flusher.Flush()
 	return firstTokenMs, nil
 }

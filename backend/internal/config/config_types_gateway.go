@@ -125,11 +125,12 @@ type GatewayOpenAIWSConfig struct {
 	SchedulerScoreWeights                      GatewayOpenAIWSSchedulerScoreWeights `mapstructure:"scheduler_score_weights"`
 }
 type GatewayOpenAIWSSchedulerScoreWeights struct {
-	Priority  float64 `mapstructure:"priority"`
-	Load      float64 `mapstructure:"load"`
-	Queue     float64 `mapstructure:"queue"`
-	ErrorRate float64 `mapstructure:"error_rate"`
-	TTFT      float64 `mapstructure:"ttft"`
+	Priority      float64 `mapstructure:"priority"`
+	Load          float64 `mapstructure:"load"`
+	Queue         float64 `mapstructure:"queue"`
+	ErrorRate     float64 `mapstructure:"error_rate"`
+	TTFT          float64 `mapstructure:"ttft"`
+	QuotaHeadroom float64 `mapstructure:"quota_headroom"`
 }
 type GatewayUsageRecordConfig struct {
 	WorkerCount                   int    `mapstructure:"worker_count"`

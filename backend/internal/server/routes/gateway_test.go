@@ -491,7 +491,7 @@ func TestGatewayRoutesOpenAIResponsesCompactPathIsRegistered(t *testing.T) {
 	}
 }
 
-func TestGatewayRoutesGrokMessagesReturnUnsupported(t *testing.T) {
+func TestGatewayRoutesGrokMessagesDispatchesCompatHandler(t *testing.T) {
 	router := newGatewayRoutesTestRouterWithAuth(func(c *gin.Context) {
 		groupID := int64(1)
 		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
@@ -508,9 +508,30 @@ func TestGatewayRoutesGrokMessagesReturnUnsupported(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusBadRequest, w.Code)
-	require.Equal(t, service.GatewayReasonRouteMismatch, gjson.Get(w.Body.String(), "error.reason").String())
-	require.Equal(t, service.GatewayReasonRouteMismatch, gjson.Get(w.Body.String(), "error.code").String())
+	require.NotEqual(t, http.StatusBadRequest, w.Code)
+	require.NotEqual(t, service.GatewayReasonRouteMismatch, gjson.Get(w.Body.String(), "error.reason").String())
+	require.NotEqual(t, service.GatewayReasonRouteMismatch, gjson.Get(w.Body.String(), "error.code").String())
+}
+
+func TestGatewayRoutesGrokCountTokensDispatchesCompatHandler(t *testing.T) {
+	router := newGatewayRoutesTestRouterWithAuth(func(c *gin.Context) {
+		groupID := int64(1)
+		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
+			GroupID: &groupID,
+			Group:   &service.Group{Platform: service.PlatformGrok},
+		})
+		c.Next()
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/grok/v1/messages/count_tokens", strings.NewReader(`{"model":"grok-4"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.NotEqual(t, service.GatewayReasonRouteMismatch, gjson.Get(w.Body.String(), "error.reason").String())
+	require.NotEqual(t, service.GatewayReasonRouteMismatch, gjson.Get(w.Body.String(), "error.code").String())
 }
 
 func TestGatewayRoutesResponsesWebSocketRejectsGrokGroup(t *testing.T) {

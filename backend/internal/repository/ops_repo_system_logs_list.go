@@ -49,6 +49,7 @@ SELECT
   COALESCE(l.request_id, ''),
   COALESCE(l.client_request_id, ''),
   l.user_id,
+  l.api_key_id,
   l.account_id,
   COALESCE(l.platform, ''),
   COALESCE(l.model, ''),
@@ -68,6 +69,7 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 	for rows.Next() {
 		item := &service.OpsSystemLog{}
 		var userID sql.NullInt64
+		var apiKeyID sql.NullInt64
 		var accountID sql.NullInt64
 		var extraRaw string
 		if err := rows.Scan(
@@ -79,6 +81,7 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 			&item.RequestID,
 			&item.ClientRequestID,
 			&userID,
+			&apiKeyID,
 			&accountID,
 			&item.Platform,
 			&item.Model,
@@ -89,6 +92,10 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 		if userID.Valid {
 			v := userID.Int64
 			item.UserID = &v
+		}
+		if apiKeyID.Valid {
+			v := apiKeyID.Int64
+			item.APIKeyID = &v
 		}
 		if accountID.Valid {
 			v := accountID.Int64

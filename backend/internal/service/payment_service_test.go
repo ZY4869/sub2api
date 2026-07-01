@@ -155,11 +155,34 @@ func (r *paymentRepoStub) SumSuccessfulRefundAmount(_ context.Context, orderNo s
 		if refund.OrderNo != orderNo {
 			continue
 		}
-		if refund.Status == PaymentRefundStatusAccepted || refund.Status == PaymentRefundStatusSettled {
+		if refund.Status == PaymentRefundStatusSettled {
 			total += refund.AmountMinor
 		}
 	}
 	return total, nil
+}
+
+func TestPaymentServiceAcceptedRefundDoesNotFinalizeOrder(t *testing.T) {
+	repo := newPaymentRepoStub()
+	order := &PaymentOrder{
+		OrderNo: "pay_accepted", UserID: 7, ProductType: PaymentProductBalanceTopup, Status: PaymentStatusPaid,
+		Provider: PaymentProviderAirwallex, ProviderIntentID: "int_123", AmountMinor: 1500, Currency: "USD",
+	}
+	repo.orders[order.OrderNo] = order
+	air := &airwallexStub{refundStatus: "ACCEPTED"}
+	svc := newPaymentServiceTestSubject(repo, air)
+
+	refund, err := svc.RefundOrder(context.Background(), RefundPaymentOrderInput{
+		OrderNo: order.OrderNo, AmountMinor: 500, Reason: "requested", RequestedBy: 1, IdempotencyKey: "accepted",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, PaymentRefundStatusAccepted, refund.Status)
+	require.Equal(t, PaymentStatusPaid, order.Status)
+	require.Nil(t, order.RefundedAt)
+	refundedAmount, err := repo.SumSuccessfulRefundAmount(context.Background(), order.OrderNo)
+	require.NoError(t, err)
+	require.Zero(t, refundedAmount)
 }
 
 func (r *paymentRepoStub) GetRefundByOrderIdempotencyHash(_ context.Context, _ string, hash string) (*PaymentRefund, error) {
@@ -199,6 +222,7 @@ type airwallexStub struct {
 	failIntent     error
 	failRefund     error
 	retrieveStatus string
+	refundStatus   string
 	creates        int
 	retrieves      int
 }
@@ -222,7 +246,11 @@ func (a *airwallexStub) CreateRefund(_ context.Context, _ PaymentSettings, req A
 	if a.failRefund != nil {
 		return nil, a.failRefund
 	}
-	return &AirwallexRefundResponse{ID: "rf_provider", Status: "succeeded"}, nil
+	status := a.refundStatus
+	if status == "" {
+		status = "succeeded"
+	}
+	return &AirwallexRefundResponse{ID: "rf_provider", Status: status}, nil
 }
 
 func (a *airwallexStub) VerifyWebhookSignature(string, string, string, []byte) error { return nil }

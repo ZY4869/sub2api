@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from './client'
+import { buildApiUrl } from './url'
 import type {
   LoginRequest,
   RegisterRequest,
@@ -367,8 +368,6 @@ export function buildSocialOAuthStartURL(
     affCode?: string
   }
 ): string {
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api/v1'
-  const normalized = apiBase.replace(/\/$/, '')
   const params = new URLSearchParams()
   if (options?.redirect) {
     params.set('redirect', options.redirect)
@@ -380,7 +379,7 @@ export function buildSocialOAuthStartURL(
     params.set('aff_code', options.affCode)
   }
   const suffix = params.toString()
-  return `${normalized}/auth/oauth/${provider}/start${suffix ? `?${suffix}` : ''}`
+  return `${buildApiUrl(`/auth/oauth/${provider}/start`)}${suffix ? `?${suffix}` : ''}`
 }
 
 export async function completeSocialOAuthRegistration(

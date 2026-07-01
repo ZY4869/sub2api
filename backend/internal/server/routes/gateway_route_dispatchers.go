@@ -19,11 +19,11 @@ func (d gatewayRouteDispatchers) AnthropicMessages(c *gin.Context) {
 		d.handlers.Gateway.Messages(c)
 		return
 	}
-	dispatchMessagesRoute(c, d.handlers.Gateway.Messages, d.handlers.OpenAIGateway.Messages)
+	dispatchMessagesRoute(c, d.handlers.Gateway.Messages, d.handlers.OpenAIGateway.Messages, d.handlers.GrokGateway.Messages)
 }
 
 func (d gatewayRouteDispatchers) AnthropicCountTokens(c *gin.Context) {
-	dispatchCountTokensRoute(c, d.handlers.Gateway.CountTokens)
+	dispatchCountTokensRoute(c, d.handlers.Gateway.CountTokens, d.handlers.OpenAIGateway.CountTokens, d.handlers.GrokGateway.CountTokens)
 }
 
 func (d gatewayRouteDispatchers) GatewayV1ModelsList(c *gin.Context) {

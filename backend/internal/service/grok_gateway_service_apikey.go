@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -49,6 +51,38 @@ func (s *GrokGatewayService) forwardAPIKeyChatCompletions(ctx context.Context, c
 		RouteMode:         GrokRouteModeAPIKey,
 		Endpoint:          grokEndpointChatCompletions,
 		MediaType:         "",
+		UpstreamRequestID: upstreamRequestID,
+	}, nil
+}
+
+func (s *GrokGatewayService) forwardAPIKeyMessagesCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
+	responsesBody, originalModel, mappedModel, stream, err := buildGrokMessagesCompatResponsesBody(account, body)
+	if err != nil {
+		writeAnthropicError(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body", "")
+		return nil, err
+	}
+	startTime := time.Now()
+	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointResponses, responsesBody)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode >= 400 {
+		return nil, s.handleHTTPError(ctx, resp, c, account, GrokRouteModeAPIKey)
+	}
+	result, upstreamRequestID, err := s.handleAPIKeyAnthropicResponse(resp, c, grokAnthropicResponseOptions{
+		OriginalModel: originalModel,
+		MappedModel:   mappedModel,
+		Stream:        stream,
+		StartTime:     startTime,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &GrokGatewayForwardResult{
+		Result:            result,
+		RouteMode:         GrokRouteModeAPIKey,
+		Endpoint:          grokEndpointResponses,
 		UpstreamRequestID: upstreamRequestID,
 	}, nil
 }
@@ -110,6 +144,32 @@ func (s *GrokGatewayService) forwardAPIKeyResponses(ctx context.Context, c *gin.
 		Endpoint:          grokEndpointResponses,
 		UpstreamRequestID: upstreamRequestID,
 	}, nil
+}
+
+func (s *GrokGatewayService) forwardAPIKeyAnthropicCountTokensCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*AnthropicCountTokensBridgeResult, error) {
+	countBody, err := buildResponsesInputTokensBody(account, body, "")
+	if err != nil {
+		writeAnthropicError(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body", "")
+		return nil, err
+	}
+	countBody = sanitizeOpenAIResponsesInputTokensBody(countBody)
+	reqModel := strings.TrimSpace(gjson.GetBytes(countBody, "model").String())
+	_, mappedBody := grokApplyMappedModel(account, reqModel, countBody)
+
+	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointResponses+openAIResponsesInputTokensPath, mappedBody)
+	if err != nil {
+		writeAnthropicError(c, http.StatusBadGateway, "upstream_error", "Request failed", "")
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	result, err := readResponsesInputTokensResult(resp, c, resolveUpstreamResponseReadLimit(s.cfg), func(status int, errType string, message string) {
+		writeAnthropicError(c, status, errType, message, "")
+	})
+	if err != nil {
+		return nil, err
+	}
+	c.JSON(http.StatusOK, result)
+	return result, nil
 }
 
 func (s *GrokGatewayService) forwardAPIKeyImagesGeneration(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
@@ -236,6 +296,114 @@ type grokOpenAIResponseOptions struct {
 	MappedModel   string
 	Stream        bool
 	StartTime     time.Time
+}
+
+type grokAnthropicResponseOptions struct {
+	OriginalModel string
+	MappedModel   string
+	Stream        bool
+	StartTime     time.Time
+}
+
+func (s *GrokGatewayService) handleAPIKeyAnthropicResponse(resp *http.Response, c *gin.Context, opts grokAnthropicResponseOptions) (*ForwardResult, string, error) {
+	upstreamRequestID := strings.TrimSpace(firstNonEmptyString(resp.Header.Get("x-request-id"), resp.Header.Get("X-Request-Id")))
+	openAISvc := &OpenAIGatewayService{
+		cfg:                  s.cfg,
+		responseHeaderFilter: s.responseHeaderFilter,
+	}
+	if opts.Stream {
+		result, err := openAISvc.handleAnthropicStreamingResponse(resp, c, opts.OriginalModel, opts.MappedModel, opts.StartTime)
+		if result != nil && upstreamRequestID == "" {
+			upstreamRequestID = strings.TrimSpace(result.RequestID)
+		}
+		if result == nil {
+			return nil, upstreamRequestID, err
+		}
+		return openAIResultToForwardResult(result), upstreamRequestID, err
+	}
+	result, err := openAISvc.handleAnthropicBufferedStreamingResponse(resp, c, opts.OriginalModel, opts.MappedModel, opts.StartTime)
+	if result != nil && upstreamRequestID == "" {
+		upstreamRequestID = strings.TrimSpace(result.RequestID)
+	}
+	if result == nil {
+		return nil, upstreamRequestID, err
+	}
+	return openAIResultToForwardResult(result), upstreamRequestID, err
+}
+
+func buildGrokMessagesCompatResponsesBody(account *Account, body []byte) ([]byte, string, string, bool, error) {
+	var anthropicReq apicompat.AnthropicRequest
+	if err := json.Unmarshal(body, &anthropicReq); err != nil {
+		return nil, "", "", false, fmt.Errorf("parse grok messages compat request: %w", err)
+	}
+	originalModel := strings.TrimSpace(anthropicReq.Model)
+	applyOpenAICompatModelNormalization(&anthropicReq)
+	responsesReq, _, err := ConvertAnthropicMessagesToResponsesRuntime(&anthropicReq)
+	if err != nil {
+		return nil, "", "", false, fmt.Errorf("convert grok messages compat request: %w", err)
+	}
+	requestModel := strings.TrimSpace(responsesReq.Model)
+	if requestModel == "" {
+		requestModel = strings.TrimSpace(anthropicReq.Model)
+	}
+	mappedModel, _ := grokApplyMappedModel(account, requestModel, nil)
+	if strings.TrimSpace(mappedModel) != "" {
+		responsesReq.Model = mappedModel
+	}
+	clientStream := anthropicReq.Stream
+	responsesReq.Stream = true
+	responsesReq.Store = nil
+	responsesBody, err := json.Marshal(responsesReq)
+	if err != nil {
+		return nil, "", "", false, fmt.Errorf("marshal grok messages compat request: %w", err)
+	}
+	responsesBody = sanitizeGrokOpenAICompatibleRequestBody(responsesBody)
+	return responsesBody, originalModel, responsesReq.Model, clientStream, nil
+}
+
+func sanitizeGrokOpenAICompatibleRequestBody(body []byte) []byte {
+	if len(body) == 0 {
+		return body
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return body
+	}
+	for _, key := range []string{
+		"prompt_cache_key",
+		"previous_response_id",
+		"safety_identifier",
+		"service_tier",
+		"metadata",
+		"include",
+	} {
+		delete(payload, key)
+	}
+	next, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return next
+}
+
+func openAIResultToForwardResult(result *OpenAIForwardResult) *ForwardResult {
+	if result == nil {
+		return nil
+	}
+	return &ForwardResult{
+		RequestID: result.RequestID,
+		Usage: ClaudeUsage{
+			InputTokens:              result.Usage.InputTokens,
+			OutputTokens:             result.Usage.OutputTokens,
+			CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
+			CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
+		},
+		Model:         result.Model,
+		UpstreamModel: result.UpstreamModel,
+		Stream:        result.Stream,
+		Duration:      result.Duration,
+		FirstTokenMs:  result.FirstTokenMs,
+	}
 }
 
 func (s *GrokGatewayService) handleAPIKeyOpenAIResponse(resp *http.Response, c *gin.Context, opts grokOpenAIResponseOptions) (*ForwardResult, string, error) {

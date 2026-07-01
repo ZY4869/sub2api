@@ -20,6 +20,7 @@ export default {
     provider: 'Provider / 模型',
     sourceEndpoint: '来源入口',
     summary: '脱敏摘要',
+    matchedKeyword: '命中词',
     request: '关联请求',
     status: '结果',
     latency: '耗时'
@@ -40,6 +41,7 @@ export default {
     summary: '脱敏摘要',
     latency: '耗时',
     errorReason: '错误原因',
+    matchedKeyword: '命中词',
     categories: '分类'
   },
   empty: '暂无审核记录',

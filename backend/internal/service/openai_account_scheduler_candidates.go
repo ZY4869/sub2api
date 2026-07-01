@@ -7,17 +7,20 @@ import (
 )
 
 type openAIAccountCandidateScore struct {
-	account       *Account
-	loadInfo      *AccountLoadInfo
-	pressure      *accountUsagePressure
-	pressureScope string
-	expiryBoost   bool
-	planType      string
-	planRank      int
-	score         float64
-	errorRate     float64
-	ttft          float64
-	hasTTFT       bool
+	account             *Account
+	loadInfo            *AccountLoadInfo
+	pressure            *accountUsagePressure
+	pressureScope       string
+	quotaHeadroom       float64
+	quotaHeadroomKnown  bool
+	quotaHeadroomWeight float64
+	expiryBoost         bool
+	planType            string
+	planRank            int
+	score               float64
+	errorRate           float64
+	ttft                float64
+	hasTTFT             bool
 }
 
 type openAIAccountCandidateHeap []openAIAccountCandidateScore
@@ -61,6 +64,9 @@ func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right open
 	if planCmp := compareOpenAIAccountCandidatePlanRank(left, right); planCmp != 0 {
 		return planCmp < 0
 	}
+	if headroomCmp := compareOpenAIAccountCandidateQuotaHeadroom(left, right); headroomCmp != 0 {
+		return headroomCmp < 0
+	}
 	if pressureCmp := compareResolvedAccountUsagePressure(left.pressure, right.pressure); pressureCmp != 0 {
 		return pressureCmp < 0
 	}
@@ -79,6 +85,31 @@ func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right open
 		return left.loadInfo.WaitingCount < right.loadInfo.WaitingCount
 	}
 	return left.account.ID < right.account.ID
+}
+
+func compareOpenAIAccountCandidateQuotaHeadroom(left, right openAIAccountCandidateScore) int {
+	weight := left.quotaHeadroomWeight
+	if right.quotaHeadroomWeight > weight {
+		weight = right.quotaHeadroomWeight
+	}
+	if weight <= 0 {
+		return 0
+	}
+	leftHeadroom := 0.5
+	if left.quotaHeadroomKnown {
+		leftHeadroom = clamp01(left.quotaHeadroom)
+	}
+	rightHeadroom := 0.5
+	if right.quotaHeadroomKnown {
+		rightHeadroom = clamp01(right.quotaHeadroom)
+	}
+	if leftHeadroom > rightHeadroom {
+		return -1
+	}
+	if leftHeadroom < rightHeadroom {
+		return 1
+	}
+	return 0
 }
 
 func compareOpenAIAccountCandidatePlanRank(left, right openAIAccountCandidateScore) int {

@@ -294,7 +294,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		defer userReleaseFunc()
 	}
 
-	if apiKey.EffectiveImageCountBillingEnabled() {
+	if shouldReserveResponsesImageCount(apiKey, hasImageTool) {
 		reservedImageUnits = apiKey.ImageCountUnitsForTier(expectedImageCount, imageSizeTier)
 		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), apiKey.ID, reservedImageUnits)
 		if reserveErr != nil {

@@ -146,6 +146,14 @@ func compareOpenAIAccountUsagePressure(left, right *Account, requestedModel stri
 	)
 }
 
+func resolveOpenAIQuotaHeadroomFactor(account *Account, requestedModel string, now time.Time) (float64, bool) {
+	pressure := buildOpenAIAccountUsagePressure(account, requestedModel, now)
+	if pressure == nil {
+		return 0, false
+	}
+	return 1 - clamp01(pressure.utilization/100), true
+}
+
 func compareAccountsByLastUsed(left, right *Account, preferOAuth bool) int {
 	if left == nil || right == nil {
 		return 0

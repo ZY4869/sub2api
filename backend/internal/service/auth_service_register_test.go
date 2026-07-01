@@ -629,3 +629,24 @@ func TestAuthService_Register_AssignsDefaultSubscriptions(t *testing.T) {
 	require.Equal(t, int64(12), assigner.calls[1].GroupID)
 	require.Equal(t, 7, assigner.calls[1].ValidityDays)
 }
+
+func TestAuthService_Register_DoesNotRequirePlatformQuotaSnapshot(t *testing.T) {
+	repo := &userRepoStub{nextID: 43}
+	assigner := &defaultSubscriptionAssignerStub{}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled:  "true",
+		SettingKeyDefaultSubscriptions: `[{"group_id":21,"validity_days":30}]`,
+	}, nil)
+	service.defaultSubAssigner = assigner
+
+	token, user, err := service.Register(context.Background(), "no-platform-quota-snapshot@test.com", "password")
+
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+	require.NotNil(t, user)
+	require.Equal(t, int64(43), user.ID)
+	require.Len(t, repo.created, 1)
+	require.Len(t, assigner.calls, 1)
+	require.Equal(t, int64(43), assigner.calls[0].UserID)
+	require.Equal(t, int64(21), assigner.calls[0].GroupID)
+}

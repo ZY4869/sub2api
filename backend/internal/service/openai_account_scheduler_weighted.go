@@ -97,6 +97,9 @@ func sameOpenAIWeightedSelectionGroup(left, right openAIAccountCandidateScore) b
 	if compareOpenAIAccountCandidatePlanRank(left, right) != 0 {
 		return false
 	}
+	if compareOpenAIAccountCandidateQuotaHeadroom(left, right) != 0 {
+		return false
+	}
 	return compareResolvedAccountUsagePressure(left.pressure, right.pressure) == 0
 }
 

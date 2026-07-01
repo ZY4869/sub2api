@@ -109,6 +109,37 @@ curl https://api.zyxai.de/grok/v1/responses \
     "input": "用一句话介绍这个模型。"
   }'
 ` + "```" + `
+
+### Grok messages
+#### REST
+` + "```bash" + `
+curl https://api.zyxai.de/grok/v1/messages \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "grok-4",
+    "max_tokens": 512,
+    "messages": [
+      { "role": "user", "content": "用一句话介绍这个模型。" }
+    ]
+  }'
+` + "```" + `
+
+### Grok count tokens
+#### REST
+` + "```bash" + `
+curl https://api.zyxai.de/grok/v1/messages/count_tokens \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "grok-4",
+    "messages": [
+      { "role": "user", "content": "估算这句话的输入 tokens。" }
+    ]
+  }'
+` + "```" + `
 `,
 	"antigravity": `### Antigravity messages
 #### REST

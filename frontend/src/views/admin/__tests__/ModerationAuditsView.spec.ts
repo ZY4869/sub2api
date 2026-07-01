@@ -54,6 +54,7 @@ describe('ModerationAuditsView', () => {
           source_endpoint: 'openai_messages',
           content_hash: 'hash-1',
           content_summary: 'masked summary',
+          matched_keyword: 'blocked phrase',
           hit: false,
           dedupe_hit: false,
           error_reason: '',
@@ -77,6 +78,7 @@ describe('ModerationAuditsView', () => {
       source_endpoint: 'openai_messages',
       content_hash: 'hash-1',
       content_summary: 'masked summary detail',
+      matched_keyword: 'blocked phrase',
       hit: false,
       dedupe_hit: false,
       error_reason: '',
@@ -118,6 +120,7 @@ describe('ModerationAuditsView', () => {
 
     expect(testState.getAuditDetailMock).toHaveBeenCalledWith(9)
     expect(wrapper.text()).toContain('masked summary detail')
+    expect(wrapper.text()).toContain('blocked phrase')
   })
 
   it('shows an empty state when there are no audits', async () => {

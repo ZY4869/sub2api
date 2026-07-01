@@ -1,4 +1,5 @@
 import { apiClient } from '@/api/client'
+import { buildAbsoluteApiUrl } from '@/api/url'
 import { getLocale } from '@/i18n'
 
 export const MODEL_CATALOG_PUBLISHED_EVENT = 'model-catalog:published'
@@ -83,15 +84,10 @@ async function readModelCatalogPublishedEventStream(signal: AbortSignal, token: 
 }
 
 function resolveModelCatalogEventsURL(): string {
-  const baseURL = String(apiClient.defaults.baseURL || '/api/v1').trim()
-  const normalizedPath = '/model-catalog/events'
-  if (/^https?:\/\//i.test(baseURL)) {
-    return `${baseURL.replace(/\/+$/g, '')}${normalizedPath}`
-  }
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin.replace(/\/+$/g, '')}/${baseURL.replace(/^\/+|\/+$/g, '')}${normalizedPath}`
-  }
-  return `/api/v1${normalizedPath}`
+  return buildAbsoluteApiUrl(
+    '/model-catalog/events',
+    String(apiClient.defaults.baseURL || '/api/v1'),
+  )
 }
 
 function buildModelCatalogEventHeaders(token: string): HeadersInit {

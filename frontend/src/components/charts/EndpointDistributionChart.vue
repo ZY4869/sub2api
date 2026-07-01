@@ -89,13 +89,14 @@
           <tbody>
             <template v-for="item in displayEndpointStats" :key="item.endpoint">
               <tr
-                class="border-t border-gray-100 cursor-pointer transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-dark-700/40"
-                @click="toggleBreakdown(item.endpoint)"
+                class="border-t border-gray-100 transition-colors dark:border-gray-700"
+                :class="enableBreakdown ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/40' : ''"
+                @click="enableBreakdown && toggleBreakdown(item.endpoint)"
               >
                 <td class="max-w-[180px] truncate py-1.5 font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" :title="item.endpoint">
                   <span class="inline-flex items-center gap-1">
-                    <svg v-if="expandedKey === item.endpoint" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    <svg v-else class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    <svg v-if="enableBreakdown && expandedKey === item.endpoint" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    <svg v-else-if="enableBreakdown" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     {{ item.endpoint }}
                   </span>
                 </td>
@@ -112,7 +113,7 @@
                   ${{ formatCost(item.cost) }}
                 </td>
               </tr>
-              <tr v-if="expandedKey === item.endpoint">
+              <tr v-if="enableBreakdown && expandedKey === item.endpoint">
                 <td colspan="5" class="p-0">
                   <UserBreakdownSubTable
                     :items="breakdownItems"
@@ -161,6 +162,7 @@ const props = withDefaults(
     source?: EndpointSource
     showMetricToggle?: boolean
     showSourceToggle?: boolean
+    enableBreakdown?: boolean
     startDate?: string
     endDate?: string
   }>(),
@@ -172,7 +174,8 @@ const props = withDefaults(
     metric: 'tokens',
     source: 'inbound',
     showMetricToggle: false,
-    showSourceToggle: false
+    showSourceToggle: false,
+    enableBreakdown: true
   }
 )
 
@@ -182,6 +185,7 @@ const emit = defineEmits<{
 }>()
 
 const expandedKey = ref<string | null>(null)
+const enableBreakdown = computed(() => props.enableBreakdown)
 const breakdownItems = ref<UserBreakdownItem[]>([])
 const breakdownLoading = ref(false)
 

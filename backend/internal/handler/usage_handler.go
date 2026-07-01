@@ -572,10 +572,14 @@ func (h *UsageHandler) DashboardTrend(c *gin.Context) {
 		return
 	}
 
+	apiKeyID, ok := h.parseOwnedDashboardAPIKeyID(c, subject.UserID)
+	if !ok {
+		return
+	}
 	startTime, endTime := parseUserTimeRange(c)
 	granularity := c.DefaultQuery("granularity", "day")
 
-	trend, err := h.usageService.GetUserUsageTrendByUserID(c.Request.Context(), subject.UserID, startTime, endTime, granularity)
+	trend, err := h.usageService.GetUserUsageTrend(c.Request.Context(), subject.UserID, apiKeyID, startTime, endTime, granularity)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -598,9 +602,13 @@ func (h *UsageHandler) DashboardModels(c *gin.Context) {
 		return
 	}
 
+	apiKeyID, ok := h.parseOwnedDashboardAPIKeyID(c, subject.UserID)
+	if !ok {
+		return
+	}
 	startTime, endTime := parseUserTimeRange(c)
 
-	stats, err := h.usageService.GetUserModelStats(c.Request.Context(), subject.UserID, startTime, endTime)
+	stats, err := h.usageService.GetUserModelStatsWithFilter(c.Request.Context(), subject.UserID, apiKeyID, startTime, endTime)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -610,6 +618,85 @@ func (h *UsageHandler) DashboardModels(c *gin.Context) {
 		"models":     stats,
 		"start_date": startTime.Format("2006-01-02"),
 		"end_date":   endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+	})
+}
+
+func (h *UsageHandler) parseOwnedDashboardAPIKeyID(c *gin.Context, userID int64) (int64, bool) {
+	raw := strings.TrimSpace(c.Query("api_key_id"))
+	if raw == "" {
+		return 0, true
+	}
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "Invalid api_key_id")
+		return 0, false
+	}
+	validAPIKeyIDs, err := h.apiKeyService.VerifyOwnership(c.Request.Context(), userID, []int64{id})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return 0, false
+	}
+	if len(validAPIKeyIDs) == 0 {
+		response.NotFound(c, "API key not found")
+		return 0, false
+	}
+	return id, true
+}
+
+// DashboardGroups handles getting user group usage statistics.
+// GET /api/v1/usage/dashboard/groups
+func (h *UsageHandler) DashboardGroups(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	apiKeyID, ok := h.parseOwnedDashboardAPIKeyID(c, subject.UserID)
+	if !ok {
+		return
+	}
+	startTime, endTime := parseUserTimeRange(c)
+
+	stats, err := h.usageService.GetUserGroupStats(c.Request.Context(), subject.UserID, apiKeyID, startTime, endTime)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"groups":     stats,
+		"start_date": startTime.Format("2006-01-02"),
+		"end_date":   endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+	})
+}
+
+// DashboardEndpoints handles getting user endpoint usage statistics.
+// GET /api/v1/usage/dashboard/endpoints
+func (h *UsageHandler) DashboardEndpoints(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	apiKeyID, ok := h.parseOwnedDashboardAPIKeyID(c, subject.UserID)
+	if !ok {
+		return
+	}
+	startTime, endTime := parseUserTimeRange(c)
+
+	inbound, upstream, err := h.usageService.GetUserEndpointStats(c.Request.Context(), subject.UserID, apiKeyID, startTime, endTime)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"endpoints":          inbound,
+		"upstream_endpoints": upstream,
+		"start_date":         startTime.Format("2006-01-02"),
+		"end_date":           endTime.Add(-24 * time.Hour).Format("2006-01-02"),
 	})
 }
 

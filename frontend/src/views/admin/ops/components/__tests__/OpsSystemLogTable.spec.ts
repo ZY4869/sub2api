@@ -123,4 +123,39 @@ describe('OpsSystemLogTable', () => {
       })
     )
   })
+
+  it('includes api_key_id in log filters', async () => {
+    const wrapper = mount(OpsSystemLogTable, {
+      props: {
+        refreshToken: 1,
+        platformFilter: ''
+      },
+      global: {
+        stubs: {
+          Pagination: PaginationStub,
+          Select: SelectStub
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const input = wrapper.findAll('input').find((item) => {
+      return item.attributes('type') === 'text' && item.element.previousSibling?.textContent?.includes('api_key_id')
+    })
+    expect(input).toBeTruthy()
+    await input!.setValue('42')
+    const searchButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === '查询')
+    expect(searchButton).toBeTruthy()
+    await searchButton!.trigger('click')
+    await flushPromises()
+
+    expect(mockListSystemLogs).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        api_key_id: 42
+      })
+    )
+  })
 })

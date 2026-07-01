@@ -231,6 +231,17 @@ func TestIsOpenAITransientProcessingError(t *testing.T) {
 	))
 }
 
+func TestOpenAIContextWindowErrorsDoNotTriggerFailover(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	body := []byte(`{"error":{"code":"context_length_exceeded","message":"This model's maximum context length is 128000 tokens."}}`)
+
+	require.True(t, isOpenAIContextWindowError(http.StatusBadRequest, "", body))
+	require.False(t, svc.shouldFailoverOpenAIUpstreamResponse(http.StatusBadRequest, "", body))
+
+	transientBody := []byte(`{"error":{"message":"An error occurred while processing your request. You can retry your request, or contact us through help.openai.com with request ID req_123."}}`)
+	require.True(t, svc.shouldFailoverOpenAIUpstreamResponse(http.StatusBadRequest, "", transientBody))
+}
+
 func TestOpenAIGatewayService_Forward_LogsInstructionsRequiredDetails(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logSink, restore := captureStructuredLog(t)

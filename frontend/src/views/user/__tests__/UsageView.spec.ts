@@ -9,6 +9,10 @@ const {
   getStatsByDateRange,
   listFilterApiKeys,
   listFailedRequests,
+  getDashboardTrend,
+  getDashboardModels,
+  getDashboardGroups,
+  getDashboardEndpoints,
   getDashboardApiKeyDailyUsage,
   getRequestPreview,
   updateProfile,
@@ -21,6 +25,10 @@ const {
   getStatsByDateRange: vi.fn(),
   listFilterApiKeys: vi.fn(),
   listFailedRequests: vi.fn(),
+  getDashboardTrend: vi.fn(),
+  getDashboardModels: vi.fn(),
+  getDashboardGroups: vi.fn(),
+  getDashboardEndpoints: vi.fn(),
   getDashboardApiKeyDailyUsage: vi.fn(),
   getRequestPreview: vi.fn(),
   updateProfile: vi.fn(),
@@ -176,6 +184,10 @@ vi.mock("@/api", () => ({
     getStatsByDateRange,
     listFilterApiKeys,
     listFailedRequests,
+    getDashboardTrend,
+    getDashboardModels,
+    getDashboardGroups,
+    getDashboardEndpoints,
     getDashboardApiKeyDailyUsage,
     getRequestPreview,
   },
@@ -271,6 +283,32 @@ describe("user UsageView tooltip", () => {
       page: 1,
       page_size: 5,
       pages: 1,
+    });
+    getDashboardTrend.mockReset();
+    getDashboardTrend.mockResolvedValue({
+      trend: [],
+      start_date: "2026-03-01",
+      end_date: "2026-03-07",
+      granularity: "day",
+    });
+    getDashboardModels.mockReset();
+    getDashboardModels.mockResolvedValue({
+      models: [],
+      start_date: "2026-03-01",
+      end_date: "2026-03-07",
+    });
+    getDashboardGroups.mockReset();
+    getDashboardGroups.mockResolvedValue({
+      groups: [],
+      start_date: "2026-03-01",
+      end_date: "2026-03-07",
+    });
+    getDashboardEndpoints.mockReset();
+    getDashboardEndpoints.mockResolvedValue({
+      endpoints: [],
+      upstream_endpoints: [],
+      start_date: "2026-03-01",
+      end_date: "2026-03-07",
     });
     getDashboardApiKeyDailyUsage.mockReset();
     getDashboardApiKeyDailyUsage.mockResolvedValue({
@@ -1282,6 +1320,71 @@ describe("user UsageView tooltip", () => {
     expect(row.text()).toContain("4");
     expect(row.text()).toContain("$0.1111");
     expect(wrapper.text()).toContain("daily-key");
+  });
+
+  it("loads usage analytics with the selected API key and date range", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([
+      { id: 9, name: "analytics-key", deleted: false },
+    ]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
+          UsageModelCell: true,
+          UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const setupState = (wrapper.vm as any).$?.setupState;
+    setupState.filters.api_key_id = 9;
+    setupState.onDateRangeChange({
+      startDate: "2026-03-01",
+      endDate: "2026-03-03",
+      preset: null,
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const expectedRange = {
+      start_date: "2026-03-01",
+      end_date: "2026-03-03",
+      api_key_id: 9,
+    };
+    expect(getDashboardTrend).toHaveBeenLastCalledWith({
+      ...expectedRange,
+      granularity: "day",
+    });
+    expect(getDashboardModels).toHaveBeenLastCalledWith(expectedRange);
+    expect(getDashboardGroups).toHaveBeenLastCalledWith(expectedRange);
+    expect(getDashboardEndpoints).toHaveBeenLastCalledWith(expectedRange);
   });
 
   it("does not render the user actions column or request preview entry", async () => {

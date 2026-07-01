@@ -47,6 +47,7 @@ type ContentModerationAudit struct {
 	SourceEndpoint  string
 	ContentHash     string
 	ContentSummary  string
+	MatchedKeyword  string
 	Categories      []string
 	Hit             bool
 	DedupeHit       bool
@@ -204,10 +205,11 @@ func (s *ContentModerationService) GetSettings(ctx context.Context) (*ContentMod
 }
 
 type ContentModerationKeywordDecision struct {
-	Blocked     bool
-	Content     string
-	ErrorReason string
-	Categories  []string
+	Blocked        bool
+	Content        string
+	ErrorReason    string
+	MatchedKeyword string
+	Categories     []string
 }
 
 func (s *ContentModerationService) CheckKeywordBlock(ctx context.Context, input *ContentModerationRecordInput) (*ContentModerationKeywordDecision, error) {
@@ -222,7 +224,7 @@ func (s *ContentModerationService) CheckKeywordBlock(ctx context.Context, input 
 	if decision.Blocked {
 		recordInput := *input
 		recordInput.Content = decision.Content
-		s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason)
+		s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason, decision.MatchedKeyword)
 	}
 	return &decision, nil
 }
@@ -260,7 +262,7 @@ func (s *ContentModerationService) CheckBlock(ctx context.Context, input *Conten
 		if s.repo != nil {
 			recordInput := *input
 			recordInput.Content = decision.Content
-			s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason)
+			s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason, decision.MatchedKeyword)
 		}
 		return &decision, nil
 	}
@@ -275,7 +277,7 @@ func (s *ContentModerationService) CheckBlock(ctx context.Context, input *Conten
 			if s.repo != nil {
 				recordInput := *input
 				recordInput.Content = decision.Content
-				s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason)
+				s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason, decision.MatchedKeyword)
 			}
 			return &decision, nil
 		}
@@ -299,7 +301,7 @@ func (s *ContentModerationService) CheckBlock(ctx context.Context, input *Conten
 	if s.repo != nil {
 		recordInput := *input
 		recordInput.Content = decision.Content
-		s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason)
+		s.recordAuditWithSettings(ctx, settings, &recordInput, decision.ErrorReason, decision.MatchedKeyword)
 	}
 	return &decision, nil
 }
@@ -315,7 +317,7 @@ func (s *ContentModerationService) RecordAudit(ctx context.Context, input *Conte
 	if !settings.ModelFilter.Allows(input.Model) {
 		return
 	}
-	s.recordAuditWithSettings(ctx, settings, input, "")
+	s.recordAuditWithSettings(ctx, settings, input, "", "")
 }
 
 func (s *ContentModerationService) recordAuditWithSettings(
@@ -323,6 +325,7 @@ func (s *ContentModerationService) recordAuditWithSettings(
 	settings *ContentModerationSettings,
 	input *ContentModerationRecordInput,
 	forcedErrorReason string,
+	forcedMatchedKeyword string,
 ) {
 	if s == nil || s.repo == nil || settings == nil || input == nil {
 		return
@@ -359,6 +362,7 @@ func (s *ContentModerationService) recordAuditWithSettings(
 		SourceEndpoint:  strings.TrimSpace(input.SourceEndpoint),
 		ContentHash:     contentHash,
 		ContentSummary:  summarizeModerationContent(normalizedContent),
+		MatchedKeyword:  "",
 		Hit:             false,
 		DedupeHit:       false,
 		Categories:      nil,
@@ -379,6 +383,7 @@ func (s *ContentModerationService) recordAuditWithSettings(
 			result.DedupeHit = true
 			result.Categories = normalizeModerationCategories(previous.Categories)
 			result.ErrorReason = strings.TrimSpace(previous.ErrorReason)
+			result.MatchedKeyword = strings.TrimSpace(previous.MatchedKeyword)
 			protocolruntime.RecordAbuseSignal("moderation_dedupe_hit")
 			logContentModerationDedupeHit(ctx, result)
 		}
@@ -389,14 +394,17 @@ func (s *ContentModerationService) recordAuditWithSettings(
 		if forcedErrorReason != "" {
 			result.Hit = true
 			result.ErrorReason = strings.TrimSpace(forcedErrorReason)
+			result.MatchedKeyword = normalizeContentModerationMatchedKeyword(forcedMatchedKeyword)
 			result.Categories = moderationCategoriesForReason(result.ErrorReason)
 		} else if keywordResult.Blocked {
 			result.Hit = true
 			result.ErrorReason = keywordResult.ErrorReason
+			result.MatchedKeyword = normalizeContentModerationMatchedKeyword(keywordResult.MatchedKeyword)
 			result.Categories = normalizeModerationCategories(keywordResult.Categories)
 		} else if cyberResult.Blocked {
 			result.Hit = true
 			result.ErrorReason = cyberResult.ErrorReason
+			result.MatchedKeyword = normalizeContentModerationMatchedKeyword(cyberResult.MatchedKeyword)
 			result.Categories = normalizeModerationCategories(cyberResult.Categories)
 		} else {
 			evaluated := evaluateContentModeration(ctx, settings, input, normalizedContent)

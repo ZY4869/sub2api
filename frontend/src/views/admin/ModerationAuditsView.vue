@@ -101,6 +101,9 @@
                   {{ t('admin.moderation.columns.summary') }}
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.moderation.columns.matchedKeyword') }}
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                   {{ t('admin.moderation.columns.request') }}
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -132,6 +135,11 @@
                 </td>
                 <td class="max-w-xl px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                   {{ audit.content_summary || '-' }}
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                  <span class="rounded bg-gray-100 px-2 py-1 font-mono text-xs dark:bg-dark-800">
+                    {{ audit.matched_keyword || '-' }}
+                  </span>
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                   <div class="font-mono text-xs">{{ audit.request_id || '-' }}</div>
@@ -224,6 +232,10 @@
           <div>
             <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.moderation.detail.errorReason') }}</div>
             <div class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ selectedAudit.error_reason || '-' }}</div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.moderation.detail.matchedKeyword') }}</div>
+            <div class="mt-1 font-mono text-sm text-gray-800 dark:text-gray-100">{{ selectedAudit.matched_keyword || '-' }}</div>
           </div>
           <div class="md:col-span-2">
             <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.moderation.detail.categories') }}</div>

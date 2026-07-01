@@ -427,6 +427,42 @@ func TestApplyCodexOAuthTransform_StringInputWithToolsField(t *testing.T) {
 	require.Len(t, input, 1)
 }
 
+func TestApplyCodexOAuthTransform_ImageToolDefaultsToolChoiceAuto(t *testing.T) {
+	reqBody := map[string]any{
+		"model": "gpt-5.4",
+		"input": "Create an icon",
+		"tools": []any{
+			map[string]any{"type": "image_generation", "size": "1024x1024"},
+		},
+	}
+
+	result := applyCodexOAuthTransform(reqBody, false, false)
+
+	require.True(t, result.Modified)
+	require.Equal(t, "auto", reqBody["tool_choice"])
+}
+
+func TestApplyCodexOAuthTransform_PreservesDeveloperInputAndInstructions(t *testing.T) {
+	reqBody := map[string]any{
+		"model":        "gpt-5.4",
+		"instructions": "OAuth instructions",
+		"input": []any{
+			map[string]any{"role": "developer", "content": "Follow local policy."},
+			map[string]any{"role": "user", "content": "hello"},
+		},
+	}
+
+	applyCodexOAuthTransform(reqBody, false, false)
+
+	require.Equal(t, "OAuth instructions", reqBody["instructions"])
+	input, ok := reqBody["input"].([]any)
+	require.True(t, ok)
+	require.Len(t, input, 2)
+	first, ok := input[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "developer", first["role"])
+}
+
 func TestExtractSystemMessagesFromInput(t *testing.T) {
 	t.Run("no system messages", func(t *testing.T) {
 		reqBody := map[string]any{

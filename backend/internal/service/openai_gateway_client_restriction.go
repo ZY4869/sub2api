@@ -461,3 +461,51 @@ func isOpenAITransientProcessingError(upstreamStatusCode int, upstreamMsg string
 	}
 	return match(string(upstreamBody))
 }
+
+func isOpenAIContextWindowError(upstreamStatusCode int, upstreamMsg string, upstreamBody []byte) bool {
+	if upstreamStatusCode != http.StatusBadRequest {
+		return false
+	}
+	errCode := strings.ToLower(strings.TrimSpace(gjson.GetBytes(upstreamBody, "error.code").String()))
+	errType := strings.ToLower(strings.TrimSpace(gjson.GetBytes(upstreamBody, "error.type").String()))
+	errParam := strings.ToLower(strings.TrimSpace(gjson.GetBytes(upstreamBody, "error.param").String()))
+	if strings.Contains(errCode, "context_length") || strings.Contains(errCode, "context_window") {
+		return true
+	}
+	if strings.Contains(errType, "context_length") || strings.Contains(errType, "context_window") {
+		return true
+	}
+	if strings.Contains(errParam, "max_tokens") || strings.Contains(errParam, "input") || strings.Contains(errParam, "messages") {
+		if openAIContextWindowMessageMatches(upstreamMsg) || openAIContextWindowMessageMatches(gjson.GetBytes(upstreamBody, "error.message").String()) {
+			return true
+		}
+	}
+	if openAIContextWindowMessageMatches(upstreamMsg) || openAIContextWindowMessageMatches(gjson.GetBytes(upstreamBody, "error.message").String()) {
+		return true
+	}
+	return openAIContextWindowMessageMatches(string(upstreamBody))
+}
+
+func openAIContextWindowMessageMatches(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	if lower == "" {
+		return false
+	}
+	patterns := []string{
+		"maximum context length",
+		"max context length",
+		"context length exceeded",
+		"context_length_exceeded",
+		"context window",
+		"context_window",
+		"exceeds the context",
+		"exceeded context",
+		"too many tokens",
+	}
+	for _, pattern := range patterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
+}

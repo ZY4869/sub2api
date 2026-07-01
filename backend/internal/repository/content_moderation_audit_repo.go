@@ -38,13 +38,14 @@ INSERT INTO content_moderation_audits (
   source_endpoint,
   content_hash,
   content_summary,
+  matched_keyword,
   categories,
   hit,
   dedupe_hit,
   error_reason,
   latency_ms,
   created_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 RETURNING id, created_at`
 	categories, err := json.Marshal(normalizeAuditCategoriesForStorage(audit.Categories))
 	if err != nil {
@@ -62,6 +63,7 @@ RETURNING id, created_at`
 		strings.TrimSpace(audit.SourceEndpoint),
 		strings.TrimSpace(audit.ContentHash),
 		strings.TrimSpace(audit.ContentSummary),
+		strings.TrimSpace(audit.MatchedKeyword),
 		categories,
 		audit.Hit,
 		audit.DedupeHit,
@@ -74,7 +76,7 @@ RETURNING id, created_at`
 func (r *contentModerationAuditRepository) FindRecentContentModerationAuditByHash(ctx context.Context, contentHash string, since time.Time) (*service.ContentModerationAudit, error) {
 	return r.getOne(
 		ctx,
-		`SELECT id, request_id, client_request_id, user_id, api_key_id, provider, model, source_endpoint, content_hash, content_summary, categories, hit, dedupe_hit, error_reason, latency_ms, created_at
+		`SELECT id, request_id, client_request_id, user_id, api_key_id, provider, model, source_endpoint, content_hash, content_summary, COALESCE(matched_keyword, ''), categories, hit, dedupe_hit, error_reason, latency_ms, created_at
 		 FROM content_moderation_audits
 		 WHERE content_hash = $1 AND created_at >= $2
 		 ORDER BY created_at DESC, id DESC
@@ -110,6 +112,7 @@ SELECT
   source_endpoint,
   content_hash,
   content_summary,
+  COALESCE(matched_keyword, ''),
   categories,
   hit,
   dedupe_hit,
@@ -149,7 +152,7 @@ LIMIT $` + fmt.Sprintf("%d", len(args)+1) + ` OFFSET $` + fmt.Sprintf("%d", len(
 func (r *contentModerationAuditRepository) GetContentModerationAuditByID(ctx context.Context, id int64) (*service.ContentModerationAudit, error) {
 	return r.getOne(
 		ctx,
-		`SELECT id, request_id, client_request_id, user_id, api_key_id, provider, model, source_endpoint, content_hash, content_summary, categories, hit, dedupe_hit, error_reason, latency_ms, created_at
+		`SELECT id, request_id, client_request_id, user_id, api_key_id, provider, model, source_endpoint, content_hash, content_summary, COALESCE(matched_keyword, ''), categories, hit, dedupe_hit, error_reason, latency_ms, created_at
 		 FROM content_moderation_audits
 		 WHERE id = $1`,
 		id,
@@ -191,6 +194,7 @@ func scanContentModerationAudit(scanner contentModerationScanner) (*service.Cont
 		&item.SourceEndpoint,
 		&item.ContentHash,
 		&item.ContentSummary,
+		&item.MatchedKeyword,
 		&categoriesRaw,
 		&item.Hit,
 		&item.DedupeHit,

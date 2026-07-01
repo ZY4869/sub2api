@@ -59,6 +59,21 @@ func (s *GrokGatewayService) ForwardResponses(ctx context.Context, c *gin.Contex
 	return s.forwardAPIKeyResponses(ctx, c, account, body, method, subpath)
 }
 
+func (s *GrokGatewayService) ForwardMessagesCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
+	if s.RouteMode(account) == GrokRouteModeSSO {
+		return s.forwardSSOMessagesCompat(ctx, c, account, body)
+	}
+	return s.forwardAPIKeyMessagesCompat(ctx, c, account, body)
+}
+
+func (s *GrokGatewayService) ForwardAnthropicCountTokensCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*AnthropicCountTokensBridgeResult, error) {
+	if s.RouteMode(account) == GrokRouteModeSSO {
+		writeAnthropicError(c, http.StatusNotFound, "not_found_error", "count_tokens endpoint is not supported for Grok SSO accounts", "")
+		return nil, fmt.Errorf("grok sso count_tokens is not supported")
+	}
+	return s.forwardAPIKeyAnthropicCountTokensCompat(ctx, c, account, body)
+}
+
 func (s *GrokGatewayService) ForwardImagesGeneration(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
 	if s.RouteMode(account) == GrokRouteModeSSO {
 		return s.forwardSSOImagesGeneration(ctx, c, account, body)

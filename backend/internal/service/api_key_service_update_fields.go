@@ -54,7 +54,7 @@ func applyAPIKeyUpdateTimeAccessFields(apiKey *APIKey, req UpdateAPIKeyRequest) 
 func applyAPIKeyUpdateQuotaFields(apiKey *APIKey, req UpdateAPIKeyRequest) {
 	if req.Quota != nil {
 		apiKey.Quota = *req.Quota
-		if apiKey.Status == StatusAPIKeyQuotaExhausted && *req.Quota > apiKey.QuotaUsed {
+		if apiKey.Status == StatusAPIKeyQuotaExhausted && (*req.Quota <= 0 || *req.Quota > apiKey.QuotaUsed) {
 			apiKey.Status = StatusActive
 		}
 	}

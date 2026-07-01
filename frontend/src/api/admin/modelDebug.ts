@@ -1,4 +1,5 @@
 import { apiClient } from "../client";
+import { buildAbsoluteApiUrl } from "@/api/url";
 import { getLocale } from "@/i18n";
 
 export type AdminModelDebugKeyMode = "saved" | "manual";
@@ -58,15 +59,10 @@ export async function runModelDebugStream(
 }
 
 function resolveAdminModelDebugURL(): string {
-  const baseURL = String(apiClient.defaults.baseURL || "/api/v1").trim();
-  const normalizedPath = "/admin/models/debug/run";
-  if (/^https?:\/\//i.test(baseURL)) {
-    return `${baseURL.replace(/\/+$/g, "")}${normalizedPath}`;
-  }
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin.replace(/\/+$/g, "")}/${baseURL.replace(/^\/+|\/+$/g, "")}${normalizedPath}`;
-  }
-  return `/api/v1${normalizedPath}`;
+  return buildAbsoluteApiUrl(
+    "/admin/models/debug/run",
+    String(apiClient.defaults.baseURL || "/api/v1"),
+  );
 }
 
 function buildHeaders(): HeadersInit {

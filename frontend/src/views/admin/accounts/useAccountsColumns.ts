@@ -1,9 +1,19 @@
 import { computed } from 'vue'
 
-const withTopAlignedCells = <T extends { class?: string }>(columns: T[]): T[] =>
+const TOP_ALIGNED_COLUMN_KEYS = new Set([
+  'today_stats',
+  'usage',
+  'usage_reset_dates',
+  'notes',
+])
+
+const withAccountCellAlignment = <T extends { key: string; class?: string }>(columns: T[]): T[] =>
   columns.map((column) => ({
     ...column,
-    class: [column.class, 'align-top'].filter(Boolean).join(' '),
+    class: [
+      column.class,
+      TOP_ALIGNED_COLUMN_KEYS.has(column.key) ? 'align-top' : 'align-middle',
+    ].filter(Boolean).join(' '),
   }))
 
 export function useAccountsColumns(ctx: any) {
@@ -171,7 +181,7 @@ const allColumns = computed(() => {
           : undefined,
     },
   );
-  return withTopAlignedCells(c);
+  return withAccountCellAlignment(c);
 });
 
 // Columns that can be toggled (exclude select, name, and actions)

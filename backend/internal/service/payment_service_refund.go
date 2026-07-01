@@ -95,7 +95,7 @@ func (s *PaymentService) RefundOrder(ctx context.Context, input RefundPaymentOrd
 	if err := s.repo.UpdateRefundProvider(ctx, refund.RefundNo, refund.ProviderRefundID, refund.Status); err != nil {
 		return nil, err
 	}
-	if refund.Status == PaymentRefundStatusSettled || refund.Status == PaymentRefundStatusAccepted {
+	if refund.Status == PaymentRefundStatusSettled {
 		now := time.Now()
 		refundedAmount, err := s.repo.SumSuccessfulRefundAmount(ctx, order.OrderNo)
 		if err != nil {
@@ -123,6 +123,10 @@ func (s *PaymentService) RefundOrder(ctx context.Context, input RefundPaymentOrd
 
 func normalizeRefundStatus(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "pending", "received":
+		return PaymentRefundStatusReceived
+	case "accepted", "processing", "requires_action":
+		return PaymentRefundStatusAccepted
 	case "succeeded", "success", "settled":
 		return PaymentRefundStatusSettled
 	case "failed":

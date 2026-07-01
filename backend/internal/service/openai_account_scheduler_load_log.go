@@ -31,6 +31,8 @@ func (s *defaultOpenAIAccountScheduler) logLoadBalanceSelection(
 		"top_k", topK,
 		"load_skew", loadSkew,
 		"score", candidate.score,
+		"quota_headroom", candidate.quotaHeadroom,
+		"quota_headroom_known", candidate.quotaHeadroomKnown,
 		"load_rate", candidate.loadInfo.LoadRate,
 		"current_concurrency", candidate.loadInfo.CurrentConcurrency,
 		"max_concurrency", candidate.account.Concurrency,

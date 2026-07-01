@@ -26,6 +26,12 @@
 
       <template #actions>
         <div class="flex justify-end gap-3">
+          <KeysColumnSettingsMenu
+            :hidden-columns="hiddenColumns"
+            :columns="columns"
+            :always-visible-columns="alwaysVisibleColumns"
+            @toggle-column="toggleKeyColumn"
+          />
           <button
             @click="loadApiKeys"
             :disabled="loading"
@@ -47,7 +53,7 @@
 
       <template #table>
         <KeysTable
-          :columns="columns"
+          :columns="visibleColumns"
           :api-keys="apiKeys"
           :loading="loading"
           :copied-key-id="copiedKeyId"
@@ -200,8 +206,10 @@ import type { Column } from "@/components/common/types";
 import type { BatchApiKeyUsageStats } from "@/api/usage";
 import { buildCcsProviderImportLink } from "@/utils/ccswitchImport";
 import KeysTable from "./keys/KeysTable.vue";
+import KeysColumnSettingsMenu from "./keys/KeysColumnSettingsMenu.vue";
 import KeyFormDialog from "./keys/KeyFormDialog.vue";
 import CcsClientSelectDialog from "./keys/CcsClientSelectDialog.vue";
+import { useKeysColumnVisibility } from "./keys/useKeysColumnVisibility";
 import { imageCountWeightTiers, type ApiKeyFormData, type ImageCountWeightTier } from "./keys/types";
 import { submitApiKeyForm } from "./keys/submit";
 import {
@@ -236,6 +244,12 @@ const columns = computed<Column[]>(() => [
   { key: "created_at", label: t("keys.created"), sortable: true },
   { key: "actions", label: t("common.actions"), sortable: false },
 ]);
+const {
+  alwaysVisibleColumns,
+  hiddenColumns,
+  visibleColumns,
+  toggleColumn: toggleKeyColumn,
+} = useKeysColumnVisibility(columns);
 
 const apiKeys = ref<ApiKey[]>([]);
 const groups = ref<Group[]>([]);

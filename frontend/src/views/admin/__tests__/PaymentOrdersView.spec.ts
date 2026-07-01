@@ -42,6 +42,7 @@ vi.mock('@/components/common/DataTable.vue', () => ({
       <div>
         <div v-for="row in data" :key="row.order_no" data-test="order-row">
           <slot name="cell-order" :row="row" />
+          <slot name="cell-amount" :row="row" />
           <slot name="cell-status" :row="row" />
           <slot name="cell-actions" :row="row" />
         </div>
@@ -77,6 +78,23 @@ function makeOrder() {
     refundable_amount_minor: 1000,
     currency: 'USD',
     created_at: '2026-05-22T00:00:00Z'
+  }
+}
+
+function makeSubscriptionOrder() {
+  return {
+    ...makeOrder(),
+    order_no: 'pay_sub',
+    product_type: 'subscription',
+    amount_minor: 1250,
+    amount: 12.5,
+    currency: 'USD',
+    snapshot: {
+      prices_by_currency: {
+        USD: 12.5,
+        CNY: 88
+      }
+    }
   }
 }
 
@@ -144,6 +162,16 @@ describe('PaymentOrdersView', () => {
 
     expect(refundOrderMock).not.toHaveBeenCalled()
     expect(appStoreMock.showError).toHaveBeenCalledWith('admin.payment.refund.invalidAmount')
+  })
+
+  it('keeps direct payment amount primary and shows converted subscription amount as auxiliary text', async () => {
+    listOrdersMock.mockResolvedValue({ items: [makeSubscriptionOrder()], total: 1, page: 1, page_size: 20, pages: 1 })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('$12.50')
+    expect(wrapper.text()).toContain('admin.payment.convertedAmount CN¥88.00')
   })
 })
 

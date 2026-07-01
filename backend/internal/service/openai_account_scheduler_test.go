@@ -940,6 +940,46 @@ func TestIsOpenAIAccountCandidateBetter_PrefersUsagePressureBeforeScore(t *testi
 	))
 }
 
+func TestIsOpenAIAccountCandidateBetter_QuotaHeadroomWeightIsNeutralByDefault(t *testing.T) {
+	require.False(t, isOpenAIAccountCandidateBetter(
+		openAIAccountCandidateScore{
+			account:            &Account{ID: 2301, Priority: 0},
+			loadInfo:           &AccountLoadInfo{},
+			quotaHeadroom:      0.95,
+			quotaHeadroomKnown: true,
+			score:              0.1,
+		},
+		openAIAccountCandidateScore{
+			account:            &Account{ID: 2302, Priority: 0},
+			loadInfo:           &AccountLoadInfo{},
+			quotaHeadroom:      0.05,
+			quotaHeadroomKnown: true,
+			score:              0.9,
+		},
+	))
+}
+
+func TestIsOpenAIAccountCandidateBetter_PrefersQuotaHeadroomWhenWeighted(t *testing.T) {
+	require.True(t, isOpenAIAccountCandidateBetter(
+		openAIAccountCandidateScore{
+			account:             &Account{ID: 2401, Priority: 0},
+			loadInfo:            &AccountLoadInfo{},
+			quotaHeadroom:       0.8,
+			quotaHeadroomKnown:  true,
+			quotaHeadroomWeight: 1,
+			score:               0.1,
+		},
+		openAIAccountCandidateScore{
+			account:             &Account{ID: 2402, Priority: 0},
+			loadInfo:            &AccountLoadInfo{},
+			quotaHeadroom:       0.1,
+			quotaHeadroomKnown:  true,
+			quotaHeadroomWeight: 1,
+			score:               0.9,
+		},
+	))
+}
+
 func TestIsOpenAIAccountCandidateBetter_PrefersActiveExpiryProbePriorityBeforePersistentPriority(t *testing.T) {
 	now := time.Now().UTC()
 	require.True(t, isOpenAIAccountCandidateBetter(
@@ -1384,6 +1424,7 @@ func TestOpenAIGatewayService_SchedulerWrappersAndDefaults(t *testing.T) {
 	require.Equal(t, 0.7, defaultWeights.Queue)
 	require.Equal(t, 0.8, defaultWeights.ErrorRate)
 	require.Equal(t, 0.5, defaultWeights.TTFT)
+	require.Equal(t, 0.0, defaultWeights.QuotaHeadroom)
 
 	cfg := &config.Config{}
 	cfg.Gateway.OpenAIWS.LBTopK = 9
@@ -1393,6 +1434,7 @@ func TestOpenAIGatewayService_SchedulerWrappersAndDefaults(t *testing.T) {
 	cfg.Gateway.OpenAIWS.SchedulerScoreWeights.Queue = 0.4
 	cfg.Gateway.OpenAIWS.SchedulerScoreWeights.ErrorRate = 0.5
 	cfg.Gateway.OpenAIWS.SchedulerScoreWeights.TTFT = 0.6
+	cfg.Gateway.OpenAIWS.SchedulerScoreWeights.QuotaHeadroom = 0.7
 	svcWithCfg := &OpenAIGatewayService{cfg: cfg}
 
 	require.Equal(t, 9, svcWithCfg.openAIWSLBTopK())
@@ -1403,6 +1445,7 @@ func TestOpenAIGatewayService_SchedulerWrappersAndDefaults(t *testing.T) {
 	require.Equal(t, 0.4, customWeights.Queue)
 	require.Equal(t, 0.5, customWeights.ErrorRate)
 	require.Equal(t, 0.6, customWeights.TTFT)
+	require.Equal(t, 0.7, customWeights.QuotaHeadroom)
 }
 
 func TestDefaultOpenAIAccountScheduler_IsAccountTransportCompatible_Branches(t *testing.T) {

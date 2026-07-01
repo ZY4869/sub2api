@@ -154,7 +154,11 @@ describe('AccountsView airy columns', () => {
     const renderedColumns = tableColumnsText.split('|')
 
     expect(tableColumnsText).not.toContain('schedulable')
-    expect(renderedColumns.every((column) => column.includes('align-top'))).toBe(true)
+    expect(renderedColumns.find((column) => column.startsWith('name:'))).toContain('align-middle')
+    expect(renderedColumns.find((column) => column.startsWith('status:'))).toContain('align-middle')
+    expect(renderedColumns.find((column) => column.startsWith('actions:'))).toContain('align-middle')
+    expect(renderedColumns.find((column) => column.startsWith('usage:'))).toContain('align-top')
+    expect(renderedColumns.find((column) => column.startsWith('usage_reset_dates:'))).toContain('align-top')
     expect(tableColumnsText).toContain('name:w-[clamp(184px,18vw,220px)]')
     expect(tableColumnsText).toContain(
       'platform_type:w-[clamp(144px,13vw,168px)] min-w-[140px] max-w-[172px]',

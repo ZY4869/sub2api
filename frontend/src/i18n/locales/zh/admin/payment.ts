@@ -23,6 +23,7 @@ export default {
     balance_topup: '余额充值',
     subscription: '订阅购买'
   },
+  convertedAmount: '折合 {amount}',
   refund: {
     action: '退款',
     title: '发起退款',

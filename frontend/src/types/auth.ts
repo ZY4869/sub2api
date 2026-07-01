@@ -184,6 +184,7 @@ export interface ContentModerationAudit {
   source_endpoint: string;
   content_hash: string;
   content_summary: string;
+  matched_keyword: string;
   categories: string[];
   hit: boolean;
   dedupe_hit: boolean;
@@ -192,7 +193,7 @@ export interface ContentModerationAudit {
   created_at: string;
 }
 
-export type SocialOAuthProvider = "github" | "google" | "dingtalk";
+export type SocialOAuthProvider = "github" | "google" | "dingtalk" | "linuxdo";
 
 export interface SocialOAuthCompleteResponse {
   access_token: string;
