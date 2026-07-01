@@ -53,7 +53,7 @@ vi.mock('vue-i18n', () => ({
         'common.refresh': 'Refresh',
         'common.reset': 'Reset',
         'admin.usage.cleanup.button': 'Cleanup',
-        'usage.exportExcel': 'Export'
+        'usage.exportCsv': 'Export'
       })[key] || key
   })
 }))

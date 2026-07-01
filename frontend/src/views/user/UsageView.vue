@@ -173,6 +173,7 @@ import {
   formatUsageAmount,
   formatUsageMultiplier,
 } from "@/utils/usageCost";
+import { buildCsvContent, escapeCsvCell } from "@/utils/csv";
 import { FILTER_PLATFORM_ORDER, getPlatformEnglishName } from "@/utils/platformBranding";
 import ApiKeyDailyUsageCard from "./usage/ApiKeyDailyUsageCard.vue";
 import UsageAnalyticsPanel from "./usage/UsageAnalyticsPanel.vue";
@@ -706,28 +707,6 @@ const formatModelSuccessRateExport = (
   return `${(rate * 100).toFixed(1)}%`;
 };
 
-/**
- * Escape CSV value to prevent injection and handle special characters
- */
-const escapeCSVValue = (value: unknown): string => {
-  if (value == null) return "";
-
-  const str = String(value);
-  const escaped = str.replace(/"/g, '""');
-
-  // Prevent formula injection by prefixing dangerous characters with single quote
-  if (/^[=+\-@\t\r]/.test(str)) {
-    return `"\'${escaped}"`;
-  }
-
-  // Escape values containing comma, quote, or newline
-  if (/[,"\n\r]/.test(str)) {
-    return `"${escaped}"`;
-  }
-
-  return str;
-};
-
 const exportToCSV = async () => {
   if (pagination.total === 0) {
     appStore.showWarning(t("usage.noDataToExport"));
@@ -824,13 +803,10 @@ const exportToCSV = async () => {
         log.billing_exempt_reason || "",
         log.first_token_ms ?? "",
         log.duration_ms,
-      ].map(escapeCSVValue);
+      ].map(escapeCsvCell);
     });
 
-    const csvContent = [
-      headers.map(escapeCSVValue).join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n");
+    const csvContent = buildCsvContent([headers, ...rows]);
 
     const blob = new Blob([`\uFEFF${csvContent}`], {
       type: "text/csv;charset=utf-8;",

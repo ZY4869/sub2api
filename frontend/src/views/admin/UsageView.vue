@@ -105,7 +105,7 @@
             @refresh="refreshData"
             @reset="resetFilters"
             @cleanup="openCleanupDialog"
-            @export="exportToExcel"
+            @export="exportToCsv"
           >
             <template #after-reset>
               <div class="flex items-center gap-2">
@@ -195,6 +195,7 @@ import {
 import { requestTypeToLegacyStream } from "@/utils/usageRequestType";
 import { getUsageOperationLabel } from "@/utils/usageOperation";
 import { formatUsageMillionContextExportFields } from "@/utils/usageDisplay";
+import { buildCsvContent, type CsvCell } from "@/utils/csv";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import Select from "@/components/common/Select.vue";
@@ -638,7 +639,7 @@ const getCacheCreationTotal = (
   (log.cache_creation_5m_tokens || 0) +
   (log.cache_creation_1h_tokens || 0);
 
-const exportToExcel = async () => {
+const exportToCsv = async () => {
   if (exporting.value) return;
   exporting.value = true;
   exportProgress.show = true;
@@ -648,7 +649,6 @@ const exportToExcel = async () => {
     let p = 1;
     let total = pagination.total;
     let exportedCount = 0;
-    const XLSX = await import("xlsx");
     const headers = [
       t("usage.time"),
       t("admin.usage.user"),
@@ -691,7 +691,7 @@ const exportToExcel = async () => {
       t("usage.userAgent"),
       t("admin.usage.ipAddress"),
     ];
-    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    const csvRows: CsvCell[][] = [headers];
     while (true) {
       const requestType = filters.value.request_type;
       const legacyStream = requestType
@@ -712,7 +712,7 @@ const exportToExcel = async () => {
         total = res.total;
         exportProgress.total = total;
       }
-      const rows = (res.items || []).map((log: AdminUsageLog) => {
+      const rows: CsvCell[][] = (res.items || []).map((log: AdminUsageLog) => {
         const millionContext = formatUsageMillionContextExportFields(log);
         return [
         log.created_at,
@@ -758,7 +758,7 @@ const exportToExcel = async () => {
         ];
       });
       if (rows.length) {
-        XLSX.utils.sheet_add_aoa(ws, rows, { origin: -1 });
+        csvRows.push(...rows);
       }
       exportedCount += rows.length;
       exportProgress.current = exportedCount;
@@ -770,13 +770,11 @@ const exportToExcel = async () => {
       p++;
     }
     if (!c.signal.aborted) {
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Usage");
       saveAs(
-        new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array" })], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        new Blob([`\uFEFF${buildCsvContent(csvRows)}`], {
+          type: "text/csv;charset=utf-8;",
         }),
-        `usage_${filters.value.start_date}_to_${filters.value.end_date}.xlsx`,
+        `usage_${filters.value.start_date}_to_${filters.value.end_date}.csv`,
       );
       appStore.showSuccess(t("usage.exportSuccess"));
     }
