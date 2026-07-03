@@ -932,7 +932,7 @@ func TestAPIContracts(t *testing.T) {
 						"peak_end": "",
 						"peak_rate_multiplier": 0,
 						"peak_timezone": "Local",
-						"peak_utc_offset": "+08:00",
+						"peak_utc_offset": "{{local_peak_utc_offset}}",
 						"is_exclusive": false,
 						"status": "active",
 						"subscription_type": "standard",
@@ -1832,7 +1832,8 @@ func TestAPIContracts(t *testing.T) {
 
 			status, body := doRequest(t, deps.router, tt.method, tt.path, tt.body, tt.headers)
 			require.Equal(t, tt.wantStatus, status)
-			require.JSONEq(t, tt.wantJSON, body)
+			wantJSON := strings.ReplaceAll(tt.wantJSON, "{{local_peak_utc_offset}}", service.ServerPeakRateUTCOffset(time.Now()))
+			require.JSONEq(t, wantJSON, body)
 			if tt.name == "GET /api/v1/settings/public exposes effective Airwallex flag without webhook secret" {
 				require.Contains(t, deps.settingRepo.lastKeys, service.SettingKeyAirwallexClientID)
 				require.Contains(t, deps.settingRepo.lastKeys, service.SettingKeyAirwallexAPIKey)
