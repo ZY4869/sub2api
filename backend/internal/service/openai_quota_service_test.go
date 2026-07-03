@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ type openAIQuotaAccountRepoStub struct {
 	getErr           error
 	updateExtraCalls []map[string]any
 	resetQuotaCalls  int
+	resetQuotaErr    error
 }
 
 func (r *openAIQuotaAccountRepoStub) GetByID(_ context.Context, id int64) (*Account, error) {
@@ -42,7 +44,7 @@ func (r *openAIQuotaAccountRepoStub) UpdateExtra(_ context.Context, _ int64, upd
 
 func (r *openAIQuotaAccountRepoStub) ResetQuotaUsed(context.Context, int64) error {
 	r.resetQuotaCalls++
-	return nil
+	return r.resetQuotaErr
 }
 
 func TestOpenAIQuotaService_QueryUsageUsesWhamUsageEndpoint(t *testing.T) {
@@ -77,7 +79,7 @@ func TestOpenAIQuotaService_QueryUsageUsesWhamUsageEndpoint(t *testing.T) {
 	require.Zero(t, repo.resetQuotaCalls)
 }
 
-func TestOpenAIQuotaService_ResetCreditPostsRedeemRequestIDOnly(t *testing.T) {
+func TestOpenAIQuotaService_ResetCreditPostsRedeemRequestIDAndClearsLocalQuota(t *testing.T) {
 	t.Parallel()
 
 	var capturedBody map[string]string
@@ -104,6 +106,69 @@ func TestOpenAIQuotaService_ResetCreditPostsRedeemRequestIDOnly(t *testing.T) {
 	require.Equal(t, "credit_1", result.Credit.ID)
 	require.Regexp(t, `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, capturedBody["redeem_request_id"])
 	require.Len(t, capturedBody, 1)
+	require.Equal(t, 1, repo.resetQuotaCalls)
+}
+
+func TestOpenAIQuotaService_ResetCreditReturnsSuccessWhenLocalCleanupFails(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/backend-api/wham/rate-limit-reset-credits/consume", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"success","windows_reset":1,"credit":{"id":"credit_2","status":"redeemed"}}`))
+	}))
+	defer server.Close()
+
+	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+	repo.resetQuotaErr = errors.New("local cleanup failed")
+
+	result, err := svc.ResetCredit(context.Background(), 9001)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "success", result.Code)
+	require.Equal(t, 1, result.WindowsReset)
+	require.Equal(t, 1, repo.resetQuotaCalls)
+}
+
+func TestOpenAIQuotaService_ResetCreditRejectsNoWindowWithoutLocalCleanup(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/backend-api/wham/rate-limit-reset-credits/consume", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"nothing_to_reset","windows_reset":0}`))
+	}))
+	defer server.Close()
+
+	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+
+	result, err := svc.ResetCredit(context.Background(), 9001)
+
+	require.Error(t, err)
+	require.Nil(t, result)
+	require.Equal(t, http.StatusConflict, infraerrors.Code(err))
+	require.Contains(t, err.Error(), "OPENAI_QUOTA_RESET_NOTHING_TO_RESET")
+	require.Zero(t, repo.resetQuotaCalls)
+}
+
+func TestOpenAIQuotaService_ResetCreditUpstreamErrorDoesNotClearLocalQuota(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/backend-api/wham/rate-limit-reset-credits/consume", r.URL.Path)
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"error":"upstream"}`))
+	}))
+	defer server.Close()
+
+	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+
+	result, err := svc.ResetCredit(context.Background(), 9001)
+
+	require.Error(t, err)
+	require.Nil(t, result)
+	require.Equal(t, http.StatusTooManyRequests, infraerrors.Code(err))
 	require.Zero(t, repo.resetQuotaCalls)
 }
 

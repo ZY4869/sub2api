@@ -68,6 +68,9 @@ func TestResetQuotaUsedClearsCodexAndRateLimitStateInSQL(t *testing.T) {
 		"rate_limit_reason",
 		"rate_limited_at = NULL",
 		"rate_limit_reset_at = NULL",
+		"overload_until = NULL",
+		"temp_unschedulable_until = NULL",
+		"temp_unschedulable_reason = NULL",
 	} {
 		require.Contains(t, sqlText, want)
 	}

@@ -181,8 +181,15 @@ func (s *OpenAIQuotaService) ResetCredit(ctx context.Context, accountID int64) (
 		slog.Warn("openai_quota_reset_upstream_error", "account_id", accountID, "status", status, "duration_ms", time.Since(startedAt).Milliseconds())
 		return nil, infraerrors.Newf(mapOpenAIQuotaUpstreamStatus(status), "OPENAI_QUOTA_RESET_UPSTREAM_ERROR", "OpenAI quota reset upstream returned %d", status)
 	}
+	if payload.WindowsReset <= 0 {
+		slog.Warn("openai_quota_reset_no_window", "account_id", accountID, "duration_ms", time.Since(startedAt).Milliseconds(), "code", payload.Code, "windows_reset", payload.WindowsReset)
+		return nil, infraerrors.New(http.StatusConflict, "OPENAI_QUOTA_RESET_NOTHING_TO_RESET", "OpenAI quota reset did not reset any limit window")
+	}
 
 	slog.Info("openai_quota_reset_succeeded", "account_id", accountID, "duration_ms", time.Since(startedAt).Milliseconds(), "code", payload.Code, "windows_reset", payload.WindowsReset)
+	if err := s.accountRepo.ResetQuotaUsed(ctx, accountID); err != nil {
+		slog.Warn("openai_quota_reset_local_cleanup_failed", "account_id", accountID, "windows_reset", payload.WindowsReset, "error", err.Error())
+	}
 	return &payload, nil
 }
 

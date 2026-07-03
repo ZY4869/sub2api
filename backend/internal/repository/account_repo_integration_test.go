@@ -1017,8 +1017,11 @@ func (s *AccountRepoSuite) TestResetQuotaUsedClearsCodexQuotaAndRateLimitState()
 		Credentials: map[string]any{
 			"plan_type": "pro",
 		},
-		RateLimitedAt:    timePtr(resetAt.Add(-30 * time.Minute)),
-		RateLimitResetAt: &resetAt,
+		RateLimitedAt:           timePtr(resetAt.Add(-30 * time.Minute)),
+		RateLimitResetAt:        &resetAt,
+		OverloadUntil:           timePtr(resetAt.Add(30 * time.Minute)),
+		TempUnschedulableUntil:  timePtr(resetAt.Add(45 * time.Minute)),
+		TempUnschedulableReason: `{"reason":"quota-reset-regression"}`,
 		Extra: map[string]any{
 			"quota_used":                           11.5,
 			"quota_daily_used":                     3.25,
@@ -1072,6 +1075,9 @@ func (s *AccountRepoSuite) TestResetQuotaUsedClearsCodexQuotaAndRateLimitState()
 	s.Require().NoError(err)
 	s.Require().Nil(got.RateLimitedAt)
 	s.Require().Nil(got.RateLimitResetAt)
+	s.Require().Nil(got.OverloadUntil)
+	s.Require().Nil(got.TempUnschedulableUntil)
+	s.Require().Empty(got.TempUnschedulableReason)
 	for _, key := range []string{
 		"quota_used",
 		"quota_daily_used",
@@ -1095,6 +1101,9 @@ func (s *AccountRepoSuite) TestResetQuotaUsedClearsCodexQuotaAndRateLimitState()
 	snapshot := cacheRecorder.setAccounts[0]
 	s.Require().Nil(snapshot.RateLimitedAt)
 	s.Require().Nil(snapshot.RateLimitResetAt)
+	s.Require().Nil(snapshot.OverloadUntil)
+	s.Require().Nil(snapshot.TempUnschedulableUntil)
+	s.Require().Empty(snapshot.TempUnschedulableReason)
 	s.Require().Equal(float64(0), snapshot.Extra["quota_monthly_used"])
 	s.Require().NotContains(snapshot.Extra, "codex_spark_7d_used_percent")
 	s.Require().NotContains(snapshot.Extra, "model_rate_limits")

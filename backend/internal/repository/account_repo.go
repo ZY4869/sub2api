@@ -535,6 +535,9 @@ func (r *accountRepository) ResetQuotaUsed(ctx context.Context, id int64) error 
 		UPDATE accounts
 		SET rate_limited_at = NULL,
 			rate_limit_reset_at = NULL,
+			overload_until = NULL,
+			temp_unschedulable_until = NULL,
+			temp_unschedulable_reason = NULL,
 			extra = (
 				COALESCE(extra, '{}'::jsonb)
 				|| '{
