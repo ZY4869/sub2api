@@ -855,6 +855,39 @@ func TestStreamUpstreamResponse_NormalComplete(t *testing.T) {
 	require.Contains(t, body, "message_delta")
 }
 
+func TestStreamUpstreamResponse_SendsKeepaliveDuringIdle(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := newAntigravityTestService(&config.Config{
+		Gateway: config.GatewayConfig{StreamKeepaliveInterval: 1, MaxLineSize: defaultMaxLineSize},
+	})
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{StatusCode: http.StatusOK, Body: pr, Header: http.Header{}}
+
+	go func() {
+		defer func() { _ = pw.Close() }()
+		time.Sleep(1100 * time.Millisecond)
+		fmt.Fprintln(pw, `event: message_delta`)
+		fmt.Fprintln(pw, `data: {"type":"message_delta","usage":{"output_tokens":7}}`)
+		fmt.Fprintln(pw, "")
+	}()
+
+	result := svc.streamUpstreamResponse(c, resp, time.Now())
+	_ = pr.Close()
+
+	require.NotNil(t, result)
+	require.NotNil(t, result.usage)
+	require.Equal(t, 7, result.usage.OutputTokens)
+	body := rec.Body.String()
+	require.Contains(t, body, "event: ping")
+	require.Contains(t, body, `"type":"ping"`)
+	require.Contains(t, body, "event: message_delta")
+}
+
 // TestHandleGeminiStreamingResponse_NormalComplete
 // 验证：正常 Gemini 流式转发，数据正确透传、usage 正确收集
 func TestHandleGeminiStreamingResponse_NormalComplete(t *testing.T) {
@@ -943,6 +976,40 @@ func TestHandleClaudeStreamingResponse_NormalComplete(t *testing.T) {
 	require.Contains(t, body, "event: message_stop", "should contain Claude message_stop event")
 	// 不应包含错误事件
 	require.NotContains(t, body, "event: error")
+}
+
+func TestHandleClaudeStreamingResponse_SendsKeepaliveDuringIdle(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := newAntigravityTestService(&config.Config{
+		Gateway: config.GatewayConfig{StreamKeepaliveInterval: 1, MaxLineSize: defaultMaxLineSize},
+	})
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{StatusCode: http.StatusOK, Body: pr, Header: http.Header{}}
+
+	go func() {
+		defer func() { _ = pw.Close() }()
+		time.Sleep(1100 * time.Millisecond)
+		fmt.Fprintln(pw, `data: {"response":{"candidates":[{"content":{"parts":[{"text":"Hi"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":5,"candidatesTokenCount":3}}}`)
+		fmt.Fprintln(pw, "")
+	}()
+
+	result, err := svc.handleClaudeStreamingResponse(c, resp, time.Now(), "claude-sonnet-4-5")
+	_ = pr.Close()
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.usage)
+	require.Equal(t, 5, result.usage.InputTokens)
+	require.Equal(t, 3, result.usage.OutputTokens)
+	body := rec.Body.String()
+	require.Contains(t, body, "event: ping")
+	require.Contains(t, body, `"type":"ping"`)
+	require.Contains(t, body, "event: message_stop")
 }
 
 // TestHandleGeminiStreamingResponse_ThoughtsTokenCount

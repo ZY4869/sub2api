@@ -2,6 +2,14 @@ import type { AccountPlatform, OpenAIImageProtocolMode } from '@/types'
 import type { AccountCategory } from '@/components/account/createAccountModal/accountCategory'
 import { isOpenAIWSModeEnabled, type OpenAIWSMode } from '@/utils/openaiWsMode'
 
+export type AnthropicAPIKeyAuthScheme = 'x_api_key' | 'authorization_bearer'
+
+export const normalizeAnthropicAPIKeyAuthScheme = (
+  value: unknown
+): AnthropicAPIKeyAuthScheme => {
+  return value === 'authorization_bearer' ? 'authorization_bearer' : 'x_api_key'
+}
+
 export function buildOpenAIExtra(options: {
   platform: AccountPlatform
   accountCategory: AccountCategory
@@ -67,6 +75,7 @@ export function buildAnthropicExtra(options: {
   accountCategory: AccountCategory
   base?: Record<string, unknown>
   anthropicPassthroughEnabled: boolean
+  anthropicAPIKeyAuthScheme?: AnthropicAPIKeyAuthScheme
 }): Record<string, unknown> | undefined {
   if (options.platform !== 'anthropic' || options.accountCategory !== 'apikey') {
     return options.base
@@ -77,6 +86,11 @@ export function buildAnthropicExtra(options: {
     extra.anthropic_passthrough = true
   } else {
     delete extra.anthropic_passthrough
+  }
+  if (options.anthropicAPIKeyAuthScheme === 'authorization_bearer') {
+    extra.anthropic_apikey_auth_scheme = 'authorization_bearer'
+  } else {
+    delete extra.anthropic_apikey_auth_scheme
   }
 
   return Object.keys(extra).length > 0 ? extra : undefined

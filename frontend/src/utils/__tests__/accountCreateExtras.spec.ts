@@ -100,5 +100,25 @@ describe('accountCreateExtras', () => {
       })
       expect(untouched).toEqual({ anthropic_passthrough: true })
     })
+
+    it('writes bearer auth scheme only when explicitly selected', () => {
+      const bearer = buildAnthropicExtra({
+        platform: 'anthropic',
+        accountCategory: 'apikey',
+        base: {},
+        anthropicPassthroughEnabled: false,
+        anthropicAPIKeyAuthScheme: 'authorization_bearer'
+      })
+      expect(bearer).toEqual({ anthropic_apikey_auth_scheme: 'authorization_bearer' })
+
+      const xAPIKey = buildAnthropicExtra({
+        platform: 'anthropic',
+        accountCategory: 'apikey',
+        base: { anthropic_apikey_auth_scheme: 'authorization_bearer' },
+        anthropicPassthroughEnabled: false,
+        anthropicAPIKeyAuthScheme: 'x_api_key'
+      })
+      expect(xAPIKey).toBeUndefined()
+    })
   })
 })

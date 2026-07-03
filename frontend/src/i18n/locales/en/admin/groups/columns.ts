@@ -2,6 +2,7 @@ export default {
     name: "Name",
     platform: "Platform",
     rateMultiplier: "Rate Multiplier",
+    peakRate: "Peak Rate",
     type: "Type",
     priority: "Priority",
     accounts: "Accounts",

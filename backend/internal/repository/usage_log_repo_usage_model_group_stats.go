@@ -11,22 +11,23 @@ import (
 func (r *usageLogRepository) GetUserModelStats(ctx context.Context, userID int64, startTime, endTime time.Time) (results []ModelStat, err error) {
 	cacheCreationExpr := usageCacheCreationSQL("")
 	totalTokensExpr := usageTotalTokensSQL("")
+	modelExpr := resolveModelDimensionExpression(usagestats.ModelSourceRequested)
 	query := fmt.Sprintf(`
 		SELECT
-			model,
+			%[1]s as model,
 			COUNT(*) as requests,
 			COALESCE(SUM(input_tokens), 0) as input_tokens,
 			COALESCE(SUM(output_tokens), 0) as output_tokens,
-			COALESCE(SUM(%[1]s), 0) as cache_creation_tokens,
+			COALESCE(SUM(%[2]s), 0) as cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
-			COALESCE(SUM(%[2]s), 0) as total_tokens,
+			COALESCE(SUM(%[3]s), 0) as total_tokens,
 			COALESCE(SUM(total_cost_usd_equivalent), 0) as cost,
 			COALESCE(SUM(actual_cost_usd_equivalent), 0) as actual_cost
 		FROM usage_logs
 		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
-		GROUP BY model
+		GROUP BY %[1]s
 		ORDER BY total_tokens DESC
-	`, cacheCreationExpr, totalTokensExpr)
+	`, modelExpr, cacheCreationExpr, totalTokensExpr)
 	rows, err := r.sql.QueryContext(ctx, query, userID, startTime, endTime)
 	if err != nil {
 		return nil, err

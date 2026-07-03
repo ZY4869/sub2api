@@ -12,6 +12,7 @@ const mockState = vi.hoisted(() => ({
   assignSubscription: vi.fn(),
   extendSubscription: vi.fn(),
   revokeSubscription: vi.fn(),
+  restoreSubscription: vi.fn(),
   resetQuota: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn()
@@ -24,6 +25,7 @@ vi.mock('@/api/admin', () => ({
       assign: mockState.assignSubscription,
       extend: mockState.extendSubscription,
       revoke: mockState.revokeSubscription,
+      restore: mockState.restoreSubscription,
       resetQuota: mockState.resetQuota
     },
     groups: {
@@ -145,6 +147,7 @@ describe('SubscriptionsView platform filter', () => {
     })
     mockState.getAllGroups.mockResolvedValue([])
     mockState.searchUsers.mockResolvedValue([])
+    mockState.restoreSubscription.mockResolvedValue({})
   })
 
   it('uses All plus FILTER_PLATFORM_ORDER for platform options and excludes copilot', async () => {
@@ -162,5 +165,50 @@ describe('SubscriptionsView platform filter', () => {
 
     expect(optionValues).toEqual(['', ...FILTER_PLATFORM_ORDER])
     expect(optionValues).not.toContain('copilot')
+  })
+
+  it('restores a revoked subscription after confirmation and refreshes the list', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const state = (wrapper.vm as any).$?.setupState
+    state.restoringSubscription = {
+      id: 123,
+      user: { email: 'revoked@example.com' },
+      status: 'revoked'
+    }
+
+    await state.confirmRestore()
+    await flushPromises()
+
+    expect(mockState.restoreSubscription).toHaveBeenCalledWith(123)
+    expect(mockState.showSuccess).toHaveBeenCalledWith('admin.subscriptions.subscriptionRestored')
+    expect(state.showRestoreDialog).toBe(false)
+    expect(state.restoringSubscription).toBeNull()
+    expect(mockState.listSubscriptions).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps restore dialog open and shows a friendly error when restore fails', async () => {
+    mockState.restoreSubscription.mockRejectedValueOnce({
+      response: { data: { detail: '同用户同分组已有有效订阅' } }
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    const state = (wrapper.vm as any).$?.setupState
+    state.showRestoreDialog = true
+    state.restoringSubscription = {
+      id: 124,
+      user: { email: 'conflict@example.com' },
+      status: 'revoked'
+    }
+
+    await state.confirmRestore()
+    await flushPromises()
+
+    expect(mockState.restoreSubscription).toHaveBeenCalledWith(124)
+    expect(mockState.showError).toHaveBeenCalledWith('同用户同分组已有有效订阅')
+    expect(state.showRestoreDialog).toBe(true)
+    expect(state.restoringSubscription.id).toBe(124)
   })
 })

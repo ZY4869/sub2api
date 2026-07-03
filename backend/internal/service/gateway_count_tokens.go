@@ -321,7 +321,7 @@ func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx c
 	req.Header.Del("x-api-key")
 	req.Header.Del("x-goog-api-key")
 	req.Header.Del("cookie")
-	req.Header.Set("x-api-key", token)
+	ApplyAnthropicAPIKeyAuthHeader(req, account, token)
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}
@@ -362,7 +362,7 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 	if tokenType == "oauth" {
 		req.Header.Set("authorization", "Bearer "+token)
 	} else {
-		req.Header.Set("x-api-key", token)
+		ApplyAnthropicAPIKeyAuthHeader(req, account, token)
 	}
 	for key, values := range clientHeaders {
 		lowerKey := strings.ToLower(key)

@@ -1468,6 +1468,37 @@ func TestDefaultOpenAIAccountScheduler_IsAccountTransportCompatible_Branches(t *
 		},
 	}
 	require.True(t, scheduler.isAccountTransportCompatible(account, OpenAIUpstreamTransportResponsesWebsocketV2))
+
+	modeRouterCfg := newOpenAIWSV2TestConfig()
+	modeRouterCfg.Gateway.OpenAIWS.ModeRouterV2Enabled = true
+	modeRouterCfg.Gateway.OpenAIWS.IngressModeDefault = OpenAIWSIngressModeCtxPool
+	modeRouterCfg.Gateway.OpenAIWS.HTTPBridgeEnabled = true
+	scheduler.service = &OpenAIGatewayService{cfg: modeRouterCfg}
+	httpBridgeAccount := &Account{
+		ID:          8802,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Extra: map[string]any{
+			"openai_apikey_responses_websockets_v2_mode": OpenAIWSIngressModeHTTPBridge,
+		},
+	}
+	require.True(t, scheduler.isAccountTransportCompatible(httpBridgeAccount, OpenAIUpstreamTransportResponsesWebsocketV2))
+
+	forceHTTPAccount := &Account{
+		ID:          8803,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Extra: map[string]any{
+			"openai_ws_force_http": true,
+		},
+	}
+	require.False(t, scheduler.isAccountTransportCompatible(forceHTTPAccount, OpenAIUpstreamTransportResponsesWebsocketV2))
 }
 
 func int64PtrForTest(v int64) *int64 {

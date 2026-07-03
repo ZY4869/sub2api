@@ -302,7 +302,7 @@ func (s *BillingCenterService) Simulate(ctx context.Context, input BillingSimula
 	classification := s.classifier.ClassifySimulation(normalized)
 	result := s.evaluateSimulation(normalized, classification, s.ListRules(ctx), s.resolveLongContextThreshold(ctx, normalized.Model), 1.0)
 	if len(result.Lines) == 0 && normalized.Provider == BillingRuleProviderGemini {
-		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(ctx, normalized.Model, normalized.Charges, normalized.ServiceTier, normalized.BatchMode, 1.0)
+		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(ctx, normalized.Model, normalized.Charges, normalized.ServiceTier, normalized.BatchMode, 1.0, 1.0)
 		if err != nil {
 			return nil, err
 		}
@@ -330,9 +330,11 @@ func (s *BillingCenterService) CalculateGeminiCost(ctx context.Context, input Ge
 		GroundingKind:  classification.GroundingKind,
 		Charges:        s.buildGeminiCalculationCharges(input, classification),
 	})
+	flatMultiplier := billingRuntimeFlatMultiplier(input.RateMultiplier, input.FlatRateMultiplier)
 	result := s.evaluateSimulation(sim, classification, s.ListRules(ctx), s.resolveLongContextThreshold(ctx, sim.Model), input.RateMultiplier)
+	applyFlatMultiplierToNonTokenSimulationLines(result, flatMultiplier)
 	if len(result.Lines) == 0 {
-		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(ctx, sim.Model, sim.Charges, sim.ServiceTier, sim.BatchMode, input.RateMultiplier)
+		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(ctx, sim.Model, sim.Charges, sim.ServiceTier, sim.BatchMode, input.RateMultiplier, flatMultiplier)
 		if err != nil {
 			return nil, err
 		}
@@ -460,7 +462,7 @@ func (s *BillingCenterService) resolveLongContextThreshold(ctx context.Context, 
 	return record.longContextInputTokenThreshold
 }
 
-func (s *BillingCenterService) buildLegacyGeminiFallback(ctx context.Context, model string, charges BillingSimulationCharges, serviceTier string, batchMode string, rateMultiplier float64) (*BillingSimulationFallback, *CostBreakdown, map[string]struct{}, error) {
+func (s *BillingCenterService) buildLegacyGeminiFallback(ctx context.Context, model string, charges BillingSimulationCharges, serviceTier string, batchMode string, rateMultiplier float64, flatRateMultiplier float64) (*BillingSimulationFallback, *CostBreakdown, map[string]struct{}, error) {
 	if s == nil || s.billingService == nil {
 		return &BillingSimulationFallback{
 			Policy:      "legacy_model_pricing",
@@ -473,7 +475,7 @@ func (s *BillingCenterService) buildLegacyGeminiFallback(ctx context.Context, mo
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	lines, cost, reason, coveredSlots := buildLegacyGeminiFallbackLines(pricing, charges, serviceTier, batchMode, rateMultiplier)
+	lines, cost, reason, coveredSlots := buildLegacyGeminiFallbackLines(pricing, charges, serviceTier, batchMode, rateMultiplier, flatRateMultiplier)
 	applied := len(lines) > 0
 	if applied {
 		reason = "no_billing_rule_match"
@@ -593,13 +595,13 @@ func buildLegacyGeminiFallbackLines(
 	serviceTier string,
 	batchMode string,
 	rateMultiplier float64,
+	flatRateMultiplier float64,
 ) ([]BillingSimulationLine, *CostBreakdown, string, map[string]struct{}) {
 	if pricing == nil {
 		return nil, &CostBreakdown{}, "legacy_pricing_missing", nil
 	}
-	if rateMultiplier <= 0 {
-		rateMultiplier = 1.0
-	}
+	rateMultiplier = normalizeExplicitRateMultiplier(rateMultiplier)
+	flatRateMultiplier = normalizeExplicitRateMultiplier(flatRateMultiplier)
 
 	totalInputTokens := int(charges.TextInputTokens + charges.AudioInputTokens)
 	totalOutputTokens := int(charges.TextOutputTokens + charges.AudioOutputTokens)
@@ -695,13 +697,14 @@ func buildLegacyGeminiFallbackLines(
 			return
 		}
 		cost := count * price
+		actualMultiplier := billingLineActualMultiplier(unit, rateMultiplier, flatRateMultiplier)
 		lines = append(lines, BillingSimulationLine{
 			ChargeSlot: slot,
 			Unit:       unit,
 			Units:      count,
 			Price:      price,
 			Cost:       cost,
-			ActualCost: cost * rateMultiplier,
+			ActualCost: cost * actualMultiplier,
 			RuleLabel:  "legacy_model_pricing",
 		})
 		coveredSlots[slot] = struct{}{}

@@ -843,6 +843,10 @@ func (r *stubUserSubscriptionRepo) GetByID(ctx context.Context, id int64) (*serv
 	return nil, errors.New("not implemented")
 }
 
+func (r *stubUserSubscriptionRepo) GetByIDIncludingDeleted(ctx context.Context, id int64) (*service.UserSubscription, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (r *stubUserSubscriptionRepo) GetByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
@@ -859,6 +863,10 @@ func (r *stubUserSubscriptionRepo) Update(ctx context.Context, sub *service.User
 }
 
 func (r *stubUserSubscriptionRepo) Delete(ctx context.Context, id int64) error {
+	return errors.New("not implemented")
+}
+
+func (r *stubUserSubscriptionRepo) Restore(ctx context.Context, id int64, status string) error {
 	return errors.New("not implemented")
 }
 

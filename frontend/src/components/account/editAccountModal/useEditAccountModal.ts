@@ -34,6 +34,7 @@ import {
 } from '@/utils/deepseekAccount'
 import {
   OPENAI_WS_MODE_CTX_POOL,
+  OPENAI_WS_MODE_HTTP_BRIDGE,
   OPENAI_WS_MODE_OFF,
   OPENAI_WS_MODE_PASSTHROUGH,
   isOpenAIWSModeEnabled,
@@ -41,6 +42,8 @@ import {
   type OpenAIWSMode,
   resolveOpenAIWSModeFromExtra
 } from '@/utils/openaiWsMode'
+import type { AnthropicAPIKeyAuthScheme } from '@/utils/accountCreateExtras'
+import { normalizeAnthropicAPIKeyAuthScheme } from '@/utils/accountCreateExtras'
 import {
   getPresetMappingsByPlatform,
   createCommonErrorCodeOptions,
@@ -208,6 +211,7 @@ const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
 const anthropicPassthroughEnabled = ref(false)
+const anthropicAPIKeyAuthScheme = ref<AnthropicAPIKeyAuthScheme>('x_api_key')
 const gatewayOpenAIImageProtocolMode = ref<OpenAIImageProtocolMode>(DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE)
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
@@ -531,7 +535,8 @@ function isGatewayProtocolOption(option: unknown): option is GatewayProtocolOpti
 const openAIWSModeOptions = computed(() => [
   { value: OPENAI_WS_MODE_OFF, label: t('admin.accounts.openai.wsModeOff') },
   { value: OPENAI_WS_MODE_CTX_POOL, label: t('admin.accounts.openai.wsModeCtxPool') },
-  { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') }
+  { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') },
+  { value: OPENAI_WS_MODE_HTTP_BRIDGE, label: t('admin.accounts.openai.wsModeHTTPBridge') }
 ])
 const openaiResponsesWebSocketV2Mode = computed({
   get: () => {
@@ -901,7 +906,7 @@ function buildProbeExtra(base?: Record<string, unknown>) {
 }
 
 const modalContext = {
-  props, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, allowVertexBatchOverflow, allowedModels, anthropicPassthroughEnabled, antigravityModelMappings, appStore,
+  props, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, allowVertexBatchOverflow, allowedModels, anthropicAPIKeyAuthScheme, anthropicPassthroughEnabled, antigravityModelMappings, appStore,
   applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyGoogleBatchArchiveExtra, applyInterceptWarmup, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra,
   applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, applyAccountTierToExtra, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays,
   buildAccountModelScopeExtra, buildBaiduDocumentAICredentialsForUpdate, buildModelMappingObject, buildProbeExtra, buildScopedModelMapping, claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled,
@@ -911,7 +916,7 @@ const modalContext = {
   gatewayAcceptedProtocols, gatewayBatchEnabled, gatewayClientProfiles, gatewayClientRoutes, gatewayOpenAIImageProtocolMode, gatewayOpenAIRequestFormat, gatewayProtocol, gatewayTestModelId,
   gatewayTestProvider, geminiTierAIStudio, geminiVertexAccessToken, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexExpiresAtInput, geminiVertexLocation,
   geminiVertexProjectId, geminiVertexServiceAccountJson, interceptWarmupRequests, isBaiduDocumentAIAccount, isGeminiVertexAccount, isOpenAIWSModeEnabled, isProtocolGatewayAccount, mixedScheduling,
-  modelMappings, modelRestrictionEnabled, modelRestrictionMode, normalizeGeminiAIStudioTier, openAIImageCompatAllowed, openAIImageProtocolMode, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuthResponsesWebSocketV2Mode,
+  modelMappings, modelRestrictionEnabled, modelRestrictionMode, normalizeAnthropicAPIKeyAuthScheme, normalizeGeminiAIStudioTier, openAIImageCompatAllowed, openAIImageProtocolMode, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuthResponsesWebSocketV2Mode,
   openaiPassthroughEnabled, parseDateTimeLocal, poolModeState, quotaControl, resolveGoogleBatchArchiveTargetKind, resolveVertexAuthBaseUrl, resolveVertexBaseUrl, shouldPersistGeminiTierId,
   submitUpdateAccount, t, BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL, DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE, DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT, DEFAULT_POOL_MODE_RETRY_COUNT, OPENAI_WS_MODE_OFF, actualModelLocked,
   antigravityModelRestrictionMode, antigravityWhitelistModels, applyModelRestrictionFromRecord, baiduDocumentAIAccessToken, baiduDocumentAIAsyncBaseUrl, baiduDocumentAIDirectApiUrlsText, createDefaultDeepSeekModelConcurrencyLimitDraft, createStaticProbeModels,

@@ -127,3 +127,78 @@ func TestOpenAIOAuthService_RefreshTokenWithClientID_EnrichesPlanTypeAndPrivacyM
 	require.Equal(t, int32(1), atomic.LoadInt32(&accountCheckCalls))
 	require.Equal(t, int32(1), atomic.LoadInt32(&privacyCalls))
 }
+
+func TestFetchChatGPTAccountInfo_DownshiftsExpiredExactOrg(t *testing.T) {
+	info := fetchChatGPTAccountInfo(
+		context.Background(),
+		openAIAccountCheckFactory(t, `{
+			"accounts": {
+				"org-expired": {
+					"account": {
+						"plan_type": "plus",
+						"is_default": true
+					},
+					"entitlement": {
+						"subscription_plan": "plus",
+						"expires_at": "2020-01-01T00:00:00Z"
+					}
+				}
+			}
+		}`),
+		"access-token",
+		"",
+		"org-expired",
+	)
+
+	require.NotNil(t, info)
+	require.Equal(t, "free", info.PlanType)
+	require.Equal(t, "2020-01-01T00:00:00Z", info.SubscriptionExpiresAt)
+	require.Zero(t, info.ProMultiplier)
+}
+
+func TestFetchChatGPTAccountInfo_IgnoresInactiveDefaultWorkspacePlan(t *testing.T) {
+	info := fetchChatGPTAccountInfo(
+		context.Background(),
+		openAIAccountCheckFactory(t, `{
+			"accounts": {
+				"default-inactive": {
+					"account": {
+						"plan_type": "chatgptpro20x",
+						"is_default": true,
+						"is_active": false
+					}
+				},
+				"active-paid": {
+					"account": {
+						"plan_type": "plus",
+						"is_active": true
+					}
+				}
+			}
+		}`),
+		"access-token",
+		"",
+		"",
+	)
+
+	require.NotNil(t, info)
+	require.Equal(t, "plus", info.PlanType)
+	require.Zero(t, info.ProMultiplier)
+}
+
+func openAIAccountCheckFactory(t *testing.T, body string) PrivacyClientFactory {
+	t.Helper()
+	return func(_ string) (*req.Client, error) {
+		httpClient := req.C()
+		httpClient.GetClient().Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, http.MethodGet, req.Method)
+			require.Contains(t, req.URL.String(), chatGPTAccountsCheckURL)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		})
+		return httpClient, nil
+	}
+}

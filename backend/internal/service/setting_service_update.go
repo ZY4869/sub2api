@@ -150,6 +150,23 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		monitorInterval = 3600
 	}
 	updates[SettingKeyChannelMonitorDefaultIntervalSeconds] = strconv.Itoa(monitorInterval)
+	updates[SettingKeyUsageIPGeoEnabled] = strconv.FormatBool(settings.UsageIPGeoEnabled)
+	providerURL := strings.TrimSpace(settings.UsageIPGeoProviderURL)
+	if providerURL == "" {
+		providerURL = DefaultUsageIPGeoProviderURL
+	}
+	updates[SettingKeyUsageIPGeoProviderURL] = providerURL
+	timeoutMs := settings.UsageIPGeoTimeoutMs
+	if timeoutMs <= 0 {
+		timeoutMs = 1500
+	}
+	if timeoutMs < 200 {
+		timeoutMs = 200
+	}
+	if timeoutMs > 10000 {
+		timeoutMs = 10000
+	}
+	updates[SettingKeyUsageIPGeoTimeoutMs] = strconv.Itoa(timeoutMs)
 	updates[SettingKeyPublicModelCatalogEnabled] = strconv.FormatBool(settings.PublicModelCatalogEnabled)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)

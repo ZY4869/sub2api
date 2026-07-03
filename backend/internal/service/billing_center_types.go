@@ -202,6 +202,7 @@ type GeminiBillingCalculationInput struct {
 	VideoRequests        int
 	MediaType            string
 	RateMultiplier       float64
+	FlatRateMultiplier   *float64
 	RequestedServiceTier string
 	ResolvedServiceTier  string
 	Charges              BillingSimulationCharges

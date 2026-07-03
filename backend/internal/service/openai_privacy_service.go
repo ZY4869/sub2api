@@ -150,35 +150,34 @@ func fetchChatGPTAccountInfo(ctx context.Context, clientFactory PrivacyClientFac
 	}
 
 	if info.PlanType == "" {
-		type candidate struct {
-			planType   string
-			expiresAt  string
-			multiplier int
-		}
-		var defaultC, paidC, anyC candidate
+		var defaultC, paidC, anyC, fallbackC chatGPTPlanCandidate
 		for _, acctRaw := range accounts {
 			acct, ok := acctRaw.(map[string]any)
 			if !ok {
 				continue
 			}
 
-			planType := extractPlanType(acct)
-			if planType == "" {
+			cand, ok := extractEffectivePlanCandidate(acct)
+			if !ok {
 				continue
 			}
-			expiresAt := extractEntitlementExpiresAt(acct)
-			multiplier := extractOpenAIProMultiplier(planType)
 
+			if fallbackC.planType == "" {
+				fallbackC = cand
+			}
+			if cand.downshifted {
+				continue
+			}
 			if anyC.planType == "" {
-				anyC = candidate{planType: planType, expiresAt: expiresAt, multiplier: multiplier}
+				anyC = cand
 			}
 			if account, ok := acct["account"].(map[string]any); ok {
 				if isDefault, _ := account["is_default"].(bool); isDefault {
-					defaultC = candidate{planType: planType, expiresAt: expiresAt, multiplier: multiplier}
+					defaultC = cand
 				}
 			}
-			if !strings.EqualFold(planType, "free") && paidC.planType == "" {
-				paidC = candidate{planType: planType, expiresAt: expiresAt, multiplier: multiplier}
+			if !strings.EqualFold(cand.planType, "free") && paidC.planType == "" {
+				paidC = cand
 			}
 		}
 
@@ -188,7 +187,11 @@ func fetchChatGPTAccountInfo(ctx context.Context, clientFactory PrivacyClientFac
 		case paidC.planType != "":
 			info.PlanType, info.SubscriptionExpiresAt, info.ProMultiplier = paidC.planType, paidC.expiresAt, paidC.multiplier
 		default:
-			info.PlanType, info.SubscriptionExpiresAt, info.ProMultiplier = anyC.planType, anyC.expiresAt, anyC.multiplier
+			if anyC.planType != "" {
+				info.PlanType, info.SubscriptionExpiresAt, info.ProMultiplier = anyC.planType, anyC.expiresAt, anyC.multiplier
+			} else {
+				info.PlanType, info.SubscriptionExpiresAt, info.ProMultiplier = fallbackC.planType, fallbackC.expiresAt, fallbackC.multiplier
+			}
 		}
 	}
 
@@ -214,9 +217,13 @@ func fillAccountInfo(info *ChatGPTAccountInfo, acct map[string]any) {
 	if info == nil {
 		return
 	}
-	info.PlanType = extractPlanType(acct)
-	info.SubscriptionExpiresAt = extractEntitlementExpiresAt(acct)
-	info.ProMultiplier = extractOpenAIProMultiplier(info.PlanType)
+	cand, ok := extractEffectivePlanCandidate(acct)
+	if !ok {
+		return
+	}
+	info.PlanType = cand.planType
+	info.SubscriptionExpiresAt = cand.expiresAt
+	info.ProMultiplier = cand.multiplier
 }
 
 func extractPlanType(acct map[string]any) string {
@@ -231,6 +238,103 @@ func extractPlanType(acct map[string]any) string {
 		}
 	}
 	return ""
+}
+
+type chatGPTPlanCandidate struct {
+	planType    string
+	expiresAt   string
+	multiplier  int
+	downshifted bool
+}
+
+func extractEffectivePlanCandidate(acct map[string]any) (chatGPTPlanCandidate, bool) {
+	planType := extractPlanType(acct)
+	if planType == "" {
+		return chatGPTPlanCandidate{}, false
+	}
+	expiresAt := extractEntitlementExpiresAt(acct)
+	if shouldDownshiftOpenAIPlanCandidate(acct, planType, expiresAt, time.Now()) {
+		return chatGPTPlanCandidate{planType: "free", expiresAt: expiresAt, downshifted: true}, true
+	}
+	return chatGPTPlanCandidate{
+		planType:   planType,
+		expiresAt:  expiresAt,
+		multiplier: extractOpenAIProMultiplier(planType),
+	}, true
+}
+
+func shouldDownshiftOpenAIPlanCandidate(acct map[string]any, planType, expiresAt string, now time.Time) bool {
+	if strings.EqualFold(strings.TrimSpace(planType), "free") {
+		return false
+	}
+	if isInactiveChatGPTAccount(acct) {
+		return true
+	}
+	if isOpenAIEntitlementExpired(expiresAt, now) {
+		return true
+	}
+	return false
+}
+
+func isInactiveChatGPTAccount(acct map[string]any) bool {
+	if acct == nil {
+		return false
+	}
+	if hasInactiveStatusFields(acct) {
+		return true
+	}
+	if account, ok := acct["account"].(map[string]any); ok && hasInactiveStatusFields(account) {
+		return true
+	}
+	if workspace, ok := acct["workspace"].(map[string]any); ok && hasInactiveStatusFields(workspace) {
+		return true
+	}
+	return false
+}
+
+func hasInactiveStatusFields(values map[string]any) bool {
+	for _, key := range []string{"is_active", "active", "enabled"} {
+		if raw, ok := values[key].(bool); ok && !raw {
+			return true
+		}
+	}
+	for _, key := range []string{"deactivated", "is_deactivated", "disabled", "deleted"} {
+		if raw, ok := values[key].(bool); ok && raw {
+			return true
+		}
+	}
+	for _, key := range []string{"status", "state", "workspace_status", "lifecycle_status", "account_status"} {
+		if isInactiveChatGPTStatus(values[key]) {
+			return true
+		}
+	}
+	return false
+}
+
+func isInactiveChatGPTStatus(value any) bool {
+	status, ok := value.(string)
+	if !ok {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "inactive", "disabled", "deactivated", "deleted", "archived", "suspended", "closed":
+		return true
+	default:
+		return false
+	}
+}
+
+func isOpenAIEntitlementExpired(expiresAt string, now time.Time) bool {
+	trimmed := strings.TrimSpace(expiresAt)
+	if trimmed == "" {
+		return false
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02T15:04:05Z07:00", "2006-01-02"} {
+		if parsed, err := time.Parse(layout, trimmed); err == nil {
+			return !parsed.After(now)
+		}
+	}
+	return false
 }
 
 func extractEntitlementExpiresAt(acct map[string]any) string {

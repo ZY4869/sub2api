@@ -83,6 +83,66 @@ func TestNormalizeGeminiRequestForAIStudio_PreservesGeminiOfficialFields(t *test
 	require.False(t, hasCamel)
 }
 
+func TestNormalizeGeminiRequestForAIStudio_CleansInvalidAliasesAndEmptyFields(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{
+		"cached_content":"cachedContents/cache-1",
+		"generation_config":{
+			"response_mime_type":"application/json",
+			"response_modalities":[],
+			"thinking_config":{"include_thoughts":true,"unused":null},
+			"image_config":{"image_size":"2K"}
+		},
+		"tool_config":{"function_calling_config":{"mode":"ANY","allowed_function_names":[]}},
+		"tools":[
+			{"function_declarations":[{"name":"get_weather","parameters":{"type":"object","properties":{"city":{"type":"string","default":"[undefined]"}},"additionalProperties":false}}]},
+			{"googleSearch":{}},
+			{}
+		]
+	}`)
+
+	normalized := normalizeGeminiRequestForAIStudio(body)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(normalized, &payload))
+	require.Equal(t, "cachedContents/cache-1", payload["cachedContent"])
+	require.NotContains(t, payload, "cached_content")
+	require.NotContains(t, payload, "generation_config")
+	require.NotContains(t, payload, "tool_config")
+
+	generationConfig, ok := payload["generationConfig"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "application/json", generationConfig["responseMimeType"])
+	require.NotContains(t, generationConfig, "response_modalities")
+	thinkingConfig, ok := generationConfig["thinkingConfig"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, true, thinkingConfig["includeThoughts"])
+	imageConfig, ok := generationConfig["imageConfig"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "2K", imageConfig["imageSize"])
+
+	toolConfig, ok := payload["toolConfig"].(map[string]any)
+	require.True(t, ok)
+	functionConfig, ok := toolConfig["functionCallingConfig"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "ANY", functionConfig["mode"])
+	require.NotContains(t, functionConfig, "allowed_function_names")
+
+	tools, ok := payload["tools"].([]any)
+	require.True(t, ok)
+	require.Len(t, tools, 2)
+	funcTool, ok := tools[0].(map[string]any)
+	require.True(t, ok)
+	require.NotContains(t, funcTool, "function_declarations")
+	searchTool, ok := tools[1].(map[string]any)
+	require.True(t, ok)
+	_, hasSnake := searchTool["google_search"]
+	_, hasCamel := searchTool["googleSearch"]
+	require.True(t, hasSnake)
+	require.False(t, hasCamel)
+}
+
 func TestGeminiCompatGatewayServiceForward_NormalizesWebSearchToolForAIStudio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

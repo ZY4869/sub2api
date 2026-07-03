@@ -57,5 +57,17 @@ export default {
     usageToday: "Usage today",
     usageTotal: "Usage total",
     deleteConfirm: "Are you sure you want to delete '{name}'? All associated API keys will no longer belong to any group.",
-    deleteConfirmSubscription: "Are you sure you want to delete subscription group '{name}'? This will invalidate all API keys bound to this subscription and delete all related subscription records. This action cannot be undone."
+    deleteConfirmSubscription: "Are you sure you want to delete subscription group '{name}'? This will invalidate all API keys bound to this subscription and delete all related subscription records. This action cannot be undone.",
+    peakRate: {
+        title: "Peak rate",
+        description: "Only subscription groups use this. Peak hours multiply token billing only and do not affect image count billing.",
+        start: "Start time",
+        end: "End time",
+        multiplier: "Peak multiplier",
+        multiplierHint: "Times use the server timezone in HH:MM format.",
+        serverTime: "Server timezone: {timezone} (UTC {offset})",
+        invalidTime: "Peak time must use HH:MM format.",
+        invalidRange: "Peak start time must be earlier than end time.",
+        invalidMultiplier: "Peak multiplier must be non-negative."
+    }
 }

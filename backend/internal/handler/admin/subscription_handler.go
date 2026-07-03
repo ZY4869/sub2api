@@ -217,6 +217,29 @@ func (h *SubscriptionHandler) Extend(c *gin.Context) {
 	})
 }
 
+// Restore restores a revoked subscription.
+// POST /api/v1/admin/subscriptions/:id/restore
+func (h *SubscriptionHandler) Restore(c *gin.Context) {
+	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid subscription ID")
+		return
+	}
+
+	idempotencyPayload := struct {
+		SubscriptionID int64 `json:"subscription_id"`
+	}{
+		SubscriptionID: subscriptionID,
+	}
+	executeAdminIdempotentJSON(c, "admin.subscriptions.restore", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		subscription, execErr := h.subscriptionService.RestoreSubscription(ctx, subscriptionID)
+		if execErr != nil {
+			return nil, execErr
+		}
+		return dto.UserSubscriptionFromServiceAdmin(subscription), nil
+	})
+}
+
 // ResetSubscriptionQuotaRequest represents the reset quota request
 type ResetSubscriptionQuotaRequest struct {
 	Daily   bool `json:"daily"`

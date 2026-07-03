@@ -154,7 +154,7 @@ func (h *OpenAIGatewayHandler) CountTokens(c *gin.Context) {
 	setOpsSelectedAccountDetails(c, account)
 	setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeSync)
 	service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
-	_, err = h.gatewayService.ForwardAnthropicCountTokensCompat(c.Request.Context(), c, account, body, "")
+	_, err = h.gatewayService.ForwardAnthropicCountTokensCompat(c.Request.Context(), c, account, body, runtimeSelectionModel)
 	if err != nil {
 		reqLog.Warn("openai_count_tokens.forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		return

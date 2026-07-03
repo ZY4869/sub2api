@@ -36,6 +36,7 @@ import type {
 } from '@/utils/accountProbeDraft'
 import type { GoogleBatchArchiveBillingMode } from '@/utils/accountGoogleBatchArchive'
 import type { AccountCategory } from '@/components/account/createAccountModal/accountCategory'
+import type { AnthropicAPIKeyAuthScheme } from '@/utils/accountCreateExtras'
 
 interface CreateAccountFormShape {
   name: string
@@ -115,6 +116,7 @@ interface UseCreateAccountResetOptions {
   openaiAPIKeyResponsesWebSocketV2Mode: Ref<OpenAIWSMode>
   codexCLIOnlyEnabled: Ref<boolean>
   anthropicPassthroughEnabled: Ref<boolean>
+  anthropicAPIKeyAuthScheme: Ref<AnthropicAPIKeyAuthScheme>
   quotaControlReset: () => void
   antigravityAccountType: Ref<'oauth' | 'upstream'>
   upstreamBaseUrl: Ref<string>
@@ -222,6 +224,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
     options.codexCLIOnlyEnabled.value = false
     options.anthropicPassthroughEnabled.value = false
+    options.anthropicAPIKeyAuthScheme.value = 'x_api_key'
     options.quotaControlReset()
     options.antigravityAccountType.value = 'oauth'
     options.upstreamBaseUrl.value = ''

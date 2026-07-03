@@ -2,10 +2,17 @@ package service
 
 import (
 	"encoding/json"
+	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+)
+
+const (
+	AnthropicAPIKeyAuthSchemeXAPIKey             = "x_api_key"
+	AnthropicAPIKeyAuthSchemeAuthorizationBearer = "authorization_bearer"
+	anthropicAPIKeyAuthSchemeExtraKey            = "anthropic_apikey_auth_scheme"
 )
 
 // IsAnthropicAPIKeyPassthroughEnabled 返回 Anthropic API Key 账号是否启用“自动透传（仅替换认证）”。
@@ -17,6 +24,35 @@ func (a *Account) IsAnthropicAPIKeyPassthroughEnabled() bool {
 	}
 	enabled, ok := a.Extra["anthropic_passthrough"].(bool)
 	return ok && enabled
+}
+
+func NormalizeAnthropicAPIKeyAuthScheme(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case AnthropicAPIKeyAuthSchemeAuthorizationBearer:
+		return AnthropicAPIKeyAuthSchemeAuthorizationBearer
+	default:
+		return AnthropicAPIKeyAuthSchemeXAPIKey
+	}
+}
+
+func (a *Account) AnthropicAPIKeyAuthScheme() string {
+	if a == nil || !a.IsAnthropic() || a.Type != AccountTypeAPIKey {
+		return AnthropicAPIKeyAuthSchemeXAPIKey
+	}
+	return NormalizeAnthropicAPIKeyAuthScheme(a.GetExtraString(anthropicAPIKeyAuthSchemeExtraKey))
+}
+
+func ApplyAnthropicAPIKeyAuthHeader(req *http.Request, account *Account, token string) {
+	if req == nil {
+		return
+	}
+	req.Header.Del("authorization")
+	req.Header.Del("x-api-key")
+	if account.AnthropicAPIKeyAuthScheme() == AnthropicAPIKeyAuthSchemeAuthorizationBearer {
+		req.Header.Set("authorization", "Bearer "+token)
+		return
+	}
+	req.Header.Set("x-api-key", token)
 }
 
 // IsAnthropicOAuthOrSetupToken 判断是否为 Anthropic OAuth 或 SetupToken 类型账号

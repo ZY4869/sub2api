@@ -72,6 +72,7 @@ import {
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { buildAnthropicExtra, buildOpenAIExtra } from '@/utils/accountCreateExtras'
+import type { AnthropicAPIKeyAuthScheme } from '@/utils/accountCreateExtras'
 import {
   applyDeepSeekModelConcurrencyLimitsExtra,
   createDefaultDeepSeekModelConcurrencyLimitDraft
@@ -122,6 +123,7 @@ import {
 } from '@/utils/accountGoogleBatchArchive'
 import {
   OPENAI_WS_MODE_CTX_POOL,
+  OPENAI_WS_MODE_HTTP_BRIDGE,
   OPENAI_WS_MODE_OFF,
   OPENAI_WS_MODE_PASSTHROUGH,
   resolveOpenAIWSModeConcurrencyHintKey,
@@ -284,6 +286,7 @@ const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
 const anthropicPassthroughEnabled = ref(false)
+const anthropicAPIKeyAuthScheme = ref<AnthropicAPIKeyAuthScheme>('x_api_key')
 const gatewayOpenAIImageProtocolMode = ref<OpenAIImageProtocolMode>(DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE)
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 const antigravityModelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
@@ -495,7 +498,8 @@ const shouldPersistGeminiTierId = computed(() =>
 const openAIWSModeOptions = computed(() => [
   { value: OPENAI_WS_MODE_OFF, label: t('admin.accounts.openai.wsModeOff') },
   { value: OPENAI_WS_MODE_CTX_POOL, label: t('admin.accounts.openai.wsModeCtxPool') },
-  { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') }
+  { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') },
+  { value: OPENAI_WS_MODE_HTTP_BRIDGE, label: t('admin.accounts.openai.wsModeHTTPBridge') }
 ])
 
 const openaiResponsesWebSocketV2Mode = computed({
@@ -878,6 +882,7 @@ const { resetForm } = useCreateAccountReset({
   openaiAPIKeyResponsesWebSocketV2Mode,
   codexCLIOnlyEnabled,
   anthropicPassthroughEnabled,
+  anthropicAPIKeyAuthScheme,
   quotaControlReset: () => quotaControl.reset(),
   antigravityAccountType,
   upstreamBaseUrl,
@@ -1046,7 +1051,7 @@ const buildProbeExtra = (base?: Record<string, unknown>) =>
   )
 
 const modalContext = {
-  BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, accountCategory, addMethod, allowVertexBatchOverflow, allowedModels, anthropicPassthroughEnabled, antigravityAccountType, antigravityModelMappings,
+  BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, accountCategory, addMethod, allowVertexBatchOverflow, allowedModels, anthropicAPIKeyAuthScheme, anthropicPassthroughEnabled, antigravityAccountType, antigravityModelMappings,
   antigravityModelRestrictionMode, antigravityOAuth, antigravityWhitelistModels, apiKeyBaseUrl, apiKeyValue, appStore, applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyInterceptWarmup,
   applyOpenAIImageProtocolDefaults, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra, applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, baiduDocumentAIAccessToken, baiduDocumentAIAsyncBaseUrl, baiduDocumentAIDirectApiUrlsText,
   batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays, buildAnthropicExtra, buildLocalAccountModelProbeSnapshot, buildModelMappingObject, buildOpenAIExtra, buildTempUnschedPayload,

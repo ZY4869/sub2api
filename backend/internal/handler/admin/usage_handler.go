@@ -65,6 +65,26 @@ type CreateUsageRepairTaskRequest struct {
 	Days int    `json:"days"`
 }
 
+type UsageIPGeoLookupRequest struct {
+	IPs []string `json:"ips" binding:"required"`
+}
+
+// LookupIPGeo resolves public IP ownership through the backend proxy.
+// POST /api/v1/admin/usage/ip-geo/lookup
+func (h *UsageHandler) LookupIPGeo(c *gin.Context) {
+	var req UsageIPGeoLookupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	items, err := h.adminService.LookupUsageIPGeo(c.Request.Context(), req.IPs)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, items)
+}
+
 // List handles listing all usage records with filters
 // GET /api/v1/admin/usage
 func (h *UsageHandler) List(c *gin.Context) {

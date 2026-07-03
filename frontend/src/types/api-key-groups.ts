@@ -42,6 +42,12 @@ export interface Group {
   platform: GroupPlatform;
   priority: number;
   rate_multiplier: number;
+  peak_rate_enabled?: boolean;
+  peak_start?: string;
+  peak_end?: string;
+  peak_rate_multiplier?: number;
+  peak_timezone?: string;
+  peak_utc_offset?: string;
   is_exclusive: boolean;
   status: "active" | "inactive";
   subscription_type: SubscriptionType;
@@ -212,6 +218,10 @@ export interface CreateGroupRequest {
   platform?: GroupPlatform;
   priority?: number;
   rate_multiplier?: number;
+  peak_rate_enabled?: boolean;
+  peak_start?: string;
+  peak_end?: string;
+  peak_rate_multiplier?: number;
   is_exclusive?: boolean;
   gemini_mixed_protocol_enabled?: boolean;
   subscription_type?: SubscriptionType;
@@ -238,6 +248,10 @@ export interface UpdateGroupRequest {
   platform?: GroupPlatform;
   priority?: number;
   rate_multiplier?: number;
+  peak_rate_enabled?: boolean;
+  peak_start?: string;
+  peak_end?: string;
+  peak_rate_multiplier?: number;
   is_exclusive?: boolean;
   gemini_mixed_protocol_enabled?: boolean;
   status?: "active" | "inactive";

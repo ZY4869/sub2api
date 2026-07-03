@@ -927,6 +927,12 @@ func TestAPIContracts(t *testing.T) {
 						"platform": "anthropic",
 						"priority": 0,
 						"rate_multiplier": 1.5,
+						"peak_rate_enabled": false,
+						"peak_start": "",
+						"peak_end": "",
+						"peak_rate_multiplier": 0,
+						"peak_timezone": "Local",
+						"peak_utc_offset": "+08:00",
 						"is_exclusive": false,
 						"status": "active",
 						"subscription_type": "standard",
@@ -1264,6 +1270,9 @@ func TestAPIContracts(t *testing.T) {
 					"turnstile_enabled": true,
 					"turnstile_site_key": "site-key",
 					"turnstile_secret_key_configured": true,
+					"usage_ip_geo_enabled": false,
+					"usage_ip_geo_provider_url": "https://get.geojs.io/v1/ip/geo/{ip}.json",
+					"usage_ip_geo_timeout_ms": 1500,
 					"linuxdo_connect_enabled": false,
 						"linuxdo_connect_client_id": "",
 						"linuxdo_connect_client_secret_configured": false,
@@ -2716,6 +2725,9 @@ func (stubUserSubscriptionRepo) Create(ctx context.Context, sub *service.UserSub
 func (stubUserSubscriptionRepo) GetByID(ctx context.Context, id int64) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
+func (stubUserSubscriptionRepo) GetByIDIncludingDeleted(ctx context.Context, id int64) (*service.UserSubscription, error) {
+	return nil, errors.New("not implemented")
+}
 func (stubUserSubscriptionRepo) GetByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
@@ -2726,6 +2738,9 @@ func (stubUserSubscriptionRepo) Update(ctx context.Context, sub *service.UserSub
 	return errors.New("not implemented")
 }
 func (stubUserSubscriptionRepo) Delete(ctx context.Context, id int64) error {
+	return errors.New("not implemented")
+}
+func (stubUserSubscriptionRepo) Restore(ctx context.Context, id int64, status string) error {
 	return errors.New("not implemented")
 }
 func (r *stubUserSubscriptionRepo) ListByUserID(ctx context.Context, userID int64) ([]service.UserSubscription, error) {

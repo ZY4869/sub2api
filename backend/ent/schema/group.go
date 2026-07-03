@@ -42,6 +42,21 @@ func (Group) Fields() []ent.Field {
 		field.Float("rate_multiplier").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
 			Default(1.0),
+		field.Bool("peak_rate_enabled").
+			Default(false).
+			Comment("Whether subscription token billing uses peak rate multiplier"),
+		field.String("peak_start").
+			MaxLen(5).
+			Default("").
+			Comment("Peak billing start time in server timezone, HH:MM"),
+		field.String("peak_end").
+			MaxLen(5).
+			Default("").
+			Comment("Peak billing end time in server timezone, HH:MM"),
+		field.Float("peak_rate_multiplier").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
+			Default(1.0).
+			Comment("Additional token billing multiplier during peak window"),
 		field.Bool("is_exclusive").
 			Default(false),
 		field.String("status").

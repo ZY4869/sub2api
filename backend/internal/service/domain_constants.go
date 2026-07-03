@@ -73,6 +73,7 @@ const (
 	SubscriptionStatusActive    = domain.SubscriptionStatusActive
 	SubscriptionStatusExpired   = domain.SubscriptionStatusExpired
 	SubscriptionStatusSuspended = domain.SubscriptionStatusSuspended
+	SubscriptionStatusRevoked   = domain.SubscriptionStatusRevoked
 )
 
 const LinuxDoConnectSyntheticEmailDomain = "@linuxdo-connect.invalid"
@@ -159,6 +160,9 @@ const (
 	SettingKeyAvailableChannelsEnabled             = "available_channels_enabled"
 	SettingKeyChannelMonitorEnabled                = "channel_monitor_enabled"
 	SettingKeyChannelMonitorDefaultIntervalSeconds = "channel_monitor_default_interval_seconds"
+	SettingKeyUsageIPGeoEnabled                    = "usage_ip_geo_enabled"
+	SettingKeyUsageIPGeoProviderURL                = "usage_ip_geo_provider_url"
+	SettingKeyUsageIPGeoTimeoutMs                  = "usage_ip_geo_timeout_ms"
 	SettingKeyPurchaseSubscriptionEnabled          = "purchase_subscription_enabled"
 	SettingKeyPurchaseSubscriptionURL              = "purchase_subscription_url"
 	SettingKeyPaymentProviderAirwallexEnabled      = "payment_provider_airwallex_enabled"

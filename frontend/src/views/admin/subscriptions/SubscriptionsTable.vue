@@ -144,6 +144,14 @@
           <Icon name="ban" size="sm" />
           <span class="text-xs">{{ t('admin.subscriptions.revoke') }}</span>
         </button>
+        <button
+          v-if="row.status === 'revoked' || row.deleted_at"
+          @click="emit('restore', row)"
+          class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
+        >
+          <Icon name="refresh" size="sm" />
+          <span class="text-xs">{{ t('admin.subscriptions.restore') }}</span>
+        </button>
       </div>
     </template>
 
@@ -187,6 +195,7 @@ const emit = defineEmits<{
   extend: [subscription: UserSubscription]
   'reset-quota': [subscription: UserSubscription]
   revoke: [subscription: UserSubscription]
+  restore: [subscription: UserSubscription]
   assign: []
 }>()
 

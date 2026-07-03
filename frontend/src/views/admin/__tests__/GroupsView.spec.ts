@@ -261,6 +261,7 @@ describe('GroupsView iconized selections', () => {
     mockState.showSuccess.mockReset()
     mockState.isCurrentStep.mockReset()
     mockState.nextStep.mockReset()
+    window.localStorage.removeItem('sub2api.admin.groups.hiddenColumns')
 
     mockState.isCurrentStep.mockReturnValue(false)
     mockState.listGroups.mockResolvedValue({
@@ -349,5 +350,69 @@ describe('GroupsView iconized selections', () => {
         'admin.groups.platforms.protocol_gateway'
       ])
     )
+  })
+
+  it('keeps name/actions columns fixed and allows peak-rate column persistence toggles', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const state = (wrapper.vm as any).$?.setupState
+    const allColumns = state.columns.value ?? state.columns
+    expect(allColumns.map((column: { key: string }) => column.key)).toContain('peak_rate')
+
+    state.toggleGroupColumn('name')
+    await nextTick()
+    let visibleColumns = state.visibleColumns.value ?? state.visibleColumns
+    expect(visibleColumns.map((column: { key: string }) => column.key)).toContain('name')
+
+    state.toggleGroupColumn('actions')
+    await nextTick()
+    visibleColumns = state.visibleColumns.value ?? state.visibleColumns
+    expect(visibleColumns.map((column: { key: string }) => column.key)).toContain('actions')
+
+    state.toggleGroupColumn('peak_rate')
+    await nextTick()
+    visibleColumns = state.visibleColumns.value ?? state.visibleColumns
+    expect(visibleColumns.map((column: { key: string }) => column.key)).not.toContain('peak_rate')
+    expect(window.localStorage.getItem('sub2api.admin.groups.hiddenColumns')).toContain('peak_rate')
+  })
+
+  it('clears peak-rate payload for standard groups and validates subscription peak windows', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const state = (wrapper.vm as any).$?.setupState
+    state.createForm.name = 'Standard Group'
+    state.createForm.subscription_type = 'standard'
+    state.createForm.peak_rate_enabled = true
+    state.createForm.peak_start = '09:00'
+    state.createForm.peak_end = '18:00'
+    state.createForm.peak_rate_multiplier = 2
+
+    await state.handleCreateGroup()
+    await flushPromises()
+
+    expect(mockState.createGroup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        peak_rate_enabled: false,
+        peak_start: '',
+        peak_end: '',
+        peak_rate_multiplier: 1
+      })
+    )
+
+    mockState.createGroup.mockClear()
+    mockState.showError.mockClear()
+    state.createForm.name = 'Bad Peak Group'
+    state.createForm.subscription_type = 'subscription'
+    state.createForm.peak_rate_enabled = true
+    state.createForm.peak_start = '9:00'
+    state.createForm.peak_end = '18:00'
+
+    await state.handleCreateGroup()
+    await flushPromises()
+
+    expect(mockState.createGroup).not.toHaveBeenCalled()
+    expect(mockState.showError).toHaveBeenCalledWith('admin.groups.peakRate.invalidTime')
   })
 })

@@ -129,6 +129,9 @@ type SystemSettings struct {
 	AvailableChannelsEnabled             bool                      `json:"available_channels_enabled"`
 	ChannelMonitorEnabled                bool                      `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int                       `json:"channel_monitor_default_interval_seconds"`
+	UsageIPGeoEnabled                    bool                      `json:"usage_ip_geo_enabled"`
+	UsageIPGeoProviderURL                string                    `json:"usage_ip_geo_provider_url"`
+	UsageIPGeoTimeoutMs                  int                       `json:"usage_ip_geo_timeout_ms"`
 	PublicModelCatalogEnabled            bool                      `json:"public_model_catalog_enabled"`
 	PurchaseSubscriptionEnabled          bool                      `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL              string                    `json:"purchase_subscription_url"`

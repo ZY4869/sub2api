@@ -386,6 +386,7 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 	if filteredBody, err := filterEmptyPartsFromGeminiRequest(body); err == nil {
 		body = filteredBody
 	}
+	body = cleanGeminiNativeRequestParameters(body)
 	switch action {
 	case "generateContent", "generateAnswer", "streamGenerateContent", "countTokens":
 	default:

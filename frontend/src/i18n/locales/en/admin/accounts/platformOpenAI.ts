@@ -12,10 +12,12 @@ export default {
         wsModeOff: "Off (off)",
         wsModeCtxPool: "Context Pool (ctx_pool)",
         wsModePassthrough: "Passthrough (passthrough)",
+        wsModeHTTPBridge: "HTTP/SSE Bridge (http_bridge)",
         wsModeShared: "Shared (shared)",
         wsModeDedicated: "Dedicated (dedicated)",
         wsModeConcurrencyHint: "When WS mode is enabled, account concurrency becomes the WS connection pool limit for this account.",
         wsModePassthroughHint: "Passthrough mode does not use the WS connection pool.",
+        wsModeHTTPBridgeHint: "http_bridge mode explicitly uses HTTP/SSE bridging and does not use the WS connection pool.",
         oauthResponsesWebsocketsV2: "OAuth WebSocket Mode",
         oauthResponsesWebsocketsV2Desc: "Only applies to OpenAI OAuth. This account can use OpenAI WebSocket Mode only when enabled.",
         apiKeyResponsesWebsocketsV2: "API Key WebSocket Mode",
@@ -60,5 +62,9 @@ export default {
     anthropic: {
         apiKeyPassthrough: "Auto passthrough (auth only)",
         apiKeyPassthroughDesc: "Only applies to Anthropic API Key accounts. When enabled, messages/count_tokens are forwarded in passthrough mode with auth replacement only, while billing/concurrency/audit and safety filtering are preserved. Disable to roll back immediately.",
+        authScheme: "API Key auth scheme",
+        authSchemeDesc: "Uses x-api-key by default. Bearer sends only the Authorization header.",
+        authSchemeXApiKey: "x-api-key",
+        authSchemeBearer: "Authorization Bearer",
     }
 }

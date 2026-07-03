@@ -62,6 +62,16 @@ export default {
         saved: "Rectifier settings saved",
         saveFailed: "Failed to save rectifier settings",
     },
+    usageIPGeo: {
+        title: "Usage IP Geo Lookup",
+        description: "Look up usage-record IP location through the backend proxy. Disabled by default; the frontend never calls external geo services directly.",
+        enabled: "Enable IP geo lookup",
+        enabledHint: "When enabled, the admin usage page batches IPs from the current page and caches lookup results.",
+        providerUrl: "Provider URL",
+        providerUrlHint: "Must be an HTTP(S) URL. Use {ip} as the placeholder; requests are made by the backend.",
+        timeoutMs: "Timeout (ms)",
+        timeoutMsHint: "Backend lookup timeout, from 200 to 10000 ms.",
+    },
     betaPolicy: {
         title: "Beta Policy",
         description: "How to handle Beta features when configuring the forwarding of Anthropic API requests. Applicable only to the /v1/messages endpoint.",

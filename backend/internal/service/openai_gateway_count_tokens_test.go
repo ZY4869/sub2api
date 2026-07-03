@@ -59,6 +59,30 @@ func TestForwardAnthropicCountTokensCompatUsesResponsesInputTokens(t *testing.T)
 	require.False(t, gjson.GetBytes(upstream.lastBody, "max_output_tokens").Exists())
 }
 
+func TestForwardAnthropicCountTokensCompatUsesDefaultMappedModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"public-codex","max_tokens":64,"messages":[{"role":"user","content":"hello"}]}`)
+	rec, c := newCompatGatewayTestContext(http.MethodPost, "/v1/messages/count_tokens", body)
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"input_tokens":21}`)),
+	}}
+	svc := &OpenAIGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	result, err := svc.ForwardAnthropicCountTokensCompat(context.Background(), c, newCompatForwardAccount(), body, "gpt-5.4")
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, 21, result.InputTokens)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "gpt-5.4", gjson.GetBytes(upstream.lastBody, "model").String())
+}
+
 func TestForwardAnthropicCountTokensCompatRejectsInvalidBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{"model":"gpt-5.4",`)

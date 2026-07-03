@@ -20,6 +20,7 @@ export function useCreateAccountModalWatchers(ctx: any) {
     actualModelLocked,
     addMethod,
     allowedModels,
+    anthropicAPIKeyAuthScheme,
     anthropicPassthroughEnabled,
     antigravityAccountType,
     antigravityModelMappings,
@@ -449,6 +450,7 @@ watch(
     }
     if (platform !== 'anthropic' || category !== 'apikey') {
       anthropicPassthroughEnabled.value = false
+      anthropicAPIKeyAuthScheme.value = 'x_api_key'
     }
   }
 )

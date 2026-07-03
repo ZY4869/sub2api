@@ -35,9 +35,9 @@ var grokCanonicalDescriptors = []grokModelDescriptor{
 	{PublicID: GrokModel3Fast, LegacyAliases: []string{"grok-3-fast-beta"}, PreferredAPIKeyUpstream: "grok-3-fast-beta"},
 	{PublicID: GrokModel4Expert, LegacyAliases: []string{"grok-4", "grok-4-0709"}, PreferredAPIKeyUpstream: "grok-4"},
 	{PublicID: GrokModel4Heavy, HeavyOnly: true},
-	{PublicID: GrokModelImagineFast},
+	{PublicID: GrokModelImagineFast, LegacyAliases: []string{"grok-imagine-image-fast"}, MediaType: grokMediaTypeImage, PreferredAPIKeyUpstream: "grok-imagine-image-fast"},
 	{PublicID: GrokModelImagine, LegacyAliases: []string{"grok-imagine-image"}, MediaType: grokMediaTypeImage, PreferredAPIKeyUpstream: "grok-imagine-image"},
-	{PublicID: GrokModelImagineEdit, MediaType: grokMediaTypeImageEdit},
+	{PublicID: GrokModelImagineEdit, LegacyAliases: []string{"grok-imagine-image-edit"}, MediaType: grokMediaTypeImageEdit, PreferredAPIKeyUpstream: "grok-imagine-image-edit"},
 	{PublicID: GrokModelImagineVideo, LegacyAliases: []string{"grok-imagine-video"}, MediaType: grokMediaTypeVideo, PreferredAPIKeyUpstream: "grok-imagine-video"},
 }
 

@@ -46,6 +46,18 @@ export default {
     billingTypeBalance: "Balance",
     billingTypeSubscription: "Subscription",
     ipAddress: "IP",
+    ipGeo: {
+        loading: "Looking up...",
+        unavailable: "Not looked up",
+        unknown: "Unknown location",
+        status: {
+            ok: "Looked up",
+            private: "Private address",
+            disabled: "Geo lookup disabled",
+            not_found: "Location not found",
+            error: "Lookup failed",
+        },
+    },
     clickToViewBalance: "Click to view balance history",
     failedToLoadUser: "Failed to load user info",
     cleanup: {

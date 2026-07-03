@@ -199,6 +199,36 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardStreamPreservesBodyAnd
 	require.Equal(t, "claude-3-haiku-20240307", gjson.GetBytes(bodyBytes, "model").String(), "缓存的上游请求体应包含映射后的模型")
 }
 
+func TestGatewayService_AnthropicAPIKeyPassthrough_BearerAuthScheme(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	c.Request.Header.Set("Authorization", "Bearer inbound-token")
+	c.Request.Header.Set("X-Api-Key", "inbound-api-key")
+
+	account := newAnthropicAPIKeyAccountForTest()
+	account.Extra[anthropicAPIKeyAuthSchemeExtraKey] = AnthropicAPIKeyAuthSchemeAuthorizationBearer
+	svc := &GatewayService{}
+	body := []byte(`{"model":"claude-3-5-sonnet-latest","messages":[]}`)
+
+	req, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(context.Background(), c, account, body, "upstream-key", ClaudeRequestCapability{})
+	require.NoError(t, err)
+	require.Equal(t, "Bearer upstream-key", req.Header.Get("authorization"))
+	require.Empty(t, req.Header.Get("x-api-key"))
+
+	countReq, err := svc.buildCountTokensRequestAnthropicAPIKeyPassthrough(context.Background(), c, account, body, "upstream-key", ClaudeRequestCapability{})
+	require.NoError(t, err)
+	require.Equal(t, "Bearer upstream-key", countReq.Header.Get("authorization"))
+	require.Empty(t, countReq.Header.Get("x-api-key"))
+
+	genericCountReq, err := svc.buildCountTokensRequest(context.Background(), c, account, body, "upstream-key", "apikey", "claude-3-5-sonnet-latest", false, ClaudeRequestCapability{})
+	require.NoError(t, err)
+	require.Equal(t, "Bearer upstream-key", genericCountReq.Header.Get("authorization"))
+	require.Empty(t, genericCountReq.Header.Get("x-api-key"))
+}
+
 func TestGatewayService_DeepSeekAnthropicInjectsInternalUserIDAndConcurrency(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

@@ -31,9 +31,7 @@ func (s *BillingService) CalculateImageCostWithServiceTierWithContext(
 
 	unitPrice, pricing := s.getImageUnitPriceWithPricingWithContext(ctx, model, imageSize, groupConfig, serviceTier)
 	totalCost := unitPrice * float64(imageCount)
-	if rateMultiplier <= 0 {
-		rateMultiplier = 1.0
-	}
+	rateMultiplier = normalizeExplicitRateMultiplier(rateMultiplier)
 	actualCost := totalCost * rateMultiplier
 
 	return finalizeCostBreakdownCurrency(&CostBreakdown{
@@ -54,9 +52,7 @@ func (s *BillingService) CalculateVideoRequestCostWithContext(ctx context.Contex
 		pricing = resolved
 		unitPrice = pricing.OutputPricePerVideoRequest
 	}
-	if rateMultiplier <= 0 {
-		rateMultiplier = 1.0
-	}
+	rateMultiplier = normalizeExplicitRateMultiplier(rateMultiplier)
 	return finalizeCostBreakdownCurrency(&CostBreakdown{
 		TotalCost:  unitPrice,
 		ActualCost: unitPrice * rateMultiplier,

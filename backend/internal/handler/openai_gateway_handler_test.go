@@ -839,6 +839,43 @@ func TestOpenAIResponses_MultipartCompatRejectSetsMetadataAndLogs(t *testing.T) 
 	require.True(t, logSink.ContainsFieldValue("model", "gpt-5.4-mini"))
 }
 
+func TestOpenAIResponses_CompactSkipsImagegenCompat(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses/compact", strings.NewReader(
+		`{"model":"gpt-5.1","stream":false,"input":"$imagegen hidden prompt","previous_response_id":"msg_123456"}`,
+	))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	groupID := int64(2)
+	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
+		ID:      101,
+		GroupID: &groupID,
+		User:    &service.User{ID: 1},
+	})
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
+		UserID:      1,
+		Concurrency: 1,
+	})
+
+	h := newOpenAIHandlerForPreviousResponseIDValidation(t, nil)
+	h.Responses(c)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Contains(t, w.Body.String(), "previous_response_id must be a response.id")
+	require.Equal(t, "application/json", c.Request.Header.Get("Content-Type"))
+	_, hasCompatMetadata := service.OpenAIResponsesImageGenCompatMetadataFromContext(c.Request.Context())
+	require.False(t, hasCompatMetadata)
+
+	snapshot := protocolruntime.Snapshot()
+	require.Zero(t, snapshot.ResponsesImagegenCompatTotal)
+	require.Zero(t, snapshot.ResponsesImagegenRejectTotal)
+}
+
 func TestOpenAIResponsesWebSocket_SetsClientTransportWSWhenUpgradeValid(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

@@ -81,14 +81,15 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	tokens := normalizedUsage.BillingTokens
 
 	// Resolve rate multiplier.
-	multiplier := s.cfg.Default.RateMultiplier
+	baseMultiplier := defaultGatewayRateMultiplier(s.cfg)
 	if apiKey.GroupID != nil && apiKey.Group != nil {
 		resolver := s.userGroupRateResolver
 		if resolver == nil {
 			resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
 		}
-		multiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
+		baseMultiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
 	}
+	multiplier := effectiveTokenRateMultiplierAt(baseMultiplier, apiKey.Group, time.Now())
 
 	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
 		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens,
@@ -122,6 +123,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		MediaType:                      result.MediaType,
 		ServiceTier:                    serviceTier,
 		RateMultiplier:                 multiplier,
+		FlatRateMultiplier:             cloneRateMultiplier(baseMultiplier),
 	})
 	if err != nil {
 		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
@@ -135,7 +137,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, result.ImageCount)
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, baseMultiplier, result.ImageCount)
 
 	// Determine billing type.
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()

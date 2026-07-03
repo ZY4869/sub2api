@@ -60,6 +60,8 @@ import { joinModelPatternText, parseModelPatternText } from '@/utils/modelPatter
 const { t } = useI18n()
 const appStore = useAppStore()
 const onboardingStore = useOnboardingStore()
+const GROUP_COLUMNS_STORAGE_KEY = 'sub2api.admin.groups.hiddenColumns'
+const ALWAYS_VISIBLE_GROUP_COLUMNS = ['name', 'actions']
 
 const columns = computed<Column[]>(() => [
   { key: 'name', label: t('admin.groups.columns.name'), sortable: true },
@@ -67,6 +69,7 @@ const columns = computed<Column[]>(() => [
   { key: 'platform', label: t('admin.groups.columns.platform'), sortable: true },
   { key: 'billing_type', label: t('admin.groups.columns.billingType'), sortable: true },
   { key: 'rate_multiplier', label: t('admin.groups.columns.rateMultiplier'), sortable: true },
+  { key: 'peak_rate', label: t('admin.groups.columns.peakRate'), sortable: false },
   { key: 'is_exclusive', label: t('admin.groups.columns.type'), sortable: true },
   { key: 'account_count', label: t('admin.groups.columns.accounts'), sortable: true },
   { key: 'capacity', label: t('admin.groups.columns.capacity'), sortable: false },
@@ -74,6 +77,41 @@ const columns = computed<Column[]>(() => [
   { key: 'status', label: t('admin.groups.columns.status'), sortable: true },
   { key: 'actions', label: t('admin.groups.columns.actions'), sortable: false }
 ])
+const loadHiddenGroupColumns = () => {
+  if (typeof window === 'undefined') {
+    return new Set<string>()
+  }
+  try {
+    const raw = window.localStorage.getItem(GROUP_COLUMNS_STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((key) => typeof key === 'string' && !ALWAYS_VISIBLE_GROUP_COLUMNS.includes(key))
+        : []
+    )
+  } catch {
+    return new Set<string>()
+  }
+}
+const hiddenGroupColumns = ref<Set<string>>(loadHiddenGroupColumns())
+const visibleColumns = computed<Column[]>(() =>
+  columns.value.filter((column) => !hiddenGroupColumns.value.has(column.key))
+)
+const toggleGroupColumn = (key: string) => {
+  if (ALWAYS_VISIBLE_GROUP_COLUMNS.includes(key)) {
+    return
+  }
+  const next = new Set(hiddenGroupColumns.value)
+  if (next.has(key)) {
+    next.delete(key)
+  } else {
+    next.add(key)
+  }
+  hiddenGroupColumns.value = next
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(GROUP_COLUMNS_STORAGE_KEY, JSON.stringify([...next]))
+  }
+}
 
 const groups = ref<AdminGroup[]>([])
 const loading = ref(false)
@@ -115,6 +153,10 @@ const createForm = reactive({
   platform: 'anthropic' as GroupPlatform,
   priority: 1,
   rate_multiplier: 1.0,
+  peak_rate_enabled: false,
+  peak_start: '09:00',
+  peak_end: '18:00',
+  peak_rate_multiplier: 1.0,
   is_exclusive: false,
   gemini_mixed_protocol_enabled: false,
   subscription_type: 'standard' as SubscriptionType,
@@ -335,6 +377,10 @@ const editForm = reactive({
   platform: 'anthropic' as GroupPlatform,
   priority: 1,
   rate_multiplier: 1.0,
+  peak_rate_enabled: false,
+  peak_start: '09:00',
+  peak_end: '18:00',
+  peak_rate_multiplier: 1.0,
   is_exclusive: false,
   gemini_mixed_protocol_enabled: false,
   status: 'active' as 'active' | 'inactive',
@@ -467,6 +513,16 @@ const formatGroupAccountValue = (value: number, group: AdminGroup): string => {
   return String(Math.max(value, 0)).padStart(getGroupDigitCount(group), '0')
 }
 
+const formatGroupPeakRate = (group: AdminGroup): string => {
+  if (!group.peak_rate_enabled) {
+    return '-'
+  }
+  const start = group.peak_start || '--:--'
+  const end = group.peak_end || '--:--'
+  const multiplier = group.peak_rate_multiplier ?? 1
+  return `${start}-${end} · ${multiplier}x`
+}
+
 const handleCreatePlatformChange = () => {
   createForm.copy_accounts_from_group_ids = []
   createCopyAccountsSelection.value = null
@@ -489,6 +545,74 @@ const handleEditCopyAccountsSelect = (value: string | number | boolean | null) =
 const normalizeGroupPriority = (value: number | null | undefined): number => {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1
+}
+
+const resetPeakRateConfig = (form: {
+  peak_rate_enabled: boolean
+  peak_start: string
+  peak_end: string
+  peak_rate_multiplier: number
+}) => {
+  form.peak_rate_enabled = false
+  form.peak_start = '09:00'
+  form.peak_end = '18:00'
+  form.peak_rate_multiplier = 1.0
+}
+
+const parsePeakTimeMinutes = (value: string): number | null => {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(value || '').trim())
+  if (!match) {
+    return null
+  }
+  return Number(match[1]) * 60 + Number(match[2])
+}
+
+const validatePeakRateConfig = (form: {
+  subscription_type: SubscriptionType
+  peak_rate_enabled: boolean
+  peak_start: string
+  peak_end: string
+  peak_rate_multiplier: number
+}) => {
+  if (form.subscription_type !== 'subscription' || !form.peak_rate_enabled) {
+    return true
+  }
+  const startMinutes = parsePeakTimeMinutes(form.peak_start)
+  const endMinutes = parsePeakTimeMinutes(form.peak_end)
+  if (startMinutes == null || endMinutes == null) {
+    appStore.showError(t('admin.groups.peakRate.invalidTime'))
+    return false
+  }
+  if (startMinutes >= endMinutes) {
+    appStore.showError(t('admin.groups.peakRate.invalidRange'))
+    return false
+  }
+  const multiplier = Number(form.peak_rate_multiplier)
+  if (!Number.isFinite(multiplier) || multiplier < 0) {
+    appStore.showError(t('admin.groups.peakRate.invalidMultiplier'))
+    return false
+  }
+  return true
+}
+
+const applyPeakRatePayload = <T extends {
+  subscription_type: SubscriptionType
+  peak_rate_enabled: boolean
+  peak_start: string
+  peak_end: string
+  peak_rate_multiplier: number
+}>(payload: T): T => {
+  if (payload.subscription_type !== 'subscription' || !payload.peak_rate_enabled) {
+    payload.peak_rate_enabled = false
+    payload.peak_start = ''
+    payload.peak_end = ''
+    payload.peak_rate_multiplier = 1.0
+    return payload
+  }
+  payload.peak_start = payload.peak_start.trim()
+  payload.peak_end = payload.peak_end.trim()
+  payload.peak_rate_multiplier = Number(payload.peak_rate_multiplier)
+  return payload
 }
 
 const loadUsageSummary = async () => {
@@ -559,6 +683,7 @@ const closeCreateModal = () => {
   createForm.platform = 'anthropic'
   createForm.priority = 1
   createForm.rate_multiplier = 1.0
+  resetPeakRateConfig(createForm)
   createForm.is_exclusive = false
   createForm.gemini_mixed_protocol_enabled = false
   createForm.subscription_type = 'standard'
@@ -606,6 +731,9 @@ const handleCreateGroup = async () => {
     appStore.showError(t('admin.groups.nameRequired'))
     return
   }
+  if (!validatePeakRateConfig(createForm)) {
+    return
+  }
   submitting.value = true
   try {
     const requestData = {
@@ -617,6 +745,7 @@ const handleCreateGroup = async () => {
       visible_model_patterns: parseModelPatternText(createForm.visible_model_patterns_text),
       model_routing: convertRoutingRulesToApiFormat(createModelRoutingRules.value)
     }
+    applyPeakRatePayload(requestData)
 
     const emptyToNull = (v: any) => v === '' ?
  null : v
@@ -645,6 +774,10 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.platform = group.platform
   editForm.priority = group.priority ?? 1
   editForm.rate_multiplier = group.rate_multiplier
+  editForm.peak_rate_enabled = group.peak_rate_enabled === true
+  editForm.peak_start = group.peak_start || '09:00'
+  editForm.peak_end = group.peak_end || '18:00'
+  editForm.peak_rate_multiplier = group.peak_rate_multiplier ?? 1.0
   editForm.is_exclusive = group.is_exclusive
   editForm.gemini_mixed_protocol_enabled = group.gemini_mixed_protocol_enabled || false
   editForm.status = group.status
@@ -682,6 +815,7 @@ const closeEditModal = () => {
   editForm.copy_accounts_from_group_ids = []
   editCopyAccountsSelection.value = null
   editForm.gemini_mixed_protocol_enabled = false
+  resetPeakRateConfig(editForm)
   editForm.image_protocol_mode = 'inherit'
   editForm.visible_model_patterns_text = ''
 }
@@ -690,6 +824,9 @@ const handleUpdateGroup = async () => {
   if (!editingGroup.value) return
   if (!editForm.name.trim()) {
     appStore.showError(t('admin.groups.nameRequired'))
+    return
+  }
+  if (!validatePeakRateConfig(editForm)) {
     return
   }
 
@@ -709,6 +846,7 @@ const handleUpdateGroup = async () => {
       visible_model_patterns: parseModelPatternText(editForm.visible_model_patterns_text),
       model_routing: convertRoutingRulesToApiFormat(editModelRoutingRules.value)
     }
+    applyPeakRatePayload(payload)
 
     const emptyToNull = (v: any) => v === '' ?
  null : v
@@ -758,6 +896,17 @@ watch(
     if (newVal === 'subscription') {
       createForm.is_exclusive = true
       createForm.fallback_group_id_on_invalid_request = null
+      return
+    }
+    resetPeakRateConfig(createForm)
+  }
+)
+
+watch(
+  () => editForm.subscription_type,
+  (newVal) => {
+    if (newVal !== 'subscription') {
+      resetPeakRateConfig(editForm)
     }
   }
 )
@@ -860,7 +1009,11 @@ const groupsViewContext = {
   copyAccountsGroupSelectOptionsForEdit,
   isPlatformSelectOption,
   isGroupSelectOption,
-  columns,
+  columns: visibleColumns,
+  allColumns: columns,
+  hiddenGroupColumns,
+  alwaysVisibleGroupColumns: ALWAYS_VISIBLE_GROUP_COLUMNS,
+  toggleGroupColumn,
   groups,
   loading,
   usageMap,
@@ -908,6 +1061,7 @@ const groupsViewContext = {
   formatCost,
   getGroupAvailableAccounts,
   formatGroupAccountValue,
+  formatGroupPeakRate,
   toggleCreateScope,
   toggleEditScope,
   getCreateRuleRenderKey,

@@ -412,11 +412,14 @@
         </template>
 
         <template #cell-ip_address="{ row }">
-          <span
-            v-if="row.ip_address"
-            class="text-sm font-mono text-gray-600 dark:text-gray-400"
-            >{{ row.ip_address }}</span
-          >
+          <div v-if="row.ip_address" class="space-y-0.5">
+            <span class="text-sm font-mono text-gray-600 dark:text-gray-400">
+              {{ row.ip_address }}
+            </span>
+            <div class="text-[11px]" :class="getIPGeoClass(row.ip_address)">
+              {{ getIPGeoLabel(row.ip_address) }}
+            </div>
+          </div>
           <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
         </template>
 
@@ -811,6 +814,7 @@ import type {
   UsageModelDisplayMode,
   UsageViewUserAgentDisplayMode,
 } from "@/types";
+import type { UsageIPGeoLookupItem } from "@/api/admin/usage";
 
 defineEmits(["userClick"]);
 const { t } = useI18n();
@@ -824,10 +828,14 @@ const props = withDefaults(defineProps<{
   tableDensity?: "comfortable" | "compact";
   showMillionContextLines?: boolean;
   userAgentDisplayMode?: UsageViewUserAgentDisplayMode;
+  ipGeoMap?: Record<string, UsageIPGeoLookupItem>;
+  ipGeoLoading?: boolean;
 }>(), {
   tableDensity: "comfortable",
   showMillionContextLines: true,
   userAgentDisplayMode: "compact",
+  ipGeoMap: () => ({}),
+  ipGeoLoading: false,
 });
 
 const tableDensityClass = computed(() =>
@@ -980,6 +988,39 @@ const formatDuration = (ms: number | null | undefined): string => {
   if (ms == null) return "-";
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const getIPGeoItem = (ip: string): UsageIPGeoLookupItem | undefined =>
+  props.ipGeoMap[String(ip || "").trim()];
+
+const getIPGeoLabel = (ip: string): string => {
+  if (props.ipGeoLoading) {
+    return t("admin.usage.ipGeo.loading");
+  }
+  const item = getIPGeoItem(ip);
+  if (!item) {
+    return t("admin.usage.ipGeo.unavailable");
+  }
+  if (item.status === "ok") {
+    const location = [item.country, item.region, item.city]
+      .map((part) => String(part || "").trim())
+      .filter(Boolean)
+      .join(" / ");
+    const asn = String(item.asn || "").trim();
+    return [location || t("admin.usage.ipGeo.unknown"), asn].filter(Boolean).join(" · ");
+  }
+  return t(`admin.usage.ipGeo.status.${item.status}`);
+};
+
+const getIPGeoClass = (ip: string): string => {
+  const status = getIPGeoItem(ip)?.status;
+  if (status === "ok") {
+    return "text-emerald-600 dark:text-emerald-400";
+  }
+  if (status === "error") {
+    return "text-rose-500 dark:text-rose-400";
+  }
+  return "text-gray-400 dark:text-gray-500";
 };
 
 // Cost tooltip functions

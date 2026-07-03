@@ -2,6 +2,7 @@ export default {
     name: "名称",
     platform: "平台",
     rateMultiplier: "费率倍数",
+    peakRate: "高峰倍率",
     exclusive: "独占",
     type: "类型",
     priority: "优先级",

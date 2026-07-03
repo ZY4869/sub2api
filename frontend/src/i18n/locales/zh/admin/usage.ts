@@ -46,6 +46,18 @@ export default {
     billingTypeBalance: "钱包余额",
     billingTypeSubscription: "订阅套餐",
     ipAddress: "IP",
+    ipGeo: {
+        loading: "查询中...",
+        unavailable: "未查询",
+        unknown: "未知归属",
+        status: {
+            ok: "已查询",
+            private: "内网地址",
+            disabled: "归属查询已关闭",
+            not_found: "未找到归属",
+            error: "查询失败",
+        },
+    },
     clickToViewBalance: "点击查看充值记录",
     failedToLoadUser: "加载用户信息失败",
     cleanup: {

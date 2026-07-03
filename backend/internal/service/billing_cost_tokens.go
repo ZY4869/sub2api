@@ -106,9 +106,7 @@ func (s *BillingService) calculateCostWithPricing(
 
 	breakdown.TotalCost = breakdown.InputCost + breakdown.OutputCost +
 		breakdown.CacheCreationCost + breakdown.CacheReadCost
-	if rateMultiplier <= 0 {
-		rateMultiplier = 1.0
-	}
+	rateMultiplier = normalizeExplicitRateMultiplier(rateMultiplier)
 	breakdown.ActualCost = breakdown.TotalCost * rateMultiplier
 	return finalizeCostBreakdownCurrency(breakdown, pricing)
 }

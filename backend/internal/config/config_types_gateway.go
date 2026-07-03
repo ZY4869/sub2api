@@ -95,6 +95,8 @@ type GatewayOpenAIWSConfig struct {
 	PrewarmGenerateEnabled                     bool                                 `mapstructure:"prewarm_generate_enabled"`
 	ResponsesWebsockets                        bool                                 `mapstructure:"responses_websockets"`
 	ResponsesWebsocketsV2                      bool                                 `mapstructure:"responses_websockets_v2"`
+	HTTPBridgeEnabled                          bool                                 `mapstructure:"http_bridge_enabled"`
+	HTTPBridgeThresholdBytes                   int64                                `mapstructure:"http_bridge_threshold_bytes"`
 	MaxConnsPerAccount                         int                                  `mapstructure:"max_conns_per_account"`
 	MinIdlePerAccount                          int                                  `mapstructure:"min_idle_per_account"`
 	MaxIdlePerAccount                          int                                  `mapstructure:"max_idle_per_account"`

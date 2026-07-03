@@ -10,9 +10,11 @@ import (
 type UserSubscriptionRepository interface {
 	Create(ctx context.Context, sub *UserSubscription) error
 	GetByID(ctx context.Context, id int64) (*UserSubscription, error)
+	GetByIDIncludingDeleted(ctx context.Context, id int64) (*UserSubscription, error)
 	GetByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*UserSubscription, error)
 	GetActiveByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*UserSubscription, error)
 	Update(ctx context.Context, sub *UserSubscription) error
+	Restore(ctx context.Context, id int64, status string) error
 	Delete(ctx context.Context, id int64) error
 
 	ListByUserID(ctx context.Context, userID int64) ([]UserSubscription, error)

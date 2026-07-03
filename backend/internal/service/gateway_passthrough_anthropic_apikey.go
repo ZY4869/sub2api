@@ -202,7 +202,7 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx cont
 	req.Header.Del("x-api-key")
 	req.Header.Del("x-goog-api-key")
 	req.Header.Del("cookie")
-	req.Header.Set("x-api-key", token)
+	ApplyAnthropicAPIKeyAuthHeader(req, account, token)
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}

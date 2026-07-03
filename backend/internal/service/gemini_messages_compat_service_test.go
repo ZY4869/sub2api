@@ -379,6 +379,73 @@ func TestForwardNativeGenerateContent_StripsClaudeMillionContextSuffixBeforeUpst
 	require.Empty(t, result.MillionContextBetaToken)
 }
 
+func TestForwardNativeGenerateContent_VertexExpressCleansInvalidParameters(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var capturedBody []byte
+	svc := &GeminiMessagesCompatService{
+		httpUpstream: &geminiCompatHTTPUpstreamStub{
+			do: func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+				var err error
+				capturedBody, err = io.ReadAll(req.Body)
+				require.NoError(t, err)
+				require.Contains(t, req.URL.String(), ":generateContent")
+				require.Contains(t, req.URL.RawQuery, "key=test-key")
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Content-Type": []string{"application/json"},
+					},
+					Body: io.NopCloser(strings.NewReader(`{"responseId":"resp-vertex-clean","usageMetadata":{"promptTokenCount":8,"candidatesTokenCount":3}}`)),
+				}, nil
+			},
+		},
+	}
+
+	body := []byte(`{
+		"contents":[{"role":"user","parts":[{"text":"hello"}]}],
+		"generation_config":{
+			"response_mime_type":"application/json",
+			"response_modalities":[],
+			"thinking_config":{"include_thoughts":true,"unused":null}
+		},
+		"tool_config":{"function_calling_config":{"mode":"ANY","allowed_function_names":[]}},
+		"tools":[{"function_declarations":[{"name":"get_weather","parameters":{"type":"object","properties":{"city":{"type":"string","default":"[undefined]"}},"additionalProperties":false}}]}]
+	}`)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-2.5-flash:generateContent", strings.NewReader(string(body)))
+
+	result, err := svc.ForwardNative(context.Background(), c, &Account{
+		ID:       507,
+		Name:     "Gemini Vertex Express",
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":            "test-key",
+			"gemini_api_variant": GeminiAPIKeyVariantVertexExpress,
+		},
+	}, "gemini-2.5-flash", "generateContent", false, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	require.True(t, gjson.GetBytes(capturedBody, "generationConfig.responseMimeType").Exists())
+	require.Equal(t, "application/json", gjson.GetBytes(capturedBody, "generationConfig.responseMimeType").String())
+	require.False(t, gjson.GetBytes(capturedBody, "generation_config").Exists())
+	require.False(t, gjson.GetBytes(capturedBody, "generationConfig.response_modalities").Exists())
+	require.False(t, gjson.GetBytes(capturedBody, "generationConfig.responseModalities").Exists())
+	require.True(t, gjson.GetBytes(capturedBody, "generationConfig.thinkingConfig.includeThoughts").Bool())
+	require.False(t, gjson.GetBytes(capturedBody, "generationConfig.thinkingConfig.unused").Exists())
+	require.Equal(t, "ANY", gjson.GetBytes(capturedBody, "toolConfig.functionCallingConfig.mode").String())
+	require.False(t, gjson.GetBytes(capturedBody, "tool_config").Exists())
+	require.False(t, gjson.GetBytes(capturedBody, "toolConfig.functionCallingConfig.allowed_function_names").Exists())
+	require.False(t, gjson.GetBytes(capturedBody, "toolConfig.functionCallingConfig.allowedFunctionNames").Exists())
+	require.True(t, gjson.GetBytes(capturedBody, "tools.0.functionDeclarations").Exists())
+	require.False(t, gjson.GetBytes(capturedBody, "tools.0.function_declarations").Exists())
+	require.False(t, gjson.GetBytes(capturedBody, "tools.0.functionDeclarations.0.parameters.additionalProperties").Exists())
+	require.False(t, gjson.GetBytes(capturedBody, "tools.0.functionDeclarations.0.parameters.properties.city.default").Exists())
+}
+
 func TestForwardNativeCountTokens_EstimatedFallbackPreservesClaudeMillionContextObservation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

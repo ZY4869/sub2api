@@ -62,6 +62,16 @@ export default {
         saved: "整流器设置保存成功",
         saveFailed: "保存整流器设置失败",
     },
+    usageIPGeo: {
+        title: "使用记录 IP 归属",
+        description: "通过后端代理查询使用记录中的 IP 归属，默认关闭，不在前端直连外部服务。",
+        enabled: "启用 IP 归属查询",
+        enabledHint: "开启后，后台使用记录页会按当前页 IP 批量查询并缓存结果。",
+        providerUrl: "服务商 URL",
+        providerUrlHint: "必须是 HTTP(S) URL，可使用 {ip} 占位符；请求由后端发起。",
+        timeoutMs: "超时（毫秒）",
+        timeoutMsHint: "后端查询超时时间，范围 200-10000 毫秒。",
+    },
     betaPolicy: {
         title: "Beta 策略",
         description: "配置转发 Anthropic API 请求时如何处理 Beta 特性。仅适用于 /v1/messages 接口。",

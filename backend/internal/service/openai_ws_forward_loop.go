@@ -40,6 +40,15 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 		if ingressMode == OpenAIWSIngressModeOff {
 			return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "websocket mode is disabled for this account", nil)
 		}
+		if ingressMode == OpenAIWSIngressModeHTTPBridge {
+			if !s.cfg.Gateway.OpenAIWS.HTTPBridgeEnabled {
+				return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "websocket http bridge is disabled", nil)
+			}
+			return s.proxyResponsesWebSocketHTTPBridge(ctx, c, clientConn, account, token, firstClientMessage, hooks, "explicit_mode")
+		}
+		if s.shouldOpenAIWSHTTPBridgeFirstPayload(firstClientMessage) {
+			return s.proxyResponsesWebSocketHTTPBridge(ctx, c, clientConn, account, token, firstClientMessage, hooks, "first_payload_threshold")
+		}
 		switch ingressMode {
 		case OpenAIWSIngressModePassthrough:
 			if wsDecision.Transport != OpenAIUpstreamTransportResponsesWebsocketV2 {
@@ -48,7 +57,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 			return s.proxyResponsesWebSocketV2Passthrough(ctx, c, clientConn, account, token, firstClientMessage, hooks, wsDecision)
 		case OpenAIWSIngressModeCtxPool, OpenAIWSIngressModeShared, OpenAIWSIngressModeDedicated:
 		default:
-			return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "websocket mode only supports ctx_pool/passthrough", nil)
+			return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "websocket mode only supports ctx_pool/passthrough/http_bridge", nil)
 		}
 	}
 	if wsDecision.Transport != OpenAIUpstreamTransportResponsesWebsocketV2 {

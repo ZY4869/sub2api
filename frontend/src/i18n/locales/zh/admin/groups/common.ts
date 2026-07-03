@@ -64,5 +64,17 @@ export default {
     groupDeleted: "分组删除成功",
     failedToCreate: "创建分组失败",
     failedToUpdate: "更新分组失败",
-    nameRequired: "请输入分组名称"
+    nameRequired: "请输入分组名称",
+    peakRate: {
+        title: "高峰倍率",
+        description: "仅订阅分组生效；高峰时段只放大 token 计费倍率，不影响按张计费图片。",
+        start: "开始时间",
+        end: "结束时间",
+        multiplier: "高峰倍率",
+        multiplierHint: "时间使用服务器时区，格式为 HH:MM。",
+        serverTime: "服务器时区：{timezone}（UTC {offset}）",
+        invalidTime: "高峰时间必须使用 HH:MM 格式。",
+        invalidRange: "高峰开始时间必须早于结束时间。",
+        invalidMultiplier: "高峰倍率必须为非负数。"
+    }
 }

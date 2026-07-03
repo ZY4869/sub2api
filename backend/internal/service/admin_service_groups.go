@@ -115,7 +115,15 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 			return nil, fmt.Errorf("failed to get accounts from source groups: %w", err)
 		}
 	}
-	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns)}
+	peakMultiplier := 1.0
+	if input.PeakRateMultiplier != nil {
+		peakMultiplier = *input.PeakRateMultiplier
+	}
+	peakEnabled, peakStart, peakEnd, peakRateMultiplier, err := NormalizeGroupPeakRateConfig(subscriptionType, input.PeakRateEnabled, input.PeakStart, input.PeakEnd, peakMultiplier)
+	if err != nil {
+		return nil, err
+	}
+	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, PeakRateEnabled: peakEnabled, PeakStart: peakStart, PeakEnd: peakEnd, PeakRateMultiplier: peakRateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns)}
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
 	}
@@ -300,6 +308,26 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.VisibleModelPatterns != nil {
 		group.VisibleModelPatterns = NormalizeGroupVisibleModelPatterns(*input.VisibleModelPatterns)
+	}
+	peakEnabled := group.PeakRateEnabled
+	if input.PeakRateEnabled != nil {
+		peakEnabled = *input.PeakRateEnabled
+	}
+	peakStart := group.PeakStart
+	if input.PeakStart != nil {
+		peakStart = *input.PeakStart
+	}
+	peakEnd := group.PeakEnd
+	if input.PeakEnd != nil {
+		peakEnd = *input.PeakEnd
+	}
+	peakMultiplier := group.PeakRateMultiplier
+	if input.PeakRateMultiplier != nil {
+		peakMultiplier = *input.PeakRateMultiplier
+	}
+	group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier, err = NormalizeGroupPeakRateConfig(group.SubscriptionType, peakEnabled, peakStart, peakEnd, peakMultiplier)
+	if err != nil {
+		return nil, err
 	}
 	if err := s.groupRepo.Update(ctx, group); err != nil {
 		return nil, err

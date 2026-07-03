@@ -70,6 +70,12 @@
         <Icon name="arrowsUpDown" size="md" class="mr-2" />
         {{ t('admin.groups.sortOrder') }}
       </button>
+      <UsageColumnSettingsMenu
+        :columns="allColumns"
+        :hidden-columns="hiddenGroupColumns"
+        :always-visible-columns="alwaysVisibleGroupColumns"
+        @toggle-column="toggleGroupColumn"
+      />
       <button
         @click="showCreateModal = true"
         class="btn btn-primary"
@@ -85,6 +91,7 @@
 <script setup lang="ts">
 import Select from '@/components/common/Select.vue'
 import PlatformLabel from '@/components/common/PlatformLabel.vue'
+import UsageColumnSettingsMenu from '@/components/usage/UsageColumnSettingsMenu.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const props = defineProps<{ ctx: any }>()
@@ -95,6 +102,10 @@ const {
   platformFilterOptions,
   statusOptions,
   exclusiveOptions,
+  allColumns,
+  hiddenGroupColumns,
+  alwaysVisibleGroupColumns,
+  toggleGroupColumn,
   isPlatformSelectOption,
   loadGroups,
   loading,

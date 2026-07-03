@@ -132,6 +132,12 @@ func (s *SettingService) applyParsedOpsRuntimeSettings(result *SystemSettings, s
 	}
 	result.EnableAnthropicCacheTTL1hInjection = strings.TrimSpace(settings[SettingKeyEnableAnthropicCacheTTL1hInjection]) == "true"
 	result.ChannelMonitorDefaultIntervalSeconds = parseClampedIntSetting(settings[SettingKeyChannelMonitorDefaultIntervalSeconds], 60, 15, 3600)
+	result.UsageIPGeoEnabled = strings.TrimSpace(settings[SettingKeyUsageIPGeoEnabled]) == "true"
+	result.UsageIPGeoProviderURL = strings.TrimSpace(settings[SettingKeyUsageIPGeoProviderURL])
+	if result.UsageIPGeoProviderURL == "" {
+		result.UsageIPGeoProviderURL = DefaultUsageIPGeoProviderURL
+	}
+	result.UsageIPGeoTimeoutMs = parseClampedIntSetting(settings[SettingKeyUsageIPGeoTimeoutMs], 1500, 200, 10000)
 	result.MinClaudeCodeVersion = settings[SettingKeyMinClaudeCodeVersion]
 	result.MaxClaudeCodeVersion = settings[SettingKeyMaxClaudeCodeVersion]
 	result.ClaudeOAuthSystemPromptBlocksEnabled = settings[SettingKeyClaudeOAuthSystemPromptBlocksEnabled] == "true"

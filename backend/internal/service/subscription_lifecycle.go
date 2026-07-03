@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -21,17 +22,34 @@ func (s *SubscriptionService) RevokeSubscription(ctx context.Context, subscripti
 	}
 
 	// 失效订阅缓存
-	s.InvalidateSubCache(sub.UserID, sub.GroupID)
-	if s.billingCacheService != nil {
-		userID, groupID := sub.UserID, sub.GroupID
-		go func() {
-			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = s.billingCacheService.InvalidateSubscription(cacheCtx, userID, groupID)
-		}()
-	}
+	s.invalidateSubscriptionRuntimeCaches(sub.UserID, sub.GroupID)
 
 	return nil
+}
+
+func (s *SubscriptionService) RestoreSubscription(ctx context.Context, subscriptionID int64) (*UserSubscription, error) {
+	sub, err := s.userSubRepo.GetByIDIncludingDeleted(ctx, subscriptionID)
+	if err != nil {
+		return nil, err
+	}
+	if sub.DeletedAt == nil {
+		return nil, ErrSubscriptionNotRevoked
+	}
+	if existing, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, sub.UserID, sub.GroupID); err == nil && existing != nil {
+		return nil, ErrSubscriptionAlreadyExists
+	} else if err != nil && !errors.Is(err, ErrSubscriptionNotFound) {
+		return nil, err
+	}
+
+	status := SubscriptionStatusActive
+	if !sub.ExpiresAt.After(time.Now()) {
+		status = SubscriptionStatusExpired
+	}
+	if err := s.userSubRepo.Restore(ctx, subscriptionID, status); err != nil {
+		return nil, err
+	}
+	s.invalidateSubscriptionRuntimeCaches(sub.UserID, sub.GroupID)
+	return s.userSubRepo.GetByID(ctx, subscriptionID)
 }
 
 // ExtendSubscription 调整订阅时长（正数延长，负数缩短）
@@ -88,15 +106,7 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 	}
 
 	// 失效订阅缓存
-	s.InvalidateSubCache(sub.UserID, sub.GroupID)
-	if s.billingCacheService != nil {
-		userID, groupID := sub.UserID, sub.GroupID
-		go func() {
-			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = s.billingCacheService.InvalidateSubscription(cacheCtx, userID, groupID)
-		}()
-	}
+	s.invalidateSubscriptionRuntimeCaches(sub.UserID, sub.GroupID)
 
 	return s.userSubRepo.GetByID(ctx, subscriptionID)
 }
@@ -180,8 +190,24 @@ func normalizeSubscriptionStatus(subs []UserSubscription) {
 	now := time.Now()
 	for i := range subs {
 		sub := &subs[i]
+		if sub.DeletedAt != nil {
+			sub.Status = SubscriptionStatusRevoked
+			continue
+		}
 		if sub.Status == SubscriptionStatusActive && !sub.ExpiresAt.After(now) {
 			sub.Status = SubscriptionStatusExpired
 		}
 	}
+}
+
+func (s *SubscriptionService) invalidateSubscriptionRuntimeCaches(userID, groupID int64) {
+	s.InvalidateSubCache(userID, groupID)
+	if s.billingCacheService == nil {
+		return
+	}
+	go func() {
+		cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = s.billingCacheService.InvalidateSubscription(cacheCtx, userID, groupID)
+	}()
 }

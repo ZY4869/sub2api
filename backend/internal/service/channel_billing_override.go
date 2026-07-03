@@ -6,7 +6,8 @@ func applyChannelPricingOverride(
 	base *CostBreakdown,
 	pricing *GatewayChannelResolvedPricing,
 	tokens UsageTokens,
-	multiplier float64,
+	tokenMultiplier float64,
+	flatMultiplier float64,
 	imageCount int,
 ) (*CostBreakdown, *int, *float64) {
 	if pricing == nil {
@@ -23,7 +24,7 @@ func applyChannelPricingOverride(
 		if amount <= 0 {
 			return base, nil, nil
 		}
-		return newChannelFlatCost(amount, multiplier), nil, nil
+		return newChannelFlatCost(amount, flatMultiplier), nil, nil
 	case model.ChannelBillingModeImage:
 		imageOutputTokens := tokens.OutputTokens
 		if imageOutputTokens <= 0 {
@@ -36,7 +37,7 @@ func applyChannelPricingOverride(
 		if amount <= 0 {
 			return base, nil, nil
 		}
-		cost := newChannelFlatCost(amount, multiplier)
+		cost := newChannelFlatCost(amount, flatMultiplier)
 		imageCost := cost.TotalCost
 		return cost, &imageOutputTokens, &imageCost
 	default:
@@ -55,18 +56,14 @@ func applyChannelPricingOverride(
 			cost.CacheReadCost = float64(tokens.CacheReadTokens) * *pricing.CacheReadPrice
 		}
 		cost.TotalCost = cost.InputCost + cost.OutputCost + cost.CacheCreationCost + cost.CacheReadCost
-		if multiplier <= 0 {
-			multiplier = 1
-		}
-		cost.ActualCost = cost.TotalCost * multiplier
+		tokenMultiplier = normalizeExplicitRateMultiplier(tokenMultiplier)
+		cost.ActualCost = cost.TotalCost * tokenMultiplier
 		return finalizeCostBreakdownCurrency(&cost, modelPricingFromCostBreakdownCurrency(base)), nil, nil
 	}
 }
 
 func newChannelFlatCost(totalCost float64, multiplier float64) *CostBreakdown {
-	if multiplier <= 0 {
-		multiplier = 1
-	}
+	multiplier = normalizeExplicitRateMultiplier(multiplier)
 	return finalizeCostBreakdownCurrency(&CostBreakdown{
 		TotalCost:  totalCost,
 		ActualCost: totalCost * multiplier,

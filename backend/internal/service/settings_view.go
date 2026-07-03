@@ -82,6 +82,9 @@ type SystemSettings struct {
 	AvailableChannelsEnabled             bool
 	ChannelMonitorEnabled                bool
 	ChannelMonitorDefaultIntervalSeconds int
+	UsageIPGeoEnabled                    bool
+	UsageIPGeoProviderURL                string
+	UsageIPGeoTimeoutMs                  int
 	PublicModelCatalogEnabled            bool
 	PurchaseSubscriptionEnabled          bool
 	PurchaseSubscriptionURL              string

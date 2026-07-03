@@ -82,6 +82,18 @@
             <span class="text-sm text-gray-700 dark:text-gray-300">{{ value }}x</span>
           </template>
 
+          <template #cell-peak_rate="{ row }">
+            <div v-if="row.peak_rate_enabled" class="space-y-0.5 text-xs">
+              <div class="font-medium text-gray-700 dark:text-gray-200">
+                {{ formatGroupPeakRate(row) }}
+              </div>
+              <div class="text-gray-400 dark:text-gray-500">
+                {{ row.peak_timezone || row.peak_utc_offset || '' }}
+              </div>
+            </div>
+            <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          </template>
+
           <template #cell-is_exclusive="{ value }">
             <span :class="['badge', value ? 'badge-primary' : 'badge-gray']">
               {{ value ? t('admin.groups.exclusive') : t('admin.groups.public') }}
@@ -209,6 +221,7 @@ const {
   handleDelete,
   formatCost,
   getGroupAvailableAccounts,
-  formatGroupAccountValue
+  formatGroupAccountValue,
+  formatGroupPeakRate
 } = props.ctx
 </script>

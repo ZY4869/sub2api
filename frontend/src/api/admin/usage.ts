@@ -115,6 +115,18 @@ export interface AdminUsageQueryParams extends UsageQueryParams {
   include_preview_availability?: boolean
 }
 
+export type UsageIPGeoStatus = 'ok' | 'private' | 'disabled' | 'not_found' | 'error'
+
+export interface UsageIPGeoLookupItem {
+  ip: string
+  status: UsageIPGeoStatus
+  country?: string
+  region?: string
+  city?: string
+  asn?: string
+  cached?: boolean
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -239,6 +251,14 @@ export async function getRequestPreview(
   return data
 }
 
+export async function lookupIPGeo(ips: string[]): Promise<UsageIPGeoLookupItem[]> {
+  const { data } = await apiClient.post<UsageIPGeoLookupItem[]>(
+    '/admin/usage/ip-geo/lookup',
+    { ips }
+  )
+  return data
+}
+
 export const adminUsageAPI = {
   list,
   getStats,
@@ -248,6 +268,7 @@ export const adminUsageAPI = {
   createCleanupTask,
   cancelCleanupTask,
   getRequestPreview,
+  lookupIPGeo,
 }
 
 export default adminUsageAPI

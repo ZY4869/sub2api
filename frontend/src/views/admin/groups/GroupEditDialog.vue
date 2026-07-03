@@ -135,6 +135,13 @@
             data-tour="group-form-multiplier"
           />
         </div>
+        <GroupPeakRateFields
+          :t="t"
+          :form="editForm"
+          :timezone="editingGroup?.peak_timezone"
+          :utc-offset="editingGroup?.peak_utc_offset"
+          @update:form="Object.assign(editForm, $event)"
+        />
         <div
           v-if="editForm.platform === 'gemini'"
           class="rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/40 dark:bg-sky-950/20"
@@ -759,6 +766,7 @@ import PlatformLabel from '@/components/common/PlatformLabel.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
+import GroupPeakRateFields from './GroupPeakRateFields.vue'
 import { unref } from 'vue'
 
 const props = defineProps<{ ctx: any }>()

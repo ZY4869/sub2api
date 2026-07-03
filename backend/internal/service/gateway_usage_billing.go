@@ -329,14 +329,16 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	}
 	usageProvider := ResolveUsageLogUpstreamService(account, input.UpstreamService)
 	normalizedUsage := normalizeClaudeUsageForDisplayAndBilling(usageProvider, result.Usage)
-	multiplier := 1.0
-	if s.cfg != nil {
-		multiplier = s.cfg.Default.RateMultiplier
+	baseMultiplier := defaultGatewayRateMultiplier(s.cfg)
+	var group *Group
+	if apiKey != nil {
+		group = apiKey.Group
 	}
-	if apiKey.GroupID != nil && apiKey.Group != nil {
-		groupDefault := apiKey.Group.RateMultiplier
-		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
+	if apiKey != nil && apiKey.GroupID != nil && group != nil {
+		groupDefault := group.RateMultiplier
+		baseMultiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
+	multiplier := effectiveTokenRateMultiplierAt(baseMultiplier, group, time.Now())
 	tokens := normalizedUsage.BillingTokens
 	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
 		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens + tokens.CacheCreation5mTokens + tokens.CacheCreation1hTokens,
@@ -345,8 +347,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	})
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
 	var groupConfig *ImagePriceConfig
-	if apiKey != nil && apiKey.Group != nil {
-		groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
+	if group != nil {
+		groupConfig = &ImagePriceConfig{Price1K: group.ImagePrice1K, Price2K: group.ImagePrice2K, Price4K: group.ImagePrice4K}
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
 		Model:                          billingModel,
@@ -373,6 +375,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		RequestedServiceTier:           geminiForwardResultRequestedServiceTier(result),
 		ResolvedServiceTier:            geminiForwardResultResolvedServiceTier(result),
 		RateMultiplier:                 multiplier,
+		FlatRateMultiplier:             cloneRateMultiplier(baseMultiplier),
 		ImagePriceConfig:               groupConfig,
 	})
 	runtimeResult, cost := normalizeBillingRuntimeResult(runtimeResult, err, "service.gateway")
@@ -382,8 +385,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, result.ImageCount)
-	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, baseMultiplier, result.ImageCount)
+	isSubscriptionBilling := subscription != nil && group != nil && group.IsSubscriptionType()
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
 		billingType = BillingTypeSubscription
@@ -493,14 +496,16 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	}
 	usageProvider := ResolveUsageLogUpstreamService(account, input.UpstreamService)
 	normalizedUsage := normalizeClaudeUsageForDisplayAndBilling(usageProvider, result.Usage)
-	multiplier := 1.0
-	if s.cfg != nil {
-		multiplier = s.cfg.Default.RateMultiplier
+	baseMultiplier := defaultGatewayRateMultiplier(s.cfg)
+	var group *Group
+	if apiKey != nil {
+		group = apiKey.Group
 	}
-	if apiKey.GroupID != nil && apiKey.Group != nil {
-		groupDefault := apiKey.Group.RateMultiplier
-		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
+	if apiKey != nil && apiKey.GroupID != nil && group != nil {
+		groupDefault := group.RateMultiplier
+		baseMultiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
+	multiplier := effectiveTokenRateMultiplierAt(baseMultiplier, group, time.Now())
 	tokens := normalizedUsage.BillingTokens
 	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
 		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens + tokens.CacheCreation5mTokens + tokens.CacheCreation1hTokens,
@@ -509,8 +514,8 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	})
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
 	var groupConfig *ImagePriceConfig
-	if apiKey != nil && apiKey.Group != nil {
-		groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
+	if group != nil {
+		groupConfig = &ImagePriceConfig{Price1K: group.ImagePrice1K, Price2K: group.ImagePrice2K, Price4K: group.ImagePrice4K}
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
 		Model:                          billingModel,
@@ -537,6 +542,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		RequestedServiceTier:           geminiForwardResultRequestedServiceTier(result),
 		ResolvedServiceTier:            geminiForwardResultResolvedServiceTier(result),
 		RateMultiplier:                 multiplier,
+		FlatRateMultiplier:             cloneRateMultiplier(baseMultiplier),
 		ImagePriceConfig:               groupConfig,
 		LongContextThreshold:           input.LongContextThreshold,
 		LongContextMultiplier:          input.LongContextMultiplier,
@@ -548,8 +554,8 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, result.ImageCount)
-	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, baseMultiplier, result.ImageCount)
+	isSubscriptionBilling := subscription != nil && group != nil && group.IsSubscriptionType()
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
 		billingType = BillingTypeSubscription

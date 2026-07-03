@@ -513,6 +513,8 @@
         :open-ai-ws-mode-concurrency-hint-key="openAIWSModeConcurrencyHintKey"
         :show-anthropic-passthrough="effectivePlatform === 'anthropic' && accountCategory === 'apikey'"
         :anthropic-passthrough-enabled="anthropicPassthroughEnabled"
+        :show-anthropic-auth-scheme="effectivePlatform === 'anthropic' && accountCategory === 'apikey'"
+        :anthropic-auth-scheme="anthropicAPIKeyAuthScheme"
         :show-codex-cli-only="effectivePlatform === 'openai' && accountCategory === 'oauth-based'"
         :codex-cli-only-enabled="codexCLIOnlyEnabled"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
@@ -520,6 +522,7 @@
         @update:open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed = $event"
         @update:open-ai-ws-mode="openaiResponsesWebSocketV2Mode = $event"
         @update:anthropic-passthrough-enabled="anthropicPassthroughEnabled = $event"
+        @update:anthropic-auth-scheme="anthropicAPIKeyAuthScheme = $event"
         @update:codex-cli-only-enabled="codexCLIOnlyEnabled = $event"
       />
 
@@ -712,6 +715,7 @@ const {
   openAIImageCompatAllowed,
   codexCLIOnlyEnabled,
   anthropicPassthroughEnabled,
+  anthropicAPIKeyAuthScheme,
   gatewayOpenAIImageProtocolMode,
   mixedScheduling,
   antigravityAccountType,

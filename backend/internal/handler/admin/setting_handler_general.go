@@ -90,6 +90,9 @@ type UpdateSettingsRequest struct {
 	AvailableChannelsEnabled             *bool                                     `json:"available_channels_enabled"`
 	ChannelMonitorEnabled                *bool                                     `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds *int                                      `json:"channel_monitor_default_interval_seconds"`
+	UsageIPGeoEnabled                    *bool                                     `json:"usage_ip_geo_enabled"`
+	UsageIPGeoProviderURL                *string                                   `json:"usage_ip_geo_provider_url"`
+	UsageIPGeoTimeoutMs                  *int                                      `json:"usage_ip_geo_timeout_ms"`
 	PublicModelCatalogEnabled            bool                                      `json:"public_model_catalog_enabled"`
 	PurchaseSubscriptionEnabled          *bool                                     `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL              *string                                   `json:"purchase_subscription_url"`
@@ -668,6 +671,34 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if channelMonitorDefaultIntervalSeconds > 3600 {
 		channelMonitorDefaultIntervalSeconds = 3600
 	}
+	usageIPGeoEnabled := previousSettings.UsageIPGeoEnabled
+	if req.UsageIPGeoEnabled != nil {
+		usageIPGeoEnabled = *req.UsageIPGeoEnabled
+	}
+	usageIPGeoProviderURL := previousSettings.UsageIPGeoProviderURL
+	if req.UsageIPGeoProviderURL != nil {
+		usageIPGeoProviderURL = strings.TrimSpace(*req.UsageIPGeoProviderURL)
+	}
+	if usageIPGeoProviderURL == "" {
+		usageIPGeoProviderURL = service.DefaultUsageIPGeoProviderURL
+	}
+	if err := config.ValidateAbsoluteHTTPURL(strings.ReplaceAll(usageIPGeoProviderURL, "{ip}", "8.8.8.8")); err != nil {
+		response.Error(c, http.StatusBadRequest, "usage_ip_geo_provider_url must be an absolute HTTP(S) URL")
+		return
+	}
+	usageIPGeoTimeoutMs := previousSettings.UsageIPGeoTimeoutMs
+	if req.UsageIPGeoTimeoutMs != nil {
+		usageIPGeoTimeoutMs = *req.UsageIPGeoTimeoutMs
+	}
+	if usageIPGeoTimeoutMs <= 0 {
+		usageIPGeoTimeoutMs = 1500
+	}
+	if usageIPGeoTimeoutMs < 200 {
+		usageIPGeoTimeoutMs = 200
+	}
+	if usageIPGeoTimeoutMs > 10000 {
+		usageIPGeoTimeoutMs = 10000
+	}
 
 	affiliateEnabled := previousSettings.AffiliateEnabled
 	if req.AffiliateEnabled != nil {
@@ -827,7 +858,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return *req.ContentModerationFailOpen
 		}
 		return previousSettings.ContentModerationFailOpen
-	}(), ContentModerationKeywordBlockEnabled: contentModerationKeywordBlockEnabled, ContentModerationKeywords: contentModerationKeywords, ContentModerationModelFilter: contentModerationModelFilter, ContentModerationCategoryThresholds: contentModerationCategoryThresholds, ContentModerationCyberPolicyEnabled: contentModerationCyberPolicyEnabled, ContentModerationCyberCategories: contentModerationCyberCategories, SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, VisualPresetDefault: req.VisualPresetDefault, AccountAiryWhiteSurfaceEnabled: req.AccountAiryWhiteSurfaceEnabled, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, PaymentProviderAirwallexEnabled: paymentAirwallexEnabled, AirwallexEnv: airwallexEnv, AirwallexClientID: airwallexClientID, AirwallexAPIKey: airwallexAPIKey, AirwallexWebhookSecret: airwallexWebhookSecret, PaymentMobileForceQRCodeEnabled: paymentMobileForceQRCodeEnabled, PaymentAllowedCurrencies: paymentAllowedCurrencies, PaymentDefaultCurrency: paymentDefaultCurrency, PaymentMinTopupAmount: paymentMinTopupAmount, PaymentMaxTopupAmount: paymentMaxTopupAmount, PaymentSubscriptionPlans: paymentPlans, BillingCurrencyConversionEnabled: currencyConversion.Enabled, BillingCurrencyCNYToUSDRate: currencyConversion.CNYToUSDRate, BillingCurrencyUSDToCNYRate: currencyConversion.USDToCNYRate, AntigravityUserAgentVersion: antigravityVersion, CodexOAuthUserAgentMode: codexUAPolicy.Mode, CodexOAuthUserAgentOverride: codexUAPolicy.Override, OpenAIAllowClaudeCodeCodexPlugin: openAIAllowClaudeCodeCodexPlugin, OpenAIAllowedCodexClients: openAIAllowedCodexClients, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, DefaultAPIKeyModelBindingMode: defaultAPIKeyModelBindingMode, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, ClaudeOAuthSystemPromptBlocksEnabled: func() bool {
+	}(), ContentModerationKeywordBlockEnabled: contentModerationKeywordBlockEnabled, ContentModerationKeywords: contentModerationKeywords, ContentModerationModelFilter: contentModerationModelFilter, ContentModerationCategoryThresholds: contentModerationCategoryThresholds, ContentModerationCyberPolicyEnabled: contentModerationCyberPolicyEnabled, ContentModerationCyberCategories: contentModerationCyberCategories, SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, VisualPresetDefault: req.VisualPresetDefault, AccountAiryWhiteSurfaceEnabled: req.AccountAiryWhiteSurfaceEnabled, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, UsageIPGeoEnabled: usageIPGeoEnabled, UsageIPGeoProviderURL: usageIPGeoProviderURL, UsageIPGeoTimeoutMs: usageIPGeoTimeoutMs, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, PaymentProviderAirwallexEnabled: paymentAirwallexEnabled, AirwallexEnv: airwallexEnv, AirwallexClientID: airwallexClientID, AirwallexAPIKey: airwallexAPIKey, AirwallexWebhookSecret: airwallexWebhookSecret, PaymentMobileForceQRCodeEnabled: paymentMobileForceQRCodeEnabled, PaymentAllowedCurrencies: paymentAllowedCurrencies, PaymentDefaultCurrency: paymentDefaultCurrency, PaymentMinTopupAmount: paymentMinTopupAmount, PaymentMaxTopupAmount: paymentMaxTopupAmount, PaymentSubscriptionPlans: paymentPlans, BillingCurrencyConversionEnabled: currencyConversion.Enabled, BillingCurrencyCNYToUSDRate: currencyConversion.CNYToUSDRate, BillingCurrencyUSDToCNYRate: currencyConversion.USDToCNYRate, AntigravityUserAgentVersion: antigravityVersion, CodexOAuthUserAgentMode: codexUAPolicy.Mode, CodexOAuthUserAgentOverride: codexUAPolicy.Override, OpenAIAllowClaudeCodeCodexPlugin: openAIAllowClaudeCodeCodexPlugin, OpenAIAllowedCodexClients: openAIAllowedCodexClients, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, DefaultAPIKeyModelBindingMode: defaultAPIKeyModelBindingMode, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, ClaudeOAuthSystemPromptBlocksEnabled: func() bool {
 		if req.ClaudeOAuthSystemPromptBlocksEnabled != nil {
 			return *req.ClaudeOAuthSystemPromptBlocksEnabled
 		}

@@ -189,7 +189,7 @@ func cleanGeminiRequest(body []byte) ([]byte, error) {
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, err
 	}
-	modified := false
+	modified := normalizeGeminiInvalidParameters(payload)
 	if tools, ok := payload["tools"].([]any); ok && len(tools) > 0 {
 		for _, t := range tools {
 			toolMap, ok := t.(map[string]any)

@@ -59,6 +59,14 @@ func (cw *antigravityClientWriter) markDisconnected() {
 	cw.disconnected = true
 	logger.LegacyPrintf("service.antigravity_gateway", "Client disconnected during streaming (%s), continuing to drain upstream for billing", cw.prefix)
 }
+
+func (s *AntigravityGatewayService) streamKeepaliveInterval() time.Duration {
+	if s == nil || s.settingService == nil || s.settingService.cfg == nil || s.settingService.cfg.Gateway.StreamKeepaliveInterval <= 0 {
+		return 0
+	}
+	return time.Duration(s.settingService.cfg.Gateway.StreamKeepaliveInterval) * time.Second
+}
+
 func handleStreamReadError(err error, clientDisconnected bool, prefix string) (disconnect bool, handled bool) {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		logger.LegacyPrintf("service.antigravity_gateway", "Context canceled during streaming (%s), returning collected usage", prefix)
@@ -739,6 +747,16 @@ func (s *AntigravityGatewayService) handleClaudeStreamingResponse(c *gin.Context
 	if intervalTicker != nil {
 		intervalCh = intervalTicker.C
 	}
+	keepaliveInterval := s.streamKeepaliveInterval()
+	var keepaliveTicker *time.Ticker
+	if keepaliveInterval > 0 {
+		keepaliveTicker = time.NewTicker(keepaliveInterval)
+		defer keepaliveTicker.Stop()
+	}
+	var keepaliveCh <-chan time.Time
+	if keepaliveTicker != nil {
+		keepaliveCh = keepaliveTicker.C
+	}
 	cw := newAntigravityClientWriter(c.Writer, flusher, "antigravity claude")
 	errorEventSent := false
 	sendErrorEvent := func(reason string) {
@@ -778,6 +796,7 @@ func (s *AntigravityGatewayService) handleClaudeStreamingResponse(c *gin.Context
 				sendErrorEvent("stream_read_error")
 				return nil, fmt.Errorf("stream read error: %w", ev.err)
 			}
+			atomic.StoreInt64(&lastReadAt, time.Now().UnixNano())
 			claudeEvents := processor.ProcessLine(strings.TrimRight(ev.line, "\r\n"))
 			if len(claudeEvents) > 0 {
 				if firstTokenMs == nil {
@@ -798,6 +817,12 @@ func (s *AntigravityGatewayService) handleClaudeStreamingResponse(c *gin.Context
 			logger.LegacyPrintf("service.antigravity_gateway", "Stream data interval timeout (antigravity)")
 			sendErrorEvent("stream_timeout")
 			return &antigravityStreamResult{usage: convertUsage(nil), firstTokenMs: firstTokenMs}, fmt.Errorf("stream data interval timeout")
+		case <-keepaliveCh:
+			lastRead := time.Unix(0, atomic.LoadInt64(&lastReadAt))
+			if keepaliveInterval <= 0 || time.Since(lastRead) < keepaliveInterval || cw.Disconnected() {
+				continue
+			}
+			cw.Write([]byte("event: ping\ndata: {\"type\":\"ping\"}\n\n"))
 		}
 	}
 }

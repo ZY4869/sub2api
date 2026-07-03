@@ -239,7 +239,7 @@ func (s *OpenAIGatewayService) RecordFailedUsage(ctx context.Context, input *Ope
 
 	multiplier := 1.0
 	if s.cfg != nil {
-		multiplier = s.cfg.Default.RateMultiplier
+		multiplier = defaultGatewayRateMultiplier(s.cfg)
 	}
 	if input.APIKey.GroupID != nil && input.APIKey.Group != nil {
 		resolver := s.userGroupRateResolver
@@ -247,6 +247,7 @@ func (s *OpenAIGatewayService) RecordFailedUsage(ctx context.Context, input *Ope
 			resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
 		}
 		multiplier = resolver.Resolve(ctx, user.ID, *input.APIKey.GroupID, input.APIKey.Group.RateMultiplier)
+		multiplier = effectiveTokenRateMultiplierAt(multiplier, input.APIKey.Group, time.Now())
 	}
 
 	usageLog := buildFailedUsageLogBase(ctx, input.APIKey, user, input.Account, input.Subscription, multiplier, &RecordFailedUsageInput{
@@ -296,10 +297,11 @@ func (s *GatewayService) RecordFailedUsage(ctx context.Context, input *RecordFai
 
 	multiplier := 1.0
 	if s.cfg != nil {
-		multiplier = s.cfg.Default.RateMultiplier
+		multiplier = defaultGatewayRateMultiplier(s.cfg)
 	}
 	if input.APIKey.GroupID != nil && input.APIKey.Group != nil {
 		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *input.APIKey.GroupID, input.APIKey.Group.RateMultiplier)
+		multiplier = effectiveTokenRateMultiplierAt(multiplier, input.APIKey.Group, time.Now())
 	}
 	if input.ThinkingEnabled == nil {
 		input.ThinkingEnabled = usageLogThinkingEnabledFromContext(ctx)

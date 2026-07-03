@@ -3,7 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 
 import UsageView from "../UsageView.vue";
 
-const { list, getStats, getSnapshotV2, getModelStats, getById } = vi.hoisted(() => {
+const { list, getStats, getSnapshotV2, getModelStats, getById, lookupIPGeo } = vi.hoisted(() => {
   vi.stubGlobal("localStorage", {
     getItem: vi.fn(() => null),
     setItem: vi.fn(),
@@ -16,6 +16,7 @@ const { list, getStats, getSnapshotV2, getModelStats, getById } = vi.hoisted(() 
     getSnapshotV2: vi.fn(),
     getModelStats: vi.fn(),
     getById: vi.fn(),
+    lookupIPGeo: vi.fn(),
   };
 });
 
@@ -105,6 +106,7 @@ vi.mock("@/api/admin", () => ({
 vi.mock("@/api/admin/usage", () => ({
   adminUsageAPI: {
     list: vi.fn(),
+    lookupIPGeo,
   },
 }));
 
@@ -175,10 +177,12 @@ const UsageFiltersStub = {
   `,
 };
 const UsageTableStub = {
-  props: ["columns", "usageModelDisplayMode", "usageContextBadgeDisplayMode"],
+  props: ["columns", "ipGeoMap", "ipGeoLoading", "usageModelDisplayMode", "usageContextBadgeDisplayMode"],
   template: `
     <div>
       <div data-test="usage-table-columns">{{ columns.map(column => column.key).join(",") }}</div>
+      <div data-test="usage-table-ip-geo-loading">{{ String(ipGeoLoading) }}</div>
+      <div data-test="usage-table-ip-geo">{{ Object.keys(ipGeoMap || {}).map((key) => ipGeoMap[key].status).join(",") }}</div>
       <div data-test="usage-table-display-mode">{{ usageModelDisplayMode }}</div>
       <div data-test="usage-table-badge-mode">{{ usageContextBadgeDisplayMode }}</div>
     </div>
@@ -310,6 +314,7 @@ describe("admin UsageView distribution metric toggles", () => {
     getSnapshotV2.mockReset();
     getModelStats.mockReset();
     getById.mockReset();
+    lookupIPGeo.mockReset();
     routeState.query = {};
     routeState.replace.mockReset();
     authState.isAdmin = true;
@@ -345,6 +350,7 @@ describe("admin UsageView distribution metric toggles", () => {
     getModelStats.mockResolvedValue({
       models: [],
     });
+    lookupIPGeo.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -454,6 +460,31 @@ describe("admin UsageView distribution metric toggles", () => {
     expect(getModelStats).toHaveBeenCalledWith(
       expect.objectContaining({ channel_id: 11, model_source: "requested" }),
     );
+  });
+
+  it("looks up unique IP geolocation records through the admin backend proxy", async () => {
+    list.mockResolvedValueOnce({
+      items: [
+        { request_id: "req-1", ip_address: "8.8.8.8" },
+        { request_id: "req-2", ip_address: "8.8.8.8" },
+        { request_id: "req-3", ip_address: "1.1.1.1" },
+      ],
+      total: 3,
+      pages: 1,
+    });
+    lookupIPGeo.mockResolvedValueOnce([
+      { ip: "8.8.8.8", status: "ok", country: "United States", cached: false },
+      { ip: "1.1.1.1", status: "not_found", cached: false },
+    ]);
+
+    const wrapper = mountUsageView();
+
+    vi.advanceTimersByTime(120);
+    await flushPromises();
+
+    expect(lookupIPGeo).toHaveBeenCalledWith(["8.8.8.8", "1.1.1.1"]);
+    expect(wrapper.get('[data-test="usage-table-ip-geo"]').text()).toBe("ok,not_found");
+    expect(wrapper.get('[data-test="usage-table-ip-geo-loading"]').text()).toBe("false");
   });
 
   it("hides request details tab when permission is missing", async () => {

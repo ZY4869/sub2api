@@ -12,10 +12,12 @@ export default {
         wsModeOff: "关闭（off）",
         wsModeCtxPool: "上下文池（ctx_pool）",
         wsModePassthrough: "透传（passthrough）",
+        wsModeHTTPBridge: "HTTP/SSE 桥接（http_bridge）",
         wsModeShared: "共享（shared）",
         wsModeDedicated: "独享（dedicated）",
         wsModeConcurrencyHint: "启用 WS mode 后，该账号并发数将作为该账号 WS 连接池上限。",
         wsModePassthroughHint: "passthrough 模式不使用 WS 连接池。",
+        wsModeHTTPBridgeHint: "http_bridge 模式将显式使用 HTTP/SSE 桥接，不占用 WS 连接池。",
         oauthResponsesWebsocketsV2: "OAuth WebSocket Mode",
         oauthResponsesWebsocketsV2Desc: "仅对 OpenAI OAuth 生效。开启后该账号才允许使用 OpenAI WebSocket Mode 协议。",
         apiKeyResponsesWebsocketsV2: "API Key WebSocket Mode",
@@ -60,5 +62,9 @@ export default {
     anthropic: {
         apiKeyPassthrough: "自动透传（仅替换认证）",
         apiKeyPassthroughDesc: "仅对 Anthropic API Key 生效。开启后，messages/count_tokens 请求将透传上游并仅替换认证，保留计费/并发/审计及必要安全过滤；关闭即可回滚到现有兼容链路。",
+        authScheme: "API Key 鉴权方案",
+        authSchemeDesc: "默认使用 x-api-key；选择 Bearer 时仅发送 Authorization 头。",
+        authSchemeXApiKey: "x-api-key",
+        authSchemeBearer: "Authorization Bearer",
     }
 }

@@ -83,6 +83,7 @@ type AdminService interface {
 	BatchUpdateRedeemCodes(ctx context.Context, input *BatchUpdateRedeemCodesInput) (int64, error)
 	ExpireRedeemCode(ctx context.Context, id int64) (*RedeemCode, error)
 	ResetAccountQuota(ctx context.Context, id int64) error
+	LookupUsageIPGeo(ctx context.Context, ips []string) ([]UsageIPGeoLookupItem, error)
 }
 type CreateUserInput struct {
 	Email                        string
@@ -119,6 +120,10 @@ type CreateGroupInput struct {
 	Platform                        string
 	Priority                        int
 	RateMultiplier                  float64
+	PeakRateEnabled                 bool
+	PeakStart                       string
+	PeakEnd                         string
+	PeakRateMultiplier              *float64
 	IsExclusive                     bool
 	SubscriptionType                string
 	DailyLimitUSD                   *float64
@@ -148,6 +153,10 @@ type UpdateGroupInput struct {
 	Platform                        string
 	Priority                        *int
 	RateMultiplier                  *float64
+	PeakRateEnabled                 *bool
+	PeakStart                       *string
+	PeakEnd                         *string
+	PeakRateMultiplier              *float64
 	IsExclusive                     *bool
 	Status                          string
 	SubscriptionType                string
@@ -436,6 +445,7 @@ type adminServiceImpl struct {
 	userSubRepo          UserSubscriptionRepository
 	affiliateService     *AffiliateService
 	cfg                  *config.Config
+	usageIPGeoCache      *usageIPGeoCache
 }
 type userGroupRateBatchReader interface {
 	GetByUserIDs(ctx context.Context, userIDs []int64) (map[int64]map[int64]float64, error)
@@ -445,7 +455,7 @@ type groupExistenceBatchReader interface {
 }
 
 func NewAdminService(userRepo UserRepository, groupRepo GroupRepository, accountRepo AccountRepository, proxyRepo ProxyRepository, apiKeyRepo APIKeyRepository, redeemCodeRepo RedeemCodeRepository, userGroupRateRepo UserGroupRateRepository, billingCacheService *BillingCacheService, proxyProber ProxyExitInfoProber, proxyLatencyCache ProxyLatencyCache, authCacheInvalidator APIKeyAuthCacheInvalidator, privacyClientFactory PrivacyClientFactory, entClient *dbent.Client, settingService *SettingService, defaultSubAssigner DefaultSubscriptionAssigner, userSubRepo UserSubscriptionRepository, affiliateService *AffiliateService, cfg *config.Config) AdminService {
-	return &adminServiceImpl{userRepo: userRepo, groupRepo: groupRepo, accountRepo: accountRepo, proxyRepo: proxyRepo, apiKeyRepo: apiKeyRepo, redeemCodeRepo: redeemCodeRepo, userGroupRateRepo: userGroupRateRepo, billingCacheService: billingCacheService, proxyProber: proxyProber, proxyLatencyCache: proxyLatencyCache, authCacheInvalidator: authCacheInvalidator, privacyClientFactory: privacyClientFactory, entClient: entClient, settingService: settingService, defaultSubAssigner: defaultSubAssigner, userSubRepo: userSubRepo, affiliateService: affiliateService, cfg: cfg}
+	return &adminServiceImpl{userRepo: userRepo, groupRepo: groupRepo, accountRepo: accountRepo, proxyRepo: proxyRepo, apiKeyRepo: apiKeyRepo, redeemCodeRepo: redeemCodeRepo, userGroupRateRepo: userGroupRateRepo, billingCacheService: billingCacheService, proxyProber: proxyProber, proxyLatencyCache: proxyLatencyCache, authCacheInvalidator: authCacheInvalidator, privacyClientFactory: privacyClientFactory, entClient: entClient, settingService: settingService, defaultSubAssigner: defaultSubAssigner, userSubRepo: userSubRepo, affiliateService: affiliateService, cfg: cfg, usageIPGeoCache: newUsageIPGeoCache(24 * time.Hour)}
 }
 func (s *adminServiceImpl) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {
 	return s.proxyRepo.ExistsByHostPortAuth(ctx, host, port, username, password)

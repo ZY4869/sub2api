@@ -80,7 +80,8 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	contentType := strings.TrimSpace(c.GetHeader("Content-Type"))
 	setOpsRequestContext(c, "", false, body)
 	var sessionHashBody []byte
-	if service.IsOpenAIResponsesCompactPathForTest(c) {
+	isCompactPath := service.IsOpenAIResponsesCompactPathForTest(c)
+	if isCompactPath {
 		if compactSeed := strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String()); compactSeed != "" {
 			c.Set(service.OpenAICompactSessionSeedKeyForTest(), compactSeed)
 		}
@@ -95,42 +96,46 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	}
 	sessionHashBody = body
 
-	compatResult, compatErr := service.NormalizeOpenAIResponsesImageGenCompat(body, contentType)
-	if compatErr != nil {
-		var requestErr *service.OpenAIResponsesCompatError
-		if errors.As(compatErr, &requestErr) {
-			compatMetadata := requestErr.Metadata
-			compatMetadata.Enabled = false
-			compatMetadata.Rejected = true
-			if strings.TrimSpace(compatMetadata.RejectCode) == "" {
-				compatMetadata.RejectCode = strings.TrimSpace(requestErr.Code)
+	var compatResult *service.OpenAIResponsesCompatResult
+	if !isCompactPath {
+		var compatErr error
+		compatResult, compatErr = service.NormalizeOpenAIResponsesImageGenCompat(body, contentType)
+		if compatErr != nil {
+			var requestErr *service.OpenAIResponsesCompatError
+			if errors.As(compatErr, &requestErr) {
+				compatMetadata := requestErr.Metadata
+				compatMetadata.Enabled = false
+				compatMetadata.Rejected = true
+				if strings.TrimSpace(compatMetadata.RejectCode) == "" {
+					compatMetadata.RejectCode = strings.TrimSpace(requestErr.Code)
+				}
+				if strings.TrimSpace(compatMetadata.SourceGuess) == "" {
+					compatMetadata.SourceGuess = detectOpenAIResponsesCompatSourceGuess(body, contentType)
+				}
+				if c.Request != nil {
+					ctx := service.EnsureRequestMetadata(c.Request.Context())
+					service.SetOpenAIResponsesImageGenCompatMetadata(ctx, compatMetadata)
+					c.Request = c.Request.WithContext(ctx)
+				}
+				protocolruntime.RecordResponsesImagegenReject(compatMetadata.RejectCode)
+				requestModel := detectOpenAIResponsesCompatRequestModel(body, contentType)
+				setResponsesImagegenCompatTracePayload(c, requestModel, contentType, compatMetadata, nil)
+				reqLog.Warn(
+					"openai.responses_imagegen_compat_rejected",
+					zap.String("request_id", openAIResponsesCompatRequestID(c)),
+					zap.String("correlation_id", openAIResponsesCompatCorrelationID(c)),
+					zap.String("code", compatMetadata.RejectCode),
+					zap.String("source", compatMetadata.SourceGuess),
+					zap.String("model", requestModel),
+					zap.String("content_type", contentType),
+					zap.Int("reference_image_count", compatMetadata.ReferenceImageCount),
+				)
+				h.errorResponseWithCode(c, requestErr.Status, requestErr.Type, requestErr.Code, requestErr.Message)
+				return
 			}
-			if strings.TrimSpace(compatMetadata.SourceGuess) == "" {
-				compatMetadata.SourceGuess = detectOpenAIResponsesCompatSourceGuess(body, contentType)
-			}
-			if c.Request != nil {
-				ctx := service.EnsureRequestMetadata(c.Request.Context())
-				service.SetOpenAIResponsesImageGenCompatMetadata(ctx, compatMetadata)
-				c.Request = c.Request.WithContext(ctx)
-			}
-			protocolruntime.RecordResponsesImagegenReject(compatMetadata.RejectCode)
-			requestModel := detectOpenAIResponsesCompatRequestModel(body, contentType)
-			setResponsesImagegenCompatTracePayload(c, requestModel, contentType, compatMetadata, nil)
-			reqLog.Warn(
-				"openai.responses_imagegen_compat_rejected",
-				zap.String("request_id", openAIResponsesCompatRequestID(c)),
-				zap.String("correlation_id", openAIResponsesCompatCorrelationID(c)),
-				zap.String("code", compatMetadata.RejectCode),
-				zap.String("source", compatMetadata.SourceGuess),
-				zap.String("model", requestModel),
-				zap.String("content_type", contentType),
-				zap.Int("reference_image_count", compatMetadata.ReferenceImageCount),
-			)
-			h.errorResponseWithCode(c, requestErr.Status, requestErr.Type, requestErr.Code, requestErr.Message)
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize responses image generation request")
 			return
 		}
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize responses image generation request")
-		return
 	}
 	if compatResult != nil {
 		body = compatResult.Body

@@ -5,6 +5,7 @@ export function createEditAccountSubmit(ctx: any) {
     accountTier,
     allowVertexBatchOverflow,
     allowedModels,
+    anthropicAPIKeyAuthScheme,
     anthropicPassthroughEnabled,
     antigravityModelMappings,
     appStore,
@@ -417,6 +418,11 @@ return async () => {
       } else {
         delete newExtra.anthropic_passthrough
       }
+      if (anthropicAPIKeyAuthScheme.value === 'authorization_bearer') {
+        newExtra.anthropic_apikey_auth_scheme = 'authorization_bearer'
+      } else {
+        delete newExtra.anthropic_apikey_auth_scheme
+      }
       updatePayload.extra = newExtra
     }
 
@@ -534,8 +540,9 @@ return async () => {
         delete normalizedExtra.image_protocol_mode
         delete normalizedExtra.image_compat_allowed
       }
-      if (runtimePlatform !== 'anthropic') {
+      if (runtimePlatform !== 'anthropic' || props.account.type !== 'apikey') {
         delete normalizedExtra.anthropic_passthrough
+        delete normalizedExtra.anthropic_apikey_auth_scheme
       }
       if (!isProtocolGatewayAccount.value) {
         delete normalizedExtra.gateway_openai_image_protocol_mode

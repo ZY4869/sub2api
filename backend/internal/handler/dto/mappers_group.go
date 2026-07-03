@@ -1,6 +1,10 @@
 package dto
 
-import "github.com/Wei-Shaw/sub2api/internal/service"
+import (
+	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
+)
 
 func GroupFromServiceShallow(g *service.Group) *Group {
 	if g == nil {
@@ -54,6 +58,12 @@ func groupFromServiceBase(g *service.Group) Group {
 		Platform:                        service.CanonicalizePlatformValue(g.Platform),
 		Priority:                        g.Priority,
 		RateMultiplier:                  g.RateMultiplier,
+		PeakRateEnabled:                 g.PeakRateEnabled,
+		PeakStart:                       g.PeakStart,
+		PeakEnd:                         g.PeakEnd,
+		PeakRateMultiplier:              g.PeakRateMultiplier,
+		PeakTimezone:                    service.ServerPeakRateTimezoneName(),
+		PeakUTCOffset:                   service.ServerPeakRateUTCOffset(time.Now()),
 		IsExclusive:                     g.IsExclusive,
 		Status:                          g.Status,
 		SubscriptionType:                g.SubscriptionType,

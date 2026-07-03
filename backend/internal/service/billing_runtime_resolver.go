@@ -37,6 +37,7 @@ type BillingRuntimeInput struct {
 	ResolvedServiceTier            string
 	BatchMode                      string
 	RateMultiplier                 float64
+	FlatRateMultiplier             *float64
 	ImagePriceConfig               *ImagePriceConfig
 	LongContextThreshold           int
 	LongContextMultiplier          float64
@@ -114,8 +115,12 @@ func normalizeBillingRuntimeInput(input BillingRuntimeInput) BillingRuntimeInput
 	input.RawInboundPath = strings.TrimSpace(input.RawInboundPath)
 	input.BatchMode = normalizeBillingActualBatchMode(input.BatchMode)
 	input.MediaType = strings.TrimSpace(strings.ToLower(input.MediaType))
-	if input.RateMultiplier <= 0 {
+	if input.RateMultiplier < 0 {
 		input.RateMultiplier = 1
+	}
+	if input.FlatRateMultiplier != nil {
+		v := normalizeExplicitRateMultiplier(*input.FlatRateMultiplier)
+		input.FlatRateMultiplier = &v
 	}
 	input.PublicCatalogSalePriceDisplay = normalizePublicModelCatalogPriceDisplay(input.PublicCatalogSalePriceDisplay)
 	input.PublicCatalogDiscountPolicy = clonePublicModelCatalogDiscountPolicy(input.PublicCatalogDiscountPolicy)
@@ -555,6 +560,7 @@ func (r *BillingRuntimeResolver) resolveGeminiRuntime(ctx context.Context, input
 		VideoRequests:        input.VideoRequests,
 		MediaType:            input.MediaType,
 		RateMultiplier:       input.RateMultiplier,
+		FlatRateMultiplier:   input.FlatRateMultiplier,
 		RequestedServiceTier: input.RequestedServiceTier,
 		ResolvedServiceTier:  firstNonEmptyBillingRuntime(input.ResolvedServiceTier, input.ServiceTier),
 	})
@@ -608,6 +614,7 @@ func (r *BillingRuntimeResolver) resolveRuleBasedRuntime(ctx context.Context, in
 		r.billingCenterService.resolveLongContextThreshold(ctx, input.Model),
 		input.RateMultiplier,
 	)
+	applyFlatMultiplierToNonTokenSimulationLines(result, billingRuntimeFlatMultiplier(input.RateMultiplier, input.FlatRateMultiplier))
 	if result == nil || len(result.Lines) == 0 || len(result.UnmatchedDemands) > 0 {
 		if result != nil && len(result.UnmatchedDemands) > 0 {
 			protocolruntime.RecordBillingResolverFallback("partial_rule_match")
@@ -646,10 +653,10 @@ func (r *BillingRuntimeResolver) resolveLegacyRuntime(ctx context.Context, input
 	serviceTier := firstNonEmptyBillingRuntime(input.ResolvedServiceTier, input.ServiceTier)
 	switch {
 	case input.ImageCount > 0 || input.MediaType == "image":
-		cost = r.billingService.CalculateImageCostWithServiceTierWithContext(ctx, input.Model, input.ImageSize, input.ImageCount, input.ImagePriceConfig, input.RateMultiplier, serviceTier)
+		cost = r.billingService.CalculateImageCostWithServiceTierWithContext(ctx, input.Model, input.ImageSize, input.ImageCount, input.ImagePriceConfig, billingRuntimeFlatMultiplier(input.RateMultiplier, input.FlatRateMultiplier), serviceTier)
 		path = "legacy_image"
 	case input.VideoRequests > 0 || input.MediaType == "video":
-		cost = r.billingService.CalculateVideoRequestCostWithContext(ctx, input.Model, input.RateMultiplier)
+		cost = r.billingService.CalculateVideoRequestCostWithContext(ctx, input.Model, billingRuntimeFlatMultiplier(input.RateMultiplier, input.FlatRateMultiplier))
 		path = "legacy_video"
 	case input.LongContextThreshold > 0 && input.LongContextMultiplier > 1:
 		cost, err = r.billingService.CalculateCostWithLongContextWithContext(ctx, input.Model, input.Tokens, input.RateMultiplier, input.LongContextThreshold, input.LongContextMultiplier)

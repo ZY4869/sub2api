@@ -325,6 +325,64 @@
 
         <GoogleBatchGCSProfilesManager />
 
+        <!-- Usage IP Geo Lookup -->
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.usageIPGeo.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.usageIPGeo.description') }}
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.usageIPGeo.enabled') }}
+                </label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.usageIPGeo.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.usage_ip_geo_enabled" />
+            </div>
+
+            <div class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.usageIPGeo.providerUrl') }}
+                </label>
+                <input
+                  v-model.trim="form.usage_ip_geo_provider_url"
+                  type="text"
+                  class="input"
+                  placeholder="https://get.geojs.io/v1/ip/geo/{ip}.json"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.usageIPGeo.providerUrlHint') }}
+                </p>
+              </div>
+
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.usageIPGeo.timeoutMs') }}
+                </label>
+                <input
+                  v-model.number="form.usage_ip_geo_timeout_ms"
+                  type="number"
+                  min="200"
+                  max="10000"
+                  class="input w-36"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.usageIPGeo.timeoutMsHint') }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <OpenAIFastPolicySettingsCard
           v-model="form.openai_fast_policy_settings"
           v-model:enable-injection="form.enable_anthropic_cache_ttl_1h_injection"

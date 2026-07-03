@@ -101,6 +101,9 @@ export interface SystemSettings {
   available_channels_enabled: boolean
   channel_monitor_enabled: boolean
   channel_monitor_default_interval_seconds: number
+  usage_ip_geo_enabled: boolean
+  usage_ip_geo_provider_url: string
+  usage_ip_geo_timeout_ms: number
   public_model_catalog_enabled: boolean
   // Affiliate / Invite rebate (运营版)
   affiliate_enabled: boolean
@@ -248,6 +251,9 @@ export interface UpdateSettingsRequest {
   available_channels_enabled?: boolean
   channel_monitor_enabled?: boolean
   channel_monitor_default_interval_seconds?: number
+  usage_ip_geo_enabled?: boolean
+  usage_ip_geo_provider_url?: string
+  usage_ip_geo_timeout_ms?: number
   public_model_catalog_enabled?: boolean
   affiliate_enabled?: boolean
   affiliate_transfer_enabled?: boolean

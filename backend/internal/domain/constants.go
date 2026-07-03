@@ -71,6 +71,7 @@ const (
 	SubscriptionStatusActive    = "active"
 	SubscriptionStatusExpired   = "expired"
 	SubscriptionStatusSuspended = "suspended"
+	SubscriptionStatusRevoked   = "revoked"
 )
 
 // DefaultAntigravityModelMapping is used when account model_mapping is unset.

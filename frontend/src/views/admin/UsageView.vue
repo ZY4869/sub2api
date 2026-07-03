@@ -131,6 +131,8 @@
             :data="usageLogs"
             :loading="loading"
             :columns="visibleColumns"
+            :ip-geo-map="ipGeoMap"
+            :ip-geo-loading="ipGeoLoading"
             :usage-model-display-mode="usageModelDisplayMode"
             :table-density="pagePreferences.table_density"
             :show-million-context-lines="pagePreferences.show_million_context_lines"
@@ -224,6 +226,7 @@ import type {
 import type {
   AdminUsageStatsResponse,
   AdminUsageQueryParams,
+  UsageIPGeoLookupItem,
 } from "@/api/admin/usage";
 
 const { t } = useI18n();
@@ -305,6 +308,8 @@ type ModelDistributionSource = "requested" | "upstream" | "mapping";
 
 const usageStats = ref<AdminUsageStatsResponse | null>(null);
 const usageLogs = ref<AdminUsageLog[]>([]);
+const ipGeoMap = ref<Record<string, UsageIPGeoLookupItem>>({});
+const ipGeoLoading = ref(false);
 const loading = ref(false);
 const exporting = ref(false);
 const trendData = ref<TrendDataPoint[]>([]);
@@ -327,6 +332,7 @@ let abortController: AbortController | null = null;
 let exportAbortController: AbortController | null = null;
 let chartReqSeq = 0;
 let modelStatsReqSeq = 0;
+let ipGeoReqSeq = 0;
 const exportProgress = reactive({
   show: false,
   progress: 0,
@@ -436,12 +442,43 @@ const loadLogs = async () => {
     if (!c.signal.aborted) {
       usageLogs.value = res.items;
       pagination.total = res.total;
+      void loadIPGeoForLogs(res.items);
     }
   } catch (error: any) {
     if (error?.name !== "AbortError")
       console.error("Failed to load usage logs:", error);
   } finally {
     if (abortController === c) loading.value = false;
+  }
+};
+const loadIPGeoForLogs = async (logs: AdminUsageLog[]) => {
+  const ips = [...new Set(
+    logs
+      .map((log) => String(log.ip_address || "").trim())
+      .filter((ip) => ip.length > 0)
+  )].slice(0, 50);
+  const seq = ++ipGeoReqSeq;
+  if (ips.length === 0) {
+    ipGeoMap.value = {};
+    return;
+  }
+  ipGeoLoading.value = true;
+  try {
+    const items = await adminUsageAPI.lookupIPGeo(ips);
+    if (seq !== ipGeoReqSeq) {
+      return;
+    }
+    ipGeoMap.value = Object.fromEntries(items.map((item) => [item.ip, item]));
+  } catch (error) {
+    if (seq !== ipGeoReqSeq) {
+      return;
+    }
+    console.error("Failed to load IP geo info:", error);
+    ipGeoMap.value = {};
+  } finally {
+    if (seq === ipGeoReqSeq) {
+      ipGeoLoading.value = false;
+    }
   }
 };
 const loadStats = async () => {

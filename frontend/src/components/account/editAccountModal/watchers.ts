@@ -13,6 +13,7 @@ export function useEditAccountModalWatchers(ctx: any) {
     actualModelLocked,
     allowVertexBatchOverflow,
     allowedModels,
+    anthropicAPIKeyAuthScheme,
     anthropicPassthroughEnabled,
     antigravityModelMappings,
     antigravityModelRestrictionMode,
@@ -97,6 +98,7 @@ export function useEditAccountModalWatchers(ctx: any) {
     normalizeGatewayBatchEnabled,
     normalizeGatewayClientProfile,
     normalizeGatewayClientRoutes,
+    normalizeAnthropicAPIKeyAuthScheme,
     normalizeGeminiAIStudioTier,
     normalizeGeminiOAuthType,
     normalizeGrokTier,
@@ -225,6 +227,7 @@ watch(
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
       anthropicPassthroughEnabled.value = false
+      anthropicAPIKeyAuthScheme.value = 'x_api_key'
       if (runtimePlatform === 'openai' && (newAccount.type === 'oauth' || newAccount.type === 'apikey')) {
         const openAIImageState = resolveOpenAIImageProtocolState({
           accountCategory: newAccount.type === 'oauth' ? 'oauth-based' : 'apikey',
@@ -253,6 +256,9 @@ watch(
       }
       if (runtimePlatform === 'anthropic' && newAccount.type === 'apikey') {
         anthropicPassthroughEnabled.value = extra?.anthropic_passthrough === true
+        anthropicAPIKeyAuthScheme.value = normalizeAnthropicAPIKeyAuthScheme(
+          extra?.anthropic_apikey_auth_scheme
+        )
       }
 
       const quotaVal = Number(extra?.quota_limit)
@@ -525,6 +531,7 @@ watch(
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
       baiduDocumentAIDirectApiUrlsText.value = ''
       accountTier.value = ''
+      anthropicAPIKeyAuthScheme.value = 'x_api_key'
     }
   },
   { immediate: true }

@@ -99,7 +99,13 @@ func (s *defaultOpenAIAccountScheduler) isAccountTransportCompatible(account *Ac
 	if s == nil || s.service == nil || account == nil {
 		return false
 	}
-	return s.service.getOpenAIWSProtocolResolver().Resolve(account).Transport == requiredTransport
+	decision := s.service.getOpenAIWSProtocolResolver().Resolve(account)
+	if decision.Transport == requiredTransport {
+		return true
+	}
+	return requiredTransport == OpenAIUpstreamTransportResponsesWebsocketV2 &&
+		decision.Transport == OpenAIUpstreamTransportHTTPSSE &&
+		strings.TrimSpace(decision.Reason) == "ws_v2_mode_http_bridge"
 }
 
 func (s *defaultOpenAIAccountScheduler) isAccountEndpointCapabilityCompatible(account *Account, requiredCapability OpenAIEndpointCapability) bool {

@@ -229,6 +229,18 @@ func TestAccount_ResolveOpenAIResponsesWebSocketV2Mode(t *testing.T) {
 		require.Equal(t, OpenAIWSIngressModePassthrough, account.ResolveOpenAIResponsesWebSocketV2Mode(OpenAIWSIngressModeCtxPool))
 	})
 
+	t.Run("http bridge mode is explicit", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeAPIKey,
+			Extra: map[string]any{
+				"openai_apikey_responses_websockets_v2_mode": OpenAIWSIngressModeHTTPBridge,
+			},
+		}
+		require.Equal(t, OpenAIWSIngressModeHTTPBridge, account.ResolveOpenAIResponsesWebSocketV2Mode(OpenAIWSIngressModeCtxPool))
+		require.Equal(t, OpenAIWSIngressModeHTTPBridge, normalizeOpenAIWSIngressDefaultMode(OpenAIWSIngressModeHTTPBridge))
+	})
+
 	t.Run("legacy enabled maps to ctx_pool", func(t *testing.T) {
 		account := &Account{
 			Platform: PlatformOpenAI,

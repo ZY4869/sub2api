@@ -157,6 +157,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	var scheduleDecision service.OpenAIAccountScheduleDecision
 	var runtimeSelectionModel string
 	var channelState *service.GatewayChannelState
+	requiredTransport := service.OpenAIUpstreamTransportResponsesWebsocketV2
+	if h.gatewayService.ShouldUseOpenAIWSHTTPBridgeForIngress(firstMessage) {
+		requiredTransport = service.OpenAIUpstreamTransportHTTPSSE
+	}
 	for {
 		if isRequestCanceled(ctx, nil) {
 			return
@@ -213,7 +217,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			sessionHash,
 			runtimeSelectionModel,
 			nil,
-			service.OpenAIUpstreamTransportResponsesWebsocketV2,
+			requiredTransport,
 		)
 		if isRequestCanceled(ctx, err) {
 			return

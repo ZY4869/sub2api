@@ -6,6 +6,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -81,6 +82,20 @@ func (r *userSubscriptionRepository) GetByID(ctx context.Context, id int64) (*se
 	return userSubscriptionEntityToService(m), nil
 }
 
+func (r *userSubscriptionRepository) GetByIDIncludingDeleted(ctx context.Context, id int64) (*service.UserSubscription, error) {
+	client := clientFromContext(ctx, r.client)
+	m, err := client.UserSubscription.Query().
+		Where(usersubscription.IDEQ(id)).
+		WithUser().
+		WithGroup().
+		WithAssignedByUser().
+		Only(mixins.SkipSoftDelete(ctx))
+	if err != nil {
+		return nil, translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
+	}
+	return userSubscriptionEntityToService(m), nil
+}
+
 func (r *userSubscriptionRepository) GetByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
 	client := clientFromContext(ctx, r.client)
 	m, err := client.UserSubscription.Query().
@@ -149,6 +164,15 @@ func (r *userSubscriptionRepository) Update(ctx context.Context, sub *service.Us
 	return translatePersistenceError(err, service.ErrSubscriptionNotFound, service.ErrSubscriptionAlreadyExists)
 }
 
+func (r *userSubscriptionRepository) Restore(ctx context.Context, id int64, status string) error {
+	client := clientFromContext(ctx, r.client)
+	_, err := client.UserSubscription.UpdateOneID(id).
+		ClearDeletedAt().
+		SetStatus(status).
+		Save(mixins.SkipSoftDelete(ctx))
+	return translatePersistenceError(err, service.ErrSubscriptionNotFound, service.ErrSubscriptionAlreadyExists)
+}
+
 func (r *userSubscriptionRepository) Delete(ctx context.Context, id int64) error {
 	// Match GORM semantics: deleting a missing row is not an error.
 	client := clientFromContext(ctx, r.client)
@@ -211,6 +235,10 @@ func (r *userSubscriptionRepository) ListByGroupID(ctx context.Context, groupID 
 
 func (r *userSubscriptionRepository) List(ctx context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
 	client := clientFromContext(ctx, r.client)
+	queryCtx := ctx
+	if status == service.SubscriptionStatusRevoked {
+		queryCtx = mixins.SkipSoftDelete(ctx)
+	}
 	q := client.UserSubscription.Query()
 	if userID != nil {
 		q = q.Where(usersubscription.UserIDEQ(*userID))
@@ -225,6 +253,8 @@ func (r *userSubscriptionRepository) List(ctx context.Context, params pagination
 	// Status filtering with real-time expiration check
 	now := time.Now()
 	switch status {
+	case service.SubscriptionStatusRevoked:
+		q = q.Where(usersubscription.DeletedAtNotNil())
 	case service.SubscriptionStatusActive:
 		// Active: status is active AND not yet expired
 		q = q.Where(
@@ -249,7 +279,7 @@ func (r *userSubscriptionRepository) List(ctx context.Context, params pagination
 		q = q.Where(usersubscription.StatusEQ(status))
 	}
 
-	total, err := q.Clone().Count(ctx)
+	total, err := q.Clone().Count(queryCtx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -278,7 +308,7 @@ func (r *userSubscriptionRepository) List(ctx context.Context, params pagination
 	subs, err := q.
 		Offset(params.Offset()).
 		Limit(params.Limit()).
-		All(ctx)
+		All(queryCtx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -471,6 +501,7 @@ func userSubscriptionEntityToService(m *dbent.UserSubscription) *service.UserSub
 		Notes:                  derefString(m.Notes),
 		CreatedAt:              m.CreatedAt,
 		UpdatedAt:              m.UpdatedAt,
+		DeletedAt:              m.DeletedAt,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)

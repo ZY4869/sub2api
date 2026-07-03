@@ -12,6 +12,7 @@ export function createCreateAccountSubmit(ctx: any) {
     addMethod,
     allowVertexBatchOverflow,
     allowedModels,
+    anthropicAPIKeyAuthScheme,
     anthropicPassthroughEnabled,
     antigravityAccountType,
     antigravityModelMappings,
@@ -184,7 +185,8 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     platform: effectivePlatform.value,
     accountCategory: accountCategory.value,
     base: openaiExtra,
-    anthropicPassthroughEnabled: anthropicPassthroughEnabled.value
+    anthropicPassthroughEnabled: anthropicPassthroughEnabled.value,
+    anthropicAPIKeyAuthScheme: anthropicAPIKeyAuthScheme.value
   })
 
   const extraWithProtocolGateway = !isProtocolGatewayPlatform(form.platform)

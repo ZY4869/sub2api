@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import type { OpenAIImageProtocolMode } from '@/types'
 import type { OpenAIWSMode } from '@/utils/openaiWsMode'
+import type { AnthropicAPIKeyAuthScheme } from '@/utils/accountCreateExtras'
 
 const props = defineProps<{
   showOpenAiPassthrough: boolean
@@ -18,6 +19,8 @@ const props = defineProps<{
   openAiWsModeConcurrencyHintKey: string
   showAnthropicPassthrough: boolean
   anthropicPassthroughEnabled: boolean
+  showAnthropicAuthScheme?: boolean
+  anthropicAuthScheme?: AnthropicAPIKeyAuthScheme
   showCodexCliOnly: boolean
   codexCliOnlyEnabled: boolean
 }>()
@@ -28,6 +31,7 @@ const emit = defineEmits<{
   'update:openAiImageProtocolCompatAllowed': [value: boolean]
   'update:openAiWsMode': [value: OpenAIWSMode]
   'update:anthropicPassthroughEnabled': [value: boolean]
+  'update:anthropicAuthScheme': [value: AnthropicAPIKeyAuthScheme]
   'update:codexCliOnlyEnabled': [value: boolean]
 }>()
 
@@ -42,6 +46,17 @@ const openAIImageProtocolOptions = computed<SelectOption[]>(() => [
     value: 'compat',
     label: t('admin.accounts.openai.imageProtocol.options.compat'),
     disabled: !props.openAiImageProtocolCompatAllowed
+  }
+])
+
+const anthropicAuthSchemeOptions = computed<SelectOption[]>(() => [
+  {
+    value: 'x_api_key',
+    label: t('admin.accounts.anthropic.authSchemeXApiKey')
+  },
+  {
+    value: 'authorization_bearer',
+    label: t('admin.accounts.anthropic.authSchemeBearer')
   }
 ])
 </script>
@@ -165,6 +180,27 @@ const openAIImageProtocolOptions = computed<SelectOption[]>(() => [
           ]"
         />
       </button>
+    </div>
+  </div>
+
+  <div
+    v-if="showAnthropicAuthScheme"
+    class="border-t border-gray-200 pt-4 dark:border-dark-600"
+  >
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <label class="input-label mb-0">{{ t('admin.accounts.anthropic.authScheme') }}</label>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.anthropic.authSchemeDesc') }}
+        </p>
+      </div>
+      <div class="w-56">
+        <Select
+          :model-value="anthropicAuthScheme || 'x_api_key'"
+          :options="anthropicAuthSchemeOptions"
+          @update:model-value="emit('update:anthropicAuthScheme', $event as AnthropicAPIKeyAuthScheme)"
+        />
+      </div>
     </div>
   </div>
 

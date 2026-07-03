@@ -598,6 +598,16 @@ func (s *AntigravityGatewayService) streamUpstreamResponse(c *gin.Context, resp 
 	if intervalTicker != nil {
 		intervalCh = intervalTicker.C
 	}
+	keepaliveInterval := s.streamKeepaliveInterval()
+	var keepaliveTicker *time.Ticker
+	if keepaliveInterval > 0 {
+		keepaliveTicker = time.NewTicker(keepaliveInterval)
+		defer keepaliveTicker.Stop()
+	}
+	var keepaliveCh <-chan time.Time
+	if keepaliveTicker != nil {
+		keepaliveCh = keepaliveTicker.C
+	}
 	flusher, _ := c.Writer.(http.Flusher)
 	cw := newAntigravityClientWriter(c.Writer, flusher, "antigravity upstream")
 	for {
@@ -614,6 +624,7 @@ func (s *AntigravityGatewayService) streamUpstreamResponse(c *gin.Context, resp 
 				return &antigravityStreamResult{usage: usage, firstTokenMs: firstTokenMs}
 			}
 			line := ev.line
+			atomic.StoreInt64(&lastReadAt, time.Now().UnixNano())
 			if firstTokenMs == nil && len(line) > 0 {
 				ms := int(time.Since(startTime).Milliseconds())
 				firstTokenMs = &ms
@@ -631,6 +642,12 @@ func (s *AntigravityGatewayService) streamUpstreamResponse(c *gin.Context, resp 
 			}
 			logger.LegacyPrintf("service.antigravity_gateway", "Stream data interval timeout (antigravity upstream)")
 			return &antigravityStreamResult{usage: usage, firstTokenMs: firstTokenMs}
+		case <-keepaliveCh:
+			lastRead := time.Unix(0, atomic.LoadInt64(&lastReadAt))
+			if keepaliveInterval <= 0 || time.Since(lastRead) < keepaliveInterval || cw.Disconnected() {
+				continue
+			}
+			cw.Write([]byte("event: ping\ndata: {\"type\":\"ping\"}\n\n"))
 		}
 	}
 }
