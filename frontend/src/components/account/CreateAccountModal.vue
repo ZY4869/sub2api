@@ -517,6 +517,8 @@
         :anthropic-auth-scheme="anthropicAPIKeyAuthScheme"
         :show-codex-cli-only="effectivePlatform === 'openai' && accountCategory === 'oauth-based'"
         :codex-cli-only-enabled="codexCLIOnlyEnabled"
+        :show-codex-image-tool-policy="effectivePlatform === 'openai' && accountCategory === 'oauth-based'"
+        :codex-image-tool-policy="codexImageToolPolicy"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
         @update:open-ai-image-protocol-mode="handleOpenAIImageProtocolModeChange"
         @update:open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed = $event"
@@ -524,6 +526,7 @@
         @update:anthropic-passthrough-enabled="anthropicPassthroughEnabled = $event"
         @update:anthropic-auth-scheme="anthropicAPIKeyAuthScheme = $event"
         @update:codex-cli-only-enabled="codexCLIOnlyEnabled = $event"
+        @update:codex-image-tool-policy="codexImageToolPolicy = $event"
       />
 
       <AccountAutoPauseToggle v-model:enabled="autoPauseOnExpired" />
@@ -800,6 +803,7 @@ const {
   canCompleteAuth,
   handleOAuthInputMethodUpdate,
   handleOpenAIImageProtocolModeChange,
+  codexImageToolPolicy,
   applyAccountTierCapacity,
   addModelMapping,
   removeModelMapping,

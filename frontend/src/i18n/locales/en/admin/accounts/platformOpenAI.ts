@@ -25,6 +25,15 @@ export default {
         responsesWebsocketsV2PassthroughHint: "Automatic passthrough is currently enabled: it only affects HTTP passthrough and does not disable WS mode.",
         codexCLIOnly: "Codex official clients only",
         codexCLIOnlyDesc: "Only applies to OpenAI OAuth. When enabled, only Codex official client families are allowed; when disabled, the gateway bypasses this restriction and keeps existing behavior.",
+        codexImageToolPolicy: {
+            label: "Codex image tool policy",
+            options: {
+                followChannel: "Follow channel",
+                forceInject: "Force inject",
+                noInject: "Do not inject",
+                blockAll: "Block all",
+            },
+        },
         modelRestrictionDisabledByPassthrough: "Automatic passthrough is enabled: model whitelist/mapping will not take effect.",
         imageProtocol: {
             label: "Image Protocol Mode",

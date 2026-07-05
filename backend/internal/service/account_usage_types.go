@@ -69,6 +69,7 @@ type UsageInfo struct {
 	SparkFiveHour      *UsageProgress          `json:"spark_five_hour,omitempty"`      // Spark 5小时窗口
 	SparkSevenDay      *UsageProgress          `json:"spark_seven_day,omitempty"`      // Spark 7天窗口
 	SevenDaySonnet     *UsageProgress          `json:"seven_day_sonnet,omitempty"`     // 7天Sonnet窗口
+	SevenDayFable      *UsageProgress          `json:"seven_day_fable,omitempty"`      // 7天Fable窗口（Anthropic 7d_oi）
 	OpenAIResetCredits *OpenAIResetCreditsInfo `json:"openai_reset_credits,omitempty"` // OpenAI 官方真实重置次数
 	GeminiSharedDaily  *UsageProgress          `json:"gemini_shared_daily,omitempty"`  // Gemini shared pool RPD (Google One / Code Assist)
 	GeminiProDaily     *UsageProgress          `json:"gemini_pro_daily,omitempty"`     // Gemini Pro 日配额
@@ -133,6 +134,10 @@ type ClaudeUsageResponse struct {
 		Utilization float64 `json:"utilization"`
 		ResetsAt    string  `json:"resets_at"`
 	} `json:"seven_day_sonnet"`
+	SevenDayOverageIncluded struct {
+		Utilization float64 `json:"utilization"`
+		ResetsAt    string  `json:"resets_at"`
+	} `json:"seven_day_overage_included"`
 }
 
 // ClaudeUsageFetchOptions 包含获取 Claude 用量数据所需的所有选项

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
@@ -76,6 +77,15 @@ func TestSetupDefaultAdminConcurrency(t *testing.T) {
 			t.Fatalf("setupDefaultAdminConcurrency()=%d, want %d", got, defaultUserConcurrency)
 		}
 	})
+}
+
+func TestSetupMigrationTimeout(t *testing.T) {
+	if got := (&SetupConfig{}).migrationTimeout(); got != defaultMigrationTimeout {
+		t.Fatalf("default migration timeout=%s, want %s", got, defaultMigrationTimeout)
+	}
+	if got := (&SetupConfig{MigrationTimeoutSeconds: 7}).migrationTimeout(); got != 7*time.Second {
+		t.Fatalf("configured migration timeout=%s, want 7s", got)
+	}
 }
 
 func TestWriteConfigFileKeepsDefaultUserConcurrency(t *testing.T) {

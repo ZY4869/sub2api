@@ -37,6 +37,7 @@ export function createEditAccountSubmit(ctx: any) {
     claudeSessionIDMaskingEnabled,
     claudeTLSFingerprintEnabled,
     codexCLIOnlyEnabled,
+    codexImageToolPolicy,
     currentAccountCredentials,
     customErrorCodesState,
     deepSeekModelConcurrencyLimits,
@@ -462,6 +463,13 @@ return async () => {
         } else {
           delete newExtra.codex_cli_only
         }
+        if (codexImageToolPolicy.value && codexImageToolPolicy.value !== 'follow_channel') {
+          newExtra.codex_image_tool_policy = codexImageToolPolicy.value
+        } else {
+          delete newExtra.codex_image_tool_policy
+        }
+      } else {
+        delete newExtra.codex_image_tool_policy
       }
 
       updatePayload.extra = newExtra

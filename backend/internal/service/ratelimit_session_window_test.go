@@ -366,3 +366,37 @@ func TestUpdateSessionWindow_NoStatusHeader(t *testing.T) {
 		t.Errorf("expected no calls when status header absent, got %d", len(repo.sessionWindowCalls))
 	}
 }
+
+func TestSamplePassiveUsageFromHeadersStoresFableWindow(t *testing.T) {
+	repo := &sessionWindowMockRepo{}
+	svc := newRateLimitServiceForTest(repo)
+
+	resetAt := time.Now().UTC().Add(3 * 24 * time.Hour).Truncate(time.Second)
+	headers := http.Header{}
+	headers.Set("anthropic-ratelimit-unified-7d-utilization", "0.40")
+	headers.Set("anthropic-ratelimit-unified-7d-reset", fmt.Sprintf("%d", resetAt.Unix()))
+	headers.Set("anthropic-ratelimit-unified-7d_oi-utilization", "0.82")
+	headers.Set("anthropic-ratelimit-unified-7d_oi-reset", fmt.Sprintf("%d", resetAt.Add(time.Hour).Unix()))
+
+	svc.samplePassiveUsageFromHeaders(context.Background(), &Account{ID: 88}, headers)
+
+	if len(repo.updateExtraCalls) != 1 {
+		t.Fatalf("expected 1 UpdateExtra call, got %d", len(repo.updateExtraCalls))
+	}
+	updates := repo.updateExtraCalls[0].Updates
+	if got := updates["passive_usage_7d_utilization"]; got != 0.40 {
+		t.Fatalf("passive_usage_7d_utilization = %v, want 0.40", got)
+	}
+	if got := updates["passive_usage_7d_reset"]; got != resetAt.Unix() {
+		t.Fatalf("passive_usage_7d_reset = %v, want %d", got, resetAt.Unix())
+	}
+	if got := updates["passive_usage_7d_oi_utilization"]; got != 0.82 {
+		t.Fatalf("passive_usage_7d_oi_utilization = %v, want 0.82", got)
+	}
+	if got := updates["passive_usage_7d_oi_reset"]; got != resetAt.Add(time.Hour).Unix() {
+		t.Fatalf("passive_usage_7d_oi_reset = %v, want %d", got, resetAt.Add(time.Hour).Unix())
+	}
+	if _, ok := updates["passive_usage_sampled_at"].(string); !ok {
+		t.Fatalf("expected passive_usage_sampled_at string, got %v", updates["passive_usage_sampled_at"])
+	}
+}

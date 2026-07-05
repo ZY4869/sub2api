@@ -93,6 +93,14 @@ type codexTransformResult struct {
 	PromptCacheKey  string
 }
 
+const (
+	CodexImageToolPolicyFollowChannel = "follow_channel"
+	CodexImageToolPolicyForceInject   = "force_inject"
+	CodexImageToolPolicyNoInject      = "no_inject"
+	CodexImageToolPolicyBlockAll      = "block_all"
+	CodexImageToolPolicyExtraKey      = "codex_image_tool_policy"
+)
+
 func applyCodexOAuthTransform(reqBody map[string]any, isCodexCLI bool, isCompact bool) codexTransformResult {
 	result := codexTransformResult{}
 	// 工具续链需求会影响存储策略与 input 过滤逻辑。
@@ -662,4 +670,113 @@ func codexHasImageGenerationTool(reqBody map[string]any) bool {
 		}
 	}
 	return false
+}
+
+func normalizeCodexImageToolPolicy(value any) string {
+	raw := strings.TrimSpace(strings.ToLower(stringValueFromAny(value)))
+	switch raw {
+	case "", "default", "inherit", "follow", "follow_channel", "channel":
+		return CodexImageToolPolicyFollowChannel
+	case "force", "inject", "force_inject", "force-inject":
+		return CodexImageToolPolicyForceInject
+	case "none", "strip", "disable", "disabled", "no_inject", "no-inject":
+		return CodexImageToolPolicyNoInject
+	case "block", "deny", "block_all", "block-all":
+		return CodexImageToolPolicyBlockAll
+	default:
+		return CodexImageToolPolicyFollowChannel
+	}
+}
+
+func accountCodexImageToolPolicy(account *Account) string {
+	if account == nil || len(account.Extra) == 0 {
+		return CodexImageToolPolicyFollowChannel
+	}
+	return normalizeCodexImageToolPolicy(account.Extra[CodexImageToolPolicyExtraKey])
+}
+
+func applyCodexImageToolPolicy(reqBody map[string]any, policy string) (modified bool, blocked bool) {
+	policy = normalizeCodexImageToolPolicy(policy)
+	switch policy {
+	case CodexImageToolPolicyForceInject:
+		if ensureCodexImageGenerationTool(reqBody) {
+			modified = true
+		}
+		if defaultCodexImageToolChoice(reqBody) {
+			modified = true
+		}
+	case CodexImageToolPolicyNoInject:
+		if stripCodexImageGenerationTool(reqBody) {
+			modified = true
+		}
+	case CodexImageToolPolicyBlockAll:
+		if codexHasImageGenerationTool(reqBody) || codexToolChoiceSelectsImageGeneration(reqBody["tool_choice"]) {
+			return false, true
+		}
+	}
+	return modified, false
+}
+
+func ensureCodexImageGenerationTool(reqBody map[string]any) bool {
+	if reqBody == nil || codexHasImageGenerationTool(reqBody) {
+		return false
+	}
+	tool := map[string]any{
+		"type":          "image_generation",
+		"output_format": "png",
+	}
+	rawTools, ok := reqBody["tools"]
+	if !ok || rawTools == nil {
+		reqBody["tools"] = []any{tool}
+		return true
+	}
+	tools, ok := rawTools.([]any)
+	if !ok {
+		reqBody["tools"] = []any{tool}
+		return true
+	}
+	reqBody["tools"] = append(tools, tool)
+	return true
+}
+
+func stripCodexImageGenerationTool(reqBody map[string]any) bool {
+	if reqBody == nil {
+		return false
+	}
+	modified := false
+	rawTools, hasTools := reqBody["tools"]
+	if tools, ok := rawTools.([]any); hasTools && ok {
+		filtered := make([]any, 0, len(tools))
+		for _, tool := range tools {
+			toolMap, ok := tool.(map[string]any)
+			if ok && strings.TrimSpace(stringValueFromAny(toolMap["type"])) == "image_generation" {
+				modified = true
+				continue
+			}
+			filtered = append(filtered, tool)
+		}
+		if modified {
+			if len(filtered) == 0 {
+				delete(reqBody, "tools")
+			} else {
+				reqBody["tools"] = filtered
+			}
+		}
+	}
+	if codexToolChoiceSelectsImageGeneration(reqBody["tool_choice"]) {
+		delete(reqBody, "tool_choice")
+		modified = true
+	}
+	return modified
+}
+
+func codexToolChoiceSelectsImageGeneration(raw any) bool {
+	switch choice := raw.(type) {
+	case string:
+		return strings.TrimSpace(choice) == "image_generation"
+	case map[string]any:
+		return strings.TrimSpace(stringValueFromAny(choice["type"])) == "image_generation"
+	default:
+		return false
+	}
 }

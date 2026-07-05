@@ -26,6 +26,11 @@ func scanOpsErrorLogListRow(row opsErrorLogRow) (*service.OpsErrorLog, error) {
 	var resolvedByName string
 	var resolvedRetryID sql.NullInt64
 	var requestType sql.NullInt64
+	var apiKeyName string
+	var apiKeyDeletedAt sql.NullTime
+	var deletedKeyName string
+	var deletedKeyOwnerID sql.NullInt64
+	var deletedKeyOwnerEmail string
 
 	if err := row.Scan(
 		&item.ID,
@@ -63,11 +68,17 @@ func scanOpsErrorLogListRow(row opsErrorLogRow) (*service.OpsErrorLog, error) {
 		&item.UpstreamEndpoint,
 		&item.RequestedModel,
 		&item.UpstreamModel,
+		&item.UserAgent,
 		&requestType,
 		&item.UpstreamURL,
 		&item.GeminiSurface,
 		&item.BillingRuleID,
 		&item.ProbeAction,
+		&apiKeyName,
+		&apiKeyDeletedAt,
+		&deletedKeyName,
+		&deletedKeyOwnerID,
+		&deletedKeyOwnerEmail,
 	); err != nil {
 		return nil, err
 	}
@@ -77,6 +88,16 @@ func scanOpsErrorLogListRow(row opsErrorLogRow) (*service.OpsErrorLog, error) {
 	item.UserEmail = userEmail
 	item.AccountName = accountName
 	item.GroupName = groupName
+	item.APIKeyName = apiKeyName
+	item.APIKeyDeleted = apiKeyDeletedAt.Valid || (apiKeyName == "" && deletedKeyName != "")
+	if item.APIKeyName == "" {
+		item.APIKeyName = deletedKeyName
+	}
+	if deletedKeyOwnerID.Valid {
+		v := deletedKeyOwnerID.Int64
+		item.DeletedKeyOwnerUserID = &v
+		item.DeletedKeyOwnerEmail = deletedKeyOwnerEmail
+	}
 	return &item, nil
 }
 

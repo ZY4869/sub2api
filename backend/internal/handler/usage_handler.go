@@ -226,6 +226,8 @@ type userFailedRequestItem struct {
 	RequestedModel   string    `json:"requested_model"`
 	StatusCode       int       `json:"status_code"`
 	Phase            string    `json:"phase"`
+	Type             string    `json:"type"`
+	Category         string    `json:"category"`
 	Source           string    `json:"error_source"`
 	Owner            string    `json:"error_owner"`
 	Message          string    `json:"message"`
@@ -233,6 +235,13 @@ type userFailedRequestItem struct {
 	InboundEndpoint  string    `json:"inbound_endpoint"`
 	UpstreamEndpoint string    `json:"upstream_endpoint"`
 	APIKeyID         *int64    `json:"api_key_id,omitempty"`
+	KeyName          string    `json:"key_name,omitempty"`
+	KeyDeleted       bool      `json:"key_deleted"`
+	ClientIP         string    `json:"client_ip,omitempty"`
+	GroupName        string    `json:"group_name,omitempty"`
+	RequestType      *int16    `json:"request_type,omitempty"`
+	Stream           bool      `json:"stream"`
+	UserAgent        string    `json:"user_agent,omitempty"`
 }
 
 // ListFailedRequests lists gateway-level failed requests for the current user.
@@ -281,10 +290,49 @@ func (h *UsageHandler) ListFailedRequests(c *gin.Context) {
 		UserID:    &subject.UserID,
 		APIKeyID:  apiKeyID,
 		Platform:  strings.TrimSpace(c.Query("platform")),
+		Model:     strings.TrimSpace(c.Query("model")),
+		Query:     strings.TrimSpace(c.Query("q")),
 		StartTime: startTime,
 		EndTime:   endTime,
 		View:      "all",
 	}
+	if phase := firstNonEmptyUsageQuery(c, "phase", "error_phase"); phase != "" {
+		filter.Phase = phase
+	}
+	if category := strings.TrimSpace(c.Query("category")); category != "" {
+		phases, types := service.CategoryToFilter(category)
+		filter.ErrorPhasesAny = phases
+		filter.ErrorTypesAny = types
+	}
+	if statusCode := strings.TrimSpace(c.Query("status_code")); statusCode != "" {
+		n, err := strconv.Atoi(statusCode)
+		if err != nil || n < 0 {
+			response.BadRequest(c, "Invalid status_code")
+			return
+		}
+		filter.StatusCodes = []int{n}
+	} else if statusCodesStr := strings.TrimSpace(c.Query("status_codes")); statusCodesStr != "" {
+		parts := strings.Split(statusCodesStr, ",")
+		out := make([]int, 0, len(parts))
+		for _, part := range parts {
+			p := strings.TrimSpace(part)
+			if p == "" {
+				continue
+			}
+			n, err := strconv.Atoi(p)
+			if err != nil || n < 0 {
+				response.BadRequest(c, "Invalid status_codes")
+				return
+			}
+			out = append(out, n)
+		}
+		filter.StatusCodes = out
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Query("status_codes_other"))) {
+	case "1", "true", "yes":
+		filter.StatusCodesOther = true
+	}
+	filter.SetSort(c.Query("sort_by"), c.Query("sort_order"))
 	result, err := h.opsService.GetErrorLogs(c.Request.Context(), filter)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -337,6 +385,8 @@ func userFailedRequestFromOps(item *service.OpsErrorLog) userFailedRequestItem {
 		RequestedModel:   item.RequestedModel,
 		StatusCode:       item.StatusCode,
 		Phase:            item.Phase,
+		Type:             item.Type,
+		Category:         service.MapErrorCategory(item.Phase, item.Type),
 		Source:           item.Source,
 		Owner:            item.Owner,
 		Message:          truncateUserFailedRequestMessage(item.Message),
@@ -344,7 +394,30 @@ func userFailedRequestFromOps(item *service.OpsErrorLog) userFailedRequestItem {
 		InboundEndpoint:  item.InboundEndpoint,
 		UpstreamEndpoint: item.UpstreamEndpoint,
 		APIKeyID:         item.APIKeyID,
+		KeyName:          item.APIKeyName,
+		KeyDeleted:       item.APIKeyDeleted,
+		ClientIP:         derefString(item.ClientIP),
+		GroupName:        item.GroupName,
+		RequestType:      item.RequestType,
+		Stream:           item.Stream,
+		UserAgent:        item.UserAgent,
 	}
+}
+
+func firstNonEmptyUsageQuery(c *gin.Context, keys ...string) string {
+	for _, key := range keys {
+		if v := strings.TrimSpace(c.Query(key)); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func truncateUserFailedRequestMessage(message string) string {

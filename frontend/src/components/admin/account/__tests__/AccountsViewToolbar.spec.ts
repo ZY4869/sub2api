@@ -189,6 +189,11 @@ describe("AccountsViewToolbar", () => {
         button.text().includes("admin.tlsFingerprintProfiles.title"),
       )
       ?.trigger("click");
+    await wrapper.get('[data-more-actions-button="true"]').trigger("click");
+    await nextTick();
+    await wrapper
+      .get('[data-codex-session-import-button="true"]')
+      .trigger("click");
     await wrapper
       .findAll("button")
       .find((button) =>
@@ -211,6 +216,7 @@ describe("AccountsViewToolbar", () => {
     expect(wrapper.emitted("export-data")).toEqual([[]]);
     expect(wrapper.emitted("show-error-passthrough")).toEqual([[]]);
     expect(wrapper.emitted("show-tls-fingerprint-profiles")).toEqual([[]]);
+    expect(wrapper.emitted("import-codex-session")).toEqual([[]]);
     expect(wrapper.emitted("toggle-group-view")).toEqual([[]]);
     expect(wrapper.emitted("sync-pending-list")).toEqual([[]]);
   });

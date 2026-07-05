@@ -48,6 +48,34 @@ describe('accountCreateExtras', () => {
       expect(out).not.toHaveProperty('openai_ws_enabled')
     })
 
+    it('writes only non-default codex image tool policy for oauth accounts', () => {
+      const out = buildOpenAIExtra({
+        platform: 'openai',
+        accountCategory: 'oauth-based',
+        base: { codex_image_tool_policy: 'block_all' },
+        openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiPassthroughEnabled: false,
+        codexCLIOnlyEnabled: false,
+        codexImageToolPolicy: 'force_inject',
+        ...baseOpenAIOptions
+      })
+      expect(out).toMatchObject({ codex_image_tool_policy: 'force_inject' })
+
+      const defaultOut = buildOpenAIExtra({
+        platform: 'openai',
+        accountCategory: 'oauth-based',
+        base: { codex_image_tool_policy: 'block_all' },
+        openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiPassthroughEnabled: false,
+        codexCLIOnlyEnabled: false,
+        codexImageToolPolicy: 'follow_channel',
+        ...baseOpenAIOptions
+      })
+      expect(defaultOut).not.toHaveProperty('codex_image_tool_policy')
+    })
+
     it('sets openai_passthrough when enabled', () => {
       const out = buildOpenAIExtra({
         platform: 'openai',

@@ -117,10 +117,16 @@ export interface OpsErrorLog {
   requested_model?: string
   upstream_model?: string
   request_type?: number | null
+  user_agent?: string
   upstream_url?: string
   gemini_surface?: string
   billing_rule_id?: string
   probe_action?: string
+
+  api_key_name?: string
+  api_key_deleted?: boolean
+  deleted_key_owner_user_id?: number | null
+  deleted_key_owner_email?: string | null
 }
 
 export interface OpsErrorDetail extends OpsErrorLog {
@@ -167,9 +173,13 @@ export type OpsErrorListQueryParams = {
   view?: OpsErrorListView
 
   q?: string
+  model?: string
+  category?: string
   status_codes?: string
   status_codes_other?: string
   gemini_surface?: string
   billing_rule_id?: string
   probe_action?: string
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
 }

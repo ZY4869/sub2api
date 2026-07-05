@@ -40,11 +40,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-06-14T12:17:33Z"
+export const generatedModelRegistryBuiltAt = "2026-07-04T06:17:09Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"d3d1d6aec6d51972ab5c62e86248223c09cf3cbeae752b897bff8bcefed9f6d5\"",
-  "updated_at": "2026-06-14T12:17:33Z",
+  "etag": "W/\"cce135b37f9cef556ee4726d830e5e5ccea9345b6be7be7111a998bd7eda531f\"",
+  "updated_at": "2026-07-04T06:17:09Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -4109,20 +4109,19 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "gemini-3.1-pro-high",
-      "display_name": "Gemini 3.1 Pro High",
+      "id": "gemini-3.1-pro",
+      "display_name": "Gemini 3.1 Pro",
       "provider": "gemini",
       "platforms": [
         "antigravity"
       ],
       "protocol_ids": [
-        "gemini-3.1-pro-high"
+        "gemini-3.1-pro"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "gemini-3.1-pro-high"
+        "gemini-3.1-pro"
       ],
-      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
@@ -4253,18 +4252,18 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "gemini-3.1-pro-low",
-      "display_name": "Gemini 3.1 Pro Low",
+      "id": "gemini-3.1-pro-high",
+      "display_name": "Gemini 3.1 Pro High",
       "provider": "gemini",
       "platforms": [
         "antigravity"
       ],
       "protocol_ids": [
-        "gemini-3.1-pro-low"
+        "gemini-3.1-pro-high"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "gemini-3.1-pro-low"
+        "gemini-3.1-pro-high"
       ],
       "context_window_tokens": 1048576,
       "modalities": [
@@ -4371,6 +4370,32 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "image"
       ],
+      "ui_priority": 14,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gemini-3.1-pro-low",
+      "display_name": "Gemini 3.1 Pro Low",
+      "provider": "gemini",
+      "platforms": [
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "gemini-3.1-pro-low"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.1-pro-low"
+      ],
+      "context_window_tokens": 1048576,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
       "ui_priority": 14,
       "exposed_in": [
         "runtime",
@@ -6577,10 +6602,26 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "order": 1
     },
     {
+      "platform": "grok",
+      "label": "Grok Auto",
+      "from": "grok-auto",
+      "to": "grok-auto",
+      "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+      "order": 1
+    },
+    {
       "platform": "anthropic",
       "label": "Sonnet 4.5",
       "from": "claude-sonnet-4.5",
       "to": "claude-sonnet-4.5",
+      "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
+      "order": 2
+    },
+    {
+      "platform": "grok",
+      "label": "Grok 4 Expert",
+      "from": "grok-4-expert",
+      "to": "grok-4-expert",
       "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
       "order": 2
     },
@@ -6593,6 +6634,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "order": 3
     },
     {
+      "platform": "grok",
+      "label": "Imagine Image",
+      "from": "grok-imagine-image",
+      "to": "grok-imagine-1.0",
+      "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+      "order": 3
+    },
+    {
       "platform": "anthropic",
       "label": "Opus-\u003eSonnet",
       "from": "claude-opus-4.1",
@@ -6601,11 +6650,27 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "order": 4
     },
     {
+      "platform": "grok",
+      "label": "Imagine Edit",
+      "from": "grok-imagine-1.0-edit",
+      "to": "grok-imagine-1.0-edit",
+      "color": "bg-rose-100 text-rose-700 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-400",
+      "order": 4
+    },
+    {
       "platform": "anthropic",
       "label": "Haiku-\u003eSonnet",
       "from": "claude-haiku-4.5",
       "to": "claude-sonnet-4.5",
       "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+      "order": 5
+    },
+    {
+      "platform": "grok",
+      "label": "Imagine Video",
+      "from": "grok-imagine-video",
+      "to": "grok-imagine-1.0-video",
+      "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
       "order": 5
     },
     {
@@ -6818,17 +6883,17 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "3-Pro-Preview-\u003e3.1-Pro-High",
+      "label": "3-Pro-Preview-\u003ePro-Agent",
       "from": "gemini-3-pro-preview",
-      "to": "gemini-3.1-pro-high",
+      "to": "gemini-pro-agent",
       "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
       "order": 37
     },
     {
       "platform": "antigravity",
-      "label": "3-Pro-High-\u003e3.1-Pro-High",
+      "label": "3-Pro-High-\u003ePro-Agent",
       "from": "gemini-3-pro-high",
-      "to": "gemini-3.1-pro-high",
+      "to": "gemini-pro-agent",
       "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
       "order": 38
     },
@@ -6842,11 +6907,19 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "3.1-Pro-High passthrough",
-      "from": "gemini-3.1-pro-high",
-      "to": "gemini-3.1-pro-high",
+      "label": "3.1-Pro-\u003ePro-Agent",
+      "from": "gemini-3.1-pro",
+      "to": "gemini-pro-agent",
       "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
       "order": 40
+    },
+    {
+      "platform": "antigravity",
+      "label": "3.1-Pro-High-\u003ePro-Agent",
+      "from": "gemini-3.1-pro-high",
+      "to": "gemini-pro-agent",
+      "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
+      "order": 41
     },
     {
       "platform": "antigravity",
@@ -6854,7 +6927,15 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "gemini-3.1-pro-low",
       "to": "gemini-3.1-pro-low",
       "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
-      "order": 41
+      "order": 42
+    },
+    {
+      "platform": "antigravity",
+      "label": "3.1-Pro-Preview-\u003ePro-Agent",
+      "from": "gemini-3.1-pro-preview",
+      "to": "gemini-pro-agent",
+      "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+      "order": 43
     },
     {
       "platform": "antigravity",
@@ -6862,7 +6943,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "gemini-2.5-flash-image",
       "to": "gemini-2.5-flash-image",
       "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
-      "order": 42
+      "order": 44
     },
     {
       "platform": "antigravity",
@@ -6870,7 +6951,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "gemini-3.1-flash-image",
       "to": "gemini-3.1-flash-image",
       "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
-      "order": 43
+      "order": 45
     },
     {
       "platform": "antigravity",
@@ -6878,7 +6959,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "gemini-3-pro-image",
       "to": "gemini-3.1-flash-image",
       "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
-      "order": 44
+      "order": 46
     },
     {
       "platform": "antigravity",
@@ -6886,7 +6967,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "gemini-3*",
       "to": "gemini-3-flash",
       "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
-      "order": 45
+      "order": 47
     },
     {
       "platform": "antigravity",
@@ -6894,7 +6975,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "gemini-2.5*",
       "to": "gemini-2.5-flash",
       "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
-      "order": 46
+      "order": 48
     },
     {
       "platform": "antigravity",
@@ -6902,7 +6983,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "gemini-3-flash",
       "to": "gemini-3-flash",
       "color": "bg-lime-100 text-lime-700 hover:bg-lime-200 dark:bg-lime-900/30 dark:text-lime-400",
-      "order": 47
+      "order": 49
     },
     {
       "platform": "antigravity",
@@ -6910,7 +6991,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "gemini-2.5-flash-lite",
       "to": "gemini-2.5-flash-lite",
       "color": "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400",
-      "order": 48
+      "order": 50
     },
     {
       "platform": "antigravity",
@@ -6918,7 +6999,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "claude-sonnet-4.5",
       "to": "claude-sonnet-4.5",
       "color": "bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400",
-      "order": 49
+      "order": 51
     },
     {
       "platform": "antigravity",
@@ -6926,7 +7007,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "claude-haiku-4.5",
       "to": "claude-haiku-4.5",
       "color": "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400",
-      "order": 50
+      "order": 52
     },
     {
       "platform": "antigravity",
@@ -6934,7 +7015,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "claude-opus-4.1",
       "to": "claude-opus-4.1",
       "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
-      "order": 51
+      "order": 53
     },
     {
       "platform": "antigravity",
@@ -6942,7 +7023,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "claude-opus-4-7",
       "to": "claude-opus-4-7",
       "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
-      "order": 52
+      "order": 54
     },
     {
       "platform": "antigravity",
@@ -6950,7 +7031,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "claude-opus-4-8",
       "to": "claude-opus-4-8",
       "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
-      "order": 53
+      "order": 55
     }
   ]
 }

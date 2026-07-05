@@ -1,8 +1,26 @@
-import type { AccountPlatform, OpenAIImageProtocolMode } from '@/types'
+import type {
+  AccountPlatform,
+  CodexImageToolPolicy,
+  OpenAIImageProtocolMode
+} from '@/types'
 import type { AccountCategory } from '@/components/account/createAccountModal/accountCategory'
 import { isOpenAIWSModeEnabled, type OpenAIWSMode } from '@/utils/openaiWsMode'
 
 export type AnthropicAPIKeyAuthScheme = 'x_api_key' | 'authorization_bearer'
+export const DEFAULT_CODEX_IMAGE_TOOL_POLICY: CodexImageToolPolicy = 'follow_channel'
+
+export function normalizeCodexImageToolPolicy(value: unknown): CodexImageToolPolicy {
+  switch (String(value || '').trim()) {
+    case 'force_inject':
+      return 'force_inject'
+    case 'no_inject':
+      return 'no_inject'
+    case 'block_all':
+      return 'block_all'
+    default:
+      return DEFAULT_CODEX_IMAGE_TOOL_POLICY
+  }
+}
 
 export const normalizeAnthropicAPIKeyAuthScheme = (
   value: unknown
@@ -18,6 +36,7 @@ export function buildOpenAIExtra(options: {
   openaiAPIKeyResponsesWebSocketV2Mode: OpenAIWSMode
   openaiPassthroughEnabled: boolean
   codexCLIOnlyEnabled: boolean
+  codexImageToolPolicy?: CodexImageToolPolicy
   openAIImageProtocolMode: OpenAIImageProtocolMode
   openAIImageCompatAllowed: boolean
   includeOpenAIImageProtocolMode?: boolean
@@ -53,6 +72,13 @@ export function buildOpenAIExtra(options: {
     extra.codex_cli_only = true
   } else {
     delete extra.codex_cli_only
+  }
+
+  const codexImageToolPolicy = normalizeCodexImageToolPolicy(options.codexImageToolPolicy)
+  if (options.accountCategory === 'oauth-based' && codexImageToolPolicy !== DEFAULT_CODEX_IMAGE_TOOL_POLICY) {
+    extra.codex_image_tool_policy = codexImageToolPolicy
+  } else {
+    delete extra.codex_image_tool_policy
   }
 
   if (options.includeOpenAIImageProtocolMode !== false) {

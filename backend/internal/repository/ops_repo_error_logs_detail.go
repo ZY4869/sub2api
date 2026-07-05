@@ -52,7 +52,7 @@ SELECT
   COALESCE(a.name, ''),
   e.group_id,
   COALESCE(g.name, ''),
-  CASE WHEN e.client_ip IS NULL THEN NULL ELSE e.client_ip::text END,
+  CASE WHEN e.client_ip IS NULL THEN NULL ELSE host(e.client_ip) END,
   COALESCE(e.request_path, ''),
   e.stream,
   COALESCE(e.inbound_endpoint, ''),
@@ -73,11 +73,26 @@ SELECT
   COALESCE(e.request_body::text, ''),
   e.request_body_truncated,
   e.request_body_bytes,
-  COALESCE(e.request_headers::text, '')
+  COALESCE(e.request_headers::text, ''),
+  COALESCE(ak.name, ''),
+  ak.deleted_at,
+  COALESCE(dka.name, ''),
+  dka.user_id,
+  COALESCE(du.email, '')
 FROM ops_error_logs e
 LEFT JOIN users u ON e.user_id = u.id
 LEFT JOIN accounts a ON e.account_id = a.id
 LEFT JOIN groups g ON e.group_id = g.id
+LEFT JOIN api_keys ak ON e.api_key_id = ak.id
+LEFT JOIN LATERAL (
+  SELECT user_id, name
+  FROM deleted_api_key_audits dka
+  WHERE dka.api_key_id = e.api_key_id
+     OR (e.api_key_id IS NULL AND COALESCE(e.api_key_prefix, '') <> '' AND dka.key_prefix = e.api_key_prefix)
+  ORDER BY dka.deleted_at DESC
+  LIMIT 1
+) dka ON true
+LEFT JOIN users du ON dka.user_id = du.id
 WHERE e.id = $1
 LIMIT 1`
 
@@ -99,6 +114,11 @@ LIMIT 1`
 	var ttft sql.NullInt64
 	var requestBodyBytes sql.NullInt64
 	var requestType sql.NullInt64
+	var apiKeyName string
+	var apiKeyDeletedAt sql.NullTime
+	var deletedKeyName string
+	var deletedKeyOwnerID sql.NullInt64
+	var deletedKeyOwnerEmail string
 
 	err := r.db.QueryRowContext(ctx, q, id).Scan(
 		&out.ID,
@@ -156,6 +176,11 @@ LIMIT 1`
 		&out.RequestBodyTruncated,
 		&requestBodyBytes,
 		&out.RequestHeaders,
+		&apiKeyName,
+		&apiKeyDeletedAt,
+		&deletedKeyName,
+		&deletedKeyOwnerID,
+		&deletedKeyOwnerEmail,
 	)
 	if err != nil {
 		return nil, err
@@ -195,6 +220,16 @@ LIMIT 1`
 	out.UpstreamErrors = strings.TrimSpace(out.UpstreamErrors)
 	if out.UpstreamErrors == "null" {
 		out.UpstreamErrors = ""
+	}
+	out.APIKeyName = apiKeyName
+	out.APIKeyDeleted = apiKeyDeletedAt.Valid || (apiKeyName == "" && deletedKeyName != "")
+	if out.APIKeyName == "" {
+		out.APIKeyName = deletedKeyName
+	}
+	if deletedKeyOwnerID.Valid {
+		v := deletedKeyOwnerID.Int64
+		out.DeletedKeyOwnerUserID = &v
+		out.DeletedKeyOwnerEmail = deletedKeyOwnerEmail
 	}
 
 	return &out, nil

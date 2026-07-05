@@ -5,6 +5,9 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import OpsErrorLogTable from './OpsErrorLogTable.vue'
 import { opsAPI, type OpsErrorLog } from '@/api/admin/ops'
+import UsageColumnSettingsMenu from '@/components/usage/UsageColumnSettingsMenu.vue'
+import type { Column } from '@/components/common/types'
+import { COMMON_ERROR_STATUS_CODES } from '@/utils/errorBadges'
 
 interface Props {
   show: boolean
@@ -37,7 +40,11 @@ const errorOwner = ref<string>('')
 const geminiSurface = ref('')
 const billingRuleId = ref('')
 const probeAction = ref('')
+const category = ref('')
 const viewMode = ref<'errors' | 'excluded' | 'all'>('errors')
+const sortBy = ref('created_at')
+const sortOrder = ref<'asc' | 'desc'>('desc')
+const hiddenColumns = ref<Set<string>>(new Set(['user_agent']))
 
 
 const modalTitle = computed(() => {
@@ -45,11 +52,18 @@ const modalTitle = computed(() => {
 })
 
 const statusCodeSelectOptions = computed(() => {
-  const codes = [400, 401, 403, 404, 409, 422, 429, 500, 502, 503, 504, 529]
   return [
     { value: null, label: t('common.all') },
-    ...codes.map((c) => ({ value: c, label: String(c) })),
+    ...COMMON_ERROR_STATUS_CODES.map((c) => ({ value: c, label: String(c) })),
     { value: 'other', label: t('admin.ops.errorDetails.statusCodeOther') || 'Other' }
+  ]
+})
+
+const categorySelectOptions = computed(() => {
+  const codes = ['auth', 'rate_limit', 'quota', 'invalid_request', 'service_unavailable', 'upstream', 'internal', 'cyber']
+  return [
+    { value: '', label: t('usage.errors.allCategories') },
+    ...codes.map((code) => ({ value: code, label: t(`usage.errors.categories.${code}`) }))
   ]
 })
 
@@ -84,6 +98,38 @@ const phaseSelectOptions = computed(() => {
   return options
 })
 
+const tableColumns = computed<Column[]>(() => [
+  { key: 'created_at', label: t('admin.ops.errorLog.time') },
+  { key: 'type', label: t('admin.ops.errorLog.type') },
+  { key: 'category', label: t('usage.errors.category') },
+  { key: 'platform', label: t('admin.ops.errorLog.platform') },
+  { key: 'endpoint', label: t('admin.ops.errorLog.endpoint') },
+  { key: 'model', label: t('admin.ops.errorLog.model') },
+  { key: 'group', label: t('admin.ops.errorLog.group') },
+  { key: 'user', label: t('admin.ops.errorLog.user') },
+  { key: 'api_key', label: t('admin.ops.errorLog.apiKey') },
+  { key: 'status', label: t('admin.ops.errorLog.status') },
+  { key: 'message', label: t('admin.ops.errorLog.message') },
+  { key: 'client_ip', label: t('admin.ops.errorLog.ip') },
+  { key: 'user_agent', label: t('usage.userAgent') }
+])
+
+const alwaysVisibleColumns = ['created_at', 'status']
+
+function toggleColumn(key: string) {
+  const next = new Set(hiddenColumns.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  hiddenColumns.value = next
+}
+
+function handleSort(nextSortBy: string, nextSortOrder: 'asc' | 'desc') {
+  sortBy.value = nextSortBy
+  sortOrder.value = nextSortOrder
+  page.value = 1
+  fetchErrorLogs()
+}
+
 function close() {
   emit('update:show', false)
 }
@@ -116,6 +162,9 @@ async function fetchErrorLogs() {
     if (geminiSurface.value.trim()) params.gemini_surface = geminiSurface.value.trim()
     if (billingRuleId.value.trim()) params.billing_rule_id = billingRuleId.value.trim()
     if (probeAction.value.trim()) params.probe_action = probeAction.value.trim()
+    if (category.value.trim()) params.category = category.value.trim()
+    params.sort_by = sortBy.value
+    params.sort_order = sortOrder.value
 
 
     const res = props.errorType === 'upstream'
@@ -140,7 +189,10 @@ async function fetchErrorLogs() {
     geminiSurface.value = ''
     billingRuleId.value = ''
     probeAction.value = ''
+    category.value = ''
     viewMode.value = 'errors'
+    sortBy.value = 'created_at'
+    sortOrder.value = 'desc'
     page.value = 1
     fetchErrorLogs()
   }
@@ -187,7 +239,7 @@ watch(
 )
 
 watch(
-  () => [statusCode.value, phase.value, errorOwner.value, geminiSurface.value, billingRuleId.value, probeAction.value, viewMode.value] as const,
+  () => [statusCode.value, phase.value, errorOwner.value, geminiSurface.value, billingRuleId.value, probeAction.value, category.value, viewMode.value] as const,
   () => {
     if (!props.show) return
     page.value = 1
@@ -243,6 +295,10 @@ watch(
           </div>
 
           <div class="compact-select">
+            <Select :model-value="category" :options="categorySelectOptions" @update:model-value="category = String($event ?? '')" />
+          </div>
+
+          <div class="compact-select">
             <input
               v-model="geminiSurface"
               type="text"
@@ -276,9 +332,17 @@ watch(
           </div>
 
           <div class="flex items-center justify-end">
-            <button type="button" class="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200 dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-dark-600" @click="resetFilters">
-              {{ t('common.reset') }}
-            </button>
+            <div class="flex items-center gap-2">
+              <UsageColumnSettingsMenu
+                :hidden-columns="hiddenColumns"
+                :columns="tableColumns"
+                :always-visible-columns="alwaysVisibleColumns"
+                @toggle-column="toggleColumn"
+              />
+              <button type="button" class="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200 dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-dark-600" @click="resetFilters">
+                {{ t('common.reset') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -296,8 +360,11 @@ watch(
             :loading="loading"
             :page="page"
             :page-size="pageSize"
+            :hidden-columns="hiddenColumns"
+            :sort-by="sortBy"
+            :sort-order="sortOrder"
             @openErrorDetail="emit('openErrorDetail', $event)"
-
+            @sort="handleSort"
             @update:page="page = $event"
             @update:pageSize="pageSize = $event"
           />

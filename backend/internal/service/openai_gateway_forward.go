@@ -249,6 +249,25 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if codexResult.PromptCacheKey != "" {
 			promptCacheKey = codexResult.PromptCacheKey
 		}
+		codexImagePolicy := accountCodexImageToolPolicy(account)
+		if policyModified, policyBlocked := applyCodexImageToolPolicy(reqBody, codexImagePolicy); policyBlocked {
+			msg := "This request is blocked by the account Codex image tool policy"
+			setOpsUpstreamError(c, http.StatusForbidden, msg, "codex_image_tool_policy_blocked")
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				Platform:           RoutingPlatformForAccount(account),
+				AccountID:          account.ID,
+				AccountName:        account.Name,
+				UpstreamStatusCode: http.StatusForbidden,
+				Kind:               "policy_block",
+				Message:            msg,
+				Detail:             "codex_image_tool_policy=" + codexImagePolicy,
+			})
+			c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"type": "forbidden_error", "code": "codex_image_tool_policy_blocked", "message": msg}})
+			return nil, errors.New("codex image tool policy blocked request")
+		} else if policyModified {
+			bodyModified = true
+			disablePatch()
+		}
 	}
 	if sanitizeEmptyBase64InputImagesInOpenAIRequestBodyMap(reqBody) {
 		bodyModified = true
@@ -494,6 +513,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if wsErr == nil {
 			if wsResult != nil {
 				wsResult.UpstreamModel = mappedModel
+				if wsResult.BillingModel == "" {
+					wsResult.BillingModel = mappedModel
+				}
 				wsResult.SimulatedClient = simulatedClient
 				applyClaudeCapabilityToOpenAIForwardResult(wsResult, claudeCapability)
 			}
@@ -617,6 +639,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			RequestID:                resp.Header.Get("x-request-id"),
 			Usage:                    *usage,
 			Model:                    originalModel,
+			BillingModel:             mappedModel,
 			UpstreamModel:            mappedModel,
 			SimulatedClient:          simulatedClient,
 			ServiceTier:              serviceTier,

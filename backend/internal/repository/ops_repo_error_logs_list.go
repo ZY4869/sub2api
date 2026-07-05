@@ -67,25 +67,41 @@ SELECT
   COALESCE(a.name, ''),
   e.group_id,
   COALESCE(g.name, ''),
-  CASE WHEN e.client_ip IS NULL THEN NULL ELSE e.client_ip::text END,
+  CASE WHEN e.client_ip IS NULL THEN NULL ELSE host(e.client_ip) END,
   COALESCE(e.request_path, ''),
   e.stream,
   COALESCE(e.inbound_endpoint, ''),
   COALESCE(e.upstream_endpoint, ''),
   COALESCE(e.requested_model, ''),
   COALESCE(e.upstream_model, ''),
+  COALESCE(e.user_agent, ''),
   e.request_type,
   COALESCE(e.upstream_url, ''),
   COALESCE(e.gemini_surface, ''),
   COALESCE(e.billing_rule_id, ''),
-  COALESCE(e.probe_action, '')
+  COALESCE(e.probe_action, ''),
+  COALESCE(ak.name, ''),
+  ak.deleted_at,
+  COALESCE(dka.name, ''),
+  dka.user_id,
+  COALESCE(du.email, '')
 FROM ops_error_logs e
 LEFT JOIN accounts a ON e.account_id = a.id
 LEFT JOIN groups g ON e.group_id = g.id
 LEFT JOIN users u ON e.user_id = u.id
 LEFT JOIN users u2 ON e.resolved_by_user_id = u2.id
+LEFT JOIN api_keys ak ON e.api_key_id = ak.id
+LEFT JOIN LATERAL (
+  SELECT user_id, name
+  FROM deleted_api_key_audits dka
+  WHERE dka.api_key_id = e.api_key_id
+     OR (e.api_key_id IS NULL AND COALESCE(e.api_key_prefix, '') <> '' AND dka.key_prefix = e.api_key_prefix)
+  ORDER BY dka.deleted_at DESC
+  LIMIT 1
+) dka ON true
+LEFT JOIN users du ON dka.user_id = du.id
 ` + where + `
-ORDER BY e.created_at DESC
+ORDER BY ` + opsErrorLogsOrderBy(filter) + `
 LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 
 	rows, err := r.db.QueryContext(ctx, selectSQL, argsWithLimit...)

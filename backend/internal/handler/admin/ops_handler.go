@@ -75,6 +75,53 @@ func NewOpsHandler(opsService *service.OpsService) *OpsHandler {
 	return &OpsHandler{opsService: opsService}
 }
 
+func applyOpsErrorSortParams(c *gin.Context, filter *service.OpsErrorLogFilter) {
+	if filter == nil {
+		return
+	}
+	filter.SetSort(c.Query("sort_by"), c.Query("sort_order"))
+}
+
+func applyOpsErrorCategoryParam(c *gin.Context, filter *service.OpsErrorLogFilter) {
+	if filter == nil {
+		return
+	}
+	if category := strings.TrimSpace(c.Query("category")); category != "" {
+		phases, types := service.CategoryToFilter(category)
+		filter.ErrorPhasesAny = phases
+		filter.ErrorTypesAny = types
+	}
+}
+
+func applyOpsErrorStatusCodeParams(c *gin.Context, filter *service.OpsErrorLogFilter) bool {
+	if filter == nil {
+		return true
+	}
+	if statusCodesStr := strings.TrimSpace(c.Query("status_codes")); statusCodesStr != "" {
+		parts := strings.Split(statusCodesStr, ",")
+		out := make([]int, 0, len(parts))
+		for _, part := range parts {
+			p := strings.TrimSpace(part)
+			if p == "" {
+				continue
+			}
+			n, err := strconv.Atoi(p)
+			if err != nil || n < 0 {
+				response.BadRequest(c, "Invalid status_codes")
+				return false
+			}
+			out = append(out, n)
+		}
+		filter.StatusCodes = out
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Query("status_codes_other"))) {
+	case "1", "true", "yes":
+		filter.StatusCodesOther = true
+	}
+	return true
+}
+
 // GetErrorLogs lists ops error logs.
 // GET /api/v1/admin/ops/errors
 func (h *OpsHandler) GetErrorLogs(c *gin.Context) {
@@ -113,13 +160,9 @@ func (h *OpsHandler) GetErrorLogs(c *gin.Context) {
 	filter.Source = strings.TrimSpace(c.Query("error_source"))
 	filter.Query = strings.TrimSpace(c.Query("q"))
 	filter.UserQuery = strings.TrimSpace(c.Query("user_query"))
+	filter.Model = strings.TrimSpace(c.Query("model"))
 	applyOpsErrorGeminiFiltersFromQuery(c, filter)
-
-	// Force request errors: client-visible status >= 400.
-	// buildOpsErrorLogsWhere already applies this for non-upstream phase.
-	if strings.EqualFold(strings.TrimSpace(filter.Phase), "upstream") {
-		filter.Phase = ""
-	}
+	applyOpsErrorCategoryParam(c, filter)
 
 	if platform := strings.TrimSpace(c.Query("platform")); platform != "" {
 		filter.Platform = platform
@@ -154,23 +197,10 @@ func (h *OpsHandler) GetErrorLogs(c *gin.Context) {
 			return
 		}
 	}
-	if statusCodesStr := strings.TrimSpace(c.Query("status_codes")); statusCodesStr != "" {
-		parts := strings.Split(statusCodesStr, ",")
-		out := make([]int, 0, len(parts))
-		for _, part := range parts {
-			p := strings.TrimSpace(part)
-			if p == "" {
-				continue
-			}
-			n, err := strconv.Atoi(p)
-			if err != nil || n < 0 {
-				response.BadRequest(c, "Invalid status_codes")
-				return
-			}
-			out = append(out, n)
-		}
-		filter.StatusCodes = out
+	if !applyOpsErrorStatusCodeParams(c, filter) {
+		return
 	}
+	applyOpsErrorSortParams(c, filter)
 
 	result, err := h.opsService.GetErrorLogs(c.Request.Context(), filter)
 	if err != nil {
@@ -215,13 +245,9 @@ func (h *OpsHandler) ListRequestErrors(c *gin.Context) {
 	filter.Source = strings.TrimSpace(c.Query("error_source"))
 	filter.Query = strings.TrimSpace(c.Query("q"))
 	filter.UserQuery = strings.TrimSpace(c.Query("user_query"))
+	filter.Model = strings.TrimSpace(c.Query("model"))
 	applyOpsErrorGeminiFiltersFromQuery(c, filter)
-
-	// Force request errors: client-visible status >= 400.
-	// buildOpsErrorLogsWhere already applies this for non-upstream phase.
-	if strings.EqualFold(strings.TrimSpace(filter.Phase), "upstream") {
-		filter.Phase = ""
-	}
+	applyOpsErrorCategoryParam(c, filter)
 
 	if platform := strings.TrimSpace(c.Query("platform")); platform != "" {
 		filter.Platform = platform
@@ -256,23 +282,10 @@ func (h *OpsHandler) ListRequestErrors(c *gin.Context) {
 			return
 		}
 	}
-	if statusCodesStr := strings.TrimSpace(c.Query("status_codes")); statusCodesStr != "" {
-		parts := strings.Split(statusCodesStr, ",")
-		out := make([]int, 0, len(parts))
-		for _, part := range parts {
-			p := strings.TrimSpace(part)
-			if p == "" {
-				continue
-			}
-			n, err := strconv.Atoi(p)
-			if err != nil || n < 0 {
-				response.BadRequest(c, "Invalid status_codes")
-				return
-			}
-			out = append(out, n)
-		}
-		filter.StatusCodes = out
+	if !applyOpsErrorStatusCodeParams(c, filter) {
+		return
 	}
+	applyOpsErrorSortParams(c, filter)
 
 	result, err := h.opsService.GetErrorLogs(c.Request.Context(), filter)
 	if err != nil {
@@ -345,10 +358,13 @@ func (h *OpsHandler) ListRequestErrorUpstreamErrors(c *gin.Context) {
 	}
 	filter.View = "all"
 	filter.Phase = "upstream"
+	filter.IncludeRecoveredUpstream = true
 	filter.Owner = "provider"
 	filter.Source = strings.TrimSpace(c.Query("error_source"))
 	filter.Query = strings.TrimSpace(c.Query("q"))
+	filter.Model = strings.TrimSpace(c.Query("model"))
 	applyOpsErrorGeminiFiltersFromQuery(c, filter)
+	applyOpsErrorSortParams(c, filter)
 
 	if platform := strings.TrimSpace(c.Query("platform")); platform != "" {
 		filter.Platform = platform
@@ -499,10 +515,13 @@ func (h *OpsHandler) ListUpstreamErrors(c *gin.Context) {
 
 	filter.View = parseOpsViewParam(c)
 	filter.Phase = "upstream"
+	filter.IncludeRecoveredUpstream = true
 	filter.Owner = "provider"
 	filter.Source = strings.TrimSpace(c.Query("error_source"))
 	filter.Query = strings.TrimSpace(c.Query("q"))
+	filter.Model = strings.TrimSpace(c.Query("model"))
 	applyOpsErrorGeminiFiltersFromQuery(c, filter)
+	applyOpsErrorCategoryParam(c, filter)
 
 	if platform := strings.TrimSpace(c.Query("platform")); platform != "" {
 		filter.Platform = platform
@@ -537,23 +556,10 @@ func (h *OpsHandler) ListUpstreamErrors(c *gin.Context) {
 			return
 		}
 	}
-	if statusCodesStr := strings.TrimSpace(c.Query("status_codes")); statusCodesStr != "" {
-		parts := strings.Split(statusCodesStr, ",")
-		out := make([]int, 0, len(parts))
-		for _, part := range parts {
-			p := strings.TrimSpace(part)
-			if p == "" {
-				continue
-			}
-			n, err := strconv.Atoi(p)
-			if err != nil || n < 0 {
-				response.BadRequest(c, "Invalid status_codes")
-				return
-			}
-			out = append(out, n)
-		}
-		filter.StatusCodes = out
+	if !applyOpsErrorStatusCodeParams(c, filter) {
+		return
 	}
+	applyOpsErrorSortParams(c, filter)
 
 	result, err := h.opsService.GetErrorLogs(c.Request.Context(), filter)
 	if err != nil {

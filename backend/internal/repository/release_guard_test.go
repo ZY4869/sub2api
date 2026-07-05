@@ -29,7 +29,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	require.NotContains(t, thirdParty, "LGPL")
 	require.NotContains(t, thirdParty, "GPL")
 
-	require.Equal(t, "0.1.375", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	require.Equal(t, "0.1.376", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 
 	var pkg struct {
 		Version string `json:"version"`
@@ -38,7 +38,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 		} `json:"pnpm"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(readRepoFile(t, root, "frontend", "package.json")), &pkg))
-	require.Equal(t, "0.1.375", pkg.Version)
+	require.Equal(t, "0.1.376", pkg.Version)
 	require.Equal(t, "4.0.6", pkg.PNPM.Overrides["form-data"])
 
 	assertNoAPIDocsRoutes(t, root)
@@ -94,6 +94,32 @@ func TestUpstream137To139CleanroomMatrixGuards(t *testing.T) {
 	envExample := readRepoFile(t, root, "deploy", ".env.example")
 	require.Contains(t, envExample, "SELINUX_VOLUME_LABEL")
 	require.Contains(t, envExample, ":Z")
+}
+
+func TestUpstream144CleanroomMatrixGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "upstream-v0.1.144-cleanroom-sync-matrix.md")
+	for _, expected := range []string{
+		"a10dc955189e9c7d70dcbb0f0a6334b2932bbde0",
+		"MIT-only",
+		"0.1.375",
+		"v0.1.145+",
+		"codex-sessions/import",
+		"seven_day_fable",
+		"codex_image_tool_policy",
+		"UsageRecordOverflowPolicySync",
+		"target_model_id",
+		"no `/api-docs/*`",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+
+	license := readRepoFile(t, root, "LICENSE")
+	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
+	require.NotContains(t, license, "GNU LESSER GENERAL PUBLIC LICENSE")
+	require.Equal(t, "0.1.376", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	assertNoAPIDocsRoutes(t, root)
 }
 
 func repositoryTestRepoRoot(t *testing.T) string {

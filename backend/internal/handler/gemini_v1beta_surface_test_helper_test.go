@@ -283,6 +283,10 @@ func (s *geminiSurfaceConcurrencyCacheStub) CleanupExpiredAccountSlots(context.C
 	return nil
 }
 
+func (s *geminiSurfaceConcurrencyCacheStub) CleanupExpiredAccountSlotKeys(context.Context) error {
+	return nil
+}
+
 func (s *geminiSurfaceConcurrencyCacheStub) CleanupStaleProcessSlots(context.Context, string) error {
 	return nil
 }

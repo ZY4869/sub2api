@@ -20,12 +20,12 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 		return nil, nil, nil, nil, err
 	}
 
-	accounts, err := s.listAllAccountsForOps(ctx, platformFilter)
+	accounts, err := s.listAllAccountsForOps(ctx, platformFilter, groupIDFilter)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	if groupIDFilter != nil && *groupIDFilter > 0 {
+	if _, optimized := s.accountRepo.(opsAccountStatsRepository); !optimized && groupIDFilter != nil && *groupIDFilter > 0 {
 		filtered := make([]Account, 0, len(accounts))
 		for _, acc := range accounts {
 			for _, grp := range acc.Groups {

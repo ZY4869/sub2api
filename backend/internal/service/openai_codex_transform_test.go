@@ -442,6 +442,63 @@ func TestApplyCodexOAuthTransform_ImageToolDefaultsToolChoiceAuto(t *testing.T) 
 	require.Equal(t, "auto", reqBody["tool_choice"])
 }
 
+func TestApplyCodexImageToolPolicyForceInject(t *testing.T) {
+	reqBody := map[string]any{
+		"model": "gpt-5.4",
+		"input": "Create an icon",
+	}
+
+	modified, blocked := applyCodexImageToolPolicy(reqBody, CodexImageToolPolicyForceInject)
+
+	require.True(t, modified)
+	require.False(t, blocked)
+	require.Equal(t, "auto", reqBody["tool_choice"])
+	tools, ok := reqBody["tools"].([]any)
+	require.True(t, ok)
+	require.Len(t, tools, 1)
+	tool, ok := tools[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "image_generation", tool["type"])
+	require.Equal(t, "png", tool["output_format"])
+}
+
+func TestApplyCodexImageToolPolicyNoInjectStripsImageToolAndChoice(t *testing.T) {
+	reqBody := map[string]any{
+		"model":       "gpt-5.4",
+		"input":       "Create an icon",
+		"tool_choice": map[string]any{"type": "image_generation"},
+		"tools": []any{
+			map[string]any{"type": "function", "name": "bash"},
+			map[string]any{"type": "image_generation", "size": "1024x1024"},
+		},
+	}
+
+	modified, blocked := applyCodexImageToolPolicy(reqBody, CodexImageToolPolicyNoInject)
+
+	require.True(t, modified)
+	require.False(t, blocked)
+	require.NotContains(t, reqBody, "tool_choice")
+	tools, ok := reqBody["tools"].([]any)
+	require.True(t, ok)
+	require.Len(t, tools, 1)
+	tool, ok := tools[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "function", tool["type"])
+}
+
+func TestApplyCodexImageToolPolicyBlockAll(t *testing.T) {
+	reqBody := map[string]any{
+		"model":       "gpt-5.4",
+		"input":       "Create an icon",
+		"tool_choice": "image_generation",
+	}
+
+	modified, blocked := applyCodexImageToolPolicy(reqBody, CodexImageToolPolicyBlockAll)
+
+	require.False(t, modified)
+	require.True(t, blocked)
+}
+
 func TestApplyCodexOAuthTransform_PreservesDeveloperInputAndInstructions(t *testing.T) {
 	reqBody := map[string]any{
 		"model":        "gpt-5.4",

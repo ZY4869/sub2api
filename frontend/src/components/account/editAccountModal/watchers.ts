@@ -1,4 +1,5 @@
 import type { Account, GatewayClientProfile, GatewayProtocol } from '@/types'
+import { normalizeCodexImageToolPolicy } from '@/utils/accountCreateExtras'
 
 export function useEditAccountModalWatchers(ctx: any) {
   const {
@@ -34,6 +35,7 @@ export function useEditAccountModalWatchers(ctx: any) {
     claudeSessionIDMaskingEnabled,
     claudeTLSFingerprintEnabled,
     codexCLIOnlyEnabled,
+    codexImageToolPolicy,
     createDefaultDeepSeekModelConcurrencyLimitDraft,
     createStaticProbeModels,
     customErrorCodesState,
@@ -226,6 +228,7 @@ watch(
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
+      codexImageToolPolicy.value = 'follow_channel'
       anthropicPassthroughEnabled.value = false
       anthropicAPIKeyAuthScheme.value = 'x_api_key'
       if (runtimePlatform === 'openai' && (newAccount.type === 'oauth' || newAccount.type === 'apikey')) {
@@ -252,6 +255,7 @@ watch(
         })
         if (newAccount.type === 'oauth') {
           codexCLIOnlyEnabled.value = extra?.codex_cli_only === true
+          codexImageToolPolicy.value = normalizeCodexImageToolPolicy(extra?.codex_image_tool_policy)
         }
       }
       if (runtimePlatform === 'anthropic' && newAccount.type === 'apikey') {
@@ -464,8 +468,8 @@ watch(
 
           const loadedFromScope = loadModelScopeFromExtra(extra)
 
-          // Backward-compatible: some legacy OpenAI OAuth accounts may store model mappings in credentials.
-          if (!loadedFromScope && runtimePlatform === 'openai' && newAccount.credentials) {
+          // Backward-compatible: OAuth accounts may store model mappings in credentials.
+          if (!loadedFromScope && (runtimePlatform === 'openai' || runtimePlatform === 'grok') && newAccount.credentials) {
             const oauthCredentials = newAccount.credentials as Record<string, unknown>
             applyModelRestrictionFromRecord(oauthCredentials.model_mapping)
           } else if (!loadedFromScope) {

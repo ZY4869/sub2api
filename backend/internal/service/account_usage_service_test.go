@@ -345,6 +345,42 @@ func TestEstimateSetupTokenUsageClearsExpiredSessionWindow(t *testing.T) {
 	require.Nil(t, repo.updateExtraCalls[0].Updates["session_window_utilization"])
 }
 
+func TestBuildPassiveUsageInfoIncludesFableWindow(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	windowEnd := now.Add(2 * time.Hour)
+	fableReset := now.Add(4 * 24 * time.Hour)
+	account := &Account{
+		ID:                  43,
+		Platform:            PlatformAnthropic,
+		Type:                AccountTypeOAuth,
+		SessionWindowEnd:    &windowEnd,
+		SessionWindowStatus: "allowed_warning",
+		Extra: map[string]any{
+			"session_window_utilization":      0.25,
+			"passive_usage_7d_utilization":    0.40,
+			"passive_usage_7d_reset":          fableReset.Add(-time.Hour).Unix(),
+			"passive_usage_7d_oi_utilization": 0.73,
+			"passive_usage_7d_oi_reset":       fableReset.Unix(),
+			"passive_usage_sampled_at":        now.Format(time.RFC3339),
+		},
+	}
+	svc := &AccountUsageService{}
+
+	usage, err := svc.buildPassiveUsageInfo(context.Background(), account)
+
+	require.NoError(t, err)
+	require.Equal(t, "passive", usage.Source)
+	require.NotNil(t, usage.UpdatedAt)
+	require.NotNil(t, usage.FiveHour)
+	require.Equal(t, 25.0, usage.FiveHour.Utilization)
+	require.NotNil(t, usage.SevenDay)
+	require.Equal(t, 40.0, usage.SevenDay.Utilization)
+	require.NotNil(t, usage.SevenDayFable)
+	require.Equal(t, 73.0, usage.SevenDayFable.Utilization)
+	require.NotNil(t, usage.SevenDayFable.ResetsAt)
+	require.WithinDuration(t, fableReset, *usage.SevenDayFable.ResetsAt, time.Second)
+}
+
 func TestShouldRefreshOpenAICodexSnapshot(t *testing.T) {
 	t.Parallel()
 

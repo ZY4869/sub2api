@@ -6,6 +6,7 @@ import type {
   AccountType,
   AccountTier,
   AccountAutoRenewPeriod,
+  CodexImageToolPolicy,
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
@@ -115,6 +116,7 @@ interface UseCreateAccountResetOptions {
   openaiOAuthResponsesWebSocketV2Mode: Ref<OpenAIWSMode>
   openaiAPIKeyResponsesWebSocketV2Mode: Ref<OpenAIWSMode>
   codexCLIOnlyEnabled: Ref<boolean>
+  codexImageToolPolicy: Ref<CodexImageToolPolicy>
   anthropicPassthroughEnabled: Ref<boolean>
   anthropicAPIKeyAuthScheme: Ref<AnthropicAPIKeyAuthScheme>
   quotaControlReset: () => void
@@ -223,6 +225,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
     options.openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
     options.codexCLIOnlyEnabled.value = false
+    options.codexImageToolPolicy.value = 'follow_channel'
     options.anthropicPassthroughEnabled.value = false
     options.anthropicAPIKeyAuthScheme.value = 'x_api_key'
     options.quotaControlReset()

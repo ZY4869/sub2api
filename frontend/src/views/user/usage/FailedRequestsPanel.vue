@@ -9,16 +9,44 @@
           {{ t("usage.failedRequests.description") }}
         </p>
       </div>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm"
-        :disabled="loading"
-        :aria-label="t('usage.failedRequests.refresh')"
-        @click="$emit('refresh')"
-      >
-        <Icon name="refresh" size="sm" />
-        <span class="sr-only">{{ t("usage.failedRequests.refresh") }}</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <UsageColumnSettingsMenu
+          :hidden-columns="hiddenColumns"
+          :columns="columns"
+          :always-visible-columns="alwaysVisibleColumns"
+          @toggle-column="$emit('toggle-column', $event)"
+        />
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          :disabled="loading"
+          :aria-label="t('usage.failedRequests.refresh')"
+          @click="$emit('refresh')"
+        >
+          <Icon name="refresh" size="sm" />
+          <span class="sr-only">{{ t("usage.failedRequests.refresh") }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-2 border-b border-gray-100 px-6 py-3 dark:border-dark-800 md:grid-cols-4">
+      <input
+        :value="filters.q"
+        type="text"
+        class="input text-sm"
+        :placeholder="t('usage.failedRequests.searchPlaceholder')"
+        @input="updateFilter('q', ($event.target as HTMLInputElement).value)"
+      />
+      <Select
+        :model-value="filters.category"
+        :options="categoryOptions"
+        @update:model-value="updateFilter('category', String($event ?? ''))"
+      />
+      <Select
+        :model-value="filters.statusCode"
+        :options="statusOptions"
+        @update:model-value="updateFilter('statusCode', $event == null ? null : Number($event))"
+      />
     </div>
 
     <div v-if="loading" class="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
@@ -30,95 +58,69 @@
     <div v-else-if="rows.length === 0" class="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
       {{ t("usage.failedRequests.empty") }}
     </div>
-    <div v-else class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 dark:bg-dark-950 dark:text-gray-400">
-          <tr>
-            <th class="px-4 py-3 text-left">{{ t("usage.time") }}</th>
-            <th class="px-4 py-3 text-left">{{ t("usage.model") }}</th>
-            <th class="px-4 py-3 text-left">{{ t("usage.status") }}</th>
-            <th class="px-4 py-3 text-left">{{ t("usage.failedRequests.phase") }}</th>
-            <th class="px-4 py-3 text-left">{{ t("usage.endpoint") }}</th>
-            <th class="px-4 py-3 text-left">{{ t("usage.errorMessage") }}</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100 dark:divide-dark-800">
-          <tr
-            v-for="row in rows"
-            :key="row.id"
-            data-testid="failed-request-row"
-          >
-            <td class="whitespace-nowrap px-4 py-3 text-gray-700 dark:text-gray-200">
-              {{ formatDateTime(row.created_at) }}
-            </td>
-            <td class="px-4 py-3 text-gray-900 dark:text-white">
-              <div class="max-w-48 truncate font-medium" :title="row.requested_model || row.model || '-'">
-                {{ row.requested_model || row.model || "-" }}
-              </div>
-              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {{ row.platform || t("usage.unknown") }}
-              </div>
-            </td>
-            <td class="px-4 py-3">
-              <span class="inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">
-                {{ formatStatus(row.status_code) }}
-              </span>
-            </td>
-            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">
-              <div>{{ row.phase || "-" }}</div>
-              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {{ row.error_source || row.error_owner || "-" }}
-              </div>
-            </td>
-            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">
-              <div class="max-w-52 truncate" :title="row.inbound_endpoint || row.request_path || '-'">
-                {{ row.inbound_endpoint || row.request_path || "-" }}
-              </div>
-              <div
-                v-if="row.upstream_endpoint"
-                class="mt-1 max-w-52 truncate text-xs text-gray-500 dark:text-gray-400"
-                :title="row.upstream_endpoint"
-              >
-                {{ row.upstream_endpoint }}
-              </div>
-            </td>
-            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">
-              <div class="max-w-96 whitespace-normal break-words">
-                {{ row.message || "-" }}
-              </div>
-              <div v-if="row.request_id" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {{ row.request_id }}
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <FailedRequestsTable
+      v-else
+      :rows="rows"
+      :hidden-columns="hiddenColumns"
+      :sort-by="sortBy"
+      :sort-order="sortOrder"
+      @sort="(sortBy, sortOrder) => emit('sort', sortBy, sortOrder)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import type { UserFailedRequest } from "@/api/usage";
+import Select from "@/components/common/Select.vue";
 import Icon from "@/components/icons/Icon.vue";
-import { formatDateTime } from "@/utils/format";
+import UsageColumnSettingsMenu from "@/components/usage/UsageColumnSettingsMenu.vue";
+import type { UserFailedRequest } from "@/api/usage";
+import type { Column } from "@/components/common/types";
+import { COMMON_ERROR_STATUS_CODES } from "@/utils/errorBadges";
+import FailedRequestsTable from "./FailedRequestsTable.vue";
 
-defineProps<{
+type FailedRequestFilters = {
+  q: string;
+  category: string;
+  statusCode: number | null;
+};
+
+const props = defineProps<{
   rows: UserFailedRequest[];
   loading: boolean;
   error: boolean;
+  filters: FailedRequestFilters;
+  hiddenColumns: Set<string>;
+  columns: Column[];
+  alwaysVisibleColumns: string[];
+  sortBy: string;
+  sortOrder: "asc" | "desc";
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "refresh"): void;
+  (e: "filter-change", value: FailedRequestFilters): void;
+  (e: "toggle-column", key: string): void;
+  (e: "sort", sortBy: string, sortOrder: "asc" | "desc"): void;
 }>();
 
 const { t } = useI18n();
 
-const formatStatus = (statusCode: number): string => {
-  if (!Number.isFinite(statusCode) || statusCode <= 0) {
-    return t("usage.failedRequests.failed");
-  }
-  return String(statusCode);
-};
+const categoryOptions = computed(() => {
+  const codes = ["auth", "rate_limit", "quota", "invalid_request", "service_unavailable", "upstream", "internal", "cyber"];
+  return [
+    { value: "", label: t("usage.errors.allCategories") },
+    ...codes.map((code) => ({ value: code, label: t(`usage.errors.categories.${code}`) })),
+  ];
+});
+
+const statusOptions = computed(() => [
+  { value: null, label: t("usage.errors.allStatuses") },
+  ...COMMON_ERROR_STATUS_CODES.map((code) => ({ value: code, label: String(code) })),
+]);
+
+function updateFilter<K extends keyof FailedRequestFilters>(key: K, value: FailedRequestFilters[K]) {
+  emit("filter-change", { ...props.filters, [key]: value });
+}
 </script>

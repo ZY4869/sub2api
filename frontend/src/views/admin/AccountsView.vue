@@ -46,6 +46,7 @@
         @sync="showSync = true"
         @create="showCreate = true"
         @import-data="showImportData = true"
+        @import-codex-session="showCodexImport = true"
         @export-data="openExportDataDialog"
         @show-error-passthrough="showErrorPassthrough = true"
         @show-tls-fingerprint-profiles="showTLSFingerprintProfiles = true"
@@ -211,6 +212,7 @@
     :show-sync="showSync"
     :show-import-data="showImportData"
     :show-import-group-binding="showImportGroupBinding"
+    :show-codex-import="showCodexImport"
     :show-export-data-dialog="showExportDataDialog"
     :show-bulk-edit="showBulkEdit"
     :show-temp-unsched="showTempUnsched"
@@ -294,6 +296,8 @@
     @data-imported="handleDataImported"
     @close-import-group-binding="closeImportGroupBinding"
     @import-group-binding-updated="handleImportGroupBindingUpdated"
+    @close-codex-import="showCodexImport = false"
+    @codex-imported="handleCodexImported"
     @close-bulk-edit="closeBulkEditModal"
     @bulk-updated="handleBulkUpdated"
     @close-temp-unsched="showTempUnsched = false"
@@ -573,7 +577,7 @@ const {
 
 const {
   showCreate, showArchiveSelected, showEdit, editLoading, showSync,
-  showImportData, showImportGroupBinding, importGroupBindingJobId, importGroupBindingAccounts,
+  showImportData, showImportGroupBinding, showCodexImport, importGroupBindingJobId, importGroupBindingAccounts,
   showExportDataDialog, includeProxyOnExport, showBulkEdit,
   bulkEditFilters, bulkEditFiltersTotal, showTempUnsched, showDeleteDialog,
   showReAuth, showTest, showBatchTest, showOneClickBatchTest, showStats, showModelDiagnostics,
@@ -618,6 +622,7 @@ const isAnyModalOpen = computed(() => {
     showSync.value ||
     showImportData.value ||
     showImportGroupBinding.value ||
+    showCodexImport.value ||
     showExportDataDialog.value ||
     showBulkEdit.value ||
     showTempUnsched.value ||
@@ -1022,6 +1027,12 @@ const handleBulkUpdated = () => {
   closeBulkEditModal();
   clearSelection();
   reload();
+};
+const handleCodexImported = async () => {
+  showCodexImport.value = false;
+  clearSelection();
+  refreshAccountSummarySafe();
+  await reload();
 };
 const handleAccountUpdated = (updatedAccount: Account) => {
   const editedArchived =

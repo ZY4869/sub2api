@@ -161,7 +161,7 @@ export function useAccountUsagePresentation(
   const loadingRows = computed(() => {
     const runtimePlatform = getRuntimePlatform(account.value);
     if (runtimePlatform === "anthropic") {
-      return account.value.type === "oauth" ? 3 : 1;
+      return account.value.type === "oauth" ? 4 : 1;
     }
     if (runtimePlatform === "openai")
       return shouldShowOnlyOpenAI7dUsage.value
@@ -892,6 +892,13 @@ export function useAccountUsagePresentation(
         "7d S",
         usageInfo.value?.seven_day_sonnet,
         "orange",
+        { remainingAnchorMs: usageRemainingAnchorMs.value },
+      ),
+      buildProgressRow(
+        "anthropic-7d-fable",
+        "7d F",
+        usageInfo.value?.seven_day_fable,
+        "amber",
         { remainingAnchorMs: usageRemainingAnchorMs.value },
       ),
     ),

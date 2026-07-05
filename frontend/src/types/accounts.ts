@@ -49,6 +49,11 @@ export type ProxyProtocol = "http" | "https" | "socks5" | "socks5h";
 export type OpenAIAccountTier = "pro_20x" | "pro_5x" | "plus" | "team" | "free";
 export type ClaudeAccountTier = "max_20x" | "max_5x" | "pro";
 export type AccountTier = OpenAIAccountTier | ClaudeAccountTier;
+export type CodexImageToolPolicy =
+  | "follow_channel"
+  | "force_inject"
+  | "no_inject"
+  | "block_all";
 
 // Claude Model type (returned by /v1/models and account models API)
 export interface ClaudeModel {
@@ -245,6 +250,7 @@ export interface Account {
     >;
     image_protocol_mode?: OpenAIImageProtocolMode;
     image_compat_allowed?: boolean;
+    codex_image_tool_policy?: CodexImageToolPolicy;
     account_tier?: AccountTier | string;
     reauth_status?: AccountReauthStatus;
     gateway_protocol?: GatewayProtocol;
@@ -508,6 +514,7 @@ export interface AccountUsageInfo {
   spark_five_hour?: UsageProgress | null;
   spark_seven_day?: UsageProgress | null;
   seven_day_sonnet: UsageProgress | null;
+  seven_day_fable?: UsageProgress | null;
   gemini_shared_daily?: UsageProgress | null;
   gemini_pro_daily?: UsageProgress | null;
   gemini_flash_daily?: UsageProgress | null;

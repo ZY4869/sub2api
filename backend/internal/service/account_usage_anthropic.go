@@ -76,6 +76,21 @@ func (s *AccountUsageService) buildUsageInfo(resp *ClaudeUsageResponse, updatedA
 		}
 	}
 
+	if resp.SevenDayOverageIncluded.ResetsAt != "" {
+		if fableReset, err := parseTime(resp.SevenDayOverageIncluded.ResetsAt); err == nil {
+			info.SevenDayFable = &UsageProgress{
+				Utilization:      resp.SevenDayOverageIncluded.Utilization,
+				ResetsAt:         &fableReset,
+				RemainingSeconds: int(time.Until(fableReset).Seconds()),
+			}
+		} else {
+			log.Printf("Failed to parse SevenDayOverageIncluded.ResetsAt: %s, error: %v", resp.SevenDayOverageIncluded.ResetsAt, err)
+			info.SevenDayFable = &UsageProgress{
+				Utilization: resp.SevenDayOverageIncluded.Utilization,
+			}
+		}
+	}
+
 	return info
 }
 

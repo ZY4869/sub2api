@@ -19,6 +19,9 @@ func (s *AccountUsageService) getAnthropicActiveUsage(ctx context.Context, accou
 	// 构建 UsageInfo（每次都重新计算 RemainingSeconds）
 	now := time.Now()
 	usage := s.buildUsageInfo(apiResp, &now)
+	if usage.SevenDayFable == nil {
+		usage.SevenDayFable = buildPassiveUsageWindow(account.Extra, "passive_usage_7d_oi_utilization", "passive_usage_7d_oi_reset")
+	}
 
 	// 添加窗口统计（有独立缓存，1 分钟）
 	s.addWindowStats(ctx, account, usage, force)

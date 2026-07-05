@@ -28,7 +28,15 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 		slog.Info("account_error_code_skipped", "account_id", account.ID, "status_code", statusCode)
 		return false
 	}
-	if statusCode != 401 && s.tryTempUnschedulable(ctx, account, statusCode, responseBody) {
+	anthropicOfficial429 := false
+	if statusCode == http.StatusTooManyRequests && runtimePlatform == PlatformAnthropic {
+		fableLimited := s.persistAnthropicFableWindowLimit(ctx, account, headers)
+		anthropicOfficial429 = calculateAnthropic429ResetTime(headers) != nil
+		if fableLimited && !anthropicOfficial429 {
+			return false
+		}
+	}
+	if statusCode != 401 && !anthropicOfficial429 && s.tryTempUnschedulable(ctx, account, statusCode, responseBody) {
 		return true
 	}
 
@@ -101,12 +109,26 @@ func (s *RateLimitService) handleUnauthorizedError(ctx context.Context, account 
 		return true
 	}
 
-	if account.Type != AccountTypeOAuth || runtimePlatform == PlatformAntigravity {
+	if account.Type != AccountTypeOAuth {
 		msg := "Authentication failed (401): invalid or expired credentials"
 		if upstreamMsg != "" {
 			msg = "Authentication failed (401): " + upstreamMsg
 		}
 		s.handleAuthError(ctx, account, msg)
+		return true
+	}
+
+	if strings.TrimSpace(account.GetCredential("refresh_token")) == "" {
+		msg := "Authentication failed (401): refresh_token missing"
+		if upstreamMsg != "" {
+			msg = msg + "; " + upstreamMsg
+		}
+		s.handleAuthError(ctx, account, msg)
+		if s.tokenCacheInvalidator != nil {
+			if err := s.tokenCacheInvalidator.InvalidateToken(ctx, account); err != nil {
+				slog.Warn("oauth_401_invalidate_cache_failed", "account_id", account.ID, "error", err)
+			}
+		}
 		return true
 	}
 

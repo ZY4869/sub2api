@@ -44,22 +44,53 @@ func NewGroupCapacityService(
 
 // GetAllGroupCapacity returns capacity summary for all active groups.
 func (s *GroupCapacityService) GetAllGroupCapacity(ctx context.Context) ([]GroupCapacitySummary, error) {
-	groups, err := s.groupRepo.ListActive(ctx)
+	groupIDs, err := s.listActiveGroupIDs(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]GroupCapacitySummary, 0, len(groups))
+	if lister, ok := s.accountRepo.(groupCapacityAccountLister); ok {
+		return s.getGroupCapacitiesBatch(ctx, groupIDs, lister)
+	}
+
+	return s.getGroupCapacitiesSequential(ctx, groupIDs), nil
+}
+
+func (s *GroupCapacityService) listActiveGroupIDs(ctx context.Context) ([]int64, error) {
+	if s == nil || s.groupRepo == nil {
+		return []int64{}, nil
+	}
+	if lister, ok := s.groupRepo.(groupCapacityActiveGroupIDLister); ok {
+		return lister.ListActiveIDs(ctx)
+	}
+
+	groups, err := s.groupRepo.ListActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+	groupIDs := make([]int64, 0, len(groups))
 	for i := range groups {
-		cap, err := s.getGroupCapacity(ctx, groups[i].ID)
+		groupIDs = append(groupIDs, groups[i].ID)
+	}
+	return groupIDs, nil
+}
+
+func (s *GroupCapacityService) getGroupCapacitiesSequential(ctx context.Context, groupIDs []int64) []GroupCapacitySummary {
+	results := make([]GroupCapacitySummary, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		cap, err := s.getGroupCapacity(ctx, groupID)
 		if err != nil {
-			// Skip groups with errors, return partial results
 			continue
 		}
-		cap.GroupID = groups[i].ID
+		cap.GroupID = groupID
 		results = append(results, cap)
 	}
-	return results, nil
+	return results
+}
+
+type groupCapacityAccountRef struct {
+	groupID   int64
+	accountID int64
 }
 
 func (s *GroupCapacityService) getGroupCapacity(ctx context.Context, groupID int64) (GroupCapacitySummary, error) {
@@ -96,7 +127,10 @@ func (s *GroupCapacityService) getGroupCapacity(ctx context.Context, groupID int
 	}
 
 	// Batch query runtime data from Redis
-	concurrencyMap, _ := s.concurrencyService.GetAccountConcurrencyBatch(ctx, accountIDs)
+	concurrencyMap := map[int64]int{}
+	if s.concurrencyService != nil {
+		concurrencyMap, _ = s.concurrencyService.GetAccountConcurrencyBatch(ctx, accountIDs)
+	}
 
 	var sessionsMap map[int64]int
 	if sessionsMax > 0 && s.sessionLimitCache != nil {

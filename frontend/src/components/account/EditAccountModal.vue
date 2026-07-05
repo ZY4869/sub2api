@@ -364,6 +364,8 @@
         :anthropic-auth-scheme="anthropicAPIKeyAuthScheme"
         :show-codex-cli-only="effectivePlatform === 'openai' && account?.type === 'oauth'"
         :codex-cli-only-enabled="codexCLIOnlyEnabled"
+        :show-codex-image-tool-policy="effectivePlatform === 'openai' && account?.type === 'oauth'"
+        :codex-image-tool-policy="codexImageToolPolicy"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
         @update:open-ai-image-protocol-mode="handleOpenAIImageProtocolModeChange"
         @update:open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed = $event"
@@ -371,6 +373,7 @@
         @update:anthropic-passthrough-enabled="anthropicPassthroughEnabled = $event"
         @update:anthropic-auth-scheme="anthropicAPIKeyAuthScheme = $event"
         @update:codex-cli-only-enabled="codexCLIOnlyEnabled = $event"
+        @update:codex-image-tool-policy="codexImageToolPolicy = $event"
       />
 
       <div v-if="showQuotaLimitSection" class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
@@ -683,6 +686,7 @@ const {
   accountTier,
   expiresAtInput,
   handleOpenAIImageProtocolModeChange,
+  codexImageToolPolicy,
   applyAccountTierCapacity,
   addModelMapping,
   removeModelMapping,

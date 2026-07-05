@@ -72,6 +72,7 @@ describe("useModelWhitelist", () => {
   it("antigravity models include prioritized image compatibility entries", () => {
     const models = getModelsByPlatform("antigravity");
 
+    expect(models).toContain("gemini-3.1-pro");
     expect(models).toContain("gemini-2.5-flash-image");
     expect(models).toContain("gemini-3.1-flash-image");
     expect(models).toContain("gemini-3-pro-image");
@@ -116,6 +117,13 @@ describe("useModelWhitelist", () => {
     expect(
       presets.some(
         (preset) =>
+          preset.from === "gemini-3.1-pro" &&
+          preset.to === "gemini-pro-agent",
+      ),
+    ).toBe(true);
+    expect(
+      presets.some(
+        (preset) =>
           preset.from === "gemini-2.5-flash-image" &&
           preset.to === "gemini-2.5-flash-image",
       ),
@@ -132,6 +140,27 @@ describe("useModelWhitelist", () => {
         (preset) =>
           preset.from === "gemini-3-pro-image" &&
           preset.to === "gemini-3.1-flash-image",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps grok media presets available for oauth mapping edits", () => {
+    const presets = getPresetMappingsByPlatform("grok");
+
+    expect(
+      presets.some(
+        (preset) =>
+          preset.label === "Imagine Image" &&
+          preset.from === "grok-imagine-image" &&
+          preset.to === "grok-imagine-1.0",
+      ),
+    ).toBe(true);
+    expect(
+      presets.some(
+        (preset) =>
+          preset.label === "Imagine Video" &&
+          preset.from === "grok-imagine-video" &&
+          preset.to === "grok-imagine-1.0-video",
       ),
     ).toBe(true);
   });

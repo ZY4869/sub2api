@@ -1907,6 +1907,31 @@
     ]
   },
   {
+    "id": "gemini-3.1-pro",
+    "display_name": "Gemini 3.1 Pro",
+    "provider": "gemini",
+    "platforms": [
+      "antigravity"
+    ],
+    "protocol_ids": [
+      "gemini-3.1-pro"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.1-pro"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 12,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "gemini-3.1-pro-high",
     "display_name": "Gemini 3.1 Pro High",
     "provider": "gemini",
@@ -1924,7 +1949,7 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 12,
+    "ui_priority": 13,
     "exposed_in": [
       "runtime",
       "test",
@@ -1949,7 +1974,7 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 13,
+    "ui_priority": 14,
     "exposed_in": [
       "runtime",
       "test",

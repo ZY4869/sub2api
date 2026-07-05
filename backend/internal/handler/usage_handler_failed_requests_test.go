@@ -107,6 +107,7 @@ func TestUserFailedRequestsFiltersByCurrentUserAndOwnedAPIKey(t *testing.T) {
 					RequestPath:      "/v1/chat/completions",
 					InboundEndpoint:  "/v1/chat/completions",
 					UpstreamEndpoint: "/chat/completions",
+					UserAgent:        "codex_cli_rs/0.125.0",
 				},
 			},
 			Total:    1,
@@ -149,7 +150,6 @@ func TestUserFailedRequestsFiltersByCurrentUserAndOwnedAPIKey(t *testing.T) {
 	require.NotContains(t, raw, "user_email")
 	require.NotContains(t, raw, "api_key_prefix")
 	require.NotContains(t, raw, "account_name")
-	require.NotContains(t, raw, "client_ip")
 
 	items := decodeResponseData[response.PaginatedData](t, rec.Body.Bytes()).Items
 	itemPayload, err := json.Marshal(items)
@@ -159,6 +159,10 @@ func TestUserFailedRequestsFiltersByCurrentUserAndOwnedAPIKey(t *testing.T) {
 	require.Len(t, typed, 1)
 	require.Equal(t, "req-user", typed[0].RequestID)
 	require.Equal(t, "/v1/chat/completions", typed[0].RequestPath)
+	require.Equal(t, "127.0.0.1", typed[0].ClientIP)
+	require.Equal(t, "internal-group", typed[0].GroupName)
+	require.Equal(t, "codex_cli_rs/0.125.0", typed[0].UserAgent)
+	require.Equal(t, "upstream", typed[0].Category)
 	require.LessOrEqual(t, len(typed[0].Message), 512)
 	require.Contains(t, typed[0].Message, "...")
 }

@@ -37,6 +37,7 @@ export function useCreateAccountModalWatchers(ctx: any) {
     claudeSessionIDMaskingEnabled,
     claudeTLSFingerprintEnabled,
     codexCLIOnlyEnabled,
+    codexImageToolPolicy,
     createDefaultDeepSeekModelConcurrencyLimitDraft,
     deepSeekModelConcurrencyLimits,
     effectivePlatform,
@@ -315,6 +316,7 @@ watch(
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
+      codexImageToolPolicy.value = 'follow_channel'
     } else {
       applyOpenAIImageProtocolDefaults(undefined, true)
       applyOpenAIOAuthPresetModels(undefined, null, true)
@@ -357,6 +359,7 @@ watch(
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
+      codexImageToolPolicy.value = 'follow_channel'
     }
     if (oldProtocol === 'anthropic' && newProtocol !== 'anthropic') {
       anthropicPassthroughEnabled.value = false
@@ -447,6 +450,7 @@ watch(
   ([category, platform]: [AccountCategory, GroupPlatform]) => {
     if (platform === 'openai' && category !== 'oauth-based') {
       codexCLIOnlyEnabled.value = false
+      codexImageToolPolicy.value = 'follow_channel'
     }
     if (platform !== 'anthropic' || category !== 'apikey') {
       anthropicPassthroughEnabled.value = false

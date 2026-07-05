@@ -1546,7 +1546,7 @@ describe("user UsageView tooltip", () => {
     expect(wrapper.text()).toContain("Cache Miss");
   });
 
-  it("does not render or request recent failed requests", async () => {
+  it("renders and requests recent failed requests", async () => {
     query.mockResolvedValue({
       items: [],
       total: 0,
@@ -1580,12 +1580,19 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
     await nextTick();
 
-    expect(listFailedRequests).not.toHaveBeenCalled();
-    expect(wrapper.find('[data-testid="failed-requests-panel"]').exists()).toBe(false);
-    expect(wrapper.text()).not.toContain("Recent Failed Requests");
+    expect(listFailedRequests).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 1,
+        page_size: 10,
+        sort_by: "created_at",
+        sort_order: "desc",
+      }),
+    );
+    expect(wrapper.find('[data-testid="failed-requests-panel"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("Recent Failed Requests");
   });
 
-  it("does not surface failed request errors on the usage page", async () => {
+  it("shows failed request load errors inside the panel", async () => {
     query.mockResolvedValue({
       items: [],
       total: 0,
@@ -1620,9 +1627,9 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
     await nextTick();
 
-    expect(listFailedRequests).not.toHaveBeenCalled();
-    expect(wrapper.text()).not.toContain("Failed to load failed requests");
-    expect(wrapper.text()).not.toContain("Recent Failed Requests");
+    expect(listFailedRequests).toHaveBeenCalled();
+    expect(wrapper.text()).toContain("Failed to load failed requests");
+    expect(wrapper.text()).toContain("Recent Failed Requests");
     expect(showError).not.toHaveBeenCalledWith("Failed to load failed requests. Retry or adjust the filters.");
   });
 });

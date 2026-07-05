@@ -1,6 +1,9 @@
 package service
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type OpsSystemLog struct {
 	ID              int64          `json:"id"`
@@ -71,9 +74,16 @@ type OpsErrorLog struct {
 	UpstreamModel    string `json:"upstream_model"`
 	RequestType      *int16 `json:"request_type"`
 	UpstreamURL      string `json:"upstream_url"`
+	UserAgent        string `json:"user_agent,omitempty"`
 	GeminiSurface    string `json:"gemini_surface,omitempty"`
 	BillingRuleID    string `json:"billing_rule_id,omitempty"`
 	ProbeAction      string `json:"probe_action,omitempty"`
+
+	APIKeyName    string `json:"api_key_name,omitempty"`
+	APIKeyDeleted bool   `json:"api_key_deleted,omitempty"`
+
+	DeletedKeyOwnerUserID *int64 `json:"deleted_key_owner_user_id,omitempty"`
+	DeletedKeyOwnerEmail  string `json:"deleted_key_owner_email,omitempty"`
 }
 
 type OpsErrorLogDetail struct {
@@ -110,6 +120,7 @@ type OpsErrorLogFilter struct {
 	EndTime   *time.Time
 
 	Platform  string
+	Model     string
 	GroupID   *int64
 	UserID    *int64
 	AccountID *int64
@@ -124,6 +135,9 @@ type OpsErrorLogFilter struct {
 	Query            string
 	UserQuery        string // Search by user email
 
+	ErrorPhasesAny []string
+	ErrorTypesAny  []string
+
 	// Optional correlation keys for exact matching.
 	RequestID       string
 	ClientRequestID string
@@ -137,8 +151,80 @@ type OpsErrorLogFilter struct {
 	// - all: show everything
 	View string
 
+	// IncludeRecoveredUpstream allows upstream-health views to include
+	// upstream rows whose client-visible status is below 400.
+	IncludeRecoveredUpstream bool
+
 	Page     int
 	PageSize int
+
+	SortBy    string
+	SortOrder string
+}
+
+func (f *OpsErrorLogFilter) SetSort(sortBy, sortOrder string) {
+	if f == nil {
+		return
+	}
+	switch strings.ToLower(strings.TrimSpace(sortBy)) {
+	case "created_at", "model", "status_code":
+		f.SortBy = strings.ToLower(strings.TrimSpace(sortBy))
+	default:
+		f.SortBy = ""
+	}
+	if strings.EqualFold(strings.TrimSpace(sortOrder), "asc") {
+		f.SortOrder = "asc"
+	} else {
+		f.SortOrder = "desc"
+	}
+}
+
+func CategoryToFilter(category string) ([]string, []string) {
+	switch strings.ToLower(strings.TrimSpace(category)) {
+	case "auth":
+		return []string{"auth"}, nil
+	case "rate_limit":
+		return nil, []string{"rate_limit_error"}
+	case "quota":
+		return nil, []string{"billing_error", "subscription_error"}
+	case "invalid_request":
+		return nil, []string{"invalid_request_error"}
+	case "service_unavailable":
+		return []string{"routing"}, nil
+	case "upstream":
+		return []string{"upstream", "network"}, nil
+	case "internal":
+		return []string{"internal"}, nil
+	case "cyber":
+		return nil, []string{"cyber_policy"}
+	default:
+		return nil, nil
+	}
+}
+
+func MapErrorCategory(phase, errType string) string {
+	switch strings.ToLower(strings.TrimSpace(phase)) {
+	case "auth":
+		return "auth"
+	case "routing":
+		return "service_unavailable"
+	case "upstream", "network":
+		return "upstream"
+	case "internal":
+		return "internal"
+	case "request":
+		switch strings.ToLower(strings.TrimSpace(errType)) {
+		case "rate_limit_error":
+			return "rate_limit"
+		case "billing_error", "subscription_error":
+			return "quota"
+		case "invalid_request_error":
+			return "invalid_request"
+		case "cyber_policy":
+			return "cyber"
+		}
+	}
+	return "other"
 }
 
 type OpsErrorLogList struct {

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
-import type { OpenAIImageProtocolMode } from '@/types'
+import type { CodexImageToolPolicy, OpenAIImageProtocolMode } from '@/types'
 import type { OpenAIWSMode } from '@/utils/openaiWsMode'
 import type { AnthropicAPIKeyAuthScheme } from '@/utils/accountCreateExtras'
 
@@ -23,6 +23,8 @@ const props = defineProps<{
   anthropicAuthScheme?: AnthropicAPIKeyAuthScheme
   showCodexCliOnly: boolean
   codexCliOnlyEnabled: boolean
+  showCodexImageToolPolicy?: boolean
+  codexImageToolPolicy?: CodexImageToolPolicy
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +35,7 @@ const emit = defineEmits<{
   'update:anthropicPassthroughEnabled': [value: boolean]
   'update:anthropicAuthScheme': [value: AnthropicAPIKeyAuthScheme]
   'update:codexCliOnlyEnabled': [value: boolean]
+  'update:codexImageToolPolicy': [value: CodexImageToolPolicy]
 }>()
 
 const { t } = useI18n()
@@ -57,6 +60,25 @@ const anthropicAuthSchemeOptions = computed<SelectOption[]>(() => [
   {
     value: 'authorization_bearer',
     label: t('admin.accounts.anthropic.authSchemeBearer')
+  }
+])
+
+const codexImageToolPolicyOptions = computed<SelectOption[]>(() => [
+  {
+    value: 'follow_channel',
+    label: t('admin.accounts.openai.codexImageToolPolicy.options.followChannel')
+  },
+  {
+    value: 'force_inject',
+    label: t('admin.accounts.openai.codexImageToolPolicy.options.forceInject')
+  },
+  {
+    value: 'no_inject',
+    label: t('admin.accounts.openai.codexImageToolPolicy.options.noInject')
+  },
+  {
+    value: 'block_all',
+    label: t('admin.accounts.openai.codexImageToolPolicy.options.blockAll')
   }
 ])
 </script>
@@ -230,6 +252,24 @@ const anthropicAuthSchemeOptions = computed<SelectOption[]>(() => [
           ]"
         />
       </button>
+    </div>
+  </div>
+
+  <div
+    v-if="showCodexImageToolPolicy"
+    class="border-t border-gray-200 pt-4 dark:border-dark-600"
+  >
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <label class="input-label mb-0">{{ t('admin.accounts.openai.codexImageToolPolicy.label') }}</label>
+      </div>
+      <div class="w-56">
+        <Select
+          :model-value="codexImageToolPolicy || 'follow_channel'"
+          :options="codexImageToolPolicyOptions"
+          @update:model-value="emit('update:codexImageToolPolicy', $event as CodexImageToolPolicy)"
+        />
+      </div>
     </div>
   </div>
 </template>

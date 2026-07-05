@@ -67,6 +67,21 @@
           :start-date="filters.start_date || startDate"
           :end-date="filters.end_date || endDate"
         />
+        <FailedRequestsPanel
+          :rows="failedRequestRows"
+          :loading="failedRequestsLoading"
+          :error="failedRequestsError"
+          :filters="failedRequestFilters"
+          :hidden-columns="failedRequestHiddenColumns"
+          :columns="failedRequestColumns"
+          :always-visible-columns="FAILED_REQUEST_ALWAYS_VISIBLE"
+          :sort-by="failedRequestSortBy"
+          :sort-order="failedRequestSortOrder"
+          @refresh="loadFailedRequests"
+          @filter-change="handleFailedRequestFilterChange"
+          @toggle-column="toggleFailedRequestColumn"
+          @sort="handleFailedRequestSort"
+        />
         <UsageTable
           :columns="visibleColumns"
           :usage-logs="usageLogs"
@@ -147,7 +162,7 @@ import type {
   GroupStat,
   EndpointStat,
 } from "@/types";
-import type { UsageFilterApiKey } from "@/api/usage";
+import type { UsageFilterApiKey, UserFailedRequest } from "@/api/usage";
 import type { Column } from "@/components/common/types";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
@@ -176,6 +191,7 @@ import {
 import { buildCsvContent, escapeCsvCell } from "@/utils/csv";
 import { FILTER_PLATFORM_ORDER, getPlatformEnglishName } from "@/utils/platformBranding";
 import ApiKeyDailyUsageCard from "./usage/ApiKeyDailyUsageCard.vue";
+import FailedRequestsPanel from "./usage/FailedRequestsPanel.vue";
 import UsageAnalyticsPanel from "./usage/UsageAnalyticsPanel.vue";
 import UsageCostTooltip from "./usage/UsageCostTooltip.vue";
 import UsageFilters from "./usage/UsageFilters.vue";
@@ -275,10 +291,35 @@ const modelStats = ref<ModelStat[]>([]);
 const groupStats = ref<GroupStat[]>([]);
 const endpointStats = ref<EndpointStat[]>([]);
 const upstreamEndpointStats = ref<EndpointStat[]>([]);
+const failedRequestRows = ref<UserFailedRequest[]>([]);
 const apiKeyDailyLoading = ref(false);
 const analyticsLoading = ref(false);
+const failedRequestsLoading = ref(false);
+const failedRequestsError = ref(false);
 const loading = ref(false);
 const exporting = ref(false);
+
+const failedRequestFilters = ref({
+  q: "",
+  category: "",
+  statusCode: null as number | null,
+});
+const failedRequestSortBy = ref("created_at");
+const failedRequestSortOrder = ref<"asc" | "desc">("desc");
+const failedRequestHiddenColumns = ref<Set<string>>(new Set(["user_agent"]));
+const FAILED_REQUEST_ALWAYS_VISIBLE = ["created_at", "status"];
+const failedRequestColumns = computed<Column[]>(() => [
+  { key: "created_at", label: t("usage.time") },
+  { key: "key_name", label: t("usage.errors.keyName") },
+  { key: "model", label: t("usage.model") },
+  { key: "status", label: t("usage.status") },
+  { key: "category", label: t("usage.errors.category") },
+  { key: "endpoint", label: t("usage.endpoint") },
+  { key: "client_ip", label: t("usage.failedRequests.clientIP") },
+  { key: "group_name", label: t("usage.callGroup") },
+  { key: "message", label: t("usage.errorMessage") },
+  { key: "user_agent", label: t("usage.userAgent") },
+]);
 
 const apiKeyOptions = computed(() => {
   return [
@@ -642,6 +683,61 @@ const loadUsageAnalytics = async () => {
   }
 };
 
+let failedRequestSeq = 0;
+const loadFailedRequests = async () => {
+  const seq = ++failedRequestSeq;
+  failedRequestsLoading.value = true;
+  failedRequestsError.value = false;
+  const apiKeyId = selectedApiKeyID.value || undefined;
+  try {
+    const response = await usageAPI.listFailedRequests({
+      page: 1,
+      page_size: 10,
+      api_key_id: apiKeyId,
+      platform: filters.value.platform,
+      start_date: filters.value.start_date || startDate.value,
+      end_date: filters.value.end_date || endDate.value,
+      q: failedRequestFilters.value.q || undefined,
+      category: failedRequestFilters.value.category || undefined,
+      status_code: failedRequestFilters.value.statusCode,
+      sort_by: failedRequestSortBy.value,
+      sort_order: failedRequestSortOrder.value,
+    });
+    if (seq !== failedRequestSeq) return;
+    failedRequestRows.value = response.items || [];
+  } catch (error) {
+    if (seq !== failedRequestSeq) return;
+    console.error("Failed to load failed requests:", error);
+    failedRequestRows.value = [];
+    failedRequestsError.value = true;
+  } finally {
+    if (seq === failedRequestSeq) {
+      failedRequestsLoading.value = false;
+    }
+  }
+};
+
+const handleFailedRequestFilterChange = (value: typeof failedRequestFilters.value) => {
+  failedRequestFilters.value = value;
+  loadFailedRequests();
+};
+
+const handleFailedRequestSort = (sortBy: string, sortOrder: "asc" | "desc") => {
+  failedRequestSortBy.value = sortBy;
+  failedRequestSortOrder.value = sortOrder;
+  loadFailedRequests();
+};
+
+const toggleFailedRequestColumn = (key: string) => {
+  const next = new Set(failedRequestHiddenColumns.value);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+  }
+  failedRequestHiddenColumns.value = next;
+};
+
 const applyFilters = () => {
   pagination.page = 1;
   loadApiKeys();
@@ -649,6 +745,7 @@ const applyFilters = () => {
   loadUsageStats();
   loadApiKeyDailyUsage();
   loadUsageAnalytics();
+  loadFailedRequests();
 };
 
 const resetFilters = () => {
@@ -672,6 +769,7 @@ const resetFilters = () => {
   loadUsageStats();
   loadApiKeyDailyUsage();
   loadUsageAnalytics();
+  loadFailedRequests();
 };
 
 const handlePageChange = (page: number) => {
@@ -866,5 +964,6 @@ onMounted(() => {
   loadUsageStats();
   loadApiKeyDailyUsage();
   loadUsageAnalytics();
+  loadFailedRequests();
 });
 </script>

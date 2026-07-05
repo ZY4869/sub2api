@@ -23,9 +23,11 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	if filter != nil {
 		resolvedFilter = filter.Resolved
 	}
-	// Keep list endpoints scoped to client errors unless explicitly filtering upstream phase.
-	if phaseFilter != "upstream" {
-		clauses = append(clauses, "COALESCE(e.status_code, 0) >= 400")
+	includeRecoveredUpstream := filter != nil && filter.IncludeRecoveredUpstream
+	// Request-error lists stay scoped to client-visible failures. Upstream health
+	// lists opt into recovered rows explicitly with IncludeRecoveredUpstream.
+	if phaseFilter != "upstream" || !includeRecoveredUpstream {
+		clauses = append(clauses, "(COALESCE(e.status_code, 0) >= 400 OR e.error_type = 'cyber_policy')")
 	}
 
 	if filter.StartTime != nil && !filter.StartTime.IsZero() {
@@ -40,6 +42,10 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	if p := strings.TrimSpace(filter.Platform); p != "" {
 		args = append(args, p)
 		clauses = append(clauses, "e.platform = $"+itoa(len(args)))
+	}
+	if model := strings.TrimSpace(filter.Model); model != "" {
+		args = append(args, "%"+model+"%")
+		clauses = append(clauses, "COALESCE(NULLIF(TRIM(e.requested_model), ''), e.model, '') ILIKE $"+itoa(len(args)))
 	}
 	if filter.GroupID != nil && *filter.GroupID > 0 {
 		args = append(args, *filter.GroupID)
@@ -69,6 +75,14 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 		if source := strings.TrimSpace(strings.ToLower(filter.Source)); source != "" {
 			args = append(args, source)
 			clauses = append(clauses, "LOWER(COALESCE(e.error_source,'')) = $"+itoa(len(args)))
+		}
+		if len(filter.ErrorPhasesAny) > 0 {
+			args = append(args, pq.Array(filter.ErrorPhasesAny))
+			clauses = append(clauses, "e.error_phase = ANY($"+itoa(len(args))+")")
+		}
+		if len(filter.ErrorTypesAny) > 0 {
+			args = append(args, pq.Array(filter.ErrorTypesAny))
+			clauses = append(clauses, "e.error_type = ANY($"+itoa(len(args))+")")
 		}
 	}
 	if resolvedFilter != nil {

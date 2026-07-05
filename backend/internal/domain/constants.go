@@ -74,6 +74,9 @@ const (
 	SubscriptionStatusRevoked   = "revoked"
 )
 
+// AntigravityGemini31ProAgentModel is the upstream route for Gemini 3.1 Pro High.
+const AntigravityGemini31ProAgentModel = "gemini-pro-agent"
+
 // DefaultAntigravityModelMapping is used when account model_mapping is unset.
 var DefaultAntigravityModelMapping = map[string]string{
 	"claude-fable-5":                 "claude-fable-5",
@@ -101,10 +104,12 @@ var DefaultAntigravityModelMapping = map[string]string{
 	"gemini-3-pro-high":              "gemini-3-pro-high",
 	"gemini-3-pro-low":               "gemini-3-pro-low",
 	"gemini-3-flash-preview":         "gemini-3-flash",
-	"gemini-3-pro-preview":           "gemini-3-pro-high",
-	"gemini-3.1-pro-high":            "gemini-3.1-pro-high",
+	"gemini-3-pro-preview":           AntigravityGemini31ProAgentModel,
+	AntigravityGemini31ProAgentModel: AntigravityGemini31ProAgentModel,
+	"gemini-3.1-pro":                 AntigravityGemini31ProAgentModel,
+	"gemini-3.1-pro-high":            AntigravityGemini31ProAgentModel,
 	"gemini-3.1-pro-low":             "gemini-3.1-pro-low",
-	"gemini-3.1-pro-preview":         "gemini-3.1-pro-high",
+	"gemini-3.1-pro-preview":         AntigravityGemini31ProAgentModel,
 	"gemini-3.1-flash-image":         "gemini-3.1-flash-image",
 	"gemini-3.1-flash-image-preview": "gemini-3.1-flash-image",
 	"gemini-3-pro-image":             "gemini-3.1-flash-image",

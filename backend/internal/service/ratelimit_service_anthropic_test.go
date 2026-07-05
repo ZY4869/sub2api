@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -65,6 +66,30 @@ func TestHandle429Anthropic7dPreservesFiveHourSessionWindow(t *testing.T) {
 	require.Equal(t, "rejected", repo.sessionWindowCalls[0].status)
 }
 
+func TestHandle429AnthropicFableOnlySetsModelRateLimit(t *testing.T) {
+	resetAt := time.Now().UTC().Add(48 * time.Hour).Truncate(time.Second)
+	repo := &anthropic429RepoStub{}
+	svc := NewRateLimitService(repo, nil, nil, nil, nil)
+	account := &Account{ID: 43, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+
+	headers := http.Header{}
+	headers.Set("anthropic-ratelimit-unified-7d_oi-status", "rejected")
+	headers.Set("anthropic-ratelimit-unified-7d_oi-utilization", "1.05")
+	headers.Set("anthropic-ratelimit-unified-7d_oi-reset", strconv.FormatInt(resetAt.Unix(), 10))
+
+	shouldDisable := svc.HandleUpstreamError(context.Background(), account, http.StatusTooManyRequests, headers, nil)
+
+	require.False(t, shouldDisable)
+	require.Zero(t, repo.rateLimitedID)
+	require.Empty(t, repo.sessionWindowCalls)
+	require.Len(t, repo.modelLimitCalls, 1)
+	require.Equal(t, anthropicFableRateLimitKey, repo.modelLimitCalls[0].scope)
+	require.WithinDuration(t, resetAt, repo.modelLimitCalls[0].resetAt, time.Second)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, 1.05, repo.updateExtraCalls[0]["passive_usage_7d_oi_utilization"])
+	require.Equal(t, resetAt.Unix(), repo.updateExtraCalls[0]["passive_usage_7d_oi_reset"])
+}
+
 func TestCalculateAnthropic429ResetTime_BothExceeded(t *testing.T) {
 	headers := http.Header{}
 	headers.Set("anthropic-ratelimit-unified-5h-utilization", "1.10")
@@ -74,6 +99,41 @@ func TestCalculateAnthropic429ResetTime_BothExceeded(t *testing.T) {
 
 	result := calculateAnthropic429ResetTime(headers)
 	assertAnthropicResult(t, result, 1771549200)
+}
+
+func TestSelectAnthropicFableWindowLimit(t *testing.T) {
+	now := time.Date(2026, 3, 7, 12, 0, 0, 0, time.UTC)
+	resetAt := now.Add(72 * time.Hour)
+
+	t.Run("status rejected", func(t *testing.T) {
+		headers := http.Header{}
+		headers.Set("anthropic-ratelimit-unified-7d_oi-status", "rejected")
+		headers.Set("anthropic-ratelimit-unified-7d_oi-reset", strconv.FormatInt(resetAt.Unix(), 10))
+
+		limit := selectAnthropicFableWindowLimit(headers, now)
+		require.NotNil(t, limit)
+		require.Equal(t, "7d_oi", limit.window)
+		require.Equal(t, anthropicFableWindowReason, limit.reason)
+		require.WithinDuration(t, resetAt, limit.resetAt, time.Second)
+	})
+
+	t.Run("utilization exhausted with aggregate fallback reset", func(t *testing.T) {
+		headers := http.Header{}
+		headers.Set("anthropic-ratelimit-unified-7d_oi-utilization", "1")
+		headers.Set("anthropic-ratelimit-unified-reset", strconv.FormatInt(resetAt.Unix(), 10))
+
+		limit := selectAnthropicFableWindowLimit(headers, now)
+		require.NotNil(t, limit)
+		require.WithinDuration(t, resetAt, limit.resetAt, time.Second)
+	})
+
+	t.Run("no fable signal", func(t *testing.T) {
+		headers := http.Header{}
+		headers.Set("anthropic-ratelimit-unified-7d-utilization", "1")
+		headers.Set("anthropic-ratelimit-unified-7d-reset", strconv.FormatInt(resetAt.Unix(), 10))
+
+		require.Nil(t, selectAnthropicFableWindowLimit(headers, now))
+	})
 }
 
 func TestCalculateAnthropic429ResetTime_NoPerWindowHeaders(t *testing.T) {
@@ -231,9 +291,13 @@ func makeHeader(key, value string) http.Header {
 
 type anthropic429RepoStub struct {
 	stubOpenAIAccountRepo
-	rateLimitedID      int64
-	rateLimitResetAt   time.Time
-	updateExtraCalls   []map[string]any
+	rateLimitedID    int64
+	rateLimitResetAt time.Time
+	updateExtraCalls []map[string]any
+	modelLimitCalls  []struct {
+		scope   string
+		resetAt time.Time
+	}
 	sessionWindowCalls []struct {
 		start  *time.Time
 		end    *time.Time
@@ -244,6 +308,14 @@ type anthropic429RepoStub struct {
 func (r *anthropic429RepoStub) SetRateLimited(_ context.Context, id int64, resetAt time.Time) error {
 	r.rateLimitedID = id
 	r.rateLimitResetAt = resetAt
+	return nil
+}
+
+func (r *anthropic429RepoStub) SetModelRateLimit(_ context.Context, _ int64, scope string, resetAt time.Time) error {
+	r.modelLimitCalls = append(r.modelLimitCalls, struct {
+		scope   string
+		resetAt time.Time
+	}{scope: scope, resetAt: resetAt})
 	return nil
 }
 

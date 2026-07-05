@@ -73,9 +73,11 @@ func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]stri
 			ensureAntigravityDefaultPassthroughs(result, []string{
 				"gemini-3-flash",
 				"gemini-3.5-flash",
+				domain.AntigravityGemini31ProAgentModel,
 				"gemini-3.1-pro-high",
 				"gemini-3.1-pro-low",
 			})
+			applyAntigravityGemini31ProAliases(result)
 		}
 		return result
 	}

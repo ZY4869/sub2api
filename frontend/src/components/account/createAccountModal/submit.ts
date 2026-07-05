@@ -53,6 +53,7 @@ export function createCreateAccountSubmit(ctx: any) {
     claudeSessionIDMaskingEnabled,
     claudeTLSFingerprintEnabled,
     codexCLIOnlyEnabled,
+    codexImageToolPolicy,
     computed,
     createAccountModelProbeSnapshotDraft,
     customErrorCodesState,
@@ -176,6 +177,7 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     openaiAPIKeyResponsesWebSocketV2Mode: openaiAPIKeyResponsesWebSocketV2Mode.value,
     openaiPassthroughEnabled: openaiPassthroughEnabled.value,
     codexCLIOnlyEnabled: codexCLIOnlyEnabled.value,
+    codexImageToolPolicy: codexImageToolPolicy.value,
     openAIImageProtocolMode: openAIImageProtocolMode.value,
     openAIImageCompatAllowed: openAIImageCompatAllowed.value,
     includeOpenAIImageProtocolMode: !isProtocolGatewayPlatform(form.platform)

@@ -507,6 +507,15 @@
           <button
             type="button"
             class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+            data-codex-session-import-button="true"
+            @click="handleMoreAction('import-codex-session')"
+          >
+            <span>{{ t("admin.accounts.codexImport.menu") }}</span>
+            <Icon name="terminal" size="sm" />
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
             @click="handleMoreAction('sync')"
           >
             <span>{{ t("admin.accounts.syncFromCrs") }}</span>
@@ -653,6 +662,7 @@ const emit = defineEmits<{
   sync: [];
   create: [];
   "import-data": [];
+  "import-codex-session": [];
   "export-data": [];
   "show-error-passthrough": [];
   "show-tls-fingerprint-profiles": [];
@@ -695,7 +705,7 @@ const AUTO_REFRESH_PANEL_HEIGHT = 240;
 const DISPLAY_OPTIMIZATION_PANEL_WIDTH = 288;
 const DISPLAY_OPTIMIZATION_PANEL_HEIGHT = 520;
 const MORE_ACTIONS_PANEL_WIDTH = 224;
-const MORE_ACTIONS_PANEL_HEIGHT = 408;
+const MORE_ACTIONS_PANEL_HEIGHT = 456;
 const COLUMN_PANEL_WIDTH = 192;
 const COLUMN_PANEL_HEIGHT = 360;
 const accountVisualPresetOptions: VisualPresetPreference[] = [
@@ -950,6 +960,7 @@ const handleMoreAction = (
   action:
     | "show-error-passthrough"
     | "show-tls-fingerprint-profiles"
+    | "import-codex-session"
     | "sync"
     | "bulk-edit-filtered",
 ) => {
@@ -960,6 +971,10 @@ const handleMoreAction = (
   }
   if (action === "show-tls-fingerprint-profiles") {
     emit("show-tls-fingerprint-profiles");
+    return;
+  }
+  if (action === "import-codex-session") {
+    emit("import-codex-session");
     return;
   }
   if (action === "sync") {

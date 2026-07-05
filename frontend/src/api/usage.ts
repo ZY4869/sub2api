@@ -101,6 +101,8 @@ export interface UserFailedRequest {
   requested_model: string;
   status_code: number;
   phase: string;
+  type: string;
+  category: string;
   error_source: string;
   error_owner: string;
   message: string;
@@ -108,6 +110,13 @@ export interface UserFailedRequest {
   inbound_endpoint: string;
   upstream_endpoint: string;
   api_key_id?: number;
+  key_name?: string;
+  key_deleted?: boolean;
+  client_ip?: string;
+  group_name?: string;
+  request_type?: number | null;
+  stream?: boolean;
+  user_agent?: string;
 }
 
 export interface UserFailedRequestQueryParams {
@@ -115,6 +124,15 @@ export interface UserFailedRequestQueryParams {
   page_size?: number;
   api_key_id?: number;
   platform?: string | null;
+  model?: string;
+  q?: string;
+  phase?: string;
+  category?: string;
+  status_code?: number | null;
+  status_codes?: string;
+  status_codes_other?: string;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
   start_date?: string;
   end_date?: string;
 }

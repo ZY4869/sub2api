@@ -418,6 +418,51 @@ export interface GrokExchangeCodeResult {
   email_verified?: boolean
 }
 
+export interface CodexSessionImportRequest {
+  content?: string
+  contents?: string[]
+  name?: string
+  notes?: string | null
+  group_ids?: number[]
+  proxy_id?: number | null
+  concurrency?: number
+  priority?: number
+  rate_multiplier?: number
+  load_factor?: number
+  expires_at?: number
+  auto_pause_on_expired?: boolean
+  credential_extras?: Record<string, unknown>
+  extra?: Record<string, unknown>
+  update_existing?: boolean
+  skip_default_group_bind?: boolean
+  confirm_mixed_channel_risk?: boolean
+}
+
+export interface CodexSessionImportItem {
+  index: number
+  name?: string
+  action: 'created' | 'updated' | 'skipped' | 'failed'
+  account_id?: number
+  message?: string
+}
+
+export interface CodexSessionImportMessage {
+  index: number
+  name?: string
+  message: string
+}
+
+export interface CodexSessionImportResult {
+  total: number
+  created: number
+  updated: number
+  skipped: number
+  failed: number
+  items?: CodexSessionImportItem[]
+  warnings?: CodexSessionImportMessage[]
+  errors?: CodexSessionImportMessage[]
+}
+
 export async function testAccount(id: number, payload: AccountTestRequestPayload = {}): Promise<{
   success: boolean
   message: string
@@ -444,6 +489,29 @@ export async function importGrok(payload: {
   skip_default_group_bind?: boolean
 }): Promise<GrokImportResult> {
   const { data } = await apiClient.post<GrokImportResult>('/admin/grok/import', payload)
+  return data
+}
+
+function buildCodexImportIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `codex-import-${crypto.randomUUID()}`
+  }
+  return `codex-import-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+export async function importCodexSession(
+  payload: CodexSessionImportRequest
+): Promise<CodexSessionImportResult> {
+  const { data } = await apiClient.post<CodexSessionImportResult>(
+    '/admin/accounts/codex-sessions/import',
+    payload,
+    {
+      timeout: 120000,
+      headers: {
+        'Idempotency-Key': buildCodexImportIdempotencyKey()
+      }
+    }
+  )
   return data
 }
 
@@ -983,6 +1051,7 @@ export const accountsAPI = {
   testAccount,
   previewGrokImport,
   importGrok,
+  importCodexSession,
   generateGrokAuthUrl,
   exchangeGrokAuthCode,
   createGrokAccountFromOAuth,

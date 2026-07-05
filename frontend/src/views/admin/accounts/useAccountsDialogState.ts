@@ -23,6 +23,7 @@ export function useAccountsDialogState(
   const showSync = ref(false)
   const showImportData = ref(false)
   const showImportGroupBinding = ref(false)
+  const showCodexImport = ref(false)
   const importGroupBindingJobId = ref('')
   const importGroupBindingAccounts = ref<AdminDataImportCreatedAccount[]>([])
   const showExportDataDialog = ref(false)
@@ -86,7 +87,7 @@ export function useAccountsDialogState(
 
   return {
     showCreate, showArchiveSelected, showEdit, editLoading, showSync,
-    showImportData, showImportGroupBinding, importGroupBindingJobId, importGroupBindingAccounts,
+    showImportData, showImportGroupBinding, showCodexImport, importGroupBindingJobId, importGroupBindingAccounts,
     showExportDataDialog, includeProxyOnExport, showBulkEdit,
     bulkEditFilters, bulkEditFiltersTotal, showTempUnsched, showDeleteDialog,
     showReAuth, showTest, showBatchTest, showOneClickBatchTest, showStats, showModelDiagnostics,

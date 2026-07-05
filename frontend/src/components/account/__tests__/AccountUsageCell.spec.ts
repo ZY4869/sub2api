@@ -539,6 +539,73 @@ describe("AccountUsageCell", () => {
     );
   });
 
+  it("renders anthropic Fable 7d overage usage when provided", async () => {
+    getUsage.mockResolvedValueOnce({
+      source: "passive",
+      updated_at: "2026-03-07T10:00:00Z",
+      five_hour: {
+        utilization: 21,
+        resets_at: "2026-03-08T12:00:00Z",
+        remaining_seconds: 3600,
+        window_stats: {
+          requests: 2,
+          tokens: 200,
+          cost: 0.02,
+          standard_cost: 0.02,
+          user_cost: 0.02,
+        },
+      },
+      seven_day: {
+        utilization: 61,
+        resets_at: "2026-03-13T12:00:00Z",
+        remaining_seconds: 7200,
+        window_stats: {
+          requests: 6,
+          tokens: 610,
+          cost: 0.06,
+          standard_cost: 0.06,
+          user_cost: 0.06,
+        },
+      },
+      seven_day_fable: {
+        utilization: 73,
+        resets_at: "2026-03-14T12:00:00Z",
+        remaining_seconds: 10800,
+        window_stats: {
+          requests: 7,
+          tokens: 730,
+          cost: 0.07,
+          standard_cost: 0.07,
+          user_cost: 0.07,
+        },
+      },
+    });
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 1103,
+          platform: "anthropic",
+          type: "oauth",
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const fableRow = wrapper
+      .findAll(".usage-bar")
+      .find((row) => row.text().includes("7d F|73|730"));
+    expect(fableRow).toBeTruthy();
+    expect(fableRow?.attributes("data-color")).toBe("amber");
+  });
+
   it("keeps passive anthropic usage when active usage is unavailable", async () => {
     getUsage.mockResolvedValueOnce({
       source: "passive",

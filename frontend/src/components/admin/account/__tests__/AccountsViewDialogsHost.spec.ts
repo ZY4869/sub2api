@@ -21,6 +21,7 @@ function createProps() {
     showSync: false,
     showImportData: false,
     showImportGroupBinding: false,
+    showCodexImport: false,
     showExportDataDialog: false,
     showBulkEdit: false,
     showTempUnsched: false,
@@ -28,6 +29,7 @@ function createProps() {
     showReAuth: false,
     showTest: false,
     showBatchTest: false,
+    showOneClickBatchTest: false,
     showStats: false,
     showModelDiagnostics: false,
     showErrorPassthrough: false,
@@ -49,6 +51,8 @@ function createProps() {
     reAuthAccount: null,
     testingAccount: null,
     batchTestAccounts: [],
+    oneClickBatchTestFilters: null,
+    oneClickBatchTestTotal: null,
     batchTestDefaultTestMode: 'health_check',
     batchTestDefaultModelStrategy: 'auto',
     statsAccount: null,
@@ -82,6 +86,7 @@ function createStubs(overrides: Record<string, unknown> = {}) {
     SyncFromCrsModal: true,
     ImportDataModal: true,
     ImportAccountGroupBindingModal: true,
+    CodexSessionImportModal: true,
     BulkEditAccountModal: true,
     TempUnschedStatusModal: true,
     ConfirmDialog: true,
@@ -185,7 +190,7 @@ describe('AccountsViewDialogsHost', () => {
     ])
   })
 
-  it('forwards data import and import group binding events', async () => {
+  it('forwards data import, codex import, and import group binding events', async () => {
     const importJob = {
       job_id: 'job-1',
       status: 'succeeded',
@@ -210,6 +215,7 @@ describe('AccountsViewDialogsHost', () => {
         showCreate: false,
         showImportData: true,
         showImportGroupBinding: true,
+        showCodexImport: true,
         importGroupBindingJobId: importJob.job_id,
         importGroupBindingAccounts: importJob.created_accounts_summary
       },
@@ -235,6 +241,15 @@ describe('AccountsViewDialogsHost', () => {
                 <button class="import-group-updated" @click="$emit('updated')" />
               </div>
             `
+          },
+          CodexSessionImportModal: {
+            emits: ['close', 'imported'],
+            template: `
+              <div>
+                <button class="codex-import-close" @click="$emit('close')" />
+                <button class="codex-import-done" @click="$emit('imported', { total: 1, created: 1, updated: 0, skipped: 0, failed: 0 })" />
+              </div>
+            `
           }
         })
       }
@@ -242,11 +257,15 @@ describe('AccountsViewDialogsHost', () => {
 
     await wrapper.get('.import-data-close').trigger('click')
     await wrapper.get('.import-data-done').trigger('click')
+    await wrapper.get('.codex-import-close').trigger('click')
+    await wrapper.get('.codex-import-done').trigger('click')
     await wrapper.get('.import-group-close').trigger('click')
     await wrapper.get('.import-group-updated').trigger('click')
 
     expect(wrapper.emitted('close-import-data')).toEqual([[]])
     expect(wrapper.emitted('data-imported')).toEqual([[importJob]])
+    expect(wrapper.emitted('close-codex-import')).toEqual([[]])
+    expect(wrapper.emitted('codex-imported')).toEqual([[{ total: 1, created: 1, updated: 0, skipped: 0, failed: 0 }]])
     expect(wrapper.emitted('close-import-group-binding')).toEqual([[]])
     expect(wrapper.emitted('import-group-binding-updated')).toEqual([[]])
   })

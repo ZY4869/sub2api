@@ -120,6 +120,13 @@
     @close="emit('close-import-group-binding')"
     @updated="emit('import-group-binding-updated')"
   />
+  <CodexSessionImportModal
+    :show="showCodexImport"
+    :proxies="proxies"
+    :groups="groups"
+    @close="emit('close-codex-import')"
+    @imported="emit('codex-imported', $event)"
+  />
   <BulkEditAccountModal
     :show="showBulkEdit"
     :account-ids="selectedIds"
@@ -183,7 +190,8 @@ import type {
   AccountModelDiagnosticsResponse,
   AccountModelImportResult,
   BulkUpdateAccountsFilters,
-  BlacklistFeedbackPayload
+  BlacklistFeedbackPayload,
+  CodexSessionImportResult
 } from '@/api/admin/accounts'
 import type { ModelRegistryExposureTarget } from '@/api/admin/modelRegistry'
 import type {
@@ -211,6 +219,7 @@ import AccountActionMenu from './AccountActionMenu.vue'
 import ArchiveAccountsModal from './ArchiveAccountsModal.vue'
 import ImportDataModal from './ImportDataModal.vue'
 import ImportAccountGroupBindingModal from './ImportAccountGroupBindingModal.vue'
+import CodexSessionImportModal from './CodexSessionImportModal.vue'
 import AccountBatchTestModal from './AccountBatchTestModal.vue'
 import ReAuthAccountModal from './ReAuthAccountModal.vue'
 import AccountTestModal from './AccountTestModal.vue'
@@ -226,6 +235,7 @@ defineProps<{
   showSync: boolean
   showImportData: boolean
   showImportGroupBinding: boolean
+  showCodexImport: boolean
   showExportDataDialog: boolean
   showBulkEdit: boolean
   showTempUnsched: boolean
@@ -314,6 +324,8 @@ const emit = defineEmits<{
   'data-imported': [job: AdminAccountImportJob]
   'close-import-group-binding': []
   'import-group-binding-updated': []
+  'close-codex-import': []
+  'codex-imported': [result: CodexSessionImportResult]
   'close-bulk-edit': []
   'bulk-updated': []
   'close-temp-unsched': []

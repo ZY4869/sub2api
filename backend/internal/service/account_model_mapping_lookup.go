@@ -28,6 +28,43 @@ func ensureAntigravityDefaultPassthroughs(mapping map[string]string, models []st
 	}
 }
 
+func applyAntigravityGemini31ProAliases(mapping map[string]string) {
+	target := strings.TrimSpace(mapping[domain.AntigravityGemini31ProAgentModel])
+	if target == "" {
+		return
+	}
+	aliases := []struct {
+		model        string
+		legacyTarget map[string]struct{}
+	}{
+		{model: "gemini-3.1-pro", legacyTarget: map[string]struct{}{"gemini-3.1-pro": {}}},
+		{model: "gemini-3.1-pro-high", legacyTarget: map[string]struct{}{"gemini-3.1-pro-high": {}}},
+		{model: "gemini-3.1-pro-preview", legacyTarget: map[string]struct{}{"gemini-3.1-pro-preview": {}, "gemini-3.1-pro-high": {}}},
+	}
+	for _, alias := range aliases {
+		current, exists := mapping[alias.model]
+		if exists {
+			if _, legacy := alias.legacyTarget[current]; legacy {
+				mapping[alias.model] = target
+			}
+			continue
+		}
+		if mappingHasWildcardForModel(mapping, alias.model) {
+			continue
+		}
+		mapping[alias.model] = target
+	}
+}
+
+func mappingHasWildcardForModel(mapping map[string]string, model string) bool {
+	for pattern := range mapping {
+		if matchWildcard(pattern, model) {
+			return true
+		}
+	}
+	return false
+}
+
 func normalizeRequestedModelForLookup(platform, requestedModel string) string {
 	trimmed := NormalizeRequestedModelForClaudeCapability(requestedModel)
 	if trimmed == "" {

@@ -7,7 +7,7 @@ import { useAnthropicQuotaControl } from '@/composables/useAnthropicQuotaControl
 import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
 import { useAccountTempUnschedRules } from '@/composables/useAccountTempUnschedRules'
 import type { AccountManualModel } from '@/api/admin/accounts'
-import type { AccountPlatform, AccountTier, GatewayProtocol, GroupPlatform } from '@/types'
+import type { AccountPlatform, AccountTier, CodexImageToolPolicy, GatewayProtocol, GroupPlatform } from '@/types'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
@@ -210,6 +210,7 @@ const openAIImageCompatAllowed = ref(true)
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
+const codexImageToolPolicy = ref<CodexImageToolPolicy>('follow_channel')
 const anthropicPassthroughEnabled = ref(false)
 const anthropicAPIKeyAuthScheme = ref<AnthropicAPIKeyAuthScheme>('x_api_key')
 const gatewayOpenAIImageProtocolMode = ref<OpenAIImageProtocolMode>(DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE)
@@ -407,7 +408,7 @@ const supportsUnifiedModelEditor = computed(() => {
     return true
   }
   if (props.account.type === 'oauth') {
-    return ['openai', 'anthropic', 'gemini', 'kiro'].includes(props.account.platform)
+    return ['openai', 'anthropic', 'gemini', 'kiro', 'grok'].includes(props.account.platform)
   }
   return props.account.type === 'setup-token' && props.account.platform === 'anthropic'
 })
@@ -910,7 +911,7 @@ const modalContext = {
   applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyGoogleBatchArchiveExtra, applyInterceptWarmup, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra,
   applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, applyAccountTierToExtra, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays,
   buildAccountModelScopeExtra, buildBaiduDocumentAICredentialsForUpdate, buildModelMappingObject, buildProbeExtra, buildScopedModelMapping, claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled,
-  codexCLIOnlyEnabled, currentAccountCredentials, customErrorCodesState, deepSeekModelConcurrencyLimits, defaultBaseUrl, editApiKey, editBaseUrl, editGrokSSOToken,
+  codexCLIOnlyEnabled, codexImageToolPolicy, currentAccountCredentials, customErrorCodesState, deepSeekModelConcurrencyLimits, defaultBaseUrl, editApiKey, editBaseUrl, editGrokSSOToken,
   editGrokTier, editOpenRouterHTTPReferer, editOpenRouterTitle, editQuotaDailyLimit, editQuotaDailyResetHour, editQuotaDailyResetMode, editQuotaLimit, editQuotaResetTimezone,
   editQuotaWeeklyLimit, editQuotaWeeklyResetDay, editQuotaWeeklyResetHour, editQuotaWeeklyResetMode, effectivePlatform, ensureMixedChannelConfirmed, expiryProbeExtensionDays, form,
   gatewayAcceptedProtocols, gatewayBatchEnabled, gatewayClientProfiles, gatewayClientRoutes, gatewayOpenAIImageProtocolMode, gatewayOpenAIRequestFormat, gatewayProtocol, gatewayTestModelId,
