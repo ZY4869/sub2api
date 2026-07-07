@@ -824,10 +824,11 @@ func (c *concurrencyCache) cleanupLegacyStaleProcessSlotKeys(ctx context.Context
 			return fmt.Errorf("scan slot keys %s*: %w", keyPrefix, err)
 		}
 		for _, key := range keys {
-			member, ok := strings.CutPrefix(key, keyPrefix)
-			if !ok {
+			prefixIndex := strings.LastIndex(key, keyPrefix)
+			if prefixIndex < 0 {
 				continue
 			}
+			member := key[prefixIndex+len(keyPrefix):]
 			if _, err := strconv.ParseInt(member, 10, 64); err != nil {
 				continue
 			}
