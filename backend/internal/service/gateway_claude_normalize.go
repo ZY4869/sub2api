@@ -817,6 +817,7 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {
 		c.Set(claudeMimicDebugInfoKey, buildClaudeMimicDebugLine(req, body, account, tokenType, mimicClaudeCode))
 	}
+	ApplyAccountRequestHeaderOverrides(req, account)
 	if sanitized, changed := sanitizeAnthropicBodyForFinalBeta(body, req.Header.Get("anthropic-beta")); changed {
 		body = sanitized
 		resetRequestBody(req, sanitized)

@@ -66,6 +66,7 @@ export default {
     groupPlatform: '平台',
     groupPriority: '优先级',
     groupRate: '倍率',
+    currentConcurrency: '当前并发',
     lastUsedAt: '上次使用时间',
     columnSettings: '列设置',
     displaySettingsColumns: '显示列',

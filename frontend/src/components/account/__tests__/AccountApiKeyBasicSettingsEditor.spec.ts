@@ -213,6 +213,34 @@ describe('AccountApiKeyBasicSettingsEditor', () => {
     expect(wrapper.text()).not.toContain('admin.accounts.protocolGateway.baseUrlInvalidWarning')
   })
 
+  it('shows request header overrides for supported API key platforms', async () => {
+    const wrapper = mount(AccountApiKeyBasicSettingsEditor, {
+      props: {
+        platform: 'openai',
+        mode: 'create',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'sk-test',
+        requestHeadersText: '',
+        modelScopeMode: 'whitelist',
+        allowedModels: [],
+        modelMappings: [],
+        presetMappings: [],
+        getMappingKey: () => 'mapping-1'
+      },
+      global: {
+        stubs: {
+          AccountModelScopeEditor: modelScopeStub
+        }
+      }
+    })
+
+    const textarea = wrapper.get('[data-testid="account-request-headers-input"]')
+    await textarea.setValue('{ "x-custom-feature": "enabled" }')
+
+    expect(wrapper.text()).toContain('admin.accounts.requestHeaders')
+    expect(wrapper.emitted('update:requestHeadersText')?.[0]).toEqual(['{ "x-custom-feature": "enabled" }'])
+  })
+
   it('keeps the gemini tier selector hidden for protocol gateway gemini accounts', () => {
     const wrapper = mount(AccountApiKeyBasicSettingsEditor, {
       props: {

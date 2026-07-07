@@ -98,6 +98,9 @@ func (s *PaymentService) resumeExistingOrder(ctx context.Context, order *Payment
 		return nil, err
 	}
 	if intent != nil {
+		intent.ID = sanitizePaymentProviderText(intent.ID)
+		intent.ClientSecret = sanitizePaymentProviderText(intent.ClientSecret)
+		intent.Status = sanitizePaymentProviderText(intent.Status)
 		result.ClientSecret = intent.ClientSecret
 		if err := s.syncRetrievedPaymentIntentStatus(ctx, order, intent); err != nil {
 			return nil, err
@@ -133,6 +136,9 @@ func (s *PaymentService) rebuildCreateOrderResult(ctx context.Context, settings 
 	if err != nil {
 		return result, nil
 	}
+	intent.ID = sanitizePaymentProviderText(intent.ID)
+	intent.ClientSecret = sanitizePaymentProviderText(intent.ClientSecret)
+	intent.Status = sanitizePaymentProviderText(intent.Status)
 	result.ClientSecret = intent.ClientSecret
 	if err := s.syncRetrievedPaymentIntentStatus(ctx, order, intent); err != nil {
 		return nil, err

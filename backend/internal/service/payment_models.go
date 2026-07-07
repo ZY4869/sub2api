@@ -123,6 +123,7 @@ type PaymentSettings struct {
 	MinTopupAmount                   float64
 	MaxTopupAmount                   float64
 	SubscriptionPlans                []PaymentSubscriptionPlan
+	SubscriptionUSDToCNYRate         float64
 	FrontendURL                      string
 }
 

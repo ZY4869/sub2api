@@ -103,6 +103,7 @@ export default {
         capacity: "容量",
         notes: "备注",
         priority: "优先级",
+        schedulerScore: "调度分",
         billingRateMultiplier: "账号倍率",
         weight: "权重",
         status: "状态",
@@ -117,6 +118,11 @@ export default {
         updatedAt: "更新时间",
         expiresAt: "过期时间",
         actions: "操作",
+    },
+    schedulerScore: {
+        base: "基础分",
+        sticky: "粘性加权",
+        stickyDisabled: "粘性加权未启用",
     },
     keyUsage: {
         keyAccountTooltip: "Key 账号 · 平台：{platform} · 等级：{tier}",

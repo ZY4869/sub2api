@@ -89,6 +89,24 @@ func (s *BillingService) initFallbackPricing() {
 		LongContextOutputMultiplier:    openAIGPT54LongContextOutputMultiplier,
 	}
 	// OpenAI GPT-5.4 mini/nano/pro official fallback pricing.
+	s.fallbackPrices["gpt-5.6-sol"] = &ModelPricing{
+		InputPricePerToken:                5e-6,
+		InputPricePerTokenPriority:        10e-6,
+		InputTokenThreshold:               openAIGPT54LongContextInputThreshold,
+		InputPricePerTokenAboveThreshold:  10e-6,
+		OutputPricePerToken:               30e-6,
+		OutputPricePerTokenPriority:       60e-6,
+		OutputTokenThreshold:              openAIGPT54LongContextInputThreshold,
+		OutputPricePerTokenAboveThreshold: 45e-6,
+		CacheReadPricePerToken:            0.5e-6,
+		CacheReadPricePerTokenPriority:    1e-6,
+		SupportsCacheBreakdown:            false,
+		LongContextInputThreshold:         openAIGPT54LongContextInputThreshold,
+		LongContextInputMultiplier:        openAIGPT54LongContextInputMultiplier,
+		LongContextOutputMultiplier:       openAIGPT54LongContextOutputMultiplier,
+	}
+	s.fallbackPrices["gpt-5.6-terra"] = s.fallbackPrices["gpt-5.6-sol"]
+	s.fallbackPrices["gpt-5.6-luna"] = s.fallbackPrices["gpt-5.6-sol"]
 	s.fallbackPrices["gpt-5.4-mini"] = &ModelPricing{
 		InputPricePerToken:     7.5e-7,
 		OutputPricePerToken:    4.5e-6,
@@ -225,6 +243,12 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	if strings.Contains(modelLower, "gpt-5") || strings.Contains(modelLower, "codex") {
 		normalized := normalizeCodexModel(modelLower)
 		switch {
+		case strings.HasPrefix(normalized, "gpt-5.6-sol"):
+			return s.fallbackPrices["gpt-5.6-sol"]
+		case strings.HasPrefix(normalized, "gpt-5.6-terra"):
+			return s.fallbackPrices["gpt-5.6-terra"]
+		case strings.HasPrefix(normalized, "gpt-5.6-luna"):
+			return s.fallbackPrices["gpt-5.6-luna"]
 		case strings.HasPrefix(normalized, "gpt-5.4-pro"):
 			return s.fallbackPrices["gpt-5.4-pro"]
 		case strings.HasPrefix(normalized, "gpt-5.4-mini"):

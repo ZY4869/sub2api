@@ -73,6 +73,26 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 	},
 	{
+		CanonicalEndpoint: EndpointResponsesCompact,
+		SourceProtocol:    PlatformOpenAI,
+		HandlerFamily:     "openai_responses",
+		NormalizePrefixes: []string{"/openai"},
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1/responses/compact"},
+			{Method: http.MethodPost, Pattern: "/v1/responses/compact/*subpath"},
+			{Method: http.MethodPost, Pattern: "/responses/compact"},
+			{Method: http.MethodPost, Pattern: "/responses/compact/*subpath"},
+			{Method: http.MethodPost, Pattern: "/grok/v1/responses/compact"},
+			{Method: http.MethodPost, Pattern: "/grok/v1/responses/compact/*subpath"},
+			{Method: http.MethodPost, Pattern: "/backend-api/codex/responses/compact"},
+			{Method: http.MethodPost, Pattern: "/backend-api/codex/responses/compact/*subpath"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointResponsesCompact, RequestFormat: EndpointResponsesCompact, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointResponsesCompact, RequestFormat: EndpointResponsesCompact, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
 		CanonicalEndpoint: EndpointResponses,
 		SourceProtocol:    PlatformOpenAI,
 		HandlerFamily:     "openai_responses",

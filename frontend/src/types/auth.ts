@@ -146,6 +146,7 @@ export interface PublicSettings {
   payment_min_topup_amount: number;
   payment_max_topup_amount: number;
   payment_subscription_plans: PaymentSubscriptionPlan[];
+  payment_subscription_usd_to_cny_rate: number;
   custom_menu_items: CustomMenuItem[];
   login_agreement_enabled: boolean;
   login_agreement_mode: "checkbox" | string;

@@ -204,6 +204,7 @@ func (s *OpenAIGatewayService) buildNativeImagesUpstreamRequest(
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", firstNonEmptyString(contentType, "application/json"))
 	}
+	ApplyAccountRequestHeaderOverrides(req, account)
 	return MarkOpenAIHTTPUpstreamRequest(req), nil
 }
 

@@ -42,8 +42,12 @@ func (s *PaymentService) HandleAirwallexWebhook(ctx context.Context, timestamp, 
 	if eventID == "" {
 		eventID = hashPaymentToken(string(body))
 	}
+	eventID = sanitizePaymentProviderText(eventID)
+	eventType = sanitizePaymentProviderText(eventType)
+	intentID = sanitizePaymentProviderText(intentID)
 	payloadHash := hashPaymentToken(string(body))
 	raw, _ := json.Marshal(redactPaymentPayload(payload))
+	raw = sanitizePaymentProviderJSON(raw)
 	event := &PaymentEvent{Provider: PaymentProviderAirwallex, ProviderEventID: eventID, EventType: eventType, EventStatus: "received", PayloadHash: payloadHash, PayloadRedactedJSON: raw}
 	created, err := s.repo.CreateEventIfAbsent(ctx, event)
 	if err != nil || !created {

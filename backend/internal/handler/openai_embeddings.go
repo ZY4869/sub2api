@@ -20,7 +20,7 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 
-	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, prepared.subject.UserID, prepared.subject.Concurrency, false, &streamStarted, prepared.reqLog)
+	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, prepared.subject.UserID, prepared.apiKey.ID, prepared.subject.Concurrency, false, &streamStarted, prepared.reqLog)
 	if !acquired {
 		return
 	}

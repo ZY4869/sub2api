@@ -26,6 +26,7 @@ export function useCreateAccountModalWatchers(ctx: any) {
     antigravityModelMappings,
     antigravityOAuth,
     apiKeyBaseUrl,
+    apiKeyRequestHeadersText,
     applyAccountTierCapacity,
     applyOpenAIImageProtocolDefaults,
     applyOpenAIOAuthPresetModels,
@@ -204,6 +205,7 @@ watch(
       applyAccountTierCapacity()
     }
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
+    apiKeyRequestHeadersText.value = ''
     actualModelLocked.value = true
     modelRestrictionEnabled.value = true
     modelRestrictionMode.value = newPlatform === 'protocol_gateway' ? 'mapping' : 'whitelist'

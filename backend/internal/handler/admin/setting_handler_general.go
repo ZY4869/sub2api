@@ -24,125 +24,138 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 }
 
 type UpdateSettingsRequest struct {
-	RegistrationEnabled                  bool                                      `json:"registration_enabled"`
-	EmailVerifyEnabled                   bool                                      `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist     []string                                  `json:"registration_email_suffix_whitelist"`
-	PromoCodeEnabled                     bool                                      `json:"promo_code_enabled"`
-	PasswordResetEnabled                 bool                                      `json:"password_reset_enabled"`
-	FrontendURL                          string                                    `json:"frontend_url"`
-	InvitationCodeEnabled                bool                                      `json:"invitation_code_enabled"`
-	TotpEnabled                          bool                                      `json:"totp_enabled"`
-	SMTPHost                             string                                    `json:"smtp_host"`
-	SMTPPort                             int                                       `json:"smtp_port"`
-	SMTPUsername                         string                                    `json:"smtp_username"`
-	SMTPPassword                         string                                    `json:"smtp_password"`
-	SMTPFrom                             string                                    `json:"smtp_from_email"`
-	SMTPFromName                         string                                    `json:"smtp_from_name"`
-	SMTPUseTLS                           bool                                      `json:"smtp_use_tls"`
-	TelegramChatID                       string                                    `json:"telegram_chat_id"`
-	TelegramBotToken                     string                                    `json:"telegram_bot_token"`
-	TurnstileEnabled                     bool                                      `json:"turnstile_enabled"`
-	TurnstileSiteKey                     string                                    `json:"turnstile_site_key"`
-	TurnstileSecretKey                   string                                    `json:"turnstile_secret_key"`
-	LinuxDoConnectEnabled                bool                                      `json:"linuxdo_connect_enabled"`
-	LinuxDoConnectClientID               string                                    `json:"linuxdo_connect_client_id"`
-	LinuxDoConnectClientSecret           string                                    `json:"linuxdo_connect_client_secret"`
-	LinuxDoConnectRedirectURL            string                                    `json:"linuxdo_connect_redirect_url"`
-	GitHubOAuthEnabled                   bool                                      `json:"github_oauth_enabled"`
-	GitHubOAuthClientID                  string                                    `json:"github_oauth_client_id"`
-	GitHubOAuthClientSecret              string                                    `json:"github_oauth_client_secret"`
-	GitHubOAuthRedirectURL               string                                    `json:"github_oauth_redirect_url"`
-	GoogleOAuthEnabled                   bool                                      `json:"google_oauth_enabled"`
-	GoogleOAuthClientID                  string                                    `json:"google_oauth_client_id"`
-	GoogleOAuthClientSecret              string                                    `json:"google_oauth_client_secret"`
-	GoogleOAuthRedirectURL               string                                    `json:"google_oauth_redirect_url"`
-	DingTalkOAuthEnabled                 bool                                      `json:"dingtalk_oauth_enabled"`
-	DingTalkOAuthClientID                string                                    `json:"dingtalk_oauth_client_id"`
-	DingTalkOAuthClientSecret            string                                    `json:"dingtalk_oauth_client_secret"`
-	DingTalkOAuthRedirectURL             string                                    `json:"dingtalk_oauth_redirect_url"`
-	ContentModerationEnabled             bool                                      `json:"content_moderation_enabled"`
-	ContentModerationProvider            string                                    `json:"content_moderation_provider"`
-	ContentModerationBaseURL             string                                    `json:"content_moderation_base_url"`
-	ContentModerationAPIKey              string                                    `json:"content_moderation_api_key"`
-	ContentModerationAPIKeys             []string                                  `json:"content_moderation_api_keys"`
-	ContentModerationAPIKeysMode         string                                    `json:"content_moderation_api_keys_mode"`
-	DeleteContentModerationAPIKeyHashes  []string                                  `json:"delete_content_moderation_api_key_hashes"`
-	ContentModerationModel               string                                    `json:"content_moderation_model"`
-	ContentModerationTimeoutMs           int                                       `json:"content_moderation_timeout_ms"`
-	ContentModerationDedupeWindowSeconds int                                       `json:"content_moderation_dedupe_window_seconds"`
-	ContentModerationFailOpen            *bool                                     `json:"content_moderation_fail_open"`
-	ContentModerationKeywordBlockEnabled *bool                                     `json:"content_moderation_keyword_block_enabled"`
-	ContentModerationKeywords            []string                                  `json:"content_moderation_keywords"`
-	ContentModerationModelFilter         *service.ContentModerationModelFilter     `json:"content_moderation_model_filter"`
-	ContentModerationCategoryThresholds  map[string]float64                        `json:"content_moderation_category_thresholds"`
-	ContentModerationCyberPolicyEnabled  *bool                                     `json:"content_moderation_cyber_policy_enabled"`
-	ContentModerationCyberCategories     *[]service.ContentModerationCyberCategory `json:"content_moderation_cyber_categories"`
-	SiteName                             string                                    `json:"site_name"`
-	SiteLogo                             string                                    `json:"site_logo"`
-	SiteSubtitle                         string                                    `json:"site_subtitle"`
-	VisualPresetDefault                  string                                    `json:"visual_preset_default"`
-	AccountAiryWhiteSurfaceEnabled       bool                                      `json:"account_airy_white_surface_enabled"`
-	APIBaseURL                           string                                    `json:"api_base_url"`
-	ContactInfo                          string                                    `json:"contact_info"`
-	DocURL                               string                                    `json:"doc_url"`
-	HomeContent                          string                                    `json:"home_content"`
-	HideCcsImportButton                  bool                                      `json:"hide_ccs_import_button"`
-	AvailableChannelsEnabled             *bool                                     `json:"available_channels_enabled"`
-	ChannelMonitorEnabled                *bool                                     `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds *int                                      `json:"channel_monitor_default_interval_seconds"`
-	UsageIPGeoEnabled                    *bool                                     `json:"usage_ip_geo_enabled"`
-	UsageIPGeoProviderURL                *string                                   `json:"usage_ip_geo_provider_url"`
-	UsageIPGeoTimeoutMs                  *int                                      `json:"usage_ip_geo_timeout_ms"`
-	PublicModelCatalogEnabled            bool                                      `json:"public_model_catalog_enabled"`
-	PurchaseSubscriptionEnabled          *bool                                     `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL              *string                                   `json:"purchase_subscription_url"`
-	PaymentProviderAirwallexEnabled      *bool                                     `json:"payment_provider_airwallex_enabled"`
-	AirwallexEnv                         *string                                   `json:"airwallex_env"`
-	AirwallexClientID                    *string                                   `json:"airwallex_client_id"`
-	AirwallexAPIKey                      *string                                   `json:"airwallex_api_key"`
-	AirwallexWebhookSecret               *string                                   `json:"airwallex_webhook_secret"`
-	PaymentMobileForceQRCodeEnabled      *bool                                     `json:"payment_mobile_force_qrcode_enabled"`
-	PaymentAllowedCurrencies             *[]string                                 `json:"payment_allowed_currencies"`
-	PaymentDefaultCurrency               *string                                   `json:"payment_default_currency"`
-	PaymentMinTopupAmount                *float64                                  `json:"payment_min_topup_amount"`
-	PaymentMaxTopupAmount                *float64                                  `json:"payment_max_topup_amount"`
-	PaymentSubscriptionPlans             *[]dto.PaymentSubscriptionPlan            `json:"payment_subscription_plans"`
-	BillingCurrencyConversionEnabled     *bool                                     `json:"billing_currency_conversion_enabled"`
-	BillingCurrencyCNYToUSDRate          *float64                                  `json:"billing_currency_cny_to_usd_rate"`
-	BillingCurrencyUSDToCNYRate          *float64                                  `json:"billing_currency_usd_to_cny_rate"`
-	AntigravityUserAgentVersion          *string                                   `json:"antigravity_user_agent_version"`
-	CodexOAuthUserAgentMode              *string                                   `json:"codex_oauth_user_agent_mode"`
-	CodexOAuthUserAgentOverride          *string                                   `json:"codex_oauth_user_agent_override"`
-	OpenAIAllowClaudeCodeCodexPlugin     *bool                                     `json:"openai_allow_claude_code_codex_plugin"`
-	OpenAIAllowedCodexClients            *[]string                                 `json:"openai_allowed_codex_clients"`
-	CustomMenuItems                      *[]dto.CustomMenuItem                     `json:"custom_menu_items"`
-	LoginAgreementEnabled                *bool                                     `json:"login_agreement_enabled"`
-	LoginAgreementMode                   *string                                   `json:"login_agreement_mode"`
-	LoginAgreementUpdatedAt              *string                                   `json:"login_agreement_updated_at"`
-	LoginAgreementDocuments              *[]dto.LoginAgreementDocument             `json:"login_agreement_documents"`
-	DefaultConcurrency                   int                                       `json:"default_concurrency"`
-	DefaultBalance                       float64                                   `json:"default_balance"`
-	DefaultSubscriptions                 []dto.DefaultSubscriptionSetting          `json:"default_subscriptions"`
-	DefaultAPIKeyModelBindingMode        *string                                   `json:"default_api_key_model_binding_mode"`
-	EnableModelFallback                  bool                                      `json:"enable_model_fallback"`
-	FallbackModelAnthropic               string                                    `json:"fallback_model_anthropic"`
-	FallbackModelOpenAI                  string                                    `json:"fallback_model_openai"`
-	FallbackModelGemini                  string                                    `json:"fallback_model_gemini"`
-	FallbackModelAntigravity             string                                    `json:"fallback_model_antigravity"`
-	EnableIdentityPatch                  bool                                      `json:"enable_identity_patch"`
-	IdentityPatchPrompt                  string                                    `json:"identity_patch_prompt"`
-	ClaudeOAuthSystemPromptBlocksEnabled *bool                                     `json:"claude_oauth_system_prompt_blocks_enabled"`
-	ClaudeOAuthSystemPromptBlocks        *string                                   `json:"claude_oauth_system_prompt_blocks"`
-	OpsMonitoringEnabled                 *bool                                     `json:"ops_monitoring_enabled"`
-	OpsRealtimeMonitoringEnabled         *bool                                     `json:"ops_realtime_monitoring_enabled"`
-	OpsQueryModeDefault                  *string                                   `json:"ops_query_mode_default"`
-	OpsMetricsIntervalSeconds            *int                                      `json:"ops_metrics_interval_seconds"`
-	MinClaudeCodeVersion                 string                                    `json:"min_claude_code_version"`
-	MaxClaudeCodeVersion                 string                                    `json:"max_claude_code_version"`
-	AllowUngroupedKeyScheduling          bool                                      `json:"allow_ungrouped_key_scheduling"`
-	BackendModeEnabled                   bool                                      `json:"backend_mode_enabled"`
-	MaintenanceModeEnabled               bool                                      `json:"maintenance_mode_enabled"`
-	AdminComplianceEnabled               bool                                      `json:"admin_compliance_enabled"`
+	RegistrationEnabled                                bool                                      `json:"registration_enabled"`
+	EmailVerifyEnabled                                 bool                                      `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist                   []string                                  `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                                   bool                                      `json:"promo_code_enabled"`
+	PasswordResetEnabled                               bool                                      `json:"password_reset_enabled"`
+	FrontendURL                                        string                                    `json:"frontend_url"`
+	InvitationCodeEnabled                              bool                                      `json:"invitation_code_enabled"`
+	TotpEnabled                                        bool                                      `json:"totp_enabled"`
+	SMTPHost                                           string                                    `json:"smtp_host"`
+	SMTPPort                                           int                                       `json:"smtp_port"`
+	SMTPUsername                                       string                                    `json:"smtp_username"`
+	SMTPPassword                                       string                                    `json:"smtp_password"`
+	SMTPFrom                                           string                                    `json:"smtp_from_email"`
+	SMTPFromName                                       string                                    `json:"smtp_from_name"`
+	SMTPUseTLS                                         bool                                      `json:"smtp_use_tls"`
+	TelegramChatID                                     string                                    `json:"telegram_chat_id"`
+	TelegramBotToken                                   string                                    `json:"telegram_bot_token"`
+	TurnstileEnabled                                   bool                                      `json:"turnstile_enabled"`
+	TurnstileSiteKey                                   string                                    `json:"turnstile_site_key"`
+	TurnstileSecretKey                                 string                                    `json:"turnstile_secret_key"`
+	LinuxDoConnectEnabled                              bool                                      `json:"linuxdo_connect_enabled"`
+	LinuxDoConnectClientID                             string                                    `json:"linuxdo_connect_client_id"`
+	LinuxDoConnectClientSecret                         string                                    `json:"linuxdo_connect_client_secret"`
+	LinuxDoConnectRedirectURL                          string                                    `json:"linuxdo_connect_redirect_url"`
+	GitHubOAuthEnabled                                 bool                                      `json:"github_oauth_enabled"`
+	GitHubOAuthClientID                                string                                    `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecret                            string                                    `json:"github_oauth_client_secret"`
+	GitHubOAuthRedirectURL                             string                                    `json:"github_oauth_redirect_url"`
+	GoogleOAuthEnabled                                 bool                                      `json:"google_oauth_enabled"`
+	GoogleOAuthClientID                                string                                    `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecret                            string                                    `json:"google_oauth_client_secret"`
+	GoogleOAuthRedirectURL                             string                                    `json:"google_oauth_redirect_url"`
+	DingTalkOAuthEnabled                               bool                                      `json:"dingtalk_oauth_enabled"`
+	DingTalkOAuthClientID                              string                                    `json:"dingtalk_oauth_client_id"`
+	DingTalkOAuthClientSecret                          string                                    `json:"dingtalk_oauth_client_secret"`
+	DingTalkOAuthRedirectURL                           string                                    `json:"dingtalk_oauth_redirect_url"`
+	ContentModerationEnabled                           bool                                      `json:"content_moderation_enabled"`
+	ContentModerationProvider                          string                                    `json:"content_moderation_provider"`
+	ContentModerationBaseURL                           string                                    `json:"content_moderation_base_url"`
+	ContentModerationAPIKey                            string                                    `json:"content_moderation_api_key"`
+	ContentModerationAPIKeys                           []string                                  `json:"content_moderation_api_keys"`
+	ContentModerationAPIKeysMode                       string                                    `json:"content_moderation_api_keys_mode"`
+	DeleteContentModerationAPIKeyHashes                []string                                  `json:"delete_content_moderation_api_key_hashes"`
+	ContentModerationModel                             string                                    `json:"content_moderation_model"`
+	ContentModerationTimeoutMs                         int                                       `json:"content_moderation_timeout_ms"`
+	ContentModerationDedupeWindowSeconds               int                                       `json:"content_moderation_dedupe_window_seconds"`
+	ContentModerationFailOpen                          *bool                                     `json:"content_moderation_fail_open"`
+	ContentModerationKeywordBlockEnabled               *bool                                     `json:"content_moderation_keyword_block_enabled"`
+	ContentModerationKeywords                          []string                                  `json:"content_moderation_keywords"`
+	ContentModerationModelFilter                       *service.ContentModerationModelFilter     `json:"content_moderation_model_filter"`
+	ContentModerationCategoryThresholds                map[string]float64                        `json:"content_moderation_category_thresholds"`
+	ContentModerationCyberPolicyEnabled                *bool                                     `json:"content_moderation_cyber_policy_enabled"`
+	ContentModerationCyberCategories                   *[]service.ContentModerationCyberCategory `json:"content_moderation_cyber_categories"`
+	SiteName                                           string                                    `json:"site_name"`
+	SiteLogo                                           string                                    `json:"site_logo"`
+	SiteSubtitle                                       string                                    `json:"site_subtitle"`
+	VisualPresetDefault                                string                                    `json:"visual_preset_default"`
+	AccountAiryWhiteSurfaceEnabled                     bool                                      `json:"account_airy_white_surface_enabled"`
+	APIBaseURL                                         string                                    `json:"api_base_url"`
+	ContactInfo                                        string                                    `json:"contact_info"`
+	DocURL                                             string                                    `json:"doc_url"`
+	HomeContent                                        string                                    `json:"home_content"`
+	HideCcsImportButton                                bool                                      `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled                           *bool                                     `json:"available_channels_enabled"`
+	ChannelMonitorEnabled                              *bool                                     `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds               *int                                      `json:"channel_monitor_default_interval_seconds"`
+	UsageIPGeoEnabled                                  *bool                                     `json:"usage_ip_geo_enabled"`
+	UsageIPGeoProviderURL                              *string                                   `json:"usage_ip_geo_provider_url"`
+	UsageIPGeoTimeoutMs                                *int                                      `json:"usage_ip_geo_timeout_ms"`
+	PublicModelCatalogEnabled                          bool                                      `json:"public_model_catalog_enabled"`
+	PurchaseSubscriptionEnabled                        *bool                                     `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL                            *string                                   `json:"purchase_subscription_url"`
+	PaymentProviderAirwallexEnabled                    *bool                                     `json:"payment_provider_airwallex_enabled"`
+	AirwallexEnv                                       *string                                   `json:"airwallex_env"`
+	AirwallexClientID                                  *string                                   `json:"airwallex_client_id"`
+	AirwallexAPIKey                                    *string                                   `json:"airwallex_api_key"`
+	AirwallexWebhookSecret                             *string                                   `json:"airwallex_webhook_secret"`
+	PaymentMobileForceQRCodeEnabled                    *bool                                     `json:"payment_mobile_force_qrcode_enabled"`
+	PaymentAllowedCurrencies                           *[]string                                 `json:"payment_allowed_currencies"`
+	PaymentDefaultCurrency                             *string                                   `json:"payment_default_currency"`
+	PaymentMinTopupAmount                              *float64                                  `json:"payment_min_topup_amount"`
+	PaymentMaxTopupAmount                              *float64                                  `json:"payment_max_topup_amount"`
+	PaymentSubscriptionPlans                           *[]dto.PaymentSubscriptionPlan            `json:"payment_subscription_plans"`
+	PaymentSubscriptionUSDToCNYRate                    *float64                                  `json:"payment_subscription_usd_to_cny_rate"`
+	BillingCurrencyConversionEnabled                   *bool                                     `json:"billing_currency_conversion_enabled"`
+	BillingCurrencyCNYToUSDRate                        *float64                                  `json:"billing_currency_cny_to_usd_rate"`
+	BillingCurrencyUSDToCNYRate                        *float64                                  `json:"billing_currency_usd_to_cny_rate"`
+	AntigravityUserAgentVersion                        *string                                   `json:"antigravity_user_agent_version"`
+	CodexOAuthUserAgentMode                            *string                                   `json:"codex_oauth_user_agent_mode"`
+	CodexOAuthUserAgentOverride                        *string                                   `json:"codex_oauth_user_agent_override"`
+	OpenAIAllowClaudeCodeCodexPlugin                   *bool                                     `json:"openai_allow_claude_code_codex_plugin"`
+	OpenAIAllowedCodexClients                          *[]string                                 `json:"openai_allowed_codex_clients"`
+	OpenAIAdvancedSchedulerEnabled                     *bool                                     `json:"openai_advanced_scheduler_enabled"`
+	OpenAIAdvancedSchedulerStickyWeightedEnabled       *bool                                     `json:"openai_advanced_scheduler_sticky_weighted_enabled"`
+	OpenAIAdvancedSchedulerSubscriptionPriorityEnabled *bool                                     `json:"openai_advanced_scheduler_subscription_priority_enabled"`
+	OpenAIAdvancedSchedulerLBTopK                      *string                                   `json:"openai_advanced_scheduler_lb_top_k"`
+	OpenAIAdvancedSchedulerWeightPriority              *string                                   `json:"openai_advanced_scheduler_weight_priority"`
+	OpenAIAdvancedSchedulerWeightLoad                  *string                                   `json:"openai_advanced_scheduler_weight_load"`
+	OpenAIAdvancedSchedulerWeightQueue                 *string                                   `json:"openai_advanced_scheduler_weight_queue"`
+	OpenAIAdvancedSchedulerWeightErrorRate             *string                                   `json:"openai_advanced_scheduler_weight_error_rate"`
+	OpenAIAdvancedSchedulerWeightTTFT                  *string                                   `json:"openai_advanced_scheduler_weight_ttft"`
+	OpenAIAdvancedSchedulerWeightQuotaHeadroom         *string                                   `json:"openai_advanced_scheduler_weight_quota_headroom"`
+	OpenAIAdvancedSchedulerWeightPreviousResponse      *string                                   `json:"openai_advanced_scheduler_weight_previous_response"`
+	OpenAIAdvancedSchedulerWeightSessionSticky         *string                                   `json:"openai_advanced_scheduler_weight_session_sticky"`
+	CustomMenuItems                                    *[]dto.CustomMenuItem                     `json:"custom_menu_items"`
+	LoginAgreementEnabled                              *bool                                     `json:"login_agreement_enabled"`
+	LoginAgreementMode                                 *string                                   `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt                            *string                                   `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments                            *[]dto.LoginAgreementDocument             `json:"login_agreement_documents"`
+	DefaultConcurrency                                 int                                       `json:"default_concurrency"`
+	DefaultBalance                                     float64                                   `json:"default_balance"`
+	DefaultSubscriptions                               []dto.DefaultSubscriptionSetting          `json:"default_subscriptions"`
+	DefaultAPIKeyModelBindingMode                      *string                                   `json:"default_api_key_model_binding_mode"`
+	EnableModelFallback                                bool                                      `json:"enable_model_fallback"`
+	FallbackModelAnthropic                             string                                    `json:"fallback_model_anthropic"`
+	FallbackModelOpenAI                                string                                    `json:"fallback_model_openai"`
+	FallbackModelGemini                                string                                    `json:"fallback_model_gemini"`
+	FallbackModelAntigravity                           string                                    `json:"fallback_model_antigravity"`
+	EnableIdentityPatch                                bool                                      `json:"enable_identity_patch"`
+	IdentityPatchPrompt                                string                                    `json:"identity_patch_prompt"`
+	ClaudeOAuthSystemPromptBlocksEnabled               *bool                                     `json:"claude_oauth_system_prompt_blocks_enabled"`
+	ClaudeOAuthSystemPromptBlocks                      *string                                   `json:"claude_oauth_system_prompt_blocks"`
+	OpsMonitoringEnabled                               *bool                                     `json:"ops_monitoring_enabled"`
+	OpsRealtimeMonitoringEnabled                       *bool                                     `json:"ops_realtime_monitoring_enabled"`
+	OpsQueryModeDefault                                *string                                   `json:"ops_query_mode_default"`
+	OpsMetricsIntervalSeconds                          *int                                      `json:"ops_metrics_interval_seconds"`
+	MinClaudeCodeVersion                               string                                    `json:"min_claude_code_version"`
+	MaxClaudeCodeVersion                               string                                    `json:"max_claude_code_version"`
+	AllowUngroupedKeyScheduling                        bool                                      `json:"allow_ungrouped_key_scheduling"`
+	BackendModeEnabled                                 bool                                      `json:"backend_mode_enabled"`
+	MaintenanceModeEnabled                             bool                                      `json:"maintenance_mode_enabled"`
+	AdminComplianceEnabled                             bool                                      `json:"admin_compliance_enabled"`
 
 	AffiliateEnabled              *bool    `json:"affiliate_enabled"`
 	AffiliateTransferEnabled      *bool    `json:"affiliate_transfer_enabled"`
@@ -443,6 +456,13 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				Enabled:          plan.Enabled,
 			})
 		}
+	}
+	paymentSubscriptionUSDToCNYRate := previousSettings.PaymentSubscriptionUSDToCNYRate
+	if req.PaymentSubscriptionUSDToCNYRate != nil {
+		paymentSubscriptionUSDToCNYRate = *req.PaymentSubscriptionUSDToCNYRate
+	}
+	if paymentSubscriptionUSDToCNYRate < 0 {
+		paymentSubscriptionUSDToCNYRate = 0
 	}
 	currencyConversion := previousSettings.BillingCurrencyConversionSettings()
 	if req.BillingCurrencyConversionEnabled != nil {
@@ -906,7 +926,20 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	settings.LoginAgreementMode = loginAgreementMode
 	settings.LoginAgreementUpdatedAt = loginAgreementUpdatedAt
 	settings.LoginAgreementDocuments = loginAgreementDocuments
+	settings.PaymentSubscriptionUSDToCNYRate = paymentSubscriptionUSDToCNYRate
 	settings.AdminComplianceEnabled = req.AdminComplianceEnabled
+	settings.OpenAIAdvancedSchedulerEnabled = boolSetting(req.OpenAIAdvancedSchedulerEnabled, previousSettings.OpenAIAdvancedSchedulerEnabled)
+	settings.OpenAIAdvancedSchedulerStickyWeightedEnabled = boolSetting(req.OpenAIAdvancedSchedulerStickyWeightedEnabled, previousSettings.OpenAIAdvancedSchedulerStickyWeightedEnabled)
+	settings.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled = boolSetting(req.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled, previousSettings.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled)
+	settings.OpenAIAdvancedSchedulerLBTopK = stringSetting(req.OpenAIAdvancedSchedulerLBTopK, previousSettings.OpenAIAdvancedSchedulerLBTopK)
+	settings.OpenAIAdvancedSchedulerWeightPriority = stringSetting(req.OpenAIAdvancedSchedulerWeightPriority, previousSettings.OpenAIAdvancedSchedulerWeightPriority)
+	settings.OpenAIAdvancedSchedulerWeightLoad = stringSetting(req.OpenAIAdvancedSchedulerWeightLoad, previousSettings.OpenAIAdvancedSchedulerWeightLoad)
+	settings.OpenAIAdvancedSchedulerWeightQueue = stringSetting(req.OpenAIAdvancedSchedulerWeightQueue, previousSettings.OpenAIAdvancedSchedulerWeightQueue)
+	settings.OpenAIAdvancedSchedulerWeightErrorRate = stringSetting(req.OpenAIAdvancedSchedulerWeightErrorRate, previousSettings.OpenAIAdvancedSchedulerWeightErrorRate)
+	settings.OpenAIAdvancedSchedulerWeightTTFT = stringSetting(req.OpenAIAdvancedSchedulerWeightTTFT, previousSettings.OpenAIAdvancedSchedulerWeightTTFT)
+	settings.OpenAIAdvancedSchedulerWeightQuotaHeadroom = stringSetting(req.OpenAIAdvancedSchedulerWeightQuotaHeadroom, previousSettings.OpenAIAdvancedSchedulerWeightQuotaHeadroom)
+	settings.OpenAIAdvancedSchedulerWeightPreviousResponse = stringSetting(req.OpenAIAdvancedSchedulerWeightPreviousResponse, previousSettings.OpenAIAdvancedSchedulerWeightPreviousResponse)
+	settings.OpenAIAdvancedSchedulerWeightSessionSticky = stringSetting(req.OpenAIAdvancedSchedulerWeightSessionSticky, previousSettings.OpenAIAdvancedSchedulerWeightSessionSticky)
 	if err := h.settingService.UpdateSettings(c.Request.Context(), settings); err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -934,4 +967,18 @@ func collectPublishedMarkdownPageSlugs(raw string) map[string]struct{} {
 		}
 	}
 	return out
+}
+
+func boolSetting(value *bool, fallback bool) bool {
+	if value == nil {
+		return fallback
+	}
+	return *value
+}
+
+func stringSetting(value *string, fallback string) string {
+	if value == nil {
+		return fallback
+	}
+	return strings.TrimSpace(*value)
 }

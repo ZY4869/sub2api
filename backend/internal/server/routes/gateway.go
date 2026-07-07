@@ -305,6 +305,19 @@ func RegisterGatewayRoutes(
 	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
 	r.DELETE("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
 	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponsesWebSocket)
+	codexBackend := r.Group("/backend-api/codex")
+	codexBackend.Use(bodyLimit)
+	codexBackend.Use(clientRequestID)
+	codexBackend.Use(opsErrorLogger)
+	codexBackend.Use(opsRequestTraceLogger)
+	codexBackend.Use(endpointNorm)
+	codexBackend.Use(gin.HandlerFunc(apiKeyAuth))
+	codexBackend.Use(requireGatewayMaintenanceOpenAI)
+	codexBackend.Use(requireGroupAnthropic)
+	{
+		codexBackend.POST("/responses/compact", dispatchers.OpenAIResponses)
+		codexBackend.POST("/responses/compact/*subpath", dispatchers.OpenAIResponses)
+	}
 	// OpenAI Chat Completions API（不带v1前缀的别名）
 	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIChatCompletions)
 	r.POST("/embeddings", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIEmbeddings)

@@ -40,11 +40,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-07-04T06:17:09Z"
+export const generatedModelRegistryBuiltAt = "2026-07-07T05:17:13Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"cce135b37f9cef556ee4726d830e5e5ccea9345b6be7be7111a998bd7eda531f\"",
-  "updated_at": "2026-07-04T06:17:09Z",
+  "etag": "W/\"7f590a35cddcea73231d738ea57192f41899bca6aee65aa067f89e848e3926d3\"",
+  "updated_at": "2026-07-07T05:17:13Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -5697,6 +5697,90 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 46,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "display_name": "GPT-5.6 Luna",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.6-luna"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.6-luna"
+      ],
+      "context_window_tokens": 1050000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "image_generation_tool"
+      ],
+      "ui_priority": 46,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "display_name": "GPT-5.6 Sol",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.6-sol"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.6-sol"
+      ],
+      "context_window_tokens": 1050000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "image_generation_tool"
+      ],
+      "ui_priority": 46,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "display_name": "GPT-5.6 Terra",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.6-terra"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.6-terra"
+      ],
+      "context_window_tokens": 1050000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "image_generation_tool"
+      ],
+      "ui_priority": 46,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },

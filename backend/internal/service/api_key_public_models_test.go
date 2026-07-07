@@ -15,6 +15,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func apiKeyPublicModelIDs(entries []APIKeyPublicModelEntry) []string {
+	ids := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		ids = append(ids, entry.PublicID)
+	}
+	return ids
+}
+
 func TestGatewayService_ResolveAPIKeySelectionModel_SourceOnlyUsesAlias(t *testing.T) {
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
@@ -75,6 +83,53 @@ func TestGatewayService_ResolveAPIKeySelectionModel_SourceOnlyUsesAlias(t *testi
 
 	got := svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformAnthropic, "claude-sonnet-4-20250514")
 	require.Equal(t, "claude-sonnet-4-20250514", got)
+}
+
+func TestGatewayService_GetAPIKeyPublicModels_AnthropicVisibleListMergesDefaultAndMappedAccounts(t *testing.T) {
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          11,
+				Name:        "anthropic-oauth-default",
+				Platform:    PlatformAnthropic,
+				Type:        AccountTypeOAuth,
+				Status:      StatusActive,
+				Schedulable: true,
+			},
+			{
+				ID:          12,
+				Name:        "anthropic-mapped-deepseek",
+				Platform:    PlatformAnthropic,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key": "anthropic-key",
+					"model_mapping": map[string]any{
+						"deepseek-v4-pro": "deepseek-v4-pro",
+					},
+				},
+			},
+		},
+	}
+	svc := &GatewayService{accountRepo: repo}
+	apiKey := &APIKey{
+		ID: 12,
+		GroupBindings: []APIKeyGroupBinding{{
+			GroupID: 212,
+			Group: &Group{
+				ID:                   212,
+				Name:                 "anthropic-visible-list",
+				Platform:             PlatformAnthropic,
+				Status:               StatusActive,
+				VisibleModelPatterns: []string{"claude-fable-5", "deepseek-v4-pro"},
+			},
+		}},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformAnthropic)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"claude-fable-5", "deepseek-v4-pro"}, apiKeyPublicModelIDs(entries))
 }
 
 func TestSelectGroupBindingForRequestSkipsExclusiveGroupWithoutUserGrant(t *testing.T) {

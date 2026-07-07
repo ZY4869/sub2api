@@ -283,7 +283,30 @@ func buildOpenAIModelsURLForPlatform(baseURL string, platform string) string {
 	if strings.HasSuffix(normalized, "/v1") {
 		return normalized + "/models"
 	}
+	if openAIBaseURLHasVersionSuffix(normalized) {
+		return normalized + "/models"
+	}
 	return normalized + "/v1/models"
+}
+
+func openAIBaseURLHasVersionSuffix(baseURL string) bool {
+	lower := strings.ToLower(strings.TrimRight(strings.TrimSpace(baseURL), "/"))
+	if lower == "" {
+		return false
+	}
+	lastSlash := strings.LastIndex(lower, "/")
+	if lastSlash >= 0 {
+		lower = lower[lastSlash+1:]
+	}
+	if len(lower) < 2 || lower[0] != 'v' {
+		return false
+	}
+	for _, ch := range lower[1:] {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func resolveOpenAICompatibleBaseURL(account *Account) string {

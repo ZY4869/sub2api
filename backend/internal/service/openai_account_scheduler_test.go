@@ -1415,10 +1415,10 @@ func TestOpenAIGatewayService_SchedulerWrappersAndDefaults(t *testing.T) {
 	svc.RecordOpenAIAccountSwitch()
 	snapshot := svc.SnapshotOpenAIAccountSchedulerMetrics()
 	require.GreaterOrEqual(t, snapshot.AccountSwitchTotal, int64(1))
-	require.Equal(t, 7, svc.openAIWSLBTopK())
+	require.Equal(t, 7, svc.openAIWSLBTopK(context.Background()))
 	require.Equal(t, openaiStickySessionTTL, svc.openAIWSSessionStickyTTL())
 
-	defaultWeights := svc.openAIWSSchedulerWeights()
+	defaultWeights := svc.openAIWSSchedulerWeights(context.Background())
 	require.Equal(t, 1.0, defaultWeights.Priority)
 	require.Equal(t, 1.0, defaultWeights.Load)
 	require.Equal(t, 0.7, defaultWeights.Queue)
@@ -1437,9 +1437,9 @@ func TestOpenAIGatewayService_SchedulerWrappersAndDefaults(t *testing.T) {
 	cfg.Gateway.OpenAIWS.SchedulerScoreWeights.QuotaHeadroom = 0.7
 	svcWithCfg := &OpenAIGatewayService{cfg: cfg}
 
-	require.Equal(t, 9, svcWithCfg.openAIWSLBTopK())
+	require.Equal(t, 9, svcWithCfg.openAIWSLBTopK(context.Background()))
 	require.Equal(t, 180*time.Second, svcWithCfg.openAIWSSessionStickyTTL())
-	customWeights := svcWithCfg.openAIWSSchedulerWeights()
+	customWeights := svcWithCfg.openAIWSSchedulerWeights(context.Background())
 	require.Equal(t, 0.2, customWeights.Priority)
 	require.Equal(t, 0.3, customWeights.Load)
 	require.Equal(t, 0.4, customWeights.Queue)

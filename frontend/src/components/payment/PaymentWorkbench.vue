@@ -91,7 +91,7 @@
               {{ t('purchase.validityDays', { days: plan.validity_days }) }}
             </span>
             <span class="mt-2 text-sm font-semibold text-primary-600 dark:text-primary-300">
-              {{ formatAmount(plan.prices_by_currency[selectedCurrency] || 0, selectedCurrency) }}
+              {{ formatAmount(planPriceForCurrency(plan, selectedCurrency), selectedCurrency) }}
             </span>
           </button>
         </div>
@@ -158,6 +158,7 @@ const {
   allowedCurrencies,
   enabledPlans,
   canCreate,
+  planPriceForCurrency,
   createOrder,
   refreshOrder,
   cancelOrder

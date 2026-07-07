@@ -79,6 +79,8 @@ export default {
         cnyToUsdRate: "CNY to USD rate",
         usdToCnyRate: "USD to CNY rate",
         subscriptionPlans: "Subscription plans",
+        subscriptionUsdToCnyRate: "Subscription USD -> CNY rate",
+        subscriptionUsdToCnyRateHint: "Default 0 means disabled. When greater than 0, USD-only subscription plans can be converted when users choose CNY.",
         addPlan: "Add plan",
         planItem: "Plan #{n}",
         planId: "Plan ID",

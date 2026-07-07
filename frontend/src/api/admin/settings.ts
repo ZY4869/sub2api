@@ -129,6 +129,7 @@ export interface SystemSettings {
   payment_min_topup_amount: number
   payment_max_topup_amount: number
   payment_subscription_plans: PaymentSubscriptionPlan[]
+  payment_subscription_usd_to_cny_rate: number
   billing_currency_conversion_enabled: boolean
   billing_currency_cny_to_usd_rate: number
   billing_currency_usd_to_cny_rate: number
@@ -137,6 +138,27 @@ export interface SystemSettings {
   codex_oauth_user_agent_override: string
   openai_allow_claude_code_codex_plugin: boolean
   openai_allowed_codex_clients: string[]
+  openai_advanced_scheduler_enabled: boolean
+  openai_advanced_scheduler_sticky_weighted_enabled: boolean
+  openai_advanced_scheduler_subscription_priority_enabled: boolean
+  openai_advanced_scheduler_lb_top_k: string
+  openai_advanced_scheduler_weight_priority: string
+  openai_advanced_scheduler_weight_load: string
+  openai_advanced_scheduler_weight_queue: string
+  openai_advanced_scheduler_weight_error_rate: string
+  openai_advanced_scheduler_weight_ttft: string
+  openai_advanced_scheduler_weight_quota_headroom: string
+  openai_advanced_scheduler_weight_previous_response: string
+  openai_advanced_scheduler_weight_session_sticky: string
+  openai_advanced_scheduler_effective_lb_top_k: string
+  openai_advanced_scheduler_effective_weight_priority: string
+  openai_advanced_scheduler_effective_weight_load: string
+  openai_advanced_scheduler_effective_weight_queue: string
+  openai_advanced_scheduler_effective_weight_error_rate: string
+  openai_advanced_scheduler_effective_weight_ttft: string
+  openai_advanced_scheduler_effective_weight_quota_headroom: string
+  openai_advanced_scheduler_effective_weight_previous_response: string
+  openai_advanced_scheduler_effective_weight_session_sticky: string
   backend_mode_enabled: boolean
   maintenance_mode_enabled: boolean
   admin_compliance_enabled: boolean
@@ -277,6 +299,7 @@ export interface UpdateSettingsRequest {
   payment_min_topup_amount?: number
   payment_max_topup_amount?: number
   payment_subscription_plans?: PaymentSubscriptionPlan[]
+  payment_subscription_usd_to_cny_rate?: number
   billing_currency_conversion_enabled?: boolean
   billing_currency_cny_to_usd_rate?: number
   billing_currency_usd_to_cny_rate?: number
@@ -285,6 +308,18 @@ export interface UpdateSettingsRequest {
   codex_oauth_user_agent_override?: string
   openai_allow_claude_code_codex_plugin?: boolean
   openai_allowed_codex_clients?: string[]
+  openai_advanced_scheduler_enabled?: boolean
+  openai_advanced_scheduler_sticky_weighted_enabled?: boolean
+  openai_advanced_scheduler_subscription_priority_enabled?: boolean
+  openai_advanced_scheduler_lb_top_k?: string
+  openai_advanced_scheduler_weight_priority?: string
+  openai_advanced_scheduler_weight_load?: string
+  openai_advanced_scheduler_weight_queue?: string
+  openai_advanced_scheduler_weight_error_rate?: string
+  openai_advanced_scheduler_weight_ttft?: string
+  openai_advanced_scheduler_weight_quota_headroom?: string
+  openai_advanced_scheduler_weight_previous_response?: string
+  openai_advanced_scheduler_weight_session_sticky?: string
   backend_mode_enabled?: boolean
   maintenance_mode_enabled?: boolean
   admin_compliance_enabled?: boolean

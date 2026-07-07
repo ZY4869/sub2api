@@ -57,16 +57,22 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 		if entry.InputTokenThreshold != nil {
 			pricing.InputTokenThreshold = *entry.InputTokenThreshold
+		} else if entry.InputCostPerTokenAbove272kTokens != nil || entry.InputCostPerTokenPriorityAbove272kTokens != nil {
+			pricing.InputTokenThreshold = 272000
 		} else if entry.InputCostPerTokenAbove200kTokens != nil || entry.InputCostPerTokenPriorityAbove200kTokens != nil {
 			pricing.InputTokenThreshold = 200000
 		}
 		if entry.InputCostPerTokenAboveThreshold != nil {
 			pricing.InputCostPerTokenAboveThreshold = *entry.InputCostPerTokenAboveThreshold
+		} else if entry.InputCostPerTokenAbove272kTokens != nil {
+			pricing.InputCostPerTokenAboveThreshold = *entry.InputCostPerTokenAbove272kTokens
 		} else if entry.InputCostPerTokenAbove200kTokens != nil {
 			pricing.InputCostPerTokenAboveThreshold = *entry.InputCostPerTokenAbove200kTokens
 		}
 		if entry.InputCostPerTokenPriorityAboveThreshold != nil {
 			pricing.InputCostPerTokenPriorityAboveThreshold = *entry.InputCostPerTokenPriorityAboveThreshold
+		} else if entry.InputCostPerTokenPriorityAbove272kTokens != nil {
+			pricing.InputCostPerTokenPriorityAboveThreshold = *entry.InputCostPerTokenPriorityAbove272kTokens
 		} else if entry.InputCostPerTokenPriorityAbove200kTokens != nil {
 			pricing.InputCostPerTokenPriorityAboveThreshold = *entry.InputCostPerTokenPriorityAbove200kTokens
 		}
@@ -78,16 +84,22 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 		if entry.OutputTokenThreshold != nil {
 			pricing.OutputTokenThreshold = *entry.OutputTokenThreshold
+		} else if entry.OutputCostPerTokenAbove272kTokens != nil || entry.OutputCostPerTokenPriorityAbove272kTokens != nil {
+			pricing.OutputTokenThreshold = 272000
 		} else if entry.OutputCostPerTokenAbove200kTokens != nil || entry.OutputCostPerTokenPriorityAbove200kTokens != nil {
 			pricing.OutputTokenThreshold = 200000
 		}
 		if entry.OutputCostPerTokenAboveThreshold != nil {
 			pricing.OutputCostPerTokenAboveThreshold = *entry.OutputCostPerTokenAboveThreshold
+		} else if entry.OutputCostPerTokenAbove272kTokens != nil {
+			pricing.OutputCostPerTokenAboveThreshold = *entry.OutputCostPerTokenAbove272kTokens
 		} else if entry.OutputCostPerTokenAbove200kTokens != nil {
 			pricing.OutputCostPerTokenAboveThreshold = *entry.OutputCostPerTokenAbove200kTokens
 		}
 		if entry.OutputCostPerTokenPriorityAboveThreshold != nil {
 			pricing.OutputCostPerTokenPriorityAboveThreshold = *entry.OutputCostPerTokenPriorityAboveThreshold
+		} else if entry.OutputCostPerTokenPriorityAbove272kTokens != nil {
+			pricing.OutputCostPerTokenPriorityAboveThreshold = *entry.OutputCostPerTokenPriorityAbove272kTokens
 		} else if entry.OutputCostPerTokenPriorityAbove200kTokens != nil {
 			pricing.OutputCostPerTokenPriorityAboveThreshold = *entry.OutputCostPerTokenPriorityAbove200kTokens
 		}
@@ -141,15 +153,19 @@ func hasAnyPricingValue(entry LiteLLMRawEntry) bool {
 		entry.InputCostPerTokenPriority != nil ||
 		entry.InputTokenThreshold != nil ||
 		entry.InputCostPerTokenAboveThreshold != nil ||
+		entry.InputCostPerTokenAbove272kTokens != nil ||
 		entry.InputCostPerTokenAbove200kTokens != nil ||
 		entry.InputCostPerTokenPriorityAboveThreshold != nil ||
+		entry.InputCostPerTokenPriorityAbove272kTokens != nil ||
 		entry.InputCostPerTokenPriorityAbove200kTokens != nil ||
 		entry.OutputCostPerToken != nil ||
 		entry.OutputCostPerTokenPriority != nil ||
 		entry.OutputTokenThreshold != nil ||
 		entry.OutputCostPerTokenAboveThreshold != nil ||
+		entry.OutputCostPerTokenAbove272kTokens != nil ||
 		entry.OutputCostPerTokenAbove200kTokens != nil ||
 		entry.OutputCostPerTokenPriorityAboveThreshold != nil ||
+		entry.OutputCostPerTokenPriorityAbove272kTokens != nil ||
 		entry.OutputCostPerTokenPriorityAbove200kTokens != nil ||
 		entry.CacheCreationInputTokenCost != nil ||
 		entry.CacheCreationInputTokenCostAbove1hr != nil ||

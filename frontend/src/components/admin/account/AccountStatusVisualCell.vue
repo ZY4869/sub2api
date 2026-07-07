@@ -9,10 +9,17 @@
     ]"
     data-testid="account-status-visual-cell"
   >
-    <div class="flex min-w-0 max-w-full items-center gap-1.5">
+    <div
+      :class="[
+        'flex items-center gap-1.5',
+        isSimpleMode ? 'w-max max-w-none flex-nowrap overflow-visible' : 'min-w-0 max-w-full'
+      ]"
+      data-testid="account-status-visual-title-row"
+    >
       <div
         :class="[
-          'flex min-w-0 items-center',
+          'flex items-center',
+          isSimpleMode ? 'shrink-0' : 'min-w-0',
           isUsageRecoveryStatus ? 'gap-1' : 'gap-1.5'
         ]"
       >
@@ -27,7 +34,7 @@
         </span>
         <span
           :class="[
-            'inline-flex items-center rounded-full border py-1 font-extrabold tracking-tight',
+            'inline-flex items-center rounded-full border py-1 font-extrabold tracking-normal',
             isUsageRecoveryStatus
               ? 'shrink-0 whitespace-nowrap px-2 text-[12px] leading-none'
               : 'min-w-0 max-w-full truncate px-2.5 text-[13px]',
@@ -42,7 +49,7 @@
 
       <div
         v-if="isSimpleMode && visibleLimitBadges.length > 0"
-        class="flex shrink-0 items-center gap-1"
+        class="flex shrink-0 items-center gap-1 pl-0.5"
         data-testid="account-status-visual-simple-icons"
       >
         <AccountStatusLimitBadge
@@ -62,7 +69,8 @@
         v-if="statusDetailText"
         :message="statusDetailText"
         :ariaLabel="t('admin.accounts.status.viewIssueDetails')"
-        button-class="rounded-full border border-rose-200/80 bg-white px-1.5 py-1 text-rose-500 transition hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:text-rose-100"
+        wrapper-class="relative shrink-0"
+        :button-class="issueButtonClass"
       />
     </div>
 
@@ -174,6 +182,12 @@ const isSimpleMode = computed(() => props.displayMode === 'simple')
 const isUsageRecoveryStatus = computed(() =>
   airyStatus.value.kind === 'usage5h' || airyStatus.value.kind === 'usage7d'
 )
+const issueButtonClass = computed(() => [
+  'rounded-full border border-rose-200/80 bg-white text-rose-500 transition hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:text-rose-100',
+  isSimpleMode.value
+    ? 'h-6 w-6 items-center justify-center p-0'
+    : 'px-1.5 py-1'
+].join(' '))
 
 const statusIconName = computed(() => airyStatus.value.iconName)
 

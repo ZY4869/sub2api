@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -94,6 +95,22 @@ func redactPaymentPayload(value any) any {
 	default:
 		return value
 	}
+}
+
+func sanitizePaymentProviderText(value string) string {
+	if value == "" {
+		return ""
+	}
+	value = strings.ReplaceAll(value, "\x00", "")
+	value = strings.ReplaceAll(value, `\u0000`, "")
+	return value
+}
+
+func sanitizePaymentProviderJSON(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 {
+		return raw
+	}
+	return json.RawMessage(sanitizePaymentProviderText(string(raw)))
 }
 
 func isSensitivePaymentPayloadKey(key string) bool {

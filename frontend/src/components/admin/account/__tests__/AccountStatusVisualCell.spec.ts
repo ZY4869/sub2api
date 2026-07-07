@@ -215,6 +215,8 @@ describe('AccountStatusVisualCell', () => {
     }), { displayMode: 'simple' })
 
     expect(wrapper.find('[data-testid="account-status-visual-simple-icons"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="account-status-visual-title-row"]').find('[data-testid="account-status-visual-simple-icons"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="account-status-visual-simple-actions"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('30D 恢复中')
     expect(wrapper.text()).not.toContain('admin.accounts.status.usage7dAllAutoResume')
     expect(wrapper.findAll('[data-test="account-status-limit-badge"]')).toHaveLength(2)

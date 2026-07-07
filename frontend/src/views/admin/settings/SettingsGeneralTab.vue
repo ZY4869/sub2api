@@ -328,6 +328,7 @@
           v-model:min-topup-amount="form.payment_min_topup_amount"
           v-model:max-topup-amount="form.payment_max_topup_amount"
           v-model:subscription-plans="form.payment_subscription_plans"
+          v-model:subscription-usd-to-cny-rate="form.payment_subscription_usd_to_cny_rate"
           v-model:currency-conversion-enabled="form.billing_currency_conversion_enabled"
           v-model:cny-to-usd-rate="form.billing_currency_cny_to_usd_rate"
           v-model:usd-to-cny-rate="form.billing_currency_usd_to_cny_rate"

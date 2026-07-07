@@ -160,13 +160,20 @@ type CheckMixedChannelRequest struct {
 }
 type AccountWithConcurrency struct {
 	*dto.Account
-	CurrentConcurrency int      `json:"current_concurrency"`
-	CurrentWindowCost  *float64 `json:"current_window_cost,omitempty"`
-	ActiveSessions     *int     `json:"active_sessions,omitempty"`
-	CurrentRPM         *int     `json:"current_rpm,omitempty"`
+	CurrentConcurrency int                    `json:"current_concurrency"`
+	CurrentWindowCost  *float64               `json:"current_window_cost,omitempty"`
+	ActiveSessions     *int                   `json:"active_sessions,omitempty"`
+	CurrentRPM         *int                   `json:"current_rpm,omitempty"`
+	SchedulerScore     *AccountSchedulerScore `json:"scheduler_score,omitempty"`
 }
 
 const accountListGroupUngroupedQueryValue = "ungrouped"
+
+type AccountSchedulerScore struct {
+	BaseScore             float64 `json:"base_score"`
+	StickyScore           float64 `json:"sticky_score"`
+	StickyWeightedEnabled bool    `json:"sticky_weighted_enabled"`
+}
 
 func (h *AccountHandler) CheckMixedChannel(c *gin.Context) {
 	var req CheckMixedChannelRequest

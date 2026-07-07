@@ -16,6 +16,7 @@ type APIKeyService struct {
 	userGroupRateRepo     UserGroupRateRepository
 	modelCatalogService   *ModelCatalogService
 	gatewayService        *GatewayService
+	concurrencyService    *ConcurrencyService
 	cache                 APIKeyCache
 	rateLimitCacheInvalid RateLimitCacheInvalidator // optional: invalidate Redis rate limit cache
 	billingCacheService   *BillingCacheService
@@ -73,6 +74,10 @@ func (s *APIKeyService) SetModelCatalogService(modelCatalogService *ModelCatalog
 
 func (s *APIKeyService) SetGatewayService(gatewayService *GatewayService) {
 	s.gatewayService = gatewayService
+}
+
+func (s *APIKeyService) SetConcurrencyService(concurrencyService *ConcurrencyService) {
+	s.concurrencyService = concurrencyService
 }
 
 func (s *APIKeyService) compileAPIKeyIPRules(apiKey *APIKey) {

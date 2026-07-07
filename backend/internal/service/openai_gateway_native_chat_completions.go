@@ -221,6 +221,7 @@ func (s *OpenAIGatewayService) buildNativeChatCompletionsUpstreamRequest(
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}
+	ApplyAccountRequestHeaderOverrides(req, account)
 	return MarkOpenAIHTTPUpstreamRequest(req), nil
 }
 

@@ -16,6 +16,8 @@ type paymentOrderSnapshot struct {
 	GroupID          int64              `json:"group_id,omitempty"`
 	ValidityDays     int                `json:"validity_days,omitempty"`
 	PricesByCurrency map[string]float64 `json:"prices_by_currency,omitempty"`
+	ConvertedFrom    string             `json:"converted_from,omitempty"`
+	ConversionRate   float64            `json:"conversion_rate,omitempty"`
 	CreatedAt        string             `json:"created_at"`
 }
 
@@ -43,7 +45,7 @@ func (s *PaymentService) buildOrderSnapshot(settings PaymentSettings, input Crea
 		if !ok {
 			return nil, 0, ErrPaymentInvalidProduct
 		}
-		price := plan.PricesByCurrency[currency]
+		price, convertedFrom, conversionRate := subscriptionPriceForCurrency(plan, currency, settings.SubscriptionUSDToCNYRate)
 		if price <= 0 {
 			return nil, 0, ErrPaymentUnsupportedCurrency.WithMetadata(map[string]string{"currency": currency})
 		}
@@ -51,10 +53,33 @@ func (s *PaymentService) buildOrderSnapshot(settings PaymentSettings, input Crea
 		if err != nil {
 			return nil, 0, err
 		}
-		return marshalPaymentSnapshot(paymentOrderSnapshot{ProductType: input.ProductType, AmountMinor: amountMinor, Currency: currency, CountryCode: input.CountryCode, PlanID: plan.PlanID, GroupID: plan.GroupID, ValidityDays: plan.ValidityDays, PricesByCurrency: plan.PricesByCurrency, CreatedAt: time.Now().UTC().Format(time.RFC3339)}), amountMinor, nil
+		return marshalPaymentSnapshot(paymentOrderSnapshot{ProductType: input.ProductType, AmountMinor: amountMinor, Currency: currency, CountryCode: input.CountryCode, PlanID: plan.PlanID, GroupID: plan.GroupID, ValidityDays: plan.ValidityDays, PricesByCurrency: plan.PricesByCurrency, ConvertedFrom: convertedFrom, ConversionRate: conversionRate, CreatedAt: time.Now().UTC().Format(time.RFC3339)}), amountMinor, nil
 	default:
 		return nil, 0, ErrPaymentInvalidProduct
 	}
+}
+
+func subscriptionPriceForCurrency(plan PaymentSubscriptionPlan, currency string, usdToCNYRate float64) (float64, string, float64) {
+	currency = NormalizePaymentCurrency(currency)
+	if currency == "" {
+		return 0, "", 0
+	}
+	if price := plan.PricesByCurrency[currency]; price > 0 {
+		return price, "", 0
+	}
+	rate := normalizeSubscriptionUSDToCNYRate(usdToCNYRate)
+	if currency != "CNY" || rate <= 0 {
+		return 0, "", 0
+	}
+	usdPrice := plan.PricesByCurrency["USD"]
+	if usdPrice <= 0 {
+		return 0, "", 0
+	}
+	converted, err := NormalizePaymentAmountToCurrency(usdPrice*rate, "CNY")
+	if err != nil || converted <= 0 {
+		return 0, "", 0
+	}
+	return converted, "USD", rate
 }
 
 func marshalPaymentSnapshot(snapshot paymentOrderSnapshot) json.RawMessage {

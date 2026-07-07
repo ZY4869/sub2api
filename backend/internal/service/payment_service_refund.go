@@ -90,6 +90,8 @@ func (s *PaymentService) RefundOrder(ctx context.Context, input RefundPaymentOrd
 		)
 		return nil, err
 	}
+	providerRefund.ID = sanitizePaymentProviderText(providerRefund.ID)
+	providerRefund.Status = sanitizePaymentProviderText(providerRefund.Status)
 	refund.ProviderRefundID = providerRefund.ID
 	refund.Status = normalizeRefundStatus(providerRefund.Status)
 	if err := s.repo.UpdateRefundProvider(ctx, refund.RefundNo, refund.ProviderRefundID, refund.Status); err != nil {

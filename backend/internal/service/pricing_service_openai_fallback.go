@@ -61,6 +61,25 @@ var (
 		Mode:                             "responses",
 		SupportsPromptCaching:            true,
 	}
+	openAIGPT56FallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                5e-06,
+		InputCostPerTokenPriority:        1e-05,
+		InputTokenThreshold:              272000,
+		InputCostPerTokenAboveThreshold:  1e-05,
+		OutputCostPerToken:               3e-05,
+		OutputCostPerTokenPriority:       6e-05,
+		OutputTokenThreshold:             272000,
+		OutputCostPerTokenAboveThreshold: 4.5e-05,
+		CacheReadInputTokenCost:          5e-07,
+		CacheReadInputTokenCostPriority:  1e-06,
+		LongContextInputTokenThreshold:   272000,
+		LongContextInputCostMultiplier:   2.0,
+		LongContextOutputCostMultiplier:  1.5,
+		SupportsServiceTier:              true,
+		LiteLLMProvider:                  "openai",
+		Mode:                             "chat",
+		SupportsPromptCaching:            true,
+	}
 )
 
 // LiteLLMModelPricing LiteLLM价格数据结构
@@ -94,6 +113,13 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 	if strings.HasPrefix(model, "gpt-4.5") {
 		s.logOpenAIFallbackOnce(model, "gpt-4.5-preview(static)", "matched")
 		return openAIGPT45PreviewFallbackPricing
+	}
+
+	if strings.HasPrefix(model, "gpt-5.6-sol") ||
+		strings.HasPrefix(model, "gpt-5.6-terra") ||
+		strings.HasPrefix(model, "gpt-5.6-luna") {
+		s.logOpenAIFallbackOnce(model, "gpt-5.6(static)", "matched")
+		return openAIGPT56FallbackPricing
 	}
 
 	if strings.HasPrefix(model, "gpt-5.4-pro") {

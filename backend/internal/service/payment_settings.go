@@ -123,6 +123,7 @@ func (s *SettingService) GetPaymentSettings(ctx context.Context) PaymentSettings
 		SettingKeyPaymentMinTopupAmount,
 		SettingKeyPaymentMaxTopupAmount,
 		SettingKeyPaymentSubscriptionPlans,
+		SettingKeyPaymentSubscriptionUSDToCNYRate,
 	}
 	raw, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
@@ -166,6 +167,9 @@ func paymentSettingsFromRaw(raw map[string]string) PaymentSettings {
 		out.MaxTopupAmount = out.MinTopupAmount
 	}
 	out.SubscriptionPlans = ParsePaymentSubscriptionPlans(raw[SettingKeyPaymentSubscriptionPlans])
+	if v, err := strconv.ParseFloat(strings.TrimSpace(raw[SettingKeyPaymentSubscriptionUSDToCNYRate]), 64); err == nil {
+		out.SubscriptionUSDToCNYRate = normalizeSubscriptionUSDToCNYRate(v)
+	}
 	return out
 }
 
@@ -272,4 +276,13 @@ func findPaymentSubscriptionPlan(plans []PaymentSubscriptionPlan, planID string)
 		}
 	}
 	return PaymentSubscriptionPlan{}, false
+}
+
+// normalizeSubscriptionUSDToCNYRate returns 0 for invalid values, which keeps
+// subscription CNY conversion explicitly opt-in and preserves existing behavior.
+func normalizeSubscriptionUSDToCNYRate(rate float64) float64 {
+	if rate <= 0 {
+		return 0
+	}
+	return rate
 }

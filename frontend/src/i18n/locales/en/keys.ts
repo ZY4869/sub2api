@@ -66,6 +66,7 @@ export default {
     groupPlatform: 'Platform',
     groupPriority: 'Priority',
     groupRate: 'Rate',
+    currentConcurrency: 'Current concurrency',
     lastUsedAt: 'Last Used',
     columnSettings: 'Columns',
     displaySettingsColumns: 'Visible columns',

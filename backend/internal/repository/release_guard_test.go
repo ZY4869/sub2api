@@ -29,7 +29,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	require.NotContains(t, thirdParty, "LGPL")
 	require.NotContains(t, thirdParty, "GPL")
 
-	require.Equal(t, "0.1.376", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	require.Equal(t, "0.1.377", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 
 	var pkg struct {
 		Version string `json:"version"`
@@ -38,7 +38,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 		} `json:"pnpm"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(readRepoFile(t, root, "frontend", "package.json")), &pkg))
-	require.Equal(t, "0.1.376", pkg.Version)
+	require.Equal(t, "0.1.377", pkg.Version)
 	require.Equal(t, "4.0.6", pkg.PNPM.Overrides["form-data"])
 
 	assertNoAPIDocsRoutes(t, root)
@@ -118,7 +118,79 @@ func TestUpstream144CleanroomMatrixGuards(t *testing.T) {
 	license := readRepoFile(t, root, "LICENSE")
 	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
 	require.NotContains(t, license, "GNU LESSER GENERAL PUBLIC LICENSE")
-	require.Equal(t, "0.1.376", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	require.Equal(t, "0.1.377", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	assertNoAPIDocsRoutes(t, root)
+}
+
+func TestUpstream145To146CleanroomMatrixGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "upstream-v0.1.145-v0.1.146-cleanroom-sync-matrix.md")
+	for _, expected := range []string{
+		"b023f1a507039c620c12a07f22e8d7e2a0f70df5",
+		"3aee00f59fc2cb6c46e9ee7631b9d799a736b596",
+		"MIT-only",
+		"0.1.376",
+		"do not run `git pull`, merge, rebase, cherry-pick",
+		"copy upstream LGPL",
+		"`/api-docs/*`",
+		"`/admin/api-docs/*`",
+		"`current_concurrency`",
+		"`/responses/compact`",
+		"openai_advanced_scheduler",
+		"`request_headers`",
+		"payment_subscription_usd_to_cny_rate",
+		"`gpt-5.6-sol`",
+		"Antigravity OAuth 401",
+		"Model lists and runtime support checks continue to use local policy projection",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+
+	coreDefaults := readRepoFile(t, root, "backend", "internal", "config", "config_defaults.go")
+	require.Contains(t, coreDefaults, `security.url_allowlist.allow_insecure_http", false`)
+	require.Contains(t, coreDefaults, `security.url_allowlist.allow_private_hosts", false`)
+
+	prodCompose := readRepoFile(t, root, "deploy", "docker-compose.yml")
+	require.Contains(t, prodCompose, "SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=${SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP:-false}")
+
+	localCompose := readRepoFile(t, root, "deploy", "docker-compose.local.yml")
+	require.Contains(t, localCompose, "SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=${SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP:-true}")
+	require.Contains(t, localCompose, "For production, set")
+
+	devCompose := readRepoFile(t, root, "deploy", "docker-compose.dev.yml")
+	require.Contains(t, devCompose, "Local source builds allow HTTP upstream URLs for dev/test only.")
+	require.Contains(t, devCompose, "SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=${SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP:-true}")
+
+	envExample := readRepoFile(t, root, "deploy", ".env.example")
+	require.Contains(t, envExample, "Set SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=false")
+	require.Contains(t, envExample, "SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true")
+
+	dtoSettings := readRepoFile(t, root, "backend", "internal", "handler", "dto", "settings.go")
+	require.Contains(t, dtoSettings, `json:"payment_subscription_usd_to_cny_rate"`)
+	require.Contains(t, dtoSettings, `json:"openai_advanced_scheduler_enabled"`)
+
+	apiKeyDTO := readRepoFile(t, root, "backend", "internal", "handler", "dto", "types.go")
+	require.Contains(t, apiKeyDTO, `json:"current_concurrency"`)
+
+	headerOverride := readRepoFile(t, root, "backend", "internal", "service", "account_header_override.go")
+	for _, blocked := range []string{
+		`"authorization"`,
+		`"x-api-key"`,
+		`"cookie"`,
+		`"host"`,
+	} {
+		require.Contains(t, headerOverride, blocked)
+	}
+
+	endpoint := readRepoFile(t, root, "backend", "internal", "handler", "endpoint.go")
+	require.Contains(t, endpoint, "/v1/responses/compact")
+
+	license := readRepoFile(t, root, "LICENSE")
+	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
+	require.NotContains(t, license, "GNU LESSER GENERAL PUBLIC LICENSE")
+	require.NotContains(t, license, "GNU GENERAL PUBLIC LICENSE")
+	require.Equal(t, "0.1.377", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 	assertNoAPIDocsRoutes(t, root)
 }
 

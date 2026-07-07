@@ -21,6 +21,7 @@ type OpenAIAccountScheduleRequest struct {
 	RequiredTransport  OpenAIUpstreamTransport
 	RequiredCapability OpenAIEndpointCapability
 	ExcludedIDs        map[int64]struct{}
+	SchedulerRuntime   OpenAIAdvancedSchedulerRuntimeSettings
 }
 
 type OpenAIAccountScheduleDecision struct {
@@ -76,6 +77,9 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	ctx context.Context,
 	req OpenAIAccountScheduleRequest,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	if req.SchedulerRuntime.LBTopK <= 0 {
+		req.SchedulerRuntime = s.service.openAIAdvancedSchedulerRuntime(ctx)
+	}
 	decision := OpenAIAccountScheduleDecision{}
 	start := time.Now()
 	defer func() {

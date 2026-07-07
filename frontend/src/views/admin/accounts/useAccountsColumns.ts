@@ -133,6 +133,12 @@ const allColumns = computed(() => {
       class: "w-[72px] min-w-[64px] max-w-[80px]",
     },
     {
+      key: "scheduler_score",
+      label: t("admin.accounts.columns.schedulerScore"),
+      sortable: false,
+      class: "w-[112px] min-w-[104px] max-w-[120px]",
+    },
+    {
       key: "rate_multiplier",
       label: t("admin.accounts.columns.billingRateMultiplier"),
       sortable: true,

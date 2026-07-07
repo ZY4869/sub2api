@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { applyInterceptWarmup } from '../credentialsBuilder'
+import {
+  applyAccountRequestHeaders,
+  applyInterceptWarmup,
+  buildAccountRequestHeaders,
+  formatAccountRequestHeaders
+} from '../credentialsBuilder'
 
 describe('applyInterceptWarmup', () => {
   it('create + enabled=true: should set intercept_warmup_requests to true', () => {
@@ -42,5 +47,49 @@ describe('applyInterceptWarmup', () => {
     expect(creds.api_key).toBe('sk')
     expect(creds.base_url).toBe('url')
     expect('intercept_warmup_requests' in creds).toBe(false)
+  })
+})
+
+describe('account request header overrides', () => {
+  it('normalizes JSON header names and values', () => {
+    const result = buildAccountRequestHeaders('{ "X-Custom-Feature": " enabled ", "empty": "" }')
+
+    expect(result).toEqual({
+      ok: true,
+      headers: {
+        'x-custom-feature': 'enabled'
+      }
+    })
+  })
+
+  it('rejects sensitive protocol headers', () => {
+    expect(buildAccountRequestHeaders('{ "Authorization": "Bearer bad" }')).toEqual({
+      ok: false,
+      errorKey: 'admin.accounts.requestHeadersForbiddenName'
+    })
+  })
+
+  it('applies request_headers and removes legacy keys', () => {
+    const creds: Record<string, unknown> = {
+      request_header_overrides: { 'x-old': '1' },
+      header_overrides: { 'x-legacy': '2' }
+    }
+
+    const err = applyAccountRequestHeaders(creds, '{ "X-New": "3" }')
+
+    expect(err).toBeNull()
+    expect(creds).toEqual({
+      request_headers: { 'x-new': '3' }
+    })
+  })
+
+  it('formats stored request headers for editing', () => {
+    expect(formatAccountRequestHeaders({
+      request_headers: {
+        'X-Z': ' z ',
+        authorization: 'blocked',
+        'x-a': 'a'
+      }
+    })).toBe('{\n  "x-a": "a",\n  "x-z": "z"\n}')
   })
 })

@@ -35,13 +35,22 @@
       <div>
         <label class="input-label">{{ t('admin.accounts.dataImportFile') }}</label>
         <div
-          class="flex items-center justify-between gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 dark:border-dark-600 dark:bg-dark-800"
+          class="flex items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3 transition"
+          :class="dragActive
+            ? 'border-primary-400 bg-primary-50 dark:border-primary-500 dark:bg-primary-500/10'
+            : 'border-gray-300 bg-gray-50 dark:border-dark-600 dark:bg-dark-800'"
+          @dragenter.prevent="handleDragEnter"
+          @dragover.prevent
+          @dragleave.prevent="handleDragLeave"
+          @drop.prevent="handleDrop"
         >
           <div class="min-w-0">
             <div class="truncate text-sm text-gray-700 dark:text-dark-200">
-              {{ fileName || t('admin.accounts.dataImportSelectFile') }}
+              {{ fileLabel || t('admin.accounts.dataImportSelectFile') }}
             </div>
-            <div class="text-xs text-gray-500 dark:text-dark-400">JSON (.json)</div>
+            <div class="text-xs text-gray-500 dark:text-dark-400">
+              {{ t('admin.accounts.dataImportFileHint') }}
+            </div>
           </div>
           <button type="button" class="btn btn-secondary shrink-0" @click="openFilePicker">
             {{ t('common.chooseFile') }}
@@ -52,6 +61,7 @@
           type="file"
           class="hidden"
           accept="application/json,.json"
+          multiple
           @change="handleFileChange"
         />
       </div>
@@ -125,7 +135,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import AccountTierSelector from '@/components/account/AccountTierSelector.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import type { AccountTier, AdminAccountImportJob, ClaudeAccountTier, OpenAIAccountTier } from '@/types'
+import type { AccountTier, AdminAccountImportJob, AdminDataPayload, ClaudeAccountTier, OpenAIAccountTier } from '@/types'
 import {
   DEFAULT_CLAUDE_ACCOUNT_TIER,
   DEFAULT_OPENAI_ACCOUNT_TIER,
@@ -151,12 +161,18 @@ const appStore = useAppStore()
 
 const importing = ref(false)
 const cancelling = ref(false)
-const file = ref<File | null>(null)
+const files = ref<File[]>([])
+const dragDepth = ref(0)
 const openAIImportTier = ref<AccountTier | ''>(DEFAULT_OPENAI_ACCOUNT_TIER)
 const claudeImportTier = ref<AccountTier | ''>(DEFAULT_CLAUDE_ACCOUNT_TIER)
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const fileName = computed(() => file.value?.name || '')
+const dragActive = computed(() => dragDepth.value > 0)
+const fileLabel = computed(() => {
+  if (files.value.length === 0) return ''
+  if (files.value.length === 1) return files.value[0].name
+  return t('admin.accounts.dataImportSelectedFiles', { count: files.value.length })
+})
 const {
   job,
   result,
@@ -185,7 +201,8 @@ watch(
   () => props.show,
   (open) => {
     if (open) {
-      file.value = null
+      files.value = []
+      dragDepth.value = 0
       openAIImportTier.value = DEFAULT_OPENAI_ACCOUNT_TIER
       claudeImportTier.value = DEFAULT_CLAUDE_ACCOUNT_TIER
       resetImportJob()
@@ -205,7 +222,22 @@ const openFilePicker = () => {
 
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement
-  file.value = target.files?.[0] || null
+  files.value = normalizeImportFiles(target.files)
+}
+
+const handleDragEnter = () => {
+  if (importing.value) return
+  dragDepth.value += 1
+}
+
+const handleDragLeave = () => {
+  dragDepth.value = Math.max(0, dragDepth.value - 1)
+}
+
+const handleDrop = (event: DragEvent) => {
+  dragDepth.value = 0
+  if (importing.value) return
+  files.value = normalizeImportFiles(event.dataTransfer?.files || null)
 }
 
 const handleClose = () => {
@@ -231,19 +263,61 @@ const readFileAsText = async (sourceFile: File): Promise<string> => {
   })
 }
 
+const normalizeImportFiles = (list: FileList | null): File[] => {
+  if (!list) return []
+  return Array.from(list).filter((item) =>
+    item.name.toLowerCase().endsWith('.json') || item.type === 'application/json'
+  )
+}
+
+const isValidDataPayload = (value: unknown): value is AdminDataPayload => {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    Array.isArray((value as AdminDataPayload).accounts) &&
+    Array.isArray((value as AdminDataPayload).proxies)
+  )
+}
+
+const mergeDataPayloads = (payloads: AdminDataPayload[]): AdminDataPayload => {
+  if (payloads.length === 1) return payloads[0]
+
+  const firstPayload = payloads[0]
+  return {
+    type: payloads.find((item) => item.type)?.type || firstPayload?.type || 'sub2api_admin_export',
+    version: payloads.find((item) => item.version)?.version || firstPayload?.version || 1,
+    exported_at: payloads.length === 1 ? firstPayload.exported_at : new Date().toISOString(),
+    proxies: payloads.flatMap((item) => item.proxies || []),
+    accounts: payloads.flatMap((item) => item.accounts || [])
+  }
+}
+
 const handleImport = async () => {
-  if (!file.value) {
+  if (files.value.length === 0) {
     appStore.showError(t('admin.accounts.dataImportSelectFile'))
     return
   }
 
   importing.value = true
   try {
-    const text = await readFileAsText(file.value)
-    const dataPayload = JSON.parse(text)
+    const dataPayloads: AdminDataPayload[] = []
+    for (const sourceFile of files.value) {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(await readFileAsText(sourceFile))
+      } catch {
+        appStore.showError(t('admin.accounts.dataImportParseFailedFile', { name: sourceFile.name }))
+        return
+      }
+      if (!isValidDataPayload(parsed)) {
+        appStore.showError(t('admin.accounts.dataImportParseFailedFile', { name: sourceFile.name }))
+        return
+      }
+      dataPayloads.push(parsed)
+    }
 
     const createdJob = await adminAPI.accounts.createImportJob({
-      data: dataPayload,
+      data: mergeDataPayloads(dataPayloads),
       skip_default_group_bind: true,
       account_defaults: {
         openai_tier: isOpenAIAccountTier(openAIImportTier.value)

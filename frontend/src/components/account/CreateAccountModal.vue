@@ -239,6 +239,7 @@
         <AccountApiKeyBasicSettingsEditor
           v-model:base-url="apiKeyBaseUrl"
           v-model:api-key="apiKeyValue"
+          v-model:request-headers-text="apiKeyRequestHeadersText"
           v-model:model-scope-enabled="modelRestrictionEnabled"
           v-model:actual-model-locked="actualModelLocked"
           v-model:model-scope-mode="modelRestrictionMode"
@@ -665,6 +666,7 @@ const {
   gatewayProtocol,
   apiKeyBaseUrl,
   apiKeyValue,
+  apiKeyRequestHeadersText,
   openRouterHTTPReferer,
   openRouterTitle,
   deepSeekModelConcurrencyLimits,

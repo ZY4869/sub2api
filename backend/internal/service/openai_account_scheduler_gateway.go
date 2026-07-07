@@ -4,6 +4,8 @@ import (
 	"context"
 	"math"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/config"
 )
 
 func (s *OpenAIGatewayService) getOpenAIAccountScheduler() OpenAIAccountScheduler {
@@ -52,6 +54,12 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 			return &AccountSelectionResult{Account: pinned}, decision, nil
 		}
 	}
+	runtime := s.openAIAdvancedSchedulerRuntime(ctx)
+	if !runtime.Enabled {
+		selection, err := s.SelectAccountWithLoadAwarenessForCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, requiredCapability)
+		decision.Layer = openAIAccountScheduleLayerLoadBalance
+		return selection, decision, err
+	}
 	scheduler := s.getOpenAIAccountScheduler()
 	if scheduler == nil {
 		selection, err := s.SelectAccountWithLoadAwarenessForCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, requiredCapability)
@@ -75,6 +83,7 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 		RequiredTransport:  requiredTransport,
 		RequiredCapability: requiredCapability,
 		ExcludedIDs:        excludedIDs,
+		SchedulerRuntime:   runtime,
 	})
 }
 
@@ -109,41 +118,80 @@ func (s *OpenAIGatewayService) openAIWSSessionStickyTTL() time.Duration {
 	return openaiStickySessionTTL
 }
 
-func (s *OpenAIGatewayService) openAIWSLBTopK() int {
-	if s != nil && s.cfg != nil && s.cfg.Gateway.OpenAIWS.LBTopK > 0 {
-		return s.cfg.Gateway.OpenAIWS.LBTopK
+func (s *OpenAIGatewayService) openAIAdvancedSchedulerRuntime(ctx context.Context) OpenAIAdvancedSchedulerRuntimeSettings {
+	if s != nil && s.settingService != nil {
+		return s.settingService.GetOpenAIAdvancedSchedulerRuntimeSettings(ctx)
 	}
-	return 7
-}
-
-func (s *OpenAIGatewayService) openAIWSSchedulerWeights() GatewayOpenAIWSSchedulerScoreWeightsView {
-	if s != nil && s.cfg != nil {
-		return GatewayOpenAIWSSchedulerScoreWeightsView{
-			Priority:      s.cfg.Gateway.OpenAIWS.SchedulerScoreWeights.Priority,
-			Load:          s.cfg.Gateway.OpenAIWS.SchedulerScoreWeights.Load,
-			Queue:         s.cfg.Gateway.OpenAIWS.SchedulerScoreWeights.Queue,
-			ErrorRate:     s.cfg.Gateway.OpenAIWS.SchedulerScoreWeights.ErrorRate,
-			TTFT:          s.cfg.Gateway.OpenAIWS.SchedulerScoreWeights.TTFT,
-			QuotaHeadroom: s.cfg.Gateway.OpenAIWS.SchedulerScoreWeights.QuotaHeadroom,
+	runtime := OpenAIAdvancedSchedulerRuntimeSettings{
+		Enabled:                     true,
+		StickyWeightedEnabled:       true,
+		SubscriptionPriorityEnabled: false,
+		LBTopK:                      7,
+		Weights: GatewayOpenAIWSSchedulerScoreWeightsToConfig(GatewayOpenAIWSSchedulerScoreWeightsView{
+			Priority:         1.0,
+			Load:             1.0,
+			Queue:            0.7,
+			ErrorRate:        0.8,
+			TTFT:             0.5,
+			QuotaHeadroom:    0,
+			PreviousResponse: 5.0,
+			SessionSticky:    3.0,
+		}),
+	}
+	if s != nil && s.cfg != nil && s.cfg.Gateway.OpenAIWS.LBTopK > 0 {
+		runtime.LBTopK = s.cfg.Gateway.OpenAIWS.LBTopK
+		weights := s.cfg.Gateway.OpenAIWS.SchedulerScoreWeights
+		baseSum := weights.Priority + weights.Load + weights.Queue + weights.ErrorRate + weights.TTFT + weights.QuotaHeadroom
+		if baseSum > 0 {
+			runtime.Weights = weights
 		}
 	}
+	return runtime
+}
+
+func (s *OpenAIGatewayService) openAIWSLBTopK(ctx context.Context) int {
+	return s.openAIAdvancedSchedulerRuntime(ctx).LBTopK
+}
+
+func (s *OpenAIGatewayService) openAIWSSchedulerWeights(ctx context.Context) GatewayOpenAIWSSchedulerScoreWeightsView {
+	return GatewayOpenAIWSSchedulerScoreWeightsFromConfig(s.openAIAdvancedSchedulerRuntime(ctx).Weights)
+}
+
+func GatewayOpenAIWSSchedulerScoreWeightsFromConfig(weights config.GatewayOpenAIWSSchedulerScoreWeights) GatewayOpenAIWSSchedulerScoreWeightsView {
 	return GatewayOpenAIWSSchedulerScoreWeightsView{
-		Priority:      1.0,
-		Load:          1.0,
-		Queue:         0.7,
-		ErrorRate:     0.8,
-		TTFT:          0.5,
-		QuotaHeadroom: 0,
+		Priority:         weights.Priority,
+		Load:             weights.Load,
+		Queue:            weights.Queue,
+		ErrorRate:        weights.ErrorRate,
+		TTFT:             weights.TTFT,
+		QuotaHeadroom:    weights.QuotaHeadroom,
+		PreviousResponse: weights.PreviousResponse,
+		SessionSticky:    weights.SessionSticky,
+	}
+}
+
+func GatewayOpenAIWSSchedulerScoreWeightsToConfig(weights GatewayOpenAIWSSchedulerScoreWeightsView) config.GatewayOpenAIWSSchedulerScoreWeights {
+	return config.GatewayOpenAIWSSchedulerScoreWeights{
+		Priority:         weights.Priority,
+		Load:             weights.Load,
+		Queue:            weights.Queue,
+		ErrorRate:        weights.ErrorRate,
+		TTFT:             weights.TTFT,
+		QuotaHeadroom:    weights.QuotaHeadroom,
+		PreviousResponse: weights.PreviousResponse,
+		SessionSticky:    weights.SessionSticky,
 	}
 }
 
 type GatewayOpenAIWSSchedulerScoreWeightsView struct {
-	Priority      float64
-	Load          float64
-	Queue         float64
-	ErrorRate     float64
-	TTFT          float64
-	QuotaHeadroom float64
+	Priority         float64
+	Load             float64
+	Queue            float64
+	ErrorRate        float64
+	TTFT             float64
+	QuotaHeadroom    float64
+	PreviousResponse float64
+	SessionSticky    float64
 }
 
 func clamp01(value float64) float64 {

@@ -326,17 +326,16 @@ func (s *ConcurrencyCacheSuite) TestGetUserConcurrency_Missing() {
 }
 
 func (s *ConcurrencyCacheSuite) TestGetAccountsLoadBatch() {
-	s.T().Skip("TODO: Fix this test - CurrentConcurrency returns 0 instead of expected value in CI")
-	// Setup: Create accounts with different load states
-	account1 := int64(100)
-	account2 := int64(101)
-	account3 := int64(102)
+	baseAccountID := time.Now().UnixNano()
+	account1 := baseAccountID + 1
+	account2 := baseAccountID + 2
+	account3 := baseAccountID + 3
 
 	// Account 1: 2/3 slots used, 1 waiting
-	ok, err := s.cache.AcquireAccountSlot(s.ctx, account1, 3, "req1")
+	ok, err := s.cache.AcquireAccountSlot(s.ctx, account1, 3, fmt.Sprintf("load-batch-%d-req1", account1))
 	require.NoError(s.T(), err)
 	require.True(s.T(), ok)
-	ok, err = s.cache.AcquireAccountSlot(s.ctx, account1, 3, "req2")
+	ok, err = s.cache.AcquireAccountSlot(s.ctx, account1, 3, fmt.Sprintf("load-batch-%d-req2", account1))
 	require.NoError(s.T(), err)
 	require.True(s.T(), ok)
 	ok, err = s.cache.IncrementAccountWaitCount(s.ctx, account1, 5)
@@ -344,7 +343,7 @@ func (s *ConcurrencyCacheSuite) TestGetAccountsLoadBatch() {
 	require.True(s.T(), ok)
 
 	// Account 2: 1/2 slots used, 0 waiting
-	ok, err = s.cache.AcquireAccountSlot(s.ctx, account2, 2, "req3")
+	ok, err = s.cache.AcquireAccountSlot(s.ctx, account2, 2, fmt.Sprintf("load-batch-%d-req1", account2))
 	require.NoError(s.T(), err)
 	require.True(s.T(), ok)
 

@@ -48,7 +48,7 @@ import type {
   GatewayProtocol,
   GroupPlatform
 } from '@/types'
-import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
+import { applyInterceptWarmup, buildAccountRequestHeaders } from '@/components/account/credentialsBuilder'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
@@ -229,6 +229,7 @@ const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-
 const gatewayProtocol = ref<GatewayProtocol>('openai')
 const apiKeyBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const apiKeyValue = ref('')
+const apiKeyRequestHeadersText = ref('')
 const openRouterHTTPReferer = ref('')
 const openRouterTitle = ref('')
 const deepSeekModelConcurrencyLimits = ref(createDefaultDeepSeekModelConcurrencyLimitDraft())
@@ -313,6 +314,10 @@ const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
   const credentials: Record<string, unknown> = {
     api_key: apiKeyValue.value.trim(),
     base_url: apiKeyBaseUrl.value.trim() || resolveAccountApiKeyDefaultBaseUrl(form.platform, gatewayProtocol.value)
+  }
+  const requestHeaders = buildAccountRequestHeaders(apiKeyRequestHeadersText.value)
+  if (requestHeaders.ok && Object.keys(requestHeaders.headers).length > 0) {
+    credentials.request_headers = requestHeaders.headers
   }
   if (form.platform === 'openrouter') {
     if (openRouterHTTPReferer.value.trim()) {
@@ -830,6 +835,7 @@ const { resetForm } = useCreateAccountReset({
   gatewayProtocol,
   apiKeyBaseUrl,
   apiKeyValue,
+  apiKeyRequestHeadersText,
   openRouterHTTPReferer,
   openRouterTitle,
   grokSSOToken,
@@ -1055,7 +1061,7 @@ const buildProbeExtra = (base?: Record<string, unknown>) =>
 
 const modalContext = {
   BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, accountCategory, addMethod, allowVertexBatchOverflow, allowedModels, anthropicAPIKeyAuthScheme, anthropicPassthroughEnabled, antigravityAccountType, antigravityModelMappings,
-  antigravityModelRestrictionMode, antigravityOAuth, antigravityWhitelistModels, apiKeyBaseUrl, apiKeyValue, appStore, applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyInterceptWarmup,
+  antigravityModelRestrictionMode, antigravityOAuth, antigravityWhitelistModels, apiKeyBaseUrl, apiKeyRequestHeadersText, apiKeyValue, appStore, applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyInterceptWarmup,
   applyOpenAIImageProtocolDefaults, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra, applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, baiduDocumentAIAccessToken, baiduDocumentAIAsyncBaseUrl, baiduDocumentAIDirectApiUrlsText,
   batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays, buildAnthropicExtra, buildLocalAccountModelProbeSnapshot, buildModelMappingObject, buildOpenAIExtra, buildTempUnschedPayload,
   claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled, codexCLIOnlyEnabled, codexImageToolPolicy, computed, createAccountModelProbeSnapshotDraft, customErrorCodesState, deepSeekModelConcurrencyLimits, editQuotaDailyLimit, editQuotaDailyResetHour,

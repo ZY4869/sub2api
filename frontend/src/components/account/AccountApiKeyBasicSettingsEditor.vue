@@ -46,6 +46,7 @@ const emit = defineEmits<{
 
 const baseUrl = defineModel<string>('baseUrl', { required: true })
 const apiKey = defineModel<string>('apiKey', { required: true })
+const requestHeadersText = defineModel<string>('requestHeadersText', { default: '' })
 const modelScopeEnabled = defineModel<boolean>('modelScopeEnabled', { default: true })
 const modelScopeMode = defineModel<'whitelist' | 'mapping'>('modelScopeMode', { required: true })
 const allowedModels = defineModel<string[]>('allowedModels', { required: true })
@@ -72,6 +73,10 @@ const apiKeyPlaceholder = computed(() =>
 )
 const showModelScopeEditor = computed(() =>
   !props.skipModelScopeEditor && resolvedEffectivePlatform.value !== 'antigravity'
+)
+const showRequestHeadersEditor = computed(() =>
+  props.platform === 'protocol_gateway' ||
+  ['anthropic', 'openai', 'grok', 'deepseek', 'openrouter'].includes(resolvedEffectivePlatform.value)
 )
 const showProtocolGatewaySuggestion = computed(() =>
   shouldSuggestProtocolGateway(props.platform, baseUrl.value)
@@ -143,6 +148,18 @@ const showApiKey = ref(false)
         </button>
       </div>
       <p class="input-hint">{{ apiKeyHint }}</p>
+    </div>
+
+    <div v-if="showRequestHeadersEditor">
+      <label class="input-label">{{ t('admin.accounts.requestHeaders') }}</label>
+      <textarea
+        v-model="requestHeadersText"
+        class="input min-h-28 font-mono text-sm"
+        spellcheck="false"
+        data-testid="account-request-headers-input"
+        :placeholder="t('admin.accounts.requestHeadersPlaceholder')"
+      ></textarea>
+      <p class="input-hint">{{ t('admin.accounts.requestHeadersHint') }}</p>
     </div>
 
     <div v-if="showGeminiTier">

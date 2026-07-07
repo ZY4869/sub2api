@@ -15,6 +15,9 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	if err := s.validateDefaultSubscriptionGroups(ctx, settings.DefaultSubscriptions); err != nil {
 		return err
 	}
+	if err := s.normalizeOpenAIAdvancedSchedulerSettings(settings); err != nil {
+		return err
+	}
 	normalizedWhitelist, err := NormalizeRegistrationEmailSuffixWhitelist(settings.RegistrationEmailSuffixWhitelist)
 	if err != nil {
 		return infraerrors.BadRequest("INVALID_REGISTRATION_EMAIL_SUFFIX_WHITELIST", err.Error())
@@ -199,6 +202,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyPaymentMinTopupAmount] = strconv.FormatFloat(settings.PaymentMinTopupAmount, 'f', 8, 64)
 	updates[SettingKeyPaymentMaxTopupAmount] = strconv.FormatFloat(settings.PaymentMaxTopupAmount, 'f', 8, 64)
 	updates[SettingKeyPaymentSubscriptionPlans] = MarshalPaymentSubscriptionPlans(settings.PaymentSubscriptionPlans)
+	updates[SettingKeyPaymentSubscriptionUSDToCNYRate] = strconv.FormatFloat(normalizeSubscriptionUSDToCNYRate(settings.PaymentSubscriptionUSDToCNYRate), 'f', 8, 64)
 	conversion := settings.BillingCurrencyConversionSettings()
 	updates[SettingKeyBillingCurrencyConversionEnabled] = strconv.FormatBool(conversion.Enabled)
 	updates[SettingKeyBillingCurrencyCNYToUSDRate] = strconv.FormatFloat(conversion.CNYToUSDRate, 'f', 8, 64)
@@ -217,6 +221,18 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		return err
 	}
 	updates[SettingKeyOpenAIAllowedCodexClients] = allowedCodexClientsJSON
+	updates[SettingKeyOpenAIAdvancedSchedulerEnabled] = strconv.FormatBool(settings.OpenAIAdvancedSchedulerEnabled)
+	updates[SettingKeyOpenAIAdvancedSchedulerStickyWeightedEnabled] = strconv.FormatBool(settings.OpenAIAdvancedSchedulerStickyWeightedEnabled)
+	updates[SettingKeyOpenAIAdvancedSchedulerSubscriptionPriorityEnabled] = strconv.FormatBool(settings.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled)
+	updates[SettingKeyOpenAIAdvancedSchedulerLBTopK] = settings.OpenAIAdvancedSchedulerLBTopK
+	updates[SettingKeyOpenAIAdvancedSchedulerWeightPriority] = settings.OpenAIAdvancedSchedulerWeightPriority
+	updates[SettingKeyOpenAIAdvancedSchedulerWeightLoad] = settings.OpenAIAdvancedSchedulerWeightLoad
+	updates[SettingKeyOpenAIAdvancedSchedulerWeightQueue] = settings.OpenAIAdvancedSchedulerWeightQueue
+	updates[SettingKeyOpenAIAdvancedSchedulerWeightErrorRate] = settings.OpenAIAdvancedSchedulerWeightErrorRate
+	updates[SettingKeyOpenAIAdvancedSchedulerWeightTTFT] = settings.OpenAIAdvancedSchedulerWeightTTFT
+	updates[SettingKeyOpenAIAdvancedSchedulerWeightQuotaHeadroom] = settings.OpenAIAdvancedSchedulerWeightQuotaHeadroom
+	updates[SettingKeyOpenAIAdvancedSchedulerWeightPreviousResponse] = settings.OpenAIAdvancedSchedulerWeightPreviousResponse
+	updates[SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky] = settings.OpenAIAdvancedSchedulerWeightSessionSticky
 	updates[SettingKeyCustomMenuItems] = settings.CustomMenuItems
 	updates[SettingKeyLoginAgreementEnabled] = strconv.FormatBool(settings.LoginAgreementEnabled)
 	updates[SettingKeyLoginAgreementMode] = NormalizeLoginAgreementMode(settings.LoginAgreementMode)

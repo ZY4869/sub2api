@@ -19,10 +19,12 @@ type rateLimitAccountRepoStub struct {
 	tempCalls              int
 	fullUpdateCalls        int
 	updateCredentialsCalls int
+	updateExtraCalls       int
 	lastErrorMsg           string
 	lastTempID             int64
 	lastTempReason         string
 	lastCredentials        map[string]any
+	lastExtraUpdates       map[string]any
 }
 
 func (r *rateLimitAccountRepoStub) SetError(ctx context.Context, id int64, errorMsg string) error {
@@ -49,6 +51,12 @@ func (r *rateLimitAccountRepoStub) SetTempUnschedulable(ctx context.Context, id 
 	r.tempCalls++
 	r.lastTempID = id
 	r.lastTempReason = reason
+	return nil
+}
+
+func (r *rateLimitAccountRepoStub) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
+	r.updateExtraCalls++
+	r.lastExtraUpdates = cloneStringAnyMap(updates)
 	return nil
 }
 
@@ -120,6 +128,10 @@ func TestRateLimitService_HandleUpstreamError_OAuth401SetsTempUnschedulable(t *t
 		require.Equal(t, 1, repo.tempCalls)
 		require.Equal(t, int64(100), repo.lastTempID)
 		require.Contains(t, repo.lastTempReason, "invalid or expired credentials")
+		require.Equal(t, 1, repo.updateExtraCalls)
+		require.Equal(t, true, repo.lastExtraUpdates[antigravityForceTokenRefreshExtraKey])
+		require.Equal(t, "401_invalid", repo.lastExtraUpdates[antigravityForceTokenRefreshReasonExtraKey])
+		require.Equal(t, true, account.Extra[antigravityForceTokenRefreshExtraKey])
 		require.Len(t, invalidator.accounts, 1)
 		require.Equal(t, int64(100), invalidator.accounts[0].ID)
 	})
@@ -207,6 +219,7 @@ func TestRateLimitService_HandleUpstreamError_OAuth401NoRefreshTokenSetsError(t 
 	require.True(t, shouldDisable)
 	require.Equal(t, 1, repo.setErrorCalls)
 	require.Equal(t, 0, repo.tempCalls)
+	require.Equal(t, 0, repo.updateExtraCalls)
 	require.Contains(t, repo.lastErrorMsg, "refresh_token missing")
 	require.Len(t, invalidator.accounts, 1)
 }

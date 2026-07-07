@@ -160,7 +160,7 @@ func (h *GatewayHandler) acquireGatewayMessagesUserSlot(c *gin.Context, req *gat
 		req.userWaitCounted = true
 	}
 
-	userReleaseFunc, err := h.concurrencyHelper.AcquireUserSlotWithWait(c, req.subject.UserID, req.subject.Concurrency, req.reqStream, &req.streamStarted)
+	userReleaseFunc, err := h.concurrencyHelper.AcquireUserSlotWithWaitForAPIKey(c, req.subject.UserID, req.apiKey.ID, req.subject.Concurrency, req.reqStream, &req.streamStarted)
 	if err != nil {
 		req.reqLog.Warn("gateway.user_slot_acquire_failed", zap.Error(err))
 		h.handleConcurrencyError(c, err, "user", req.streamStarted)

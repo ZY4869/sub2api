@@ -72,6 +72,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	))
 	s.applyParsedPaymentSettings(result, settings)
 	s.applyParsedOAuthSettings(result, settings)
+	s.parseOpenAIAdvancedSchedulerSettings(result, settings)
 	s.applyParsedContentModerationSettings(result, settings)
 	s.applyParsedOpsRuntimeSettings(result, settings)
 	applyParsedAffiliateSettings(result, settings)

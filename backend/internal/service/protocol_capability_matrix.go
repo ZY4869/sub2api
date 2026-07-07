@@ -8,6 +8,7 @@ const (
 	EndpointCompletions                    = "/v1/completions"
 	EndpointEmbeddings                     = "/v1/embeddings"
 	EndpointResponses                      = "/v1/responses"
+	EndpointResponsesCompact               = "/v1/responses/compact"
 	EndpointImagesGen                      = "/v1/images/generations"
 	EndpointImagesEdits                    = "/v1/images/edits"
 	EndpointVideosCreate                   = "/v1/videos"

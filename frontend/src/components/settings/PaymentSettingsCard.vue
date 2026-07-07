@@ -169,6 +169,21 @@
             {{ t('admin.settings.purchase.addPlan') }}
           </button>
         </div>
+        <label class="mb-3 block space-y-2 rounded-lg border border-gray-100 p-3 dark:border-dark-700">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.settings.purchase.subscriptionUsdToCnyRate') }}
+          </span>
+          <input
+            v-model.number="subscriptionUsdToCnyRate"
+            type="number"
+            min="0"
+            step="0.000001"
+            class="input font-mono text-sm"
+          />
+          <span class="block text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.settings.purchase.subscriptionUsdToCnyRateHint') }}
+          </span>
+        </label>
         <div class="space-y-3">
           <div
             v-for="(plan, index) in subscriptionPlans"
@@ -290,6 +305,7 @@ const defaultCurrency = defineModel<string>('defaultCurrency', { required: true 
 const minTopupAmount = defineModel<number>('minTopupAmount', { required: true })
 const maxTopupAmount = defineModel<number>('maxTopupAmount', { required: true })
 const subscriptionPlans = defineModel<PaymentSubscriptionPlan[]>('subscriptionPlans', { required: true })
+const subscriptionUsdToCnyRate = defineModel<number>('subscriptionUsdToCnyRate', { required: true })
 const currencyConversionEnabled = defineModel<boolean>('currencyConversionEnabled', { required: true })
 const cnyToUsdRate = defineModel<number>('cnyToUsdRate', { required: true })
 const usdToCnyRate = defineModel<number>('usdToCnyRate', { required: true })

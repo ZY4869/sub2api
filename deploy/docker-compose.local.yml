@@ -131,10 +131,14 @@ services:
       # =======================================================================
       # Security Configuration (URL Allowlist)
       # =======================================================================
+      # Local Docker deployments are dev-friendly by default: HTTP upstream URLs
+      # are allowed while host binding stays on loopback. For production, set
+      # SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=false or enable a strict HTTPS
+      # allowlist.
       # Enable URL allowlist validation (false to skip allowlist checks)
       - SECURITY_URL_ALLOWLIST_ENABLED=${SECURITY_URL_ALLOWLIST_ENABLED:-false}
-      # Allow insecure HTTP URLs when allowlist is disabled (default: false, requires https)
-      - SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=${SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP:-false}
+      # Allow insecure HTTP URLs when allowlist is disabled (local/dev default: true)
+      - SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=${SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP:-true}
       # Allow private IP addresses for upstream/pricing/CRS (for internal deployments)
       - SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=${SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS:-false}
       # Upstream hosts whitelist (comma-separated, only used when enabled=true)

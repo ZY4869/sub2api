@@ -42,6 +42,8 @@ function mountCard() {
       'onUpdate:maxTopupAmount': vi.fn(),
       subscriptionPlans: [],
       'onUpdate:subscriptionPlans': vi.fn(),
+      subscriptionUsdToCnyRate: 0,
+      'onUpdate:subscriptionUsdToCnyRate': vi.fn(),
       currencyConversionEnabled: false,
       'onUpdate:currencyConversionEnabled': vi.fn(),
       cnyToUsdRate: 0.6,
@@ -130,5 +132,16 @@ describe('PaymentSettingsCard', () => {
 
     expect(wrapper.emitted('update:cnyToUsdRate')?.at(-1)).toEqual([0.7])
     expect(wrapper.emitted('update:usdToCnyRate')?.at(-1)).toEqual([7.2])
+  })
+
+  it('emits subscription USD to CNY rate updates', async () => {
+    const wrapper = mountCard()
+    const input = wrapper.findAll('input[type="number"]').find((item) =>
+      item.element.parentElement?.textContent?.includes('admin.settings.purchase.subscriptionUsdToCnyRate')
+    )
+
+    await input!.setValue('7.15')
+
+    expect(wrapper.emitted('update:subscriptionUsdToCnyRate')?.at(-1)).toEqual([7.15])
   })
 })

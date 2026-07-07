@@ -79,6 +79,8 @@ export default {
         cnyToUsdRate: "CNY 转 USD 汇率",
         usdToCnyRate: "USD 转 CNY 汇率",
         subscriptionPlans: "订阅计划",
+        subscriptionUsdToCnyRate: "订阅 USD -> CNY 换算汇率",
+        subscriptionUsdToCnyRateHint: "默认为 0，表示关闭。大于 0 时，只有 USD 价格的订阅计划可在用户选择 CNY 时按该汇率换算。",
         addPlan: "添加计划",
         planItem: "计划 #{n}",
         planId: "计划 ID",

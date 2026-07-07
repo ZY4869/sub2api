@@ -102,6 +102,7 @@ export default {
         capacity: "Capacity",
         notes: "Notes",
         priority: "Priority",
+        schedulerScore: "Schedule Score",
         billingRateMultiplier: "Billing Rate",
         weight: "Weight",
         status: "Status",
@@ -116,6 +117,11 @@ export default {
         updatedAt: "Updated At",
         expiresAt: "Expires At",
         actions: "Actions",
+    },
+    schedulerScore: {
+        base: "Base score",
+        sticky: "Sticky weight",
+        stickyDisabled: "Sticky weighting disabled",
     },
     keyUsage: {
         keyAccountTooltip: "Key account · Platform: {platform} · Tier: {tier}",

@@ -43,6 +43,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PaymentMinTopupAmount            float64                   `json:"payment_min_topup_amount"`
 		PaymentMaxTopupAmount            float64                   `json:"payment_max_topup_amount"`
 		PaymentSubscriptionPlans         []PaymentSubscriptionPlan `json:"payment_subscription_plans"`
+		PaymentSubscriptionUSDToCNYRate  float64                   `json:"payment_subscription_usd_to_cny_rate"`
 		CustomMenuItems                  json.RawMessage           `json:"custom_menu_items"`
 		LoginAgreementEnabled            bool                      `json:"login_agreement_enabled"`
 		LoginAgreementMode               string                    `json:"login_agreement_mode"`
@@ -88,6 +89,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PaymentMinTopupAmount:            settings.PaymentMinTopupAmount,
 		PaymentMaxTopupAmount:            settings.PaymentMaxTopupAmount,
 		PaymentSubscriptionPlans:         settings.PaymentSubscriptionPlans,
+		PaymentSubscriptionUSDToCNYRate:  settings.PaymentSubscriptionUSDToCNYRate,
 		CustomMenuItems:                  filterUserVisibleMenuItems(settings.CustomMenuItems),
 		LoginAgreementEnabled:            settings.LoginAgreementEnabled,
 		LoginAgreementMode:               settings.LoginAgreementMode,

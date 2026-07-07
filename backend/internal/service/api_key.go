@@ -55,6 +55,7 @@ type APIKey struct {
 	Group                *Group
 	GroupBindings        []APIKeyGroupBinding
 	SelectedGroupBinding *APIKeyGroupBinding
+	CurrentConcurrency   int
 
 	// Image-only fields
 	ImageOnlyEnabled         bool

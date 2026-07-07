@@ -299,6 +299,52 @@ func TestParsePricingData_PreservesServiceTierPriorityFields(t *testing.T) {
 	require.True(t, pricing.SupportsServiceTier)
 }
 
+func TestParsePricingData_PreservesAbove272kThresholdFields(t *testing.T) {
+	svc := &PricingService{}
+	pricingData, err := svc.parsePricingData([]byte(`{
+		"gpt-5.6-sol": {
+			"input_cost_per_token": 0.000005,
+			"input_cost_per_token_priority": 0.00001,
+			"input_cost_per_token_above_272k_tokens": 0.00001,
+			"output_cost_per_token": 0.00003,
+			"output_cost_per_token_priority": 0.00006,
+			"output_cost_per_token_above_272k_tokens": 0.000045,
+			"cache_read_input_token_cost": 0.0000005,
+			"cache_read_input_token_cost_priority": 0.000001,
+			"supports_service_tier": true,
+			"litellm_provider": "openai",
+			"mode": "chat"
+		}
+	}`))
+	require.NoError(t, err)
+
+	pricing := pricingData["gpt-5.6-sol"]
+	require.NotNil(t, pricing)
+	require.Equal(t, 272000, pricing.InputTokenThreshold)
+	require.InDelta(t, 0.00001, pricing.InputCostPerTokenAboveThreshold, 1e-12)
+	require.Equal(t, 272000, pricing.OutputTokenThreshold)
+	require.InDelta(t, 0.000045, pricing.OutputCostPerTokenAboveThreshold, 1e-12)
+	require.InDelta(t, 0.00006, pricing.OutputCostPerTokenPriority, 1e-12)
+	require.True(t, pricing.SupportsServiceTier)
+}
+
+func TestGetModelPricing_Gpt56UsesStaticFallbackWhenRemoteMissing(t *testing.T) {
+	svc := &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{},
+	}
+
+	for _, model := range []string{"gpt-5.6-sol", "gpt-5.6-terra-high", "gpt-5.6-luna"} {
+		t.Run(model, func(t *testing.T) {
+			got := svc.GetModelPricing(model)
+			require.NotNil(t, got)
+			require.InDelta(t, 5e-6, got.InputCostPerToken, 1e-12)
+			require.InDelta(t, 3e-5, got.OutputCostPerToken, 1e-12)
+			require.Equal(t, 272000, got.LongContextInputTokenThreshold)
+			require.True(t, got.SupportsServiceTier)
+		})
+	}
+}
+
 func TestParsePricingData_PreservesPriorityImagePrice(t *testing.T) {
 	svc := &PricingService{}
 	pricingData, err := svc.parsePricingData([]byte(`{

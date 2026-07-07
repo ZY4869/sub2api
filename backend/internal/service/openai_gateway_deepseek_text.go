@@ -368,6 +368,7 @@ func (s *OpenAIGatewayService) buildOpenAIStyleJSONRequest(
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}
+	ApplyAccountRequestHeaderOverrides(req, account)
 	return req, nil
 }
 

@@ -78,7 +78,7 @@ func (h *GatewayHandler) forwardGeminiLiveWebSocket(c *gin.Context) {
 		return
 	}
 
-	userReleaseFunc, userAcquired, err := h.concurrencyHelper.TryAcquireUserSlot(ctx, authSubject.UserID, authSubject.Concurrency)
+	userReleaseFunc, userAcquired, err := h.concurrencyHelper.TryAcquireUserSlotForAPIKey(ctx, authSubject.UserID, currentAPIKey.ID, authSubject.Concurrency)
 	if err != nil || !userAcquired {
 		closeOpenAIClientWS(clientConn, coderws.StatusTryAgainLater, "too many concurrent requests, please retry later")
 		return

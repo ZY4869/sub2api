@@ -1,3 +1,5 @@
+import { applyAccountRequestHeaders } from '@/components/account/credentialsBuilder'
+
 export function createEditAccountSubmit(ctx: any) {
   const {
     GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS,
@@ -44,6 +46,7 @@ export function createEditAccountSubmit(ctx: any) {
     defaultBaseUrl,
     editApiKey,
     editBaseUrl,
+    editRequestHeadersText,
     editGrokSSOToken,
     editGrokTier,
     editOpenRouterHTTPReferer,
@@ -277,6 +280,12 @@ return async () => {
 
       applyAccountPoolModeStateToCredentials(newCredentials, poolModeState)
       applyAccountCustomErrorCodesStateToCredentials(newCredentials, customErrorCodesState)
+
+      const requestHeadersError = applyAccountRequestHeaders(newCredentials, editRequestHeadersText.value)
+      if (requestHeadersError) {
+        appStore.showError(t(requestHeadersError))
+        return
+      }
 
       applyInterceptWarmup(newCredentials, interceptWarmupRequests.value, 'edit')
       if (!applyTempUnschedConfig(newCredentials)) {

@@ -8,7 +8,7 @@ import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannel
 import { useAccountTempUnschedRules } from '@/composables/useAccountTempUnschedRules'
 import type { AccountManualModel } from '@/api/admin/accounts'
 import type { AccountPlatform, AccountTier, CodexImageToolPolicy, GatewayProtocol, GroupPlatform } from '@/types'
-import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
+import { applyInterceptWarmup, buildAccountRequestHeaders, formatAccountRequestHeaders } from '@/components/account/credentialsBuilder'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
@@ -163,6 +163,7 @@ const gatewayProtocol = ref<GatewayProtocol>('openai')
 const isInitializingGatewayProtocol = ref(false)
 const editBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const editApiKey = ref('')
+const editRequestHeadersText = ref('')
 const editOpenRouterHTTPReferer = ref('')
 const editOpenRouterTitle = ref('')
 const deepSeekModelConcurrencyLimits = ref(createDefaultDeepSeekModelConcurrencyLimitDraft())
@@ -255,6 +256,10 @@ const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
   const credentials: Record<string, unknown> = {
     api_key: editApiKey.value.trim() || String(currentAccountCredentials.value.api_key || '').trim(),
     base_url: editBaseUrl.value.trim() || resolveAccountApiKeyDefaultBaseUrl(props.account?.platform || 'anthropic', gatewayProtocol.value)
+  }
+  const requestHeaders = buildAccountRequestHeaders(editRequestHeadersText.value)
+  if (requestHeaders.ok && Object.keys(requestHeaders.headers).length > 0) {
+    credentials.request_headers = requestHeaders.headers
   }
   if (shouldPersistGeminiTierId.value) {
     credentials.tier_id =
@@ -911,9 +916,10 @@ const modalContext = {
   applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyGoogleBatchArchiveExtra, applyInterceptWarmup, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra,
   applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, applyAccountTierToExtra, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays,
   buildAccountModelScopeExtra, buildBaiduDocumentAICredentialsForUpdate, buildModelMappingObject, buildProbeExtra, buildScopedModelMapping, claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled,
-  codexCLIOnlyEnabled, codexImageToolPolicy, currentAccountCredentials, customErrorCodesState, deepSeekModelConcurrencyLimits, defaultBaseUrl, editApiKey, editBaseUrl, editGrokSSOToken,
+  codexCLIOnlyEnabled, codexImageToolPolicy, currentAccountCredentials, customErrorCodesState, deepSeekModelConcurrencyLimits, defaultBaseUrl, editApiKey, editBaseUrl, editRequestHeadersText, editGrokSSOToken,
   editGrokTier, editOpenRouterHTTPReferer, editOpenRouterTitle, editQuotaDailyLimit, editQuotaDailyResetHour, editQuotaDailyResetMode, editQuotaLimit, editQuotaResetTimezone,
   editQuotaWeeklyLimit, editQuotaWeeklyResetDay, editQuotaWeeklyResetHour, editQuotaWeeklyResetMode, effectivePlatform, ensureMixedChannelConfirmed, expiryProbeExtensionDays, form,
+  formatAccountRequestHeaders,
   gatewayAcceptedProtocols, gatewayBatchEnabled, gatewayClientProfiles, gatewayClientRoutes, gatewayOpenAIImageProtocolMode, gatewayOpenAIRequestFormat, gatewayProtocol, gatewayTestModelId,
   gatewayTestProvider, geminiTierAIStudio, geminiVertexAccessToken, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexExpiresAtInput, geminiVertexLocation,
   geminiVertexProjectId, geminiVertexServiceAccountJson, interceptWarmupRequests, isBaiduDocumentAIAccount, isGeminiVertexAccount, isOpenAIWSModeEnabled, isProtocolGatewayAccount, mixedScheduling,

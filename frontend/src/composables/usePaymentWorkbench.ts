@@ -44,8 +44,18 @@ export function usePaymentWorkbench(settings: () => PublicSettings | null) {
   const payableAmount = computed(() => {
     if (productType.value === 'balance_topup') return topupAmount.value
     const plan = selectedPlan.value
-    return plan?.prices_by_currency?.[selectedCurrency.value] || 0
+    return plan ? planPriceForCurrency(plan, selectedCurrency.value) : 0
   })
+
+  function planPriceForCurrency(plan: PaymentSubscriptionPlan, currency: string): number {
+    const normalizedCurrency = currency.trim().toUpperCase()
+    const directPrice = plan.prices_by_currency?.[normalizedCurrency] || 0
+    if (directPrice > 0) return directPrice
+    const rate = Number(settings()?.payment_subscription_usd_to_cny_rate) || 0
+    const usdPrice = plan.prices_by_currency?.USD || 0
+    if (normalizedCurrency !== 'CNY' || rate <= 0 || usdPrice <= 0) return 0
+    return Math.round(usdPrice * rate * 100) / 100
+  }
 
   const canCreate = computed(() => {
     if (!selectedCurrency.value || creating.value) return false
@@ -155,6 +165,7 @@ export function usePaymentWorkbench(settings: () => PublicSettings | null) {
     enabledPlans,
     selectedPlan,
     payableAmount,
+    planPriceForCurrency,
     canCreate,
     createOrder,
     refreshOrder,

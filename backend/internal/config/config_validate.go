@@ -539,7 +539,7 @@ func (c *Config) Validate() error {
 	if c.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds < 0 {
 		return fmt.Errorf("gateway.openai_ws.sticky_previous_response_ttl_seconds must be non-negative")
 	}
-	if c.Gateway.OpenAIWS.SchedulerScoreWeights.Priority < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.Load < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.Queue < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.ErrorRate < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.TTFT < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.QuotaHeadroom < 0 {
+	if c.Gateway.OpenAIWS.SchedulerScoreWeights.Priority < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.Load < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.Queue < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.ErrorRate < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.TTFT < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.QuotaHeadroom < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.PreviousResponse < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.SessionSticky < 0 {
 		return fmt.Errorf("gateway.openai_ws.scheduler_score_weights.* must be non-negative")
 	}
 	weightSum := c.Gateway.OpenAIWS.SchedulerScoreWeights.Priority + c.Gateway.OpenAIWS.SchedulerScoreWeights.Load + c.Gateway.OpenAIWS.SchedulerScoreWeights.Queue + c.Gateway.OpenAIWS.SchedulerScoreWeights.ErrorRate + c.Gateway.OpenAIWS.SchedulerScoreWeights.TTFT + c.Gateway.OpenAIWS.SchedulerScoreWeights.QuotaHeadroom

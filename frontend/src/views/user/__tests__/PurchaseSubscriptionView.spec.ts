@@ -17,6 +17,7 @@ const testState = vi.hoisted(() => ({
       payment_min_topup_amount: 1,
       payment_max_topup_amount: 5000,
       payment_subscription_plans: [],
+      payment_subscription_usd_to_cny_rate: 0,
     },
   },
 }))
@@ -62,6 +63,7 @@ describe('PurchaseSubscriptionView', () => {
     testState.appStoreState.cachedPublicSettings.payment_min_topup_amount = 1
     testState.appStoreState.cachedPublicSettings.payment_max_topup_amount = 5000
     testState.appStoreState.cachedPublicSettings.payment_subscription_plans = []
+    testState.appStoreState.cachedPublicSettings.payment_subscription_usd_to_cny_rate = 0
     document.documentElement.classList.remove('dark')
   })
 

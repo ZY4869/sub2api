@@ -288,7 +288,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 	routingStart := time.Now()
 
-	userReleaseFunc, acquired := h.acquireUserSlot(c, subject.UserID, subject.Concurrency, reqStream, &streamStarted, reqLog)
+	userReleaseFunc, acquired := h.acquireUserSlot(c, subject.UserID, apiKey.ID, subject.Concurrency, reqStream, &streamStarted, reqLog)
 	if !acquired {
 		return
 	}
@@ -647,9 +647,9 @@ func (h *GrokGatewayHandler) handleFailoverExhausted(c *gin.Context, err *servic
 	h.handleStreamingAwareError(c, status, errType, message, streamStarted)
 }
 
-func (h *GrokGatewayHandler) acquireUserSlot(c *gin.Context, userID int64, userConcurrency int, reqStream bool, streamStarted *bool, reqLog *zap.Logger) (func(), bool) {
+func (h *GrokGatewayHandler) acquireUserSlot(c *gin.Context, userID int64, apiKeyID int64, userConcurrency int, reqStream bool, streamStarted *bool, reqLog *zap.Logger) (func(), bool) {
 	ctx := c.Request.Context()
-	userReleaseFunc, userAcquired, err := h.concurrencyHelper.TryAcquireUserSlot(ctx, userID, userConcurrency)
+	userReleaseFunc, userAcquired, err := h.concurrencyHelper.TryAcquireUserSlotForAPIKey(ctx, userID, apiKeyID, userConcurrency)
 	if err != nil {
 		reqLog.Warn("grok.user_slot_acquire_failed", zap.Error(err))
 		h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Concurrency limit exceeded for user, please retry later", *streamStarted)
@@ -674,7 +674,7 @@ func (h *GrokGatewayHandler) acquireUserSlot(c *gin.Context, userID int64, userC
 		}
 	}()
 
-	userReleaseFunc, err = h.concurrencyHelper.AcquireUserSlotWithWait(c, userID, userConcurrency, reqStream, streamStarted)
+	userReleaseFunc, err = h.concurrencyHelper.AcquireUserSlotWithWaitForAPIKey(c, userID, apiKeyID, userConcurrency, reqStream, streamStarted)
 	if err != nil {
 		reqLog.Warn("grok.user_slot_acquire_failed_after_wait", zap.Error(err))
 		h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Concurrency limit exceeded for user, please retry later", *streamStarted)

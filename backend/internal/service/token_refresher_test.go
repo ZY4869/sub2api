@@ -280,3 +280,44 @@ func TestOpenAITokenRefresher_NeedsRefresh_MissingExpiresAt(t *testing.T) {
 		require.False(t, refresher.NeedsRefresh(account, refreshWindow))
 	})
 }
+
+func TestAntigravityTokenRefresher_NeedsRefresh_ForceRefreshMarker(t *testing.T) {
+	refresher := NewAntigravityTokenRefresher(nil)
+	account := &Account{
+		ID:       3675,
+		Platform: PlatformAntigravity,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"expires_at": time.Now().Add(time.Hour).Format(time.RFC3339),
+		},
+		Extra: antigravityForceTokenRefreshExtra("401_invalid"),
+	}
+
+	require.True(t, refresher.NeedsRefresh(account, 0), "server-invalidated token must refresh before expires_at")
+}
+
+func TestAntigravityTokenRefresher_NeedsRefresh_NormalExpiryRulesUnchanged(t *testing.T) {
+	refresher := NewAntigravityTokenRefresher(nil)
+
+	t.Run("normal unexpired token stays fresh", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformAntigravity,
+			Type:     AccountTypeOAuth,
+			Credentials: map[string]any{
+				"expires_at": time.Now().Add(time.Hour).Format(time.RFC3339),
+			},
+		}
+		require.False(t, refresher.NeedsRefresh(account, 0))
+	})
+
+	t.Run("expiring token refreshes", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformAntigravity,
+			Type:     AccountTypeOAuth,
+			Credentials: map[string]any{
+				"expires_at": time.Now().Add(5 * time.Minute).Format(time.RFC3339),
+			},
+		}
+		require.True(t, refresher.NeedsRefresh(account, 0))
+	})
+}

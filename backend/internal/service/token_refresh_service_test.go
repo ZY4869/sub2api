@@ -20,7 +20,10 @@ type tokenRefreshAccountRepo struct {
 	setErrorCalls          int
 	clearTempCalls         int
 	setTempUnschedCalls    int
+	updateExtraCalls       int
 	lastAccount            *Account
+	lastExtraUpdates       map[string]any
+	extraUpdateHistory     []map[string]any
 	updateErr              error
 }
 
@@ -62,6 +65,24 @@ func (r *tokenRefreshAccountRepo) ClearTempUnschedulable(ctx context.Context, id
 func (r *tokenRefreshAccountRepo) SetTempUnschedulable(ctx context.Context, id int64, until time.Time, reason string) error {
 	r.setTempUnschedCalls++
 	return nil
+}
+
+func (r *tokenRefreshAccountRepo) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
+	r.updateExtraCalls++
+	cloned := cloneStringAnyMap(updates)
+	r.lastExtraUpdates = cloned
+	r.extraUpdateHistory = append(r.extraUpdateHistory, cloned)
+	return nil
+}
+
+func requireExtraBoolUpdate(t *testing.T, repo *tokenRefreshAccountRepo, key string, want bool) {
+	t.Helper()
+	for _, updates := range repo.extraUpdateHistory {
+		if got, ok := updates[key].(bool); ok && got == want {
+			return
+		}
+	}
+	require.Failf(t, "missing extra update", "key %q with bool value %v was not updated", key, want)
 }
 
 func cloneCredentials(src map[string]any) map[string]any {
@@ -238,6 +259,36 @@ func TestTokenRefreshService_RefreshWithRetry_Antigravity(t *testing.T) {
 	require.Equal(t, 1, invalidator.calls) // Antigravity 也应触发缓存失效
 }
 
+func TestTokenRefreshService_RefreshWithRetry_AntigravityClearsForceRefreshOnSuccess(t *testing.T) {
+	repo := &tokenRefreshAccountRepo{}
+	invalidator := &tokenCacheInvalidatorStub{}
+	cfg := &config.Config{
+		TokenRefresh: config.TokenRefreshConfig{
+			MaxRetries:          1,
+			RetryBackoffSeconds: 0,
+		},
+	}
+	service := NewTokenRefreshService(repo, nil, nil, nil, nil, nil, invalidator, nil, cfg, nil)
+	until := time.Now().Add(10 * time.Minute)
+	account := &Account{
+		ID:                     3709,
+		Platform:               PlatformAntigravity,
+		Type:                   AccountTypeOAuth,
+		TempUnschedulableUntil: &until,
+		Extra:                  antigravityForceTokenRefreshExtra("401_invalid"),
+	}
+	refresher := &tokenRefresherStub{
+		credentials: map[string]any{"access_token": "ag-token"},
+	}
+
+	err := service.refreshWithRetry(context.Background(), account, refresher, refresher, time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, 1, repo.clearTempCalls)
+	require.GreaterOrEqual(t, repo.updateExtraCalls, 1)
+	requireExtraBoolUpdate(t, repo, antigravityForceTokenRefreshExtraKey, false)
+	require.Equal(t, false, account.Extra[antigravityForceTokenRefreshExtraKey])
+}
+
 // TestTokenRefreshService_RefreshWithRetry_NonOAuthAccount 测试非 OAuth 账号不触发缓存失效
 func TestTokenRefreshService_RefreshWithRetry_NonOAuthAccount(t *testing.T) {
 	repo := &tokenRefreshAccountRepo{}
@@ -392,6 +443,7 @@ func TestTokenRefreshService_RefreshWithRetry_AntigravityNonRetryableError(t *te
 		ID:       14,
 		Platform: PlatformAntigravity,
 		Type:     AccountTypeOAuth,
+		Extra:    antigravityForceTokenRefreshExtra("401_invalid"),
 	}
 	refresher := &tokenRefresherStub{
 		err: errors.New("invalid_grant: token revoked"), // 不可重试错误
@@ -402,6 +454,8 @@ func TestTokenRefreshService_RefreshWithRetry_AntigravityNonRetryableError(t *te
 	require.Equal(t, 0, repo.updateCalls)
 	require.Equal(t, 0, invalidator.calls)
 	require.Equal(t, 1, repo.setErrorCalls) // 不可重试错误应设置错误状态
+	require.Equal(t, 1, repo.updateExtraCalls)
+	requireExtraBoolUpdate(t, repo, antigravityForceTokenRefreshExtraKey, false)
 }
 
 // TestTokenRefreshService_RefreshWithRetry_ClearsTempUnschedulable 测试刷新成功后清除临时不可调度（DB + Redis）

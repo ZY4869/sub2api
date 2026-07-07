@@ -92,7 +92,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 	routingStart := time.Now()
 	streamStarted := false
 
-	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, false, &streamStarted, reqLog)
+	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, apiKey.ID, subject.Concurrency, false, &streamStarted, reqLog)
 	if !acquired {
 		return
 	}

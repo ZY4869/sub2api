@@ -14,6 +14,7 @@ const DEFAULT_HIDDEN_COLUMNS = [
   "proxy",
   "notes",
   "priority",
+  "scheduler_score",
   "rate_multiplier",
 ];
 const HIDDEN_COLUMNS_KEY = "account-hidden-columns";

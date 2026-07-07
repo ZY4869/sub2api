@@ -44,6 +44,7 @@ export function useEditAccountModalWatchers(ctx: any) {
     deriveConfiguredAccountModelIds,
     editApiKey,
     editBaseUrl,
+    editRequestHeadersText,
     editGrokSSOToken,
     editGrokTier,
     editOpenRouterHTTPReferer,
@@ -60,6 +61,7 @@ export function useEditAccountModalWatchers(ctx: any) {
     ensureModelRegistryFresh,
     expiryProbeExtensionDays,
     form,
+    formatAccountRequestHeaders,
     formatDateTimeLocal,
     gatewayAcceptedProtocols,
     gatewayBatchEnabled,
@@ -423,6 +425,7 @@ watch(
         } else {
           const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
           editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
+          editRequestHeadersText.value = formatAccountRequestHeaders(credentials)
           if (newAccount.platform === 'openrouter') {
             editOpenRouterHTTPReferer.value = String(credentials.http_referer || '').trim()
             editOpenRouterTitle.value = String(credentials.openrouter_title || '').trim()

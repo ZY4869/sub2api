@@ -49,6 +49,12 @@ type ConcurrencyCache interface {
 	CleanupStaleProcessSlots(ctx context.Context, activeRequestPrefix string) error
 }
 
+type apiKeyConcurrencyCache interface {
+	TrackAPIKeySlot(ctx context.Context, apiKeyID int64, requestID string) error
+	ReleaseAPIKeySlot(ctx context.Context, apiKeyID int64, requestID string) error
+	GetAPIKeyConcurrencyBatch(ctx context.Context, apiKeyIDs []int64) (map[int64]int, error)
+}
+
 var (
 	requestIDPrefix  = initRequestIDPrefix()
 	requestIDCounter atomic.Uint64
@@ -210,6 +216,52 @@ func (s *ConcurrencyService) AcquireUserSlot(ctx context.Context, userID int64, 
 	}, nil
 }
 
+func (s *ConcurrencyService) AcquireUserSlotForAPIKey(ctx context.Context, userID int64, apiKeyID int64, maxConcurrency int) (*AcquireResult, error) {
+	result, err := s.AcquireUserSlot(ctx, userID, maxConcurrency)
+	if err != nil || result == nil || !result.Acquired {
+		return result, err
+	}
+	apiKeyRelease, trackErr := s.TrackAPIKeySlot(ctx, apiKeyID)
+	if trackErr != nil {
+		logger.LegacyPrintf("service.concurrency", "Warning: failed to track api key slot for %d: %v", apiKeyID, trackErr)
+		return result, nil
+	}
+	userRelease := result.ReleaseFunc
+	result.ReleaseFunc = func() {
+		if apiKeyRelease != nil {
+			apiKeyRelease()
+		}
+		if userRelease != nil {
+			userRelease()
+		}
+	}
+	return result, nil
+}
+
+// TrackAPIKeySlot records real-time API key concurrency for display and metrics.
+// It is stats-only: failures are returned to the caller for logging but must not
+// affect the gateway's user/account concurrency admission result.
+func (s *ConcurrencyService) TrackAPIKeySlot(ctx context.Context, apiKeyID int64) (func(), error) {
+	if s == nil || s.cache == nil || apiKeyID <= 0 {
+		return func() {}, nil
+	}
+	cache, ok := s.cache.(apiKeyConcurrencyCache)
+	if !ok {
+		return func() {}, nil
+	}
+	requestID := generateRequestID()
+	if err := cache.TrackAPIKeySlot(ctx, apiKeyID, requestID); err != nil {
+		return nil, err
+	}
+	return func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := cache.ReleaseAPIKeySlot(bgCtx, apiKeyID, requestID); err != nil {
+			logger.LegacyPrintf("service.concurrency", "Warning: failed to release api key slot for %d (req=%s): %v", apiKeyID, requestID, err)
+		}
+	}, nil
+}
+
 // ============================================
 // Wait Queue Count Methods
 // ============================================
@@ -358,6 +410,33 @@ func (s *ConcurrencyService) GetAccountConcurrencyBatch(ctx context.Context, acc
 		return result, nil
 	}
 	return s.cache.GetAccountConcurrencyBatch(ctx, accountIDs)
+}
+
+// GetAPIKeyConcurrencyBatch gets current stats-only concurrency counts for API keys.
+func (s *ConcurrencyService) GetAPIKeyConcurrencyBatch(ctx context.Context, apiKeyIDs []int64) (map[int64]int, error) {
+	result := make(map[int64]int, len(apiKeyIDs))
+	for _, apiKeyID := range apiKeyIDs {
+		if apiKeyID > 0 {
+			result[apiKeyID] = 0
+		}
+	}
+	if len(result) == 0 || s == nil || s.cache == nil {
+		return result, nil
+	}
+	cache, ok := s.cache.(apiKeyConcurrencyCache)
+	if !ok {
+		return result, nil
+	}
+	counts, err := cache.GetAPIKeyConcurrencyBatch(ctx, apiKeyIDs)
+	if err != nil {
+		return result, err
+	}
+	for apiKeyID, count := range counts {
+		if apiKeyID > 0 && count > 0 {
+			result[apiKeyID] = count
+		}
+	}
+	return result, nil
 }
 
 func (s *ConcurrencyService) GetTrackedActiveAccountIDs(ctx context.Context) ([]int64, error) {

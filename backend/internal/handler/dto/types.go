@@ -52,18 +52,19 @@ type AdminUser struct {
 }
 
 type APIKey struct {
-	ID               int64      `json:"id"`
-	UserID           int64      `json:"user_id"`
-	Key              string     `json:"key"`
-	Name             string     `json:"name"`
-	Deleted          bool       `json:"deleted"`
-	ModelDisplayMode string     `json:"model_display_mode"`
-	GroupID          *int64     `json:"group_id"`
-	GroupIDs         []int64    `json:"group_ids,omitempty"`
-	Status           string     `json:"status"`
-	IPWhitelist      []string   `json:"ip_whitelist"`
-	IPBlacklist      []string   `json:"ip_blacklist"`
-	LastUsedAt       *time.Time `json:"last_used_at"`
+	ID                 int64      `json:"id"`
+	UserID             int64      `json:"user_id"`
+	Key                string     `json:"key"`
+	Name               string     `json:"name"`
+	Deleted            bool       `json:"deleted"`
+	ModelDisplayMode   string     `json:"model_display_mode"`
+	GroupID            *int64     `json:"group_id"`
+	GroupIDs           []int64    `json:"group_ids,omitempty"`
+	Status             string     `json:"status"`
+	IPWhitelist        []string   `json:"ip_whitelist"`
+	IPBlacklist        []string   `json:"ip_blacklist"`
+	LastUsedAt         *time.Time `json:"last_used_at"`
+	CurrentConcurrency int        `json:"current_concurrency"`
 
 	// Image-only fields
 	ImageOnlyEnabled         bool           `json:"image_only_enabled"`

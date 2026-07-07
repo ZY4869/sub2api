@@ -22,6 +22,7 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		IPWhitelist:              k.IPWhitelist,
 		IPBlacklist:              k.IPBlacklist,
 		LastUsedAt:               k.LastUsedAt,
+		CurrentConcurrency:       k.CurrentConcurrency,
 		ImageOnlyEnabled:         k.ImageOnlyEnabled,
 		ImageCountBillingEnabled: k.ImageCountBillingEnabled,
 		ImageMaxCount:            k.ImageMaxCount,

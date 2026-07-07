@@ -1,6 +1,7 @@
 import type { AccountModelProbeSnapshotDraft } from '@/utils/accountProbeDraft'
 import type { ParsedGrokOAuthPayload } from '@/utils/grokOAuth'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
+import { applyAccountRequestHeaders } from '@/components/account/credentialsBuilder'
 
 export function createCreateAccountSubmit(ctx: any) {
   const {
@@ -20,6 +21,7 @@ export function createCreateAccountSubmit(ctx: any) {
     antigravityOAuth,
     antigravityWhitelistModels,
     apiKeyBaseUrl,
+    apiKeyRequestHeadersText,
     apiKeyValue,
     appStore,
     applyAccountCustomErrorCodesStateToCredentials,
@@ -658,6 +660,12 @@ const handleSubmit = async () => {
 
   applyAccountPoolModeStateToCredentials(credentials, poolModeState)
   applyAccountCustomErrorCodesStateToCredentials(credentials, customErrorCodesState)
+
+  const requestHeadersError = applyAccountRequestHeaders(credentials, apiKeyRequestHeadersText.value)
+  if (requestHeadersError) {
+    appStore.showError(t(requestHeadersError))
+    return
+  }
 
   applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
   const extra = buildAccountExtra(

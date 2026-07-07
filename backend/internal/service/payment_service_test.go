@@ -219,6 +219,9 @@ func (r *paymentRepoStub) AssignOrExtendSubscription(context.Context, *AssignSub
 type airwallexStub struct {
 	intentReq      AirwallexPaymentIntentRequest
 	refundReq      AirwallexRefundRequest
+	intentID       string
+	clientSecret   string
+	refundID       string
 	failIntent     error
 	failRefund     error
 	retrieveStatus string
@@ -233,12 +236,28 @@ func (a *airwallexStub) CreatePaymentIntent(_ context.Context, _ PaymentSettings
 	if a.failIntent != nil {
 		return nil, a.failIntent
 	}
-	return &AirwallexPaymentIntentResponse{ID: "int_123", ClientSecret: "secret", Status: "REQUIRES_PAYMENT_METHOD"}, nil
+	id := a.intentID
+	if id == "" {
+		id = "int_123"
+	}
+	secret := a.clientSecret
+	if secret == "" {
+		secret = "secret"
+	}
+	return &AirwallexPaymentIntentResponse{ID: id, ClientSecret: secret, Status: "REQUIRES_PAYMENT_METHOD"}, nil
 }
 
 func (a *airwallexStub) RetrievePaymentIntent(context.Context, PaymentSettings, string) (*AirwallexPaymentIntentResponse, error) {
 	a.retrieves++
-	return &AirwallexPaymentIntentResponse{ID: "int_123", ClientSecret: "secret2", Status: a.retrieveStatus}, nil
+	id := a.intentID
+	if id == "" {
+		id = "int_123"
+	}
+	secret := a.clientSecret
+	if secret == "" {
+		secret = "secret2"
+	}
+	return &AirwallexPaymentIntentResponse{ID: id, ClientSecret: secret, Status: a.retrieveStatus}, nil
 }
 
 func (a *airwallexStub) CreateRefund(_ context.Context, _ PaymentSettings, req AirwallexRefundRequest) (*AirwallexRefundResponse, error) {
@@ -250,7 +269,11 @@ func (a *airwallexStub) CreateRefund(_ context.Context, _ PaymentSettings, req A
 	if status == "" {
 		status = "succeeded"
 	}
-	return &AirwallexRefundResponse{ID: "rf_provider", Status: status}, nil
+	id := a.refundID
+	if id == "" {
+		id = "rf_provider"
+	}
+	return &AirwallexRefundResponse{ID: id, Status: status}, nil
 }
 
 func (a *airwallexStub) VerifyWebhookSignature(string, string, string, []byte) error { return nil }
@@ -374,14 +397,67 @@ func TestPaymentServiceCreateOrderNormalizesSubscriptionPrice(t *testing.T) {
 	require.Equal(t, int64(1235), result.Order.AmountMinor)
 }
 
+func TestPaymentServiceCreateSubscriptionOrderConvertsUSDPlanToCNYWhenOptIn(t *testing.T) {
+	settings := paymentTestSettings()
+	settings.SubscriptionUSDToCNYRate = 7.15
+	svc := newPaymentServiceTestSubject(newPaymentRepoStub(), &airwallexStub{})
+	svc.paymentSettingsOverride = func(context.Context) PaymentSettings {
+		return settings
+	}
+
+	result, err := svc.CreateOrder(context.Background(), CreatePaymentOrderInput{
+		UserID: 7, ProductType: PaymentProductSubscription, Currency: "CNY", PlanID: "pro",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(8938), result.Order.AmountMinor)
+	var snapshot paymentOrderSnapshot
+	require.NoError(t, json.Unmarshal(result.Order.SnapshotJSON, &snapshot))
+	require.Equal(t, "CNY", snapshot.Currency)
+	require.Equal(t, "USD", snapshot.ConvertedFrom)
+	require.Equal(t, 7.15, snapshot.ConversionRate)
+}
+
+func TestPaymentServiceCreateSubscriptionOrderRequiresOptInForUSDToCNY(t *testing.T) {
+	settings := paymentTestSettings()
+	settings.SubscriptionUSDToCNYRate = 0
+	svc := newPaymentServiceTestSubject(newPaymentRepoStub(), &airwallexStub{})
+	svc.paymentSettingsOverride = func(context.Context) PaymentSettings {
+		return settings
+	}
+
+	_, err := svc.CreateOrder(context.Background(), CreatePaymentOrderInput{
+		UserID: 7, ProductType: PaymentProductSubscription, Currency: "CNY", PlanID: "pro",
+	})
+
+	require.ErrorIs(t, err, ErrPaymentUnsupportedCurrency)
+}
+
+func TestPaymentServiceCreateOrderSanitizesProviderIntentNUL(t *testing.T) {
+	repo := newPaymentRepoStub()
+	air := &airwallexStub{intentID: "int_\x00123", clientSecret: "sec\x00ret"}
+	svc := newPaymentServiceTestSubject(repo, air)
+
+	result, err := svc.CreateOrder(context.Background(), CreatePaymentOrderInput{
+		UserID: 7, ProductType: PaymentProductBalanceTopup, Amount: 12.34, Currency: "USD",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "int_123", result.IntentID)
+	require.Equal(t, "secret", result.ClientSecret)
+	require.Equal(t, "int_123", result.Order.ProviderIntentID)
+	require.NotContains(t, result.Order.ProviderIntentID, "\x00")
+}
+
 func TestPaymentSettingsDropUnsafeAmounts(t *testing.T) {
 	settings := paymentSettingsFromRaw(map[string]string{
-		SettingKeyPaymentAllowedCurrencies:    `["USD","CNY","JPY"]`,
-		SettingKeyPaymentDefaultCurrency:      "USD",
-		SettingKeyPaymentMinTopupAmount:       "1.005",
-		SettingKeyPaymentMaxTopupAmount:       "+Inf",
-		SettingKeyPaymentSubscriptionPlans:    `[{"plan_id":"pro","group_id":9,"validity_days":30,"enabled":true,"prices_by_currency":{"USD":0.30000000000000004,"JPY":12.5,"CNY":10000000000}}]`,
-		SettingKeyPurchaseSubscriptionEnabled: "true",
+		SettingKeyPaymentAllowedCurrencies:        `["USD","CNY","JPY"]`,
+		SettingKeyPaymentDefaultCurrency:          "USD",
+		SettingKeyPaymentMinTopupAmount:           "1.005",
+		SettingKeyPaymentMaxTopupAmount:           "+Inf",
+		SettingKeyPaymentSubscriptionPlans:        `[{"plan_id":"pro","group_id":9,"validity_days":30,"enabled":true,"prices_by_currency":{"USD":0.30000000000000004,"JPY":12.5,"CNY":10000000000}}]`,
+		SettingKeyPaymentSubscriptionUSDToCNYRate: "-1",
+		SettingKeyPurchaseSubscriptionEnabled:     "true",
 	})
 
 	require.Equal(t, 1.01, settings.MinTopupAmount)
@@ -389,6 +465,7 @@ func TestPaymentSettingsDropUnsafeAmounts(t *testing.T) {
 	require.Len(t, settings.SubscriptionPlans, 1)
 	require.Equal(t, 0.3, settings.SubscriptionPlans[0].PricesByCurrency["USD"])
 	require.Equal(t, 13.0, settings.SubscriptionPlans[0].PricesByCurrency["JPY"])
+	require.Zero(t, settings.SubscriptionUSDToCNYRate)
 	_, ok := settings.SubscriptionPlans[0].PricesByCurrency["CNY"]
 	require.False(t, ok)
 }
@@ -525,6 +602,28 @@ func TestPaymentServiceWebhookPaidRedactsPayloadAndFulfillsInTransaction(t *test
 	require.Equal(t, int64(1), SnapshotPaymentRuntimeMetrics().WebhookSuccess)
 }
 
+func TestPaymentServiceWebhookSanitizesProviderPayloadNUL(t *testing.T) {
+	repo := newPaymentRepoStub()
+	order := &PaymentOrder{
+		ID: 3, OrderNo: "pay_1", UserID: 7, ProductType: PaymentProductBalanceTopup,
+		Status: PaymentStatusPending, Provider: PaymentProviderAirwallex, ProviderIntentID: "int_123",
+		AmountMinor: 1500, Currency: "USD",
+	}
+	repo.orders[order.OrderNo] = order
+	repo.ordersByIntent[order.ProviderIntentID] = order
+	svc := newPaymentServiceTestSubject(repo, &airwallexStub{})
+
+	body := []byte(`{"id":"evt_1\u0000","name":"payment_intent.succeeded\u0000","data":{"id":"int_123\u0000","note":"ok\u0000"}}`)
+	require.NoError(t, svc.HandleAirwallexWebhook(context.Background(), "ts", "sig", body))
+
+	event := repo.events["evt_1"]
+	require.NotNil(t, event)
+	require.Equal(t, "evt_1", event.ProviderEventID)
+	require.Equal(t, "payment_intent.succeeded", event.EventType)
+	require.NotContains(t, string(event.PayloadRedactedJSON), "\x00")
+	require.NotContains(t, string(event.PayloadRedactedJSON), `\u0000`)
+}
+
 func TestPaymentServiceWebhookPaidInvalidatesAuthCacheAfterTopup(t *testing.T) {
 	repo := newPaymentRepoStub()
 	order := &PaymentOrder{
@@ -611,6 +710,25 @@ func TestPaymentServiceRefundOrderUsesIdempotencyAndProvider(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, refund.RefundNo, again.RefundNo)
 	require.Equal(t, int64(2), SnapshotPaymentRuntimeMetrics().RefundSuccess)
+}
+
+func TestPaymentServiceRefundOrderSanitizesProviderRefundNUL(t *testing.T) {
+	repo := newPaymentRepoStub()
+	order := &PaymentOrder{
+		OrderNo: "pay_1", UserID: 7, ProductType: PaymentProductBalanceTopup, Status: PaymentStatusPaid,
+		Provider: PaymentProviderAirwallex, ProviderIntentID: "int_123", AmountMinor: 1500, Currency: "USD",
+	}
+	repo.orders[order.OrderNo] = order
+	svc := newPaymentServiceTestSubject(repo, &airwallexStub{refundID: "rf_\x00provider", refundStatus: "succeeded\x00"})
+
+	refund, err := svc.RefundOrder(context.Background(), RefundPaymentOrderInput{
+		OrderNo: order.OrderNo, AmountMinor: 500, Reason: "requested", RequestedBy: 1, IdempotencyKey: "sanitize-refund",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "rf_provider", refund.ProviderRefundID)
+	require.Equal(t, PaymentRefundStatusSettled, refund.Status)
+	require.NotContains(t, refund.ProviderRefundID, "\x00")
 }
 
 func TestPaymentServiceFullRefundMarksOrderRefunded(t *testing.T) {

@@ -64,6 +64,7 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(ctx context.Context, c *gin.Con
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}
+	ApplyAccountRequestHeaderOverrides(req, account)
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {

@@ -47,6 +47,12 @@
       <ApiKeyUsageSummary :api-key="row" :stats="usageStats[row.id]" :is-admin-mode="isAdminMode" />
     </template>
 
+    <template #cell-current_concurrency="{ row }">
+      <span class="inline-flex min-w-8 justify-center rounded border border-gray-200 bg-gray-50 px-2 py-0.5 font-mono text-sm text-gray-700 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-200">
+        {{ row.current_concurrency ?? 0 }}
+      </span>
+    </template>
+
     <template #cell-rate_limit="{ row }">
       <div
         v-if="row.rate_limit_5h > 0 || row.rate_limit_1d > 0 || row.rate_limit_7d > 0"

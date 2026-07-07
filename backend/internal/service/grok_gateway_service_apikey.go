@@ -543,6 +543,7 @@ func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/json")
+	ApplyAccountRequestHeaderOverrides(req, account)
 
 	proxyURL := ""
 	if account.Proxy != nil {

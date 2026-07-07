@@ -69,52 +69,74 @@ type SystemSettings struct {
 	ContentModerationCyberPolicyEnabled  bool
 	ContentModerationCyberCategories     []ContentModerationCyberCategory
 
-	SiteName                             string
-	SiteLogo                             string
-	SiteSubtitle                         string
-	VisualPresetDefault                  string
-	AccountAiryWhiteSurfaceEnabled       bool
-	APIBaseURL                           string
-	ContactInfo                          string
-	DocURL                               string
-	HomeContent                          string
-	HideCcsImportButton                  bool
-	AvailableChannelsEnabled             bool
-	ChannelMonitorEnabled                bool
-	ChannelMonitorDefaultIntervalSeconds int
-	UsageIPGeoEnabled                    bool
-	UsageIPGeoProviderURL                string
-	UsageIPGeoTimeoutMs                  int
-	PublicModelCatalogEnabled            bool
-	PurchaseSubscriptionEnabled          bool
-	PurchaseSubscriptionURL              string
-	PaymentProviderAirwallexEnabled      bool
-	PaymentProviderAirwallexEffective    bool
-	AirwallexEnv                         string
-	AirwallexClientID                    string
-	AirwallexAPIKey                      string
-	AirwallexAPIKeyConfigured            bool
-	AirwallexWebhookSecret               string
-	AirwallexWebhookSecretConfigured     bool
-	PaymentMobileForceQRCodeEnabled      bool
-	PaymentAllowedCurrencies             []string
-	PaymentDefaultCurrency               string
-	PaymentMinTopupAmount                float64
-	PaymentMaxTopupAmount                float64
-	PaymentSubscriptionPlans             []PaymentSubscriptionPlan
-	BillingCurrencyConversionEnabled     bool
-	BillingCurrencyCNYToUSDRate          float64
-	BillingCurrencyUSDToCNYRate          float64
-	AntigravityUserAgentVersion          string
-	CodexOAuthUserAgentMode              string
-	CodexOAuthUserAgentOverride          string
-	OpenAIAllowClaudeCodeCodexPlugin     bool
-	OpenAIAllowedCodexClients            []string
-	CustomMenuItems                      string // JSON array of custom menu items
-	LoginAgreementEnabled                bool
-	LoginAgreementMode                   string
-	LoginAgreementUpdatedAt              string
-	LoginAgreementDocuments              []LoginAgreementDocument
+	SiteName                                               string
+	SiteLogo                                               string
+	SiteSubtitle                                           string
+	VisualPresetDefault                                    string
+	AccountAiryWhiteSurfaceEnabled                         bool
+	APIBaseURL                                             string
+	ContactInfo                                            string
+	DocURL                                                 string
+	HomeContent                                            string
+	HideCcsImportButton                                    bool
+	AvailableChannelsEnabled                               bool
+	ChannelMonitorEnabled                                  bool
+	ChannelMonitorDefaultIntervalSeconds                   int
+	UsageIPGeoEnabled                                      bool
+	UsageIPGeoProviderURL                                  string
+	UsageIPGeoTimeoutMs                                    int
+	PublicModelCatalogEnabled                              bool
+	PurchaseSubscriptionEnabled                            bool
+	PurchaseSubscriptionURL                                string
+	PaymentProviderAirwallexEnabled                        bool
+	PaymentProviderAirwallexEffective                      bool
+	AirwallexEnv                                           string
+	AirwallexClientID                                      string
+	AirwallexAPIKey                                        string
+	AirwallexAPIKeyConfigured                              bool
+	AirwallexWebhookSecret                                 string
+	AirwallexWebhookSecretConfigured                       bool
+	PaymentMobileForceQRCodeEnabled                        bool
+	PaymentAllowedCurrencies                               []string
+	PaymentDefaultCurrency                                 string
+	PaymentMinTopupAmount                                  float64
+	PaymentMaxTopupAmount                                  float64
+	PaymentSubscriptionPlans                               []PaymentSubscriptionPlan
+	PaymentSubscriptionUSDToCNYRate                        float64
+	BillingCurrencyConversionEnabled                       bool
+	BillingCurrencyCNYToUSDRate                            float64
+	BillingCurrencyUSDToCNYRate                            float64
+	AntigravityUserAgentVersion                            string
+	CodexOAuthUserAgentMode                                string
+	CodexOAuthUserAgentOverride                            string
+	OpenAIAllowClaudeCodeCodexPlugin                       bool
+	OpenAIAllowedCodexClients                              []string
+	OpenAIAdvancedSchedulerEnabled                         bool
+	OpenAIAdvancedSchedulerStickyWeightedEnabled           bool
+	OpenAIAdvancedSchedulerSubscriptionPriorityEnabled     bool
+	OpenAIAdvancedSchedulerLBTopK                          string
+	OpenAIAdvancedSchedulerWeightPriority                  string
+	OpenAIAdvancedSchedulerWeightLoad                      string
+	OpenAIAdvancedSchedulerWeightQueue                     string
+	OpenAIAdvancedSchedulerWeightErrorRate                 string
+	OpenAIAdvancedSchedulerWeightTTFT                      string
+	OpenAIAdvancedSchedulerWeightQuotaHeadroom             string
+	OpenAIAdvancedSchedulerWeightPreviousResponse          string
+	OpenAIAdvancedSchedulerWeightSessionSticky             string
+	OpenAIAdvancedSchedulerEffectiveLBTopK                 string
+	OpenAIAdvancedSchedulerEffectiveWeightPriority         string
+	OpenAIAdvancedSchedulerEffectiveWeightLoad             string
+	OpenAIAdvancedSchedulerEffectiveWeightQueue            string
+	OpenAIAdvancedSchedulerEffectiveWeightErrorRate        string
+	OpenAIAdvancedSchedulerEffectiveWeightTTFT             string
+	OpenAIAdvancedSchedulerEffectiveWeightQuotaHeadroom    string
+	OpenAIAdvancedSchedulerEffectiveWeightPreviousResponse string
+	OpenAIAdvancedSchedulerEffectiveWeightSessionSticky    string
+	CustomMenuItems                                        string // JSON array of custom menu items
+	LoginAgreementEnabled                                  bool
+	LoginAgreementMode                                     string
+	LoginAgreementUpdatedAt                                string
+	LoginAgreementDocuments                                []LoginAgreementDocument
 
 	// Affiliate rebate configuration
 	AffiliateEnabled              bool
@@ -233,6 +255,7 @@ type PublicSettings struct {
 	PaymentMinTopupAmount           float64
 	PaymentMaxTopupAmount           float64
 	PaymentSubscriptionPlans        []PaymentSubscriptionPlan
+	PaymentSubscriptionUSDToCNYRate float64
 	CustomMenuItems                 string // JSON array of custom menu items
 	LoginAgreementEnabled           bool
 	LoginAgreementMode              string

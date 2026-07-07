@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
 
@@ -11,6 +13,7 @@ func (s *APIKeyService) List(ctx context.Context, userID int64, params paginatio
 	if err != nil {
 		return nil, nil, fmt.Errorf("list api keys: %w", err)
 	}
+	s.populateAPIKeyConcurrency(ctx, keys)
 	return keys, pagination, nil
 }
 
@@ -34,6 +37,7 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 		return nil, fmt.Errorf("get api key: %w", err)
 	}
 	s.compileAPIKeyIPRules(apiKey)
+	s.populateAPIKeyConcurrencyForKey(ctx, apiKey)
 	return apiKey, nil
 }
 
@@ -46,6 +50,7 @@ func (s *APIKeyService) GetByIDForUser(ctx context.Context, id int64, userID int
 		return nil, ErrAPIKeyNotFound
 	}
 	s.compileAPIKeyIPRules(apiKey)
+	s.populateAPIKeyConcurrencyForKey(ctx, apiKey)
 	return apiKey, nil
 }
 
@@ -59,6 +64,43 @@ func (s *APIKeyService) GetByIDAllowDeleted(ctx context.Context, id int64) (*API
 		return apiKey, nil
 	}
 	return s.GetByID(ctx, id)
+}
+
+func (s *APIKeyService) populateAPIKeyConcurrency(ctx context.Context, keys []APIKey) {
+	if s == nil || s.concurrencyService == nil || len(keys) == 0 {
+		return
+	}
+	ids := make([]int64, 0, len(keys))
+	for i := range keys {
+		if keys[i].ID > 0 {
+			ids = append(ids, keys[i].ID)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	counts, err := s.concurrencyService.GetAPIKeyConcurrencyBatch(ctx, ids)
+	if err != nil {
+		logger.LegacyPrintf("service.api_key", "Warning: get api key concurrency failed: %v", err)
+		return
+	}
+	for i := range keys {
+		if count, ok := counts[keys[i].ID]; ok {
+			keys[i].CurrentConcurrency = count
+		}
+	}
+}
+
+func (s *APIKeyService) populateAPIKeyConcurrencyForKey(ctx context.Context, key *APIKey) {
+	if key == nil || key.ID <= 0 || s == nil || s.concurrencyService == nil {
+		return
+	}
+	counts, err := s.concurrencyService.GetAPIKeyConcurrencyBatch(ctx, []int64{key.ID})
+	if err != nil {
+		logger.LegacyPrintf("service.api_key", "Warning: get api key concurrency failed: %v", err)
+		return
+	}
+	key.CurrentConcurrency = counts[key.ID]
 }
 
 // GetByKey 根据Key字符串获取API Key（用于认证）

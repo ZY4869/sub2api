@@ -22,8 +22,17 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		return nil, 0, 0, 0, err
 	}
 
-	topK := normalizeOpenAILoadBalanceTopK(s.service.openAIWSLBTopK(), len(candidates))
-	rankedCandidates := selectTopKOpenAICandidates(candidates, topK)
+	selectionCandidates := candidates
+	subscriptionFallback := []openAIAccountCandidateScore(nil)
+	if req.SchedulerRuntime.SubscriptionPriorityEnabled {
+		if subscriptionCandidates, otherCandidates := splitOpenAISubscriptionPriorityCandidates(candidates); len(subscriptionCandidates) > 0 && len(otherCandidates) > 0 {
+			selectionCandidates = subscriptionCandidates
+			subscriptionFallback = otherCandidates
+		}
+	}
+
+	topK := normalizeOpenAILoadBalanceTopK(req.SchedulerRuntime.LBTopK, len(selectionCandidates))
+	rankedCandidates := selectTopKOpenAICandidates(selectionCandidates, topK)
 	selectionOrder := buildOpenAIWeightedSelectionOrder(rankedCandidates, req)
 	topKAccountIDs := make(map[int64]struct{}, len(selectionOrder))
 	for _, candidate := range selectionOrder {
@@ -37,14 +46,20 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	}
 
 	fallbackOrder := make([]openAIAccountCandidateScore, 0, len(candidates))
-	for _, candidate := range selectTopKOpenAICandidates(candidates, len(candidates)) {
-		if candidate.account == nil {
-			continue
+	fallbackSources := [][]openAIAccountCandidateScore{candidates}
+	if len(subscriptionFallback) > 0 {
+		fallbackSources = [][]openAIAccountCandidateScore{selectionCandidates, subscriptionFallback}
+	}
+	for _, source := range fallbackSources {
+		for _, candidate := range selectTopKOpenAICandidates(source, len(source)) {
+			if candidate.account == nil {
+				continue
+			}
+			if _, alreadyTried := topKAccountIDs[candidate.account.ID]; alreadyTried {
+				continue
+			}
+			fallbackOrder = append(fallbackOrder, candidate)
 		}
-		if _, alreadyTried := topKAccountIDs[candidate.account.ID]; alreadyTried {
-			continue
-		}
-		fallbackOrder = append(fallbackOrder, candidate)
 	}
 
 	if selection, ok, err := s.tryOpenAILoadBalanceAcquire(ctx, req, fallbackOrder, len(candidates), topK, loadSkew, "fallback_all_acquire"); ok || err != nil {
@@ -57,4 +72,22 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	}
 
 	return nil, len(candidates), topK, loadSkew, ErrNoAvailableAccounts
+}
+
+func splitOpenAISubscriptionPriorityCandidates(candidates []openAIAccountCandidateScore) ([]openAIAccountCandidateScore, []openAIAccountCandidateScore) {
+	subscriptionCandidates := make([]openAIAccountCandidateScore, 0, len(candidates))
+	otherCandidates := make([]openAIAccountCandidateScore, 0, len(candidates))
+	for _, candidate := range candidates {
+		if isOpenAIChatGPTSubscriptionCandidate(candidate.account) {
+			subscriptionCandidates = append(subscriptionCandidates, candidate)
+			continue
+		}
+		otherCandidates = append(otherCandidates, candidate)
+	}
+	return subscriptionCandidates, otherCandidates
+}
+
+func isOpenAIChatGPTSubscriptionCandidate(account *Account) bool {
+	rank, ok := resolveOpenAIAccountPlanRank(account)
+	return ok && rank >= 0 && rank < 3
 }

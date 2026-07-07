@@ -41,6 +41,8 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "grok count tokens compat", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointMessages, action: ProtocolCapabilityActionCountTokens, wantMode: ProtocolCapabilityCompatTranslate, wantOK: true},
 		{name: "antigravity count tokens rejected", runtimePlatform: PlatformAntigravity, inboundEndpoint: EndpointMessages, action: ProtocolCapabilityActionCountTokens, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "grok websocket responses rejected", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointResponses, action: ProtocolCapabilityActionWebSocket, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "openai compact responses native", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointResponsesCompact, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "grok compact responses native", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointResponsesCompact, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini batch alias uses batch capability", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/models/gemini-2.5-pro:batchGenerateContent", action: ProtocolCapabilityActionBatchGenerateContent, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini v1 generate content supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1/models/gemini-2.5-pro:generateContent", action: ProtocolCapabilityActionGenerateContent, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini embed action uses embeddings capability", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/models/gemini-2.5-pro:embedContent", action: ProtocolCapabilityActionGeminiEmbedContent, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
@@ -130,7 +132,7 @@ func TestNormalizeInboundEndpoint_DerivesOpenAIAliasFromRegistry(t *testing.T) {
 	require.Equal(t, EndpointGeminiTunedModels, NormalizeInboundEndpoint("/v1beta/tunedModels/tuned_123:asyncBatchEmbedContent"))
 	require.Equal(t, EndpointGeminiTunedModels, NormalizeInboundEndpoint("/v1beta/tunedModels/tuned_123:streamGenerateContent"))
 	require.Equal(t, EndpointResponses, NormalizeInboundEndpoint("/openai/v1/responses"))
-	require.Equal(t, EndpointResponses, NormalizeInboundEndpoint("/openai/v1/responses/compact"))
+	require.Equal(t, EndpointResponsesCompact, NormalizeInboundEndpoint("/openai/v1/responses/compact"))
 	require.Equal(t, EndpointChatCompletions, NormalizeInboundEndpoint("/openai/v1/chat/completions"))
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/chat/completions"))
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/files"))

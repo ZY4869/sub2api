@@ -142,6 +142,9 @@ func (s *RateLimitService) handleUnauthorizedError(ctx context.Context, account 
 	if upstreamMsg != "" {
 		msg = "OAuth 401: " + upstreamMsg
 	}
+	if account.Platform == PlatformAntigravity {
+		s.markAntigravityForceTokenRefresh(ctx, account, "401_invalid")
+	}
 	cooldownMinutes := s.cfg.RateLimit.OAuth401CooldownMinutes
 	if cooldownMinutes <= 0 {
 		cooldownMinutes = 10
@@ -151,6 +154,24 @@ func (s *RateLimitService) handleUnauthorizedError(ctx context.Context, account 
 		slog.Warn("oauth_401_set_temp_unschedulable_failed", "account_id", account.ID, "error", err)
 	}
 	return true
+}
+
+func (s *RateLimitService) markAntigravityForceTokenRefresh(ctx context.Context, account *Account, reason string) {
+	if account == nil || account.Platform != PlatformAntigravity || account.Type != AccountTypeOAuth {
+		return
+	}
+	updates := antigravityForceTokenRefreshExtra(reason)
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
+		slog.Warn("antigravity_401_force_refresh_mark_failed", "account_id", account.ID, "error", err)
+		return
+	}
+	if account.Extra == nil {
+		account.Extra = make(map[string]any, len(updates))
+	}
+	for key, value := range updates {
+		account.Extra[key] = value
+	}
+	slog.Info("antigravity_401_force_refresh_marked", "account_id", account.ID)
 }
 
 func (s *RateLimitService) handleDefaultUpstreamError(ctx context.Context, account *Account, statusCode int, upstreamMsg string, customErrorCodesEnabled bool) bool {

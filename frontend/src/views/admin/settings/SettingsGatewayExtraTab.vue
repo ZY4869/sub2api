@@ -123,7 +123,7 @@
               {{ t('admin.settings.scheduling.description') }}
             </p>
           </div>
-          <div class="p-6">
+          <div class="space-y-5 p-6">
             <div class="flex items-center justify-between">
               <div>
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -137,6 +137,88 @@
                 <input v-model="form.allow_ungrouped_key_scheduling" type="checkbox" />
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+
+            <div class="space-y-4 border-t border-gray-100 pt-5 dark:border-dark-700">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.scheduling.openaiAdvancedEnabled') }}
+                  </label>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.scheduling.openaiAdvancedEnabledHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.openai_advanced_scheduler_enabled" />
+              </div>
+
+              <div
+                v-if="form.openai_advanced_scheduler_enabled"
+                class="space-y-4 rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-800/60"
+              >
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div class="flex items-center justify-between gap-4 rounded-md bg-white px-3 py-2 dark:bg-dark-900">
+                    <div>
+                      <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.scheduling.stickyWeighted') }}
+                      </label>
+                      <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.scheduling.stickyWeightedHint') }}
+                      </p>
+                    </div>
+                    <Toggle v-model="form.openai_advanced_scheduler_sticky_weighted_enabled" />
+                  </div>
+                  <div class="flex items-center justify-between gap-4 rounded-md bg-white px-3 py-2 dark:bg-dark-900">
+                    <div>
+                      <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.scheduling.subscriptionPriority') }}
+                      </label>
+                      <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.scheduling.subscriptionPriorityHint') }}
+                      </p>
+                    </div>
+                    <Toggle v-model="form.openai_advanced_scheduler_subscription_priority_enabled" />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.scheduling.lbTopK') }}
+                  </label>
+                  <input
+                    v-model.trim="form.openai_advanced_scheduler_lb_top_k"
+                    type="number"
+                    min="1"
+                    class="input w-36 font-mono text-sm"
+                    :placeholder="form.openai_advanced_scheduler_effective_lb_top_k || '7'"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.scheduling.lbTopKHint') }}
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div
+                    v-for="field in openAIAdvancedSchedulerWeightFields"
+                    :key="field.key"
+                  >
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      {{ t(field.labelKey) }}
+                    </label>
+                    <input
+                      v-model.trim="form[field.key]"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      class="input font-mono text-sm"
+                      :placeholder="String(form[field.effectiveKey] || '')"
+                    />
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.scheduling.weightsHint') }}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -212,5 +294,48 @@ const openAIAllowedCodexClientOptions = [
     descriptionKey: 'admin.settings.claudeCode.allowedClientClaudeCode'
   }
 ]
+
+const openAIAdvancedSchedulerWeightFields = [
+  {
+    key: 'openai_advanced_scheduler_weight_priority',
+    effectiveKey: 'openai_advanced_scheduler_effective_weight_priority',
+    labelKey: 'admin.settings.scheduling.weightPriority'
+  },
+  {
+    key: 'openai_advanced_scheduler_weight_load',
+    effectiveKey: 'openai_advanced_scheduler_effective_weight_load',
+    labelKey: 'admin.settings.scheduling.weightLoad'
+  },
+  {
+    key: 'openai_advanced_scheduler_weight_queue',
+    effectiveKey: 'openai_advanced_scheduler_effective_weight_queue',
+    labelKey: 'admin.settings.scheduling.weightQueue'
+  },
+  {
+    key: 'openai_advanced_scheduler_weight_error_rate',
+    effectiveKey: 'openai_advanced_scheduler_effective_weight_error_rate',
+    labelKey: 'admin.settings.scheduling.weightErrorRate'
+  },
+  {
+    key: 'openai_advanced_scheduler_weight_ttft',
+    effectiveKey: 'openai_advanced_scheduler_effective_weight_ttft',
+    labelKey: 'admin.settings.scheduling.weightTTFT'
+  },
+  {
+    key: 'openai_advanced_scheduler_weight_quota_headroom',
+    effectiveKey: 'openai_advanced_scheduler_effective_weight_quota_headroom',
+    labelKey: 'admin.settings.scheduling.weightQuotaHeadroom'
+  },
+  {
+    key: 'openai_advanced_scheduler_weight_previous_response',
+    effectiveKey: 'openai_advanced_scheduler_effective_weight_previous_response',
+    labelKey: 'admin.settings.scheduling.weightPreviousResponse'
+  },
+  {
+    key: 'openai_advanced_scheduler_weight_session_sticky',
+    effectiveKey: 'openai_advanced_scheduler_effective_weight_session_sticky',
+    labelKey: 'admin.settings.scheduling.weightSessionSticky'
+  }
+] as const
 </script>
 

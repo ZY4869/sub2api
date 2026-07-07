@@ -59,15 +59,19 @@ type LiteLLMRawEntry struct {
 	InputTokenThreshold                       *int       `json:"input_token_threshold"`
 	InputCostPerTokenAboveThreshold           *float64   `json:"input_cost_per_token_above_threshold"`
 	InputCostPerTokenAbove200kTokens          *float64   `json:"input_cost_per_token_above_200k_tokens"`
+	InputCostPerTokenAbove272kTokens          *float64   `json:"input_cost_per_token_above_272k_tokens"`
 	InputCostPerTokenPriorityAboveThreshold   *float64   `json:"input_cost_per_token_priority_above_threshold"`
 	InputCostPerTokenPriorityAbove200kTokens  *float64   `json:"input_cost_per_token_above_200k_tokens_priority"`
+	InputCostPerTokenPriorityAbove272kTokens  *float64   `json:"input_cost_per_token_above_272k_tokens_priority"`
 	OutputCostPerToken                        *float64   `json:"output_cost_per_token"`
 	OutputCostPerTokenPriority                *float64   `json:"output_cost_per_token_priority"`
 	OutputTokenThreshold                      *int       `json:"output_token_threshold"`
 	OutputCostPerTokenAboveThreshold          *float64   `json:"output_cost_per_token_above_threshold"`
 	OutputCostPerTokenAbove200kTokens         *float64   `json:"output_cost_per_token_above_200k_tokens"`
+	OutputCostPerTokenAbove272kTokens         *float64   `json:"output_cost_per_token_above_272k_tokens"`
 	OutputCostPerTokenPriorityAboveThreshold  *float64   `json:"output_cost_per_token_priority_above_threshold"`
 	OutputCostPerTokenPriorityAbove200kTokens *float64   `json:"output_cost_per_token_above_200k_tokens_priority"`
+	OutputCostPerTokenPriorityAbove272kTokens *float64   `json:"output_cost_per_token_above_272k_tokens_priority"`
 	CacheCreationInputTokenCost               *float64   `json:"cache_creation_input_token_cost"`
 	CacheCreationInputTokenCostAbove1hr       *float64   `json:"cache_creation_input_token_cost_above_1hr"`
 	CacheReadInputTokenCost                   *float64   `json:"cache_read_input_token_cost"`

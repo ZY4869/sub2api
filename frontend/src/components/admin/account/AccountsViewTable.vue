@@ -289,6 +289,23 @@
       <span class="text-sm text-gray-700 dark:text-gray-300">{{ value }}</span>
     </template>
 
+    <template #cell-scheduler_score="{ value }">
+      <div
+        v-if="value"
+        class="inline-flex max-w-full flex-col gap-0.5 font-mono text-[11px] leading-tight text-gray-600 dark:text-dark-300"
+        :title="formatSchedulerScoreTitle(value)"
+      >
+        <span>{{ formatSchedulerScore(value.base_score) }}</span>
+        <span
+          v-if="value.sticky_weighted_enabled"
+          class="text-primary-600 dark:text-primary-300"
+        >
+          +{{ formatSchedulerScore(value.sticky_score) }}
+        </span>
+      </div>
+      <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+    </template>
+
     <template #cell-last_used_at="{ value }">
       <span class="whitespace-nowrap text-sm text-gray-500 dark:text-dark-400">
         {{ formatRelativeTime(value) }}
@@ -504,7 +521,7 @@ const airySpacedCellClass = (key: 'capacity' | 'status' | 'groups') => {
       : 'min-w-0 max-w-[196px]'
   }[key]
   const paddingClass = key === 'capacity' ? '' : 'px-1'
-  const overflowClass = key === 'groups' ? 'overflow-visible' : 'overflow-hidden'
+  const overflowClass = key === 'capacity' ? 'overflow-hidden' : 'overflow-visible'
   return `account-airy-spaced-cell account-airy-spaced-cell-${key} ${widthClass} ${overflowClass} ${paddingClass}`
 }
 
@@ -520,6 +537,20 @@ const formatProxyCountry = (proxy: Account['proxy']) => {
 const formatProxyTitle = (proxy: Account['proxy']) => {
   if (!proxy) return ''
   return [proxy.name, formatProxyCountry(proxy)].filter(Boolean).join(' ')
+}
+
+const formatSchedulerScore = (value: number | null | undefined) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+  return value.toFixed(2)
+}
+
+const formatSchedulerScoreTitle = (score: NonNullable<Account['scheduler_score']>) => {
+  return [
+    `${t('admin.accounts.schedulerScore.base')}: ${formatSchedulerScore(score.base_score)}`,
+    score.sticky_weighted_enabled
+      ? `${t('admin.accounts.schedulerScore.sticky')}: ${formatSchedulerScore(score.sticky_score)}`
+      : t('admin.accounts.schedulerScore.stickyDisabled')
+  ].join('\n')
 }
 
 const formatExpiresAt = (value: number | null) => {

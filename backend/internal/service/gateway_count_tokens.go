@@ -329,6 +329,7 @@ func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx c
 		req.Header.Set("anthropic-version", "2023-06-01")
 	}
 	ApplyClaudeCapabilityToHeader(req, capability)
+	ApplyAccountRequestHeaderOverrides(req, account)
 	if sanitized, changed := sanitizeAnthropicBodyForFinalBeta(body, req.Header.Get("anthropic-beta")); changed {
 		resetRequestBody(req, sanitized)
 	}
@@ -427,6 +428,7 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {
 		c.Set(claudeMimicDebugInfoKey, buildClaudeMimicDebugLine(req, body, account, tokenType, mimicClaudeCode))
 	}
+	ApplyAccountRequestHeaderOverrides(req, account)
 	if sanitized, changed := sanitizeAnthropicBodyForFinalBeta(body, req.Header.Get("anthropic-beta")); changed {
 		body = sanitized
 		resetRequestBody(req, sanitized)

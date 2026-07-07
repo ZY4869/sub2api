@@ -20,6 +20,7 @@ const (
 	EndpointCompletions                    = service.EndpointCompletions
 	EndpointEmbeddings                     = service.EndpointEmbeddings
 	EndpointResponses                      = service.EndpointResponses
+	EndpointResponsesCompact               = service.EndpointResponsesCompact
 	EndpointImagesGen                      = service.EndpointImagesGen
 	EndpointImagesEdits                    = service.EndpointImagesEdits
 	EndpointVideosCreate                   = service.EndpointVideosCreate
@@ -96,6 +97,9 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 			// Preserve subresource suffix (e.g. /v1/responses/compact).
 			if suffix := responsesSubpathSuffix(rawRequestPath); suffix != "" {
 				return EndpointResponses + suffix
+			}
+			if inbound == EndpointResponsesCompact {
+				return EndpointResponsesCompact
 			}
 			return EndpointResponses
 		}
@@ -179,6 +183,7 @@ func gatewayProtocolHintForInboundEndpoint(inbound string) string {
 		EndpointCompletions,
 		EndpointEmbeddings,
 		EndpointResponses,
+		EndpointResponsesCompact,
 		EndpointVideosCreate,
 		EndpointVideosGen,
 		EndpointVideosStatus:
@@ -235,13 +240,16 @@ func DeriveUpstreamEndpointForAccount(account *service.Account, inbound, rawRequ
 		switch normalizedInbound {
 		case EndpointEmbeddings:
 			return EndpointEmbeddings
-		case EndpointChatCompletions, EndpointResponses:
+		case EndpointChatCompletions, EndpointResponses, EndpointResponsesCompact:
 			requestFormat := service.ResolveOpenAITextRequestFormatForAccount(resolvedAccount, normalizedInbound)
 			if requestFormat == service.GatewayOpenAIRequestFormatChatCompletions {
 				return EndpointChatCompletions
 			}
 			if suffix := responsesSubpathSuffix(rawRequestPath); suffix != "" {
 				return EndpointResponses + suffix
+			}
+			if normalizedInbound == EndpointResponsesCompact {
+				return EndpointResponsesCompact
 			}
 			return EndpointResponses
 		}

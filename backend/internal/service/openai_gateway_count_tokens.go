@@ -82,6 +82,7 @@ func (s *OpenAIGatewayService) forwardResponsesInputTokens(
 			req.Header.Set("User-Agent", customUA)
 		}
 	}
+	ApplyAccountRequestHeaderOverrides(req, account)
 	proxyURL := ""
 	if account != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()

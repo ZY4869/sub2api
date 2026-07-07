@@ -66,6 +66,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		PaymentMinTopupAmount:            settings.PaymentMinTopupAmount,
 		PaymentMaxTopupAmount:            settings.PaymentMaxTopupAmount,
 		PaymentSubscriptionPlans:         buildPublicPaymentPlanDTOs(settings.PaymentSubscriptionPlans),
+		PaymentSubscriptionUSDToCNYRate:  settings.PaymentSubscriptionUSDToCNYRate,
 		CustomMenuItems:                  dto.ParseUserVisibleMenuItems(settings.CustomMenuItems),
 		LoginAgreementEnabled:            settings.LoginAgreementEnabled,
 		LoginAgreementMode:               settings.LoginAgreementMode,

@@ -38,6 +38,24 @@ export interface ModelCapabilityDefinition {
 }
 
 const CAPABILITY_OVERRIDES: Record<string, ModelCapabilityDefinition> = {
+  "gpt-5.6-sol": {
+    name: "GPT-5.6 Sol",
+    limit: { context: 1050000, output: 128000 },
+    options: { store: false },
+    variants: { low: {}, medium: {}, high: {}, xhigh: {} },
+  },
+  "gpt-5.6-terra": {
+    name: "GPT-5.6 Terra",
+    limit: { context: 1050000, output: 128000 },
+    options: { store: false },
+    variants: { low: {}, medium: {}, high: {}, xhigh: {} },
+  },
+  "gpt-5.6-luna": {
+    name: "GPT-5.6 Luna",
+    limit: { context: 1050000, output: 128000 },
+    options: { store: false },
+    variants: { low: {}, medium: {}, high: {}, xhigh: {} },
+  },
   "gpt-5.4": {
     name: "GPT-5.4",
     limit: { context: 1050000, output: 128000 },

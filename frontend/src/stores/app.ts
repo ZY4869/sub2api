@@ -439,6 +439,7 @@ export const useAppStore = defineStore("app", () => {
         payment_min_topup_amount: 1,
         payment_max_topup_amount: 5000,
         payment_subscription_plans: [],
+        payment_subscription_usd_to_cny_rate: 0,
         custom_menu_items: [],
         login_agreement_enabled: false,
         login_agreement_mode: "checkbox",

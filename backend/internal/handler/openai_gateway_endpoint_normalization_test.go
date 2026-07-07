@@ -29,7 +29,7 @@ func TestOpenAIUpstreamEndpoint_ViaGetUpstreamEndpoint(t *testing.T) {
 		{
 			name: "responses compact keeps compact suffix",
 			path: "/openai/v1/responses/compact",
-			want: "/v1/responses/compact",
+			want: EndpointResponsesCompact,
 		},
 		{
 			name: "responses nested suffix preserved",

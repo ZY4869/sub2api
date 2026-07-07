@@ -48,6 +48,9 @@ describe("useModelWhitelist", () => {
   it("openai models include GPT-5.4 mini/nano and GPT-5.4 official snapshots", () => {
     const models = getModelsByPlatform("openai");
 
+    expect(models).toContain("gpt-5.6-sol");
+    expect(models).toContain("gpt-5.6-terra");
+    expect(models).toContain("gpt-5.6-luna");
     expect(models).toContain("gpt-5.4");
     expect(models).toContain("gpt-5.4-2026-03-05");
     expect(models).toContain("gpt-5.4-mini");

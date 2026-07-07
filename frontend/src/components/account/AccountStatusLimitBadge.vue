@@ -11,7 +11,7 @@
         v-if="model"
         :model="model"
         :display-name="modelDisplayName || label"
-        :size="visualVariant === 'icon' ? '16px' : '12px'"
+        :size="visualVariant === 'icon' ? '14px' : '12px'"
       />
       <Icon v-else name="exclamationTriangle" size="xs" :stroke-width="2" />
       <span v-if="visualVariant !== 'icon'" class="min-w-0 truncate">{{ label }}</span>
@@ -59,7 +59,7 @@ const props = withDefaults(
 
 const badgeBaseClass = computed(() => {
   if (props.visualVariant === 'icon') {
-    return 'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border'
+    return 'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border'
   }
   if (props.visualVariant === 'glass') {
     return 'inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-full border px-2.5 py-1.5 text-[10px] font-semibold tracking-tight'

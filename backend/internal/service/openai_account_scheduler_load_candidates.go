@@ -57,7 +57,7 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAILoadBalanceCandidates(
 	}
 
 	candidates, factors := s.collectOpenAILoadBalanceCandidateStats(req, filtered, loadMap)
-	s.scoreOpenAILoadBalanceCandidates(candidates, factors)
+	s.scoreOpenAILoadBalanceCandidates(req, candidates, factors)
 	return candidates, factors.loadSkew, nil
 }
 
@@ -84,7 +84,7 @@ func (s *defaultOpenAIAccountScheduler) collectOpenAILoadBalanceCandidateStats(
 	loadRateSum := 0.0
 	loadRateSumSquares := 0.0
 	now := time.Now()
-	weights := s.service.openAIWSSchedulerWeights()
+	weights := GatewayOpenAIWSSchedulerScoreWeightsFromConfig(req.SchedulerRuntime.Weights)
 	candidates := make([]openAIAccountCandidateScore, 0, len(filtered))
 
 	for _, account := range filtered {
@@ -154,10 +154,11 @@ func updateOpenAILoadBalanceTTFTFactors(factors *openAILoadBalanceScoreFactors, 
 }
 
 func (s *defaultOpenAIAccountScheduler) scoreOpenAILoadBalanceCandidates(
+	req OpenAIAccountScheduleRequest,
 	candidates []openAIAccountCandidateScore,
 	factors openAILoadBalanceScoreFactors,
 ) {
-	weights := s.service.openAIWSSchedulerWeights()
+	weights := GatewayOpenAIWSSchedulerScoreWeightsFromConfig(req.SchedulerRuntime.Weights)
 	for i := range candidates {
 		item := &candidates[i]
 		priorityFactor := 1.0
@@ -184,6 +185,9 @@ func (s *defaultOpenAIAccountScheduler) scoreOpenAILoadBalanceCandidates(
 			weights.ErrorRate*errorFactor +
 			weights.TTFT*ttftFactor +
 			weights.QuotaHeadroom*quotaHeadroomFactor
+		if req.SchedulerRuntime.StickyWeightedEnabled && req.StickyAccountID > 0 && item.account != nil && item.account.ID == req.StickyAccountID {
+			item.score += weights.SessionSticky
+		}
 	}
 }
 

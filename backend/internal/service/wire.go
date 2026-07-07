@@ -611,12 +611,14 @@ func ProvideAPIKeyService(
 	billingCacheService *BillingCacheService,
 	modelCatalogService *ModelCatalogService,
 	settingService *SettingService,
+	concurrencyService *ConcurrencyService,
 	cfg *config.Config,
 ) *APIKeyService {
 	svc := NewAPIKeyService(apiKeyRepo, userRepo, groupRepo, userSubRepo, userGroupRateRepo, cache, cfg)
 	svc.SetBillingCacheService(billingCacheService)
 	svc.SetModelCatalogService(modelCatalogService)
 	svc.SetSettingService(settingService)
+	svc.SetConcurrencyService(concurrencyService)
 	return svc
 }
 

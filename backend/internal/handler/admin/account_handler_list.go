@@ -108,6 +108,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		accountIDs[i] = acc.ID
 	}
 	concurrencyCounts := make(map[int64]int)
+	schedulerLoadMap := make(map[int64]*service.AccountLoadInfo)
 	var windowCosts map[int64]float64
 	var activeSessions map[int64]int
 	var rpmCounts map[int64]int
@@ -115,7 +116,20 @@ func (h *AccountHandler) List(c *gin.Context) {
 		if cc, ccErr := h.concurrencyService.GetAccountConcurrencyBatch(c.Request.Context(), accountIDs); ccErr == nil && cc != nil {
 			concurrencyCounts = cc
 		}
+		loadReq := make([]service.AccountWithConcurrency, 0, len(accounts))
+		for i := range accounts {
+			acc := &accounts[i]
+			if acc.IsOpenAI() {
+				loadReq = append(loadReq, service.AccountWithConcurrency{ID: acc.ID, MaxConcurrency: acc.EffectiveLoadFactor()})
+			}
+		}
+		if len(loadReq) > 0 {
+			if loadMap, loadErr := h.concurrencyService.GetAccountsLoadBatch(c.Request.Context(), loadReq); loadErr == nil && loadMap != nil {
+				schedulerLoadMap = loadMap
+			}
+		}
 	}
+	schedulerScores := h.buildOpenAIAccountSchedulerScores(c.Request.Context(), accounts, schedulerLoadMap)
 	windowCostAccountIDs := make([]int64, 0)
 	sessionLimitAccountIDs := make([]int64, 0)
 	rpmAccountIDs := make([]int64, 0)
@@ -194,6 +208,9 @@ func (h *AccountHandler) List(c *gin.Context) {
 				item.CurrentRPM = &rpm
 			}
 		}
+		if score, ok := schedulerScores[acc.ID]; ok {
+			item.SchedulerScore = &score
+		}
 		result[i] = item
 	}
 	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, lifecycle, privacyMode, search, limitedView, limitedReason, runtimeView, lite)
@@ -206,6 +223,26 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 	}
 	response.Paginated(c, result, total, page, pageSize)
+}
+
+func (h *AccountHandler) buildOpenAIAccountSchedulerScores(ctx context.Context, accounts []service.Account, loadMap map[int64]*service.AccountLoadInfo) map[int64]AccountSchedulerScore {
+	if len(accounts) == 0 {
+		return map[int64]AccountSchedulerScore{}
+	}
+	runtime := service.DefaultOpenAIAdvancedSchedulerRuntimeSettings()
+	if h.settingService != nil {
+		runtime = h.settingService.GetOpenAIAdvancedSchedulerRuntimeSettings(ctx)
+	}
+	snapshots := service.BuildOpenAIAccountSchedulerScoreSnapshot(accounts, loadMap, runtime)
+	out := make(map[int64]AccountSchedulerScore, len(snapshots))
+	for accountID, snapshot := range snapshots {
+		out[accountID] = AccountSchedulerScore{
+			BaseScore:             snapshot.BaseScore,
+			StickyScore:           snapshot.StickyScore,
+			StickyWeightedEnabled: snapshot.StickyWeightedEnabled,
+		}
+	}
+	return out
 }
 func buildAccountsListETag(items []AccountWithConcurrency, total int64, page, pageSize int, platform, accountType, status, lifecycle, privacyMode, search, limitedView, limitedReason, runtimeView string, lite bool) string {
 	payload := struct {

@@ -108,7 +108,7 @@ func (h *OpenAIGatewayHandler) Completions(c *gin.Context) {
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 	routingStart := time.Now()
 
-	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, reqStream, &streamStarted, reqLog)
+	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, apiKey.ID, subject.Concurrency, reqStream, &streamStarted, reqLog)
 	if !acquired {
 		return
 	}

@@ -128,6 +128,7 @@
         <AccountApiKeyBasicSettingsEditor
           v-model:base-url="editBaseUrl"
           v-model:api-key="editApiKey"
+          v-model:request-headers-text="editRequestHeadersText"
           v-model:model-scope-enabled="modelRestrictionEnabled"
           v-model:actual-model-locked="actualModelLocked"
           v-model:model-scope-mode="modelRestrictionMode"
@@ -563,6 +564,7 @@ const {
   gatewayProtocol,
   editBaseUrl,
   editApiKey,
+  editRequestHeadersText,
   editOpenRouterHTTPReferer,
   editOpenRouterTitle,
   deepSeekModelConcurrencyLimits,

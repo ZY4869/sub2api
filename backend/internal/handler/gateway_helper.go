@@ -228,6 +228,18 @@ func (h *ConcurrencyHelper) TryAcquireUserSlot(ctx context.Context, userID int64
 	return result.ReleaseFunc, true, nil
 }
 
+// TryAcquireUserSlotForAPIKey acquires the existing user slot and tracks API key concurrency for display.
+func (h *ConcurrencyHelper) TryAcquireUserSlotForAPIKey(ctx context.Context, userID int64, apiKeyID int64, maxConcurrency int) (func(), bool, error) {
+	result, err := h.concurrencyService.AcquireUserSlotForAPIKey(ctx, userID, apiKeyID, maxConcurrency)
+	if err != nil {
+		return nil, false, err
+	}
+	if !result.Acquired {
+		return nil, false, nil
+	}
+	return result.ReleaseFunc, true, nil
+}
+
 // TryAcquireAccountSlot 尝试立即获取账号并发槽位。
 // 返回值: (releaseFunc, acquired, error)
 func (h *ConcurrencyHelper) TryAcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int) (func(), bool, error) {
@@ -259,6 +271,26 @@ func (h *ConcurrencyHelper) AcquireUserSlotWithWait(c *gin.Context, userID int64
 
 	// Need to wait - handle streaming ping if needed
 	return h.waitForSlotWithPing(c, "user", userID, maxConcurrency, isStream, streamStarted)
+}
+
+// AcquireUserSlotWithWaitForAPIKey acquires a user slot and tracks API key concurrency after admission.
+func (h *ConcurrencyHelper) AcquireUserSlotWithWaitForAPIKey(c *gin.Context, userID int64, apiKeyID int64, maxConcurrency int, isStream bool, streamStarted *bool) (func(), error) {
+	releaseFunc, err := h.AcquireUserSlotWithWait(c, userID, maxConcurrency, isStream, streamStarted)
+	if err != nil {
+		return nil, err
+	}
+	apiKeyRelease, trackErr := h.concurrencyService.TrackAPIKeySlot(c.Request.Context(), apiKeyID)
+	if trackErr != nil {
+		return releaseFunc, nil
+	}
+	return func() {
+		if apiKeyRelease != nil {
+			apiKeyRelease()
+		}
+		if releaseFunc != nil {
+			releaseFunc()
+		}
+	}, nil
 }
 
 // AcquireAccountSlotWithWait acquires an account concurrency slot, waiting if necessary.

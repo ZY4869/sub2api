@@ -41,6 +41,7 @@ function makeSettings(): PublicSettings {
     purchase_subscription_enabled: true,
     purchase_subscription_url: '',
     payment_provider_airwallex_enabled: true,
+    payment_mobile_force_qrcode_enabled: false,
     payment_allowed_currencies: ['USD', 'HKD'],
     payment_default_currency: 'HKD',
     payment_min_topup_amount: 1,
@@ -55,6 +56,7 @@ function makeSettings(): PublicSettings {
         enabled: true
       }
     ],
+    payment_subscription_usd_to_cny_rate: 0,
     custom_menu_items: [],
     login_agreement_enabled: false,
     login_agreement_mode: 'checkbox',
@@ -63,6 +65,7 @@ function makeSettings(): PublicSettings {
     linuxdo_oauth_enabled: false,
     github_oauth_enabled: false,
     google_oauth_enabled: false,
+    dingtalk_oauth_enabled: false,
     backend_mode_enabled: false,
     maintenance_mode_enabled: false,
     version: 'test'
@@ -126,6 +129,24 @@ describe('usePaymentWorkbench', () => {
     subject.selectedCurrency.value = 'EUR'
     await nextTick()
     expect(subject.canCreate.value).toBe(false)
+  })
+
+  it('converts USD-only subscription plans to CNY when opt-in rate is configured', async () => {
+    const settings = makeSettings()
+    settings.payment_allowed_currencies = ['USD', 'CNY']
+    settings.payment_default_currency = 'CNY'
+    settings.payment_subscription_usd_to_cny_rate = 7.15
+    settings.payment_subscription_plans[0].prices_by_currency = { USD: 12.5 }
+    const subject = usePaymentWorkbench(() => settings)
+    await nextTick()
+
+    subject.productType.value = 'subscription'
+    await nextTick()
+
+    expect(subject.selectedCurrency.value).toBe('CNY')
+    expect(subject.payableAmount.value).toBe(89.38)
+    expect(subject.planPriceForCurrency(settings.payment_subscription_plans[0], 'CNY')).toBe(89.38)
+    expect(subject.canCreate.value).toBe(true)
   })
 
   it('refreshes and cancels the current order', async () => {

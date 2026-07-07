@@ -116,50 +116,72 @@ type SystemSettings struct {
 	ContentModerationCyberPolicyEnabled  bool                                     `json:"content_moderation_cyber_policy_enabled"`
 	ContentModerationCyberCategories     []service.ContentModerationCyberCategory `json:"content_moderation_cyber_categories"`
 
-	SiteName                             string                    `json:"site_name"`
-	SiteLogo                             string                    `json:"site_logo"`
-	SiteSubtitle                         string                    `json:"site_subtitle"`
-	VisualPresetDefault                  string                    `json:"visual_preset_default"`
-	AccountAiryWhiteSurfaceEnabled       bool                      `json:"account_airy_white_surface_enabled"`
-	APIBaseURL                           string                    `json:"api_base_url"`
-	ContactInfo                          string                    `json:"contact_info"`
-	DocURL                               string                    `json:"doc_url"`
-	HomeContent                          string                    `json:"home_content"`
-	HideCcsImportButton                  bool                      `json:"hide_ccs_import_button"`
-	AvailableChannelsEnabled             bool                      `json:"available_channels_enabled"`
-	ChannelMonitorEnabled                bool                      `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds int                       `json:"channel_monitor_default_interval_seconds"`
-	UsageIPGeoEnabled                    bool                      `json:"usage_ip_geo_enabled"`
-	UsageIPGeoProviderURL                string                    `json:"usage_ip_geo_provider_url"`
-	UsageIPGeoTimeoutMs                  int                       `json:"usage_ip_geo_timeout_ms"`
-	PublicModelCatalogEnabled            bool                      `json:"public_model_catalog_enabled"`
-	PurchaseSubscriptionEnabled          bool                      `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL              string                    `json:"purchase_subscription_url"`
-	PaymentProviderAirwallexEnabled      bool                      `json:"payment_provider_airwallex_enabled"`
-	PaymentProviderAirwallexEffective    bool                      `json:"payment_provider_airwallex_effective"`
-	AirwallexEnv                         string                    `json:"airwallex_env"`
-	AirwallexClientID                    string                    `json:"airwallex_client_id"`
-	AirwallexAPIKeyConfigured            bool                      `json:"airwallex_api_key_configured"`
-	AirwallexWebhookSecretConfigured     bool                      `json:"airwallex_webhook_secret_configured"`
-	PaymentMobileForceQRCodeEnabled      bool                      `json:"payment_mobile_force_qrcode_enabled"`
-	PaymentAllowedCurrencies             []string                  `json:"payment_allowed_currencies"`
-	PaymentDefaultCurrency               string                    `json:"payment_default_currency"`
-	PaymentMinTopupAmount                float64                   `json:"payment_min_topup_amount"`
-	PaymentMaxTopupAmount                float64                   `json:"payment_max_topup_amount"`
-	PaymentSubscriptionPlans             []PaymentSubscriptionPlan `json:"payment_subscription_plans"`
-	BillingCurrencyConversionEnabled     bool                      `json:"billing_currency_conversion_enabled"`
-	BillingCurrencyCNYToUSDRate          float64                   `json:"billing_currency_cny_to_usd_rate"`
-	BillingCurrencyUSDToCNYRate          float64                   `json:"billing_currency_usd_to_cny_rate"`
-	AntigravityUserAgentVersion          string                    `json:"antigravity_user_agent_version"`
-	CodexOAuthUserAgentMode              string                    `json:"codex_oauth_user_agent_mode"`
-	CodexOAuthUserAgentOverride          string                    `json:"codex_oauth_user_agent_override"`
-	OpenAIAllowClaudeCodeCodexPlugin     bool                      `json:"openai_allow_claude_code_codex_plugin"`
-	OpenAIAllowedCodexClients            []string                  `json:"openai_allowed_codex_clients"`
-	CustomMenuItems                      []CustomMenuItem          `json:"custom_menu_items"`
-	LoginAgreementEnabled                bool                      `json:"login_agreement_enabled"`
-	LoginAgreementMode                   string                    `json:"login_agreement_mode"`
-	LoginAgreementUpdatedAt              string                    `json:"login_agreement_updated_at"`
-	LoginAgreementDocuments              []LoginAgreementDocument  `json:"login_agreement_documents"`
+	SiteName                                               string                    `json:"site_name"`
+	SiteLogo                                               string                    `json:"site_logo"`
+	SiteSubtitle                                           string                    `json:"site_subtitle"`
+	VisualPresetDefault                                    string                    `json:"visual_preset_default"`
+	AccountAiryWhiteSurfaceEnabled                         bool                      `json:"account_airy_white_surface_enabled"`
+	APIBaseURL                                             string                    `json:"api_base_url"`
+	ContactInfo                                            string                    `json:"contact_info"`
+	DocURL                                                 string                    `json:"doc_url"`
+	HomeContent                                            string                    `json:"home_content"`
+	HideCcsImportButton                                    bool                      `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled                               bool                      `json:"available_channels_enabled"`
+	ChannelMonitorEnabled                                  bool                      `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds                   int                       `json:"channel_monitor_default_interval_seconds"`
+	UsageIPGeoEnabled                                      bool                      `json:"usage_ip_geo_enabled"`
+	UsageIPGeoProviderURL                                  string                    `json:"usage_ip_geo_provider_url"`
+	UsageIPGeoTimeoutMs                                    int                       `json:"usage_ip_geo_timeout_ms"`
+	PublicModelCatalogEnabled                              bool                      `json:"public_model_catalog_enabled"`
+	PurchaseSubscriptionEnabled                            bool                      `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL                                string                    `json:"purchase_subscription_url"`
+	PaymentProviderAirwallexEnabled                        bool                      `json:"payment_provider_airwallex_enabled"`
+	PaymentProviderAirwallexEffective                      bool                      `json:"payment_provider_airwallex_effective"`
+	AirwallexEnv                                           string                    `json:"airwallex_env"`
+	AirwallexClientID                                      string                    `json:"airwallex_client_id"`
+	AirwallexAPIKeyConfigured                              bool                      `json:"airwallex_api_key_configured"`
+	AirwallexWebhookSecretConfigured                       bool                      `json:"airwallex_webhook_secret_configured"`
+	PaymentMobileForceQRCodeEnabled                        bool                      `json:"payment_mobile_force_qrcode_enabled"`
+	PaymentAllowedCurrencies                               []string                  `json:"payment_allowed_currencies"`
+	PaymentDefaultCurrency                                 string                    `json:"payment_default_currency"`
+	PaymentMinTopupAmount                                  float64                   `json:"payment_min_topup_amount"`
+	PaymentMaxTopupAmount                                  float64                   `json:"payment_max_topup_amount"`
+	PaymentSubscriptionPlans                               []PaymentSubscriptionPlan `json:"payment_subscription_plans"`
+	PaymentSubscriptionUSDToCNYRate                        float64                   `json:"payment_subscription_usd_to_cny_rate"`
+	BillingCurrencyConversionEnabled                       bool                      `json:"billing_currency_conversion_enabled"`
+	BillingCurrencyCNYToUSDRate                            float64                   `json:"billing_currency_cny_to_usd_rate"`
+	BillingCurrencyUSDToCNYRate                            float64                   `json:"billing_currency_usd_to_cny_rate"`
+	AntigravityUserAgentVersion                            string                    `json:"antigravity_user_agent_version"`
+	CodexOAuthUserAgentMode                                string                    `json:"codex_oauth_user_agent_mode"`
+	CodexOAuthUserAgentOverride                            string                    `json:"codex_oauth_user_agent_override"`
+	OpenAIAllowClaudeCodeCodexPlugin                       bool                      `json:"openai_allow_claude_code_codex_plugin"`
+	OpenAIAllowedCodexClients                              []string                  `json:"openai_allowed_codex_clients"`
+	OpenAIAdvancedSchedulerEnabled                         bool                      `json:"openai_advanced_scheduler_enabled"`
+	OpenAIAdvancedSchedulerStickyWeightedEnabled           bool                      `json:"openai_advanced_scheduler_sticky_weighted_enabled"`
+	OpenAIAdvancedSchedulerSubscriptionPriorityEnabled     bool                      `json:"openai_advanced_scheduler_subscription_priority_enabled"`
+	OpenAIAdvancedSchedulerLBTopK                          string                    `json:"openai_advanced_scheduler_lb_top_k"`
+	OpenAIAdvancedSchedulerWeightPriority                  string                    `json:"openai_advanced_scheduler_weight_priority"`
+	OpenAIAdvancedSchedulerWeightLoad                      string                    `json:"openai_advanced_scheduler_weight_load"`
+	OpenAIAdvancedSchedulerWeightQueue                     string                    `json:"openai_advanced_scheduler_weight_queue"`
+	OpenAIAdvancedSchedulerWeightErrorRate                 string                    `json:"openai_advanced_scheduler_weight_error_rate"`
+	OpenAIAdvancedSchedulerWeightTTFT                      string                    `json:"openai_advanced_scheduler_weight_ttft"`
+	OpenAIAdvancedSchedulerWeightQuotaHeadroom             string                    `json:"openai_advanced_scheduler_weight_quota_headroom"`
+	OpenAIAdvancedSchedulerWeightPreviousResponse          string                    `json:"openai_advanced_scheduler_weight_previous_response"`
+	OpenAIAdvancedSchedulerWeightSessionSticky             string                    `json:"openai_advanced_scheduler_weight_session_sticky"`
+	OpenAIAdvancedSchedulerEffectiveLBTopK                 string                    `json:"openai_advanced_scheduler_effective_lb_top_k"`
+	OpenAIAdvancedSchedulerEffectiveWeightPriority         string                    `json:"openai_advanced_scheduler_effective_weight_priority"`
+	OpenAIAdvancedSchedulerEffectiveWeightLoad             string                    `json:"openai_advanced_scheduler_effective_weight_load"`
+	OpenAIAdvancedSchedulerEffectiveWeightQueue            string                    `json:"openai_advanced_scheduler_effective_weight_queue"`
+	OpenAIAdvancedSchedulerEffectiveWeightErrorRate        string                    `json:"openai_advanced_scheduler_effective_weight_error_rate"`
+	OpenAIAdvancedSchedulerEffectiveWeightTTFT             string                    `json:"openai_advanced_scheduler_effective_weight_ttft"`
+	OpenAIAdvancedSchedulerEffectiveWeightQuotaHeadroom    string                    `json:"openai_advanced_scheduler_effective_weight_quota_headroom"`
+	OpenAIAdvancedSchedulerEffectiveWeightPreviousResponse string                    `json:"openai_advanced_scheduler_effective_weight_previous_response"`
+	OpenAIAdvancedSchedulerEffectiveWeightSessionSticky    string                    `json:"openai_advanced_scheduler_effective_weight_session_sticky"`
+	CustomMenuItems                                        []CustomMenuItem          `json:"custom_menu_items"`
+	LoginAgreementEnabled                                  bool                      `json:"login_agreement_enabled"`
+	LoginAgreementMode                                     string                    `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt                                string                    `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments                                []LoginAgreementDocument  `json:"login_agreement_documents"`
 
 	AffiliateEnabled              bool    `json:"affiliate_enabled"`
 	AffiliateTransferEnabled      bool    `json:"affiliate_transfer_enabled"`
@@ -257,6 +279,7 @@ type PublicSettings struct {
 	PaymentMinTopupAmount            float64                   `json:"payment_min_topup_amount"`
 	PaymentMaxTopupAmount            float64                   `json:"payment_max_topup_amount"`
 	PaymentSubscriptionPlans         []PaymentSubscriptionPlan `json:"payment_subscription_plans"`
+	PaymentSubscriptionUSDToCNYRate  float64                   `json:"payment_subscription_usd_to_cny_rate"`
 	CustomMenuItems                  []CustomMenuItem          `json:"custom_menu_items"`
 	LoginAgreementEnabled            bool                      `json:"login_agreement_enabled"`
 	LoginAgreementMode               string                    `json:"login_agreement_mode"`

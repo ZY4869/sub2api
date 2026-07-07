@@ -101,6 +101,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, input CreatePaymentOrd
 		)
 		return nil, err
 	}
+	intent.ID = sanitizePaymentProviderText(intent.ID)
+	intent.ClientSecret = sanitizePaymentProviderText(intent.ClientSecret)
+	intent.Status = sanitizePaymentProviderText(intent.Status)
 	if err := s.repo.UpdateOrderProviderIntent(ctx, order.OrderNo, intent.ID, PaymentStatusPending); err != nil {
 		return nil, err
 	}

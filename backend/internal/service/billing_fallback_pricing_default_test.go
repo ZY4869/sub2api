@@ -34,3 +34,18 @@ func TestBillingFallbackPricingChineseProviderFamilies(t *testing.T) {
 		})
 	}
 }
+
+func TestBillingFallbackPricingOpenAIGPT56Families(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, nil)
+
+	for _, model := range []string{"gpt-5.6-sol", "gpt-5.6-terra-high", "gpt-5.6-luna"} {
+		t.Run(model, func(t *testing.T) {
+			pricing, err := svc.GetModelPricing(model)
+			require.NoError(t, err)
+			require.NotNil(t, pricing)
+			require.InDelta(t, 5e-6, pricing.InputPricePerToken, 1e-12)
+			require.InDelta(t, 3e-5, pricing.OutputPricePerToken, 1e-12)
+			require.Equal(t, openAIGPT54LongContextInputThreshold, pricing.LongContextInputThreshold)
+		})
+	}
+}
