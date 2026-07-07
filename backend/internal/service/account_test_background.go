@@ -35,16 +35,18 @@ func (s *AccountTestService) RunTestBackgroundDetailed(ctx context.Context, inpu
 	}
 
 	testMode := string(normalizeAccountTestMode(input.TestMode))
-	testErr := s.TestAccountConnection(
-		ginCtx,
-		input.AccountID,
-		strings.TrimSpace(input.ModelID),
-		strings.TrimSpace(input.Prompt),
-		normalizeTestSourceProtocol(input.SourceProtocol),
-		NormalizeModelProvider(input.TargetProvider),
-		strings.TrimSpace(input.TargetModelID),
-		testMode,
-	)
+	testErr := s.TestAccountConnectionWithInput(ginCtx, AccountTestConnectionInput{
+		AccountID:      input.AccountID,
+		ModelID:        strings.TrimSpace(input.ModelID),
+		ModelInputMode: strings.TrimSpace(input.ModelInputMode),
+		ManualModelID:  strings.TrimSpace(input.ManualModelID),
+		RequestAlias:   strings.TrimSpace(input.RequestAlias),
+		Prompt:         strings.TrimSpace(input.Prompt),
+		SourceProtocol: normalizeTestSourceProtocol(input.SourceProtocol),
+		TargetProvider: NormalizeModelProvider(input.TargetProvider),
+		TargetModelID:  strings.TrimSpace(input.TargetModelID),
+		TestMode:       testMode,
+	})
 
 	finishedAt := time.Now()
 	parsed := parseTestSSEOutputDetailed(w.Body.String())

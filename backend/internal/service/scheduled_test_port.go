@@ -82,6 +82,8 @@ type BackgroundAccountTestResult struct {
 type ScheduledTestExecutionInput struct {
 	AccountID      int64
 	ModelID        string
+	ModelInputMode string
+	ManualModelID  string
 	SourceProtocol string
 	TargetProvider string
 	TargetModelID  string

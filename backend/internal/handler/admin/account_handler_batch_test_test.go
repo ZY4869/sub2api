@@ -133,6 +133,8 @@ func TestAccountHandlerBatchTestPassesPromptAndReturnsBlacklistState(t *testing.
 	require.Equal(t, http.StatusOK, rec.Code)
 	response := decodeBatchTestResponse(t, rec)
 	require.Equal(t, "claude-sonnet-4-5", accountTestSvc.lastInput.ModelID)
+	require.Equal(t, service.ScheduledTestModelInputModeManual, accountTestSvc.lastInput.ModelInputMode)
+	require.Equal(t, "claude-sonnet-4-5", accountTestSvc.lastInput.ManualModelID)
 	require.Equal(t, "anthropic", accountTestSvc.lastInput.SourceProtocol)
 	require.Equal(t, "hello", accountTestSvc.lastInput.Prompt)
 	require.Equal(t, string(service.AccountTestModeRealForward), accountTestSvc.lastInput.TestMode)

@@ -36,16 +36,18 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 		testModelID = defaultGeminiTestModelID(account)
 	}
 
-	// For API Key accounts with model mapping, map the model
-	if account.Type == AccountTypeAPIKey {
-		mapping := account.GetModelMapping()
-		if len(mapping) > 0 {
-			if mappedModel, exists := mapping[testModelID]; exists {
-				testModelID = mappedModel
+	if !accountTestManualModelInputFromContext(ctx) {
+		// For API Key accounts with model mapping, map the model
+		if account.Type == AccountTypeAPIKey {
+			mapping := account.GetModelMapping()
+			if len(mapping) > 0 {
+				if mappedModel, exists := mapping[testModelID]; exists {
+					testModelID = mappedModel
+				}
 			}
 		}
+		testModelID = s.resolveTestModelID(ctx, account, testModelID)
 	}
-	testModelID = s.resolveTestModelID(ctx, account, testModelID)
 
 	// Set SSE headers
 	c.Writer.Header().Set("Content-Type", "text/event-stream")

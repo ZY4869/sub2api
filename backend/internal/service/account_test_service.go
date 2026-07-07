@@ -21,6 +21,64 @@ type TestEvent struct {
 	Error    string `json:"error,omitempty"`
 }
 
+type accountTestManualModelInputContextKey struct{}
+
+func withAccountTestManualModelInput(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, accountTestManualModelInputContextKey{}, true)
+}
+
+func accountTestManualModelInputFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	value, _ := ctx.Value(accountTestManualModelInputContextKey{}).(bool)
+	return value
+}
+
+type AccountTestConnectionInput struct {
+	AccountID      int64
+	ModelID        string
+	ModelInputMode string
+	ManualModelID  string
+	RequestAlias   string
+	Prompt         string
+	SourceProtocol string
+	TargetProvider string
+	TargetModelID  string
+	TestMode       string
+}
+
+func (input AccountTestConnectionInput) normalizedModelInputMode() string {
+	switch strings.TrimSpace(strings.ToLower(input.ModelInputMode)) {
+	case ScheduledTestModelInputModeManual:
+		return ScheduledTestModelInputModeManual
+	case ScheduledTestModelInputModeCatalog:
+		return ScheduledTestModelInputModeCatalog
+	default:
+		if strings.TrimSpace(input.ManualModelID) != "" {
+			return ScheduledTestModelInputModeManual
+		}
+		return ScheduledTestModelInputModeCatalog
+	}
+}
+
+func (input AccountTestConnectionInput) isManualModelInputMode() bool {
+	return input.normalizedModelInputMode() == ScheduledTestModelInputModeManual
+}
+
+func (input AccountTestConnectionInput) effectiveModelID() string {
+	if input.isManualModelInputMode() {
+		if alias := strings.TrimSpace(input.RequestAlias); alias != "" {
+			return alias
+		}
+		return strings.TrimSpace(input.ManualModelID)
+	}
+	return strings.TrimSpace(input.ModelID)
+}
+
 type AccountTestService struct {
 	accountRepo                  AccountRepository
 	accountModelImportService    *AccountModelImportService

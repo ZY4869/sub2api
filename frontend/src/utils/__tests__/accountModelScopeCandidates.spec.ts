@@ -42,4 +42,39 @@ describe('accountModelScopeCandidates', () => {
       'claude-sonnet-4-5'
     ])
   })
+
+  it('shows manually added registry models as searchable candidates without selecting them by default', () => {
+    const registryModels = [
+      {
+        id: 'gpt-5.4-mini',
+        display_name: 'GPT-5.4 Mini',
+        provider: 'openai',
+        platforms: ['openai'],
+        protocol_ids: [],
+        aliases: [],
+        pricing_lookup_ids: [],
+        modalities: ['text'],
+        capabilities: [],
+        ui_priority: 100,
+        exposed_in: ['whitelist']
+      }
+    ] as any
+
+    const defaultResult = getModelScopeWhitelistGroups(registryModels, {
+      platform: 'openai',
+      selectedModelIds: new Set<string>(),
+      query: '',
+      showAllModels: false
+    })
+    expect(defaultResult.providerGroups).toEqual([])
+
+    const searchResult = getModelScopeWhitelistGroups(registryModels, {
+      platform: 'openai',
+      selectedModelIds: new Set<string>(),
+      query: '5.4-mini',
+      showAllModels: false
+    })
+    expect(searchResult.providerGroups[0]?.entries.map((entry) => entry.id)).toEqual(['gpt-5.4-mini'])
+    expect(searchResult.providerGroups[0]?.selectedCount).toBe(0)
+  })
 })

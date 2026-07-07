@@ -126,9 +126,10 @@ func TestBuildAccountTestRuntimeMeta_UsesGatewayOpenAIRequestFormatPreference(t 
 	require.Equal(t, PlatformOpenAI, meta.SourceProtocol)
 }
 
-func TestAccountTestService_OpenAIRealForwardUsesGatewayChatPreference(t *testing.T) {
+func TestAccountTestService_OpenAIRealForwardUsesGatewayChatPreferenceAndKeepsManualModel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newGatewayTestContext()
+	ctx.Request = ctx.Request.WithContext(withAccountTestManualModelInput(ctx.Request.Context()))
 
 	resp := newJSONResponse(http.StatusOK, "")
 	resp.Header.Set("Content-Type", "text/event-stream")
@@ -149,7 +150,13 @@ func TestAccountTestService_OpenAIRealForwardUsesGatewayChatPreference(t *testin
 		Platform:    PlatformProtocolGateway,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
-		Credentials: map[string]any{"api_key": "test-token", "base_url": "https://api.openai.com"},
+		Credentials: map[string]any{
+			"api_key":  "test-token",
+			"base_url": "https://api.openai.com",
+			"model_mapping": map[string]any{
+				"gpt-5.4": "mapped-by-account-policy",
+			},
+		},
 		Extra: map[string]any{
 			"gateway_protocol":              GatewayProtocolOpenAI,
 			"gateway_openai_request_format": GatewayOpenAIRequestFormatChatCompletions,
@@ -160,6 +167,9 @@ func TestAccountTestService_OpenAIRealForwardUsesGatewayChatPreference(t *testin
 	require.NoError(t, err)
 	require.Len(t, upstream.requests, 1)
 	require.Equal(t, "/v1/chat/completions", upstream.requests[0].URL.Path)
+	var requestBody map[string]any
+	require.NoError(t, json.NewDecoder(upstream.requests[0].Body).Decode(&requestBody))
+	require.Equal(t, "gpt-5.4", requestBody["model"])
 	require.Contains(t, recorder.Body.String(), "test_complete")
 }
 

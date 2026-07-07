@@ -173,6 +173,63 @@ func TestAccountTestService_OpenAISpark429PersistsSparkScopeSnapshot(t *testing.
 	require.Nil(t, account.RateLimitResetAt)
 }
 
+func TestAccountTestService_ManualInputBypassesScopeAndUsesRequestAlias(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := newTestContext()
+
+	account := &Account{
+		ID:          91,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key": "test-key",
+			"model_mapping": map[string]any{
+				"alias-custom-model": "mapped-by-account-policy",
+			},
+		},
+		Extra: map[string]any{
+			"model_scope_v2": (&AccountModelScopeV2{
+				PolicyMode: AccountModelPolicyModeWhitelist,
+				Entries: []AccountModelScopeEntry{
+					{
+						DisplayModelID: "allowed-model",
+						TargetModelID:  "allowed-model",
+						Provider:       PlatformOpenAI,
+					},
+				},
+			}).ToMap(),
+		},
+	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{account.ID: account},
+		},
+	}
+	resp := newJSONResponse(http.StatusOK, "data: {\"type\":\"response.completed\"}\n\n")
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	err := svc.TestAccountConnectionWithInput(ctx, AccountTestConnectionInput{
+		AccountID:      account.ID,
+		ModelInputMode: ScheduledTestModelInputModeManual,
+		ManualModelID:  "custom-unlisted-model",
+		RequestAlias:   "alias-custom-model",
+		TestMode:       string(AccountTestModeHealthCheck),
+	})
+
+	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+	var payload map[string]any
+	require.NoError(t, json.NewDecoder(upstream.requests[0].Body).Decode(&payload))
+	require.Equal(t, "alias-custom-model", payload["model"])
+}
+
 func TestAccountTestService_OpenAIUnauthorizedDetailMarksAccountError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, _ := newTestContext()

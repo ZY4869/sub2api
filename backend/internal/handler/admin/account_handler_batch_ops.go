@@ -481,6 +481,12 @@ func (h *AccountHandler) resolveBatchAccountTestExecutionInput(
 	}
 
 	modelInputMode := normalizeBatchAccountTestModelInputMode(req.ModelInputMode)
+	if modelInputMode != batchAccountTestModelInputModeAuto {
+		input.ModelInputMode = modelInputMode
+	}
+	if modelInputMode == batchAccountTestModelInputModeManual {
+		input.ManualModelID = strings.TrimSpace(req.ManualModelID)
+	}
 	switch modelInputMode {
 	case batchAccountTestModelInputModeAuto:
 		if input.TargetProvider == "" {

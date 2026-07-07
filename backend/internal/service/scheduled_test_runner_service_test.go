@@ -380,6 +380,8 @@ func TestScheduledTestRunnerService_RetriesIntermediateFailureWithoutNotificatio
 	require.Len(t, planRepo.updateCalls, 1)
 	require.Equal(t, int64(11), executor.input.AccountID)
 	require.Equal(t, "gpt-4o", executor.input.ModelID)
+	require.Equal(t, ScheduledTestModelInputModeManual, executor.input.ModelInputMode)
+	require.Equal(t, "gpt-4o", executor.input.ManualModelID)
 	require.Equal(t, "openai", executor.input.SourceProtocol)
 	require.Equal(t, "gpt-4o", executor.input.RequestAlias)
 	update := planRepo.updateCalls[0]

@@ -127,14 +127,17 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	ctx := c.Request.Context()
 	requestFormat := ResolveOpenAITextRequestFormatForAccount(account, "")
 
-	testModelID := resolveOpenAITestModelID(ctx, account, modelID, s.modelRegistryService)
+	testModelID := strings.TrimSpace(modelID)
+	if !accountTestManualModelInputFromContext(ctx) {
+		testModelID = resolveOpenAITestModelID(ctx, account, testModelID, s.modelRegistryService)
 
-	// For API Key accounts with model mapping, map the model
-	if account.Type == "apikey" {
-		mapping := account.GetModelMapping()
-		if len(mapping) > 0 {
-			if mappedModel, exists := mapping[testModelID]; exists {
-				testModelID = mappedModel
+		// For API Key accounts with model mapping, map the model
+		if account.Type == "apikey" {
+			mapping := account.GetModelMapping()
+			if len(mapping) > 0 {
+				if mappedModel, exists := mapping[testModelID]; exists {
+					testModelID = mappedModel
+				}
 			}
 		}
 	}

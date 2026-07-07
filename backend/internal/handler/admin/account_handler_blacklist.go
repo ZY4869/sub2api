@@ -155,6 +155,8 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 				testResult, err := h.accountTestService.RunTestBackground(gctx, service.ScheduledTestExecutionInput{
 					AccountID:      accountID,
 					ModelID:        requestedModelID,
+					ModelInputMode: modelInputMode,
+					ManualModelID:  strings.TrimSpace(req.ManualModelID),
 					SourceProtocol: requestedSourceProtocol,
 					TargetProvider: firstNonEmptyString(requestedTargetProvider, service.GetAccountGatewayTestProvider(account)),
 					TargetModelID:  firstNonEmptyString(requestedTargetModelID, service.GetAccountGatewayTestModelID(account)),

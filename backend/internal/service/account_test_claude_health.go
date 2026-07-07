@@ -99,16 +99,18 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		testModelID = claude.DefaultTestModel
 	}
 
-	// API Key 账号测试连接时也需要应用通配符模型映射。
-	if account.Type == "apikey" {
-		testModelID = account.GetMappedModel(testModelID)
+	if !accountTestManualModelInputFromContext(ctx) {
+		// API Key 账号测试连接时也需要应用通配符模型映射。
+		if account.Type == "apikey" {
+			testModelID = account.GetMappedModel(testModelID)
+		}
+		testModelID = s.resolveTestModelID(ctx, account, testModelID)
 	}
 
 	// Bedrock accounts use a separate test path
 	if account.IsBedrock() {
 		return s.testBedrockAccountConnection(c, ctx, account, testModelID)
 	}
-	testModelID = s.resolveTestModelID(ctx, account, testModelID)
 
 	// Determine authentication method and API URL
 	var authToken string
@@ -231,7 +233,9 @@ func (s *AccountTestService) testKiroAccountConnection(c *gin.Context, account *
 	if testModelID == "" {
 		testModelID = claude.DefaultTestModel
 	}
-	testModelID = s.resolveTestModelID(ctx, account, testModelID)
+	if !accountTestManualModelInputFromContext(ctx) {
+		testModelID = s.resolveTestModelID(ctx, account, testModelID)
+	}
 
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")

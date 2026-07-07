@@ -42,7 +42,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				}
 			}
 		}
-		if passthroughModel != "" {
+		if passthroughModel != "" && !accountTestManualModelInputFromContext(ctx) {
 			if mappedModel := account.GetMappedModel(passthroughModel); mappedModel != passthroughModel {
 				passthroughBody = s.replaceModelInBody(passthroughBody, mappedModel)
 				logger.LegacyPrintf("service.gateway", "Passthrough model mapping: %s -> %s (account: %s)", parsed.Model, mappedModel, account.Name)
@@ -118,13 +118,13 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	body = s.maybeInjectAnthropicCacheTTL1h(ctx, account, body)
 	mappedModel := reqModel
 	mappingSource := ""
-	if account.Type == AccountTypeAPIKey {
+	if account.Type == AccountTypeAPIKey && !accountTestManualModelInputFromContext(ctx) {
 		mappedModel = account.GetMappedModel(reqModel)
 		if mappedModel != reqModel {
 			mappingSource = "account"
 		}
 	}
-	if mappingSource == "" {
+	if mappingSource == "" && !accountTestManualModelInputFromContext(ctx) {
 		protocolModel := s.resolveUpstreamModelID(ctx, account, reqModel)
 		if protocolModel != "" && protocolModel != reqModel {
 			mappedModel = protocolModel

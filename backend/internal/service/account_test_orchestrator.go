@@ -11,11 +11,39 @@ import (
 )
 
 func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, targetProvider string, targetModelID string, testMode string) error {
+	return s.TestAccountConnectionWithInput(c, AccountTestConnectionInput{
+		AccountID:      accountID,
+		ModelID:        modelID,
+		Prompt:         prompt,
+		SourceProtocol: sourceProtocol,
+		TargetProvider: targetProvider,
+		TargetModelID:  targetModelID,
+		TestMode:       testMode,
+	})
+}
+
+func (s *AccountTestService) TestAccountConnectionWithInput(c *gin.Context, input AccountTestConnectionInput) error {
 	if c != nil && c.Request != nil {
 		ctxWithMetadata := EnsureRequestMetadata(c.Request.Context())
 		c.Request = c.Request.WithContext(ctxWithMetadata)
 	}
 	ctx := c.Request.Context()
+	accountID := input.AccountID
+	modelInputMode := input.normalizedModelInputMode()
+	manualInput := input.isManualModelInputMode()
+	if manualInput {
+		ctx = withAccountTestManualModelInput(ctx)
+		c.Request = c.Request.WithContext(ctx)
+	}
+	modelID := input.effectiveModelID()
+	prompt := strings.TrimSpace(input.Prompt)
+	sourceProtocol := strings.TrimSpace(input.SourceProtocol)
+	targetProvider := strings.TrimSpace(input.TargetProvider)
+	targetModelID := strings.TrimSpace(input.TargetModelID)
+	if manualInput && targetModelID == "" {
+		targetModelID = strings.TrimSpace(input.ManualModelID)
+	}
+	testMode := strings.TrimSpace(input.TestMode)
 
 	// Best-effort: attach an ops trace collector (if the caller has provided a test_run_id).
 	s.ensureOpsCollector(c)
@@ -40,7 +68,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return testErr
 	}
 
-	if !IsProtocolGatewayAccount(account) && strings.TrimSpace(modelID) == "" {
+	if !manualInput && !IsProtocolGatewayAccount(account) && strings.TrimSpace(modelID) == "" {
 		if defaultModelID, defaultSourceProtocol := s.resolveRestrictedDefaultTestModel(ctx, account); defaultModelID != "" {
 			modelID = defaultModelID
 			if strings.TrimSpace(sourceProtocol) == "" {
@@ -49,7 +77,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		}
 	}
 
-	resolvedTarget, err := s.resolveGatewayTestTarget(ctx, account, modelID, sourceProtocol, targetProvider, targetModelID)
+	resolvedTarget, err := s.resolveGatewayTestTarget(ctx, account, modelID, sourceProtocol, targetProvider, targetModelID, manualInput)
 	if err != nil {
 		reason := infraerrors.Reason(err)
 		if reason == "TEST_PROBE_RESOLUTION_FAILED" {
@@ -61,6 +89,8 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 				"source_protocol", normalizeTestSourceProtocol(sourceProtocol),
 				"target_provider", NormalizeModelProvider(targetProvider),
 				"target_model_id", strings.TrimSpace(targetModelID),
+				"model_input_mode", modelInputMode,
+				"manual_model_id", strings.TrimSpace(input.ManualModelID),
 				"reason", reason,
 				"error", err,
 			)
@@ -74,6 +104,8 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 			"source_protocol", normalizeTestSourceProtocol(sourceProtocol),
 			"target_provider", NormalizeModelProvider(targetProvider),
 			"target_model_id", strings.TrimSpace(targetModelID),
+			"model_input_mode", modelInputMode,
+			"manual_model_id", strings.TrimSpace(input.ManualModelID),
 			"reason", reason,
 			"error", err,
 		)
@@ -86,20 +118,35 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	if resolvedTarget.ModelID != "" {
 		modelID = resolvedTarget.ModelID
 	}
-	if err := s.ensureAllowedTestModel(ctx, account, modelID); err != nil {
+	if !manualInput {
+		if err := s.ensureAllowedTestModel(ctx, account, modelID); err != nil {
+			slog.Warn(
+				"account_test_model_not_allowed",
+				"account_id", accountID,
+				"requested_model_id", strings.TrimSpace(modelID),
+				"source_protocol", normalizeTestSourceProtocol(resolvedTarget.SourceProtocol),
+				"target_provider", NormalizeModelProvider(resolvedTarget.TargetProvider),
+				"target_model_id", strings.TrimSpace(resolvedTarget.TargetModelID),
+				"model_input_mode", modelInputMode,
+				"error", err,
+			)
+			testErr = err
+			return testErr
+		}
+	}
+	if manualInput && strings.TrimSpace(modelID) == "" {
+		err := infraerrors.BadRequest("TEST_MODEL_REQUIRED", "model_id is required for manual account test")
 		slog.Warn(
-			"account_test_model_not_allowed",
+			"account_test_model_missing",
 			"account_id", accountID,
-			"requested_model_id", strings.TrimSpace(modelID),
 			"source_protocol", normalizeTestSourceProtocol(resolvedTarget.SourceProtocol),
-			"target_provider", NormalizeModelProvider(resolvedTarget.TargetProvider),
-			"target_model_id", strings.TrimSpace(resolvedTarget.TargetModelID),
+			"model_input_mode", modelInputMode,
 			"error", err,
 		)
 		testErr = err
 		return testErr
 	}
-	if account != nil && account.IsOpenAI() && !isOpenAIGPTImageProfileModelID(modelID) {
+	if !manualInput && account != nil && account.IsOpenAI() && !isOpenAIGPTImageProfileModelID(modelID) {
 		modelID = resolveOpenAITestModelID(ctx, account, modelID, s.modelRegistryService)
 	}
 	simulatedClient := s.resolveGatewayTestSimulatedClient(ctx, account, resolvedTarget.SourceProtocol, modelID)
@@ -126,6 +173,8 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		"target_provider", runtimeMeta.TargetProvider,
 		"target_model_id", runtimeMeta.TargetModelID,
 		"resolved_model_id", runtimeMeta.ResolvedModelID,
+		"model_input_mode", modelInputMode,
+		"manual_model_id", strings.TrimSpace(input.ManualModelID),
 		"compat_path", runtimeMeta.CompatPath,
 		"runtime_platform", runtimeMeta.RuntimePlatform,
 		"simulated_client", runtimeMeta.SimulatedClient,
@@ -147,6 +196,8 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 			"target_provider", runtimeMeta.TargetProvider,
 			"target_model_id", runtimeMeta.TargetModelID,
 			"resolved_model_id", runtimeMeta.ResolvedModelID,
+			"model_input_mode", modelInputMode,
+			"manual_model_id", strings.TrimSpace(input.ManualModelID),
 			"compat_path", runtimeMeta.CompatPath,
 			"runtime_platform", runtimeMeta.RuntimePlatform,
 			"error", testErr,
@@ -163,6 +214,8 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		"target_provider", runtimeMeta.TargetProvider,
 		"target_model_id", runtimeMeta.TargetModelID,
 		"resolved_model_id", runtimeMeta.ResolvedModelID,
+		"model_input_mode", modelInputMode,
+		"manual_model_id", strings.TrimSpace(input.ManualModelID),
 		"compat_path", runtimeMeta.CompatPath,
 		"runtime_platform", runtimeMeta.RuntimePlatform,
 	)

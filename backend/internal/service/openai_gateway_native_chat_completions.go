@@ -46,7 +46,10 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 	originalModel := strings.TrimSpace(chatReq.Model)
 	chatReq.Model = normalizedRequestedModel
 	clientRequestedUsage := chatReq.StreamOptions != nil && chatReq.StreamOptions.IncludeUsage
-	mappedModel := resolveOpenAIForwardModel(account, normalizedRequestedModel, defaultMappedModel)
+	mappedModel := normalizedRequestedModel
+	if !accountTestManualModelInputFromContext(ctx) {
+		mappedModel = resolveOpenAIForwardModel(account, normalizedRequestedModel, defaultMappedModel)
+	}
 	chatReq.Model = mappedModel
 	if chatReq.Stream && !clientRequestedUsage {
 		if chatReq.StreamOptions == nil {

@@ -66,6 +66,66 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyRateLimite
 	require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
 }
 
+func TestOpenAIGatewayService_SelectAccountWithScheduler_ModelScopeCooldownSkipsOnlyLimitedAccount(t *testing.T) {
+	ctx := context.Background()
+	groupID := int64(10105)
+	resetAt := time.Now().Add(30 * time.Minute).UTC()
+	scope := (&AccountModelScopeV2{
+		PolicyMode: AccountModelPolicyModeWhitelist,
+		Entries: []AccountModelScopeEntry{
+			{
+				DisplayModelID: "gpt-5.4-mini",
+				TargetModelID:  "gpt-5.4-mini",
+				Provider:       PlatformOpenAI,
+			},
+		},
+	}).ToMap()
+	limited := Account{
+		ID:          35001,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    0,
+		Credentials: map[string]any{"plan_type": "pro"},
+		Extra: map[string]any{
+			"model_scope_v2": scope,
+			"model_rate_limits": map[string]any{
+				openAICodexScopeNormal: map[string]any{
+					"rate_limit_reset_at": resetAt.Format(time.RFC3339),
+				},
+			},
+		},
+	}
+	available := Account{
+		ID:          35002,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    5,
+		Credentials: map[string]any{"plan_type": "pro"},
+		Extra: map[string]any{
+			"model_scope_v2": scope,
+		},
+	}
+	svc := &OpenAIGatewayService{
+		accountRepo:        stubOpenAIAccountRepo{accounts: []Account{limited, available}},
+		cfg:                &config.Config{},
+		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
+	}
+
+	selection, decision, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "session_hash_scope_cooldown", "gpt-5.4-mini", nil, OpenAIUpstreamTransportAny)
+
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	require.NotNil(t, selection.Account)
+	require.Equal(t, int64(35002), selection.Account.ID)
+	require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
+}
+
 func TestOpenAIGatewayService_SelectAccountForModelWithExclusions_SkipsFreshlyRateLimitedSnapshotCandidate(t *testing.T) {
 	ctx := context.Background()
 	groupID := int64(10102)

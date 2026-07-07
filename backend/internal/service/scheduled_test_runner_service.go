@@ -157,6 +157,8 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 	input := ScheduledTestExecutionInput{
 		AccountID:      plan.AccountID,
 		ModelID:        plan.EffectiveModelID(),
+		ModelInputMode: plan.ModelInputMode,
+		ManualModelID:  plan.ManualModelID,
 		SourceProtocol: plan.SourceProtocol,
 		RequestAlias:   plan.RequestAlias,
 		OperationType:  UsageOperationTypeScheduledTest,

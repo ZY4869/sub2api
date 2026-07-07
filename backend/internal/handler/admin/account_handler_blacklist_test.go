@@ -14,16 +14,23 @@ import (
 )
 
 type stubAccountTestService struct {
-	lastInput service.ScheduledTestExecutionInput
-	result    *service.ScheduledTestResult
-	detailed  *service.BackgroundAccountTestResult
-	err       error
+	lastInput           service.ScheduledTestExecutionInput
+	lastConnectionInput service.AccountTestConnectionInput
+	result              *service.ScheduledTestResult
+	detailed            *service.BackgroundAccountTestResult
+	err                 error
+	connectionErr       error
 }
 
 func (s *stubAccountTestService) SetModelRegistryService(_ *service.ModelRegistryService) {}
 
 func (s *stubAccountTestService) TestAccountConnection(_ *gin.Context, _ int64, _ string, _ string, _ string, _ string, _ string, _ string) error {
 	panic("unexpected TestAccountConnection call")
+}
+
+func (s *stubAccountTestService) TestAccountConnectionWithInput(_ *gin.Context, input service.AccountTestConnectionInput) error {
+	s.lastConnectionInput = input
+	return s.connectionErr
 }
 
 func (s *stubAccountTestService) RunTestBackgroundDetailed(_ context.Context, input service.ScheduledTestExecutionInput) (*service.BackgroundAccountTestResult, error) {
@@ -243,6 +250,8 @@ func TestAccountHandlerRetestBlacklistedPrefersManualModelID(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "claude-sonnet-4-5", accountTestSvc.lastInput.ModelID)
+	require.Equal(t, service.ScheduledTestModelInputModeManual, accountTestSvc.lastInput.ModelInputMode)
+	require.Equal(t, "claude-sonnet-4-5", accountTestSvc.lastInput.ManualModelID)
 	require.Equal(t, "anthropic", accountTestSvc.lastInput.SourceProtocol)
 }
 

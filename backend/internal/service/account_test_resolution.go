@@ -152,6 +152,10 @@ func ambiguousGatewayProbeResolutionError() error {
 	return infraerrors.BadRequest("TEST_PROBE_RESOLUTION_FAILED", "mixed protocol gateway test could not resolve a unique protocol")
 }
 
+func manualGatewaySourceProtocolRequiredError() error {
+	return infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_REQUIRED", "manual protocol gateway test requires source_protocol")
+}
+
 func (s *AccountTestService) resolveRestrictedDefaultTestModel(ctx context.Context, account *Account) (string, string) {
 	if account == nil || !accountHasExplicitModelRestrictions(account) {
 		return "", ""
@@ -173,7 +177,7 @@ func (s *AccountTestService) ensureAllowedTestModel(ctx context.Context, account
 	return testModelNotAllowedError()
 }
 
-func (s *AccountTestService) resolveGatewayTestTarget(ctx context.Context, account *Account, modelID string, requested string, targetProvider string, targetModelID string) (resolvedGatewayTestTarget, error) {
+func (s *AccountTestService) resolveGatewayTestTarget(ctx context.Context, account *Account, modelID string, requested string, targetProvider string, targetModelID string, manualInput bool) (resolvedGatewayTestTarget, error) {
 	resolution := resolvedGatewayTestTarget{
 		ModelID:        strings.TrimSpace(modelID),
 		SourceProtocol: normalizeTestSourceProtocol(requested),
@@ -189,6 +193,22 @@ func (s *AccountTestService) resolveGatewayTestTarget(ctx context.Context, accou
 
 	acceptedProtocols := GetAccountGatewayAcceptedProtocols(account)
 	if len(acceptedProtocols) == 0 {
+		return resolution, nil
+	}
+	if manualInput {
+		if len(acceptedProtocols) == 1 {
+			if resolution.SourceProtocol != "" && !containsGatewayProtocol(acceptedProtocols, resolution.SourceProtocol) {
+				return resolvedGatewayTestTarget{}, invalidGatewaySourceProtocolError()
+			}
+			resolution.SourceProtocol = acceptedProtocols[0]
+			return resolution, nil
+		}
+		if resolution.SourceProtocol == "" {
+			return resolvedGatewayTestTarget{}, manualGatewaySourceProtocolRequiredError()
+		}
+		if !containsGatewayProtocol(acceptedProtocols, resolution.SourceProtocol) {
+			return resolvedGatewayTestTarget{}, invalidGatewaySourceProtocolError()
+		}
 		return resolution, nil
 	}
 

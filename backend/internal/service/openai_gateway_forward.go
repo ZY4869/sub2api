@@ -61,7 +61,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 		return route.ClientProfile
 	}
-	if profile := resolveSimulatedClient(account.GetMappedModel(routingModel)); profile == GatewayClientProfileCodex {
+	profileModel := routingModel
+	if !accountTestManualModelInputFromContext(ctx) {
+		profileModel = account.GetMappedModel(routingModel)
+	}
+	if profile := resolveSimulatedClient(profileModel); profile == GatewayClientProfileCodex {
 		simulatedClient = profile
 		isCodexCLI = true
 	}
@@ -207,16 +211,19 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		bodyModified = true
 		disablePatch()
 	}
-	mappedModel := account.GetMappedModel(reqModel)
-	if mappedModel != reqModel {
-		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", reqModel, mappedModel, account.Name, isCodexCLI)
-		reqBody["model"] = mappedModel
-		bodyModified = true
-		markPatchSet("model", mappedModel)
+	mappedModel := reqModel
+	if !accountTestManualModelInputFromContext(ctx) {
+		mappedModel = account.GetMappedModel(reqModel)
+		if mappedModel != reqModel {
+			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", reqModel, mappedModel, account.Name, isCodexCLI)
+			reqBody["model"] = mappedModel
+			bodyModified = true
+			markPatchSet("model", mappedModel)
+		}
 	}
 	if model, ok := reqBody["model"].(string); ok {
 		upstreamModel := normalizeOpenAIModelForUpstream(account, model)
-		if upstreamModel != "" && upstreamModel != model {
+		if !accountTestManualModelInputFromContext(ctx) && upstreamModel != "" && upstreamModel != model {
 			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Upstream model resolved: %s -> %s (account: %s, type: %s, isCodexCLI: %v)", model, upstreamModel, account.Name, account.Type, isCodexCLI)
 			reqBody["model"] = upstreamModel
 			mappedModel = upstreamModel

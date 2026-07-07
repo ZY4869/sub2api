@@ -20,6 +20,7 @@ func NewOAuthHandler(oauthService *service.OAuthService) *OAuthHandler {
 type accountTestServicePort interface {
 	SetModelRegistryService(modelRegistryService *service.ModelRegistryService)
 	TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, targetProvider string, targetModelID string, testMode string) error
+	TestAccountConnectionWithInput(c *gin.Context, input service.AccountTestConnectionInput) error
 	RunTestBackgroundDetailed(ctx context.Context, input service.ScheduledTestExecutionInput) (*service.BackgroundAccountTestResult, error)
 	RunTestBackground(ctx context.Context, input service.ScheduledTestExecutionInput) (*service.ScheduledTestResult, error)
 }

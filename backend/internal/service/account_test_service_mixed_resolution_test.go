@@ -44,6 +44,7 @@ func TestResolveGatewayTestTarget(t *testing.T) {
 		sourceProtocol string
 		targetProvider string
 		targetModelID  string
+		manualInput    bool
 		want           resolvedGatewayTestTarget
 		wantReason     string
 		assert         func(t *testing.T, got resolvedGatewayTestTarget)
@@ -121,11 +122,43 @@ func TestResolveGatewayTestTarget(t *testing.T) {
 			targetModelID:  "missing-model",
 			wantReason:     "TEST_TARGET_MODEL_INVALID",
 		},
+		{
+			name:        "manual mixed gateway requires explicit source protocol",
+			account:     testAccount([]string{PlatformOpenAI, PlatformAnthropic}, nil, nil),
+			modelID:     "custom-model",
+			manualInput: true,
+			wantReason:  "TEST_SOURCE_PROTOCOL_REQUIRED",
+		},
+		{
+			name:           "manual mixed gateway accepts source protocol without model projection matching",
+			account:        testAccount([]string{PlatformOpenAI, PlatformAnthropic}, nil, nil),
+			modelID:        "custom-model",
+			sourceProtocol: PlatformAnthropic,
+			targetProvider: PlatformOpenAI,
+			targetModelID:  "unlisted-target-model",
+			manualInput:    true,
+			want: resolvedGatewayTestTarget{
+				ModelID:        "custom-model",
+				SourceProtocol: PlatformAnthropic,
+				TargetProvider: PlatformOpenAI,
+				TargetModelID:  "unlisted-target-model",
+			},
+		},
+		{
+			name:        "manual single protocol gateway defaults accepted source protocol",
+			account:     testAccount([]string{PlatformOpenAI}, nil, nil),
+			modelID:     "custom-model",
+			manualInput: true,
+			want: resolvedGatewayTestTarget{
+				ModelID:        "custom-model",
+				SourceProtocol: PlatformOpenAI,
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := svc.resolveGatewayTestTarget(context.Background(), tt.account, tt.modelID, tt.sourceProtocol, tt.targetProvider, tt.targetModelID)
+			got, err := svc.resolveGatewayTestTarget(context.Background(), tt.account, tt.modelID, tt.sourceProtocol, tt.targetProvider, tt.targetModelID, tt.manualInput)
 			if tt.wantReason != "" {
 				require.Error(t, err)
 				require.Equal(t, tt.wantReason, infraerrors.Reason(err))

@@ -638,15 +638,15 @@ describe('AccountTestModal', () => {
     ]])
   })
 
-  it('surfaces TEST_MODEL_NOT_ALLOWED style errors for manual out-of-range models', async () => {
+  it('submits manual out-of-range models and surfaces upstream errors', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
-      status: 400,
+      status: 429,
       headers: {
         get: vi.fn(() => 'application/json')
       },
       json: vi.fn().mockResolvedValue({
-        message: 'selected model is not allowed for this account'
+        message: 'upstream returned 429: quota exceeded'
       })
     }) as any
 
@@ -663,7 +663,13 @@ describe('AccountTestModal', () => {
     await startButton!.trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('selected model is not allowed for this account')
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toMatchObject({
+      model_input_mode: 'manual',
+      manual_model_id: 'outside-allowed-model'
+    })
+    expect(wrapper.text()).toContain('upstream returned 429: quota exceeded')
   })
 
   it('persists the selected test mode and submits health_check when switched', async () => {

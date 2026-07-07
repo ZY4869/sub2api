@@ -54,7 +54,7 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 	normalizedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, originalModel)
 	req.Model = normalizedModel
 	mappedModel := normalizedModel
-	if account.Type == AccountTypeAPIKey {
+	if account.Type == AccountTypeAPIKey && !accountTestManualModelInputFromContext(ctx) {
 		mappedModel = account.GetMappedModel(normalizedModel)
 	}
 	simulatedClient := ""
@@ -402,7 +402,7 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 	claudeCapability := RecordClaudeCapabilityMetadataRequestedOnly(ctx, runtimeRequestedModel, strings.TrimSpace(gjson.GetBytes(body, "effortLevel").String()))
 	normalizedModel := firstNonEmptyString(claudeCapability.RequestedModelNormalized, runtimeRequestedModel)
 	mappedModel := normalizedModel
-	if account.Type == AccountTypeAPIKey {
+	if account.Type == AccountTypeAPIKey && !accountTestManualModelInputFromContext(ctx) {
 		mappedModel = account.GetMappedModel(normalizedModel)
 	}
 	simulatedClient := ""

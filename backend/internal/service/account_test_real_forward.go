@@ -323,7 +323,10 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 	}
 
 	requestFormat := ResolveOpenAITextRequestFormatForAccount(account, "")
-	testModelID := resolveOpenAITestModelID(c.Request.Context(), account, modelID, s.modelRegistryService)
+	testModelID := strings.TrimSpace(modelID)
+	if !accountTestManualModelInputFromContext(c.Request.Context()) {
+		testModelID = resolveOpenAITestModelID(c.Request.Context(), account, testModelID, s.modelRegistryService)
+	}
 	body, err := json.Marshal(createOpenAITestPayloadForRequestFormat(testModelID, normalizeDefaultTextTestPrompt(prompt), requestFormat, isChatGPTOpenAIOAuthAccount(account)))
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to encode OpenAI test payload")
@@ -365,7 +368,9 @@ func (s *AccountTestService) testGeminiRealForwardConnection(c *gin.Context, acc
 	if testModelID == "" {
 		testModelID = defaultGeminiTestModelID(account)
 	}
-	testModelID = s.resolveTestModelID(c.Request.Context(), account, testModelID)
+	if !accountTestManualModelInputFromContext(c.Request.Context()) {
+		testModelID = s.resolveTestModelID(c.Request.Context(), account, testModelID)
+	}
 	body := createGeminiTestPayload(testModelID, normalizeDefaultTextTestPrompt(prompt))
 
 	s.prepareTestStream(c)

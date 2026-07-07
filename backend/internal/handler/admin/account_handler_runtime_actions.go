@@ -125,11 +125,23 @@ func (h *AccountHandler) Test(c *gin.Context) {
 	if modelID == "" {
 		modelID = strings.TrimSpace(req.Model)
 	}
-	if strings.EqualFold(strings.TrimSpace(req.ModelInputMode), "manual") {
-		modelID = strings.TrimSpace(req.ManualModelID)
-	}
 	if modelID == "" {
 		modelID = strings.TrimSpace(c.Query("model"))
+	}
+	modelInputMode := strings.TrimSpace(req.ModelInputMode)
+	if modelInputMode == "" {
+		modelInputMode = strings.TrimSpace(c.Query("model_input_mode"))
+	}
+	manualModelID := strings.TrimSpace(req.ManualModelID)
+	if manualModelID == "" {
+		manualModelID = strings.TrimSpace(c.Query("manual_model_id"))
+	}
+	if strings.EqualFold(modelInputMode, service.ScheduledTestModelInputModeManual) && manualModelID == "" {
+		manualModelID = modelID
+	}
+	requestAlias := strings.TrimSpace(req.RequestAlias)
+	if requestAlias == "" {
+		requestAlias = strings.TrimSpace(c.Query("request_alias"))
 	}
 	prompt := strings.TrimSpace(req.Prompt)
 	if prompt == "" {
@@ -162,7 +174,18 @@ func (h *AccountHandler) Test(c *gin.Context) {
 	service.AttachAccountTestOpsContext(c, testRunID, "account_test", adminUserID)
 
 	startedAt := time.Now()
-	runErr := h.accountTestService.TestAccountConnection(c, accountID, modelID, prompt, sourceProtocol, targetProvider, targetModelID, testMode)
+	runErr := h.accountTestService.TestAccountConnectionWithInput(c, service.AccountTestConnectionInput{
+		AccountID:      accountID,
+		ModelID:        modelID,
+		ModelInputMode: modelInputMode,
+		ManualModelID:  manualModelID,
+		RequestAlias:   requestAlias,
+		Prompt:         prompt,
+		SourceProtocol: sourceProtocol,
+		TargetProvider: targetProvider,
+		TargetModelID:  targetModelID,
+		TestMode:       testMode,
+	})
 	duration := time.Since(startedAt)
 
 	platform := ""
@@ -192,6 +215,9 @@ func (h *AccountHandler) Test(c *gin.Context) {
 		"test_run_id":        testRunID,
 		"account_id":         accountID,
 		"requested_model_id": strings.TrimSpace(modelID),
+		"model_input_mode":   strings.TrimSpace(modelInputMode),
+		"manual_model_id":    strings.TrimSpace(manualModelID),
+		"request_alias":      strings.TrimSpace(requestAlias),
 		"test_mode":          strings.TrimSpace(testMode),
 		"source_protocol":    strings.TrimSpace(sourceProtocol),
 		"target_provider":    strings.TrimSpace(targetProvider),

@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,37 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAccountHandlerTestPassesManualInputToService(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{
+		{ID: 23, Name: "openai", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive},
+	}
+	accountTestSvc := &stubAccountTestService{}
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, accountTestSvc, nil, nil, nil, nil, nil)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/api/v1/admin/accounts/:id/test", handler.Test)
+
+	body := []byte(`{"model_id":"catalog-model","model_input_mode":"manual","manual_model_id":"custom-model","request_alias":"alias-model","source_protocol":"openai","target_provider":"openai","target_model_id":"target-model","prompt":"hello","test_mode":"health_check"}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/23/test", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(23), accountTestSvc.lastConnectionInput.AccountID)
+	require.Equal(t, "catalog-model", accountTestSvc.lastConnectionInput.ModelID)
+	require.Equal(t, service.ScheduledTestModelInputModeManual, accountTestSvc.lastConnectionInput.ModelInputMode)
+	require.Equal(t, "custom-model", accountTestSvc.lastConnectionInput.ManualModelID)
+	require.Equal(t, "alias-model", accountTestSvc.lastConnectionInput.RequestAlias)
+	require.Equal(t, "openai", accountTestSvc.lastConnectionInput.SourceProtocol)
+	require.Equal(t, "openai", accountTestSvc.lastConnectionInput.TargetProvider)
+	require.Equal(t, "target-model", accountTestSvc.lastConnectionInput.TargetModelID)
+	require.Equal(t, "hello", accountTestSvc.lastConnectionInput.Prompt)
+	require.Equal(t, "health_check", accountTestSvc.lastConnectionInput.TestMode)
+}
 
 func TestAccountHandlerGetRuntimeSummaryUsesSnakeCaseJSON(t *testing.T) {
 	adminSvc := newStubAdminService()
