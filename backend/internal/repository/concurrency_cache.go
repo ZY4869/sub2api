@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -807,21 +808,67 @@ func (c *concurrencyCache) cleanupStaleProcessSlotsForActiveSet(ctx context.Cont
 			continue
 		}
 		key := keyPrefix + strconv.FormatInt(id, 10)
-		if _, err := startupCleanupScript.Run(ctx, c.rdb, []string{key}, activePrefix, c.slotTTLSeconds).Result(); err != nil {
-			return fmt.Errorf("cleanup slots %s: %w", key, err)
+		if err := c.cleanupStaleProcessSlotKey(ctx, activeSetKey, key, member, activePrefix); err != nil {
+			return err
 		}
-		count, err := c.rdb.ZCard(ctx, key).Result()
-		if err != nil && !errors.Is(err, redis.Nil) {
-			return fmt.Errorf("count slots %s: %w", key, err)
+	}
+	return c.cleanupLegacyStaleProcessSlotKeys(ctx, activeSetKey, keyPrefix, activePrefix)
+}
+
+func (c *concurrencyCache) cleanupLegacyStaleProcessSlotKeys(ctx context.Context, activeSetKey string, keyPrefix string, activePrefix string) error {
+	const scanCount = 200
+	var cursor uint64
+	for {
+		keys, nextCursor, err := c.rdb.Scan(ctx, cursor, keyPrefix+"*", scanCount).Result()
+		if err != nil {
+			return fmt.Errorf("scan slot keys %s*: %w", keyPrefix, err)
 		}
-		if count == 0 {
-			pipe := c.rdb.Pipeline()
-			pipe.SRem(ctx, activeSetKey, member)
-			pipe.Del(ctx, key)
-			if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) {
-				return fmt.Errorf("remove inactive slot %s: %w", key, err)
+		for _, key := range keys {
+			member, ok := strings.CutPrefix(key, keyPrefix)
+			if !ok {
+				continue
+			}
+			if _, err := strconv.ParseInt(member, 10, 64); err != nil {
+				continue
+			}
+			keyType, err := c.rdb.Type(ctx, key).Result()
+			if err != nil && !errors.Is(err, redis.Nil) {
+				return fmt.Errorf("read slot key type %s: %w", key, err)
+			}
+			if keyType != "zset" {
+				continue
+			}
+			if err := c.cleanupStaleProcessSlotKey(ctx, activeSetKey, key, member, activePrefix); err != nil {
+				return err
 			}
 		}
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+	return nil
+}
+
+func (c *concurrencyCache) cleanupStaleProcessSlotKey(ctx context.Context, activeSetKey string, key string, member string, activePrefix string) error {
+	if _, err := startupCleanupScript.Run(ctx, c.rdb, []string{key}, activePrefix, c.slotTTLSeconds).Result(); err != nil {
+		return fmt.Errorf("cleanup slots %s: %w", key, err)
+	}
+	count, err := c.rdb.ZCard(ctx, key).Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return fmt.Errorf("count slots %s: %w", key, err)
+	}
+	if count == 0 {
+		pipe := c.rdb.Pipeline()
+		pipe.SRem(ctx, activeSetKey, member)
+		pipe.Del(ctx, key)
+		if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) {
+			return fmt.Errorf("remove inactive slot %s: %w", key, err)
+		}
+		return nil
+	}
+	if err := c.rdb.SAdd(ctx, activeSetKey, member).Err(); err != nil {
+		return fmt.Errorf("index active slot %s: %w", key, err)
 	}
 	return nil
 }
