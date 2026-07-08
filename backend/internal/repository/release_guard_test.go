@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const expectedReleaseVersion = "0.1.379"
+
 func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	root := repositoryTestRepoRoot(t)
 
@@ -29,7 +31,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	require.NotContains(t, thirdParty, "LGPL")
 	require.NotContains(t, thirdParty, "GPL")
 
-	require.Equal(t, "0.1.378", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 
 	var pkg struct {
 		Version string `json:"version"`
@@ -38,7 +40,7 @@ func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 		} `json:"pnpm"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(readRepoFile(t, root, "frontend", "package.json")), &pkg))
-	require.Equal(t, "0.1.378", pkg.Version)
+	require.Equal(t, expectedReleaseVersion, pkg.Version)
 	require.Equal(t, "4.0.6", pkg.PNPM.Overrides["form-data"])
 
 	assertNoAPIDocsRoutes(t, root)
@@ -118,7 +120,7 @@ func TestUpstream144CleanroomMatrixGuards(t *testing.T) {
 	license := readRepoFile(t, root, "LICENSE")
 	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
 	require.NotContains(t, license, "GNU LESSER GENERAL PUBLIC LICENSE")
-	require.Equal(t, "0.1.378", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 	assertNoAPIDocsRoutes(t, root)
 }
 
@@ -190,7 +192,7 @@ func TestUpstream145To146CleanroomMatrixGuards(t *testing.T) {
 	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
 	require.NotContains(t, license, "GNU LESSER GENERAL PUBLIC LICENSE")
 	require.NotContains(t, license, "GNU GENERAL PUBLIC LICENSE")
-	require.Equal(t, "0.1.378", strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 	assertNoAPIDocsRoutes(t, root)
 }
 
