@@ -101,7 +101,7 @@ const showApiKey = ref(false)
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4" data-testid="account-api-key-basic-settings-editor">
     <div
       v-if="showProtocolGatewaySuggestion"
       class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-300"

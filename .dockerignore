@@ -28,6 +28,19 @@ build/
 .dist/
 .gocache/
 .wsl-data/
+frontend/dist/
+frontend/.vite/
+backend/internal/web/dist/
+
+# Local-only project data not copied by the production Dockerfile
+assets/
+data/
+视觉升级/
+body-model.json
+headers-model.txt
+skills/
+tools/
+security/
 
 # Node modules (will be installed in container)
 frontend/node_modules/

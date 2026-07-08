@@ -26,19 +26,6 @@ const geminiStub = {
   `
 }
 
-const upstreamStub = {
-  name: 'AccountUpstreamSettingsEditor',
-  props: ['baseUrl', 'apiKey', 'mode'],
-  emits: ['update:baseUrl', 'update:apiKey'],
-  template: `
-    <div data-testid="upstream-stub">
-      <span data-testid="upstream-mode">{{ mode }}</span>
-      <button type="button" data-testid="emit-base" @click="$emit('update:baseUrl', 'https://example.com')" />
-      <button type="button" data-testid="emit-key" @click="$emit('update:apiKey', 'sk-test')" />
-    </div>
-  `
-}
-
 const createWrapper = (overrides: Record<string, unknown> = {}) =>
   mount(AccountCreatePlatformTypeEditor, {
     props: {
@@ -52,8 +39,6 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
       geminiTierGcp: 'gcp_standard',
       geminiTierAiStudio: 'aistudio_free',
       gatewayProtocol: 'openai',
-      upstreamBaseUrl: '',
-      upstreamApiKey: '',
       aiStudioOAuthEnabled: false,
       apiKeyHelpLink: 'https://example.com/api-key',
       gcpProjectHelpLink: 'https://example.com/gcp-project',
@@ -62,7 +47,6 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
     global: {
       stubs: {
         AccountGeminiAccountTypeEditor: geminiStub,
-        AccountUpstreamSettingsEditor: upstreamStub,
         PlatformLabel: {
           props: ['platform', 'label', 'description'],
           template: `
@@ -172,19 +156,13 @@ describe('AccountCreatePlatformTypeEditor', () => {
     expect(wrapper.emitted('openGeminiHelp')).toEqual([[]])
   })
 
-  it('shows upstream settings for antigravity upstream accounts and forwards updates', async () => {
+  it('selects antigravity upstream type while leaving credentials to the parent modal', async () => {
     const wrapper = createWrapper({
       platform: 'antigravity',
       antigravityAccountType: 'upstream'
     })
 
-    expect(wrapper.get('[data-testid="upstream-mode"]').text()).toBe('create')
-
-    await wrapper.get('[data-testid="emit-base"]').trigger('click')
-    await wrapper.get('[data-testid="emit-key"]').trigger('click')
-
-    expect(wrapper.emitted('update:upstreamBaseUrl')).toContainEqual(['https://example.com'])
-    expect(wrapper.emitted('update:upstreamApiKey')).toContainEqual(['sk-test'])
+    expect(wrapper.find('[data-testid="upstream-stub"]').exists()).toBe(false)
 
     const oauthWrapper = createWrapper({
       platform: 'antigravity',
@@ -205,7 +183,6 @@ describe('AccountCreatePlatformTypeEditor', () => {
     expect(wrapper.text()).not.toContain('admin.accounts.accountType')
     expect(wrapper.findAll('button')).toHaveLength(0)
     expect(wrapper.find('[data-testid="gemini-stub"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="upstream-stub"]').exists()).toBe(false)
   })
 
   it('shows protocol gateway request formats on the same row', async () => {

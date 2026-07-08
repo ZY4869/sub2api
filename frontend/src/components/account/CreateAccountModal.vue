@@ -115,8 +115,6 @@
           v-model:gemini-tier-google-one="geminiTierGoogleOne"
           v-model:gemini-tier-gcp="geminiTierGcp"
           v-model:gemini-tier-ai-studio="geminiTierAIStudio"
-          v-model:upstream-base-url="upstreamBaseUrl"
-          v-model:upstream-api-key="upstreamApiKey"
           :ai-studio-o-auth-enabled="geminiAIStudioOAuthEnabled"
           :api-key-help-link="geminiHelpLinks.apiKey"
           :gcp-project-help-link="geminiHelpLinks.gcpProject"
@@ -135,6 +133,13 @@
           v-model:access-token="baiduDocumentAIAccessToken"
           v-model:async-base-url="baiduDocumentAIAsyncBaseUrl"
           v-model:direct-api-urls-text="baiduDocumentAIDirectApiUrlsText"
+          mode="create"
+        />
+
+        <AccountUpstreamSettingsEditor
+          v-if="showAntigravityUpstreamCredentialsSection"
+          v-model:base-url="upstreamBaseUrl"
+          v-model:api-key="upstreamApiKey"
           mode="create"
         />
 
@@ -168,7 +173,7 @@
         />
 
         <AccountApiKeyModelProbeEditor
-          v-if="form.type === 'upstream'"
+          v-if="form.type === 'upstream' || showAntigravityUpstreamCredentialsSection"
           v-model:allowed-models="allowedModels"
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
@@ -176,7 +181,7 @@
           v-model:probe-snapshot="modelProbeSnapshot"
           v-model:resolved-upstream="resolvedUpstream"
           :platform="form.platform"
-          account-type="upstream"
+          :account-type="showAntigravityUpstreamCredentialsSection ? 'apikey' : 'upstream'"
           :credentials="upstreamProbeCredentials"
           :extra="probeExtraForEditor"
           :probe-ready="isUpstreamProbeReady"
@@ -235,7 +240,11 @@
       />
 
       <!-- API Key input (only for apikey type, excluding Antigravity which has its own fields) -->
-      <div v-if="showCommonApiKeySection" class="space-y-4">
+      <div
+        v-if="showCommonApiKeySection"
+        class="space-y-4"
+        data-testid="create-account-common-api-key-section"
+      >
         <AccountApiKeyBasicSettingsEditor
           v-model:base-url="apiKeyBaseUrl"
           v-model:api-key="apiKeyValue"
@@ -642,6 +651,7 @@ import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlE
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
 import AccountTempUnschedRulesEditor from '@/components/account/AccountTempUnschedRulesEditor.vue'
 import AccountTierSelector from '@/components/account/AccountTierSelector.vue'
+import AccountUpstreamSettingsEditor from '@/components/account/AccountUpstreamSettingsEditor.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { useCreateAccountModal } from './createAccountModal/useCreateAccountModal'
 import type { CreateAccountModalEmits, CreateAccountModalProps } from './createAccountModal/types'
@@ -755,6 +765,7 @@ const {
   showGeminiVertexBatchArchiveEditor,
   showOAuthFinalizeStep,
   showOAuthFinalizeProbeEditor,
+  showAntigravityUpstreamCredentialsSection,
   antigravityModelMappings,
   antigravityPresetMappings,
   getModelMappingKey,

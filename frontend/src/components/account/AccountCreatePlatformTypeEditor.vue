@@ -10,7 +10,6 @@ import {
 import AccountCreateAddMethodSelector from './AccountCreateAddMethodSelector.vue'
 import AccountCreateTypeCardGroup from './AccountCreateTypeCardGroup.vue'
 import AccountGeminiAccountTypeEditor from './AccountGeminiAccountTypeEditor.vue'
-import AccountUpstreamSettingsEditor from './AccountUpstreamSettingsEditor.vue'
 import Select from '@/components/common/Select.vue'
 import PlatformLabel from '@/components/common/PlatformLabel.vue'
 import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
@@ -56,8 +55,6 @@ const showAdvanced = defineModel<boolean>('showAdvanced', { required: true })
 const geminiTierGoogleOne = defineModel<GeminiGoogleOneTier>('geminiTierGoogleOne', { required: true })
 const geminiTierGcp = defineModel<GeminiGcpTier>('geminiTierGcp', { required: true })
 const geminiTierAiStudio = defineModel<GeminiAIStudioTier>('geminiTierAiStudio', { required: true })
-const upstreamBaseUrl = defineModel<string>('upstreamBaseUrl', { required: true })
-const upstreamApiKey = defineModel<string>('upstreamApiKey', { required: true })
 const gatewayProtocol = defineModel<GatewayProtocol>('gatewayProtocol', { required: true })
 const { t } = useI18n()
 
@@ -337,14 +334,6 @@ function handleAntigravitySelect(key: string) {
         :options="antigravityOptions"
         @select="handleAntigravitySelect"
       />
-
-      <div v-if="antigravityAccountType === 'upstream'">
-        <AccountUpstreamSettingsEditor
-          v-model:base-url="upstreamBaseUrl"
-          v-model:api-key="upstreamApiKey"
-          mode="create"
-        />
-      </div>
     </div>
   </template>
 

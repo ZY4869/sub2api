@@ -22,6 +22,7 @@ const {
   createMock,
   exchangeCodeMock,
   generateAuthUrlMock,
+  probeModelsMock,
   refreshOpenAITokenMock,
   refreshAntigravityTokenMock,
   checkMixedChannelRiskMock,
@@ -34,6 +35,7 @@ const {
   createMock: vi.fn(),
   exchangeCodeMock: vi.fn(),
   generateAuthUrlMock: vi.fn(),
+  probeModelsMock: vi.fn(),
   refreshOpenAITokenMock: vi.fn(),
   refreshAntigravityTokenMock: vi.fn(),
   checkMixedChannelRiskMock: vi.fn(),
@@ -110,11 +112,12 @@ vi.mock('@/stores/auth', () => ({
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
-        create: createMock,
-        exchangeCode: exchangeCodeMock,
-        exchangeGrokAuthCode: exchangeGrokAuthCodeMock,
-        generateGrokAuthUrl: generateGrokAuthUrlMock,
-        generateAuthUrl: generateAuthUrlMock,
+      create: createMock,
+      exchangeCode: exchangeCodeMock,
+      exchangeGrokAuthCode: exchangeGrokAuthCodeMock,
+      generateGrokAuthUrl: generateGrokAuthUrlMock,
+      generateAuthUrl: generateAuthUrlMock,
+      probeModels: probeModelsMock,
       refreshOpenAIToken: refreshOpenAITokenMock,
       checkMixedChannelRisk: checkMixedChannelRiskMock
     },
@@ -135,7 +138,10 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key
+      t: (key: string) => key,
+      locale: {
+        value: 'zh-CN'
+      }
     })
   }
 })
@@ -207,6 +213,20 @@ const AccountCreatePlatformSelectorStub = defineComponent({
       </button>
       <button
         type="button"
+        data-testid="select-gemini"
+        @click="$emit('update:platform', 'gemini')"
+      >
+        select gemini
+      </button>
+      <button
+        type="button"
+        data-testid="select-openrouter"
+        @click="$emit('update:platform', 'openrouter')"
+      >
+        select openrouter
+      </button>
+      <button
+        type="button"
         data-testid="select-antigravity"
         @click="$emit('update:platform', 'antigravity')"
       >
@@ -225,7 +245,12 @@ const AccountCreatePlatformSelectorStub = defineComponent({
 
 const AccountCreatePlatformTypeEditorStub = defineComponent({
   name: 'AccountCreatePlatformTypeEditor',
-  emits: ['update:account-category', 'update:gateway-protocol', 'update:antigravity-account-type'],
+  emits: [
+    'update:account-category',
+    'update:gateway-protocol',
+    'update:antigravity-account-type',
+    'update:gemini-o-auth-type'
+  ],
   template: `
     <div>
       <button
@@ -264,6 +289,23 @@ const AccountCreatePlatformTypeEditorStub = defineComponent({
         "
       >
         set gemini gateway
+      </button>
+      <button
+        type="button"
+        data-testid="set-antigravity-upstream-mode"
+        @click="$emit('update:antigravity-account-type', 'upstream')"
+      >
+        set antigravity upstream mode
+      </button>
+      <button
+        type="button"
+        data-testid="set-gemini-vertex-mode"
+        @click="
+          $emit('update:account-category', 'vertex_ai');
+          $emit('update:gemini-o-auth-type', 'vertex_ai')
+        "
+      >
+        set gemini vertex mode
       </button>
       <button
         type="button"
@@ -555,9 +597,31 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
 
 const AccountApiKeyModelProbeEditorStub = defineComponent({
   name: 'AccountApiKeyModelProbeEditor',
+  props: {
+    platform: {
+      type: String,
+      default: ''
+    },
+    accountType: {
+      type: String,
+      default: ''
+    },
+    credentials: {
+      type: Object,
+      default: () => ({})
+    },
+    probeReady: {
+      type: Boolean,
+      default: false
+    }
+  },
   emits: ['update:allowedModels', 'update:modelMappings'],
   template: `
-    <div>
+    <div data-testid="api-key-probe-editor">
+      <span data-testid="api-key-probe-platform">{{ platform }}</span>
+      <span data-testid="api-key-probe-account-type">{{ accountType }}</span>
+      <span data-testid="api-key-probe-ready">{{ String(probeReady) }}</span>
+      <span data-testid="api-key-probe-credentials">{{ JSON.stringify(credentials) }}</span>
       <button
         type="button"
         data-testid="probe-select-models"
@@ -794,6 +858,37 @@ const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
   `
 })
 
+const AccountUpstreamSettingsEditorStub = defineComponent({
+  name: 'AccountUpstreamSettingsEditor',
+  props: {
+    baseUrl: {
+      type: String,
+      default: ''
+    },
+    apiKey: {
+      type: String,
+      default: ''
+    }
+  },
+  emits: ['update:baseUrl', 'update:apiKey'],
+  template: `
+    <div data-testid="account-upstream-credentials-editor">
+      <span data-testid="upstream-base-url-prop">{{ baseUrl }}</span>
+      <span data-testid="upstream-api-key-prop">{{ apiKey }}</span>
+      <button
+        type="button"
+        data-testid="set-upstream-credentials"
+        @click="
+          $emit('update:baseUrl', 'https://upstream.example.com/v1');
+          $emit('update:apiKey', 'upstream-key')
+        "
+      >
+        set upstream credentials
+      </button>
+    </div>
+  `
+})
+
 const AccountDeepSeekConcurrencyLimitsEditorStub = defineComponent({
   name: 'AccountDeepSeekConcurrencyLimitsEditor',
   props: {
@@ -890,6 +985,7 @@ function mountModal(stubOverrides: Record<string, any> = {}) {
         AccountTierSelector: AccountTierSelectorStub,
         AccountRuntimeSettingsEditor: AccountRuntimeSettingsEditorStub,
         AccountBaiduDocumentAICredentialsEditor: AccountBaiduDocumentAICredentialsEditorStub,
+        AccountUpstreamSettingsEditor: AccountUpstreamSettingsEditorStub,
         AccountProtocolGatewayModelProbeEditor: AccountProtocolGatewayModelProbeEditorStub,
         AccountProtocolGatewayOpenAIRequestFormatEditor: AccountProtocolGatewayOpenAIRequestFormatEditorStub,
         AccountApiKeyModelProbeEditor: AccountApiKeyModelProbeEditorStub,
@@ -961,6 +1057,157 @@ describe('CreateAccountModal', () => {
     expect(source).toContain('AccountProtocolGatewayModelProbeEditor')
     expect(source).toContain(':skip-model-scope-editor="!showApiKeyModelScopeEditor"')
     expect(source).not.toContain(':show-auto-import=')
+  })
+
+  it.each([
+    ['OpenAI API Key', 'select-openai', 'set-apikey-mode'],
+    ['Anthropic API Key', 'select-anthropic', 'set-apikey-mode'],
+    ['Gemini AI Studio API Key', 'select-gemini', 'set-apikey-mode'],
+    ['DeepSeek API Key', 'select-deepseek', 'set-apikey-mode'],
+    ['OpenRouter API Key', 'select-openrouter', 'set-apikey-mode'],
+    ['Grok API Key', 'select-grok', undefined],
+    ['Protocol Gateway API Key', 'select-protocol-gateway', undefined]
+  ])('renders real base url and api key inputs for %s creation', async (_label, selectTestId, modeTestId) => {
+    const wrapper = mountModal({
+      AccountApiKeyBasicSettingsEditor: false
+    })
+
+    await wrapper.get(`[data-testid="${selectTestId}"]`).trigger('click')
+    if (modeTestId) {
+      await wrapper.get(`[data-testid="${modeTestId}"]`).trigger('click')
+    }
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="create-account-common-api-key-section"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="account-base-url-input"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="account-api-key-input"]').exists()).toBe(true)
+  })
+
+  it('renders the real antigravity upstream credential inputs in the parent modal flow', async () => {
+    const wrapper = mountModal({
+      AccountUpstreamSettingsEditor: false
+    })
+
+    await wrapper.get('[data-testid="select-antigravity"]').trigger('click')
+    await wrapper.get('[data-testid="set-antigravity-upstream-mode"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="create-account-common-api-key-section"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="account-upstream-credentials-editor"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="account-upstream-base-url-input"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="account-upstream-api-key-input"]').exists()).toBe(true)
+  })
+
+  it('renders real Gemini Vertex Express credentials before the model probe editor', async () => {
+    const wrapper = mountModal({
+      AccountGeminiVertexCredentialsEditor: false
+    })
+
+    await wrapper.get('[data-testid="select-gemini"]').trigger('click')
+    await wrapper.get('[data-testid="set-gemini-vertex-mode"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="account-gemini-vertex-credentials-editor"]').exists()).toBe(true)
+
+    const expressButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.gemini.vertex.authModes.expressTitle')
+    )
+    expect(expressButton).toBeTruthy()
+    await expressButton?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="gemini-vertex-express-api-key-input"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="gemini-vertex-base-url-input"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="api-key-probe-editor"]').exists()).toBe(true)
+  })
+
+  it('keeps API key model probe disabled until credentials are present and forwards current credentials', async () => {
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-openai"]').trigger('click')
+    await wrapper.get('[data-testid="set-apikey-mode"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="api-key-probe-ready"]').text()).toBe('false')
+    expect(wrapper.get('[data-testid="api-key-probe-credentials"]').text()).toContain('"api_key":""')
+
+    await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="api-key-probe-ready"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="api-key-probe-credentials"]').text()).toContain('"api_key":"gateway-key"')
+    expect(wrapper.get('[data-testid="api-key-probe-credentials"]').text()).toContain(
+      '"base_url":"https://gateway.example.com"'
+    )
+  })
+
+  it('requires both upstream base url and api key before enabling antigravity upstream probing', async () => {
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-antigravity"]').trigger('click')
+    await wrapper.get('[data-testid="set-antigravity-upstream-mode"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="api-key-probe-account-type"]').text()).toBe('apikey')
+    expect(wrapper.get('[data-testid="api-key-probe-ready"]').text()).toBe('false')
+
+    await wrapper.get('[data-testid="set-upstream-credentials"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="api-key-probe-ready"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="api-key-probe-credentials"]').text()).toContain(
+      '"base_url":"https://upstream.example.com/v1"'
+    )
+    expect(wrapper.get('[data-testid="api-key-probe-credentials"]').text()).toContain('"api_key":"upstream-key"')
+  })
+
+  it('does not call model probing with empty credentials and sends filled modal credentials', async () => {
+    probeModelsMock.mockReset()
+    probeModelsMock.mockResolvedValue({
+      probe_source: 'openai_catalog',
+      probe_notice: '',
+      models: []
+    })
+
+    const wrapper = mountModal({
+      AccountApiKeyBasicSettingsEditor: false,
+      AccountApiKeyModelProbeEditor: false,
+      AccountManualModelsEditor: true,
+      AccountProbeModelIdentity: true,
+      AccountResolvedUpstreamPanel: true,
+      Icon: true
+    })
+
+    await wrapper.get('[data-testid="select-openai"]').trigger('click')
+    await wrapper.get('[data-testid="set-apikey-mode"]').trigger('click')
+    await flushPromises()
+
+    const probeButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.apiKeyProbe.action')
+    )
+    expect(probeButton).toBeTruthy()
+    expect((probeButton!.element as HTMLButtonElement).disabled).toBe(true)
+
+    await probeButton?.trigger('click')
+    await flushPromises()
+    expect(probeModelsMock).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="account-base-url-input"]').setValue('https://api.openai.com/v1')
+    await wrapper.get('[data-testid="account-api-key-input"]').setValue('sk-openai')
+    await flushPromises()
+    expect((probeButton!.element as HTMLButtonElement).disabled).toBe(false)
+
+    await probeButton?.trigger('click')
+    await flushPromises()
+
+    expect(probeModelsMock).toHaveBeenCalledWith(expect.objectContaining({
+      platform: 'openai',
+      type: 'apikey',
+      credentials: expect.objectContaining({
+        api_key: 'sk-openai',
+        base_url: 'https://api.openai.com/v1'
+      })
+    }))
   })
 
   it('keeps only kiro on the dedicated oauth finalize flow', () => {
@@ -1814,6 +2061,7 @@ describe('CreateAccountModal', () => {
     await wrapper.get('[data-testid="select-baidu-document-ai"]').trigger('click')
 
     expect(wrapper.find('[data-testid="baidu-document-ai-access-token"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="baidu-document-ai-async-base-url"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="baidu-document-ai-direct-api-urls"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="set-api-key"]').exists()).toBe(false)
 

@@ -363,7 +363,9 @@ const vertexProbeCredentials = computed<Record<string, unknown>>(() => {
   return credentials
 })
 const isApiKeyProbeReady = computed(() => Boolean(apiKeyValue.value.trim()))
-const isUpstreamProbeReady = computed(() => Boolean(upstreamApiKey.value.trim()))
+const isUpstreamProbeReady = computed(() => Boolean(
+  upstreamApiKey.value.trim() && upstreamBaseUrl.value.trim()
+))
 const oauthDraftProbeReady = computed(() => Object.keys(oauthDraftCredentials.value).length > 0)
 const isVertexProbeReady = computed(() => {
   if (geminiVertexAuthMode.value === 'express_api_key') {
@@ -415,6 +417,9 @@ const showGeminiVertexBatchArchiveEditor = computed(() =>
   form.platform === 'gemini' &&
   accountCategory.value === 'vertex_ai' &&
   geminiVertexAuthMode.value !== 'express_api_key'
+)
+const showAntigravityUpstreamCredentialsSection = computed(() =>
+  form.platform === 'antigravity' && antigravityAccountType.value === 'upstream'
 )
 const showOAuthFinalizeStep = computed(() =>
   isOAuthFlow.value && form.platform === 'kiro'
@@ -1078,7 +1083,7 @@ const modalContext = {
   loadAntigravityDefaultMappings, markOpenAIOAuthDefaultsCustomized, nextTick, openAIImageProtocolTouched, props, protocolGatewayProbeModels, resetForm, resetOpenAIOAuthDefaultSelection, resetProtocolGatewayClaudeMimicState, showProtocolGatewayBatchEditor,
   showProtocolGatewayClaudeMimicEditor, showProtocolGatewayOpenAIRequestFormatEditor, watch, authStore, oauthStepTitle, showFormError, showFormInfo, currentAuthUrl, currentSessionId, currentOAuthLoading,
   currentOAuthError, apiKeyProbeCredentials, upstreamProbeCredentials, vertexProbeCredentials, isApiKeyProbeReady, isUpstreamProbeReady, isVertexProbeReady, showCommonApiKeySection, showApiKeyModelScopeEditor, showDeepSeekConcurrencyEditor,
-  showStandaloneModelScopeEditor, showQuotaLimitSection, showGeminiAIStudioBatchArchiveEditor, showGeminiVertexBatchArchiveEditor, showOAuthFinalizeProbeEditor, antigravityPresetMappings, getModelMappingKey, getAntigravityModelMappingKey, showAdvancedOAuth, showGeminiHelpDialog,
+  showStandaloneModelScopeEditor, showQuotaLimitSection, showGeminiAIStudioBatchArchiveEditor, showGeminiVertexBatchArchiveEditor, showAntigravityUpstreamCredentialsSection, showOAuthFinalizeProbeEditor, antigravityPresetMappings, getModelMappingKey, getAntigravityModelMappingKey, showAdvancedOAuth, showGeminiHelpDialog,
   quotaControlState, umqModeOptions, geminiTierGoogleOne, geminiTierGcp, effectiveGroupPlatforms, protocolGatewayBatchRequestFormats, openAIWSModeOptions, openaiResponsesWebSocketV2Mode, openAIWSModeConcurrencyHintKey, commonErrorCodeOptions,
   geminiHelpLinks, presetMappings, tempUnschedRules, tempUnschedPresets, getTempUnschedRuleKey, addTempUnschedRule, removeTempUnschedRule, moveTempUnschedRule, showMixedChannelWarning, mixedChannelWarningMessageText,
   handleMixedChannelConfirm, handleMixedChannelCancel, isManualInputMethod, currentOAuthInputMethod, showCompleteAuthAction, expiresAtInput, canExchangeCode, canCompleteAuth, handleOAuthInputMethodUpdate, resetOAuthInputDraft, handleOpenAIImageProtocolModeChange, addModelMapping, removeModelMapping, addPresetMapping, addAntigravityModelMapping,

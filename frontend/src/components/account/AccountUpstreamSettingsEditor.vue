@@ -22,7 +22,7 @@ const apiKeyHint = computed(() => t(resolveAccountUpstreamApiKeyHintKey(props.mo
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4" data-testid="account-upstream-credentials-editor">
     <div>
       <label class="input-label">{{ t('admin.accounts.upstream.baseUrl') }}</label>
       <input
@@ -31,6 +31,7 @@ const apiKeyHint = computed(() => t(resolveAccountUpstreamApiKeyHintKey(props.mo
         class="input"
         :required="isCreateMode"
         :placeholder="ACCOUNT_UPSTREAM_BASE_URL_PLACEHOLDER"
+        data-testid="account-upstream-base-url-input"
       />
       <p class="input-hint">{{ t('admin.accounts.upstream.baseUrlHint') }}</p>
     </div>
@@ -43,6 +44,7 @@ const apiKeyHint = computed(() => t(resolveAccountUpstreamApiKeyHintKey(props.mo
         class="input font-mono"
         :required="isCreateMode"
         :placeholder="ACCOUNT_UPSTREAM_API_KEY_PLACEHOLDER"
+        data-testid="account-upstream-api-key-input"
       />
       <p class="input-hint">{{ apiKeyHint }}</p>
     </div>

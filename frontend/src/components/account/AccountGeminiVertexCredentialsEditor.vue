@@ -1,5 +1,8 @@
 <template>
-  <section class="space-y-4 rounded-xl border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900/40 dark:bg-sky-950/20">
+  <section
+    class="space-y-4 rounded-xl border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900/40 dark:bg-sky-950/20"
+    data-testid="account-gemini-vertex-credentials-editor"
+  >
     <div class="space-y-1">
       <h3 class="text-sm font-semibold text-sky-950 dark:text-sky-100">
         {{ t('admin.accounts.gemini.vertex.formTitle') }}
@@ -91,6 +94,7 @@
             type="text"
             class="input"
             :placeholder="t('admin.accounts.gemini.vertex.projectIdPlaceholder')"
+            data-testid="gemini-vertex-project-id-input"
           />
           <p class="input-hint">{{ t('admin.accounts.gemini.vertex.projectIdHint') }}</p>
         </label>
@@ -113,6 +117,7 @@
             type="text"
             class="input"
             :placeholder="resolvedBaseUrl"
+            data-testid="gemini-vertex-base-url-input"
           />
           <p class="input-hint">{{ t('admin.accounts.gemini.vertex.baseUrlHint') }}</p>
         </label>
@@ -159,6 +164,7 @@
             rows="3"
             class="input w-full resize-y font-mono text-sm"
             :placeholder="t('admin.accounts.gemini.vertex.expressApiKeyPlaceholder')"
+            data-testid="gemini-vertex-express-api-key-input"
           ></textarea>
           <p class="input-hint">{{ t('admin.accounts.gemini.vertex.expressApiKeyHint') }}</p>
         </label>
@@ -170,6 +176,7 @@
             type="text"
             class="input"
             :placeholder="resolvedBaseUrl"
+            data-testid="gemini-vertex-base-url-input"
           />
           <p class="input-hint">{{ t('admin.accounts.gemini.vertex.expressBaseUrlHint') }}</p>
         </label>
