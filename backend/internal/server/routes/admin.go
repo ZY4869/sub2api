@@ -231,6 +231,7 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		{
 			runtime.GET("/alert", h.Admin.Ops.GetAlertRuntimeSettings)
 			runtime.GET("/google-batch", h.Admin.Ops.GetGoogleBatchRuntimeMetrics)
+			runtime.GET("/image-batch", h.Admin.Ops.GetImageBatchRuntimeMetrics)
 			runtime.GET("/protocol-gateway", h.Admin.Ops.GetProtocolGatewayRuntimeMetrics)
 			runtime.GET("/payment", h.Admin.Ops.GetPaymentRuntimeMetrics)
 			runtime.PUT("/alert", h.Admin.Ops.UpdateAlertRuntimeSettings)
@@ -667,6 +668,8 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.GET("/gemini-rate-catalog", h.Admin.Setting.GetGeminiRateCatalog)
 		adminSettings.GET("/google-batch-archive", h.Admin.Setting.GetGoogleBatchArchiveSettings)
 		adminSettings.PUT("/google-batch-archive", h.Admin.Setting.UpdateGoogleBatchArchiveSettings)
+		adminSettings.GET("/image-batches", h.Admin.Setting.GetImageBatchSettings)
+		adminSettings.PUT("/image-batches", h.Admin.Setting.UpdateImageBatchSettings)
 		adminSettings.GET("/google-batch-gcs/profiles", h.Admin.Setting.ListGoogleBatchGCSProfiles)
 		adminSettings.POST("/google-batch-gcs/profiles", h.Admin.Setting.CreateGoogleBatchGCSProfile)
 		adminSettings.PUT("/google-batch-gcs/profiles/:profile_id", h.Admin.Setting.UpdateGoogleBatchGCSProfile)

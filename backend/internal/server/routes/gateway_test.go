@@ -81,6 +81,38 @@ func newGatewayRoutesTestRouterWithAuthAndGooglePlatform(auth gin.HandlerFunc, g
 	return router
 }
 
+func newGatewayRoutesRealAuthTestRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	cfg := &config.Config{RunMode: config.RunModeSimple}
+	apiKeyService := service.NewAPIKeyService(
+		&gatewayRouteAPIKeyRepoStub{apiKey: newGatewayRoutesTestAPIKey(service.PlatformOpenAI)},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		cfg,
+	)
+
+	RegisterGatewayRoutes(
+		router,
+		&handler.Handlers{
+			Gateway:       &handler.GatewayHandler{},
+			OpenAIGateway: &handler.OpenAIGatewayHandler{},
+			GrokGateway:   &handler.GrokGatewayHandler{},
+		},
+		servermiddleware.NewAPIKeyAuthMiddleware(apiKeyService, nil, cfg),
+		apiKeyService,
+		nil,
+		nil,
+		nil,
+		cfg,
+	)
+
+	return router
+}
+
 func newGatewayRoutesTestAPIKey(platform string) *service.APIKey {
 	groupID := int64(1)
 	return &service.APIKey{
@@ -489,6 +521,45 @@ func TestGatewayRoutesOpenAIResponsesCompactPathIsRegistered(t *testing.T) {
 		router.ServeHTTP(w, req)
 		require.NotEqual(t, http.StatusNotFound, w.Code, "path=%s should hit OpenAI responses handler", path)
 	}
+}
+
+func TestGatewayRoutesUnauthorizedModelsAndChatCompletions(t *testing.T) {
+	router := newGatewayRoutesRealAuthTestRouter()
+
+	tests := []struct {
+		name     string
+		method   string
+		path     string
+		body     string
+		wantCode string
+	}{
+		{name: "v1 models", method: http.MethodGet, path: "/v1/models"},
+		{name: "chat completions", method: http.MethodPost, path: "/v1/chat/completions", body: `{"model":"gpt-5.4","messages":[]}`, wantCode: "API_KEY_REQUIRED"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			if tt.body != "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusUnauthorized, w.Code)
+			if tt.wantCode != "" {
+				require.Equal(t, tt.wantCode, firstGatewayAuthErrorCode(w.Body.String()))
+			}
+		})
+	}
+}
+
+func firstGatewayAuthErrorCode(body string) string {
+	if code := gjson.Get(body, "error.code").String(); code != "" {
+		return code
+	}
+	return gjson.Get(body, "code").String()
 }
 
 func TestGatewayRoutesGrokMessagesDispatchesCompatHandler(t *testing.T) {

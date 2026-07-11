@@ -15,6 +15,7 @@ import modelRouting from './modelRouting'
 import mcpXml from './mcpXml'
 import supportedScopes from './supportedScopes'
 import visibleModels from './visibleModels'
+import imageBatch from './imageBatch'
 
 export default {
   ...common,
@@ -34,4 +35,5 @@ export default {
   mcpXml,
   supportedScopes,
   visibleModels,
+  imageBatch,
 }

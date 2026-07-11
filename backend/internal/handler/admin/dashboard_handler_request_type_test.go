@@ -15,16 +15,18 @@ import (
 
 type dashboardUsageRepoCapture struct {
 	service.UsageLogRepository
-	trendRequestType *int16
-	trendStream      *bool
-	trendChannelID   int64
-	modelRequestType *int16
-	modelStream      *bool
-	modelChannelID   int64
-	groupChannelID   int64
-	rankingLimit     int
-	ranking          []usagestats.UserSpendingRankingItem
-	rankingTotal     float64
+	trendRequestType   *int16
+	trendStream        *bool
+	trendChannelID     int64
+	modelRequestType   *int16
+	modelStream        *bool
+	modelChannelID     int64
+	groupChannelID     int64
+	rankingLimit       int
+	rankingRequestType *int16
+	rankingMetric      string
+	ranking            []usagestats.UserSpendingRankingItem
+	rankingTotal       float64
 }
 
 func (s *dashboardUsageRepoCapture) GetUsageTrendWithFilters(
@@ -73,13 +75,18 @@ func (s *dashboardUsageRepoCapture) GetUserSpendingRanking(
 	ctx context.Context,
 	startTime, endTime time.Time,
 	limit int,
+	requestType *int16,
+	metric string,
 ) (*usagestats.UserSpendingRankingResponse, error) {
 	s.rankingLimit = limit
+	s.rankingRequestType = requestType
+	s.rankingMetric = metric
 	return &usagestats.UserSpendingRankingResponse{
 		Ranking:         s.ranking,
 		TotalActualCost: s.rankingTotal,
 		TotalRequests:   44,
 		TotalTokens:     1234,
+		Metric:          metric,
 	}, nil
 }
 
@@ -232,6 +239,7 @@ func TestDashboardUsersRankingLimitAndCache(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "\"total_actual_cost\":88.8")
 	require.Contains(t, rec.Body.String(), "\"total_requests\":44")
 	require.Contains(t, rec.Body.String(), "\"total_tokens\":1234")
+	require.Contains(t, rec.Body.String(), "\"metric\":\"actual_cost\"")
 	require.Equal(t, "miss", rec.Header().Get("X-Snapshot-Cache"))
 
 	req2 := httptest.NewRequest(http.MethodGet, "/admin/dashboard/users-ranking?limit=100&start_date=2025-01-01&end_date=2025-01-02", nil)
@@ -240,6 +248,37 @@ func TestDashboardUsersRankingLimitAndCache(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec2.Code)
 	require.Equal(t, "hit", rec2.Header().Get("X-Snapshot-Cache"))
+}
+
+func TestDashboardUsersRankingRequestTypeAndMetric(t *testing.T) {
+	dashboardUsersRankingCache = newSnapshotCache(5 * time.Minute)
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/users-ranking?request_type=stream&metric=tokens", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, repo.rankingRequestType)
+	require.Equal(t, int16(service.RequestTypeStream), *repo.rankingRequestType)
+	require.Equal(t, "tokens", repo.rankingMetric)
+	require.Contains(t, rec.Body.String(), "\"metric\":\"tokens\"")
+}
+
+func TestDashboardUsersRankingInvalidRequestTypeAndMetric(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/users-ranking?request_type=bad", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/admin/dashboard/users-ranking?metric=latency", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestDashboardGroupStatsPassesChannelID(t *testing.T) {

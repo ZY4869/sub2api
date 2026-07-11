@@ -168,6 +168,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(ctx context.Context, c *gin.
 	if s != nil {
 		s.applyCodexOAuthUserAgentPolicy(ctx, headers, account)
 	}
+	enforceCodexIdentityHeaders(ctx, headers, account)
 	return headers, sessionResolution
 }
 func (s *OpenAIGatewayService) buildOpenAIWSCreatePayload(reqBody map[string]any, account *Account) map[string]any {

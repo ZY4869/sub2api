@@ -19,7 +19,10 @@ export default {
     restartRequired: '请重启服务以应用更新',
     restartNow: '立即重启',
     restarting: '正在重启...',
-    retry: '重试'
+    retry: '重试',
+    rollbackTitle: '回退到指定版本',
+    rollbackTrusted: '受信制品',
+    rollbackFailed: '版本回退失败'
   },
 
   // Recharge / Subscription Page,

@@ -17,15 +17,27 @@ func ResponsesToChatCompletionsRequest(req *ResponsesRequest) (*ChatCompletionsR
 		return nil, err
 	}
 	out := &ChatCompletionsRequest{
-		Model:           strings.TrimSpace(req.Model),
-		Messages:        messages,
-		Temperature:     req.Temperature,
-		TopP:            req.TopP,
-		Stream:          req.Stream,
-		Tools:           responsesToolsToChatTools(req.Tools),
-		ToolChoice:      req.ToolChoice,
-		ServiceTier:     strings.TrimSpace(req.ServiceTier),
-		ReasoningEffort: responsesReasoningEffort(req.Reasoning),
+		Model:             strings.TrimSpace(req.Model),
+		Messages:          messages,
+		Temperature:       req.Temperature,
+		TopP:              req.TopP,
+		Stream:            req.Stream,
+		Tools:             responsesToolsToChatTools(req.Tools),
+		ToolChoice:        req.ToolChoice,
+		ParallelToolCalls: req.ParallelToolCalls,
+		ServiceTier:       strings.TrimSpace(req.ServiceTier),
+		ReasoningEffort:   responsesReasoningEffort(req.Reasoning),
+	}
+	responseFormat := req.ResponseFormat
+	if req.Text != nil && len(req.Text.Format) > 0 {
+		responseFormat = req.Text.Format
+	}
+	if len(responseFormat) > 0 {
+		format, err := responsesTextFormatToChatResponseFormat(responseFormat)
+		if err != nil {
+			return nil, err
+		}
+		out.ResponseFormat = format
 	}
 	if req.MaxOutputTokens != nil {
 		out.MaxCompletionTokens = req.MaxOutputTokens

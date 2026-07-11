@@ -34,6 +34,13 @@
         <textarea v-model="form.notes" rows="3" class="input"></textarea>
       </div>
       <div>
+        <label class="input-label">{{ t('admin.users.form.roleLabel') }}</label>
+        <select v-model="form.role" class="input" :aria-label="t('admin.users.form.selectRole')">
+          <option value="user">{{ t('admin.users.roles.user') }}</option>
+          <option value="admin">{{ t('admin.users.roles.admin') }}</option>
+        </select>
+      </div>
+      <div>
         <label class="input-label">{{ t('admin.users.apiKeyModelBindingMode') }}</label>
         <select v-model="form.api_key_model_binding_mode" class="input">
           <option value="model_required">{{ t('admin.users.apiKeyModelBindingModeRequired') }}</option>
@@ -72,7 +79,7 @@
           :hint="t('admin.users.apiKeyAccessTimePolicyHint')"
         />
       </div>
-      <div v-if="user?.role === 'admin'" class="rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-700/50 dark:bg-amber-900/10">
+      <div v-if="form.role === 'admin'" class="rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-700/50 dark:bg-amber-900/10">
         <label class="flex items-start gap-3">
           <input v-model="form.admin_free_billing" type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500" />
           <div>
@@ -121,6 +128,7 @@ const form = reactive({
   password: '',
   username: '',
   notes: '',
+  role: 'user' as 'user' | 'admin',
   api_key_model_binding_mode: 'model_required' as APIKeyModelBindingMode,
   external_model_catalog_view_mode: 'follow_key_binding' as ExternalModelCatalogViewMode,
   enable_api_key_access_time_policy: false,
@@ -137,6 +145,7 @@ watch(() => props.user, (u) => {
       password: '',
       username: u.username || '',
       notes: u.notes || '',
+      role: u.role,
       api_key_model_binding_mode: u.api_key_model_binding_mode || 'model_required',
       external_model_catalog_view_mode: u.external_model_catalog_view_mode || 'follow_key_binding',
       enable_api_key_access_time_policy: !!u.api_key_access_time_policy?.enabled,
@@ -175,12 +184,13 @@ const handleUpdateUser = async () => {
       email: form.email,
       username: form.username,
       notes: form.notes,
+      role: form.role,
       api_key_model_binding_mode: form.api_key_model_binding_mode,
       external_model_catalog_view_mode: form.external_model_catalog_view_mode,
       ...(form.enable_api_key_access_time_policy
         ? { api_key_access_time_policy: policyToPayload(form.api_key_access_time_policy) }
         : { clear_api_key_access_time_policy: true }),
-      admin_free_billing: props.user.role === 'admin' ? form.admin_free_billing : false,
+      admin_free_billing: form.role === 'admin' ? form.admin_free_billing : false,
       concurrency: form.concurrency
     }
     if (form.password.trim()) data.password = form.password.trim()

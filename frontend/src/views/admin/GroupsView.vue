@@ -62,6 +62,9 @@ const appStore = useAppStore()
 const onboardingStore = useOnboardingStore()
 const GROUP_COLUMNS_STORAGE_KEY = 'sub2api.admin.groups.hiddenColumns'
 const ALWAYS_VISIBLE_GROUP_COLUMNS = ['name', 'actions']
+const IMAGE_BATCH_DEFAULT_MAX_ITEMS = 50
+const IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024
+const IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY = 2
 
 const columns = computed<Column[]>(() => [
   { key: 'name', label: t('admin.groups.columns.name'), sortable: true },
@@ -173,6 +176,12 @@ const createForm = reactive({
   allow_messages_dispatch: false,
   default_mapped_model: 'gpt-5.4',
   visible_model_patterns_text: '',
+  image_batch_enabled: false,
+  image_batch_allowed_providers: [] as string[],
+  image_batch_allowed_models: [] as string[],
+  image_batch_max_items: IMAGE_BATCH_DEFAULT_MAX_ITEMS,
+  image_batch_max_download_bytes: IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES,
+  image_batch_download_concurrency: IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY,
   model_routing_enabled: false,
   supported_model_scopes: ['claude', 'gemini_text', 'gemini_image'] as string[],
   mcp_xml_inject: true,
@@ -398,6 +407,12 @@ const editForm = reactive({
   allow_messages_dispatch: false,
   default_mapped_model: '',
   visible_model_patterns_text: '',
+  image_batch_enabled: false,
+  image_batch_allowed_providers: [] as string[],
+  image_batch_allowed_models: [] as string[],
+  image_batch_max_items: IMAGE_BATCH_DEFAULT_MAX_ITEMS,
+  image_batch_max_download_bytes: IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES,
+  image_batch_download_concurrency: IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY,
   model_routing_enabled: false,
   supported_model_scopes: ['claude', 'gemini_text', 'gemini_image'] as string[],
   mcp_xml_inject: true,
@@ -615,6 +630,22 @@ const applyPeakRatePayload = <T extends {
   return payload
 }
 
+const resetImageBatchConfig = (form: {
+  image_batch_enabled: boolean
+  image_batch_allowed_providers: string[]
+  image_batch_allowed_models: string[]
+  image_batch_max_items: number
+  image_batch_max_download_bytes: number
+  image_batch_download_concurrency: number
+}) => {
+  form.image_batch_enabled = false
+  form.image_batch_allowed_providers = []
+  form.image_batch_allowed_models = []
+  form.image_batch_max_items = IMAGE_BATCH_DEFAULT_MAX_ITEMS
+  form.image_batch_max_download_bytes = IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES
+  form.image_batch_download_concurrency = IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY
+}
+
 const loadUsageSummary = async () => {
   usageLoading.value = true
   try {
@@ -700,6 +731,12 @@ const closeCreateModal = () => {
   createForm.allow_messages_dispatch = false
   createForm.default_mapped_model = 'gpt-5.4'
   createForm.visible_model_patterns_text = ''
+  createForm.image_batch_enabled = false
+  createForm.image_batch_allowed_providers = []
+  createForm.image_batch_allowed_models = []
+  createForm.image_batch_max_items = IMAGE_BATCH_DEFAULT_MAX_ITEMS
+  createForm.image_batch_max_download_bytes = IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES
+  createForm.image_batch_download_concurrency = IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY
   createForm.supported_model_scopes = ['claude', 'gemini_text', 'gemini_image']
   createForm.mcp_xml_inject = true
   createForm.copy_accounts_from_group_ids = []
@@ -795,6 +832,14 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.allow_messages_dispatch = group.allow_messages_dispatch || false
   editForm.default_mapped_model = group.default_mapped_model || ''
   editForm.visible_model_patterns_text = joinModelPatternText(group.visible_model_patterns)
+  editForm.image_batch_enabled = group.image_batch_enabled || false
+  editForm.image_batch_allowed_providers = group.image_batch_allowed_providers || []
+  editForm.image_batch_allowed_models = group.image_batch_allowed_models || []
+  editForm.image_batch_max_items = group.image_batch_max_items || IMAGE_BATCH_DEFAULT_MAX_ITEMS
+  editForm.image_batch_max_download_bytes =
+    group.image_batch_max_download_bytes || IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES
+  editForm.image_batch_download_concurrency =
+    group.image_batch_download_concurrency || IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY
   editForm.model_routing_enabled = group.model_routing_enabled || false
   editForm.supported_model_scopes = group.supported_model_scopes || ['claude', 'gemini_text', 'gemini_image']
   editForm.mcp_xml_inject = group.mcp_xml_inject ?? true
@@ -818,6 +863,12 @@ const closeEditModal = () => {
   resetPeakRateConfig(editForm)
   editForm.image_protocol_mode = 'inherit'
   editForm.visible_model_patterns_text = ''
+  editForm.image_batch_enabled = false
+  editForm.image_batch_allowed_providers = []
+  editForm.image_batch_allowed_models = []
+  editForm.image_batch_max_items = IMAGE_BATCH_DEFAULT_MAX_ITEMS
+  editForm.image_batch_max_download_bytes = IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES
+  editForm.image_batch_download_concurrency = IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY
 }
 
 const handleUpdateGroup = async () => {
@@ -925,6 +976,9 @@ watch(
       createForm.allow_messages_dispatch = false
       createForm.default_mapped_model = ''
     }
+    if (newVal !== 'gemini') {
+      resetImageBatchConfig(createForm)
+    }
   }
 )
 
@@ -938,6 +992,9 @@ watch(
       editForm.image_protocol_mode = 'inherit'
       editForm.allow_messages_dispatch = false
       editForm.default_mapped_model = ''
+    }
+    if (newVal !== 'gemini') {
+      resetImageBatchConfig(editForm)
     }
   }
 )

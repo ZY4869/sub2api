@@ -63,7 +63,7 @@ func setupAdminRouter() (*gin.Engine, *stubAdminService) {
 }
 
 func TestUserHandlerEndpoints(t *testing.T) {
-	router, _ := setupAdminRouter()
+	router, adminSvc := setupAdminRouter()
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users?page=1&page_size=20", nil)
@@ -75,21 +75,26 @@ func TestUserHandlerEndpoints(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	createBody := map[string]any{"email": "new@example.com", "password": "pass123", "balance": 1, "concurrency": 2}
+	createBody := map[string]any{"email": "new@example.com", "password": "pass123", "role": "admin", "balance": 1, "concurrency": 2}
 	body, _ := json.Marshal(createBody)
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/users", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, adminSvc.lastCreateUserInput)
+	require.Equal(t, "admin", adminSvc.lastCreateUserInput.Role)
 
-	updateBody := map[string]any{"email": "updated@example.com"}
+	updateBody := map[string]any{"email": "updated@example.com", "role": "user"}
 	body, _ = json.Marshal(updateBody)
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/1", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, adminSvc.lastUpdateUserInput)
+	require.NotNil(t, adminSvc.lastUpdateUserInput.Role)
+	require.Equal(t, "user", *adminSvc.lastUpdateUserInput.Role)
 
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/1", nil)

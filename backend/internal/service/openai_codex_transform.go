@@ -11,16 +11,19 @@ var codexModelMap = map[string]string{
 	"gpt-5.6-sol-medium":         "gpt-5.6-sol",
 	"gpt-5.6-sol-high":           "gpt-5.6-sol",
 	"gpt-5.6-sol-xhigh":          "gpt-5.6-sol",
+	"gpt-5.6-sol-max":            "gpt-5.6-sol",
 	"gpt-5.6-terra":              "gpt-5.6-terra",
 	"gpt-5.6-terra-low":          "gpt-5.6-terra",
 	"gpt-5.6-terra-medium":       "gpt-5.6-terra",
 	"gpt-5.6-terra-high":         "gpt-5.6-terra",
 	"gpt-5.6-terra-xhigh":        "gpt-5.6-terra",
+	"gpt-5.6-terra-max":          "gpt-5.6-terra",
 	"gpt-5.6-luna":               "gpt-5.6-luna",
 	"gpt-5.6-luna-low":           "gpt-5.6-luna",
 	"gpt-5.6-luna-medium":        "gpt-5.6-luna",
 	"gpt-5.6-luna-high":          "gpt-5.6-luna",
 	"gpt-5.6-luna-xhigh":         "gpt-5.6-luna",
+	"gpt-5.6-luna-max":           "gpt-5.6-luna",
 	"gpt-5.5":                    "gpt-5.5",
 	"gpt-5.5-none":               "gpt-5.5",
 	"gpt-5.5-low":                "gpt-5.5",
@@ -689,11 +692,29 @@ func codexHasImageGenerationTool(reqBody map[string]any) bool {
 		if !ok {
 			continue
 		}
-		if strings.TrimSpace(stringValueFromAny(toolMap["type"])) == "image_generation" {
+		if codexToolDeclaresImageGeneration(toolMap) {
 			return true
 		}
 	}
 	return false
+}
+
+func codexToolDeclaresImageGeneration(toolMap map[string]any) bool {
+	if len(toolMap) == 0 {
+		return false
+	}
+	toolType := strings.TrimSpace(stringValueFromAny(toolMap["type"]))
+	if toolType == "image_generation" {
+		return true
+	}
+	if toolType != "namespace" {
+		return false
+	}
+	name := strings.TrimSpace(stringValueFromAny(toolMap["name"]))
+	if name == "" {
+		name = strings.TrimSpace(stringValueFromAny(toolMap["namespace"]))
+	}
+	return name == "image_gen"
 }
 
 func normalizeCodexImageToolPolicy(value any) string {
@@ -773,7 +794,7 @@ func stripCodexImageGenerationTool(reqBody map[string]any) bool {
 		filtered := make([]any, 0, len(tools))
 		for _, tool := range tools {
 			toolMap, ok := tool.(map[string]any)
-			if ok && strings.TrimSpace(stringValueFromAny(toolMap["type"])) == "image_generation" {
+			if ok && codexToolDeclaresImageGeneration(toolMap) {
 				modified = true
 				continue
 			}
@@ -797,9 +818,10 @@ func stripCodexImageGenerationTool(reqBody map[string]any) bool {
 func codexToolChoiceSelectsImageGeneration(raw any) bool {
 	switch choice := raw.(type) {
 	case string:
-		return strings.TrimSpace(choice) == "image_generation"
+		value := strings.TrimSpace(choice)
+		return value == "image_generation" || value == "image_gen"
 	case map[string]any:
-		return strings.TrimSpace(stringValueFromAny(choice["type"])) == "image_generation"
+		return codexToolDeclaresImageGeneration(choice)
 	default:
 		return false
 	}

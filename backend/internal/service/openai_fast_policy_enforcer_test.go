@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
@@ -138,4 +139,73 @@ func TestApplyOpenAIFastPolicyToRequestBodyMap_Filters(t *testing.T) {
 	unsupported, ok := reqBody["unsupported"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, 1, unsupported["a"])
+}
+
+func TestOpenAIFastPolicy_UserScopedRuleTakesPriority(t *testing.T) {
+	t.Parallel()
+
+	settings := NormalizeOpenAIFastPolicySettings(&OpenAIFastPolicySettings{
+		Rules: []OpenAIFastPolicyRule{
+			{ServiceTier: "priority", Action: OpenAIFastPolicyActionFilter, Scope: OpenAIFastPolicyScopeAll},
+			{ServiceTier: "priority", Action: OpenAIFastPolicyActionPass, Scope: OpenAIFastPolicyScopeAll, UserIDs: []int64{42}},
+		},
+	})
+	decision := resolveOpenAIFastPolicyDecision(settings, nil, "priority", "gpt-4.1", 42)
+
+	require.True(t, decision.matched)
+	require.True(t, decision.userScoped)
+	require.Equal(t, OpenAIFastPolicyActionPass, decision.action)
+}
+
+func TestOpenAIFastPolicy_UserScopedRuleDoesNotTrustRequestBodyUser(t *testing.T) {
+	t.Parallel()
+
+	repo := &fastPolicySettingRepoStub{
+		values: map[string]string{
+			SettingKeyOpenAIFastPolicySettings: `{"rules":[{"service_tier":"priority","action":"pass","scope":"all","user_ids":[42]},{"service_tier":"priority","action":"filter","scope":"all"}]}`,
+		},
+	}
+	svc := &OpenAIGatewayService{settingService: &SettingService{settingRepo: repo}}
+	body := []byte(`{"model":"gpt-4.1","service_tier":"priority","user":"42"}`)
+
+	next, decision, err := svc.applyOpenAIFastPolicyToJSONBody(context.Background(), nil, body, "priority", "gpt-4.1")
+	require.NoError(t, err)
+	require.True(t, decision.matched)
+	require.False(t, decision.userScoped)
+	require.Equal(t, OpenAIFastPolicyActionFilter, decision.action)
+	require.False(t, gjson.GetBytes(next, "service_tier").Exists())
+}
+
+func TestOpenAIFastPolicy_UserScopedRuleReadsAuthenticatedContext(t *testing.T) {
+	t.Parallel()
+
+	repo := &fastPolicySettingRepoStub{
+		values: map[string]string{
+			SettingKeyOpenAIFastPolicySettings: `{"rules":[{"service_tier":"priority","action":"pass","scope":"all","user_ids":[42]},{"service_tier":"priority","action":"filter","scope":"all"}]}`,
+		},
+	}
+	svc := &OpenAIGatewayService{settingService: &SettingService{settingRepo: repo}}
+	ctx := context.WithValue(context.Background(), ctxkey.UserID, int64(42))
+	body := []byte(`{"model":"gpt-4.1","service_tier":"priority","user":"not-trusted"}`)
+
+	next, decision, err := svc.applyOpenAIFastPolicyToJSONBody(ctx, nil, body, "priority", "gpt-4.1")
+	require.NoError(t, err)
+	require.True(t, decision.matched)
+	require.True(t, decision.userScoped)
+	require.Equal(t, OpenAIFastPolicyActionPass, decision.action)
+	require.JSONEq(t, string(body), string(next))
+}
+
+func TestNormalizeOpenAIFastPolicySettings_UserIDs(t *testing.T) {
+	t.Parallel()
+
+	settings := NormalizeOpenAIFastPolicySettings(&OpenAIFastPolicySettings{
+		Rules: []OpenAIFastPolicyRule{
+			{ServiceTier: "priority", Action: OpenAIFastPolicyActionPass, Scope: OpenAIFastPolicyScopeAll, UserIDs: []int64{3, 0, -1, 3, 2}},
+		},
+	})
+
+	require.NotNil(t, settings)
+	require.Len(t, settings.Rules, 1)
+	require.Equal(t, []int64{3, 2}, settings.Rules[0].UserIDs)
 }

@@ -78,7 +78,7 @@ func (h *OpenAIGatewayHandler) handleStreamingAwareError(c *gin.Context, status 
 	if canAppendResponsesFailedEvent(c, streamStarted) && writeResponsesFailedEvent(c, errType, message) {
 		return
 	}
-	if streamStarted {
+	if openAIStreamingErrorResponseStarted(c, streamStarted) {
 		// Stream already started, send error as SSE event then close
 		flusher, ok := c.Writer.(http.Flusher)
 		if ok {
@@ -150,11 +150,23 @@ func (h *OpenAIGatewayHandler) handleOpenAIModelNotFound(c *gin.Context, model s
 	if canAppendResponsesFailedEvent(c, streamStarted) && writeResponsesFailedEvent(c, "invalid_request_error", message) {
 		return
 	}
-	if streamStarted {
+	if openAIStreamingErrorResponseStarted(c, streamStarted) {
 		h.handleStreamingAwareError(c, http.StatusNotFound, "invalid_request_error", message, true)
 		return
 	}
 	h.errorResponseWithCode(c, http.StatusNotFound, "invalid_request_error", "model_not_found", message)
+}
+
+func openAIStreamingErrorResponseStarted(c *gin.Context, streamStarted bool) bool {
+	if !service.IsOpenAIResponsesCompactPathForTest(c) {
+		return streamStarted
+	}
+	if c != nil && c.Request != nil {
+		if started, ok := service.OpenAIRealSSEStartedMetadataFromContext(c.Request.Context()); ok && started {
+			return true
+		}
+	}
+	return c != nil && c.Writer != nil && c.Writer.Written()
 }
 
 func (h *OpenAIGatewayHandler) publicCatalogUnavailableResponse(c *gin.Context, status service.PublicCatalogResolutionStatus) {

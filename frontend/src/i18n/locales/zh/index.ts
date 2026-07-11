@@ -29,6 +29,7 @@ import channelStatus from './channelStatus'
 import userSubscriptions from './userSubscriptions'
 import onboarding from './onboarding'
 import ui from './ui'
+import imageBatches from './imageBatches'
 
 export default {
   ...home,
@@ -60,4 +61,5 @@ export default {
   ...userSubscriptions,
   ...onboarding,
   ...ui,
+  ...imageBatches,
 }

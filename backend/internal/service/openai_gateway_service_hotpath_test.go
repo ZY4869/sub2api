@@ -79,6 +79,13 @@ func TestExtractOpenAIReasoningEffortFromBody(t *testing.T) {
 			wantValue: "xhigh",
 		},
 		{
+			name:      "keeps max reasoning_effort for gpt 5.6",
+			body:      []byte(`{"reasoning_effort":"max"}`),
+			model:     "gpt-5.6-sol",
+			wantNil:   false,
+			wantValue: "max",
+		},
+		{
 			name:      "normalizes minimal to none",
 			body:      []byte(`{"reasoning":{"effort":"minimal"}}`),
 			model:     "gpt-5-high",
@@ -111,6 +118,55 @@ func TestExtractOpenAIReasoningEffortFromBody(t *testing.T) {
 			require.Equal(t, tt.wantValue, *got)
 		})
 	}
+}
+
+func TestNormalizeOpenAIRequestBodyEffort_UsesMappedGpt56Candidate(t *testing.T) {
+	reqBody := map[string]any{
+		"model":            "public-gpt56-alias",
+		"reasoning_effort": "max",
+	}
+
+	resolution := normalizeOpenAIRequestBodyEffort(reqBody, "public-gpt56-alias", "gpt-5.6-terra")
+
+	require.NotNil(t, resolution.Raw)
+	require.NotNil(t, resolution.Effective)
+	require.Equal(t, "max", *resolution.Raw)
+	require.Equal(t, "max", *resolution.Effective)
+	require.NotContains(t, reqBody, "reasoning_effort")
+	reasoning, ok := reqBody["reasoning"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "max", reasoning["effort"])
+}
+
+func TestNormalizeOpenAIRequestBodyEffort_DerivesMaxFromMappedGpt56Suffix(t *testing.T) {
+	reqBody := map[string]any{
+		"model": "public-gpt56-alias",
+	}
+
+	resolution := normalizeOpenAIRequestBodyEffort(reqBody, "public-gpt56-alias", "gpt-5.6-sol-max")
+
+	require.NotNil(t, resolution.Raw)
+	require.NotNil(t, resolution.Effective)
+	require.Equal(t, "max", *resolution.Raw)
+	require.Equal(t, "max", *resolution.Effective)
+	require.Equal(t, effortSourceModelSuffix, resolution.Source)
+	reasoning, ok := reqBody["reasoning"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "max", reasoning["effort"])
+}
+
+func TestExtractOpenAIReasoningEffortFromBody_DerivesFromMappedCandidate(t *testing.T) {
+	resolution := extractOpenAIReasoningEffortResolutionFromBody(
+		[]byte(`{"model":"public-gpt56-alias","input":"hi"}`),
+		"public-gpt56-alias",
+		"gpt-5.6-luna-max",
+	)
+
+	require.NotNil(t, resolution.Raw)
+	require.NotNil(t, resolution.Effective)
+	require.Equal(t, "max", *resolution.Raw)
+	require.Equal(t, "max", *resolution.Effective)
+	require.Equal(t, effortSourceModelSuffix, resolution.Source)
 }
 
 func TestGetOpenAIRequestBodyMap_UsesContextCache(t *testing.T) {

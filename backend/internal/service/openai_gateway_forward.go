@@ -98,7 +98,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 			reqModel = routingModel
 		}
-		normalizedBody, effortResolution, normalizeErr := normalizeOpenAIRequestBodyEffortBytes(originalBody, reqModel)
+		normalizedBody, effortResolution, normalizeErr := normalizeOpenAIRequestBodyEffortBytes(originalBody, reqModel, originalModel, routingModel)
 		if normalizeErr == nil {
 			originalBody = normalizedBody
 		}
@@ -143,7 +143,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			promptCacheKey = strings.TrimSpace(v)
 		}
 	}
-	effortResolution := normalizeOpenAIRequestBodyEffort(reqBody, originalModel)
+	effortResolution := normalizeOpenAIRequestBodyEffort(reqBody, originalModel, reqModel, routingModel)
 	bodyModified := false
 	patchDisabled := false
 	patchHasOp := false

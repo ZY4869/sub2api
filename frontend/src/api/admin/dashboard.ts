@@ -169,6 +169,7 @@ export interface UserBreakdownParams {
   model_source?: 'requested' | 'upstream' | 'mapping'
   endpoint?: string
   endpoint_type?: 'inbound' | 'upstream' | 'path'
+  request_type?: UsageRequestType
   limit?: number
 }
 
@@ -232,8 +233,9 @@ export interface UserTrendResponse {
 }
 
 export interface UserSpendingRankingParams
-  extends Pick<TrendParams, 'start_date' | 'end_date'> {
+  extends Pick<TrendParams, 'start_date' | 'end_date' | 'request_type'> {
   limit?: number
+  metric?: 'actual_cost' | 'requests' | 'tokens'
 }
 
 /**
@@ -320,6 +322,7 @@ export const dashboardAPI = {
   getSnapshotV2,
   getApiKeyUsageTrend,
   getUserUsageTrend,
+  getUserBreakdown,
   getUserSpendingRanking,
   getBatchUsersUsage,
   getBatchApiKeysUsage

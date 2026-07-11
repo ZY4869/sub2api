@@ -793,6 +793,17 @@ func TestGetModelPricing_MapsDynamicPriorityFieldsIntoBillingPricing(t *testing.
 	require.InDelta(t, 1.25, pricing.LongContextOutputMultiplier, 1e-12)
 }
 
+func TestCalculateCost_Gpt56FallbackUsesCacheWritePrice(t *testing.T) {
+	svc := newTestBillingService()
+	tokens := UsageTokens{CacheCreationTokens: 1000}
+
+	cost, err := svc.CalculateCost("gpt-5.6-sol", tokens, 1.0)
+
+	require.NoError(t, err)
+	require.InDelta(t, 1000*5e-6, cost.CacheCreationCost, 1e-12)
+	require.InDelta(t, cost.CacheCreationCost, cost.TotalCost, 1e-12)
+}
+
 func TestCalculateCostWithServiceTier_UsesTieredPricingPerSideAndBoundary(t *testing.T) {
 	svc := NewBillingService(&config.Config{}, &PricingService{
 		pricingData: map[string]*LiteLLMModelPricing{

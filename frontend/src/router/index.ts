@@ -216,6 +216,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/image-batches',
+    name: 'ImageBatches',
+    component: () => import('@/views/user/ImageBatchesView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Image Batches',
+      titleKey: 'imageBatches.title',
+      descriptionKey: 'imageBatches.description'
+    }
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),

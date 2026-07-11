@@ -1,9 +1,11 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -65,6 +67,7 @@ func optionalJWTAuth(authService *service.AuthService, userService *service.User
 			Concurrency: user.Concurrency,
 		})
 		c.Set(string(ContextKeyUserRole), user.Role)
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.UserID, user.ID))
 		c.Next()
 	}
 }

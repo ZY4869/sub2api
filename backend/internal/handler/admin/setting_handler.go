@@ -474,6 +474,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 				Scope:          r.Scope,
 				ModelWhitelist: append([]string(nil), r.ModelWhitelist...),
 				FallbackAction: r.FallbackAction,
+				UserIDs:        append([]int64(nil), r.UserIDs...),
 			})
 		}
 		openAIFastPolicy = &dto.OpenAIFastPolicySettings{Rules: rules}

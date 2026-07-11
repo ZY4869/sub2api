@@ -70,6 +70,7 @@ var (
 		OutputCostPerTokenPriority:       6e-05,
 		OutputTokenThreshold:             272000,
 		OutputCostPerTokenAboveThreshold: 4.5e-05,
+		CacheCreationInputTokenCost:      5e-06,
 		CacheReadInputTokenCost:          5e-07,
 		CacheReadInputTokenCostPriority:  1e-06,
 		LongContextInputTokenThreshold:   272000,

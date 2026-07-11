@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -94,6 +96,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				Concurrency: apiKey.User.Concurrency,
 			})
 			c.Set(string(ContextKeyUserRole), apiKey.User.Role)
+			c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.UserID, apiKey.User.ID))
 			setAPIKeyGroupContext(c, apiKey)
 			_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 			c.Next()
@@ -151,6 +154,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			Concurrency: apiKey.User.Concurrency,
 		})
 		c.Set(string(ContextKeyUserRole), apiKey.User.Role)
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.UserID, apiKey.User.ID))
 		setAPIKeyGroupContext(c, apiKey)
 		_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 		c.Next()
@@ -163,6 +167,9 @@ func googleRouteRequiresBillingHold(c *gin.Context) bool {
 	}
 	method := strings.ToUpper(strings.TrimSpace(c.Request.Method))
 	path := strings.ToLower(strings.TrimSpace(c.Request.URL.Path))
+	if path == "/v1/images/batches" || strings.HasPrefix(path, "/v1/images/batches/") {
+		return false
+	}
 	if method == http.MethodGet || method == http.MethodDelete {
 		return false
 	}
@@ -213,6 +220,7 @@ func allowGoogleQueryKey(path string) bool {
 	case strings.HasPrefix(normalized, "/v1beta"),
 		strings.HasPrefix(normalized, "/antigravity/v1beta"),
 		strings.HasPrefix(normalized, "/v1/models"),
+		strings.HasPrefix(normalized, "/v1/images/batches"),
 		strings.HasPrefix(normalized, "/v1alpha/authtokens"),
 		strings.HasPrefix(normalized, "/upload/v1beta/files"),
 		strings.HasPrefix(normalized, "/upload/v1beta/filesearchstores"):

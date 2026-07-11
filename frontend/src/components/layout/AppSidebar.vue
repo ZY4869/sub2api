@@ -482,6 +482,7 @@ const userNavItems = computed((): NavItem[] => {
         ]
       : []),
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
+    { path: '/image-batches', label: t('nav.imageBatches'), icon: DatabaseIcon, hideInSimpleMode: true },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     ...(appStore.cachedPublicSettings?.purchase_subscription_enabled
       ? [
@@ -536,6 +537,7 @@ const personalNavItems = computed((): NavItem[] => {
         ]
       : []),
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
+    { path: '/image-batches', label: t('nav.imageBatches'), icon: DatabaseIcon, hideInSimpleMode: true },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     ...(appStore.cachedPublicSettings?.purchase_subscription_enabled
       ? [

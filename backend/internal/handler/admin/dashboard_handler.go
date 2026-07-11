@@ -511,20 +511,59 @@ func parseRankingLimit(raw string) int {
 	return limit
 }
 
+func parseDashboardRequestTypeParam(c *gin.Context) (*int16, bool) {
+	requestTypeStr := strings.TrimSpace(c.Query("request_type"))
+	if requestTypeStr == "" {
+		return nil, true
+	}
+	parsed, err := service.ParseUsageRequestType(requestTypeStr)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return nil, false
+	}
+	value := int16(parsed)
+	return &value, true
+}
+
+func parseUserRankingMetric(raw string) (string, bool) {
+	metric := strings.TrimSpace(raw)
+	switch metric {
+	case "", "actual_cost":
+		return "actual_cost", true
+	case "requests", "tokens":
+		return metric, true
+	default:
+		return "", false
+	}
+}
+
 // GetUserSpendingRanking handles getting user spending ranking data.
 // GET /api/v1/admin/dashboard/users-ranking
 func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
 	startTime, endTime := parseTimeRange(c)
 	limit := parseRankingLimit(c.DefaultQuery("limit", "12"))
+	requestType, ok := parseDashboardRequestTypeParam(c)
+	if !ok {
+		return
+	}
+	metric, ok := parseUserRankingMetric(c.Query("metric"))
+	if !ok {
+		response.BadRequest(c, "Invalid metric, use actual_cost/requests/tokens")
+		return
+	}
 
 	keyRaw, _ := json.Marshal(struct {
-		Start string `json:"start"`
-		End   string `json:"end"`
-		Limit int    `json:"limit"`
+		Start       string `json:"start"`
+		End         string `json:"end"`
+		Limit       int    `json:"limit"`
+		RequestType *int16 `json:"request_type,omitempty"`
+		Metric      string `json:"metric"`
 	}{
-		Start: startTime.UTC().Format(time.RFC3339),
-		End:   endTime.UTC().Format(time.RFC3339),
-		Limit: limit,
+		Start:       startTime.UTC().Format(time.RFC3339),
+		End:         endTime.UTC().Format(time.RFC3339),
+		Limit:       limit,
+		RequestType: requestType,
+		Metric:      metric,
 	})
 	cacheKey := string(keyRaw)
 	if cached, ok := dashboardUsersRankingCache.Get(cacheKey); ok {
@@ -533,7 +572,7 @@ func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
 		return
 	}
 
-	ranking, err := h.dashboardService.GetUserSpendingRanking(c.Request.Context(), startTime, endTime, limit)
+	ranking, err := h.dashboardService.GetUserSpendingRanking(c.Request.Context(), startTime, endTime, limit, requestType, metric)
 	if err != nil {
 		response.Error(c, 500, "Failed to get user spending ranking")
 		return
@@ -544,6 +583,7 @@ func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
 		"total_actual_cost": ranking.TotalActualCost,
 		"total_requests":    ranking.TotalRequests,
 		"total_tokens":      ranking.TotalTokens,
+		"metric":            ranking.Metric,
 		"start_date":        startTime.Format("2006-01-02"),
 		"end_date":          endTime.Add(-24 * time.Hour).Format("2006-01-02"),
 	}
@@ -656,6 +696,11 @@ func (h *DashboardHandler) GetUserBreakdown(c *gin.Context) {
 	dim.ModelType = rawModelSource
 	dim.Endpoint = c.Query("endpoint")
 	dim.EndpointType = c.DefaultQuery("endpoint_type", "inbound")
+	requestType, ok := parseDashboardRequestTypeParam(c)
+	if !ok {
+		return
+	}
+	dim.RequestType = requestType
 
 	limit := 50
 	if v := c.Query("limit"); v != "" {

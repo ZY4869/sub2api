@@ -24,6 +24,21 @@ func (h *OpsHandler) GetGoogleBatchRuntimeMetrics(c *gin.Context) {
 	response.Success(c, service.SnapshotGoogleBatchRuntimeMetrics())
 }
 
+// GetImageBatchRuntimeMetrics returns public image batch runtime metrics snapshot.
+// GET /api/v1/admin/ops/runtime/image-batch
+func (h *OpsHandler) GetImageBatchRuntimeMetrics(c *gin.Context) {
+	if h.opsService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Ops service not available")
+		return
+	}
+	if err := h.opsService.RequireMonitoringEnabled(c.Request.Context()); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, service.ImageBatchRuntimeMetricsSnapshotNow())
+}
+
 // GetProtocolGatewayRuntimeMetrics returns protocol gateway runtime metrics snapshot.
 // GET /api/v1/admin/ops/runtime/protocol-gateway
 func (h *OpsHandler) GetProtocolGatewayRuntimeMetrics(c *gin.Context) {

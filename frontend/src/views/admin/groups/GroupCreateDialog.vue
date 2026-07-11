@@ -312,6 +312,8 @@
 
         <div v-if="false" class="hidden"></div>
 
+        <GroupImageBatchSettingsFields :form="createForm" :t="t" />
+
         <div class="border-t pt-4">
           <label class="input-label">{{ t('admin.groups.visibleModels.title') }}</label>
           <textarea
@@ -758,6 +760,7 @@ import PlatformLabel from '@/components/common/PlatformLabel.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
+import GroupImageBatchSettingsFields from './GroupImageBatchSettingsFields.vue'
 import GroupPeakRateFields from './GroupPeakRateFields.vue'
 import { unref } from 'vue'
 

@@ -54,6 +54,16 @@ func deriveOpenAIReasoningEffortFromModel(model string) string {
 	}
 	return ""
 }
+
+func deriveOpenAIReasoningEffortFromModelCandidates(models ...string) string {
+	for _, model := range models {
+		if value := deriveOpenAIReasoningEffortFromModel(model); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func extractOpenAIRequestMetaFromBody(body []byte) (model string, stream bool, promptCacheKey string) {
 	if len(body) == 0 {
 		return "", false, ""
@@ -123,23 +133,25 @@ func detectOpenAIPassthroughInstructionsRejectReason(reqModel string, body []byt
 	}
 	return ""
 }
-func extractOpenAIReasoningEffortResolutionFromBody(body []byte, requestedModel string) GatewayEffortResolution {
+func extractOpenAIReasoningEffortResolutionFromBody(body []byte, requestedModel string, modelCandidates ...string) GatewayEffortResolution {
+	candidates := appendOpenAIReasoningModelCandidates([]string{requestedModel}, strings.TrimSpace(gjson.GetBytes(body, "model").String()))
+	candidates = appendOpenAIReasoningModelCandidates(candidates, modelCandidates...)
 	reasoningEffort := strings.TrimSpace(gjson.GetBytes(body, "reasoning.effort").String())
 	if reasoningEffort != "" {
-		return ResolveOpenAIEffort(reasoningEffort, "", effortSourceOpenAIField)
+		return ResolveOpenAIEffortForModels(reasoningEffort, "", effortSourceOpenAIField, candidates...)
 	}
 	reasoningEffort = strings.TrimSpace(gjson.GetBytes(body, "reasoning_effort").String())
 	if reasoningEffort != "" {
-		return ResolveOpenAIEffort(reasoningEffort, "", effortSourceOpenAIAlias)
+		return ResolveOpenAIEffortForModels(reasoningEffort, "", effortSourceOpenAIAlias, candidates...)
 	}
-	value := deriveOpenAIReasoningEffortFromModel(requestedModel)
+	value := deriveOpenAIReasoningEffortFromModelCandidates(candidates...)
 	if value == "" {
 		return GatewayEffortResolution{}
 	}
 	return GatewayEffortResolution{
 		Raw:       &value,
-		Effective: NormalizeOpenAIReasoningEffortEffective(value),
-		Source:    "model_suffix",
+		Effective: NormalizeOpenAIReasoningEffortEffectiveForModels(value, candidates...),
+		Source:    effortSourceModelSuffix,
 	}
 }
 
@@ -194,7 +206,14 @@ func getOpenAIRequestBodyMap(c *gin.Context, body []byte) (map[string]any, error
 	}
 	return reqBody, nil
 }
-func extractOpenAIReasoningEffortResolution(reqBody map[string]any, requestedModel string) GatewayEffortResolution {
+func extractOpenAIReasoningEffortResolution(reqBody map[string]any, requestedModel string, modelCandidates ...string) GatewayEffortResolution {
+	candidates := []string{requestedModel}
+	if reqBody != nil {
+		if model, ok := reqBody["model"].(string); ok {
+			candidates = append(candidates, model)
+		}
+	}
+	candidates = appendOpenAIReasoningModelCandidates(candidates, modelCandidates...)
 	if value, present := getOpenAIReasoningEffortFromReqBody(reqBody); present {
 		if value == "" {
 			return GatewayEffortResolution{}
@@ -205,16 +224,16 @@ func extractOpenAIReasoningEffortResolution(reqBody map[string]any, requestedMod
 				source = effortSourceOpenAIField
 			}
 		}
-		return ResolveOpenAIEffort(value, "", source)
+		return ResolveOpenAIEffortForModels(value, "", source, candidates...)
 	}
-	value := deriveOpenAIReasoningEffortFromModel(requestedModel)
+	value := deriveOpenAIReasoningEffortFromModelCandidates(candidates...)
 	if value == "" {
 		return GatewayEffortResolution{}
 	}
 	return GatewayEffortResolution{
 		Raw:       &value,
-		Effective: NormalizeOpenAIReasoningEffortEffective(value),
-		Source:    "model_suffix",
+		Effective: NormalizeOpenAIReasoningEffortEffectiveForModels(value, candidates...),
+		Source:    effortSourceModelSuffix,
 	}
 }
 
@@ -223,7 +242,7 @@ func applyOpenAIEffortResolutionToReqBody(reqBody map[string]any, effortResoluti
 		return
 	}
 	switch effortResolution.Source {
-	case effortSourceOpenAIField, effortSourceOpenAIAlias, effortSourceTopLevel, effortSourceAnthropicField:
+	case effortSourceOpenAIField, effortSourceOpenAIAlias, effortSourceTopLevel, effortSourceAnthropicField, effortSourceModelSuffix:
 		reasoning, _ := reqBody["reasoning"].(map[string]any)
 		if reasoning == nil {
 			reasoning = map[string]any{}
@@ -237,8 +256,8 @@ func applyOpenAIEffortResolutionToReqBody(reqBody map[string]any, effortResoluti
 	}
 }
 
-func normalizeOpenAIRequestBodyEffort(reqBody map[string]any, requestedModel string) GatewayEffortResolution {
-	effortResolution := extractOpenAIReasoningEffortResolution(reqBody, requestedModel)
+func normalizeOpenAIRequestBodyEffort(reqBody map[string]any, requestedModel string, modelCandidates ...string) GatewayEffortResolution {
+	effortResolution := extractOpenAIReasoningEffortResolution(reqBody, requestedModel, modelCandidates...)
 	applyOpenAIEffortResolutionToReqBody(reqBody, effortResolution)
 	return effortResolution
 }
@@ -250,7 +269,7 @@ func applyOpenAIEffortResolutionToBodyBytes(body []byte, effortResolution Gatewa
 	normalized := body
 	var err error
 	switch effortResolution.Source {
-	case effortSourceOpenAIField, effortSourceOpenAIAlias, effortSourceTopLevel, effortSourceAnthropicField:
+	case effortSourceOpenAIField, effortSourceOpenAIAlias, effortSourceTopLevel, effortSourceAnthropicField, effortSourceModelSuffix:
 		normalized, err = sjson.SetBytes(normalized, "reasoning.effort", *effortResolution.Effective)
 		if err != nil {
 			return body, err
@@ -269,11 +288,20 @@ func applyOpenAIEffortResolutionToBodyBytes(body []byte, effortResolution Gatewa
 	return normalized, nil
 }
 
-func normalizeOpenAIRequestBodyEffortBytes(body []byte, requestedModel string) ([]byte, GatewayEffortResolution, error) {
-	effortResolution := extractOpenAIReasoningEffortResolutionFromBody(body, requestedModel)
+func normalizeOpenAIRequestBodyEffortBytes(body []byte, requestedModel string, modelCandidates ...string) ([]byte, GatewayEffortResolution, error) {
+	effortResolution := extractOpenAIReasoningEffortResolutionFromBody(body, requestedModel, modelCandidates...)
 	normalized, err := applyOpenAIEffortResolutionToBodyBytes(body, effortResolution)
 	if err != nil {
 		return body, effortResolution, err
 	}
 	return normalized, effortResolution, nil
+}
+
+func appendOpenAIReasoningModelCandidates(base []string, candidates ...string) []string {
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate) != "" {
+			base = append(base, candidate)
+		}
+	}
+	return base
 }

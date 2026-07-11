@@ -50,13 +50,36 @@ func TestGatewayEnsureForwardErrorResponse_DoesNotOverrideWrittenResponse(t *tes
 	assert.Equal(t, "already written", w.Body.String())
 }
 
-func TestGatewayEnsureForwardErrorResponse_AppendsResponsesFailedWhenWritten(t *testing.T) {
+func TestGatewayEnsureForwardErrorResponse_DoesNotAppendResponsesFailedForCompactKeepaliveOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/responses/compact", nil)
+	req := httptest.NewRequest(http.MethodPost, "/responses/compact", nil)
+	c.Request = req.WithContext(service.EnsureRequestMetadata(req.Context()))
 	c.Set(ctxKeyInboundEndpoint, EndpointResponses)
 	_, err := c.Writer.Write([]byte(":\n\n"))
+	require.NoError(t, err)
+
+	h := &GatewayHandler{}
+	wrote := h.ensureForwardErrorResponse(c, false)
+
+	require.False(t, wrote)
+	body := w.Body.String()
+	assert.Equal(t, ":\n\n", body)
+	assert.NotContains(t, body, "event: response.failed")
+	assert.NotContains(t, body, `"type":"response.failed"`)
+}
+
+func TestGatewayEnsureForwardErrorResponse_AppendsResponsesFailedWhenRealSSEStarted(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(http.MethodPost, "/responses/compact", nil)
+	ctx := service.EnsureRequestMetadata(req.Context())
+	service.SetOpenAIRealSSEStartedMetadata(ctx, true)
+	c.Request = req.WithContext(ctx)
+	c.Set(ctxKeyInboundEndpoint, EndpointResponses)
+	_, err := c.Writer.Write([]byte("event: response.created\n\n"))
 	require.NoError(t, err)
 
 	h := &GatewayHandler{}
@@ -102,7 +125,6 @@ func TestGatewayHandleStreamingAwareError_AppendsResponsesFailedForResponsePaths
 		{name: "v1 responses stream started", path: "/v1/responses", streamStarted: true},
 		{name: "bare responses stream started", path: "/responses", streamStarted: true},
 		{name: "codex backend responses stream started", path: "/backend-api/codex/responses", streamStarted: true},
-		{name: "compact responses stream started", path: "/responses/compact", streamStarted: true},
 		{name: "declared sse before stream started", path: "/v1/responses", streamStarted: false},
 	}
 
@@ -123,6 +145,45 @@ func TestGatewayHandleStreamingAwareError_AppendsResponsesFailedForResponsePaths
 			assert.Contains(t, body, `"status":"failed"`)
 		})
 	}
+}
+
+func TestGatewayHandleStreamingAwareError_CompactRequiresRealSSEForResponsesFailed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("keepalive only keeps generic sse error", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		req := httptest.NewRequest(http.MethodPost, "/responses/compact", nil)
+		c.Request = req.WithContext(service.EnsureRequestMetadata(req.Context()))
+		c.Set(ctxKeyInboundEndpoint, EndpointResponses)
+		c.Header("Content-Type", "text/event-stream")
+
+		h := &GatewayHandler{}
+		h.handleStreamingAwareError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed", true)
+
+		body := w.Body.String()
+		assert.NotContains(t, body, "event: response.failed")
+		assert.Contains(t, body, `"type":"error"`)
+	})
+
+	t.Run("real upstream sse appends response failed", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		req := httptest.NewRequest(http.MethodPost, "/responses/compact", nil)
+		ctx := service.EnsureRequestMetadata(req.Context())
+		service.SetOpenAIRealSSEStartedMetadata(ctx, true)
+		c.Request = req.WithContext(ctx)
+		c.Set(ctxKeyInboundEndpoint, EndpointResponses)
+		c.Header("Content-Type", "text/event-stream")
+
+		h := &GatewayHandler{}
+		h.handleStreamingAwareError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed", true)
+
+		body := w.Body.String()
+		assert.Contains(t, body, "event: response.failed")
+		assert.Contains(t, body, `"type":"response.failed"`)
+		assert.Contains(t, body, `"status":"failed"`)
+	})
 }
 
 func TestGatewayHandleStreamingAwareError_NonResponsesKeepsGenericSSEError(t *testing.T) {

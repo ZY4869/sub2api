@@ -39,6 +39,7 @@ export default {
     spendingRankingOther: "其他",
     groupDistribution: "分组使用分布",
     metricTokens: "按 Token",
+    metricRequests: "按请求数",
     metricActualCost: "按实际消费",
     tokenUsageTrend: "Token 使用趋势",
     noDataAvailable: "暂无数据",

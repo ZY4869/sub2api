@@ -45,6 +45,7 @@ func TestBillingFallbackPricingOpenAIGPT56Families(t *testing.T) {
 			require.NotNil(t, pricing)
 			require.InDelta(t, 5e-6, pricing.InputPricePerToken, 1e-12)
 			require.InDelta(t, 3e-5, pricing.OutputPricePerToken, 1e-12)
+			require.InDelta(t, 5e-6, pricing.CacheCreationPricePerToken, 1e-12)
 			require.Equal(t, openAIGPT54LongContextInputThreshold, pricing.LongContextInputThreshold)
 		})
 	}

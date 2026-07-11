@@ -98,6 +98,7 @@ func (s *BillingService) initFallbackPricing() {
 		OutputPricePerTokenPriority:       60e-6,
 		OutputTokenThreshold:              openAIGPT54LongContextInputThreshold,
 		OutputPricePerTokenAboveThreshold: 45e-6,
+		CacheCreationPricePerToken:        5e-6,
 		CacheReadPricePerToken:            0.5e-6,
 		CacheReadPricePerTokenPriority:    1e-6,
 		SupportsCacheBreakdown:            false,

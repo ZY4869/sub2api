@@ -281,6 +281,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(ctx context
 		req.Header.Set("content-type", "application/json")
 	}
 	ApplyAccountRequestHeaderOverrides(req, account)
+	enforceCodexIdentityHeaders(ctx, req.Header, account)
 	return MarkOpenAIHTTPUpstreamRequest(req), nil
 }
 
@@ -396,6 +397,9 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(ctx context.Co
 		line := scanner.Text()
 		if isOpenAIUpstreamSSEErrorLine(line) {
 			upstreamErrorForwarded = true
+		}
+		if !isOpenAIKeepaliveSSELine(line) {
+			markOpenAIRealSSEStarted(c)
 		}
 		if data, ok := extractOpenAISSEDataLine(line); ok {
 			dataBytes := []byte(data)

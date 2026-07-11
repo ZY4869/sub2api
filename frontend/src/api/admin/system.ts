@@ -9,6 +9,19 @@ export interface ReleaseInfo {
   body: string
   published_at: string
   html_url: string
+  assets?: Array<{ name: string; download_url: string; size: number }>
+}
+
+export interface RollbackVersionInfo {
+  version: string
+  tag_name: string
+  published_at: string
+  html_url: string
+  source: string
+  platform: string
+  arch: string
+  sha256_available: boolean
+  signature_available: boolean
 }
 
 export interface VersionInfo {
@@ -16,6 +29,7 @@ export interface VersionInfo {
   latest_version: string
   has_update: boolean
   release_info?: ReleaseInfo
+  rollback_versions?: RollbackVersionInfo[]
   cached: boolean
   warning?: string
   build_type: string // "source" for manual builds, "release" for CI builds
@@ -55,10 +69,11 @@ export async function performUpdate(): Promise<UpdateResult> {
 }
 
 /**
- * Rollback to previous version
+ * Rollback to previous backup or a trusted target version.
  */
-export async function rollback(): Promise<UpdateResult> {
-  const { data } = await apiClient.post<UpdateResult>('/admin/system/rollback')
+export async function rollback(targetVersion?: string): Promise<UpdateResult> {
+  const payload = targetVersion?.trim() ? { target_version: targetVersion.trim() } : undefined
+  const { data } = await apiClient.post<UpdateResult>('/admin/system/rollback', payload)
   return data
 }
 

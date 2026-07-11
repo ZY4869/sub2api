@@ -75,6 +75,7 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	if !accountTestManualModelInputFromContext(ctx) {
 		mappedModel = normalizeOpenAIModelForUpstream(account, resolveOpenAIForwardModel(account, normalizedRequestedModel, defaultMappedModel))
 	}
+	entryEffortResolution = extractOpenAIReasoningEffortResolutionFromBody(body, originalRequestedModel, normalizedRequestedModel, mappedModel)
 
 	promptCacheKey = strings.TrimSpace(promptCacheKey)
 	compatPromptCacheInjected := false
@@ -274,7 +275,7 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	var handleErr error
 	effortResolution := entryEffortResolution
 	if effortResolution.Effective == nil {
-		effortResolution = extractOpenAIReasoningEffortResolutionFromBody(responsesBody, originalModel)
+		effortResolution = extractOpenAIReasoningEffortResolutionFromBody(responsesBody, originalModel, mappedModel)
 	}
 	if clientStream {
 		result, handleErr = s.handleChatStreamingResponse(resp, c, originalModel, mappedModel, includeUsage, startTime)

@@ -90,6 +90,7 @@ type CreateUserInput struct {
 	Password                     string
 	Username                     string
 	Notes                        string
+	Role                         string
 	Balance                      float64
 	Concurrency                  int
 	AllowedGroups                []int64
@@ -104,6 +105,7 @@ type UpdateUserInput struct {
 	Notes                        *string
 	Balance                      *float64
 	Concurrency                  *int
+	Role                         *string
 	AdminFreeBilling             *bool
 	RequestDetailsReview         *bool
 	Status                       string
@@ -144,6 +146,12 @@ type CreateGroupInput struct {
 	AllowMessagesDispatch           bool
 	DefaultMappedModel              string
 	VisibleModelPatterns            []string
+	ImageBatchEnabled               bool
+	ImageBatchAllowedProviders      []string
+	ImageBatchAllowedModels         []string
+	ImageBatchMaxItems              int
+	ImageBatchMaxDownloadBytes      int64
+	ImageBatchDownloadConcurrency   int
 	CopyAccountsFromGroupIDs        []int64
 }
 type UpdateGroupInput struct {
@@ -178,6 +186,12 @@ type UpdateGroupInput struct {
 	AllowMessagesDispatch           *bool
 	DefaultMappedModel              *string
 	VisibleModelPatterns            *[]string
+	ImageBatchEnabled               *bool
+	ImageBatchAllowedProviders      *[]string
+	ImageBatchAllowedModels         *[]string
+	ImageBatchMaxItems              *int
+	ImageBatchMaxDownloadBytes      *int64
+	ImageBatchDownloadConcurrency   *int
 	CopyAccountsFromGroupIDs        []int64
 }
 type CreateAccountInput struct {

@@ -3,7 +3,15 @@ import { flushPromises, mount } from "@vue/test-utils";
 
 import UsageView from "../UsageView.vue";
 
-const { list, getStats, getSnapshotV2, getModelStats, getById, lookupIPGeo } = vi.hoisted(() => {
+const {
+  list,
+  getStats,
+  getSnapshotV2,
+  getModelStats,
+  getUserSpendingRanking,
+  getById,
+  lookupIPGeo,
+} = vi.hoisted(() => {
   vi.stubGlobal("localStorage", {
     getItem: vi.fn(() => null),
     setItem: vi.fn(),
@@ -15,6 +23,7 @@ const { list, getStats, getSnapshotV2, getModelStats, getById, lookupIPGeo } = v
     getStats: vi.fn(),
     getSnapshotV2: vi.fn(),
     getModelStats: vi.fn(),
+    getUserSpendingRanking: vi.fn(),
     getById: vi.fn(),
     lookupIPGeo: vi.fn(),
   };
@@ -96,6 +105,7 @@ vi.mock("@/api/admin", () => ({
     dashboard: {
       getSnapshotV2,
       getModelStats,
+      getUserSpendingRanking,
     },
     users: {
       getById,
@@ -313,6 +323,7 @@ describe("admin UsageView distribution metric toggles", () => {
     getStats.mockReset();
     getSnapshotV2.mockReset();
     getModelStats.mockReset();
+    getUserSpendingRanking.mockReset();
     getById.mockReset();
     lookupIPGeo.mockReset();
     routeState.query = {};
@@ -349,6 +360,13 @@ describe("admin UsageView distribution metric toggles", () => {
     });
     getModelStats.mockResolvedValue({
       models: [],
+    });
+    getUserSpendingRanking.mockResolvedValue({
+      ranking: [],
+      total_actual_cost: 0,
+      total_requests: 0,
+      total_tokens: 0,
+      metric: "actual_cost",
     });
     lookupIPGeo.mockResolvedValue([]);
   });

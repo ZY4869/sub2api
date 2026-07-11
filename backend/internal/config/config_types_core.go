@@ -20,6 +20,7 @@ type Config struct {
 	Pricing                 PricingConfig                 `mapstructure:"pricing"`
 	PublicModelCatalog      PublicModelCatalogConfig      `mapstructure:"public_model_catalog"`
 	Gateway                 GatewayConfig                 `mapstructure:"gateway"`
+	ImageBatch              ImageBatchConfig              `mapstructure:"image_batch"`
 	OpenAICodex             OpenAICodexConfig             `mapstructure:"openai_codex"`
 	APIKeyAuth              APIKeyAuthCacheConfig         `mapstructure:"api_key_auth_cache"`
 	SubscriptionCache       SubscriptionCacheConfig       `mapstructure:"subscription_cache"`
@@ -213,6 +214,21 @@ type BillingConfig struct {
 	CircuitBreaker                  CircuitBreakerConfig `mapstructure:"circuit_breaker"`
 	MinimumRequestHoldUSD           float64              `mapstructure:"minimum_request_hold_usd"`
 	RequestHoldSettlementMaxSeconds int                  `mapstructure:"request_hold_settlement_max_seconds"`
+}
+type ImageBatchConfig struct {
+	WorkerIntervalSeconds    int    `mapstructure:"worker_interval_seconds"`
+	WorkerClaimLimit         int    `mapstructure:"worker_claim_limit"`
+	SubmitTimeoutSeconds     int    `mapstructure:"submit_timeout_seconds"`
+	PollTimeoutSeconds       int    `mapstructure:"poll_timeout_seconds"`
+	DownloadTimeoutSeconds   int    `mapstructure:"download_timeout_seconds"`
+	SettlementRetryLimit     int    `mapstructure:"settlement_retry_limit"`
+	OutputCleanupAfterHours  int    `mapstructure:"output_cleanup_after_hours"`
+	DownloadMaxBytes         int64  `mapstructure:"download_max_bytes"`
+	DownloadConcurrency      int    `mapstructure:"download_concurrency"`
+	VertexProjectID          string `mapstructure:"vertex_project_id"`
+	VertexLocation           string `mapstructure:"vertex_location"`
+	VertexGCSInputURI        string `mapstructure:"vertex_gcs_input_uri"`
+	VertexGCSOutputURIPrefix string `mapstructure:"vertex_gcs_output_uri_prefix"`
 }
 type CircuitBreakerConfig struct {
 	Enabled             bool `mapstructure:"enabled"`

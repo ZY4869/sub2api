@@ -19,7 +19,10 @@ export default {
     restartRequired: 'Please restart the service to apply the update',
     restartNow: 'Restart Now',
     restarting: 'Restarting...',
-    retry: 'Retry'
+    retry: 'Retry',
+    rollbackTitle: 'Rollback version',
+    rollbackTrusted: 'Trusted artifacts',
+    rollbackFailed: 'Rollback failed'
   },
 
   // Recharge / Subscription Page,

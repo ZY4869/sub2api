@@ -184,6 +184,13 @@ type AdminGroup struct {
 
 	// 分组排序
 	SortOrder int `json:"sort_order"`
+
+	ImageBatchEnabled             bool     `json:"image_batch_enabled"`
+	ImageBatchAllowedProviders    []string `json:"image_batch_allowed_providers"`
+	ImageBatchAllowedModels       []string `json:"image_batch_allowed_models"`
+	ImageBatchMaxItems            int      `json:"image_batch_max_items"`
+	ImageBatchMaxDownloadBytes    int64    `json:"image_batch_max_download_bytes"`
+	ImageBatchDownloadConcurrency int      `json:"image_batch_download_concurrency"`
 }
 
 type Account struct {

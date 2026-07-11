@@ -268,6 +268,47 @@ func TestChatCompletionsToResponses_ServiceTier(t *testing.T) {
 	assert.Equal(t, "flex", resp.ServiceTier)
 }
 
+func TestChatCompletionsToResponses_PreservesParallelToolCallsFalseAndResponseFormat(t *testing.T) {
+	parallel := false
+	req := &ChatCompletionsRequest{
+		Model:             "gpt-4o",
+		ParallelToolCalls: &parallel,
+		ResponseFormat:    json.RawMessage(`{"type":"json_schema","json_schema":{"name":"answer","schema":{"type":"object"},"strict":true}}`),
+		Messages:          []ChatMessage{{Role: "user", Content: json.RawMessage(`"Hi"`)}},
+	}
+
+	resp, err := ChatCompletionsToResponses(req)
+	require.NoError(t, err)
+	require.NotNil(t, resp.ParallelToolCalls)
+	require.False(t, *resp.ParallelToolCalls)
+	require.NotNil(t, resp.Text)
+
+	var format map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(resp.Text.Format, &format))
+	require.JSONEq(t, `"json_schema"`, string(format["type"]))
+	require.JSONEq(t, `"answer"`, string(format["name"]))
+	require.JSONEq(t, `true`, string(format["strict"]))
+	require.NotContains(t, format, "json_schema")
+
+	raw, err := json.Marshal(resp)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"parallel_tool_calls":false`)
+	require.Contains(t, string(raw), `"text":{"format"`)
+}
+
+func TestChatCompletionsToResponses_RejectsInvalidResponseFormat(t *testing.T) {
+	_, err := ChatCompletionsToResponses(&ChatCompletionsRequest{
+		Model:          "gpt-4o",
+		ResponseFormat: json.RawMessage(`["not","an","object"]`),
+		Messages:       []ChatMessage{{Role: "user", Content: json.RawMessage(`"Hi"`)}},
+	})
+
+	require.Error(t, err)
+	compatErr, ok := AsCompatError(err)
+	require.True(t, ok)
+	require.Equal(t, CompatReasonChatResponseFormatInvalid, compatErr.Reason)
+}
+
 func TestChatCompletionsToResponses_StripsSamplingParamsForReasoningModels(t *testing.T) {
 	temperature := 0.7
 	topP := 0.9
@@ -771,6 +812,42 @@ func TestResponsesToChatCompletionsRequest_StructuredInputAndTools(t *testing.T)
 	require.True(t, *chat.Tools[0].Function.Strict)
 }
 
+func TestResponsesToChatCompletionsRequest_PreservesParallelToolCallsFalseAndTextFormat(t *testing.T) {
+	parallel := false
+	req := &ResponsesRequest{
+		Model:             "gpt-4o",
+		Input:             json.RawMessage(`"hello"`),
+		ParallelToolCalls: &parallel,
+		Text: &ResponsesTextConfig{
+			Format: json.RawMessage(`{"type":"json_schema","name":"answer","schema":{"type":"object"},"strict":true}`),
+		},
+	}
+
+	chat, err := ResponsesToChatCompletionsRequest(req)
+	require.NoError(t, err)
+	require.NotNil(t, chat.ParallelToolCalls)
+	require.False(t, *chat.ParallelToolCalls)
+
+	var format map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(chat.ResponseFormat, &format))
+	require.JSONEq(t, `"json_schema"`, string(format["type"]))
+	require.Contains(t, format, "json_schema")
+	require.JSONEq(t, `"answer"`, string(mustJSONField(t, format["json_schema"], "name")))
+	require.JSONEq(t, `true`, string(mustJSONField(t, format["json_schema"], "strict")))
+
+	raw, err := json.Marshal(chat)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"parallel_tool_calls":false`)
+	require.Contains(t, string(raw), `"response_format"`)
+}
+
+func mustJSONField(t *testing.T, raw json.RawMessage, key string) json.RawMessage {
+	t.Helper()
+	var obj map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &obj))
+	return obj[key]
+}
+
 // ---------------------------------------------------------------------------
 // Streaming: ResponsesEventToChatChunks tests
 // ---------------------------------------------------------------------------
@@ -947,6 +1024,29 @@ func TestResponsesEventToChatChunks_CompletedWithToolCalls(t *testing.T) {
 	require.Len(t, chunks, 1)
 	require.NotNil(t, chunks[0].Choices[0].FinishReason)
 	assert.Equal(t, "tool_calls", *chunks[0].Choices[0].FinishReason)
+}
+
+func TestResponsesEventToChatChunks_FailedPreservesUsage(t *testing.T) {
+	state := NewResponsesEventToChatState()
+	state.Model = "gpt-5.6-sol"
+	state.IncludeUsage = true
+
+	chunks := ResponsesEventToChatChunks(&ResponsesStreamEvent{
+		Type: "response.failed",
+		Response: &ResponsesResponse{
+			Status: "failed",
+			Error:  &ResponsesError{Code: "server_error", Message: "Internal error"},
+			Usage:  &ResponsesUsage{InputTokens: 12, OutputTokens: 3, TotalTokens: 15},
+		},
+	}, state)
+
+	require.Len(t, chunks, 2)
+	require.NotNil(t, chunks[0].Choices[0].FinishReason)
+	assert.Equal(t, "stop", *chunks[0].Choices[0].FinishReason)
+	require.NotNil(t, chunks[1].Usage)
+	assert.Equal(t, 12, chunks[1].Usage.PromptTokens)
+	assert.Equal(t, 3, chunks[1].Usage.CompletionTokens)
+	assert.Equal(t, 15, chunks[1].Usage.TotalTokens)
 }
 
 func TestResponsesEventToChatChunks_ReasoningDelta(t *testing.T) {

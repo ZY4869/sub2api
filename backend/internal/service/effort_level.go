@@ -11,6 +11,7 @@ const (
 	effortSourceAnthropicField = "output_config.effort"
 	effortSourceOpenAIField    = "reasoning.effort"
 	effortSourceOpenAIAlias    = "reasoning_effort"
+	effortSourceModelSuffix    = "model_suffix"
 	effortSourceGeminiField    = "thinkingLevel"
 	effortSourceGeminiNested   = "thinking.thinkingLevel"
 	effortSourceGeminiMapped   = "mapped_reasoning_effort"
@@ -72,6 +73,31 @@ func NormalizeOpenAIReasoningEffortEffective(raw string) *string {
 	default:
 		return normalized
 	}
+}
+
+func NormalizeOpenAIReasoningEffortEffectiveForModels(raw string, models ...string) *string {
+	normalized := normalizeOpenAIReasoningEffortRaw(raw)
+	if normalized == nil {
+		return nil
+	}
+	if *normalized == "max" && openAIModelSupportsMaxReasoningEffort(models...) {
+		return normalized
+	}
+	return NormalizeOpenAIReasoningEffortEffective(*normalized)
+}
+
+func openAIModelSupportsMaxReasoningEffort(models ...string) bool {
+	for _, model := range models {
+		modelID := strings.ToLower(strings.TrimSpace(model))
+		if idx := strings.LastIndex(modelID, "/"); idx >= 0 {
+			modelID = strings.TrimSpace(modelID[idx+1:])
+		}
+		modelID = strings.NewReplacer("_", "-", " ", "-").Replace(modelID)
+		if modelID == "gpt-5.6" || strings.HasPrefix(modelID, "gpt-5.6-") {
+			return true
+		}
+	}
+	return false
 }
 
 func NormalizeGeminiThinkingLevel(raw string) *string {
@@ -183,21 +209,35 @@ func ResolveAnthropicEffortFromBody(body string) GatewayEffortResolution {
 }
 
 func ResolveOpenAIEffort(native string, topLevel string, source string) GatewayEffortResolution {
+	return ResolveOpenAIEffortForModels(native, topLevel, source)
+}
+
+func ResolveOpenAIEffortForModels(native string, topLevel string, source string, models ...string) GatewayEffortResolution {
 	if normalized := normalizeOpenAIReasoningEffortRaw(native); normalized != nil {
 		return GatewayEffortResolution{
 			Raw:       normalized,
-			Effective: NormalizeOpenAIReasoningEffortEffective(*normalized),
+			Effective: NormalizeOpenAIReasoningEffortEffectiveForModels(*normalized, models...),
 			Source:    source,
 		}
 	}
 	if normalized := NormalizeGatewayEffortLevel(topLevel); normalized != nil {
 		return GatewayEffortResolution{
 			Raw:       normalized,
-			Effective: NormalizeOpenAIReasoningEffortEffective(*normalized),
+			Effective: NormalizeOpenAIReasoningEffortEffectiveForModels(*normalized, models...),
 			Source:    effortSourceTopLevel,
 		}
 	}
 	return GatewayEffortResolution{}
+}
+
+func ResolveOpenAIEffortResolutionForModels(resolution GatewayEffortResolution, models ...string) GatewayEffortResolution {
+	if resolution.Raw == nil {
+		return resolution
+	}
+	if effective := NormalizeOpenAIReasoningEffortEffectiveForModels(*resolution.Raw, models...); effective != nil {
+		resolution.Effective = effective
+	}
+	return resolution
 }
 
 func ResolveAnthropicEffortForOpenAI(native string, topLevel string) GatewayEffortResolution {

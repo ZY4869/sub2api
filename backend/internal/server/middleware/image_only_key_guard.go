@@ -19,6 +19,9 @@ func isImageOnlyAllowedGatewayRequest(method, path string) bool {
 	if normalizedPath == "/v1/usage" {
 		return true
 	}
+	if normalizedPath == "/v1/images/batches" || strings.HasPrefix(normalizedPath, "/v1/images/batches/") {
+		return method == http.MethodGet || method == http.MethodPost || method == http.MethodDelete
+	}
 
 	// Allow model listing endpoints so users can "pull" available image models.
 	if method == http.MethodGet {

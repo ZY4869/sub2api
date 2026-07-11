@@ -256,6 +256,7 @@ const (
 	SettingKeyBlacklistRuleCandidates  = "blacklist_rule_candidates"
 
 	SettingKeyGoogleBatchGCSProfiles        = "google_batch_gcs_profiles"
+	SettingKeyImageBatchEnabled             = "image_batch_enabled"
 	SettingKeyAccountDaily5HTriggerSettings = "account_daily_5h_trigger_settings"
 
 	SettingKeyMinClaudeCodeVersion                 = "min_claude_code_version"

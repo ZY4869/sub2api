@@ -17,6 +17,16 @@ func TestGatewayEffortResolutionDefaultSuite(t *testing.T) {
 		require.Equal(t, effortSourceOpenAIAlias, resolution.Source)
 	})
 
+	t.Run("openai gpt 5.6 max remains max", func(t *testing.T) {
+		resolution := ResolveOpenAIEffortForModels("max", "", effortSourceOpenAIAlias, "gpt-5.6-sol")
+
+		require.NotNil(t, resolution.Raw)
+		require.NotNil(t, resolution.Effective)
+		require.Equal(t, "max", *resolution.Raw)
+		require.Equal(t, "max", *resolution.Effective)
+		require.Equal(t, effortSourceOpenAIAlias, resolution.Source)
+	})
+
 	t.Run("anthropic output_config wins over top-level fallback", func(t *testing.T) {
 		resolution := ResolveAnthropicEffort("high", "max")
 

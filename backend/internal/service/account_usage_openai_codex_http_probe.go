@@ -39,6 +39,7 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModelHTTP(
 	req.Header.Set("Originator", "codex_cli_rs")
 	req.Header.Set("Version", codexCLIVersion)
 	req.Header.Set("User-Agent", codexCLIUserAgent)
+	enforceCodexIdentityHeaders(ctx, req.Header, account)
 	req.Header.Set("Session_id", uuid.NewString())
 	if chatgptAccountID := account.GetChatGPTAccountID(); chatgptAccountID != "" {
 		req.Header.Set("chatgpt-account-id", chatgptAccountID)

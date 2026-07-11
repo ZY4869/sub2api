@@ -39,6 +39,27 @@ func RegisterGatewayRoutes(
 	requireGatewayMaintenanceGoogle := middleware.MaintenanceModeGatewayGuard(settingService, "google", middleware.GoogleErrorWriter)
 	dispatchers := newGatewayRouteDispatchers(h)
 
+	imageBatches := r.Group("/v1/images/batches")
+	imageBatches.Use(bodyLimit)
+	imageBatches.Use(clientRequestID)
+	imageBatches.Use(opsErrorLogger)
+	imageBatches.Use(opsRequestTraceLogger)
+	imageBatches.Use(endpointNorm)
+	imageBatches.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	imageBatches.Use(requireGatewayMaintenanceGoogle)
+	imageBatches.Use(requireGroupGoogle)
+	{
+		imageBatches.POST("", h.Gateway.SubmitImageBatch)
+		imageBatches.GET("", h.Gateway.ListImageBatches)
+		imageBatches.GET("/:id", h.Gateway.GetImageBatchOrModels)
+		imageBatches.GET("/:id/items", h.Gateway.ListImageBatchItems)
+		imageBatches.GET("/:id/items/:custom_id/content", h.Gateway.GetImageBatchItemContent)
+		imageBatches.GET("/:id/download", h.Gateway.DownloadImageBatch)
+		imageBatches.POST("/:id/cancel", h.Gateway.CancelImageBatch)
+		imageBatches.DELETE("/:id", h.Gateway.DeleteImageBatch)
+		imageBatches.DELETE("/:id/outputs", h.Gateway.DeleteImageBatchOutputs)
+	}
+
 	// API网关（Claude API兼容）
 	gateway := r.Group("/v1")
 	gateway.Use(bodyLimit)

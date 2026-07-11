@@ -321,6 +321,8 @@
           </div>
         </div>
 
+        <ImageBatchSettingsCard />
+
         <GoogleBatchArchiveSettingsCard />
 
         <GoogleBatchGCSProfilesManager />
@@ -507,6 +509,7 @@ import Select from '@/components/common/Select.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import GoogleBatchArchiveSettingsCard from '@/components/settings/GoogleBatchArchiveSettingsCard.vue'
 import GoogleBatchGCSProfilesManager from '@/components/settings/GoogleBatchGCSProfilesManager.vue'
+import ImageBatchSettingsCard from '@/components/settings/ImageBatchSettingsCard.vue'
 import OpenAIFastPolicySettingsCard from '@/components/settings/OpenAIFastPolicySettingsCard.vue'
 const props = defineProps<{ ctx: any }>()
 const {

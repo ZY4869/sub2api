@@ -9,7 +9,7 @@ export type RedeemCodeType =
   | "concurrency"
   | "subscription"
   | "invitation";
-export type UsageRequestType = "unknown" | "sync" | "stream" | "ws_v2";
+export type UsageRequestType = "unknown" | "sync" | "stream" | "ws_v2" | "cyber" | "blocked";
 export type UsageLogStatus = "succeeded" | "failed";
 export type UsageLogSimulatedClient = "codex" | "gemini_cli";
 export type TokenDisplayMode = "natural" | "k" | "m";
@@ -360,6 +360,7 @@ export interface UserSpendingRankingResponse {
   total_actual_cost: number;
   total_requests: number;
   total_tokens: number;
+  metric?: "actual_cost" | "requests" | "tokens";
   start_date: string;
   end_date: string;
 }

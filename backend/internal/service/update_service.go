@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,10 +26,6 @@ const (
 	updateCacheTTL = 1200 // 20 minutes
 	githubRepo     = "ZY4869/sub2api"
 
-	// Security: allowed download domains for updates
-	allowedDownloadHost = "github.com"
-	allowedAssetHost    = "objects.githubusercontent.com"
-
 	// Security: max download size (500MB)
 	maxDownloadSize = 500 * 1024 * 1024
 )
@@ -44,6 +39,7 @@ type UpdateCache interface {
 // GitHubReleaseClient 获取 GitHub release 信息的接口
 type GitHubReleaseClient interface {
 	FetchLatestRelease(ctx context.Context, repo string) (*GitHubRelease, error)
+	FetchReleases(ctx context.Context, repo string, limit int) ([]GitHubRelease, error)
 	DownloadFile(ctx context.Context, url, dest string, maxSize int64) error
 	FetchChecksumFile(ctx context.Context, url string) ([]byte, error)
 }
@@ -68,13 +64,27 @@ func NewUpdateService(cache UpdateCache, githubClient GitHubReleaseClient, versi
 
 // UpdateInfo contains update information
 type UpdateInfo struct {
-	CurrentVersion string       `json:"current_version"`
-	LatestVersion  string       `json:"latest_version"`
-	HasUpdate      bool         `json:"has_update"`
-	ReleaseInfo    *ReleaseInfo `json:"release_info,omitempty"`
-	Cached         bool         `json:"cached"`
-	Warning        string       `json:"warning,omitempty"`
-	BuildType      string       `json:"build_type"` // "source" or "release"
+	CurrentVersion   string                `json:"current_version"`
+	LatestVersion    string                `json:"latest_version"`
+	HasUpdate        bool                  `json:"has_update"`
+	ReleaseInfo      *ReleaseInfo          `json:"release_info,omitempty"`
+	RollbackVersions []RollbackVersionInfo `json:"rollback_versions,omitempty"`
+	Cached           bool                  `json:"cached"`
+	Warning          string                `json:"warning,omitempty"`
+	BuildType        string                `json:"build_type"` // "source" or "release"
+}
+
+// RollbackVersionInfo describes a trusted release candidate for binary rollback.
+type RollbackVersionInfo struct {
+	Version            string `json:"version"`
+	TagName            string `json:"tag_name"`
+	PublishedAt        string `json:"published_at"`
+	HTMLURL            string `json:"html_url"`
+	Source             string `json:"source"`
+	Platform           string `json:"platform"`
+	Arch               string `json:"arch"`
+	SHA256Available    bool   `json:"sha256_available"`
+	SignatureAvailable bool   `json:"signature_available"`
 }
 
 // ReleaseInfo contains GitHub release details
@@ -100,6 +110,7 @@ type GitHubRelease struct {
 	Body        string        `json:"body"`
 	PublishedAt string        `json:"published_at"`
 	HTMLURL     string        `json:"html_url"`
+	Prerelease  bool          `json:"prerelease"`
 	Assets      []GitHubAsset `json:"assets"`
 }
 
@@ -252,8 +263,39 @@ func (s *UpdateService) PerformUpdate(ctx context.Context) error {
 	return nil
 }
 
-// Rollback restores the previous version
+// Rollback restores the previous local backup version.
 func (s *UpdateService) Rollback() error {
+	return s.rollbackLocalBackup()
+}
+
+// RollbackToVersion validates a trusted rollback target before falling back to the
+// existing local backup swap. The binary replacement path intentionally refuses
+// unsigned release assets until a configured signature verifier is available.
+func (s *UpdateService) RollbackToVersion(ctx context.Context, targetVersion string) error {
+	normalized := normalizeReleaseVersion(targetVersion)
+	if normalized == "" {
+		return infraerrors.BadRequest("SYSTEM_ROLLBACK_TARGET_INVALID", "target_version must be a final semantic version such as 0.1.379")
+	}
+	if compareVersions(normalized, s.currentVersion) >= 0 {
+		return infraerrors.BadRequest("SYSTEM_ROLLBACK_TARGET_INVALID", "target_version must be older than the current version")
+	}
+
+	candidates, err := s.listRollbackVersions(ctx)
+	if err != nil {
+		return err
+	}
+	for _, candidate := range candidates {
+		if candidate.Version == normalized {
+			if !candidate.SignatureAvailable {
+				return infraerrors.Forbidden("SYSTEM_ROLLBACK_SIGNATURE_REQUIRED", "该版本制品缺少签名材料，已拒绝回退。请使用本仓库或受信任私有镜像发布的签名制品。")
+			}
+			return infraerrors.ServiceUnavailable("SYSTEM_ROLLBACK_SIGNATURE_VERIFIER_UNCONFIGURED", "已找到目标版本，但当前实例未配置制品签名验证器，已拒绝在线回退。")
+		}
+	}
+	return infraerrors.NotFound("SYSTEM_ROLLBACK_TARGET_NOT_FOUND", "target_version is not available from a trusted release source")
+}
+
+func (s *UpdateService) rollbackLocalBackup() error {
 	exePath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to get executable path: %w", err)
@@ -281,6 +323,9 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 	if err != nil {
 		return nil, err
 	}
+	if err := validateTrustedRelease(release); err != nil {
+		return nil, err
+	}
 
 	latestVersion := strings.TrimPrefix(release.TagName, "v")
 
@@ -293,7 +338,7 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 		}
 	}
 
-	return &UpdateInfo{
+	info := &UpdateInfo{
 		CurrentVersion: s.currentVersion,
 		LatestVersion:  latestVersion,
 		HasUpdate:      compareVersions(s.currentVersion, latestVersion) < 0,
@@ -306,7 +351,11 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 		},
 		Cached:    false,
 		BuildType: s.buildType,
-	}, nil
+	}
+	if rollbackVersions, err := s.listRollbackVersions(ctx); err == nil {
+		info.RollbackVersions = rollbackVersions
+	}
+	return info, nil
 }
 
 func (s *UpdateService) downloadFile(ctx context.Context, downloadURL, dest string) error {
@@ -317,32 +366,6 @@ func (s *UpdateService) getArchiveName() string {
 	osName := runtime.GOOS
 	arch := runtime.GOARCH
 	return fmt.Sprintf("%s_%s", osName, arch)
-}
-
-// validateDownloadURL checks if the URL is from an allowed domain
-// SECURITY: This prevents SSRF and ensures downloads only come from trusted GitHub domains
-func validateDownloadURL(rawURL string) error {
-	parsedURL, err := url.Parse(rawURL)
-	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
-	}
-
-	// Must be HTTPS
-	if parsedURL.Scheme != "https" {
-		return fmt.Errorf("only HTTPS URLs are allowed")
-	}
-
-	// Check against allowed hosts
-	host := parsedURL.Host
-	// GitHub release URLs can be from github.com or objects.githubusercontent.com
-	if host != allowedDownloadHost &&
-		!strings.HasSuffix(host, "."+allowedDownloadHost) &&
-		host != allowedAssetHost &&
-		!strings.HasSuffix(host, "."+allowedAssetHost) {
-		return fmt.Errorf("download from untrusted host: %s", host)
-	}
-
-	return nil
 }
 
 func (s *UpdateService) verifyChecksum(ctx context.Context, filePath, checksumURL string) error {
@@ -471,15 +494,19 @@ func (s *UpdateService) extractBinary(archivePath, destPath string) error {
 }
 
 func (s *UpdateService) getFromCache(ctx context.Context) (*UpdateInfo, error) {
+	if s.cache == nil {
+		return nil, fmt.Errorf("update cache not configured")
+	}
 	data, err := s.cache.GetUpdateInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var cached struct {
-		Latest      string       `json:"latest"`
-		ReleaseInfo *ReleaseInfo `json:"release_info"`
-		Timestamp   int64        `json:"timestamp"`
+		Latest           string                `json:"latest"`
+		ReleaseInfo      *ReleaseInfo          `json:"release_info"`
+		RollbackVersions []RollbackVersionInfo `json:"rollback_versions,omitempty"`
+		Timestamp        int64                 `json:"timestamp"`
 	}
 	if err := json.Unmarshal([]byte(data), &cached); err != nil {
 		return nil, err
@@ -490,24 +517,30 @@ func (s *UpdateService) getFromCache(ctx context.Context) (*UpdateInfo, error) {
 	}
 
 	return &UpdateInfo{
-		CurrentVersion: s.currentVersion,
-		LatestVersion:  cached.Latest,
-		HasUpdate:      compareVersions(s.currentVersion, cached.Latest) < 0,
-		ReleaseInfo:    cached.ReleaseInfo,
-		Cached:         true,
-		BuildType:      s.buildType,
+		CurrentVersion:   s.currentVersion,
+		LatestVersion:    cached.Latest,
+		HasUpdate:        compareVersions(s.currentVersion, cached.Latest) < 0,
+		ReleaseInfo:      cached.ReleaseInfo,
+		RollbackVersions: cached.RollbackVersions,
+		Cached:           true,
+		BuildType:        s.buildType,
 	}, nil
 }
 
 func (s *UpdateService) saveToCache(ctx context.Context, info *UpdateInfo) {
+	if s.cache == nil {
+		return
+	}
 	cacheData := struct {
-		Latest      string       `json:"latest"`
-		ReleaseInfo *ReleaseInfo `json:"release_info"`
-		Timestamp   int64        `json:"timestamp"`
+		Latest           string                `json:"latest"`
+		ReleaseInfo      *ReleaseInfo          `json:"release_info"`
+		RollbackVersions []RollbackVersionInfo `json:"rollback_versions,omitempty"`
+		Timestamp        int64                 `json:"timestamp"`
 	}{
-		Latest:      info.LatestVersion,
-		ReleaseInfo: info.ReleaseInfo,
-		Timestamp:   time.Now().Unix(),
+		Latest:           info.LatestVersion,
+		ReleaseInfo:      info.ReleaseInfo,
+		RollbackVersions: info.RollbackVersions,
+		Timestamp:        time.Now().Unix(),
 	}
 
 	data, _ := json.Marshal(cacheData)

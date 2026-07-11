@@ -59,6 +59,16 @@ func TestBuildGrokMessagesCompatResponsesBodyCleansPayloadAndMapsModel(t *testin
 	require.False(t, gjson.GetBytes(clean, "include").Exists())
 }
 
+func TestSanitizeGrokOpenAICompatibleRequestBodyPreservesReasoning(t *testing.T) {
+	dirty := []byte(`{"model":"grok-4","input":"hello","reasoning":{"effort":"high"},"reasoning_effort":"high","prompt_cache_key":"pc"}`)
+
+	clean := sanitizeGrokOpenAICompatibleRequestBody(dirty)
+
+	require.Equal(t, "high", gjson.GetBytes(clean, "reasoning.effort").String())
+	require.Equal(t, "high", gjson.GetBytes(clean, "reasoning_effort").String())
+	require.False(t, gjson.GetBytes(clean, "prompt_cache_key").Exists())
+}
+
 func TestGrokForwardAnthropicCountTokensCompatUsesResponsesInputTokens(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{"model":"grok-4","messages":[{"role":"user","content":"hello"}]}`)

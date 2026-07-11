@@ -12,6 +12,7 @@ export default {
     channelStatus: '渠道状态',
     channelMonitors: '渠道监控',
     usage: '使用记录',
+    imageBatches: '批量生图',
     redeem: '兑换',
     profile: '个人资料',
     users: '用户管理',

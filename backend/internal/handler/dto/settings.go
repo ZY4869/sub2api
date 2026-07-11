@@ -325,6 +325,10 @@ type GoogleBatchArchiveSettings struct {
 	LocalStorageRoot       string `json:"local_storage_root"`
 }
 
+type ImageBatchSettings struct {
+	Enabled bool `json:"enabled"`
+}
+
 type AccountDaily5HTriggerModelSettings struct {
 	Mode         string `json:"mode"`
 	FixedModelID string `json:"fixed_model_id,omitempty"`
@@ -450,6 +454,7 @@ type OpenAIFastPolicyRule struct {
 	Scope          string   `json:"scope"`
 	ModelWhitelist []string `json:"model_whitelist,omitempty"`
 	FallbackAction string   `json:"fallback_action,omitempty"`
+	UserIDs        []int64  `json:"user_ids,omitempty"`
 }
 
 type OpenAIFastPolicySettings struct {

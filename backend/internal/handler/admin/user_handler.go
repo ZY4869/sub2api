@@ -49,6 +49,7 @@ type CreateUserRequest struct {
 	Password                     string                    `json:"password" binding:"required,min=6"`
 	Username                     string                    `json:"username"`
 	Notes                        string                    `json:"notes"`
+	Role                         string                    `json:"role" binding:"omitempty,oneof=user admin"`
 	Balance                      float64                   `json:"balance"`
 	Concurrency                  int                       `json:"concurrency"`
 	AllowedGroups                []int64                   `json:"allowed_groups"`
@@ -66,6 +67,7 @@ type UpdateUserRequest struct {
 	Notes                        *string                   `json:"notes"`
 	Balance                      *float64                  `json:"balance"`
 	Concurrency                  *int                      `json:"concurrency"`
+	Role                         *string                   `json:"role" binding:"omitempty,oneof=user admin"`
 	AdminFreeBilling             *bool                     `json:"admin_free_billing"`
 	RequestDetailsReview         *bool                     `json:"request_details_review"`
 	Status                       string                    `json:"status" binding:"omitempty,oneof=active disabled"`
@@ -244,6 +246,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 		Password:                     req.Password,
 		Username:                     req.Username,
 		Notes:                        req.Notes,
+		Role:                         req.Role,
 		Balance:                      req.Balance,
 		Concurrency:                  req.Concurrency,
 		AllowedGroups:                req.AllowedGroups,
@@ -282,6 +285,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 		Notes:                        req.Notes,
 		Balance:                      req.Balance,
 		Concurrency:                  req.Concurrency,
+		Role:                         req.Role,
 		AdminFreeBilling:             req.AdminFreeBilling,
 		RequestDetailsReview:         req.RequestDetailsReview,
 		Status:                       req.Status,

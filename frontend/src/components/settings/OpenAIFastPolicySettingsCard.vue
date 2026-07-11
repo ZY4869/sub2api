@@ -118,6 +118,21 @@
               {{ t('admin.settings.openaiFastPolicy.modelWhitelistHint') }}
             </p>
           </div>
+
+          <div class="mt-3">
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('admin.settings.openaiFastPolicy.userIds') }}
+            </label>
+            <textarea
+              class="input min-h-[72px] font-mono text-xs"
+              :placeholder="t('admin.settings.openaiFastPolicy.userIdsPlaceholder')"
+              :value="formatUserIDs(rule.user_ids)"
+              @input="handleUserIDsInput(idx, $event)"
+            ></textarea>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.openaiFastPolicy.userIdsHint') }}
+            </p>
+          </div>
         </div>
 
         <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -168,7 +183,8 @@ const defaultRule = (): OpenAIFastPolicyRule => ({
   action: 'filter',
   scope: 'all',
   model_whitelist: [],
-  fallback_action: 'filter'
+  fallback_action: 'filter',
+  user_ids: []
 })
 
 const addRule = () => {
@@ -228,5 +244,36 @@ const handleWhitelistInput = (idx: number, event: Event) => {
   const next = parseWhitelist(el.value || '')
   policy.value.rules[idx].model_whitelist = next
 }
-</script>
 
+const formatUserIDs = (userIDs?: number[]) => {
+  if (!Array.isArray(userIDs) || userIDs.length === 0) {
+    return ''
+  }
+  return userIDs.join('\n')
+}
+
+const parseUserIDs = (raw: string): number[] => {
+  const tokens = raw
+    .split(/[\n,]/g)
+    .map((item) => Number.parseInt(item.trim(), 10))
+    .filter((item) => Number.isFinite(item) && item > 0)
+
+  const seen = new Set<number>()
+  const out: number[] = []
+  for (const token of tokens) {
+    if (seen.has(token)) continue
+    seen.add(token)
+    out.push(token)
+  }
+  return out
+}
+
+const handleUserIDsInput = (idx: number, event: Event) => {
+  if (!policy.value || !Array.isArray(policy.value.rules)) {
+    return
+  }
+  const el = event.target as HTMLTextAreaElement | null
+  if (!el) return
+  policy.value.rules[idx].user_ids = parseUserIDs(el.value || '')
+}
+</script>

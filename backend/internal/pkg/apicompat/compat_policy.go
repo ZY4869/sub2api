@@ -94,6 +94,7 @@ const (
 	CompatReasonChatUserContentInvalid           = "COMPAT_CHAT_USER_CONTENT_INVALID"
 	CompatReasonChatStringContentInvalid         = "COMPAT_CHAT_STRING_CONTENT_INVALID"
 	CompatReasonChatFunctionCallInvalid          = "COMPAT_CHAT_FUNCTION_CALL_INVALID"
+	CompatReasonChatResponseFormatInvalid        = "COMPAT_CHAT_RESPONSE_FORMAT_INVALID"
 	CompatReasonGeminiMessagesInvalid            = "COMPAT_GEMINI_MESSAGES_INVALID"
 	CompatReasonGeminiURLContextUnsupported      = "COMPAT_GEMINI_URL_CONTEXT_UNSUPPORTED"
 	CompatReasonGeminiThinkingConflict           = "COMPAT_GEMINI_THINKING_CONFLICT"
@@ -143,6 +144,8 @@ var chatCompletionsToResponsesCompatPolicy = CompatPolicy{
 		{Field: "functions", Strategy: CompatFieldTranslate, TargetField: "tools"},
 		{Field: "tool_choice", Strategy: CompatFieldTranslate, TargetField: "tool_choice"},
 		{Field: "function_call", Strategy: CompatFieldTranslate, TargetField: "tool_choice"},
+		{Field: "parallel_tool_calls", Strategy: CompatFieldPassthrough},
+		{Field: "response_format", Strategy: CompatFieldTranslate, TargetField: "text.format"},
 		{Field: "reasoning_effort", Strategy: CompatFieldTranslate, TargetField: "reasoning.effort"},
 		{Field: "stream", Strategy: CompatFieldDelete, Notes: "compat forwarding always streams upstream"},
 		{Field: "stream_options", Strategy: CompatFieldDelete, Notes: "stream options stay on the downstream chat-completions response path"},

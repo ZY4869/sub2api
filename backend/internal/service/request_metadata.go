@@ -65,6 +65,7 @@ type RequestMetadata struct {
 	ImagegenCompatBytesAfter       *int64
 	ImagegenCompatNormalized       *bool
 	ImagegenCompatSize             *string
+	OpenAIRealSSEStarted           *bool
 }
 
 var (
@@ -798,6 +799,19 @@ func ImageOutputCountMetadataFromContext(ctx context.Context) (int, bool) {
 		return *md.ImageOutputCount, true
 	}
 	return 0, false
+}
+
+func SetOpenAIRealSSEStartedMetadata(ctx context.Context, value bool) {
+	if md := metadataFromContext(ctx); md != nil {
+		setBoolMetadataField(&md.OpenAIRealSSEStarted, value)
+	}
+}
+
+func OpenAIRealSSEStartedMetadataFromContext(ctx context.Context) (bool, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.OpenAIRealSSEStarted != nil {
+		return *md.OpenAIRealSSEStarted, true
+	}
+	return false, false
 }
 
 func SetOpenAIResponsesImageGenCompatMetadata(ctx context.Context, value OpenAIResponsesCompatMetadata) {

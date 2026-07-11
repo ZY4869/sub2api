@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const expectedReleaseVersion = "0.1.379"
+const expectedReleaseVersion = "0.1.380"
 
 func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	root := repositoryTestRepoRoot(t)
@@ -192,6 +192,113 @@ func TestUpstream145To146CleanroomMatrixGuards(t *testing.T) {
 	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
 	require.NotContains(t, license, "GNU LESSER GENERAL PUBLIC LICENSE")
 	require.NotContains(t, license, "GNU GENERAL PUBLIC LICENSE")
+	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	assertNoAPIDocsRoutes(t, root)
+}
+
+func TestUpstream146To150CleanroomMatrixAndRollbackGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "upstream-v0.1.146-v0.1.150-cleanroom-sync-matrix.md")
+	for _, expected := range []string{
+		"d7a6a4513a58b082922dfb8bd80f36cbe6b8a4c4",
+		"ba1f130d283daae4de70322cc17f01673808e986",
+		"dd1a116f4879992f04bb6ddbc77069bd503c3f4a",
+		"0dec1ad2922ff8c9d27b67f8a31dfb35bce1902b",
+		"Local baseline: `v0.1.379`",
+		"No `git pull`, `fetch`, merge, rebase, or cherry-pick",
+		"MIT-only",
+		"`check-updates` exposes up to three older trusted local release candidates",
+		"`rollback.target_version`",
+		"`Wei-Shaw/sub2api`",
+		"Batch image generation",
+		"`/v1/images/batches`",
+		"`display_model_id`",
+		"`target_model_id` remains internal",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+
+	policy := readRepoFile(t, root, "backend", "internal", "service", "update_release_policy.go")
+	require.Contains(t, policy, `allowedDownloadHost = "github.com"`)
+	require.Contains(t, policy, `githubRepo+"/releases/download/"`)
+	require.NotContains(t, policy, "objects.githubusercontent.com")
+	require.NotContains(t, policy, "Wei-Shaw/sub2api/releases/download")
+	require.NotContains(t, policy, "hub.docker.com")
+
+	updateSvc := readRepoFile(t, root, "backend", "internal", "service", "update_service.go")
+	require.Contains(t, updateSvc, `githubRepo     = "ZY4869/sub2api"`)
+	require.Contains(t, updateSvc, "RollbackToVersion")
+	require.Contains(t, updateSvc, "SYSTEM_ROLLBACK_SIGNATURE_REQUIRED")
+	require.Contains(t, updateSvc, "SYSTEM_ROLLBACK_SIGNATURE_VERIFIER_UNCONFIGURED")
+
+	imageBatchConfig := readRepoFile(t, root, "backend", "internal", "config", "config_types_core.go")
+	require.Contains(t, imageBatchConfig, "SettlementRetryLimit")
+	require.Contains(t, imageBatchConfig, "OutputCleanupAfterHours")
+	require.Contains(t, imageBatchConfig, "DownloadConcurrency")
+
+	imageBatchRepo := readRepoFile(t, root, "backend", "internal", "service", "image_batch_repository.go")
+	require.Contains(t, imageBatchRepo, "IncrementJobSettlementRetry")
+	require.Contains(t, imageBatchRepo, "CleanupExpiredOutputs")
+
+	opsRoutes := readRepoFile(t, root, "backend", "internal", "server", "routes", "admin.go")
+	require.Contains(t, opsRoutes, `runtime.GET("/image-batch"`)
+
+	imageBatchMetrics := readRepoFile(t, root, "backend", "internal", "service", "image_batch_metrics.go")
+	require.Contains(t, imageBatchMetrics, "OutputsCleanedJobs")
+
+	frontendSystemAPI := readRepoFile(t, root, "frontend", "src", "api", "admin", "system.ts")
+	require.Contains(t, frontendSystemAPI, "RollbackVersionInfo")
+	require.Contains(t, frontendSystemAPI, "rollback_versions")
+	require.Contains(t, frontendSystemAPI, "target_version")
+
+	versionBadge := readRepoFile(t, root, "frontend", "src", "components", "common", "VersionBadge.vue")
+	require.Contains(t, versionBadge, "rollbackVersions")
+	require.Contains(t, versionBadge, "version.rollbackFailed")
+	require.Contains(t, versionBadge, "metadata?.error_id")
+
+	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	assertNoAPIDocsRoutes(t, root)
+}
+
+func TestUpstream150To151CleanroomMatrixGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "upstream-v0.1.150-v0.1.151-cleanroom-sync-matrix.md")
+	for _, expected := range []string{
+		"Local baseline: `v0.1.379`",
+		"No `git pull`, `fetch`, merge, rebase, or cherry-pick",
+		"Do not copy upstream LGPL/GPL",
+		"MIT-only",
+		"`/api-docs/*`",
+		"`/admin/api-docs/*`",
+		"`157_allow_cyber_blocked_usage_request_type.sql`",
+		"do not add upstream migration `173`",
+		"`openai_fast_policy_settings.rules[].user_ids`",
+		"OpenAIRealSSEStarted",
+		"`response.failed`",
+		"`gpt-5.6-{sol,terra,luna}`",
+		"`max`",
+		"`reasoning` / `reasoning_effort`",
+		"`image_gen`",
+		"setup-token",
+		"`/v1/models` and `/v1/chat/completions` without key return 401",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+
+	license := readRepoFile(t, root, "LICENSE")
+	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
+	require.NotContains(t, license, "GNU LESSER GENERAL PUBLIC LICENSE")
+	require.NotContains(t, license, "GNU GENERAL PUBLIC LICENSE")
+
+	migration157 := filepath.Join(root, "backend", "migrations", "157_allow_cyber_blocked_usage_request_type.sql")
+	_, err := os.Stat(migration157)
+	require.NoError(t, err)
+	migration173 := filepath.Join(root, "backend", "migrations", "173_allow_cyber_blocked_usage_request_type.sql")
+	_, err = os.Stat(migration173)
+	require.True(t, os.IsNotExist(err), "must not adopt upstream migration 173")
+
 	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 	assertNoAPIDocsRoutes(t, root)
 }

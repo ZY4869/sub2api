@@ -150,6 +150,7 @@ func buildCodexWSProbeHeaders(account *Account, accessToken string) http.Header 
 	headers.Set("originator", "codex_cli_rs")
 	headers.Set("version", codexCLIVersion)
 	headers.Set("user-agent", codexCLIUserAgent)
+	enforceCodexIdentityHeaders(context.Background(), headers, account)
 	headers.Set("session_id", uuid.NewString())
 	if account != nil {
 		if chatgptAccountID := account.GetChatGPTAccountID(); chatgptAccountID != "" {

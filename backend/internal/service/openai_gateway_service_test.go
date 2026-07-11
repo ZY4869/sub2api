@@ -1497,6 +1497,81 @@ func TestOpenAIStreamingTimeout(t *testing.T) {
 	}
 }
 
+func TestOpenAICompactStreamingTimeoutWritesResponseFailed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		Gateway: config.GatewayConfig{
+			StreamDataIntervalTimeout: 1,
+			StreamKeepaliveInterval:   0,
+			MaxLineSize:               defaultMaxLineSize,
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses/compact", nil)
+	c.Request = req.WithContext(EnsureRequestMetadata(req.Context()))
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       pr,
+		Header:     http.Header{},
+	}
+
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+	_ = pw.Close()
+	_ = pr.Close()
+
+	require.Error(t, err)
+	body := rec.Body.String()
+	require.Contains(t, body, "event: response.failed")
+	require.Contains(t, body, `"type":"response.failed"`)
+	require.Contains(t, body, "stream_timeout")
+	require.NotContains(t, body, `"type":"error"`)
+	started, ok := OpenAIRealSSEStartedMetadataFromContext(c.Request.Context())
+	require.False(t, ok && started, "timeout before upstream data must not mark real SSE as started")
+}
+
+func TestOpenAIStreamingKeepaliveDoesNotMarkRealSSEStarted(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		Gateway: config.GatewayConfig{
+			StreamDataIntervalTimeout: 0,
+			StreamKeepaliveInterval:   1,
+			MaxLineSize:               defaultMaxLineSize,
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses/compact", nil)
+	c.Request = req.WithContext(EnsureRequestMetadata(req.Context()))
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       pr,
+		Header:     http.Header{},
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+	}()
+	time.Sleep(1200 * time.Millisecond)
+	_ = pw.Close()
+	_ = pr.Close()
+	<-done
+
+	require.Contains(t, rec.Body.String(), ":\n\n")
+	started, ok := OpenAIRealSSEStartedMetadataFromContext(c.Request.Context())
+	require.False(t, ok && started, "SSE comment keepalive must not count as upstream data")
+}
+
 func TestOpenAIStreamingContextCanceledReturnsIncompleteErrorWithoutInjectingErrorEvent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{
@@ -2393,7 +2468,7 @@ func TestOpenAIBuildUpstreamRequestPreservesCompactPathForAPIKeyBaseURL(t *testi
 	require.Equal(t, "https://example.com/v1/responses/compact", req.URL.String())
 }
 
-func TestOpenAIBuildUpstreamRequestOAuthOfficialClientOriginatorCompatibility(t *testing.T) {
+func TestOpenAIBuildUpstreamRequestOAuthPairsOfficialClientIdentity(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -2401,10 +2476,12 @@ func TestOpenAIBuildUpstreamRequestOAuthOfficialClientOriginatorCompatibility(t 
 		userAgent      string
 		originator     string
 		wantOriginator string
+		wantVersion    string
 	}{
-		{name: "desktop originator preserved", originator: "Codex Desktop", wantOriginator: "Codex Desktop"},
-		{name: "vscode originator preserved", originator: "codex_vscode", wantOriginator: "codex_vscode"},
-		{name: "official ua fallback to codex_cli_rs", userAgent: "Codex Desktop/1.2.3", wantOriginator: "codex_cli_rs"},
+		{name: "desktop originator preserved without paired ua", originator: "Codex Desktop", wantOriginator: "Codex Desktop", wantVersion: codexCLIVersion},
+		{name: "vscode originator preserved without paired ua", originator: "codex_vscode", wantOriginator: "codex_vscode", wantVersion: codexCLIVersion},
+		{name: "desktop ua overrides stale originator", userAgent: "Codex Desktop/1.2.3", originator: "codex_cli_rs", wantOriginator: "codex_chatgpt_desktop", wantVersion: codexCLIVersion},
+		{name: "vscode ua overrides stale originator", userAgent: "codex_vscode/1.2.3", originator: "codex_cli_rs", wantOriginator: "codex_vscode", wantVersion: codexCLIVersion},
 	}
 
 	for _, tt := range tests {
@@ -2429,6 +2506,7 @@ func TestOpenAIBuildUpstreamRequestOAuthOfficialClientOriginatorCompatibility(t 
 			req, err := svc.buildUpstreamRequest(c.Request.Context(), c, account, []byte(`{"model":"gpt-5"}`), "token", false, "", isCodexCLI)
 			require.NoError(t, err)
 			require.Equal(t, tt.wantOriginator, req.Header.Get("originator"))
+			require.Equal(t, tt.wantVersion, req.Header.Get("version"))
 		})
 	}
 }

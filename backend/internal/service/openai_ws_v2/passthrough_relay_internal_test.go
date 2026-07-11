@@ -227,6 +227,7 @@ func TestHelperFunctionsCoverage(t *testing.T) {
 	require.True(t, isDisconnectError(context.Canceled))
 	require.True(t, isDisconnectError(coderws.CloseError{Code: coderws.StatusGoingAway}))
 	require.True(t, isDisconnectError(errors.New("broken pipe")))
+	require.True(t, isDisconnectError(errors.New("wsarecv: An existing connection was forcibly closed by the remote host. (WSAECONNRESET 10054)")))
 	require.False(t, isDisconnectError(errors.New("unrelated")))
 
 	require.True(t, isTokenEvent("response.output_text.delta"))

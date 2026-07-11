@@ -195,6 +195,39 @@ func (c *Config) Validate() error {
 	if c.Billing.RequestHoldSettlementMaxSeconds < 0 {
 		return fmt.Errorf("billing.request_hold_settlement_max_seconds must be non-negative")
 	}
+	if c.ImageBatch.WorkerIntervalSeconds <= 0 {
+		return fmt.Errorf("image_batch.worker_interval_seconds must be positive")
+	}
+	if c.ImageBatch.WorkerClaimLimit <= 0 {
+		return fmt.Errorf("image_batch.worker_claim_limit must be positive")
+	}
+	if c.ImageBatch.SubmitTimeoutSeconds <= 0 {
+		return fmt.Errorf("image_batch.submit_timeout_seconds must be positive")
+	}
+	if c.ImageBatch.PollTimeoutSeconds <= 0 {
+		return fmt.Errorf("image_batch.poll_timeout_seconds must be positive")
+	}
+	if c.ImageBatch.DownloadTimeoutSeconds <= 0 {
+		return fmt.Errorf("image_batch.download_timeout_seconds must be positive")
+	}
+	if c.ImageBatch.SettlementRetryLimit < 0 {
+		return fmt.Errorf("image_batch.settlement_retry_limit must be non-negative")
+	}
+	if c.ImageBatch.OutputCleanupAfterHours < 0 {
+		return fmt.Errorf("image_batch.output_cleanup_after_hours must be non-negative")
+	}
+	if c.ImageBatch.DownloadMaxBytes < 0 {
+		return fmt.Errorf("image_batch.download_max_bytes must be non-negative")
+	}
+	if c.ImageBatch.DownloadConcurrency <= 0 {
+		return fmt.Errorf("image_batch.download_concurrency must be positive")
+	}
+	if strings.TrimSpace(c.ImageBatch.VertexGCSInputURI) != "" && !strings.HasPrefix(strings.TrimSpace(c.ImageBatch.VertexGCSInputURI), "gs://") {
+		return fmt.Errorf("image_batch.vertex_gcs_input_uri must be a gs:// URI")
+	}
+	if strings.TrimSpace(c.ImageBatch.VertexGCSOutputURIPrefix) != "" && !strings.HasPrefix(strings.TrimSpace(c.ImageBatch.VertexGCSOutputURIPrefix), "gs://") {
+		return fmt.Errorf("image_batch.vertex_gcs_output_uri_prefix must be a gs:// URI")
+	}
 	if c.Database.MaxOpenConns <= 0 {
 		return fmt.Errorf("database.max_open_conns must be positive")
 	}

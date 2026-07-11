@@ -740,7 +740,12 @@ func isDisconnectError(err error) bool {
 		strings.Contains(message, "unexpected eof") ||
 		strings.Contains(message, "use of closed network connection") ||
 		strings.Contains(message, "connection reset by peer") ||
-		strings.Contains(message, "broken pipe")
+		strings.Contains(message, "broken pipe") ||
+		strings.Contains(message, "an established connection was aborted") ||
+		strings.Contains(message, "an existing connection was forcibly closed") ||
+		strings.Contains(message, "forcibly closed by the remote host") ||
+		strings.Contains(message, "wsaeconnreset") ||
+		strings.Contains(message, "10054")
 }
 
 func isTerminalEvent(eventType string) bool {

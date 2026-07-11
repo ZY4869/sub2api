@@ -84,6 +84,7 @@ func provideCleanup(
 	usageCleanup *service.UsageCleanupService,
 	usageRepair *service.UsageRepairService,
 	documentAI *service.DocumentAIService,
+	imageBatchService *service.ImageBatchService,
 	idempotencyCleanup *service.IdempotencyCleanupService,
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
@@ -187,6 +188,12 @@ func provideCleanup(
 			{"DocumentAIService", func() error {
 				if documentAI != nil {
 					documentAI.Stop()
+				}
+				return nil
+			}},
+			{"ImageBatchService", func() error {
+				if imageBatchService != nil {
+					imageBatchService.Stop()
 				}
 				return nil
 			}},

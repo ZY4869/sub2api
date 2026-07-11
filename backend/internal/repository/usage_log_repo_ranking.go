@@ -8,8 +8,13 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
 
-func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (resp *usagestats.UserSpendingRankingResponse, err error) {
+func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int, requestType *int16, metric string) (resp *usagestats.UserSpendingRankingResponse, err error) {
 	totalTokensExpr := usageTotalTokensSQL("ul.")
+	requestTypeWhere, requestTypeArgs := userSpendingRankingRequestTypeWhere(requestType)
+	args := []any{startTime, endTime}
+	args = append(args, requestTypeArgs...)
+	limitArgIndex := len(args) + 1
+	args = append(args, limit)
 	query := fmt.Sprintf(`
 		WITH user_spend AS (
 			SELECT
@@ -21,6 +26,7 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 			FROM usage_logs ul
 			JOIN users u ON u.id = ul.user_id
 			WHERE ul.created_at >= $1 AND ul.created_at <= $2
+			%s
 			GROUP BY ul.user_id, u.email
 		),
 		totals AS (
@@ -41,11 +47,11 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 			t.total_tokens
 		FROM user_spend us
 		CROSS JOIN totals t
-		ORDER BY us.actual_cost_usd DESC, us.requests DESC, us.user_id DESC
-		LIMIT $3
-	`, totalTokensExpr)
+		ORDER BY %s DESC, us.actual_cost_usd DESC, us.requests DESC, us.user_id DESC
+		LIMIT $%d
+	`, totalTokensExpr, requestTypeWhere, userSpendingRankingOrderColumn(metric), limitArgIndex)
 
-	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit)
+	rows, err := r.sql.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +64,7 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 
 	out := &usagestats.UserSpendingRankingResponse{
 		Ranking: []usagestats.UserSpendingRankingItem{},
+		Metric:  userSpendingRankingMetric(metric),
 	}
 	totalSet := false
 
@@ -91,4 +98,32 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 	}
 
 	return out, nil
+}
+
+func userSpendingRankingRequestTypeWhere(requestType *int16) (string, []any) {
+	if requestType == nil {
+		return "", nil
+	}
+	condition, args := buildRequestTypeFilterConditionForColumn(3, "ul.request_type", "ul.stream", "ul.openai_ws_mode", *requestType)
+	return "AND " + condition, args
+}
+
+func userSpendingRankingMetric(metric string) string {
+	switch metric {
+	case "requests", "tokens":
+		return metric
+	default:
+		return "actual_cost"
+	}
+}
+
+func userSpendingRankingOrderColumn(metric string) string {
+	switch userSpendingRankingMetric(metric) {
+	case "requests":
+		return "us.requests"
+	case "tokens":
+		return "us.tokens"
+	default:
+		return "us.actual_cost_usd"
+	}
 }

@@ -50,6 +50,7 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 	if !accountTestManualModelInputFromContext(ctx) {
 		mappedModel = resolveOpenAIForwardModel(account, normalizedRequestedModel, defaultMappedModel)
 	}
+	entryEffortResolution = extractOpenAIReasoningEffortResolutionFromBody(body, originalRequestedModel, normalizedRequestedModel, mappedModel)
 	chatReq.Model = mappedModel
 	if chatReq.Stream && !clientRequestedUsage {
 		if chatReq.StreamOptions == nil {
@@ -160,7 +161,7 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 
 	effortResolution := entryEffortResolution
 	if effortResolution.Effective == nil {
-		effortResolution = extractOpenAIReasoningEffortResolutionFromBody(requestBody, originalModel)
+		effortResolution = extractOpenAIReasoningEffortResolutionFromBody(requestBody, originalModel, mappedModel)
 	}
 	result := &OpenAIForwardResult{
 		RequestID:                resp.Header.Get("x-request-id"),

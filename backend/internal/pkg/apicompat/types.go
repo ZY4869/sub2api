@@ -151,18 +151,26 @@ type AnthropicDelta struct {
 
 // ResponsesRequest is the request body for POST /v1/responses.
 type ResponsesRequest struct {
-	Model           string              `json:"model"`
-	Input           json.RawMessage     `json:"input"` // string or []ResponsesInputItem
-	MaxOutputTokens *int                `json:"max_output_tokens,omitempty"`
-	Temperature     *float64            `json:"temperature,omitempty"`
-	TopP            *float64            `json:"top_p,omitempty"`
-	Stream          bool                `json:"stream,omitempty"`
-	Tools           []ResponsesTool     `json:"tools,omitempty"`
-	Include         []string            `json:"include,omitempty"`
-	Store           *bool               `json:"store,omitempty"`
-	Reasoning       *ResponsesReasoning `json:"reasoning,omitempty"`
-	ToolChoice      json.RawMessage     `json:"tool_choice,omitempty"`
-	ServiceTier     string              `json:"service_tier,omitempty"`
+	Model             string               `json:"model"`
+	Input             json.RawMessage      `json:"input"` // string or []ResponsesInputItem
+	MaxOutputTokens   *int                 `json:"max_output_tokens,omitempty"`
+	Temperature       *float64             `json:"temperature,omitempty"`
+	TopP              *float64             `json:"top_p,omitempty"`
+	Stream            bool                 `json:"stream,omitempty"`
+	Tools             []ResponsesTool      `json:"tools,omitempty"`
+	Include           []string             `json:"include,omitempty"`
+	Store             *bool                `json:"store,omitempty"`
+	Reasoning         *ResponsesReasoning  `json:"reasoning,omitempty"`
+	ToolChoice        json.RawMessage      `json:"tool_choice,omitempty"`
+	ParallelToolCalls *bool                `json:"parallel_tool_calls,omitempty"`
+	Text              *ResponsesTextConfig `json:"text,omitempty"`
+	ResponseFormat    json.RawMessage      `json:"response_format,omitempty"`
+	ServiceTier       string               `json:"service_tier,omitempty"`
+}
+
+// ResponsesTextConfig carries structured-output formatting options.
+type ResponsesTextConfig struct {
+	Format json.RawMessage `json:"format,omitempty"`
 }
 
 // ResponsesReasoning configures reasoning effort in the Responses API.
@@ -372,6 +380,8 @@ type ChatCompletionsRequest struct {
 	StreamOptions       *ChatStreamOptions `json:"stream_options,omitempty"`
 	Tools               []ChatTool         `json:"tools,omitempty"`
 	ToolChoice          json.RawMessage    `json:"tool_choice,omitempty"`
+	ParallelToolCalls   *bool              `json:"parallel_tool_calls,omitempty"`
+	ResponseFormat      json.RawMessage    `json:"response_format,omitempty"`
 	ReasoningEffort     string             `json:"reasoning_effort,omitempty"` // "low" | "medium" | "high"
 	ServiceTier         string             `json:"service_tier,omitempty"`
 	Stop                json.RawMessage    `json:"stop,omitempty"` // string or []string

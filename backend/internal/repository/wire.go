@@ -99,6 +99,7 @@ var ProviderSet = wire.NewSet(
 	NewGoogleBatchQuotaReservationRepository,
 	NewGoogleBatchArchiveJobRepository,
 	NewGoogleBatchArchiveObjectRepository,
+	NewImageBatchRepository,
 
 	// Cache implementations
 	NewGatewayCache,

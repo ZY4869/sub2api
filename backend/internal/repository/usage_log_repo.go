@@ -251,6 +251,11 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 		query += fmt.Sprintf(" AND %s = $%d", col, len(args)+1)
 		args = append(args, dim.Endpoint)
 	}
+	if dim.RequestType != nil {
+		condition, conditionArgs := buildRequestTypeFilterConditionForColumn(len(args)+1, "ul.request_type", "ul.stream", "ul.openai_ws_mode", *dim.RequestType)
+		query += " AND " + condition
+		args = append(args, conditionArgs...)
+	}
 
 	query += " GROUP BY ul.user_id, u.email ORDER BY actual_cost DESC"
 	if limit > 0 {

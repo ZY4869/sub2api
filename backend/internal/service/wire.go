@@ -220,6 +220,19 @@ func ProvideGeminiNativeGatewayService(compatService *GeminiMessagesCompatServic
 	return NewGeminiNativeGatewayService(compatService)
 }
 
+func ProvideImageBatchService(
+	repo ImageBatchRepository,
+	gatewayService *GatewayService,
+	apiKeyService *APIKeyService,
+	settingService *SettingService,
+	forwarder *GeminiNativeGatewayService,
+	cfg *config.Config,
+) *ImageBatchService {
+	svc := NewImageBatchService(repo, gatewayService, apiKeyService, settingService, forwarder, cfg)
+	svc.Start()
+	return svc
+}
+
 func ProvideGeminiCompatGatewayService(compatService *GeminiMessagesCompatService) *GeminiCompatGatewayService {
 	return NewGeminiCompatGatewayService(compatService)
 }
@@ -933,6 +946,7 @@ var ProviderSet = wire.NewSet(
 	ProvideGeminiTokenProvider,
 	ProvideGeminiMessagesCompatService,
 	ProvideGeminiNativeGatewayService,
+	ProvideImageBatchService,
 	ProvideGeminiCompatGatewayService,
 	ProvideGeminiLiveGatewayService,
 	ProvideGeminiInteractionsGatewayService,

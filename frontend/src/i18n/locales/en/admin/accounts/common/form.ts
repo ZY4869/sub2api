@@ -15,7 +15,7 @@ export default {
     apiKeyPlaceholder: "sk-ant-api03-...",
     apiKeyHint: "Your Claude Console API Key",
     requestHeaders: "Request header overrides",
-    requestHeadersPlaceholder: '{\n  "x-custom-feature": "enabled"\n}',
+    requestHeadersPlaceholder: "{'{'}\n  \"x-custom-feature\": \"enabled\"\n{'}'}",
     requestHeadersHint: "Optional JSON object for upstream API key accounts. Authorization, API key, Cookie, Host, and transport headers are blocked.",
     requestHeadersInvalidJson: "Request header overrides must be valid JSON.",
     requestHeadersInvalidShape: "Request header overrides must be a JSON object.",

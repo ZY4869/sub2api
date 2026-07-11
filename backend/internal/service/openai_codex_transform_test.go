@@ -298,12 +298,15 @@ func TestNormalizeCodexModel_Gpt53(t *testing.T) {
 	cases := map[string]string{
 		"gpt-5.6-sol":               "gpt-5.6-sol",
 		"gpt-5.6-sol-high":          "gpt-5.6-sol",
+		"gpt-5.6-sol-max":           "gpt-5.6-sol",
 		"gpt 5.6 sol":               "gpt-5.6-sol",
 		"gpt-5.6-terra":             "gpt-5.6-terra",
 		"gpt-5.6-terra-xhigh":       "gpt-5.6-terra",
+		"gpt-5.6-terra-max":         "gpt-5.6-terra",
 		"gpt 5.6 terra":             "gpt-5.6-terra",
 		"gpt-5.6-luna":              "gpt-5.6-luna",
 		"gpt-5.6-luna-medium":       "gpt-5.6-luna",
+		"gpt-5.6-luna-max":          "gpt-5.6-luna",
 		"gpt 5.6 luna":              "gpt-5.6-luna",
 		"gpt-5.5":                   "gpt-5.5",
 		"gpt 5.5":                   "gpt-5.5",
@@ -451,6 +454,21 @@ func TestApplyCodexOAuthTransform_ImageToolDefaultsToolChoiceAuto(t *testing.T) 
 	require.Equal(t, "auto", reqBody["tool_choice"])
 }
 
+func TestApplyCodexOAuthTransform_ImageGenNamespaceDefaultsToolChoiceAuto(t *testing.T) {
+	reqBody := map[string]any{
+		"model": "gpt-5.4",
+		"input": "Create an icon",
+		"tools": []any{
+			map[string]any{"type": "namespace", "name": "image_gen"},
+		},
+	}
+
+	result := applyCodexOAuthTransform(reqBody, false, false)
+
+	require.True(t, result.Modified)
+	require.Equal(t, "auto", reqBody["tool_choice"])
+}
+
 func TestApplyCodexImageToolPolicyForceInject(t *testing.T) {
 	reqBody := map[string]any{
 		"model": "gpt-5.4",
@@ -495,11 +513,48 @@ func TestApplyCodexImageToolPolicyNoInjectStripsImageToolAndChoice(t *testing.T)
 	require.Equal(t, "function", tool["type"])
 }
 
+func TestApplyCodexImageToolPolicyNoInjectStripsImageGenNamespace(t *testing.T) {
+	reqBody := map[string]any{
+		"model":       "gpt-5.4",
+		"input":       "Create an icon",
+		"tool_choice": map[string]any{"type": "namespace", "name": "image_gen"},
+		"tools": []any{
+			map[string]any{"type": "namespace", "name": "image_gen"},
+			map[string]any{"type": "function", "name": "bash"},
+		},
+	}
+
+	modified, blocked := applyCodexImageToolPolicy(reqBody, CodexImageToolPolicyNoInject)
+
+	require.True(t, modified)
+	require.False(t, blocked)
+	require.NotContains(t, reqBody, "tool_choice")
+	tools, ok := reqBody["tools"].([]any)
+	require.True(t, ok)
+	require.Len(t, tools, 1)
+	tool, ok := tools[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "function", tool["type"])
+}
+
 func TestApplyCodexImageToolPolicyBlockAll(t *testing.T) {
 	reqBody := map[string]any{
 		"model":       "gpt-5.4",
 		"input":       "Create an icon",
 		"tool_choice": "image_generation",
+	}
+
+	modified, blocked := applyCodexImageToolPolicy(reqBody, CodexImageToolPolicyBlockAll)
+
+	require.False(t, modified)
+	require.True(t, blocked)
+}
+
+func TestApplyCodexImageToolPolicyBlockAllBlocksImageGenNamespaceChoice(t *testing.T) {
+	reqBody := map[string]any{
+		"model":       "gpt-5.4",
+		"input":       "Create an icon",
+		"tool_choice": map[string]any{"type": "namespace", "name": "image_gen"},
 	}
 
 	modified, blocked := applyCodexImageToolPolicy(reqBody, CodexImageToolPolicyBlockAll)

@@ -23,6 +23,7 @@ export interface OpenAIFastPolicyRule {
   scope: string
   model_whitelist?: string[]
   fallback_action?: string
+  user_ids?: number[]
 }
 
 export interface OpenAIFastPolicySettings {
@@ -745,6 +746,10 @@ export interface GoogleBatchArchiveSettings {
   local_storage_root: string
 }
 
+export interface ImageBatchSettings {
+  enabled: boolean
+}
+
 export interface GeminiRateCatalogModelRow {
   model_family: string
   display_name: string
@@ -814,6 +819,21 @@ export async function updateGoogleBatchArchiveSettings(
   return data
 }
 
+export async function getImageBatchSettings(): Promise<ImageBatchSettings> {
+  const { data } = await apiClient.get<ImageBatchSettings>('/admin/settings/image-batches')
+  return data
+}
+
+export async function updateImageBatchSettings(
+  request: ImageBatchSettings,
+): Promise<ImageBatchSettings> {
+  const { data } = await apiClient.put<ImageBatchSettings>(
+    '/admin/settings/image-batches',
+    request,
+  )
+  return data
+}
+
 export async function listGoogleBatchGCSProfiles(): Promise<ListGoogleBatchGCSProfilesResponse> {
   const { data } = await apiClient.get<ListGoogleBatchGCSProfilesResponse>('/admin/settings/google-batch-gcs/profiles')
   return data
@@ -867,6 +887,8 @@ export const settingsAPI = {
   getGeminiRateCatalog,
   getGoogleBatchArchiveSettings,
   updateGoogleBatchArchiveSettings,
+  getImageBatchSettings,
+  updateImageBatchSettings,
   listGoogleBatchGCSProfiles,
   createGoogleBatchGCSProfile,
   updateGoogleBatchGCSProfile,

@@ -118,6 +118,47 @@ func IsClaudeCodeCodexPluginByHeaders(userAgent, originator string) bool {
 	return strings.TrimSpace(originator) == "Claude Code" && strings.Contains(userAgent, "Claude Code/")
 }
 
+// CodexOriginatorForUserAgent returns the official originator that matches a
+// Codex client User-Agent. The mapping is deliberately small and deterministic:
+// unknown clients keep their existing originator.
+func CodexOriginatorForUserAgent(userAgent string) string {
+	ua := normalizeCodexClientHeader(userAgent)
+	if ua == "" {
+		return ""
+	}
+	switch {
+	case strings.Contains(ua, "codex_cli_rs/"):
+		return "codex_cli_rs"
+	case strings.Contains(ua, "codex_vscode/"):
+		return "codex_vscode"
+	case strings.Contains(ua, "codex_app/"):
+		return "codex_app"
+	case strings.Contains(ua, "codex_chatgpt_desktop/"), strings.Contains(ua, "codex desktop/"):
+		return "codex_chatgpt_desktop"
+	case strings.Contains(ua, "codex_atlas/"):
+		return "codex_atlas"
+	case strings.Contains(ua, "codex_exec/"):
+		return "codex_exec"
+	case strings.Contains(ua, "codex_sdk_ts/"):
+		return "codex_sdk_ts"
+	default:
+		return ""
+	}
+}
+
+func SanitizeCodexOriginator(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || len(trimmed) > 64 {
+		return ""
+	}
+	for _, ch := range trimmed {
+		if ch < 32 || ch > 126 {
+			return ""
+		}
+	}
+	return trimmed
+}
+
 func normalizeCodexClientHeader(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }

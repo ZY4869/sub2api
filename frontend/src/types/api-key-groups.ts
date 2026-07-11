@@ -67,6 +67,12 @@ export interface Group {
   allow_messages_dispatch?: boolean;
   gemini_mixed_protocol_enabled?: boolean;
   visible_model_patterns?: string[];
+  image_batch_enabled?: boolean;
+  image_batch_allowed_providers?: string[];
+  image_batch_allowed_models?: string[];
+  image_batch_max_items?: number;
+  image_batch_max_download_bytes?: number;
+  image_batch_download_concurrency?: number;
   created_at: string;
   updated_at: string;
 }
@@ -239,6 +245,12 @@ export interface CreateGroupRequest {
   mcp_xml_inject?: boolean;
   supported_model_scopes?: string[];
   visible_model_patterns?: string[];
+  image_batch_enabled?: boolean;
+  image_batch_allowed_providers?: string[];
+  image_batch_allowed_models?: string[];
+  image_batch_max_items?: number;
+  image_batch_max_download_bytes?: number;
+  image_batch_download_concurrency?: number;
   // Optional source groups to clone accounts from during group creation.
   copy_accounts_from_group_ids?: number[];
 }
@@ -270,5 +282,11 @@ export interface UpdateGroupRequest {
   mcp_xml_inject?: boolean;
   supported_model_scopes?: string[];
   visible_model_patterns?: string[];
+  image_batch_enabled?: boolean;
+  image_batch_allowed_providers?: string[];
+  image_batch_allowed_models?: string[];
+  image_batch_max_items?: number;
+  image_batch_max_download_bytes?: number;
+  image_batch_download_concurrency?: number;
   copy_accounts_from_group_ids?: number[];
 }

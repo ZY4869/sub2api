@@ -80,12 +80,13 @@ describe('user api key model binding mode modals', () => {
     const inputs = wrapper.findAll('input')
     await inputs[0].setValue('new@example.com')
     await inputs[1].setValue('strong-pass')
-    await wrapper.find('select').setValue('group_allowed')
+    await wrapper.findAll('select')[1].setValue('group_allowed')
     await wrapper.find('form').trigger('submit.prevent')
 
     expect(mocks.createUser).toHaveBeenCalledWith(
       expect.objectContaining({
         email: 'new@example.com',
+        role: 'user',
         api_key_model_binding_mode: 'group_allowed',
       }),
     )
@@ -117,13 +118,78 @@ describe('user api key model binding mode modals', () => {
       },
     })
 
-    await wrapper.find('select').setValue('group_allowed')
+    await wrapper.findAll('select')[1].setValue('group_allowed')
     await wrapper.find('form').trigger('submit.prevent')
 
     expect(mocks.updateUser).toHaveBeenCalledWith(
       7,
       expect.objectContaining({
+        role: 'user',
         api_key_model_binding_mode: 'group_allowed',
+      }),
+    )
+  })
+
+  it('submits role when creating and editing users', async () => {
+    mocks.createUser.mockResolvedValue({})
+    mocks.updateUser.mockResolvedValue({})
+
+    const createWrapper = mount(UserCreateModal, {
+      props: { show: true },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          TimeAccessPolicyEditor: true,
+          Icon: { template: '<span />' },
+        },
+      },
+    })
+
+    const inputs = createWrapper.findAll('input')
+    await inputs[0].setValue('new-admin@example.com')
+    await inputs[1].setValue('strong-pass')
+    await createWrapper.findAll('select')[0].setValue('admin')
+    await createWrapper.find('form').trigger('submit.prevent')
+
+    expect(mocks.createUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'admin',
+      }),
+    )
+
+    const editWrapper = mount(UserEditModal, {
+      props: {
+        show: true,
+        user: {
+          id: 8,
+          email: 'admin@example.com',
+          username: 'admin',
+          notes: '',
+          role: 'admin',
+          status: 'active',
+          concurrency: 1,
+          admin_free_billing: true,
+          api_key_model_binding_mode: 'model_required',
+        },
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          TimeAccessPolicyEditor: true,
+          UserAttributeForm: { template: '<div />' },
+          Icon: { template: '<span />' },
+        },
+      },
+    })
+
+    await editWrapper.findAll('select')[0].setValue('user')
+    await editWrapper.find('form').trigger('submit.prevent')
+
+    expect(mocks.updateUser).toHaveBeenCalledWith(
+      8,
+      expect.objectContaining({
+        role: 'user',
+        admin_free_billing: false,
       }),
     )
   })

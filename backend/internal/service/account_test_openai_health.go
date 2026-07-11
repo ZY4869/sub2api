@@ -239,6 +239,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 			s.openAIGatewayService.applyCodexOAuthUserAgentPolicy(ctx, req.Header, account)
 		}
 	}
+	enforceCodexIdentityHeaders(ctx, req.Header, account)
 
 	// Get proxy URL
 	proxyURL := ""

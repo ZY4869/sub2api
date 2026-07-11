@@ -31,6 +31,7 @@ export default {
     spendingRankingOther: "Other",
     groupDistribution: "Group Usage Distribution",
     metricTokens: "By Tokens",
+    metricRequests: "By Requests",
     metricActualCost: "By Actual Cost",
     tokenUsageTrend: "Token Usage Trend",
     userUsageTrend: "User Usage Trend (Top 12)",

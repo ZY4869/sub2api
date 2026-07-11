@@ -17,6 +17,7 @@ import {
   checkUpdates as checkUpdatesAPI,
   type VersionInfo,
   type ReleaseInfo,
+  type RollbackVersionInfo,
 } from "@/api/admin/system";
 import { getPublicSettings as fetchPublicSettingsAPI } from "@/api/auth";
 import { applyRootVisualPreset, normalizeVisualPreset } from "@/utils/visualPreset";
@@ -62,6 +63,7 @@ export const useAppStore = defineStore("app", () => {
   const hasUpdate = ref<boolean>(false);
   const buildType = ref<string>("source");
   const releaseInfo = ref<ReleaseInfo | null>(null);
+  const rollbackVersions = ref<RollbackVersionInfo[]>([]);
 
   // Auto-incrementing ID for toasts
   let toastIdCounter = 0;
@@ -333,6 +335,7 @@ export const useAppStore = defineStore("app", () => {
         has_update: hasUpdate.value,
         build_type: buildType.value,
         release_info: releaseInfo.value || undefined,
+        rollback_versions: rollbackVersions.value,
         cached: true,
       };
     }
@@ -350,6 +353,7 @@ export const useAppStore = defineStore("app", () => {
       hasUpdate.value = data.has_update;
       buildType.value = data.build_type || "source";
       releaseInfo.value = data.release_info || null;
+      rollbackVersions.value = data.rollback_versions || [];
       versionLoaded.value = true;
       return data;
     } catch (error) {
@@ -366,6 +370,7 @@ export const useAppStore = defineStore("app", () => {
   function clearVersionCache(): void {
     versionLoaded.value = false;
     hasUpdate.value = false;
+    rollbackVersions.value = [];
   }
 
   // ==================== Public Settings Management ====================
@@ -524,6 +529,7 @@ export const useAppStore = defineStore("app", () => {
     hasUpdate,
     buildType,
     releaseInfo,
+    rollbackVersions,
 
     // Computed
     hasActiveToasts,

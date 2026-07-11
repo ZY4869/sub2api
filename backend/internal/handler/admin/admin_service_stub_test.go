@@ -20,6 +20,8 @@ type stubAdminService struct {
 	proxies              []service.Proxy
 	proxyCounts          []service.ProxyWithAccountCount
 	redeems              []service.RedeemCode
+	lastCreateUserInput  *service.CreateUserInput
+	lastUpdateUserInput  *service.UpdateUserInput
 	createdAccounts      []*service.CreateAccountInput
 	createdProxies       []*service.CreateProxyInput
 	updatedAccountIDs    []int64
@@ -141,12 +143,21 @@ func (s *stubAdminService) GetUser(ctx context.Context, id int64) (*service.User
 }
 
 func (s *stubAdminService) CreateUser(ctx context.Context, input *service.CreateUserInput) (*service.User, error) {
-	user := service.User{ID: 100, Email: input.Email, Status: service.StatusActive}
+	s.lastCreateUserInput = input
+	user := service.User{ID: 100, Email: input.Email, Role: input.Role, Status: service.StatusActive}
+	if user.Role == "" {
+		user.Role = service.RoleUser
+	}
 	return &user, nil
 }
 
 func (s *stubAdminService) UpdateUser(ctx context.Context, id int64, input *service.UpdateUserInput) (*service.User, error) {
-	user := service.User{ID: id, Email: "updated@example.com", Status: service.StatusActive}
+	s.lastUpdateUserInput = input
+	role := service.RoleUser
+	if input.Role != nil {
+		role = *input.Role
+	}
+	user := service.User{ID: id, Email: "updated@example.com", Role: role, Status: service.StatusActive}
 	return &user, nil
 }
 

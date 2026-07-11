@@ -65,6 +65,15 @@ func canAppendResponsesFailedEvent(c *gin.Context, streamStarted bool) bool {
 	if !isResponsesRequestContext(c) {
 		return false
 	}
+	isCompact := service.IsOpenAIResponsesCompactPathForTest(c)
+	if c != nil && c.Request != nil {
+		if started, ok := service.OpenAIRealSSEStartedMetadataFromContext(c.Request.Context()); ok && started {
+			return true
+		}
+	}
+	if isCompact {
+		return false
+	}
 	if streamStarted {
 		return true
 	}

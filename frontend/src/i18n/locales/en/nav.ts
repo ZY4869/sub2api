@@ -12,6 +12,7 @@ export default {
     channelStatus: 'Channel Status',
     channelMonitors: 'Channel Monitors',
     usage: 'Usage',
+    imageBatches: 'Image Batches',
     redeem: 'Redeem',
     profile: 'Profile',
     users: 'Users',

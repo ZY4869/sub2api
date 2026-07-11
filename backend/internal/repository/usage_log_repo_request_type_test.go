@@ -919,7 +919,7 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 		WithArgs(start, end, 12).
 		WillReturnRows(rows)
 
-	got, err := repo.GetUserSpendingRanking(context.Background(), start, end, 12)
+	got, err := repo.GetUserSpendingRanking(context.Background(), start, end, 12, nil, "actual_cost")
 	require.NoError(t, err)
 	require.Equal(t, &usagestats.UserSpendingRankingResponse{
 		Ranking: []usagestats.UserSpendingRankingItem{
@@ -930,7 +930,30 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 		TotalActualCost: 40.0,
 		TotalRequests:   30,
 		TotalTokens:     2600,
+		Metric:          "actual_cost",
 	}, got)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetUserSpendingRankingRequestTypeAndMetric(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	requestType := int16(service.RequestTypeWSV2)
+
+	rows := sqlmock.NewRows([]string{"user_id", "email", "actual_cost", "requests", "tokens", "total_actual_cost", "total_requests", "total_tokens"}).
+		AddRow(int64(2), "beta@example.com", 12.5, int64(9), int64(900), 40.0, int64(30), int64(2600))
+
+	mock.ExpectQuery("AND \\(ul.request_type = \\$3 OR \\(ul.request_type = 0 AND ul.openai_ws_mode = TRUE\\)\\).*ORDER BY us.tokens DESC").
+		WithArgs(start, end, requestType, 12).
+		WillReturnRows(rows)
+
+	got, err := repo.GetUserSpendingRanking(context.Background(), start, end, 12, &requestType, "tokens")
+	require.NoError(t, err)
+	require.Equal(t, "tokens", got.Metric)
+	require.Len(t, got.Ranking, 1)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

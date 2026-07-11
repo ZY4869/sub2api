@@ -12,6 +12,7 @@ import email from './email'
 import opsMonitoring from './opsMonitoring'
 import adminApiKey from './adminApiKey'
 import googleBatch from './googleBatch'
+import imageBatch from './imageBatch'
 
 export default {
   ...common,
@@ -28,4 +29,5 @@ export default {
   ...opsMonitoring,
   ...adminApiKey,
   ...googleBatch,
+  ...imageBatch,
 }

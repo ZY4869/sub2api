@@ -23,6 +23,10 @@ type userRepoStub struct {
 	allowGetByEmail bool
 	getByEmailUser  *User
 	getByEmailErr   error
+	listUsers       []User
+	listResult      *pagination.PaginationResult
+	listErr         error
+	allowList       bool
 	created         []*User
 	deletedIDs      []int64
 }
@@ -79,7 +83,17 @@ func (s *userRepoStub) List(ctx context.Context, params pagination.PaginationPar
 }
 
 func (s *userRepoStub) ListWithFilters(ctx context.Context, params pagination.PaginationParams, filters UserListFilters) ([]User, *pagination.PaginationResult, error) {
-	panic("unexpected ListWithFilters call")
+	if !s.allowList {
+		panic("unexpected ListWithFilters call")
+	}
+	if s.listErr != nil {
+		return nil, nil, s.listErr
+	}
+	result := s.listResult
+	if result == nil {
+		result = &pagination.PaginationResult{Total: int64(len(s.listUsers)), Page: params.Page, PageSize: params.PageSize}
+	}
+	return s.listUsers, result, nil
 }
 
 func (s *userRepoStub) UpdateBalance(ctx context.Context, id int64, amount float64) error {

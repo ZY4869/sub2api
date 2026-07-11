@@ -81,6 +81,9 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		if err := saveGroupVisibleModelPatterns(ctx, r.sql, groupIn.ID, groupIn.VisibleModelPatterns); err != nil {
 			return err
 		}
+		if err := saveGroupImageBatchSettings(ctx, r.sql, groupIn); err != nil {
+			return err
+		}
 		if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventGroupChanged, nil, &groupIn.ID, nil); err != nil {
 			logger.LegacyPrintf("repository.group", "[SchedulerOutbox] enqueue group create failed: group=%d err=%v", groupIn.ID, err)
 		}
@@ -102,6 +105,9 @@ func (r *groupRepository) GetByID(ctx context.Context, id int64) (*service.Group
 	if err := hydrateVisibleModelPatternsForGroups(ctx, r.sql, []*service.Group{out}); err != nil {
 		return nil, err
 	}
+	if err := hydrateImageBatchSettingsForGroups(ctx, r.sql, []*service.Group{out}); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -113,7 +119,11 @@ func (r *groupRepository) GetByIDLite(ctx context.Context, id int64) (*service.G
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrGroupNotFound, nil)
 	}
-	return groupEntityToService(m), nil
+	out := groupEntityToService(m)
+	if err := hydrateImageBatchSettingsForGroups(ctx, r.sql, []*service.Group{out}); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *groupRepository) GetByName(ctx context.Context, name string) (*service.Group, error) {
@@ -219,6 +229,9 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 	if err := saveGroupVisibleModelPatterns(ctx, r.sql, groupIn.ID, groupIn.VisibleModelPatterns); err != nil {
 		return err
 	}
+	if err := saveGroupImageBatchSettings(ctx, r.sql, groupIn); err != nil {
+		return err
+	}
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventGroupChanged, nil, &groupIn.ID, nil); err != nil {
 		logger.LegacyPrintf("repository.group", "[SchedulerOutbox] enqueue group update failed: group=%d err=%v", groupIn.ID, err)
 	}
@@ -289,6 +302,9 @@ func (r *groupRepository) ListWithFilters(ctx context.Context, params pagination
 	if err := hydrateVisibleModelPatternsForGroupValues(ctx, r.sql, outGroups); err != nil {
 		return nil, nil, err
 	}
+	if err := hydrateImageBatchSettingsForGroupValues(ctx, r.sql, outGroups); err != nil {
+		return nil, nil, err
+	}
 
 	counts, err := r.loadAccountCounts(ctx, groupIDs)
 	if err == nil {
@@ -321,6 +337,9 @@ func (r *groupRepository) ListActive(ctx context.Context) ([]service.Group, erro
 		groupIDs = append(groupIDs, g.ID)
 	}
 	if err := hydrateVisibleModelPatternsForGroupValues(ctx, r.sql, outGroups); err != nil {
+		return nil, err
+	}
+	if err := hydrateImageBatchSettingsForGroupValues(ctx, r.sql, outGroups); err != nil {
 		return nil, err
 	}
 
@@ -359,6 +378,9 @@ func (r *groupRepository) ListActiveByPlatform(ctx context.Context, platform str
 		groupIDs = append(groupIDs, g.ID)
 	}
 	if err := hydrateVisibleModelPatternsForGroupValues(ctx, r.sql, outGroups); err != nil {
+		return nil, err
+	}
+	if err := hydrateImageBatchSettingsForGroupValues(ctx, r.sql, outGroups); err != nil {
 		return nil, err
 	}
 

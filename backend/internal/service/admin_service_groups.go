@@ -3,11 +3,19 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"time"
+)
+
+const (
+	DefaultImageBatchMaxItems            = 50
+	DefaultImageBatchMaxDownloadBytes    = int64(100 * 1024 * 1024)
+	DefaultImageBatchDownloadConcurrency = 2
 )
 
 func (s *adminServiceImpl) ListGroups(ctx context.Context, page, pageSize int, platform, status, search string, isExclusive *bool) ([]Group, int64, error) {
@@ -123,7 +131,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if err != nil {
 		return nil, err
 	}
-	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, PeakRateEnabled: peakEnabled, PeakStart: peakStart, PeakEnd: peakEnd, PeakRateMultiplier: peakRateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns)}
+	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, PeakRateEnabled: peakEnabled, PeakStart: peakStart, PeakEnd: peakEnd, PeakRateMultiplier: peakRateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns), ImageBatchEnabled: input.ImageBatchEnabled, ImageBatchAllowedProviders: NormalizeImageBatchAllowList(input.ImageBatchAllowedProviders), ImageBatchAllowedModels: NormalizeImageBatchAllowList(input.ImageBatchAllowedModels), ImageBatchMaxItems: NormalizeImageBatchMaxItems(input.ImageBatchMaxItems), ImageBatchMaxDownloadBytes: NormalizeImageBatchMaxDownloadBytes(input.ImageBatchMaxDownloadBytes), ImageBatchDownloadConcurrency: NormalizeImageBatchDownloadConcurrency(input.ImageBatchDownloadConcurrency)}
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
 	}
@@ -146,6 +154,55 @@ func normalizePrice(price *float64) *float64 {
 		return nil
 	}
 	return price
+}
+
+func NormalizeImageBatchAllowList(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, raw := range values {
+		value := strings.TrimSpace(raw)
+		if value == "" {
+			continue
+		}
+		key := strings.ToLower(value)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
+func NormalizeImageBatchMaxItems(value int) int {
+	if value <= 0 {
+		return DefaultImageBatchMaxItems
+	}
+	if value > 1000 {
+		return 1000
+	}
+	return value
+}
+
+func NormalizeImageBatchMaxDownloadBytes(value int64) int64 {
+	if value <= 0 {
+		return DefaultImageBatchMaxDownloadBytes
+	}
+	max := int64(1024 * 1024 * 1024)
+	if value > max {
+		return max
+	}
+	return value
+}
+
+func NormalizeImageBatchDownloadConcurrency(value int) int {
+	if value <= 0 {
+		return DefaultImageBatchDownloadConcurrency
+	}
+	if value > 16 {
+		return 16
+	}
+	return value
 }
 func (s *adminServiceImpl) validateFallbackGroup(ctx context.Context, currentGroupID, fallbackGroupID int64) error {
 	if currentGroupID > 0 && currentGroupID == fallbackGroupID {
@@ -308,6 +365,24 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.VisibleModelPatterns != nil {
 		group.VisibleModelPatterns = NormalizeGroupVisibleModelPatterns(*input.VisibleModelPatterns)
+	}
+	if input.ImageBatchEnabled != nil {
+		group.ImageBatchEnabled = *input.ImageBatchEnabled
+	}
+	if input.ImageBatchAllowedProviders != nil {
+		group.ImageBatchAllowedProviders = NormalizeImageBatchAllowList(*input.ImageBatchAllowedProviders)
+	}
+	if input.ImageBatchAllowedModels != nil {
+		group.ImageBatchAllowedModels = NormalizeImageBatchAllowList(*input.ImageBatchAllowedModels)
+	}
+	if input.ImageBatchMaxItems != nil {
+		group.ImageBatchMaxItems = NormalizeImageBatchMaxItems(*input.ImageBatchMaxItems)
+	}
+	if input.ImageBatchMaxDownloadBytes != nil {
+		group.ImageBatchMaxDownloadBytes = NormalizeImageBatchMaxDownloadBytes(*input.ImageBatchMaxDownloadBytes)
+	}
+	if input.ImageBatchDownloadConcurrency != nil {
+		group.ImageBatchDownloadConcurrency = NormalizeImageBatchDownloadConcurrency(*input.ImageBatchDownloadConcurrency)
 	}
 	peakEnabled := group.PeakRateEnabled
 	if input.PeakRateEnabled != nil {

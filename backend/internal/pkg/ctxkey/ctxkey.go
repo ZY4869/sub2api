@@ -9,6 +9,7 @@ const (
 	RequestID          Key = "ctx_request_id"
 	ClientRequestID    Key = "ctx_client_request_id"
 	RequestPayloadHash Key = "ctx_request_payload_hash"
+	UserID             Key = "ctx_user_id"
 	Model              Key = "ctx_model"
 	ModelCandidates    Key = "ctx_model_candidates"
 	Platform           Key = "ctx_platform"

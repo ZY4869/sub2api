@@ -15,10 +15,13 @@ vi.mock('@/composables/useClipboard', () => ({
 }))
 
 vi.mock('@/composables/useModelWhitelist', () => ({
-  getModelsByPlatform: vi.fn(() => ['gpt-5.4-mini', 'gpt-5.4-nano']),
-  getModelCapabilities: vi.fn(() => ({
-    name: 'GPT-5.4 Mini',
-    limit: { context: 400000, output: 128000 }
+  getModelsByPlatform: vi.fn(() => ['gpt-5.6-sol', 'gpt-5.4-mini', 'gpt-5.4-nano']),
+  getModelCapabilities: vi.fn((_platform: string, modelId: string) => ({
+    name: modelId === 'gpt-5.6-sol' ? 'GPT-5.6 Sol' : 'GPT-5.4 Mini',
+    limit: { context: 400000, output: 128000 },
+    ...(modelId === 'gpt-5.6-sol'
+      ? { variants: { low: {}, medium: {}, high: {}, xhigh: {}, max: {} } }
+      : {})
   }))
 }))
 
@@ -118,5 +121,29 @@ describe('UseKeyModal', () => {
     const text = wrapper.text()
     expect(text).toContain('CLAUDE_CODE_EFFORT_LEVEL')
     expect(text).not.toContain('"effortLevel": "xhigh"')
+  })
+
+  it('includes GPT-5.6 max variants in the OpenCode OpenAI example', async () => {
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-test',
+        baseUrl: 'https://example.com/v1',
+        platform: 'openai',
+        allowMessagesDispatch: false
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.findAll('button').find((button) => button.text() === 'keys.useKeyModal.cliTabs.opencode')?.trigger('click')
+
+    const text = wrapper.text()
+    expect(text).toContain('"gpt-5.6-sol"')
+    expect(text).toContain('"max"')
   })
 })

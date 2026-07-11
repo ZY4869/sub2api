@@ -79,8 +79,15 @@
               :show-source-toggle="true"
               :show-metric-toggle="true"
               :enable-ranking-view="true"
+              :ranking-items="rankingItems"
+              :ranking-total-actual-cost="rankingTotalActualCost"
+              :ranking-total-requests="rankingTotalRequests"
+              :ranking-total-tokens="rankingTotalTokens"
+              :ranking-loading="rankingLoading"
+              :ranking-error="rankingError"
               :start-date="startDate"
               :end-date="endDate"
+              :request-type="filters.request_type"
               @ranking-click="handleUserClick($event.user_id)"
             />
             <GroupDistributionChart
@@ -90,6 +97,7 @@
               :show-metric-toggle="true"
               :start-date="startDate"
               :end-date="endDate"
+              :request-type="filters.request_type"
             />
           </div>
           <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
@@ -222,6 +230,7 @@ import type {
   ModelStat,
   GroupStat,
   AdminUser,
+  UserSpendingRankingItem,
 } from "@/types";
 import type {
   AdminUsageStatsResponse,
@@ -303,7 +312,7 @@ watch(activeTab, (tab) => {
   }
   router.replace({ query });
 });
-type DistributionMetric = "tokens" | "actual_cost";
+type DistributionMetric = "tokens" | "requests" | "actual_cost";
 type ModelDistributionSource = "requested" | "upstream" | "mapping";
 
 const usageStats = ref<AdminUsageStatsResponse | null>(null);
@@ -317,8 +326,14 @@ const requestedModelStats = ref<ModelStat[]>([]);
 const upstreamModelStats = ref<ModelStat[]>([]);
 const mappingModelStats = ref<ModelStat[]>([]);
 const groupStats = ref<GroupStat[]>([]);
+const rankingItems = ref<UserSpendingRankingItem[]>([]);
+const rankingTotalActualCost = ref(0);
+const rankingTotalRequests = ref(0);
+const rankingTotalTokens = ref(0);
 const chartsLoading = ref(false);
 const modelStatsLoading = ref(false);
+const rankingLoading = ref(false);
+const rankingError = ref(false);
 const granularity = ref<"day" | "hour">("day");
 const modelDistributionMetric = ref<DistributionMetric>("tokens");
 const modelDistributionSource = ref<ModelDistributionSource>("requested");
@@ -332,6 +347,7 @@ let abortController: AbortController | null = null;
 let exportAbortController: AbortController | null = null;
 let chartReqSeq = 0;
 let modelStatsReqSeq = 0;
+let rankingReqSeq = 0;
 let ipGeoReqSeq = 0;
 const exportProgress = reactive({
   show: false,
@@ -599,6 +615,37 @@ const loadChartData = async () => {
     if (seq === chartReqSeq) chartsLoading.value = false;
   }
 };
+
+const loadUserSpendingRanking = async () => {
+  const seq = ++rankingReqSeq;
+  rankingLoading.value = true;
+  rankingError.value = false;
+  try {
+    const response = await adminAPI.dashboard.getUserSpendingRanking({
+      start_date: filters.value.start_date || startDate.value,
+      end_date: filters.value.end_date || endDate.value,
+      request_type: filters.value.request_type,
+      metric: modelDistributionMetric.value,
+      limit: 12,
+    });
+    if (seq !== rankingReqSeq) return;
+    rankingItems.value = response.ranking || [];
+    rankingTotalActualCost.value = response.total_actual_cost || 0;
+    rankingTotalRequests.value = response.total_requests || 0;
+    rankingTotalTokens.value = response.total_tokens || 0;
+  } catch (error) {
+    if (seq !== rankingReqSeq) return;
+    console.error("Failed to load user spending ranking:", error);
+    rankingItems.value = [];
+    rankingTotalActualCost.value = 0;
+    rankingTotalRequests.value = 0;
+    rankingTotalTokens.value = 0;
+    rankingError.value = true;
+  } finally {
+    if (seq === rankingReqSeq) rankingLoading.value = false;
+  }
+};
+
 const applyFilters = () => {
   pagination.page = 1;
   resetModelStatsCache();
@@ -606,6 +653,7 @@ const applyFilters = () => {
   loadStats();
   void loadModelStats(modelDistributionSource.value, true);
   loadChartData();
+  loadUserSpendingRanking();
 };
 const refreshData = () => {
   resetModelStatsCache();
@@ -613,6 +661,7 @@ const refreshData = () => {
   loadStats();
   void loadModelStats(modelDistributionSource.value, true);
   loadChartData();
+  loadUserSpendingRanking();
 };
 const resetFilters = () => {
   startDate.value = formatLD(weekAgo);
@@ -867,6 +916,7 @@ onMounted(() => {
   loadLogs();
   loadStats();
   void loadModelStats(modelDistributionSource.value, true);
+  loadUserSpendingRanking();
   window.setTimeout(() => {
     void loadChartData();
   }, 120);
@@ -878,5 +928,9 @@ onUnmounted(() => {
 
 watch(modelDistributionSource, (source) => {
   void loadModelStats(source);
+});
+
+watch(modelDistributionMetric, () => {
+  loadUserSpendingRanking();
 });
 </script>

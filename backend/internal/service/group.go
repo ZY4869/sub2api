@@ -65,6 +65,14 @@ type Group struct {
 	// Empty means no additional group-level visibility filter.
 	VisibleModelPatterns []string
 
+	// Image batch controls are admin-only settings for public /v1/images/batches.
+	ImageBatchEnabled             bool
+	ImageBatchAllowedProviders    []string
+	ImageBatchAllowedModels       []string
+	ImageBatchMaxItems            int
+	ImageBatchMaxDownloadBytes    int64
+	ImageBatchDownloadConcurrency int
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 

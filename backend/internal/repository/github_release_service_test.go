@@ -29,6 +29,9 @@ type testTransport struct {
 func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Rewrite the URL to point to our test server
 	testURL := t.testServerURL + req.URL.Path
+	if req.URL.RawQuery != "" {
+		testURL += "?" + req.URL.RawQuery
+	}
 	newReq, err := http.NewRequestWithContext(req.Context(), req.Method, testURL, req.Body)
 	if err != nil {
 		return nil, err
@@ -243,6 +246,46 @@ func (s *GitHubReleaseServiceSuite) TestFetchLatestRelease_Success() {
 	require.Equal(s.T(), "Release 1.0.0", release.Name)
 	require.Len(s.T(), release.Assets, 1)
 	require.Equal(s.T(), "app-linux-amd64.tar.gz", release.Assets[0].Name)
+}
+
+func (s *GitHubReleaseServiceSuite) TestFetchReleases_Success() {
+	releaseJSON := `[
+		{
+			"tag_name": "v1.0.0",
+			"name": "Release 1.0.0",
+			"html_url": "https://github.com/test/repo/releases/v1.0.0",
+			"assets": []
+		},
+		{
+			"tag_name": "v0.9.0",
+			"name": "Release 0.9.0",
+			"html_url": "https://github.com/test/repo/releases/v0.9.0",
+			"assets": []
+		}
+	]`
+
+	s.srv = newLocalTestServer(s.T(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(s.T(), "/repos/test/repo/releases", r.URL.Path)
+		require.Equal(s.T(), "2", r.URL.Query().Get("per_page"))
+		require.Equal(s.T(), "application/vnd.github.v3+json", r.Header.Get("Accept"))
+		require.Equal(s.T(), "Sub2API-Updater", r.Header.Get("User-Agent"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(releaseJSON))
+	}))
+
+	s.client = &githubReleaseClient{
+		httpClient: &http.Client{
+			Transport: &testTransport{testServerURL: s.srv.URL},
+		},
+		downloadHTTPClient: &http.Client{},
+	}
+
+	releases, err := s.client.FetchReleases(context.Background(), "test/repo", 2)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), releases, 2)
+	require.Equal(s.T(), "v1.0.0", releases[0].TagName)
+	require.Equal(s.T(), "v0.9.0", releases[1].TagName)
 }
 
 func (s *GitHubReleaseServiceSuite) TestFetchLatestRelease_Non200() {

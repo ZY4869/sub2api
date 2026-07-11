@@ -15,7 +15,7 @@ export default {
     apiKeyPlaceholder: "sk-ant-api03-...",
     apiKeyHint: "您的 Claude Console API Key",
     requestHeaders: "请求头覆写",
-    requestHeadersPlaceholder: '{\n  "x-custom-feature": "enabled"\n}',
+    requestHeadersPlaceholder: "{'{'}\n  \"x-custom-feature\": \"enabled\"\n{'}'}",
     requestHeadersHint: "可选 JSON 对象，仅用于 API Key 类型上游账号。Authorization、API Key、Cookie、Host 和传输协议头会被拒绝。",
     requestHeadersInvalidJson: "请求头覆写必须是有效 JSON。",
     requestHeadersInvalidShape: "请求头覆写必须是 JSON 对象。",

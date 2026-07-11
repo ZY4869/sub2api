@@ -1,6 +1,9 @@
 package openai
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestIsCodexCLIRequest(t *testing.T) {
 	tests := []struct {
@@ -117,5 +120,38 @@ func TestNormalizeAllowedClientIDs(t *testing.T) {
 
 	if got := NormalizeAllowedClientIDs([]string{"unknown"}); len(got) != 0 {
 		t.Fatalf("NormalizeAllowedClientIDs returned %#v, want empty", got)
+	}
+}
+
+func TestCodexOriginatorForUserAgent(t *testing.T) {
+	tests := []struct {
+		name string
+		ua   string
+		want string
+	}{
+		{name: "cli", ua: "codex_cli_rs/0.104.0", want: "codex_cli_rs"},
+		{name: "vscode", ua: "Mozilla/5.0 codex_vscode/1.2.3", want: "codex_vscode"},
+		{name: "desktop legacy", ua: "Codex Desktop/1.2.3", want: "codex_chatgpt_desktop"},
+		{name: "unknown", ua: "curl/8.0.1", want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CodexOriginatorForUserAgent(tt.ua); got != tt.want {
+				t.Fatalf("CodexOriginatorForUserAgent(%q) = %q, want %q", tt.ua, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSanitizeCodexOriginator(t *testing.T) {
+	if got := SanitizeCodexOriginator(" codex_cli_rs "); got != "codex_cli_rs" {
+		t.Fatalf("SanitizeCodexOriginator returned %q", got)
+	}
+	if got := SanitizeCodexOriginator("codex_cli_rs\nbad"); got != "" {
+		t.Fatalf("SanitizeCodexOriginator accepted newline: %q", got)
+	}
+	if got := SanitizeCodexOriginator(strings.Repeat("a", 65)); got != "" {
+		t.Fatalf("SanitizeCodexOriginator accepted overlong value: %q", got)
 	}
 }

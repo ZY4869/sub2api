@@ -190,6 +190,39 @@ func TestOpenAIEnsureForwardErrorResponse_DoesNotOverrideWrittenResponse(t *test
 	assert.Equal(t, "already written", w.Body.String())
 }
 
+func TestOpenAIEnsureForwardErrorResponse_CompactKeepaliveOnlyCanStillWriteJSON(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses/compact", nil)
+	c.Request = req.WithContext(service.EnsureRequestMetadata(req.Context()))
+
+	h := &OpenAIGatewayHandler{}
+	wrote := h.ensureForwardErrorResponse(c, true)
+
+	require.True(t, wrote)
+	require.Equal(t, http.StatusBadGateway, w.Code)
+	require.NotContains(t, w.Body.String(), "event: response.failed")
+	require.Equal(t, "upstream_error", gjson.Get(w.Body.String(), "error.type").String())
+}
+
+func TestOpenAIEnsureForwardErrorResponse_CompactRealSSEAppendsFailedEvent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses/compact", nil)
+	ctx := service.EnsureRequestMetadata(req.Context())
+	service.SetOpenAIRealSSEStartedMetadata(ctx, true)
+	c.Request = req.WithContext(ctx)
+
+	h := &OpenAIGatewayHandler{}
+	wrote := h.ensureForwardErrorResponse(c, true)
+
+	require.True(t, wrote)
+	require.Contains(t, w.Body.String(), "event: response.failed")
+	require.Contains(t, w.Body.String(), `"type":"response.failed"`)
+}
+
 func TestShouldLogOpenAIForwardFailureAsWarn(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

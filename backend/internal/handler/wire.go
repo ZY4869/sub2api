@@ -258,6 +258,7 @@ func ProvideGatewayHandler(
 	apiKeyService *service.APIKeyService,
 	usageRecordWorkerPool *service.UsageRecordWorkerPool,
 	errorPassthroughService *service.ErrorPassthroughService,
+	imageBatchService *service.ImageBatchService,
 	userMsgQueueService *service.UserMessageQueueService,
 	cfg *config.Config,
 	settingService *service.SettingService,
@@ -268,6 +269,7 @@ func ProvideGatewayHandler(
 	handler := NewGatewayHandler(gatewayService, geminiNativeService, geminiCompatService, geminiLiveService, geminiInteractionsService, antigravityGatewayService, userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, userMsgQueueService, cfg, settingService)
 	handler.SetModelRegistryService(modelRegistryService)
 	handler.SetContentModerationService(contentModerationService)
+	handler.SetImageBatchService(imageBatchService)
 	return handler
 }
 

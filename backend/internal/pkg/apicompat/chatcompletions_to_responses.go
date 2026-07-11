@@ -27,13 +27,14 @@ func ChatCompletionsToResponses(req *ChatCompletionsRequest) (*ResponsesRequest,
 	}
 
 	out := &ResponsesRequest{
-		Model:       req.Model,
-		Input:       inputJSON,
-		Temperature: req.Temperature,
-		TopP:        req.TopP,
-		Stream:      true, // upstream always streams
-		Include:     []string{"reasoning.encrypted_content"},
-		ServiceTier: req.ServiceTier,
+		Model:             req.Model,
+		Input:             inputJSON,
+		Temperature:       req.Temperature,
+		TopP:              req.TopP,
+		Stream:            true, // upstream always streams
+		Include:           []string{"reasoning.encrypted_content"},
+		ParallelToolCalls: req.ParallelToolCalls,
+		ServiceTier:       req.ServiceTier,
 	}
 
 	storeFalse := false
@@ -79,6 +80,15 @@ func ChatCompletionsToResponses(req *ChatCompletionsRequest) (*ResponsesRequest,
 			return nil, err
 		}
 		out.ToolChoice = tc
+	}
+	if len(req.ResponseFormat) > 0 {
+		format, err := chatResponseFormatToResponsesTextFormat(req.ResponseFormat)
+		if err != nil {
+			return nil, err
+		}
+		if len(format) > 0 {
+			out.Text = &ResponsesTextConfig{Format: format}
+		}
 	}
 
 	return out, nil
@@ -465,4 +475,89 @@ func convertChatFunctionCallToToolChoice(raw json.RawMessage) (json.RawMessage, 
 		"type":     "function",
 		"function": map[string]string{"name": obj.Name},
 	})
+}
+
+func chatResponseFormatToResponsesTextFormat(raw json.RawMessage) (json.RawMessage, error) {
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" || trimmed == "null" {
+		return nil, nil
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil, WrapCompatError(err,
+			CompatReasonChatResponseFormatInvalid,
+			"compat.chat.response_format_invalid",
+			"response_format must be a JSON object",
+		)
+	}
+	if string(obj["type"]) != `"json_schema"` {
+		return cloneRawJSON(raw), nil
+	}
+	schemaRaw, ok := obj["json_schema"]
+	if !ok || len(schemaRaw) == 0 {
+		return cloneRawJSON(raw), nil
+	}
+	var schema map[string]json.RawMessage
+	if err := json.Unmarshal(schemaRaw, &schema); err != nil {
+		return nil, WrapCompatError(err,
+			CompatReasonChatResponseFormatInvalid,
+			"compat.chat.response_format_invalid",
+			"response_format.json_schema must be a JSON object",
+		)
+	}
+	out := map[string]json.RawMessage{"type": json.RawMessage(`"json_schema"`)}
+	for key, value := range schema {
+		out[key] = value
+	}
+	return json.Marshal(out)
+}
+
+func responsesTextFormatToChatResponseFormat(raw json.RawMessage) (json.RawMessage, error) {
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" || trimmed == "null" {
+		return nil, nil
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil, WrapCompatError(err,
+			CompatReasonChatResponseFormatInvalid,
+			"compat.chat.response_format_invalid",
+			"text.format must be a JSON object",
+		)
+	}
+	if string(obj["type"]) != `"json_schema"` {
+		return cloneRawJSON(raw), nil
+	}
+	if _, alreadyChatShape := obj["json_schema"]; alreadyChatShape {
+		return cloneRawJSON(raw), nil
+	}
+	schema := map[string]json.RawMessage{}
+	for key, value := range obj {
+		if key == "type" {
+			continue
+		}
+		schema[key] = value
+	}
+	out := map[string]json.RawMessage{
+		"type":        json.RawMessage(`"json_schema"`),
+		"json_schema": mustMarshalRawObject(schema),
+	}
+	return json.Marshal(out)
+}
+
+func cloneRawJSON(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make([]byte, len(raw))
+	copy(out, raw)
+	return json.RawMessage(out)
+}
+
+func mustMarshalRawObject(value map[string]json.RawMessage) json.RawMessage {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
+	return raw
 }

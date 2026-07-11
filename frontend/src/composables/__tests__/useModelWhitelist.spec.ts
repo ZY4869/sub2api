@@ -16,6 +16,7 @@ vi.mock("@/api/meta", () => ({
 
 import {
   buildModelMappingObject,
+  getModelCapabilities,
   getModelsByPlatform,
   getPresetMappingsByPlatform,
 } from "../useModelWhitelist";
@@ -57,6 +58,21 @@ describe("useModelWhitelist", () => {
     expect(models).toContain("gpt-5.4-nano");
     expect(models).toContain("gpt-5.4-pro");
     expect(models).toContain("gpt-5.4-pro-2026-03-05");
+  });
+
+  it("exposes GPT-5.6 max reasoning variants for OpenCode capabilities", () => {
+    for (const model of ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]) {
+      const capabilities = getModelCapabilities("openai", model);
+
+      expect(capabilities.variants).toMatchObject({
+        low: {},
+        medium: {},
+        high: {},
+        xhigh: {},
+        max: {},
+      });
+      expect(capabilities.options).toMatchObject({ store: false });
+    }
   });
 
   it("gemini models include prioritized native image models", () => {

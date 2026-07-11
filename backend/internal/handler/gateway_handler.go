@@ -26,6 +26,7 @@ type GatewayHandler struct {
 	apiKeyService             *service.APIKeyService
 	usageRecordWorkerPool     *service.UsageRecordWorkerPool
 	errorPassthroughService   *service.ErrorPassthroughService
+	imageBatchService         *service.ImageBatchService
 	concurrencyHelper         *ConcurrencyHelper
 	userMsgQueueHelper        *UserMsgQueueHelper
 	maxAccountSwitches        int
@@ -61,6 +62,10 @@ func (h *GatewayHandler) SetModelRegistryService(modelRegistryService *service.M
 
 func (h *GatewayHandler) SetContentModerationService(contentModerationService *service.ContentModerationService) {
 	h.contentModerationService = contentModerationService
+}
+
+func (h *GatewayHandler) SetImageBatchService(imageBatchService *service.ImageBatchService) {
+	h.imageBatchService = imageBatchService
 }
 
 func (h *GatewayHandler) HasMultipleUsableGroups(c *gin.Context) bool {

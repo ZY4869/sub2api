@@ -139,6 +139,26 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 			clientDisconnected = true
 		}
 	}
+	sendFailureEvent := func(reason string) {
+		if errorEventSent || clientDisconnected {
+			return
+		}
+		errorEventSent = true
+		msg := reason
+		if msg == "" {
+			msg = "Upstream request failed"
+		}
+		payload := `event: response.failed` + "\n" +
+			`data: {"type":"response.failed","response":{"status":"failed","output":[],"error":{"code":` + strconv.Quote(reason) +
+			`,"message":` + strconv.Quote(msg) + `}}}` + "\n\n"
+		if _, err := bufferedWriter.WriteString(payload); err != nil {
+			clientDisconnected = true
+			return
+		}
+		if err := flushBuffered(); err != nil {
+			clientDisconnected = true
+		}
+	}
 	needModelReplace := originalModel != mappedModel
 	resultWithUsage := func() *openaiStreamingResult {
 		return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}
@@ -170,10 +190,18 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 		}
 		if errors.Is(scanErr, bufio.ErrTooLong) {
 			logger.LegacyPrintf("service.openai_gateway", "SSE line too long: account=%d max_size=%d error=%v", account.ID, maxLineSize, scanErr)
-			sendErrorEvent("response_too_large")
+			if isOpenAIResponsesCompactPath(c) {
+				sendFailureEvent("response_too_large")
+			} else {
+				sendErrorEvent("response_too_large")
+			}
 			return resultWithUsage(), scanErr, true
 		}
-		sendErrorEvent("stream_read_error")
+		if isOpenAIResponsesCompactPath(c) {
+			sendFailureEvent("stream_read_error")
+		} else {
+			sendErrorEvent("stream_read_error")
+		}
 		return resultWithUsage(), fmt.Errorf("stream read error: %w", scanErr), true
 	}
 	processSSELine := func(line string, queueDrained bool) {
@@ -225,8 +253,14 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 				ms := int(time.Since(startTime).Milliseconds())
 				firstTokenMs = &ms
 			}
+			if data != "" && data != "[DONE]" {
+				markOpenAIRealSSEStarted(c)
+			}
 			s.parseSSEUsageBytes(dataBytes, usage)
 			return
+		}
+		if !isOpenAIKeepaliveSSELine(line) {
+			markOpenAIRealSSEStarted(c)
 		}
 		if !clientDisconnected {
 			if _, err := bufferedWriter.WriteString(line); err != nil {
@@ -306,7 +340,11 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 			if s.rateLimitService != nil {
 				s.rateLimitService.HandleStreamTimeout(ctx, account, originalModel)
 			}
-			sendErrorEvent("stream_timeout")
+			if isOpenAIResponsesCompactPath(c) {
+				sendFailureEvent("stream_timeout")
+			} else {
+				sendErrorEvent("stream_timeout")
+			}
 			return resultWithUsage(), fmt.Errorf("stream data interval timeout")
 		case <-keepaliveCh:
 			if clientDisconnected {

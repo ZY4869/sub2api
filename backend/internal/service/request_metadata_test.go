@@ -214,6 +214,11 @@ func TestRequestMetadataImageRouteFields(t *testing.T) {
 	outputCount, ok := ImageOutputCountMetadataFromContext(ctx)
 	require.True(t, ok)
 	require.Equal(t, 2, outputCount)
+
+	SetOpenAIRealSSEStartedMetadata(ctx, true)
+	realSSEStarted, ok := OpenAIRealSSEStartedMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.True(t, realSSEStarted)
 }
 
 func TestRequestMetadataOpenAIResponsesImagegenCompatFields(t *testing.T) {

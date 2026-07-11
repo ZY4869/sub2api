@@ -59,6 +59,16 @@
           <button
             type="button"
             class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+            :class="metric === 'requests'
+              ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            @click="emit('update:metric', 'requests')"
+          >
+            {{ t('admin.dashboard.metricRequests') }}
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
             :class="metric === 'actual_cost'
               ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
@@ -244,7 +254,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
-import type { ModelStat, UserSpendingRankingItem, UserBreakdownItem } from '@/types'
+import type { ModelStat, UserSpendingRankingItem, UserBreakdownItem, UsageRequestType } from '@/types'
 import { getUserBreakdown } from '@/api/admin/dashboard'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
@@ -252,7 +262,7 @@ ChartJS.register(ArcElement, Tooltip, Legend)
 const { t } = useI18n()
 const { formatTokenDisplay } = useTokenDisplayMode()
 
-type DistributionMetric = 'tokens' | 'actual_cost'
+type DistributionMetric = 'tokens' | 'requests' | 'actual_cost'
 type ModelSource = 'requested' | 'upstream' | 'mapping'
 type RankingDisplayItem = UserSpendingRankingItem & { isOther?: boolean }
 const props = withDefaults(defineProps<{
@@ -274,6 +284,7 @@ const props = withDefaults(defineProps<{
   rankingError?: boolean
   startDate?: string
   endDate?: string
+  requestType?: UsageRequestType
 }>(), {
   upstreamModelStats: () => [],
   mappingModelStats: () => [],
@@ -311,6 +322,7 @@ const toggleBreakdown = async (type: string, id: string) => {
       end_date: props.endDate,
       model: id,
       model_source: props.source,
+      request_type: props.requestType,
     })
     breakdownItems.value = res.users || []
   } catch {
@@ -353,8 +365,7 @@ const displayModelStats = computed(() => {
       : props.modelStats
   if (!sourceStats?.length) return []
 
-  const metricKey = props.metric === 'actual_cost' ? 'actual_cost' : 'total_tokens'
-  return [...sourceStats].sort((a, b) => b[metricKey] - a[metricKey])
+  return [...sourceStats].sort((a, b) => metricValue(b) - metricValue(a))
 })
 
 const chartData = computed(() => {
@@ -364,7 +375,7 @@ const chartData = computed(() => {
     labels: displayModelStats.value.map((m) => m.model),
     datasets: [
       {
-        data: displayModelStats.value.map((m) => props.metric === 'actual_cost' ? m.actual_cost : m.total_tokens),
+        data: displayModelStats.value.map((m) => metricValue(m)),
         backgroundColor: chartColors.slice(0, displayModelStats.value.length),
         borderWidth: 0
       }
@@ -376,12 +387,12 @@ const rankingChartData = computed(() => {
   if (!props.rankingItems?.length) return null
 
   const labels = props.rankingItems.map((item, index) => `#${index + 1} ${getRankingUserLabel(item)}`)
-  const data = props.rankingItems.map((item) => item.actual_cost)
+  const data = props.rankingItems.map((item) => rankingMetricValue(item))
   const backgroundColor = chartColors.slice(0, props.rankingItems.length)
 
   if (otherRankingItem.value) {
     labels.push(t('admin.dashboard.spendingRankingOther'))
-    data.push(otherRankingItem.value.actual_cost)
+    data.push(rankingMetricValue(otherRankingItem.value))
     backgroundColor.push('#94a3b8')
   }
 
@@ -440,9 +451,7 @@ const doughnutOptions = computed(() => ({
           const value = context.raw as number
           const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
           const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
-          const formattedValue = props.metric === 'actual_cost'
-            ? `$${formatCost(value)}`
-            : formatTokens(value)
+          const formattedValue = formatMetricValue(value)
           return `${context.label}: ${formattedValue} (${percentage}%)`
         }
       }
@@ -463,7 +472,7 @@ const rankingDoughnutOptions = computed(() => ({
           const value = context.raw as number
           const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
           const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
-          return `${context.label}: $${formatCost(value)} (${percentage}%)`
+          return `${context.label}: ${formatRankingMetricValue(value)} (${percentage}%)`
         }
       }
     }
@@ -471,6 +480,29 @@ const rankingDoughnutOptions = computed(() => ({
 }))
 
 const formatTokens = (value: number): string => formatTokenDisplay(value)
+const metricValue = (item: ModelStat): number => {
+  if (props.metric === 'actual_cost') return item.actual_cost
+  if (props.metric === 'requests') return item.requests
+  return item.total_tokens
+}
+
+const rankingMetricValue = (item: RankingDisplayItem): number => {
+  const metric = props.showMetricToggle ? props.metric : 'actual_cost'
+  if (metric === 'actual_cost') return item.actual_cost
+  if (metric === 'requests') return item.requests
+  return item.tokens
+}
+
+const formatMetricValue = (value: number): string => {
+  if (props.metric === 'actual_cost') return `$${formatCost(value)}`
+  if (props.metric === 'requests') return formatNumber(value)
+  return formatTokens(value)
+}
+
+const formatRankingMetricValue = (value: number): string => {
+  if (!props.showMetricToggle) return `$${formatCost(value)}`
+  return formatMetricValue(value)
+}
 
 const formatNumber = (value: number): string => {
   return value.toLocaleString()

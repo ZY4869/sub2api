@@ -39,6 +39,14 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		RateLimitedAccountCount: g.RateLimitedAccountCount,
 		AvailableAccountCount:   g.AvailableAccountCount,
 		SortOrder:               g.SortOrder,
+		ImageBatchEnabled:       g.ImageBatchEnabled,
+		ImageBatchAllowedProviders: service.NormalizeImageBatchAllowList(
+			g.ImageBatchAllowedProviders,
+		),
+		ImageBatchAllowedModels:       service.NormalizeImageBatchAllowList(g.ImageBatchAllowedModels),
+		ImageBatchMaxItems:            service.NormalizeImageBatchMaxItems(g.ImageBatchMaxItems),
+		ImageBatchMaxDownloadBytes:    service.NormalizeImageBatchMaxDownloadBytes(g.ImageBatchMaxDownloadBytes),
+		ImageBatchDownloadConcurrency: service.NormalizeImageBatchDownloadConcurrency(g.ImageBatchDownloadConcurrency),
 	}
 	if len(g.AccountGroups) > 0 {
 		out.AccountGroups = make([]AccountGroup, 0, len(g.AccountGroups))

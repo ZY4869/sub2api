@@ -367,6 +367,69 @@
                 </svg>
                 {{ t('version.viewRelease') }}
               </a>
+
+              <div
+                v-if="isReleaseBuild && rollbackVersions.length > 0"
+                class="mt-3 border-t border-gray-100 pt-3 dark:border-dark-700"
+              >
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <p class="text-xs font-medium text-gray-600 dark:text-dark-300">
+                    {{ t('version.rollbackTitle') }}
+                  </p>
+                  <span class="text-[11px] text-gray-400 dark:text-dark-500">
+                    {{ t('version.rollbackTrusted') }}
+                  </span>
+                </div>
+                <div class="space-y-2">
+                  <button
+                    v-for="candidate in rollbackVersions"
+                    :key="candidate.version"
+                    type="button"
+                    class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-left transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-700 dark:hover:bg-dark-700"
+                    :disabled="rollingBackVersion === candidate.version || updating || restarting"
+                    @click="handleRollback(candidate.version)"
+                  >
+                    <span class="min-w-0">
+                      <span class="block text-sm font-medium text-gray-700 dark:text-dark-200">
+                        v{{ candidate.version }}
+                      </span>
+                      <span class="block truncate text-xs text-gray-400 dark:text-dark-500">
+                        {{ candidate.platform }}/{{ candidate.arch }}
+                      </span>
+                    </span>
+                    <Icon
+                      v-if="rollingBackVersion !== candidate.version"
+                      name="refresh"
+                      size="sm"
+                      :stroke-width="2"
+                      class="text-gray-400"
+                    />
+                    <svg
+                      v-else
+                      class="h-4 w-4 animate-spin text-primary-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  </button>
+                </div>
+                <p v-if="rollbackError" class="mt-2 text-xs text-red-600 dark:text-red-400">
+                  {{ rollbackError }}
+                </p>
+              </div>
             </template>
           </div>
         </div>
@@ -384,7 +447,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
-import { performUpdate, restartService } from '@/api/admin/system'
+import { performUpdate, restartService, rollback } from '@/api/admin/system'
 import { buildBackendRootUrl } from '@/api/url'
 import Icon from '@/components/icons/Icon.vue'
 
@@ -409,6 +472,7 @@ const latestVersion = computed(() => appStore.latestVersion)
 const hasUpdate = computed(() => appStore.hasUpdate)
 const releaseInfo = computed(() => appStore.releaseInfo)
 const buildType = computed(() => appStore.buildType)
+const rollbackVersions = computed(() => appStore.rollbackVersions)
 
 // Update process states (local to this component)
 const updating = ref(false)
@@ -417,6 +481,8 @@ const needRestart = ref(false)
 const updateError = ref('')
 const updateSuccess = ref(false)
 const restartCountdown = ref(0)
+const rollingBackVersion = ref('')
+const rollbackError = ref('')
 
 // Only show update check for release builds (binary/docker deployment)
 const isReleaseBuild = computed(() => buildType.value === 'release')
@@ -436,6 +502,7 @@ async function refreshVersion(force = true) {
   updateError.value = ''
   updateSuccess.value = false
   needRestart.value = false
+  rollbackError.value = ''
 
   await appStore.fetchVersion(force)
 }
@@ -458,6 +525,41 @@ async function handleUpdate() {
     updateError.value = err.response?.data?.message || err.message || t('version.updateFailed')
   } finally {
     updating.value = false
+  }
+}
+
+function extractActionError(error: unknown, fallback: string) {
+  const err = error as {
+    response?: { data?: { message?: string; error?: { message?: string }; metadata?: Record<string, string> } }
+    message?: string
+    metadata?: Record<string, string>
+  }
+  const message =
+    err.response?.data?.error?.message ||
+    err.response?.data?.message ||
+    err.message ||
+    fallback
+  const errorID = err.response?.data?.metadata?.error_id || err.metadata?.error_id
+  return errorID ? `${message} (${errorID})` : message
+}
+
+async function handleRollback(targetVersion: string) {
+  if (rollingBackVersion.value) return
+
+  rollingBackVersion.value = targetVersion
+  rollbackError.value = ''
+  updateError.value = ''
+  updateSuccess.value = false
+
+  try {
+    const result = await rollback(targetVersion)
+    updateSuccess.value = true
+    needRestart.value = result.need_restart
+    appStore.clearVersionCache()
+  } catch (error: unknown) {
+    rollbackError.value = extractActionError(error, t('version.rollbackFailed'))
+  } finally {
+    rollingBackVersion.value = ''
   }
 }
 

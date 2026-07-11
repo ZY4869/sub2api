@@ -168,6 +168,7 @@ type UserSpendingRankingResponse struct {
 	TotalActualCost float64                   `json:"total_actual_cost"`
 	TotalRequests   int64                     `json:"total_requests"`
 	TotalTokens     int64                     `json:"total_tokens"`
+	Metric          string                    `json:"metric,omitempty"`
 }
 
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).
@@ -187,6 +188,7 @@ type UserBreakdownDimension struct {
 	ModelType    string // "requested", "upstream", or "mapping"
 	Endpoint     string // filter by endpoint value (non-empty to enable)
 	EndpointType string // "inbound", "upstream", or "path"
+	RequestType  *int16 // request_type filter with legacy stream/openai_ws fallback
 }
 
 // APIKeyUsageTrendPoint represents API key usage trend data point

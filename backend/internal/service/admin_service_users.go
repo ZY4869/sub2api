@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 
@@ -71,6 +73,10 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 	return user, nil
 }
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
+	role, err := normalizeAdminUserRole(input.Role, RoleUser)
+	if err != nil {
+		return nil, err
+	}
 	policy, err := NormalizeTimeAccessPolicy(input.APIKeyAccessTimePolicy)
 	if err != nil {
 		return nil, timeAccessPolicyInputError(err)
@@ -80,12 +86,15 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 			return nil, err
 		}
 	}
-	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: RoleUser, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups, APIKeyModelBindingMode: NormalizeAPIKeyModelBindingMode(input.APIKeyModelBindingMode), ExternalModelCatalogViewMode: NormalizeExternalModelCatalogViewMode(input.ExternalModelCatalogViewMode), APIKeyAccessTimePolicy: policy}
+	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: role, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups, APIKeyModelBindingMode: NormalizeAPIKeyModelBindingMode(input.APIKeyModelBindingMode), ExternalModelCatalogViewMode: NormalizeExternalModelCatalogViewMode(input.ExternalModelCatalogViewMode), APIKeyAccessTimePolicy: policy}
 	if err := user.SetPassword(input.Password); err != nil {
 		return nil, err
 	}
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
+	}
+	if user.Role == RoleAdmin {
+		logAdminUserRoleChange(ctx, 0, user.ID, "", RoleAdmin, "created")
 	}
 	s.assignDefaultSubscriptions(ctx, user.ID)
 	return user, nil
@@ -107,7 +116,10 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		return nil, err
 	}
 	if user.Role == "admin" && input.Status == "disabled" {
-		return nil, errors.New("cannot disable admin user")
+		if err := s.ensureNotLastActiveAdmin(ctx, user); err != nil {
+			logAdminUserRoleChange(ctx, 0, user.ID, user.Role, user.Role, "disable_rejected")
+			return nil, err
+		}
 	}
 	oldConcurrency := user.Concurrency
 	oldStatus := user.Status
@@ -133,6 +145,19 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 	if input.Status != "" {
 		user.Status = input.Status
+	}
+	if input.Role != nil {
+		role, err := normalizeAdminUserRole(*input.Role, "")
+		if err != nil {
+			return nil, err
+		}
+		if oldRole == RoleAdmin && role != RoleAdmin {
+			if err := s.ensureNotLastActiveAdmin(ctx, user); err != nil {
+				logAdminUserRoleChange(ctx, 0, user.ID, oldRole, role, "demote_rejected")
+				return nil, err
+			}
+		}
+		user.Role = role
 	}
 	if input.Concurrency != nil {
 		user.Concurrency = *input.Concurrency
@@ -202,6 +227,9 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 			zap.Bool("after", user.RequestDetailsReview),
 		).Info("request details review updated")
 	}
+	if user.Role != oldRole {
+		logAdminUserRoleChange(ctx, 0, user.ID, oldRole, user.Role, "updated")
+	}
 	if user.EffectiveAPIKeyModelBindingMode() != oldAPIKeyModelBindingMode {
 		logger.With(
 			zap.String("component", "audit.api_key_model_binding_mode"),
@@ -241,6 +269,53 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 	return user, nil
 }
+
+func normalizeAdminUserRole(role string, defaultRole string) (string, error) {
+	normalized := strings.TrimSpace(strings.ToLower(role))
+	if normalized == "" {
+		normalized = defaultRole
+	}
+	switch normalized {
+	case RoleUser, RoleAdmin:
+		return normalized, nil
+	default:
+		return "", infraerrors.BadRequest("USER_ROLE_INVALID", "role must be user or admin")
+	}
+}
+
+func (s *adminServiceImpl) ensureNotLastActiveAdmin(ctx context.Context, target *User) error {
+	if target == nil || target.Role != RoleAdmin || target.Status != StatusActive || s.userRepo == nil {
+		return nil
+	}
+	admins, result, err := s.userRepo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 2}, UserListFilters{
+		Status: StatusActive,
+		Role:   RoleAdmin,
+	})
+	if err != nil {
+		return err
+	}
+	total := int64(len(admins))
+	if result != nil {
+		total = result.Total
+	}
+	if total <= 1 && len(admins) == 1 && admins[0].ID == target.ID {
+		return infraerrors.Conflict("LAST_ADMIN_GUARD", "cannot disable or demote the last active admin")
+	}
+	return nil
+}
+
+func logAdminUserRoleChange(ctx context.Context, operatorUserID int64, targetUserID int64, oldRole string, newRole string, action string) {
+	logger.With(
+		zap.String("component", "audit.admin.users.role"),
+		zap.Int64("operator_user_id", operatorUserID),
+		zap.Int64("target_user_id", targetUserID),
+		zap.String("old_role", oldRole),
+		zap.String("new_role", newRole),
+		zap.String("action", action),
+		zap.String("request_id", requestIDFromContext(ctx)),
+	).Info("admin user role changed")
+}
+
 func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {

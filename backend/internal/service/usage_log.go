@@ -68,11 +68,13 @@ const (
 	RequestTypeSync    RequestType = 1
 	RequestTypeStream  RequestType = 2
 	RequestTypeWSV2    RequestType = 3
+	RequestTypeCyber   RequestType = 4
+	RequestTypeBlocked RequestType = 5
 )
 
 func (t RequestType) IsValid() bool {
 	switch t {
-	case RequestTypeUnknown, RequestTypeSync, RequestTypeStream, RequestTypeWSV2:
+	case RequestTypeUnknown, RequestTypeSync, RequestTypeStream, RequestTypeWSV2, RequestTypeCyber, RequestTypeBlocked:
 		return true
 	default:
 		return false
@@ -94,6 +96,10 @@ func (t RequestType) String() string {
 		return "stream"
 	case RequestTypeWSV2:
 		return "ws_v2"
+	case RequestTypeCyber:
+		return "cyber"
+	case RequestTypeBlocked:
+		return "blocked"
 	default:
 		return "unknown"
 	}
@@ -113,8 +119,12 @@ func ParseUsageRequestType(value string) (RequestType, error) {
 		return RequestTypeStream, nil
 	case "ws_v2":
 		return RequestTypeWSV2, nil
+	case "cyber":
+		return RequestTypeCyber, nil
+	case "blocked":
+		return RequestTypeBlocked, nil
 	default:
-		return RequestTypeUnknown, fmt.Errorf("invalid request_type, allowed values: unknown, sync, stream, ws_v2")
+		return RequestTypeUnknown, fmt.Errorf("invalid request_type, allowed values: unknown, sync, stream, ws_v2, cyber, blocked")
 	}
 }
 

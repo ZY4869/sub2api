@@ -95,6 +95,9 @@ func (s *GrokGatewayService) forwardAPIKeyResponses(ctx context.Context, c *gin.
 	if method == http.MethodPost && grokIsVideoRequestModel(reqModel, mappedModel) {
 		return s.forwardGrokVideoResponses(ctx, c, account, body)
 	}
+	if method == http.MethodPost {
+		mappedBody = sanitizeGrokOpenAICompatibleRequestBody(mappedBody)
+	}
 	stream := method == http.MethodPost && gjson.GetBytes(mappedBody, "stream").Bool()
 	startTime := time.Now()
 

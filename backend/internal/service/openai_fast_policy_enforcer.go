@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
@@ -18,6 +19,7 @@ type openAIFastPolicyDecision struct {
 	action           string
 	modelWhitelisted bool
 	usedFallback     bool
+	userScoped       bool
 	rule             OpenAIFastPolicyRule
 }
 
@@ -82,7 +84,66 @@ func openAIFastPolicyScopeMatches(scope string, account *Account) bool {
 	}
 }
 
-func resolveOpenAIFastPolicyDecision(settings *OpenAIFastPolicySettings, account *Account, serviceTier string, model string) openAIFastPolicyDecision {
+func contextOpenAIFastPolicyUserID(ctx context.Context) int64 {
+	if ctx == nil {
+		return 0
+	}
+	switch v := ctx.Value(ctxkey.UserID).(type) {
+	case int64:
+		if v > 0 {
+			return v
+		}
+	case int:
+		if v > 0 {
+			return int64(v)
+		}
+	case int32:
+		if v > 0 {
+			return int64(v)
+		}
+	}
+	return 0
+}
+
+func openAIFastPolicyRuleMatchesUser(rule OpenAIFastPolicyRule, userID int64) bool {
+	if len(rule.UserIDs) == 0 {
+		return true
+	}
+	if userID <= 0 {
+		return false
+	}
+	for _, id := range rule.UserIDs {
+		if id == userID {
+			return true
+		}
+	}
+	return false
+}
+
+func buildOpenAIFastPolicyDecision(rule OpenAIFastPolicyRule, base openAIFastPolicyDecision, model string) openAIFastPolicyDecision {
+	decision := base
+	decision.matched = true
+	decision.rule = rule
+	decision.scope = strings.ToLower(strings.TrimSpace(rule.Scope))
+	decision.userScoped = len(rule.UserIDs) > 0
+
+	effectiveAction := strings.ToLower(strings.TrimSpace(rule.Action))
+	modelWhitelisted := openAIFastPolicyModelWhitelisted(model, rule.ModelWhitelist)
+	if len(rule.ModelWhitelist) > 0 && !modelWhitelisted {
+		effectiveAction = strings.ToLower(strings.TrimSpace(rule.FallbackAction))
+		decision.usedFallback = true
+	}
+
+	if !isOpenAIFastPolicyAction(effectiveAction) {
+		effectiveAction = OpenAIFastPolicyActionFilter
+	}
+
+	decision.action = effectiveAction
+	decision.modelWhitelisted = modelWhitelisted
+	return decision
+}
+
+func resolveOpenAIFastPolicyDecision(settings *OpenAIFastPolicySettings, account *Account, serviceTier string, model string, userID int64) openAIFastPolicyDecision {
 	decision := openAIFastPolicyDecision{
 		serviceTier: normalizeOpenAIFastPolicyServiceTier(serviceTier),
 		scope:       openAIFastPolicyScopeForAccount(account),
@@ -92,6 +153,7 @@ func resolveOpenAIFastPolicyDecision(settings *OpenAIFastPolicySettings, account
 		return decision
 	}
 
+	var globalMatch *OpenAIFastPolicyRule
 	for _, rule := range settings.Rules {
 		if normalizeOpenAIFastPolicyServiceTier(rule.ServiceTier) != decision.serviceTier {
 			continue
@@ -99,26 +161,21 @@ func resolveOpenAIFastPolicyDecision(settings *OpenAIFastPolicySettings, account
 		if !openAIFastPolicyScopeMatches(rule.Scope, account) {
 			continue
 		}
-		decision.matched = true
-		decision.rule = rule
-		decision.scope = strings.ToLower(strings.TrimSpace(rule.Scope))
-
-		effectiveAction := strings.ToLower(strings.TrimSpace(rule.Action))
-		modelWhitelisted := openAIFastPolicyModelWhitelisted(model, rule.ModelWhitelist)
-		if len(rule.ModelWhitelist) > 0 && !modelWhitelisted {
-			effectiveAction = strings.ToLower(strings.TrimSpace(rule.FallbackAction))
-			decision.usedFallback = true
+		if len(rule.UserIDs) > 0 {
+			if openAIFastPolicyRuleMatchesUser(rule, userID) {
+				return buildOpenAIFastPolicyDecision(rule, decision, model)
+			}
+			continue
 		}
-
-		if !isOpenAIFastPolicyAction(effectiveAction) {
-			effectiveAction = OpenAIFastPolicyActionFilter
+		if globalMatch == nil {
+			ruleCopy := rule
+			globalMatch = &ruleCopy
 		}
-
-		decision.action = effectiveAction
-		decision.modelWhitelisted = modelWhitelisted
-		return decision
 	}
 
+	if globalMatch != nil {
+		return buildOpenAIFastPolicyDecision(*globalMatch, decision, model)
+	}
 	return decision
 }
 
@@ -134,7 +191,7 @@ func (s *OpenAIGatewayService) getOpenAIFastPolicySettings(ctx context.Context) 
 }
 
 func (s *OpenAIGatewayService) evaluateOpenAIFastPolicy(ctx context.Context, account *Account, serviceTier string, model string) openAIFastPolicyDecision {
-	return resolveOpenAIFastPolicyDecision(s.getOpenAIFastPolicySettings(ctx), account, serviceTier, model)
+	return resolveOpenAIFastPolicyDecision(s.getOpenAIFastPolicySettings(ctx), account, serviceTier, model, contextOpenAIFastPolicyUserID(ctx))
 }
 
 func (s *OpenAIGatewayService) applyOpenAIFastPolicyToRequestBodyMap(ctx context.Context, account *Account, reqBody map[string]any) (bool, error) {
@@ -233,6 +290,7 @@ func (s *OpenAIGatewayService) logOpenAIFastPolicyDecision(ctx context.Context, 
 		zap.String("action", strings.TrimSpace(decision.action)),
 		zap.String("rule_action", strings.TrimSpace(decision.rule.Action)),
 		zap.String("rule_scope", strings.TrimSpace(decision.rule.Scope)),
+		zap.Bool("rule_user_scoped", decision.userScoped),
 		zap.Bool("model_whitelisted", decision.modelWhitelisted),
 		zap.Bool("used_fallback", decision.usedFallback),
 	)

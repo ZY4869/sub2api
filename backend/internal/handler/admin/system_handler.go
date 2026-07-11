@@ -3,7 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
-	"net/http"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +26,7 @@ type systemUpdateService interface {
 	CheckUpdate(ctx context.Context, force bool) (*service.UpdateInfo, error)
 	PerformUpdate(ctx context.Context) error
 	Rollback() error
+	RollbackToVersion(ctx context.Context, targetVersion string) error
 }
 
 // NewSystemHandler creates a new SystemHandler
@@ -51,7 +52,7 @@ func (h *SystemHandler) CheckUpdates(c *gin.Context) {
 	force := c.Query("force") == "true"
 	info, err := h.updateSvc.CheckUpdate(c.Request.Context(), force)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, info)
@@ -105,8 +106,18 @@ func (h *SystemHandler) PerformUpdate(c *gin.Context) {
 // Rollback restores the previous version
 // POST /api/v1/admin/system/rollback
 func (h *SystemHandler) Rollback(c *gin.Context) {
+	var req struct {
+		TargetVersion string `json:"target_version"`
+	}
+	if c.Request != nil && c.Request.Body != nil {
+		if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+			response.BadRequest(c, "invalid rollback request")
+			return
+		}
+	}
+	req.TargetVersion = strings.TrimSpace(req.TargetVersion)
 	operationID := buildSystemOperationID(c, "rollback")
-	payload := gin.H{"operation_id": operationID}
+	payload := gin.H{"operation_id": operationID, "target_version": req.TargetVersion}
 	executeAdminIdempotentJSON(c, "admin.system.rollback", payload, service.DefaultSystemOperationIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		lock, release, err := h.acquireSystemLock(ctx, operationID)
 		if err != nil {
@@ -118,16 +129,23 @@ func (h *SystemHandler) Rollback(c *gin.Context) {
 			release(releaseReason, succeeded)
 		}()
 
-		if err := h.updateSvc.Rollback(); err != nil {
+		var rollbackErr error
+		if req.TargetVersion != "" {
+			rollbackErr = h.updateSvc.RollbackToVersion(ctx, req.TargetVersion)
+		} else {
+			rollbackErr = h.updateSvc.Rollback()
+		}
+		if rollbackErr != nil {
 			releaseReason = "SYSTEM_ROLLBACK_FAILED"
-			return nil, err
+			return nil, rollbackErr
 		}
 		succeeded = true
 
 		return gin.H{
-			"message":      "Rollback completed. Please restart the service.",
-			"need_restart": true,
-			"operation_id": lock.OperationID(),
+			"message":        "Rollback completed. Please restart the service.",
+			"need_restart":   true,
+			"operation_id":   lock.OperationID(),
+			"target_version": req.TargetVersion,
 		}, nil
 	})
 }

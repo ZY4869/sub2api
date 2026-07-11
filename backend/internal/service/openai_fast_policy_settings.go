@@ -25,6 +25,7 @@ type OpenAIFastPolicyRule struct {
 	Scope          string   `json:"scope"`
 	ModelWhitelist []string `json:"model_whitelist,omitempty"`
 	FallbackAction string   `json:"fallback_action,omitempty"`
+	UserIDs        []int64  `json:"user_ids,omitempty"`
 }
 
 type OpenAIFastPolicySettings struct {
@@ -103,12 +104,35 @@ func NormalizeOpenAIFastPolicySettings(in *OpenAIFastPolicySettings) *OpenAIFast
 			Scope:          scope,
 			ModelWhitelist: whitelist,
 			FallbackAction: fallback,
+			UserIDs:        normalizeOpenAIFastPolicyUserIDs(rule.UserIDs),
 		})
 	}
 	if len(rules) == 0 {
 		return DefaultOpenAIFastPolicySettings()
 	}
 	return &OpenAIFastPolicySettings{Rules: rules}
+}
+
+func normalizeOpenAIFastPolicyUserIDs(userIDs []int64) []int64 {
+	if len(userIDs) == 0 {
+		return nil
+	}
+	out := make([]int64, 0, len(userIDs))
+	seen := make(map[int64]struct{}, len(userIDs))
+	for _, id := range userIDs {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func isOpenAIFastPolicyAction(action string) bool {

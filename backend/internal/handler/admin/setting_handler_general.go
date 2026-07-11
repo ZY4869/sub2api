@@ -842,6 +842,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				Scope:          r.Scope,
 				ModelWhitelist: append([]string(nil), r.ModelWhitelist...),
 				FallbackAction: r.FallbackAction,
+				UserIDs:        append([]int64(nil), r.UserIDs...),
 			})
 		}
 		openAIFastPolicy = &service.OpenAIFastPolicySettings{Rules: rules}
