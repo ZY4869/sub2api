@@ -1,6 +1,9 @@
 <template>
   <section data-testid="usage-analytics-panel" class="space-y-6">
-    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+    <div
+      v-if="showUsageDistributionPanels"
+      class="grid grid-cols-1 gap-6 xl:grid-cols-2"
+    >
       <ModelDistributionChart
         v-model:metric="modelMetric"
         :model-stats="modelStats"
@@ -57,6 +60,7 @@ defineProps<{
   modelLoading?: boolean;
   groupLoading?: boolean;
   endpointLoading?: boolean;
+  showUsageDistributionPanels?: boolean;
   startDate: string;
   endDate: string;
 }>();

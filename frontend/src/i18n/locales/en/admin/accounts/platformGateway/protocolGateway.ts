@@ -12,7 +12,7 @@ export default {
     },
     geminiCompatibilityBadge: "Gemini Official Compatibility Layer",
     apiKeyOnly: "Use Base URL + API Key to connect compatible upstream gateways",
-    migrationSuggestion: "You are using a custom Base URL on an official platform account. Consider moving it to Protocol Gateway so grouping, routing, and model categorization stay aligned with the actual subprotocol.",
+    migrationSuggestion: "You are using a custom Base URL on an official platform account. If the target is a third-party compatible API platform, use Protocol Gateway so grouping, routing, and model categorization stay aligned with the actual subprotocol.",
     probeTitle: "Model Fetch",
     probeHint: "Probe the upstream model list without auto-selecting the detected models. Missing models are added to the local registry after account creation only for models you explicitly keep selected.",
     probeAction: "Probe And Fetch Models",

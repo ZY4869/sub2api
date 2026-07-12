@@ -40,6 +40,7 @@ const authState = vi.hoisted(() => ({
         table_density: "comfortable",
         stats_card_style: "balanced",
         show_million_context_lines: true,
+        show_usage_distribution_panels: false,
         user_agent_display_mode: "compact",
       },
       user: {
@@ -48,6 +49,7 @@ const authState = vi.hoisted(() => ({
         table_density: "comfortable",
         stats_card_style: "balanced",
         show_million_context_lines: true,
+        show_usage_distribution_panels: false,
         user_agent_display_mode: "compact",
       },
     },

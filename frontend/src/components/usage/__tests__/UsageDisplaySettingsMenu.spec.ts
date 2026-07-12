@@ -20,6 +20,7 @@ const messages: Record<string, string> = {
   "usage.statsCardStyleBalanced": "Balanced",
   "usage.statsCardStyleAccent": "Accent",
   "usage.showMillionContextLines": "1M details",
+  "usage.modelGroupCharts": "Model/Group charts",
   "usage.userAgentDisplay": "User-Agent",
   "usage.userAgentDisplayCompact": "Compact UA",
   "usage.userAgentDisplayFull": "Full UA",
@@ -65,10 +66,12 @@ function mountMenu(overrides: Record<string, unknown> = {}) {
         table_density: "comfortable",
         stats_card_style: "balanced",
         show_million_context_lines: true,
+        show_usage_distribution_panels: false,
         user_agent_display_mode: "compact",
       },
       usageModelDisplayMode: "model_only",
       updatingUsageModelDisplayMode: false,
+      showUsageDistributionPanelsToggle: true,
       ...overrides,
     },
     global: {
@@ -93,6 +96,7 @@ describe("UsageDisplaySettingsMenu", () => {
     expect(wrapper.text()).toContain("Density");
     expect(wrapper.text()).toContain("Stats cards");
     expect(wrapper.text()).toContain("1M details");
+    expect(wrapper.text()).toContain("Model/Group charts");
     expect(wrapper.text()).toContain("User-Agent");
     expect(wrapper.text()).toContain("Compact UA");
     expect(wrapper.text()).not.toContain("Cache hit");
@@ -108,6 +112,9 @@ describe("UsageDisplaySettingsMenu", () => {
     await buttons.find((button) => button.text() === "Compact density")!.trigger("click");
     await buttons.find((button) => button.text() === "Accent")!.trigger("click");
     await buttons.find((button) => button.text() === "Full UA")!.trigger("click");
+    await buttons
+      .find((button) => button.attributes("aria-pressed") === "false")!
+      .trigger("click");
     await buttons
       .find((button) => button.attributes("aria-pressed") === "true")!
       .trigger("click");
@@ -127,6 +134,10 @@ describe("UsageDisplaySettingsMenu", () => {
     expect(wrapper.emitted("update-preference")).toContainEqual([
       "user_agent_display_mode",
       "full",
+    ]);
+    expect(wrapper.emitted("update-preference")).toContainEqual([
+      "show_usage_distribution_panels",
+      true,
     ]);
     expect(wrapper.emitted("update-preference")).toContainEqual([
       "show_million_context_lines",

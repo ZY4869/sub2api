@@ -29,6 +29,7 @@
                 :usage-model-display-mode="usageModelDisplayMode"
                 :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
                 :disabled="updatingUsageViewPreferences"
+                :show-usage-distribution-panels-toggle="true"
                 @update-preference="handleUsageViewPreferenceChange"
                 @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
               />
@@ -60,6 +61,7 @@
           :group-stats="groupStats"
           :endpoint-stats="endpointStats"
           :upstream-endpoint-stats="upstreamEndpointStats"
+          :show-usage-distribution-panels="pagePreferences.show_usage_distribution_panels"
           :trend-loading="analyticsLoading"
           :model-loading="analyticsLoading"
           :group-loading="analyticsLoading"
@@ -632,7 +634,10 @@ const getGranularityForRange = (rangeStartDate: string, rangeEndDate: string): "
 };
 
 let analyticsRequestSeq = 0;
-const loadUsageAnalytics = async () => {
+const loadUsageAnalytics = async (
+  includeDistributionPanels =
+    pagePreferences.value.show_usage_distribution_panels,
+) => {
   const seq = ++analyticsRequestSeq;
   analyticsLoading.value = true;
   const start = filters.value.start_date || startDate.value;
@@ -646,16 +651,20 @@ const loadUsageAnalytics = async () => {
         granularity: getGranularityForRange(start, end),
         api_key_id: apiKeyId,
       }),
-      usageAPI.getDashboardModels({
-        start_date: start,
-        end_date: end,
-        api_key_id: apiKeyId,
-      }),
-      usageAPI.getDashboardGroups({
-        start_date: start,
-        end_date: end,
-        api_key_id: apiKeyId,
-      }),
+      includeDistributionPanels
+        ? usageAPI.getDashboardModels({
+            start_date: start,
+            end_date: end,
+            api_key_id: apiKeyId,
+          })
+        : Promise.resolve(null),
+      includeDistributionPanels
+        ? usageAPI.getDashboardGroups({
+            start_date: start,
+            end_date: end,
+            api_key_id: apiKeyId,
+          })
+        : Promise.resolve(null),
       usageAPI.getDashboardEndpoints({
         start_date: start,
         end_date: end,
@@ -664,8 +673,8 @@ const loadUsageAnalytics = async () => {
     ]);
     if (seq !== analyticsRequestSeq) return;
     trendData.value = trend.trend || [];
-    modelStats.value = models.models || [];
-    groupStats.value = groups.groups || [];
+    modelStats.value = includeDistributionPanels ? models?.models || [] : [];
+    groupStats.value = includeDistributionPanels ? groups?.groups || [] : [];
     endpointStats.value = endpoints.endpoints || [];
     upstreamEndpointStats.value = endpoints.upstream_endpoints || [];
   } catch (error) {
@@ -794,6 +803,9 @@ const handleUsageViewPreferenceChange = async (
   value: string | boolean,
 ) => {
   await patchPagePreferences({ [key]: value } as any);
+  if (key === "show_usage_distribution_panels" && value === true) {
+    await loadUsageAnalytics(true);
+  }
 };
 
 const formatModelSuccessRateExport = (

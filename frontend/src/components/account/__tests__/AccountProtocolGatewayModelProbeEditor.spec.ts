@@ -28,8 +28,12 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string, params?: Record<string, string | number>) =>
-        params?.count ? `${key}:${params.count}` : key
+      t: (key: string, params?: Record<string, string | number>) => {
+        if (key === 'admin.accounts.modelImportErrorHints.unauthorized') {
+          return 'Upstream credential repair hint'
+        }
+        return params?.count ? `${key}:${params.count}` : key
+      }
     })
   }
 })
@@ -548,6 +552,44 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
           }
         ]
       })
+    )
+  })
+
+  it('shows structured upstream unauthorized repair guidance from backend metadata', async () => {
+    probeProtocolGatewayModels.mockRejectedValue({
+      message: 'upstream model listing failed with status 401',
+      reason: 'MODEL_IMPORT_UPSTREAM_UNAUTHORIZED',
+      metadata: {
+        hint_key: 'unauthorized',
+        upstream_status: '401'
+      }
+    })
+
+    const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
+      props: {
+        gatewayProtocol: 'anthropic',
+        baseUrl: 'https://third-party.example.com',
+        apiKey: 'sk-test',
+        allowedModels: [],
+        modelMappings: [],
+        probedModels: [],
+        manualModels: [],
+        resolvedUpstream: null,
+        acceptedProtocols: ['anthropic'],
+        clientProfiles: [],
+        clientRoutes: []
+      },
+      global: {
+        stubs: iconStubs
+      }
+    })
+
+    const probeButton = findButtonByText(wrapper, 'admin.accounts.protocolGateway.probeAction')
+    await probeButton?.trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith(
+      'upstream model listing failed with status 401\nUpstream credential repair hint'
     )
   })
 })

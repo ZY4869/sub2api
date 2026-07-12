@@ -173,6 +173,7 @@ export default {
     statsCardStyleBalanced: "均衡",
     statsCardStyleAccent: "强调",
     showMillionContextLines: "1M 明细",
+    modelGroupCharts: "模型/分组分布",
     userAgentDisplay: "User-Agent",
     userAgentDisplayCompact: "简略",
     userAgentDisplayFull: "完整",

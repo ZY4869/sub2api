@@ -358,6 +358,7 @@ import type {
   GatewayProtocol
 } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
+import { resolveAccountModelImportErrorMessage } from '@/utils/accountModelImport'
 import {
   PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS,
   normalizeGatewayAcceptedProtocol,
@@ -914,7 +915,9 @@ const handleProbe = async () => {
     emit('probed', result)
   } catch (error: any) {
     console.error('Failed to probe protocol gateway models:', error)
-    appStore.showError(error?.message || t('admin.accounts.protocolGateway.probeFailed'))
+    appStore.showError(
+      resolveAccountModelImportErrorMessage(t, error) || t('admin.accounts.protocolGateway.probeFailed')
+    )
   } finally {
     probing.value = false
   }

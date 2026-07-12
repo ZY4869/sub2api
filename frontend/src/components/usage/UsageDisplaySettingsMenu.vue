@@ -48,6 +48,12 @@
             :model-value="preferences.show_million_context_lines"
             @update:model-value="updatePreference('show_million_context_lines', $event)"
           />
+          <ToggleControl
+            v-if="showUsageDistributionPanelsToggle"
+            :label="t('usage.modelGroupCharts')"
+            :model-value="preferences.show_usage_distribution_panels"
+            @update:model-value="updatePreference('show_usage_distribution_panels', $event)"
+          />
           <SegmentedControl
             :label="t('usage.userAgentDisplay')"
             :options="userAgentDisplayOptions"
@@ -73,6 +79,7 @@ defineProps<{
   usageModelDisplayMode: UsageModelDisplayMode;
   updatingUsageModelDisplayMode: boolean;
   disabled?: boolean;
+  showUsageDistributionPanelsToggle?: boolean;
 }>();
 
 const emit = defineEmits<{

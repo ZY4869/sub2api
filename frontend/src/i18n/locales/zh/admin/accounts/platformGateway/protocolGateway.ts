@@ -12,7 +12,7 @@ export default {
     },
     geminiCompatibilityBadge: "Gemini 官方兼容层",
     apiKeyOnly: "统一使用 Base URL + API Key 接入兼容协议上游",
-    migrationSuggestion: "你正在为官方平台填写自定义 Base URL。建议改用“协议网关”，便于后续按子协议做分组、调度和模型归类。",
+    migrationSuggestion: "你正在为官方平台填写自定义 Base URL。如果目标是第三方兼容 API 平台，建议改用“协议网关”，便于按真实子协议做分组、调度和模型归类。",
     probeTitle: "取模",
     probeHint: "点击后探测上游支持的模型。探测结果默认不会自动选中，缺失模型会在建号成功后按你的显式选择补入本地模型库。",
     probeAction: "探测并取模",

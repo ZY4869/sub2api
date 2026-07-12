@@ -344,7 +344,7 @@ func TestImportAccountModels_ReturnsClearErrorForUnauthorizedUpstream(t *testing
 	require.Error(t, err)
 
 	appErr := infraerrors.FromError(err)
-	require.Equal(t, int32(http.StatusUnauthorized), appErr.Code)
+	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
 	require.Equal(t, accountModelImportReasonKindUnauthorized, appErr.Metadata["reason_kind"])
 	require.Equal(t, accountModelImportHintKeyUnauthorized, appErr.Metadata["hint_key"])
 	require.Contains(t, appErr.Message, "status 401")

@@ -12,6 +12,7 @@ describe('API Client', () => {
 
   beforeEach(async () => {
     localStorage.clear()
+    sessionStorage.clear()
     // 每次测试重新导入以获取干净的模块状态
     vi.resetModules()
     const mod = await import('@/api/client')
@@ -132,6 +133,60 @@ describe('API Client', () => {
   // --- 401 Token 刷新 ---
 
   describe('401 Token 刷新', () => {
+    it('上游模型探测 401 不清除本地登录态', async () => {
+      localStorage.setItem('auth_token', 'valid-token')
+      localStorage.setItem('refresh_token', 'refresh-token')
+
+      const originalLocation = window.location
+      Object.defineProperty(window, 'location', {
+        value: { ...originalLocation, pathname: '/admin/accounts', href: '/admin/accounts' },
+        writable: true,
+      })
+
+      const adapter = vi.fn().mockRejectedValue({
+        response: {
+          status: 401,
+          data: {
+            code: 401,
+            message: '模型导入使用的上游凭证无效。',
+            reason: 'MODEL_IMPORT_UPSTREAM_UNAUTHORIZED',
+            metadata: {
+              hint_key: 'unauthorized',
+              upstream_status: '401',
+            },
+          },
+        },
+        config: {
+          url: '/admin/accounts/probe-models',
+          headers: { Authorization: 'Bearer valid-token' },
+        },
+        code: 'ERR_BAD_REQUEST',
+        message: 'Request failed with status code 401',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await expect(apiClient.post('/admin/accounts/probe-models', {})).rejects.toEqual(
+        expect.objectContaining({
+          status: 401,
+          reason: 'MODEL_IMPORT_UPSTREAM_UNAUTHORIZED',
+          metadata: expect.objectContaining({
+            hint_key: 'unauthorized',
+            upstream_status: '401',
+          }),
+        })
+      )
+
+      expect(localStorage.getItem('auth_token')).toBe('valid-token')
+      expect(localStorage.getItem('refresh_token')).toBe('refresh-token')
+      expect(sessionStorage.getItem('auth_expired')).toBeNull()
+      expect(adapter).toHaveBeenCalledTimes(1)
+
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+      })
+    })
+
     it('无 refresh_token 时 401 清除 localStorage', async () => {
       localStorage.setItem('auth_token', 'expired-token')
       // 不设置 refresh_token

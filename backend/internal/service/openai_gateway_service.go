@@ -21,7 +21,7 @@ const (
 	chatgptCodexURL                       = "https://chatgpt.com/backend-api/codex/responses"
 	openaiPlatformAPIURL                  = "https://api.openai.com/v1/responses"
 	openaiStickySessionTTL                = time.Hour
-	codexCLIUserAgent                     = "codex_cli_rs/0.104.0"
+	codexCLIUserAgent                     = "codex_cli_rs/0.144.1"
 	codexCLIOnlyHeaderValueMaxBytes       = 256
 	OpenAIParsedRequestBodyKey            = "openai_parsed_request_body"
 	openAIWSReconnectRetryLimit           = 5
@@ -29,7 +29,7 @@ const (
 	openAIWSRetryBackoffMaxDefault        = 2 * time.Second
 	openAIWSRetryJitterRatioDefault       = 0.2
 	openAICompactSessionSeedKey           = "openai_compact_session_seed"
-	codexCLIVersion                       = "0.104.0"
+	codexCLIVersion                       = "0.144.1"
 	openAICodexSnapshotPersistMinInterval = 30 * time.Second
 	openAITransportTempUnschedDuration    = 5 * time.Minute
 )

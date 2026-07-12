@@ -26,12 +26,13 @@ const (
 )
 
 type UsageViewPagePreferences struct {
-	HiddenColumns           []string `json:"hidden_columns"`
-	TokenDisplay            string   `json:"token_display_mode"`
-	TableDensity            string   `json:"table_density"`
-	StatsCardStyle          string   `json:"stats_card_style"`
-	ShowMillionContextLines *bool    `json:"show_million_context_lines"`
-	UserAgentDisplayMode    string   `json:"user_agent_display_mode"`
+	HiddenColumns               []string `json:"hidden_columns"`
+	TokenDisplay                string   `json:"token_display_mode"`
+	TableDensity                string   `json:"table_density"`
+	StatsCardStyle              string   `json:"stats_card_style"`
+	ShowMillionContextLines     *bool    `json:"show_million_context_lines"`
+	ShowUsageDistributionPanels bool     `json:"show_usage_distribution_panels"`
+	UserAgentDisplayMode        string   `json:"user_agent_display_mode"`
 }
 
 type UsageViewPreferences struct {
@@ -76,12 +77,13 @@ func NormalizeUsageViewPagePreferences(page string, input UsageViewPagePreferenc
 		}
 	}
 	return UsageViewPagePreferences{
-		HiddenColumns:           hidden,
-		TokenDisplay:            normalizeUsageViewTokenDisplay(input.TokenDisplay, defaults.TokenDisplay),
-		TableDensity:            normalizeUsageViewTableDensity(input.TableDensity, defaults.TableDensity),
-		StatsCardStyle:          normalizeUsageViewStatsCardStyle(input.StatsCardStyle, defaults.StatsCardStyle),
-		ShowMillionContextLines: normalizeUsageViewBool(input.ShowMillionContextLines, defaults.ShowMillionContextLines),
-		UserAgentDisplayMode:    normalizeUsageViewUserAgentDisplay(input.UserAgentDisplayMode, defaults.UserAgentDisplayMode),
+		HiddenColumns:               hidden,
+		TokenDisplay:                normalizeUsageViewTokenDisplay(input.TokenDisplay, defaults.TokenDisplay),
+		TableDensity:                normalizeUsageViewTableDensity(input.TableDensity, defaults.TableDensity),
+		StatsCardStyle:              normalizeUsageViewStatsCardStyle(input.StatsCardStyle, defaults.StatsCardStyle),
+		ShowMillionContextLines:     normalizeUsageViewBool(input.ShowMillionContextLines, defaults.ShowMillionContextLines),
+		ShowUsageDistributionPanels: input.ShowUsageDistributionPanels,
+		UserAgentDisplayMode:        normalizeUsageViewUserAgentDisplay(input.UserAgentDisplayMode, defaults.UserAgentDisplayMode),
 	}
 }
 
@@ -91,12 +93,13 @@ func defaultUsageViewPagePreferences(page string) UsageViewPagePreferences {
 		hidden = []string{"user_agent"}
 	}
 	return UsageViewPagePreferences{
-		HiddenColumns:           hidden,
-		TokenDisplay:            UsageViewTokenDisplayM,
-		TableDensity:            UsageViewTableDensityComfortable,
-		StatsCardStyle:          UsageViewStatsCardStyleBalanced,
-		ShowMillionContextLines: usageViewBoolPtr(true),
-		UserAgentDisplayMode:    UsageViewUserAgentDisplayCompact,
+		HiddenColumns:               hidden,
+		TokenDisplay:                UsageViewTokenDisplayM,
+		TableDensity:                UsageViewTableDensityComfortable,
+		StatsCardStyle:              UsageViewStatsCardStyleBalanced,
+		ShowMillionContextLines:     usageViewBoolPtr(true),
+		ShowUsageDistributionPanels: false,
+		UserAgentDisplayMode:        UsageViewUserAgentDisplayCompact,
 	}
 }
 

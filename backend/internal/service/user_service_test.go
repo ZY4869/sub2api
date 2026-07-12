@@ -331,11 +331,12 @@ func TestUpdateProfile_UsageViewPreferences_NormalizesAndPersists(t *testing.T) 
 				UserAgentDisplayMode:    UsageViewUserAgentDisplayFull,
 			},
 			User: UsageViewPagePreferences{
-				HiddenColumns:           []string{"cache_hit", "ip_address", " ", "endpoint", "user_agent", "actions"},
-				TokenDisplay:            UsageViewTokenDisplayK,
-				TableDensity:            "bad-density",
-				StatsCardStyle:          "bad-card-style",
-				UserAgentDisplayMode:    "bad-user-agent-mode",
+				HiddenColumns:               []string{"cache_hit", "ip_address", " ", "endpoint", "user_agent", "actions"},
+				TokenDisplay:                UsageViewTokenDisplayK,
+				TableDensity:                "bad-density",
+				StatsCardStyle:              "bad-card-style",
+				ShowUsageDistributionPanels: true,
+				UserAgentDisplayMode:        "bad-user-agent-mode",
 			},
 		},
 	})
@@ -346,6 +347,7 @@ func TestUpdateProfile_UsageViewPreferences_NormalizesAndPersists(t *testing.T) 
 	require.Equal(t, UsageViewStatsCardStyleAccent, updated.UsageViewPreferences.Admin.StatsCardStyle)
 	require.NotNil(t, updated.UsageViewPreferences.Admin.ShowMillionContextLines)
 	require.False(t, *updated.UsageViewPreferences.Admin.ShowMillionContextLines)
+	require.False(t, updated.UsageViewPreferences.Admin.ShowUsageDistributionPanels)
 	require.Equal(t, UsageViewUserAgentDisplayFull, updated.UsageViewPreferences.Admin.UserAgentDisplayMode)
 	require.Equal(t, []string{"cache_hit", "endpoint", "user_agent"}, updated.UsageViewPreferences.User.HiddenColumns)
 	require.Equal(t, UsageViewTokenDisplayK, updated.UsageViewPreferences.User.TokenDisplay)
@@ -353,6 +355,7 @@ func TestUpdateProfile_UsageViewPreferences_NormalizesAndPersists(t *testing.T) 
 	require.Equal(t, UsageViewStatsCardStyleBalanced, updated.UsageViewPreferences.User.StatsCardStyle)
 	require.NotNil(t, updated.UsageViewPreferences.User.ShowMillionContextLines)
 	require.True(t, *updated.UsageViewPreferences.User.ShowMillionContextLines)
+	require.True(t, updated.UsageViewPreferences.User.ShowUsageDistributionPanels)
 	require.Equal(t, UsageViewUserAgentDisplayCompact, updated.UsageViewPreferences.User.UserAgentDisplayMode)
 	require.Equal(t, updated.UsageViewPreferences, user.UsageViewPreferences)
 }
@@ -385,8 +388,10 @@ func TestNormalizeUsageViewPreferences_DefaultsAndAllowedColumns(t *testing.T) {
 	require.Equal(t, UsageViewStatsCardStyleBalanced, normalized.Admin.StatsCardStyle)
 	require.NotNil(t, normalized.Admin.ShowMillionContextLines)
 	require.True(t, *normalized.Admin.ShowMillionContextLines)
+	require.False(t, normalized.Admin.ShowUsageDistributionPanels)
 	require.Equal(t, UsageViewUserAgentDisplayCompact, normalized.Admin.UserAgentDisplayMode)
 	require.Equal(t, []string{"cache_hit", "thinking_enabled"}, normalized.User.HiddenColumns)
+	require.False(t, normalized.User.ShowUsageDistributionPanels)
 }
 
 func TestUpdateProfile_RealtimeCountdownPreferences_PartialUpdate(t *testing.T) {

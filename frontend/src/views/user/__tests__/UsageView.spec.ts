@@ -47,6 +47,7 @@ const authState = vi.hoisted(() => ({
         table_density: "comfortable",
         stats_card_style: "balanced",
         show_million_context_lines: true,
+        show_usage_distribution_panels: false,
         user_agent_display_mode: "compact",
       },
       user: {
@@ -55,6 +56,7 @@ const authState = vi.hoisted(() => ({
         table_density: "comfortable",
         stats_card_style: "balanced",
         show_million_context_lines: true,
+        show_usage_distribution_panels: false,
         user_agent_display_mode: "compact",
       },
     },
@@ -233,6 +235,7 @@ const UsageDisplaySettingsMenuStub = {
     "usageModelDisplayMode",
     "updatingUsageModelDisplayMode",
     "disabled",
+    "showUsageDistributionPanelsToggle",
   ],
   emits: ["update-preference", "update-usage-model-display-mode"],
   template: `
@@ -251,6 +254,13 @@ const UsageDisplaySettingsMenuStub = {
         @click="$emit('update-preference', 'table_density', 'compact')"
       >
         density
+      </button>
+      <button
+        v-if="showUsageDistributionPanelsToggle"
+        data-testid="usage-distribution-toggle"
+        @click="$emit('update-preference', 'show_usage_distribution_panels', !preferences.show_usage_distribution_panels)"
+      >
+        Model/Group charts|{{ preferences.show_usage_distribution_panels ? 'on' : 'off' }}
       </button>
     </div>
   `,
@@ -317,6 +327,9 @@ describe("user UsageView tooltip", () => {
       end_date: "2026-03-07",
     });
     getRequestPreview.mockReset();
+    updateProfile.mockReset();
+    authState.setUsageViewPreferences.mockClear();
+    authState.setCurrentUser.mockClear();
     showError.mockReset();
     showWarning.mockReset();
     showSuccess.mockReset();
@@ -1020,6 +1033,9 @@ describe("user UsageView tooltip", () => {
     const toolbarRow = wrapper.get('[data-testid="usage-filter-toolbar-row"]');
     expect(modelToggles).toHaveLength(1);
     expect(modelToggles[0]?.text()).toContain('usage.modelDisplay');
+    expect(displaySettings.get('[data-testid="usage-distribution-toggle"]').text()).toContain(
+      "Model/Group charts",
+    );
     expect(toolbarRow.text()).toContain('usage.modelDisplay');
   });
 
@@ -1322,7 +1338,7 @@ describe("user UsageView tooltip", () => {
     expect(wrapper.text()).toContain("daily-key");
   });
 
-  it("loads usage analytics with the selected API key and date range", async () => {
+  it("loads core usage analytics with the selected API key and date range", async () => {
     query.mockResolvedValue({
       items: [],
       total: 0,
@@ -1382,9 +1398,91 @@ describe("user UsageView tooltip", () => {
       ...expectedRange,
       granularity: "day",
     });
+    expect(getDashboardEndpoints).toHaveBeenLastCalledWith(expectedRange);
+    expect(getDashboardModels).not.toHaveBeenCalled();
+    expect(getDashboardGroups).not.toHaveBeenCalled();
+  });
+
+  it("lazily loads model and group analytics when distribution panels are enabled", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([
+      { id: 9, name: "analytics-key", deleted: false },
+    ]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
+          UsageModelCell: true,
+          UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const setupState = (wrapper.vm as any).$?.setupState;
+    setupState.filters.api_key_id = 9;
+    setupState.onDateRangeChange({
+      startDate: "2026-03-01",
+      endDate: "2026-03-03",
+      preset: null,
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(getDashboardModels).not.toHaveBeenCalled();
+    expect(getDashboardGroups).not.toHaveBeenCalled();
+
+    const nextPreferences = {
+      ...authState.user.usage_view_preferences,
+      user: {
+        ...authState.user.usage_view_preferences.user,
+        show_usage_distribution_panels: true,
+      },
+    };
+    updateProfile.mockResolvedValueOnce({
+      ...authState.user,
+      usage_view_preferences: nextPreferences,
+    });
+
+    await wrapper.get('[data-testid="usage-distribution-toggle"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    const expectedRange = {
+      start_date: "2026-03-01",
+      end_date: "2026-03-03",
+      api_key_id: 9,
+    };
+    expect(updateProfile).toHaveBeenCalledWith({
+      usage_view_preferences: nextPreferences,
+    });
     expect(getDashboardModels).toHaveBeenLastCalledWith(expectedRange);
     expect(getDashboardGroups).toHaveBeenLastCalledWith(expectedRange);
-    expect(getDashboardEndpoints).toHaveBeenLastCalledWith(expectedRange);
   });
 
   it("does not render the user actions column or request preview entry", async () => {

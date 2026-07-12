@@ -191,6 +191,32 @@ func (u *handlerMixedProbeHTTPUpstream) DoWithTLS(req *http.Request, proxyURL st
 	}
 }
 
+type handlerStatusProbeHTTPUpstream struct {
+	statusCode  int
+	body        string
+	requestURLs []string
+}
+
+func (u *handlerStatusProbeHTTPUpstream) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+	return u.DoWithTLS(req, proxyURL, accountID, accountConcurrency, nil)
+}
+
+func (u *handlerStatusProbeHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *service.TLSFingerprintProfile) (*http.Response, error) {
+	if req != nil && req.URL != nil {
+		u.requestURLs = append(u.requestURLs, req.URL.String())
+	}
+	statusCode := u.statusCode
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+	return &http.Response{
+		StatusCode: statusCode,
+		Header:     make(http.Header),
+		Body:       ioNopCloser(u.body),
+		Request:    req,
+	}, nil
+}
+
 func TestProbeProtocolGatewayModels_MixedReturnsSourceProtocolAndRegistryState(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	adminSvc := newStubAdminService()
@@ -311,6 +337,97 @@ func TestProbeModels_InvalidBaseURLDoesNotRequestUpstream(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "ACCOUNT_INVALID_BASE_URL")
 	require.Empty(t, upstream.requestURLs)
+}
+
+func TestProbeModels_UpstreamUnauthorizedReturnsBusinessError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+
+	upstream := &handlerStatusProbeHTTPUpstream{
+		statusCode: http.StatusUnauthorized,
+		body:       `{"error":"invalid_api_key"}`,
+	}
+	importSvc := service.NewAccountModelImportService(nil, nil, upstream, nil)
+
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler.SetAccountModelImportService(importSvc)
+
+	router := gin.New()
+	router.POST("/api/v1/admin/accounts/probe-models", handler.ProbeModels)
+
+	body, err := json.Marshal(map[string]any{
+		"platform": service.PlatformOpenAI,
+		"type":     service.AccountTypeAPIKey,
+		"credentials": map[string]any{
+			"api_key":  "openai-key",
+			"base_url": "https://example.test",
+		},
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/probe-models", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.NotEmpty(t, upstream.requestURLs)
+
+	var resp struct {
+		Code     int               `json:"code"`
+		Reason   string            `json:"reason"`
+		Metadata map[string]string `json:"metadata"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, http.StatusBadRequest, resp.Code)
+	require.Equal(t, "MODEL_IMPORT_UPSTREAM_UNAUTHORIZED", resp.Reason)
+	require.Equal(t, "401", resp.Metadata["upstream_status"])
+	require.Equal(t, "unauthorized", resp.Metadata["reason_kind"])
+	require.Equal(t, "unauthorized", resp.Metadata["hint_key"])
+}
+
+func TestProbeProtocolGatewayModels_UpstreamUnauthorizedReturnsBusinessError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+
+	upstream := &handlerStatusProbeHTTPUpstream{
+		statusCode: http.StatusUnauthorized,
+		body:       `{"error":"invalid_api_key"}`,
+	}
+	importSvc := service.NewAccountModelImportService(nil, nil, upstream, nil)
+
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler.SetAccountModelImportService(importSvc)
+
+	router := gin.New()
+	router.POST("/api/v1/admin/accounts/protocol-gateway/probe-models", handler.ProbeProtocolGatewayModels)
+
+	body, err := json.Marshal(map[string]any{
+		"gateway_protocol": "openai",
+		"base_url":         "https://gateway.example.test",
+		"api_key":          "gateway-key",
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/protocol-gateway/probe-models", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.NotEmpty(t, upstream.requestURLs)
+
+	var resp struct {
+		Code     int               `json:"code"`
+		Reason   string            `json:"reason"`
+		Metadata map[string]string `json:"metadata"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, http.StatusBadRequest, resp.Code)
+	require.Equal(t, "MODEL_IMPORT_UPSTREAM_UNAUTHORIZED", resp.Reason)
+	require.Equal(t, "401", resp.Metadata["upstream_status"])
+	require.Equal(t, "unauthorized", resp.Metadata["reason_kind"])
+	require.Equal(t, "unauthorized", resp.Metadata["hint_key"])
 }
 
 func TestProbeProtocolGatewayModels_InvalidBaseURLDoesNotRequestUpstream(t *testing.T) {

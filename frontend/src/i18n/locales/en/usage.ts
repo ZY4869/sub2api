@@ -169,6 +169,7 @@ export default {
     statsCardStyleBalanced: "Balanced",
     statsCardStyleAccent: "Accent",
     showMillionContextLines: "1M Details",
+    modelGroupCharts: "Model/Group charts",
     userAgentDisplay: "User-Agent",
     userAgentDisplayCompact: "Compact",
     userAgentDisplayFull: "Full",

@@ -51,7 +51,7 @@ func newAccountModelImportUpstreamStatusErrorForAccount(
 	metadata := classifyAccountModelImportUpstreamMetadata(provider, accountModelImportAuthMode(account), statusCode, headers, body)
 	switch statusCode {
 	case http.StatusUnauthorized:
-		return infraerrors.Unauthorized("MODEL_IMPORT_UPSTREAM_UNAUTHORIZED", message).WithMetadata(metadata)
+		return infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_UNAUTHORIZED", message).WithMetadata(metadata)
 	case http.StatusForbidden:
 		return infraerrors.Forbidden("MODEL_IMPORT_UPSTREAM_FORBIDDEN", message).WithMetadata(metadata)
 	case http.StatusTooManyRequests:

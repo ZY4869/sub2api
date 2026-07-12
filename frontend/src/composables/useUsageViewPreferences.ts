@@ -23,6 +23,7 @@ const defaultPagePreferences = (page: UsageViewPage): UsageViewPagePreferences =
   table_density: "comfortable",
   stats_card_style: "balanced",
   show_million_context_lines: true,
+  show_usage_distribution_panels: false,
   user_agent_display_mode: "compact",
 });
 
@@ -85,6 +86,10 @@ function normalizePagePreferences(
       typeof input?.show_million_context_lines === "boolean"
         ? input.show_million_context_lines
         : defaults.show_million_context_lines,
+    show_usage_distribution_panels:
+      typeof input?.show_usage_distribution_panels === "boolean"
+        ? input.show_usage_distribution_panels
+        : defaults.show_usage_distribution_panels,
     user_agent_display_mode:
       input?.user_agent_display_mode === "full" ||
       input?.user_agent_display_mode === "compact"

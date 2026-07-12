@@ -41,6 +41,35 @@ function onTokenRefreshed(token: string): void {
   refreshSubscribers = []
 }
 
+const MODEL_IMPORT_UPSTREAM_UNAUTHORIZED = 'MODEL_IMPORT_UPSTREAM_UNAUTHORIZED'
+
+function normalizeResponseMetadata(apiData: Record<string, any>): Record<string, string> | undefined {
+  return typeof apiData.metadata === 'object' && apiData.metadata !== null
+    ? apiData.metadata as Record<string, string>
+    : undefined
+}
+
+function buildStructuredApiError(
+  status: number,
+  apiData: Record<string, any>,
+  fallbackMessage: string
+) {
+  return {
+    status,
+    code: apiData.code,
+    error: apiData.error,
+    message: apiData.message || apiData.detail || fallbackMessage,
+    reason: typeof apiData.reason === 'string' ? apiData.reason : undefined,
+    metadata: normalizeResponseMetadata(apiData)
+  }
+}
+
+function isModelImportUpstreamUnauthorized(apiData: Record<string, any>): boolean {
+  return apiData.reason === MODEL_IMPORT_UPSTREAM_UNAUTHORIZED ||
+    apiData.error === MODEL_IMPORT_UPSTREAM_UNAUTHORIZED ||
+    apiData.code === MODEL_IMPORT_UPSTREAM_UNAUTHORIZED
+}
+
 // ==================== Request Interceptor ====================
 
 // Get user's timezone
@@ -122,6 +151,7 @@ apiClient.interceptors.response.use(
 
       // Validate `data` shape to avoid HTML error pages breaking our error handling.
       const apiData = (typeof data === 'object' && data !== null ? data : {}) as Record<string, any>
+      const structuredError = buildStructuredApiError(status, apiData, error.message)
 
       // Ops monitoring disabled: treat as feature-flagged 404, and proactively redirect away
       // from ops pages to avoid broken UI states.
@@ -151,6 +181,10 @@ apiClient.interceptors.response.use(
 
       // 401: Try to refresh the token if we have a refresh token
       // This handles TOKEN_EXPIRED, INVALID_TOKEN, TOKEN_REVOKED, etc.
+      if (status === 401 && isModelImportUpstreamUnauthorized(apiData)) {
+        return Promise.reject(structuredError)
+      }
+
       if (status === 401 && !originalRequest._retry) {
         const refreshToken = localStorage.getItem('refresh_token')
         const isAuthEndpoint =
@@ -171,15 +205,7 @@ apiClient.interceptors.response.use(
                   resolve(apiClient(originalRequest))
                 } else {
                   // Refresh failed, reject with original error
-                  reject({
-                    status,
-                    code: apiData.code,
-                    message: apiData.message || apiData.detail || error.message,
-                    reason: typeof apiData.reason === 'string' ? apiData.reason : undefined,
-                    metadata: typeof apiData.metadata === 'object' && apiData.metadata !== null
-                      ? apiData.metadata as Record<string, string>
-                      : undefined
-                  })
+                  reject(structuredError)
                 }
               })
             })
@@ -273,16 +299,7 @@ apiClient.interceptors.response.use(
       }
 
       // Return structured error
-      return Promise.reject({
-        status,
-        code: apiData.code,
-        error: apiData.error,
-        message: apiData.message || apiData.detail || error.message,
-        reason: typeof apiData.reason === 'string' ? apiData.reason : undefined,
-        metadata: typeof apiData.metadata === 'object' && apiData.metadata !== null
-          ? apiData.metadata as Record<string, string>
-          : undefined
-      })
+      return Promise.reject(structuredError)
     }
 
     // Network error

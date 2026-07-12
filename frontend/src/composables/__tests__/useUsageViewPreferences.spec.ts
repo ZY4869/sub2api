@@ -67,6 +67,7 @@ const defaultPreferences = (): UsageViewPreferences => ({
       table_density: "comfortable",
       stats_card_style: "balanced",
       show_million_context_lines: true,
+      show_usage_distribution_panels: false,
       user_agent_display_mode: "compact",
     },
     user: {
@@ -75,6 +76,7 @@ const defaultPreferences = (): UsageViewPreferences => ({
       table_density: "comfortable",
       stats_card_style: "balanced",
       show_million_context_lines: true,
+      show_usage_distribution_panels: false,
       user_agent_display_mode: "compact",
     },
   });
@@ -94,6 +96,7 @@ function mountHarness(page: "admin" | "user") {
         <span data-test="token-mode">{{ pagePreferences.token_display_mode }}</span>
         <span data-test="density">{{ pagePreferences.table_density }}</span>
         <span data-test="style">{{ pagePreferences.stats_card_style }}</span>
+        <span data-test="distribution">{{ pagePreferences.show_usage_distribution_panels }}</span>
         <span data-test="hidden">{{ hiddenColumns }}</span>
       </div>
     `,
@@ -123,6 +126,7 @@ describe("useUsageViewPreferences", () => {
           table_density: "comfortable",
           stats_card_style: "balanced",
           show_million_context_lines: true,
+          show_usage_distribution_panels: false,
           user_agent_display_mode: "compact",
         },
         user: {
@@ -131,6 +135,7 @@ describe("useUsageViewPreferences", () => {
           table_density: "compact",
           stats_card_style: "accent",
           show_million_context_lines: false,
+          show_usage_distribution_panels: true,
           user_agent_display_mode: "full",
         },
       },
@@ -145,6 +150,8 @@ describe("useUsageViewPreferences", () => {
     expect(user.wrapper.get('[data-test="token-mode"]').text()).toBe("k");
     expect(user.wrapper.get('[data-test="density"]').text()).toBe("compact");
     expect(user.wrapper.get('[data-test="style"]').text()).toBe("accent");
+    expect(admin.wrapper.get('[data-test="distribution"]').text()).toBe("false");
+    expect(user.wrapper.get('[data-test="distribution"]').text()).toBe("true");
   });
 
   it("falls back to the local token display preference before profile preferences exist", () => {
@@ -155,6 +162,7 @@ describe("useUsageViewPreferences", () => {
 
     expect(wrapper.get('[data-test="token-mode"]').text()).toBe("m");
     expect(wrapper.get('[data-test="hidden"]').text()).toBe("");
+    expect(wrapper.get('[data-test="distribution"]').text()).toBe("false");
   });
 
   it("maps legacy profile token display values into the new fixed-unit modes", () => {
@@ -180,6 +188,7 @@ describe("useUsageViewPreferences", () => {
 
     expect(admin.wrapper.get('[data-test="token-mode"]').text()).toBe("natural");
     expect(user.wrapper.get('[data-test="token-mode"]').text()).toBe("m");
+    expect(user.wrapper.get('[data-test="distribution"]').text()).toBe("false");
   });
 
   it("optimistically saves page preferences without changing the other page", async () => {
@@ -191,6 +200,7 @@ describe("useUsageViewPreferences", () => {
         token_display_mode: "k" as const,
         table_density: "compact" as const,
         show_million_context_lines: false,
+        show_usage_distribution_panels: true,
         user_agent_display_mode: "full" as const,
       },
     };
@@ -202,6 +212,7 @@ describe("useUsageViewPreferences", () => {
       token_display_mode: "k",
       table_density: "compact",
       show_million_context_lines: false,
+      show_usage_distribution_panels: true,
       user_agent_display_mode: "full",
     });
 
@@ -215,6 +226,7 @@ describe("useUsageViewPreferences", () => {
     expect(testState.tokenDisplay.setTokenDisplayMode).toHaveBeenLastCalledWith("k");
     expect(testState.auth.user?.usage_view_preferences?.user.hidden_columns).toEqual([]);
     expect(testState.auth.user?.usage_view_preferences?.admin.show_million_context_lines).toBe(false);
+    expect(testState.auth.user?.usage_view_preferences?.admin.show_usage_distribution_panels).toBe(true);
     expect(testState.auth.user?.usage_view_preferences?.admin.user_agent_display_mode).toBe("full");
   });
 

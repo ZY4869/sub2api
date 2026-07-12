@@ -16,6 +16,9 @@ vi.mock('vue-i18n', async () => {
         if (key === 'admin.accounts.modelImportErrorHints.openai_api_model_read') {
           return 'OpenAI model list permission hint'
         }
+        if (key === 'admin.accounts.modelImportErrorHints.unauthorized') {
+          return 'Upstream credential repair hint'
+        }
         return key
       }
     })
@@ -300,6 +303,33 @@ describe('AccountApiKeyModelProbeEditor', () => {
 
     expect(showError).toHaveBeenCalledWith(
       'upstream model listing failed with status 403\nOpenAI model list permission hint'
+    )
+  })
+
+  it('shows structured upstream unauthorized repair guidance from backend metadata', async () => {
+    probeModels.mockRejectedValue({
+      message: 'upstream model listing failed with status 401',
+      reason: 'MODEL_IMPORT_UPSTREAM_UNAUTHORIZED',
+      metadata: {
+        hint_key: 'unauthorized',
+        upstream_status: '401'
+      }
+    })
+
+    const wrapper = createWrapper({
+      platform: 'anthropic',
+      credentials: {
+        api_key: 'sk-ant-test',
+        base_url: 'https://third-party.example.com'
+      }
+    })
+    const probeButton = findProbeButton(wrapper)
+
+    await probeButton?.trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith(
+      'upstream model listing failed with status 401\nUpstream credential repair hint'
     )
   })
 
