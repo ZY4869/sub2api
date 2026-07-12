@@ -113,6 +113,7 @@ func (s *ImageBatchService) Submit(ctx context.Context, apiKey *APIKey, req Imag
 	if err := s.repo.CreateJob(ctx, job, items); err != nil {
 		return nil, err
 	}
+	recordImageBatchSubmitted()
 	_ = s.repo.AddEvent(ctx, job.ID, nil, "submitted", "", string(ImageBatchJobCreated), "", requestIDFromContext(ctx), nil)
 	return ImageBatchJobToResponse(job), nil
 }

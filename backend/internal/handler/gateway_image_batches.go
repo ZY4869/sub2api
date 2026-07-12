@@ -230,17 +230,18 @@ func (h *GatewayHandler) imageBatchError(c *gin.Context, err error) {
 	if code == "" {
 		code = "IMAGE_BATCH_ERROR"
 	}
+	errorPayload := gin.H{
+		"type":    imageBatchErrorType(status),
+		"message": message,
+		"code":    code,
+	}
 	payload := gin.H{
-		"type": "error",
-		"error": gin.H{
-			"type":    imageBatchErrorType(status),
-			"message": message,
-			"code":    code,
-		},
+		"type":  "error",
+		"error": errorPayload,
 	}
 	if status >= http.StatusInternalServerError || errors.Is(err, service.ErrIdempotencyStoreUnavail) {
 		errorID := service.GenerateSafeRequestID()
-		payload["error"].(gin.H)["error_id"] = errorID
+		errorPayload["error_id"] = errorID
 		payload["metadata"] = gin.H{"error_id": errorID}
 	}
 	c.JSON(status, payload)

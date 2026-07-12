@@ -21,7 +21,10 @@ func enforceCodexIdentityHeaders(ctx context.Context, headers http.Header, accou
 	}
 	originator := openai.SanitizeCodexOriginator(headers.Get("originator"))
 	if paired := openai.CodexOriginatorForUserAgent(userAgent); paired != "" {
-		originator = paired
+		preserveOfficialOriginator := userAgent == codexCLIUserAgent && originator != "" && originator != "codex_cli_rs" && openai.IsCodexOfficialClientOriginator(originator)
+		if !preserveOfficialOriginator {
+			originator = paired
+		}
 	}
 	if originator == "" {
 		originator = "codex_cli_rs"

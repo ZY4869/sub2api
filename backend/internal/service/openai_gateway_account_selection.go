@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"log/slog"
@@ -134,6 +135,9 @@ func canonicalOpenAIResponsesInputSessionSeed(body []byte) string {
 func resolveOpenAIUpstreamOriginator(c *gin.Context, isOfficialClient bool) string {
 	if c != nil {
 		if originator := strings.TrimSpace(c.GetHeader("originator")); originator != "" {
+			if paired := openai.CodexOriginatorForUserAgent(c.GetHeader("User-Agent")); paired != "" && originator == "codex_cli_rs" {
+				return paired
+			}
 			return originator
 		}
 	}

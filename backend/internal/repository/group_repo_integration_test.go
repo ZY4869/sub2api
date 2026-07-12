@@ -90,6 +90,7 @@ func (s *GroupRepoSuite) TestGetByIDLite_DoesNotUseAccountCount() {
 	got, err := repo.GetByIDLite(s.ctx, group.ID)
 	s.Require().NoError(err)
 	s.Require().Equal(group.ID, got.ID)
+	s.Require().Equal(service.DefaultImageBatchMaxItems, got.ImageBatchMaxItems)
 	s.Require().False(spy.called, "expected no direct sql executor usage")
 }
 

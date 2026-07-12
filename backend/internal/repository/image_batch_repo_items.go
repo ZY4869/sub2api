@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -163,9 +162,4 @@ func imageBatchOutputSelectSQL() string {
 			o.content, o.size_bytes, o.sha256, o.metadata::text, o.created_at
 		FROM image_batch_outputs o
 	`
-}
-
-func jsonText(value map[string]any) string {
-	raw, _ := json.Marshal(nonNilMap(value))
-	return string(raw)
 }
