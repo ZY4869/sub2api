@@ -22,6 +22,7 @@ describe("UsageAnalyticsPanel", () => {
         endpointLoading: false,
         showUsageDistributionPanels: true,
         showEndpointDistributionPanel: true,
+        showTokenUsageTrend: true,
         startDate: "2026-03-01",
         endDate: "2026-03-03",
       },
@@ -142,6 +143,7 @@ describe("UsageAnalyticsPanel", () => {
         upstreamEndpointStats: [],
         showUsageDistributionPanels: false,
         showEndpointDistributionPanel: true,
+        showTokenUsageTrend: true,
         startDate: "2026-03-01",
         endDate: "2026-03-03",
       },
@@ -179,6 +181,7 @@ describe("UsageAnalyticsPanel", () => {
         upstreamEndpointStats: [],
         showUsageDistributionPanels: false,
         showEndpointDistributionPanel: false,
+        showTokenUsageTrend: true,
         startDate: "2026-03-01",
         endDate: "2026-03-03",
       },
@@ -202,5 +205,32 @@ describe("UsageAnalyticsPanel", () => {
 
     expect(wrapper.find('[data-testid="endpoint-chart"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="token-trend"]').exists()).toBe(true);
+  });
+
+  it("hides the token trend without leaving an empty analytics grid", () => {
+    const wrapper = mount(UsageAnalyticsPanel, {
+      props: {
+        trendData: [{ date: "2026-03-01", total_tokens: 120 }],
+        modelStats: [],
+        groupStats: [],
+        endpointStats: [],
+        upstreamEndpointStats: [],
+        showUsageDistributionPanels: false,
+        showEndpointDistributionPanel: false,
+        showTokenUsageTrend: false,
+        startDate: "2026-03-01",
+        endDate: "2026-03-03",
+      },
+      global: {
+        stubs: {
+          TokenUsageTrend: {
+            template: '<div data-testid="token-trend" />',
+          },
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-testid="token-trend"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="usage-endpoint-trend-grid"]').exists()).toBe(false);
   });
 });

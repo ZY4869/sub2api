@@ -22,8 +22,10 @@
       />
     </div>
     <div
+      v-if="showEndpointDistributionPanel || showTokenUsageTrend"
+      data-testid="usage-endpoint-trend-grid"
       class="grid grid-cols-1 gap-6"
-      :class="showEndpointDistributionPanel ? 'xl:grid-cols-2' : 'xl:grid-cols-1'"
+      :class="showEndpointDistributionPanel && showTokenUsageTrend ? 'xl:grid-cols-2' : 'xl:grid-cols-1'"
     >
       <EndpointDistributionChart
         v-if="showEndpointDistributionPanel"
@@ -39,7 +41,11 @@
         :start-date="startDate"
         :end-date="endDate"
       />
-      <TokenUsageTrend :trend-data="trendData" :loading="trendLoading" />
+      <TokenUsageTrend
+        v-if="showTokenUsageTrend"
+        :trend-data="trendData"
+        :loading="trendLoading"
+      />
     </div>
   </section>
 </template>
@@ -67,6 +73,7 @@ defineProps<{
   endpointLoading?: boolean;
   showUsageDistributionPanels?: boolean;
   showEndpointDistributionPanel?: boolean;
+  showTokenUsageTrend?: boolean;
   startDate: string;
   endDate: string;
 }>();

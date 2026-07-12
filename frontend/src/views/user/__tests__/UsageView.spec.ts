@@ -45,6 +45,7 @@ const defaultUsageViewPreferences = () => ({
     table_density: "comfortable" as const,
     stats_card_style: "balanced" as const,
     show_million_context_lines: true,
+    show_token_usage_trend: false,
     show_usage_distribution_panels: false,
     show_endpoint_distribution_panel: false,
     show_failed_requests_panel: false,
@@ -56,6 +57,7 @@ const defaultUsageViewPreferences = () => ({
     table_density: "comfortable" as const,
     stats_card_style: "balanced" as const,
     show_million_context_lines: true,
+    show_token_usage_trend: false,
     show_usage_distribution_panels: false,
     show_endpoint_distribution_panel: false,
     show_failed_requests_panel: false,
@@ -73,6 +75,7 @@ const authState = vi.hoisted(() => {
           table_density: "comfortable",
           stats_card_style: "balanced",
           show_million_context_lines: true,
+          show_token_usage_trend: false,
           show_usage_distribution_panels: false,
           show_endpoint_distribution_panel: false,
           show_failed_requests_panel: false,
@@ -84,6 +87,7 @@ const authState = vi.hoisted(() => {
           table_density: "comfortable",
           stats_card_style: "balanced",
           show_million_context_lines: true,
+          show_token_usage_trend: false,
           show_usage_distribution_panels: false,
           show_endpoint_distribution_panel: false,
           show_failed_requests_panel: false,
@@ -274,6 +278,7 @@ const UsageDisplaySettingsMenuStub = {
     "usageModelDisplayMode",
     "updatingUsageModelDisplayMode",
     "disabled",
+    "showTokenUsageTrendToggle",
     "showUsageDistributionPanelsToggle",
     "showEndpointDistributionPanelToggle",
     "showFailedRequestsPanelToggle",
@@ -302,6 +307,13 @@ const UsageDisplaySettingsMenuStub = {
         @click="$emit('update-preference', 'show_usage_distribution_panels', !preferences.show_usage_distribution_panels)"
       >
         Model/Group charts|{{ preferences.show_usage_distribution_panels ? 'on' : 'off' }}
+      </button>
+      <button
+        v-if="showTokenUsageTrendToggle"
+        data-testid="usage-token-trend-toggle"
+        @click="$emit('update-preference', 'show_token_usage_trend', !preferences.show_token_usage_trend)"
+      >
+        Token usage trend|{{ preferences.show_token_usage_trend ? 'on' : 'off' }}
       </button>
       <button
         v-if="showEndpointDistributionPanelToggle"
@@ -1091,6 +1103,9 @@ describe("user UsageView tooltip", () => {
     expect(modelToggles[0]?.text()).toContain('usage.modelDisplay');
     expect(displaySettings.get('[data-testid="usage-distribution-toggle"]').text()).toContain(
       "Model/Group charts",
+    );
+    expect(displaySettings.get('[data-testid="usage-token-trend-toggle"]').text()).toContain(
+      "Token usage trend",
     );
     expect(displaySettings.get('[data-testid="usage-endpoint-panel-toggle"]').text()).toContain(
       "Endpoint chart",

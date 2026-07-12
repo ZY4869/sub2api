@@ -23,6 +23,7 @@ const defaultPagePreferences = (page: UsageViewPage): UsageViewPagePreferences =
   table_density: "comfortable",
   stats_card_style: "balanced",
   show_million_context_lines: true,
+  show_token_usage_trend: false,
   show_usage_distribution_panels: false,
   show_endpoint_distribution_panel: false,
   show_failed_requests_panel: false,
@@ -88,6 +89,10 @@ function normalizePagePreferences(
       typeof input?.show_million_context_lines === "boolean"
         ? input.show_million_context_lines
         : defaults.show_million_context_lines,
+    show_token_usage_trend:
+      typeof input?.show_token_usage_trend === "boolean"
+        ? input.show_token_usage_trend
+        : defaults.show_token_usage_trend,
     show_usage_distribution_panels:
       typeof input?.show_usage_distribution_panels === "boolean"
         ? input.show_usage_distribution_panels

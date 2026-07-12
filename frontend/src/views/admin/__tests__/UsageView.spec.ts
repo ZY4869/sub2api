@@ -40,6 +40,7 @@ const authState = vi.hoisted(() => ({
         table_density: "comfortable",
         stats_card_style: "balanced",
         show_million_context_lines: true,
+        show_token_usage_trend: false,
         show_usage_distribution_panels: false,
         show_endpoint_distribution_panel: false,
         show_failed_requests_panel: false,
@@ -51,6 +52,7 @@ const authState = vi.hoisted(() => ({
         table_density: "comfortable",
         stats_card_style: "balanced",
         show_million_context_lines: true,
+        show_token_usage_trend: false,
         show_usage_distribution_panels: false,
         show_endpoint_distribution_panel: false,
         show_failed_requests_panel: false,
@@ -234,6 +236,7 @@ const UsageDisplaySettingsMenuStub = {
     "usageModelDisplayMode",
     "updatingUsageModelDisplayMode",
     "disabled",
+    "showTokenUsageTrendToggle",
   ],
   emits: ["update-preference", "update-usage-model-display-mode"],
   template: `
@@ -252,6 +255,13 @@ const UsageDisplaySettingsMenuStub = {
         @click="$emit('update-preference', 'table_density', 'compact')"
       >
         density
+      </button>
+      <button
+        v-if="showTokenUsageTrendToggle"
+        data-test="usage-token-trend-toggle"
+        @click="$emit('update-preference', 'show_token_usage_trend', !preferences.show_token_usage_trend)"
+      >
+        trend|{{ preferences.show_token_usage_trend ? 'on' : 'off' }}
       </button>
     </div>
   `,
@@ -310,7 +320,9 @@ function mountUsageView(extraStubs: Record<string, unknown> = {}) {
         TokenDisplayModeToggle: true,
         UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
         UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
-        TokenUsageTrend: true,
+        TokenUsageTrend: {
+          template: '<div data-test="token-usage-trend" />',
+        },
         UsageModelDisplayModeToggle: UsageModelDisplayModeToggleStub,
         UsageContextBadgeDisplayModeToggle:
           UsageContextBadgeDisplayModeToggleStub,
@@ -336,6 +348,7 @@ describe("admin UsageView distribution metric toggles", () => {
     routeState.replace.mockReset();
     authState.isAdmin = true;
     authState.canReviewRequestDetails = true;
+    authState.user.usage_view_preferences.admin.show_token_usage_trend = false;
     usageModelDisplayModeState.usageModelDisplayMode = "display_and_model";
     usageModelDisplayModeState.updatingUsageModelDisplayMode = false;
     usageModelDisplayModeState.setUsageModelDisplayMode.mockReset();
@@ -425,6 +438,9 @@ describe("admin UsageView distribution metric toggles", () => {
       "display_and_model",
     );
     expect(wrapper.findAll('[data-test="usage-model-display-toggle"]')).toHaveLength(1);
+    expect(displaySettings.get('[data-test="usage-token-trend-toggle"]').text()).toContain(
+      "trend|off",
+    );
     expect(wrapper.get('[data-test="usage-table-display-mode"]').text()).toBe(
       "display_and_model",
     );
@@ -436,6 +452,30 @@ describe("admin UsageView distribution metric toggles", () => {
     expect(
       usageModelDisplayModeState.setUsageModelDisplayMode,
     ).toHaveBeenCalledWith("model_only");
+  });
+
+  it("hides the token trend by default while still requesting trend data", async () => {
+    const wrapper = mountUsageView();
+
+    vi.advanceTimersByTime(120);
+    await flushPromises();
+    await wrapper.get('[data-test="admin-usage-tab-leaderboard"]').trigger("click");
+
+    expect(wrapper.find('[data-test="token-usage-trend"]').exists()).toBe(false);
+    expect(getSnapshotV2).toHaveBeenCalledWith(
+      expect.objectContaining({ include_trend: true }),
+    );
+  });
+
+  it("shows the token trend when the persisted admin preference is enabled", async () => {
+    authState.user.usage_view_preferences.admin.show_token_usage_trend = true;
+    const wrapper = mountUsageView();
+
+    vi.advanceTimersByTime(120);
+    await flushPromises();
+    await wrapper.get('[data-test="admin-usage-tab-leaderboard"]').trigger("click");
+
+    expect(wrapper.find('[data-test="token-usage-trend"]').exists()).toBe(true);
   });
 
   it("keeps thinking mode and reasoning effort visible by default", async () => {

@@ -49,6 +49,12 @@
             @update:model-value="updatePreference('show_million_context_lines', $event)"
           />
           <ToggleControl
+            v-if="showTokenUsageTrendToggle"
+            :label="t('usage.tokenUsageTrend')"
+            :model-value="preferences.show_token_usage_trend"
+            @update:model-value="updatePreference('show_token_usage_trend', $event)"
+          />
+          <ToggleControl
             v-if="showUsageDistributionPanelsToggle"
             :label="t('usage.modelGroupCharts')"
             :model-value="preferences.show_usage_distribution_panels"
@@ -91,6 +97,7 @@ defineProps<{
   usageModelDisplayMode: UsageModelDisplayMode;
   updatingUsageModelDisplayMode: boolean;
   disabled?: boolean;
+  showTokenUsageTrendToggle?: boolean;
   showUsageDistributionPanelsToggle?: boolean;
   showEndpointDistributionPanelToggle?: boolean;
   showFailedRequestsPanelToggle?: boolean;

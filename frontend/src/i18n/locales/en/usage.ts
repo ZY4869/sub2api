@@ -169,6 +169,7 @@ export default {
     statsCardStyleBalanced: "Balanced",
     statsCardStyleAccent: "Accent",
     showMillionContextLines: "1M Details",
+    tokenUsageTrend: "Token Usage Trend",
     modelGroupCharts: "Model/Group charts",
     endpointDistributionPanel: "Endpoint chart",
     failedRequestsPanel: "Recent failed requests",

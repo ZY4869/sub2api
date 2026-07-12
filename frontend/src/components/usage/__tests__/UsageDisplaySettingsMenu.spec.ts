@@ -20,6 +20,7 @@ const messages: Record<string, string> = {
   "usage.statsCardStyleBalanced": "Balanced",
   "usage.statsCardStyleAccent": "Accent",
   "usage.showMillionContextLines": "1M details",
+  "usage.tokenUsageTrend": "Token usage trend",
   "usage.modelGroupCharts": "Model/Group charts",
   "usage.endpointDistributionPanel": "Endpoint chart",
   "usage.failedRequestsPanel": "Recent failed requests",
@@ -68,6 +69,7 @@ function mountMenu(overrides: Record<string, unknown> = {}) {
         table_density: "comfortable",
         stats_card_style: "balanced",
         show_million_context_lines: true,
+        show_token_usage_trend: false,
         show_usage_distribution_panels: false,
         show_endpoint_distribution_panel: false,
         show_failed_requests_panel: false,
@@ -75,6 +77,7 @@ function mountMenu(overrides: Record<string, unknown> = {}) {
       },
       usageModelDisplayMode: "model_only",
       updatingUsageModelDisplayMode: false,
+      showTokenUsageTrendToggle: true,
       showUsageDistributionPanelsToggle: true,
       showEndpointDistributionPanelToggle: true,
       showFailedRequestsPanelToggle: true,
@@ -102,6 +105,7 @@ describe("UsageDisplaySettingsMenu", () => {
     expect(wrapper.text()).toContain("Density");
     expect(wrapper.text()).toContain("Stats cards");
     expect(wrapper.text()).toContain("1M details");
+    expect(wrapper.text()).toContain("Token usage trend");
     expect(wrapper.text()).toContain("Model/Group charts");
     expect(wrapper.text()).toContain("Endpoint chart");
     expect(wrapper.text()).toContain("Recent failed requests");
@@ -161,6 +165,10 @@ describe("UsageDisplaySettingsMenu", () => {
     expect(wrapper.emitted("update-preference")).toContainEqual([
       "show_million_context_lines",
       false,
+    ]);
+    expect(wrapper.emitted("update-preference")).toContainEqual([
+      "show_token_usage_trend",
+      true,
     ]);
     expect(wrapper.emitted("toggle-column")).toBeUndefined();
   });

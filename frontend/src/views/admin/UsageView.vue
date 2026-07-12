@@ -100,7 +100,11 @@
               :request-type="filters.request_type"
             />
           </div>
-          <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
+          <TokenUsageTrend
+            v-if="pagePreferences.show_token_usage_trend"
+            :trend-data="trendData"
+            :loading="chartsLoading"
+          />
         </div>
 
         <template v-else>
@@ -122,6 +126,7 @@
                   :usage-model-display-mode="usageModelDisplayMode"
                   :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
                   :disabled="updatingUsageViewPreferences"
+                  :show-token-usage-trend-toggle="true"
                   @update-preference="handleUsageViewPreferenceChange"
                   @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
                 />

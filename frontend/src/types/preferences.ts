@@ -36,6 +36,7 @@ export interface UsageViewPagePreferences {
   table_density: UsageViewTableDensity;
   stats_card_style: UsageViewStatsCardStyle;
   show_million_context_lines: boolean;
+  show_token_usage_trend: boolean;
   show_usage_distribution_panels: boolean;
   show_endpoint_distribution_panel: boolean;
   show_failed_requests_panel: boolean;

@@ -31,6 +31,7 @@ type UsageViewPagePreferences struct {
 	TableDensity                string   `json:"table_density"`
 	StatsCardStyle              string   `json:"stats_card_style"`
 	ShowMillionContextLines     *bool    `json:"show_million_context_lines"`
+	ShowTokenUsageTrend         bool     `json:"show_token_usage_trend"`
 	ShowUsageDistributionPanels bool     `json:"show_usage_distribution_panels"`
 	ShowEndpointDistribution    bool     `json:"show_endpoint_distribution_panel"`
 	ShowFailedRequestsPanel     bool     `json:"show_failed_requests_panel"`
@@ -84,6 +85,7 @@ func NormalizeUsageViewPagePreferences(page string, input UsageViewPagePreferenc
 		TableDensity:                normalizeUsageViewTableDensity(input.TableDensity, defaults.TableDensity),
 		StatsCardStyle:              normalizeUsageViewStatsCardStyle(input.StatsCardStyle, defaults.StatsCardStyle),
 		ShowMillionContextLines:     normalizeUsageViewBool(input.ShowMillionContextLines, defaults.ShowMillionContextLines),
+		ShowTokenUsageTrend:         input.ShowTokenUsageTrend,
 		ShowUsageDistributionPanels: input.ShowUsageDistributionPanels,
 		ShowEndpointDistribution:    input.ShowEndpointDistribution,
 		ShowFailedRequestsPanel:     input.ShowFailedRequestsPanel,
@@ -102,6 +104,7 @@ func defaultUsageViewPagePreferences(page string) UsageViewPagePreferences {
 		TableDensity:                UsageViewTableDensityComfortable,
 		StatsCardStyle:              UsageViewStatsCardStyleBalanced,
 		ShowMillionContextLines:     usageViewBoolPtr(true),
+		ShowTokenUsageTrend:         false,
 		ShowUsageDistributionPanels: false,
 		ShowEndpointDistribution:    false,
 		ShowFailedRequestsPanel:     false,

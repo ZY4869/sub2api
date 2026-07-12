@@ -173,6 +173,7 @@ export default {
     statsCardStyleBalanced: "均衡",
     statsCardStyleAccent: "强调",
     showMillionContextLines: "1M 明细",
+    tokenUsageTrend: "Token 使用趋势",
     modelGroupCharts: "模型/分组分布",
     endpointDistributionPanel: "端点分布",
     failedRequestsPanel: "最近失败请求",
