@@ -174,6 +174,8 @@ export default {
     statsCardStyleAccent: "强调",
     showMillionContextLines: "1M 明细",
     modelGroupCharts: "模型/分组分布",
+    endpointDistributionPanel: "端点分布",
+    failedRequestsPanel: "最近失败请求",
     userAgentDisplay: "User-Agent",
     userAgentDisplayCompact: "简略",
     userAgentDisplayFull: "完整",

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const expectedReleaseVersion = "0.1.382"
+const expectedReleaseVersion = "0.1.383"
 
 func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	root := repositoryTestRepoRoot(t)

@@ -170,6 +170,8 @@ export default {
     statsCardStyleAccent: "Accent",
     showMillionContextLines: "1M Details",
     modelGroupCharts: "Model/Group charts",
+    endpointDistributionPanel: "Endpoint chart",
+    failedRequestsPanel: "Recent failed requests",
     userAgentDisplay: "User-Agent",
     userAgentDisplayCompact: "Compact",
     userAgentDisplayFull: "Full",

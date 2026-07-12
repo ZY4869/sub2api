@@ -24,6 +24,8 @@ const defaultPagePreferences = (page: UsageViewPage): UsageViewPagePreferences =
   stats_card_style: "balanced",
   show_million_context_lines: true,
   show_usage_distribution_panels: false,
+  show_endpoint_distribution_panel: false,
+  show_failed_requests_panel: false,
   user_agent_display_mode: "compact",
 });
 
@@ -90,6 +92,14 @@ function normalizePagePreferences(
       typeof input?.show_usage_distribution_panels === "boolean"
         ? input.show_usage_distribution_panels
         : defaults.show_usage_distribution_panels,
+    show_endpoint_distribution_panel:
+      typeof input?.show_endpoint_distribution_panel === "boolean"
+        ? input.show_endpoint_distribution_panel
+        : defaults.show_endpoint_distribution_panel,
+    show_failed_requests_panel:
+      typeof input?.show_failed_requests_panel === "boolean"
+        ? input.show_failed_requests_panel
+        : defaults.show_failed_requests_panel,
     user_agent_display_mode:
       input?.user_agent_display_mode === "full" ||
       input?.user_agent_display_mode === "compact"

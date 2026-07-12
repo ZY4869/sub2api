@@ -21,8 +21,12 @@
         :end-date="endDate"
       />
     </div>
-    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+    <div
+      class="grid grid-cols-1 gap-6"
+      :class="showEndpointDistributionPanel ? 'xl:grid-cols-2' : 'xl:grid-cols-1'"
+    >
       <EndpointDistributionChart
+        v-if="showEndpointDistributionPanel"
         v-model:metric="endpointMetric"
         v-model:source="endpointSource"
         :endpoint-stats="endpointStats"
@@ -31,6 +35,7 @@
         :show-metric-toggle="true"
         :show-source-toggle="true"
         :enable-breakdown="false"
+        :collapsible="true"
         :start-date="startDate"
         :end-date="endDate"
       />
@@ -61,6 +66,7 @@ defineProps<{
   groupLoading?: boolean;
   endpointLoading?: boolean;
   showUsageDistributionPanels?: boolean;
+  showEndpointDistributionPanel?: boolean;
   startDate: string;
   endDate: string;
 }>();

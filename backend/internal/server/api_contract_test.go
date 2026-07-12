@@ -67,6 +67,8 @@ func TestAPIContracts(t *testing.T) {
 							"stats_card_style": "balanced",
 							"show_million_context_lines": true,
 							"show_usage_distribution_panels": false,
+							"show_endpoint_distribution_panel": false,
+							"show_failed_requests_panel": false,
 							"user_agent_display_mode": "compact"
 						},
 						"user": {
@@ -76,6 +78,8 @@ func TestAPIContracts(t *testing.T) {
 							"stats_card_style": "balanced",
 							"show_million_context_lines": true,
 							"show_usage_distribution_panels": false,
+							"show_endpoint_distribution_panel": false,
+							"show_failed_requests_panel": false,
 							"user_agent_display_mode": "compact"
 						}
 					},
@@ -453,6 +457,8 @@ func TestAPIContracts(t *testing.T) {
 							"stats_card_style": "balanced",
 							"show_million_context_lines": true,
 							"show_usage_distribution_panels": false,
+							"show_endpoint_distribution_panel": false,
+							"show_failed_requests_panel": false,
 							"user_agent_display_mode": "compact"
 						},
 						"user": {
@@ -462,6 +468,8 @@ func TestAPIContracts(t *testing.T) {
 							"stats_card_style": "balanced",
 							"show_million_context_lines": true,
 							"show_usage_distribution_panels": false,
+							"show_endpoint_distribution_panel": false,
+							"show_failed_requests_panel": false,
 							"user_agent_display_mode": "compact"
 						}
 					},
@@ -567,7 +575,7 @@ func TestAPIContracts(t *testing.T) {
 			name:   "PUT /api/v1/user",
 			method: http.MethodPut,
 			path:   "/api/v1/user",
-			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","usage_view_preferences":{"admin":{"hidden_columns":["user_agent","cache_hit"],"token_display_mode":"k","table_density":"compact","stats_card_style":"accent","show_usage_distribution_panels":false},"user":{"hidden_columns":["cache_hit"],"token_display_mode":"k","table_density":"comfortable","stats_card_style":"balanced","show_usage_distribution_panels":true}},"global_realtime_countdown_enabled":true,"account_realtime_countdown_enabled":false,"visual_preset_preference":"airy","account_visual_preset_override":"classic","account_today_stats_windows":["today","total"],"account_today_stats_cycle_mode":"fixed","account_group_display_mode":"icon","account_status_display_mode":"simple"}`,
+			body:   `{"username":"alice-2","usage_model_display_mode":"display_and_model","usage_view_preferences":{"admin":{"hidden_columns":["user_agent","cache_hit"],"token_display_mode":"k","table_density":"compact","stats_card_style":"accent","show_usage_distribution_panels":false,"show_endpoint_distribution_panel":false,"show_failed_requests_panel":false},"user":{"hidden_columns":["cache_hit"],"token_display_mode":"k","table_density":"comfortable","stats_card_style":"balanced","show_usage_distribution_panels":true,"show_endpoint_distribution_panel":true,"show_failed_requests_panel":true}},"global_realtime_countdown_enabled":true,"account_realtime_countdown_enabled":false,"visual_preset_preference":"airy","account_visual_preset_override":"classic","account_today_stats_windows":["today","total"],"account_today_stats_cycle_mode":"fixed","account_group_display_mode":"icon","account_status_display_mode":"simple"}`,
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
@@ -592,6 +600,8 @@ func TestAPIContracts(t *testing.T) {
 							"stats_card_style": "accent",
 							"show_million_context_lines": true,
 							"show_usage_distribution_panels": false,
+							"show_endpoint_distribution_panel": false,
+							"show_failed_requests_panel": false,
 							"user_agent_display_mode": "compact"
 						},
 						"user": {
@@ -601,6 +611,8 @@ func TestAPIContracts(t *testing.T) {
 							"stats_card_style": "balanced",
 							"show_million_context_lines": true,
 							"show_usage_distribution_panels": true,
+							"show_endpoint_distribution_panel": true,
+							"show_failed_requests_panel": true,
 							"user_agent_display_mode": "compact"
 						}
 					},

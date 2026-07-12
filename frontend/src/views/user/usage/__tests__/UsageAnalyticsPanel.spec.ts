@@ -21,6 +21,7 @@ describe("UsageAnalyticsPanel", () => {
         groupLoading: true,
         endpointLoading: false,
         showUsageDistributionPanels: true,
+        showEndpointDistributionPanel: true,
         startDate: "2026-03-01",
         endDate: "2026-03-03",
       },
@@ -51,6 +52,7 @@ describe("UsageAnalyticsPanel", () => {
               "loading",
               "showMetricToggle",
               "enableBreakdown",
+              "collapsible",
               "startDate",
               "endDate",
             ],
@@ -74,6 +76,7 @@ describe("UsageAnalyticsPanel", () => {
               "showMetricToggle",
               "showSourceToggle",
               "enableBreakdown",
+              "collapsible",
               "startDate",
               "endDate",
             ],
@@ -83,6 +86,7 @@ describe("UsageAnalyticsPanel", () => {
                 :data-count="endpointStats.length"
                 :data-upstream-count="upstreamEndpointStats.length"
                 :data-enable-breakdown="String(enableBreakdown)"
+                :data-collapsible="String(collapsible)"
                 :data-show-source-toggle="String(showSourceToggle)"
                 :data-range="startDate + ':' + endDate"
               />
@@ -118,6 +122,7 @@ describe("UsageAnalyticsPanel", () => {
       "data-count": "1",
       "data-upstream-count": "1",
       "data-enable-breakdown": "false",
+      "data-collapsible": "true",
       "data-show-source-toggle": "true",
       "data-range": "2026-03-01:2026-03-03",
     });
@@ -136,6 +141,7 @@ describe("UsageAnalyticsPanel", () => {
         endpointStats: [],
         upstreamEndpointStats: [],
         showUsageDistributionPanels: false,
+        showEndpointDistributionPanel: true,
         startDate: "2026-03-01",
         endDate: "2026-03-03",
       },
@@ -160,6 +166,41 @@ describe("UsageAnalyticsPanel", () => {
     expect(wrapper.find('[data-testid="model-chart"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="group-chart"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="endpoint-chart"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="token-trend"]').exists()).toBe(true);
+  });
+
+  it("hides endpoint distribution while keeping token trend visible", () => {
+    const wrapper = mount(UsageAnalyticsPanel, {
+      props: {
+        trendData: [],
+        modelStats: [],
+        groupStats: [],
+        endpointStats: [],
+        upstreamEndpointStats: [],
+        showUsageDistributionPanels: false,
+        showEndpointDistributionPanel: false,
+        startDate: "2026-03-01",
+        endDate: "2026-03-03",
+      },
+      global: {
+        stubs: {
+          ModelDistributionChart: {
+            template: '<div data-testid="model-chart" />',
+          },
+          GroupDistributionChart: {
+            template: '<div data-testid="group-chart" />',
+          },
+          EndpointDistributionChart: {
+            template: '<div data-testid="endpoint-chart" />',
+          },
+          TokenUsageTrend: {
+            template: '<div data-testid="token-trend" />',
+          },
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-testid="endpoint-chart"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="token-trend"]').exists()).toBe(true);
   });
 });

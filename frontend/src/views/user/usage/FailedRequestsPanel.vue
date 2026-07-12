@@ -10,6 +10,19 @@
         </p>
       </div>
       <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          :aria-label="collapsed ? t('common.expand') : t('common.collapse')"
+          :aria-expanded="String(!collapsed)"
+          data-testid="failed-requests-collapse-toggle"
+          @click="collapsed = !collapsed"
+        >
+          <Icon :name="collapsed ? 'chevronRight' : 'chevronDown'" size="sm" />
+          <span class="sr-only">
+            {{ collapsed ? t("common.expand") : t("common.collapse") }}
+          </span>
+        </button>
         <UsageColumnSettingsMenu
           :hidden-columns="hiddenColumns"
           :columns="columns"
@@ -29,48 +42,50 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-2 border-b border-gray-100 px-6 py-3 dark:border-dark-800 md:grid-cols-4">
-      <input
-        :value="filters.q"
-        type="text"
-        class="input text-sm"
-        :placeholder="t('usage.failedRequests.searchPlaceholder')"
-        @input="updateFilter('q', ($event.target as HTMLInputElement).value)"
-      />
-      <Select
-        :model-value="filters.category"
-        :options="categoryOptions"
-        @update:model-value="updateFilter('category', String($event ?? ''))"
-      />
-      <Select
-        :model-value="filters.statusCode"
-        :options="statusOptions"
-        @update:model-value="updateFilter('statusCode', $event == null ? null : Number($event))"
-      />
-    </div>
+    <template v-if="!collapsed">
+      <div class="grid grid-cols-1 gap-2 border-b border-gray-100 px-6 py-3 dark:border-dark-800 md:grid-cols-4">
+        <input
+          :value="filters.q"
+          type="text"
+          class="input text-sm"
+          :placeholder="t('usage.failedRequests.searchPlaceholder')"
+          @input="updateFilter('q', ($event.target as HTMLInputElement).value)"
+        />
+        <Select
+          :model-value="filters.category"
+          :options="categoryOptions"
+          @update:model-value="updateFilter('category', String($event ?? ''))"
+        />
+        <Select
+          :model-value="filters.statusCode"
+          :options="statusOptions"
+          @update:model-value="updateFilter('statusCode', $event == null ? null : Number($event))"
+        />
+      </div>
 
-    <div v-if="loading" class="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
-      {{ t("common.loading") }}
-    </div>
-    <div v-else-if="error" class="px-6 py-6 text-sm text-rose-600 dark:text-rose-300">
-      {{ t("usage.failedRequests.failedToLoad") }}
-    </div>
-    <div v-else-if="rows.length === 0" class="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
-      {{ t("usage.failedRequests.empty") }}
-    </div>
-    <FailedRequestsTable
-      v-else
-      :rows="rows"
-      :hidden-columns="hiddenColumns"
-      :sort-by="sortBy"
-      :sort-order="sortOrder"
-      @sort="(sortBy, sortOrder) => emit('sort', sortBy, sortOrder)"
-    />
+      <div v-if="loading" class="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
+        {{ t("common.loading") }}
+      </div>
+      <div v-else-if="error" class="px-6 py-6 text-sm text-rose-600 dark:text-rose-300">
+        {{ t("usage.failedRequests.failedToLoad") }}
+      </div>
+      <div v-else-if="rows.length === 0" class="px-6 py-6 text-sm text-gray-500 dark:text-gray-400">
+        {{ t("usage.failedRequests.empty") }}
+      </div>
+      <FailedRequestsTable
+        v-else
+        :rows="rows"
+        :hidden-columns="hiddenColumns"
+        :sort-by="sortBy"
+        :sort-order="sortOrder"
+        @sort="(sortBy, sortOrder) => emit('sort', sortBy, sortOrder)"
+      />
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import Select from "@/components/common/Select.vue";
 import Icon from "@/components/icons/Icon.vue";
@@ -106,6 +121,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const collapsed = ref(false);
 
 const categoryOptions = computed(() => {
   const codes = ["auth", "rate_limit", "quota", "invalid_request", "service_unavailable", "upstream", "internal", "cyber"];

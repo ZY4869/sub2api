@@ -38,32 +38,68 @@ const {
   showInfo: vi.fn(),
 }));
 
-const authState = vi.hoisted(() => ({
-  user: {
-    usage_view_preferences: {
-      admin: {
-        hidden_columns: ["user_agent"],
-        token_display_mode: "m",
-        table_density: "comfortable",
-        stats_card_style: "balanced",
-        show_million_context_lines: true,
-        show_usage_distribution_panels: false,
-        user_agent_display_mode: "compact",
-      },
-      user: {
-        hidden_columns: [],
-        token_display_mode: "m",
-        table_density: "comfortable",
-        stats_card_style: "balanced",
-        show_million_context_lines: true,
-        show_usage_distribution_panels: false,
-        user_agent_display_mode: "compact",
-      },
-    },
+const defaultUsageViewPreferences = () => ({
+  admin: {
+    hidden_columns: ["user_agent"],
+    token_display_mode: "m" as const,
+    table_density: "comfortable" as const,
+    stats_card_style: "balanced" as const,
+    show_million_context_lines: true,
+    show_usage_distribution_panels: false,
+    show_endpoint_distribution_panel: false,
+    show_failed_requests_panel: false,
+    user_agent_display_mode: "compact" as const,
   },
-  setUsageViewPreferences: vi.fn(),
-  setCurrentUser: vi.fn(),
-}));
+  user: {
+    hidden_columns: [],
+    token_display_mode: "m" as const,
+    table_density: "comfortable" as const,
+    stats_card_style: "balanced" as const,
+    show_million_context_lines: true,
+    show_usage_distribution_panels: false,
+    show_endpoint_distribution_panel: false,
+    show_failed_requests_panel: false,
+    user_agent_display_mode: "compact" as const,
+  },
+});
+
+const authState = vi.hoisted(() => {
+  const state = {
+    user: {
+      usage_view_preferences: {
+        admin: {
+          hidden_columns: ["user_agent"],
+          token_display_mode: "m",
+          table_density: "comfortable",
+          stats_card_style: "balanced",
+          show_million_context_lines: true,
+          show_usage_distribution_panels: false,
+          show_endpoint_distribution_panel: false,
+          show_failed_requests_panel: false,
+          user_agent_display_mode: "compact",
+        },
+        user: {
+          hidden_columns: [],
+          token_display_mode: "m",
+          table_density: "comfortable",
+          stats_card_style: "balanced",
+          show_million_context_lines: true,
+          show_usage_distribution_panels: false,
+          show_endpoint_distribution_panel: false,
+          show_failed_requests_panel: false,
+          user_agent_display_mode: "compact",
+        },
+      },
+    } as any,
+    setUsageViewPreferences: vi.fn((preferences) => {
+      state.user.usage_view_preferences = preferences;
+    }),
+    setCurrentUser: vi.fn((user) => {
+      state.user = user;
+    }),
+  };
+  return state;
+});
 
 const messages: Record<string, string> = {
   "usage.costDetails": "Cost Breakdown",
@@ -139,6 +175,8 @@ const messages: Record<string, string> = {
   "usage.sync": "Sync",
   "common.actions": "Actions",
   "common.close": "Close",
+  "common.collapse": "Collapse",
+  "common.expand": "Expand",
   "common.loading": "Loading...",
   "common.refresh": "Refresh",
   "usage.requestPreview.action": "Request Details",
@@ -178,6 +216,7 @@ const messages: Record<string, string> = {
   "usage.failedRequests.failed": "Failed",
   "usage.failedRequests.failedToLoad": "Failed to load failed requests. Retry or adjust the filters.",
   "usage.failedRequests.phase": "Phase",
+  "usage.failedRequests.searchPlaceholder": "Search request_id / error message",
 };
 
 vi.mock("@/api", () => ({
@@ -236,6 +275,8 @@ const UsageDisplaySettingsMenuStub = {
     "updatingUsageModelDisplayMode",
     "disabled",
     "showUsageDistributionPanelsToggle",
+    "showEndpointDistributionPanelToggle",
+    "showFailedRequestsPanelToggle",
   ],
   emits: ["update-preference", "update-usage-model-display-mode"],
   template: `
@@ -261,6 +302,20 @@ const UsageDisplaySettingsMenuStub = {
         @click="$emit('update-preference', 'show_usage_distribution_panels', !preferences.show_usage_distribution_panels)"
       >
         Model/Group charts|{{ preferences.show_usage_distribution_panels ? 'on' : 'off' }}
+      </button>
+      <button
+        v-if="showEndpointDistributionPanelToggle"
+        data-testid="usage-endpoint-panel-toggle"
+        @click="$emit('update-preference', 'show_endpoint_distribution_panel', !preferences.show_endpoint_distribution_panel)"
+      >
+        Endpoint chart|{{ preferences.show_endpoint_distribution_panel ? 'on' : 'off' }}
+      </button>
+      <button
+        v-if="showFailedRequestsPanelToggle"
+        data-testid="usage-failed-requests-panel-toggle"
+        @click="$emit('update-preference', 'show_failed_requests_panel', !preferences.show_failed_requests_panel)"
+      >
+        Failed requests|{{ preferences.show_failed_requests_panel ? 'on' : 'off' }}
       </button>
     </div>
   `,
@@ -328,6 +383,7 @@ describe("user UsageView tooltip", () => {
     });
     getRequestPreview.mockReset();
     updateProfile.mockReset();
+    authState.user.usage_view_preferences = defaultUsageViewPreferences();
     authState.setUsageViewPreferences.mockClear();
     authState.setCurrentUser.mockClear();
     showError.mockReset();
@@ -1036,6 +1092,12 @@ describe("user UsageView tooltip", () => {
     expect(displaySettings.get('[data-testid="usage-distribution-toggle"]').text()).toContain(
       "Model/Group charts",
     );
+    expect(displaySettings.get('[data-testid="usage-endpoint-panel-toggle"]').text()).toContain(
+      "Endpoint chart",
+    );
+    expect(displaySettings.get('[data-testid="usage-failed-requests-panel-toggle"]').text()).toContain(
+      "Failed requests",
+    );
     expect(toolbarRow.text()).toContain('usage.modelDisplay');
   });
 
@@ -1398,6 +1460,88 @@ describe("user UsageView tooltip", () => {
       ...expectedRange,
       granularity: "day",
     });
+    expect(getDashboardEndpoints).not.toHaveBeenCalled();
+    expect(getDashboardModels).not.toHaveBeenCalled();
+    expect(getDashboardGroups).not.toHaveBeenCalled();
+  });
+
+  it("lazily loads endpoint analytics when the endpoint panel is enabled", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([
+      { id: 9, name: "analytics-key", deleted: false },
+    ]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          UsageColumnSettingsMenu: UsageColumnSettingsMenuStub,
+          UsageModelCell: true,
+          UsageModelDisplayModeToggle: true,
+          UsageContextBadgeDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const setupState = (wrapper.vm as any).$?.setupState;
+    setupState.filters.api_key_id = 9;
+    setupState.onDateRangeChange({
+      startDate: "2026-03-01",
+      endDate: "2026-03-03",
+      preset: null,
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(getDashboardEndpoints).not.toHaveBeenCalled();
+
+    const nextPreferences = {
+      ...authState.user.usage_view_preferences,
+      user: {
+        ...authState.user.usage_view_preferences.user,
+        show_endpoint_distribution_panel: true,
+      },
+    };
+    updateProfile.mockResolvedValueOnce({
+      ...authState.user,
+      usage_view_preferences: nextPreferences,
+    });
+
+    await wrapper.get('[data-testid="usage-endpoint-panel-toggle"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    const expectedRange = {
+      start_date: "2026-03-01",
+      end_date: "2026-03-03",
+      api_key_id: 9,
+    };
+    expect(updateProfile).toHaveBeenCalledWith({
+      usage_view_preferences: nextPreferences,
+    });
     expect(getDashboardEndpoints).toHaveBeenLastCalledWith(expectedRange);
     expect(getDashboardModels).not.toHaveBeenCalled();
     expect(getDashboardGroups).not.toHaveBeenCalled();
@@ -1644,7 +1788,7 @@ describe("user UsageView tooltip", () => {
     expect(wrapper.text()).toContain("Cache Miss");
   });
 
-  it("renders and requests recent failed requests", async () => {
+  it("keeps recent failed requests hidden and unrequested by default", async () => {
     query.mockResolvedValue({
       items: [],
       total: 0,
@@ -1678,6 +1822,66 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
     await nextTick();
 
+    expect(listFailedRequests).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="failed-requests-panel"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Recent Failed Requests");
+  });
+
+  it("lazily renders and requests recent failed requests when enabled", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(listFailedRequests).not.toHaveBeenCalled();
+
+    const nextPreferences = {
+      ...authState.user.usage_view_preferences,
+      user: {
+        ...authState.user.usage_view_preferences.user,
+        show_failed_requests_panel: true,
+      },
+    };
+    updateProfile.mockResolvedValueOnce({
+      ...authState.user,
+      usage_view_preferences: nextPreferences,
+    });
+
+    await wrapper.get('[data-testid="usage-failed-requests-panel-toggle"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(updateProfile).toHaveBeenCalledWith({
+      usage_view_preferences: nextPreferences,
+    });
     expect(listFailedRequests).toHaveBeenCalledWith(
       expect.objectContaining({
         page: 1,
@@ -1686,6 +1890,51 @@ describe("user UsageView tooltip", () => {
         sort_order: "desc",
       }),
     );
+    expect(listFailedRequests).toHaveBeenCalled();
+  });
+
+  it("renders recent failed requests when the saved preference is enabled", async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 0,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+    authState.user.usage_view_preferences = {
+      ...authState.user.usage_view_preferences,
+      user: {
+        ...authState.user.usage_view_preferences.user,
+        show_failed_requests_panel: true,
+      },
+    };
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          UsageDisplaySettingsMenu: UsageDisplaySettingsMenuStub,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(listFailedRequests).toHaveBeenCalled();
     expect(wrapper.find('[data-testid="failed-requests-panel"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("Recent Failed Requests");
   });
@@ -1704,6 +1953,13 @@ describe("user UsageView tooltip", () => {
     });
     listFilterApiKeys.mockResolvedValue([]);
     listFailedRequests.mockRejectedValue(new Error("network error"));
+    authState.user.usage_view_preferences = {
+      ...authState.user.usage_view_preferences,
+      user: {
+        ...authState.user.usage_view_preferences.user,
+        show_failed_requests_panel: true,
+      },
+    };
 
     const wrapper = mount(UsageView, {
       global: {

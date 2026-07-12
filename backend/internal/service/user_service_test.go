@@ -336,6 +336,8 @@ func TestUpdateProfile_UsageViewPreferences_NormalizesAndPersists(t *testing.T) 
 				TableDensity:                "bad-density",
 				StatsCardStyle:              "bad-card-style",
 				ShowUsageDistributionPanels: true,
+				ShowEndpointDistribution:    true,
+				ShowFailedRequestsPanel:     true,
 				UserAgentDisplayMode:        "bad-user-agent-mode",
 			},
 		},
@@ -348,6 +350,8 @@ func TestUpdateProfile_UsageViewPreferences_NormalizesAndPersists(t *testing.T) 
 	require.NotNil(t, updated.UsageViewPreferences.Admin.ShowMillionContextLines)
 	require.False(t, *updated.UsageViewPreferences.Admin.ShowMillionContextLines)
 	require.False(t, updated.UsageViewPreferences.Admin.ShowUsageDistributionPanels)
+	require.False(t, updated.UsageViewPreferences.Admin.ShowEndpointDistribution)
+	require.False(t, updated.UsageViewPreferences.Admin.ShowFailedRequestsPanel)
 	require.Equal(t, UsageViewUserAgentDisplayFull, updated.UsageViewPreferences.Admin.UserAgentDisplayMode)
 	require.Equal(t, []string{"cache_hit", "endpoint", "user_agent"}, updated.UsageViewPreferences.User.HiddenColumns)
 	require.Equal(t, UsageViewTokenDisplayK, updated.UsageViewPreferences.User.TokenDisplay)
@@ -356,6 +360,8 @@ func TestUpdateProfile_UsageViewPreferences_NormalizesAndPersists(t *testing.T) 
 	require.NotNil(t, updated.UsageViewPreferences.User.ShowMillionContextLines)
 	require.True(t, *updated.UsageViewPreferences.User.ShowMillionContextLines)
 	require.True(t, updated.UsageViewPreferences.User.ShowUsageDistributionPanels)
+	require.True(t, updated.UsageViewPreferences.User.ShowEndpointDistribution)
+	require.True(t, updated.UsageViewPreferences.User.ShowFailedRequestsPanel)
 	require.Equal(t, UsageViewUserAgentDisplayCompact, updated.UsageViewPreferences.User.UserAgentDisplayMode)
 	require.Equal(t, updated.UsageViewPreferences, user.UsageViewPreferences)
 }
@@ -389,9 +395,13 @@ func TestNormalizeUsageViewPreferences_DefaultsAndAllowedColumns(t *testing.T) {
 	require.NotNil(t, normalized.Admin.ShowMillionContextLines)
 	require.True(t, *normalized.Admin.ShowMillionContextLines)
 	require.False(t, normalized.Admin.ShowUsageDistributionPanels)
+	require.False(t, normalized.Admin.ShowEndpointDistribution)
+	require.False(t, normalized.Admin.ShowFailedRequestsPanel)
 	require.Equal(t, UsageViewUserAgentDisplayCompact, normalized.Admin.UserAgentDisplayMode)
 	require.Equal(t, []string{"cache_hit", "thinking_enabled"}, normalized.User.HiddenColumns)
 	require.False(t, normalized.User.ShowUsageDistributionPanels)
+	require.False(t, normalized.User.ShowEndpointDistribution)
+	require.False(t, normalized.User.ShowFailedRequestsPanel)
 }
 
 func TestUpdateProfile_RealtimeCountdownPreferences_PartialUpdate(t *testing.T) {

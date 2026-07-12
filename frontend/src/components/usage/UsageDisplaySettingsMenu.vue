@@ -54,6 +54,18 @@
             :model-value="preferences.show_usage_distribution_panels"
             @update:model-value="updatePreference('show_usage_distribution_panels', $event)"
           />
+          <ToggleControl
+            v-if="showEndpointDistributionPanelToggle"
+            :label="t('usage.endpointDistributionPanel')"
+            :model-value="preferences.show_endpoint_distribution_panel"
+            @update:model-value="updatePreference('show_endpoint_distribution_panel', $event)"
+          />
+          <ToggleControl
+            v-if="showFailedRequestsPanelToggle"
+            :label="t('usage.failedRequestsPanel')"
+            :model-value="preferences.show_failed_requests_panel"
+            @update:model-value="updatePreference('show_failed_requests_panel', $event)"
+          />
           <SegmentedControl
             :label="t('usage.userAgentDisplay')"
             :options="userAgentDisplayOptions"
@@ -80,6 +92,8 @@ defineProps<{
   updatingUsageModelDisplayMode: boolean;
   disabled?: boolean;
   showUsageDistributionPanelsToggle?: boolean;
+  showEndpointDistributionPanelToggle?: boolean;
+  showFailedRequestsPanelToggle?: boolean;
 }>();
 
 const emit = defineEmits<{

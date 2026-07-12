@@ -32,6 +32,8 @@ type UsageViewPagePreferences struct {
 	StatsCardStyle              string   `json:"stats_card_style"`
 	ShowMillionContextLines     *bool    `json:"show_million_context_lines"`
 	ShowUsageDistributionPanels bool     `json:"show_usage_distribution_panels"`
+	ShowEndpointDistribution    bool     `json:"show_endpoint_distribution_panel"`
+	ShowFailedRequestsPanel     bool     `json:"show_failed_requests_panel"`
 	UserAgentDisplayMode        string   `json:"user_agent_display_mode"`
 }
 
@@ -83,6 +85,8 @@ func NormalizeUsageViewPagePreferences(page string, input UsageViewPagePreferenc
 		StatsCardStyle:              normalizeUsageViewStatsCardStyle(input.StatsCardStyle, defaults.StatsCardStyle),
 		ShowMillionContextLines:     normalizeUsageViewBool(input.ShowMillionContextLines, defaults.ShowMillionContextLines),
 		ShowUsageDistributionPanels: input.ShowUsageDistributionPanels,
+		ShowEndpointDistribution:    input.ShowEndpointDistribution,
+		ShowFailedRequestsPanel:     input.ShowFailedRequestsPanel,
 		UserAgentDisplayMode:        normalizeUsageViewUserAgentDisplay(input.UserAgentDisplayMode, defaults.UserAgentDisplayMode),
 	}
 }
@@ -99,6 +103,8 @@ func defaultUsageViewPagePreferences(page string) UsageViewPagePreferences {
 		StatsCardStyle:              UsageViewStatsCardStyleBalanced,
 		ShowMillionContextLines:     usageViewBoolPtr(true),
 		ShowUsageDistributionPanels: false,
+		ShowEndpointDistribution:    false,
+		ShowFailedRequestsPanel:     false,
 		UserAgentDisplayMode:        UsageViewUserAgentDisplayCompact,
 	}
 }

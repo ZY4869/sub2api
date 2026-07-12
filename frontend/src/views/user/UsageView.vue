@@ -30,6 +30,8 @@
                 :updating-usage-model-display-mode="updatingUsageModelDisplayMode"
                 :disabled="updatingUsageViewPreferences"
                 :show-usage-distribution-panels-toggle="true"
+                :show-endpoint-distribution-panel-toggle="true"
+                :show-failed-requests-panel-toggle="true"
                 @update-preference="handleUsageViewPreferenceChange"
                 @update-usage-model-display-mode="handleUsageModelDisplayModeChange"
               />
@@ -62,6 +64,7 @@
           :endpoint-stats="endpointStats"
           :upstream-endpoint-stats="upstreamEndpointStats"
           :show-usage-distribution-panels="pagePreferences.show_usage_distribution_panels"
+          :show-endpoint-distribution-panel="pagePreferences.show_endpoint_distribution_panel"
           :trend-loading="analyticsLoading"
           :model-loading="analyticsLoading"
           :group-loading="analyticsLoading"
@@ -70,6 +73,7 @@
           :end-date="filters.end_date || endDate"
         />
         <FailedRequestsPanel
+          v-if="pagePreferences.show_failed_requests_panel"
           :rows="failedRequestRows"
           :loading="failedRequestsLoading"
           :error="failedRequestsError"
@@ -637,6 +641,8 @@ let analyticsRequestSeq = 0;
 const loadUsageAnalytics = async (
   includeDistributionPanels =
     pagePreferences.value.show_usage_distribution_panels,
+  includeEndpointPanel =
+    pagePreferences.value.show_endpoint_distribution_panel,
 ) => {
   const seq = ++analyticsRequestSeq;
   analyticsLoading.value = true;
@@ -665,18 +671,22 @@ const loadUsageAnalytics = async (
             api_key_id: apiKeyId,
           })
         : Promise.resolve(null),
-      usageAPI.getDashboardEndpoints({
-        start_date: start,
-        end_date: end,
-        api_key_id: apiKeyId,
-      }),
+      includeEndpointPanel
+        ? usageAPI.getDashboardEndpoints({
+            start_date: start,
+            end_date: end,
+            api_key_id: apiKeyId,
+          })
+        : Promise.resolve(null),
     ]);
     if (seq !== analyticsRequestSeq) return;
     trendData.value = trend.trend || [];
     modelStats.value = includeDistributionPanels ? models?.models || [] : [];
     groupStats.value = includeDistributionPanels ? groups?.groups || [] : [];
-    endpointStats.value = endpoints.endpoints || [];
-    upstreamEndpointStats.value = endpoints.upstream_endpoints || [];
+    endpointStats.value = includeEndpointPanel ? endpoints?.endpoints || [] : [];
+    upstreamEndpointStats.value = includeEndpointPanel
+      ? endpoints?.upstream_endpoints || []
+      : [];
   } catch (error) {
     if (seq !== analyticsRequestSeq) return;
     console.error("Failed to load usage analytics:", error);
@@ -693,7 +703,14 @@ const loadUsageAnalytics = async (
 };
 
 let failedRequestSeq = 0;
-const loadFailedRequests = async () => {
+const loadFailedRequests = async (force = false) => {
+  if (!force && !pagePreferences.value.show_failed_requests_panel) {
+    failedRequestSeq++;
+    failedRequestRows.value = [];
+    failedRequestsError.value = false;
+    failedRequestsLoading.value = false;
+    return;
+  }
   const seq = ++failedRequestSeq;
   failedRequestsLoading.value = true;
   failedRequestsError.value = false;
@@ -728,13 +745,17 @@ const loadFailedRequests = async () => {
 
 const handleFailedRequestFilterChange = (value: typeof failedRequestFilters.value) => {
   failedRequestFilters.value = value;
-  loadFailedRequests();
+  if (pagePreferences.value.show_failed_requests_panel) {
+    loadFailedRequests();
+  }
 };
 
 const handleFailedRequestSort = (sortBy: string, sortOrder: "asc" | "desc") => {
   failedRequestSortBy.value = sortBy;
   failedRequestSortOrder.value = sortOrder;
-  loadFailedRequests();
+  if (pagePreferences.value.show_failed_requests_panel) {
+    loadFailedRequests();
+  }
 };
 
 const toggleFailedRequestColumn = (key: string) => {
@@ -804,7 +825,26 @@ const handleUsageViewPreferenceChange = async (
 ) => {
   await patchPagePreferences({ [key]: value } as any);
   if (key === "show_usage_distribution_panels" && value === true) {
-    await loadUsageAnalytics(true);
+    await loadUsageAnalytics(true, pagePreferences.value.show_endpoint_distribution_panel);
+  }
+  if (key === "show_endpoint_distribution_panel") {
+    if (value === true) {
+      await loadUsageAnalytics(pagePreferences.value.show_usage_distribution_panels, true);
+    } else {
+      analyticsRequestSeq++;
+      endpointStats.value = [];
+      upstreamEndpointStats.value = [];
+    }
+  }
+  if (key === "show_failed_requests_panel") {
+    if (value === true) {
+      await loadFailedRequests(true);
+    } else {
+      failedRequestSeq++;
+      failedRequestRows.value = [];
+      failedRequestsError.value = false;
+      failedRequestsLoading.value = false;
+    }
   }
 };
 

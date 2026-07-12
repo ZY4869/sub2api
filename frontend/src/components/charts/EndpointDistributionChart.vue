@@ -1,12 +1,12 @@
 <template>
-  <div class="card p-4">
+  <div class="card p-4" data-testid="endpoint-distribution-chart">
     <div class="mb-4 flex items-center justify-between gap-3">
       <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
         {{ title || t('usage.endpointDistribution') }}
       </h3>
       <div class="flex flex-wrap items-center justify-end gap-2">
         <div
-          v-if="showSourceToggle"
+          v-if="showSourceToggle && !collapsed"
           class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-dark-800"
         >
           <button
@@ -42,7 +42,7 @@
         </div>
 
         <div
-          v-if="showMetricToggle"
+          v-if="showMetricToggle && !collapsed"
           class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-dark-800"
         >
           <button
@@ -66,69 +66,85 @@
             {{ t('admin.dashboard.metricActualCost') }}
           </button>
         </div>
+        <button
+          v-if="collapsible"
+          type="button"
+          class="btn btn-ghost btn-sm"
+          :aria-label="collapsed ? t('common.expand') : t('common.collapse')"
+          :aria-expanded="String(!collapsed)"
+          data-testid="endpoint-distribution-collapse-toggle"
+          @click="collapsed = !collapsed"
+        >
+          <Icon :name="collapsed ? 'chevronRight' : 'chevronDown'" size="sm" />
+          <span class="sr-only">
+            {{ collapsed ? t('common.expand') : t('common.collapse') }}
+          </span>
+        </button>
       </div>
     </div>
-    <div v-if="loading" class="flex h-48 items-center justify-center">
-      <LoadingSpinner />
-    </div>
-    <div v-else-if="displayEndpointStats.length > 0 && chartData" class="flex items-center gap-6">
-      <div class="h-48 w-48">
-        <Doughnut :data="chartData" :options="doughnutOptions" />
+    <template v-if="!collapsed">
+      <div v-if="loading" class="flex h-48 items-center justify-center">
+        <LoadingSpinner />
       </div>
-      <div class="max-h-48 flex-1 overflow-y-auto">
-        <table class="w-full text-xs">
-          <thead>
-            <tr class="text-gray-500 dark:text-gray-400">
-              <th class="pb-2 text-left">{{ t('usage.endpoint') }}</th>
-              <th class="pb-2 text-right">{{ t('admin.dashboard.requests') }}</th>
-              <th class="pb-2 text-right">{{ t('admin.dashboard.tokens') }}</th>
-              <th class="pb-2 text-right">{{ t('admin.dashboard.actual') }}</th>
-              <th class="pb-2 text-right">{{ t('admin.dashboard.standard') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="item in displayEndpointStats" :key="item.endpoint">
-              <tr
-                class="border-t border-gray-100 transition-colors dark:border-gray-700"
-                :class="enableBreakdown ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/40' : ''"
-                @click="enableBreakdown && toggleBreakdown(item.endpoint)"
-              >
-                <td class="max-w-[180px] truncate py-1.5 font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" :title="item.endpoint">
-                  <span class="inline-flex items-center gap-1">
-                    <svg v-if="enableBreakdown && expandedKey === item.endpoint" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    <svg v-else-if="enableBreakdown" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    {{ item.endpoint }}
-                  </span>
-                </td>
-                <td class="py-1.5 text-right text-gray-600 dark:text-gray-400">
-                  {{ formatNumber(item.requests) }}
-                </td>
-                <td class="py-1.5 text-right text-gray-600 dark:text-gray-400">
-                  {{ formatTokens(item.total_tokens) }}
-                </td>
-                <td class="py-1.5 text-right text-green-600 dark:text-green-400">
-                  ${{ formatCost(item.actual_cost) }}
-                </td>
-                <td class="py-1.5 text-right text-gray-400 dark:text-gray-500">
-                  ${{ formatCost(item.cost) }}
-                </td>
+      <div v-else-if="displayEndpointStats.length > 0 && chartData" class="flex items-center gap-6">
+        <div class="h-48 w-48">
+          <Doughnut :data="chartData" :options="doughnutOptions" />
+        </div>
+        <div class="max-h-48 flex-1 overflow-y-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 dark:text-gray-400">
+                <th class="pb-2 text-left">{{ t('usage.endpoint') }}</th>
+                <th class="pb-2 text-right">{{ t('admin.dashboard.requests') }}</th>
+                <th class="pb-2 text-right">{{ t('admin.dashboard.tokens') }}</th>
+                <th class="pb-2 text-right">{{ t('admin.dashboard.actual') }}</th>
+                <th class="pb-2 text-right">{{ t('admin.dashboard.standard') }}</th>
               </tr>
-              <tr v-if="enableBreakdown && expandedKey === item.endpoint">
-                <td colspan="5" class="p-0">
-                  <UserBreakdownSubTable
-                    :items="breakdownItems"
-                    :loading="breakdownLoading"
-                  />
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <template v-for="item in displayEndpointStats" :key="item.endpoint">
+                <tr
+                  class="border-t border-gray-100 transition-colors dark:border-gray-700"
+                  :class="enableBreakdown ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/40' : ''"
+                  @click="enableBreakdown && toggleBreakdown(item.endpoint)"
+                >
+                  <td class="max-w-[180px] truncate py-1.5 font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" :title="item.endpoint">
+                    <span class="inline-flex items-center gap-1">
+                      <svg v-if="enableBreakdown && expandedKey === item.endpoint" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                      <svg v-else-if="enableBreakdown" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                      {{ item.endpoint }}
+                    </span>
+                  </td>
+                  <td class="py-1.5 text-right text-gray-600 dark:text-gray-400">
+                    {{ formatNumber(item.requests) }}
+                  </td>
+                  <td class="py-1.5 text-right text-gray-600 dark:text-gray-400">
+                    {{ formatTokens(item.total_tokens) }}
+                  </td>
+                  <td class="py-1.5 text-right text-green-600 dark:text-green-400">
+                    ${{ formatCost(item.actual_cost) }}
+                  </td>
+                  <td class="py-1.5 text-right text-gray-400 dark:text-gray-500">
+                    ${{ formatCost(item.cost) }}
+                  </td>
+                </tr>
+                <tr v-if="enableBreakdown && expandedKey === item.endpoint">
+                  <td colspan="5" class="p-0">
+                    <UserBreakdownSubTable
+                      :items="breakdownItems"
+                      :loading="breakdownLoading"
+                    />
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-    <div v-else class="flex h-48 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-      {{ t('admin.dashboard.noDataAvailable') }}
-    </div>
+      <div v-else class="flex h-48 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+        {{ t('admin.dashboard.noDataAvailable') }}
+      </div>
+    </template>
   </div>
 </template>
 
@@ -139,6 +155,7 @@ import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import Icon from '@/components/icons/Icon.vue'
 import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
 import type { EndpointStat, UserBreakdownItem } from '@/types'
 import { getUserBreakdown } from '@/api/admin/dashboard'
@@ -163,6 +180,7 @@ const props = withDefaults(
     showMetricToggle?: boolean
     showSourceToggle?: boolean
     enableBreakdown?: boolean
+    collapsible?: boolean
     startDate?: string
     endDate?: string
   }>(),
@@ -175,7 +193,8 @@ const props = withDefaults(
     source: 'inbound',
     showMetricToggle: false,
     showSourceToggle: false,
-    enableBreakdown: true
+    enableBreakdown: true,
+    collapsible: false
   }
 )
 
@@ -185,6 +204,7 @@ const emit = defineEmits<{
 }>()
 
 const expandedKey = ref<string | null>(null)
+const collapsed = ref(false)
 const enableBreakdown = computed(() => props.enableBreakdown)
 const breakdownItems = ref<UserBreakdownItem[]>([])
 const breakdownLoading = ref(false)

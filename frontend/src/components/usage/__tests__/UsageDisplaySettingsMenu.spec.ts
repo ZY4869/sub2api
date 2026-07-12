@@ -21,6 +21,8 @@ const messages: Record<string, string> = {
   "usage.statsCardStyleAccent": "Accent",
   "usage.showMillionContextLines": "1M details",
   "usage.modelGroupCharts": "Model/Group charts",
+  "usage.endpointDistributionPanel": "Endpoint chart",
+  "usage.failedRequestsPanel": "Recent failed requests",
   "usage.userAgentDisplay": "User-Agent",
   "usage.userAgentDisplayCompact": "Compact UA",
   "usage.userAgentDisplayFull": "Full UA",
@@ -67,11 +69,15 @@ function mountMenu(overrides: Record<string, unknown> = {}) {
         stats_card_style: "balanced",
         show_million_context_lines: true,
         show_usage_distribution_panels: false,
+        show_endpoint_distribution_panel: false,
+        show_failed_requests_panel: false,
         user_agent_display_mode: "compact",
       },
       usageModelDisplayMode: "model_only",
       updatingUsageModelDisplayMode: false,
       showUsageDistributionPanelsToggle: true,
+      showEndpointDistributionPanelToggle: true,
+      showFailedRequestsPanelToggle: true,
       ...overrides,
     },
     global: {
@@ -97,6 +103,8 @@ describe("UsageDisplaySettingsMenu", () => {
     expect(wrapper.text()).toContain("Stats cards");
     expect(wrapper.text()).toContain("1M details");
     expect(wrapper.text()).toContain("Model/Group charts");
+    expect(wrapper.text()).toContain("Endpoint chart");
+    expect(wrapper.text()).toContain("Recent failed requests");
     expect(wrapper.text()).toContain("User-Agent");
     expect(wrapper.text()).toContain("Compact UA");
     expect(wrapper.text()).not.toContain("Cache hit");
@@ -112,9 +120,12 @@ describe("UsageDisplaySettingsMenu", () => {
     await buttons.find((button) => button.text() === "Compact density")!.trigger("click");
     await buttons.find((button) => button.text() === "Accent")!.trigger("click");
     await buttons.find((button) => button.text() === "Full UA")!.trigger("click");
-    await buttons
-      .find((button) => button.attributes("aria-pressed") === "false")!
-      .trigger("click");
+    const disabledToggles = buttons.filter(
+      (button) => button.attributes("aria-pressed") === "false",
+    );
+    for (const toggle of disabledToggles) {
+      await toggle.trigger("click");
+    }
     await buttons
       .find((button) => button.attributes("aria-pressed") === "true")!
       .trigger("click");
@@ -137,6 +148,14 @@ describe("UsageDisplaySettingsMenu", () => {
     ]);
     expect(wrapper.emitted("update-preference")).toContainEqual([
       "show_usage_distribution_panels",
+      true,
+    ]);
+    expect(wrapper.emitted("update-preference")).toContainEqual([
+      "show_endpoint_distribution_panel",
+      true,
+    ]);
+    expect(wrapper.emitted("update-preference")).toContainEqual([
+      "show_failed_requests_panel",
       true,
     ]);
     expect(wrapper.emitted("update-preference")).toContainEqual([

@@ -37,6 +37,8 @@ export interface UsageViewPagePreferences {
   stats_card_style: UsageViewStatsCardStyle;
   show_million_context_lines: boolean;
   show_usage_distribution_panels: boolean;
+  show_endpoint_distribution_panel: boolean;
+  show_failed_requests_panel: boolean;
   user_agent_display_mode: UsageViewUserAgentDisplayMode;
 }
 
