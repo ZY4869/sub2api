@@ -71,7 +71,7 @@
           type="button"
           class="btn btn-ghost btn-sm"
           :aria-label="collapsed ? t('common.expand') : t('common.collapse')"
-          :aria-expanded="String(!collapsed)"
+          :aria-expanded="!collapsed"
           data-testid="endpoint-distribution-collapse-toggle"
           @click="collapsed = !collapsed"
         >
