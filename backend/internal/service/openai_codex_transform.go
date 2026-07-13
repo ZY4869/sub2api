@@ -587,6 +587,9 @@ func isCodexToolCallItemType(typ string) bool {
 	if typ == "" {
 		return false
 	}
+	if isOpenAIToolOutputItemType(typ) {
+		return true
+	}
 	return strings.HasSuffix(typ, "_call") || strings.HasSuffix(typ, "_call_output")
 }
 
