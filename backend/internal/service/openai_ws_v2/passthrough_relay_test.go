@@ -360,23 +360,12 @@ func TestRelay_MaxLifetime(t *testing.T) {
 	upstreamConn := newPassthroughTestFrameConn(nil, false)
 
 	firstPayload := []byte(`{"type":"response.create","model":"gpt-4o","input":[]}`)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-
-	now := time.Now()
-	callCount := 0
-	nowFn := func() time.Time {
-		callCount++
-		if callCount <= 5 {
-			return now
-		}
-		return now.Add(2 * time.Hour)
-	}
 
 	result, relayExit := Relay(ctx, clientConn, upstreamConn, firstPayload, RelayOptions{
 		IdleTimeout: time.Hour,
-		MaxLifetime: time.Minute,
-		Now:         nowFn,
+		MaxLifetime: 100 * time.Millisecond,
 	})
 	require.NotNil(t, relayExit)
 	require.Equal(t, "lifetime_timeout", relayExit.Stage)

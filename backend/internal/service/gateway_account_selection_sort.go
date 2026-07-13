@@ -335,9 +335,6 @@ func sameAccountGroupAtTime(a, b *Account, now time.Time) bool {
 	}
 	return sameLastUsedAtAtTime(a.LastUsedAt, b.LastUsedAt, now)
 }
-func sameLastUsedAt(a, b *time.Time) bool {
-	return sameLastUsedAtAtTime(a, b, time.Now())
-}
 func sameLastUsedAtAtTime(a, b *time.Time, now time.Time) bool {
 	a = normalizedSchedulerLastUsedAt(a, now)
 	b = normalizedSchedulerLastUsedAt(b, now)

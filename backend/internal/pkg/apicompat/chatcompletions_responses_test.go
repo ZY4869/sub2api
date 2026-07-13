@@ -867,8 +867,10 @@ func TestResponsesToChatCompletionsRequest_ProxiesResponsesToolsAndToolChoice(t 
 	var choice map[string]any
 	require.NoError(t, json.Unmarshal(chat.ToolChoice, &choice))
 	require.Equal(t, "function", choice["type"])
-	fn := choice["function"].(map[string]any)
-	proxyName := fn["name"].(string)
+	fn, ok := choice["function"].(map[string]any)
+	require.True(t, ok)
+	proxyName, ok := fn["name"].(string)
+	require.True(t, ok)
 	require.Contains(t, proxies, proxyName)
 	require.Equal(t, "tool_search", proxies[proxyName].Type)
 }

@@ -243,30 +243,30 @@ func TestSameAccountGroupAtTime_MissingSnapshotKeepsShuffleGroup(t *testing.T) {
 // ============ sameLastUsedAt 测试 ============
 
 func TestSameLastUsedAt(t *testing.T) {
-	now := time.Now()
-	sameSecond := time.Unix(now.Unix(), 0)
-	sameSecondDiffNano := time.Unix(now.Unix(), 999_999_999)
-	differentSecond := now.Add(1 * time.Second)
+	now := time.Unix(time.Now().Unix(), 0)
+	sameSecond := now
+	sameSecondDiffNano := now.Add(999_999_999 * time.Nanosecond)
+	differentSecond := now.Add(-1 * time.Second)
 
 	t.Run("both nil", func(t *testing.T) {
-		require.True(t, sameLastUsedAt(nil, nil))
+		require.True(t, sameLastUsedAtAtTime(nil, nil, now))
 	})
 
 	t.Run("one nil one not", func(t *testing.T) {
-		require.False(t, sameLastUsedAt(nil, &now))
-		require.False(t, sameLastUsedAt(&now, nil))
+		require.False(t, sameLastUsedAtAtTime(nil, &now, now))
+		require.False(t, sameLastUsedAtAtTime(&now, nil, now))
 	})
 
 	t.Run("same second different nanoseconds", func(t *testing.T) {
-		require.True(t, sameLastUsedAt(&sameSecond, &sameSecondDiffNano))
+		require.True(t, sameLastUsedAtAtTime(&sameSecond, &sameSecondDiffNano, now))
 	})
 
 	t.Run("different seconds", func(t *testing.T) {
-		require.False(t, sameLastUsedAt(&now, &differentSecond))
+		require.False(t, sameLastUsedAtAtTime(&now, &differentSecond, now))
 	})
 
 	t.Run("exact same time", func(t *testing.T) {
-		require.True(t, sameLastUsedAt(&now, &now))
+		require.True(t, sameLastUsedAtAtTime(&now, &now, now))
 	})
 
 	t.Run("future values are clamped to now for scheduler grouping", func(t *testing.T) {
@@ -280,8 +280,8 @@ func TestSameLastUsedAt(t *testing.T) {
 // ============ sameAccountWithLoadGroup 测试 ============
 
 func TestSameAccountWithLoadGroup(t *testing.T) {
-	now := time.Now()
-	sameSecond := time.Unix(now.Unix(), 0)
+	now := time.Unix(time.Now().Unix(), 0)
+	sameSecond := now
 
 	t.Run("same group", func(t *testing.T) {
 		a := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
@@ -302,7 +302,7 @@ func TestSameAccountWithLoadGroup(t *testing.T) {
 	})
 
 	t.Run("different last used at", func(t *testing.T) {
-		later := now.Add(1 * time.Second)
+		later := now.Add(-1 * time.Second)
 		a := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
 		b := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &later}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
 		require.False(t, sameAccountWithLoadGroupAtTime(a, b, now))
@@ -318,7 +318,7 @@ func TestSameAccountWithLoadGroup(t *testing.T) {
 // ============ sameAccountGroup 测试 ============
 
 func TestSameAccountGroup(t *testing.T) {
-	now := time.Now()
+	now := time.Unix(time.Now().Unix(), 0)
 
 	t.Run("same group", func(t *testing.T) {
 		a := &Account{Priority: 1, LastUsedAt: nil}
@@ -333,7 +333,7 @@ func TestSameAccountGroup(t *testing.T) {
 	})
 
 	t.Run("different LastUsedAt", func(t *testing.T) {
-		later := now.Add(1 * time.Second)
+		later := now.Add(-1 * time.Second)
 		a := &Account{Priority: 1, LastUsedAt: &now}
 		b := &Account{Priority: 1, LastUsedAt: &later}
 		require.False(t, sameAccountGroupAtTime(a, b, now))
