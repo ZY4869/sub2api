@@ -17,6 +17,7 @@ import mcpXml from './mcpXml'
 import supportedScopes from './supportedScopes'
 import visibleModels from './visibleModels'
 import imageBatch from './imageBatch'
+import webSearchPricing from './webSearchPricing'
 
 export default {
   ...common,
@@ -38,4 +39,5 @@ export default {
   supportedScopes,
   visibleModels,
   imageBatch,
+  webSearchPricing,
 }

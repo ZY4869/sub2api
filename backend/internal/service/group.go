@@ -25,10 +25,13 @@ type Group struct {
 	MonthlyLimitUSD     *float64
 	DefaultValidityDays int
 
-	// 图片生成计费配置（antigravity 和 gemini 平台使用）
+	// 图片生成计费配置（antigravity、gemini 和 grok 平台使用）
 	ImagePrice1K *float64
 	ImagePrice2K *float64
 	ImagePrice4K *float64
+
+	// OpenAI alpha/search 按次计费配置；nil/负数使用默认价，0 表示免费。
+	WebSearchPricePerCall *float64
 
 	// OpenAI 图片协议模式（仅 openai 平台使用）
 	ImageProtocolMode string

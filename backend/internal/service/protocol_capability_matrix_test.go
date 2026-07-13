@@ -72,8 +72,17 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "openai images native passthrough", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointImagesGen, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini images generations native passthrough", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointImagesGen, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini images edits rejected", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointImagesEdits, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "grok videos generations native passthrough", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointVideosCreate, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "grok videos edits native passthrough", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointVideosEdits, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "grok videos extensions native passthrough", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointVideosExtensions, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "openai videos edits rejected", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointVideosEdits, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "gemini videos extensions rejected", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointVideosExtensions, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "openai embeddings native passthrough", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointEmbeddings, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "anthropic embeddings rejected", runtimePlatform: PlatformAnthropic, inboundEndpoint: EndpointEmbeddings, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "openai alpha search native passthrough", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointAlphaSearch, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "anthropic alpha search rejected", runtimePlatform: PlatformAnthropic, inboundEndpoint: EndpointAlphaSearch, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "grok alpha search rejected", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointAlphaSearch, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "gemini alpha search rejected", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointAlphaSearch, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "unknown endpoint stays unknown", runtimePlatform: PlatformOpenAI, inboundEndpoint: "/v1/not-real", wantOK: false},
 	}
 
@@ -105,6 +114,8 @@ func TestPublicEndpointRequestFormatForAction(t *testing.T) {
 	require.Equal(t, EndpointResponses, PublicEndpointRequestFormatForAction(EndpointResponses, ProtocolCapabilityActionWebSocket))
 	require.Equal(t, EndpointImagesGen, PublicEndpointRequestFormatForAction(EndpointImagesGen, ProtocolCapabilityActionDefault))
 	require.Equal(t, EndpointImagesEdits, PublicEndpointRequestFormatForAction(EndpointImagesEdits, ProtocolCapabilityActionDefault))
+	require.Equal(t, EndpointVideosEdits, PublicEndpointRequestFormatForAction(EndpointVideosEdits, ProtocolCapabilityActionDefault))
+	require.Equal(t, EndpointVideosExtensions, PublicEndpointRequestFormatForAction(EndpointVideosExtensions, ProtocolCapabilityActionDefault))
 }
 
 func TestNormalizeInboundEndpoint_DerivesOpenAIAliasFromRegistry(t *testing.T) {
@@ -134,6 +145,10 @@ func TestNormalizeInboundEndpoint_DerivesOpenAIAliasFromRegistry(t *testing.T) {
 	require.Equal(t, EndpointResponses, NormalizeInboundEndpoint("/openai/v1/responses"))
 	require.Equal(t, EndpointResponsesCompact, NormalizeInboundEndpoint("/openai/v1/responses/compact"))
 	require.Equal(t, EndpointChatCompletions, NormalizeInboundEndpoint("/openai/v1/chat/completions"))
+	require.Equal(t, EndpointAlphaSearch, NormalizeInboundEndpoint("/openai/v1/alpha/search"))
+	require.Equal(t, EndpointAlphaSearch, NormalizeInboundEndpoint("/alpha/search"))
+	require.Equal(t, EndpointVideosEdits, NormalizeInboundEndpoint("/v1/videos/edits"))
+	require.Equal(t, EndpointVideosExtensions, NormalizeInboundEndpoint("/grok/v1/videos/extensions"))
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/chat/completions"))
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/files"))
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/files/file_123"))

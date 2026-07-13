@@ -160,6 +160,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		Options: openaiwsv2.RelayOptions{
 			WriteTimeout:     s.openAIWSWriteTimeout(),
 			IdleTimeout:      s.openAIWSPassthroughIdleTimeout(),
+			MaxLifetime:      s.openAIWSMaxSessionLifetime(),
 			FirstMessageType: coderws.MessageText,
 			OnUsageParseFailure: func(eventType string, usageRaw string) {
 				logOpenAIWSV2Passthrough(

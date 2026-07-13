@@ -34,9 +34,11 @@ import { useOnboardingStore } from '@/stores/onboarding'
 import { adminAPI } from '@/api/admin'
 import type {
   AdminGroup,
+  CreateGroupRequest,
   GroupPlatform,
   OpenAIGroupImageProtocolMode,
-  SubscriptionType
+  SubscriptionType,
+  UpdateGroupRequest
 } from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -65,6 +67,7 @@ const ALWAYS_VISIBLE_GROUP_COLUMNS = ['name', 'actions']
 const IMAGE_BATCH_DEFAULT_MAX_ITEMS = 50
 const IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024
 const IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY = 2
+const ANTIGRAVITY_DEFAULT_MODEL_SCOPES = ['claude', 'gemini_text', 'gemini_image']
 
 const columns = computed<Column[]>(() => [
   { key: 'name', label: t('admin.groups.columns.name'), sortable: true },
@@ -169,6 +172,7 @@ const createForm = reactive({
   image_price_1k: null as number | null,
   image_price_2k: null as number | null,
   image_price_4k: null as number | null,
+  web_search_price_per_call: null as number | string | null,
   image_protocol_mode: 'inherit' as OpenAIGroupImageProtocolMode,
   claude_code_only: false,
   fallback_group_id: null as number | null,
@@ -183,7 +187,7 @@ const createForm = reactive({
   image_batch_max_download_bytes: IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES,
   image_batch_download_concurrency: IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY,
   model_routing_enabled: false,
-  supported_model_scopes: ['claude', 'gemini_text', 'gemini_image'] as string[],
+  supported_model_scopes: [] as string[],
   mcp_xml_inject: true,
   copy_accounts_from_group_ids: [] as number[]
 })
@@ -380,6 +384,8 @@ const convertApiFormatToRoutingRules = async (apiFormat: Record<string, number[]
   return rules
 }
 
+const getAntigravityDefaultModelScopes = () => [...ANTIGRAVITY_DEFAULT_MODEL_SCOPES]
+
 const editForm = reactive({
   name: '',
   description: '',
@@ -400,6 +406,7 @@ const editForm = reactive({
   image_price_1k: null as number | null,
   image_price_2k: null as number | null,
   image_price_4k: null as number | null,
+  web_search_price_per_call: null as number | string | null,
   image_protocol_mode: 'inherit' as OpenAIGroupImageProtocolMode,
   claude_code_only: false,
   fallback_group_id: null as number | null,
@@ -414,7 +421,7 @@ const editForm = reactive({
   image_batch_max_download_bytes: IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES,
   image_batch_download_concurrency: IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY,
   model_routing_enabled: false,
-  supported_model_scopes: ['claude', 'gemini_text', 'gemini_image'] as string[],
+  supported_model_scopes: [] as string[],
   mcp_xml_inject: true,
   copy_accounts_from_group_ids: [] as number[]
 })
@@ -541,6 +548,31 @@ const formatGroupPeakRate = (group: AdminGroup): string => {
 const handleCreatePlatformChange = () => {
   createForm.copy_accounts_from_group_ids = []
   createCopyAccountsSelection.value = null
+  if (createForm.platform !== 'anthropic') {
+    createForm.claude_code_only = false
+    createForm.fallback_group_id = null
+    createForm.fallback_group_id_on_invalid_request = null
+    createForm.model_routing_enabled = false
+    createModelRoutingRules.value = []
+  }
+  if (createForm.platform !== 'openai') {
+    createForm.allow_messages_dispatch = false
+    createForm.default_mapped_model = ''
+    createForm.image_protocol_mode = 'inherit'
+  }
+  if (createForm.platform !== 'antigravity') {
+    createForm.mcp_xml_inject = true
+    createForm.supported_model_scopes = []
+  } else {
+    createForm.supported_model_scopes = getAntigravityDefaultModelScopes()
+  }
+  if (createForm.platform !== 'gemini') {
+    createForm.gemini_mixed_protocol_enabled = false
+    resetImageBatchConfig(createForm)
+  }
+  if (!['openai', 'grok'].includes(createForm.platform)) {
+    createForm.web_search_price_per_call = null
+  }
 }
 
 const handleCreateCopyAccountsSelect = (value: string | number | boolean | null) => {
@@ -724,6 +756,7 @@ const closeCreateModal = () => {
   createForm.image_price_1k = null
   createForm.image_price_2k = null
   createForm.image_price_4k = null
+  createForm.web_search_price_per_call = null
   createForm.image_protocol_mode = 'inherit'
   createForm.claude_code_only = false
   createForm.fallback_group_id = null
@@ -737,7 +770,7 @@ const closeCreateModal = () => {
   createForm.image_batch_max_items = IMAGE_BATCH_DEFAULT_MAX_ITEMS
   createForm.image_batch_max_download_bytes = IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES
   createForm.image_batch_download_concurrency = IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY
-  createForm.supported_model_scopes = ['claude', 'gemini_text', 'gemini_image']
+  createForm.supported_model_scopes = []
   createForm.mcp_xml_inject = true
   createForm.copy_accounts_from_group_ids = []
   createCopyAccountsSelection.value = null
@@ -763,6 +796,118 @@ const normalizeOptionalLimit = (value: number | string | null | undefined): numb
  value : null
 }
 
+const normalizeNullableNumber = (value: number | string | null | undefined): number | null => {
+  if (value === null || value === undefined) {
+    return null
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return null
+    }
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return Number.isFinite(value) ? value : null
+}
+
+type GroupPayloadForm = typeof createForm & Partial<typeof editForm>
+type GroupPayloadMode = 'create' | 'update'
+
+const supportsImagePricing = (platform: GroupPlatform) =>
+  platform === 'antigravity' || platform === 'gemini' || platform === 'grok'
+
+const supportsWebSearchPricing = (platform: GroupPlatform) =>
+  platform === 'openai' || platform === 'grok'
+
+const buildGroupPayload = (
+  form: GroupPayloadForm,
+  routingRules: ModelRoutingRule[],
+  mode: GroupPayloadMode
+): CreateGroupRequest | UpdateGroupRequest => {
+  const platform = form.platform
+  const payload: CreateGroupRequest | UpdateGroupRequest = {
+    name: form.name,
+    description: form.description,
+    platform,
+    priority: normalizeGroupPriority(form.priority),
+    rate_multiplier: Number(form.rate_multiplier),
+    peak_rate_enabled: form.peak_rate_enabled,
+    peak_start: form.peak_start,
+    peak_end: form.peak_end,
+    peak_rate_multiplier: Number(form.peak_rate_multiplier),
+    is_exclusive: form.is_exclusive,
+    subscription_type: form.subscription_type,
+    daily_limit_usd: normalizeOptionalLimit(form.daily_limit_usd as number | string | null),
+    weekly_limit_usd: normalizeOptionalLimit(form.weekly_limit_usd as number | string | null),
+    monthly_limit_usd: normalizeOptionalLimit(form.monthly_limit_usd as number | string | null),
+    visible_model_patterns: parseModelPatternText(form.visible_model_patterns_text),
+    copy_accounts_from_group_ids: [...form.copy_accounts_from_group_ids],
+    supported_model_scopes: platform === 'antigravity'
+      ? [...form.supported_model_scopes]
+      : []
+  }
+
+  if (mode === 'update') {
+    const updatePayload = payload as UpdateGroupRequest
+    updatePayload.status = form.status
+  }
+
+  if (supportsImagePricing(platform)) {
+    payload.image_price_1k = normalizeNullableNumber(form.image_price_1k)
+    payload.image_price_2k = normalizeNullableNumber(form.image_price_2k)
+    payload.image_price_4k = normalizeNullableNumber(form.image_price_4k)
+  }
+
+  if (supportsWebSearchPricing(platform)) {
+    payload.web_search_price_per_call = normalizeNullableNumber(form.web_search_price_per_call)
+  }
+
+  if (platform === 'openai') {
+    payload.allow_messages_dispatch = form.allow_messages_dispatch
+    payload.default_mapped_model = form.default_mapped_model
+    payload.image_protocol_mode = form.image_protocol_mode
+  }
+
+  if (platform === 'anthropic') {
+    payload.claude_code_only = form.claude_code_only
+    payload.fallback_group_id = mode === 'update' && form.fallback_group_id === null
+      ? 0
+      : form.fallback_group_id
+    payload.fallback_group_id_on_invalid_request =
+      mode === 'update' && form.fallback_group_id_on_invalid_request === null
+        ? 0
+        : form.fallback_group_id_on_invalid_request
+    payload.model_routing_enabled = form.model_routing_enabled
+    payload.model_routing = form.model_routing_enabled
+      ? convertRoutingRulesToApiFormat(routingRules)
+      : null
+  }
+
+  if (platform === 'antigravity') {
+    payload.mcp_xml_inject = form.mcp_xml_inject
+  }
+
+  if (platform === 'gemini') {
+    payload.gemini_mixed_protocol_enabled = form.gemini_mixed_protocol_enabled
+    payload.image_batch_enabled = form.image_batch_enabled
+    payload.image_batch_allowed_providers = [...form.image_batch_allowed_providers]
+    payload.image_batch_allowed_models = [...form.image_batch_allowed_models]
+    payload.image_batch_max_items = form.image_batch_max_items
+    payload.image_batch_max_download_bytes = form.image_batch_max_download_bytes
+    payload.image_batch_download_concurrency = form.image_batch_download_concurrency
+  }
+
+  applyPeakRatePayload(payload as CreateGroupRequest & {
+    subscription_type: SubscriptionType
+    peak_rate_enabled: boolean
+    peak_start: string
+    peak_end: string
+    peak_rate_multiplier: number
+  })
+  return payload
+}
+
 const handleCreateGroup = async () => {
   if (!createForm.name.trim()) {
     appStore.showError(t('admin.groups.nameRequired'))
@@ -773,22 +918,7 @@ const handleCreateGroup = async () => {
   }
   submitting.value = true
   try {
-    const requestData = {
-      ...createForm,
-      priority: normalizeGroupPriority(createForm.priority),
-      daily_limit_usd: normalizeOptionalLimit(createForm.daily_limit_usd as number | string | null),
-      weekly_limit_usd: normalizeOptionalLimit(createForm.weekly_limit_usd as number | string | null),
-      monthly_limit_usd: normalizeOptionalLimit(createForm.monthly_limit_usd as number | string | null),
-      visible_model_patterns: parseModelPatternText(createForm.visible_model_patterns_text),
-      model_routing: convertRoutingRulesToApiFormat(createModelRoutingRules.value)
-    }
-    applyPeakRatePayload(requestData)
-
-    const emptyToNull = (v: any) => v === '' ?
- null : v
-    requestData.daily_limit_usd = emptyToNull(requestData.daily_limit_usd)
-    requestData.weekly_limit_usd = emptyToNull(requestData.weekly_limit_usd)
-    requestData.monthly_limit_usd = emptyToNull(requestData.monthly_limit_usd)
+    const requestData = buildGroupPayload(createForm, createModelRoutingRules.value, 'create') as CreateGroupRequest
     await adminAPI.groups.create(requestData)
     appStore.showSuccess(t('admin.groups.groupCreated'))
     closeCreateModal()
@@ -825,6 +955,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.image_price_1k = group.image_price_1k
   editForm.image_price_2k = group.image_price_2k
   editForm.image_price_4k = group.image_price_4k
+  editForm.web_search_price_per_call = group.web_search_price_per_call ?? null
   editForm.image_protocol_mode = normalizeOpenAIGroupImageProtocolMode(group.image_protocol_mode)
   editForm.claude_code_only = group.claude_code_only || false
   editForm.fallback_group_id = group.fallback_group_id
@@ -841,7 +972,9 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.image_batch_download_concurrency =
     group.image_batch_download_concurrency || IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY
   editForm.model_routing_enabled = group.model_routing_enabled || false
-  editForm.supported_model_scopes = group.supported_model_scopes || ['claude', 'gemini_text', 'gemini_image']
+  editForm.supported_model_scopes = group.platform === 'antigravity'
+    ? group.supported_model_scopes || getAntigravityDefaultModelScopes()
+    : []
   editForm.mcp_xml_inject = group.mcp_xml_inject ?? true
   editForm.copy_accounts_from_group_ids = []
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(group.model_routing)
@@ -862,6 +995,7 @@ const closeEditModal = () => {
   editForm.gemini_mixed_protocol_enabled = false
   resetPeakRateConfig(editForm)
   editForm.image_protocol_mode = 'inherit'
+  editForm.web_search_price_per_call = null
   editForm.visible_model_patterns_text = ''
   editForm.image_batch_enabled = false
   editForm.image_batch_allowed_providers = []
@@ -883,27 +1017,7 @@ const handleUpdateGroup = async () => {
 
   submitting.value = true
   try {
-    const payload = {
-      ...editForm,
-      priority: normalizeGroupPriority(editForm.priority),
-      daily_limit_usd: normalizeOptionalLimit(editForm.daily_limit_usd as number | string | null),
-      weekly_limit_usd: normalizeOptionalLimit(editForm.weekly_limit_usd as number | string | null),
-      monthly_limit_usd: normalizeOptionalLimit(editForm.monthly_limit_usd as number | string | null),
-      fallback_group_id: editForm.fallback_group_id === null ? 0 : editForm.fallback_group_id,
-      fallback_group_id_on_invalid_request:
-        editForm.fallback_group_id_on_invalid_request === null
-          ? 0
-          : editForm.fallback_group_id_on_invalid_request,
-      visible_model_patterns: parseModelPatternText(editForm.visible_model_patterns_text),
-      model_routing: convertRoutingRulesToApiFormat(editModelRoutingRules.value)
-    }
-    applyPeakRatePayload(payload)
-
-    const emptyToNull = (v: any) => v === '' ?
- null : v
-    payload.daily_limit_usd = emptyToNull(payload.daily_limit_usd)
-    payload.weekly_limit_usd = emptyToNull(payload.weekly_limit_usd)
-    payload.monthly_limit_usd = emptyToNull(payload.monthly_limit_usd)
+    const payload = buildGroupPayload(editForm, editModelRoutingRules.value, 'update') as UpdateGroupRequest
     await adminAPI.groups.update(editingGroup.value.id, payload)
     appStore.showSuccess(t('admin.groups.groupUpdated'))
     closeEditModal()
@@ -968,13 +1082,28 @@ watch(
     if (newVal !== 'gemini') {
       createForm.gemini_mixed_protocol_enabled = false
     }
-    if (!['anthropic', 'antigravity'].includes(newVal)) {
+    if (newVal !== 'anthropic') {
       createForm.fallback_group_id_on_invalid_request = null
     }
     if (newVal !== 'openai') {
       createForm.image_protocol_mode = 'inherit'
       createForm.allow_messages_dispatch = false
       createForm.default_mapped_model = ''
+    }
+    if (!['openai', 'grok'].includes(newVal)) {
+      createForm.web_search_price_per_call = null
+    }
+    if (newVal !== 'anthropic') {
+      createForm.claude_code_only = false
+      createForm.fallback_group_id = null
+      createForm.model_routing_enabled = false
+      createModelRoutingRules.value = []
+    }
+    if (newVal !== 'antigravity') {
+      createForm.mcp_xml_inject = true
+      createForm.supported_model_scopes = []
+    } else if (createForm.supported_model_scopes.length === 0) {
+      createForm.supported_model_scopes = getAntigravityDefaultModelScopes()
     }
     if (newVal !== 'gemini') {
       resetImageBatchConfig(createForm)
@@ -988,10 +1117,28 @@ watch(
     if (newVal !== 'gemini') {
       editForm.gemini_mixed_protocol_enabled = false
     }
+    if (newVal !== 'anthropic') {
+      editForm.fallback_group_id_on_invalid_request = null
+    }
     if (newVal !== 'openai') {
       editForm.image_protocol_mode = 'inherit'
       editForm.allow_messages_dispatch = false
       editForm.default_mapped_model = ''
+    }
+    if (!['openai', 'grok'].includes(newVal)) {
+      editForm.web_search_price_per_call = null
+    }
+    if (newVal !== 'anthropic') {
+      editForm.claude_code_only = false
+      editForm.fallback_group_id = null
+      editForm.model_routing_enabled = false
+      editModelRoutingRules.value = []
+    }
+    if (newVal !== 'antigravity') {
+      editForm.mcp_xml_inject = true
+      editForm.supported_model_scopes = []
+    } else if (editForm.supported_model_scopes.length === 0) {
+      editForm.supported_model_scopes = getAntigravityDefaultModelScopes()
     }
     if (newVal !== 'gemini') {
       resetImageBatchConfig(editForm)

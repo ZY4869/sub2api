@@ -27,9 +27,13 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		{"/v1/completions", EndpointCompletions},
 		{"/v1/responses", EndpointResponses},
 		{"/v1/embeddings", EndpointEmbeddings},
+		{"/v1/alpha/search", EndpointAlphaSearch},
+		{"/alpha/search", EndpointAlphaSearch},
 		{"/embeddings", EndpointEmbeddings},
 		{"/v1/videos", EndpointVideosCreate},
 		{"/v1/videos/generations", EndpointVideosCreate},
+		{"/v1/videos/edits", EndpointVideosEdits},
+		{"/v1/videos/extensions", EndpointVideosExtensions},
 		{"/v1/models/gemini-2.5-pro:generateContent", EndpointGeminiModels},
 		{"/v1alpha/authTokens", EndpointGeminiLiveAuthTokens},
 		{"/v1beta/models", EndpointGeminiModels},
@@ -74,7 +78,10 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		{"/antigravity/v1/messages", EndpointMessages},
 		{"/openai/v1/responses", EndpointResponses},
 		{"/openai/v1/responses/compact", EndpointResponsesCompact},
+		{"/openai/v1/alpha/search", EndpointAlphaSearch},
 		{"/grok/v1/videos", EndpointVideosCreate},
+		{"/grok/v1/videos/edits", EndpointVideosEdits},
+		{"/grok/v1/videos/extensions", EndpointVideosExtensions},
 		{"/antigravity/v1beta/models/gemini:generateContent", EndpointGeminiModels},
 
 		// Gin route patterns with wildcards.
@@ -134,6 +141,8 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 		// Grok videos.
 		{"grok videos create canonical", EndpointVideosCreate, "/v1/videos", service.PlatformGrok, EndpointVideosGen},
 		{"grok videos create alias", EndpointVideosCreate, "/v1/videos/generations", service.PlatformGrok, EndpointVideosGen},
+		{"grok videos edit", EndpointVideosEdits, "/v1/videos/edits", service.PlatformGrok, EndpointVideosEdits},
+		{"grok videos extension", EndpointVideosExtensions, "/v1/videos/extensions", service.PlatformGrok, EndpointVideosExtensions},
 
 		// OpenAI — always /v1/responses.
 		{"openai responses root", EndpointResponses, "/v1/responses", service.PlatformOpenAI, EndpointResponses},
@@ -143,6 +152,7 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 		{"openai from messages", EndpointMessages, "/v1/messages", service.PlatformOpenAI, EndpointResponses},
 		{"openai from completions", EndpointChatCompletions, "/v1/chat/completions", service.PlatformOpenAI, EndpointResponses},
 		{"openai embeddings", EndpointEmbeddings, "/v1/embeddings", service.PlatformOpenAI, EndpointEmbeddings},
+		{"openai alpha search", EndpointAlphaSearch, "/v1/alpha/search", service.PlatformOpenAI, EndpointAlphaSearch},
 		{"deepseek native completions", EndpointCompletions, "/v1/completions", service.PlatformDeepSeek, EndpointCompletions},
 
 		// Antigravity — uses inbound to pick Claude vs Gemini upstream.

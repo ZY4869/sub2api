@@ -35,11 +35,15 @@ func (s *OpenAIGatewayService) ForwardResponsesAsChatCompletions(
 	if err != nil {
 		return nil, fmt.Errorf("convert responses to chat completions: %w", err)
 	}
+	toolProxies, err := apicompat.ResponsesToolProxyMap(responsesReq.Tools)
+	if err != nil {
+		return nil, fmt.Errorf("map responses tool proxies: %w", err)
+	}
 	chatBody, err := json.Marshal(chatReq)
 	if err != nil {
 		return nil, fmt.Errorf("marshal chat completions request: %w", err)
 	}
-	return s.forwardResponsesAsNativeChatCompletions(ctx, c, account, chatBody, responsesReq.Model, defaultMappedModel)
+	return s.forwardResponsesAsNativeChatCompletions(ctx, c, account, chatBody, responsesReq.Model, defaultMappedModel, toolProxies)
 }
 
 func (s *OpenAIGatewayService) forwardResponsesAsNativeChatCompletions(
@@ -49,6 +53,7 @@ func (s *OpenAIGatewayService) forwardResponsesAsNativeChatCompletions(
 	body []byte,
 	originalResponsesModel string,
 	defaultMappedModel string,
+	toolProxies map[string]apicompat.ResponsesToolProxy,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
 	var chatReq apicompat.ChatCompletionsRequest
@@ -106,14 +111,14 @@ func (s *OpenAIGatewayService) forwardResponsesAsNativeChatCompletions(
 	var usage *OpenAIUsage
 	var firstTokenMs *int
 	if chatReq.Stream {
-		streamResult, streamErr := s.handleNativeChatAsResponsesStreamingResponse(resp, c, startTime, originalModel, mappedModel)
+		streamResult, streamErr := s.handleNativeChatAsResponsesStreamingResponse(resp, c, startTime, originalModel, mappedModel, toolProxies)
 		if streamErr != nil {
 			return nil, streamErr
 		}
 		usage = streamResult.usage
 		firstTokenMs = streamResult.firstTokenMs
 	} else {
-		usage, err = s.handleNativeChatAsResponsesNonStreamingResponse(resp, c, originalModel, mappedModel)
+		usage, err = s.handleNativeChatAsResponsesNonStreamingResponse(resp, c, originalModel, mappedModel, toolProxies)
 		if err != nil {
 			return nil, err
 		}
@@ -138,6 +143,7 @@ func (s *OpenAIGatewayService) handleNativeChatAsResponsesNonStreamingResponse(
 	c *gin.Context,
 	originalModel string,
 	mappedModel string,
+	toolProxies map[string]apicompat.ResponsesToolProxy,
 ) (*OpenAIUsage, error) {
 	body, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
 	if err != nil {
@@ -153,7 +159,7 @@ func (s *OpenAIGatewayService) handleNativeChatAsResponsesNonStreamingResponse(
 	if mappedModel != "" && chatResp.Model == mappedModel {
 		chatResp.Model = originalModel
 	}
-	responsesResp := apicompat.ChatCompletionsToResponsesResponse(&chatResp, originalModel)
+	responsesResp := apicompat.ChatCompletionsToResponsesResponseWithToolProxies(&chatResp, originalModel, toolProxies)
 	responseBody, err := json.Marshal(responsesResp)
 	if err != nil {
 		return nil, fmt.Errorf("marshal responses bridge response: %w", err)
@@ -170,6 +176,7 @@ func (s *OpenAIGatewayService) handleNativeChatAsResponsesStreamingResponse(
 	startTime time.Time,
 	originalModel string,
 	mappedModel string,
+	toolProxies map[string]apicompat.ResponsesToolProxy,
 ) (*openaiStreamingResult, error) {
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	c.Header("Content-Type", "text/event-stream")
@@ -185,7 +192,7 @@ func (s *OpenAIGatewayService) handleNativeChatAsResponsesStreamingResponse(
 	}
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), defaultMaxLineSize)
-	state := &apicompat.ChatToResponsesStreamState{Model: originalModel}
+	state := &apicompat.ChatToResponsesStreamState{Model: originalModel, ToolProxies: toolProxies, ToolCallIndexes: map[int]bool{}}
 	usage := &OpenAIUsage{}
 	var firstTokenMs *int
 	writeEvent := func(event apicompat.ResponsesStreamEvent) error {

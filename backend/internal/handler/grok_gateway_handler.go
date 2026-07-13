@@ -28,6 +28,8 @@ const (
 	grokActionImagesGen   grokAction = "images_generation"
 	grokActionImagesEdits grokAction = "images_edits"
 	grokActionVideosGen   grokAction = "videos_generation"
+	grokActionVideosEdit  grokAction = "videos_edit"
+	grokActionVideosExt   grokAction = "videos_extension"
 	grokActionVideoStatus grokAction = "videos_status"
 )
 
@@ -199,6 +201,14 @@ func (h *GrokGatewayHandler) ImagesEdits(c *gin.Context) {
 
 func (h *GrokGatewayHandler) VideosGeneration(c *gin.Context) {
 	h.handleRequest(c, grokActionVideosGen)
+}
+
+func (h *GrokGatewayHandler) VideosEdit(c *gin.Context) {
+	h.handleRequest(c, grokActionVideosEdit)
+}
+
+func (h *GrokGatewayHandler) VideosExtension(c *gin.Context) {
+	h.handleRequest(c, grokActionVideosExt)
 }
 
 func (h *GrokGatewayHandler) VideoStatus(c *gin.Context) {
@@ -574,6 +584,10 @@ func (h *GrokGatewayHandler) forwardAction(ctx context.Context, c *gin.Context, 
 		return h.grokGatewayService.ForwardImagesEdits(ctx, c, account, body)
 	case grokActionVideosGen:
 		return h.grokGatewayService.ForwardVideosGeneration(ctx, c, account, body)
+	case grokActionVideosEdit:
+		return h.grokGatewayService.ForwardVideosEdit(ctx, c, account, body)
+	case grokActionVideosExt:
+		return h.grokGatewayService.ForwardVideosExtension(ctx, c, account, body)
 	case grokActionVideoStatus:
 		return h.grokGatewayService.ForwardVideoStatus(ctx, c, account, c.Param("request_id"))
 	default:

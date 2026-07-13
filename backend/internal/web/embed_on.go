@@ -10,6 +10,8 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -24,6 +26,8 @@ const (
 
 //go:embed all:dist
 var frontendFS embed.FS
+
+var embeddedHashedAssetPattern = regexp.MustCompile(`(?i)(^|[._-])[0-9a-f]{8,}([._-]|$)`)
 
 // PublicSettingsProvider is an interface to fetch public settings
 type PublicSettingsProvider interface {
@@ -63,7 +67,7 @@ func NewFrontendServer(settingsProvider PublicSettingsProvider) (*FrontendServer
 
 	return &FrontendServer{
 		distFS:     distFS,
-		fileServer: http.FileServer(http.FS(distFS)),
+		fileServer: cacheAwareStaticFileServer(distFS),
 		baseHTML:   baseHTML,
 		cache:      cache,
 		settings:   settingsProvider,
@@ -145,6 +149,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	settings, err := s.settings.GetPublicSettingsForInjection(ctx)
 	if err != nil {
 		// Fallback: serve without injection
+		c.Header("Cache-Control", "no-cache")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", s.baseHTML)
 		c.Abort()
 		return
@@ -153,6 +158,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	settingsJSON, err := json.Marshal(settings)
 	if err != nil {
 		// Fallback: serve without injection
+		c.Header("Cache-Control", "no-cache")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", s.baseHTML)
 		c.Abort()
 		return
@@ -225,7 +231,7 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 	if err != nil {
 		panic("failed to get dist subdirectory: " + err.Error())
 	}
-	fileServer := http.FileServer(http.FS(distFS))
+	fileServer := cacheAwareStaticFileServer(distFS)
 
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
@@ -258,10 +264,31 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		strings.HasPrefix(trimmed, "/v1beta/") ||
 		strings.HasPrefix(trimmed, "/grok/") ||
 		strings.HasPrefix(trimmed, "/antigravity/") ||
+		trimmed == "/alpha/search" ||
 		strings.HasPrefix(trimmed, "/setup/") ||
 		trimmed == "/health" ||
 		trimmed == "/responses" ||
 		strings.HasPrefix(trimmed, "/responses/")
+}
+
+func cacheAwareStaticFileServer(fsys fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(fsys))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		applyEmbeddedStaticCacheHeaders(w, r.URL.Path)
+		fileServer.ServeHTTP(w, r)
+	})
+}
+
+func applyEmbeddedStaticCacheHeaders(w http.ResponseWriter, requestPath string) {
+	cleanBase := strings.ToLower(path.Base(strings.TrimSpace(requestPath)))
+	switch {
+	case cleanBase == "", cleanBase == ".", cleanBase == "index.html":
+		w.Header().Set("Cache-Control", "no-cache")
+	case embeddedHashedAssetPattern.MatchString(cleanBase):
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	default:
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+	}
 }
 
 func serveIndexHTML(c *gin.Context, fsys fs.FS) {
@@ -280,6 +307,7 @@ func serveIndexHTML(c *gin.Context, fsys fs.FS) {
 		return
 	}
 
+	c.Header("Cache-Control", "no-cache")
 	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 	c.Abort()
 }

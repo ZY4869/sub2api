@@ -315,6 +315,14 @@ func (s *GrokGatewayService) forwardSSOVideosGeneration(ctx context.Context, c *
 	return s.forwardGrokVideoCreate(ctx, c, account, body)
 }
 
+func (s *GrokGatewayService) forwardSSOVideosEdit(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
+	return s.forwardGrokVideoCreateWithOperation(ctx, c, account, body, grokVideoOperationEdit)
+}
+
+func (s *GrokGatewayService) forwardSSOVideosExtension(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
+	return s.forwardGrokVideoCreateWithOperation(ctx, c, account, body, grokVideoOperationExtension)
+}
+
 func (s *GrokGatewayService) forwardSSOVideoStatus(ctx context.Context, c *gin.Context, account *Account, requestID string) (*GrokGatewayForwardResult, error) {
 	conversationID, responseID := grokDecodeReverseVideoRequestID(requestID)
 	if conversationID == "" {

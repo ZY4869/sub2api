@@ -150,6 +150,7 @@ const parsedCode = ref('')
 const parsedState = ref('')
 const errorMessage = ref('')
 const loading = ref(false)
+const suppressNextCallbackWatch = ref(false)
 
 const resolvedState = computed(() => parsedState.value || authState.value?.state || '')
 const canSubmit = computed(() => Boolean(authState.value?.session_id && parsedCode.value && resolvedState.value))
@@ -158,6 +159,10 @@ watch(callbackUrl, (value) => {
   const parsed = parseGrokOAuthCallback(value)
   parsedCode.value = parsed.code
   parsedState.value = parsed.state || ''
+  if (suppressNextCallbackWatch.value) {
+    suppressNextCallbackWatch.value = false
+    return
+  }
   errorMessage.value = ''
 })
 
@@ -211,7 +216,13 @@ async function submitOAuth() {
     })
     emit('submit', buildGrokOAuthPayload(tokenInfo as GrokExchangeCodeResult))
   } catch (error: any) {
-    errorMessage.value = error?.message || t('admin.accounts.grokOauth.exchangeFailed')
+    const message = error?.message || t('admin.accounts.grokOauth.exchangeFailed')
+    authState.value = null
+    suppressNextCallbackWatch.value = true
+    callbackUrl.value = ''
+    parsedCode.value = ''
+    parsedState.value = ''
+    errorMessage.value = message
   } finally {
     loading.value = false
   }
@@ -224,6 +235,7 @@ function reset() {
   parsedState.value = ''
   errorMessage.value = ''
   loading.value = false
+  suppressNextCallbackWatch.value = false
 }
 
 defineExpose({ reset })

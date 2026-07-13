@@ -841,6 +841,117 @@ func TestResponsesToChatCompletionsRequest_PreservesParallelToolCallsFalseAndTex
 	require.Contains(t, string(raw), `"response_format"`)
 }
 
+func TestResponsesToChatCompletionsRequest_ProxiesResponsesToolsAndToolChoice(t *testing.T) {
+	req := &ResponsesRequest{
+		Model:      "gpt-5.2",
+		Input:      json.RawMessage(`"hello"`),
+		ToolChoice: json.RawMessage(`{"type":"tool_search","name":"tool_search"}`),
+		Tools: []ResponsesTool{
+			{Type: "custom", Name: "freeform", Description: "Freeform", Parameters: json.RawMessage(`{"type":"object"}`)},
+			{Type: "tool_search", Name: "tool_search", Params: json.RawMessage(`{"type":"object","properties":{"query":{"type":"string"}}}`)},
+			{Type: "namespace", Name: "browser", Tools: []ResponsesTool{{Type: "function", Name: "open"}}},
+		},
+	}
+
+	chat, err := ResponsesToChatCompletionsRequest(req)
+	require.NoError(t, err)
+	require.Len(t, chat.Tools, 3)
+
+	proxies, err := ResponsesToolProxyMap(req.Tools)
+	require.NoError(t, err)
+	require.Len(t, proxies, 3)
+	require.Contains(t, proxies, chat.Tools[0].Function.Name)
+	require.Contains(t, proxies, chat.Tools[1].Function.Name)
+	require.Contains(t, proxies, chat.Tools[2].Function.Name)
+
+	var choice map[string]any
+	require.NoError(t, json.Unmarshal(chat.ToolChoice, &choice))
+	require.Equal(t, "function", choice["type"])
+	fn := choice["function"].(map[string]any)
+	proxyName := fn["name"].(string)
+	require.Contains(t, proxies, proxyName)
+	require.Equal(t, "tool_search", proxies[proxyName].Type)
+}
+
+func TestResponsesToChatCompletionsRequest_RejectsNamespaceNameConflict(t *testing.T) {
+	req := &ResponsesRequest{
+		Model: "gpt-5.2",
+		Input: json.RawMessage(`"hello"`),
+		Tools: []ResponsesTool{
+			{Type: "namespace", Name: "browser", Tools: []ResponsesTool{{Type: "function", Name: "open"}}},
+			{Type: "function", Name: "browser.open"},
+		},
+	}
+
+	_, err := ResponsesToChatCompletionsRequest(req)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "name conflict")
+}
+
+func TestResponsesToChatCompletionsRequest_RemovesUnknownForcedResponsesToolChoice(t *testing.T) {
+	req := &ResponsesRequest{
+		Model:      "gpt-5.2",
+		Input:      json.RawMessage(`"hello"`),
+		Tools:      []ResponsesTool{{Type: "function", Name: "known"}},
+		ToolChoice: json.RawMessage(`{"type":"tool_search","name":"tool_search"}`),
+	}
+
+	chat, err := ResponsesToChatCompletionsRequest(req)
+	require.NoError(t, err)
+	require.Empty(t, chat.ToolChoice)
+}
+
+func TestResponsesToChatCompletionsRequest_ToolSearchStringShorthandAndParamsObject(t *testing.T) {
+	req := &ResponsesRequest{
+		Model: "gpt-5.2",
+		Input: json.RawMessage(`"hello"`),
+		Tools: []ResponsesTool{{Type: "tool_search", Params: json.RawMessage(`{"type":"object","properties":{"query":{"type":"string"}}}`)}},
+	}
+
+	chat, err := ResponsesToChatCompletionsRequest(req)
+	require.NoError(t, err)
+	require.Len(t, chat.Tools, 1)
+	require.JSONEq(t, `{"type":"object","properties":{"query":{"type":"string"}}}`, string(chat.Tools[0].Function.Parameters))
+
+	var tools []ResponsesTool
+	require.NoError(t, json.Unmarshal([]byte(`["tool_search"]`), &tools))
+	require.Len(t, tools, 1)
+	require.Equal(t, "tool_search", tools[0].Type)
+	require.Equal(t, "tool_search", tools[0].Name)
+}
+
+func TestChatCompletionsToResponsesResponseWithToolProxies_RestoresResponsesToolOutputs(t *testing.T) {
+	req := &ResponsesRequest{
+		Model: "gpt-5.2",
+		Input: json.RawMessage(`"hello"`),
+		Tools: []ResponsesTool{
+			{Type: "tool_search", Name: "tool_search"},
+			{Type: "custom", Name: "freeform"},
+		},
+	}
+	chat, err := ResponsesToChatCompletionsRequest(req)
+	require.NoError(t, err)
+	proxies, err := ResponsesToolProxyMap(req.Tools)
+	require.NoError(t, err)
+
+	searchName := chat.Tools[0].Function.Name
+	customName := chat.Tools[1].Function.Name
+	resp := ChatCompletionsToResponsesResponseWithToolProxies(&ChatCompletionsResponse{
+		ID:    "chatcmpl_1",
+		Model: "gpt-5.2",
+		Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", ToolCalls: []ChatToolCall{
+			{ID: "call_search", Type: "function", Function: ChatFunctionCall{Name: searchName, Arguments: `{"query":"weather"}`}},
+			{ID: "call_custom", Type: "function", Function: ChatFunctionCall{Name: customName, Arguments: `{"input":"raw"}`}},
+		}}}},
+	}, "gpt-5.2", proxies)
+
+	require.Len(t, resp.Output, 3)
+	require.Equal(t, "tool_search_call", resp.Output[1].Type)
+	require.Equal(t, "weather", resp.Output[1].Action.Query)
+	require.Equal(t, "custom_tool_call", resp.Output[2].Type)
+	require.Equal(t, "freeform", resp.Output[2].Name)
+}
+
 func mustJSONField(t *testing.T, raw json.RawMessage, key string) json.RawMessage {
 	t.Helper()
 	var obj map[string]json.RawMessage

@@ -94,6 +94,11 @@ func (Group) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
+		field.Float("web_search_price_per_call").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Comment("OpenAI alpha/search per-call price override in USD; nil or negative uses default, 0 is free"),
 		field.String("image_protocol_mode").
 			MaxLen(20).
 			Default("inherit").

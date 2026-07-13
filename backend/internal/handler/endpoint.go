@@ -19,12 +19,15 @@ const (
 	EndpointChatCompletions                = service.EndpointChatCompletions
 	EndpointCompletions                    = service.EndpointCompletions
 	EndpointEmbeddings                     = service.EndpointEmbeddings
+	EndpointAlphaSearch                    = service.EndpointAlphaSearch
 	EndpointResponses                      = service.EndpointResponses
 	EndpointResponsesCompact               = service.EndpointResponsesCompact
 	EndpointImagesGen                      = service.EndpointImagesGen
 	EndpointImagesEdits                    = service.EndpointImagesEdits
 	EndpointVideosCreate                   = service.EndpointVideosCreate
 	EndpointVideosGen                      = service.EndpointVideosGen
+	EndpointVideosEdits                    = service.EndpointVideosEdits
+	EndpointVideosExtensions               = service.EndpointVideosExtensions
 	EndpointVideosStatus                   = service.EndpointVideosStatus
 	EndpointGeminiModels                   = service.EndpointGeminiModels
 	EndpointGeminiFiles                    = service.EndpointGeminiFiles
@@ -90,7 +93,7 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 	switch platform {
 	case service.PlatformOpenAI:
 		switch inbound {
-		case EndpointEmbeddings, EndpointImagesGen, EndpointImagesEdits:
+		case EndpointEmbeddings, EndpointAlphaSearch, EndpointImagesGen, EndpointImagesEdits:
 			return inbound
 		default:
 			// OpenAI forwards text surfaces to the Responses API.
@@ -143,14 +146,19 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 		if suffix := responsesSubpathSuffix(rawRequestPath); suffix != "" {
 			return EndpointResponses + suffix
 		}
-		if strings.Contains(rawRequestPath, "/videos/") && !strings.Contains(rawRequestPath, EndpointVideosGen) {
+		if strings.Contains(rawRequestPath, "/videos/") &&
+			!strings.Contains(rawRequestPath, EndpointVideosGen) &&
+			!strings.Contains(rawRequestPath, EndpointVideosEdits) &&
+			!strings.Contains(rawRequestPath, EndpointVideosExtensions) {
 			return normalizeVideoStatusPath(rawRequestPath)
 		}
 		switch inbound {
 		case EndpointChatCompletions, EndpointResponses, EndpointImagesGen, EndpointImagesEdits:
 			return inbound
-		case EndpointVideosCreate, EndpointVideosGen:
+		case EndpointVideosCreate:
 			return EndpointVideosGen
+		case EndpointVideosGen, EndpointVideosEdits, EndpointVideosExtensions:
+			return inbound
 		case EndpointVideosStatus:
 			return normalizeVideoStatusPath(rawRequestPath)
 		}
@@ -182,10 +190,13 @@ func gatewayProtocolHintForInboundEndpoint(inbound string) string {
 	case EndpointChatCompletions,
 		EndpointCompletions,
 		EndpointEmbeddings,
+		EndpointAlphaSearch,
 		EndpointResponses,
 		EndpointResponsesCompact,
 		EndpointVideosCreate,
 		EndpointVideosGen,
+		EndpointVideosEdits,
+		EndpointVideosExtensions,
 		EndpointVideosStatus:
 		return service.PlatformOpenAI
 	case EndpointGeminiModels,
@@ -238,8 +249,8 @@ func DeriveUpstreamEndpointForAccount(account *service.Account, inbound, rawRequ
 	platform := service.EffectiveProtocol(resolvedAccount)
 	if platform == service.PlatformOpenAI {
 		switch normalizedInbound {
-		case EndpointEmbeddings:
-			return EndpointEmbeddings
+		case EndpointEmbeddings, EndpointAlphaSearch:
+			return normalizedInbound
 		case EndpointChatCompletions, EndpointResponses, EndpointResponsesCompact:
 			requestFormat := service.ResolveOpenAITextRequestFormatForAccount(resolvedAccount, normalizedInbound)
 			if requestFormat == service.GatewayOpenAIRequestFormatChatCompletions {

@@ -51,6 +51,9 @@ func defaultPublicModelProtocolEndpoints(protocol string, source publicModelCata
 			newPublicModelProtocolEndpoint("grok.messages.countTokens", PlatformGrok, "/grok/v1/messages/count_tokens", http.MethodPost, PublicModelSupportPartial, source),
 			newPublicModelProtocolEndpoint("grok.responses", PlatformGrok, "/grok/v1/responses", http.MethodPost, PublicModelSupportPartial, source),
 			newPublicModelProtocolEndpoint("grok.images.generations", PlatformGrok, "/grok/v1/images/generations", http.MethodPost, PublicModelSupportPartial, source),
+			newPublicModelProtocolEndpoint("grok.videos.generations", PlatformGrok, "/grok/v1/videos/generations", http.MethodPost, PublicModelSupportPartial, source),
+			newPublicModelProtocolEndpoint("grok.videos.edits", PlatformGrok, "/grok/v1/videos/edits", http.MethodPost, PublicModelSupportPartial, source),
+			newPublicModelProtocolEndpoint("grok.videos.extensions", PlatformGrok, "/grok/v1/videos/extensions", http.MethodPost, PublicModelSupportPartial, source),
 		}
 	default:
 		return nil
@@ -111,6 +114,10 @@ func publicModelEndpointKeyForCapability(targetProtocol string, capability Publi
 			return "openai.images.edits"
 		case EndpointVideosCreate, EndpointVideosGen:
 			return "openai.videos.generations"
+		case EndpointVideosEdits:
+			return "openai.videos.edits"
+		case EndpointVideosExtensions:
+			return "openai.videos.extensions"
 		}
 	case PlatformAnthropic:
 		if NormalizeInboundEndpoint(capability.InboundEndpoint) == EndpointMessages {
@@ -163,6 +170,10 @@ func publicModelEndpointKeyForCapability(targetProtocol string, capability Publi
 			return "grok.images.edits"
 		case EndpointVideosCreate, EndpointVideosGen:
 			return "grok.videos.generations"
+		case EndpointVideosEdits:
+			return "grok.videos.edits"
+		case EndpointVideosExtensions:
+			return "grok.videos.extensions"
 		}
 	}
 	return ""

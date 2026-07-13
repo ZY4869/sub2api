@@ -107,6 +107,7 @@ export function useEditAccountModalWatchers(ctx: any) {
     normalizeGeminiOAuthType,
     normalizeGrokTier,
     normalizeAccountTier,
+    openAIOAuthPlanTypeOverride,
     openAIImageCompatAllowed,
     openAIImageProtocolMode,
     openaiAPIKeyResponsesWebSocketV2Mode,
@@ -225,6 +226,7 @@ watch(
 
       // Load OpenAI passthrough toggle (OpenAI OAuth/API Key)
       openaiPassthroughEnabled.value = false
+      openAIOAuthPlanTypeOverride.value = ''
       openAIImageProtocolMode.value = 'native'
       openAIImageCompatAllowed.value = true
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
@@ -234,6 +236,9 @@ watch(
       anthropicPassthroughEnabled.value = false
       anthropicAPIKeyAuthScheme.value = 'x_api_key'
       if (runtimePlatform === 'openai' && (newAccount.type === 'oauth' || newAccount.type === 'apikey')) {
+        if (newAccount.type === 'oauth') {
+          openAIOAuthPlanTypeOverride.value = String(credentials?.plan_type || '').trim()
+        }
         const openAIImageState = resolveOpenAIImageProtocolState({
           accountCategory: newAccount.type === 'oauth' ? 'oauth-based' : 'apikey',
           planType: String(credentials?.plan_type || ''),
@@ -523,6 +528,7 @@ watch(
       modelRestrictionMode.value = 'whitelist'
       openAIImageProtocolMode.value = 'native'
       openAIImageCompatAllowed.value = true
+      openAIOAuthPlanTypeOverride.value = ''
       autoRenewEnabled.value = false
       autoRenewPeriod.value = 'month'
       geminiOAuthType.value = 'code_assist'

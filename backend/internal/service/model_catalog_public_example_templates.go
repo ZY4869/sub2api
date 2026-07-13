@@ -140,6 +140,32 @@ curl https://api.zyxai.de/grok/v1/messages/count_tokens \
     ]
   }'
 ` + "```" + `
+
+### Grok video edit
+#### REST
+` + "```bash" + `
+curl https://api.zyxai.de/grok/v1/videos/edits \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "grok-video",
+    "video": "https://example.com/input.mp4",
+    "prompt": "保留主体，改为夜景灯光。"
+  }'
+` + "```" + `
+
+### Grok video extension
+#### REST
+` + "```bash" + `
+curl https://api.zyxai.de/grok/v1/videos/extensions \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "grok-video",
+    "video": "https://example.com/input.mp4",
+    "prompt": "延长镜头，保持运动方向和画面风格。"
+  }'
+` + "```" + `
 `,
 	"antigravity": `### Antigravity messages
 #### REST

@@ -336,6 +336,15 @@ const upstreamProbeCredentials = computed<Record<string, unknown>>(() => ({
   api_key: upstreamApiKey.value.trim(),
   base_url: upstreamBaseUrl.value.trim()
 }))
+const grokProbeCredentials = computed<Record<string, unknown>>(() => {
+  if (form.type === 'oauth') {
+    return { ...oauthDraftCredentials.value }
+  }
+  if (form.type === 'sso') {
+    return { sso_token: grokSSOToken.value.trim() }
+  }
+  return {}
+})
 const vertexProbeCredentials = computed<Record<string, unknown>>(() => {
   const baseUrl = geminiVertexBaseUrl.value.trim() || resolveVertexAuthBaseUrl(
     geminiVertexAuthMode.value,
@@ -367,6 +376,18 @@ const isUpstreamProbeReady = computed(() => Boolean(
   upstreamApiKey.value.trim() && upstreamBaseUrl.value.trim()
 ))
 const oauthDraftProbeReady = computed(() => Object.keys(oauthDraftCredentials.value).length > 0)
+const isGrokProbeReady = computed(() => {
+  if (form.platform !== 'grok') {
+    return false
+  }
+  if (form.type === 'oauth') {
+    return Boolean(String(oauthDraftCredentials.value.access_token || '').trim())
+  }
+  if (form.type === 'sso') {
+    return Boolean(grokSSOToken.value.trim())
+  }
+  return false
+})
 const isVertexProbeReady = computed(() => {
   if (geminiVertexAuthMode.value === 'express_api_key') {
     return Boolean(geminiVertexApiKey.value.trim())
@@ -422,7 +443,8 @@ const showAntigravityUpstreamCredentialsSection = computed(() =>
   form.platform === 'antigravity' && antigravityAccountType.value === 'upstream'
 )
 const showOAuthFinalizeStep = computed(() =>
-  isOAuthFlow.value && form.platform === 'kiro'
+  (isOAuthFlow.value && form.platform === 'kiro') ||
+  (form.platform === 'grok' && form.type === 'oauth')
 )
 const showOAuthFinalizeProbeEditor = computed(() =>
   showOAuthFinalizeStep.value && step.value === 3 && oauthDraftProbeReady.value
@@ -939,6 +961,15 @@ const handleGrokImportCompleted = (result: GrokImportResult) => {
 
 const goBackToBasicInfo = () => {
   if (showOAuthFinalizeStep.value && step.value === 3) {
+    if (form.platform === 'grok') {
+      step.value = 1
+      oauthDraftCredentials.value = {}
+      oauthDraftExtra.value = {}
+      modelProbeSnapshot.value = null
+      protocolGatewayProbeModels.value = []
+      resolvedUpstream.value = null
+      return
+    }
     step.value = 2
     return
   }
@@ -1064,6 +1095,10 @@ const buildProbeExtra = (base?: Record<string, unknown>) =>
     resolvedUpstream.value
   )
 
+const grokProbeExtra = computed(() =>
+  form.type === 'sso' ? buildProbeExtra({ grok_tier: grokTier.value }) : buildProbeExtra()
+)
+
 const modalContext = {
   BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, accountCategory, addMethod, allowVertexBatchOverflow, allowedModels, anthropicAPIKeyAuthScheme, anthropicPassthroughEnabled, antigravityAccountType, antigravityModelMappings,
   antigravityModelRestrictionMode, antigravityOAuth, antigravityWhitelistModels, apiKeyBaseUrl, apiKeyRequestHeadersText, apiKeyValue, appStore, applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyInterceptWarmup,
@@ -1082,7 +1117,7 @@ const modalContext = {
   autoImportModels, createDefaultDeepSeekModelConcurrencyLimitDraft, ensureModelRegistryFresh, geminiAIStudioOAuthEnabled, geminiOAuth, geminiOAuthType, geminiVertexAccessToken, geminiVertexExpiresAtInput, isBaiduDocumentAIPlatform, kiroAuthRef,
   loadAntigravityDefaultMappings, markOpenAIOAuthDefaultsCustomized, nextTick, openAIImageProtocolTouched, props, protocolGatewayProbeModels, resetForm, resetOpenAIOAuthDefaultSelection, resetProtocolGatewayClaudeMimicState, showProtocolGatewayBatchEditor,
   showProtocolGatewayClaudeMimicEditor, showProtocolGatewayOpenAIRequestFormatEditor, watch, authStore, oauthStepTitle, showFormError, showFormInfo, currentAuthUrl, currentSessionId, currentOAuthLoading,
-  currentOAuthError, apiKeyProbeCredentials, upstreamProbeCredentials, vertexProbeCredentials, isApiKeyProbeReady, isUpstreamProbeReady, isVertexProbeReady, showCommonApiKeySection, showApiKeyModelScopeEditor, showDeepSeekConcurrencyEditor,
+  currentOAuthError, apiKeyProbeCredentials, upstreamProbeCredentials, vertexProbeCredentials, grokProbeCredentials, grokProbeExtra, isApiKeyProbeReady, isUpstreamProbeReady, isGrokProbeReady, isVertexProbeReady, showCommonApiKeySection, showApiKeyModelScopeEditor, showDeepSeekConcurrencyEditor,
   showStandaloneModelScopeEditor, showQuotaLimitSection, showGeminiAIStudioBatchArchiveEditor, showGeminiVertexBatchArchiveEditor, showAntigravityUpstreamCredentialsSection, showOAuthFinalizeProbeEditor, antigravityPresetMappings, getModelMappingKey, getAntigravityModelMappingKey, showAdvancedOAuth, showGeminiHelpDialog,
   quotaControlState, umqModeOptions, geminiTierGoogleOne, geminiTierGcp, effectiveGroupPlatforms, protocolGatewayBatchRequestFormats, openAIWSModeOptions, openaiResponsesWebSocketV2Mode, openAIWSModeConcurrencyHintKey, commonErrorCodeOptions,
   geminiHelpLinks, presetMappings, tempUnschedRules, tempUnschedPresets, getTempUnschedRuleKey, addTempUnschedRule, removeTempUnschedRule, moveTempUnschedRule, showMixedChannelWarning, mixedChannelWarningMessageText,

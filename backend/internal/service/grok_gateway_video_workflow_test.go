@@ -26,8 +26,23 @@ func TestGrokBuildVideoWorkflowRequestFromVideosBody(t *testing.T) {
 	require.Equal(t, grokVideoDefaultSeconds, req.Seconds)
 }
 
+func TestGrokBuildVideoWorkflowRequestFromVideosBodyWithOperation(t *testing.T) {
+	req, err := grokBuildVideoWorkflowRequestFromVideosBodyWithOperation([]byte(`{
+		"prompt":"extend the motion",
+		"model":"grok-imagine-video",
+		"video_url":"https://cdn.example.com/input.mp4",
+		"duration_seconds":8
+	}`), grokVideoOperationExtension)
+
+	require.NoError(t, err)
+	require.Equal(t, grokVideoOperationExtension, req.Operation)
+	require.Equal(t, "https://cdn.example.com/input.mp4", req.VideoURL)
+	require.Equal(t, 8, req.Seconds)
+}
+
 func TestGrokBuildAPIKeyVideoPayload(t *testing.T) {
 	req := &grokVideoWorkflowRequest{
+		Operation:      grokVideoOperationCreate,
 		RequestedModel: GrokModelImagineVideo,
 		Prompt:         "slow aerial shot",
 		ImageURL:       "https://cdn.example.com/ref.png",
@@ -47,6 +62,53 @@ func TestGrokBuildAPIKeyVideoPayload(t *testing.T) {
 	require.Equal(t, "16:9", payload["aspect_ratio"])
 	require.Equal(t, "720p", payload["resolution"])
 	require.EqualValues(t, 12, payload["duration_seconds"])
+}
+
+func TestGrokBuildAPIKeyVideoPayloadEditAndExtension(t *testing.T) {
+	tests := []struct {
+		name      string
+		operation grokVideoOperation
+		endpoint  string
+	}{
+		{name: "edit", operation: grokVideoOperationEdit, endpoint: grokEndpointVideosEdits},
+		{name: "extension", operation: grokVideoOperationExtension, endpoint: grokEndpointVideosExtension},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := &grokVideoWorkflowRequest{
+				Operation:      tt.operation,
+				RequestedModel: GrokModelImagineVideo,
+				Prompt:         "continue with matching motion",
+				VideoURL:       "https://cdn.example.com/input.mp4",
+				AspectRatio:    "16:9",
+				Resolution:     "720p",
+				Seconds:        8,
+			}
+			body, endpoint, err := grokBuildAPIKeyVideoPayload(req, "grok-imagine-video")
+			require.NoError(t, err)
+			require.Equal(t, tt.endpoint, endpoint)
+
+			var payload map[string]any
+			require.NoError(t, json.Unmarshal(body, &payload))
+			require.Equal(t, "https://cdn.example.com/input.mp4", payload["video_url"])
+			require.Equal(t, "continue with matching motion", payload["prompt"])
+		})
+	}
+}
+
+func TestGrokValidateVideoWorkflowRequestRequiresVideoForEditAndExtension(t *testing.T) {
+	for _, operation := range []grokVideoOperation{grokVideoOperationEdit, grokVideoOperationExtension} {
+		req := &grokVideoWorkflowRequest{
+			Operation:      operation,
+			RequestedModel: GrokModelImagineVideo,
+			Prompt:         "change the clip",
+		}
+
+		err := grokValidateVideoWorkflowRequest(req)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "video_url is required")
+	}
 }
 
 func TestGrokParseVideoResultBody(t *testing.T) {

@@ -231,6 +231,14 @@ func (s *GrokGatewayService) forwardAPIKeyVideosGeneration(ctx context.Context, 
 	return s.forwardGrokVideoCreate(ctx, c, account, body)
 }
 
+func (s *GrokGatewayService) forwardAPIKeyVideosEdit(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
+	return s.forwardGrokVideoCreateWithOperation(ctx, c, account, body, grokVideoOperationEdit)
+}
+
+func (s *GrokGatewayService) forwardAPIKeyVideosExtension(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
+	return s.forwardGrokVideoCreateWithOperation(ctx, c, account, body, grokVideoOperationExtension)
+}
+
 func (s *GrokGatewayService) forwardAPIKeyVideoStatus(ctx context.Context, c *gin.Context, account *Account, requestID string) (*GrokGatewayForwardResult, error) {
 	requestID = strings.TrimSpace(requestID)
 	startTime := time.Now()

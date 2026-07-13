@@ -106,6 +106,7 @@ type GatewayOpenAIWSConfig struct {
 	DialTimeoutSeconds                         int                                  `mapstructure:"dial_timeout_seconds"`
 	ReadTimeoutSeconds                         int                                  `mapstructure:"read_timeout_seconds"`
 	WriteTimeoutSeconds                        int                                  `mapstructure:"write_timeout_seconds"`
+	MaxSessionLifetimeSeconds                  int                                  `mapstructure:"max_session_lifetime_seconds"`
 	PoolTargetUtilization                      float64                              `mapstructure:"pool_target_utilization"`
 	QueueLimitPerConn                          int                                  `mapstructure:"queue_limit_per_conn"`
 	EventFlushBatchSize                        int                                  `mapstructure:"event_flush_batch_size"`

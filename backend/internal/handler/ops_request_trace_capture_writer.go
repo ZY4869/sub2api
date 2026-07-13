@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"bufio"
 	"bytes"
+	"net"
+	"net/http"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -48,14 +51,57 @@ func releaseOpsRequestTraceCaptureWriter(writer *opsRequestTraceCaptureWriter) {
 	opsRequestTraceWriterPool.Put(writer)
 }
 
+func (w *opsRequestTraceCaptureWriter) Header() http.Header {
+	if w == nil {
+		return http.Header{}
+	}
+	return opsWriterHeader(w.ResponseWriter)
+}
+
+func (w *opsRequestTraceCaptureWriter) Status() int {
+	if w == nil {
+		return http.StatusOK
+	}
+	return opsWriterStatus(w.ResponseWriter)
+}
+
+func (w *opsRequestTraceCaptureWriter) Size() int {
+	if w == nil {
+		return 0
+	}
+	return opsWriterSize(w.ResponseWriter)
+}
+
+func (w *opsRequestTraceCaptureWriter) Written() bool {
+	return w != nil && opsWriterWritten(w.ResponseWriter)
+}
+
+func (w *opsRequestTraceCaptureWriter) WriteHeaderNow() {
+	if w != nil {
+		opsWriterWriteHeaderNow(w.ResponseWriter)
+	}
+}
+
+func (w *opsRequestTraceCaptureWriter) WriteHeader(code int) {
+	if w != nil {
+		opsWriterWriteHeader(w.ResponseWriter, code)
+	}
+}
+
 func (w *opsRequestTraceCaptureWriter) Write(data []byte) (int, error) {
 	w.capture(data)
-	return w.ResponseWriter.Write(data)
+	if w == nil {
+		return 0, errOpsCaptureWriterReleased
+	}
+	return opsWriterWrite(w.ResponseWriter, data)
 }
 
 func (w *opsRequestTraceCaptureWriter) WriteString(value string) (int, error) {
 	w.capture([]byte(value))
-	return w.ResponseWriter.WriteString(value)
+	if w == nil {
+		return 0, errOpsCaptureWriterReleased
+	}
+	return opsWriterWriteString(w.ResponseWriter, value)
 }
 
 func (w *opsRequestTraceCaptureWriter) capture(data []byte) {
@@ -81,4 +127,31 @@ func (w *opsRequestTraceCaptureWriter) BytesCopy() []byte {
 		return nil
 	}
 	return append([]byte(nil), w.buf.Bytes()...)
+}
+
+func (w *opsRequestTraceCaptureWriter) Flush() {
+	if w != nil {
+		opsWriterFlush(w.ResponseWriter)
+	}
+}
+
+func (w *opsRequestTraceCaptureWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if w == nil {
+		return nil, nil, errOpsCaptureWriterReleased
+	}
+	return opsWriterHijack(w.ResponseWriter)
+}
+
+func (w *opsRequestTraceCaptureWriter) CloseNotify() <-chan bool {
+	if w == nil {
+		return opsWriterCloseNotify(nil)
+	}
+	return opsWriterCloseNotify(w.ResponseWriter)
+}
+
+func (w *opsRequestTraceCaptureWriter) Pusher() http.Pusher {
+	if w == nil {
+		return nil
+	}
+	return opsWriterPusher(w.ResponseWriter)
 }

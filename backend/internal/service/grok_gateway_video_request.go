@@ -19,6 +19,14 @@ const (
 	grokVideoDefaultSeconds    = 6
 )
 
+type grokVideoOperation string
+
+const (
+	grokVideoOperationCreate    grokVideoOperation = "create"
+	grokVideoOperationEdit      grokVideoOperation = "edit"
+	grokVideoOperationExtension grokVideoOperation = "extension"
+)
+
 var grokVideoSizeToAspectRatio = map[string]string{
 	"1280x720":  "16:9",
 	"720x1280":  "9:16",
@@ -34,6 +42,7 @@ var grokVideoQualityToResolution = map[string]string{
 
 type grokVideoWorkflowRequest struct {
 	EntryPoint     string
+	Operation      grokVideoOperation
 	RequestedModel string
 	Prompt         string
 	ImageURL       string
@@ -82,7 +91,7 @@ func grokBuildVideoWorkflowRequestFromChatBody(body []byte) (*grokVideoWorkflowR
 	}
 	prompt := grokChatPrompt(req.Messages)
 	imageURL, videoURL := grokChatMessagesMedia(req.Messages)
-	return grokBuildVideoWorkflowRequest(body, "chat", req.Model, prompt, imageURL, videoURL, req.Stream), nil
+	return grokBuildVideoWorkflowRequest(body, "chat", grokInferVideoOperation(videoURL), req.Model, prompt, imageURL, videoURL, req.Stream), nil
 }
 
 func grokBuildVideoWorkflowRequestFromResponsesBody(body []byte) (*grokVideoWorkflowRequest, error) {
@@ -92,10 +101,14 @@ func grokBuildVideoWorkflowRequestFromResponsesBody(body []byte) (*grokVideoWork
 	}
 	prompt := grokResponsesPrompt(req.Input)
 	imageURL, videoURL := grokResponsesInputMedia(req.Input)
-	return grokBuildVideoWorkflowRequest(body, "responses", req.Model, prompt, imageURL, videoURL, req.Stream), nil
+	return grokBuildVideoWorkflowRequest(body, "responses", grokInferVideoOperation(videoURL), req.Model, prompt, imageURL, videoURL, req.Stream), nil
 }
 
 func grokBuildVideoWorkflowRequestFromVideosBody(body []byte) (*grokVideoWorkflowRequest, error) {
+	return grokBuildVideoWorkflowRequestFromVideosBodyWithOperation(body, grokVideoOperationCreate)
+}
+
+func grokBuildVideoWorkflowRequestFromVideosBodyWithOperation(body []byte, operation grokVideoOperation) (*grokVideoWorkflowRequest, error) {
 	prompt := strings.TrimSpace(firstNonEmptyString(
 		gjson.GetBytes(body, "prompt").String(),
 		gjson.GetBytes(body, "input").String(),
@@ -118,12 +131,16 @@ func grokBuildVideoWorkflowRequestFromVideosBody(body []byte) (*grokVideoWorkflo
 		"input_video.url",
 		"input_video",
 	)
-	return grokBuildVideoWorkflowRequest(body, "videos", gjson.GetBytes(body, "model").String(), prompt, imageURL, videoURL, false), nil
+	if operation == grokVideoOperationCreate {
+		operation = grokInferVideoOperation(videoURL)
+	}
+	return grokBuildVideoWorkflowRequest(body, "videos", operation, gjson.GetBytes(body, "model").String(), prompt, imageURL, videoURL, false), nil
 }
 
 func grokBuildVideoWorkflowRequest(
 	body []byte,
 	entryPoint string,
+	operation grokVideoOperation,
 	model string,
 	prompt string,
 	imageURL string,
@@ -171,6 +188,7 @@ func grokBuildVideoWorkflowRequest(
 
 	return &grokVideoWorkflowRequest{
 		EntryPoint:     strings.TrimSpace(entryPoint),
+		Operation:      grokNormalizeVideoOperation(operation),
 		RequestedModel: requestedModel,
 		Prompt:         strings.TrimSpace(prompt),
 		ImageURL:       strings.TrimSpace(imageURL),
@@ -182,6 +200,22 @@ func grokBuildVideoWorkflowRequest(
 		Quality:        quality,
 		Size:           size,
 		Stream:         stream,
+	}
+}
+
+func grokInferVideoOperation(videoURL string) grokVideoOperation {
+	if strings.TrimSpace(videoURL) != "" {
+		return grokVideoOperationEdit
+	}
+	return grokVideoOperationCreate
+}
+
+func grokNormalizeVideoOperation(operation grokVideoOperation) grokVideoOperation {
+	switch operation {
+	case grokVideoOperationEdit, grokVideoOperationExtension:
+		return operation
+	default:
+		return grokVideoOperationCreate
 	}
 }
 
@@ -293,6 +327,7 @@ func grokBuildVideoCreateResponse(result *grokVideoResult, req *grokVideoWorkflo
 	}
 	if req != nil {
 		response["prompt"] = strings.TrimSpace(req.Prompt)
+		response["operation"] = string(grokNormalizeVideoOperation(req.Operation))
 		response["size"] = strings.TrimSpace(req.Size)
 		response["seconds"] = req.Seconds
 		response["quality"] = strings.TrimSpace(req.Quality)

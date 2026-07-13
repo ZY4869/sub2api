@@ -229,9 +229,13 @@ type ChatMedia struct {
 type ResponsesTool struct {
 	Type        string          `json:"type"` // "function" | "web_search" | "local_shell" etc.
 	Name        string          `json:"name,omitempty"`
+	Namespace   string          `json:"namespace,omitempty"`
 	Description string          `json:"description,omitempty"`
 	Parameters  json.RawMessage `json:"parameters,omitempty"`
+	Params      json.RawMessage `json:"params,omitempty"`
+	InputSchema json.RawMessage `json:"input_schema,omitempty"`
 	Strict      *bool           `json:"strict,omitempty"`
+	Tools       []ResponsesTool `json:"tools,omitempty"`
 }
 
 // ResponsesResponse is the non-streaming response from POST /v1/responses.
@@ -278,6 +282,7 @@ type ResponsesOutput struct {
 	// type=function_call
 	CallID    string `json:"call_id,omitempty"`
 	Name      string `json:"name,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
 	Arguments string `json:"arguments,omitempty"`
 
 	// type=web_search_call
@@ -298,9 +303,10 @@ type ResponsesSummary struct {
 
 // ResponsesUsage holds token counts in Responses API format.
 type ResponsesUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
-	TotalTokens  int `json:"total_tokens"`
+	InputTokens              int `json:"input_tokens"`
+	OutputTokens             int `json:"output_tokens"`
+	TotalTokens              int `json:"total_tokens"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
 
 	// Optional detailed breakdown
 	InputTokensDetails  *ResponsesInputTokensDetails  `json:"input_tokens_details,omitempty"`

@@ -70,6 +70,10 @@ func (d gatewayRouteDispatchers) OpenAIEmbeddings(c *gin.Context) {
 	dispatchOpenAIRoute(c, service.EndpointEmbeddings, service.ProtocolCapabilityActionDefault, d.handlers.OpenAIGateway.Embeddings, nil)
 }
 
+func (d gatewayRouteDispatchers) OpenAIAlphaSearch(c *gin.Context) {
+	dispatchOpenAIRoute(c, service.EndpointAlphaSearch, service.ProtocolCapabilityActionDefault, d.handlers.OpenAIGateway.AlphaSearch, nil)
+}
+
 func (d gatewayRouteDispatchers) GrokImagesGeneration(c *gin.Context) {
 	dispatchGrokOnlyRoute(c, service.EndpointImagesGen, d.handlers.GrokGateway.ImagesGeneration)
 }
@@ -88,6 +92,14 @@ func (d gatewayRouteDispatchers) PublicImagesEdits(c *gin.Context) {
 
 func (d gatewayRouteDispatchers) GrokVideosGeneration(c *gin.Context) {
 	dispatchGrokOnlyRoute(c, service.EndpointVideosCreate, d.handlers.GrokGateway.VideosGeneration)
+}
+
+func (d gatewayRouteDispatchers) GrokVideosEdit(c *gin.Context) {
+	dispatchGrokOnlyRoute(c, service.EndpointVideosEdits, d.handlers.GrokGateway.VideosEdit)
+}
+
+func (d gatewayRouteDispatchers) GrokVideosExtension(c *gin.Context) {
+	dispatchGrokOnlyRoute(c, service.EndpointVideosExtensions, d.handlers.GrokGateway.VideosExtension)
 }
 
 func (d gatewayRouteDispatchers) GrokVideosStatus(c *gin.Context) {

@@ -57,6 +57,7 @@ type RelayExit struct {
 type RelayOptions struct {
 	WriteTimeout         time.Duration
 	IdleTimeout          time.Duration
+	MaxLifetime          time.Duration
 	UpstreamDrainTimeout time.Duration
 	FirstMessageType     coderws.MessageType
 	OnUsageParseFailure  func(eventType string, usageRaw string)
@@ -189,7 +190,7 @@ func Relay(
 	})
 	markActivity()
 
-	exitCh := make(chan relayExitSignal, 3)
+	exitCh := make(chan relayExitSignal, 4)
 	dropDownstreamWrites := atomic.Bool{}
 	go runClientToUpstream(relayCtx, clientConn, writeUpstream, markActivity, clientToUpstreamFrames, onTrace, exitCh)
 	go runUpstreamToClient(
@@ -209,6 +210,7 @@ func Relay(
 		exitCh,
 	)
 	go runIdleWatchdog(relayCtx, nowFn, options.IdleTimeout, &lastActivity, onTrace, exitCh)
+	go runLifetimeWatchdog(relayCtx, nowFn, startAt, options.MaxLifetime, onTrace, exitCh)
 
 	firstExit := <-exitCh
 	emitRelayTrace(onTrace, RelayTraceEvent{
@@ -482,6 +484,43 @@ func runIdleWatchdog(
 	}
 }
 
+func runLifetimeWatchdog(
+	ctx context.Context,
+	nowFn func() time.Time,
+	startAt time.Time,
+	maxLifetime time.Duration,
+	onTrace func(event RelayTraceEvent),
+	exitCh chan<- relayExitSignal,
+) {
+	if maxLifetime <= 0 {
+		return
+	}
+	checkInterval := minDuration(maxLifetime/8, 30*time.Second)
+	if checkInterval < time.Second {
+		checkInterval = time.Second
+	}
+	ticker := time.NewTicker(checkInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if nowFn().Sub(startAt) < maxLifetime {
+				continue
+			}
+			emitRelayTrace(onTrace, RelayTraceEvent{
+				Stage:     "lifetime_timeout_triggered",
+				Direction: "watchdog",
+				Error:     context.DeadlineExceeded.Error(),
+			})
+			exitCh <- relayExitSignal{stage: "lifetime_timeout", err: context.DeadlineExceeded}
+			return
+		}
+	}
+}
+
 func emitRelayTrace(onTrace func(event RelayTraceEvent), event RelayTraceEvent) {
 	if onTrace == nil {
 		return
@@ -506,7 +545,7 @@ func relayDirectionFromStage(stage string) string {
 		return "client_to_upstream"
 	case "read_upstream", "write_client", "drain_terminal":
 		return "upstream_to_client"
-	case "idle_timeout":
+	case "idle_timeout", "lifetime_timeout":
 		return "watchdog"
 	default:
 		return ""

@@ -17,6 +17,7 @@ export function createEditAccountSubmit(ctx: any) {
     applyDeepSeekModelConcurrencyLimitsExtra,
     applyGoogleBatchArchiveExtra,
     applyInterceptWarmup,
+    applyOpenAIOAuthPlanTypeOverride,
     applyProtocolGatewayClaudeClientMimicExtra,
     applyProtocolGatewayGeminiBatchExtra,
     applyProtocolGatewayOpenAIImageProtocolModeExtra,
@@ -92,6 +93,7 @@ export function createEditAccountSubmit(ctx: any) {
     modelRestrictionEnabled,
     modelRestrictionMode,
     normalizeGeminiAIStudioTier,
+    openAIOAuthPlanTypeOverride,
     openAIImageCompatAllowed,
     openAIImageProtocolMode,
     openaiAPIKeyResponsesWebSocketV2Mode,
@@ -352,6 +354,7 @@ return async () => {
         delete newCredentials.model_mapping
       }
 
+      applyOpenAIOAuthPlanTypeOverride(newCredentials, openAIOAuthPlanTypeOverride.value)
       updatePayload.credentials = newCredentials
     }
 

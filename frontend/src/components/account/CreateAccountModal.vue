@@ -189,14 +189,14 @@
         />
 
         <div
-          v-if="form.platform === 'grok'"
+          v-if="form.platform === 'grok' && (form.type !== 'oauth' || step !== 3)"
           class="space-y-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/30"
         >
           <AccountGrokOAuthPanel
-            v-if="form.type === 'oauth'"
+            v-if="form.type === 'oauth' && step !== 3"
             ref="grokOAuthRef"
             :proxy-id="form.proxy_id"
-            :submit-label="t('common.create')"
+            :submit-label="t('admin.accounts.oauth.completeAuth')"
             :submitting="submitting"
             @submit="handleCreateGrokOAuthAccount"
           />
@@ -222,7 +222,24 @@
             <p class="input-hint">{{ t('admin.accounts.grokTierHint') }}</p>
           </div>
 
+          <AccountApiKeyModelProbeEditor
+            v-if="form.type === 'sso'"
+            v-model:allowed-models="allowedModels"
+            v-model:model-mappings="modelMappings"
+            v-model:probed-models="protocolGatewayProbeModels"
+            v-model:manual-models="manualModels"
+            v-model:probe-snapshot="modelProbeSnapshot"
+            v-model:resolved-upstream="resolvedUpstream"
+            platform="grok"
+            account-type="sso"
+            :credentials="grokProbeCredentials"
+            :extra="grokProbeExtra"
+            :probe-ready="isGrokProbeReady"
+            :proxy-id="form.proxy_id"
+          />
+
           <AccountGrokImportPanel
+            v-if="step === 1"
             :show="show"
             @imported="handleGrokImportCompleted"
           />
@@ -752,8 +769,11 @@ const {
   apiKeyProbeCredentials,
   upstreamProbeCredentials,
   vertexProbeCredentials,
+  grokProbeCredentials,
+  grokProbeExtra,
   isApiKeyProbeReady,
   isUpstreamProbeReady,
+  isGrokProbeReady,
   oauthDraftProbeReady,
   isVertexProbeReady,
   showCommonApiKeySection,

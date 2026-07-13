@@ -209,6 +209,18 @@ func TestSelectByLRU(t *testing.T) {
 		// 有不同 LastUsedAt 时，按时间选择最早的，不受 preferOAuth 影响
 		require.Equal(t, int64(1), result.account.ID)
 	})
+
+	t.Run("future LastUsedAt is clamped for LRU selection", func(t *testing.T) {
+		future := now.Add(24 * time.Hour)
+		accounts := []accountWithLoad{
+			{account: &Account{ID: 1, LastUsedAt: &future}, loadInfo: &AccountLoadInfo{}},
+			{account: &Account{ID: 2, LastUsedAt: &earlier}, loadInfo: &AccountLoadInfo{}},
+		}
+
+		result := selectByLRU(accounts, false)
+		require.NotNil(t, result)
+		require.Equal(t, int64(2), result.account.ID)
+	})
 }
 
 func TestLayeredFilterIntegration(t *testing.T) {

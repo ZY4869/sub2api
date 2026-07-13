@@ -488,6 +488,7 @@ var (
 		{Name: "image_price_1k", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "image_price_2k", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "image_price_4k", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "web_search_price_per_call", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "image_protocol_mode", Type: field.TypeString, Size: 20, Default: "inherit"},
 		{Name: "claude_code_only", Type: field.TypeBool, Default: false},
 		{Name: "fallback_group_id", Type: field.TypeInt64, Nullable: true},
@@ -537,12 +538,12 @@ var (
 			{
 				Name:    "group_priority",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[31]},
+				Columns: []*schema.Column{GroupsColumns[32]},
 			},
 			{
 				Name:    "group_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[32]},
+				Columns: []*schema.Column{GroupsColumns[33]},
 			},
 		},
 	}

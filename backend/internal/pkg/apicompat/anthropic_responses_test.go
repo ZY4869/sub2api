@@ -824,6 +824,28 @@ func TestAnthropicToResponses_ToolChoiceSpecific(t *testing.T) {
 	assert.Equal(t, "get_weather", fn["name"])
 }
 
+func TestResponsesEventToAnthropicEvents_PassesCacheCreationInputTokens(t *testing.T) {
+	state := NewResponsesEventToAnthropicState()
+	events := ResponsesEventToAnthropicEvents(&ResponsesStreamEvent{
+		Type: "response.completed",
+		Response: &ResponsesResponse{
+			ID:     "resp_1",
+			Status: "completed",
+			Usage: &ResponsesUsage{
+				InputTokens:              10,
+				OutputTokens:             3,
+				CacheCreationInputTokens: 7,
+				InputTokensDetails:       &ResponsesInputTokensDetails{CachedTokens: 2},
+			},
+		},
+	}, state)
+
+	require.Len(t, events, 2)
+	require.NotNil(t, events[0].Usage)
+	require.Equal(t, 7, events[0].Usage.CacheCreationInputTokens)
+	require.Equal(t, 2, events[0].Usage.CacheReadInputTokens)
+}
+
 // ---------------------------------------------------------------------------
 // Image content block conversion tests
 // ---------------------------------------------------------------------------

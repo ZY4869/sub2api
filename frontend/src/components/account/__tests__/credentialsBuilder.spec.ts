@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   applyAccountRequestHeaders,
   applyInterceptWarmup,
+  applyOpenAIOAuthPlanTypeOverride,
   buildAccountRequestHeaders,
   formatAccountRequestHeaders
 } from '../credentialsBuilder'
@@ -47,6 +48,24 @@ describe('applyInterceptWarmup', () => {
     expect(creds.api_key).toBe('sk')
     expect(creds.base_url).toBe('url')
     expect('intercept_warmup_requests' in creds).toBe(false)
+  })
+})
+
+describe('applyOpenAIOAuthPlanTypeOverride', () => {
+  it('stores a trimmed plan_type override', () => {
+    const creds: Record<string, unknown> = {}
+
+    applyOpenAIOAuthPlanTypeOverride(creds, ' plus ')
+
+    expect(creds.plan_type).toBe('plus')
+  })
+
+  it('removes plan_type when the override is cleared', () => {
+    const creds: Record<string, unknown> = { plan_type: 'plus' }
+
+    applyOpenAIOAuthPlanTypeOverride(creds, '   ')
+
+    expect('plan_type' in creds).toBe(false)
   })
 })
 

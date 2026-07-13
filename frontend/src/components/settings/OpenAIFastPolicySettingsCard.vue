@@ -119,20 +119,11 @@
             </p>
           </div>
 
-          <div class="mt-3">
-            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-              {{ t('admin.settings.openaiFastPolicy.userIds') }}
-            </label>
-            <textarea
-              class="input min-h-[72px] font-mono text-xs"
-              :placeholder="t('admin.settings.openaiFastPolicy.userIdsPlaceholder')"
-              :value="formatUserIDs(rule.user_ids)"
-              @input="handleUserIDsInput(idx, $event)"
-            ></textarea>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {{ t('admin.settings.openaiFastPolicy.userIdsHint') }}
-            </p>
-          </div>
+          <OpenAIFastPolicyUserSelector
+            class="mt-3"
+            :user-ids="rule.user_ids"
+            @update:user-ids="updateRuleUserIDs(idx, $event)"
+          />
         </div>
 
         <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -148,6 +139,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Toggle from '@/components/common/Toggle.vue'
 import Select from '@/components/common/Select.vue'
+import OpenAIFastPolicyUserSelector from './OpenAIFastPolicyUserSelector.vue'
 import type { OpenAIFastPolicySettings, OpenAIFastPolicyRule } from '@/api/admin/settings'
 
 const { t } = useI18n()
@@ -204,6 +196,25 @@ const removeRule = (idx: number) => {
   policy.value.rules.splice(idx, 1)
 }
 
+const normalizeUserIDs = (userIDs?: number[]) => {
+  const seen = new Set<number>()
+  const out: number[] = []
+  for (const raw of Array.isArray(userIDs) ? userIDs : []) {
+    const id = Number(raw)
+    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) continue
+    seen.add(id)
+    out.push(id)
+  }
+  return out
+}
+
+const updateRuleUserIDs = (idx: number, userIDs: number[]) => {
+  if (!policy.value || !Array.isArray(policy.value.rules) || !policy.value.rules[idx]) {
+    return
+  }
+  policy.value.rules[idx].user_ids = normalizeUserIDs(userIDs)
+}
+
 const displayTier = (tier: string) => {
   const normalized = String(tier || '').trim().toLowerCase()
   if (normalized === 'priority') return t('admin.settings.openaiFastPolicy.tierPriority')
@@ -245,35 +256,4 @@ const handleWhitelistInput = (idx: number, event: Event) => {
   policy.value.rules[idx].model_whitelist = next
 }
 
-const formatUserIDs = (userIDs?: number[]) => {
-  if (!Array.isArray(userIDs) || userIDs.length === 0) {
-    return ''
-  }
-  return userIDs.join('\n')
-}
-
-const parseUserIDs = (raw: string): number[] => {
-  const tokens = raw
-    .split(/[\n,]/g)
-    .map((item) => Number.parseInt(item.trim(), 10))
-    .filter((item) => Number.isFinite(item) && item > 0)
-
-  const seen = new Set<number>()
-  const out: number[] = []
-  for (const token of tokens) {
-    if (seen.has(token)) continue
-    seen.add(token)
-    out.push(token)
-  }
-  return out
-}
-
-const handleUserIDsInput = (idx: number, event: Event) => {
-  if (!policy.value || !Array.isArray(policy.value.rules)) {
-    return
-  }
-  const el = event.target as HTMLTextAreaElement | null
-  if (!el) return
-  policy.value.rules[idx].user_ids = parseUserIDs(el.value || '')
-}
 </script>

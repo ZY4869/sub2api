@@ -6,6 +6,10 @@ import (
 )
 
 func ChatCompletionsToResponsesResponse(chat *ChatCompletionsResponse, fallbackModel string) *ResponsesResponse {
+	return ChatCompletionsToResponsesResponseWithToolProxies(chat, fallbackModel, nil)
+}
+
+func ChatCompletionsToResponsesResponseWithToolProxies(chat *ChatCompletionsResponse, fallbackModel string, proxies map[string]ResponsesToolProxy) *ResponsesResponse {
 	if chat == nil {
 		return nil
 	}
@@ -18,7 +22,7 @@ func ChatCompletionsToResponsesResponse(chat *ChatCompletionsResponse, fallbackM
 		Object: "response",
 		Model:  model,
 		Status: "completed",
-		Output: chatChoicesToResponsesOutput(chat.Choices),
+		Output: chatChoicesToResponsesOutput(chat.Choices, proxies),
 	}
 	if chat.Usage != nil {
 		resp.Usage = chatUsageToResponsesUsage(chat.Usage)
@@ -78,6 +82,42 @@ func ChatCompletionsChunkToResponsesEvents(chunk *ChatCompletionsChunk, state *C
 				Delta:       *choice.Delta.Content,
 			})
 		}
+		for _, call := range choice.Delta.ToolCalls {
+			if call.Index == nil {
+				continue
+			}
+			idx := *call.Index
+			if _, ok := state.ToolCallIndexes[idx]; !ok && strings.TrimSpace(call.Function.Name) != "" {
+				state.ToolCallIndexes[idx] = true
+				proxy := ResponsesToolProxy{}
+				if state.ToolProxies != nil {
+					proxy = state.ToolProxies[strings.TrimSpace(call.Function.Name)]
+				}
+				itemType := "function_call"
+				itemName := strings.TrimSpace(call.Function.Name)
+				if proxy.ProxyName != "" {
+					itemType = proxy.OutputType()
+					itemName = proxy.OutputName()
+				}
+				events = append(events, ResponsesStreamEvent{
+					Type:        "response.output_item.added",
+					OutputIndex: idx,
+					Item: &ResponsesOutput{
+						Type:      itemType,
+						CallID:    strings.TrimSpace(call.ID),
+						Name:      itemName,
+						Namespace: strings.TrimSpace(proxy.Namespace),
+					},
+				})
+			}
+			if strings.TrimSpace(call.Function.Arguments) != "" {
+				events = append(events, ResponsesStreamEvent{
+					Type:        "response.function_call_arguments.delta",
+					OutputIndex: idx,
+					Delta:       call.Function.Arguments,
+				})
+			}
+		}
 		if choice.FinishReason != nil {
 			state.Finished = true
 		}
@@ -110,6 +150,9 @@ type ChatToResponsesStreamState struct {
 	Finished     bool
 	Text         strings.Builder
 	Usage        *ResponsesUsage
+	ToolProxies  map[string]ResponsesToolProxy
+
+	ToolCallIndexes map[int]bool
 }
 
 func (s *ChatToResponsesStreamState) responseID() string {
@@ -139,7 +182,7 @@ func (s *ChatToResponsesStreamState) output() []ResponsesOutput {
 	}}
 }
 
-func chatChoicesToResponsesOutput(choices []ChatChoice) []ResponsesOutput {
+func chatChoicesToResponsesOutput(choices []ChatChoice, proxies map[string]ResponsesToolProxy) []ResponsesOutput {
 	output := make([]ResponsesOutput, 0, len(choices))
 	for _, choice := range choices {
 		msg := choice.Message
@@ -155,12 +198,7 @@ func chatChoicesToResponsesOutput(choices []ChatChoice) []ResponsesOutput {
 			Arguments: "",
 		})
 		for _, call := range msg.ToolCalls {
-			output = append(output, ResponsesOutput{
-				Type:      "function_call",
-				CallID:    strings.TrimSpace(call.ID),
-				Name:      strings.TrimSpace(call.Function.Name),
-				Arguments: strings.TrimSpace(call.Function.Arguments),
-			})
+			output = append(output, responsesOutputFromChatToolCall(call, proxies))
 		}
 	}
 	if len(output) == 0 {

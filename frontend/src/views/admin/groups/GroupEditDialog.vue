@@ -274,7 +274,7 @@
           </div>
         </div>
 
-        <div v-if="editForm.platform === 'antigravity' || editForm.platform === 'gemini'" class="border-t pt-4">
+        <div v-if="editForm.platform === 'antigravity' || editForm.platform === 'gemini' || editForm.platform === 'grok'" class="border-t pt-4">
           <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
             {{ t('admin.groups.imagePricing.title') }}
           </label>
@@ -550,8 +550,20 @@
           </div>
         </div>
 
+        <div v-if="editForm.platform === 'openai' || editForm.platform === 'grok'" class="border-t border-gray-200 dark:border-dark-400 pt-4 mt-4">
+          <label class="input-label">{{ t('admin.groups.webSearchPricing.label') }}</label>
+          <input
+            v-model.number="editForm.web_search_price_per_call"
+            type="number"
+            step="0.001"
+            class="input"
+            :placeholder="t('admin.groups.webSearchPricing.placeholder')"
+          />
+          <p class="input-hint">{{ t('admin.groups.webSearchPricing.hint') }}</p>
+        </div>
+
         <div
-          v-if="['anthropic', 'antigravity'].includes(editForm.platform) && editForm.subscription_type !== 'subscription'"
+          v-if="editForm.platform === 'anthropic' && editForm.subscription_type !== 'subscription'"
           class="border-t pt-4"
         >
           <label class="input-label">{{ t('admin.groups.invalidRequestFallback.title') }}</label>

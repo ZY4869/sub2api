@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const expectedReleaseVersion = "0.1.386"
+const expectedReleaseVersion = "0.1.387"
 
 func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	root := repositoryTestRepoRoot(t)
@@ -299,6 +299,102 @@ func TestUpstream150To151CleanroomMatrixGuards(t *testing.T) {
 	_, err = os.Stat(migration173)
 	require.True(t, os.IsNotExist(err), "must not adopt upstream migration 173")
 
+	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	assertNoAPIDocsRoutes(t, root)
+}
+
+func TestUpstream151To152CleanroomMatrixGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "upstream-v0.1.151-v0.1.152-cleanroom-sync-matrix.md")
+	for _, expected := range []string{
+		"Local baseline: `v0.1.386`",
+		"`553ab6f911247963eb368fcf6ac1dcb65d5495b1`",
+		"No `git pull`, merge, rebase, or cherry-pick",
+		"Do not copy upstream LGPL/GPL",
+		"MIT-only",
+		"`/api-docs/*`",
+		"`/admin/api-docs/*`",
+		"`158_add_group_web_search_price_per_call.sql`",
+		"do not adopt upstream migration numbering",
+		"`alpha/search`",
+		"`web_search_price_per_call`",
+		"`0.01` USD per call",
+		"`custom`, `tool_search`, namespace tools",
+		"`cache_creation_input_tokens`",
+		"Grok xAI API key and OAuth routing",
+		"OpenAIFastPolicyUserSelector",
+		"Ops capture writer release safety",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+
+	migration158 := readRepoFile(t, root, "backend", "migrations", "158_add_group_web_search_price_per_call.sql")
+	require.Contains(t, migration158, "web_search_price_per_call")
+	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	assertNoAPIDocsRoutes(t, root)
+}
+
+func TestUpstream152To153CleanroomMatrixGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "upstream-v0.1.152-v0.1.153-cleanroom-sync-matrix.md")
+	for _, expected := range []string{
+		"Local baseline: `v0.1.386`",
+		"`a2bc133`",
+		"No `git pull`, merge, rebase, or cherry-pick",
+		"Do not copy upstream LGPL/GPL",
+		"MIT-only",
+		"`/api-docs/*`",
+		"`/admin/api-docs/*`",
+		"`159_add_usage_logs_api_key_recent_ip_index_notx.sql`",
+		"do not adopt upstream migration `174`",
+		"ZY4869/sub2api",
+		"ghcr.io/zy4869/sub2api",
+		"`/v1/videos/edits`",
+		"`/v1/videos/extensions`",
+		"Grok API Key third-party base URL",
+		"OpenAI OAuth `plan_type` manual override",
+		"Deprecated payment API removal",
+		"DataTable small data jitter",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+
+	appleScript := readRepoFile(t, root, "deploy", "apple-container.sh")
+	require.Contains(t, appleScript, `DEFAULT_GITHUB_REPO="ZY4869/sub2api"`)
+	require.Contains(t, appleScript, `DEFAULT_SUB2API_IMAGE="ghcr.io/zy4869/sub2api:latest"`)
+	require.NotContains(t, appleScript, "Wei-Shaw/sub2api")
+	require.NotContains(t, appleScript, "ghcr.io/wei-shaw")
+	require.NotContains(t, appleScript, "LGPL")
+
+	appleDoc := readRepoFile(t, root, "deploy", "APPLE_CONTAINER.md")
+	require.Contains(t, appleDoc, "`ghcr.io/zy4869/sub2api:latest`")
+	require.Contains(t, appleDoc, "`ZY4869/sub2api`")
+	require.NotContains(t, appleDoc, "LGPL")
+
+	migration159 := readRepoFile(t, root, "backend", "migrations", "159_add_usage_logs_api_key_recent_ip_index_notx.sql")
+	require.Contains(t, migration159, "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_usage_logs_api_key_created_ip_not_null")
+	require.Contains(t, migration159, "ON usage_logs (api_key_id, created_at DESC, ip_address)")
+	require.Contains(t, migration159, "WHERE api_key_id IS NOT NULL AND ip_address IS NOT NULL")
+	_, err := os.Stat(filepath.Join(root, "backend", "migrations", "174_add_usage_logs_api_key_recent_ip_index_notx.sql"))
+	require.True(t, os.IsNotExist(err), "must not adopt upstream migration numbering")
+
+	userRoutes := readRepoFile(t, root, "backend", "internal", "server", "routes", "user.go")
+	require.Contains(t, userRoutes, `payments.POST("/orders", h.Payment.CreateOrder)`)
+	require.Contains(t, userRoutes, `payments.GET("/orders/:order_no/resume", h.Payment.ResumeOrderByOrderNo)`)
+	require.Contains(t, userRoutes, `payments.GET("/resume/:resume_token", h.Payment.ResumeOrder)`)
+	require.Contains(t, userRoutes, `payments.POST("/orders/:order_no/cancel", h.Payment.CancelOrder)`)
+	require.NotContains(t, userRoutes, "channel_config")
+	require.NotContains(t, userRoutes, "provider_config")
+
+	adminRoutes := readRepoFile(t, root, "backend", "internal", "server", "routes", "admin.go")
+	require.Contains(t, adminRoutes, `payments.POST("/orders/:order_no/refund", h.Admin.Payment.RefundOrder)`)
+
+	license := readRepoFile(t, root, "LICENSE")
+	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
+	require.NotContains(t, license, "GNU LESSER GENERAL PUBLIC LICENSE")
+	require.NotContains(t, license, "GNU GENERAL PUBLIC LICENSE")
 	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
 	assertNoAPIDocsRoutes(t, root)
 }

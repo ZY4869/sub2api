@@ -232,6 +232,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_ws.dial_timeout_seconds", 10)
 	viper.SetDefault("gateway.openai_ws.read_timeout_seconds", 900)
 	viper.SetDefault("gateway.openai_ws.write_timeout_seconds", 120)
+	viper.SetDefault("gateway.openai_ws.max_session_lifetime_seconds", 14400)
 	viper.SetDefault("gateway.openai_ws.pool_target_utilization", 0.7)
 	viper.SetDefault("gateway.openai_ws.queue_limit_per_conn", 64)
 	viper.SetDefault("gateway.openai_ws.event_flush_batch_size", 1)

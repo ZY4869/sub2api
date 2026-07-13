@@ -246,6 +246,32 @@ func TestImportAccountModels_ImportsAndDeduplicatesOpenAIModels(t *testing.T) {
 	require.Contains(t, ids, "gpt-test-model-b")
 }
 
+func TestImportAccountModels_GrokAPIKeyUsesConfiguredBaseURL(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		body: `{"data":[{"id":"grok-test-model"}]}`,
+	}
+	svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+	account := &Account{
+		ID:       153,
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"api_key":  "xai-test-token",
+			"base_url": "https://grok-relay.example.test/root/",
+		},
+	}
+
+	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.NoError(t, err)
+	require.Equal(t, []string{"grok-test-model"}, result.DetectedModels)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "https://grok-relay.example.test/root/v1/models", upstream.lastReq.URL.String())
+	require.Equal(t, "Bearer xai-test-token", upstream.lastReq.Header.Get("Authorization"))
+}
+
 func TestImportAccountModels_ContinuesOnCatalogUpsertFailure(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	repo.failContains = "gpt-test-model-b"

@@ -289,6 +289,51 @@ func TestOpsCaptureWriterPool_ResetOnRelease(t *testing.T) {
 	require.Zero(t, reused.buf.Len(), "writer should be reset before reuse")
 }
 
+func TestOpsCaptureWritersAreNilSafeAfterRelease(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+
+	errorWriter := acquireOpsCaptureWriter(c.Writer)
+	releaseOpsCaptureWriter(errorWriter)
+	require.NotPanics(t, func() {
+		_ = errorWriter.Header()
+		_ = errorWriter.Status()
+		_ = errorWriter.Size()
+		_ = errorWriter.Written()
+		errorWriter.WriteHeader(http.StatusAccepted)
+		errorWriter.WriteHeaderNow()
+		errorWriter.Flush()
+		_ = errorWriter.CloseNotify()
+		_ = errorWriter.Pusher()
+		_, _, _ = errorWriter.Hijack()
+		_, err := errorWriter.Write([]byte("x"))
+		require.Error(t, err)
+		_, err = errorWriter.WriteString("x")
+		require.Error(t, err)
+	})
+
+	traceWriter := acquireOpsRequestTraceCaptureWriter(c.Writer)
+	releaseOpsRequestTraceCaptureWriter(traceWriter)
+	require.NotPanics(t, func() {
+		_ = traceWriter.Header()
+		_ = traceWriter.Status()
+		_ = traceWriter.Size()
+		_ = traceWriter.Written()
+		traceWriter.WriteHeader(http.StatusAccepted)
+		traceWriter.WriteHeaderNow()
+		traceWriter.Flush()
+		_ = traceWriter.CloseNotify()
+		_ = traceWriter.Pusher()
+		_, _, _ = traceWriter.Hijack()
+		_, err := traceWriter.Write([]byte("x"))
+		require.Error(t, err)
+		_, err = traceWriter.WriteString("x")
+		require.Error(t, err)
+	})
+}
+
 func TestOpsErrorLoggerMiddleware_DoesNotBreakOuterMiddlewares(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

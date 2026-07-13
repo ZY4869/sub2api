@@ -8,7 +8,12 @@ import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannel
 import { useAccountTempUnschedRules } from '@/composables/useAccountTempUnschedRules'
 import type { AccountManualModel } from '@/api/admin/accounts'
 import type { AccountPlatform, AccountTier, CodexImageToolPolicy, GatewayProtocol, GroupPlatform } from '@/types'
-import { applyInterceptWarmup, buildAccountRequestHeaders, formatAccountRequestHeaders } from '@/components/account/credentialsBuilder'
+import {
+  applyInterceptWarmup,
+  applyOpenAIOAuthPlanTypeOverride,
+  buildAccountRequestHeaders,
+  formatAccountRequestHeaders
+} from '@/components/account/credentialsBuilder'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
@@ -206,6 +211,7 @@ const quotaControlState = quotaControl.state
 const umqModeOptions = quotaControl.umqModeOptions
 
 const openaiPassthroughEnabled = ref(false)
+const openAIOAuthPlanTypeOverride = ref('')
 const openAIImageProtocolMode = ref<OpenAIImageProtocolMode>('native')
 const openAIImageCompatAllowed = ref(true)
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
@@ -565,6 +571,9 @@ const openAIWSModeConcurrencyHintKey = computed(() =>
 const isOpenAIModelRestrictionDisabled = computed(() =>
   effectivePlatform.value === 'openai' && openaiPassthroughEnabled.value
 )
+const showOpenAIOAuthPlanTypeOverride = computed(() =>
+  effectivePlatform.value === 'openai' && props.account?.type === 'oauth'
+)
 
 // Computed: current preset mappings based on platform
 const presetMappings = computed(() => getPresetMappingsByPlatform(effectivePlatform.value))
@@ -913,7 +922,7 @@ function buildProbeExtra(base?: Record<string, unknown>) {
 
 const modalContext = {
   props, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, allowVertexBatchOverflow, allowedModels, anthropicAPIKeyAuthScheme, anthropicPassthroughEnabled, antigravityModelMappings, appStore,
-  applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyGoogleBatchArchiveExtra, applyInterceptWarmup, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra,
+  applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyGoogleBatchArchiveExtra, applyInterceptWarmup, applyOpenAIOAuthPlanTypeOverride, applyProtocolGatewayClaudeClientMimicExtra, applyProtocolGatewayGeminiBatchExtra, applyProtocolGatewayOpenAIImageProtocolModeExtra,
   applyProtocolGatewayOpenAIRequestFormatExtra, applyTempUnschedConfig, applyAccountTierToExtra, autoPauseOnExpired, autoRenewEnabled, autoRenewPeriod, batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays,
   buildAccountModelScopeExtra, buildBaiduDocumentAICredentialsForUpdate, buildModelMappingObject, buildProbeExtra, buildScopedModelMapping, claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled,
   codexCLIOnlyEnabled, codexImageToolPolicy, currentAccountCredentials, customErrorCodesState, deepSeekModelConcurrencyLimits, defaultBaseUrl, editApiKey, editBaseUrl, editRequestHeadersText, editGrokSSOToken,
@@ -923,7 +932,7 @@ const modalContext = {
   gatewayAcceptedProtocols, gatewayBatchEnabled, gatewayClientProfiles, gatewayClientRoutes, gatewayOpenAIImageProtocolMode, gatewayOpenAIRequestFormat, gatewayProtocol, gatewayTestModelId,
   gatewayTestProvider, geminiTierAIStudio, geminiVertexAccessToken, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexExpiresAtInput, geminiVertexLocation,
   geminiVertexProjectId, geminiVertexServiceAccountJson, interceptWarmupRequests, isBaiduDocumentAIAccount, isGeminiVertexAccount, isOpenAIWSModeEnabled, isProtocolGatewayAccount, mixedScheduling,
-  modelMappings, modelRestrictionEnabled, modelRestrictionMode, normalizeAnthropicAPIKeyAuthScheme, normalizeGeminiAIStudioTier, openAIImageCompatAllowed, openAIImageProtocolMode, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuthResponsesWebSocketV2Mode,
+  modelMappings, modelRestrictionEnabled, modelRestrictionMode, normalizeAnthropicAPIKeyAuthScheme, normalizeGeminiAIStudioTier, openAIOAuthPlanTypeOverride, openAIImageCompatAllowed, openAIImageProtocolMode, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuthResponsesWebSocketV2Mode,
   openaiPassthroughEnabled, parseDateTimeLocal, poolModeState, quotaControl, resolveGoogleBatchArchiveTargetKind, resolveVertexAuthBaseUrl, resolveVertexBaseUrl, shouldPersistGeminiTierId,
   submitUpdateAccount, t, BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL, DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE, DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT, DEFAULT_POOL_MODE_RETRY_COUNT, OPENAI_WS_MODE_OFF, actualModelLocked,
   antigravityModelRestrictionMode, antigravityWhitelistModels, applyModelRestrictionFromRecord, baiduDocumentAIAccessToken, baiduDocumentAIAsyncBaseUrl, baiduDocumentAIDirectApiUrlsText, createDefaultDeepSeekModelConcurrencyLimitDraft, createStaticProbeModels,
@@ -936,7 +945,7 @@ const modalContext = {
   antigravityPresetMappings, submitting, getModelMappingKey, getAntigravityModelMappingKey, quotaControlState, umqModeOptions, effectiveGroupPlatforms, isGrokSSOAccount,
   isGeminiVertexLegacyMode, showCommonApiKeySection, showDeepSeekConcurrencyEditor, showUnifiedProtocolGatewayProbeEditor, showUnifiedAPIModelProbeEditor, showStandaloneModelScopeEditor, unifiedProbeAccountType, unifiedProbeCredentials,
   unifiedProbeReady, showQuotaLimitSection, showGeminiAIStudioBatchArchiveEditor, showGeminiVertexBatchArchiveEditor, grokCapabilityModels, protocolGatewayBatchRequestFormats, resolvedProtocolGatewayApiKey, gatewayProtocolOptions,
-  isGatewayProtocolOption, openAIWSModeOptions, openaiResponsesWebSocketV2Mode, openAIWSModeConcurrencyHintKey, isOpenAIModelRestrictionDisabled, presetMappings, commonErrorCodeOptions, applyDefaultGrokCapabilityMapping,
+  isGatewayProtocolOption, openAIWSModeOptions, openaiResponsesWebSocketV2Mode, openAIWSModeConcurrencyHintKey, isOpenAIModelRestrictionDisabled, showOpenAIOAuthPlanTypeOverride, presetMappings, commonErrorCodeOptions, applyDefaultGrokCapabilityMapping,
   tempUnschedEnabled, tempUnschedRules, tempUnschedPresets, getTempUnschedRuleKey, addTempUnschedRule, removeTempUnschedRule, moveTempUnschedRule, showMixedChannelWarning,
   mixedChannelWarningMessageText, handleMixedChannelConfirm, handleMixedChannelCancel, statusOptions, expiresAtInput, handleOpenAIImageProtocolModeChange, addModelMapping, removeModelMapping,
   addPresetMapping, addAntigravityModelMapping, removeAntigravityModelMapping, addAntigravityPresetMapping, handleClose, probeExtraForEditor, MAX_POOL_MODE_RETRY_COUNT,

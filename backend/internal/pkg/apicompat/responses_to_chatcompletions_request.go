@@ -16,14 +16,22 @@ func ResponsesToChatCompletionsRequest(req *ResponsesRequest) (*ChatCompletionsR
 	if err != nil {
 		return nil, err
 	}
+	toolConversion, err := convertResponsesToolsToChat(req.Tools)
+	if err != nil {
+		return nil, err
+	}
+	toolChoice, err := responsesToolChoiceToChat(req.ToolChoice, toolConversion)
+	if err != nil {
+		return nil, err
+	}
 	out := &ChatCompletionsRequest{
 		Model:             strings.TrimSpace(req.Model),
 		Messages:          messages,
 		Temperature:       req.Temperature,
 		TopP:              req.TopP,
 		Stream:            req.Stream,
-		Tools:             responsesToolsToChatTools(req.Tools),
-		ToolChoice:        req.ToolChoice,
+		Tools:             toolConversion.chatTools,
+		ToolChoice:        toolChoice,
 		ParallelToolCalls: req.ParallelToolCalls,
 		ServiceTier:       strings.TrimSpace(req.ServiceTier),
 		ReasoningEffort:   responsesReasoningEffort(req.Reasoning),
@@ -175,26 +183,60 @@ func responsesContentToChatContent(raw json.RawMessage, role string) json.RawMes
 	return json.RawMessage(mustMarshalJSON(chatParts))
 }
 
-func responsesToolsToChatTools(tools []ResponsesTool) []ChatTool {
-	if len(tools) == 0 {
-		return nil
+func responsesToolChoiceToChat(raw json.RawMessage, conversion *responsesToolConversion) (json.RawMessage, error) {
+	if len(raw) == 0 || conversion == nil {
+		return raw, nil
 	}
-	out := make([]ChatTool, 0, len(tools))
-	for _, tool := range tools {
-		if strings.TrimSpace(tool.Type) != "function" {
-			continue
+	var shorthand string
+	if err := json.Unmarshal(raw, &shorthand); err == nil {
+		switch strings.TrimSpace(shorthand) {
+		case "", "auto", "none", "required":
+			return raw, nil
+		default:
+			if proxyName, ok := conversion.byChoice[responsesToolChoiceKey("", shorthand, "")]; ok {
+				return json.RawMessage(mustMarshalJSON(map[string]any{
+					"type":     "function",
+					"function": map[string]string{"name": proxyName},
+				})), nil
+			}
+			return nil, nil
 		}
-		out = append(out, ChatTool{
-			Type: "function",
-			Function: &ChatFunction{
-				Name:        strings.TrimSpace(tool.Name),
-				Description: strings.TrimSpace(tool.Description),
-				Parameters:  tool.Parameters,
-				Strict:      tool.Strict,
-			},
-		})
 	}
-	return out
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil, fmt.Errorf("tool_choice must be a string or object")
+	}
+	toolType := jsonRawString(obj["type"])
+	switch normalizeResponsesToolType(toolType) {
+	case "", "auto", "none", "required", "function":
+		return raw, nil
+	}
+	name := firstNonEmptyCompat(jsonRawString(obj["name"]), jsonRawString(obj["tool"]))
+	namespace := jsonRawString(obj["namespace"])
+	if proxyName, ok := conversion.byChoice[responsesToolChoiceKey(toolType, name, namespace)]; ok {
+		return json.RawMessage(mustMarshalJSON(map[string]any{
+			"type":     "function",
+			"function": map[string]string{"name": proxyName},
+		})), nil
+	}
+	if proxyName, ok := conversion.byChoice[responsesToolChoiceKey(toolType, toolType, "")]; ok {
+		return json.RawMessage(mustMarshalJSON(map[string]any{
+			"type":     "function",
+			"function": map[string]string{"name": proxyName},
+		})), nil
+	}
+	return nil, nil
+}
+
+func jsonRawString(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err == nil {
+		return strings.TrimSpace(value)
+	}
+	return strings.Trim(strings.TrimSpace(string(raw)), `"`)
 }
 
 func responsesReasoningEffort(reasoning *ResponsesReasoning) string {

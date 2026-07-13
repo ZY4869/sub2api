@@ -27,6 +27,11 @@ type optionalLimitField struct {
 	value *float64
 }
 
+type optionalNullableFloatField struct {
+	set   bool
+	value *float64
+}
+
 type optionalStringField struct {
 	set   bool
 	value string
@@ -82,6 +87,39 @@ func (f *optionalLimitField) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("invalid limit value: %s", string(trimmed))
 }
 
+func (f *optionalNullableFloatField) UnmarshalJSON(data []byte) error {
+	f.set = true
+
+	trimmed := bytes.TrimSpace(data)
+	if bytes.Equal(trimmed, []byte("null")) {
+		f.value = nil
+		return nil
+	}
+
+	var number float64
+	if err := json.Unmarshal(trimmed, &number); err == nil {
+		f.value = &number
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(trimmed, &text); err == nil {
+		text = strings.TrimSpace(text)
+		if text == "" {
+			f.value = nil
+			return nil
+		}
+		number, err = strconv.ParseFloat(text, 64)
+		if err != nil {
+			return fmt.Errorf("invalid numeric value %q: %w", text, err)
+		}
+		f.value = &number
+		return nil
+	}
+
+	return fmt.Errorf("invalid numeric value: %s", string(trimmed))
+}
+
 func (f optionalLimitField) ToServiceInput() *float64 {
 	if !f.set {
 		return nil
@@ -91,6 +129,10 @@ func (f optionalLimitField) ToServiceInput() *float64 {
 	}
 	zero := 0.0
 	return &zero
+}
+
+func (f optionalNullableFloatField) ToServiceInput() (*float64, bool) {
+	return f.value, f.set
 }
 
 // NewGroupHandler creates a new admin group handler
@@ -118,10 +160,11 @@ type CreateGroupRequest struct {
 	DailyLimitUSD      optionalLimitField `json:"daily_limit_usd"`
 	WeeklyLimitUSD     optionalLimitField `json:"weekly_limit_usd"`
 	MonthlyLimitUSD    optionalLimitField `json:"monthly_limit_usd"`
-	// 图片生成计费配置（antigravity 和 gemini 平台使用，负数表示清除配置）
+	// 图片生成计费配置（antigravity、gemini 和 grok 平台使用，负数表示清除配置）
 	ImagePrice1K                    *float64 `json:"image_price_1k"`
 	ImagePrice2K                    *float64 `json:"image_price_2k"`
 	ImagePrice4K                    *float64 `json:"image_price_4k"`
+	WebSearchPricePerCall           *float64 `json:"web_search_price_per_call"`
 	ImageProtocolMode               string   `json:"image_protocol_mode" binding:"omitempty,oneof=inherit native compat"`
 	ClaudeCodeOnly                  bool     `json:"claude_code_only"`
 	FallbackGroupID                 *int64   `json:"fallback_group_id"`
@@ -166,14 +209,15 @@ type UpdateGroupRequest struct {
 	DailyLimitUSD      optionalLimitField  `json:"daily_limit_usd"`
 	WeeklyLimitUSD     optionalLimitField  `json:"weekly_limit_usd"`
 	MonthlyLimitUSD    optionalLimitField  `json:"monthly_limit_usd"`
-	// 图片生成计费配置（antigravity 和 gemini 平台使用，负数表示清除配置）
-	ImagePrice1K                    *float64 `json:"image_price_1k"`
-	ImagePrice2K                    *float64 `json:"image_price_2k"`
-	ImagePrice4K                    *float64 `json:"image_price_4k"`
-	ImageProtocolMode               string   `json:"image_protocol_mode" binding:"omitempty,oneof=inherit native compat"`
-	ClaudeCodeOnly                  *bool    `json:"claude_code_only"`
-	FallbackGroupID                 *int64   `json:"fallback_group_id"`
-	FallbackGroupIDOnInvalidRequest *int64   `json:"fallback_group_id_on_invalid_request"`
+	// 图片生成计费配置（antigravity、gemini 和 grok 平台使用，负数表示清除配置）
+	ImagePrice1K                    *float64                   `json:"image_price_1k"`
+	ImagePrice2K                    *float64                   `json:"image_price_2k"`
+	ImagePrice4K                    *float64                   `json:"image_price_4k"`
+	WebSearchPricePerCall           optionalNullableFloatField `json:"web_search_price_per_call"`
+	ImageProtocolMode               string                     `json:"image_protocol_mode" binding:"omitempty,oneof=inherit native compat"`
+	ClaudeCodeOnly                  *bool                      `json:"claude_code_only"`
+	FallbackGroupID                 *int64                     `json:"fallback_group_id"`
+	FallbackGroupIDOnInvalidRequest *int64                     `json:"fallback_group_id_on_invalid_request"`
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting               map[string][]int64 `json:"model_routing"`
 	ModelRoutingEnabled        *bool              `json:"model_routing_enabled"`
@@ -301,6 +345,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		ImagePrice1K:                    req.ImagePrice1K,
 		ImagePrice2K:                    req.ImagePrice2K,
 		ImagePrice4K:                    req.ImagePrice4K,
+		WebSearchPricePerCall:           req.WebSearchPricePerCall,
 		ImageProtocolMode:               req.ImageProtocolMode,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
 		FallbackGroupID:                 req.FallbackGroupID,
@@ -344,6 +389,8 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		return
 	}
 
+	webSearchPricePerCall, webSearchPricePerCallSet := req.WebSearchPricePerCall.ToServiceInput()
+
 	group, err := h.adminService.UpdateGroup(c.Request.Context(), groupID, &service.UpdateGroupInput{
 		Name:                            req.Name,
 		Description:                     req.Description.value,
@@ -364,6 +411,8 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		ImagePrice1K:                    req.ImagePrice1K,
 		ImagePrice2K:                    req.ImagePrice2K,
 		ImagePrice4K:                    req.ImagePrice4K,
+		WebSearchPricePerCall:           webSearchPricePerCall,
+		WebSearchPricePerCallSet:        webSearchPricePerCallSet,
 		ImageProtocolMode:               req.ImageProtocolMode,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
 		FallbackGroupID:                 req.FallbackGroupID,

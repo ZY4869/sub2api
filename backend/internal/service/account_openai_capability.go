@@ -10,6 +10,7 @@ type OpenAIEndpointCapability string
 const (
 	OpenAIEndpointCapabilityChatCompletions OpenAIEndpointCapability = "chat_completions"
 	OpenAIEndpointCapabilityEmbeddings      OpenAIEndpointCapability = "embeddings"
+	OpenAIEndpointCapabilityAlphaSearch     OpenAIEndpointCapability = "alpha_search"
 
 	openAIEndpointCapabilitiesCredentialKey = "openai_capabilities"
 )
@@ -20,6 +21,8 @@ func NormalizeOpenAIEndpointCapability(value string) OpenAIEndpointCapability {
 		return OpenAIEndpointCapabilityChatCompletions
 	case string(OpenAIEndpointCapabilityEmbeddings), "embedding", "openai.embeddings":
 		return OpenAIEndpointCapabilityEmbeddings
+	case string(OpenAIEndpointCapabilityAlphaSearch), "search", "web_search", "alpha.search", "alpha/search":
+		return OpenAIEndpointCapabilityAlphaSearch
 	default:
 		return ""
 	}
@@ -84,6 +87,8 @@ func supportsOpenAIEndpointCapabilityByAccountKind(account *Account, capability 
 	case OpenAIEndpointCapabilityChatCompletions:
 		return account.IsOpenAITextCompatible()
 	case OpenAIEndpointCapabilityEmbeddings:
+		return account.IsOpenAIApiKey()
+	case OpenAIEndpointCapabilityAlphaSearch:
 		return account.IsOpenAIApiKey()
 	default:
 		return false

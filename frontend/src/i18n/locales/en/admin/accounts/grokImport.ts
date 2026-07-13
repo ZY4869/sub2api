@@ -28,7 +28,7 @@ export default {
         apikey: "Paste xAI API keys or JSON lists exported from your key manager.",
     },
     placeholders: {
-        legacy: '[{\"name\":\"grok-heavy-1\",\"type\":\"sso\",\"credentials\":{\"sso_token\":\"Bearer ...\"}}]',
+        legacy: '[{\'{\'}"name":"grok-heavy-1","type":"sso","credentials":{\'{\'}"sso_token":"Bearer ..."{\'}\'}{\'}\'}]',
         sso: "Bearer xxxxx\nyyyyy\nzzzzz",
         apikey: "xai-xxxxxx\nxai-yyyyyy",
     },

@@ -187,6 +187,67 @@ func TestAdminService_CreateGroup_NilImagePricing(t *testing.T) {
 	require.Nil(t, repo.created.ImagePrice4K)
 }
 
+func TestAdminService_CreateGroup_SanitizesPlatformFieldsForGrok(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	fallbackID := int64(10)
+	price1K := 0.10
+	webSearchPrice := 0.0
+	scopes := []string{"claude"}
+	allowMessagesDispatch := true
+	mcpXMLInject := false
+
+	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:                            "grok-group",
+		Platform:                        PlatformGrok,
+		RateMultiplier:                  1,
+		ImagePrice1K:                    &price1K,
+		WebSearchPricePerCall:           &webSearchPrice,
+		ImageProtocolMode:               OpenAIGroupImageProtocolModeInherit,
+		ClaudeCodeOnly:                  true,
+		FallbackGroupID:                 &fallbackID,
+		FallbackGroupIDOnInvalidRequest: &fallbackID,
+		ModelRouting:                    map[string][]int64{"claude-*": []int64{1}},
+		ModelRoutingEnabled:             true,
+		GeminiMixedProtocolEnabled:      true,
+		MCPXMLInject:                    &mcpXMLInject,
+		SupportedModelScopes:            scopes,
+		AllowMessagesDispatch:           allowMessagesDispatch,
+		DefaultMappedModel:              "gpt-5.4",
+		ImageBatchEnabled:               true,
+		ImageBatchAllowedProviders:      []string{"gemini"},
+		ImageBatchAllowedModels:         []string{"gemini-2.5-flash-image"},
+		ImageBatchMaxItems:              10,
+		ImageBatchMaxDownloadBytes:      1024,
+		ImageBatchDownloadConcurrency:   4,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.created)
+	require.NotNil(t, repo.created.ImagePrice1K)
+	require.InDelta(t, 0.10, *repo.created.ImagePrice1K, 0.0001)
+	require.NotNil(t, repo.created.WebSearchPricePerCall)
+	require.InDelta(t, 0.0, *repo.created.WebSearchPricePerCall, 0.0001)
+	require.False(t, repo.created.ClaudeCodeOnly)
+	require.Nil(t, repo.created.FallbackGroupID)
+	require.Nil(t, repo.created.FallbackGroupIDOnInvalidRequest)
+	require.Nil(t, repo.created.ModelRouting)
+	require.False(t, repo.created.ModelRoutingEnabled)
+	require.False(t, repo.created.GeminiMixedProtocolEnabled)
+	require.True(t, repo.created.MCPXMLInject)
+	require.Empty(t, repo.created.SupportedModelScopes)
+	require.False(t, repo.created.AllowMessagesDispatch)
+	require.Equal(t, "", repo.created.DefaultMappedModel)
+	require.Equal(t, OpenAIGroupImageProtocolModeInherit, repo.created.ImageProtocolMode)
+	require.False(t, repo.created.ImageBatchEnabled)
+	require.Empty(t, repo.created.ImageBatchAllowedProviders)
+	require.Empty(t, repo.created.ImageBatchAllowedModels)
+	require.Equal(t, DefaultImageBatchMaxItems, repo.created.ImageBatchMaxItems)
+	require.Equal(t, DefaultImageBatchMaxDownloadBytes, repo.created.ImageBatchMaxDownloadBytes)
+	require.Equal(t, DefaultImageBatchDownloadConcurrency, repo.created.ImageBatchDownloadConcurrency)
+}
+
 // TestAdminService_UpdateGroup_WithImagePricing 测试更新分组时 ImagePrice 字段正确更新
 func TestAdminService_UpdateGroup_WithImagePricing(t *testing.T) {
 	existingGroup := &Group{
@@ -527,7 +588,7 @@ func (s *groupRepoStubForInvalidRequestFallback) UpdateSortOrders(_ context.Cont
 	return nil
 }
 
-func TestAdminService_CreateGroup_InvalidRequestFallbackRejectsUnsupportedPlatform(t *testing.T) {
+func TestAdminService_CreateGroup_InvalidRequestFallbackClearsUnsupportedPlatform(t *testing.T) {
 	fallbackID := int64(10)
 	repo := &groupRepoStubForInvalidRequestFallback{
 		groups: map[int64]*Group{
@@ -536,15 +597,16 @@ func TestAdminService_CreateGroup_InvalidRequestFallbackRejectsUnsupportedPlatfo
 	}
 	svc := &adminServiceImpl{groupRepo: repo}
 
-	_, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
 		Name:                            "g1",
 		Platform:                        PlatformOpenAI,
 		SubscriptionType:                SubscriptionTypeStandard,
 		FallbackGroupIDOnInvalidRequest: &fallbackID,
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid request fallback only supported for anthropic or antigravity groups")
-	require.Nil(t, repo.created)
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.created)
+	require.Nil(t, repo.created.FallbackGroupIDOnInvalidRequest)
 }
 
 func TestAdminService_CreateGroup_InvalidRequestFallbackRejectsSubscription(t *testing.T) {
@@ -639,7 +701,7 @@ func TestAdminService_CreateGroup_InvalidRequestFallbackNotFound(t *testing.T) {
 	require.Nil(t, repo.created)
 }
 
-func TestAdminService_CreateGroup_InvalidRequestFallbackAllowsAntigravity(t *testing.T) {
+func TestAdminService_CreateGroup_InvalidRequestFallbackClearsForAntigravity(t *testing.T) {
 	fallbackID := int64(10)
 	repo := &groupRepoStubForInvalidRequestFallback{
 		groups: map[int64]*Group{
@@ -657,7 +719,7 @@ func TestAdminService_CreateGroup_InvalidRequestFallbackAllowsAntigravity(t *tes
 	require.NoError(t, err)
 	require.NotNil(t, group)
 	require.NotNil(t, repo.created)
-	require.Equal(t, fallbackID, *repo.created.FallbackGroupIDOnInvalidRequest)
+	require.Nil(t, repo.created.FallbackGroupIDOnInvalidRequest)
 }
 
 func TestAdminService_CreateGroup_InvalidRequestFallbackClearsOnZero(t *testing.T) {
@@ -677,7 +739,7 @@ func TestAdminService_CreateGroup_InvalidRequestFallbackClearsOnZero(t *testing.
 	require.Nil(t, repo.created.FallbackGroupIDOnInvalidRequest)
 }
 
-func TestAdminService_UpdateGroup_InvalidRequestFallbackPlatformMismatch(t *testing.T) {
+func TestAdminService_UpdateGroup_InvalidRequestFallbackClearsWhenPlatformChanges(t *testing.T) {
 	fallbackID := int64(10)
 	existing := &Group{
 		ID:                              1,
@@ -698,9 +760,9 @@ func TestAdminService_UpdateGroup_InvalidRequestFallbackPlatformMismatch(t *test
 	_, err := svc.UpdateGroup(context.Background(), existing.ID, &UpdateGroupInput{
 		Platform: PlatformOpenAI,
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid request fallback only supported for anthropic or antigravity groups")
-	require.Nil(t, repo.updated)
+	require.NoError(t, err)
+	require.NotNil(t, repo.updated)
+	require.Nil(t, repo.updated.FallbackGroupIDOnInvalidRequest)
 }
 
 func TestAdminService_UpdateGroup_InvalidRequestFallbackSubscriptionMismatch(t *testing.T) {
@@ -809,7 +871,7 @@ func TestAdminService_UpdateGroup_InvalidRequestFallbackSetSuccess(t *testing.T)
 	require.Equal(t, fallbackID, *repo.updated.FallbackGroupIDOnInvalidRequest)
 }
 
-func TestAdminService_UpdateGroup_InvalidRequestFallbackAllowsAntigravity(t *testing.T) {
+func TestAdminService_UpdateGroup_InvalidRequestFallbackClearsForAntigravity(t *testing.T) {
 	fallbackID := int64(10)
 	existing := &Group{
 		ID:               1,
@@ -832,5 +894,5 @@ func TestAdminService_UpdateGroup_InvalidRequestFallbackAllowsAntigravity(t *tes
 	require.NoError(t, err)
 	require.NotNil(t, group)
 	require.NotNil(t, repo.updated)
-	require.Equal(t, fallbackID, *repo.updated.FallbackGroupIDOnInvalidRequest)
+	require.Nil(t, repo.updated.FallbackGroupIDOnInvalidRequest)
 }

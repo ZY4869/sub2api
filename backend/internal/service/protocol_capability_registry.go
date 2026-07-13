@@ -73,6 +73,19 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 	},
 	{
+		CanonicalEndpoint: EndpointAlphaSearch,
+		SourceProtocol:    PlatformOpenAI,
+		HandlerFamily:     "openai_alpha_search",
+		NormalizePrefixes: []string{"/openai"},
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1/alpha/search"},
+			{Method: http.MethodPost, Pattern: "/alpha/search"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointAlphaSearch, RequestFormat: EndpointAlphaSearch, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
 		CanonicalEndpoint: EndpointResponsesCompact,
 		SourceProtocol:    PlatformOpenAI,
 		HandlerFamily:     "openai_responses",
@@ -168,6 +181,34 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointVideosCreate, RequestFormat: EndpointVideosCreate, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointVideosCreate, RequestFormat: EndpointVideosGen, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointVideosEdits,
+		SourceProtocol:    PlatformOpenAI,
+		HandlerFamily:     "grok_videos_generation",
+		NormalizePrefixes: []string{"/openai"},
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1/videos/edits"},
+			{Method: http.MethodPost, Pattern: "/videos/edits"},
+			{Method: http.MethodPost, Pattern: "/grok/v1/videos/edits"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointVideosEdits, RequestFormat: EndpointVideosEdits, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointVideosExtensions,
+		SourceProtocol:    PlatformOpenAI,
+		HandlerFamily:     "grok_videos_generation",
+		NormalizePrefixes: []string{"/openai"},
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1/videos/extensions"},
+			{Method: http.MethodPost, Pattern: "/videos/extensions"},
+			{Method: http.MethodPost, Pattern: "/grok/v1/videos/extensions"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointVideosExtensions, RequestFormat: EndpointVideosExtensions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
 		},
 	},
 	{

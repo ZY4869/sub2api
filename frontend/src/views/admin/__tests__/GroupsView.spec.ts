@@ -192,6 +192,7 @@ function createGroup(id: number, name: string, accountCount: number) {
     image_price_1k: null,
     image_price_2k: null,
     image_price_4k: null,
+    web_search_price_per_call: null,
     claude_code_only: false,
     fallback_group_id: null,
     fallback_group_id_on_invalid_request: null,
@@ -245,6 +246,10 @@ function mountView() {
   })
 }
 
+function setupState(wrapper: any) {
+  return (wrapper.vm as any).$?.setupState
+}
+
 describe('GroupsView iconized selections', () => {
   beforeEach(() => {
     mockState.listGroups.mockReset()
@@ -281,7 +286,7 @@ describe('GroupsView iconized selections', () => {
 
     await flushPromises()
 
-    const state = (wrapper.vm as any).$?.setupState
+    const state = setupState(wrapper)
     state.showCreateModal = true
     state.showEditModal = true
     state.editingGroup = groupsFixture[0]
@@ -356,7 +361,7 @@ describe('GroupsView iconized selections', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    const state = (wrapper.vm as any).$?.setupState
+    const state = setupState(wrapper)
     const allColumns = state.columns.value ?? state.columns
     expect(allColumns.map((column: { key: string }) => column.key)).toContain('peak_rate')
 
@@ -381,7 +386,7 @@ describe('GroupsView iconized selections', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    const state = (wrapper.vm as any).$?.setupState
+    const state = setupState(wrapper)
     state.createForm.name = 'Standard Group'
     state.createForm.subscription_type = 'standard'
     state.createForm.peak_rate_enabled = true
@@ -414,5 +419,198 @@ describe('GroupsView iconized selections', () => {
 
     expect(mockState.createGroup).not.toHaveBeenCalled()
     expect(mockState.showError).toHaveBeenCalledWith('admin.groups.peakRate.invalidTime')
+  })
+
+  it('shows Grok image and web search pricing without supported scopes', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const state = setupState(wrapper)
+    state.showCreateModal = true
+    state.createForm.platform = 'grok'
+    await nextTick()
+
+    expect(wrapper.text()).toContain('admin.groups.imagePricing.title')
+    expect(wrapper.text()).toContain('admin.groups.webSearchPricing.label')
+    expect(wrapper.text()).not.toContain('admin.groups.supportedScopes.title')
+
+    state.showCreateModal = false
+    state.showEditModal = true
+    state.editingGroup = { ...groupsFixture[0], platform: 'grok' }
+    state.editForm.platform = 'grok'
+    await nextTick()
+
+    expect(wrapper.text()).toContain('admin.groups.imagePricing.title')
+    expect(wrapper.text()).toContain('admin.groups.webSearchPricing.label')
+    expect(wrapper.text()).not.toContain('admin.groups.supportedScopes.title')
+  })
+
+  it('does not submit Antigravity supported scopes for default Anthropic creates', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const state = setupState(wrapper)
+    state.createForm.name = 'Anthropic Group'
+    state.createForm.platform = 'anthropic'
+    state.createForm.supported_model_scopes = ['claude', 'gemini_text']
+    state.createForm.mcp_xml_inject = false
+    state.createForm.allow_messages_dispatch = true
+    state.createForm.default_mapped_model = 'gpt-5.4'
+    state.createForm.image_protocol_mode = 'native'
+    state.createForm.gemini_mixed_protocol_enabled = true
+    state.createForm.image_batch_enabled = true
+
+    await state.handleCreateGroup()
+    await flushPromises()
+
+    const payload = mockState.createGroup.mock.calls.at(-1)?.[0]
+    expect(payload).toEqual(
+      expect.objectContaining({
+        platform: 'anthropic',
+        supported_model_scopes: []
+      })
+    )
+    expect(payload).not.toHaveProperty('mcp_xml_inject')
+    expect(payload).not.toHaveProperty('allow_messages_dispatch')
+    expect(payload).not.toHaveProperty('default_mapped_model')
+    expect(payload).not.toHaveProperty('image_protocol_mode')
+    expect(payload).not.toHaveProperty('gemini_mixed_protocol_enabled')
+    expect(payload).not.toHaveProperty('image_batch_enabled')
+  })
+
+  it('cleans stale platform-only fields when creating and updating Grok groups', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const state = setupState(wrapper)
+    state.createForm.name = 'Grok Group'
+    state.createForm.platform = 'grok'
+    state.createForm.image_price_1k = 0.1
+    state.createForm.web_search_price_per_call = 0
+    state.createForm.claude_code_only = true
+    state.createForm.fallback_group_id = 2
+    state.createForm.fallback_group_id_on_invalid_request = 3
+    state.createForm.model_routing_enabled = true
+    state.createForm.allow_messages_dispatch = true
+    state.createForm.default_mapped_model = 'gpt-5.4'
+    state.createForm.image_protocol_mode = 'native'
+    state.createForm.mcp_xml_inject = false
+    state.createForm.supported_model_scopes = ['claude']
+    state.createForm.gemini_mixed_protocol_enabled = true
+    state.createForm.image_batch_enabled = true
+    state.createForm.image_batch_allowed_providers = ['gemini']
+
+    await state.handleCreateGroup()
+    await flushPromises()
+
+    const createPayload = mockState.createGroup.mock.calls.at(-1)?.[0]
+    expect(createPayload).toEqual(
+      expect.objectContaining({
+        platform: 'grok',
+        image_price_1k: 0.1,
+        web_search_price_per_call: 0,
+        supported_model_scopes: []
+      })
+    )
+    expect(createPayload).not.toHaveProperty('claude_code_only')
+    expect(createPayload).not.toHaveProperty('fallback_group_id')
+    expect(createPayload).not.toHaveProperty('fallback_group_id_on_invalid_request')
+    expect(createPayload).not.toHaveProperty('model_routing_enabled')
+    expect(createPayload).not.toHaveProperty('model_routing')
+    expect(createPayload).not.toHaveProperty('allow_messages_dispatch')
+    expect(createPayload).not.toHaveProperty('default_mapped_model')
+    expect(createPayload).not.toHaveProperty('image_protocol_mode')
+    expect(createPayload).not.toHaveProperty('mcp_xml_inject')
+    expect(createPayload).not.toHaveProperty('gemini_mixed_protocol_enabled')
+    expect(createPayload).not.toHaveProperty('image_batch_enabled')
+    expect(createPayload).not.toHaveProperty('image_batch_allowed_providers')
+
+    mockState.updateGroup.mockResolvedValue({})
+    state.editingGroup = { ...groupsFixture[0], id: 20, platform: 'grok' }
+    state.editForm.name = 'Grok Group'
+    state.editForm.platform = 'grok'
+    state.editForm.status = 'active'
+    state.editForm.image_price_2k = 0.2
+    state.editForm.web_search_price_per_call = ''
+    state.editForm.claude_code_only = true
+    state.editForm.fallback_group_id = 2
+    state.editForm.fallback_group_id_on_invalid_request = 3
+    state.editForm.allow_messages_dispatch = true
+    state.editForm.supported_model_scopes = ['claude']
+    state.editForm.image_batch_enabled = true
+
+    await state.handleUpdateGroup()
+    await flushPromises()
+
+    const updatePayload = mockState.updateGroup.mock.calls.at(-1)?.[1]
+    expect(mockState.updateGroup).toHaveBeenLastCalledWith(
+      20,
+      expect.objectContaining({
+        platform: 'grok',
+        image_price_2k: 0.2,
+        web_search_price_per_call: null,
+        supported_model_scopes: []
+      })
+    )
+    expect(updatePayload).not.toHaveProperty('claude_code_only')
+    expect(updatePayload).not.toHaveProperty('fallback_group_id')
+    expect(updatePayload).not.toHaveProperty('fallback_group_id_on_invalid_request')
+    expect(updatePayload).not.toHaveProperty('allow_messages_dispatch')
+    expect(updatePayload).not.toHaveProperty('image_batch_enabled')
+  })
+
+  it('preserves OpenAI and Grok web search price values including free and cleared states', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const state = setupState(wrapper)
+    state.createForm.name = 'OpenAI Search'
+    state.createForm.platform = 'openai'
+    state.createForm.web_search_price_per_call = 0
+
+    await state.handleCreateGroup()
+    await flushPromises()
+
+    expect(mockState.createGroup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        web_search_price_per_call: 0
+      })
+    )
+
+    mockState.createGroup.mockClear()
+    state.createForm.name = 'Grok Search'
+    state.createForm.platform = 'grok'
+    state.createForm.web_search_price_per_call = 0
+
+    await state.handleCreateGroup()
+    await flushPromises()
+
+    expect(mockState.createGroup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        platform: 'grok',
+        web_search_price_per_call: 0
+      })
+    )
+
+    mockState.updateGroup.mockResolvedValue({})
+    state.editingGroup = {
+      ...groupsFixture[0],
+      id: 10,
+      platform: 'openai',
+      web_search_price_per_call: 0.025
+    }
+    state.editForm.name = 'OpenAI Search'
+    state.editForm.platform = 'openai'
+    state.editForm.web_search_price_per_call = ''
+
+    await state.handleUpdateGroup()
+    await flushPromises()
+
+    expect(mockState.updateGroup).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({
+        web_search_price_per_call: null
+      })
+    )
   })
 })

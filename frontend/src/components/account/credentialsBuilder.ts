@@ -10,6 +10,18 @@ export function applyInterceptWarmup(
   }
 }
 
+export function applyOpenAIOAuthPlanTypeOverride(
+  credentials: Record<string, unknown>,
+  value: string
+): void {
+  const normalized = value.trim()
+  if (normalized) {
+    credentials.plan_type = normalized
+  } else {
+    delete credentials.plan_type
+  }
+}
+
 const forbiddenRequestHeaderNames = new Set([
   'authorization',
   'x-api-key',

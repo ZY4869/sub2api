@@ -72,16 +72,20 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	imagePrice1K := normalizePrice(input.ImagePrice1K)
 	imagePrice2K := normalizePrice(input.ImagePrice2K)
 	imagePrice4K := normalizePrice(input.ImagePrice4K)
+	webSearchPricePerCall := normalizeWebSearchPrice(input.WebSearchPricePerCall)
 	imageProtocolMode := NormalizeOpenAIGroupImageProtocolMode(input.ImageProtocolMode)
 	if imageProtocolMode == "" {
 		imageProtocolMode = OpenAIGroupImageProtocolModeInherit
 	}
-	if input.FallbackGroupID != nil {
+	if platform == PlatformAnthropic && input.FallbackGroupID != nil {
 		if err := s.validateFallbackGroup(ctx, 0, *input.FallbackGroupID); err != nil {
 			return nil, err
 		}
 	}
 	fallbackOnInvalidRequest := input.FallbackGroupIDOnInvalidRequest
+	if platform != PlatformAnthropic {
+		fallbackOnInvalidRequest = nil
+	}
 	if fallbackOnInvalidRequest != nil && *fallbackOnInvalidRequest <= 0 {
 		fallbackOnInvalidRequest = nil
 	}
@@ -131,7 +135,8 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if err != nil {
 		return nil, err
 	}
-	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, PeakRateEnabled: peakEnabled, PeakStart: peakStart, PeakEnd: peakEnd, PeakRateMultiplier: peakRateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns), ImageBatchEnabled: input.ImageBatchEnabled, ImageBatchAllowedProviders: NormalizeImageBatchAllowList(input.ImageBatchAllowedProviders), ImageBatchAllowedModels: NormalizeImageBatchAllowList(input.ImageBatchAllowedModels), ImageBatchMaxItems: NormalizeImageBatchMaxItems(input.ImageBatchMaxItems), ImageBatchMaxDownloadBytes: NormalizeImageBatchMaxDownloadBytes(input.ImageBatchMaxDownloadBytes), ImageBatchDownloadConcurrency: NormalizeImageBatchDownloadConcurrency(input.ImageBatchDownloadConcurrency)}
+	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, PeakRateEnabled: peakEnabled, PeakStart: peakStart, PeakEnd: peakEnd, PeakRateMultiplier: peakRateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, WebSearchPricePerCall: webSearchPricePerCall, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns), ImageBatchEnabled: input.ImageBatchEnabled, ImageBatchAllowedProviders: NormalizeImageBatchAllowList(input.ImageBatchAllowedProviders), ImageBatchAllowedModels: NormalizeImageBatchAllowList(input.ImageBatchAllowedModels), ImageBatchMaxItems: NormalizeImageBatchMaxItems(input.ImageBatchMaxItems), ImageBatchMaxDownloadBytes: NormalizeImageBatchMaxDownloadBytes(input.ImageBatchMaxDownloadBytes), ImageBatchDownloadConcurrency: NormalizeImageBatchDownloadConcurrency(input.ImageBatchDownloadConcurrency)}
+	sanitizeGroupPlatformFields(group)
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
 	}
@@ -154,6 +159,61 @@ func normalizePrice(price *float64) *float64 {
 		return nil
 	}
 	return price
+}
+
+func normalizeWebSearchPrice(price *float64) *float64 {
+	if price == nil {
+		return nil
+	}
+	return price
+}
+
+func sanitizeGroupPlatformFields(group *Group) {
+	if group == nil {
+		return
+	}
+	group.Platform = CanonicalizePlatformValue(group.Platform)
+
+	if group.Platform != PlatformAnthropic {
+		group.ClaudeCodeOnly = false
+		group.FallbackGroupID = nil
+		group.FallbackGroupIDOnInvalidRequest = nil
+		group.ModelRouting = nil
+		group.ModelRoutingEnabled = false
+	}
+
+	if group.Platform != PlatformOpenAI {
+		group.AllowMessagesDispatch = false
+		group.DefaultMappedModel = ""
+		group.ImageProtocolMode = OpenAIGroupImageProtocolModeInherit
+	} else if NormalizeOpenAIGroupImageProtocolMode(group.ImageProtocolMode) == "" {
+		group.ImageProtocolMode = OpenAIGroupImageProtocolModeInherit
+	}
+
+	if group.Platform != PlatformAntigravity {
+		group.MCPXMLInject = true
+		group.SupportedModelScopes = []string{}
+	}
+
+	if group.Platform != PlatformGemini {
+		group.GeminiMixedProtocolEnabled = false
+		group.ImageBatchEnabled = false
+		group.ImageBatchAllowedProviders = nil
+		group.ImageBatchAllowedModels = nil
+		group.ImageBatchMaxItems = DefaultImageBatchMaxItems
+		group.ImageBatchMaxDownloadBytes = DefaultImageBatchMaxDownloadBytes
+		group.ImageBatchDownloadConcurrency = DefaultImageBatchDownloadConcurrency
+	}
+
+	if group.Platform != PlatformOpenAI && group.Platform != PlatformGrok {
+		group.WebSearchPricePerCall = nil
+	}
+
+	if group.Platform != PlatformAntigravity && group.Platform != PlatformGemini && group.Platform != PlatformGrok {
+		group.ImagePrice1K = nil
+		group.ImagePrice2K = nil
+		group.ImagePrice4K = nil
+	}
 }
 
 func NormalizeImageBatchAllowList(values []string) []string {
@@ -232,8 +292,8 @@ func (s *adminServiceImpl) validateFallbackGroup(ctx context.Context, currentGro
 	}
 }
 func (s *adminServiceImpl) validateFallbackGroupOnInvalidRequest(ctx context.Context, currentGroupID int64, platform, subscriptionType string, fallbackGroupID int64) error {
-	if platform != PlatformAnthropic && platform != PlatformAntigravity {
-		return fmt.Errorf("invalid request fallback only supported for anthropic or antigravity groups")
+	if platform != PlatformAnthropic {
+		return fmt.Errorf("invalid request fallback only supported for anthropic groups")
 	}
 	if subscriptionType == SubscriptionTypeSubscription {
 		return fmt.Errorf("subscription groups cannot set invalid request fallback")
@@ -310,6 +370,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.ImagePrice4K != nil {
 		group.ImagePrice4K = normalizePrice(input.ImagePrice4K)
 	}
+	if input.WebSearchPricePerCallSet {
+		group.WebSearchPricePerCall = normalizeWebSearchPrice(input.WebSearchPricePerCall)
+	}
 	if input.ImageProtocolMode != "" {
 		if normalized := NormalizeOpenAIGroupImageProtocolMode(input.ImageProtocolMode); normalized != "" {
 			group.ImageProtocolMode = normalized
@@ -318,7 +381,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.ClaudeCodeOnly != nil {
 		group.ClaudeCodeOnly = *input.ClaudeCodeOnly
 	}
-	if input.FallbackGroupID != nil {
+	if group.Platform != PlatformAnthropic {
+		group.FallbackGroupID = nil
+	} else if input.FallbackGroupID != nil {
 		if *input.FallbackGroupID > 0 {
 			if err := s.validateFallbackGroup(ctx, id, *input.FallbackGroupID); err != nil {
 				return nil, err
@@ -335,6 +400,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		} else {
 			fallbackOnInvalidRequest = nil
 		}
+	}
+	if group.Platform != PlatformAnthropic {
+		fallbackOnInvalidRequest = nil
 	}
 	if fallbackOnInvalidRequest != nil {
 		if err := s.validateFallbackGroupOnInvalidRequest(ctx, id, group.Platform, group.SubscriptionType, *fallbackOnInvalidRequest); err != nil {
@@ -404,6 +472,7 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if err != nil {
 		return nil, err
 	}
+	sanitizeGroupPlatformFields(group)
 	if err := s.groupRepo.Update(ctx, group); err != nil {
 		return nil, err
 	}

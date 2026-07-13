@@ -386,6 +386,52 @@ func TestProbeModels_UpstreamUnauthorizedReturnsBusinessError(t *testing.T) {
 	require.Equal(t, "unauthorized", resp.Metadata["hint_key"])
 }
 
+func TestProbeModels_GrokSSOUsesCapabilityDerivedModels(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+
+	importSvc := service.NewAccountModelImportService(nil, nil, &handlerModelImportHTTPUpstream{}, nil)
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler.SetAccountModelImportService(importSvc)
+
+	router := gin.New()
+	router.POST("/api/v1/admin/accounts/probe-models", handler.ProbeModels)
+
+	body, err := json.Marshal(map[string]any{
+		"platform": service.PlatformGrok,
+		"type":     service.AccountTypeSSO,
+		"credentials": map[string]any{
+			"sso_token": "grok-sso-token",
+		},
+		"extra": map[string]any{
+			"grok_tier": service.GrokTierHeavy,
+		},
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/probe-models", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp struct {
+		Data struct {
+			ProbeSource string `json:"probe_source"`
+			Models      []struct {
+				ID string `json:"id"`
+			} `json:"models"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, "grok_sso_capability", resp.Data.ProbeSource)
+	ids := make([]string, 0, len(resp.Data.Models))
+	for _, model := range resp.Data.Models {
+		ids = append(ids, model.ID)
+	}
+	require.Contains(t, ids, "grok-4-heavy")
+}
+
 func TestProbeProtocolGatewayModels_UpstreamUnauthorizedReturnsBusinessError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	adminSvc := newStubAdminService()

@@ -141,6 +141,9 @@ func TestLoadDefaultOpenAIWSConfig(t *testing.T) {
 	if cfg.Gateway.OpenAIWS.RetryTotalBudgetMS != 5000 {
 		t.Fatalf("Gateway.OpenAIWS.RetryTotalBudgetMS = %d, want 5000", cfg.Gateway.OpenAIWS.RetryTotalBudgetMS)
 	}
+	if cfg.Gateway.OpenAIWS.MaxSessionLifetimeSeconds != 14400 {
+		t.Fatalf("Gateway.OpenAIWS.MaxSessionLifetimeSeconds = %d, want 14400", cfg.Gateway.OpenAIWS.MaxSessionLifetimeSeconds)
+	}
 	if cfg.Gateway.OpenAIWS.PayloadLogSampleRate != 0.2 {
 		t.Fatalf("Gateway.OpenAIWS.PayloadLogSampleRate = %v, want 0.2", cfg.Gateway.OpenAIWS.PayloadLogSampleRate)
 	}
@@ -1469,6 +1472,11 @@ func TestValidateConfig_OpenAIWSRules(t *testing.T) {
 			name:    "retry_total_budget_ms 不能为负数",
 			mutate:  func(c *Config) { c.Gateway.OpenAIWS.RetryTotalBudgetMS = -1 },
 			wantErr: "gateway.openai_ws.retry_total_budget_ms",
+		},
+		{
+			name:    "max_session_lifetime_seconds 不能为负数",
+			mutate:  func(c *Config) { c.Gateway.OpenAIWS.MaxSessionLifetimeSeconds = -1 },
+			wantErr: "gateway.openai_ws.max_session_lifetime_seconds",
 		},
 		{
 			name:    "lb_top_k 必须为正数",

@@ -58,6 +58,7 @@ export interface Group {
   image_price_1k: number | null;
   image_price_2k: number | null;
   image_price_4k: number | null;
+  web_search_price_per_call: number | null;
   // Restrict the group to Claude Code clients only.
   claude_code_only: boolean;
   image_protocol_mode: OpenAIGroupImageProtocolMode;
@@ -238,12 +239,17 @@ export interface CreateGroupRequest {
   image_price_1k?: number | null;
   image_price_2k?: number | null;
   image_price_4k?: number | null;
+  web_search_price_per_call?: number | null;
   image_protocol_mode?: OpenAIGroupImageProtocolMode;
   claude_code_only?: boolean;
   fallback_group_id?: number | null;
   fallback_group_id_on_invalid_request?: number | null;
+  model_routing?: Record<string, number[]> | null;
+  model_routing_enabled?: boolean;
   mcp_xml_inject?: boolean;
   supported_model_scopes?: string[];
+  allow_messages_dispatch?: boolean;
+  default_mapped_model?: string;
   visible_model_patterns?: string[];
   image_batch_enabled?: boolean;
   image_batch_allowed_providers?: string[];
@@ -275,12 +281,17 @@ export interface UpdateGroupRequest {
   image_price_1k?: number | null;
   image_price_2k?: number | null;
   image_price_4k?: number | null;
+  web_search_price_per_call?: number | null;
   image_protocol_mode?: OpenAIGroupImageProtocolMode;
   claude_code_only?: boolean;
   fallback_group_id?: number | null;
   fallback_group_id_on_invalid_request?: number | null;
+  model_routing?: Record<string, number[]> | null;
+  model_routing_enabled?: boolean;
   mcp_xml_inject?: boolean;
   supported_model_scopes?: string[];
+  allow_messages_dispatch?: boolean;
+  default_mapped_model?: string;
   visible_model_patterns?: string[];
   image_batch_enabled?: boolean;
   image_batch_allowed_providers?: string[];

@@ -34,6 +34,38 @@ vi.mock('vue-i18n', async () => {
 })
 
 describe('AccountGrokOAuthPanel', () => {
+  it('resets stale callback state after Grok OAuth exchange fails', async () => {
+    generateGrokAuthUrl.mockResolvedValue({
+      auth_url: 'https://auth.x.ai/oauth2/authorize?state=state-1',
+      session_id: 'session-1',
+      redirect_uri: 'http://127.0.0.1:56121/callback',
+      state: 'state-1'
+    })
+    exchangeGrokAuthCode.mockRejectedValue(new Error('authorization code expired or already used'))
+
+    const wrapper = mount(AccountGrokOAuthPanel, {
+      props: {
+        submitLabel: '创建',
+        proxyId: 7
+      }
+    })
+
+    const generateButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'admin.accounts.grokOauth.generate')
+    await generateButton!.trigger('click')
+    await flushPromises()
+
+    await wrapper.find('textarea').setValue('http://127.0.0.1:56121/callback?code=auth-code&state=state-1')
+    await wrapper.get('[data-testid="grok-oauth-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('textarea').element.value).toBe('')
+    expect(wrapper.text()).toContain('authorization code expired or already used')
+    expect(wrapper.text()).not.toContain('auth-code')
+    expect(wrapper.get('[data-testid="grok-oauth-submit"]').attributes('disabled')).toBeDefined()
+  })
+
   it('generates auth URL and emits exchanged Grok OAuth credentials', async () => {
     generateGrokAuthUrl.mockResolvedValue({
       auth_url: 'https://auth.x.ai/oauth2/authorize?state=state-1',

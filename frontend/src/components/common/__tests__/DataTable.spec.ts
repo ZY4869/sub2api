@@ -150,6 +150,31 @@ describe('DataTable', () => {
     expect(wrapper.text()).toContain('Alpha')
   })
 
+  it('renders small desktop datasets directly even when virtual scrolling is enabled', async () => {
+    virtualState.items = [{ index: 0, start: 0, end: 56 }]
+    virtualState.totalSize = 56
+
+    const wrapper = mount(DataTable, {
+      props: {
+        columns,
+        data: rows,
+        rowKey: 'id',
+        virtualScroll: true
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('tbody tr[data-row-id]')).toHaveLength(2)
+    expect(wrapper.text()).toContain('Beta')
+    expect(wrapper.text()).toContain('Alpha')
+  })
+
   it('keeps existing behavior when row visuals are not provided and applies visuals when configured', async () => {
     const wrapper = mount(DataTable, {
       props: {

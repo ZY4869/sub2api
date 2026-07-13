@@ -505,6 +505,9 @@ func (c *Config) Validate() error {
 	if c.Gateway.OpenAIWS.WriteTimeoutSeconds <= 0 {
 		return fmt.Errorf("gateway.openai_ws.write_timeout_seconds must be positive")
 	}
+	if c.Gateway.OpenAIWS.MaxSessionLifetimeSeconds < 0 {
+		return fmt.Errorf("gateway.openai_ws.max_session_lifetime_seconds must be non-negative")
+	}
 	if c.Gateway.OpenAIWS.PoolTargetUtilization <= 0 || c.Gateway.OpenAIWS.PoolTargetUtilization > 1 {
 		return fmt.Errorf("gateway.openai_ws.pool_target_utilization must be within (0,1]")
 	}

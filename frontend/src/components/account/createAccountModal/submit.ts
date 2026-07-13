@@ -445,32 +445,28 @@ const handleCreateGrokOAuthAccount = async (payload: ParsedGrokOAuthPayload) => 
     return
   }
 
-  const account = await createAccountAndFinish(
-    'grok',
-    'oauth',
-    { ...(payload.credentials || {}) },
-    buildAccountExtra(payload.extra)
-  )
-  if (account) {
-    grokOAuthRef.value?.reset?.()
-  }
+  oauthDraftCredentials.value = { ...(payload.credentials || {}) }
+  oauthDraftExtra.value = { ...(payload.extra || {}) }
+  grokOAuthRef.value?.reset?.()
+  step.value = 3
 }
 
 
 const handleSubmit = async () => {
+  if (showOAuthFinalizeStep.value && step.value === 3 && oauthDraftProbeReady.value) {
+    await createAccountAndFinish(
+      form.platform,
+      'oauth',
+      { ...oauthDraftCredentials.value },
+      buildAccountExtra(oauthDraftExtra.value)
+    )
+    return
+  }
+
   // For OAuth-based type, handle OAuth flow (goes to step 2)
   if (isOAuthFlow.value) {
     if (!form.name.trim()) {
       appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
-      return
-    }
-    if (showOAuthFinalizeStep.value && step.value === 3 && oauthDraftProbeReady.value) {
-      await createAccountAndFinish(
-        form.platform,
-        'oauth',
-        { ...oauthDraftCredentials.value },
-        buildAccountExtra(oauthDraftExtra.value)
-      )
       return
     }
     const canContinue = await ensureMixedChannelConfirmed(async () => {

@@ -95,6 +95,20 @@ func (s *GrokGatewayService) ForwardVideosGeneration(ctx context.Context, c *gin
 	return s.forwardAPIKeyVideosGeneration(ctx, c, account, body)
 }
 
+func (s *GrokGatewayService) ForwardVideosEdit(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
+	if s.RouteMode(account) == GrokRouteModeSSO {
+		return s.forwardSSOVideosEdit(ctx, c, account, body)
+	}
+	return s.forwardAPIKeyVideosEdit(ctx, c, account, body)
+}
+
+func (s *GrokGatewayService) ForwardVideosExtension(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
+	if s.RouteMode(account) == GrokRouteModeSSO {
+		return s.forwardSSOVideosExtension(ctx, c, account, body)
+	}
+	return s.forwardAPIKeyVideosExtension(ctx, c, account, body)
+}
+
 func (s *GrokGatewayService) ForwardVideoStatus(ctx context.Context, c *gin.Context, account *Account, requestID string) (*GrokGatewayForwardResult, error) {
 	if s.RouteMode(account) == GrokRouteModeSSO {
 		return s.forwardSSOVideoStatus(ctx, c, account, requestID)

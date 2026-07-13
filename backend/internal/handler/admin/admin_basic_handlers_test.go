@@ -181,6 +181,21 @@ func TestGroupHandlerUpdate_PreservesExplicitEmptyDescription(t *testing.T) {
 	require.Equal(t, "", adminSvc.lastUpdateGroupInput.Description)
 }
 
+func TestGroupHandlerUpdate_PreservesExplicitNullWebSearchPrice(t *testing.T) {
+	router, adminSvc := setupAdminRouter()
+
+	body, _ := json.Marshal(map[string]any{"web_search_price_per_call": nil})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/groups/2", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, adminSvc.lastUpdateGroupInput)
+	require.True(t, adminSvc.lastUpdateGroupInput.WebSearchPricePerCallSet)
+	require.Nil(t, adminSvc.lastUpdateGroupInput.WebSearchPricePerCall)
+}
+
 func TestGroupHandlerEndpoints_AcceptsKiroAndRejectsCopilotPlatform(t *testing.T) {
 	router, _ := setupAdminRouter()
 

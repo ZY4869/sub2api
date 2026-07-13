@@ -28,7 +28,7 @@ export default {
         apikey: "支持逐行粘贴 xAI API Key，或导入密钥管理器导出的 JSON 列表。",
     },
     placeholders: {
-        legacy: '[{\"name\":\"grok-heavy-1\",\"type\":\"sso\",\"credentials\":{\"sso_token\":\"Bearer ...\"}}]',
+        legacy: '[{\'{\'}"name":"grok-heavy-1","type":"sso","credentials":{\'{\'}"sso_token":"Bearer ..."{\'}\'}{\'}\'}]',
         sso: "Bearer xxxxx\nyyyyy\nzzzzz",
         apikey: "xai-xxxxxx\nxai-yyyyyy",
     },

@@ -35,7 +35,11 @@ func (s *GrokGatewayService) forwardGrokVideoResponses(ctx context.Context, c *g
 }
 
 func (s *GrokGatewayService) forwardGrokVideoCreate(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	req, err := grokBuildVideoWorkflowRequestFromVideosBody(body)
+	return s.forwardGrokVideoCreateWithOperation(ctx, c, account, body, grokVideoOperationCreate)
+}
+
+func (s *GrokGatewayService) forwardGrokVideoCreateWithOperation(ctx context.Context, c *gin.Context, account *Account, body []byte, operation grokVideoOperation) (*GrokGatewayForwardResult, error) {
+	req, err := grokBuildVideoWorkflowRequestFromVideosBodyWithOperation(body, operation)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": "Failed to parse request body"}})
 		return nil, err
@@ -54,7 +58,7 @@ func (s *GrokGatewayService) forwardGrokVideoCreate(ctx context.Context, c *gin.
 	return &GrokGatewayForwardResult{
 		Result:            grokVideoForwardResult(req, result, false, nil, time.Since(startTime)),
 		RouteMode:         s.RouteMode(account),
-		Endpoint:          grokEndpointVideosGen,
+		Endpoint:          grokVideoOperationEndpoint(req.Operation),
 		MediaType:         "video",
 		UpstreamRequestID: strings.TrimSpace(result.RequestID),
 	}, nil
@@ -245,6 +249,7 @@ func (s *GrokGatewayService) runSSOGrokVideoWorkflow(ctx context.Context, c *gin
 
 	extraPayload := map[string]any{
 		"media_type":       "video",
+		"operation":        string(grokNormalizeVideoOperation(req.Operation)),
 		"aspect_ratio":     req.AspectRatio,
 		"resolution":       req.Resolution,
 		"duration_seconds": req.Seconds,
@@ -428,11 +433,16 @@ func grokBuildAPIKeyVideoPayload(req *grokVideoWorkflowRequest, upstreamModel st
 		"duration_seconds": req.Seconds,
 	}
 	endpoint := grokEndpointVideosGen
+	switch grokNormalizeVideoOperation(req.Operation) {
+	case grokVideoOperationEdit:
+		endpoint = grokEndpointVideosEdits
+	case grokVideoOperationExtension:
+		endpoint = grokEndpointVideosExtension
+	}
 	if strings.TrimSpace(req.ImageURL) != "" {
 		payload["image_url"] = strings.TrimSpace(req.ImageURL)
 	}
 	if strings.TrimSpace(req.VideoURL) != "" {
-		endpoint = "/v1/videos/edits"
 		payload["video_url"] = strings.TrimSpace(req.VideoURL)
 	}
 	body, err := json.Marshal(payload)
@@ -555,7 +565,24 @@ func grokValidateVideoWorkflowRequest(req *grokVideoWorkflowRequest) error {
 	if strings.TrimSpace(req.Prompt) == "" {
 		return fmt.Errorf("prompt is required")
 	}
+	switch grokNormalizeVideoOperation(req.Operation) {
+	case grokVideoOperationEdit, grokVideoOperationExtension:
+		if strings.TrimSpace(req.VideoURL) == "" {
+			return fmt.Errorf("video_url is required for Grok video %s", req.Operation)
+		}
+	}
 	return nil
+}
+
+func grokVideoOperationEndpoint(operation grokVideoOperation) string {
+	switch grokNormalizeVideoOperation(operation) {
+	case grokVideoOperationEdit:
+		return grokEndpointVideosEdits
+	case grokVideoOperationExtension:
+		return grokEndpointVideosExtension
+	default:
+		return grokEndpointVideosGen
+	}
 }
 
 func grokVideoForwardResult(req *grokVideoWorkflowRequest, result *grokVideoResult, stream bool, firstTokenMs *int, duration time.Duration) *ForwardResult {

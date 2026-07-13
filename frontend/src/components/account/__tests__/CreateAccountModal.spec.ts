@@ -610,6 +610,10 @@ const AccountApiKeyModelProbeEditorStub = defineComponent({
       type: Object,
       default: () => ({})
     },
+    extra: {
+      type: Object,
+      default: () => ({})
+    },
     probeReady: {
       type: Boolean,
       default: false
@@ -622,6 +626,7 @@ const AccountApiKeyModelProbeEditorStub = defineComponent({
       <span data-testid="api-key-probe-account-type">{{ accountType }}</span>
       <span data-testid="api-key-probe-ready">{{ String(probeReady) }}</span>
       <span data-testid="api-key-probe-credentials">{{ JSON.stringify(credentials) }}</span>
+      <span data-testid="api-key-probe-extra">{{ JSON.stringify(extra) }}</span>
       <button
         type="button"
         data-testid="probe-select-models"
@@ -1583,7 +1588,7 @@ describe('CreateAccountModal', () => {
     expect(wrapper.find('[data-testid="oauth-allowed-models-prop"]').exists()).toBe(true)
   })
 
-  it('creates a Grok OAuth account through the local unified create flow', async () => {
+  it('finalizes a Grok OAuth account through the local unified create flow', async () => {
     createMock.mockReset()
     checkMixedChannelRiskMock.mockReset()
     invalidateModelRegistryMock.mockReset()
@@ -1608,6 +1613,16 @@ describe('CreateAccountModal', () => {
     await wrapper.get('[data-testid="submit-grok-oauth"]').trigger('click')
     await flushPromises()
 
+    expect(createMock).not.toHaveBeenCalled()
+    const grokOAuthProbe = wrapper.findAll('[data-testid="api-key-probe-editor"]').find((node) =>
+      node.text().includes('oauth') && node.text().includes('grok')
+    )
+    expect(grokOAuthProbe?.exists()).toBe(true)
+    expect(grokOAuthProbe?.find('[data-testid="api-key-probe-credentials"]').text()).toContain('grok-access')
+
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
     expect(createMock).toHaveBeenCalledTimes(1)
     expect(createMock.mock.calls[0]?.[0]).toMatchObject({
       name: 'Grok Login',
@@ -1627,6 +1642,22 @@ describe('CreateAccountModal', () => {
         }
       }
     })
+  })
+
+  it('shows Grok SSO model probe payload with tier extra', async () => {
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-grok"]').trigger('click')
+    await wrapper.get('[data-testid="set-grok-sso-mode"]').trigger('click')
+    await wrapper.get('textarea[placeholder="admin.accounts.grokTokenPlaceholder"]').setValue('grok-sso-token')
+
+    const grokSSOProbe = wrapper.findAll('[data-testid="api-key-probe-editor"]').find((node) =>
+      node.text().includes('sso') && node.text().includes('grok')
+    )
+    expect(grokSSOProbe?.exists()).toBe(true)
+    expect(grokSSOProbe?.find('[data-testid="api-key-probe-ready"]').text()).toBe('true')
+    expect(grokSSOProbe?.find('[data-testid="api-key-probe-credentials"]').text()).toContain('grok-sso-token')
+    expect(grokSSOProbe?.find('[data-testid="api-key-probe-extra"]').text()).toContain('"grok_tier":"basic"')
   })
 
   it('submits DeepSeek model concurrency limits from API key creation', async () => {

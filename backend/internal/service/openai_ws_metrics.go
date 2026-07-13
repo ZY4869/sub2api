@@ -267,6 +267,12 @@ func (s *OpenAIGatewayService) openAIWSPassthroughIdleTimeout() time.Duration {
 	}
 	return openAIWSPassthroughIdleTimeoutDefault
 }
+func (s *OpenAIGatewayService) openAIWSMaxSessionLifetime() time.Duration {
+	if s != nil && s.cfg != nil && s.cfg.Gateway.OpenAIWS.MaxSessionLifetimeSeconds > 0 {
+		return time.Duration(s.cfg.Gateway.OpenAIWS.MaxSessionLifetimeSeconds) * time.Second
+	}
+	return 0
+}
 func (s *OpenAIGatewayService) openAIWSWriteTimeout() time.Duration {
 	if s != nil && s.cfg != nil && s.cfg.Gateway.OpenAIWS.WriteTimeoutSeconds > 0 {
 		return time.Duration(s.cfg.Gateway.OpenAIWS.WriteTimeoutSeconds) * time.Second

@@ -115,25 +115,28 @@ func selectByLRU(accounts []accountWithLoad, preferOAuth bool) *accountWithLoad 
 	if len(accounts) == 1 {
 		return &accounts[0]
 	}
+	now := time.Now()
 	var minTime *time.Time
 	hasNil := false
 	for _, acc := range accounts {
-		if acc.account.LastUsedAt == nil {
+		lastUsedAt := normalizedSchedulerLastUsedAt(acc.account.LastUsedAt, now)
+		if lastUsedAt == nil {
 			hasNil = true
 			break
 		}
-		if minTime == nil || acc.account.LastUsedAt.Before(*minTime) {
-			minTime = acc.account.LastUsedAt
+		if minTime == nil || lastUsedAt.Before(*minTime) {
+			minTime = lastUsedAt
 		}
 	}
 	var candidateIdxs []int
 	for i, acc := range accounts {
+		lastUsedAt := normalizedSchedulerLastUsedAt(acc.account.LastUsedAt, now)
 		if hasNil {
-			if acc.account.LastUsedAt == nil {
+			if lastUsedAt == nil {
 				candidateIdxs = append(candidateIdxs, i)
 			}
 		} else {
-			if acc.account.LastUsedAt != nil && acc.account.LastUsedAt.Equal(*minTime) {
+			if lastUsedAt != nil && lastUsedAt.Equal(*minTime) {
 				candidateIdxs = append(candidateIdxs, i)
 			}
 		}
@@ -182,11 +185,11 @@ func compareAccountsByPriorityAndLastUsed(left, right *Account, preferOAuth bool
 		return pressureCmp
 	}
 	switch {
-	case left.LastUsedAt == nil && right.LastUsedAt != nil:
+	case normalizedSchedulerLastUsedAt(left.LastUsedAt, now) == nil && normalizedSchedulerLastUsedAt(right.LastUsedAt, now) != nil:
 		return -1
-	case left.LastUsedAt != nil && right.LastUsedAt == nil:
+	case normalizedSchedulerLastUsedAt(left.LastUsedAt, now) != nil && normalizedSchedulerLastUsedAt(right.LastUsedAt, now) == nil:
 		return 1
-	case left.LastUsedAt == nil && right.LastUsedAt == nil:
+	case normalizedSchedulerLastUsedAt(left.LastUsedAt, now) == nil && normalizedSchedulerLastUsedAt(right.LastUsedAt, now) == nil:
 		if preferOAuth && left.Type != right.Type {
 			if left.Type == AccountTypeOAuth {
 				return -1
@@ -195,10 +198,12 @@ func compareAccountsByPriorityAndLastUsed(left, right *Account, preferOAuth bool
 		}
 		return 0
 	default:
-		if left.LastUsedAt.Before(*right.LastUsedAt) {
+		leftLastUsedAt := normalizedSchedulerLastUsedAt(left.LastUsedAt, now)
+		rightLastUsedAt := normalizedSchedulerLastUsedAt(right.LastUsedAt, now)
+		if leftLastUsedAt.Before(*rightLastUsedAt) {
 			return -1
 		}
-		if right.LastUsedAt.Before(*left.LastUsedAt) {
+		if rightLastUsedAt.Before(*leftLastUsedAt) {
 			return 1
 		}
 		return 0
@@ -271,7 +276,7 @@ func sameAccountWithLoadGroupAtTime(a, b accountWithLoad, now time.Time) bool {
 	if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 		return false
 	}
-	return sameLastUsedAt(a.account.LastUsedAt, b.account.LastUsedAt)
+	return sameLastUsedAtAtTime(a.account.LastUsedAt, b.account.LastUsedAt, now)
 }
 func shuffleWithinPriorityAndLastUsed(accounts []*Account, preferOAuth bool, now time.Time) {
 	if len(accounts) <= 1 {
@@ -328,9 +333,14 @@ func sameAccountGroupAtTime(a, b *Account, now time.Time) bool {
 	if compareAccountUsagePressure(a, b, now) != 0 {
 		return false
 	}
-	return sameLastUsedAt(a.LastUsedAt, b.LastUsedAt)
+	return sameLastUsedAtAtTime(a.LastUsedAt, b.LastUsedAt, now)
 }
 func sameLastUsedAt(a, b *time.Time) bool {
+	return sameLastUsedAtAtTime(a, b, time.Now())
+}
+func sameLastUsedAtAtTime(a, b *time.Time, now time.Time) bool {
+	a = normalizedSchedulerLastUsedAt(a, now)
+	b = normalizedSchedulerLastUsedAt(b, now)
 	switch {
 	case a == nil && b == nil:
 		return true
@@ -339,6 +349,17 @@ func sameLastUsedAt(a, b *time.Time) bool {
 	default:
 		return a.Unix() == b.Unix()
 	}
+}
+func normalizedSchedulerLastUsedAt(value *time.Time, now time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	normalizedNow := now.UTC()
+	normalized := value.UTC()
+	if normalized.After(normalizedNow) {
+		normalized = normalizedNow
+	}
+	return &normalized
 }
 func (s *GatewayService) sortCandidatesForFallback(accounts []*Account, preferOAuth bool, mode string) {
 	if mode == "random" {

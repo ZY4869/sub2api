@@ -14,6 +14,8 @@ const (
 	grokEndpointImagesGen       = "/v1/images/generations"
 	grokEndpointImagesEdits     = "/v1/images/edits"
 	grokEndpointVideosGen       = "/v1/videos/generations"
+	grokEndpointVideosEdits     = "/v1/videos/edits"
+	grokEndpointVideosExtension = "/v1/videos/extensions"
 	grokEndpointVideosStatus    = "/v1/videos/:request_id"
 )
 

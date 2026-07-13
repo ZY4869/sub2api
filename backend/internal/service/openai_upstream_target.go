@@ -5,6 +5,7 @@ import "strings"
 const (
 	openaiPlatformChatCompletionsURL = "https://api.openai.com/v1/chat/completions"
 	openaiPlatformEmbeddingsURL      = "https://api.openai.com/v1/embeddings"
+	openaiPlatformAlphaSearchURL     = "https://api.openai.com/v1/alpha/search"
 	openaiPlatformImagesURL          = "https://api.openai.com/v1/images"
 	deepseekDefaultAPIBaseURL        = "https://api.deepseek.com"
 	openRouterDefaultAPIBaseURL      = "https://openrouter.ai/api/v1"
@@ -55,6 +56,26 @@ func resolveOpenAIEmbeddingsTargetURL(account *Account, validateBaseURL func(str
 	}
 
 	return buildOpenAIEmbeddingsURLForPlatform(baseURL), nil
+}
+
+func resolveOpenAIAlphaSearchTargetURL(account *Account, validateBaseURL func(string) (string, error)) (string, error) {
+	if account == nil {
+		return openaiPlatformAlphaSearchURL, nil
+	}
+
+	baseURL := strings.TrimSpace(account.GetOpenAIBaseURL())
+	if baseURL == "" {
+		return openaiPlatformAlphaSearchURL, nil
+	}
+	if validateBaseURL != nil {
+		validatedURL, err := validateBaseURL(baseURL)
+		if err != nil {
+			return "", err
+		}
+		baseURL = validatedURL
+	}
+
+	return buildOpenAIAlphaSearchURL(baseURL), nil
 }
 
 func resolveOpenAIChatCompletionsTargetURL(account *Account, validateBaseURL func(string) (string, error)) (string, error) {
@@ -144,6 +165,23 @@ func buildOpenAIEmbeddingsURLForPlatform(baseURL string) string {
 		return normalized + "/embeddings"
 	}
 	return normalized + "/v1/embeddings"
+}
+
+func buildOpenAIAlphaSearchURL(baseURL string) string {
+	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if normalized == "" {
+		return openaiPlatformAlphaSearchURL
+	}
+	if strings.HasSuffix(normalized, "/alpha/search") {
+		return normalized
+	}
+	if strings.HasSuffix(normalized, "/v1/alpha/search") {
+		return normalized
+	}
+	if strings.HasSuffix(normalized, "/v1") {
+		return normalized + "/alpha/search"
+	}
+	return normalized + "/v1/alpha/search"
 }
 
 func buildOpenAIResponsesURLForPlatform(baseURL string, platform string) string {

@@ -85,10 +85,13 @@ func RegisterGatewayRoutes(
 		gateway.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
 		gateway.POST("/completions", dispatchers.OpenAICompletions)
 		gateway.POST("/embeddings", dispatchers.OpenAIEmbeddings)
+		gateway.POST("/alpha/search", dispatchers.OpenAIAlphaSearch)
 		gateway.POST("/images/generations", dispatchers.PublicImagesGeneration)
 		gateway.POST("/images/edits", dispatchers.PublicImagesEdits)
 		gateway.POST("/videos", dispatchers.GrokVideosGeneration)
 		gateway.POST("/videos/generations", dispatchers.GrokVideosGeneration)
+		gateway.POST("/videos/edits", dispatchers.GrokVideosEdit)
+		gateway.POST("/videos/extensions", dispatchers.GrokVideosExtension)
 		gateway.GET("/videos/:request_id", dispatchers.GrokVideosStatus)
 	}
 
@@ -122,6 +125,8 @@ func RegisterGatewayRoutes(
 		grokV1.POST("/images/edits", dispatchers.GrokImagesEdits)
 		grokV1.POST("/videos", dispatchers.GrokVideosGeneration)
 		grokV1.POST("/videos/generations", dispatchers.GrokVideosGeneration)
+		grokV1.POST("/videos/edits", dispatchers.GrokVideosEdit)
+		grokV1.POST("/videos/extensions", dispatchers.GrokVideosExtension)
 		grokV1.GET("/videos/:request_id", dispatchers.GrokVideosStatus)
 	}
 	deepseekV1 := r.Group("/deepseek/v1")
@@ -342,10 +347,13 @@ func RegisterGatewayRoutes(
 	// OpenAI Chat Completions API（不带v1前缀的别名）
 	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIChatCompletions)
 	r.POST("/embeddings", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIEmbeddings)
+	r.POST("/alpha/search", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIAlphaSearch)
 	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.PublicImagesGeneration)
 	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.PublicImagesEdits)
 	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosGeneration)
 	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosGeneration)
+	r.POST("/videos/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosEdit)
+	r.POST("/videos/extensions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosExtension)
 	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosStatus)
 
 	// Antigravity 模型列表

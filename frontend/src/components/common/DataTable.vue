@@ -252,6 +252,8 @@ const emit = defineEmits<{
   sort: [key: string, order: 'asc' | 'desc']
 }>()
 
+const virtualScrollDirectRenderThreshold = 50
+
 // 表格容器引用
 const tableWrapperRef = ref<HTMLElement | null>(null)
 const tableBodyRef = ref<HTMLTableSectionElement | null>(null)
@@ -670,26 +672,41 @@ const sortedData = computed(() => {
 })
 
 // --- Virtual scrolling ---
-const useWindowScrollVirtualizer = computed(() =>
-  props.virtualScroll && props.virtualScrollTarget === 'window'
+const shouldUseVirtualRows = computed(() =>
+  isDesktopViewport.value &&
+  props.virtualScroll &&
+  !props.loading &&
+  (sortedData.value?.length ?? 0) > virtualScrollDirectRenderThreshold
 )
+
+const useWindowScrollVirtualizer = computed(() =>
+  props.virtualScrollTarget === 'window' && shouldUseVirtualRows.value
+)
+
+const measuredRowHeights = new Map<string, number>()
+
+const estimateVirtualRowHeight = (index: number) => {
+  const row = sortedData.value?.[index]
+  const key = row ? resolveRowKey(row, index) : index
+  return measuredRowHeights.get(String(key)) ?? props.estimateRowHeight ?? 56
+}
 
 const containerRowVirtualizer = useVirtualizer(computed(() => ({
   count:
-    isDesktopViewport.value && props.virtualScroll && !useWindowScrollVirtualizer.value
+    shouldUseVirtualRows.value && !useWindowScrollVirtualizer.value
       ? (sortedData.value?.length ?? 0)
       : 0,
   getScrollElement: () => tableWrapperRef.value,
-  estimateSize: () => props.estimateRowHeight ?? 56,
+  estimateSize: estimateVirtualRowHeight,
   overscan: props.overscan ?? 5,
 })))
 
 const windowRowVirtualizer = useWindowVirtualizer(computed(() => ({
   count:
-    isDesktopViewport.value && useWindowScrollVirtualizer.value
+    useWindowScrollVirtualizer.value
       ? (sortedData.value?.length ?? 0)
       : 0,
-  estimateSize: () => props.estimateRowHeight ?? 56,
+  estimateSize: estimateVirtualRowHeight,
   overscan: props.overscan ?? 5,
   scrollMargin: windowVirtualScrollMargin.value,
 })))
@@ -713,7 +730,7 @@ const shouldFallbackToDirectRows = computed(() => {
     isDesktopViewport.value &&
     !props.loading &&
     (sortedData.value?.length ?? 0) > 0 &&
-    (!props.virtualScroll || virtualItems.value.length === 0)
+    (!shouldUseVirtualRows.value || virtualItems.value.length === 0)
   )
 })
 
@@ -735,9 +752,18 @@ const virtualPaddingBottom = computed(() => {
 })
 
 const measureElement = (el: any) => {
-  if (el) {
-    activeRowVirtualizer.value.measureElement(el as Element)
+  if (!el) {
+    return
   }
+  const element = el as HTMLElement
+  const rowID = element.dataset.rowId
+  if (rowID) {
+    const measuredHeight = element.getBoundingClientRect().height
+    if (Number.isFinite(measuredHeight) && measuredHeight > 0) {
+      measuredRowHeights.set(rowID, measuredHeight)
+    }
+  }
+  activeRowVirtualizer.value.measureElement(element)
 }
 
 const hasActionsColumn = computed(() => {

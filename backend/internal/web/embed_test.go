@@ -438,6 +438,7 @@ func TestFrontendServer_Middleware(t *testing.T) {
 			"/v1beta/chat",
 			"/grok/v1/models",
 			"/antigravity/test",
+			"/alpha/search",
 			"/setup/init",
 			"/health",
 			"/responses",
@@ -541,6 +542,14 @@ func TestFrontendServer_Middleware(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
+		assert.Equal(t, "public, max-age=3600", w.Header().Get("Cache-Control"))
+	})
+
+	t.Run("sets_long_cache_for_hashed_static_assets", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		applyEmbeddedStaticCacheHeaders(w, "/assets/app.0123456789abcdef.js")
+
+		assert.Equal(t, "public, max-age=31536000, immutable", w.Header().Get("Cache-Control"))
 	})
 }
 
@@ -641,6 +650,7 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 			"/v1beta/chat",
 			"/grok/v1/models",
 			"/antigravity/test",
+			"/alpha/search",
 			"/setup/init",
 			"/health",
 			"/responses",

@@ -303,6 +303,21 @@
         @apply-capacity="applyAccountTierCapacity"
       />
 
+      <div
+        v-if="showOpenAIOAuthPlanTypeOverride"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <label class="input-label">{{ t('admin.accounts.openaiPlanTypeOverride') }}</label>
+        <input
+          v-model="openAIOAuthPlanTypeOverride"
+          type="text"
+          class="input"
+          data-testid="openai-oauth-plan-type-override"
+          :placeholder="t('admin.accounts.openaiPlanTypeOverridePlaceholder')"
+        />
+        <p class="input-hint">{{ t('admin.accounts.openaiPlanTypeOverrideHint') }}</p>
+      </div>
+
       <!-- Intercept Warmup Requests (Anthropic/Antigravity) -->
       <div
         v-if="effectivePlatform === 'anthropic' || account?.platform === 'antigravity'"
@@ -686,6 +701,8 @@ const {
   handleMixedChannelCancel,
   statusOptions,
   accountTier,
+  openAIOAuthPlanTypeOverride,
+  showOpenAIOAuthPlanTypeOverride,
   expiresAtInput,
   handleOpenAIImageProtocolModeChange,
   codexImageToolPolicy,

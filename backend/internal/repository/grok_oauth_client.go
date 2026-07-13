@@ -89,6 +89,9 @@ func (c *grokOAuthClient) doToken(ctx context.Context, tokenURL string, form url
 }
 
 func summarizeGrokTokenError(status int, body string) string {
+	if status == http.StatusBadRequest {
+		return "Grok OAuth token request failed: authorization code expired or already used, generate a new authorization link and try again"
+	}
 	type errorPayload struct {
 		Error            any    `json:"error"`
 		ErrorDescription string `json:"error_description"`

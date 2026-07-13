@@ -85,8 +85,9 @@ func ResponsesToAnthropic(resp *ResponsesResponse, model string) *AnthropicRespo
 
 	if resp.Usage != nil {
 		out.Usage = AnthropicUsage{
-			InputTokens:  resp.Usage.InputTokens,
-			OutputTokens: resp.Usage.OutputTokens,
+			InputTokens:              resp.Usage.InputTokens,
+			OutputTokens:             resp.Usage.OutputTokens,
+			CacheCreationInputTokens: resp.Usage.CacheCreationInputTokens,
 		}
 		if resp.Usage.InputTokensDetails != nil {
 			out.Usage.CacheReadInputTokens = resp.Usage.InputTokensDetails.CachedTokens
@@ -132,6 +133,7 @@ type ResponsesEventToAnthropicState struct {
 
 	InputTokens          int
 	OutputTokens         int
+	CacheCreationTokens  int
 	CacheReadInputTokens int
 
 	ResponseID string
@@ -196,9 +198,10 @@ func FinalizeResponsesAnthropicStream(state *ResponsesEventToAnthropicState) []A
 				StopReason: "end_turn",
 			},
 			Usage: &AnthropicUsage{
-				InputTokens:          state.InputTokens,
-				OutputTokens:         state.OutputTokens,
-				CacheReadInputTokens: state.CacheReadInputTokens,
+				InputTokens:              state.InputTokens,
+				OutputTokens:             state.OutputTokens,
+				CacheCreationInputTokens: state.CacheCreationTokens,
+				CacheReadInputTokens:     state.CacheReadInputTokens,
 			},
 		},
 		AnthropicStreamEvent{Type: "message_stop"},
@@ -468,6 +471,7 @@ func resToAnthHandleCompleted(evt *ResponsesStreamEvent, state *ResponsesEventTo
 		if evt.Response.Usage != nil {
 			state.InputTokens = evt.Response.Usage.InputTokens
 			state.OutputTokens = evt.Response.Usage.OutputTokens
+			state.CacheCreationTokens = evt.Response.Usage.CacheCreationInputTokens
 			if evt.Response.Usage.InputTokensDetails != nil {
 				state.CacheReadInputTokens = evt.Response.Usage.InputTokensDetails.CachedTokens
 			}
@@ -491,9 +495,10 @@ func resToAnthHandleCompleted(evt *ResponsesStreamEvent, state *ResponsesEventTo
 				StopReason: stopReason,
 			},
 			Usage: &AnthropicUsage{
-				InputTokens:          state.InputTokens,
-				OutputTokens:         state.OutputTokens,
-				CacheReadInputTokens: state.CacheReadInputTokens,
+				InputTokens:              state.InputTokens,
+				OutputTokens:             state.OutputTokens,
+				CacheCreationInputTokens: state.CacheCreationTokens,
+				CacheReadInputTokens:     state.CacheReadInputTokens,
 			},
 		},
 		AnthropicStreamEvent{Type: "message_stop"},

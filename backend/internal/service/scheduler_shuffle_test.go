@@ -268,6 +268,13 @@ func TestSameLastUsedAt(t *testing.T) {
 	t.Run("exact same time", func(t *testing.T) {
 		require.True(t, sameLastUsedAt(&now, &now))
 	})
+
+	t.Run("future values are clamped to now for scheduler grouping", func(t *testing.T) {
+		base := time.Unix(now.Unix(), 0)
+		futureA := base.Add(6 * time.Hour)
+		futureB := base.Add(12 * time.Hour)
+		require.True(t, sameLastUsedAtAtTime(&futureA, &futureB, base))
+	})
 }
 
 // ============ sameAccountWithLoadGroup 测试 ============

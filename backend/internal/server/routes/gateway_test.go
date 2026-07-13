@@ -302,6 +302,8 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 		return "openai_chat_completions"
 	case strings.Contains(handlerName, ".OpenAIEmbeddings-fm"):
 		return "openai_embeddings"
+	case strings.Contains(handlerName, ".OpenAIAlphaSearch-fm"):
+		return "openai_alpha_search"
 	case strings.Contains(handlerName, ".OpenAIResponses-fm"), strings.Contains(handlerName, ".OpenAIResponsesWebSocket-fm"):
 		return "openai_responses"
 	case strings.Contains(handlerName, ".PublicImagesGeneration-fm"):
@@ -313,6 +315,10 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 	case strings.Contains(handlerName, ".GrokImagesEdits-fm"):
 		return "grok_images_edits"
 	case strings.Contains(handlerName, ".GrokVideosGeneration-fm"):
+		return "grok_videos_generation"
+	case strings.Contains(handlerName, ".GrokVideosEdit-fm"):
+		return "grok_videos_generation"
+	case strings.Contains(handlerName, ".GrokVideosExtension-fm"):
 		return "grok_videos_generation"
 	case strings.Contains(handlerName, ".GrokVideosStatus-fm"):
 		return "grok_videos_status"
@@ -637,6 +643,28 @@ func TestGatewayRoutesChatCompletionsRejectAnthropicGroup(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"claude-3-7-sonnet"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Language", "en")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Equal(t, service.GatewayReasonPublicEndpointUnsupported, gjson.Get(w.Body.String(), "error.reason").String())
+	require.Equal(t, service.GatewayReasonPublicEndpointUnsupported, gjson.Get(w.Body.String(), "error.code").String())
+}
+
+func TestGatewayRoutesAlphaSearchRejectsNonOpenAIGroup(t *testing.T) {
+	router := newGatewayRoutesTestRouterWithAuth(func(c *gin.Context) {
+		groupID := int64(1)
+		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
+			GroupID: &groupID,
+			Group:   &service.Group{Platform: service.PlatformAnthropic},
+		})
+		c.Next()
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/alpha/search", strings.NewReader(`{"query":"hello"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept-Language", "en")
 	w := httptest.NewRecorder()

@@ -555,6 +555,7 @@ function buildOpenAIOAuthAccount() {
     type: 'oauth',
     credentials: {
       access_token: 'access-token',
+      plan_type: 'plus',
       model_mapping: {
         'friendly-gpt': 'gpt-5.4'
       }
@@ -977,6 +978,38 @@ describe('EditAccountModal', () => {
       probe_source: 'model_scope_preview'
     })
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_probe_snapshot?.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it('allows OpenAI OAuth plan_type override to be edited and cleared', async () => {
+    const account = buildOpenAIOAuthAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    const input = wrapper.get('[data-testid="openai-oauth-plan-type-override"]')
+
+    expect((input.element as HTMLInputElement).value).toBe('plus')
+
+    await input.setValue(' pro ')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.plan_type).toBe('pro')
+
+    updateAccountMock.mockReset()
+    await input.setValue('   ')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.plan_type).toBeUndefined()
+  })
+
+  it('does not render the OpenAI OAuth plan_type override for API key accounts', () => {
+    const wrapper = mountModal(buildAccount())
+
+    expect(wrapper.find('[data-testid="openai-oauth-plan-type-override"]').exists()).toBe(false)
   })
 
   it('rehydrates account tier and applies default capacity on edit', async () => {
