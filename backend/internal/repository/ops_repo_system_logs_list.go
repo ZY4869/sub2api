@@ -106,6 +106,7 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 			extra := make(map[string]any)
 			if err := json.Unmarshal([]byte(extraRaw), &extra); err == nil {
 				item.Extra = extra
+				item.Host = systemLogHostFromExtra(extra)
 			}
 		}
 		logs = append(logs, item)
@@ -120,4 +121,15 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+func systemLogHostFromExtra(extra map[string]any) string {
+	for _, key := range []string{"host", "hostname"} {
+		if value, ok := extra[key]; ok {
+			if text := strings.TrimSpace(fmt.Sprint(value)); text != "" && text != "<nil>" {
+				return text
+			}
+		}
+	}
+	return ""
 }

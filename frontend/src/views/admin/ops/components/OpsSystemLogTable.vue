@@ -57,6 +57,7 @@ const filters = reactive({
   account_id: '',
   platform: props.platformFilter || '',
   model: '',
+  host: '',
   q: ''
 })
 
@@ -127,12 +128,14 @@ const formatSystemLogDetail = (row: OpsSystemLog) => {
   const path = getExtraString(extra, 'path')
   const clientIP = getExtraString(extra, 'client_ip')
   const protocol = getExtraString(extra, 'protocol')
+  const host = row.host || getExtraString(extra, 'host') || getExtraString(extra, 'hostname')
 
   const accessParts: string[] = []
   if (statusCode) accessParts.push(`status=${statusCode}`)
   if (latencyMs) accessParts.push(`latency_ms=${latencyMs}`)
   if (method) accessParts.push(`method=${method}`)
   if (path) accessParts.push(`path=${path}`)
+  if (host) accessParts.push(`host=${host}`)
   if (clientIP) accessParts.push(`ip=${clientIP}`)
   if (protocol) accessParts.push(`proto=${protocol}`)
   if (accessParts.length > 0) parts.push(accessParts.join(' '))
@@ -193,6 +196,7 @@ const buildQuery = () => {
   }
   if (filters.platform.trim()) query.platform = filters.platform.trim()
   if (filters.model.trim()) query.model = filters.model.trim()
+  if (filters.host.trim()) query.host = filters.host.trim()
   if (filters.q.trim()) query.q = filters.q.trim()
   return query
 }
@@ -297,6 +301,7 @@ const cleanupCurrentFilter = async () => {
       account_id: filters.account_id.trim() ? Number.parseInt(filters.account_id.trim(), 10) : undefined,
       platform: filters.platform.trim() || undefined,
       model: filters.model.trim() || undefined,
+      host: filters.host.trim() || undefined,
       q: filters.q.trim() || undefined
     }
     const res = await opsAPI.cleanupSystemLogs(payload)
@@ -322,6 +327,7 @@ const resetFilters = () => {
   filters.account_id = ''
   filters.platform = props.platformFilter || ''
   filters.model = ''
+  filters.host = ''
   filters.q = ''
   page.value = 1
   fetchLogs()
@@ -485,6 +491,10 @@ const hasData = computed(() => logs.value.length > 0)
       <label class="text-xs text-gray-600 dark:text-gray-300">
         模型
         <input v-model="filters.model" type="text" class="input mt-1" />
+      </label>
+      <label class="text-xs text-gray-600 dark:text-gray-300">
+        Host
+        <input v-model="filters.host" type="text" class="input mt-1" placeholder="如 api.example.com" />
       </label>
       <label class="text-xs text-gray-600 dark:text-gray-300">
         关键词

@@ -14,13 +14,15 @@ import (
 
 const (
 	DefaultAuthorizeURL = "https://auth.x.ai/oauth2/authorize"
+	DefaultDeviceURL    = "https://auth.x.ai/oauth2/device/code"
 	DefaultTokenURL     = "https://auth.x.ai/oauth2/token"
 	DefaultUserInfoURL  = "https://auth.x.ai/oauth2/userinfo"
 	DefaultClientID     = "b1a00492-073a-47ea-816f-4c329264a828"
-	DefaultScope        = "openid profile email offline_access grok-cli:access api:access"
+	DefaultScope        = "openid profile email offline_access grok-cli:access api:access conversations:read conversations:write"
 	DefaultRedirectURI  = "http://127.0.0.1:56121/callback"
 	DefaultBaseURL      = "https://api.x.ai/v1"
 	SessionTTL          = 30 * time.Minute
+	DeviceGrantType     = "urn:ietf:params:oauth:grant-type:device_code"
 )
 
 type OAuthSession struct {
@@ -32,6 +34,14 @@ type OAuthSession struct {
 	ProxyURL     string
 	BaseURL      string
 	CreatedAt    time.Time
+
+	DeviceCode                    string
+	DeviceUserCode                string
+	DeviceVerificationURI         string
+	DeviceVerificationURIComplete string
+	DeviceIntervalSeconds         int
+	DeviceExpiresAt               time.Time
+	DeviceLastPollAt              time.Time
 }
 
 type SessionStore struct {
@@ -39,6 +49,23 @@ type SessionStore struct {
 	sessions map[string]*OAuthSession
 	stopOnce sync.Once
 	stopCh   chan struct{}
+}
+
+type DevicePollReadStatus string
+
+const (
+	DevicePollReadNotFound DevicePollReadStatus = "not_found"
+	DevicePollReadExpired  DevicePollReadStatus = "expired"
+	DevicePollReadSlowDown DevicePollReadStatus = "slow_down"
+	DevicePollReadReady    DevicePollReadStatus = "ready"
+)
+
+type DevicePollReadResult struct {
+	Session         *OAuthSession
+	Status          DevicePollReadStatus
+	RemainingWait   time.Duration
+	IntervalSeconds int
+	ExpiresAt       time.Time
 }
 
 func NewSessionStore() *SessionStore {
@@ -63,7 +90,7 @@ func (s *SessionStore) Get(sessionID string) (*OAuthSession, bool) {
 	if !ok {
 		return nil, false
 	}
-	if time.Since(session.CreatedAt) > SessionTTL {
+	if session.expired(time.Now()) {
 		return nil, false
 	}
 	return session, true
@@ -73,6 +100,41 @@ func (s *SessionStore) Delete(sessionID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.sessions, sessionID)
+}
+
+func (s *SessionStore) PrepareDevicePoll(sessionID string, now time.Time) DevicePollReadResult {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session, ok := s.sessions[sessionID]
+	if !ok || session == nil || strings.TrimSpace(session.DeviceCode) == "" {
+		return DevicePollReadResult{Status: DevicePollReadNotFound}
+	}
+	interval := session.DeviceIntervalSeconds
+	if interval <= 0 {
+		interval = 5
+		session.DeviceIntervalSeconds = interval
+	}
+	result := DevicePollReadResult{
+		Session:         session,
+		IntervalSeconds: interval,
+		ExpiresAt:       session.DeviceExpiresAt,
+	}
+	if session.expired(now) {
+		delete(s.sessions, sessionID)
+		result.Status = DevicePollReadExpired
+		return result
+	}
+	if !session.DeviceLastPollAt.IsZero() {
+		nextAllowed := session.DeviceLastPollAt.Add(time.Duration(interval) * time.Second)
+		if now.Before(nextAllowed) {
+			result.Status = DevicePollReadSlowDown
+			result.RemainingWait = nextAllowed.Sub(now)
+			return result
+		}
+	}
+	session.DeviceLastPollAt = now
+	result.Status = DevicePollReadReady
+	return result
 }
 
 func (s *SessionStore) Stop() {
@@ -91,7 +153,7 @@ func (s *SessionStore) cleanup() {
 		case <-ticker.C:
 			s.mu.Lock()
 			for id, session := range s.sessions {
-				if time.Since(session.CreatedAt) > SessionTTL {
+				if session.expired(time.Now()) {
 					delete(s.sessions, id)
 				}
 			}
@@ -165,23 +227,42 @@ func BuildAuthorizationURL(authorizeURL, clientID, scope, redirectURI, state, co
 	return parsed.String(), nil
 }
 
+type AuthorizationInputKind string
+
+const (
+	AuthorizationInputUnknown        AuthorizationInputKind = "unknown"
+	AuthorizationInputCallbackURL    AuthorizationInputKind = "callback_url"
+	AuthorizationInputQueryString    AuthorizationInputKind = "query_string"
+	AuthorizationInputBareAuthCode   AuthorizationInputKind = "bare_auth_code"
+	AuthorizationInputDeviceUserCode AuthorizationInputKind = "device_user_code"
+	AuthorizationInputDeviceURL      AuthorizationInputKind = "device_url"
+)
+
 type AuthorizationInput struct {
+	Kind          AuthorizationInputKind
 	Code          string
 	State         string
+	UserCode      string
 	RequiresState bool
 }
 
 func ParseAuthorizationInput(raw string) AuthorizationInput {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return AuthorizationInput{}
+		return AuthorizationInput{Kind: AuthorizationInputUnknown}
 	}
 	if parsed, err := url.Parse(trimmed); err == nil && parsed != nil {
-		if code := strings.TrimSpace(parsed.Query().Get("code")); code != "" {
-			return AuthorizationInput{
-				Code:          code,
-				State:         strings.TrimSpace(parsed.Query().Get("state")),
-				RequiresState: true,
+		if parsed.Scheme != "" && parsed.Host != "" {
+			if code := strings.TrimSpace(parsed.Query().Get("code")); code != "" {
+				return AuthorizationInput{
+					Kind:          AuthorizationInputCallbackURL,
+					Code:          code,
+					State:         strings.TrimSpace(parsed.Query().Get("state")),
+					RequiresState: true,
+				}
+			}
+			if userCode := normalizeDeviceUserCode(parsed.Query().Get("user_code")); userCode != "" {
+				return AuthorizationInput{Kind: AuthorizationInputDeviceURL, UserCode: userCode}
 			}
 		}
 	}
@@ -190,14 +271,21 @@ func ParseAuthorizationInput(raw string) AuthorizationInput {
 		if values, err := url.ParseQuery(queryCandidate); err == nil {
 			if code := strings.TrimSpace(values.Get("code")); code != "" {
 				return AuthorizationInput{
+					Kind:          AuthorizationInputQueryString,
 					Code:          code,
 					State:         strings.TrimSpace(values.Get("state")),
 					RequiresState: true,
 				}
 			}
+			if userCode := normalizeDeviceUserCode(values.Get("user_code")); userCode != "" {
+				return AuthorizationInput{Kind: AuthorizationInputDeviceURL, UserCode: userCode}
+			}
 		}
 	}
-	return AuthorizationInput{Code: trimmed}
+	if userCode := normalizeDeviceUserCode(trimmed); userCode != "" {
+		return AuthorizationInput{Kind: AuthorizationInputDeviceUserCode, UserCode: userCode}
+	}
+	return AuthorizationInput{Kind: AuthorizationInputBareAuthCode, Code: trimmed}
 }
 
 type TokenResponse struct {
@@ -207,6 +295,40 @@ type TokenResponse struct {
 	TokenType    string `json:"token_type,omitempty"`
 	ExpiresIn    int64  `json:"expires_in,omitempty"`
 	Scope        string `json:"scope,omitempty"`
+}
+
+type DeviceAuthorizationResponse struct {
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete,omitempty"`
+	ExpiresIn               int64  `json:"expires_in"`
+	Interval                int    `json:"interval,omitempty"`
+}
+
+type DeviceTokenError struct {
+	Status      string
+	Description string
+}
+
+func (e *DeviceTokenError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if strings.TrimSpace(e.Description) != "" {
+		return strings.TrimSpace(e.Description)
+	}
+	return strings.TrimSpace(e.Status)
+}
+
+func (s *OAuthSession) expired(now time.Time) bool {
+	if s == nil {
+		return true
+	}
+	if !s.DeviceExpiresAt.IsZero() && !now.Before(s.DeviceExpiresAt) {
+		return true
+	}
+	return now.Sub(s.CreatedAt) > SessionTTL
 }
 
 type UserInfo struct {
@@ -229,4 +351,34 @@ func randomBytes(n int) ([]byte, error) {
 
 func base64URLEncode(data []byte) string {
 	return strings.TrimRight(base64.URLEncoding.EncodeToString(data), "=")
+}
+
+func normalizeDeviceUserCode(value string) string {
+	raw := strings.TrimSpace(value)
+	trimmed := strings.ToUpper(raw)
+	if trimmed == "" {
+		return ""
+	}
+	for _, r := range trimmed {
+		switch {
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-':
+		default:
+			return ""
+		}
+	}
+	parts := strings.Split(trimmed, "-")
+	if len(parts) == 1 {
+		if len(parts[0]) != 8 {
+			return ""
+		}
+	} else {
+		for _, part := range parts {
+			if len(part) != 4 {
+				return ""
+			}
+		}
+	}
+	return trimmed
 }

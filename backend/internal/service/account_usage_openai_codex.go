@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -77,6 +78,7 @@ func (s *AccountUsageService) readOpenAIResetCredits(ctx context.Context, accoun
 	}
 	usage.OpenAIResetCredits = &OpenAIResetCreditsInfo{
 		AvailableCount:    snapshot.AvailableCount,
+		Credits:           sanitizeOpenAIResetCreditSummaries(snapshot.Credits),
 		UpdatedAt:         &snapshot.UpdatedAt,
 		Source:            snapshot.Source,
 		Status:            snapshot.Status,
@@ -119,6 +121,7 @@ func applyOpenAIResetCreditsFromExtra(usage *UsageInfo, extra map[string]any) {
 	if ok {
 		info.AvailableCount = &count
 	}
+	info.Credits = parseOpenAIResetCreditsExtraCredits(extra[openAIResetCreditsCreditsExtraKey])
 	if updatedAt, ok := parseOpenAIResetCreditsExtraUpdatedAt(extra[openAIResetCreditsUpdatedAtExtraKey]); ok {
 		info.UpdatedAt = &updatedAt
 	}
@@ -160,6 +163,41 @@ func parseOpenAIResetCreditsExtraUpdatedAt(value any) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return ts, true
+}
+
+func parseOpenAIResetCreditsExtraCredits(value any) []OpenAIResetCreditSummary {
+	if value == nil {
+		return nil
+	}
+	switch typed := value.(type) {
+	case []OpenAIResetCreditSummary:
+		return sanitizeOpenAIResetCreditSummaries(typed)
+	case []any:
+		credits := make([]OpenAIResetCreditSummary, 0, len(typed))
+		for _, item := range typed {
+			if m, ok := item.(map[string]any); ok {
+				credits = append(credits, OpenAIResetCreditSummary{
+					ID:        extraString(m["id"]),
+					Status:    extraString(m["status"]),
+					ExpiresAt: extraString(m["expires_at"]),
+				})
+			}
+		}
+		return sanitizeOpenAIResetCreditSummaries(credits)
+	default:
+		var credits []OpenAIResetCreditSummary
+		if err := json.Unmarshal([]byte(fmt.Sprint(value)), &credits); err == nil {
+			return sanitizeOpenAIResetCreditSummaries(credits)
+		}
+	}
+	return nil
+}
+
+func extraString(value any) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
 }
 
 func parseOpenAIResetCreditsExtraStatus(extra map[string]any, hasCount bool) string {

@@ -74,8 +74,13 @@
         :refreshing="refreshingResetCredits"
         :reset-disabled="resetButtonDisabled"
         :show-reset="false"
+        :earliest-expiry-text="earliestResetCreditExpiryText"
+        :expiry-extra-count="resetCreditExtraExpiryCount"
+        :detail-rows="resetCreditDetailRows"
+        :details-expanded="resetCreditDetailsExpanded"
         @refresh="refreshOpenAIResetCredits"
         @reset="resetOpenAIQuota"
+        @toggle-details="toggleResetCreditDetails"
       />
     </div>
 
@@ -143,11 +148,16 @@ const {
   resetCreditsUnknown,
   resetCreditsZero,
   resetCreditsLow,
+  earliestResetCreditExpiryText,
+  resetCreditExtraExpiryCount,
+  resetCreditDetailRows,
+  resetCreditDetailsExpanded,
   resetting,
   refreshingResetCredits,
   resetButtonDisabled,
   resetOpenAIQuota,
   refreshOpenAIResetCredits,
+  toggleResetCreditDetails,
 } = useOpenAIResetCreditsControls(
   () => props.account,
   () => presentation.value,

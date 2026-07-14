@@ -91,6 +91,7 @@ type GrokConfig struct {
 }
 type GrokOAuthConfig struct {
 	AuthorizeURL string `mapstructure:"authorize_url"`
+	DeviceURL    string `mapstructure:"device_url"`
 	TokenURL     string `mapstructure:"token_url"`
 	UserInfoURL  string `mapstructure:"userinfo_url"`
 	ClientID     string `mapstructure:"client_id"`
@@ -156,6 +157,7 @@ type ServerConfig struct {
 	IdleTimeout        int       `mapstructure:"idle_timeout"`
 	TrustedProxies     []string  `mapstructure:"trusted_proxies"`
 	MaxRequestBodySize int64     `mapstructure:"max_request_body_size"`
+	EnableServerTiming bool      `mapstructure:"enable_server_timing"`
 	H2C                H2CConfig `mapstructure:"h2c"`
 }
 type H2CConfig struct {

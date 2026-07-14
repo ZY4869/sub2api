@@ -21,9 +21,50 @@ export interface GrokExchangeCodeResult {
   email_verified?: boolean
 }
 
+export interface GrokDeviceFlowStartResult {
+  session_id: string
+  user_code: string
+  verification_uri: string
+  verification_uri_complete?: string
+  interval: number
+  expires_at: number
+}
+
+export type GrokDevicePollStatus =
+  | 'pending'
+  | 'slow_down'
+  | 'authorized'
+  | 'denied'
+  | 'expired'
+  | string
+
+export interface GrokDevicePollResult {
+  status: GrokDevicePollStatus
+  interval: number
+  expires_at: number
+  token_info?: GrokExchangeCodeResult
+  error_message?: string
+}
+
+export type GrokAuthorizationInputKind =
+  | 'unknown'
+  | 'callback_url'
+  | 'query_string'
+  | 'bare_auth_code'
+  | 'device_user_code'
+  | 'device_url'
+
 export interface ParsedGrokOAuthCallback {
   code: string
   state?: string
+}
+
+export interface ParsedGrokAuthorizationInput {
+  kind: GrokAuthorizationInputKind
+  code: string
+  state?: string
+  userCode?: string
+  requiresState: boolean
 }
 
 export interface ParsedGrokOAuthPayload {
@@ -33,28 +74,31 @@ export interface ParsedGrokOAuthPayload {
 }
 
 export function parseGrokOAuthCallback(rawValue: string): ParsedGrokOAuthCallback {
+  const parsed = parseGrokAuthorizationInput(rawValue)
+  return { code: parsed.code, state: parsed.state }
+}
+
+export function parseGrokAuthorizationInput(rawValue: string): ParsedGrokAuthorizationInput {
   const trimmed = rawValue.trim()
   if (!trimmed) {
-    return { code: '' }
-  }
-  if (!trimmed.includes('code=')) {
-    return { code: trimmed }
+    return emptyParsedInput('unknown')
   }
 
-  try {
-    const url = new URL(trimmed)
-    return {
-      code: url.searchParams.get('code')?.trim() || '',
-      state: url.searchParams.get('state')?.trim() || undefined
-    }
-  } catch {
-    const codeMatch = trimmed.match(/[?&]code=([^&]+)/)
-    const stateMatch = trimmed.match(/[?&]state=([^&]+)/)
-    return {
-      code: decodeURIComponent(codeMatch?.[1] || '').trim(),
-      state: decodeURIComponent(stateMatch?.[1] || '').trim() || undefined
-    }
+  const fromUrl = parseGrokInputFromUrl(trimmed)
+  if (fromUrl) return fromUrl
+
+  const queryCandidate = trimmed.startsWith('?') ? trimmed.slice(1) : trimmed
+  if (queryCandidate.includes('=')) {
+    const fromQuery = parseGrokInputFromQuery(queryCandidate)
+    if (fromQuery) return fromQuery
   }
+
+  const userCode = normalizeGrokDeviceUserCode(trimmed)
+  if (userCode) {
+    return { ...emptyParsedInput('device_user_code'), userCode }
+  }
+
+  return { ...emptyParsedInput('bare_auth_code'), code: trimmed }
 }
 
 export function buildGrokOAuthPayload(tokenInfo: GrokExchangeCodeResult): ParsedGrokOAuthPayload {
@@ -92,6 +136,36 @@ export function buildGrokOAuthPayload(tokenInfo: GrokExchangeCodeResult): Parsed
   }
 }
 
+const grokReauthorizationOverwriteKeys = [
+  'access_token',
+  'refresh_token',
+  'id_token',
+  'token_type',
+  'scope',
+  'client_id',
+  'expires_in',
+  'expires_at',
+  'email',
+  'subject',
+  'name'
+]
+
+export function mergeGrokReauthorizationCredentials(
+  existingCredentials: Record<string, unknown> | undefined | null,
+  oauthCredentials: Record<string, unknown>
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...(existingCredentials || {}) }
+  for (const key of grokReauthorizationOverwriteKeys) {
+    if (Object.prototype.hasOwnProperty.call(oauthCredentials, key)) {
+      merged[key] = oauthCredentials[key]
+    }
+  }
+  if (!Object.prototype.hasOwnProperty.call(merged, 'base_url') && oauthCredentials.base_url) {
+    merged.base_url = oauthCredentials.base_url
+  }
+  return merged
+}
+
 function assignIfPresent(target: Record<string, unknown>, key: string, value: unknown) {
   if (typeof value === 'string' && value.trim()) {
     target[key] = value.trim()
@@ -105,4 +179,52 @@ function firstNonEmptyString(...values: Array<string | undefined>): string | und
     }
   }
   return undefined
+}
+
+function emptyParsedInput(kind: GrokAuthorizationInputKind): ParsedGrokAuthorizationInput {
+  return { kind, code: '', requiresState: false }
+}
+
+function parseGrokInputFromUrl(value: string): ParsedGrokAuthorizationInput | null {
+  try {
+    const url = new URL(value)
+    const code = url.searchParams.get('code')?.trim() || ''
+    if (code) {
+      return {
+        kind: 'callback_url',
+        code,
+        state: url.searchParams.get('state')?.trim() || undefined,
+        requiresState: true
+      }
+    }
+    const userCode = normalizeGrokDeviceUserCode(url.searchParams.get('user_code') || '')
+    return userCode ? { ...emptyParsedInput('device_url'), userCode } : null
+  } catch {
+    return null
+  }
+}
+
+function parseGrokInputFromQuery(value: string): ParsedGrokAuthorizationInput | null {
+  const params = new URLSearchParams(value)
+  const code = params.get('code')?.trim() || ''
+  if (code) {
+    return {
+      kind: 'query_string',
+      code,
+      state: params.get('state')?.trim() || undefined,
+      requiresState: true
+    }
+  }
+  const userCode = normalizeGrokDeviceUserCode(params.get('user_code') || '')
+  return userCode ? { ...emptyParsedInput('device_url'), userCode } : null
+}
+
+export function normalizeGrokDeviceUserCode(value: string): string {
+  const trimmed = value.trim().toUpperCase()
+  if (!trimmed || !/^[A-Z0-9-]+$/.test(trimmed)) return ''
+  const parts = trimmed.split('-')
+  if (parts.length === 1) {
+    return parts[0].length === 8 ? trimmed : ''
+  }
+  return parts.every((part) => part.length === 4) ? trimmed : ''
 }

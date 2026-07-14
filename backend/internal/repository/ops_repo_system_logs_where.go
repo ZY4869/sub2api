@@ -68,6 +68,11 @@ func buildOpsSystemLogsWhere(filter *service.OpsSystemLogFilter) (string, []any,
 			clauses = append(clauses, "COALESCE(l.model,'') = $"+itoa(len(args)))
 			hasConstraint = true
 		}
+		if v := strings.ToLower(strings.TrimSpace(filter.Host)); v != "" {
+			args = append(args, v)
+			clauses = append(clauses, "LOWER(COALESCE(l.extra->>'host', l.extra->>'hostname', '')) = $"+itoa(len(args)))
+			hasConstraint = true
+		}
 		if v := strings.TrimSpace(filter.Query); v != "" {
 			like := "%" + v + "%"
 			args = append(args, like)
@@ -96,6 +101,7 @@ func buildOpsSystemLogsCleanupWhere(filter *service.OpsSystemLogCleanupFilter) (
 		AccountID:       filter.AccountID,
 		Platform:        filter.Platform,
 		Model:           filter.Model,
+		Host:            filter.Host,
 		Query:           filter.Query,
 	}
 	return buildOpsSystemLogsWhere(listFilter)

@@ -53,6 +53,8 @@ type GatewayOpenAIHTTP2Config struct {
 	FallbackErrorThreshold    int  `mapstructure:"fallback_error_threshold"`
 	FallbackWindowSeconds     int  `mapstructure:"fallback_window_seconds"`
 	FallbackTTLSeconds        int  `mapstructure:"fallback_ttl_seconds"`
+	SendPingTimeoutSeconds    int  `mapstructure:"send_ping_timeout_seconds"`
+	PingTimeoutSeconds        int  `mapstructure:"ping_timeout_seconds"`
 }
 
 type UserMessageQueueConfig struct {

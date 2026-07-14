@@ -95,6 +95,7 @@ func marshalSystemLogCleanupConditions(filter *OpsSystemLogCleanupFilter) string
 		"client_request_id": strings.TrimSpace(filter.ClientRequestID),
 		"platform":          strings.TrimSpace(filter.Platform),
 		"model":             strings.TrimSpace(filter.Model),
+		"host":              strings.TrimSpace(filter.Host),
 		"query":             strings.TrimSpace(filter.Query),
 	}
 	if filter.UserID != nil {

@@ -178,7 +178,7 @@ func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamSnapshot(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/backend-api/wham/usage", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"rate_limit_reset_credits":{"available_count":5}}`))
+		_, _ = w.Write([]byte(`{"rate_limit_reset_credits":{"available_count":5,"credits":[{"id":"credit_1","status":"granted","expires_at":"2026-08-01T00:00:00Z"}]}}`))
 	}))
 	defer server.Close()
 
@@ -190,10 +190,20 @@ func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamSnapshot(t *testing.T) {
 	require.NotNil(t, snapshot)
 	require.NotNil(t, snapshot.AvailableCount)
 	require.Equal(t, 5, *snapshot.AvailableCount)
+	require.Equal(t, []OpenAIResetCreditSummary{{
+		ID:        "credit_1",
+		Status:    "granted",
+		ExpiresAt: "2026-08-01T00:00:00Z",
+	}}, snapshot.Credits)
 	require.Equal(t, openAIResetCreditsSourceWham, snapshot.Source)
 	require.Equal(t, openAIResetCreditsStatusAvailable, snapshot.Status)
 	require.Len(t, repo.updateExtraCalls, 1)
 	require.Equal(t, 5, repo.updateExtraCalls[0][openAIResetCreditsAvailableCountExtraKey])
+	require.Equal(t, []OpenAIResetCreditSummary{{
+		ID:        "credit_1",
+		Status:    "granted",
+		ExpiresAt: "2026-08-01T00:00:00Z",
+	}}, repo.updateExtraCalls[0][openAIResetCreditsCreditsExtraKey])
 	require.Equal(t, openAIResetCreditsStatusAvailable, repo.updateExtraCalls[0][openAIResetCreditsStatusExtraKey])
 	require.NotEmpty(t, repo.updateExtraCalls[0][openAIQuotaUsageUpdatedAtExtraKey])
 }

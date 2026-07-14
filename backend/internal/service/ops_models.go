@@ -18,6 +18,7 @@ type OpsSystemLog struct {
 	AccountID       *int64         `json:"account_id"`
 	Platform        string         `json:"platform"`
 	Model           string         `json:"model"`
+	Host            string         `json:"host,omitempty"`
 	Extra           map[string]any `json:"extra,omitempty"`
 }
 

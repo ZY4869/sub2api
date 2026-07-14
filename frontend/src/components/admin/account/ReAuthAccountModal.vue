@@ -35,6 +35,8 @@
               {{
                 isOpenAI
                   ? t('admin.accounts.openaiAccount')
+                  : isGrok
+                    ? 'Grok'
                   : isKiro
                     ? t('admin.accounts.kiroAccount')
                   : isGemini
@@ -146,6 +148,15 @@
         @submit="handleKiroReauthorize"
       />
 
+      <AccountGrokOAuthPanel
+        v-else-if="isGrok"
+        ref="grokAuthRef"
+        :proxy-id="account.proxy_id"
+        :submit-label="t('admin.accounts.reAuthorize')"
+        :submitting="platformSubmitLoading"
+        @submit="handleGrokReauthorize"
+      />
+
       <div
         v-else-if="isGeminiVertexAccount"
         class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
@@ -241,7 +252,12 @@ import {
 } from '@/utils/geminiAccount'
 import { ensureOpenAIOAuthGatewayTestDefaults } from '@/utils/accountGatewayTestDefaults'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
+import {
+  mergeGrokReauthorizationCredentials,
+  type ParsedGrokOAuthPayload
+} from '@/utils/grokOAuth'
 import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
+import AccountGrokOAuthPanel from '@/components/account/AccountGrokOAuthPanel.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OAuthAuthorizationFlow from '@/components/account/OAuthAuthorizationFlow.vue'
@@ -281,6 +297,7 @@ const antigravityOAuth = useAntigravityOAuth()
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
 const kiroAuthRef = ref<{ reset: () => void } | null>(null)
+const grokAuthRef = ref<{ reset: () => void } | null>(null)
 
 // State
 const addMethod = ref<AddMethod>('oauth')
@@ -291,6 +308,7 @@ const platformSubmitLoading = ref(false)
 const isOpenAI = computed(() => props.account?.platform === 'openai')
 const isGemini = computed(() => props.account?.platform === 'gemini')
 const isAnthropic = computed(() => props.account?.platform === 'anthropic')
+const isGrok = computed(() => props.account?.platform === 'grok')
 const isKiro = computed(() => props.account?.platform === 'kiro')
 const isAntigravity = computed(() => props.account?.platform === 'antigravity')
 const isGeminiVertexAccount = computed(() => isGemini.value && isGeminiVertexAI(geminiOAuthType.value))
@@ -326,7 +344,7 @@ const currentOAuthInputMethod = computed<AuthInputMethod>(
 )
 
 const showCompleteAuthAction = computed(() => {
-  if (isKiro.value || isGeminiVertexAccount.value) {
+  if (isKiro.value || isGrok.value || isGeminiVertexAccount.value) {
     return false
   }
   return currentOAuthInputMethod.value === 'manual' || currentOAuthInputMethod.value === 'refresh_token'
@@ -383,6 +401,7 @@ function resetState() {
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset()
   kiroAuthRef.value?.reset()
+  grokAuthRef.value?.reset()
 }
 
 const handleClose = () => {
@@ -410,6 +429,39 @@ const handleKiroReauthorize = async (payload: ParsedKiroTokenImport) => {
     await adminAPI.accounts.update(props.account.id, {
       type: 'oauth',
       credentials: payload.credentials,
+      extra: mergedExtra
+    })
+    const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
+    handleReauthorizedSuccess(updatedAccount)
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.oauth.authFailed'))
+  } finally {
+    platformSubmitLoading.value = false
+  }
+}
+
+const handleGrokReauthorize = async (payload: ParsedGrokOAuthPayload) => {
+  if (!props.account) return
+  if (!payload.credentials?.access_token) {
+    appStore.showError(t('admin.accounts.grokOauth.accessTokenMissing'))
+    return
+  }
+
+  const mergedExtra = payload.extra
+    ? {
+        ...((props.account.extra || {}) as Record<string, unknown>),
+        ...payload.extra
+      }
+    : undefined
+
+  try {
+    platformSubmitLoading.value = true
+    await adminAPI.accounts.update(props.account.id, {
+      type: 'oauth',
+      credentials: mergeGrokReauthorizationCredentials(
+        props.account.credentials as Record<string, unknown> | undefined,
+        payload.credentials
+      ),
       extra: mergedExtra
     })
     const updatedAccount = await adminAPI.accounts.clearError(props.account.id)

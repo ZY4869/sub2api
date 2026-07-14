@@ -74,6 +74,9 @@ func (s *httpUpstreamService) resolvePoolSettingsWithOptions(isolation string, a
 	if opts.profile == service.HTTPUpstreamProfileOpenAI {
 		settings.responseHeaderTimeout = s.openAIResponseHeaderTimeout()
 		settings.forceAttemptHTTP2 = opts.http2
+		if opts.http2 {
+			settings.http2SendPingTimeout, settings.http2PingTimeout = s.openAIHTTP2Keepalive()
+		}
 	}
 	settings.validateResolvedIP = s.shouldValidateResolvedIP()
 	if s.cfg != nil {
@@ -112,6 +115,10 @@ func (s *httpUpstreamService) buildPoolKeyWithOptions(isolation string, accountC
 			hostexceptions.Key(s.cfg))
 	}
 	profileKey := fmt.Sprintf("|profile:%s|http2:%t|rht:%d", opts.profile, opts.http2, s.responseHeaderTimeoutKey(opts))
+	if opts.profile == service.HTTPUpstreamProfileOpenAI && opts.http2 {
+		sendPing, ping := s.openAIHTTP2Keepalive()
+		profileKey += fmt.Sprintf("|h2ka:%d:%d", int64(sendPing), int64(ping))
+	}
 	if isolation == config.ConnectionPoolIsolationAccount || isolation == config.ConnectionPoolIsolationAccountProxy {
 		if accountConcurrency > 0 {
 			return fmt.Sprintf("account:%d|%s%s", accountConcurrency, ssrfKey, profileKey)

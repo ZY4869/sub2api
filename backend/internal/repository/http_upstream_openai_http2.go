@@ -25,6 +25,25 @@ func (s *httpUpstreamService) openAIHTTP2Enabled() bool {
 	return s.cfg.Gateway.OpenAIHTTP2.Enabled
 }
 
+func (s *httpUpstreamService) openAIHTTP2Keepalive() (time.Duration, time.Duration) {
+	sendPingTimeout := 30 * time.Second
+	pingTimeout := 15 * time.Second
+	if s == nil || s.cfg == nil {
+		return sendPingTimeout, pingTimeout
+	}
+	if value := s.cfg.Gateway.OpenAIHTTP2.SendPingTimeoutSeconds; value > 0 {
+		sendPingTimeout = time.Duration(value) * time.Second
+	} else if value == 0 {
+		sendPingTimeout = 0
+	}
+	if value := s.cfg.Gateway.OpenAIHTTP2.PingTimeoutSeconds; value > 0 {
+		pingTimeout = time.Duration(value) * time.Second
+	} else if value == 0 {
+		pingTimeout = 0
+	}
+	return sendPingTimeout, pingTimeout
+}
+
 func (s *httpUpstreamService) allowOpenAIProxyHTTP2Fallback() bool {
 	if s == nil || s.cfg == nil {
 		return true

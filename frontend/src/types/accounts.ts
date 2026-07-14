@@ -492,6 +492,7 @@ export interface AccountUsagePresentationMeta {
   geminiQuotaPolicyLimits?: string;
   geminiQuotaPolicyDocsUrl?: string;
   openAIResetCreditsAvailableCount?: number | null;
+  openAIResetCredits?: OpenAIResetCreditSummary[];
   openAIResetCreditsKnown?: boolean;
   openAIResetCreditsStatus?: OpenAIResetCreditsStatus;
   openAIResetCreditsUnsupportedReason?: string;
@@ -546,10 +547,17 @@ export interface AccountUsageInfo {
 
 export interface OpenAIResetCreditsInfo {
   available_count?: number | null;
+  credits?: OpenAIResetCreditSummary[];
   updated_at?: string | null;
   source?: string;
   status?: OpenAIResetCreditsStatus;
   unsupported_reason?: string;
+}
+
+export interface OpenAIResetCreditSummary {
+  id?: string;
+  status?: string;
+  expires_at?: string;
 }
 
 export type OpenAIResetCreditsStatus =
@@ -590,6 +598,7 @@ export interface CodexUsageSnapshot {
   codex_account_7d_all_exhausted?: boolean; // Whether both Codex 7d windows are exhausted
   openai_rate_limit_reset_credits_available_count?: number;
   openai_rate_limit_reset_credits_updated_at?: string;
+  openai_rate_limit_reset_credits_credits?: OpenAIResetCreditSummary[];
   openai_quota_usage_updated_at?: string;
   openai_rate_limit_reset_credits_status?: OpenAIResetCreditsStatus;
   openai_rate_limit_reset_credits_unsupported_reason?: string;

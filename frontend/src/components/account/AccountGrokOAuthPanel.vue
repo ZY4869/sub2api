@@ -9,124 +9,53 @@
       </p>
     </div>
 
-    <div v-if="errorMessage" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
-      {{ errorMessage }}
-    </div>
-
-    <div class="rounded-lg border border-emerald-200 bg-white/80 p-4 dark:border-emerald-900/40 dark:bg-slate-900/60">
-      <div class="flex flex-wrap gap-3">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          :disabled="loading"
-          @click="generateAuthUrl"
-        >
-          {{ authState ? t('admin.accounts.grokOauth.regenerate') : t('admin.accounts.grokOauth.generate') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          :disabled="!authState?.auth_url"
-          @click="openAuthUrl"
-        >
-          {{ t('admin.accounts.grokOauth.openAuthUrl') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          :disabled="!authState?.auth_url"
-          @click="copyAuthUrl"
-        >
-          {{ t('admin.accounts.grokOauth.copyAuthUrl') }}
-        </button>
-      </div>
-
-      <div v-if="authState" class="mt-4 space-y-3">
-        <div>
-          <div class="mb-2 text-xs font-semibold uppercase text-emerald-700 dark:text-emerald-300">
-            {{ t('admin.accounts.grokOauth.authUrl') }}
-          </div>
-          <div class="break-all rounded-md bg-slate-100 px-3 py-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-            {{ authState.auth_url }}
-          </div>
-        </div>
-        <div class="grid gap-3 md:grid-cols-2">
-          <div>
-            <div class="mb-2 text-xs font-semibold uppercase text-emerald-700 dark:text-emerald-300">
-              {{ t('admin.accounts.grokOauth.redirectUri') }}
-            </div>
-            <div class="break-all rounded-md bg-slate-100 px-3 py-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              {{ authState.redirect_uri }}
-            </div>
-          </div>
-          <div>
-            <div class="mb-2 text-xs font-semibold uppercase text-emerald-700 dark:text-emerald-300">
-              {{ t('admin.accounts.grokOauth.oauthState') }}
-            </div>
-            <div class="break-all rounded-md bg-slate-100 px-3 py-3 font-mono text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              {{ authState.state }}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="rounded-lg border border-emerald-200 bg-white/80 p-4 dark:border-emerald-900/40 dark:bg-slate-900/60">
-      <label class="input-label">{{ t('admin.accounts.grokOauth.callbackUrl') }}</label>
-      <textarea
-        v-model="callbackUrl"
-        rows="4"
-        class="input w-full resize-y font-mono text-sm"
-        :placeholder="t('admin.accounts.grokOauth.callbackPlaceholder')"
-      ></textarea>
-      <p class="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-        {{ t('admin.accounts.grokOauth.callbackHint') }}
-      </p>
-
-      <div v-if="parsedCode" class="mt-4 grid gap-3 md:grid-cols-2">
-        <div class="rounded-md bg-slate-100 px-3 py-3 dark:bg-slate-800">
-          <div class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-            {{ t('admin.accounts.grokOauth.parsedCode') }}
-          </div>
-          <div class="mt-2 break-all font-mono text-xs text-slate-700 dark:text-slate-200">
-            {{ parsedCode }}
-          </div>
-        </div>
-        <div class="rounded-md bg-slate-100 px-3 py-3 dark:bg-slate-800">
-          <div class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-            {{ t('admin.accounts.grokOauth.parsedState') }}
-          </div>
-          <div class="mt-2 break-all font-mono text-xs text-slate-700 dark:text-slate-200">
-            {{ resolvedState || '-' }}
-          </div>
-        </div>
-      </div>
-
+    <div class="inline-flex rounded-lg border border-emerald-200 bg-white p-1 dark:border-emerald-900/40 dark:bg-slate-900">
       <button
+        v-for="option in modeOptions"
+        :key="option.value"
         type="button"
-        class="btn btn-primary mt-4"
-        :disabled="submitting || loading || !canSubmit"
-        data-testid="grok-oauth-submit"
-        @click="submitOAuth"
+        :class="[
+          'rounded-md px-3 py-1.5 text-xs font-semibold transition',
+          mode === option.value
+            ? 'bg-emerald-600 text-white shadow-sm'
+            : 'text-emerald-800 hover:bg-emerald-50 dark:text-emerald-200 dark:hover:bg-emerald-950/40'
+        ]"
+        :aria-pressed="mode === option.value"
+        @click="setMode(option.value)"
       >
-        {{ submitting || loading ? t('common.loading') : submitLabel }}
+        {{ option.label }}
       </button>
     </div>
+
+    <GrokOAuthCallbackFlow
+      v-if="mode === 'callback'"
+      ref="callbackFlowRef"
+      :proxy-id="proxyId"
+      :submit-label="submitLabel"
+      :submitting="submitting"
+      @submit="emit('submit', $event)"
+      @device-input="handleDeviceInput"
+    />
+    <GrokOAuthDeviceFlow
+      v-else
+      ref="deviceFlowRef"
+      :proxy-id="proxyId"
+      :submit-label="submitLabel"
+      :submitting="submitting"
+      :initial-message="deviceHint"
+      @submit="emit('submit', $event)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { adminAPI } from '@/api/admin'
-import { useClipboard } from '@/composables/useClipboard'
-import {
-  buildGrokOAuthPayload,
-  parseGrokOAuthCallback,
-  type GrokAuthUrlResult,
-  type GrokExchangeCodeResult,
-  type ParsedGrokOAuthPayload
-} from '@/utils/grokOAuth'
+import type { ParsedGrokOAuthPayload } from '@/utils/grokOAuth'
+import GrokOAuthCallbackFlow from './GrokOAuthCallbackFlow.vue'
+import GrokOAuthDeviceFlow from './GrokOAuthDeviceFlow.vue'
+
+type GrokOAuthMode = 'callback' | 'device'
 
 const props = withDefaults(defineProps<{
   proxyId?: number | null
@@ -142,100 +71,33 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { copyToClipboard } = useClipboard()
 
-const authState = ref<GrokAuthUrlResult | null>(null)
-const callbackUrl = ref('')
-const parsedCode = ref('')
-const parsedState = ref('')
-const errorMessage = ref('')
-const loading = ref(false)
-const suppressNextCallbackWatch = ref(false)
+const mode = ref<GrokOAuthMode>('callback')
+const callbackFlowRef = ref<{ reset: () => void } | null>(null)
+const deviceFlowRef = ref<{ reset: () => void; showExternalCodeHint: () => void } | null>(null)
+const deviceHint = ref('')
 
-const resolvedState = computed(() => parsedState.value || authState.value?.state || '')
-const canSubmit = computed(() => Boolean(authState.value?.session_id && parsedCode.value && resolvedState.value))
+const modeOptions = computed(() => [
+  { value: 'callback' as const, label: t('admin.accounts.grokOauth.callbackMode') },
+  { value: 'device' as const, label: t('admin.accounts.grokOauth.deviceMode') }
+])
 
-watch(callbackUrl, (value) => {
-  const parsed = parseGrokOAuthCallback(value)
-  parsedCode.value = parsed.code
-  parsedState.value = parsed.state || ''
-  if (suppressNextCallbackWatch.value) {
-    suppressNextCallbackWatch.value = false
-    return
-  }
-  errorMessage.value = ''
-})
-
-async function generateAuthUrl() {
-  loading.value = true
-  errorMessage.value = ''
-  try {
-    authState.value = await adminAPI.accounts.generateGrokAuthUrl({
-      proxy_id: props.proxyId
-    })
-    callbackUrl.value = ''
-    parsedCode.value = ''
-    parsedState.value = ''
-  } catch (error: any) {
-    errorMessage.value = error?.message || t('admin.accounts.grokOauth.generateFailed')
-  } finally {
-    loading.value = false
-  }
+function setMode(nextMode: GrokOAuthMode) {
+  mode.value = nextMode
 }
 
-function openAuthUrl() {
-  if (authState.value?.auth_url) {
-    window.open(authState.value.auth_url, '_blank', 'noopener,noreferrer')
-  }
-}
-
-function copyAuthUrl() {
-  if (authState.value?.auth_url) {
-    void copyToClipboard(authState.value.auth_url)
-  }
-}
-
-async function submitOAuth() {
-  if (!authState.value?.session_id) {
-    errorMessage.value = t('admin.accounts.grokOauth.sessionMissing')
-    return
-  }
-  if (!parsedCode.value) {
-    errorMessage.value = t('admin.accounts.grokOauth.codeMissing')
-    return
-  }
-
-  loading.value = true
-  errorMessage.value = ''
-  try {
-    const tokenInfo = await adminAPI.accounts.exchangeGrokAuthCode({
-      session_id: authState.value.session_id,
-      code: parsedCode.value,
-      state: resolvedState.value,
-      proxy_id: props.proxyId
-    })
-    emit('submit', buildGrokOAuthPayload(tokenInfo as GrokExchangeCodeResult))
-  } catch (error: any) {
-    const message = error?.message || t('admin.accounts.grokOauth.exchangeFailed')
-    authState.value = null
-    suppressNextCallbackWatch.value = true
-    callbackUrl.value = ''
-    parsedCode.value = ''
-    parsedState.value = ''
-    errorMessage.value = message
-  } finally {
-    loading.value = false
-  }
+async function handleDeviceInput() {
+  deviceHint.value = t('admin.accounts.grokOauth.externalDeviceCodeHint')
+  mode.value = 'device'
+  await nextTick()
+  deviceFlowRef.value?.showExternalCodeHint()
 }
 
 function reset() {
-  authState.value = null
-  callbackUrl.value = ''
-  parsedCode.value = ''
-  parsedState.value = ''
-  errorMessage.value = ''
-  loading.value = false
-  suppressNextCallbackWatch.value = false
+  mode.value = 'callback'
+  deviceHint.value = ''
+  callbackFlowRef.value?.reset()
+  deviceFlowRef.value?.reset()
 }
 
 defineExpose({ reset })

@@ -867,6 +867,18 @@ describe("AccountUsageCell", () => {
         available_count: 2,
         status: "available",
         source: "chatgpt_wham",
+        credits: [
+          {
+            id: "credit-2",
+            status: "granted",
+            expires_at: "2026-08-02T00:00:00Z",
+          },
+          {
+            id: "credit-1",
+            status: "granted",
+            expires_at: "2026-08-01T00:00:00Z",
+          },
+        ],
       },
       five_hour: {
         utilization: 10,
@@ -897,6 +909,12 @@ describe("AccountUsageCell", () => {
 
     expect(wrapper.get('[data-testid="account-usage-reset-quota-remaining"]').text()).toBe(
       "02 resets left",
+    );
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-expiry"]').text()).toContain("+1");
+    await wrapper.get('[data-testid="account-usage-reset-quota-expiry"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-expiry-details"]').text()).toContain(
+      "2026",
     );
     await wrapper
       .get('[data-testid="account-usage-reset-credits-refresh"]')

@@ -29,6 +29,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/netguard"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/proxyurl"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/proxyutil"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/servertiming"
 )
 
 // Transport 连接池默认配置
@@ -94,7 +95,7 @@ func buildClient(opts Options) (*http.Client, error) {
 	}
 
 	return &http.Client{
-		Transport: transport,
+		Transport: servertiming.WrapRoundTripper(transport),
 		Timeout:   opts.Timeout,
 	}, nil
 }

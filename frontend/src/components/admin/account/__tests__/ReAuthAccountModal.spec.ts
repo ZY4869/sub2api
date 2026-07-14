@@ -106,6 +106,31 @@ const OAuthAuthorizationFlowStub = defineComponent({
   }
 })
 
+const AccountGrokOAuthPanelStub = defineComponent({
+  name: 'AccountGrokOAuthPanel',
+  emits: ['submit'],
+  setup(_, { emit, expose }) {
+    expose({ reset: vi.fn() })
+    return () =>
+      h('button', {
+        'data-testid': 'grok-reauth-submit',
+        onClick: () => emit('submit', {
+          credentials: {
+            access_token: 'grok-access',
+            refresh_token: 'grok-refresh',
+            base_url: 'https://api.x.ai/v1',
+            email: 'grok@example.com'
+          },
+          extra: {
+            provider: 'xai',
+            source: 'grok_browser_oauth',
+            email: 'grok@example.com'
+          }
+        })
+      }, 'submit grok')
+  }
+})
+
 function createAccount(platform: Account['platform'], overrides: Partial<Account> = {}): Account {
   return {
     id: platform === 'antigravity' ? 22 : 11,
@@ -150,6 +175,7 @@ function mountModal(account: Account | null, show = true) {
         BaseDialog: BaseDialogStub,
         OAuthAuthorizationFlow: OAuthAuthorizationFlowStub,
         AccountKiroAuthPanel: true,
+        AccountGrokOAuthPanel: AccountGrokOAuthPanelStub,
         Icon: true
       }
     }
@@ -269,6 +295,52 @@ describe('admin ReAuthAccountModal', () => {
       })
     })
     expect(clearErrorMock).toHaveBeenCalledWith(22)
+    expect(wrapper.emitted('reauthorized')).toEqual([[updatedAccount]])
+  })
+
+  it('reauthorizes Grok accounts through the Grok OAuth panel payload', async () => {
+    const updatedAccount = createAccount('grok', { status: 'active', error_message: null })
+    clearErrorMock.mockResolvedValue(updatedAccount)
+
+    const wrapper = mountModal(createAccount('grok', {
+      credentials: {
+        access_token: 'old-access',
+        refresh_token: 'old-refresh',
+        base_url: 'https://relay.example.test/xai/v1',
+        model_mapping: {
+          'grok-local': 'grok-4'
+        },
+        diagnostic_note: 'keep'
+      },
+      extra: {
+        keep_me: true
+      }
+    }))
+    await nextTick()
+
+    await wrapper.get('[data-testid="grok-reauth-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(updateMock).toHaveBeenCalledWith(11, {
+      type: 'oauth',
+      credentials: {
+        access_token: 'grok-access',
+        refresh_token: 'grok-refresh',
+        base_url: 'https://relay.example.test/xai/v1',
+        email: 'grok@example.com',
+        model_mapping: {
+          'grok-local': 'grok-4'
+        },
+        diagnostic_note: 'keep'
+      },
+      extra: {
+        keep_me: true,
+        provider: 'xai',
+        source: 'grok_browser_oauth',
+        email: 'grok@example.com'
+      }
+    })
+    expect(clearErrorMock).toHaveBeenCalledWith(11)
     expect(wrapper.emitted('reauthorized')).toEqual([[updatedAccount]])
   })
 

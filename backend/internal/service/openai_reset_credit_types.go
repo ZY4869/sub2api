@@ -14,13 +14,21 @@ const (
 	openAIResetCreditsStatusUnsupported          = "unsupported"
 	openAIResetCreditsAvailableCountExtraKey     = "openai_rate_limit_reset_credits_available_count"
 	openAIResetCreditsUpdatedAtExtraKey          = "openai_rate_limit_reset_credits_updated_at"
+	openAIResetCreditsCreditsExtraKey            = "openai_rate_limit_reset_credits_credits"
 	openAIQuotaUsageUpdatedAtExtraKey            = "openai_quota_usage_updated_at"
 	openAIResetCreditsStatusExtraKey             = "openai_rate_limit_reset_credits_status"
 	openAIResetCreditsUnsupportedReasonExtraKey  = "openai_rate_limit_reset_credits_unsupported_reason"
 )
 
+type OpenAIResetCreditSummary struct {
+	ID        string `json:"id,omitempty"`
+	Status    string `json:"status,omitempty"`
+	ExpiresAt string `json:"expires_at,omitempty"`
+}
+
 type OpenAIResetCreditsSnapshot struct {
 	AvailableCount    *int
+	Credits           []OpenAIResetCreditSummary
 	UpdatedAt         time.Time
 	Source            string
 	Status            string

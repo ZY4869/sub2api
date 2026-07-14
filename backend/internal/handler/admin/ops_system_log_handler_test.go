@@ -121,6 +121,20 @@ func TestOpsSystemLogHandler_ListSuccess(t *testing.T) {
 	}
 }
 
+func TestOpsSystemLogHandler_CleanupAcceptsHostFilter(t *testing.T) {
+	svc := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	h := NewOpsHandler(svc)
+	r := newOpsSystemLogTestRouter(h, true)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/logs/cleanup", bytes.NewBufferString(`{"host":"edge-1"}`))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status=%d, want 503 from nil repository after host payload is accepted", w.Code)
+	}
+}
+
 func TestOpsSystemLogHandler_CleanupUnauthorized(t *testing.T) {
 	svc := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	h := NewOpsHandler(svc)

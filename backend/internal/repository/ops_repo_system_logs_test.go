@@ -27,6 +27,7 @@ func TestBuildOpsSystemLogsWhere_WithClientRequestIDAndUserID(t *testing.T) {
 		AccountID:       &accountID,
 		Platform:        "openai",
 		Model:           "gpt-5",
+		Host:            "api.example.com",
 		Query:           "timeout",
 	}
 
@@ -37,8 +38,8 @@ func TestBuildOpsSystemLogsWhere_WithClientRequestIDAndUserID(t *testing.T) {
 	if where == "" {
 		t.Fatalf("where should not be empty")
 	}
-	if len(args) != 12 {
-		t.Fatalf("args len = %d, want 12", len(args))
+	if len(args) != 13 {
+		t.Fatalf("args len = %d, want 13", len(args))
 	}
 	if !contains(where, "COALESCE(l.client_request_id,'') = $") {
 		t.Fatalf("where should include client_request_id condition: %s", where)
@@ -48,6 +49,9 @@ func TestBuildOpsSystemLogsWhere_WithClientRequestIDAndUserID(t *testing.T) {
 	}
 	if !contains(where, "l.api_key_id = $") {
 		t.Fatalf("where should include api_key_id condition: %s", where)
+	}
+	if !contains(where, "LOWER(COALESCE(l.extra->>'host', l.extra->>'hostname', '')) = $") {
+		t.Fatalf("where should include host condition: %s", where)
 	}
 }
 
@@ -71,14 +75,15 @@ func TestBuildOpsSystemLogsCleanupWhere_WithClientRequestIDAndUserID(t *testing.
 		ClientRequestID: "creq-9",
 		UserID:          &userID,
 		APIKeyID:        &apiKeyID,
+		Host:            "edge-1",
 	}
 
 	where, args, hasConstraint := buildOpsSystemLogsCleanupWhere(filter)
 	if !hasConstraint {
 		t.Fatalf("expected hasConstraint=true")
 	}
-	if len(args) != 3 {
-		t.Fatalf("args len = %d, want 3", len(args))
+	if len(args) != 4 {
+		t.Fatalf("args len = %d, want 4", len(args))
 	}
 	if !contains(where, "COALESCE(l.client_request_id,'') = $") {
 		t.Fatalf("where should include client_request_id condition: %s", where)
@@ -88,6 +93,9 @@ func TestBuildOpsSystemLogsCleanupWhere_WithClientRequestIDAndUserID(t *testing.
 	}
 	if !contains(where, "l.api_key_id = $") {
 		t.Fatalf("where should include api_key_id condition: %s", where)
+	}
+	if !contains(where, "LOWER(COALESCE(l.extra->>'host', l.extra->>'hostname', '')) = $") {
+		t.Fatalf("where should include host condition: %s", where)
 	}
 }
 

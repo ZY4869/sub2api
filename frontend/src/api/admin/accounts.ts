@@ -418,6 +418,23 @@ export interface GrokExchangeCodeResult {
   email_verified?: boolean
 }
 
+export interface GrokDeviceFlowStartResult {
+  session_id: string
+  user_code: string
+  verification_uri: string
+  verification_uri_complete?: string
+  interval: number
+  expires_at: number
+}
+
+export interface GrokDevicePollResult {
+  status: 'pending' | 'slow_down' | 'authorized' | 'denied' | 'expired' | string
+  interval: number
+  expires_at: number
+  token_info?: GrokExchangeCodeResult
+  error_message?: string
+}
+
 export interface CodexSessionImportRequest {
   content?: string
   contents?: string[]
@@ -532,6 +549,22 @@ export async function exchangeGrokAuthCode(payload: {
   proxy_id?: number | null
 }): Promise<GrokExchangeCodeResult> {
   const { data } = await apiClient.post<GrokExchangeCodeResult>('/admin/grok/oauth/exchange-code', payload)
+  return data
+}
+
+export async function startGrokDeviceFlow(payload: {
+  proxy_id?: number | null
+  base_url?: string
+} = {}): Promise<GrokDeviceFlowStartResult> {
+  const { data } = await apiClient.post<GrokDeviceFlowStartResult>('/admin/grok/oauth/device/start', payload)
+  return data
+}
+
+export async function pollGrokDeviceToken(payload: {
+  session_id: string
+  proxy_id?: number | null
+}): Promise<GrokDevicePollResult> {
+  const { data } = await apiClient.post<GrokDevicePollResult>('/admin/grok/oauth/device/poll', payload)
   return data
 }
 
@@ -798,6 +831,7 @@ export interface OpenAIQuotaUsage {
   }>
   rate_limit_reset_credits?: {
     available_count: number
+    credits?: OpenAIQuotaResetCredit[]
   } | null
   fetched_at?: number
 }
@@ -1054,6 +1088,8 @@ export const accountsAPI = {
   importCodexSession,
   generateGrokAuthUrl,
   exchangeGrokAuthCode,
+  startGrokDeviceFlow,
+  pollGrokDeviceToken,
   createGrokAccountFromOAuth,
   reauthorizeGrokAccountFromOAuth,
   refreshGrokAccount,

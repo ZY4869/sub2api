@@ -25,6 +25,7 @@ type opsSystemLogCleanupRequest struct {
 	AccountID       *int64 `json:"account_id"`
 	Platform        string `json:"platform"`
 	Model           string `json:"model"`
+	Host            string `json:"host"`
 	Query           string `json:"q"`
 }
 
@@ -62,6 +63,7 @@ func (h *OpsHandler) ListSystemLogs(c *gin.Context) {
 		ClientRequestID: strings.TrimSpace(c.Query("client_request_id")),
 		Platform:        strings.TrimSpace(c.Query("platform")),
 		Model:           strings.TrimSpace(c.Query("model")),
+		Host:            strings.TrimSpace(c.Query("host")),
 		Query:           strings.TrimSpace(c.Query("q")),
 	}
 	if v := strings.TrimSpace(c.Query("user_id")); v != "" {
@@ -158,6 +160,7 @@ func (h *OpsHandler) CleanupSystemLogs(c *gin.Context) {
 		AccountID:       req.AccountID,
 		Platform:        strings.TrimSpace(req.Platform),
 		Model:           strings.TrimSpace(req.Model),
+		Host:            strings.TrimSpace(req.Host),
 		Query:           strings.TrimSpace(req.Query),
 	}
 

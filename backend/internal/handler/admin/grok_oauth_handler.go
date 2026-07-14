@@ -73,6 +73,49 @@ func (h *GrokOAuthHandler) ExchangeCode(c *gin.Context) {
 	response.Success(c, tokenInfo)
 }
 
+type GrokStartDeviceFlowRequest struct {
+	ProxyID *int64 `json:"proxy_id"`
+	BaseURL string `json:"base_url"`
+}
+
+func (h *GrokOAuthHandler) StartDeviceFlow(c *gin.Context) {
+	var req GrokStartDeviceFlowRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req = GrokStartDeviceFlowRequest{}
+	}
+	result, err := h.grokOAuthService.StartDeviceFlow(c.Request.Context(), &service.GrokStartDeviceFlowInput{
+		ProxyID: req.ProxyID,
+		BaseURL: req.BaseURL,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+type GrokPollDeviceTokenRequest struct {
+	SessionID string `json:"session_id" binding:"required"`
+	ProxyID   *int64 `json:"proxy_id"`
+}
+
+func (h *GrokOAuthHandler) PollDeviceToken(c *gin.Context) {
+	var req GrokPollDeviceTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.grokOAuthService.PollDeviceToken(c.Request.Context(), &service.GrokPollDeviceTokenInput{
+		SessionID: req.SessionID,
+		ProxyID:   req.ProxyID,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 type CreateGrokAccountFromOAuthRequest struct {
 	SessionID               string   `json:"session_id" binding:"required"`
 	Code                    string   `json:"code" binding:"required"`

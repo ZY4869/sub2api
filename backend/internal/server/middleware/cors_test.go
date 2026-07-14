@@ -109,6 +109,8 @@ func TestCORS_AllowedOrigin_HasAllowHeaders(t *testing.T) {
 				"允许的 origin 应收到 Max-Age=86400")
 			assert.Equal(t, "https://allowed.example.com", w.Header().Get("Access-Control-Allow-Origin"),
 				"允许的 origin 应收到 Allow-Origin")
+			assert.Equal(t, "ETag, Server-Timing", w.Header().Get("Access-Control-Expose-Headers"),
+				"允许的 origin 应暴露 ETag 和 Server-Timing")
 		})
 	}
 }

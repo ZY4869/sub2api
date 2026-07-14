@@ -26,6 +26,7 @@ export interface OpsSystemLog {
   account_id?: number | null
   platform?: string
   model?: string
+  host?: string
   extra?: Record<string, any>
 }
 
@@ -46,6 +47,7 @@ export interface OpsSystemLogQuery {
   account_id?: number | null
   platform?: string
   model?: string
+  host?: string
   q?: string
 }
 
@@ -61,6 +63,7 @@ export interface OpsSystemLogCleanupRequest {
   account_id?: number | null
   platform?: string
   model?: string
+  host?: string
   q?: string
 }
 

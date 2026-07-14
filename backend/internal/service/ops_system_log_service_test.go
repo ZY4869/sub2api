@@ -106,6 +106,7 @@ func TestOpsServiceCleanupSystemLogs_SuccessAndAudit(t *testing.T) {
 		ClientRequestID: "creq-1",
 		UserID:          &userID,
 		APIKeyID:        &apiKeyID,
+		Host:            "edge-1",
 		Query:           "timeout",
 	}
 
@@ -127,6 +128,9 @@ func TestOpsServiceCleanupSystemLogs_SuccessAndAudit(t *testing.T) {
 	}
 	if !strings.Contains(audit.Conditions, `"api_key_id":8`) {
 		t.Fatalf("audit conditions should include api_key_id: %s", audit.Conditions)
+	}
+	if !strings.Contains(audit.Conditions, `"host":"edge-1"`) {
+		t.Fatalf("audit conditions should include host: %s", audit.Conditions)
 	}
 }
 

@@ -261,6 +261,7 @@ type OpsSystemLogFilter struct {
 	AccountID       *int64
 	Platform        string
 	Model           string
+	Host            string
 	Query           string
 
 	Page     int
@@ -281,6 +282,7 @@ type OpsSystemLogCleanupFilter struct {
 	AccountID       *int64
 	Platform        string
 	Model           string
+	Host            string
 	Query           string
 }
 

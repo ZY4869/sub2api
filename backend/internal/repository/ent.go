@@ -10,12 +10,13 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/servertiming"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/migrations"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
-	_ "github.com/lib/pq" // PostgreSQL 驱动，通过副作用导入注册驱动
+	"github.com/lib/pq"
 )
 
 // InitEnt 初始化 Ent ORM 客户端并返回客户端实例和底层的 *sql.DB。
@@ -46,12 +47,17 @@ func InitEnt(cfg *config.Config) (*ent.Client, *sql.DB, error) {
 	// 时区信息会传递给 PostgreSQL，确保数据库层面的时间处理正确。
 	dsn := cfg.Database.DSNWithTimezone(cfg.Timezone)
 
-	// 使用 Ent 的 SQL 驱动打开 PostgreSQL 连接。
-	// dialect.Postgres 指定使用 PostgreSQL 方言进行 SQL 生成。
-	drv, err := entsql.Open(dialect.Postgres, dsn)
+	// 使用本地包装后的 PostgreSQL driver 打开连接，保持 Ent 方言不变。
+	// 当请求上下文启用 Server-Timing collector 时，底层 SQL 操作会记录聚合 DB 耗时。
+	driverName, err := servertiming.RegisterSQLDriver(dialect.Postgres, &pq.Driver{})
 	if err != nil {
 		return nil, nil, err
 	}
+	db, err := sql.Open(driverName, dsn)
+	if err != nil {
+		return nil, nil, err
+	}
+	drv := entsql.OpenDB(dialect.Postgres, db)
 	applyDBPoolSettings(drv.DB(), cfg)
 
 	// 确保数据库 schema 已准备就绪。

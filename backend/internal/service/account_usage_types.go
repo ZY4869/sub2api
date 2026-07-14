@@ -114,6 +114,7 @@ type UsageInfo struct {
 
 type OpenAIResetCreditsInfo struct {
 	AvailableCount    *int       `json:"available_count,omitempty"`
+	Credits           []OpenAIResetCreditSummary `json:"credits,omitempty"`
 	UpdatedAt         *time.Time `json:"updated_at,omitempty"`
 	Source            string     `json:"source,omitempty"`
 	Status            string     `json:"status,omitempty"`

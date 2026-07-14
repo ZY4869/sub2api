@@ -9,6 +9,7 @@ import { useI18n } from "vue-i18n";
 import { useRealtimeCountdownNow } from "@/composables/useRealtimeCountdownNow";
 import type {
   Account,
+  OpenAIResetCreditSummary,
   AccountUsagePresentation,
   AccountUsagePresentationRow,
   AccountUsageRowColor,
@@ -99,6 +100,25 @@ function normalizeOpenAIResetCreditsStatus(value: unknown): string {
 
 function normalizeOpenAIResetCreditsReason(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeOpenAIResetCreditSummaries(value: unknown): OpenAIResetCreditSummary[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      const expiresAt = typeof record.expires_at === "string" ? record.expires_at.trim() : "";
+      const id = typeof record.id === "string" ? record.id.trim() : "";
+      const status = typeof record.status === "string" ? record.status.trim() : "";
+      if (!expiresAt && !id && !status) return null;
+      return {
+        ...(id ? { id } : {}),
+        ...(status ? { status } : {}),
+        ...(expiresAt ? { expires_at: expiresAt } : {}),
+      };
+    })
+    .filter((item): item is OpenAIResetCreditSummary => item !== null);
 }
 
 function resolveLongOpenAIUsageFallbackLabel(
@@ -493,6 +513,7 @@ export function useAccountUsagePresentation(
         count: null,
         status: "unknown_or_unsupported",
         unsupportedReason: "",
+        credits: [],
       };
     }
 
@@ -501,6 +522,9 @@ export function useAccountUsagePresentation(
     );
     const usageReason = normalizeOpenAIResetCreditsReason(
       usageInfo.value?.openai_reset_credits?.unsupported_reason,
+    );
+    const usageCredits = normalizeOpenAIResetCreditSummaries(
+      usageInfo.value?.openai_reset_credits?.credits,
     );
     const hasUsageResetCredits = usageInfo.value?.openai_reset_credits != null;
     const usageCount = normalizeOpenAIResetCreditsCount(
@@ -512,6 +536,7 @@ export function useAccountUsagePresentation(
         count: usageCount,
         status: "available",
         unsupportedReason: "",
+        credits: usageCredits,
       };
     }
     if (usageStatus === "unsupported") {
@@ -520,6 +545,7 @@ export function useAccountUsagePresentation(
         count: null,
         status: usageStatus,
         unsupportedReason: usageReason,
+        credits: [],
       };
     }
     if (hasUsageResetCredits) {
@@ -528,6 +554,7 @@ export function useAccountUsagePresentation(
         count: null,
         status: usageStatus,
         unsupportedReason: "",
+        credits: usageCredits,
       };
     }
 
@@ -540,12 +567,16 @@ export function useAccountUsagePresentation(
     const extraCount = normalizeOpenAIResetCreditsCount(
       account.value.extra?.openai_rate_limit_reset_credits_available_count,
     );
+    const extraCredits = normalizeOpenAIResetCreditSummaries(
+      account.value.extra?.openai_rate_limit_reset_credits_credits,
+    );
     if (extraStatus === "unsupported") {
       return {
         known: false,
         count: null,
         status: extraStatus,
         unsupportedReason: extraReason,
+        credits: [],
       };
     }
     if (hasExtraStatus && extraStatus === "unknown_or_unsupported") {
@@ -554,6 +585,7 @@ export function useAccountUsagePresentation(
         count: null,
         status: extraStatus,
         unsupportedReason: "",
+        credits: extraCredits,
       };
     }
     if (extraCount !== null) {
@@ -562,6 +594,7 @@ export function useAccountUsagePresentation(
         count: extraCount,
         status: "available",
         unsupportedReason: "",
+        credits: extraCredits,
       };
     }
 
@@ -570,6 +603,7 @@ export function useAccountUsagePresentation(
       count: null,
       status: usageStatus || extraStatus,
       unsupportedReason: "",
+      credits: [],
     };
   });
   const fetchedSnapshotUpdatedAt = computed(() => {
@@ -1057,6 +1091,7 @@ export function useAccountUsagePresentation(
       account.value.type === "oauth"
     ) {
       meta.openAIResetCreditsAvailableCount = openAIResetCredits.value.count;
+      meta.openAIResetCredits = openAIResetCredits.value.credits;
       meta.openAIResetCreditsKnown = openAIResetCredits.value.known;
       meta.openAIResetCreditsStatus = openAIResetCredits.value.status;
       meta.openAIResetCreditsUnsupportedReason = openAIResetCredits.value.unsupportedReason;

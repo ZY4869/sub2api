@@ -4,6 +4,10 @@ import { adminAPI } from "@/api";
 import { useAppStore } from "@/stores";
 import type { Account, AccountUsagePresentation } from "@/types";
 import {
+  formatLocalAbsoluteTime,
+  formatLocalTimestamp,
+} from "@/utils/usageResetTime";
+import {
   invalidateAccountUsagePresentationCache,
   refreshAccountUsagePresentation,
 } from "@/composables/useAccountUsagePresentation";
@@ -58,6 +62,12 @@ function resolveResetQuotaErrorMessage(error: any, t: (key: string) => string) {
   );
 }
 
+function parseResetCreditExpiresAt(value?: string): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function useOpenAIResetCreditsControls(
   account: () => Account,
   presentation: () => AccountUsagePresentation,
@@ -66,6 +76,7 @@ export function useOpenAIResetCreditsControls(
   const getAppStore = () => useAppStore();
   const resetting = ref(false);
   const refreshingResetCredits = ref(false);
+  const resetCreditDetailsExpanded = ref(false);
 
   const canResetOpenAIQuota = computed(() => {
     const currentAccount = account();
@@ -78,6 +89,42 @@ export function useOpenAIResetCreditsControls(
   const openAIQuotaResetRemaining = computed(() => {
     return presentation().meta.openAIResetCreditsAvailableCount ?? null;
   });
+
+  const resetCreditDetails = computed(() => {
+    return (presentation().meta.openAIResetCredits || [])
+      .map((credit) => ({
+        ...credit,
+        expiresAtDate: parseResetCreditExpiresAt(credit.expires_at),
+      }))
+      .filter((credit) => credit.expiresAtDate !== null)
+      .sort((left, right) => left.expiresAtDate!.getTime() - right.expiresAtDate!.getTime());
+  });
+
+  const earliestResetCreditExpiry = computed(() => {
+    return resetCreditDetails.value[0]?.expiresAtDate ?? null;
+  });
+
+  const earliestResetCreditExpiryText = computed(() => {
+    const expiry = earliestResetCreditExpiry.value;
+    if (!expiry) return "";
+    return formatLocalAbsoluteTime(expiry, new Date(), {
+      today: t("dates.today"),
+      tomorrow: t("dates.tomorrow"),
+    });
+  });
+
+  const resetCreditExtraExpiryCount = computed(() => {
+    return Math.max(0, resetCreditDetails.value.length - 1);
+  });
+
+  const resetCreditDetailRows = computed(() =>
+    resetCreditDetails.value.map((credit) => ({
+      id: credit.id || credit.expires_at || "",
+      status: credit.status || "",
+      expiresAt: credit.expires_at || "",
+      expiresAtText: credit.expiresAtDate ? formatLocalTimestamp(credit.expiresAtDate) : "",
+    })),
+  );
 
   const resetCreditsUnsupported = computed(() => {
     return presentation().meta.openAIResetCreditsStatus === "unsupported";
@@ -184,9 +231,19 @@ export function useOpenAIResetCreditsControls(
     }
   }
 
+  function toggleResetCreditDetails() {
+    if (resetCreditExtraExpiryCount.value <= 0) return;
+    resetCreditDetailsExpanded.value = !resetCreditDetailsExpanded.value;
+  }
+
   return {
     canResetOpenAIQuota,
     resetCreditsStatusLabel,
+    resetCreditDetails,
+    earliestResetCreditExpiryText,
+    resetCreditExtraExpiryCount,
+    resetCreditDetailRows,
+    resetCreditDetailsExpanded,
     resetCreditsUnsupported,
     resetCreditsUnknown,
     resetCreditsZero,
@@ -196,5 +253,6 @@ export function useOpenAIResetCreditsControls(
     resetButtonDisabled,
     resetOpenAIQuota,
     refreshOpenAIResetCredits,
+    toggleResetCreditDetails,
   };
 }

@@ -472,6 +472,12 @@ func (c *Config) Validate() error {
 	if c.Gateway.StreamKeepaliveInterval != 0 && (c.Gateway.StreamKeepaliveInterval < 5 || c.Gateway.StreamKeepaliveInterval > 30) {
 		return fmt.Errorf("gateway.stream_keepalive_interval must be 0 or between 5-30 seconds")
 	}
+	if c.Gateway.OpenAIHTTP2.SendPingTimeoutSeconds < 0 {
+		return fmt.Errorf("gateway.openai_http2.send_ping_timeout_seconds must be non-negative")
+	}
+	if c.Gateway.OpenAIHTTP2.PingTimeoutSeconds < 0 {
+		return fmt.Errorf("gateway.openai_http2.ping_timeout_seconds must be non-negative")
+	}
 	if c.Gateway.OpenAIWS.StickyResponseIDTTLSeconds <= 0 && c.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds > 0 {
 		c.Gateway.OpenAIWS.StickyResponseIDTTLSeconds = c.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds
 	}
@@ -715,6 +721,7 @@ func (c *Config) Validate() error {
 func validateGrokOAuthConfig(cfg GrokOAuthConfig) error {
 	fields := map[string]string{
 		"grok.oauth.authorize_url": cfg.AuthorizeURL,
+		"grok.oauth.device_url":    cfg.DeviceURL,
 		"grok.oauth.token_url":     cfg.TokenURL,
 		"grok.oauth.userinfo_url":  cfg.UserInfoURL,
 		"grok.oauth.redirect_uri":  cfg.RedirectURI,

@@ -8,6 +8,8 @@ import (
 
 type GrokOAuthClient interface {
 	ExchangeCode(ctx context.Context, tokenURL string, code string, codeVerifier string, redirectURI string, clientID string, proxyURL string) (*grokoauth.TokenResponse, error)
+	StartDeviceFlow(ctx context.Context, deviceURL string, clientID string, scope string, proxyURL string) (*grokoauth.DeviceAuthorizationResponse, error)
+	PollDeviceToken(ctx context.Context, tokenURL string, deviceCode string, clientID string, proxyURL string) (*grokoauth.TokenResponse, error)
 	RefreshToken(ctx context.Context, tokenURL string, refreshToken string, clientID string, scope string, proxyURL string) (*grokoauth.TokenResponse, error)
 	FetchUserInfo(ctx context.Context, userInfoURL string, accessToken string, proxyURL string) (*grokoauth.UserInfo, error)
 }

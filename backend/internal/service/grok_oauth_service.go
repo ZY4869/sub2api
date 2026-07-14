@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/subtle"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -114,11 +115,16 @@ func (s *GrokOAuthService) GenerateAuthURL(ctx context.Context, input *GrokGener
 }
 
 func (s *GrokOAuthService) ExchangeCode(ctx context.Context, input *GrokExchangeCodeInput) (*GrokTokenInfo, error) {
+	startedAt := time.Now()
 	session, ok := s.sessionStore.Get(strings.TrimSpace(input.SessionID))
 	if !ok {
 		return nil, infraerrors.New(http.StatusBadRequest, "GROK_OAUTH_SESSION_NOT_FOUND", "Grok OAuth session not found or expired")
 	}
+	requestID := requestIDFromContext(ctx)
 	codeInput := grokoauth.ParseAuthorizationInput(input.Code)
+	if codeInput.Kind == grokoauth.AuthorizationInputDeviceUserCode || codeInput.Kind == grokoauth.AuthorizationInputDeviceURL {
+		return nil, infraerrors.New(http.StatusBadRequest, "GROK_OAUTH_DEVICE_CODE_NOT_EXCHANGEABLE", "This looks like a Grok device short code. External Grok Build short codes cannot be exchanged by Sub2api; generate a device code in Sub2api and complete that login instead.")
+	}
 	code := firstNonEmptyString(codeInput.Code, input.Code)
 	state := firstNonEmptyString(input.State, codeInput.State)
 	if strings.TrimSpace(code) == "" {
@@ -140,13 +146,16 @@ func (s *GrokOAuthService) ExchangeCode(ctx context.Context, input *GrokExchange
 		}
 	}
 	redirectURI := firstNonEmptyString(input.RedirectURI, session.RedirectURI)
+	slog.Info("grok_oauth_code_exchange", "request_id", requestID, "session_id", strings.TrimSpace(input.SessionID), "input_kind", string(codeInput.Kind))
 	tokenResp, err := s.oauthClient.ExchangeCode(ctx, s.oauthTokenURL(), strings.TrimSpace(code), session.CodeVerifier, redirectURI, session.ClientID, proxyURL)
 	if err != nil {
+		slog.Warn("grok_oauth_code_exchange_failed", "request_id", requestID, "session_id", strings.TrimSpace(input.SessionID), "input_kind", string(codeInput.Kind), "duration_ms", time.Since(startedAt).Milliseconds(), "error", err.Error())
 		return nil, err
 	}
 	tokenInfo := s.tokenInfoFromResponse(tokenResp, session.ClientID, session.Scope, session.BaseURL)
 	s.enrichUserInfo(ctx, tokenInfo, proxyURL)
 	s.sessionStore.Delete(strings.TrimSpace(input.SessionID))
+	slog.Info("grok_oauth_code_exchanged", "request_id", requestID, "session_id", strings.TrimSpace(input.SessionID), "duration_ms", time.Since(startedAt).Milliseconds())
 	return tokenInfo, nil
 }
 
@@ -290,6 +299,13 @@ func (s *GrokOAuthService) oauthAuthorizeURL() string {
 		return strings.TrimSpace(s.cfg.Grok.OAuth.AuthorizeURL)
 	}
 	return grokoauth.DefaultAuthorizeURL
+}
+
+func (s *GrokOAuthService) oauthDeviceURL() string {
+	if s != nil && s.cfg != nil && strings.TrimSpace(s.cfg.Grok.OAuth.DeviceURL) != "" {
+		return strings.TrimSpace(s.cfg.Grok.OAuth.DeviceURL)
+	}
+	return grokoauth.DefaultDeviceURL
 }
 
 func (s *GrokOAuthService) oauthTokenURL() string {

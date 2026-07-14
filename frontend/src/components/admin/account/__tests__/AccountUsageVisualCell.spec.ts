@@ -34,6 +34,7 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.resetQuota': 'Reset quota',
           'admin.accounts.usageWindow.resettingQuota': 'Resetting',
           'admin.accounts.usageWindow.resetQuotaRemaining': '{count} resets left',
+          'admin.accounts.usageWindow.resetCreditExpiresAt': 'Expires {time}',
           'admin.accounts.usageWindow.resetQuotaUnsupported': 'Real reset unsupported',
           'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
           'common.error': 'Error',
@@ -177,6 +178,59 @@ describe('AccountUsageVisualCell', () => {
     expect(refreshButton.attributes('title')).toBe('Refresh OpenAI reset credits')
     expect(wrapper.find('[data-testid="account-usage-reset-quota-remaining"]').classes()).toContain('bg-rose-50')
     expect(wrapper.find('[data-testid="account-usage-reset-quota-button"]').exists()).toBe(false)
+  })
+
+  it('shows reset credit expiry +N details in the visual usage window column', async () => {
+    getUsage.mockResolvedValue({
+      openai_reset_credits: {
+        available_count: 3,
+        status: 'available',
+        credits: [
+          {
+            id: 'credit-1',
+            status: 'granted',
+            expires_at: '2099-08-01T00:00:00Z',
+          },
+          {
+            id: 'credit-2',
+            status: 'granted',
+            expires_at: '2099-08-02T00:00:00Z',
+          },
+        ],
+      },
+      five_hour: {
+        utilization: 22,
+        resets_at: '2099-04-06T12:00:00Z',
+      },
+    })
+
+    const wrapper = mount(AccountUsageVisualCell, {
+      props: {
+        account: {
+          id: 9003,
+          platform: 'openai',
+          type: 'oauth',
+          active_usage_available: true,
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        plugins: [createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('03 resets left')
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-expiry"]').text()).toContain('+1')
+
+    await wrapper.get('[data-testid="account-usage-reset-quota-expiry"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-expiry-details"]').text()).toContain('granted')
+    expect(wrapper.get('[data-testid="account-usage-reset-quota-expiry-details"]').text()).toContain('2099')
   })
 
   it('shows unknown reset credit chips as gray in the visual usage window column', async () => {

@@ -43,7 +43,8 @@ type OpenAIAdditionalRateLimit struct {
 }
 
 type OpenAIRateLimitResetCredits struct {
-	AvailableCount int `json:"available_count"`
+	AvailableCount int                        `json:"available_count"`
+	Credits        []OpenAIResetCreditSummary `json:"credits,omitempty"`
 }
 
 type OpenAIQuotaUsage struct {
@@ -310,6 +311,7 @@ func openAIResetCreditsSnapshotFromQuotaUsage(usage *OpenAIQuotaUsage, now time.
 	if usage.RateLimitResetCredits != nil {
 		count := usage.RateLimitResetCredits.AvailableCount
 		snapshot.AvailableCount = &count
+		snapshot.Credits = sanitizeOpenAIResetCreditSummaries(usage.RateLimitResetCredits.Credits)
 		snapshot.Status = openAIResetCreditsStatusAvailable
 	}
 	return snapshot
@@ -329,6 +331,7 @@ func openAIResetCreditsExtraFromSnapshot(snapshot *OpenAIResetCreditsSnapshot) m
 		openAIResetCreditsUnsupportedReasonExtraKey: nil,
 		openAIResetCreditsAvailableCountExtraKey:    nil,
 		openAIResetCreditsUpdatedAtExtraKey:         nil,
+		openAIResetCreditsCreditsExtraKey:           nil,
 	}
 	if strings.TrimSpace(snapshot.UnsupportedReason) != "" {
 		updates[openAIResetCreditsUnsupportedReasonExtraKey] = snapshot.UnsupportedReason
@@ -336,8 +339,28 @@ func openAIResetCreditsExtraFromSnapshot(snapshot *OpenAIResetCreditsSnapshot) m
 	if snapshot.AvailableCount != nil {
 		updates[openAIResetCreditsAvailableCountExtraKey] = *snapshot.AvailableCount
 		updates[openAIResetCreditsUpdatedAtExtraKey] = updatedAt.Format(time.RFC3339)
+		updates[openAIResetCreditsCreditsExtraKey] = sanitizeOpenAIResetCreditSummaries(snapshot.Credits)
 	}
 	return updates
+}
+
+func sanitizeOpenAIResetCreditSummaries(credits []OpenAIResetCreditSummary) []OpenAIResetCreditSummary {
+	if len(credits) == 0 {
+		return nil
+	}
+	sanitized := make([]OpenAIResetCreditSummary, 0, len(credits))
+	for _, credit := range credits {
+		clean := OpenAIResetCreditSummary{
+			ID:        strings.TrimSpace(credit.ID),
+			Status:    strings.TrimSpace(credit.Status),
+			ExpiresAt: strings.TrimSpace(credit.ExpiresAt),
+		}
+		if clean.ID == "" && clean.Status == "" && clean.ExpiresAt == "" {
+			continue
+		}
+		sanitized = append(sanitized, clean)
+	}
+	return sanitized
 }
 
 func generateOpenAIQuotaRedeemRequestID() (string, error) {

@@ -821,10 +821,22 @@ func TestApplyOpenAIResetCreditsFromExtra_UsesCanonicalCount(t *testing.T) {
 	applyOpenAIResetCreditsFromExtra(usage, map[string]any{
 		openAIResetCreditsAvailableCountExtraKey: "4",
 		openAIResetCreditsUpdatedAtExtraKey:      "2026-06-18T10:00:00Z",
+		openAIResetCreditsCreditsExtraKey: []any{
+			map[string]any{
+				"id":         "credit_1",
+				"status":     "granted",
+				"expires_at": "2026-08-01T00:00:00Z",
+			},
+		},
 	})
 	require.NotNil(t, usage.OpenAIResetCredits)
 	require.NotNil(t, usage.OpenAIResetCredits.AvailableCount)
 	require.Equal(t, 4, *usage.OpenAIResetCredits.AvailableCount)
+	require.Equal(t, []OpenAIResetCreditSummary{{
+		ID:        "credit_1",
+		Status:    "granted",
+		ExpiresAt: "2026-08-01T00:00:00Z",
+	}}, usage.OpenAIResetCredits.Credits)
 	require.Equal(t, openAIResetCreditsStatusAvailable, usage.OpenAIResetCredits.Status)
 }
 

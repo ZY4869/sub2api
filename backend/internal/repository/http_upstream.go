@@ -51,6 +51,8 @@ type poolSettings struct {
 	idleConnTimeout       time.Duration // 空闲连接超时时间
 	responseHeaderTimeout time.Duration // 等待响应头超时时间
 	forceAttemptHTTP2     bool          // 是否优先尝试 HTTP/2
+	http2SendPingTimeout  time.Duration // HTTP/2 空闲读 PING 触发阈值
+	http2PingTimeout      time.Duration // HTTP/2 PING 应答超时
 	validateResolvedIP    bool          // 拨号前校验解析后的 IP
 	allowPrivateHosts     bool          // 是否允许私网/本机解析结果
 	privateHostConfig     *config.Config
