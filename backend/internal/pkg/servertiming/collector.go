@@ -144,7 +144,7 @@ func normalizeName(name string) string {
 	var b strings.Builder
 	for _, r := range name {
 		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_' || r == '-' {
-			b.WriteRune(r)
+			_, _ = b.WriteRune(r)
 		}
 	}
 	return b.String()

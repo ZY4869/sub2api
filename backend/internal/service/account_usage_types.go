@@ -113,12 +113,12 @@ type UsageInfo struct {
 }
 
 type OpenAIResetCreditsInfo struct {
-	AvailableCount    *int       `json:"available_count,omitempty"`
+	AvailableCount    *int                       `json:"available_count,omitempty"`
 	Credits           []OpenAIResetCreditSummary `json:"credits,omitempty"`
-	UpdatedAt         *time.Time `json:"updated_at,omitempty"`
-	Source            string     `json:"source,omitempty"`
-	Status            string     `json:"status,omitempty"`
-	UnsupportedReason string     `json:"unsupported_reason,omitempty"`
+	UpdatedAt         *time.Time                 `json:"updated_at,omitempty"`
+	Source            string                     `json:"source,omitempty"`
+	Status            string                     `json:"status,omitempty"`
+	UnsupportedReason string                     `json:"unsupported_reason,omitempty"`
 }
 
 // ClaudeUsageResponse Anthropic API返回的usage结构

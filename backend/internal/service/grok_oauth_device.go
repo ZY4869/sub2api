@@ -180,7 +180,7 @@ func (s *GrokOAuthService) PollDeviceToken(ctx context.Context, input *GrokPollD
 
 func (s *GrokOAuthService) devicePollResultFromError(ctx context.Context, sessionID string, session *grokoauth.OAuthSession, err *grokoauth.DeviceTokenError, startedAt time.Time) *GrokDevicePollResult {
 	status := strings.ToLower(strings.TrimSpace(err.Status))
-	resultStatus := GrokDeviceStatusPending
+	var resultStatus string
 	message := strings.TrimSpace(err.Description)
 	switch status {
 	case "authorization_pending":

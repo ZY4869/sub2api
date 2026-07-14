@@ -8,12 +8,12 @@ import (
 
 func TestParseAuthorizationInput(t *testing.T) {
 	tests := []struct {
-		name     string
-		raw      string
-		wantKind AuthorizationInputKind
-		wantCode string
+		name      string
+		raw       string
+		wantKind  AuthorizationInputKind
+		wantCode  string
 		wantState string
-		wantUser string
+		wantUser  string
 	}{
 		{
 			name:      "callback url",

@@ -57,7 +57,7 @@ import GrokOAuthDeviceFlow from './GrokOAuthDeviceFlow.vue'
 
 type GrokOAuthMode = 'callback' | 'device'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   proxyId?: number | null
   submitLabel: string
   submitting?: boolean

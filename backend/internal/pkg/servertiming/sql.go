@@ -46,7 +46,7 @@ func (c sqlConn) PrepareContext(ctx context.Context, query string) (driver.Stmt,
 		}
 		return sqlStmt{Stmt: stmt}, nil
 	}
-	stmt, err := c.Conn.Prepare(query)
+	stmt, err := c.Prepare(query)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (c sqlConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx,
 		return nil, driver.ErrSkip
 	}
 	done := Observe(ctx, "db")
-	tx, err := c.Conn.Begin()
+	tx, err := c.Begin()
 	done()
 	return tx, err
 }

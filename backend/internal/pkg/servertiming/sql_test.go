@@ -19,7 +19,11 @@ func TestSQLDriverRecordsDBTiming(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open() error = %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("db.Close() error = %v", err)
+		}
+	}()
 
 	ctx := WithCollector(context.Background(), New(time.Now()))
 	if err := db.PingContext(ctx); err != nil {
@@ -32,7 +36,9 @@ func TestSQLDriverRecordsDBTiming(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QueryContext() error = %v", err)
 	}
-	rows.Close()
+	if err := rows.Close(); err != nil {
+		t.Fatalf("Rows.Close() error = %v", err)
+	}
 	stmt, err := db.PrepareContext(ctx, "SELECT 1")
 	if err != nil {
 		t.Fatalf("PrepareContext() error = %v", err)
@@ -40,7 +46,9 @@ func TestSQLDriverRecordsDBTiming(t *testing.T) {
 	if _, err := stmt.QueryContext(ctx); err != nil {
 		t.Fatalf("Stmt.QueryContext() error = %v", err)
 	}
-	stmt.Close()
+	if err := stmt.Close(); err != nil {
+		t.Fatalf("Stmt.Close() error = %v", err)
+	}
 
 	header := HeaderValue(ctx, time.Now())
 	if !strings.Contains(header, `db;dur=`) {
