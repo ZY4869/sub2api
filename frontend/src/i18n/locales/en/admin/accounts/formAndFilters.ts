@@ -25,6 +25,8 @@ export default {
         resetQuota: "Reset OpenAI quota",
         resettingQuota: "Resetting",
         resetQuotaRemaining: "{count} resets left",
+        resetCreditExpiresAt: "Expires at {time}",
+        resetCreditDetail: "Reset credit",
         resetQuotaUnsupported: "OpenAI reset credits are not available right now",
         resetQuotaConfirm: "This uses an official OpenAI reset and consumes one available reset credit. Continue?",
         resetQuotaSuccess: "OpenAI quota reset",

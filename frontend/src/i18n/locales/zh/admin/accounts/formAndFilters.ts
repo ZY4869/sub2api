@@ -25,6 +25,8 @@ export default {
         resetQuota: "重置 OpenAI 额度",
         resettingQuota: "重置中",
         resetQuotaRemaining: "可重置 {count} 次",
+        resetCreditExpiresAt: "有效期至 {time}",
+        resetCreditDetail: "重置次数",
         resetQuotaUnsupported: "当前无法读取 OpenAI 官方可重置次数",
         resetQuotaConfirm: "这是 OpenAI 官方真实重置，会消耗一次可用重置次数。确定继续吗？",
         resetQuotaSuccess: "OpenAI 额度已重置",
