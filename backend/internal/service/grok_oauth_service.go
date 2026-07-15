@@ -188,7 +188,7 @@ func (s *GrokOAuthService) RefreshAccountToken(ctx context.Context, account *Acc
 func (s *GrokOAuthService) BuildAccountCredentials(tokenInfo *GrokTokenInfo) map[string]any {
 	creds := map[string]any{
 		"access_token": strings.TrimSpace(tokenInfo.AccessToken),
-		"base_url":     strings.TrimRight(firstNonEmptyString(tokenInfo.BaseURL, s.oauthBaseURL("")), "/"),
+		"base_url":     defaultGrokCLIBaseURL,
 	}
 	if tokenInfo.ExpiresAt > 0 {
 		creds["expires_at"] = time.Unix(tokenInfo.ExpiresAt, 0).UTC().Format(time.RFC3339)
@@ -279,7 +279,7 @@ func (s *GrokOAuthService) tokenInfoFromResponse(resp *grokoauth.TokenResponse, 
 		ExpiresAt:    time.Now().Add(time.Duration(expiresIn) * time.Second).Unix(),
 		Scope:        firstNonEmptyString(resp.Scope, scope),
 		ClientID:     strings.TrimSpace(clientID),
-		BaseURL:      strings.TrimRight(firstNonEmptyString(baseURL, s.oauthBaseURL("")), "/"),
+		BaseURL:      defaultGrokCLIBaseURL,
 	}
 }
 
@@ -367,5 +367,5 @@ func (s *GrokOAuthService) oauthBaseURL(override string) string {
 	if s != nil && s.cfg != nil && strings.TrimSpace(s.cfg.Grok.OAuth.BaseURL) != "" {
 		return strings.TrimRight(strings.TrimSpace(s.cfg.Grok.OAuth.BaseURL), "/")
 	}
-	return grokoauth.DefaultBaseURL
+	return defaultGrokCLIBaseURL
 }

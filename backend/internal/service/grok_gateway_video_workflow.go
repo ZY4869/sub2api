@@ -142,13 +142,13 @@ func (s *GrokGatewayService) runAPIKeyGrokVideoWorkflow(ctx context.Context, c *
 	}
 
 	startTime := time.Now()
-	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, endpoint, payloadBody)
+	resp, meta, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, endpoint, payloadBody)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, GrokRouteModeAPIKey)
+		return nil, s.handleHTTPError(ctx, resp, c, account, meta)
 	}
 
 	bodyBytes, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
@@ -218,7 +218,7 @@ func (s *GrokGatewayService) fetchAPIKeyVideoStatusOnce(
 	requestedModel string,
 	upstreamModel string,
 ) (*grokVideoResult, error) {
-	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodGet, "/v1/videos/"+strings.TrimSpace(requestID), nil)
+	resp, _, err := s.doAPIKeyRequest(ctx, c, account, http.MethodGet, "/v1/videos/"+strings.TrimSpace(requestID), nil)
 	if err != nil {
 		s.writeGrokVideoError(c, http.StatusBadGateway, "upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
 		return nil, fmt.Errorf("grok video status request failed: %w", err)

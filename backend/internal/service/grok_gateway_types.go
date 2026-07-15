@@ -7,6 +7,7 @@ const (
 	GrokRouteModeSSO    = "sso"
 
 	defaultGrokAPIBaseURL     = "https://api.x.ai"
+	defaultGrokCLIBaseURL     = "https://cli-chat-proxy.grok.com/v1"
 	defaultGrokReverseBaseURL = "https://grok.com"
 
 	grokEndpointChatCompletions = "/v1/chat/completions"
@@ -35,6 +36,8 @@ type GrokGatewayForwardResult struct {
 	Result            *ForwardResult
 	RouteMode         string
 	Endpoint          string
+	EffectiveHost     string
+	EffectiveEndpoint string
 	MediaType         string
 	UpstreamRequestID string
 	SkipUsageRecord   bool

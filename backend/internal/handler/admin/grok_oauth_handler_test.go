@@ -97,7 +97,7 @@ func TestGrokOAuthHandler_CreateAccountFromOAuth_CreatesGrokOAuthAccount(t *test
 	require.Equal(t, service.AccountTypeOAuth, created.Type)
 	require.Equal(t, "access-token", created.Credentials["access_token"])
 	require.Equal(t, "refresh-token", created.Credentials["refresh_token"])
-	require.Equal(t, "https://api.x.ai/v1", created.Credentials["base_url"])
+	require.Equal(t, "https://cli-chat-proxy.grok.com/v1", created.Credentials["base_url"])
 	require.Equal(t, "grok_browser_oauth", created.Extra["source"])
 	scope, ok := service.ExtractAccountModelScopeV2(created.Extra)
 	require.True(t, ok)
@@ -160,6 +160,7 @@ func TestGrokOAuthHandler_ReauthorizeAccountFromOAuth_AddsDefaultScopeWhenMissin
 	require.True(t, ok)
 	require.Len(t, scope.Entries, len(service.GrokBuildTextModelIDs()))
 	require.Equal(t, "access-token", adminSvc.updatedAccounts[0].Credentials["access_token"])
+	require.Equal(t, "https://cli-chat-proxy.grok.com/v1", adminSvc.updatedAccounts[0].Credentials["base_url"])
 	require.Equal(t, "grok_browser_oauth", adminSvc.updatedAccounts[0].Extra["source"])
 }
 
@@ -218,6 +219,7 @@ func TestGrokOAuthHandler_ReauthorizeAccountFromOAuth_PreservesExistingScope(t *
 	require.Equal(t, service.GrokModelBuild01, scope.Entries[0].DisplayModelID)
 	require.Equal(t, service.GrokModelBuild01, scope.Entries[0].TargetModelID)
 	require.Equal(t, "access-token", adminSvc.updatedAccounts[0].Credentials["access_token"])
+	require.Equal(t, "https://cli-chat-proxy.grok.com/v1", adminSvc.updatedAccounts[0].Credentials["base_url"])
 }
 
 func TestGrokOAuthHandler_DeviceFlow_StartAndPoll(t *testing.T) {

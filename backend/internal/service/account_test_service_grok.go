@@ -1,9 +1,13 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -42,7 +46,7 @@ func (s *AccountTestService) testGrokAPIKeyConnection(c *gin.Context, account *A
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Grok API connectivity failed: %s", err.Error()))
 	}
 
-	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("xAI official API connectivity OK (%s)", account.GetBaseURL())})
+	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Grok API connectivity OK (%s)", account.GetBaseURL())})
 	if probe != nil && strings.TrimSpace(probe.ProbeNotice) != "" {
 		s.sendEvent(c, TestEvent{Type: "content", Text: probe.ProbeNotice})
 	}
@@ -53,8 +57,56 @@ func (s *AccountTestService) testGrokAPIKeyConnection(c *gin.Context, account *A
 	if requestedModel != "" && len(probe.DetectedModels) > 0 && !containsNormalizedString(probe.DetectedModels, requestedModel) {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Requested model %s is not available for this Grok API key", requestedModel))
 	}
+	if err := s.testGrokRealResponsesCall(c, account, requestedModel); err != nil {
+		return s.sendErrorAndEnd(c, err.Error())
+	}
 
 	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+	return nil
+}
+
+func (s *AccountTestService) testGrokRealResponsesCall(c *gin.Context, account *Account, requestedModel string) error {
+	if s.grokGatewayService == nil {
+		return fmt.Errorf("Grok real call service is not configured")
+	}
+	requestedModel = strings.TrimSpace(requestedModel)
+	if requestedModel == "" {
+		requestedModel = DefaultGrokBuildTextModelID()
+	}
+	body, err := json.Marshal(map[string]any{
+		"model":  requestedModel,
+		"input":  "Output exactly: OK",
+		"stream": false,
+	})
+	if err != nil {
+		return fmt.Errorf("Grok real model call failed: failed to build request")
+	}
+	resp, meta, err := s.grokGatewayService.doAPIKeyRequest(c.Request.Context(), c, account, http.MethodPost, grokEndpointResponses, body)
+	if err != nil {
+		return fmt.Errorf("Grok real model call failed: %s", err.Error())
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
+		msg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(bodyBytes)))
+		if msg == "" {
+			msg = http.StatusText(resp.StatusCode)
+		}
+		setOpsUpstreamError(c, resp.StatusCode, msg, "")
+		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			Platform:           PlatformGrok,
+			AccountID:          account.ID,
+			AccountName:        account.Name,
+			UpstreamStatusCode: resp.StatusCode,
+			UpstreamRequestID:  grokUpstreamRequestID(resp.Header),
+			Kind:               "account_test_real_call",
+			Message:            msg,
+		})
+		logger.FromContext(c.Request.Context()).Warn("grok.account_test_real_call_failed", grokUpstreamLogFields(account, meta, resp.StatusCode, grokUpstreamRequestID(resp.Header))...)
+		return fmt.Errorf("Grok real model call failed: upstream status %d: %s", resp.StatusCode, msg)
+	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 2<<20))
+	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Grok real model call OK (%s)", requestedModel)})
 	return nil
 }
 

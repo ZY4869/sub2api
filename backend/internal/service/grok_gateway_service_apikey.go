@@ -12,10 +12,12 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"go.uber.org/zap"
 )
 
 func (s *GrokGatewayService) forwardAPIKeyChatCompletions(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
@@ -27,13 +29,13 @@ func (s *GrokGatewayService) forwardAPIKeyChatCompletions(ctx context.Context, c
 	stream := gjson.GetBytes(mappedBody, "stream").Bool()
 	startTime := time.Now()
 
-	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointChatCompletions, mappedBody, withGrokConversationID(c))
+	resp, meta, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointChatCompletions, mappedBody, withGrokConversationID(c))
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, GrokRouteModeAPIKey)
+		return nil, s.handleHTTPError(ctx, resp, c, account, meta)
 	}
 
 	forwardResult, upstreamRequestID, err := s.handleAPIKeyOpenAIResponse(resp, c, grokOpenAIResponseOptions{
@@ -50,6 +52,8 @@ func (s *GrokGatewayService) forwardAPIKeyChatCompletions(ctx context.Context, c
 		Result:            forwardResult,
 		RouteMode:         GrokRouteModeAPIKey,
 		Endpoint:          grokEndpointChatCompletions,
+		EffectiveHost:     meta.EffectiveHost,
+		EffectiveEndpoint: meta.EffectiveEndpoint,
 		MediaType:         "",
 		UpstreamRequestID: upstreamRequestID,
 	}, nil
@@ -62,13 +66,13 @@ func (s *GrokGatewayService) forwardAPIKeyMessagesCompat(ctx context.Context, c 
 		return nil, err
 	}
 	startTime := time.Now()
-	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointResponses, responsesBody)
+	resp, meta, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointResponses, responsesBody)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, GrokRouteModeAPIKey)
+		return nil, s.handleHTTPError(ctx, resp, c, account, meta)
 	}
 	result, upstreamRequestID, err := s.handleAPIKeyAnthropicResponse(resp, c, grokAnthropicResponseOptions{
 		OriginalModel: originalModel,
@@ -83,6 +87,8 @@ func (s *GrokGatewayService) forwardAPIKeyMessagesCompat(ctx context.Context, c 
 		Result:            result,
 		RouteMode:         GrokRouteModeAPIKey,
 		Endpoint:          grokEndpointResponses,
+		EffectiveHost:     meta.EffectiveHost,
+		EffectiveEndpoint: meta.EffectiveEndpoint,
 		UpstreamRequestID: upstreamRequestID,
 	}, nil
 }
@@ -101,13 +107,13 @@ func (s *GrokGatewayService) forwardAPIKeyResponses(ctx context.Context, c *gin.
 	stream := method == http.MethodPost && gjson.GetBytes(mappedBody, "stream").Bool()
 	startTime := time.Now()
 
-	resp, err := s.doAPIKeyRequest(ctx, c, account, method, endpoint, mappedBody)
+	resp, meta, err := s.doAPIKeyRequest(ctx, c, account, method, endpoint, mappedBody)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, GrokRouteModeAPIKey)
+		return nil, s.handleHTTPError(ctx, resp, c, account, meta)
 	}
 
 	if method != http.MethodPost {
@@ -118,7 +124,7 @@ func (s *GrokGatewayService) forwardAPIKeyResponses(ctx context.Context, c *gin.
 		s.writeJSONResponse(c, resp, bodyBytes)
 		return &GrokGatewayForwardResult{
 			Result: &ForwardResult{
-				RequestID:     resp.Header.Get("x-request-id"),
+				RequestID:     grokUpstreamRequestID(resp.Header),
 				Model:         reqModel,
 				UpstreamModel: mappedModel,
 				Stream:        false,
@@ -126,7 +132,9 @@ func (s *GrokGatewayService) forwardAPIKeyResponses(ctx context.Context, c *gin.
 			},
 			RouteMode:         GrokRouteModeAPIKey,
 			Endpoint:          grokEndpointResponses,
-			UpstreamRequestID: resp.Header.Get("x-request-id"),
+			EffectiveHost:     meta.EffectiveHost,
+			EffectiveEndpoint: meta.EffectiveEndpoint,
+			UpstreamRequestID: grokUpstreamRequestID(resp.Header),
 			SkipUsageRecord:   true,
 		}, nil
 	}
@@ -145,6 +153,8 @@ func (s *GrokGatewayService) forwardAPIKeyResponses(ctx context.Context, c *gin.
 		Result:            forwardResult,
 		RouteMode:         GrokRouteModeAPIKey,
 		Endpoint:          grokEndpointResponses,
+		EffectiveHost:     meta.EffectiveHost,
+		EffectiveEndpoint: meta.EffectiveEndpoint,
 		UpstreamRequestID: upstreamRequestID,
 	}, nil
 }
@@ -159,7 +169,7 @@ func (s *GrokGatewayService) forwardAPIKeyAnthropicCountTokensCompat(ctx context
 	reqModel := strings.TrimSpace(gjson.GetBytes(countBody, "model").String())
 	_, mappedBody := grokApplyMappedModel(account, reqModel, countBody)
 
-	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointResponses+openAIResponsesInputTokensPath, mappedBody)
+	resp, _, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointResponses+openAIResponsesInputTokensPath, mappedBody)
 	if err != nil {
 		writeAnthropicError(c, http.StatusBadGateway, "upstream_error", "Request failed", "")
 		return nil, err
@@ -188,13 +198,13 @@ func (s *GrokGatewayService) forwardAPIKeyImageRequest(ctx context.Context, c *g
 	mappedModel, mappedBody := grokApplyMappedModel(account, reqModel, body)
 	startTime := time.Now()
 
-	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, endpoint, mappedBody)
+	resp, meta, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, endpoint, mappedBody)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, GrokRouteModeAPIKey)
+		return nil, s.handleHTTPError(ctx, resp, c, account, meta)
 	}
 
 	bodyBytes, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
@@ -208,7 +218,7 @@ func (s *GrokGatewayService) forwardAPIKeyImageRequest(ctx context.Context, c *g
 		imageCount = 1
 	}
 	forwardResult := &ForwardResult{
-		RequestID:     resp.Header.Get("x-request-id"),
+		RequestID:     grokUpstreamRequestID(resp.Header),
 		Model:         reqModel,
 		UpstreamModel: mappedModel,
 		Stream:        false,
@@ -222,8 +232,10 @@ func (s *GrokGatewayService) forwardAPIKeyImageRequest(ctx context.Context, c *g
 		Result:            forwardResult,
 		RouteMode:         GrokRouteModeAPIKey,
 		Endpoint:          endpoint,
+		EffectiveHost:     meta.EffectiveHost,
+		EffectiveEndpoint: meta.EffectiveEndpoint,
 		MediaType:         "image",
-		UpstreamRequestID: resp.Header.Get("x-request-id"),
+		UpstreamRequestID: grokUpstreamRequestID(resp.Header),
 	}, nil
 }
 
@@ -244,13 +256,13 @@ func (s *GrokGatewayService) forwardAPIKeyVideoStatus(ctx context.Context, c *gi
 	startTime := time.Now()
 	endpoint := "/v1/videos/" + requestID
 
-	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodGet, endpoint, nil)
+	resp, meta, err := s.doAPIKeyRequest(ctx, c, account, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, GrokRouteModeAPIKey)
+		return nil, s.handleHTTPError(ctx, resp, c, account, meta)
 	}
 
 	bodyBytes, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
@@ -283,6 +295,8 @@ func (s *GrokGatewayService) forwardAPIKeyVideoStatus(ctx context.Context, c *gi
 		},
 		RouteMode:         GrokRouteModeAPIKey,
 		Endpoint:          grokEndpointVideosStatus,
+		EffectiveHost:     meta.EffectiveHost,
+		EffectiveEndpoint: meta.EffectiveEndpoint,
 		MediaType:         "video",
 		UpstreamRequestID: requestID,
 		SkipUsageRecord:   !grokIsTerminalVideoStatus(status),
@@ -418,7 +432,7 @@ func openAIResultToForwardResult(result *OpenAIForwardResult) *ForwardResult {
 }
 
 func (s *GrokGatewayService) handleAPIKeyOpenAIResponse(resp *http.Response, c *gin.Context, opts grokOpenAIResponseOptions) (*ForwardResult, string, error) {
-	upstreamRequestID := strings.TrimSpace(firstNonEmptyString(resp.Header.Get("x-request-id"), resp.Header.Get("X-Request-Id")))
+	upstreamRequestID := grokUpstreamRequestID(resp.Header)
 	if opts.Stream {
 		usage, firstTokenMs, requestID, err := s.proxyAPIKeyStream(resp, c, opts.StartTime)
 		if err != nil {
@@ -487,7 +501,7 @@ func (s *GrokGatewayService) proxyAPIKeyStream(resp *http.Response, c *gin.Conte
 
 	var usage ClaudeUsage
 	var firstTokenMs *int
-	requestID := strings.TrimSpace(resp.Header.Get("x-request-id"))
+	requestID := grokUpstreamRequestID(resp.Header)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if data, ok := extractOpenAISSEDataLine(line); ok {
@@ -531,22 +545,34 @@ func withGrokConversationID(c *gin.Context) grokAPIKeyRequestOption {
 	}
 }
 
-func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context, account *Account, method string, endpoint string, body []byte, opts ...grokAPIKeyRequestOption) (*http.Response, error) {
+func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context, account *Account, method string, endpoint string, body []byte, opts ...grokAPIKeyRequestOption) (*http.Response, grokUpstreamRequestMetadata, error) {
+	meta := grokUpstreamRequestMetadata{RouteMode: GrokRouteModeAPIKey, EffectiveEndpoint: strings.TrimSpace(endpoint)}
 	if account == nil || (!account.IsGrokAPIKey() && !account.IsGrokOAuth()) {
-		return nil, fmt.Errorf("grok official api account is required")
+		return nil, meta, fmt.Errorf("grok official api account is required")
 	}
 	token := strings.TrimSpace(account.GetGrokAPIKey())
 	if token == "" && account.IsGrokOAuth() {
 		token = strings.TrimSpace(account.GetGrokOAuthAccessToken())
 	}
 	if token == "" {
-		return nil, fmt.Errorf("grok official api token is missing")
+		return nil, meta, fmt.Errorf("grok official api token is missing")
 	}
-	baseURL, err := s.validatedBaseURL(account.GetBaseURL(), defaultGrokAPIBaseURL)
+	baseURL := grokEffectiveAPIBaseURL(account)
+	if strings.TrimSpace(baseURL) == "" {
+		baseURL = defaultGrokAPIBaseURL
+	}
+	if !account.IsGrokOAuth() {
+		var err error
+		baseURL, err = s.validatedBaseURL(baseURL, defaultGrokAPIBaseURL)
+		if err != nil {
+			return nil, meta, err
+		}
+	}
+	url, err := grokJoinVersionedEndpoint(baseURL, endpoint)
 	if err != nil {
-		return nil, err
+		return nil, meta, err
 	}
-	url := strings.TrimRight(baseURL, "/") + endpoint
+	meta = newGrokUpstreamRequestMetadata(account, url, endpoint)
 
 	var reader io.Reader
 	if len(body) > 0 {
@@ -554,7 +580,7 @@ func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context
 	}
 	req, err := http.NewRequestWithContext(ctx, method, url, reader)
 	if err != nil {
-		return nil, err
+		return nil, meta, err
 	}
 	if c != nil && c.Request != nil {
 		contentType := strings.TrimSpace(c.GetHeader("Content-Type"))
@@ -568,6 +594,9 @@ func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/json")
 	ApplyAccountRequestHeaderOverrides(req, account)
+	if account.IsGrokOAuth() {
+		applyGrokCLIHeaders(req.Header)
+	}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(req)
@@ -590,9 +619,13 @@ func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context
 			Kind:               "request_error",
 			Message:            safeErr,
 		})
-		return nil, fmt.Errorf("grok upstream request failed: %s", safeErr)
+		logger.FromContext(ctx).Warn("grok.upstream_request_error", append(grokUpstreamLogFields(account, meta, 0, ""), zap.String("error", safeErr))...)
+		return nil, meta, fmt.Errorf("grok upstream request failed: %s", safeErr)
 	}
-	return resp, nil
+	if resp != nil {
+		logger.FromContext(ctx).Debug("grok.upstream_response", grokUpstreamLogFields(account, meta, resp.StatusCode, grokUpstreamRequestID(resp.Header))...)
+	}
+	return resp, meta, nil
 }
 
 func grokApplyMappedModel(account *Account, requestedModel string, body []byte) (string, []byte) {

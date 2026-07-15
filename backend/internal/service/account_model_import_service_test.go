@@ -414,7 +414,10 @@ func TestProbeAccountModels_GrokOAuthFallsBackToBuildCatalogFor404Listing(t *tes
 	require.Equal(t, grokBuildBuiltinProbeNotice, result.ProbeNotice)
 	require.Len(t, result.Models, len(GrokBuildTextModelIDs()))
 	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "https://cli-chat-proxy.grok.com/v1/models", upstream.lastReq.URL.String())
 	require.Equal(t, "Bearer xai-oauth-token", upstream.lastReq.Header.Get("Authorization"))
+	require.Equal(t, grokUpstreamUserAgent, upstream.lastReq.Header.Get("User-Agent"))
+	require.Equal(t, grokCLIVersion, upstream.lastReq.Header.Get("X-Grok-Client-Version"))
 }
 
 func TestGrokBuildBuiltinProbeLogFieldsRedactUpstreamBodyAndToken(t *testing.T) {

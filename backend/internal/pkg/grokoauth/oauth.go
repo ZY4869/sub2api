@@ -20,7 +20,7 @@ const (
 	DefaultClientID     = "b1a00492-073a-47ea-816f-4c329264a828"
 	DefaultScope        = "openid profile email offline_access grok-cli:access api:access conversations:read conversations:write"
 	DefaultRedirectURI  = "http://127.0.0.1:56121/callback"
-	DefaultBaseURL      = "https://api.x.ai/v1"
+	DefaultBaseURL      = "https://cli-chat-proxy.grok.com/v1"
 	SessionTTL          = 30 * time.Minute
 	DeviceGrantType     = "urn:ietf:params:oauth:grant-type:device_code"
 )

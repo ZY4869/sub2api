@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type GrokGatewayService struct {
@@ -141,9 +143,13 @@ func (s *GrokGatewayService) writeJSONResponse(c *gin.Context, resp *http.Respon
 	c.Data(resp.StatusCode, contentType, body)
 }
 
-func (s *GrokGatewayService) handleHTTPError(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, routeMode string) error {
+func (s *GrokGatewayService) handleHTTPError(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, meta grokUpstreamRequestMetadata) error {
 	if resp == nil {
 		return fmt.Errorf("upstream response is nil")
+	}
+	routeMode := strings.TrimSpace(meta.RouteMode)
+	if routeMode == "" {
+		routeMode = s.RouteMode(account)
 	}
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
@@ -166,6 +172,7 @@ func (s *GrokGatewayService) handleHTTPError(ctx context.Context, resp *http.Res
 		Message:            upstreamMsg,
 		Detail:             upstreamDetail,
 	})
+	logger.FromContext(ctx).Warn("grok.upstream_http_error", grokUpstreamLogFields(account, meta, resp.StatusCode, resp.Header.Get("x-request-id"))...)
 	shouldDisable := false
 	if s.rateLimitService != nil {
 		shouldDisable = s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
@@ -182,6 +189,50 @@ func (s *GrokGatewayService) handleHTTPError(ctx context.Context, resp *http.Res
 		upstreamMsg = fmt.Sprintf("grok upstream error: %d", resp.StatusCode)
 	}
 	return fmt.Errorf("%s %s", routeMode, upstreamMsg)
+}
+
+func grokUpstreamLogFields(account *Account, meta grokUpstreamRequestMetadata, upstreamStatus int, upstreamRequestID string) []zap.Field {
+	accountID := int64(0)
+	accountType := ""
+	if account != nil {
+		accountID = account.ID
+		accountType = strings.TrimSpace(account.Type)
+	}
+	routeMode := strings.TrimSpace(meta.RouteMode)
+	if routeMode == "" && account != nil {
+		if account.IsGrokSSO() {
+			routeMode = GrokRouteModeSSO
+		} else {
+			routeMode = GrokRouteModeAPIKey
+		}
+	}
+	fields := []zap.Field{
+		zap.Int64("account_id", accountID),
+		zap.String("platform", PlatformGrok),
+		zap.String("type", accountType),
+		zap.String("route_mode", routeMode),
+		zap.String("effective_host", strings.TrimSpace(meta.EffectiveHost)),
+		zap.String("effective_endpoint", strings.TrimSpace(meta.EffectiveEndpoint)),
+		zap.Int("upstream_status", upstreamStatus),
+	}
+	if upstreamRequestID = strings.TrimSpace(upstreamRequestID); upstreamRequestID != "" {
+		fields = append(fields, zap.String("upstream_request_id", upstreamRequestID))
+	}
+	return fields
+}
+
+func grokUpstreamRequestID(headers http.Header) string {
+	for _, name := range []string{"x-request-id", "X-Request-Id", "xai-request-id", "Xai-Request-Id"} {
+		if value := strings.TrimSpace(headers.Get(name)); value != "" {
+			return value
+		}
+		if values, ok := headers[name]; ok && len(values) > 0 {
+			if value := strings.TrimSpace(values[0]); value != "" {
+				return value
+			}
+		}
+	}
+	return ""
 }
 
 func (s *GrokGatewayService) shouldFailoverStatus(statusCode int) bool {

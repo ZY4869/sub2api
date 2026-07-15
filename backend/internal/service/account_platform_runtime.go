@@ -9,6 +9,9 @@ func (a *Account) GetBaseURL() string {
 	if !allowBaseURL {
 		return ""
 	}
+	if a.Platform == PlatformGrok && a.Type == AccountTypeOAuth {
+		return defaultGrokCLIBaseURL
+	}
 	baseURL := a.GetCredential("base_url")
 	if baseURL == "" {
 		if a.Platform == PlatformGrok {

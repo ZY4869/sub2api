@@ -345,7 +345,7 @@ func (s *GrokGatewayService) forwardSSOVideoStatus(ctx context.Context, c *gin.C
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, GrokRouteModeSSO)
+		return nil, s.handleHTTPError(ctx, resp, c, account, grokUpstreamRequestMetadata{RouteMode: GrokRouteModeSSO})
 	}
 	bodyBytes, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
 	if err != nil {

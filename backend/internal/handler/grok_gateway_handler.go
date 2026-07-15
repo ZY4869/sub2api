@@ -551,12 +551,33 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 
 			reqLog.Debug("grok.request_completed",
 				zap.Int64("account_id", account.ID),
+				zap.String("platform", service.PlatformGrok),
+				zap.String("type", strings.TrimSpace(account.Type)),
 				zap.Int("switch_count", switchCount),
 				zap.String("route_mode", func() string {
 					if result == nil {
 						return ""
 					}
 					return result.RouteMode
+				}()),
+				zap.String("effective_host", func() string {
+					if result == nil {
+						return ""
+					}
+					return result.EffectiveHost
+				}()),
+				zap.String("effective_endpoint", func() string {
+					if result == nil {
+						return ""
+					}
+					return result.EffectiveEndpoint
+				}()),
+				zap.Int("upstream_status", c.Writer.Status()),
+				zap.String("upstream_request_id", func() string {
+					if result == nil {
+						return ""
+					}
+					return result.UpstreamRequestID
 				}()),
 				zap.String("media_type", func() string {
 					if result == nil {

@@ -173,7 +173,7 @@ func TestGrokOAuthService_ExchangeCode_AcceptsCallbackURLAndBuildsCredentials(t 
 	credentials := svc.BuildAccountCredentials(tokenInfo)
 	require.Equal(t, "access-token", credentials["access_token"])
 	require.Equal(t, "refresh-token", credentials["refresh_token"])
-	require.Equal(t, "https://api.x.ai/v1", credentials["base_url"])
+	require.Equal(t, defaultGrokCLIBaseURL, credentials["base_url"])
 	require.Equal(t, "grok@example.com", credentials["email"])
 }
 
@@ -387,6 +387,32 @@ func TestGrokOAuthService_RefreshAccountToken_UsesStoredClientAndScope(t *testin
 	require.Equal(t, "client-1", client.lastClientID)
 	require.Equal(t, "openid api:access", client.lastScope)
 	require.Equal(t, "refreshed-access", info.AccessToken)
+	require.Equal(t, defaultGrokCLIBaseURL, info.BaseURL)
+
+	credentials := svc.BuildAccountCredentials(info)
+	require.Equal(t, defaultGrokCLIBaseURL, credentials["base_url"])
+}
+
+func TestGrokTokenRefresherRefreshStoresCLIBaseURL(t *testing.T) {
+	client := &grokOAuthClientStub{}
+	svc := NewGrokOAuthService(nil, client, &config.Config{})
+	refresher := NewGrokTokenRefresher(svc)
+
+	credentials, err := refresher.Refresh(context.Background(), &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token":  "old-access",
+			"refresh_token": "refresh-token",
+			"client_id":     "client-1",
+			"scope":         "openid api:access",
+			"base_url":      "https://api.x.ai/v1",
+		},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "refreshed-access", credentials["access_token"])
+	require.Equal(t, defaultGrokCLIBaseURL, credentials["base_url"])
 }
 
 func forceGrokDevicePollReady(t *testing.T, svc *GrokOAuthService, sessionID string) {

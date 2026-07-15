@@ -829,13 +829,7 @@ func normalizeGrokCredentialsForStorage(accountType string, credentials map[stri
 	case AccountTypeOAuth:
 		accessToken, _ := normalized["access_token"].(string)
 		normalized["access_token"] = strings.TrimSpace(accessToken)
-		baseURL, _ := normalized["base_url"].(string)
-		baseURL = strings.TrimSpace(baseURL)
-		if baseURL == "" {
-			normalized["base_url"] = "https://api.x.ai/v1"
-		} else {
-			normalized["base_url"] = strings.TrimRight(baseURL, "/")
-		}
+		normalized["base_url"] = defaultGrokCLIBaseURL
 		if rawMapping, ok := normalized["model_mapping"].(map[string]any); ok {
 			if nextMapping := normalizeGrokModelMappingForStorage(AccountTypeAPIKey, rawMapping, tier); len(nextMapping) > 0 {
 				normalized["model_mapping"] = nextMapping

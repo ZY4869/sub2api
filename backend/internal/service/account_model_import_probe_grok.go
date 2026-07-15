@@ -29,19 +29,30 @@ func (s *AccountModelImportService) detectGrokModels(ctx context.Context, accoun
 		if apiKey == "" {
 			return nil, infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing Grok API token for model import")
 		}
-		baseURL := strings.TrimSpace(account.GetBaseURL())
-		if baseURL == "" {
-			baseURL = "https://api.x.ai"
+		baseURL := grokEffectiveAPIBaseURL(account)
+		if strings.TrimSpace(baseURL) == "" {
+			baseURL = defaultGrokAPIBaseURL
 		}
-		normalizedBaseURL, err := s.validateProbeBaseURL(baseURL)
+		if !account.IsGrokOAuth() {
+			normalizedBaseURL, err := s.validateProbeBaseURL(baseURL)
+			if err != nil {
+				return nil, err
+			}
+			baseURL = normalizedBaseURL
+		}
+		modelsURL, err := grokJoinVersionedEndpoint(baseURL, "/v1/models")
 		if err != nil {
 			return nil, err
 		}
-		baseURL = normalizedBaseURL
-		body, err := s.doImportGET(ctx, account, strings.TrimRight(baseURL, "/")+"/v1/models", map[string]string{
+		headers := map[string]string{
 			"Authorization": "Bearer " + apiKey,
 			"Accept":        "application/json",
-		}, false)
+		}
+		if account.IsGrokOAuth() {
+			headers["User-Agent"] = grokUpstreamUserAgent
+			headers["X-Grok-Client-Version"] = grokCLIVersion
+		}
+		body, err := s.doImportGET(ctx, account, modelsURL, headers, false)
 		if err != nil {
 			if isGrokModelListingUnsupportedError(err) {
 				return grokBuildBuiltinProbeResult(ctx, account, err), nil
