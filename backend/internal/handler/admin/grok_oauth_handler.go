@@ -221,7 +221,11 @@ func (h *GrokOAuthHandler) ReauthorizeAccountFromOAuth(c *gin.Context) {
 		return
 	}
 	credentials := service.MergeCredentials(account.Credentials, h.grokOAuthService.BuildAccountCredentials(tokenInfo))
-	extra := service.MergeStringAnyMap(account.Extra, h.grokOAuthService.BuildAccountExtra(tokenInfo))
+	extraUpdates := h.grokOAuthService.BuildAccountExtra(tokenInfo)
+	if _, ok := service.ExtractAccountModelScopeV2(account.Extra); ok {
+		delete(extraUpdates, "model_scope_v2")
+	}
+	extra := service.MergeStringAnyMap(account.Extra, extraUpdates)
 	if _, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
 		Type:        service.AccountTypeOAuth,
 		Credentials: credentials,

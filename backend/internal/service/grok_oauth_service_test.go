@@ -177,6 +177,36 @@ func TestGrokOAuthService_ExchangeCode_AcceptsCallbackURLAndBuildsCredentials(t 
 	require.Equal(t, "grok@example.com", credentials["email"])
 }
 
+func TestGrokOAuthService_BuildAccountExtra_DefaultsToGrokBuildTextScope(t *testing.T) {
+	svc := NewGrokOAuthService(nil, &grokOAuthClientStub{}, &config.Config{})
+
+	extra := svc.BuildAccountExtra(&GrokTokenInfo{
+		Email:   "grok@example.com",
+		Subject: "user-1",
+		Name:    "Grok User",
+	})
+
+	require.Equal(t, "xai", extra["provider"])
+	require.Equal(t, "grok_browser_oauth", extra["source"])
+	require.Equal(t, "grok@example.com", extra["email"])
+
+	scope, ok := ExtractAccountModelScopeV2(extra)
+	require.True(t, ok)
+	require.Equal(t, AccountModelPolicyModeWhitelist, scope.PolicyMode)
+	require.Len(t, scope.Entries, len(GrokBuildTextModelIDs()))
+	entriesByModel := make(map[string]AccountModelScopeEntry, len(scope.Entries))
+	for _, entry := range scope.Entries {
+		entriesByModel[entry.DisplayModelID] = entry
+	}
+	for _, modelID := range GrokBuildTextModelIDs() {
+		entry, exists := entriesByModel[modelID]
+		require.True(t, exists)
+		require.Equal(t, modelID, entry.TargetModelID)
+		require.Equal(t, PlatformGrok, entry.Provider)
+		require.Equal(t, AccountModelVisibilityModeDefault, entry.VisibilityMode)
+	}
+}
+
 func TestGrokOAuthService_ExchangeCode_RejectsInvalidState(t *testing.T) {
 	svc := NewGrokOAuthService(nil, &grokOAuthClientStub{}, &config.Config{})
 	authURL, err := svc.GenerateAuthURL(context.Background(), &GrokGenerateAuthURLInput{})

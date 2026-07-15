@@ -301,6 +301,64 @@ func TestImportAccountModels_GrokAPIKeyFallsBackToBuildCatalogForUnexpectedListi
 	require.Equal(t, "https://grok-relay.example.test/v1/models", upstream.lastReq.URL.String())
 }
 
+func TestImportAccountModels_GrokAPIKeyFallsBackToBuildCatalogFor404Listing(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusNotFound,
+		body:       `{"error":{"message":"The requested resource was not found."}}`,
+	}
+	svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+	account := &Account{
+		ID:       157,
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"api_key":  "xai-test-token",
+			"base_url": "https://api.x.ai",
+		},
+	}
+
+	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.NoError(t, err)
+	require.Equal(t, GrokBuildTextModelIDs(), result.DetectedModels)
+	require.Equal(t, accountModelProbeSourceGrokBuildBuiltin, result.ProbeSource)
+	require.Equal(t, grokBuildBuiltinProbeNotice, result.ProbeNotice)
+	require.Empty(t, result.FailedModels)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "https://api.x.ai/v1/models", upstream.lastReq.URL.String())
+}
+
+func TestProbeAccountModels_GrokFallsBackToBuildCatalogForUnsupportedListingStatuses(t *testing.T) {
+	for _, status := range []int{http.StatusNotFound, http.StatusMethodNotAllowed, http.StatusGone} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			repo := newAccountModelImportSettingRepoStub()
+			catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+			upstream := &accountModelImportHTTPUpstreamStub{
+				statusCode: status,
+				body:       `{"error":"model listing is unavailable"}`,
+			}
+			svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+			account := &Account{
+				ID:       int64(170 + status),
+				Platform: PlatformGrok,
+				Type:     AccountTypeOAuth,
+				Status:   StatusActive,
+				Credentials: map[string]any{
+					"access_token": "xai-oauth-token",
+					"base_url":     "https://api.x.ai",
+				},
+			}
+
+			result, err := svc.ProbeAccountModels(context.Background(), account)
+			require.NoError(t, err)
+			require.Equal(t, GrokBuildTextModelIDs(), result.DetectedModels)
+			require.Equal(t, accountModelProbeSourceGrokBuildBuiltin, result.ProbeSource)
+		})
+	}
+}
+
 func TestProbeAccountModels_GrokOAuthFallsBackToBuildCatalogForEmptyListing(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
@@ -330,6 +388,75 @@ func TestProbeAccountModels_GrokOAuthFallsBackToBuildCatalogForEmptyListing(t *t
 	require.Equal(t, PlatformGrok, detail.Provider)
 }
 
+func TestProbeAccountModels_GrokOAuthFallsBackToBuildCatalogFor404Listing(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusNotFound,
+		body:       `The requested resource was not found. Please check the URL and try again.`,
+	}
+	svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+	account := &Account{
+		ID:       158,
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"access_token": "xai-oauth-token",
+			"base_url":     "https://api.x.ai",
+		},
+	}
+
+	result, err := svc.ProbeAccountModels(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, GrokBuildTextModelIDs(), result.DetectedModels)
+	require.Equal(t, accountModelProbeSourceGrokBuildBuiltin, result.ProbeSource)
+	require.Equal(t, grokBuildBuiltinProbeNotice, result.ProbeNotice)
+	require.Len(t, result.Models, len(GrokBuildTextModelIDs()))
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "Bearer xai-oauth-token", upstream.lastReq.Header.Get("Authorization"))
+}
+
+func TestGrokBuildBuiltinProbeLogFieldsRedactUpstreamBodyAndToken(t *testing.T) {
+	const sensitiveBody = "xai-secret-response-body"
+	const sensitiveToken = "xai-secret-token"
+	account := &Account{
+		ID:       159,
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": sensitiveToken,
+			"base_url":     "https://api.x.ai",
+		},
+	}
+	cause := newAccountModelImportUpstreamStatusErrorForAccount(
+		account,
+		"upstream model listing failed",
+		http.StatusNotFound,
+		nil,
+		[]byte(`{"error":"`+sensitiveBody+`"}`),
+	)
+
+	fields := grokBuildBuiltinProbeLogFields(account, cause)
+	require.Len(t, fields, 6)
+	seenKeys := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		seenKeys[field.Key] = true
+		require.NotContains(t, field.Key, "body")
+		require.NotContains(t, field.Key, "raw_summary")
+		require.NotContains(t, field.Key, "token")
+		require.NotEqual(t, "error", field.Key)
+		require.NotContains(t, field.String, sensitiveBody)
+		require.NotContains(t, field.String, sensitiveToken)
+	}
+	require.True(t, seenKeys["account_id"])
+	require.True(t, seenKeys["platform"])
+	require.True(t, seenKeys["type"])
+	require.True(t, seenKeys["base_host"])
+	require.True(t, seenKeys["fallback_source"])
+	require.True(t, seenKeys["upstream_status"])
+}
+
 func TestImportAccountModels_GrokHTTPAuthErrorDoesNotFallbackToBuildCatalog(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
@@ -356,6 +483,46 @@ func TestImportAccountModels_GrokHTTPAuthErrorDoesNotFallbackToBuildCatalog(t *t
 	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
 	require.Equal(t, accountModelImportReasonKindUnauthorized, appErr.Metadata["reason_kind"])
 	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
+}
+
+func TestImportAccountModels_GrokHTTPFailureStatusesDoNotFallbackToBuildCatalog(t *testing.T) {
+	cases := []struct {
+		name       string
+		statusCode int
+		wantReason string
+	}{
+		{name: "forbidden", statusCode: http.StatusForbidden, wantReason: "MODEL_IMPORT_UPSTREAM_FORBIDDEN"},
+		{name: "rate limited", statusCode: http.StatusTooManyRequests, wantReason: "MODEL_IMPORT_UPSTREAM_RATE_LIMITED"},
+		{name: "server error", statusCode: http.StatusServiceUnavailable, wantReason: "MODEL_IMPORT_UPSTREAM_SERVER_ERROR"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := newAccountModelImportSettingRepoStub()
+			catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+			upstream := &accountModelImportHTTPUpstreamStub{
+				statusCode: tc.statusCode,
+				body:       `{"error":"upstream failed"}`,
+			}
+			svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+			account := &Account{
+				ID:       int64(200 + tc.statusCode),
+				Platform: PlatformGrok,
+				Type:     AccountTypeAPIKey,
+				Status:   StatusActive,
+				Credentials: map[string]any{
+					"api_key":  "xai-test-token",
+					"base_url": "https://api.x.ai",
+				},
+			}
+
+			_, err := svc.ImportAccountModels(context.Background(), account, "manual")
+			require.Error(t, err)
+			appErr := infraerrors.FromError(err)
+			require.Equal(t, tc.wantReason, appErr.Reason)
+			require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
+		})
+	}
 }
 
 func TestImportAccountModels_ContinuesOnCatalogUpsertFailure(t *testing.T) {

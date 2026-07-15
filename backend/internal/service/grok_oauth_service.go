@@ -222,8 +222,9 @@ func (s *GrokOAuthService) BuildAccountCredentials(tokenInfo *GrokTokenInfo) map
 
 func (s *GrokOAuthService) BuildAccountExtra(tokenInfo *GrokTokenInfo) map[string]any {
 	extra := map[string]any{
-		"provider": "xai",
-		"source":   "grok_browser_oauth",
+		"provider":       "xai",
+		"source":         "grok_browser_oauth",
+		"model_scope_v2": DefaultGrokBuildTextModelScope().ToMap(),
 	}
 	if tokenInfo != nil {
 		if v := strings.TrimSpace(tokenInfo.Email); v != "" {
@@ -237,6 +238,22 @@ func (s *GrokOAuthService) BuildAccountExtra(tokenInfo *GrokTokenInfo) map[strin
 		}
 	}
 	return extra
+}
+
+func DefaultGrokBuildTextModelScope() *AccountModelScopeV2 {
+	entries := make([]AccountModelScopeEntry, 0, len(GrokBuildTextModelIDs()))
+	for _, modelID := range GrokBuildTextModelIDs() {
+		entries = append(entries, AccountModelScopeEntry{
+			DisplayModelID: modelID,
+			TargetModelID:  modelID,
+			Provider:       PlatformGrok,
+			VisibilityMode: AccountModelVisibilityModeDefault,
+		})
+	}
+	return &AccountModelScopeV2{
+		PolicyMode: AccountModelPolicyModeWhitelist,
+		Entries:    entries,
+	}
 }
 
 func (s *GrokOAuthService) Stop() {

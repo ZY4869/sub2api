@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"net/http"
+	"strconv"
 	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -41,6 +43,9 @@ func (s *AccountModelImportService) detectGrokModels(ctx context.Context, accoun
 			"Accept":        "application/json",
 		}, false)
 		if err != nil {
+			if isGrokModelListingUnsupportedError(err) {
+				return grokBuildBuiltinProbeResult(ctx, account, err), nil
+			}
 			return nil, err
 		}
 		models, err := parseOpenAIModelListForAccount(account, body)
@@ -66,7 +71,37 @@ func (s *AccountModelImportService) detectGrokModels(ctx context.Context, accoun
 	return nil, infraerrors.BadRequest("ACCOUNT_TYPE_UNSUPPORTED", "current Grok account type does not support model import")
 }
 
+func isGrokModelListingUnsupportedError(err error) bool {
+	switch grokModelListingUnsupportedStatus(err) {
+	case http.StatusNotFound, http.StatusMethodNotAllowed, http.StatusGone:
+		return true
+	default:
+		return false
+	}
+}
+
+func grokModelListingUnsupportedStatus(err error) int {
+	appErr := infraerrors.FromError(err)
+	if appErr == nil || appErr.Metadata == nil {
+		return 0
+	}
+	status, parseErr := strconv.Atoi(strings.TrimSpace(appErr.Metadata["upstream_status"]))
+	if parseErr != nil {
+		return 0
+	}
+	return status
+}
+
 func grokBuildBuiltinProbeResult(ctx context.Context, account *Account, cause error) *accountModelProbeResult {
+	logger.FromContext(ctx).Warn("account model import: grok upstream model listing invalid; using builtin catalog", grokBuildBuiltinProbeLogFields(account, cause)...)
+
+	result := newAccountModelProbeResult(GrokBuildTextModelIDs())
+	result.Source = accountModelProbeSourceGrokBuildBuiltin
+	result.Notice = grokBuildBuiltinProbeNotice
+	return result
+}
+
+func grokBuildBuiltinProbeLogFields(account *Account, cause error) []zap.Field {
 	fields := []zap.Field{
 		zap.Int64("account_id", account.ID),
 		zap.String("platform", RoutingPlatformForAccount(account)),
@@ -74,13 +109,8 @@ func grokBuildBuiltinProbeResult(ctx context.Context, account *Account, cause er
 		zap.String("base_host", extractImportBaseHost(account.GetBaseURL())),
 		zap.String("fallback_source", accountModelProbeSourceGrokBuildBuiltin),
 	}
-	if cause != nil {
-		fields = append(fields, zap.Error(cause))
+	if status := grokModelListingUnsupportedStatus(cause); status > 0 {
+		fields = append(fields, zap.Int("upstream_status", status))
 	}
-	logger.FromContext(ctx).Warn("account model import: grok upstream model listing invalid; using builtin catalog", fields...)
-
-	result := newAccountModelProbeResult(GrokBuildTextModelIDs())
-	result.Source = accountModelProbeSourceGrokBuildBuiltin
-	result.Notice = grokBuildBuiltinProbeNotice
-	return result
+	return fields
 }
