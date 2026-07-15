@@ -67,7 +67,7 @@ func (s *AccountTestService) testGrokAPIKeyConnection(c *gin.Context, account *A
 
 func (s *AccountTestService) testGrokRealResponsesCall(c *gin.Context, account *Account, requestedModel string) error {
 	if s.grokGatewayService == nil {
-		return fmt.Errorf("Grok real call service is not configured")
+		return grokRealCallUserError("Grok real call service is not configured")
 	}
 	requestedModel = strings.TrimSpace(requestedModel)
 	if requestedModel == "" {
@@ -79,11 +79,11 @@ func (s *AccountTestService) testGrokRealResponsesCall(c *gin.Context, account *
 		"stream": false,
 	})
 	if err != nil {
-		return fmt.Errorf("Grok real model call failed: failed to build request")
+		return grokRealCallUserError("Grok real model call failed: failed to build request")
 	}
 	resp, meta, err := s.grokGatewayService.doAPIKeyRequest(c.Request.Context(), c, account, http.MethodPost, grokEndpointResponses, body)
 	if err != nil {
-		return fmt.Errorf("Grok real model call failed: %s", err.Error())
+		return grokRealCallUserError(fmt.Sprintf("Grok real model call failed: %s", err.Error()))
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
@@ -108,6 +108,12 @@ func (s *AccountTestService) testGrokRealResponsesCall(c *gin.Context, account *
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 2<<20))
 	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Grok real model call OK (%s)", requestedModel)})
 	return nil
+}
+
+type grokRealCallUserError string
+
+func (e grokRealCallUserError) Error() string {
+	return string(e)
 }
 
 func (s *AccountTestService) testGrokSSOConnection(c *gin.Context, account *Account, requestedModel string) error {
