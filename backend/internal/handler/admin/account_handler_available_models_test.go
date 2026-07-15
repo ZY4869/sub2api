@@ -385,3 +385,71 @@ func TestAccountHandlerGetAvailableModels_OpenAIProRuntimeQuotaHidesLimitedSide(
 	require.Equal(t, "friendly-spark", models[0].ID)
 	require.Equal(t, "gpt-5.3-codex-spark-high", models[0].TargetModelID)
 }
+
+func TestAccountHandlerGetAvailableModels_GrokAPIKeyDefaultsToBuildTextModels(t *testing.T) {
+	registrySvc := service.NewModelRegistryService(newTestSettingRepo())
+	adminSvc := &availableModelsAdminService{
+		stubAdminService: newStubAdminService(),
+		accounts: map[int64]service.Account{
+			49: {
+				ID:       49,
+				Name:     "grok-build-apikey",
+				Platform: service.PlatformGrok,
+				Type:     service.AccountTypeAPIKey,
+				Status:   service.StatusActive,
+			},
+		},
+	}
+	router := setupAvailableModelsRouter(adminSvc, registrySvc)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/49/models", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	models := decodeAvailableModelsResponse(t, rec)
+	require.NotEmpty(t, models)
+	require.Equal(t, service.DefaultGrokBuildTextModelID(), models[0].ID)
+	require.Equal(t, service.DefaultGrokBuildTextModelID(), models[0].TargetModelID)
+	require.Equal(t, service.PlatformGrok, models[0].Provider)
+
+	ids := make([]string, 0, len(models))
+	for _, model := range models {
+		ids = append(ids, model.ID)
+	}
+	require.Contains(t, ids, "grok-build-0.1")
+	require.NotContains(t, ids, "grok-auto")
+	require.NotContains(t, ids, "grok-imagine-1.0")
+}
+
+func TestAccountHandlerGetAvailableModels_GrokExplicitMappingDoesNotExpandDefaultCatalog(t *testing.T) {
+	registrySvc := service.NewModelRegistryService(newTestSettingRepo())
+	adminSvc := &availableModelsAdminService{
+		stubAdminService: newStubAdminService(),
+		accounts: map[int64]service.Account{
+			50: {
+				ID:       50,
+				Name:     "grok-build-mapped",
+				Platform: service.PlatformGrok,
+				Type:     service.AccountTypeOAuth,
+				Status:   service.StatusActive,
+				Credentials: map[string]any{
+					"model_mapping": map[string]any{
+						"only-grok": "grok-4.3",
+					},
+				},
+			},
+		},
+	}
+	router := setupAvailableModelsRouter(adminSvc, registrySvc)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/50/models", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	models := decodeAvailableModelsResponse(t, rec)
+	require.Len(t, models, 1)
+	require.Equal(t, "only-grok", models[0].ID)
+	require.Equal(t, "grok-4.3", models[0].TargetModelID)
+}

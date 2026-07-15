@@ -159,6 +159,47 @@ func TestBuildAvailableTestModels_OpenAIAPIKeyKnownModelsAreAdvisoryOnly(t *test
 	require.Equal(t, baseModels, withKnownModels)
 }
 
+func TestBuildAvailableTestModels_GrokAPIKeyDefaultsToBuildTextCatalog(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	account := &Account{
+		ID:       1002,
+		Name:     "grok-apikey",
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
+	require.Len(t, models, len(GrokBuildTextModelIDs()))
+	got := make([]string, 0, len(models))
+	for _, model := range models {
+		got = append(got, model.ID)
+		require.Equal(t, PlatformGrok, model.Provider)
+		require.Equal(t, "text", model.Mode)
+	}
+	require.Equal(t, GrokBuildTextModelIDs(), got)
+}
+
+func TestBuildAvailableTestModels_GrokSSOKeepsCapabilityModels(t *testing.T) {
+	account := &Account{
+		ID:       1003,
+		Name:     "grok-sso",
+		Platform: PlatformGrok,
+		Type:     AccountTypeSSO,
+		Status:   StatusActive,
+		Extra:    map[string]any{"grok_tier": GrokTierBasic},
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, nil)
+	ids := make([]string, 0, len(models))
+	for _, model := range models {
+		ids = append(ids, model.ID)
+	}
+
+	require.Contains(t, ids, GrokModelAuto)
+	require.NotContains(t, ids, GrokModelBuild45)
+}
+
 func TestBuildManualTestModelCandidates_PrefersManualProviderMetadata(t *testing.T) {
 	account := &Account{
 		ID:       996,

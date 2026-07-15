@@ -24,6 +24,7 @@ var blockedAccountRequestHeaderOverrides = map[string]struct{}{
 	"te":                  {},
 	"trailer":             {},
 	"upgrade":             {},
+	"x-grok-conv-id":      {},
 }
 
 func ApplyAccountRequestHeaderOverrides(req *http.Request, account *Account) {

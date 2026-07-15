@@ -56,7 +56,8 @@ func TestSanitizeGrokForwardResponsesDirectOpenAICompatiblePost(t *testing.T) {
 	require.Equal(t, "grok-4-upstream", gjson.GetBytes(upstream.lastBody, "model").String())
 	require.Equal(t, "max", gjson.GetBytes(upstream.lastBody, "reasoning.effort").String())
 	require.Equal(t, "max", gjson.GetBytes(upstream.lastBody, "reasoning_effort").String())
-	for _, key := range []string{"prompt_cache_key", "previous_response_id", "safety_identifier", "service_tier", "metadata", "include"} {
+	require.Equal(t, "pc", gjson.GetBytes(upstream.lastBody, "prompt_cache_key").String())
+	for _, key := range []string{"previous_response_id", "safety_identifier", "service_tier", "metadata", "include"} {
 		require.False(t, gjson.GetBytes(upstream.lastBody, key).Exists(), "expected %s to be removed", key)
 	}
 }
@@ -125,4 +126,77 @@ func TestGrokOAuthForwardUsesOfficialXAIEndpointWithAccessToken(t *testing.T) {
 	require.Equal(t, "api.x.ai", upstream.lastReq.URL.Host)
 	require.Equal(t, "/v1/responses", upstream.lastReq.URL.Path)
 	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
+}
+
+func TestGrokAPIKeyForwardChatCompletionsForwardsConversationID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"grok-4","messages":[{"role":"user","content":"hello"}]}`)
+	_, c := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/chat/completions", body)
+	c.Request.Header.Set("x-grok-conv-id", " conv-123 ")
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":"chatcmpl_1","usage":{"prompt_tokens":2,"completion_tokens":3},"choices":[{"message":{"role":"assistant","content":"ok"}}]}`)),
+	}}
+	svc := &GrokGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	result, err := svc.ForwardChatCompletions(context.Background(), c, newGrokAPIKeyResponsesTestAccount(), body)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "/v1/chat/completions", upstream.lastReq.URL.Path)
+	require.Equal(t, "conv-123", upstream.lastReq.Header.Get("x-grok-conv-id"))
+}
+
+func TestGrokAPIKeyForwardChatCompletionsDoesNotInventConversationID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"grok-4","messages":[{"role":"user","content":"hello"}]}`)
+	_, c := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/chat/completions", body)
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":"chatcmpl_1","usage":{"prompt_tokens":2,"completion_tokens":3},"choices":[{"message":{"role":"assistant","content":"ok"}}]}`)),
+	}}
+	svc := &GrokGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	result, err := svc.ForwardChatCompletions(context.Background(), c, newGrokAPIKeyResponsesTestAccount(), body)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, upstream.lastReq)
+	require.Empty(t, upstream.lastReq.Header.Get("x-grok-conv-id"))
+}
+
+func TestGrokExtractUsageFromJSONReadsCachedTokensVariants(t *testing.T) {
+	usage := grokExtractUsageFromJSON([]byte(`{"usage":{"input_tokens":125,"output_tokens":48,"cached_tokens":98}}`))
+	require.Equal(t, 125, usage.InputTokens)
+	require.Equal(t, 48, usage.OutputTokens)
+	require.Equal(t, 98, usage.CacheReadInputTokens)
+
+	usage = grokExtractUsageFromJSON([]byte(`{"usage":{"prompt_tokens":70,"completion_tokens":12,"prompt_tokens_details":{"cached_tokens":31}}}`))
+	require.Equal(t, 70, usage.InputTokens)
+	require.Equal(t, 12, usage.OutputTokens)
+	require.Equal(t, 31, usage.CacheReadInputTokens)
+}
+
+func TestGrokParseSSEUsageReadsResponsesCachedTokensVariants(t *testing.T) {
+	var usage ClaudeUsage
+
+	grokParseSSEUsage([]byte(`{"type":"response.completed","response":{"usage":{"input_tokens":125,"output_tokens":48,"prompt_tokens_details":{"cached_tokens":98}}}}`), &usage)
+
+	require.Equal(t, 125, usage.InputTokens)
+	require.Equal(t, 48, usage.OutputTokens)
+	require.Equal(t, 98, usage.CacheReadInputTokens)
+
+	grokParseSSEUsage([]byte(`{"usage":{"input_tokens":130,"output_tokens":50,"cached_tokens":99}}`), &usage)
+	require.Equal(t, 130, usage.InputTokens)
+	require.Equal(t, 50, usage.OutputTokens)
+	require.Equal(t, 99, usage.CacheReadInputTokens)
 }

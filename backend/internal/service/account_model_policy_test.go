@@ -120,3 +120,51 @@ func TestBuildAccountModelProjection_CacheTracksAvailabilitySnapshotChanges(t *t
 	require.Equal(t, AccountModelAvailabilityVerified, secondProjection.Entries[0].AvailabilityState)
 	require.Equal(t, AccountModelStaleStateFresh, secondProjection.Entries[0].StaleState)
 }
+
+func TestBuildAccountModelProjection_GrokAPIKeyDefaultsToBuildTextCatalog(t *testing.T) {
+	t.Parallel()
+
+	account := &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+	}
+
+	projection := BuildAccountModelProjection(context.Background(), account, NewModelRegistryService(newAccountModelImportSettingRepoStub()))
+	require.NotNil(t, projection)
+	require.False(t, projection.Explicit)
+	require.Equal(t, accountModelProjectionSourceDefault, projection.Source)
+	require.Len(t, projection.Entries, len(GrokBuildTextModelIDs()))
+
+	got := make([]string, 0, len(projection.Entries))
+	for _, entry := range projection.Entries {
+		got = append(got, entry.DisplayModelID)
+		require.Equal(t, entry.DisplayModelID, entry.TargetModelID)
+		require.Equal(t, PlatformGrok, entry.Provider)
+		require.Equal(t, AccountModelVisibilityModeDefault, entry.VisibilityMode)
+	}
+	require.Equal(t, GrokBuildTextModelIDs(), got)
+}
+
+func TestBuildAccountModelProjection_GrokExplicitMappingDoesNotExpandDefaultCatalog(t *testing.T) {
+	t.Parallel()
+
+	account := &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				"only-grok": GrokModelBuild43,
+			},
+		},
+	}
+
+	projection := BuildAccountModelProjection(context.Background(), account, NewModelRegistryService(newAccountModelImportSettingRepoStub()))
+	require.NotNil(t, projection)
+	require.True(t, projection.Explicit)
+	require.Equal(t, accountModelProjectionSourceLegacyMapping, projection.Source)
+	require.Len(t, projection.Entries, 1)
+	require.Equal(t, "only-grok", projection.Entries[0].DisplayModelID)
+	require.Equal(t, GrokModelBuild43, projection.Entries[0].TargetModelID)
+}

@@ -39,6 +39,9 @@ func normalizeOpenAIUsageForDisplayAndBilling(provider string, usage OpenAIUsage
 		CacheCreationTokens: miss,
 		CacheReadTokens:     hit,
 	}
+	if isGrokUsageProvider(provider) {
+		return normalizeGrokUsage(totalInput, hit, display, billing)
+	}
 	if !isDeepSeekUsageProvider(provider) {
 		return deepSeekUsageNormalization{
 			DisplayTokens: display,
@@ -80,6 +83,9 @@ func normalizeClaudeUsageForDisplayAndBilling(provider string, usage ClaudeUsage
 		CacheCreation5mTokens: usage.CacheCreation5mTokens,
 		CacheCreation1hTokens: usage.CacheCreation1hTokens,
 	}
+	if isGrokUsageProvider(provider) {
+		return normalizeGrokUsage(usage.InputTokens, usage.CacheReadInputTokens, display, billing)
+	}
 	if !isDeepSeekUsageProvider(provider) {
 		return deepSeekUsageNormalization{
 			DisplayTokens: display,
@@ -115,6 +121,29 @@ func normalizeClaudeUsageForDisplayAndBilling(provider string, usage ClaudeUsage
 
 func isDeepSeekUsageProvider(provider string) bool {
 	return strings.TrimSpace(strings.ToLower(provider)) == PlatformDeepSeek
+}
+
+func isGrokUsageProvider(provider string) bool {
+	return strings.TrimSpace(strings.ToLower(provider)) == PlatformGrok
+}
+
+func normalizeGrokUsage(inputTokens int, cacheReadTokens int, display usageDisplayTokens, billing UsageTokens) deepSeekUsageNormalization {
+	hit := clampNonNegativeInt(cacheReadTokens)
+	totalInput := clampNonNegativeInt(inputTokens)
+	nonCacheInput := totalInput - hit
+	if nonCacheInput < 0 {
+		nonCacheInput = 0
+	}
+
+	display.InputTokens = nonCacheInput
+	display.CacheReadTokens = hit
+	billing.InputTokens = nonCacheInput
+	billing.CacheReadTokens = hit
+
+	return deepSeekUsageNormalization{
+		DisplayTokens: display,
+		BillingTokens: billing,
+	}
 }
 
 func clampNonNegativeInt(value int) int {

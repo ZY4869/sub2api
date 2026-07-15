@@ -88,6 +88,7 @@ func buildAccountModelProjectionUncached(ctx context.Context, account *Account, 
 	}
 
 	projection.Entries = dedupeAccountModelProjectionEntries(projection.Entries)
+	projection.Entries = orderDefaultGrokBuildProjectionEntries(account, projection)
 	return projection
 }
 
@@ -179,6 +180,9 @@ func buildDefaultAccountModelScopeEntriesForSource(ctx context.Context, account 
 
 	sourceProtocol = NormalizeGatewayProtocol(sourceProtocol)
 	runtimePlatform := RoutingPlatformForAccount(account)
+	if runtimePlatform == PlatformGrok && !account.IsGrokSSO() {
+		return buildDefaultGrokBuildTextScopeEntries(sourceProtocol)
+	}
 	if registry != nil {
 		if entries, err := registry.GetModelsByPlatform(ctx, runtimePlatform, "runtime", "whitelist"); err == nil && len(entries) > 0 {
 			scopeEntries := make([]AccountModelScopeEntry, 0, len(entries))
@@ -218,6 +222,50 @@ func buildDefaultAccountModelScopeEntriesForSource(ctx context.Context, account 
 		})
 	}
 	return normalizeAccountModelScopeEntries(scopeEntries)
+}
+
+func buildDefaultGrokBuildTextScopeEntries(sourceProtocol string) []AccountModelScopeEntry {
+	models := GrokBuildTextModelIDs()
+	entries := make([]AccountModelScopeEntry, 0, len(models))
+	for _, modelID := range models {
+		entries = append(entries, AccountModelScopeEntry{
+			DisplayModelID: modelID,
+			TargetModelID:  modelID,
+			Provider:       PlatformGrok,
+			SourceProtocol: sourceProtocol,
+			VisibilityMode: AccountModelVisibilityModeDefault,
+		})
+	}
+	return entries
+}
+
+func orderDefaultGrokBuildProjectionEntries(account *Account, projection *AccountModelProjection) []AccountModelProjectionEntry {
+	if account == nil ||
+		projection == nil ||
+		projection.Explicit ||
+		projection.Source != accountModelProjectionSourceDefault ||
+		RoutingPlatformForAccount(account) != PlatformGrok ||
+		account.IsGrokSSO() ||
+		len(projection.Entries) == 0 {
+		return projection.Entries
+	}
+
+	order := make(map[string]int, len(grokBuildTextModelIDs))
+	for index, modelID := range grokBuildTextModelIDs {
+		order[normalizeRegistryID(modelID)] = index
+	}
+	sort.SliceStable(projection.Entries, func(i, j int) bool {
+		leftRank, leftOK := order[normalizeRegistryID(projection.Entries[i].DisplayModelID)]
+		rightRank, rightOK := order[normalizeRegistryID(projection.Entries[j].DisplayModelID)]
+		if leftOK && rightOK {
+			return leftRank < rightRank
+		}
+		if leftOK != rightOK {
+			return leftOK
+		}
+		return projection.Entries[i].DisplayModelID < projection.Entries[j].DisplayModelID
+	})
+	return projection.Entries
 }
 
 func supportsDefaultAccountModelLibrary(platform string) bool {

@@ -14,7 +14,7 @@ func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *
 
 	requestedModel := strings.TrimSpace(modelID)
 	if requestedModel == "" {
-		defaultModels := GrokVisibleModelIDsForAccount(account)
+		defaultModels := GrokDefaultTestModelIDsForAccount(account)
 		if len(defaultModels) > 0 {
 			requestedModel = defaultModels[0]
 		}

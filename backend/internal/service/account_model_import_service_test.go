@@ -272,6 +272,92 @@ func TestImportAccountModels_GrokAPIKeyUsesConfiguredBaseURL(t *testing.T) {
 	require.Equal(t, "Bearer xai-test-token", upstream.lastReq.Header.Get("Authorization"))
 }
 
+func TestImportAccountModels_GrokAPIKeyFallsBackToBuildCatalogForUnexpectedListing(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		body: `{"models":[{"name":"unexpected"}]}`,
+	}
+	svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+	account := &Account{
+		ID:       154,
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"api_key":  "xai-test-token",
+			"base_url": "https://grok-relay.example.test",
+		},
+	}
+
+	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.NoError(t, err)
+	require.Equal(t, GrokBuildTextModelIDs(), result.DetectedModels)
+	require.Equal(t, accountModelProbeSourceGrokBuildBuiltin, result.ProbeSource)
+	require.Equal(t, grokBuildBuiltinProbeNotice, result.ProbeNotice)
+	require.Equal(t, len(GrokBuildTextModelIDs()), result.ImportedCount+result.SkippedCount)
+	require.Empty(t, result.FailedModels)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "https://grok-relay.example.test/v1/models", upstream.lastReq.URL.String())
+}
+
+func TestProbeAccountModels_GrokOAuthFallsBackToBuildCatalogForEmptyListing(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		body: `{"data":[]}`,
+	}
+	svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+	account := &Account{
+		ID:       155,
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"access_token": "xai-oauth-token",
+			"base_url":     "https://api.x.ai",
+		},
+	}
+
+	result, err := svc.ProbeAccountModels(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, GrokBuildTextModelIDs(), result.DetectedModels)
+	require.Equal(t, accountModelProbeSourceGrokBuildBuiltin, result.ProbeSource)
+	require.Equal(t, grokBuildBuiltinProbeNotice, result.ProbeNotice)
+	require.Len(t, result.Models, len(GrokBuildTextModelIDs()))
+	detail, ok := findProbeModelByID(result.Models, GrokModelBuild45)
+	require.True(t, ok)
+	require.Equal(t, PlatformGrok, detail.Provider)
+}
+
+func TestImportAccountModels_GrokHTTPAuthErrorDoesNotFallbackToBuildCatalog(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusUnauthorized,
+		body:       `{"error":"invalid_api_key"}`,
+	}
+	svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+	account := &Account{
+		ID:       156,
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"api_key":  "xai-test-token",
+			"base_url": "https://api.x.ai",
+		},
+	}
+
+	_, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.Error(t, err)
+
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
+	require.Equal(t, accountModelImportReasonKindUnauthorized, appErr.Metadata["reason_kind"])
+	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
+}
+
 func TestImportAccountModels_ContinuesOnCatalogUpsertFailure(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	repo.failContains = "gpt-test-model-b"

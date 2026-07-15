@@ -6,20 +6,27 @@ import (
 )
 
 const (
-	GrokModelAuto           = "grok-auto"
-	GrokModel3Fast          = "grok-3-fast"
-	GrokModel4Expert        = "grok-4-expert"
-	GrokModel4Heavy         = "grok-4-heavy"
-	GrokModelImagineFast    = "grok-imagine-1.0-fast"
-	GrokModelImagine        = "grok-imagine-1.0"
-	GrokModelImagineEdit    = "grok-imagine-1.0-edit"
-	GrokModelImagineVideo   = "grok-imagine-1.0-video"
-	grokMediaTypeImage      = "image"
-	grokMediaTypeImageEdit  = "image_edit"
-	grokMediaTypeVideo      = "video"
-	grokAPIKeyRegistryRoute = "grok"
-	grokDefaultPollInterval = 2
-	grokDefaultPollTimeout  = 180
+	GrokModelAuto            = "grok-auto"
+	GrokModel3Fast           = "grok-3-fast"
+	GrokModel4Expert         = "grok-4-expert"
+	GrokModel4Heavy          = "grok-4-heavy"
+	GrokModelBuild45         = "grok-4.5"
+	GrokModelBuild43         = "grok-4.3"
+	GrokModelBuild01         = "grok-build-0.1"
+	GrokModelComposer25Fast  = "grok-composer-2.5-fast"
+	GrokModel420Reasoning    = "grok-4.20-0309-reasoning"
+	GrokModel420NonReasoning = "grok-4.20-0309-non-reasoning"
+	GrokModel420MultiAgent   = "grok-4.20-multi-agent-0309"
+	GrokModelImagineFast     = "grok-imagine-1.0-fast"
+	GrokModelImagine         = "grok-imagine-1.0"
+	GrokModelImagineEdit     = "grok-imagine-1.0-edit"
+	GrokModelImagineVideo    = "grok-imagine-1.0-video"
+	grokMediaTypeImage       = "image"
+	grokMediaTypeImageEdit   = "image_edit"
+	grokMediaTypeVideo       = "video"
+	grokAPIKeyRegistryRoute  = "grok"
+	grokDefaultPollInterval  = 2
+	grokDefaultPollTimeout   = 180
 )
 
 type grokModelDescriptor struct {
@@ -28,9 +35,27 @@ type grokModelDescriptor struct {
 	MediaType               string
 	PreferredAPIKeyUpstream string
 	HeavyOnly               bool
+	BuildTextOnly           bool
+}
+
+var grokBuildTextModelIDs = []string{
+	GrokModelBuild45,
+	GrokModelBuild43,
+	GrokModelBuild01,
+	GrokModelComposer25Fast,
+	GrokModel420Reasoning,
+	GrokModel420NonReasoning,
+	GrokModel420MultiAgent,
 }
 
 var grokCanonicalDescriptors = []grokModelDescriptor{
+	{PublicID: GrokModelBuild45, LegacyAliases: []string{"grok", "grok-latest", "grok-4.5-latest", "grok-build-latest"}, BuildTextOnly: true},
+	{PublicID: GrokModelBuild43, BuildTextOnly: true},
+	{PublicID: GrokModelBuild01, LegacyAliases: []string{"grok-build"}, BuildTextOnly: true},
+	{PublicID: GrokModelComposer25Fast, LegacyAliases: []string{"grok-composer", "composer-2.5"}, BuildTextOnly: true},
+	{PublicID: GrokModel420Reasoning, LegacyAliases: []string{"grok-4.20-reasoning"}, BuildTextOnly: true},
+	{PublicID: GrokModel420NonReasoning, LegacyAliases: []string{"grok-4.20-non-reasoning"}, BuildTextOnly: true},
+	{PublicID: GrokModel420MultiAgent, BuildTextOnly: true},
 	{PublicID: GrokModelAuto, LegacyAliases: []string{"grok-beta"}},
 	{PublicID: GrokModel3Fast, LegacyAliases: []string{"grok-3-fast-beta"}, PreferredAPIKeyUpstream: "grok-3-fast-beta"},
 	{PublicID: GrokModel4Expert, LegacyAliases: []string{"grok-4", "grok-4-0709"}, PreferredAPIKeyUpstream: "grok-4"},
@@ -59,6 +84,14 @@ func init() {
 			}
 		}
 	}
+}
+
+func GrokBuildTextModelIDs() []string {
+	return append([]string(nil), grokBuildTextModelIDs...)
+}
+
+func DefaultGrokBuildTextModelID() string {
+	return GrokModelBuild45
 }
 
 func NormalizeGrokPublicModelID(model string) string {
@@ -143,6 +176,9 @@ func GrokAPIKeyResolvedUpstreamModel(requestedModel string) string {
 func GrokDefaultPublicModelIDsForTier(tier string) []string {
 	models := make([]string, 0, len(grokCanonicalDescriptors))
 	for _, item := range grokCanonicalDescriptors {
+		if item.BuildTextOnly {
+			continue
+		}
 		if item.HeavyOnly && NormalizeGrokTierValue(tier) != GrokTierHeavy {
 			continue
 		}

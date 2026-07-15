@@ -93,3 +93,45 @@ func TestNormalizeOpenAIUsageForDisplayAndBilling_NonDeepSeekUnchanged(t *testin
 		t.Fatalf("BillingTokens.CacheReadTokens = %d, want 300", result.BillingTokens.CacheReadTokens)
 	}
 }
+
+func TestNormalizeClaudeUsageForDisplayAndBilling_GrokDeductsCachedTokens(t *testing.T) {
+	result := normalizeClaudeUsageForDisplayAndBilling(PlatformGrok, ClaudeUsage{
+		InputTokens:          125,
+		OutputTokens:         48,
+		CacheReadInputTokens: 98,
+	})
+
+	if result.DisplayTokens.InputTokens != 27 {
+		t.Fatalf("DisplayTokens.InputTokens = %d, want 27", result.DisplayTokens.InputTokens)
+	}
+	if result.DisplayTokens.CacheReadTokens != 98 {
+		t.Fatalf("DisplayTokens.CacheReadTokens = %d, want 98", result.DisplayTokens.CacheReadTokens)
+	}
+	if result.BillingTokens.InputTokens != 27 {
+		t.Fatalf("BillingTokens.InputTokens = %d, want 27", result.BillingTokens.InputTokens)
+	}
+	if result.BillingTokens.CacheReadTokens != 98 {
+		t.Fatalf("BillingTokens.CacheReadTokens = %d, want 98", result.BillingTokens.CacheReadTokens)
+	}
+	if result.BillingTokens.OutputTokens != 48 {
+		t.Fatalf("BillingTokens.OutputTokens = %d, want 48", result.BillingTokens.OutputTokens)
+	}
+}
+
+func TestNormalizeClaudeUsageForDisplayAndBilling_GrokClampsCachedTokens(t *testing.T) {
+	result := normalizeClaudeUsageForDisplayAndBilling(PlatformGrok, ClaudeUsage{
+		InputTokens:          10,
+		OutputTokens:         4,
+		CacheReadInputTokens: 98,
+	})
+
+	if result.DisplayTokens.InputTokens != 0 {
+		t.Fatalf("DisplayTokens.InputTokens = %d, want 0", result.DisplayTokens.InputTokens)
+	}
+	if result.BillingTokens.InputTokens != 0 {
+		t.Fatalf("BillingTokens.InputTokens = %d, want 0", result.BillingTokens.InputTokens)
+	}
+	if result.BillingTokens.CacheReadTokens != 98 {
+		t.Fatalf("BillingTokens.CacheReadTokens = %d, want 98", result.BillingTokens.CacheReadTokens)
+	}
+}

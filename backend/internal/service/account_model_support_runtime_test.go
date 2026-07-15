@@ -114,3 +114,35 @@ func TestIsRequestedModelSupportedByAccount_ReusesCachedExplicitSupportSet(t *te
 	accountModelSupportCacheMu.RUnlock()
 	require.Equal(t, 1, secondCacheSize)
 }
+
+func TestIsRequestedModelSupportedByAccount_GrokDefaultBuildCatalogIsAdvisory(t *testing.T) {
+	resetAccountModelSupportRuntimeCaches()
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	account := &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+	}
+
+	require.True(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, GrokModelBuild45))
+	require.True(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, "outside-grok-model"))
+}
+
+func TestIsRequestedModelSupportedByAccount_GrokExplicitMappingRestrictsDisplayIDs(t *testing.T) {
+	resetAccountModelSupportRuntimeCaches()
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	account := &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				"only-grok": GrokModelBuild43,
+			},
+		},
+	}
+
+	require.True(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, "only-grok"))
+	require.False(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, GrokModelBuild43))
+	require.False(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, GrokModelBuild45))
+}

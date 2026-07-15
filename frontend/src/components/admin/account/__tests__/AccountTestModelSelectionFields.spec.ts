@@ -110,4 +110,22 @@ describe('AccountTestModelSelectionFields', () => {
     expect(wrapper.findAll('[data-test="model-availability-badge"]')[0]?.text()).toBe('Unknown')
     expect(wrapper.findAll('[data-test="model-stale-badge"]')[0]?.text()).toBe('Unverified')
   })
+
+  it('shows Grok provider-backed direct model labels without exposing target ids as aliases', () => {
+    const wrapper = mountFields(
+      [
+        {
+          id: 'grok-4.5',
+          display_name: 'Grok 4.5',
+          provider: 'grok',
+          target_model_id: 'grok-4.5'
+        }
+      ],
+      'default::grok-4.5'
+    )
+
+    expect(wrapper.text()).toContain('Grok 4.5')
+    expect(wrapper.text()).toContain('grok-4.5')
+    expect(wrapper.find('[data-test="model-target-relation"]').exists()).toBe(false)
+  })
 })

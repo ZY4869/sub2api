@@ -811,13 +811,13 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 		}
 		return decorateDefaultTestModels(result, ProviderForPlatform(RoutingPlatformForAccount(account)))
 	case PlatformGrok:
-		models := GrokVisibleModelIDsForAccount(account)
+		models := GrokDefaultTestModelIDsForAccount(account)
 		result := make([]AvailableTestModel, 0, len(models))
 		for _, modelID := range models {
 			result = append(result, AvailableTestModel{
 				ID:          modelID,
 				Type:        "model",
-				DisplayName: modelID,
+				DisplayName: firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(modelID), modelID),
 				Mode:        inferAvailableTestModelMode(modelID, nil),
 				Status:      "stable",
 			})

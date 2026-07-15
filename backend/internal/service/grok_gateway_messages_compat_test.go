@@ -51,7 +51,7 @@ func TestBuildGrokMessagesCompatResponsesBodyCleansPayloadAndMapsModel(t *testin
 	clean := sanitizeGrokOpenAICompatibleRequestBody(dirty)
 	require.Equal(t, "grok-4", gjson.GetBytes(clean, "model").String())
 	require.Equal(t, "hello", gjson.GetBytes(clean, "input").String())
-	require.False(t, gjson.GetBytes(clean, "prompt_cache_key").Exists())
+	require.Equal(t, "pc", gjson.GetBytes(clean, "prompt_cache_key").String())
 	require.False(t, gjson.GetBytes(clean, "previous_response_id").Exists())
 	require.False(t, gjson.GetBytes(clean, "safety_identifier").Exists())
 	require.False(t, gjson.GetBytes(clean, "service_tier").Exists())
@@ -66,7 +66,19 @@ func TestSanitizeGrokOpenAICompatibleRequestBodyPreservesReasoning(t *testing.T)
 
 	require.Equal(t, "high", gjson.GetBytes(clean, "reasoning.effort").String())
 	require.Equal(t, "high", gjson.GetBytes(clean, "reasoning_effort").String())
-	require.False(t, gjson.GetBytes(clean, "prompt_cache_key").Exists())
+	require.Equal(t, "pc", gjson.GetBytes(clean, "prompt_cache_key").String())
+}
+
+func TestBuildGrokMessagesCompatResponsesBodyPreservesPromptCacheKey(t *testing.T) {
+	body := []byte(`{"model":"grok-4","max_tokens":64,"stream":false,"prompt_cache_key":"pc-msg-1","messages":[{"role":"user","content":"hello"}]}`)
+
+	responsesBody, originalModel, mappedModel, _, err := buildGrokMessagesCompatResponsesBody(newGrokAPIKeyCompatAccount(), body)
+
+	require.NoError(t, err)
+	require.Equal(t, "grok-4", originalModel)
+	require.Equal(t, "grok-4-upstream", mappedModel)
+	require.Equal(t, "pc-msg-1", gjson.GetBytes(responsesBody, "prompt_cache_key").String())
+	require.Equal(t, "grok-4-upstream", gjson.GetBytes(responsesBody, "model").String())
 }
 
 func TestGrokForwardAnthropicCountTokensCompatUsesResponsesInputTokens(t *testing.T) {

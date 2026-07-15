@@ -998,4 +998,75 @@ describe('AccountTestModal', () => {
     expect(wrapper.text()).toContain('Reverse runtime connectivity probe started')
     expect(wrapper.text()).toContain('Visible models after model_mapping: grok-3-beta')
   })
+
+  it('defaults Grok OAuth tests to the first backend model option', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      { id: 'grok-4.5', display_name: 'Grok 4.5', provider: 'grok' },
+      { id: 'grok-build-0.1', display_name: 'Grok Build 0.1', provider: 'grok' }
+    ])
+    testGrokAccount.mockResolvedValueOnce(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"grok-4.5"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    )
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 10,
+          name: 'Grok Build',
+          platform: 'grok',
+          type: 'oauth',
+          status: 'active'
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div>
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.key || option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(testGrokAccount).toHaveBeenCalledTimes(1)
+    const [accountId, payload] = testGrokAccount.mock.calls[0]
+    expect(accountId).toBe(10)
+    expect(payload).toEqual({
+      model: 'grok-4.5',
+      model_id: 'grok-4.5',
+      source_protocol: undefined,
+      target_provider: 'grok',
+      target_model_id: 'grok-4.5'
+    })
+  })
 })

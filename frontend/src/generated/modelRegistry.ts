@@ -40,11 +40,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-07-07T05:17:13Z"
+export const generatedModelRegistryBuiltAt = "2026-07-15T03:04:48Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"7f590a35cddcea73231d738ea57192f41899bca6aee65aa067f89e848e3926d3\"",
-  "updated_at": "2026-07-07T05:17:13Z",
+  "etag": "W/\"eeb42e941640b659ade9c711c0b250f6182b0e1f786db6853e4f0239c4fa90ee\"",
+  "updated_at": "2026-07-15T03:04:48Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -790,6 +790,43 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-4.5",
+      "display_name": "Grok 4.5",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-4.5",
+        "grok",
+        "grok-latest",
+        "grok-4.5-latest",
+        "grok-build-latest"
+      ],
+      "aliases": [
+        "grok",
+        "grok-latest",
+        "grok-4.5-latest",
+        "grok-build-latest"
+      ],
+      "pricing_lookup_ids": [
+        "grok-4.5"
+      ],
+      "preferred_protocol_ids": {
+        "grok": "grok-4.5"
+      },
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
       "id": "hunyuan-standard",
       "display_name": "Hunyuan-standard",
       "provider": "hunyuan",
@@ -1240,6 +1277,31 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-4.3",
+      "display_name": "Grok 4.3",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-4.3"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-4.3"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
       "id": "hunyuan-standard-256k",
       "display_name": "Hunyuan-standard-256k",
       "provider": "hunyuan",
@@ -1656,6 +1718,37 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-build-0.1",
+      "display_name": "Grok Build 0.1",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-build-0.1",
+        "grok-build"
+      ],
+      "aliases": [
+        "grok-build"
+      ],
+      "pricing_lookup_ids": [
+        "grok-build-0.1"
+      ],
+      "preferred_protocol_ids": {
+        "grok": "grok-build-0.1"
+      },
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
       "id": "hunyuan-pro",
       "display_name": "Hunyuan-pro",
       "provider": "hunyuan",
@@ -2038,6 +2131,39 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-composer-2.5-fast",
+      "display_name": "Grok Composer 2.5 Fast",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-composer-2.5-fast",
+        "grok-composer",
+        "composer-2.5"
+      ],
+      "aliases": [
+        "grok-composer",
+        "composer-2.5"
+      ],
+      "pricing_lookup_ids": [
+        "grok-composer-2.5-fast"
+      ],
+      "preferred_protocol_ids": {
+        "grok": "grok-composer-2.5-fast"
+      },
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
       "id": "grok-imagine-1.0-fast",
       "display_name": "Grok Imagine 1.0 Fast",
       "provider": "grok",
@@ -2390,6 +2516,38 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 5,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-4.20-0309-reasoning",
+      "display_name": "Grok 4.20 Reasoning",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-4.20-0309-reasoning",
+        "grok-4.20-reasoning"
+      ],
+      "aliases": [
+        "grok-4.20-reasoning"
+      ],
+      "pricing_lookup_ids": [
+        "grok-4.20-0309-reasoning"
+      ],
+      "context_window_tokens": 2000000,
+      "preferred_protocol_ids": {
+        "grok": "grok-4.20-0309-reasoning"
+      },
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -2785,6 +2943,37 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-4.20-0309-non-reasoning",
+      "display_name": "Grok 4.20 Non Reasoning",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-4.20-0309-non-reasoning",
+        "grok-4.20-non-reasoning"
+      ],
+      "aliases": [
+        "grok-4.20-non-reasoning"
+      ],
+      "pricing_lookup_ids": [
+        "grok-4.20-0309-non-reasoning"
+      ],
+      "preferred_protocol_ids": {
+        "grok": "grok-4.20-0309-non-reasoning"
+      },
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 6,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
       "id": "grok-imagine-1.0-edit",
       "display_name": "Grok Imagine 1.0 Edit",
       "provider": "grok",
@@ -3125,6 +3314,31 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 7,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-4.20-multi-agent-0309",
+      "display_name": "Grok 4.20 Multi Agent",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-4.20-multi-agent-0309"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-4.20-multi-agent-0309"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },

@@ -166,6 +166,7 @@ type ResponsesRequest struct {
 	Text              *ResponsesTextConfig `json:"text,omitempty"`
 	ResponseFormat    json.RawMessage      `json:"response_format,omitempty"`
 	ServiceTier       string               `json:"service_tier,omitempty"`
+	PromptCacheKey    string               `json:"prompt_cache_key,omitempty"`
 }
 
 // ResponsesTextConfig carries structured-output formatting options.

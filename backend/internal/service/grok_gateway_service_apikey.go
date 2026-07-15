@@ -27,7 +27,7 @@ func (s *GrokGatewayService) forwardAPIKeyChatCompletions(ctx context.Context, c
 	stream := gjson.GetBytes(mappedBody, "stream").Bool()
 	startTime := time.Now()
 
-	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointChatCompletions, mappedBody)
+	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, grokEndpointChatCompletions, mappedBody, withGrokConversationID(c))
 	if err != nil {
 		return nil, err
 	}
@@ -364,6 +364,7 @@ func buildGrokMessagesCompatResponsesBody(account *Account, body []byte) ([]byte
 	clientStream := anthropicReq.Stream
 	responsesReq.Stream = true
 	responsesReq.Store = nil
+	responsesReq.PromptCacheKey = strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String())
 	responsesBody, err := json.Marshal(responsesReq)
 	if err != nil {
 		return nil, "", "", false, fmt.Errorf("marshal grok messages compat request: %w", err)
@@ -381,7 +382,6 @@ func sanitizeGrokOpenAICompatibleRequestBody(body []byte) []byte {
 		return body
 	}
 	for _, key := range []string{
-		"prompt_cache_key",
 		"previous_response_id",
 		"safety_identifier",
 		"service_tier",
@@ -518,7 +518,20 @@ func (s *GrokGatewayService) proxyAPIKeyStream(resp *http.Response, c *gin.Conte
 	return usage, firstTokenMs, requestID, nil
 }
 
-func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context, account *Account, method string, endpoint string, body []byte) (*http.Response, error) {
+type grokAPIKeyRequestOption func(*http.Request)
+
+func withGrokConversationID(c *gin.Context) grokAPIKeyRequestOption {
+	return func(req *http.Request) {
+		if req == nil || c == nil || c.Request == nil {
+			return
+		}
+		if conversationID := strings.TrimSpace(c.GetHeader("x-grok-conv-id")); conversationID != "" {
+			req.Header.Set("x-grok-conv-id", conversationID)
+		}
+	}
+}
+
+func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context, account *Account, method string, endpoint string, body []byte, opts ...grokAPIKeyRequestOption) (*http.Response, error) {
 	if account == nil || (!account.IsGrokAPIKey() && !account.IsGrokOAuth()) {
 		return nil, fmt.Errorf("grok official api account is required")
 	}
@@ -555,6 +568,11 @@ func (s *GrokGatewayService) doAPIKeyRequest(ctx context.Context, c *gin.Context
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/json")
 	ApplyAccountRequestHeaderOverrides(req, account)
+	for _, opt := range opts {
+		if opt != nil {
+			opt(req)
+		}
+	}
 
 	proxyURL := ""
 	if account.Proxy != nil {
@@ -601,7 +619,7 @@ func grokExtractUsageFromJSON(body []byte) ClaudeUsage {
 	return ClaudeUsage{
 		InputTokens:              int(firstPositiveInt64(gjson.GetBytes(body, "usage.input_tokens").Int(), gjson.GetBytes(body, "usage.prompt_tokens").Int())),
 		OutputTokens:             int(firstPositiveInt64(gjson.GetBytes(body, "usage.output_tokens").Int(), gjson.GetBytes(body, "usage.completion_tokens").Int())),
-		CacheReadInputTokens:     int(firstPositiveInt64(gjson.GetBytes(body, "usage.input_tokens_details.cached_tokens").Int(), gjson.GetBytes(body, "usage.prompt_tokens_details.cached_tokens").Int())),
+		CacheReadInputTokens:     int(grokCachedTokensFromUsage(body, "usage")),
 		CacheCreationInputTokens: 0,
 	}
 }
@@ -613,14 +631,26 @@ func grokParseSSEUsage(data []byte, usage *ClaudeUsage) {
 	if eventType := gjson.GetBytes(data, "type").String(); eventType == "response.completed" || eventType == "response.done" {
 		usage.InputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "response.usage.input_tokens").Int(), int64(usage.InputTokens)))
 		usage.OutputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "response.usage.output_tokens").Int(), int64(usage.OutputTokens)))
-		usage.CacheReadInputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "response.usage.input_tokens_details.cached_tokens").Int(), int64(usage.CacheReadInputTokens)))
+		usage.CacheReadInputTokens = int(firstPositiveInt64(grokCachedTokensFromUsage(data, "response.usage"), int64(usage.CacheReadInputTokens)))
 		return
 	}
 	if gjson.GetBytes(data, "usage").Exists() {
 		usage.InputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "usage.input_tokens").Int(), gjson.GetBytes(data, "usage.prompt_tokens").Int(), int64(usage.InputTokens)))
 		usage.OutputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "usage.output_tokens").Int(), gjson.GetBytes(data, "usage.completion_tokens").Int(), int64(usage.OutputTokens)))
-		usage.CacheReadInputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "usage.input_tokens_details.cached_tokens").Int(), gjson.GetBytes(data, "usage.prompt_tokens_details.cached_tokens").Int(), int64(usage.CacheReadInputTokens)))
+		usage.CacheReadInputTokens = int(firstPositiveInt64(grokCachedTokensFromUsage(data, "usage"), int64(usage.CacheReadInputTokens)))
 	}
+}
+
+func grokCachedTokensFromUsage(body []byte, usagePath string) int64 {
+	usagePath = strings.TrimSpace(usagePath)
+	if usagePath == "" {
+		return 0
+	}
+	return firstPositiveInt64(
+		gjson.GetBytes(body, usagePath+".input_tokens_details.cached_tokens").Int(),
+		gjson.GetBytes(body, usagePath+".prompt_tokens_details.cached_tokens").Int(),
+		gjson.GetBytes(body, usagePath+".cached_tokens").Int(),
+	)
 }
 
 func grokExtractImageResponse(body []byte) (int, string) {

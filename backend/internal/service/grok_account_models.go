@@ -80,3 +80,10 @@ func GrokVisibleModelIDsForAccount(account *Account) []string {
 
 	return result
 }
+
+func GrokDefaultTestModelIDsForAccount(account *Account) []string {
+	if account != nil && account.IsGrokSSO() {
+		return GrokVisibleModelIDsForAccount(account)
+	}
+	return GrokBuildTextModelIDs()
+}

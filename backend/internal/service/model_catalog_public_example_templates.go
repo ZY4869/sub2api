@@ -105,7 +105,7 @@ curl https://api.zyxai.de/grok/v1/responses \
   -H "Authorization: Bearer sk-你的站内Key" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "grok-4",
+    "model": "grok-4.5",
     "input": "用一句话介绍这个模型。"
   }'
 ` + "```" + `
@@ -118,7 +118,7 @@ curl https://api.zyxai.de/grok/v1/messages \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
   -d '{
-    "model": "grok-4",
+    "model": "grok-4.5",
     "max_tokens": 512,
     "messages": [
       { "role": "user", "content": "用一句话介绍这个模型。" }
@@ -134,7 +134,7 @@ curl https://api.zyxai.de/grok/v1/messages/count_tokens \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
   -d '{
-    "model": "grok-4",
+    "model": "grok-4.5",
     "messages": [
       { "role": "user", "content": "估算这句话的输入 tokens。" }
     ]

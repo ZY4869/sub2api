@@ -13,12 +13,13 @@ func TestAccountRequestHeaderOverrides_FiltersBlockedHeaders(t *testing.T) {
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
 			AccountRequestHeadersCredentialKey: map[string]any{
-				"X-Trace-Id":    "trace-1",
-				"authorization": "Bearer attacker",
-				"Cookie":        "secret=1",
-				"Host":          "evil.example",
-				"Bad\nName":     "ignored",
-				"X-Multi":       []any{"a", "b"},
+				"X-Trace-Id":     "trace-1",
+				"authorization":  "Bearer attacker",
+				"Cookie":         "secret=1",
+				"Host":           "evil.example",
+				"x-grok-conv-id": "conv-from-account",
+				"Bad\nName":      "ignored",
+				"X-Multi":        []any{"a", "b"},
 			},
 		},
 	}
@@ -30,6 +31,7 @@ func TestAccountRequestHeaderOverrides_FiltersBlockedHeaders(t *testing.T) {
 	require.Empty(t, headers.Get("Authorization"))
 	require.Empty(t, headers.Get("Cookie"))
 	require.Empty(t, headers.Get("Host"))
+	require.Empty(t, headers.Get("x-grok-conv-id"))
 }
 
 func TestApplyAccountRequestHeaderOverrides_PreservesAuthHeader(t *testing.T) {

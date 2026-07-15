@@ -35,3 +35,29 @@ func TestGrokDefaultVisibleModelsIncludeMediaModels(t *testing.T) {
 	require.Contains(t, models, GrokModelImagineEdit)
 	require.Contains(t, models, GrokModelImagineVideo)
 }
+
+func TestGrokBuildTextModelIDsDefaultOrder(t *testing.T) {
+	models := GrokBuildTextModelIDs()
+
+	require.Equal(t, DefaultGrokBuildTextModelID(), models[0])
+	require.Equal(t, []string{
+		GrokModelBuild45,
+		GrokModelBuild43,
+		GrokModelBuild01,
+		GrokModelComposer25Fast,
+		GrokModel420Reasoning,
+		GrokModel420NonReasoning,
+		GrokModel420MultiAgent,
+	}, models)
+}
+
+func TestGrokSSOVisibleModelsDoNotUseBuildTextCatalog(t *testing.T) {
+	models := GrokVisibleModelIDsForAccount(&Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeSSO,
+		Extra:    map[string]any{"grok_tier": GrokTierBasic},
+	})
+
+	require.NotContains(t, models, GrokModelBuild45)
+	require.Contains(t, models, GrokModelAuto)
+}
