@@ -103,7 +103,7 @@ func (s *AccountTestService) testGrokRealResponsesCall(c *gin.Context, account *
 			Message:            msg,
 		})
 		logger.FromContext(c.Request.Context()).Warn("grok.account_test_real_call_failed", grokUpstreamLogFields(account, meta, resp.StatusCode, grokUpstreamRequestID(resp.Header))...)
-		return fmt.Errorf("Grok real model call failed: upstream status %d: %s", resp.StatusCode, msg)
+		return grokRealCallUserError(fmt.Sprintf("Grok real model call failed: upstream status %d: %s", resp.StatusCode, msg))
 	}
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 2<<20))
 	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Grok real model call OK (%s)", requestedModel)})
