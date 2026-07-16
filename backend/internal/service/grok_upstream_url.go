@@ -11,16 +11,6 @@ const (
 	grokCLIVersion        = "0.2.93"
 )
 
-func grokEffectiveAPIBaseURL(account *Account) string {
-	if account != nil && account.IsGrokOAuth() {
-		return defaultGrokCLIBaseURL
-	}
-	if account != nil {
-		return account.GetBaseURL()
-	}
-	return ""
-}
-
 func grokJoinVersionedEndpoint(baseURL string, endpoint string) (string, error) {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	endpoint = strings.TrimSpace(endpoint)

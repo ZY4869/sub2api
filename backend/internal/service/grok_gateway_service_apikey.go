@@ -187,6 +187,10 @@ func (s *GrokGatewayService) forwardAPIKeyAnthropicCountTokensCompat(ctx context
 	return s.forwardOfficialAnthropicCountTokensCompat(ctx, c, account, body)
 }
 
+func (s *GrokGatewayService) forwardOAuthBuildAnthropicCountTokensCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*AnthropicCountTokensBridgeResult, error) {
+	return s.forwardOfficialAnthropicCountTokensCompat(ctx, c, account, body)
+}
+
 func (s *GrokGatewayService) forwardOfficialAnthropicCountTokensCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*AnthropicCountTokensBridgeResult, error) {
 	countBody, err := buildResponsesInputTokensBody(account, body, "")
 	if err != nil {
