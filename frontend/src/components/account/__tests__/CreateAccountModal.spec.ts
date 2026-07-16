@@ -275,13 +275,6 @@ const AccountCreatePlatformTypeEditorStub = defineComponent({
       </button>
       <button
         type="button"
-        data-testid="set-grok-sso-mode"
-        @click="$emit('update:account-category', 'sso')"
-      >
-        set grok sso mode
-      </button>
-      <button
-        type="button"
         data-testid="set-gateway-gemini"
         @click="
           $emit('update:account-category', 'apikey');
@@ -1564,28 +1557,28 @@ describe('CreateAccountModal', () => {
     expect(source).toContain("@imported=\"handleGrokImportCompleted\"")
   })
 
-  it('defaults Grok to API Key mode and only persists grok_tier for SSO submissions', () => {
+  it('defaults Grok to API Key mode and removes the legacy SSO creation path', () => {
     expect(modalWatchersSource).toContain("if (newPlatform === 'grok')")
     expect(modalWatchersSource).toContain("accountCategory.value = 'apikey'")
     expect(modalWatchersSource).toContain("form.type = 'apikey'")
     expect(source).toContain("form.platform === 'grok'")
     expect(source).toContain("form.type === 'oauth'")
-    expect(source).toContain("form.type === 'sso'")
+    expect(source).not.toContain("form.type === 'sso'")
+    expect(source).not.toContain('admin.accounts.grokToken')
+    expect(modalLogicSource).not.toContain('grokSSOToken')
+    expect(modalLogicSource).not.toContain('grokTier')
   })
 
-  it('shows model scope controls for Grok API Key and Grok SSO account creation', async () => {
+  it('shows model scope controls for Grok API Key but no legacy SSO creation entry', async () => {
     const wrapper = mountModal()
 
     await wrapper.get('[data-testid="select-grok"]').trigger('click')
 
+    expect(wrapper.find('[data-testid="set-grok-sso-mode"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('admin.accounts.grokToken')
     expect(wrapper.find('[data-testid="set-api-key"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="skip-model-scope-editor-prop"]').text()).toBe('false')
     expect(wrapper.find('[data-testid="oauth-allowed-models-prop"]').exists()).toBe(false)
-
-    await wrapper.get('[data-testid="set-grok-sso-mode"]').trigger('click')
-
-    expect(wrapper.find('[data-testid="set-api-key"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="oauth-allowed-models-prop"]').exists()).toBe(true)
   })
 
   it('finalizes a Grok OAuth account through the local unified create flow', async () => {
@@ -1642,22 +1635,6 @@ describe('CreateAccountModal', () => {
         }
       }
     })
-  })
-
-  it('shows Grok SSO model probe payload with tier extra', async () => {
-    const wrapper = mountModal()
-
-    await wrapper.get('[data-testid="select-grok"]').trigger('click')
-    await wrapper.get('[data-testid="set-grok-sso-mode"]').trigger('click')
-    await wrapper.get('textarea[placeholder="admin.accounts.grokTokenPlaceholder"]').setValue('grok-sso-token')
-
-    const grokSSOProbe = wrapper.findAll('[data-testid="api-key-probe-editor"]').find((node) =>
-      node.text().includes('sso') && node.text().includes('grok')
-    )
-    expect(grokSSOProbe?.exists()).toBe(true)
-    expect(grokSSOProbe?.find('[data-testid="api-key-probe-ready"]').text()).toBe('true')
-    expect(grokSSOProbe?.find('[data-testid="api-key-probe-credentials"]').text()).toContain('grok-sso-token')
-    expect(grokSSOProbe?.find('[data-testid="api-key-probe-extra"]').text()).toContain('"grok_tier":"basic"')
   })
 
   it('submits DeepSeek model concurrency limits from API key creation', async () => {
@@ -1761,61 +1738,6 @@ describe('CreateAccountModal', () => {
 
     expect(createMock).toHaveBeenCalledTimes(1)
     expect(createMock.mock.calls[0]?.[0]?.extra?.deepseek_model_concurrency_limits).toBeUndefined()
-  })
-
-  it('submits Grok SSO model scope through extra.model_scope_v2 while preserving grok_tier', async () => {
-    createMock.mockReset()
-    checkMixedChannelRiskMock.mockReset()
-    invalidateModelRegistryMock.mockReset()
-    invalidateInventoryMock.mockReset()
-
-    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
-    createMock.mockResolvedValue({
-      id: 18,
-      name: 'Grok SSO Account',
-      platform: 'grok',
-      type: 'sso',
-      extra: {}
-    })
-
-    const wrapper = mountModal()
-
-    await wrapper.get('[data-testid="select-grok"]').trigger('click')
-    await wrapper.get('[data-testid="set-grok-sso-mode"]').trigger('click')
-    await wrapper.get('textarea[placeholder="admin.accounts.grokTokenPlaceholder"]').setValue('grok-sso-token')
-    await wrapper.get('[data-testid="enable-oauth-model-restriction"]').trigger('click')
-    await wrapper.get('[data-testid="set-openai-custom-whitelist"]').trigger('click')
-    await wrapper.get('input[data-tour="account-form-name"]').setValue('Grok SSO Account')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(createMock).toHaveBeenCalledTimes(1)
-    const payload = createMock.mock.calls[0]?.[0] as any
-    expect(payload).toMatchObject({
-      name: 'Grok SSO Account',
-      platform: 'grok',
-      type: 'sso',
-      credentials: {
-        sso_token: 'grok-sso-token'
-      },
-      extra: {
-        grok_tier: 'basic',
-        model_scope_v2: {
-          policy_mode: 'whitelist'
-        }
-      }
-    })
-    expect(payload.extra.model_scope_v2.entries).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          display_model_id: 'gpt-5.4',
-          target_model_id: 'gpt-5.4'
-        })
-      ])
-    )
-    expect(payload.credentials.model_mapping).toEqual({
-      'gpt-5.4': 'gpt-5.4'
-    })
   })
 
   it('shows generic quota controls and protocol gateway batch controls in account creation', () => {

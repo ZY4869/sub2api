@@ -14,6 +14,7 @@ import type {
   AccountUsagePresentationRow,
   AccountUsageRowColor,
   UsageProgress,
+  GrokQuotaWindow,
 } from "@/types";
 import { buildOpenAIUsageRefreshKey } from "@/utils/accountUsageRefresh";
 import {
@@ -607,7 +608,8 @@ export function useAccountUsagePresentation(
     };
   });
   const fetchedSnapshotUpdatedAt = computed(() => {
-    const updatedAtRaw = usageInfo.value?.updated_at;
+    const updatedAtRaw =
+      usageInfo.value?.updated_at || usageInfo.value?.grok_last_quota_probe_at;
     if (typeof updatedAtRaw !== "string" || updatedAtRaw.trim() === "")
       return null;
 
@@ -938,6 +940,80 @@ export function useAccountUsagePresentation(
     ),
   );
 
+  const grokQuotaRow = (
+    key: string,
+    label: string,
+    quota: GrokQuotaWindow | null | undefined,
+    color: AccountUsageRowColor,
+  ) => {
+    const limit = typeof quota?.limit === "number" ? quota.limit : null;
+    const remaining =
+      typeof quota?.remaining === "number" ? quota.remaining : null;
+    if (!limit || limit <= 0 || remaining == null) return null;
+    const used = Math.max(0, limit - remaining);
+    return buildUsageRow(key, label, (used / limit) * 100, quota?.reset_at || null, color, {
+      inlineRemaining: true,
+      detailedReset: true,
+    });
+  };
+
+  const grokRows = computed(() => {
+    const billing = usageInfo.value?.grok_billing;
+    return buildRows(
+      billing?.period_type === "weekly" &&
+        typeof billing.usage_percent === "number"
+        ? buildUsageRow(
+            "grok-weekly",
+            "Grok W",
+            billing.usage_percent,
+            billing.period_end || null,
+            "indigo",
+            {
+              windowStats: usageInfo.value?.grok_local_usage_7d || null,
+              inlineRemaining: true,
+              detailedReset: true,
+            },
+          )
+        : null,
+      typeof billing?.used_percent === "number"
+        ? buildUsageRow(
+            "grok-monthly",
+            "Grok M",
+            billing.used_percent,
+            billing.billing_period_end || null,
+            "purple",
+            {
+              windowStats: usageInfo.value?.grok_local_usage_monthly || null,
+              inlineRemaining: true,
+              detailedReset: true,
+            },
+          )
+        : null,
+      grokQuotaRow(
+        "grok-requests",
+        "Req",
+        usageInfo.value?.grok_request_quota,
+        "orange",
+      ),
+      grokQuotaRow(
+        "grok-tokens",
+        "Tok",
+        usageInfo.value?.grok_token_quota,
+        "emerald",
+      ),
+      usageInfo.value?.grok_local_usage_24h
+        ? buildUsageRow(
+            "grok-local-24h",
+            "24h",
+            0,
+            null,
+            "green",
+            { windowStats: usageInfo.value.grok_local_usage_24h },
+          )
+        : null,
+    );
+  });
+
   const openAIRefreshRows = computed(() => {
     if (
       getRuntimePlatform(account.value) !== "openai" ||
@@ -1152,6 +1228,32 @@ export function useAccountUsagePresentation(
             "admin.accounts.usageWindow.passiveSampled",
           );
         }
+      }
+    } else if (
+      getRuntimePlatform(account.value) === "grok" &&
+      account.value.type === "oauth"
+    ) {
+      const billing = usageInfo.value?.grok_billing;
+      const plan = billing?.plan || "";
+      meta.antigravityTierLabel = plan || null;
+      meta.antigravityTierClass = plan
+        ? "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200"
+        : "";
+      meta.snapshotUpdatedAtText =
+        fetchedSnapshotUpdatedAtText.value || undefined;
+      meta.snapshotUpdatedAtTooltip =
+        fetchedSnapshotUpdatedAtTooltip.value || undefined;
+      if (usageInfo.value?.source === "passive") {
+        meta.sampledBadgeLabel = t("admin.accounts.usageWindow.sampledBadge");
+      }
+
+      if (currentState.loading) {
+        state = "loading";
+      } else if (currentState.error) {
+        state = "error";
+      } else if (grokRows.value.length > 0) {
+        state = "bars";
+        windowRows = grokRows.value;
       }
     } else if (
       getRuntimePlatform(account.value) === "antigravity" &&

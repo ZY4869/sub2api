@@ -44,6 +44,11 @@
         v-if="isGrokSSOAccount"
         class="space-y-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/30"
       >
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-100">
+          <div class="font-semibold">{{ t('admin.accounts.grokSsoLegacyTitle') }}</div>
+          <p class="mt-1 text-xs leading-5">{{ t('admin.accounts.grokSsoLegacyHint') }}</p>
+        </div>
+
         <div v-if="isGrokSSOAccount">
           <label class="input-label">{{ t('admin.accounts.grokToken') }}</label>
           <textarea

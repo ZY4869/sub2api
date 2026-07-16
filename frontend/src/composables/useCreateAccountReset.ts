@@ -66,8 +66,6 @@ interface UseCreateAccountResetOptions {
   apiKeyRequestHeadersText?: Ref<string>
   openRouterHTTPReferer?: Ref<string>
   openRouterTitle?: Ref<string>
-  grokSSOToken: Ref<string>
-  grokTier: Ref<'basic' | 'super' | 'heavy'>
   editQuotaLimit: Ref<number | null>
   editQuotaDailyLimit: Ref<number | null>
   editQuotaWeeklyLimit: Ref<number | null>
@@ -175,8 +173,6 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.apiKeyRequestHeadersText && (options.apiKeyRequestHeadersText.value = '')
     options.openRouterHTTPReferer && (options.openRouterHTTPReferer.value = '')
     options.openRouterTitle && (options.openRouterTitle.value = '')
-    options.grokSSOToken.value = ''
-    options.grokTier.value = 'basic'
     options.editQuotaLimit.value = null
     options.editQuotaDailyLimit.value = null
     options.editQuotaWeeklyLimit.value = null

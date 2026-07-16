@@ -11,6 +11,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/grokoauth"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
 
 type GrokOAuthService struct {
@@ -70,6 +71,9 @@ func (s *GrokOAuthService) GenerateAuthURL(ctx context.Context, input *GrokGener
 	if s == nil || s.oauthClient == nil {
 		return nil, infraerrors.New(http.StatusInternalServerError, "GROK_OAUTH_UNAVAILABLE", "Grok OAuth service is unavailable")
 	}
+	if input == nil {
+		input = &GrokGenerateAuthURLInput{}
+	}
 	state, err := grokoauth.GenerateState()
 	if err != nil {
 		return nil, infraerrors.New(http.StatusInternalServerError, "GROK_OAUTH_STATE_FAILED", "failed to generate Grok OAuth state").WithCause(err)
@@ -77,6 +81,10 @@ func (s *GrokOAuthService) GenerateAuthURL(ctx context.Context, input *GrokGener
 	verifier, err := grokoauth.GenerateCodeVerifier()
 	if err != nil {
 		return nil, infraerrors.New(http.StatusInternalServerError, "GROK_OAUTH_VERIFIER_FAILED", "failed to generate Grok OAuth verifier").WithCause(err)
+	}
+	nonce, err := grokoauth.GenerateNonce()
+	if err != nil {
+		return nil, infraerrors.New(http.StatusInternalServerError, "GROK_OAUTH_NONCE_FAILED", "failed to generate Grok OAuth nonce").WithCause(err)
 	}
 	sessionID, err := grokoauth.GenerateSessionID()
 	if err != nil {
@@ -91,13 +99,14 @@ func (s *GrokOAuthService) GenerateAuthURL(ctx context.Context, input *GrokGener
 	}
 	clientID := s.oauthClientID()
 	scope := s.oauthScope()
-	authURL, err := grokoauth.BuildAuthorizationURL(s.oauthAuthorizeURL(), clientID, scope, redirectURI, state, grokoauth.GenerateCodeChallenge(verifier))
+	authURL, err := xai.BuildAuthorizationURL(s.oauthAuthorizeURL(), clientID, scope, redirectURI, state, grokoauth.GenerateCodeChallenge(verifier), nonce)
 	if err != nil {
 		return nil, infraerrors.New(http.StatusBadRequest, "GROK_OAUTH_AUTH_URL_FAILED", "failed to build Grok OAuth authorization URL").WithCause(err)
 	}
 
 	s.sessionStore.Set(sessionID, &grokoauth.OAuthSession{
 		State:        state,
+		Nonce:        nonce,
 		CodeVerifier: verifier,
 		ClientID:     clientID,
 		Scope:        scope,
@@ -147,7 +156,11 @@ func (s *GrokOAuthService) ExchangeCode(ctx context.Context, input *GrokExchange
 	}
 	redirectURI := firstNonEmptyString(input.RedirectURI, session.RedirectURI)
 	slog.Info("grok_oauth_code_exchange", "request_id", requestID, "session_id", strings.TrimSpace(input.SessionID), "input_kind", string(codeInput.Kind))
-	tokenResp, err := s.oauthClient.ExchangeCode(ctx, s.oauthTokenURL(), strings.TrimSpace(code), session.CodeVerifier, redirectURI, session.ClientID, proxyURL)
+	tokenURL, err := s.validatedOAuthTokenURL()
+	if err != nil {
+		return nil, err
+	}
+	tokenResp, err := s.oauthClient.ExchangeCode(ctx, tokenURL, strings.TrimSpace(code), session.CodeVerifier, redirectURI, session.ClientID, proxyURL)
 	if err != nil {
 		slog.Warn("grok_oauth_code_exchange_failed", "request_id", requestID, "session_id", strings.TrimSpace(input.SessionID), "input_kind", string(codeInput.Kind), "duration_ms", time.Since(startedAt).Milliseconds(), "error", err.Error())
 		return nil, err
@@ -173,11 +186,15 @@ func (s *GrokOAuthService) RefreshAccountToken(ctx context.Context, account *Acc
 	}
 	clientID := firstNonEmptyString(account.GetCredential("client_id"), s.oauthClientID())
 	scope := firstNonEmptyString(account.GetCredential("scope"), s.oauthScope())
-	tokenResp, err := s.oauthClient.RefreshToken(ctx, s.oauthTokenURL(), refreshToken, clientID, scope, proxyURL)
+	tokenURL, err := s.validatedOAuthTokenURL()
 	if err != nil {
 		return nil, err
 	}
-	tokenInfo := s.tokenInfoFromResponse(tokenResp, clientID, scope, firstNonEmptyString(account.GetCredential("base_url"), s.oauthBaseURL("")))
+	tokenResp, err := s.oauthClient.RefreshToken(ctx, tokenURL, refreshToken, clientID, scope, proxyURL)
+	if err != nil {
+		return nil, err
+	}
+	tokenInfo := s.tokenInfoFromResponse(tokenResp, clientID, scope, defaultGrokCLIBaseURL)
 	tokenInfo.Email = account.GetCredential("email")
 	tokenInfo.Subject = account.GetCredential("subject")
 	tokenInfo.Name = account.GetCredential("name")
@@ -287,7 +304,11 @@ func (s *GrokOAuthService) enrichUserInfo(ctx context.Context, tokenInfo *GrokTo
 	if tokenInfo == nil || strings.TrimSpace(tokenInfo.AccessToken) == "" || s.oauthClient == nil {
 		return
 	}
-	userInfo, err := s.oauthClient.FetchUserInfo(ctx, s.oauthUserInfoURL(), tokenInfo.AccessToken, proxyURL)
+	userInfoURL, err := s.validatedOAuthUserInfoURL()
+	if err != nil {
+		return
+	}
+	userInfo, err := s.oauthClient.FetchUserInfo(ctx, userInfoURL, tokenInfo.AccessToken, proxyURL)
 	if err != nil || userInfo == nil {
 		return
 	}
@@ -316,6 +337,30 @@ func (s *GrokOAuthService) oauthAuthorizeURL() string {
 		return strings.TrimSpace(s.cfg.Grok.OAuth.AuthorizeURL)
 	}
 	return grokoauth.DefaultAuthorizeURL
+}
+
+func (s *GrokOAuthService) validatedOAuthTokenURL() (string, error) {
+	tokenURL, err := xai.ValidateOAuthEndpointURL(s.oauthTokenURL())
+	if err != nil {
+		return "", infraerrors.New(http.StatusBadRequest, "GROK_OAUTH_TOKEN_URL_INVALID", "invalid Grok OAuth token URL").WithCause(err)
+	}
+	return tokenURL, nil
+}
+
+func (s *GrokOAuthService) validatedOAuthDeviceURL() (string, error) {
+	deviceURL, err := xai.ValidateOAuthEndpointURL(s.oauthDeviceURL())
+	if err != nil {
+		return "", infraerrors.New(http.StatusBadRequest, "GROK_OAUTH_DEVICE_URL_INVALID", "invalid Grok OAuth device URL").WithCause(err)
+	}
+	return deviceURL, nil
+}
+
+func (s *GrokOAuthService) validatedOAuthUserInfoURL() (string, error) {
+	userInfoURL, err := xai.ValidateOAuthEndpointURL(s.oauthUserInfoURL())
+	if err != nil {
+		return "", infraerrors.New(http.StatusBadRequest, "GROK_OAUTH_USERINFO_URL_INVALID", "invalid Grok OAuth userinfo URL").WithCause(err)
+	}
+	return userInfoURL, nil
 }
 
 func (s *GrokOAuthService) oauthDeviceURL() string {
@@ -368,4 +413,17 @@ func (s *GrokOAuthService) oauthBaseURL(override string) string {
 		return strings.TrimRight(strings.TrimSpace(s.cfg.Grok.OAuth.BaseURL), "/")
 	}
 	return defaultGrokCLIBaseURL
+}
+
+func (s *GrokOAuthService) RuntimeSanity() xai.RuntimeSanityReport {
+	if s == nil {
+		return xai.RuntimeSanity("", "", "", "", defaultGrokCLIBaseURL)
+	}
+	return xai.RuntimeSanity(
+		s.oauthAuthorizeURL(),
+		s.oauthTokenURL(),
+		s.oauthDeviceURL(),
+		s.oauthUserInfoURL(),
+		defaultGrokCLIBaseURL,
+	)
 }

@@ -164,6 +164,54 @@ func TestGrokOAuthHandler_ReauthorizeAccountFromOAuth_AddsDefaultScopeWhenMissin
 	require.Equal(t, "grok_browser_oauth", adminSvc.updatedAccounts[0].Extra["source"])
 }
 
+func TestGrokOAuthHandler_ReauthorizeAccountFromOAuth_AddsDefaultScopeWhenEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{{
+		ID:          903,
+		Name:        "grok",
+		Platform:    service.PlatformGrok,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{
+			"access_token": "old-access",
+		},
+		Extra: map[string]any{
+			"source": "grok_browser_oauth",
+			"model_scope_v2": map[string]any{
+				"policy_mode": service.AccountModelPolicyModeWhitelist,
+				"entries":     []any{},
+			},
+		},
+	}}
+	grokSvc := service.NewGrokOAuthService(nil, &grokOAuthHandlerClientStub{}, &config.Config{})
+	authURL, err := grokSvc.GenerateAuthURL(context.Background(), &service.GrokGenerateAuthURLInput{})
+	require.NoError(t, err)
+
+	handler := NewGrokOAuthHandler(grokSvc, adminSvc)
+	router := gin.New()
+	router.POST("/admin/grok/:id/reauthorize", handler.ReauthorizeAccountFromOAuth)
+
+	body, err := json.Marshal(map[string]any{
+		"session_id": authURL.SessionID,
+		"code":       "oauth-code",
+		"state":      authURL.State,
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/grok/903/reauthorize", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, adminSvc.updatedAccounts, 1)
+	scope, ok := service.ExtractAccountModelScopeV2(adminSvc.updatedAccounts[0].Extra)
+	require.True(t, ok)
+	require.Len(t, scope.Entries, len(service.GrokBuildTextModelIDs()))
+}
+
 func TestGrokOAuthHandler_ReauthorizeAccountFromOAuth_PreservesExistingScope(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	existingScope := (&service.AccountModelScopeV2{
@@ -220,6 +268,100 @@ func TestGrokOAuthHandler_ReauthorizeAccountFromOAuth_PreservesExistingScope(t *
 	require.Equal(t, service.GrokModelBuild01, scope.Entries[0].TargetModelID)
 	require.Equal(t, "access-token", adminSvc.updatedAccounts[0].Credentials["access_token"])
 	require.Equal(t, "https://cli-chat-proxy.grok.com/v1", adminSvc.updatedAccounts[0].Credentials["base_url"])
+}
+
+func TestGrokOAuthHandler_ReauthorizeAccountFromOAuth_ConvertsSSOToOAuthBuild(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{{
+		ID:          905,
+		Name:        "legacy grok sso",
+		Platform:    service.PlatformGrok,
+		Type:        service.AccountTypeSSO,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{
+			"sso_token": "legacy-sso-token",
+		},
+		Extra: map[string]any{
+			"grok_tier": "super",
+		},
+	}}
+	grokSvc := service.NewGrokOAuthService(nil, &grokOAuthHandlerClientStub{}, &config.Config{})
+	authURL, err := grokSvc.GenerateAuthURL(context.Background(), &service.GrokGenerateAuthURLInput{})
+	require.NoError(t, err)
+
+	handler := NewGrokOAuthHandler(grokSvc, adminSvc)
+	router := gin.New()
+	router.POST("/admin/grok/:id/reauthorize", handler.ReauthorizeAccountFromOAuth)
+
+	body, err := json.Marshal(map[string]any{
+		"session_id": authURL.SessionID,
+		"code":       "oauth-code",
+		"state":      authURL.State,
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/grok/905/reauthorize", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, adminSvc.updatedAccounts, 1)
+	update := adminSvc.updatedAccounts[0]
+	require.Equal(t, service.AccountTypeOAuth, update.Type)
+	require.Equal(t, "access-token", update.Credentials["access_token"])
+	require.Equal(t, "refresh-token", update.Credentials["refresh_token"])
+	require.Equal(t, "https://cli-chat-proxy.grok.com/v1", update.Credentials["base_url"])
+	require.NotContains(t, update.Credentials, "sso_token")
+	require.Equal(t, "super", update.Extra["grok_tier"])
+	require.Equal(t, "grok_browser_oauth", update.Extra["source"])
+
+	updated, err := adminSvc.GetAccount(context.Background(), 905)
+	require.NoError(t, err)
+	require.Equal(t, service.AccountTypeOAuth, updated.Type)
+	require.NotContains(t, updated.Credentials, "sso_token")
+	require.Equal(t, service.GrokRouteModeOAuthBuild, (&service.GrokGatewayService{}).RouteMode(updated))
+	require.False(t, updated.IsGrokSSO())
+	require.True(t, updated.IsGrokOAuth())
+	scope, ok := service.ExtractAccountModelScopeV2(updated.Extra)
+	require.True(t, ok)
+	require.Len(t, scope.Entries, len(service.GrokBuildTextModelIDs()))
+}
+
+func TestGrokOAuthHandler_RefreshAccountBackfillsDefaultScope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{{
+		ID:          904,
+		Name:        "grok",
+		Platform:    service.PlatformGrok,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{
+			"access_token":  "old-access",
+			"refresh_token": "refresh-token",
+		},
+		Extra: map[string]any{},
+	}}
+	grokSvc := service.NewGrokOAuthService(nil, &grokOAuthHandlerClientStub{}, &config.Config{})
+	handler := NewGrokOAuthHandler(grokSvc, adminSvc)
+	router := gin.New()
+	router.POST("/admin/grok/:id/refresh", handler.RefreshAccount)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/grok/904/refresh", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	refreshed, err := adminSvc.GetAccount(context.Background(), 904)
+	require.NoError(t, err)
+	require.Equal(t, "refreshed-access", refreshed.Credentials["access_token"])
+	scope, ok := service.ExtractAccountModelScopeV2(refreshed.Extra)
+	require.True(t, ok)
+	require.Len(t, scope.Entries, len(service.GrokBuildTextModelIDs()))
 }
 
 func TestGrokOAuthHandler_DeviceFlow_StartAndPoll(t *testing.T) {

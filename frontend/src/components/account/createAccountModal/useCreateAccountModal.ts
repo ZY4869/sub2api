@@ -233,8 +233,6 @@ const apiKeyRequestHeadersText = ref('')
 const openRouterHTTPReferer = ref('')
 const openRouterTitle = ref('')
 const deepSeekModelConcurrencyLimits = ref(createDefaultDeepSeekModelConcurrencyLimitDraft())
-const grokSSOToken = ref('')
-const grokTier = ref<'basic' | 'super' | 'heavy'>('basic')
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
@@ -336,15 +334,6 @@ const upstreamProbeCredentials = computed<Record<string, unknown>>(() => ({
   api_key: upstreamApiKey.value.trim(),
   base_url: upstreamBaseUrl.value.trim()
 }))
-const grokProbeCredentials = computed<Record<string, unknown>>(() => {
-  if (form.type === 'oauth') {
-    return { ...oauthDraftCredentials.value }
-  }
-  if (form.type === 'sso') {
-    return { sso_token: grokSSOToken.value.trim() }
-  }
-  return {}
-})
 const vertexProbeCredentials = computed<Record<string, unknown>>(() => {
   const baseUrl = geminiVertexBaseUrl.value.trim() || resolveVertexAuthBaseUrl(
     geminiVertexAuthMode.value,
@@ -376,18 +365,6 @@ const isUpstreamProbeReady = computed(() => Boolean(
   upstreamApiKey.value.trim() && upstreamBaseUrl.value.trim()
 ))
 const oauthDraftProbeReady = computed(() => Object.keys(oauthDraftCredentials.value).length > 0)
-const isGrokProbeReady = computed(() => {
-  if (form.platform !== 'grok') {
-    return false
-  }
-  if (form.type === 'oauth') {
-    return Boolean(String(oauthDraftCredentials.value.access_token || '').trim())
-  }
-  if (form.type === 'sso') {
-    return Boolean(grokSSOToken.value.trim())
-  }
-  return false
-})
 const isVertexProbeReady = computed(() => {
   if (geminiVertexAuthMode.value === 'express_api_key') {
     return Boolean(geminiVertexApiKey.value.trim())
@@ -426,7 +403,7 @@ const showStandaloneModelScopeEditor = computed(() => {
     return false
   }
   if (form.platform === 'grok') {
-    return form.type === 'sso' || form.type === 'oauth'
+    return form.type === 'oauth'
   }
   return accountCategory.value === 'oauth-based' || accountCategory.value === 'vertex_ai'
 })
@@ -865,8 +842,6 @@ const { resetForm } = useCreateAccountReset({
   apiKeyRequestHeadersText,
   openRouterHTTPReferer,
   openRouterTitle,
-  grokSSOToken,
-  grokTier,
   editQuotaLimit,
   editQuotaDailyLimit,
   editQuotaWeeklyLimit,
@@ -1095,10 +1070,6 @@ const buildProbeExtra = (base?: Record<string, unknown>) =>
     resolvedUpstream.value
   )
 
-const grokProbeExtra = computed(() =>
-  form.type === 'sso' ? buildProbeExtra({ grok_tier: grokTier.value }) : buildProbeExtra()
-)
-
 const modalContext = {
   BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL, GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS, acceptAIStudioBatchOverflow, accountCategory, addMethod, allowVertexBatchOverflow, allowedModels, anthropicAPIKeyAuthScheme, anthropicPassthroughEnabled, antigravityAccountType, antigravityModelMappings,
   antigravityModelRestrictionMode, antigravityOAuth, antigravityWhitelistModels, apiKeyBaseUrl, apiKeyRequestHeadersText, apiKeyValue, appStore, applyAccountCustomErrorCodesStateToCredentials, applyAccountPoolModeStateToCredentials, applyDeepSeekModelConcurrencyLimitsExtra, applyInterceptWarmup,
@@ -1107,7 +1078,7 @@ const modalContext = {
   claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled, codexCLIOnlyEnabled, codexImageToolPolicy, computed, createAccountModelProbeSnapshotDraft, customErrorCodesState, deepSeekModelConcurrencyLimits, editQuotaDailyLimit, editQuotaDailyResetHour,
   editQuotaDailyResetMode, editQuotaLimit, editQuotaResetTimezone, editQuotaWeeklyLimit, editQuotaWeeklyResetDay, editQuotaWeeklyResetHour, editQuotaWeeklyResetMode, effectivePlatform, emit, ensureMixedChannelConfirmed,
   expiryProbeExtensionDays, form, gatewayAcceptedProtocols, gatewayBatchEnabled, gatewayClientProfiles, gatewayClientRoutes, gatewayOpenAIImageProtocolMode, gatewayOpenAIRequestFormat, gatewayProtocol, gatewayTestModelId,
-  gatewayTestProvider, geminiTierAIStudio, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexLocation, geminiVertexProjectId, geminiVertexServiceAccountJson, grokSSOToken, grokTier,
+  gatewayTestProvider, geminiTierAIStudio, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexLocation, geminiVertexProjectId, geminiVertexServiceAccountJson,
   grokOAuthRef, handleClose, hasCustomizedOpenAIOAuthDefaults, interceptWarmupRequests, isBaiduDocumentAISelected, isOAuthFlow, isOpenAIModelRestrictionDisabled, isProtocolGatewayPlatform, manualModels, maybeImportCreatedAccounts, mergeAccountManualModelsIntoExtra,
   mergeAccountModelProbeSnapshotIntoExtra, mergeResolvedUpstreamDraftIntoExtra, mixedScheduling, modelMappings, modelProbeSnapshot, modelRestrictionEnabled, modelRestrictionMode, normalizeGeminiAIStudioTier, oauth, oauthDraftCredentials,
   oauthDraftExtra, oauthDraftProbeReady, oauthFlowRef, oauthInputDraft, openAIImageCompatAllowed, openAIImageProtocolMode, openMixedChannelDialog, openRouterHTTPReferer, openRouterTitle, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuth,
@@ -1117,7 +1088,7 @@ const modalContext = {
   autoImportModels, createDefaultDeepSeekModelConcurrencyLimitDraft, ensureModelRegistryFresh, geminiAIStudioOAuthEnabled, geminiOAuth, geminiOAuthType, geminiVertexAccessToken, geminiVertexExpiresAtInput, isBaiduDocumentAIPlatform, kiroAuthRef,
   loadAntigravityDefaultMappings, markOpenAIOAuthDefaultsCustomized, nextTick, openAIImageProtocolTouched, props, protocolGatewayProbeModels, resetForm, resetOpenAIOAuthDefaultSelection, resetProtocolGatewayClaudeMimicState, showProtocolGatewayBatchEditor,
   showProtocolGatewayClaudeMimicEditor, showProtocolGatewayOpenAIRequestFormatEditor, watch, authStore, oauthStepTitle, showFormError, showFormInfo, currentAuthUrl, currentSessionId, currentOAuthLoading,
-  currentOAuthError, apiKeyProbeCredentials, upstreamProbeCredentials, vertexProbeCredentials, grokProbeCredentials, grokProbeExtra, isApiKeyProbeReady, isUpstreamProbeReady, isGrokProbeReady, isVertexProbeReady, showCommonApiKeySection, showApiKeyModelScopeEditor, showDeepSeekConcurrencyEditor,
+  currentOAuthError, apiKeyProbeCredentials, upstreamProbeCredentials, vertexProbeCredentials, isApiKeyProbeReady, isUpstreamProbeReady, isVertexProbeReady, showCommonApiKeySection, showApiKeyModelScopeEditor, showDeepSeekConcurrencyEditor,
   showStandaloneModelScopeEditor, showQuotaLimitSection, showGeminiAIStudioBatchArchiveEditor, showGeminiVertexBatchArchiveEditor, showAntigravityUpstreamCredentialsSection, showOAuthFinalizeProbeEditor, antigravityPresetMappings, getModelMappingKey, getAntigravityModelMappingKey, showAdvancedOAuth, showGeminiHelpDialog,
   quotaControlState, umqModeOptions, geminiTierGoogleOne, geminiTierGcp, effectiveGroupPlatforms, protocolGatewayBatchRequestFormats, openAIWSModeOptions, openaiResponsesWebSocketV2Mode, openAIWSModeConcurrencyHintKey, commonErrorCodeOptions,
   geminiHelpLinks, presetMappings, tempUnschedRules, tempUnschedPresets, getTempUnschedRuleKey, addTempUnschedRule, removeTempUnschedRule, moveTempUnschedRule, showMixedChannelWarning, mixedChannelWarningMessageText,

@@ -22,7 +22,8 @@ import type {
   CheckMixedChannelRequest,
   CheckMixedChannelResponse,
   AccountDaily5HTriggerSettings,
-  AccountDaily5HTriggerSettingsView
+  AccountDaily5HTriggerSettingsView,
+  WindowStats
 } from '@/types'
 import {
   batchClearError,
@@ -866,6 +867,149 @@ export async function resetOpenAIQuota(id: number): Promise<OpenAIQuotaResetResu
   return data
 }
 
+export interface GrokQuotaWindow {
+  limit?: number | null
+  remaining?: number | null
+  reset_unix?: number | null
+  reset_at?: string | null
+}
+
+export interface GrokBillingProductUsage {
+  product: string
+  usage_percent?: number | null
+}
+
+export interface GrokBillingSummary {
+  period_type?: string
+  plan?: string
+  usage_percent?: number | null
+  period_start?: string
+  period_end?: string
+  product_usage?: GrokBillingProductUsage[]
+  used_percent?: number | null
+  monthly_limit_cents?: number | null
+  used_cents?: number | null
+  included_used_cents?: number | null
+  billing_period_start?: string
+  billing_period_end?: string
+  status_code?: number
+  source?: string
+  fetched_at?: string
+  updated_at?: string
+  weekly_updated_at?: string
+  monthly_updated_at?: string
+  partial?: boolean
+  failed_windows?: string[]
+}
+
+export interface GrokQuotaSnapshot {
+  requests?: GrokQuotaWindow | null
+  tokens?: GrokQuotaWindow | null
+  retry_after_seconds?: number | null
+  headers_observed?: boolean
+  status_code?: number
+  observation_source?: string
+  last_probe_at?: string
+  last_headers_seen_at?: string
+  updated_at?: string
+  headers?: Record<string, string>
+}
+
+export interface GrokQuotaProbeResult {
+  source: string
+  model?: string
+  billing?: GrokBillingSummary | null
+  snapshot?: GrokQuotaSnapshot | null
+  local_usage_24h?: WindowStats | null
+  local_usage_7d?: WindowStats | null
+  local_usage_monthly?: WindowStats | null
+  status_code?: number
+  headers_observed: boolean
+  reset_supported: boolean
+  fetched_at: number
+  persisted: boolean
+  probe_error?: string
+}
+
+export interface GrokQuotaResetResult {
+  supported: boolean
+  code: string
+  message: string
+}
+
+export interface GrokOAuthReconcileRequest {
+  dry_run?: boolean
+  apply?: boolean
+  after_id?: number
+  limit?: number
+  refresh_window_seconds?: number
+}
+
+export interface GrokOAuthReconcileItem {
+  account_id: number
+  reason: string
+  action: string
+  outcome: string
+}
+
+export interface GrokOAuthReconcileResult {
+  dry_run: boolean
+  scanned: number
+  actionable: number
+  would_block: number
+  would_refresh: number
+  blocked: number
+  refreshed: number
+  skipped: number
+  failed: number
+  items: GrokOAuthReconcileItem[]
+  next_after_id: number
+  has_more: boolean
+}
+
+export interface GrokRuntimeSanityReport {
+  oauth_authorize_url?: string
+  oauth_token_url?: string
+  oauth_device_url?: string
+  oauth_userinfo_url?: string
+  cli_base_url?: string
+  valid?: boolean
+  errors?: string[]
+  warnings?: string[]
+  [key: string]: unknown
+}
+
+export async function queryGrokQuota(id: number): Promise<GrokQuotaProbeResult> {
+  const { data } = await apiClient.get<GrokQuotaProbeResult>(
+    `/admin/grok/accounts/${id}/quota`
+  )
+  return data
+}
+
+export async function resetGrokQuota(id: number): Promise<GrokQuotaResetResult> {
+  const { data } = await apiClient.post<GrokQuotaResetResult>(
+    `/admin/grok/accounts/${id}/reset-quota`
+  )
+  return data
+}
+
+export async function reconcileGrokOAuth(
+  payload: GrokOAuthReconcileRequest = {}
+): Promise<GrokOAuthReconcileResult> {
+  const { data } = await apiClient.post<GrokOAuthReconcileResult>(
+    '/admin/grok/oauth/reconcile',
+    payload
+  )
+  return data
+}
+
+export async function getGrokRuntimeSanity(): Promise<GrokRuntimeSanityReport> {
+  const { data } = await apiClient.get<GrokRuntimeSanityReport>(
+    '/admin/grok/runtime-sanity'
+  )
+  return data
+}
+
 /**
  * Get temporary unschedulable status
  * @param id - Account ID
@@ -1111,6 +1255,10 @@ export const accountsAPI = {
   resetAccountQuota,
   queryOpenAIQuota,
   resetOpenAIQuota,
+  queryGrokQuota,
+  resetGrokQuota,
+  reconcileGrokOAuth,
+  getGrokRuntimeSanity,
   getTempUnschedulableStatus,
   resetTempUnschedulable,
   setSchedulable,

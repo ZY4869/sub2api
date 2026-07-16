@@ -103,22 +103,24 @@ import { useClipboard } from '@/composables/useClipboard'
 import {
   buildGrokOAuthPayload,
   parseGrokAuthorizationInput,
+  type GrokOAuthSubmitPayload,
   type GrokAuthUrlResult,
   type GrokExchangeCodeResult,
-  type ParsedGrokOAuthPayload
 } from '@/utils/grokOAuth'
 
 const props = withDefaults(defineProps<{
   proxyId?: number | null
   submitLabel: string
   submitting?: boolean
+  submitMode?: 'exchange' | 'authorization'
 }>(), {
   proxyId: null,
-  submitting: false
+  submitting: false,
+  submitMode: 'exchange'
 })
 
 const emit = defineEmits<{
-  submit: [payload: ParsedGrokOAuthPayload]
+  submit: [payload: GrokOAuthSubmitPayload]
   deviceInput: []
 }>()
 
@@ -201,6 +203,14 @@ async function submitOAuth() {
   loading.value = true
   errorMessage.value = ''
   try {
+    if (props.submitMode === 'authorization') {
+      emit('submit', {
+        sessionId: authState.value.session_id,
+        code: parsedCode.value,
+        state: resolvedState.value
+      })
+      return
+    }
     const tokenInfo = await adminAPI.accounts.exchangeGrokAuthCode({
       session_id: authState.value.session_id,
       code: parsedCode.value,

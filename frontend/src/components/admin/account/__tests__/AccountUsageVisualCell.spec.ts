@@ -352,6 +352,61 @@ describe('AccountUsageVisualCell', () => {
     expect(wrapper.get('span.w-7').classes()).toContain('bg-green-50')
   })
 
+  it('shows Grok billing and quota rows with plan and snapshot time', async () => {
+    getUsage.mockResolvedValue({
+      grok_billing: {
+        plan: 'SuperGrok',
+        period_type: 'weekly',
+        usage_percent: 12,
+        period_end: '2099-07-22T00:00:00Z',
+        used_percent: 34,
+        billing_period_end: '2099-08-01T00:00:00Z',
+      },
+      grok_request_quota: {
+        limit: 100,
+        remaining: 25,
+        reset_at: '2099-07-16T00:00:00Z',
+      },
+      grok_token_quota: {
+        limit: 1000,
+        remaining: 750,
+      },
+      grok_local_usage_24h: {
+        cost: 1,
+      },
+      grok_last_quota_probe_at: '2099-07-15T10:00:00Z',
+      grok_quota_snapshot_state: 'billing_observed',
+    })
+
+    const wrapper = mount(AccountUsageVisualCell, {
+      props: {
+        account: {
+          id: 94,
+          platform: 'grok',
+          type: 'oauth',
+          active_usage_available: true,
+          extra: {},
+        } as any,
+      },
+      global: {
+        plugins: [createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('SuperGrok')
+    expect(wrapper.text()).toContain('7d')
+    expect(wrapper.text()).toContain('30D')
+    expect(wrapper.text()).toContain('12%')
+    expect(wrapper.text()).toContain('34%')
+    expect(wrapper.attributes('title')).toBeUndefined()
+    const rowTitles = wrapper.findAll('[title]').map((node) => node.attributes('title'))
+    expect(rowTitles.some((title) => title?.includes('Grok W'))).toBe(true)
+    expect(rowTitles.some((title) => title?.includes('Grok M'))).toBe(true)
+    expect(wrapper.text()).toContain('Snapshot')
+  })
+
   it('follows the shared remaining display mode', async () => {
     useAccountUsageDisplayMode().setAccountUsageDisplayMode('remaining')
     getUsage.mockResolvedValue({

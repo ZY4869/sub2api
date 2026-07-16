@@ -511,9 +511,13 @@ func registerGrokRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		grok.POST("/oauth/exchange-code", h.Admin.GrokOAuth.ExchangeCode)
 		grok.POST("/oauth/device/start", h.Admin.GrokOAuth.StartDeviceFlow)
 		grok.POST("/oauth/device/poll", h.Admin.GrokOAuth.PollDeviceToken)
+		grok.POST("/oauth/reconcile", h.Admin.GrokOAuth.Reconcile)
+		grok.GET("/runtime-sanity", h.Admin.GrokOAuth.RuntimeSanity)
 		grok.POST("/create-from-oauth", h.Admin.GrokOAuth.CreateAccountFromOAuth)
 		grok.POST("/accounts/:id/reauthorize-from-oauth", h.Admin.GrokOAuth.ReauthorizeAccountFromOAuth)
 		grok.POST("/accounts/:id/refresh", h.Admin.GrokOAuth.RefreshAccount)
+		grok.GET("/accounts/:id/quota", h.Admin.GrokOAuth.QueryQuota)
+		grok.POST("/accounts/:id/reset-quota", h.Admin.GrokOAuth.ResetQuota)
 	}
 }
 

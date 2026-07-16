@@ -762,6 +762,13 @@ const handleEvent = (event: {
       }
       break
 
+    case 'log':
+    case 'status':
+      if (event.text) {
+        addLine(event.text, 'text-sky-300')
+      }
+      break
+
     case 'image':
       if (event.image_url) {
         generatedImages.value.push({

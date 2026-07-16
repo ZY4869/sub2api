@@ -44,6 +44,7 @@ type AdminService interface {
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
 	UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error)
 	BackfillAccountModelPolicies(ctx context.Context, registry *ModelRegistryService, pageSize int) (*AccountModelPolicyBackfillResult, error)
+	EnsureGrokBuildModelScope(ctx context.Context, account *Account, registry *ModelRegistryService) (*GrokBuildModelScopeEnsureResult, error)
 	DeleteAccount(ctx context.Context, id int64) error
 	BatchDeleteBlacklistedAccounts(ctx context.Context, ids []int64, deleteAll bool) (*BlacklistedBatchDeleteResult, error)
 	RefreshAccountCredentials(ctx context.Context, id int64) (*Account, error)

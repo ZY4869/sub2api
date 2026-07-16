@@ -136,14 +136,6 @@ const grokOptions = computed<TypeOption[]>(() => [
     active: accountCategory.value === 'oauth-based'
   },
   {
-    key: 'sso',
-    title: t('admin.accounts.types.grokSso'),
-    description: t('admin.accounts.types.grokSsoHint'),
-    icon: 'sparkles',
-    accent: 'orange',
-    active: accountCategory.value === 'sso'
-  },
-  {
     key: 'apikey',
     title: 'API Key',
     description: t('admin.accounts.grokDedicatedRouteHint'),

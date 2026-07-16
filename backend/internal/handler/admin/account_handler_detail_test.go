@@ -140,6 +140,55 @@ func TestAccountHandlerGetByIDRejectsLegacyCopilotAccount(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "UNSUPPORTED_PLATFORM")
 }
 
+func TestAccountHandlerGetByIDBackfillsGrokOAuthBuildScope(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{
+		{
+			ID:          100,
+			Name:        "Grok OAuth",
+			Platform:    service.PlatformGrok,
+			Type:        service.AccountTypeOAuth,
+			Status:      service.StatusActive,
+			Schedulable: true,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			Credentials: map[string]any{
+				"access_token":  "access-token",
+				"refresh_token": "refresh-token",
+			},
+			Extra: map[string]any{},
+		},
+	}
+
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/api/v1/admin/accounts/:id", handler.GetByID)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/100", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp struct {
+		Data struct {
+			Extra map[string]any `json:"extra"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	scope, ok := service.ExtractAccountModelScopeV2(resp.Data.Extra)
+	require.True(t, ok)
+	require.Len(t, scope.Entries, len(service.GrokBuildTextModelIDs()))
+	require.Len(t, adminSvc.accounts, 1)
+	persisted, ok := service.ExtractAccountModelScopeV2(adminSvc.accounts[0].Extra)
+	require.True(t, ok)
+	require.Len(t, persisted.Entries, len(service.GrokBuildTextModelIDs()))
+}
+
 func TestAccountHandlerUpdatePreservesMaskedCredentialValues(t *testing.T) {
 	t.Parallel()
 

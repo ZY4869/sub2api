@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -27,6 +28,7 @@ type OAuthRefreshResult struct {
 	NewCredentials map[string]any // 刷新后的 credentials（nil 表示未刷新）
 	Account        *Account       // 从 DB 重新读取的最新 account
 	LockHeld       bool           // 锁被其他 worker 持有（未执行刷新）
+	CASMiss        bool           // 条件写未命中（调用方应视为跳过，避免覆盖更新的凭据）
 }
 
 // OAuthRefreshAPI 统一的 OAuth Token 刷新入口
@@ -78,6 +80,26 @@ func (api *OAuthRefreshAPI) RefreshIfNeeded(
 	executor OAuthRefreshExecutor,
 	refreshWindow time.Duration,
 ) (*OAuthRefreshResult, error) {
+	return api.refreshIfNeeded(ctx, account, executor, refreshWindow, nil)
+}
+
+func (api *OAuthRefreshAPI) RefreshIfNeededWithExpectedCredentials(
+	ctx context.Context,
+	account *Account,
+	executor OAuthRefreshExecutor,
+	refreshWindow time.Duration,
+	expectedCredentials map[string]any,
+) (*OAuthRefreshResult, error) {
+	return api.refreshIfNeeded(ctx, account, executor, refreshWindow, cloneAccountCredentialsMap(expectedCredentials))
+}
+
+func (api *OAuthRefreshAPI) refreshIfNeeded(
+	ctx context.Context,
+	account *Account,
+	executor OAuthRefreshExecutor,
+	refreshWindow time.Duration,
+	expectedCredentials map[string]any,
+) (*OAuthRefreshResult, error) {
 	cacheKey := executor.CacheKey(account)
 
 	// 0. 获取进程内互斥锁（防止同一进程内的并发刷新竞争）
@@ -117,6 +139,12 @@ func (api *OAuthRefreshAPI) RefreshIfNeeded(
 	} else if freshAccount == nil {
 		freshAccount = account
 	}
+	if expectedCredentials != nil && !accountCredentialsEqual(freshAccount.Credentials, expectedCredentials) {
+		return &OAuthRefreshResult{
+			Account: freshAccount,
+			CASMiss: true,
+		}, nil
+	}
 
 	// 3. 二次检查是否仍需刷新（另一条路径可能已刷新）
 	if !executor.NeedsRefresh(freshAccount, refreshWindow) {
@@ -147,7 +175,25 @@ func (api *OAuthRefreshAPI) RefreshIfNeeded(
 	// 5. 设置版本号 + 更新 DB
 	if newCredentials != nil {
 		newCredentials["_token_version"] = time.Now().UnixMilli()
-		if updateErr := persistAccountCredentials(ctx, api.accountRepo, freshAccount, newCredentials); updateErr != nil {
+		var updateErr error
+		if expectedCredentials != nil {
+			var applied bool
+			applied, updateErr = api.persistAccountCredentialsIfUnchanged(ctx, freshAccount, expectedCredentials, newCredentials)
+			if updateErr == nil && !applied {
+				slog.Info("oauth_refresh_cas_miss",
+					"account_id", freshAccount.ID,
+					"platform", freshAccount.Platform,
+				)
+				return &OAuthRefreshResult{
+					NewCredentials: newCredentials,
+					Account:        freshAccount,
+					CASMiss:        true,
+				}, nil
+			}
+		} else {
+			updateErr = persistAccountCredentials(ctx, api.accountRepo, freshAccount, newCredentials)
+		}
+		if updateErr != nil {
 			slog.Error("oauth_refresh_update_failed",
 				"account_id", freshAccount.ID,
 				"error", updateErr,
@@ -163,6 +209,31 @@ func (api *OAuthRefreshAPI) RefreshIfNeeded(
 		NewCredentials: newCredentials,
 		Account:        freshAccount,
 	}, nil
+}
+
+func (api *OAuthRefreshAPI) persistAccountCredentialsIfUnchanged(
+	ctx context.Context,
+	account *Account,
+	expectedCredentials map[string]any,
+	credentials map[string]any,
+) (bool, error) {
+	conditionalRepo, ok := any(api.accountRepo).(GrokOAuthConditionalCredentialsRepository)
+	if !ok || conditionalRepo == nil {
+		return false, errors.New("conditional credentials repository is unavailable")
+	}
+	applied, err := conditionalRepo.UpdateGrokOAuthCredentialsIfCredentialsUnchanged(ctx, account.ID, expectedCredentials, credentials)
+	if err != nil {
+		return false, err
+	}
+	if !applied {
+		return false, nil
+	}
+	account.Credentials = cloneAccountCredentialsMap(credentials)
+	return true, nil
+}
+
+func accountCredentialsEqual(a, b map[string]any) bool {
+	return fmt.Sprint(a) == fmt.Sprint(b)
 }
 
 // isInvalidGrantError 检查错误是否为 invalid_grant

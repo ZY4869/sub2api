@@ -9,7 +9,7 @@ import (
 )
 
 // GetPassiveUsage 从 Account.Extra 中的被动采样数据构建 UsageInfo，不调用外部 API。
-// 仅适用于 Anthropic OAuth / SetupToken 账号。
+// 适用于 Anthropic OAuth / SetupToken 与 Grok OAuth 账号。
 func (s *AccountUsageService) GetPassiveUsage(ctx context.Context, accountID int64) (*UsageInfo, error) {
 	account, err := s.accountRepo.GetByID(ctx, accountID)
 	if err != nil {
@@ -24,8 +24,19 @@ func (s *AccountUsageService) buildPassiveUsageInfo(ctx context.Context, account
 		return nil, fmt.Errorf("account is nil")
 	}
 
+	if account.IsGrokOAuth() {
+		if s.grokQuotaFetcher == nil {
+			s.grokQuotaFetcher = NewGrokQuotaFetcher()
+		}
+		usage := s.grokQuotaFetcher.BuildUsageInfo(account)
+		if usage.GrokBilling != nil {
+			usage.GrokLocalUsage24h, usage.GrokLocalUsage7d, usage.GrokLocalUsageMonthly = grokLocalUsageForQuota(ctx, s.usageLogRepo, account.ID, usage.GrokBilling, time.Now().UTC())
+		}
+		return usage, nil
+	}
+
 	if !account.IsAnthropicOAuthOrSetupToken() {
-		return nil, fmt.Errorf("passive usage only supported for Anthropic OAuth/SetupToken accounts")
+		return nil, fmt.Errorf("passive usage only supported for Anthropic OAuth/SetupToken or Grok OAuth accounts")
 	}
 
 	// 复用 estimateSetupTokenUsage 构建 5h 窗口（OAuth 和 SetupToken 逻辑一致）

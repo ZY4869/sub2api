@@ -3,8 +3,10 @@ package service
 import "time"
 
 const (
-	GrokRouteModeAPIKey = "apikey"
-	GrokRouteModeSSO    = "sso"
+	GrokRouteModeAPIKey     = "apikey"
+	GrokRouteModeOAuthBuild = "oauth_build"
+	GrokRouteModeSSOReverse = "sso_reverse"
+	GrokRouteModeSSO        = GrokRouteModeSSOReverse
 
 	defaultGrokAPIBaseURL     = "https://api.x.ai"
 	defaultGrokCLIBaseURL     = "https://cli-chat-proxy.grok.com/v1"

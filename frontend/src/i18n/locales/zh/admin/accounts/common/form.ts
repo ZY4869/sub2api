@@ -170,6 +170,8 @@ export default {
     grokTierBasic: "Basic",
     grokTierSuper: "Super",
     grokTierHeavy: "Heavy",
+    grokSsoLegacyTitle: "Legacy reverse runtime",
+    grokSsoLegacyHint: "此账号仍可维护 Token 与档位，但已不支持新建 SSO reverse 账号。建议使用 Grok OAuth/Build 登录或重授权迁移。",
     grokDedicatedRouteHint: "Grok API Key 默认使用 https://api.x.ai；用户侧 API Key 调用可同时使用根入口和 /grok/v1 专属入口。",
     grokOauth: {
         title: "Grok 官方登录",

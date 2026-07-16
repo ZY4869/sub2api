@@ -50,18 +50,18 @@ func (s *GrokGatewayService) forwardGrokVideoCreateWithOperation(ctx context.Con
 	}
 
 	startTime := time.Now()
-	result, err := s.runGrokVideoWorkflow(ctx, c, account, req)
+	result, meta, err := s.runGrokVideoWorkflow(ctx, c, account, req)
 	if err != nil {
 		return nil, err
 	}
 	c.JSON(http.StatusOK, grokBuildVideoCreateResponse(result, req))
-	return &GrokGatewayForwardResult{
+	return applyGrokForwardMetadata(&GrokGatewayForwardResult{
 		Result:            grokVideoForwardResult(req, result, false, nil, time.Since(startTime)),
 		RouteMode:         s.RouteMode(account),
 		Endpoint:          grokVideoOperationEndpoint(req.Operation),
 		MediaType:         "video",
 		UpstreamRequestID: strings.TrimSpace(result.RequestID),
-	}, nil
+	}, meta), nil
 }
 
 func (s *GrokGatewayService) forwardGrokVideoChatLike(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*GrokGatewayForwardResult, error) {
@@ -71,7 +71,7 @@ func (s *GrokGatewayService) forwardGrokVideoChatLike(ctx context.Context, c *gi
 	}
 
 	startTime := time.Now()
-	result, err := s.runGrokVideoWorkflow(ctx, c, account, req)
+	result, meta, err := s.runGrokVideoWorkflow(ctx, c, account, req)
 	if err != nil {
 		return nil, err
 	}
@@ -86,13 +86,13 @@ func (s *GrokGatewayService) forwardGrokVideoChatLike(ctx context.Context, c *gi
 		c.JSON(http.StatusOK, apicompat.ResponsesToChatCompletions(grokBuildVideoResponsesResponse(result, req.RequestedModel), req.RequestedModel))
 	}
 
-	return &GrokGatewayForwardResult{
+	return applyGrokForwardMetadata(&GrokGatewayForwardResult{
 		Result:            grokVideoForwardResult(req, result, req.Stream, firstTokenMs, time.Since(startTime)),
 		RouteMode:         s.RouteMode(account),
 		Endpoint:          grokEndpointChatCompletions,
 		MediaType:         "video",
 		UpstreamRequestID: strings.TrimSpace(result.RequestID),
-	}, nil
+	}, meta), nil
 }
 
 func (s *GrokGatewayService) forwardGrokVideoResponsesLike(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*GrokGatewayForwardResult, error) {
@@ -102,7 +102,7 @@ func (s *GrokGatewayService) forwardGrokVideoResponsesLike(ctx context.Context, 
 	}
 
 	startTime := time.Now()
-	result, err := s.runGrokVideoWorkflow(ctx, c, account, req)
+	result, meta, err := s.runGrokVideoWorkflow(ctx, c, account, req)
 	if err != nil {
 		return nil, err
 	}
@@ -117,43 +117,45 @@ func (s *GrokGatewayService) forwardGrokVideoResponsesLike(ctx context.Context, 
 		c.JSON(http.StatusOK, grokBuildVideoResponsesResponse(result, req.RequestedModel))
 	}
 
-	return &GrokGatewayForwardResult{
+	return applyGrokForwardMetadata(&GrokGatewayForwardResult{
 		Result:            grokVideoForwardResult(req, result, req.Stream, firstTokenMs, time.Since(startTime)),
 		RouteMode:         s.RouteMode(account),
 		Endpoint:          grokEndpointResponses,
 		MediaType:         "video",
 		UpstreamRequestID: strings.TrimSpace(result.RequestID),
-	}, nil
+	}, meta), nil
 }
 
-func (s *GrokGatewayService) runGrokVideoWorkflow(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*grokVideoResult, error) {
+func (s *GrokGatewayService) runGrokVideoWorkflow(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*grokVideoResult, grokUpstreamRequestMetadata, error) {
 	if account != nil && account.IsGrokSSO() {
 		return s.runSSOGrokVideoWorkflow(ctx, c, account, req)
 	}
-	return s.runAPIKeyGrokVideoWorkflow(ctx, c, account, req)
+	return s.runOfficialGrokVideoWorkflow(ctx, c, account, req)
 }
 
-func (s *GrokGatewayService) runAPIKeyGrokVideoWorkflow(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*grokVideoResult, error) {
+func (s *GrokGatewayService) runOfficialGrokVideoWorkflow(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*grokVideoResult, grokUpstreamRequestMetadata, error) {
+	meta := grokUpstreamRequestMetadata{RouteMode: s.RouteMode(account)}
 	upstreamModel := grokResolveVideoUpstreamModel(account, req.RequestedModel)
 	payloadBody, endpoint, err := grokBuildAPIKeyVideoPayload(req, upstreamModel)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": err.Error()}})
-		return nil, err
+		return nil, meta, err
 	}
 
 	startTime := time.Now()
-	resp, meta, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, endpoint, payloadBody)
+	resp, createMeta, err := s.doGrokOfficialRequest(ctx, c, account, http.MethodPost, endpoint, payloadBody)
+	meta = createMeta
 	if err != nil {
-		return nil, err
+		return nil, meta, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, meta)
+		return nil, meta, s.handleHTTPError(ctx, resp, c, account, meta)
 	}
 
 	bodyBytes, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
 	if err != nil {
-		return nil, err
+		return nil, meta, err
 	}
 	result := grokParseVideoResultBody(bodyBytes, req.RequestedModel, upstreamModel)
 	if result == nil {
@@ -166,12 +168,12 @@ func (s *GrokGatewayService) runAPIKeyGrokVideoWorkflow(ctx context.Context, c *
 	if strings.TrimSpace(result.RequestID) == "" && strings.TrimSpace(result.URL) == "" {
 		msg := "Grok video upstream returned no request_id or final url"
 		s.writeGrokVideoError(c, http.StatusBadGateway, "upstream_error", msg)
-		s.logGrokVideoWorkflow(req, result, GrokRouteModeAPIKey, time.Since(startTime), 0, "invalid_create_response")
-		return nil, fmt.Errorf("%s", msg)
+		s.logGrokVideoWorkflow(req, result, s.RouteMode(account), time.Since(startTime), 0, "invalid_create_response")
+		return nil, meta, fmt.Errorf("%s", msg)
 	}
 	if grokIsVideoSuccessStatus(result.Status) && strings.TrimSpace(result.URL) != "" {
-		s.logGrokVideoWorkflow(req, result, GrokRouteModeAPIKey, time.Since(startTime), 0, result.Status)
-		return result, nil
+		s.logGrokVideoWorkflow(req, result, s.RouteMode(account), time.Since(startTime), 0, result.Status)
+		return result, meta, nil
 	}
 
 	pollCtx, cancel := context.WithTimeout(ctx, s.grokVideoWaitTimeout())
@@ -180,37 +182,37 @@ func (s *GrokGatewayService) runAPIKeyGrokVideoWorkflow(ctx context.Context, c *
 	for {
 		if err := pollCtx.Err(); err != nil {
 			s.writeGrokVideoError(c, http.StatusGatewayTimeout, "upstream_timeout", "Grok video generation timed out")
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeAPIKey, time.Since(startTime), rounds, "timeout")
-			return nil, fmt.Errorf("grok video generation timed out")
+			s.logGrokVideoWorkflow(req, result, s.RouteMode(account), time.Since(startTime), rounds, "timeout")
+			return nil, meta, fmt.Errorf("grok video generation timed out")
 		}
 		rounds++
-		polled, pollErr := s.fetchAPIKeyVideoStatusOnce(pollCtx, c, account, result.RequestID, req.RequestedModel, upstreamModel)
+		polled, pollErr := s.fetchOfficialVideoStatusOnce(pollCtx, c, account, result.RequestID, req.RequestedModel, upstreamModel)
 		if pollErr != nil {
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeAPIKey, time.Since(startTime), rounds, "poll_failed")
-			return nil, pollErr
+			s.logGrokVideoWorkflow(req, result, s.RouteMode(account), time.Since(startTime), rounds, "poll_failed")
+			return nil, meta, pollErr
 		}
 		if polled != nil {
 			result = polled
 		}
 		if result != nil && grokIsVideoSuccessStatus(result.Status) && strings.TrimSpace(result.URL) != "" {
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeAPIKey, time.Since(startTime), rounds, result.Status)
-			return result, nil
+			s.logGrokVideoWorkflow(req, result, s.RouteMode(account), time.Since(startTime), rounds, result.Status)
+			return result, meta, nil
 		}
 		if result != nil && grokIsVideoFailureStatus(result.Status) {
 			message := firstNonEmptyString(result.Status, "failed")
 			s.writeGrokVideoError(c, http.StatusBadGateway, "upstream_error", "Grok video generation failed: "+message)
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeAPIKey, time.Since(startTime), rounds, result.Status)
-			return nil, fmt.Errorf("grok video generation failed: %s", message)
+			s.logGrokVideoWorkflow(req, result, s.RouteMode(account), time.Since(startTime), rounds, result.Status)
+			return nil, meta, fmt.Errorf("grok video generation failed: %s", message)
 		}
 		if err := sleepWithContext(pollCtx, s.grokVideoPollInterval()); err != nil {
 			s.writeGrokVideoError(c, http.StatusGatewayTimeout, "upstream_timeout", "Grok video generation timed out")
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeAPIKey, time.Since(startTime), rounds, "timeout")
-			return nil, fmt.Errorf("grok video generation timed out")
+			s.logGrokVideoWorkflow(req, result, s.RouteMode(account), time.Since(startTime), rounds, "timeout")
+			return nil, meta, fmt.Errorf("grok video generation timed out")
 		}
 	}
 }
 
-func (s *GrokGatewayService) fetchAPIKeyVideoStatusOnce(
+func (s *GrokGatewayService) fetchOfficialVideoStatusOnce(
 	ctx context.Context,
 	c *gin.Context,
 	account *Account,
@@ -218,7 +220,7 @@ func (s *GrokGatewayService) fetchAPIKeyVideoStatusOnce(
 	requestedModel string,
 	upstreamModel string,
 ) (*grokVideoResult, error) {
-	resp, _, err := s.doAPIKeyRequest(ctx, c, account, http.MethodGet, "/v1/videos/"+strings.TrimSpace(requestID), nil)
+	resp, _, err := s.doGrokOfficialRequest(ctx, c, account, http.MethodGet, "/v1/videos/"+strings.TrimSpace(requestID), nil)
 	if err != nil {
 		s.writeGrokVideoError(c, http.StatusBadGateway, "upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
 		return nil, fmt.Errorf("grok video status request failed: %w", err)
@@ -236,7 +238,8 @@ func (s *GrokGatewayService) fetchAPIKeyVideoStatusOnce(
 	return grokParseVideoResultBody(bodyBytes, requestedModel, upstreamModel), nil
 }
 
-func (s *GrokGatewayService) runSSOGrokVideoWorkflow(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*grokVideoResult, error) {
+func (s *GrokGatewayService) runSSOGrokVideoWorkflow(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*grokVideoResult, grokUpstreamRequestMetadata, error) {
+	meta := newGrokSSOReverseRequestMetadata(grokSSOReverseAppChatEndpoint)
 	validationBody, _ := json.Marshal(map[string]any{
 		"duration_seconds": req.Seconds,
 		"resolution":       req.Resolution,
@@ -244,7 +247,7 @@ func (s *GrokGatewayService) runSSOGrokVideoWorkflow(ctx context.Context, c *gin
 	validation, err := s.validateSSORequest(account, req.RequestedModel, "video", validationBody)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": err.Error()}})
-		return nil, err
+		return nil, meta, err
 	}
 
 	extraPayload := map[string]any{
@@ -264,7 +267,7 @@ func (s *GrokGatewayService) runSSOGrokVideoWorkflow(ctx context.Context, c *gin
 	startTime := time.Now()
 	exec, err := s.executeSSOReverseRequest(ctx, account, validation.MappedModel, req.ModeID, req.Prompt, extraPayload)
 	if err != nil {
-		return nil, err
+		return nil, meta, err
 	}
 	requestID := grokEncodeReverseVideoRequestID(exec.ConversationID, exec.ResponseID)
 	result := &grokVideoResult{
@@ -282,14 +285,14 @@ func (s *GrokGatewayService) runSSOGrokVideoWorkflow(ctx context.Context, c *gin
 		result.Status = "completed"
 		result.URL = firstMediaURL(exec.VideoURLs)
 		result.CompletedAt = time.Now()
-		s.logGrokVideoWorkflow(req, result, GrokRouteModeSSO, time.Since(startTime), 0, result.Status)
-		return result, nil
+		s.logGrokVideoWorkflow(req, result, GrokRouteModeSSOReverse, time.Since(startTime), 0, result.Status)
+		return result, meta, nil
 	}
 	if strings.TrimSpace(exec.ConversationID) == "" && strings.TrimSpace(exec.AssetID) == "" {
 		msg := "Grok reverse video request did not return pollable identifiers"
 		s.writeGrokVideoError(c, http.StatusBadGateway, "upstream_error", msg)
-		s.logGrokVideoWorkflow(req, result, GrokRouteModeSSO, time.Since(startTime), 0, "invalid_create_response")
-		return nil, fmt.Errorf("%s", msg)
+		s.logGrokVideoWorkflow(req, result, GrokRouteModeSSOReverse, time.Since(startTime), 0, "invalid_create_response")
+		return nil, meta, fmt.Errorf("%s", msg)
 	}
 
 	pollCtx, cancel := context.WithTimeout(ctx, s.grokVideoWaitTimeout())
@@ -298,32 +301,32 @@ func (s *GrokGatewayService) runSSOGrokVideoWorkflow(ctx context.Context, c *gin
 	for {
 		if err := pollCtx.Err(); err != nil {
 			s.writeGrokVideoError(c, http.StatusGatewayTimeout, "upstream_timeout", "Grok video generation timed out")
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSO, time.Since(startTime), rounds, "timeout")
-			return nil, fmt.Errorf("grok video generation timed out")
+			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSOReverse, time.Since(startTime), rounds, "timeout")
+			return nil, meta, fmt.Errorf("grok video generation timed out")
 		}
 		rounds++
 		polled, pollErr := s.fetchSSOVideoStatusOnce(c, account, exec, result.RequestID, req.RequestedModel, validation.MappedModel)
 		if pollErr != nil {
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSO, time.Since(startTime), rounds, "poll_failed")
-			return nil, pollErr
+			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSOReverse, time.Since(startTime), rounds, "poll_failed")
+			return nil, meta, pollErr
 		}
 		if polled != nil {
 			result = polled
 		}
 		if result != nil && grokIsVideoSuccessStatus(result.Status) && strings.TrimSpace(result.URL) != "" {
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSO, time.Since(startTime), rounds, result.Status)
-			return result, nil
+			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSOReverse, time.Since(startTime), rounds, result.Status)
+			return result, meta, nil
 		}
 		if result != nil && grokIsVideoFailureStatus(result.Status) {
 			message := firstNonEmptyString(result.Status, "failed")
 			s.writeGrokVideoError(c, http.StatusBadGateway, "upstream_error", "Grok video generation failed: "+message)
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSO, time.Since(startTime), rounds, result.Status)
-			return nil, fmt.Errorf("grok video generation failed: %s", message)
+			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSOReverse, time.Since(startTime), rounds, result.Status)
+			return nil, meta, fmt.Errorf("grok video generation failed: %s", message)
 		}
 		if err := sleepWithContext(pollCtx, s.grokVideoPollInterval()); err != nil {
 			s.writeGrokVideoError(c, http.StatusGatewayTimeout, "upstream_timeout", "Grok video generation timed out")
-			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSO, time.Since(startTime), rounds, "timeout")
-			return nil, fmt.Errorf("grok video generation timed out")
+			s.logGrokVideoWorkflow(req, result, GrokRouteModeSSOReverse, time.Since(startTime), rounds, "timeout")
+			return nil, meta, fmt.Errorf("grok video generation timed out")
 		}
 	}
 }

@@ -22,6 +22,8 @@ const (
 	grokQuickImageWaitTimeout  = 12 * time.Second
 	grokQuickImagePollInterval = 800 * time.Millisecond
 	grokReverseVideoRequestTag = "grokrev"
+
+	grokSSOReverseAppChatEndpoint = "/rest/app-chat/conversations/new"
 )
 
 type grokReverseExecution struct {
@@ -72,7 +74,7 @@ func (s *GrokGatewayService) forwardSSOChatCompletions(ctx context.Context, c *g
 		if writeErr != nil {
 			return nil, writeErr
 		}
-		return &GrokGatewayForwardResult{
+		return applyGrokSSOReverseForwardMetadata(&GrokGatewayForwardResult{
 			Result: &ForwardResult{
 				RequestID:     exec.ResponseID,
 				Model:         req.Model,
@@ -84,17 +86,17 @@ func (s *GrokGatewayService) forwardSSOChatCompletions(ctx context.Context, c *g
 				ImageCount:    len(exec.ImageURLs),
 				MediaURL:      firstMediaURL(exec.ImageURLs),
 			},
-			RouteMode:         GrokRouteModeSSO,
+			RouteMode:         GrokRouteModeSSOReverse,
 			Endpoint:          grokEndpointChatCompletions,
 			MediaType:         grokMediaTypeForExec(exec),
 			UpstreamRequestID: exec.ResponseID,
-		}, nil
+		}, grokSSOReverseAppChatEndpoint), nil
 	}
 
 	resp := grokBuildResponsesResponse(exec, req.Model)
 	chatResp := apicompat.ResponsesToChatCompletions(resp, req.Model)
 	c.JSON(http.StatusOK, chatResp)
-	return &GrokGatewayForwardResult{
+	return applyGrokSSOReverseForwardMetadata(&GrokGatewayForwardResult{
 		Result: &ForwardResult{
 			RequestID:     exec.ResponseID,
 			Model:         req.Model,
@@ -105,11 +107,11 @@ func (s *GrokGatewayService) forwardSSOChatCompletions(ctx context.Context, c *g
 			ImageCount:    len(exec.ImageURLs),
 			MediaURL:      firstMediaURL(exec.ImageURLs),
 		},
-		RouteMode:         GrokRouteModeSSO,
+		RouteMode:         GrokRouteModeSSOReverse,
 		Endpoint:          grokEndpointChatCompletions,
 		MediaType:         grokMediaTypeForExec(exec),
 		UpstreamRequestID: exec.ResponseID,
-	}, nil
+	}, grokSSOReverseAppChatEndpoint), nil
 }
 
 func (s *GrokGatewayService) forwardSSOResponses(ctx context.Context, c *gin.Context, account *Account, body []byte, method string, subpath string) (*GrokGatewayForwardResult, error) {
@@ -148,7 +150,7 @@ func (s *GrokGatewayService) forwardSSOResponses(ctx context.Context, c *gin.Con
 		if writeErr != nil {
 			return nil, writeErr
 		}
-		return &GrokGatewayForwardResult{
+		return applyGrokSSOReverseForwardMetadata(&GrokGatewayForwardResult{
 			Result: &ForwardResult{
 				RequestID:     exec.ResponseID,
 				Model:         req.Model,
@@ -160,16 +162,16 @@ func (s *GrokGatewayService) forwardSSOResponses(ctx context.Context, c *gin.Con
 				ImageCount:    len(exec.ImageURLs),
 				MediaURL:      firstMediaURL(exec.ImageURLs),
 			},
-			RouteMode:         GrokRouteModeSSO,
+			RouteMode:         GrokRouteModeSSOReverse,
 			Endpoint:          grokEndpointResponses,
 			MediaType:         grokMediaTypeForExec(exec),
 			UpstreamRequestID: exec.ResponseID,
-		}, nil
+		}, grokSSOReverseAppChatEndpoint), nil
 	}
 
 	resp := grokBuildResponsesResponse(exec, req.Model)
 	c.JSON(http.StatusOK, resp)
-	return &GrokGatewayForwardResult{
+	return applyGrokSSOReverseForwardMetadata(&GrokGatewayForwardResult{
 		Result: &ForwardResult{
 			RequestID:     exec.ResponseID,
 			Model:         req.Model,
@@ -180,11 +182,11 @@ func (s *GrokGatewayService) forwardSSOResponses(ctx context.Context, c *gin.Con
 			ImageCount:    len(exec.ImageURLs),
 			MediaURL:      firstMediaURL(exec.ImageURLs),
 		},
-		RouteMode:         GrokRouteModeSSO,
+		RouteMode:         GrokRouteModeSSOReverse,
 		Endpoint:          grokEndpointResponses,
 		MediaType:         grokMediaTypeForExec(exec),
 		UpstreamRequestID: exec.ResponseID,
-	}, nil
+	}, grokSSOReverseAppChatEndpoint), nil
 }
 
 func (s *GrokGatewayService) forwardSSOMessagesCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
@@ -216,7 +218,7 @@ func (s *GrokGatewayService) forwardSSOMessagesCompat(ctx context.Context, c *gi
 		if writeErr != nil {
 			return nil, writeErr
 		}
-		return &GrokGatewayForwardResult{
+		return applyGrokSSOReverseForwardMetadata(&GrokGatewayForwardResult{
 			Result: &ForwardResult{
 				RequestID:     exec.ResponseID,
 				Model:         req.Model,
@@ -228,15 +230,15 @@ func (s *GrokGatewayService) forwardSSOMessagesCompat(ctx context.Context, c *gi
 				ImageCount:    len(exec.ImageURLs),
 				MediaURL:      firstMediaURL(exec.ImageURLs),
 			},
-			RouteMode:         GrokRouteModeSSO,
+			RouteMode:         GrokRouteModeSSOReverse,
 			Endpoint:          grokEndpointResponses,
 			MediaType:         grokMediaTypeForExec(exec),
 			UpstreamRequestID: exec.ResponseID,
-		}, nil
+		}, grokSSOReverseAppChatEndpoint), nil
 	}
 	resp := grokBuildResponsesResponse(exec, req.Model)
 	c.JSON(http.StatusOK, apicompat.ResponsesToAnthropic(resp, req.Model))
-	return &GrokGatewayForwardResult{
+	return applyGrokSSOReverseForwardMetadata(&GrokGatewayForwardResult{
 		Result: &ForwardResult{
 			RequestID:     exec.ResponseID,
 			Model:         req.Model,
@@ -247,11 +249,11 @@ func (s *GrokGatewayService) forwardSSOMessagesCompat(ctx context.Context, c *gi
 			ImageCount:    len(exec.ImageURLs),
 			MediaURL:      firstMediaURL(exec.ImageURLs),
 		},
-		RouteMode:         GrokRouteModeSSO,
+		RouteMode:         GrokRouteModeSSOReverse,
 		Endpoint:          grokEndpointResponses,
 		MediaType:         grokMediaTypeForExec(exec),
 		UpstreamRequestID: exec.ResponseID,
-	}, nil
+	}, grokSSOReverseAppChatEndpoint), nil
 }
 
 func (s *GrokGatewayService) forwardSSOImagesGeneration(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
@@ -293,7 +295,7 @@ func (s *GrokGatewayService) forwardSSOImageWorkflow(ctx context.Context, c *gin
 		"created": time.Now().Unix(),
 		"data":    grokImageData(exec.ImageURLs),
 	})
-	return &GrokGatewayForwardResult{
+	return applyGrokSSOReverseForwardMetadata(&GrokGatewayForwardResult{
 		Result: &ForwardResult{
 			RequestID:     exec.ResponseID,
 			Model:         reqModel,
@@ -304,11 +306,11 @@ func (s *GrokGatewayService) forwardSSOImageWorkflow(ctx context.Context, c *gin
 			ImageSize:     strings.TrimSpace(gjson.GetBytes(body, "size").String()),
 			MediaURL:      firstMediaURL(exec.ImageURLs),
 		},
-		RouteMode:         GrokRouteModeSSO,
+		RouteMode:         GrokRouteModeSSOReverse,
 		Endpoint:          endpoint,
 		MediaType:         "image",
 		UpstreamRequestID: exec.ResponseID,
-	}, nil
+	}, grokSSOReverseAppChatEndpoint), nil
 }
 
 func (s *GrokGatewayService) forwardSSOVideosGeneration(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
@@ -345,7 +347,7 @@ func (s *GrokGatewayService) forwardSSOVideoStatus(ctx context.Context, c *gin.C
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, grokUpstreamRequestMetadata{RouteMode: GrokRouteModeSSO})
+		return nil, s.handleHTTPError(ctx, resp, c, account, newGrokSSOReverseRequestMetadata(grokSSOReverseConversationProbeEndpoint(conversationID)))
 	}
 	bodyBytes, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
 	if err != nil {
@@ -373,7 +375,7 @@ func (s *GrokGatewayService) forwardSSOVideoStatus(ctx context.Context, c *gin.C
 			MediaType:     "video",
 			MediaURL:      strings.TrimSpace(videoResult.URL),
 		},
-		RouteMode:         GrokRouteModeSSO,
+		RouteMode:         GrokRouteModeSSOReverse,
 		Endpoint:          grokEndpointVideosStatus,
 		MediaType:         "video",
 		UpstreamRequestID: responseID,
@@ -390,7 +392,15 @@ func (s *GrokGatewayService) forwardSSOVideoStatus(ctx context.Context, c *gin.C
 			MediaType:     "video",
 		}
 	}
-	return result, nil
+	return applyGrokSSOReverseForwardMetadata(result, grokSSOReverseConversationProbeEndpoint(conversationID)), nil
+}
+
+func grokSSOReverseConversationProbeEndpoint(conversationID string) string {
+	conversationID = strings.TrimSpace(conversationID)
+	if conversationID == "" {
+		return "/rest/app-chat/conversations_v2/"
+	}
+	return "/rest/app-chat/conversations_v2/" + conversationID + "?includeWorkspaces=true&includeTaskResult=true"
 }
 
 func (s *GrokGatewayService) validateSSORequest(account *Account, requestedModel string, mediaType string, body []byte) (*grokSSOValidation, error) {
@@ -1053,7 +1063,7 @@ func (s *GrokGatewayService) logGrokPromptDiagnostics(prompt string, mappedModel
 	}
 	logger.L().Debug("grok.prompt_diagnostics",
 		zap.String("platform", PlatformGrok),
-		zap.String("route_mode", GrokRouteModeSSO),
+		zap.String("route_mode", GrokRouteModeSSOReverse),
 		zap.String("model", mappedModel),
 		zap.String("mode_id", strings.TrimSpace(modeID)),
 		zap.String("message_hash", hashSensitiveValueForLog(prompt)),

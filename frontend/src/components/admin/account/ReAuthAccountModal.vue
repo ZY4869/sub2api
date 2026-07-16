@@ -154,6 +154,8 @@
         :proxy-id="account.proxy_id"
         :submit-label="t('admin.accounts.reAuthorize')"
         :submitting="platformSubmitLoading"
+        submit-mode="authorization"
+        :allow-device="false"
         @submit="handleGrokReauthorize"
       />
 
@@ -254,7 +256,8 @@ import { ensureOpenAIOAuthGatewayTestDefaults } from '@/utils/accountGatewayTest
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import {
   mergeGrokReauthorizationCredentials,
-  type ParsedGrokOAuthPayload
+  isGrokOAuthAuthorizationPayload,
+  type GrokOAuthSubmitPayload
 } from '@/utils/grokOAuth'
 import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
 import AccountGrokOAuthPanel from '@/components/account/AccountGrokOAuthPanel.vue'
@@ -440,22 +443,37 @@ const handleKiroReauthorize = async (payload: ParsedKiroTokenImport) => {
   }
 }
 
-const handleGrokReauthorize = async (payload: ParsedGrokOAuthPayload) => {
+const handleGrokReauthorize = async (payload: GrokOAuthSubmitPayload) => {
   if (!props.account) return
-  if (!payload.credentials?.access_token) {
-    appStore.showError(t('admin.accounts.grokOauth.accessTokenMissing'))
-    return
-  }
-
-  const mergedExtra = payload.extra
-    ? {
-        ...((props.account.extra || {}) as Record<string, unknown>),
-        ...payload.extra
-      }
-    : undefined
 
   try {
     platformSubmitLoading.value = true
+    if (isGrokOAuthAuthorizationPayload(payload)) {
+      const updatedAccount = await adminAPI.accounts.reauthorizeGrokAccountFromOAuth(
+        props.account.id,
+        {
+          session_id: payload.sessionId,
+          code: payload.code,
+          state: payload.state,
+          proxy_id: props.account.proxy_id
+        }
+      )
+      handleReauthorizedSuccess(updatedAccount)
+      return
+    }
+
+    if (!payload.credentials?.access_token) {
+      appStore.showError(t('admin.accounts.grokOauth.accessTokenMissing'))
+      return
+    }
+
+    const mergedExtra = payload.extra
+      ? {
+          ...((props.account.extra || {}) as Record<string, unknown>),
+          ...payload.extra
+        }
+      : undefined
+
     await adminAPI.accounts.update(props.account.id, {
       type: 'oauth',
       credentials: mergeGrokReauthorizationCredentials(

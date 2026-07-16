@@ -91,8 +91,6 @@ export function createCreateAccountSubmit(ctx: any) {
     geminiVertexProjectId,
     geminiVertexServiceAccountJson,
     grokOAuthRef,
-    grokSSOToken,
-    grokTier,
     handleClose,
     hasCustomizedOpenAIOAuthDefaults,
     interceptWarmupRequests,
@@ -516,39 +514,6 @@ const handleSubmit = async () => {
     return
   }
 
-  if (form.platform === 'grok' && form.type === 'sso') {
-    if (!form.name.trim()) {
-      appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
-      return
-    }
-    if (!grokSSOToken.value.trim()) {
-      appStore.showError(t('admin.accounts.pleaseEnterGrokToken'))
-      return
-    }
-
-    const credentials: Record<string, unknown> = {
-      sso_token: grokSSOToken.value.trim()
-    }
-    if (!isOpenAIModelRestrictionDisabled.value && modelRestrictionEnabled.value) {
-      const modelMapping = buildModelMappingObject(
-        modelRestrictionMode.value,
-        allowedModels.value,
-        modelMappings.value
-      )
-      if (modelMapping) {
-        credentials.model_mapping = modelMapping
-      }
-    }
-
-    await createAccountAndFinish(
-      form.platform,
-      'sso',
-      credentials,
-      buildAccountExtra({ grok_tier: grokTier.value })
-    )
-    return
-  }
-
   if (form.platform === 'gemini' && accountCategory.value === 'vertex_ai') {
     if (!form.name.trim()) {
       appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
@@ -664,11 +629,7 @@ const handleSubmit = async () => {
   }
 
   applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
-  const extra = buildAccountExtra(
-    form.platform === 'grok' && form.type === 'sso'
-      ? { grok_tier: grokTier.value }
-      : undefined
-  )
+  const extra = buildAccountExtra()
   await createAccountAndFinish(
     form.platform,
     'apikey',

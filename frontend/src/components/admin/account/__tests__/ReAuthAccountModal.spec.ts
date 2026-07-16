@@ -7,6 +7,7 @@ import type { Account } from '@/types'
 const {
   updateMock,
   clearErrorMock,
+  reauthorizeGrokAccountFromOAuthMock,
   refreshOpenAITokenMock,
   refreshAntigravityTokenMock,
   showErrorMock,
@@ -15,6 +16,7 @@ const {
 } = vi.hoisted(() => ({
   updateMock: vi.fn(),
   clearErrorMock: vi.fn(),
+  reauthorizeGrokAccountFromOAuthMock: vi.fn(),
   refreshOpenAITokenMock: vi.fn(),
   refreshAntigravityTokenMock: vi.fn(),
   showErrorMock: vi.fn(),
@@ -41,6 +43,7 @@ vi.mock('@/api/admin', () => ({
     accounts: {
       update: updateMock,
       clearError: clearErrorMock,
+      reauthorizeGrokAccountFromOAuth: reauthorizeGrokAccountFromOAuthMock,
       refreshOpenAIToken: refreshOpenAITokenMock
     },
     antigravity: {
@@ -108,26 +111,23 @@ const OAuthAuthorizationFlowStub = defineComponent({
 
 const AccountGrokOAuthPanelStub = defineComponent({
   name: 'AccountGrokOAuthPanel',
+  props: ['submitMode', 'allowDevice'],
   emits: ['submit'],
-  setup(_, { emit, expose }) {
+  setup(props, { emit, expose }) {
     expose({ reset: vi.fn() })
     return () =>
-      h('button', {
-        'data-testid': 'grok-reauth-submit',
-        onClick: () => emit('submit', {
-          credentials: {
-            access_token: 'grok-access',
-            refresh_token: 'grok-refresh',
-            base_url: 'https://api.x.ai/v1',
-            email: 'grok@example.com'
-          },
-          extra: {
-            provider: 'xai',
-            source: 'grok_browser_oauth',
-            email: 'grok@example.com'
-          }
-        })
-      }, 'submit grok')
+      h('div', [
+        h('span', { 'data-testid': 'grok-submit-mode' }, String(props.submitMode)),
+        h('span', { 'data-testid': 'grok-allow-device' }, String(props.allowDevice)),
+        h('button', {
+          'data-testid': 'grok-reauth-submit',
+          onClick: () => emit('submit', {
+            sessionId: 'session-1',
+            code: 'auth-code',
+            state: 'state-1'
+          })
+        }, 'submit grok')
+      ])
   }
 })
 
@@ -299,48 +299,51 @@ describe('admin ReAuthAccountModal', () => {
   })
 
   it('reauthorizes Grok accounts through the Grok OAuth panel payload', async () => {
-    const updatedAccount = createAccount('grok', { status: 'active', error_message: null })
-    clearErrorMock.mockResolvedValue(updatedAccount)
-
-    const wrapper = mountModal(createAccount('grok', {
+    const updatedAccount = createAccount('grok', {
+      type: 'oauth',
+      status: 'active',
+      error_message: null,
       credentials: {
-        access_token: 'old-access',
-        refresh_token: 'old-refresh',
-        base_url: 'https://relay.example.test/xai/v1',
-        model_mapping: {
-          'grok-local': 'grok-4'
-        },
-        diagnostic_note: 'keep'
+        access_token: 'grok-access',
+        refresh_token: 'grok-refresh',
+        base_url: 'https://cli-chat-proxy.grok.com/v1'
       },
       extra: {
-        keep_me: true
+        provider: 'xai',
+        source: 'grok_browser_oauth',
+        model_scope_v2: {
+          policy_mode: 'whitelist',
+          entries: []
+        }
+      }
+    })
+    reauthorizeGrokAccountFromOAuthMock.mockResolvedValue(updatedAccount)
+
+    const wrapper = mountModal(createAccount('grok', {
+      type: 'sso',
+      credentials: {
+        sso_token: 'legacy-token'
+      },
+      extra: {
+        grok_tier: 'super'
       }
     }))
     await nextTick()
 
+    expect(wrapper.get('[data-testid="grok-submit-mode"]').text()).toBe('authorization')
+    expect(wrapper.get('[data-testid="grok-allow-device"]').text()).toBe('false')
+
     await wrapper.get('[data-testid="grok-reauth-submit"]').trigger('click')
     await flushPromises()
 
-    expect(updateMock).toHaveBeenCalledWith(11, {
-      type: 'oauth',
-      credentials: {
-        access_token: 'grok-access',
-        refresh_token: 'grok-refresh',
-        base_url: 'https://relay.example.test/xai/v1',
-        email: 'grok@example.com',
-        model_mapping: {
-          'grok-local': 'grok-4'
-        },
-        diagnostic_note: 'keep'
-      },
-      extra: {
-        keep_me: true,
-        provider: 'xai',
-        source: 'grok_browser_oauth',
-        email: 'grok@example.com'
-      }
+    expect(reauthorizeGrokAccountFromOAuthMock).toHaveBeenCalledWith(11, {
+      session_id: 'session-1',
+      code: 'auth-code',
+      state: 'state-1',
+      proxy_id: 9
     })
-    expect(clearErrorMock).toHaveBeenCalledWith(11)
+    expect(updateMock).not.toHaveBeenCalled()
+    expect(clearErrorMock).not.toHaveBeenCalled()
     expect(wrapper.emitted('reauthorized')).toEqual([[updatedAccount]])
   })
 

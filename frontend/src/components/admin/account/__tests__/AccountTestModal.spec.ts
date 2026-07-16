@@ -921,15 +921,15 @@ describe('AccountTestModal', () => {
     expect(wrapper.text()).toContain('Unauthorized')
   })
 
-  it('uses the Grok-specific test endpoint and renders probe lines as terminal output', async () => {
+  it('uses the Grok-specific test endpoint and renders SSO probe diagnostics outside AI response', async () => {
     getAvailableModels.mockResolvedValueOnce([
       { id: 'grok-3-beta', display_name: 'Grok 3 Beta' }
     ])
     testGrokAccount.mockResolvedValueOnce(
       createStreamResponse([
         'data: {"type":"test_start","model":"grok-3-beta"}\n',
-        'data: {"type":"content","text":"Reverse runtime connectivity probe started"}\n',
-        'data: {"type":"content","text":"Visible models after model_mapping: grok-3-beta"}\n',
+        'data: {"type":"status","text":"Reverse runtime connectivity probe started"}\n',
+        'data: {"type":"log","text":"Visible models after model_mapping: grok-3-beta"}\n',
         'data: {"type":"test_complete","success":true}\n'
       ])
     )
@@ -997,6 +997,12 @@ describe('AccountTestModal', () => {
     expect(options?.signal).toBeDefined()
     expect(wrapper.text()).toContain('Reverse runtime connectivity probe started')
     expect(wrapper.text()).toContain('Visible models after model_mapping: grok-3-beta')
+    const aiLines = wrapper.findAll('.text-green-400, .text-green-300').map((line) => line.text())
+    const diagnosticLines = wrapper.findAll('.text-sky-300').map((line) => line.text())
+    expect(aiLines).not.toContain('Reverse runtime connectivity probe started')
+    expect(aiLines).not.toContain('Visible models after model_mapping: grok-3-beta')
+    expect(diagnosticLines).toContain('Reverse runtime connectivity probe started')
+    expect(diagnosticLines).toContain('Visible models after model_mapping: grok-3-beta')
   })
 
   it('defaults Grok OAuth tests to the first backend model option', async () => {
@@ -1068,5 +1074,76 @@ describe('AccountTestModal', () => {
       target_provider: 'grok',
       target_model_id: 'grok-4.5'
     })
+  })
+
+  it('keeps Grok diagnostic log and status events out of AI response lines', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      { id: 'grok-4.5', display_name: 'Grok 4.5', provider: 'grok' }
+    ])
+    testGrokAccount.mockResolvedValueOnce(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"grok-4.5"}\n',
+        'data: {"type":"log","text":"model probe fallback used"}\n',
+        'data: {"type":"status","text":"real responses call started"}\n',
+        'data: {"type":"content","text":"OK"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    )
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 11,
+          name: 'Grok Build',
+          platform: 'grok',
+          type: 'oauth',
+          status: 'active'
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div>
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.key || option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const aiLines = wrapper.findAll('.text-green-400, .text-green-300').map((line) => line.text())
+    const diagnosticLines = wrapper.findAll('.text-sky-300').map((line) => line.text())
+    expect(aiLines).toContain('admin.accounts.aiResponseHeader')
+    expect(aiLines).toContain('OK')
+    expect(aiLines).not.toContain('model probe fallback used')
+    expect(aiLines).not.toContain('real responses call started')
+    expect(diagnosticLines).toContain('model probe fallback used')
+    expect(diagnosticLines).toContain('real responses call started')
   })
 })

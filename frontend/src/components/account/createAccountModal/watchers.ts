@@ -64,9 +64,7 @@ export function useCreateAccountModalWatchers(ctx: any) {
     geminiVertexLocation,
     geminiVertexProjectId,
     geminiVertexServiceAccountJson,
-    grokSSOToken,
     grokOAuthRef,
-    grokTier,
     interceptWarmupRequests,
     isBaiduDocumentAIPlatform,
     isBaiduDocumentAISelected,
@@ -167,8 +165,6 @@ watch(
     if (form.platform === 'grok') {
       if (category === 'oauth-based') {
         form.type = 'oauth'
-      } else if (category === 'sso') {
-        form.type = 'sso'
       } else {
         form.type = 'apikey'
       }
@@ -277,13 +273,9 @@ watch(
     if (newPlatform === 'grok') {
       accountCategory.value = 'apikey'
       form.type = 'apikey'
-      grokSSOToken.value = ''
       grokOAuthRef.value?.reset?.()
-      grokTier.value = 'basic'
     } else {
-      grokSSOToken.value = ''
       grokOAuthRef.value?.reset?.()
-      grokTier.value = 'basic'
     }
     if (newPlatform === 'deepseek') {
       accountCategory.value = 'apikey'

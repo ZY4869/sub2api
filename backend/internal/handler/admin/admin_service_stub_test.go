@@ -716,6 +716,31 @@ func (s *stubAdminService) BackfillAccountModelPolicies(
 	return &service.AccountModelPolicyBackfillResult{}, nil
 }
 
+func (s *stubAdminService) EnsureGrokBuildModelScope(
+	ctx context.Context,
+	account *service.Account,
+	registry *service.ModelRegistryService,
+) (*service.GrokBuildModelScopeEnsureResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	updates, scopeChanged, snapshotChanged := service.EnsureGrokBuildModelScopeUpdates(ctx, account, registry, time.Now().UTC())
+	if len(updates) == 0 {
+		return &service.GrokBuildModelScopeEnsureResult{}, nil
+	}
+	account.Extra = service.MergeStringAnyMap(account.Extra, updates)
+	for i := range s.accounts {
+		if s.accounts[i].ID == account.ID {
+			s.accounts[i].Extra = service.MergeStringAnyMap(s.accounts[i].Extra, updates)
+			break
+		}
+	}
+	return &service.GrokBuildModelScopeEnsureResult{
+		Updated:           true,
+		ScopeNormalized:   scopeChanged,
+		SnapshotRefreshed: snapshotChanged,
+	}, nil
+}
+
 func (s *stubAdminService) DeleteAccount(ctx context.Context, id int64) error {
 	return nil
 }
@@ -787,6 +812,15 @@ func (s *stubAdminService) RefreshAccountCredentials(ctx context.Context, id int
 }
 
 func (s *stubAdminService) ClearAccountError(ctx context.Context, id int64) (*service.Account, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.accounts {
+		if s.accounts[i].ID == id {
+			s.accounts[i].ErrorMessage = ""
+			account := s.accounts[i]
+			return &account, nil
+		}
+	}
 	account := service.Account{ID: id, Name: "account", Status: service.StatusActive}
 	return &account, nil
 }

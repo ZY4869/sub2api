@@ -20,6 +20,8 @@ type GrokGatewayService struct {
 	rateLimitService     *RateLimitService
 	cfg                  *config.Config
 	reverseClient        *GrokReverseClient
+	tokenProvider        *GrokTokenProvider
+	accountRepo          AccountRepository
 	responseHeaderFilter *responseheaders.CompiledHeaderFilter
 }
 
@@ -40,82 +42,133 @@ func NewGrokGatewayService(
 	}
 }
 
-func (s *GrokGatewayService) RouteMode(account *Account) string {
-	if account != nil && account.IsGrokSSO() {
-		return GrokRouteModeSSO
+func (s *GrokGatewayService) SetGrokRuntimeDependencies(tokenProvider *GrokTokenProvider, accountRepo AccountRepository) {
+	if s == nil {
+		return
 	}
-	return GrokRouteModeAPIKey
+	s.tokenProvider = tokenProvider
+	s.accountRepo = accountRepo
+}
+
+func (s *GrokGatewayService) RouteMode(account *Account) string {
+	if account == nil {
+		return GrokRouteModeAPIKey
+	}
+	switch {
+	case account.IsGrokSSO():
+		return GrokRouteModeSSOReverse
+	case account.IsGrokOAuth():
+		return GrokRouteModeOAuthBuild
+	default:
+		return GrokRouteModeAPIKey
+	}
 }
 
 func (s *GrokGatewayService) ForwardChatCompletions(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	switch s.RouteMode(account) {
+	case GrokRouteModeSSOReverse:
 		return s.forwardSSOChatCompletions(ctx, c, account, body)
+	case GrokRouteModeOAuthBuild:
+		return s.forwardOAuthBuildChatCompletions(ctx, c, account, body)
+	default:
+		return s.forwardAPIKeyChatCompletions(ctx, c, account, body)
 	}
-	return s.forwardAPIKeyChatCompletions(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) ForwardResponses(ctx context.Context, c *gin.Context, account *Account, body []byte, method string, subpath string) (*GrokGatewayForwardResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	switch s.RouteMode(account) {
+	case GrokRouteModeSSOReverse:
 		return s.forwardSSOResponses(ctx, c, account, body, method, subpath)
+	case GrokRouteModeOAuthBuild:
+		return s.forwardOAuthBuildResponses(ctx, c, account, body, method, subpath)
+	default:
+		return s.forwardAPIKeyResponses(ctx, c, account, body, method, subpath)
 	}
-	return s.forwardAPIKeyResponses(ctx, c, account, body, method, subpath)
 }
 
 func (s *GrokGatewayService) ForwardMessagesCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	switch s.RouteMode(account) {
+	case GrokRouteModeSSOReverse:
 		return s.forwardSSOMessagesCompat(ctx, c, account, body)
+	case GrokRouteModeOAuthBuild:
+		return s.forwardOAuthBuildMessagesCompat(ctx, c, account, body)
+	default:
+		return s.forwardAPIKeyMessagesCompat(ctx, c, account, body)
 	}
-	return s.forwardAPIKeyMessagesCompat(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) ForwardAnthropicCountTokensCompat(ctx context.Context, c *gin.Context, account *Account, body []byte) (*AnthropicCountTokensBridgeResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	if s.RouteMode(account) == GrokRouteModeSSOReverse {
 		writeAnthropicError(c, http.StatusNotFound, "not_found_error", "count_tokens endpoint is not supported for Grok SSO accounts", "")
 		return nil, fmt.Errorf("grok sso count_tokens is not supported")
 	}
-	return s.forwardAPIKeyAnthropicCountTokensCompat(ctx, c, account, body)
+	return s.forwardOfficialAnthropicCountTokensCompat(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) ForwardImagesGeneration(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	switch s.RouteMode(account) {
+	case GrokRouteModeSSOReverse:
 		return s.forwardSSOImagesGeneration(ctx, c, account, body)
+	case GrokRouteModeOAuthBuild:
+		return s.forwardOAuthBuildImagesGeneration(ctx, c, account, body)
+	default:
+		return s.forwardAPIKeyImagesGeneration(ctx, c, account, body)
 	}
-	return s.forwardAPIKeyImagesGeneration(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) ForwardImagesEdits(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	switch s.RouteMode(account) {
+	case GrokRouteModeSSOReverse:
 		return s.forwardSSOImagesEdits(ctx, c, account, body)
+	case GrokRouteModeOAuthBuild:
+		return s.forwardOAuthBuildImagesEdits(ctx, c, account, body)
+	default:
+		return s.forwardAPIKeyImagesEdits(ctx, c, account, body)
 	}
-	return s.forwardAPIKeyImagesEdits(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) ForwardVideosGeneration(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	switch s.RouteMode(account) {
+	case GrokRouteModeSSOReverse:
 		return s.forwardSSOVideosGeneration(ctx, c, account, body)
+	case GrokRouteModeOAuthBuild:
+		return s.forwardOAuthBuildVideosGeneration(ctx, c, account, body)
+	default:
+		return s.forwardAPIKeyVideosGeneration(ctx, c, account, body)
 	}
-	return s.forwardAPIKeyVideosGeneration(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) ForwardVideosEdit(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	switch s.RouteMode(account) {
+	case GrokRouteModeSSOReverse:
 		return s.forwardSSOVideosEdit(ctx, c, account, body)
+	case GrokRouteModeOAuthBuild:
+		return s.forwardOAuthBuildVideosEdit(ctx, c, account, body)
+	default:
+		return s.forwardAPIKeyVideosEdit(ctx, c, account, body)
 	}
-	return s.forwardAPIKeyVideosEdit(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) ForwardVideosExtension(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	switch s.RouteMode(account) {
+	case GrokRouteModeSSOReverse:
 		return s.forwardSSOVideosExtension(ctx, c, account, body)
+	case GrokRouteModeOAuthBuild:
+		return s.forwardOAuthBuildVideosExtension(ctx, c, account, body)
+	default:
+		return s.forwardAPIKeyVideosExtension(ctx, c, account, body)
 	}
-	return s.forwardAPIKeyVideosExtension(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) ForwardVideoStatus(ctx context.Context, c *gin.Context, account *Account, requestID string) (*GrokGatewayForwardResult, error) {
-	if s.RouteMode(account) == GrokRouteModeSSO {
+	switch s.RouteMode(account) {
+	case GrokRouteModeSSOReverse:
 		return s.forwardSSOVideoStatus(ctx, c, account, requestID)
+	case GrokRouteModeOAuthBuild:
+		return s.forwardOAuthBuildVideoStatus(ctx, c, account, requestID)
+	default:
+		return s.forwardAPIKeyVideoStatus(ctx, c, account, requestID)
 	}
-	return s.forwardAPIKeyVideoStatus(ctx, c, account, requestID)
 }
 
 func (s *GrokGatewayService) validatedBaseURL(raw string, fallback string) (string, error) {
@@ -200,11 +253,7 @@ func grokUpstreamLogFields(account *Account, meta grokUpstreamRequestMetadata, u
 	}
 	routeMode := strings.TrimSpace(meta.RouteMode)
 	if routeMode == "" && account != nil {
-		if account.IsGrokSSO() {
-			routeMode = GrokRouteModeSSO
-		} else {
-			routeMode = GrokRouteModeAPIKey
-		}
+		routeMode = grokRouteModeForAccount(account)
 	}
 	fields := []zap.Field{
 		zap.Int64("account_id", accountID),

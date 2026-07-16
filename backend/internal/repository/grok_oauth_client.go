@@ -15,6 +15,8 @@ import (
 	"github.com/imroc/req/v3"
 )
 
+const grokOAuthTokenUserAgent = "sub2api-grok-oauth/1.0"
+
 func NewGrokOAuthClient() service.GrokOAuthClient {
 	return &grokOAuthClient{}
 }
@@ -47,7 +49,7 @@ func (c *grokOAuthClient) StartDeviceFlow(ctx context.Context, deviceURL string,
 	resp, err := client.R().
 		SetContext(ctx).
 		SetHeader("Accept", "application/json").
-		SetHeader("User-Agent", "sub2api-admin").
+		SetHeader("User-Agent", grokOAuthTokenUserAgent).
 		SetFormDataFromValues(form).
 		SetSuccessResult(&result).
 		Post(strings.TrimSpace(deviceURL))
@@ -76,7 +78,7 @@ func (c *grokOAuthClient) PollDeviceToken(ctx context.Context, tokenURL string, 
 	resp, err := client.R().
 		SetContext(ctx).
 		SetHeader("Accept", "application/json").
-		SetHeader("User-Agent", "sub2api-admin").
+		SetHeader("User-Agent", grokOAuthTokenUserAgent).
 		SetFormDataFromValues(form).
 		SetSuccessResult(&tokenResp).
 		Post(strings.TrimSpace(tokenURL))
@@ -138,7 +140,7 @@ func (c *grokOAuthClient) doToken(ctx context.Context, tokenURL string, form url
 	resp, err := client.R().
 		SetContext(ctx).
 		SetHeader("Accept", "application/json").
-		SetHeader("User-Agent", "sub2api-admin").
+		SetHeader("User-Agent", grokOAuthTokenUserAgent).
 		SetFormDataFromValues(form).
 		SetSuccessResult(&tokenResp).
 		Post(strings.TrimSpace(tokenURL))

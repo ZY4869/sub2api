@@ -69,7 +69,11 @@ func (s *GrokOAuthService) StartDeviceFlow(ctx context.Context, input *GrokStart
 	requestID := requestIDFromContext(ctx)
 
 	slog.Info("grok_oauth_device_start", "request_id", requestID, "session_id", sessionID, "has_proxy", proxyURL != "")
-	deviceResp, err := s.oauthClient.StartDeviceFlow(ctx, s.oauthDeviceURL(), clientID, scope, proxyURL)
+	deviceURL, err := s.validatedOAuthDeviceURL()
+	if err != nil {
+		return nil, err
+	}
+	deviceResp, err := s.oauthClient.StartDeviceFlow(ctx, deviceURL, clientID, scope, proxyURL)
 	if err != nil {
 		slog.Warn("grok_oauth_device_start_failed", "request_id", requestID, "session_id", sessionID, "duration_ms", time.Since(startedAt).Milliseconds(), "error", err.Error())
 		return nil, err
@@ -156,7 +160,11 @@ func (s *GrokOAuthService) PollDeviceToken(ctx context.Context, input *GrokPollD
 		}
 	}
 
-	tokenResp, err := s.oauthClient.PollDeviceToken(ctx, s.oauthTokenURL(), session.DeviceCode, session.ClientID, proxyURL)
+	tokenURL, err := s.validatedOAuthTokenURL()
+	if err != nil {
+		return nil, err
+	}
+	tokenResp, err := s.oauthClient.PollDeviceToken(ctx, tokenURL, session.DeviceCode, session.ClientID, proxyURL)
 	if err != nil {
 		var deviceErr *grokoauth.DeviceTokenError
 		if errors.As(err, &deviceErr) {

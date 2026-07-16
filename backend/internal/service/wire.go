@@ -173,6 +173,19 @@ func ProvideAntigravityTokenProvider(
 	return p
 }
 
+func ProvideGrokTokenProvider(
+	accountRepo AccountRepository,
+	tokenCache GeminiTokenCache,
+	grokOAuthService *GrokOAuthService,
+	refreshAPI *OAuthRefreshAPI,
+) *GrokTokenProvider {
+	p := NewGrokTokenProvider(accountRepo, tokenCache)
+	executor := NewGrokTokenRefresher(grokOAuthService)
+	p.SetRefreshAPI(refreshAPI, executor)
+	p.SetRefreshPolicy(GrokProviderRefreshPolicy())
+	return p
+}
+
 func ProvideOAuthRefreshAPI(
 	accountRepo AccountRepository,
 	tokenCache GeminiTokenCache,
@@ -677,6 +690,7 @@ func ProvideAccountModelImportService(
 	geminiCompatService *GeminiMessagesCompatService,
 	vertexCatalogService *VertexUpstreamCatalogService,
 	openAITokenProvider *OpenAITokenProvider,
+	grokTokenProvider *GrokTokenProvider,
 	kiroRuntimeService *KiroRuntimeService,
 	httpUpstream HTTPUpstream,
 	proxyRepo ProxyRepository,
@@ -687,6 +701,7 @@ func ProvideAccountModelImportService(
 	svc.SetConfig(cfg)
 	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetOpenAITokenProvider(openAITokenProvider)
+	svc.SetGrokTokenProvider(grokTokenProvider)
 	svc.SetKiroRuntimeService(kiroRuntimeService)
 	svc.SetVertexCatalogService(vertexCatalogService)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
@@ -824,11 +839,28 @@ func ProvideAccountUsageService(
 	cache *UsageCache,
 	identityCache IdentityCache,
 	openAIQuotaService *OpenAIQuotaService,
+	grokQuotaService *GrokQuotaService,
+	grokQuotaFetcher *GrokQuotaFetcher,
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
 ) *AccountUsageService {
 	svc := NewAccountUsageService(accountRepo, usageLogRepo, usageFetcher, geminiQuotaService, antigravityQuotaFetcher, cache, identityCache)
 	svc.SetOpenAIResetCreditService(openAIQuotaService)
+	svc.SetGrokQuotaDependencies(grokQuotaService, grokQuotaFetcher)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
+	return svc
+}
+
+func ProvideGrokGatewayService(
+	gatewayService *GatewayService,
+	httpUpstream HTTPUpstream,
+	rateLimitService *RateLimitService,
+	reverseClient *GrokReverseClient,
+	cfg *config.Config,
+	tokenProvider *GrokTokenProvider,
+	accountRepo AccountRepository,
+) *GrokGatewayService {
+	svc := NewGrokGatewayService(gatewayService, httpUpstream, rateLimitService, reverseClient, cfg)
+	svc.SetGrokRuntimeDependencies(tokenProvider, accountRepo)
 	return svc
 }
 
@@ -931,7 +963,7 @@ var ProviderSet = wire.NewSet(
 	ProvideGoogleBatchArchivePrefetchService,
 	ProvideGoogleBatchArchiveCleanupService,
 	ProvideOpenAIGatewayService,
-	NewGrokGatewayService,
+	ProvideGrokGatewayService,
 	NewGrokReverseClient,
 	NewOAuthService,
 	NewOpenAIOAuthService,
@@ -953,6 +985,9 @@ var ProviderSet = wire.NewSet(
 	ProvideAntigravityTokenProvider,
 	ProvideOpenAITokenProvider,
 	ProvideClaudeTokenProvider,
+	ProvideGrokTokenProvider,
+	NewGrokQuotaFetcher,
+	NewGrokQuotaService,
 	NewAntigravityGatewayService,
 	ProvideRateLimitService,
 	ProvideAccountUsageService,

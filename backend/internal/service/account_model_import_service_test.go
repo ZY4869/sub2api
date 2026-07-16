@@ -179,6 +179,27 @@ func (s *accountModelImportGeminiTokenCacheStub) ReleaseRefreshLock(ctx context.
 	return nil
 }
 
+type accountModelImportAccountRepoStub struct {
+	AccountRepository
+	account           *Account
+	updateCredentialN int
+}
+
+func (r *accountModelImportAccountRepoStub) GetByID(_ context.Context, id int64) (*Account, error) {
+	if r.account != nil && r.account.ID == id {
+		return cloneTestAccount(r.account), nil
+	}
+	return nil, ErrAccountNotFound
+}
+
+func (r *accountModelImportAccountRepoStub) UpdateCredentials(_ context.Context, id int64, credentials map[string]any) error {
+	if r.account != nil && r.account.ID == id {
+		r.account.Credentials = cloneTestMap(credentials)
+		r.updateCredentialN++
+	}
+	return nil
+}
+
 func newTestGeminiCompatService(upstream HTTPUpstream) *GeminiMessagesCompatService {
 	return newTestGeminiCompatServiceWithToken(upstream, "")
 }
@@ -270,6 +291,8 @@ func TestImportAccountModels_GrokAPIKeyUsesConfiguredBaseURL(t *testing.T) {
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(t, "https://grok-relay.example.test/root/v1/models", upstream.lastReq.URL.String())
 	require.Equal(t, "Bearer xai-test-token", upstream.lastReq.Header.Get("Authorization"))
+	require.Empty(t, upstream.lastReq.Header.Get("User-Agent"))
+	require.Empty(t, upstream.lastReq.Header.Get("X-Grok-Client-Version"))
 }
 
 func TestImportAccountModels_GrokAPIKeyFallsBackToBuildCatalogForUnexpectedListing(t *testing.T) {
@@ -418,6 +441,50 @@ func TestProbeAccountModels_GrokOAuthFallsBackToBuildCatalogFor404Listing(t *tes
 	require.Equal(t, "Bearer xai-oauth-token", upstream.lastReq.Header.Get("Authorization"))
 	require.Equal(t, grokUpstreamUserAgent, upstream.lastReq.Header.Get("User-Agent"))
 	require.Equal(t, grokCLIVersion, upstream.lastReq.Header.Get("X-Grok-Client-Version"))
+}
+
+func TestProbeAccountModels_GrokOAuthUsesTokenProviderForExpiredAccessToken(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		body: `{"data":[{"id":"grok-test-model"}]}`,
+	}
+	svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+	expiredAt := time.Now().Add(-time.Hour).Unix()
+	account := &Account{
+		ID:       160,
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"access_token":  "stale-access",
+			"refresh_token": "refresh-token",
+			"client_id":     "client-1",
+			"scope":         "openid api:access",
+			"expires_at":    expiredAt,
+			"base_url":      "https://api.x.ai/v1",
+		},
+	}
+	accountRepo := &accountModelImportAccountRepoStub{account: cloneTestAccount(account)}
+	oauthSvc := NewGrokOAuthService(nil, &grokOAuthClientStub{}, &config.Config{})
+	refreshAPI := NewOAuthRefreshAPI(accountRepo, nil)
+	tokenProvider := NewGrokTokenProvider(accountRepo, nil)
+	tokenProvider.SetRefreshAPI(refreshAPI, NewGrokTokenRefresher(oauthSvc))
+	svc.SetGrokTokenProvider(tokenProvider)
+
+	result, err := svc.ProbeAccountModels(context.Background(), account)
+
+	require.NoError(t, err)
+	require.Equal(t, []string{"grok-test-model"}, result.DetectedModels)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "https://cli-chat-proxy.grok.com/v1/models", upstream.lastReq.URL.String())
+	require.Equal(t, "Bearer refreshed-access", upstream.lastReq.Header.Get("Authorization"))
+	require.Equal(t, grokUpstreamUserAgent, upstream.lastReq.Header.Get("User-Agent"))
+	require.Equal(t, grokCLIVersion, upstream.lastReq.Header.Get("X-Grok-Client-Version"))
+	require.Equal(t, 1, accountRepo.updateCredentialN)
+	require.Equal(t, "refreshed-access", accountRepo.account.Credentials["access_token"])
+	require.Equal(t, "rotated-refresh", accountRepo.account.Credentials["refresh_token"])
+	require.Equal(t, defaultGrokCLIBaseURL, accountRepo.account.Credentials["base_url"])
 }
 
 func TestGrokBuildBuiltinProbeLogFieldsRedactUpstreamBodyAndToken(t *testing.T) {

@@ -172,6 +172,19 @@ func ProvideOpenAIOAuthHandler(
 	return admin.NewOpenAIOAuthHandler(openaiOAuthService, adminService, openAIQuotaService)
 }
 
+func ProvideGrokOAuthHandler(
+	grokOAuthService *service.GrokOAuthService,
+	adminService service.AdminService,
+	grokQuotaService *service.GrokQuotaService,
+	tokenRefreshService *service.TokenRefreshService,
+	modelRegistryService *service.ModelRegistryService,
+) *admin.GrokOAuthHandler {
+	handler := admin.NewGrokOAuthHandler(grokOAuthService, adminService)
+	handler.SetGrokAdminDependencies(grokQuotaService, tokenRefreshService)
+	handler.SetModelRegistryService(modelRegistryService)
+	return handler
+}
+
 func ProvideAdminModelCatalogHandler(
 	modelCatalogService *service.ModelCatalogService,
 	userService *service.UserService,
@@ -390,7 +403,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpenAIOAuthHandler,
 	admin.NewKiroOAuthHandler,
 	admin.NewGeminiOAuthHandler,
-	admin.NewGrokOAuthHandler,
+	ProvideGrokOAuthHandler,
 	admin.NewAntigravityOAuthHandler,
 	admin.NewProxyHandler,
 	admin.NewRedeemHandler,

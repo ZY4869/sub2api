@@ -14,17 +14,8 @@
       </p>
     </div>
 
-    <div class="grid gap-2 md:grid-cols-3">
-      <button
-        v-for="source in sourceOptions"
-        :key="source.id"
-        type="button"
-        :class="sourceButtonClass(source.id)"
-        @click="activeSourceId = source.id"
-      >
-        <span class="text-sm font-semibold">{{ t(source.labelKey) }}</span>
-        <span class="text-xs opacity-80">{{ t(source.hintKey) }}</span>
-      </button>
+    <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
+      {{ t('admin.accounts.grokImport.sourceHints.apikey') }}
     </div>
 
     <div class="space-y-2">
@@ -35,6 +26,12 @@
         class="input font-mono text-xs"
         :placeholder="t(activeSource.placeholderKey)"
       />
+      <div
+        v-if="looksLikeSSOContent"
+        class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"
+      >
+        {{ t('admin.accounts.grokImport.ssoConversionRequired') }}
+      </div>
       <label class="flex items-start gap-2 text-xs text-slate-500 dark:text-slate-400">
         <input v-model="skipDefaultGroupBind" type="checkbox" class="mt-0.5 rounded border-slate-300 text-primary-600" />
         <span>{{ t('admin.accounts.grokImport.skipDefaultGroupBind') }}</span>
@@ -142,8 +139,6 @@ import { adminAPI } from '@/api/admin'
 import type { GrokImportPreviewResponse, GrokImportResult } from '@/api/admin/accounts'
 import { useAppStore } from '@/stores/app'
 
-type GrokImportSource = 'legacy_pool' | 'sso' | 'apikey'
-
 const props = defineProps<{
   show: boolean
 }>()
@@ -157,43 +152,32 @@ const appStore = useAppStore()
 
 const content = ref('')
 const skipDefaultGroupBind = ref(false)
-const activeSourceId = ref<GrokImportSource>('legacy_pool')
 const previewing = ref(false)
 const importing = ref(false)
 const previewResult = ref<GrokImportPreviewResponse | null>(null)
 const importResult = ref<GrokImportResult | null>(null)
 const previewSignature = ref('')
 
-const sourceOptions = [
-  {
-    id: 'legacy_pool' as const,
-    badgeKey: 'admin.accounts.grokImport.legacyBadge',
-    labelKey: 'admin.accounts.grokImport.sources.legacy',
-    hintKey: 'admin.accounts.grokImport.sourceHints.legacy',
-    placeholderKey: 'admin.accounts.grokImport.placeholders.legacy'
-  },
-  {
-    id: 'sso' as const,
-    badgeKey: 'admin.accounts.grokImport.ssoBadge',
-    labelKey: 'admin.accounts.grokImport.sources.sso',
-    hintKey: 'admin.accounts.grokImport.sourceHints.sso',
-    placeholderKey: 'admin.accounts.grokImport.placeholders.sso'
-  },
-  {
-    id: 'apikey' as const,
-    badgeKey: 'admin.accounts.grokImport.apikeyBadge',
-    labelKey: 'admin.accounts.grokImport.sources.apikey',
-    hintKey: 'admin.accounts.grokImport.sourceHints.apikey',
-    placeholderKey: 'admin.accounts.grokImport.placeholders.apikey'
-  }
-]
-
-const activeSource = computed(() => sourceOptions.find((item) => item.id === activeSourceId.value) || sourceOptions[0])
+const activeSource = {
+  badgeKey: 'admin.accounts.grokImport.apikeyBadge',
+  placeholderKey: 'admin.accounts.grokImport.placeholders.apikey'
+}
 const trimmedContent = computed(() => content.value.trim())
+const looksLikeSSOContent = computed(() => {
+  const raw = trimmedContent.value
+  if (!raw) {
+    return false
+  }
+  if (/["']?sso_token["']?\s*:/i.test(raw)) {
+    return true
+  }
+  return raw
+    .split(/\r?\n/)
+    .some((line) => /^Bearer\s+\S+/i.test(line.trim()))
+})
 const busy = computed(() => previewing.value || importing.value)
 const needsPreviewRefresh = computed(() => Boolean(previewResult.value) && previewSignature.value !== trimmedContent.value)
 const hasAnyResult = computed(() => Boolean(previewResult.value || importResult.value))
-const importDisabled = computed(() => busy.value || !previewResult.value || needsPreviewRefresh.value)
 const previewCounts = computed(() => {
   const items = previewResult.value?.items || []
   return {
@@ -203,6 +187,7 @@ const previewCounts = computed(() => {
     failed: items.filter((item) => item.status === 'failed').length
   }
 })
+const importDisabled = computed(() => busy.value || !previewResult.value || needsPreviewRefresh.value || previewCounts.value.ready === 0)
 const importCounts = computed(() => ({
   created: importResult.value?.created || 0,
   skipped: importResult.value?.skipped || 0,
@@ -226,16 +211,6 @@ function resetState() {
   previewSignature.value = ''
   previewing.value = false
   importing.value = false
-  activeSourceId.value = 'legacy_pool'
-}
-
-function sourceButtonClass(sourceId: GrokImportSource) {
-  return [
-    'flex flex-col rounded-lg border px-3 py-3 text-left transition',
-    activeSourceId.value === sourceId
-      ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-500/10 dark:text-primary-200'
-      : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:border-slate-500'
-  ]
 }
 
 function statusClass(status: string) {

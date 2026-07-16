@@ -201,43 +201,6 @@
             @submit="handleCreateGrokOAuthAccount"
           />
 
-          <div v-if="form.type === 'sso'">
-            <label class="input-label">{{ t('admin.accounts.grokToken') }}</label>
-            <textarea
-              v-model="grokSSOToken"
-              rows="4"
-              class="input"
-              :placeholder="t('admin.accounts.grokTokenPlaceholder')"
-            />
-            <p class="input-hint">{{ t('admin.accounts.grokTokenHint') }}</p>
-          </div>
-
-          <div v-if="form.type === 'sso'">
-            <label class="input-label">{{ t('admin.accounts.grokTier') }}</label>
-            <select v-model="grokTier" class="input">
-              <option value="basic">{{ t('admin.accounts.grokTierBasic') }}</option>
-              <option value="super">{{ t('admin.accounts.grokTierSuper') }}</option>
-              <option value="heavy">{{ t('admin.accounts.grokTierHeavy') }}</option>
-            </select>
-            <p class="input-hint">{{ t('admin.accounts.grokTierHint') }}</p>
-          </div>
-
-          <AccountApiKeyModelProbeEditor
-            v-if="form.type === 'sso'"
-            v-model:allowed-models="allowedModels"
-            v-model:model-mappings="modelMappings"
-            v-model:probed-models="protocolGatewayProbeModels"
-            v-model:manual-models="manualModels"
-            v-model:probe-snapshot="modelProbeSnapshot"
-            v-model:resolved-upstream="resolvedUpstream"
-            platform="grok"
-            account-type="sso"
-            :credentials="grokProbeCredentials"
-            :extra="grokProbeExtra"
-            :probe-ready="isGrokProbeReady"
-            :proxy-id="form.proxy_id"
-          />
-
           <AccountGrokImportPanel
             v-if="step === 1"
             :show="show"
@@ -697,8 +660,6 @@ const {
   openRouterHTTPReferer,
   openRouterTitle,
   deepSeekModelConcurrencyLimits,
-  grokSSOToken,
-  grokTier,
   grokOAuthRef,
   editQuotaLimit,
   editQuotaDailyLimit,
@@ -769,11 +730,8 @@ const {
   apiKeyProbeCredentials,
   upstreamProbeCredentials,
   vertexProbeCredentials,
-  grokProbeCredentials,
-  grokProbeExtra,
   isApiKeyProbeReady,
   isUpstreamProbeReady,
-  isGrokProbeReady,
   oauthDraftProbeReady,
   isVertexProbeReady,
   showCommonApiKeySection,

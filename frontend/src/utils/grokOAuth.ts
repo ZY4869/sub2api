@@ -73,6 +73,24 @@ export interface ParsedGrokOAuthPayload {
   suggestedName?: string
 }
 
+export interface GrokOAuthAuthorizationPayload {
+  sessionId: string
+  code: string
+  state: string
+}
+
+export type GrokOAuthSubmitPayload = ParsedGrokOAuthPayload | GrokOAuthAuthorizationPayload
+
+export function isGrokOAuthAuthorizationPayload(
+  payload: GrokOAuthSubmitPayload
+): payload is GrokOAuthAuthorizationPayload {
+  return (
+    typeof (payload as GrokOAuthAuthorizationPayload).sessionId === 'string' &&
+    typeof (payload as GrokOAuthAuthorizationPayload).code === 'string' &&
+    typeof (payload as GrokOAuthAuthorizationPayload).state === 'string'
+  )
+}
+
 export function parseGrokOAuthCallback(rawValue: string): ParsedGrokOAuthCallback {
   const parsed = parseGrokAuthorizationInput(rawValue)
   return { code: parsed.code, state: parsed.state }

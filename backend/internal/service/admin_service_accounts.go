@@ -16,7 +16,11 @@ import (
 	"go.uber.org/zap"
 )
 
-const baiduDocumentAIInvalidCredentialsCode = "ACCOUNT_INVALID_DOCUMENT_AI_CREDENTIALS"
+const (
+	baiduDocumentAIInvalidCredentialsCode = "ACCOUNT_INVALID_DOCUMENT_AI_CREDENTIALS"
+	grokSSOCreateDisabledCode             = "GROK_SSO_CREATE_DISABLED"
+	grokSSOConversionDisabledCode         = "GROK_SSO_CONVERSION_DISABLED"
+)
 
 func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) ([]Account, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
@@ -68,6 +72,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	input.Platform = CanonicalizePlatformValue(input.Platform)
 	if err := EnsureSupportedPrimaryPlatform(input.Platform); err != nil {
 		return nil, err
+	}
+	if isGrokSSOAccountType(input.Platform, input.Type) {
+		return nil, newGrokSSOCreateDisabledError()
 	}
 	if err := s.validateAccountBaseURL(input.Credentials); err != nil {
 		return nil, err
@@ -210,6 +217,16 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	account.Platform = CanonicalizePlatformValue(account.Platform)
 	if err := EnsureSupportedAccountPlatform(account); err != nil {
 		return nil, err
+	}
+	originalType := strings.TrimSpace(strings.ToLower(account.Type))
+	nextType := originalType
+	if input.Type != "" {
+		nextType = strings.TrimSpace(strings.ToLower(input.Type))
+	}
+	if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformGrok) &&
+		originalType != AccountTypeSSO &&
+		nextType == AccountTypeSSO {
+		return nil, newGrokSSOConversionDisabledError()
 	}
 	oldExpiresAt := cloneTimePtr(account.ExpiresAt)
 	if err := ensureBlacklistedAccountNotRestored(account, input.Status, nil); err != nil {
@@ -689,6 +706,25 @@ func validateGrokAccountInput(platform string, accountType string, credentials m
 		}
 	}
 	return nil
+}
+
+func isGrokSSOAccountType(platform string, accountType string) bool {
+	return strings.EqualFold(strings.TrimSpace(platform), PlatformGrok) &&
+		strings.TrimSpace(strings.ToLower(accountType)) == AccountTypeSSO
+}
+
+func newGrokSSOCreateDisabledError() error {
+	return infraerrors.BadRequest(
+		grokSSOCreateDisabledCode,
+		"Grok SSO reverse-runtime accounts can no longer be created; use Grok OAuth/Build login or reauthorize an existing account into OAuth.",
+	)
+}
+
+func newGrokSSOConversionDisabledError() error {
+	return infraerrors.BadRequest(
+		grokSSOConversionDisabledCode,
+		"Grok accounts cannot be converted to the legacy SSO reverse runtime; use Grok OAuth/Build login or keep maintaining an existing SSO account.",
+	)
 }
 
 func validateOpenRouterAccountInput(platform string, accountType string, credentials map[string]any) error {

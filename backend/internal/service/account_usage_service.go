@@ -15,6 +15,8 @@ type AccountUsageService struct {
 	usageFetcher                          ClaudeUsageFetcher
 	geminiQuotaService                    *GeminiQuotaService
 	antigravityQuotaFetcher               *AntigravityQuotaFetcher
+	grokQuotaService                      *GrokQuotaService
+	grokQuotaFetcher                      *GrokQuotaFetcher
 	cache                                 *UsageCache
 	identityCache                         IdentityCache
 	openAICodexProbe                      func(ctx context.Context, account *Account) (map[string]any, *time.Time, error)
@@ -45,6 +47,14 @@ func NewAccountUsageService(
 		cache:                   cache,
 		identityCache:           identityCache,
 	}
+}
+
+func (s *AccountUsageService) SetGrokQuotaDependencies(quotaService *GrokQuotaService, quotaFetcher *GrokQuotaFetcher) {
+	if s == nil {
+		return
+	}
+	s.grokQuotaService = quotaService
+	s.grokQuotaFetcher = quotaFetcher
 }
 
 func (s *AccountUsageService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
@@ -91,6 +101,14 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 		return usage, err
 	}
 
+	if runtimePlatform == PlatformGrok && account.Type == AccountTypeOAuth {
+		usage, err := s.getGrokUsage(ctx, account, force)
+		if err == nil {
+			s.tryClearRecoverableAccountError(ctx, account)
+		}
+		return usage, err
+	}
+
 	// 只有oauth类型账号可以通过API获取usage（有profile scope）
 	if account.CanGetUsage() {
 		return s.getAnthropicActiveUsage(ctx, account, force)
@@ -113,4 +131,33 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 		"ACCOUNT_USAGE_UNSUPPORTED",
 		fmt.Sprintf("account type %s does not support active usage query", account.Type),
 	)
+}
+
+func (s *AccountUsageService) getGrokUsage(ctx context.Context, account *Account, force bool) (*UsageInfo, error) {
+	if s == nil || account == nil {
+		return nil, fmt.Errorf("account is nil")
+	}
+	if s.grokQuotaService != nil {
+		var result *GrokQuotaProbeResult
+		var err error
+		if force {
+			result, err = s.grokQuotaService.QueryQuota(ctx, account.ID)
+		} else {
+			result, err = s.grokQuotaService.ProbeBilling(ctx, account.ID)
+		}
+		if err == nil && result != nil {
+			account, _ = s.accountRepo.GetByID(ctx, account.ID)
+		} else if force {
+			return nil, err
+		}
+	}
+	if s.grokQuotaFetcher == nil {
+		s.grokQuotaFetcher = NewGrokQuotaFetcher()
+	}
+	usage := s.grokQuotaFetcher.BuildUsageInfo(account)
+	usage.Source = "active"
+	if usage.GrokBilling != nil {
+		usage.GrokLocalUsage24h, usage.GrokLocalUsage7d, usage.GrokLocalUsageMonthly = grokLocalUsageForQuota(ctx, s.usageLogRepo, account.ID, usage.GrokBilling, time.Now().UTC())
+	}
+	return usage, nil
 }

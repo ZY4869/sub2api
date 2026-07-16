@@ -18,7 +18,7 @@ const (
 	DefaultTokenURL     = "https://auth.x.ai/oauth2/token"
 	DefaultUserInfoURL  = "https://auth.x.ai/oauth2/userinfo"
 	DefaultClientID     = "b1a00492-073a-47ea-816f-4c329264a828"
-	DefaultScope        = "openid profile email offline_access grok-cli:access api:access conversations:read conversations:write"
+	DefaultScope        = "openid profile email offline_access grok-cli:access api:access"
 	DefaultRedirectURI  = "http://127.0.0.1:56121/callback"
 	DefaultBaseURL      = "https://cli-chat-proxy.grok.com/v1"
 	SessionTTL          = 30 * time.Minute
@@ -27,6 +27,7 @@ const (
 
 type OAuthSession struct {
 	State        string
+	Nonce        string
 	CodeVerifier string
 	ClientID     string
 	Scope        string
@@ -170,6 +171,14 @@ func GenerateState() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+func GenerateNonce() (string, error) {
+	bytes, err := randomBytes(16)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
 func GenerateSessionID() (string, error) {
 	bytes, err := randomBytes(16)
 	if err != nil {
@@ -192,6 +201,10 @@ func GenerateCodeChallenge(verifier string) string {
 }
 
 func BuildAuthorizationURL(authorizeURL, clientID, scope, redirectURI, state, codeChallenge string) (string, error) {
+	return BuildAuthorizationURLWithNonce(authorizeURL, clientID, scope, redirectURI, state, codeChallenge, "")
+}
+
+func BuildAuthorizationURLWithNonce(authorizeURL, clientID, scope, redirectURI, state, codeChallenge, nonce string) (string, error) {
 	authorizeURL = strings.TrimSpace(authorizeURL)
 	if authorizeURL == "" {
 		authorizeURL = DefaultAuthorizeURL
@@ -219,6 +232,9 @@ func BuildAuthorizationURL(authorizeURL, clientID, scope, redirectURI, state, co
 	params.Set("redirect_uri", redirectURI)
 	params.Set("scope", scope)
 	params.Set("state", state)
+	if strings.TrimSpace(nonce) != "" {
+		params.Set("nonce", strings.TrimSpace(nonce))
+	}
 	params.Set("code_challenge", codeChallenge)
 	params.Set("code_challenge_method", "S256")
 	params.Set("plan", "generic")

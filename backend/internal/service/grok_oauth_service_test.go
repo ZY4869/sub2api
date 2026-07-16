@@ -147,9 +147,23 @@ func TestGrokOAuthService_GenerateAuthURL_UsesPKCEAndConfiguredDefaults(t *testi
 	require.Equal(t, grokoauth.DefaultClientID, query.Get("client_id"))
 	require.Equal(t, grokoauth.DefaultRedirectURI, query.Get("redirect_uri"))
 	require.Equal(t, grokoauth.DefaultScope, query.Get("scope"))
+	require.Contains(t, query.Get("scope"), "grok-cli:access")
+	require.Contains(t, query.Get("scope"), "api:access")
 	require.Equal(t, result.State, query.Get("state"))
+	require.NotEmpty(t, query.Get("nonce"))
+	require.Equal(t, "generic", query.Get("plan"))
+	require.Equal(t, "sub2api", query.Get("referrer"))
 	require.Equal(t, "S256", query.Get("code_challenge_method"))
 	require.NotEmpty(t, query.Get("code_challenge"))
+}
+
+func TestGrokOAuthService_GenerateAuthURL_RejectsUntrustedAuthorizeURL(t *testing.T) {
+	svc := NewGrokOAuthService(nil, &grokOAuthClientStub{}, &config.Config{})
+	svc.cfg.Grok.OAuth.AuthorizeURL = "https://evil.example/oauth2/authorize"
+
+	_, err := svc.GenerateAuthURL(context.Background(), nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "GROK_OAUTH_AUTH_URL_FAILED")
 }
 
 func TestGrokOAuthService_ExchangeCode_AcceptsCallbackURLAndBuildsCredentials(t *testing.T) {
@@ -175,6 +189,21 @@ func TestGrokOAuthService_ExchangeCode_AcceptsCallbackURLAndBuildsCredentials(t 
 	require.Equal(t, "refresh-token", credentials["refresh_token"])
 	require.Equal(t, defaultGrokCLIBaseURL, credentials["base_url"])
 	require.Equal(t, "grok@example.com", credentials["email"])
+}
+
+func TestGrokOAuthService_RuntimeSanityReportsInvalidOverrides(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Grok.OAuth.TokenURL = "https://evil.example/oauth2/token"
+	svc := NewGrokOAuthService(nil, &grokOAuthClientStub{}, cfg)
+
+	report := svc.RuntimeSanity()
+
+	require.True(t, report.BaseURL.Valid)
+	require.Equal(t, defaultGrokCLIBaseURL, report.BaseURL.Value)
+	require.False(t, report.OAuthTokenURL.Valid)
+	require.Contains(t, report.OAuthTokenURL.Error, "host")
+	require.Contains(t, report.PublicPaths, "/grok/v1/responses")
+	require.Contains(t, report.PublicPaths, "/v1/responses")
 }
 
 func TestGrokOAuthService_BuildAccountExtra_DefaultsToGrokBuildTextScope(t *testing.T) {

@@ -54,7 +54,7 @@ func TestAccountTestServiceGrokOAuthProbesThenMakesRealResponsesCall(t *testing.
 		{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_ok","usage":{"input_tokens":1,"output_tokens":1},"output":[{"content":[{"type":"output_text","text":"OK"}]}]}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_ok","usage":{"input_tokens":1,"output_tokens":1},"output_text":"OK"}`)),
 		},
 	}}
 	importSvc := NewAccountModelImportService(NewModelCatalogService(newAccountModelImportSettingRepoStub(), nil, nil, nil, nil), nil, upstream, nil)
@@ -74,7 +74,7 @@ func TestAccountTestServiceGrokOAuthProbesThenMakesRealResponsesCall(t *testing.
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/grok/accounts/2415/test", nil)
 
-	err := testSvc.testGrokAPIKeyConnection(c, account, GrokModelBuild45)
+	err := testSvc.testGrokOfficialConnection(c, account, GrokModelBuild45)
 
 	require.NoError(t, err)
 	require.Len(t, upstream.requests, 2)
@@ -84,6 +84,9 @@ func TestAccountTestServiceGrokOAuthProbesThenMakesRealResponsesCall(t *testing.
 	require.Equal(t, grokCLIVersion, upstream.requests[1].Header.Get("X-Grok-Client-Version"))
 	require.Contains(t, rec.Body.String(), `"type":"test_complete"`)
 	require.Contains(t, rec.Body.String(), "Grok real model call OK")
+	require.Contains(t, rec.Body.String(), `"type":"content","text":"OK"`)
+	require.NotContains(t, rec.Body.String(), `"type":"content","text":"Grok official runtime connectivity OK`)
+	require.NotContains(t, rec.Body.String(), `"type":"content","text":"Detected`)
 	bodyBytes, err := io.ReadAll(upstream.requests[1].Body)
 	require.NoError(t, err)
 	require.Equal(t, GrokModelBuild45, gjson.GetBytes(bodyBytes, "model").String())
@@ -121,7 +124,7 @@ func TestAccountTestServiceGrokRealResponses404Fails(t *testing.T) {
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/grok/accounts/2415/test", nil)
 
-	err := testSvc.testGrokAPIKeyConnection(c, account, GrokModelBuild45)
+	err := testSvc.testGrokOfficialConnection(c, account, GrokModelBuild45)
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Grok real model call failed")
@@ -162,7 +165,7 @@ func TestAccountTestServiceGrokAPIKeyAcceptsV1BaseURL(t *testing.T) {
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/grok/accounts/2416/test", nil)
 
-	err := testSvc.testGrokAPIKeyConnection(c, account, GrokModelBuild45)
+	err := testSvc.testGrokOfficialConnection(c, account, GrokModelBuild45)
 
 	require.NoError(t, err)
 	require.Len(t, upstream.requests, 2)
@@ -170,4 +173,48 @@ func TestAccountTestServiceGrokAPIKeyAcceptsV1BaseURL(t *testing.T) {
 	require.Equal(t, "https://api.x.ai/v1/responses", upstream.requests[1].URL.String())
 	require.Empty(t, upstream.requests[1].Header.Get("X-Grok-Client-Version"))
 	require.Contains(t, rec.Body.String(), `"type":"test_complete"`)
+}
+
+func TestAccountTestServiceGrokSSODiagnosticsDoNotUseContentEvents(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	upstream := &grokAccountTestHTTPUpstream{responses: []*http.Response{
+		{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+			Body: io.NopCloser(strings.NewReader(`data: {"result":{"response":{"token":"OK","responseId":"resp_sso","conversationId":"conv_sso"}}}
+
+data: [DONE]
+`)),
+		},
+	}}
+	grokSvc := &GrokGatewayService{
+		reverseClient: NewGrokReverseClient(upstream, &config.Config{}),
+		cfg:           &config.Config{},
+	}
+	testSvc := &AccountTestService{grokGatewayService: grokSvc, cfg: &config.Config{}}
+	account := &Account{
+		ID:       2417,
+		Name:     "grok-sso",
+		Platform: PlatformGrok,
+		Type:     AccountTypeSSO,
+		Credentials: map[string]any{
+			"sso_token": "legacy-token",
+		},
+		Extra: map[string]any{
+			"grok_tier": GrokTierBasic,
+		},
+	}
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/grok/accounts/2417/test", nil)
+
+	err := testSvc.testGrokSSOConnection(c, account, GrokModelBuild45)
+
+	require.NoError(t, err)
+	require.Contains(t, rec.Body.String(), `"type":"test_complete"`)
+	require.Contains(t, rec.Body.String(), `"type":"status","text":"Reverse runtime connectivity probe started"`)
+	require.Contains(t, rec.Body.String(), `"type":"log","text":"Tier:`)
+	require.NotContains(t, rec.Body.String(), `"type":"content"`)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "https://grok.com/rest/app-chat/conversations/new", upstream.requests[0].URL.String())
 }

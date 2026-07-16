@@ -114,6 +114,74 @@ func TestBuildAccountModelPolicyBackfillUpdates_WritesStructuredScopeForLegacyMa
 	require.Equal(t, AccountModelPolicyModeMapping, scopeMap["policy_mode"])
 }
 
+func TestBuildAccountModelPolicyBackfillUpdates_BackfillsGrokOAuthBuildScope(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
+	account := &Account{
+		ID:       45,
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Extra: map[string]any{
+			"model_scope_v2": map[string]any{
+				"supported_models_by_provider": map[string]any{
+					PlatformGrok: []any{"legacy-grok"},
+				},
+			},
+		},
+	}
+
+	updates, scopeChanged, snapshotChanged := BuildAccountModelPolicyBackfillUpdates(context.Background(), account, nil, now)
+
+	require.True(t, scopeChanged)
+	require.True(t, snapshotChanged)
+	scope, ok := ExtractAccountModelScopeV2(map[string]any{"model_scope_v2": updates["model_scope_v2"]})
+	require.True(t, ok)
+	require.Equal(t, AccountModelPolicyModeWhitelist, scope.PolicyMode)
+	require.Len(t, scope.Entries, len(GrokBuildTextModelIDs()))
+	entryIDs := make([]string, 0, len(scope.Entries))
+	for _, entry := range scope.Entries {
+		entryIDs = append(entryIDs, entry.DisplayModelID)
+	}
+	require.ElementsMatch(t, GrokBuildTextModelIDs(), entryIDs)
+
+	snapshot, ok := AccountModelProbeSnapshotFromExtra(updates)
+	require.True(t, ok)
+	require.Len(t, snapshot.Entries, len(GrokBuildTextModelIDs()))
+	require.Equal(t, AccountModelAvailabilityVerified, snapshot.Entries[0].AvailabilityState)
+	require.Equal(t, AccountModelProbeSnapshotSourcePolicyBackfill, snapshot.ProbeSource)
+}
+
+func TestBuildAccountModelPolicyBackfillUpdates_DoesNotOverrideGrokOAuthCustomScope(t *testing.T) {
+	t.Parallel()
+
+	account := &Account{
+		ID:       46,
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Extra: map[string]any{
+			"model_scope_v2": map[string]any{
+				"policy_mode": AccountModelPolicyModeMapping,
+				"entries": []any{
+					map[string]any{
+						"display_model_id": "custom-grok",
+						"target_model_id":  GrokModelBuild45,
+						"provider":         PlatformGrok,
+						"visibility_mode":  AccountModelVisibilityModeAlias,
+					},
+				},
+			},
+		},
+	}
+
+	updates, scopeChanged, snapshotChanged := BuildAccountModelPolicyBackfillUpdates(context.Background(), account, nil, time.Now())
+
+	require.False(t, scopeChanged)
+	require.True(t, snapshotChanged)
+	require.NotContains(t, updates, "model_scope_v2")
+	require.Contains(t, updates, accountModelProbeSnapshotExtraKey)
+}
+
 func TestBackfillAccountModelPolicies_IsIdempotent(t *testing.T) {
 	t.Parallel()
 

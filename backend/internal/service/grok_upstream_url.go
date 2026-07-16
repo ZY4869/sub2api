@@ -79,11 +79,8 @@ type grokUpstreamRequestMetadata struct {
 
 func newGrokUpstreamRequestMetadata(account *Account, rawURL string, endpoint string) grokUpstreamRequestMetadata {
 	meta := grokUpstreamRequestMetadata{
-		RouteMode:         GrokRouteModeAPIKey,
+		RouteMode:         grokRouteModeForAccount(account),
 		EffectiveEndpoint: strings.TrimSpace(endpoint),
-	}
-	if account != nil && account.IsGrokSSO() {
-		meta.RouteMode = GrokRouteModeSSO
 	}
 	if parsed, err := url.Parse(strings.TrimSpace(rawURL)); err == nil {
 		meta.EffectiveHost = parsed.Host
@@ -92,4 +89,59 @@ func newGrokUpstreamRequestMetadata(account *Account, rawURL string, endpoint st
 		}
 	}
 	return meta
+}
+
+func newGrokSSOReverseRequestMetadata(endpoint string) grokUpstreamRequestMetadata {
+	meta := grokUpstreamRequestMetadata{
+		RouteMode:         GrokRouteModeSSOReverse,
+		EffectiveHost:     "grok.com",
+		EffectiveEndpoint: strings.TrimSpace(endpoint),
+	}
+	if meta.EffectiveEndpoint == "" {
+		meta.EffectiveEndpoint = "/"
+	}
+	if parsed, err := url.Parse(defaultGrokReverseBaseURL); err == nil && strings.TrimSpace(parsed.Host) != "" {
+		meta.EffectiveHost = parsed.Host
+	}
+	return meta
+}
+
+func applyGrokForwardMetadata(result *GrokGatewayForwardResult, meta grokUpstreamRequestMetadata) *GrokGatewayForwardResult {
+	if result == nil {
+		return nil
+	}
+	if strings.TrimSpace(result.RouteMode) == "" {
+		result.RouteMode = meta.RouteMode
+	}
+	if strings.TrimSpace(result.EffectiveHost) == "" {
+		result.EffectiveHost = meta.EffectiveHost
+	}
+	if strings.TrimSpace(result.EffectiveEndpoint) == "" {
+		result.EffectiveEndpoint = meta.EffectiveEndpoint
+	}
+	return result
+}
+
+func applyGrokSSOReverseForwardMetadata(result *GrokGatewayForwardResult, endpoint string) *GrokGatewayForwardResult {
+	if result == nil {
+		return nil
+	}
+	if strings.TrimSpace(result.Endpoint) == "" {
+		result.Endpoint = strings.TrimSpace(endpoint)
+	}
+	return applyGrokForwardMetadata(result, newGrokSSOReverseRequestMetadata(endpoint))
+}
+
+func grokRouteModeForAccount(account *Account) string {
+	if account == nil {
+		return GrokRouteModeAPIKey
+	}
+	switch {
+	case account.IsGrokSSO():
+		return GrokRouteModeSSOReverse
+	case account.IsGrokOAuth():
+		return GrokRouteModeOAuthBuild
+	default:
+		return GrokRouteModeAPIKey
+	}
 }

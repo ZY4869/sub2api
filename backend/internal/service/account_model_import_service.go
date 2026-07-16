@@ -103,6 +103,7 @@ type AccountModelImportService struct {
 	kiroRuntimeService           *KiroRuntimeService
 	vertexCatalogService         VertexCatalogProvider
 	openAITokenProvider          *OpenAITokenProvider
+	grokTokenProvider            *GrokTokenProvider
 	httpUpstream                 HTTPUpstream
 	proxyRepo                    ProxyRepository
 	cfg                          *config.Config
@@ -132,6 +133,10 @@ func (s *AccountModelImportService) SetModelRegistryService(modelRegistryService
 
 func (s *AccountModelImportService) SetOpenAITokenProvider(openAITokenProvider *OpenAITokenProvider) {
 	s.openAITokenProvider = openAITokenProvider
+}
+
+func (s *AccountModelImportService) SetGrokTokenProvider(grokTokenProvider *GrokTokenProvider) {
+	s.grokTokenProvider = grokTokenProvider
 }
 
 func (s *AccountModelImportService) SetKiroRuntimeService(kiroRuntimeService *KiroRuntimeService) {

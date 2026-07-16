@@ -103,6 +103,9 @@ export function resolveActualUsageRefreshLoadOptions(
   ) {
     return { source: "active" };
   }
+  if (getRuntimePlatform(account) === "grok" && account.type === "oauth") {
+    return { source: "active", force: true };
+  }
 
   return {};
 }

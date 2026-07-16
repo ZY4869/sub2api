@@ -67,5 +67,8 @@ export function canAccountFetchUsage(account: Account): boolean {
   if (runtimePlatform === "openai") {
     return account.type === "oauth";
   }
+  if (runtimePlatform === "grok") {
+    return account.type === "oauth";
+  }
   return false;
 }

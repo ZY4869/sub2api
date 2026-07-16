@@ -170,6 +170,8 @@ export default {
     grokTierBasic: "Basic",
     grokTierSuper: "Super",
     grokTierHeavy: "Heavy",
+    grokSsoLegacyTitle: "Legacy reverse runtime",
+    grokSsoLegacyHint: "You can still maintain the token and tier for this account, but new SSO reverse accounts are disabled. Use Grok OAuth/Build login or reauthorize to migrate.",
     grokDedicatedRouteHint: "Grok API Key accounts default to https://api.x.ai. User-facing API keys can call both the root alias and the dedicated /grok/v1 routes.",
     grokOauth: {
         title: "Official Grok Login",

@@ -864,6 +864,9 @@ describe('EditAccountModal', () => {
 
     const wrapper = mountModal(account)
 
+    expect(wrapper.text()).toContain('admin.accounts.grokSsoLegacyTitle')
+    expect(wrapper.text()).toContain('admin.accounts.grokSsoLegacyHint')
+
     const tokenInput = wrapper.find('textarea[placeholder="admin.accounts.leaveEmptyToKeep"]')
     expect(tokenInput.exists()).toBe(true)
     await tokenInput.setValue('Bearer new-token')

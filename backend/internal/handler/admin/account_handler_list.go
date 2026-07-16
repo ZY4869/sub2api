@@ -296,5 +296,9 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 	if blocked {
 		return
 	}
+	if err := h.ensureGrokBuildModelScopePersisted(c.Request.Context(), account); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	response.Success(c, h.buildAccountDetailResponse(c.Request.Context(), account))
 }

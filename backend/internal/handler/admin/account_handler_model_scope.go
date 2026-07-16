@@ -57,6 +57,8 @@ func (h *AccountHandler) enrichAccountExtraWithModelScope(ctx context.Context, a
 	if h.modelRegistryService == nil || account == nil {
 		return extra
 	}
+	// List responses enrich legacy accounts for display only; persistent Grok Build
+	// backfill is handled by detail reads, create/reauth/refresh, and reconcile.
 	if _, ok := service.ExtractAccountModelScopeV2(extra); ok {
 		return extra
 	}
@@ -69,6 +71,14 @@ func (h *AccountHandler) enrichAccountExtraWithModelScope(ctx context.Context, a
 	}
 	extra["model_scope_v2"] = scope.ToMap()
 	return extra
+}
+
+func (h *AccountHandler) ensureGrokBuildModelScopePersisted(ctx context.Context, account *service.Account) error {
+	if account == nil || !account.IsGrokOAuth() {
+		return nil
+	}
+	_, err := h.adminService.EnsureGrokBuildModelScope(ctx, account, h.modelRegistryService)
+	return err
 }
 
 func cloneStringAnyMap(source map[string]any) map[string]any {

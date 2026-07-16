@@ -85,6 +85,10 @@ func BuildAccountModelPolicyBackfillUpdates(ctx context.Context, account *Accoun
 	scopeChanged := false
 	snapshotChanged := false
 
+	if grokUpdates, grokScopeChanged, grokSnapshotChanged := EnsureGrokBuildModelScopeUpdates(ctx, account, registry, now); len(grokUpdates) > 0 {
+		return grokUpdates, grokScopeChanged, grokSnapshotChanged
+	}
+
 	projection := BuildAccountModelProjection(ctx, account, registry)
 	if normalizedScope := buildAccountModelPolicyBackfillScopeFromProjection(projection); normalizedScope != nil {
 		normalizedScopeMap := normalizedScope.ToMap()

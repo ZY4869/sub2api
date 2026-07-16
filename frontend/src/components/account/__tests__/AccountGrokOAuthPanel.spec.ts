@@ -57,6 +57,17 @@ function mountPanel() {
   })
 }
 
+function mountAuthorizationPanel() {
+  return mount(AccountGrokOAuthPanel, {
+    props: {
+      submitLabel: '重授权',
+      proxyId: 7,
+      submitMode: 'authorization',
+      allowDevice: false
+    }
+  })
+}
+
 async function generateAuth(wrapper: ReturnType<typeof mountPanel>) {
   const generateButton = wrapper
     .findAll('button')
@@ -147,6 +158,24 @@ describe('AccountGrokOAuthPanel', () => {
         display_name: 'Grok User'
       },
       suggestedName: 'grok@example.com'
+    })
+  })
+
+  it('emits callback authorization fields without exchanging in reauthorization mode', async () => {
+    const wrapper = mountAuthorizationPanel()
+    await generateAuth(wrapper as ReturnType<typeof mountPanel>)
+
+    expect(wrapper.text()).not.toContain('admin.accounts.grokOauth.deviceMode')
+
+    await wrapper.find('textarea').setValue('http://127.0.0.1:56121/callback?code=auth-code&state=state-1')
+    await wrapper.get('[data-testid="grok-oauth-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(exchangeGrokAuthCode).not.toHaveBeenCalled()
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toEqual({
+      sessionId: 'session-1',
+      code: 'auth-code',
+      state: 'state-1'
     })
   })
 

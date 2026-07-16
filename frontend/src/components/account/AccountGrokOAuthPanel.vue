@@ -9,7 +9,10 @@
       </p>
     </div>
 
-    <div class="inline-flex rounded-lg border border-emerald-200 bg-white p-1 dark:border-emerald-900/40 dark:bg-slate-900">
+    <div
+      v-if="modeOptions.length > 1"
+      class="inline-flex rounded-lg border border-emerald-200 bg-white p-1 dark:border-emerald-900/40 dark:bg-slate-900"
+    >
       <button
         v-for="option in modeOptions"
         :key="option.value"
@@ -33,6 +36,7 @@
       :proxy-id="proxyId"
       :submit-label="submitLabel"
       :submitting="submitting"
+      :submit-mode="submitMode"
       @submit="emit('submit', $event)"
       @device-input="handleDeviceInput"
     />
@@ -51,23 +55,27 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ParsedGrokOAuthPayload } from '@/utils/grokOAuth'
+import type { GrokOAuthSubmitPayload } from '@/utils/grokOAuth'
 import GrokOAuthCallbackFlow from './GrokOAuthCallbackFlow.vue'
 import GrokOAuthDeviceFlow from './GrokOAuthDeviceFlow.vue'
 
 type GrokOAuthMode = 'callback' | 'device'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   proxyId?: number | null
   submitLabel: string
   submitting?: boolean
+  submitMode?: 'exchange' | 'authorization'
+  allowDevice?: boolean
 }>(), {
   proxyId: null,
-  submitting: false
+  submitting: false,
+  submitMode: 'exchange',
+  allowDevice: true
 })
 
 const emit = defineEmits<{
-  submit: [payload: ParsedGrokOAuthPayload]
+  submit: [payload: GrokOAuthSubmitPayload]
 }>()
 
 const { t } = useI18n()
@@ -77,10 +85,15 @@ const callbackFlowRef = ref<{ reset: () => void } | null>(null)
 const deviceFlowRef = ref<{ reset: () => void; showExternalCodeHint: () => void } | null>(null)
 const deviceHint = ref('')
 
-const modeOptions = computed(() => [
-  { value: 'callback' as const, label: t('admin.accounts.grokOauth.callbackMode') },
-  { value: 'device' as const, label: t('admin.accounts.grokOauth.deviceMode') }
-])
+const modeOptions = computed(() => {
+  const options: Array<{ value: GrokOAuthMode; label: string }> = [
+    { value: 'callback', label: t('admin.accounts.grokOauth.callbackMode') }
+  ]
+  if (props.allowDevice !== false) {
+    options.push({ value: 'device', label: t('admin.accounts.grokOauth.deviceMode') })
+  }
+  return options
+})
 
 function setMode(nextMode: GrokOAuthMode) {
   mode.value = nextMode
@@ -88,6 +101,9 @@ function setMode(nextMode: GrokOAuthMode) {
 
 async function handleDeviceInput() {
   deviceHint.value = t('admin.accounts.grokOauth.externalDeviceCodeHint')
+  if (props.allowDevice === false) {
+    return
+  }
   mode.value = 'device'
   await nextTick()
   deviceFlowRef.value?.showExternalCodeHint()

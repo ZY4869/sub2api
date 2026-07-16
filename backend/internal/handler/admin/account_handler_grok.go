@@ -16,7 +16,11 @@ import (
 	"github.com/google/uuid"
 )
 
-const grokImportPageSize = 200
+const (
+	grokImportPageSize = 200
+
+	grokSSOImportRequiresOAuthConversionReason = "GROK_SSO_IMPORT_REQUIRES_OAUTH_CONVERSION: Grok SSO tokens cannot be imported as new reverse-runtime accounts; use Grok OAuth/Build login or reauthorize an existing account into OAuth."
+)
 
 type grokImportRequest struct {
 	Content              string `json:"content" binding:"required"`
@@ -101,6 +105,9 @@ func (h *AccountHandler) PreviewGrokImport(c *gin.Context) {
 		case candidate.CredentialKey == "":
 			item.Status = "failed"
 			item.Reason = "missing_credential_key"
+		case candidate.Type == service.AccountTypeSSO:
+			item.Status = "failed"
+			item.Reason = grokSSOImportRequiresOAuthConversionReason
 		case hasCredentialKey(existingKeys, candidate.CredentialKey):
 			item.Status = "skipped"
 			item.Reason = "already_exists"
@@ -173,6 +180,10 @@ func (h *AccountHandler) ImportGrok(c *gin.Context) {
 			case candidate.CredentialKey == "":
 				entry.Status = "failed"
 				entry.Reason = "missing_credential_key"
+				result.Failed++
+			case candidate.Type == service.AccountTypeSSO:
+				entry.Status = "failed"
+				entry.Reason = grokSSOImportRequiresOAuthConversionReason
 				result.Failed++
 			case hasCredentialKey(existingKeys, candidate.CredentialKey):
 				entry.Status = "skipped"

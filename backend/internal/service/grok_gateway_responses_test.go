@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -12,6 +13,35 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
+
+type grokGatewayQueuedHTTPUpstream struct {
+	responses []*http.Response
+	requests  []*http.Request
+	callCount int
+}
+
+func (s *grokGatewayQueuedHTTPUpstream) Do(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	var bodyBytes []byte
+	if req != nil && req.Body != nil {
+		bodyBytes, _ = io.ReadAll(req.Body)
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+	if req != nil {
+		cloned := req.Clone(req.Context())
+		cloned.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		s.requests = append(s.requests, cloned)
+	}
+	idx := s.callCount
+	s.callCount++
+	if idx >= len(s.responses) {
+		idx = len(s.responses) - 1
+	}
+	return s.responses[idx], nil
+}
+
+func (s *grokGatewayQueuedHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, _ *TLSFingerprintProfile) (*http.Response, error) {
+	return s.Do(req, proxyURL, accountID, accountConcurrency)
+}
 
 func newGrokAPIKeyResponsesTestAccount() *Account {
 	return &Account{
@@ -30,6 +60,23 @@ func newGrokAPIKeyResponsesTestAccount() *Account {
 		Status:      StatusActive,
 		Schedulable: true,
 	}
+}
+
+func TestGrokGatewayRouteModeDistinguishesRuntimeTypes(t *testing.T) {
+	svc := &GrokGatewayService{}
+
+	require.Equal(t, GrokRouteModeAPIKey, svc.RouteMode(&Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+	}))
+	require.Equal(t, GrokRouteModeOAuthBuild, svc.RouteMode(&Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+	}))
+	require.Equal(t, GrokRouteModeSSOReverse, svc.RouteMode(&Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeSSO,
+	}))
 }
 
 func TestSanitizeGrokForwardResponsesDirectOpenAICompatiblePost(t *testing.T) {
@@ -122,7 +169,7 @@ func TestGrokOAuthForwardUsesCLIGatewayWithAccessToken(t *testing.T) {
 	result, err := svc.ForwardResponses(context.Background(), c, account, body, http.MethodPost, "")
 
 	require.NoError(t, err)
-	require.Equal(t, GrokRouteModeAPIKey, result.RouteMode)
+	require.Equal(t, GrokRouteModeOAuthBuild, result.RouteMode)
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(t, "cli-chat-proxy.grok.com", upstream.lastReq.URL.Host)
 	require.Equal(t, "/v1/responses", upstream.lastReq.URL.Path)
@@ -131,6 +178,38 @@ func TestGrokOAuthForwardUsesCLIGatewayWithAccessToken(t *testing.T) {
 	require.Equal(t, grokCLIVersion, upstream.lastReq.Header.Get("X-Grok-Client-Version"))
 	require.Equal(t, "cli-chat-proxy.grok.com", result.EffectiveHost)
 	require.Equal(t, "/v1/responses", result.EffectiveEndpoint)
+}
+
+func TestGrokAPIKeyRequestRejectsOAuthAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"grok-4","input":"hello"}`)
+	_, c := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/responses", body)
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":"resp_oauth"}`)),
+	}}
+	account := &Account{
+		ID:       188,
+		Name:     "grok-oauth",
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "oauth-token",
+			"base_url":     "https://api.x.ai/v1",
+		},
+	}
+	svc := &GrokGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	resp, meta, err := svc.doAPIKeyRequest(context.Background(), c, account, http.MethodPost, grokEndpointResponses, body)
+
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.Nil(t, upstream.lastReq)
+	require.Equal(t, GrokRouteModeAPIKey, meta.RouteMode)
 }
 
 func TestGrokOAuthForwardChatCompletionsUsesCLIGatewayWithHeaders(t *testing.T) {
@@ -161,6 +240,7 @@ func TestGrokOAuthForwardChatCompletionsUsesCLIGatewayWithHeaders(t *testing.T) 
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
+	require.Equal(t, GrokRouteModeOAuthBuild, result.RouteMode)
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(t, "https://cli-chat-proxy.grok.com/v1/chat/completions", upstream.lastReq.URL.String())
 	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
@@ -353,9 +433,79 @@ func TestGrokGatewayLogsEffectiveMetadataOnUpstreamErrors(t *testing.T) {
 
 	require.Error(t, err)
 	require.True(t, sink.ContainsMessage("grok.upstream_http_error"))
-	require.True(t, sink.ContainsFieldValue("route_mode", GrokRouteModeAPIKey))
+	require.True(t, sink.ContainsFieldValue("route_mode", GrokRouteModeOAuthBuild))
 	require.True(t, sink.ContainsFieldValue("effective_host", "cli-chat-proxy.grok.com"))
 	require.True(t, sink.ContainsFieldValue("effective_endpoint", "/v1/responses"))
 	require.True(t, sink.ContainsFieldValue("upstream_status", "404"))
 	require.True(t, sink.ContainsFieldValue("upstream_request_id", "rid-not-found"))
+}
+
+func TestGrokSSOReverseForwardResultIncludesEffectiveMetadata(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"grok-4","input":"hello"}`)
+	_, c := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/responses", body)
+	upstream := &grokGatewayQueuedHTTPUpstream{responses: []*http.Response{
+		{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+			Body: io.NopCloser(strings.NewReader(`data: {"result":{"response":{"token":"OK","responseId":"resp_sso","conversationId":"conv_sso"}}}
+
+data: [DONE]
+`)),
+		},
+	}}
+	account := &Account{
+		ID:       91,
+		Name:     "grok-sso",
+		Platform: PlatformGrok,
+		Type:     AccountTypeSSO,
+		Credentials: map[string]any{
+			"sso_token": "legacy-token",
+		},
+		Extra: map[string]any{
+			"grok_tier": GrokTierBasic,
+		},
+	}
+	svc := &GrokGatewayService{
+		reverseClient: NewGrokReverseClient(upstream, &config.Config{}),
+		cfg:           &config.Config{},
+	}
+
+	result, err := svc.ForwardResponses(context.Background(), c, account, body, http.MethodPost, "")
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, GrokRouteModeSSOReverse, result.RouteMode)
+	require.Equal(t, "grok.com", result.EffectiveHost)
+	require.Equal(t, "/rest/app-chat/conversations/new", result.EffectiveEndpoint)
+	require.Equal(t, "resp_sso", result.UpstreamRequestID)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "https://grok.com/rest/app-chat/conversations/new", upstream.requests[0].URL.String())
+}
+
+func TestGrokOfficialVideoCreateForwardResultIncludesEffectiveMetadata(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"grok-imagine-video","prompt":"make a clip"}`)
+	_, c := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/videos/generations", body)
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}, "x-request-id": []string{"rid-video"}},
+		Body:       io.NopCloser(strings.NewReader(`{"request_id":"vid_1","status":"completed","url":"https://cdn.example/video.mp4","model":"grok-imagine-video"}`)),
+	}}
+	account := newGrokAPIKeyResponsesTestAccount()
+	svc := &GrokGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	result, err := svc.ForwardVideosGeneration(context.Background(), c, account, body)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, GrokRouteModeAPIKey, result.RouteMode)
+	require.Equal(t, "api.x.ai", result.EffectiveHost)
+	require.Equal(t, "/v1/videos/generations", result.EffectiveEndpoint)
+	require.Equal(t, "vid_1", result.UpstreamRequestID)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "https://api.x.ai/v1/videos/generations", upstream.lastReq.URL.String())
 }
