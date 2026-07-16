@@ -472,6 +472,14 @@ func (c *Config) Validate() error {
 	if c.Gateway.StreamKeepaliveInterval != 0 && (c.Gateway.StreamKeepaliveInterval < 5 || c.Gateway.StreamKeepaliveInterval > 30) {
 		return fmt.Errorf("gateway.stream_keepalive_interval must be 0 or between 5-30 seconds")
 	}
+	if c.Gateway.OpenAIFirstOutputTimeoutSeconds < 0 || c.Gateway.OpenAIFirstOutputTimeoutSeconds > 600 ||
+		(c.Gateway.OpenAIFirstOutputTimeoutSeconds > 0 && c.Gateway.OpenAIFirstOutputTimeoutSeconds < 30) {
+		return fmt.Errorf("gateway.openai_first_output_timeout_seconds must be 0 or between 30-600 seconds")
+	}
+	if c.Gateway.OpenAIHighEffortFirstOutputTimeoutSeconds < 0 || c.Gateway.OpenAIHighEffortFirstOutputTimeoutSeconds > 1800 ||
+		(c.Gateway.OpenAIHighEffortFirstOutputTimeoutSeconds > 0 && c.Gateway.OpenAIHighEffortFirstOutputTimeoutSeconds < 30) {
+		return fmt.Errorf("gateway.openai_high_effort_first_output_timeout_seconds must be 0 or between 30-1800 seconds")
+	}
 	if c.Gateway.OpenAIHTTP2.SendPingTimeoutSeconds < 0 {
 		return fmt.Errorf("gateway.openai_http2.send_ping_timeout_seconds must be non-negative")
 	}

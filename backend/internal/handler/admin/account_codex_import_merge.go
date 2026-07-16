@@ -146,6 +146,7 @@ func sanitizeCodexImportCredentialExtras(input map[string]any) map[string]any {
 		"email": {}, "chatgpt_account_id": {}, "chatgpt_user_id": {}, "organization_id": {},
 		"plan_type": {}, "client_id": {}, "auth_mode": {}, "openai_auth_mode": {},
 		"token_type": {}, "chatgpt_account_is_fedramp": {},
+		"agent_runtime_id": {}, "agent_private_key": {}, "task_id": {},
 	}
 	out := make(map[string]any, len(input))
 	for key, value := range input {
@@ -193,6 +194,13 @@ func mergeCodexImportCredentials(existing, incoming map[string]any, item *codexI
 	}
 	if strings.TrimSpace(item.IDToken) == "" {
 		delete(out, "id_token")
+	}
+	if item.IsAgentIdentity {
+		delete(out, "access_token")
+		delete(out, "refresh_token")
+		delete(out, "id_token")
+		delete(out, "expires_at")
+		delete(out, "client_id")
 	}
 	return out
 }

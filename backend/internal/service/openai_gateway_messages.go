@@ -44,6 +44,9 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		return nil, fmt.Errorf("parse anthropic request: %w", err)
 	}
 	originalModel := anthropicReq.Model
+	if shouldForwardAnthropicMessagesViaChatCompletions(account) {
+		return s.forwardAnthropicViaRawChatCompletions(ctx, c, account, &anthropicReq, originalModel, topLevelEffort, promptCacheKey, defaultMappedModel)
+	}
 	runtimeRequestedModel := originalModel
 	if entry, ok := PublishedPublicCatalogEntryFromContext(ctx); ok && entry != nil {
 		if sourceModel := strings.TrimSpace(entry.SourceModelID); sourceModel != "" {

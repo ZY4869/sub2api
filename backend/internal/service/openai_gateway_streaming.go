@@ -24,7 +24,7 @@ type openaiStreamingResult struct {
 	firstTokenMs *int
 }
 
-func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, startTime time.Time, originalModel, mappedModel string) (*openaiStreamingResult, error) {
+func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, startTime time.Time, originalModel, mappedModel string, reasoningEffortOpt ...string) (*openaiStreamingResult, error) {
 	if s.responseHeaderFilter != nil {
 		responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	}
@@ -34,6 +34,15 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 	c.Header("X-Accel-Buffering", "no")
 	if v := resp.Header.Get("x-request-id"); v != "" {
 		c.Header("x-request-id", v)
+	}
+	reasoningEffort := ""
+	if len(reasoningEffortOpt) > 0 {
+		reasoningEffort = strings.TrimSpace(reasoningEffortOpt[0])
+	}
+	firstOutputTimeout := s.openAIFirstOutputTimeout(reasoningEffort)
+	firstOutputDeadline := time.Time{}
+	if firstOutputTimeout > 0 {
+		firstOutputDeadline = startTime.Add(firstOutputTimeout)
 	}
 	w := c.Writer
 	flusher, ok := w.(http.Flusher)
@@ -117,6 +126,22 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 	if keepaliveTicker != nil {
 		keepaliveCh = keepaliveTicker.C
 	}
+	var firstOutputTimer *time.Timer
+	if !firstOutputDeadline.IsZero() {
+		remaining := time.Until(firstOutputDeadline)
+		if remaining <= 0 {
+			remaining = time.Nanosecond
+		}
+		firstOutputTimer = time.NewTimer(remaining)
+		defer firstOutputTimer.Stop()
+	}
+	var firstOutputCh <-chan time.Time
+	if firstOutputTimer != nil {
+		firstOutputCh = firstOutputTimer.C
+	}
+	const firstOutputStageLimit = 1024 * 1024
+	var firstOutputStage strings.Builder
+	firstOutputStageActive := firstOutputTimeout > 0
 	lastDataAt := time.Now()
 	errorEventSent := false
 	clientDisconnected := false
@@ -163,7 +188,22 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 	resultWithUsage := func() *openaiStreamingResult {
 		return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}
 	}
+	flushFirstOutputStage := func() bool {
+		if firstOutputStage.Len() == 0 || clientDisconnected {
+			firstOutputStage.Reset()
+			return true
+		}
+		if _, err := bufferedWriter.WriteString(firstOutputStage.String()); err != nil {
+			clientDisconnected = true
+			firstOutputStage.Reset()
+			logger.LegacyPrintf("service.openai_gateway", "Client disconnected while flushing staged OpenAI SSE events")
+			return false
+		}
+		firstOutputStage.Reset()
+		return true
+	}
 	finalizeStream := func() (*openaiStreamingResult, error) {
+		_ = flushFirstOutputStage()
 		if !clientDisconnected {
 			if err := flushBuffered(); err != nil {
 				clientDisconnected = true
@@ -231,12 +271,33 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 					}
 				}
 			}
+			semanticOutput := openAISSEDataHasSemanticOutput(dataBytes)
+			if semanticOutput && firstOutputTimer != nil {
+				if firstOutputTimer.Stop() {
+					firstOutputCh = nil
+				}
+				firstOutputTimer = nil
+			}
 			if !clientDisconnected {
 				shouldFlush := queueDrained
-				if firstTokenMs == nil && data != "" && data != "[DONE]" {
+				if firstTokenMs == nil && semanticOutput {
 					shouldFlush = true
 				}
-				if _, err := bufferedWriter.WriteString(line); err != nil {
+				if semanticOutput && firstOutputStageActive {
+					firstOutputStageActive = false
+					_ = flushFirstOutputStage()
+				}
+				if firstOutputStageActive && !semanticOutput && firstOutputStage.Len()+len(line)+1 <= firstOutputStageLimit {
+					firstOutputStage.WriteString(line)
+					firstOutputStage.WriteByte('\n')
+				} else if firstOutputStageActive && !semanticOutput {
+					firstOutputStageActive = false
+					_ = flushFirstOutputStage()
+				}
+				if firstOutputStageActive && !semanticOutput {
+					// Hold pre-output status frames until the first semantic event
+					// arrives so a first-output timeout can cleanly retry another account.
+				} else if _, err := bufferedWriter.WriteString(line); err != nil {
 					clientDisconnected = true
 					logger.LegacyPrintf("service.openai_gateway", "Client disconnected during streaming, continuing to drain upstream for billing")
 				} else if _, err := bufferedWriter.WriteString("\n"); err != nil {
@@ -249,21 +310,30 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 					}
 				}
 			}
-			if firstTokenMs == nil && data != "" && data != "[DONE]" {
+			if firstTokenMs == nil && semanticOutput {
 				ms := int(time.Since(startTime).Milliseconds())
 				firstTokenMs = &ms
 			}
-			if data != "" && data != "[DONE]" {
+			if semanticOutput {
 				markOpenAIRealSSEStarted(c)
 			}
 			s.parseSSEUsageBytes(dataBytes, usage)
 			return
 		}
-		if !isOpenAIKeepaliveSSELine(line) {
+		if !firstOutputStageActive && !isOpenAIKeepaliveSSELine(line) {
 			markOpenAIRealSSEStarted(c)
 		}
 		if !clientDisconnected {
-			if _, err := bufferedWriter.WriteString(line); err != nil {
+			if firstOutputStageActive && firstOutputStage.Len()+len(line)+1 <= firstOutputStageLimit {
+				firstOutputStage.WriteString(line)
+				firstOutputStage.WriteByte('\n')
+			} else if firstOutputStageActive {
+				firstOutputStageActive = false
+				_ = flushFirstOutputStage()
+			}
+			if firstOutputStageActive {
+				// Hold comments/event-name lines paired with pre-output data.
+			} else if _, err := bufferedWriter.WriteString(line); err != nil {
 				clientDisconnected = true
 				logger.LegacyPrintf("service.openai_gateway", "Client disconnected during streaming, continuing to drain upstream for billing")
 			} else if _, err := bufferedWriter.WriteString("\n"); err != nil {
@@ -277,7 +347,7 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 			}
 		}
 	}
-	if streamInterval <= 0 && keepaliveInterval <= 0 {
+	if streamInterval <= 0 && keepaliveInterval <= 0 && firstOutputTimeout <= 0 {
 		defer putSSEScannerBuf64K(scanBuf)
 		for scanner.Scan() {
 			processSSELine(scanner.Text(), true)
@@ -362,6 +432,19 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 				clientDisconnected = true
 				logger.LegacyPrintf("service.openai_gateway", "Client disconnected during keepalive flush, continuing to drain upstream for billing")
 			}
+		case <-firstOutputCh:
+			if clientDisconnected {
+				logger.LegacyPrintf("service.openai_gateway", "First output timeout after client disconnect, returning collected usage")
+				return resultWithUsage(), nil
+			}
+			if c != nil && c.Writer != nil && c.Writer.Written() {
+				if isOpenAIResponsesCompactPath(c) {
+					sendFailureEvent("first_output_timeout")
+				} else {
+					sendErrorEvent("first_output_timeout")
+				}
+			}
+			return resultWithUsage(), s.newOpenAIFirstOutputTimeoutError(ctx, c, account, startTime, originalModel, reasoningEffort, firstOutputTimeout, resp.Header)
 		}
 	}
 }

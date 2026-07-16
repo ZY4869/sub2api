@@ -87,6 +87,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 	passthroughEnabled := account.IsOpenAIPassthroughEnabled()
 	if passthroughEnabled {
+		liteRequest := account.IsOpenAIOAuth() && isOpenAIResponsesLiteRequest(c, nil, originalBody)
 		if reqModel != "" && reqModel != strings.TrimSpace(originalModel) {
 			if nextBody, setErr := sjson.SetBytes(originalBody, "model", reqModel); setErr == nil {
 				originalBody = nextBody
@@ -101,6 +102,16 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		normalizedBody, effortResolution, normalizeErr := normalizeOpenAIRequestBodyEffortBytes(originalBody, reqModel, originalModel, routingModel)
 		if normalizeErr == nil {
 			originalBody = normalizedBody
+		}
+		if liteRequest {
+			liteBody, changed, liteErr := normalizeOpenAIResponsesLiteToolsPayload(originalBody)
+			if liteErr != nil {
+				writeOpenAIResponsesLiteBadRequest(c, liteErr)
+				return nil, liteErr
+			}
+			if changed {
+				originalBody = liteBody
+			}
 		}
 		result, forwardErr := s.forwardOpenAIPassthrough(ctx, c, account, originalBody, originalModel, reqModel, effortResolution, reqStream, startTime)
 		if result != nil {
@@ -143,6 +154,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			promptCacheKey = strings.TrimSpace(v)
 		}
 	}
+	liteRequest := account.IsOpenAIOAuth() && isOpenAIResponsesLiteRequest(c, reqBody, body)
 	effortResolution := normalizeOpenAIRequestBodyEffort(reqBody, originalModel, reqModel, routingModel)
 	bodyModified := false
 	patchDisabled := false
@@ -257,6 +269,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			promptCacheKey = codexResult.PromptCacheKey
 		}
 		codexImagePolicy := accountCodexImageToolPolicy(account)
+		if liteRequest && normalizeCodexImageToolPolicy(codexImagePolicy) == CodexImageToolPolicyForceInject {
+			codexImagePolicy = CodexImageToolPolicyFollowChannel
+		}
 		if policyModified, policyBlocked := applyCodexImageToolPolicy(reqBody, codexImagePolicy); policyBlocked {
 			msg := "This request is blocked by the account Codex image tool policy"
 			setOpsUpstreamError(c, http.StatusForbidden, msg, "codex_image_tool_policy_blocked")
@@ -272,6 +287,15 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"type": "forbidden_error", "code": "codex_image_tool_policy_blocked", "message": msg}})
 			return nil, errors.New("codex image tool policy blocked request")
 		} else if policyModified {
+			bodyModified = true
+			disablePatch()
+		}
+	}
+	if liteRequest {
+		if liteModified, liteErr := normalizeOpenAIResponsesLiteTools(reqBody); liteErr != nil {
+			writeOpenAIResponsesLiteBadRequest(c, liteErr)
+			return nil, liteErr
+		} else if liteModified {
 			bodyModified = true
 			disablePatch()
 		}
@@ -547,6 +571,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 	httpInvalidEncryptedContentRetryTried := false
 	httpEmptyThinkingBlockRetryTried := false
+	httpAgentIdentityTaskRecoveryTried := false
 	for {
 		upstreamReq, err := s.buildUpstreamRequest(ctx, c, account, body, token, reqStream, promptCacheKey, isCodexCLI)
 		if err != nil {
@@ -565,6 +590,17 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 			upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 			upstreamCode := extractUpstreamErrorCode(respBody)
+			if !httpAgentIdentityTaskRecoveryTried && account.IsOpenAIAgentIdentity() && isAgentIdentityTaskInvalidHTTPResponse(resp.StatusCode, respBody) {
+				expectedTaskID := strings.TrimSpace(account.GetCredential("task_id"))
+				if recoverErr := s.recoverAgentIdentityTask(ctx, account, expectedTaskID); recoverErr != nil {
+					_ = resp.Body.Close()
+					return nil, recoverErr
+				}
+				httpAgentIdentityTaskRecoveryTried = true
+				logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Retrying request once after Agent Identity task recovery (account: %s)", account.Name)
+				_ = resp.Body.Close()
+				continue
+			}
 			if !httpEmptyThinkingBlockRetryTried && resp.StatusCode == http.StatusBadRequest && isOpenAIEmptyThinkingBlockError(resp.StatusCode, upstreamMsg, respBody) {
 				if sanitizeOpenAIEmptyThinkingBlocks(reqBody) {
 					body, err = json.Marshal(reqBody)
@@ -621,7 +657,13 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		var usage *OpenAIUsage
 		var firstTokenMs *int
 		if reqStream {
-			streamResult, err := s.handleStreamingResponse(ctx, resp, c, account, startTime, originalModel, mappedModel)
+			reasoningEffortForTimeout := ""
+			if effortResolution.Raw != nil {
+				reasoningEffortForTimeout = *effortResolution.Raw
+			} else if effortResolution.Effective != nil {
+				reasoningEffortForTimeout = *effortResolution.Effective
+			}
+			streamResult, err := s.handleStreamingResponse(ctx, resp, c, account, startTime, originalModel, mappedModel, reasoningEffortForTimeout)
 			if err != nil {
 				return nil, err
 			}

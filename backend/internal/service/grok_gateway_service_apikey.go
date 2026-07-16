@@ -643,14 +643,14 @@ func (s *GrokGatewayService) doOAuthBuildRequest(ctx context.Context, c *gin.Con
 	if s.tokenProvider != nil {
 		refreshedToken, err := s.tokenProvider.GetAccessToken(ctx, account)
 		if err != nil {
-			return nil, meta, fmt.Errorf("grok oauth token unavailable: %w", err)
+			return nil, meta, s.handleGrokCredentialFailure(ctx, c, account, err)
 		}
 		token = strings.TrimSpace(refreshedToken)
 	} else {
 		token = strings.TrimSpace(account.GetGrokOAuthAccessToken())
 	}
 	if token == "" {
-		return nil, meta, fmt.Errorf("grok oauth build token is missing")
+		return nil, meta, s.handleGrokCredentialFailure(ctx, c, account, errGrokOAuthAccessTokenMissing)
 	}
 	return s.doGrokOfficialBearerRequest(ctx, c, account, method, endpoint, body, defaultGrokCLIBaseURL, token, GrokRouteModeOAuthBuild, true, opts...)
 }

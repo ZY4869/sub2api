@@ -85,6 +85,27 @@ func (p *openAIWSConnPool) Close() {
 	})
 }
 
+func (p *openAIWSConnPool) CloseAccount(accountID int64) {
+	if p == nil || accountID <= 0 {
+		return
+	}
+	ap, ok := p.getAccountPool(accountID)
+	if !ok || ap == nil {
+		return
+	}
+	var conns []*openAIWSConn
+	ap.mu.Lock()
+	for _, conn := range ap.conns {
+		if conn != nil {
+			conns = append(conns, conn)
+		}
+	}
+	ap.conns = map[string]*openAIWSConn{}
+	ap.pinnedConns = map[string]int{}
+	ap.mu.Unlock()
+	closeOpenAIWSConns(conns)
+}
+
 func (p *openAIWSConnPool) Acquire(ctx context.Context, req openAIWSAcquireRequest) (*openAIWSConnLease, error) {
 	if p != nil {
 		p.metrics.acquireTotal.Add(1)
@@ -750,6 +771,16 @@ func (p *openAIWSConnPool) dialConn(ctx context.Context, req openAIWSAcquireRequ
 	}
 	conn, status, handshakeHeaders, err := p.clientDialer.Dial(ctx, req.WSURL, req.Headers, req.ProxyURL)
 	if err != nil {
+		var dialErr *openAIWSDialError
+		if errors.As(err, &dialErr) && dialErr != nil {
+			if dialErr.StatusCode == 0 {
+				dialErr.StatusCode = status
+			}
+			if dialErr.ResponseHeaders == nil {
+				dialErr.ResponseHeaders = cloneHeader(handshakeHeaders)
+			}
+			return nil, dialErr
+		}
 		return nil, &openAIWSDialError{
 			StatusCode:      status,
 			ResponseHeaders: cloneHeader(handshakeHeaders),

@@ -9,6 +9,7 @@ export default {
     editKey: '编辑密钥',
     deleteKey: '删除密钥',
     deleteConfirmMessage: "确定要删除 '{name}' 吗？此操作无法撤销。",
+    id: 'ID',
     apiKey: 'API 密钥',
     group: '分组',
     noGroup: '无分组',

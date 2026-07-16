@@ -70,6 +70,7 @@ const IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY = 2
 const ANTIGRAVITY_DEFAULT_MODEL_SCOPES = ['claude', 'gemini_text', 'gemini_image']
 
 const columns = computed<Column[]>(() => [
+  { key: 'id', label: t('admin.groups.columns.id'), sortable: true },
   { key: 'name', label: t('admin.groups.columns.name'), sortable: true },
   { key: 'priority', label: t('admin.groups.columns.priority'), sortable: true },
   { key: 'platform', label: t('admin.groups.columns.platform'), sortable: true },

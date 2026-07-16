@@ -279,6 +279,7 @@
     @quick-test="handleQuickTest"
     @stats="handleViewStats"
     @diagnose-models="handleDiagnoseModels"
+    @duplicate="handleDuplicateAccount"
     @refresh-model-diagnostics="refreshModelDiagnostics"
     @schedule="handleSchedule"
     @reauth="handleReAuth"
@@ -984,6 +985,21 @@ const handleFilteredBulkEdit = () => {
   openBulkEditFilteredModal({
     excludeGrouped: effectiveFilteredBulkEditExcludeGrouped.value,
   });
+};
+
+const handleDuplicateAccount = async (account: Account) => {
+  try {
+    const duplicated = await adminAPI.accounts.duplicate(account.id);
+    accounts.value = [duplicated, ...accounts.value];
+    pagination.total += 1;
+    patchAccountInList(duplicated);
+    refreshAccountSummarySafe();
+    enterAutoRefreshSilentWindow();
+    appStore.showSuccess(t("admin.accounts.duplicateAccountSuccess"));
+  } catch (error) {
+    console.error("Failed to duplicate account:", error);
+    appStore.showError(t("admin.accounts.duplicateAccountFailed"));
+  }
 };
 
 const buildAccountFiltersFromParams = () => {

@@ -7,6 +7,7 @@ import {
 } from "../useKeysColumnVisibility";
 
 const columns = ref<Column[]>([
+  { key: "id", label: "ID" },
   { key: "name", label: "Name" },
   { key: "key", label: "API Key" },
   { key: "usage", label: "Usage" },
@@ -24,6 +25,7 @@ describe("useKeysColumnVisibility", () => {
     visibility.toggleColumn("usage");
 
     expect(visibility.visibleColumns.value.map((column) => column.key)).toEqual([
+      "id",
       "name",
       "key",
       "actions",
@@ -40,6 +42,7 @@ describe("useKeysColumnVisibility", () => {
     const visibility = useKeysColumnVisibility(columns);
 
     expect(visibility.visibleColumns.value.map((column) => column.key)).toEqual([
+      "id",
       "key",
       "usage",
       "actions",
@@ -54,6 +57,7 @@ describe("useKeysColumnVisibility", () => {
 
     expect(visibility.hiddenColumns.value.size).toBe(0);
     expect(visibility.visibleColumns.value.map((column) => column.key)).toEqual([
+      "id",
       "name",
       "key",
       "usage",
@@ -61,4 +65,3 @@ describe("useKeysColumnVisibility", () => {
     ]);
   });
 });
-

@@ -76,6 +76,15 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	if strings.TrimSpace(token) == "" {
 		return errors.New("token is empty")
 	}
+	if account.IsOpenAIOAuth() && isOpenAIResponsesLiteRequest(c, nil, firstClientMessage) {
+		next, changed, liteErr := normalizeOpenAIResponsesLiteToolsPayload(firstClientMessage)
+		if liteErr != nil {
+			return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, liteErr.Error(), liteErr)
+		}
+		if changed {
+			firstClientMessage = next
+		}
+	}
 	requestModel := strings.TrimSpace(gjson.GetBytes(firstClientMessage, "model").String())
 	requestServiceTier := extractOpenAIServiceTierFromBody(firstClientMessage)
 	requestPreviousResponseID := strings.TrimSpace(gjson.GetBytes(firstClientMessage, "previous_response_id").String())
@@ -113,7 +122,10 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	if s.cfg != nil && s.cfg.Gateway.ForceCodexCLI {
 		isCodexCLI = true
 	}
-	headers, _ := s.buildOpenAIWSHeaders(ctx, c, account, token, wsDecision, isCodexCLI, "", "", "")
+	headers, _, headerErr := s.buildOpenAIWSHeaders(ctx, c, account, token, wsDecision, isCodexCLI, "", "", "")
+	if headerErr != nil {
+		return fmt.Errorf("build ws auth headers: %w", headerErr)
+	}
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()

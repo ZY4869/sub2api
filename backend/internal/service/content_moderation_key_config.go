@@ -279,16 +279,15 @@ func EvaluateContentModerationCyberPolicy(settings *ContentModerationSettings, r
 		return ContentModerationKeywordDecision{Content: content}
 	}
 	normalizedContent := normalizeContentModerationKeywordComparable(content)
-	for _, category := range NormalizeContentModerationCyberCategoryList(settings.CyberCategories) {
-		for _, keyword := range NormalizeContentModerationKeywordList(category.Keywords) {
-			if normalizedKeyword := normalizeContentModerationKeywordComparable(keyword); normalizedKeyword != "" && strings.Contains(normalizedContent, normalizedKeyword) {
-				reason := "cyber_policy:" + category.ID
+	for _, category := range compiledContentModerationCyberRules(settings.CyberCategories) {
+		for _, keyword := range category.Keywords {
+			if keyword.Comparable != "" && strings.Contains(normalizedContent, keyword.Comparable) {
 				return ContentModerationKeywordDecision{
 					Blocked:        true,
 					Content:        content,
-					ErrorReason:    reason,
-					MatchedKeyword: keyword,
-					Categories:     []string{reason},
+					ErrorReason:    category.Reason,
+					MatchedKeyword: keyword.Keyword,
+					Categories:     []string{category.Reason},
 				}
 			}
 		}
@@ -452,22 +451,20 @@ func EvaluateContentModerationKeywordBlock(settings *ContentModerationSettings, 
 	if settings == nil || !settings.Enabled || !settings.KeywordBlockEnabled || content == "" {
 		return ContentModerationKeywordDecision{Content: content}
 	}
-	keywords := NormalizeContentModerationKeywordList(settings.Keywords)
+	keywords := compiledContentModerationKeywordRules(settings.Keywords)
 	if len(keywords) == 0 {
 		return ContentModerationKeywordDecision{Content: content}
 	}
 	normalizedContent := normalizeContentModerationKeywordComparable(content)
 	for _, keyword := range keywords {
-		normalizedKeyword := normalizeContentModerationKeywordComparable(keyword)
-		if normalizedKeyword == "" || !strings.Contains(normalizedContent, normalizedKeyword) {
+		if keyword.Comparable == "" || !strings.Contains(normalizedContent, keyword.Comparable) {
 			continue
 		}
-		sum := sha256.Sum256([]byte(normalizedKeyword))
 		return ContentModerationKeywordDecision{
 			Blocked:        true,
 			Content:        content,
-			ErrorReason:    fmt.Sprintf("keyword_blocked:%s", hex.EncodeToString(sum[:])[:12]),
-			MatchedKeyword: keyword,
+			ErrorReason:    keyword.Reason,
+			MatchedKeyword: keyword.Keyword,
 			Categories:     []string{"keyword_blocked"},
 		}
 	}

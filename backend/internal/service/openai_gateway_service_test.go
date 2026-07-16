@@ -1572,6 +1572,94 @@ func TestOpenAIStreamingKeepaliveDoesNotMarkRealSSEStarted(t *testing.T) {
 	require.False(t, ok && started, "SSE comment keepalive must not count as upstream data")
 }
 
+func TestOpenAIStreamingFirstOutputTimeoutBeforeSemanticEvent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		Gateway: config.GatewayConfig{
+			OpenAIFirstOutputTimeoutSeconds: 1,
+			StreamDataIntervalTimeout:       0,
+			StreamKeepaliveInterval:         0,
+			MaxLineSize:                     defaultMaxLineSize,
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	c.Request = req.WithContext(EnsureRequestMetadata(req.Context()))
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       pr,
+		Header:     http.Header{"x-request-id": []string{"rid-first-output-timeout"}},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+		done <- err
+	}()
+	_, _ = pw.Write([]byte("event: response.created\n"))
+	_, _ = pw.Write([]byte("data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_wait\"}}\n\n"))
+	err := <-done
+	_ = pw.Close()
+	_ = pr.Close()
+
+	require.Error(t, err)
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusGatewayTimeout, failoverErr.StatusCode)
+	require.Contains(t, string(failoverErr.ResponseBody), "first_output_timeout")
+	require.Empty(t, rec.Body.String(), "pre-output upstream status frames should be staged so handler can retry cleanly")
+	started, ok := OpenAIRealSSEStartedMetadataFromContext(c.Request.Context())
+	require.False(t, ok && started)
+}
+
+func TestOpenAIStreamingFirstSemanticEventFlushesStagedFrames(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		Gateway: config.GatewayConfig{
+			OpenAIFirstOutputTimeoutSeconds: 1,
+			StreamDataIntervalTimeout:       0,
+			StreamKeepaliveInterval:         0,
+			MaxLineSize:                     defaultMaxLineSize,
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	c.Request = req.WithContext(EnsureRequestMetadata(req.Context()))
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: io.NopCloser(strings.NewReader(strings.Join([]string{
+			"event: response.created",
+			`data: {"type":"response.created","response":{"id":"resp_ok"}}`,
+			"",
+			`data: {"type":"response.output_text.delta","delta":"OK"}`,
+			"",
+			`data: {"type":"response.completed","response":{"id":"resp_ok","usage":{"input_tokens":1,"output_tokens":1}}}`,
+			"",
+		}, "\n"))),
+		Header: http.Header{},
+	}
+
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	body := rec.Body.String()
+	require.Contains(t, body, "event: response.created")
+	require.Contains(t, body, `"response.output_text.delta"`)
+	require.Contains(t, body, `"response.completed"`)
+	require.NotNil(t, result.firstTokenMs)
+	started, ok := OpenAIRealSSEStartedMetadataFromContext(c.Request.Context())
+	require.True(t, ok && started)
+}
+
 func TestOpenAIStreamingContextCanceledReturnsIncompleteErrorWithoutInjectingErrorEvent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{

@@ -43,6 +43,7 @@ var openaiAllowedHeaders = map[string]bool{
 	"session_id":            true,
 	"x-codex-turn-state":    true,
 	"x-codex-turn-metadata": true,
+	responsesLiteHeader:     true,
 }
 
 var openaiPassthroughAllowedHeaders = map[string]bool{
@@ -56,6 +57,7 @@ var openaiPassthroughAllowedHeaders = map[string]bool{
 	"session_id":            true,
 	"x-codex-turn-state":    true,
 	"x-codex-turn-metadata": true,
+	responsesLiteHeader:     true,
 }
 
 var codexCLIOnlyDebugHeaderWhitelist = []string{
@@ -101,6 +103,7 @@ type OpenAIGatewayService struct {
 	openaiWSStateStoreOnce        sync.Once
 	openaiSchedulerOnce           sync.Once
 	openaiWSPassthroughDialerOnce sync.Once
+	agentIdentityTaskMu           sync.Mutex
 	openaiWSPool                  *openAIWSConnPool
 	openaiWSStateStore            OpenAIWSStateStore
 	openaiScheduler               OpenAIAccountScheduler
@@ -173,6 +176,12 @@ func (s *OpenAIGatewayService) SetModelCatalogService(modelCatalogService *Model
 func (s *OpenAIGatewayService) CloseOpenAIWSPool() {
 	if s != nil && s.openaiWSPool != nil {
 		s.openaiWSPool.Close()
+	}
+}
+
+func (s *OpenAIGatewayService) InvalidateAgentIdentityWSConnections(accountID int64) {
+	if s != nil && s.openaiWSPool != nil {
+		s.openaiWSPool.CloseAccount(accountID)
 	}
 }
 

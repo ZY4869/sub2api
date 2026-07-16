@@ -29,6 +29,7 @@ var (
 type openAIWSDialError struct {
 	StatusCode      int
 	ResponseHeaders http.Header
+	ResponseBody    []byte
 	Err             error
 }
 

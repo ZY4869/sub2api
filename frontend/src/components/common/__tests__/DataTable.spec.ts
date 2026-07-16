@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const virtualState = vi.hoisted(() => ({
   items: [] as Array<{ index: number; start: number; end: number }>,
-  totalSize: 0
+  totalSize: 0,
+  measure: vi.fn()
 }))
 
 vi.mock('@tanstack/vue-virtual', async () => {
@@ -13,12 +14,14 @@ vi.mock('@tanstack/vue-virtual', async () => {
       vue.computed(() => ({
         getVirtualItems: () => virtualState.items,
         getTotalSize: () => virtualState.totalSize,
+        measure: virtualState.measure,
         measureElement: () => {}
       })),
     useVirtualizer: () =>
       vue.computed(() => ({
         getVirtualItems: () => virtualState.items,
         getTotalSize: () => virtualState.totalSize,
+        measure: virtualState.measure,
         measureElement: () => {}
       }))
   }
@@ -50,6 +53,7 @@ describe('DataTable', () => {
     localStorage.clear()
     virtualState.items = []
     virtualState.totalSize = 0
+    virtualState.measure.mockClear()
   })
 
   it('preserves input order on initial render even when a persisted sort exists', async () => {
@@ -322,5 +326,60 @@ describe('DataTable', () => {
     expect(wrapper.findAll('tbody tr[data-row-id]')).toHaveLength(2)
     expect(wrapper.text()).toContain('Beta')
     expect(wrapper.text()).toContain('Alpha')
+  })
+
+  it('clears measured virtual row heights when data or columns change', async () => {
+    virtualState.items = [{ index: 0, start: 0, end: 56 }]
+    virtualState.totalSize = 56 * 60
+    const manyRows = Array.from({ length: 60 }, (_, index) => ({
+      id: index + 1,
+      name: `Row ${index + 1}`
+    }))
+
+    const wrapper = mount(DataTable, {
+      props: {
+        columns,
+        data: manyRows,
+        rowKey: 'id',
+        virtualScroll: true
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    ;(wrapper.vm as any).measureElement({
+      dataset: { rowId: '1' },
+      getBoundingClientRect: () => ({ height: 123 })
+    })
+    expect((wrapper.vm as any).estimateVirtualRowHeight(0)).toBe(123)
+
+    await wrapper.setProps({ data: manyRows.map((row) => ({ ...row })) })
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect((wrapper.vm as any).estimateVirtualRowHeight(0)).toBe(56)
+
+    ;(wrapper.vm as any).measureElement({
+      dataset: { rowId: '1' },
+      getBoundingClientRect: () => ({ height: 141 })
+    })
+    expect((wrapper.vm as any).estimateVirtualRowHeight(0)).toBe(141)
+
+    await wrapper.setProps({
+      columns: [
+        { key: 'id', label: 'ID', sortable: true },
+        ...columns
+      ]
+    })
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect((wrapper.vm as any).estimateVirtualRowHeight(0)).toBe(56)
+    expect(virtualState.measure).toHaveBeenCalled()
   })
 })

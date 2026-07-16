@@ -233,23 +233,25 @@
     </template>
 
     <template #cell-usage="{ row }">
-      <AccountUsageVisualCell
-        v-if="visualStyle === 'airy'"
-        :account="row"
-        :today-stats="todayStatsByAccountId[String(row.id)] ?? null"
-        :today-stats-loading="todayStatsLoading"
-        :manual-refresh-token="usageManualRefreshToken"
-        :white-surface-enabled="whiteSurfaceEnabled"
-        compact
-      />
-      <AccountUsageCell
-        v-else
-        :account="row"
-        :today-stats="todayStatsByAccountId[String(row.id)] ?? null"
-        :today-stats-loading="todayStatsLoading"
-        :manual-refresh-token="usageManualRefreshToken"
-        visual-variant="default"
-      />
+      <div class="flex h-full min-h-full items-center">
+        <AccountUsageVisualCell
+          v-if="visualStyle === 'airy'"
+          :account="row"
+          :today-stats="todayStatsByAccountId[String(row.id)] ?? null"
+          :today-stats-loading="todayStatsLoading"
+          :manual-refresh-token="usageManualRefreshToken"
+          :white-surface-enabled="whiteSurfaceEnabled"
+          compact
+        />
+        <AccountUsageCell
+          v-else
+          :account="row"
+          :today-stats="todayStatsByAccountId[String(row.id)] ?? null"
+          :today-stats-loading="todayStatsLoading"
+          :manual-refresh-token="usageManualRefreshToken"
+          visual-variant="default"
+        />
+      </div>
     </template>
 
     <template #cell-usage_reset_dates="{ row }">

@@ -1158,6 +1158,16 @@ func TestValidateConfigErrors(t *testing.T) {
 			wantErr: "gateway.stream_data_interval_timeout must be non-negative",
 		},
 		{
+			name:    "gateway openai first output timeout range",
+			mutate:  func(c *Config) { c.Gateway.OpenAIFirstOutputTimeoutSeconds = 29 },
+			wantErr: "gateway.openai_first_output_timeout_seconds",
+		},
+		{
+			name:    "gateway openai high effort first output timeout range",
+			mutate:  func(c *Config) { c.Gateway.OpenAIHighEffortFirstOutputTimeoutSeconds = 1801 },
+			wantErr: "gateway.openai_high_effort_first_output_timeout_seconds",
+		},
+		{
 			name:    "gateway max line size",
 			mutate:  func(c *Config) { c.Gateway.MaxLineSize = 1024 },
 			wantErr: "gateway.max_line_size must be at least",

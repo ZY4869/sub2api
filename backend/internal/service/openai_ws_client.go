@@ -93,9 +93,21 @@ func (d *coderOpenAIWSClientDialer) Dial(
 	if err != nil {
 		status := 0
 		respHeaders := http.Header(nil)
+		respBody := []byte(nil)
 		if resp != nil {
 			status = resp.StatusCode
 			respHeaders = cloneHeader(resp.Header)
+			if resp.Body != nil {
+				respBody, _ = readUpstreamResponseBodyLimitedFromResponse(resp, 64*1024)
+			}
+		}
+		if len(respBody) > 0 {
+			return nil, status, respHeaders, &openAIWSDialError{
+				StatusCode:      status,
+				ResponseHeaders: respHeaders,
+				ResponseBody:    respBody,
+				Err:             err,
+			}
 		}
 		return nil, status, respHeaders, err
 	}

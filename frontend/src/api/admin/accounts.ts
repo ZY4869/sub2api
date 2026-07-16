@@ -269,6 +269,55 @@ export async function update(id: number, updates: UpdateAccountRequest): Promise
   return data
 }
 
+const duplicateAccountKeyPrefix = 'sub2api.account.duplicate.'
+
+function createDuplicateOperationKey(id: number): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `account-duplicate-${id}-${crypto.randomUUID()}`
+  }
+  return `account-duplicate-${id}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function duplicateAccountStorageKey(id: number): string {
+  return `${duplicateAccountKeyPrefix}${id}`
+}
+
+function getDuplicateOperationKey(id: number): string {
+  const storageKey = duplicateAccountStorageKey(id)
+  try {
+    const existing = sessionStorage.getItem(storageKey)
+    if (existing) return existing
+    const next = createDuplicateOperationKey(id)
+    sessionStorage.setItem(storageKey, next)
+    return next
+  } catch {
+    return createDuplicateOperationKey(id)
+  }
+}
+
+function clearDuplicateOperationKey(id: number): void {
+  try {
+    sessionStorage.removeItem(duplicateAccountStorageKey(id))
+  } catch {
+    // Ignore storage cleanup errors; the key TTL is enforced server-side.
+  }
+}
+
+export async function duplicate(id: number): Promise<Account> {
+  const idempotencyKey = getDuplicateOperationKey(id)
+  try {
+    const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/duplicate`, undefined, {
+      headers: {
+        'Idempotency-Key': idempotencyKey
+      }
+    })
+    clearDuplicateOperationKey(id)
+    return data
+  } catch (error) {
+    throw error
+  }
+}
+
 export async function restoreOriginalProxy(id: number): Promise<AccountProxyRestoreResult> {
   const { data } = await apiClient.post<AccountProxyRestoreResult>(
     `/admin/accounts/${id}/restore-original-proxy`
@@ -1220,6 +1269,7 @@ export const accountsAPI = {
   getById,
   create,
   update,
+  duplicate,
   restoreOriginalProxy,
   getDaily5HTriggerSettings,
   updateDaily5HTriggerSettings,

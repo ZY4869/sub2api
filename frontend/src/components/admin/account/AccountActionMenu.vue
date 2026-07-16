@@ -34,6 +34,10 @@
               <Icon name="refresh" size="sm" />
               {{ t('admin.accounts.importModels') }}
             </button>
+            <button v-if="canDuplicate" @click="$emit('duplicate', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-sky-600 hover:bg-gray-100 dark:hover:bg-dark-700">
+              <Icon name="copy" size="sm" />
+              {{ t('admin.accounts.duplicateAccount') }}
+            </button>
             <template v-if="account.type === 'oauth' || account.type === 'setup-token'">
               <button @click="$emit('reauth', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-gray-100 dark:hover:bg-dark-700">
                 <Icon name="link" size="sm" />
@@ -89,6 +93,7 @@ const emit = defineEmits<{
   schedule: [account: Account]
   'diagnose-models': [account: Account]
   'import-models': [account: Account]
+  duplicate: [account: Account]
   reauth: [account: Account]
   'refresh-token': [account: Account]
   'set-privacy': [account: Account]
@@ -100,6 +105,14 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const { nowMs } = useRealtimeCountdownNow('accounts')
+
+const canDuplicate = computed(() => {
+  const account = props.account
+  if (!account) return false
+  const parentAccountID = (account.extra as Record<string, unknown> | undefined)?.parent_account_id
+  if (parentAccountID != null && String(parentAccountID).trim() !== '') return false
+  return ['apikey', 'upstream', 'bedrock'].includes(account.type)
+})
 
 const isRateLimited = computed(() => {
   const account = props.account

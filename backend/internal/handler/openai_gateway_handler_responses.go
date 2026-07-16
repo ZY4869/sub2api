@@ -645,6 +645,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			// Forward request
 			service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
 			forwardStart := time.Now()
+			writerSizeBeforeForward := c.Writer.Size()
 			var result *service.OpenAIForwardResult
 			if service.ResolveOpenAITextRequestFormatForAccount(account, service.EndpointResponses) == service.GatewayOpenAIRequestFormatChatCompletions {
 				result, err = h.gatewayService.ForwardResponsesAsChatCompletions(c.Request.Context(), c, account, body, runtimeSelectionModel)
@@ -667,6 +668,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			if err != nil {
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
+					if !openAIForwardMayFailover(c, writerSizeBeforeForward, failoverErr) {
+						h.handleFailoverExhausted(c, failoverErr, true)
+						return
+					}
 					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
 					// 池模式：同账号重试
 					if failoverErr.RetryableOnSameAccount {

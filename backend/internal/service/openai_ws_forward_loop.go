@@ -106,7 +106,10 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 		}
 	}
 	isCodexCLI := openai.IsCodexOfficialClientByHeaders(c.GetHeader("User-Agent"), c.GetHeader("originator")) || (s.cfg != nil && s.cfg.Gateway.ForceCodexCLI)
-	wsHeaders, _ := s.buildOpenAIWSHeaders(ctx, c, account, token, wsDecision, isCodexCLI, turnState, strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)), firstPayload.promptCacheKey)
+	wsHeaders, _, headerErr := s.buildOpenAIWSHeaders(ctx, c, account, token, wsDecision, isCodexCLI, turnState, strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)), firstPayload.promptCacheKey)
+	if headerErr != nil {
+		return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "upstream websocket authentication failed", headerErr)
+	}
 	baseAcquireReq := openAIWSAcquireRequest{Account: account, WSURL: wsURL, Headers: wsHeaders, ProxyURL: func() string {
 		if account.ProxyID != nil && account.Proxy != nil {
 			return account.Proxy.URL()
@@ -517,7 +520,10 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 			return parseErr
 		}
 		if nextPayload.promptCacheKey != "" {
-			updatedHeaders, _ := s.buildOpenAIWSHeaders(ctx, c, account, token, wsDecision, isCodexCLI, turnState, strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)), nextPayload.promptCacheKey)
+			updatedHeaders, _, headerErr := s.buildOpenAIWSHeaders(ctx, c, account, token, wsDecision, isCodexCLI, turnState, strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)), nextPayload.promptCacheKey)
+			if headerErr != nil {
+				return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "upstream websocket authentication failed", headerErr)
+			}
 			baseAcquireReq.Headers = updatedHeaders
 		}
 		if nextPayload.previousResponseID != "" {

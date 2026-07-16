@@ -67,6 +67,15 @@ func (s *OpenAIGatewayService) parseOpenAIWSClientPayload(ctx context.Context, c
 			normalized = next
 		}
 	}
+	if account != nil && account.IsOpenAIOAuth() && isOpenAIResponsesLiteRequest(c, nil, normalized) {
+		next, changed, liteErr := normalizeOpenAIResponsesLiteToolsPayload(normalized)
+		if liteErr != nil {
+			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, liteErr.Error(), liteErr)
+		}
+		if changed {
+			normalized = next
+		}
+	}
 	mappedModel := normalizeOpenAIModelForUpstream(account, account.GetMappedModel(originalModel))
 	if mappedModel != originalModel {
 		next, setErr := applyOpenAIWSClientPayloadMutation(normalized, "model", mappedModel)

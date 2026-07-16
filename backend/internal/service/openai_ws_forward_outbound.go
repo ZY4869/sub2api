@@ -100,7 +100,10 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(ctx context.Context, c *gin.Con
 	storeDisabledConnMode := s.openAIWSStoreDisabledConnMode()
 	forceNewConnByPolicy := shouldForceNewConnOnStoreDisabled(storeDisabledConnMode, lastFailureReason)
 	forceNewConn := forceNewConnByPolicy && storeDisabled && previousResponseID == "" && sessionHash != "" && preferredConnID == ""
-	wsHeaders, sessionResolution := s.buildOpenAIWSHeaders(ctx, c, account, token, decision, isCodexCLI, turnState, turnMetadata, promptCacheKey)
+	wsHeaders, sessionResolution, headerErr := s.buildOpenAIWSHeaders(ctx, c, account, token, decision, isCodexCLI, turnState, turnMetadata, promptCacheKey)
+	if headerErr != nil {
+		return nil, wrapOpenAIWSFallback("auth_headers", headerErr)
+	}
 	logOpenAIWSModeDebug("acquire_start account_id=%d account_type=%s transport=%s preferred_conn_id=%s has_previous_response_id=%v session_hash=%s has_turn_state=%v turn_state_len=%d has_turn_metadata=%v turn_metadata_len=%d store_disabled=%v store_disabled_conn_mode=%s retry_last_reason=%s force_new_conn=%v header_user_agent=%s header_openai_beta=%s header_originator=%s header_accept_language=%s header_session_id=%s header_conversation_id=%s session_id_source=%s conversation_id_source=%s has_prompt_cache_key=%v has_chatgpt_account_id=%v has_authorization=%v has_session_id=%v has_conversation_id=%v proxy_enabled=%v", account.ID, account.Type, normalizeOpenAIWSLogValue(string(decision.Transport)), truncateOpenAIWSLogValue(preferredConnID, openAIWSIDValueMaxLen), previousResponseID != "", truncateOpenAIWSLogValue(sessionHash, 12), turnState != "", len(turnState), turnMetadata != "", len(turnMetadata), storeDisabled, normalizeOpenAIWSLogValue(storeDisabledConnMode), truncateOpenAIWSLogValue(lastFailureReason, openAIWSLogValueMaxLen), forceNewConn, openAIWSHeaderValueForLog(wsHeaders, "user-agent"), openAIWSHeaderValueForLog(wsHeaders, "openai-beta"), openAIWSHeaderValueForLog(wsHeaders, "originator"), openAIWSHeaderValueForLog(wsHeaders, "accept-language"), openAIWSHeaderValueForLog(wsHeaders, "session_id"), openAIWSHeaderValueForLog(wsHeaders, "conversation_id"), normalizeOpenAIWSLogValue(sessionResolution.SessionSource), normalizeOpenAIWSLogValue(sessionResolution.ConversationSource), promptCacheKey != "", hasOpenAIWSHeader(wsHeaders, "chatgpt-account-id"), hasOpenAIWSHeader(wsHeaders, "authorization"), hasOpenAIWSHeader(wsHeaders, "session_id"), hasOpenAIWSHeader(wsHeaders, "conversation_id"), account.ProxyID != nil && account.Proxy != nil)
 	acquireCtx, acquireCancel := context.WithTimeout(ctx, s.openAIWSAcquireTimeout())
 	defer acquireCancel()
@@ -117,8 +120,30 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(ctx context.Context, c *gin.Con
 		if errors.As(err, &dialErr) && dialErr != nil && dialErr.StatusCode == http.StatusTooManyRequests {
 			s.persistOpenAIWSRateLimitSignal(ctx, account, dialErr.ResponseHeaders, nil, "rate_limit_exceeded", "rate_limit_error", strings.TrimSpace(err.Error()))
 		}
+		if errors.As(err, &dialErr) && dialErr != nil && isAgentIdentityTaskInvalidHTTPResponse(dialErr.StatusCode, dialErr.ResponseBody) {
+			expectedTaskID := strings.TrimSpace(account.GetCredential("task_id"))
+			if recoverErr := s.recoverAgentIdentityTask(ctx, account, expectedTaskID); recoverErr != nil {
+				return nil, wrapOpenAIWSFallback("agent_identity_task_recovery", recoverErr)
+			}
+			wsHeaders, sessionResolution, headerErr = s.buildOpenAIWSHeaders(ctx, c, account, token, decision, isCodexCLI, turnState, turnMetadata, promptCacheKey)
+			if headerErr != nil {
+				return nil, wrapOpenAIWSFallback("auth_headers", headerErr)
+			}
+			acquireCtx, retryCancel := context.WithTimeout(ctx, s.openAIWSAcquireTimeout())
+			lease, err = s.getOpenAIWSConnPool().Acquire(acquireCtx, openAIWSAcquireRequest{Account: account, WSURL: wsURL, Headers: wsHeaders, PreferredConnID: preferredConnID, ForceNewConn: true, ProxyURL: func() string {
+				if account.ProxyID != nil && account.Proxy != nil {
+					return account.Proxy.URL()
+				}
+				return ""
+			}()})
+			retryCancel()
+			if err == nil {
+				goto openAIWSAcquired
+			}
+		}
 		return nil, wrapOpenAIWSFallback(classifyOpenAIWSAcquireError(err), err)
 	}
+openAIWSAcquired:
 	// cleanExit 标记正常终端事件退出，此时上游不会再发送帧，连接可安全归还复用。
 	// 所有异常路径（读写错误、error 事件等）已在各自分支中提前调用 MarkBroken，
 	// 因此 defer 中只需处理正常退出时不 MarkBroken 即可。

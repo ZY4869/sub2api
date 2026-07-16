@@ -685,6 +685,12 @@ const useWindowScrollVirtualizer = computed(() =>
 
 const measuredRowHeights = new Map<string, number>()
 
+const rowHeightCacheSignature = computed(() =>
+  (sortedData.value ?? [])
+    .map((row, index) => String(resolveRowKey(row, index)))
+    .join('\x1f')
+)
+
 const estimateVirtualRowHeight = (index: number) => {
   const row = sortedData.value?.[index]
   const key = row ? resolveRowKey(row, index) : index
@@ -715,6 +721,26 @@ const activeRowVirtualizer = computed(() =>
   useWindowScrollVirtualizer.value
     ? windowRowVirtualizer.value
     : containerRowVirtualizer.value
+)
+
+const remeasureVirtualizer = (virtualizer: unknown) => {
+  const measure = (virtualizer as { measure?: () => void } | null | undefined)?.measure
+  if (typeof measure === 'function') {
+    measure.call(virtualizer)
+  }
+}
+
+const resetVirtualRowHeightCache = async () => {
+  measuredRowHeights.clear()
+  await nextTick()
+  remeasureVirtualizer(containerRowVirtualizer.value)
+  remeasureVirtualizer(windowRowVirtualizer.value)
+}
+
+watch(
+  [() => props.data, rowHeightCacheSignature, columnsSignature, () => props.rowKey],
+  resetVirtualRowHeightCache,
+  { flush: 'post' }
 )
 
 const virtualItems = computed(() => {

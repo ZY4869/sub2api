@@ -160,38 +160,57 @@ function setupMocks() {
   mocks.showError.mockReset()
 }
 
+function mountKeysView() {
+  return mount(KeysView, {
+    global: {
+      stubs: {
+        AppLayout: { template: '<div><slot /></div>' },
+        TablePageLayout: {
+          template: '<div><slot name="filters" /><slot name="actions" /><slot name="table" /><slot name="pagination" /></div>',
+        },
+        KeysTable: KeysTableStub,
+        KeysColumnSettingsMenu: { template: '<div />' },
+        Pagination: { template: '<div />' },
+        KeyFormDialog: { template: '<div />' },
+        ConfirmDialog: { template: '<div />' },
+        Select: { template: '<div />' },
+        SearchInput: { template: '<input />' },
+        Icon: { template: '<span />' },
+        UseKeyModal: { template: '<div />' },
+        CcsClientSelectDialog: { template: '<div />' },
+      },
+    },
+  })
+}
+
 describe('KeysView current concurrency column', () => {
   beforeEach(() => {
     setupMocks()
   })
 
   it('includes the current_concurrency column and passes API key concurrency snapshots to the table', async () => {
-    const wrapper = mount(KeysView, {
-      global: {
-        stubs: {
-          AppLayout: { template: '<div><slot /></div>' },
-          TablePageLayout: {
-            template: '<div><slot name="filters" /><slot name="actions" /><slot name="table" /><slot name="pagination" /></div>',
-          },
-          KeysTable: KeysTableStub,
-          KeysColumnSettingsMenu: { template: '<div />' },
-          Pagination: { template: '<div />' },
-          KeyFormDialog: { template: '<div />' },
-          ConfirmDialog: { template: '<div />' },
-          Select: { template: '<div />' },
-          SearchInput: { template: '<input />' },
-          Icon: { template: '<span />' },
-          UseKeyModal: { template: '<div />' },
-          CcsClientSelectDialog: { template: '<div />' },
-        },
-      },
-    })
+    const wrapper = mountKeysView()
 
     await flushPromises()
 
     expect(wrapper.get('[data-testid="keys-table-columns"]').text()).toContain(
+      'id:keys.id',
+    )
+    expect(wrapper.get('[data-testid="keys-table-columns"]').text()).toContain(
       'current_concurrency:keys.currentConcurrency',
     )
     expect(wrapper.get('[data-testid="keys-table-concurrency"]').text()).toBe('3')
+  })
+
+  it('allows hiding the optional id column while keeping key and actions visible', async () => {
+    localStorage.setItem('sub2api.user.keys.hiddenColumns', JSON.stringify(['id', 'key', 'actions']))
+
+    const wrapper = mountKeysView()
+    await flushPromises()
+
+    const columnsText = wrapper.get('[data-testid="keys-table-columns"]').text()
+    expect(columnsText).not.toContain('id:keys.id')
+    expect(columnsText).toContain('key:keys.apiKey')
+    expect(columnsText).toContain('actions:common.actions')
   })
 })

@@ -67,7 +67,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketHTTPBridge(ctx context.Con
 }
 
 func (s *OpenAIGatewayService) forwardOpenAIWSHTTPBridgeTurn(ctx context.Context, c *gin.Context, clientConn *coderws.Conn, account *Account, payload []byte) (*OpenAIForwardResult, error) {
-	bridgeBody, err := openAIWSHTTPBridgeRequestBody(payload)
+	bridgeBody, err := openAIWSHTTPBridgeRequestBody(c, account, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSHTTPBridgeTurn(ctx context.Context
 	return result, forwardErr
 }
 
-func openAIWSHTTPBridgeRequestBody(payload []byte) ([]byte, error) {
+func openAIWSHTTPBridgeRequestBody(c *gin.Context, account *Account, payload []byte) ([]byte, error) {
 	if len(payload) == 0 || !gjson.ValidBytes(payload) {
 		return nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", nil)
 	}
@@ -101,6 +101,15 @@ func openAIWSHTTPBridgeRequestBody(payload []byte) ([]byte, error) {
 		return nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "unsupported websocket request type", nil)
 	}
 	body := payload
+	if account != nil && account.IsOpenAIOAuth() && isOpenAIResponsesLiteRequest(c, nil, body) {
+		next, changed, liteErr := normalizeOpenAIResponsesLiteToolsPayload(body)
+		if liteErr != nil {
+			return nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, liteErr.Error(), liteErr)
+		}
+		if changed {
+			body = next
+		}
+	}
 	if gjson.GetBytes(body, "type").Exists() {
 		var err error
 		body, err = sjson.DeleteBytes(body, "type")

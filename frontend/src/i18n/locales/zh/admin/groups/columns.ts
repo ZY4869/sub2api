@@ -1,4 +1,5 @@
 export default {
+    id: "ID",
     name: "名称",
     platform: "平台",
     rateMultiplier: "费率倍数",

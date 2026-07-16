@@ -85,6 +85,7 @@
     @stats="emit('stats', $event)"
     @schedule="emit('schedule', $event)"
     @diagnose-models="emit('diagnose-models', $event)"
+    @duplicate="emit('duplicate', $event)"
     @reauth="emit('reauth', $event)"
     @refresh-token="emit('refresh-token', $event)"
     @set-privacy="emit('set-privacy', $event)"
@@ -307,6 +308,7 @@ const emit = defineEmits<{
   'quick-test': [account: Account]
   stats: [account: Account]
   'diagnose-models': [account: Account]
+  duplicate: [account: Account]
   'refresh-model-diagnostics': []
   schedule: [account: Account]
   reauth: [account: Account]

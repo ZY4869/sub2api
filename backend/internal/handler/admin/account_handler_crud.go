@@ -5,6 +5,7 @@ import (
 	"errors"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"strconv"
@@ -107,6 +108,47 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		return
 	}
 	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+}
+
+func (h *AccountHandler) Duplicate(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || accountID <= 0 {
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
+		return
+	}
+	actorScope := "admin:0"
+	if subject, ok := middleware2.GetAuthSubjectFromContext(c); ok {
+		actorScope = "admin:" + strconv.FormatInt(subject.UserID, 10)
+	}
+	operationKey := c.GetHeader("Idempotency-Key")
+	payload := struct {
+		AccountID int64 `json:"account_id"`
+	}{AccountID: accountID}
+	result, execErr := executeAdminIdempotent(c, "admin.accounts.duplicate", payload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		account, duplicateErr := h.adminService.DuplicateAccount(ctx, accountID, actorScope, operationKey)
+		if duplicateErr != nil {
+			return nil, duplicateErr
+		}
+		return h.buildAccountResponseWithRuntime(ctx, account), nil
+	})
+	if execErr != nil && infraerrors.Code(execErr) == infraerrors.Code(service.ErrIdempotencyStoreUnavail) {
+		if account, recoverErr := h.adminService.RecoverDuplicateAccount(c.Request.Context(), accountID, actorScope, operationKey); recoverErr == nil && account != nil {
+			c.Header("X-Idempotency-Recovered", "true")
+			response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+			return
+		}
+	}
+	if execErr != nil {
+		if retryAfter := service.RetryAfterSecondsFromError(execErr); retryAfter > 0 {
+			c.Header("Retry-After", strconv.Itoa(retryAfter))
+		}
+		response.ErrorFrom(c, execErr)
+		return
+	}
+	if result != nil && result.Replayed {
+		c.Header("X-Idempotency-Replayed", "true")
+	}
+	response.Success(c, result.Data)
 }
 
 func validateProtocolGatewayType(platform string, accountType string, gatewayProtocol string) error {

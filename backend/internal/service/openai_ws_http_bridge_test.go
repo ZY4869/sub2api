@@ -10,17 +10,17 @@ import (
 )
 
 func TestOpenAIWSHTTPBridgeRequestBody(t *testing.T) {
-	body, err := openAIWSHTTPBridgeRequestBody([]byte(`{"type":"response.create","model":"gpt-5.1","stream":false,"input":"hello"}`))
+	body, err := openAIWSHTTPBridgeRequestBody(nil, nil, []byte(`{"type":"response.create","model":"gpt-5.1","stream":false,"input":"hello"}`))
 	require.NoError(t, err)
 	require.False(t, gjson.GetBytes(body, "type").Exists())
 	require.True(t, gjson.GetBytes(body, "stream").Bool())
 	require.Equal(t, "gpt-5.1", gjson.GetBytes(body, "model").String())
 
-	body, err = openAIWSHTTPBridgeRequestBody([]byte(`{"model":"gpt-5.1","input":"hello"}`))
+	body, err = openAIWSHTTPBridgeRequestBody(nil, nil, []byte(`{"model":"gpt-5.1","input":"hello"}`))
 	require.NoError(t, err)
 	require.True(t, gjson.GetBytes(body, "stream").Bool())
 
-	_, err = openAIWSHTTPBridgeRequestBody([]byte(`{"type":"response.append","model":"gpt-5.1"}`))
+	_, err = openAIWSHTTPBridgeRequestBody(nil, nil, []byte(`{"type":"response.append","model":"gpt-5.1"}`))
 	require.Error(t, err)
 }
 

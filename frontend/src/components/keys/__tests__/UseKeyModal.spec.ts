@@ -53,6 +53,10 @@ describe('UseKeyModal', () => {
     expect(text).toContain('model_provider = "OpenAI"')
     expect(text).toContain('model = "gpt-5.4-mini"')
     expect(text).toContain('review_model = "gpt-5.4-mini"')
+    expect(text).toContain('base_url = "https://example.com/v1"')
+    expect(text).toContain('wire_api = "responses"')
+    expect(text).toContain('requires_openai_auth = true')
+    expect(text).toContain('"OPENAI_API_KEY": "sk-test"')
     expect(text).not.toContain('review_model = "gpt-5.4"')
   })
 
@@ -73,7 +77,11 @@ describe('UseKeyModal', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('/grok/v1/images/generations')
+    const text = wrapper.text()
+    expect(text).toContain('base_url = "https://example.com/v1"')
+    expect(text).toContain('https://example.com/grok/v1/responses')
+    expect(text).toContain('https://example.com/grok/v1/images/generations')
+    expect(text).toContain('/grok/v1/images/generations')
   })
 
   it('exports dynamic Claude effort config by default', () => {

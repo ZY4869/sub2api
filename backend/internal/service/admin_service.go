@@ -42,6 +42,8 @@ type AdminService interface {
 	GetAccount(ctx context.Context, id int64) (*Account, error)
 	GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error)
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
+	DuplicateAccount(ctx context.Context, id int64, actorScope, operationKey string) (*Account, error)
+	RecoverDuplicateAccount(ctx context.Context, id int64, actorScope, operationKey string) (*Account, error)
 	UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error)
 	BackfillAccountModelPolicies(ctx context.Context, registry *ModelRegistryService, pageSize int) (*AccountModelPolicyBackfillResult, error)
 	EnsureGrokBuildModelScope(ctx context.Context, account *Account, registry *ModelRegistryService) (*GrokBuildModelScopeEnsureResult, error)

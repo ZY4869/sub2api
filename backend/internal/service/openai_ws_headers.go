@@ -101,12 +101,20 @@ func (s *OpenAIGatewayService) buildOpenAIResponsesWSURL(account *Account) (stri
 	}
 	return parsed.String(), nil
 }
-func (s *OpenAIGatewayService) buildOpenAIWSHeaders(ctx context.Context, c *gin.Context, account *Account, token string, decision OpenAIWSProtocolDecision, isCodexCLI bool, turnState string, turnMetadata string, promptCacheKey string) (http.Header, openAIWSSessionHeaderResolution) {
+func (s *OpenAIGatewayService) buildOpenAIWSHeaders(ctx context.Context, c *gin.Context, account *Account, token string, decision OpenAIWSProtocolDecision, isCodexCLI bool, turnState string, turnMetadata string, promptCacheKey string) (http.Header, openAIWSSessionHeaderResolution, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	headers := make(http.Header)
-	headers.Set("authorization", "Bearer "+token)
+	authHeaders, err := s.buildOpenAIAuthenticationHeaders(ctx, account, token)
+	if err != nil {
+		return nil, openAIWSSessionHeaderResolution{}, err
+	}
+	for key, values := range authHeaders {
+		for _, value := range values {
+			headers.Add(key, value)
+		}
+	}
 	applyOpenRouterAttributionRequestHeaders(account, headers)
 	sessionResolution := resolveOpenAIWSSessionHeaders(c, promptCacheKey)
 	apiKeyID := int64(0)
@@ -169,7 +177,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(ctx context.Context, c *gin.
 		s.applyCodexOAuthUserAgentPolicy(ctx, headers, account)
 	}
 	enforceCodexIdentityHeaders(ctx, headers, account)
-	return headers, sessionResolution
+	return headers, sessionResolution, nil
 }
 func (s *OpenAIGatewayService) buildOpenAIWSCreatePayload(reqBody map[string]any, account *Account) map[string]any {
 	payload := make(map[string]any, len(reqBody)+1)

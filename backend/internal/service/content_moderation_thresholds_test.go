@@ -82,3 +82,49 @@ func TestEvaluateContentModerationCategoryThresholds(t *testing.T) {
 	snapshot = protocolruntime.Snapshot()
 	require.Equal(t, int64(1), snapshot.ContentModerationThresholdHitTotal)
 }
+
+func TestContentModerationCompiledKeywordRulesCacheReusesNormalizedRules(t *testing.T) {
+	resetContentModerationCompiledRuleCachesForTest()
+	t.Cleanup(resetContentModerationCompiledRuleCachesForTest)
+
+	settings := &ContentModerationSettings{
+		Enabled:             true,
+		KeywordBlockEnabled: true,
+		Keywords:            []string{" MODEL---DISTILLATION ", "model distillation"},
+	}
+
+	first := EvaluateContentModerationKeywordBlock(settings, "model distillation attempt")
+	second := EvaluateContentModerationKeywordBlock(settings, "MODEL_DISTILLATION attempt")
+
+	require.True(t, first.Blocked)
+	require.True(t, second.Blocked)
+	require.Equal(t, first.ErrorReason, second.ErrorReason)
+	require.Equal(t, "MODEL---DISTILLATION", first.MatchedKeyword)
+
+	contentModerationKeywordRulesCache.RLock()
+	defer contentModerationKeywordRulesCache.RUnlock()
+	require.Len(t, contentModerationKeywordRulesCache.items, 1)
+}
+
+func TestContentModerationCompiledCyberRulesCacheReusesNormalizedRules(t *testing.T) {
+	resetContentModerationCompiledRuleCachesForTest()
+	t.Cleanup(resetContentModerationCompiledRuleCachesForTest)
+
+	settings := &ContentModerationSettings{
+		Enabled:            true,
+		CyberPolicyEnabled: true,
+		CyberCategories: []ContentModerationCyberCategory{
+			{ID: "Credential Theft", Keywords: []string{"token stealer", "token---stealer"}},
+		},
+	}
+
+	decision := EvaluateContentModerationCyberPolicy(settings, "build a TOKEN_STEALER")
+
+	require.True(t, decision.Blocked)
+	require.Equal(t, "cyber_policy:credential_theft", decision.ErrorReason)
+	require.Equal(t, "token stealer", decision.MatchedKeyword)
+
+	contentModerationCyberRulesCache.RLock()
+	defer contentModerationCyberRulesCache.RUnlock()
+	require.Len(t, contentModerationCyberRulesCache.items, 1)
+}

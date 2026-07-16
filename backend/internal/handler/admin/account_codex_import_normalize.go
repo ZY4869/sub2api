@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 const (
@@ -17,20 +18,21 @@ const (
 )
 
 type codexImportAccount struct {
-	Name           string
-	AccessToken    string
-	RefreshToken   string
-	IDToken        string
-	Email          string
-	AccountID      string
-	UserID         string
-	PlanType       string
-	Organization   string
-	Credentials    map[string]any
-	Extra          map[string]any
-	TokenExpiresAt *time.Time
-	IdentityKeys   []string
-	WarningTexts   []string
+	Name            string
+	AccessToken     string
+	RefreshToken    string
+	IDToken         string
+	Email           string
+	AccountID       string
+	UserID          string
+	PlanType        string
+	Organization    string
+	Credentials     map[string]any
+	Extra           map[string]any
+	TokenExpiresAt  *time.Time
+	IdentityKeys    []string
+	WarningTexts    []string
+	IsAgentIdentity bool
 }
 
 type codexJWTClaims struct {
@@ -60,6 +62,14 @@ func normalizeCodexImportEntry(entry codexImportEntry) (*codexImportAccount, err
 	}
 	if err := extractCodexImportEntryFields(item, entry.Value, now); err != nil {
 		return nil, err
+	}
+	if item.IsAgentIdentity {
+		if err := validateCodexImportAgentIdentity(item); err != nil {
+			return nil, err
+		}
+		item.IdentityKeys = buildCodexImportIdentityKeys(item.AccountID, item.UserID, item.Email, item.Credentials["agent_runtime_id"].(string), "")
+		item.Name = buildCodexImportAccountName(item, entry.Index)
+		return item, nil
 	}
 	if item.AccessToken == "" {
 		return nil, errors.New("缺少 accessToken/access_token")
@@ -116,6 +126,10 @@ func extractCodexImportEntryFields(item *codexImportAccount, value any, now time
 }
 
 func extractCodexImportMapFields(item *codexImportAccount, raw map[string]any) {
+	if isCodexAgentIdentityImport(raw) {
+		extractCodexAgentIdentityFields(item, raw)
+		return
+	}
 	item.AccessToken = firstCodexString(raw, []string{"tokens", "access_token"}, []string{"tokens", "accessToken"}, []string{"access_token"}, []string{"accessToken"}, []string{"token"})
 	item.RefreshToken = firstCodexString(raw, []string{"tokens", "refresh_token"}, []string{"tokens", "refreshToken"}, []string{"refresh_token"}, []string{"refreshToken"})
 	item.IDToken = firstCodexString(raw, []string{"tokens", "id_token"}, []string{"tokens", "idToken"}, []string{"id_token"}, []string{"idToken"})
@@ -140,6 +154,50 @@ func extractCodexImportMapFields(item *codexImportAccount, raw map[string]any) {
 	copyCodexExtraString(raw, item.Extra, "account_structure", []string{"account", "structure"})
 	copyCodexExtraString(raw, item.Extra, "account_residency_region", []string{"account", "residencyRegion"})
 	copyCodexExtraString(raw, item.Extra, "compute_residency", []string{"account", "computeResidency"})
+}
+
+func isCodexAgentIdentityImport(raw map[string]any) bool {
+	return strings.EqualFold(firstCodexString(raw, []string{"auth_mode"}, []string{"openai_auth_mode"}), service.OpenAIAuthModeAgentIdentity) ||
+		firstCodexString(raw, []string{"agent_runtime_id"}, []string{"agent_identity", "agent_runtime_id"}) != "" ||
+		firstCodexString(raw, []string{"agent_private_key"}, []string{"agent_identity", "agent_private_key"}) != ""
+}
+
+func extractCodexAgentIdentityFields(item *codexImportAccount, raw map[string]any) {
+	item.IsAgentIdentity = true
+	item.Credentials["auth_mode"] = service.OpenAIAuthModeAgentIdentity
+	setCodexCredentialIfNotEmpty(item.Credentials, "agent_runtime_id", firstCodexString(raw, []string{"agent_runtime_id"}, []string{"agentIdentity", "agentRuntimeId"}, []string{"agent_identity", "agent_runtime_id"}, []string{"agent_identity", "agentRuntimeId"}))
+	setCodexCredentialIfNotEmpty(item.Credentials, "agent_private_key", firstCodexString(raw, []string{"agent_private_key"}, []string{"agentIdentity", "agentPrivateKey"}, []string{"agent_identity", "agent_private_key"}, []string{"agent_identity", "agentPrivateKey"}))
+	setCodexCredentialIfNotEmpty(item.Credentials, "task_id", firstCodexString(raw, []string{"task_id"}, []string{"taskId"}, []string{"agent_identity", "task_id"}, []string{"agent_identity", "taskId"}))
+	item.Email = firstCodexString(raw, []string{"email"}, []string{"user", "email"}, []string{"agent_identity", "email"})
+	item.AccountID = firstCodexString(raw, []string{"chatgpt_account_id"}, []string{"chatgptAccountId"}, []string{"account_id"}, []string{"accountId"}, []string{"agent_identity", "chatgpt_account_id"}, []string{"agent_identity", "account_id"})
+	item.UserID = firstCodexString(raw, []string{"chatgpt_user_id"}, []string{"chatgptUserId"}, []string{"user_id"}, []string{"userId"}, []string{"agent_identity", "chatgpt_user_id"}, []string{"agent_identity", "user_id"})
+	item.PlanType = firstCodexString(raw, []string{"plan_type"}, []string{"planType"}, []string{"agent_identity", "plan_type"}, []string{"agent_identity", "planType"})
+	item.Organization = firstCodexString(raw, []string{"organization_id"}, []string{"organizationId"}, []string{"agent_identity", "organization_id"}, []string{"agent_identity", "organizationId"})
+	item.Name = firstCodexString(raw, []string{"name"}, []string{"user", "name"}, []string{"agent_identity", "name"})
+	setCodexCredentialIfNotEmpty(item.Credentials, "email", item.Email)
+	setCodexCredentialIfNotEmpty(item.Credentials, "chatgpt_account_id", item.AccountID)
+	setCodexCredentialIfNotEmpty(item.Credentials, "chatgpt_user_id", item.UserID)
+	setCodexCredentialIfNotEmpty(item.Credentials, "organization_id", item.Organization)
+	setCodexCredentialIfNotEmpty(item.Credentials, "plan_type", item.PlanType)
+	if fedramp, ok := firstCodexBool(raw, []string{"chatgpt_account_is_fedramp"}, []string{"agent_identity", "chatgpt_account_is_fedramp"}); ok {
+		item.Credentials["chatgpt_account_is_fedramp"] = fedramp
+	}
+	item.WarningTexts = append(item.WarningTexts, "Agent Identity 已导入；首次调用时会自动注册或恢复 task_id")
+}
+
+func validateCodexImportAgentIdentity(item *codexImportAccount) error {
+	runtimeID, _ := item.Credentials["agent_runtime_id"].(string)
+	privateKey, _ := item.Credentials["agent_private_key"].(string)
+	if strings.TrimSpace(runtimeID) == "" {
+		return errors.New("缺少 agent_runtime_id")
+	}
+	if strings.TrimSpace(privateKey) == "" {
+		return errors.New("缺少 agent_private_key")
+	}
+	if err := service.ValidateOpenAIAgentIdentityPrivateKey(privateKey); err != nil {
+		return fmt.Errorf("agent_private_key 无效: %w", err)
+	}
+	return nil
 }
 
 func enrichCodexImportAccountFromJWT(item *codexImportAccount, token string, validateExpiry bool, now time.Time) error {
@@ -193,4 +251,25 @@ func decodeCodexJWTSegment(segment string) ([]byte, error) {
 		return decoded, nil
 	}
 	return base64.StdEncoding.DecodeString(padded)
+}
+
+func firstCodexBool(obj map[string]any, paths ...[]string) (bool, bool) {
+	for _, path := range paths {
+		raw, ok := codexPathValue(obj, path)
+		if !ok {
+			continue
+		}
+		switch v := raw.(type) {
+		case bool:
+			return v, true
+		case string:
+			switch strings.ToLower(strings.TrimSpace(v)) {
+			case "true", "1", "yes":
+				return true, true
+			case "false", "0", "no":
+				return false, true
+			}
+		}
+	}
+	return false, false
 }

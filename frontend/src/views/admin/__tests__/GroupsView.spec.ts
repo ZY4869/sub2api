@@ -363,11 +363,18 @@ describe('GroupsView iconized selections', () => {
 
     const state = setupState(wrapper)
     const allColumns = state.columns.value ?? state.columns
+    expect(allColumns.map((column: { key: string }) => column.key)).toContain('id')
     expect(allColumns.map((column: { key: string }) => column.key)).toContain('peak_rate')
+
+    state.toggleGroupColumn('id')
+    await nextTick()
+    let visibleColumns = state.visibleColumns.value ?? state.visibleColumns
+    expect(visibleColumns.map((column: { key: string }) => column.key)).not.toContain('id')
+    expect(window.localStorage.getItem('sub2api.admin.groups.hiddenColumns')).toContain('id')
 
     state.toggleGroupColumn('name')
     await nextTick()
-    let visibleColumns = state.visibleColumns.value ?? state.visibleColumns
+    visibleColumns = state.visibleColumns.value ?? state.visibleColumns
     expect(visibleColumns.map((column: { key: string }) => column.key)).toContain('name')
 
     state.toggleGroupColumn('actions')

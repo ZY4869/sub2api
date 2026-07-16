@@ -23,6 +23,7 @@ type stubAdminService struct {
 	lastCreateUserInput  *service.CreateUserInput
 	lastUpdateUserInput  *service.UpdateUserInput
 	createdAccounts      []*service.CreateAccountInput
+	duplicatedAccountIDs []int64
 	createdProxies       []*service.CreateProxyInput
 	updatedAccountIDs    []int64
 	updatedAccounts      []*service.UpdateAccountInput
@@ -640,6 +641,33 @@ func (s *stubAdminService) CreateAccount(ctx context.Context, input *service.Cre
 	}
 	upsertStubAccount(&s.accounts, account)
 	return &account, nil
+}
+
+func (s *stubAdminService) DuplicateAccount(ctx context.Context, id int64, actorScope, operationKey string) (*service.Account, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.duplicatedAccountIDs = append(s.duplicatedAccountIDs, id)
+	for i := range s.accounts {
+		if s.accounts[i].ID != id {
+			continue
+		}
+		account := s.accounts[i]
+		account.ID = int64(400 + len(s.duplicatedAccountIDs))
+		account.Name = account.Name + " (Copy)"
+		account.Credentials = cloneStringAnyMap(account.Credentials)
+		account.Extra = cloneStringAnyMap(account.Extra)
+		account.Schedulable = false
+		account.Status = service.StatusActive
+		account.CreatedAt = time.Now().UTC()
+		account.UpdatedAt = account.CreatedAt
+		upsertStubAccount(&s.accounts, account)
+		return &account, nil
+	}
+	return nil, service.ErrAccountNotFound
+}
+
+func (s *stubAdminService) RecoverDuplicateAccount(ctx context.Context, id int64, actorScope, operationKey string) (*service.Account, error) {
+	return nil, nil
 }
 
 func (s *stubAdminService) UpdateAccount(ctx context.Context, id int64, input *service.UpdateAccountInput) (*service.Account, error) {

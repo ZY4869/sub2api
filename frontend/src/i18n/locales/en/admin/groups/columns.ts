@@ -1,4 +1,5 @@
 export default {
+    id: "ID",
     name: "Name",
     platform: "Platform",
     rateMultiplier: "Rate Multiplier",
