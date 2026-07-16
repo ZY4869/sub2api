@@ -50,7 +50,11 @@ func (systemLogBatchDriver) Open(name string) (driver.Conn, error) {
 	if !ok {
 		return nil, fmt.Errorf("missing test state for dsn %q", name)
 	}
-	return &systemLogBatchConn{state: v.(*systemLogBatchState)}, nil
+	state, ok := v.(*systemLogBatchState)
+	if !ok {
+		return nil, fmt.Errorf("invalid test state type %T for dsn %q", v, name)
+	}
+	return &systemLogBatchConn{state: state}, nil
 }
 
 type systemLogBatchState struct {

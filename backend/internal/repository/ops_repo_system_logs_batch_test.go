@@ -12,7 +12,11 @@ import (
 
 func TestOpsRepositoryBatchInsertSystemLogs_DriverErrSkipFallsBack(t *testing.T) {
 	db, state := openSystemLogBatchTestDB(t, "skip")
-	repo := NewOpsRepository(db).(*opsRepository)
+	repoIface := NewOpsRepository(db)
+	repo, ok := repoIface.(*opsRepository)
+	if !ok {
+		t.Fatalf("NewOpsRepository() type = %T, want *opsRepository", repoIface)
+	}
 
 	now := time.Date(2026, 7, 16, 12, 0, 0, 0, time.UTC)
 	inserted, err := repo.BatchInsertSystemLogs(context.Background(), []*service.OpsInsertSystemLogInput{
@@ -64,7 +68,11 @@ func TestOpsRepositoryBatchInsertSystemLogs_DriverErrSkipFallsBack(t *testing.T)
 
 func TestOpsRepositoryBatchInsertSystemLogs_RealErrorDoesNotFallback(t *testing.T) {
 	db, state := openSystemLogBatchTestDB(t, "error")
-	repo := NewOpsRepository(db).(*opsRepository)
+	repoIface := NewOpsRepository(db)
+	repo, ok := repoIface.(*opsRepository)
+	if !ok {
+		t.Fatalf("NewOpsRepository() type = %T, want *opsRepository", repoIface)
+	}
 
 	_, err := repo.BatchInsertSystemLogs(context.Background(), []*service.OpsInsertSystemLogInput{
 		{

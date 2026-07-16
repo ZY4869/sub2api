@@ -305,17 +305,13 @@ function clearDuplicateOperationKey(id: number): void {
 
 export async function duplicate(id: number): Promise<Account> {
   const idempotencyKey = getDuplicateOperationKey(id)
-  try {
-    const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/duplicate`, undefined, {
-      headers: {
-        'Idempotency-Key': idempotencyKey
-      }
-    })
-    clearDuplicateOperationKey(id)
-    return data
-  } catch (error) {
-    throw error
-  }
+  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/duplicate`, undefined, {
+    headers: {
+      'Idempotency-Key': idempotencyKey
+    }
+  })
+  clearDuplicateOperationKey(id)
+  return data
 }
 
 export async function restoreOriginalProxy(id: number): Promise<AccountProxyRestoreResult> {

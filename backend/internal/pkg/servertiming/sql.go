@@ -181,6 +181,7 @@ func (s sqlStmt) execLegacy(ctx context.Context, args []driver.NamedValue) (driv
 	if err != nil {
 		return nil, err
 	}
+	//nolint:staticcheck // Legacy drivers may only expose Stmt.Exec.
 	return s.Stmt.Exec(values)
 }
 
@@ -199,6 +200,7 @@ func (s sqlStmt) queryLegacy(ctx context.Context, args []driver.NamedValue) (dri
 	if err != nil {
 		return nil, err
 	}
+	//nolint:staticcheck // Legacy drivers may only expose Stmt.Query.
 	return s.Stmt.Query(values)
 }
 
