@@ -288,8 +288,8 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 					_ = flushFirstOutputStage()
 				}
 				if firstOutputStageActive && !semanticOutput && firstOutputStage.Len()+len(line)+1 <= firstOutputStageLimit {
-					firstOutputStage.WriteString(line)
-					firstOutputStage.WriteByte('\n')
+					_, _ = firstOutputStage.WriteString(line)
+					_ = firstOutputStage.WriteByte('\n')
 				} else if firstOutputStageActive && !semanticOutput {
 					firstOutputStageActive = false
 					_ = flushFirstOutputStage()
@@ -325,8 +325,8 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 		}
 		if !clientDisconnected {
 			if firstOutputStageActive && firstOutputStage.Len()+len(line)+1 <= firstOutputStageLimit {
-				firstOutputStage.WriteString(line)
-				firstOutputStage.WriteByte('\n')
+				_, _ = firstOutputStage.WriteString(line)
+				_ = firstOutputStage.WriteByte('\n')
 			} else if firstOutputStageActive {
 				firstOutputStageActive = false
 				_ = flushFirstOutputStage()

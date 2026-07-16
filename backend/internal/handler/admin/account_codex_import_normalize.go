@@ -67,7 +67,8 @@ func normalizeCodexImportEntry(entry codexImportEntry) (*codexImportAccount, err
 		if err := validateCodexImportAgentIdentity(item); err != nil {
 			return nil, err
 		}
-		item.IdentityKeys = buildCodexImportIdentityKeys(item.AccountID, item.UserID, item.Email, item.Credentials["agent_runtime_id"].(string), "")
+		agentRuntimeID := codexStringValue(item.Credentials["agent_runtime_id"])
+		item.IdentityKeys = buildCodexImportIdentityKeys(item.AccountID, item.UserID, item.Email, agentRuntimeID, "")
 		item.Name = buildCodexImportAccountName(item, entry.Index)
 		return item, nil
 	}

@@ -134,23 +134,29 @@ type sqlStmt struct {
 }
 
 func (s sqlStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	done := Observe(ctx, "db")
+	defer done()
+
 	if execer, ok := s.Stmt.(driver.StmtExecContext); ok {
-		done := Observe(ctx, "db")
 		result, err := execer.ExecContext(ctx, args)
-		done()
-		return result, err
+		if !errors.Is(err, driver.ErrSkip) {
+			return result, err
+		}
 	}
-	return nil, driver.ErrSkip
+	return s.execLegacy(ctx, args)
 }
 
 func (s sqlStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	done := Observe(ctx, "db")
+	defer done()
+
 	if queryer, ok := s.Stmt.(driver.StmtQueryContext); ok {
-		done := Observe(ctx, "db")
 		rows, err := queryer.QueryContext(ctx, args)
-		done()
-		return rows, err
+		if !errors.Is(err, driver.ErrSkip) {
+			return rows, err
+		}
 	}
-	return nil, driver.ErrSkip
+	return s.queryLegacy(ctx, args)
 }
 
 func (s sqlStmt) CheckNamedValue(value *driver.NamedValue) error {
@@ -158,6 +164,53 @@ func (s sqlStmt) CheckNamedValue(value *driver.NamedValue) error {
 		return checker.CheckNamedValue(value)
 	}
 	return driver.ErrSkip
+}
+
+func (s sqlStmt) execLegacy(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	if s.Stmt == nil {
+		return nil, driver.ErrSkip
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+	}
+	values, err := namedValueToValues(args)
+	if err != nil {
+		return nil, err
+	}
+	return s.Stmt.Exec(values)
+}
+
+func (s sqlStmt) queryLegacy(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	if s.Stmt == nil {
+		return nil, driver.ErrSkip
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+	}
+	values, err := namedValueToValues(args)
+	if err != nil {
+		return nil, err
+	}
+	return s.Stmt.Query(values)
+}
+
+func namedValueToValues(named []driver.NamedValue) ([]driver.Value, error) {
+	dargs := make([]driver.Value, len(named))
+	for n, param := range named {
+		if len(param.Name) > 0 {
+			return nil, errors.New("sql: driver does not support the use of Named Parameters")
+		}
+		dargs[n] = param.Value
+	}
+	return dargs, nil
 }
 
 func (d sqlDriver) String() string {
