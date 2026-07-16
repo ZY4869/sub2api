@@ -1,5 +1,12 @@
 import type { AccountModelProbeSnapshotDraft } from '@/utils/accountProbeDraft'
-import type { ParsedGrokOAuthPayload } from '@/utils/grokOAuth'
+import { adminAPI } from '@/api/admin'
+import {
+  buildGrokOAuthPayload,
+  isGrokOAuthAuthorizationPayload,
+  type GrokExchangeCodeResult,
+  type GrokOAuthSubmitPayload,
+  type ParsedGrokOAuthPayload
+} from '@/utils/grokOAuth'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import { applyAccountRequestHeaders } from '@/components/account/credentialsBuilder'
 
@@ -429,8 +436,30 @@ const handleCreateKiroAccount = async (payload: ParsedKiroTokenImport) => {
   step.value = 3
 }
 
-const handleCreateGrokOAuthAccount = async (payload: ParsedGrokOAuthPayload) => {
-  const fallbackName = payload.suggestedName?.trim()
+const resolveGrokOAuthSubmitPayload = async (payload: GrokOAuthSubmitPayload): Promise<ParsedGrokOAuthPayload> => {
+  if (!isGrokOAuthAuthorizationPayload(payload)) {
+    return payload
+  }
+
+  const tokenInfo = await adminAPI.accounts.exchangeGrokAuthCode({
+    session_id: payload.sessionId,
+    code: payload.code,
+    state: payload.state,
+    proxy_id: form.proxy_id
+  })
+  return buildGrokOAuthPayload(tokenInfo as GrokExchangeCodeResult)
+}
+
+const handleCreateGrokOAuthAccount = async (payload: GrokOAuthSubmitPayload) => {
+  let resolvedPayload: ParsedGrokOAuthPayload
+  try {
+    resolvedPayload = await resolveGrokOAuthSubmitPayload(payload)
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.grokOauth.exchangeFailed'))
+    return
+  }
+
+  const fallbackName = resolvedPayload.suggestedName?.trim()
   if (!form.name.trim() && fallbackName) {
     form.name = fallbackName
   }
@@ -438,13 +467,13 @@ const handleCreateGrokOAuthAccount = async (payload: ParsedGrokOAuthPayload) => 
     appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
     return
   }
-  if (!payload.credentials?.access_token) {
+  if (!resolvedPayload.credentials?.access_token) {
     appStore.showError(t('admin.accounts.grokOauth.accessTokenMissing'))
     return
   }
 
-  oauthDraftCredentials.value = { ...(payload.credentials || {}) }
-  oauthDraftExtra.value = { ...(payload.extra || {}) }
+  oauthDraftCredentials.value = { ...(resolvedPayload.credentials || {}) }
+  oauthDraftExtra.value = { ...(resolvedPayload.extra || {}) }
   grokOAuthRef.value?.reset?.()
   step.value = 3
 }
