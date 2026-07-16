@@ -2,6 +2,7 @@ import { computed } from 'vue'
 
 const TOP_ALIGNED_COLUMN_KEYS = new Set([
   'today_stats',
+  'usage',
   'usage_reset_dates',
   'notes',
 ])
