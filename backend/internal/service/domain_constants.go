@@ -258,6 +258,7 @@ const (
 
 	SettingKeyGoogleBatchGCSProfiles        = "google_batch_gcs_profiles"
 	SettingKeyImageBatchEnabled             = "image_batch_enabled"
+	SettingKeyUpstreamBillingProbeSettings  = "upstream_billing_probe_settings"
 	SettingKeyAccountDaily5HTriggerSettings = "account_daily_5h_trigger_settings"
 
 	SettingKeyMinClaudeCodeVersion                 = "min_claude_code_version"
@@ -270,6 +271,7 @@ const (
 	SettingKeyBackendModeEnabled          = "backend_mode_enabled"
 	SettingKeyMaintenanceModeEnabled      = "maintenance_mode_enabled"
 	SettingKeyAdminComplianceEnabled      = "admin_compliance_enabled"
+	SettingKeyAuditLogRetentionDays       = "audit_log_retention_days"
 	SettingKeyDocumentAIEnabled           = "document_ai_enabled"
 	SettingKeyOpenAIBackfillGPT55Done     = "openai_backfill_gpt_5_5_done"
 

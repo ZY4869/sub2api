@@ -11,6 +11,7 @@ import { normalizeBillingPricingCurrency } from './pricingCurrency'
 
 export const BILLING_DISCOUNT_FIELD_IDS = {
   input_price: 'input_price',
+  image_input_price: 'image_input_price',
   output_price: 'output_price',
   cache_price: 'cache_price',
   input_price_above_threshold: 'input_price_above_threshold',
@@ -33,6 +34,7 @@ export function createEmptyBillingPricingSpecial(): BillingPricingSimpleSpecial 
 export function createEmptyBillingPricingLayerForm(seed: Partial<BillingPricingLayerForm> = {}): BillingPricingLayerForm {
   return {
     input_price: seed.input_price,
+    image_input_price: seed.image_input_price,
     output_price: seed.output_price,
     cache_price: seed.cache_price,
     special_enabled: seed.special_enabled ?? false,
@@ -134,6 +136,7 @@ export function countConfiguredBillingFields(form?: Partial<BillingPricingLayerF
 
   const rootValues = [
     form.input_price,
+    form.image_input_price,
     form.output_price,
     form.cache_price,
     form.input_price_above_threshold,
@@ -168,6 +171,7 @@ export function resolveBillingPricingFieldValue(
 
   switch (fieldId) {
     case 'input_price':
+    case 'image_input_price':
     case 'output_price':
     case 'cache_price':
       return form[fieldId]
@@ -226,6 +230,7 @@ export function validateBillingPricingLayerFormForSave(
   }
 
   validateNonNegative(normalized.input_price, 'input_price', '输入定价')
+  validateNonNegative(normalized.image_input_price, 'image_input_price', '图片输入定价')
   validateNonNegative(normalized.output_price, 'output_price', '输出定价')
   validateNonNegative(normalized.cache_price, 'cache_price', '缓存定价')
   validateNonNegative(normalized.input_price_above_threshold, 'input_price_above_threshold', '输入阈值后定价')
@@ -272,6 +277,8 @@ function fieldLabelForValidation(fieldId: string): string {
   switch (fieldId) {
     case 'input_price':
       return '输入定价'
+    case 'image_input_price':
+      return '图片输入定价'
     case 'output_price':
       return '输出定价'
     case 'cache_price':

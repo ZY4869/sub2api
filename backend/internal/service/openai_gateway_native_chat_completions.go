@@ -353,6 +353,7 @@ func extractOpenAIChatCompletionsUsageFromJSONBytes(body []byte) (OpenAIUsage, b
 	}
 	return OpenAIUsage{
 		InputTokens:              int(firstPositiveInt64(gjson.GetBytes(body, "usage.input_tokens").Int(), gjson.GetBytes(body, "usage.prompt_tokens").Int())),
+		ImageInputTokens:         extractOpenAIUsageImageInputTokens(body, "usage"),
 		OutputTokens:             int(firstPositiveInt64(gjson.GetBytes(body, "usage.output_tokens").Int(), gjson.GetBytes(body, "usage.completion_tokens").Int())),
 		CacheCreationInputTokens: int(gjson.GetBytes(body, "usage.prompt_cache_miss_tokens").Int()),
 		CacheReadInputTokens: int(firstPositiveInt64(
@@ -371,6 +372,11 @@ func parseOpenAIChatCompletionsSSEUsage(data []byte, usage *OpenAIUsage) {
 		return
 	}
 	usage.InputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "usage.input_tokens").Int(), gjson.GetBytes(data, "usage.prompt_tokens").Int(), int64(usage.InputTokens)))
+	usage.ImageInputTokens = int(firstPositiveInt64(
+		gjson.GetBytes(data, "usage.input_tokens_details.image_tokens").Int(),
+		gjson.GetBytes(data, "usage.prompt_tokens_details.image_tokens").Int(),
+		int64(usage.ImageInputTokens),
+	))
 	usage.OutputTokens = int(firstPositiveInt64(gjson.GetBytes(data, "usage.output_tokens").Int(), gjson.GetBytes(data, "usage.completion_tokens").Int(), int64(usage.OutputTokens)))
 	if miss := gjson.GetBytes(data, "usage.prompt_cache_miss_tokens"); miss.Exists() && miss.Int() > 0 {
 		usage.CacheCreationInputTokens = int(miss.Int())

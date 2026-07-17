@@ -366,6 +366,7 @@ function scaleBillingPricingLayerForm(
 
   const next = cloneBillingPricingLayerForm(form)
   next.input_price = scaleOptionalPrice(next.input_price, factor)
+  next.image_input_price = scaleOptionalPrice(next.image_input_price, factor)
   next.output_price = scaleOptionalPrice(next.output_price, factor)
   next.cache_price = scaleOptionalPrice(next.cache_price, factor)
   next.input_price_above_threshold = scaleOptionalPrice(next.input_price_above_threshold, factor)

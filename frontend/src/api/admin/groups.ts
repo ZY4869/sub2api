@@ -95,6 +95,25 @@ export async function update(id: number, updates: UpdateGroupRequest): Promise<A
   return data
 }
 
+export interface DuplicateGroupRequest {
+  name?: string
+  copy_accounts?: boolean
+}
+
+/**
+ * Duplicate group
+ * @param id - Source group ID
+ * @param payload - Optional duplicate options
+ * @returns Created group
+ */
+export async function duplicate(
+  id: number,
+  payload: DuplicateGroupRequest = {}
+): Promise<AdminGroup> {
+  const { data } = await apiClient.post<AdminGroup>(`/admin/groups/${id}/duplicate`, payload)
+  return data
+}
+
 /**
  * Delete group
  * @param id - Group ID
@@ -253,6 +272,7 @@ export const groupsAPI = {
   getById,
   create,
   update,
+  duplicate,
   delete: deleteGroup,
   toggleStatus,
   getStats,

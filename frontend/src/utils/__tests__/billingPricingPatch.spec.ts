@@ -10,6 +10,7 @@ import {
 function createBaseForm() {
   return {
     input_price: 1,
+    image_input_price: undefined,
     output_price: 2,
     cache_price: 0.1,
     special_enabled: false,
@@ -165,6 +166,7 @@ describe('billingPricingPatch', () => {
           official: {
             ...createBaseForm(),
             input_price: 1.5e-7,
+            image_input_price: 2.5e-7,
             output_price: 6e-7,
             cache_price: undefined,
           } as any,
@@ -185,6 +187,7 @@ describe('billingPricingPatch', () => {
     expect(result.file.models[0]?.currency).toBe('USD')
     expect(result.file.models[0]?.patch.official).toEqual({
       input_price: 1.5e-7,
+      image_input_price: 2.5e-7,
       output_price: 6e-7,
     })
   })

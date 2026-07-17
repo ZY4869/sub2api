@@ -22,6 +22,7 @@ type BillingPricingSpecialPatchNormalized = Partial<Record<
 
 interface BillingPricingLayerPatchNormalized {
   input_price?: number
+  image_input_price?: number
   output_price?: number
   cache_price?: number
   special_enabled?: boolean
@@ -38,6 +39,7 @@ interface BillingPricingLayerPatchNormalized {
 
 export interface BillingPricingLayerPatchV1 {
   input_price?: number | null
+  image_input_price?: number | null
   output_price?: number | null
   cache_price?: number | null
   special_enabled?: boolean | null
@@ -91,6 +93,7 @@ export interface BillingPricingPatchMaterializationResult {
 
 const rootNumberKeys = [
   'input_price',
+  'image_input_price',
   'output_price',
   'cache_price',
   'tier_threshold_tokens',
@@ -422,6 +425,7 @@ export function applyBillingPricingLayerPatch(
 function createTemplatePatchLayer(form: BillingPricingLayerForm): BillingPricingLayerPatchV1 {
   return {
     input_price: form.input_price ?? null,
+    image_input_price: form.image_input_price ?? null,
     output_price: form.output_price ?? null,
     cache_price: form.cache_price ?? null,
     special_enabled: form.special_enabled,
@@ -465,7 +469,7 @@ function materializePatchLayerFromCurrent(form?: BillingPricingLayerForm): Billi
   const next: BillingPricingLayerPatchV1 = {}
   let hasValue = false
 
-  ;(['input_price', 'output_price', 'cache_price'] as const).forEach((key) => {
+  ;(['input_price', 'image_input_price', 'output_price', 'cache_price'] as const).forEach((key) => {
     const value = layer[key]
     if (typeof value === 'number' && Number.isFinite(value)) {
       next[key] = value

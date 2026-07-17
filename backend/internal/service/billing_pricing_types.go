@@ -66,6 +66,7 @@ type BillingPricingSimpleSpecial struct {
 
 type BillingPricingLayerForm struct {
 	InputPrice                *float64                     `json:"input_price,omitempty"`
+	ImageInputPrice           *float64                     `json:"image_input_price,omitempty"`
 	OutputPrice               *float64                     `json:"output_price,omitempty"`
 	CachePrice                *float64                     `json:"cache_price,omitempty"`
 	SpecialEnabled            bool                         `json:"special_enabled"`

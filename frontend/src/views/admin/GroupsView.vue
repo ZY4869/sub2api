@@ -1036,6 +1036,17 @@ const handleRateMultipliers = (group: AdminGroup) => {
   showRateMultipliersModal.value = true
 }
 
+const handleDuplicate = async (group: AdminGroup) => {
+  try {
+    await adminAPI.groups.duplicate(group.id, { copy_accounts: true })
+    appStore.showSuccess(t('admin.groups.duplicateSuccess'))
+    await loadGroups()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.groups.duplicateFailed'))
+    console.error('Error duplicating group:', error)
+  }
+}
+
 const handleDelete = (group: AdminGroup) => {
   deletingGroup.value = group
   showDeleteDialog.value = true
@@ -1253,6 +1264,7 @@ const groupsViewContext = {
   saveSortOrder,
   handleEdit,
   handleRateMultipliers,
+  handleDuplicate,
   handleDelete,
   confirmDelete,
   closeCreateModal,

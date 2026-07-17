@@ -45,6 +45,8 @@ type AccountHandler struct {
 	modelRegistryService      *service.ModelRegistryService
 	settingService            *service.SettingService
 	opsService                *service.OpsService
+	grokQuotaService          *service.GrokQuotaService
+	adminSecurity             *AdminSecurityHelper
 }
 
 func NewAccountHandler(adminService service.AdminService, oauthService *service.OAuthService, openaiOAuthService *service.OpenAIOAuthService, geminiOAuthService *service.GeminiOAuthService, antigravityOAuthService *service.AntigravityOAuthService, rateLimitService *service.RateLimitService, accountUsageService *service.AccountUsageService, accountTestService accountTestServicePort, concurrencyService *service.ConcurrencyService, crsSyncService *service.CRSSyncService, sessionLimitCache service.SessionLimitCache, rpmCache service.RPMCache, tokenCacheInvalidator service.TokenCacheInvalidator) *AccountHandler {
@@ -71,6 +73,28 @@ func (h *AccountHandler) SetKiroOAuthService(kiroOAuthService *service.KiroOAuth
 
 func (h *AccountHandler) SetOpsService(opsService *service.OpsService) {
 	h.opsService = opsService
+}
+
+func (h *AccountHandler) SetGrokQuotaService(grokQuotaService *service.GrokQuotaService) {
+	h.grokQuotaService = grokQuotaService
+}
+
+func (h *AccountHandler) SetAdminSecurityHelper(helper *AdminSecurityHelper) {
+	h.adminSecurity = helper
+}
+
+func (h *AccountHandler) requireStepUpTotp(c *gin.Context, scope string) bool {
+	if h == nil || h.adminSecurity == nil {
+		return (*AdminSecurityHelper)(nil).RequireStepUpTotp(c, scope)
+	}
+	return h.adminSecurity.RequireStepUpTotp(c, scope)
+}
+
+func (h *AccountHandler) recordAdminAudit(c *gin.Context, action string, targetType string, targetID string, status string, metadata map[string]any) {
+	if h == nil || h.adminSecurity == nil {
+		return
+	}
+	h.adminSecurity.RecordAudit(c, action, targetType, targetID, status, metadata)
 }
 
 type CreateAccountRequest struct {

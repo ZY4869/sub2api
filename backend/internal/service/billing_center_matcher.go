@@ -47,6 +47,13 @@ func normalizeSimulationInput(input BillingSimulationInput) BillingSimulationInp
 func normalizeBillingSimulationCharges(input BillingSimulationInput) BillingSimulationCharges {
 	charges := input.Charges
 	legacyInput := normalizeLegacySimulationCharge(input.InputTokens)
+	legacyImageInput := normalizeLegacySimulationCharge(input.ImageInputTokens)
+	if legacyInput > 0 {
+		if legacyImageInput > legacyInput {
+			legacyImageInput = legacyInput
+		}
+		legacyInput -= legacyImageInput
+	}
 	legacyOutput := normalizeLegacySimulationCharge(input.OutputTokens)
 
 	if charges.TextInputTokens == 0 && charges.AudioInputTokens == 0 && legacyInput > 0 {
@@ -62,6 +69,9 @@ func normalizeBillingSimulationCharges(input BillingSimulationInput) BillingSimu
 		} else {
 			charges.TextOutputTokens = legacyOutput
 		}
+	}
+	if charges.ImageInputTokens == 0 && input.ImageInputTokens > 0 {
+		charges.ImageInputTokens = legacyImageInput
 	}
 	if charges.CacheCreateTokens == 0 {
 		charges.CacheCreateTokens = normalizeLegacySimulationCharge(input.CacheCreationTokens)
@@ -209,6 +219,15 @@ func simulationDemands(input BillingSimulationInput, contextWindow string) []bil
 			}),
 		},
 		{
+			chargeSlot: BillingChargeSlotImageInput,
+			unit:       BillingUnitInputToken,
+			count:      charges.ImageInputTokens,
+			context: withBillingContext(base, func(ctx *billingMatchContext) {
+				ctx.InputModality = "image"
+				ctx.ContextWindow = ""
+			}),
+		},
+		{
 			chargeSlot: BillingChargeSlotAudioOutput,
 			unit:       BillingUnitOutputToken,
 			count:      charges.AudioOutputTokens,
@@ -323,7 +342,7 @@ func resolveBillingContextWindow(charges BillingSimulationCharges, threshold int
 	if threshold <= 0 {
 		return BillingContextWindowStandard
 	}
-	if (charges.TextInputTokens + charges.CacheReadTokens) > float64(threshold) {
+	if (charges.TextInputTokens + charges.ImageInputTokens + charges.CacheReadTokens) > float64(threshold) {
 		return BillingContextWindowLong
 	}
 	return BillingContextWindowStandard

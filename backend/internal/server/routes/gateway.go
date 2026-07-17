@@ -60,6 +60,18 @@ func RegisterGatewayRoutes(
 		imageBatches.DELETE("/:id/outputs", h.Gateway.DeleteImageBatchOutputs)
 	}
 
+	keyBilling := r.Group("/v1/sub2api")
+	keyBilling.Use(bodyLimit)
+	keyBilling.Use(clientRequestID)
+	keyBilling.Use(opsErrorLogger)
+	keyBilling.Use(opsRequestTraceLogger)
+	keyBilling.Use(endpointNorm)
+	keyBilling.Use(gin.HandlerFunc(apiKeyAuth))
+	keyBilling.Use(requireGatewayMaintenanceCompat)
+	{
+		keyBilling.GET("/billing", h.Gateway.KeyBillingInfo)
+	}
+
 	// API网关（Claude API兼容）
 	gateway := r.Group("/v1")
 	gateway.Use(bodyLimit)

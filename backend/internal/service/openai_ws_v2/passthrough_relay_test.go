@@ -223,6 +223,61 @@ func TestRelay_FunctionCallOutputBytesPreserved(t *testing.T) {
 	require.Equal(t, firstPayload, upstreamWrites[0].payload)
 }
 
+func TestRelay_RejectsUnsupportedClientEvents(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		payload   []byte
+		wantError string
+	}{
+		{
+			name:      "response append rejected",
+			payload:   []byte(`{"type":"response.append","model":"gpt-4o","input":[]}`),
+			wantError: "response.append is not supported",
+		},
+		{
+			name:      "unknown event rejected",
+			payload:   []byte(`{"type":"session.update","session":{}}`),
+			wantError: "unsupported websocket request type: session.update",
+		},
+		{
+			name:      "invalid json rejected",
+			payload:   []byte(`{"type":"response.create"`),
+			wantError: "invalid websocket request payload",
+		},
+		{
+			name:      "empty payload rejected",
+			payload:   []byte(`   `),
+			wantError: "empty websocket request payload",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			clientConn := newPassthroughTestFrameConn([]passthroughTestFrame{
+				{msgType: coderws.MessageText, payload: tt.payload},
+			}, false)
+			upstreamConn := newPassthroughTestFrameConn(nil, false)
+			firstPayload := []byte(`{"type":"response.create","model":"gpt-4o","input":[]}`)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			_, relayExit := Relay(ctx, clientConn, upstreamConn, firstPayload, RelayOptions{})
+			require.NotNil(t, relayExit)
+			require.Equal(t, "client_event_rejected", relayExit.Stage)
+			require.Contains(t, relayExit.Err.Error(), tt.wantError)
+
+			upstreamWrites := upstreamConn.Writes()
+			require.Len(t, upstreamWrites, 1)
+			require.JSONEq(t, string(firstPayload), string(upstreamWrites[0].payload))
+		})
+	}
+}
+
 func TestRelay_UpstreamDisconnect(t *testing.T) {
 	t.Parallel()
 

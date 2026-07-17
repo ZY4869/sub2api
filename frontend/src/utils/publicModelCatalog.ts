@@ -128,6 +128,8 @@ export function priceEntryLabel(t: Translate, fieldID: string): string {
   switch (fieldID) {
     case "input_price":
       return t("ui.modelCatalog.priceFields.input");
+    case "image_input_price":
+      return t("ui.modelCatalog.priceFields.imageInput");
     case "output_price":
       return t("ui.modelCatalog.priceFields.output");
     case "cache_price":

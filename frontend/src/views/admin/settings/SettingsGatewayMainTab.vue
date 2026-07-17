@@ -323,6 +323,8 @@
 
         <ImageBatchSettingsCard />
 
+        <BillingProbeSettingsCard />
+
         <GoogleBatchArchiveSettingsCard />
 
         <GoogleBatchGCSProfilesManager />
@@ -507,6 +509,7 @@
 <script setup lang="ts">
 import Select from '@/components/common/Select.vue'
 import Toggle from '@/components/common/Toggle.vue'
+import BillingProbeSettingsCard from '@/components/settings/BillingProbeSettingsCard.vue'
 import GoogleBatchArchiveSettingsCard from '@/components/settings/GoogleBatchArchiveSettingsCard.vue'
 import GoogleBatchGCSProfilesManager from '@/components/settings/GoogleBatchGCSProfilesManager.vue'
 import ImageBatchSettingsCard from '@/components/settings/ImageBatchSettingsCard.vue'

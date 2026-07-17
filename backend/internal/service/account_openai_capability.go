@@ -11,8 +11,10 @@ const (
 	OpenAIEndpointCapabilityChatCompletions OpenAIEndpointCapability = "chat_completions"
 	OpenAIEndpointCapabilityEmbeddings      OpenAIEndpointCapability = "embeddings"
 	OpenAIEndpointCapabilityAlphaSearch     OpenAIEndpointCapability = "alpha_search"
+	OpenAIEndpointCapabilityResponses       OpenAIEndpointCapability = "responses"
 
 	openAIEndpointCapabilitiesCredentialKey = "openai_capabilities"
+	openAIResponsesSupportedExtraKey        = "openai_responses_supported"
 )
 
 func NormalizeOpenAIEndpointCapability(value string) OpenAIEndpointCapability {
@@ -23,6 +25,8 @@ func NormalizeOpenAIEndpointCapability(value string) OpenAIEndpointCapability {
 		return OpenAIEndpointCapabilityEmbeddings
 	case string(OpenAIEndpointCapabilityAlphaSearch), "search", "web_search", "alpha.search", "alpha/search":
 		return OpenAIEndpointCapabilityAlphaSearch
+	case string(OpenAIEndpointCapabilityResponses), "response", "openai.responses", "responses_api", "responses/api":
+		return OpenAIEndpointCapabilityResponses
 	default:
 		return ""
 	}
@@ -71,12 +75,11 @@ func SupportsOpenAIEndpointCapability(account *Account, capability OpenAIEndpoin
 	if len(configured) == 0 {
 		return true
 	}
-	for _, allowed := range configured {
-		if allowed == capability {
-			return true
-		}
+	if capability == OpenAIEndpointCapabilityResponses {
+		return openAIEndpointCapabilityConfigured(configured, OpenAIEndpointCapabilityResponses) ||
+			openAIEndpointCapabilityConfigured(configured, OpenAIEndpointCapabilityChatCompletions)
 	}
-	return false
+	return openAIEndpointCapabilityConfigured(configured, capability)
 }
 
 func supportsOpenAIEndpointCapabilityByAccountKind(account *Account, capability OpenAIEndpointCapability) bool {
@@ -89,7 +92,40 @@ func supportsOpenAIEndpointCapabilityByAccountKind(account *Account, capability 
 	case OpenAIEndpointCapabilityEmbeddings:
 		return account.IsOpenAIApiKey()
 	case OpenAIEndpointCapabilityAlphaSearch:
-		return account.IsOpenAIApiKey()
+		return account.IsOpenAIApiKey() || account.IsOpenAIOAuth()
+	case OpenAIEndpointCapabilityResponses:
+		if !account.IsOpenAITextCompatible() {
+			return false
+		}
+		return !isOpenAIAPIKeyResponsesExplicitlyUnsupported(account)
+	default:
+		return false
+	}
+}
+
+func openAIEndpointCapabilityConfigured(configured []OpenAIEndpointCapability, capability OpenAIEndpointCapability) bool {
+	for _, allowed := range configured {
+		if allowed == capability {
+			return true
+		}
+	}
+	return false
+}
+
+func isOpenAIAPIKeyResponsesExplicitlyUnsupported(account *Account) bool {
+	if account == nil || !account.IsOpenAIApiKey() || account.Extra == nil {
+		return false
+	}
+	raw, exists := account.Extra[openAIResponsesSupportedExtraKey]
+	if !exists {
+		return false
+	}
+	switch typed := raw.(type) {
+	case bool:
+		return !typed
+	case string:
+		normalized := strings.TrimSpace(strings.ToLower(typed))
+		return normalized == "false" || normalized == "0" || normalized == "no" || normalized == "unsupported"
 	default:
 		return false
 	}

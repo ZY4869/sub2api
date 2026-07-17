@@ -103,6 +103,9 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		} else if entry.OutputCostPerTokenPriorityAbove200kTokens != nil {
 			pricing.OutputCostPerTokenPriorityAboveThreshold = *entry.OutputCostPerTokenPriorityAbove200kTokens
 		}
+		if entry.InputCostPerImageToken != nil {
+			pricing.InputCostPerImageToken = *entry.InputCostPerImageToken
+		}
 		if entry.CacheCreationInputTokenCost != nil {
 			pricing.CacheCreationInputTokenCost = *entry.CacheCreationInputTokenCost
 		}
@@ -167,6 +170,7 @@ func hasAnyPricingValue(entry LiteLLMRawEntry) bool {
 		entry.OutputCostPerTokenPriorityAboveThreshold != nil ||
 		entry.OutputCostPerTokenPriorityAbove272kTokens != nil ||
 		entry.OutputCostPerTokenPriorityAbove200kTokens != nil ||
+		entry.InputCostPerImageToken != nil ||
 		entry.CacheCreationInputTokenCost != nil ||
 		entry.CacheCreationInputTokenCostAbove1hr != nil ||
 		entry.CacheReadInputTokenCost != nil ||

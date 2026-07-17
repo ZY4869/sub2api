@@ -94,6 +94,7 @@
           @delete="confirmDeleteMonitor"
           @run="runNow"
           @history="openHistory"
+          @duplicate="duplicateMonitor"
           @toggleEnabled="toggleEnabled"
         />
 
@@ -315,6 +316,16 @@ async function toggleEnabled(m: AdminChannelMonitor, enabled: boolean) {
     await loadMonitors()
   } catch (err) {
     appStore.showError(t('admin.channelMonitors.messages.saveFailed'))
+  }
+}
+
+async function duplicateMonitor(m: AdminChannelMonitor) {
+  try {
+    await adminAPI.channelMonitors.duplicateMonitor(m.id)
+    appStore.showSuccess(t('admin.channelMonitors.messages.duplicated'))
+    await loadMonitors()
+  } catch (err) {
+    appStore.showError(t('admin.channelMonitors.messages.duplicateFailed'))
   }
 }
 

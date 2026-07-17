@@ -55,12 +55,14 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // group_id
 			sqlmock.AnyArg(), // subscription_id
 			log.InputTokens,
+			log.ImageInputTokens,
 			log.OutputTokens,
 			log.CacheCreationTokens,
 			log.CacheReadTokens,
 			log.CacheCreation5mTokens,
 			log.CacheCreation1hTokens,
 			log.InputCost,
+			log.ImageInputCost,
 			log.OutputCost,
 			log.CacheCreationCost,
 			log.CacheReadCost,
@@ -164,12 +166,14 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.InputTokens,
+			log.ImageInputTokens,
 			log.OutputTokens,
 			log.CacheCreationTokens,
 			log.CacheReadTokens,
 			log.CacheCreation5mTokens,
 			log.CacheCreation1hTokens,
 			log.InputCost,
+			log.ImageInputCost,
 			log.OutputCost,
 			log.CacheCreationCost,
 			log.CacheReadCost,
@@ -268,12 +272,14 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.InputTokens,
+			log.ImageInputTokens,
 			log.OutputTokens,
 			log.CacheCreationTokens,
 			log.CacheReadTokens,
 			log.CacheCreation5mTokens,
 			log.CacheCreation1hTokens,
 			log.InputCost,
+			log.ImageInputCost,
 			log.OutputCost,
 			log.CacheCreationCost,
 			log.CacheReadCost,
@@ -376,12 +382,14 @@ func TestUsageLogRepositoryCreate_ResolvesRequestContextLengthTokens(t *testing.
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.InputTokens,
+			log.ImageInputTokens,
 			log.OutputTokens,
 			log.CacheCreationTokens,
 			log.CacheReadTokens,
 			log.CacheCreation5mTokens,
 			log.CacheCreation1hTokens,
 			log.InputCost,
+			log.ImageInputCost,
 			log.OutputCost,
 			log.CacheCreationCost,
 			log.CacheReadCost,
@@ -473,7 +481,7 @@ func TestUsageLogRepositoryCreate_PersistsPublicCatalogDiscountAuditFields(t *te
 		CreatedAt:           createdAt,
 	}
 
-	args := make([]driver.Value, 76)
+	args := make([]driver.Value, 78)
 	for i := range args {
 		args[i] = sqlmock.AnyArg()
 	}
@@ -483,12 +491,12 @@ func TestUsageLogRepositoryCreate_PersistsPublicCatalogDiscountAuditFields(t *te
 	args[3] = log.RequestID
 	args[4] = log.Model
 	args[5] = log.RequestedModel
-	args[34] = true
-	args[35] = sql.NullFloat64{Valid: true, Float64: 20}
-	args[36] = sql.NullString{Valid: true, String: "promo-window"}
-	args[37] = sql.NullString{Valid: true, String: service.PublicModelCatalogDiscountWindowDaily}
-	args[38] = sql.NullTime{Valid: true, Time: completedAt}
-	args[75] = createdAt
+	args[36] = true
+	args[37] = sql.NullFloat64{Valid: true, Float64: 20}
+	args[38] = sql.NullString{Valid: true, String: "promo-window"}
+	args[39] = sql.NullString{Valid: true, String: service.PublicModelCatalogDiscountWindowDaily}
+	args[40] = sql.NullTime{Valid: true, Time: completedAt}
+	args[77] = createdAt
 	mock.ExpectQuery("INSERT INTO usage_logs").
 		WithArgs(args...).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(103), createdAt))
@@ -1036,12 +1044,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullInt64{},  // group_id
 			sql.NullInt64{},  // subscription_id
 			1,                // input_tokens
+			0,                // image_input_tokens
 			2,                // output_tokens
 			3,                // cache_creation_tokens
 			4,                // cache_read_tokens
 			5,                // cache_creation_5m_tokens
 			6,                // cache_creation_1h_tokens
 			0.1,              // input_cost
+			0.0,              // image_input_cost
 			0.2,              // output_cost
 			0.3,              // cache_creation_cost
 			0.4,              // cache_read_cost
@@ -1137,8 +1147,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullInt64{},
-			1, 2, 3, 4, 5, 6,
-			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
+			1, 0, 2, 3, 4, 5, 6,
+			0.1, 0.0, 0.2, 0.3, 0.4, 1.0, 0.9,
 			service.ModelPricingCurrencyUSD,
 			1.0,
 			0.9,
@@ -1216,8 +1226,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullInt64{},
-			1, 2, 3, 4, 5, 6,
-			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
+			1, 0, 2, 3, 4, 5, 6,
+			0.1, 0.0, 0.2, 0.3, 0.4, 1.0, 0.9,
 			service.ModelPricingCurrencyUSD,
 			1.0,
 			0.9,

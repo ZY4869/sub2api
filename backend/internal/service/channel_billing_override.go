@@ -43,7 +43,10 @@ func applyChannelPricingOverride(
 	default:
 		cost := *base
 		if pricing.InputPrice != nil {
-			cost.InputCost = float64(tokens.InputTokens) * *pricing.InputPrice
+			imageInputTokens := boundedImageInputTokens(tokens)
+			textInputTokens := tokens.InputTokens - imageInputTokens
+			cost.InputCost = float64(textInputTokens) * *pricing.InputPrice
+			cost.ImageInputCost = float64(imageInputTokens) * *pricing.InputPrice
 		}
 		if pricing.OutputPrice != nil {
 			cost.OutputCost = float64(tokens.OutputTokens) * *pricing.OutputPrice
@@ -55,7 +58,7 @@ func applyChannelPricingOverride(
 		if pricing.CacheReadPrice != nil {
 			cost.CacheReadCost = float64(tokens.CacheReadTokens) * *pricing.CacheReadPrice
 		}
-		cost.TotalCost = cost.InputCost + cost.OutputCost + cost.CacheCreationCost + cost.CacheReadCost
+		cost.TotalCost = cost.InputCost + cost.ImageInputCost + cost.OutputCost + cost.CacheCreationCost + cost.CacheReadCost
 		tokenMultiplier = normalizeExplicitRateMultiplier(tokenMultiplier)
 		cost.ActualCost = cost.TotalCost * tokenMultiplier
 		return finalizeCostBreakdownCurrency(&cost, modelPricingFromCostBreakdownCurrency(base)), nil, nil

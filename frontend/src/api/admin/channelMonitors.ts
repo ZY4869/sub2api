@@ -156,6 +156,21 @@ export async function updateMonitor(id: number, payload: UpdateChannelMonitorReq
   return data
 }
 
+export interface DuplicateChannelMonitorRequest {
+  name?: string
+}
+
+export async function duplicateMonitor(
+  id: number,
+  payload: DuplicateChannelMonitorRequest = {}
+): Promise<AdminChannelMonitor> {
+  const { data } = await apiClient.post<AdminChannelMonitor>(
+    `/admin/channel-monitors/${id}/duplicate`,
+    payload
+  )
+  return data
+}
+
 export async function deleteMonitor(id: number): Promise<void> {
   await apiClient.delete(`/admin/channel-monitors/${id}`)
 }
@@ -209,6 +224,7 @@ export const channelMonitorsAdminAPI = {
   listMonitors,
   createMonitor,
   updateMonitor,
+  duplicateMonitor,
   deleteMonitor,
   runMonitor,
   listMonitorHistories,

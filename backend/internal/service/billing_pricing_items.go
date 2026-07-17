@@ -110,6 +110,7 @@ func pricingItemsFromFlatPricing(record *modelCatalogRecord, layer string, prici
 	}
 
 	appendBase(BillingChargeSlotTextInput, BillingUnitInputToken, pricing.InputCostPerToken, explicit["input"], pricing.InputCostPerTokenPriority, explicit["input_priority"], pricing.InputTokenThreshold, pricing.InputCostPerTokenAboveThreshold, pricing.InputCostPerTokenPriorityAboveThreshold)
+	appendBase(BillingChargeSlotImageInput, BillingUnitInputToken, pricing.InputCostPerImageToken, explicit["image_input"], nil, false, nil, nil, nil)
 	appendBase(BillingChargeSlotTextOutput, BillingUnitOutputToken, pricing.OutputCostPerToken, explicit["output"], pricing.OutputCostPerTokenPriority, explicit["output_priority"], pricing.OutputTokenThreshold, pricing.OutputCostPerTokenAboveThreshold, pricing.OutputCostPerTokenPriorityAboveThreshold)
 	appendBase(BillingChargeSlotCacheCreate, BillingUnitCacheCreateToken, pricing.CacheCreationInputTokenCost, explicit["cache_create"], nil, false, nil, nil, nil)
 	appendBase(BillingChargeSlotCacheRead, BillingUnitCacheReadToken, pricing.CacheReadInputTokenCost, explicit["cache_read"], pricing.CacheReadInputTokenCostPriority, explicit["cache_read_priority"], nil, nil, nil)
@@ -197,6 +198,7 @@ func compactGeminiPricingFromMatrix(matrix *GeminiBillingMatrix, record *modelCa
 
 	assign(&pricing.InputCostPerToken, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotTextInput)
 	assign(&pricing.InputCostPerTokenPriority, BillingSurfaceGeminiNative, BillingServiceTierPriority, BillingChargeSlotTextInput)
+	assign(&pricing.InputCostPerImageToken, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotImageInput)
 	assign(&pricing.OutputCostPerToken, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotTextOutput)
 	assign(&pricing.OutputCostPerTokenPriority, BillingSurfaceGeminiNative, BillingServiceTierPriority, BillingChargeSlotTextOutput)
 	assign(&pricing.CacheCreationInputTokenCost, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotCacheCreate)
@@ -292,7 +294,7 @@ func geminiMatrixCanUseServiceTierMode(surface string, serviceTier string, slot 
 		return false
 	}
 	switch normalizeBillingDimension(slot, "") {
-	case BillingChargeSlotTextInput, BillingChargeSlotTextOutput, BillingChargeSlotCacheRead, BillingChargeSlotImageOutput:
+	case BillingChargeSlotTextInput, BillingChargeSlotTextOutput, BillingChargeSlotCacheRead, BillingChargeSlotImageInput, BillingChargeSlotImageOutput:
 		return true
 	default:
 		return false
@@ -418,6 +420,7 @@ func billingFlatPriceExplicitFields(record *modelCatalogRecord, layer string) ma
 	}
 	explicit["input"] = override.InputCostPerToken != nil
 	explicit["input_priority"] = override.InputCostPerTokenPriority != nil
+	explicit["image_input"] = override.InputCostPerImageToken != nil
 	explicit["output"] = override.OutputCostPerToken != nil
 	explicit["output_priority"] = override.OutputCostPerTokenPriority != nil
 	explicit["cache_create"] = override.CacheCreationInputTokenCost != nil

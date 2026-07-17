@@ -191,6 +191,7 @@ export default {
             },
             labels: {
                 input_price: "输入",
+                image_input_price: "图片输入",
                 output_price: "输出",
                 cache_price: "缓存",
                 cache_creation: "缓存写入",

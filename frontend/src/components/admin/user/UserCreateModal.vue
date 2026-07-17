@@ -123,6 +123,7 @@ const form = reactive({
 const { loading, submit } = useForm({
   form,
   submitFn: async (data) => {
+    const stepUpTotp = data.role === 'admin' ? requestStepUpTotp() : undefined
     const payload = {
       ...data,
       api_key_access_time_policy: data.enable_api_key_access_time_policy
@@ -130,11 +131,19 @@ const { loading, submit } = useForm({
         : undefined,
     }
     delete (payload as { enable_api_key_access_time_policy?: boolean }).enable_api_key_access_time_policy
-    await adminAPI.users.create(payload)
+    await adminAPI.users.create(payload, { stepUpTotp })
     emit('success'); emit('close')
   },
   successMsg: t('admin.users.userCreated')
 })
+
+const requestStepUpTotp = (): string => {
+  const code = window.prompt(t('admin.users.form.stepUpTotpPrompt'))?.trim()
+  if (!code) {
+    throw new Error(t('admin.users.form.stepUpTotpRequired'))
+  }
+  return code
+}
 
 watch(() => props.show, (v) => {
   if(v) Object.assign(form, {

@@ -85,6 +85,7 @@ type BillingSimulationCharges struct {
 	CacheReadTokens           float64 `json:"cache_read_tokens,omitempty"`
 	CacheStorageTokenHours    float64 `json:"cache_storage_token_hours,omitempty"`
 	ImageOutputs              float64 `json:"image_outputs,omitempty"`
+	ImageInputTokens          float64 `json:"image_input_tokens,omitempty"`
 	VideoRequests             float64 `json:"video_requests,omitempty"`
 	FileSearchEmbeddingTokens float64 `json:"file_search_embedding_tokens,omitempty"`
 	FileSearchRetrievalTokens float64 `json:"file_search_retrieval_tokens,omitempty"`
@@ -107,6 +108,7 @@ type BillingSimulationInput struct {
 	Charges        BillingSimulationCharges `json:"charges,omitempty"`
 
 	InputTokens         float64 `json:"input_tokens,omitempty"`
+	ImageInputTokens    float64 `json:"image_input_tokens,omitempty"`
 	OutputTokens        float64 `json:"output_tokens,omitempty"`
 	CacheCreationTokens float64 `json:"cache_creation_tokens,omitempty"`
 	CacheReadTokens     float64 `json:"cache_read_tokens,omitempty"`
@@ -266,6 +268,7 @@ const (
 	BillingChargeSlotCacheCreate              = "cache_create"
 	BillingChargeSlotCacheRead                = "cache_read"
 	BillingChargeSlotCacheStorageTokenHour    = "cache_storage_token_hour"
+	BillingChargeSlotImageInput               = "image_input"
 	BillingChargeSlotImageOutput              = "image_output"
 	BillingChargeSlotVideoRequest             = "video_request"
 	BillingChargeSlotFileSearchEmbeddingToken = "file_search_embedding_token"

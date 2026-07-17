@@ -445,11 +445,15 @@ func effectiveFlatPricingFromForm(metadata billingPricingFormMetadata, form Bill
 	pricing := &ModelCatalogPricing{}
 
 	inputPrice := billingPricingEffectiveFieldValue(form, billingDiscountFieldInputPrice)
+	imageInputPrice := billingPricingEffectiveFieldValue(form, billingDiscountFieldImageInputPrice)
 	outputPrice := billingPricingEffectiveFieldValue(form, billingDiscountFieldOutputPrice)
 	cachePrice := billingPricingEffectiveFieldValue(form, billingDiscountFieldCachePrice)
 
 	if metadata.InputSupported {
 		pricing.InputCostPerToken = cloneBillingFloat64(inputPrice)
+	}
+	if metadata.InputSupported || imageInputPrice != nil {
+		pricing.InputCostPerImageToken = cloneBillingFloat64(imageInputPrice)
 	}
 	switch metadata.OutputChargeSlot {
 	case BillingChargeSlotImageOutput:
@@ -521,7 +525,7 @@ func canPersistAsFlatPricing(raw BillingPriceItem) bool {
 		tier = ""
 	}
 	switch slot {
-	case BillingChargeSlotTextInput, BillingChargeSlotTextOutput:
+	case BillingChargeSlotTextInput, BillingChargeSlotImageInput, BillingChargeSlotTextOutput:
 		if tier != "" && tier != BillingServiceTierPriority {
 			return false
 		}

@@ -244,6 +244,7 @@ const form = reactive<SettingsForm>({
   backend_mode_enabled: false,
   maintenance_mode_enabled: false,
   admin_compliance_enabled: false,
+  audit_log_retention_days: 180,
   custom_menu_items: [] as CustomMenuItem[],
   login_agreement_enabled: false,
   login_agreement_mode: 'checkbox',
@@ -838,6 +839,10 @@ async function saveSettings() {
         form.openai_advanced_scheduler_weight_session_sticky.trim(),
       maintenance_mode_enabled: form.maintenance_mode_enabled,
       admin_compliance_enabled: form.admin_compliance_enabled,
+      audit_log_retention_days: Math.min(
+        3650,
+        Math.max(1, Math.floor(Number(form.audit_log_retention_days) || 180))
+      ),
       custom_menu_items: form.custom_menu_items,
       login_agreement_enabled: form.login_agreement_enabled,
       login_agreement_mode: form.login_agreement_mode,

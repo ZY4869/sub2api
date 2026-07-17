@@ -27,6 +27,7 @@ func finalizeCostBreakdownCurrency(breakdown *CostBreakdown, pricing *ModelPrici
 	}
 	breakdown.Currency = currency
 	breakdown.InputCost = NormalizeBillingAmount(breakdown.InputCost)
+	breakdown.ImageInputCost = NormalizeBillingAmount(breakdown.ImageInputCost)
 	breakdown.OutputCost = NormalizeBillingAmount(breakdown.OutputCost)
 	breakdown.CacheCreationCost = NormalizeBillingAmount(breakdown.CacheCreationCost)
 	breakdown.CacheReadCost = NormalizeBillingAmount(breakdown.CacheReadCost)

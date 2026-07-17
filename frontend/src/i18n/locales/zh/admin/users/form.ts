@@ -14,4 +14,6 @@ export default {
     concurrencyLabel: "并发数",
     statusLabel: "状态",
     selectStatus: "选择状态",
+    stepUpTotpPrompt: "此操作会创建或提升管理员账号，请输入当前管理员的 2FA 验证码。",
+    stepUpTotpRequired: "需要 2FA 验证码才能创建或提升管理员账号。",
 }

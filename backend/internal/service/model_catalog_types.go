@@ -21,6 +21,7 @@ type ModelCatalogPricing struct {
 	InputTokenThreshold                      *int       `json:"input_token_threshold,omitempty"`
 	InputCostPerTokenAboveThreshold          *float64   `json:"input_cost_per_token_above_threshold,omitempty"`
 	InputCostPerTokenPriorityAboveThreshold  *float64   `json:"input_cost_per_token_priority_above_threshold,omitempty"`
+	InputCostPerImageToken                   *float64   `json:"input_cost_per_image_token,omitempty"`
 	OutputCostPerToken                       *float64   `json:"output_cost_per_token,omitempty"`
 	OutputCostPerTokenPriority               *float64   `json:"output_cost_per_token_priority,omitempty"`
 	OutputTokenThreshold                     *int       `json:"output_token_threshold,omitempty"`

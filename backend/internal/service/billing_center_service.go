@@ -369,6 +369,7 @@ func (s *BillingCenterService) CalculateGeminiCost(ctx context.Context, input Ge
 
 func (s *BillingCenterService) buildGeminiCalculationCharges(input GeminiBillingCalculationInput, classification *GeminiRequestClassification) BillingSimulationCharges {
 	charges := input.Charges
+	textInputTokens, imageInputTokens := splitTextAndImageInputTokens(input.Tokens)
 	inputModality := "text"
 	outputModality := "text"
 	operationType := "generate_content"
@@ -379,12 +380,15 @@ func (s *BillingCenterService) buildGeminiCalculationCharges(input GeminiBilling
 		operationType = normalizeBillingDimension(classification.OperationType, operationType)
 		groundingKind = normalizeBillingDimension(classification.GroundingKind, "")
 	}
-	if charges.TextInputTokens == 0 && charges.AudioInputTokens == 0 && input.Tokens.InputTokens > 0 {
+	if charges.TextInputTokens == 0 && charges.AudioInputTokens == 0 && textInputTokens > 0 {
 		if inputModality == "audio" {
-			charges.AudioInputTokens = float64(input.Tokens.InputTokens)
+			charges.AudioInputTokens = float64(textInputTokens)
 		} else {
-			charges.TextInputTokens = float64(input.Tokens.InputTokens)
+			charges.TextInputTokens = float64(textInputTokens)
 		}
+	}
+	if charges.ImageInputTokens == 0 && imageInputTokens > 0 {
+		charges.ImageInputTokens = float64(imageInputTokens)
 	}
 	if charges.TextOutputTokens == 0 && charges.AudioOutputTokens == 0 && input.Tokens.OutputTokens > 0 {
 		if outputModality == "audio" {
@@ -411,11 +415,11 @@ func (s *BillingCenterService) buildGeminiCalculationCharges(input GeminiBilling
 	switch operationType {
 	case "file_search_embedding":
 		if charges.FileSearchEmbeddingTokens == 0 {
-			charges.FileSearchEmbeddingTokens = float64(input.Tokens.InputTokens)
+			charges.FileSearchEmbeddingTokens = float64(textInputTokens)
 		}
 	case "file_search_retrieval":
 		if charges.FileSearchRetrievalTokens == 0 {
-			charges.FileSearchRetrievalTokens = float64(input.Tokens.InputTokens)
+			charges.FileSearchRetrievalTokens = float64(textInputTokens)
 		}
 	}
 	switch groundingKind {
@@ -552,6 +556,10 @@ func costBreakdownFromSimulationWithMetadata(result *BillingSimulationResult, me
 	for _, line := range result.Lines {
 		switch line.Unit {
 		case BillingUnitInputToken:
+			if line.ChargeSlot == BillingChargeSlotImageInput {
+				cost.ImageInputCost += line.Cost
+				continue
+			}
 			cost.InputCost += line.Cost
 		case BillingUnitCacheCreateToken, BillingUnitCacheStorageTokenHour:
 			cost.CacheCreationCost += line.Cost
@@ -603,7 +611,7 @@ func buildLegacyGeminiFallbackLines(
 	rateMultiplier = normalizeExplicitRateMultiplier(rateMultiplier)
 	flatRateMultiplier = normalizeExplicitRateMultiplier(flatRateMultiplier)
 
-	totalInputTokens := int(charges.TextInputTokens + charges.AudioInputTokens)
+	totalInputTokens := int(charges.TextInputTokens + charges.AudioInputTokens + charges.ImageInputTokens)
 	totalOutputTokens := int(charges.TextOutputTokens + charges.AudioOutputTokens)
 	longContext := resolveBillingContextWindow(charges, pricing.LongContextInputThreshold) == BillingContextWindowLong
 
@@ -613,7 +621,7 @@ func buildLegacyGeminiFallbackLines(
 	usingPriorityPricing := normalizeBillingServiceTier(serviceTier) == BillingServiceTierPriority
 	if usingPriorityPricing {
 		switch {
-		case (charges.TextInputTokens > 0 || charges.AudioInputTokens > 0) && pricing.InputPricePerTokenPriority <= 0:
+		case (charges.TextInputTokens > 0 || charges.AudioInputTokens > 0 || charges.ImageInputTokens > 0) && pricing.InputPricePerTokenPriority <= 0:
 			return nil, &CostBreakdown{}, "priority_price_missing", nil
 		case (charges.TextOutputTokens > 0 || charges.AudioOutputTokens > 0) && pricing.OutputPricePerTokenPriority <= 0:
 			return nil, &CostBreakdown{}, "priority_price_missing", nil
@@ -653,11 +661,16 @@ func buildLegacyGeminiFallbackLines(
 	textOutputSlot := BillingChargeSlotTextOutput
 	textInputPrice := inputPrice
 	textOutputPrice := outputPrice
+	imageInputPrice := pricing.ImageInputPricePerToken
+	if imageInputPrice <= 0 {
+		imageInputPrice = textInputPrice
+	}
 	if longContext {
 		textInputSlot = BillingChargeSlotTextInputLongContext
 		textOutputSlot = BillingChargeSlotTextOutputLongContext
 		if pricing.LongContextInputMultiplier > 0 {
 			textInputPrice *= pricing.LongContextInputMultiplier
+			imageInputPrice *= pricing.LongContextInputMultiplier
 		}
 		if pricing.LongContextOutputMultiplier > 0 {
 			textOutputPrice *= pricing.LongContextOutputMultiplier
@@ -712,6 +725,7 @@ func buildLegacyGeminiFallbackLines(
 
 	appendLine(textInputSlot, BillingUnitInputToken, charges.TextInputTokens, textInputPrice)
 	appendLine(BillingChargeSlotAudioInput, BillingUnitInputToken, charges.AudioInputTokens, inputPrice)
+	appendLine(BillingChargeSlotImageInput, BillingUnitInputToken, charges.ImageInputTokens, imageInputPrice)
 	appendLine(textOutputSlot, BillingUnitOutputToken, charges.TextOutputTokens, textOutputPrice)
 	appendLine(BillingChargeSlotAudioOutput, BillingUnitOutputToken, charges.AudioOutputTokens, outputPrice)
 	appendLine(BillingChargeSlotCacheCreate, BillingUnitCacheCreateToken, charges.CacheCreateTokens, cacheCreatePrice)
@@ -733,6 +747,10 @@ func buildLegacyGeminiFallbackLines(
 		cost.ActualCost += line.ActualCost
 		switch line.Unit {
 		case BillingUnitInputToken:
+			if line.ChargeSlot == BillingChargeSlotImageInput {
+				cost.ImageInputCost += line.Cost
+				continue
+			}
 			cost.InputCost += line.Cost
 		case BillingUnitCacheCreateToken, BillingUnitCacheStorageTokenHour:
 			cost.CacheCreationCost += line.Cost

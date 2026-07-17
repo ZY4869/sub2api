@@ -228,6 +228,20 @@ func (s *stubAdminService) CreateGroup(ctx context.Context, input *service.Creat
 	return &group, nil
 }
 
+func (s *stubAdminService) DuplicateGroup(ctx context.Context, id int64, input *service.DuplicateGroupInput) (*service.Group, error) {
+	source, err := s.GetGroup(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		name = source.Name + " 副本"
+	}
+	group := service.Group{ID: int64(200 + len(s.groups)), Name: name, Platform: source.Platform, Status: service.StatusActive}
+	s.groups = append(s.groups, group)
+	return &group, nil
+}
+
 func (s *stubAdminService) UpdateGroup(ctx context.Context, id int64, input *service.UpdateGroupInput) (*service.Group, error) {
 	s.lastUpdateGroupInput = input
 	group := service.Group{ID: id, Name: input.Name, Platform: service.PlatformAnthropic, Status: service.StatusActive}

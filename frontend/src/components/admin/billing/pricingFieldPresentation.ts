@@ -5,6 +5,7 @@ import type {
 
 export type RootNumberField =
   | 'input_price'
+  | 'image_input_price'
   | 'output_price'
   | 'cache_price'
   | 'input_price_above_threshold'

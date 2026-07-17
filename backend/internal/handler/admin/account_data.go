@@ -113,15 +113,23 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 		return
 	}
 
-	accounts, err := h.resolveExportAccounts(ctx, selectedIDs, c)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-
 	includeProxies, err := parseIncludeProxies(c)
 	if err != nil {
 		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if !h.requireStepUpTotp(c, "admin.accounts.export") {
+		return
+	}
+
+	accounts, err := h.resolveExportAccounts(ctx, selectedIDs, c)
+	if err != nil {
+		h.recordAdminAudit(c, "admin.accounts.export", "account", "", service.AuditStatusFailure, map[string]any{
+			"selected_count":  len(selectedIDs),
+			"include_proxies": includeProxies,
+		})
+		response.ErrorFrom(c, err)
 		return
 	}
 
@@ -129,6 +137,11 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 	if includeProxies {
 		proxies, err = h.resolveExportProxies(ctx, accounts)
 		if err != nil {
+			h.recordAdminAudit(c, "admin.accounts.export", "account", "", service.AuditStatusFailure, map[string]any{
+				"account_count":   len(accounts),
+				"selected_count":  len(selectedIDs),
+				"include_proxies": includeProxies,
+			})
 			response.ErrorFrom(c, err)
 			return
 		}
@@ -198,6 +211,12 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 		Accounts:   dataAccounts,
 	}
 
+	h.recordAdminAudit(c, "admin.accounts.export", "account", "", service.AuditStatusSuccess, map[string]any{
+		"account_count":   len(accounts),
+		"proxy_count":     len(proxies),
+		"selected_count":  len(selectedIDs),
+		"include_proxies": includeProxies,
+	})
 	response.Success(c, payload)
 }
 

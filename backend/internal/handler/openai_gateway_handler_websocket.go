@@ -161,6 +161,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	if h.gatewayService.ShouldUseOpenAIWSHTTPBridgeForIngress(firstMessage) {
 		requiredTransport = service.OpenAIUpstreamTransportHTTPSSE
 	}
+	requiredCapability := service.OpenAIEndpointCapability("")
+	if _, hasImageTool := detectResponsesImageToolRequest(firstMessage); hasImageTool {
+		requiredCapability = service.OpenAIEndpointCapabilityResponses
+	}
 	for {
 		if isRequestCanceled(ctx, nil) {
 			return
@@ -210,7 +214,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			firstMessage,
 			openAIWSIngressFallbackSessionSeed(subject.UserID, currentAPIKey.ID, currentAPIKey.GroupID),
 		)
-		selection, scheduleDecision, err = h.gatewayService.SelectAccountWithScheduler(
+		selection, scheduleDecision, err = h.gatewayService.SelectAccountWithSchedulerForCapability(
 			ctx,
 			currentAPIKey.GroupID,
 			previousResponseID,
@@ -218,6 +222,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			runtimeSelectionModel,
 			nil,
 			requiredTransport,
+			requiredCapability,
 		)
 		if isRequestCanceled(ctx, err) {
 			return

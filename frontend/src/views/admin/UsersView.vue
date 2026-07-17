@@ -29,6 +29,7 @@
           @toggle-column="toggleColumn"
           @open-attributes="showAttributesModal = true"
           @open-batch-concurrency="showBatchConcurrencyModal = true"
+          @open-batch-platform-quotas="showBatchPlatformQuotaModal = true"
           @create="showCreateModal = true"
         />
       </template>
@@ -176,6 +177,18 @@
       @close="showBatchConcurrencyModal = false"
       @success="handleBatchConcurrencySuccess"
     />
+    <BatchPlatformQuotaModal
+      :show="showBatchPlatformQuotaModal"
+      :matched-count="pagination.total"
+      :search="searchQuery"
+      :role="batchConcurrencyRole"
+      :status="batchConcurrencyStatus"
+      :group-name="filters.group"
+      :api-key-group-id="filters.apiKeyGroupId"
+      :attributes="batchAttributeFilters"
+      @close="showBatchPlatformQuotaModal = false"
+      @success="handleBatchPlatformQuotaSuccess"
+    />
   </AppLayout>
 </template>
 
@@ -205,6 +218,7 @@ import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryM
 import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 import BatchConcurrencyModal from '@/components/admin/user/BatchConcurrencyModal.vue'
+import BatchPlatformQuotaModal from '@/components/admin/user/BatchPlatformQuotaModal.vue'
 import UsersToolbar from './users/UsersToolbar.vue'
 import UsersTable from './users/UsersTable.vue'
 
@@ -519,6 +533,7 @@ const showDeleteDialog = ref(false)
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
 const showBatchConcurrencyModal = ref(false)
+const showBatchPlatformQuotaModal = ref(false)
 const editingUser = ref<AdminUser | null>(null)
 const deletingUser = ref<AdminUser | null>(null)
 const viewingUser = ref<AdminUser | null>(null)
@@ -845,6 +860,10 @@ const applyFilter = () => {
 }
 
 const handleBatchConcurrencySuccess = () => {
+  loadUsers()
+}
+
+const handleBatchPlatformQuotaSuccess = () => {
   loadUsers()
 }
 

@@ -100,3 +100,31 @@ func TestImageBatchJobResponseDoesNotExposeInternalRoutingFields(t *testing.T) {
 	require.NotContains(t, payload, "provider_batch")
 	require.NotContains(t, payload, "api_key")
 }
+
+func TestImageBatchJobResponseMapsAsyncTaskStatusesWithoutProviderTaskID(t *testing.T) {
+	for _, status := range []ImageBatchJobStatus{
+		ImageBatchJobSubmitted,
+		ImageBatchJobRunning,
+		ImageBatchJobCompleted,
+		ImageBatchJobFailed,
+		ImageBatchJobCancelled,
+	} {
+		resp := ImageBatchJobToResponse(&ImageBatchJob{
+			ID:                "batch_" + string(status),
+			Provider:          ImageBatchProviderGemini,
+			DisplayModelID:    "imagen",
+			Status:            status,
+			ProviderBatchName: "providers/internal/tasks/" + string(status),
+			CreatedAt:         time.Now().UTC(),
+			UpdatedAt:         time.Now().UTC(),
+		})
+
+		raw, err := json.Marshal(resp)
+		require.NoError(t, err)
+		payload := string(raw)
+		require.Contains(t, payload, `"status":"`+string(status)+`"`)
+		require.NotContains(t, payload, "providers/internal/tasks")
+		require.NotContains(t, payload, "task_id")
+		require.NotContains(t, payload, "provider_batch")
+	}
+}

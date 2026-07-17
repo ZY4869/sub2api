@@ -75,15 +75,24 @@ func TestUserHandlerEndpoints(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	createBody := map[string]any{"email": "new@example.com", "password": "pass123", "role": "admin", "balance": 1, "concurrency": 2}
-	body, _ := json.Marshal(createBody)
+	createAdminBody := map[string]any{"email": "admin-new@example.com", "password": "pass123", "role": "admin", "balance": 1, "concurrency": 2}
+	body, _ := json.Marshal(createAdminBody)
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/users", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	require.Nil(t, adminSvc.lastCreateUserInput)
+
+	createBody := map[string]any{"email": "new@example.com", "password": "pass123", "role": "user", "balance": 1, "concurrency": 2}
+	body, _ = json.Marshal(createBody)
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/users", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.NotNil(t, adminSvc.lastCreateUserInput)
-	require.Equal(t, "admin", adminSvc.lastCreateUserInput.Role)
+	require.Equal(t, "user", adminSvc.lastCreateUserInput.Role)
 
 	updateBody := map[string]any{"email": "updated@example.com", "role": "user"}
 	body, _ = json.Marshal(updateBody)

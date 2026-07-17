@@ -143,7 +143,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 		// API Key 绑定的分组被停用或删除后，业务网关必须阻断。
 		// /v1/usage 继续放行，便于 Key 持有人自查并获得 group_unavailable 状态。
-		skipBilling := c.Request.URL.Path == "/v1/usage"
+		skipBilling := isAPIKeyBillingBypassPath(c.Request.URL.Path)
 		if !skipBilling && apiKeyHasGroupBindings(apiKey) && !apiKeyHasUsableGroup(apiKey) {
 			AbortWithError(c, 403, "GROUP_UNAVAILABLE", "API key group is unavailable")
 			return
@@ -346,6 +346,15 @@ func isUsableAPIKeyGroupForAPIKey(apiKey *service.APIKey, group *service.Group) 
 
 func isUsableAPIKeyGroup(group *service.Group) bool {
 	return service.IsGroupContextValid(group) && group.IsActive()
+}
+
+func isAPIKeyBillingBypassPath(path string) bool {
+	switch strings.TrimRight(strings.ToLower(strings.TrimSpace(path)), "/") {
+	case "/v1/usage", "/v1/sub2api/billing":
+		return true
+	default:
+		return false
+	}
 }
 
 func abortAPIKeyTimeAccessDenied(c *gin.Context, eval service.TimeAccessEvaluation) {

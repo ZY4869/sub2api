@@ -98,6 +98,7 @@ func (s *BillingService) CalculateCostWithLongContextWithContext(
 	// Merge the two partial cost breakdowns.
 	merged := &CostBreakdown{
 		InputCost:         inRangeCost.InputCost + outRangeCost.InputCost,
+		ImageInputCost:    inRangeCost.ImageInputCost + outRangeCost.ImageInputCost,
 		OutputCost:        inRangeCost.OutputCost,
 		CacheCreationCost: inRangeCost.CacheCreationCost + outRangeCost.CacheCreationCost,
 		CacheReadCost:     inRangeCost.CacheReadCost + outRangeCost.CacheReadCost,
@@ -140,5 +141,20 @@ func splitLongContextInputTokens(tokens UsageTokens, threshold int) (UsageTokens
 	inRange.CacheCreation5mTokens, overflow.CacheCreation5mTokens = take(tokens.CacheCreation5mTokens)
 	inRange.CacheCreation1hTokens, overflow.CacheCreation1hTokens = take(tokens.CacheCreation1hTokens)
 	inRange.InputTokens, overflow.InputTokens = take(tokens.InputTokens)
+	inRange.ImageInputTokens = minInt(tokens.ImageInputTokens, inRange.InputTokens)
+	overflow.ImageInputTokens = tokens.ImageInputTokens - inRange.ImageInputTokens
+	if overflow.ImageInputTokens < 0 {
+		overflow.ImageInputTokens = 0
+	}
+	if overflow.ImageInputTokens > overflow.InputTokens {
+		overflow.ImageInputTokens = overflow.InputTokens
+	}
 	return inRange, overflow
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

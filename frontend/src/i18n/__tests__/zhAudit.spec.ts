@@ -17,6 +17,24 @@ describe('zh locale audit', () => {
     expect(zh.admin.accounts.kiroAuth.region).not.toContain('Region')
   })
 
+  it('keeps account usage window labels fully localized in zh', () => {
+    const values = [
+      zh.admin.accounts.columns.usageWindows,
+      zh.admin.accounts.usageWindow.snapshotUpdatedAt,
+      zh.admin.accounts.usageWindow.displayMode.used,
+      zh.admin.accounts.usageWindow.resetQuotaRemaining,
+    ].join('\n')
+
+    expect(values).toContain('用量窗口')
+    expect(values).toContain('快照')
+    expect(values).toContain('已用')
+    expect(values).toContain('剩余')
+    expect(values).not.toContain('Usage Windows')
+    expect(values).not.toContain('Snapshot')
+    expect(values).not.toContain('Used')
+    expect(values).not.toContain('resets left')
+  })
+
   it('exposes merged billing and channels locale branches in the final zh tree', () => {
     expect(zh.admin.channels.nav).toBeTruthy()
     expect(zh.admin.channels.title).toBeTruthy()

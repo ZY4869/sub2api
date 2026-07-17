@@ -91,6 +91,7 @@ func setupAccountDataRouter() (*gin.Engine, *stubAdminService) {
 		nil,
 		nil,
 	)
+	h.SetAdminSecurityHelper(allowStepUpForHandlerTests())
 
 	router.GET("/api/v1/admin/accounts/data", h.ExportData)
 	router.POST("/api/v1/admin/accounts/data", h.ImportData)
@@ -99,6 +100,34 @@ func setupAccountDataRouter() (*gin.Engine, *stubAdminService) {
 	router.POST("/api/v1/admin/accounts/data/import-jobs/:job_id/cancel", h.CancelImportJob)
 	router.POST("/api/v1/admin/accounts/data/import-jobs/:job_id/group-bindings", h.BindImportJobGroups)
 	return router, adminSvc
+}
+
+func TestExportDataRequiresStepUp(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	adminSvc := newStubAdminService()
+	h := NewAccountHandler(
+		adminSvc,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	router.GET("/api/v1/admin/accounts/data", h.ExportData)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/data", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	require.Contains(t, rec.Body.String(), "STEP_UP_NOT_CONFIGURED")
 }
 
 func waitImportJobStatus(t *testing.T, router *gin.Engine, jobID string, statuses ...string) AccountImportJobSnapshot {

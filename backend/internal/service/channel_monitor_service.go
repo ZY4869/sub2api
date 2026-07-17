@@ -139,6 +139,78 @@ func (s *ChannelMonitorService) CreateWithOptionalTemplate(ctx context.Context, 
 	return created, nil
 }
 
+type ChannelMonitorDuplicateInput struct {
+	Name string
+}
+
+func (s *ChannelMonitorService) Duplicate(ctx context.Context, id int64, input *ChannelMonitorDuplicateInput) (*ChannelMonitor, error) {
+	source, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if source == nil {
+		return nil, ErrChannelMonitorNotFound
+	}
+	name := ""
+	if input != nil {
+		name = strings.TrimSpace(input.Name)
+	}
+	if name == "" {
+		name = duplicateChannelMonitorName(source.Name)
+	}
+	monitor := &ChannelMonitor{
+		Name:                 name,
+		Provider:             source.Provider,
+		ProbeMode:            source.ProbeMode,
+		RequestProtocol:      source.RequestProtocol,
+		Endpoint:             source.Endpoint,
+		APIKeyEncrypted:      cloneStringPtr(source.APIKeyEncrypted),
+		IntervalSeconds:      source.IntervalSeconds,
+		JitterSeconds:        source.JitterSeconds,
+		Enabled:              false,
+		AccountIDs:           append([]int64(nil), source.AccountIDs...),
+		PrimaryModelID:       source.PrimaryModelID,
+		AdditionalModelIDs:   append([]string(nil), source.AdditionalModelIDs...),
+		ModelSourceProtocols: cloneChannelMonitorStringMap(source.ModelSourceProtocols),
+		ModelProbeStrategy:   source.ModelProbeStrategy,
+		TestPromptTemplate:   source.TestPromptTemplate,
+		TemplateID:           cloneInt64Ptr(source.TemplateID),
+		ExtraHeaders:         cloneChannelMonitorStringMap(source.ExtraHeaders),
+		BodyOverrideMode:     source.BodyOverrideMode,
+		BodyOverride:         cloneJSONMap(source.BodyOverride),
+		OpenAIAPIMode:        source.OpenAIAPIMode,
+	}
+	return s.Create(ctx, monitor, nil)
+}
+
+func duplicateChannelMonitorName(name string) string {
+	base := strings.TrimSpace(name)
+	if base == "" {
+		base = "Channel Monitor"
+	}
+	const suffix = " 副本"
+	limit := 100 - len([]rune(suffix))
+	runes := []rune(base)
+	if limit < 1 {
+		limit = 1
+	}
+	if len(runes) > limit {
+		runes = runes[:limit]
+	}
+	return string(runes) + suffix
+}
+
+func cloneChannelMonitorStringMap(value map[string]string) map[string]string {
+	if len(value) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(value))
+	for key, item := range value {
+		out[key] = item
+	}
+	return out
+}
+
 func (s *ChannelMonitorService) Update(ctx context.Context, monitor *ChannelMonitor, plaintextAPIKey *string) (*ChannelMonitor, error) {
 	if monitor == nil {
 		return nil, errors.New("nil monitor")

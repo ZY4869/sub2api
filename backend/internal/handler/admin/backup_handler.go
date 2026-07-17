@@ -10,6 +10,7 @@ import (
 type BackupHandler struct {
 	backupService *service.BackupService
 	userService   *service.UserService
+	adminSecurity *AdminSecurityHelper
 }
 
 func NewBackupHandler(backupService *service.BackupService, userService *service.UserService) *BackupHandler {
@@ -17,6 +18,27 @@ func NewBackupHandler(backupService *service.BackupService, userService *service
 		backupService: backupService,
 		userService:   userService,
 	}
+}
+
+func (h *BackupHandler) SetAdminSecurityHelper(helper *AdminSecurityHelper) {
+	if h == nil {
+		return
+	}
+	h.adminSecurity = helper
+}
+
+func (h *BackupHandler) requireStepUpTotp(c *gin.Context, scope string) bool {
+	if h == nil || h.adminSecurity == nil {
+		return (*AdminSecurityHelper)(nil).RequireStepUpTotp(c, scope)
+	}
+	return h.adminSecurity.RequireStepUpTotp(c, scope)
+}
+
+func (h *BackupHandler) recordAdminAudit(c *gin.Context, action string, targetType string, targetID string, status string, metadata map[string]any) {
+	if h == nil || h.adminSecurity == nil {
+		return
+	}
+	h.adminSecurity.RecordAudit(c, action, targetType, targetID, status, metadata)
 }
 
 // ─── S3 配置 ───
@@ -36,11 +58,16 @@ func (h *BackupHandler) UpdateS3Config(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if !h.requireStepUpTotp(c, "admin.backups.s3_config.update") {
+		return
+	}
 	cfg, err := h.backupService.UpdateS3Config(c.Request.Context(), req)
 	if err != nil {
+		h.recordAdminAudit(c, "admin.backups.s3_config.update", "backup_s3_config", "", service.AuditStatusFailure, backupS3ConfigAuditMetadata(req))
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.recordAdminAudit(c, "admin.backups.s3_config.update", "backup_s3_config", "", service.AuditStatusSuccess, backupS3ConfigAuditMetadata(*cfg))
 	response.Success(c, cfg)
 }
 
@@ -151,12 +178,27 @@ func (h *BackupHandler) GetDownloadURL(c *gin.Context) {
 		response.BadRequest(c, "backup ID is required")
 		return
 	}
+	if !h.requireStepUpTotp(c, "admin.backups.download_url") {
+		return
+	}
 	url, err := h.backupService.GetBackupDownloadURL(c.Request.Context(), backupID)
 	if err != nil {
+		h.recordAdminAudit(c, "admin.backups.download_url", "backup", backupID, service.AuditStatusFailure, nil)
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.recordAdminAudit(c, "admin.backups.download_url", "backup", backupID, service.AuditStatusSuccess, nil)
 	response.Success(c, gin.H{"url": url})
+}
+
+func backupS3ConfigAuditMetadata(cfg service.BackupS3Config) map[string]any {
+	return map[string]any{
+		"endpoint":         cfg.Endpoint,
+		"region":           cfg.Region,
+		"bucket":           cfg.Bucket,
+		"prefix":           cfg.Prefix,
+		"force_path_style": cfg.ForcePathStyle,
+	}
 }
 
 // ─── 恢复操作（需要重新输入管理员密码） ───

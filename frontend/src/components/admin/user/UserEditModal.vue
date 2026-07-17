@@ -180,6 +180,8 @@ const handleUpdateUser = async () => {
   }
   submitting.value = true
   try {
+    const stepUpTotp =
+      props.user.role !== 'admin' && form.role === 'admin' ? requestStepUpTotp() : undefined
     const data: any = {
       email: form.email,
       username: form.username,
@@ -194,12 +196,20 @@ const handleUpdateUser = async () => {
       concurrency: form.concurrency
     }
     if (form.password.trim()) data.password = form.password.trim()
-    await adminAPI.users.update(props.user.id, data)
+    await adminAPI.users.update(props.user.id, data, { stepUpTotp })
     if (Object.keys(form.customAttributes).length > 0) await adminAPI.userAttributes.updateUserAttributeValues(props.user.id, form.customAttributes)
     appStore.showSuccess(t('admin.users.userUpdated'))
     emit('success'); emit('close')
   } catch (e: any) {
     appStore.showError(e.response?.data?.detail || t('admin.users.failedToUpdate'))
   } finally { submitting.value = false }
+}
+
+const requestStepUpTotp = (): string => {
+  const code = window.prompt(t('admin.users.form.stepUpTotpPrompt'))?.trim()
+  if (!code) {
+    throw new Error(t('admin.users.form.stepUpTotpRequired'))
+  }
+  return code
 }
 </script>

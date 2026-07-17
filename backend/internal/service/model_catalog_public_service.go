@@ -427,6 +427,7 @@ func publicModelCatalogPriceDisplayFromForm(
 	form = normalizeBillingPricingLayerFormForLayer(form, BillingLayerSale)
 	primaryIDs := publicModelCatalogPrimaryFieldIDs(metadata)
 	secondaryIDs := []string{
+		billingDiscountFieldImageInputPrice,
 		publicModelCatalogFieldCacheCreation,
 		publicModelCatalogFieldCacheRead,
 		publicModelCatalogFieldCache5m,
@@ -470,6 +471,7 @@ func publicModelCatalogPrimaryFieldIDs(metadata billingPricingFormMetadata) []st
 		if metadata.InputSupported {
 			return []string{
 				billingDiscountFieldInputPrice,
+				billingDiscountFieldImageInputPrice,
 				billingDiscountFieldOutputPrice,
 				publicModelCatalogFieldCacheCreation,
 				publicModelCatalogFieldCacheRead,
@@ -521,7 +523,10 @@ func publicModelCatalogPriceEntryForField(
 
 func publicModelCatalogFieldUnit(metadata billingPricingFormMetadata, fieldID string) string {
 	switch fieldID {
-	case billingDiscountFieldInputPrice, billingDiscountFieldInputPriceAboveThreshold, billingDiscountFieldBatchInputPrice:
+	case billingDiscountFieldInputPrice,
+		billingDiscountFieldImageInputPrice,
+		billingDiscountFieldInputPriceAboveThreshold,
+		billingDiscountFieldBatchInputPrice:
 		return billingUnitForChargeSlot(BillingChargeSlotTextInput)
 	case billingDiscountFieldOutputPrice, billingDiscountFieldOutputPriceAboveThreshold, billingDiscountFieldBatchOutputPrice:
 		return billingUnitForChargeSlot(metadata.OutputChargeSlot)

@@ -25,6 +25,7 @@ import requestDetails from './requestDetails'
 import tlsFingerprintProfiles from './tlsFingerprintProfiles'
 import payment from './payment'
 import compliance from './compliance'
+import auditLogs from './auditLogs'
 
 export default {
   admin: {
@@ -55,5 +56,6 @@ export default {
     tlsFingerprintProfiles,
     payment,
     compliance,
+    auditLogs,
   },
 }

@@ -179,6 +179,13 @@
                 <span class="text-xs">{{ t('admin.groups.rateMultipliers') }}</span>
               </button>
               <button
+                @click="handleDuplicate(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+              >
+                <Icon name="copy" size="sm" />
+                <span class="text-xs">{{ t('admin.groups.duplicate') }}</span>
+              </button>
+              <button
                 @click="handleDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
@@ -218,6 +225,7 @@ const {
   showCreateModal,
   handleEdit,
   handleRateMultipliers,
+  handleDuplicate,
   handleDelete,
   formatCost,
   getGroupAvailableAccounts,

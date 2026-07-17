@@ -19,5 +19,11 @@ export default {
         totp: "Two-Factor Authentication (2FA)",
         totpHint: "Allow users to use authenticator apps like Google Authenticator",
         totpKeyNotConfigured: "Please configure TOTP_ENCRYPTION_KEY in environment variables first. Generate a key with: openssl rand -hex 32",
+    },
+    securityAudit: {
+        title: "Audit and Security Retention",
+        description: "Control the retention window for sensitive admin operation logs.",
+        retentionDays: "Audit Log Retention Days",
+        retentionDaysHint: "Range 1-3650 days. Cleaning expired audit logs requires 2FA step-up verification.",
     }
 }

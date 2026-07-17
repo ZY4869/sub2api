@@ -94,6 +94,14 @@
         </button>
         <button
           type="button"
+          class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+          @click="$emit('duplicate', row)"
+        >
+          <Icon name="copy" size="sm" />
+          <span class="text-xs">{{ t('admin.channelMonitors.actions.duplicate') }}</span>
+        </button>
+        <button
+          type="button"
           class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
           @click="$emit('delete', row)"
         >
@@ -142,6 +150,7 @@ defineEmits<{
   (e: 'delete', monitor: AdminChannelMonitor): void
   (e: 'run', monitor: AdminChannelMonitor): void
   (e: 'history', monitor: AdminChannelMonitor): void
+  (e: 'duplicate', monitor: AdminChannelMonitor): void
   (e: 'toggleEnabled', monitor: AdminChannelMonitor, enabled: boolean): void
 }>()
 

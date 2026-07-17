@@ -15,6 +15,7 @@ func TestAccountOpenAIEndpointCapabilities_ParseCompatibilityFormats(t *testing.
 		{name: "string aliases", raw: "chat, embedding", want: []OpenAIEndpointCapability{OpenAIEndpointCapabilityChatCompletions, OpenAIEndpointCapabilityEmbeddings}},
 		{name: "json array string", raw: `["embeddings","chat.completions"]`, want: []OpenAIEndpointCapability{OpenAIEndpointCapabilityEmbeddings, OpenAIEndpointCapabilityChatCompletions}},
 		{name: "any slice dedupes and ignores unknown", raw: []any{"embeddings", "openai.embeddings", "unknown"}, want: []OpenAIEndpointCapability{OpenAIEndpointCapabilityEmbeddings}},
+		{name: "responses alias", raw: "responses_api", want: []OpenAIEndpointCapability{OpenAIEndpointCapabilityResponses}},
 		{name: "empty string", raw: " ", want: nil},
 	}
 
@@ -35,10 +36,16 @@ func TestSupportsOpenAIEndpointCapability(t *testing.T) {
 
 	require.True(t, SupportsOpenAIEndpointCapability(apiKey, OpenAIEndpointCapabilityChatCompletions))
 	require.True(t, SupportsOpenAIEndpointCapability(apiKey, OpenAIEndpointCapabilityEmbeddings))
+	require.True(t, SupportsOpenAIEndpointCapability(apiKey, OpenAIEndpointCapabilityAlphaSearch))
+	require.True(t, SupportsOpenAIEndpointCapability(apiKey, OpenAIEndpointCapabilityResponses))
 	require.True(t, SupportsOpenAIEndpointCapability(oauth, OpenAIEndpointCapabilityChatCompletions))
 	require.False(t, SupportsOpenAIEndpointCapability(oauth, OpenAIEndpointCapabilityEmbeddings))
+	require.True(t, SupportsOpenAIEndpointCapability(oauth, OpenAIEndpointCapabilityAlphaSearch))
+	require.True(t, SupportsOpenAIEndpointCapability(oauth, OpenAIEndpointCapabilityResponses))
 	require.True(t, SupportsOpenAIEndpointCapability(deepSeek, OpenAIEndpointCapabilityChatCompletions))
 	require.False(t, SupportsOpenAIEndpointCapability(deepSeek, OpenAIEndpointCapabilityEmbeddings))
+	require.False(t, SupportsOpenAIEndpointCapability(deepSeek, OpenAIEndpointCapabilityAlphaSearch))
+	require.True(t, SupportsOpenAIEndpointCapability(deepSeek, OpenAIEndpointCapabilityResponses))
 
 	restricted := &Account{
 		Platform:    PlatformOpenAI,
@@ -47,4 +54,20 @@ func TestSupportsOpenAIEndpointCapability(t *testing.T) {
 	}
 	require.True(t, SupportsOpenAIEndpointCapability(restricted, OpenAIEndpointCapabilityEmbeddings))
 	require.False(t, SupportsOpenAIEndpointCapability(restricted, OpenAIEndpointCapabilityChatCompletions))
+	require.False(t, SupportsOpenAIEndpointCapability(restricted, OpenAIEndpointCapabilityResponses))
+
+	chatRestricted := &Account{
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Credentials: map[string]any{"api_key": "sk-test", openAIEndpointCapabilitiesCredentialKey: []string{string(OpenAIEndpointCapabilityChatCompletions)}},
+	}
+	require.True(t, SupportsOpenAIEndpointCapability(chatRestricted, OpenAIEndpointCapabilityResponses))
+
+	responsesUnsupported := &Account{
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Credentials: map[string]any{"api_key": "sk-test"},
+		Extra:       map[string]any{openAIResponsesSupportedExtraKey: false},
+	}
+	require.False(t, SupportsOpenAIEndpointCapability(responsesUnsupported, OpenAIEndpointCapabilityResponses))
 }

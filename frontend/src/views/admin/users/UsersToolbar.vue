@@ -209,6 +209,13 @@
         <Icon name="grid" size="md" class="mr-2" />
         {{ t('admin.users.batchConcurrencyAction') }}
       </button>
+      <button
+        @click="emit('open-batch-platform-quotas')"
+        class="btn btn-secondary flex-1 md:flex-initial"
+      >
+        <Icon name="shield" size="md" class="mr-2" />
+        {{ t('admin.users.batchPlatformQuotaAction') }}
+      </button>
       <button @click="emit('create')" class="btn btn-primary flex-1 md:flex-initial">
         <Icon name="plus" size="md" class="mr-2" />
         {{ t('admin.users.createUser') }}
@@ -270,6 +277,7 @@ const emit = defineEmits<{
   'toggle-column': [key: string]
   'open-attributes': []
   'open-batch-concurrency': []
+  'open-batch-platform-quotas': []
   create: []
 }>()
 

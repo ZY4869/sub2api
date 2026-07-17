@@ -71,6 +71,7 @@ export interface BillingSimulationInput {
   grounding_kind: string
   charges?: BillingSimulationCharges
   input_tokens?: number
+  image_input_tokens?: number
   output_tokens?: number
   cache_creation_tokens?: number
   cache_read_tokens?: number
@@ -84,6 +85,7 @@ export interface BillingSimulationCharges {
   text_output_tokens?: number
   audio_input_tokens?: number
   audio_output_tokens?: number
+  image_input_tokens?: number
   cache_create_tokens?: number
   cache_read_tokens?: number
   cache_storage_token_hours?: number
@@ -164,6 +166,7 @@ export interface BillingPricingSimpleSpecial {
 
 export interface BillingPricingLayerForm {
   input_price?: number
+  image_input_price?: number
   output_price?: number
   cache_price?: number
   special_enabled: boolean

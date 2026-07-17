@@ -22430,6 +22430,8 @@ type UsageLogMutation struct {
 	upstream_model                *string
 	input_tokens                  *int
 	addinput_tokens               *int
+	image_input_tokens            *int
+	addimage_input_tokens         *int
 	output_tokens                 *int
 	addoutput_tokens              *int
 	cache_creation_tokens         *int
@@ -22442,6 +22444,8 @@ type UsageLogMutation struct {
 	addcache_creation_1h_tokens   *int
 	input_cost                    *float64
 	addinput_cost                 *float64
+	image_input_cost              *float64
+	addimage_input_cost           *float64
 	output_cost                   *float64
 	addoutput_cost                *float64
 	cache_creation_cost           *float64
@@ -23033,6 +23037,62 @@ func (m *UsageLogMutation) ResetInputTokens() {
 	m.addinput_tokens = nil
 }
 
+// SetImageInputTokens sets the "image_input_tokens" field.
+func (m *UsageLogMutation) SetImageInputTokens(i int) {
+	m.image_input_tokens = &i
+	m.addimage_input_tokens = nil
+}
+
+// ImageInputTokens returns the value of the "image_input_tokens" field in the mutation.
+func (m *UsageLogMutation) ImageInputTokens() (r int, exists bool) {
+	v := m.image_input_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageInputTokens returns the old "image_input_tokens" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldImageInputTokens(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageInputTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageInputTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageInputTokens: %w", err)
+	}
+	return oldValue.ImageInputTokens, nil
+}
+
+// AddImageInputTokens adds i to the "image_input_tokens" field.
+func (m *UsageLogMutation) AddImageInputTokens(i int) {
+	if m.addimage_input_tokens != nil {
+		*m.addimage_input_tokens += i
+	} else {
+		m.addimage_input_tokens = &i
+	}
+}
+
+// AddedImageInputTokens returns the value that was added to the "image_input_tokens" field in this mutation.
+func (m *UsageLogMutation) AddedImageInputTokens() (r int, exists bool) {
+	v := m.addimage_input_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetImageInputTokens resets all changes to the "image_input_tokens" field.
+func (m *UsageLogMutation) ResetImageInputTokens() {
+	m.image_input_tokens = nil
+	m.addimage_input_tokens = nil
+}
+
 // SetOutputTokens sets the "output_tokens" field.
 func (m *UsageLogMutation) SetOutputTokens(i int) {
 	m.output_tokens = &i
@@ -23367,6 +23427,62 @@ func (m *UsageLogMutation) AddedInputCost() (r float64, exists bool) {
 func (m *UsageLogMutation) ResetInputCost() {
 	m.input_cost = nil
 	m.addinput_cost = nil
+}
+
+// SetImageInputCost sets the "image_input_cost" field.
+func (m *UsageLogMutation) SetImageInputCost(f float64) {
+	m.image_input_cost = &f
+	m.addimage_input_cost = nil
+}
+
+// ImageInputCost returns the value of the "image_input_cost" field in the mutation.
+func (m *UsageLogMutation) ImageInputCost() (r float64, exists bool) {
+	v := m.image_input_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageInputCost returns the old "image_input_cost" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldImageInputCost(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageInputCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageInputCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageInputCost: %w", err)
+	}
+	return oldValue.ImageInputCost, nil
+}
+
+// AddImageInputCost adds f to the "image_input_cost" field.
+func (m *UsageLogMutation) AddImageInputCost(f float64) {
+	if m.addimage_input_cost != nil {
+		*m.addimage_input_cost += f
+	} else {
+		m.addimage_input_cost = &f
+	}
+}
+
+// AddedImageInputCost returns the value that was added to the "image_input_cost" field in this mutation.
+func (m *UsageLogMutation) AddedImageInputCost() (r float64, exists bool) {
+	v := m.addimage_input_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetImageInputCost resets all changes to the "image_input_cost" field.
+func (m *UsageLogMutation) ResetImageInputCost() {
+	m.image_input_cost = nil
+	m.addimage_input_cost = nil
 }
 
 // SetOutputCost sets the "output_cost" field.
@@ -25104,7 +25220,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 46)
+	fields := make([]string, 0, 48)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -25135,6 +25251,9 @@ func (m *UsageLogMutation) Fields() []string {
 	if m.input_tokens != nil {
 		fields = append(fields, usagelog.FieldInputTokens)
 	}
+	if m.image_input_tokens != nil {
+		fields = append(fields, usagelog.FieldImageInputTokens)
+	}
 	if m.output_tokens != nil {
 		fields = append(fields, usagelog.FieldOutputTokens)
 	}
@@ -25152,6 +25271,9 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.input_cost != nil {
 		fields = append(fields, usagelog.FieldInputCost)
+	}
+	if m.image_input_cost != nil {
+		fields = append(fields, usagelog.FieldImageInputCost)
 	}
 	if m.output_cost != nil {
 		fields = append(fields, usagelog.FieldOutputCost)
@@ -25271,6 +25393,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.SubscriptionID()
 	case usagelog.FieldInputTokens:
 		return m.InputTokens()
+	case usagelog.FieldImageInputTokens:
+		return m.ImageInputTokens()
 	case usagelog.FieldOutputTokens:
 		return m.OutputTokens()
 	case usagelog.FieldCacheCreationTokens:
@@ -25283,6 +25407,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.CacheCreation1hTokens()
 	case usagelog.FieldInputCost:
 		return m.InputCost()
+	case usagelog.FieldImageInputCost:
+		return m.ImageInputCost()
 	case usagelog.FieldOutputCost:
 		return m.OutputCost()
 	case usagelog.FieldCacheCreationCost:
@@ -25372,6 +25498,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldSubscriptionID(ctx)
 	case usagelog.FieldInputTokens:
 		return m.OldInputTokens(ctx)
+	case usagelog.FieldImageInputTokens:
+		return m.OldImageInputTokens(ctx)
 	case usagelog.FieldOutputTokens:
 		return m.OldOutputTokens(ctx)
 	case usagelog.FieldCacheCreationTokens:
@@ -25384,6 +25512,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldCacheCreation1hTokens(ctx)
 	case usagelog.FieldInputCost:
 		return m.OldInputCost(ctx)
+	case usagelog.FieldImageInputCost:
+		return m.OldImageInputCost(ctx)
 	case usagelog.FieldOutputCost:
 		return m.OldOutputCost(ctx)
 	case usagelog.FieldCacheCreationCost:
@@ -25523,6 +25653,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetInputTokens(v)
 		return nil
+	case usagelog.FieldImageInputTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageInputTokens(v)
+		return nil
 	case usagelog.FieldOutputTokens:
 		v, ok := value.(int)
 		if !ok {
@@ -25564,6 +25701,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetInputCost(v)
+		return nil
+	case usagelog.FieldImageInputCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageInputCost(v)
 		return nil
 	case usagelog.FieldOutputCost:
 		v, ok := value.(float64)
@@ -25786,6 +25930,9 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addinput_tokens != nil {
 		fields = append(fields, usagelog.FieldInputTokens)
 	}
+	if m.addimage_input_tokens != nil {
+		fields = append(fields, usagelog.FieldImageInputTokens)
+	}
 	if m.addoutput_tokens != nil {
 		fields = append(fields, usagelog.FieldOutputTokens)
 	}
@@ -25803,6 +25950,9 @@ func (m *UsageLogMutation) AddedFields() []string {
 	}
 	if m.addinput_cost != nil {
 		fields = append(fields, usagelog.FieldInputCost)
+	}
+	if m.addimage_input_cost != nil {
+		fields = append(fields, usagelog.FieldImageInputCost)
 	}
 	if m.addoutput_cost != nil {
 		fields = append(fields, usagelog.FieldOutputCost)
@@ -25859,6 +26009,8 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case usagelog.FieldInputTokens:
 		return m.AddedInputTokens()
+	case usagelog.FieldImageInputTokens:
+		return m.AddedImageInputTokens()
 	case usagelog.FieldOutputTokens:
 		return m.AddedOutputTokens()
 	case usagelog.FieldCacheCreationTokens:
@@ -25871,6 +26023,8 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCacheCreation1hTokens()
 	case usagelog.FieldInputCost:
 		return m.AddedInputCost()
+	case usagelog.FieldImageInputCost:
+		return m.AddedImageInputCost()
 	case usagelog.FieldOutputCost:
 		return m.AddedOutputCost()
 	case usagelog.FieldCacheCreationCost:
@@ -25917,6 +26071,13 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddInputTokens(v)
 		return nil
+	case usagelog.FieldImageInputTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddImageInputTokens(v)
+		return nil
 	case usagelog.FieldOutputTokens:
 		v, ok := value.(int)
 		if !ok {
@@ -25958,6 +26119,13 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddInputCost(v)
+		return nil
+	case usagelog.FieldImageInputCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddImageInputCost(v)
 		return nil
 	case usagelog.FieldOutputCost:
 		v, ok := value.(float64)
@@ -26232,6 +26400,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 	case usagelog.FieldInputTokens:
 		m.ResetInputTokens()
 		return nil
+	case usagelog.FieldImageInputTokens:
+		m.ResetImageInputTokens()
+		return nil
 	case usagelog.FieldOutputTokens:
 		m.ResetOutputTokens()
 		return nil
@@ -26249,6 +26420,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldInputCost:
 		m.ResetInputCost()
+		return nil
+	case usagelog.FieldImageInputCost:
+		m.ResetImageInputCost()
 		return nil
 	case usagelog.FieldOutputCost:
 		m.ResetOutputCost()

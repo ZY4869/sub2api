@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 func (s *SettingService) IsTurnstileEnabled(ctx context.Context) bool {
@@ -128,4 +130,19 @@ func (s *SettingService) IsMultiGroupRoutingEnabled(ctx context.Context) bool {
 		return errors.Is(err, ErrSettingNotFound)
 	}
 	return !isFalseSettingValue(value)
+}
+
+func (s *SettingService) GetAuditLogRetentionDays(ctx context.Context) int {
+	if s == nil || s.settingRepo == nil {
+		return DefaultAuditLogRetentionDays
+	}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAuditLogRetentionDays)
+	if err != nil {
+		return DefaultAuditLogRetentionDays
+	}
+	days, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return DefaultAuditLogRetentionDays
+	}
+	return NormalizeAuditLogRetentionDays(days)
 }

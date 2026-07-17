@@ -144,6 +144,7 @@ export default {
       },
       priceFields: {
         input: 'Input',
+        imageInput: 'Image Input',
         output: 'Output',
         cache: 'Cache',
         cacheCreation: 'Cache write',

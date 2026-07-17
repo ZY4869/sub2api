@@ -55,6 +55,7 @@ type ModelPricing struct {
 	OutputTokenThreshold                      int
 	OutputPricePerTokenAboveThreshold         float64
 	OutputPricePerTokenPriorityAboveThreshold float64
+	ImageInputPricePerToken                   float64
 	OutputPricePerImage                       float64
 	OutputPricePerImagePriority               float64
 	OutputPricePerVideoRequest                float64
@@ -78,6 +79,7 @@ const (
 // UsageTokens captures token counts used for billing.
 type UsageTokens struct {
 	InputTokens           int
+	ImageInputTokens      int
 	OutputTokens          int
 	CacheCreationTokens   int
 	CacheReadTokens       int
@@ -92,6 +94,7 @@ type CostBreakdown struct {
 	FXRateDate              string
 	FXLockedAt              *time.Time
 	InputCost               float64
+	ImageInputCost          float64
 	OutputCost              float64
 	CacheCreationCost       float64
 	CacheReadCost           float64

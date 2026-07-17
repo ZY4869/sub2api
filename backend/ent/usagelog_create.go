@@ -127,6 +127,20 @@ func (_c *UsageLogCreate) SetNillableInputTokens(v *int) *UsageLogCreate {
 	return _c
 }
 
+// SetImageInputTokens sets the "image_input_tokens" field.
+func (_c *UsageLogCreate) SetImageInputTokens(v int) *UsageLogCreate {
+	_c.mutation.SetImageInputTokens(v)
+	return _c
+}
+
+// SetNillableImageInputTokens sets the "image_input_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableImageInputTokens(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetImageInputTokens(*v)
+	}
+	return _c
+}
+
 // SetOutputTokens sets the "output_tokens" field.
 func (_c *UsageLogCreate) SetOutputTokens(v int) *UsageLogCreate {
 	_c.mutation.SetOutputTokens(v)
@@ -207,6 +221,20 @@ func (_c *UsageLogCreate) SetInputCost(v float64) *UsageLogCreate {
 func (_c *UsageLogCreate) SetNillableInputCost(v *float64) *UsageLogCreate {
 	if v != nil {
 		_c.SetInputCost(*v)
+	}
+	return _c
+}
+
+// SetImageInputCost sets the "image_input_cost" field.
+func (_c *UsageLogCreate) SetImageInputCost(v float64) *UsageLogCreate {
+	_c.mutation.SetImageInputCost(v)
+	return _c
+}
+
+// SetNillableImageInputCost sets the "image_input_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableImageInputCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetImageInputCost(*v)
 	}
 	return _c
 }
@@ -695,6 +723,10 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultInputTokens
 		_c.mutation.SetInputTokens(v)
 	}
+	if _, ok := _c.mutation.ImageInputTokens(); !ok {
+		v := usagelog.DefaultImageInputTokens
+		_c.mutation.SetImageInputTokens(v)
+	}
 	if _, ok := _c.mutation.OutputTokens(); !ok {
 		v := usagelog.DefaultOutputTokens
 		_c.mutation.SetOutputTokens(v)
@@ -718,6 +750,10 @@ func (_c *UsageLogCreate) defaults() {
 	if _, ok := _c.mutation.InputCost(); !ok {
 		v := usagelog.DefaultInputCost
 		_c.mutation.SetInputCost(v)
+	}
+	if _, ok := _c.mutation.ImageInputCost(); !ok {
+		v := usagelog.DefaultImageInputCost
+		_c.mutation.SetImageInputCost(v)
 	}
 	if _, ok := _c.mutation.OutputCost(); !ok {
 		v := usagelog.DefaultOutputCost
@@ -825,6 +861,9 @@ func (_c *UsageLogCreate) check() error {
 	if _, ok := _c.mutation.InputTokens(); !ok {
 		return &ValidationError{Name: "input_tokens", err: errors.New(`ent: missing required field "UsageLog.input_tokens"`)}
 	}
+	if _, ok := _c.mutation.ImageInputTokens(); !ok {
+		return &ValidationError{Name: "image_input_tokens", err: errors.New(`ent: missing required field "UsageLog.image_input_tokens"`)}
+	}
 	if _, ok := _c.mutation.OutputTokens(); !ok {
 		return &ValidationError{Name: "output_tokens", err: errors.New(`ent: missing required field "UsageLog.output_tokens"`)}
 	}
@@ -842,6 +881,9 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.InputCost(); !ok {
 		return &ValidationError{Name: "input_cost", err: errors.New(`ent: missing required field "UsageLog.input_cost"`)}
+	}
+	if _, ok := _c.mutation.ImageInputCost(); !ok {
+		return &ValidationError{Name: "image_input_cost", err: errors.New(`ent: missing required field "UsageLog.image_input_cost"`)}
 	}
 	if _, ok := _c.mutation.OutputCost(); !ok {
 		return &ValidationError{Name: "output_cost", err: errors.New(`ent: missing required field "UsageLog.output_cost"`)}
@@ -987,6 +1029,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)
 		_node.InputTokens = value
 	}
+	if value, ok := _c.mutation.ImageInputTokens(); ok {
+		_spec.SetField(usagelog.FieldImageInputTokens, field.TypeInt, value)
+		_node.ImageInputTokens = value
+	}
 	if value, ok := _c.mutation.OutputTokens(); ok {
 		_spec.SetField(usagelog.FieldOutputTokens, field.TypeInt, value)
 		_node.OutputTokens = value
@@ -1010,6 +1056,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)
 		_node.InputCost = value
+	}
+	if value, ok := _c.mutation.ImageInputCost(); ok {
+		_spec.SetField(usagelog.FieldImageInputCost, field.TypeFloat64, value)
+		_node.ImageInputCost = value
 	}
 	if value, ok := _c.mutation.OutputCost(); ok {
 		_spec.SetField(usagelog.FieldOutputCost, field.TypeFloat64, value)
@@ -1418,6 +1468,24 @@ func (u *UsageLogUpsert) AddInputTokens(v int) *UsageLogUpsert {
 	return u
 }
 
+// SetImageInputTokens sets the "image_input_tokens" field.
+func (u *UsageLogUpsert) SetImageInputTokens(v int) *UsageLogUpsert {
+	u.Set(usagelog.FieldImageInputTokens, v)
+	return u
+}
+
+// UpdateImageInputTokens sets the "image_input_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateImageInputTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldImageInputTokens)
+	return u
+}
+
+// AddImageInputTokens adds v to the "image_input_tokens" field.
+func (u *UsageLogUpsert) AddImageInputTokens(v int) *UsageLogUpsert {
+	u.Add(usagelog.FieldImageInputTokens, v)
+	return u
+}
+
 // SetOutputTokens sets the "output_tokens" field.
 func (u *UsageLogUpsert) SetOutputTokens(v int) *UsageLogUpsert {
 	u.Set(usagelog.FieldOutputTokens, v)
@@ -1523,6 +1591,24 @@ func (u *UsageLogUpsert) UpdateInputCost() *UsageLogUpsert {
 // AddInputCost adds v to the "input_cost" field.
 func (u *UsageLogUpsert) AddInputCost(v float64) *UsageLogUpsert {
 	u.Add(usagelog.FieldInputCost, v)
+	return u
+}
+
+// SetImageInputCost sets the "image_input_cost" field.
+func (u *UsageLogUpsert) SetImageInputCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldImageInputCost, v)
+	return u
+}
+
+// UpdateImageInputCost sets the "image_input_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateImageInputCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldImageInputCost)
+	return u
+}
+
+// AddImageInputCost adds v to the "image_input_cost" field.
+func (u *UsageLogUpsert) AddImageInputCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldImageInputCost, v)
 	return u
 }
 
@@ -2268,6 +2354,27 @@ func (u *UsageLogUpsertOne) UpdateInputTokens() *UsageLogUpsertOne {
 	})
 }
 
+// SetImageInputTokens sets the "image_input_tokens" field.
+func (u *UsageLogUpsertOne) SetImageInputTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageInputTokens(v)
+	})
+}
+
+// AddImageInputTokens adds v to the "image_input_tokens" field.
+func (u *UsageLogUpsertOne) AddImageInputTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddImageInputTokens(v)
+	})
+}
+
+// UpdateImageInputTokens sets the "image_input_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateImageInputTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageInputTokens()
+	})
+}
+
 // SetOutputTokens sets the "output_tokens" field.
 func (u *UsageLogUpsertOne) SetOutputTokens(v int) *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -2391,6 +2498,27 @@ func (u *UsageLogUpsertOne) AddInputCost(v float64) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateInputCost() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateInputCost()
+	})
+}
+
+// SetImageInputCost sets the "image_input_cost" field.
+func (u *UsageLogUpsertOne) SetImageInputCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageInputCost(v)
+	})
+}
+
+// AddImageInputCost adds v to the "image_input_cost" field.
+func (u *UsageLogUpsertOne) AddImageInputCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddImageInputCost(v)
+	})
+}
+
+// UpdateImageInputCost sets the "image_input_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateImageInputCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageInputCost()
 	})
 }
 
@@ -3389,6 +3517,27 @@ func (u *UsageLogUpsertBulk) UpdateInputTokens() *UsageLogUpsertBulk {
 	})
 }
 
+// SetImageInputTokens sets the "image_input_tokens" field.
+func (u *UsageLogUpsertBulk) SetImageInputTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageInputTokens(v)
+	})
+}
+
+// AddImageInputTokens adds v to the "image_input_tokens" field.
+func (u *UsageLogUpsertBulk) AddImageInputTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddImageInputTokens(v)
+	})
+}
+
+// UpdateImageInputTokens sets the "image_input_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateImageInputTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageInputTokens()
+	})
+}
+
 // SetOutputTokens sets the "output_tokens" field.
 func (u *UsageLogUpsertBulk) SetOutputTokens(v int) *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -3512,6 +3661,27 @@ func (u *UsageLogUpsertBulk) AddInputCost(v float64) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateInputCost() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateInputCost()
+	})
+}
+
+// SetImageInputCost sets the "image_input_cost" field.
+func (u *UsageLogUpsertBulk) SetImageInputCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageInputCost(v)
+	})
+}
+
+// AddImageInputCost adds v to the "image_input_cost" field.
+func (u *UsageLogUpsertBulk) AddImageInputCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddImageInputCost(v)
+	})
+}
+
+// UpdateImageInputCost sets the "image_input_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateImageInputCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageInputCost()
 	})
 }
 

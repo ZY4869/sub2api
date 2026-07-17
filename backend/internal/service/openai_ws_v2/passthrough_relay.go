@@ -2,7 +2,9 @@ package openai_ws_v2
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -342,6 +344,17 @@ func runClientToUpstream(
 			return
 		}
 		markActivity()
+		if err := validateClientRelayFrame(msgType, payload); err != nil {
+			emitRelayTrace(onTrace, RelayTraceEvent{
+				Stage:        "client_event_rejected",
+				Direction:    "client_to_upstream",
+				MessageType:  relayMessageTypeString(msgType),
+				PayloadBytes: len(payload),
+				Error:        err.Error(),
+			})
+			exitCh <- relayExitSignal{stage: "client_event_rejected", err: err}
+			return
+		}
 		if err := writeUpstream(msgType, payload); err != nil {
 			emitRelayTrace(onTrace, RelayTraceEvent{
 				Stage:        "write_upstream_failed",
@@ -357,6 +370,28 @@ func runClientToUpstream(
 			forwardedFrames.Add(1)
 		}
 		markActivity()
+	}
+}
+
+func validateClientRelayFrame(msgType coderws.MessageType, payload []byte) error {
+	if msgType != coderws.MessageText {
+		return nil
+	}
+	trimmed := strings.TrimSpace(string(payload))
+	if trimmed == "" {
+		return errors.New("empty websocket request payload")
+	}
+	if !json.Valid([]byte(trimmed)) {
+		return errors.New("invalid websocket request payload")
+	}
+	eventType := strings.TrimSpace(gjson.Get(trimmed, "type").String())
+	switch eventType {
+	case "", "response.create":
+		return nil
+	case "response.append":
+		return errors.New("response.append is not supported in ws v2; use response.create with previous_response_id")
+	default:
+		return fmt.Errorf("unsupported websocket request type: %s", eventType)
 	}
 }
 

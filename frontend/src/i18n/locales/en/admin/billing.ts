@@ -191,6 +191,7 @@ export default {
             },
             labels: {
                 input_price: "Input",
+                image_input_price: "Image input",
                 output_price: "Output",
                 cache_price: "Cache",
                 cache_creation: "Cache write",

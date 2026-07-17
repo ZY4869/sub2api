@@ -77,12 +77,15 @@ func (s *AuthService) generateRefreshToken(ctx context.Context, user *User, fami
 	ttl := time.Duration(s.cfg.JWT.RefreshTokenExpireDays) * 24 * time.Hour
 
 	data := &RefreshTokenData{
-		UserID:       user.ID,
-		TokenVersion: user.TokenVersion,
-		FamilyID:     familyID,
-		CreatedAt:    now,
-		ExpiresAt:    now.Add(ttl),
+		UserID:        user.ID,
+		TokenVersion:  user.TokenVersion,
+		FamilyID:      familyID,
+		ClientIPHash:  "",
+		UserAgentHash: "",
+		CreatedAt:     now,
+		ExpiresAt:     now.Add(ttl),
 	}
+	data.ClientIPHash, data.UserAgentHash = authSessionBindingHashesFromContext(ctx)
 
 	// 存储Token数据
 	if err := s.refreshTokenCache.StoreRefreshToken(ctx, tokenHash, data, ttl); err != nil {

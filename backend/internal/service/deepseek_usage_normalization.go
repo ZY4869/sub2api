@@ -4,6 +4,7 @@ import "strings"
 
 type usageDisplayTokens struct {
 	InputTokens           int
+	ImageInputTokens      int
 	OutputTokens          int
 	CacheCreationTokens   int
 	CacheReadTokens       int
@@ -20,13 +21,21 @@ func normalizeOpenAIUsageForDisplayAndBilling(provider string, usage OpenAIUsage
 	hit := clampNonNegativeInt(usage.CacheReadInputTokens)
 	miss := clampNonNegativeInt(usage.CacheCreationInputTokens)
 	totalInput := clampNonNegativeInt(usage.InputTokens)
+	imageInput := clampNonNegativeInt(usage.ImageInputTokens)
+	if imageInput > totalInput {
+		imageInput = totalInput
+	}
 	nonCacheInput := totalInput - hit
 	if nonCacheInput < 0 {
 		nonCacheInput = 0
 	}
+	if imageInput > nonCacheInput {
+		imageInput = nonCacheInput
+	}
 
 	display := usageDisplayTokens{
 		InputTokens:           nonCacheInput,
+		ImageInputTokens:      imageInput,
 		OutputTokens:          usage.OutputTokens,
 		CacheCreationTokens:   miss,
 		CacheReadTokens:       hit,
@@ -35,6 +44,7 @@ func normalizeOpenAIUsageForDisplayAndBilling(provider string, usage OpenAIUsage
 	}
 	billing := UsageTokens{
 		InputTokens:         nonCacheInput,
+		ImageInputTokens:    imageInput,
 		OutputTokens:        usage.OutputTokens,
 		CacheCreationTokens: miss,
 		CacheReadTokens:     hit,
@@ -53,10 +63,12 @@ func normalizeOpenAIUsageForDisplayAndBilling(provider string, usage OpenAIUsage
 	if display.InputTokens < 0 {
 		display.InputTokens = 0
 	}
+	display.ImageInputTokens = imageInput
 	display.CacheCreationTokens = miss
 	display.CacheReadTokens = hit
 
 	billing.InputTokens = nonCacheInput
+	billing.ImageInputTokens = imageInput
 	billing.CacheCreationTokens = 0
 	billing.CacheReadTokens = hit
 

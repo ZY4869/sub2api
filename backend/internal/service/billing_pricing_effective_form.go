@@ -35,6 +35,7 @@ func billingPricingEffectiveDisplayForm(
 func billingPricingDisplayFieldIDs() []string {
 	return []string{
 		billingDiscountFieldInputPrice,
+		billingDiscountFieldImageInputPrice,
 		billingDiscountFieldOutputPrice,
 		billingDiscountFieldCachePrice,
 		billingDiscountFieldInputPriceAboveThreshold,
@@ -76,6 +77,8 @@ func billingPricingAssignDisplayFieldValue(form *BillingPricingLayerForm, fieldI
 	switch fieldID {
 	case billingDiscountFieldInputPrice:
 		form.InputPrice = cloneBillingFloat64(value)
+	case billingDiscountFieldImageInputPrice:
+		form.ImageInputPrice = cloneBillingFloat64(value)
 	case billingDiscountFieldOutputPrice:
 		form.OutputPrice = cloneBillingFloat64(value)
 	case billingDiscountFieldCachePrice:

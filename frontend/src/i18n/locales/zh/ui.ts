@@ -144,6 +144,7 @@ export default {
       },
       priceFields: {
         input: '输入',
+        imageInput: '图片输入',
         output: '输出',
         cache: '缓存',
         cacheCreation: '缓存写入',

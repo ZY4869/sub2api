@@ -449,6 +449,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.AffiliateAffCodeLength != after.AffiliateAffCodeLength {
 		changed = append(changed, "affiliate_aff_code_length")
 	}
+	if before.AuditLogRetentionDays != after.AuditLogRetentionDays {
+		changed = append(changed, "audit_log_retention_days")
+	}
 	if before.CustomMenuItems != after.CustomMenuItems {
 		changed = append(changed, "custom_menu_items")
 	}
@@ -632,6 +635,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		BackendModeEnabled:                                     settings.BackendModeEnabled,
 		MaintenanceModeEnabled:                                 settings.MaintenanceModeEnabled,
 		AdminComplianceEnabled:                                 settings.AdminComplianceEnabled,
+		AuditLogRetentionDays:                                  settings.AuditLogRetentionDays,
 		OpenAIFastPolicySettings:                               openAIFastPolicy,
 		EnableAnthropicCacheTTL1hInjection:                     settings.EnableAnthropicCacheTTL1hInjection,
 	}

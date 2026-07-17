@@ -104,6 +104,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyBackendModeEnabled:                                 "false",
 		SettingKeyMaintenanceModeEnabled:                             "false",
 		SettingKeyAdminComplianceEnabled:                             "false",
+		SettingKeyAuditLogRetentionDays:                              strconv.Itoa(DefaultAuditLogRetentionDays),
 		SettingKeyDocumentAIEnabled:                                  "false",
 		SettingKeyTelegramChatID:                                     "",
 		SettingKeyGitHubOAuthEnabled:                                 "false",

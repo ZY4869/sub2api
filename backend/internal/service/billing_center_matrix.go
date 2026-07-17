@@ -34,6 +34,7 @@ var geminiMatrixChargeSlots = []string{
 	BillingChargeSlotCacheCreate,
 	BillingChargeSlotCacheRead,
 	BillingChargeSlotCacheStorageTokenHour,
+	BillingChargeSlotImageInput,
 	BillingChargeSlotImageOutput,
 	BillingChargeSlotVideoRequest,
 	BillingChargeSlotFileSearchEmbeddingToken,
@@ -93,6 +94,13 @@ var geminiMatrixSlotSpecs = map[string]geminiMatrixSlotRuleSpec{
 		operation: "generate_content",
 		matchers: BillingRuleMatchers{
 			OutputModality: "audio",
+		},
+	},
+	BillingChargeSlotImageInput: {
+		unit:      BillingUnitInputToken,
+		operation: "generate_content",
+		matchers: BillingRuleMatchers{
+			InputModality: "image",
 		},
 	},
 	BillingChargeSlotCacheCreate: {
@@ -535,6 +543,7 @@ func applyPricingToGeminiMatrix(matrix *GeminiBillingMatrix, pricing *ModelCatal
 	for _, surface := range geminiMatrixSurfaces {
 		for _, tier := range geminiMatrixServiceTiers {
 			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotTextInput, pricingValueForTier(pricing.InputCostPerToken, pricing.InputCostPerTokenPriority, tier), derivedVia)
+			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotImageInput, pricing.InputCostPerImageToken, derivedVia)
 			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotTextOutput, pricingValueForTier(pricing.OutputCostPerToken, pricing.OutputCostPerTokenPriority, tier), derivedVia)
 			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotAudioInput, pricingValueForTier(pricing.InputCostPerToken, pricing.InputCostPerTokenPriority, tier), derivedVia)
 			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotAudioOutput, pricingValueForTier(pricing.OutputCostPerToken, pricing.OutputCostPerTokenPriority, tier), derivedVia)

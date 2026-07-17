@@ -89,6 +89,7 @@ describe('user api key model binding mode modals', () => {
         role: 'user',
         api_key_model_binding_mode: 'group_allowed',
       }),
+      { stepUpTotp: undefined },
     )
   })
 
@@ -127,12 +128,14 @@ describe('user api key model binding mode modals', () => {
         role: 'user',
         api_key_model_binding_mode: 'group_allowed',
       }),
+      { stepUpTotp: undefined },
     )
   })
 
   it('submits role when creating and editing users', async () => {
     mocks.createUser.mockResolvedValue({})
     mocks.updateUser.mockResolvedValue({})
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('123456')
 
     const createWrapper = mount(UserCreateModal, {
       props: { show: true },
@@ -155,6 +158,7 @@ describe('user api key model binding mode modals', () => {
       expect.objectContaining({
         role: 'admin',
       }),
+      { stepUpTotp: '123456' },
     )
 
     const editWrapper = mount(UserEditModal, {
@@ -191,7 +195,9 @@ describe('user api key model binding mode modals', () => {
         role: 'user',
         admin_free_billing: false,
       }),
+      { stepUpTotp: undefined },
     )
+    promptSpy.mockRestore()
   })
 
   it('uses a wide dialog for editing user details', () => {

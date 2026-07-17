@@ -148,6 +148,98 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	}
 	return group, nil
 }
+
+func (s *adminServiceImpl) DuplicateGroup(ctx context.Context, id int64, input *DuplicateGroupInput) (*Group, error) {
+	source, err := s.GetGroup(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if source == nil {
+		return nil, ErrGroupNotFound
+	}
+	copyAccounts := true
+	name := ""
+	if input != nil {
+		copyAccounts = input.CopyAccounts
+		name = strings.TrimSpace(input.Name)
+	}
+	if name == "" {
+		name = s.nextDuplicateGroupName(ctx, source.Name)
+	}
+	var copyAccountSources []int64
+	if copyAccounts {
+		copyAccountSources = []int64{source.ID}
+	}
+	return s.CreateGroup(ctx, &CreateGroupInput{
+		Name:                            name,
+		Description:                     source.Description,
+		Platform:                        source.Platform,
+		Priority:                        source.Priority,
+		RateMultiplier:                  source.RateMultiplier,
+		PeakRateEnabled:                 source.PeakRateEnabled,
+		PeakStart:                       source.PeakStart,
+		PeakEnd:                         source.PeakEnd,
+		PeakRateMultiplier:              &source.PeakRateMultiplier,
+		IsExclusive:                     source.IsExclusive,
+		SubscriptionType:                source.SubscriptionType,
+		DailyLimitUSD:                   cloneFloat64Ptr(source.DailyLimitUSD),
+		WeeklyLimitUSD:                  cloneFloat64Ptr(source.WeeklyLimitUSD),
+		MonthlyLimitUSD:                 cloneFloat64Ptr(source.MonthlyLimitUSD),
+		ImagePrice1K:                    cloneFloat64Ptr(source.ImagePrice1K),
+		ImagePrice2K:                    cloneFloat64Ptr(source.ImagePrice2K),
+		ImagePrice4K:                    cloneFloat64Ptr(source.ImagePrice4K),
+		WebSearchPricePerCall:           cloneFloat64Ptr(source.WebSearchPricePerCall),
+		ImageProtocolMode:               source.ImageProtocolMode,
+		ClaudeCodeOnly:                  source.ClaudeCodeOnly,
+		FallbackGroupID:                 cloneInt64Ptr(source.FallbackGroupID),
+		FallbackGroupIDOnInvalidRequest: cloneInt64Ptr(source.FallbackGroupIDOnInvalidRequest),
+		ModelRouting:                    cloneGroupModelRouting(source.ModelRouting),
+		ModelRoutingEnabled:             source.ModelRoutingEnabled,
+		GeminiMixedProtocolEnabled:      source.GeminiMixedProtocolEnabled,
+		MCPXMLInject:                    &source.MCPXMLInject,
+		SupportedModelScopes:            append([]string(nil), source.SupportedModelScopes...),
+		AllowMessagesDispatch:           source.AllowMessagesDispatch,
+		DefaultMappedModel:              source.DefaultMappedModel,
+		VisibleModelPatterns:            append([]string(nil), source.VisibleModelPatterns...),
+		ImageBatchEnabled:               source.ImageBatchEnabled,
+		ImageBatchAllowedProviders:      append([]string(nil), source.ImageBatchAllowedProviders...),
+		ImageBatchAllowedModels:         append([]string(nil), source.ImageBatchAllowedModels...),
+		ImageBatchMaxItems:              source.ImageBatchMaxItems,
+		ImageBatchMaxDownloadBytes:      source.ImageBatchMaxDownloadBytes,
+		ImageBatchDownloadConcurrency:   source.ImageBatchDownloadConcurrency,
+		CopyAccountsFromGroupIDs:        copyAccountSources,
+	})
+}
+
+func (s *adminServiceImpl) nextDuplicateGroupName(ctx context.Context, name string) string {
+	base := strings.TrimSpace(name)
+	if base == "" {
+		base = "Group"
+	}
+	base += " 副本"
+	for i := 0; i < 20; i++ {
+		candidate := base
+		if i > 0 {
+			candidate = fmt.Sprintf("%s %d", base, i+1)
+		}
+		if _, err := s.groupRepo.GetByName(ctx, candidate); err != nil {
+			return candidate
+		}
+	}
+	return fmt.Sprintf("%s %s", base, time.Now().Format("20060102150405"))
+}
+
+func cloneGroupModelRouting(value map[string][]int64) map[string][]int64 {
+	if len(value) == 0 {
+		return nil
+	}
+	out := make(map[string][]int64, len(value))
+	for key, ids := range value {
+		out[key] = append([]int64(nil), ids...)
+	}
+	return out
+}
+
 func normalizeLimit(limit *float64) *float64 {
 	if limit == nil || *limit <= 0 {
 		return nil

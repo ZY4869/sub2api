@@ -34,6 +34,8 @@ const (
 	FieldSubscriptionID = "subscription_id"
 	// FieldInputTokens holds the string denoting the input_tokens field in the database.
 	FieldInputTokens = "input_tokens"
+	// FieldImageInputTokens holds the string denoting the image_input_tokens field in the database.
+	FieldImageInputTokens = "image_input_tokens"
 	// FieldOutputTokens holds the string denoting the output_tokens field in the database.
 	FieldOutputTokens = "output_tokens"
 	// FieldCacheCreationTokens holds the string denoting the cache_creation_tokens field in the database.
@@ -46,6 +48,8 @@ const (
 	FieldCacheCreation1hTokens = "cache_creation_1h_tokens"
 	// FieldInputCost holds the string denoting the input_cost field in the database.
 	FieldInputCost = "input_cost"
+	// FieldImageInputCost holds the string denoting the image_input_cost field in the database.
+	FieldImageInputCost = "image_input_cost"
 	// FieldOutputCost holds the string denoting the output_cost field in the database.
 	FieldOutputCost = "output_cost"
 	// FieldCacheCreationCost holds the string denoting the cache_creation_cost field in the database.
@@ -168,12 +172,14 @@ var Columns = []string{
 	FieldGroupID,
 	FieldSubscriptionID,
 	FieldInputTokens,
+	FieldImageInputTokens,
 	FieldOutputTokens,
 	FieldCacheCreationTokens,
 	FieldCacheReadTokens,
 	FieldCacheCreation5mTokens,
 	FieldCacheCreation1hTokens,
 	FieldInputCost,
+	FieldImageInputCost,
 	FieldOutputCost,
 	FieldCacheCreationCost,
 	FieldCacheReadCost,
@@ -227,6 +233,8 @@ var (
 	UpstreamModelValidator func(string) error
 	// DefaultInputTokens holds the default value on creation for the "input_tokens" field.
 	DefaultInputTokens int
+	// DefaultImageInputTokens holds the default value on creation for the "image_input_tokens" field.
+	DefaultImageInputTokens int
 	// DefaultOutputTokens holds the default value on creation for the "output_tokens" field.
 	DefaultOutputTokens int
 	// DefaultCacheCreationTokens holds the default value on creation for the "cache_creation_tokens" field.
@@ -239,6 +247,8 @@ var (
 	DefaultCacheCreation1hTokens int
 	// DefaultInputCost holds the default value on creation for the "input_cost" field.
 	DefaultInputCost float64
+	// DefaultImageInputCost holds the default value on creation for the "image_input_cost" field.
+	DefaultImageInputCost float64
 	// DefaultOutputCost holds the default value on creation for the "output_cost" field.
 	DefaultOutputCost float64
 	// DefaultCacheCreationCost holds the default value on creation for the "cache_creation_cost" field.
@@ -347,6 +357,11 @@ func ByInputTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInputTokens, opts...).ToFunc()
 }
 
+// ByImageInputTokens orders the results by the image_input_tokens field.
+func ByImageInputTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageInputTokens, opts...).ToFunc()
+}
+
 // ByOutputTokens orders the results by the output_tokens field.
 func ByOutputTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOutputTokens, opts...).ToFunc()
@@ -375,6 +390,11 @@ func ByCacheCreation1hTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByInputCost orders the results by the input_cost field.
 func ByInputCost(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInputCost, opts...).ToFunc()
+}
+
+// ByImageInputCost orders the results by the image_input_cost field.
+func ByImageInputCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageInputCost, opts...).ToFunc()
 }
 
 // ByOutputCost orders the results by the output_cost field.

@@ -59,6 +59,7 @@ func ProvidePrivacyClientFactory() service.PrivacyClientFactory {
 var ProviderSet = wire.NewSet(
 	NewUserRepository,
 	NewAuthIdentityRepository,
+	NewAuditLogRepository,
 	NewContentModerationAuditRepository,
 	NewAPIKeyRepository,
 	NewGroupRepository,

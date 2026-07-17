@@ -15,10 +15,32 @@ import (
 
 type DataManagementHandler struct {
 	dataManagementService dataManagementService
+	adminSecurity         *AdminSecurityHelper
 }
 
 func NewDataManagementHandler(dataManagementService *service.DataManagementService) *DataManagementHandler {
 	return &DataManagementHandler{dataManagementService: dataManagementService}
+}
+
+func (h *DataManagementHandler) SetAdminSecurityHelper(helper *AdminSecurityHelper) {
+	if h == nil {
+		return
+	}
+	h.adminSecurity = helper
+}
+
+func (h *DataManagementHandler) requireStepUpTotp(c *gin.Context, scope string) bool {
+	if h == nil || h.adminSecurity == nil {
+		return (*AdminSecurityHelper)(nil).RequireStepUpTotp(c, scope)
+	}
+	return h.adminSecurity.RequireStepUpTotp(c, scope)
+}
+
+func (h *DataManagementHandler) recordAdminAudit(c *gin.Context, action string, targetType string, targetID string, status string, metadata map[string]any) {
+	if h == nil || h.adminSecurity == nil {
+		return
+	}
+	h.adminSecurity.RecordAudit(c, action, targetType, targetID, status, metadata)
 }
 
 type dataManagementService interface {
@@ -137,15 +159,20 @@ func (h *DataManagementHandler) UpdateConfig(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if !h.requireStepUpTotp(c, "admin.data_management.config.update") {
+		return
+	}
 
 	if !h.requireAgentEnabled(c) {
 		return
 	}
 	cfg, err := h.dataManagementService.UpdateConfig(c.Request.Context(), req)
 	if err != nil {
+		h.recordAdminAudit(c, "admin.data_management.config.update", "data_management_config", "", service.AuditStatusFailure, dataManagementS3AuditMetadata(req.S3))
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.recordAdminAudit(c, "admin.data_management.config.update", "data_management_config", "", service.AuditStatusSuccess, dataManagementS3AuditMetadata(cfg.S3))
 	response.Success(c, cfg)
 }
 
@@ -367,6 +394,9 @@ func (h *DataManagementHandler) CreateS3Profile(c *gin.Context) {
 	if !h.requireAgentEnabled(c) {
 		return
 	}
+	if !h.requireStepUpTotp(c, "admin.data_management.s3_profile.create") {
+		return
+	}
 
 	profile, err := h.dataManagementService.CreateS3Profile(c.Request.Context(), service.DataManagementCreateS3ProfileInput{
 		ProfileID: req.ProfileID,
@@ -385,9 +415,11 @@ func (h *DataManagementHandler) CreateS3Profile(c *gin.Context) {
 		},
 	})
 	if err != nil {
+		h.recordAdminAudit(c, "admin.data_management.s3_profile.create", "s3_profile", req.ProfileID, service.AuditStatusFailure, createS3ProfileAuditMetadata(req))
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.recordAdminAudit(c, "admin.data_management.s3_profile.create", "s3_profile", profile.ProfileID, service.AuditStatusSuccess, dataManagementS3ProfileAuditMetadata(profile))
 	response.Success(c, profile)
 }
 
@@ -407,6 +439,9 @@ func (h *DataManagementHandler) UpdateS3Profile(c *gin.Context) {
 	if !h.requireAgentEnabled(c) {
 		return
 	}
+	if !h.requireStepUpTotp(c, "admin.data_management.s3_profile.update") {
+		return
+	}
 
 	profile, err := h.dataManagementService.UpdateS3Profile(c.Request.Context(), service.DataManagementUpdateS3ProfileInput{
 		ProfileID: profileID,
@@ -424,9 +459,11 @@ func (h *DataManagementHandler) UpdateS3Profile(c *gin.Context) {
 		},
 	})
 	if err != nil {
+		h.recordAdminAudit(c, "admin.data_management.s3_profile.update", "s3_profile", profileID, service.AuditStatusFailure, updateS3ProfileAuditMetadata(req))
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.recordAdminAudit(c, "admin.data_management.s3_profile.update", "s3_profile", profile.ProfileID, service.AuditStatusSuccess, dataManagementS3ProfileAuditMetadata(profile))
 	response.Success(c, profile)
 }
 
@@ -440,10 +477,15 @@ func (h *DataManagementHandler) DeleteS3Profile(c *gin.Context) {
 	if !h.requireAgentEnabled(c) {
 		return
 	}
+	if !h.requireStepUpTotp(c, "admin.data_management.s3_profile.delete") {
+		return
+	}
 	if err := h.dataManagementService.DeleteS3Profile(c.Request.Context(), profileID); err != nil {
+		h.recordAdminAudit(c, "admin.data_management.s3_profile.delete", "s3_profile", profileID, service.AuditStatusFailure, nil)
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.recordAdminAudit(c, "admin.data_management.s3_profile.delete", "s3_profile", profileID, service.AuditStatusSuccess, nil)
 	response.Success(c, gin.H{"deleted": true})
 }
 
@@ -457,12 +499,67 @@ func (h *DataManagementHandler) SetActiveS3Profile(c *gin.Context) {
 	if !h.requireAgentEnabled(c) {
 		return
 	}
+	if !h.requireStepUpTotp(c, "admin.data_management.s3_profile.activate") {
+		return
+	}
 	profile, err := h.dataManagementService.SetActiveS3Profile(c.Request.Context(), profileID)
 	if err != nil {
+		h.recordAdminAudit(c, "admin.data_management.s3_profile.activate", "s3_profile", profileID, service.AuditStatusFailure, nil)
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.recordAdminAudit(c, "admin.data_management.s3_profile.activate", "s3_profile", profile.ProfileID, service.AuditStatusSuccess, dataManagementS3ProfileAuditMetadata(profile))
 	response.Success(c, profile)
+}
+
+func createS3ProfileAuditMetadata(req CreateS3ProfileRequest) map[string]any {
+	return map[string]any{
+		"name":       req.Name,
+		"set_active": req.SetActive,
+		"s3": dataManagementS3AuditMetadata(service.DataManagementS3Config{
+			Enabled:        req.Enabled,
+			Endpoint:       req.Endpoint,
+			Region:         req.Region,
+			Bucket:         req.Bucket,
+			Prefix:         req.Prefix,
+			ForcePathStyle: req.ForcePathStyle,
+			UseSSL:         req.UseSSL,
+		}),
+	}
+}
+
+func updateS3ProfileAuditMetadata(req UpdateS3ProfileRequest) map[string]any {
+	return map[string]any{
+		"name": req.Name,
+		"s3": dataManagementS3AuditMetadata(service.DataManagementS3Config{
+			Enabled:        req.Enabled,
+			Endpoint:       req.Endpoint,
+			Region:         req.Region,
+			Bucket:         req.Bucket,
+			Prefix:         req.Prefix,
+			ForcePathStyle: req.ForcePathStyle,
+			UseSSL:         req.UseSSL,
+		}),
+	}
+}
+
+func dataManagementS3ProfileAuditMetadata(profile service.DataManagementS3Profile) map[string]any {
+	metadata := dataManagementS3AuditMetadata(profile.S3)
+	metadata["name"] = profile.Name
+	metadata["is_active"] = profile.IsActive
+	return metadata
+}
+
+func dataManagementS3AuditMetadata(cfg service.DataManagementS3Config) map[string]any {
+	return map[string]any{
+		"enabled":          cfg.Enabled,
+		"endpoint":         cfg.Endpoint,
+		"region":           cfg.Region,
+		"bucket":           cfg.Bucket,
+		"prefix":           cfg.Prefix,
+		"force_path_style": cfg.ForcePathStyle,
+		"use_ssl":          cfg.UseSSL,
+	}
 }
 
 func (h *DataManagementHandler) ListBackupJobs(c *gin.Context) {

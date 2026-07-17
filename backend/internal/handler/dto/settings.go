@@ -227,6 +227,7 @@ type SystemSettings struct {
 	BackendModeEnabled     bool `json:"backend_mode_enabled"`
 	MaintenanceModeEnabled bool `json:"maintenance_mode_enabled"`
 	AdminComplianceEnabled bool `json:"admin_compliance_enabled"`
+	AuditLogRetentionDays  int  `json:"audit_log_retention_days"`
 
 	OpenAIFastPolicySettings           *OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
 	EnableAnthropicCacheTTL1hInjection bool                      `json:"enable_anthropic_cache_ttl_1h_injection"`
@@ -327,6 +328,12 @@ type GoogleBatchArchiveSettings struct {
 
 type ImageBatchSettings struct {
 	Enabled bool `json:"enabled"`
+}
+
+type UpstreamBillingProbeSettings struct {
+	Enabled          bool `json:"enabled"`
+	BatchConcurrency int  `json:"batch_concurrency"`
+	TimeoutSeconds   int  `json:"timeout_seconds"`
 }
 
 type AccountDaily5HTriggerModelSettings struct {

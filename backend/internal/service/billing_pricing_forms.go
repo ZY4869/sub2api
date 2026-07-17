@@ -16,6 +16,7 @@ type billingPricingFormMetadata struct {
 
 const (
 	billingDiscountFieldInputPrice                = "input_price"
+	billingDiscountFieldImageInputPrice           = "image_input_price"
 	billingDiscountFieldOutputPrice               = "output_price"
 	billingDiscountFieldCachePrice                = "cache_price"
 	billingDiscountFieldInputPriceAboveThreshold  = "input_price_above_threshold"
@@ -131,6 +132,7 @@ func billingPricingLayerFormFromItemsWithMetadata(metadata billingPricingFormMet
 				form.OutputPriceAboveThreshold = price
 			}
 		}
+		form.ImageInputPrice = billingPricingSingleSlotValue(items, BillingChargeSlotImageInput, false)
 	}
 	form.CachePrice = billingPricingMaxSlotValue(items, false,
 		BillingChargeSlotCacheCreate,
@@ -182,6 +184,9 @@ func billingPricingItemsFromForm(metadata billingPricingFormMetadata, layer stri
 
 	if metadata.InputSupported {
 		appendBaseItem(billingDiscountFieldInputPrice, BillingChargeSlotTextInput, form.InputPrice, billingTierThresholdForForm(form), form.InputPriceAboveThreshold)
+	}
+	if metadata.InputSupported || form.ImageInputPrice != nil {
+		appendBaseItem(billingDiscountFieldImageInputPrice, BillingChargeSlotImageInput, form.ImageInputPrice, nil, nil)
 	}
 	appendBaseItem(billingDiscountFieldOutputPrice, metadata.OutputChargeSlot, form.OutputPrice, billingTierThresholdForOutput(metadata, form), form.OutputPriceAboveThreshold)
 	if form.CachePrice != nil {
@@ -301,6 +306,7 @@ func cloneBillingPricingLayerForm(form BillingPricingLayerForm) BillingPricingLa
 		},
 	}
 	cloned.InputPrice = cloneBillingFloat64(form.InputPrice)
+	cloned.ImageInputPrice = cloneBillingFloat64(form.ImageInputPrice)
 	cloned.OutputPrice = cloneBillingFloat64(form.OutputPrice)
 	cloned.CachePrice = cloneBillingFloat64(form.CachePrice)
 	cloned.TierThresholdTokens = cloneBillingInt(form.TierThresholdTokens)
@@ -355,6 +361,7 @@ func validateBillingPricingLayerForm(form BillingPricingLayerForm) error {
 		}
 	}
 	validateNonNegative(form.InputPrice, billingDiscountFieldInputPrice, "输入定价")
+	validateNonNegative(form.ImageInputPrice, billingDiscountFieldImageInputPrice, "图片输入定价")
 	validateNonNegative(form.OutputPrice, billingDiscountFieldOutputPrice, "输出定价")
 	validateNonNegative(form.CachePrice, billingDiscountFieldCachePrice, "缓存定价")
 	validateNonNegative(form.InputPriceAboveThreshold, billingDiscountFieldInputPriceAboveThreshold, "输入阈值后定价")
@@ -402,6 +409,8 @@ func billingPricingValidationLabelForField(fieldID string) string {
 	switch strings.TrimSpace(fieldID) {
 	case billingDiscountFieldInputPrice:
 		return "输入定价"
+	case billingDiscountFieldImageInputPrice:
+		return "图片输入定价"
 	case billingDiscountFieldOutputPrice:
 		return "输出定价"
 	case billingDiscountFieldCachePrice:
@@ -443,6 +452,7 @@ func applyDiscountToBillingPricingLayerForm(form BillingPricingLayerForm, ratio 
 		*value = modelCatalogFloat64Ptr(**value * ratio)
 	}
 	discount(billingDiscountFieldInputPrice, &next.InputPrice)
+	discount(billingDiscountFieldImageInputPrice, &next.ImageInputPrice)
 	discount(billingDiscountFieldOutputPrice, &next.OutputPrice)
 	discount(billingDiscountFieldCachePrice, &next.CachePrice)
 	discount(billingDiscountFieldInputPriceAboveThreshold, &next.InputPriceAboveThreshold)
@@ -562,6 +572,8 @@ func billingPricingIsGeminiMatrixSpecialItem(item BillingPriceItem) bool {
 func billingUnitForChargeSlot(chargeSlot string) string {
 	switch normalizeBillingDimension(chargeSlot, "") {
 	case BillingChargeSlotTextInput:
+		return BillingUnitInputToken
+	case BillingChargeSlotImageInput:
 		return BillingUnitInputToken
 	case BillingChargeSlotTextOutput:
 		return BillingUnitOutputToken
@@ -776,6 +788,8 @@ func billingPricingFieldIDForItem(metadata billingPricingFormMetadata, item Bill
 			return billingDiscountFieldBatchInputPrice
 		}
 		return billingDiscountFieldInputPrice
+	case BillingChargeSlotImageInput:
+		return billingDiscountFieldImageInputPrice
 	case BillingChargeSlotTextOutput, BillingChargeSlotImageOutput, BillingChargeSlotVideoRequest:
 		if batch {
 			return billingDiscountFieldBatchOutputPrice
@@ -821,9 +835,10 @@ func billingPricingFieldIDForSpecialSlot(slot string) string {
 
 func billingPricingConfiguredFieldValues(form BillingPricingLayerForm) map[string]*float64 {
 	values := map[string]*float64{
-		billingDiscountFieldInputPrice:  cloneBillingFloat64(form.InputPrice),
-		billingDiscountFieldOutputPrice: cloneBillingFloat64(form.OutputPrice),
-		billingDiscountFieldCachePrice:  cloneBillingFloat64(form.CachePrice),
+		billingDiscountFieldInputPrice:      cloneBillingFloat64(form.InputPrice),
+		billingDiscountFieldImageInputPrice: cloneBillingFloat64(form.ImageInputPrice),
+		billingDiscountFieldOutputPrice:     cloneBillingFloat64(form.OutputPrice),
+		billingDiscountFieldCachePrice:      cloneBillingFloat64(form.CachePrice),
 	}
 	if form.TieredEnabled {
 		values[billingDiscountFieldInputPriceAboveThreshold] = cloneBillingFloat64(form.InputPriceAboveThreshold)

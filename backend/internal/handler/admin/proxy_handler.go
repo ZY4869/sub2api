@@ -22,7 +22,8 @@ import (
 
 // ProxyHandler handles admin proxy management
 type ProxyHandler struct {
-	adminService service.AdminService
+	adminService  service.AdminService
+	adminSecurity *AdminSecurityHelper
 }
 
 // NewProxyHandler creates a new admin proxy handler
@@ -30,6 +31,27 @@ func NewProxyHandler(adminService service.AdminService) *ProxyHandler {
 	return &ProxyHandler{
 		adminService: adminService,
 	}
+}
+
+func (h *ProxyHandler) SetAdminSecurityHelper(helper *AdminSecurityHelper) {
+	if h == nil {
+		return
+	}
+	h.adminSecurity = helper
+}
+
+func (h *ProxyHandler) requireStepUpTotp(c *gin.Context, scope string) bool {
+	if h == nil || h.adminSecurity == nil {
+		return (*AdminSecurityHelper)(nil).RequireStepUpTotp(c, scope)
+	}
+	return h.adminSecurity.RequireStepUpTotp(c, scope)
+}
+
+func (h *ProxyHandler) recordAdminAudit(c *gin.Context, action string, targetType string, targetID string, status string, metadata map[string]any) {
+	if h == nil || h.adminSecurity == nil {
+		return
+	}
+	h.adminSecurity.RecordAudit(c, action, targetType, targetID, status, metadata)
 }
 
 // CreateProxyRequest represents create proxy request

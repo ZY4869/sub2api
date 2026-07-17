@@ -67,7 +67,15 @@ func (s *BillingService) calculateCostWithPricing(
 		cacheReadPricePerToken *= pricing.LongContextInputMultiplier
 	}
 
-	breakdown.InputCost = float64(billedTokens.InputTokens) * inputPricePerToken
+	imageInputPricePerToken := pricing.ImageInputPricePerToken
+	if imageInputPricePerToken <= 0 {
+		imageInputPricePerToken = inputPricePerToken
+	} else if applyLongContext {
+		imageInputPricePerToken *= pricing.LongContextInputMultiplier
+	}
+	textInputTokens, imageInputTokens := splitTextAndImageInputTokens(billedTokens)
+	breakdown.InputCost = float64(textInputTokens) * inputPricePerToken
+	breakdown.ImageInputCost = float64(imageInputTokens) * imageInputPricePerToken
 	breakdown.OutputCost = float64(billedTokens.OutputTokens) * outputPricePerToken
 
 	if pricing.SupportsCacheBreakdown && (pricing.CacheCreation5mPrice > 0 || pricing.CacheCreation1hPrice > 0) {
@@ -99,14 +107,34 @@ func (s *BillingService) calculateCostWithPricing(
 
 	if tierMultiplier != 1.0 {
 		breakdown.InputCost *= tierMultiplier
+		breakdown.ImageInputCost *= tierMultiplier
 		breakdown.OutputCost *= tierMultiplier
 		breakdown.CacheCreationCost *= tierMultiplier
 		breakdown.CacheReadCost *= tierMultiplier
 	}
 
-	breakdown.TotalCost = breakdown.InputCost + breakdown.OutputCost +
+	breakdown.TotalCost = breakdown.InputCost + breakdown.ImageInputCost + breakdown.OutputCost +
 		breakdown.CacheCreationCost + breakdown.CacheReadCost
 	rateMultiplier = normalizeExplicitRateMultiplier(rateMultiplier)
 	breakdown.ActualCost = breakdown.TotalCost * rateMultiplier
 	return finalizeCostBreakdownCurrency(breakdown, pricing)
+}
+
+func boundedImageInputTokens(tokens UsageTokens) int {
+	if tokens.ImageInputTokens <= 0 || tokens.InputTokens <= 0 {
+		return 0
+	}
+	if tokens.ImageInputTokens > tokens.InputTokens {
+		return tokens.InputTokens
+	}
+	return tokens.ImageInputTokens
+}
+
+func splitTextAndImageInputTokens(tokens UsageTokens) (textInputTokens int, imageInputTokens int) {
+	imageInputTokens = boundedImageInputTokens(tokens)
+	textInputTokens = tokens.InputTokens - imageInputTokens
+	if textInputTokens < 0 {
+		textInputTokens = 0
+	}
+	return textInputTokens, imageInputTokens
 }

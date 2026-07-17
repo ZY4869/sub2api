@@ -340,7 +340,9 @@ func calculatePublicCatalogEntryRuntimeCost(ctx context.Context, display PublicM
 		add(&cost.OutputCost, publicCatalogOutputFieldID(input), publicCatalogRequestLikeOutputDemand(input))
 	default:
 		inputField, outputField, cacheFields := publicCatalogTextFieldIDs(input)
-		add(&cost.InputCost, inputField, float64(input.Tokens.InputTokens))
+		textInputTokens, imageInputTokens := splitTextAndImageInputTokens(input.Tokens)
+		add(&cost.InputCost, inputField, float64(textInputTokens))
+		add(&cost.ImageInputCost, billingDiscountFieldImageInputPrice, float64(imageInputTokens), inputField)
 		add(&cost.OutputCost, outputField, float64(input.Tokens.OutputTokens))
 		add(&cost.CacheCreationCost, cacheFields.creation, float64(input.Tokens.CacheCreationTokens), cacheFields.legacy)
 		add(&cost.CacheCreationCost, cacheFields.creation5m, float64(input.Tokens.CacheCreation5mTokens), cacheFields.creation, cacheFields.legacy)
@@ -351,7 +353,7 @@ func calculatePublicCatalogEntryRuntimeCost(ctx context.Context, display PublicM
 		add(&cost.OutputCost, billingDiscountFieldFileSearchEmbedding, input.Charges.FileSearchEmbeddingTokens)
 		add(&cost.OutputCost, billingDiscountFieldFileSearchRetrieval, input.Charges.FileSearchRetrievalTokens)
 	}
-	cost.TotalCost = cost.InputCost + cost.OutputCost + cost.CacheCreationCost + cost.CacheReadCost
+	cost.TotalCost = cost.InputCost + cost.ImageInputCost + cost.OutputCost + cost.CacheCreationCost + cost.CacheReadCost
 	cost.ActualCost = cost.TotalCost
 	if missing || !matched || cost.TotalCost == 0 {
 		return nil
@@ -591,6 +593,7 @@ func (r *BillingRuntimeResolver) resolveRuleBasedRuntime(ctx context.Context, in
 	if r.billingCenterService == nil || provider == "" {
 		return nil
 	}
+	textInputTokens, imageInputTokens := splitTextAndImageInputTokens(input.Tokens)
 	sim := normalizeSimulationInput(BillingSimulationInput{
 		Provider:       provider,
 		Layer:          input.Layer,
@@ -599,7 +602,8 @@ func (r *BillingRuntimeResolver) resolveRuleBasedRuntime(ctx context.Context, in
 		BatchMode:      input.BatchMode,
 		OutputModality: resolveBillingRuntimeOutputModality(input),
 		Charges: BillingSimulationCharges{
-			TextInputTokens:   float64(input.Tokens.InputTokens),
+			TextInputTokens:   float64(textInputTokens),
+			ImageInputTokens:  float64(imageInputTokens),
 			TextOutputTokens:  float64(input.Tokens.OutputTokens),
 			CacheCreateTokens: float64(input.Tokens.CacheCreationTokens + input.Tokens.CacheCreation5mTokens + input.Tokens.CacheCreation1hTokens),
 			CacheReadTokens:   float64(input.Tokens.CacheReadTokens),

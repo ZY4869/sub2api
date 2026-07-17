@@ -554,6 +554,7 @@ func (s *OpenAIGatewayService) parseSSEUsageBytes(data []byte, usage *OpenAIUsag
 		return
 	}
 	usage.InputTokens = int(gjson.GetBytes(data, "response.usage.input_tokens").Int())
+	usage.ImageInputTokens = extractOpenAIUsageImageInputTokens(data, "response.usage")
 	usage.OutputTokens = int(gjson.GetBytes(data, "response.usage.output_tokens").Int())
 	if miss := gjson.GetBytes(data, "response.usage.prompt_cache_miss_tokens"); miss.Exists() && miss.Int() > 0 {
 		usage.CacheCreationInputTokens = int(miss.Int())

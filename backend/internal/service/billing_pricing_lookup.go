@@ -40,6 +40,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				InputTokenThreshold:                       litellmPricing.InputTokenThreshold,
 				InputPricePerTokenAboveThreshold:          litellmPricing.InputCostPerTokenAboveThreshold,
 				InputPricePerTokenPriorityAboveThreshold:  litellmPricing.InputCostPerTokenPriorityAboveThreshold,
+				ImageInputPricePerToken:                   litellmPricing.InputCostPerImageToken,
 				OutputPricePerToken:                       litellmPricing.OutputCostPerToken,
 				OutputPricePerTokenPriority:               litellmPricing.OutputCostPerTokenPriority,
 				OutputTokenThreshold:                      litellmPricing.OutputTokenThreshold,

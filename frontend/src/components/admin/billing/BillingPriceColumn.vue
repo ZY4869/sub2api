@@ -355,6 +355,14 @@ const baseFields = computed<PricingFieldDescriptor<RootNumberField>[]>(() => {
       field: 'input_price',
     }))
   }
+  if (props.inputSupported || props.form.image_input_price != null) {
+    fields.push(buildFieldDescriptor({
+      id: 'image_input_price',
+      label: '图片输入定价',
+      sourceValue: props.form.image_input_price,
+      field: 'image_input_price',
+    }))
+  }
 
   fields.push(buildFieldDescriptor({
     id: 'output_price',

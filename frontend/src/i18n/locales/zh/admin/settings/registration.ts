@@ -19,5 +19,11 @@ export default {
         totp: "双因素认证 (2FA)",
         totpHint: "允许用户使用 Google Authenticator 等应用进行二次验证",
         totpKeyNotConfigured: "请先在环境变量中配置 TOTP_ENCRYPTION_KEY。使用命令 openssl rand -hex 32 生成密钥。",
+    },
+    securityAudit: {
+        title: "审计与安全留存",
+        description: "控制管理员敏感操作日志的保留窗口。",
+        retentionDays: "审计日志保留天数",
+        retentionDaysHint: "范围 1-3650 天。清理过期审计日志时需要 2FA 二次验证。",
     }
 }

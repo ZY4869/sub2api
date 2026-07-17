@@ -27,6 +27,7 @@ type AdminService interface {
 	GetGroup(ctx context.Context, id int64) (*Group, error)
 	GetGroupByName(ctx context.Context, name string) (*Group, error)
 	CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error)
+	DuplicateGroup(ctx context.Context, id int64, input *DuplicateGroupInput) (*Group, error)
 	UpdateGroup(ctx context.Context, id int64, input *UpdateGroupInput) (*Group, error)
 	DeleteGroup(ctx context.Context, id int64) error
 	GetGroupAPIKeys(ctx context.Context, groupID int64, page, pageSize int) ([]APIKey, int64, error)
@@ -157,6 +158,10 @@ type CreateGroupInput struct {
 	ImageBatchMaxDownloadBytes      int64
 	ImageBatchDownloadConcurrency   int
 	CopyAccountsFromGroupIDs        []int64
+}
+type DuplicateGroupInput struct {
+	Name         string
+	CopyAccounts bool
 }
 type UpdateGroupInput struct {
 	Name                            string

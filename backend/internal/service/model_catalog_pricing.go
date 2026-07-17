@@ -82,6 +82,7 @@ func pricingFromLiteLLM(pricing *LiteLLMModelPricing) *ModelCatalogPricing {
 		InputTokenThreshold:                      modelCatalogPositiveIntPtr(pricing.InputTokenThreshold),
 		InputCostPerTokenAboveThreshold:          modelCatalogFloat64Ptr(pricing.InputCostPerTokenAboveThreshold),
 		InputCostPerTokenPriorityAboveThreshold:  modelCatalogFloat64Ptr(pricing.InputCostPerTokenPriorityAboveThreshold),
+		InputCostPerImageToken:                   modelCatalogFloat64Ptr(pricing.InputCostPerImageToken),
 		OutputCostPerToken:                       modelCatalogFloat64Ptr(pricing.OutputCostPerToken),
 		OutputCostPerTokenPriority:               modelCatalogFloat64Ptr(pricing.OutputCostPerTokenPriority),
 		OutputTokenThreshold:                     modelCatalogPositiveIntPtr(pricing.OutputTokenThreshold),
@@ -111,6 +112,7 @@ func pricingFromBilling(pricing *ModelPricing) *ModelCatalogPricing {
 		InputTokenThreshold:                      modelCatalogPositiveIntPtr(pricing.InputTokenThreshold),
 		InputCostPerTokenAboveThreshold:          modelCatalogFloat64Ptr(pricing.InputPricePerTokenAboveThreshold),
 		InputCostPerTokenPriorityAboveThreshold:  modelCatalogFloat64Ptr(pricing.InputPricePerTokenPriorityAboveThreshold),
+		InputCostPerImageToken:                   modelCatalogFloat64Ptr(pricing.ImageInputPricePerToken),
 		OutputCostPerToken:                       modelCatalogFloat64Ptr(pricing.OutputPricePerToken),
 		OutputCostPerTokenPriority:               modelCatalogFloat64Ptr(pricing.OutputPricePerTokenPriority),
 		OutputTokenThreshold:                     modelCatalogPositiveIntPtr(pricing.OutputTokenThreshold),
@@ -185,6 +187,7 @@ func mergeCatalogPricing(target *ModelCatalogPricing, patch *ModelCatalogPricing
 	assignInt(&target.InputTokenThreshold, patch.InputTokenThreshold)
 	assignFloat(&target.InputCostPerTokenAboveThreshold, patch.InputCostPerTokenAboveThreshold)
 	assignFloat(&target.InputCostPerTokenPriorityAboveThreshold, patch.InputCostPerTokenPriorityAboveThreshold)
+	assignFloat(&target.InputCostPerImageToken, patch.InputCostPerImageToken)
 	assignFloat(&target.OutputCostPerToken, patch.OutputCostPerToken)
 	assignFloat(&target.OutputCostPerTokenPriority, patch.OutputCostPerTokenPriority)
 	assignInt(&target.OutputTokenThreshold, patch.OutputTokenThreshold)
@@ -206,6 +209,7 @@ func pricingEmpty(pricing *ModelCatalogPricing) bool {
 			pricing.InputTokenThreshold == nil &&
 			pricing.InputCostPerTokenAboveThreshold == nil &&
 			pricing.InputCostPerTokenPriorityAboveThreshold == nil &&
+			pricing.InputCostPerImageToken == nil &&
 			pricing.OutputCostPerToken == nil &&
 			pricing.OutputCostPerTokenPriority == nil &&
 			pricing.OutputTokenThreshold == nil &&
@@ -242,6 +246,7 @@ func validateOverridePricing(pricing ModelCatalogPricing) error {
 		pricing.InputCostPerTokenPriority,
 		pricing.InputCostPerTokenAboveThreshold,
 		pricing.InputCostPerTokenPriorityAboveThreshold,
+		pricing.InputCostPerImageToken,
 		pricing.OutputCostPerToken,
 		pricing.OutputCostPerTokenPriority,
 		pricing.OutputCostPerTokenAboveThreshold,

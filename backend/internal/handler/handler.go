@@ -9,6 +9,7 @@ type AdminHandlers struct {
 	Dashboard              *admin.DashboardHandler
 	Compliance             *admin.ComplianceHandler
 	User                   *admin.UserHandler
+	AuditLog               *admin.AuditLogHandler
 	Moderation             *admin.ContentModerationAuditHandler
 	Group                  *admin.GroupHandler
 	Channel                *admin.ChannelHandler

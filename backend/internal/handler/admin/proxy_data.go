@@ -21,11 +21,17 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
+	if !h.requireStepUpTotp(c, "admin.proxies.export") {
+		return
+	}
 
 	var proxies []service.Proxy
 	if len(selectedIDs) > 0 {
 		proxies, err = h.getProxiesByIDs(ctx, selectedIDs)
 		if err != nil {
+			h.recordAdminAudit(c, "admin.proxies.export", "proxy", "", service.AuditStatusFailure, map[string]any{
+				"selected_count": len(selectedIDs),
+			})
 			response.ErrorFrom(c, err)
 			return
 		}
@@ -39,12 +45,21 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 
 		proxies, err = h.listProxiesFiltered(ctx, protocol, status, search)
 		if err != nil {
+			h.recordAdminAudit(c, "admin.proxies.export", "proxy", "", service.AuditStatusFailure, map[string]any{
+				"protocol": protocol,
+				"status":   status,
+				"search":   search != "",
+			})
 			response.ErrorFrom(c, err)
 			return
 		}
 	}
 	proxies, err = h.expandFallbackExportProxies(ctx, proxies)
 	if err != nil {
+		h.recordAdminAudit(c, "admin.proxies.export", "proxy", "", service.AuditStatusFailure, map[string]any{
+			"selected_count": len(selectedIDs),
+			"proxy_count":    len(proxies),
+		})
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -79,6 +94,10 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 		Accounts:   []DataAccount{},
 	}
 
+	h.recordAdminAudit(c, "admin.proxies.export", "proxy", "", service.AuditStatusSuccess, map[string]any{
+		"selected_count": len(selectedIDs),
+		"proxy_count":    len(proxies),
+	})
 	response.Success(c, payload)
 }
 

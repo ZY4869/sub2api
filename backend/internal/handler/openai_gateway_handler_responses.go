@@ -338,6 +338,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	maxAccountSwitches := h.maxAccountSwitches
 	sawQuotaOnlyGroupFailure := false
 	sawNonQuotaGroupFailure := false
+	requiredCapability := service.OpenAIEndpointCapability("")
+	if hasImageTool {
+		requiredCapability = service.OpenAIEndpointCapabilityResponses
+	}
 
 	for {
 		if isRequestCanceled(c.Request.Context(), nil) {
@@ -397,7 +401,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			}
 			// Select account supporting the requested model
 			reqLog.Debug("openai.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
-			selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
+			selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
 				c.Request.Context(),
 				currentAPIKey.GroupID,
 				previousResponseID,
@@ -405,6 +409,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				runtimeSelectionModel,
 				failedAccountIDs,
 				service.OpenAIUpstreamTransportAny,
+				requiredCapability,
 			)
 			if err != nil {
 				if isRequestCanceled(c.Request.Context(), err) {

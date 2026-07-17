@@ -204,6 +204,27 @@ func (_u *UsageLogUpdate) AddInputTokens(v int) *UsageLogUpdate {
 	return _u
 }
 
+// SetImageInputTokens sets the "image_input_tokens" field.
+func (_u *UsageLogUpdate) SetImageInputTokens(v int) *UsageLogUpdate {
+	_u.mutation.ResetImageInputTokens()
+	_u.mutation.SetImageInputTokens(v)
+	return _u
+}
+
+// SetNillableImageInputTokens sets the "image_input_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableImageInputTokens(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetImageInputTokens(*v)
+	}
+	return _u
+}
+
+// AddImageInputTokens adds value to the "image_input_tokens" field.
+func (_u *UsageLogUpdate) AddImageInputTokens(v int) *UsageLogUpdate {
+	_u.mutation.AddImageInputTokens(v)
+	return _u
+}
+
 // SetOutputTokens sets the "output_tokens" field.
 func (_u *UsageLogUpdate) SetOutputTokens(v int) *UsageLogUpdate {
 	_u.mutation.ResetOutputTokens()
@@ -327,6 +348,27 @@ func (_u *UsageLogUpdate) SetNillableInputCost(v *float64) *UsageLogUpdate {
 // AddInputCost adds value to the "input_cost" field.
 func (_u *UsageLogUpdate) AddInputCost(v float64) *UsageLogUpdate {
 	_u.mutation.AddInputCost(v)
+	return _u
+}
+
+// SetImageInputCost sets the "image_input_cost" field.
+func (_u *UsageLogUpdate) SetImageInputCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetImageInputCost()
+	_u.mutation.SetImageInputCost(v)
+	return _u
+}
+
+// SetNillableImageInputCost sets the "image_input_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableImageInputCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetImageInputCost(*v)
+	}
+	return _u
+}
+
+// AddImageInputCost adds value to the "image_input_cost" field.
+func (_u *UsageLogUpdate) AddImageInputCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddImageInputCost(v)
 	return _u
 }
 
@@ -1122,6 +1164,12 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedInputTokens(); ok {
 		_spec.AddField(usagelog.FieldInputTokens, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.ImageInputTokens(); ok {
+		_spec.SetField(usagelog.FieldImageInputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedImageInputTokens(); ok {
+		_spec.AddField(usagelog.FieldImageInputTokens, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.OutputTokens(); ok {
 		_spec.SetField(usagelog.FieldOutputTokens, field.TypeInt, value)
 	}
@@ -1157,6 +1205,12 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedInputCost(); ok {
 		_spec.AddField(usagelog.FieldInputCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ImageInputCost(); ok {
+		_spec.SetField(usagelog.FieldImageInputCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedImageInputCost(); ok {
+		_spec.AddField(usagelog.FieldImageInputCost, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.OutputCost(); ok {
 		_spec.SetField(usagelog.FieldOutputCost, field.TypeFloat64, value)
@@ -1668,6 +1722,27 @@ func (_u *UsageLogUpdateOne) AddInputTokens(v int) *UsageLogUpdateOne {
 	return _u
 }
 
+// SetImageInputTokens sets the "image_input_tokens" field.
+func (_u *UsageLogUpdateOne) SetImageInputTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetImageInputTokens()
+	_u.mutation.SetImageInputTokens(v)
+	return _u
+}
+
+// SetNillableImageInputTokens sets the "image_input_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableImageInputTokens(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetImageInputTokens(*v)
+	}
+	return _u
+}
+
+// AddImageInputTokens adds value to the "image_input_tokens" field.
+func (_u *UsageLogUpdateOne) AddImageInputTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.AddImageInputTokens(v)
+	return _u
+}
+
 // SetOutputTokens sets the "output_tokens" field.
 func (_u *UsageLogUpdateOne) SetOutputTokens(v int) *UsageLogUpdateOne {
 	_u.mutation.ResetOutputTokens()
@@ -1791,6 +1866,27 @@ func (_u *UsageLogUpdateOne) SetNillableInputCost(v *float64) *UsageLogUpdateOne
 // AddInputCost adds value to the "input_cost" field.
 func (_u *UsageLogUpdateOne) AddInputCost(v float64) *UsageLogUpdateOne {
 	_u.mutation.AddInputCost(v)
+	return _u
+}
+
+// SetImageInputCost sets the "image_input_cost" field.
+func (_u *UsageLogUpdateOne) SetImageInputCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetImageInputCost()
+	_u.mutation.SetImageInputCost(v)
+	return _u
+}
+
+// SetNillableImageInputCost sets the "image_input_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableImageInputCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetImageInputCost(*v)
+	}
+	return _u
+}
+
+// AddImageInputCost adds value to the "image_input_cost" field.
+func (_u *UsageLogUpdateOne) AddImageInputCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddImageInputCost(v)
 	return _u
 }
 
@@ -2616,6 +2712,12 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	if value, ok := _u.mutation.AddedInputTokens(); ok {
 		_spec.AddField(usagelog.FieldInputTokens, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.ImageInputTokens(); ok {
+		_spec.SetField(usagelog.FieldImageInputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedImageInputTokens(); ok {
+		_spec.AddField(usagelog.FieldImageInputTokens, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.OutputTokens(); ok {
 		_spec.SetField(usagelog.FieldOutputTokens, field.TypeInt, value)
 	}
@@ -2651,6 +2753,12 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.AddedInputCost(); ok {
 		_spec.AddField(usagelog.FieldInputCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ImageInputCost(); ok {
+		_spec.SetField(usagelog.FieldImageInputCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedImageInputCost(); ok {
+		_spec.AddField(usagelog.FieldImageInputCost, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.OutputCost(); ok {
 		_spec.SetField(usagelog.FieldOutputCost, field.TypeFloat64, value)

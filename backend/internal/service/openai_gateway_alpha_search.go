@@ -67,8 +67,47 @@ func (s *OpenAIGatewayService) ForwardAlphaSearch(ctx context.Context, c *gin.Co
 		_ = resp.Body.Close()
 	}()
 
-	writeOpenAIPassthroughResponseHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	statusCode := resp.StatusCode
+	if statusCode >= http.StatusBadRequest {
+		respBody, _ := readUpstreamResponseBodyLimitedFromResponse(resp, 2<<20)
+		upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+		if s.shouldFailoverAlphaSearchResponse(account, statusCode, upstreamMsg, respBody) {
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				Platform:           RoutingPlatformForAccount(account),
+				AccountID:          account.ID,
+				AccountName:        account.Name,
+				UpstreamStatusCode: statusCode,
+				UpstreamRequestID:  resp.Header.Get("x-request-id"),
+				Kind:               "failover",
+				Message:            upstreamMsg,
+			})
+			if s.shouldFailoverOpenAIUpstreamResponse(statusCode, upstreamMsg, respBody) {
+				resp.Body = io.NopCloser(bytes.NewReader(respBody))
+				s.handleFailoverSideEffects(ctx, resp, account)
+			}
+			return nil, &UpstreamFailoverError{
+				StatusCode:             statusCode,
+				ResponseBody:           respBody,
+				ResponseHeaders:        resp.Header.Clone(),
+				RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(statusCode),
+			}
+		}
+		writeOpenAIPassthroughResponseHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
+		c.Status(statusCode)
+		if _, copyErr := c.Writer.Write(respBody); copyErr != nil {
+			return nil, copyErr
+		}
+		if flusher, ok := c.Writer.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		return &OpenAIAlphaSearchForwardResult{
+			RequestID:       resp.Header.Get("x-request-id"),
+			StatusCode:      statusCode,
+			ResponseHeaders: resp.Header.Clone(),
+			Duration:        time.Since(startTime),
+		}, nil
+	}
+	writeOpenAIPassthroughResponseHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	c.Status(statusCode)
 	if _, copyErr := io.Copy(c.Writer, resp.Body); copyErr != nil {
 		return nil, copyErr
@@ -83,4 +122,11 @@ func (s *OpenAIGatewayService) ForwardAlphaSearch(ctx context.Context, c *gin.Co
 		Duration:        time.Since(startTime),
 	}
 	return result, nil
+}
+
+func (s *OpenAIGatewayService) shouldFailoverAlphaSearchResponse(account *Account, statusCode int, upstreamMsg string, upstreamBody []byte) bool {
+	if s.shouldFailoverOpenAIUpstreamResponse(statusCode, upstreamMsg, upstreamBody) {
+		return true
+	}
+	return account != nil && account.IsOpenAIApiKey() && (statusCode == http.StatusNotFound || statusCode == http.StatusMethodNotAllowed)
 }

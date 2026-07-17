@@ -29,10 +29,24 @@ func setupProxyDataRouter() (*gin.Engine, *stubAdminService) {
 	adminSvc := newStubAdminService()
 
 	h := NewProxyHandler(adminSvc)
+	h.SetAdminSecurityHelper(allowStepUpForHandlerTests())
 	router.GET("/api/v1/admin/proxies/data", h.ExportData)
 	router.POST("/api/v1/admin/proxies/data", h.ImportData)
 
 	return router, adminSvc
+}
+
+func TestProxyExportDataRequiresStepUp(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	h := NewProxyHandler(newStubAdminService())
+	router.GET("/api/v1/admin/proxies/data", h.ExportData)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/data", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	require.Contains(t, rec.Body.String(), "STEP_UP_NOT_CONFIGURED")
 }
 
 func TestProxyExportDataRespectsFilters(t *testing.T) {

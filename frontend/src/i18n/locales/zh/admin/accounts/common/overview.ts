@@ -110,7 +110,7 @@ export default {
         schedulable: "调度",
         todayStats: "今日统计",
         groups: "分组",
-        usageWindows: "Usage Windows",
+        usageWindows: "用量窗口",
         usageResetDates: "重置日期",
         proxy: "代理",
         lastUsed: "最近使用",

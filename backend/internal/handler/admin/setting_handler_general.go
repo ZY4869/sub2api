@@ -156,6 +156,7 @@ type UpdateSettingsRequest struct {
 	BackendModeEnabled                                 bool                                      `json:"backend_mode_enabled"`
 	MaintenanceModeEnabled                             bool                                      `json:"maintenance_mode_enabled"`
 	AdminComplianceEnabled                             bool                                      `json:"admin_compliance_enabled"`
+	AuditLogRetentionDays                              int                                       `json:"audit_log_retention_days"`
 
 	AffiliateEnabled              *bool    `json:"affiliate_enabled"`
 	AffiliateTransferEnabled      *bool    `json:"affiliate_transfer_enabled"`
@@ -929,6 +930,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	settings.LoginAgreementDocuments = loginAgreementDocuments
 	settings.PaymentSubscriptionUSDToCNYRate = paymentSubscriptionUSDToCNYRate
 	settings.AdminComplianceEnabled = req.AdminComplianceEnabled
+	settings.AuditLogRetentionDays = service.NormalizeAuditLogRetentionDays(req.AuditLogRetentionDays)
 	settings.OpenAIAdvancedSchedulerEnabled = boolSetting(req.OpenAIAdvancedSchedulerEnabled, previousSettings.OpenAIAdvancedSchedulerEnabled)
 	settings.OpenAIAdvancedSchedulerStickyWeightedEnabled = boolSetting(req.OpenAIAdvancedSchedulerStickyWeightedEnabled, previousSettings.OpenAIAdvancedSchedulerStickyWeightedEnabled)
 	settings.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled = boolSetting(req.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled, previousSettings.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled)

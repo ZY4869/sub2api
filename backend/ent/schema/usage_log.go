@@ -49,6 +49,8 @@ func (UsageLog) Fields() []ent.Field {
 			Nillable(),
 		field.Int("input_tokens").
 			Default(0),
+		field.Int("image_input_tokens").
+			Default(0),
 		field.Int("output_tokens").
 			Default(0),
 		field.Int("cache_creation_tokens").
@@ -60,6 +62,9 @@ func (UsageLog) Fields() []ent.Field {
 		field.Int("cache_creation_1h_tokens").
 			Default(0),
 		field.Float("input_cost").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Float("image_input_cost").
 			Default(0).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
 		field.Float("output_cost").

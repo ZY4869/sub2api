@@ -188,6 +188,7 @@ type SystemSettings struct {
 	BackendModeEnabled     bool
 	MaintenanceModeEnabled bool
 	AdminComplianceEnabled bool
+	AuditLogRetentionDays  int
 }
 
 type DefaultSubscriptionSetting struct {

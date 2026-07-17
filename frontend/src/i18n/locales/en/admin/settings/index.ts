@@ -11,6 +11,7 @@ import site from './site'
 import email from './email'
 import opsMonitoring from './opsMonitoring'
 import adminApiKey from './adminApiKey'
+import billingProbe from './billingProbe'
 import googleBatch from './googleBatch'
 import imageBatch from './imageBatch'
 
@@ -28,6 +29,7 @@ export default {
   ...email,
   ...opsMonitoring,
   ...adminApiKey,
+  ...billingProbe,
   ...googleBatch,
   ...imageBatch,
 }

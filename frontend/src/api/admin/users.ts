@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../client'
+import { stepUpHeaders, type AdminStepUpOptions } from './stepUp'
 import type { AdminUser, UpdateUserRequest, PaginatedResponse, ApiKey, APIKeyModelBindingMode, ExternalModelCatalogViewMode, TimeAccessPolicy } from '@/types'
 
 /**
@@ -84,8 +85,13 @@ export async function create(userData: {
   api_key_model_binding_mode?: APIKeyModelBindingMode
   external_model_catalog_view_mode?: ExternalModelCatalogViewMode
   api_key_access_time_policy?: TimeAccessPolicy | null
-}): Promise<AdminUser> {
-  const { data } = await apiClient.post<AdminUser>('/admin/users', userData)
+}, options?: AdminStepUpOptions): Promise<AdminUser> {
+  const headers = stepUpHeaders(options)
+  const { data } = await apiClient.post<AdminUser>(
+    '/admin/users',
+    userData,
+    headers ? { headers } : undefined
+  )
   return data
 }
 
@@ -95,8 +101,17 @@ export async function create(userData: {
  * @param updates - Fields to update
  * @returns Updated user
  */
-export async function update(id: number, updates: UpdateUserRequest): Promise<AdminUser> {
-  const { data } = await apiClient.put<AdminUser>(`/admin/users/${id}`, updates)
+export async function update(
+  id: number,
+  updates: UpdateUserRequest,
+  options?: AdminStepUpOptions
+): Promise<AdminUser> {
+  const headers = stepUpHeaders(options)
+  const { data } = await apiClient.put<AdminUser>(
+    `/admin/users/${id}`,
+    updates,
+    headers ? { headers } : undefined
+  )
   return data
 }
 
@@ -277,6 +292,30 @@ export interface BatchConcurrencyUpdateResponse {
   results: BatchConcurrencyUpdateResultItem[]
 }
 
+export interface BatchPlatformQuotaUpdateRequest {
+  items: UserPlatformQuotaInput[]
+  search?: string
+  role?: 'admin' | 'user' | ''
+  status?: 'active' | 'disabled' | ''
+  group_name?: string
+  api_key_group_id?: number | string
+  attributes?: Record<number, string>
+}
+
+export interface BatchPlatformQuotaUpdateResultItem {
+  user_id: number
+  email: string
+  success: boolean
+  error?: string
+}
+
+export interface BatchPlatformQuotaUpdateResponse {
+  matched: number
+  success_count: number
+  failed_count: number
+  results: BatchPlatformQuotaUpdateResultItem[]
+}
+
 export interface UserPlatformQuotaCycle {
   limit: number | null
   used: number
@@ -328,6 +367,21 @@ export async function batchUpdateConcurrency(
   return data
 }
 
+export async function batchUpdatePlatformQuotas(
+  payload: BatchPlatformQuotaUpdateRequest,
+  idempotencyKey?: string
+): Promise<BatchPlatformQuotaUpdateResponse> {
+  const headers = idempotencyKey
+    ? { 'Idempotency-Key': idempotencyKey }
+    : undefined
+  const { data } = await apiClient.post<BatchPlatformQuotaUpdateResponse>(
+    '/admin/users/batch-platform-quotas',
+    payload,
+    headers ? { headers } : undefined
+  )
+  return data
+}
+
 export const usersAPI = {
   list,
   getById,
@@ -343,7 +397,8 @@ export const usersAPI = {
   getUserPlatformQuotas,
   updateUserPlatformQuotas,
   replaceGroup,
-  batchUpdateConcurrency
+  batchUpdateConcurrency,
+  batchUpdatePlatformQuotas
 }
 
 export default usersAPI

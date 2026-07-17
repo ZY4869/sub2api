@@ -27,6 +27,7 @@ func RegisterAdminRoutes(
 
 		// 用户管理
 		registerUserManagementRoutes(admin, h)
+		registerAuditLogRoutes(admin, h)
 		registerContentModerationRoutes(admin, h)
 		registerAffiliateRoutes(admin, h)
 
@@ -110,6 +111,17 @@ func registerAdminComplianceRoutes(admin *gin.RouterGroup, h *handler.Handlers) 
 	{
 		compliance.GET("/status", h.Admin.Compliance.Status)
 		compliance.POST("/acknowledge", h.Admin.Compliance.Acknowledge)
+	}
+}
+
+func registerAuditLogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h == nil || h.Admin == nil || h.Admin.AuditLog == nil {
+		return
+	}
+	audits := admin.Group("/audit-logs")
+	{
+		audits.GET("", h.Admin.AuditLog.List)
+		audits.POST("/cleanup-expired", h.Admin.AuditLog.CleanupExpired)
 	}
 }
 
@@ -328,6 +340,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		users.GET("", h.Admin.User.List)
 		users.POST("/batch-concurrency", h.Admin.User.BatchUpdateConcurrency)
+		users.POST("/batch-platform-quotas", h.Admin.User.BatchUpdatePlatformQuotas)
 		users.GET("/:id", h.Admin.User.GetByID)
 		users.POST("", h.Admin.User.Create)
 		users.PUT("/:id", h.Admin.User.Update)
@@ -381,6 +394,7 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		groups.PUT("/sort-order", h.Admin.Group.UpdateSortOrder)
 		groups.GET("/:id", h.Admin.Group.GetByID)
 		groups.POST("", h.Admin.Group.Create)
+		groups.POST("/:id/duplicate", h.Admin.Group.Duplicate)
 		groups.PUT("/:id", h.Admin.Group.Update)
 		groups.DELETE("/:id", h.Admin.Group.Delete)
 		groups.GET("/:id/stats", h.Admin.Group.GetStats)
@@ -408,6 +422,7 @@ func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		monitors.GET("", h.Admin.ChannelMonitor.List)
 		monitors.GET("/:id", h.Admin.ChannelMonitor.GetByID)
 		monitors.POST("", h.Admin.ChannelMonitor.Create)
+		monitors.POST("/:id/duplicate", h.Admin.ChannelMonitor.Duplicate)
 		monitors.PUT("/:id", h.Admin.ChannelMonitor.Update)
 		monitors.DELETE("/:id", h.Admin.ChannelMonitor.Delete)
 		monitors.POST("/:id/run", h.Admin.ChannelMonitor.Run)
@@ -434,6 +449,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.GET("/runtime-summary", h.Admin.Account.GetRuntimeSummary)
 		accounts.GET("/daily-5h-trigger-settings", h.Admin.Account.GetDaily5HTriggerSettings)
 		accounts.GET("/archived-groups", h.Admin.Account.ListArchivedGroups)
+		accounts.POST("/billing-probe", h.Admin.Account.BatchProbeBilling)
 		accounts.POST("/model-policy/backfill", h.Admin.Account.BackfillModelPolicies)
 		accounts.PUT("/daily-5h-trigger-settings", h.Admin.Account.UpdateDaily5HTriggerSettings)
 		accounts.GET("/:id", h.Admin.Account.GetByID)
@@ -449,6 +465,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.DELETE("/:id", h.Admin.Account.Delete)
 		accounts.POST("/:id/duplicate", h.Admin.Account.Duplicate)
 		accounts.POST("/:id/test", h.Admin.Account.Test)
+		accounts.POST("/:id/billing-probe", h.Admin.Account.ProbeBilling)
 		accounts.POST("/:id/recover-state", h.Admin.Account.RecoverState)
 		accounts.POST("/:id/refresh", h.Admin.Account.Refresh)
 		accounts.POST("/:id/set-privacy", h.Admin.Account.SetPrivacy)
@@ -677,6 +694,8 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.PUT("/google-batch-archive", h.Admin.Setting.UpdateGoogleBatchArchiveSettings)
 		adminSettings.GET("/image-batches", h.Admin.Setting.GetImageBatchSettings)
 		adminSettings.PUT("/image-batches", h.Admin.Setting.UpdateImageBatchSettings)
+		adminSettings.GET("/upstream-billing-probe", h.Admin.Setting.GetUpstreamBillingProbeSettings)
+		adminSettings.PUT("/upstream-billing-probe", h.Admin.Setting.UpdateUpstreamBillingProbeSettings)
 		adminSettings.GET("/google-batch-gcs/profiles", h.Admin.Setting.ListGoogleBatchGCSProfiles)
 		adminSettings.POST("/google-batch-gcs/profiles", h.Admin.Setting.CreateGoogleBatchGCSProfile)
 		adminSettings.PUT("/google-batch-gcs/profiles/:profile_id", h.Admin.Setting.UpdateGoogleBatchGCSProfile)

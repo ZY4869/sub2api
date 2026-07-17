@@ -45,7 +45,7 @@ describe('admin accounts api', () => {
     ])
   })
 
-  it('exposes Grok quota, reset, reconcile, and runtime sanity endpoints', async () => {
+  it('exposes Grok quota, billing probe, reset, reconcile, and runtime sanity endpoints', async () => {
     getMock
       .mockResolvedValueOnce({
         data: {
@@ -71,12 +71,16 @@ describe('admin accounts api', () => {
       })
       .mockResolvedValueOnce({ data: { valid: true, cli_base_url: 'https://cli-chat-proxy.grok.com/v1' } })
     postMock
+      .mockResolvedValueOnce({ data: { account_id: 42, platform: 'grok', supported: true, status: 'success', source: 'billing_probe', fetched_at: 1, persisted: true } })
+      .mockResolvedValueOnce({ data: { total: 1, succeeded: 1, failed: 0, unsupported: 0, items: [{ account_id: 42, supported: true, status: 'success', persisted: true }] } })
       .mockResolvedValueOnce({ data: { supported: false, code: 'GROK_QUOTA_RESET_UNSUPPORTED', message: 'unsupported' } })
       .mockResolvedValueOnce({ data: { dry_run: true, scanned: 1, actionable: 1, would_block: 1, would_refresh: 0, blocked: 0, refreshed: 0, skipped: 0, failed: 0, items: [], next_after_id: 42, has_more: false } })
 
     const {
       accountsAPI,
       queryGrokQuota,
+      probeAccountBilling,
+      batchProbeAccountBilling,
       resetGrokQuota,
       reconcileGrokOAuth,
       getGrokRuntimeSanity
@@ -91,15 +95,21 @@ describe('admin accounts api', () => {
         observation_source: 'billing_probe'
       }
     })
+    await expect(probeAccountBilling(42)).resolves.toMatchObject({ account_id: 42, status: 'success' })
+    await expect(batchProbeAccountBilling({ account_ids: [42] })).resolves.toMatchObject({ succeeded: 1 })
     await expect(resetGrokQuota(42)).resolves.toMatchObject({ supported: false })
     await expect(reconcileGrokOAuth({ dry_run: true, limit: 10 })).resolves.toMatchObject({ next_after_id: 42 })
     await expect(getGrokRuntimeSanity()).resolves.toMatchObject({ valid: true })
 
     expect(getMock).toHaveBeenNthCalledWith(1, '/admin/grok/accounts/42/quota')
-    expect(postMock).toHaveBeenNthCalledWith(1, '/admin/grok/accounts/42/reset-quota')
-    expect(postMock).toHaveBeenNthCalledWith(2, '/admin/grok/oauth/reconcile', { dry_run: true, limit: 10 })
+    expect(postMock).toHaveBeenNthCalledWith(1, '/admin/accounts/42/billing-probe', {})
+    expect(postMock).toHaveBeenNthCalledWith(2, '/admin/accounts/billing-probe', { account_ids: [42] })
+    expect(postMock).toHaveBeenNthCalledWith(3, '/admin/grok/accounts/42/reset-quota')
+    expect(postMock).toHaveBeenNthCalledWith(4, '/admin/grok/oauth/reconcile', { dry_run: true, limit: 10 })
     expect(getMock).toHaveBeenNthCalledWith(2, '/admin/grok/runtime-sanity')
     expect(accountsAPI.queryGrokQuota).toBe(queryGrokQuota)
+    expect(accountsAPI.probeAccountBilling).toBe(probeAccountBilling)
+    expect(accountsAPI.batchProbeAccountBilling).toBe(batchProbeAccountBilling)
     expect(accountsAPI.resetGrokQuota).toBe(resetGrokQuota)
     expect(accountsAPI.reconcileGrokOAuth).toBe(reconcileGrokOAuth)
     expect(accountsAPI.getGrokRuntimeSanity).toBe(getGrokRuntimeSanity)

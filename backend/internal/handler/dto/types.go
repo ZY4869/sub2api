@@ -491,6 +491,7 @@ type UsageLog struct {
 	SubscriptionID *int64 `json:"subscription_id"`
 
 	InputTokens         int `json:"input_tokens"`
+	ImageInputTokens    int `json:"image_input_tokens"`
 	OutputTokens        int `json:"output_tokens"`
 	CacheCreationTokens int `json:"cache_creation_tokens"`
 	CacheReadTokens     int `json:"cache_read_tokens"`
@@ -499,6 +500,7 @@ type UsageLog struct {
 	CacheCreation1hTokens int `json:"cache_creation_1h_tokens"`
 
 	InputCost               float64            `json:"input_cost"`
+	ImageInputCost          float64            `json:"image_input_cost"`
 	OutputCost              float64            `json:"output_cost"`
 	CacheCreationCost       float64            `json:"cache_creation_cost"`
 	CacheReadCost           float64            `json:"cache_read_cost"`

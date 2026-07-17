@@ -43,6 +43,13 @@ func (s *AuthService) RefreshTokenPair(ctx context.Context, refreshToken string)
 		return nil, ErrRefreshTokenExpired
 	}
 
+	if !refreshTokenSessionBindingMatches(ctx, data) {
+		if data.FamilyID != "" {
+			_ = s.refreshTokenCache.DeleteTokenFamily(ctx, data.FamilyID)
+		}
+		return nil, ErrRefreshSessionMismatch
+	}
+
 	// 获取用户信息
 	user, err := s.userRepo.GetByID(ctx, data.UserID)
 	if err != nil {
@@ -84,6 +91,20 @@ func (s *AuthService) RefreshTokenPair(ctx context.Context, refreshToken string)
 		TokenPair: *pair,
 		UserRole:  user.Role,
 	}, nil
+}
+
+func refreshTokenSessionBindingMatches(ctx context.Context, data *RefreshTokenData) bool {
+	if data == nil || (data.ClientIPHash == "" && data.UserAgentHash == "") {
+		return true
+	}
+	clientIPHash, userAgentHash := authSessionBindingHashesFromContext(ctx)
+	if data.ClientIPHash != "" && data.ClientIPHash != clientIPHash {
+		return false
+	}
+	if data.UserAgentHash != "" && data.UserAgentHash != userAgentHash {
+		return false
+	}
+	return true
 }
 
 // RevokeRefreshToken 撤销单个Refresh Token

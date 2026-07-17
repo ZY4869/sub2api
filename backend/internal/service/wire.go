@@ -893,6 +893,12 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	return svc
 }
 
+func ProvideAuditLogService(repo AuditLogRepository, settingService *SettingService) *AuditLogService {
+	svc := NewAuditLogService(repo)
+	svc.SetRetentionProvider(settingService)
+	return svc
+}
+
 func ProvideAuthService(
 	entClient *dbent.Client,
 	userRepo UserRepository,
@@ -918,6 +924,7 @@ var ProviderSet = wire.NewSet(
 	// Core services
 	ProvideAuthService,
 	NewAuthIdentityService,
+	ProvideAuditLogService,
 	NewContentModerationService,
 	NewUserService,
 	ProvideAPIKeyService,

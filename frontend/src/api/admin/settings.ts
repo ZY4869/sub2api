@@ -163,6 +163,7 @@ export interface SystemSettings {
   backend_mode_enabled: boolean
   maintenance_mode_enabled: boolean
   admin_compliance_enabled: boolean
+  audit_log_retention_days: number
   custom_menu_items: CustomMenuItem[]
   login_agreement_enabled: boolean
   login_agreement_mode: 'checkbox' | string
@@ -324,6 +325,7 @@ export interface UpdateSettingsRequest {
   backend_mode_enabled?: boolean
   maintenance_mode_enabled?: boolean
   admin_compliance_enabled?: boolean
+  audit_log_retention_days?: number
   custom_menu_items?: CustomMenuItem[]
   login_agreement_enabled?: boolean
   login_agreement_mode?: 'checkbox' | string
@@ -750,6 +752,12 @@ export interface ImageBatchSettings {
   enabled: boolean
 }
 
+export interface UpstreamBillingProbeSettings {
+  enabled: boolean
+  batch_concurrency: number
+  timeout_seconds: number
+}
+
 export interface GeminiRateCatalogModelRow {
   model_family: string
   display_name: string
@@ -834,6 +842,23 @@ export async function updateImageBatchSettings(
   return data
 }
 
+export async function getUpstreamBillingProbeSettings(): Promise<UpstreamBillingProbeSettings> {
+  const { data } = await apiClient.get<UpstreamBillingProbeSettings>(
+    '/admin/settings/upstream-billing-probe',
+  )
+  return data
+}
+
+export async function updateUpstreamBillingProbeSettings(
+  request: UpstreamBillingProbeSettings,
+): Promise<UpstreamBillingProbeSettings> {
+  const { data } = await apiClient.put<UpstreamBillingProbeSettings>(
+    '/admin/settings/upstream-billing-probe',
+    request,
+  )
+  return data
+}
+
 export async function listGoogleBatchGCSProfiles(): Promise<ListGoogleBatchGCSProfilesResponse> {
   const { data } = await apiClient.get<ListGoogleBatchGCSProfilesResponse>('/admin/settings/google-batch-gcs/profiles')
   return data
@@ -889,6 +914,8 @@ export const settingsAPI = {
   updateGoogleBatchArchiveSettings,
   getImageBatchSettings,
   updateImageBatchSettings,
+  getUpstreamBillingProbeSettings,
+  updateUpstreamBillingProbeSettings,
   listGoogleBatchGCSProfiles,
   createGoogleBatchGCSProfile,
   updateGoogleBatchGCSProfile,

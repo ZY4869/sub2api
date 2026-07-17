@@ -33,6 +33,7 @@ func RegisterAuthRoutes(
 
 	// 公开接口
 	auth := v1.Group("/auth")
+	auth.Use(servermiddleware.AuthSessionBinding())
 	auth.Use(servermiddleware.MaintenanceModeAuthGuard(settingService))
 	auth.Use(servermiddleware.BackendModeAuthGuard(settingService))
 	{

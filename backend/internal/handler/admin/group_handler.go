@@ -192,6 +192,11 @@ type CreateGroupRequest struct {
 	CopyAccountsFromGroupIDs []int64 `json:"copy_accounts_from_group_ids"`
 }
 
+type DuplicateGroupRequest struct {
+	Name         string `json:"name"`
+	CopyAccounts *bool  `json:"copy_accounts"`
+}
+
 // UpdateGroupRequest represents update group request
 type UpdateGroupRequest struct {
 	Name               string              `json:"name"`
@@ -371,6 +376,37 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		return
 	}
 
+	response.Success(c, dto.GroupFromServiceAdmin(group))
+}
+
+// Duplicate handles creating a copy of an existing group.
+// POST /api/v1/admin/groups/:id/duplicate
+func (h *GroupHandler) Duplicate(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || groupID <= 0 {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+	copyAccountsDefault := true
+	req := DuplicateGroupRequest{CopyAccounts: &copyAccountsDefault}
+	if c.Request != nil && c.Request.Body != nil && c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.BadRequest(c, "Invalid request: "+err.Error())
+			return
+		}
+	}
+	copyAccounts := true
+	if req.CopyAccounts != nil {
+		copyAccounts = *req.CopyAccounts
+	}
+	group, err := h.adminService.DuplicateGroup(c.Request.Context(), groupID, &service.DuplicateGroupInput{
+		Name:         req.Name,
+		CopyAccounts: copyAccounts,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	response.Success(c, dto.GroupFromServiceAdmin(group))
 }
 

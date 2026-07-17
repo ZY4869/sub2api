@@ -26,6 +26,9 @@ type UserHandler struct {
 	adminService       service.AdminService
 	concurrencyService *service.ConcurrencyService
 	platformQuotas     *service.UserPlatformQuotaService
+	totpService        *service.TotpService
+	auditLogService    *service.AuditLogService
+	adminSecurity      *AdminSecurityHelper
 }
 
 // NewUserHandler creates a new admin user handler
@@ -41,6 +44,29 @@ func (h *UserHandler) SetUserPlatformQuotaService(quotaService *service.UserPlat
 		return
 	}
 	h.platformQuotas = quotaService
+}
+
+func (h *UserHandler) SetTotpService(totpService *service.TotpService) {
+	if h == nil {
+		return
+	}
+	h.totpService = totpService
+	h.adminSecurity = NewAdminSecurityHelper(h.totpService, h.auditLogService)
+}
+
+func (h *UserHandler) SetAuditLogService(auditLogService *service.AuditLogService) {
+	if h == nil {
+		return
+	}
+	h.auditLogService = auditLogService
+	h.adminSecurity = NewAdminSecurityHelper(h.totpService, h.auditLogService)
+}
+
+func (h *UserHandler) SetAdminSecurityHelper(helper *AdminSecurityHelper) {
+	if h == nil {
+		return
+	}
+	h.adminSecurity = helper
 }
 
 // CreateUserRequest represents admin create user request
@@ -107,6 +133,23 @@ type BatchUpdateConcurrencyItemResult struct {
 
 type PlatformQuotaUpdateRequest struct {
 	Items []service.UserPlatformQuotaInput `json:"items"`
+}
+
+type BatchPlatformQuotaUpdateRequest struct {
+	Items         []service.UserPlatformQuotaInput `json:"items" binding:"required"`
+	Search        string                           `json:"search"`
+	Role          string                           `json:"role"`
+	Status        string                           `json:"status"`
+	GroupName     string                           `json:"group_name"`
+	APIKeyGroupID int64                            `json:"api_key_group_id"`
+	Attributes    map[int64]string                 `json:"attributes"`
+}
+
+type BatchPlatformQuotaUpdateItemResult struct {
+	UserID  int64  `json:"user_id"`
+	Email   string `json:"email"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
 }
 
 // List handles listing all users with pagination
@@ -241,6 +284,13 @@ func (h *UserHandler) Create(c *gin.Context) {
 		return
 	}
 
+	isCreatingAdmin := isAdminRoleRequest(req.Role)
+	if isCreatingAdmin {
+		if !h.requireStepUpTotp(c, "admin.users.create_admin") {
+			return
+		}
+	}
+
 	user, err := h.adminService.CreateUser(c.Request.Context(), &service.CreateUserInput{
 		Email:                        req.Email,
 		Password:                     req.Password,
@@ -255,8 +305,18 @@ func (h *UserHandler) Create(c *gin.Context) {
 		APIKeyAccessTimePolicy:       req.APIKeyAccessTimePolicy,
 	})
 	if err != nil {
+		if isCreatingAdmin {
+			h.recordAdminAudit(c, "admin.users.create_admin", "user", "", service.AuditStatusFailure, map[string]any{
+				"email": req.Email,
+			})
+		}
 		response.ErrorFrom(c, err)
 		return
+	}
+	if isCreatingAdmin {
+		h.recordAdminAudit(c, "admin.users.create_admin", "user", strconv.FormatInt(user.ID, 10), service.AuditStatusSuccess, map[string]any{
+			"email": user.Email,
+		})
 	}
 
 	response.Success(c, dto.UserFromServiceAdmin(user))
@@ -275,6 +335,21 @@ func (h *UserHandler) Update(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
+	}
+
+	isPromotingAdmin := false
+	if req.Role != nil && isAdminRoleRequest(*req.Role) {
+		current, err := h.adminService.GetUser(c.Request.Context(), userID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		isPromotingAdmin = current.Role != service.RoleAdmin
+		if isPromotingAdmin {
+			if !h.requireStepUpTotp(c, "admin.users.promote_admin") {
+				return
+			}
+		}
 	}
 
 	// 使用指针类型直接传递，nil 表示未提供该字段
@@ -297,11 +372,37 @@ func (h *UserHandler) Update(c *gin.Context) {
 		ClearAPIKeyAccessTimePolicy:  req.ClearAPIKeyAccessTimePolicy != nil && *req.ClearAPIKeyAccessTimePolicy,
 	})
 	if err != nil {
+		if isPromotingAdmin {
+			h.recordAdminAudit(c, "admin.users.promote_admin", "user", strconv.FormatInt(userID, 10), service.AuditStatusFailure, nil)
+		}
 		response.ErrorFrom(c, err)
 		return
 	}
+	if isPromotingAdmin {
+		h.recordAdminAudit(c, "admin.users.promote_admin", "user", strconv.FormatInt(user.ID, 10), service.AuditStatusSuccess, map[string]any{
+			"email": user.Email,
+		})
+	}
 
 	response.Success(c, dto.UserFromServiceAdmin(user))
+}
+
+func isAdminRoleRequest(role string) bool {
+	return strings.EqualFold(strings.TrimSpace(role), service.RoleAdmin)
+}
+
+func (h *UserHandler) requireStepUpTotp(c *gin.Context, scope string) bool {
+	if h == nil || h.adminSecurity == nil {
+		return (*AdminSecurityHelper)(nil).RequireStepUpTotp(c, scope)
+	}
+	return h.adminSecurity.RequireStepUpTotp(c, scope)
+}
+
+func (h *UserHandler) recordAdminAudit(c *gin.Context, action string, targetType string, targetID string, status string, metadata map[string]any) {
+	if h == nil || h.adminSecurity == nil {
+		return
+	}
+	h.adminSecurity.RecordAudit(c, action, targetType, targetID, status, metadata)
 }
 
 // Delete handles deleting a user
@@ -473,6 +574,55 @@ func (h *UserHandler) UpdatePlatformQuotas(c *gin.Context) {
 	}
 	executeAdminIdempotentJSON(c, "admin.users.platform_quotas.update", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		return h.platformQuotas.ReplaceUserQuotas(ctx, userID, req.Items)
+	})
+}
+
+func (h *UserHandler) BatchUpdatePlatformQuotas(c *gin.Context) {
+	var req BatchPlatformQuotaUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if h.platformQuotas == nil {
+		response.ErrorFrom(c, service.ErrBillingServiceUnavailable)
+		return
+	}
+	normalized, err := service.NormalizeUserPlatformQuotaInputs(req.Items)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	filters := service.UserListFilters{
+		Status:        strings.TrimSpace(req.Status),
+		Role:          strings.TrimSpace(req.Role),
+		Search:        strings.TrimSpace(req.Search),
+		GroupName:     strings.TrimSpace(req.GroupName),
+		APIKeyGroupID: req.APIKeyGroupID,
+		Attributes:    req.Attributes,
+	}
+	executeAdminIdempotentJSON(c, "admin.users.platform_quotas.batch_update", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		users, err := h.listAllUsersForBatchConcurrency(ctx, filters)
+		if err != nil {
+			return nil, err
+		}
+		results := make([]BatchPlatformQuotaUpdateItemResult, 0, len(users))
+		successCount := 0
+		for _, user := range users {
+			item := BatchPlatformQuotaUpdateItemResult{UserID: user.ID, Email: user.Email}
+			if _, err := h.platformQuotas.ReplaceUserQuotas(ctx, user.ID, normalized); err != nil {
+				item.Error = err.Error()
+			} else {
+				item.Success = true
+				successCount++
+			}
+			results = append(results, item)
+		}
+		return gin.H{
+			"matched":       len(users),
+			"success_count": successCount,
+			"failed_count":  len(users) - successCount,
+			"results":       results,
+		}, nil
 	})
 }
 

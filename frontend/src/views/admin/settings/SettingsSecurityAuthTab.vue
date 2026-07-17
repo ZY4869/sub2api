@@ -161,6 +161,32 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.securityAudit.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.securityAudit.description') }}
+            </p>
+          </div>
+          <div class="p-6">
+            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t('admin.settings.securityAudit.retentionDays') }}
+            </label>
+            <input
+              v-model.number="form.audit_log_retention_days"
+              type="number"
+              min="1"
+              max="3650"
+              class="input w-36 font-mono text-sm"
+            />
+            <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.securityAudit.retentionDaysHint') }}
+            </p>
+          </div>
+        </div>
+
         <!-- Cloudflare Turnstile Settings -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">

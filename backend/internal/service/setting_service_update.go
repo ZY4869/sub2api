@@ -12,6 +12,10 @@ import (
 )
 
 func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSettings) error {
+	if settings == nil {
+		return fmt.Errorf("settings cannot be nil")
+	}
+	settings.AuditLogRetentionDays = NormalizeAuditLogRetentionDays(settings.AuditLogRetentionDays)
 	if err := s.validateDefaultSubscriptionGroups(ctx, settings.DefaultSubscriptions); err != nil {
 		return err
 	}
@@ -287,6 +291,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyBackendModeEnabled] = strconv.FormatBool(settings.BackendModeEnabled)
 	updates[SettingKeyMaintenanceModeEnabled] = strconv.FormatBool(settings.MaintenanceModeEnabled)
 	updates[SettingKeyAdminComplianceEnabled] = strconv.FormatBool(settings.AdminComplianceEnabled)
+	updates[SettingKeyAuditLogRetentionDays] = strconv.Itoa(settings.AuditLogRetentionDays)
 
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
 	updates[SettingKeyAffiliateTransferEnabled] = strconv.FormatBool(settings.AffiliateTransferEnabled)

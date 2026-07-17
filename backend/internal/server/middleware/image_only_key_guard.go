@@ -16,7 +16,7 @@ func isImageOnlyAllowedGatewayRequest(method, path string) bool {
 	}
 
 	// Allow usage query endpoint (no billing enforcement anyway).
-	if normalizedPath == "/v1/usage" {
+	if normalizedPath == "/v1/usage" || normalizedPath == "/v1/sub2api/billing" {
 		return true
 	}
 	if normalizedPath == "/v1/images/batches" || strings.HasPrefix(normalizedPath, "/v1/images/batches/") {

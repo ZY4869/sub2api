@@ -201,6 +201,7 @@ type UsageLog struct {
 	SubscriptionID *int64
 
 	InputTokens         int
+	ImageInputTokens    int
 	OutputTokens        int
 	CacheCreationTokens int
 	CacheReadTokens     int
@@ -209,6 +210,7 @@ type UsageLog struct {
 	CacheCreation1hTokens int `gorm:"column:cache_creation_1h_tokens"`
 
 	InputCost               float64
+	ImageInputCost          float64
 	OutputCost              float64
 	CacheCreationCost       float64
 	CacheReadCost           float64

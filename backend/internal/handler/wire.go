@@ -13,6 +13,7 @@ func ProvideAdminHandlers(
 	dashboardHandler *admin.DashboardHandler,
 	complianceHandler *admin.ComplianceHandler,
 	userHandler *admin.UserHandler,
+	auditLogHandler *admin.AuditLogHandler,
 	contentModerationAuditHandler *admin.ContentModerationAuditHandler,
 	groupHandler *admin.GroupHandler,
 	channelHandler *admin.ChannelHandler,
@@ -54,6 +55,7 @@ func ProvideAdminHandlers(
 		Dashboard:              dashboardHandler,
 		Compliance:             complianceHandler,
 		User:                   userHandler,
+		AuditLog:               auditLogHandler,
 		Moderation:             contentModerationAuditHandler,
 		Group:                  groupHandler,
 		Channel:                channelHandler,
@@ -128,6 +130,8 @@ func ProvideAdminAccountHandler(
 	modelRegistryService *service.ModelRegistryService,
 	settingService *service.SettingService,
 	opsService *service.OpsService,
+	grokQuotaService *service.GrokQuotaService,
+	adminSecurityHelper *admin.AdminSecurityHelper,
 ) *admin.AccountHandler {
 	handler := admin.NewAccountHandler(
 		adminService,
@@ -150,9 +154,39 @@ func ProvideAdminAccountHandler(
 	handler.SetSettingService(settingService)
 	handler.SetKiroOAuthService(kiroOAuthService)
 	handler.SetOpsService(opsService)
+	handler.SetGrokQuotaService(grokQuotaService)
+	handler.SetAdminSecurityHelper(adminSecurityHelper)
 	if accountTestService != nil {
 		accountTestService.SetOpsService(opsService)
 	}
+	return handler
+}
+
+func ProvideAdminSecurityHelper(totpService *service.TotpService, auditLogService *service.AuditLogService) *admin.AdminSecurityHelper {
+	return admin.NewAdminSecurityHelper(totpService, auditLogService)
+}
+
+func ProvideAdminAuditLogHandler(auditLogService *service.AuditLogService, adminSecurityHelper *admin.AdminSecurityHelper) *admin.AuditLogHandler {
+	handler := admin.NewAuditLogHandler(auditLogService)
+	handler.SetAdminSecurityHelper(adminSecurityHelper)
+	return handler
+}
+
+func ProvideAdminDataManagementHandler(dataManagementService *service.DataManagementService, adminSecurityHelper *admin.AdminSecurityHelper) *admin.DataManagementHandler {
+	handler := admin.NewDataManagementHandler(dataManagementService)
+	handler.SetAdminSecurityHelper(adminSecurityHelper)
+	return handler
+}
+
+func ProvideAdminBackupHandler(backupService *service.BackupService, userService *service.UserService, adminSecurityHelper *admin.AdminSecurityHelper) *admin.BackupHandler {
+	handler := admin.NewBackupHandler(backupService, userService)
+	handler.SetAdminSecurityHelper(adminSecurityHelper)
+	return handler
+}
+
+func ProvideAdminProxyHandler(adminService service.AdminService, adminSecurityHelper *admin.AdminSecurityHelper) *admin.ProxyHandler {
+	handler := admin.NewProxyHandler(adminService)
+	handler.SetAdminSecurityHelper(adminSecurityHelper)
 	return handler
 }
 
@@ -234,9 +268,15 @@ func ProvideAdminUserHandler(
 	adminService service.AdminService,
 	concurrencyService *service.ConcurrencyService,
 	userPlatformQuotaService *service.UserPlatformQuotaService,
+	totpService *service.TotpService,
+	auditLogService *service.AuditLogService,
+	adminSecurityHelper *admin.AdminSecurityHelper,
 ) *admin.UserHandler {
 	handler := admin.NewUserHandler(adminService, concurrencyService)
 	handler.SetUserPlatformQuotaService(userPlatformQuotaService)
+	handler.SetTotpService(totpService)
+	handler.SetAuditLogService(auditLogService)
+	handler.SetAdminSecurityHelper(adminSecurityHelper)
 	return handler
 }
 
@@ -385,9 +425,11 @@ var ProviderSet = wire.NewSet(
 	ProvideSettingHandler,
 
 	// Admin handlers
+	ProvideAdminSecurityHelper,
 	admin.NewDashboardHandler,
 	admin.NewComplianceHandler,
 	ProvideAdminUserHandler,
+	ProvideAdminAuditLogHandler,
 	admin.NewContentModerationAuditHandler,
 	admin.NewGroupHandler,
 	admin.NewChannelHandler,
@@ -397,15 +439,15 @@ var ProviderSet = wire.NewSet(
 	admin.NewAffiliateHandler,
 	admin.NewEmailTemplateHandler,
 	admin.NewAnnouncementHandler,
-	admin.NewDataManagementHandler,
-	admin.NewBackupHandler,
+	ProvideAdminDataManagementHandler,
+	ProvideAdminBackupHandler,
 	admin.NewOAuthHandler,
 	ProvideOpenAIOAuthHandler,
 	admin.NewKiroOAuthHandler,
 	admin.NewGeminiOAuthHandler,
 	ProvideGrokOAuthHandler,
 	admin.NewAntigravityOAuthHandler,
-	admin.NewProxyHandler,
+	ProvideAdminProxyHandler,
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,
 	ProvideAdminSettingHandler,

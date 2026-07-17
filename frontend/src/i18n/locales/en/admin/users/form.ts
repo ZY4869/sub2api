@@ -14,4 +14,6 @@ export default {
     concurrencyLabel: "Concurrency",
     statusLabel: "Status",
     selectStatus: "Select status",
+    stepUpTotpPrompt: "This action creates or promotes an admin account. Enter the current admin 2FA code.",
+    stepUpTotpRequired: "A 2FA code is required to create or promote an admin account.",
 }

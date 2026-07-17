@@ -982,6 +982,39 @@ export interface GrokQuotaResetResult {
   message: string
 }
 
+export interface AccountBillingProbeResult {
+  account_id: number
+  account_name?: string
+  platform?: string
+  supported: boolean
+  status: 'success' | 'failed' | 'unsupported' | string
+  source?: string
+  fetched_at?: number
+  persisted: boolean
+  result?: GrokQuotaProbeResult
+  error?: string
+}
+
+export interface BatchAccountBillingProbeRequest {
+  account_ids?: number[]
+  platform?: string
+  type?: string
+  status?: string
+  search?: string
+  group_id?: number
+  lifecycle?: string
+  privacy_mode?: string
+  limit?: number
+}
+
+export interface BatchAccountBillingProbeResponse {
+  items: AccountBillingProbeResult[]
+  total: number
+  succeeded: number
+  failed: number
+  unsupported: number
+}
+
 export interface GrokOAuthReconcileRequest {
   dry_run?: boolean
   apply?: boolean
@@ -1034,6 +1067,24 @@ export async function queryGrokQuota(id: number): Promise<GrokQuotaProbeResult> 
 export async function resetGrokQuota(id: number): Promise<GrokQuotaResetResult> {
   const { data } = await apiClient.post<GrokQuotaResetResult>(
     `/admin/grok/accounts/${id}/reset-quota`
+  )
+  return data
+}
+
+export async function probeAccountBilling(id: number): Promise<AccountBillingProbeResult> {
+  const { data } = await apiClient.post<AccountBillingProbeResult>(
+    `/admin/accounts/${id}/billing-probe`,
+    {}
+  )
+  return data
+}
+
+export async function batchProbeAccountBilling(
+  payload: BatchAccountBillingProbeRequest
+): Promise<BatchAccountBillingProbeResponse> {
+  const { data } = await apiClient.post<BatchAccountBillingProbeResponse>(
+    '/admin/accounts/billing-probe',
+    payload
   )
   return data
 }
@@ -1303,6 +1354,8 @@ export const accountsAPI = {
   resetOpenAIQuota,
   queryGrokQuota,
   resetGrokQuota,
+  probeAccountBilling,
+  batchProbeAccountBilling,
   reconcileGrokOAuth,
   getGrokRuntimeSanity,
   getTempUnschedulableStatus,

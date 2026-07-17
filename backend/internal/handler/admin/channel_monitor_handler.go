@@ -112,6 +112,10 @@ type createChannelMonitorRequest struct {
 	TemplateName         string            `json:"template_name"`
 }
 
+type duplicateChannelMonitorRequest struct {
+	Name string `json:"name"`
+}
+
 // Create creates a monitor.
 // POST /api/v1/admin/channel-monitors
 func (h *ChannelMonitorHandler) Create(c *gin.Context) {
@@ -182,6 +186,28 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 		return
 	}
 	response.Success(c, toAdminChannelMonitorView(h.monitorService, m))
+}
+
+// Duplicate creates a disabled copy of a monitor configuration.
+// POST /api/v1/admin/channel-monitors/:id/duplicate
+func (h *ChannelMonitorHandler) Duplicate(c *gin.Context) {
+	monitorID, ok := parseChannelMonitorID(c)
+	if !ok {
+		return
+	}
+	var req duplicateChannelMonitorRequest
+	if c.Request != nil && c.Request.Body != nil && c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.ErrorFrom(c, service.ErrChannelMonitorInvalidRequest)
+			return
+		}
+	}
+	monitor, err := h.monitorService.Duplicate(c.Request.Context(), monitorID, &service.ChannelMonitorDuplicateInput{Name: req.Name})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, toAdminChannelMonitorView(h.monitorService, monitor))
 }
 
 type updateChannelMonitorRequest struct {

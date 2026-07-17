@@ -22,6 +22,7 @@ describe('pricingOptions', () => {
 
     expect(form).toEqual({
       input_price: 1.2,
+      image_input_price: undefined,
       output_price: undefined,
       cache_price: undefined,
       special_enabled: true,
@@ -78,6 +79,7 @@ describe('pricingOptions', () => {
 
   it('maps pricing field units by field semantics', () => {
     expect(pricingFieldUnitLabelForField('input_price')).toBe('$ / M Tokens')
+    expect(pricingFieldUnitLabelForField('image_input_price')).toBe('$ / M Tokens')
     expect(pricingFieldUnitLabelForField('batch_cache_price')).toBe('$ / M Tokens')
     expect(pricingFieldUnitLabelForField('grounding_search')).toBe('$ / 次')
     expect(pricingFieldUnitLabelForField('grounding_maps')).toBe('$ / 次')
