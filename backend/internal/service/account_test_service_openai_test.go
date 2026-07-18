@@ -35,7 +35,11 @@ type openAIAccountTestRepo struct {
 		scope   string
 		resetAt time.Time
 	}
-	setErrorCalls []string
+	setErrorCalls               []string
+	clearRateLimitCalls         int
+	clearAntigravityCalls       int
+	clearModelRateLimitCalls    int
+	clearTempUnschedulableCalls int
 }
 
 func (r *openAIAccountTestRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
@@ -60,6 +64,26 @@ func (r *openAIAccountTestRepo) SetModelRateLimit(_ context.Context, _ int64, sc
 
 func (r *openAIAccountTestRepo) SetError(_ context.Context, _ int64, errorMsg string) error {
 	r.setErrorCalls = append(r.setErrorCalls, errorMsg)
+	return nil
+}
+
+func (r *openAIAccountTestRepo) ClearRateLimit(_ context.Context, _ int64) error {
+	r.clearRateLimitCalls++
+	return nil
+}
+
+func (r *openAIAccountTestRepo) ClearAntigravityQuotaScopes(_ context.Context, _ int64) error {
+	r.clearAntigravityCalls++
+	return nil
+}
+
+func (r *openAIAccountTestRepo) ClearModelRateLimits(_ context.Context, _ int64) error {
+	r.clearModelRateLimitCalls++
+	return nil
+}
+
+func (r *openAIAccountTestRepo) ClearTempUnschedulable(_ context.Context, _ int64) error {
+	r.clearTempUnschedulableCalls++
 	return nil
 }
 
@@ -254,13 +278,15 @@ func TestAccountTestService_OpenAIUnauthorizedDetailMarksAccountError(t *testing
 	require.Contains(t, repo.setErrorCalls[0], `Authentication failed (401): {"detail":"Unauthorized"}`)
 }
 
-func TestAccountTestService_OpenAIRuntimeQuotaPrecheckBlocksBeforeSSE(t *testing.T) {
+func TestAccountTestService_OpenAIRuntimeQuotaDoesNotBlockUpstreamAndAutoRecovers(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newTestContext()
 
-	repo := &openAIAccountTestRepo{}
-	upstream := &queuedHTTPUpstream{}
-	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
 	account := &Account{
 		ID:          870,
 		Platform:    PlatformOpenAI,
@@ -277,16 +303,30 @@ func TestAccountTestService_OpenAIRuntimeQuotaPrecheckBlocksBeforeSSE(t *testing
 			},
 		},
 	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{account.ID: account},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{
+		accountRepo:      repo,
+		httpUpstream:     upstream,
+		rateLimitService: NewRateLimitService(repo, nil, &config.Config{}, nil, nil),
+	}
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
 
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "普通额度冷却中")
-	require.Zero(t, upstream.callCount)
-	require.Empty(t, recorder.Body.String())
+	require.NoError(t, err)
+	require.Equal(t, 1, upstream.callCount)
+	require.Contains(t, recorder.Body.String(), "test_complete")
+	require.Equal(t, 1, repo.clearRateLimitCalls)
+	require.Equal(t, 1, repo.clearAntigravityCalls)
+	require.Equal(t, 1, repo.clearModelRateLimitCalls)
+	require.Equal(t, 1, repo.clearTempUnschedulableCalls)
 }
 
-func TestAccountTestService_OpenAIRuntimeQuotaPrecheckAllowsOtherScope(t *testing.T) {
+func TestAccountTestService_OpenAIRuntimeQuotaDoesNotBlockOtherScope(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newTestContext()
 
@@ -319,6 +359,49 @@ func TestAccountTestService_OpenAIRuntimeQuotaPrecheckAllowsOtherScope(t *testin
 	require.NoError(t, err)
 	require.Equal(t, 1, upstream.callCount)
 	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAIStreamErrorDoesNotAutoRecover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"error","error":{"message":"stream failed"}}
+
+`))
+
+	account := &Account{
+		ID:          873,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeNormal: newModelRateLimitEntry(time.Now().Add(10 * time.Minute)),
+			},
+		},
+	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{account.ID: account},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{
+		accountRepo:      repo,
+		httpUpstream:     upstream,
+		rateLimitService: NewRateLimitService(repo, nil, &config.Config{}, nil, nil),
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "", "")
+
+	require.Error(t, err)
+	require.Equal(t, 1, upstream.callCount)
+	require.Zero(t, repo.clearRateLimitCalls)
+	require.Zero(t, repo.clearModelRateLimitCalls)
+	require.Zero(t, repo.clearTempUnschedulableCalls)
 }
 
 func TestAccountTestService_OpenAISuccessProbesKnownModelsInBackground(t *testing.T) {
@@ -589,8 +672,13 @@ func TestAccountTestService_RunTestBackgroundDetailed_InheritsGatewayOpenAIReque
 	require.Equal(t, "/v1/chat/completions", upstream.requests[0].URL.Path)
 }
 
-func TestAccountTestService_RunTestBackgroundDetailed_RuntimeQuotaPrecheckReturnsFriendlyMessage(t *testing.T) {
+func TestAccountTestService_RunTestBackgroundDetailed_RuntimeQuotaDoesNotBlockUpstream(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
 
 	account := &Account{
 		ID:          872,
@@ -615,10 +703,11 @@ func TestAccountTestService_RunTestBackgroundDetailed_RuntimeQuotaPrecheckReturn
 			},
 		},
 	}
-	upstream := &queuedHTTPUpstream{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{
-		accountRepo:  repo,
-		httpUpstream: upstream,
+		accountRepo:      repo,
+		httpUpstream:     upstream,
+		rateLimitService: NewRateLimitService(repo, nil, &config.Config{}, nil, nil),
 	}
 
 	result, err := svc.RunTestBackgroundDetailed(context.Background(), ScheduledTestExecutionInput{
@@ -628,9 +717,11 @@ func TestAccountTestService_RunTestBackgroundDetailed_RuntimeQuotaPrecheckReturn
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equal(t, "failed", result.Status)
-	require.Equal(t, "普通额度冷却中，请等待额度恢复后再测试", result.ErrorMessage)
-	require.Zero(t, upstream.callCount)
+	require.Equal(t, "success", result.Status)
+	require.Empty(t, result.ErrorMessage)
+	require.Equal(t, 1, upstream.callCount)
+	require.Equal(t, 1, repo.clearRateLimitCalls)
+	require.Equal(t, 1, repo.clearModelRateLimitCalls)
 }
 
 func TestAccountTestService_RunTestBackgroundDetailed_RecordsSystemUsageForAccountTest(t *testing.T) {

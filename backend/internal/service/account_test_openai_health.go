@@ -121,6 +121,15 @@ func precheckOpenAIAccountTestRuntimeQuota(account *Account, candidates ...strin
 	return infraerrors.BadRequest("TEST_OPENAI_RUNTIME_QUOTA_COOLDOWN", message)
 }
 
+func (s *AccountTestService) recoverOpenAIAccountAfterSuccessfulTest(ctx context.Context, accountID int64) {
+	if s == nil || s.rateLimitService == nil {
+		return
+	}
+	if _, recoverErr := s.rateLimitService.RecoverAccountAfterSuccessfulTest(ctx, accountID); recoverErr != nil {
+		slog.Warn("openai_test_auto_recover_failed", "account_id", accountID, "error", recoverErr)
+	}
+}
+
 // testClaudeAccountConnection tests an Anthropic Claude account's connection
 
 func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account *Account, modelID string, prompt string, sourceProtocol string, simulatedClient string) error {
@@ -140,10 +149,6 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 				}
 			}
 		}
-	}
-
-	if err := precheckOpenAIAccountTestRuntimeQuota(account, openAIRuntimeQuotaModelCandidates(account, testModelID, modelID)...); err != nil {
-		return err
 	}
 
 	// Determine authentication method and API URL
@@ -293,9 +298,17 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 
 	// Process SSE stream
 	if requestFormat == GatewayOpenAIRequestFormatChatCompletions {
-		return s.processOpenAIChatCompletionsStream(c, resp.Body)
+		if err := s.processOpenAIChatCompletionsStream(c, resp.Body); err != nil {
+			return err
+		}
+		s.recoverOpenAIAccountAfterSuccessfulTest(ctx, account.ID)
+		return nil
 	}
-	return s.processOpenAIStream(c, resp.Body)
+	if err := s.processOpenAIStream(c, resp.Body); err != nil {
+		return err
+	}
+	s.recoverOpenAIAccountAfterSuccessfulTest(ctx, account.ID)
+	return nil
 }
 
 func createOpenAITestPayloadForRequestFormat(modelID string, prompt string, requestFormat string, isOAuth bool) map[string]any {

@@ -17,11 +17,19 @@ import (
 
 type openAIQuotaAccountRepoStub struct {
 	AccountRepository
-	account          *Account
-	getErr           error
-	updateExtraCalls []map[string]any
-	resetQuotaCalls  int
-	resetQuotaErr    error
+	account                     *Account
+	getErr                      error
+	updateExtraCalls            []map[string]any
+	resetQuotaCalls             int
+	resetQuotaErr               error
+	clearRateLimitCalls         int
+	clearAntigravityCalls       int
+	clearModelRateLimitCalls    int
+	clearTempUnschedulableCalls int
+	clearRateLimitErr           error
+	clearAntigravityErr         error
+	clearModelRateLimitErr      error
+	clearTempUnschedulableErr   error
 }
 
 func (r *openAIQuotaAccountRepoStub) GetByID(_ context.Context, id int64) (*Account, error) {
@@ -45,6 +53,30 @@ func (r *openAIQuotaAccountRepoStub) UpdateExtra(_ context.Context, _ int64, upd
 func (r *openAIQuotaAccountRepoStub) ResetQuotaUsed(context.Context, int64) error {
 	r.resetQuotaCalls++
 	return r.resetQuotaErr
+}
+
+func (r *openAIQuotaAccountRepoStub) ClearRateLimit(context.Context, int64) error {
+	r.clearRateLimitCalls++
+	return r.clearRateLimitErr
+}
+
+func (r *openAIQuotaAccountRepoStub) ClearAntigravityQuotaScopes(context.Context, int64) error {
+	r.clearAntigravityCalls++
+	return r.clearAntigravityErr
+}
+
+func (r *openAIQuotaAccountRepoStub) ClearModelRateLimits(context.Context, int64) error {
+	r.clearModelRateLimitCalls++
+	return r.clearModelRateLimitErr
+}
+
+func (r *openAIQuotaAccountRepoStub) ClearTempUnschedulable(context.Context, int64) error {
+	r.clearTempUnschedulableCalls++
+	return r.clearTempUnschedulableErr
+}
+
+func setOpenAIQuotaRateLimitServiceForTest(svc *OpenAIQuotaService, repo *openAIQuotaAccountRepoStub) {
+	svc.SetRateLimitService(NewRateLimitService(repo, nil, nil, nil, nil))
 }
 
 func TestOpenAIQuotaService_QueryUsageUsesWhamUsageEndpoint(t *testing.T) {
@@ -79,7 +111,97 @@ func TestOpenAIQuotaService_QueryUsageUsesWhamUsageEndpoint(t *testing.T) {
 	require.Zero(t, repo.resetQuotaCalls)
 }
 
-func TestOpenAIQuotaService_ResetCreditPostsRedeemRequestIDAndClearsLocalQuota(t *testing.T) {
+func TestOpenAIQuotaService_QueryUsageClearsLocalRuntimeStateWhenUpstreamAvailable(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/backend-api/wham/usage", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"rate_limit":{"allowed":true,"limit_reached":false}}`))
+	}))
+	defer server.Close()
+
+	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+	resetAt := time.Now().Add(time.Hour)
+	repo.account.RateLimitedAt = &resetAt
+	repo.account.RateLimitResetAt = &resetAt
+	repo.account.Extra = map[string]any{
+		modelRateLimitsKey: map[string]any{
+			openAICodexScopeNormal: newModelRateLimitEntry(resetAt),
+		},
+	}
+	setOpenAIQuotaRateLimitServiceForTest(svc, repo)
+
+	usage, err := svc.QueryUsage(context.Background(), 9001)
+
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+	require.Equal(t, 1, repo.clearRateLimitCalls)
+	require.Equal(t, 1, repo.clearAntigravityCalls)
+	require.Equal(t, 1, repo.clearModelRateLimitCalls)
+	require.Equal(t, 1, repo.clearTempUnschedulableCalls)
+}
+
+func TestOpenAIQuotaService_QueryUsageDoesNotClearWhenAdditionalLimitReached(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/backend-api/wham/usage", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"rate_limit":{"allowed":true,"limit_reached":false},
+			"additional_rate_limits":[{"limit_name":"spark","rate_limit":{"allowed":false,"limit_reached":true}}]
+		}`))
+	}))
+	defer server.Close()
+
+	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+	resetAt := time.Now().Add(time.Hour)
+	repo.account.Extra = map[string]any{
+		modelRateLimitsKey: map[string]any{
+			openAICodexScopeSpark: newModelRateLimitEntry(resetAt),
+		},
+	}
+	setOpenAIQuotaRateLimitServiceForTest(svc, repo)
+
+	usage, err := svc.QueryUsage(context.Background(), 9001)
+
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+	require.Zero(t, repo.clearRateLimitCalls)
+	require.Zero(t, repo.clearModelRateLimitCalls)
+	require.Zero(t, repo.clearTempUnschedulableCalls)
+}
+
+func TestOpenAIQuotaService_QueryUsageDoesNotClearWhenQuotaStateUnknown(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/backend-api/wham/usage", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"rate_limit_reset_credits":{"available_count":1}}`))
+	}))
+	defer server.Close()
+
+	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+	resetAt := time.Now().Add(time.Hour)
+	repo.account.Extra = map[string]any{
+		modelRateLimitsKey: map[string]any{
+			openAICodexScopeNormal: newModelRateLimitEntry(resetAt),
+		},
+	}
+	setOpenAIQuotaRateLimitServiceForTest(svc, repo)
+
+	usage, err := svc.QueryUsage(context.Background(), 9001)
+
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+	require.Zero(t, repo.clearRateLimitCalls)
+	require.Zero(t, repo.clearModelRateLimitCalls)
+	require.Zero(t, repo.clearTempUnschedulableCalls)
+}
+
+func TestOpenAIQuotaService_ResetCreditPostsRedeemRequestIDAndClearsLocalQuotaAndRuntimeState(t *testing.T) {
 	t.Parallel()
 
 	var capturedBody map[string]string
@@ -95,6 +217,7 @@ func TestOpenAIQuotaService_ResetCreditPostsRedeemRequestIDAndClearsLocalQuota(t
 	defer server.Close()
 
 	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+	setOpenAIQuotaRateLimitServiceForTest(svc, repo)
 
 	result, err := svc.ResetCredit(context.Background(), 9001)
 
@@ -107,6 +230,10 @@ func TestOpenAIQuotaService_ResetCreditPostsRedeemRequestIDAndClearsLocalQuota(t
 	require.Regexp(t, `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, capturedBody["redeem_request_id"])
 	require.Len(t, capturedBody, 1)
 	require.Equal(t, 1, repo.resetQuotaCalls)
+	require.Equal(t, 1, repo.clearRateLimitCalls)
+	require.Equal(t, 1, repo.clearAntigravityCalls)
+	require.Equal(t, 1, repo.clearModelRateLimitCalls)
+	require.Equal(t, 1, repo.clearTempUnschedulableCalls)
 }
 
 func TestOpenAIQuotaService_ResetCreditReturnsSuccessWhenLocalCleanupFails(t *testing.T) {
@@ -121,6 +248,8 @@ func TestOpenAIQuotaService_ResetCreditReturnsSuccessWhenLocalCleanupFails(t *te
 
 	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
 	repo.resetQuotaErr = errors.New("local cleanup failed")
+	repo.clearModelRateLimitErr = errors.New("runtime cleanup failed")
+	setOpenAIQuotaRateLimitServiceForTest(svc, repo)
 
 	result, err := svc.ResetCredit(context.Background(), 9001)
 
@@ -129,6 +258,10 @@ func TestOpenAIQuotaService_ResetCreditReturnsSuccessWhenLocalCleanupFails(t *te
 	require.Equal(t, "success", result.Code)
 	require.Equal(t, 1, result.WindowsReset)
 	require.Equal(t, 1, repo.resetQuotaCalls)
+	require.Equal(t, 1, repo.clearRateLimitCalls)
+	require.Equal(t, 1, repo.clearAntigravityCalls)
+	require.Equal(t, 1, repo.clearModelRateLimitCalls)
+	require.Zero(t, repo.clearTempUnschedulableCalls)
 }
 
 func TestOpenAIQuotaService_ResetCreditRejectsNoWindowWithoutLocalCleanup(t *testing.T) {
@@ -142,6 +275,7 @@ func TestOpenAIQuotaService_ResetCreditRejectsNoWindowWithoutLocalCleanup(t *tes
 	defer server.Close()
 
 	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+	setOpenAIQuotaRateLimitServiceForTest(svc, repo)
 
 	result, err := svc.ResetCredit(context.Background(), 9001)
 
@@ -150,6 +284,7 @@ func TestOpenAIQuotaService_ResetCreditRejectsNoWindowWithoutLocalCleanup(t *tes
 	require.Equal(t, http.StatusConflict, infraerrors.Code(err))
 	require.Contains(t, err.Error(), "OPENAI_QUOTA_RESET_NOTHING_TO_RESET")
 	require.Zero(t, repo.resetQuotaCalls)
+	require.Zero(t, repo.clearRateLimitCalls)
 }
 
 func TestOpenAIQuotaService_ResetCreditUpstreamErrorDoesNotClearLocalQuota(t *testing.T) {
@@ -163,6 +298,7 @@ func TestOpenAIQuotaService_ResetCreditUpstreamErrorDoesNotClearLocalQuota(t *te
 	defer server.Close()
 
 	svc, repo := newOpenAIQuotaServiceForTest(server.URL)
+	setOpenAIQuotaRateLimitServiceForTest(svc, repo)
 
 	result, err := svc.ResetCredit(context.Background(), 9001)
 
@@ -170,6 +306,7 @@ func TestOpenAIQuotaService_ResetCreditUpstreamErrorDoesNotClearLocalQuota(t *te
 	require.Nil(t, result)
 	require.Equal(t, http.StatusTooManyRequests, infraerrors.Code(err))
 	require.Zero(t, repo.resetQuotaCalls)
+	require.Zero(t, repo.clearRateLimitCalls)
 }
 
 func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamSnapshot(t *testing.T) {

@@ -96,6 +96,7 @@ type AccountTestService struct {
 	antigravityGatewayService    *AntigravityGatewayService
 	httpUpstream                 HTTPUpstream
 	tlsFingerprintProfileService *TLSFingerprintProfileService
+	rateLimitService             *RateLimitService
 	cfg                          *config.Config
 	backgroundRunner             func(func())
 	opsService                   *OpsService
@@ -150,6 +151,10 @@ func (s *AccountTestService) SetOpenAITokenProvider(openAITokenProvider *OpenAIT
 
 func (s *AccountTestService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
 	s.tlsFingerprintProfileService = tlsFingerprintProfileService
+}
+
+func (s *AccountTestService) SetRateLimitService(rateLimitService *RateLimitService) {
+	s.rateLimitService = rateLimitService
 }
 
 func (s *AccountTestService) SetUsageLogDependencies(userRepo UserRepository, apiKeyRepo APIKeyRepository, usageLogRepo UsageLogRepository) {

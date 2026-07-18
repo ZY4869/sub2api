@@ -79,8 +79,15 @@ type OpenAIQuotaService struct {
 	proxyRepo            ProxyRepository
 	tokenProvider        *OpenAITokenProvider
 	privacyClientFactory PrivacyClientFactory
+	rateLimitService     *RateLimitService
 	usageURL             string
 	resetURL             string
+}
+
+func (s *OpenAIQuotaService) SetRateLimitService(svc *RateLimitService) {
+	if s != nil {
+		s.rateLimitService = svc
+	}
 }
 
 func NewOpenAIQuotaService(
@@ -104,8 +111,11 @@ func ProvideOpenAIQuotaService(
 	proxyRepo ProxyRepository,
 	tokenProvider *OpenAITokenProvider,
 	privacyClientFactory PrivacyClientFactory,
+	rateLimitService *RateLimitService,
 ) *OpenAIQuotaService {
-	return NewOpenAIQuotaService(accountRepo, proxyRepo, tokenProvider, privacyClientFactory)
+	svc := NewOpenAIQuotaService(accountRepo, proxyRepo, tokenProvider, privacyClientFactory)
+	svc.SetRateLimitService(rateLimitService)
+	return svc
 }
 
 func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*OpenAIQuotaUsage, error) {
@@ -141,6 +151,7 @@ func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*
 
 	payload.FetchedAt = time.Now().UTC().Unix()
 	slog.Info("openai_quota_query_succeeded", "account_id", accountID, "duration_ms", time.Since(startedAt).Milliseconds(), "has_reset_credits", payload.RateLimitResetCredits != nil)
+	s.reconcileOpenAIQuotaRuntimeState(ctx, accountID, &payload)
 	return &payload, nil
 }
 
@@ -191,7 +202,32 @@ func (s *OpenAIQuotaService) ResetCredit(ctx context.Context, accountID int64) (
 	if err := s.accountRepo.ResetQuotaUsed(ctx, accountID); err != nil {
 		slog.Warn("openai_quota_reset_local_cleanup_failed", "account_id", accountID, "windows_reset", payload.WindowsReset, "error", err.Error())
 	}
+	s.clearOpenAIQuotaRuntimeStateAfterReset(ctx, accountID)
 	return &payload, nil
+}
+
+func (s *OpenAIQuotaService) reconcileOpenAIQuotaRuntimeState(ctx context.Context, accountID int64, usage *OpenAIQuotaUsage) {
+	if s == nil || s.accountRepo == nil || s.rateLimitService == nil || !isUpstreamQuotaAvailable(usage) {
+		return
+	}
+	account, getErr := s.accountRepo.GetByID(ctx, accountID)
+	if getErr != nil || account == nil || !hasRecoverableRuntimeState(account) {
+		return
+	}
+	if clearErr := s.rateLimitService.ClearRateLimit(ctx, accountID); clearErr != nil {
+		slog.Warn("openai_quota_query_auto_clear_failed", "account_id", accountID, "error", clearErr)
+		return
+	}
+	slog.Info("openai_quota_query_auto_cleared_local_limits", "account_id", accountID)
+}
+
+func (s *OpenAIQuotaService) clearOpenAIQuotaRuntimeStateAfterReset(ctx context.Context, accountID int64) {
+	if s == nil || s.rateLimitService == nil {
+		return
+	}
+	if clearErr := s.rateLimitService.ClearRateLimit(ctx, accountID); clearErr != nil {
+		slog.Warn("openai_quota_reset_auto_clear_failed", "account_id", accountID, "error", clearErr)
+	}
 }
 
 func (s *OpenAIQuotaService) usageEndpoint() string {
@@ -385,4 +421,19 @@ func mapOpenAIQuotaUpstreamStatus(status int) int {
 	default:
 		return http.StatusBadGateway
 	}
+}
+
+func isUpstreamQuotaAvailable(usage *OpenAIQuotaUsage) bool {
+	if usage == nil || usage.RateLimit == nil {
+		return false
+	}
+	if !usage.RateLimit.Allowed || usage.RateLimit.LimitReached {
+		return false
+	}
+	for _, additional := range usage.AdditionalRateLimits {
+		if additional.RateLimit != nil && additional.RateLimit.LimitReached {
+			return false
+		}
+	}
+	return true
 }

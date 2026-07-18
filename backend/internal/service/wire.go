@@ -737,6 +737,7 @@ func ProvideAccountTestService(
 	httpUpstream HTTPUpstream,
 	cfg *config.Config,
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
+	rateLimitService *RateLimitService,
 ) *AccountTestService {
 	svc := NewAccountTestService(accountRepo, accountModelImportService, geminiTokenProvider, antigravityGatewayService, httpUpstream, cfg)
 	svc.SetClaudeTokenProvider(claudeTokenProvider)
@@ -750,6 +751,7 @@ func ProvideAccountTestService(
 	svc.SetGeminiCompatService(geminiCompatService)
 	svc.SetUsageLogDependencies(userRepo, apiKeyRepo, usageLogRepo)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
+	svc.SetRateLimitService(rateLimitService)
 	return svc
 }
 
