@@ -12,9 +12,11 @@ const (
 	OpenAIEndpointCapabilityEmbeddings      OpenAIEndpointCapability = "embeddings"
 	OpenAIEndpointCapabilityAlphaSearch     OpenAIEndpointCapability = "alpha_search"
 	OpenAIEndpointCapabilityResponses       OpenAIEndpointCapability = "responses"
+	OpenAIEndpointCapabilityGrokMedia       OpenAIEndpointCapability = "grok_media_generation"
 
 	openAIEndpointCapabilitiesCredentialKey = "openai_capabilities"
 	openAIResponsesSupportedExtraKey        = "openai_responses_supported"
+	GrokMediaEligibleExtraKey               = "grok_media_eligible"
 )
 
 func NormalizeOpenAIEndpointCapability(value string) OpenAIEndpointCapability {
@@ -27,6 +29,8 @@ func NormalizeOpenAIEndpointCapability(value string) OpenAIEndpointCapability {
 		return OpenAIEndpointCapabilityAlphaSearch
 	case string(OpenAIEndpointCapabilityResponses), "response", "openai.responses", "responses_api", "responses/api":
 		return OpenAIEndpointCapabilityResponses
+	case string(OpenAIEndpointCapabilityGrokMedia), "grok_media", "grok.media", "media_generation":
+		return OpenAIEndpointCapabilityGrokMedia
 	default:
 		return ""
 	}
@@ -64,6 +68,10 @@ func SupportsOpenAIEndpointCapability(account *Account, capability OpenAIEndpoin
 	if capability == "" {
 		return true
 	}
+	if capability == OpenAIEndpointCapabilityGrokMedia {
+		eligible, _ := account.GrokMediaGenerationEligibility()
+		return eligible
+	}
 	resolved := ResolveProtocolGatewayInboundAccount(account, PlatformOpenAI)
 	if resolved == nil {
 		return false
@@ -88,13 +96,13 @@ func supportsOpenAIEndpointCapabilityByAccountKind(account *Account, capability 
 	}
 	switch capability {
 	case OpenAIEndpointCapabilityChatCompletions:
-		return account.IsOpenAITextCompatible()
+		return account.IsOpenAITextCompatible() || account.IsGrok()
 	case OpenAIEndpointCapabilityEmbeddings:
 		return account.IsOpenAIApiKey()
 	case OpenAIEndpointCapabilityAlphaSearch:
 		return account.IsOpenAIApiKey() || account.IsOpenAIOAuth()
 	case OpenAIEndpointCapabilityResponses:
-		if !account.IsOpenAITextCompatible() {
+		if !account.IsOpenAITextCompatible() && !account.IsGrok() {
 			return false
 		}
 		return !isOpenAIAPIKeyResponsesExplicitlyUnsupported(account)
@@ -129,6 +137,41 @@ func isOpenAIAPIKeyResponsesExplicitlyUnsupported(account *Account) bool {
 	default:
 		return false
 	}
+}
+
+func (a *Account) GrokMediaGenerationEligibility() (bool, string) {
+	if a == nil || !a.IsGrok() {
+		return false, "not_grok"
+	}
+	if !a.IsGrokOAuth() {
+		return true, "non_oauth"
+	}
+	if override, ok := grokMediaEligibilityOverride(a.Extra); ok {
+		if override {
+			return true, "override_enabled"
+		}
+		return false, "override_disabled"
+	}
+	billing, err := grokBillingSnapshotFromExtra(a.Extra)
+	if err != nil || billing == nil {
+		return true, "billing_unobserved"
+	}
+	if billing.StatusCode == 403 {
+		return false, "billing_forbidden"
+	}
+	return true, "eligible"
+}
+
+func grokMediaEligibilityOverride(extra map[string]any) (bool, bool) {
+	if len(extra) == 0 {
+		return false, false
+	}
+	value, exists := extra[GrokMediaEligibleExtraKey]
+	if !exists || value == nil {
+		return false, false
+	}
+	enabled, ok := value.(bool)
+	return enabled, ok
 }
 
 func parseOpenAIEndpointCapabilityValues(raw any) []string {

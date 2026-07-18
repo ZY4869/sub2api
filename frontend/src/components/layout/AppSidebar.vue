@@ -30,7 +30,7 @@
         <!-- Admin Section -->
         <div class="sidebar-section">
           <router-link
-            v-for="item in adminNavItems"
+            v-for="item in adminPrimaryNavItems"
             :key="item.path"
             :to="item.path"
             class="sidebar-link mb-1"
@@ -45,6 +45,28 @@
                     ? 'sidebar-wallet'
                     : undefined
             "
+            @click="handleMenuItemClick(item.path)"
+          >
+            <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
+            <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+            <transition name="fade">
+              <span v-if="!sidebarCollapsed">{{ item.label }}</span>
+            </transition>
+          </router-link>
+        </div>
+
+        <div class="sidebar-section">
+          <div v-if="!sidebarCollapsed" class="sidebar-section-title">
+            {{ t('nav.securityAudit') }}
+          </div>
+          <div v-else class="mx-3 my-3 h-px bg-gray-200 dark:bg-dark-700"></div>
+          <router-link
+            v-for="item in adminSecurityNavItems"
+            :key="item.path"
+            :to="item.path"
+            class="sidebar-link mb-1"
+            :class="{ 'sidebar-link-active': isActive(item) }"
+            :title="sidebarCollapsed ? item.label : undefined"
             @click="handleMenuItemClick(item.path)"
           >
             <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
@@ -608,8 +630,6 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
     { path: '/admin/channel-monitors', label: t('nav.channelMonitors'), icon: ChartIcon, hideInSimpleMode: true },
-    { path: '/admin/moderation', label: t('nav.moderation'), icon: ShieldCheckIcon },
-    { path: '/admin/audit-logs', label: t('nav.auditLogs'), icon: ShieldCheckIcon },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
     { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon }
   ]
@@ -630,6 +650,17 @@ const adminNavItems = computed((): NavItem[] => {
     baseItems.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
   }
   return baseItems
+})
+
+const adminPrimaryNavItems = computed(() => adminNavItems.value)
+
+const adminSecurityNavItems = computed(() => {
+  const items: NavItem[] = [
+    { path: '/admin/moderation', label: t('nav.moderation'), icon: ShieldCheckIcon },
+    { path: '/admin/prompt-audit', label: t('nav.promptAudit'), icon: ShieldCheckIcon },
+    { path: '/admin/audit-logs', label: t('nav.auditLogs'), icon: ShieldCheckIcon }
+  ]
+  return authStore.isSimpleMode ? items.filter(item => !item.hideInSimpleMode) : items
 })
 
 function toggleSidebar() {

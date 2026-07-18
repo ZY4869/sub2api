@@ -14,6 +14,7 @@ export interface UsageCacheEntry {
   loadedAtMs: number | null;
   preferOpenAIFetchedUsage: boolean;
   request: Promise<void> | null;
+  requestSeq: number;
 }
 
 export interface UsageRowOptions {

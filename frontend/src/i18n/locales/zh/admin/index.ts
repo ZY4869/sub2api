@@ -26,6 +26,7 @@ import tlsFingerprintProfiles from './tlsFingerprintProfiles'
 import payment from './payment'
 import compliance from './compliance'
 import auditLogs from './auditLogs'
+import promptAudit from './promptAudit'
 
 export default {
   admin: {
@@ -57,5 +58,6 @@ export default {
     payment,
     compliance,
     auditLogs,
+    promptAudit,
   },
 }

@@ -44,6 +44,12 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketHTTPBridge(ctx context.Con
 				return err
 			}
 		}
+		if hooks != nil && hooks.BeforeTurnPayload != nil {
+			model := strings.TrimSpace(gjson.GetBytes(currentMessage, "model").String())
+			if err := hooks.BeforeTurnPayload(turn, currentMessage, model); err != nil {
+				return err
+			}
+		}
 		result, turnErr := s.forwardOpenAIWSHTTPBridgeTurn(ctx, c, clientConn, account, currentMessage)
 		if hooks != nil && hooks.AfterTurn != nil {
 			hooks.AfterTurn(turn, result, turnErr)

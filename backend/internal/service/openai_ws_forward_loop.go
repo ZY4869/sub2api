@@ -436,6 +436,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 			currentPreviousResponseIDKind := ClassifyOpenAIPreviousResponseIDKind(currentPreviousResponseID)
 			logOpenAIWSModeInfo("ingress_ws_turn_chain account_id=%d turn=%d conn_id=%s previous_response_id=%s previous_response_id_kind=%s last_turn_response_id=%s chained_from_last=%v preferred_conn_id=%s header_session_id=%s header_conversation_id=%s has_turn_state=%v turn_state_len=%d has_prompt_cache_key=%v store_disabled=%v", account.ID, turn, truncateOpenAIWSLogValue(connID, openAIWSIDValueMaxLen), truncateOpenAIWSLogValue(currentPreviousResponseID, openAIWSIDValueMaxLen), normalizeOpenAIWSLogValue(currentPreviousResponseIDKind), truncateOpenAIWSLogValue(expectedPrev, openAIWSIDValueMaxLen), chainedFromLast, truncateOpenAIWSLogValue(preferredConnID, openAIWSIDValueMaxLen), openAIWSHeaderValueForLog(baseAcquireReq.Headers, "session_id"), openAIWSHeaderValueForLog(baseAcquireReq.Headers, "conversation_id"), turnState != "", len(turnState), openAIWSPayloadStringFromRaw(currentPayload, "prompt_cache_key") != "", storeDisabled)
 		}
+		if hooks != nil && hooks.BeforeTurnPayload != nil {
+			if err := hooks.BeforeTurnPayload(turn, currentPayload, currentOriginalModel); err != nil {
+				return err
+			}
+		}
 		result, relayErr := s.relayOpenAIWSIngressTurn(openAIWSIngressTurnRelayInput{
 			ctx:           ctx,
 			account:       account,

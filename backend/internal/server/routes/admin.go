@@ -3,6 +3,8 @@ package routes
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
+	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -15,6 +17,8 @@ func RegisterAdminRoutes(
 	h *handler.Handlers,
 	adminAuth middleware.AdminAuthMiddleware,
 	settingService *service.SettingService,
+	promptAudit *securityaudit.AdminHandler,
+	adminSecurity *admin.AdminSecurityHelper,
 ) {
 	admin := v1.Group("/admin")
 	admin.Use(gin.HandlerFunc(adminAuth))
@@ -29,6 +33,7 @@ func RegisterAdminRoutes(
 		registerUserManagementRoutes(admin, h)
 		registerAuditLogRoutes(admin, h)
 		registerContentModerationRoutes(admin, h)
+		registerPromptAuditRoutes(admin, promptAudit, adminSecurity)
 		registerAffiliateRoutes(admin, h)
 
 		// 分组管理
@@ -100,6 +105,54 @@ func RegisterAdminRoutes(
 		registerScheduledTestRoutes(admin, h)
 		registerTLSFingerprintProfileRoutes(admin, h)
 		registerPaymentRoutes(admin, h)
+	}
+}
+
+func registerPromptAuditRoutes(adminGroup *gin.RouterGroup, h *securityaudit.AdminHandler, security *admin.AdminSecurityHelper) {
+	if h == nil {
+		return
+	}
+	requireStepUp := func(scope string, next gin.HandlerFunc) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			helper := security
+			if helper == nil {
+				helper = (*admin.AdminSecurityHelper)(nil)
+			}
+			if !helper.RequireStepUpTotp(c, scope) {
+				return
+			}
+			next(c)
+			status := service.AuditStatusSuccess
+			if c.Writer.Status() >= 400 {
+				status = service.AuditStatusFailure
+			}
+			helper.RecordAudit(c, scope, "prompt_audit", "", status, nil)
+		}
+	}
+	recordAudit := func(scope string, next gin.HandlerFunc) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			next(c)
+			if security == nil {
+				return
+			}
+			status := service.AuditStatusSuccess
+			if c.Writer.Status() >= 400 {
+				status = service.AuditStatusFailure
+			}
+			security.RecordAudit(c, scope, "prompt_audit", "", status, nil)
+		}
+	}
+	audit := adminGroup.Group("/prompt-audit")
+	{
+		audit.GET("/config", h.GetConfig)
+		audit.PUT("/config", requireStepUp("admin.prompt_audit.config.update", h.UpdateConfig))
+		audit.GET("/runtime", h.GetRuntime)
+		audit.POST("/endpoints/probe", recordAudit("admin.prompt_audit.endpoints.probe", h.ProbeEndpoint))
+		audit.GET("/events", h.ListEvents)
+		audit.GET("/events/:id", h.GetEvent)
+		audit.DELETE("/events/:id", requireStepUp("admin.prompt_audit.events.delete", h.DeleteEvent))
+		audit.POST("/events/delete-preview", h.DeletePreview)
+		audit.POST("/events/delete-by-filter", requireStepUp("admin.prompt_audit.events.delete_by_filter", h.DeleteByFilter))
 	}
 }
 

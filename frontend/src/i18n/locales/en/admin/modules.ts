@@ -11,6 +11,10 @@ export default {
             title: "Channels & Resources",
             description: "Manage proxies, subscriptions, channel configuration, and monitoring.",
         },
+        security: {
+            title: "Security Audit",
+            description: "Manage request safety, audit review, and risk events.",
+        },
         settings: {
             title: "System Configuration",
             description: "Jump into focused areas inside system settings.",
@@ -52,6 +56,10 @@ export default {
         channels: {
             title: "Channel Management",
             description: "Maintain channels, group bindings, model mappings, and pricing.",
+        },
+        promptAudit: {
+            title: "Prompt Audit",
+            description: "Configure Guard endpoints, blocking mode, and prompt risk review.",
         },
         settingsGeneral: {
             title: "General Settings",

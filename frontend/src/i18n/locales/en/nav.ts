@@ -7,6 +7,8 @@ export default {
     billing: 'Billing Center',
     announcements: 'Announcements',
     moderation: 'Moderation',
+    promptAudit: 'Prompt Audit',
+    securityAudit: 'Security Audit',
     auditLogs: 'Audit Logs',
     apiKeys: 'API Keys',
     availableChannels: 'Available Channels',

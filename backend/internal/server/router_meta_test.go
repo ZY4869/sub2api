@@ -48,6 +48,9 @@ func TestRegisterRoutes_RegistersMetaRoutes(t *testing.T) {
 			},
 		},
 		nil,
+		nil,
+		nil,
+		nil,
 	)
 
 	routes := router.Routes()

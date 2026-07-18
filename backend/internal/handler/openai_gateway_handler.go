@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -20,6 +21,7 @@ type OpenAIGatewayHandler struct {
 	cfg                      *config.Config
 	settingService           *service.SettingService
 	contentModerationService *service.ContentModerationService
+	promptAuditService       *securityaudit.PromptService
 }
 
 // NewOpenAIGatewayHandler creates a new OpenAIGatewayHandler.
@@ -58,6 +60,10 @@ func (h *OpenAIGatewayHandler) SetSettingService(settingService *service.Setting
 
 func (h *OpenAIGatewayHandler) SetContentModerationService(contentModerationService *service.ContentModerationService) {
 	h.contentModerationService = contentModerationService
+}
+
+func (h *OpenAIGatewayHandler) SetPromptAuditService(promptAuditService *securityaudit.PromptService) {
+	h.promptAuditService = promptAuditService
 }
 
 func normalizeOpenAIGroupPlatform(platform string) string {

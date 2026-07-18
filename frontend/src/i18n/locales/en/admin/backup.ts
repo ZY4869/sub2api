@@ -15,6 +15,8 @@ export default {
         saved: "S3 configuration saved",
         testSuccess: "S3 connection test succeeded",
         testFailed: "S3 connection test failed",
+        stepUpTotpPrompt: "This action changes backup object storage settings. Enter the current admin 2FA code.",
+        stepUpTotpRequired: "A 2FA code is required to save S3 settings.",
     },
     schedule: {
         title: "Scheduled Backups",

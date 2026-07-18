@@ -58,10 +58,22 @@ func TestGrokBuildAPIKeyVideoPayload(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &payload))
 	require.Equal(t, "grok-imagine-video", payload["model"])
 	require.Equal(t, "slow aerial shot", payload["prompt"])
-	require.Equal(t, "https://cdn.example.com/ref.png", payload["image_url"])
+	require.Equal(t, map[string]any{"url": "https://cdn.example.com/ref.png"}, payload["reference_image"])
+	require.NotContains(t, payload, "image_url")
 	require.Equal(t, "16:9", payload["aspect_ratio"])
 	require.Equal(t, "720p", payload["resolution"])
 	require.EqualValues(t, 12, payload["duration_seconds"])
+}
+
+func TestGrokBuildVideoWorkflowRequestAcceptsReferenceImageURL(t *testing.T) {
+	req, err := grokBuildVideoWorkflowRequestFromVideosBody([]byte(`{
+		"prompt":"animate the product",
+		"model":"grok-imagine-video",
+		"reference_image":{"url":"https://cdn.example.com/canonical.png"}
+	}`))
+
+	require.NoError(t, err)
+	require.Equal(t, "https://cdn.example.com/canonical.png", req.ImageURL)
 }
 
 func TestGrokBuildAPIKeyVideoPayloadEditAndExtension(t *testing.T) {

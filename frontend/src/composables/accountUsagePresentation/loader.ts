@@ -28,13 +28,13 @@ export async function performUsageLoad(
 ): Promise<void> {
   const entry = getUsageCacheEntry(account.id);
 
-  if (entry.request) {
+  if (entry.request && !options.force) {
     await entry.request;
-    if (!options.force) {
-      return;
-    }
+    return;
   }
 
+  const requestSeq = entry.requestSeq + 1;
+  entry.requestSeq = requestSeq;
   entry.loading = true;
   entry.error = null;
 
@@ -64,11 +64,15 @@ export async function performUsageLoad(
       }
     }
 
+    if (entry.requestSeq !== requestSeq) {
+      return;
+    }
+
     const loadedAtMs = Date.now();
     entry.loadedAtMs = loadedAtMs;
     entry.usageInfo = resolvedUsageInfo;
     entry.preferOpenAIFetchedUsage = Boolean(
-      options.force &&
+      (options.force || source === "active") &&
       getRuntimePlatform(account) === "openai" &&
       account.type === "oauth",
     );
@@ -80,14 +84,19 @@ export async function performUsageLoad(
 
   const request = requestRunner
     .catch((error) => {
+      if (entry.requestSeq !== requestSeq) {
+        return;
+      }
       entry.error = getUsageLoadErrorMessage();
       entry.preferOpenAIFetchedUsage = false;
       console.error("Failed to load usage:", error);
       throw error;
     })
     .finally(() => {
-      entry.loading = false;
-      entry.request = null;
+      if (entry.requestSeq === requestSeq) {
+        entry.loading = false;
+        entry.request = null;
+      }
     });
 
   entry.request = request;

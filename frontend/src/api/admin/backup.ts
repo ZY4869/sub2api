@@ -1,4 +1,5 @@
 import { apiClient } from '../client'
+import { stepUpHeaders, type AdminStepUpOptions } from './stepUp'
 
 export interface BackupS3Config {
   endpoint: string
@@ -50,8 +51,13 @@ export async function getS3Config(): Promise<BackupS3Config> {
   return data
 }
 
-export async function updateS3Config(config: BackupS3Config): Promise<BackupS3Config> {
-  const { data } = await apiClient.put<BackupS3Config>('/admin/backups/s3-config', config)
+export async function updateS3Config(config: BackupS3Config, options?: AdminStepUpOptions): Promise<BackupS3Config> {
+  const headers = stepUpHeaders(options)
+  const { data } = await apiClient.put<BackupS3Config>(
+    '/admin/backups/s3-config',
+    config,
+    headers ? { headers } : undefined
+  )
   return data
 }
 

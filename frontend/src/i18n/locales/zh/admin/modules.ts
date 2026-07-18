@@ -11,6 +11,10 @@ export default {
             title: "渠道与资源",
             description: "管理 IP、订阅、渠道配置与运行监控。",
         },
+        security: {
+            title: "安全审计",
+            description: "管理请求安全、审计复核和风险事件入口。",
+        },
         settings: {
             title: "系统配置",
             description: "按功能进入系统设置中的不同配置区域。",
@@ -52,6 +56,10 @@ export default {
         channels: {
             title: "渠道管理",
             description: "维护渠道、分组绑定、模型映射与定价。",
+        },
+        promptAudit: {
+            title: "提示词审计",
+            description: "配置 Guard 端点、阻止模式并复核提示词风险事件。",
         },
         settingsGeneral: {
             title: "基础设置",

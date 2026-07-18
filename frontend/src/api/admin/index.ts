@@ -35,6 +35,7 @@ import moderationAPI from './moderation'
 import paymentAPI from './payment'
 import complianceAPI from './compliance'
 import auditLogsAPI from './auditLogs'
+import promptAuditAPI from './promptAudit'
 
 /**
  * Unified admin API object for convenient access
@@ -71,7 +72,8 @@ export const adminAPI = {
   tlsFingerprintProfiles: tlsFingerprintProfilesAPI,
   payment: paymentAPI,
   compliance: complianceAPI,
-  auditLogs: auditLogsAPI
+  auditLogs: auditLogsAPI,
+  promptAudit: promptAuditAPI
 }
 
 export {
@@ -106,7 +108,8 @@ export {
   tlsFingerprintProfilesAPI,
   paymentAPI,
   complianceAPI,
-  auditLogsAPI
+  auditLogsAPI,
+  promptAuditAPI
 }
 
 export default adminAPI
@@ -128,3 +131,4 @@ export type {
 } from './tlsFingerprintProfile'
 export type { AdminComplianceStatus } from './compliance'
 export type { AuditLog, AuditLogQuery, AuditLogCleanupResult } from './auditLogs'
+export type { PromptAuditConfig, PromptAuditEvent, PromptAuditRuntime } from './promptAudit'

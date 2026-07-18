@@ -63,6 +63,7 @@ type RelayOptions struct {
 	UpstreamDrainTimeout time.Duration
 	FirstMessageType     coderws.MessageType
 	OnUsageParseFailure  func(eventType string, usageRaw string)
+	OnClientPayload      func(turn int, payload []byte, model string) error
 	OnTurnComplete       func(turn RelayTurnResult)
 	OnTrace              func(event RelayTraceEvent)
 	Now                  func() time.Time
@@ -172,6 +173,19 @@ func Relay(
 		MessageType:  relayMessageTypeString(firstMessageType),
 	})
 
+	if options.OnClientPayload != nil {
+		if err := options.OnClientPayload(1, firstClientMessage, result.RequestModel); err != nil {
+			result.Duration = nowFn().Sub(startAt)
+			emitRelayTrace(onTrace, RelayTraceEvent{
+				Stage:        "client_payload_rejected",
+				Direction:    "client_to_upstream",
+				MessageType:  relayMessageTypeString(firstMessageType),
+				PayloadBytes: len(firstClientMessage),
+				Error:        err.Error(),
+			})
+			return result, &RelayExit{Stage: "client_payload_rejected", Err: err}
+		}
+	}
 	if err := writeUpstream(firstMessageType, firstClientMessage); err != nil {
 		result.Duration = nowFn().Sub(startAt)
 		emitRelayTrace(onTrace, RelayTraceEvent{
@@ -194,7 +208,7 @@ func Relay(
 
 	exitCh := make(chan relayExitSignal, 4)
 	dropDownstreamWrites := atomic.Bool{}
-	go runClientToUpstream(relayCtx, clientConn, writeUpstream, markActivity, clientToUpstreamFrames, onTrace, exitCh)
+	go runClientToUpstream(relayCtx, clientConn, writeUpstream, markActivity, clientToUpstreamFrames, onTrace, exitCh, options.OnClientPayload)
 	go runUpstreamToClient(
 		relayCtx,
 		upstreamConn,
@@ -330,7 +344,9 @@ func runClientToUpstream(
 	forwardedFrames *atomic.Int64,
 	onTrace func(event RelayTraceEvent),
 	exitCh chan<- relayExitSignal,
+	onClientPayload func(turn int, payload []byte, model string) error,
 ) {
+	turn := 1
 	for {
 		msgType, payload, err := clientConn.ReadFrame(ctx)
 		if err != nil {
@@ -354,6 +370,21 @@ func runClientToUpstream(
 			})
 			exitCh <- relayExitSignal{stage: "client_event_rejected", err: err}
 			return
+		}
+		turn++
+		if onClientPayload != nil {
+			model := strings.TrimSpace(gjson.GetBytes(payload, "model").String())
+			if err := onClientPayload(turn, payload, model); err != nil {
+				emitRelayTrace(onTrace, RelayTraceEvent{
+					Stage:        "client_payload_rejected",
+					Direction:    "client_to_upstream",
+					MessageType:  relayMessageTypeString(msgType),
+					PayloadBytes: len(payload),
+					Error:        err.Error(),
+				})
+				exitCh <- relayExitSignal{stage: "client_payload_rejected", err: err}
+				return
+			}
 		}
 		if err := writeUpstream(msgType, payload); err != nil {
 			emitRelayTrace(onTrace, RelayTraceEvent{

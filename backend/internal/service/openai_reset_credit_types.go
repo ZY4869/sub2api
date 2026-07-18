@@ -35,6 +35,8 @@ type OpenAIResetCreditsSnapshot struct {
 	UnsupportedReason string
 	FiveHour          *OpenAIQuotaWindowSnapshot
 	SevenDay          *OpenAIQuotaWindowSnapshot
+	SparkFiveHour     *OpenAIQuotaWindowSnapshot
+	SparkSevenDay     *OpenAIQuotaWindowSnapshot
 }
 
 type OpenAIQuotaWindowSnapshot struct {

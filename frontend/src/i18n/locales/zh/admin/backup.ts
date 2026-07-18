@@ -15,6 +15,8 @@ export default {
         saved: "S3 配置保存成功",
         testSuccess: "S3 连接测试成功",
         testFailed: "S3 连接测试失败",
+        stepUpTotpPrompt: "此操作会修改备份对象存储配置，请输入当前管理员的 2FA 验证码。",
+        stepUpTotpRequired: "需要 2FA 验证码才能保存 S3 配置。",
     },
     schedule: {
         title: "定时备份",

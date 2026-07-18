@@ -66,3 +66,42 @@ func TestOpenAIGatewayService_DetectResponsesImageGenerationToolModel_IgnoresNon
 	require.False(t, ok)
 	require.Empty(t, toolModel)
 }
+
+func TestIsExplicitOpenAIResponsesImageIntent_IgnoresPassiveNamespace(t *testing.T) {
+	body := []byte(`{
+		"model":"gpt-5.4-mini",
+		"tools":[
+			{"type":"function","name":"shell"},
+			{"type":"namespace","name":"image_gen","tools":[{"type":"function","name":"imagegen"}]}
+		],
+		"tool_choice":"auto"
+	}`)
+
+	require.False(t, IsExplicitOpenAIResponsesImageIntent("gpt-5.4-mini", body))
+}
+
+func TestIsExplicitOpenAIResponsesImageIntent_DetectsNativeTool(t *testing.T) {
+	body := []byte(`{
+		"model":"gpt-5.4-mini",
+		"tools":[{"type":"image_generation","model":"gpt-image-2"}]
+	}`)
+
+	require.True(t, IsExplicitOpenAIResponsesImageIntent("gpt-5.4-mini", body))
+}
+
+func TestIsExplicitOpenAIResponsesImageIntent_DetectsImageModel(t *testing.T) {
+	body := []byte(`{"model":"gpt-image-2","input":"paint a small icon"}`)
+
+	require.True(t, IsExplicitOpenAIResponsesImageIntent("gpt-5.4-mini", body))
+	require.True(t, IsExplicitOpenAIResponsesImageIntent("gpt-image-2", nil))
+}
+
+func TestIsExplicitOpenAIResponsesImageIntent_DetectsToolChoice(t *testing.T) {
+	for _, body := range [][]byte{
+		[]byte(`{"model":"gpt-5.4-mini","tool_choice":"image_generation"}`),
+		[]byte(`{"model":"gpt-5.4-mini","tool_choice":{"type":"image_generation"}}`),
+		[]byte(`{"model":"gpt-5.4-mini","tool_choice":{"tool":{"type":"image_generation"}}}`),
+	} {
+		require.True(t, IsExplicitOpenAIResponsesImageIntent("gpt-5.4-mini", body))
+	}
+}

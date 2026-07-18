@@ -329,6 +329,31 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireMigrationRecorded(t, tx, "150_add_ops_system_logs_api_key_id.sql")
 	requireMigrationRecorded(t, tx, "151_add_content_moderation_audits_matched_keyword.sql")
 	requireMigrationRecorded(t, tx, "152_allow_grok_channel_monitor_request_protocol.sql")
+
+	// Prompt audit is integrated with local additive migration numbers, not upstream 181/182.
+	requireTable(t, tx, "prompt_audit_jobs")
+	requireColumn(t, tx, "prompt_audit_jobs", "request_id", "character varying", 128, false)
+	requireColumn(t, tx, "prompt_audit_jobs", "prompt_hash", "character varying", 64, false)
+	requireColumn(t, tx, "prompt_audit_jobs", "execution_mode", "character varying", 32, false)
+	requireColumn(t, tx, "prompt_audit_jobs", "status", "character varying", 32, false)
+	requireColumn(t, tx, "prompt_audit_jobs", "next_attempt_at", "timestamp with time zone", 0, false)
+	requireCheckConstraintContains(t, tx, "prompt_audit_jobs", "chk_prompt_audit_jobs_status", "queued")
+	requireCheckConstraintContains(t, tx, "prompt_audit_jobs", "chk_prompt_audit_jobs_execution_mode", "blocking")
+	requireIndex(t, tx, "prompt_audit_jobs", "idx_prompt_audit_jobs_schedule")
+	requireIndex(t, tx, "prompt_audit_jobs", "idx_prompt_audit_jobs_prompt_hash")
+
+	requireTable(t, tx, "prompt_audit_events")
+	requireColumn(t, tx, "prompt_audit_events", "job_id", "bigint", 0, false)
+	requireColumn(t, tx, "prompt_audit_events", "prompt_hash", "character varying", 64, false)
+	requireColumn(t, tx, "prompt_audit_events", "decision", "character varying", 32, false)
+	requireColumn(t, tx, "prompt_audit_events", "risk_level", "character varying", 32, false)
+	requireColumn(t, tx, "prompt_audit_events", "full_prompt", "text", 0, false)
+	requireCheckConstraintContains(t, tx, "prompt_audit_events", "chk_prompt_audit_events_decision", "critical")
+	requireCheckConstraintContains(t, tx, "prompt_audit_events", "chk_prompt_audit_events_action", "Block")
+	requireIndex(t, tx, "prompt_audit_events", "idx_prompt_audit_events_decision_created")
+	requireIndex(t, tx, "prompt_audit_events", "idx_prompt_audit_events_prompt_hash")
+	requireMigrationRecorded(t, tx, "162_prompt_audit.sql")
+	requireMigrationRecorded(t, tx, "163_prompt_audit_full_prompt.sql")
 }
 
 func TestMigration142BackfillsLegacyAccountUsagePeriodsIdempotently(t *testing.T) {

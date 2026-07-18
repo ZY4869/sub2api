@@ -11,6 +11,7 @@ function createUsageCacheEntry(): UsageCacheEntry {
     loadedAtMs: null,
     preferOpenAIFetchedUsage: false,
     request: null,
+    requestSeq: 0,
   }) as UsageCacheEntry;
 }
 
@@ -30,6 +31,7 @@ export function resetUsageCacheEntry(entry: UsageCacheEntry): void {
   entry.loadedAtMs = null;
   entry.preferOpenAIFetchedUsage = false;
   entry.request = null;
+  entry.requestSeq += 1;
 }
 
 export function resetAccountUsagePresentationCache(): void {

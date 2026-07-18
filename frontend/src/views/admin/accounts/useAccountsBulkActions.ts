@@ -170,12 +170,14 @@ const handleRefreshActualUsage = async () => {
     visibleAccounts.map((account: Account) => account.id),
   );
 
+  let shouldRefreshList = false;
   try {
     const result = await refreshAccountUsagePresentation(visibleAccounts, {
       force: true,
       concurrency: 4,
       resolveLoadOptions: resolveActualUsageRefreshLoadOptions,
     });
+    shouldRefreshList = result.success > 0;
     const toastDetails: ToastDetailItem[] = [];
     if (result.activeSuccess > 0) {
       toastDetails.push({
@@ -240,6 +242,11 @@ const handleRefreshActualUsage = async () => {
     );
   } finally {
     usageRefreshing.value = false;
+    if (shouldRefreshList) {
+      load().catch((refreshError: unknown) => {
+        console.error("Failed to refresh accounts after actual usage refresh:", refreshError);
+      });
+    }
   }
 };
 const handleBulkResetStatus = async () => {

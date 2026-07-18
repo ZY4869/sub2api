@@ -7,6 +7,8 @@ export default {
     billing: '计费中心',
     announcements: '公告',
     moderation: '内容审核',
+    promptAudit: '提示词审计',
+    securityAudit: '安全审计',
     auditLogs: '审计日志',
     apiKeys: 'API 密钥',
     availableChannels: '可用渠道',

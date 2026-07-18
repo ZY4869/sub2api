@@ -76,6 +76,7 @@ func newGatewayRoutesTestRouterWithAuthAndGooglePlatform(auth gin.HandlerFunc, g
 		nil,
 		nil,
 		cfg,
+		nil,
 	)
 
 	return router
@@ -108,6 +109,7 @@ func newGatewayRoutesRealAuthTestRouter() *gin.Engine {
 		nil,
 		nil,
 		cfg,
+		nil,
 	)
 
 	return router

@@ -127,6 +127,21 @@ export const adminModuleSections: AdminModuleSection[] = [
     ]
   },
   {
+    id: 'security',
+    titleKey: 'admin.modules.sections.security.title',
+    descriptionKey: 'admin.modules.sections.security.description',
+    cards: [
+      {
+        id: 'prompt-audit',
+        titleKey: 'admin.modules.cards.promptAudit.title',
+        descriptionKey: 'admin.modules.cards.promptAudit.description',
+        to: '/admin/prompt-audit',
+        icon: 'shield',
+        accent: 'rose'
+      }
+    ]
+  },
+  {
     id: 'settings',
     titleKey: 'admin.modules.sections.settings.title',
     descriptionKey: 'admin.modules.sections.settings.description',

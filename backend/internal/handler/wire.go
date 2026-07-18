@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
+	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/google/wire"
@@ -102,10 +103,12 @@ func ProvideOpenAIGatewayHandler(
 	cfg *config.Config,
 	settingService *service.SettingService,
 	contentModerationService *service.ContentModerationService,
+	promptAuditService *securityaudit.PromptService,
 ) *OpenAIGatewayHandler {
 	handler := NewOpenAIGatewayHandler(openAIGatewayService, concurrencyService, billingCacheService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, cfg)
 	handler.SetSettingService(settingService)
 	handler.SetContentModerationService(contentModerationService)
+	handler.SetPromptAuditService(promptAuditService)
 	return handler
 }
 

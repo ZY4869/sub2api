@@ -455,9 +455,14 @@ async function loadS3Config() {
 }
 
 async function saveS3Config() {
+  const stepUpTotp = requestS3StepUpTotp()
+  if (!stepUpTotp) {
+    appStore.showError(t('admin.backup.s3.stepUpTotpRequired'))
+    return
+  }
   savingS3.value = true
   try {
-    await adminAPI.backup.updateS3Config(s3Form.value)
+    await adminAPI.backup.updateS3Config(s3Form.value, { stepUpTotp })
     appStore.showSuccess(t('admin.backup.s3.saved'))
     await loadS3Config()
   } catch (error) {
@@ -465,6 +470,10 @@ async function saveS3Config() {
   } finally {
     savingS3.value = false
   }
+}
+
+function requestS3StepUpTotp() {
+  return window.prompt(t('admin.backup.s3.stepUpTotpPrompt'))?.trim() || ''
 }
 
 async function testS3() {

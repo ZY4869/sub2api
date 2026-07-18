@@ -339,10 +339,23 @@ func openAIResetCreditsSnapshotFromQuotaUsage(usage *OpenAIQuotaUsage, now time.
 	if usage == nil {
 		return nil
 	}
+	now = now.UTC()
 	snapshot := &OpenAIResetCreditsSnapshot{
 		UpdatedAt: now.UTC(),
 		Source:    openAIResetCreditsSourceWham,
 		Status:    openAIResetCreditsStatusUnknownOrUnsupported,
+	}
+	regularWindows := openAIQuotaWindowPairFromRateLimit(usage.RateLimit, now)
+	snapshot.FiveHour = regularWindows.fiveHour
+	snapshot.SevenDay = regularWindows.sevenDay
+	for _, additional := range usage.AdditionalRateLimits {
+		if !isOpenAIQuotaSparkLimit(additional) {
+			continue
+		}
+		sparkWindows := openAIQuotaWindowPairFromRateLimit(additional.RateLimit, now)
+		snapshot.SparkFiveHour = sparkWindows.fiveHour
+		snapshot.SparkSevenDay = sparkWindows.sevenDay
+		break
 	}
 	if usage.RateLimitResetCredits != nil {
 		count := usage.RateLimitResetCredits.AvailableCount

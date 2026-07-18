@@ -71,3 +71,45 @@ func TestSupportsOpenAIEndpointCapability(t *testing.T) {
 	}
 	require.False(t, SupportsOpenAIEndpointCapability(responsesUnsupported, OpenAIEndpointCapabilityResponses))
 }
+
+func TestGrokMediaGenerationEligibility(t *testing.T) {
+	t.Parallel()
+
+	forbiddenBilling := map[string]any{"status_code": float64(403)}
+
+	tests := []struct {
+		name       string
+		account    *Account
+		want       bool
+		wantReason string
+	}{
+		{name: "nil", account: nil, want: false, wantReason: "not_grok"},
+		{name: "non grok", account: &Account{Platform: PlatformOpenAI}, want: false, wantReason: "not_grok"},
+		{name: "api key", account: &Account{Platform: PlatformGrok, Type: AccountTypeAPIKey}, want: true, wantReason: "non_oauth"},
+		{name: "unobserved oauth", account: &Account{Platform: PlatformGrok, Type: AccountTypeOAuth}, want: true, wantReason: "billing_unobserved"},
+		{name: "forbidden billing", account: &Account{Platform: PlatformGrok, Type: AccountTypeOAuth, Extra: map[string]any{grokBillingExtraKey: forbiddenBilling}}, want: false, wantReason: "billing_forbidden"},
+		{name: "override disabled", account: &Account{Platform: PlatformGrok, Type: AccountTypeOAuth, Extra: map[string]any{GrokMediaEligibleExtraKey: false}}, want: false, wantReason: "override_disabled"},
+		{name: "override enabled", account: &Account{Platform: PlatformGrok, Type: AccountTypeOAuth, Extra: map[string]any{GrokMediaEligibleExtraKey: true, grokBillingExtraKey: forbiddenBilling}}, want: true, wantReason: "override_enabled"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, reason := tt.account.GrokMediaGenerationEligibility()
+			require.Equal(t, tt.want, got)
+			require.Equal(t, tt.wantReason, reason)
+		})
+	}
+}
+
+func TestSupportsOpenAIEndpointCapability_GrokMediaOnlyFiltersMedia(t *testing.T) {
+	t.Parallel()
+
+	account := &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Extra:    map[string]any{GrokMediaEligibleExtraKey: false},
+	}
+
+	require.True(t, SupportsOpenAIEndpointCapability(account, OpenAIEndpointCapabilityChatCompletions))
+	require.False(t, SupportsOpenAIEndpointCapability(account, OpenAIEndpointCapabilityGrokMedia))
+}

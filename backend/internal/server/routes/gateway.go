@@ -8,6 +8,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -24,12 +25,16 @@ func RegisterGatewayRoutes(
 	opsService *service.OpsService,
 	settingService *service.SettingService,
 	cfg *config.Config,
+	promptAudit *securityaudit.PromptService,
 ) {
 	bodyLimit := middleware.RequestBodyLimit(cfg.Gateway.MaxBodySize)
 	clientRequestID := middleware.ClientRequestID()
 	opsErrorLogger := handler.OpsErrorLoggerMiddleware(opsService)
 	opsRequestTraceLogger := handler.OpsRequestTraceMiddleware(opsService)
 	endpointNorm := handler.InboundEndpointMiddleware()
+	audit := func(protocol string) gin.HandlerFunc {
+		return securityaudit.GatewayMiddleware(promptAudit, protocol)
+	}
 
 	// 未分组 Key 拦截中间件（按协议格式区分错误响应）
 	requireGroupAnthropic := middleware.RequireGroupAssignment(settingService, middleware.AnthropicErrorWriter)
@@ -84,26 +89,26 @@ func RegisterGatewayRoutes(
 	gateway.Use(requireGroupAnthropic)
 	{
 		// /v1/messages: auto-route based on group platform
-		gateway.POST("/messages", dispatchers.AnthropicMessages)
+		gateway.POST("/messages", audit(securityaudit.ProtocolAnthropic), dispatchers.AnthropicMessages)
 		// /v1/messages/count_tokens: OpenAI groups get 404
 		gateway.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
 		gateway.GET("/model-catalog", h.Gateway.ModelCatalog)
 		gateway.GET("/usage", h.Gateway.Usage)
-		gateway.POST("/responses", dispatchers.OpenAIResponses)
-		gateway.POST("/responses/*subpath", dispatchers.OpenAIResponses)
+		gateway.POST("/responses", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
+		gateway.POST("/responses/*subpath", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
 		gateway.GET("/responses/*subpath", dispatchers.OpenAIResponses)
 		gateway.DELETE("/responses/*subpath", dispatchers.OpenAIResponses)
 		gateway.GET("/responses", dispatchers.OpenAIResponsesWebSocket)
-		gateway.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
+		gateway.POST("/chat/completions", audit(securityaudit.ProtocolOpenAIChat), dispatchers.OpenAIChatCompletions)
 		gateway.POST("/completions", dispatchers.OpenAICompletions)
-		gateway.POST("/embeddings", dispatchers.OpenAIEmbeddings)
-		gateway.POST("/alpha/search", dispatchers.OpenAIAlphaSearch)
-		gateway.POST("/images/generations", dispatchers.PublicImagesGeneration)
-		gateway.POST("/images/edits", dispatchers.PublicImagesEdits)
-		gateway.POST("/videos", dispatchers.GrokVideosGeneration)
-		gateway.POST("/videos/generations", dispatchers.GrokVideosGeneration)
-		gateway.POST("/videos/edits", dispatchers.GrokVideosEdit)
-		gateway.POST("/videos/extensions", dispatchers.GrokVideosExtension)
+		gateway.POST("/embeddings", openAIOnlyAudit(promptAudit, securityaudit.ProtocolOpenAIEmbeddings, service.EndpointEmbeddings), dispatchers.OpenAIEmbeddings)
+		gateway.POST("/alpha/search", openAIOnlyAudit(promptAudit, securityaudit.ProtocolOpenAIAlphaSearch, service.EndpointAlphaSearch), dispatchers.OpenAIAlphaSearch)
+		gateway.POST("/images/generations", audit(securityaudit.ProtocolOpenAIImages), dispatchers.PublicImagesGeneration)
+		gateway.POST("/images/edits", audit(securityaudit.ProtocolOpenAIImages), dispatchers.PublicImagesEdits)
+		gateway.POST("/videos", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosGeneration)
+		gateway.POST("/videos/generations", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosGeneration)
+		gateway.POST("/videos/edits", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosEdit)
+		gateway.POST("/videos/extensions", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosExtension)
 		gateway.GET("/videos/:request_id", dispatchers.GrokVideosStatus)
 	}
 
@@ -127,18 +132,18 @@ func RegisterGatewayRoutes(
 	{
 		grokV1.GET("/models", h.Gateway.Models)
 		grokV1.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
-		grokV1.POST("/messages", dispatchers.AnthropicMessages)
-		grokV1.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
-		grokV1.POST("/responses", dispatchers.OpenAIResponses)
-		grokV1.POST("/responses/*subpath", dispatchers.OpenAIResponses)
+		grokV1.POST("/messages", audit(securityaudit.ProtocolAnthropic), dispatchers.AnthropicMessages)
+		grokV1.POST("/chat/completions", audit(securityaudit.ProtocolOpenAIChat), dispatchers.OpenAIChatCompletions)
+		grokV1.POST("/responses", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
+		grokV1.POST("/responses/*subpath", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
 		grokV1.GET("/responses/*subpath", dispatchers.OpenAIResponses)
 		grokV1.DELETE("/responses/*subpath", dispatchers.OpenAIResponses)
-		grokV1.POST("/images/generations", dispatchers.GrokImagesGeneration)
-		grokV1.POST("/images/edits", dispatchers.GrokImagesEdits)
-		grokV1.POST("/videos", dispatchers.GrokVideosGeneration)
-		grokV1.POST("/videos/generations", dispatchers.GrokVideosGeneration)
-		grokV1.POST("/videos/edits", dispatchers.GrokVideosEdit)
-		grokV1.POST("/videos/extensions", dispatchers.GrokVideosExtension)
+		grokV1.POST("/images/generations", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokImagesGeneration)
+		grokV1.POST("/images/edits", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokImagesEdits)
+		grokV1.POST("/videos", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosGeneration)
+		grokV1.POST("/videos/generations", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosGeneration)
+		grokV1.POST("/videos/edits", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosEdit)
+		grokV1.POST("/videos/extensions", audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosExtension)
 		grokV1.GET("/videos/:request_id", dispatchers.GrokVideosStatus)
 	}
 	deepseekV1 := r.Group("/deepseek/v1")
@@ -153,8 +158,8 @@ func RegisterGatewayRoutes(
 	deepseekV1.Use(requireGroupAnthropic)
 	{
 		deepseekV1.GET("/models", h.Gateway.Models)
-		deepseekV1.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
-		deepseekV1.POST("/messages", dispatchers.AnthropicMessages)
+		deepseekV1.POST("/chat/completions", audit(securityaudit.ProtocolOpenAIChat), dispatchers.OpenAIChatCompletions)
+		deepseekV1.POST("/messages", audit(securityaudit.ProtocolAnthropic), dispatchers.AnthropicMessages)
 		deepseekV1.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
 	}
 	openRouterV1 := r.Group("/openrouter/v1")
@@ -169,7 +174,7 @@ func RegisterGatewayRoutes(
 	openRouterV1.Use(requireGroupAnthropic)
 	{
 		openRouterV1.GET("/models", h.Gateway.Models)
-		openRouterV1.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
+		openRouterV1.POST("/chat/completions", audit(securityaudit.ProtocolOpenAIChat), dispatchers.OpenAIChatCompletions)
 	}
 	gemini.Use(bodyLimit)
 	gemini.Use(clientRequestID)
@@ -185,7 +190,7 @@ func RegisterGatewayRoutes(
 		gemini.GET("/models/:model/operations/:operation", dispatchers.GeminiModelOperations)
 		gemini.GET("/models/:model", dispatchers.GeminiModelsGet)
 		// Gin treats ":" as a param marker, but Gemini uses "{model}:{action}" in the same segment.
-		gemini.POST("/models/*modelAction", dispatchers.GeminiModels)
+		gemini.POST("/models/*modelAction", audit(securityaudit.ProtocolGemini), dispatchers.GeminiModels)
 		gemini.GET("/files", dispatchers.GeminiFiles)
 		gemini.POST("/files", dispatchers.GeminiFiles)
 		gemini.POST("/files:action", dispatchers.GeminiFiles)
@@ -249,11 +254,11 @@ func RegisterGatewayRoutes(
 		gemini.Any("/openai/files/*subpath", dispatchers.GeminiOpenAICompat)
 		gemini.Any("/openai/batches", dispatchers.GeminiOpenAICompat)
 		gemini.Any("/openai/batches/*subpath", dispatchers.GeminiOpenAICompat)
-		gemini.Any("/openai/chat/completions", dispatchers.GeminiOpenAICompat)
-		gemini.Any("/openai/embeddings", dispatchers.GeminiOpenAICompat)
-		gemini.Any("/openai/images/generations", dispatchers.GeminiOpenAICompat)
-		gemini.Any("/openai/videos", dispatchers.GeminiOpenAICompat)
-		gemini.Any("/openai/videos/*subpath", dispatchers.GeminiOpenAICompat)
+		gemini.Any("/openai/chat/completions", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIChat, promptAudit), dispatchers.GeminiOpenAICompat)
+		gemini.Any("/openai/embeddings", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIEmbeddings, promptAudit), dispatchers.GeminiOpenAICompat)
+		gemini.Any("/openai/images/generations", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIImages, promptAudit), dispatchers.GeminiOpenAICompat)
+		gemini.Any("/openai/videos", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIImages, promptAudit), dispatchers.GeminiOpenAICompat)
+		gemini.Any("/openai/videos/*subpath", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIImages, promptAudit), dispatchers.GeminiOpenAICompat)
 		gemini.Any("/live", dispatchers.GeminiLive)
 		gemini.Any("/live/*subpath", dispatchers.GeminiLive)
 	}
@@ -338,8 +343,8 @@ func RegisterGatewayRoutes(
 		vertexBatchAlias.DELETE("/jobs/*subpath", dispatchers.VertexBatchPredictionJobsSimplified)
 	}
 
-	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
-	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
+	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
+	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
 	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
 	r.DELETE("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
 	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponsesWebSocket)
@@ -353,19 +358,19 @@ func RegisterGatewayRoutes(
 	codexBackend.Use(requireGatewayMaintenanceOpenAI)
 	codexBackend.Use(requireGroupAnthropic)
 	{
-		codexBackend.POST("/responses/compact", dispatchers.OpenAIResponses)
-		codexBackend.POST("/responses/compact/*subpath", dispatchers.OpenAIResponses)
+		codexBackend.POST("/responses/compact", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
+		codexBackend.POST("/responses/compact/*subpath", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
 	}
 	// OpenAI Chat Completions API（不带v1前缀的别名）
-	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIChatCompletions)
-	r.POST("/embeddings", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIEmbeddings)
-	r.POST("/alpha/search", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIAlphaSearch)
-	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.PublicImagesGeneration)
-	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.PublicImagesEdits)
-	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosGeneration)
-	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosGeneration)
-	r.POST("/videos/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosEdit)
-	r.POST("/videos/extensions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosExtension)
+	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolOpenAIChat), dispatchers.OpenAIChatCompletions)
+	r.POST("/embeddings", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, openAIOnlyAudit(promptAudit, securityaudit.ProtocolOpenAIEmbeddings, service.EndpointEmbeddings), dispatchers.OpenAIEmbeddings)
+	r.POST("/alpha/search", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, openAIOnlyAudit(promptAudit, securityaudit.ProtocolOpenAIAlphaSearch, service.EndpointAlphaSearch), dispatchers.OpenAIAlphaSearch)
+	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolOpenAIImages), dispatchers.PublicImagesGeneration)
+	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolOpenAIImages), dispatchers.PublicImagesEdits)
+	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosGeneration)
+	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosGeneration)
+	r.POST("/videos/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosEdit)
+	r.POST("/videos/extensions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolGrokMedia), dispatchers.GrokVideosExtension)
 	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosStatus)
 
 	// Antigravity 模型列表
@@ -383,7 +388,7 @@ func RegisterGatewayRoutes(
 	antigravityV1.Use(requireGatewayMaintenanceCompat)
 	antigravityV1.Use(requireGroupAnthropic)
 	{
-		antigravityV1.POST("/messages", dispatchers.AnthropicMessages)
+		antigravityV1.POST("/messages", audit(securityaudit.ProtocolAnthropic), dispatchers.AnthropicMessages)
 		antigravityV1.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
 		antigravityV1.GET("/models", h.Gateway.AntigravityModels)
 		antigravityV1.GET("/usage", h.Gateway.Usage)
@@ -402,7 +407,7 @@ func RegisterGatewayRoutes(
 	{
 		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)
 		antigravityV1Beta.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
-		antigravityV1Beta.POST("/models/*modelAction", dispatchers.GeminiModels)
+		antigravityV1Beta.POST("/models/*modelAction", audit(securityaudit.ProtocolGemini), dispatchers.GeminiModels)
 	}
 }
 

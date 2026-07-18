@@ -8,7 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
+	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -120,6 +123,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	)
 	setOpsRequestContext(c, reqModel, true, firstMessage)
 	requestPayloadHash := service.HashUsageRequestPayload(firstMessage)
+	if status, ok := h.auditResponsesWSFirstMessage(c, apiKey, firstMessage, reqModel); !ok {
+		closeOpenAIClientWS(wsConn, status, "prompt audit blocked the request")
+		return
+	}
 
 	var currentUserRelease func()
 	var currentAccountRelease func()
@@ -162,7 +169,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		requiredTransport = service.OpenAIUpstreamTransportHTTPSSE
 	}
 	requiredCapability := service.OpenAIEndpointCapability("")
-	if _, hasImageTool := detectResponsesImageToolRequest(firstMessage); hasImageTool {
+	if service.IsExplicitOpenAIResponsesImageIntent(reqModel, firstMessage) {
 		requiredCapability = service.OpenAIEndpointCapabilityResponses
 	}
 	for {
@@ -322,6 +329,20 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			currentAccountRelease = wrapReleaseOnDone(ctx, accountReleaseFunc)
 			return nil
 		},
+		BeforeTurnPayload: func(turn int, payload []byte, model string) error {
+			if turn == 1 {
+				return nil
+			}
+			status, ok := h.auditResponsesWSTurn(c, apiKey, payload, model, "subsequent_turn")
+			if ok {
+				return nil
+			}
+			reason := securityaudit.ErrorCodeUnavailable
+			if status == coderws.StatusCode(4403) {
+				reason = securityaudit.ErrorCodeBlocked
+			}
+			return service.NewOpenAIWSClientCloseError(status, reason, nil)
+		},
 		AfterTurn: func(turn int, result *service.OpenAIForwardResult, turnErr error) {
 			releaseTurnSlots()
 			if turnErr != nil || result == nil {
@@ -380,6 +401,39 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		return
 	}
 	reqLog.Info("openai.websocket_ingress_closed", zap.Int64("account_id", account.ID))
+}
+
+func (h *OpenAIGatewayHandler) auditResponsesWSFirstMessage(c *gin.Context, apiKey *service.APIKey, body []byte, model string) (coderws.StatusCode, bool) {
+	return h.auditResponsesWSTurn(c, apiKey, body, model, "first_turn")
+}
+
+func (h *OpenAIGatewayHandler) auditResponsesWSTurn(c *gin.Context, apiKey *service.APIKey, body []byte, model string, stage string) (coderws.StatusCode, bool) {
+	if h == nil || h.promptAuditService == nil || c == nil || c.Request == nil {
+		return coderws.StatusNormalClosure, true
+	}
+	requestID, _ := c.Request.Context().Value(ctxkey.RequestID).(string)
+	clientRequestID, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string)
+	req := securityaudit.Request{
+		RequestID: requestID, ClientRequestID: clientRequestID, Protocol: securityaudit.ProtocolResponsesWS,
+		Provider: "", Endpoint: c.FullPath(), Model: model, Body: body, Stage: stage,
+	}
+	if apiKey != nil {
+		req.APIKeyID, req.APIKeyName, req.UserID = &apiKey.ID, apiKey.Name, &apiKey.UserID
+		if apiKey.User != nil {
+			req.Username, req.UserEmail = apiKey.User.Username, apiKey.User.Email
+		}
+		if group := apiKey.Group; group != nil {
+			req.GroupID, req.GroupName, req.Provider = &group.ID, group.Name, group.Platform
+		}
+	}
+	result := h.promptAuditService.Evaluate(c.Request.Context(), req)
+	if result.Allowed || result.Error == nil {
+		return coderws.StatusNormalClosure, true
+	}
+	if infraerrors.Reason(result.Error) == securityaudit.ErrorCodeBlocked || strings.Contains(result.Error.Error(), securityaudit.ErrorCodeBlocked) {
+		return coderws.StatusCode(4403), false
+	}
+	return coderws.StatusTryAgainLater, false
 }
 
 func openAIWSIngressFallbackSessionSeed(userID, apiKeyID int64, groupID *int64) string {

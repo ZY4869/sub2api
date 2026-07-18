@@ -104,7 +104,10 @@
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account, AccountVisualStyle, WindowStats } from '@/types'
-import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
+import {
+  resolveActualUsageRefreshLoadOptions,
+  useAccountUsagePresentation,
+} from '@/composables/useAccountUsagePresentation'
 import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
 import { useOpenAIResetCreditsControls } from '@/composables/useOpenAIResetCreditsControls'
 import { useViewportAutoLoadGate } from '@/composables/useViewportAutoLoadGate'
@@ -211,7 +214,10 @@ watch(
   (nextToken, prevToken) => {
     if (nextToken === prevToken) return
     if (!shouldFetchUsage.value) return
-    requestAutoLoad()
+    requestAutoLoad({
+      ...resolveActualUsageRefreshLoadOptions(props.account),
+      force: true,
+    })
   },
 )
 </script>

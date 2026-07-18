@@ -11,7 +11,7 @@ import (
 
 func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Account, force bool) (*UsageInfo, error) {
 	now := time.Now()
-	usage := &UsageInfo{UpdatedAt: &now}
+	usage := &UsageInfo{Source: "active", UpdatedAt: &now}
 
 	if account == nil {
 		return usage, nil
@@ -39,7 +39,7 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 		}
 	}
 	if force || shouldRefreshOpenAIResetCreditsSnapshot(account, now) {
-		s.readOpenAIResetCredits(ctx, account, usage)
+		s.readOpenAIResetCredits(ctx, account, usage, force)
 	}
 
 	if s.usageLogRepo == nil {
@@ -63,7 +63,7 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 	return usage, nil
 }
 
-func (s *AccountUsageService) readOpenAIResetCredits(ctx context.Context, account *Account, usage *UsageInfo) {
+func (s *AccountUsageService) readOpenAIResetCredits(ctx context.Context, account *Account, usage *UsageInfo, applyUsageWindows bool) {
 	if s == nil || s.openAIResetCreditService == nil || account == nil || usage == nil {
 		return
 	}
@@ -83,6 +83,9 @@ func (s *AccountUsageService) readOpenAIResetCredits(ctx context.Context, accoun
 		Source:            snapshot.Source,
 		Status:            snapshot.Status,
 		UnsupportedReason: snapshot.UnsupportedReason,
+	}
+	if applyUsageWindows {
+		applyOpenAIQuotaWindowsFromSnapshot(usage, snapshot)
 	}
 }
 

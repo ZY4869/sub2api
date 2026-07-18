@@ -44,14 +44,15 @@ describe('AdminModulesView', () => {
     mockState.authStore.isSimpleMode = false
   })
 
-  it('renders the three expanded module sections and their entry cards', () => {
+  it('renders the expanded module sections and their entry cards', () => {
     const wrapper = mountView()
 
-    expect(wrapper.findAll('[data-testid="module-section"]')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid="module-section"]')).toHaveLength(4)
     expect(wrapper.find('[data-testid="module-card-promo-codes"]').attributes('href')).toBe('/admin/promo-codes')
     expect(wrapper.find('[data-testid="module-card-redeem-codes"]').attributes('href')).toBe('/admin/redeem')
     expect(wrapper.find('[data-testid="module-card-payment-orders"]').attributes('href')).toBe('/admin/payment/orders')
     expect(wrapper.find('[data-testid="module-card-proxies"]').attributes('href')).toBe('/admin/proxies')
+    expect(wrapper.find('[data-testid="module-card-prompt-audit"]').attributes('href')).toBe('/admin/prompt-audit')
     expect(wrapper.find('[data-testid="module-card-settings-email"]').attributes('href')).toBe('/admin/settings?tab=email')
   })
 

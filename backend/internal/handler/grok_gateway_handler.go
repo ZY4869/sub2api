@@ -378,13 +378,25 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 
 		switchCount := 0
 		failedAccountIDs := make(map[int64]struct{})
+		requiredCapability := grokRequiredEndpointCapability(action)
 		var lastFailoverErr *service.UpstreamFailoverError
 
 		for {
 			if isRequestCanceled(c.Request.Context(), nil) {
 				return
 			}
-			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionHash, runtimeSelectionModel, failedAccountIDs, "")
+			selectionSessionHash := sessionHash
+			if requiredCapability != "" {
+				selectionSessionHash = ""
+			}
+			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(
+				c.Request.Context(),
+				currentAPIKey.GroupID,
+				selectionSessionHash,
+				runtimeSelectionModel,
+				failedAccountIDs,
+				"",
+			)
 			if err != nil {
 				reqLog.Warn("grok.account_select_failed", zap.Error(err), zap.Int("excluded_account_count", len(failedAccountIDs)))
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
@@ -410,6 +422,15 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			}
 
 			account := selection.Account
+			if !service.SupportsOpenAIEndpointCapability(account, requiredCapability) {
+				failedAccountIDs[account.ID] = struct{}{}
+				eligible, reason := account.GrokMediaGenerationEligibility()
+				reqLog.Info("grok.account_media_ineligible", zap.Int64("account_id", account.ID), zap.Bool("eligible", eligible), zap.String("reason", reason))
+				if selection.ReleaseFunc != nil {
+					selection.ReleaseFunc()
+				}
+				continue
+			}
 			setOpsSelectedAccountDetails(c, account)
 			requestType := service.RequestTypeSync
 			if action != grokActionVideoStatus {
@@ -588,6 +609,15 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			)
 			return
 		}
+	}
+}
+
+func grokRequiredEndpointCapability(action grokAction) service.OpenAIEndpointCapability {
+	switch action {
+	case grokActionImagesGen, grokActionImagesEdits, grokActionVideosGen, grokActionVideosEdit, grokActionVideosExt:
+		return service.OpenAIEndpointCapabilityGrokMedia
+	default:
+		return ""
 	}
 }
 

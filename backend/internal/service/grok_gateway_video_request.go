@@ -114,6 +114,8 @@ func grokBuildVideoWorkflowRequestFromVideosBodyWithOperation(body []byte, opera
 		gjson.GetBytes(body, "input").String(),
 	))
 	imageURL := grokExtractVideoInputURL(body,
+		"reference_image.url",
+		"reference_image.image_url",
 		"image_reference.image_url",
 		"image_reference.url",
 		"image.url",
@@ -448,6 +450,7 @@ func grokExtractMediaURL(part map[string]any, key string) string {
 	}
 	return strings.TrimSpace(firstNonEmptyString(
 		fmt.Sprintf("%v", part["url"]),
+		fmt.Sprintf("%v", part["reference_image"]),
 		fmt.Sprintf("%v", part["image_url"]),
 		fmt.Sprintf("%v", part["video_url"]),
 	))

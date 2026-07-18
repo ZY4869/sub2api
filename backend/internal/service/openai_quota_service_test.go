@@ -345,11 +345,12 @@ func TestOpenAIQuotaService_ReadResetCreditsPersistsWhamSnapshot(t *testing.T) {
 	require.NotEmpty(t, repo.updateExtraCalls[0][openAIQuotaUsageUpdatedAtExtraKey])
 }
 
-func TestOpenAIQuotaService_ReadResetCreditsDoesNotPersistWhamWindowsAsCodexResets(t *testing.T) {
+func TestOpenAIQuotaService_ReadResetCreditsReturnsWhamWindowsWithoutPersistingCodexResets(t *testing.T) {
 	t.Parallel()
 
-	reset5h := time.Now().Add(5 * time.Hour).UTC().Unix()
-	reset7d := time.Now().Add(7 * 24 * time.Hour).UTC().Unix()
+	now := time.Now().UTC()
+	reset5h := now.Add(5 * time.Hour).Unix()
+	reset7d := now.Add(7 * 24 * time.Hour).Unix()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/backend-api/wham/usage", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
@@ -379,8 +380,14 @@ func TestOpenAIQuotaService_ReadResetCreditsDoesNotPersistWhamWindowsAsCodexRese
 
 	require.NoError(t, err)
 	require.NotNil(t, snapshot)
-	require.Nil(t, snapshot.FiveHour)
-	require.Nil(t, snapshot.SevenDay)
+	require.NotNil(t, snapshot.FiveHour)
+	require.NotNil(t, snapshot.FiveHour.Progress)
+	require.Equal(t, 0.0, snapshot.FiveHour.Progress.Utilization)
+	require.WithinDuration(t, time.Unix(reset5h, 0).UTC(), *snapshot.FiveHour.Progress.ResetsAt, time.Second)
+	require.NotNil(t, snapshot.SevenDay)
+	require.NotNil(t, snapshot.SevenDay.Progress)
+	require.Equal(t, 4.0, snapshot.SevenDay.Progress.Utilization)
+	require.WithinDuration(t, time.Unix(reset7d, 0).UTC(), *snapshot.SevenDay.Progress.ResetsAt, time.Second)
 	require.Len(t, repo.updateExtraCalls, 1)
 	require.Equal(t, 2, repo.updateExtraCalls[0][openAIResetCreditsAvailableCountExtraKey])
 	require.NotContains(t, repo.updateExtraCalls[0], "codex_5h_used_percent")

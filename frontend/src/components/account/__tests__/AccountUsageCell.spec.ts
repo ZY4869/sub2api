@@ -1494,17 +1494,21 @@ describe("AccountUsageCell", () => {
     const result = await refreshAccountUsagePresentation([account], {
       force: true,
       concurrency: 1,
+      resolveLoadOptions: resolveActualUsageRefreshLoadOptions,
     });
     await flushPromises();
 
     expect(result).toEqual({
       total: 1,
       success: 1,
-      activeSuccess: 0,
-      fallbackSuccess: 1,
+      activeSuccess: 1,
+      fallbackSuccess: 0,
       failed: 0,
     });
-    expect(getUsage).toHaveBeenCalledWith(2010, { force: true });
+    expect(getUsage).toHaveBeenCalledWith(2010, {
+      force: true,
+      source: "active",
+    });
     expect(wrapper.text()).toContain(
       "5H|88|800",
     );
@@ -1597,22 +1601,116 @@ describe("AccountUsageCell", () => {
     const result = await refreshAccountUsagePresentation([account], {
       force: true,
       concurrency: 1,
+      resolveLoadOptions: resolveActualUsageRefreshLoadOptions,
     });
     await flushPromises();
 
     expect(result).toEqual({
       total: 1,
       success: 1,
-      activeSuccess: 0,
-      fallbackSuccess: 1,
+      activeSuccess: 1,
+      fallbackSuccess: 0,
       failed: 0,
     });
-    expect(getUsage).toHaveBeenCalledWith(2014, { force: true });
+    expect(getUsage).toHaveBeenCalledWith(2014, {
+      force: true,
+      source: "active",
+    });
     expect(wrapper.findAll(".usage-bar")).toHaveLength(4);
     expect(wrapper.text()).toContain("5H|88|800");
     expect(wrapper.text()).toContain("7D|66|900");
     expect(wrapper.text()).toContain("Spark 5H|44|640");
     expect(wrapper.text()).toContain("Spark 7D|78|");
+  });
+
+  it("does not let an older openai auto load overwrite a newer force refresh", async () => {
+    const pendingRequests: Array<{
+      params: unknown;
+      resolve: (value: unknown) => void;
+    }> = [];
+    getUsage.mockImplementation((_id: number, params: unknown) => {
+      return new Promise((resolve) => {
+        pendingRequests.push({ params, resolve });
+      });
+    });
+
+    const account = {
+      id: 2015,
+      platform: "openai",
+      type: "oauth",
+      active_usage_available: true,
+      credentials: {
+        plan_type: "plus",
+      },
+      extra: {
+        codex_usage_updated_at: "2020-03-07T10:00:00Z",
+        codex_5h_used_percent: 12,
+        codex_5h_reset_at: "2099-03-07T12:00:00Z",
+        codex_7d_used_percent: 34,
+        codex_7d_reset_at: "2099-03-13T12:00:00Z",
+      },
+    } as any;
+
+    const wrapper = mount(AccountUsageCell, {
+      props: { account },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+    expect(pendingRequests).toHaveLength(1);
+
+    const refreshPromise = refreshAccountUsagePresentation([account], {
+      force: true,
+      concurrency: 1,
+      resolveLoadOptions: resolveActualUsageRefreshLoadOptions,
+    });
+    await flushPromises();
+    expect(pendingRequests).toHaveLength(2);
+    expect(pendingRequests[1].params).toEqual({
+      force: true,
+      source: "active",
+    });
+
+    pendingRequests[1].resolve({
+      source: "active",
+      updated_at: "2026-03-07T11:00:00Z",
+      five_hour: {
+        utilization: 88,
+        resets_at: "2026-03-08T12:00:00Z",
+        remaining_seconds: 3600,
+      },
+      seven_day: {
+        utilization: 66,
+        resets_at: "2026-03-13T12:00:00Z",
+        remaining_seconds: 7200,
+      },
+    });
+    await refreshPromise;
+    await flushPromises();
+
+    pendingRequests[0].resolve({
+      source: "active",
+      five_hour: {
+        utilization: 22,
+        resets_at: "2026-03-08T12:00:00Z",
+        remaining_seconds: 3600,
+      },
+      seven_day: {
+        utilization: 33,
+        resets_at: "2026-03-13T12:00:00Z",
+        remaining_seconds: 7200,
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("5H|88|");
+    expect(wrapper.text()).toContain("7D|66|");
+    expect(wrapper.text()).not.toContain("5H|22|");
+    expect(wrapper.text()).not.toContain("7D|33|");
   });
 
   it("hides openai identity and model summaries but keeps snapshot update text", async () => {

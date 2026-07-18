@@ -680,7 +680,7 @@ func TestAccountUsageService_GetOpenAIUsage_NonProPlansProbeOnlyNormalScope(t *t
 	}
 }
 
-func TestAccountUsageService_GetOpenAIUsage_ReadsRealResetCredits(t *testing.T) {
+func TestAccountUsageService_GetOpenAIUsage_ForcePrefersRealWhamWindows(t *testing.T) {
 	t.Parallel()
 
 	count := 3
@@ -732,9 +732,9 @@ func TestAccountUsageService_GetOpenAIUsage_ReadsRealResetCredits(t *testing.T) 
 	require.Equal(t, openAIResetCreditsSourceWham, usage.OpenAIResetCredits.Source)
 	require.Equal(t, openAIResetCreditsStatusAvailable, usage.OpenAIResetCredits.Status)
 	require.NotNil(t, usage.FiveHour)
-	require.Equal(t, 12.0, usage.FiveHour.Utilization)
+	require.Equal(t, 99.0, usage.FiveHour.Utilization)
 	require.NotNil(t, usage.FiveHour.ResetsAt)
-	require.WithinDuration(t, codexResetAt, *usage.FiveHour.ResetsAt, time.Second)
+	require.WithinDuration(t, whamResetAt, *usage.FiveHour.ResetsAt, time.Second)
 }
 
 func TestAccountUsageService_GetOpenAIUsage_ResetCreditsReadFailureClearsStaleCount(t *testing.T) {

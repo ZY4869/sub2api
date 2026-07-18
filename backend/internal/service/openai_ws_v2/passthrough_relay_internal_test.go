@@ -50,6 +50,7 @@ func TestRunClientToUpstream_ErrorPaths(t *testing.T) {
 			nil,
 			nil,
 			exitCh,
+			nil,
 		)
 		sig := <-exitCh
 		require.Equal(t, "read_client", sig.stage)
@@ -70,6 +71,7 @@ func TestRunClientToUpstream_ErrorPaths(t *testing.T) {
 			nil,
 			nil,
 			exitCh,
+			nil,
 		)
 		sig := <-exitCh
 		require.Equal(t, "write_upstream", sig.stage)
@@ -94,11 +96,44 @@ func TestRunClientToUpstream_ErrorPaths(t *testing.T) {
 				traces = append(traces, event)
 			},
 			exitCh,
+			nil,
 		)
 		sig := <-exitCh
 		require.Equal(t, "read_client", sig.stage)
 		require.Equal(t, int64(1), forwarded.Load())
 		require.NotEmpty(t, traces)
+	})
+
+	t.Run("client payload callback rejects before upstream write", func(t *testing.T) {
+		t.Parallel()
+
+		exitCh := make(chan relayExitSignal, 1)
+		forwarded := &atomic.Int64{}
+		writes := &atomic.Int64{}
+		runClientToUpstream(
+			context.Background(),
+			newPassthroughTestFrameConn([]passthroughTestFrame{
+				{msgType: coderws.MessageText, payload: []byte(`{"type":"response.create","model":"gpt-4o","input":"block"}`)},
+			}, true),
+			func(_ coderws.MessageType, _ []byte) error {
+				writes.Add(1)
+				return nil
+			},
+			func() {},
+			forwarded,
+			nil,
+			exitCh,
+			func(turn int, payload []byte, model string) error {
+				require.Equal(t, 2, turn)
+				require.Equal(t, "gpt-4o", model)
+				require.Contains(t, string(payload), "block")
+				return errors.New("guard blocked")
+			},
+		)
+		sig := <-exitCh
+		require.Equal(t, "client_payload_rejected", sig.stage)
+		require.Equal(t, int64(0), forwarded.Load())
+		require.Equal(t, int64(0), writes.Load())
 	})
 }
 

@@ -443,7 +443,7 @@ func grokBuildAPIKeyVideoPayload(req *grokVideoWorkflowRequest, upstreamModel st
 		endpoint = grokEndpointVideosExtension
 	}
 	if strings.TrimSpace(req.ImageURL) != "" {
-		payload["image_url"] = strings.TrimSpace(req.ImageURL)
+		payload["reference_image"] = map[string]string{"url": strings.TrimSpace(req.ImageURL)}
 	}
 	if strings.TrimSpace(req.VideoURL) != "" {
 		payload["video_url"] = strings.TrimSpace(req.VideoURL)

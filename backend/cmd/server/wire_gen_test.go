@@ -94,6 +94,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // channelMonitorRunner
 		nil, // publicModelCatalogRevalidationRunner
 		nil, // backupSvc
+		nil, // promptAudit
 	)
 
 	require.NotPanics(t, func() {
