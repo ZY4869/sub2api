@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strings"
 	"time"
 )
 
@@ -59,20 +58,6 @@ func apiKeyPublicModelRuntimeQuotaCandidates(account *Account, entry APIKeyPubli
 		entry.PublicID,
 		entry.AliasID,
 	)
-}
-
-func openAIAdminQuotaCooldownMessage(status openAIRuntimeQuotaStatus) string {
-	if status.AccountResetAt != nil {
-		return "整号额度冷却中，请等待额度恢复后再测试"
-	}
-	switch strings.TrimSpace(status.Scope) {
-	case openAICodexScopeSpark:
-		return "Spark 冷却中，请等待额度恢复后再测试"
-	case openAICodexScopeNormal:
-		return "普通额度冷却中，请等待额度恢复后再测试"
-	default:
-		return "额度冷却中，请等待额度恢复后再测试"
-	}
 }
 
 func (s *OpenAIGatewayService) IsModelUnavailableDueToRuntimeQuota(

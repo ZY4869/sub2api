@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
 )
@@ -102,23 +101,6 @@ func (s *AccountTestService) refreshOpenAIKnownModelsSnapshot(account *Account) 
 		"probe_source", probeResult.ProbeSource,
 		"duration_ms", time.Since(start).Milliseconds(),
 	)
-}
-
-func precheckOpenAIAccountTestRuntimeQuota(account *Account, candidates ...string) error {
-	status := openAIRuntimeQuotaStatusForCandidates(account, candidates...)
-	if !status.Limited() {
-		return nil
-	}
-	message := openAIAdminQuotaCooldownMessage(status)
-	slog.Info(
-		"openai_account_test_runtime_quota_blocked",
-		"account_id", account.ID,
-		"scope", status.Scope,
-		"scope_remaining_seconds", int(status.ScopeRemaining.Seconds()),
-		"account_reset_at", status.AccountResetAt,
-		"candidates", candidates,
-	)
-	return infraerrors.BadRequest("TEST_OPENAI_RUNTIME_QUOTA_COOLDOWN", message)
 }
 
 func (s *AccountTestService) recoverOpenAIAccountAfterSuccessfulTest(ctx context.Context, accountID int64) {
