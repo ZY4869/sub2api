@@ -991,13 +991,13 @@ export function useAccountUsagePresentation(
         : null,
       grokQuotaRow(
         "grok-requests",
-        "Req",
+        t("admin.accounts.usageWindow.grokRequests"),
         usageInfo.value?.grok_request_quota,
         "orange",
       ),
       grokQuotaRow(
         "grok-tokens",
-        "Tok",
+        t("admin.accounts.usageWindow.grokTokens"),
         usageInfo.value?.grok_token_quota,
         "emerald",
       ),

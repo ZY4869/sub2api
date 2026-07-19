@@ -65,6 +65,8 @@ vi.mock("vue-i18n", async () => {
           "admin.accounts.usageWindow.claude": "Claude",
           "admin.accounts.usageWindow.spark5h": "Spark 5H",
           "admin.accounts.usageWindow.spark7d": "Spark 7D",
+          "admin.accounts.usageWindow.grokRequests": "请求数",
+          "admin.accounts.usageWindow.grokTokens": "令牌数",
           "admin.accounts.usageWindow.refreshResetCredits": "Refresh count",
           "admin.accounts.usageWindow.refreshingResetCredits": "Refreshing",
           "admin.accounts.usageWindow.refreshResetCreditsTitle":
@@ -439,6 +441,44 @@ describe("AccountUsageCell", () => {
       window.matchMedia = originalMatchMedia;
       globalThis.IntersectionObserver = originalIntersectionObserver;
     }
+  });
+
+  it("renders grok request and token quota rows with localized labels", async () => {
+    getUsage.mockResolvedValueOnce({
+      source: "active",
+      updated_at: "2026-03-07T10:00:00Z",
+      grok_request_quota: {
+        limit: 100,
+        remaining: 75,
+        reset_at: "2026-03-14T00:00:00Z",
+      },
+      grok_token_quota: {
+        limit: 1000,
+        remaining: 250,
+        reset_at: "2026-03-14T00:00:00Z",
+      },
+    });
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 1054,
+          platform: "grok",
+          type: "oauth",
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("请求数|25");
+    expect(wrapper.text()).toContain("令牌数|75");
   });
 
   it("aggregates antigravity image usage from multiple models", async () => {

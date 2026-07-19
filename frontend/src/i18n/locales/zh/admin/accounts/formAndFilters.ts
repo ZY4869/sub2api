@@ -10,6 +10,8 @@ export default {
         gemini3Flash: "G3F",
         gemini3Image: "GImage",
         claude: "Claude",
+        grokRequests: "请求数",
+        grokTokens: "令牌数",
         remainingLabel: "剩余",
         resetAtLabel: "重置于",
         now: "现在",

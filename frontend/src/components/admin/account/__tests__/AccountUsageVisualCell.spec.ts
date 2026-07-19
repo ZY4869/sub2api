@@ -33,6 +33,8 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.refreshResetCreditsTitle': 'Refresh OpenAI reset credits',
           'admin.accounts.usageWindow.resetQuota': 'Reset quota',
           'admin.accounts.usageWindow.resettingQuota': 'Resetting',
+          'admin.accounts.usageWindow.grokRequests': '请求数',
+          'admin.accounts.usageWindow.grokTokens': '令牌数',
           'admin.accounts.usageWindow.resetQuotaRemaining': '{count} resets left',
           'admin.accounts.usageWindow.resetCreditExpiresAt': 'Expires {time}',
           'admin.accounts.usageWindow.resetQuotaUnsupported': 'Real reset unsupported',
