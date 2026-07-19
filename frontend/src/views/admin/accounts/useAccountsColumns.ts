@@ -105,8 +105,8 @@ const allColumns = computed(() => {
       sortable: false,
       class:
         resolvedAccountVisualPreset.value === "airy"
-          ? "w-[clamp(148px,12vw,168px)] min-w-[140px] max-w-[172px] align-middle"
-          : "align-middle",
+          ? "w-[clamp(148px,12vw,168px)] min-w-[140px] max-w-[172px]"
+          : undefined,
     },
     {
       key: "usage_reset_dates",
