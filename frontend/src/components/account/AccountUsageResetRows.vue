@@ -2,7 +2,7 @@
   <div
     v-for="row in rows"
     :key="row.key"
-    class="grid min-w-0 max-w-full grid-cols-[minmax(48px,auto)_minmax(0,1fr)] items-start gap-x-2 gap-y-1 text-[10px] tabular-nums"
+    class="grid min-w-0 max-w-full grid-cols-[minmax(48px,auto)_minmax(0,1fr)] items-center gap-x-2 gap-y-1 text-[10px] tabular-nums"
   >
     <span
       :title="row.label"

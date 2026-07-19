@@ -1,14 +1,21 @@
 <template>
-  <div class="min-w-[360px] max-w-full space-y-1.5 text-[11px] leading-none" data-testid="account-key-usage-summary-cell">
+  <div class="min-w-0 max-w-full space-y-1.5 text-[11px] leading-none" data-testid="account-key-usage-summary-cell">
     <template v-if="loading && !stats">
-      <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap" data-testid="account-key-usage-today-row">
+      <div class="flex flex-wrap items-center gap-1.5" data-testid="account-key-usage-today-row">
         <span
-          v-for="index in 5"
+          v-for="index in 3"
           :key="index"
           class="h-6 w-20 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800"
         />
       </div>
-      <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap" data-testid="account-key-usage-quota-row">
+      <div class="flex flex-wrap items-center gap-1.5" data-testid="account-key-usage-today-row-2">
+        <span
+          v-for="index in 2"
+          :key="index"
+          class="h-6 w-20 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800"
+        />
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5" data-testid="account-key-usage-quota-row">
         <span class="h-6 w-24 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800" />
       </div>
     </template>
@@ -18,12 +25,12 @@
     </span>
 
     <template v-else>
-      <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap" data-testid="account-key-usage-today-row">
+      <div class="flex flex-wrap items-center gap-1.5" data-testid="account-key-usage-today-row">
         <span
-          v-for="item in todayItems"
+          v-for="item in todayItemsRow1"
           :key="item.key"
           :class="[
-            'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 font-semibold',
+            'inline-flex items-center gap-1 rounded-full border px-2 py-1 font-semibold',
             item.className
           ]"
           :title="item.title"
@@ -31,11 +38,28 @@
           :data-testid="`account-key-usage-${item.key}`"
         >
           <Icon :name="item.icon" size="xs" :stroke-width="2" class="shrink-0" />
-          <span class="shrink-0 text-left tabular-nums">{{ item.value }}</span>
+          <span class="text-left tabular-nums">{{ item.value }}</span>
         </span>
       </div>
 
-      <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap" data-testid="account-key-usage-quota-row">
+      <div class="flex flex-wrap items-center gap-1.5" data-testid="account-key-usage-today-row-2">
+        <span
+          v-for="item in todayItemsRow2"
+          :key="item.key"
+          :class="[
+            'inline-flex items-center gap-1 rounded-full border px-2 py-1 font-semibold',
+            item.className
+          ]"
+          :title="item.title"
+          :aria-label="item.title"
+          :data-testid="`account-key-usage-${item.key}`"
+        >
+          <Icon :name="item.icon" size="xs" :stroke-width="2" class="shrink-0" />
+          <span class="text-left tabular-nums">{{ item.value }}</span>
+        </span>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-1.5" data-testid="account-key-usage-quota-row">
         <span
           v-if="quotaItems.length === 0"
           class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100"
@@ -173,6 +197,9 @@ const todayItems = computed(() => [
       : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
   ),
 ])
+
+const todayItemsRow1 = computed(() => todayItems.value.slice(0, 3))
+const todayItemsRow2 = computed(() => todayItems.value.slice(3))
 
 const finiteNumber = (value: unknown): number => (
   typeof value === 'number' && Number.isFinite(value) ? value : 0
