@@ -27,7 +27,7 @@
     :show="showReAuth"
     :account="reAuthAccount"
     @close="emit('close-reauth')"
-    @reauthorized="emit('updated', $event)"
+    @reauthorized="emit('reauthorized', $event)"
   />
   <AccountTestModal
     :show="showTest"
@@ -295,6 +295,7 @@ const emit = defineEmits<{
   'submit-sync-dialog': [exposures: ModelRegistryExposureTarget[]]
   'close-edit': []
   updated: [account: Account]
+  reauthorized: [account: Account]
   'close-reauth': []
   'close-test': []
   'close-batch-test': []

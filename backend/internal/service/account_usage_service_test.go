@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	openaipkg "github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 	"github.com/stretchr/testify/require"
@@ -161,6 +162,69 @@ func (d *openAICodexProbeQueueDialer) Dial(_ context.Context, _ string, _ http.H
 	conn := d.conns[0]
 	d.conns = d.conns[1:]
 	return conn, 0, cloneHeader(d.handshake), nil
+}
+
+func TestAccountUsageServiceGetUsageGrokForceFallsBackToSnapshotsWhenProbeFails(t *testing.T) {
+	t.Parallel()
+
+	account := newGrokQuotaOAuthAccountForTest(201)
+	account.Extra[grokBillingExtraKey] = map[string]any{
+		"period_type":          "weekly",
+		"period_start":         "2026-07-15T00:00:00Z",
+		"period_end":           "2026-07-22T00:00:00Z",
+		"usage_percent":        12.5,
+		"billing_period_start": "2026-07-01T00:00:00Z",
+		"billing_period_end":   "2026-08-01T00:00:00Z",
+		"monthly_limit_cents":  15000,
+		"used_cents":           3000,
+		"used_percent":         20,
+		"plan":                 "SuperGrok",
+		"status_code":          http.StatusOK,
+		"updated_at":           "2026-07-15T10:00:00Z",
+		"fetched_at":           "2026-07-15T10:00:00Z",
+	}
+	repo := &grokQuotaAccountRepoStub{account: account}
+	upstream := &grokQuotaHTTPUpstreamStub{responses: []*http.Response{
+		newGrokQuotaHTTPResponse(http.StatusNotFound, `{"error":"no billing"}`),
+		newGrokQuotaHTTPResponse(http.StatusNotFound, `{"error":"no billing"}`),
+		newGrokQuotaHTTPResponse(http.StatusUnauthorized, `{"error":"unauthorized"}`),
+	}}
+	quotaSvc := NewGrokQuotaService(repo, nil, NewGrokTokenProvider(repo, nil), upstream, nil)
+	svc := NewAccountUsageService(repo, nil, nil, nil, nil, nil, nil)
+	svc.SetGrokQuotaDependencies(quotaSvc, NewGrokQuotaFetcher())
+
+	usage, err := svc.GetUsage(context.Background(), account.ID, true)
+
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+	require.Equal(t, "active", usage.Source)
+	require.NotNil(t, usage.GrokBilling)
+	require.Equal(t, "SuperGrok", usage.GrokBilling.Plan)
+	require.Equal(t, errorCodeUnauthenticated, usage.ErrorCode)
+	require.Contains(t, usage.Error, "usage API error")
+	require.Len(t, upstream.requests, 3)
+}
+
+func TestAccountUsageServiceGetUsageGrokForceReturnsErrorWithoutFallbackSnapshot(t *testing.T) {
+	t.Parallel()
+
+	account := newGrokQuotaOAuthAccountForTest(202)
+	repo := &grokQuotaAccountRepoStub{account: account}
+	upstream := &grokQuotaHTTPUpstreamStub{responses: []*http.Response{
+		newGrokQuotaHTTPResponse(http.StatusNotFound, `{"error":"no billing"}`),
+		newGrokQuotaHTTPResponse(http.StatusNotFound, `{"error":"no billing"}`),
+		newGrokQuotaHTTPResponse(http.StatusUnauthorized, `{"error":"unauthorized"}`),
+	}}
+	quotaSvc := NewGrokQuotaService(repo, nil, NewGrokTokenProvider(repo, nil), upstream, nil)
+	svc := NewAccountUsageService(repo, nil, nil, nil, nil, nil, nil)
+	svc.SetGrokQuotaDependencies(quotaSvc, NewGrokQuotaFetcher())
+
+	usage, err := svc.GetUsage(context.Background(), account.ID, true)
+
+	require.Error(t, err)
+	require.Nil(t, usage)
+	require.Equal(t, http.StatusUnauthorized, infraerrors.Code(err))
+	require.Len(t, upstream.requests, 3)
 }
 
 func TestAccountUsageServiceGetTodayStatsReturnsBreakdown(t *testing.T) {

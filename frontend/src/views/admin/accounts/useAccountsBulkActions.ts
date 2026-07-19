@@ -33,7 +33,8 @@ export function useAccountsBulkActions(ctx: any) {
     setSelectedIds,
     t,
     refreshAccountSummarySafe,
-    usageRefreshing
+    usageRefreshing,
+    usageManualRefreshToken,
   } = ctx
 
 const handleBulkDelete = async () => {
@@ -276,8 +277,22 @@ const handleBulkResetStatus = async () => {
 };
 const handleBulkRefreshToken = async () => {
   if (!confirm(t("common.confirm"))) return;
+  const selectedIDs = new Set(selIds.value);
+  const selectedGrokOAuthIDs = accounts.value
+    .filter((account: Account) =>
+      selectedIDs.has(account.id) &&
+      account.platform === "grok" &&
+      account.type === "oauth",
+    )
+    .map((account: Account) => account.id);
   try {
     const result = await adminAPI.accounts.batchRefresh(selIds.value);
+    if (result.success > 0 && selectedGrokOAuthIDs.length > 0) {
+      invalidateAccountUsagePresentationCache(selectedGrokOAuthIDs);
+      if (usageManualRefreshToken) {
+        usageManualRefreshToken.value += 1;
+      }
+    }
     if (result.failed > 0) {
       appStore.showError(
         t("admin.accounts.bulkActions.partialSuccess", {

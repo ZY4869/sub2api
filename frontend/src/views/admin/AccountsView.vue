@@ -266,6 +266,7 @@
     @submit-sync-dialog="submitSyncDialog"
     @close-edit="handleCloseEdit"
     @updated="handleAccountUpdated"
+    @reauthorized="handleAccountReauthorized"
     @close-reauth="closeReAuthModal"
     @close-test="closeTestModal"
     @close-batch-test="closeBatchTestModal"
@@ -362,6 +363,7 @@ import { useAccountsDialogState } from './accounts/useAccountsDialogState';
 import { useAccountsDataActions } from './accounts/useAccountsDataActions';
 import {
   canAccountFetchUsage,
+  invalidateAccountUsagePresentationCache,
   resolveActualUsageRefreshLoadOptions,
 } from "@/composables/useAccountUsagePresentation";
 import { useModelImportExposureSync } from "@/composables/useModelImportExposureSync";
@@ -868,6 +870,14 @@ const refreshAccountSummarySafe = () => {
   });
 };
 
+const refreshGrokUsagePresentationAfterAccountUpdate = (account: Account) => {
+  if (account.platform !== "grok" || account.type !== "oauth") {
+    return;
+  }
+  invalidateAccountUsagePresentationCache([account.id]);
+  usageManualRefreshToken.value += 1;
+};
+
 const { handleCloseEdit, handleEdit } = useAccountsEditActions({
   adminAPI, appStore, t, edAcc, showEdit, editLoading, activeEditRequestToken,
   activeEditAbortController,
@@ -1065,6 +1075,18 @@ const handleAccountUpdated = (updatedAccount: Account) => {
     refreshArchivedPanel();
   }
 };
+const handleAccountReauthorized = (updatedAccount: Account) => {
+  patchAccountInList(updatedAccount);
+  refreshAccountSummarySafe();
+  refreshGrokUsagePresentationAfterAccountUpdate(updatedAccount);
+  enterAutoRefreshSilentWindow();
+  if (
+    updatedAccount.lifecycle_state &&
+    updatedAccount.lifecycle_state !== "normal"
+  ) {
+    refreshArchivedPanel();
+  }
+};
 const {
   handleReloadRequested, handleDataImported, handleCreated,
   closeImportGroupBinding, handleImportGroupBindingUpdated,
@@ -1088,6 +1110,7 @@ const {
   batchTestDefaultTestMode, batchTestDefaultModelStrategy, showStats, statsAcc, showModelDiagnostics, diagnosticsAccount,
   diagnosticsResult, diagnosticsLoading, showReAuth, reAuthAcc, scheduleAcc, scheduleModelOptions, showSchedulePanel,
   importingModelsAccountId, deletingAcc, showDeleteDialog, togglingSchedulable, tempUnschedAcc, showTempUnsched,
+  refreshGrokUsagePresentationAfterAccountUpdate,
 });
 
 const loadRuntimeOptions = async () => {

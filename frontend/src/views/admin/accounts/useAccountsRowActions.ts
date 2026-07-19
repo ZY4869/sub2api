@@ -24,6 +24,7 @@ export function useAccountsRowActions(ctx: any) {
     reAuthAcc,
     refreshAccountSummarySafe,
     refreshArchivedPanel,
+    refreshGrokUsagePresentationAfterAccountUpdate,
     refreshListAndArchivedPanel,
     reload,
     scheduleAcc,
@@ -186,6 +187,7 @@ const handleRefresh = async (a: Account) => {
     const updated = await adminAPI.accounts.refreshCredentials(a.id);
     patchAccountInList(updated);
     refreshAccountSummarySafe();
+    refreshGrokUsagePresentationAfterAccountUpdate?.(updated);
     enterAutoRefreshSilentWindow();
     if (
       a.lifecycle_state === "archived" ||

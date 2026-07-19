@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -146,11 +147,27 @@ func (s *AccountUsageService) getGrokUsage(ctx context.Context, account *Account
 			result, err = s.grokQuotaService.ProbeBilling(ctx, account.ID)
 		}
 		if err == nil && result != nil {
-			account, _ = s.accountRepo.GetByID(ctx, account.ID)
+			if s.accountRepo != nil {
+				if refreshedAccount, refreshErr := s.accountRepo.GetByID(ctx, account.ID); refreshErr == nil && refreshedAccount != nil {
+					account = refreshedAccount
+				}
+			}
 		} else if force {
+			if s.accountRepo != nil {
+				if refreshedAccount, refreshErr := s.accountRepo.GetByID(ctx, account.ID); refreshErr == nil && refreshedAccount != nil {
+					account = refreshedAccount
+				}
+			}
+			if usage := s.buildGrokUsageFallback(ctx, account, err); hasGrokUsageFallback(usage) {
+				return usage, nil
+			}
 			return nil, err
 		}
 	}
+	return s.buildGrokUsage(ctx, account), nil
+}
+
+func (s *AccountUsageService) buildGrokUsage(ctx context.Context, account *Account) *UsageInfo {
 	if s.grokQuotaFetcher == nil {
 		s.grokQuotaFetcher = NewGrokQuotaFetcher()
 	}
@@ -159,5 +176,40 @@ func (s *AccountUsageService) getGrokUsage(ctx context.Context, account *Account
 	if usage.GrokBilling != nil {
 		usage.GrokLocalUsage24h, usage.GrokLocalUsage7d, usage.GrokLocalUsageMonthly = grokLocalUsageForQuota(ctx, s.usageLogRepo, account.ID, usage.GrokBilling, time.Now().UTC())
 	}
-	return usage, nil
+	return usage
+}
+
+func (s *AccountUsageService) buildGrokUsageFallback(ctx context.Context, account *Account, cause error) *UsageInfo {
+	usage := s.buildGrokUsage(ctx, account)
+	if usage == nil {
+		return nil
+	}
+	usage.Error = fmt.Sprintf("usage API error: %v", cause)
+	if usage.ErrorCode == "" {
+		usage.ErrorCode = grokUsageFallbackErrorCode(cause)
+	}
+	return usage
+}
+
+func hasGrokUsageFallback(usage *UsageInfo) bool {
+	return usage != nil &&
+		(usage.GrokBilling != nil ||
+			usage.GrokRequestQuota != nil ||
+			usage.GrokTokenQuota != nil ||
+			usage.GrokLocalUsage24h != nil ||
+			usage.GrokLocalUsage7d != nil ||
+			usage.GrokLocalUsageMonthly != nil)
+}
+
+func grokUsageFallbackErrorCode(err error) string {
+	switch infraerrors.Code(err) {
+	case http.StatusUnauthorized:
+		return errorCodeUnauthenticated
+	case http.StatusForbidden:
+		return errorCodeForbidden
+	case http.StatusTooManyRequests:
+		return errorCodeRateLimited
+	default:
+		return errorCodeNetworkError
+	}
 }

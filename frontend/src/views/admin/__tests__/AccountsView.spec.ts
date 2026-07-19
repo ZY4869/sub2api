@@ -10,6 +10,7 @@ const mockState = vi.hoisted(() => ({
   tableParams: null as any,
   pagination: null as any,
   tableItems: [] as any[],
+  selectedIds: [] as number[],
   routerPush: vi.fn(),
   debouncedReload: vi.fn(),
   refreshAccountSummary: vi.fn(),
@@ -167,7 +168,9 @@ vi.mock('@/api/admin', () => ({
           settings: payload,
           candidates: []
         })
-      )
+      ),
+      refreshCredentials: vi.fn(),
+      batchRefresh: vi.fn()
     },
     groups: {
       getAll: mockState.getAllGroups
@@ -340,7 +343,7 @@ vi.mock('@/composables/useTableSelection', async () => {
   const { ref } = await import('vue')
   return {
     useTableSelection: vi.fn(() => ({
-      selectedIds: ref([]),
+      selectedIds: ref(mockState.selectedIds),
       allVisibleSelected: ref(false),
       isSelected: vi.fn(() => false),
       setSelectedIds: vi.fn(),
@@ -462,7 +465,7 @@ const PlatformTabsStub = defineComponent({
 
 const AccountsViewTableStub = defineComponent({
   name: 'AccountsViewTable',
-  props: ['accounts', 'preserveInputOrder', 'visualStyle'],
+  props: ['accounts', 'preserveInputOrder', 'visualStyle', 'usageManualRefreshToken'],
   emits: ['edit'],
   setup(props: { accounts?: Array<{ name: string }>; preserveInputOrder?: boolean }) {
     const accountOrder = computed(() => (props.accounts ?? []).map((account) => account.name).join(','))
@@ -475,6 +478,7 @@ const AccountsViewTableStub = defineComponent({
       <div class="table-account-order">{{ accountOrder }}</div>
       <div class="table-preserve-input-order">{{ preserveInputOrder }}</div>
       <div class="table-visual-style">{{ visualStyle }}</div>
+      <div class="table-usage-refresh-token" :data-token="String(usageManualRefreshToken ?? 0)" />
       <button
         v-if="accounts && accounts.length > 0"
         class="edit-first-account"
@@ -484,16 +488,56 @@ const AccountsViewTableStub = defineComponent({
   `
 })
 
+const BulkActionsBarStub = defineComponent({
+  name: 'AccountBulkActionsBar',
+  props: ['selectedIds', 'selectedPlatforms'],
+  emits: ['refresh-token'],
+  template: `
+    <div>
+      <button class="bulk-refresh-token" @click="$emit('refresh-token')" />
+    </div>
+  `
+})
+
 const DialogsHostStub = defineComponent({
   name: 'AccountsViewDialogsHost',
   props: ['showEdit', 'editLoading', 'editingAccount'],
-  emits: ['close-edit'],
+  emits: ['close-edit', 'updated', 'reauthorized', 'refresh-token'],
+  setup() {
+    const grokReauthAccount = {
+      id: 10,
+      name: 'Grok-1',
+      platform: 'grok',
+      type: 'oauth',
+      status: 'active',
+      schedulable: true,
+      lifecycle_state: 'normal',
+      extra: {}
+    }
+    const grokRefreshAccount = {
+      id: 11,
+      name: 'Grok-Refresh',
+      platform: 'grok',
+      type: 'oauth',
+      status: 'active',
+      schedulable: true,
+      lifecycle_state: 'normal',
+      extra: {}
+    }
+    return {
+      grokReauthAccount,
+      grokRefreshAccount
+    }
+  },
   template: `
     <div>
       <div class="dialog-show-edit">{{ String(showEdit) }}</div>
       <div class="dialog-edit-loading">{{ String(editLoading) }}</div>
       <div class="dialog-edit-account">{{ editingAccount?.name || '' }}</div>
       <button class="dialog-close-edit" @click="$emit('close-edit')" />
+      <button class="dialog-emit-updated" @click="$emit('updated', grokReauthAccount)" />
+      <button class="dialog-emit-reauthorized" @click="$emit('reauthorized', grokReauthAccount)" />
+      <button class="dialog-emit-refresh-token" @click="$emit('refresh-token', grokRefreshAccount)" />
     </div>
   `
 })
@@ -508,7 +552,7 @@ const mountView = () =>
         AccountPlatformTabs: PlatformTabsStub,
         AccountStatusSummaryBar: SummaryBarStub,
         AccountLimitedSummaryBar: true,
-        AccountBulkActionsBar: true,
+        AccountBulkActionsBar: BulkActionsBarStub,
         AccountGroupedView: true,
         AccountCardGrid: true,
         AccountsViewTable: AccountsViewTableStub,
@@ -535,6 +579,7 @@ describe('AccountsView', () => {
     mockState.runtimeParamsSource = null
     mockState.tableParams = null
     mockState.pagination = null
+    mockState.selectedIds = []
     mockState.tableItems = [
       { id: 1, name: 'OpenAI-1', platform: 'openai', type: 'apikey', status: 'active', schedulable: true },
       { id: 2, name: 'Gemini-1', platform: 'gemini', type: 'apikey', status: 'active', schedulable: true },
@@ -543,8 +588,8 @@ describe('AccountsView', () => {
     ]
     mockState.routerPush.mockReset().mockResolvedValue(undefined)
     mockState.debouncedReload.mockReset()
-    mockState.refreshAccountSummary.mockReset()
-    mockState.refreshRuntimeSummary.mockReset()
+    mockState.refreshAccountSummary.mockReset().mockResolvedValue(undefined)
+    mockState.refreshRuntimeSummary.mockReset().mockResolvedValue(undefined)
     mockState.load.mockClear()
     mockState.reload.mockClear()
     mockState.refreshAccountsIncrementally.mockClear()
@@ -598,6 +643,8 @@ describe('AccountsView', () => {
       },
       candidates: []
     } as any)
+    vi.mocked(adminAPI.accounts.refreshCredentials).mockReset()
+    vi.mocked(adminAPI.accounts.batchRefresh).mockReset()
     vi.mocked(adminAPI.accounts.updateDaily5HTriggerSettings).mockImplementation(async (payload: any) => ({
       settings: payload,
       candidates: []
@@ -873,6 +920,85 @@ describe('AccountsView', () => {
     expect(mockState.showError).not.toHaveBeenCalled()
 
     wrapper.unmount()
+  })
+
+  it('invalidates grok usage cache and refreshes current list usage after reauthorization succeeds', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('.table-usage-refresh-token').attributes('data-token')).toBe('0')
+
+    await wrapper.get('.dialog-emit-reauthorized').trigger('click')
+    await flushPromises()
+
+    expect(invalidateAccountUsagePresentationCache).toHaveBeenCalledWith([10])
+    expect(wrapper.get('.table-usage-refresh-token').attributes('data-token')).toBe('1')
+
+    wrapper.unmount()
+  })
+
+  it('invalidates grok usage cache and refreshes current list usage after credentials refresh succeeds', async () => {
+    vi.mocked(adminAPI.accounts.refreshCredentials).mockResolvedValue({
+      id: 11,
+      name: 'Grok-Refresh',
+      platform: 'grok',
+      type: 'oauth',
+      status: 'active',
+      schedulable: true,
+      lifecycle_state: 'normal',
+      extra: {}
+    } as any)
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('.table-usage-refresh-token').attributes('data-token')).toBe('0')
+
+    await wrapper.get('.dialog-emit-refresh-token').trigger('click')
+    await flushPromises()
+
+    expect(adminAPI.accounts.refreshCredentials).toHaveBeenCalledWith(11)
+    expect(invalidateAccountUsagePresentationCache).toHaveBeenCalledWith([11])
+    expect(wrapper.get('.table-usage-refresh-token').attributes('data-token')).toBe('1')
+
+    wrapper.unmount()
+  })
+
+  it('invalidates selected grok oauth usage cache once after bulk credentials refresh succeeds', async () => {
+    mockState.tableItems = [
+      { id: 10, name: 'Grok-Selected', platform: 'grok', type: 'oauth', status: 'active', schedulable: true },
+      { id: 11, name: 'OpenAI-Selected', platform: 'openai', type: 'oauth', status: 'active', schedulable: true },
+      { id: 12, name: 'Grok-Key-Selected', platform: 'grok', type: 'apikey', status: 'active', schedulable: true },
+      { id: 13, name: 'Grok-Unselected', platform: 'grok', type: 'oauth', status: 'active', schedulable: true }
+    ]
+    mockState.selectedIds = [10, 11, 12]
+    vi.mocked(adminAPI.accounts.batchRefresh).mockResolvedValue({
+      total: 3,
+      success: 2,
+      failed: 0,
+      errors: [],
+      warnings: []
+    } as any)
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    try {
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.get('.table-usage-refresh-token').attributes('data-token')).toBe('0')
+
+      await wrapper.get('.bulk-refresh-token').trigger('click')
+      await flushPromises()
+
+      expect(adminAPI.accounts.batchRefresh).toHaveBeenCalledWith([10, 11, 12])
+      expect(invalidateAccountUsagePresentationCache).toHaveBeenCalledTimes(1)
+      expect(invalidateAccountUsagePresentationCache).toHaveBeenCalledWith([10])
+      expect(wrapper.get('.table-usage-refresh-token').attributes('data-token')).toBe('1')
+
+      wrapper.unmount()
+    } finally {
+      confirmSpy.mockRestore()
+    }
   })
 
   it('shows warning toast details for partial actual usage refresh failures', async () => {

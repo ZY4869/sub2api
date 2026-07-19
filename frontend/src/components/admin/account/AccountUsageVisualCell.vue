@@ -97,6 +97,12 @@
     >
       {{ t('admin.accounts.usageWindow.snapshotUpdatedAt', { time: presentation.meta.snapshotUpdatedAtText }) }}
     </p>
+    <p
+      v-if="presentation.meta.noteText"
+      class="text-[9px] italic leading-tight text-slate-500 dark:text-slate-300"
+    >
+      * {{ presentation.meta.noteText }}
+    </p>
   </div>
 </template>
 

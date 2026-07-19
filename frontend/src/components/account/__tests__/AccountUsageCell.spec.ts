@@ -325,6 +325,122 @@ describe("AccountUsageCell", () => {
     }
   });
 
+  it("uses active forced loading for grok oauth desktop auto loads", async () => {
+    const originalMatchMedia = window.matchMedia;
+    const originalIntersectionObserver = globalThis.IntersectionObserver;
+    const intersectionObserverSpy = vi.fn();
+
+    window.matchMedia = createMatchMediaMock(true) as typeof window.matchMedia;
+    globalThis.IntersectionObserver = class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+
+      constructor() {
+        intersectionObserverSpy();
+      }
+    } as unknown as typeof IntersectionObserver;
+
+    getUsage.mockResolvedValue({});
+
+    try {
+      mount(AccountUsageCell, {
+        props: {
+          account: {
+            id: 1052,
+            platform: "grok",
+            type: "oauth",
+            extra: {},
+          } as any,
+        },
+        global: {
+          stubs: {
+            UsageProgressBar: usageBarStub,
+          },
+        },
+      });
+
+      await flushPromises();
+
+      expect(getUsage).toHaveBeenCalledTimes(1);
+      expect(getUsage).toHaveBeenCalledWith(1052, {
+        force: true,
+        source: "active",
+      });
+      expect(intersectionObserverSpy).not.toHaveBeenCalled();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+      globalThis.IntersectionObserver = originalIntersectionObserver;
+    }
+  });
+
+  it("keeps grok usage rows visible when a forced refresh fails after a billing snapshot loaded", async () => {
+    const originalMatchMedia = window.matchMedia;
+    const originalIntersectionObserver = globalThis.IntersectionObserver;
+
+    window.matchMedia = createMatchMediaMock(true) as typeof window.matchMedia;
+    globalThis.IntersectionObserver = class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+    } as unknown as typeof IntersectionObserver;
+
+    getUsage
+      .mockResolvedValueOnce({
+        source: "active",
+        updated_at: "2026-03-07T10:00:00Z",
+        grok_billing: {
+          period_type: "weekly",
+          usage_percent: 12,
+          period_end: "2026-03-14T00:00:00Z",
+          plan: "SuperGrok",
+          fetched_at: "2026-03-07T10:00:00Z",
+        },
+        grok_local_usage_7d: {
+          requests: 1,
+          tokens: 111,
+          cost: 0.01,
+          standard_cost: 0.01,
+          user_cost: 0.01,
+        },
+      })
+      .mockRejectedValueOnce(new Error("probe failed"));
+
+    try {
+      const wrapper = mount(AccountUsageCell, {
+        props: {
+          account: {
+            id: 1053,
+            platform: "grok",
+            type: "oauth",
+            extra: {},
+          } as any,
+        },
+        global: {
+          stubs: {
+            UsageProgressBar: usageBarStub,
+          },
+        },
+      });
+
+      await flushPromises();
+
+      expect(wrapper.findAll(".usage-bar")).toHaveLength(1);
+      expect(wrapper.text()).toContain("Grok W|12|111");
+      expect(wrapper.text()).toContain("Snapshot updated");
+
+      await wrapper.setProps({ manualRefreshToken: 1 });
+      await flushPromises();
+      await flushPromises();
+
+      expect(getUsage).toHaveBeenCalledTimes(2);
+      expect(wrapper.findAll(".usage-bar")).toHaveLength(1);
+      expect(wrapper.text()).toContain("Grok W|12|111");
+      expect(wrapper.text()).toContain("Snapshot updated");
+    } finally {
+      window.matchMedia = originalMatchMedia;
+      globalThis.IntersectionObserver = originalIntersectionObserver;
+    }
+  });
+
   it("aggregates antigravity image usage from multiple models", async () => {
     getUsage.mockResolvedValue({
       antigravity_quota: {
@@ -2016,7 +2132,7 @@ describe("AccountUsageCell", () => {
     expect(wrapper.text()).not.toContain("5H|0|");
   });
 
-  it("forces active source for manual actual usage refresh when the platform supports live usage", async () => {
+  it("keeps expected load options for manual actual usage refresh across platforms", async () => {
     const anthropicOauthAccount = {
       id: 3100,
       platform: "anthropic",
@@ -2037,6 +2153,18 @@ describe("AccountUsageCell", () => {
       active_usage_available: true,
       extra: {},
     } as any;
+    const geminiAccount = {
+      id: 3103,
+      platform: "gemini",
+      type: "apikey",
+      extra: {},
+    } as any;
+    const grokOauthAccount = {
+      id: 3104,
+      platform: "grok",
+      type: "oauth",
+      extra: {},
+    } as any;
 
     getUsage.mockResolvedValue({});
 
@@ -2044,10 +2172,18 @@ describe("AccountUsageCell", () => {
       anthropicOauthAccount.id,
       anthropicSetupTokenAccount.id,
       openaiOauthAccount.id,
+      geminiAccount.id,
+      grokOauthAccount.id,
     ]);
 
     const result = await refreshAccountUsagePresentation(
-      [anthropicOauthAccount, anthropicSetupTokenAccount, openaiOauthAccount],
+      [
+        anthropicOauthAccount,
+        anthropicSetupTokenAccount,
+        openaiOauthAccount,
+        geminiAccount,
+        grokOauthAccount,
+      ],
       {
         force: true,
         concurrency: 1,
@@ -2056,10 +2192,10 @@ describe("AccountUsageCell", () => {
     );
 
     expect(result).toEqual({
-      total: 3,
-      success: 3,
-      activeSuccess: 2,
-      fallbackSuccess: 1,
+      total: 5,
+      success: 5,
+      activeSuccess: 3,
+      fallbackSuccess: 2,
       failed: 0,
     });
     expect(getUsage).toHaveBeenNthCalledWith(1, 3100, {
@@ -2071,6 +2207,14 @@ describe("AccountUsageCell", () => {
       source: "passive",
     });
     expect(getUsage).toHaveBeenNthCalledWith(3, 3102, {
+      force: true,
+      source: "active",
+    });
+    expect(getUsage).toHaveBeenNthCalledWith(4, 3103, {
+      force: true,
+      source: undefined,
+    });
+    expect(getUsage).toHaveBeenNthCalledWith(5, 3104, {
       force: true,
       source: "active",
     });

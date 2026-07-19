@@ -1089,8 +1089,13 @@ export function useAccountUsagePresentation(
     ([, shouldLoad]) => {
       if (!shouldLoad) return;
       if (cacheEntry.value.usageInfo || cacheEntry.value.loading) return;
+      const loadOptions =
+        getRuntimePlatform(account.value) === "grok" &&
+        account.value.type === "oauth"
+          ? resolveActualUsageRefreshLoadOptions(account.value)
+          : {};
 
-      requestAutoLoad({ queue: true });
+      requestAutoLoad({ ...loadOptions, queue: true });
     },
     { immediate: true },
   );
@@ -1249,11 +1254,14 @@ export function useAccountUsagePresentation(
 
       if (currentState.loading) {
         state = "loading";
-      } else if (currentState.error) {
-        state = "error";
       } else if (grokRows.value.length > 0) {
         state = "bars";
         windowRows = grokRows.value;
+        if (currentState.error) {
+          meta.noteText = currentState.error;
+        }
+      } else if (currentState.error) {
+        state = "error";
       }
     } else if (
       getRuntimePlatform(account.value) === "antigravity" &&
