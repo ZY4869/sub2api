@@ -163,6 +163,8 @@ func setDefaults() {
 	viper.SetDefault("api_key_auth_cache.negative_ttl_seconds", 30)
 	viper.SetDefault("api_key_auth_cache.jitter_percent", 10)
 	viper.SetDefault("api_key_auth_cache.singleflight", true)
+	viper.SetDefault("api_key_auth_cache.invalid_credential_limit", 20)
+	viper.SetDefault("api_key_auth_cache.invalid_credential_window_seconds", 3600)
 	viper.SetDefault("subscription_cache.l1_size", 16384)
 	viper.SetDefault("subscription_cache.l1_ttl_seconds", 10)
 	viper.SetDefault("subscription_cache.jitter_percent", 10)

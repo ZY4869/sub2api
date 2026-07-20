@@ -69,6 +69,30 @@ type APIKeyCache interface {
 	SubscribeAuthCacheInvalidation(ctx context.Context, handler func(cacheKey string)) error
 }
 
+const (
+	APIKeyAuthCacheInvalidationOutboxEventKey   = "api_key_auth_cache_invalidation_key"
+	APIKeyAuthCacheInvalidationOutboxEventUser  = "api_key_auth_cache_invalidation_user"
+	APIKeyAuthCacheInvalidationOutboxEventGroup = "api_key_auth_cache_invalidation_group"
+)
+
+type APIKeyAuthCacheInvalidationOutboxEvent struct {
+	ID        int64
+	EventType string
+	CacheKey  string
+	UserID    *int64
+	GroupID   *int64
+	CreatedAt time.Time
+}
+
+type APIKeyAuthCacheInvalidationOutboxRepository interface {
+	EnqueueInvalidateByKey(ctx context.Context, cacheKey string) error
+	EnqueueInvalidateByUserID(ctx context.Context, userID int64) error
+	EnqueueInvalidateByGroupID(ctx context.Context, groupID int64) error
+
+	ListAfter(ctx context.Context, afterID int64, limit int) ([]APIKeyAuthCacheInvalidationOutboxEvent, error)
+	DeleteThrough(ctx context.Context, maxID int64) error
+}
+
 type APIKeyAuthCacheInvalidator interface {
 	InvalidateAuthCacheByKey(ctx context.Context, key string)
 	InvalidateAuthCacheByUserID(ctx context.Context, userID int64)

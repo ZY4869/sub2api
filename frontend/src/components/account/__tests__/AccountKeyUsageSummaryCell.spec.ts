@@ -10,9 +10,13 @@ vi.mock('vue-i18n', async () => {
       t: (key: string) => ({
         'admin.accounts.keyUsage.requests': 'Req',
         'admin.accounts.keyUsage.tokens': 'Tok',
+        'admin.accounts.keyUsage.inputTokens': 'In',
+        'admin.accounts.keyUsage.outputTokens': 'Out',
         'admin.accounts.keyUsage.discountedCost': 'Discount',
         'admin.accounts.keyUsage.standardCost': 'Standard',
         'admin.accounts.keyUsage.saved': 'Saved',
+        'admin.accounts.keyUsage.successRate': 'Success',
+        'admin.accounts.keyUsage.avgLatency': 'Latency',
         'admin.accounts.keyUsage.unlimited': 'Unlimited',
         'admin.accounts.keyUsage.callQuota': 'Quota',
         'admin.accounts.usageWindow.now': 'Now',
@@ -37,7 +41,7 @@ vi.mock('@/composables/useRealtimeCountdownNow', () => ({
 }))
 
 describe('AccountKeyUsageSummaryCell', () => {
-  it('flattens usage costs and savings without US currency prefixes', () => {
+  it('renders 9 items in grid layout with input/output tokens, success rate, and latency', () => {
     const wrapper = mount(AccountKeyUsageSummaryCell, {
       props: {
         account: {
@@ -49,45 +53,57 @@ describe('AccountKeyUsageSummaryCell', () => {
         stats: {
           requests: 12,
           tokens: 345,
+          input_tokens: 100,
+          output_tokens: 245,
           cost: 0.4,
           standard_cost: 5,
           user_cost: 0.4,
+          success_rate: 0.985,
+          average_duration_ms: 450,
         } as any,
       }
     })
 
-    expect(wrapper.text()).toContain('12')
-    expect(wrapper.text()).toContain('345T')
     const todayRow = wrapper.get('[data-testid="account-key-usage-today-row"]')
     const todayRow2 = wrapper.get('[data-testid="account-key-usage-today-row-2"]')
-    expect(todayRow.text()).not.toContain('Req')
-    expect(todayRow.text()).not.toContain('Tok')
-    expect(todayRow.text()).not.toContain('Discount')
-    expect(todayRow.text()).not.toContain('Standard')
-    expect(todayRow.text()).not.toContain('Saved')
-    expect(todayRow.text()).not.toContain('Unlimited')
-    expect(todayRow.classes()).toEqual(expect.arrayContaining(['flex-wrap']))
-    expect(todayRow2.classes()).toEqual(expect.arrayContaining(['flex-wrap']))
-    expect(todayRow2.text()).toContain('Unlimited')
+
+    // Row 1 uses grid-cols-5
+    expect(todayRow.classes()).toContain('grid')
+    expect(todayRow.classes()).toContain('grid-cols-5')
+
+    // Row 2 uses grid-cols-4
+    expect(todayRow2.classes()).toContain('grid')
+    expect(todayRow2.classes()).toContain('grid-cols-4')
+
+    // Row 1 items: requests, input-tokens, output-tokens, discounted-cost, success-rate
     expect(wrapper.get('[data-testid="account-key-usage-requests"]').text()).toBe('12')
     expect(wrapper.get('[data-testid="account-key-usage-requests"]').attributes('title')).toBe('Req: 12')
-    expect(wrapper.get('[data-testid="account-key-usage-requests"]').attributes('aria-label')).toBe('Req: 12')
-    expect(wrapper.get('[data-testid="account-key-usage-tokens"]').text()).toBe('345T')
-    expect(wrapper.get('[data-testid="account-key-usage-tokens"]').attributes('title')).toBe('Tok: 345T')
-    expect(wrapper.get('[data-testid="account-key-usage-tokens"]').attributes('aria-label')).toBe('Tok: 345T')
+    expect(wrapper.get('[data-testid="account-key-usage-input-tokens"]').text()).toBe('100T')
+    expect(wrapper.get('[data-testid="account-key-usage-input-tokens"]').attributes('title')).toBe('In: 100T')
+    expect(wrapper.get('[data-testid="account-key-usage-output-tokens"]').text()).toBe('245T')
+    expect(wrapper.get('[data-testid="account-key-usage-output-tokens"]').attributes('title')).toBe('Out: 245T')
     expect(wrapper.get('[data-testid="account-key-usage-discounted-cost"]').text()).toBe('$0.40')
     expect(wrapper.get('[data-testid="account-key-usage-discounted-cost"]').attributes('title')).toBe('Discount: $0.40')
-    expect(wrapper.get('[data-testid="account-key-usage-discounted-cost"]').attributes('aria-label')).toBe('Discount: $0.40')
+    expect(wrapper.get('[data-testid="account-key-usage-success-rate"]').text()).toBe('98.5%')
+    expect(wrapper.get('[data-testid="account-key-usage-success-rate"]').attributes('title')).toBe('Success: 98.5%')
+
+    // Row 2 items: standard-cost, saved, avg-latency, quota
     expect(wrapper.get('[data-testid="account-key-usage-standard-cost"]').text()).toBe('$5.00')
     expect(wrapper.get('[data-testid="account-key-usage-standard-cost"]').attributes('title')).toBe('Standard: $5.00')
-    expect(wrapper.get('[data-testid="account-key-usage-standard-cost"]').attributes('aria-label')).toBe('Standard: $5.00')
     expect(wrapper.get('[data-testid="account-key-usage-saved"]').text()).toBe('$4.60 / 92%')
     expect(wrapper.get('[data-testid="account-key-usage-saved"]').attributes('title')).toBe('Saved: $4.60 / 92%')
-    expect(wrapper.get('[data-testid="account-key-usage-saved"]').attributes('aria-label')).toBe('Saved: $4.60 / 92%')
+    expect(wrapper.get('[data-testid="account-key-usage-avg-latency"]').text()).toBe('450ms')
+    expect(wrapper.get('[data-testid="account-key-usage-avg-latency"]').attributes('title')).toBe('Latency: 450ms')
+    expect(wrapper.get('[data-testid="account-key-usage-quota"]').text()).toContain('Unlimited')
+
+    // No US prefix or label text in pill values
     expect(wrapper.text()).not.toContain('US')
+    expect(todayRow.text()).not.toContain('Req')
+    expect(todayRow.text()).not.toContain('In')
+    expect(todayRow.text()).not.toContain('Out')
   })
 
-  it('shows all available quota windows and unlimited when no limits exist', () => {
+  it('shows quota summary with most restrictive window', () => {
     const quotaWrapper = mount(AccountKeyUsageSummaryCell, {
       props: {
         account: {
@@ -115,15 +131,9 @@ describe('AccountKeyUsageSummaryCell', () => {
       }
     })
 
-    expect(quotaWrapper.find('[data-testid="account-key-usage-unlimited"]').exists()).toBe(false)
-    const todayRow = quotaWrapper.get('[data-testid="account-key-usage-today-row"]')
-    const todayRow2 = quotaWrapper.get('[data-testid="account-key-usage-today-row-2"]')
-    expect(todayRow.text()).not.toContain('Req')
-    expect(todayRow.text()).not.toContain('1D')
-    // Quota summary pill should be in row 2 with the most restrictive window
     const quotaPill = quotaWrapper.get('[data-testid="account-key-usage-quota"]')
     expect(quotaPill.text()).toContain('1D')
-    expect(todayRow2.text()).toContain('1D')
+    expect(quotaWrapper.find('[data-testid="account-key-usage-unlimited"]').exists()).toBe(false)
 
     const unlimitedWrapper = mount(AccountKeyUsageSummaryCell, {
       props: {
@@ -142,5 +152,28 @@ describe('AccountKeyUsageSummaryCell', () => {
     })
 
     expect(unlimitedWrapper.get('[data-testid="account-key-usage-quota"]').text()).toContain('Unlimited')
+  })
+
+  it('handles missing stats with dash fallback for success rate and latency', () => {
+    const wrapper = mount(AccountKeyUsageSummaryCell, {
+      props: {
+        account: {
+          id: 4,
+          type: 'apikey',
+          platform: 'openai',
+          extra: {},
+        } as any,
+        stats: {
+          requests: 5,
+          tokens: 100,
+          cost: 1,
+        } as any,
+      }
+    })
+
+    expect(wrapper.get('[data-testid="account-key-usage-success-rate"]').text()).toBe('—')
+    expect(wrapper.get('[data-testid="account-key-usage-avg-latency"]').text()).toBe('—')
+    expect(wrapper.get('[data-testid="account-key-usage-input-tokens"]').text()).toBe('0T')
+    expect(wrapper.get('[data-testid="account-key-usage-output-tokens"]').text()).toBe('0T')
   })
 })

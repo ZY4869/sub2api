@@ -87,6 +87,7 @@ func TestGrokMediaGenerationEligibility(t *testing.T) {
 		{name: "non grok", account: &Account{Platform: PlatformOpenAI}, want: false, wantReason: "not_grok"},
 		{name: "api key", account: &Account{Platform: PlatformGrok, Type: AccountTypeAPIKey}, want: true, wantReason: "non_oauth"},
 		{name: "unobserved oauth", account: &Account{Platform: PlatformGrok, Type: AccountTypeOAuth}, want: true, wantReason: "billing_unobserved"},
+		{name: "eligible billing", account: &Account{Platform: PlatformGrok, Type: AccountTypeOAuth, Extra: map[string]any{grokBillingExtraKey: map[string]any{"status_code": float64(200)}}}, want: true, wantReason: "eligible"},
 		{name: "forbidden billing", account: &Account{Platform: PlatformGrok, Type: AccountTypeOAuth, Extra: map[string]any{grokBillingExtraKey: forbiddenBilling}}, want: false, wantReason: "billing_forbidden"},
 		{name: "override disabled", account: &Account{Platform: PlatformGrok, Type: AccountTypeOAuth, Extra: map[string]any{GrokMediaEligibleExtraKey: false}}, want: false, wantReason: "override_disabled"},
 		{name: "override enabled", account: &Account{Platform: PlatformGrok, Type: AccountTypeOAuth, Extra: map[string]any{GrokMediaEligibleExtraKey: true, grokBillingExtraKey: forbiddenBilling}}, want: true, wantReason: "override_enabled"},

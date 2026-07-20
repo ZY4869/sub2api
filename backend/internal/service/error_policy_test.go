@@ -209,6 +209,28 @@ func TestCheckErrorPolicy(t *testing.T) {
 			body:       []byte(`unauthorized`),
 			expected:   ErrorPolicySkipped,
 		},
+		{
+			name: "pool_mode_with_temp_unschedulable_rule_returns_temp_unscheduled",
+			account: &Account{
+				ID:       9,
+				Type:     AccountTypeAPIKey,
+				Platform: PlatformOpenAI,
+				Credentials: map[string]any{
+					"pool_mode":                  true,
+					"temp_unschedulable_enabled": true,
+					"temp_unschedulable_rules": []any{
+						map[string]any{
+							"error_code":       float64(503),
+							"keywords":         []any{"overloaded"},
+							"duration_minutes": float64(10),
+						},
+					},
+				},
+			},
+			statusCode: 503,
+			body:       []byte(`temporarily overloaded`),
+			expected:   ErrorPolicyTempUnscheduled,
+		},
 	}
 
 	for _, tt := range tests {
@@ -261,6 +283,33 @@ func TestHandleUpstreamError_PoolModeCustomErrorCodesOverride(t *testing.T) {
 		require.True(t, shouldDisable)
 		require.Equal(t, 1, repo.setErrCalls)
 		require.Equal(t, 0, repo.tempCalls)
+	})
+
+	t.Run("pool_mode_without_custom_error_codes_honors_temp_unschedulable_rules", func(t *testing.T) {
+		repo := &errorPolicyRepoStub{}
+		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		account := &Account{
+			ID:       32,
+			Type:     AccountTypeAPIKey,
+			Platform: PlatformOpenAI,
+			Credentials: map[string]any{
+				"pool_mode":                  true,
+				"temp_unschedulable_enabled": true,
+				"temp_unschedulable_rules": []any{
+					map[string]any{
+						"error_code":       float64(503),
+						"keywords":         []any{"overloaded"},
+						"duration_minutes": float64(10),
+					},
+				},
+			},
+		}
+
+		shouldDisable := svc.HandleUpstreamError(context.Background(), account, 503, http.Header{}, []byte("temporarily overloaded"))
+
+		require.True(t, shouldDisable)
+		require.Equal(t, 0, repo.setErrCalls)
+		require.Equal(t, 1, repo.tempCalls)
 	})
 }
 

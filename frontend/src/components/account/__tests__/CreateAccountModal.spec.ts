@@ -966,6 +966,40 @@ const AccountRuntimeSettingsEditorStub = defineComponent({
   `
 })
 
+const AccountPoolModeEditorStub = defineComponent({
+  name: 'AccountPoolModeEditor',
+  props: {
+    state: {
+      type: Object,
+      required: true
+    },
+    defaultRetryCount: {
+      type: Number,
+      required: true
+    },
+    maxRetryCount: {
+      type: Number,
+      required: true
+    }
+  },
+  template: `
+    <div data-testid="account-pool-mode-editor">
+      <span data-testid="pool-mode-enabled">{{ state.enabled }}</span>
+      <span data-testid="pool-mode-retry-count">{{ state.retryCount }}</span>
+      <span data-testid="pool-mode-retry-status-codes">
+        {{ Array.isArray(state.retryStatusCodes) ? state.retryStatusCodes.join(',') : '' }}
+      </span>
+      <button
+        type="button"
+        data-testid="enable-pool-mode"
+        @click="state.enabled = true; state.retryCount = 4; state.retryStatusCodes = [401, 403, 429]"
+      >
+        enable
+      </button>
+    </div>
+  `
+})
+
 function mountModal(stubOverrides: Record<string, any> = {}) {
   return mount(CreateAccountModal, {
     props: {
@@ -1079,6 +1113,48 @@ describe('CreateAccountModal', () => {
     expect(wrapper.get('[data-testid="create-account-common-api-key-section"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="account-base-url-input"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="account-api-key-input"]').exists()).toBe(true)
+  })
+
+  it('submits Anthropic API Key pool mode fields', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 15,
+      name: 'Anthropic Pool Key',
+      platform: 'anthropic',
+      type: 'apikey',
+      extra: {}
+    })
+
+    const wrapper = mountModal({
+      AccountPoolModeEditor: AccountPoolModeEditorStub
+    })
+
+    await wrapper.get('[data-testid="select-anthropic"]').trigger('click')
+    await wrapper.get('[data-testid="set-apikey-mode"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="account-pool-mode-editor"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="enable-pool-mode"]').trigger('click')
+    await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Anthropic Pool Key')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]).toMatchObject({
+      name: 'Anthropic Pool Key',
+      platform: 'anthropic',
+      type: 'apikey',
+      credentials: expect.objectContaining({
+        pool_mode: true,
+        pool_mode_retry_count: 4,
+        pool_mode_retry_status_codes: [401, 403, 429]
+      })
+    })
   })
 
   it('renders the real antigravity upstream credential inputs in the parent modal flow', async () => {

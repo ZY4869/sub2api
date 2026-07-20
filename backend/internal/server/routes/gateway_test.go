@@ -613,6 +613,46 @@ func TestGatewayRoutesGrokCountTokensDispatchesCompatHandler(t *testing.T) {
 	require.NotEqual(t, service.GatewayReasonRouteMismatch, gjson.Get(w.Body.String(), "error.code").String())
 }
 
+func TestGatewayRoutesGrokMediaEntrypointsDispatchCompatHandler(t *testing.T) {
+	router := newGatewayRoutesTestRouterWithAuth(func(c *gin.Context) {
+		groupID := int64(1)
+		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
+			GroupID: &groupID,
+			Group:   &service.Group{Platform: service.PlatformGrok},
+		})
+		c.Next()
+	})
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{name: "images generations", method: http.MethodPost, path: "/v1/images/generations", body: `{"model":"grok-image-1","prompt":"draw a cat"}`},
+		{name: "videos generations", method: http.MethodPost, path: "/v1/videos", body: `{"model":"grok-video-1","prompt":"animate a cat"}`},
+		{name: "videos edits", method: http.MethodPost, path: "/v1/videos/edits", body: `{"model":"grok-video-1","prompt":"continue","video_url":"https://cdn.example.com/input.mp4"}`},
+		{name: "videos status", method: http.MethodGet, path: "/v1/videos/req_123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			if tt.method != http.MethodGet && tt.method != http.MethodDelete && tt.method != http.MethodHead {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			req.Header.Set("Accept-Language", "en")
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.NotEqual(t, http.StatusNotFound, w.Code)
+			require.NotEqual(t, service.GatewayReasonRouteMismatch, gjson.Get(w.Body.String(), "error.reason").String())
+			require.NotEqual(t, service.GatewayReasonRouteMismatch, gjson.Get(w.Body.String(), "error.code").String())
+		})
+	}
+}
+
 func TestGatewayRoutesResponsesWebSocketRejectsGrokGroup(t *testing.T) {
 	router := newGatewayRoutesTestRouterWithAuth(func(c *gin.Context) {
 		groupID := int64(1)

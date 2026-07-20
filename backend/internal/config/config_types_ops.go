@@ -60,12 +60,14 @@ type RateLimitConfig struct {
 	OAuth401CooldownMinutes int `mapstructure:"oauth_401_cooldown_minutes"`
 }
 type APIKeyAuthCacheConfig struct {
-	L1Size             int  `mapstructure:"l1_size"`
-	L1TTLSeconds       int  `mapstructure:"l1_ttl_seconds"`
-	L2TTLSeconds       int  `mapstructure:"l2_ttl_seconds"`
-	NegativeTTLSeconds int  `mapstructure:"negative_ttl_seconds"`
-	JitterPercent      int  `mapstructure:"jitter_percent"`
-	Singleflight       bool `mapstructure:"singleflight"`
+	L1Size                         int  `mapstructure:"l1_size"`
+	L1TTLSeconds                   int  `mapstructure:"l1_ttl_seconds"`
+	L2TTLSeconds                   int  `mapstructure:"l2_ttl_seconds"`
+	NegativeTTLSeconds             int  `mapstructure:"negative_ttl_seconds"`
+	JitterPercent                  int  `mapstructure:"jitter_percent"`
+	Singleflight                   bool `mapstructure:"singleflight"`
+	InvalidCredentialLimit         int  `mapstructure:"invalid_credential_limit"`
+	InvalidCredentialWindowSeconds int  `mapstructure:"invalid_credential_window_seconds"`
 }
 type SubscriptionCacheConfig struct {
 	L1Size        int `mapstructure:"l1_size"`

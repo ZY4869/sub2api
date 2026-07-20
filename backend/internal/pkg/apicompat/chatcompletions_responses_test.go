@@ -954,6 +954,42 @@ func TestChatCompletionsToResponsesResponseWithToolProxies_RestoresResponsesTool
 	require.Equal(t, "freeform", resp.Output[2].Name)
 }
 
+func TestChatCompletionsChunkToResponsesEvents_EmitsContentPartAndTerminalEvents(t *testing.T) {
+	state := &ChatToResponsesStreamState{
+		Model:           "gpt-4o",
+		ToolCallIndexes: map[int]bool{},
+		ToolCalls:       map[int]*ChatToResponsesToolCallState{},
+	}
+	content := "Hello"
+	events := ChatCompletionsChunkToResponsesEvents(&ChatCompletionsChunk{
+		ID:    "chatcmpl_stream",
+		Model: "gpt-4o",
+		Choices: []ChatChunkChoice{{
+			Delta: ChatDelta{Content: &content},
+		}},
+	}, state)
+
+	require.Len(t, events, 4)
+	require.Equal(t, "response.created", events[0].Type)
+	require.Equal(t, "response.output_item.added", events[1].Type)
+	require.Equal(t, "response.content_part.added", events[2].Type)
+	require.Equal(t, "response.output_text.delta", events[3].Type)
+	require.Equal(t, 0, events[3].OutputIndex)
+	require.Equal(t, 0, events[3].ContentIndex)
+	require.Equal(t, state.messageID(), events[3].ItemID)
+	require.Equal(t, "Hello", events[3].Delta)
+
+	finalEvents := FinalizeChatCompletionsToResponsesStreamEvents(state)
+	require.Len(t, finalEvents, 4)
+	require.Equal(t, "response.output_text.done", finalEvents[0].Type)
+	require.Equal(t, "response.content_part.done", finalEvents[1].Type)
+	require.Equal(t, "response.output_item.done", finalEvents[2].Type)
+	require.Equal(t, "response.completed", finalEvents[3].Type)
+	require.NotNil(t, finalEvents[3].Response)
+	require.Len(t, finalEvents[3].Response.Output, 1)
+	require.Equal(t, "Hello", finalEvents[3].Response.Output[0].Content[0].Text)
+}
+
 func mustJSONField(t *testing.T, raw json.RawMessage, key string) json.RawMessage {
 	t.Helper()
 	var obj map[string]json.RawMessage

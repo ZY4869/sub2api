@@ -1749,6 +1749,103 @@ func TestOpenAIStreamingUpstreamErrorSSEPreservesOriginalErrorBody(t *testing.T)
 	}
 }
 
+func TestOpenAIStreamingScanErrorInjectsIndependentSSEFrame(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &OpenAIGatewayService{cfg: &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: newErrorAfterReadCloser(
+			`data: {"type":"response.output_text.delta","delta":"partial"}`+"\n",
+			io.ErrUnexpectedEOF,
+		),
+		Header: http.Header{},
+	}
+
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "upstream_stream_eof")
+	body := rec.Body.String()
+	require.Contains(t, body, `"delta":"partial"`)
+	require.Contains(t, body, "\n\ndata: {\"type\":\"error\"")
+	require.Contains(t, body, "upstream_stream_eof")
+	require.NotContains(t, body, "stream_read_error")
+}
+
+func TestOpenAICompactStreamingScanErrorInjectsIndependentResponseFailedFrame(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		Gateway: config.GatewayConfig{
+			MaxLineSize: defaultMaxLineSize,
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses/compact", nil)
+	c.Request = req.WithContext(EnsureRequestMetadata(req.Context()))
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: newErrorAfterReadCloser(
+			`data: {"type":"response.output_text.delta","delta":"partial"}`+"\n",
+			io.ErrUnexpectedEOF,
+		),
+		Header: http.Header{},
+	}
+
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "upstream_stream_eof")
+	body := rec.Body.String()
+	require.Contains(t, body, `"delta":"partial"`)
+	require.Contains(t, body, "\n\nevent: response.failed")
+	require.Contains(t, body, "upstream_stream_eof")
+	require.NotContains(t, body, "stream_read_error")
+}
+
+func TestOpenAIResponsesChatBridgeStreamingEmitsContentPartDoneAndFullOutput(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &OpenAIGatewayService{}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: io.NopCloser(strings.NewReader(strings.Join([]string{
+			`data: {"id":"chatcmpl_bridge","object":"chat.completion.chunk","model":"mapped-model","choices":[{"index":0,"delta":{"content":"Hel"},"finish_reason":null}]}`,
+			"",
+			`data: {"id":"chatcmpl_bridge","object":"chat.completion.chunk","model":"mapped-model","choices":[{"index":0,"delta":{"content":"lo"},"finish_reason":"stop"}],"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}`,
+			"",
+			`data: [DONE]`,
+			"",
+		}, "\n"))),
+		Header: http.Header{},
+	}
+
+	result, err := svc.handleNativeChatAsResponsesStreamingResponse(resp, c, time.Now(), "public-model", "mapped-model", nil)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.usage)
+	require.Equal(t, 2, result.usage.InputTokens)
+	require.Equal(t, 1, result.usage.OutputTokens)
+
+	body := rec.Body.String()
+	require.Contains(t, body, `"type":"response.content_part.added"`)
+	require.Contains(t, body, `"type":"response.output_text.done"`)
+	require.Contains(t, body, `"type":"response.content_part.done"`)
+	require.Contains(t, body, `"type":"response.output_item.done"`)
+	require.Contains(t, body, `"model":"public-model"`)
+	require.Contains(t, body, `"text":"Hello"`)
+}
+
 func TestOpenAIStreamingClientDisconnectDrainsUpstreamUsage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{

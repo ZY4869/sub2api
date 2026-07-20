@@ -32,7 +32,16 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			return
 		}
 		apiKeyString := extractAPIKeyForGoogle(c)
+		authFailureIdentity := apiKeyAuthFailureIdentity(c, apiKeyString)
+		if apiKeyAuthFailureRateLimited(c.Request.Context(), apiKeyService, authFailureIdentity) {
+			abortWithGoogleError(c, 429, "Too many failed authentication attempts, please try again later")
+			return
+		}
 		if apiKeyString == "" {
+			if recordAPIKeyAuthFailureRateLimited(c.Request.Context(), apiKeyService, authFailureIdentity) {
+				abortWithGoogleError(c, 429, "Too many failed authentication attempts, please try again later")
+				return
+			}
 			abortWithGoogleError(c, 401, "API key is required")
 			return
 		}
@@ -40,12 +49,17 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		apiKey, err := apiKeyService.GetByKey(c.Request.Context(), apiKeyString)
 		if err != nil {
 			if errors.Is(err, service.ErrAPIKeyNotFound) {
+				if recordAPIKeyAuthFailureRateLimited(c.Request.Context(), apiKeyService, authFailureIdentity) {
+					abortWithGoogleError(c, 429, "Too many failed authentication attempts, please try again later")
+					return
+				}
 				abortWithGoogleError(c, 401, "Invalid API key")
 				return
 			}
 			abortWithGoogleError(c, 500, "Failed to validate API key")
 			return
 		}
+		clearAPIKeyAuthFailure(c.Request.Context(), apiKeyService, authFailureIdentity)
 
 		if !apiKey.IsActive() {
 			abortWithGoogleError(c, 401, "API key is disabled")

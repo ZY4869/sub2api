@@ -38,6 +38,20 @@ func TestRedactText_APIKey(t *testing.T) {
 	}
 }
 
+func TestRedactText_AuthorizationBearerHeader(t *testing.T) {
+	in := "request failed: Authorization: Bearer sk-secret-token, x-api-key=visible-extra"
+	out := RedactText(in, "x-api-key")
+	if strings.Contains(out, "sk-secret-token") || strings.Contains(out, "visible-extra") {
+		t.Fatalf("expected authorization and x-api-key to be redacted, got %q", out)
+	}
+	if !strings.Contains(out, "Authorization: Bearer ***") {
+		t.Fatalf("expected authorization placeholder, got %q", out)
+	}
+	if !strings.Contains(out, "x-api-key=***") {
+		t.Fatalf("expected x-api-key placeholder, got %q", out)
+	}
+}
+
 func TestRedactText_GOCSPX(t *testing.T) {
 	in := "client_secret=GOCSPX-your-client-secret"
 	out := RedactText(in)

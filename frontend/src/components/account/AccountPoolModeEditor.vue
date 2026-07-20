@@ -21,7 +21,7 @@ function updateRetryStatusCodes(value: string): void {
 </script>
 
 <template>
-  <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
+  <div class="border-t border-gray-200 pt-4 dark:border-dark-600" data-testid="account-pool-mode-editor">
     <div class="mb-3 flex items-center justify-between">
       <div>
         <label class="input-label mb-0">{{ t('admin.accounts.poolMode') }}</label>
@@ -31,6 +31,7 @@ function updateRetryStatusCodes(value: string): void {
       </div>
       <button
         type="button"
+        data-testid="pool-mode-toggle"
         @click="state.enabled = !state.enabled"
         :class="[
           'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
@@ -56,6 +57,7 @@ function updateRetryStatusCodes(value: string): void {
     <div v-if="state.enabled" class="mt-3">
       <label class="input-label">{{ t('admin.accounts.poolModeRetryCount') }}</label>
       <input
+        data-testid="pool-mode-retry-count-input"
         v-model.number="state.retryCount"
         type="number"
         min="0"
@@ -76,6 +78,7 @@ function updateRetryStatusCodes(value: string): void {
     <div v-if="state.enabled" class="mt-3">
       <label class="input-label">{{ t('admin.accounts.poolModeRetryStatusCodes') }}</label>
       <input
+        data-testid="pool-mode-retry-status-codes-input"
         :value="state.retryStatusCodes.join(', ')"
         type="text"
         class="input"

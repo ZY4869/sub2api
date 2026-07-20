@@ -490,6 +490,34 @@ function buildAccount() {
   } as any
 }
 
+function buildAnthropicPoolModeAccount() {
+  return {
+    id: 11,
+    name: 'Anthropic Pool Key',
+    notes: '',
+    platform: 'anthropic',
+    type: 'apikey',
+    credentials: {
+      api_key: 'sk-anthropic',
+      base_url: 'https://api.anthropic.com',
+      pool_mode: true,
+      pool_mode_retry_count: 7,
+      pool_mode_retry_status_codes: [401, 403, 429]
+    },
+    extra: {
+      expiry_probe_extension_days: 7
+    },
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function buildGrokSsoAccount() {
   return {
     id: 2,
@@ -852,6 +880,32 @@ describe('EditAccountModal', () => {
           visibility_mode: 'direct'
         }
       ]
+    })
+  })
+
+  it('loads and persists Anthropic API Key pool mode fields', async () => {
+    const account = buildAnthropicPoolModeAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.get('[data-testid="account-pool-mode-editor"]').exists()).toBe(true)
+    const retryCountInput = wrapper.get('[data-testid="pool-mode-retry-count-input"]')
+    const retryStatusCodesInput = wrapper.get('[data-testid="pool-mode-retry-status-codes-input"]')
+    expect((retryCountInput.element as HTMLInputElement).value).toBe('7')
+    expect((retryStatusCodesInput.element as HTMLInputElement).value).toBe('401, 403, 429')
+
+    await retryCountInput.setValue('8')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials).toMatchObject({
+      pool_mode: true,
+      pool_mode_retry_count: 8,
+      pool_mode_retry_status_codes: [401, 403, 429]
     })
   })
 

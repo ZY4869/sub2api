@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
@@ -650,6 +651,74 @@ func TestAPIKeyAuthTimeAccessDeniedWritesStructuredLog(t *testing.T) {
 	}
 }
 
+func TestAPIKeyAuthInvalidCredentialRateLimitBlocksRepeatedBadKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var repoCalls int
+	cache := &authFailureMiddlewareCacheStub{counts: map[string]int{}}
+	repo := &stubApiKeyRepo{
+		getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+			repoCalls++
+			return nil, service.ErrAPIKeyNotFound
+		},
+	}
+	cfg := &config.Config{
+		RunMode: config.RunModeSimple,
+		APIKeyAuth: config.APIKeyAuthCacheConfig{
+			InvalidCredentialLimit:         2,
+			InvalidCredentialWindowSeconds: 3600,
+		},
+	}
+	apiKeyService := service.NewAPIKeyService(repo, nil, nil, nil, nil, cache, cfg)
+	router := newAuthTestRouter(apiKeyService, nil, cfg)
+
+	for i, wantCode := range []int{http.StatusUnauthorized, http.StatusUnauthorized, http.StatusTooManyRequests} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/t", nil)
+		req.Header.Set("x-api-key", "bad-key-value")
+		router.ServeHTTP(w, req)
+		require.Equal(t, wantCode, w.Code, "request %d", i+1)
+	}
+	require.Equal(t, 2, repoCalls)
+
+	for _, key := range cache.observedFailureKeys() {
+		require.NotContains(t, key, "bad-key-value")
+	}
+}
+
+func TestAPIKeyAuthMissingCredentialRateLimitBlocksRepeatedAnonymousRequests(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var repoCalls int
+	cache := &authFailureMiddlewareCacheStub{counts: map[string]int{}}
+	repo := &stubApiKeyRepo{
+		getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+			repoCalls++
+			return nil, service.ErrAPIKeyNotFound
+		},
+	}
+	cfg := &config.Config{
+		RunMode: config.RunModeSimple,
+		APIKeyAuth: config.APIKeyAuthCacheConfig{
+			InvalidCredentialLimit:         1,
+			InvalidCredentialWindowSeconds: 3600,
+		},
+	}
+	apiKeyService := service.NewAPIKeyService(repo, nil, nil, nil, nil, cache, cfg)
+	router := newAuthTestRouter(apiKeyService, nil, cfg)
+
+	for i, wantCode := range []int{http.StatusUnauthorized, http.StatusTooManyRequests} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/t", nil)
+		router.ServeHTTP(w, req)
+		require.Equal(t, wantCode, w.Code, "request %d", i+1)
+	}
+	require.Equal(t, 0, repoCalls)
+	for _, key := range cache.observedFailureKeys() {
+		require.NotContains(t, key, "/t")
+	}
+}
+
 func newAuthTestRouter(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.HandlerFunc(NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, cfg)))
@@ -657,6 +726,87 @@ func newAuthTestRouter(apiKeyService *service.APIKeyService, subscriptionService
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 	return router
+}
+
+type authFailureMiddlewareCacheStub struct {
+	counts               map[string]int
+	getFailureCountKeys  []string
+	incrementFailureKeys []string
+	deleteFailureKeys    []string
+	setAuthKeys          []string
+	deleteAuthKeys       []string
+}
+
+func (s *authFailureMiddlewareCacheStub) GetCreateAttemptCount(ctx context.Context, userID int64) (int, error) {
+	return 0, nil
+}
+
+func (s *authFailureMiddlewareCacheStub) IncrementCreateAttemptCount(ctx context.Context, userID int64) error {
+	return nil
+}
+
+func (s *authFailureMiddlewareCacheStub) DeleteCreateAttemptCount(ctx context.Context, userID int64) error {
+	return nil
+}
+
+func (s *authFailureMiddlewareCacheStub) IncrementDailyUsage(ctx context.Context, apiKey string) error {
+	return nil
+}
+
+func (s *authFailureMiddlewareCacheStub) SetDailyUsageExpiry(ctx context.Context, apiKey string, ttl time.Duration) error {
+	return nil
+}
+
+func (s *authFailureMiddlewareCacheStub) GetAuthCache(ctx context.Context, key string) (*service.APIKeyAuthCacheEntry, error) {
+	return nil, redis.Nil
+}
+
+func (s *authFailureMiddlewareCacheStub) SetAuthCache(ctx context.Context, key string, entry *service.APIKeyAuthCacheEntry, ttl time.Duration) error {
+	s.setAuthKeys = append(s.setAuthKeys, key)
+	return nil
+}
+
+func (s *authFailureMiddlewareCacheStub) DeleteAuthCache(ctx context.Context, key string) error {
+	s.deleteAuthKeys = append(s.deleteAuthKeys, key)
+	return nil
+}
+
+func (s *authFailureMiddlewareCacheStub) GetAuthFailureCount(ctx context.Context, key string) (int, error) {
+	s.getFailureCountKeys = append(s.getFailureCountKeys, key)
+	if s.counts == nil {
+		s.counts = map[string]int{}
+	}
+	return s.counts[key], nil
+}
+
+func (s *authFailureMiddlewareCacheStub) IncrementAuthFailureCount(ctx context.Context, key string, ttl time.Duration) (int, error) {
+	s.incrementFailureKeys = append(s.incrementFailureKeys, key)
+	if s.counts == nil {
+		s.counts = map[string]int{}
+	}
+	s.counts[key]++
+	return s.counts[key], nil
+}
+
+func (s *authFailureMiddlewareCacheStub) DeleteAuthFailureCount(ctx context.Context, key string) error {
+	s.deleteFailureKeys = append(s.deleteFailureKeys, key)
+	delete(s.counts, key)
+	return nil
+}
+
+func (s *authFailureMiddlewareCacheStub) PublishAuthCacheInvalidation(ctx context.Context, cacheKey string) error {
+	return nil
+}
+
+func (s *authFailureMiddlewareCacheStub) SubscribeAuthCacheInvalidation(ctx context.Context, handler func(cacheKey string)) error {
+	return nil
+}
+
+func (s *authFailureMiddlewareCacheStub) observedFailureKeys() []string {
+	keys := append([]string(nil), s.getFailureCountKeys...)
+	keys = append(keys, s.incrementFailureKeys...)
+	keys = append(keys, s.deleteFailureKeys...)
+	return keys
 }
 
 type stubApiKeyRepo struct {

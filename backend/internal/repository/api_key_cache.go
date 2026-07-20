@@ -16,6 +16,7 @@ const (
 	apiKeyRateLimitKeyPrefix   = "apikey:ratelimit:"
 	apiKeyRateLimitDuration    = 24 * time.Hour
 	apiKeyAuthCachePrefix      = "apikey:auth:"
+	apiKeyAuthFailurePrefix    = "apikey:authfail:"
 	authCacheInvalidateChannel = "auth:cache:invalidate"
 )
 
@@ -26,6 +27,10 @@ func apiKeyRateLimitKey(userID int64) string {
 
 func apiKeyAuthCacheKey(key string) string {
 	return fmt.Sprintf("%s%s", apiKeyAuthCachePrefix, key)
+}
+
+func apiKeyAuthFailureKey(key string) string {
+	return fmt.Sprintf("%s%s", apiKeyAuthFailurePrefix, key)
 }
 
 type apiKeyCache struct {
@@ -92,6 +97,31 @@ func (c *apiKeyCache) SetAuthCache(ctx context.Context, key string, entry *servi
 
 func (c *apiKeyCache) DeleteAuthCache(ctx context.Context, key string) error {
 	return c.rdb.Del(ctx, apiKeyAuthCacheKey(key)).Err()
+}
+
+func (c *apiKeyCache) GetAuthFailureCount(ctx context.Context, key string) (int, error) {
+	count, err := c.rdb.Get(ctx, apiKeyAuthFailureKey(key)).Int()
+	if errors.Is(err, redis.Nil) {
+		return 0, nil
+	}
+	return count, err
+}
+
+func (c *apiKeyCache) IncrementAuthFailureCount(ctx context.Context, key string, ttl time.Duration) (int, error) {
+	redisKey := apiKeyAuthFailureKey(key)
+	pipe := c.rdb.Pipeline()
+	incr := pipe.Incr(ctx, redisKey)
+	if ttl > 0 {
+		pipe.Expire(ctx, redisKey, ttl)
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return 0, err
+	}
+	return int(incr.Val()), nil
+}
+
+func (c *apiKeyCache) DeleteAuthFailureCount(ctx context.Context, key string) error {
+	return c.rdb.Del(ctx, apiKeyAuthFailureKey(key)).Err()
 }
 
 // PublishAuthCacheInvalidation publishes a cache invalidation message to all instances

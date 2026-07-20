@@ -12,6 +12,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 )
 
 var ErrOpsDisabled = infraerrors.NotFound("OPS_DISABLED", "Ops monitoring is disabled")
@@ -794,9 +795,10 @@ func sanitizeErrorBodyForStorage(raw string, maxBytes int) (sanitized string, tr
 		return out, trunc
 	}
 
-	// Non-JSON: best-effort truncate.
-	if maxBytes > 0 && len(raw) > maxBytes {
-		return truncateString(raw, maxBytes), true
+	// Non-JSON: best-effort redact and truncate.
+	redacted := logredact.RedactText(raw, "authorization", "x-api-key", "x-goog-api-key", "api_key", "key")
+	if maxBytes > 0 && len(redacted) > maxBytes {
+		return truncateString(redacted, maxBytes), true
 	}
-	return raw, false
+	return redacted, false
 }

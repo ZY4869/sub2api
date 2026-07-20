@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -121,6 +122,40 @@ func TestGrokValidateVideoWorkflowRequestRequiresVideoForEditAndExtension(t *tes
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "video_url is required")
 	}
+}
+
+func TestGrokValidateVideoWorkflowRequestRejectsPrivateMediaURLs(t *testing.T) {
+	req := &grokVideoWorkflowRequest{
+		Operation:      grokVideoOperationEdit,
+		RequestedModel: GrokModelImagineVideo,
+		Prompt:         "change the clip",
+		VideoURL:       "https://127.0.0.1/private.mp4?token=secret",
+	}
+
+	err := grokValidateVideoWorkflowRequest(req)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "video_url is not allowed")
+	require.NotContains(t, err.Error(), "token=secret")
+}
+
+func TestGrokValidateVideoWorkflowRequestAllowsConfiguredPrivateMediaURLs(t *testing.T) {
+	req := &grokVideoWorkflowRequest{
+		Operation:      grokVideoOperationExtension,
+		RequestedModel: GrokModelImagineVideo,
+		Prompt:         "extend the clip",
+		VideoURL:       "http://127.0.0.1/private.mp4",
+		ImageURL:       "http://localhost/reference.png",
+	}
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	cfg.Security.URLAllowlist.AllowPrivateHosts = true
+
+	err := grokValidateVideoWorkflowRequest(req, cfg)
+
+	require.NoError(t, err)
+	require.Equal(t, "http://127.0.0.1/private.mp4", req.VideoURL)
+	require.Equal(t, "http://localhost/reference.png", req.ImageURL)
 }
 
 func TestGrokParseVideoResultBody(t *testing.T) {

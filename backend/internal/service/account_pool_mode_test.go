@@ -209,3 +209,62 @@ func TestAccountIsPoolModeRetryableStatusUsesAccountConfig(t *testing.T) {
 	require.False(t, account.IsPoolModeRetryableStatus(401))
 	require.False(t, (&Account{}).IsPoolModeRetryableStatus(500))
 }
+
+func TestAccountIsPoolModeSupportsAnthropicAPIKeyOnly(t *testing.T) {
+	tests := []struct {
+		name     string
+		account  *Account
+		expected bool
+	}{
+		{
+			name: "anthropic_api_key_enabled",
+			account: &Account{
+				Type:     AccountTypeAPIKey,
+				Platform: PlatformAnthropic,
+				Credentials: map[string]any{
+					"pool_mode": true,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "anthropic_api_key_disabled",
+			account: &Account{
+				Type:     AccountTypeAPIKey,
+				Platform: PlatformAnthropic,
+				Credentials: map[string]any{
+					"pool_mode": false,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "anthropic_oauth_ignored",
+			account: &Account{
+				Type:     AccountTypeOAuth,
+				Platform: PlatformAnthropic,
+				Credentials: map[string]any{
+					"pool_mode": true,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "anthropic_setup_token_ignored",
+			account: &Account{
+				Type:     AccountTypeSetupToken,
+				Platform: PlatformAnthropic,
+				Credentials: map[string]any{
+					"pool_mode": true,
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, tt.account.IsPoolMode())
+		})
+	}
+}

@@ -66,7 +66,17 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			apiKeyString = queryKey
 		}
 
+		authFailureIdentity := apiKeyAuthFailureIdentity(c, apiKeyString)
+		if apiKeyAuthFailureRateLimited(c.Request.Context(), apiKeyService, authFailureIdentity) {
+			AbortWithError(c, 429, "API_KEY_RATE_LIMITED", "Too many failed authentication attempts, please try again later")
+			return
+		}
+
 		if apiKeyString == "" {
+			if recordAPIKeyAuthFailureRateLimited(c.Request.Context(), apiKeyService, authFailureIdentity) {
+				AbortWithError(c, 429, "API_KEY_RATE_LIMITED", "Too many failed authentication attempts, please try again later")
+				return
+			}
 			AbortWithError(c, 401, "API_KEY_REQUIRED", "API key is required in Authorization header (Bearer scheme), x-api-key header, or x-goog-api-key header")
 			return
 		}
@@ -76,12 +86,17 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		apiKey, err := apiKeyService.GetByKey(c.Request.Context(), apiKeyString)
 		if err != nil {
 			if errors.Is(err, service.ErrAPIKeyNotFound) {
+				if recordAPIKeyAuthFailureRateLimited(c.Request.Context(), apiKeyService, authFailureIdentity) {
+					AbortWithError(c, 429, "API_KEY_RATE_LIMITED", "Too many failed authentication attempts, please try again later")
+					return
+				}
 				AbortWithError(c, 401, "INVALID_API_KEY", "Invalid API key")
 				return
 			}
 			AbortWithError(c, 500, "INTERNAL_ERROR", "Failed to validate API key")
 			return
 		}
+		clearAPIKeyAuthFailure(c.Request.Context(), apiKeyService, authFailureIdentity)
 
 		// ── 3. 基础鉴权（始终执行） ─────────────────────────────────
 

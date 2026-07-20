@@ -60,6 +60,39 @@ func TestNormalizeOpenAIResponsesLiteToolsMovesNamespacesAndKeepsSupportedTools(
 	require.Equal(t, map[string]any{"type": "namespace", "name": "collaboration"}, reqBody["tool_choice"])
 }
 
+func TestNormalizeOpenAIResponsesLiteToolsDoesNotInjectNativeSearchForClientTools(t *testing.T) {
+	reqBody := map[string]any{
+		"input": []any{
+			map[string]any{"type": "message", "role": "user", "content": "hello"},
+		},
+		"tools": []any{
+			map[string]any{"type": "function", "name": "shell"},
+			map[string]any{"type": "namespace", "name": "collaboration", "tools": []any{
+				map[string]any{"type": "function", "name": "spawn_agent"},
+			}},
+		},
+	}
+
+	changed, err := normalizeOpenAIResponsesLiteTools(reqBody)
+
+	require.NoError(t, err)
+	require.True(t, changed)
+	tools := reqBody["tools"].([]any)
+	require.Len(t, tools, 1)
+	require.Equal(t, "function", tools[0].(map[string]any)["type"])
+	require.Equal(t, "shell", tools[0].(map[string]any)["name"])
+	require.NotEqual(t, "tool_search", tools[0].(map[string]any)["type"])
+	additional := reqBody["input"].([]any)[1].(map[string]any)["tools"].([]any)
+	require.Len(t, additional, 1)
+	require.Equal(t, "collaboration", additional[0].(map[string]any)["name"])
+	nested := additional[0].(map[string]any)["tools"].([]any)
+	require.Len(t, nested, 1)
+	require.Equal(t, "spawn_agent", nested[0].(map[string]any)["name"])
+	for _, tool := range additional {
+		require.NotEqual(t, "tool_search", strings.TrimSpace(tool.(map[string]any)["type"].(string)))
+	}
+}
+
 func TestNormalizeOpenAIResponsesLiteToolsConvertsStringInput(t *testing.T) {
 	reqBody := map[string]any{
 		"input": "hello",

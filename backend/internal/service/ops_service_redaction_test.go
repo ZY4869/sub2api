@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -95,5 +96,31 @@ func TestShrinkToEssentials_IncludesThinking(t *testing.T) {
 	out := shrinkToEssentials(root, 10*1024)
 	if _, ok := out["thinking"]; !ok {
 		t.Fatalf("expected thinking to be included in essentials: %#v", out)
+	}
+}
+
+func TestSanitizeUpstreamErrorMessage_RedactsHeaderLikeCredentials(t *testing.T) {
+	t.Parallel()
+
+	in := "upstream reset Authorization: Bearer sk-upstream-secret x-api-key=api-secret https://x.test/v1?key=query-secret&client_secret=client-secret"
+	out := sanitizeUpstreamErrorMessage(in)
+	for _, secret := range []string{"sk-upstream-secret", "api-secret", "query-secret", "client-secret"} {
+		if strings.Contains(out, secret) {
+			t.Fatalf("expected %q to be redacted from %q", secret, out)
+		}
+	}
+}
+
+func TestSanitizeErrorBodyForStorage_RedactsNonJSONCredentials(t *testing.T) {
+	t.Parallel()
+
+	out, truncated := sanitizeErrorBodyForStorage("Authorization: Bearer sk-body-secret x-goog-api-key=goog-secret", 1024)
+	if truncated {
+		t.Fatalf("expected no truncation")
+	}
+	for _, secret := range []string{"sk-body-secret", "goog-secret"} {
+		if strings.Contains(out, secret) {
+			t.Fatalf("expected %q to be redacted from %q", secret, out)
+		}
 	}
 }

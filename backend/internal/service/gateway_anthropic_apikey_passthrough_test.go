@@ -229,6 +229,47 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_BearerAuthScheme(t *testing.T
 	require.Empty(t, genericCountReq.Header.Get("x-api-key"))
 }
 
+func TestGatewayService_AnthropicAPIKeyPassthrough_PoolModeConfiguredStatusRetriesOnSameAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	body := []byte(`{"model":"claude-3-5-sonnet-latest","messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}]}`)
+	parsed := &ParsedRequest{
+		Body:   body,
+		Model:  "claude-3-5-sonnet-latest",
+		Stream: false,
+	}
+
+	upstreamBody := `{"type":"error","error":{"type":"api_error","message":"No available accounts: no available accounts"}}`
+	upstream := &anthropicHTTPUpstreamRecorder{
+		resp: &http.Response{
+			StatusCode: http.StatusServiceUnavailable,
+			Header:     http.Header{"Content-Type": []string{"application/json"}, "x-request-id": []string{"rid-pool-mode"}},
+			Body:       io.NopCloser(strings.NewReader(upstreamBody)),
+		},
+	}
+	svc := &GatewayService{
+		cfg:              &config.Config{},
+		httpUpstream:     upstream,
+		rateLimitService: &RateLimitService{},
+	}
+	account := newAnthropicAPIKeyAccountForTest()
+	account.Credentials["pool_mode"] = true
+	account.Credentials["pool_mode_retry_status_codes"] = []any{http.StatusServiceUnavailable}
+
+	result, err := svc.Forward(context.Background(), c, account, parsed)
+	require.Nil(t, result)
+
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusServiceUnavailable, failoverErr.StatusCode)
+	require.True(t, failoverErr.RetryableOnSameAccount)
+	require.JSONEq(t, upstreamBody, string(failoverErr.ResponseBody))
+}
+
 func TestGatewayService_DeepSeekAnthropicInjectsInternalUserIDAndConcurrency(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

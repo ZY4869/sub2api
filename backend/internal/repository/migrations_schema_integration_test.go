@@ -354,6 +354,22 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireIndex(t, tx, "prompt_audit_events", "idx_prompt_audit_events_prompt_hash")
 	requireMigrationRecorded(t, tx, "162_prompt_audit.sql")
 	requireMigrationRecorded(t, tx, "163_prompt_audit_full_prompt.sql")
+
+	// API key auth cache invalidation outbox is local migration 164, not upstream 183/184.
+	requireTable(t, tx, "api_key_auth_cache_invalidation_outbox")
+	requireColumn(t, tx, "api_key_auth_cache_invalidation_outbox", "id", "bigint", 0, false)
+	requireColumn(t, tx, "api_key_auth_cache_invalidation_outbox", "event_type", "text", 0, false)
+	requireColumn(t, tx, "api_key_auth_cache_invalidation_outbox", "cache_key", "text", 0, true)
+	requireColumn(t, tx, "api_key_auth_cache_invalidation_outbox", "user_id", "bigint", 0, true)
+	requireColumn(t, tx, "api_key_auth_cache_invalidation_outbox", "group_id", "bigint", 0, true)
+	requireColumn(t, tx, "api_key_auth_cache_invalidation_outbox", "dedup_key", "text", 0, false)
+	requireColumn(t, tx, "api_key_auth_cache_invalidation_outbox", "created_at", "timestamp with time zone", 0, false)
+	requireCheckConstraintContains(t, tx, "api_key_auth_cache_invalidation_outbox", "ck_api_key_auth_cache_invalidation_outbox_target", "api_key_auth_cache_invalidation_key")
+	requireCheckConstraintContains(t, tx, "api_key_auth_cache_invalidation_outbox", "ck_api_key_auth_cache_invalidation_outbox_target", "api_key_auth_cache_invalidation_user")
+	requireCheckConstraintContains(t, tx, "api_key_auth_cache_invalidation_outbox", "ck_api_key_auth_cache_invalidation_outbox_target", "api_key_auth_cache_invalidation_group")
+	requireIndex(t, tx, "api_key_auth_cache_invalidation_outbox", "idx_api_key_auth_cache_invalidation_outbox_dedup_key")
+	requireIndex(t, tx, "api_key_auth_cache_invalidation_outbox", "idx_api_key_auth_cache_invalidation_outbox_id_created_at")
+	requireMigrationRecorded(t, tx, "164_api_key_auth_cache_invalidation_outbox.sql")
 }
 
 func TestMigration142BackfillsLegacyAccountUsagePeriodsIdempotently(t *testing.T) {

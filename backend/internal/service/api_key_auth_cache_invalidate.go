@@ -9,6 +9,7 @@ func (s *APIKeyService) InvalidateAuthCacheByKey(ctx context.Context, key string
 	}
 	cacheKey := s.authCacheKey(key)
 	s.deleteAuthCache(ctx, cacheKey)
+	s.enqueueAuthCacheInvalidationOutboxKey(ctx, cacheKey)
 }
 
 // InvalidateAuthCacheByUserID 清除用户相关的 API Key 认证缓存
@@ -21,6 +22,9 @@ func (s *APIKeyService) InvalidateAuthCacheByUserID(ctx context.Context, userID 
 		return
 	}
 	s.deleteAuthCacheByKeys(ctx, keys)
+	if len(keys) > 0 {
+		s.enqueueAuthCacheInvalidationOutboxUser(ctx, userID)
+	}
 }
 
 // InvalidateAuthCacheByGroupID 清除分组相关的 API Key 认证缓存
@@ -33,6 +37,9 @@ func (s *APIKeyService) InvalidateAuthCacheByGroupID(ctx context.Context, groupI
 		return
 	}
 	s.deleteAuthCacheByKeys(ctx, keys)
+	if len(keys) > 0 {
+		s.enqueueAuthCacheInvalidationOutboxGroup(ctx, groupID)
+	}
 }
 
 func (s *APIKeyService) deleteAuthCacheByKeys(ctx context.Context, keys []string) {

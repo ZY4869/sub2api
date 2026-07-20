@@ -9,8 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
@@ -44,7 +46,7 @@ func (s *GrokGatewayService) forwardGrokVideoCreateWithOperation(ctx context.Con
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": "Failed to parse request body"}})
 		return nil, err
 	}
-	if err := grokValidateVideoWorkflowRequest(req); err != nil {
+	if err := grokValidateVideoWorkflowRequest(req, s.cfg); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": err.Error()}})
 		return nil, err
 	}
@@ -65,7 +67,7 @@ func (s *GrokGatewayService) forwardGrokVideoCreateWithOperation(ctx context.Con
 }
 
 func (s *GrokGatewayService) forwardGrokVideoChatLike(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*GrokGatewayForwardResult, error) {
-	if err := grokValidateVideoWorkflowRequest(req); err != nil {
+	if err := grokValidateVideoWorkflowRequest(req, s.cfg); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": err.Error()}})
 		return nil, err
 	}
@@ -96,7 +98,7 @@ func (s *GrokGatewayService) forwardGrokVideoChatLike(ctx context.Context, c *gi
 }
 
 func (s *GrokGatewayService) forwardGrokVideoResponsesLike(ctx context.Context, c *gin.Context, account *Account, req *grokVideoWorkflowRequest) (*GrokGatewayForwardResult, error) {
-	if err := grokValidateVideoWorkflowRequest(req); err != nil {
+	if err := grokValidateVideoWorkflowRequest(req, s.cfg); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": err.Error()}})
 		return nil, err
 	}
@@ -555,7 +557,7 @@ func grokIsVideoFailureStatus(status string) bool {
 	}
 }
 
-func grokValidateVideoWorkflowRequest(req *grokVideoWorkflowRequest) error {
+func grokValidateVideoWorkflowRequest(req *grokVideoWorkflowRequest, cfgs ...*config.Config) error {
 	if req == nil {
 		return fmt.Errorf("video request is required")
 	}
@@ -574,7 +576,47 @@ func grokValidateVideoWorkflowRequest(req *grokVideoWorkflowRequest) error {
 			return fmt.Errorf("video_url is required for Grok video %s", req.Operation)
 		}
 	}
+	cfg := firstGrokVideoValidationConfig(cfgs)
+	if normalized, err := grokValidateVideoSourceURL("image_url", req.ImageURL, cfg); err != nil {
+		return err
+	} else {
+		req.ImageURL = normalized
+	}
+	if normalized, err := grokValidateVideoSourceURL("video_url", req.VideoURL, cfg); err != nil {
+		return err
+	} else {
+		req.VideoURL = normalized
+	}
 	return nil
+}
+
+func firstGrokVideoValidationConfig(cfgs []*config.Config) *config.Config {
+	for _, cfg := range cfgs {
+		if cfg != nil {
+			return cfg
+		}
+	}
+	return nil
+}
+
+func grokValidateVideoSourceURL(field string, raw string, cfg *config.Config) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+	allowInsecureHTTP := false
+	allowPrivate := false
+	if cfg != nil {
+		allowInsecureHTTP = cfg.Security.URLAllowlist.AllowInsecureHTTP
+		allowPrivate = cfg.Security.URLAllowlist.AllowPrivateHosts
+	}
+	normalized, err := urlvalidator.ValidateHTTPURL(trimmed, allowInsecureHTTP, urlvalidator.ValidationOptions{
+		AllowPrivate: allowPrivate,
+	})
+	if err != nil {
+		return "", fmt.Errorf("%s is not allowed: %w", field, err)
+	}
+	return normalized, nil
 }
 
 func grokVideoOperationEndpoint(operation grokVideoOperation) string {

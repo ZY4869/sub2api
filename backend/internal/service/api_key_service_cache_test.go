@@ -140,9 +140,12 @@ func (s *authRepoStub) GetRateLimitData(ctx context.Context, id int64) (*APIKeyR
 }
 
 type authCacheStub struct {
-	getAuthCache   func(ctx context.Context, key string) (*APIKeyAuthCacheEntry, error)
-	setAuthKeys    []string
-	deleteAuthKeys []string
+	getAuthCache              func(ctx context.Context, key string) (*APIKeyAuthCacheEntry, error)
+	setAuthKeys               []string
+	deleteAuthKeys            []string
+	getAuthFailureCount       func(ctx context.Context, key string) (int, error)
+	incrementAuthFailureCount func(ctx context.Context, key string, ttl time.Duration) (int, error)
+	deleteAuthFailureCount    func(ctx context.Context, key string) error
 }
 
 func (s *authCacheStub) GetCreateAttemptCount(ctx context.Context, userID int64) (int, error) {
@@ -188,6 +191,27 @@ func (s *authCacheStub) PublishAuthCacheInvalidation(ctx context.Context, cacheK
 
 func (s *authCacheStub) SubscribeAuthCacheInvalidation(ctx context.Context, handler func(cacheKey string)) error {
 	return nil
+}
+
+func (s *authCacheStub) GetAuthFailureCount(ctx context.Context, key string) (int, error) {
+	if s.getAuthFailureCount == nil {
+		return 0, nil
+	}
+	return s.getAuthFailureCount(ctx, key)
+}
+
+func (s *authCacheStub) IncrementAuthFailureCount(ctx context.Context, key string, ttl time.Duration) (int, error) {
+	if s.incrementAuthFailureCount == nil {
+		return 0, nil
+	}
+	return s.incrementAuthFailureCount(ctx, key, ttl)
+}
+
+func (s *authCacheStub) DeleteAuthFailureCount(ctx context.Context, key string) error {
+	if s.deleteAuthFailureCount == nil {
+		return nil
+	}
+	return s.deleteAuthFailureCount(ctx, key)
 }
 
 func TestAPIKeyService_GetByKey_UsesL2Cache(t *testing.T) {
@@ -468,4 +492,42 @@ func TestAPIKeyService_GetByKey_SingleflightCollapses(t *testing.T) {
 		require.NoError(t, err)
 	}
 	require.Equal(t, int32(1), atomic.LoadInt32(&calls))
+}
+
+func TestAPIKeyService_AuthFailureRateLimitUsesHashedKeys(t *testing.T) {
+	cache := &authCacheStub{}
+	var readKey string
+	var writeKey string
+	var deleteKey string
+	cache.getAuthFailureCount = func(ctx context.Context, key string) (int, error) {
+		readKey = key
+		return 2, nil
+	}
+	cache.incrementAuthFailureCount = func(ctx context.Context, key string, ttl time.Duration) (int, error) {
+		writeKey = key
+		require.Equal(t, time.Hour, ttl)
+		return 3, nil
+	}
+	cache.deleteAuthFailureCount = func(ctx context.Context, key string) error {
+		deleteKey = key
+		return nil
+	}
+	cfg := &config.Config{
+		APIKeyAuth: config.APIKeyAuthCacheConfig{
+			InvalidCredentialLimit:         2,
+			InvalidCredentialWindowSeconds: 3600,
+		},
+	}
+	svc := NewAPIKeyService(nil, nil, nil, nil, nil, cache, cfg)
+
+	require.ErrorIs(t, svc.CheckAuthFailureRateLimit(context.Background(), "key:secret-value"), ErrAPIKeyRateLimited)
+	require.NotEmpty(t, readKey)
+	require.NotContains(t, readKey, "secret-value")
+
+	require.ErrorIs(t, svc.RecordAuthFailure(context.Background(), "key:secret-value"), ErrAPIKeyRateLimited)
+	require.NotEmpty(t, writeKey)
+	require.NotContains(t, writeKey, "secret-value")
+
+	svc.ClearAuthFailure(context.Background(), "key:secret-value")
+	require.Equal(t, writeKey, deleteKey)
 }

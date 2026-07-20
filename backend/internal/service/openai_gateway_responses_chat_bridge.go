@@ -235,9 +235,10 @@ func (s *OpenAIGatewayService) handleNativeChatAsResponsesStreamingResponse(
 	if err := scanner.Err(); err != nil {
 		return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, fmt.Errorf("native chat stream read error: %w", err)
 	}
-	final := apicompat.FinalizeChatCompletionsToResponsesStream(state)
-	if err := writeEvent(final); err != nil {
-		return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, nil
+	for _, event := range apicompat.FinalizeChatCompletionsToResponsesStreamEvents(state) {
+		if err := writeEvent(event); err != nil {
+			return &openaiStreamingResult{usage: usage, firstTokenMs: firstTokenMs}, nil
+		}
 	}
 	_, _ = fmt.Fprint(c.Writer, "data: [DONE]\n\n")
 	flusher.Flush()

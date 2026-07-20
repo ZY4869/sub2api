@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/dgraph-io/ristretto"
@@ -9,24 +10,27 @@ import (
 )
 
 type APIKeyService struct {
-	apiKeyRepo            APIKeyRepository
-	userRepo              UserRepository
-	groupRepo             GroupRepository
-	userSubRepo           UserSubscriptionRepository
-	userGroupRateRepo     UserGroupRateRepository
-	modelCatalogService   *ModelCatalogService
-	gatewayService        *GatewayService
-	concurrencyService    *ConcurrencyService
-	cache                 APIKeyCache
-	rateLimitCacheInvalid RateLimitCacheInvalidator // optional: invalidate Redis rate limit cache
-	billingCacheService   *BillingCacheService
-	settingService        *SettingService
-	cfg                   *config.Config
-	authCacheL1           *ristretto.Cache
-	authCfg               apiKeyAuthCacheConfig
-	authGroup             singleflight.Group
-	lastUsedTouchL1       sync.Map // keyID -> nextAllowedAt(time.Time)
-	lastUsedTouchSF       singleflight.Group
+	apiKeyRepo                      APIKeyRepository
+	userRepo                        UserRepository
+	groupRepo                       GroupRepository
+	userSubRepo                     UserSubscriptionRepository
+	userGroupRateRepo               UserGroupRateRepository
+	modelCatalogService             *ModelCatalogService
+	gatewayService                  *GatewayService
+	concurrencyService              *ConcurrencyService
+	cache                           APIKeyCache
+	rateLimitCacheInvalid           RateLimitCacheInvalidator // optional: invalidate Redis rate limit cache
+	billingCacheService             *BillingCacheService
+	settingService                  *SettingService
+	cfg                             *config.Config
+	authCacheInvalidationOutboxRepo APIKeyAuthCacheInvalidationOutboxRepository
+	authCacheInvalidationOutboxDB   *sql.DB
+	authCacheL1                     *ristretto.Cache
+	authCfg                         apiKeyAuthCacheConfig
+	authGroup                       singleflight.Group
+	lastUsedTouchL1                 sync.Map // keyID -> nextAllowedAt(time.Time)
+	lastUsedTouchSF                 singleflight.Group
+	authOutboxOnce                  sync.Once
 }
 
 // NewAPIKeyService 创建API Key服务实例

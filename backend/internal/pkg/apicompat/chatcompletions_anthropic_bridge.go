@@ -70,8 +70,10 @@ func FinalizeChatCompletionsAnthropicStream(state *ChatCompletionsToAnthropicStr
 	if state == nil {
 		state = NewChatCompletionsToAnthropicStreamState("", nil)
 	}
-	final := FinalizeChatCompletionsToResponsesStream(state.responses)
-	events := ResponsesEventToAnthropicEvents(&final, state.anthropic)
+	var events []AnthropicStreamEvent
+	for _, final := range FinalizeChatCompletionsToResponsesStreamEvents(state.responses) {
+		events = append(events, ResponsesEventToAnthropicEvents(&final, state.anthropic)...)
+	}
 	events = append(events, FinalizeResponsesAnthropicStream(state.anthropic)...)
 	return events
 }
