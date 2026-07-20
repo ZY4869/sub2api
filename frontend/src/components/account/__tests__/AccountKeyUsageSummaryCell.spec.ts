@@ -60,7 +60,6 @@ describe('AccountKeyUsageSummaryCell', () => {
     expect(wrapper.text()).toContain('345T')
     const todayRow = wrapper.get('[data-testid="account-key-usage-today-row"]')
     const todayRow2 = wrapper.get('[data-testid="account-key-usage-today-row-2"]')
-    const quotaRow = wrapper.get('[data-testid="account-key-usage-quota-row"]')
     expect(todayRow.text()).not.toContain('Req')
     expect(todayRow.text()).not.toContain('Tok')
     expect(todayRow.text()).not.toContain('Discount')
@@ -69,8 +68,7 @@ describe('AccountKeyUsageSummaryCell', () => {
     expect(todayRow.text()).not.toContain('Unlimited')
     expect(todayRow.classes()).toEqual(expect.arrayContaining(['flex-wrap']))
     expect(todayRow2.classes()).toEqual(expect.arrayContaining(['flex-wrap']))
-    expect(quotaRow.text()).toContain('Unlimited')
-    expect(quotaRow.classes()).toEqual(expect.arrayContaining(['flex-wrap']))
+    expect(todayRow2.text()).toContain('Unlimited')
     expect(wrapper.get('[data-testid="account-key-usage-requests"]').text()).toBe('12')
     expect(wrapper.get('[data-testid="account-key-usage-requests"]').attributes('title')).toBe('Req: 12')
     expect(wrapper.get('[data-testid="account-key-usage-requests"]').attributes('aria-label')).toBe('Req: 12')
@@ -119,14 +117,13 @@ describe('AccountKeyUsageSummaryCell', () => {
 
     expect(quotaWrapper.find('[data-testid="account-key-usage-unlimited"]').exists()).toBe(false)
     const todayRow = quotaWrapper.get('[data-testid="account-key-usage-today-row"]')
-    const quotaRow = quotaWrapper.get('[data-testid="account-key-usage-quota-row"]')
+    const todayRow2 = quotaWrapper.get('[data-testid="account-key-usage-today-row-2"]')
     expect(todayRow.text()).not.toContain('Req')
     expect(todayRow.text()).not.toContain('1D')
-    expect(quotaRow.text()).toContain('1D')
-    expect(quotaWrapper.get('[data-testid="account-key-quota-daily"]').text()).toContain('1D')
-    expect(quotaWrapper.get('[data-testid="account-key-quota-weekly"]').text()).toContain('7D')
-    expect(quotaWrapper.get('[data-testid="account-key-quota-monthly"]').text()).toContain('30D')
-    expect(quotaWrapper.get('[data-testid="account-key-quota-total"]').text()).toContain('Total')
+    // Quota summary pill should be in row 2 with the most restrictive window
+    const quotaPill = quotaWrapper.get('[data-testid="account-key-usage-quota"]')
+    expect(quotaPill.text()).toContain('1D')
+    expect(todayRow2.text()).toContain('1D')
 
     const unlimitedWrapper = mount(AccountKeyUsageSummaryCell, {
       props: {
@@ -144,6 +141,6 @@ describe('AccountKeyUsageSummaryCell', () => {
       }
     })
 
-    expect(unlimitedWrapper.get('[data-testid="account-key-usage-unlimited"]').text()).toContain('Unlimited')
+    expect(unlimitedWrapper.get('[data-testid="account-key-usage-quota"]').text()).toContain('Unlimited')
   })
 })
