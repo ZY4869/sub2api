@@ -117,6 +117,53 @@ func TestOpenAIHandleStreamingAwareError_NonStreaming(t *testing.T) {
 	assert.Equal(t, "test error", errorObj["message"])
 }
 
+func TestOpenAIHandleFailoverExhaustedPreservesInsufficientQuota(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := []byte(`{"error":{"message":"quota exhausted","type":"insufficient_quota","code":"insufficient_quota"}}`)
+
+	t.Run("non_stream_json", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+
+		h := &OpenAIGatewayHandler{}
+		h.handleFailoverExhausted(c, &service.UpstreamFailoverError{StatusCode: http.StatusTooManyRequests, ResponseBody: body}, false)
+
+		require.Equal(t, http.StatusTooManyRequests, w.Code)
+		require.Equal(t, "insufficient_quota", gjson.Get(w.Body.String(), "error.code").String())
+		require.Equal(t, "insufficient_quota", gjson.Get(w.Body.String(), "error.type").String())
+		require.Equal(t, "quota exhausted", gjson.Get(w.Body.String(), "error.message").String())
+	})
+
+	t.Run("stream_error_event", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+
+		h := &OpenAIGatewayHandler{}
+		h.handleFailoverExhausted(c, &service.UpstreamFailoverError{StatusCode: http.StatusTooManyRequests, ResponseBody: body}, true)
+
+		require.Contains(t, w.Body.String(), "event: error")
+		require.Contains(t, w.Body.String(), `"code":"insufficient_quota"`)
+		require.Contains(t, w.Body.String(), `"type":"insufficient_quota"`)
+	})
+
+	t.Run("responses_failed_event", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+		c.Header("Content-Type", "text/event-stream")
+
+		h := &OpenAIGatewayHandler{}
+		h.handleFailoverExhausted(c, &service.UpstreamFailoverError{StatusCode: http.StatusTooManyRequests, ResponseBody: body}, false)
+
+		require.Contains(t, w.Body.String(), "event: response.failed")
+		require.Contains(t, w.Body.String(), `"code":"insufficient_quota"`)
+		require.Contains(t, w.Body.String(), `"type":"insufficient_quota"`)
+	})
+}
+
 func TestOpenAIHandleStreamingAwareError_DeclaredResponsesSSEAppendsFailedEvent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()

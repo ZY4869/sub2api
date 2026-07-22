@@ -521,7 +521,7 @@ func TestStreamingEmptyResponse(t *testing.T) {
 func TestResponsesAnthropicEventToSSE(t *testing.T) {
 	evt := AnthropicStreamEvent{
 		Type: "message_start",
-		Message: &AnthropicResponse{
+		Message: &AnthropicStreamMessage{
 			ID:   "resp_1",
 			Type: "message",
 			Role: "assistant",
@@ -532,6 +532,7 @@ func TestResponsesAnthropicEventToSSE(t *testing.T) {
 	assert.Contains(t, sse, "event: message_start\n")
 	assert.Contains(t, sse, "data: ")
 	assert.Contains(t, sse, `"resp_1"`)
+	assert.Contains(t, sse, `"stop_reason":null`)
 }
 
 // ---------------------------------------------------------------------------

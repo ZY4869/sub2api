@@ -183,6 +183,8 @@ func (h *GrokGatewayHandler) CountTokens(c *gin.Context) {
 	setOpsSelectedAccountDetails(c, account)
 	setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeSync)
 	service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
+	ctx = h.grokGatewayService.SetRuntimeIdentity(ctx, service.GrokRuntimeIdentity{UserID: subject.UserID, APIKeyID: currentAPIKey.ID})
+	c.Request = c.Request.WithContext(ctx)
 	_, err = h.grokGatewayService.ForwardAnthropicCountTokensCompat(c.Request.Context(), c, account, body)
 	if err != nil {
 		reqLog.Warn("grok_count_tokens.forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))
@@ -448,7 +450,8 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			}
 			service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
 			forwardStart := time.Now()
-			result, err := h.forwardAction(c.Request.Context(), c, account, action, body)
+			forwardCtx := h.grokGatewayService.SetRuntimeIdentity(c.Request.Context(), service.GrokRuntimeIdentity{UserID: subject.UserID, APIKeyID: currentAPIKey.ID})
+			result, err := h.forwardAction(forwardCtx, c, account, action, body)
 			forwardDurationMs := time.Since(forwardStart).Milliseconds()
 			if accountReleaseFunc != nil {
 				accountReleaseFunc()

@@ -54,6 +54,8 @@ func TestIsPrivateIP(t *testing.T) {
 
 func TestGetTrustedClientIPUsesGinClientIP(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	ConfigureClientIP(ClientIPSettings{Mode: ClientIPModeGin})
+	t.Cleanup(func() { ConfigureClientIP(ClientIPSettings{Mode: ClientIPModeGin}) })
 
 	r := gin.New()
 	require.NoError(t, r.SetTrustedProxies(nil))
@@ -76,6 +78,8 @@ func TestGetTrustedClientIPUsesGinClientIP(t *testing.T) {
 
 func TestGetTrustedClientIPUsesTrustedProxyChain(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	ConfigureClientIP(ClientIPSettings{Mode: ClientIPModeGin})
+	t.Cleanup(func() { ConfigureClientIP(ClientIPSettings{Mode: ClientIPModeGin}) })
 
 	r := gin.New()
 	require.NoError(t, r.SetTrustedProxies([]string{"10.0.0.0/8"}))
@@ -94,6 +98,57 @@ func TestGetTrustedClientIPUsesTrustedProxyChain(t *testing.T) {
 
 	require.Equal(t, 200, w.Code)
 	require.Equal(t, "1.2.3.4", w.Body.String())
+}
+
+func TestGetTrustedClientIPConfiguredHeadersRequireTrustedProxy(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ConfigureClientIP(ClientIPSettings{
+		Mode:           ClientIPModeHeaders,
+		Headers:        []string{"CF-Connecting-IP", "X-Forwarded-For"},
+		TrustedProxies: []string{"10.0.0.0/8"},
+	})
+	t.Cleanup(func() { ConfigureClientIP(ClientIPSettings{Mode: ClientIPModeGin}) })
+
+	r := gin.New()
+	require.NoError(t, r.SetTrustedProxies([]string{"10.0.0.0/8"}))
+	r.GET("/t", func(c *gin.Context) {
+		c.String(200, GetTrustedClientIP(c))
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/t", nil)
+	req.RemoteAddr = "9.9.9.9:12345"
+	req.Header.Set("CF-Connecting-IP", "1.2.3.4")
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, 200, w.Code)
+	require.Equal(t, "9.9.9.9", w.Body.String())
+}
+
+func TestGetTrustedClientIPConfiguredHeadersUseXFFHop(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ConfigureClientIP(ClientIPSettings{
+		Mode:           ClientIPModeHeaders,
+		Headers:        []string{"X-Forwarded-For"},
+		XFFHopIndex:    1,
+		TrustedProxies: []string{"10.0.0.0/8"},
+	})
+	t.Cleanup(func() { ConfigureClientIP(ClientIPSettings{Mode: ClientIPModeGin}) })
+
+	r := gin.New()
+	require.NoError(t, r.SetTrustedProxies([]string{"10.0.0.0/8"}))
+	r.GET("/t", func(c *gin.Context) {
+		c.String(200, GetTrustedClientIP(c))
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/t", nil)
+	req.RemoteAddr = "10.1.1.1:12345"
+	req.Header.Set("X-Forwarded-For", "1.2.3.4, 5.6.7.8")
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, 200, w.Code)
+	require.Equal(t, "5.6.7.8", w.Body.String())
 }
 
 func TestCheckIPRestrictionWithCompiledRules(t *testing.T) {

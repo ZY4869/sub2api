@@ -33,7 +33,9 @@ type UpdateAPIKeyRequest struct {
 	ModelDisplayMode *string                   `json:"model_display_mode"`
 	Status           *string                   `json:"status"`
 	IPWhitelist      []string                  `json:"ip_whitelist"` // IP 白名单（空数组清空）
+	IPWhitelistSet   bool                      `json:"-"`
 	IPBlacklist      []string                  `json:"ip_blacklist"` // IP 黑名单（空数组清空）
+	IPBlacklistSet   bool                      `json:"-"`
 
 	ImageOnlyEnabled         *bool          `json:"image_only_enabled"`
 	ImageCountBillingEnabled *bool          `json:"image_count_billing_enabled"`

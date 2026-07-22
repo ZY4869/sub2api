@@ -6,11 +6,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
+	gocache "github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 )
 
@@ -23,6 +25,7 @@ type GrokGatewayService struct {
 	tokenProvider        *GrokTokenProvider
 	accountRepo          AccountRepository
 	responseHeaderFilter *responseheaders.CompiledHeaderFilter
+	toolPromptCache      *gocache.Cache
 }
 
 func NewGrokGatewayService(
@@ -39,6 +42,7 @@ func NewGrokGatewayService(
 		cfg:                  cfg,
 		reverseClient:        reverseClient,
 		responseHeaderFilter: compileResponseHeaderFilter(cfg),
+		toolPromptCache:      gocache.New(grokToolPromptCacheTTL, time.Minute),
 	}
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "sub2api-frontend",
   "private": true,
-  "version": "0.1.405",
+  "version": "0.1.406",
   "type": "module",
   "packageManager": "pnpm@10.31.0",
   "engines": {
@@ -24,7 +24,7 @@
     "@lobehub/icons": "^4.0.2",
     "@tanstack/vue-virtual": "^3.13.23",
     "@vueuse/core": "^10.7.0",
-    "axios": "^1.16.0",
+    "axios": "^1.18.1",
     "chart.js": "^4.4.1",
     "dompurify": "^3.3.1",
     "driver.js": "^1.4.0",

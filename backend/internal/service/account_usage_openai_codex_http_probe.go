@@ -71,6 +71,7 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModelHTTP(
 		return nil, nil, nil
 	}
 	logOpenAICodexHTTPSnapshot(account, probeModelID, scope, resp, updates)
+	ctx = withOpenAICodexSuccessfulSnapshot(ctx)
 	state := s.persistOpenAICodexProbeSnapshot(ctx, account, updates)
 	if state != nil {
 		if state.AccountResetAt != nil {

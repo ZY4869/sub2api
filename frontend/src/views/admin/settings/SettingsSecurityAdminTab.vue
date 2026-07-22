@@ -139,10 +139,12 @@
             </div>
           </div>
         </div>
+        <ClientIPSettingsCard />
         </div><!-- /Tab: Security — Admin API Key -->
 </template>
 
 <script setup lang="ts">
+import ClientIPSettingsCard from '@/components/settings/ClientIPSettingsCard.vue'
 import Icon from '@/components/icons/Icon.vue'
 const props = defineProps<{ ctx: any }>()
 const {

@@ -33,6 +33,7 @@ type SettingHandler struct {
 	telegramNotifier *service.TelegramNotifierService
 	turnstileService *service.TurnstileService
 	opsService       *service.OpsService
+	adminSecurity    *AdminSecurityHelper
 }
 
 func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, telegramNotifier *service.TelegramNotifierService, turnstileService *service.TurnstileService, opsService *service.OpsService) *SettingHandler {
@@ -44,6 +45,13 @@ func (h *SettingHandler) SetEmailTemplateService(templateService *service.EmailT
 		return
 	}
 	h.emailTemplates = templateService
+}
+
+func (h *SettingHandler) SetAdminSecurityHelper(helper *AdminSecurityHelper) {
+	if h == nil {
+		return
+	}
+	h.adminSecurity = helper
 }
 func (h *SettingHandler) auditSettingsUpdate(c *gin.Context, before *service.SystemSettings, after *service.SystemSettings, req UpdateSettingsRequest) {
 	if before == nil || after == nil {

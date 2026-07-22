@@ -237,7 +237,7 @@ func resToAnthHandleCreated(evt *ResponsesStreamEvent, state *ResponsesEventToAn
 
 	return []AnthropicStreamEvent{{
 		Type: "message_start",
-		Message: &AnthropicResponse{
+		Message: &AnthropicStreamMessage{
 			ID:      state.ResponseID,
 			Type:    "message",
 			Role:    "assistant",

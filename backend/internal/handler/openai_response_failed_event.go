@@ -31,6 +31,10 @@ func isResponsesRequestContext(c *gin.Context) bool {
 }
 
 func writeResponsesFailedEvent(c *gin.Context, errType, message string) bool {
+	return writeResponsesFailedEventWithCode(c, errType, errType, message)
+}
+
+func writeResponsesFailedEventWithCode(c *gin.Context, errType, code, message string) bool {
 	if c == nil || c.Writer == nil {
 		return false
 	}
@@ -40,9 +44,13 @@ func writeResponsesFailedEvent(c *gin.Context, errType, message string) bool {
 	}
 	responseID := responseFailedEventID(c)
 	model := responseFailedEventModel(c)
-	code := strings.TrimSpace(errType)
-	if code == "" {
-		code = "upstream_error"
+	errorType := strings.TrimSpace(errType)
+	if errorType == "" {
+		errorType = "upstream_error"
+	}
+	errorCode := strings.TrimSpace(code)
+	if errorCode == "" {
+		errorCode = errorType
 	}
 	msg := strings.TrimSpace(message)
 	if msg == "" {
@@ -51,8 +59,8 @@ func writeResponsesFailedEvent(c *gin.Context, errType, message string) bool {
 	payload := `event: response.failed` + "\n" +
 		`data: {"type":"response.failed","response":{"id":` + strconv.Quote(responseID) +
 		`,"object":"response","model":` + strconv.Quote(model) +
-		`,"status":"failed","output":[],"error":{"code":` + strconv.Quote(code) +
-		`,"message":` + strconv.Quote(msg) + `}}}` + "\n\n"
+		`,"status":"failed","output":[],"error":{"code":` + strconv.Quote(errorCode) +
+		`,"message":` + strconv.Quote(msg) + `,"type":` + strconv.Quote(errorType) + `}}}` + "\n\n"
 	if _, err := fmt.Fprint(c.Writer, payload); err != nil {
 		_ = c.Error(err)
 		return false

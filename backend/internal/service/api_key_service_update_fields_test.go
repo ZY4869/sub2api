@@ -48,3 +48,34 @@ func TestApplyAPIKeyUpdateQuotaFields_KeepsQuotaExhaustedWhenQuotaStillUsedUp(t 
 
 	require.Equal(t, StatusAPIKeyQuotaExhausted, apiKey.Status)
 }
+
+func TestApplyAPIKeyUpdateFields_PreservesIPListsWhenFieldsOmitted(t *testing.T) {
+	apiKey := &APIKey{
+		IPWhitelist: []string{"10.0.0.0/8"},
+		IPBlacklist: []string{"192.0.2.1"},
+	}
+
+	svc := &APIKeyService{}
+	svc.applyAPIKeyUpdateFields(nil, apiKey, UpdateAPIKeyRequest{})
+
+	require.Equal(t, []string{"10.0.0.0/8"}, apiKey.IPWhitelist)
+	require.Equal(t, []string{"192.0.2.1"}, apiKey.IPBlacklist)
+}
+
+func TestApplyAPIKeyUpdateFields_ClearsIPListsWhenExplicitEmptyArrays(t *testing.T) {
+	apiKey := &APIKey{
+		IPWhitelist: []string{"10.0.0.0/8"},
+		IPBlacklist: []string{"192.0.2.1"},
+	}
+
+	svc := &APIKeyService{}
+	svc.applyAPIKeyUpdateFields(nil, apiKey, UpdateAPIKeyRequest{
+		IPWhitelistSet: true,
+		IPBlacklistSet: true,
+		IPWhitelist:    []string{},
+		IPBlacklist:    []string{},
+	})
+
+	require.Empty(t, apiKey.IPWhitelist)
+	require.Empty(t, apiKey.IPBlacklist)
+}

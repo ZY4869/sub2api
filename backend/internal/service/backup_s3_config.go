@@ -32,8 +32,14 @@ func (s *BackupService) GetS3Config(ctx context.Context) (*BackupS3Config, error
 func (s *BackupService) UpdateS3Config(ctx context.Context, cfg BackupS3Config) (*BackupS3Config, error) {
 	// 如果没提供 secret，保留原有值
 	if cfg.SecretAccessKey == "" {
-		old, _ := s.loadS3Config(ctx)
+		old, err := s.loadStoredS3Config(ctx)
+		if err != nil {
+			return nil, err
+		}
 		if old != nil {
+			if _, err := s.decryptS3Secret(old.SecretAccessKey); err != nil {
+				return nil, err
+			}
 			cfg.SecretAccessKey = old.SecretAccessKey
 		}
 	} else {
@@ -85,6 +91,19 @@ func (s *BackupService) TestS3Connection(ctx context.Context, cfg BackupS3Config
 }
 
 func (s *BackupService) loadS3Config(ctx context.Context) (*BackupS3Config, error) {
+	cfg, err := s.loadStoredS3Config(ctx)
+	if err != nil || cfg == nil {
+		return cfg, err
+	}
+	decrypted, err := s.decryptS3Secret(cfg.SecretAccessKey)
+	if err != nil {
+		return nil, err
+	}
+	cfg.SecretAccessKey = decrypted
+	return cfg, nil
+}
+
+func (s *BackupService) loadStoredS3Config(ctx context.Context) (*BackupS3Config, error) {
 	raw, err := s.settingRepo.GetValue(ctx, settingKeyBackupS3Config)
 	if err != nil || raw == "" {
 		return nil, nil //nolint:nilnil // no config is a valid state
@@ -93,17 +112,19 @@ func (s *BackupService) loadS3Config(ctx context.Context) (*BackupS3Config, erro
 	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
 		return nil, ErrBackupS3ConfigCorrupt
 	}
-	// 解密 SecretAccessKey
-	if cfg.SecretAccessKey != "" {
-		decrypted, err := s.encryptor.Decrypt(cfg.SecretAccessKey)
-		if err != nil {
-			// 兼容未加密的旧数据：如果解密失败，保持原值
-			logger.LegacyPrintf("service.backup", "[Backup] S3 SecretAccessKey 解密失败（可能是旧的未加密数据）: %v", err)
-		} else {
-			cfg.SecretAccessKey = decrypted
-		}
-	}
 	return &cfg, nil
+}
+
+func (s *BackupService) decryptS3Secret(secret string) (string, error) {
+	if secret == "" {
+		return "", nil
+	}
+	decrypted, err := s.encryptor.Decrypt(secret)
+	if err != nil {
+		logger.LegacyPrintf("service.backup", "[Backup] S3 SecretAccessKey 解密失败，拒绝使用该配置: %v", err)
+		return "", ErrBackupS3SecretInvalid.WithCause(err)
+	}
+	return decrypted, nil
 }
 
 func (s *BackupService) getOrCreateStore(ctx context.Context, cfg *BackupS3Config) (BackupObjectStore, error) {

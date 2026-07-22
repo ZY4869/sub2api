@@ -289,6 +289,29 @@ func TestBackupService_S3ConfigKeepExistingSecret(t *testing.T) {
 	require.Equal(t, "AKID-NEW", internal.AccessKeyID)
 }
 
+func TestBackupService_S3ConfigRejectsUndecryptableExistingSecret(t *testing.T) {
+	repo := newMockSettingRepo()
+	svc := newTestBackupService(repo, &mockDumper{}, newMockObjectStore())
+	corrupt := BackupS3Config{
+		Bucket:          "my-bucket",
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "not-encrypted",
+	}
+	raw, err := json.Marshal(corrupt)
+	require.NoError(t, err)
+	require.NoError(t, repo.Set(context.Background(), settingKeyBackupS3Config, string(raw)))
+
+	_, err = svc.UpdateS3Config(context.Background(), BackupS3Config{
+		Bucket:      "my-bucket",
+		AccessKeyID: "AKID-NEW",
+	})
+	require.ErrorIs(t, err, ErrBackupS3SecretInvalid)
+
+	storedRaw, err := repo.GetValue(context.Background(), settingKeyBackupS3Config)
+	require.NoError(t, err)
+	require.JSONEq(t, string(raw), storedRaw)
+}
+
 func TestBackupService_TestS3ConnectionRequiresExplicitSecret(t *testing.T) {
 	repo := newMockSettingRepo()
 	svc := newTestBackupService(repo, &mockDumper{}, newMockObjectStore())

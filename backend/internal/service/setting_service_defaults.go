@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -15,6 +16,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	if !errors.Is(err, ErrSettingNotFound) {
 		return fmt.Errorf("check existing settings: %w", err)
 	}
+	clientIPDefaults, _ := json.Marshal(DefaultClientIPSettingsFromConfig(s.cfg))
+	imageBatchStorageDefaults, _ := json.Marshal(DefaultImageBatchStorageSettingsFromConfig(s.cfg))
 	defaults := map[string]string{
 		SettingKeyRegistrationEnabled:                                "true",
 		SettingKeyEmailVerifyEnabled:                                 "false",
@@ -136,6 +139,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyContentModerationCyberCategories:                   mustMarshalDefaultContentModerationCyberCategories(),
 		SettingKeyVisualPresetDefault:                                VisualPresetClassic,
 		SettingKeyAccountAiryWhiteSurfaceEnabled:                     "false",
+		SettingKeyClientIPSettings:                                   string(clientIPDefaults),
+		SettingKeyImageBatchStorageSettings:                          string(imageBatchStorageDefaults),
 	}
 	return s.settingRepo.SetMultiple(ctx, defaults)
 }

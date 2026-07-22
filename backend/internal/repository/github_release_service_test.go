@@ -288,6 +288,31 @@ func (s *GitHubReleaseServiceSuite) TestFetchReleases_Success() {
 	require.Equal(s.T(), "v0.9.0", releases[1].TagName)
 }
 
+func (s *GitHubReleaseServiceSuite) TestFetchReleases_UsesConfiguredGitHubTokenForAPIOnly() {
+	const token = "ghp_test_token"
+	releaseJSON := `[]`
+
+	s.srv = newLocalTestServer(s.T(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(s.T(), "Bearer "+token, r.Header.Get("Authorization"))
+		require.Equal(s.T(), "2022-11-28", r.Header.Get("X-GitHub-Api-Version"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(releaseJSON))
+	}))
+
+	s.client = &githubReleaseClient{
+		httpClient: &http.Client{
+			Transport: &testTransport{testServerURL: s.srv.URL},
+		},
+		downloadHTTPClient: &http.Client{},
+		githubToken:        token,
+	}
+
+	releases, err := s.client.FetchReleases(context.Background(), "test/repo", 2)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), releases)
+}
+
 func (s *GitHubReleaseServiceSuite) TestFetchLatestRelease_Non200() {
 	s.srv = newLocalTestServer(s.T(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

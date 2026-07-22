@@ -127,7 +127,12 @@ func (s *ImageBatchService) cleanupExpiredOutputs(ctx context.Context) {
 	if after <= 0 || s == nil || s.repo == nil {
 		return
 	}
-	count, err := s.repo.CleanupExpiredOutputs(ctx, time.Now().UTC().Add(-after), 100)
+	before := time.Now().UTC().Add(-after)
+	outputs, listErr := s.repo.ListExpiredOutputs(ctx, before, 100)
+	if listErr == nil {
+		s.deleteOutputObjectsBestEffort(ctx, outputs)
+	}
+	count, err := s.repo.CleanupExpiredOutputs(ctx, before, 100)
 	if err == nil {
 		recordImageBatchOutputsCleaned(count)
 	}

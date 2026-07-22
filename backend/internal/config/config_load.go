@@ -26,6 +26,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	viper.AddConfigPath("/etc/sub2api")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	_ = viper.BindEnv("update.github_token", "UPDATE_GITHUB_TOKEN")
 	setDefaults()
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -42,6 +43,11 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		cfg.Server.Mode = "debug"
 	}
 	cfg.Server.FrontendURL = strings.TrimSpace(cfg.Server.FrontendURL)
+	cfg.Server.ClientIP.Mode = strings.ToLower(strings.TrimSpace(cfg.Server.ClientIP.Mode))
+	if cfg.Server.ClientIP.Mode == "" {
+		cfg.Server.ClientIP.Mode = "gin"
+	}
+	cfg.Server.ClientIP.Headers = normalizeStringSlice(cfg.Server.ClientIP.Headers)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
 	cfg.LinuxDo.ClientSecret = strings.TrimSpace(cfg.LinuxDo.ClientSecret)
@@ -67,6 +73,18 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	cfg.Log.StacktraceLevel = strings.ToLower(strings.TrimSpace(cfg.Log.StacktraceLevel))
 	cfg.Log.Output.FilePath = strings.TrimSpace(cfg.Log.Output.FilePath)
 	cfg.OpenAICodex.AppServerBin = strings.TrimSpace(cfg.OpenAICodex.AppServerBin)
+	cfg.Update.ProxyURL = strings.TrimSpace(cfg.Update.ProxyURL)
+	cfg.Update.GitHubToken = strings.TrimSpace(cfg.Update.GitHubToken)
+	cfg.ImageBatch.Storage.Backend = strings.ToLower(strings.TrimSpace(cfg.ImageBatch.Storage.Backend))
+	if cfg.ImageBatch.Storage.Backend == "" {
+		cfg.ImageBatch.Storage.Backend = "db"
+	}
+	cfg.ImageBatch.Storage.Endpoint = strings.TrimSpace(cfg.ImageBatch.Storage.Endpoint)
+	cfg.ImageBatch.Storage.Bucket = strings.TrimSpace(cfg.ImageBatch.Storage.Bucket)
+	cfg.ImageBatch.Storage.Prefix = strings.Trim(strings.TrimSpace(cfg.ImageBatch.Storage.Prefix), "/")
+	cfg.ImageBatch.Storage.Region = strings.TrimSpace(cfg.ImageBatch.Storage.Region)
+	cfg.ImageBatch.Storage.AccessKeyID = strings.TrimSpace(cfg.ImageBatch.Storage.AccessKeyID)
+	cfg.ImageBatch.Storage.SecretAccessKey = strings.TrimSpace(cfg.ImageBatch.Storage.SecretAccessKey)
 	cfg.Grok.OAuth.AuthorizeURL = strings.TrimSpace(cfg.Grok.OAuth.AuthorizeURL)
 	cfg.Grok.OAuth.TokenURL = strings.TrimSpace(cfg.Grok.OAuth.TokenURL)
 	cfg.Grok.OAuth.UserInfoURL = strings.TrimSpace(cfg.Grok.OAuth.UserInfoURL)

@@ -110,6 +110,35 @@ func TestGrokForwardAnthropicCountTokensCompatUsesResponsesInputTokens(t *testin
 	require.Equal(t, 3, upstream.accountConcurrency)
 }
 
+func TestGrokForwardAnthropicCountTokensCompatFallsBackWhenInputTokensUnsupported(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"grok-4","messages":[{"role":"user","content":"hello world"}]}`)
+	rec, c := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/messages/count_tokens", body)
+	upstream := &countTokensHTTPUpstreamRecorder{httpUpstreamRecorder: httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusNotFound,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"/v1/responses/input_tokens not found"}}`)),
+	}}}
+	svc := &GrokGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	result, err := svc.ForwardAnthropicCountTokensCompat(context.Background(), c, newGrokAPIKeyCompatAccount(), body)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.True(t, result.Estimated)
+	require.Equal(t, string(geminiCountTokensSourceEstimated), result.Source)
+	require.Greater(t, result.InputTokens, 0)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.True(t, gjson.GetBytes(rec.Body.Bytes(), "estimated").Bool())
+	require.Equal(t, string(geminiCountTokensSourceEstimated), gjson.GetBytes(rec.Body.Bytes(), "source").String())
+	require.Equal(t, string(geminiCountTokensSourceEstimated), rec.Header().Get(geminiCountTokensSourceHeader))
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "/v1/responses/input_tokens", upstream.lastReq.URL.Path)
+}
+
 func TestGrokForwardAnthropicCountTokensCompatRejectsSSOAccounts(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{"model":"grok-4","messages":[{"role":"user","content":"hello"}]}`)

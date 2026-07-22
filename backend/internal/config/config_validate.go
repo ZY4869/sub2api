@@ -96,6 +96,17 @@ func (c *Config) Validate() error {
 		}
 		warnIfInsecureURL("server.frontend_url", c.Server.FrontendURL)
 	}
+	switch strings.ToLower(strings.TrimSpace(c.Server.ClientIP.Mode)) {
+	case "", "gin", "headers":
+	default:
+		return fmt.Errorf("server.client_ip.mode must be one of: gin/headers")
+	}
+	if c.Server.ClientIP.XFFHopIndex < 0 {
+		return fmt.Errorf("server.client_ip.xff_hop_index must be non-negative")
+	}
+	if strings.EqualFold(strings.TrimSpace(c.Server.ClientIP.Mode), "headers") && len(c.Server.ClientIP.Headers) == 0 {
+		return fmt.Errorf("server.client_ip.headers is required when server.client_ip.mode=headers")
+	}
 	if c.JWT.ExpireHour <= 0 {
 		return fmt.Errorf("jwt.expire_hour must be positive")
 	}
@@ -227,6 +238,21 @@ func (c *Config) Validate() error {
 	}
 	if strings.TrimSpace(c.ImageBatch.VertexGCSOutputURIPrefix) != "" && !strings.HasPrefix(strings.TrimSpace(c.ImageBatch.VertexGCSOutputURIPrefix), "gs://") {
 		return fmt.Errorf("image_batch.vertex_gcs_output_uri_prefix must be a gs:// URI")
+	}
+	switch strings.ToLower(strings.TrimSpace(c.ImageBatch.Storage.Backend)) {
+	case "", "db", "local":
+	case "s3", "r2":
+		if strings.TrimSpace(c.ImageBatch.Storage.Bucket) == "" {
+			return fmt.Errorf("image_batch.storage.bucket is required when storage backend is s3/r2")
+		}
+		if strings.TrimSpace(c.ImageBatch.Storage.AccessKeyID) == "" {
+			return fmt.Errorf("image_batch.storage.access_key_id is required when storage backend is s3/r2")
+		}
+		if strings.TrimSpace(c.ImageBatch.Storage.SecretAccessKey) == "" {
+			return fmt.Errorf("image_batch.storage.secret_access_key is required when storage backend is s3/r2")
+		}
+	default:
+		return fmt.Errorf("image_batch.storage.backend must be one of: db/local/s3/r2")
 	}
 	if c.Database.MaxOpenConns <= 0 {
 		return fmt.Errorf("database.max_open_conns must be positive")

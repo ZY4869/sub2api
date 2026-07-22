@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 )
 
 // APIKeyHandler handles API key-related requests
@@ -270,14 +271,21 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 	}
 
 	var req UpdateAPIKeyRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var raw map[string]json.RawMessage
+	if err := c.ShouldBindBodyWith(&raw, binding.JSON); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
 
 	svcReq := service.UpdateAPIKeyRequest{
 		IPWhitelist:              req.IPWhitelist,
+		IPWhitelistSet:           hasJSONField(raw, "ip_whitelist"),
 		IPBlacklist:              req.IPBlacklist,
+		IPBlacklistSet:           hasJSONField(raw, "ip_blacklist"),
 		Quota:                    req.Quota,
 		ResetQuota:               req.ResetQuota,
 		RateLimit5h:              req.RateLimit5h,
@@ -347,6 +355,11 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 	}
 
 	response.Success(c, dto.APIKeyFromService(key))
+}
+
+func hasJSONField(raw map[string]json.RawMessage, name string) bool {
+	_, ok := raw[name]
+	return ok
 }
 
 // Delete handles deleting an API key

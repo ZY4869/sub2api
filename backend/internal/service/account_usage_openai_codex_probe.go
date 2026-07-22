@@ -105,6 +105,7 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 				"utilization_5h_percent", util5h,
 				"utilization_7d_percent", util7d,
 			)
+			reqCtx = withOpenAICodexSuccessfulSnapshot(reqCtx)
 			state := s.persistOpenAICodexProbeSnapshot(reqCtx, account, wsUpdates)
 			if state != nil {
 				if state.AccountResetAt != nil {

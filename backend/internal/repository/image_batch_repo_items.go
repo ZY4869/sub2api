@@ -84,6 +84,59 @@ func (r *imageBatchRepository) ListOutputsForUser(ctx context.Context, userID in
 	return out, rows.Err()
 }
 
+func (r *imageBatchRepository) ListOutputsForUserIncludingDeleted(ctx context.Context, userID int64, jobID string) ([]service.ImageBatchOutput, error) {
+	rows, err := r.db.QueryContext(ctx, imageBatchOutputSelectSQL()+`
+		JOIN image_batch_jobs j ON j.id = o.job_id
+		WHERE j.user_id = $1 AND o.job_id = $2 AND j.deleted_at IS NULL AND o.deleted_at IS NULL
+		ORDER BY o.custom_id ASC, o.id ASC
+	`, userID, jobID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make([]service.ImageBatchOutput, 0)
+	for rows.Next() {
+		output, err := scanImageBatchOutput(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *output)
+	}
+	return out, rows.Err()
+}
+
+func (r *imageBatchRepository) ListExpiredOutputs(ctx context.Context, before time.Time, limit int) ([]service.ImageBatchOutput, error) {
+	if before.IsZero() {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+	rows, err := r.db.QueryContext(ctx, imageBatchOutputSelectSQL()+`
+		JOIN image_batch_jobs j ON j.id = o.job_id
+		WHERE j.deleted_at IS NULL
+			AND j.status = 'completed'
+			AND j.outputs_deleted_at IS NULL
+			AND j.completed_at IS NOT NULL
+			AND j.completed_at < $1
+			AND o.deleted_at IS NULL
+		ORDER BY j.completed_at ASC, o.id ASC
+		LIMIT `+intLiteral(limit), before)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make([]service.ImageBatchOutput, 0)
+	for rows.Next() {
+		output, err := scanImageBatchOutput(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *output)
+	}
+	return out, rows.Err()
+}
+
 func (r *imageBatchRepository) SoftDeleteJob(ctx context.Context, userID int64, jobID string) error {
 	res, err := r.db.ExecContext(ctx, `
 		UPDATE image_batch_jobs

@@ -71,11 +71,6 @@ func (s *FailoverState) HandleFailoverError(
 ) FailoverAction {
 	s.LastFailoverErr = failoverErr
 
-	// 缓存计费判断
-	if needForceCacheBilling(s.hasBoundSession, failoverErr) {
-		s.ForceCacheBilling = true
-	}
-
 	// 同账号重试：对 RetryableOnSameAccount 的临时性错误，先在同一账号上重试
 	if failoverErr.RetryableOnSameAccount && s.SameAccountRetryCount[accountID] < maxSameAccountRetries {
 		s.SameAccountRetryCount[accountID]++
@@ -98,6 +93,11 @@ func (s *FailoverState) HandleFailoverError(
 
 	// 加入失败列表
 	s.FailedAccountIDs[accountID] = struct{}{}
+
+	// 缓存计费判断只在真实跨账号切换或耗尽路径上生效。
+	if needForceCacheBilling(s.hasBoundSession, failoverErr) {
+		s.ForceCacheBilling = true
+	}
 
 	// 检查是否耗尽
 	if s.SwitchCount >= s.MaxSwitches {

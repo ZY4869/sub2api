@@ -81,6 +81,7 @@ func (s *GrokGatewayService) forwardOfficialMessagesCompat(ctx context.Context, 
 		writeAnthropicError(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body", "")
 		return nil, err
 	}
+	responsesBody = s.applyGrokToolPromptCache(ctx, account, responsesBody)
 	startTime := time.Now()
 	resp, meta, err := s.doGrokOfficialRequest(ctx, c, account, http.MethodPost, grokEndpointResponses, responsesBody)
 	if err != nil {
@@ -127,6 +128,7 @@ func (s *GrokGatewayService) forwardOfficialResponses(ctx context.Context, c *gi
 	}
 	if method == http.MethodPost {
 		mappedBody = sanitizeGrokOpenAICompatibleRequestBody(mappedBody)
+		mappedBody = s.applyGrokToolPromptCache(ctx, account, mappedBody)
 	}
 	stream := method == http.MethodPost && gjson.GetBytes(mappedBody, "stream").Bool()
 	startTime := time.Now()
@@ -207,9 +209,7 @@ func (s *GrokGatewayService) forwardOfficialAnthropicCountTokensCompat(ctx conte
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	result, err := readResponsesInputTokensResult(resp, c, resolveUpstreamResponseReadLimit(s.cfg), func(status int, errType string, message string) {
-		writeAnthropicError(c, status, errType, message, "")
-	})
+	result, err := s.readGrokResponsesInputTokensResult(resp, c, account, body, resolveUpstreamResponseReadLimit(s.cfg))
 	if err != nil {
 		return nil, err
 	}

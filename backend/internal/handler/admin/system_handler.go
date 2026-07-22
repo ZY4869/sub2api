@@ -22,6 +22,8 @@ type SystemHandler struct {
 	lockSvc   *service.SystemOperationLockService
 }
 
+const systemUpdateOperationTimeout = 30 * time.Minute
+
 type systemUpdateService interface {
 	CheckUpdate(ctx context.Context, force bool) (*service.UpdateInfo, error)
 	PerformUpdate(ctx context.Context) error
@@ -64,7 +66,10 @@ func (h *SystemHandler) PerformUpdate(c *gin.Context) {
 	operationID := buildSystemOperationID(c, "update")
 	payload := gin.H{"operation_id": operationID}
 	executeAdminIdempotentJSON(c, "admin.system.update", payload, service.DefaultSystemOperationIdempotencyTTL(), func(ctx context.Context) (any, error) {
-		lock, release, err := h.acquireSystemLock(ctx, operationID)
+		operationCtx, cancel := context.WithTimeout(context.Background(), systemUpdateOperationTimeout)
+		defer cancel()
+
+		lock, release, err := h.acquireSystemLock(operationCtx, operationID)
 		if err != nil {
 			return nil, err
 		}
@@ -74,9 +79,9 @@ func (h *SystemHandler) PerformUpdate(c *gin.Context) {
 			release(releaseReason, succeeded)
 		}()
 
-		if err := h.updateSvc.PerformUpdate(ctx); err != nil {
+		if err := h.updateSvc.PerformUpdate(operationCtx); err != nil {
 			if errors.Is(err, service.ErrNoUpdateAvailable) {
-				info, checkErr := h.updateSvc.CheckUpdate(ctx, false)
+				info, checkErr := h.updateSvc.CheckUpdate(operationCtx, false)
 				if checkErr != nil {
 					releaseReason = "SYSTEM_UPDATE_FAILED"
 					return nil, checkErr
@@ -119,7 +124,10 @@ func (h *SystemHandler) Rollback(c *gin.Context) {
 	operationID := buildSystemOperationID(c, "rollback")
 	payload := gin.H{"operation_id": operationID, "target_version": req.TargetVersion}
 	executeAdminIdempotentJSON(c, "admin.system.rollback", payload, service.DefaultSystemOperationIdempotencyTTL(), func(ctx context.Context) (any, error) {
-		lock, release, err := h.acquireSystemLock(ctx, operationID)
+		operationCtx, cancel := context.WithTimeout(context.Background(), systemUpdateOperationTimeout)
+		defer cancel()
+
+		lock, release, err := h.acquireSystemLock(operationCtx, operationID)
 		if err != nil {
 			return nil, err
 		}
@@ -131,7 +139,7 @@ func (h *SystemHandler) Rollback(c *gin.Context) {
 
 		var rollbackErr error
 		if req.TargetVersion != "" {
-			rollbackErr = h.updateSvc.RollbackToVersion(ctx, req.TargetVersion)
+			rollbackErr = h.updateSvc.RollbackToVersion(operationCtx, req.TargetVersion)
 		} else {
 			rollbackErr = h.updateSvc.Rollback()
 		}

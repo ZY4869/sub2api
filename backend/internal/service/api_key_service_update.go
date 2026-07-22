@@ -27,13 +27,13 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		return nil, err
 	}
 
-	if len(req.IPWhitelist) > 0 {
+	if req.IPWhitelistSet && len(req.IPWhitelist) > 0 {
 		if invalid := ip.ValidateIPPatterns(req.IPWhitelist); len(invalid) > 0 {
 			return nil, fmt.Errorf("%w: %v", ErrInvalidIPPattern, invalid)
 		}
 	}
 
-	if len(req.IPBlacklist) > 0 {
+	if req.IPBlacklistSet && len(req.IPBlacklist) > 0 {
 		if invalid := ip.ValidateIPPatterns(req.IPBlacklist); len(invalid) > 0 {
 			return nil, fmt.Errorf("%w: %v", ErrInvalidIPPattern, invalid)
 		}

@@ -25,10 +25,13 @@ type ImageBatchService struct {
 	downloadMu     sync.Mutex
 	downloadSlots  map[string]chan struct{}
 	downloadLimits map[string]int
+	storageMu      sync.Mutex
+	storageStore   imageBatchObjectStore
+	storageCfg     *ImageBatchStorageSettings
 }
 
 func NewImageBatchService(repo ImageBatchRepository, gatewayService *GatewayService, apiKeyService *APIKeyService, settingService *SettingService, forwarder *GeminiNativeGatewayService, cfg *config.Config) *ImageBatchService {
-	return &ImageBatchService{
+	svc := &ImageBatchService{
 		repo:           repo,
 		gatewayService: gatewayService,
 		apiKeyService:  apiKeyService,
@@ -37,6 +40,10 @@ func NewImageBatchService(repo ImageBatchRepository, gatewayService *GatewayServ
 		cfg:            cfg,
 		stopCh:         make(chan struct{}),
 	}
+	if settingService != nil {
+		settingService.addOnUpdateCallback(svc.clearImageBatchObjectStoreCache)
+	}
+	return svc
 }
 
 func (s *ImageBatchService) Submit(ctx context.Context, apiKey *APIKey, req ImageBatchSubmitRequest, idempotencyKey string) (*ImageBatchJobResponse, error) {
@@ -170,6 +177,11 @@ func (s *ImageBatchService) Delete(ctx context.Context, userID int64, jobID stri
 }
 
 func (s *ImageBatchService) DeleteOutputs(ctx context.Context, userID int64, jobID string) error {
+	outputs, err := s.repo.ListOutputsForUserIncludingDeleted(ctx, userID, jobID)
+	if err != nil {
+		return err
+	}
+	s.deleteOutputObjectsBestEffort(ctx, outputs)
 	return s.repo.MarkOutputsDeleted(ctx, userID, jobID)
 }
 

@@ -323,6 +323,8 @@
 
         <ImageBatchSettingsCard />
 
+        <ImageBatchStorageSettingsCard />
+
         <BillingProbeSettingsCard />
 
         <GoogleBatchArchiveSettingsCard />
@@ -513,6 +515,7 @@ import BillingProbeSettingsCard from '@/components/settings/BillingProbeSettings
 import GoogleBatchArchiveSettingsCard from '@/components/settings/GoogleBatchArchiveSettingsCard.vue'
 import GoogleBatchGCSProfilesManager from '@/components/settings/GoogleBatchGCSProfilesManager.vue'
 import ImageBatchSettingsCard from '@/components/settings/ImageBatchSettingsCard.vue'
+import ImageBatchStorageSettingsCard from '@/components/settings/ImageBatchStorageSettingsCard.vue'
 import OpenAIFastPolicySettingsCard from '@/components/settings/OpenAIFastPolicySettingsCard.vue'
 const props = defineProps<{ ctx: any }>()
 const {

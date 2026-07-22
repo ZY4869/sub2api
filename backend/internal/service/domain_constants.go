@@ -257,7 +257,9 @@ const (
 	SettingKeyBlacklistRuleCandidates  = "blacklist_rule_candidates"
 
 	SettingKeyGoogleBatchGCSProfiles        = "google_batch_gcs_profiles"
+	SettingKeyClientIPSettings              = "client_ip_settings"
 	SettingKeyImageBatchEnabled             = "image_batch_enabled"
+	SettingKeyImageBatchStorageSettings     = "image_batch_storage_settings"
 	SettingKeyUpstreamBillingProbeSettings  = "upstream_billing_probe_settings"
 	SettingKeyAccountDaily5HTriggerSettings = "account_daily_5h_trigger_settings"
 

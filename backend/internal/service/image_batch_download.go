@@ -31,16 +31,21 @@ func (s *ImageBatchService) GetItemContent(ctx context.Context, userID int64, jo
 	if err != nil {
 		return nil, err
 	}
-	if output == nil || len(output.Content) == 0 {
+	if output == nil {
 		return nil, ErrImageBatchOutputNotFound
 	}
 	if limit := s.imageBatchDownloadLimitForJob(ctx, job); limit > 0 && output.SizeBytes > limit {
 		recordImageBatchDownloadFailure()
 		return nil, ErrImageBatchDownloadTooLarge
 	}
+	body, err := s.loadOutputContent(ctx, *output)
+	if err != nil {
+		recordImageBatchDownloadFailure()
+		return nil, err
+	}
 	return &ImageBatchContent{
 		ContentType: firstNonEmptyString(output.ContentType, "image/png"),
-		Body:        append([]byte(nil), output.Content...),
+		Body:        body,
 		FileName:    imageBatchOutputFileName(output.CustomID, output.ContentType),
 	}, nil
 }
@@ -72,8 +77,11 @@ func (s *ImageBatchService) DownloadZip(ctx context.Context, userID int64, jobID
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 	for _, output := range outputs {
-		if len(output.Content) == 0 {
-			continue
+		body, err := s.loadOutputContent(ctx, output)
+		if err != nil {
+			_ = zw.Close()
+			recordImageBatchDownloadFailure()
+			return nil, err
 		}
 		name := imageBatchOutputFileName(output.CustomID, output.ContentType)
 		writer, err := zw.Create(name)
@@ -81,7 +89,7 @@ func (s *ImageBatchService) DownloadZip(ctx context.Context, userID int64, jobID
 			_ = zw.Close()
 			return nil, err
 		}
-		if _, err := writer.Write(output.Content); err != nil {
+		if _, err := writer.Write(body); err != nil {
 			_ = zw.Close()
 			return nil, err
 		}

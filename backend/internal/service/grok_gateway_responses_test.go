@@ -109,6 +109,69 @@ func TestSanitizeGrokForwardResponsesDirectOpenAICompatiblePost(t *testing.T) {
 	}
 }
 
+func TestGrokResponsesToolPromptCacheScopesByIdentityAndPreservesExplicitKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"grok-4","input":"hello","tools":[{"type":"function","name":"lookup","parameters":{"type":"object"}}]}`)
+	account := newGrokAPIKeyResponsesTestAccount()
+	svc := &GrokGatewayService{
+		httpUpstream: &httpUpstreamRecorder{resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_1","usage":{"input_tokens":2,"output_tokens":3},"output":[{"content":[{"type":"output_text","text":"ok"}]}]}`)),
+		}},
+		cfg: &config.Config{},
+	}
+
+	_, c1 := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/responses", body)
+	ctx1 := svc.SetRuntimeIdentity(context.Background(), GrokRuntimeIdentity{UserID: 10, APIKeyID: 100})
+	_, err := svc.ForwardResponses(ctx1, c1, account, body, http.MethodPost, "")
+	require.NoError(t, err)
+	recorder1, ok := svc.httpUpstream.(*httpUpstreamRecorder)
+	require.True(t, ok)
+	key1 := gjson.GetBytes(recorder1.lastBody, "prompt_cache_key").String()
+	require.True(t, strings.HasPrefix(key1, grokToolPromptCacheKeyPrefix))
+
+	svc.httpUpstream = &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":"resp_2","usage":{"input_tokens":2,"output_tokens":3},"output":[{"content":[{"type":"output_text","text":"ok"}]}]}`)),
+	}}
+	_, c2 := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/responses", body)
+	_, err = svc.ForwardResponses(ctx1, c2, account, body, http.MethodPost, "")
+	require.NoError(t, err)
+	recorder2, ok := svc.httpUpstream.(*httpUpstreamRecorder)
+	require.True(t, ok)
+	key2 := gjson.GetBytes(recorder2.lastBody, "prompt_cache_key").String()
+	require.Equal(t, key1, key2)
+
+	svc.httpUpstream = &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":"resp_3","usage":{"input_tokens":2,"output_tokens":3},"output":[{"content":[{"type":"output_text","text":"ok"}]}]}`)),
+	}}
+	_, c3 := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/responses", body)
+	ctx2 := svc.SetRuntimeIdentity(context.Background(), GrokRuntimeIdentity{UserID: 10, APIKeyID: 101})
+	_, err = svc.ForwardResponses(ctx2, c3, account, body, http.MethodPost, "")
+	require.NoError(t, err)
+	recorder3, ok := svc.httpUpstream.(*httpUpstreamRecorder)
+	require.True(t, ok)
+	key3 := gjson.GetBytes(recorder3.lastBody, "prompt_cache_key").String()
+	require.NotEqual(t, key1, key3)
+
+	explicitBody := []byte(`{"model":"grok-4","input":"hello","prompt_cache_key":"client-pc","tools":[{"type":"function","name":"lookup","parameters":{"type":"object"}}]}`)
+	svc.httpUpstream = &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":"resp_4","usage":{"input_tokens":2,"output_tokens":3},"output":[{"content":[{"type":"output_text","text":"ok"}]}]}`)),
+	}}
+	_, c4 := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/responses", explicitBody)
+	_, err = svc.ForwardResponses(ctx1, c4, account, explicitBody, http.MethodPost, "")
+	require.NoError(t, err)
+	recorder4, ok := svc.httpUpstream.(*httpUpstreamRecorder)
+	require.True(t, ok)
+	require.Equal(t, "client-pc", gjson.GetBytes(recorder4.lastBody, "prompt_cache_key").String())
+}
+
 func TestGrokAPIKeyForwardUsesOfficialAPIStyleRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{"model":"grok-4","input":"hello"}`)

@@ -94,6 +94,19 @@ type AnthropicResponse struct {
 	Usage        AnthropicUsage          `json:"usage"`
 }
 
+// AnthropicStreamMessage mirrors the message_start payload while allowing
+// stop_reason to be present as JSON null.
+type AnthropicStreamMessage struct {
+	ID           string                  `json:"id"`
+	Type         string                  `json:"type"`
+	Role         string                  `json:"role"`
+	Content      []AnthropicContentBlock `json:"content"`
+	Model        string                  `json:"model"`
+	StopReason   *string                 `json:"stop_reason"`
+	StopSequence *string                 `json:"stop_sequence,omitempty"`
+	Usage        AnthropicUsage          `json:"usage"`
+}
+
 // AnthropicUsage holds token counts in Anthropic format.
 type AnthropicUsage struct {
 	InputTokens              int `json:"input_tokens"`
@@ -111,7 +124,7 @@ type AnthropicStreamEvent struct {
 	Type string `json:"type"`
 
 	// message_start
-	Message *AnthropicResponse `json:"message,omitempty"`
+	Message *AnthropicStreamMessage `json:"message,omitempty"`
 
 	// content_block_start
 	Index        *int                   `json:"index,omitempty"`

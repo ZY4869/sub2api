@@ -9,6 +9,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 // handleConcurrencyError handles concurrency-related errors with proper 429 response.
@@ -45,6 +46,17 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 		}
 	}
 
+	if upstream := openAIUpstreamErrorFromBody(responseBody); upstream.Code == "insufficient_quota" {
+		status := http.StatusTooManyRequests
+		if statusCode >= 400 && statusCode < 600 {
+			status = statusCode
+		}
+		errType := firstNonEmptyOpenAIErrorField(upstream.Type, "insufficient_quota")
+		message := firstNonEmptyOpenAIErrorField(upstream.Message, "You exceeded your current quota, please check your plan and billing details.")
+		h.handleStreamingAwareErrorWithCode(c, status, errType, "insufficient_quota", message, streamStarted)
+		return
+	}
+
 	// 使用默认的错误映射
 	status, errType, errMsg := h.mapUpstreamError(statusCode)
 	h.handleStreamingAwareError(c, status, errType, errMsg, streamStarted)
@@ -75,7 +87,11 @@ func (h *OpenAIGatewayHandler) mapUpstreamError(statusCode int) (int, string, st
 
 // handleStreamingAwareError handles errors that may occur after streaming has started.
 func (h *OpenAIGatewayHandler) handleStreamingAwareError(c *gin.Context, status int, errType, message string, streamStarted bool) {
-	if canAppendResponsesFailedEvent(c, streamStarted) && writeResponsesFailedEvent(c, errType, message) {
+	h.handleStreamingAwareErrorWithCode(c, status, errType, "", message, streamStarted)
+}
+
+func (h *OpenAIGatewayHandler) handleStreamingAwareErrorWithCode(c *gin.Context, status int, errType, code, message string, streamStarted bool) {
+	if canAppendResponsesFailedEvent(c, streamStarted) && writeResponsesFailedEventWithCode(c, errType, firstNonEmptyOpenAIErrorField(code, errType), message) {
 		return
 	}
 	if openAIStreamingErrorResponseStarted(c, streamStarted) {
@@ -83,7 +99,12 @@ func (h *OpenAIGatewayHandler) handleStreamingAwareError(c *gin.Context, status 
 		flusher, ok := c.Writer.(http.Flusher)
 		if ok {
 			// SSE 错误事件固定 schema，使用 Quote 直拼可避免额外 Marshal 分配。
-			errorEvent := "event: error\ndata: " + `{"error":{"type":` + strconv.Quote(errType) + `,"message":` + strconv.Quote(message) + `}}` + "\n\n"
+			errorPayload := `{"error":{"type":` + strconv.Quote(errType) + `,"message":` + strconv.Quote(message)
+			if code = strings.TrimSpace(code); code != "" {
+				errorPayload += `,"code":` + strconv.Quote(code)
+			}
+			errorPayload += `}}`
+			errorEvent := "event: error\ndata: " + errorPayload + "\n\n"
 			if _, err := fmt.Fprint(c.Writer, errorEvent); err != nil {
 				_ = c.Error(err)
 			}
@@ -93,7 +114,43 @@ func (h *OpenAIGatewayHandler) handleStreamingAwareError(c *gin.Context, status 
 	}
 
 	// Normal case: return JSON response with proper status code
-	h.errorResponse(c, status, errType, message)
+	h.errorResponseWithCode(c, status, errType, code, message)
+}
+
+type openAIUpstreamErrorSummary struct {
+	Code    string
+	Type    string
+	Message string
+}
+
+func openAIUpstreamErrorFromBody(body []byte) openAIUpstreamErrorSummary {
+	if len(body) == 0 {
+		return openAIUpstreamErrorSummary{}
+	}
+	code := strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "error.code").String()))
+	errType := strings.TrimSpace(gjson.GetBytes(body, "error.type").String())
+	message := strings.TrimSpace(gjson.GetBytes(body, "error.message").String())
+	if code == "" && strings.HasPrefix(message, "{") {
+		if innerCode := strings.ToLower(strings.TrimSpace(gjson.Get(message, "error.code").String())); innerCode != "" {
+			code = innerCode
+		}
+		if innerType := strings.TrimSpace(gjson.Get(message, "error.type").String()); innerType != "" {
+			errType = innerType
+		}
+		if innerMessage := strings.TrimSpace(gjson.Get(message, "error.message").String()); innerMessage != "" {
+			message = innerMessage
+		}
+	}
+	return openAIUpstreamErrorSummary{Code: code, Type: errType, Message: message}
+}
+
+func firstNonEmptyOpenAIErrorField(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 // ensureForwardErrorResponse 在 Forward 返回错误但尚未写响应时补写统一错误响应。

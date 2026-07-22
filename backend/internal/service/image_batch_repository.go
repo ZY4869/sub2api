@@ -18,6 +18,8 @@ type ImageBatchRepository interface {
 	ListOutputsForUser(ctx context.Context, userID int64, jobID string) ([]ImageBatchOutput, error)
 	SoftDeleteJob(ctx context.Context, userID int64, jobID string) error
 	MarkOutputsDeleted(ctx context.Context, userID int64, jobID string) error
+	ListOutputsForUserIncludingDeleted(ctx context.Context, userID int64, jobID string) ([]ImageBatchOutput, error)
+	ListExpiredOutputs(ctx context.Context, before time.Time, limit int) ([]ImageBatchOutput, error)
 	CleanupExpiredOutputs(ctx context.Context, before time.Time, limit int) (int64, error)
 	TryCancelJob(ctx context.Context, userID int64, jobID string, reason string) (*ImageBatchJob, error)
 

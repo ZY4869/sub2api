@@ -752,6 +752,28 @@ export interface ImageBatchSettings {
   enabled: boolean
 }
 
+export type ClientIPMode = 'gin' | 'headers'
+
+export interface ClientIPSettings {
+  mode: ClientIPMode | string
+  headers: string[]
+  xff_hop_index: number
+}
+
+export type ImageBatchStorageBackend = 'local' | 's3' | 'r2'
+
+export interface ImageBatchStorageSettings {
+  backend: ImageBatchStorageBackend | string
+  endpoint: string
+  bucket: string
+  prefix: string
+  region: string
+  force_path_style: boolean
+  access_key_id: string
+  secret_access_key?: string
+  secret_access_key_configured: boolean
+}
+
 export interface UpstreamBillingProbeSettings {
   enabled: boolean
   batch_concurrency: number
@@ -842,6 +864,45 @@ export async function updateImageBatchSettings(
   return data
 }
 
+export async function getClientIPSettings(): Promise<ClientIPSettings> {
+  const { data } = await apiClient.get<ClientIPSettings>('/admin/settings/client-ip')
+  return data
+}
+
+export async function updateClientIPSettings(
+  request: ClientIPSettings,
+): Promise<ClientIPSettings> {
+  const { data } = await apiClient.put<ClientIPSettings>('/admin/settings/client-ip', request)
+  return data
+}
+
+export async function getImageBatchStorageSettings(): Promise<ImageBatchStorageSettings> {
+  const { data } = await apiClient.get<ImageBatchStorageSettings>(
+    '/admin/settings/image-batches/storage',
+  )
+  return data
+}
+
+export async function updateImageBatchStorageSettings(
+  request: ImageBatchStorageSettings,
+): Promise<ImageBatchStorageSettings> {
+  const { data } = await apiClient.put<ImageBatchStorageSettings>(
+    '/admin/settings/image-batches/storage',
+    request,
+  )
+  return data
+}
+
+export async function testImageBatchStorageSettings(
+  request: ImageBatchStorageSettings,
+): Promise<{ ok: boolean }> {
+  const { data } = await apiClient.post<{ ok: boolean }>(
+    '/admin/settings/image-batches/storage/test',
+    request,
+  )
+  return data
+}
+
 export async function getUpstreamBillingProbeSettings(): Promise<UpstreamBillingProbeSettings> {
   const { data } = await apiClient.get<UpstreamBillingProbeSettings>(
     '/admin/settings/upstream-billing-probe',
@@ -914,6 +975,11 @@ export const settingsAPI = {
   updateGoogleBatchArchiveSettings,
   getImageBatchSettings,
   updateImageBatchSettings,
+  getClientIPSettings,
+  updateClientIPSettings,
+  getImageBatchStorageSettings,
+  updateImageBatchStorageSettings,
+  testImageBatchStorageSettings,
   getUpstreamBillingProbeSettings,
   updateUpstreamBillingProbeSettings,
   listGoogleBatchGCSProfiles,

@@ -24,8 +24,12 @@ func (s *APIKeyService) applyAPIKeyUpdateFields(ctx context.Context, apiKey *API
 	applyAPIKeyUpdateImageFields(apiKey, req)
 	applyAPIKeyUpdateRateLimitFields(apiKey, req)
 
-	apiKey.IPWhitelist = req.IPWhitelist
-	apiKey.IPBlacklist = req.IPBlacklist
+	if req.IPWhitelistSet {
+		apiKey.IPWhitelist = req.IPWhitelist
+	}
+	if req.IPBlacklistSet {
+		apiKey.IPBlacklist = req.IPBlacklist
+	}
 	resetRateLimit := req.ResetRateLimitUsage != nil && *req.ResetRateLimitUsage
 	if resetRateLimit {
 		apiKey.Usage5h = 0

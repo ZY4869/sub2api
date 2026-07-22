@@ -70,7 +70,11 @@ func (s *adminSettingRepoStub) Delete(ctx context.Context, key string) error {
 }
 
 func newAdminSettingTestHandler(repo *adminSettingRepoStub) *SettingHandler {
-	settingSvc := service.NewSettingService(repo, &config.Config{})
+	settingSvc := service.NewSettingService(repo, &config.Config{
+		Totp: config.TotpConfig{
+			EncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		},
+	})
 	return NewSettingHandler(settingSvc, nil, nil, nil, nil)
 }
 

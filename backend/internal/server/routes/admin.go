@@ -68,7 +68,7 @@ func RegisterAdminRoutes(
 		registerPromoCodeRoutes(admin, h)
 
 		// 系统设置
-		registerSettingsRoutes(admin, h)
+		registerSettingsRoutes(admin, h, adminSecurity)
 
 		// 数据管理
 		registerDataManagementRoutes(admin, h)
@@ -718,8 +718,8 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
-func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	adminSettings := admin.Group("/settings")
+func registerSettingsRoutes(adminGroup *gin.RouterGroup, h *handler.Handlers, security *admin.AdminSecurityHelper) {
+	adminSettings := adminGroup.Group("/settings")
 	{
 		adminSettings.GET("", h.Admin.Setting.GetSettings)
 		adminSettings.PUT("", h.Admin.Setting.UpdateSettings)
@@ -747,6 +747,11 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.PUT("/google-batch-archive", h.Admin.Setting.UpdateGoogleBatchArchiveSettings)
 		adminSettings.GET("/image-batches", h.Admin.Setting.GetImageBatchSettings)
 		adminSettings.PUT("/image-batches", h.Admin.Setting.UpdateImageBatchSettings)
+		adminSettings.GET("/image-batches/storage", h.Admin.Setting.GetImageBatchStorageSettings)
+		adminSettings.PUT("/image-batches/storage", auditAdminSettingUpdate(security, "admin.settings.image_batch_storage.update", "image_batch_storage_settings", h.Admin.Setting.UpdateImageBatchStorageSettings))
+		adminSettings.POST("/image-batches/storage/test", h.Admin.Setting.TestImageBatchStorageSettings)
+		adminSettings.GET("/client-ip", h.Admin.Setting.GetClientIPSettings)
+		adminSettings.PUT("/client-ip", auditAdminSettingUpdate(security, "admin.settings.client_ip.update", "client_ip_settings", h.Admin.Setting.UpdateClientIPSettings))
 		adminSettings.GET("/upstream-billing-probe", h.Admin.Setting.GetUpstreamBillingProbeSettings)
 		adminSettings.PUT("/upstream-billing-probe", h.Admin.Setting.UpdateUpstreamBillingProbeSettings)
 		adminSettings.GET("/google-batch-gcs/profiles", h.Admin.Setting.ListGoogleBatchGCSProfiles)
@@ -755,6 +760,20 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.DELETE("/google-batch-gcs/profiles/:profile_id", h.Admin.Setting.DeleteGoogleBatchGCSProfile)
 		adminSettings.POST("/google-batch-gcs/profiles/:profile_id/activate", h.Admin.Setting.SetActiveGoogleBatchGCSProfile)
 		adminSettings.POST("/google-batch-gcs/test", h.Admin.Setting.TestGoogleBatchGCSConnection)
+	}
+}
+
+func auditAdminSettingUpdate(security *admin.AdminSecurityHelper, action string, targetType string, next gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		next(c)
+		if security == nil {
+			return
+		}
+		status := service.AuditStatusSuccess
+		if c.Writer.Status() >= 400 {
+			status = service.AuditStatusFailure
+		}
+		security.RecordAudit(c, action, targetType, "", status, nil)
 	}
 }
 

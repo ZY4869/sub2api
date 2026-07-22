@@ -116,7 +116,11 @@ func (s *ImageBatchService) indexResultPayload(ctx context.Context, job *ImageBa
 		for _, output := range outputs {
 			output.JobID = job.ID
 			output.CustomID = customID
-			if err := s.repo.UpsertOutput(ctx, &output); err != nil {
+			stored, err := s.prepareOutputForStorage(ctx, output)
+			if err != nil {
+				return err
+			}
+			if err := s.repo.UpsertOutput(ctx, &stored); err != nil {
 				return err
 			}
 		}

@@ -30,6 +30,7 @@ var (
 	ErrBackupS3ConfigCorrupt      = infraerrors.InternalServer("BACKUP_S3_CONFIG_CORRUPT", "backup S3 config data is corrupted")
 	ErrBackupS3TestRequiresSecret = infraerrors.BadRequest("BACKUP_S3_TEST_SECRET_REQUIRED", "secret_access_key is required when testing S3 connectivity")
 	ErrBackupS3EndpointInvalid    = infraerrors.BadRequest("BACKUP_S3_ENDPOINT_INVALID", "S3 endpoint is not allowed")
+	ErrBackupS3SecretInvalid      = infraerrors.BadRequest("BACKUP_S3_SECRET_INVALID", "backup S3 secret cannot be decrypted safely")
 )
 
 // ─── 接口定义 ───

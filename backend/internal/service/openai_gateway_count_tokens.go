@@ -16,7 +16,9 @@ import (
 const openAIResponsesInputTokensPath = "/input_tokens"
 
 type AnthropicCountTokensBridgeResult struct {
-	InputTokens int `json:"input_tokens"`
+	InputTokens int    `json:"input_tokens"`
+	Estimated   bool   `json:"estimated,omitempty"`
+	Source      string `json:"source,omitempty"`
 }
 
 func (s *OpenAIGatewayService) ForwardAnthropicCountTokensCompat(

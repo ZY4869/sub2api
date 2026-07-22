@@ -84,7 +84,8 @@ type GeminiTierQuotaConfig struct {
 	CooldownMinutes *int   `mapstructure:"cooldown_minutes" json:"cooldown_minutes"`
 }
 type UpdateConfig struct {
-	ProxyURL string `mapstructure:"proxy_url"`
+	ProxyURL    string `mapstructure:"proxy_url"`
+	GitHubToken string `mapstructure:"github_token"`
 }
 type GrokConfig struct {
 	OAuth GrokOAuthConfig `mapstructure:"oauth"`
@@ -149,16 +150,23 @@ type PublicModelCatalogConfig struct {
 	DemoMode bool `mapstructure:"demo_mode"`
 }
 type ServerConfig struct {
-	Host               string    `mapstructure:"host"`
-	Port               int       `mapstructure:"port"`
-	Mode               string    `mapstructure:"mode"`
-	FrontendURL        string    `mapstructure:"frontend_url"`
-	ReadHeaderTimeout  int       `mapstructure:"read_header_timeout"`
-	IdleTimeout        int       `mapstructure:"idle_timeout"`
-	TrustedProxies     []string  `mapstructure:"trusted_proxies"`
-	MaxRequestBodySize int64     `mapstructure:"max_request_body_size"`
-	EnableServerTiming bool      `mapstructure:"enable_server_timing"`
-	H2C                H2CConfig `mapstructure:"h2c"`
+	Host               string         `mapstructure:"host"`
+	Port               int            `mapstructure:"port"`
+	Mode               string         `mapstructure:"mode"`
+	FrontendURL        string         `mapstructure:"frontend_url"`
+	ReadHeaderTimeout  int            `mapstructure:"read_header_timeout"`
+	IdleTimeout        int            `mapstructure:"idle_timeout"`
+	TrustedProxies     []string       `mapstructure:"trusted_proxies"`
+	MaxRequestBodySize int64          `mapstructure:"max_request_body_size"`
+	EnableServerTiming bool           `mapstructure:"enable_server_timing"`
+	ClientIP           ClientIPConfig `mapstructure:"client_ip"`
+	H2C                H2CConfig      `mapstructure:"h2c"`
+}
+
+type ClientIPConfig struct {
+	Mode        string   `mapstructure:"mode"`
+	Headers     []string `mapstructure:"headers"`
+	XFFHopIndex int      `mapstructure:"xff_hop_index"`
 }
 type H2CConfig struct {
 	Enabled                      bool   `mapstructure:"enabled"`
@@ -218,19 +226,31 @@ type BillingConfig struct {
 	RequestHoldSettlementMaxSeconds int                  `mapstructure:"request_hold_settlement_max_seconds"`
 }
 type ImageBatchConfig struct {
-	WorkerIntervalSeconds    int    `mapstructure:"worker_interval_seconds"`
-	WorkerClaimLimit         int    `mapstructure:"worker_claim_limit"`
-	SubmitTimeoutSeconds     int    `mapstructure:"submit_timeout_seconds"`
-	PollTimeoutSeconds       int    `mapstructure:"poll_timeout_seconds"`
-	DownloadTimeoutSeconds   int    `mapstructure:"download_timeout_seconds"`
-	SettlementRetryLimit     int    `mapstructure:"settlement_retry_limit"`
-	OutputCleanupAfterHours  int    `mapstructure:"output_cleanup_after_hours"`
-	DownloadMaxBytes         int64  `mapstructure:"download_max_bytes"`
-	DownloadConcurrency      int    `mapstructure:"download_concurrency"`
-	VertexProjectID          string `mapstructure:"vertex_project_id"`
-	VertexLocation           string `mapstructure:"vertex_location"`
-	VertexGCSInputURI        string `mapstructure:"vertex_gcs_input_uri"`
-	VertexGCSOutputURIPrefix string `mapstructure:"vertex_gcs_output_uri_prefix"`
+	WorkerIntervalSeconds    int                     `mapstructure:"worker_interval_seconds"`
+	WorkerClaimLimit         int                     `mapstructure:"worker_claim_limit"`
+	SubmitTimeoutSeconds     int                     `mapstructure:"submit_timeout_seconds"`
+	PollTimeoutSeconds       int                     `mapstructure:"poll_timeout_seconds"`
+	DownloadTimeoutSeconds   int                     `mapstructure:"download_timeout_seconds"`
+	SettlementRetryLimit     int                     `mapstructure:"settlement_retry_limit"`
+	OutputCleanupAfterHours  int                     `mapstructure:"output_cleanup_after_hours"`
+	DownloadMaxBytes         int64                   `mapstructure:"download_max_bytes"`
+	DownloadConcurrency      int                     `mapstructure:"download_concurrency"`
+	VertexProjectID          string                  `mapstructure:"vertex_project_id"`
+	VertexLocation           string                  `mapstructure:"vertex_location"`
+	VertexGCSInputURI        string                  `mapstructure:"vertex_gcs_input_uri"`
+	VertexGCSOutputURIPrefix string                  `mapstructure:"vertex_gcs_output_uri_prefix"`
+	Storage                  ImageBatchStorageConfig `mapstructure:"storage"`
+}
+
+type ImageBatchStorageConfig struct {
+	Backend         string `mapstructure:"backend"`
+	Endpoint        string `mapstructure:"endpoint"`
+	Bucket          string `mapstructure:"bucket"`
+	Prefix          string `mapstructure:"prefix"`
+	Region          string `mapstructure:"region"`
+	ForcePathStyle  bool   `mapstructure:"force_path_style"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key"`
 }
 type CircuitBreakerConfig struct {
 	Enabled             bool `mapstructure:"enabled"`

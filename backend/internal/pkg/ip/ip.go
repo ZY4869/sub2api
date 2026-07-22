@@ -3,10 +3,43 @@ package ip
 
 import (
 	"net"
+	"net/http"
 	"strings"
+	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
 )
+
+const (
+	ClientIPModeGin     = "gin"
+	ClientIPModeHeaders = "headers"
+)
+
+type ClientIPSettings struct {
+	Mode           string
+	Headers        []string
+	XFFHopIndex    int
+	TrustedProxies []string
+}
+
+var clientIPSettings atomic.Value
+
+func init() {
+	clientIPSettings.Store(ClientIPSettings{Mode: ClientIPModeGin})
+}
+
+func ConfigureClientIP(settings ClientIPSettings) {
+	settings.Mode = strings.ToLower(strings.TrimSpace(settings.Mode))
+	if settings.Mode != ClientIPModeHeaders {
+		settings.Mode = ClientIPModeGin
+	}
+	if settings.XFFHopIndex < 0 {
+		settings.XFFHopIndex = 0
+	}
+	settings.Headers = normalizeHeaderList(settings.Headers)
+	settings.TrustedProxies = normalizeHeaderList(settings.TrustedProxies)
+	clientIPSettings.Store(settings)
+}
 
 // GetClientIP 从 Gin Context 中提取客户端真实 IP 地址。
 // Deprecated: 该方法会优先信任原始转发头，只能用于纯诊断场景，
@@ -53,7 +86,62 @@ func GetTrustedClientIP(c *gin.Context) string {
 	if c == nil {
 		return ""
 	}
+	settings, _ := clientIPSettings.Load().(ClientIPSettings)
+	if settings.Mode == ClientIPModeHeaders && requestFromTrustedProxy(c.Request, settings.TrustedProxies) {
+		if ip := clientIPFromConfiguredHeaders(c.Request.Header, settings); ip != "" {
+			return normalizeIP(ip)
+		}
+	}
 	return normalizeIP(c.ClientIP())
+}
+
+func clientIPFromConfiguredHeaders(header http.Header, settings ClientIPSettings) string {
+	for _, name := range settings.Headers {
+		if strings.EqualFold(strings.TrimSpace(name), "X-Forwarded-For") {
+			if ip := clientIPFromXForwardedFor(header.Get(name), settings.XFFHopIndex); ip != "" {
+				return ip
+			}
+			continue
+		}
+		if ip := normalizeIP(header.Get(name)); ip != "" {
+			return ip
+		}
+	}
+	return ""
+}
+
+func clientIPFromXForwardedFor(raw string, hopIndex int) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	parts := strings.Split(raw, ",")
+	candidates := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if ip := normalizeIP(part); ip != "" {
+			candidates = append(candidates, ip)
+		}
+	}
+	if len(candidates) == 0 {
+		return ""
+	}
+	if hopIndex < 0 {
+		hopIndex = 0
+	}
+	if hopIndex >= len(candidates) {
+		return ""
+	}
+	return candidates[hopIndex]
+}
+
+func requestFromTrustedProxy(req *http.Request, trustedProxies []string) bool {
+	if req == nil {
+		return false
+	}
+	remote := normalizeIP(req.RemoteAddr)
+	if remote == "" {
+		return false
+	}
+	return MatchesAnyPattern(remote, trustedProxies)
 }
 
 // normalizeIP 规范化 IP 地址，去除端口号和空格。
@@ -250,4 +338,25 @@ func ValidateIPPatterns(patterns []string) []string {
 		}
 	}
 	return invalid
+}
+
+func normalizeHeaderList(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		header := strings.TrimSpace(value)
+		if header == "" {
+			continue
+		}
+		key := strings.ToLower(header)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, header)
+	}
+	return out
 }

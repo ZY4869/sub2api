@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 )
@@ -456,9 +458,9 @@ func extractSystemMessagesFromInput(reqBody map[string]any) bool {
 		return false
 	}
 
-	extracted := strings.Join(systemTexts, "\n\n")
+	extracted := strings.Join(dedupeCodexSystemTexts(systemTexts), "\n\n")
 	if existing, ok := reqBody["instructions"].(string); ok && strings.TrimSpace(existing) != "" {
-		reqBody["instructions"] = extracted + "\n\n" + existing
+		reqBody["instructions"] = strings.Join(dedupeCodexSystemTexts([]string{extracted, existing}), "\n\n")
 	} else {
 		reqBody["instructions"] = extracted
 	}
@@ -512,15 +514,7 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 
 		// 仅修正真正的 tool/function call 标识，避免误改普通 message/reasoning id；
 		// 若 item_reference 指向 legacy call_* 标识，则仅修正该引用本身。
-		fixCallIDPrefix := func(id string) string {
-			if id == "" || strings.HasPrefix(id, "fc") {
-				return id
-			}
-			if strings.HasPrefix(id, "call_") {
-				return "fc" + strings.TrimPrefix(id, "call_")
-			}
-			return "fc_" + id
-		}
+		fixCallIDPrefix := normalizeCodexCallID
 
 		if typ == "item_reference" {
 			if !preserveReferences {
@@ -581,6 +575,47 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 		filtered = append(filtered, newItem)
 	}
 	return filtered
+}
+
+func dedupeCodexSystemTexts(texts []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(texts))
+	for _, text := range texts {
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+		key := strings.Join(strings.Fields(text), " ")
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, text)
+	}
+	return out
+}
+
+func normalizeCodexCallID(id string) string {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return id
+	}
+	if strings.HasPrefix(id, "call_") {
+		id = "fc" + strings.TrimPrefix(id, "call_")
+	} else if !strings.HasPrefix(id, "fc") {
+		id = "fc_" + id
+	}
+	const maxLen = 96
+	if len(id) <= maxLen {
+		return id
+	}
+	sum := sha256.Sum256([]byte(id))
+	suffix := hex.EncodeToString(sum[:])[:12]
+	prefixLen := maxLen - len("-") - len(suffix)
+	if prefixLen < 1 {
+		return suffix
+	}
+	return strings.TrimRight(id[:prefixLen], "_-") + "-" + suffix
 }
 
 func isCodexToolCallItemType(typ string) bool {

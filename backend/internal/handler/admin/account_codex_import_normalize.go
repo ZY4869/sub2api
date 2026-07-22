@@ -27,6 +27,9 @@ type codexImportAccount struct {
 	UserID          string
 	PlanType        string
 	Organization    string
+	OrganizationKey string
+	TeamID          string
+	Team            string
 	Credentials     map[string]any
 	Extra           map[string]any
 	TokenExpiresAt  *time.Time
@@ -68,7 +71,7 @@ func normalizeCodexImportEntry(entry codexImportEntry) (*codexImportAccount, err
 			return nil, err
 		}
 		agentRuntimeID := codexStringValue(item.Credentials["agent_runtime_id"])
-		item.IdentityKeys = buildCodexImportIdentityKeys(item.AccountID, item.UserID, item.Email, agentRuntimeID, "")
+		item.IdentityKeys = buildCodexImportAgentIdentityKeysWithScope(item.AccountID, item.UserID, item.Email, agentRuntimeID, item.identityOrganizationScope(), item.TeamID, item.Team)
 		item.Name = buildCodexImportAccountName(item, entry.Index)
 		return item, nil
 	}
@@ -99,9 +102,12 @@ func normalizeCodexImportEntry(entry codexImportEntry) (*codexImportAccount, err
 	setCodexCredentialIfNotEmpty(item.Credentials, "chatgpt_account_id", item.AccountID)
 	setCodexCredentialIfNotEmpty(item.Credentials, "chatgpt_user_id", item.UserID)
 	setCodexCredentialIfNotEmpty(item.Credentials, "organization_id", item.Organization)
+	setCodexCredentialIfNotEmpty(item.Credentials, "organization", item.OrganizationKey)
+	setCodexCredentialIfNotEmpty(item.Credentials, "team_id", item.TeamID)
+	setCodexCredentialIfNotEmpty(item.Credentials, "team", item.Team)
 	setCodexCredentialIfNotEmpty(item.Credentials, "plan_type", item.PlanType)
 	item.Extra["access_token_sha256"] = codexTokenFingerprint(item.AccessToken)
-	item.IdentityKeys = buildCodexImportIdentityKeys(item.AccountID, item.UserID, item.Email, item.AccessToken, item.RefreshToken)
+	item.IdentityKeys = buildCodexImportIdentityKeysWithScope(item.AccountID, item.UserID, item.Email, item.AccessToken, item.RefreshToken, item.identityOrganizationScope(), item.TeamID, item.Team)
 	item.Name = buildCodexImportAccountName(item, entry.Index)
 	return item, nil
 }
@@ -139,6 +145,9 @@ func extractCodexImportMapFields(item *codexImportAccount, raw map[string]any) {
 	item.UserID = firstCodexString(raw, []string{"chatgpt_user_id"}, []string{"chatgptUserId"}, []string{"user_id"}, []string{"userId"}, []string{"user", "id"})
 	item.PlanType = firstCodexString(raw, []string{"plan_type"}, []string{"planType"}, []string{"account", "plan_type"}, []string{"account", "planType"})
 	item.Organization = firstCodexString(raw, []string{"organization_id"}, []string{"organizationId"}, []string{"org_id"}, []string{"orgId"})
+	item.OrganizationKey = firstCodexString(raw, []string{"organization"}, []string{"organization_name"}, []string{"organizationName"}, []string{"account", "organization"}, []string{"account", "organizationName"})
+	item.TeamID = firstCodexString(raw, []string{"team_id"}, []string{"teamId"}, []string{"account", "team_id"}, []string{"account", "teamId"})
+	item.Team = firstCodexString(raw, []string{"team"}, []string{"team_name"}, []string{"teamName"}, []string{"account", "team"}, []string{"account", "teamName"})
 	item.Name = firstCodexString(raw, []string{"name"}, []string{"user", "name"})
 	if authProvider := firstCodexString(raw, []string{"auth_provider"}, []string{"authProvider"}); authProvider != "" {
 		item.Extra["auth_provider"] = authProvider
@@ -174,11 +183,17 @@ func extractCodexAgentIdentityFields(item *codexImportAccount, raw map[string]an
 	item.UserID = firstCodexString(raw, []string{"chatgpt_user_id"}, []string{"chatgptUserId"}, []string{"user_id"}, []string{"userId"}, []string{"agent_identity", "chatgpt_user_id"}, []string{"agent_identity", "user_id"})
 	item.PlanType = firstCodexString(raw, []string{"plan_type"}, []string{"planType"}, []string{"agent_identity", "plan_type"}, []string{"agent_identity", "planType"})
 	item.Organization = firstCodexString(raw, []string{"organization_id"}, []string{"organizationId"}, []string{"agent_identity", "organization_id"}, []string{"agent_identity", "organizationId"})
+	item.OrganizationKey = firstCodexString(raw, []string{"organization"}, []string{"organization_name"}, []string{"organizationName"}, []string{"agent_identity", "organization"}, []string{"agent_identity", "organizationName"})
+	item.TeamID = firstCodexString(raw, []string{"team_id"}, []string{"teamId"}, []string{"agent_identity", "team_id"}, []string{"agent_identity", "teamId"})
+	item.Team = firstCodexString(raw, []string{"team"}, []string{"team_name"}, []string{"teamName"}, []string{"agent_identity", "team"}, []string{"agent_identity", "teamName"})
 	item.Name = firstCodexString(raw, []string{"name"}, []string{"user", "name"}, []string{"agent_identity", "name"})
 	setCodexCredentialIfNotEmpty(item.Credentials, "email", item.Email)
 	setCodexCredentialIfNotEmpty(item.Credentials, "chatgpt_account_id", item.AccountID)
 	setCodexCredentialIfNotEmpty(item.Credentials, "chatgpt_user_id", item.UserID)
 	setCodexCredentialIfNotEmpty(item.Credentials, "organization_id", item.Organization)
+	setCodexCredentialIfNotEmpty(item.Credentials, "organization", item.OrganizationKey)
+	setCodexCredentialIfNotEmpty(item.Credentials, "team_id", item.TeamID)
+	setCodexCredentialIfNotEmpty(item.Credentials, "team", item.Team)
 	setCodexCredentialIfNotEmpty(item.Credentials, "plan_type", item.PlanType)
 	if fedramp, ok := firstCodexBool(raw, []string{"chatgpt_account_is_fedramp"}, []string{"agent_identity", "chatgpt_account_is_fedramp"}); ok {
 		item.Credentials["chatgpt_account_is_fedramp"] = fedramp
@@ -199,6 +214,16 @@ func validateCodexImportAgentIdentity(item *codexImportAccount) error {
 		return fmt.Errorf("agent_private_key 无效: %w", err)
 	}
 	return nil
+}
+
+func (item *codexImportAccount) identityOrganizationScope() string {
+	if item == nil {
+		return ""
+	}
+	if strings.TrimSpace(item.OrganizationKey) != "" {
+		return item.OrganizationKey
+	}
+	return item.Organization
 }
 
 func enrichCodexImportAccountFromJWT(item *codexImportAccount, token string, validateExpiry bool, now time.Time) error {

@@ -19,13 +19,15 @@ type systemUpdateServiceStub struct {
 	rollbackCalls        int
 	rollbackToVersion    string
 	rollbackToVersionHit bool
+	performCtxErr        error
 }
 
 func (s *systemUpdateServiceStub) CheckUpdate(context.Context, bool) (*service.UpdateInfo, error) {
 	return &service.UpdateInfo{CurrentVersion: "0.1.380", LatestVersion: "0.1.380", BuildType: "release"}, nil
 }
 
-func (s *systemUpdateServiceStub) PerformUpdate(context.Context) error {
+func (s *systemUpdateServiceStub) PerformUpdate(ctx context.Context) error {
+	s.performCtxErr = ctx.Err()
 	return nil
 }
 
@@ -81,6 +83,27 @@ func TestSystemHandlerRollbackKeepsLegacyBackupBehavior(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, 1, updateSvc.rollbackCalls)
 	require.False(t, updateSvc.rollbackToVersionHit)
+}
+
+func TestSystemHandlerPerformUpdateUsesBackgroundOperationContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service.SetDefaultIdempotencyCoordinator(nil)
+
+	updateSvc := &systemUpdateServiceStub{}
+	lockSvc := service.NewSystemOperationLockService(newSystemHandlerIdempotencyRepo(), service.DefaultIdempotencyConfig())
+	handler := NewSystemHandler(updateSvc, lockSvc)
+	router := gin.New()
+	router.POST("/admin/system/update", handler.PerformUpdate)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/admin/system/update", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NoError(t, updateSvc.performCtxErr)
 }
 
 type systemHandlerIdempotencyRepo struct {

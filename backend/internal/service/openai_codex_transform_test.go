@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -711,6 +712,20 @@ func TestExtractSystemMessagesFromInput(t *testing.T) {
 		require.True(t, result)
 		require.Equal(t, "Extracted.\n\nExisting instructions.", reqBody["instructions"])
 	})
+
+	t.Run("deduplicates repeated system and existing instructions", func(t *testing.T) {
+		reqBody := map[string]any{
+			"input": []any{
+				map[string]any{"role": "system", "content": "Be helpful."},
+				map[string]any{"role": "system", "content": "  Be   helpful.  "},
+				map[string]any{"role": "user", "content": "hi"},
+			},
+			"instructions": "Be helpful.",
+		}
+		result := extractSystemMessagesFromInput(reqBody)
+		require.True(t, result)
+		require.Equal(t, "Be helpful.", reqBody["instructions"])
+	})
 }
 
 // TestApplyCodexOAuthTransform_StripsPromptCacheRetention is a regression
@@ -778,4 +793,15 @@ func TestIsInstructionsEmpty(t *testing.T) {
 			require.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestNormalizeCodexCallIDIsStableAndBounded(t *testing.T) {
+	long := "call_" + strings.Repeat("abc123", 30)
+	first := normalizeCodexCallID(long)
+	second := normalizeCodexCallID(long)
+
+	require.Equal(t, first, second)
+	require.LessOrEqual(t, len(first), 96)
+	require.True(t, strings.HasPrefix(first, "fc"))
+	require.Contains(t, first, "-")
 }

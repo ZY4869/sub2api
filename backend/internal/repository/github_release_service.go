@@ -18,6 +18,7 @@ import (
 type githubReleaseClient struct {
 	httpClient         *http.Client
 	downloadHTTPClient *http.Client
+	githubToken        string
 }
 
 type githubReleaseClientError struct {
@@ -30,6 +31,10 @@ type githubReleaseClientError struct {
 //   - false（默认）：返回错误占位客户端，禁止回退到直连
 //   - true：回退到直连（仅限管理员显式开启）
 func NewGitHubReleaseClient(proxyURL string, allowDirectOnProxyError bool) service.GitHubReleaseClient {
+	return NewGitHubReleaseClientWithToken(proxyURL, allowDirectOnProxyError, "")
+}
+
+func NewGitHubReleaseClientWithToken(proxyURL string, allowDirectOnProxyError bool, githubToken string) service.GitHubReleaseClient {
 	// 安全说明：httpclient.GetClient 的错误链（url.Parse / proxyutil）不含明文代理凭据，
 	// 但仍通过 slog 仅在服务端日志记录，不会暴露给 HTTP 响应。
 	sharedClient, err := httpclient.GetClient(httpclient.Options{
@@ -60,6 +65,7 @@ func NewGitHubReleaseClient(proxyURL string, allowDirectOnProxyError bool) servi
 	return &githubReleaseClient{
 		httpClient:         sharedClient,
 		downloadHTTPClient: downloadClient,
+		githubToken:        strings.TrimSpace(githubToken),
 	}
 }
 
@@ -88,6 +94,7 @@ func (c *githubReleaseClient) FetchLatestRelease(ctx context.Context, repo strin
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("User-Agent", "Sub2API-Updater")
+	c.setGitHubAPIHeaders(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -119,6 +126,7 @@ func (c *githubReleaseClient) FetchReleases(ctx context.Context, repo string, li
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("User-Agent", "Sub2API-Updater")
+	c.setGitHubAPIHeaders(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -202,4 +210,12 @@ func (c *githubReleaseClient) FetchChecksumFile(ctx context.Context, url string)
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+func (c *githubReleaseClient) setGitHubAPIHeaders(req *http.Request) {
+	if c == nil || req == nil || c.githubToken == "" {
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+c.githubToken)
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 }

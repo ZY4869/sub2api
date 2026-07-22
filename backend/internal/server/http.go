@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
+	pkgip "github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -58,8 +60,41 @@ func ProvideRouter(
 			log.Printf("Warning: server.trusted_proxies is empty in release mode; client IP trust chain is disabled")
 		}
 	}
+	configureClientIPRuntime(cfg, settingService)
 
 	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg, redisClient, promptAudit, promptAuditAdmin, adminSecurity)
+}
+
+func configureClientIPRuntime(cfg *config.Config, settingService *service.SettingService) {
+	apply := func(settings *service.ClientIPSettings) {
+		if settings == nil {
+			settings = service.DefaultClientIPSettingsFromConfig(cfg)
+		}
+		pkgip.ConfigureClientIP(pkgip.ClientIPSettings{
+			Mode:           settings.Mode,
+			Headers:        append([]string(nil), settings.Headers...),
+			XFFHopIndex:    settings.XFFHopIndex,
+			TrustedProxies: append([]string(nil), cfg.Server.TrustedProxies...),
+		})
+	}
+	if settingService == nil {
+		apply(service.DefaultClientIPSettingsFromConfig(cfg))
+		return
+	}
+	if settings, err := settingService.GetClientIPSettings(context.Background()); err == nil {
+		apply(settings)
+	} else {
+		log.Printf("Failed to load client IP settings: %v", err)
+		apply(service.DefaultClientIPSettingsFromConfig(cfg))
+	}
+	settingService.SetOnUpdateCallback(func() {
+		settings, err := settingService.GetClientIPSettings(context.Background())
+		if err != nil {
+			log.Printf("Failed to reload client IP settings: %v", err)
+			return
+		}
+		apply(settings)
+	})
 }
 
 // ProvideHTTPServer 提供 HTTP 服务器
