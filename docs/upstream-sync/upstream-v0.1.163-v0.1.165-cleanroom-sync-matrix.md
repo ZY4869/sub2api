@@ -5,7 +5,7 @@
 - 真实上游参考：`Wei-Shaw/sub2api`
 - 上游基线：`v0.1.162=27f094e0960ebd8e52de7ff7e763c6fec2ff4057`
 - 上游增量：`v0.1.163=d0bdd7e771636a8d315f542cafd39484f39bd60c`、`v0.1.164=cd8bb98c44303b2c8f04c0da340447c992f0cb7d`、`v0.1.165=e9a58c1cb8b5ef626a75c93b4d953fde5e67aa29`
-- 本地基线：`0.1.407`
+- 本地基线：`0.1.408`
 - 执行方式：clean-room 本地重写；不执行 `git pull`、`git fetch`、merge、rebase、cherry-pick；不复制上游 LGPL/GPL/CLA 协议文本、源码片段、测试、README 许可文案、workflow、发布脚本或上游迁移编号。
 - 许可证决策：`LICENSE` 与 README 许可段继续保持 MIT-only。
 
@@ -13,7 +13,7 @@
 
 | 上游项 | 本地状态 | 本地处理 |
 |---|---|---|
-| 上游许可协议变化 | 明确排除 | 保留本地 MIT License 与 README MIT-only 许可段；`backend/internal/repository/release_guard_test.go` 校验 `0.1.407`、禁用 API docs 路由和运行代码无 copyleft/CLA 文本。 |
+| 上游许可协议变化 | 明确排除 | 保留本地 MIT License 与 README MIT-only 许可段；`backend/internal/repository/release_guard_test.go` 校验 `0.1.408`、禁用 API docs 路由和运行代码无 copyleft/CLA 文本。 |
 | 分组 `platform=composite` 与聚合路由 | 融合重写 | `backend/ent/schema/composite_model_route.go`、`backend/internal/server/routes/admin.go`、`backend/internal/service/openai_gateway_composite_runtime.go` 与 `backend/internal/service/openai_gateway_composite_runtime_test.go` 覆盖后台 GET/PUT/preview 与运行时解析；外部只用 `display_model_id`，`target_model_id` 仅内部转发。 |
 | 分组级 Live 开关 | 融合重写 | `backend/ent/schema/group.go` 的 `groups.allow_live` 默认关闭；`backend/internal/server/routes/gateway.go`、`backend/internal/handler/openai_gateway_handler_websocket.go` 和 `backend/internal/service/protocol_capability_matrix_test.go` 覆盖 `/v1/live`、`/backend-api/codex/realtime/calls`、组级允许检查与 request type。 |
 | OpenAI reasoning effort 分组策略 | 融合重写 | `backend/internal/service/group_reasoning_policy.go` 与 `backend/internal/service/group_reasoning_policy_test.go` 覆盖 `max_reasoning_effort`、`reasoning_effort_mappings`、别名、模型匹配和 `none < low < medium < high < xhigh < max` effective 约束；HTTP/WS 调用点在 OpenAI gateway 与 WS forwarder 中复用 `ApplyContextOpenAIReasoningPolicy`。 |
@@ -44,7 +44,7 @@
 ## 验证要点
 
 - `go generate ./ent` 只由 Ent schema 生成，不手工编辑 Ent 生成物。
-- release guard 校验 `MIT License`、`0.1.407`、无 `/api-docs/*` 或 `/admin/api-docs/*`、无 LGPL/GPL/CLA 文本进入运行代码、矩阵关键项存在。
+- release guard 校验 `MIT License`、`0.1.408`、无 `/api-docs/*` 或 `/admin/api-docs/*`、无 LGPL/GPL/CLA 文本进入运行代码、矩阵关键项存在。
 - release guard 明确禁止把 Ollama、Alipay 等无本地子系统项继续写成 `已覆盖`；`claude-opus-5` 必须有 registry、pricing、Bedrock、前端白名单和生成快照证据；图像 `quality` 必须有 `169_add_usage_log_image_quality.sql`、`usage_logs.image_quality`、DTO 和 UI 展示证据。
 - 前端后台分组 UI 只把 `composite` 暴露给分组管理；账号平台、渠道平台和通用筛选不扩展到 composite。
 - 公开模型枚举仍以 `display_model_id` 为外部 ID，`target_model_id` 仅用于后台配置和内部转发。

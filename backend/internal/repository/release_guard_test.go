@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const expectedReleaseVersion = "0.1.407"
+const expectedReleaseVersion = "0.1.408"
 
 func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	root := repositoryTestRepoRoot(t)
@@ -408,7 +408,7 @@ func TestUpstream163To165CleanroomMatrixAndLicenseGuards(t *testing.T) {
 		"`v0.1.163=d0bdd7e771636a8d315f542cafd39484f39bd60c`",
 		"`v0.1.164=cd8bb98c44303b2c8f04c0da340447c992f0cb7d`",
 		"`v0.1.165=e9a58c1cb8b5ef626a75c93b4d953fde5e67aa29`",
-		"本地基线：`0.1.407`",
+		"本地基线：`0.1.408`",
 		"clean-room 本地重写",
 		"不执行 `git pull`、`git fetch`、merge、rebase、cherry-pick",
 		"MIT-only",

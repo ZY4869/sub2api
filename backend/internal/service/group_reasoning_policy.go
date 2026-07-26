@@ -94,7 +94,6 @@ func ApplyGroupOpenAIReasoningPolicy(group *Group, resolution GatewayEffortResol
 	}
 	maxEffort := NormalizeOpenAIReasoningEffortSetting(group.MaxReasoningEffort)
 	if maxEffort != "" && effective != "" && compareOpenAIReasoningEffort(effective, maxEffort) > 0 {
-		effective = maxEffort
 		resolution.Effective = reasoningStringPtr(maxEffort)
 		if resolution.Raw == nil {
 			resolution.Raw = reasoningStringPtr(maxEffort)
