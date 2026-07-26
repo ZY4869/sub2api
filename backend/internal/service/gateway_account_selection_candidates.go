@@ -114,6 +114,23 @@ func (s *GatewayService) isAccountSchedulableForSelection(account *Account) bool
 	}
 	return account.IsSchedulable()
 }
+
+// RevalidateSelectionAccount 在长时间等待（如并发槽排队）后复查账号是否仍可调度。
+// 返回 nil 表示账号已不可调度（如管理端刚暂停），调用方应重新选号；
+// 缓存/DB 读取失败时放行原账号，避免基础设施抖动放大为选号失败。
+func (s *GatewayService) RevalidateSelectionAccount(ctx context.Context, account *Account) *Account {
+	if account == nil {
+		return nil
+	}
+	fresh, err := s.getSchedulableAccount(ctx, account.ID)
+	if err != nil || fresh == nil {
+		return account
+	}
+	if !s.isAccountSchedulableForSelection(fresh) {
+		return nil
+	}
+	return fresh
+}
 func (s *GatewayService) isAccountSchedulableForModelSelection(ctx context.Context, account *Account, requestedModel string) bool {
 	if account == nil {
 		return false

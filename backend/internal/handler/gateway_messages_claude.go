@@ -45,6 +45,12 @@ func (h *GatewayHandler) forwardGatewayMessagesClaude(c *gin.Context, req *gatew
 				return false
 			case gatewayMessagesAccountSlotStop:
 				return true
+			case gatewayMessagesAccountSlotRetrySelection:
+				// 等槽期间账号被暂停/停用，排除后重新选号。
+				if slot.account != nil {
+					fs.FailedAccountIDs[slot.account.ID] = struct{}{}
+				}
+				continue
 			}
 
 			queueRelease := h.acquireGatewayMessagesUserQueue(c, req, route, slot.account)

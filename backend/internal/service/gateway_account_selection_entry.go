@@ -353,6 +353,10 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		accountID := stickyAccountID
 		if accountID > 0 && !isExcluded(accountID) {
 			account, ok := accountByID[accountID]
+			if !ok && s.cache != nil {
+				// 粘性账号已不在候选池（如已被暂停），及时清理脏绑定避免每次请求空读。
+				_ = s.cache.DeleteSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
+			}
 			if ok {
 				clearSticky := shouldClearStickySession(account, requestedModel)
 				if clearSticky {

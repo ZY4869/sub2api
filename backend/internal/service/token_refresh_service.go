@@ -395,9 +395,17 @@ func (s *TokenRefreshService) postRefreshActions(ctx context.Context, account *A
 			slog.Debug("token_refresh.token_cache_invalidated", "account_id", account.ID)
 		}
 	}
-	// 同步更新调度器缓存，确保调度获取的 Account 对象包含最新的 credentials
+	// 同步更新调度器缓存，确保调度获取的 Account 对象包含最新的 credentials。
+	// 必须按 ID 从 DB 重读（credentials 在进入本函数前已落库）：刷新列表是周期
+	// 开始时的快照，直接回写会把期间管理端的暂停/停用状态覆盖回缓存。
 	if s.schedulerCache != nil {
-		if err := s.schedulerCache.SetAccount(ctx, account); err != nil {
+		fresh, freshErr := s.accountRepo.GetByID(ctx, account.ID)
+		if freshErr != nil || fresh == nil {
+			slog.Warn("token_refresh.sync_scheduler_cache_reload_failed",
+				"account_id", account.ID,
+				"error", freshErr,
+			)
+		} else if err := s.schedulerCache.SetAccount(ctx, fresh); err != nil {
 			slog.Warn("token_refresh.sync_scheduler_cache_failed",
 				"account_id", account.ID,
 				"error", err,

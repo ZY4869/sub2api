@@ -50,6 +50,9 @@ const (
 	gatewayMessagesAccountSlotReady gatewayMessagesAccountSlotResult = iota
 	gatewayMessagesAccountSlotStop
 	gatewayMessagesAccountSlotRetryGroup
+	// gatewayMessagesAccountSlotRetrySelection 表示等槽期间账号已不可调度，
+	// 调用方应把该账号加入排除列表后重新选号。
+	gatewayMessagesAccountSlotRetrySelection
 )
 
 type gatewayMessagesAccountSlot struct {

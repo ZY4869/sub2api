@@ -241,10 +241,12 @@ func (s *OpenAIGatewayService) TempUnscheduleFailoverError(ctx context.Context, 
 		return
 	}
 	if s.schedulerSnapshot != nil {
-		fresh := *account
-		fresh.TempUnschedulableUntil = &until
-		fresh.TempUnschedulableReason = reason
-		if err := s.schedulerSnapshot.UpdateAccountInCache(ctx, &fresh); err != nil {
+		// 从 DB 重读后再写缓存，避免请求期旧对象覆盖管理端刚更新的调度状态。
+		err := s.schedulerSnapshot.UpdateAccountRuntimeInCache(ctx, account.ID, func(fresh *Account) {
+			fresh.TempUnschedulableUntil = &until
+			fresh.TempUnschedulableReason = reason
+		})
+		if err != nil {
 			logger.FromContext(ctx).Warn(
 				"openai.transport_temp_unschedule_cache_update_failed",
 				zap.Int64("account_id", account.ID),

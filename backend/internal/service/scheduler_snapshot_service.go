@@ -18,6 +18,8 @@ import (
 var (
 	ErrSchedulerCacheNotReady   = errors.New("scheduler cache not ready")
 	ErrSchedulerFallbackLimited = errors.New("scheduler db fallback limited")
+
+	errSchedulerBucketRebuildLocked = errors.New("scheduler bucket rebuild locked")
 )
 
 const outboxEventTimeout = 2 * time.Minute
@@ -172,6 +174,26 @@ func (s *SchedulerSnapshotService) UpdateAccountInCache(ctx context.Context, acc
 		return nil
 	}
 	return s.cache.SetAccount(ctx, account)
+}
+
+// UpdateAccountRuntimeInCache 先按 ID 从 DB 重读账号、应用 mutate 后再写缓存。
+// 请求期持有的 Account 对象可能早于管理端的暂停/停用操作，整体回写会把
+// Schedulable 等管理状态覆盖回去（sched:acc:<id> 无 TTL，被污染后无法自愈）。
+func (s *SchedulerSnapshotService) UpdateAccountRuntimeInCache(ctx context.Context, accountID int64, mutate func(*Account)) error {
+	if s == nil || s.cache == nil || s.accountRepo == nil || accountID <= 0 {
+		return nil
+	}
+	fresh, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if fresh == nil {
+		return nil
+	}
+	if mutate != nil {
+		mutate(fresh)
+	}
+	return s.cache.SetAccount(ctx, fresh)
 }
 
 func (s *SchedulerSnapshotService) runInitialRebuild() {
@@ -543,7 +565,9 @@ func (s *SchedulerSnapshotService) rebuildBucket(ctx context.Context, bucket Sch
 		return err
 	}
 	if !ok {
-		return nil
+		// 抢不到锁说明其他实例正在重建，但其结果未必包含触发本次重建的变更；
+		// 返回错误让 outbox 不推进 watermark，下一轮轮询重试而非静默丢失。
+		return errSchedulerBucketRebuildLocked
 	}
 	if strings.TrimSpace(lockToken) != "" {
 		defer func() {

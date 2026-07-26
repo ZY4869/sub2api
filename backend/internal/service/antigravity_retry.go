@@ -646,16 +646,19 @@ func (s *AntigravityGatewayService) updateAccountModelRateLimitInCache(ctx conte
 	if s.schedulerSnapshot == nil || account == nil || modelKey == "" {
 		return
 	}
-	if account.Extra == nil {
-		account.Extra = make(map[string]any)
-	}
-	limits, _ := account.Extra["model_rate_limits"].(map[string]any)
-	if limits == nil {
-		limits = make(map[string]any)
-		account.Extra["model_rate_limits"] = limits
-	}
-	limits[modelKey] = map[string]any{"rate_limited_at": time.Now().UTC().Format(time.RFC3339), "rate_limit_reset_at": resetAt.UTC().Format(time.RFC3339)}
-	if err := s.schedulerSnapshot.UpdateAccountInCache(ctx, account); err != nil {
+	// 从 DB 重读后再写缓存：请求期对象可能早于管理端的暂停操作，整体回写会污染调度缓存。
+	err := s.schedulerSnapshot.UpdateAccountRuntimeInCache(ctx, account.ID, func(fresh *Account) {
+		if fresh.Extra == nil {
+			fresh.Extra = make(map[string]any)
+		}
+		limits, _ := fresh.Extra["model_rate_limits"].(map[string]any)
+		if limits == nil {
+			limits = make(map[string]any)
+			fresh.Extra["model_rate_limits"] = limits
+		}
+		limits[modelKey] = map[string]any{"rate_limited_at": time.Now().UTC().Format(time.RFC3339), "rate_limit_reset_at": resetAt.UTC().Format(time.RFC3339)}
+	})
+	if err != nil {
 		logger.LegacyPrintf("service.antigravity_gateway", "[antigravity-Forward] cache_update_failed account=%d model=%s err=%v", account.ID, modelKey, err)
 	}
 }

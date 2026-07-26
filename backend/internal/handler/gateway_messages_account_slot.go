@@ -76,6 +76,14 @@ func (h *GatewayHandler) acquireGatewayMessagesAccountSlot(
 			return gatewayMessagesAccountSlot{result: gatewayMessagesAccountSlotStop}
 		}
 		releaseWait()
+		// 等槽可长达数十秒，期间账号可能已被管理端暂停/停用，转发前必须复查。
+		if h.gatewayService.RevalidateSelectionAccount(c.Request.Context(), account) == nil {
+			req.reqLog.Warn("gateway.account_unschedulable_after_slot_wait", zap.Int64("account_id", account.ID), zap.Any("group_id", route.apiKey.GroupID))
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
+			return gatewayMessagesAccountSlot{account: account, result: gatewayMessagesAccountSlotRetrySelection}
+		}
 		if err := h.gatewayService.BindStickySession(c.Request.Context(), route.apiKey.GroupID, route.sessionKey, account.ID); err != nil {
 			req.reqLog.Warn("gateway.bind_sticky_session_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", route.apiKey.GroupID), zap.Error(err))
 		}
