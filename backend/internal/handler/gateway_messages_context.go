@@ -27,6 +27,11 @@ type gatewayMessagesRequest struct {
 	isClaudeCodeClient    bool
 	userWaitCounted       bool
 	userReleaseFunc       func()
+	// lastFailoverErr 记录跨分组 failover 时最后一次上游错误，
+	// 用于所有分组都耗尽后向客户端映射真实上游状态码，而不是笼统的 502。
+	lastFailoverErr      *service.UpstreamFailoverError
+	lastFailoverPlatform string
+	groupSwitchCount     int
 }
 
 type gatewayMessagesRoute struct {

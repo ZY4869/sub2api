@@ -98,10 +98,8 @@ func (h *GatewayHandler) handleGatewayMessagesSelectionError(
 	case FailoverCanceled:
 		return false, true
 	default:
-		if excludeSelectedGroup(req.excludedGroupIDs, route.apiKey) {
-			releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, route.apiKey)
-			h.selectionAccountOrFail(c, nil, req.streamStarted)
-			return false, true
+		if h.retryNextGatewayMessagesGroup(c, req, route, fs.LastFailoverErr, exhaustedPlatform) {
+			return true, false
 		}
 		releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, route.apiKey)
 		if fs.LastFailoverErr != nil {
@@ -128,13 +126,16 @@ func (h *GatewayHandler) handleGatewayMessagesGeminiForwardError(
 		case FailoverContinue:
 			return false, false
 		case FailoverExhausted:
-			if excludeSelectedGroup(req.excludedGroupIDs, route.apiKey) {
-				wroteFallback := h.ensureForwardErrorResponse(c, req.streamStarted)
-				h.submitGatewayMessagesFailedUsage(c, req, route.apiKey, route.subscription, account, nil, err)
-				req.reqLog.Error("gateway.forward_failed", append([]zap.Field{zap.Any("group_id", route.apiKey.GroupID)}, forwardFailedLogFields(account, wroteFallback, err)...)...)
-				return false, true
+			// 还有别的分组可试时交还外层重新选组；此处不落失败用量，
+			// 否则会提前释放计费 hold，影响后续分组的正常计费。
+			if h.retryNextGatewayMessagesGroup(c, req, route, fs.LastFailoverErr, service.PlatformGemini) {
+				return true, false
 			}
 			h.submitGatewayMessagesFailedUsage(c, req, route.apiKey, route.subscription, account, fs.LastFailoverErr, err)
+			req.reqLog.Error("gateway.forward_failed", append([]zap.Field{
+				zap.Any("group_id", route.apiKey.GroupID),
+				zap.Int("upstream_status", failoverErr.StatusCode),
+			}, forwardFailedLogFields(account, false, err)...)...)
 			h.handleFailoverExhausted(c, fs.LastFailoverErr, service.PlatformGemini, req.streamStarted)
 			return false, true
 		case FailoverCanceled:

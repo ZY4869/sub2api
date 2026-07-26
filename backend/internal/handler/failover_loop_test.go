@@ -687,10 +687,11 @@ func TestHandleSelectionExhausted(t *testing.T) {
 		require.Equal(t, FailoverExhausted, action)
 	})
 
-	t.Run("503且未耗尽_等待后返回Continue并清除失败列表", func(t *testing.T) {
+	t.Run("503且存在容量类失败账号_等待后返回Continue并放回该账号", func(t *testing.T) {
 		fs := NewFailoverState(3, false)
 		fs.LastFailoverErr = newTestFailoverErr(503, false, false)
 		fs.FailedAccountIDs[100] = struct{}{}
+		fs.LastStatusByAccount[100] = 503
 		fs.SwitchCount = 1
 
 		start := time.Now()
@@ -698,15 +699,72 @@ func TestHandleSelectionExhausted(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.Equal(t, FailoverContinue, action)
-		require.Empty(t, fs.FailedAccountIDs, "应清除失败账号列表")
+		require.Empty(t, fs.FailedAccountIDs, "容量类失败账号应被放回候选池")
+		require.Equal(t, 1, fs.SelectionBackoffCount)
 		require.GreaterOrEqual(t, elapsed, 1500*time.Millisecond, "应等待约 2s")
 		require.Less(t, elapsed, 5*time.Second)
 	})
 
-	t.Run("503但SwitchCount已超过MaxSwitches_返回Exhausted", func(t *testing.T) {
+	t.Run("529同样按容量类处理", func(t *testing.T) {
+		fs := NewFailoverState(3, false)
+		fs.LastFailoverErr = newTestFailoverErr(529, false, false)
+		fs.FailedAccountIDs[100] = struct{}{}
+		fs.LastStatusByAccount[100] = 529
+
+		action := fs.HandleSelectionExhausted(context.Background())
+		require.Equal(t, FailoverContinue, action)
+		require.Empty(t, fs.FailedAccountIDs)
+	})
+
+	t.Run("失败账号全为429时立即返回Exhausted不空等", func(t *testing.T) {
+		// 回归：429 账号被反复放回导致 429/503 乒乓、白等十几秒后返回 502
+		fs := NewFailoverState(10, false)
+		fs.LastFailoverErr = newTestFailoverErr(503, false, false)
+		fs.FailedAccountIDs[100] = struct{}{}
+		fs.LastStatusByAccount[100] = 429
+
+		start := time.Now()
+		action := fs.HandleSelectionExhausted(context.Background())
+		elapsed := time.Since(start)
+
+		require.Equal(t, FailoverExhausted, action)
+		require.Contains(t, fs.FailedAccountIDs, int64(100), "确定性失败账号应保持排除")
+		require.Less(t, elapsed, 100*time.Millisecond, "不应等待")
+	})
+
+	t.Run("混合失败时只放回容量类账号", func(t *testing.T) {
+		fs := NewFailoverState(10, false)
+		fs.LastFailoverErr = newTestFailoverErr(503, false, false)
+		fs.FailedAccountIDs[100] = struct{}{}
+		fs.LastStatusByAccount[100] = 429
+		fs.FailedAccountIDs[200] = struct{}{}
+		fs.LastStatusByAccount[200] = 503
+
+		action := fs.HandleSelectionExhausted(context.Background())
+
+		require.Equal(t, FailoverContinue, action)
+		require.Contains(t, fs.FailedAccountIDs, int64(100), "429 账号应保持排除")
+		require.NotContains(t, fs.FailedAccountIDs, int64(200), "503 账号应被放回")
+	})
+
+	t.Run("无失败账号时返回Exhausted", func(t *testing.T) {
 		fs := NewFailoverState(2, false)
 		fs.LastFailoverErr = newTestFailoverErr(503, false, false)
-		fs.SwitchCount = 3 // > MaxSwitches(2)
+
+		start := time.Now()
+		action := fs.HandleSelectionExhausted(context.Background())
+		elapsed := time.Since(start)
+
+		require.Equal(t, FailoverExhausted, action)
+		require.Less(t, elapsed, 100*time.Millisecond, "不应等待")
+	})
+
+	t.Run("退避轮数达上限后返回Exhausted", func(t *testing.T) {
+		fs := NewFailoverState(10, false)
+		fs.LastFailoverErr = newTestFailoverErr(503, false, false)
+		fs.FailedAccountIDs[100] = struct{}{}
+		fs.LastStatusByAccount[100] = 503
+		fs.SelectionBackoffCount = maxSelectionBackoffs
 
 		start := time.Now()
 		action := fs.HandleSelectionExhausted(context.Background())
@@ -719,6 +777,8 @@ func TestHandleSelectionExhausted(t *testing.T) {
 	t.Run("503但context已取消_返回Canceled", func(t *testing.T) {
 		fs := NewFailoverState(3, false)
 		fs.LastFailoverErr = newTestFailoverErr(503, false, false)
+		fs.FailedAccountIDs[100] = struct{}{}
+		fs.LastStatusByAccount[100] = 503
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -731,12 +791,14 @@ func TestHandleSelectionExhausted(t *testing.T) {
 		require.Less(t, elapsed, 100*time.Millisecond, "应立即返回")
 	})
 
-	t.Run("503且SwitchCount等于MaxSwitches_仍可重试", func(t *testing.T) {
-		fs := NewFailoverState(2, false)
-		fs.LastFailoverErr = newTestFailoverErr(503, false, false)
-		fs.SwitchCount = 2 // == MaxSwitches，条件是 <=，仍可重试
+	t.Run("HandleFailoverError记录账号最后一次上游状态码", func(t *testing.T) {
+		fs := NewFailoverState(5, false)
+		mock := &mockTempUnscheduler{}
 
-		action := fs.HandleSelectionExhausted(context.Background())
-		require.Equal(t, FailoverContinue, action)
+		fs.HandleFailoverError(context.Background(), mock, 100, "anthropic", newTestFailoverErr(429, false, false))
+		fs.HandleFailoverError(context.Background(), mock, 200, "anthropic", newTestFailoverErr(503, false, false))
+
+		require.Equal(t, 429, fs.LastStatusByAccount[100])
+		require.Equal(t, 503, fs.LastStatusByAccount[200])
 	})
 }

@@ -189,13 +189,16 @@ func (h *GatewayHandler) handleGatewayMessagesClaudeForwardError(
 		case FailoverContinue:
 			return false, false, false
 		case FailoverExhausted:
-			if excludeSelectedGroup(req.excludedGroupIDs, route.apiKey) {
-				wroteFallback := h.ensureForwardErrorResponse(c, req.streamStarted)
-				h.submitGatewayMessagesFailedUsage(c, req, route.apiKey, route.subscription, account, nil, err)
-				req.reqLog.Error("gateway.forward_failed", append([]zap.Field{zap.Any("group_id", route.apiKey.GroupID)}, forwardFailedLogFields(account, wroteFallback, err)...)...)
-				return false, false, true
+			// 还有别的分组可试时交还外层重新选组；此处不落失败用量，
+			// 否则会提前释放计费 hold，影响后续分组的正常计费。
+			if h.retryNextGatewayMessagesGroup(c, req, route, fs.LastFailoverErr, account.Platform) {
+				return false, true, false
 			}
 			h.submitGatewayMessagesFailedUsage(c, req, route.apiKey, route.subscription, account, fs.LastFailoverErr, err)
+			req.reqLog.Error("gateway.forward_failed", append([]zap.Field{
+				zap.Any("group_id", route.apiKey.GroupID),
+				zap.Int("upstream_status", failoverErr.StatusCode),
+			}, forwardFailedLogFields(account, false, err)...)...)
 			h.handleFailoverExhausted(c, fs.LastFailoverErr, account.Platform, req.streamStarted)
 			return false, false, true
 		case FailoverCanceled:

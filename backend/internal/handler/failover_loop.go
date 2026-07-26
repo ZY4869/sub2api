@@ -37,7 +37,18 @@ const (
 	// Service 层在 SingleAccountRetry 模式下已做充分原地重试（最多 3 次、总等待 30s），
 	// Handler 层只需短暂间隔后重新进入 Service 层即可。
 	singleAccountBackoffDelay = 2 * time.Second
+	// maxSelectionBackoffs 选号耗尽后的退避重试轮数上限。
+	// 容量类错误多为瞬时抖动，重试两轮仍不可用即认为该分组确实不可用，
+	// 避免把切换额度耗在同一批坏号上、让客户端白等。
+	maxSelectionBackoffs = 2
 )
+
+// isCapacityFailoverStatus 判断上游状态码是否属于"容量/瞬时不可用"类错误。
+// 这类错误值得退避后重试同一账号；而 401/403/429 属确定性失败，
+// 在同一次请求内重试只会白白消耗切换额度。
+func isCapacityFailoverStatus(statusCode int) bool {
+	return statusCode == http.StatusServiceUnavailable || statusCode == 529
+}
 
 // FailoverState 跨循环迭代共享的 failover 状态
 type FailoverState struct {
@@ -45,6 +56,10 @@ type FailoverState struct {
 	MaxSwitches           int
 	FailedAccountIDs      map[int64]struct{}
 	SameAccountRetryCount map[int64]int
+	// LastStatusByAccount 记录每个账号最后一次 failover 的上游状态码，
+	// 用于选号耗尽后只放回"容量类"失败的账号。
+	LastStatusByAccount   map[int64]int
+	SelectionBackoffCount int
 	LastFailoverErr       *service.UpstreamFailoverError
 	ForceCacheBilling     bool
 	hasBoundSession       bool
@@ -56,6 +71,7 @@ func NewFailoverState(maxSwitches int, hasBoundSession bool) *FailoverState {
 		MaxSwitches:           maxSwitches,
 		FailedAccountIDs:      make(map[int64]struct{}),
 		SameAccountRetryCount: make(map[int64]int),
+		LastStatusByAccount:   make(map[int64]int),
 		hasBoundSession:       hasBoundSession,
 	}
 }
@@ -91,8 +107,12 @@ func (s *FailoverState) HandleFailoverError(
 		gatewayService.TempUnscheduleRetryableError(ctx, accountID, failoverErr)
 	}
 
-	// 加入失败列表
+	// 加入失败列表，并记录该账号最后一次失败的上游状态码
 	s.FailedAccountIDs[accountID] = struct{}{}
+	if s.LastStatusByAccount == nil {
+		s.LastStatusByAccount = make(map[int64]int)
+	}
+	s.LastStatusByAccount[accountID] = failoverErr.StatusCode
 
 	// 缓存计费判断只在真实跨账号切换或耗尽路径上生效。
 	if needForceCacheBilling(s.hasBoundSession, failoverErr) {
@@ -125,33 +145,54 @@ func (s *FailoverState) HandleFailoverError(
 }
 
 // HandleSelectionExhausted 处理选号失败（所有候选账号都在排除列表中）时的退避重试决策。
-// 针对 Antigravity 单账号分组的 503 (MODEL_CAPACITY_EXHAUSTED) 场景：
-// 清除排除列表、等待退避后重新选号。
+// 触发条件是最后一次失败为容量类错误（503 MODEL_CAPACITY_EXHAUSTED / 529 overloaded），
+// 典型场景是 Antigravity 单账号分组，但对所有平台同样适用。
+//
+// 退避后只把"最后一次失败属容量类"的账号放回候选池；
+// 401/403/429 等确定性失败在本次请求内保持排除，避免与坏号来回乒乓耗尽切换额度。
 //
 // 返回 FailoverContinue 时，调用方应设置 SingleAccountRetry context 并 continue。
 // 返回 FailoverExhausted 时，调用方应返回错误响应。
 // 返回 FailoverCanceled 时，调用方应直接 return。
 func (s *FailoverState) HandleSelectionExhausted(ctx context.Context) FailoverAction {
-	if s.LastFailoverErr != nil &&
-		s.LastFailoverErr.StatusCode == http.StatusServiceUnavailable &&
-		s.SwitchCount <= s.MaxSwitches {
-
-		logger.FromContext(ctx).Warn("gateway.failover_single_account_backoff",
-			zap.Duration("backoff_delay", singleAccountBackoffDelay),
-			zap.Int("switch_count", s.SwitchCount),
-			zap.Int("max_switches", s.MaxSwitches),
-		)
-		if !sleepWithContext(ctx, singleAccountBackoffDelay) {
-			return FailoverCanceled
-		}
-		logger.FromContext(ctx).Warn("gateway.failover_single_account_retry",
-			zap.Int("switch_count", s.SwitchCount),
-			zap.Int("max_switches", s.MaxSwitches),
-		)
-		s.FailedAccountIDs = make(map[int64]struct{})
-		return FailoverContinue
+	if s.LastFailoverErr == nil ||
+		!isCapacityFailoverStatus(s.LastFailoverErr.StatusCode) ||
+		s.SelectionBackoffCount >= maxSelectionBackoffs {
+		return FailoverExhausted
 	}
-	return FailoverExhausted
+
+	retryable := make([]int64, 0, len(s.FailedAccountIDs))
+	for accountID := range s.FailedAccountIDs {
+		if isCapacityFailoverStatus(s.LastStatusByAccount[accountID]) {
+			retryable = append(retryable, accountID)
+		}
+	}
+	if len(retryable) == 0 {
+		return FailoverExhausted
+	}
+
+	logger.FromContext(ctx).Warn("gateway.failover_single_account_backoff",
+		zap.Duration("backoff_delay", singleAccountBackoffDelay),
+		zap.Int("switch_count", s.SwitchCount),
+		zap.Int("max_switches", s.MaxSwitches),
+		zap.Int("selection_backoff_count", s.SelectionBackoffCount),
+		zap.Int("retryable_accounts", len(retryable)),
+	)
+	if !sleepWithContext(ctx, singleAccountBackoffDelay) {
+		return FailoverCanceled
+	}
+	s.SelectionBackoffCount++
+	logger.FromContext(ctx).Warn("gateway.failover_single_account_retry",
+		zap.Int("switch_count", s.SwitchCount),
+		zap.Int("max_switches", s.MaxSwitches),
+		zap.Int("selection_backoff_count", s.SelectionBackoffCount),
+		zap.Int("selection_backoff_max", maxSelectionBackoffs),
+	)
+	for _, accountID := range retryable {
+		delete(s.FailedAccountIDs, accountID)
+		delete(s.LastStatusByAccount, accountID)
+	}
+	return FailoverContinue
 }
 
 // needForceCacheBilling 判断 failover 时是否需要强制缓存计费。

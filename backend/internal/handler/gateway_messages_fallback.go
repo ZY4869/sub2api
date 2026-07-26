@@ -9,6 +9,68 @@ import (
 	"go.uber.org/zap"
 )
 
+// maxGatewayMessagesGroupSwitches 单次请求内跨分组 failover 的次数上限，
+// 防止分组解析异常时外层循环无法收敛。
+const maxGatewayMessagesGroupSwitches = 8
+
+// hasAlternateGatewayMessagesGroup 判断排除掉当前分组后，该 API Key 是否还有别的分组可以尝试。
+// 公开模型目录会把请求钉死在绑定分组上，不参与跨分组 failover。
+func (h *GatewayHandler) hasAlternateGatewayMessagesGroup(c *gin.Context, req *gatewayMessagesRequest, apiKey *service.APIKey) bool {
+	if req.publicCatalogEntry != nil || apiKey == nil || apiKey.GroupID == nil {
+		return false
+	}
+	if !multiGroupRoutingEnabled(c.Request.Context(), req.apiKey, h.settingService) {
+		return false
+	}
+	for _, binding := range service.APIKeyBindingsForSelection(req.apiKey) {
+		if binding.GroupID == *apiKey.GroupID {
+			continue
+		}
+		if _, excluded := req.excludedGroupIDs[binding.GroupID]; excluded {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// retryNextGatewayMessagesGroup 记录跨分组 failover 状态，排除当前分组并判断是否还值得重试下一个分组。
+// 返回 true 时调用方应交还 runGatewayMessages 重新选组；
+// 返回 false 表示没有分组可换，调用方应直接用 handleFailoverExhausted 映射真实上游错误。
+func (h *GatewayHandler) retryNextGatewayMessagesGroup(
+	c *gin.Context,
+	req *gatewayMessagesRequest,
+	route *gatewayMessagesRoute,
+	failoverErr *service.UpstreamFailoverError,
+	platform string,
+) bool {
+	if failoverErr != nil {
+		req.lastFailoverErr = failoverErr
+		req.lastFailoverPlatform = platform
+	}
+	if req.groupSwitchCount >= maxGatewayMessagesGroupSwitches {
+		return false
+	}
+	if !h.hasAlternateGatewayMessagesGroup(c, req, route.apiKey) {
+		return false
+	}
+	if !excludeSelectedGroup(req.excludedGroupIDs, route.apiKey) {
+		return false
+	}
+	req.groupSwitchCount++
+	releaseHeldBillingHoldBeforeRetry(c.Request.Context(), h.apiKeyService, route.apiKey)
+	fields := []zap.Field{
+		zap.Any("group_id", route.apiKey.GroupID),
+		zap.Int("group_switch_count", req.groupSwitchCount),
+		zap.Int("group_switch_max", maxGatewayMessagesGroupSwitches),
+	}
+	if failoverErr != nil {
+		fields = append(fields, zap.Int("upstream_status", failoverErr.StatusCode))
+	}
+	req.reqLog.Warn("gateway.failover_switch_group", fields...)
+	return true
+}
+
 func (h *GatewayHandler) handleGatewayMessagesPromptTooLong(
 	c *gin.Context,
 	req *gatewayMessagesRequest,

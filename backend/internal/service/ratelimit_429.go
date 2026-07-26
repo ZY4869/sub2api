@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -91,11 +92,15 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 		}
 
 		// Anthropic 平台：没有限流重置时间的 429 可能是非真实限流（如 Extra usage required），
-		// 不标记账号限流状态，直接透传错误给客户端
+		// 因此不标记账号限流状态，改由 handler 层 failover 处理本次请求。
+		// 注意：账号仍留在可调度池中，如需针对此类 429 冷却账号，
+		// 请为该账号配置临时不可调度规则（temp_unschedulable_rules，error_code=429 + 关键词）。
 		if runtimePlatform == PlatformAnthropic {
 			slog.Warn("rate_limit_429_no_reset_time_skipped",
 				"account_id", account.ID,
 				"platform", runtimePlatform,
+				"upstream_error_code", ExtractUpstreamErrorCode(responseBody),
+				"upstream_request_id", strings.TrimSpace(headers.Get("x-request-id")),
 				"reason", "no rate limit reset time in headers, likely not a real rate limit")
 			return
 		}
